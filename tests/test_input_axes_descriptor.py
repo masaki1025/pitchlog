@@ -245,13 +245,14 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
     )
 
 
-def test_every_state_transition_axis_generates_coverage_obligations() -> None:
-    """理由だけのnon-finite軸を許さず全軸からcoverage座標を生成する。"""
+def test_every_input_axis_generates_coverage_obligations() -> None:
+    """理由だけのnon-finite軸を許さず全入力軸からcoverage座標を生成する。"""
     descriptor = _descriptor()
 
     assert all(
         checker.coverage_obligation_count(axis) > 0
-        for axis in descriptor["stateTransitionAxes"]
+        for collection_name in ("stateTransitionAxes", "gameEndAxes")
+        for axis in descriptor[collection_name]
     )
 
     zero_coverage = copy.deepcopy(descriptor)
@@ -324,14 +325,176 @@ def test_missing_source_clause_id_is_red() -> None:
         _validate(descriptor)
 
 
-def test_stage1_descriptor_keeps_future_sections_empty_and_has_no_forbidden_dependency() -> None:
-    """後続配列を先取りせずhistory-depthや外部ファイルを参照しない。"""
+def test_game_end_axes_match_d11_inventory_boundaries_and_sources() -> None:
+    """D-11の終了判定4軸を安全範囲・正負の境界値とともに収容する。"""
+    descriptor = _descriptor()
+    axes = {axis["axisId"]: axis for axis in descriptor["gameEndAxes"]}
+
+    assert {
+        axis_id: (
+            axis["sourceClauseId"],
+            axis["ruleFieldId"],
+            axis["classification"],
+        )
+        for axis_id, axis in axes.items()
+    } == {
+        "gameEnd.regulationInnings": (
+            "F-1",
+            "regulationInnings",
+            "boundary-partition",
+        ),
+        "gameEnd.coldConditions": (
+            "F-1",
+            "coldConditions",
+            "boundary-partition",
+        ),
+        "gameEnd.extensionLimit": (
+            "F-1",
+            "extensionLimit",
+            "boundary-partition",
+        ),
+        "gameEnd.tiebreak": ("F-1", "tiebreak", "boundary-partition"),
+    }
+    assert all(
+        source_id in SOURCE_CLAUSE_IDS
+        for axis in axes.values()
+        for source_id in [axis["sourceClauseId"], *axis["supportingClauseIds"]]
+    )
+    assert axes["gameEnd.regulationInnings"]["coverageBounds"] == [
+        {"dimension": "innings", "minimum": 1, "maximum": 99}
+    ]
+    assert axes["gameEnd.regulationInnings"]["boundaryValues"] == [1, 5, 7, 9, 99]
+    assert axes["gameEnd.regulationInnings"]["invalidBoundaryValues"] == [0, 100]
+    assert axes["gameEnd.coldConditions"]["coverageBounds"] == [
+        {"dimension": "pointDifference", "minimum": 1, "maximum": 99},
+        {"dimension": "startInning", "minimum": 1, "maximum": 99},
+        {"dimension": "tierCount", "minimum": 0, "maximum": 16},
+    ]
+    assert axes["gameEnd.coldConditions"]["boundaryValues"] == [
+        "tier-count:0",
+        "tier-count:1",
+        "tier-count:16",
+        "point-difference:1",
+        "point-difference:M-1",
+        "point-difference:M",
+        "point-difference:M+1",
+        "point-difference:99",
+        "start-inning:1",
+        "start-inning:N-1",
+        "start-inning:N",
+        "start-inning:N+1",
+        "start-inning:99",
+    ]
+    assert axes["gameEnd.coldConditions"]["invalidBoundaryValues"] == [
+        "tier-count:17",
+        "point-difference:0",
+        "point-difference:100",
+        "start-inning:0",
+        "start-inning:R+1",
+        "start-inning:100",
+    ]
+    assert axes["gameEnd.extensionLimit"]["boundaryValues"] == [
+        "none",
+        "finite:R",
+        "finite:R+1",
+        "finite:99",
+    ]
+    assert axes["gameEnd.extensionLimit"]["invalidBoundaryValues"] == [
+        "finite:R-1",
+        "finite:100",
+    ]
+    assert axes["gameEnd.tiebreak"]["boundaryValues"] == [
+        "none",
+        "start:R+1",
+        "start:L",
+        "start:99",
+    ]
+    assert axes["gameEnd.tiebreak"]["invalidBoundaryValues"] == [
+        "start:R",
+        "start:L+1-when-finite",
+        "start:100",
+    ]
+
+
+def test_f1_rule_fields_have_exactly_one_top_level_coverage_owner() -> None:
+    """F-1の5フィールドをcoverage4軸または非coverage1件へ一意に帰属させる。"""
+    descriptor = _descriptor()
+    coverage_fields = {
+        axis["ruleFieldId"] for axis in descriptor["gameEndAxes"]
+    }
+    non_coverage_fields = {
+        field["fieldId"] for field in descriptor["nonCoverageFields"]
+    }
+    top_level_non_coverage = {
+        field_id for field_id in non_coverage_fields if "." not in field_id
+    }
+
+    assert coverage_fields == {
+        "regulationInnings",
+        "coldConditions",
+        "extensionLimit",
+        "tiebreak",
+    }
+    assert non_coverage_fields == checker.EXPECTED_NON_COVERAGE_FIELDS
+    assert coverage_fields.isdisjoint(top_level_non_coverage)
+    assert coverage_fields | top_level_non_coverage == checker.EXPECTED_F1_RULE_FIELDS
+    assert all(
+        field["sourceClauseId"] == "F-1"
+        and field["supportingClauseIds"] == ["D-11"]
+        and field["reason"]
+        and field["schemaRetention"] == "required-by-projection"
+        for field in descriptor["nonCoverageFields"]
+    )
+
+    duplicate_owner = copy.deepcopy(descriptor)
+    duplicate_owner["gameEndAxes"][0]["ruleFieldId"] = "dh"
+    _with_digest(duplicate_owner)
+    with pytest.raises(
+        checker.DescriptorCheckError,
+        match="4軸またはF-1フィールド帰属がexact-set不一致",
+    ):
+        _validate(duplicate_owner)
+
+
+def test_game_end_combination_rules_are_pairwise_and_full_cross_product() -> None:
+    """規則フィールド間をペアワイズ、各境界と全状態・イベントを直積する。"""
+    descriptor = _descriptor()
+
+    assert descriptor["gameEndCombinationRules"] == {
+        "sourceClauseId": "D-11",
+        "ruleFieldCombination": "pairwise-all-game-end-axes",
+        "boundaryValueCombination": (
+            "full-cross-product-with-all-state-and-event-axes"
+        ),
+    }
+    assert "D-11" in SOURCE_CLAUSE_IDS
+
+
+def test_draw03_valid_and_invalid_tiebreak_boundaries_are_explicit() -> None:
+    """DRAW-03のR < 発動回かつ有限L以下を正負の境界で固定する。"""
+    descriptor = _descriptor()
+    axis = next(
+        axis
+        for axis in descriptor["gameEndAxes"]
+        if axis["axisId"] == "gameEnd.tiebreak"
+    )
+
+    assert {"none", "start:R+1", "start:L"} <= set(axis["boundaryValues"])
+    assert {"start:R", "start:L+1-when-finite"} <= set(
+        axis["invalidBoundaryValues"]
+    )
+    assert "DRAW-03" in axis["supportingClauseIds"]
+
+
+def test_stage1_descriptor_keeps_projection_rules_empty_and_has_no_forbidden_dependency() -> None:
+    """ステップ26を先取りせずhistory-depthや外部ファイルを参照しない。"""
     descriptor = _descriptor()
     raw_text = DESCRIPTOR_PATH.read_text(encoding="utf-8")
 
     assert descriptor["stateTransitionAxes"]
-    assert descriptor["gameEndAxes"] == []
-    assert descriptor["nonCoverageFields"] == []
+    assert len(descriptor["gameEndAxes"]) == 4
+    assert len(descriptor["nonCoverageFields"]) == 3
+    assert descriptor["gameEndCombinationRules"]
     assert descriptor["projectionRules"] == []
     assert descriptor["digestSpec"]["stage1ExternalReferences"] == "forbidden"
     assert set(checker.SOURCE_CLAUSE_PATHS) == {

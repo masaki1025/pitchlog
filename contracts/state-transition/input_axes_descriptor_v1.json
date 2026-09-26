@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:b62aa9810b34555bd5038b543e8a01b0e1e60923b12cea5f64314a7784b13825",
+  "digest": "sha256:dbeab9a758ed40498578d25337879c880767db991b43c7cb46da960c5ffd982e",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -289,7 +289,188 @@
       ]
     }
   ],
-  "gameEndAxes": [],
-  "nonCoverageFields": [],
+  "gameEndAxes": [
+    {
+      "axisId": "gameEnd.regulationInnings",
+      "sourceClauseId": "F-1",
+      "supportingClauseIds": [
+        "FR-014",
+        "DRAW-01",
+        "DRAW-03"
+      ],
+      "ruleFieldId": "regulationInnings",
+      "classification": "boundary-partition",
+      "coverageBounds": [
+        {
+          "dimension": "innings",
+          "minimum": 1,
+          "maximum": 99
+        }
+      ],
+      "boundaryValues": [
+        1,
+        5,
+        7,
+        9,
+        99
+      ],
+      "invalidBoundaryValues": [
+        0,
+        100
+      ]
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "sourceClauseId": "F-1",
+      "supportingClauseIds": [
+        "FR-014",
+        "COLD-01",
+        "COLD-02",
+        "COLD-03",
+        "COLD-04",
+        "COLD-05",
+        "COLD-06",
+        "COLD-07",
+        "COLD-08",
+        "COLD-09",
+        "DRAW-02"
+      ],
+      "ruleFieldId": "coldConditions",
+      "classification": "boundary-partition",
+      "coverageBounds": [
+        {
+          "dimension": "pointDifference",
+          "minimum": 1,
+          "maximum": 99
+        },
+        {
+          "dimension": "startInning",
+          "minimum": 1,
+          "maximum": 99
+        },
+        {
+          "dimension": "tierCount",
+          "minimum": 0,
+          "maximum": 16
+        }
+      ],
+      "boundaryValues": [
+        "tier-count:0",
+        "tier-count:1",
+        "tier-count:16",
+        "point-difference:1",
+        "point-difference:M-1",
+        "point-difference:M",
+        "point-difference:M+1",
+        "point-difference:99",
+        "start-inning:1",
+        "start-inning:N-1",
+        "start-inning:N",
+        "start-inning:N+1",
+        "start-inning:99"
+      ],
+      "invalidBoundaryValues": [
+        "tier-count:17",
+        "point-difference:0",
+        "point-difference:100",
+        "start-inning:0",
+        "start-inning:R+1",
+        "start-inning:100"
+      ]
+    },
+    {
+      "axisId": "gameEnd.extensionLimit",
+      "sourceClauseId": "F-1",
+      "supportingClauseIds": [
+        "DRAW-01",
+        "DRAW-03",
+        "DRAW-07",
+        "DRAW-08",
+        "DRAW-09",
+        "DRAW-10"
+      ],
+      "ruleFieldId": "extensionLimit",
+      "classification": "boundary-partition",
+      "coverageBounds": [
+        {
+          "dimension": "innings",
+          "minimum": 1,
+          "maximum": 99
+        }
+      ],
+      "boundaryValues": [
+        "none",
+        "finite:R",
+        "finite:R+1",
+        "finite:99"
+      ],
+      "invalidBoundaryValues": [
+        "finite:R-1",
+        "finite:100"
+      ]
+    },
+    {
+      "axisId": "gameEnd.tiebreak",
+      "sourceClauseId": "F-1",
+      "supportingClauseIds": [
+        "FR-009",
+        "DRAW-03"
+      ],
+      "ruleFieldId": "tiebreak",
+      "classification": "boundary-partition",
+      "coverageBounds": [
+        {
+          "dimension": "startInning",
+          "minimum": 1,
+          "maximum": 99
+        }
+      ],
+      "boundaryValues": [
+        "none",
+        "start:R+1",
+        "start:L",
+        "start:99"
+      ],
+      "invalidBoundaryValues": [
+        "start:R",
+        "start:L+1-when-finite",
+        "start:100"
+      ]
+    }
+  ],
+  "gameEndCombinationRules": {
+    "sourceClauseId": "D-11",
+    "ruleFieldCombination": "pairwise-all-game-end-axes",
+    "boundaryValueCombination": "full-cross-product-with-all-state-and-event-axes"
+  },
+  "nonCoverageFields": [
+    {
+      "fieldId": "dh",
+      "sourceClauseId": "F-1",
+      "supportingClauseIds": [
+        "D-11"
+      ],
+      "reason": "DH制は打順の構成に影響するが、F-1の終了条件の成立判定には参照されない",
+      "schemaRetention": "required-by-projection"
+    },
+    {
+      "fieldId": "tiebreak.runnerPlacement",
+      "sourceClauseId": "F-1",
+      "supportingClauseIds": [
+        "D-11"
+      ],
+      "reason": "走者配置はタイブレーク開始時の初期状態を定めるが、終了条件の判定には参照されない",
+      "schemaRetention": "required-by-projection"
+    },
+    {
+      "fieldId": "tiebreak.leadoffRule",
+      "sourceClauseId": "F-1",
+      "supportingClauseIds": [
+        "D-11"
+      ],
+      "reason": "先頭打者規則はタイブレーク開始時の初期状態を定めるが、終了条件の判定には参照されない",
+      "schemaRetention": "required-by-projection"
+    }
+  ],
   "projectionRules": []
 }

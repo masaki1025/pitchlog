@@ -11,6 +11,7 @@
     "digestSpec",
     "stateTransitionAxes",
     "gameEndAxes",
+    "gameEndCombinationRules",
     "nonCoverageFields",
     "projectionRules"
   ],
@@ -40,10 +41,15 @@
     },
     "gameEndAxes": {
       "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
       "uniqueItems": true,
       "items": {
         "$ref": "#/$defs/axis"
       }
+    },
+    "gameEndCombinationRules": {
+      "$ref": "#/$defs/gameEndCombinationRules"
     },
     "nonCoverageFields": {
       "type": "array",
@@ -175,6 +181,9 @@
         "supportingClauseIds": {
           "$ref": "#/$defs/supportingClauseIds"
         },
+        "ruleFieldId": {
+          "$ref": "#/$defs/ruleFieldId"
+        },
         "classification": {
           "$ref": "#/$defs/axisClassification",
           "const": "boundary-partition"
@@ -185,6 +194,22 @@
           "uniqueItems": true,
           "items": {
             "$ref": "#/$defs/descriptorValue"
+          }
+        },
+        "invalidBoundaryValues": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/descriptorValue"
+          }
+        },
+        "coverageBounds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/coverageBound"
           }
         }
       }
@@ -255,12 +280,64 @@
         "$ref": "#/$defs/sourceClauseId"
       }
     },
+    "ruleFieldId": {
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9]*(?:[._-][A-Za-z0-9]+)*$"
+    },
+    "coverageBound": {
+      "type": "object",
+      "required": [
+        "dimension",
+        "minimum",
+        "maximum"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "dimension": {
+          "type": "string",
+          "pattern": "^[a-z][A-Za-z0-9]*$"
+        },
+        "minimum": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maximum": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "gameEndCombinationRules": {
+      "type": "object",
+      "required": [
+        "sourceClauseId",
+        "ruleFieldCombination",
+        "boundaryValueCombination"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sourceClauseId": {
+          "$ref": "#/$defs/sourceClauseId"
+        },
+        "ruleFieldCombination": {
+          "type": "string",
+          "const": "pairwise-all-game-end-axes"
+        },
+        "boundaryValueCombination": {
+          "type": "string",
+          "const": "full-cross-product-with-all-state-and-event-axes"
+        }
+      }
+    },
     "nonCoverageField": {
       "type": "object",
       "required": [
         "fieldId",
         "sourceClauseId",
-        "reason"
+        "reason",
+        "schemaRetention"
       ],
       "additionalProperties": false,
       "properties": {
@@ -271,9 +348,16 @@
         "sourceClauseId": {
           "$ref": "#/$defs/sourceClauseId"
         },
+        "supportingClauseIds": {
+          "$ref": "#/$defs/supportingClauseIds"
+        },
         "reason": {
           "type": "string",
           "minLength": 1
+        },
+        "schemaRetention": {
+          "type": "string",
+          "const": "required-by-projection"
         }
       }
     },

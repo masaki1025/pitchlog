@@ -30,6 +30,7 @@ EXPECTED_TOP_LEVEL_FIELDS = frozenset(
         "digestSpec",
         "stateTransitionAxes",
         "gameEndAxes",
+        "gameEndCombinationRules",
         "nonCoverageFields",
         "projectionRules",
     }
@@ -45,6 +46,18 @@ APPENDIX_HEADING_PATTERN = re.compile(r"^##\s+付録(?P<letter>[A-Z]):")
 APPENDIX_ITEM_PATTERN = re.compile(r"^(?P<number>\d+)\.\s+")
 STABLE_TABLE_CLAUSE_PATTERN = re.compile(
     r"^\s*\|\s*`(?P<clause_id>(?:COLD|DRAW|XMARK)-\d+)`\s*\|"
+)
+EXPECTED_GAME_END_AXIS_FIELDS = {
+    "gameEnd.regulationInnings": "regulationInnings",
+    "gameEnd.coldConditions": "coldConditions",
+    "gameEnd.extensionLimit": "extensionLimit",
+    "gameEnd.tiebreak": "tiebreak",
+}
+EXPECTED_F1_RULE_FIELDS = frozenset(
+    {"regulationInnings", "coldConditions", "extensionLimit", "tiebreak", "dh"}
+)
+EXPECTED_NON_COVERAGE_FIELDS = frozenset(
+    {"dh", "tiebreak.runnerPlacement", "tiebreak.leadoffRule"}
 )
 
 
@@ -391,6 +404,9 @@ def _validate_schema_contract(schema: Mapping[str, Any]) -> None:
         "projectionRule",
         "digestSpec",
         "supportingClauseIds",
+        "ruleFieldId",
+        "coverageBound",
+        "gameEndCombinationRules",
     }
     if not required_definitions <= set(definitions):
         missing = sorted(required_definitions - set(definitions))
@@ -432,6 +448,31 @@ def _validate_source_clause_ids(
                         f"{collection_name}[{index}]: {clause_id}"
                     )
 
+    non_coverage_fields = descriptor.get("nonCoverageFields")
+    if isinstance(non_coverage_fields, list):
+        for index, field_value in enumerate(non_coverage_fields):
+            if not isinstance(field_value, dict):
+                continue
+            cited_ids: list[object] = [field_value.get("sourceClauseId")]
+            supporting = field_value.get("supportingClauseIds", [])
+            if isinstance(supporting, list):
+                cited_ids.extend(supporting)
+            for clause_id in cited_ids:
+                if isinstance(clause_id, str) and clause_id not in source_clause_ids:
+                    raise DescriptorCheckError(
+                        "由来条文IDが正本に実在しない: "
+                        f"nonCoverageFields[{index}]: {clause_id}"
+                    )
+
+    combination_rules = descriptor.get("gameEndCombinationRules")
+    if isinstance(combination_rules, dict):
+        clause_id = combination_rules.get("sourceClauseId")
+        if isinstance(clause_id, str) and clause_id not in source_clause_ids:
+            raise DescriptorCheckError(
+                "由来条文IDが正本に実在しない: "
+                f"gameEndCombinationRules: {clause_id}"
+            )
+
 
 def coverage_obligation_count(axis: Mapping[str, Any]) -> int:
     """軸から展開すべきcoverage座標の件数を返す。
@@ -445,7 +486,10 @@ def coverage_obligation_count(axis: Mapping[str, Any]) -> int:
         return len(values) if isinstance(values, list) else 0
     if classification == "boundary-partition":
         values = axis.get("boundaryValues")
-        return len(values) if isinstance(values, list) else 0
+        invalid_values = axis.get("invalidBoundaryValues", [])
+        valid_count = len(values) if isinstance(values, list) else 0
+        invalid_count = len(invalid_values) if isinstance(invalid_values, list) else 0
+        return valid_count + invalid_count
     return 0
 
 
@@ -463,6 +507,119 @@ def _validate_coverage_obligations(descriptor: Mapping[str, Any]) -> None:
                 raise DescriptorCheckError(
                     f"coverage義務が0件の入力軸がある: {collection_name}: {axis_id}"
                 )
+
+
+def _validate_game_end_contract(descriptor: Mapping[str, Any]) -> None:
+    """F-1の終了判定軸・非coverage項目・組合せ規則を検証する。"""
+    game_end_axes = descriptor.get("gameEndAxes")
+    if not isinstance(game_end_axes, list):
+        return
+    axis_fields = {
+        axis.get("axisId"): axis.get("ruleFieldId")
+        for axis in game_end_axes
+        if isinstance(axis, dict)
+    }
+    if axis_fields != EXPECTED_GAME_END_AXIS_FIELDS:
+        raise DescriptorCheckError(
+            "gameEndAxesの4軸またはF-1フィールド帰属がexact-set不一致"
+        )
+    for axis in game_end_axes:
+        if not isinstance(axis, dict):
+            continue
+        if axis.get("classification") != "boundary-partition":
+            raise DescriptorCheckError("gameEndAxesは境界値・等価分割で閉じなければならない")
+        bounds = axis.get("coverageBounds")
+        if not isinstance(bounds, list) or not bounds:
+            raise DescriptorCheckError(
+                f"gameEndAxesの安全範囲がない: {axis.get('axisId')}"
+            )
+        dimensions = {
+            bound.get("dimension") for bound in bounds if isinstance(bound, dict)
+        }
+        if len(dimensions) != len(bounds):
+            raise DescriptorCheckError(
+                f"gameEndAxesの安全範囲dimensionが重複している: {axis.get('axisId')}"
+            )
+        for bound in bounds:
+            if not isinstance(bound, dict):
+                continue
+            minimum = bound.get("minimum")
+            maximum = bound.get("maximum")
+            if (
+                isinstance(minimum, int)
+                and not isinstance(minimum, bool)
+                and isinstance(maximum, int)
+                and not isinstance(maximum, bool)
+                and minimum > maximum
+            ):
+                raise DescriptorCheckError(
+                    f"gameEndAxesの安全範囲が逆転している: {axis.get('axisId')}"
+                )
+        valid_boundaries = axis.get("boundaryValues")
+        invalid_boundaries = axis.get("invalidBoundaryValues")
+        if isinstance(valid_boundaries, list) and isinstance(invalid_boundaries, list):
+            valid_canonical = {canonicalize_json(value) for value in valid_boundaries}
+            invalid_canonical = {
+                canonicalize_json(value) for value in invalid_boundaries
+            }
+            if valid_canonical & invalid_canonical:
+                raise DescriptorCheckError(
+                    f"gameEndAxesの有効・不正境界が重複している: {axis.get('axisId')}"
+                )
+
+    non_coverage_fields = descriptor.get("nonCoverageFields")
+    if not isinstance(non_coverage_fields, list):
+        return
+    non_coverage_ids = {
+        field.get("fieldId")
+        for field in non_coverage_fields
+        if isinstance(field, dict)
+    }
+    if non_coverage_ids != EXPECTED_NON_COVERAGE_FIELDS:
+        raise DescriptorCheckError("nonCoverageFieldsの3件がexact-set不一致")
+    if any(
+        field.get("schemaRetention") != "required-by-projection"
+        for field in non_coverage_fields
+        if isinstance(field, dict)
+    ):
+        raise DescriptorCheckError("nonCoverageFieldsはschemaへの射影保持が必須")
+
+    covered_top_level = set(axis_fields.values())
+    non_covered_top_level = {
+        field_id
+        for field_id in non_coverage_ids
+        if isinstance(field_id, str) and "." not in field_id
+    }
+    if covered_top_level & non_covered_top_level:
+        raise DescriptorCheckError("F-1フィールドがcoverageと非coverageへ重複帰属している")
+    if covered_top_level | non_covered_top_level != EXPECTED_F1_RULE_FIELDS:
+        raise DescriptorCheckError("F-1の5フィールドに未帰属または余分な帰属がある")
+
+    combination_rules = descriptor.get("gameEndCombinationRules")
+    if not isinstance(combination_rules, dict):
+        return
+    if combination_rules.get("ruleFieldCombination") != "pairwise-all-game-end-axes":
+        raise DescriptorCheckError("終了規則フィールドは全4軸のペアワイズでなければならない")
+    if (
+        combination_rules.get("boundaryValueCombination")
+        != "full-cross-product-with-all-state-and-event-axes"
+    ):
+        raise DescriptorCheckError(
+            "終了規則の各境界値は全状態軸・イベント軸と直積しなければならない"
+        )
+
+    tiebreak_axis = next(
+        axis
+        for axis in game_end_axes
+        if isinstance(axis, dict) and axis.get("axisId") == "gameEnd.tiebreak"
+    )
+    valid_tiebreak = set(tiebreak_axis.get("boundaryValues", []))
+    invalid_tiebreak = set(tiebreak_axis.get("invalidBoundaryValues", []))
+    if not {"none", "start:R+1", "start:L"} <= valid_tiebreak or not {
+        "start:R",
+        "start:L+1-when-finite",
+    } <= invalid_tiebreak:
+        raise DescriptorCheckError("タイブレーク開始回がDRAW-03の境界を覆っていない")
 
 
 def validate_descriptor_document(
@@ -485,6 +642,7 @@ def validate_descriptor_document(
     _walk_for_stage1_external_references(descriptor)
     _validate_source_clause_ids(descriptor, source_clause_ids)
     _validate_coverage_obligations(descriptor)
+    _validate_game_end_contract(descriptor)
     if "history-depth.json" in _canonical_json_text(descriptor):
         raise DescriptorCheckError("descriptorはhistory-depth.jsonを参照してはならない")
     expected_digest = compute_descriptor_digest(descriptor)
