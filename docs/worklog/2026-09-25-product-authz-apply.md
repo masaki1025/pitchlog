@@ -19,3 +19,11 @@ branch: feature/product-authz-apply
 
 ## 未決・次の一歩
 - **計画承認(2026-09-26・山田正輝)**。実装は TSK-431 の 7C(PR #78)のマージ後 — 計画書 4 節の関門を通してから /implement に入る
+
+## 関門 2 の下調べ(2026-09-26・PR #78 の head `20ef5fd` 時点 — マージ版で再確認する)
+
+- **記録形式は research.md 1 の見込みどおり**: 置き場 = `base-allowlist.json` の `baseline_control.history`(`history_authority: true` はこの資産だけ)/ v2(`declaration`・`movement_policy`・`external_snapshots`・`aspect` は実差分から機械導出して exact 一致)/ `acceptance_id = {repo}#{PR番号}`・PR 受理モードは検査器が強制 → **draft PR で番号を先に確定**(`docs/features/tenant-boundary-baseline/design.md` D1〜D4)
+- **外部ファイル(`external_files`)は 3 つ**: `scripts/check_tenant_boundary_bypass.py`・`scripts/frozen_history.py`・`.github/workflows/ci.yml`。**正例 fixture は入っていない** → A2 はこの 3 つに触れないので、新しい history-snapshot は要らない見込み
+- **`contract_revision` は PR #78 で 15**(research.md の「13→14」は古い)。A2 は 16 へ
+- **PR #80(TSK-440・迂回検査の条件 5・2 の射程)が先にマージされる** → 検査器が変わるので、マージ後に末端 2 関数の判定(TB005)への影響を確かめる
+- 現時点で計画の改訂を要する差は無い
