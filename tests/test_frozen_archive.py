@@ -90,14 +90,18 @@ def _current_references() -> frozenset[str]:
     )
 
 
-def test_current_mixed_history_has_18_unique_snapshot_references() -> None:
-    """現行の v1・v2 混在履歴から一意参照18件を再現する。"""
+def test_current_mixed_history_has_26_unique_snapshot_references() -> None:
+    """現行の v1・v2 混在履歴から一意参照26件を再現する。"""
     history = _current_history()
-    assert [record.get("record_schema_version", 1) for record in history] == [1, 2]
+    assert [record.get("record_schema_version", 1) for record in history] == [
+        1,
+        2,
+        2,
+    ]
 
     references = archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)
 
-    assert len(references) == 18
+    assert len(references) == 26
     assert references <= {path.name for path in SNAPSHOT_ROOT.iterdir()}
 
 
@@ -105,7 +109,7 @@ def test_added_aspect_is_red_after_current_table_is_green(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """ASPECT_NAMES の第5キー追加を抽出表の未更新として拒否する。"""
-    assert len(_current_references()) == 18
+    assert len(_current_references()) == 26
     monkeypatch.setattr(
         archive.frozen_history,
         "ASPECT_NAMES",
@@ -130,7 +134,7 @@ def test_reversed_aspect_classification_is_red_after_current_table_is_green(
     aspect: str,
 ) -> None:
     """4キーそれぞれの参照分類反転を exact-map 不一致として拒否する。"""
-    assert len(_current_references()) == 18
+    assert len(_current_references()) == 26
     mutated = dict(archive.ASPECT_REFERENCE_KINDS)
     current = mutated[aspect]
     mutated[aspect] = (
@@ -166,7 +170,7 @@ def test_v1_record_forced_through_v2_shape_is_red_after_mixed_history_is_green()
     history = _current_history()
     assert len(
         archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)
-    ) == 18
+    ) == 26
     history[0]["record_schema_version"] = 2
 
     with pytest.raises(archive.ContractError, match="キー集合が不一致"):
@@ -178,7 +182,7 @@ def test_missing_v2_snapshot_ref_is_red_after_current_history_is_green() -> None
     history = _current_history()
     assert len(
         archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)
-    ) == 18
+    ) == 26
     del history[1]["change"]["before"]["external_snapshots"][0][
         "snapshot_ref"
     ]
@@ -269,3 +273,203 @@ def test_import_direction_is_only_frozen_archive_to_frozen_history() -> None:
     assert "frozen_history" in imported_modules(archive_tree)
     assert "frozen_archive" not in imported_modules(history_tree)
     assert dict(archive.RECORD_REFERENCE_EXTRACTORS) == {}
+
+
+def _snapshot_item_at_path(digest: str, path: str) -> dict[str, str]:
+    """任意 path を持つ有効な v2 snapshot 行を作る。"""
+    item = _snapshot_item(digest)
+    item["path"] = path
+    return item
+
+
+def _v2_history_with_items(
+    items: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    """複数の snapshot 行を持つ最小 v2 履歴を作る。"""
+    history = _v2_history()
+    for side in ("before", "after"):
+        history[0]["change"][side]["external_snapshots"] = copy.deepcopy(items)
+    return history
+
+
+def test_current_archive_metrics_are_within_limits() -> None:
+    """現況55件と既存孤児29件を比較元相対の予算内として受理する。"""
+    comparison = archive.validate_snapshot_archive_limits(
+        _current_history(),
+        _current_history(),
+        base_snapshot_root=SNAPSHOT_ROOT,
+        head_snapshot_root=SNAPSHOT_ROOT,
+    )
+
+    expected = archive.SnapshotArchiveMetrics(
+        snapshot_count=55,
+        snapshot_bytes=1_853_842,
+        orphan_count=29,
+        orphan_bytes=1_021_201,
+    )
+    assert archive.SNAPSHOT_COUNT_LIMIT == 500
+    assert archive.SNAPSHOT_BYTES_LIMIT == 33_554_432
+    assert comparison.base == expected
+    assert comparison.head == expected
+
+
+def test_snapshot_count_over_limit_is_red_after_exact_limit_is_green(
+    tmp_path: Path,
+) -> None:
+    """snapshot 総件数は500件を受理し、501件を拒否する。"""
+    base_root = tmp_path / "base"
+    head_root = tmp_path / "head"
+    base_root.mkdir()
+    items: list[dict[str, str]] = []
+    for index in range(archive.SNAPSHOT_COUNT_LIMIT):
+        digest = _write_snapshot(head_root, f"snapshot {index}\n".encode())
+        items.append(
+            _snapshot_item_at_path(digest, f"scripts/snapshot-{index}.py")
+        )
+
+    comparison = archive.validate_snapshot_archive_limits(
+        _v2_history(),
+        _v2_history_with_items(items),
+        base_snapshot_root=base_root,
+        head_snapshot_root=head_root,
+    )
+    assert comparison.head.snapshot_count == archive.SNAPSHOT_COUNT_LIMIT
+    assert comparison.head.orphan_count == 0
+
+    digest = _write_snapshot(head_root, b"snapshot over count limit\n")
+    items.append(_snapshot_item_at_path(digest, "scripts/over-count-limit.py"))
+    with pytest.raises(archive.ContractError, match="件数が予算を超過"):
+        archive.validate_snapshot_archive_limits(
+            _v2_history(),
+            _v2_history_with_items(items),
+            base_snapshot_root=base_root,
+            head_snapshot_root=head_root,
+        )
+
+
+def test_snapshot_bytes_over_limit_is_red_after_exact_limit_is_green(
+    tmp_path: Path,
+) -> None:
+    """snapshot 総バイト数は32 MiBを受理し、1バイト超過を拒否する。"""
+    base_root = tmp_path / "base"
+    head_root = tmp_path / "head"
+    base_root.mkdir()
+    exact_digest = _write_snapshot(
+        head_root,
+        b"x" * archive.SNAPSHOT_BYTES_LIMIT,
+    )
+    exact_history = _v2_history(_snapshot_item(exact_digest))
+
+    comparison = archive.validate_snapshot_archive_limits(
+        _v2_history(),
+        exact_history,
+        base_snapshot_root=base_root,
+        head_snapshot_root=head_root,
+    )
+    assert comparison.head.snapshot_bytes == archive.SNAPSHOT_BYTES_LIMIT
+    assert comparison.head.orphan_bytes == 0
+
+    (head_root / exact_digest).unlink()
+    over_digest = _write_snapshot(
+        head_root,
+        b"y" * (archive.SNAPSHOT_BYTES_LIMIT + 1),
+    )
+    with pytest.raises(archive.ContractError, match="総バイト数が予算を超過"):
+        archive.validate_snapshot_archive_limits(
+            _v2_history(),
+            _v2_history(_snapshot_item(over_digest)),
+            base_snapshot_root=base_root,
+            head_snapshot_root=head_root,
+        )
+
+
+def test_orphan_count_increase_is_red_after_29_orphans_are_green(
+    tmp_path: Path,
+) -> None:
+    """比較元と同じ孤児29件を受理し、1件の増加を拒否する。"""
+    base_root = tmp_path / "base"
+    head_root = tmp_path / "head"
+    for index in range(29):
+        content = f"grandfathered orphan {index}\n".encode()
+        _write_snapshot(base_root, content)
+        _write_snapshot(head_root, content)
+
+    comparison = archive.validate_snapshot_archive_limits(
+        _v2_history(),
+        _v2_history(),
+        base_snapshot_root=base_root,
+        head_snapshot_root=head_root,
+    )
+    assert comparison.base.orphan_count == 29
+    assert comparison.head.orphan_count == 29
+
+    _write_snapshot(head_root, b"new orphan\n")
+    with pytest.raises(archive.ContractError, match="孤児 snapshot 件数"):
+        archive.validate_snapshot_archive_limits(
+            _v2_history(),
+            _v2_history(),
+            base_snapshot_root=base_root,
+            head_snapshot_root=head_root,
+        )
+
+
+def test_orphan_bytes_increase_is_red_after_equal_bytes_are_green(
+    tmp_path: Path,
+) -> None:
+    """孤児件数が同じでも比較元より総バイト数が増えれば拒否する。"""
+    base_root = tmp_path / "base"
+    head_root = tmp_path / "head"
+    base_digest = _write_snapshot(base_root, b"0123456789")
+    head_digest = _write_snapshot(head_root, b"0123456789")
+
+    comparison = archive.validate_snapshot_archive_limits(
+        _v2_history(),
+        _v2_history(),
+        base_snapshot_root=base_root,
+        head_snapshot_root=head_root,
+    )
+    assert comparison.base.orphan_bytes == 10
+    assert comparison.head.orphan_bytes == 10
+
+    (head_root / head_digest).unlink()
+    _write_snapshot(head_root, b"01234567890")
+    with pytest.raises(archive.ContractError, match="孤児 snapshot 総バイト数"):
+        archive.validate_snapshot_archive_limits(
+            _v2_history(),
+            _v2_history(),
+            base_snapshot_root=base_root,
+            head_snapshot_root=head_root,
+        )
+    assert (base_root / base_digest).is_file()
+
+
+def test_base_and_head_use_different_histories_and_snapshot_sets(
+    tmp_path: Path,
+) -> None:
+    """比較元とHEADをそれぞれの履歴・snapshot集合で独立に測定する。"""
+    base_root = tmp_path / "base"
+    head_root = tmp_path / "head"
+    base_reference = _write_snapshot(base_root, b"base referenced\n")
+    _write_snapshot(base_root, b"base orphan is larger\n")
+    head_reference = _write_snapshot(head_root, b"head referenced differs\n")
+    _write_snapshot(head_root, b"head orphan\n")
+
+    comparison = archive.validate_snapshot_archive_limits(
+        _v2_history(_snapshot_item(base_reference)),
+        _v2_history(_snapshot_item(head_reference)),
+        base_snapshot_root=base_root,
+        head_snapshot_root=head_root,
+    )
+
+    assert comparison.base == archive.SnapshotArchiveMetrics(
+        snapshot_count=2,
+        snapshot_bytes=38,
+        orphan_count=1,
+        orphan_bytes=22,
+    )
+    assert comparison.head == archive.SnapshotArchiveMetrics(
+        snapshot_count=2,
+        snapshot_bytes=36,
+        orphan_count=1,
+        orphan_bytes=12,
+    )

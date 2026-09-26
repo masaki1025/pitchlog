@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from types import MappingProxyType
@@ -17,6 +18,27 @@ if _SCRIPTS_DIR not in sys.path:
 import frozen_history  # noqa: E402
 
 ContractError = frozen_history.ContractError
+
+SNAPSHOT_COUNT_LIMIT = 500
+SNAPSHOT_BYTES_LIMIT = 33_554_432
+
+
+@dataclass(frozen=True)
+class SnapshotArchiveMetrics:
+    """単一 revision の snapshot archive の集計値を表す。"""
+
+    snapshot_count: int
+    snapshot_bytes: int
+    orphan_count: int
+    orphan_bytes: int
+
+
+@dataclass(frozen=True)
+class SnapshotArchiveComparison:
+    """比較元と HEAD の snapshot archive 集計値を表す。"""
+
+    base: SnapshotArchiveMetrics
+    head: SnapshotArchiveMetrics
 
 
 class AspectReferenceKind(StrEnum):
@@ -201,3 +223,84 @@ def extract_referenced_snapshot_names(
             _record_references(record, snapshots, record_location)
         )
     return frozenset(references)
+
+
+def _measure_snapshot_archive(
+    history: object,
+    snapshot_root: Path,
+    *,
+    location: str,
+) -> SnapshotArchiveMetrics:
+    """単一 revision の snapshot 件数・バイト数・孤児量を測定する。"""
+    references = extract_referenced_snapshot_names(
+        history,
+        snapshot_root,
+        location=location,
+    )
+    snapshots = frozen_history._read_snapshot_directory(
+        snapshot_root,
+        f"{location}.snapshots",
+    )
+    orphan_names = frozenset(snapshots) - references
+    return SnapshotArchiveMetrics(
+        snapshot_count=len(snapshots),
+        snapshot_bytes=sum(len(content) for content in snapshots.values()),
+        orphan_count=len(orphan_names),
+        orphan_bytes=sum(len(snapshots[name]) for name in orphan_names),
+    )
+
+
+def validate_snapshot_archive_limits(
+    base_history: object,
+    head_history: object,
+    *,
+    base_snapshot_root: Path,
+    head_snapshot_root: Path,
+) -> SnapshotArchiveComparison:
+    """HEAD の archive 量と比較元相対の孤児量を検証する。
+
+    Args:
+        base_history: 比較元 authority の ``baseline_control.history``。
+        head_history: HEAD authority の ``baseline_control.history``。
+        base_snapshot_root: 比較元の ``history-snapshots`` ディレクトリ。
+        head_snapshot_root: HEAD の ``history-snapshots`` ディレクトリ。
+
+    Returns:
+        比較元と HEAD をそれぞれ独立に測定した集計値。
+
+    Raises:
+        ContractError: HEAD の量が予算、または比較元の孤児量を超える場合。
+    """
+    base = _measure_snapshot_archive(
+        base_history,
+        base_snapshot_root,
+        location="比較元 baseline_control.history",
+    )
+    head = _measure_snapshot_archive(
+        head_history,
+        head_snapshot_root,
+        location="HEAD baseline_control.history",
+    )
+
+    if head.snapshot_count > SNAPSHOT_COUNT_LIMIT:
+        raise ContractError(
+            "HEAD history-snapshots の件数が予算を超過: "
+            f"actual={head.snapshot_count}, limit={SNAPSHOT_COUNT_LIMIT}"
+        )
+    if head.snapshot_bytes > SNAPSHOT_BYTES_LIMIT:
+        raise ContractError(
+            "HEAD history-snapshots の総バイト数が予算を超過: "
+            f"actual={head.snapshot_bytes}, limit={SNAPSHOT_BYTES_LIMIT}"
+        )
+    if head.orphan_count > base.orphan_count:
+        raise ContractError(
+            "HEAD の孤児 snapshot 件数が比較元から増加: "
+            f"base={base.orphan_count}, head={head.orphan_count}"
+        )
+    if head.orphan_bytes > base.orphan_bytes:
+        raise ContractError(
+            "HEAD の孤児 snapshot 総バイト数が比較元から増加: "
+            f"base={base.orphan_bytes}, head={head.orphan_bytes}"
+        )
+
+    return SnapshotArchiveComparison(base=base, head=head)

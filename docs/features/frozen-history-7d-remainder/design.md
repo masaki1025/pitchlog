@@ -388,6 +388,19 @@ check_tenant_boundary_bypass.py  ──┬──> frozen_archive.py ──> froz
 
 **隔離の適用範囲を実装前に決めること。** **後から一律に消すと、`不変量モードで代用しない`(本節の合格条件)と衝突する。**
 
+#### TSK-440 の前版比較機構との関係(**重複ではない** — NFR-018 の確認・2026-09-26)
+
+**TSK-440 が `test_generated_provenance_corpus_never_weakens_develop`(コーパス 712 ケース)を develop へ入れた。** **本タスクの 11 ケース manifest と重複しないことを原典で確認した。**
+
+| | TSK-440 の機構 | 本タスクの機構 |
+| --- | --- | --- |
+| **入力の種類** | **Python のソース片**(`_tenant_context_provenance_corpus()` が生成) | **合成 Git リポジトリ**(履歴・snapshot・二親 merge を持つ) |
+| **対象の検査面** | **TB007(テナント文脈の由来)の静的解析** | **履歴・アーカイブ・PR 受理の経路** |
+| **呼び方** | **プロセス内で `load_contract` と解析関数を直接呼ぶ** | **実 CLI を subprocess で PR 受理モードで呼ぶ** |
+| **比較元** | **`origin/develop`(可変参照)** | **固定 SHA `b4ae7394`**(可変参照を使わない — 敵対レビュー 2 周目 P1) |
+
+**入力の種類・検査面・呼び方のいずれも異なるので、同一ドメイン計算の重複実装には当たらない。** **440 の `_load_checker_from_revision` はモジュール 1 つを版から読む補助で、本タスクが要る「CLI + 依存資産 + 契約資産の一式を固定版で走らせる」には足りない**(作業木が要る)。**流用しない理由をここに記録する。**
+
 #### CI 相当のローカル再現(**合格条件**)
 
 **合成 event は `pull_request.number` / `base.ref` / `base.sha` / `head.sha` / `repository.full_name` を入れただけのもので足りる**(TSK-440 が確認済み)。
