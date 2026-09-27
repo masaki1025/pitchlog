@@ -21,7 +21,10 @@ from pitchlog.authz.product_catalog import (
 )
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+_SOURCE_ROOT = _REPOSITORY_ROOT / "backend/src"
 _SOURCE_PATH = _REPOSITORY_ROOT / "backend/src/pitchlog/authz/product_catalog.py"
+_TERMINAL_MODULE = "pitchlog.authz.product_catalog"
+_TERMINAL_NAME = "_fetch_catalog_rows"
 _EXPECTED_TERMINAL_SIGNATURE = (
     "_fetch_catalog_rows(connection: psycopg.Connection[Any], "
     "query_id: CatalogQueryId, params: tuple[object, ...]) -> "
@@ -76,9 +79,32 @@ def _as_psycopg_connection(
     return cast(psycopg.Connection[Any], connection)
 
 
-def _parse_source(source: str) -> ast.Module:
-    """製品カタログ検査ソースを AST として読む。"""
-    return ast.parse(source, filename=str(_SOURCE_PATH))
+def _module_name(source_root: Path, path: Path) -> str:
+    """Backend source のパスを import 可能なモジュール名へ変換する。"""
+    relative = path.relative_to(source_root).with_suffix("")
+    parts = list(relative.parts)
+    if parts[-1] == "__init__":
+        parts.pop()
+    return ".".join(parts)
+
+
+def _source_modules(source_root: Path) -> dict[str, tuple[Path, str]]:
+    """Source root 以下の全 Python モジュールを機械的に読む。"""
+    return {
+        _module_name(source_root, path): (path, path.read_text(encoding="utf-8"))
+        for path in source_root.rglob("*.py")
+    }
+
+
+def _dotted_name(node: ast.expr) -> str | None:
+    """Name/Attribute だけの式をドット区切り名へ戻す。"""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        prefix = _dotted_name(node.value)
+        if prefix is not None:
+            return f"{prefix}.{node.attr}"
+    return None
 
 
 def _function_ancestors(tree: ast.Module) -> dict[ast.AST, str]:
@@ -95,15 +121,63 @@ def _function_ancestors(tree: ast.Module) -> dict[ast.AST, str]:
     return result
 
 
-def _validate_terminal_boundary(source: str) -> None:
-    """末端のシグネチャ・参照集合・DB 呼び出し所属を検査する。"""
-    tree = _parse_source(source)
-    parents = {
-        child: parent
-        for parent in ast.walk(tree)
-        for child in ast.iter_child_nodes(parent)
-    }
+def _terminal_references(
+    module_name: str,
+    tree: ast.Module,
+) -> tuple[tuple[ast.expr, str], ...]:
+    """Import alias を解決して末端シンボルの全参照を返す。"""
+    direct_names = {_TERMINAL_NAME} if module_name == _TERMINAL_MODULE else set()
+    module_aliases: dict[str, str] = {}
+    target_parent, _, target_leaf = _TERMINAL_MODULE.rpartition(".")
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            imported_from = node.module
+            for alias in node.names:
+                local_name = alias.asname or alias.name
+                if imported_from == _TERMINAL_MODULE and alias.name == _TERMINAL_NAME:
+                    direct_names.add(local_name)
+                if imported_from == target_parent and alias.name == target_leaf:
+                    module_aliases[local_name] = _TERMINAL_MODULE
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == _TERMINAL_MODULE and alias.asname is not None:
+                    module_aliases[alias.asname] = _TERMINAL_MODULE
+
     ancestors = _function_ancestors(tree)
+    references: list[tuple[ast.expr, str]] = []
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Load)
+            and node.id in direct_names
+        ):
+            references.append((node, ancestors[node]))
+            continue
+        if not isinstance(node, ast.Attribute) or not isinstance(node.ctx, ast.Load):
+            continue
+        dotted = _dotted_name(node)
+        if dotted is None:
+            continue
+        root, separator, suffix = dotted.partition(".")
+        resolved = (
+            f"{module_aliases[root]}.{suffix}"
+            if separator and root in module_aliases
+            else dotted
+        )
+        if resolved == f"{_TERMINAL_MODULE}.{_TERMINAL_NAME}" or (
+            module_name == _TERMINAL_MODULE and node.attr == _TERMINAL_NAME
+        ):
+            references.append((node, ancestors[node]))
+    return tuple(references)
+
+
+def _validate_terminal_boundary(source_root: Path) -> None:
+    """全 backend/src で末端のシグネチャ・参照集合を検査する。"""
+    modules = _source_modules(source_root)
+    if _TERMINAL_MODULE not in modules:
+        raise AssertionError("製品カタログモジュールが存在しない")
+    source_path, source = modules[_TERMINAL_MODULE]
+    tree = ast.parse(source, filename=str(source_path))
     terminals = [
         node
         for node in tree.body
@@ -122,26 +196,24 @@ def _validate_terminal_boundary(source: str) -> None:
         raise AssertionError("製品カタログの DB 末端シグネチャが登録値と違う")
 
     references: list[str] = []
-    for node in ast.walk(tree):
-        is_name_reference = (
-            isinstance(node, ast.Name)
-            and isinstance(node.ctx, ast.Load)
-            and node.id == "_fetch_catalog_rows"
-        )
-        is_attribute_reference = (
-            isinstance(node, ast.Attribute)
-            and isinstance(node.ctx, ast.Load)
-            and node.attr == "_fetch_catalog_rows"
-        )
-        if not is_name_reference and not is_attribute_reference:
-            continue
-        parent = parents.get(node)
-        if not isinstance(parent, ast.Call) or parent.func is not node:
-            raise AssertionError("製品カタログの DB 末端が直接呼び出し以外で参照された")
-        references.append(ancestors[node])
-    if references != ["inspect_product_authz_catalog"]:
+    for observed_module, (path, module_source) in modules.items():
+        module_tree = ast.parse(module_source, filename=str(path))
+        parents = {
+            child: parent
+            for parent in ast.walk(module_tree)
+            for child in ast.iter_child_nodes(parent)
+        }
+        for node, function_name in _terminal_references(observed_module, module_tree):
+            parent = parents.get(node)
+            if not isinstance(parent, ast.Call) or parent.func is not node:
+                raise AssertionError(
+                    "製品カタログの DB 末端が直接呼び出し以外で参照された"
+                )
+            references.append(f"{observed_module}.{function_name}")
+    if references != ["pitchlog.authz.product_catalog.inspect_product_authz_catalog"]:
         raise AssertionError("製品カタログの DB 末端参照が exact-set でない")
 
+    ancestors = _function_ancestors(tree)
     for node in ast.walk(tree):
         if not (
             isinstance(node, ast.Call)
@@ -269,7 +341,7 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
 
 def test_fetch_terminal_has_registered_signature_and_one_exact_reference() -> None:
     """DB 末端は登録シグネチャを持ち、公開検査から 1 回だけ参照される。"""
-    _validate_terminal_boundary(_SOURCE_PATH.read_text(encoding="utf-8"))
+    _validate_terminal_boundary(_SOURCE_ROOT)
 
 
 @pytest.mark.parametrize(
@@ -279,15 +351,21 @@ def test_fetch_terminal_has_registered_signature_and_one_exact_reference() -> No
         pytest.param("product_catalog._fetch_catalog_rows", id="attribute"),
     ],
 )
-def test_adding_a_fetch_terminal_reference_is_red(extra_reference: str) -> None:
+def test_adding_a_fetch_terminal_reference_is_red(
+    extra_reference: str,
+    tmp_path: Path,
+) -> None:
     """DB 末端の名前・属性参照を 1 つ足す変異を拒否する。"""
     source = _SOURCE_PATH.read_text(encoding="utf-8")
     mutated = f"{source}\n_EXTRA_FETCHER = {extra_reference}\n"
+    target = tmp_path / "pitchlog/authz/product_catalog.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(mutated, encoding="utf-8")
     with pytest.raises(AssertionError, match="直接呼び出し"):
-        _validate_terminal_boundary(mutated)
+        _validate_terminal_boundary(tmp_path)
 
 
-def test_calling_fetch_terminal_through_an_alias_is_red() -> None:
+def test_calling_fetch_terminal_through_an_alias_is_red(tmp_path: Path) -> None:
     """公開検査が DB 末端を別名へ代入して呼ぶ変異を拒否する。"""
     source = _SOURCE_PATH.read_text(encoding="utf-8")
     mutated = source.replace(
@@ -295,8 +373,44 @@ def test_calling_fetch_terminal_through_an_alias_is_red() -> None:
         "            fetcher = _fetch_catalog_rows\n            rows = fetcher(\n",
         1,
     )
+    target = tmp_path / "pitchlog/authz/product_catalog.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(mutated, encoding="utf-8")
     with pytest.raises(AssertionError, match="直接呼び出し"):
-        _validate_terminal_boundary(mutated)
+        _validate_terminal_boundary(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "rogue_source",
+    [
+        pytest.param(
+            "from pitchlog.authz.product_catalog import "
+            "_fetch_catalog_rows as fetch\n\n"
+            "def rogue(connection, query_id, params):\n"
+            "    fetch(connection, query_id, params)\n",
+            id="from-import-alias",
+        ),
+        pytest.param(
+            "import pitchlog.authz.product_catalog as catalog\n\n"
+            "def rogue(connection, query_id, params):\n"
+            "    catalog._fetch_catalog_rows(connection, query_id, params)\n",
+            id="module-attribute",
+        ),
+    ],
+)
+def test_fetch_reference_from_another_backend_module_is_red(
+    rogue_source: str,
+    tmp_path: Path,
+) -> None:
+    """別モジュールから通常に import した末端参照も exact-set 違反になる。"""
+    target = tmp_path / "pitchlog/authz/product_catalog.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(_SOURCE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    rogue = tmp_path / "pitchlog/rogue.py"
+    rogue.write_text(rogue_source, encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="exact-set"):
+        _validate_terminal_boundary(tmp_path)
 
 
 def test_every_closed_query_id_selects_module_sql_and_bound_params() -> None:
