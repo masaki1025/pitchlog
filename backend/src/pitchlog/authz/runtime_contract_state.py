@@ -305,6 +305,30 @@ def evaluate_repository(
     return state, violations
 
 
+def product_asset_path_for_state(
+    state: RuntimeContractState,
+) -> Path | None:
+    """状態に対応する製品 DDL 資産のパスを返す。
+
+    Args:
+        state: 共有 API が判定したランタイム契約状態。
+
+    Returns:
+        未発効状態では staged パス、製品状態では最終パス。暫定状態では
+        製品資産が存在しないため ``None``。
+
+    Raises:
+        RuntimeContractError: 不正状態に製品資産の正本を選べない場合。
+    """
+    if state is RuntimeContractState.PENDING:
+        return STAGED_PRODUCT_ASSET
+    if state is RuntimeContractState.PRODUCT:
+        return PRODUCT_ASSET
+    if state is RuntimeContractState.PROVISIONAL:
+        return None
+    raise RuntimeContractError("不正状態では製品 DDL 資産の正本を選べません")
+
+
 def declaration_violations(asset: Mapping[str, object] | None) -> set[str]:
     """全状態に共通する宣言 D1〜D5 の違反 ID を返す。
 

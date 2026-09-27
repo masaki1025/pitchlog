@@ -28,11 +28,18 @@ from pitchlog.authz.product_control_access import (
     generate_helper_column_acl_sql,
     generate_membership_helper_sql,
 )
+from pitchlog.authz.runtime_contract_state import (
+    RuntimeContractState,
+    evaluate_repository,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
 _MIGRATION_VERSIONS = Path("backend/migrations/versions")
-_PROVISIONAL_CONTRACT = Path("contracts/tenant_boundary/runtime-authz-contract.json")
+_RUNTIME_CONTRACT = Path("contracts/tenant_boundary/runtime-authz-contract.json")
+_RUNTIME_CONTRACT_STATE, _RUNTIME_CONTRACT_VIOLATIONS = evaluate_repository(
+    _REPOSITORY_ROOT
+)
 _EXPECTED_DEPENDENCY_COLUMNS = frozenset(
     {
         ("tenants", "id"),
@@ -105,7 +112,7 @@ def _copy_static_inputs(root: Path) -> None:
         Path("contracts/authz/product/table-classification.json"),
         Path("contracts/authz/product/exposure-facts.json"),
         PRODUCT_SPEC.ddl_elements_path,
-        _PROVISIONAL_CONTRACT,
+        _RUNTIME_CONTRACT,
     )
     for relative_path in paths:
         destination = root / relative_path
@@ -397,19 +404,28 @@ def test_schema_qualified_coalesce_in_helper_body_is_rejected(
         _validate_product_asset(asset, root)
 
 
-def test_staged_protected_targets_are_the_declared_extension_only() -> None:
-    """Staged保護対象が暫定契約と理由付き追加分の和へ完全一致する。"""
+def test_protected_targets_match_the_repository_state() -> None:
+    """保護対象を未発効の和または製品資産の導出値へ完全照合する。"""
     asset = _product_asset()
     _validate_product_asset(asset)
-    _catalog_checker._validate_product_protected_targets(asset, _REPOSITORY_ROOT)
+    assert _RUNTIME_CONTRACT_VIOLATIONS == set()
+    _catalog_checker._validate_product_protected_targets_for_state(
+        asset,
+        _REPOSITORY_ROOT,
+        _RUNTIME_CONTRACT_STATE,
+    )
 
-    additions = asset["provisional_contract_additions"]
-    assert len(additions) == 6
-    assert {row["reason"] for row in additions} == {
-        "provisional_contract_gap",
-        "product_authz_private",
-        "product_authz_helper",
-    }
+    if _RUNTIME_CONTRACT_STATE is RuntimeContractState.PENDING:
+        additions = asset["provisional_contract_additions"]
+        assert len(additions) == 6
+        assert {row["reason"] for row in additions} == {
+            "provisional_contract_gap",
+            "product_authz_private",
+            "product_authz_helper",
+        }
+    else:
+        assert _RUNTIME_CONTRACT_STATE is RuntimeContractState.PRODUCT
+        assert "provisional_contract_additions" not in asset
 
     mutated = copy.deepcopy(asset)
     mutated["schemas"].append(
@@ -418,10 +434,11 @@ def test_staged_protected_targets_are_the_declared_extension_only() -> None:
             "schema_name": "undeclared_private",
         }
     )
-    with pytest.raises(_catalog_checker.CatalogError, match="宣言済み追加分"):
-        _catalog_checker._validate_product_protected_targets(
+    with pytest.raises(_catalog_checker.CatalogError):
+        _catalog_checker._validate_product_protected_targets_for_state(
             mutated,
             _REPOSITORY_ROOT,
+            _RUNTIME_CONTRACT_STATE,
         )
 
 

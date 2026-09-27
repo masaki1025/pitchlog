@@ -62,13 +62,14 @@ from pitchlog.authz.product_table_rls import (  # noqa: E402  # ty: ignore[unres
     generate_product_table_rls_sql,
 )
 from pitchlog.authz.runtime_contract_state import (  # noqa: E402  # ty: ignore[unresolved-import]
-    PRODUCT_ASSET,
+    PRODUCT_ASSET,  # noqa: F401 - harness が検査器モジュール経由で参照する。
     RUNTIME_CONTRACT_ASSET,
-    STAGED_PRODUCT_ASSET,
+    STAGED_PRODUCT_ASSET,  # noqa: F401 - harness が検査器モジュール経由で参照する。
     RuntimeContractState,
     compare_staged_protected_objects,
     derive_runtime_contract_fields,
     evaluate_repository,
+    product_asset_path_for_state,
     read_json_object,
 )
 
@@ -652,17 +653,6 @@ def _runtime_contract_state(root: Path) -> RuntimeContractState:
     if state is RuntimeContractState.INVALID:
         raise CatalogError("ランタイム契約の状態が不正: BOTH_STAGED_AND_FINAL")
     return state
-
-
-def _product_ddl_elements_path(
-    state: RuntimeContractState,
-) -> Path | None:
-    """状態に対応する製品 DDL manifest のパスを返す。"""
-    if state is RuntimeContractState.PENDING:
-        return STAGED_PRODUCT_ASSET
-    if state is RuntimeContractState.PRODUCT:
-        return PRODUCT_ASSET
-    return None
 
 
 def _runtime_contract_asset_path(root: Path) -> Path:
@@ -7395,7 +7385,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 for name, lock in locks.items():
                     _write_json(lock_paths[name], lock, f"{name} decision lock")
         oracle_result: dict[str, dict[str, object]] | None = None
-        product_ddl_path = _product_ddl_elements_path(runtime_state)
+        product_ddl_path = product_asset_path_for_state(runtime_state)
         should_validate_oracle = not args.skip_oracle and not (
             asset_spec == PRODUCT_SPEC and product_ddl_path is None
         )

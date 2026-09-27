@@ -12,9 +12,19 @@ from pitchlog.authz.runtime_contract_state import (
     PRODUCT_ASSET,
     RUNTIME_CONTRACT_ASSET,
     STAGED_PRODUCT_ASSET,
+    RuntimeContractState,
     asset_digest,
     derive_runtime_contract_fields,
+    evaluate_repository,
     render_runtime_contract,
+)
+
+PRODUCT_STATE_TEST_FILES = (
+    Path("backend/tests/test_authz_product_staging.py"),
+    Path("backend/tests/test_authz_product_function_acls.py"),
+    Path("backend/tests/test_authz_product_control_access.py"),
+    Path("backend/tests/test_authz_product_classification.py"),
+    Path("backend/tests/test_authz_runtime_contract.py"),
 )
 
 
@@ -28,20 +38,32 @@ def copy_product_repository(source_root: Path, destination_root: Path) -> Path:
     Returns:
         製品状態にした試験用リポジトリのルート。
     """
+    state, violations = evaluate_repository(source_root)
+    if violations:
+        raise AssertionError(f"複製元のランタイム契約が不正: {sorted(violations)}")
+    if state not in (RuntimeContractState.PENDING, RuntimeContractState.PRODUCT):
+        raise AssertionError(f"製品状態へ複製できない状態: {state.value}")
+
     runtime_target = destination_root / RUNTIME_CONTRACT_ASSET
     module_target = destination_root / GENERATED_MODULE
-    staged_target = destination_root / STAGED_PRODUCT_ASSET
     runtime_target.parent.mkdir(parents=True, exist_ok=True)
     module_target.parent.mkdir(parents=True, exist_ok=True)
-    staged_target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source_root / RUNTIME_CONTRACT_ASSET, runtime_target)
     shutil.copy2(source_root / GENERATED_MODULE, module_target)
-    shutil.copy2(source_root / STAGED_PRODUCT_ASSET, staged_target)
     (destination_root / ".git").write_text(
         "gitdir: test-worktree\n",
         encoding="utf-8",
     )
 
+    if state is RuntimeContractState.PRODUCT:
+        product_target = destination_root / PRODUCT_ASSET
+        product_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_root / PRODUCT_ASSET, product_target)
+        return destination_root
+
+    staged_target = destination_root / STAGED_PRODUCT_ASSET
+    staged_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_root / STAGED_PRODUCT_ASSET, staged_target)
     product_asset = _read_json(source_root / STAGED_PRODUCT_ASSET)
     product_asset.pop("pending_switch")
     product_asset.pop("provisional_contract_additions")
@@ -69,6 +91,59 @@ def copy_product_repository(source_root: Path, destination_root: Path) -> Path:
         encoding="utf-8",
     )
     return destination_root
+
+
+def copy_product_test_repository(
+    source_root: Path,
+    destination_root: Path,
+) -> Path:
+    """状態別試験を再実行できる製品状態の複製を作る。
+
+    Args:
+        source_root: 現在の実リポジトリのルート。
+        destination_root: 試験用リポジトリを作るディレクトリ。
+
+    Returns:
+        対象試験と静的入力を備えた製品状態の試験用リポジトリ。
+    """
+    shutil.copytree(source_root / "contracts", destination_root / "contracts")
+    shutil.copytree(source_root / "scripts", destination_root / "scripts")
+    shutil.copytree(source_root / "backend/src", destination_root / "backend/src")
+    shutil.copytree(
+        source_root / "backend/migrations",
+        destination_root / "backend/migrations",
+    )
+    data_model = Path("docs/design/data-model.md")
+    (destination_root / data_model).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_root / data_model, destination_root / data_model)
+    shutil.copy2(
+        source_root / "backend/pyproject.toml",
+        destination_root / "backend/pyproject.toml",
+    )
+    for relative_path in (
+        Path("backend/tests/conftest.py"),
+        Path("backend/tests/runtime_contract_repository.py"),
+        *PRODUCT_STATE_TEST_FILES,
+    ):
+        target = destination_root / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_root / relative_path, target)
+
+    repository = copy_product_repository(source_root, destination_root)
+    if evaluate_repository(source_root)[0] is RuntimeContractState.PENDING:
+        _activate_product_asset_spec(repository)
+    return repository
+
+
+def _activate_product_asset_spec(repository_root: Path) -> None:
+    """製品状態の複製で資産指定を最終パスへ切り替える。"""
+    spec_path = repository_root / "backend/src/pitchlog/authz/asset_spec.py"
+    source = spec_path.read_text(encoding="utf-8")
+    staged = f'ddl_elements_path=PurePosixPath("{STAGED_PRODUCT_ASSET.as_posix()}")'
+    final = f'ddl_elements_path=PurePosixPath("{PRODUCT_ASSET.as_posix()}")'
+    if source.count(staged) != 1:
+        raise AssertionError("製品資産の staged パスを一意に置換できない")
+    spec_path.write_text(source.replace(staged, final), encoding="utf-8")
 
 
 def _read_json(path: Path) -> dict[str, Any]:

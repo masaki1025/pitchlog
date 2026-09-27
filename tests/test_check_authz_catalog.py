@@ -246,7 +246,7 @@ def test_product_runtime_contract_state_is_accepted(tmp_path: Path) -> None:
     """最終パスと製品化したランタイム契約を検査器が受理する。"""
     root = _copy_product_catalog_repository(tmp_path)
     state = checker._runtime_contract_state(root)
-    product_path = checker._product_ddl_elements_path(state)
+    product_path = checker.product_asset_path_for_state(state)
     assert product_path == checker.PRODUCT_ASSET
 
     result = checker.validate_ddl_elements(
@@ -400,7 +400,7 @@ def test_provisional_state_has_no_product_ddl_path(tmp_path: Path) -> None:
     state = checker._runtime_contract_state(root)
 
     assert state is checker.RuntimeContractState.PROVISIONAL
-    assert checker._product_ddl_elements_path(state) is None
+    assert checker.product_asset_path_for_state(state) is None
 
 
 def _repository_derived_assets() -> tuple[

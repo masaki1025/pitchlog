@@ -21,6 +21,10 @@ from pitchlog.authz.product_function_acl import (
     product_function_id,
 )
 from pitchlog.authz.runtime_contract import PROTECTED_FUNCTIONS
+from pitchlog.authz.runtime_contract_state import (
+    RuntimeContractState,
+    evaluate_repository,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
@@ -47,6 +51,9 @@ _EXPECTED_GAPS = {
         "",
     ): "0024_players_identity_trigger",
 }
+_RUNTIME_CONTRACT_STATE, _RUNTIME_CONTRACT_VIOLATIONS = evaluate_repository(
+    _REPOSITORY_ROOT
+)
 
 
 def _load_catalog_checker() -> Any:
@@ -169,23 +176,63 @@ def _mutate_add_reasonless_gap(asset: dict[str, Any]) -> None:
     )
 
 
-def test_migration_function_acls_and_provisional_gaps_match_exactly() -> None:
-    """Migration 37関数と暫定契約との差4件が宣言へ完全一致する。"""
+def _mutate_restore_provisional_additions(asset: dict[str, Any]) -> None:
+    """製品状態へ廃止済みの暫定追加欄を戻す。"""
+    asset["provisional_contract_additions"] = []
+
+
+_DECLARATION_MUTATIONS = (
+    pytest.param(_mutate_add_unknown_function, id="unknown-function"),
+    pytest.param(_mutate_remove_function, id="function-removed"),
+    *(
+        (
+            pytest.param(_mutate_remove_gap, id="gap-removed"),
+            pytest.param(_mutate_add_reasonless_gap, id="reasonless-gap"),
+        )
+        if _RUNTIME_CONTRACT_STATE is RuntimeContractState.PENDING
+        else (
+            pytest.param(
+                _mutate_restore_provisional_additions,
+                id="provisional-additions-restored",
+            ),
+        )
+    ),
+)
+
+
+def test_migration_function_acls_and_runtime_contract_match_exactly() -> None:
+    """Migration 37関数と状態別ランタイム契約を完全照合する。"""
     asset = _product_asset()
     _validate_product_asset(asset)
 
     migration_origins = _catalog_checker._product_migration_functions(_REPOSITORY_ROOT)
     migration_functions = set(migration_origins)
-    provisional_functions = {
+    protected_functions = {
         (str(schema), str(name), str(identity_args))
         for schema, name, identity_args in PROTECTED_FUNCTIONS
     }
+    declared_functions = {
+        (
+            str(row["schema_name"]),
+            str(row["function_name"]),
+            str(row["identity_args"]),
+        )
+        for row in asset["functions"]
+    }
+    assert _RUNTIME_CONTRACT_VIOLATIONS == set()
     assert len(migration_functions) == 37
-    assert len(provisional_functions) == 33
-    assert migration_functions - provisional_functions == set(_EXPECTED_GAPS)
-    assert provisional_functions <= migration_functions
-    for physical_id, revision in _EXPECTED_GAPS.items():
-        assert revision in migration_origins[physical_id]
+    if _RUNTIME_CONTRACT_STATE is RuntimeContractState.PENDING:
+        assert len(protected_functions) == 33
+        assert migration_functions - protected_functions == set(_EXPECTED_GAPS)
+        assert protected_functions <= migration_functions
+        for physical_id, revision in _EXPECTED_GAPS.items():
+            assert revision in migration_origins[physical_id]
+    else:
+        assert _RUNTIME_CONTRACT_STATE is RuntimeContractState.PRODUCT
+        assert len(protected_functions) == 38
+        assert protected_functions == declared_functions
+        assert migration_functions < protected_functions
+        assert "provisional_contract_additions" not in asset
 
     functions = {
         function_id: row
@@ -214,21 +261,22 @@ def test_migration_function_acls_and_provisional_gaps_match_exactly() -> None:
             str(row["identity_args"]),
         )
 
-    additions = [
-        row
-        for row in asset["provisional_contract_additions"]
-        if row["reason"] == "provisional_contract_gap"
-    ]
-    assert isinstance(additions, list) and len(additions) == 4
-    assert {
-        (
-            str(row["schema_name"]),
-            str(row["object_name"]),
-            str(row["identity_args"]),
-        ): str(row["migration_revision"])
-        for row in additions
-    } == _EXPECTED_GAPS
-    assert all(row["reason"] == "provisional_contract_gap" for row in additions)
+    if _RUNTIME_CONTRACT_STATE is RuntimeContractState.PENDING:
+        additions = [
+            row
+            for row in asset["provisional_contract_additions"]
+            if row["reason"] == "provisional_contract_gap"
+        ]
+        assert isinstance(additions, list) and len(additions) == 4
+        assert {
+            (
+                str(row["schema_name"]),
+                str(row["object_name"]),
+                str(row["identity_args"]),
+            ): str(row["migration_revision"])
+            for row in additions
+        } == _EXPECTED_GAPS
+        assert all(row["reason"] == "provisional_contract_gap" for row in additions)
 
     statements = generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC)
     function_sql = {
@@ -248,12 +296,7 @@ def test_migration_function_acls_and_provisional_gaps_match_exactly() -> None:
 
 @pytest.mark.parametrize(
     "mutate",
-    [
-        pytest.param(_mutate_add_unknown_function, id="unknown-function"),
-        pytest.param(_mutate_remove_function, id="function-removed"),
-        pytest.param(_mutate_remove_gap, id="gap-removed"),
-        pytest.param(_mutate_add_reasonless_gap, id="reasonless-gap"),
-    ],
+    _DECLARATION_MUTATIONS,
 )
 def test_function_acl_declaration_mutations_are_rejected(
     mutate: Callable[[dict[str, Any]], None],
