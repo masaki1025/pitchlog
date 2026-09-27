@@ -164,7 +164,7 @@
         "values": [
           {
             "kind": "literal_commit_string",
-            "value": "0e51c31b9e8731c6f9c19a343c6d9f431822d0e3"
+            "value": "4d2312250678ba4fb2efd6d336d34f1db70ab36e"
           }
         ]
       },
@@ -223,9 +223,9 @@
         ]
       },
       "moved": false,
-      "reason": "要件書改訂へ追随した認可oracle入力資産を第1段コミットへ再封印するため",
+      "reason": "要件書v2.10改訂へ追随した認可oracle入力資産を第1段コミットへ再封印するため",
       "approved_by": "山田正輝",
-      "approved_at": "2026-09-26"
+      "approved_at": "2026-09-28"
     }
   ]
 }
