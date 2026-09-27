@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from collections.abc import Mapping, Sequence
@@ -637,20 +638,52 @@ def validate_three_way_parity(root: Path) -> ParityReport:
     )
 
 
-def check_repository(root: Path) -> ParityReport:
-    """3点突合に加え、PR比較元からの受理履歴が追記専用であることを検証する。"""
+def check_repository(
+    root: Path,
+    acceptance_context: freeze_checker.PullRequestAcceptanceContext | None = None,
+) -> ParityReport:
+    """3点突合と宣言不変量を検査し、指定時だけ受理遷移も検査する。"""
     report = validate_three_way_parity(root)
     descriptor, _ = _load_descriptor_assets(root)
     declaration = descriptor.get(freeze_checker.FREEZE_FIELD)
     if not isinstance(declaration, dict):
         raise ThreeWayParityError("descriptorから凍結基準宣言を取得できない")
     try:
-        freeze_checker.validate_repository_history(
-            root, DESCRIPTOR_PATH, declaration
+        validated = freeze_checker.validate_declaration(declaration)
+        freeze_checker.validate_implementation_correspondence(root, validated)
+        if acceptance_context is not None:
+            freeze_checker.validate_repository_history(
+                root, DESCRIPTOR_PATH, validated, acceptance_context
+            )
+    except freeze_checker.FreezeBaselineError as error:
+        raise ThreeWayParityError(
+            f"凍結基準宣言または受理履歴が不正: {error}"
+        ) from error
+    return report
+
+
+def _acceptance_context_from_environment(
+) -> freeze_checker.PullRequestAcceptanceContext:
+    """GitHub Actions が渡す event から受理比較文脈を取得する。"""
+    event_path_text = os.environ.get("GITHUB_EVENT_PATH")
+    if not event_path_text:
+        raise ThreeWayParityError(
+            "受理遷移検査にはGITHUB_EVENT_PATHが必要である"
+        )
+    try:
+        return freeze_checker.load_pull_request_acceptance_context(
+            Path(event_path_text)
         )
     except freeze_checker.FreezeBaselineError as error:
-        raise ThreeWayParityError(f"凍結基準受理履歴が不正: {error}") from error
-    return report
+        raise ThreeWayParityError(f"PR比較元eventが不正: {error}") from error
+
+
+def _ci_requests_acceptance() -> bool:
+    """GitHub event 名から CI で受理遷移を検査するか決める。"""
+    event_name = os.environ.get("GITHUB_EVENT_NAME")
+    if not event_name:
+        raise ThreeWayParityError("--ciにはGITHUB_EVENT_NAMEが必要である")
+    return event_name == "pull_request"
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -662,6 +695,22 @@ def _build_parser() -> argparse.ArgumentParser:
         default=Path(__file__).resolve().parents[1],
         help="リポジトリルート",
     )
+    modes = parser.add_mutually_exclusive_group(required=True)
+    modes.add_argument(
+        "--invariants-only",
+        action="store_true",
+        help="3点突合と宣言不変量だけを検査し、受理遷移は未検査と明示する",
+    )
+    modes.add_argument(
+        "--acceptance",
+        action="store_true",
+        help="GITHUB_EVENT_PATHのPR base SHAから受理遷移も検査する",
+    )
+    modes.add_argument(
+        "--ci",
+        action="store_true",
+        help="GITHUB_EVENT_NAMEに応じて受理遷移または不変量を検査する",
+    )
     return parser
 
 
@@ -669,10 +718,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     """3点突合を実行する。"""
     args = _build_parser().parse_args(argv)
     try:
-        check_repository(args.root.resolve())
+        acceptance_requested = (
+            _ci_requests_acceptance() if args.ci else args.acceptance
+        )
+        context = (
+            _acceptance_context_from_environment()
+            if acceptance_requested
+            else None
+        )
+        check_repository(args.root.resolve(), context)
     except ThreeWayParityError as error:
         print(f"input-axes-three-way-parity: ERROR: {error}", file=sys.stderr)
         return 1
+    if acceptance_requested:
+        print("input-axes-three-way-parity: acceptance transition OK")
+    else:
+        print(
+            "input-axes-three-way-parity: acceptance transition NOT CHECKED "
+            "(invariants-only)"
+        )
     print("input-axes-three-way-parity: OK")
     return 0
 

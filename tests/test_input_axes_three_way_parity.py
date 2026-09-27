@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -148,7 +149,13 @@ def _remove_single_line_containing(text: str, marker: str) -> str:
 def test_repository_three_way_parity_is_green() -> None:
     """実資産の3点突合が成功する。"""
     result = subprocess.run(
-        [sys.executable, str(SCRIPT), "--root", str(REPOSITORY_ROOT)],
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--root",
+            str(REPOSITORY_ROOT),
+            "--invariants-only",
+        ],
         cwd=REPOSITORY_ROOT,
         capture_output=True,
         text=True,
@@ -156,8 +163,104 @@ def test_repository_three_way_parity_is_green() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "input-axes-three-way-parity: OK\n"
+    assert result.stdout == (
+        "input-axes-three-way-parity: acceptance transition NOT CHECKED "
+        "(invariants-only)\n"
+        "input-axes-three-way-parity: OK\n"
+    )
     assert result.stderr == ""
+
+
+@pytest.mark.parametrize(
+    ("mode", "event_name"),
+    [("--acceptance", None), ("--ci", "pull_request")],
+)
+def test_repository_acceptance_uses_github_pull_request_base_sha(
+    tmp_path: Path, mode: str, event_name: str | None
+) -> None:
+    """PR eventのbase SHAから受理遷移を検査する。"""
+    base_sha = subprocess.run(
+        ["git", "rev-parse", "--verify", "origin/develop^{commit}"],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    head_sha = subprocess.run(
+        ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    event_path = tmp_path / "event.json"
+    event_path.write_text(
+        json.dumps(
+            {
+                "pull_request": {
+                    "number": 81,
+                    "base": {"sha": base_sha},
+                    "head": {"sha": head_sha},
+                },
+                "repository": {"full_name": "masaki1025/pitchlog"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    environment = os.environ.copy()
+    environment["GITHUB_EVENT_PATH"] = str(event_path)
+    if event_name is None:
+        environment.pop("GITHUB_EVENT_NAME", None)
+    else:
+        environment["GITHUB_EVENT_NAME"] = event_name
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--root",
+            str(REPOSITORY_ROOT),
+            mode,
+        ],
+        cwd=REPOSITORY_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "input-axes-three-way-parity: acceptance transition OK\n"
+        "input-axes-three-way-parity: OK\n"
+    )
+    assert result.stderr == ""
+
+
+def test_acceptance_without_github_event_is_fail_closed() -> None:
+    """受理モードで比較元eventが無ければ未検査を合格にしない。"""
+    environment = os.environ.copy()
+    environment.pop("GITHUB_EVENT_PATH", None)
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--root",
+            str(REPOSITORY_ROOT),
+            "--acceptance",
+        ],
+        cwd=REPOSITORY_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert result.stderr == (
+        "input-axes-three-way-parity: ERROR: "
+        "受理遷移検査にはGITHUB_EVENT_PATHが必要である\n"
+    )
 
 
 def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> None:

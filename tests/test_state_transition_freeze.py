@@ -6,6 +6,7 @@ import copy
 import importlib.util
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -48,12 +49,35 @@ def _declaration() -> dict[str, Any]:
     return value
 
 
+def _git_sha(root: Path, revision: str) -> str:
+    """テスト用リポジトリのrevisionを完全SHAへ解決する。"""
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", f"{revision}^{{commit}}"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
+def _repository_acceptance_context() -> Any:
+    """実リポジトリ用の外部PR受理文脈を返す。"""
+    return freeze_checker.PullRequestAcceptanceContext(
+        base_sha=_git_sha(REPOSITORY_ROOT, "origin/develop"),
+        head_sha=_git_sha(REPOSITORY_ROOT, "HEAD"),
+        repository="masaki1025/pitchlog",
+        number=81,
+    )
+
+
 def test_repository_history_is_one_append_from_origin_develop() -> None:
     """PR比較元で基準が無かった状態から受理記録1件だけを追記している。"""
     freeze_checker.validate_repository_history(
         REPOSITORY_ROOT,
         descriptor_checker.DESCRIPTOR_PATH,
         _declaration(),
+        _repository_acceptance_context(),
     )
 
 
@@ -78,6 +102,15 @@ def test_assurance_boundary_distinguishes_guaranteed_identity_from_review_scope(
     assert (
         boundary["mechanicallyGuaranteed"]["changeWithoutAcceptanceRecord"]
         == "fail"
+    )
+    assert boundary["mechanicallyGuaranteed"]["comparisonSource"] == (
+        "github-pull-request-event.pull_request.base.sha"
+    )
+    assert boundary["mechanicallyGuaranteed"]["missingComparisonSourceAction"] == (
+        "fail-in-acceptance-mode"
+    )
+    assert boundary["mechanicallyGuaranteed"]["localInvariantModeResult"] == (
+        "acceptance-transition-not-checked-explicit"
     )
     assert boundary["notMechanicallyGuaranteed"] == {
         "propertyId": "absence-of-undeclared-implementation-baselines",
@@ -128,9 +161,13 @@ def test_empty_criteria_is_fail_closed() -> None:
 
 
 def test_unresolvable_comparison_source_is_fail_closed() -> None:
-    """比較元refを解決できない場合は直前基準なしと推定せず拒否する。"""
-    declaration = copy.deepcopy(_declaration())
-    declaration["acceptance"]["baseRef"] = "refs/heads/not-existing-freeze-base"
+    """eventの比較元SHAを解決できない場合は直前基準なしと推定せず拒否する。"""
+    context = freeze_checker.PullRequestAcceptanceContext(
+        base_sha="0" * 40,
+        head_sha=_git_sha(REPOSITORY_ROOT, "HEAD"),
+        repository="masaki1025/pitchlog",
+        number=81,
+    )
 
     with pytest.raises(
         freeze_checker.FreezeBaselineError,
@@ -139,7 +176,79 @@ def test_unresolvable_comparison_source_is_fail_closed() -> None:
         freeze_checker.validate_repository_history(
             REPOSITORY_ROOT,
             descriptor_checker.DESCRIPTOR_PATH,
+            _declaration(),
+            context,
+        )
+
+
+def test_asset_cannot_self_report_comparison_source_across_two_commits(
+    tmp_path: Path,
+) -> None:
+    """2コミットで比較元を自己申告しても外部PR baseとの差を隠せない。"""
+    root = _copy_audited_sources(tmp_path)
+    descriptor_path = root / descriptor_checker.DESCRIPTOR_PATH
+    descriptor_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(REPOSITORY_ROOT / descriptor_checker.DESCRIPTOR_PATH, descriptor_path)
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "freeze-test@example.invalid"],
+        cwd=root,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "freeze test"], cwd=root, check=True
+    )
+    subprocess.run(["git", "add", "."], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
+    base_sha = _git_sha(root, "HEAD")
+
+    descriptor = json.loads(descriptor_path.read_text(encoding="utf-8"))
+    declaration = descriptor[freeze_checker.FREEZE_FIELD]
+    declaration["criteria"]["threeWayParity"]["branchCoverageExclusions"][
+        "DRAW-04"
+    ] = "改ざんした基準"
+    declaration["history"][0]["newIdentity"] = {
+        "present": True,
+        "values": freeze_checker.current_identities(declaration),
+    }
+    descriptor_path.write_text(
+        json.dumps(descriptor, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", str(descriptor_checker.DESCRIPTOR_PATH)], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "attack A"], cwd=root, check=True)
+    attack_a_sha = _git_sha(root, "HEAD")
+
+    declaration["acceptance"]["comparisonSource"] = f"asset:{attack_a_sha}"
+    declaration["scope"]["engineExpectedValues"]["acceptance"][
+        "comparisonSource"
+    ] = f"asset:{attack_a_sha}"
+    declaration["history"][0]["newIdentity"] = {
+        "present": True,
+        "values": freeze_checker.current_identities(declaration),
+    }
+    descriptor_path.write_text(
+        json.dumps(descriptor, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", str(descriptor_checker.DESCRIPTOR_PATH)], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "attack B"], cwd=root, check=True)
+
+    context = freeze_checker.PullRequestAcceptanceContext(
+        base_sha=base_sha,
+        head_sha=_git_sha(root, "HEAD"),
+        repository="masaki1025/pitchlog",
+        number=81,
+    )
+    with pytest.raises(
+        freeze_checker.FreezeBaselineError,
+        match="書き換えまたは削除",
+    ):
+        freeze_checker.validate_repository_history(
+            root,
+            descriptor_checker.DESCRIPTOR_PATH,
             declaration,
+            context,
         )
 
 

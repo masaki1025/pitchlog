@@ -8,6 +8,7 @@ import json
 import re
 import subprocess
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -17,6 +18,21 @@ ACCEPTANCE_ID_PATTERN = re.compile(r"^[^/#\s]+/[^/#\s]+#[1-9][0-9]*$")
 
 class FreezeBaselineError(Exception):
     """凍結基準宣言を検証できない、または不一致の場合を表す。"""
+
+
+@dataclass(frozen=True)
+class PullRequestAcceptanceContext:
+    """GitHub の pull_request event から得た受理遷移の比較文脈。"""
+
+    base_sha: str
+    head_sha: str
+    repository: str
+    number: int
+
+    @property
+    def acceptance_id(self) -> str:
+        """資産側の受理記録と照合する PR 識別子を返す。"""
+        return f"{self.repository}#{self.number}"
 
 
 def canonicalize(value: object) -> bytes:
@@ -172,8 +188,8 @@ def validate_declaration(value: object) -> dict[str, Any]:
         {
             "unit",
             "acceptanceIdSource",
-            "baseRef",
-            "baseCommit",
+            "comparisonSource",
+            "missingComparisonSourceAction",
             "posteriorState",
         },
         "freezeBaseline.acceptance",
@@ -183,7 +199,13 @@ def validate_declaration(value: object) -> dict[str, Any]:
         raise FreezeBaselineError("engineExpectedValues.acceptanceが不正")
     _require_exact_keys(
         acceptance_expected,
-        {"unit", "acceptanceIdSource", "posteriorState"},
+        {
+            "unit",
+            "acceptanceIdSource",
+            "comparisonSource",
+            "missingComparisonSourceAction",
+            "posteriorState",
+        },
         "engineExpectedValues.acceptance",
     )
     for key, expected in acceptance_expected.items():
@@ -191,12 +213,6 @@ def validate_declaration(value: object) -> dict[str, Any]:
             raise FreezeBaselineError(
                 f"freezeBaseline.acceptance.{key}が凍結基準と一致しない"
             )
-    _require_non_empty_string(acceptance.get("baseRef"), "acceptance.baseRef")
-    base_commit = _require_non_empty_string(
-        acceptance.get("baseCommit"), "acceptance.baseCommit"
-    )
-    if re.fullmatch(r"[0-9a-f]{40}", base_commit) is None:
-        raise FreezeBaselineError("acceptance.baseCommitが40桁のcommit SHAでない")
     identity_spec = value.get("identitySpec")
     if not isinstance(identity_spec, dict):
         raise FreezeBaselineError("freezeBaseline.identitySpecがobjectでない")
@@ -261,6 +277,9 @@ def validate_declaration(value: object) -> dict[str, Any]:
             "subjectJsonPointers",
             "identitySource",
             "changeWithoutAcceptanceRecord",
+            "comparisonSource",
+            "missingComparisonSourceAction",
+            "localInvariantModeResult",
         },
         "assuranceBoundary.mechanicallyGuaranteed",
     )
@@ -275,7 +294,13 @@ def validate_declaration(value: object) -> dict[str, Any]:
         or len(subject_pointers) != len(expected_subject_pointers)
     ):
         raise FreezeBaselineError("機械保証対象がscopeとcriteriaのexact-setでない")
-    for key in ("identitySource", "changeWithoutAcceptanceRecord"):
+    for key in (
+        "identitySource",
+        "changeWithoutAcceptanceRecord",
+        "comparisonSource",
+        "missingComparisonSourceAction",
+        "localInvariantModeResult",
+    ):
         _require_non_empty_string(
             guaranteed.get(key), f"assuranceBoundary.mechanicallyGuaranteed.{key}"
         )
@@ -606,6 +631,62 @@ def _git(root: Path, arguments: Sequence[str]) -> str:
     return result.stdout
 
 
+def load_pull_request_acceptance_context(
+    event_path: Path,
+) -> PullRequestAcceptanceContext:
+    """GitHub PR event から資産外の比較元と受理 ID を取得する。
+
+    Args:
+        event_path: GitHub Actions が `GITHUB_EVENT_PATH` で渡す JSON のパス。
+
+    Returns:
+        PR の base/head SHA、repository 名、PR 番号。
+
+    Raises:
+        FreezeBaselineError: event を一意に解釈できない場合。
+    """
+    try:
+        event = json.loads(event_path.read_bytes())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise FreezeBaselineError(
+            f"PR比較元eventをJSONとして読めない: {event_path}: {error}"
+        ) from error
+    if not isinstance(event, dict):
+        raise FreezeBaselineError("PR比較元eventのトップレベルがobjectでない")
+    pull_request = event.get("pull_request")
+    repository = event.get("repository")
+    if not isinstance(pull_request, dict) or not isinstance(repository, dict):
+        raise FreezeBaselineError("PR比較元eventの必須objectがない")
+    base = pull_request.get("base")
+    head = pull_request.get("head")
+    if not isinstance(base, dict) or not isinstance(head, dict):
+        raise FreezeBaselineError("PR比較元eventのbase/headがobjectでない")
+    base_sha = base.get("sha")
+    head_sha = head.get("sha")
+    repository_name = repository.get("full_name")
+    number = pull_request.get("number")
+    if not all(
+        isinstance(value, str) and value
+        for value in (base_sha, head_sha, repository_name)
+    ):
+        raise FreezeBaselineError("PR比較元eventの文字列値が不足している")
+    if not isinstance(number, int) or isinstance(number, bool) or number < 1:
+        raise FreezeBaselineError("PR比較元eventのPR番号が正の整数でない")
+    if re.fullmatch(r"[0-9a-f]{40}", base_sha) is None:
+        raise FreezeBaselineError("PR比較元eventのbase SHAが40桁のcommit SHAでない")
+    if re.fullmatch(r"[0-9a-f]{40}", head_sha) is None:
+        raise FreezeBaselineError("PR比較元eventのhead SHAが40桁のcommit SHAでない")
+    context = PullRequestAcceptanceContext(
+        base_sha=base_sha,
+        head_sha=head_sha,
+        repository=repository_name,
+        number=number,
+    )
+    if ACCEPTANCE_ID_PATTERN.fullmatch(context.acceptance_id) is None:
+        raise FreezeBaselineError("PR比較元eventから導出したacceptanceIdの形式が不正")
+    return context
+
+
 def load_base_declaration(
     root: Path, descriptor_path: PurePosixPath, base_ref: str
 ) -> dict[str, Any] | None:
@@ -898,17 +979,25 @@ def validate_repository_history(
     root: Path,
     descriptor_path: PurePosixPath,
     declaration: Mapping[str, Any],
+    acceptance_context: PullRequestAcceptanceContext,
 ) -> None:
-    """宣言したPR比較元と実リポジトリから追記専用遷移を検査する。"""
+    """PR event の比較元と実リポジトリから追記専用遷移を検査する。"""
     current = validate_declaration(dict(declaration))
     validate_implementation_correspondence(root, current)
-    base_ref = current["acceptance"]["baseRef"]
-    base_commit = current["acceptance"]["baseCommit"]
-    resolved = _git(root, ["rev-parse", "--verify", f"{base_ref}^{{commit}}"])
-    if resolved.strip() != base_commit:
+    latest_acceptance_id = current["history"][-1]["acceptanceId"]
+    if latest_acceptance_id != acceptance_context.acceptance_id:
         raise FreezeBaselineError(
-            "受理記録のbaseCommitがbaseRefの実測値と一致しない: "
-            f"{base_commit} != {resolved.strip()}"
+            "最新受理記録のacceptanceIdがPR eventと一致しない: "
+            f"{latest_acceptance_id} != {acceptance_context.acceptance_id}"
         )
-    base = load_base_declaration(root, descriptor_path, base_commit)
+    resolved = _git(
+        root,
+        ["rev-parse", "--verify", f"{acceptance_context.base_sha}^{{commit}}"],
+    )
+    if resolved.strip() != acceptance_context.base_sha:
+        raise FreezeBaselineError(
+            "PR eventのbase SHAを同一commitへ解決できない: "
+            f"{acceptance_context.base_sha} != {resolved.strip()}"
+        )
+    base = load_base_declaration(root, descriptor_path, acceptance_context.base_sha)
     validate_append_only_transition(current, base)
