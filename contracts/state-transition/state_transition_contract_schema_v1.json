@@ -3,6 +3,25 @@
   "$id": "https://pitchlog.local/contracts/state-transition/state_transition_contract_schema_v1.json",
   "title": "Pitchlog state transition contract schema v1",
   "version": "state_transition_contract_schema_v1",
+  "x-pitchlog-reference-constraints": {
+    "rowIdentity": {
+      "collectionAnnotation": "x-pitchlog-normative-row-layer",
+      "idField": "rowId",
+      "maximumOccurrences": 1
+    },
+    "caseResolution": {
+      "collection": "cases",
+      "referenceField": "rowId",
+      "requiredMatchCount": 1
+    },
+    "vocabularyResolution": {
+      "collectionAnnotation": "x-pitchlog-vocabulary-reference-layer",
+      "referenceField": "resultId",
+      "manifestPath": "contracts/vocabulary/vocabulary_manifest_v1.json",
+      "requiredMatchCount": 1,
+      "failWhenManifestUnavailable": true
+    }
+  },
   "type": "object",
   "required": [
     "schemaVersion",
@@ -33,21 +52,25 @@
       "$ref": "#/$defs/inputAxesDescriptorBinding"
     },
     "matrixRows": {
+      "x-pitchlog-normative-row-layer": true,
+      "x-pitchlog-vocabulary-reference-layer": true,
       "type": "array",
       "items": {
-        "$ref": "#/$defs/structuralRow"
+        "$ref": "#/$defs/matrixRowReferenceShell"
       }
     },
     "operationRows": {
+      "x-pitchlog-normative-row-layer": true,
       "type": "array",
       "items": {
-        "$ref": "#/$defs/structuralRow"
+        "$ref": "#/$defs/normativeRowReferenceShell"
       }
     },
     "undoRows": {
+      "x-pitchlog-normative-row-layer": true,
       "type": "array",
       "items": {
-        "$ref": "#/$defs/structuralRow"
+        "$ref": "#/$defs/normativeRowReferenceShell"
       }
     },
     "mustOperationCoverage": {
@@ -86,12 +109,48 @@
         }
       }
     },
-    "structuralRow": {
+    "normativeRowReferenceShell": {
       "type": "object",
+      "required": [
+        "rowId"
+      ],
+      "properties": {
+        "rowId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "matrixRowReferenceShell": {
+      "type": "object",
+      "required": [
+        "rowId",
+        "resultId"
+      ],
+      "properties": {
+        "rowId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resultId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
       "additionalProperties": true
     },
     "derivedCase": {
       "type": "object",
+      "required": [
+        "rowId"
+      ],
+      "properties": {
+        "rowId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
       "additionalProperties": true
     }
   }
