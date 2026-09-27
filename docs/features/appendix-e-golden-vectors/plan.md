@@ -112,7 +112,8 @@ FR-006 のキュー投入・同期状態非依存 → 同期側のテスト / �
 | **`contracts/README.md`** / **`docs/README.md`** | 索引の追加と現行化 | **PR レビュー** |
 | **`docs/design/data-model.md`** / **`dev-harness-design-2026-08-07.md`** / **ADR-001・002・004** | **反映なし** | — |
 
-**正本体系外**: `.claude/core-areas.json`(**6.3-⑤**)/ `tests/test_core_guard.py`
+**正本体系外**: `.claude/core-areas.json`(**6.3-⑤**)/ `tests/test_core_guard.py` / **`.github/workflows/ci.yml`**
+(**PO 裁定 2026-09-27 で射程追加** — 確定ゲート 11 周目の指摘の是正で、**受理遷移検査が PR イベントを要する方式になったため配線が要る**。**追加は `check_input_axes_three_way_parity.py --ci` の 1 ステップのみ**。**既存の `check_frozen_baselines.py --ci` と同じ形で、非 PR イベントでは不変量のみに落ちる**)
 
 **oracle の追随で動く資産**(ステップ 17 — 台帳 `H-85`。**要件書の改訂が blob digest の凍結を発火させる**):
 `contracts/authz/` の `requirement-claims.json`(+ `.lock.json`)/ `route-registry.json`(+ `.lock.json`)/

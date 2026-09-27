@@ -263,6 +263,35 @@ def test_acceptance_without_github_event_is_fail_closed() -> None:
     )
 
 
+def test_ci_non_pull_request_runs_invariants_only() -> None:
+    """非PRイベントでは比較元を要求せず不変量だけを検査する。"""
+    environment = os.environ.copy()
+    environment["GITHUB_EVENT_NAME"] = "push"
+    environment.pop("GITHUB_EVENT_PATH", None)
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--root",
+            str(REPOSITORY_ROOT),
+            "--ci",
+        ],
+        cwd=REPOSITORY_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == (
+        "input-axes-three-way-parity: acceptance transition NOT CHECKED "
+        "(invariants-only)\n"
+        "input-axes-three-way-parity: OK\n"
+    )
+    assert result.stderr == ""
+
+
 def test_branch_ids_are_partitioned_into_covered_and_explicitly_excluded() -> None:
     """規範表の64分岐を支援対象37件と理由付き対象外27件へ分ける。"""
     report = checker.validate_three_way_parity(REPOSITORY_ROOT)

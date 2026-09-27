@@ -1577,3 +1577,37 @@ uv run python scripts/check_input_axes_three_way_parity.py --ci
 
 **配線されるまで、この機構の受理遷移検査はどこでも走らない。**
 **PO へ計画の射程追加を諮る。**
+
+### CI 配線(PO 裁定 2026-09-27 — 計画の射程追加)
+
+**「計画の射程へ追加する」を選択。** **計画書 3 節の「正本体系外」へ
+`.github/workflows/ci.yml` を追加し、裁定の経緯を併記した。**
+
+**番号付きの実装ステップは足していない** —
+**ステップ記法 `(ステップ k/N)` の `N` が表の総数と一致しなくなるため**(設計書 6.1)。
+**確定ゲートの是正として配線した。**
+
+**追加は 1 行**(`harness` ジョブ・`check_frozen_baselines.py --ci` の直後):
+
+```
+uv run python scripts/check_input_axes_three_way_parity.py --ci
+```
+
+**作成者が変異で配線テストの実効を確認した**:
+
+| 変異 | 結果 |
+| --- | --- |
+| `continue-on-error: true` を付与 | **3 件 fail**(`test_all_required_jobs_and_steps_reject_silent_disable_controls` を含む) |
+| ステップを削除 | **1 件 fail**(`test_frozen_baseline_commands_run_in_full_history_harness_job`) |
+| 復元後 | **58 passed** |
+
+**台帳の新規③**(「CI 配線テストがキー集合を固定しておらず、どちらの変異でも `46 passed`」)
+**は、この配線については解消している。**
+**従来の CI テストは新コマンドを固定していなかったが、今回の追随で解消した。**
+
+**非 PR イベントで赤にならないことも実装で確認済み** —
+`GITHUB_EVENT_NAME == "pull_request"` のときだけ受理遷移を検査する
+(`check_input_axes_three_way_parity.py:681` 付近)。
+`push` では `GITHUB_EVENT_PATH` なしで invariants-only が成功するテストを追加した。
+**`GITHUB_EVENT_NAME` / `GITHUB_EVENT_PATH` は GitHub Actions の標準環境変数のため
+追加設定は不要。**

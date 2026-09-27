@@ -1616,7 +1616,7 @@ def test_checkout_fetch_depth_is_exact_for_every_job() -> None:
 
 
 def test_frozen_baseline_commands_run_in_full_history_harness_job() -> None:
-    """凍結基準のCIディスパッチが完全履歴のharnessだけで走る。"""
+    """凍結基準と入力軸のCIディスパッチが完全履歴のharnessだけで走る。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     jobs = _mapping_at(workflow, ("jobs",))
     assert isinstance(jobs, dict)
@@ -1636,6 +1636,22 @@ def test_frozen_baseline_commands_run_in_full_history_harness_job() -> None:
     assert frozen_steps == [
         {"run": "uv run python scripts/check_frozen_baselines.py --ci"}
     ]
+    parity_steps = [
+        step
+        for step in steps
+        if isinstance(step, dict)
+        and isinstance((command := step.get("run")), str)
+        and "scripts/check_input_axes_three_way_parity.py" in command
+    ]
+    assert parity_steps == [
+        {
+            "run": (
+                "uv run python "
+                "scripts/check_input_axes_three_way_parity.py --ci"
+            )
+        }
+    ]
+    assert steps.index(parity_steps[0]) == steps.index(frozen_steps[0]) + 1
 
 
 def test_checkout_fetch_depth_rejects_step_three_rollback() -> None:
