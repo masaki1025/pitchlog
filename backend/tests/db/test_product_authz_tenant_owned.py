@@ -13,6 +13,7 @@ import pytest
 from product_authz_tenant_owned_cases import (
     TENANT_A,
     TENANT_B,
+    TenantUpdateGuard,
     insert_candidate,
     insert_statement,
     seed_rows,
@@ -178,6 +179,83 @@ def _assert_tenant_reassignment_rejected(
     assert guard.function_name in (raised.value.diag.context or "")
 
 
+def _trigger_catalog_row(
+    connection: psycopg.Connection[Any],
+    table: str,
+    trigger_name: str,
+) -> tuple[object, ...]:
+    """対象トリガの復元比較に使うカタログ行を返す。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT trigger.oid, trigger.tgname, trigger.tgenabled,
+                   trigger.tgisinternal, trigger.tgfoid
+            FROM pg_catalog.pg_trigger AS trigger
+            JOIN pg_catalog.pg_class AS relation
+              ON relation.oid = trigger.tgrelid
+            JOIN pg_catalog.pg_namespace AS namespace
+              ON namespace.oid = relation.relnamespace
+            WHERE namespace.nspname = 'public'
+              AND relation.relname = %s
+              AND trigger.tgname = %s
+            """,
+            (table, trigger_name),
+        )
+        rows = tuple(tuple(row) for row in cursor.fetchall())
+    connection.rollback()
+    assert len(rows) == 1
+    return rows[0]
+
+
+def _assert_reassignment_rejected_by_rls_without_guard(
+    catalog: ProvisionedProductCatalog,
+    table: str,
+    trigger_name: str,
+) -> None:
+    """トリガを一時停止し付け替えを RLS WITH CHECK だけで拒否させる。"""
+    connection = catalog.applicator
+    before = _trigger_catalog_row(connection, table, trigger_name)
+    assert before[2] == "O"
+    try:
+        with pytest.raises(psycopg.Error) as raised:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    sql.SQL("ALTER TABLE {} DISABLE TRIGGER {}").format(
+                        sql.Identifier("public", table),
+                        sql.Identifier(trigger_name),
+                    )
+                )
+                cursor.execute(
+                    """
+                    SELECT trigger.tgenabled
+                    FROM pg_catalog.pg_trigger AS trigger
+                    JOIN pg_catalog.pg_class AS relation
+                      ON relation.oid = trigger.tgrelid
+                    JOIN pg_catalog.pg_namespace AS namespace
+                      ON namespace.oid = relation.relnamespace
+                    WHERE namespace.nspname = 'public'
+                      AND relation.relname = %s
+                      AND trigger.tgname = %s
+                    """,
+                    (table, trigger_name),
+                )
+                assert cursor.fetchone() == ("D",)
+                cursor.execute(
+                    sql.SQL("SET LOCAL ROLE {}").format(sql.Identifier(_APP_ROLE))
+                )
+                _set_tenant_context(cursor, str(TENANT_A))
+                cursor.execute(
+                    sql.SQL("UPDATE {} SET tenant_id = %s WHERE tenant_id = %s").format(
+                        sql.Identifier("public", table)
+                    ),
+                    (TENANT_B, TENANT_A),
+                )
+        assert raised.value.sqlstate == "42501"
+    finally:
+        connection.rollback()
+    assert _trigger_catalog_row(connection, table, trigger_name) == before
+
+
 def _delete_own_rows(
     connection: psycopg.Connection[Any],
     table: str,
@@ -246,6 +324,28 @@ def test_tenant_id_table_enforces_product_boundary(
         _assert_sqlstate("42501", lambda: _insert_other_tenant_row(app, table))
         _assert_tenant_reassignment_rejected(app, table)
         _assert_sqlstate("42501", lambda: _delete_own_rows(app, table))
+
+
+@pytest.mark.parametrize(
+    "guard",
+    tenant_update_guards(),
+    ids=lambda guard: guard.table,
+)
+def test_guarded_tenant_reassignment_is_also_rejected_by_rls_with_check(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+    guard: TenantUpdateGuard,
+) -> None:
+    """不変性トリガを止めても全対象表の付け替えを RLS が 42501 で拒否する。"""
+    catalog = provisioned_product_catalog
+    _seed_two_tenants(catalog)
+    table = str(guard.table)
+    trigger_name = str(guard.trigger_name)
+    _assert_seed_precondition(catalog, table)
+    _assert_reassignment_rejected_by_rls_without_guard(
+        catalog,
+        table,
+        trigger_name,
+    )
 
 
 def _alter_force(
