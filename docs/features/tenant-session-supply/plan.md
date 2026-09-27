@@ -53,6 +53,9 @@ created: 2026-09-26
 2. **前段の結果を見て後段を中止できる形**にする([design.md](design.md) 3-5)
 3. **`allowed_symbols`(凍結基準)への追加**を 7.7-2 に適合する v2 形式で記録する
 4. **`repository-contract.json` の `public_surface`** の変更を反映する
+5. **【射程追加 — 2026-09-27・人間の承認】ハーネスの母集合の試験を一般化する**
+   (`tests/test_check_tenant_boundary_bypass.py`)。**TSK-424 の PR #84 で作られた是正コミット
+   `aa5b539f` を cherry-pick で取り込む**(下記「射程追加の経緯」)
 
 ### やらないこと
 
@@ -69,6 +72,31 @@ created: 2026-09-26
 | **`TenantContext` の生成を製品モジュールへ開くこと** | **U-A1(TSK-217)**。`allowed_product_modules` は `[]` のまま |
 | **一覧経路・ページング** | **U-01 の所有**(`../tenant-boundary-enforcement/plan.md:174`) |
 | **同期プロトコルの T1〜T9 境界の実装** | **同期側**。本タスクは「6 要素を載せられる機構」までで、経路ごとの境界は決めない |
+
+### 射程追加の経緯(2026-09-27)
+
+**TSK-440(PR #80)が入れた自己参照テスト 2 本のうち 2 本目**
+(`test_repository_application_population_is_nonempty_and_green`)が、
+**`backend/src` へ記号を足す PR で必ず赤になる**。本タスクは `transaction.py` を新設するため該当する。
+
+**当初は TSK-460 の射程へ入れるよう申し送った**が、**TSK-460 のブランチは `merge-base` が develop と
+同位置で `introduced_symbols` が空**になり、**是正が効いたかを一度も評価できない**。
+このため **2026-09-27 の人間の裁定で TSK-460 から外れ**、**TSK-424(PR #84)が引き取った**。
+
+**TSK-424 側で是正コミット `aa5b539f` が作られ、`#82` へ cherry-pick で渡された**
+(**二重に直すと衝突するため、本タスクでは独自に直さない** — TSK-424 の人間の判断)。
+
+**本ブランチでの実測**(取り込み前 → 後):
+
+```
+2 failed / 291 passed  →  1 failed / 293 passed
+```
+
+**残る 1 件は 1 本目**(`test_checker_census_matches_merge_base`)で、**TSK-460 の所有**である。
+
+**件名は `#82` のステップ記法へ付け替える** — 元コミットの件名は TSK-424 の
+`(ステップ 2/11 是正)` を含んでおり、**そのまま取り込むと `/<N>` が本計画書のステップ表の総数と
+一致せず、現在地導出が不整合になる**(設計書 6.1 の厳密文法③)。
 
 ## 3. 影響する正本
 
@@ -91,7 +119,7 @@ created: 2026-09-26
 
 - **版数**: 着手時は `repository-contract` `4` → `5`・`base-allowlist` `15` → `16` と書いていた。**作業中に TSK-440(PR #80)が develop へ入り両方を 1 つずつ上げた**ため、実際は **`5` → `6`・`16` → `17`** になった。履歴も **3 件目まで進んでいた**ので、本 PR の受理記録は **4 件目**である
 - **許可シンボル**: 着手時は `tenant_transaction_scope` と書いていた。**誤り**。迂回検査は **DB 呼び出しを囲む関数**と突き合わせ、`Session.execute` は `TenantTransaction.run`(`transaction.py:52`)の中にある。`tenant_transaction_scope` は DB API を直接呼ばないので登録不要。**承認も訂正コメント(`5844686316`)で取り直している**
-- **`tests/test_check_tenant_boundary_bypass.py`**: 着手時は更新対象に挙げていたが、**1 バイトも変えていない**(`public_methods` は `TenantRepositoryBase` しか見ないため、新モジュールを足しても検査器側の変更が要らなかった)
+- **`tests/test_check_tenant_boundary_bypass.py`**: 着手時は更新対象に挙げ、実装中は**1 バイトも変えていなかった**(`public_methods` は `TenantRepositoryBase` しか見ないため、新モジュールを足しても検査器側の変更が要らなかった)。**2026-09-27 の射程追加で再び更新対象へ戻った** — **TSK-424 の是正コミット `aa5b539f` を cherry-pick**(2 節「射程追加の経緯」)。**検査器 `scripts/check_tenant_boundary_bypass.py` は変えていない**
 
 **実装後の敵対レビューで動いた 2 点(2026-09-26 の追随)**:
 
