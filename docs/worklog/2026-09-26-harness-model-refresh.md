@@ -323,6 +323,14 @@ branch: feature/harness-model-refresh
 - **人間に残る確認**: ① 新規セッションでの実効値(`/model` = claude-opus-5-5・effort high・`/fast` disabled — 高優先層の有無を記録)② finalize-doc SKILL の逐行確認(PR 作成者以外 — 恒久規則)③ 実測期間の開始 = 本 PR の develop マージ日
 - **次の一歩**: /pr(push → PR 作成 → Notion 確認待ち)→ 反対側レビュー(Codex 実装分は Claude 一次レビュー済み・文書分は確定ゲート済み)→ 人間マージ(SHA 拘束)→ /task-done
 
+### 差し戻し修正(2026-09-27)— ステップ 3 の版検査の位置(CI 起因)
+
+- **事象**: PR #85 の CI harness ジョブで `tests/test_hooks.py` 25 件が赤(1948 passed / 25 failed)。codex CLI の無い CI では `main()` 冒頭の `require_supported_codex_version()` が計画書検証より先に `resolve_codex()` の「codex CLI が見つからない」で停止し、期待する検証エラー(未承認・frontmatter・worktree…)に到達しない。ローカル(0.157.1 あり)では通っていた — **CI 条件(codex 不在)を再現せずに合格としたのが原因**
+- **往復**: 計画書を `in-review → active`(83b20644・Notion 進行中)→ `implement`(新表 `gpt-6-sol` max・新規セッション)で修正 → 検証 → `active → in-review` → 再レビュー依頼
+- **修正**: 版検査を `run_codex()` の `Popen` 直前へ移動(全経路が通る = 「モデル実行前・全モード」は維持)・プロセス内 1 回のメモ化。版検査テスト 3 本を起動経路に合わせて書き直し、`probe` 5 回で版取得 1 回・CLI 不在時のテストを追加。`tests/test_hooks.py` は不変
+- **検証(Claude)**: `tests/test_hooks.py` + `test_codex_run.py` + `test_agents_frontmatter.py` = codex あり / PATH から codex を除いた条件の両方で緑(266 件)・ruff / ty 緑。ADR-001 帰結・設計書 9.4 の「起動前に解析・モデル実行前に停止」は文言どおり(位置の記述は無い)のため正本の変更なし
+- **教訓**: ラッパーの変更は「codex 不在(CI)」条件でもローカルで検証する(計画書ステップ 3 の合格条件に無かった — 台帳候補へ)
+
 ## 決定
 - **2026-09-27・PO 承認(徳光 尋弥)**: 計画書を承認(`承認: 済(2026-09-27・徳光 尋弥)`)。PO 判断 3 点を確定 — **① 案 A(gpt-6-sol 一本化・astra は載せない)② effort 据え置き ③ 主セッションの Opus 5.5 化をプロジェクト `.claude/settings.json` で機構化**。次 = 阻止条件 0(人間が Codex CLI を 0.157.x へ更新 → Claude がカタログを確認)
 

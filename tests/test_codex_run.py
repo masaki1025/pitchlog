@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import re
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -765,60 +767,112 @@ def test_probe_reports_every_exit_code_and_fails_if_one_call_fails(
     assert capsys.readouterr().err.count("終了コード") == 5
 
 
-def test_main_accepts_supported_codex_version_once_before_dispatch(
+def prepare_version_check(
+    monkeypatch: pytest.MonkeyPatch,
+    version_text: str,
+    mode_args: list[str],
+) -> tuple[list[str], list[list[str]]]:
+    """実 CLI を起動せず、版取得と Popen の呼出し順を記録する。"""
+    events: list[str] = []
+    launches: list[list[str]] = []
+
+    def fake_version_text() -> str:
+        events.append("version")
+        return version_text
+
+    def fake_popen(argv: list[str], **_kwargs: object) -> SimpleNamespace:
+        events.append("popen")
+        launches.append(argv)
+        return SimpleNamespace(
+            stdin=io.StringIO(), stderr=io.StringIO(), wait=lambda: None, returncode=0
+        )
+
+    monkeypatch.setattr(codex_run, "_codex_version_checked", False)
+    monkeypatch.setattr(codex_run, "codex_version_text", fake_version_text)
+    monkeypatch.setattr(codex_run, "resolve_codex", lambda: ["/fake/codex"])
+    monkeypatch.setattr(codex_run.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(codex_run.sys, "argv", ["codex_run.py", *mode_args])
+    monkeypatch.setattr(
+        codex_run.sys,
+        "stdin",
+        io.TextIOWrapper(io.BytesIO(b"review prompt"), encoding="utf-8"),
+    )
+    return events, launches
+
+
+def test_main_accepts_supported_codex_version_before_popen(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """main は対応版を 1 回だけ確認してから対象モードへ進む。"""
-    version_calls: list[None] = []
-    dispatched: list[list[str]] = []
-    monkeypatch.setattr(
-        codex_run,
-        "codex_version_text",
-        lambda: (version_calls.append(None) or "codex-cli 0.157.1"),
+    """review の検証後、対応版を確認してからモデルを起動する。"""
+    events, launches = prepare_version_check(
+        monkeypatch, "codex-cli 0.157.1", ["review", "normal", "-"]
     )
-    monkeypatch.setattr(codex_run, "cmd_probe", lambda args: (dispatched.append(args) or 0))
-    monkeypatch.setattr(codex_run.sys, "argv", ["codex_run.py", "probe"])
 
     assert codex_run.main() == 0
-    assert version_calls == [None]
-    assert dispatched == [[]]
+    assert events == ["version", "popen"]
+    assert len(launches) == 1
+    assert launches[0][0] == "/fake/codex"
 
 
-def test_main_rejects_older_codex_version_before_dispatch(
+def test_main_rejects_older_codex_version_before_popen(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ):
     """0.157.0 未満ではモデル実行前に onboarding 更新へ誘導する。"""
-    monkeypatch.setattr(codex_run, "codex_version_text", lambda: "codex-cli 0.153.4")
-    monkeypatch.setattr(
-        codex_run,
-        "cmd_probe",
-        lambda _: (_ for _ in ()).throw(AssertionError("dispatch された")),
+    events, launches = prepare_version_check(
+        monkeypatch, "codex-cli 0.153.4", ["review", "normal", "-"]
     )
-    monkeypatch.setattr(codex_run.sys, "argv", ["codex_run.py", "probe"])
 
     with pytest.raises(SystemExit) as raised:
         codex_run.main()
 
     assert raised.value.code == 2
+    assert events == ["version"]
+    assert launches == []
     assert "onboarding.md の 1-6" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("version_text", ["", "Codex version is current"])
-def test_main_rejects_unparseable_codex_version_before_dispatch(
+def test_main_rejects_unparseable_codex_version_before_popen(
     monkeypatch: pytest.MonkeyPatch,
     version_text: str,
 ):
     """空文字列と想定外の版出力は fail-closed にする。"""
-    monkeypatch.setattr(codex_run, "codex_version_text", lambda: version_text)
-    monkeypatch.setattr(
-        codex_run,
-        "cmd_probe",
-        lambda _: (_ for _ in ()).throw(AssertionError("dispatch された")),
+    events, launches = prepare_version_check(
+        monkeypatch, version_text, ["review", "normal", "-"]
     )
-    monkeypatch.setattr(codex_run.sys, "argv", ["codex_run.py", "probe"])
 
     with pytest.raises(SystemExit) as raised:
         codex_run.main()
 
     assert raised.value.code == 2
+    assert events == ["version"]
+    assert launches == []
+
+
+def test_run_codex_reports_missing_cli_before_version_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    """CLI が見つからない場合は従来の PATH エラーを優先する。"""
+    monkeypatch.setattr(codex_run, "_codex_version_checked", False)
+    monkeypatch.setattr(codex_run.shutil, "which", lambda _: None)
+
+    with pytest.raises(SystemExit) as raised:
+        codex_run.run_codex(["exec"], "prompt")
+
+    assert raised.value.code == 2
+    stderr = capsys.readouterr().err
+    assert "codex CLI が見つからない" in stderr
+    assert "版を解析できません" not in stderr
+
+
+def test_probe_checks_codex_version_once_before_five_launches(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """probe の 5 回の起動では同じプロセス内の版取得を 1 回に抑える。"""
+    events, launches = prepare_version_check(monkeypatch, "codex-cli 0.157.1", ["probe"])
+
+    assert codex_run.main() == 0
+    assert len(launches) == 5
+    assert events == ["version", *(["popen"] * 5)]

@@ -44,6 +44,7 @@ REVIEW_ADVERSARIAL = ("gpt-6-sol", "xhigh")
 WORKTREES_DIRNAME = "pitchlog-worktrees"
 FRONTMATTER_LIMIT = 8 * 1024
 MINIMUM_CODEX_VERSION = (0, 157, 0)
+_codex_version_checked = False
 PROBE_PROMPT = "ツールを使わず OK とだけ返答してください。"
 
 # `codex_run.py` ↔ `scripts/feature_status.py:301-307` の相互参照:
@@ -446,6 +447,9 @@ def parsed_codex_version(version_text: str) -> tuple[int, int, int] | None:
 
 def require_supported_codex_version() -> None:
     """Codex CLI が ADR-001 の運用下限を満たすことを fail-closed で確認する。"""
+    global _codex_version_checked
+    if _codex_version_checked:
+        return
     version = parsed_codex_version(codex_version_text())
     update_instruction = (
         "docs/development/onboarding.md の 1-6 に従い、Codex CLI のインストーラを再実行"
@@ -457,10 +461,12 @@ def require_supported_codex_version() -> None:
         actual = ".".join(str(part) for part in version)
         required = ".".join(str(part) for part in MINIMUM_CODEX_VERSION)
         die(f"Codex CLI {actual} は下限 {required} 未満です。{update_instruction}")
+    _codex_version_checked = True
 
 
 def run_codex(argv: list[str], prompt: str, capture_session_to: Path | None = None) -> int:
     print(f"codex_run: 実行: codex {' '.join(argv[:8])} ...", file=sys.stderr)
+    require_supported_codex_version()
     proc = subprocess.Popen(
         [*resolve_codex(), *argv, "-"],
         stdin=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
@@ -740,7 +746,6 @@ def main() -> int:
     if len(sys.argv) < 2:
         die("モード(implement/fast/research/review/probe)が必要")
     mode, rest = sys.argv[1], sys.argv[2:]
-    require_supported_codex_version()
     if mode == "implement":
         return cmd_implement(rest)
     if mode == "fast":
