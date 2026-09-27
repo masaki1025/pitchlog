@@ -102,10 +102,15 @@ def _synchronize_unaccepted_freeze_record(descriptor: dict[str, Any]) -> None:
     record = history[0]
     record["newIdentity"] = {
         "present": True,
-        "values": checker.freeze_checker.current_identities(criteria),
+        "values": checker.freeze_checker.current_identities(declaration),
     }
     changes = {change["criterionId"]: change for change in record["changes"]}
-    assert set(changes) == set(criteria)
+    definition_id = declaration["scope"]["identityCriterionId"]
+    assert set(changes) == {definition_id, *criteria}
+    changes[definition_id]["after"] = {
+        "present": True,
+        "value": copy.deepcopy(declaration["scope"]),
+    }
     for criterion_id, value in criteria.items():
         changes[criterion_id]["after"] = {
             "present": True,
@@ -240,19 +245,27 @@ def test_d12_freeze_baseline_ids_match_descriptor_exactly() -> None:
 
     assert declared == {
         "freeze-baseline-field:freezeBaseline",
+        "freeze-baseline-scope:freezeBaseline.scope",
         "freeze-baseline-series:state-transition-contract-checks",
     }
     assert checker.extract_d12_freeze_baseline_ids(section) == declared
 
 
+@pytest.mark.parametrize(
+    "literal",
+    [
+        "freeze-baseline-field:freezeBaseline",
+        "freeze-baseline-scope:freezeBaseline.scope",
+    ],
+)
 def test_d12_freeze_baseline_id_removal_from_adr_is_red_after_digest_recalculation(
-    tmp_path: Path,
+    tmp_path: Path, literal: str
 ) -> None:
     """D-12だけから凍結基準IDを消すとdescriptorのdigestを合わせても拒否する。"""
     root = _copy_fixture_root(tmp_path)
     path = root / checker.ADR_PATH
     text = path.read_text(encoding="utf-8")
-    marker = "`freeze-baseline-field:freezeBaseline`"
+    marker = f"`{literal}`"
     assert text.count(marker) == 1
     path.write_text(text.replace(marker, "凍結基準フィールドID", 1), encoding="utf-8")
     _rewrite_descriptor(root)
@@ -264,8 +277,15 @@ def test_d12_freeze_baseline_id_removal_from_adr_is_red_after_digest_recalculati
         checker.validate_three_way_parity(root)
 
 
+@pytest.mark.parametrize(
+    "literal",
+    [
+        "freeze-baseline-field:freezeBaseline",
+        "freeze-baseline-scope:freezeBaseline.scope",
+    ],
+)
 def test_d12_freeze_baseline_id_removal_from_descriptor_is_red_after_reseal(
-    tmp_path: Path,
+    tmp_path: Path, literal: str
 ) -> None:
     """資産側だけからIDを消し単一履歴とdigestを追随させても拒否する。"""
     root = _copy_fixture_root(tmp_path)
@@ -274,7 +294,7 @@ def test_d12_freeze_baseline_id_removal_from_descriptor_is_red_after_reseal(
         literals = descriptor["freezeBaseline"]["criteria"]["threeWayParity"][
             "d12RequiredCodeLiterals"
         ]
-        literals.remove("freeze-baseline-field:freezeBaseline")
+        literals.remove(literal)
         _synchronize_unaccepted_freeze_record(descriptor)
 
     _rewrite_descriptor(root, mutate)

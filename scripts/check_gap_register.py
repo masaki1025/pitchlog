@@ -40,6 +40,7 @@ class GapCriteria:
     states: frozenset[str]
     initial_state: str
     terminal_state: str
+    schema_version: int
 
 
 def _criteria_string_list(value: object, label: str) -> list[str]:
@@ -59,7 +60,7 @@ def load_gap_criteria(descriptor: Mapping[str, Any]) -> GapCriteria:
         declaration = freeze_checker.validate_declaration(
             descriptor.get(freeze_checker.FREEZE_FIELD)
         )
-        raw = freeze_checker.checker_criteria(declaration, "gapRegister")
+        raw = freeze_checker.checker_criteria(declaration, __file__)
     except freeze_checker.FreezeBaselineError as error:
         raise GapRegisterError(f"凍結基準宣言を検証できない: {error}") from error
     top_level = _criteria_string_list(raw.get("topLevelFields"), ".topLevelFields")
@@ -72,6 +73,7 @@ def load_gap_criteria(descriptor: Mapping[str, Any]) -> GapCriteria:
     states = _criteria_string_list(raw.get("states"), ".states")
     initial_state = raw.get("initialState")
     terminal_state = raw.get("terminalState")
+    expected_values = raw.get("checkerExpectedValues")
     if (
         not isinstance(initial_state, str)
         or initial_state not in states
@@ -82,6 +84,12 @@ def load_gap_criteria(descriptor: Mapping[str, Any]) -> GapCriteria:
         raise GapRegisterError("初期・終端stateの凍結基準が不正")
     if stages[:-1] != list_stages:
         raise GapRegisterError("stageFieldsがlistStageFieldsの連続prefixでない")
+    if (
+        not isinstance(expected_values, dict)
+        or not isinstance(expected_values.get("schemaVersion"), int)
+        or isinstance(expected_values["schemaVersion"], bool)
+    ):
+        raise GapRegisterError("checkerExpectedValues.schemaVersionが整数でない")
     return GapCriteria(
         top_level_fields=frozenset(top_level),
         gap_fields=frozenset(gap_fields),
@@ -91,6 +99,7 @@ def load_gap_criteria(descriptor: Mapping[str, Any]) -> GapCriteria:
         states=frozenset(states),
         initial_state=initial_state,
         terminal_state=terminal_state,
+        schema_version=expected_values["schemaVersion"],
     )
 
 
@@ -166,8 +175,8 @@ def validate_gap_register_document(
             f"expected={sorted(criteria.top_level_fields)!r}; "
             f"actual={sorted(document)!r}"
         )
-    if document.get("schemaVersion") != 1:
-        raise GapRegisterError("schemaVersionは1でなければならない")
+    if document.get("schemaVersion") != criteria.schema_version:
+        raise GapRegisterError("schemaVersionが凍結基準と一致しない")
     if document.get("version") != REGISTER_PATH.stem:
         raise GapRegisterError("versionはファイル名と一致しなければならない")
 

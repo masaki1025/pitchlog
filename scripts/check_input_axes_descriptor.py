@@ -31,7 +31,6 @@ SOURCE_CLAUSE_NAMESPACES = {
     SOURCE_CLAUSE_PATHS[0]: "req",
     SOURCE_CLAUSE_PATHS[1]: "adr",
 }
-JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 CLAUSE_HEADING_PATTERN = re.compile(
     r"^#{2,6}\s+(?P<clause_id>(?:FR|NFR)-\d+|\d+\.\d+-\d+|[A-Z]-\d+[a-z]?)(?=[:\s])"
 )
@@ -69,6 +68,7 @@ class DescriptorCriteria:
     ]
     forbidden_game_end_invalid_boundary_values: Mapping[str, frozenset[str]]
     ambiguous_source_bindings: Mapping[str, str]
+    checker_expected_values: Mapping[str, Any]
 
 
 def _string_set(value: object, label: str) -> frozenset[str]:
@@ -114,9 +114,7 @@ def load_descriptor_criteria(descriptor: Mapping[str, Any]) -> DescriptorCriteri
         declaration = freeze_checker.validate_declaration(
             descriptor.get(freeze_checker.FREEZE_FIELD)
         )
-        raw = freeze_checker.checker_criteria(
-            declaration, "inputAxesDescriptor"
-        )
+        raw = freeze_checker.checker_criteria(declaration, __file__)
     except freeze_checker.FreezeBaselineError as error:
         raise DescriptorCheckError(f"凍結基準宣言を検証できない: {error}") from error
 
@@ -163,6 +161,9 @@ def load_descriptor_criteria(descriptor: Mapping[str, Any]) -> DescriptorCriteri
     limit = raw.get("safeIntegerLimit")
     if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
         raise DescriptorCheckError("safeIntegerLimitが正の整数でない")
+    checker_expected_values = raw.get("checkerExpectedValues")
+    if not isinstance(checker_expected_values, dict) or not checker_expected_values:
+        raise DescriptorCheckError("checkerExpectedValuesが空でないobjectでない")
     return DescriptorCriteria(
         top_level_fields=_string_set(raw.get("topLevelFields"), ".topLevelFields"),
         safe_integer_limit=limit,
@@ -203,6 +204,7 @@ def load_descriptor_criteria(descriptor: Mapping[str, Any]) -> DescriptorCriteri
         ambiguous_source_bindings=_string_map(
             raw.get("ambiguousSourceBindings"), ".ambiguousSourceBindings"
         ),
+        checker_expected_values=checker_expected_values,
     )
 
 
@@ -309,6 +311,24 @@ def _expect_object(value: object, label: str) -> dict[str, Any]:
     """JSON値をobjectとして返す。"""
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise DescriptorCheckError(f"{label}は文字列キーのobjectでなければならない")
+    return value
+
+
+def _expected_object(criteria: DescriptorCriteria, key: str) -> dict[str, Any]:
+    """検査器期待値宣言からobjectを取得する。"""
+    return _expect_object(
+        criteria.checker_expected_values.get(key),
+        f"checkerExpectedValues.{key}",
+    )
+
+
+def _expected_string(criteria: DescriptorCriteria, key: str) -> str:
+    """検査器期待値宣言から空でない文字列を取得する。"""
+    value = criteria.checker_expected_values.get(key)
+    if not isinstance(value, str) or not value:
+        raise DescriptorCheckError(
+            f"checkerExpectedValues.{key}は空でない文字列でなければならない"
+        )
     return value
 
 
@@ -548,7 +568,7 @@ def _validate_schema_contract(
     schema: Mapping[str, Any], criteria: DescriptorCriteria
 ) -> None:
     """schema自身がdescriptorの必須構造を閉じていることを検証する。"""
-    if schema.get("$schema") != JSON_SCHEMA_DIALECT:
+    if schema.get("$schema") != _expected_string(criteria, "jsonSchemaDialect"):
         raise DescriptorCheckError("schemaのdialectはJSON Schema 2020-12でなければならない")
     if schema.get("version") != SCHEMA_PATH.stem:
         raise DescriptorCheckError("schemaのファイル名と内部versionが一致しない")
@@ -751,7 +771,9 @@ def _validate_structured_input_axes(
         value_schema = axis.get("valueSchema")
         if not isinstance(value_schema, dict):
             raise DescriptorCheckError(f"valueSchemaがobjectでない: {axis_id}")
-        if value_schema.get("$schema") != JSON_SCHEMA_DIALECT:
+        if value_schema.get("$schema") != _expected_string(
+            criteria, "jsonSchemaDialect"
+        ):
             raise DescriptorCheckError(
                 f"valueSchemaのdialectがDraft 2020-12でない: {axis_id}"
             )
@@ -831,6 +853,7 @@ def _validate_fr040_conditionals(
         axis.get("axisId"): axis for axis in axes if isinstance(axis, dict)
     }
     expected = criteria.fr040_conditional_values
+    entry_expectation = _expected_object(criteria, "fr040ConditionalEntry")
     conditional_axis_ids = {
         axis_id
         for axis_id, axis in axes_by_id.items()
@@ -848,8 +871,7 @@ def _validate_fr040_conditionals(
         actual_values = {entry.get("value") for entry in entries if isinstance(entry, dict)}
         if actual_values != expected_values or any(
             not isinstance(entry, dict)
-            or entry.get("whenClauseId") != "req:FR-040"
-            or entry.get("whenState") != "adopted"
+            or any(entry.get(key) != value for key, value in entry_expectation.items())
             for entry in entries
         ):
             raise DescriptorCheckError(f"FR-040採用条件が一致しない: {axis_id}")
@@ -858,18 +880,9 @@ def _validate_fr040_conditionals(
             raise DescriptorCheckError(
                 f"FR-040条件付き値が軸の値集合にない: {axis_id}"
             )
-    operation_payload_axis_id = next(
-        (
-            axis_id
-            for axis_id, kind in criteria.deferred_structured_axis_kinds.items()
-            if kind == "tagged-operation-payload"
-        ),
-        None,
+    operation_payload_axis_id = _expected_string(
+        criteria, "operationPayloadAxisId"
     )
-    if operation_payload_axis_id is None:
-        raise DescriptorCheckError(
-            "操作payloadを表す凍結基準を一意に取得できない"
-        )
     operation_payload = axes_by_id.get(operation_payload_axis_id)
     capability = (
         operation_payload.get("representationCapability")
@@ -886,26 +899,32 @@ def _validate_fr040_conditionals(
         )
 
 
-def coverage_obligation_count(axis: Mapping[str, Any]) -> int:
+def coverage_obligation_count(
+    axis: Mapping[str, Any], criteria: DescriptorCriteria
+) -> int:
     """軸から展開すべきcoverage座標の件数を返す。
 
     `non-finite`は理由だけではcoverage座標を生まないため0件とする。無限領域は
     `boundary-partition`として境界値・等価分割を明示してから登録しなければならない。
     """
     classification = axis.get("classification")
-    if classification == "finite-enumerable":
-        values = axis.get("values")
-        return len(values) if isinstance(values, list) else 0
-    if classification == "boundary-partition":
-        values = axis.get("boundaryValues")
-        invalid_values = axis.get("invalidBoundaryValues", [])
-        valid_count = len(values) if isinstance(values, list) else 0
-        invalid_count = len(invalid_values) if isinstance(invalid_values, list) else 0
-        return valid_count + invalid_count
-    return 0
+    value_fields = _expected_object(
+        criteria, "coverageValueFieldsByClassification"
+    ).get(classification)
+    if not isinstance(value_fields, list) or not all(
+        isinstance(item, str) and item for item in value_fields
+    ):
+        return 0
+    return sum(
+        len(values)
+        for field in value_fields
+        if isinstance((values := axis.get(field, [])), list)
+    )
 
 
-def _validate_coverage_obligations(descriptor: Mapping[str, Any]) -> None:
+def _validate_coverage_obligations(
+    descriptor: Mapping[str, Any], criteria: DescriptorCriteria
+) -> None:
     """全入力軸が1件以上のcoverage義務を生成することを検証する。"""
     for collection_name in ("stateTransitionAxes", "gameEndAxes"):
         axes = descriptor.get(collection_name)
@@ -914,7 +933,7 @@ def _validate_coverage_obligations(descriptor: Mapping[str, Any]) -> None:
         for index, axis_value in enumerate(axes):
             if not isinstance(axis_value, dict):
                 continue
-            if coverage_obligation_count(axis_value) == 0:
+            if coverage_obligation_count(axis_value, criteria) == 0:
                 axis_id = axis_value.get("axisId", f"index={index}")
                 raise DescriptorCheckError(
                     f"coverage義務が0件の入力軸がある: {collection_name}: {axis_id}"
@@ -937,15 +956,24 @@ def _validate_game_end_contract(
         raise DescriptorCheckError(
             "gameEndAxesの4軸またはF-1フィールド帰属がexact-set不一致"
         )
+    required_supporting_clause = _expected_string(
+        criteria, "gameEndAxisSupportingClauseId"
+    )
+    required_classification = _expected_string(
+        criteria, "gameEndAxisClassification"
+    )
     for axis in game_end_axes:
         if not isinstance(axis, dict):
             continue
         supporting_clause_ids = axis.get("supportingClauseIds", [])
-        if not isinstance(supporting_clause_ids, list) or "adr:D-11" not in supporting_clause_ids:
+        if (
+            not isinstance(supporting_clause_ids, list)
+            or required_supporting_clause not in supporting_clause_ids
+        ):
             raise DescriptorCheckError(
                 f"gameEndAxesの安全範囲にadr:D-11の典拠がない: {axis.get('axisId')}"
             )
-        if axis.get("classification") != "boundary-partition":
+        if axis.get("classification") != required_classification:
             raise DescriptorCheckError("gameEndAxesは境界値・等価分割で閉じなければならない")
         bounds = axis.get("coverageBounds")
         if not isinstance(bounds, list) or not bounds:
@@ -996,8 +1024,9 @@ def _validate_game_end_contract(
     }
     if non_coverage_ids != criteria.non_coverage_fields:
         raise DescriptorCheckError("nonCoverageFieldsの3件がexact-set不一致")
+    schema_retention = _expected_string(criteria, "nonCoverageSchemaRetention")
     if any(
-        field.get("schemaRetention") != "required-by-projection"
+        field.get("schemaRetention") != schema_retention
         for field in non_coverage_fields
         if isinstance(field, dict)
     ):
@@ -1017,14 +1046,16 @@ def _validate_game_end_contract(
     combination_rules = descriptor.get("gameEndCombinationRules")
     if not isinstance(combination_rules, dict):
         return
-    if combination_rules.get("ruleFieldCombination") != "pairwise-all-game-end-axes":
-        raise DescriptorCheckError("終了規則フィールドは全4軸のペアワイズでなければならない")
-    if (
-        combination_rules.get("boundaryValueCombination")
-        != "full-cross-product-with-all-state-and-event-axes"
-    ):
+    expected_combinations = _expected_object(criteria, "gameEndCombinationRules")
+    mismatched_combinations = {
+        key: {"expected": expected, "actual": combination_rules.get(key)}
+        for key, expected in expected_combinations.items()
+        if combination_rules.get(key) != expected
+    }
+    if mismatched_combinations:
         raise DescriptorCheckError(
-            "終了規則の各境界値は全状態軸・イベント軸と直積しなければならない"
+            "終了判定の組合せ規則が凍結基準と一致しない: "
+            f"{mismatched_combinations!r}"
         )
 
     axes_by_id = {
@@ -1062,8 +1093,10 @@ def _validate_game_end_contract(
             )
 
 
-def _validate_projection_contract(descriptor: Mapping[str, Any]) -> None:
-    """全軸と非coverage項目が一意かつ判定可能に射影されることを検証する。"""
+def _validate_projection_contract(
+    descriptor: Mapping[str, Any], criteria: DescriptorCriteria
+) -> None:
+    """全軸と非coverage項目を資産側の射影期待値で検証する。"""
     expected_targets: dict[str, str] = {}
     axes_by_id: dict[str, Mapping[str, Any]] = {}
     for collection_name in ("stateTransitionAxes", "gameEndAxes"):
@@ -1079,6 +1112,7 @@ def _validate_projection_contract(descriptor: Mapping[str, Any]) -> None:
                 expected_targets[axis_id] = classification
                 axes_by_id[axis_id] = axis
 
+    non_coverage_kind = _expected_string(criteria, "nonCoverageTargetKind")
     non_coverage_fields = descriptor.get("nonCoverageFields")
     if isinstance(non_coverage_fields, list):
         for field in non_coverage_fields:
@@ -1086,195 +1120,139 @@ def _validate_projection_contract(descriptor: Mapping[str, Any]) -> None:
                 continue
             field_id = field.get("fieldId")
             if isinstance(field_id, str):
-                expected_targets[field_id] = "non-coverage-field"
+                expected_targets[field_id] = non_coverage_kind
 
     rules = descriptor.get("projectionRules")
     if not isinstance(rules, list):
         return
-    seen_rule_ids: set[str] = set()
-    projected_targets: dict[str, str] = {}
-    declared_source_kinds: set[str] = set()
-    identity_targets = {"descriptorId", "version", "digest"}
-    expected_kinds = {
-        "finite-enumerable",
-        "boundary-partition",
-        "non-finite",
-        "non-coverage-field",
-        "descriptor-identity",
-    }
-
-    for index, rule in enumerate(rules):
-        if not isinstance(rule, dict):
+    expectations = _expected_object(criteria, "projectionRules")
+    actual_rules: dict[str, Mapping[str, Any]] = {}
+    for rule in rules:
+        if not isinstance(rule, dict) or not isinstance(rule.get("ruleId"), str):
             continue
-        rule_id = rule.get("ruleId")
-        source_kind = rule.get("sourceKind")
-        target_ids = rule.get("targetIds")
-        if not isinstance(rule_id, str) or not isinstance(source_kind, str):
-            continue
-        if rule_id in seen_rule_ids:
+        rule_id = rule["ruleId"]
+        if rule_id in actual_rules:
             raise DescriptorCheckError(f"射影判定不能: ruleIdが重複している: {rule_id}")
-        seen_rule_ids.add(rule_id)
-        declared_source_kinds.add(source_kind)
-        if not isinstance(target_ids, list):
-            continue
+        actual_rules[rule_id] = rule
+    if set(actual_rules) != set(expectations):
+        raise DescriptorCheckError("射影判定不能: projection rule IDがexact-set不一致")
 
-        if source_kind == "descriptor-identity":
-            if set(target_ids) != identity_targets:
-                raise DescriptorCheckError(
-                    "射影判定不能: descriptorId・version・digestの拘束がexact-set不一致"
-                )
-            identity_keywords = rule.get("jsonSchemaKeywords")
-            identity_parity = rule.get("parityChecks")
-            if rule.get("projectionMode") != "descriptor-identity-binding" or not {
-                "x-pitchlog-descriptor-id",
-                "x-pitchlog-descriptor-version",
-                "x-pitchlog-descriptor-digest",
-            } <= (set(identity_keywords) if isinstance(identity_keywords, list) else set()):
-                raise DescriptorCheckError(
-                    "射影判定不能: descriptor identityのschema拘束が不足している"
-                )
-            if "descriptor-identity-exact" not in (
-                set(identity_parity) if isinstance(identity_parity, list) else set()
-            ):
-                raise DescriptorCheckError(
-                    "射影判定不能: descriptor identityの一致条件が不足している"
-                )
-            if rule.get("undecidableAction") != "fail":
-                raise DescriptorCheckError(
-                    "射影判定不能: descriptor identity規則がfail-closedでない"
-                )
-            continue
-
-        for target_id in target_ids:
-            if not isinstance(target_id, str):
-                continue
-            expected_kind = expected_targets.get(target_id)
-            if expected_kind is None:
-                raise DescriptorCheckError(
-                    f"射影判定不能: 実在しないtargetIdを参照している: {target_id}"
-                )
-            if expected_kind != source_kind:
-                raise DescriptorCheckError(
-                    "射影判定不能: targetIdの分類とsourceKindが一致しない: "
-                    f"{target_id}: {source_kind} != {expected_kind}"
-                )
-            if target_id in projected_targets:
-                raise DescriptorCheckError(
-                    f"射影判定不能: targetIdが複数規則へ重複している: {target_id}"
-                )
-            projected_targets[target_id] = rule_id
-
-            projection_mode = rule.get("projectionMode")
-            if source_kind == "finite-enumerable" and projection_mode != "exact-enum":
-                raise DescriptorCheckError(
-                    f"射影判定不能: 有限列挙軸がenum射影でない: {target_id}"
-                )
-            if source_kind == "boundary-partition":
-                axis = axes_by_id[target_id]
-                expected_mode = (
-                    "bounded-boundary-annotations"
-                    if "coverageBounds" in axis
-                    else (
-                        "deferred-structured-boundary-annotations"
-                        if "representationCapability" in axis
-                        else (
-                            "structured-boundary-annotations"
-                            if "valueSchema" in axis
-                            else "boundary-annotations"
-                        )
-                    )
-                )
-                if projection_mode != expected_mode:
-                    raise DescriptorCheckError(
-                        "射影判定不能: 境界値分割の射影方式が値域定義と一致しない: "
-                        f"{target_id}"
-                    )
-            if (
-                source_kind == "non-finite"
-                and projection_mode != "open-domain-with-reason"
-            ):
-                raise DescriptorCheckError(
-                    f"射影判定不能: 非有限軸の理由保持がない: {target_id}"
-                )
-            if (
-                source_kind == "non-coverage-field"
-                and projection_mode != "required-schema-property"
-            ):
-                raise DescriptorCheckError(
-                    f"射影判定不能: 非coverage項目がschema必須項目でない: {target_id}"
-                )
-
-        keywords = rule.get("jsonSchemaKeywords")
-        parity_checks = rule.get("parityChecks")
-        keyword_set = set(keywords) if isinstance(keywords, list) else set()
-        parity_set = set(parity_checks) if isinstance(parity_checks, list) else set()
-        conditional_targets = [
-            target_id
-            for target_id in target_ids
-            if isinstance(target_id, str)
-            and target_id in axes_by_id
-            and axes_by_id[target_id].get("conditionalValues")
-        ]
-        if conditional_targets and (
-            "x-pitchlog-conditional-values" not in keyword_set
-            or "conditional-values-exact" not in parity_set
+    projected_targets: dict[str, str] = {}
+    conditional_requirements = _expected_object(
+        criteria, "conditionalProjectionRequirements"
+    )
+    for rule_id, rule in actual_rules.items():
+        expectation = _expect_object(
+            expectations[rule_id], f"projectionRules.{rule_id}"
+        )
+        source_kind = expectation.get("sourceKind")
+        projection_mode = expectation.get("projectionMode")
+        undecidable_action = expectation.get("undecidableAction")
+        if (
+            not isinstance(source_kind, str)
+            or rule.get("sourceKind") != source_kind
+            or not isinstance(projection_mode, str)
+            or rule.get("projectionMode") != projection_mode
+            or not isinstance(undecidable_action, str)
+            or rule.get("undecidableAction") != undecidable_action
         ):
             raise DescriptorCheckError(
-                "射影判定不能: 条件付き値のschema拘束が不足している: "
-                f"{rule_id}: {conditional_targets!r}"
+                f"射影判定不能: 射影規則が凍結基準と一致しない: {rule_id}"
             )
-        required_keywords: dict[str, set[str]] = {
-            "finite-enumerable": {"enum"},
-            "boundary-partition": {"x-pitchlog-boundary-values"},
-            "non-finite": {"type", "x-pitchlog-non-finite-reason"},
-            "non-coverage-field": {"properties", "required"},
-        }
-        required_parity: dict[str, set[str]] = {
-            "finite-enumerable": {"values-exact-set"},
-            "boundary-partition": {"boundaries-exact-set"},
-            "non-finite": {"non-finite-reason-exact"},
-            "non-coverage-field": {"field-id-exact", "schema-retention-exact"},
-        }
-        if not required_keywords.get(source_kind, set()) <= keyword_set:
+        target_ids = rule.get("targetIds")
+        if not isinstance(target_ids, list) or not all(
+            isinstance(item, str) for item in target_ids
+        ):
+            raise DescriptorCheckError(
+                f"射影判定不能: targetIdsが文字列配列でない: {rule_id}"
+            )
+
+        identity_targets = expectation.get("identityTargetIds")
+        if identity_targets is not None:
+            if not isinstance(identity_targets, list) or set(target_ids) != set(
+                identity_targets
+            ):
+                raise DescriptorCheckError(
+                    f"射影判定不能: identity targetがexact-set不一致: {rule_id}"
+                )
+        else:
+            required_target_fields = expectation.get("requiredTargetFields", [])
+            forbidden_target_fields = expectation.get("forbiddenTargetFields", [])
+            if not isinstance(required_target_fields, list) or not isinstance(
+                forbidden_target_fields, list
+            ):
+                raise DescriptorCheckError(
+                    f"射影判定不能: target shape期待値が配列でない: {rule_id}"
+                )
+            for target_id in target_ids:
+                expected_kind = expected_targets.get(target_id)
+                if expected_kind is None:
+                    raise DescriptorCheckError(
+                        f"射影判定不能: 実在しないtargetIdを参照している: {target_id}"
+                    )
+                if expected_kind != source_kind:
+                    raise DescriptorCheckError(
+                        "射影判定不能: targetIdの分類とsourceKindが一致しない: "
+                        f"{target_id}: {source_kind} != {expected_kind}"
+                    )
+                if target_id in projected_targets:
+                    raise DescriptorCheckError(
+                        f"射影判定不能: targetIdが複数規則へ重複している: {target_id}"
+                    )
+                projected_targets[target_id] = rule_id
+                target = axes_by_id.get(target_id)
+                if target is not None and (
+                    any(field not in target for field in required_target_fields)
+                    or any(field in target for field in forbidden_target_fields)
+                ):
+                    raise DescriptorCheckError(
+                        f"射影判定不能: target shapeが射影規則と一致しない: {target_id}"
+                    )
+
+        keyword_set = (
+            set(rule["jsonSchemaKeywords"])
+            if isinstance(rule.get("jsonSchemaKeywords"), list)
+            else set()
+        )
+        parity_set = (
+            set(rule["parityChecks"])
+            if isinstance(rule.get("parityChecks"), list)
+            else set()
+        )
+        required_keywords = expectation.get("requiredJsonSchemaKeywords", [])
+        required_parity = expectation.get("requiredParityChecks", [])
+        if not isinstance(required_keywords, list) or not set(required_keywords) <= keyword_set:
             raise DescriptorCheckError(
                 f"射影判定不能: JSON Schema keywordが不足している: {rule_id}"
             )
-        if not required_parity.get(source_kind, set()) <= parity_set:
+        if not isinstance(required_parity, list) or not set(required_parity) <= parity_set:
             raise DescriptorCheckError(
                 f"射影判定不能: parity条件が不足している: {rule_id}"
             )
-        if rule.get("projectionMode") == "bounded-boundary-annotations":
-            if not {"minimum", "maximum"} <= keyword_set or "range-exact" not in parity_set:
-                raise DescriptorCheckError(
-                    f"射影判定不能: 整数値域のminimum・maximum拘束が不足している: {rule_id}"
-                )
-        if rule.get("projectionMode") == "structured-boundary-annotations":
+        conditional_targets = [
+            target_id
+            for target_id in target_ids
+            if target_id in axes_by_id
+            and axes_by_id[target_id].get("conditionalValues")
+        ]
+        if conditional_targets:
+            conditional_keywords = conditional_requirements.get(
+                "requiredJsonSchemaKeywords"
+            )
+            conditional_parity = conditional_requirements.get(
+                "requiredParityChecks"
+            )
             if (
-                "x-pitchlog-value-schema" not in keyword_set
-                or "value-schema-exact" not in parity_set
+                not isinstance(conditional_keywords, list)
+                or not set(conditional_keywords) <= keyword_set
+                or not isinstance(conditional_parity, list)
+                or not set(conditional_parity) <= parity_set
             ):
                 raise DescriptorCheckError(
-                    f"射影判定不能: 構造化入力のvalueSchema拘束が不足している: {rule_id}"
+                    "射影判定不能: 条件付き値のschema拘束が不足している: "
+                    f"{rule_id}: {conditional_targets!r}"
                 )
-        if rule.get("projectionMode") == "deferred-structured-boundary-annotations":
-            if not {
-                "x-pitchlog-representation-capability",
-                "x-pitchlog-stage2-external-constraints",
-            } <= keyword_set or not {
-                "representation-capability-exact",
-                "stage2-delegation-exact",
-            } <= parity_set:
-                raise DescriptorCheckError(
-                    "射影判定不能: 段階2へ委任した構造化入力の"
-                    f"表現能力・委任条件の拘束が不足している: {rule_id}"
-                )
-        if rule.get("undecidableAction") != "fail":
-            raise DescriptorCheckError(
-                f"射影判定不能: fail-closedでない規則がある: {rule_id}"
-            )
 
-    if declared_source_kinds != expected_kinds:
-        raise DescriptorCheckError("射影判定不能: 射影方針の分類がexact-set不一致")
     missing_targets = sorted(set(expected_targets) - set(projected_targets))
     extra_targets = sorted(set(projected_targets) - set(expected_targets))
     if missing_targets or extra_targets:
@@ -1309,11 +1287,33 @@ def validate_descriptor_document(
     _validate_structured_input_axes(descriptor, criteria)
     _validate_stage2_external_constraints(descriptor, criteria)
     _validate_fr040_conditionals(descriptor, criteria)
-    _validate_coverage_obligations(descriptor)
+    _validate_coverage_obligations(descriptor, criteria)
     _validate_game_end_contract(descriptor, criteria)
-    _validate_projection_contract(descriptor)
-    if "history-depth.json" in _canonical_json_text(descriptor):
-        raise DescriptorCheckError("descriptorはhistory-depth.jsonを参照してはならない")
+    _validate_projection_contract(descriptor, criteria)
+    forbidden_token_parts = criteria.checker_expected_values.get(
+        "forbiddenDocumentTokenParts"
+    )
+    if not isinstance(forbidden_token_parts, list) or not all(
+        isinstance(parts, list)
+        and parts
+        and all(isinstance(item, str) and item for item in parts)
+        for parts in forbidden_token_parts
+    ):
+        raise DescriptorCheckError("forbiddenDocumentTokenPartsが文字列の二次元配列でない")
+    forbidden_tokens = ["".join(parts) for parts in forbidden_token_parts]
+    descriptor_contract = {
+        key: value
+        for key, value in descriptor.items()
+        if key != freeze_checker.FREEZE_FIELD
+    }
+    descriptor_text = _canonical_json_text(descriptor_contract)
+    present_forbidden_tokens = sorted(
+        token for token in forbidden_tokens if token in descriptor_text
+    )
+    if present_forbidden_tokens:
+        raise DescriptorCheckError(
+            f"descriptorが禁止参照を含む: {present_forbidden_tokens!r}"
+        )
     expected_digest = compute_descriptor_digest(descriptor)
     actual_digest = descriptor.get("digest")
     if actual_digest != expected_digest:

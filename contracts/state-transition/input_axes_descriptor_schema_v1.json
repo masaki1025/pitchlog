@@ -82,6 +82,7 @@
         "series",
         "acceptance",
         "identitySpec",
+        "scope",
         "criteria",
         "history"
       ],
@@ -99,6 +100,10 @@
         },
         "identitySpec": {
           "type": "object"
+        },
+        "scope": {
+          "type": "object",
+          "minProperties": 1
         },
         "criteria": {
           "type": "object",

@@ -84,6 +84,43 @@ def test_repository_descriptor_passes_schema_and_digest_validation() -> None:
     assert result.stderr == ""
 
 
+def test_game_end_combination_drift_is_red_after_schema_and_digest_follow() -> None:
+    """組合せ規則をdescriptor・schemaで同時変更しても受理なしでは拒否する。"""
+    descriptor = _descriptor()
+    schema = _schema()
+    changed = "pairwise-changed-without-acceptance"
+    descriptor["gameEndCombinationRules"]["ruleFieldCombination"] = changed
+    schema["$defs"]["gameEndCombinationRules"]["properties"][
+        "ruleFieldCombination"
+    ]["const"] = changed
+    _with_digest(descriptor)
+
+    with pytest.raises(
+        checker.DescriptorCheckError,
+        match="終了判定の組合せ規則が凍結基準と一致しない",
+    ):
+        checker.validate_descriptor_document(descriptor, schema, SOURCE_CLAUSE_IDS)
+
+
+def test_schema_retention_drift_is_red_after_schema_and_digest_follow() -> None:
+    """schema保持値をdescriptor・schemaで同時変更しても受理なしでは拒否する。"""
+    descriptor = _descriptor()
+    schema = _schema()
+    changed = "optional-after-projection"
+    for field in descriptor["nonCoverageFields"]:
+        field["schemaRetention"] = changed
+    schema["$defs"]["nonCoverageField"]["properties"]["schemaRetention"][
+        "const"
+    ] = changed
+    _with_digest(descriptor)
+
+    with pytest.raises(
+        checker.DescriptorCheckError,
+        match="schemaへの射影保持が必須",
+    ):
+        checker.validate_descriptor_document(descriptor, schema, SOURCE_CLAUSE_IDS)
+
+
 def test_schema_defines_the_complete_top_level_and_closed_axis_enum() -> None:
     """schemaが全トップレベル列と3分類の閉じた集合を定める。"""
     schema = _schema()
@@ -362,33 +399,37 @@ def test_observation_input_axes_generate_nonzero_coverage_obligations() -> None:
     axes = {
         axis["axisId"]: axis for axis in _descriptor()["stateTransitionAxes"]
     }
+    criteria = _criteria()
 
     assert (
         checker.coverage_obligation_count(
-            axes["event.perPitch.thirdOutTimingByRunner"]
+            axes["event.perPitch.thirdOutTimingByRunner"], criteria
         )
         == 4
     )
     assert (
         checker.coverage_obligation_count(
-            axes["event.perPitch.interferenceRuling"]
+            axes["event.perPitch.interferenceRuling"], criteria
         )
         == 7
     )
+    assert (
+        checker.coverage_obligation_count(
+            axes["event.perPitch.rbi.doublePlayRelayError"], criteria
+        )
+        == 3
+    )
     assert checker.coverage_obligation_count(
-        axes["event.perPitch.rbi.doublePlayRelayError"]
-    ) == 3
-    assert checker.coverage_obligation_count(
-        axes["event.perPitch.rbi.runnerContinuityByRunner"]
+        axes["event.perPitch.rbi.runnerContinuityByRunner"], criteria
     ) == 4
     assert checker.coverage_obligation_count(
-        axes["event.perPitch.rbi.wouldScoreWithoutErrorByRunner"]
+        axes["event.perPitch.rbi.wouldScoreWithoutErrorByRunner"], criteria
     ) == 4
     assert checker.coverage_obligation_count(
-        axes["event.perPitch.runnerAdvanceOverridesByRunner"]
+        axes["event.perPitch.runnerAdvanceOverridesByRunner"], criteria
     ) == 6
     assert checker.coverage_obligation_count(
-        axes["event.perPitch.officialScoringPayload"]
+        axes["event.perPitch.officialScoringPayload"], criteria
     ) == 3
 
 
@@ -516,9 +557,10 @@ def test_fr040_payload_variant_is_checked_structurally_not_by_text_search() -> N
 def test_every_input_axis_generates_coverage_obligations() -> None:
     """理由だけのnon-finite軸を許さず全入力軸からcoverage座標を生成する。"""
     descriptor = _descriptor()
+    criteria = _criteria()
 
     assert all(
-        checker.coverage_obligation_count(axis) > 0
+        checker.coverage_obligation_count(axis, criteria) > 0
         for collection_name in ("stateTransitionAxes", "gameEndAxes")
         for axis in descriptor[collection_name]
     )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import re
@@ -11,12 +12,6 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 FREEZE_FIELD = "freezeBaseline"
-FREEZE_SERIES = "state-transition-contract-checks"
-CRITERIA_SECTIONS = (
-    "threeWayParity",
-    "inputAxesDescriptor",
-    "gapRegister",
-)
 ACCEPTANCE_ID_PATTERN = re.compile(r"^[^/#\s]+/[^/#\s]+#[1-9][0-9]*$")
 
 
@@ -48,14 +43,48 @@ def criterion_identity(section: object) -> str:
     return f"sha256:{hashlib.sha256(canonicalize(section)).hexdigest()}"
 
 
-def current_identities(criteria: Mapping[str, Any]) -> list[dict[str, str]]:
-    """全 checker 基準の識別値を安定順で返す。"""
+def _scope_criterion_order(scope: Mapping[str, Any]) -> tuple[str, ...]:
+    """宣言された凍結基準の順序を返す。"""
+    order = scope.get("criterionOrder")
+    bindings = scope.get("criterionBindings")
+    if (
+        not isinstance(order, list)
+        or not order
+        or not all(isinstance(item, str) and item for item in order)
+        or len(order) != len(set(order))
+        or not isinstance(bindings, dict)
+        or set(order) != set(bindings)
+    ):
+        raise FreezeBaselineError(
+            "freezeBaseline.scopeのcriterionOrderとcriterionBindingsがexact-set不一致"
+        )
+    return tuple(order)
+
+
+def current_identities(declaration: Mapping[str, Any]) -> list[dict[str, str]]:
+    """宣言自身と全基準の識別値を宣言順で返す。"""
+    scope = declaration.get("scope")
+    criteria = declaration.get("criteria")
+    if not isinstance(scope, dict) or not isinstance(criteria, dict):
+        raise FreezeBaselineError("凍結基準のscopeまたはcriteriaがobjectでない")
+    scope_identity_id = _require_non_empty_string(
+        scope.get("identityCriterionId"), "scope.identityCriterionId"
+    )
+    criterion_order = _scope_criterion_order(scope)
+    if scope_identity_id in criterion_order:
+        raise FreezeBaselineError("scope identityのIDがcriterion IDと重複している")
     return [
+        {
+            "criterionId": scope_identity_id,
+            "identity": criterion_identity(scope),
+        },
+        *(
         {
             "criterionId": section_name,
             "identity": criterion_identity(criteria[section_name]),
         }
-        for section_name in CRITERIA_SECTIONS
+        for section_name in criterion_order
+        ),
     ]
 
 
@@ -85,13 +114,54 @@ def validate_declaration(value: object) -> dict[str, Any]:
         raise FreezeBaselineError(f"{FREEZE_FIELD}はJSON objectでなければならない")
     _require_exact_keys(
         value,
-        {"schemaVersion", "series", "acceptance", "identitySpec", "criteria", "history"},
+        {
+            "schemaVersion",
+            "series",
+            "acceptance",
+            "identitySpec",
+            "scope",
+            "criteria",
+            "history",
+        },
         FREEZE_FIELD,
     )
-    if value.get("schemaVersion") != 1:
-        raise FreezeBaselineError("freezeBaseline.schemaVersionは1でなければならない")
-    if value.get("series") != FREEZE_SERIES:
-        raise FreezeBaselineError("freezeBaseline.seriesが未対応である")
+    series = _require_non_empty_string(value.get("series"), "freezeBaseline.series")
+
+    scope = value.get("scope")
+    if not isinstance(scope, dict):
+        raise FreezeBaselineError("freezeBaseline.scopeがobjectでない")
+    _require_exact_keys(
+        scope,
+        {
+            "identityCriterionId",
+            "criterionOrder",
+            "criterionBindings",
+            "selectionRule",
+            "sourceLiteralAudit",
+            "engineExpectedValues",
+        },
+        "freezeBaseline.scope",
+    )
+    engine_expected = scope.get("engineExpectedValues")
+    if not isinstance(engine_expected, dict):
+        raise FreezeBaselineError("scope.engineExpectedValuesがobjectでない")
+    _require_exact_keys(
+        engine_expected,
+        {
+            "schemaVersion",
+            "acceptance",
+            "identitySpec",
+            "criterionBindingKind",
+        },
+        "scope.engineExpectedValues",
+    )
+    expected_schema_version = engine_expected.get("schemaVersion")
+    if not isinstance(expected_schema_version, int) or isinstance(
+        expected_schema_version, bool
+    ):
+        raise FreezeBaselineError("engineExpectedValues.schemaVersionが整数でない")
+    if value.get("schemaVersion") != engine_expected["schemaVersion"]:
+        raise FreezeBaselineError("freezeBaseline.schemaVersionが凍結基準と一致しない")
 
     acceptance = value.get("acceptance")
     if not isinstance(acceptance, dict):
@@ -107,19 +177,25 @@ def validate_declaration(value: object) -> dict[str, Any]:
         },
         "freezeBaseline.acceptance",
     )
-    if acceptance.get("unit") != "pull_request":
-        raise FreezeBaselineError("凍結基準の受理単位はpull_requestでなければならない")
-    if acceptance.get("acceptanceIdSource") != "repository_and_pr_number":
-        raise FreezeBaselineError("acceptanceIdSourceが未対応である")
+    acceptance_expected = engine_expected.get("acceptance")
+    if not isinstance(acceptance_expected, dict) or not acceptance_expected:
+        raise FreezeBaselineError("engineExpectedValues.acceptanceが不正")
+    _require_exact_keys(
+        acceptance_expected,
+        {"unit", "acceptanceIdSource", "posteriorState"},
+        "engineExpectedValues.acceptance",
+    )
+    for key, expected in acceptance_expected.items():
+        if acceptance.get(key) != expected:
+            raise FreezeBaselineError(
+                f"freezeBaseline.acceptance.{key}が凍結基準と一致しない"
+            )
     _require_non_empty_string(acceptance.get("baseRef"), "acceptance.baseRef")
     base_commit = _require_non_empty_string(
         acceptance.get("baseCommit"), "acceptance.baseCommit"
     )
     if re.fullmatch(r"[0-9a-f]{40}", base_commit) is None:
         raise FreezeBaselineError("acceptance.baseCommitが40桁のcommit SHAでない")
-    if acceptance.get("posteriorState") != "pull-request-head":
-        raise FreezeBaselineError("acceptance.posteriorStateが未対応である")
-
     identity_spec = value.get("identitySpec")
     if not isinstance(identity_spec, dict):
         raise FreezeBaselineError("freezeBaseline.identitySpecがobjectでない")
@@ -128,23 +204,109 @@ def validate_declaration(value: object) -> dict[str, Any]:
         {"granularity", "algorithm", "canonicalization", "encoding"},
         "freezeBaseline.identitySpec",
     )
-    if identity_spec != {
-        "granularity": "checker-criteria-object",
-        "algorithm": "SHA-256",
-        "canonicalization": "json-sort-keys-no-whitespace-v1",
-        "encoding": "UTF-8",
-    }:
-        raise FreezeBaselineError("freezeBaseline.identitySpecが未対応である")
+    expected_identity_spec = engine_expected.get("identitySpec")
+    if not isinstance(expected_identity_spec, dict):
+        raise FreezeBaselineError("engineExpectedValues.identitySpecがobjectでない")
+    _require_exact_keys(
+        expected_identity_spec,
+        {"granularity", "algorithm", "canonicalization", "encoding"},
+        "engineExpectedValues.identitySpec",
+    )
+    if identity_spec != expected_identity_spec:
+        raise FreezeBaselineError(
+            "freezeBaseline.identitySpecが凍結基準と一致しない"
+        )
+    _require_non_empty_string(
+        scope.get("identityCriterionId"), "scope.identityCriterionId"
+    )
+    criterion_order = _scope_criterion_order(scope)
+    bindings = scope["criterionBindings"]
+    binding_kind = _require_non_empty_string(
+        engine_expected.get("criterionBindingKind"),
+        "engineExpectedValues.criterionBindingKind",
+    )
+    for criterion_id in criterion_order:
+        binding = bindings[criterion_id]
+        if (
+            not isinstance(binding, dict)
+            or set(binding) != {"kind", "sourcePath"}
+            or binding.get("kind") != binding_kind
+        ):
+            raise FreezeBaselineError(
+                f"scope.criterionBindings.{criterion_id}の型が不正"
+            )
+        _require_non_empty_string(
+            binding.get("sourcePath"),
+            f"scope.criterionBindings.{criterion_id}.sourcePath",
+        )
+    source_paths = [bindings[item]["sourcePath"] for item in criterion_order]
+    if len(source_paths) != len(set(source_paths)):
+        raise FreezeBaselineError("criterionBindingsのsourcePathが重複している")
+
+    selection_rule = scope.get("selectionRule")
+    if not isinstance(selection_rule, dict) or not selection_rule:
+        raise FreezeBaselineError("scope.selectionRuleが空でないobjectでない")
+    _require_exact_keys(
+        selection_rule,
+        {"includedComparison", "requiredRepresentation", "excludedOperandRoles"},
+        "scope.selectionRule",
+    )
+    included_comparison = selection_rule.get("includedComparison")
+    if not isinstance(included_comparison, dict):
+        raise FreezeBaselineError("selectionRule.includedComparisonがobjectでない")
+    _require_exact_keys(
+        included_comparison,
+        {"leftOperandOrigin", "operatorKinds", "rightOperandOrigin"},
+        "selectionRule.includedComparison",
+    )
+    _require_non_empty_string(
+        included_comparison.get("leftOperandOrigin"),
+        "includedComparison.leftOperandOrigin",
+    )
+    _require_non_empty_string(
+        included_comparison.get("rightOperandOrigin"),
+        "includedComparison.rightOperandOrigin",
+    )
+    operators = included_comparison.get("operatorKinds")
+    excluded_roles = selection_rule.get("excludedOperandRoles")
+    if (
+        not isinstance(operators, list)
+        or not operators
+        or not all(isinstance(item, str) and item for item in operators)
+        or len(operators) != len(set(operators))
+        or not isinstance(excluded_roles, list)
+        or not excluded_roles
+        or not all(isinstance(item, str) and item for item in excluded_roles)
+        or len(excluded_roles) != len(set(excluded_roles))
+    ):
+        raise FreezeBaselineError("selectionRuleの列挙が閉じていない")
+    _require_non_empty_string(
+        selection_rule.get("requiredRepresentation"),
+        "selectionRule.requiredRepresentation",
+    )
+    source_audit = scope.get("sourceLiteralAudit")
+    if not isinstance(source_audit, dict) or not source_audit:
+        raise FreezeBaselineError("scope.sourceLiteralAuditが空でないobjectでない")
+    _require_exact_keys(
+        source_audit,
+        {
+            "engineSourcePath",
+            "forbiddenImplementationSetNames",
+            "excludedComparisonFunctionsBySource",
+            "permittedComparisonLiteralsBySource",
+        },
+        "scope.sourceLiteralAudit",
+    )
 
     criteria = value.get("criteria")
     if not isinstance(criteria, dict):
         raise FreezeBaselineError("freezeBaseline.criteriaがobjectでない")
-    if set(criteria) != set(CRITERIA_SECTIONS):
+    if set(criteria) != set(criterion_order):
         raise FreezeBaselineError(
             "freezeBaseline.criteriaのchecker集合がexact-set不一致: "
-            f"expected={sorted(CRITERIA_SECTIONS)!r}; actual={sorted(criteria)!r}"
+            f"expected={sorted(criterion_order)!r}; actual={sorted(criteria)!r}"
         )
-    for section_name in CRITERIA_SECTIONS:
+    for section_name in criterion_order:
         section = criteria.get(section_name)
         if not isinstance(section, dict) or not section:
             raise FreezeBaselineError(
@@ -154,8 +316,8 @@ def validate_declaration(value: object) -> dict[str, Any]:
     history = value.get("history")
     if not isinstance(history, list) or not history:
         raise FreezeBaselineError("freezeBaseline.historyは空でない配列でなければならない")
-    _validate_history_chain(history)
-    expected_new = current_identities(criteria)
+    _validate_history_chain(history, series)
+    expected_new = current_identities(value)
     last = history[-1]
     if last["newIdentity"] != {"present": True, "values": expected_new}:
         raise FreezeBaselineError(
@@ -165,13 +327,25 @@ def validate_declaration(value: object) -> dict[str, Any]:
 
 
 def checker_criteria(
-    declaration: Mapping[str, Any], checker_name: str
+    declaration: Mapping[str, Any], checker_source_path: str | Path
 ) -> dict[str, Any]:
-    """検証済み宣言から checker 単位の基準を返す。"""
+    """検証済み宣言のsourcePath対応から checker 単位の基準を返す。"""
     validated = validate_declaration(dict(declaration))
-    section = validated["criteria"].get(checker_name)
+    normalized_source = Path(checker_source_path).as_posix()
+    bindings = validated["scope"]["criterionBindings"]
+    matches = [
+        criterion_id
+        for criterion_id, binding in bindings.items()
+        if normalized_source.endswith(binding["sourcePath"])
+    ]
+    if len(matches) != 1:
+        raise FreezeBaselineError(
+            "checker sourcePathを凍結基準へ一意に対応づけられない: "
+            f"{normalized_source}: {matches!r}"
+        )
+    section = validated["criteria"].get(matches[0])
     if not isinstance(section, dict):
-        raise FreezeBaselineError(f"checker基準を取得できない: {checker_name}")
+        raise FreezeBaselineError(f"checker基準を取得できない: {matches[0]}")
     return section
 
 
@@ -206,7 +380,7 @@ def _validate_identity_state(value: object, label: str) -> None:
         seen.add(criterion_id)
 
 
-def _validate_history_chain(history: Sequence[object]) -> None:
+def _validate_history_chain(history: Sequence[object], series: str) -> None:
     """履歴レコードの型と内部の片方向連鎖を検証する。"""
     previous_new: object | None = None
     acceptance_ids: set[str] = set()
@@ -237,8 +411,8 @@ def _validate_history_chain(history: Sequence[object]) -> None:
         if acceptance_id in acceptance_ids:
             raise FreezeBaselineError(f"acceptanceIdが重複している: {acceptance_id}")
         acceptance_ids.add(acceptance_id)
-        if record.get("series") != FREEZE_SERIES:
-            raise FreezeBaselineError(f"{label}.seriesが未対応である")
+        if record.get("series") != series:
+            raise FreezeBaselineError(f"{label}.seriesが宣言の系列名と一致しない")
         _validate_identity_state(record.get("priorIdentity"), f"{label}.priorIdentity")
         _validate_identity_state(record.get("newIdentity"), f"{label}.newIdentity")
         if previous_new is not None and record.get("priorIdentity") != previous_new:
@@ -348,29 +522,39 @@ def validate_append_only_transition(
     """比較元から現行への1受理分の追記だけを許す。"""
     current_value = validate_declaration(dict(current))
     current_history = current_value["history"]
+    current_scope = current_value["scope"]
     current_criteria = current_value["criteria"]
     if base is None:
         base_history: list[object] = []
+        base_scope: Mapping[str, Any] | None = None
         base_criteria: Mapping[str, Any] = {}
         expected_prior = {"present": False, "values": []}
     else:
         base_value = validate_declaration(dict(base))
         base_history = base_value["history"]
+        base_scope = base_value["scope"]
         base_criteria = base_value["criteria"]
         expected_prior = {
             "present": True,
-            "values": current_identities(base_criteria),
+            "values": current_identities(base_value),
         }
 
     if current_history[: len(base_history)] != base_history:
         raise FreezeBaselineError(
             "既存の凍結基準受理履歴が書き換えまたは削除されている"
         )
-    changed_ids = [
+    definition_id = current_scope["identityCriterionId"]
+    changed_ids: list[str] = []
+    if base_scope != current_scope:
+        changed_ids.append(definition_id)
+    current_order = _scope_criterion_order(current_scope)
+    base_order = _scope_criterion_order(base_scope) if base_scope is not None else ()
+    criterion_order = (*base_order, *(item for item in current_order if item not in base_order))
+    changed_ids.extend(
         section
-        for section in CRITERIA_SECTIONS
+        for section in criterion_order
         if base_criteria.get(section) != current_criteria.get(section)
-    ]
+    )
     expected_added = 1 if changed_ids else 0
     if len(current_history) != len(base_history) + expected_added:
         raise FreezeBaselineError(
@@ -384,16 +568,27 @@ def validate_append_only_transition(
         raise FreezeBaselineError("追加レコードのpriorIdentityが直前基準と一致しない")
     expected_changes = []
     for section in changed_ids:
+        if section == definition_id:
+            before_value = base_scope
+            after_value = current_scope
+        else:
+            before_value = base_criteria.get(section)
+            after_value = current_criteria.get(section)
         before = (
             {"present": False}
-            if section not in base_criteria
-            else {"present": True, "value": base_criteria[section]}
+            if before_value is None
+            else {"present": True, "value": before_value}
+        )
+        after = (
+            {"present": False}
+            if after_value is None
+            else {"present": True, "value": after_value}
         )
         expected_changes.append(
             {
                 "criterionId": section,
                 "before": before,
-                "after": {"present": True, "value": current_criteria[section]},
+                "after": after,
                 "changedAspects": [
                     "set",
                     "value",
@@ -409,6 +604,176 @@ def validate_append_only_transition(
         )
 
 
+def _parse_source(root: Path, relative_path: str) -> ast.Module:
+    """宣言された検査器sourceを読み、ASTへ変換する。"""
+    path = root / relative_path
+    try:
+        text = path.read_text(encoding="utf-8")
+        return ast.parse(text, filename=str(path))
+    except (OSError, UnicodeError, SyntaxError) as error:
+        raise FreezeBaselineError(
+            f"凍結基準の実装対応sourceを解析できない: {relative_path}: {error}"
+        ) from error
+
+
+def _string_literals(tree: ast.AST) -> frozenset[str]:
+    """ASTに現れる文字列literalを返す。"""
+    return frozenset(
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    )
+
+
+def _comparison_string_literals(
+    tree: ast.Module, excluded_functions: frozenset[str]
+) -> frozenset[str]:
+    """除外関数外の比較式に現れる文字列literal・参照定数を返す。"""
+    values: set[str] = set()
+    assigned_values: dict[str, set[str]] = {}
+
+    def literal_strings(node: ast.AST) -> set[str]:
+        return {
+            child.value
+            for child in ast.walk(node)
+            if isinstance(child, ast.Constant) and isinstance(child.value, str)
+        }
+
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            assigned = literal_strings(node.value) if node.value is not None else set()
+            for target in targets:
+                if isinstance(target, ast.Name) and assigned:
+                    assigned_values.setdefault(target.id, set()).update(assigned)
+
+    class Visitor(ast.NodeVisitor):
+        """関数名を追跡して比較式だけを収集する。"""
+
+        def __init__(self) -> None:
+            self.function_stack: list[str] = []
+
+        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+            self.function_stack.append(node.name)
+            self.generic_visit(node)
+            self.function_stack.pop()
+
+        def visit_Compare(self, node: ast.Compare) -> None:
+            current = self.function_stack[-1] if self.function_stack else ""
+            if current not in excluded_functions:
+                values.update(literal_strings(node))
+                for child in ast.walk(node):
+                    if isinstance(child, ast.Name):
+                        values.update(assigned_values.get(child.id, set()))
+            self.generic_visit(node)
+
+    Visitor().visit(tree)
+    return frozenset(values)
+
+
+def validate_implementation_correspondence(
+    root: Path, declaration: Mapping[str, Any]
+) -> None:
+    """基準集合とdescriptor期待値が検査器sourceへ再直書きされていないことを検証する。"""
+    validated = validate_declaration(dict(declaration))
+    scope = validated["scope"]
+    audit = scope["sourceLiteralAudit"]
+    engine_path = _require_non_empty_string(
+        audit.get("engineSourcePath"), "sourceLiteralAudit.engineSourcePath"
+    )
+    forbidden_names_value = audit.get("forbiddenImplementationSetNames")
+    exclusions_value = audit.get("excludedComparisonFunctionsBySource")
+    permitted_value = audit.get("permittedComparisonLiteralsBySource")
+    if (
+        not isinstance(forbidden_names_value, list)
+        or not forbidden_names_value
+        or not all(isinstance(item, str) and item for item in forbidden_names_value)
+        or not isinstance(exclusions_value, dict)
+        or not isinstance(permitted_value, dict)
+    ):
+        raise FreezeBaselineError("sourceLiteralAuditの型が不正")
+
+    bindings = scope["criterionBindings"]
+    criterion_ids = frozenset(bindings)
+    source_to_criterion = {
+        binding["sourcePath"]: criterion_id
+        for criterion_id, binding in bindings.items()
+    }
+    audited_sources = {engine_path, *source_to_criterion}
+    if set(exclusions_value) != audited_sources or set(permitted_value) != audited_sources:
+        raise FreezeBaselineError(
+            "sourceLiteralAuditのsource集合がengineとcriterionBindingsのexact-setでない"
+        )
+    permitted_roles = scope["selectionRule"].get("excludedOperandRoles")
+    if not isinstance(permitted_roles, list) or not all(
+        isinstance(item, str) and item for item in permitted_roles
+    ):
+        raise FreezeBaselineError("selectionRule.excludedOperandRolesの型が不正")
+
+    for source_path in sorted(audited_sources):
+        tree = _parse_source(root, source_path)
+        engine_names = {
+            node.id for node in ast.walk(tree) if isinstance(node, ast.Name)
+        }
+        forbidden_names = sorted(set(forbidden_names_value) & engine_names)
+        if forbidden_names:
+            raise FreezeBaselineError(
+                f"凍結基準集合を実装側へ再定義している: "
+                f"{source_path}: {forbidden_names!r}"
+            )
+        duplicated_ids = sorted(criterion_ids & _string_literals(tree))
+        if duplicated_ids:
+            raise FreezeBaselineError(
+                f"criterion IDを検査器sourceへ直書きしている: "
+                f"{source_path}: {duplicated_ids!r}"
+            )
+        excluded_value = exclusions_value.get(source_path, [])
+        if not isinstance(excluded_value, list) or not all(
+            isinstance(item, str) and item for item in excluded_value
+        ):
+            raise FreezeBaselineError(
+                f"比較literal除外関数の宣言が不正: {source_path}"
+            )
+        function_names = {
+            node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+        }
+        missing_excluded_functions = sorted(set(excluded_value) - function_names)
+        if missing_excluded_functions:
+            raise FreezeBaselineError(
+                "比較literal除外関数がsourceに実在しない: "
+                f"{source_path}: {missing_excluded_functions!r}"
+            )
+        role_map = permitted_value.get(source_path)
+        if not isinstance(role_map, dict) or not all(
+            isinstance(role, str)
+            and role in permitted_roles
+            and isinstance(items, list)
+            and all(isinstance(item, str) for item in items)
+            for role, items in role_map.items()
+        ):
+            raise FreezeBaselineError(
+                f"許可された比較literalの役割宣言が不正: {source_path}"
+            )
+        declared_literals = {
+            item for items in role_map.values() for item in items
+        }
+        declared_literal_count = sum(len(items) for items in role_map.values())
+        if declared_literal_count != len(declared_literals):
+            raise FreezeBaselineError(
+                f"許可された比較literalが複数の役割へ重複している: {source_path}"
+            )
+        actual_literals = _comparison_string_literals(
+            tree, frozenset(excluded_value)
+        )
+        if actual_literals != declared_literals:
+            raise FreezeBaselineError(
+                "比較literalが資産側の線引き宣言とexact-set不一致: "
+                f"{source_path}: "
+                f"missing={sorted(declared_literals - actual_literals)!r}; "
+                f"unexpected={sorted(actual_literals - declared_literals)!r}"
+            )
+
+
 def validate_repository_history(
     root: Path,
     descriptor_path: PurePosixPath,
@@ -416,6 +781,7 @@ def validate_repository_history(
 ) -> None:
     """宣言したPR比較元と実リポジトリから追記専用遷移を検査する。"""
     current = validate_declaration(dict(declaration))
+    validate_implementation_correspondence(root, current)
     base_ref = current["acceptance"]["baseRef"]
     base_commit = current["acceptance"]["baseCommit"]
     resolved = _git(root, ["rev-parse", "--verify", f"{base_ref}^{{commit}}"])

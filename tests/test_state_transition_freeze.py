@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import shutil
 import sys
 from pathlib import Path
 from typing import Any
@@ -56,13 +57,13 @@ def test_repository_history_is_one_append_from_origin_develop() -> None:
     )
 
 
-def test_current_identities_are_derived_from_all_asset_side_criteria() -> None:
-    """現行3基準の識別値は検査器定数でなく資産側宣言から導出する。"""
+def test_current_identities_are_derived_from_scope_and_asset_side_criteria() -> None:
+    """線の定義と現行3基準の識別値を資産側宣言だけから導出する。"""
     declaration = freeze_checker.validate_declaration(_declaration())
 
     assert declaration["history"][-1]["newIdentity"] == {
         "present": True,
-        "values": freeze_checker.current_identities(declaration["criteria"]),
+        "values": freeze_checker.current_identities(declaration),
     }
 
 
@@ -145,3 +146,124 @@ def test_criteria_change_without_acceptance_record_is_red() -> None:
         match="newIdentityが現行基準の識別値と一致しない",
     ):
         freeze_checker.validate_declaration(declaration)
+
+
+def test_scope_change_without_acceptance_record_is_red() -> None:
+    """線の定義だけを変えても基準移動として受理履歴を要求する。"""
+    declaration = copy.deepcopy(_declaration())
+    declaration["scope"]["selectionRule"]["requiredRepresentation"] = (
+        "changed-without-acceptance"
+    )
+
+    with pytest.raises(
+        freeze_checker.FreezeBaselineError,
+        match="newIdentityが現行基準の識別値と一致しない",
+    ):
+        freeze_checker.validate_declaration(declaration)
+
+
+def test_criterion_set_removal_from_declaration_is_red() -> None:
+    """集合宣言と基準を同時に縮小しても既存受理履歴が拒否する。"""
+    declaration = copy.deepcopy(_declaration())
+    removed = declaration["scope"]["criterionOrder"].pop()
+    declaration["scope"]["criterionBindings"].pop(removed)
+    declaration["criteria"].pop(removed)
+
+    with pytest.raises(
+        freeze_checker.FreezeBaselineError,
+        match="newIdentityが現行基準の識別値と一致しない",
+    ):
+        freeze_checker.validate_declaration(declaration)
+
+
+def _copy_audited_sources(tmp_path: Path) -> Path:
+    """宣言が監査する検査器sourceを一時リポジトリへ複製する。"""
+    root = tmp_path / "repository"
+    scope = _declaration()["scope"]
+    paths = {
+        scope["sourceLiteralAudit"]["engineSourcePath"],
+        *(binding["sourcePath"] for binding in scope["criterionBindings"].values()),
+    }
+    for relative_path in paths:
+        destination = root / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
+    return root
+
+
+def test_implementation_side_criterion_set_is_red(tmp_path: Path) -> None:
+    """criterion集合を検査器へ再設置すると宣言集合より小さくても拒否する。"""
+    root = _copy_audited_sources(tmp_path)
+    engine_path = root / _declaration()["scope"]["sourceLiteralAudit"][
+        "engineSourcePath"
+    ]
+    source = engine_path.read_text(encoding="utf-8")
+    engine_path.write_text(
+        source + '\nIMPLEMENTATION_CRITERIA = ("threeWayParity",)\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        freeze_checker.FreezeBaselineError,
+        match="criterion IDを検査器sourceへ直書きしている",
+    ):
+        freeze_checker.validate_implementation_correspondence(root, _declaration())
+
+
+@pytest.mark.parametrize(
+    ("target", "changed"),
+    [
+        ("combination", "pairwise-changed-without-acceptance"),
+        ("schema-retention", "optional-after-projection"),
+    ],
+)
+def test_unaccepted_checker_literal_is_red(
+    tmp_path: Path, target: str, changed: str
+) -> None:
+    """descriptor・schema・検査器を同時追随しても宣言なしでは拒否する。"""
+    root = _copy_audited_sources(tmp_path)
+    descriptor_path = root / descriptor_checker.DESCRIPTOR_PATH
+    schema_path = root / descriptor_checker.SCHEMA_PATH
+    descriptor_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(REPOSITORY_ROOT / descriptor_checker.DESCRIPTOR_PATH, descriptor_path)
+    shutil.copy2(REPOSITORY_ROOT / descriptor_checker.SCHEMA_PATH, schema_path)
+    descriptor = json.loads(descriptor_path.read_text(encoding="utf-8"))
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    if target == "combination":
+        descriptor["gameEndCombinationRules"]["ruleFieldCombination"] = changed
+        schema["$defs"]["gameEndCombinationRules"]["properties"][
+            "ruleFieldCombination"
+        ]["const"] = changed
+    else:
+        for field in descriptor["nonCoverageFields"]:
+            field["schemaRetention"] = changed
+        schema["$defs"]["nonCoverageField"]["properties"]["schemaRetention"][
+            "const"
+        ] = changed
+    descriptor["digest"] = descriptor_checker.compute_descriptor_digest(descriptor)
+    descriptor_path.write_text(
+        json.dumps(descriptor, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    schema_path.write_text(
+        json.dumps(schema, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    assert descriptor["digest"] == descriptor_checker.compute_descriptor_digest(
+        descriptor
+    )
+
+    source_path = root / "scripts/check_input_axes_descriptor.py"
+    source = source_path.read_text(encoding="utf-8")
+    source_path.write_text(
+        source
+        + '\ndef _unaccepted_value(value: object) -> bool:\n'
+        + f"    return value == {changed!r}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        freeze_checker.FreezeBaselineError,
+        match="線引き宣言とexact-set不一致",
+    ):
+        freeze_checker.validate_implementation_correspondence(root, _declaration())

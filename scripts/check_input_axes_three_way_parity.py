@@ -47,7 +47,7 @@ STAGE2_CONSTRAINT_ID_PATTERN = re.compile(
     r"`stage2-constraint:(?P<constraint>[a-z][a-z0-9-]+)`"
 )
 D12_FREEZE_BASELINE_ID_PATTERN = re.compile(
-    r"freeze-baseline-(?:field|series):[A-Za-z][A-Za-z0-9-]*"
+    r"freeze-baseline-(?:field|series|scope):[A-Za-z][A-Za-z0-9.-]*"
 )
 CONTRACT_FILENAME_PATTERN = re.compile(
     r"^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*\.json$"
@@ -106,7 +106,7 @@ def load_parity_criteria(descriptor: Mapping[str, Any]) -> ParityCriteria:
         declaration = freeze_checker.validate_declaration(
             descriptor.get(freeze_checker.FREEZE_FIELD)
         )
-        raw = freeze_checker.checker_criteria(declaration, "threeWayParity")
+        raw = freeze_checker.checker_criteria(declaration, __file__)
     except freeze_checker.FreezeBaselineError as error:
         raise ThreeWayParityError(f"凍結基準宣言を検証できない: {error}") from error
 
@@ -277,7 +277,13 @@ def _validate_xc09_definition_and_ownership(
     criteria: ParityCriteria,
 ) -> tuple[frozenset[str], dict[str, tuple[str, str]], dict[str, str]]:
     """D-8固有制約とE-1からの外部帰属をexact-setで突合する。"""
-    d8_section = extract_adr_decision_section(adr_text, "D-8")
+    owner_decision_ids = {
+        decision_id
+        for decision_id, _layer in criteria.requirement_constraint_owners.values()
+    }
+    if len(owner_decision_ids) != 1:
+        raise ThreeWayParityError("外部制約の帰属先decisionを一意に決定できない")
+    d8_section = extract_adr_decision_section(adr_text, owner_decision_ids.pop())
     adr_matches = list(ADR_CONSTRAINT_MARKER_PATTERN.finditer(d8_section))
     adr_constraint_ids = frozenset(
         match.group("constraint_id") for match in adr_matches
@@ -291,7 +297,12 @@ def _validate_xc09_definition_and_ownership(
             f"actual={sorted(adr_constraint_ids)!r}"
         )
 
-    e1_section = extract_requirement_clause_section(requirements_text, "E-1")
+    exclusion_clause_ids = set(criteria.requirement_constraint_exclusions.values())
+    if len(exclusion_clause_ids) != 1:
+        raise ThreeWayParityError("外部制約の除外元clauseを一意に決定できない")
+    e1_section = extract_requirement_clause_section(
+        requirements_text, exclusion_clause_ids.pop()
+    )
     owner_matches = list(REQUIREMENT_CONSTRAINT_OWNER_PATTERN.finditer(e1_section))
     owners: dict[str, tuple[str, str]] = {}
     for match in owner_matches:
