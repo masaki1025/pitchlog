@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:762aa8c71c561cdfc57536930e1f5765d374702ec987f57cb64ac1896aac032b",
+  "digest": "sha256:c9c6e9ebd7757e37799e0580883c69c47b409fcffc9c33f93d814140a8c0dac0",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -84,6 +84,22 @@
           "sourcePath": "scripts/check_gap_register.py"
         }
       },
+      "assuranceBoundary": {
+        "mechanicallyGuaranteed": {
+          "subjectJsonPointers": [
+            "/freezeBaseline/scope",
+            "/freezeBaseline/criteria"
+          ],
+          "identitySource": "/freezeBaseline/identitySpec",
+          "changeWithoutAcceptanceRecord": "fail"
+        },
+        "notMechanicallyGuaranteed": {
+          "propertyId": "absence-of-undeclared-implementation-baselines",
+          "reason": "arbitrary-program-semantic-analysis-is-undecidable",
+          "normativeStatus": "prohibited-by-dev-harness-7.7-1",
+          "reviewControl": "pull-request-review"
+        }
+      },
       "selectionRule": {
         "includedComparison": {
           "leftOperandOrigin": "descriptor-json-value",
@@ -103,10 +119,36 @@
           "repository-path-or-filename-grammar",
           "runtime-type-or-control-sentinel",
           "relation-derived-only-from-current-asset-values",
+          "closed-object-grammar-key-set",
           "diagnostic-text"
+        ],
+        "knownDirectComparisonDispositions": [
+          {
+            "findingId": "round10-require-exact-keys-48",
+            "sourcePath": "scripts/state_transition_freeze.py",
+            "construct": "_require_exact_keys.expected-key-set",
+            "observedValue": 48,
+            "disposition": "outside-frozen-criterion-values",
+            "selectionRuleRole": "closed-object-grammar-key-set",
+            "reason": "宣言JSONの閉じた文法を識別するobject member名であり、凍結するchecker判断値ではない"
+          }
         ]
       },
       "sourceLiteralAudit": {
+        "assuranceLevel": "supplemental-non-exhaustive-regression-signal",
+        "coveredConstructs": [
+          "direct-string-literal-in-ast.Compare",
+          "module-assigned-string-literal-referenced-from-ast.Compare"
+        ],
+        "notCoveredConstructs": [
+          "numeric-literal",
+          "helper-argument-propagation",
+          "bytes-derived-value",
+          "operator-function-call",
+          "imported-constant",
+          "per-occurrence-semantic-role"
+        ],
+        "occurrenceRoleValidation": "not-performed-flat-literal-value-set-only",
         "engineSourcePath": "scripts/state_transition_freeze.py",
         "forbiddenImplementationSetNames": [
           "CRITERIA_SECTIONS"
@@ -134,6 +176,7 @@
               "engineExpectedValues.criterionBindingKind",
               "excludedComparisonFunctionsBySource",
               "excludedOperandRoles",
+              "findingId",
               "freezeBaseline",
               "history",
               "identityCriterionId",
@@ -147,8 +190,10 @@
               "schemaVersion",
               "scope",
               "selectionRule",
+              "selectionRuleRole",
               "series",
               "sourcePath",
+              "subjectJsonPointers",
               "value",
               "values"
             ],
@@ -165,6 +210,10 @@
               ".criterionId",
               ".values[",
               "].criterionId",
+              ".findingId",
+              "/",
+              "/criteria",
+              "/scope",
               "acceptance.baseCommit",
               "freezeBaseline.series",
               "git",
@@ -212,6 +261,7 @@
               "maximum",
               "minItems",
               "minLength",
+              "minimumCoverageObligationsPerAxis",
               "minimum",
               "nonCoverageField",
               "nonCoverageSchemaRetention",
@@ -279,7 +329,7 @@
             ],
             "identifier-or-format-grammar": [
               "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*\\.json$",
-              "freeze-baseline-(?:field|series|scope):[A-Za-z][A-Za-z0-9.-]*",
+              "freeze-baseline-(?:field|series|scope|assurance):[A-Za-z][A-Za-z0-9.-]*",
               "req:"
             ],
             "repository-path-or-filename-grammar": [
@@ -467,6 +517,7 @@
         "d12RequiredCodeLiterals": [
           "<対象>_v<N>.json",
           "contracts/<領域>/",
+          "freeze-baseline-assurance:declared-identities-only",
           "freeze-baseline-field:freezeBaseline",
           "freeze-baseline-scope:freezeBaseline.scope",
           "freeze-baseline-series:state-transition-contract-checks",
@@ -673,6 +724,7 @@
             "ruleFieldCombination": "pairwise-all-game-end-axes",
             "boundaryValueCombination": "full-cross-product-with-all-state-and-event-axes"
           },
+          "minimumCoverageObligationsPerAxis": 1,
           "nonCoverageTargetKind": "non-coverage-field",
           "conditionalProjectionRequirements": {
             "requiredJsonSchemaKeywords": [
@@ -895,15 +947,15 @@
           "values": [
             {
               "criterionId": "freezeDefinition",
-              "identity": "sha256:8b7404b63a841ac648b3b66cacfa0709cadd37d1e8313a1df583e13713e4aba5"
+              "identity": "sha256:3aeb82daf726e1b485c2d7b1b2d7146420ec0abebe761014c610e9de629c82c5"
             },
             {
               "criterionId": "threeWayParity",
-              "identity": "sha256:7020748c3eaf74310ea8da5c15e54e1775f7adfb62e6e75a8a840de176d68d08"
+              "identity": "sha256:b3abb02ed1bb7e4974ca1d8745b995ac1a50b40ef74ac379addca64efdc881de"
             },
             {
               "criterionId": "inputAxesDescriptor",
-              "identity": "sha256:8c6353b6ca191a5d550df24caaab1b9bca03a9b53d92153bb6af99a3e9cc882b"
+              "identity": "sha256:ef135ff8ecbf7c0acd9453359de7fa8a19af287e10f2e8d191988c6c5525d904"
             },
             {
               "criterionId": "gapRegister",
@@ -940,6 +992,22 @@
                     "sourcePath": "scripts/check_gap_register.py"
                   }
                 },
+                "assuranceBoundary": {
+                  "mechanicallyGuaranteed": {
+                    "subjectJsonPointers": [
+                      "/freezeBaseline/scope",
+                      "/freezeBaseline/criteria"
+                    ],
+                    "identitySource": "/freezeBaseline/identitySpec",
+                    "changeWithoutAcceptanceRecord": "fail"
+                  },
+                  "notMechanicallyGuaranteed": {
+                    "propertyId": "absence-of-undeclared-implementation-baselines",
+                    "reason": "arbitrary-program-semantic-analysis-is-undecidable",
+                    "normativeStatus": "prohibited-by-dev-harness-7.7-1",
+                    "reviewControl": "pull-request-review"
+                  }
+                },
                 "selectionRule": {
                   "includedComparison": {
                     "leftOperandOrigin": "descriptor-json-value",
@@ -959,10 +1027,36 @@
                     "repository-path-or-filename-grammar",
                     "runtime-type-or-control-sentinel",
                     "relation-derived-only-from-current-asset-values",
+                    "closed-object-grammar-key-set",
                     "diagnostic-text"
+                  ],
+                  "knownDirectComparisonDispositions": [
+                    {
+                      "findingId": "round10-require-exact-keys-48",
+                      "sourcePath": "scripts/state_transition_freeze.py",
+                      "construct": "_require_exact_keys.expected-key-set",
+                      "observedValue": 48,
+                      "disposition": "outside-frozen-criterion-values",
+                      "selectionRuleRole": "closed-object-grammar-key-set",
+                      "reason": "宣言JSONの閉じた文法を識別するobject member名であり、凍結するchecker判断値ではない"
+                    }
                   ]
                 },
                 "sourceLiteralAudit": {
+                  "assuranceLevel": "supplemental-non-exhaustive-regression-signal",
+                  "coveredConstructs": [
+                    "direct-string-literal-in-ast.Compare",
+                    "module-assigned-string-literal-referenced-from-ast.Compare"
+                  ],
+                  "notCoveredConstructs": [
+                    "numeric-literal",
+                    "helper-argument-propagation",
+                    "bytes-derived-value",
+                    "operator-function-call",
+                    "imported-constant",
+                    "per-occurrence-semantic-role"
+                  ],
+                  "occurrenceRoleValidation": "not-performed-flat-literal-value-set-only",
                   "engineSourcePath": "scripts/state_transition_freeze.py",
                   "forbiddenImplementationSetNames": [
                     "CRITERIA_SECTIONS"
@@ -990,6 +1084,7 @@
                         "engineExpectedValues.criterionBindingKind",
                         "excludedComparisonFunctionsBySource",
                         "excludedOperandRoles",
+                        "findingId",
                         "freezeBaseline",
                         "history",
                         "identityCriterionId",
@@ -1003,8 +1098,10 @@
                         "schemaVersion",
                         "scope",
                         "selectionRule",
+                        "selectionRuleRole",
                         "series",
                         "sourcePath",
+                        "subjectJsonPointers",
                         "value",
                         "values"
                       ],
@@ -1021,6 +1118,10 @@
                         ".criterionId",
                         ".values[",
                         "].criterionId",
+                        ".findingId",
+                        "/",
+                        "/criteria",
+                        "/scope",
                         "acceptance.baseCommit",
                         "freezeBaseline.series",
                         "git",
@@ -1068,6 +1169,7 @@
                         "maximum",
                         "minItems",
                         "minLength",
+                        "minimumCoverageObligationsPerAxis",
                         "minimum",
                         "nonCoverageField",
                         "nonCoverageSchemaRetention",
@@ -1135,7 +1237,7 @@
                       ],
                       "identifier-or-format-grammar": [
                         "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*\\.json$",
-                        "freeze-baseline-(?:field|series|scope):[A-Za-z][A-Za-z0-9.-]*",
+                        "freeze-baseline-(?:field|series|scope|assurance):[A-Za-z][A-Za-z0-9.-]*",
                         "req:"
                       ],
                       "repository-path-or-filename-grammar": [
@@ -1338,6 +1440,7 @@
                 "d12RequiredCodeLiterals": [
                   "<対象>_v<N>.json",
                   "contracts/<領域>/",
+                  "freeze-baseline-assurance:declared-identities-only",
                   "freeze-baseline-field:freezeBaseline",
                   "freeze-baseline-scope:freezeBaseline.scope",
                   "freeze-baseline-series:state-transition-contract-checks",
@@ -1560,6 +1663,7 @@
                     "ruleFieldCombination": "pairwise-all-game-end-axes",
                     "boundaryValueCombination": "full-cross-product-with-all-state-and-event-axes"
                   },
+                  "minimumCoverageObligationsPerAxis": 1,
                   "nonCoverageTargetKind": "non-coverage-field",
                   "conditionalProjectionRequirements": {
                     "requiredJsonSchemaKeywords": [
@@ -1794,8 +1898,8 @@
             ]
           }
         ],
-        "fact": "敵対レビュー最終全文確認周で、凍結基準とその集合・境界が検査器の定数として二重定義されている事実を確認し、同一PR内で基準値と線の決定元を資産側へ移設した",
-        "reason": "開発ハーネス設計書7.7-1および7.7-4に従い、正本・契約資産を唯一の判断元として凍結し、descriptor・schema・検査器の同時変更または実装側の集合変更だけで基準を追随・縮小できないようにするため",
+        "fact": "敵対レビュー最終全文確認周で、凍結基準とその集合・境界を資産側へ移設したうえで、任意コードに宣言外基準が無いことまでは機械監査できない事実を確認し、同一PR内で保証対象と非保証対象を宣言した",
+        "reason": "開発ハーネス設計書7.7-1および7.7-4に従い、宣言されたscopeとcriteriaの同一性変更を受理記録なしでは拒否する一方、任意コードの意味解析に帰着する宣言外基準の不存在は機械保証せず、規範上の直書き禁止をPRレビューで確認する境界へ確定するため",
         "approvedBy": "山田正輝",
         "approvedDate": "2026-09-27"
       }

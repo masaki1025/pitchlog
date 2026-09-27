@@ -234,7 +234,7 @@ def test_d12_machine_readable_path_and_filename_literals_are_present() -> None:
 
 
 def test_d12_freeze_baseline_ids_match_descriptor_exactly() -> None:
-    """凍結基準の置き場・系列IDをD-12と資産側宣言で双方向突合する。"""
+    """凍結基準の置き場・系列・保証境界IDをD-12と資産側宣言で双方向突合する。"""
     adr_text = (REPOSITORY_ROOT / checker.ADR_PATH).read_text(encoding="utf-8")
     section = checker.extract_adr_decision_section(adr_text, "D-12")
     declared = frozenset(
@@ -244,6 +244,7 @@ def test_d12_freeze_baseline_ids_match_descriptor_exactly() -> None:
     )
 
     assert declared == {
+        "freeze-baseline-assurance:declared-identities-only",
         "freeze-baseline-field:freezeBaseline",
         "freeze-baseline-scope:freezeBaseline.scope",
         "freeze-baseline-series:state-transition-contract-checks",
@@ -254,6 +255,7 @@ def test_d12_freeze_baseline_ids_match_descriptor_exactly() -> None:
 @pytest.mark.parametrize(
     "literal",
     [
+        "freeze-baseline-assurance:declared-identities-only",
         "freeze-baseline-field:freezeBaseline",
         "freeze-baseline-scope:freezeBaseline.scope",
     ],
@@ -280,6 +282,7 @@ def test_d12_freeze_baseline_id_removal_from_adr_is_red_after_digest_recalculati
 @pytest.mark.parametrize(
     "literal",
     [
+        "freeze-baseline-assurance:declared-identities-only",
         "freeze-baseline-field:freezeBaseline",
         "freeze-baseline-scope:freezeBaseline.scope",
     ],

@@ -332,6 +332,16 @@ def _expected_string(criteria: DescriptorCriteria, key: str) -> str:
     return value
 
 
+def _expected_positive_integer(criteria: DescriptorCriteria, key: str) -> int:
+    """検査器期待値宣言から正の整数を取得する。"""
+    value = criteria.checker_expected_values.get(key)
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        raise DescriptorCheckError(
+            f"checkerExpectedValues.{key}は正の整数でなければならない"
+        )
+    return value
+
+
 def _json_equal(left: object, right: object) -> bool:
     """booleanとintegerを混同せずJSON値を比較する。"""
     return type(left) is type(right) and left == right
@@ -926,6 +936,9 @@ def _validate_coverage_obligations(
     descriptor: Mapping[str, Any], criteria: DescriptorCriteria
 ) -> None:
     """全入力軸が1件以上のcoverage義務を生成することを検証する。"""
+    minimum_obligations = _expected_positive_integer(
+        criteria, "minimumCoverageObligationsPerAxis"
+    )
     for collection_name in ("stateTransitionAxes", "gameEndAxes"):
         axes = descriptor.get(collection_name)
         if not isinstance(axes, list):
@@ -933,10 +946,11 @@ def _validate_coverage_obligations(
         for index, axis_value in enumerate(axes):
             if not isinstance(axis_value, dict):
                 continue
-            if coverage_obligation_count(axis_value, criteria) == 0:
+            if coverage_obligation_count(axis_value, criteria) < minimum_obligations:
                 axis_id = axis_value.get("axisId", f"index={index}")
                 raise DescriptorCheckError(
-                    f"coverage義務が0件の入力軸がある: {collection_name}: {axis_id}"
+                    "coverage義務が宣言した最小件数未満の入力軸がある: "
+                    f"{collection_name}: {axis_id}"
                 )
 
 

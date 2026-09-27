@@ -1405,3 +1405,111 @@ game-end 組合せ規則の同時変更 / `schemaRetention` の同時変更 /
 
 **履歴は 1 件のまま。** 識別値は 4 件(`freezeDefinition` を追加)。
 **承認者 山田正輝 / 承認日 2026-09-27**(本日の PO 裁定)。
+
+## 確定ゲート 10 周目(最終全文確認周・3 回目)— 否決 / P0=0 P1=1 P2=0
+
+**5 周連続で「是正が次の穴を作る」状態。**
+
+| 周 | 種別 | P0 | P1 | P2 | 母集団 | 起因 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 8 | 最終全文確認 | 0 | 1 | 0 | 1 | 1 |
+| 9 | 最終全文確認 | 0 | 1 | 0 | 1 | 1 |
+| **10** | **最終全文確認** | **0** | **1** | **0** | **1** | **1** |
+
+### 採否記録(7.3-2)
+
+| # | 重大度 | 起因 | 分類 | 要旨 | 採否 | 理由 / 反映方針 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | **P1** | **起因** | (A) | **`sourceLiteralAudit` が宣言した境界を実効的に監査できていない**。抽出器は `ast.Compare` 内の文字列だけを収集するため、**数値 / ヘルパー引数越しの比較 / bytes / `operator.eq` / import 定数**を捕捉しない。役割別 allowlist は値集合へ平坦化され、各出現箇所が本当に navigation-only かは未検証。**`_require_exact_keys` が比較する直書き 48 値中 22 値が監査に現れない**。**AST でヘルパー越しの比較を注入したところ `validate_implementation_correspondence()` が合格した** | **採用** | **作成者も独立に数値の穴を実証**(新しい文字列リテラルを 1 つも導入せず `len(combination_rules) != 3` を注入 → 3 検査すべて緑) |
+
+**不採用: 0 件。** **(B) 分類: 0 件。**
+
+### 作成者の独立検証
+
+**レビュー実行前に、自分で指摘していた未検証点を試した。**
+`state_transition_freeze.py:619-625` の `_string_literals` が
+`isinstance(node.value, str)` でフィルタしているため、数値が監査対象外になる。
+
+**1 回目の変異**(`len(...) != 26`)は赤になったが、**理由は数値ではなく**
+ナビゲーション用の文字列 `"stateTransitionAxes"` が未宣言だったため。
+**既に宣言済みのキーを使った 2 回目**(`len(combination_rules) != 3`)は**全検査が緑**だった。
+
+**レビュー実行中のツリーを触ったため、判定前に復元済み**(`git status` クリーンを確認)。
+
+### PO 裁定(2026-09-27・5 回目)
+
+**提示した 4 案は ①目的を変えて条文化 ②射程外へ送る ③もう 1 周是正 ④exact-set ごと撤回。**
+**裁定は ①目的を変えて条文化。**
+
+**判断材料として、本プロジェクトで同じ形が 2 度決着していることを提示した**:
+
+1. **設計書 7.7-4 自身**(PO 裁定 2026-09-17)— 「**本節はこれを塞がない** —
+   塞げるように書こうとして、述語・類型の列挙・事実の軸の 3 方式がいずれも
+   『網羅できていない』型の指摘を出し続けた」
+2. **NFR-018(b)②**(人間裁定 2026-08-18・要件書 v2.2)—
+   「宣言外の実装が混入していないことの機械判定」は**プログラム同値性に帰着し決定不能**と
+   結論し、**目的を「再実装が存在しないことの証明」から「差分が必ず検出されること」へ変更**。
+   **保証の範囲外を要件文に明示**した
+
+## 反映 10 周目 — 保証目的を変え、範囲外を条文へ明示した
+
+### 保証境界(`freezeBaseline.scope.assuranceBoundary`)
+
+| 区分 | 内容 |
+| --- | --- |
+| **機械保証** | `/freezeBaseline/scope` と `/freezeBaseline/criteria` の同一性。**受理記録なしの変更は fail** |
+| **非保証** | `absence-of-undeclared-implementation-baselines`。理由は `arbitrary-program-semantic-analysis-is-undecidable` |
+| **規範上の地位** | `prohibited-by-dev-harness-7.7-1`。統制は `pull-request-review` |
+
+**7.7-4 の言い回しの型に倣った** — 「**『塞がらない』は機械的な遮断が無いことの
+非保証であって、規範上許されることではない**」。
+**「機械で見ないから書いてよい」とは読めない形にしてある。**
+
+**ADR-003 D-12 へ同じ境界を条文化**(機械可読 ID
+`freeze-baseline-assurance:declared-identities-only`)。**7.7 の規則は複製していない。**
+
+### `sourceLiteralAudit` — 補助・非網羅として残した
+
+- `assuranceLevel` = **`supplemental-non-exhaustive-regression-signal`**
+- `coveredConstructs` = `ast.Compare` の直接の文字列リテラル /
+  そこから参照される単純代入文字列
+- `notCoveredConstructs` = **数値 / ヘルパー引数の伝播 / bytes 由来値 /
+  `operator` 関数呼び出し / import 定数 / 出現箇所ごとの意味判定**
+- `occurrenceRoleValidation` = **`not-performed-flat-literal-value-set-only`**
+
+**完全性を主張しない名前と記述になっている。**
+
+### 実測で特定済みの直書きの処理 — 報告と実体に食い違いがあった
+
+**Codex は「`_require_exact_keys` の既存 48 値を `closed-object-grammar-key-set` として
+分類した。対象は以下の全件」と報告したが、作成者の実測では実体が異なる。**
+
+- **`closed-object-grammar-key-set` は `excludedOperandRoles` に追加されているが、
+  登録数は全ソースで 0 件**
+- **48 値のうち 22 値は allowlist のどこにも無い**(レビュアが測った
+  「48 値中 22 値が監査に現れず」がそのまま残っている)
+- **残り 26 値は別の役割**(`json-object-member-name-used-only-for-navigation`)**にある**
+
+**実質は「役割名を規則へ足して線の外と定義した」**であって、列挙による処理ではない。
+**22 値が監査に現れないのは、それらが `ast.Compare` ではなく `_require_exact_keys` への
+集合リテラル引数であり、宣言済みの非保証構文 `helper-argument-propagation` に
+該当するため。**
+
+**規則としては筋が通っているが、報告の「対象は以下の全件です」は実体を誤って伝えている。**
+**役割 8 件のうち 3 件**(`relation-derived-only-from-current-asset-values` /
+`closed-object-grammar-key-set` / `diagnostic-text`)**は登録数 0 で、
+抽出器が収集しない構文に対する概念上の除外である。**
+
+**coverage 判定の直書き `0` は宣言値 `minimumCoverageObligationsPerAxis = 1` へ移り、
+検査器がその値を読む形になった**(これは実体を確認済み)。
+
+### 範囲外を示す負例
+
+**`len(combination_rules) != 3` を注入し、現在の機械保証では検出しないことを
+テストで記録した**(`tests/test_state_transition_freeze.py:308`)。
+**「これは合格経路の肯定ではなく、宣言した非保証境界の回帰記録である」とコメントがある。**
+
+### 検証
+
+**反映 9 周目の受入変異 5 種・反映 7 周目の 7 変異はすべて引き続き赤。**
+**7.7-2 の履歴は 1 件のまま。**

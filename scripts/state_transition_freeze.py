@@ -136,6 +136,7 @@ def validate_declaration(value: object) -> dict[str, Any]:
             "identityCriterionId",
             "criterionOrder",
             "criterionBindings",
+            "assuranceBoundary",
             "selectionRule",
             "sourceLiteralAudit",
             "engineExpectedValues",
@@ -243,12 +244,68 @@ def validate_declaration(value: object) -> dict[str, Any]:
     if len(source_paths) != len(set(source_paths)):
         raise FreezeBaselineError("criterionBindingsのsourcePathが重複している")
 
+    assurance = scope.get("assuranceBoundary")
+    if not isinstance(assurance, dict):
+        raise FreezeBaselineError("scope.assuranceBoundaryがobjectでない")
+    _require_exact_keys(
+        assurance,
+        {"mechanicallyGuaranteed", "notMechanicallyGuaranteed"},
+        "scope.assuranceBoundary",
+    )
+    guaranteed = assurance.get("mechanicallyGuaranteed")
+    if not isinstance(guaranteed, dict):
+        raise FreezeBaselineError("assuranceBoundary.mechanicallyGuaranteedがobjectでない")
+    _require_exact_keys(
+        guaranteed,
+        {
+            "subjectJsonPointers",
+            "identitySource",
+            "changeWithoutAcceptanceRecord",
+        },
+        "assuranceBoundary.mechanicallyGuaranteed",
+    )
+    subject_pointers = guaranteed.get("subjectJsonPointers")
+    expected_subject_pointers = {
+        f"/{FREEZE_FIELD}/scope",
+        f"/{FREEZE_FIELD}/criteria",
+    }
+    if (
+        not isinstance(subject_pointers, list)
+        or set(subject_pointers) != expected_subject_pointers
+        or len(subject_pointers) != len(expected_subject_pointers)
+    ):
+        raise FreezeBaselineError("機械保証対象がscopeとcriteriaのexact-setでない")
+    for key in ("identitySource", "changeWithoutAcceptanceRecord"):
+        _require_non_empty_string(
+            guaranteed.get(key), f"assuranceBoundary.mechanicallyGuaranteed.{key}"
+        )
+    not_guaranteed = assurance.get("notMechanicallyGuaranteed")
+    if not isinstance(not_guaranteed, dict):
+        raise FreezeBaselineError(
+            "assuranceBoundary.notMechanicallyGuaranteedがobjectでない"
+        )
+    _require_exact_keys(
+        not_guaranteed,
+        {"propertyId", "reason", "normativeStatus", "reviewControl"},
+        "assuranceBoundary.notMechanicallyGuaranteed",
+    )
+    for key in ("propertyId", "reason", "normativeStatus", "reviewControl"):
+        _require_non_empty_string(
+            not_guaranteed.get(key),
+            f"assuranceBoundary.notMechanicallyGuaranteed.{key}",
+        )
+
     selection_rule = scope.get("selectionRule")
     if not isinstance(selection_rule, dict) or not selection_rule:
         raise FreezeBaselineError("scope.selectionRuleが空でないobjectでない")
     _require_exact_keys(
         selection_rule,
-        {"includedComparison", "requiredRepresentation", "excludedOperandRoles"},
+        {
+            "includedComparison",
+            "requiredRepresentation",
+            "excludedOperandRoles",
+            "knownDirectComparisonDispositions",
+        },
         "scope.selectionRule",
     )
     included_comparison = selection_rule.get("includedComparison")
@@ -284,6 +341,49 @@ def validate_declaration(value: object) -> dict[str, Any]:
         selection_rule.get("requiredRepresentation"),
         "selectionRule.requiredRepresentation",
     )
+    known_dispositions = selection_rule.get("knownDirectComparisonDispositions")
+    if not isinstance(known_dispositions, list) or not known_dispositions:
+        raise FreezeBaselineError(
+            "selectionRule.knownDirectComparisonDispositionsが空でない配列でない"
+        )
+    finding_ids: set[str] = set()
+    for index, disposition in enumerate(known_dispositions):
+        label = f"selectionRule.knownDirectComparisonDispositions[{index}]"
+        if not isinstance(disposition, dict):
+            raise FreezeBaselineError(f"{label}がobjectでない")
+        _require_exact_keys(
+            disposition,
+            {
+                "findingId",
+                "sourcePath",
+                "construct",
+                "observedValue",
+                "disposition",
+                "selectionRuleRole",
+                "reason",
+            },
+            label,
+        )
+        finding_id = _require_non_empty_string(
+            disposition.get("findingId"), f"{label}.findingId"
+        )
+        if finding_id in finding_ids:
+            raise FreezeBaselineError(f"既知比較のfindingIdが重複している: {finding_id}")
+        finding_ids.add(finding_id)
+        for key in (
+            "sourcePath",
+            "construct",
+            "disposition",
+            "selectionRuleRole",
+            "reason",
+        ):
+            _require_non_empty_string(disposition.get(key), f"{label}.{key}")
+        if disposition.get("selectionRuleRole") not in excluded_roles:
+            raise FreezeBaselineError(f"{label}.selectionRuleRoleが宣言済み役割でない")
+        if not isinstance(disposition.get("observedValue"), (int, str)) or isinstance(
+            disposition.get("observedValue"), bool
+        ):
+            raise FreezeBaselineError(f"{label}.observedValueの型が不正")
     source_audit = scope.get("sourceLiteralAudit")
     if not isinstance(source_audit, dict) or not source_audit:
         raise FreezeBaselineError("scope.sourceLiteralAuditが空でないobjectでない")
@@ -294,9 +394,29 @@ def validate_declaration(value: object) -> dict[str, Any]:
             "forbiddenImplementationSetNames",
             "excludedComparisonFunctionsBySource",
             "permittedComparisonLiteralsBySource",
+            "assuranceLevel",
+            "coveredConstructs",
+            "notCoveredConstructs",
+            "occurrenceRoleValidation",
         },
         "scope.sourceLiteralAudit",
     )
+    _require_non_empty_string(
+        source_audit.get("assuranceLevel"), "sourceLiteralAudit.assuranceLevel"
+    )
+    _require_non_empty_string(
+        source_audit.get("occurrenceRoleValidation"),
+        "sourceLiteralAudit.occurrenceRoleValidation",
+    )
+    for key in ("coveredConstructs", "notCoveredConstructs"):
+        constructs = source_audit.get(key)
+        if (
+            not isinstance(constructs, list)
+            or not constructs
+            or not all(isinstance(item, str) and item for item in constructs)
+            or len(constructs) != len(set(constructs))
+        ):
+            raise FreezeBaselineError(f"sourceLiteralAudit.{key}が閉じた文字列配列でない")
 
     criteria = value.get("criteria")
     if not isinstance(criteria, dict):
@@ -674,7 +794,7 @@ def _comparison_string_literals(
 def validate_implementation_correspondence(
     root: Path, declaration: Mapping[str, Any]
 ) -> None:
-    """基準集合とdescriptor期待値が検査器sourceへ再直書きされていないことを検証する。"""
+    """宣言したsourceの直接文字列比較を補助的・非網羅に監査する。"""
     validated = validate_declaration(dict(declaration))
     scope = validated["scope"]
     audit = scope["sourceLiteralAudit"]

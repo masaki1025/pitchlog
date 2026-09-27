@@ -47,7 +47,7 @@ STAGE2_CONSTRAINT_ID_PATTERN = re.compile(
     r"`stage2-constraint:(?P<constraint>[a-z][a-z0-9-]+)`"
 )
 D12_FREEZE_BASELINE_ID_PATTERN = re.compile(
-    r"freeze-baseline-(?:field|series|scope):[A-Za-z][A-Za-z0-9.-]*"
+    r"freeze-baseline-(?:field|series|scope|assurance):[A-Za-z][A-Za-z0-9.-]*"
 )
 CONTRACT_FILENAME_PATTERN = re.compile(
     r"^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*\.json$"

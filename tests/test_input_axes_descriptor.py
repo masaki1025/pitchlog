@@ -558,9 +558,12 @@ def test_every_input_axis_generates_coverage_obligations() -> None:
     """理由だけのnon-finite軸を許さず全入力軸からcoverage座標を生成する。"""
     descriptor = _descriptor()
     criteria = _criteria()
+    minimum = criteria.checker_expected_values[
+        "minimumCoverageObligationsPerAxis"
+    ]
 
     assert all(
-        checker.coverage_obligation_count(axis, criteria) > 0
+        checker.coverage_obligation_count(axis, criteria) >= minimum
         for collection_name in ("stateTransitionAxes", "gameEndAxes")
         for axis in descriptor[collection_name]
     )
@@ -576,7 +579,10 @@ def test_every_input_axis_generates_coverage_obligations() -> None:
     inning_axis["nonFiniteReason"] = "上限がない"
     _with_digest(zero_coverage)
 
-    with pytest.raises(checker.DescriptorCheckError, match="coverage義務が0件"):
+    with pytest.raises(
+        checker.DescriptorCheckError,
+        match="coverage義務が宣言した最小件数未満",
+    ):
         _validate(zero_coverage)
 
 

@@ -67,6 +67,42 @@ def test_current_identities_are_derived_from_scope_and_asset_side_criteria() -> 
     }
 
 
+def test_assurance_boundary_distinguishes_guaranteed_identity_from_review_scope() -> None:
+    """宣言済み同一性の保証と宣言外基準の不存在の非保証を混同しない。"""
+    boundary = _declaration()["scope"]["assuranceBoundary"]
+
+    assert set(boundary["mechanicallyGuaranteed"]["subjectJsonPointers"]) == {
+        "/freezeBaseline/scope",
+        "/freezeBaseline/criteria",
+    }
+    assert (
+        boundary["mechanicallyGuaranteed"]["changeWithoutAcceptanceRecord"]
+        == "fail"
+    )
+    assert boundary["notMechanicallyGuaranteed"] == {
+        "propertyId": "absence-of-undeclared-implementation-baselines",
+        "reason": "arbitrary-program-semantic-analysis-is-undecidable",
+        "normativeStatus": "prohibited-by-dev-harness-7.7-1",
+        "reviewControl": "pull-request-review",
+    }
+    assert _declaration()["scope"]["selectionRule"][
+        "knownDirectComparisonDispositions"
+    ] == [
+        {
+            "findingId": "round10-require-exact-keys-48",
+            "sourcePath": "scripts/state_transition_freeze.py",
+            "construct": "_require_exact_keys.expected-key-set",
+            "observedValue": 48,
+            "disposition": "outside-frozen-criterion-values",
+            "selectionRuleRole": "closed-object-grammar-key-set",
+            "reason": (
+                "宣言JSONの閉じた文法を識別するobject member名であり、"
+                "凍結するchecker判断値ではない"
+            ),
+        }
+    ]
+
+
 def test_missing_declaration_is_fail_closed() -> None:
     """凍結基準宣言を取得できなければdescriptor検査を開始できない。"""
     descriptor = _descriptor()
@@ -267,3 +303,34 @@ def test_unaccepted_checker_literal_is_red(
         match="線引き宣言とexact-set不一致",
     ):
         freeze_checker.validate_implementation_correspondence(root, _declaration())
+
+
+def test_numeric_compare_injected_into_checker_is_declared_outside_mechanical_guarantee(
+    tmp_path: Path,
+) -> None:
+    """任意コードの数値比較は現監査の保証範囲外であることを挙動でも記録する。"""
+    declaration = _declaration()
+    audit = declaration["scope"]["sourceLiteralAudit"]
+    assert audit["assuranceLevel"] == "supplemental-non-exhaustive-regression-signal"
+    assert "numeric-literal" in audit["notCoveredConstructs"]
+    assert (
+        declaration["scope"]["assuranceBoundary"]["notMechanicallyGuaranteed"][
+            "propertyId"
+        ]
+        == "absence-of-undeclared-implementation-baselines"
+    )
+
+    root = _copy_audited_sources(tmp_path)
+    source_path = root / "scripts/check_input_axes_descriptor.py"
+    source = source_path.read_text(encoding="utf-8")
+    source_path.write_text(
+        source
+        + "\ndef _outside_assurance_boundary(combination_rules: list[object]) -> bool:\n"
+        + "    if len(combination_rules) != 3:\n"
+        + "        return False\n"
+        + "    return True\n",
+        encoding="utf-8",
+    )
+
+    # これは合格経路の肯定ではなく、宣言した非保証境界の回帰記録である。
+    freeze_checker.validate_implementation_correspondence(root, declaration)
