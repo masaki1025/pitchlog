@@ -212,13 +212,6 @@ def test_active_role_public_inspection_is_green_for_exact_rows(
     ("query_id", "acl_column", "object_kind", "owner_column"),
     [
         pytest.param(
-            product_catalog.CatalogQueryId.MIGRATION_BATCH_TABLE_ACL,
-            "relation.relacl",
-            "r",
-            "relation.relowner",
-            id="table",
-        ),
-        pytest.param(
             product_catalog.CatalogQueryId.MIGRATION_BATCH_SCHEMA_ACL,
             "namespace.nspacl",
             "n",
@@ -248,6 +241,39 @@ def test_active_role_acl_queries_include_public_and_postgresql_defaults(
         f"COALESCE( {acl_column}, "
         f"pg_catalog.acldefault('{object_kind}', {owner_column}) )"
     ) in query
+
+
+def test_active_role_relation_acl_covers_every_user_defined_schema() -> None:
+    """表 ACL はシステム schema だけを除き全 ACL 対象 relation を観測する。"""
+    query = " ".join(
+        product_catalog._query_for_id(
+            product_catalog.CatalogQueryId.MIGRATION_BATCH_TABLE_ACL
+        ).split()
+    )
+
+    for schema_name in ("pg_catalog", "information_schema", "pg_toast"):
+        assert f"'{schema_name}'" in query
+    assert "namespace.nspname !~ '^pg_temp_'" in query
+    assert "namespace.nspname !~ '^pg_toast_temp_'" in query
+    assert "namespace.nspname IN ('public', 'authz_private')" not in query
+    assert "relation.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')" in query
+    assert "pg_catalog.acldefault('s', relation.relowner)" in query
+    assert "pg_catalog.acldefault('r', relation.relowner)" in query
+
+
+def test_active_role_schema_acl_covers_every_user_defined_schema() -> None:
+    """Schema ACL も一時・システム schema だけを母集合から除く。"""
+    query = " ".join(
+        product_catalog._query_for_id(
+            product_catalog.CatalogQueryId.MIGRATION_BATCH_SCHEMA_ACL
+        ).split()
+    )
+
+    for schema_name in ("pg_catalog", "information_schema", "pg_toast"):
+        assert f"'{schema_name}'" in query
+    assert "namespace.nspname !~ '^pg_temp_'" in query
+    assert "namespace.nspname !~ '^pg_toast_temp_'" in query
+    assert "namespace.nspname IN ('public', 'authz_private')" not in query
 
 
 def test_active_role_column_acl_includes_public_without_a_column_default() -> None:

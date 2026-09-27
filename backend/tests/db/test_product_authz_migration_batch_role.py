@@ -460,6 +460,54 @@ def test_public_acl_mutations_are_red_as_effective_privileges(
             catalog.applicator.rollback()
 
 
+def test_relation_grant_in_an_additional_user_schema_is_red(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """追加の利用者定義 schema にある表の ACL も exact-set 違反になる。"""
+    catalog = provisioned_product_catalog
+    schema_name = f"step10_extra_{secrets.token_hex(4)}"
+    with _active_migration_role(catalog) as role:
+        try:
+            with catalog.applicator.cursor() as cursor:
+                cursor.execute(
+                    sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema_name))
+                )
+                cursor.execute(
+                    sql.SQL(
+                        "CREATE TABLE {}.extra_rows (id integer PRIMARY KEY)"
+                    ).format(sql.Identifier(schema_name))
+                )
+                cursor.execute(
+                    sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(
+                        sql.Identifier(schema_name),
+                        sql.Identifier(role.name),
+                    )
+                )
+                cursor.execute(
+                    sql.SQL("GRANT SELECT ON {}.extra_rows TO {}").format(
+                        sql.Identifier(schema_name),
+                        sql.Identifier(role.name),
+                    )
+                )
+            _assert_active_red(
+                catalog.applicator,
+                role.oid,
+                "MIGRATION-BATCH:TABLE-ACL",
+            )
+        finally:
+            catalog.applicator.rollback()
+
+        with catalog.applicator.cursor() as cursor:
+            cursor.execute(
+                "SELECT pg_catalog.count(*) FROM pg_catalog.pg_namespace "
+                "WHERE nspname = %s",
+                (schema_name,),
+            )
+            row = cursor.fetchone()
+        catalog.applicator.rollback()
+        assert row == (0,)
+
+
 @pytest.mark.parametrize("member_kind", ["unrelated_login", "applicator"])
 def test_membership_edge_mutations_are_red(
     provisioned_product_catalog: ProvisionedProductCatalog,

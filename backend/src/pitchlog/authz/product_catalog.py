@@ -336,6 +336,17 @@ ORDER BY 1, 2, 3, 4
 """
 
 _MIGRATION_BATCH_TABLE_ACL_QUERY: LiteralString = """
+WITH user_defined_namespaces AS MATERIALIZED (
+    SELECT namespace.oid, namespace.nspname
+    FROM pg_catalog.pg_namespace AS namespace
+    WHERE namespace.nspname NOT IN (
+        'pg_catalog',
+        'information_schema',
+        'pg_toast'
+    )
+      AND namespace.nspname !~ '^pg_temp_'
+      AND namespace.nspname !~ '^pg_toast_temp_'
+)
 SELECT DISTINCT effective_acl.schema_name, effective_acl.table_name,
        effective_acl.column_name, effective_acl.privilege_type,
        effective_acl.is_grantable
@@ -344,27 +355,29 @@ FROM (
            '' AS column_name, privilege.privilege_type,
            privilege.is_grantable
     FROM pg_catalog.pg_class AS relation
-    JOIN pg_catalog.pg_namespace AS namespace
+    JOIN user_defined_namespaces AS namespace
       ON namespace.oid = relation.relnamespace
     CROSS JOIN LATERAL pg_catalog.aclexplode(
         COALESCE(
             relation.relacl,
-            pg_catalog.acldefault('r', relation.relowner)
+            CASE
+                WHEN relation.relkind = 'S'
+                    THEN pg_catalog.acldefault('s', relation.relowner)
+                ELSE pg_catalog.acldefault('r', relation.relowner)
+            END
         )
     ) AS privilege
-    WHERE relation.relkind IN ('r', 'p')
-      AND namespace.nspname IN ('public', 'authz_private')
+    WHERE relation.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
       AND privilege.grantee IN (0, %s::pg_catalog.oid)
     UNION ALL
     SELECT namespace.nspname, relation.relname, attribute.attname,
            privilege.privilege_type, privilege.is_grantable
     FROM pg_catalog.pg_attribute AS attribute
     JOIN pg_catalog.pg_class AS relation ON relation.oid = attribute.attrelid
-    JOIN pg_catalog.pg_namespace AS namespace
+    JOIN user_defined_namespaces AS namespace
       ON namespace.oid = relation.relnamespace
     CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS privilege
-    WHERE relation.relkind IN ('r', 'p')
-      AND namespace.nspname IN ('public', 'authz_private')
+    WHERE relation.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
       AND attribute.attnum > 0
       AND NOT attribute.attisdropped
       AND privilege.grantee IN (0, %s::pg_catalog.oid)
@@ -382,7 +395,13 @@ CROSS JOIN LATERAL pg_catalog.aclexplode(
         pg_catalog.acldefault('n', namespace.nspowner)
     )
 ) AS privilege
-WHERE namespace.nspname IN ('public', 'authz_private')
+WHERE namespace.nspname NOT IN (
+        'pg_catalog',
+        'information_schema',
+        'pg_toast'
+      )
+  AND namespace.nspname !~ '^pg_temp_'
+  AND namespace.nspname !~ '^pg_toast_temp_'
   AND privilege.grantee IN (0, %s::pg_catalog.oid)
 ORDER BY 1, 2, 3
 """
