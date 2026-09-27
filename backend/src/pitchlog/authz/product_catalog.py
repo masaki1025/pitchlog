@@ -336,41 +336,68 @@ ORDER BY 1, 2, 3, 4
 """
 
 _MIGRATION_BATCH_TABLE_ACL_QUERY: LiteralString = """
-SELECT namespace.nspname, relation.relname, '' AS column_name,
-       privilege.privilege_type, privilege.is_grantable
-FROM pg_catalog.pg_class AS relation
-JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
-CROSS JOIN LATERAL pg_catalog.aclexplode(relation.relacl) AS privilege
-WHERE relation.relkind IN ('r', 'p')
-  AND privilege.grantee = %s::pg_catalog.oid
-UNION ALL
-SELECT namespace.nspname, relation.relname, attribute.attname,
-       privilege.privilege_type, privilege.is_grantable
-FROM pg_catalog.pg_attribute AS attribute
-JOIN pg_catalog.pg_class AS relation ON relation.oid = attribute.attrelid
-JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
-CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS privilege
-WHERE relation.relkind IN ('r', 'p')
-  AND attribute.attnum > 0
-  AND NOT attribute.attisdropped
-  AND privilege.grantee = %s::pg_catalog.oid
+SELECT DISTINCT effective_acl.schema_name, effective_acl.table_name,
+       effective_acl.column_name, effective_acl.privilege_type,
+       effective_acl.is_grantable
+FROM (
+    SELECT namespace.nspname AS schema_name, relation.relname AS table_name,
+           '' AS column_name, privilege.privilege_type,
+           privilege.is_grantable
+    FROM pg_catalog.pg_class AS relation
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid = relation.relnamespace
+    CROSS JOIN LATERAL pg_catalog.aclexplode(
+        COALESCE(
+            relation.relacl,
+            pg_catalog.acldefault('r', relation.relowner)
+        )
+    ) AS privilege
+    WHERE relation.relkind IN ('r', 'p')
+      AND namespace.nspname IN ('public', 'authz_private')
+      AND privilege.grantee IN (0, %s::pg_catalog.oid)
+    UNION ALL
+    SELECT namespace.nspname, relation.relname, attribute.attname,
+           privilege.privilege_type, privilege.is_grantable
+    FROM pg_catalog.pg_attribute AS attribute
+    JOIN pg_catalog.pg_class AS relation ON relation.oid = attribute.attrelid
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid = relation.relnamespace
+    CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS privilege
+    WHERE relation.relkind IN ('r', 'p')
+      AND namespace.nspname IN ('public', 'authz_private')
+      AND attribute.attnum > 0
+      AND NOT attribute.attisdropped
+      AND privilege.grantee IN (0, %s::pg_catalog.oid)
+) AS effective_acl
 ORDER BY 1, 2, 3, 4, 5
 """
 
 _MIGRATION_BATCH_SCHEMA_ACL_QUERY: LiteralString = """
-SELECT namespace.nspname, privilege.privilege_type, privilege.is_grantable
+SELECT DISTINCT namespace.nspname, privilege.privilege_type,
+       privilege.is_grantable
 FROM pg_catalog.pg_namespace AS namespace
-CROSS JOIN LATERAL pg_catalog.aclexplode(namespace.nspacl) AS privilege
-WHERE privilege.grantee = %s::pg_catalog.oid
+CROSS JOIN LATERAL pg_catalog.aclexplode(
+    COALESCE(
+        namespace.nspacl,
+        pg_catalog.acldefault('n', namespace.nspowner)
+    )
+) AS privilege
+WHERE namespace.nspname IN ('public', 'authz_private')
+  AND privilege.grantee IN (0, %s::pg_catalog.oid)
 ORDER BY 1, 2, 3
 """
 
 _MIGRATION_BATCH_DATABASE_ACL_QUERY: LiteralString = """
-SELECT privilege.privilege_type, privilege.is_grantable
+SELECT DISTINCT privilege.privilege_type, privilege.is_grantable
 FROM pg_catalog.pg_database AS database
-CROSS JOIN LATERAL pg_catalog.aclexplode(database.datacl) AS privilege
+CROSS JOIN LATERAL pg_catalog.aclexplode(
+    COALESCE(
+        database.datacl,
+        pg_catalog.acldefault('d', database.datdba)
+    )
+) AS privilege
 WHERE database.datname = pg_catalog.current_database()
-  AND privilege.grantee = %s::pg_catalog.oid
+  AND privilege.grantee IN (0, %s::pg_catalog.oid)
 ORDER BY 1, 2
 """
 
@@ -1394,7 +1421,7 @@ def _actual_migration_batch_role(
 def _actual_migration_batch_permissions(
     rows: tuple[tuple[object, ...], ...],
 ) -> tuple[tuple[str, str, str, str, bool], ...]:
-    """移行ロールの表・列 ACL を資産の権限行列へ正規化する。"""
+    """移行ロールの表・列の実効 ACL を資産の権限行列へ正規化する。"""
     return tuple(
         sorted(
             (
@@ -1412,7 +1439,7 @@ def _actual_migration_batch_permissions(
 def _actual_migration_batch_schema_acl(
     rows: tuple[tuple[object, ...], ...],
 ) -> tuple[tuple[str, str, bool], ...]:
-    """移行ロールへ直接付与された schema ACL を正規化する。"""
+    """移行ロールが PUBLIC も介して持つ schema ACL を正規化する。"""
     return tuple(
         sorted((str(row[0]), str(row[1]).upper(), bool(row[2])) for row in rows)
     )
@@ -1421,7 +1448,7 @@ def _actual_migration_batch_schema_acl(
 def _actual_migration_batch_database_acl(
     rows: tuple[tuple[object, ...], ...],
 ) -> tuple[tuple[str, bool], ...]:
-    """移行ロールへ直接付与された現在 DB の ACL を正規化する。"""
+    """移行ロールが PUBLIC も介して持つ現在 DB の ACL を正規化する。"""
     return tuple(sorted((str(row[0]).upper(), bool(row[1])) for row in rows))
 
 

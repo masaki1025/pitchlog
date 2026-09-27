@@ -206,3 +206,58 @@ def test_active_role_public_inspection_is_green_for_exact_rows(
     assert report.violations == ()
     assert len(report.checked_ids) == 7
     assert calls == list(rows_by_query)
+
+
+@pytest.mark.parametrize(
+    ("query_id", "acl_column", "object_kind", "owner_column"),
+    [
+        pytest.param(
+            product_catalog.CatalogQueryId.MIGRATION_BATCH_TABLE_ACL,
+            "relation.relacl",
+            "r",
+            "relation.relowner",
+            id="table",
+        ),
+        pytest.param(
+            product_catalog.CatalogQueryId.MIGRATION_BATCH_SCHEMA_ACL,
+            "namespace.nspacl",
+            "n",
+            "namespace.nspowner",
+            id="schema",
+        ),
+        pytest.param(
+            product_catalog.CatalogQueryId.MIGRATION_BATCH_DATABASE_ACL,
+            "database.datacl",
+            "d",
+            "database.datdba",
+            id="database",
+        ),
+    ],
+)
+def test_active_role_acl_queries_include_public_and_postgresql_defaults(
+    query_id: product_catalog.CatalogQueryId,
+    acl_column: str,
+    object_kind: str,
+    owner_column: str,
+) -> None:
+    """有効時の ACL は PUBLIC と NULL ACL の既定権限を含めて観測する。"""
+    query = " ".join(product_catalog._query_for_id(query_id).split())
+
+    assert "privilege.grantee IN (0, %s::pg_catalog.oid)" in query
+    assert (
+        f"COALESCE( {acl_column}, "
+        f"pg_catalog.acldefault('{object_kind}', {owner_column}) )"
+    ) in query
+
+
+def test_active_role_column_acl_includes_public_without_a_column_default() -> None:
+    """列 ACL は PUBLIC を数える一方、NULL を権限なしとして扱う。"""
+    query = " ".join(
+        product_catalog._query_for_id(
+            product_catalog.CatalogQueryId.MIGRATION_BATCH_TABLE_ACL
+        ).split()
+    )
+
+    assert "pg_catalog.aclexplode(attribute.attacl)" in query
+    assert query.count("privilege.grantee IN (0, %s::pg_catalog.oid)") == 2
+    assert "acldefault('c'" not in query

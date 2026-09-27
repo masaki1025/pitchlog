@@ -6,7 +6,6 @@ import secrets
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid5
 
@@ -35,7 +34,6 @@ from .conftest import ProvisionedProductCatalog
 pytestmark = pytest.mark.requires_db
 
 _UUID_NAMESPACE = UUID("4a87afbd-4ae3-4c93-a53a-9a8d22bad95d")
-_RECORDED_AT = datetime(2026, 9, 26, 15, 0, tzinfo=timezone.utc)
 
 
 @dataclass(frozen=True, slots=True)
@@ -307,16 +305,20 @@ def _exercise_minimum_operations(role: _ActiveMigrationRole) -> None:
             )
             for schema_name, table, column, _, _ in update_permissions:
                 if column in {"generated_copy_counts", "validation_results"}:
-                    value: object = Jsonb({"step": 10})
+                    cursor.execute(
+                        sql.SQL("UPDATE {} SET {} = %s").format(
+                            sql.Identifier(schema_name, table),
+                            sql.Identifier(column),
+                        ),
+                        (Jsonb({"step": 10}),),
+                    )
                 else:
-                    value = _RECORDED_AT
-                cursor.execute(
-                    sql.SQL("UPDATE {} SET {} = %s").format(
-                        sql.Identifier(schema_name, table),
-                        sql.Identifier(column),
-                    ),
-                    (value,),
-                )
+                    cursor.execute(
+                        sql.SQL("UPDATE {} SET {} = pg_catalog.now()").format(
+                            sql.Identifier(schema_name, table),
+                            sql.Identifier(column),
+                        )
+                    )
                 assert cursor.rowcount > 0, (table, column)
         connection.commit()
 
@@ -415,6 +417,45 @@ def test_delete_mutation_is_red(
                 role.oid,
                 "MIGRATION-BATCH:TABLE-ACL",
             )
+        finally:
+            catalog.applicator.rollback()
+
+
+@pytest.mark.parametrize(
+    ("surface", "check_id"),
+    [
+        pytest.param("table", "MIGRATION-BATCH:TABLE-ACL", id="table"),
+        pytest.param("column", "MIGRATION-BATCH:TABLE-ACL", id="column"),
+        pytest.param("schema", "MIGRATION-BATCH:SCHEMA-ACL", id="schema"),
+        pytest.param("database", "MIGRATION-BATCH:DATABASE-ACL", id="database"),
+    ],
+)
+def test_public_acl_mutations_are_red_as_effective_privileges(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+    surface: str,
+    check_id: str,
+) -> None:
+    """PUBLIC 経由で増えた表・列・schema・DB 権限を公開検査が拒否する。"""
+    catalog = provisioned_product_catalog
+    with _active_migration_role(catalog) as role:
+        try:
+            with catalog.applicator.cursor() as cursor:
+                if surface == "table":
+                    cursor.execute("GRANT DELETE ON public.tenants TO PUBLIC")
+                elif surface == "column":
+                    cursor.execute("GRANT UPDATE (enabled) ON public.tenants TO PUBLIC")
+                elif surface == "schema":
+                    cursor.execute("GRANT CREATE ON SCHEMA public TO PUBLIC")
+                elif surface == "database":
+                    database = _current_database(cursor)
+                    cursor.execute(
+                        sql.SQL("GRANT TEMPORARY ON DATABASE {} TO PUBLIC").format(
+                            sql.Identifier(database)
+                        )
+                    )
+                else:  # pragma: no cover - parametrization の閉包を明示する。
+                    raise AssertionError(f"未知の ACL 面: {surface}")
+            _assert_active_red(catalog.applicator, role.oid, check_id)
         finally:
             catalog.applicator.rollback()
 
