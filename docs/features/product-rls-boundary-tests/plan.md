@@ -281,7 +281,7 @@ uv run pytest -c pyproject.toml --cov      # DB 必須テストの 0 件収集�
 | --- | --- | --- |
 | **1** | **本タスクの実体をどう確定するか** | **解消**(**1 周目 P0-2・P0-6 の是正**)。`data-model.md:2845-2846` は**作成・初回実行と再実行を分けており**、その後の決定が `../tenant-boundary-enforcement/design.md:341-345` で **TSK-424 / TSK-344** へ移管している。**確定済みの分担**であって未決ではない |
 | **2** | **認証テーブルの RLS の帰属** | **解消**(**1 周目 P0-3 の是正**)。**TSK-424 が所有**し、`tenant_credentials` と `rate_limit_counters` を **`function_only`** と分類済み(`product-authz-surface@58d48b7:design.md:35-45`)。**関数側は U-A1**(同 `:640-643`)。着手時の見立て(本タスクが持つ)は**撤回した** |
-| **3** | **最低要求 4 件の線引き** — `../tenant-boundary-enforcement/design.md:575-581` は **① = TSK-424 / ②③④ の共有関数分 = U-C1・U-C3 / 管理関数分 = U-A2 / 揃った 4 件の実スキーマ再実行 = TSK-344** と分けている。**加えて制御情報読み取り 4 経路の制限関数 = U-C2**(同 `:596`)・**認証とレート制限の関数 = U-A1**(`product-authz-surface@58d48b7:design.md:640-643`) | **未決** — **最低要求 4 件に使う具体的な関数を決め、その関数の所有タスクを依存として固定しないと、ステップ 3 の実行可能時点を判定できない**(**1 周目 P1-4**) |
+| **3** | **最低要求 4 件の線引き** — `../tenant-boundary-enforcement/design.md:575-581` は **① = TSK-424 / ②③④ の共有関数分 = U-C1・U-C3 / 管理関数分 = U-A2 / 揃った 4 件の実スキーマ再実行 = TSK-344** と分けている。**加えて制御情報読み取り 4 経路の制限関数 = U-C2**(同 `:596`)・**認証とレート制限の関数 = U-A1**(`product-authz-surface@58d48b7:design.md:640-643`) | **解消**(**裁定 2026-09-27・山田正輝**)。着手時は — **最低要求 4 件に使う具体的な関数を決め、その関数の所有タスクを依存として固定しないと、ステップ 3 の実行可能時点を判定できない**(**1 周目 P1-4**) |
 
 > **【2 周目 P0-2 — 本項が未決のままでは計画を承認できない】** 敵対レビュー 2 周目が
 > **「未決のまま承認してはいけない。破綻は承認時点で確定しており、実装上はステップ 3 で停止する」**と判定した。
@@ -298,7 +298,27 @@ uv run pytest -c pyproject.toml --cov      # DB 必須テストの 0 件収集�
 > | 5 | **正例・拒否例の主体、データ状態、期待結果** |
 > | 6 | **U-C1 / U-C2 / U-C3 / U-A1 / U-A2 のうち、本当に必要な依存の exact-set** |
 >
-> **これは人間の裁定を要する**(本節の趣旨)。**2026-09-27 時点で未決。**
+> **【裁定 2026-09-27・山田正輝】** **クラスごとに代表 1 件**を採る。**`U-A1` は依存に入れない。**
+> 裁定材料は [decision-sheet-minimum-four.md](decision-sheet-minimum-four.md)(実測つき)。
+>
+> **確定した対応表**(**2 周目 P0-2 が要求した 6 項目**):
+>
+> | # | 項目 | 確定内容 |
+> | --- | --- | --- |
+> | 1 | **表・関数名・シグネチャ** | **① は製品 RLS ポリシー 32 件**(`pitchlog_app` が `tenant_id` 述語を越えられないこと)。**②③④ は製品の越境関数だが現在 0 件**なので、**probe の 3 件を「形の契約」として固定**し、製品側は **`function_class` で対応づける** |
+> | 2 | **代表 1 件か全件か** | **クラスごとに代表 1 件**(**裁定**)。クラスは `shared_read` / `control_read` / `representative_management_operation` の **3 つ** |
+> | 3 | **所有タスクと必須マージ条件** | **`shared_read` → U-C3**(`shared_data` 12 経路)/ **`control_read` → U-C2**(4 経路)/ **`representative_management_operation` → U-C1**(`management_operation` 8 経路。`ROUTE:MANAGEMENT:UPDATE_GRANTS` が probe の `apply_representative_grant_change` に対応)。**典拠**: `../product-impl-unit-split/plan.md:502-503`(`route_kind` で機械的に分かれる)。**必須マージ条件 = 3 本の PR が develop へマージ済みであること** |
+> | 4 | **再利用する上流テスト** | `authorized_shared_rows` = **7 ファイル**(`backend/tests/db/test_authz_runtime_positive.py` / `..._negative.py` / `test_authz_trust_boundary.py` / `test_authz_precondition_matrix.py` / `backend/tests/db/authz/mutation_execution.py` ほか)/ `read_control_resources` = **2** / `apply_representative_grant_change` = **2**(`test_authz_management_probe.py` ほか)。**いずれも probe に対する試験であり、製品側の同型試験は存在しない** |
+> | 5 | **正例・拒否例** | **②** `PUBLIC` で `EXECUTE` → 拒否(`42501`)/ `pitchlog_app` で `EXECUTE` → 通る。**③** `search_path` を差し替えて呼ぶ → 効かない(固定値 `pg_catalog, authz_private, pg_temp`・管理系は `management_private`)。**④** 非共有の対象に対し要求元が付与 → **0 行** |
+> | 6 | **依存の exact-set** | **`U-C1` / `U-C2` / `U-C3` の 3 本**。**`U-A1` は入れない**(**裁定** — ②③④ は越境関数の話であり、認証・レート制限の到達経路は別問題。設計書 8-1 節の帰属表にも U-A1 は無い) |
+>
+> **`U-A2` の扱い(実測に基づく保留)**: 設計書 8-1 節は **U-A2 に「②③④ のうち管理関数に係る分」**を
+> 割り当てているが、**`route-registry.json` にシステム管理経路は 0 件**である
+> (実測 — `legacy_route` 13 / `shared_data` 12 / `control_read` 4 / `management_operation` 8 の **37 経路のみ**)。
+> **probe にも対応する関数クラスが無い**。**したがって代表を取りようがない。**
+> **発効条件**: **U-A2 の経路と関数が生まれた時点で、4 つ目の代表クラスを本タスクの射程へ加える**。
+> **それまでは依存に含めない。** **U-A2 を黙って落としたのではなく、条件つきで保留している。**
+
 >
 > **裁定材料は [decision-sheet-minimum-four.md](decision-sheet-minimum-four.md) に実測つきで揃えた。**
 > **要点**: **① は実在する**(製品 RLS ポリシー **32 件**)。**②③④ の対象となる製品の越境関数は 0 件**
@@ -314,17 +334,20 @@ uv run pytest -c pyproject.toml --cov      # DB 必須テストの 0 件収集�
 | 2 | **適用器・実 DB 試験・probe↔製品写像・`provisioned_product_catalog`** | **TSK-442**(PR A2。**TSK-431 の 7C の後**) | **実装完了・`/pr` 前**(2026-09-27 実測。計画承認済 2026-09-26・48 コミット・ステップ 11/11)。**未マージ** |
 | 3 | **ランタイム契約の切り替え**(`ddl-elements.staged.json` → 最終パス) | **TSK-443**(PR B。**7D の後**) | **実装中(ステップ 5/8)**(2026-09-27 実測。計画承認済 2026-09-26・8 コミット)。**これが着地しないと DDL は staged のまま**(`product-authz-surface@58d48b7:design.md:305-322`・`:586-599`) |
 | 4 | **Session の供給** | **TSK-444**(PR C。**7C の後**) | **✅ 実装完了**(2026-09-27 実測。PR #82・実 DB 813 passed・迂回検査 ok・実装後の敵対レビューの差し戻しを是正済み)。**未マージ** — `harness` の 1 件が **TSK-460** 待ち |
-| 5 | 最低要求 ②③④ の関数側(共有) | **U-C1 / U-C3** | 未着手 |
-| 6 | 制御情報読み取り 4 経路の制限関数 | **U-C2** | 未着手(`../tenant-boundary-enforcement/design.md:596`) |
-| 7 | 管理関数 | **U-A2** | 未着手 |
-| 8 | 認証・レート制限の関数(`function_only` 2 表の到達経路) | **U-A1** | 未着手(`product-authz-surface@58d48b7:design.md:640-643`) |
+| 5 | **`shared_read` の代表 1 件**(probe の `authorized_shared_rows` に対応) | **U-C3**(`shared_data` 12 経路) | 未着手。**裁定 2026-09-27 で依存の exact-set に含める** |
+| 6 | **`control_read` の代表 1 件**(probe の `read_control_resources` に対応) | **U-C2**(`control_read` 4 経路) | 未着手。**同上** |
+| 7 | **`representative_management_operation` の代表 1 件**(probe の `apply_representative_grant_change` に対応) | **U-C1**(`management_operation` 8 経路・`ROUTE:MANAGEMENT:UPDATE_GRANTS`) | 未着手。**同上**(着手時は「管理関数 = U-A2」と書いていたが、**実測で `management_operation` 8 経路は U-C1 の所有**と判明 — `../product-impl-unit-split/plan.md:502-503`) |
+| — | ~~管理関数~~ | ~~**U-A2**~~ | **依存に含めない(条件つき保留)** — **`route-registry.json` にシステム管理経路は 0 件**(実測)。**発効条件**: U-A2 の経路と関数が生まれた時点で 4 つ目の代表クラスを射程へ加える |
+| — | ~~認証・レート制限の関数~~ | ~~**U-A1**~~ | **依存に含めない**(**裁定 2026-09-27**) — ②③④ は越境関数の話であり、認証・レート制限の到達経路は別問題 |
+
+**依存の exact-set(裁定 2026-09-27)= 1・2・3・4・5・6・7 の 7 件。**
+**`U-A1` は入れない。`U-A2` は発効条件つきで保留する。**
 
 **→ 本タスクは 424 の完全な下流**であり、**TSK-424 は A1・A2・B・C のすべてがマージされるまで完了にしない**
 (`product-authz-surface@58d48b7:plan.md:43`)。**A1 + A2 だけで着手すると、最終パスへ切り替わっていない DDL と、
 実体の無い最低要求④を相手にすることになる**(**1 周目 P0-2**)。
-~~**計画段階は並行して完走できる。**~~
-**【2 周目 P0-2 で撤回】** **7 節 #3 が未決である以上、計画段階は完走できない。**
-**「依存の着地を待たずに計画を固められる」ことと「未決を抱えたまま承認できる」ことは別である。**
+**計画段階は並行して完走できる**(**2 周目 P0-2 で一度撤回したが、2026-09-27 の裁定で 7 節 #3 が解消したため復活**)。
+**「依存の着地を待たずに計画を固められる」ことと「未決を抱えたまま承認できる」ことは別である** — 後者は今も成り立たない。
 
 > **【依存の現況 — 2026-09-27 実測】**
 >
