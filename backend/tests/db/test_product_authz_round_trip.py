@@ -122,7 +122,10 @@ def test_unapply_migration_round_trip_and_reapply_restore_both_catalogs(
     unapply_product_authz_ddl(catalog.applicator)
     _assert_subject_is_session(catalog)
     unapplied_report = _inspect(catalog, privileged_role_oid)
+    unapplied_snapshot = _snapshot(catalog)
     assert not unapplied_report.ok
+    assert unapplied_snapshot == catalog.pre_application_catalog
+    assert {row[2] for row in unapplied_snapshot.relations} == {"pitchlog_owner"}
 
     config = _alembic_config()
     command.downgrade(config, "base")
