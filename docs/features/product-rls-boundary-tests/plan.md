@@ -299,6 +299,12 @@ uv run pytest -c pyproject.toml --cov      # DB 必須テストの 0 件収集�
 > | 6 | **U-C1 / U-C2 / U-C3 / U-A1 / U-A2 のうち、本当に必要な依存の exact-set** |
 >
 > **これは人間の裁定を要する**(本節の趣旨)。**2026-09-27 時点で未決。**
+>
+> **裁定材料は [decision-sheet-minimum-four.md](decision-sheet-minimum-four.md) に実測つきで揃えた。**
+> **要点**: **① は実在する**(製品 RLS ポリシー **32 件**)。**②③④ の対象となる製品の越境関数は 0 件**
+> (`SECURITY DEFINER` の出現 0・38 関数はすべてトリガかヘルパ)。**したがって「全件」は現時点で定義できない。**
+> **probe 側に 3 件**(`authorized_shared_rows` / `read_control_resources` /
+> `apply_representative_grant_change`)**があり、これが形の雛形**になる。
 
 ## 8. 依存(すべて TSK-424 の下流)
 
