@@ -97,3 +97,4 @@ master は人間の判断で 442 から完全に手を引いた(Codex の残存�
 2. **Claude が直接直した箇所の `codex_run.py review normal`**: 27de0d87 の `test_product_authz_tenant_owned.py`(印の 1 行)・`tests/test_core_guard.py`(期待値 2 行)・ステップ 11 の ruff の自動修正(CLAUDE.md の規則)
 3. 235 の census の fix PR のマージ後に develop へ追随し、ハーネスの全試験を再確認
 4. /pr(PR #84 の draft を外す)
+- **③の再判断(2026-09-27)**: 235 から、TSK-460 には含めないと返答(同セッションの人間の裁定 — ピアの伝聞を承認として扱わず原典で確かめたうえで判断を仰いだとのこと。理由: TSK-460 のブランチでは `introduced_symbols` が偽で分岐に入らず検証できない・develop の解放を遅らせる)。**人間の再判断で A2 の中で直す**(A2 のブランチでは分岐が実際に走る)。計画書 4 節の改訂の記録を更新。実装は 10-03 以降に Codex で
