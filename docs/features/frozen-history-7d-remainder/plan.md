@@ -1,6 +1,6 @@
 ---
 feature: frozen-history-7d-remainder
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-26・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -72,7 +72,8 @@ created: 2026-09-26
 | `docs/development/dev-harness-design-2026-08-07.md`(7.7) | **反映なし** — 条文は変えない。本タスクは条文への適合であって改訂ではない | — |
 | `docs/design/data-model.md` | **反映なし** | — |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし**(上位根拠が無い) | — |
-| `docs/development/harness-evaluation.md` | **既存候補「検証コマンドを人が選ぶと、CI が走らせるコマンドとの差分が黙って残る」へ 7 例目を追記する**(下記)。**新規候補は立てない**。**追記は TSK-440 のマージ後**(同一ファイルの衝突回避) | PR レビュー |
+| `docs/development/harness-evaluation.md` | **候補 1 件を新設** + **`H-90` を採番** + **既存候補 2 件へ事例 2 件**(下記)。**変更履歴表へ 1 行追記**(版は上げない — 7.6-3 前段) | PR レビュー |
+| `docs/README.md` | **台帳行の現行化**(候補 80 → 82 件・最終更新日・本 PR の追記内容) | PR レビュー |
 
 **台帳への追記の判断(原典で確認済み — 2026-09-26)**
 
