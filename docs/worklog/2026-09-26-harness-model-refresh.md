@@ -330,6 +330,7 @@ branch: feature/harness-model-refresh
 - **修正**: 版検査を `run_codex()` の `Popen` 直前へ移動(全経路が通る = 「モデル実行前・全モード」は維持)・プロセス内 1 回のメモ化。版検査テスト 3 本を起動経路に合わせて書き直し、`probe` 5 回で版取得 1 回・CLI 不在時のテストを追加。`tests/test_hooks.py` は不変
 - **検証(Claude)**: `tests/test_hooks.py` + `test_codex_run.py` + `test_agents_frontmatter.py` = codex あり / PATH から codex を除いた条件の両方で緑(266 件)・ruff / ty 緑。ADR-001 帰結・設計書 9.4 の「起動前に解析・モデル実行前に停止」は文言どおり(位置の記述は無い)のため正本の変更なし
 - **教訓**: ラッパーの変更は「codex 不在(CI)」条件でもローカルで検証する(計画書ステップ 3 の合格条件に無かった — 台帳候補へ)
+- **再実行 CI(213a2a79・run 36321365436)**: harness ジョブ = 1 failed / 1974 passed — `test_hooks.py` 25 件は解消。唯一の赤 `test_check_tenant_boundary_bypass.py::test_checker_census_matches_merge_base` は **TSK-460 の既知赤**(develop 最新 1a404101・run 36227732876 の harness ジョブでも同一テストのみ赤 = 1 failed / 1924 passed)で本 PR 起因ではない。core-guard = 逐行確認チェック未記入のため設計どおり赤。docs-lint / secrets / tenant-boundary-bypass / nfr021-append-only / *-changes = 緑
 
 ## 決定
 - **2026-09-27・PO 承認(徳光 尋弥)**: 計画書を承認(`承認: 済(2026-09-27・徳光 尋弥)`)。PO 判断 3 点を確定 — **① 案 A(gpt-6-sol 一本化・astra は載せない)② effort 据え置き ③ 主セッションの Opus 5.5 化をプロジェクト `.claude/settings.json` で機構化**。次 = 阻止条件 0(人間が Codex CLI を 0.157.x へ更新 → Claude がカタログを確認)
