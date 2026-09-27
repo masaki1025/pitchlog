@@ -83,7 +83,7 @@ FR-006 のキュー投入・同期状態非依存 → 同期側のテスト / �
 
 正本改訂(要件書 / ADR-003 D-11・D-6・D-8・D-12 / 同期プロトコル正本)/
 **入力軸 descriptor**(両段階を通した唯一の正・D-11 の全軸・射影規則)/
-契約 schema(E-1 全 10 列の exact 型・operation / undo の別表・交差制約 `XC-01`〜`XC-09`)/
+契約 schema(E-1 全 10 列の exact 型・operation / undo の別表・交差制約 `XC-01`〜`XC-08`・`XC-10`〜`XC-13` の 12 件。**`XC-09` は `undoRows[]` の制約で ADR-003 D-8 が定める**)/
 `mustOperationCoverage` / `requiredSet`(2 段)/ 語彙シード + 内容 hash /
 `clauseBranchRegister` / **手作業 fixture**(作成・突合・凍結)/ oracle 遮断 4 層 /
 展開器と `cases[]` / **`gapRegister` の 5 段を各所有ステップで充填** /
@@ -197,9 +197,9 @@ FR-006 のキュー投入・同期状態非依存 → 同期側のテスト / �
 | 30 | 状況判定契約 schema — **構造** | 層の欠落で fail(負例 3 件) | B |
 | 31 | 同 — **参照制約**(行 ID 一意 / `cases[]` の解決 / 語彙シード参照) | 3 種の負例で fail | B |
 | 32 | 同 — **値域制約**(ステップ 4 の全 10 列) | 10 列それぞれに負例 1 件以上 | B |
-| 33 | 同 — **交差制約**(`XC-01`〜`XC-09`) | **各 `XC-*` に負例 1 件**が fail | B |
+| 33 | 同 — **交差制約**(**`XC-01`〜`XC-08`・`XC-10`〜`XC-13` の 12 件** — 要件書 v2.10 付録E-1。**`XC-09` は本表に含めず、ステップ 35 が扱う**) | **12 件それぞれに負例 1 件**が fail | B |
 | 34 | **`operationRows[]` の別表 schema**(design.md 4-3) | 8 列すべてが required。欠落で fail(負例 2 件) | B |
-| 35 | **`undoRows[]` の別表 schema**(同)— `targetKind` の閉じた enum・`guaranteeMode` | `"undo"` を含むと fail(**`targetKind` の enum が排除** — 交差制約ではない)。`guaranteeMode` の enum 外で fail | B |
+| 35 | **`undoRows[]` の別表 schema**(同)— `targetKind` の閉じた enum・`guaranteeMode`・**`XC-09`**(ADR-003 D-8。`liveness-only` を履歴深さ `D`+1 の行だけに許す) | `"undo"` を含むと fail(**`targetKind` の enum が排除** — 交差制約ではない)。`guaranteeMode` の enum 外で fail。**`XC-09` に負例 1 件**が fail | B |
 | 36 | **`mustOperationCoverage`** — 写像と **5 検査** | 5 検査それぞれに負例 1 件 | B |
 | 37 | 終了判定契約 schema | 付録F-1 の 5 フィールド。schema 外値の混入で fail(負例 5 件) | B |
 | 38 | 語彙シードを作成する | `vocab.ts` 由来の集合と完全一致。ID の一意性。同一 ID に異なる表示名で fail | B |
@@ -278,7 +278,7 @@ FR-006 のキュー投入・同期状態非依存 → 同期側のテスト / �
 
 ## 5. DoD(受け入れ基準)
 
-- [ ] **要件書**が改訂されている(付録E-1 の境界・**全 10 列の exact 型**・**`XC-01`〜`XC-09`**・表示名の読み替え /
+- [ ] **要件書**が改訂されている(付録E-1 の境界・**全 10 列の exact 型**・**`XC-01`〜`XC-13`**〔**`XC-09` の帰属は `undoRows[]`**〕・表示名の読み替え /
       **定義の穴 9 件** / 管理者語彙の二段階ゲート / NFR-018(b)②)
 - [ ] **ADR-003 D-11 / D-6 / D-8 / D-12** が改訂され、**D-11 で descriptor が両段階を通した唯一の正**になっている
 - [ ] **`docs/design/sync-protocol.md`** が改訂されている
@@ -313,7 +313,7 @@ descriptor と schema の射影検査も書かない**(**段階 2**)。
 | 種別 | 追加するもの |
 | --- | --- |
 | **(a) 一致性テスト** | 成果物が正解ベクタ。**段階 1 では runner を動かさない**(段階 2)。合格の宣言もしない(`BOOT-NO-CLAIM`) |
-| **単体** | 契約 schema — 構造 / 参照 / **値域(全 10 列に負例)** / **交差制約(`XC-01`〜`XC-09` に各 1 件)** |
+| **単体** | 契約 schema — 構造 / 参照 / **値域(全 10 列に負例)** / **交差制約(E-1 の 12 件 `XC-01`〜`XC-08`・`XC-10`〜`XC-13` に各 1 件 + `undoRows[]` の `XC-09` に 1 件)** |
 | **単体** | **`operationRows[]` / `undoRows[]` の別表** — 必須列の欠落 / `targetKind` に `"undo"` / `guaranteeMode` の enum 外 |
 | **単体** | **`mustOperationCoverage` の 5 検査** |
 | **単体** | **descriptor** — 典拠の無い軸 / digest の再現性 / 参照先だけの変更 / 射影の判定不能 / 3 点突合の 1 点ずらし |
