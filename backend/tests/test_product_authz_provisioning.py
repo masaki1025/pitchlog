@@ -1,7 +1,8 @@
 """製品認可 DDL の適用器が閉じた実行経路だけを持つことを検査する。
 
-対象モジュール外では公開名の名前付き from import だけを許し、module・star・private
-import を拒否する。内部では末端参照 exact-set と __all__ 非公開を検査し、値は追わない。
+対象モジュール外では公開名 exact-set の名前付き from import だけを許し、対象モジュール
+名の属性参照と module・star・集合外 import を拒否する。内部では末端参照 exact-set と
+単一リテラルの __all__ を構造で検査し、値の流れは追わない。
 """
 
 from __future__ import annotations
@@ -33,6 +34,14 @@ _SOURCE_ROOT = _REPOSITORY_ROOT / "backend/src"
 _SOURCE_PATH = _REPOSITORY_ROOT / "backend/src/pitchlog/authz/product_provisioning.py"
 _TERMINAL_MODULE = "pitchlog.authz.product_provisioning"
 _TERMINAL_NAME = "_run_product_operation"
+_TARGET_MODULE_ATTRIBUTE = "product_provisioning"
+_PUBLIC_IMPORT_NAMES = frozenset(
+    {
+        "ProductOperation",
+        "apply_product_authz_ddl",
+        "unapply_product_authz_ddl",
+    }
+)
 _EXPECTED_TERMINAL_SIGNATURE = (
     "_run_product_operation(connection: psycopg.Connection[Any], "
     "operation: ProductOperation) -> None"
@@ -238,10 +247,12 @@ def _assert_external_import_shape(
     path: Path,
     tree: ast.Module,
 ) -> None:
-    """対象外モジュールでは公開名の名前付き from import だけを許可する。"""
+    """対象外モジュールでは公開 exact-set の名前付き import だけを許可する。"""
     if module_name == _TERMINAL_MODULE:
         return
     for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute) and node.attr == _TARGET_MODULE_ATTRIBUTE:
+            raise AssertionError("製品適用器名の属性参照は禁止")
         if isinstance(node, ast.Import):
             if any(
                 alias.name == _TERMINAL_MODULE
@@ -258,8 +269,16 @@ def _assert_external_import_shape(
         if imported_from == _TERMINAL_MODULE:
             if any(alias.name == "*" for alias in node.names):
                 raise AssertionError("製品適用器モジュールの import * は禁止")
-            if any(alias.name.startswith("_") for alias in node.names):
-                raise AssertionError("製品適用器モジュールの private import は禁止")
+            unexpected_names = {
+                alias.name
+                for alias in node.names
+                if alias.name not in _PUBLIC_IMPORT_NAMES
+            }
+            if unexpected_names:
+                raise AssertionError(
+                    "製品適用器モジュールの公開名 exact-set 外の import は禁止: "
+                    f"{sorted(unexpected_names)}"
+                )
             continue
         if any(
             f"{imported_from}.{alias.name}" == _TERMINAL_MODULE for alias in node.names
@@ -267,19 +286,64 @@ def _assert_external_import_shape(
             raise AssertionError("製品適用器モジュール自体の from import は禁止")
 
 
-def _assert_terminal_not_exported(tree: ast.Module) -> None:
-    """__all__ の直接構造に末端名が含まれないことを検査する。"""
-    for statement in tree.body:
-        mentions_all = any(
-            isinstance(node, ast.Name) and node.id == "__all__"
-            for node in ast.walk(statement)
+def _assert_public_import_names_exist(tree: ast.Module) -> None:
+    """許可した公開名が対象モジュールの最上位にすべて存在することを検査する。"""
+    defined_names = {
+        node.name
+        for node in tree.body
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef))
+    }
+    if not _PUBLIC_IMPORT_NAMES <= defined_names:
+        raise AssertionError("製品適用器の公開名 exact-set に存在しない名前がある")
+
+
+def _assert_literal_module_all(tree: ast.Module) -> None:
+    """__all__ を最上位の単一文字列リテラル代入だけに限定する。"""
+    all_uses = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Name) and node.id == "__all__"
+    ]
+    if not all_uses:
+        return
+    writes = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.NamedExpr))
+        and any(
+            isinstance(target_node, ast.Name) and target_node.id == "__all__"
+            for target in (
+                node.targets if isinstance(node, ast.Assign) else (node.target,)
+            )
+            for target_node in ast.walk(target)
         )
-        exports_terminal = any(
-            isinstance(node, ast.Constant) and node.value == _TERMINAL_NAME
-            for node in ast.walk(statement)
-        )
-        if mentions_all and exports_terminal:
-            raise AssertionError("製品適用器の末端を __all__ へ公開できない")
+    ]
+    mutations = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "__all__"
+    ]
+    if (
+        len(writes) != 1
+        or writes[0] not in tree.body
+        or not isinstance(writes[0], ast.Assign)
+        or len(writes[0].targets) != 1
+        or not isinstance(writes[0].targets[0], ast.Name)
+        or mutations
+    ):
+        raise AssertionError("製品適用器の __all__ は最上位の単一代入が必要")
+    value = writes[0].value
+    if not isinstance(value, (ast.List, ast.Tuple)) or not all(
+        isinstance(element, ast.Constant) and isinstance(element.value, str)
+        for element in value.elts
+    ):
+        raise AssertionError("製品適用器の __all__ は文字列リテラルだけが必要")
+    exported_names = tuple(cast(ast.Constant, element).value for element in value.elts)
+    if _TERMINAL_NAME in exported_names:
+        raise AssertionError("製品適用器の末端を __all__ へ公開できない")
 
 
 def _internal_terminal_references(
@@ -336,7 +400,8 @@ def _validate_terminal_boundary(source_root: Path) -> None:
             modules[observed_module][0],
             module_tree,
         )
-    _assert_terminal_not_exported(tree)
+    _assert_public_import_names_exist(tree)
+    _assert_literal_module_all(tree)
 
     parents = {
         child: parent
@@ -454,6 +519,19 @@ def test_calling_terminal_through_an_alias_is_red(tmp_path: Path) -> None:
             "from pitchlog.authz.product_provisioning import _ProductStatement\n",
             id="other-private-import",
         ),
+        pytest.param(
+            "from pitchlog.authz.product_provisioning import PRODUCT_SPEC\n",
+            id="asset-spec-import",
+        ),
+        pytest.param(
+            "from pitchlog.authz.product_provisioning import "
+            "load_product_application_steps\n",
+            id="asset-loader-import",
+        ),
+        pytest.param(
+            "from pitchlog.authz.product_provisioning import generate_authz_ddl\n",
+            id="statement-generator-import",
+        ),
     ],
 )
 def test_external_import_shapes_outside_the_closed_rule_are_red(
@@ -471,31 +549,113 @@ def test_external_import_shapes_outside_the_closed_rule_are_red(
         _validate_terminal_boundary(tmp_path)
 
 
-def test_public_named_import_from_another_module_is_green(tmp_path: Path) -> None:
-    """外部から公開 API だけを名前付き from import する形は許可する。"""
+@pytest.mark.parametrize("public_name", sorted(_PUBLIC_IMPORT_NAMES))
+def test_public_named_import_from_another_module_is_green(
+    public_name: str,
+    tmp_path: Path,
+) -> None:
+    """外部から公開 exact-set の部分集合を名前付き import する形は許可する。"""
     target = tmp_path / "pitchlog/authz/product_provisioning.py"
     target.parent.mkdir(parents=True)
     target.write_text(_SOURCE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
     consumer = tmp_path / "pitchlog/consumer.py"
     consumer.write_text(
         "from pitchlog.authz.product_provisioning import "
-        "apply_product_authz_ddl as apply_authz\n",
+        f"{public_name} as public_api\n",
         encoding="utf-8",
     )
 
     _validate_terminal_boundary(tmp_path)
 
 
-def test_terminal_name_in_module_all_is_red(tmp_path: Path) -> None:
-    """末端名を対象モジュールの __all__ へ追加する変異を拒否する。"""
+@pytest.mark.parametrize(
+    "rogue_source",
+    [
+        pytest.param(
+            "import pitchlog.authz\n_MODULE = pitchlog.authz.product_provisioning\n",
+            id="absolute-parent-attribute",
+        ),
+        pytest.param(
+            "import pitchlog\n_MODULE = pitchlog.authz.product_provisioning\n",
+            id="absolute-root-attribute",
+        ),
+        pytest.param(
+            "from .. import authz\n_MODULE = authz.product_provisioning\n",
+            id="relative-parent-attribute",
+        ),
+    ],
+)
+def test_target_module_name_attribute_reference_is_red(
+    rogue_source: str,
+    tmp_path: Path,
+) -> None:
+    """対象モジュール名と同じ属性の参照を由来によらず拒否する。"""
+    target = tmp_path / "pitchlog/authz/product_provisioning.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(_SOURCE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    rogue = tmp_path / "pitchlog/authz/rogue.py"
+    rogue.write_text(rogue_source, encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="属性参照"):
+        _validate_terminal_boundary(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "all_source",
+    [
+        pytest.param(
+            '__all__ = ("_run_product_operation",)\n',
+            id="terminal-literal",
+        ),
+        pytest.param(
+            '_EXPORTED = ("_run_product_operation",)\n__all__ = _EXPORTED\n',
+            id="name-indirection",
+        ),
+        pytest.param(
+            '__all__ = ("_run_" + "product_operation",)\n',
+            id="string-concatenation",
+        ),
+        pytest.param(
+            '__all__ = ("apply_product_authz_ddl",)\n'
+            '__all__ += ("_run_product_operation",)\n',
+            id="augmented-assignment",
+        ),
+        pytest.param(
+            '__all__ = ["apply_product_authz_ddl"]\n'
+            '__all__.append("_run_product_operation")\n',
+            id="append",
+        ),
+        pytest.param(
+            '__all__ = ["apply_product_authz_ddl"]\n'
+            '__all__.extend(["_run_product_operation"])\n',
+            id="extend",
+        ),
+    ],
+)
+def test_nonliteral_or_terminal_module_all_is_red(
+    all_source: str,
+    tmp_path: Path,
+) -> None:
+    """__all__ の間接構築・追記・末端公開を拒否する。"""
     source = _SOURCE_PATH.read_text(encoding="utf-8")
-    mutated = f'{source}\n__all__ = ("{_TERMINAL_NAME}",)\n'
+    mutated = f"{source}\n{all_source}"
     target = tmp_path / "pitchlog/authz/product_provisioning.py"
     target.parent.mkdir(parents=True)
     target.write_text(mutated, encoding="utf-8")
 
     with pytest.raises(AssertionError, match="__all__"):
         _validate_terminal_boundary(tmp_path)
+
+
+def test_literal_public_module_all_is_green(tmp_path: Path) -> None:
+    """公開名だけの単一リテラル __all__ は許可する。"""
+    source = _SOURCE_PATH.read_text(encoding="utf-8")
+    exports = ", ".join(repr(name) for name in sorted(_PUBLIC_IMPORT_NAMES))
+    target = tmp_path / "pitchlog/authz/product_provisioning.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(f"{source}\n__all__ = ({exports},)\n", encoding="utf-8")
+
+    _validate_terminal_boundary(tmp_path)
 
 
 def test_generated_apply_and_unapply_statements_never_change_subject() -> None:
