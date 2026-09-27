@@ -719,8 +719,8 @@ def load_base_declaration(
 
 def validate_append_only_transition(
     current: Mapping[str, Any], base: Mapping[str, Any] | None
-) -> None:
-    """比較元から現行への1受理分の追記だけを許す。"""
+) -> tuple[str, ...]:
+    """比較元から現行への1受理分の追記だけを許し、変更した基準IDを返す。"""
     current_value = validate_declaration(dict(current))
     current_history = current_value["history"]
     current_scope = current_value["scope"]
@@ -762,7 +762,7 @@ def validate_append_only_transition(
             "基準遷移1回につき受理記録はちょうど1件でなければならない"
         )
     if not changed_ids:
-        return
+        return ()
 
     record = current_history[-1]
     if record["priorIdentity"] != expected_prior:
@@ -803,6 +803,7 @@ def validate_append_only_transition(
         raise FreezeBaselineError(
             "受理記録のchangesが比較元から導出した変更前後と一致しない"
         )
+    return tuple(changed_ids)
 
 
 def _parse_source(root: Path, relative_path: str) -> ast.Module:
@@ -984,12 +985,6 @@ def validate_repository_history(
     """PR event の比較元と実リポジトリから追記専用遷移を検査する。"""
     current = validate_declaration(dict(declaration))
     validate_implementation_correspondence(root, current)
-    latest_acceptance_id = current["history"][-1]["acceptanceId"]
-    if latest_acceptance_id != acceptance_context.acceptance_id:
-        raise FreezeBaselineError(
-            "最新受理記録のacceptanceIdがPR eventと一致しない: "
-            f"{latest_acceptance_id} != {acceptance_context.acceptance_id}"
-        )
     resolved = _git(
         root,
         ["rev-parse", "--verify", f"{acceptance_context.base_sha}^{{commit}}"],
@@ -1000,4 +995,11 @@ def validate_repository_history(
             f"{acceptance_context.base_sha} != {resolved.strip()}"
         )
     base = load_base_declaration(root, descriptor_path, acceptance_context.base_sha)
-    validate_append_only_transition(current, base)
+    changed_ids = validate_append_only_transition(current, base)
+    if changed_ids:
+        added_acceptance_id = current["history"][-1]["acceptanceId"]
+        if added_acceptance_id != acceptance_context.acceptance_id:
+            raise FreezeBaselineError(
+                "追加受理記録のacceptanceIdがPR eventと一致しない: "
+                f"{added_acceptance_id} != {acceptance_context.acceptance_id}"
+            )

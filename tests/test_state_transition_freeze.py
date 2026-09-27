@@ -336,6 +336,93 @@ def _copy_audited_sources(tmp_path: Path) -> Path:
     return root
 
 
+def _create_unchanged_followup_repository(tmp_path: Path) -> tuple[Path, str, str]:
+    """現行descriptorを比較元に持つ基準無変更の後続PR相当を作る。"""
+    root = _copy_audited_sources(tmp_path)
+    descriptor_path = root / descriptor_checker.DESCRIPTOR_PATH
+    descriptor_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(REPOSITORY_ROOT / descriptor_checker.DESCRIPTOR_PATH, descriptor_path)
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "freeze-test@example.invalid"],
+        cwd=root,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "freeze test"], cwd=root, check=True
+    )
+    subprocess.run(["git", "add", "."], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "accepted baseline"], cwd=root, check=True)
+    base_sha = _git_sha(root, "HEAD")
+    marker = root / "unrelated.txt"
+    marker.write_text("基準に触れない後続PR\n", encoding="utf-8")
+    subprocess.run(["git", "add", marker.name], cwd=root, check=True)
+    subprocess.run(["git", "commit", "-qm", "unrelated change"], cwd=root, check=True)
+    return root, base_sha, _git_sha(root, "HEAD")
+
+
+def test_unchanged_followup_pr_keeps_prior_acceptance_id_green(
+    tmp_path: Path,
+) -> None:
+    """基準無変更の後続PRは過去PRの受理IDを再照合しない。"""
+    root, base_sha, head_sha = _create_unchanged_followup_repository(tmp_path)
+    descriptor = json.loads(
+        (root / descriptor_checker.DESCRIPTOR_PATH).read_text(encoding="utf-8")
+    )
+    declaration = descriptor[freeze_checker.FREEZE_FIELD]
+    assert declaration["history"][-1]["acceptanceId"] == "masaki1025/pitchlog#81"
+
+    freeze_checker.validate_repository_history(
+        root,
+        descriptor_checker.DESCRIPTOR_PATH,
+        declaration,
+        freeze_checker.PullRequestAcceptanceContext(
+            base_sha=base_sha,
+            head_sha=head_sha,
+            repository="masaki1025/pitchlog",
+            number=82,
+        ),
+    )
+
+
+def test_changed_pr_rejects_acceptance_id_from_another_pr() -> None:
+    """基準を動かしたPRでは追加記録を現在のPR番号と照合する。"""
+    context = _repository_acceptance_context()
+    wrong_context = freeze_checker.PullRequestAcceptanceContext(
+        base_sha=context.base_sha,
+        head_sha=context.head_sha,
+        repository=context.repository,
+        number=context.number + 1,
+    )
+
+    with pytest.raises(
+        freeze_checker.FreezeBaselineError,
+        match="追加受理記録のacceptanceIdがPR eventと一致しない",
+    ):
+        freeze_checker.validate_repository_history(
+            REPOSITORY_ROOT,
+            descriptor_checker.DESCRIPTOR_PATH,
+            _declaration(),
+            wrong_context,
+        )
+
+
+def test_unchanged_pr_rejects_spurious_acceptance_record() -> None:
+    """基準無変更なのに受理記録を足す変更を拒否する。"""
+    base = _declaration()
+    current = copy.deepcopy(base)
+    spurious = copy.deepcopy(current["history"][-1])
+    spurious["acceptanceId"] = "masaki1025/pitchlog#82"
+    spurious["priorIdentity"] = copy.deepcopy(current["history"][-1]["newIdentity"])
+    current["history"].append(spurious)
+
+    with pytest.raises(
+        freeze_checker.FreezeBaselineError,
+        match="基準遷移1回につき受理記録はちょうど1件",
+    ):
+        freeze_checker.validate_append_only_transition(current, base)
+
+
 def test_implementation_side_criterion_set_is_red(tmp_path: Path) -> None:
     """criterion集合を検査器へ再設置すると宣言集合より小さくても拒否する。"""
     root = _copy_audited_sources(tmp_path)
