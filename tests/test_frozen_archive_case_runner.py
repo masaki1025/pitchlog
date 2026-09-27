@@ -193,27 +193,50 @@ def test_runner_calls_real_cli_in_pull_request_mode(
         assert result.stdout == "tenant-boundary bypass check: ok"
 
 
-def test_current_checker_accepts_actual_repository_transition(
+def test_current_checker_rejects_stale_record_after_accepting_single_transition(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """実比較元から現行作業木への遷移を PR 受理モードで照合する。"""
-    prepared = runner.prepare_current_repository_acceptance(
+    """正しい単一遷移を受理し、記録後の凍結実体変異を拒否する。"""
+    definition = MANIFEST.cases[1]
+    prepared = runner.prepare_case(
+        definition,
         tmp_path,
         REPOSITORY_ROOT,
         MANIFEST,
         monkeypatch,
     )
 
-    assert prepared.base_sha == MANIFEST.comparison_revision
-    result = runner.run_checker(
+    assert prepared.base_sha != MANIFEST.comparison_revision
+    accepted = runner.run_checker(
         prepared,
         runner.CheckerSpec(label="current", root=REPOSITORY_ROOT),
     )
+    assert accepted.exit_code == 0, accepted.stderr
+    assert accepted.matches
+    assert accepted.stdout == "tenant-boundary bypass check: ok"
 
-    assert result.exit_code == 0, result.stderr
-    assert result.matches
-    assert result.stdout == "tenant-boundary bypass check: ok"
+    stale = runner.make_record_stale_by_changing_frozen_implementation(
+        prepared,
+        REPOSITORY_ROOT,
+        monkeypatch,
+    )
+    changed_paths = runner._git(
+        stale.repository,
+        ["diff", "--name-only", prepared.head_sha, stale.head_sha],
+    )
+    assert changed_paths.returncode == 0, changed_paths.stderr
+    assert changed_paths.stdout.splitlines() == [
+        runner.CHECKER_RELATIVE_PATH.as_posix()
+    ]
+
+    rejected = runner.run_checker(
+        stale,
+        runner.CheckerSpec(label="current", root=REPOSITORY_ROOT),
+    )
+    assert rejected.exit_code != 0
+    assert not rejected.matches
+    assert "actual.after.external_snapshots" in rejected.stderr
 
 
 def _snapshot_names_at(repository: Path, revision: str) -> frozenset[str]:

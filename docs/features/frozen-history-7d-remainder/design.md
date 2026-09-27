@@ -439,6 +439,31 @@ tenant-boundary contract error: base-allowlist.json:
 
 **入力の種類・検査面・呼び方のいずれも異なるので、同一ドメイン計算の重複実装には当たらない。** **440 の `_load_checker_from_revision` はモジュール 1 つを版から読む補助で、本タスクが要る「CLI + 依存資産 + 契約資産の一式を固定版で走らせる」には足りない**(作業木が要る)。**流用しない理由をここに記録する。**
 
+#### 副次的効能: `history-snapshots/` が固定 SHA より強い比較元になる(**TSK-460 が発見・2026-09-27**)
+
+**本タスクが規律を与えた `history-snapshots/` は、前版の検査器ソースそのものを追記専用で保持している。**
+
+**実測で確認した**(委任元が独立に再現):
+
+```
+PR #80 の v2 記録の change.before.external_snapshots が
+  contracts/tenant_boundary/history-snapshots/4e4c22633db5765f… を指す
+  そのファイルの内容 == b4ae7394 の scripts/check_tenant_boundary_bypass.py (byte 一致)
+  ファイル名の sha256 == 内容の sha256
+```
+
+**つまり「前版の検査器」を得るのに、SHA を literal で固定して作業木を取り出す必要がない。** **`acceptance_id` で記録を選び、`change.before` の snapshot を読めばよい。**
+
+| | 固定 SHA(本タスクが 6-2 で採った形) | `acceptance_id` から snapshot を読む形 |
+| --- | --- | --- |
+| **比較元の同一性** | **Git の履歴が書き換わらない限り不変**(force-push で動きうる) | **`_validate_snapshot_append_only` が変更・削除を拒否する** |
+| **陳腐化** | **develop を取り込むたびに再固定が要る**(6-2) | **記録が指すので、取り込みで動かない** |
+| **書く値** | **40 桁の SHA を literal で書く** | **`acceptance_id` だけ。40/64 桁の値を 1 つも書かない** |
+
+**後者のほうが強い。** **本タスクは前版比較の実装で前者を採ったが、これは `history-snapshots/` の規律が入る前に設計したためである。**
+
+**送り出し**: **本タスクの前版比較を後者へ移すかは TSK-461 の射程外であり、別途判断する。** **本 PR では前者のまま**(実測で合格しており、移行は新しい設計判断になる)。
+
 #### CI 相当のローカル再現(**合格条件**)
 
 **合成 event は `pull_request.number` / `base.ref` / `base.sha` / `head.sha` / `repository.full_name` を入れただけのもので足りる**(TSK-440 が確認済み)。
