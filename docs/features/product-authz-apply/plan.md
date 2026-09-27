@@ -92,6 +92,8 @@ created: 2026-09-25
 
 **計画の改訂(2026-09-26・山田正輝承認)**: 関門 2 の照合で確定した 7C のマージ版の実形式を、ステップ 2 の合格条件へ書き足した(c04339d1 — master セッション・7C の実装者)。あわせて `contract_revision` を「マージ時点の develop の値 +1」へ直し(ffb4d1c5)、テスト計画の表の種別に限定語を足した。**いずれも条件を厳しくする方向**
 
+**計画の改訂(2026-09-27・山田正輝承認)**: 総合検証で、A2 が起こしたハーネスの試験の失敗が 3 件見つかった(develop では green)。① `test_ci_wiring` — DB 試験のファイルはモジュール単位の `pytestmark = pytest.mark.requires_db` を字面で持つ決まり → ステップ 7 の試験を直す(範囲内)。② `test_core_guard` — manifest を参照する試験は「スキーマ契約テスト」としてコア領域の paths への登録が要る → **`.claude/core-areas.json` のテナント分離の paths に `backend/tests/test_product_authz*.py`・`backend/tests/product_authz*.py` を足し、同じ集合を exact に固定している `tests/test_core_guard.py` の期待値にも足す**(変えてよい既存ファイルへの追加 — 本改訂)。③ `test_repository_application_population_is_nonempty_and_green` — `allowed_symbols` を足す PR は U-T1 の製品ファイル 8 つも変えているはずという U-T1 専用の仮定(merge-base 由来の前提が別の PR で成り立たない型)→ **A2 では直さず、census の fix PR(235 の `fix/census-baseline-pin`)に含めてもらう**。A2 はそのマージ後に develop へ追随する
+
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
