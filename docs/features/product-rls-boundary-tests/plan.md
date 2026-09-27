@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3d593b75e687811f8ad5f5da4a8af046
 branch: feature/product-rls-boundary-tests
 created: 2026-09-24
-計画レビュー周回: 2        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -298,7 +298,22 @@ uv run pytest -c pyproject.toml --cov      # DB 必須テストの 0 件収集�
 > | 5 | **正例・拒否例の主体、データ状態、期待結果** |
 > | 6 | **U-C1 / U-C2 / U-C3 / U-A1 / U-A2 のうち、本当に必要な依存の exact-set** |
 >
-> **これは人間の裁定を要する**(本節の趣旨)。**2026-09-27 時点で未決。**
+> **【裁定 2026-09-28・山田正輝】** **解消。** 裁定材料は
+> [decision-sheet-minimum-four.md](decision-sheet-minimum-four.md)(実測つき)。
+>
+> | # | 裁定 |
+> | --- | --- |
+> | **②③ の補助関数分** | **本タスクで実スキーマ再実行する。** `authz_private.tenant_has_effective_membership(uuid, boolean)` は**製品資産に実在**し(`security_mode: definer` / `search_path: [pg_catalog, pg_temp]` / **PUBLIC と `pitchlog_app` の EXECUTE 剥奪**)、**TSK-442 のステップ 9 が最低要求 ②③ として使い捨てクラスタで試験済み**。**本タスクの仕事は実スキーマでの再実行**なので、**越境関数を待たず ①②③ が動く** |
+> | **越境関数分の代表** | **クラスごとに代表 1 件。4 クラス。** `shared_read` → **U-C3** / `control_read` → **U-C2** / `representative_management_operation` → **U-C1**(**写像資産 `probe-product-map.json` の `explicit_non_mapping` の `owner_unit` が正**。`deferred_to_owning_unit` 計 21 件・U-C1 8 / U-C2 10 / U-C3 3)/ **管理関数 → U-A2 が自分で定義する** |
+> | **U-A2** | **依存に入る。** **設計書 8-1 節が正。** 写像資産に現れないのは**probe が FR-035/037 を模していない**だけで、**製品資産には `function_only` 13 表のうち `admin_credentials` / `admin_sessions` / `admin_operation_logs` が実在**する(8-2-B の P5 `app_denied`)。**到達する管理関数が 0 件**(`pitchlog_management_fn_owner` の所有関数 0・`management_private` の出現 0)なので、**U-A2 が代表を定義する**ことが発効条件 |
+> | **順序契約** | **下記「順序契約」節へ明記した**(7-4) |
+>
+> **依存の exact-set = `U-C1` / `U-C2` / `U-C3` / `U-A2` の 4 本。`U-A1` は入れない**
+> (2026-09-27 の裁定を維持 — ②③④ は越境関数の話であり、認証・レート制限の到達経路は別問題)。
+>
+> **当初の裁定材料は 2 件の事実誤認を含んでいた**(`SECURITY DEFINER` 0 件 / `route-registry` を
+> U-A2 除外の根拠にした)。**3 周目の敵対レビューが両方を指摘し、原典で確認して撤回した**
+> (裁定シート 0 節)。**本裁定は是正後の実測に基づく。**
 >
 > **裁定材料は [decision-sheet-minimum-four.md](decision-sheet-minimum-four.md) に実測つきで揃えた。**
 > **要点**: **① は実在する**(製品 RLS ポリシー **32 件**)。**②③④ の対象となる製品の越境関数は 0 件**
@@ -314,10 +329,30 @@ uv run pytest -c pyproject.toml --cov      # DB 必須テストの 0 件収集�
 | 2 | **適用器・実 DB 試験・probe↔製品写像・`provisioned_product_catalog`** | **TSK-442**(PR A2。**TSK-431 の 7C の後**) | **実装完了・`/pr` 前**(2026-09-27 実測。計画承認済 2026-09-26・48 コミット・ステップ 11/11)。**未マージ** |
 | 3 | **ランタイム契約の切り替え**(`ddl-elements.staged.json` → 最終パス) | **TSK-443**(PR B。**7D の後**) | **実装中(ステップ 5/8)**(2026-09-27 実測。計画承認済 2026-09-26・8 コミット)。**これが着地しないと DDL は staged のまま**(`product-authz-surface@58d48b7:design.md:305-322`・`:586-599`) |
 | 4 | **Session の供給** | **TSK-444**(PR C。**7C の後**) | **✅ 実装完了**(2026-09-27 実測。PR #82・実 DB 813 passed・迂回検査 ok・実装後の敵対レビューの差し戻しを是正済み)。**未マージ** — `harness` の 1 件が **TSK-460** 待ち |
-| 5 | 最低要求 ②③④ の関数側(共有) | **U-C1 / U-C3** | 未着手 |
-| 6 | 制御情報読み取り 4 経路の制限関数 | **U-C2** | 未着手(`../tenant-boundary-enforcement/design.md:596`) |
-| 7 | 管理関数 | **U-A2** | 未着手 |
-| 8 | 認証・レート制限の関数(`function_only` 2 表の到達経路) | **U-A1** | 未着手(`product-authz-surface@58d48b7:design.md:640-643`) |
+| 5 | **`shared_read` の代表 1 件**(写像資産で `authorized_shared_rows` に対応) | **U-C3** | 未着手。**依存の exact-set に含む**(裁定 2026-09-28) |
+| 6 | **`control_read` の代表 1 件**(同 `read_control_resources`) | **U-C2** | 未着手。**同上** |
+| 7 | **`representative_management_operation` の代表 1 件**(同 `apply_representative_grant_change`) | **U-C1** | 未着手。**同上**(着手時は「管理関数 = U-A2」と書いていたが、**写像資産の `owner_unit` は U-C1**) |
+| 8 | **管理関数の代表 1 件** — **U-A2 が自分で定義する**(probe に代表が無いため) | **U-A2** | 未着手。**同上**。**対象は `function_only` 13 表のうち `admin_credentials` / `admin_sessions` / `admin_operation_logs`**(8-2-B の P5 `app_denied`)。**現在 `pitchlog_management_fn_owner` が所有する関数は 0 件** |
+| — | ~~認証・レート制限の関数~~ | ~~**U-A1**~~ | **依存に含めない**(**裁定 2026-09-27**)— ②③④ は越境関数の話であり、認証・レート制限の到達経路は別問題 |
+
+**依存の exact-set(裁定 2026-09-28)= 1〜8 の 8 件。`U-A1` は入れない。**
+
+### 順序契約(**3 周目 P0-1 の是正・裁定 2026-09-28**)
+
+**3 周目 P0-1 は「TSK-344 は帯 3 のマージ路を開くが、帯 3(U-C1/C2/C3)は TSK-344 を待つ」閉路を指摘した。**
+**正本に解がある** — `../product-impl-unit-split/plan.md:431` の逐語:
+
+> **入口を開く PR だけがゲートの判定を受ける**(**着手はできる**)。…
+> **入口を 1 つも開かない PR には空の要求として掛かる**
+
+**したがって順序はこうする**:
+
+1. **`U-C1` / `U-C2` / `U-C3` / `U-A2` が「関数だけを作り、入口を 1 つも開かない PR」を先にマージする**
+2. **本タスクが実スキーマで 4 件を再実行する**
+3. **各単位が入口を開く PR を出す**(ここで初めて 12-4 のゲートが掛かる)
+
+**閉路にならない。** **`U-T1` がまさにこの形でマージ済みである**(入口を 1 つも開かないため
+空の要求として掛かった)。
 
 **→ 本タスクは 424 の完全な下流**であり、**TSK-424 は A1・A2・B・C のすべてがマージされるまで完了にしない**
 (`product-authz-surface@58d48b7:plan.md:43`)。**A1 + A2 だけで着手すると、最終パスへ切り替わっていない DDL と、
