@@ -1,7 +1,7 @@
 """製品認可 DDL の適用器が閉じた実行経路だけを持つことを検査する。
 
-保証する参照は静的な絶対・別名・相対・名前付き再 export とモジュール属性までとする。
-文字列 getattr・importlib・__import__・globals による動的な参照は保証しない。
+対象モジュール外では公開名の名前付き from import だけを許し、module・star・private
+import を拒否する。内部では末端参照 exact-set と __all__ 非公開を検査し、値は追わない。
 """
 
 from __future__ import annotations
@@ -186,17 +186,6 @@ def _source_modules(source_root: Path) -> dict[str, tuple[Path, str]]:
     }
 
 
-def _dotted_name(node: ast.expr) -> str | None:
-    """Name/Attribute だけの式をドット区切り名へ戻す。"""
-    if isinstance(node, ast.Name):
-        return node.id
-    if isinstance(node, ast.Attribute):
-        prefix = _dotted_name(node.value)
-        if prefix is not None:
-            return f"{prefix}.{node.attr}"
-    return None
-
-
 def _parse_source(source: str) -> ast.Module:
     """製品適用器ソースを AST として読む。"""
     return ast.parse(source, filename=str(_SOURCE_PATH))
@@ -244,119 +233,74 @@ def _absolute_import_from(
     return ".".join(base_parts) if base_parts else None
 
 
-def _static_import_bindings(
-    modules: dict[str, tuple[Path, str]],
-    trees: dict[str, ast.Module],
-) -> dict[str, dict[str, tuple[str, str]]]:
-    """静的 import と名前付き再 export の由来を固定点まで解決する。"""
-    bindings: dict[str, dict[str, tuple[str, str]]] = {
-        module_name: {} for module_name in modules
-    }
-    bindings[_TERMINAL_MODULE][_TERMINAL_NAME] = (
-        "symbol",
-        f"{_TERMINAL_MODULE}.{_TERMINAL_NAME}",
-    )
-    for module_name, tree in trees.items():
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Import):
-                continue
-            for alias in node.names:
-                local_name = alias.asname or alias.name.partition(".")[0]
-                imported_module = alias.name if alias.asname else local_name
-                bindings[module_name][local_name] = ("module", imported_module)
-
-    changed = True
-    while changed:
-        changed = False
-        for module_name, tree in trees.items():
-            path = modules[module_name][0]
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.ImportFrom):
-                    continue
-                imported_from = _absolute_import_from(module_name, path, node)
-                if imported_from is None:
-                    continue
-                for alias in node.names:
-                    if alias.name == "*":
-                        continue
-                    local_name = alias.asname or alias.name
-                    imported_name = f"{imported_from}.{alias.name}"
-                    origin: tuple[str, str] | None = None
-                    if imported_name in modules:
-                        origin = ("module", imported_name)
-                    elif imported_from in bindings:
-                        origin = bindings[imported_from].get(alias.name)
-                    if (
-                        origin is None
-                        or bindings[module_name].get(local_name) == origin
-                    ):
-                        continue
-                    bindings[module_name][local_name] = origin
-                    changed = True
-    return bindings
-
-
-def _resolve_dotted_binding(
+def _assert_external_import_shape(
     module_name: str,
-    dotted: str,
-    bindings: dict[str, dict[str, tuple[str, str]]],
-    module_names: frozenset[str],
-) -> tuple[str, str] | None:
-    """モジュール属性と再 export を辿ってドット式の由来を返す。"""
-    parts = dotted.split(".")
-    origin = bindings[module_name].get(parts[0])
-    if origin is None:
-        return ("symbol", dotted)
-    for attribute in parts[1:]:
-        origin_kind, origin_name = origin
-        if origin_kind != "module":
-            return None
-        exported = bindings.get(origin_name, {}).get(attribute)
-        if exported is not None:
-            origin = exported
-            continue
-        candidate = f"{origin_name}.{attribute}"
-        if candidate in module_names or _TERMINAL_MODULE.startswith(f"{candidate}."):
-            origin = ("module", candidate)
-        else:
-            origin = ("symbol", candidate)
-    return origin
-
-
-def _terminal_references(
-    module_name: str,
+    path: Path,
     tree: ast.Module,
-    bindings: dict[str, dict[str, tuple[str, str]]],
-    module_names: frozenset[str],
-) -> tuple[tuple[ast.expr, str], ...]:
-    """静的 import の由来を解決して末端シンボルの全参照を返す。"""
-    terminal_symbol = ("symbol", f"{_TERMINAL_MODULE}.{_TERMINAL_NAME}")
-    ancestors = _function_ancestors(tree)
-    references: list[tuple[ast.expr, str]] = []
+) -> None:
+    """対象外モジュールでは公開名の名前付き from import だけを許可する。"""
+    if module_name == _TERMINAL_MODULE:
+        return
     for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any(
+                alias.name == _TERMINAL_MODULE
+                or alias.name.startswith(f"{_TERMINAL_MODULE}.")
+                for alias in node.names
+            ):
+                raise AssertionError("製品適用器モジュール自体の import は禁止")
+            continue
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        imported_from = _absolute_import_from(module_name, path, node)
+        if imported_from is None:
+            continue
+        if imported_from == _TERMINAL_MODULE:
+            if any(alias.name == "*" for alias in node.names):
+                raise AssertionError("製品適用器モジュールの import * は禁止")
+            if any(alias.name.startswith("_") for alias in node.names):
+                raise AssertionError("製品適用器モジュールの private import は禁止")
+            continue
+        if any(
+            f"{imported_from}.{alias.name}" == _TERMINAL_MODULE for alias in node.names
+        ):
+            raise AssertionError("製品適用器モジュール自体の from import は禁止")
+
+
+def _assert_terminal_not_exported(tree: ast.Module) -> None:
+    """__all__ の直接構造に末端名が含まれないことを検査する。"""
+    for statement in tree.body:
+        mentions_all = any(
+            isinstance(node, ast.Name) and node.id == "__all__"
+            for node in ast.walk(statement)
+        )
+        exports_terminal = any(
+            isinstance(node, ast.Constant) and node.value == _TERMINAL_NAME
+            for node in ast.walk(statement)
+        )
+        if mentions_all and exports_terminal:
+            raise AssertionError("製品適用器の末端を __all__ へ公開できない")
+
+
+def _internal_terminal_references(
+    tree: ast.Module,
+) -> tuple[tuple[ast.expr, str], ...]:
+    """対象モジュール内部にある末端名・属性の参照を全数返す。"""
+    ancestors = _function_ancestors(tree)
+    return tuple(
+        (node, ancestors[node])
+        for node in ast.walk(tree)
         if (
             isinstance(node, ast.Name)
             and isinstance(node.ctx, ast.Load)
-            and bindings[module_name].get(node.id) == terminal_symbol
-        ):
-            references.append((node, ancestors[node]))
-            continue
-        if not isinstance(node, ast.Attribute) or not isinstance(node.ctx, ast.Load):
-            continue
-        dotted = _dotted_name(node)
-        if dotted is None:
-            continue
-        resolved = _resolve_dotted_binding(
-            module_name,
-            dotted,
-            bindings,
-            module_names,
+            and node.id == _TERMINAL_NAME
         )
-        if resolved == terminal_symbol or (
-            module_name == _TERMINAL_MODULE and node.attr == _TERMINAL_NAME
-        ):
-            references.append((node, ancestors[node]))
-    return tuple(references)
+        or (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.ctx, ast.Load)
+            and node.attr == _TERMINAL_NAME
+        )
+    )
 
 
 def _validate_terminal_boundary(source_root: Path) -> None:
@@ -368,8 +312,6 @@ def _validate_terminal_boundary(source_root: Path) -> None:
         module_name: ast.parse(source, filename=str(path))
         for module_name, (path, source) in modules.items()
     }
-    bindings = _static_import_bindings(modules, trees)
-    module_names = frozenset(modules)
     tree = trees[_TERMINAL_MODULE]
     terminals = [
         node
@@ -388,26 +330,28 @@ def _validate_terminal_boundary(source_root: Path) -> None:
     if rendered_signature != _EXPECTED_TERMINAL_SIGNATURE:
         raise AssertionError("製品適用器の末端シグネチャが登録値と一致しない")
 
-    references: list[str] = []
     for observed_module, module_tree in trees.items():
-        parents = {
-            child: parent
-            for parent in ast.walk(module_tree)
-            for child in ast.iter_child_nodes(parent)
-        }
-        for node, function_name in _terminal_references(
+        _assert_external_import_shape(
             observed_module,
+            modules[observed_module][0],
             module_tree,
-            bindings,
-            module_names,
-        ):
-            parent = parents.get(node)
-            if not isinstance(parent, ast.Call) or parent.func is not node:
-                raise AssertionError("製品適用器の末端が直接呼び出し以外で参照された")
-            references.append(f"{observed_module}.{function_name}")
+        )
+    _assert_terminal_not_exported(tree)
+
+    parents = {
+        child: parent
+        for parent in ast.walk(tree)
+        for child in ast.iter_child_nodes(parent)
+    }
+    references: list[str] = []
+    for node, function_name in _internal_terminal_references(tree):
+        parent = parents.get(node)
+        if not isinstance(parent, ast.Call) or parent.func is not node:
+            raise AssertionError("製品適用器の末端が直接呼び出し以外で参照された")
+        references.append(function_name)
     if sorted(references) != [
-        "pitchlog.authz.product_provisioning.apply_product_authz_ddl",
-        "pitchlog.authz.product_provisioning.unapply_product_authz_ddl",
+        "apply_product_authz_ddl",
+        "unapply_product_authz_ddl",
     ]:
         raise AssertionError("製品適用器の末端を参照する関数が exact-set でない")
 
@@ -487,76 +431,70 @@ def test_calling_terminal_through_an_alias_is_red(tmp_path: Path) -> None:
     "rogue_source",
     [
         pytest.param(
-            "from pitchlog.authz.product_provisioning import "
-            "_run_product_operation as run\n\n"
-            "def rogue(connection, operation):\n"
-            "    run(connection, operation)\n",
-            id="from-import-alias",
+            "import pitchlog.authz.product_provisioning\n",
+            id="absolute-module-import",
         ),
         pytest.param(
-            "import pitchlog.authz.product_provisioning as provisioning\n\n"
-            "def rogue(connection, operation):\n"
-            "    provisioning._run_product_operation(connection, operation)\n",
-            id="module-attribute",
+            "from pitchlog.authz import product_provisioning\n",
+            id="from-parent-module-import",
+        ),
+        pytest.param(
+            "from . import product_provisioning\n",
+            id="relative-module-import",
+        ),
+        pytest.param(
+            "from pitchlog.authz.product_provisioning import *\n",
+            id="star-import",
+        ),
+        pytest.param(
+            "from pitchlog.authz.product_provisioning import _run_product_operation\n",
+            id="terminal-import",
+        ),
+        pytest.param(
+            "from pitchlog.authz.product_provisioning import _ProductStatement\n",
+            id="other-private-import",
         ),
     ],
 )
-def test_reference_from_another_backend_module_is_red(
+def test_external_import_shapes_outside_the_closed_rule_are_red(
     rogue_source: str,
     tmp_path: Path,
 ) -> None:
-    """別モジュールから通常に import した末端参照も exact-set 違反になる。"""
+    """外部では公開名の名前付き from import 以外をすべて拒否する。"""
     target = tmp_path / "pitchlog/authz/product_provisioning.py"
     target.parent.mkdir(parents=True)
     target.write_text(_SOURCE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
-    rogue = tmp_path / "pitchlog/rogue.py"
+    rogue = tmp_path / "pitchlog/authz/rogue.py"
     rogue.write_text(rogue_source, encoding="utf-8")
 
-    with pytest.raises(AssertionError, match="exact-set"):
+    with pytest.raises(AssertionError, match="import"):
         _validate_terminal_boundary(tmp_path)
 
 
-def test_relative_import_reference_from_another_module_is_red(
-    tmp_path: Path,
-) -> None:
-    """相対 import で持ち込んだ末端の呼び出しも exact-set 違反になる。"""
+def test_public_named_import_from_another_module_is_green(tmp_path: Path) -> None:
+    """外部から公開 API だけを名前付き from import する形は許可する。"""
     target = tmp_path / "pitchlog/authz/product_provisioning.py"
     target.parent.mkdir(parents=True)
     target.write_text(_SOURCE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
-    rogue = tmp_path / "pitchlog/authz/relative_runner.py"
-    rogue.write_text(
-        "from .product_provisioning import _run_product_operation as run\n\n"
-        "def rogue(connection, operation):\n"
-        "    run(connection, operation)\n",
-        encoding="utf-8",
-    )
-
-    with pytest.raises(AssertionError, match="exact-set"):
-        _validate_terminal_boundary(tmp_path)
-
-
-def test_named_reexport_reference_from_another_module_is_red(
-    tmp_path: Path,
-) -> None:
-    """名前付き from import の再 export を介した呼び出しも拒否する。"""
-    target = tmp_path / "pitchlog/authz/product_provisioning.py"
-    target.parent.mkdir(parents=True)
-    target.write_text(_SOURCE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
-    bridge = tmp_path / "pitchlog/authz/operation_bridge.py"
-    bridge.write_text(
+    consumer = tmp_path / "pitchlog/consumer.py"
+    consumer.write_text(
         "from pitchlog.authz.product_provisioning import "
-        "_run_product_operation as exported_runner\n",
-        encoding="utf-8",
-    )
-    rogue = tmp_path / "pitchlog/rogue.py"
-    rogue.write_text(
-        "from pitchlog.authz.operation_bridge import exported_runner as run\n\n"
-        "def rogue(connection, operation):\n"
-        "    run(connection, operation)\n",
+        "apply_product_authz_ddl as apply_authz\n",
         encoding="utf-8",
     )
 
-    with pytest.raises(AssertionError, match="exact-set"):
+    _validate_terminal_boundary(tmp_path)
+
+
+def test_terminal_name_in_module_all_is_red(tmp_path: Path) -> None:
+    """末端名を対象モジュールの __all__ へ追加する変異を拒否する。"""
+    source = _SOURCE_PATH.read_text(encoding="utf-8")
+    mutated = f'{source}\n__all__ = ("{_TERMINAL_NAME}",)\n'
+    target = tmp_path / "pitchlog/authz/product_provisioning.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(mutated, encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="__all__"):
         _validate_terminal_boundary(tmp_path)
 
 
