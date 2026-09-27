@@ -94,6 +94,8 @@ created: 2026-09-25
 
 **計画の改訂(2026-09-27・山田正輝承認)**: 総合検証で、A2 が起こしたハーネスの試験の失敗が 3 件見つかった(develop では green)。① `test_ci_wiring` — DB 試験のファイルはモジュール単位の `pytestmark = pytest.mark.requires_db` を字面で持つ決まり → ステップ 7 の試験を直す(範囲内)。② `test_core_guard` — manifest を参照する試験は「スキーマ契約テスト」としてコア領域の paths への登録が要る → **`.claude/core-areas.json` のテナント分離の paths に `backend/tests/test_product_authz*.py`・`backend/tests/product_authz*.py` を足し、同じ集合を exact に固定している `tests/test_core_guard.py` の期待値にも足す**(変えてよい既存ファイルへの追加 — 本改訂)。③ `test_repository_application_population_is_nonempty_and_green` — `allowed_symbols` を足す PR は U-T1 の製品ファイル 8 つも変えているはずという U-T1 専用の仮定(merge-base 由来の前提が別の PR で成り立たない型)→ 当初は census の fix PR(TSK-460)に含めてもらう判断だったが、TSK-460 側の人間の裁定で含めないことになった(TSK-460 のブランチではこの分岐に入らず検証できない)。**再判断(2026-09-27・山田正輝): A2 の中で直す**。A2 のブランチは `allowed_symbols` に記号を足すので、この分岐が実際に走り検証できる。**`tests/test_check_tenant_boundary_bypass.py` を変えてよい既存ファイルに足し**、「足した記号ごとに、その記号が属するモジュールのファイルが変更行を持つ」へ一般化する(`PRODUCT_APPLICATION_PATHS` の固定集合を要求しない)。実装は Codex の上限のリセット(2026-10-03)の後。凍結基準の外部ファイルではないので 7.7-2 の記録は要らない
 
+**計画の改訂(2026-09-27・山田正輝承認 — 実装後の敵対レビュー 3 周目の後)**: ステップ 3・4 の「参照するコードが exact-set」の、**モジュールの外**の保証を、データの流れの追跡から**構造の規則**へ置き換える: ① 2 つのモジュールの外では「`from モジュール import 公開名`」だけを許し、モジュール自体の import・`import *`・末端の名前の import は red ② 末端の名前を `__all__` に入れない(design.md 1 節)。**モジュールの中**の参照の exact-set と、その変異(参照を足す・別名への代入)は従来どおり
+
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
