@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "input_manifest": {
-    "commit": "9a28f3a6fd6d3750416210aa814e98f2a2765207",
+    "commit": "c6d773c6efae36c9f4bba8b4c466ce6481011443",
     "source_path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
     "scan_start_heading_id": "DOC",
     "scan_end_heading_id": "APPENDIX-ITEM-F-2",
-    "source_blob_digest": "45b3fd9beafe3754d83b7a8aa8d7a6bb01058fe9",
+    "source_blob_digest": "727309f7f78ed6c28a9838115ed47a0e088a5f7d",
     "heading_ids": [
       "DOC",
       "CHANGELOG",
@@ -139,11 +139,11 @@
       "code_line": 43,
       "frontmatter": 3,
       "heading": 125,
-      "list_item": 642,
-      "paragraph": 92,
+      "list_item": 646,
+      "paragraph": 99,
       "table_delimiter": 40,
       "table_header": 40,
-      "table_row": 317,
+      "table_row": 323,
       "thematic_break": 27
     }
   },
@@ -850,6 +850,26 @@
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
       "decision_digest": "cf200ddf5ed812262be4839f9b5793a7e17814d101cae6c592d03c3d57469189"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-038",
+      "source_kind": "table_row",
+      "source_heading_id": "CHANGELOG",
+      "source_text": "| 2.10 | 2026-09-26 | **付録E ゴールデンケースの前提となる定義の穴 9 件を閉じる改訂を起案(TSK-236・状態: in-review)** — `ADR-003` v0.4・`docs/design/sync-protocol.md` v0.5 と**単一の確定ゲート(7.3)で一括検証**する。 **射程宣言(7.3-7)** — **本改訂で確定する範囲**: ① **定義の穴 9 件**を閉じた分岐 ID の集合として条文化(各分岐に正例・負例) — `COLD-01`〜`09`(コールド成立のタイミング)/ `DRAW-01`〜`10`(引き分け成立の条件)/ `XMARK-01`〜`03`(X 表記の一般規則)/ `OUT3-01`〜`05`(第3アウト時の得点計上)/ `ADV-01`〜`04`(走者の既定進塁)/ `INT-01`〜`07`(妨害系 3 種の遷移)/ `SO-01`〜`05`(三振系の分類)/ `RBI-01`〜`09`(打点の算出定義・付録A-3 へ新設)/ FR-020 の H/E/K/B の定義 ② **付録E-1 の全 10 列の exact 型**・**`eventKind` 別の合法組合せ allowlist**・**交差制約 `XC-01`〜`XC-08`・`XC-10`〜`XC-13`**（`XC-04`へアウト対象の重複禁止、`XC-06`へ打席終了と打者行き先・`countEffect`の`reset`の双方向一致、`XC-10`へ打者の行き先とアウト対象の双方向一致、`XC-11`へ第3アウト超過の一般禁止、`XC-12`へ不在走者のアウト対象化禁止、`XC-13`へ**23件の成績計上フラグは他の列と前提入力から導出し、独立した手入力または規範上の任意値としない原則**を含む）・**成績計上フラグの閉じた外延(23 件)** ③ **4.0-3 の管理者語彙の二段階ゲート**(契約 PR 登録 → 管理者有効化。製品側の拒否の実装は FR-037 の実装タスク)④ **NFR-018(b)② の保証する入力の範囲を判定可能に**(入力軸の唯一の正を `ADR-003` D-11 の descriptor とし、本書に軸名を重複列挙しない。「主要フラグ」の語を廃し状態軸 / イベント軸 / 成績計上フラグへ分離。縮小の根拠を(i) 合法空間の定義 (ii) 影響しない軸 の 2 種に分け、後者に独立性 fixture を要求)。**記録者の観測入力**として走者別第3アウト時機・妨害裁定・`RBI-02`〜`RBI-05`の因果判断・手動進塁上書き・投球有無の保持値・公式失策記録を入力契約へ含め、走者別・対象別の観測を表現できる入力軸を確定する。 **実装時に確定する範囲**: 規範行 4 層・手作業 fixture・`cases[]` の生成・検査配線(本タスクのフェーズ B 以降)に加え、**第1回PO射程縮小(2026-09-26・敵対レビュー2周連続で起因比が閾値超過)**により、`operationPayload` / `runnerEventPayload` / `runnerAdvanceOverridesByRunner` / `interferenceRuling` / `officialScoringPayload` / `rbi.*` の payload 内部のフィールドレベル制約(一意性・参照整合・相反排除)、状態遷移側の軸間組合せ規則、および `ADR-003` D-8 の文字列型制約と FR-015 の任意選手名との整合を、ベクタ整備・検査基盤の実装時へ送る。**第1回の縮小理由**: 実体のない段階で payload 内部を机上で閉じる是正が次の穴を生む閉じた輪に入り、2周目5件中4件が初周で追加した内部構造に起因したため。さらに、**第2回PO射程縮小(2026-09-26・反映5周目後)**により、`XC-13`の23フラグごとの導出表（導出元・必要十分条件・負例）、第3アウト種別（打者走者の一塁到達前／フォースアウト／先行走者のアピールアウト）の入力契約、および導出に必要な記録員判断の入力契約を段階2へ送る。**第2回の縮小理由**: 反映5周目の横断点検でアピールアウトが既存の`resultId`・`outEffect`だけでは一意に導出できないと判明し、P0推移が4→3→1→4→2と下がり切らず、2周目4件・5周目3件で是正起因の穴が繰り返されたため。本改訂で確定する23フラグの閉じた外延・exact型・導出原則、`XC-01`〜`XC-12`、軸26件の集合・分類・由来条文・走者別／対象別の表現能力・coverage非ゼロ・全軸の射影帰属は縮小しない。 **人間確認を経た判断**: `K3` = スリーバント失敗(2026-09-25)/ コールドの「適用開始回」= 完了時点・毎球入力の必須観測項目の維持と打点観測の追加・`B` 欄 = 四球のみ・タイブレークの発動回 = 延長のみ・守備妨害の専用フラグを追加しない(いずれも 2026-09-26)。 **公認野球規則の条番号 12 件を原典(2026 Official Baseball Rules)で照合**し 11 件が正・**`7.01(g)` は存在しないため `7.01(a)` + `7.01(b)(1)` へ是正**。 条文 commit: `3ac9d9ab`〜`9a28f3a6`。計画: `docs/features/appendix-e-golden-vectors/plan.md`(計画レビュー 9 周 → 承認 2026-09-25・山田正輝) | 山田 + Claude |",
+      "source_text_digest": "0bed84a3e14b0a295eda96cca46717ac2e2af1d595f88410c1cc3b0a278486bf",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "decision_digest": "592d1addee03da507bbe10f47fcf73d02e26570b7c0129b7deb01e3e915e3742"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-039",
+      "source_kind": "table_row",
+      "source_heading_id": "CHANGELOG",
+      "source_text": "| **2.10** | 2026-09-28 | **確定ゲート通過(approved)**: 敵対レビュー **12 周**(sol xhigh — 1周目 P0×4/P1×6/P2×1・2周目 P0×3/P1×2・3周目 P0×1/P1×1・4周目 P0×4・5周目 P0×2/P1×1・7周目 P1×1・8周目 P1×1・9周目 P1×1・10周目 P1×1・11周目 P1×1・12周目 P1×1 を採用、**13 周目は P0/P1 ゼロ・P2×1 を不採用(索引は手順 6 で現行化)して収束**。**作成者判断のみの不採用 0 件**。反映周コミット {1..12} 一致) → **PO 承認(2026-09-28・山田正輝)**。**PO 裁定 6 回**(射程縮小 2 回 / 7.7 準拠で是正 / 線を宣言してから是正 / 目的を変えて条文化 / CI 配線を計画の射程へ)。 **確定内容の要点**: ① **定義の穴 9 件を閉じた分岐 ID の集合**(`COLD-01`〜`09` / `DRAW-01`〜`10` / `XMARK-01`〜`03` / `OUT3-01`〜`05` / `ADV-01`〜`04` / `INT-01`〜`07` / `SO-01`〜`05` / `RBI-01`〜`09`。**各分岐に正例と負例を置き、閉じた集合であることを機械検査する**) ② **付録E-1 の全 10 列の exact 型**・**`eventKind` 別 allowlist**・**交差制約 `XC-01`〜`XC-13`**(**`XC-09` は付録E-1 の制約ではなく `undoRows[]` の制約として ADR-003 D-8 が定める**ことを帰属 ID で明示) ③ **`statFlags` の 23 件の閉じた外延**と **`XC-13` の原則**(**行の他の列と `precondition` が参照する入力から導出し、独立した手入力または規範上の任意値としてはならない**) ④ **4.0-3 の管理者語彙の二段階ゲート** ⑤ **NFR-018(b)② の保証する入力の範囲**を descriptor の 26 軸へ結びつけた。 **実装時に確定する範囲(PO 射程縮小 2 回)**: payload 内部のフィールド制約・軸間組合せ規則・D-8 の文字列規定と FR-015 の整合(1 回目)/ `XC-13` の 23 キーごとの導出表・第3アウト種別の観測入力・記録員判断の入力契約(2 回目)。**`contracts/state-transition/input_axes_descriptor_v1.json` の `stage2ExternalConstraints` 8 クラスが宣言し、ADR-003 D-11 と exact-set で突合する**。 計画: `../features/appendix-e-golden-vectors/plan.md`(計画レビュー 9 周 → 承認 2026-09-25・山田正輝) | 山田 + Claude |",
+      "source_text_digest": "49f3dd19a8c3954bcef8baf0d7af784f76297eaefc0cb5e234efa7ffd3e6f887",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "decision_digest": "6256dcf44100d78eca9d97bcd1381dfb827763270791b120a168f1ff9230e726"
     },
     {
       "source_id": "CHANGELOG/blockquote-001",
@@ -2664,11 +2684,11 @@
       "source_id": "FR-003/list_item-005",
       "source_kind": "list_item",
       "source_heading_id": "FR-003",
-      "source_text": "  - Given 自動設定が実状と異なる / When 走者状況を手動変更して確定 / Then 手動値が優先して保存される",
-      "source_text_digest": "01dae713b139d75aa60871fd7073bb79afcb21789d47931d6b6a2b4827675006",
+      "source_text": "  - Given 自動設定が実状と異なる / When 走者状況を手動変更して確定 / Then 記録者は、変更した走者ごとの実結果（停止／アウト／到達塁）を`runnerAdvanceOverridesByRunner`へ走者キー付き写像として入力し、手動値が既定進塁より優先して保存される。変更しない走者は写像へ含めず、付録E-1の`runnerDefaultAdvance`を適用する",
+      "source_text_digest": "8f1b683c253c4e2d6a38b5c3f9e00a70369fe76249cd4a9cc395efd8c7711ffb",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "1da43e2fd0e082b31b855430ffb4466710fc88b690009a3eb42ee36bcad5306f"
+      "decision_digest": "c5a537f9b3085211521d54ab4278480e913d46040436f92f10e6eaa0092cd125"
     },
     {
       "source_id": "FR-003/list_item-006",
@@ -2684,21 +2704,31 @@
       "source_id": "FR-003/list_item-007",
       "source_kind": "list_item",
       "source_heading_id": "FR-003",
-      "source_text": "  - Given 付録Eのゴールデンケース（振り逃げ・併殺等の複合ケース含む） / When 状態遷移を実行 / Then 全ケースが一致する（NFR-019の一致性テストと同一ベクタ）",
-      "source_text_digest": "6c6e28a8906b3dee33896cb0e7a7a9b80b77d5938e4eb45fe38bd88646ff6299",
+      "source_text": "  - Given 付録A-3の`RBI-02`〜`RBI-05`のいずれかを判定するプレイ / When プレイを確定 / Then 記録者は`rbiRuling`として、`RBI-02`では併殺完成送球時の失策の有無、`RBI-03`・`RBI-04`では各生還候補走者が走り続けたか一旦停止後に再発進したか、`RBI-05`では各生還候補走者が失策なしでも得点できたかを入力する。走者別の入力は`thirdOutTimingByRunner`と同じ走者キー付き写像とし、判定に必要な値が1人分でも欠ければ確定できない。該当分岐の判定に不要な項目は入力を要求しない",
+      "source_text_digest": "56d552051229a15aa64eb5a333bc296978b016ae77497c21412d1eaeec8f0cf1",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "d6ad922846804c3296a8db11eba34ae1da142f4115512169ff71932b03f9d14f"
+      "decision_digest": "ff053d1e21de368f33f5e85f075f50a53948bdcbb40a21a6862ffbb80c27d07d"
     },
     {
       "source_id": "FR-003/list_item-008",
       "source_kind": "list_item",
       "source_heading_id": "FR-003",
-      "source_text": "- **補足**: 打撃結果の語彙は管理者管理（4.0-3）、**各値の状態遷移・成績計上の挙動は付録Eが正**。値集合の初期値は付録D-4のシード（旧UI語彙定義由来）と同一。`thirdOutTimingByRunner`はプレイ結果だけから一意に推定できない現場の時間的前後であるため、**自動推定せず、既定値も置かず、記録者の観測入力を正**とする。既定値を置くと未観測の前後関係から得点・打点を黙って決めるため認めない",
-      "source_text_digest": "039828caa15f836dec4f96bf6783a1fbb8501a759b0dbbeaaa51cf1d3c0eb42f",
+      "source_text": "  - Given 付録Eのゴールデンケース（振り逃げ・併殺等の複合ケース含む） / When 状態遷移を実行 / Then 全ケースが一致する（NFR-019の一致性テストと同一ベクタ）",
+      "source_text_digest": "6c6e28a8906b3dee33896cb0e7a7a9b80b77d5938e4eb45fe38bd88646ff6299",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "8eecf7f21e4b116e38975b3765f188cca82234f448e1a950bc219204231cf423"
+    },
+    {
+      "source_id": "FR-003/list_item-009",
+      "source_kind": "list_item",
+      "source_heading_id": "FR-003",
+      "source_text": "- **補足**: 打撃結果の語彙は管理者管理（4.0-3）、**各値の状態遷移・成績計上の挙動は付録Eが正**。値集合の初期値は付録D-4のシード（旧UI語彙定義由来）と同一。`thirdOutTimingByRunner`と`rbiRuling`はプレイ結果だけから一意に推定できない現場の時間的前後・因果・記録員判断であるため、**自動推定せず、既定値も置かず、記録者の観測入力を正**とする。走者別の値を単一値へ畳み込まず、同一プレイで走者ごとに異なる観測を保持する。既定値を置くと未観測の前後関係または因果から得点・打点を黙って決めるため認めない",
+      "source_text_digest": "a1c56fda42e69396896964e29d8ff127c3ded7712d2254b0e5e9597b2c53aa85",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_AUTHZ_CONTEXT_ONLY",
-      "decision_digest": "b260fd96b3ae123c44d982012f0159c1eb8b8fd0097c58d6524034ca5733e224"
+      "decision_digest": "a90dd229ea68dd1467e78c0293d2381fe4cad2799521548e0778e269b0325a46"
     },
     {
       "source_id": "FR-004/heading-001",
@@ -2774,21 +2804,41 @@
       "source_id": "FR-004/list_item-007",
       "source_kind": "list_item",
       "source_heading_id": "FR-004",
+      "source_text": "  - Given 走者イベントを記録 / When プレイを確定 / Then payloadはイベント種別と、対象走者ごとの結果（セーフ進塁／アウト／停止）、到達または企図した塁、およびアウトの場合の盗塁死／牽制死等の別を保持する。同時に複数走者が動いた場合も走者キー付き写像として各走者を別々に保持し、対象走者・成否・到達塁のいずれかを欠けば確定できない",
+      "source_text_digest": "8b86390f5954f35386f6b86275d81783842feb97daa54aa0fd3eed3ce433ac0f",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "a665879d15ab841495d944f5ba58a833a6cfa33f83c824f90debcde930514048"
+    },
+    {
+      "source_id": "FR-004/list_item-008",
+      "source_kind": "list_item",
+      "source_heading_id": "FR-004",
+      "source_text": "  - Given プレイの公式記録を確定 / When プレイを確定 / Then 失策なし、または採用した1件以上の失策の件数と帰属野手を`officialScoringPayload`へ保持する。結果IDが「エラー」以外のプレイに付随する失策も同じpayloadへ保持し、結果IDだけから件数を推定しない",
+      "source_text_digest": "745557f94ca6aab09bdb225bac84ce1645aa15abd6ece3180fa5aa8dda413226",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "41a872269af30e3b608a505ab89f495a2c17f9a6146c9ba53f1c7ade2d3780a8"
+    },
+    {
+      "source_id": "FR-004/list_item-009",
+      "source_kind": "list_item",
+      "source_heading_id": "FR-004",
       "source_text": "  - Given 打撃妨害・走塁妨害・守備妨害のいずれかを審判が裁定 / When プレイを確定 / Then 記録者は`interferenceRuling`として、打撃妨害では採用結果（`penalty-award`または`play-result`。後者は採用する`resultId`も必須）、走塁妨害ではプレイ区分（`play-on-obstructed-runner`または`no-play-on-obstructed-runner`）と審判が最終的に与えた各走者・打者走者の到達塁、守備妨害では審判が宣告したアウト対象と他走者の帰塁先を入力する。付録E-1の`INT-01`〜`INT-07`が要求する値が1つでも欠ければ確定できない",
       "source_text_digest": "bbbf54a29ef9ca8514e76f5b5bfc966d3e72c855bec2fd480b879dc7420150ba",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "4b9ed4ee41b4ea65bac7b279fdfcdefe584f94dcfd70d353aa20e1a0ddba9749"
+      "decision_digest": "d121b73be5e1017a4e1cd73d272293ae0ac314d12a7bc7adc58466c9078cd64d"
     },
     {
-      "source_id": "FR-004/list_item-008",
+      "source_id": "FR-004/list_item-010",
       "source_kind": "list_item",
       "source_heading_id": "FR-004",
       "source_text": "- **補足**: `interferenceRuling`は、審判および攻撃側監督の裁定後に**採用された結果だけ**を状態遷移へ渡し、採用されなかった仮定上の結果は保持しない。ただし、妨害が発生した事実と3種の別はイベントpayloadへ保持する。採用結果・授与塁・アウト対象・帰塁先はプレイ結果だけから一意に推定できないため、**自動推定せず、既定値も置かず、記録者の裁定入力を正**とする。既定値を置くと、監督の選択または審判の判断を経ていないアウト・進塁・成績を確定するため認めない",
       "source_text_digest": "85b9904313e5dd8b749c552f1c984a62f675832180923e68f6e7ee03bc7d63e2",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "a8855b0cf55197989be26f0519247eed75154a5ac1f071c611e1f1bb2d8cae76"
+      "decision_digest": "b8a7bda6e0941411b59b623628ce5b01321f1f9f03f2626f9c48202690012904"
     },
     {
       "source_id": "FR-005/heading-001",
@@ -2844,61 +2894,71 @@
       "source_id": "FR-005/list_item-005",
       "source_kind": "list_item",
       "source_heading_id": "FR-005",
+      "source_text": "  - Given 打撃結果・打撃結果2・走者イベントのいずれかで第3アウトが成立 / When 付録E-1の行が定める効果を適用して攻守交代 / Then **攻守交代の共通後処理**としてストライク・ボールを0へリセットし、次の攻撃へ旧カウントを持ち越さない。このリセットは打席終了に伴う付録E-1の`countEffect = reset`とは別の状態遷移であり、打者の打席に影響しない`runner-event`の`countEffect = unchanged`を書き換えず、その行のアウト効果を適用した後に実行する。第3アウトにならない走者イベントではこの後処理を実行しない",
+      "source_text_digest": "89b66cb802ec5706caacc4b8daf15254aa6b1ef5d0ead103c688f310c2907fb0",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "80fe29a5645a403b4cb0026a95cf13d4fc0433634530f4ebf20effaacd8646f5"
+    },
+    {
+      "source_id": "FR-005/list_item-006",
+      "source_kind": "list_item",
+      "source_heading_id": "FR-005",
       "source_text": "  - Given 試合の適用規則（FR-014）で定まる終了・コールド・サヨナラ条件が成立 / When 該当プレイを確定 / Then **終了条件の成立が検知され、以降のプレイ入力はロックされ、試合終了の宣言（FR-010）が促される**。試合状態を自動で「終了」に遷移させない（**検知と終了の分離** — 正式な終了は常にFR-010の宣言イベント。断中に自動終了するとキュー内の宣言イベントが拒否されて詰むため）",
       "source_text_digest": "82adce1f4d8a1b7d5f1ac563bd4795adad0bd7275c00509a3cce0eca3dab8e20",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "e31a7d3cacefde92dd2f2a8044f3a4f278d2a5deef072c8b4aff1b188d0d14aa"
+      "decision_digest": "4ee06e5551c733cfc38a8a1573616baa53ea35958b0040d3a6a2641cb01f4b23"
     },
     {
-      "source_id": "FR-005/list_item-006",
+      "source_id": "FR-005/list_item-007",
       "source_kind": "list_item",
       "source_heading_id": "FR-005",
       "source_text": "  - Given 付録F-1の`DRAW-09`により引き分け条件が成立 / When 上限回の裏を完了するプレイを確定 / Then 前項と同じく成立を検知して入力をロックし、FR-010の終了宣言を促すが、試合状態を自動で「終了」に遷移させない",
       "source_text_digest": "c32394d3e8781def0383e41558b88e1b8864cf6c622f6f18c29fb6a78c4c2823",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "0a74bc7b4ee4c615ed8dab0c9d8df91c06c67f7d88a0ede7e6062ad79cd3a8f4"
+      "decision_digest": "37a3ef9cba7e15a27d892666a7e8a9622ebbb7aecc89955735c6144e217588e1"
     },
     {
-      "source_id": "FR-005/list_item-007",
+      "source_id": "FR-005/list_item-008",
       "source_kind": "list_item",
       "source_heading_id": "FR-005",
       "source_text": "  - Given サヨナラ成立 / When 得点計上 / Then 本塁打によるサヨナラは打者・全走者の得点を計上し、それ以外は決勝点までを計上する（公認規則準拠 → 付録A-1）",
       "source_text_digest": "7df3f1883c8abdb77062ed5eb667d80ed75b1f836d44f1012104cfdfa9d4c97c",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "2dc7ddee83f61e0ae07b7f124b9083f125123a1a80dfa58873cb8071fc9e2505"
+      "decision_digest": "f0ba09de39c3b1d427b47b5232936212a5ee42b332788bb9c11a06515cbab812"
     },
     {
-      "source_id": "FR-005/list_item-008",
+      "source_id": "FR-005/list_item-009",
       "source_kind": "list_item",
       "source_heading_id": "FR-005",
       "source_text": "  - Given 後攻チームがリードしたまま最終回の表が終了（裏の攻撃が不要） / When スコアボード表示 / Then 行われなかった裏はスコアボードに「X」表記される（※サヨナラは裏の**途中**で終わるため「X」ではなくその回の得点を表示する。X表記の一般規則および「最終回」の定義はFR-020の`XMARK-*`による）",
       "source_text_digest": "2d352ccd0e28e4fea6d562d28a595110410d9c04a1226c8548690b0b6c3b29eb",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "a654bc9b6683cc01680871eeb5c7e3c079631b57ed89703bdb14fc0e86a91822"
+      "decision_digest": "9988c317bc137ed04b76d2ef180f75035dc4c4ff4874162ed220952623ec8939"
     },
     {
-      "source_id": "FR-005/list_item-009",
+      "source_id": "FR-005/list_item-010",
       "source_kind": "list_item",
       "source_heading_id": "FR-005",
       "source_text": "  - Given 通信断中 / When プレイを確定 / Then 上記の計算がクライアント側で実行され、画面が正しく更新される（4.0-4）",
       "source_text_digest": "5441d942b0a5c59218a1c6df04916f6a87481247e6038366fa6400cd9960de51",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "cfb4f715ec0f4d9289691fd36f0497a2595f8b9da8bb132b8871bd271a3df7f2"
+      "decision_digest": "f75edb33f976d83a1f93d244c59289e9d68204f42d5bd5f074d868a166b41562"
     },
     {
-      "source_id": "FR-005/list_item-010",
+      "source_id": "FR-005/list_item-011",
       "source_kind": "list_item",
       "source_heading_id": "FR-005",
       "source_text": "- **補足**: クライアント/サーバーの計算一致は NFR-019 のCI一致性テストで担保。カウント遷移・第3アウトと得点の同時成立（タイムプレイ）等の網羅は付録Eのゴールデンケースで検証し、タイムプレイの判定の正は付録A-1の`OUT3-*`とする",
       "source_text_digest": "c15337e4eb6a830b8835896aa833b6c63d6b9ca2117c63d1c0cd91db32f26aca",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "97d7c577bd6b0c69b8fa2fab5ab9cb5b67c6096eab8519b03d6b514c436c4596"
+      "decision_digest": "e6c282a3a24df9a545ecfcb9399a558a566561c978e90e05b76457ecc09359ef"
     },
     {
       "source_id": "FR-006/heading-001",
@@ -11891,11 +11951,11 @@
       "source_id": "NFR-018/list_item-018",
       "source_kind": "list_item",
       "source_heading_id": "NFR-018",
-      "source_text": "        - **(i) 合法空間の定義による限定**: 付録E-1の適用範囲と規範行の層、10列のexact型、`eventKind`別allowlist、および`XC-01`〜`XC-08`を同じ合法入力空間の定義として適用する。型、allowlistまたは交差制約に反する組合せは、もともと存在する入力からcoverageを削るのではなく、合法入力ではないため直積へ含めない。**この限定は保証範囲の縮小ではない**。除いた組合せも検証対象とし、各型制約・allowlist外の組合せ・各`XC-*`違反に対応する負例が拒否されることを機械検査する。付録E-1の10列で表現しない操作イベントとundoは除外せず、別の規範行の層からdescriptorへ収容する",
-      "source_text_digest": "fed0ee28b6de50d49822da63447ec9b79a5332ceb317bd41122fc3dd0354df6e",
+      "source_text": "        - **(i) 合法空間の定義による限定**: 付録E-1の適用範囲と規範行の層、10列のexact型、`eventKind`別allowlist、および`XC-01`〜`XC-08`・`XC-10`〜`XC-13`を同じ合法入力空間の定義として適用する。型、allowlistまたは交差制約に反する組合せは、もともと存在する入力からcoverageを削るのではなく、合法入力ではないため直積へ含めない。**この限定は保証範囲の縮小ではない**。除いた組合せも検証対象とし、各型制約・allowlist外の組合せ・各`XC-*`違反に対応する負例が拒否されることを機械検査する。付録E-1の10列で表現しない操作イベントとundoは除外せず、別の規範行の層からdescriptorへ収容する",
+      "source_text_digest": "e9543eeaa3ecc7e97db5e00e63cfd3d0c0905c8ce7135586ad822ee00668ccf7",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "21667eaf2ddfe895b2f8c599c72a8940da6a0f10bfb45ff3fe7f0de7c606ffa8"
+      "decision_digest": "5a2faa018a09e4dec80d10f2c00ce0e3359146e7fc5cba6c3c23c8ea1c80d6ce"
     },
     {
       "source_id": "NFR-018/list_item-019",
@@ -15955,11 +16015,11 @@
       "source_id": "APPENDIX-ITEM-E-1/table_row-022",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
-      "source_text": "| `secondary-result` | `unchanged` \\| `delta` | `true` \\| `false` | `continue` \\| `reach` \\| `out` \\| `not-applicable` |",
-      "source_text_digest": "b8b8048132444bfa17641f9e9b05dd5f0b6190be87280c808f94acee0943c0d8",
+      "source_text": "| `secondary-result` | `unchanged` \\| `delta` \\| `reset` | `true` \\| `false` | `continue` \\| `reach` \\| `out` \\| `not-applicable` |",
+      "source_text_digest": "430b5a330f2678110c1f3889677d988b2fbed3c76f2fde5e4f746814f5897a0d",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "7110dfecc6255b2d1287a22e6ae3fd3b5c97b484f0476c1e7065f002a4d1911d"
+      "decision_digest": "286d83cc53a5667ed5e22a5a3ee53a4d40c53853e0253fa294dfb66eee7ebaeb"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/table_row-023",
@@ -15975,11 +16035,11 @@
       "source_id": "APPENDIX-ITEM-E-1/paragraph-009",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
-      "source_text": "`countEffect`欄の許可集合は、`strikes`と`balls`の両方の`Effect.kind`へ適用する。「任意」はそれぞれ`delta`・`reset`・`unchanged`のいずれも許すことを表し、`unchanged | delta`はそれぞれをその2値に限定し、`unchanged`固定は両方を`unchanged`とする。",
-      "source_text_digest": "57df5c01274ce94b33f4d2bef3797fa47d9d8ce7ec2989c129b0f89544d7a3ad",
+      "source_text": "`countEffect`欄の許可集合は、`strikes`と`balls`の両方の`Effect.kind`へ適用する。「任意」はそれぞれ`delta`・`reset`・`unchanged`のいずれも許すことを表し、`unchanged | delta | reset`はそれぞれをその3値に限定し、`unchanged`固定は両方を`unchanged`とする。",
+      "source_text_digest": "74cb2bb8bd82969e4e0ca855ebbd8269f65ef7ee8ed85e4d614dffabca33aeb3",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "b80979e7b1c909612bbd5dd8ca526390db05f05f025ce8a5c0f8aa370781c20d"
+      "decision_digest": "7a7e5c47bed6ff5d3c40eafe49cf46a5684f29581a1eaff971eeedca21655821"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/list_item-004",
@@ -15995,11 +16055,11 @@
       "source_id": "APPENDIX-ITEM-E-1/list_item-005",
       "source_kind": "list_item",
       "source_heading_id": "APPENDIX-ITEM-E-1",
-      "source_text": "- `secondary-result`（打撃結果2・特殊プレイ）は、PB／WP／ボーク等のように打者の行き先を決めない場合があるため`not-applicable`を許し、守備妨害で打者がアウトを宣告される`INT-06`と、打者側のピッチクロック違反が第3ストライクに当たる場合のため`out`を許す。ステップ5の導出時は打撃結果2をPB／WP／ボーク等の「打者の行き先を決めない特殊プレイ」だけで代表させ、打者がアウトになる打撃結果2を見落としていたため、本是正で許可集合を閉じ直す。",
-      "source_text_digest": "051106894a45d5dd4f0c8e863fcbb863f3ce28ff8a1d71099451c3353d7e0a12",
+      "source_text": "- `secondary-result`（打撃結果2・特殊プレイ）は、PB／WP／ボーク等のように打者の行き先を決めない場合があるため`not-applicable`を許し、守備妨害で打者がアウトを宣告される`INT-06`と、打者側のピッチクロック違反が第3ストライクに当たる場合のため`out`を許す。これらの打席終了イベントでは次打席へS/Bを持ち越さないため、`countEffect`へ`reset`も許す。ステップ5の導出時は打撃結果2をPB／WP／ボーク等の「打者の行き先を決めない特殊プレイ」だけで代表させ、打者がアウトになる打撃結果2と、その帰結であるカウントのリセットを見落としていたため、本是正で同じ行の許可集合を閉じ直す。",
+      "source_text_digest": "10876a73f7481f38976954dda2c070b81eb5cae5e24569c1723b765847598f38",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "21fc7e62c08b9f8347710f32cc461787cabb0fb2a211ffb4d791e304bc71e862"
+      "decision_digest": "b1387cdbcce66c0a2aa9406b60609800ec50a4cb3fdad83e4924df303f0a52d6"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/list_item-006",
@@ -16025,11 +16085,21 @@
       "source_id": "APPENDIX-ITEM-E-1/paragraph-011",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
-      "source_text": "次の8件を、列どうしの値に適用する交差制約とする。負例欄は、当該制約を満たす有効な基準行へ適用する変異fixtureであり、記載していない列は基準行の値を維持する。各負例は対応するIDでfailしなければならない。",
-      "source_text_digest": "a2a85d364a7239b2732ef53adbd53fdf995c184d307f80b6a3a71a01fb0394f2",
+      "source_text": "次の12件（`XC-01`〜`XC-08`、`XC-10`〜`XC-13`）を、列どうしの値に適用する交差制約とする。外部制約除外ID `constraint-exclusion:XC-09:req:E-1` のとおり、`XC-09`は後述の`undoRows[]`の制約であり、本表には含めない。負例欄は、当該制約を満たす有効な基準行へ適用する変異fixtureであり、記載していない列は基準行の値を維持する。各負例は対応するIDでfailしなければならない。",
+      "source_text_digest": "96fccadc8832c07e97c2c674a4ad01461f53b8a8456aac72c4368d0679a30e61",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "8076df1d0083dc081076a33ade72c119e6432ab72073f23eb2d17661dcc5e0cb"
+      "decision_digest": "bc33ada5c0ddfbf12b6b19401dec92a575ca6c114e93d6fecdf6587a86b00fdf"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-012",
+      "source_kind": "paragraph",
+      "source_heading_id": "APPENDIX-ITEM-E-1",
+      "source_text": "`XC-02`と`XC-12`が共用する**走者存在判定**を次の1規則に定め、個別制約で別の判定を作らない。起点塁`b`ごとに、`state.runners`の合法値8件のうち、他の入力軸に少なくとも1つの割当てを与えたとき`precondition`の`Predicate`を真にできる値を射影し、当該塁の存在状態の集合を求める。集合が`{不在}`だけなら`runnerPresence(precondition, b) = absent`、`{在塁}`だけなら`present`とする。集合が空、`{不在, 在塁}`の両方を含む、軸参照が未解決、または集合を決定不能な行はfailとする。すなわち、1行の`precondition`は各起点塁の走者存在を一意に定めなければならず、不在側または在塁側へ推測してはならない。",
+      "source_text_digest": "ef6a6b8ec3e310255f0023fc1b5608c4d201915d0a101d2690c17ad9a192c888",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "0d6495d4e04f5ccefebe035dfbbf6f45ad60433de85413e73ca98ba8ae7b4ef8"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/table_header-004",
@@ -16065,11 +16135,11 @@
       "source_id": "APPENDIX-ITEM-E-1/table_row-025",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
-      "source_text": "| `XC-02` | `precondition`が当該塁の走者不在を含むなら、その塁の`Adv.modality = not-applicable` | `precondition`が一塁走者不在を含む行で`runnerDefaultAdvance.first: {modality: \"hold\", destination: null}` |",
-      "source_text_digest": "999fe77494422727c13e29adf2b40d0be1588a069d2ae2eba4e58f5a477c8e57",
+      "source_text": "| `XC-02` | 共通の走者存在判定が`runnerPresence(precondition, b) = absent`なら、起点塁`b`の`Adv.modality = not-applicable` | `runnerPresence(precondition, first) = absent`の行で`runnerDefaultAdvance.first: {modality: \"hold\", destination: null}` |",
+      "source_text_digest": "8caaedc34b64adb5f16e5ecc7c52e07388972a9f1de3050ba73e0155c147c3b9",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "0bb458627958946fe26470f2298b24d7f26ed76938bc83cac16669f75d79d4bb"
+      "decision_digest": "3fca40441afd59079a80149d4f95aead22f00971cddc3290f053e8571f3565da"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/table_row-026",
@@ -16085,11 +16155,11 @@
       "source_id": "APPENDIX-ITEM-E-1/table_row-027",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
-      "source_text": "| `XC-04` | `outEffect.count = outEffect.targets.length` | `outEffect: {count: 2, targets: [\"batter\"]}` |",
-      "source_text_digest": "875952ac1760ae8e2899c26cdc8f6cad55fb3cfe15283815142618c9dd2e297e",
+      "source_text": "| `XC-04` | `outEffect.count = outEffect.targets.length`かつ`outEffect.targets`の全要素は相互に異なる。同一対象を1プレイで複数回アウトとして数えてはならない | 件数不一致: `outEffect: {count: 2, targets: [\"batter\"]}`。重複対象: `outEffect: {count: 2, targets: [\"batter\", \"batter\"]}` |",
+      "source_text_digest": "b250135c7d1dd51bf6486ac1283d0a52105ae98febd0d899823b7a5191d26d8b",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "b2ae26d08730b1d82338789412bd16ae6476e90026838fa6bf352dcedf4a5291"
+      "decision_digest": "99a27c2f59e6652bab46fd4f3e8801f67fad76e021f41de80b758f9e5b2c9d28"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/table_row-028",
@@ -16105,11 +16175,11 @@
       "source_id": "APPENDIX-ITEM-E-1/table_row-029",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
-      "source_text": "| `XC-06` | `batterDestination.kind = continue`なら`plateAppearanceEnded = false` | `batterDestination: {kind: \"continue\"}`に対して`plateAppearanceEnded: true` |",
-      "source_text_digest": "62c8724abe4dcbcecde7c306475d395e969bb1f1f2ddc164f3843c88903102e8",
+      "source_text": "| `XC-06` | `eventKind != runner-event`では、(a) 双方向に`plateAppearanceEnded = true` ⇔ `batterDestination.kind ∈ {reach, out, score}`、かつ`plateAppearanceEnded = false` ⇔ `batterDestination.kind ∈ {continue, not-applicable}`、(b) 双方向に`plateAppearanceEnded = true` ⇔ `countEffect.strikes.kind = reset`、かつ`plateAppearanceEnded = true` ⇔ `countEffect.balls.kind = reset`とする。したがって`plateAppearanceEnded = false`なら両方とも`reset`以外でなければならない | 行き先との不一致: `batting-result`で`batterDestination: {kind: \"out\"}`に対して`plateAppearanceEnded: false`、または`secondary-result`で`batterDestination: {kind: \"not-applicable\"}`に対して`plateAppearanceEnded: true`。カウントとの不一致: `secondary-result`で`plateAppearanceEnded: true`に対して`countEffect: {strikes: {kind: \"unchanged\"}, balls: {kind: \"unchanged\"}}`、または`batting-result`で`plateAppearanceEnded: false`に対して両方を`{kind: \"reset\"}`とする |",
+      "source_text_digest": "1579e6f28e631344aea08e63b135d4df9813e1a05844669ce497fac20dd25bc0",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "9d6784e7ac8a518665241769eae170f8f33dee78569e25c9110b201488cf8131"
+      "decision_digest": "16c19bb30905310a4cc82766f5bc3acaf62773c9268dbc850ae0e6749fde684c"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/table_row-030",
@@ -16132,44 +16202,114 @@
       "decision_digest": "7522520c19c4173244b31ff0d81d1bc2eb848cd5c13d3e4a532ac61d7a6687a0"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-012",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-032",
+      "source_kind": "table_row",
+      "source_heading_id": "APPENDIX-ITEM-E-1",
+      "source_text": "| `XC-10` | **双方向**: `batterDestination.kind = out` ⇔ `\"batter\" ∈ outEffect.targets`。したがって、`batterDestination.kind = not-applicable`に固定される`runner-event`の`outEffect.targets`へ`\"batter\"`を含めてはならない | 行き先からアウト対象への違反: `batterDestination: {kind: \"out\"}`に対して`outEffect: {count: 0, targets: []}`。アウト対象から行き先への違反: `eventKind: \"runner-event\"`・`batterDestination: {kind: \"not-applicable\"}`に対して`outEffect: {count: 1, targets: [\"batter\"]}` |",
+      "source_text_digest": "86ee2420483c88654f3d18ab7a82f12891b9cb56ebdd03b9abd78abc305a398a",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "3980a4a3599f911614d433138daa31a487178108f09cb934d8c7188cc95b84d9"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/table_row-033",
+      "source_kind": "table_row",
+      "source_heading_id": "APPENDIX-ITEM-E-1",
+      "source_text": "| `XC-11` | `precondition`が許す事前アウト数の最大値を`maxOuts(precondition)`とすると、`maxOuts(precondition) + outEffect.count <= 3`でなければならない。事前アウト数を一意に定めない述語も、その述語が許すすべての事前アウト数で第3アウトを超えないよう最大値で判定する | 一意な場合: `precondition`が`state.outs = 2`を許す行で`outEffect.count = 2`。範囲の場合: `precondition`が`state.outs ∈ {0,1}`を許す行で`outEffect.count = 3`（最大値1との合計が4） |",
+      "source_text_digest": "cf420c5d07a1a6a5cd6dfd84792f93a41d7e23446d216e778f0055c0ff964694",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "fa271ebc536f29fbb4c38a3abc2c6ff77c680aef2d41556d1ca5ab83a3b25572"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/table_row-034",
+      "source_kind": "table_row",
+      "source_heading_id": "APPENDIX-ITEM-E-1",
+      "source_text": "| `XC-12` | 共通の走者存在判定が`runnerPresence(precondition, b) = absent`なら、`outEffect.targets`へ`{runner: b}`を含めてはならない | `runnerPresence(precondition, first) = absent`の`runner-event`行で`outEffect: {count: 1, targets: [{runner: 1}]}` |",
+      "source_text_digest": "0212caa7f694df4e8a808e484f77d8723585ca7512d65242973c70edf9173ec2",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "77d8afa21e171416bda021e00a3c7a8f3f3b08d8babfe76d3139de605a25120a"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/table_row-035",
+      "source_kind": "table_row",
+      "source_heading_id": "APPENDIX-ITEM-E-1",
+      "source_text": "| `XC-13` | 原則ID `principle:stat-flags-derived-not-arbitrary`: `statFlags`の23キーは、行の他の列と`precondition`が参照する入力から導出し、独立した手入力または規範上の任意値としてはならない。23キーごとの導出元・必要十分条件、その導出に必要な第3アウト種別（打者走者の一塁到達前／フォースアウト／先行走者のアピールアウト）および記録員判断の入力契約は、ADR-003 D-11の「本ADRが確定する範囲と、実装へ送り出す範囲」に従い段階2で実機とともに確定する。段階2の導出表と負例が揃うまでは、本制約を機械保証済みと判定してはならない | 同一の行・入力に対して`statFlags`だけを任意に反転した値を受け入れる実装は、本原則および段階2で確定する導出表に違反するためfail |",
+      "source_text_digest": "ffe70d8a0d2e619e7d89267775ea97c3f4c8c05bf186a7dab66f3b0e9010026a",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "bae53df4e0251728e8648bf54e2176c52d328eb5972693bd59f074a6f8041489"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-013",
+      "source_kind": "paragraph",
+      "source_heading_id": "APPENDIX-ITEM-E-1",
+      "source_text": "`XC-06`のカウント規則は`secondary-result`だけでなく`batting-result`にも適用する。`batting-result`もallowlist上は`countEffect`が任意であり、同じ規則がなければ打席終了時に`unchanged`／`delta`、または打席継続時に`reset`を選べるためである。`runner-event`は打席に影響せず、allowlistと`XC-05`／`XC-07`により`countEffect.*.kind = unchanged`かつ`plateAppearanceEnded = not-applicable`へ固定されるため、`XC-06`の対象外とする。",
+      "source_text_digest": "ccf856a139858a69f5f208af794bdaed8a33da5ec243870cca3966b543552475",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "628caf482c4df14632b9a3d207b090236626625f0bc0e833c01a69b9a2920b1a"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-014",
+      "source_kind": "paragraph",
+      "source_heading_id": "APPENDIX-ITEM-E-1",
+      "source_text": "ただし、`runner-event`のアウト効果によって第3アウトが成立した場合は、FR-005の**攻守交代の共通後処理**が行効果の適用後にストライク・ボールを0へリセットする。これは当該打者の打席終了を表す`countEffect`ではなく、攻撃側が交代したことによる状態初期化である。したがって、走者イベント行は`XC-05`どおり`unchanged`のままとしつつ、盗塁死・牽制死等が第3アウトなら次の攻撃へ旧カウントを持ち越さない。打席終了時のリセットと攻守交代時のリセットは、最終値が同じでも適用条件と規範上の帰属を混同しない。",
+      "source_text_digest": "217923fe0a8c92e680583cc4b3c14a20ebc4a7fbfd650f5ddf76248a5f1eb254",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "0579f0bcb038d584fc2c4b5a104c82fae2e44a9f1d7204d9a46af139b00035c9"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-015",
+      "source_kind": "paragraph",
+      "source_heading_id": "APPENDIX-ITEM-E-1",
+      "source_text": "`XC-11`の`maxOuts(precondition)`は、`state.outs`の合法値`{0,1,2}`のうち、他の入力軸に少なくとも1つの割当てを与えたとき`precondition`の`Predicate`を真にできる値の集合を求め、その最大値とする。`state.outs`を制約しない述語では最大値を2とする。許容集合が空、軸参照が未解決、または値集合を決定不能な行はfailとし、第3アウト超過を回避できる側へ推測してはならない。この最大値による判定により、事前アウト数を範囲や論理和で表す行も、許される全状態で確定後アウト数を3以下に保つ。",
+      "source_text_digest": "d185d67c3b5db2594b5ee8325eae77ef0f11476698980ccdbc7415b61a287c43",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "8b6ff0632dfc04fbda2472d3077a03954cccd217cee464eda452cac732cfa8ad"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-016",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "`XC-05`と`XC-07`は上記の`eventKind`別allowlistと意図的に重ねて検査する。allowlistは3列の合法な組合せの集合を検査し、交差制約は列の値どうしの個別の含意を検査するため、両者の重複は検査粒度の異なる多重防御である。",
       "source_text_digest": "1266acd107447df0e39c620fe1ba8d67893c4ae61ac923f4f935eb329a453834",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "0a3a458f11a4514e5ad087a27e18886440b3b29f1316ad05f7f8f814f48a5617"
+      "decision_digest": "9422f7f2442bf4737b031a0f7d59507fb4a8d6be9cbc8c442cc21b56dd1191db"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-013",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-017",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
-      "source_text": "`XC-09`は付録E-1の交差制約ではない。これは`undoRows[]`の`guaranteeMode = liveness-only`を`D`+1の行だけに許す制約であり、`guaranteeMode`を持たない付録E-1の10列には適用しない。`XC-09`は`undoRows[]`の制約としてADR-003 D-8が定める。",
-      "source_text_digest": "70c953c1ad5b8f3729e801dfe5452c6302eddd19401d57785a5395b498036298",
+      "source_text": "`XC-09`は付録E-1の交差制約ではない。これは`undoRows[]`の`guaranteeMode = liveness-only`を`D`+1の行だけに許す制約であり、`guaranteeMode`を持たない付録E-1の10列には適用しない。外部制約帰属ID `constraint-owner:XC-09:adr:D-8:undoRows[]` のとおり、`XC-09`は`undoRows[]`の制約としてADR-003 D-8が定める。",
+      "source_text_digest": "b3e0c062e9025756c71ac94ddf38ec38527515614f5416157c694c1b2697a944",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "de1452411484b2621dff9a92908920f680aa73b8ce0a2f7a747c32612bfcb4bb"
+      "decision_digest": "af15edf8af49d80ba2fb7ad733db4c7f2cfe1fd6853d0be1d4aaea058569a820"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-014",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-018",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "**走者の既定進塁の判定（典拠: 公認野球規則「FORCE PLAY」の定義・5.06）**:",
       "source_text_digest": "90b82af3a96a21f7b016840fe827ea5766a661a16496bb70ab40615aece6e60a",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "59cc459556c8a41b7b40819b2396117ec3fc00b35304913618182956db8b8bc0"
+      "decision_digest": "f3fcc71124ed01191ec105483270a7bd61c217162da6625529ff97681cad78f6"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-015",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-019",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "各起点塁の`Adv`は、当該行の`precondition`が表す走者配置と`batterDestination`から、次の`ADV-01`〜`ADV-04`を上から評価して最初に一致するちょうど1件で決める。ここで、起点塁`b`（一塁=`1`、二塁=`2`、三塁=`3`）の**フォース連鎖**とは、`batterDestination.kind = reach`であり、かつ事前状態で一塁から`b`までの全ての塁に走者がいることをいう。打者走者が一塁を取得することで一塁走者が占有権を失い、その前位走者も後位側から連続して押し出されるが、最初の空き塁で連鎖は切れる。`forced`は最終到達塁の全区間が強制であることではなく、**起点塁を離れて少なくとも次塁へ進む義務があること**を表す。したがって、既定到達塁がさらに先でもフォース連鎖中の走者の`modality`は`forced`とする。",
       "source_text_digest": "a9da31940cd0229f36d026d97155728479c66578f75ff6091c36c4cffd84a431",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "3016ea28b49e112d21f1be8f0fe7b712eff973099d4bd624631c5d9e4b757cd8"
+      "decision_digest": "3d50b8d2f9cd444e7c4f02a45919c2e48f1569f0567b93d266095826aafc3626"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/table_header-005",
@@ -16192,54 +16332,54 @@
       "decision_digest": "4c59abe0f5fe33497fd05152254ec1946063ac2d37ffca697f341c4e9b86f55c"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-032",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-036",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
-      "source_text": "| `ADV-01` | `precondition`で当該起点塁に走者がいなければ`{modality: \"not-applicable\", destination: null}` | 一塁走者なしの行の`first`を`not-applicable`とする | 一塁走者がいる行は、進塁しなくても`hold`であり`not-applicable`ではない |",
-      "source_text_digest": "efea38b5dea6fb16907616beaf8be5f23c0bffd0e0204b924df4aa219f511112",
+      "source_text": "| `ADV-01` | 共通の走者存在判定が`runnerPresence(precondition, b) = absent`なら`{modality: \"not-applicable\", destination: null}` | 一塁走者なしの行の`first`を`not-applicable`とする | 一塁走者がいる行は、進塁しなくても`hold`であり`not-applicable`ではない |",
+      "source_text_digest": "7f1702062390d0088c529e0cfe36814f7e00d5feb24c5687e914cc7152d20178",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "59e1f88acde0c9461c6818ead1c9204efb4b0d4e162c1ed636a632b74b85c095"
+      "decision_digest": "6ec4630e425635deb4e65f13955e9ddfc803f995a5dc5d997e6b325557f6a6f3"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-033",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-037",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
-      "source_text": "| `ADV-02` | 当該起点塁に走者がいてフォース連鎖に含まれるなら`modality = forced`とし、`destination`を起点塁別の到達可能集合に属する既定到達塁とする | 一・三塁で四球となる行では、一塁走者は`forced`で二塁へ進む | 同じ一・三塁の三塁走者は、二塁が空いて連鎖が切れているため`forced`ではない |",
-      "source_text_digest": "9e06754bc928371aa2f071a5eb9b6627c3beccf6959d804ec2bf03ffd4128e87",
+      "source_text": "| `ADV-02` | 共通の走者存在判定が`runnerPresence(precondition, b) = present`で、当該走者がフォース連鎖に含まれるなら`modality = forced`とし、`destination`を起点塁別の到達可能集合に属する既定到達塁とする | 一・三塁で四球となる行では、一塁走者は`forced`で二塁へ進む | 同じ一・三塁の三塁走者は、二塁が空いて連鎖が切れているため`forced`ではない |",
+      "source_text_digest": "78f03edd5c43ab9dcadfc65e30b1fb618a31885f7a2c6c21866f760fe260d520",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "c6b466abcf026b11641a426a49fb3a7080ee98abb7c43111913d2a12f619f3da"
+      "decision_digest": "338dc15da645220730fcbecddb7a3384a117ba4e029781311dea518b99256c07"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-034",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-038",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
-      "source_text": "| `ADV-03` | 当該起点塁に走者がいてフォース連鎖に含まれず、既定として別の塁へ動くなら`modality = optional`とし、`destination`を起点塁別の到達可能集合に属する既定到達塁とする。審判の授与による非フォース進塁も本分岐とし、`optional`は授与を拒否できるという意味ではなく「フォース連鎖によらない進塁」を表す | 三塁走者が犠飛で本塁へ進む行は`optional`・到達塁4とする | 満塁の四球で三塁走者が本塁へ押し出される行はフォース連鎖に含まれるため`ADV-02` |",
-      "source_text_digest": "416557b71c16a797e3eeaea80c29f231781cac1833f05c0248668e4d90440b18",
+      "source_text": "| `ADV-03` | 共通の走者存在判定が`runnerPresence(precondition, b) = present`で、当該走者がフォース連鎖に含まれず、既定として別の塁へ動くなら`modality = optional`とし、`destination`を起点塁別の到達可能集合に属する既定到達塁とする。審判の授与による非フォース進塁も本分岐とし、`optional`は授与を拒否できるという意味ではなく「フォース連鎖によらない進塁」を表す | 三塁走者が犠飛で本塁へ進む行は`optional`・到達塁4とする | 満塁の四球で三塁走者が本塁へ押し出される行はフォース連鎖に含まれるため`ADV-02` |",
+      "source_text_digest": "5f20939cf041766e00d8d81e53c23525b85c796b6af845321c6df7623b240bf0",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "3f140069ab65f1064e9232aaea9bda28a975c9ba36e36810b78d7afe0c3d6c18"
+      "decision_digest": "b2f69da62095481813aaef78a15e0457758f9f1853e96a4227433a9328cea7d3"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-035",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-039",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
-      "source_text": "| `ADV-04` | 当該起点塁に走者がいてフォース連鎖に含まれず、既定では動かなければ`{modality: \"hold\", destination: null}` | 一・三塁の四球で、連鎖外の三塁走者を三塁に停止させる | 一塁走者がいる四球の行で一塁走者を`hold`にはできず、`ADV-02` |",
-      "source_text_digest": "cc25371a53c781e6bde4efbd98d416187ebb28d1b3d24f0c151f5b61f2ee1725",
+      "source_text": "| `ADV-04` | 共通の走者存在判定が`runnerPresence(precondition, b) = present`で、当該走者がフォース連鎖に含まれず、既定では動かなければ`{modality: \"hold\", destination: null}` | 一・三塁の四球で、連鎖外の三塁走者を三塁に停止させる | 一塁走者がいる四球の行で一塁走者を`hold`にはできず、`ADV-02` |",
+      "source_text_digest": "522520dc6997f0f51d4fc8adb520d11f0026a88ea87e2981c8c8dd61fefc04ad",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "5516b93646b429d7f4ae40f7a996390446f42eae046183aa6345cdb99da869d4"
+      "decision_digest": "630874f54e71d870519a22405f9ce29baccf25ab095df432b0591431ad2cf2bb"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-016",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-020",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "4件は、各起点塁を「不在／在塁かつフォース連鎖内／在塁かつ連鎖外で進塁／在塁かつ連鎖外で停止」に相互排他的かつ網羅的に分ける閉じた分岐集合である。`ADV-01`は`XC-02`、`ADV-01`・`ADV-04`の`destination = null`は`XC-03`、`ADV-02`・`ADV-03`の到達塁は`XC-08`をそれぞれ満たさなければならない。フォース連鎖中の走者を`hold`とした行は4件のどれにも適合せずfailとする。",
       "source_text_digest": "1f60df6abfeda3f56e73912cf0a97dd4e7e00ac05efb0775c2cbf20fec6b04d1",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "5f24e7e853dd07dd1b3c602a30460ff0f326be50f9f94577fb83c0f7214efed4"
+      "decision_digest": "f547ff36f3130b3d6b24cac8100571cd29cc4a140f0a6f4e296416c015e6aa83"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/list_item-007",
@@ -16272,24 +16412,24 @@
       "decision_digest": "1bda8df05de2ead172373c0843ccab0e959310f1f9cb948a786a11ab48e36e4c"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-017",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-021",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "**妨害系3種の遷移（典拠: 公認野球規則5.05(b)(3)、6.01(a)〜(c)・6.01(g)・6.01(h)、9.02(a)(1)）**:",
       "source_text_digest": "e393c1b75f5350bc03b25a8d08861ba47642b3f4e6fe943148755a671c31a8b2",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "2d50e9a5b9326b2b978c485682c6e6246289c8e1051332b12ca9322c03403b03"
+      "decision_digest": "12ab1a21bb0b7f39195aedeec47f9a5276167d99c7455ecbb5d9da6141821361"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-018",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-022",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "本書でいう**打撃妨害**は捕手その他の野手が打者の打撃を妨げる守備側の妨害、**走塁妨害**は野手が走者または打者走者の走塁を妨げる行為、**守備妨害**は打者・打者走者・走者その他の攻撃側要員が守備側のプレイを妨げる行為をいう。各妨害イベントはFR-004の`interferenceRuling`を入力とし、種類ごとに次の順で評価して最初に一致するちょうど1件へ落とす。表中の「通常結果」は、採用された`resultId`の通常行が定める打者・走者・アウト・成績計上の全効果をいう。",
       "source_text_digest": "b9e1cf70165b323d2478def94f9f547cbecad67597112c3c404df9bbb472c662",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "a11721d95630f2a69aced4fa043bb628c04ddb7bdc0253b93c19cba1147eb486"
+      "decision_digest": "891e5c739efaffcd3a0bf4a043b4cd09409d05acd2b445d5917a61672fdf4ab8"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/table_header-006",
@@ -16312,124 +16452,124 @@
       "decision_digest": "3675e9eba552e780a7f53258afbf5d19af5cc1eb71d3819460454a7249d5ed33"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-036",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-040",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| `INT-01` | **打撃妨害・プレイ結果の自動成立**: 実プレイで打者が一塁へ到達し、全ての在塁走者も少なくとも1個進塁したなら、妨害の罰則を選択せず通常結果を採用する。打者・走者・アウト・全成績フラグは通常結果どおりとし、`打撃妨害出塁 = false` | 一塁走者ありで妨害後の打球が安打となり、打者が一塁、走者が二塁へ達した場合は安打の通常結果を採用する | 三塁走者が動かず打者だけが一塁へ達した場合は全走者が1個進んでいないため本分岐ではない |",
       "source_text_digest": "bb5f5cb0fdebfde9e0faf63f0a7b5bc3103279d42b63cc5e59707fb09e05bb08",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "37c1901e6535c33c6aabfdcb7df71c917d490c435ac778ecd38ef2012f3ba5dc"
+      "decision_digest": "bcd76732952bd3fda10a5939905c49c959475c244c43a36e7efb1d48afae6d8d"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-037",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-041",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| `INT-02` | **打撃妨害・罰則採用**: `INT-01`でなく、採用結果が`penalty-award`なら、打者へ一塁を与えて打席を終了し、アウトを増やさない。走者は`ADV-*`のフォース連鎖に含まれる者だけ進め、それ以外は`hold`とする。ただし、三塁走者がスクイズまたは本盗で得点を試みた際の妨害は公認野球規則6.01(g)を適用し、ボークとして全走者へ1個の塁を与える。`打席 = true`、`打数 = false`、`打撃妨害出塁 = true`とし、押し出し得点の打点は`RBI-07`で判定する | 満塁で罰則を採用した場合、打者一塁、各走者1個進塁、得点1、`RBI-07`により打点1 | 一・三塁の通常の打撃妨害で罰則を採用し、スクイズ・本盗でない三塁走者まで本塁へ進めるのはフォース連鎖外のため本分岐の遷移ではない |",
       "source_text_digest": "d7c485b946f9cc2df2b090d7b1487f873bad67dd4b3bb4ec5078aa555bf557da",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "3671758c33ee1169a505226a18bdb063fd3f0dd1aa9281a813f986d5e96cb407"
+      "decision_digest": "1fc3a9e3a9e36c3ce22e934b7f883ee141f4022121f871ee9fcb02e269bdcd6c"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-038",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-042",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| `INT-03` | **打撃妨害・実プレイ選択**: `INT-01`でなく、攻撃側が`play-result`を採用したなら、FR-004で指定した通常結果の全効果を採用し、妨害罰則側の一塁授与と強制進塁は適用しない。成績も通常結果だけを計上し、`打撃妨害出塁 = false` | 一死三塁で妨害後の犠飛により得点し、攻撃側が実プレイを選んだ場合は、打者アウト・三塁走者得点・犠飛の通常結果を採用する | 同じプレイで罰則を採用した場合は打者一塁・三塁走者`hold`となる`INT-02` |",
       "source_text_digest": "db4744a52a20b239781af6dc9573280f010ffdc83081c38d2ff0eeb2154a3078",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "6c07e5e1b007ec3adb5a9f1a363144d3412257349dd98819eaf4d23be8ec71e1"
+      "decision_digest": "d7f9e93746362adfa95a7a4adb55c302bbfe534bb7765b45dc2f9e80e6c49db7"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-039",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-043",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| `INT-04` | **走塁妨害・妨害走者へのプレイあり**: `play-on-obstructed-runner`、または打者走者が一塁到達前に妨害された場合はボールデッドとし、審判が「妨害がなければ到達した」と裁定した塁を各走者・打者走者の到達塁とする。妨害された走者には最後に正規に触れた塁の1個先以上を与え、妨害の罰則によるアウトは0とする。打者走者に一塁以上が与えられて打席が終了したときは`打席 = true`、`打数 = false`、`走塁妨害出塁 = true`とし、在塁走者だけへの妨害なら打者の成績を変えない | 一塁走者が二塁でタッグされようとした際に妨害され、審判が二塁を与えた場合は走者を二塁へ置き、その妨害を理由とするアウトを記録しない | 妨害走者へのプレイがなく、プレイ継続後に裁定する場合は`INT-05` |",
       "source_text_digest": "6f963a9a0451aa4465b96dc55ebab5634bea526c7d3af65907d1e179b40b809b",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "6e0f36735bb19c0ae58d309847a294d047cca888c339e1337bc75149e23ca983"
+      "decision_digest": "c80d450e8baaa7eba8f3cdfc0e6d774a51949d39d5990b3b07744552564f2605"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-040",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-044",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| `INT-05` | **走塁妨害・妨害走者へのプレイなし**: `no-play-on-obstructed-runner`ならプレイ可能な行為が終わるまで実プレイを進め、その後、審判が妨害を取り除くため最終裁定した到達塁とアウト対象をそのまま採用する。保護された塁を越えて走者自身の危険で進んだ結果のアウトも、この最終裁定に含める。打者に一塁以上が与えられた場合だけ`打席 = true`、`打数 = false`、`走塁妨害出塁 = true`とし、在塁走者だけへの妨害なら打者の成績を変えない | 一塁走者へのプレイがない間に妨害があり、プレイ終了後に審判が三塁を与えた場合は、入力された裁定どおり三塁へ置く | 妨害された走者へのタッグプレイ中に直ちにボールデッドとなる場合は`INT-04` |",
       "source_text_digest": "79a8ff9357fa65fd1dbcb427297b1e47b27fa58d5a4e2c5bc87adf3e6478686c",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "38dd157e0e3f88f119259c2e711c280722d86b59ea42714ce6870fd95b9515af"
+      "decision_digest": "8f6260564abea3584ee4179a4b1ca755d89317c5d01df4dbaa8adfc8e4bb9ac5"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-041",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-045",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| `INT-06` | **守備妨害・打者をアウト対象に含む**: 審判のアウト対象に打者または打者走者を含むならボールデッドとし、`batterDestination.kind = out`、`plateAppearanceEnded = true`とする。宣告された全対象だけを`outEffect.targets`へ置き、他走者は審判が指定した帰塁先へ戻す。`打席 = true`、`打数 = true`とし、各アウトを`投球回算入アウト`へ算入する。併殺阻止等で走者も同時に宣告された場合も本分岐とする | 打者走者が故意に併殺を妨げ、審判が打者走者と本塁に最も近い走者の2人をアウトとした場合は、両者を`outEffect.targets`へ置く | 走者だけがアウトを宣告され、打者がアウトでない場合は`INT-07` |",
       "source_text_digest": "16b8263584db734e028d1641f391726bdc5764208ee1e03c5d4eccf36d7614bd",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "0a739c2cb9e563d6930083480ef306e652ab506934ac9868d7f0e8a8e2b61679"
+      "decision_digest": "2a134acee9118dd04fcd4340901685ee615526defed2bb321540d8afa411d0f5"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-042",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-046",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| `INT-07` | **守備妨害・打者をアウト対象に含まない**: 審判の非空のアウト対象が走者だけならボールデッドとし、その走者だけを`outEffect.targets`へ置く。打者は`batterDestination.kind = continue`、`plateAppearanceEnded = false`として打席・打数を計上せず、他走者は審判が指定した帰塁先へ戻す。宣告された各アウトを`投球回算入アウト`へ算入する | 一塁走者が盗塁中に捕手の送球を故意に妨げ、審判が一塁走者だけをアウトとして打者の打席を続行させた場合 | 打者もアウト対象に含む併殺阻止の裁定は`INT-06` |",
       "source_text_digest": "27abb4ded664cb5a1519ddc075f51e43ad5d708ca837a52660a8e347ee4a3be8",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "79ad22821d3ab16e1ce503ebafb66342a17c315eac09bf3a326b4e29bfbea4d2"
+      "decision_digest": "79afcc1661ed8c5c0239601de0228f70c516cef48f7d21b248c12e5f9397f952"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-019",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-023",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "`INT-01`〜`INT-03`は打撃妨害を「自動的に実プレイ成立／罰則採用／実プレイ選択」に、`INT-04`〜`INT-05`は走塁妨害を「妨害走者へのプレイあり（打者走者の一塁前を含む）／なし」に、`INT-06`〜`INT-07`は守備妨害の非空アウト対象を「打者を含む／含まない」に相互排他的かつ網羅的に分ける。この7件を妨害3種の閉じた分岐集合とし、必要な`interferenceRuling`を欠く行、空の守備妨害アウト対象、または複数分岐に一致する行はfailとする。",
       "source_text_digest": "a91be0a2e0fdaa2756ea017c4b2a020f40c54feaad200bdbd5c314b723162bbe",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "2c2487af4c8c9edeb25cac45859fb2fb7b335368cd49a76ca13a8bbcf55d23e8"
+      "decision_digest": "0db0cd14e766a74e9c81609841c5ea2f5401cede99070032ece8418382503c02"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-020",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-024",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "走塁妨害の授与塁、守備妨害のアウト対象・帰塁先、および打撃妨害で採用された側は審判または攻撃側の選択による観測事実であり、システムは打球・走者位置から自動推定せず、既定値も置かない。これはFR-003の`thirdOutTimingByRunner`と同じ境界である。`precondition`はFR-004の入力を実在する軸IDで参照し、同じ妨害結果でも裁定が異なれば別行とする。守備妨害時の帰塁先は、原則として妨害発生時に最後に正規に触れていた塁とし、打者走者が一塁へ達する前なら投球時に占有していた塁へ戻す。公認野球規則が別のアウトまたは進塁を明示する場合は、その審判裁定を`interferenceRuling`へ入力して優先する。",
       "source_text_digest": "8789f94cd04a067fc9367c32f7acc32a7b9f02d59561297049f662e25883c345",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "70d544bc019d0b9f91690132f684fa8d4e423bbcf17def5a3a0113f6249a9cd9"
+      "decision_digest": "877a35b13067f1f23890b7290a2a7ae52bf7a783c042476996ae50e301e73801"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-021",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-025",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "`INT-04`・`INT-05`で審判が与えた非フォース進塁は`ADV-03`の`optional`とする。打者走者への一塁授与によって生じる連続占有の押し出しだけは`ADV-02`の`forced`とする。ここで`optional`は審判の授与を任意に取り消せるという意味ではなく、フォースプレイの連鎖ではないことを表す。これにより、妨害系の全行も`XC-02`・`XC-03`・`XC-08`を満たす。",
       "source_text_digest": "955c4006c191165a2abe1059bec381919ff1c7b46d0f7915ac4626489b1724c2",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "b03c2782d732c967ae7fc46293ea6c1970198dc1bfed4d397fca73c786feb17c"
+      "decision_digest": "2f4472aa0de89e266102e0bad137ee2879f8606db4c1d0eb04b033fa0f6efa44"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-022",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-026",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "**共通の閉じた型**:",
       "source_text_digest": "29e4c74d24a19c8d63700622603fdf72da449deb00822a9596fcc8c32054ee69",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "54c5f874c407a28258f1d08a5a9c73a8dd0ddbaef36884659967c1820fb2cd1e"
+      "decision_digest": "a3ce4deb5668b5b96f5aa201a757fe7924d4c7722049e0e0d9fb79bf0b26a72d"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-023",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-027",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "`Predicate`は次のunionだけから成る有限のJSON木とする。`and`/`or`/`not`を再帰節、`eq`/`gte`/`lte`/`in`を停止節とし、全ての経路は停止節で終わらなければならない。演算子ごとに示したプロパティ以外を持てず、`args`のarityを固定する。",
       "source_text_digest": "229d80980bb9d7ce7588a6cfa43b28bc7d1092771dfb640f91ff3b4f1c0cdf32",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "97e0289e13c0118e29f6bed513f9b089cdafde82a5e857f58876476bc827ee8b"
+      "decision_digest": "b8394219df654cfc5acf2da113ad631e49f950d852ae4b3a83515c4d205fb1d1"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/code_fence-003",
@@ -16542,14 +16682,14 @@
       "decision_digest": "b235ced8b699a3cf1e6d098027b05d32296b67a7cdf60f48115bc6351af55f68"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-024",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-028",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "`StateEffect`は操作イベント行とundo行が比較面4面へ与える影響を表す共通型とし、次の形に閉じる。",
       "source_text_digest": "5f17c10afe95466c0ad6ef3b1c24b0fed8adc1b958f96c33bdfb43900a841d8e",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "a228e79ae7496d4552842b66b848a681adba3ee7efb033f1913745ae3e0e8fb4"
+      "decision_digest": "91f88075289d0ee75bf49d8394ce7154703c1814f92eb0cc6ab32738c14f75de"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/code_fence-005",
@@ -16672,44 +16812,44 @@
       "decision_digest": "c6aee03355c5ad12d04bf0d37c950b880dc7a88b960773a4d6f8b26a59b2370c"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-025",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-029",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "`StateEffect`の4キー、`stateFields`の比較面全フィールド、`scoreboard`の全欄、`statFlags`の23キー、`historyAndResult`の`history`と`operationResult`は全てrequiredとする。各オブジェクトと`FieldEffect`の各variantは`additionalProperties: false`とする。影響しない面も省略せず、当該フィールドへ`{kind: \"unchanged\"}`を必ず設定する。",
       "source_text_digest": "ceaa6b496dbc3c9e00b079f310d07b042bb5e1a07b54f41355407d4b95c4950a",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "24c3a7aacb447d451b16e0a70b3fb31b870324b1a720b8f054cb5e632f99b10c"
+      "decision_digest": "2920f7bcb6b5802c1660282c7fa81216b98129fb85373e7c6d75e8574eabee31"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-026",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-030",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "**成績計上フラグの閉じた外延**:",
       "source_text_digest": "d914088b1d4e6550b420f3d5c87d8b62a7eeeca61a3171ad7535477e306ac9cc",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "1e5ba343fae66e8feb431b94be275ae2c8ac4167136dd312d414d7febda9fa7c"
+      "decision_digest": "e33d2b1c87825692c9e6f774e4e51024db7988a6499c22c4c9c5166082d30b2d"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-027",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-031",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "次の23フラグを完全な集合とし、各フラグは当該遷移をその計数へ算入するかを表す。複数アウト・複数得点・塁打数の数量は、それぞれ「アウト効果」・打者と走者の遷移・結果IDから取得し、フラグ自体に数量を重複保持しない。",
       "source_text_digest": "455a31a3cc3fe045d598c04260f58efd04b48c23a47b9e552ee5ec866409c9c3",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "beed8fc6676deb934704d5bb20845899b7847cd51363d05073540eb14203dcb6"
+      "decision_digest": "727d50d8a434d00fd399ef2a707befda4670e04fccb7fef99e2fc0166d4d5855"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-028",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-032",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "この外延は、付録A-2・A-2b・A-3・A-3b・A-5、FR-020（スコアボードのH/E/K/B）およびFR-022（当日集計9項目）が要求する計数項目の和集合とする。当初の導出元にはFR-020がなく、失策は付録Aの指標にもFR-022の当日集計項目にも現れないため、`失策`フラグが外延から漏れていた。本是正ではFR-020を導出元へ加え、そのE欄に必要な`失策`を追加する。",
       "source_text_digest": "7fe68773a8b48d2f0c03c14e75ee919f45c9764cdc2cf46d81eb0c093d108e73",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "9dab71518423d252f69e98474077fd0d5ec29facc7c368a0e9a7debe8f7d5c26"
+      "decision_digest": "fea87e63e4a356c941fc919524932b14f428b59082b41674d22394780373960a"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/table_header-007",
@@ -16732,264 +16872,294 @@
       "decision_digest": "6ac63ecc4f99abf6964a5e3ef0cc7b4c4ca44fd28ea642b253ec62bde7385f4a"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-043",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-047",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 投球回算入アウト | 「アウト効果」のアウト数を投球回へ算入する | A-2「投球回」 |",
       "source_text_digest": "a64b3ea2494705339dece89162fbff1f6bb1187109d6c0e1bf5c0efd4752a8e7",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "b7febe947033fe1e6a86b94b985f79c5da50123f037232e810e65f88d2c9c093"
+      "decision_digest": "1c2bbe6ad6248c12c37f7ec16240748bce1a416b2eb6cf426923e54d2f002ec9"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-044",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-048",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 投球数 | 投球イベントを1球として算入する | A-2「投球数」／A-2b「コース分布」「球種割合」 |",
       "source_text_digest": "a4d9c7b6b0b39ae2cb923ba478308083626f92725cfa4e59e567a072424e528c",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "2e8cbfbee234982fcec1baa4c7fa7789456833c4cf2d783cbfb680c74a3d7cdf"
+      "decision_digest": "99ffea8c129895ba9ba63090ff9af1db640be7fa1f8a35885972b07fa9173d9e"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-045",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-049",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 奪三振 | 投手へ奪三振を算入する。振り逃げで打者が生きた場合も算入する | A-2「奪三振」「FIP」 |",
       "source_text_digest": "dd4c03635e927e5cf9e267dcc8a3ebc4a728b1dc864ee833fca878715c9b56ca",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "44fbe1b67d899feb6543430f65cb12eaa0b3db9a076057f951e662568fe03c36"
+      "decision_digest": "35da9bd6cd8b1febd758bc83035b374bb42db07c07ff5d35d1766418395a040c"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-046",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-050",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 与四球 | 責任投手へ与四球を算入する。申告敬遠を含む | A-2「与四球」「WHIP」「FIP」 |",
       "source_text_digest": "4a1e5b65dd87ceaa973b5087370c3038dc4f3c591099fe131a4b825fc7793c17",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "7c40965df423fca0cbdcbe4737a1069658cc9d230f5baaee3e1ce86fc9ee58b6"
+      "decision_digest": "a8ac39899452ced121be62ceba42890c1022a818771908fe85ef2ac6b399192c"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-047",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-051",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 与死球 | 投手へ与死球を算入する | A-2「与死球」「FIP」 |",
       "source_text_digest": "62699c0ba2d63798a35586eae97fed89632f19d5a77ab718354ff04eed631d66",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "7402bce11aa1eca97911df20d7e7578a2af968d2d8067e463c59b699a73fd8a6"
+      "decision_digest": "35733d6043a034e8d45f7cb08b4102f4cf4fdf308fd241159b08d38f052e5ffc"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-048",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-052",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 被安打 | 投手へ被安打を算入する | A-2「被安打」「被打率」「WHIP」 |",
       "source_text_digest": "82a61e5b642034f8a6872ec17856dc4af2d4c662deace3477d904239e58e7fbe",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "8393ffa1b53b9b4ded9e42f68d590e4b8a552ba0f744844bdecfd420a602de00"
+      "decision_digest": "a1bb3019c8a0b4f472575f6303f04efa87ee725aa6fe1d34d1e2e4f2f0c37d03"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-049",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-053",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 被本塁打 | 投手へ被本塁打を算入する | A-2「被本塁打」「FIP」 |",
       "source_text_digest": "a855199fddec95abb789327b7d0aa90b5b92132df0a88c7cbeccce26170e1e9a",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "ca16922e434ffa48021ffc896edf1f2ca52d5577f91d16bcba5a01f1b88741b6"
+      "decision_digest": "72353c21c68412ee8e651ce40176149b28bb6e1c07d88eed9089b8f731a9f404"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-050",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-054",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 失点 | 責任投手と守備側チームへ失点を算入する | A-2「失点」／A-5「得点 / 失点」「イニング別得点・失点」 |",
       "source_text_digest": "55b3e44463b207f3aef22cb689b6f6383c963a6fa858e30532ce6f0a27e67aae",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "e4d44ea04d34c67fe991de97870dbb4d3341eed1d4c3e84c05b9981f55b29f21"
+      "decision_digest": "088444584d47788d9d093ac293e7fbfdf8cf5a53a33c422165b63ed1f5f84aad"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-051",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-055",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 失策 | 守備側の野手へ失策を算入する | FR-020「E」（スコアボードの失策欄） |",
       "source_text_digest": "40b144f592795b2b96e8ff5c0d1a83225e9bd382a383fd5dec6c811489fc173f",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "746791fe64fde3ea23e872faec89e7777c52cefbe69b846c2d1e327dc6e292d0"
+      "decision_digest": "2031ceaceac5277fa0b87198f0177b582f88e74fdcc1aa4887e9186b53aa338b"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-052",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-056",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 打席 | 打者へ打席を算入する | A-3「打数」「出塁率」／FR-022「打席数」 |",
       "source_text_digest": "70d76ded2f4219d3f62ae3fd6904b0b5563ecfe9dca78a6c2cc976ae5274c425",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "17c8f125beda8c5d1f256394e89075ca8729820021bda0846151a350cefe4768"
+      "decision_digest": "6cbb7091ada4fed7d8a5671bd25330644415c5fdcf2da2dc530bfed37d9dcc81"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-053",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-057",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 打数 | 打者へ打数を算入する | A-2「被打率」の被打数／A-3「打数」「打率」「出塁率」「長打率」「コース別打率マップ」／A-5「チーム打率」「チーム出塁率」「チーム長打率」／FR-022「打数」 |",
       "source_text_digest": "909a76ab4a7169f2114e4461d321367ecd7037df8a7ba3a4fe514a73988492c1",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "3ebfa7e9fbf200d5af8b6cc667107d081d9a0ae36e6447c807818b5aacb279a1"
+      "decision_digest": "c6768f3e7e2a27926df5c819bb0778a8e3f8f6a18e6dc83c58866e5cf6832ffa"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-054",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-058",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 安打 | 打者へ安打を算入する | A-3「打率」「出塁率」「コース別打率マップ」／A-5「チーム打率」「チーム出塁率」／FR-022「安打」 |",
       "source_text_digest": "cd147ffa90b38279254086fcbd3b021a8736faadf0c8b25cdffc1773678e8700",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "d3d00ed19e782a1e7fdd22e29ee839c0f7bb54c93be05895f5af53335f485523"
+      "decision_digest": "21e4e0c442056956150819c26aca4162e3e1ed16ed2fd5c3df3e5c46fcf04f18"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-055",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-059",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 本塁打 | 打者へ本塁打を算入する | A-3「本塁打」 |",
       "source_text_digest": "f0bf5209b6ceea04d997a1e7e402542810649457de61ef25f2c9dd26413c2888",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "a6dc183dfe0a9377efcd0e3aa79ea3575a4ea9ab6ba41b648a169bb047a2844d"
+      "decision_digest": "9e0c2660a3ceeb956f2a904a7b9b572db223db39eacae5f442aac5108d93e4b2"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-056",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-060",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 塁打 | 結果IDが表す1・2・3・4の塁打数を打者へ算入する | A-3「長打率」／A-5「チーム長打率」 |",
       "source_text_digest": "8efe1341798b63f10a418869bd9b6e110c9a073491868b4947d88063ddc5989c",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "237a9f318d0de7ea997ec1d06e900728d8bf3afd8bc22164ab6f37c4d3204ffc"
+      "decision_digest": "543cf0abe18c9675215e464db6032f0534f5f4262eed6e3faf052f91a1f9a211"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-057",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-061",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 犠打 | 打者へ犠打を算入する | A-3「打数」／FR-022「犠打」 |",
       "source_text_digest": "0c49f3f7c21572dfc45ab6adfb1e9aaca970dd4fc6ee853f2360afc32d4af872",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "514b7b78083ddf448b374822e04edf80ffff399f63f95adf28bd95f47e64c538"
+      "decision_digest": "be7106114887270d1ec1f71821ca718711164183749dbed36f6d4e3293839183"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-058",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-062",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 犠飛 | 打者へ犠飛を算入する | A-3「打数」「出塁率」／A-5「チーム出塁率」／FR-022「犠飛」 |",
       "source_text_digest": "11f04bcc8828db940f323a1d24ccaa005866068cfb5579d184c61b2300f2c295",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "f293ac5cfb795659842799781f229d4b919eeb53ebd8e16c41c5a529efa820ba"
+      "decision_digest": "1573ae906b4af73ab9df9e2ec8271ca2098dd7bf0946ef2928ec71b65005add4"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-059",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-063",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 四球 | 打者へ四球を算入する。申告敬遠を含む | A-3「打数」「出塁率」／A-5「チーム出塁率」／FR-022「四球」 |",
       "source_text_digest": "d04661ea6ec069bd8d37ae814b2ead02628a6656099e58e7618a6bf1bd2bc7c0",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "f6ed3672063ff8c3f418eedc64d5c2b7690067f4ca63d0f63ff8ba53111be363"
+      "decision_digest": "338d7dcb9b0d11811affb253d7ac9732bf50b2405d02951689dfda13efc1846c"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-060",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-064",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 死球 | 打者へ死球を算入する | A-3「打数」「出塁率」／A-5「チーム出塁率」／FR-022「死球」 |",
       "source_text_digest": "1ed4c58946ecab46f5a991414c3285472fc162c7cbb2c7cde81c52656980f56d",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "821bfec8ea92990001993318de58dfc55424ce292ba7d5f3eecd36cc2605656c"
+      "decision_digest": "4e121398d2a027668ba23687169e7ecc05c2739ebd1fca087dde190cc46b110e"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-061",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-065",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 三振 | 打者へ三振を算入する | FR-022「三振」 |",
       "source_text_digest": "0bb1dc7fee490915f7f4e5c4735418eea39d7b06369c2aa677d3facd8644448f",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "5c4c01a602b7fae94ebb9080e155cf56cd20c2b4e956dd0f6d1bfb973c9a3ce2"
+      "decision_digest": "e92ed37ce283bffd7ab58ed8faa4577fc0411dc40cf7d06a470bb15e4b04f547"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-062",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-066",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 打撃妨害出塁 | 打撃妨害による出塁として、打数の算出時に打席から控除する | A-3「打数」 |",
       "source_text_digest": "a696109f87d70d2743c432e1c0377583cd1bc23fe5161eb7619505167f64f32e",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "6e0bcd6b680d1a657049d0cbf0cdce29e8b4498bbaaabf1bf91599977e8222a3"
+      "decision_digest": "2a2bef52758dd29aed64f98d1beb1e2930d2abdc0557bf6714bc3d9c42f6177a"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-063",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-067",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 走塁妨害出塁 | 走塁妨害による出塁として、打数の算出時に打席から控除する | A-3「打数」 |",
       "source_text_digest": "55c7d7a084ae45febcda47d1393cc88d718c37e05302d48ae1b12ed29250d817",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "b3ab17ceeac8f6fbb028fd2c125da0e3885e281e8f4e5342b1f1373498bbb409"
+      "decision_digest": "b90bb39135219b299644136a5a7af85caa3eb20b13493c5f445bea24c28e4234"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-064",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-068",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 得点 | 攻撃側の走者または打者と攻撃側チームへ得点を算入する | A-5「得点 / 失点」「イニング別得点・失点」 |",
       "source_text_digest": "533775dffc96030e739d40159f384f7e87b1159ca674fff2bcac851bc2f96eb7",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "1108f488c8457c91de135aef7d86ec139d1e7a4502a7f006316b64796ead6b71"
+      "decision_digest": "371528524247fb882168a6864722e4c2ce10e71239519c2a820be222233b764c"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-065",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-069",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 打点 | 打者へ打点を算入する | FR-022「打点」／A-3「打点」および同直下の`RBI-01`〜`RBI-09` |",
       "source_text_digest": "1b7c74c6899d33970acf4c63c94e90ebcc5b8c45d5b197350273b2c37dfb7121",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "d53db9fb30834cec8032e68dd1e79120e33caf4413eee6a849ae3a04afb8a18c"
+      "decision_digest": "2499506e594d4d66cdb1a93bc001b9dc3902363f1d17dbd967a49351e30b7d4d"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-029",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-033",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
-      "source_text": "妨害系3種を`INT-01`〜`INT-07`へ展開しても、成績計上フラグは上表の23件で過不足がないため、**守備妨害専用フラグは追加しない**。打撃妨害による一塁授与は`打撃妨害出塁`、走塁妨害による打者走者の出塁は`走塁妨害出塁`で打数除外を表せる。守備妨害は攻撃側への罰則であって、付録A、FR-020またはFR-022が独立した「守備妨害数」の集計を要求していない。守備妨害という結果の別は`resultId`とイベントpayload、アウト対象と人数は`outEffect`、帰塁は走者状態、打者がアウトとなる場合の成績は既存の`打席`・`打数`・`投球回算入アウト`でそれぞれ表すため、同値の真偽を専用フラグへ重複保持しない。これは導出元からの漏れではなく、導出元の和集合に新しい計数項目が存在しないことによる非追加である。",
-      "source_text_digest": "4bf4a8cbbe2d82ffc9b3e1636959d9215a418bc59f5ddae5287306a31e92bd36",
+      "source_text": "**成績計上フラグの導出拘束**:",
+      "source_text_digest": "2e7cc47ea8aeca2485b9dde9db96dfe8374ac2d870402d199740459bc5af73ff",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "9d375ec027b23d4e8d4c7e159ea14085d287b6b87f0c972912374463a8cf7981"
+      "decision_digest": "842585c5b072fdf8c2164eb1db75267d4b562fa5168d16778c54c062ce7cda4d"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-030",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-034",
+      "source_kind": "paragraph",
+      "source_heading_id": "APPENDIX-ITEM-E-1",
+      "source_text": "`statFlags`を独立した手入力または規範上の任意値として扱ってはならず、23キー全てを行の他の列と`precondition`が参照する入力から導出する。この原則と23件の閉じた外延は本書が定める。",
+      "source_text_digest": "cd6fdf9d1377588402685769e145001c70976694fb88b27d3d1c9854bd2d7816",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "4679afa183111f7418b7c2763e80ca2125f41ccdcfe84c66ff968d4e04cf2cf1"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-035",
+      "source_kind": "paragraph",
+      "source_heading_id": "APPENDIX-ITEM-E-1",
+      "source_text": "一方、23キーそれぞれの導出元・`true`となる必要十分条件・分岐の評価順序・負例、および導出に必要となる第3アウト種別（打者走者の一塁到達前／フォースアウト／先行走者のアピールアウト）と記録員判断の入力契約は、**2026-09-26の2回目のPO射程縮小**により段階2で確定する。これはADR-003 D-11の既存委任条項「本ADRが確定する範囲と、実装へ送り出す範囲」を`XC-13`へ適用するものである。実体のない段階で具体導出を閉じると、その導出が新たな未宣言入力を要求する閉じた輪になるため、ベクタと検査基盤を実機で整備する段階へ送る。段階2では23キー全件の導出表、必要な観測入力の閉じた契約、双方向の負例、および欠落・曖昧・相反時にfailする検査を同時に揃えなければならず、それまでは`XC-13`を機械保証済みと判定してはならない。",
+      "source_text_digest": "c2160866c58e6810c94b203721babb624eaec149390e15f305b775c15aebc70f",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "b2104cf68feaea7f4633e85c66b57be3a1d08bbf90333dcc13ced56e96f5b0c0"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-036",
+      "source_kind": "paragraph",
+      "source_heading_id": "APPENDIX-ITEM-E-1",
+      "source_text": "妨害系3種を`INT-01`〜`INT-07`へ展開しても、成績計上フラグは前掲の閉じた外延23件で過不足がないため、**守備妨害専用フラグは追加しない**。打撃妨害による一塁授与は`打撃妨害出塁`、走塁妨害による打者走者の出塁は`走塁妨害出塁`で打数除外を表せる。守備妨害は攻撃側への罰則であって、付録A、FR-020またはFR-022が独立した「守備妨害数」の集計を要求していない。守備妨害という結果の別は`resultId`とイベントpayload、アウト対象と人数は`outEffect`、帰塁は走者状態、打者がアウトとなる場合の成績は既存の`打席`・`打数`・`投球回算入アウト`でそれぞれ表すため、同値の真偽を専用フラグへ重複保持しない。これは導出元からの漏れではなく、導出元の和集合に新しい計数項目が存在しないことによる非追加である。",
+      "source_text_digest": "9185f4cfcdc3ca86b51f11bd54bfe2c99ced8a5e2c4c4c784c46e3fdb445fd22",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "cdb6036cec9ba2c6eec5d92af930991990a027d82199c2983f32e3e40d3b9105"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-037",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "**FR-022 の当日集計との対応**:",
       "source_text_digest": "2de204fc87ed5b2fca60aadd764414c9924ce104a751f0ec763c1d6b73980784",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "0f01b754e5b4e214073e6fb0a6dc44067748e57245d8540200cc82fe6673bea6"
+      "decision_digest": "1bafa456658b403a44ffaf3969e424a4f200f3abb129e57f1cd9a6d2e8424bf8"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-031",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-038",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "FR-022 が列挙する9項目は、別実装で数え直さず、次の対応で上表のフラグから導出する。",
       "source_text_digest": "a30aed4b3cb8d7defa18c3617ecb3bca14848ef10228bc745d718f67a1301d3a",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "a49db8ed3b799ead971d51ea4104b677ba30010b8db89f899f2a0eec7aa0102b"
+      "decision_digest": "2a0be3a7b3a3538aac42446c7adfbe9d76940d04d36a9260baebafcdd2e28ac9"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/table_header-008",
@@ -17012,104 +17182,104 @@
       "decision_digest": "68750c1bd3ac301f829b8da4bb5a0efc2d6d4cc07834f2dfe8595fd24658f8da"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-066",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-070",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 打席数 | 打席 |",
       "source_text_digest": "790a4047ceea70e3b6c6e4af76052bca459ea7038a5f8b4c0d3f7cc41a2fa307",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "3502be075ba59bac2a74b244130e1831fc610bae7d974c314fb4c80b0c1d3872"
+      "decision_digest": "8851f14ff027b271b82c723d541050921164c9478dd0c9d9fda06d93dec0a6b3"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-067",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-071",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 打数 | 打数 |",
       "source_text_digest": "d2c0d22d1a2f5025626b993ed96f6aa4334800b7b56df0328233b75783426b95",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "063d527aa5bc8d6268e8ac6ea5b085f0a8d20e8baaaec513b6e26353e48ceded"
+      "decision_digest": "c257585bf1dc2e0223410e3436c8ce40cb206f9e321f8e053e98676060dfa698"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-068",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-072",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 安打 | 安打 |",
       "source_text_digest": "44f116103e4928b8de6b92dc1d03bab36681a97c5aa1e6b98c5827de9e7ee827",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "a4ceb97f31499a167ba430bf55b965e6ffe9d76fdfdd74445639ac95e1352ddf"
+      "decision_digest": "0a1ea8ec198a5548fd87ca301f43e158dd410726c34e0ded04188314c01616f0"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-069",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-073",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 打点 | 打点 |",
       "source_text_digest": "72aafa7d23359d0cb9498e29a8ddcd9c59230c39a4e3c47e2e37247147b906e4",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "9fb8857573086608e07bbd9a8250a698a55408552aa92cf167ae58bea7f21ddf"
+      "decision_digest": "9610ce1405d2d40460b683231dc90be02bba7c1eba85579ea43f0378567a7dba"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-070",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-074",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 四球 | 四球 |",
       "source_text_digest": "01f55e3671faa494f177133a5f5a99a50f386d8a1bc604327482afabfe428cfa",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "6f106ef2d0a0513d0b2a37c935842e9727cbfb7ac396c6c9d954db142b0d35cb"
+      "decision_digest": "0874e66586dc0ba760dfeed0b3890b4671b12870f01b2a2757909fe4a1297522"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-071",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-075",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 死球 | 死球 |",
       "source_text_digest": "016e852a94e03fc00a9cc9d01fb10fb7be77d51884df8db4f1722d24615fcc81",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "a8ab342628f44141aae9fe62db4db9d72496be957c21c3f0cedf56d6875ef8e3"
+      "decision_digest": "86d2c8afbd43c9d4c4837db4a6bda4109d44e80393743fcc75b190334296fd0a"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-072",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-076",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 三振 | 三振 |",
       "source_text_digest": "c97f1d2adcadc3c483169dda782bb70a003a2da50af53c5914bd882513aa6d2a",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "9e534de8d912b63cab20fa34650d773e050ae0a1cf71a326a7c48b1ec663fa8c"
+      "decision_digest": "339a6dfb6caaeae294d4e8a5d337f1a213bba60ad48469018ad2a103e438e0c3"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-073",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-077",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 犠打 | 犠打 |",
       "source_text_digest": "2d6e547947fd4f010a9ade2c9866d234975e31071e7e0a670e95189152cd4522",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "ff35461ec854533876f2cd8b0e8cbac8173f1aed10eec0e9013d5e5d601dc098"
+      "decision_digest": "33274de80c0eb62d5ee230e2f4179cb3c9bc90ae092e638ca247637a57306a9b"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/table_row-074",
+      "source_id": "APPENDIX-ITEM-E-1/table_row-078",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "| 犠飛 | 犠飛 |",
       "source_text_digest": "d1296b1494bb742465c6b9acfd1ba0145f9290e8d2aaff309d60390ad74a79aa",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "b6bd9365370ffc47ee3cd1cb72e99121a28da3afbe0daff625a65dbecaf0435c"
+      "decision_digest": "5225e1d52e7f9fcd695cf3c5156fee3b7364ceefdd04302473e441e0408fa45e"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-032",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-039",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-1",
       "source_text": "**帰属と導出元の境界**:",
       "source_text_digest": "5ecbb2f66d1ee5bfbbd3ec13b5e7751bf44a7caa838eb76ec49dcfccacc8238f",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "cc428df12e1448fe002cf980456d368b6a8687dbb0d4b49ac81d216dd3ffcb18"
+      "decision_digest": "ac4639c9ed8d71876d69a6d946d4c1db85e2312a22bdbd4fb164c8a9765f261e"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/list_item-013",
@@ -17425,21 +17595,21 @@
       "source_id": "APPENDIX-ITEM-E-2/paragraph-006",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-2",
-      "source_text": "1プレイで3アウトが成立する三重殺は、専用の語彙値を追加せず、打球と公式記録に適合する既存の`resultId`（`併殺打`・`ライナー併殺`、またはそのプレイに適合する他の打撃結果）と、`outEffect = {count: 3, targets: [Target, Target, Target]}`の組で記録する。3つの`Target`はそのプレイでアウトとなった打者・走者を表す**相互に異なる対象**とし、`XC-04`に従って`count = targets.length = 3`を必須とする。`投球回算入アウト = true`とし、投球回へ加える数量3は`outEffect.count`から取得する。専用語彙がなくても、アウト数・対象、打者の行き先、走者状態および既存の成績フラグという状態遷移の全比較面を表現できるため、状態計算のための語彙値追加は不要である。",
-      "source_text_digest": "e11cbe16437d398f317f05d88609d34e52ce62fbcefdf3f5894e55374d0c6e9f",
+      "source_text": "1プレイで3アウトが成立する三重殺は、専用の語彙値を追加せず、打球と公式記録に適合する既存の`resultId`（`併殺打`・`ライナー併殺`、またはそのプレイに適合する他の打撃結果）と、`outEffect = {count: 3, targets: [Target, Target, Target]}`の組で記録する。3つの`Target`はそのプレイでアウトとなった打者・走者を表す**相互に異なる対象**とし、`XC-04`に従って`count = targets.length = 3`を必須とする。事前アウト数と追加アウト数は一般制約`XC-11`にも従う。`投球回算入アウト = true`とし、投球回へ加える数量3は`outEffect.count`から取得する。専用語彙がなくても、アウト数・対象、打者の行き先、走者状態および既存の成績フラグという状態遷移の全比較面を表現できるため、状態計算のための語彙値追加は不要である。",
+      "source_text_digest": "d83439af2c9283cf6a93141c6ad759487d2d86a2e4d1e5fcbb70d26a983c1f54",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "d96bfad39e179de1422420a02e6372694ed1205b9f18a14622a620f92a2683fd"
+      "decision_digest": "7cddc204fa0020628a87d099410712d77a1ebe0435a0e49e5c7cbe0966b3e094"
     },
     {
       "source_id": "APPENDIX-ITEM-E-2/paragraph-007",
       "source_kind": "paragraph",
       "source_heading_id": "APPENDIX-ITEM-E-2",
-      "source_text": "三重殺行の`precondition`は事前アウト数0を必須とする。付録E-2の併殺行にある「第3アウト超過を許さない」は、確定後のアウト数を3で止めて4アウト以上を記録しない規則である。事前アウト数0から`outEffect.count = 3`とする三重殺はちょうど第3アウトまでであり、超過ではない。事前アウト数が1以上の行に3アウト効果を設定した場合、または`targets`が3件未満・重複対象を含む場合はfailとする。三振ゲッツーは`SO-05`のとおり最大2アウトであり、三重殺へ読み替えない。",
-      "source_text_digest": "b6b95929d82450432861f6f18c06d0526fe2284a08ed55a8581a22de2d710a81",
+      "source_text": "三重殺行の`precondition`は事前アウト数0を必須とする。付録E-2の併殺行にある「第3アウト超過を許さない」は、確定後のアウト数を3で止めて4アウト以上を記録しない規則であり、一般制約`XC-11`の具体例である。局所記載は三重殺・併殺の規範行を単独で読んだ場合にも前提を再現できるよう残すが、一般の全行にも`XC-11`を適用する。事前アウト数0から`outEffect.count = 3`とする三重殺はちょうど第3アウトまでであり、超過ではない。事前アウト数が1以上の行に3アウト効果を設定した場合、または`targets`が3件未満・重複対象を含む場合はfailとする。三振ゲッツーは`SO-05`のとおり最大2アウトであり、三重殺へ読み替えない。",
+      "source_text_digest": "187afa84aae5cca63451310c274dd93585bd3d9aff5de54516eecc09c07ba06b",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "dad892aea8cfdeee13a0c69dccfc69a0186049a4c27a2614a87473f8b5ca0774"
+      "decision_digest": "6f74b7aaecb9e2ff318863d29821223850eb5104d5066e0b47c446f06c75f45f"
     },
     {
       "source_id": "APPENDIX-ITEM-E-2/paragraph-008",
@@ -17615,11 +17785,11 @@
       "source_id": "APPENDIX-ITEM-F-1/table_row-006",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-F-1",
-      "source_text": "| `COLD-01` | 第N回の表が完了していない間は、その段は**未成立**。点差がM以上でも第N回の開始時点では成立しない | `{10点, 5回}`で5回表1死、後攻が10点リードしていても未成立 | 5回表が完了して後攻が10点リードしていれば`COLD-02` |",
-      "source_text_digest": "bcbf5af8642f3016cca0648827cdd11ecaaee20b445be594bf73d2f027804d04",
+      "source_text": "| `COLD-01` | 第N回より前、または第N回以後の表の途中で先攻のリード幅がM点未満（同点または後攻リードを含む）なら、その段は**未成立**。後攻がM点以上リードしていても表の完了前には成立しない | `{10点, 5回}`で5回表1死、後攻が10点リードしていても未成立 | 同じ5回表1死でも先攻が10点リードしていれば`COLD-04` |",
+      "source_text_digest": "156c1d64a1b5f68b3e24e7a60cde8c3853c1e32685b204d739d1206c8e71d4c9",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "8e80e2ec1f6215deab02fb80a737a8e9d76e3650b1cbf5b6b76fe2d713bb5ef8"
+      "decision_digest": "94b19e64c1460b785466d9dad7277f1342db1f920b7184df5a1c237c6718b4af"
     },
     {
       "source_id": "APPENDIX-ITEM-F-1/table_row-007",
@@ -17645,11 +17815,11 @@
       "source_id": "APPENDIX-ITEM-F-1/table_row-009",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-ITEM-F-1",
-      "source_text": "| `COLD-04` | 第N回以後の表の途中もしくは完了時、または裏の途中で先攻がM点以上リードしていても、後攻の同回の攻撃が完了するまではその段は**未成立** | 5回表完了時に先攻が10点リードしていても、5回裏の攻撃機会を残して未成立 | 5回裏完了後も先攻が10点リードしていれば`COLD-05` |",
-      "source_text_digest": "965158d4b1d56a815db2d58b2df965aa2d901779c429dcb083179bb55790400f",
+      "source_text": "| `COLD-04` | 第N回以後の表の途中もしくは完了時、または裏の途中で先攻がM点以上リードしていても、後攻の同回の攻撃が完了するまではその段は**未成立** | `{10点, 5回}`で5回表1死、先攻が10点リードしていても未成立 | 同じ5回表1死で後攻が10点リードしている場合は`COLD-01` |",
+      "source_text_digest": "e09c081774c172330c56af37a088034ab245b23700e1160f9f033dae0c720d62",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "ed15d682335233d269a33a7208b478a59ad6c4b928e36621174d03515633d5e2"
+      "decision_digest": "250d47e1cc56478b02b52987e2e5974eaf011a2e6760780b6264a8709c09cff7"
     },
     {
       "source_id": "APPENDIX-ITEM-F-1/table_row-010",
