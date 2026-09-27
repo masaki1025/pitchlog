@@ -1,6 +1,6 @@
 ---
 feature: product-authz-apply
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-26・山田正輝)                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -60,6 +60,8 @@ created: 2026-09-25
 | `docs/design/data-model.md` 12-8 節 | TSK-424 系の行に、**A2 の範囲を「使い捨てクラスタで確認済み・未発効」**として追記する。**「解消済み」にはしない**(design.md 7 節) | PR レビュー(実装追随の節更新 — 設計書 7.6) |
 | `docs/design/data-model.md` 変更履歴 | 上を追記する。**版は上げない** | PR レビュー |
 | `docs/README.md` | `data-model.md` の行の最終更新日と概要を現行化する | PR レビュー |
+| `docs/development/harness-evaluation.md` `## 候補` | 既存候補 2 件へ事例を追記(「『すべての抜け道』を条文の閉じた一覧で…」へ 6 例目・「長時間 DB テストの強制終了が teardown を飛ばし…」へ別タスクでの再発)し、変更履歴に 1 行。**版は上げない**・`H-*` は採番しない(`/pr` のクローズ処理で判断 — 7.6-3 前段) | PR レビュー |
+| `docs/README.md`(台帳の行) | 台帳の行の最終更新日と概要を現行化する | PR レビュー |
 | `docs/design/data-model.md` 3-2 / 3-5 / 12-4 / 12-6 / 12-9 | **反映なし**(TSK-382・TSK-445 の射程を踏まない) | — |
 | `docs/requirements/` | **反映なし** | — |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし**(7.7 に従う側) | — |
