@@ -78,3 +78,22 @@ master は人間の判断で 442 から完全に手を引いた(Codex の残存�
 - **ステップ 3**(4024bd69): 適用器と取り外し・fixture `provisioned_product_catalog`。Codex のサンドボックスは Docker と DB に届かないので、DB 試験は Claude が回した(3 passed)。**コミット後の迂回検査で TB007 は出なかった**(委任文で「変更したファイルに検査器の走査関数を直接当てて違反 0 件を確かめる」と指示した)
 - **共有の開発 DB の衝突**: 最初の DB 試験が「被検査ロール `pitchlog_test_role` がテスト開始前から存在する」で fail-closed。既存の試験も同じ理由で止まった → **別の worktree(`feature-tenant-session-supply`)が backend の全試験を実行中**で、そのロールが見えていただけ(残骸ではない)。消さずに相手の終了を待ってから流し、3 passed。**開発 DB は複数セッションで共有しているので、DB 試験が準備で止まったら、残骸と決めつけて消す前に他の pytest の実行を確かめる**(消すと相手の試験を壊す)
 - 手元の `gh` は `gh pr checks --json` に対応していない(CI 待ちのループが抜けられなかった)。表形式の出力を読む
+
+## ステップ 4〜11 と総合検証(2026-09-26〜27)
+
+- **ステップ 4**(90d3ce9f): カタログ検査。正例だけが red → 原因は比べ方(`pg_get_expr` が検索パス上の `public.` を省く・関数を引数名つきで読んでいた)。**両側から `public.` を消す弱化はせず**、検索パスを `pg_catalog` に固定して PostgreSQL に完全修飾させた(1 文の中の評価順に頼る — `MATERIALIZED` の CTE で縛る。逐行確認の観点)
+- **ステップ 5**(120b8270): 適用の故障注入 5 点
+- **ステップ 6**(db5f613d): 往復の試験が 2 つの本物の不具合を見つけた — ① 取り外しの文を要素 ID の文字列から組み立てていて構文エラー(ステップ 3 是正 6f99634f)② **カタログ検査が NULL の ACL(= PUBLIC が既定で EXECUTE)を「実行権なし」と読む見逃し**(ステップ 4 是正 ecc8a2f7 — `acldefault` で展開。本番でも migration の直後に起きうる穴)。fixture のカタログの控えも実効の権限で比べる形へ(ステップ 3 是正 3797127b)
+- **ステップ 7**(2d6d25ac): 28 表・23 表の越境。付け替えの UPDATE は 5 表で BEFORE トリガが RLS より先に 23514 で拒否 → 期待を緩めず、トリガを migration から導いて関数名まで特定
+- **ステップ 8**(a917da20)・**9**(b777cb64 — `UPDATE ... WHERE` には列の SELECT も要る)・**10**(340844d1)
+- **ステップ 11**(a862c5e2): **Codex が週次の利用上限(リセット 2026-10-03 02:25)で最終報告の前に止まった**。ファイル 3 つはそろっていたので、合格条件の変異の網羅を Claude が確かめ、ruff の自動修正と整形だけを当てた
+- /sync-docs: 12-8 節に A2 の範囲を「使い捨てクラスタで確認済み・未発効」(2bb6f52f)・digest 2 か所(b3062045)
+- **総合検証(CI と同じコマンド・同じ場所)**: backend 955 passed(DB を含む全件・`--cov`)・frontend 665・docs 系・迂回検査 ok。**ハーネスで A2 が起こした失敗 3 件**(develop では green)→ ① DB 試験の印の字面・② スキーマ契約テストのコア領域への登録(`.claude/core-areas.json` と `tests/test_core_guard.py` の期待値 — 計画の改訂 2026-09-27 承認)を是正(27de0d87)。③ U-T1 専用の仮定を持つ母集合の試験は、**人間の判断で 235 の census の fix PR に含めてもらう**(依頼済み)
+- **共有の開発 DB の衝突が常態化**: `feature-tenant-session-supply`・`feature-runtime-contract-switch` などの全試験と毎回ぶつかった。相手の PID を指定して待つ運用で回した(`ps` の文字列検索の待ちループは自分自身にマッチして抜けられなくなった)。**worktree ごとに試験用の DB を分けるのが根本の対策**(起票は人間の判断)
+
+## 10-03 以降に残ること
+
+1. **実装後の敵対レビュー**(コア領域 — Codex の上限のリセット後)
+2. **Claude が直接直した箇所の `codex_run.py review normal`**: 27de0d87 の `test_product_authz_tenant_owned.py`(印の 1 行)・`tests/test_core_guard.py`(期待値 2 行)・ステップ 11 の ruff の自動修正(CLAUDE.md の規則)
+3. 235 の census の fix PR のマージ後に develop へ追随し、ハーネスの全試験を再確認
+4. /pr(PR #84 の draft を外す)
