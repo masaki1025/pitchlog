@@ -494,6 +494,22 @@ def _record_product_checkpoint(checkpoint_id: str) -> None:
     del checkpoint_id
 
 
+def _assert_connection_identity_parameters(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """SQL を実行せず接続時に通知された適用主体の前提を検査する。"""
+    session_authorization = connection.info.parameter_status("session_authorization")
+    is_superuser = connection.info.parameter_status("is_superuser")
+    if not session_authorization:
+        raise ProductProvisioningError("接続の session_authorization を取得できない")
+    if session_authorization == "pitchlog_app":
+        raise ProductProvisioningError("pitchlog_app は製品認可を適用できない")
+    if is_superuser != "on":
+        raise ProductProvisioningError(
+            "製品認可の適用主体は superuser でなければならない"
+        )
+
+
 def _run_product_operation(
     connection: psycopg.Connection[Any],
     operation: ProductOperation,
@@ -507,23 +523,7 @@ def _run_product_operation(
         raise ProductProvisioningError(
             "進行中のトランザクションがある接続では製品認可を操作できない"
         )
-
-    connection.autocommit = True
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute(_IDENTITY_QUERY)
-            identity_row: tuple[object, ...] | None = None
-            for row in cursor:
-                if identity_row is not None:
-                    raise ProductProvisioningError("適用主体の識別結果が複数ある")
-                identity_row = row
-        _assert_identity_row(
-            identity_row,
-            "product:0:precondition",
-            require_superuser=True,
-        )
-    finally:
-        connection.autocommit = False
+    _assert_connection_identity_parameters(connection)
 
     steps, statements = _build_operation_statements(operation)
     if steps.transaction != "single":

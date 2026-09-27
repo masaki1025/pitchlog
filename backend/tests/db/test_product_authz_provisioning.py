@@ -5,7 +5,7 @@ from __future__ import annotations
 import secrets
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, cast
 
 import psycopg
 import pytest
@@ -30,6 +30,78 @@ _ROLE_ATTRIBUTES = (
     ("replication", "rolreplication"),
     ("inherit", "rolinherit"),
 )
+
+
+class _CountingCursor:
+    """実 cursor へ委譲しながら execute 回数を記録する。"""
+
+    def __init__(self, connection: _CountingConnection, cursor: psycopg.Cursor[Any]):
+        self._connection = connection
+        self._cursor = cursor
+
+    def __enter__(self) -> _CountingCursor:
+        self._cursor.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: object,
+    ) -> None:
+        cast(Any, self._cursor).__exit__(exc_type, exc_value, traceback)
+
+    def __iter__(self) -> Iterator[tuple[Any, ...]]:
+        return iter(self._cursor)
+
+    def execute(self, query: object, params: object = None) -> None:
+        """すべての execute を数えて実 cursor へ委譲する。"""
+        self._connection.execute_count += 1
+        cast(Any, self._cursor).execute(query, params)
+
+
+class _CountingConnection:
+    """前提拒否までの execute を観測する実接続の薄い代理。"""
+
+    def __init__(self, connection: psycopg.Connection[Any]) -> None:
+        self._connection = connection
+        self.execute_count = 0
+
+    @property
+    def closed(self) -> bool:
+        """実接続の closed を返す。"""
+        return self._connection.closed
+
+    @property
+    def autocommit(self) -> bool:
+        """実接続の autocommit を返す。"""
+        return self._connection.autocommit
+
+    @autocommit.setter
+    def autocommit(self, value: bool) -> None:
+        self._connection.autocommit = value
+
+    @property
+    def info(self) -> Any:
+        """実接続の ConnectionInfo を返す。"""
+        return self._connection.info
+
+    def cursor(self) -> _CountingCursor:
+        """Execute を数える cursor を返す。"""
+        return _CountingCursor(self, self._connection.cursor())
+
+    def execute(self, query: object, params: object = None) -> Any:
+        """Connection.execute も同じ計数へ含めて実接続へ委譲する。"""
+        self.execute_count += 1
+        return cast(Any, self._connection).execute(query, params)
+
+    def commit(self) -> None:
+        """実接続を commit する。"""
+        self._connection.commit()
+
+    def rollback(self) -> None:
+        """実接続を rollback する。"""
+        self._connection.rollback()
 
 
 def _asset_roles(catalog: ProvisionedProductCatalog) -> dict[str, dict[str, object]]:
@@ -186,8 +258,10 @@ def _assert_rejected_without_catalog_change(
     """公開経路の拒否と、別接続から見たカタログ不変を表明する。"""
     role_ids = tuple(_asset_roles(catalog))
     before = _catalog_fingerprint(catalog.observer, role_ids)
+    counting_connection = _CountingConnection(connection)
     with pytest.raises(ProductProvisioningError, match=message):
-        apply_product_authz_ddl(connection)
+        apply_product_authz_ddl(cast(psycopg.Connection[Any], counting_connection))
+    assert counting_connection.execute_count == 0
     after = _catalog_fingerprint(catalog.observer, role_ids)
     assert after == before
 

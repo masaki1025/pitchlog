@@ -25,7 +25,10 @@ from pitchlog.authz.product_provisioning import (
 )
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+_SOURCE_ROOT = _REPOSITORY_ROOT / "backend/src"
 _SOURCE_PATH = _REPOSITORY_ROOT / "backend/src/pitchlog/authz/product_provisioning.py"
+_TERMINAL_MODULE = "pitchlog.authz.product_provisioning"
+_TERMINAL_NAME = "_run_product_operation"
 _EXPECTED_TERMINAL_SIGNATURE = (
     "_run_product_operation(connection: psycopg.Connection[Any], "
     "operation: ProductOperation) -> None"
@@ -36,8 +39,22 @@ _DB_METHOD_NAMES = {"cursor", "execute", "commit", "rollback"}
 class _FakeInfo:
     """Psycopg 接続情報のうち適用器が読む状態だけを持つ。"""
 
-    def __init__(self, transaction_status: pq.TransactionStatus) -> None:
+    def __init__(
+        self,
+        connection: _FakeConnection,
+        transaction_status: pq.TransactionStatus,
+    ) -> None:
+        self._connection = connection
         self.transaction_status = transaction_status
+
+    def parameter_status(self, name: str) -> str | None:
+        """サーバーが通知する接続主体の状態を試験値から返す。"""
+        self._connection.parameter_status_calls.append(name)
+        if name == "session_authorization":
+            return self._connection.session_user
+        if name == "is_superuser":
+            return "on" if self._connection.is_superuser else "off"
+        return None
 
 
 class _FakeCursor:
@@ -63,6 +80,7 @@ class _FakeCursor:
 
     def execute(self, query: object) -> None:
         """識別問い合わせへ行を返し、それ以外を生成 DDL として記録する。"""
+        self._connection.execute_calls.append(query)
         if query == product_provisioning._IDENTITY_QUERY:
             self._connection.identity_query_count += 1
             default_row = (
@@ -96,11 +114,13 @@ class _FakeConnection:
     ) -> None:
         self.closed = closed
         self.autocommit = autocommit
-        self.info = _FakeInfo(transaction_status)
         self.current_user = current_user
         self.session_user = session_user
         self.is_superuser = is_superuser
+        self.info = _FakeInfo(self, transaction_status)
+        self.execute_calls: list[object] = []
         self.executed_statements: list[object] = []
+        self.parameter_status_calls: list[str] = []
         self.identity_query_count = 0
         self.identity_overrides: dict[int, tuple[object, ...]] = {}
         self.commit_count = 0
@@ -109,6 +129,12 @@ class _FakeConnection:
     def cursor(self) -> _FakeCursor:
         """試験用 cursor を返す。"""
         return _FakeCursor(self)
+
+    def execute(self, query: object) -> _FakeCursor:
+        """Connection.execute も cursor と同じ全数記録へ含める。"""
+        cursor = self.cursor()
+        cursor.execute(query)
+        return cursor
 
     def commit(self) -> None:
         """Commit 呼び出し回数を記録する。"""
@@ -139,8 +165,36 @@ def _small_operation_plan(
     return steps, statements
 
 
+def _module_name(source_root: Path, path: Path) -> str:
+    """Backend source のパスを import 可能なモジュール名へ変換する。"""
+    relative = path.relative_to(source_root).with_suffix("")
+    parts = list(relative.parts)
+    if parts[-1] == "__init__":
+        parts.pop()
+    return ".".join(parts)
+
+
+def _source_modules(source_root: Path) -> dict[str, tuple[Path, str]]:
+    """Source root 以下の全 Python モジュールを機械的に読む。"""
+    return {
+        _module_name(source_root, path): (path, path.read_text(encoding="utf-8"))
+        for path in source_root.rglob("*.py")
+    }
+
+
+def _dotted_name(node: ast.expr) -> str | None:
+    """Name/Attribute だけの式をドット区切り名へ戻す。"""
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        prefix = _dotted_name(node.value)
+        if prefix is not None:
+            return f"{prefix}.{node.attr}"
+    return None
+
+
 def _parse_source(source: str) -> ast.Module:
-    """適用器ソースを AST として読む。"""
+    """製品適用器ソースを AST として読む。"""
     return ast.parse(source, filename=str(_SOURCE_PATH))
 
 
@@ -165,15 +219,65 @@ def _function_ancestors(tree: ast.Module) -> dict[ast.AST, str]:
     return result
 
 
-def _validate_terminal_boundary(source: str) -> None:
-    """末端のシグネチャ・参照集合・DB 呼び出し所属を検査する。"""
-    tree = _parse_source(source)
-    parents = {
-        child: parent
-        for parent in ast.walk(tree)
-        for child in ast.iter_child_nodes(parent)
-    }
+def _terminal_references(
+    module_name: str,
+    tree: ast.Module,
+) -> tuple[tuple[ast.expr, str], ...]:
+    """Import alias を解決して末端シンボルの全参照を返す。"""
+    direct_names = {_TERMINAL_NAME} if module_name == _TERMINAL_MODULE else set()
+    module_aliases: dict[str, str] = {}
+    target_parent, _, target_leaf = _TERMINAL_MODULE.rpartition(".")
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            imported_from = node.module
+            for alias in node.names:
+                local_name = alias.asname or alias.name
+                if imported_from == _TERMINAL_MODULE and alias.name == _TERMINAL_NAME:
+                    direct_names.add(local_name)
+                if imported_from == target_parent and alias.name == target_leaf:
+                    module_aliases[local_name] = _TERMINAL_MODULE
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name != _TERMINAL_MODULE:
+                    continue
+                if alias.asname is not None:
+                    module_aliases[alias.asname] = _TERMINAL_MODULE
+
     ancestors = _function_ancestors(tree)
+    references: list[tuple[ast.expr, str]] = []
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Load)
+            and node.id in direct_names
+        ):
+            references.append((node, ancestors[node]))
+            continue
+        if not isinstance(node, ast.Attribute) or not isinstance(node.ctx, ast.Load):
+            continue
+        dotted = _dotted_name(node)
+        if dotted is None:
+            continue
+        root, separator, suffix = dotted.partition(".")
+        resolved = (
+            f"{module_aliases[root]}.{suffix}"
+            if separator and root in module_aliases
+            else dotted
+        )
+        if resolved == f"{_TERMINAL_MODULE}.{_TERMINAL_NAME}" or (
+            module_name == _TERMINAL_MODULE and node.attr == _TERMINAL_NAME
+        ):
+            references.append((node, ancestors[node]))
+    return tuple(references)
+
+
+def _validate_terminal_boundary(source_root: Path) -> None:
+    """全 backend/src で末端のシグネチャ・参照集合を検査する。"""
+    modules = _source_modules(source_root)
+    if _TERMINAL_MODULE not in modules:
+        raise AssertionError("製品適用器モジュールが存在しない")
+    source_path, source = modules[_TERMINAL_MODULE]
+    tree = ast.parse(source, filename=str(source_path))
     terminals = [
         node
         for node in tree.body
@@ -192,29 +296,25 @@ def _validate_terminal_boundary(source: str) -> None:
         raise AssertionError("製品適用器の末端シグネチャが登録値と一致しない")
 
     references: list[str] = []
-    for node in ast.walk(tree):
-        is_name_reference = (
-            isinstance(node, ast.Name)
-            and isinstance(node.ctx, ast.Load)
-            and node.id == "_run_product_operation"
-        )
-        is_attribute_reference = (
-            isinstance(node, ast.Attribute)
-            and isinstance(node.ctx, ast.Load)
-            and node.attr == "_run_product_operation"
-        )
-        if not is_name_reference and not is_attribute_reference:
-            continue
-        parent = parents.get(node)
-        if not isinstance(parent, ast.Call) or parent.func is not node:
-            raise AssertionError("製品適用器の末端が直接呼び出し以外で参照された")
-        references.append(ancestors[node])
+    for observed_module, (path, module_source) in modules.items():
+        module_tree = ast.parse(module_source, filename=str(path))
+        parents = {
+            child: parent
+            for parent in ast.walk(module_tree)
+            for child in ast.iter_child_nodes(parent)
+        }
+        for node, function_name in _terminal_references(observed_module, module_tree):
+            parent = parents.get(node)
+            if not isinstance(parent, ast.Call) or parent.func is not node:
+                raise AssertionError("製品適用器の末端が直接呼び出し以外で参照された")
+            references.append(f"{observed_module}.{function_name}")
     if sorted(references) != [
-        "apply_product_authz_ddl",
-        "unapply_product_authz_ddl",
+        "pitchlog.authz.product_provisioning.apply_product_authz_ddl",
+        "pitchlog.authz.product_provisioning.unapply_product_authz_ddl",
     ]:
         raise AssertionError("製品適用器の末端を参照する関数が exact-set でない")
 
+    ancestors = _function_ancestors(tree)
     for node in ast.walk(tree):
         if not (
             isinstance(node, ast.Call)
@@ -228,10 +328,10 @@ def _validate_terminal_boundary(source: str) -> None:
 
 def test_terminal_boundary_is_closed_and_has_exact_references() -> None:
     """末端は登録シグネチャを持ち、公開 2 関数だけから直接参照される。"""
-    _validate_terminal_boundary(_SOURCE_PATH.read_text(encoding="utf-8"))
+    _validate_terminal_boundary(_SOURCE_ROOT)
 
 
-def test_adding_statement_or_asset_path_argument_is_red() -> None:
+def test_adding_statement_or_asset_path_argument_is_red(tmp_path: Path) -> None:
     """末端に文や資産の置き場を渡せる引数を足す変異を拒否する。"""
     source = _SOURCE_PATH.read_text(encoding="utf-8")
     mutated = source.replace(
@@ -239,8 +339,11 @@ def test_adding_statement_or_asset_path_argument_is_red() -> None:
         "    operation: ProductOperation,\n    asset_root: Path,\n) -> None:",
         1,
     )
+    target = tmp_path / "pitchlog/authz/product_provisioning.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(mutated, encoding="utf-8")
     with pytest.raises(AssertionError, match="シグネチャ"):
-        _validate_terminal_boundary(mutated)
+        _validate_terminal_boundary(tmp_path)
 
 
 @pytest.mark.parametrize(
@@ -253,15 +356,21 @@ def test_adding_statement_or_asset_path_argument_is_red() -> None:
         ),
     ],
 )
-def test_adding_a_terminal_reference_is_red(extra_reference: str) -> None:
+def test_adding_a_terminal_reference_is_red(
+    extra_reference: str,
+    tmp_path: Path,
+) -> None:
     """同じモジュール内に末端の名前・属性参照を足す変異を拒否する。"""
     source = _SOURCE_PATH.read_text(encoding="utf-8")
     mutated = f"{source}\n_EXTRA_RUNNER = {extra_reference}\n"
+    target = tmp_path / "pitchlog/authz/product_provisioning.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(mutated, encoding="utf-8")
     with pytest.raises(AssertionError, match="直接呼び出し"):
-        _validate_terminal_boundary(mutated)
+        _validate_terminal_boundary(tmp_path)
 
 
-def test_calling_terminal_through_an_alias_is_red() -> None:
+def test_calling_terminal_through_an_alias_is_red(tmp_path: Path) -> None:
     """公開関数が末端を別名へ代入して呼ぶ変異を拒否する。"""
     source = _SOURCE_PATH.read_text(encoding="utf-8")
     mutated = source.replace(
@@ -270,8 +379,44 @@ def test_calling_terminal_through_an_alias_is_red() -> None:
         "    runner(connection, ProductOperation.APPLY)",
         1,
     )
+    target = tmp_path / "pitchlog/authz/product_provisioning.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(mutated, encoding="utf-8")
     with pytest.raises(AssertionError, match="直接呼び出し"):
-        _validate_terminal_boundary(mutated)
+        _validate_terminal_boundary(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "rogue_source",
+    [
+        pytest.param(
+            "from pitchlog.authz.product_provisioning import "
+            "_run_product_operation as run\n\n"
+            "def rogue(connection, operation):\n"
+            "    run(connection, operation)\n",
+            id="from-import-alias",
+        ),
+        pytest.param(
+            "import pitchlog.authz.product_provisioning as provisioning\n\n"
+            "def rogue(connection, operation):\n"
+            "    provisioning._run_product_operation(connection, operation)\n",
+            id="module-attribute",
+        ),
+    ],
+)
+def test_reference_from_another_backend_module_is_red(
+    rogue_source: str,
+    tmp_path: Path,
+) -> None:
+    """別モジュールから通常に import した末端参照も exact-set 違反になる。"""
+    target = tmp_path / "pitchlog/authz/product_provisioning.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(_SOURCE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    rogue = tmp_path / "pitchlog/rogue.py"
+    rogue.write_text(rogue_source, encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="exact-set"):
+        _validate_terminal_boundary(tmp_path)
 
 
 def test_generated_apply_and_unapply_statements_never_change_subject() -> None:
@@ -466,19 +611,22 @@ def test_apply_uses_one_transaction_and_checks_identity_at_every_checkpoint(
         "product:6:during",
         "product:7:after_commit",
     ]
-    assert connection.identity_query_count == len(checkpoints) + 1
+    assert connection.identity_query_count == len(checkpoints)
+    assert connection.parameter_status_calls == [
+        "session_authorization",
+        "is_superuser",
+    ]
 
 
 @pytest.mark.parametrize(
     ("identity_query_number", "expected_commit_count", "expected_rollback_count"),
     [
-        pytest.param(1, 0, 0, id="precondition"),
-        pytest.param(2, 0, 1, id="step-1"),
-        pytest.param(3, 0, 1, id="step-3-helper"),
-        pytest.param(4, 0, 1, id="step-4"),
-        pytest.param(5, 0, 1, id="step-5-policy"),
-        pytest.param(6, 0, 1, id="step-6-during"),
-        pytest.param(7, 1, 0, id="after-commit"),
+        pytest.param(1, 0, 1, id="step-1"),
+        pytest.param(2, 0, 1, id="step-3-helper"),
+        pytest.param(3, 0, 1, id="step-4"),
+        pytest.param(4, 0, 1, id="step-5-policy"),
+        pytest.param(5, 0, 1, id="step-6-during"),
+        pytest.param(6, 1, 0, id="after-commit"),
     ],
 )
 def test_identity_mismatch_at_each_checkpoint_is_red_through_public_path(
@@ -514,7 +662,7 @@ def test_identity_mismatch_after_rollback_is_red_through_public_path(
 ) -> None:
     """故障後の rollback 記録点でも主体不一致を公開経路が拒否する。"""
     connection = _FakeConnection()
-    connection.identity_overrides[3] = (
+    connection.identity_overrides[2] = (
         "changed_subject",
         "external_superuser",
         True,
@@ -585,6 +733,26 @@ def test_each_connection_precondition_rejects_before_generated_statements(
         apply_product_authz_ddl(_as_psycopg_connection(connection))
 
     assert connection.executed_statements == []
+    assert connection.execute_calls == []
+    assert connection.commit_count == 0
+    assert connection.rollback_count == 0
+
+
+def test_missing_session_authorization_is_fail_closed_without_execute(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """接続主体の通知値が欠けても SQL を使った推測へ進まず拒否する。"""
+    connection = _FakeConnection()
+
+    def parameter_status(name: str) -> str | None:
+        return None if name == "session_authorization" else "on"
+
+    monkeypatch.setattr(connection.info, "parameter_status", parameter_status)
+
+    with pytest.raises(ProductProvisioningError, match="session_authorization"):
+        apply_product_authz_ddl(_as_psycopg_connection(connection))
+
+    assert connection.execute_calls == []
     assert connection.commit_count == 0
     assert connection.rollback_count == 0
 
@@ -617,5 +785,6 @@ def test_subject_change_inside_one_step_is_red_through_public_path(
         apply_product_authz_ddl(_as_psycopg_connection(connection))
 
     assert connection.executed_statements == []
+    assert connection.execute_calls == []
     assert connection.commit_count == 0
     assert connection.rollback_count == 0
