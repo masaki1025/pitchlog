@@ -25,6 +25,8 @@ from psycopg.conninfo import make_conninfo
 
 from .conftest import ProvisionedProductCatalog
 
+pytestmark = pytest.mark.requires_db
+
 _POLICY_NAME = "pitchlog_app_tenant_owned"
 _APP_ROLE = "pitchlog_app"
 _TENANT_PREDICATE = sql.SQL(
@@ -194,7 +196,6 @@ def _delete_own_rows(
         connection.rollback()
 
 
-@pytest.mark.requires_db
 @pytest.mark.parametrize("table", tenant_id_table_names(), ids=tenant_id_table_names())
 def test_tenant_id_table_enforces_product_boundary(
     provisioned_product_catalog: ProvisionedProductCatalog,
@@ -303,7 +304,6 @@ def _alter_policy_check(
     catalog.applicator.commit()
 
 
-@pytest.mark.requires_db
 def test_policy_force_and_with_check_mutations_change_production_behavior(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
