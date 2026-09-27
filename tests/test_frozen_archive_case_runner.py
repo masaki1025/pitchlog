@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -43,6 +44,17 @@ def test_manifest_matches_design_case_set_and_transitions() -> None:
     assert len(MANIFEST.comparison_revision) == 40
     assert MANIFEST.repository_full_name == "masaki1025/pitchlog"
     assert MANIFEST.pull_request_number == 83
+    assert {path.as_posix() for path in MANIFEST.corpus_inputs.files} == {
+        ".github/workflows/ci.yml",
+        "scripts/check_tenant_boundary_bypass.py",
+        "scripts/frozen_archive.py",
+        "scripts/frozen_history.py",
+        "tests/test_check_tenant_boundary_bypass.py",
+    }
+    assert {path.as_posix() for path in MANIFEST.corpus_inputs.trees} == {
+        "contracts/tenant_boundary",
+        "tests/fixtures/tenant_boundary",
+    }
     assert {case.id for case in MANIFEST.cases} == set(range(1, 12))
     transitions = {
         case.id: (case.expected["previous"], case.expected["current"])
@@ -77,6 +89,117 @@ def test_manifest_matches_design_case_set_and_transitions() -> None:
         10: 0,
         11: 0,
     }
+
+
+def _copy_corpus_inputs(destination: Path) -> Path:
+    """固定対象の現況入力を変異用リポジトリルートへコピーする。"""
+    destination.mkdir()
+    for relative_path in MANIFEST.corpus_inputs.files:
+        target = destination / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPOSITORY_ROOT / relative_path, target)
+    for relative_tree in MANIFEST.corpus_inputs.trees:
+        shutil.copytree(
+            REPOSITORY_ROOT / relative_tree,
+            destination / relative_tree,
+        )
+    return destination
+
+
+def _assert_prepare_rejects_corpus_drift(
+    source_root: Path,
+    destination: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """prepare_case が corpus 入力の漂流を明瞭な理由で拒否することを確認する。"""
+    with pytest.raises(ValueError) as error:
+        runner.prepare_case(
+            MANIFEST.cases[0],
+            destination,
+            source_root,
+            MANIFEST,
+            monkeypatch,
+        )
+    assert "比較 corpus の入力が動いた。期待値の導き直しが要る" in str(
+        error.value
+    )
+
+
+def test_current_corpus_inputs_match_manifest_digest() -> None:
+    """現況の corpus 入力が manifest の固定 digest と一致する。
+
+    先に validate_corpus_inputs を呼ぶ。裸の assert を先に置くと digest の
+    比較だけが表示され、「何が起きたか」「次に何をすべきか」が読めない。
+    """
+    runner.validate_corpus_inputs(REPOSITORY_ROOT, MANIFEST)
+    assert (
+        runner.corpus_input_digest(REPOSITORY_ROOT, MANIFEST.corpus_inputs)
+        == MANIFEST.corpus_inputs.digest
+    )
+
+
+def test_prepare_case_rejects_changed_contract_asset(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """契約資産の内容変更で corpus を red にする。"""
+    source_root = _copy_corpus_inputs(tmp_path / "source")
+    contract_path = (
+        source_root
+        / "contracts/tenant_boundary/runtime-authz-contract.json"
+    )
+    contract_path.write_bytes(contract_path.read_bytes() + b"\n")
+
+    _assert_prepare_rejects_corpus_drift(
+        source_root,
+        tmp_path / "case",
+        monkeypatch,
+    )
+
+
+def test_prepare_case_rejects_appended_history_record(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """履歴を1件増やす変更で corpus を red にする。"""
+    source_root = _copy_corpus_inputs(tmp_path / "source")
+    authority_path = (
+        source_root / "contracts/tenant_boundary/base-allowlist.json"
+    )
+    authority = json.loads(authority_path.read_text(encoding="utf-8"))
+    authority["baseline_control"]["history"].append(
+        {"synthetic_corpus_drift": True}
+    )
+    authority_path.write_text(
+        json.dumps(authority, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    _assert_prepare_rejects_corpus_drift(
+        source_root,
+        tmp_path / "case",
+        monkeypatch,
+    )
+
+
+def test_prepare_case_rejects_changed_checker(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """検査器の内容変更で corpus を red にする。"""
+    source_root = _copy_corpus_inputs(tmp_path / "source")
+    checker_path = source_root / runner.CHECKER_RELATIVE_PATH
+    checker_path.write_text(
+        checker_path.read_text(encoding="utf-8")
+        + "\n# corpus drift test\n",
+        encoding="utf-8",
+    )
+
+    _assert_prepare_rejects_corpus_drift(
+        source_root,
+        tmp_path / "case",
+        monkeypatch,
+    )
 
 
 @pytest.mark.parametrize("definition", MANIFEST.cases, ids=lambda case: case.name)

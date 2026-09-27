@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -69,12 +70,22 @@ class CaseDefinition:
 
 
 @dataclass(frozen=True)
+class CorpusInputs:
+    """比較 corpus の生成に使う現況入力と固定 digest を表す。"""
+
+    digest: str
+    files: tuple[Path, ...]
+    trees: tuple[Path, ...]
+
+
+@dataclass(frozen=True)
 class Manifest:
     """前版比較 corpus の固定情報を表す。"""
 
     comparison_revision: str
     repository_full_name: str
     pull_request_number: int
+    corpus_inputs: CorpusInputs
     cases: tuple[CaseDefinition, ...]
 
 
@@ -144,6 +155,43 @@ def _positive_integer(value: object, location: str) -> int:
     return value
 
 
+def _sha256(value: object, location: str) -> str:
+    """小文字 SHA-256 hex を検査して返す。"""
+    digest = _string(value, location)
+    if len(digest) != 64 or any(
+        character not in "0123456789abcdef" for character in digest
+    ):
+        raise ValueError(f"{location} は 64 桁小文字 hex が必要")
+    return digest
+
+
+def _repository_relative_path(value: object, location: str) -> Path:
+    """正規化済みのリポジトリ相対パスを検査して返す。"""
+    raw = _string(value, location)
+    path = Path(raw)
+    if (
+        path.is_absolute()
+        or raw != path.as_posix()
+        or not path.parts
+        or any(part in {".", ".."} for part in path.parts)
+    ):
+        raise ValueError(f"{location} は正規化済みリポジトリ相対パスが必要")
+    return path
+
+
+def _path_list(value: object, location: str) -> tuple[Path, ...]:
+    """重複のない相対パス配列を検査して返す。"""
+    if not isinstance(value, list) or not value:
+        raise ValueError(f"{location} は非空配列が必要")
+    paths = tuple(
+        _repository_relative_path(item, f"{location}[{index}]")
+        for index, item in enumerate(value)
+    )
+    if len(set(paths)) != len(paths):
+        raise ValueError(f"{location} に重複がある")
+    return paths
+
+
 def load_manifest(path: Path = DEFAULT_MANIFEST) -> Manifest:
     """比較ケース manifest を exact-set で読む。
 
@@ -166,11 +214,32 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> Manifest:
         "comparison_revision",
         "repository_full_name",
         "pull_request_number",
+        "corpus_inputs",
         "cases",
     }:
         raise ValueError("manifest のキー集合が不正")
-    if root["schema_version"] != 1:
-        raise ValueError("manifest.schema_version は 1 が必要")
+    if root["schema_version"] != 2:
+        raise ValueError("manifest.schema_version は 2 が必要")
+    raw_corpus_inputs = _object(
+        root["corpus_inputs"],
+        "manifest.corpus_inputs",
+    )
+    if set(raw_corpus_inputs) != {"digest", "files", "trees"}:
+        raise ValueError("manifest.corpus_inputs のキー集合が不正")
+    corpus_files = _path_list(
+        raw_corpus_inputs["files"],
+        "manifest.corpus_inputs.files",
+    )
+    corpus_trees = _path_list(
+        raw_corpus_inputs["trees"],
+        "manifest.corpus_inputs.trees",
+    )
+    if any(
+        file_path == tree_path or tree_path in file_path.parents
+        for file_path in corpus_files
+        for tree_path in corpus_trees
+    ):
+        raise ValueError("manifest.corpus_inputs の files と trees が重複")
     raw_cases = root["cases"]
     if not isinstance(raw_cases, list):
         raise ValueError("manifest.cases は配列が必要")
@@ -262,8 +331,69 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> Manifest:
             root["pull_request_number"],
             "manifest.pull_request_number",
         ),
+        corpus_inputs=CorpusInputs(
+            digest=_sha256(
+                raw_corpus_inputs["digest"],
+                "manifest.corpus_inputs.digest",
+            ),
+            files=corpus_files,
+            trees=corpus_trees,
+        ),
         cases=tuple(sorted(cases, key=lambda item: item.id)),
     )
+
+
+def corpus_input_digest(source_root: Path, inputs: CorpusInputs) -> str:
+    """現況から corpus 生成入力の path・長さ・内容の digest を算出する。
+
+    Args:
+        source_root: corpus 入力を読むリポジトリルート。
+        inputs: manifest に固定した単独ファイルとディレクトリ。
+
+    Returns:
+        ファイル集合を含む SHA-256 digest。
+
+    Raises:
+        ValueError: 固定対象が存在しないか通常ファイルでない場合。
+    """
+    relative_files = set(inputs.files)
+    for relative_tree in inputs.trees:
+        tree = source_root / relative_tree
+        if not tree.is_dir():
+            raise ValueError(f"corpus 入力ディレクトリが存在しない: {relative_tree}")
+        for candidate in tree.rglob("*"):
+            if candidate.is_dir():
+                continue
+            if not candidate.is_file():
+                raise ValueError(
+                    f"corpus 入力が通常ファイルでない: "
+                    f"{candidate.relative_to(source_root)}"
+                )
+            relative_files.add(candidate.relative_to(source_root))
+
+    digest = hashlib.sha256()
+    for relative_path in sorted(relative_files, key=lambda item: item.as_posix()):
+        path = source_root / relative_path
+        if not path.is_file():
+            raise ValueError(f"corpus 入力ファイルが存在しない: {relative_path}")
+        relative_bytes = relative_path.as_posix().encode("utf-8")
+        content = path.read_bytes()
+        digest.update(len(relative_bytes).to_bytes(8, byteorder="big"))
+        digest.update(relative_bytes)
+        digest.update(len(content).to_bytes(8, byteorder="big"))
+        digest.update(content)
+    return digest.hexdigest()
+
+
+def validate_corpus_inputs(source_root: Path, manifest: Manifest) -> None:
+    """現況の corpus 入力が manifest の固定値と一致することを検証する。"""
+    actual = corpus_input_digest(source_root, manifest.corpus_inputs)
+    expected = manifest.corpus_inputs.digest
+    if actual != expected:
+        raise ValueError(
+            "比較 corpus の入力が動いた。期待値の導き直しが要る: "
+            f"manifest={expected}, actual={actual}"
+        )
 
 
 def _load_repository_helpers(source_root: Path) -> ModuleType:
@@ -550,6 +680,7 @@ def prepare_case(
     Returns:
         event と二親 merge を検証済みの合成リポジトリ。
     """
+    validate_corpus_inputs(source_root, manifest)
     helpers = _load_repository_helpers(source_root)
     repository, base_sha = helpers._initialize_test_repository(destination, {})
     if definition.action in {

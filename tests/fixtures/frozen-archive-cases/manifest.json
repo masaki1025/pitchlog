@@ -1,8 +1,22 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "comparison_revision": "1a4041018c0b00fc0a86c11bec5ba0a38c3f2070",
   "repository_full_name": "masaki1025/pitchlog",
   "pull_request_number": 83,
+  "corpus_inputs": {
+    "digest": "26a44569fc3531472329f1df640305e5c55b3a1ea3dd462ba8de93a7f720ad7a",
+    "files": [
+      ".github/workflows/ci.yml",
+      "scripts/check_tenant_boundary_bypass.py",
+      "scripts/frozen_archive.py",
+      "scripts/frozen_history.py",
+      "tests/test_check_tenant_boundary_bypass.py"
+    ],
+    "trees": [
+      "contracts/tenant_boundary",
+      "tests/fixtures/tenant_boundary"
+    ]
+  },
   "cases": [
     {
       "id": 1,
