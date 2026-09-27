@@ -1,4 +1,8 @@
-"""製品認可 DDL の適用器が閉じた実行経路だけを持つことを検査する。"""
+"""製品認可 DDL の適用器が閉じた実行経路だけを持つことを検査する。
+
+保証する参照は静的な絶対・別名・相対・名前付き再 export とモジュール属性までとする。
+文字列 getattr・importlib・__import__・globals による動的な参照は保証しない。
+"""
 
 from __future__ import annotations
 
@@ -219,37 +223,121 @@ def _function_ancestors(tree: ast.Module) -> dict[ast.AST, str]:
     return result
 
 
+def _absolute_import_from(
+    module_name: str,
+    path: Path,
+    node: ast.ImportFrom,
+) -> str | None:
+    """ImportFrom の level と現在位置から import 元の絶対名を返す。"""
+    if node.level == 0:
+        return node.module
+    current_package = (
+        module_name if path.name == "__init__.py" else module_name.rpartition(".")[0]
+    )
+    package_parts = current_package.split(".") if current_package else []
+    parent_count = node.level - 1
+    if parent_count > len(package_parts):
+        return None
+    base_parts = package_parts[: len(package_parts) - parent_count]
+    if node.module is not None:
+        base_parts.extend(node.module.split("."))
+    return ".".join(base_parts) if base_parts else None
+
+
+def _static_import_bindings(
+    modules: dict[str, tuple[Path, str]],
+    trees: dict[str, ast.Module],
+) -> dict[str, dict[str, tuple[str, str]]]:
+    """静的 import と名前付き再 export の由来を固定点まで解決する。"""
+    bindings: dict[str, dict[str, tuple[str, str]]] = {
+        module_name: {} for module_name in modules
+    }
+    bindings[_TERMINAL_MODULE][_TERMINAL_NAME] = (
+        "symbol",
+        f"{_TERMINAL_MODULE}.{_TERMINAL_NAME}",
+    )
+    for module_name, tree in trees.items():
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Import):
+                continue
+            for alias in node.names:
+                local_name = alias.asname or alias.name.partition(".")[0]
+                imported_module = alias.name if alias.asname else local_name
+                bindings[module_name][local_name] = ("module", imported_module)
+
+    changed = True
+    while changed:
+        changed = False
+        for module_name, tree in trees.items():
+            path = modules[module_name][0]
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ImportFrom):
+                    continue
+                imported_from = _absolute_import_from(module_name, path, node)
+                if imported_from is None:
+                    continue
+                for alias in node.names:
+                    if alias.name == "*":
+                        continue
+                    local_name = alias.asname or alias.name
+                    imported_name = f"{imported_from}.{alias.name}"
+                    origin: tuple[str, str] | None = None
+                    if imported_name in modules:
+                        origin = ("module", imported_name)
+                    elif imported_from in bindings:
+                        origin = bindings[imported_from].get(alias.name)
+                    if (
+                        origin is None
+                        or bindings[module_name].get(local_name) == origin
+                    ):
+                        continue
+                    bindings[module_name][local_name] = origin
+                    changed = True
+    return bindings
+
+
+def _resolve_dotted_binding(
+    module_name: str,
+    dotted: str,
+    bindings: dict[str, dict[str, tuple[str, str]]],
+    module_names: frozenset[str],
+) -> tuple[str, str] | None:
+    """モジュール属性と再 export を辿ってドット式の由来を返す。"""
+    parts = dotted.split(".")
+    origin = bindings[module_name].get(parts[0])
+    if origin is None:
+        return ("symbol", dotted)
+    for attribute in parts[1:]:
+        origin_kind, origin_name = origin
+        if origin_kind != "module":
+            return None
+        exported = bindings.get(origin_name, {}).get(attribute)
+        if exported is not None:
+            origin = exported
+            continue
+        candidate = f"{origin_name}.{attribute}"
+        if candidate in module_names or _TERMINAL_MODULE.startswith(f"{candidate}."):
+            origin = ("module", candidate)
+        else:
+            origin = ("symbol", candidate)
+    return origin
+
+
 def _terminal_references(
     module_name: str,
     tree: ast.Module,
+    bindings: dict[str, dict[str, tuple[str, str]]],
+    module_names: frozenset[str],
 ) -> tuple[tuple[ast.expr, str], ...]:
-    """Import alias を解決して末端シンボルの全参照を返す。"""
-    direct_names = {_TERMINAL_NAME} if module_name == _TERMINAL_MODULE else set()
-    module_aliases: dict[str, str] = {}
-    target_parent, _, target_leaf = _TERMINAL_MODULE.rpartition(".")
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom):
-            imported_from = node.module
-            for alias in node.names:
-                local_name = alias.asname or alias.name
-                if imported_from == _TERMINAL_MODULE and alias.name == _TERMINAL_NAME:
-                    direct_names.add(local_name)
-                if imported_from == target_parent and alias.name == target_leaf:
-                    module_aliases[local_name] = _TERMINAL_MODULE
-        elif isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name != _TERMINAL_MODULE:
-                    continue
-                if alias.asname is not None:
-                    module_aliases[alias.asname] = _TERMINAL_MODULE
-
+    """静的 import の由来を解決して末端シンボルの全参照を返す。"""
+    terminal_symbol = ("symbol", f"{_TERMINAL_MODULE}.{_TERMINAL_NAME}")
     ancestors = _function_ancestors(tree)
     references: list[tuple[ast.expr, str]] = []
     for node in ast.walk(tree):
         if (
             isinstance(node, ast.Name)
             and isinstance(node.ctx, ast.Load)
-            and node.id in direct_names
+            and bindings[module_name].get(node.id) == terminal_symbol
         ):
             references.append((node, ancestors[node]))
             continue
@@ -258,13 +346,13 @@ def _terminal_references(
         dotted = _dotted_name(node)
         if dotted is None:
             continue
-        root, separator, suffix = dotted.partition(".")
-        resolved = (
-            f"{module_aliases[root]}.{suffix}"
-            if separator and root in module_aliases
-            else dotted
+        resolved = _resolve_dotted_binding(
+            module_name,
+            dotted,
+            bindings,
+            module_names,
         )
-        if resolved == f"{_TERMINAL_MODULE}.{_TERMINAL_NAME}" or (
+        if resolved == terminal_symbol or (
             module_name == _TERMINAL_MODULE and node.attr == _TERMINAL_NAME
         ):
             references.append((node, ancestors[node]))
@@ -276,8 +364,13 @@ def _validate_terminal_boundary(source_root: Path) -> None:
     modules = _source_modules(source_root)
     if _TERMINAL_MODULE not in modules:
         raise AssertionError("製品適用器モジュールが存在しない")
-    source_path, source = modules[_TERMINAL_MODULE]
-    tree = ast.parse(source, filename=str(source_path))
+    trees = {
+        module_name: ast.parse(source, filename=str(path))
+        for module_name, (path, source) in modules.items()
+    }
+    bindings = _static_import_bindings(modules, trees)
+    module_names = frozenset(modules)
+    tree = trees[_TERMINAL_MODULE]
     terminals = [
         node
         for node in tree.body
@@ -296,14 +389,18 @@ def _validate_terminal_boundary(source_root: Path) -> None:
         raise AssertionError("製品適用器の末端シグネチャが登録値と一致しない")
 
     references: list[str] = []
-    for observed_module, (path, module_source) in modules.items():
-        module_tree = ast.parse(module_source, filename=str(path))
+    for observed_module, module_tree in trees.items():
         parents = {
             child: parent
             for parent in ast.walk(module_tree)
             for child in ast.iter_child_nodes(parent)
         }
-        for node, function_name in _terminal_references(observed_module, module_tree):
+        for node, function_name in _terminal_references(
+            observed_module,
+            module_tree,
+            bindings,
+            module_names,
+        ):
             parent = parents.get(node)
             if not isinstance(parent, ast.Call) or parent.func is not node:
                 raise AssertionError("製品適用器の末端が直接呼び出し以外で参照された")
@@ -414,6 +511,50 @@ def test_reference_from_another_backend_module_is_red(
     target.write_text(_SOURCE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
     rogue = tmp_path / "pitchlog/rogue.py"
     rogue.write_text(rogue_source, encoding="utf-8")
+
+    with pytest.raises(AssertionError, match="exact-set"):
+        _validate_terminal_boundary(tmp_path)
+
+
+def test_relative_import_reference_from_another_module_is_red(
+    tmp_path: Path,
+) -> None:
+    """相対 import で持ち込んだ末端の呼び出しも exact-set 違反になる。"""
+    target = tmp_path / "pitchlog/authz/product_provisioning.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(_SOURCE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    rogue = tmp_path / "pitchlog/authz/relative_runner.py"
+    rogue.write_text(
+        "from .product_provisioning import _run_product_operation as run\n\n"
+        "def rogue(connection, operation):\n"
+        "    run(connection, operation)\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AssertionError, match="exact-set"):
+        _validate_terminal_boundary(tmp_path)
+
+
+def test_named_reexport_reference_from_another_module_is_red(
+    tmp_path: Path,
+) -> None:
+    """名前付き from import の再 export を介した呼び出しも拒否する。"""
+    target = tmp_path / "pitchlog/authz/product_provisioning.py"
+    target.parent.mkdir(parents=True)
+    target.write_text(_SOURCE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    bridge = tmp_path / "pitchlog/authz/operation_bridge.py"
+    bridge.write_text(
+        "from pitchlog.authz.product_provisioning import "
+        "_run_product_operation as exported_runner\n",
+        encoding="utf-8",
+    )
+    rogue = tmp_path / "pitchlog/rogue.py"
+    rogue.write_text(
+        "from pitchlog.authz.operation_bridge import exported_runner as run\n\n"
+        "def rogue(connection, operation):\n"
+        "    run(connection, operation)\n",
+        encoding="utf-8",
+    )
 
     with pytest.raises(AssertionError, match="exact-set"):
         _validate_terminal_boundary(tmp_path)
