@@ -49,12 +49,16 @@ def test_manifest_matches_design_case_set_and_transitions() -> None:
         "scripts/check_tenant_boundary_bypass.py",
         "scripts/frozen_archive.py",
         "scripts/frozen_history.py",
+        "tests/fixtures/frozen-archive-cases/runner.py",
         "tests/test_check_tenant_boundary_bypass.py",
     }
     assert {path.as_posix() for path in MANIFEST.corpus_inputs.trees} == {
         "contracts/tenant_boundary",
         "tests/fixtures/tenant_boundary",
     }
+    assert runner.RUNNER_RELATIVE_PATH.as_posix() == (
+        "tests/fixtures/frozen-archive-cases/runner.py"
+    )
     assert {case.id for case in MANIFEST.cases} == set(range(1, 12))
     transitions = {
         case.id: (case.expected["previous"], case.expected["current"])
@@ -110,14 +114,16 @@ def _assert_prepare_rejects_corpus_drift(
     source_root: Path,
     destination: Path,
     monkeypatch: pytest.MonkeyPatch,
+    definition: object = MANIFEST.cases[0],
+    manifest: object = MANIFEST,
 ) -> None:
     """prepare_case が corpus 入力の漂流を明瞭な理由で拒否することを確認する。"""
     with pytest.raises(ValueError) as error:
         runner.prepare_case(
-            MANIFEST.cases[0],
+            definition,
             destination,
             source_root,
-            MANIFEST,
+            manifest,
             monkeypatch,
         )
     assert "比較 corpus の入力が動いた。期待値の導き直しが要る" in str(
@@ -133,8 +139,54 @@ def test_current_corpus_inputs_match_manifest_digest() -> None:
     """
     runner.validate_corpus_inputs(REPOSITORY_ROOT, MANIFEST)
     assert (
-        runner.corpus_input_digest(REPOSITORY_ROOT, MANIFEST.corpus_inputs)
+        runner.corpus_input_digest(REPOSITORY_ROOT, MANIFEST)
         == MANIFEST.corpus_inputs.digest
+    )
+
+
+def test_prepare_case_rejects_changed_runner(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """corpus の生成規則を持つ runner の内容変更を red にする。"""
+    source_root = _copy_corpus_inputs(tmp_path / "source")
+    runner_path = source_root / runner.RUNNER_RELATIVE_PATH
+    runner_path.write_text(
+        runner_path.read_text(encoding="utf-8")
+        + "\n# corpus drift test\n",
+        encoding="utf-8",
+    )
+
+    _assert_prepare_rejects_corpus_drift(
+        source_root,
+        tmp_path / "case",
+        monkeypatch,
+    )
+
+
+def test_prepare_case_rejects_changed_manifest_case_action(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """同じ green/green となるケース action の置換を red にする。"""
+    source_root = _copy_corpus_inputs(tmp_path / "source")
+    manifest_path = tmp_path / "manifest.json"
+    raw_manifest = json.loads(
+        runner.DEFAULT_MANIFEST.read_text(encoding="utf-8")
+    )
+    raw_manifest["cases"][0]["action"] = "recorded_movement"
+    manifest_path.write_text(
+        json.dumps(raw_manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    changed_manifest = runner.load_manifest(manifest_path)
+
+    _assert_prepare_rejects_corpus_drift(
+        source_root,
+        tmp_path / "case",
+        monkeypatch,
+        changed_manifest.cases[0],
+        changed_manifest,
     )
 
 

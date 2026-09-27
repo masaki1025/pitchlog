@@ -21,6 +21,7 @@ FIXTURE_ROOT = Path(__file__).resolve().parent
 DEFAULT_MANIFEST = FIXTURE_ROOT / "manifest.json"
 DEFAULT_SOURCE_ROOT = FIXTURE_ROOT.parents[2]
 CHECKER_RELATIVE_PATH = Path("scripts/check_tenant_boundary_bypass.py")
+RUNNER_RELATIVE_PATH = Path("tests/fixtures/frozen-archive-cases/runner.py")
 HISTORY_SNAPSHOT_DIRECTORY = Path(
     "contracts/tenant_boundary/history-snapshots"
 )
@@ -343,12 +344,61 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> Manifest:
     )
 
 
-def corpus_input_digest(source_root: Path, inputs: CorpusInputs) -> str:
+def _normalized_manifest_input(manifest: Manifest) -> bytes:
+    """digest 自身を除いた manifest の生成入力を正規化する。"""
+    normalized = {
+        "schema_version": 2,
+        "comparison_revision": manifest.comparison_revision,
+        "repository_full_name": manifest.repository_full_name,
+        "pull_request_number": manifest.pull_request_number,
+        "corpus_inputs": {
+            "files": sorted(
+                path.as_posix() for path in manifest.corpus_inputs.files
+            ),
+            "trees": sorted(
+                path.as_posix() for path in manifest.corpus_inputs.trees
+            ),
+        },
+        "cases": [
+            {
+                "id": case.id,
+                "name": case.name,
+                "description": case.description,
+                "action": case.action,
+                "parameters": case.parameters,
+                "expected": case.expected,
+                "recorded_exit_codes": case.recorded_exit_codes,
+            }
+            for case in sorted(manifest.cases, key=lambda item: item.id)
+        ],
+    }
+    return json.dumps(
+        normalized,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _update_digest_entry(
+    digest: Any,
+    name: str,
+    content: bytes,
+) -> None:
+    """名前と内容を長さつきで digest へ加える。"""
+    name_bytes = name.encode("utf-8")
+    digest.update(len(name_bytes).to_bytes(8, byteorder="big"))
+    digest.update(name_bytes)
+    digest.update(len(content).to_bytes(8, byteorder="big"))
+    digest.update(content)
+
+
+def corpus_input_digest(source_root: Path, manifest: Manifest) -> str:
     """現況から corpus 生成入力の path・長さ・内容の digest を算出する。
 
     Args:
         source_root: corpus 入力を読むリポジトリルート。
-        inputs: manifest に固定した単独ファイルとディレクトリ。
+        manifest: digest 自身を除いて固定する比較 manifest。
 
     Returns:
         ファイル集合を含む SHA-256 digest。
@@ -356,6 +406,7 @@ def corpus_input_digest(source_root: Path, inputs: CorpusInputs) -> str:
     Raises:
         ValueError: 固定対象が存在しないか通常ファイルでない場合。
     """
+    inputs = manifest.corpus_inputs
     relative_files = set(inputs.files)
     for relative_tree in inputs.trees:
         tree = source_root / relative_tree
@@ -376,18 +427,19 @@ def corpus_input_digest(source_root: Path, inputs: CorpusInputs) -> str:
         path = source_root / relative_path
         if not path.is_file():
             raise ValueError(f"corpus 入力ファイルが存在しない: {relative_path}")
-        relative_bytes = relative_path.as_posix().encode("utf-8")
         content = path.read_bytes()
-        digest.update(len(relative_bytes).to_bytes(8, byteorder="big"))
-        digest.update(relative_bytes)
-        digest.update(len(content).to_bytes(8, byteorder="big"))
-        digest.update(content)
+        _update_digest_entry(digest, relative_path.as_posix(), content)
+    _update_digest_entry(
+        digest,
+        "tests/fixtures/frozen-archive-cases/manifest.json#normalized",
+        _normalized_manifest_input(manifest),
+    )
     return digest.hexdigest()
 
 
 def validate_corpus_inputs(source_root: Path, manifest: Manifest) -> None:
     """現況の corpus 入力が manifest の固定値と一致することを検証する。"""
-    actual = corpus_input_digest(source_root, manifest.corpus_inputs)
+    actual = corpus_input_digest(source_root, manifest)
     expected = manifest.corpus_inputs.digest
     if actual != expected:
         raise ValueError(
