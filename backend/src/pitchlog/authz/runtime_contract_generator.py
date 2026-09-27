@@ -138,21 +138,25 @@ def _atomic_write(target: Path, content: str) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary_path: Path | None = None
     try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            newline="",
+        descriptor, temporary_name = tempfile.mkstemp(
             prefix=f".{target.name}.",
             dir=target.parent,
-            delete=False,
-        ) as temporary:
-            temporary_path = Path(temporary.name)
-            temporary.write(content)
-            temporary.flush()
-            os.fsync(temporary.fileno())
+        )
+        temporary_path = Path(temporary_name)
+        try:
+            payload = content.encode("utf-8")
+            offset = 0
+            while offset < len(payload):
+                written = os.write(descriptor, payload[offset:])
+                if written <= 0:
+                    raise OSError("一時ファイルへの書き込みが進みません")
+                offset += written
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
         mode = target.stat().st_mode & 0o777 if target.exists() else 0o644
         temporary_path.chmod(mode)
-        temporary_path.replace(target)
+        os.replace(temporary_path, target)
     finally:
         if temporary_path is not None and temporary_path.exists():
             temporary_path.unlink()
