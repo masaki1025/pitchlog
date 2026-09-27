@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/state-transition/state_transition_contract_schema_v1.json",
+  "title": "Pitchlog state transition contract schema v1",
+  "version": "state_transition_contract_schema_v1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "version",
+    "calculation",
+    "inputAxesDescriptor",
+    "matrixRows",
+    "operationRows",
+    "undoRows",
+    "mustOperationCoverage",
+    "requiredSet",
+    "cases"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*$"
+    },
+    "calculation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "inputAxesDescriptor": {
+      "$ref": "#/$defs/inputAxesDescriptorBinding"
+    },
+    "matrixRows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/structuralRow"
+      }
+    },
+    "operationRows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/structuralRow"
+      }
+    },
+    "undoRows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/structuralRow"
+      }
+    },
+    "mustOperationCoverage": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "requiredSet": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/derivedCase"
+      }
+    }
+  },
+  "$defs": {
+    "inputAxesDescriptorBinding": {
+      "type": "object",
+      "required": [
+        "descriptorId",
+        "version",
+        "digest"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "descriptorId": {
+          "const": "pitchlog.input-axes"
+        },
+        "version": {
+          "const": "input_axes_descriptor_v1"
+        },
+        "digest": {
+          "const": "sha256:feb21c40e4f6904394202e35aec96f8031b8ea4ccd5172072c60300bb9d390ac"
+        }
+      }
+    },
+    "structuralRow": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "derivedCase": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
