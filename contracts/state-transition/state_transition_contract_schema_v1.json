@@ -25,7 +25,10 @@
       "failWhenManifestUnavailable": true
     },
     "predicateAxisResolution": {
-      "rowCollection": "matrixRows",
+      "rowCollections": [
+        "matrixRows",
+        "operationRows"
+      ],
       "predicateField": "precondition",
       "axisIdField": "axisId",
       "descriptorCollections": [
@@ -40,6 +43,29 @@
       },
       "requiredMatchCount": 1
     }
+  },
+  "x-pitchlog-operation-row-constraints": {
+    "sourceDecisionId": "adr:D-8",
+    "clauseByOperationKind": {
+      "substitution": "FR-011",
+      "tiebreak-start": "FR-009",
+      "game-end-declaration": "FR-010",
+      "adhoc-registration": "FR-015",
+      "state-correction": "FR-040"
+    },
+    "conditionalOperationKinds": [
+      {
+        "value": "state-correction",
+        "whenClauseId": "req:FR-040",
+        "whenState": "adopted"
+      }
+    ],
+    "payloadSchemaRequiredKeywords": [
+      "type",
+      "properties",
+      "required",
+      "additionalProperties"
+    ]
   },
   "x-pitchlog-matrix-cross-constraints": {
     "sourceClauseId": "req:E-1",
@@ -255,7 +281,7 @@
       ],
       "type": "array",
       "items": {
-        "$ref": "#/$defs/operationRowReferenceShell"
+        "$ref": "#/$defs/operationRow"
       }
     },
     "undoRows": {
@@ -777,25 +803,403 @@
         }
       }
     },
-    "operationRowReferenceShell": {
+    "operationKind": {
+      "enum": [
+        "substitution",
+        "tiebreak-start",
+        "game-end-declaration",
+        "adhoc-registration",
+        "state-correction"
+      ],
+      "x-pitchlog-conditional-values": [
+        {
+          "value": "state-correction",
+          "whenClauseId": "req:FR-040",
+          "whenState": "adopted"
+        }
+      ]
+    },
+    "operationPayloadShape": {
+      "type": "object",
+      "required": [
+        "type",
+        "properties",
+        "required",
+        "additionalProperties"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "object"
+        },
+        "properties": {
+          "type": "object"
+        },
+        "required": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": {
+          "const": false
+        }
+      }
+    },
+    "fieldEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unchanged"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "set"
+            },
+            "value": {}
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "delta"
+            },
+            "value": {
+              "type": "integer"
+            }
+          }
+        }
+      ]
+    },
+    "stateFieldEffects": {
+      "type": "object",
+      "required": [
+        "state.half",
+        "state.count.strikes",
+        "state.count.balls",
+        "state.outs",
+        "state.runners",
+        "state.battingOrder",
+        "state.tiebreakActive",
+        "state.gameEnded",
+        "state.inning",
+        "state.score"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "state.half": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.count.strikes": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.count.balls": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.outs": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.runners": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.battingOrder": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.tiebreakActive": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.gameEnded": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.inning": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.score": {
+          "$ref": "#/$defs/fieldEffect"
+        }
+      }
+    },
+    "scoreboardFieldEffects": {
+      "type": "object",
+      "required": [
+        "inningScores",
+        "hits",
+        "errors",
+        "strikeouts",
+        "walks"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "inningScores": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "hits": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "errors": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "strikeouts": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "walks": {
+          "$ref": "#/$defs/fieldEffect"
+        }
+      }
+    },
+    "statFlagEffects": {
+      "type": "object",
+      "required": [
+        "投球回算入アウト",
+        "投球数",
+        "奪三振",
+        "与四球",
+        "与死球",
+        "被安打",
+        "被本塁打",
+        "失点",
+        "失策",
+        "打席",
+        "打数",
+        "安打",
+        "本塁打",
+        "塁打",
+        "犠打",
+        "犠飛",
+        "四球",
+        "死球",
+        "三振",
+        "打撃妨害出塁",
+        "走塁妨害出塁",
+        "得点",
+        "打点"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "投球回算入アウト": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "投球数": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "奪三振": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "与四球": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "与死球": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "被安打": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "被本塁打": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "失点": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "失策": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "打席": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "打数": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "安打": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "本塁打": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "塁打": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "犠打": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "犠飛": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "四球": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "死球": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "三振": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "打撃妨害出塁": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "走塁妨害出塁": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "得点": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "打点": {
+          "$ref": "#/$defs/fieldEffect"
+        }
+      }
+    },
+    "historyAndResultEffects": {
+      "type": "object",
+      "required": [
+        "history",
+        "operationResult"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "history": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "operationResult": {
+          "$ref": "#/$defs/fieldEffect"
+        }
+      }
+    },
+    "stateEffect": {
+      "type": "object",
+      "required": [
+        "stateFields",
+        "scoreboard",
+        "statFlags",
+        "historyAndResult"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "stateFields": {
+          "$ref": "#/$defs/stateFieldEffects"
+        },
+        "scoreboard": {
+          "$ref": "#/$defs/scoreboardFieldEffects"
+        },
+        "statFlags": {
+          "$ref": "#/$defs/statFlagEffects"
+        },
+        "historyAndResult": {
+          "$ref": "#/$defs/historyAndResultEffects"
+        }
+      }
+    },
+    "operationHistoryEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "pushes",
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "pushes": {
+              "const": false
+            },
+            "kind": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "pushes",
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "pushes": {
+              "const": true
+            },
+            "kind": {
+              "enum": [
+                "confirmed-play",
+                "state-correction"
+              ],
+              "x-pitchlog-conditional-values": [
+                {
+                  "value": "state-correction",
+                  "whenClauseId": "req:FR-040",
+                  "whenState": "adopted"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "operationRow": {
       "type": "object",
       "required": [
         "operationKind",
+        "clauseId",
         "payloadShape",
-        "precondition"
+        "precondition",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "remarks"
       ],
+      "additionalProperties": false,
       "properties": {
         "operationKind": {
-          "type": "string"
+          "$ref": "#/$defs/operationKind"
+        },
+        "clauseId": {
+          "type": "string",
+          "pattern": "^FR-[0-9]{3}$"
         },
         "payloadShape": {
-          "type": "object"
+          "$ref": "#/$defs/operationPayloadShape"
         },
         "precondition": {
-          "type": "object"
+          "$ref": "#/$defs/predicate"
+        },
+        "stateEffect": {
+          "$ref": "#/$defs/stateEffect"
+        },
+        "historyEffect": {
+          "$ref": "#/$defs/operationHistoryEffect"
+        },
+        "operationResult": {
+          "enum": [
+            "applied",
+            "rejected-precondition",
+            "rejected-invalid-payload"
+          ]
+        },
+        "remarks": {
+          "type": "string"
         }
-      },
-      "additionalProperties": true
+      }
     },
     "undoRowReferenceShell": {
       "type": "object",
@@ -843,13 +1247,13 @@
       "additionalProperties": false,
       "properties": {
         "operationKind": {
-          "type": "string"
+          "$ref": "#/$defs/operationKind"
         },
         "payloadShape": {
-          "type": "object"
+          "$ref": "#/$defs/operationPayloadShape"
         },
         "precondition": {
-          "type": "object"
+          "$ref": "#/$defs/predicate"
         }
       }
     },

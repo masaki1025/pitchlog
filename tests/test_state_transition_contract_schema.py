@@ -37,6 +37,10 @@ class CrossConstraintError(ValueError):
     """状況判定契約の交差制約違反を表す。"""
 
 
+class OperationRowConstraintError(ValueError):
+    """操作規範行の参照・宣言制約違反を表す。"""
+
+
 def _load_module(name: str, path: Path) -> Any:
     """テスト対象をsys.path変更なしで読み込む。"""
     spec = importlib.util.spec_from_file_location(name, path)
@@ -85,6 +89,22 @@ def _stat_flag_values() -> dict[str, bool]:
     return dict.fromkeys(properties, False)
 
 
+def _unchanged_effects(definition_name: str) -> dict[str, dict[str, str]]:
+    """指定したStateEffect面の全フィールドを非変更として返す。"""
+    definition = _schema()["$defs"][definition_name]
+    return {field: {"kind": "unchanged"} for field in definition["required"]}
+
+
+def _unchanged_state_effect() -> dict[str, Any]:
+    """比較面4面をすべて保持する非変更StateEffectを返す。"""
+    return {
+        "stateFields": _unchanged_effects("stateFieldEffects"),
+        "scoreboard": _unchanged_effects("scoreboardFieldEffects"),
+        "statFlags": _unchanged_effects("statFlagEffects"),
+        "historyAndResult": _unchanged_effects("historyAndResultEffects"),
+    }
+
+
 def _minimal_contract() -> dict[str, Any]:
     """構造・参照検査を通る最小の状況判定契約を返す。"""
     descriptor = _descriptor()
@@ -117,8 +137,20 @@ def _minimal_contract() -> dict[str, Any]:
     operation_precondition = {"op": "eq", "axisId": "state.outs", "value": 0}
     operation_row = {
         "operationKind": "substitution",
-        "payloadShape": {"type": "object", "additionalProperties": False},
+        "clauseId": "FR-011",
+        "payloadShape": {
+            "type": "object",
+            "properties": {
+                "playerId": {"type": "string"},
+            },
+            "required": ["playerId"],
+            "additionalProperties": False,
+        },
         "precondition": operation_precondition,
+        "stateEffect": _unchanged_state_effect(),
+        "historyEffect": {"pushes": True, "kind": "confirmed-play"},
+        "operationResult": "applied",
+        "remarks": "選手交代の基準行",
     }
     undo_precondition = {"op": "eq", "axisId": "history.depth", "value": 1}
     undo_row = {
@@ -153,7 +185,11 @@ def _minimal_contract() -> dict[str, Any]:
             {
                 "rowRef": {
                     "layer": "operationRows",
-                    "coordinate": copy.deepcopy(operation_row),
+                    "coordinate": {
+                        "operationKind": operation_row["operationKind"],
+                        "payloadShape": copy.deepcopy(operation_row["payloadShape"]),
+                        "precondition": copy.deepcopy(operation_precondition),
+                    },
                 }
             },
             {
@@ -678,6 +714,152 @@ def _validate_cross_constraints(contract: Mapping[str, Any]) -> None:
             )
 
 
+def _operation_row_configuration(
+    schema: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """D-8の操作規範行宣言を検証して返す。"""
+    active_schema = _schema() if schema is None else schema
+    configuration = _required_object(
+        active_schema.get("x-pitchlog-operation-row-constraints"),
+        "schema.x-pitchlog-operation-row-constraints",
+    )
+    definitions = _required_object(active_schema.get("$defs"), "schema.$defs")
+    operation_kind = _required_object(
+        definitions.get("operationKind"), "$defs.operationKind"
+    )
+    enum_values = operation_kind.get("enum")
+    if (
+        not isinstance(enum_values, list)
+        or not enum_values
+        or not all(isinstance(value, str) and value for value in enum_values)
+    ):
+        raise OperationRowConstraintError("operationKindのenumが不正")
+    clause_by_kind = _required_object(
+        configuration.get("clauseByOperationKind"), "clauseByOperationKind"
+    )
+    if set(enum_values) != set(clause_by_kind):
+        raise OperationRowConstraintError(
+            "operationKindと典拠FRの対応がexact-set不一致"
+        )
+
+    descriptor_axis = next(
+        axis
+        for axis in _descriptor()["stateTransitionAxes"]
+        if axis["axisId"] == "event.operationKind"
+    )
+    descriptor_conditions = descriptor_axis.get("conditionalValues", [])
+    declared_conditions = configuration.get("conditionalOperationKinds")
+    schema_conditions = operation_kind.get("x-pitchlog-conditional-values")
+    if not (
+        _json_equal(declared_conditions, descriptor_conditions)
+        and _json_equal(schema_conditions, descriptor_conditions)
+    ):
+        raise OperationRowConstraintError(
+            "FR-040条件付きoperationKindがdescriptorと一致しない"
+        )
+
+    history_effect = _required_object(
+        definitions.get("operationHistoryEffect"),
+        "$defs.operationHistoryEffect",
+    )
+    variants = history_effect.get("oneOf")
+    if not isinstance(variants, list) or len(variants) != 2:
+        raise OperationRowConstraintError("historyEffectの双方向variantが不正")
+    pushed_variant = _required_object(variants[1], "operationHistoryEffect.oneOf[1]")
+    pushed_properties = _required_object(
+        pushed_variant.get("properties"),
+        "operationHistoryEffect.oneOf[1].properties",
+    )
+    history_kind = _required_object(
+        pushed_properties.get("kind"),
+        "operationHistoryEffect.oneOf[1].properties.kind",
+    )
+    if not _json_equal(
+        history_kind.get("x-pitchlog-conditional-values"), descriptor_conditions
+    ):
+        raise OperationRowConstraintError(
+            "FR-040条件付き履歴種別がdescriptorと一致しない"
+        )
+
+    state_fields = _required_object(
+        definitions.get("stateFieldEffects"), "$defs.stateFieldEffects"
+    )
+    expected_state_fields = {
+        axis["axisId"]
+        for axis in _descriptor()["stateTransitionAxes"]
+        if axis["axisId"].startswith("state.")
+    }
+    if set(state_fields.get("required", [])) != expected_state_fields:
+        raise OperationRowConstraintError(
+            "StateEffect.stateFieldsがdescriptorの状態軸と一致しない"
+        )
+
+    stat_flag_effects = _required_object(
+        definitions.get("statFlagEffects"), "$defs.statFlagEffects"
+    )
+    stat_flags = _required_object(definitions.get("statFlags"), "$defs.statFlags")
+    if set(stat_flag_effects.get("required", [])) != set(
+        stat_flags.get("required", [])
+    ):
+        raise OperationRowConstraintError(
+            "StateEffect.statFlagsが23フラグと一致しない"
+        )
+    return configuration
+
+
+def _validate_operation_rows(
+    contract: Mapping[str, Any], adopted_clause_ids: Set[str]
+) -> None:
+    """schema資産の宣言に従ってoperationRowsの参照制約を検証する。"""
+    configuration = _operation_row_configuration()
+    clause_by_kind = configuration["clauseByOperationKind"]
+    payload_keywords = set(configuration["payloadSchemaRequiredKeywords"])
+    conditional_clauses = {
+        condition["value"]: condition["whenClauseId"]
+        for condition in configuration["conditionalOperationKinds"]
+    }
+    for row_index, row in enumerate(contract["operationRows"]):
+        operation_kind = row["operationKind"]
+        required_clause = conditional_clauses.get(operation_kind)
+        if required_clause is not None and required_clause not in adopted_clause_ids:
+            raise OperationRowConstraintError(
+                "未採用の条件付きoperationKindを使用している: "
+                f"operationRows[{row_index}]; kind={operation_kind!r}"
+            )
+        if row["clauseId"] != clause_by_kind[operation_kind]:
+            raise OperationRowConstraintError(
+                "operationKindの典拠FRが一致しない: "
+                f"operationRows[{row_index}]; kind={operation_kind!r}"
+            )
+        history_kind = row["historyEffect"]["kind"]
+        history_required_clause = conditional_clauses.get(history_kind)
+        if (
+            history_required_clause is not None
+            and history_required_clause not in adopted_clause_ids
+        ):
+            raise OperationRowConstraintError(
+                "未採用の条件付き履歴種別を使用している: "
+                f"operationRows[{row_index}]; kind={history_kind!r}"
+            )
+        payload_shape = row["payloadShape"]
+        if set(payload_shape) != payload_keywords:
+            raise OperationRowConstraintError(
+                f"payloadShapeのkeyword集合が不正: operationRows[{row_index}]"
+            )
+        properties = payload_shape["properties"]
+        required = payload_shape["required"]
+        if not all(isinstance(field_schema, dict) for field_schema in properties.values()):
+            raise OperationRowConstraintError(
+                "payloadShape.propertiesのフィールドschemaがobjectでない: "
+                f"operationRows[{row_index}]"
+            )
+        if not set(required) <= set(properties):
+            raise OperationRowConstraintError(
+                "payloadShape.requiredに未定義フィールドがある: "
+                f"operationRows[{row_index}]"
+            )
+
+
 def _sync_case_coordinate(contract: dict[str, Any], layer: str) -> None:
     """指定層のcase参照を先頭の規範行の入力座標へ同期する。
 
@@ -837,10 +1019,18 @@ def _validate_references(
     predicate_rule = _required_object(
         constraints.get("predicateAxisResolution"), "predicateAxisResolution"
     )
-    row_collection = _required_string(
-        predicate_rule.get("rowCollection"),
-        "predicateAxisResolution.rowCollection",
-    )
+    row_collections = predicate_rule.get("rowCollections")
+    if (
+        not isinstance(row_collections, list)
+        or not row_collections
+        or not all(
+            isinstance(collection, str) and collection
+            for collection in row_collections
+        )
+    ):
+        raise ReferenceConstraintError(
+            "predicateAxisResolution.rowCollectionsが不正"
+        )
     predicate_field = _required_string(
         predicate_rule.get("predicateField"),
         "predicateAxisResolution.predicateField",
@@ -885,47 +1075,54 @@ def _validate_references(
         for collection in descriptor_collections
         for axis in descriptor[collection]
     ]
-    for row_index, row in enumerate(contract[row_collection]):
-        for leaf in _predicate_leaves(row[predicate_field]):
-            axis_id = leaf[predicate_axis_id_field]
-            matching_axes = [
-                axis
-                for axis in axes
-                if axis[descriptor_axis_id_field] == axis_id
-            ]
-            if len(matching_axes) != required_axis_matches:
-                raise ReferenceConstraintError(
-                    "Predicate.axisIdをdescriptorへ必要件数で解決できない: "
-                    f"{row_collection}[{row_index}].{predicate_field}; "
-                    f"axisId={axis_id!r}; matches={len(matching_axes)}"
-                )
-            axis = matching_axes[0]
-            classification = axis[descriptor_classification_field]
-            value_field = value_fields_by_classification.get(classification)
-            if not isinstance(value_field, str) or not value_field:
-                raise ReferenceConstraintError(
-                    "Predicate値域の解決方法が未宣言: "
-                    f"axisId={axis_id!r}; classification={classification!r}"
-                )
-            allowed_values = axis.get(value_field)
-            if not isinstance(allowed_values, list) or not allowed_values:
-                raise ReferenceConstraintError(
-                    f"Predicate値域をdescriptorから解決できない: axisId={axis_id!r}"
-                )
-            leaf_values = leaf.get("values")
-            compared_values = leaf_values if isinstance(leaf_values, list) else [leaf["value"]]
-            canonical_allowed_values = {
-                schema_checker.canonicalize_json(value) for value in allowed_values
-            }
-            for value in compared_values:
-                if (
-                    schema_checker.canonicalize_json(value)
-                    not in canonical_allowed_values
-                ):
+    for row_collection in row_collections:
+        for row_index, row in enumerate(contract[row_collection]):
+            for leaf in _predicate_leaves(row[predicate_field]):
+                axis_id = leaf[predicate_axis_id_field]
+                matching_axes = [
+                    axis
+                    for axis in axes
+                    if axis[descriptor_axis_id_field] == axis_id
+                ]
+                if len(matching_axes) != required_axis_matches:
                     raise ReferenceConstraintError(
-                        "Predicate値がdescriptorの軸値域に属さない: "
-                        f"axisId={axis_id!r}; value={value!r}"
+                        "Predicate.axisIdをdescriptorへ必要件数で解決できない: "
+                        f"{row_collection}[{row_index}].{predicate_field}; "
+                        f"axisId={axis_id!r}; matches={len(matching_axes)}"
                     )
+                axis = matching_axes[0]
+                classification = axis[descriptor_classification_field]
+                value_field = value_fields_by_classification.get(classification)
+                if not isinstance(value_field, str) or not value_field:
+                    raise ReferenceConstraintError(
+                        "Predicate値域の解決方法が未宣言: "
+                        f"axisId={axis_id!r}; classification={classification!r}"
+                    )
+                allowed_values = axis.get(value_field)
+                if not isinstance(allowed_values, list) or not allowed_values:
+                    raise ReferenceConstraintError(
+                        "Predicate値域をdescriptorから解決できない: "
+                        f"axisId={axis_id!r}"
+                    )
+                leaf_values = leaf.get("values")
+                compared_values = (
+                    leaf_values
+                    if isinstance(leaf_values, list)
+                    else [leaf["value"]]
+                )
+                canonical_allowed_values = {
+                    schema_checker.canonicalize_json(value)
+                    for value in allowed_values
+                }
+                for value in compared_values:
+                    if (
+                        schema_checker.canonicalize_json(value)
+                        not in canonical_allowed_values
+                    ):
+                        raise ReferenceConstraintError(
+                            "Predicate値がdescriptorの軸値域に属さない: "
+                            f"axisId={axis_id!r}; value={value!r}"
+                        )
 
 
 def _validate_schema(contract: dict[str, Any]) -> None:
@@ -939,9 +1136,11 @@ def _validate(
     vocabulary_ids_by_seed: Mapping[str, Set[str]] | None = (
         DEFAULT_VOCABULARY_IDS_BY_SEED
     ),
+    adopted_clause_ids: Set[str] = frozenset(),
 ) -> None:
     """状況判定契約のschema・参照制約・交差制約を検証する。"""
     _validate_schema(contract)
+    _validate_operation_rows(contract, adopted_clause_ids)
     _validate_references(contract, vocabulary_ids_by_seed)
     _validate_cross_constraints(contract)
 
@@ -979,11 +1178,10 @@ def test_missing_normative_row_layer_is_red(missing_layer: str) -> None:
         _validate(contract)
 
 
-def test_operation_and_undo_row_internals_remain_open_for_later_steps() -> None:
-    """操作行とundo行の後続ステップ向け列を本ステップで閉じない。"""
+def test_undo_row_internals_remain_open_for_step35() -> None:
+    """undo行の後続ステップ向け列を本ステップで閉じない。"""
     contract = _minimal_contract()
-    for layer in ("operationRows", "undoRows"):
-        contract[layer][0]["futureConstraintField"] = {"notClosedYet": True}
+    contract["undoRows"][0]["futureConstraintField"] = {"notClosedYet": True}
 
     _validate(contract)
 
@@ -1016,6 +1214,203 @@ def test_decision_rows_belong_to_the_separate_game_end_contract() -> None:
         match="未知キー: .*decisionRows",
     ):
         _validate(contract)
+
+
+OPERATION_ROW_COLUMNS = (
+    "operationKind",
+    "clauseId",
+    "payloadShape",
+    "precondition",
+    "stateEffect",
+    "historyEffect",
+    "operationResult",
+    "remarks",
+)
+
+
+def test_operation_row_is_closed_to_the_eight_d8_columns() -> None:
+    """operationRowsの行をD-8が定める8列だけに閉じる。"""
+    operation_row = _schema()["$defs"]["operationRow"]
+
+    assert tuple(operation_row["required"]) == OPERATION_ROW_COLUMNS
+    assert set(operation_row["properties"]) == set(OPERATION_ROW_COLUMNS)
+    assert operation_row["additionalProperties"] is False
+    assert not {
+        "targetKind",
+        "guaranteeMode",
+    } & set(operation_row["properties"])
+
+
+@pytest.mark.parametrize("missing_column", OPERATION_ROW_COLUMNS)
+def test_each_missing_operation_row_column_is_red(missing_column: str) -> None:
+    """D-8の操作規範行8列のいずれかが欠けた行を拒否する。"""
+    contract = _minimal_contract()
+    del contract["operationRows"][0][missing_column]
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError,
+        match=rf"必須キー不足: .*{missing_column}",
+    ):
+        _validate(contract)
+
+
+def test_unknown_operation_row_column_is_red() -> None:
+    """D-8に無い操作規範行の列を拒否する。"""
+    contract = _minimal_contract()
+    contract["operationRows"][0]["guaranteeMode"] = "full-equality"
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError,
+        match="未知キー: .*guaranteeMode",
+    ):
+        _validate(contract)
+
+
+@pytest.mark.parametrize(
+    ("operation_kind", "clause_id"),
+    [
+        ("substitution", "FR-011"),
+        ("tiebreak-start", "FR-009"),
+        ("game-end-declaration", "FR-010"),
+        ("adhoc-registration", "FR-015"),
+    ],
+)
+def test_permanent_operation_kinds_resolve_to_their_clause(
+    operation_kind: str, clause_id: str
+) -> None:
+    """常設4操作の種別と典拠FRの対応を受理する。"""
+    contract = _minimal_contract()
+    row = contract["operationRows"][0]
+    row["operationKind"] = operation_kind
+    row["clauseId"] = clause_id
+    _sync_case_coordinate(contract, "operationRows")
+
+    _validate(contract)
+
+
+def test_state_correction_is_the_fr040_conditional_operation_kind() -> None:
+    """状態補正をFR-040採用時だけの条件付き操作として宣言する。"""
+    contract = _minimal_contract()
+    row = contract["operationRows"][0]
+    row["operationKind"] = "state-correction"
+    row["clauseId"] = "FR-040"
+    row["historyEffect"] = {"pushes": True, "kind": "state-correction"}
+    _sync_case_coordinate(contract, "operationRows")
+
+    _validate(contract, adopted_clause_ids=frozenset({"req:FR-040"}))
+    configuration = _operation_row_configuration()
+    descriptor_axis = next(
+        axis
+        for axis in _descriptor()["stateTransitionAxes"]
+        if axis["axisId"] == "event.operationKind"
+    )
+    assert _json_equal(
+        configuration["conditionalOperationKinds"],
+        descriptor_axis["conditionalValues"],
+    )
+
+
+def test_state_correction_is_red_when_fr040_is_not_adopted() -> None:
+    """FR-040未採用時の状態補正操作行を拒否する。"""
+    contract = _minimal_contract()
+    row = contract["operationRows"][0]
+    row["operationKind"] = "state-correction"
+    row["clauseId"] = "FR-040"
+    row["historyEffect"] = {"pushes": True, "kind": "state-correction"}
+    _sync_case_coordinate(contract, "operationRows")
+
+    with pytest.raises(OperationRowConstraintError, match="未採用の条件付き"):
+        _validate(contract)
+
+
+def test_state_correction_history_kind_is_red_when_fr040_is_not_adopted() -> None:
+    """FR-040未採用時の状態補正履歴種別を拒否する。"""
+    contract = _minimal_contract()
+    contract["operationRows"][0]["historyEffect"] = {
+        "pushes": True,
+        "kind": "state-correction",
+    }
+
+    with pytest.raises(OperationRowConstraintError, match="未採用の条件付き履歴種別"):
+        _validate(contract)
+
+
+def test_operation_kind_with_wrong_clause_is_red() -> None:
+    """operationKindと典拠FRが一致しない操作規範行を拒否する。"""
+    contract = _minimal_contract()
+    contract["operationRows"][0]["clauseId"] = "FR-009"
+
+    with pytest.raises(OperationRowConstraintError, match="典拠FRが一致しない"):
+        _validate(contract)
+
+
+def test_payload_shape_required_field_must_exist_in_properties() -> None:
+    """payloadShapeの未定義フィールドをrequiredにできない。"""
+    contract = _minimal_contract()
+    contract["operationRows"][0]["payloadShape"]["required"] = ["missing"]
+    _sync_case_coordinate(contract, "operationRows")
+
+    with pytest.raises(
+        OperationRowConstraintError,
+        match="requiredに未定義フィールドがある",
+    ):
+        _validate(contract)
+
+
+def test_operation_history_effect_is_bidirectionally_closed() -> None:
+    """pushes=falseと非null履歴種別の組合せを拒否する。"""
+    contract = _minimal_contract()
+    contract["operationRows"][0]["historyEffect"] = {
+        "pushes": False,
+        "kind": "confirmed-play",
+    }
+
+    with pytest.raises(schema_checker.DescriptorCheckError, match="oneOf"):
+        _validate(contract)
+
+
+def test_operation_predicate_axis_must_resolve_to_descriptor() -> None:
+    """操作行のPredicateもdescriptorに無いaxisIdを参照できない。"""
+    contract = _minimal_contract()
+    contract["operationRows"][0]["precondition"] = {
+        "op": "eq",
+        "axisId": "state.unknown",
+        "value": 0,
+    }
+    _sync_case_coordinate(contract, "operationRows")
+
+    with pytest.raises(
+        ReferenceConstraintError,
+        match="Predicate.axisIdをdescriptorへ必要件数で解決できない",
+    ):
+        _validate(contract)
+
+
+def test_operation_state_effect_keeps_all_comparison_surfaces_closed() -> None:
+    """StateEffectが状態軸・スコアボード・23フラグ・履歴結果を閉じる。"""
+    schema = _schema()
+    definitions = schema["$defs"]
+    expected_state_fields = {
+        axis["axisId"]
+        for axis in _descriptor()["stateTransitionAxes"]
+        if axis["axisId"].startswith("state.")
+    }
+
+    assert set(definitions["stateFieldEffects"]["required"]) == (
+        expected_state_fields
+    )
+    assert set(definitions["statFlagEffects"]["required"]) == set(
+        definitions["statFlags"]["required"]
+    )
+    for definition_name in (
+        "stateFieldEffects",
+        "scoreboardFieldEffects",
+        "statFlagEffects",
+        "historyAndResultEffects",
+    ):
+        definition = definitions[definition_name]
+        assert set(definition["required"]) == set(definition["properties"])
+        assert definition["additionalProperties"] is False
 
 
 @pytest.mark.parametrize("layer", ["matrixRows", "operationRows", "undoRows"])
