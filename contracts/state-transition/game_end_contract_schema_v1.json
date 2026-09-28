@@ -1,0 +1,296 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/state-transition/game_end_contract_schema_v1.json",
+  "title": "Pitchlog game end contract schema v1",
+  "version": "game_end_contract_schema_v1",
+  "x-pitchlog-rule-snapshot-definition": "#/$defs/ruleSnapshot",
+  "x-pitchlog-descriptor-projection": {
+    "descriptorPath": "contracts/state-transition/input_axes_descriptor_v1.json",
+    "identityDefinition": "inputAxesDescriptorBinding",
+    "coverageCollection": "gameEndAxes",
+    "coverageTargetAnnotation": "x-pitchlog-axis-id",
+    "nonCoverageCollection": "nonCoverageFields",
+    "nonCoverageTargetAnnotation": "x-pitchlog-non-coverage-field",
+    "schemaRetentionAnnotation": "x-pitchlog-schema-retention",
+    "requiredSchemaRetention": "required-by-projection"
+  },
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "version",
+    "calculation",
+    "inputAxesDescriptor",
+    "decisionRows",
+    "requiredSet",
+    "cases",
+    "validationErrors"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*$"
+    },
+    "calculation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "inputAxesDescriptor": {
+      "$ref": "#/$defs/inputAxesDescriptorBinding"
+    },
+    "decisionRows": {
+      "x-pitchlog-normative-row-layer": true,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "requiredSet": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "validationErrors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    }
+  },
+  "$defs": {
+    "inputAxesDescriptorBinding": {
+      "type": "object",
+      "required": [
+        "descriptorId",
+        "version",
+        "digest"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "descriptorId": {
+          "const": "pitchlog.input-axes"
+        },
+        "version": {
+          "const": "input_axes_descriptor_v1"
+        },
+        "digest": {
+          "const": "sha256:feb21c40e4f6904394202e35aec96f8031b8ea4ccd5172072c60300bb9d390ac"
+        }
+      }
+    },
+    "ruleSnapshot": {
+      "type": "object",
+      "required": [
+        "regulationInnings",
+        "coldConditions",
+        "extensionLimit",
+        "tiebreak",
+        "dh"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "regulationInnings": {
+          "x-pitchlog-axis-id": "gameEnd.regulationInnings",
+          "x-pitchlog-axis-classification": "boundary-partition",
+          "x-pitchlog-coverage-bounds": [
+            {
+              "dimension": "innings",
+              "minimum": 1,
+              "maximum": 99
+            }
+          ],
+          "x-pitchlog-boundary-values": [
+            1,
+            5,
+            7,
+            9,
+            99
+          ],
+          "x-pitchlog-invalid-boundary-values": [
+            0,
+            100
+          ],
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "coldConditions": {
+          "x-pitchlog-axis-id": "gameEnd.coldConditions",
+          "x-pitchlog-axis-classification": "boundary-partition",
+          "x-pitchlog-coverage-bounds": [
+            {
+              "dimension": "pointDifference",
+              "minimum": 1,
+              "maximum": 99
+            },
+            {
+              "dimension": "startInning",
+              "minimum": 1,
+              "maximum": 99
+            },
+            {
+              "dimension": "tierCount",
+              "minimum": 0,
+              "maximum": 16
+            }
+          ],
+          "x-pitchlog-boundary-values": [
+            "tier-count:0",
+            "tier-count:1",
+            "tier-count:16",
+            "point-difference:1",
+            "point-difference:M-1",
+            "point-difference:M",
+            "point-difference:M+1",
+            "point-difference:99",
+            "start-inning:1",
+            "start-inning:N-1",
+            "start-inning:N",
+            "start-inning:N+1",
+            "start-inning:99"
+          ],
+          "x-pitchlog-invalid-boundary-values": [
+            "tier-count:17",
+            "point-difference:0",
+            "point-difference:100",
+            "start-inning:0",
+            "start-inning:100"
+          ],
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/coldConditionTier"
+          }
+        },
+        "extensionLimit": {
+          "x-pitchlog-axis-id": "gameEnd.extensionLimit",
+          "x-pitchlog-axis-classification": "boundary-partition",
+          "x-pitchlog-coverage-bounds": [
+            {
+              "dimension": "innings",
+              "minimum": 1,
+              "maximum": 99
+            }
+          ],
+          "x-pitchlog-boundary-values": [
+            "none",
+            "finite:R",
+            "finite:R+1",
+            "finite:99"
+          ],
+          "x-pitchlog-invalid-boundary-values": [
+            "finite:R-1",
+            "finite:100"
+          ],
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 99
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tiebreak": {
+          "x-pitchlog-axis-id": "gameEnd.tiebreak",
+          "x-pitchlog-axis-classification": "boundary-partition",
+          "x-pitchlog-coverage-bounds": [
+            {
+              "dimension": "startInning",
+              "minimum": 1,
+              "maximum": 99
+            }
+          ],
+          "x-pitchlog-boundary-values": [
+            "none",
+            "start:R+1",
+            "start:L",
+            "start:99"
+          ],
+          "x-pitchlog-invalid-boundary-values": [
+            "start:R",
+            "start:L+1-when-finite",
+            "start:100"
+          ],
+          "oneOf": [
+            {
+              "$ref": "#/$defs/tiebreakRule"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dh": {
+          "x-pitchlog-non-coverage-field": "dh",
+          "x-pitchlog-non-coverage-reason": "DH制は打順の構成に影響するが、F-1の終了条件の成立判定には参照されない",
+          "x-pitchlog-schema-retention": "required-by-projection",
+          "type": "boolean"
+        }
+      }
+    },
+    "coldConditionTier": {
+      "type": "object",
+      "required": [
+        "pointDifference",
+        "startInning"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pointDifference": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "startInning": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        }
+      }
+    },
+    "tiebreakRule": {
+      "type": "object",
+      "required": [
+        "startInning",
+        "runnerPlacement",
+        "leadoffRule"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "startInning": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "runnerPlacement": {
+          "x-pitchlog-non-coverage-field": "tiebreak.runnerPlacement",
+          "x-pitchlog-non-coverage-reason": "走者配置はタイブレーク開始時の初期状態を定めるが、終了条件の判定には参照されない",
+          "x-pitchlog-schema-retention": "required-by-projection",
+          "type": "string",
+          "minLength": 1
+        },
+        "leadoffRule": {
+          "x-pitchlog-non-coverage-field": "tiebreak.leadoffRule",
+          "x-pitchlog-non-coverage-reason": "先頭打者規則はタイブレーク開始時の初期状態を定めるが、終了条件の判定には参照されない",
+          "x-pitchlog-schema-retention": "required-by-projection",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
