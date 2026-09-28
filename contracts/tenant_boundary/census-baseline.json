@@ -63,10 +63,9 @@
   },
   "acceptance_cross_check": {
     "acceptance_id": "masaki1025/pitchlog#80",
-    "files": [
-      "scripts/check_tenant_boundary_bypass.py",
-      "scripts/frozen_history.py"
-    ],
+    "history_asset": "contracts/tenant_boundary/base-allowlist.json",
+    "checker_path": "scripts/check_tenant_boundary_bypass.py",
+    "helper_path": "scripts/frozen_history.py",
     "requirement": "accepted_external_snapshot_sha256_equals_materialized_git_content_sha256"
   },
   "census_identity": {
@@ -144,7 +143,9 @@
     "materialized_tree.path_order",
     "materialized_tree.entry_encoding",
     "acceptance_cross_check.acceptance_id",
-    "acceptance_cross_check.files",
+    "acceptance_cross_check.history_asset",
+    "acceptance_cross_check.checker_path",
+    "acceptance_cross_check.helper_path",
     "acceptance_cross_check.requirement",
     "census_identity.kind",
     "census_identity.ordered_fields",

@@ -242,28 +242,6 @@ def _load_checker() -> ModuleType:
     )
 
 
-def _resolve_merge_base(base_ref: str, head_ref: str) -> str:
-    """比較元と HEAD の merge-base を解決し、取れなければ検査を失敗させる。"""
-    result = subprocess.run(
-        ["git", "merge-base", base_ref, head_ref],
-        cwd=REPOSITORY_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        detail = result.stderr.strip() or "stderr なし"
-        raise AssertionError(
-            f"{base_ref} と {head_ref} の merge-base を解決できない: {detail}"
-        )
-    merge_base = result.stdout.strip()
-    if not merge_base:
-        raise AssertionError(
-            f"{base_ref} と {head_ref} の merge-base が空"
-        )
-    return merge_base
-
-
 def _load_checker_from_revision(revision: str, destination: Path) -> ModuleType:
     """VCS 上の検査器と同 revision の依存を別モジュールとして読む。"""
     relative_script = SCRIPT.relative_to(REPOSITORY_ROOT).as_posix()
