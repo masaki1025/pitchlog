@@ -6042,6 +6042,11 @@ def test_condition4_allowed_call_symbols_are_an_exact_set() -> None:
     )
 
 
+def test_repository_is_green() -> None:
+    """実 PR 全体の契約・履歴・movement に違反がないことを検証する。"""
+    assert checker.check_repository(REPOSITORY_ROOT) == []
+
+
 def test_repository_application_population_is_nonempty_and_green(
     tmp_path: Path,
 ) -> None:

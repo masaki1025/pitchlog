@@ -1,7 +1,7 @@
 ---
 feature: census-baseline-pin
-status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 済(2026-09-28・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+承認: 済(2026-09-28・山田正輝 / 計画改訂の再承認 2026-09-28)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3e793b75e68781448bf1fac3f8fa1f5a
@@ -231,6 +231,7 @@ worklog・PR 本文・逐行確認シートへ記録するにとどめる。
 - **テストを削除しない**(3 周目の実測で、失う保証が大きいことが確定した)
 - **期待件数を基準値として固定しない**(上記)
 - **`scripts/check_tenant_boundary_bypass.py` と `scripts/frozen_history.py` を変更しない**
+- **製品の挙動は変えない**(4 節「配布モジュールの同期」を除き `backend/` を触らない)
 - **自前の受理検査を作らない**(5 周目 `P0-2` — 下記「既存機構へ合流する」)
 - **`scripts/frozen-baseline-scan-allowlist.json` / `contracts/authz/frozen-baselines.json` を変更しない**(**`ci.yml` は変更する** — 9 周目 `P1-2`)
 - **ハーネス運用評価台帳への追記を本タスクから行わない**(TSK-448 が引き取り済み)
@@ -467,6 +468,47 @@ digest を置くと**無関係な変更のたびに基準更新が要る**こと
 **課すのは当該ステップの影響範囲のテストだけ**とし、**全件は最終状態で 1 回確かめる**。
 (全件実行は 1 回あたり約 11 分かかるため、ステップごとに 2 回回すと実装が待ちで埋まる。)
 
+### ★ 配布モジュールの同期(計画改訂 2026-09-28 — 実装レビュー `P1-4`)
+
+**当初の計画は「製品コードを触らない」と書いていたが、識別値を繰り上げる以上
+これは成立しない。** 計画を改訂して射程へ入れる。
+
+**「製品挙動を変えない」は、計画外の製品コード変更を事後承認済みにする根拠にならない**
+(実装レビューの指摘。そのとおりである)。**したがって事後の文言修正では済ませず、
+対象・理由・ステップ・テストを明記して承認を得る。**
+
+#### 対象 3 ファイル
+
+| ファイル | 定数 | 値 |
+| --- | --- | --- |
+| `backend/src/pitchlog/repositories/tenant_context_contract.py` | `CONTRACT_REVISION` / `SOURCE_DIGEST` | 7 → 8 |
+| `backend/src/pitchlog/repositories/repository_contract.py` | `CONTRACT_REVISION` / `SOURCE_DIGEST` | 5 → 6 |
+| `backend/src/pitchlog/authz/runtime_contract.py` | `RUNTIME_CONTRACT_REVISION` / `SOURCE_DIGEST` | 4 → 5 |
+
+#### 必要な理由
+
+**これらは契約資産の内容を製品側へ配る写しであり、資産と完全一致を要求される。**
+ステップ 10 で 8 資産の識別値を繰り上げるため、**同期しなければ backend のテストが
+落ちる**(実測: `3 failed` — `test_generated_allowlist_matches_asset` ほか)。
+
+**製品の挙動は変えない。** 変わるのは資産との同一性を表す定数と digest だけである。
+
+#### 実装ステップ
+
+**ステップ 10 の直後**に行う(識別値が確定してからでないと値が決まらない)。
+**ステップ記法は付けない**(ステップ表の実装ステップではなく、ステップ 10 の帰結)。
+
+#### 必要なテスト
+
+**新規テストは足さない。** 既存の 3 件が同期を検査している。
+
+    backend/tests/test_authz_tenant_context.py::test_generated_allowlist_matches_asset
+    backend/tests/test_authz_repository_contract.py::test_generated_repository_contract_matches_asset
+    backend/tests/test_authz_runtime_contract.py::test_generated_runtime_contract_matches_active_asset
+
+**この層はリポジトリルートの pytest では collect されない**(`backend/` で回す必要がある)。
+**PR 前に `cd backend && uv run pytest -m "not requires_db"` を必ず回す。**
+
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
@@ -509,6 +551,8 @@ digest を置くと**無関係な変更のたびに基準更新が要る**こと
 ### 触っていないことの確認
 
 - [ ] `scripts/frozen_history.py` / `contracts/authz/frozen-baselines.json` / `scripts/frozen-baseline-scan-allowlist.json` を **1 バイトも変えていない**
+- [ ] **`backend/` の変更が配布モジュール 3 件の識別値・digest 同期だけ**である(製品の挙動を変えていない)
+- [ ] **`backend/` の変更が配布モジュール 3 件の識別値・digest 同期だけ**である(製品の挙動を変えていない)
 - [ ] **`ci.yml` の変更が census 専用コマンドの追加だけ**である(9 周目 `P1-2`)
 - [ ] `scripts/check_tenant_boundary_bypass.py` の変更が **`FROZEN_BASELINE_ASSETS` への 1 行追加だけ**である(合否写像を動かしていない)
 - [ ] **8 資産すべての識別値が繰り上がり、v2 受理記録 1 件が書かれている**
@@ -530,8 +574,8 @@ digest を置くと**無関係な変更のたびに基準更新が要る**こと
 
 ## 6. テスト計画
 
-NFR-019 の種別では **単体(ハーネスの自己検査)**。製品コードを触らないため、越境・E2E・
-故障系・一致性の追加はない。
+NFR-019 の種別では **単体(ハーネスの自己検査)**。**製品の挙動を変えないため**、越境・E2E・
+故障系・一致性の追加はない。**ただし配布モジュール 3 件の同期は行う**(下記)。
 
 | 種別 | 足すもの | 置き場所 |
 | --- | --- | --- |
