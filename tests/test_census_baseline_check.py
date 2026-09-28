@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import ast
 import builtins
+import copy
 import hashlib
 import importlib.util
 import json
 import re
 import subprocess
 import sys
+import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
@@ -17,6 +20,7 @@ from typing import Any, cast
 import pytest
 from test_check_tenant_boundary_bypass import (
     REPOSITORY_ROOT,
+    _load_checker_from_revision,
     checker,
 )
 
@@ -24,6 +28,15 @@ CENSUS_BASELINE_PATH = (
     REPOSITORY_ROOT / "contracts" / "tenant_boundary" / "census-baseline.json"
 )
 CensusIdentity = tuple[str, int, int, str, str, str, str]
+
+
+@dataclass(frozen=True)
+class _ObservedGitBlob:
+    """監視開始後の単一 git show 応答と、その監視世代を保持する。"""
+
+    monitor: object
+    revision: str
+    content: bytes
 
 
 def _object(value: object, location: str) -> dict[str, Any]:
@@ -76,6 +89,47 @@ def _load_census_baseline_declaration() -> dict[str, Any]:
     return _object(value, CENSUS_BASELINE_PATH.as_posix())
 
 
+def _assert_declared_anchor_materialization_provenance(
+    *,
+    declaration: dict[str, Any],
+    destination: Path,
+    listed_revision: str,
+    relative_paths: tuple[str, ...],
+    monitor: object,
+    observed_blobs: dict[str, _ObservedGitBlob],
+    written_blobs: dict[str, _ObservedGitBlob],
+) -> None:
+    """列挙・取得・書込みが同じ宣言アンカーの内容であることを検証する。"""
+    anchor = _object(declaration.get("anchor"), "census.anchor")
+    anchor_commit = _string(anchor.get("commit"), "census.anchor.commit")
+    assert listed_revision == anchor_commit, (
+        f"列挙 revision が宣言アンカーと不一致: {listed_revision}"
+    )
+    assert set(observed_blobs) == set(relative_paths), (
+        "git show の観測集合が materialize 対象と不一致"
+    )
+    assert set(written_blobs) == set(relative_paths), (
+        "書込み証跡が materialize 対象と不一致"
+    )
+    for relative_path in relative_paths:
+        observed = observed_blobs[relative_path]
+        written = written_blobs[relative_path]
+        assert observed.monitor is monitor, (
+            f"git show の観測世代が監視開始前: {relative_path}"
+        )
+        assert written is observed, (
+            f"書込みが監視した git show 応答を消費していない: {relative_path}"
+        )
+        assert observed.revision == anchor_commit, (
+            "取得 revision が宣言アンカーと不一致: "
+            f"{relative_path}: {observed.revision}"
+        )
+        materialized_content = (destination / relative_path).read_bytes()
+        assert materialized_content == observed.content, (
+            f"materialize 内容が監視した git show と不一致: {relative_path}"
+        )
+
+
 def _materialize_declared_anchor(
     destination: Path,
 ) -> tuple[dict[str, Any], dict[str, bytes], str]:
@@ -112,6 +166,9 @@ def _materialize_declared_anchor(
 
     destination.mkdir(parents=True)
     contents: dict[str, bytes] = {}
+    monitor = object()
+    observed_blobs: dict[str, _ObservedGitBlob] = {}
+    written_blobs: dict[str, _ObservedGitBlob] = {}
     digest_rows: list[bytes] = []
     for relative_path in relative_paths:
         path = Path(relative_path)
@@ -123,8 +180,11 @@ def _materialize_declared_anchor(
             capture_output=True,
         ).stdout
         target = destination / path
+        observed = _ObservedGitBlob(monitor, anchor_commit, content)
+        observed_blobs[relative_path] = observed
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(content)
+        target.write_bytes(observed.content)
+        written_blobs[relative_path] = observed
         contents[relative_path] = content
         content_digest = hashlib.sha256(content).hexdigest()
         digest_rows.append(
@@ -133,6 +193,16 @@ def _materialize_declared_anchor(
             + content_digest.encode("ascii")
             + b"\n"
         )
+
+    _assert_declared_anchor_materialization_provenance(
+        declaration=declaration,
+        destination=destination,
+        listed_revision=anchor_commit,
+        relative_paths=relative_paths,
+        monitor=monitor,
+        observed_blobs=observed_blobs,
+        written_blobs=written_blobs,
+    )
 
     actual_digest = hashlib.sha256(b"".join(digest_rows)).hexdigest()
     assert actual_digest == expected_digest
@@ -256,6 +326,30 @@ def _load_isolated_anchor_checker(
         sys.modules.update(previous_modules)
 
 
+def _assert_loaded_checker_from_materialized_anchor(
+    checker_module: ModuleType,
+    *,
+    reference_root: Path,
+    declaration: dict[str, Any],
+) -> None:
+    """比較 checker が宣言アンカーの materialize 先そのものであると検証する。"""
+    cross_check = _object(
+        declaration.get("acceptance_cross_check"),
+        "census.acceptance_cross_check",
+    )
+    checker_path = _string(
+        cross_check.get("checker_path"),
+        "census.acceptance_cross_check.checker_path",
+    )
+    expected = (reference_root / checker_path).resolve()
+    actual = Path(
+        _string(getattr(checker_module, "__file__", None), "checker.__file__")
+    ).resolve()
+    assert actual == expected, (
+        f"比較 checker が宣言アンカーの materialize 先でない: {actual}"
+    )
+
+
 def _declared_anchor_checker(
     reference_root: Path,
 ) -> tuple[ModuleType, Path, Path, str, dict[str, str]]:
@@ -270,6 +364,11 @@ def _declared_anchor_checker(
     baseline_checker, helper_file = _load_isolated_anchor_checker(
         reference_root,
         declaration,
+    )
+    _assert_loaded_checker_from_materialized_anchor(
+        baseline_checker,
+        reference_root=reference_root,
+        declaration=declaration,
     )
     return (
         baseline_checker,
@@ -1252,12 +1351,8 @@ def _assert_declared_pass_fail_mapping(
         )
 
 
-def test_checker_census_matches_declared_anchor(tmp_path: Path) -> None:
-    """現行検査器と宣言アンカーを比べ、現行全文の差分を TB002・TB007 に拘束する。
-
-    現行の検査器が、宣言されたアンカー時点の検査器と比べて、現行
-    ``backend/src`` 全文に対する違反センサスの差分を対象コード内に収める。
-    """
+def _run_declared_census_check(reference_root: Path) -> None:
+    """宣言アンカーとの census 差分へ、宣言された全述語を適用する。"""
     (
         baseline_checker,
         reference_repository_root,
@@ -1265,7 +1360,7 @@ def test_checker_census_matches_declared_anchor(tmp_path: Path) -> None:
         _,
         _,
     ) = _declared_anchor_checker(
-        tmp_path / "declared_anchor_repository",
+        reference_root,
     )
 
     added, removed = _compare_checker_census(
@@ -1292,6 +1387,23 @@ def test_checker_census_matches_declared_anchor(tmp_path: Path) -> None:
         current_contract=checker.load_contract(REPOSITORY_ROOT),
         anchor_contract=baseline_checker.load_contract(reference_repository_root),
     )
+
+
+def test_checker_census_matches_declared_anchor(tmp_path: Path) -> None:
+    """現行検査器と宣言アンカーを比べ、現行全文の差分を TB002・TB007 に拘束する。
+
+    現行の検査器が、宣言されたアンカー時点の検査器と比べて、現行
+    ``backend/src`` 全文に対する違反センサスの差分を対象コード内に収める。
+    """
+    _run_declared_census_check(tmp_path / "declared_anchor_repository")
+
+
+def main() -> int:
+    """pytest の収集を経由せず census 検査を直接実行する。"""
+    with tempfile.TemporaryDirectory(prefix="census-baseline-") as directory:
+        _run_declared_census_check(Path(directory) / "declared_anchor_repository")
+    print("census-baseline: OK")
+    return 0
 
 
 @pytest.fixture(scope="module")
@@ -1590,3 +1702,321 @@ def test_independent_added_predicate_rejects_candidate_checker_omission(
         data_sets=original_data_sets,
         **arguments,
     )
+
+
+def _mutate_fail_closed_declaration(
+    declaration: dict[str, Any],
+    failure_mode: str,
+) -> dict[str, Any]:
+    """fail-closed 条件ごとの宣言変異を作る。"""
+    mutated = copy.deepcopy(declaration)
+    if failure_mode == "missing-required-field":
+        del mutated["anchor"]
+        return mutated
+    if failure_mode == "unresolved-anchor":
+        anchor = _object(mutated["anchor"], "mutation.anchor")
+        commit = _string(anchor["commit"], "mutation.anchor.commit")
+        replacement = "0" if commit[-1] != "0" else "1"
+        anchor["commit"] = f"{commit[:-1]}{replacement}"
+        return mutated
+    if failure_mode == "tree-digest-mismatch":
+        tree = _object(mutated["materialized_tree"], "mutation.tree")
+        digest = _string(tree["digest"], "mutation.tree.digest")
+        replacement = "0" if digest[-1] != "0" else "1"
+        tree["digest"] = f"{digest[:-1]}{replacement}"
+        return mutated
+    if failure_mode == "file-count-mismatch":
+        tree = _object(mutated["materialized_tree"], "mutation.tree")
+        file_count = _integer(tree["file_count"], "mutation.tree.file_count")
+        tree["file_count"] = file_count + 1
+        return mutated
+    if failure_mode == "acceptance-record-not-found":
+        cross_check = _object(
+            mutated["acceptance_cross_check"],
+            "mutation.acceptance_cross_check",
+        )
+        cross_check["acceptance_id"] = "missing-acceptance-record"
+        return mutated
+    raise AssertionError(f"未知の fail-closed 変異: {failure_mode}")
+
+
+def test_fail_closed_rejects_unreadable_declaration_and_recovers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """① 宣言の不在・JSON 不正を拒否し、正本へ戻すと通ることを示す。"""
+    with monkeypatch.context() as mutation:
+        mutation.setattr(
+            sys.modules[__name__],
+            "CENSUS_BASELINE_PATH",
+            tmp_path / "missing-census-baseline.json",
+        )
+        with pytest.raises(FileNotFoundError):
+            _load_census_baseline_declaration()
+
+    malformed = tmp_path / "malformed-census-baseline.json"
+    malformed.write_text("{", encoding="utf-8")
+    with monkeypatch.context() as mutation:
+        mutation.setattr(
+            sys.modules[__name__],
+            "CENSUS_BASELINE_PATH",
+            malformed,
+        )
+        with pytest.raises(json.JSONDecodeError):
+            _load_census_baseline_declaration()
+
+    _declared_anchor_checker(tmp_path / "restored-readable-declaration")
+
+
+@pytest.mark.parametrize(
+    "failure_mode",
+    (
+        "missing-required-field",
+        "unresolved-anchor",
+        "tree-digest-mismatch",
+        "file-count-mismatch",
+        "acceptance-record-not-found",
+    ),
+)
+def test_fail_closed_rejects_declaration_mutation_and_recovers(
+    failure_mode: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """②〜⑥ の宣言変異を拒否し、正本へ戻すと通ることを示す。"""
+    declaration = _load_census_baseline_declaration()
+    mutated = _mutate_fail_closed_declaration(declaration, failure_mode)
+    with monkeypatch.context() as mutation:
+        mutation.setattr(
+            sys.modules[__name__],
+            "_load_census_baseline_declaration",
+            lambda: copy.deepcopy(mutated),
+        )
+        with pytest.raises((AssertionError, subprocess.CalledProcessError)):
+            _declared_anchor_checker(tmp_path / f"red-{failure_mode}")
+
+    _declared_anchor_checker(tmp_path / f"restored-{failure_mode}")
+
+
+def test_fail_closed_rejects_nonunique_acceptance_record_and_recovers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """⑥ 同じ acceptance_id の受理記録が複数ある場合も拒否する。"""
+    declaration = _load_census_baseline_declaration()
+    mutated = copy.deepcopy(declaration)
+    cross_check = _object(
+        mutated["acceptance_cross_check"],
+        "mutation.acceptance_cross_check",
+    )
+    history_path = REPOSITORY_ROOT / _string(
+        cross_check["history_asset"],
+        "mutation.history_asset",
+    )
+    history_asset = _object(
+        json.loads(history_path.read_text(encoding="utf-8")),
+        "mutation.history_asset",
+    )
+    control = _object(history_asset["baseline_control"], "mutation.control")
+    history = cast(list[object], control["history"])
+    acceptance_id = _string(
+        cross_check["acceptance_id"],
+        "mutation.acceptance_id",
+    )
+    matching = [
+        record
+        for record in history
+        if isinstance(record, dict) and record.get("acceptance_id") == acceptance_id
+    ]
+    assert len(matching) == 1
+    history.append(copy.deepcopy(matching[0]))
+    duplicated_history_path = tmp_path / "duplicated-history.json"
+    duplicated_history_path.write_text(
+        json.dumps(history_asset, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    cross_check["history_asset"] = duplicated_history_path.as_posix()
+
+    with monkeypatch.context() as mutation:
+        mutation.setattr(
+            sys.modules[__name__],
+            "_load_census_baseline_declaration",
+            lambda: copy.deepcopy(mutated),
+        )
+        with pytest.raises(AssertionError):
+            _declared_anchor_checker(tmp_path / "red-nonunique-acceptance")
+
+    _declared_anchor_checker(tmp_path / "restored-unique-acceptance")
+
+
+def test_fail_closed_rejects_acceptance_digest_mismatch_and_recovers(
+    tmp_path: Path,
+) -> None:
+    """⑦ 受理記録との digest 不一致を拒否し、元内容へ戻すと通ることを示す。"""
+    declaration, contents, _ = _materialize_declared_anchor(
+        tmp_path / "acceptance-digest-reference"
+    )
+    _cross_check_accepted_external_snapshots(declaration, contents)
+    cross_check = _object(
+        declaration["acceptance_cross_check"],
+        "census.acceptance_cross_check",
+    )
+    checker_path = _string(cross_check["checker_path"], "checker_path")
+    mutated_contents = dict(contents)
+    mutated_contents[checker_path] = contents[checker_path] + b"\n"
+    with pytest.raises(AssertionError):
+        _cross_check_accepted_external_snapshots(
+            declaration,
+            mutated_contents,
+        )
+    _cross_check_accepted_external_snapshots(declaration, contents)
+
+
+def test_fail_closed_rejects_module_cache_contamination_and_recovers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """⑧ 現行 helper の module-cache 混入を拒否し、隔離へ戻すと通る。"""
+    reference_root = tmp_path / "module-cache-reference"
+    declaration, _, _ = _materialize_declared_anchor(reference_root)
+    _load_isolated_anchor_checker(reference_root, declaration)
+    current_helper = sys.modules.get("frozen_history")
+    assert current_helper is not None
+    original_module_from_spec = importlib.util.module_from_spec
+
+    def contaminated_module_from_spec(spec: Any) -> ModuleType:
+        """旧 checker 実行直前に現行 helper を module cache へ混入する。"""
+        sys.modules["frozen_history"] = current_helper
+        return original_module_from_spec(spec)
+
+    with monkeypatch.context() as mutation:
+        mutation.setattr(
+            importlib.util,
+            "module_from_spec",
+            contaminated_module_from_spec,
+        )
+        with pytest.raises(AssertionError):
+            _load_isolated_anchor_checker(reference_root, declaration)
+
+    _load_isolated_anchor_checker(reference_root, declaration)
+
+
+@pytest.mark.parametrize(
+    "regression",
+    (
+        "origin-develop-loader",
+        "merge-base-loader",
+        "current-worktree-checker",
+    ),
+)
+def test_reference_checker_regressions_are_rejected(
+    regression: str,
+    tmp_path: Path,
+) -> None:
+    """可変参照または現行 worktree を比較 checker に戻す退行を拒否する。"""
+    reference_root = tmp_path / "declared-reference"
+    declaration, _, _ = _materialize_declared_anchor(reference_root)
+    if regression == "origin-develop-loader":
+        regressed_checker = _load_checker_from_revision(
+            "origin/develop",
+            tmp_path / "origin-develop-checker.py",
+        )
+    elif regression == "merge-base-loader":
+        merge_base = subprocess.run(
+            ["git", "merge-base", "origin/develop", "HEAD"],
+            cwd=REPOSITORY_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        regressed_checker = _load_checker_from_revision(
+            merge_base,
+            tmp_path / "merge-base-checker.py",
+        )
+    else:
+        regressed_checker = checker
+
+    with pytest.raises(AssertionError, match="materialize"):
+        _assert_loaded_checker_from_materialized_anchor(
+            regressed_checker,
+            reference_root=reference_root,
+            declaration=declaration,
+        )
+
+    restored_checker, _ = _load_isolated_anchor_checker(
+        reference_root,
+        declaration,
+    )
+    _assert_loaded_checker_from_materialized_anchor(
+        restored_checker,
+        reference_root=reference_root,
+        declaration=declaration,
+    )
+
+
+def test_reference_regression_rejects_git_bytes_cached_before_monitoring(
+    tmp_path: Path,
+) -> None:
+    """監視開始前に捕捉した git bytes を後から使う比較元退行を拒否する。"""
+    source_root = tmp_path / "declared-source"
+    declaration, contents, _ = _materialize_declared_anchor(source_root)
+    anchor = _object(declaration["anchor"], "census.anchor")
+    anchor_commit = _string(anchor["commit"], "census.anchor.commit")
+    relative_paths = tuple(sorted(contents))
+
+    collection_monitor = object()
+    collection_cached_blobs = {
+        path: _ObservedGitBlob(collection_monitor, anchor_commit, content)
+        for path, content in contents.items()
+    }
+
+    def materialize_from_collection_cache(
+        destination: Path,
+    ) -> dict[str, _ObservedGitBlob]:
+        """pytest collection 相当の閉包へ捕捉した bytes だけを書き出す退行。"""
+        written: dict[str, _ObservedGitBlob] = {}
+        for path, cached_blob in collection_cached_blobs.items():
+            target = destination / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(cached_blob.content)
+            written[path] = cached_blob
+        return written
+
+    active_monitor = object()
+    observed_after_monitoring = {
+        path: _ObservedGitBlob(active_monitor, anchor_commit, content)
+        for path, content in contents.items()
+    }
+    cached_destination = tmp_path / "collection-cached-reference"
+    cached_writes = materialize_from_collection_cache(cached_destination)
+    with pytest.raises(AssertionError, match="書込み"):
+        _assert_declared_anchor_materialization_provenance(
+            declaration=declaration,
+            destination=cached_destination,
+            listed_revision=anchor_commit,
+            relative_paths=relative_paths,
+            monitor=active_monitor,
+            observed_blobs=observed_after_monitoring,
+            written_blobs=cached_writes,
+        )
+
+    restored_destination = tmp_path / "monitor-bound-reference"
+    restored_writes: dict[str, _ObservedGitBlob] = {}
+    for path, observed_blob in observed_after_monitoring.items():
+        target = restored_destination / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(observed_blob.content)
+        restored_writes[path] = observed_blob
+    _assert_declared_anchor_materialization_provenance(
+        declaration=declaration,
+        destination=restored_destination,
+        listed_revision=anchor_commit,
+        relative_paths=relative_paths,
+        monitor=active_monitor,
+        observed_blobs=observed_after_monitoring,
+        written_blobs=restored_writes,
+    )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
