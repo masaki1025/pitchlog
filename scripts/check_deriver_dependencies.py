@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from itertools import combinations
 from pathlib import Path, PurePosixPath
 from typing import Any, TypeVar, cast
 
@@ -27,6 +29,13 @@ ROW_REQUIREMENT_RULES_PATH = PurePosixPath(
 )
 ROW_REQUIREMENT_RULES_SCHEMA_PATH = PurePosixPath(
     "contracts/state-transition/required_set_row_rules_schema_v1.json"
+)
+CLAUSE_BRANCH_REGISTER_PATH = PurePosixPath(
+    "contracts/state-transition/clause_branch_register_v1.json"
+)
+
+GAME_END_BRANCH_ROW_PATTERN = re.compile(
+    r"^\|\s*`(?P<branch_id>(?:COLD|DRAW)-[0-9]{2})`\s*\|"
 )
 
 _T = TypeVar("_T")
@@ -105,6 +114,125 @@ class InputCoordinateRequirement:
     def identity(self) -> tuple[str, str]:
         """軸間の組合せを含まない軸ごとの要求 identity を返す。"""
         return (self.axis_id, self.coverage_value_identity)
+
+
+@dataclass(frozen=True)
+class GameEndPairwiseRequirement:
+    """終了規則フィールド 2 件の境界値ペア要求を表す。"""
+
+    left_axis_id: str
+    left_value_identity: str
+    right_axis_id: str
+    right_value_identity: str
+    source_clause_ids: tuple[str, ...]
+
+    @property
+    def identity(self) -> tuple[str, str, str, str, str]:
+        """規則フィールドの宣言順を保ったペア identity を返す。"""
+        return (
+            "rule-field-pairwise",
+            self.left_axis_id,
+            self.left_value_identity,
+            self.right_axis_id,
+            self.right_value_identity,
+        )
+
+
+@dataclass(frozen=True)
+class GameEndBoundaryCoordinateRequirement:
+    """終了規則境界値と状態・イベント軸値の組を表す。"""
+
+    game_end_axis_id: str
+    game_end_value_identity: str
+    coordinate_axis_id: str
+    coordinate_value_identity: str
+    when_clause_id: str | None
+    when_state: str | None
+    source_clause_ids: tuple[str, ...]
+
+    @property
+    def identity(self) -> tuple[str, str, str, str, str]:
+        """状態・イベント軸どうしを掛け合わせない組 identity を返す。"""
+        return (
+            "boundary-with-state-or-event-axis-value",
+            self.game_end_axis_id,
+            self.game_end_value_identity,
+            self.coordinate_axis_id,
+            self.coordinate_value_identity,
+        )
+
+
+@dataclass(frozen=True)
+class GameEndInvalidBoundaryRequirement:
+    """不正な終了規則境界値の拒否要求を表す。"""
+
+    axis_id: str
+    value_identity: str
+    source_clause_ids: tuple[str, ...]
+
+    @property
+    def identity(self) -> tuple[str, str, str]:
+        """不正値拒否要求の identity を返す。"""
+        return ("invalid-boundary", self.axis_id, self.value_identity)
+
+
+@dataclass(frozen=True)
+class GameEndClauseBranchRequirement:
+    """付録 F-1 の閉じた終了判定分岐 1 件を表す。"""
+
+    branch_id: str
+    source_clause_ids: tuple[str, ...]
+
+    @property
+    def identity(self) -> tuple[str, str]:
+        """条文表に記載された分岐 identity を返す。"""
+        return ("clause-branch", self.branch_id)
+
+
+GameEndRequirement = (
+    GameEndPairwiseRequirement
+    | GameEndBoundaryCoordinateRequirement
+    | GameEndInvalidBoundaryRequirement
+    | GameEndClauseBranchRequirement
+)
+
+
+@dataclass(frozen=True)
+class GameEndRequiredSet:
+    """descriptor と付録 F-1 から独立導出した終了判定要求集合。"""
+
+    rule_field_combination: str
+    boundary_value_combination: str
+    pairwise_requirements: tuple[GameEndPairwiseRequirement, ...]
+    boundary_coordinate_requirements: tuple[
+        GameEndBoundaryCoordinateRequirement, ...
+    ]
+    invalid_boundary_requirements: tuple[GameEndInvalidBoundaryRequirement, ...]
+    clause_branch_requirements: tuple[GameEndClauseBranchRequirement, ...]
+
+    @property
+    def requirements(self) -> tuple[GameEndRequirement, ...]:
+        """全カテゴリを重複しない 1 集合として返す。"""
+        return (
+            *self.pairwise_requirements,
+            *self.boundary_coordinate_requirements,
+            *self.invalid_boundary_requirements,
+            *self.clause_branch_requirements,
+        )
+
+    @property
+    def requirement_count(self) -> int:
+        """具体化済み要求の総数を返す。"""
+        return len(self.requirements)
+
+    @property
+    def source_clause_ids(self) -> frozenset[str]:
+        """全要求が保持する典拠条文 ID の和集合を返す。"""
+        return frozenset(
+            clause_id
+            for requirement in self.requirements
+            for clause_id in requirement.source_clause_ids
+        )
 
 
 def _object(value: object, label: str) -> dict[str, Any]:
@@ -1005,6 +1133,393 @@ def validate_input_coordinate_coverage(
         )
 
 
+def _descriptor_clause_ids(
+    item: Mapping[str, Any],
+    requirement_clause_ids: frozenset[str],
+    label: str,
+) -> tuple[str, ...]:
+    """descriptor 項目の典拠を保持し、要件書由来 ID の実在を確認する。"""
+    source_clause_id = _nonempty_string(
+        item.get("sourceClauseId"), f"{label}.sourceClauseId"
+    )
+    supporting = _possibly_empty_string_list(
+        item.get("supportingClauseIds", []), f"{label}.supportingClauseIds"
+    )
+    clause_ids = tuple(dict.fromkeys((source_clause_id, *supporting)))
+    missing = sorted(
+        clause_id
+        for clause_id in clause_ids
+        if clause_id.startswith("req:") and clause_id not in requirement_clause_ids
+    )
+    if missing:
+        raise DeriverDependencyError(
+            f"{label}が実在しない要件書条文IDを含む: {missing!r}"
+        )
+    return clause_ids
+
+
+def _extract_game_end_clause_branch_requirements(
+    requirements_text: str,
+    requirement_clause_ids: frozenset[str],
+) -> tuple[GameEndClauseBranchRequirement, ...]:
+    """要件書 F-1 の COLD/DRAW 規範表から分岐要求を抽出する。"""
+    branch_ids: list[str] = []
+    in_f1 = False
+    for line in requirements_text.splitlines():
+        if line.startswith("### "):
+            in_f1 = line.startswith("### F-1 ")
+            continue
+        if line.startswith("## "):
+            in_f1 = False
+            continue
+        if not in_f1:
+            continue
+        match = GAME_END_BRANCH_ROW_PATTERN.match(line)
+        if match is None:
+            continue
+        branch_id = match.group("branch_id")
+        if branch_id in branch_ids:
+            raise DeriverDependencyError(
+                f"終了判定の条文分岐IDが重複している: {branch_id!r}"
+            )
+        branch_ids.append(branch_id)
+    if not branch_ids:
+        raise DeriverDependencyError("要件書F-1から終了判定の条文分岐を抽出できない")
+    missing = sorted(
+        f"req:{branch_id}"
+        for branch_id in branch_ids
+        if f"req:{branch_id}" not in requirement_clause_ids
+    )
+    if missing or "req:F-1" not in requirement_clause_ids:
+        raise DeriverDependencyError(
+            "終了判定の条文分岐IDを実在条文へ解決できない: "
+            f"missing={missing!r}"
+        )
+    return tuple(
+        GameEndClauseBranchRequirement(
+            branch_id=branch_id,
+            source_clause_ids=("req:F-1", f"req:{branch_id}"),
+        )
+        for branch_id in branch_ids
+    )
+
+
+def derive_game_end_required_set_from_documents(
+    descriptor: Mapping[str, Any],
+    requirements_text: str,
+    requirement_clause_ids: frozenset[str],
+) -> GameEndRequiredSet:
+    """終了判定の要求集合を descriptor と要件書だけから導出する。
+
+    状態・イベント軸の軸間組合せは段階 2 のため作らない。終了規則の
+    境界値 1 件を、ステップ 49 で導出する軸ごとの coverage 値 1 件と
+    組にすることで、終了判定側の直積だけを具体化する。
+
+    Args:
+        descriptor: 入力軸 descriptor。
+        requirements_text: 承認済み要件書の本文。
+        requirement_clause_ids: 要件書から構造抽出した条文 ID。
+
+    Returns:
+        ペアワイズ、不正値、状態・イベント軸値との直積、および F-1
+        条文分岐からなる要求集合。
+
+    Raises:
+        DeriverDependencyError: descriptor または条文の導出閉包が不正な場合。
+    """
+    try:
+        criteria = descriptor_checker.load_descriptor_criteria(descriptor)
+        descriptor_checker._validate_game_end_contract(descriptor, criteria)
+    except descriptor_checker.DescriptorCheckError as error:
+        raise DeriverDependencyError(str(error)) from error
+
+    raw_combination = _object(
+        descriptor.get("gameEndCombinationRules"), "gameEndCombinationRules"
+    )
+    _exact_keys(
+        raw_combination,
+        {
+            "sourceClauseId",
+            "ruleFieldCombination",
+            "boundaryValueCombination",
+        },
+        "gameEndCombinationRules",
+    )
+    combination_source = _nonempty_string(
+        raw_combination["sourceClauseId"],
+        "gameEndCombinationRules.sourceClauseId",
+    )
+    rule_field_combination = _nonempty_string(
+        raw_combination["ruleFieldCombination"],
+        "gameEndCombinationRules.ruleFieldCombination",
+    )
+    boundary_value_combination = _nonempty_string(
+        raw_combination["boundaryValueCombination"],
+        "gameEndCombinationRules.boundaryValueCombination",
+    )
+
+    raw_game_end_axes = descriptor.get("gameEndAxes")
+    if not isinstance(raw_game_end_axes, list) or not raw_game_end_axes:
+        raise DeriverDependencyError("gameEndAxesが空である")
+    game_end_axes: list[
+        tuple[
+            str,
+            tuple[tuple[object, str], ...],
+            tuple[tuple[object, str], ...],
+            tuple[str, ...],
+        ]
+    ] = []
+    game_end_axis_ids: set[str] = set()
+    for index, raw_axis in enumerate(raw_game_end_axes):
+        axis = _object(raw_axis, f"gameEndAxes[{index}]")
+        axis_id = _nonempty_string(
+            axis.get("axisId"), f"gameEndAxes[{index}].axisId"
+        )
+        if axis_id in game_end_axis_ids:
+            raise DeriverDependencyError(f"gameEndAxesのaxisIdが重複する: {axis_id!r}")
+        game_end_axis_ids.add(axis_id)
+        valid_values = axis.get("boundaryValues")
+        invalid_values = axis.get("invalidBoundaryValues")
+        if not isinstance(valid_values, list) or not valid_values:
+            raise DeriverDependencyError(f"{axis_id}.boundaryValuesが空である")
+        if not isinstance(invalid_values, list) or not invalid_values:
+            raise DeriverDependencyError(
+                f"{axis_id}.invalidBoundaryValuesが空である"
+            )
+        valid_with_identity = tuple(
+            (
+                value,
+                descriptor_checker._canonical_json_text(
+                    value, criteria.safe_integer_limit
+                ),
+            )
+            for value in valid_values
+        )
+        invalid_with_identity = tuple(
+            (
+                value,
+                descriptor_checker._canonical_json_text(
+                    value, criteria.safe_integer_limit
+                ),
+            )
+            for value in invalid_values
+        )
+        valid_identities = [identity for _, identity in valid_with_identity]
+        invalid_identities = [identity for _, identity in invalid_with_identity]
+        if len(valid_identities) != len(set(valid_identities)):
+            raise DeriverDependencyError(f"{axis_id}.boundaryValuesが重複する")
+        if len(invalid_identities) != len(set(invalid_identities)):
+            raise DeriverDependencyError(
+                f"{axis_id}.invalidBoundaryValuesが重複する"
+            )
+        if set(valid_identities) & set(invalid_identities):
+            raise DeriverDependencyError(
+                f"{axis_id}の有効境界値と不正境界値が重複する"
+            )
+        game_end_axes.append(
+            (
+                axis_id,
+                valid_with_identity,
+                invalid_with_identity,
+                _descriptor_clause_ids(
+                    axis,
+                    requirement_clause_ids,
+                    f"gameEndAxes[{index}]",
+                ),
+            )
+        )
+
+    state_event_coordinates = tuple(
+        requirement
+        for requirement in derive_input_coordinate_requirements_from_descriptor(
+            descriptor
+        )
+        if requirement.axis_id.split(".", 1)[0] in {"state", "event"}
+    )
+    if not state_event_coordinates:
+        raise DeriverDependencyError("状態・イベント軸の入力座標要求が空である")
+    raw_state_transition_axes = descriptor.get("stateTransitionAxes")
+    if not isinstance(raw_state_transition_axes, list):
+        raise DeriverDependencyError("stateTransitionAxesが配列でない")
+    state_event_sources: dict[str, tuple[str, ...]] = {}
+    for index, raw_axis in enumerate(raw_state_transition_axes):
+        axis = _object(raw_axis, f"stateTransitionAxes[{index}]")
+        axis_id = _nonempty_string(
+            axis.get("axisId"), f"stateTransitionAxes[{index}].axisId"
+        )
+        if axis_id.split(".", 1)[0] not in {"state", "event"}:
+            continue
+        state_event_sources[axis_id] = _descriptor_clause_ids(
+            axis,
+            requirement_clause_ids,
+            f"stateTransitionAxes[{index}]",
+        )
+    coordinate_axis_ids = {item.axis_id for item in state_event_coordinates}
+    if set(state_event_sources) != coordinate_axis_ids:
+        raise DeriverDependencyError(
+            "状態・イベント軸の典拠集合と入力座標要求がexact-set不一致"
+        )
+
+    pairwise_requirements: list[GameEndPairwiseRequirement] = []
+    for left_axis, right_axis in combinations(game_end_axes, 2):
+        left_axis_id, left_values, _, left_sources = left_axis
+        right_axis_id, right_values, _, right_sources = right_axis
+        source_clause_ids = tuple(
+            dict.fromkeys((combination_source, *left_sources, *right_sources))
+        )
+        for _, left_identity in left_values:
+            for _, right_identity in right_values:
+                pairwise_requirements.append(
+                    GameEndPairwiseRequirement(
+                        left_axis_id=left_axis_id,
+                        left_value_identity=left_identity,
+                        right_axis_id=right_axis_id,
+                        right_value_identity=right_identity,
+                        source_clause_ids=source_clause_ids,
+                    )
+                )
+
+    boundary_coordinate_requirements: list[
+        GameEndBoundaryCoordinateRequirement
+    ] = []
+    invalid_boundary_requirements: list[GameEndInvalidBoundaryRequirement] = []
+    for axis_id, valid_values, invalid_values, game_end_sources in game_end_axes:
+        for _, game_end_value_identity in valid_values:
+            for coordinate in state_event_coordinates:
+                source_clause_ids = tuple(
+                    dict.fromkeys(
+                        (
+                            combination_source,
+                            *game_end_sources,
+                            *state_event_sources[coordinate.axis_id],
+                        )
+                    )
+                )
+                boundary_coordinate_requirements.append(
+                    GameEndBoundaryCoordinateRequirement(
+                        game_end_axis_id=axis_id,
+                        game_end_value_identity=game_end_value_identity,
+                        coordinate_axis_id=coordinate.axis_id,
+                        coordinate_value_identity=coordinate.coverage_value_identity,
+                        when_clause_id=coordinate.when_clause_id,
+                        when_state=coordinate.when_state,
+                        source_clause_ids=source_clause_ids,
+                    )
+                )
+        for _, invalid_value_identity in invalid_values:
+            invalid_boundary_requirements.append(
+                GameEndInvalidBoundaryRequirement(
+                    axis_id=axis_id,
+                    value_identity=invalid_value_identity,
+                    source_clause_ids=game_end_sources,
+                )
+            )
+
+    required_set = GameEndRequiredSet(
+        rule_field_combination=rule_field_combination,
+        boundary_value_combination=boundary_value_combination,
+        pairwise_requirements=tuple(pairwise_requirements),
+        boundary_coordinate_requirements=tuple(
+            boundary_coordinate_requirements
+        ),
+        invalid_boundary_requirements=tuple(invalid_boundary_requirements),
+        clause_branch_requirements=_extract_game_end_clause_branch_requirements(
+            requirements_text, requirement_clause_ids
+        ),
+    )
+    identities = [requirement.identity for requirement in required_set.requirements]
+    if len(identities) != len(set(identities)):
+        raise DeriverDependencyError("導出した終了判定要求のidentityが重複している")
+    return required_set
+
+
+def validate_game_end_requirement_coverage(
+    required: GameEndRequiredSet,
+    observed: Sequence[GameEndRequirement],
+) -> None:
+    """終了判定要求を双方向 exact-set で検査する。"""
+    required_ids = {item.identity for item in required.requirements}
+    observed_ids = {item.identity for item in observed}
+    if len(observed_ids) != len(observed):
+        raise DeriverDependencyError("終了判定要求に重複がある")
+    missing = sorted(required_ids - observed_ids)
+    unexpected = sorted(observed_ids - required_ids)
+    if missing or unexpected:
+        raise DeriverDependencyError(
+            "終了判定要求がexact-set不一致: "
+            f"missing={missing!r}; unexpected={unexpected!r}"
+        )
+
+
+def validate_game_end_outcome_branch_coverage(
+    required: GameEndRequiredSet,
+    clause_branch_register: Mapping[str, Any],
+) -> tuple[str, ...]:
+    """独立導出後の要求が宣言済み終了結果分岐 4 役割を覆うか検査する。
+
+    `clauseBranchRegister` は独立導出器の入力にせず、この事後突合だけで
+    用いる。これにより GAME-* の宣言と requiredSet の双方を同じ資産から
+    導く循環を避ける。
+    """
+    raw_outcomes = _object(
+        clause_branch_register.get("gameEndOutcomeBranches"),
+        "gameEndOutcomeBranches",
+    )
+    outcome_ids = _string_list(
+        list(raw_outcomes.values()), "gameEndOutcomeBranches.values"
+    )
+    raw_branches = clause_branch_register.get("branches")
+    if not isinstance(raw_branches, list) or not raw_branches:
+        raise DeriverDependencyError("clauseBranchRegister.branchesが空である")
+    branches_by_id: dict[str, Mapping[str, Any]] = {}
+    for index, raw_branch in enumerate(raw_branches):
+        branch = _object(raw_branch, f"branches[{index}]")
+        branch_id = _nonempty_string(
+            branch.get("branchId"), f"branches[{index}].branchId"
+        )
+        if branch_id in branches_by_id:
+            raise DeriverDependencyError(
+                f"clauseBranchRegisterのbranchIdが重複する: {branch_id!r}"
+            )
+        branches_by_id[branch_id] = branch
+
+    required_branch_ids = {
+        requirement.branch_id
+        for requirement in required.clause_branch_requirements
+    }
+    for outcome_id in outcome_ids:
+        branch = branches_by_id.get(outcome_id)
+        if branch is None:
+            raise DeriverDependencyError(
+                f"終了判定結果分岐を解決できない: {outcome_id!r}"
+            )
+        related_ids = set(
+            _string_list(
+                branch.get("relatedClauseBranchIds"),
+                f"終了判定結果分岐{outcome_id!r}.relatedClauseBranchIds",
+            )
+        )
+        missing_related = sorted(related_ids - required_branch_ids)
+        if missing_related:
+            raise DeriverDependencyError(
+                f"終了判定結果分岐{outcome_id!r}の下位分岐がrequiredSetにない: "
+                f"{missing_related!r}"
+            )
+        source_ids = set(
+            _string_list(
+                branch.get("sourceClauseIds"),
+                f"終了判定結果分岐{outcome_id!r}.sourceClauseIds",
+            )
+        )
+        missing_sources = sorted(source_ids - required.source_clause_ids)
+        if missing_sources:
+            raise DeriverDependencyError(
+                f"終了判定結果分岐{outcome_id!r}の典拠がrequiredSetにない: "
+                f"{missing_sources!r}"
+            )
+    return outcome_ids
+
+
 def _derive_repository_row_requirements(root: Path) -> tuple[RowRequirement, ...]:
     """宣言された4入力だけを読み、リポジトリの行要求を導出する。"""
     try:
@@ -1135,6 +1650,85 @@ def derive_repository_input_coordinate_requirements(
     return requirements, trace
 
 
+def _derive_repository_game_end_required_set(root: Path) -> GameEndRequiredSet:
+    """要件書と descriptor だけを読み、終了判定要求集合を導出する。"""
+    try:
+        descriptor = _object(
+            descriptor_checker.load_json(
+                root / descriptor_checker.DESCRIPTOR_PATH, "入力軸descriptor"
+            ),
+            "入力軸descriptor",
+        )
+        requirements_path = descriptor_checker.SOURCE_CLAUSE_PATHS[0]
+        requirements_text = (root / requirements_path).read_text(encoding="utf-8")
+        requirement_clause_ids = frozenset(
+            f"req:{clause_id}"
+            for clause_id in descriptor_checker.load_clause_ids_from_paths(
+                root, (requirements_path,)
+            )
+        )
+    except (OSError, UnicodeError) as error:
+        raise DeriverDependencyError(
+            f"終了判定要求の入力をUTF-8で読めない: {error}"
+        ) from error
+    except descriptor_checker.DescriptorCheckError as error:
+        raise DeriverDependencyError(str(error)) from error
+    return derive_game_end_required_set_from_documents(
+        descriptor,
+        requirements_text,
+        requirement_clause_ids,
+    )
+
+
+def derive_repository_game_end_required_set(
+    root: Path,
+    policy: DeriverDependencyPolicy | None = None,
+) -> tuple[GameEndRequiredSet, DeriverTrace]:
+    """依存トレース下で終了判定 requiredSet を導出する。
+
+    Args:
+        root: リポジトリルート。
+        policy: 検証済み依存宣言。省略時は実資産から読む。
+
+    Returns:
+        終了判定要求集合と実際に観測した読み取り証跡。
+
+    Raises:
+        DeriverDependencyError: 入力または依存トレースが不正な場合。
+    """
+    active_policy = policy or load_policy(root)
+    required_set, trace = trace_deriver_file_reads(
+        root,
+        active_policy,
+        "required-set-game-end",
+        lambda: _derive_repository_game_end_required_set(root),
+    )
+    rule = active_policy.derivers[trace.deriver_id]
+    missing_reads = sorted(set(rule.allowed_read_paths) - set(trace.observed_read_paths))
+    if missing_reads:
+        raise DeriverDependencyError(
+            f"導出器が宣言入力を読んでいない: {missing_reads!r}"
+        )
+    return required_set, trace
+
+
+def validate_repository_game_end_outcome_branch_coverage(
+    root: Path,
+    required_set: GameEndRequiredSet,
+) -> tuple[str, ...]:
+    """実資産の GAME-* 宣言を独立導出済み requiredSet と突合する。"""
+    try:
+        register = _object(
+            descriptor_checker.load_json(
+                root / CLAUSE_BRANCH_REGISTER_PATH, "clauseBranchRegister"
+            ),
+            "clauseBranchRegister",
+        )
+    except descriptor_checker.DescriptorCheckError as error:
+        raise DeriverDependencyError(str(error)) from error
+    return validate_game_end_outcome_branch_coverage(required_set, register)
+
+
 def validate_repository_policy(root: Path) -> DeriverDependencyPolicy:
     """リポジトリの導出器依存宣言を検証する。
 
@@ -1150,7 +1744,7 @@ def validate_repository_policy(root: Path) -> DeriverDependencyPolicy:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """依存宣言と requiredSet 2段の導出閉包を検証する。"""
+    """依存宣言と状況・終了判定 requiredSet の導出閉包を検証する。"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
     args = parser.parse_args(argv)
@@ -1160,15 +1754,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         coordinate_requirements, coordinate_trace = (
             derive_repository_input_coordinate_requirements(args.root, policy)
         )
+        game_end_required_set, game_end_trace = (
+            derive_repository_game_end_required_set(args.root, policy)
+        )
+        outcome_branch_ids = validate_repository_game_end_outcome_branch_coverage(
+            args.root, game_end_required_set
+        )
     except DeriverDependencyError as error:
         print(f"deriver dependency: FAIL: {error}", file=sys.stderr)
         return 1
+    observed_read_count = sum(
+        len(item.observed_read_paths)
+        for item in (trace, coordinate_trace, game_end_trace)
+    )
     print(
         "deriver dependency: PASS "
         f"(policy={policy.policy_id}, derivers={len(policy.derivers)}, "
         f"rowRequirements={len(requirements)}, "
         f"inputCoordinateRequirements={len(coordinate_requirements)}, "
-        f"reads={len(trace.observed_read_paths) + len(coordinate_trace.observed_read_paths)})"
+        f"gameEndRequirements={game_end_required_set.requirement_count}, "
+        f"gameEndOutcomeBranches={len(outcome_branch_ids)}, "
+        f"reads={observed_read_count})"
     )
     return 0
 

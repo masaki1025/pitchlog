@@ -45,6 +45,10 @@ INPUT_AXES_DESCRIPTOR_PATH = (
     REPOSITORY_ROOT
     / "contracts/state-transition/input_axes_descriptor_v1.json"
 )
+CLAUSE_BRANCH_REGISTER_PATH = (
+    REPOSITORY_ROOT
+    / "contracts/state-transition/clause_branch_register_v1.json"
+)
 
 
 def _load_module(name: str, path: Path) -> Any:
@@ -94,6 +98,14 @@ def _row_requirement_documents() -> tuple[Any, Any, Any, frozenset[str]]:
 def _input_axes_descriptor() -> Any:
     """入力座標要求の純粋導出へ渡す descriptor の複製を返す。"""
     return _json(INPUT_AXES_DESCRIPTOR_PATH)
+
+
+def _game_end_required_set() -> Any:
+    """実資産から独立導出した終了判定要求集合を返す。"""
+    required_set, _ = checker.derive_repository_game_end_required_set(
+        REPOSITORY_ROOT
+    )
+    return required_set
 
 
 def _assert_disallowed_read_fails(operation: Callable[[], object]) -> None:
@@ -325,6 +337,137 @@ def test_all_rows_with_only_one_case_each_do_not_cover_input_coordinates() -> No
     assert len(rows) == 47
     with pytest.raises(checker.DeriverDependencyError, match="入力座標要求がexact-set不一致"):
         checker.validate_input_coordinate_coverage(active, one_case_for_every_row)
+
+
+def test_repository_game_end_required_set_follows_descriptor_combinations() -> None:
+    """終了側だけのペアワイズと境界値×軸値をdescriptorから導出する。"""
+    policy = _policy()
+    required_set, trace = checker.derive_repository_game_end_required_set(
+        REPOSITORY_ROOT, policy
+    )
+    descriptor = _input_axes_descriptor()
+    valid_value_counts = [
+        len(axis["boundaryValues"]) for axis in descriptor["gameEndAxes"]
+    ]
+    invalid_value_count = sum(
+        len(axis["invalidBoundaryValues"])
+        for axis in descriptor["gameEndAxes"]
+    )
+    state_event_coordinates = tuple(
+        item
+        for item in checker.derive_input_coordinate_requirements_from_descriptor(
+            descriptor
+        )
+        if item.axis_id.split(".", 1)[0] in {"state", "event"}
+    )
+    pairwise_count = sum(
+        left_count * right_count
+        for index, left_count in enumerate(valid_value_counts)
+        for right_count in valid_value_counts[index + 1 :]
+    )
+    boundary_coordinate_count = sum(valid_value_counts) * len(
+        state_event_coordinates
+    )
+
+    assert len(required_set.pairwise_requirements) == pairwise_count
+    assert (
+        len(required_set.boundary_coordinate_requirements)
+        == boundary_coordinate_count
+    )
+    assert len(required_set.invalid_boundary_requirements) == invalid_value_count
+    assert required_set.clause_branch_requirements
+    assert required_set.requirement_count == (
+        pairwise_count
+        + boundary_coordinate_count
+        + invalid_value_count
+        + len(required_set.clause_branch_requirements)
+    )
+    assert len({item.identity for item in required_set.requirements}) == (
+        required_set.requirement_count
+    )
+    assert set(trace.observed_read_paths) == set(
+        policy.derivers["required-set-game-end"].allowed_read_paths
+    )
+    assert all(
+        "expander" not in path.as_posix()
+        for path in trace.observed_read_paths
+    )
+
+
+def test_game_end_required_set_keeps_state_event_axis_combinations_deferred() -> None:
+    """終了境界値を軸値ごとに組み、状態・イベント軸間の直積は作らない。"""
+    required_set = _game_end_required_set()
+    identities = {
+        (
+            item.game_end_axis_id,
+            item.game_end_value_identity,
+            item.coordinate_axis_id,
+            item.coordinate_value_identity,
+        )
+        for item in required_set.boundary_coordinate_requirements
+    }
+
+    assert len(identities) == len(required_set.boundary_coordinate_requirements)
+    assert all(
+        item.coordinate_axis_id.split(".", 1)[0] in {"state", "event"}
+        for item in required_set.boundary_coordinate_requirements
+    )
+
+
+def test_default_nine_inning_setting_alone_does_not_cover_game_end_requirements() -> None:
+    """規定9回の境界値だけを全状態・イベント軸へ当てても不足とする。"""
+    required_set = _game_end_required_set()
+    descriptor = _input_axes_descriptor()
+    regulation_axis_id = descriptor["gameEndAxes"][0]["axisId"]
+    nine_identity = checker.descriptor_checker._canonical_json_text(9)
+    nine_inning_only = tuple(
+        item
+        for item in required_set.boundary_coordinate_requirements
+        if item.game_end_axis_id == regulation_axis_id
+        and item.game_end_value_identity == nine_identity
+    )
+
+    assert nine_inning_only
+    with pytest.raises(checker.DeriverDependencyError, match="終了判定要求がexact-set不一致"):
+        checker.validate_game_end_requirement_coverage(
+            required_set, nine_inning_only
+        )
+
+
+def test_game_end_required_set_covers_all_declared_game_outcome_branches() -> None:
+    """独立導出後にGAME-*の4役割をregisterと双方向に突合する。"""
+    required_set = _game_end_required_set()
+    register = _json(CLAUSE_BRANCH_REGISTER_PATH)
+    outcome_ids = checker.validate_game_end_outcome_branch_coverage(
+        required_set, register
+    )
+
+    assert set(outcome_ids) == set(register["gameEndOutcomeBranches"].values())
+    assert len(outcome_ids) == len(register["gameEndOutcomeBranches"])
+
+
+def test_game_end_outcome_with_uncovered_clause_branch_fails() -> None:
+    """GAME-*が参照する下位分岐をrequiredSetから落とす変異を拒否する。"""
+    required_set = _game_end_required_set()
+    register = _json(CLAUSE_BRANCH_REGISTER_PATH)
+    first_outcome_id = next(iter(register["gameEndOutcomeBranches"].values()))
+    first_outcome = next(
+        branch
+        for branch in register["branches"]
+        if branch["branchId"] == first_outcome_id
+    )
+    omitted_branch_id = first_outcome["relatedClauseBranchIds"][0]
+    mutant = replace(
+        required_set,
+        clause_branch_requirements=tuple(
+            requirement
+            for requirement in required_set.clause_branch_requirements
+            if requirement.branch_id != omitted_branch_id
+        ),
+    )
+
+    with pytest.raises(checker.DeriverDependencyError, match="requiredSetにない"):
+        checker.validate_game_end_outcome_branch_coverage(mutant, register)
 
 
 def test_claim_boundary_limits_the_claim_to_executable_derivers() -> None:
