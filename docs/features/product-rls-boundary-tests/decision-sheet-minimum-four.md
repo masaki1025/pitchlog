@@ -174,6 +174,34 @@ FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)
 | **A** | **計画書へ順序契約を明記する** — 「U-C1/C2/C3 は**入口非開放の関数のみ PR** を先にマージし、TSK-344 の後に入口を開く」 |
 | **B** | **未マージ候補を検証対象にする**(3 周目 P0-1 が挙げたもう 1 つの案) |
 
+## 7-b. 実測で 1 つ確定し、1 つ壊れた(2026-09-28)
+
+**壊れたこと** — **代表クラスを選ぶキーは、既存の資産には存在しない。**
+
+```
+contracts/authz/product/ddl-elements.staged.json の function_kind の値域
+  migration_trigger : 37
+  rls_helper        :  1
+```
+
+**2 値しかなく、3 クラス(`shared_read` / `control_read` / `representative_management_operation`)の
+どれにも対応しない。** **`function_class` というキーも存在しない。**
+
+**→ 「`function_kind` で選ぶ」という規則は成立しない。** **各所有単位が越境関数を作るときに
+キーを新設するしかない。** **本タスクは「キーが存在し、4 クラスを一意に選べること」を
+合格条件にする**(**キー名は縛らない**)。
+
+**確定したこと** — **`--collect-only` の終了コードは合否に使えない。**
+
+```
+backend/ で uv run pytest -c pyproject.toml --collect-only -q
+  → 792 tests collected(うち tests/db/ 配下 203 件)
+  → "DB 必須テストが 1 件も実行されなかった" / exit=1
+```
+
+**`--collect-only` でも `backend/tests/db/conftest.py` の DB ガードが働く。**
+**収集集合の比較は node ID の集合で行い、終了コードは見ない。**
+
 ## 8. 本書が答えていないこと
 
 - **8-1 節と写像資産の食い違い**(7-3)— 原典 2 つが違うことを言っているのか、射程が違うだけなのか
