@@ -12,10 +12,12 @@ import re
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType
-from typing import Any, cast
+from typing import Any, Iterator, cast
 
 import pytest
 from test_check_tenant_boundary_bypass import (
@@ -37,6 +39,104 @@ class _ObservedGitBlob:
     monitor: object
     revision: str
     content: bytes
+
+
+@dataclass
+class _DeclarationImplementationAudit:
+    """宣言フィールドと実装による読取り・利用の対応を記録する。"""
+
+    declarations: list[dict[str, Any]] = field(default_factory=list)
+    read_fields: set[str] = field(default_factory=set)
+    implementation_sources: set[str] = field(default_factory=set)
+    undeclared_inputs: set[str] = field(default_factory=set)
+
+
+_ACTIVE_DECLARATION_AUDIT: ContextVar[
+    _DeclarationImplementationAudit | None
+] = ContextVar("active_census_declaration_audit", default=None)
+
+
+class _TrackedDeclaration(dict[str, Any]):
+    """leaf 値の読取りを宣言パスとして記録する dict。"""
+
+    def __init__(
+        self,
+        value: dict[str, Any],
+        *,
+        path: str,
+        audit: _DeclarationImplementationAudit,
+    ) -> None:
+        self._path = path
+        self._audit = audit
+        super().__init__(
+            {
+                key: _wrap_tracked_declaration_value(
+                    child,
+                    path=f"{path}.{key}" if path else key,
+                    audit=audit,
+                )
+                for key, child in value.items()
+            }
+        )
+
+    def _record(self, key: str, value: object) -> None:
+        path = f"{self._path}.{key}" if self._path else key
+        if isinstance(value, dict):
+            return
+        self._audit.read_fields.add(path)
+        self._audit.implementation_sources.add(path)
+
+    def __getitem__(self, key: str) -> Any:
+        """leaf の直接参照を追跡する。"""
+        value = super().__getitem__(key)
+        self._record(key, value)
+        return value
+
+    def get(self, key: object, default: Any = None) -> Any:
+        """leaf の get 参照を追跡する。"""
+        if not isinstance(key, str) or key not in self:
+            return default
+        return self[key]
+
+
+def _wrap_tracked_declaration_value(
+    value: object,
+    *,
+    path: str,
+    audit: _DeclarationImplementationAudit,
+) -> object:
+    """JSON 値を同じ値の読取り追跡付き構造へ変換する。"""
+    if isinstance(value, dict):
+        return _TrackedDeclaration(value, path=path, audit=audit)
+    if isinstance(value, list):
+        item_path = f"{path}[]"
+        return [
+            _wrap_tracked_declaration_value(
+                item,
+                path=item_path,
+                audit=audit,
+            )
+            for item in value
+        ]
+    return value
+
+
+@contextmanager
+def _audit_declaration_implementation() -> Iterator[_DeclarationImplementationAudit]:
+    """単一 census 実行の宣言読取りを隔離して追跡する。"""
+    audit = _DeclarationImplementationAudit()
+    token = _ACTIVE_DECLARATION_AUDIT.set(audit)
+    try:
+        yield audit
+    finally:
+        _ACTIVE_DECLARATION_AUDIT.reset(token)
+
+
+def _record_undeclared_implementation_input(description: str) -> None:
+    """比較元構築へ宣言外の値が入った変異を監査へ記録する。"""
+    audit = _ACTIVE_DECLARATION_AUDIT.get()
+    if audit is not None:
+        audit.undeclared_inputs.add(description)
 
 
 def _object(value: object, location: str) -> dict[str, Any]:
@@ -86,7 +186,76 @@ def _exact_keys(value: dict[str, Any], expected: set[str], location: str) -> Non
 def _load_census_baseline_declaration() -> dict[str, Any]:
     """census の固定比較元宣言を読む。"""
     value = json.loads(CENSUS_BASELINE_PATH.read_text(encoding="utf-8"))
-    return _object(value, CENSUS_BASELINE_PATH.as_posix())
+    declaration = _object(value, CENSUS_BASELINE_PATH.as_posix())
+    audit = _ACTIVE_DECLARATION_AUDIT.get()
+    if audit is None:
+        return declaration
+    audit.declarations.append(copy.deepcopy(declaration))
+    return _TrackedDeclaration(declaration, path="", audit=audit)
+
+
+def _declared_implementation_fields(declaration: dict[str, Any]) -> frozenset[str]:
+    """census 宣言の実装向けフィールドを wildcard パスへ全数展開する。"""
+    excluded_top_level = {
+        "contract_revision",
+        "baseline_control",
+        "implementation_field_inventory",
+    }
+    fields: set[str] = set()
+
+    def collect(value: object, path: str) -> None:
+        if isinstance(value, dict):
+            for key, child in value.items():
+                collect(child, f"{path}.{key}" if path else key)
+            return
+        fields.add(path)
+        if isinstance(value, list) and any(
+            isinstance(item, dict) for item in value
+        ):
+            for item in value:
+                if isinstance(item, dict):
+                    collect(item, f"{path}[]")
+
+    for key, value in declaration.items():
+        if key not in excluded_top_level:
+            collect(value, key)
+    return frozenset(fields)
+
+
+def _assert_declaration_implementation_wiring(
+    audit: _DeclarationImplementationAudit,
+) -> None:
+    """宣言全数・read 集合・実装入力元を両方向に完全照合する。"""
+    assert audit.declarations, "census 宣言の読取り記録が無い"
+    first = audit.declarations[0]
+    assert all(declaration == first for declaration in audit.declarations), (
+        "単一実行中に census 宣言の内容が変化した"
+    )
+    raw_inventory = first.get("implementation_field_inventory")
+    inventory = frozenset(
+        _string_array(raw_inventory, "census.implementation_field_inventory")
+    )
+    assert len(inventory) == len(cast(list[object], raw_inventory)), (
+        "implementation_field_inventory を重複できない"
+    )
+    declared_fields = _declared_implementation_fields(first)
+    assert declared_fields == inventory, (
+        "宣言フィールド全数表が不一致: "
+        f"missing={sorted(declared_fields - inventory)}, "
+        f"extra={sorted(inventory - declared_fields)}"
+    )
+    assert audit.read_fields == inventory, (
+        "宣言と実装の read 集合が不一致: "
+        f"unread={sorted(inventory - audit.read_fields)}, "
+        f"undeclared={sorted(audit.read_fields - inventory)}"
+    )
+    assert audit.implementation_sources <= inventory, (
+        "比較元構築が宣言外フィールドを使用: "
+        f"{sorted(audit.implementation_sources - inventory)}"
+    )
+    assert not audit.undeclared_inputs, (
+        f"比較元構築が宣言外の値を使用: {sorted(audit.undeclared_inputs)}"
+    )
 
 
 def _assert_declared_anchor_materialization_provenance(
@@ -1351,7 +1520,7 @@ def _assert_declared_pass_fail_mapping(
         )
 
 
-def _run_declared_census_check(reference_root: Path) -> None:
+def _run_declared_census_check_core(reference_root: Path) -> None:
     """宣言アンカーとの census 差分へ、宣言された全述語を適用する。"""
     (
         baseline_checker,
@@ -1387,6 +1556,13 @@ def _run_declared_census_check(reference_root: Path) -> None:
         current_contract=checker.load_contract(REPOSITORY_ROOT),
         anchor_contract=baseline_checker.load_contract(reference_repository_root),
     )
+
+
+def _run_declared_census_check(reference_root: Path) -> None:
+    """宣言と実装の対応を監査しながら census 検査を実行する。"""
+    with _audit_declaration_implementation() as audit:
+        _run_declared_census_check_core(reference_root)
+        _assert_declaration_implementation_wiring(audit)
 
 
 def test_checker_census_matches_declared_anchor(tmp_path: Path) -> None:
@@ -2016,6 +2192,62 @@ def test_reference_regression_rejects_git_bytes_cached_before_monitoring(
         observed_blobs=observed_after_monitoring,
         written_blobs=restored_writes,
     )
+
+
+def test_declaration_to_implementation_rejects_unused_field_and_recovers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """宣言へ全数表登録済みの未使用フィールドを足すと拒否する。"""
+    declaration = _load_census_baseline_declaration()
+    mutated = copy.deepcopy(declaration)
+    anchor = _object(mutated["anchor"], "mutation.anchor")
+    anchor["unused_wiring_field"] = "unused"
+    inventory = cast(list[object], mutated["implementation_field_inventory"])
+    inventory.append("anchor.unused_wiring_field")
+    mutated_path = tmp_path / "unused-field-census-baseline.json"
+    mutated_path.write_text(
+        json.dumps(mutated, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with monkeypatch.context() as mutation:
+        mutation.setattr(
+            sys.modules[__name__],
+            "CENSUS_BASELINE_PATH",
+            mutated_path,
+        )
+        with pytest.raises(AssertionError, match="read 集合"):
+            _run_declared_census_check(tmp_path / "red-unused-field")
+
+    _run_declared_census_check(tmp_path / "restored-used-fields")
+
+
+def test_implementation_to_declaration_rejects_undeclared_input_and_recovers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """比較元構築が宣言外の値を使う変異を拒否する。"""
+    original_materialize = _materialize_declared_anchor
+
+    def materialize_with_undeclared_input(
+        destination: Path,
+    ) -> tuple[dict[str, Any], dict[str, bytes], str]:
+        """正規の materialize に宣言外入力を混ぜる変異。"""
+        result = original_materialize(destination)
+        _record_undeclared_implementation_input("hardcoded-reference-input")
+        return result
+
+    with monkeypatch.context() as mutation:
+        mutation.setattr(
+            sys.modules[__name__],
+            "_materialize_declared_anchor",
+            materialize_with_undeclared_input,
+        )
+        with pytest.raises(AssertionError, match="宣言外の値"):
+            _run_declared_census_check(tmp_path / "red-undeclared-input")
+
+    _run_declared_census_check(tmp_path / "restored-declared-inputs")
 
 
 if __name__ == "__main__":

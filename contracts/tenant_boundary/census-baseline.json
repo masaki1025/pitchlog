@@ -182,7 +182,6 @@
     "pass_fail_mapping.predicates[].candidate_source",
     "pass_fail_mapping.predicates[].filters",
     "pass_fail_mapping.predicates[].forbidden_derivation_source",
-    "pass_fail_mapping.predicates[].candidate_enumeration",
     "pass_fail_mapping.predicates[].candidate_enumeration.source_glob",
     "pass_fail_mapping.predicates[].candidate_enumeration.ast_node_type",
     "pass_fail_mapping.predicates[].candidate_enumeration.current_contract_projection",

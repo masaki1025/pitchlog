@@ -1360,6 +1360,42 @@ def _repository_transition_sides(
     )
 
 
+def _evaluate_test_repository_movement(
+    repository: Path,
+    base_ref: str,
+) -> Any:
+    """合成リポジトリの比較元と作業ツリーから movement を直接評価する。"""
+    (
+        base_assets,
+        head_assets,
+        base_implementations,
+        head_implementations,
+    ) = _repository_transition_sides(repository, base_ref)
+    base_components = checker.frozen_history._repository_components(
+        base_assets,
+        "比較元",
+        allow_undeclared_authority=True,
+    )
+    head_components = checker.frozen_history._repository_components(
+        head_assets,
+        "HEAD",
+    )
+    return checker.frozen_history.evaluate_repository_movement(
+        checker.frozen_history._repository_movement_states(
+            base_assets,
+            base_components,
+            base_implementations,
+            "比較元",
+        ),
+        checker.frozen_history._repository_movement_states(
+            head_assets,
+            head_components,
+            head_implementations,
+            "HEAD",
+        ),
+    )
+
+
 def _write_content_snapshot(repository: Path, content: bytes) -> None:
     """一時コピーへ内容アドレス付きsnapshotを追記する。"""
     digest = hashlib.sha256(content).hexdigest()
@@ -2804,6 +2840,102 @@ def _add_synthetic_frozen_asset(
     path = repository / "contracts/tenant_boundary/synthetic-contract.json"
     _write_contract_asset(path, asset)
     return path
+
+
+def _mutate_census_frozen_surface(repository: Path, mutation: str) -> Path:
+    """census の実装または直接実行結線だけを合成リポジトリで壊す。"""
+    census_module = Path("tests/test_census_baseline_check.py")
+    ci_workflow = Path(".github/workflows/ci.yml")
+    if mutation == "implementation-module":
+        target = repository / census_module
+        target.write_text(
+            target.read_text(encoding="utf-8") + "\n# frozen implementation mutation\n",
+            encoding="utf-8",
+        )
+        return census_module
+    if mutation == "ci-step-deleted":
+        target = repository / ci_workflow
+        command = "      - run: uv run python tests/test_census_baseline_check.py\n"
+        source = target.read_text(encoding="utf-8")
+        assert source.count(command) == 1
+        target.write_text(source.replace(command, ""), encoding="utf-8")
+        return ci_workflow
+    if mutation == "cli-entrypoint-deleted":
+        target = repository / census_module
+        entrypoint = '\n\nif __name__ == "__main__":\n    raise SystemExit(main())\n'
+        source = target.read_text(encoding="utf-8")
+        assert source.count(entrypoint) == 1
+        target.write_text(source.replace(entrypoint, "\n"), encoding="utf-8")
+        return census_module
+    raise AssertionError(f"未知の census 凍結変異: {mutation}")
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "implementation-module",
+        "ci-step-deleted",
+        "cli-entrypoint-deleted",
+    ),
+)
+def test_census_frozen_surface_mutation_triggers_pass_fail_mapping(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """census 実装・CI・CLI 結線の単独変異が mapping movement を起こす。"""
+    repository, base_ref = _initialize_test_repository(tmp_path, {})
+    changed_path = _mutate_census_frozen_surface(repository, mutation)
+
+    changed_files = checker._run_git(
+        repository,
+        ["diff", "--name-only"],
+    ).splitlines()
+    assert changed_files == [changed_path.as_posix()]
+    evaluation = _evaluate_test_repository_movement(repository, base_ref)
+    assert evaluation.triggered_tokens == frozenset({"pass_fail_mapping"})
+    assert "contracts/tenant_boundary/census-baseline.json" in (
+        evaluation.affected_assets
+    )
+
+
+def test_census_implementation_movement_requires_record_and_identifier_bump(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """census 実装単独の movement が authority 記録と識別値更新を要求する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+        number=81,
+    )
+    _mutate_census_frozen_surface(repository, "implementation-module")
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / "census-implementation-movement-event.json",
+        number=81,
+    )
+    evaluation = _evaluate_test_repository_movement(repository, base_ref)
+    assert evaluation.triggered_tokens == frozenset({"pass_fail_mapping"})
+
+    with pytest.raises(checker.ContractError, match="movement.*record"):
+        checker.check_repository(repository)
+
+    _append_current_repository_transition_record(
+        repository,
+        base_ref,
+        acceptance_id="masaki1025/pitchlog#81",
+    )
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / "census-implementation-identifier-event.json",
+        number=81,
+    )
+    with pytest.raises(checker.ContractError, match="識別値の更新が必要"):
+        checker.check_repository(repository)
 
 
 @pytest.mark.parametrize(
