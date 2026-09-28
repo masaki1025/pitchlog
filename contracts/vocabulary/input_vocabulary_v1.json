@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "version": "input_vocabulary_v1",
+  "vocabularyId": "input_vocabulary",
+  "source": {
+    "repository": "masaki1025/Baseball_Scoring-archive",
+    "tag": "pitchlog-req-v2.0-evidence",
+    "path": "frontend/src/lib/vocab.ts",
+    "blobSha": "ab1107e1",
+    "evidencePaths": [
+      "docs/legacy/research/data-layer.md",
+      "docs/features/appendix-e-golden-vectors/research.md"
+    ]
+  },
+  "axes": [
+    {
+      "axisId": "batting-result",
+      "sourceRef": "CONTINUE_RESULTS / INPLAY_RESULTS / STRIKEOUT_RESULTS / WALK_RESULTS",
+      "entries": [
+        {"id": "batting-result.called-pitch", "initialDisplayName": "見逃し", "classification": "continue"},
+        {"id": "batting-result.swinging-strike", "initialDisplayName": "空振り", "classification": "continue"},
+        {"id": "batting-result.foul", "initialDisplayName": "ファール", "classification": "continue"},
+        {"id": "batting-result.ball", "initialDisplayName": "ボール", "classification": "continue"},
+        {"id": "batting-result.single", "initialDisplayName": "単打", "classification": "in-play"},
+        {"id": "batting-result.double", "initialDisplayName": "二塁打", "classification": "in-play"},
+        {"id": "batting-result.triple", "initialDisplayName": "三塁打", "classification": "in-play"},
+        {"id": "batting-result.home-run", "initialDisplayName": "本塁打", "classification": "in-play"},
+        {"id": "batting-result.batted-out", "initialDisplayName": "凡打死", "classification": "in-play"},
+        {"id": "batting-result.double-play", "initialDisplayName": "併殺打", "classification": "in-play"},
+        {"id": "batting-result.line-double-play", "initialDisplayName": "ライナー併殺", "classification": "in-play"},
+        {"id": "batting-result.batted-reach", "initialDisplayName": "凡打出塁", "classification": "in-play"},
+        {"id": "batting-result.foul-fly", "initialDisplayName": "ファールフライ", "classification": "in-play"},
+        {"id": "batting-result.error", "initialDisplayName": "エラー", "classification": "in-play"},
+        {"id": "batting-result.fielders-choice", "initialDisplayName": "野手選択", "classification": "in-play"},
+        {"id": "batting-result.sacrifice-bunt", "initialDisplayName": "犠打", "classification": "in-play"},
+        {"id": "batting-result.sacrifice-fly", "initialDisplayName": "犠飛", "classification": "in-play"},
+        {"id": "batting-result.sacrifice-bunt-error", "initialDisplayName": "犠打失策", "classification": "in-play"},
+        {"id": "batting-result.called-strikeout", "initialDisplayName": "見逃し三振", "classification": "strikeout"},
+        {"id": "batting-result.swinging-strikeout", "initialDisplayName": "空振り三振", "classification": "strikeout"},
+        {"id": "batting-result.dropped-third-strike", "initialDisplayName": "振り逃げ", "classification": "strikeout"},
+        {"id": "batting-result.k3", "initialDisplayName": "K3", "classification": "strikeout"},
+        {"id": "batting-result.strikeout-double-play", "initialDisplayName": "三振ゲッツー", "classification": "strikeout"},
+        {"id": "batting-result.walk", "initialDisplayName": "四球", "classification": "walk"},
+        {"id": "batting-result.hit-by-pitch", "initialDisplayName": "死球", "classification": "walk"},
+        {"id": "batting-result.intentional-walk", "initialDisplayName": "申告敬遠", "classification": "walk"}
+      ]
+    },
+    {
+      "axisId": "secondary-result",
+      "sourceRef": "SECONDARY_RESULTS",
+      "entries": [
+        {"id": "secondary-result.passed-ball", "initialDisplayName": "PB", "classification": "secondary"},
+        {"id": "secondary-result.wild-pitch", "initialDisplayName": "WP", "classification": "secondary"},
+        {"id": "secondary-result.offensive-interference", "initialDisplayName": "守備妨害", "classification": "secondary"},
+        {"id": "secondary-result.batting-interference", "initialDisplayName": "打撃妨害", "classification": "secondary"},
+        {"id": "secondary-result.obstruction", "initialDisplayName": "走塁妨害", "classification": "secondary"},
+        {"id": "secondary-result.balk", "initialDisplayName": "ボーク", "classification": "secondary"},
+        {"id": "secondary-result.pitch-clock-violation", "initialDisplayName": "ピッチクロック違反", "classification": "secondary"}
+      ]
+    },
+    {
+      "axisId": "pitch-type",
+      "sourceRef": "requirements appendix D-4 pitch types",
+      "entries": [
+        {"id": "pitch-type.fastball", "initialDisplayName": "ストレート", "classification": "fastball-family", "shortCode": "FB"},
+        {"id": "pitch-type.two-seam", "initialDisplayName": "ツーシーム", "classification": "fastball-family", "shortCode": "2S"},
+        {"id": "pitch-type.shoot", "initialDisplayName": "シュート", "classification": "fastball-family", "shortCode": "SK"},
+        {"id": "pitch-type.slider", "initialDisplayName": "スライダー", "classification": "slider-family", "shortCode": "SL"},
+        {"id": "pitch-type.cutter", "initialDisplayName": "カット", "classification": "slider-family", "shortCode": "CT"},
+        {"id": "pitch-type.curve", "initialDisplayName": "カーブ", "classification": "slider-family", "shortCode": "CB"},
+        {"id": "pitch-type.changeup", "initialDisplayName": "チェンジ", "classification": "drop-family", "shortCode": "CH"},
+        {"id": "pitch-type.fork", "initialDisplayName": "フォーク", "classification": "drop-family", "shortCode": "SP"},
+        {"id": "pitch-type.sinker", "initialDisplayName": "シンカー", "classification": "drop-family", "shortCode": "ST"},
+        {"id": "pitch-type.other", "initialDisplayName": "特殊球", "classification": "unclassified", "shortCode": "OT"}
+      ]
+    },
+    {
+      "axisId": "strategy-category",
+      "sourceRef": "strategy categories",
+      "entries": [
+        {"id": "strategy-category.steal", "initialDisplayName": "盗塁", "classification": "strategy-category"},
+        {"id": "strategy-category.bunt", "initialDisplayName": "バント", "classification": "strategy-category"},
+        {"id": "strategy-category.hit-and-run", "initialDisplayName": "エンドラン", "classification": "strategy-category"}
+      ]
+    },
+    {
+      "axisId": "strategy-detail",
+      "sourceRef": "strategy details by category",
+      "entries": [
+        {"id": "strategy-detail.steal", "initialDisplayName": "盗塁", "classification": "steal"},
+        {"id": "strategy-detail.delayed-steal", "initialDisplayName": "ディレード", "classification": "steal"},
+        {"id": "strategy-detail.double-steal", "initialDisplayName": "Wスチール", "classification": "steal"},
+        {"id": "strategy-detail.bunt", "initialDisplayName": "バント", "classification": "bunt"},
+        {"id": "strategy-detail.show-bunt", "initialDisplayName": "打からバント構え", "classification": "bunt"},
+        {"id": "strategy-detail.safety-bunt", "initialDisplayName": "セフティ", "classification": "bunt"},
+        {"id": "strategy-detail.squeeze", "initialDisplayName": "スクイズ", "classification": "bunt"},
+        {"id": "strategy-detail.buster", "initialDisplayName": "バスター", "classification": "bunt"},
+        {"id": "strategy-detail.safety-squeeze", "initialDisplayName": "Sスクイズ", "classification": "bunt"},
+        {"id": "strategy-detail.har", "initialDisplayName": "HAR", "classification": "hit-and-run"},
+        {"id": "strategy-detail.rah", "initialDisplayName": "RAH", "classification": "hit-and-run"},
+        {"id": "strategy-detail.bar", "initialDisplayName": "BAR", "classification": "hit-and-run"},
+        {"id": "strategy-detail.bsar", "initialDisplayName": "BSAR", "classification": "hit-and-run"}
+      ]
+    },
+    {
+      "axisId": "strategy-result",
+      "sourceRef": "strategy result options",
+      "entries": [
+        {"id": "strategy-result.success", "initialDisplayName": "成功", "classification": "outcome"},
+        {"id": "strategy-result.failure", "initialDisplayName": "失敗", "classification": "outcome"},
+        {"id": "strategy-result.steal-success", "initialDisplayName": "盗塁成功", "classification": "outcome"}
+      ]
+    },
+    {
+      "axisId": "error-type",
+      "sourceRef": "error type options",
+      "entries": [
+        {"id": "error-type.fielding", "initialDisplayName": "処理E", "classification": "error"},
+        {"id": "error-type.throwing", "initialDisplayName": "送球E", "classification": "error"},
+        {"id": "error-type.catching", "initialDisplayName": "捕球E", "classification": "error"},
+        {"id": "error-type.other", "initialDisplayName": "その他", "classification": "error"}
+      ]
+    },
+    {
+      "axisId": "pitcher-pickoff-destination",
+      "sourceRef": "pitcher pickoff options",
+      "entries": [
+        {"id": "pitcher-pickoff-destination.first", "initialDisplayName": "一塁牽制", "classification": "destination"},
+        {"id": "pitcher-pickoff-destination.second", "initialDisplayName": "二塁牽制", "classification": "destination"},
+        {"id": "pitcher-pickoff-destination.third", "initialDisplayName": "三塁牽制", "classification": "destination"}
+      ]
+    },
+    {
+      "axisId": "catcher-pickoff-destination",
+      "sourceRef": "catcher pickoff options (vocab.ts comment preserves distinct notation)",
+      "entries": [
+        {"id": "catcher-pickoff-destination.first", "initialDisplayName": "1塁牽制", "classification": "destination"},
+        {"id": "catcher-pickoff-destination.second", "initialDisplayName": "2塁牽制", "classification": "destination"},
+        {"id": "catcher-pickoff-destination.third", "initialDisplayName": "3塁牽制", "classification": "destination"}
+      ]
+    },
+    {
+      "axisId": "pickoff-result",
+      "sourceRef": "pickoff result options",
+      "entries": [
+        {"id": "pickoff-result.safe", "initialDisplayName": "セーフ", "classification": "outcome"},
+        {"id": "pickoff-result.out", "initialDisplayName": "アウト", "classification": "outcome"},
+        {"id": "pickoff-result.error", "initialDisplayName": "牽制エラー", "classification": "outcome"}
+      ]
+    },
+    {
+      "axisId": "batted-ball-type",
+      "sourceRef": "batted ball type options",
+      "entries": [
+        {"id": "batted-ball-type.ground", "initialDisplayName": "G", "classification": "ground"},
+        {"id": "batted-ball-type.line", "initialDisplayName": "L", "classification": "line"},
+        {"id": "batted-ball-type.fly", "initialDisplayName": "F", "classification": "fly"}
+      ]
+    },
+    {
+      "axisId": "batted-ball-strength",
+      "sourceRef": "batted ball strength options",
+      "entries": [
+        {"id": "batted-ball-strength.a", "initialDisplayName": "A", "classification": "strength"},
+        {"id": "batted-ball-strength.b", "initialDisplayName": "B", "classification": "strength"},
+        {"id": "batted-ball-strength.c", "initialDisplayName": "C", "classification": "strength"}
+      ]
+    },
+    {
+      "axisId": "batter-status",
+      "sourceRef": "batter status options",
+      "entries": [
+        {"id": "batter-status.out", "initialDisplayName": "アウト", "classification": "out"},
+        {"id": "batter-status.reach", "initialDisplayName": "出塁", "classification": "advance"},
+        {"id": "batter-status.second", "initialDisplayName": "二進", "classification": "advance"},
+        {"id": "batter-status.third", "initialDisplayName": "三進", "classification": "advance"},
+        {"id": "batter-status.home", "initialDisplayName": "本進", "classification": "advance"},
+        {"id": "batter-status.hold", "initialDisplayName": "継続", "classification": "hold"},
+        {"id": "batter-status.force-out", "initialDisplayName": "封殺", "classification": "out"},
+        {"id": "batter-status.pitcher-pickoff-out", "initialDisplayName": "投手牽制死", "classification": "out"},
+        {"id": "batter-status.catcher-pickoff-out", "initialDisplayName": "捕手牽制死", "classification": "out"},
+        {"id": "batter-status.caught-stealing", "initialDisplayName": "盗塁死", "classification": "out"},
+        {"id": "batter-status.running-out", "initialDisplayName": "走塁死", "classification": "out"}
+      ]
+    },
+    {
+      "axisId": "first-runner-status",
+      "sourceRef": "first runner status options",
+      "entries": [
+        {"id": "first-runner-status.hold", "initialDisplayName": "継続", "classification": "hold"},
+        {"id": "first-runner-status.second", "initialDisplayName": "二進", "classification": "advance"},
+        {"id": "first-runner-status.third", "initialDisplayName": "三進", "classification": "advance"},
+        {"id": "first-runner-status.home", "initialDisplayName": "本進", "classification": "advance"},
+        {"id": "first-runner-status.force-out", "initialDisplayName": "封殺", "classification": "out"},
+        {"id": "first-runner-status.pitcher-pickoff-out", "initialDisplayName": "投手牽制死", "classification": "out"},
+        {"id": "first-runner-status.catcher-pickoff-out", "initialDisplayName": "捕手牽制死", "classification": "out"},
+        {"id": "first-runner-status.caught-stealing", "initialDisplayName": "盗塁死", "classification": "out"},
+        {"id": "first-runner-status.running-out", "initialDisplayName": "走塁死", "classification": "out"}
+      ]
+    },
+    {
+      "axisId": "second-runner-status",
+      "sourceRef": "second runner status options",
+      "entries": [
+        {"id": "second-runner-status.hold", "initialDisplayName": "継続", "classification": "hold"},
+        {"id": "second-runner-status.third", "initialDisplayName": "三進", "classification": "advance"},
+        {"id": "second-runner-status.home", "initialDisplayName": "本進", "classification": "advance"},
+        {"id": "second-runner-status.force-out", "initialDisplayName": "封殺", "classification": "out"},
+        {"id": "second-runner-status.pitcher-pickoff-out", "initialDisplayName": "投手牽制死", "classification": "out"},
+        {"id": "second-runner-status.catcher-pickoff-out", "initialDisplayName": "捕手牽制死", "classification": "out"},
+        {"id": "second-runner-status.caught-stealing", "initialDisplayName": "盗塁死", "classification": "out"},
+        {"id": "second-runner-status.running-out", "initialDisplayName": "走塁死", "classification": "out"}
+      ]
+    },
+    {
+      "axisId": "third-runner-status",
+      "sourceRef": "third runner status options",
+      "entries": [
+        {"id": "third-runner-status.hold", "initialDisplayName": "継続", "classification": "hold"},
+        {"id": "third-runner-status.home", "initialDisplayName": "本進", "classification": "advance"},
+        {"id": "third-runner-status.force-out", "initialDisplayName": "封殺", "classification": "out"},
+        {"id": "third-runner-status.pitcher-pickoff-out", "initialDisplayName": "投手牽制死", "classification": "out"},
+        {"id": "third-runner-status.catcher-pickoff-out", "initialDisplayName": "捕手牽制死", "classification": "out"},
+        {"id": "third-runner-status.caught-stealing", "initialDisplayName": "盗塁死", "classification": "out"},
+        {"id": "third-runner-status.running-out", "initialDisplayName": "走塁死", "classification": "out"}
+      ]
+    }
+  ]
+}
