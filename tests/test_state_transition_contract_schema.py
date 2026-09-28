@@ -41,6 +41,10 @@ class OperationRowConstraintError(ValueError):
     """操作規範行の参照・宣言制約違反を表す。"""
 
 
+class UndoRowConstraintError(ValueError):
+    """undo規範行の参照・交差制約違反を表す。"""
+
+
 def _load_module(name: str, path: Path) -> Any:
     """テスト対象をsys.path変更なしで読み込む。"""
     spec = importlib.util.spec_from_file_location(name, path)
@@ -156,6 +160,11 @@ def _minimal_contract() -> dict[str, Any]:
     undo_row = {
         "targetKind": "confirmed-play",
         "precondition": undo_precondition,
+        "stateEffect": _unchanged_state_effect(),
+        "historyEffect": {"pops": 1},
+        "operationResult": "applied",
+        "guaranteeMode": "full-equality",
+        "remarks": "確定プレイを取り消す基準行",
     }
     return {
         "schemaVersion": 1,
@@ -195,7 +204,10 @@ def _minimal_contract() -> dict[str, Any]:
             {
                 "rowRef": {
                     "layer": "undoRows",
-                    "coordinate": copy.deepcopy(undo_row),
+                    "coordinate": {
+                        "targetKind": undo_row["targetKind"],
+                        "precondition": copy.deepcopy(undo_precondition),
+                    },
                 }
             },
         ],
@@ -860,6 +872,156 @@ def _validate_operation_rows(
             )
 
 
+def _undo_row_configuration(
+    schema: Mapping[str, Any] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """D-8のundo規範行宣言とXC-09を検証して返す。"""
+    active_schema = _schema() if schema is None else schema
+    configuration = _required_object(
+        active_schema.get("x-pitchlog-undo-row-constraints"),
+        "schema.x-pitchlog-undo-row-constraints",
+    )
+    definitions = _required_object(active_schema.get("$defs"), "schema.$defs")
+    target_kind = _required_object(
+        definitions.get("undoTargetKind"), "$defs.undoTargetKind"
+    )
+    enum_values = target_kind.get("enum")
+    if (
+        not isinstance(enum_values, list)
+        or not enum_values
+        or not all(isinstance(value, str) and value for value in enum_values)
+    ):
+        raise UndoRowConstraintError("targetKindのenumが不正")
+    declared_conditions = configuration.get("conditionalTargetKinds")
+    schema_conditions = target_kind.get("x-pitchlog-conditional-values")
+    descriptor_axis = next(
+        axis
+        for axis in _descriptor()["stateTransitionAxes"]
+        if axis["axisId"] == "event.operationKind"
+    )
+    descriptor_conditions = [
+        condition
+        for condition in descriptor_axis.get("conditionalValues", [])
+        if condition.get("value") == "state-correction"
+    ]
+    if not (
+        _json_equal(declared_conditions, descriptor_conditions)
+        and _json_equal(schema_conditions, descriptor_conditions)
+    ):
+        raise UndoRowConstraintError(
+            "FR-040条件付きtargetKindがdescriptorと一致しない"
+        )
+
+    raw_rules = configuration.get("rules")
+    if not isinstance(raw_rules, list) or len(raw_rules) != 1:
+        raise UndoRowConstraintError("undoRowsの交差制約が1件でない")
+    rule = _required_object(raw_rules[0], "x-pitchlog-undo-row-constraints.rules[0]")
+    parity = _descriptor()["freezeBaseline"]["criteria"]["threeWayParity"]
+    owner = parity["requirementConstraintOwners"].get(rule.get("constraintId"))
+    if (
+        rule.get("constraintId") not in parity["adrD8ConstraintIds"]
+        or not isinstance(owner, dict)
+        or owner.get("decisionId") != "D-8"
+        or owner.get("layer") != "undoRows[]"
+    ):
+        raise UndoRowConstraintError("XC-09のD-8・undoRows帰属を解決できない")
+    if rule.get("undecidableAction") != "fail":
+        raise UndoRowConstraintError("XC-09の判定不能時動作がfailでない")
+
+    depth_axis_id = _required_string(rule.get("depthAxisId"), "XC-09.depthAxisId")
+    scenario_axis_id = _required_string(
+        rule.get("scenarioLengthAxisId"), "XC-09.scenarioLengthAxisId"
+    )
+    try:
+        depth_axis = next(
+            axis
+            for axis in _descriptor()["stateTransitionAxes"]
+            if axis["axisId"] == depth_axis_id
+        )
+        scenario_axis = next(
+            axis
+            for axis in _descriptor()["stateTransitionAxes"]
+            if axis["axisId"] == scenario_axis_id
+        )
+    except StopIteration as exc:
+        raise UndoRowConstraintError(
+            "XC-09のD+1入力軸をdescriptorへ解決できない"
+        ) from exc
+    if not any(
+        _json_equal(value, rule.get("depthLimitValue"))
+        for value in depth_axis.get("boundaryValues", [])
+    ):
+        raise UndoRowConstraintError(
+            "XC-09のD値をdescriptorの履歴深さ境界へ解決できない"
+        )
+    if not any(
+        _json_equal(value, rule.get("dPlusOneValue"))
+        for value in scenario_axis.get("boundaryValues", [])
+    ):
+        raise UndoRowConstraintError(
+            "XC-09のD+1値をdescriptorの境界値へ解決できない"
+        )
+    guarantee_modes = definitions["undoRow"]["properties"]["guaranteeMode"].get(
+        "enum", []
+    )
+    if {
+        rule.get("livenessMode"),
+        rule.get("defaultMode"),
+    } != set(guarantee_modes):
+        raise UndoRowConstraintError("XC-09とguaranteeModeのenumが一致しない")
+    return configuration, rule
+
+
+def _validate_undo_rows(
+    contract: Mapping[str, Any], adopted_clause_ids: Set[str]
+) -> None:
+    """schema資産の宣言に従ってundoRowsとXC-09を検証する。"""
+    configuration, xc09 = _undo_row_configuration()
+    conditional_clauses = {
+        condition["value"]: condition["whenClauseId"]
+        for condition in configuration["conditionalTargetKinds"]
+    }
+    axis_prefix = _required_string(
+        configuration.get("preconditionAxisIdPrefix"),
+        "undoRowConstraints.preconditionAxisIdPrefix",
+    )
+    for row_index, row in enumerate(contract["undoRows"]):
+        target_kind = row["targetKind"]
+        required_clause = conditional_clauses.get(target_kind)
+        if required_clause is not None and required_clause not in adopted_clause_ids:
+            raise UndoRowConstraintError(
+                "未採用の条件付きtargetKindを使用している: "
+                f"undoRows[{row_index}]; kind={target_kind!r}"
+            )
+        axis_ids = {
+            leaf["axisId"] for leaf in _predicate_leaves(row["precondition"])
+        }
+        if not axis_ids or any(
+            not axis_id.startswith(axis_prefix) for axis_id in axis_ids
+        ):
+            raise UndoRowConstraintError(
+                "undoRowsのpreconditionが履歴文脈軸だけを参照していない: "
+                f"undoRows[{row_index}]; axes={sorted(axis_ids)!r}"
+            )
+        if row["guaranteeMode"] != xc09["livenessMode"]:
+            continue
+        try:
+            possible_lengths = _satisfying_axis_values(
+                row["precondition"], xc09["scenarioLengthAxisId"]
+            )
+        except CrossConstraintError as exc:
+            raise UndoRowConstraintError(
+                f"XC-09: D+1行を判定できない: undoRows[{row_index}]"
+            ) from exc
+        if len(possible_lengths) != 1 or not _json_equal(
+            possible_lengths[0], xc09["dPlusOneValue"]
+        ):
+            raise UndoRowConstraintError(
+                "XC-09: liveness-onlyはD+1の行だけに許す: "
+                f"undoRows[{row_index}]; possible={possible_lengths!r}"
+            )
+
+
 def _sync_case_coordinate(contract: dict[str, Any], layer: str) -> None:
     """指定層のcase参照を先頭の規範行の入力座標へ同期する。
 
@@ -1141,6 +1303,7 @@ def _validate(
     """状況判定契約のschema・参照制約・交差制約を検証する。"""
     _validate_schema(contract)
     _validate_operation_rows(contract, adopted_clause_ids)
+    _validate_undo_rows(contract, adopted_clause_ids)
     _validate_references(contract, vocabulary_ids_by_seed)
     _validate_cross_constraints(contract)
 
@@ -1176,14 +1339,6 @@ def test_missing_normative_row_layer_is_red(missing_layer: str) -> None:
         match=rf"必須キー不足: .*{missing_layer}",
     ):
         _validate(contract)
-
-
-def test_undo_row_internals_remain_open_for_step35() -> None:
-    """undo行の後続ステップ向け列を本ステップで閉じない。"""
-    contract = _minimal_contract()
-    contract["undoRows"][0]["futureConstraintField"] = {"notClosedYet": True}
-
-    _validate(contract)
 
 
 def test_matrix_row_is_closed_to_the_ten_normative_columns() -> None:
@@ -1411,6 +1566,185 @@ def test_operation_state_effect_keeps_all_comparison_surfaces_closed() -> None:
         definition = definitions[definition_name]
         assert set(definition["required"]) == set(definition["properties"])
         assert definition["additionalProperties"] is False
+
+
+UNDO_ROW_COLUMNS = (
+    "targetKind",
+    "precondition",
+    "stateEffect",
+    "historyEffect",
+    "operationResult",
+    "guaranteeMode",
+    "remarks",
+)
+
+
+def test_undo_row_is_closed_to_the_seven_d8_columns() -> None:
+    """undoRowsの行をD-8が定める7列だけに閉じる。"""
+    undo_row = _schema()["$defs"]["undoRow"]
+
+    assert tuple(undo_row["required"]) == UNDO_ROW_COLUMNS
+    assert set(undo_row["properties"]) == set(UNDO_ROW_COLUMNS)
+    assert undo_row["additionalProperties"] is False
+    assert not {
+        "operationKind",
+        "clauseId",
+        "payloadShape",
+    } & set(undo_row["properties"])
+
+
+@pytest.mark.parametrize("missing_column", UNDO_ROW_COLUMNS)
+def test_each_missing_undo_row_column_is_red(missing_column: str) -> None:
+    """D-8のundo規範行7列のいずれかが欠けた行を拒否する。"""
+    contract = _minimal_contract()
+    del contract["undoRows"][0][missing_column]
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError,
+        match=rf"必須キー不足: .*{missing_column}",
+    ):
+        _validate(contract)
+
+
+def test_unknown_undo_row_column_is_red() -> None:
+    """D-8に無いundo規範行の列を拒否する。"""
+    contract = _minimal_contract()
+    contract["undoRows"][0]["operationKind"] = "undo"
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError,
+        match="未知キー: .*operationKind",
+    ):
+        _validate(contract)
+
+
+def test_target_kind_undo_is_rejected_by_the_closed_enum() -> None:
+    """undoをundoするtargetKindを交差制約ではなくenumで拒否する。"""
+    contract = _minimal_contract()
+    contract["undoRows"][0]["targetKind"] = "undo"
+    _sync_case_coordinate(contract, "undoRows")
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError,
+        match="enum外の値: 'undo'",
+    ):
+        _validate(contract)
+
+
+def test_guarantee_mode_outside_the_closed_enum_is_red() -> None:
+    """D-8に無いguaranteeModeを拒否する。"""
+    contract = _minimal_contract()
+    contract["undoRows"][0]["guaranteeMode"] = "best-effort"
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError,
+        match="enum外の値: 'best-effort'",
+    ):
+        _validate(contract)
+
+
+def test_undo_history_effect_is_closed_to_zero_or_one_pop() -> None:
+    """undoの履歴効果で2件以上を一度に取り消す指定を拒否する。"""
+    contract = _minimal_contract()
+    contract["undoRows"][0]["historyEffect"] = {"pops": 2}
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError,
+        match="enum外の値: 2",
+    ):
+        _validate(contract)
+
+
+def test_undo_history_effect_is_closed_to_the_pops_field() -> None:
+    """undoの履歴効果へ未知フィールドを追加した行を拒否する。"""
+    contract = _minimal_contract()
+    contract["undoRows"][0]["historyEffect"]["kind"] = "undo"
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError,
+        match="未知キー: .*kind",
+    ):
+        _validate(contract)
+
+
+def test_state_correction_target_requires_fr040_adoption() -> None:
+    """FR-040未採用時の状態補正targetKindを拒否する。"""
+    contract = _minimal_contract()
+    contract["undoRows"][0]["targetKind"] = "state-correction"
+    _sync_case_coordinate(contract, "undoRows")
+
+    with pytest.raises(UndoRowConstraintError, match="未採用の条件付きtargetKind"):
+        _validate(contract)
+
+
+def test_state_correction_target_is_accepted_when_fr040_is_adopted() -> None:
+    """FR-040採用時だけ状態補正targetKindを受理する。"""
+    contract = _minimal_contract()
+    contract["undoRows"][0]["targetKind"] = "state-correction"
+    _sync_case_coordinate(contract, "undoRows")
+
+    _validate(contract, adopted_clause_ids=frozenset({"req:FR-040"}))
+
+
+def test_xc09_liveness_only_is_red_at_history_depth_d() -> None:
+    """XC-09: 履歴深さDの行でliveness-onlyを拒否する。"""
+    contract = _minimal_contract()
+    row = contract["undoRows"][0]
+    row["precondition"] = {
+        "op": "eq",
+        "axisId": "history.depth",
+        "value": "D",
+    }
+    row["guaranteeMode"] = "liveness-only"
+    _sync_case_coordinate(contract, "undoRows")
+
+    with pytest.raises(UndoRowConstraintError, match="XC-09"):
+        _validate(contract)
+
+
+def test_xc09_liveness_only_is_accepted_only_at_d_plus_one() -> None:
+    """XC-09: descriptorのD+1座標だけでliveness-onlyを受理する。"""
+    contract = _minimal_contract()
+    row = contract["undoRows"][0]
+    row["precondition"] = {
+        "op": "eq",
+        "axisId": "history.scenarioLength",
+        "value": "D+1",
+    }
+    row["guaranteeMode"] = "liveness-only"
+    _sync_case_coordinate(contract, "undoRows")
+
+    _validate(contract)
+
+
+def test_xc09_rejects_a_precondition_that_also_allows_d_or_below() -> None:
+    """XC-09: D+1以外も許す述語を判定不能側へ推測せず拒否する。"""
+    contract = _minimal_contract()
+    row = contract["undoRows"][0]
+    row["precondition"] = {
+        "op": "in",
+        "axisId": "history.scenarioLength",
+        "values": ["D", "D+1"],
+    }
+    row["guaranteeMode"] = "liveness-only"
+    _sync_case_coordinate(contract, "undoRows")
+
+    with pytest.raises(UndoRowConstraintError, match="XC-09"):
+        _validate(contract)
+
+
+def test_undo_precondition_must_use_only_history_context_axes() -> None:
+    """undoRowsのpreconditionから状態軸を参照する行を拒否する。"""
+    contract = _minimal_contract()
+    contract["undoRows"][0]["precondition"] = {
+        "op": "eq",
+        "axisId": "state.outs",
+        "value": 0,
+    }
+    _sync_case_coordinate(contract, "undoRows")
+
+    with pytest.raises(UndoRowConstraintError, match="履歴文脈軸だけ"):
+        _validate(contract)
 
 
 @pytest.mark.parametrize("layer", ["matrixRows", "operationRows", "undoRows"])

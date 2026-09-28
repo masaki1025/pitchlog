@@ -27,7 +27,8 @@
     "predicateAxisResolution": {
       "rowCollections": [
         "matrixRows",
-        "operationRows"
+        "operationRows",
+        "undoRows"
       ],
       "predicateField": "precondition",
       "axisIdField": "axisId",
@@ -65,6 +66,32 @@
       "properties",
       "required",
       "additionalProperties"
+    ]
+  },
+  "x-pitchlog-undo-row-constraints": {
+    "sourceDecisionId": "adr:D-8",
+    "sourceClauseId": "req:FR-006",
+    "preconditionAxisIdPrefix": "history.",
+    "conditionalTargetKinds": [
+      {
+        "value": "state-correction",
+        "whenClauseId": "req:FR-040",
+        "whenState": "adopted"
+      }
+    ],
+    "rules": [
+      {
+        "constraintId": "XC-09",
+        "definitionId": "constraint:XC-09",
+        "kind": "liveness-only-at-d-plus-one",
+        "depthAxisId": "history.depth",
+        "depthLimitValue": "D",
+        "scenarioLengthAxisId": "history.scenarioLength",
+        "dPlusOneValue": "D+1",
+        "livenessMode": "liveness-only",
+        "defaultMode": "full-equality",
+        "undecidableAction": "fail"
+      }
     ]
   },
   "x-pitchlog-matrix-cross-constraints": {
@@ -292,7 +319,7 @@
       ],
       "type": "array",
       "items": {
-        "$ref": "#/$defs/undoRowReferenceShell"
+        "$ref": "#/$defs/undoRow"
       }
     },
     "mustOperationCoverage": {
@@ -1201,21 +1228,75 @@
         }
       }
     },
-    "undoRowReferenceShell": {
+    "undoTargetKind": {
+      "enum": [
+        "confirmed-play",
+        "state-correction"
+      ],
+      "x-pitchlog-conditional-values": [
+        {
+          "value": "state-correction",
+          "whenClauseId": "req:FR-040",
+          "whenState": "adopted"
+        }
+      ]
+    },
+    "undoHistoryEffect": {
+      "type": "object",
+      "required": [
+        "pops"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pops": {
+          "enum": [
+            0,
+            1
+          ]
+        }
+      }
+    },
+    "undoRow": {
       "type": "object",
       "required": [
         "targetKind",
-        "precondition"
+        "precondition",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "guaranteeMode",
+        "remarks"
       ],
+      "additionalProperties": false,
       "properties": {
         "targetKind": {
-          "type": "string"
+          "$ref": "#/$defs/undoTargetKind"
         },
         "precondition": {
-          "type": "object"
+          "$ref": "#/$defs/predicate"
+        },
+        "stateEffect": {
+          "$ref": "#/$defs/stateEffect"
+        },
+        "historyEffect": {
+          "$ref": "#/$defs/undoHistoryEffect"
+        },
+        "operationResult": {
+          "enum": [
+            "applied",
+            "nothing-to-undo"
+          ]
+        },
+        "guaranteeMode": {
+          "enum": [
+            "full-equality",
+            "liveness-only"
+          ]
+        },
+        "remarks": {
+          "type": "string"
         }
-      },
-      "additionalProperties": true
+      }
     },
     "matrixInputCoordinate": {
       "type": "object",
@@ -1266,10 +1347,10 @@
       "additionalProperties": false,
       "properties": {
         "targetKind": {
-          "type": "string"
+          "$ref": "#/$defs/undoTargetKind"
         },
         "precondition": {
-          "type": "object"
+          "$ref": "#/$defs/predicate"
         }
       }
     },
