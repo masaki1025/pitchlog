@@ -6,12 +6,15 @@
   "x-pitchlog-reference-constraints": {
     "rowIdentity": {
       "collectionAnnotation": "x-pitchlog-normative-row-layer",
-      "idField": "rowId",
+      "coordinateFieldsAnnotation": "x-pitchlog-input-coordinate-fields",
+      "canonicalization": "RFC8785",
       "maximumOccurrences": 1
     },
     "caseResolution": {
       "collection": "cases",
-      "referenceField": "rowId",
+      "referenceField": "rowRef",
+      "layerField": "layer",
+      "coordinateField": "coordinate",
       "requiredMatchCount": 1
     },
     "vocabularyResolution": {
@@ -20,6 +23,22 @@
       "manifestPath": "contracts/vocabulary/vocabulary_manifest_v1.json",
       "requiredMatchCount": 1,
       "failWhenManifestUnavailable": true
+    },
+    "predicateAxisResolution": {
+      "rowCollection": "matrixRows",
+      "predicateField": "precondition",
+      "axisIdField": "axisId",
+      "descriptorCollections": [
+        "stateTransitionAxes",
+        "gameEndAxes"
+      ],
+      "descriptorAxisIdField": "axisId",
+      "descriptorClassificationField": "classification",
+      "descriptorValueFieldsByClassification": {
+        "finite-enumerable": "values",
+        "boundary-partition": "boundaryValues"
+      },
+      "requiredMatchCount": 1
     }
   },
   "type": "object",
@@ -54,23 +73,37 @@
     "matrixRows": {
       "x-pitchlog-normative-row-layer": true,
       "x-pitchlog-vocabulary-reference-layer": true,
+      "x-pitchlog-input-coordinate-fields": [
+        "eventKind",
+        "resultId",
+        "precondition"
+      ],
       "type": "array",
       "items": {
-        "$ref": "#/$defs/matrixRowReferenceShell"
+        "$ref": "#/$defs/matrixRow"
       }
     },
     "operationRows": {
       "x-pitchlog-normative-row-layer": true,
+      "x-pitchlog-input-coordinate-fields": [
+        "operationKind",
+        "payloadShape",
+        "precondition"
+      ],
       "type": "array",
       "items": {
-        "$ref": "#/$defs/normativeRowReferenceShell"
+        "$ref": "#/$defs/operationRowReferenceShell"
       }
     },
     "undoRows": {
       "x-pitchlog-normative-row-layer": true,
+      "x-pitchlog-input-coordinate-fields": [
+        "targetKind",
+        "precondition"
+      ],
       "type": "array",
       "items": {
-        "$ref": "#/$defs/normativeRowReferenceShell"
+        "$ref": "#/$defs/undoRowReferenceShell"
       }
     },
     "mustOperationCoverage": {
@@ -109,46 +142,630 @@
         }
       }
     },
-    "normativeRowReferenceShell": {
+    "literal": {
+      "oneOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "predicate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "args"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "enum": [
+                "and",
+                "or"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "$ref": "#/$defs/predicate"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "args"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "not"
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "items": {
+                "$ref": "#/$defs/predicate"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "axisId",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "enum": [
+                "eq",
+                "gte",
+                "lte"
+              ]
+            },
+            "axisId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "$ref": "#/$defs/literal"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "axisId",
+            "values"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "in"
+            },
+            "axisId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "values": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/literal"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "eventKind": {
+      "enum": [
+        "batting-result",
+        "secondary-result",
+        "runner-event"
+      ]
+    },
+    "strikeEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "delta"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "reset"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unchanged"
+            }
+          }
+        }
+      ]
+    },
+    "ballEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "delta"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "reset"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unchanged"
+            }
+          }
+        }
+      ]
+    },
+    "countEffect": {
       "type": "object",
       "required": [
-        "rowId"
+        "strikes",
+        "balls"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "strikes": {
+          "$ref": "#/$defs/strikeEffect"
+        },
+        "balls": {
+          "$ref": "#/$defs/ballEffect"
+        }
+      }
+    },
+    "plateAppearanceEnded": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "const": "not-applicable"
+        }
+      ]
+    },
+    "batterDestination": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "continue",
+                "out",
+                "score",
+                "not-applicable"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "base"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "reach"
+            },
+            "base": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            }
+          }
+        }
+      ]
+    },
+    "advanceDestination": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "advance": {
+      "type": "object",
+      "required": [
+        "modality",
+        "destination"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "modality": {
+          "enum": [
+            "forced",
+            "optional",
+            "hold",
+            "not-applicable"
+          ]
+        },
+        "destination": {
+          "$ref": "#/$defs/advanceDestination"
+        }
+      }
+    },
+    "runnerDefaultAdvance": {
+      "type": "object",
+      "required": [
+        "first",
+        "second",
+        "third"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "first": {
+          "$ref": "#/$defs/advance"
+        },
+        "second": {
+          "$ref": "#/$defs/advance"
+        },
+        "third": {
+          "$ref": "#/$defs/advance"
+        }
+      }
+    },
+    "outTarget": {
+      "oneOf": [
+        {
+          "const": "batter"
+        },
+        {
+          "type": "object",
+          "required": [
+            "runner"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "runner": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            }
+          }
+        }
+      ]
+    },
+    "outEffect": {
+      "type": "object",
+      "required": [
+        "count",
+        "targets"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outTarget"
+          }
+        }
+      }
+    },
+    "statFlags": {
+      "type": "object",
+      "required": [
+        "投球回算入アウト",
+        "投球数",
+        "奪三振",
+        "与四球",
+        "与死球",
+        "被安打",
+        "被本塁打",
+        "失点",
+        "失策",
+        "打席",
+        "打数",
+        "安打",
+        "本塁打",
+        "塁打",
+        "犠打",
+        "犠飛",
+        "四球",
+        "死球",
+        "三振",
+        "打撃妨害出塁",
+        "走塁妨害出塁",
+        "得点",
+        "打点"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "投球回算入アウト": {"type": "boolean"},
+        "投球数": {"type": "boolean"},
+        "奪三振": {"type": "boolean"},
+        "与四球": {"type": "boolean"},
+        "与死球": {"type": "boolean"},
+        "被安打": {"type": "boolean"},
+        "被本塁打": {"type": "boolean"},
+        "失点": {"type": "boolean"},
+        "失策": {"type": "boolean"},
+        "打席": {"type": "boolean"},
+        "打数": {"type": "boolean"},
+        "安打": {"type": "boolean"},
+        "本塁打": {"type": "boolean"},
+        "塁打": {"type": "boolean"},
+        "犠打": {"type": "boolean"},
+        "犠飛": {"type": "boolean"},
+        "四球": {"type": "boolean"},
+        "死球": {"type": "boolean"},
+        "三振": {"type": "boolean"},
+        "打撃妨害出塁": {"type": "boolean"},
+        "走塁妨害出塁": {"type": "boolean"},
+        "得点": {"type": "boolean"},
+        "打点": {"type": "boolean"}
+      }
+    },
+    "matrixRow": {
+      "type": "object",
+      "required": [
+        "eventKind",
+        "resultId",
+        "precondition",
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "remarks"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "eventKind": {
+          "$ref": "#/$defs/eventKind"
+        },
+        "resultId": {
+          "type": "string"
+        },
+        "precondition": {
+          "$ref": "#/$defs/predicate"
+        },
+        "countEffect": {
+          "$ref": "#/$defs/countEffect"
+        },
+        "plateAppearanceEnded": {
+          "$ref": "#/$defs/plateAppearanceEnded"
+        },
+        "batterDestination": {
+          "$ref": "#/$defs/batterDestination"
+        },
+        "runnerDefaultAdvance": {
+          "$ref": "#/$defs/runnerDefaultAdvance"
+        },
+        "outEffect": {
+          "$ref": "#/$defs/outEffect"
+        },
+        "statFlags": {
+          "$ref": "#/$defs/statFlags"
+        },
+        "remarks": {
+          "type": "string"
+        }
+      }
+    },
+    "operationRowReferenceShell": {
+      "type": "object",
+      "required": [
+        "operationKind",
+        "payloadShape",
+        "precondition"
       ],
       "properties": {
-        "rowId": {
-          "type": "string",
-          "minLength": 1
+        "operationKind": {
+          "type": "string"
+        },
+        "payloadShape": {
+          "type": "object"
+        },
+        "precondition": {
+          "type": "object"
         }
       },
       "additionalProperties": true
     },
-    "matrixRowReferenceShell": {
+    "undoRowReferenceShell": {
       "type": "object",
       "required": [
-        "rowId",
-        "resultId"
+        "targetKind",
+        "precondition"
       ],
       "properties": {
-        "rowId": {
-          "type": "string",
-          "minLength": 1
+        "targetKind": {
+          "type": "string"
         },
-        "resultId": {
-          "type": "string",
-          "minLength": 1
+        "precondition": {
+          "type": "object"
         }
       },
       "additionalProperties": true
+    },
+    "matrixInputCoordinate": {
+      "type": "object",
+      "required": [
+        "eventKind",
+        "resultId",
+        "precondition"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "eventKind": {
+          "$ref": "#/$defs/eventKind"
+        },
+        "resultId": {
+          "type": "string"
+        },
+        "precondition": {
+          "$ref": "#/$defs/predicate"
+        }
+      }
+    },
+    "operationInputCoordinate": {
+      "type": "object",
+      "required": [
+        "operationKind",
+        "payloadShape",
+        "precondition"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "operationKind": {
+          "type": "string"
+        },
+        "payloadShape": {
+          "type": "object"
+        },
+        "precondition": {
+          "type": "object"
+        }
+      }
+    },
+    "undoInputCoordinate": {
+      "type": "object",
+      "required": [
+        "targetKind",
+        "precondition"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "targetKind": {
+          "type": "string"
+        },
+        "precondition": {
+          "type": "object"
+        }
+      }
+    },
+    "caseRowReference": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "layer",
+            "coordinate"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "layer": {
+              "const": "matrixRows"
+            },
+            "coordinate": {
+              "$ref": "#/$defs/matrixInputCoordinate"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "layer",
+            "coordinate"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "layer": {
+              "const": "operationRows"
+            },
+            "coordinate": {
+              "$ref": "#/$defs/operationInputCoordinate"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "layer",
+            "coordinate"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "layer": {
+              "const": "undoRows"
+            },
+            "coordinate": {
+              "$ref": "#/$defs/undoInputCoordinate"
+            }
+          }
+        }
+      ]
     },
     "derivedCase": {
       "type": "object",
       "required": [
-        "rowId"
+        "rowRef"
       ],
       "properties": {
-        "rowId": {
-          "type": "string",
-          "minLength": 1
+        "rowRef": {
+          "$ref": "#/$defs/caseRowReference"
         }
       },
       "additionalProperties": true
