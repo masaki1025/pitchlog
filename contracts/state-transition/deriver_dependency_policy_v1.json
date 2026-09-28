@@ -28,6 +28,7 @@
       "plannedImplementationStep": 48,
       "output": "requiredSet.rowRequirements",
       "allowedReadPaths": [
+        "contracts/state-transition/required_set_row_rules_v1.json",
         "contracts/vocabulary/input_vocabulary_v1.json",
         "contracts/vocabulary/vocabulary_manifest_v1.json",
         "docs/requirements/requirements-pitchlog-2026-07-22.md"

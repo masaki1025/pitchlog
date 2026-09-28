@@ -22,6 +22,12 @@ POLICY_PATH = PurePosixPath(
 POLICY_SCHEMA_PATH = PurePosixPath(
     "contracts/state-transition/deriver_dependency_policy_schema_v1.json"
 )
+ROW_REQUIREMENT_RULES_PATH = PurePosixPath(
+    "contracts/state-transition/required_set_row_rules_v1.json"
+)
+ROW_REQUIREMENT_RULES_SCHEMA_PATH = PurePosixPath(
+    "contracts/state-transition/required_set_row_rules_schema_v1.json"
+)
 
 _T = TypeVar("_T")
 
@@ -59,6 +65,27 @@ class DeriverTrace:
     observed_read_paths: tuple[PurePosixPath, ...]
 
 
+@dataclass(frozen=True)
+class RowRequirement:
+    """語彙 ID と前提条件 partition から得た 1 行の要求を表す。"""
+
+    event_kind: str
+    result_id: str
+    partition_rule_id: str
+    partition_id: str
+    source_clause_ids: tuple[str, ...]
+
+    @property
+    def identity(self) -> tuple[str, str, str, str]:
+        """出力列に依存しない行要求の同一性を返す。"""
+        return (
+            self.event_kind,
+            self.result_id,
+            self.partition_rule_id,
+            self.partition_id,
+        )
+
+
 def _object(value: object, label: str) -> dict[str, Any]:
     """文字列キーの object を返す。"""
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
@@ -91,6 +118,17 @@ def _string_list(value: object, label: str) -> tuple[str, ...]:
         or len(value) != len(set(value))
     ):
         raise DeriverDependencyError(f"{label}が重複のない空でない文字列配列でない")
+    return tuple(value)
+
+
+def _possibly_empty_string_list(value: object, label: str) -> tuple[str, ...]:
+    """重複のない文字列配列を返す。"""
+    if (
+        not isinstance(value, list)
+        or not all(isinstance(item, str) and item for item in value)
+        or len(value) != len(set(value))
+    ):
+        raise DeriverDependencyError(f"{label}が重複のない文字列配列でない")
     return tuple(value)
 
 
@@ -142,6 +180,32 @@ def load_dependency_policy_document(
     except descriptor_checker.DescriptorCheckError as error:
         raise DeriverDependencyError(str(error)) from error
     return raw
+
+
+def load_row_requirement_rules_document(
+    root: Path,
+    rules_path: PurePosixPath = ROW_REQUIREMENT_RULES_PATH,
+    schema_path: PurePosixPath = ROW_REQUIREMENT_RULES_SCHEMA_PATH,
+) -> dict[str, Any]:
+    """行要求規則を schema 検証して返す。
+
+    Args:
+        root: リポジトリルート。
+        rules_path: 行要求規則のリポジトリ相対パス。
+        schema_path: 規則 schema のリポジトリ相対パス。
+
+    Returns:
+        schema 検証済みの行要求規則。
+
+    Raises:
+        DeriverDependencyError: 規則または schema が不正な場合。
+    """
+    return load_dependency_policy_document(
+        root,
+        rules_path,
+        schema_path,
+        "requiredSet行要求規則",
+    )
 
 
 def _repository_path(root: Path, value: str, label: str) -> PurePosixPath:
@@ -416,6 +480,363 @@ def trace_deriver_file_reads(
     )
 
 
+def _validated_clause_ids(
+    value: object,
+    source_clause_ids: frozenset[str],
+    label: str,
+) -> tuple[str, ...]:
+    """空でなく実在する要件書条文 ID を返す。"""
+    clause_ids = _possibly_empty_string_list(value, label)
+    if not clause_ids:
+        raise DeriverDependencyError(f"{label}が空であり、典拠の無い分割規則である")
+    missing = sorted(set(clause_ids) - source_clause_ids)
+    if missing:
+        raise DeriverDependencyError(f"{label}が実在しない条文IDを含む: {missing!r}")
+    return clause_ids
+
+
+def _vocabulary_axes(seed: Mapping[str, Any]) -> dict[str, tuple[str, ...]]:
+    """語彙シードから軸ごとの ID 集合を宣言順で返す。"""
+    raw_axes = seed.get("axes")
+    if not isinstance(raw_axes, list) or not raw_axes:
+        raise DeriverDependencyError("語彙シードaxesが空である")
+    axes: dict[str, tuple[str, ...]] = {}
+    all_ids: set[str] = set()
+    for axis_index, raw_axis in enumerate(raw_axes):
+        axis = _object(raw_axis, f"語彙シードaxes[{axis_index}]")
+        axis_id = _nonempty_string(
+            axis.get("axisId"), f"語彙シードaxes[{axis_index}].axisId"
+        )
+        if axis_id in axes:
+            raise DeriverDependencyError(f"語彙軸IDが重複している: {axis_id!r}")
+        raw_entries = axis.get("entries")
+        if not isinstance(raw_entries, list) or not raw_entries:
+            raise DeriverDependencyError(f"語彙軸{axis_id!r}のentriesが空である")
+        entry_ids: list[str] = []
+        for entry_index, raw_entry in enumerate(raw_entries):
+            entry = _object(
+                raw_entry, f"語彙軸{axis_id!r}.entries[{entry_index}]"
+            )
+            entry_id = _nonempty_string(
+                entry.get("id"), f"語彙軸{axis_id!r}.entries[{entry_index}].id"
+            )
+            if entry_id in all_ids:
+                raise DeriverDependencyError(f"語彙IDが大域重複している: {entry_id!r}")
+            all_ids.add(entry_id)
+            entry_ids.append(entry_id)
+        axes[axis_id] = tuple(entry_ids)
+    return axes
+
+
+def _validate_vocabulary_binding(
+    manifest: Mapping[str, Any],
+    seed: Mapping[str, Any],
+    vocabulary: Mapping[str, Any],
+) -> None:
+    """規則・manifest・シードの ID、パス、版 binding を突合する。"""
+    _exact_keys(
+        vocabulary,
+        {"manifestPath", "vocabularyId", "seedPath"},
+        "行要求規則.vocabulary",
+    )
+    vocabulary_id = _nonempty_string(
+        vocabulary["vocabularyId"], "行要求規則.vocabulary.vocabularyId"
+    )
+    seed_path = _nonempty_string(
+        vocabulary["seedPath"], "行要求規則.vocabulary.seedPath"
+    )
+    declarations = manifest.get("seeds")
+    if not isinstance(declarations, list):
+        raise DeriverDependencyError("語彙manifest.seedsが配列でない")
+    matches = [
+        _object(item, f"語彙manifest.seeds[{index}]")
+        for index, item in enumerate(declarations)
+        if isinstance(item, dict) and item.get("vocabularyId") == vocabulary_id
+    ]
+    if len(matches) != 1:
+        raise DeriverDependencyError(
+            f"語彙manifestのvocabularyIdがちょうど1件でない: {vocabulary_id!r}"
+        )
+    declaration = matches[0]
+    if declaration.get("path") != seed_path:
+        raise DeriverDependencyError("行要求規則とmanifestの語彙seed pathが一致しない")
+    if seed.get("vocabularyId") != vocabulary_id:
+        raise DeriverDependencyError("行要求規則と語彙シードのvocabularyIdが一致しない")
+    if declaration.get("version") != seed.get("version"):
+        raise DeriverDependencyError("manifestと語彙シードのversionが一致しない")
+    if declaration.get("schemaVersion") != seed.get("schemaVersion"):
+        raise DeriverDependencyError("manifestと語彙シードのschemaVersionが一致しない")
+
+
+def derive_row_requirements_from_documents(
+    rules: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    seed: Mapping[str, Any],
+    source_clause_ids: frozenset[str],
+) -> tuple[RowRequirement, ...]:
+    """機械可読な軸分類と分割規則から行要求を導出する。
+
+    Args:
+        rules: 行要求規則。
+        manifest: 共有語彙 manifest。
+        seed: manifest が指す語彙シード。
+        source_clause_ids: 要件書から機械抽出した名前空間付き条文 ID。
+
+    Returns:
+        語彙 ID と抽象 partition identity の直積で得た行要求。
+
+    Raises:
+        DeriverDependencyError: 軸が未分類、語彙 ID が未帰属・重複帰属、
+            または分割規則に実在する典拠がない場合。
+    """
+    _exact_keys(
+        rules,
+        {
+            "schemaVersion",
+            "version",
+            "sourceClausePath",
+            "vocabulary",
+            "axisAssignments",
+            "partitionRules",
+        },
+        "行要求規則",
+    )
+    vocabulary = _object(rules["vocabulary"], "行要求規則.vocabulary")
+    _validate_vocabulary_binding(manifest, seed, vocabulary)
+    axes = _vocabulary_axes(seed)
+
+    raw_assignments = rules["axisAssignments"]
+    if not isinstance(raw_assignments, list) or not raw_assignments:
+        raise DeriverDependencyError("axisAssignmentsが空である")
+    assignments: dict[str, tuple[str | None, tuple[str, ...]]] = {}
+    result_id_event_kinds: dict[str, str] = {}
+    for index, raw_assignment in enumerate(raw_assignments):
+        assignment = _object(raw_assignment, f"axisAssignments[{index}]")
+        axis_id = _nonempty_string(
+            assignment.get("axisId"), f"axisAssignments[{index}].axisId"
+        )
+        if axis_id in assignments:
+            raise DeriverDependencyError(f"語彙軸分類が重複している: {axis_id!r}")
+        role = _nonempty_string(
+            assignment.get("role"), f"axisAssignments[{index}].role"
+        )
+        _nonempty_string(
+            assignment.get("reason"), f"axisAssignments[{index}].reason"
+        )
+        clause_ids = _validated_clause_ids(
+            assignment.get("sourceClauseIds"),
+            source_clause_ids,
+            f"axisAssignments[{index}].sourceClauseIds",
+        )
+        if role == "result-id-source":
+            _exact_keys(
+                assignment,
+                {"axisId", "role", "eventKind", "reason", "sourceClauseIds"},
+                f"axisAssignments[{index}]",
+            )
+            event_kind = _nonempty_string(
+                assignment["eventKind"], f"axisAssignments[{index}].eventKind"
+            )
+            for result_id in axes.get(axis_id, ()):
+                result_id_event_kinds[result_id] = event_kind
+            assignments[axis_id] = (event_kind, clause_ids)
+        elif role == "not-result-id-source":
+            _exact_keys(
+                assignment,
+                {"axisId", "role", "reason", "sourceClauseIds"},
+                f"axisAssignments[{index}]",
+            )
+            assignments[axis_id] = (None, clause_ids)
+        else:
+            raise DeriverDependencyError(
+                f"axisAssignments[{index}].roleが未定義である: {role!r}"
+            )
+
+    missing_axes = sorted(set(axes) - set(assignments))
+    unexpected_axes = sorted(set(assignments) - set(axes))
+    if missing_axes or unexpected_axes:
+        raise DeriverDependencyError(
+            "語彙軸分類がexact-set不一致: "
+            f"missing={missing_axes!r}; unexpected={unexpected_axes!r}"
+        )
+
+    raw_rules = rules["partitionRules"]
+    if not isinstance(raw_rules, list) or not raw_rules:
+        raise DeriverDependencyError("partitionRulesが空である")
+    assigned_result_ids: set[str] = set()
+    rule_ids: set[str] = set()
+    requirements: list[RowRequirement] = []
+    for rule_index, raw_rule in enumerate(raw_rules):
+        rule = _object(raw_rule, f"partitionRules[{rule_index}]")
+        _exact_keys(
+            rule,
+            {
+                "partitionRuleId",
+                "vocabularyIds",
+                "partitions",
+                "sourceClauseIds",
+            },
+            f"partitionRules[{rule_index}]",
+        )
+        rule_id = _nonempty_string(
+            rule["partitionRuleId"],
+            f"partitionRules[{rule_index}].partitionRuleId",
+        )
+        if rule_id in rule_ids:
+            raise DeriverDependencyError(f"partitionRuleIdが重複している: {rule_id!r}")
+        rule_ids.add(rule_id)
+        vocabulary_ids = _string_list(
+            rule["vocabularyIds"], f"partitionRules[{rule_index}].vocabularyIds"
+        )
+        partitions = _string_list(
+            rule["partitions"], f"partitionRules[{rule_index}].partitions"
+        )
+        clause_ids = _validated_clause_ids(
+            rule["sourceClauseIds"],
+            source_clause_ids,
+            f"partitionRules[{rule_index}].sourceClauseIds",
+        )
+        for result_id in vocabulary_ids:
+            event_kind = result_id_event_kinds.get(result_id)
+            if event_kind is None:
+                raise DeriverDependencyError(
+                    f"分割規則がresultId源でない語彙IDを参照する: {result_id!r}"
+                )
+            if result_id in assigned_result_ids:
+                raise DeriverDependencyError(
+                    f"resultIdが複数の分割規則へ属する: {result_id!r}"
+                )
+            assigned_result_ids.add(result_id)
+            axis_id = result_id.split(".", 1)[0]
+            assignment_clauses = assignments[axis_id][1]
+            requirement_clauses = tuple(
+                dict.fromkeys((*assignment_clauses, *clause_ids))
+            )
+            for partition_id in partitions:
+                requirements.append(
+                    RowRequirement(
+                        event_kind=event_kind,
+                        result_id=result_id,
+                        partition_rule_id=rule_id,
+                        partition_id=partition_id,
+                        source_clause_ids=requirement_clauses,
+                    )
+                )
+
+    required_result_ids = set(result_id_event_kinds)
+    missing_result_ids = sorted(required_result_ids - assigned_result_ids)
+    unexpected_result_ids = sorted(assigned_result_ids - required_result_ids)
+    if missing_result_ids or unexpected_result_ids:
+        raise DeriverDependencyError(
+            "resultIdの分割規則帰属がexact-set不一致: "
+            f"missing={missing_result_ids!r}; unexpected={unexpected_result_ids!r}"
+        )
+    identities = [requirement.identity for requirement in requirements]
+    if len(identities) != len(set(identities)):
+        raise DeriverDependencyError("導出した行要求のidentityが重複している")
+    return tuple(requirements)
+
+
+def validate_row_requirement_coverage(
+    required: Sequence[RowRequirement],
+    actual: Sequence[RowRequirement],
+) -> None:
+    """規範行要求の実在集合を双方向 exact-set で検査する。"""
+    required_ids = {item.identity for item in required}
+    actual_ids = {item.identity for item in actual}
+    if len(actual_ids) != len(actual):
+        raise DeriverDependencyError("規範行要求に重複がある")
+    missing = sorted(required_ids - actual_ids)
+    unexpected = sorted(actual_ids - required_ids)
+    if missing or unexpected:
+        raise DeriverDependencyError(
+            "規範行要求がexact-set不一致: "
+            f"missing={missing!r}; unexpected={unexpected!r}"
+        )
+
+
+def _derive_repository_row_requirements(root: Path) -> tuple[RowRequirement, ...]:
+    """宣言された4入力だけを読み、リポジトリの行要求を導出する。"""
+    try:
+        rules = _object(
+            descriptor_checker.load_json(
+                root / ROW_REQUIREMENT_RULES_PATH, "requiredSet行要求規則"
+            ),
+            "requiredSet行要求規則",
+        )
+        vocabulary = _object(rules.get("vocabulary"), "行要求規則.vocabulary")
+        manifest_path = _repository_path(
+            root,
+            _nonempty_string(vocabulary.get("manifestPath"), "vocabulary.manifestPath"),
+            "vocabulary.manifestPath",
+        )
+        seed_path = _repository_path(
+            root,
+            _nonempty_string(vocabulary.get("seedPath"), "vocabulary.seedPath"),
+            "vocabulary.seedPath",
+        )
+        source_path = _repository_path(
+            root,
+            _nonempty_string(rules.get("sourceClausePath"), "sourceClausePath"),
+            "sourceClausePath",
+        )
+        manifest = _object(
+            descriptor_checker.load_json(root / manifest_path, "語彙manifest"),
+            "語彙manifest",
+        )
+        seed = _object(
+            descriptor_checker.load_json(root / seed_path, "語彙シード"),
+            "語彙シード",
+        )
+        clause_ids = frozenset(
+            f"req:{clause_id}"
+            for clause_id in descriptor_checker.load_clause_ids_from_paths(
+                root, (source_path,)
+            )
+        )
+    except descriptor_checker.DescriptorCheckError as error:
+        raise DeriverDependencyError(str(error)) from error
+    return derive_row_requirements_from_documents(
+        rules,
+        manifest,
+        seed,
+        clause_ids,
+    )
+
+
+def derive_repository_row_requirements(
+    root: Path,
+    policy: DeriverDependencyPolicy | None = None,
+) -> tuple[tuple[RowRequirement, ...], DeriverTrace]:
+    """依存トレース下でリポジトリの行要求を導出する。
+
+    Args:
+        root: リポジトリルート。
+        policy: 検証済み依存宣言。省略時は実資産から読む。
+
+    Returns:
+        行要求と実際に観測した読み取り証跡。
+
+    Raises:
+        DeriverDependencyError: 規則・入力・依存トレースが不正な場合。
+    """
+    active_policy = policy or load_policy(root)
+    load_row_requirement_rules_document(root)
+    requirements, trace = trace_deriver_file_reads(
+        root,
+        active_policy,
+        "required-set-row-requirements",
+        lambda: _derive_repository_row_requirements(root),
+    )
+    rule = active_policy.derivers[trace.deriver_id]
+    missing_reads = sorted(set(rule.allowed_read_paths) - set(trace.observed_read_paths))
+    if missing_reads:
+        raise DeriverDependencyError(
+            f"導出器が宣言入力を読んでいない: {missing_reads!r}"
+        )
+    return requirements, trace
+
+
 def validate_repository_policy(root: Path) -> DeriverDependencyPolicy:
     """リポジトリの導出器依存宣言を検証する。
 
@@ -425,22 +846,26 @@ def validate_repository_policy(root: Path) -> DeriverDependencyPolicy:
     Returns:
         検証済みの依存宣言。
     """
-    return load_policy(root)
+    policy = load_policy(root)
+    load_row_requirement_rules_document(root)
+    return policy
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """依存宣言の閉包と安全なパス解決を検証する。"""
+    """依存宣言と行要求導出の閉包を検証する。"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
     args = parser.parse_args(argv)
     try:
         policy = validate_repository_policy(args.root)
+        requirements, trace = derive_repository_row_requirements(args.root, policy)
     except DeriverDependencyError as error:
         print(f"deriver dependency: FAIL: {error}", file=sys.stderr)
         return 1
     print(
         "deriver dependency: PASS "
-        f"(policy={policy.policy_id}, derivers={len(policy.derivers)})"
+        f"(policy={policy.policy_id}, derivers={len(policy.derivers)}, "
+        f"rowRequirements={len(requirements)}, reads={len(trace.observed_read_paths)})"
     )
     return 0
 

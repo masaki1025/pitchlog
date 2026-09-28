@@ -294,6 +294,33 @@ FieldEffect = {kind: "unchanged"} | {kind: "set", value: <当該フィールド�
 ①行の要求(語彙シードの ID 集合 × 前提条件の分割規則・条文 ID 必須)と
 ②入力座標の要求(**descriptor から導出**。展開器のルールは読まない)の 2 段。
 
+### 5-1. ①行の要求に用いる語彙軸と分割規則
+
+①の語彙 ID 集合は、語彙シードの全値ではなく、次の `eventKind` ごとの
+`resultId` 源から取る。分類の機械可読な正は
+`contracts/state-transition/required_set_row_rules_v1.json` とし、語彙シードの全軸が
+`result-id-source` または `not-result-id-source` のちょうど一方へ属さなければ fail とする。
+
+| 語彙軸 | 分類 | 理由 |
+| --- | --- | --- |
+| `batting-result` | `batting-result` の `resultId` 源 | E-1・FR-003 が打撃結果の状態遷移を規範行へ置く |
+| `secondary-result` | `secondary-result` の `resultId` 源 | E-1・FR-004 が打撃結果2を規範行へ置く |
+| `strategy-category` | `runner-event` の `resultId` 源 | FR-004・A-4 の作戦3系統を走者イベントとして識別する |
+| `pitcher-pickoff-destination` / `catcher-pickoff-destination` | `runner-event` の `resultId` 源 | FR-004 の投手／捕手牽制と対象塁を識別する |
+| `pitch-type` | 非 `resultId` 源 | 投球属性。4.0-3 はチーム拡張語彙に値ごとの状態遷移規範を持たせない |
+| `strategy-detail` / `strategy-result` | 非 `resultId` 源 | 作戦イベントの内訳／結果であり、イベント種別ではない |
+| `error-type` / `pickoff-result` | 非 `resultId` 源 | FR-004 の payload に属する公式記録／走者別結果である |
+| `batted-ball-type` / `batted-ball-strength` | 非 `resultId` 源 | 4.0-3 が打撃結果から分離する打球情報である |
+| `batter-status` / `first-runner-status` / `second-runner-status` / `third-runner-status` | 非 `resultId` 源 | E-1 の状態効果側の値である |
+
+前提条件の分割は、条文が同一語彙 ID に複数行を要求すると明示するものだけを採る。
+現時点の閉じた規則は、既定の単一行、E-2・`SO-03` の振り逃げセーフ／アウト、
+および FR-004・E-1 の `INT-01`〜`INT-07` が定める妨害裁定3組の計5規則である。
+各規則は安定した `partitionRuleId`、適用する語彙 ID、抽象 `partitionId`、
+`sourceClauseIds` を持つ。抽象 identity は行の要求を数えるための識別子であり、
+後続ステップの `Predicate` を先取りしたとの主張はしない。規則の追加は典拠条文 ID を必須とし、
+典拠の無い分割、どの規則にも属さない `resultId`、複数規則に属する `resultId` を fail とする。
+
 **変異耐性の検査は展開器の実装後**。検出するのは「片経路の実装差」であり、
 **両経路に共通する欠落は検出しない**。
 
@@ -403,9 +430,10 @@ v8 は「どの段で途切れても fail」と無条件に書いており、**`
 ステップ41は導出器の実体を先取りせず、その3役割の読み取り許可集合と実行時トレース機構を置く。
 
 読み取り許可集合の正は
-`contracts/state-transition/deriver_dependency_policy_v1.json` とする。①行の要求は要件書と共有語彙の
-seed / manifest、②入力座標の要求は入力軸 descriptor、終了判定の要求は要件書と入力軸 descriptor
-だけを読める。検査は導出器の呼出区間で CPython の `open` 監査イベントとして観測したパスを、
+`contracts/state-transition/deriver_dependency_policy_v1.json` とする。①行の要求は要件書、共有語彙の
+seed / manifest、および5-1の機械可読な軸分類・分割規則、②入力座標の要求は入力軸 descriptor、
+終了判定の要求は要件書と入力軸 descriptorだけを読める。検査は導出器の呼出区間で CPython の
+`open` 監査イベントとして観測したパスを、
 解決後のリポジトリ相対パスに戻して当該役割の allowlist と突合する。リポジトリ外・解決不能・
 allowlist 外の読み取り、および追跡されない子プロセスの起動は fail とする。
 
