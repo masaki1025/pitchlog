@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -21,7 +22,46 @@ except ModuleNotFoundError:  # pragma: no cover - scriptを直接実行する経
 REGISTER_PATH = PurePosixPath(
     "contracts/state-transition/gap_register_v1.json"
 )
+SCHEMA_PATH = PurePosixPath(
+    "contracts/state-transition/gap_register_schema_v1.json"
+)
 REQUIREMENTS_PATH = parity_checker.REQUIREMENTS_PATH
+
+# JSON Schema の語彙・member 名は凍結する判断値ではなく、汎用文法のnavigationに使う。
+I_REQUIRED = "required"
+I_PROPERTIES = "properties"
+I_ITEMS = "items"
+I_STATE = "state"
+I_ENUM = "enum"
+I_SCHEMA_VERSION = "schemaVersion"
+I_VERSION = "version"
+I_CONST = "const"
+I_ADDITIONAL_PROPERTIES = "additionalProperties"
+I_GAPS = "gaps"
+I_PREDICATE_POLICY = "x-pitchlog-gap-register-predicates"
+I_CRITERIA_SOURCE = "criteriaSource"
+I_EXISTENCE_ONLY_STAGES = "existenceOnlyStages"
+I_BIDIRECTIONAL_STAGES = "bidirectionalStages"
+I_RESOLVED_ADDITIONAL_BIDIRECTIONAL_STAGES = (
+    "resolvedAdditionalBidirectionalStages"
+)
+L_SCHEMA_REQUIRED = "schema.required"
+L_SCHEMA_PROPERTIES = "schema.properties"
+L_SCHEMA_GAPS = "schema.properties.gaps"
+L_SCHEMA_GAP = "schema gaps.items"
+L_SCHEMA_GAP_REQUIRED = "schema gaps.items.required"
+L_SCHEMA_GAP_PROPERTIES = "schema gaps.items.properties"
+L_SCHEMA_STATE = "schema gaps.items.properties.state"
+L_SCHEMA_STATE_ENUM = "schema state.enum"
+L_SCHEMA_VERSION = "schema properties.schemaVersion"
+L_SCHEMA_DOCUMENT_VERSION = "schema properties.version"
+L_SCHEMA_POLICY = "schemaの状態別述語宣言"
+L_SCHEMA_EXISTENCE_STAGES = "schema predicate.existenceOnlyStages"
+L_SCHEMA_BIDIRECTIONAL_STAGES = "schema predicate.bidirectionalStages"
+L_SCHEMA_RESOLVED_ADDITIONAL_STAGES = (
+    "schema predicate.resolvedAdditionalBidirectionalStages"
+)
+L_SCHEMA_ASSET = "gap register schema"
 
 
 class GapRegisterError(Exception):
@@ -41,6 +81,23 @@ class GapCriteria:
     initial_state: str
     terminal_state: str
     schema_version: int
+
+
+@dataclass(frozen=True)
+class GapPredicatePolicy:
+    """schema資産が宣言する段ごとの参照検査方式。"""
+
+    existence_only_stages: frozenset[str]
+    bidirectional_stages: frozenset[str]
+    resolved_additional_bidirectional_stages: frozenset[str]
+
+
+@dataclass(frozen=True)
+class StageReferenceIndex:
+    """所有資産から得た参照の実在集合とgapへの逆方向帰属。"""
+
+    existing_references: frozenset[str]
+    gap_ids_by_reference: Mapping[str, frozenset[str]]
 
 
 def _criteria_string_list(value: object, label: str) -> list[str]:
@@ -103,6 +160,88 @@ def load_gap_criteria(descriptor: Mapping[str, Any]) -> GapCriteria:
     )
 
 
+def load_gap_schema_policy(
+    schema: Mapping[str, Any], criteria: GapCriteria
+) -> GapPredicatePolicy:
+    """JSON Schemaと状態述語宣言のcriteriaとの整合を検証して返す。"""
+    required = _criteria_string_list(schema.get(I_REQUIRED), L_SCHEMA_REQUIRED)
+    properties = _expect_object(schema.get(I_PROPERTIES), L_SCHEMA_PROPERTIES)
+    gaps_schema = _expect_object(properties.get(I_GAPS), L_SCHEMA_GAPS)
+    gap_schema = _expect_object(gaps_schema.get(I_ITEMS), L_SCHEMA_GAP)
+    gap_required = _criteria_string_list(
+        gap_schema.get(I_REQUIRED), L_SCHEMA_GAP_REQUIRED
+    )
+    gap_properties = _expect_object(
+        gap_schema.get(I_PROPERTIES), L_SCHEMA_GAP_PROPERTIES
+    )
+    state_schema = _expect_object(
+        gap_properties.get(I_STATE), L_SCHEMA_STATE
+    )
+    states = _criteria_string_list(state_schema.get(I_ENUM), L_SCHEMA_STATE_ENUM)
+    schema_version = _expect_object(
+        properties.get(I_SCHEMA_VERSION), L_SCHEMA_VERSION
+    ).get(I_CONST)
+    version = _expect_object(
+        properties.get(I_VERSION), L_SCHEMA_DOCUMENT_VERSION
+    ).get(I_CONST)
+    top_additional_properties = schema.get(I_ADDITIONAL_PROPERTIES)
+    gap_additional_properties = gap_schema.get(I_ADDITIONAL_PROPERTIES)
+    if frozenset(required) != criteria.top_level_fields:
+        raise GapRegisterError("schemaのトップレベルrequiredが凍結基準と一致しない")
+    if frozenset(properties) != criteria.top_level_fields:
+        raise GapRegisterError("schemaのトップレベルpropertiesが凍結基準と一致しない")
+    if top_additional_properties is not False:
+        raise GapRegisterError("schemaのトップレベルは未知フィールドを許している")
+    if frozenset(gap_required) != criteria.gap_fields:
+        raise GapRegisterError("schemaのgap requiredが凍結基準と一致しない")
+    if frozenset(gap_properties) != criteria.gap_fields:
+        raise GapRegisterError("schemaのgap propertiesが凍結基準と一致しない")
+    if gap_additional_properties is not False:
+        raise GapRegisterError("schemaのgap entryは未知フィールドを許している")
+    if frozenset(states) != criteria.states:
+        raise GapRegisterError("schemaのstate enumが凍結基準と一致しない")
+    if schema_version != criteria.schema_version or version != REGISTER_PATH.stem:
+        raise GapRegisterError("schemaの版がgap registerの凍結基準と一致しない")
+
+    policy = _expect_object(
+        schema.get(I_PREDICATE_POLICY),
+        L_SCHEMA_POLICY,
+    )
+    criteria_source = policy.get(I_CRITERIA_SOURCE)
+    if not isinstance(criteria_source, str) or not criteria_source:
+        raise GapRegisterError("schemaの状態別述語宣言にcriteriaSourceがない")
+    existence_only = _criteria_string_list(
+        policy.get(I_EXISTENCE_ONLY_STAGES),
+        L_SCHEMA_EXISTENCE_STAGES,
+    )
+    bidirectional = _criteria_string_list(
+        policy.get(I_BIDIRECTIONAL_STAGES),
+        L_SCHEMA_BIDIRECTIONAL_STAGES,
+    )
+    resolved_additional = _criteria_string_list(
+        policy.get(I_RESOLVED_ADDITIONAL_BIDIRECTIONAL_STAGES),
+        L_SCHEMA_RESOLVED_ADDITIONAL_STAGES,
+    )
+    existence_set = frozenset(existence_only)
+    bidirectional_set = frozenset(bidirectional)
+    resolved_additional_set = frozenset(resolved_additional)
+    if existence_set & bidirectional_set:
+        raise GapRegisterError("参照検査方式が複数の段へ重複している")
+    if existence_set | bidirectional_set != frozenset(criteria.stage_fields):
+        raise GapRegisterError("参照検査方式が5段のexact-setを覆っていない")
+    if not resolved_additional_set <= existence_set:
+        raise GapRegisterError("resolvedで追加する双方向段がopenの実在検査段でない")
+    if bidirectional_set | resolved_additional_set != frozenset(
+        criteria.stage_fields
+    ):
+        raise GapRegisterError("resolvedの双方向検査が5段のexact-setを覆っていない")
+    return GapPredicatePolicy(
+        existence_only_stages=existence_set,
+        bidirectional_stages=bidirectional_set,
+        resolved_additional_bidirectional_stages=resolved_additional_set,
+    )
+
+
 def _expect_object(value: object, label: str) -> dict[str, Any]:
     """JSON objectを検証して返す。"""
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
@@ -142,6 +281,98 @@ def _filled_stage_flags(
     return (*list_flags, _selector_is_filled(gap[criteria.stage_fields[-1]]))
 
 
+def canonical_reference_token(value: object) -> str:
+    """構造を持つ参照を決定的なJSON tokenへ正規化する。"""
+    try:
+        return json.dumps(
+            value,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    except (TypeError, ValueError) as error:
+        raise GapRegisterError(f"参照を決定的に正規化できない: {error}") from error
+
+
+def _stage_reference_tokens(
+    gap: Mapping[str, Any], field: str, criteria: GapCriteria
+) -> frozenset[str]:
+    """gapの1段を所有資産との突合に使う参照token集合へ変換する。"""
+    value = gap[field]
+    if field in criteria.list_stage_fields:
+        return frozenset(value)
+    if not _selector_is_filled(value):
+        return frozenset()
+    return frozenset((canonical_reference_token(value),))
+
+
+def _validate_reference_index(
+    field: str,
+    index: StageReferenceIndex,
+    criteria: GapCriteria,
+) -> None:
+    """所有資産から組み立てた参照indexの内部整合を検証する。"""
+    if not all(
+        isinstance(reference, str) and reference
+        for reference in index.existing_references
+    ):
+        raise GapRegisterError(f"{field}: 参照元の実在集合に不正な値がある")
+    if not all(
+        isinstance(reference, str)
+        and reference in index.existing_references
+        and isinstance(gap_ids, frozenset)
+        and all(gap_id in criteria.gap_ids for gap_id in gap_ids)
+        for reference, gap_ids in index.gap_ids_by_reference.items()
+    ):
+        raise GapRegisterError(f"{field}: 参照元の逆方向indexが不正")
+
+
+def _validate_stage_references(
+    gaps: Sequence[Mapping[str, Any]],
+    criteria: GapCriteria,
+    policy: GapPredicatePolicy,
+    reference_indexes: Mapping[str, StageReferenceIndex],
+) -> None:
+    """充填済み参照の実在と、宣言対象段の双方向一致を検証する。"""
+    for field, index in reference_indexes.items():
+        if field not in criteria.stage_fields:
+            raise GapRegisterError(f"未知の段に参照元indexがある: {field}")
+        _validate_reference_index(field, index, criteria)
+
+    for gap in gaps:
+        gap_id = gap["gapId"]
+        bidirectional_stages = policy.bidirectional_stages
+        if gap["state"] == criteria.terminal_state:
+            bidirectional_stages |= policy.resolved_additional_bidirectional_stages
+        for field in criteria.stage_fields:
+            actual = _stage_reference_tokens(gap, field, criteria)
+            index = reference_indexes.get(field)
+            if actual and index is None:
+                raise GapRegisterError(
+                    f"{gap_id}.{field}: 参照元が未整備のため実在を判定できない"
+                )
+            if index is not None:
+                missing = sorted(actual - index.existing_references)
+                if missing:
+                    raise GapRegisterError(
+                        f"{gap_id}.{field}: 存在しない参照がある: {missing!r}"
+                    )
+            if field not in bidirectional_stages or index is None:
+                continue
+            reverse = frozenset(
+                reference
+                for reference, owners in index.gap_ids_by_reference.items()
+                if gap_id in owners
+            )
+            if actual != reverse:
+                raise GapRegisterError(
+                    f"{gap_id}.{field}: 既に埋めた段が所有資産と双方向一致しない: "
+                    f"gapOnly={sorted(actual - reverse)!r}; "
+                    f"assetOnly={sorted(reverse - actual)!r}"
+                )
+
+
 def _validate_stage_predicate(
     gap: Mapping[str, Any], criteria: GapCriteria
 ) -> None:
@@ -167,6 +398,8 @@ def validate_gap_register_document(
     document: Mapping[str, Any],
     requirement_clause_ids: frozenset[str],
     criteria: GapCriteria,
+    policy: GapPredicatePolicy,
+    reference_indexes: Mapping[str, StageReferenceIndex] | None = None,
 ) -> None:
     """gap registerの骨格・条文参照・状態別述語を検証する。"""
     if set(document) != criteria.top_level_fields:
@@ -185,6 +418,7 @@ def validate_gap_register_document(
         raise GapRegisterError("gapsは配列でなければならない")
 
     gap_ids: list[str] = []
+    validated_gaps: list[Mapping[str, Any]] = []
     for index, raw_gap in enumerate(gaps):
         gap = _expect_object(raw_gap, f"gaps[{index}]")
         if set(gap) != criteria.gap_fields:
@@ -195,6 +429,7 @@ def validate_gap_register_document(
         if not isinstance(gap_id, str):
             raise GapRegisterError(f"gaps[{index}].gapIdは文字列でなければならない")
         gap_ids.append(gap_id)
+        validated_gaps.append(gap)
         if gap.get("state") not in criteria.states:
             raise GapRegisterError(
                 f"{gap_id}: stateが凍結した値集合に含まれない"
@@ -217,6 +452,30 @@ def validate_gap_register_document(
             "gapIdが9件のexact-setと一致しない: "
             f"expected={sorted(criteria.gap_ids)!r}; actual={sorted(gap_ids)!r}"
         )
+    indexes = dict(reference_indexes or {})
+    clause_reverse_index = indexes.get(criteria.stage_fields[0])
+    if clause_reverse_index is not None:
+        _validate_reference_index(
+            criteria.stage_fields[0], clause_reverse_index, criteria
+        )
+        unknown_clause_references = (
+            clause_reverse_index.existing_references - requirement_clause_ids
+        )
+        if unknown_clause_references:
+            raise GapRegisterError(
+                "clauseIdsの逆方向indexに要件書外の参照がある: "
+                f"{sorted(unknown_clause_references)!r}"
+            )
+    clause_reverse = (
+        clause_reverse_index.gap_ids_by_reference
+        if clause_reverse_index is not None
+        else {}
+    )
+    indexes[criteria.stage_fields[0]] = StageReferenceIndex(
+        existing_references=requirement_clause_ids,
+        gap_ids_by_reference=clause_reverse,
+    )
+    _validate_stage_references(validated_gaps, criteria, policy, indexes)
 
 
 def validate_state_progression(
@@ -271,8 +530,16 @@ def check_repository(root: Path) -> None:
         "入力軸descriptor",
     )
     criteria = load_gap_criteria(descriptor)
+    schema = _expect_object(
+        clause_id_source.load_json(root / SCHEMA_PATH, L_SCHEMA_ASSET),
+        L_SCHEMA_ASSET,
+    )
+    policy = load_gap_schema_policy(schema, criteria)
     validate_gap_register_document(
-        document, load_requirement_clause_ids(root), criteria
+        document,
+        load_requirement_clause_ids(root),
+        criteria,
+        policy,
     )
 
 
