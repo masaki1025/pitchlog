@@ -1,9 +1,11 @@
-"""人間確認の署名記録を、宣言済みの機械保証範囲だけで検証する。"""
+"""人間確認の署名記録を検証し、未確認の逐行確認シートを生成する。"""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
+import json
 import sys
 from collections.abc import Mapping, Sequence
 from datetime import date
@@ -15,8 +17,30 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - packageとして読み込む経路
     from scripts import check_input_axes_descriptor as descriptor_checker
 
+try:
+    import check_vocabulary_manifest as vocabulary_checker
+except ModuleNotFoundError:  # pragma: no cover - packageとして読み込む経路
+    vocabulary_spec = importlib.util.spec_from_file_location(
+        "check_vocabulary_manifest",
+        Path(__file__).resolve().with_name("check_vocabulary_manifest.py"),
+    )
+    if vocabulary_spec is None or vocabulary_spec.loader is None:  # pragma: no cover
+        raise ImportError("check_vocabulary_manifest.pyを読み込めない")
+    vocabulary_checker = importlib.util.module_from_spec(vocabulary_spec)
+    sys.modules[vocabulary_spec.name] = vocabulary_checker
+    vocabulary_spec.loader.exec_module(vocabulary_checker)
+
 SCHEMA_PATH = PurePosixPath(
     "contracts/state-transition/human_review_signature_schema_v1.json"
+)
+STATE_TRANSITION_SCHEMA_PATH = PurePosixPath(
+    "contracts/state-transition/state_transition_contract_schema_v1.json"
+)
+STATE_TRANSITION_CONTRACT_PATH = PurePosixPath(
+    "contracts/state-transition/state_transition_contract_v1.json"
+)
+VOCABULARY_MANIFEST_PATH = PurePosixPath(
+    "contracts/vocabulary/vocabulary_manifest_v1.json"
 )
 
 
@@ -220,6 +244,476 @@ def compute_subject_digest(subject: object, safe_integer_limit: int) -> str:
     return f"sha256:{hashlib.sha256(canonical).hexdigest()}"
 
 
+def _compact_json(value: object) -> str:
+    """短縮表示不能値向けの決定的な1行JSONを返す。"""
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).replace("|", "\\|")
+
+
+def _markdown_text(value: str) -> str:
+    """表セルを壊さない1行のMarkdownテキストを返す。"""
+    return value.replace("|", "\\|").replace("\r", " ").replace("\n", " ")
+
+
+def _load_vocabulary_display_names(root: Path) -> dict[str, str]:
+    """manifest検証済み語彙シードからIDと初期表示名の写像を返す。"""
+    try:
+        vocabulary_checker.validate_manifest(root)
+        manifest = _object(
+            descriptor_checker.load_json(
+                root / VOCABULARY_MANIFEST_PATH,
+                "語彙manifest",
+            ),
+            "語彙manifest",
+        )
+    except (
+        descriptor_checker.DescriptorCheckError,
+        vocabulary_checker.VocabularyManifestError,
+    ) as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+
+    names: dict[str, str] = {}
+    raw_seeds = manifest.get("seeds")
+    if not isinstance(raw_seeds, list) or not raw_seeds:
+        raise HumanReviewSignatureRecordError("語彙manifest.seedsが空または配列でない")
+    for seed_index, raw_declaration in enumerate(raw_seeds):
+        declaration = _object(raw_declaration, f"語彙manifest.seeds[{seed_index}]")
+        path = _string(declaration.get("path"), f"seeds[{seed_index}].path")
+        try:
+            raw_seed = descriptor_checker.load_json(root / path, f"語彙シード {path}")
+        except descriptor_checker.DescriptorCheckError as error:
+            raise HumanReviewSignatureRecordError(str(error)) from error
+        seed = _object(raw_seed, f"語彙シード {path}")
+        raw_axes = seed.get("axes")
+        if not isinstance(raw_axes, list):
+            raise HumanReviewSignatureRecordError(f"語彙シード {path}.axesが配列でない")
+        for axis_index, raw_axis in enumerate(raw_axes):
+            axis = _object(raw_axis, f"{path}.axes[{axis_index}]")
+            raw_entries = axis.get("entries")
+            if not isinstance(raw_entries, list):
+                raise HumanReviewSignatureRecordError(
+                    f"{path}.axes[{axis_index}].entriesが配列でない"
+                )
+            for entry_index, raw_entry in enumerate(raw_entries):
+                entry = _object(
+                    raw_entry,
+                    f"{path}.axes[{axis_index}].entries[{entry_index}]",
+                )
+                entry_id = _string(entry.get("id"), "語彙entry.id")
+                display_name = _string(
+                    entry.get("initialDisplayName"),
+                    "語彙entry.initialDisplayName",
+                )
+                if entry_id in names:
+                    raise HumanReviewSignatureRecordError(
+                        f"語彙IDが複数の表示名へ解決される: {entry_id!r}"
+                    )
+                names[entry_id] = display_name
+    return names
+
+
+def _schema_definition(
+    schema: Mapping[str, Any],
+    definition_id: str,
+) -> dict[str, Any]:
+    """状況判定契約schemaの指定定義を返す。"""
+    definitions = _object(schema.get("$defs"), "状況判定契約schema.$defs")
+    return _object(definitions.get(definition_id), f"$defs.{definition_id}")
+
+
+def _format_precondition(
+    raw_precondition: object,
+    unresolved: set[str],
+) -> str:
+    """現在解釈可能なPredicateを短い日本語へ整形する。"""
+    precondition = _object(raw_precondition, "precondition")
+    raw_args = precondition.get("args")
+    if precondition.get("op") != "and" or not isinstance(raw_args, list):
+        unresolved.add(f"precondition={_compact_json(precondition)}")
+        return _compact_json(precondition)
+
+    values: dict[str, object] = {}
+    for index, raw_arg in enumerate(raw_args):
+        arg = _object(raw_arg, f"precondition.args[{index}]")
+        if arg.get("op") != "eq" or set(arg) != {"op", "axisId", "value"}:
+            unresolved.add(f"precondition.args[{index}]={_compact_json(arg)}")
+            continue
+        axis_id = _string(arg.get("axisId"), f"precondition.args[{index}].axisId")
+        if axis_id in values:
+            unresolved.add(f"preconditionの重複軸={axis_id}")
+            continue
+        values[axis_id] = arg.get("value")
+
+    parts: list[str] = []
+    outs = values.pop("state.outs", None)
+    if isinstance(outs, int) and not isinstance(outs, bool):
+        parts.append("無死" if outs == 0 else f"{outs}死")
+    elif outs is not None:
+        unresolved.add(f"state.outs={_compact_json(outs)}")
+        parts.append(f"state.outs={_compact_json(outs)}")
+
+    runners = values.pop("state.runners", None)
+    if runners == "empty":
+        parts.append("走者なし")
+    elif runners is not None:
+        unresolved.add(f"state.runners={_compact_json(runners)}")
+        parts.append(f"state.runners={_compact_json(runners)}")
+
+    strikes = values.pop("state.count.strikes", None)
+    balls = values.pop("state.count.balls", None)
+    if (
+        isinstance(strikes, int)
+        and not isinstance(strikes, bool)
+        and isinstance(balls, int)
+        and not isinstance(balls, bool)
+    ):
+        parts.append(f"カウント {balls}-{strikes}")
+    else:
+        for axis_id, value in (
+            ("state.count.strikes", strikes),
+            ("state.count.balls", balls),
+        ):
+            if value is not None:
+                unresolved.add(f"{axis_id}={_compact_json(value)}")
+                parts.append(f"{axis_id}={_compact_json(value)}")
+
+    pitch_event_kind = values.pop("event.perPitch.pitchEventKind", None)
+    if pitch_event_kind == "pitch-event":
+        parts.append("投球イベント")
+    elif pitch_event_kind == "non-pitch-event":
+        parts.append("非投球イベント")
+    elif pitch_event_kind is not None:
+        unresolved.add(
+            "event.perPitch.pitchEventKind=" + _compact_json(pitch_event_kind)
+        )
+        parts.append(_compact_json(pitch_event_kind))
+
+    for axis_id, value in values.items():
+        unresolved.add(f"{axis_id}={_compact_json(value)}")
+        parts.append(f"{axis_id}={_compact_json(value)}")
+    return " / ".join(parts) if parts else "—"
+
+
+def _format_count_effect(
+    raw_effect: object,
+    schema: Mapping[str, Any],
+    unresolved: set[str],
+) -> str:
+    """CountEffectをschema宣言順のS/B短縮表現へ整形する。"""
+    effect = _object(raw_effect, "countEffect")
+    count_schema = _schema_definition(schema, "countEffect")
+    properties = _object(count_schema.get("properties"), "$defs.countEffect.properties")
+    parts: list[str] = []
+    for field in properties:
+        raw_field_effect = effect.get(field)
+        field_effect = _object(raw_field_effect, f"countEffect.{field}")
+        short_name = field[:1].upper()
+        kind = field_effect.get("kind")
+        if kind == "unchanged":
+            continue
+        if kind == "delta":
+            value = field_effect.get("value")
+            if isinstance(value, int) and not isinstance(value, bool):
+                parts.append(f"{short_name}{value:+d}")
+                continue
+        elif kind == "reset":
+            parts.append(f"{short_name}→0")
+            continue
+        unresolved.add(f"countEffect.{field}={_compact_json(field_effect)}")
+        parts.append(f"{short_name}:{_compact_json(field_effect)}")
+    return " / ".join(parts) if parts else "—"
+
+
+def _format_plate_appearance(value: object, unresolved: set[str]) -> str:
+    """打席終了値を短い日本語へ整形する。"""
+    if value is True:
+        return "終了"
+    if value is False:
+        return "継続"
+    if value == "not-applicable":
+        return "—"
+    unresolved.add(f"plateAppearanceEnded={_compact_json(value)}")
+    return _compact_json(value)
+
+
+def _format_batter_destination(value: object, unresolved: set[str]) -> str:
+    """打者の行き先を短い日本語へ整形する。"""
+    destination = _object(value, "batterDestination")
+    kind = destination.get("kind")
+    if kind == "continue":
+        return "継続"
+    if kind == "out":
+        return "アウト"
+    if kind == "score":
+        return "得点"
+    if kind == "not-applicable":
+        return "—"
+    if kind == "reach":
+        base = destination.get("base")
+        if isinstance(base, int) and not isinstance(base, bool):
+            return f"{base}塁"
+    unresolved.add(f"batterDestination={_compact_json(destination)}")
+    return _compact_json(destination)
+
+
+def _format_runner_advance(value: object, unresolved: set[str]) -> str:
+    """走者の既定進塁を短縮し、全塁非該当ならダッシュを返す。"""
+    advances = _object(value, "runnerDefaultAdvance")
+    if advances and all(
+        isinstance(advance, dict)
+        and advance.get("modality") == "not-applicable"
+        and advance.get("destination") is None
+        for advance in advances.values()
+    ):
+        return "—"
+    unresolved.add(f"runnerDefaultAdvance={_compact_json(advances)}")
+    return _compact_json(advances)
+
+
+def _format_out_effect(value: object, unresolved: set[str]) -> str:
+    """アウト数と対象を短い日本語へ整形する。"""
+    effect = _object(value, "outEffect")
+    count = effect.get("count")
+    raw_targets = effect.get("targets")
+    if not isinstance(count, int) or isinstance(count, bool) or not isinstance(
+        raw_targets, list
+    ):
+        unresolved.add(f"outEffect={_compact_json(effect)}")
+        return _compact_json(effect)
+    if count == 0 and not raw_targets:
+        return "0"
+
+    targets: list[str] = []
+    for raw_target in raw_targets:
+        if raw_target == "batter":
+            targets.append("打者")
+        elif isinstance(raw_target, dict) and isinstance(raw_target.get("runner"), int):
+            targets.append(f"{raw_target['runner']}塁走者")
+        else:
+            unresolved.add(f"outEffect.target={_compact_json(raw_target)}")
+            targets.append(_compact_json(raw_target))
+    return f"{count}（{'・'.join(targets)}）" if targets else str(count)
+
+
+def _format_true_stat_flags(
+    value: object,
+    schema: Mapping[str, Any],
+) -> str:
+    """schemaが定める23フラグのうちtrueの名前だけを返す。"""
+    flags = _object(value, "statFlags")
+    stat_schema = _schema_definition(schema, "statFlags")
+    fields = _string_list(stat_schema.get("required"), "$defs.statFlags.required")
+    enabled = [field for field in fields if flags.get(field) is True]
+    return "・".join(enabled) if enabled else "なし"
+
+
+def _format_event_kind(value: object, unresolved: set[str]) -> str:
+    """イベント種別を短い日本語へ整形する。"""
+    if value == "batting-result":
+        return "打撃結果"
+    if value == "secondary-result":
+        return "打撃結果2"
+    if value == "runner-event":
+        return "走者イベント"
+    unresolved.add(f"eventKind={_compact_json(value)}")
+    return _compact_json(value)
+
+
+def render_matrix_rows_review_sheet(
+    root: Path,
+    contract: Mapping[str, Any],
+) -> str:
+    """未確認のmatrixRowsを人間向け逐行確認シートへ描画する。
+
+    Args:
+        root: リポジトリルート。
+        contract: 状況判定契約。
+
+    Returns:
+        Markdown形式の逐行確認シート。
+
+    Raises:
+        HumanReviewSignatureRecordError: 契約schemaまたは描画元の必須宣言を
+            解決できない場合。
+
+    Note:
+        この関数が検査するのは契約schemaへの適合だけである。状態効果の意味や
+        人間レビューの実施は保証しない。
+    """
+    try:
+        raw_schema = descriptor_checker.load_json(
+            root / STATE_TRANSITION_SCHEMA_PATH,
+            "状況判定契約schema",
+        )
+        schema = _object(raw_schema, "状況判定契約schema")
+        descriptor_checker._validate_instance(
+            dict(contract), schema, schema, "状況判定契約"
+        )
+    except descriptor_checker.DescriptorCheckError as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+
+    rows = contract.get("matrixRows")
+    if not isinstance(rows, list) or not rows:
+        raise HumanReviewSignatureRecordError("matrixRowsが空または配列でない")
+    typed_rows = [
+        _object(raw_row, f"matrixRows[{index}]")
+        for index, raw_row in enumerate(rows)
+    ]
+    display_names = _load_vocabulary_display_names(root)
+    unresolved: set[str] = set()
+
+    provenance = _object(contract.get("provenance"), "provenance")
+    source_ids: list[str] = []
+    raw_sources = provenance.get("sources")
+    if not isinstance(raw_sources, list) or not raw_sources:
+        raise HumanReviewSignatureRecordError("provenance.sourcesが空または配列でない")
+    for index, raw_source in enumerate(raw_sources):
+        source = _object(raw_source, f"provenance.sources[{index}]")
+        source_ids.append(
+            _string(source.get("sourceId"), f"provenance.sources[{index}].sourceId")
+        )
+
+    author_id = _string(provenance.get("authorId"), "provenance.authorId")
+    verifier_id = _string(
+        provenance.get("independentVerifierId"),
+        "provenance.independentVerifierId",
+    )
+    review_state = "未実施" if verifier_id == "not-performed" else "記録あり"
+    source_text = " / ".join(f"`{source_id}`" for source_id in source_ids)
+
+    event_kinds = [row.get("eventKind") for row in typed_rows]
+    common_event_kind = event_kinds[0] if all(
+        value == event_kinds[0] for value in event_kinds
+    ) else None
+    precondition_keys = [
+        descriptor_checker.canonicalize_json(row.get("precondition"))
+        for row in typed_rows
+    ]
+    common_precondition = typed_rows[0].get("precondition") if all(
+        value == precondition_keys[0] for value in precondition_keys
+    ) else None
+    common_parts: list[str] = []
+    if common_event_kind is not None:
+        common_parts.append(_format_event_kind(common_event_kind, unresolved))
+    if common_precondition is not None:
+        common_parts.append(_format_precondition(common_precondition, unresolved))
+
+    lines = [
+        "# `matrixRows[]` 逐行確認シート",
+        "",
+        "> この文書は状況判定契約から機械生成したレビュー入力であり、"
+        "レビューの実施や判断の正しさを証明する記録ではない。",
+        "",
+        f"- 作成者: `{author_id}`",
+        f"- 独立確認: **{review_state}**",
+        f"- 由来条文: {source_text}",
+        f"- 完全な値: `{STATE_TRANSITION_CONTRACT_PATH.as_posix()}` の "
+        "`matrixRows[]`（入力座標 = `eventKind` + `resultId` + `precondition`）",
+        "",
+        f"**本表の全行に共通する前提:** {' / '.join(common_parts)}"
+        if common_parts
+        else "**本表の全行に共通する前提:** なし",
+        "",
+        "## 入力 → 出力",
+        "",
+    ]
+    headers = ["#"]
+    if common_event_kind is None:
+        headers.append("種別")
+    headers.append("結果")
+    if common_precondition is None:
+        headers.append("前提")
+    headers.extend(
+        ["カウント", "打席", "打者", "走者", "アウト", "成績フラグ（trueのみ）", "特記"]
+    )
+    lines.append("| " + " | ".join(headers) + " |")
+    lines.append("| " + " | ".join("---:" if item == "#" else "---" for item in headers) + " |")
+
+    for index, row in enumerate(typed_rows, start=1):
+        result_id = _string(row.get("resultId"), f"matrixRows[{index - 1}].resultId")
+        result_name = display_names.get(result_id)
+        if result_name is None:
+            unresolved.add(f"resultId={result_id}")
+            result_name = result_id
+        cells = [str(index)]
+        if common_event_kind is None:
+            cells.append(_format_event_kind(row.get("eventKind"), unresolved))
+        cells.append(result_name)
+        if common_precondition is None:
+            cells.append(_format_precondition(row.get("precondition"), unresolved))
+        cells.extend(
+            [
+                _format_count_effect(row.get("countEffect"), schema, unresolved),
+                _format_plate_appearance(row.get("plateAppearanceEnded"), unresolved),
+                _format_batter_destination(row.get("batterDestination"), unresolved),
+                _format_runner_advance(row.get("runnerDefaultAdvance"), unresolved),
+                _format_out_effect(row.get("outEffect"), unresolved),
+                _format_true_stat_flags(row.get("statFlags"), schema),
+                _string(row.get("remarks"), f"matrixRows[{index - 1}].remarks"),
+            ]
+        )
+        lines.append("| " + " | ".join(_markdown_text(cell) for cell in cells) + " |")
+
+    lines.extend(
+        [
+            "",
+            "## 機械検査として畳む項目",
+            "",
+            "- 生成時: `MatrixRow` の10列、必須キー、型、未知キー拒否",
+            "- リポジトリ検査: 語彙IDと述語軸の参照、入力座標の一意性、"
+            "`XC-01`〜`XC-08`・`XC-10`〜`XC-12`",
+            "- `XC-13` は導出原則だけを保持する。23フラグ個別の導出表は"
+            "段階2であり、現段階の機械保証には含めない",
+            "",
+            "## 人間が判断すること",
+            "",
+            "- 各入力座標に対するカウント、打席、打者・走者、アウトの効果が"
+            "野球規則と要件条文の意味に照らして正しいか",
+            "- 投球数を含む成績計上フラグが、この投球結果の意味として正しいか",
+            "- 特記が状態効果を過不足なく説明し、機械検査の範囲外を隠していないか",
+            "",
+        ]
+    )
+    if unresolved:
+        lines.extend(
+            [
+                "## 短縮表示できなかった値",
+                "",
+                *[f"- `{value}`" for value in sorted(unresolved)],
+                "",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def generate_matrix_rows_review_sheet(
+    root: Path,
+    contract_path: Path,
+    output_path: Path,
+) -> None:
+    """契約JSONから逐行確認シートを生成する。
+
+    Args:
+        root: リポジトリルート。
+        contract_path: 状況判定契約JSON。
+        output_path: 出力するMarkdownファイル。
+    """
+    try:
+        raw_contract = descriptor_checker.load_json(contract_path, "状況判定契約")
+    except descriptor_checker.DescriptorCheckError as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+    contract = _object(raw_contract, "状況判定契約")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        render_matrix_rows_review_sheet(root, contract),
+        encoding="utf-8",
+    )
+
+
 def validate_signature_record(
     root: Path,
     record: Mapping[str, Any],
@@ -337,12 +831,36 @@ def validate_signature_record(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """指定した署名記録の形式・対象digest・宣誓記載を検証する。"""
+    """署名記録を検証するか、状況判定契約から逐行確認シートを生成する。"""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("record", type=Path, help="検証する署名記録JSON")
+    parser.add_argument("record", type=Path, nargs="?", help="検証する署名記録JSON")
     parser.add_argument("--root", type=Path, default=Path.cwd())
+    parser.add_argument(
+        "--matrix-review-contract",
+        type=Path,
+        help="逐行確認シートの入力となる状況判定契約JSON",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="逐行確認シートの出力先",
+    )
     args = parser.parse_args(argv)
     try:
+        if args.matrix_review_contract is not None:
+            if args.record is not None or args.output is None:
+                parser.error(
+                    "--matrix-review-contractはrecordなし・--outputありで指定する"
+                )
+            generate_matrix_rows_review_sheet(
+                args.root,
+                args.matrix_review_contract,
+                args.output,
+            )
+            print(f"matrixRows review sheet: GENERATED: {args.output}")
+            return 0
+        if args.record is None or args.output is not None:
+            parser.error("署名検査ではrecordだけを指定する")
         raw_record = descriptor_checker.load_json(args.record, "署名記録")
         record = _object(raw_record, "署名記録")
         validate_signature_record(args.root, record)

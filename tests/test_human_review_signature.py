@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import shutil
 import sys
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,14 @@ SCHEMA_PATH = (
 )
 SUBJECT_RELATIVE_PATH = Path(
     "contracts/state-transition/input_axes_descriptor_v1.json"
+)
+CONTRACT_PATH = (
+    REPOSITORY_ROOT
+    / "contracts/state-transition/state_transition_contract_v1.json"
+)
+REVIEW_SHEET_PATH = (
+    REPOSITORY_ROOT
+    / "docs/features/appendix-e-golden-vectors/matrix_rows_line_review.md"
 )
 DESIGN_PATH = REPOSITORY_ROOT / "docs/features/appendix-e-golden-vectors/design.md"
 
@@ -188,3 +197,93 @@ def test_unsupported_declared_digest_method_is_red() -> None:
             _signature_record(),
             schema_value=schema,
         )
+
+
+def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> None:
+    """未確認の逐行確認シートを契約から決定的に生成する。"""
+    generated = tmp_path / "matrix_rows_line_review.md"
+
+    result = checker.main(
+        [
+            "--root",
+            str(REPOSITORY_ROOT),
+            "--matrix-review-contract",
+            str(CONTRACT_PATH),
+            "--output",
+            str(generated),
+        ]
+    )
+
+    assert result == 0
+    assert generated.read_text(encoding="utf-8") == REVIEW_SHEET_PATH.read_text(
+        encoding="utf-8"
+    )
+    sheet = generated.read_text(encoding="utf-8")
+    assert "独立確認: **未実施**" in sheet
+    assert "確認済み" not in sheet
+    assert "本表の全行に共通する前提:** 打撃結果 / 無死 / 走者なし / " in sheet
+    assert "カウント 0-0 / 投球イベント" in sheet
+    assert "state_transition_contract_v1.json` の `matrixRows[]`" in sheet
+    assert "{\"" not in sheet
+    assert "false" not in sheet
+    assert sheet.count("| 投球数 |") == 4
+    assert "| 1 | 見逃し | S+1 | 継続 | 継続 | — | 0 | 投球数 |" in sheet
+    assert "| 4 | ボール | B+1 | 継続 | 継続 | — | 0 | 投球数 |" in sheet
+    assert "## 人間が判断すること" in sheet
+    assert "段階2" in sheet
+
+
+def test_matrix_rows_line_review_renderer_accepts_later_rows() -> None:
+    """同じ描画器を後続ステップで行追加後も再利用できる。"""
+    contract = _load_object(CONTRACT_PATH)
+    later_row = copy.deepcopy(contract["matrixRows"][0])
+    later_row["resultId"] = "batting-result.single"
+    later_row["remarks"] = "後続ステップの再利用確認用"
+    contract["matrixRows"].append(later_row)
+
+    sheet = checker.render_matrix_rows_review_sheet(REPOSITORY_ROOT, contract)
+
+    table_rows = [
+        line
+        for line in sheet.splitlines()
+        if line.startswith("| ")
+        and line.removeprefix("| ").split(" | ", maxsplit=1)[0].isdigit()
+    ]
+    assert len(table_rows) == 5
+    assert "| 5 | 単打 |" in sheet
+
+
+def test_matrix_rows_result_names_follow_vocabulary_seed(tmp_path: Path) -> None:
+    """結果名を固定対応表でなくmanifest参照先の語彙シードから取得する。"""
+    vocabulary_root = tmp_path / "contracts/vocabulary"
+    state_transition_root = tmp_path / "contracts/state-transition"
+    shutil.copytree(REPOSITORY_ROOT / "contracts/vocabulary", vocabulary_root)
+    state_transition_root.mkdir(parents=True)
+    shutil.copy2(
+        REPOSITORY_ROOT
+        / "contracts/state-transition/state_transition_contract_schema_v1.json",
+        state_transition_root / "state_transition_contract_schema_v1.json",
+    )
+    seed_path = vocabulary_root / "input_vocabulary_v1.json"
+    manifest_path = vocabulary_root / "vocabulary_manifest_v1.json"
+    seed = _load_object(seed_path)
+    seed["axes"][0]["entries"][0]["initialDisplayName"] = "見逃し（テスト）"
+    seed_path.write_text(
+        json.dumps(seed, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    manifest = _load_object(manifest_path)
+    manifest["seeds"][0]["contentHash"] = (
+        checker.vocabulary_checker.compute_content_hash(seed)
+    )
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    sheet = checker.render_matrix_rows_review_sheet(
+        tmp_path,
+        _load_object(CONTRACT_PATH),
+    )
+
+    assert "| 1 | 見逃し（テスト） |" in sheet

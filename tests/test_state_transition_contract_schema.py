@@ -23,6 +23,10 @@ SCHEMA_PATH = (
     REPOSITORY_ROOT
     / "contracts/state-transition/state_transition_contract_schema_v1.json"
 )
+CONTRACT_PATH = (
+    REPOSITORY_ROOT
+    / "contracts/state-transition/state_transition_contract_v1.json"
+)
 DESCRIPTOR_PATH = (
     REPOSITORY_ROOT / "contracts/state-transition/input_axes_descriptor_v1.json"
 )
@@ -87,6 +91,11 @@ def _load_object(path: Path) -> dict[str, Any]:
 def _schema() -> dict[str, Any]:
     """状況判定契約schemaを返す。"""
     return _load_object(SCHEMA_PATH)
+
+
+def _repository_contract() -> dict[str, Any]:
+    """段階実装中の状況判定契約を返す。"""
+    return _load_object(CONTRACT_PATH)
 
 
 def _descriptor() -> dict[str, Any]:
@@ -1782,6 +1791,54 @@ def test_repository_schema_accepts_the_three_normative_row_layers() -> None:
     assert schema["version"] == SCHEMA_PATH.stem
     assert "decisionRows" not in schema["properties"]
     _validate(_minimal_contract())
+
+
+def test_repository_contract_step51_rows_satisfy_schema_references_and_xc() -> None:
+    """継続4行が10列exact型・参照制約・実装済みXCを充足する。"""
+    contract = _repository_contract()
+    expected_result_ids = {
+        "batting-result.called-pitch",
+        "batting-result.swinging-strike",
+        "batting-result.foul",
+        "batting-result.ball",
+    }
+
+    _validate_schema(contract)
+    _validate_references(
+        contract,
+        vocabulary_checker.validate_manifest(REPOSITORY_ROOT),
+    )
+    _validate_cross_constraints(contract)
+
+    rows = contract["matrixRows"]
+    assert len(rows) == 4
+    assert {row["resultId"] for row in rows} == expected_result_ids
+    assert all(row["eventKind"] == "batting-result" for row in rows)
+    assert all(row["plateAppearanceEnded"] is False for row in rows)
+    assert all(row["batterDestination"] == {"kind": "continue"} for row in rows)
+    assert all(row["outEffect"] == {"count": 0, "targets": []} for row in rows)
+    assert all(
+        {name for name, enabled in row["statFlags"].items() if enabled}
+        == {"投球数"}
+        for row in rows
+    )
+
+
+def test_repository_contract_records_step51_independent_review_as_not_performed() -> None:
+    """未実施の独立確認を充足済みprovenanceとして受理しない。"""
+    provenance = _repository_contract()["provenance"]
+
+    assert provenance["authorId"] == "codex"
+    assert provenance["independentVerifierId"] == "not-performed"
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError,
+        match="宣誓応答が充足値でない",
+    ):
+        provenance_checker.validate_provenance(
+            REPOSITORY_ROOT,
+            provenance,
+            schema_value=_schema(),
+        )
 
 
 def test_provenance_declares_machine_and_human_assurance_boundaries() -> None:
