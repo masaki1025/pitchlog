@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:feb21c40e4f6904394202e35aec96f8031b8ea4ccd5172072c60300bb9d390ac",
+  "digest": "sha256:9758159e76c974df31a09fb8d3db7c0f25c46b8aa4ee3e1b28db25ac800ccce9",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -46,6 +46,235 @@
       "negative-fixtures"
     ],
     "reason": "ADR-003 D-11の既存委任条項と2026-09-26の2回目のPO射程縮小を適用し、payload内部制約・状態遷移軸の組合せ規則・文字列規定の整合に加え、XC-13の23フラグ導出表、第3アウト種別の観測入力、および記録員判断の入力契約は、ベクタと検査基盤を実機で整備する段階2で確定する"
+  },
+  "inputCoordinateCoverage": {
+    "sourceDecisionId": "adr:D-6",
+    "requirementGranularity": "per-axis-value",
+    "coverageValueFieldsByClassification": {
+      "finite-enumerable": "values",
+      "boundary-partition": "boundaryValues"
+    },
+    "axisCombinationBoundary": {
+      "status": "deferred",
+      "constraintClass": "state-transition-axis-combinations",
+      "scope": "all-state-transition-axes",
+      "requiredArtifact": "state-transition-axis-combination-rules",
+      "mechanicallyGuaranteed": "per-axis-value-coverage-only",
+      "notMechanicallyGuaranteed": "cross-axis-combination-coverage"
+    },
+    "conditionalValuePolicy": {
+      "sourceField": "conditionalValues",
+      "clauseIdField": "whenClauseId",
+      "stateField": "whenState",
+      "includedWhen": "declared-adoption-state-matches",
+      "excludedWhen": "declared-adoption-state-does-not-match",
+      "undecidableAction": "fail"
+    },
+    "axisBindings": [
+      {
+        "axisIds": [
+          "state.half",
+          "state.count.strikes",
+          "state.count.balls",
+          "state.outs",
+          "state.runners",
+          "state.battingOrder",
+          "state.tiebreakActive",
+          "state.gameEnded",
+          "state.inning",
+          "state.score"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows",
+              "operationRows",
+              "undoRows"
+            ],
+            "naturalKeyRole": "predicate-axis",
+            "naturalKeyValueProjection": "identity",
+            "naturalKeyField": "precondition",
+            "coverageSelector": {
+              "kind": "all-axis-values"
+            }
+          }
+        ]
+      },
+      {
+        "axisIds": [
+          "event.operationKind"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows"
+            ],
+            "naturalKeyRole": "row-layer-implied-value",
+            "naturalKeyValueProjection": "row-layer-implied-constant",
+            "coverageSelector": {
+              "kind": "explicit-values",
+              "values": [
+                "per-pitch"
+              ]
+            }
+          },
+          {
+            "rowLayers": [
+              "operationRows"
+            ],
+            "naturalKeyRole": "direct-field",
+            "naturalKeyValueProjection": "identity",
+            "naturalKeyField": "operationKind",
+            "coverageSelector": {
+              "kind": "explicit-values",
+              "values": [
+                "substitution",
+                "tiebreak-start",
+                "game-end-declaration",
+                "adhoc-registration",
+                "state-correction"
+              ]
+            }
+          },
+          {
+            "rowLayers": [
+              "undoRows"
+            ],
+            "naturalKeyRole": "row-layer-implied-value",
+            "naturalKeyValueProjection": "row-layer-implied-constant",
+            "coverageSelector": {
+              "kind": "explicit-values",
+              "values": [
+                "undo"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "axisIds": [
+          "event.operationPayload"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows",
+              "undoRows"
+            ],
+            "naturalKeyRole": "row-layer-implied-value",
+            "naturalKeyValueProjection": "row-layer-implied-constant",
+            "coverageSelector": {
+              "kind": "explicit-values",
+              "values": [
+                "not-applicable"
+              ]
+            }
+          },
+          {
+            "rowLayers": [
+              "operationRows"
+            ],
+            "naturalKeyRole": "direct-field",
+            "naturalKeyValueProjection": "identity",
+            "naturalKeyField": "payloadShape",
+            "coverageSelector": {
+              "kind": "explicit-values",
+              "values": [
+                "substitution",
+                "tiebreak-start",
+                "game-end-declaration",
+                "adhoc-registration",
+                "state-correction"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "axisIds": [
+          "event.perPitch.kind"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows"
+            ],
+            "naturalKeyRole": "direct-field",
+            "naturalKeyValueProjection": "identity",
+            "naturalKeyField": "eventKind",
+            "coverageSelector": {
+              "kind": "all-axis-values"
+            }
+          }
+        ]
+      },
+      {
+        "axisIds": [
+          "event.perPitch.resultId"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows"
+            ],
+            "naturalKeyRole": "direct-field",
+            "naturalKeyValueProjection": "vocabulary-id-to-initial-display-name",
+            "naturalKeyField": "resultId",
+            "coverageSelector": {
+              "kind": "all-axis-values"
+            }
+          }
+        ]
+      },
+      {
+        "axisIds": [
+          "event.perPitch.pitchEventKind",
+          "event.perPitch.runnerEventPayload",
+          "event.perPitch.runnerAdvanceOverridesByRunner",
+          "event.perPitch.thirdOutTimingByRunner",
+          "event.perPitch.interferenceRuling",
+          "event.perPitch.officialScoringPayload",
+          "event.perPitch.rbi.doublePlayRelayError",
+          "event.perPitch.rbi.runnerContinuityByRunner",
+          "event.perPitch.rbi.wouldScoreWithoutErrorByRunner"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows"
+            ],
+            "naturalKeyRole": "predicate-axis",
+            "naturalKeyValueProjection": "identity",
+            "naturalKeyField": "precondition",
+            "coverageSelector": {
+              "kind": "all-axis-values"
+            }
+          }
+        ]
+      },
+      {
+        "axisIds": [
+          "history.depth",
+          "history.composition",
+          "history.scenarioLength"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows",
+              "operationRows",
+              "undoRows"
+            ],
+            "naturalKeyRole": "predicate-axis",
+            "naturalKeyValueProjection": "identity",
+            "naturalKeyField": "precondition",
+            "coverageSelector": {
+              "kind": "all-axis-values"
+            }
+          }
+        ]
+      }
+    ]
   },
   "freezeBaseline": {
     "schemaVersion": 1,
@@ -232,6 +461,8 @@
               "$schema",
               "additionalProperties",
               "axis",
+              "axisCombinationBoundary",
+              "axisCombinationScope",
               "axisClassification",
               "axisId",
               "boundaryPartitionAxis",
@@ -239,6 +470,7 @@
               "classification",
               "conditionalValues",
               "const",
+              "constraintClass",
               "constraintClasses",
               "coverageBound",
               "coverageBounds",
@@ -256,6 +488,11 @@
               "gameEndAxisSupportingClauseId",
               "gameEndCombinationRules",
               "identityTargetIds",
+              "inputCoordinateAxisBinding",
+              "inputCoordinateCoverage",
+              "inputCoordinateCoverageIdentity",
+              "inputCoordinateCoverageSelector",
+              "inputCoordinateRowBinding",
               "invalid",
               "invalidBoundaryValues",
               "jsonSchemaKeywords",
@@ -281,6 +518,7 @@
               "properties",
               "representationCapability",
               "required",
+              "requiredArtifact",
               "requiredArtifacts",
               "requiredJsonSchemaKeywords",
               "requiredParityChecks",
@@ -288,8 +526,11 @@
               "ruleId",
               "safeIntegerLimit",
               "schemaRetention",
+              "scope",
               "sourceClauseId",
+              "sourceDecisionId",
               "sourceKind",
+              "status",
               "stage2ExternalConstraints",
               "supportingClauseIds",
               "targetIds",
@@ -306,6 +547,9 @@
             ],
             "json-schema-vocabulary-used-by-generic-validator": [
               "object"
+            ],
+            "identifier-or-format-grammar": [
+              "sha256:[0-9a-f]{64}"
             ],
             "repository-path-or-filename-grammar": [
               "contracts/state-transition/input_axes_descriptor_schema_v1.json"
@@ -542,12 +786,14 @@
           "freezeBaseline",
           "gameEndAxes",
           "gameEndCombinationRules",
+          "inputCoordinateCoverage",
           "nonCoverageFields",
           "projectionRules",
           "stage2ExternalConstraints",
           "stateTransitionAxes",
           "version"
         ],
+        "inputCoordinateCoverageIdentity": "sha256:169a9631b6caed70f742190a804567cb0c661974cd8167fcd443b6bd2671c216",
         "safeIntegerLimit": 9007199254740991,
         "forbiddenStage1ReferenceKeys": [
           "$ref",
@@ -955,7 +1201,7 @@
           "values": [
             {
               "criterionId": "freezeDefinition",
-              "identity": "sha256:664d20da90bd5e413df03aeaee4351c5c466627bdeca57fd784d83ccfcf8dd1a"
+              "identity": "sha256:f1e443e57ca59b85fbd9cf89007d5913682040b75bdbd7de0eacb66bdb4a1dae"
             },
             {
               "criterionId": "threeWayParity",
@@ -963,7 +1209,7 @@
             },
             {
               "criterionId": "inputAxesDescriptor",
-              "identity": "sha256:ef135ff8ecbf7c0acd9453359de7fa8a19af287e10f2e8d191988c6c5525d904"
+              "identity": "sha256:05cfe14563f32fd9651746b2c1dd90058d82a9b7c7d4f5bc2f4e2a57d02f766d"
             },
             {
               "criterionId": "gapRegister",
@@ -1148,6 +1394,8 @@
                         "$schema",
                         "additionalProperties",
                         "axis",
+                        "axisCombinationBoundary",
+                        "axisCombinationScope",
                         "axisClassification",
                         "axisId",
                         "boundaryPartitionAxis",
@@ -1155,6 +1403,7 @@
                         "classification",
                         "conditionalValues",
                         "const",
+                        "constraintClass",
                         "constraintClasses",
                         "coverageBound",
                         "coverageBounds",
@@ -1172,6 +1421,11 @@
                         "gameEndAxisSupportingClauseId",
                         "gameEndCombinationRules",
                         "identityTargetIds",
+                        "inputCoordinateAxisBinding",
+                        "inputCoordinateCoverage",
+                        "inputCoordinateCoverageIdentity",
+                        "inputCoordinateCoverageSelector",
+                        "inputCoordinateRowBinding",
                         "invalid",
                         "invalidBoundaryValues",
                         "jsonSchemaKeywords",
@@ -1197,6 +1451,7 @@
                         "properties",
                         "representationCapability",
                         "required",
+                        "requiredArtifact",
                         "requiredArtifacts",
                         "requiredJsonSchemaKeywords",
                         "requiredParityChecks",
@@ -1204,8 +1459,11 @@
                         "ruleId",
                         "safeIntegerLimit",
                         "schemaRetention",
+                        "scope",
                         "sourceClauseId",
+                        "sourceDecisionId",
                         "sourceKind",
+                        "status",
                         "stage2ExternalConstraints",
                         "supportingClauseIds",
                         "targetIds",
@@ -1222,6 +1480,9 @@
                       ],
                       "json-schema-vocabulary-used-by-generic-validator": [
                         "object"
+                      ],
+                      "identifier-or-format-grammar": [
+                        "sha256:[0-9a-f]{64}"
                       ],
                       "repository-path-or-filename-grammar": [
                         "contracts/state-transition/input_axes_descriptor_schema_v1.json"
@@ -1489,12 +1750,14 @@
                   "freezeBaseline",
                   "gameEndAxes",
                   "gameEndCombinationRules",
+                  "inputCoordinateCoverage",
                   "nonCoverageFields",
                   "projectionRules",
                   "stage2ExternalConstraints",
                   "stateTransitionAxes",
                   "version"
                 ],
+                "inputCoordinateCoverageIdentity": "sha256:169a9631b6caed70f742190a804567cb0c661974cd8167fcd443b6bd2671c216",
                 "safeIntegerLimit": 9007199254740991,
                 "forbiddenStage1ReferenceKeys": [
                   "$ref",

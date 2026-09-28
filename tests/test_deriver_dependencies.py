@@ -41,6 +41,10 @@ DESIGN_PATH = (
     REPOSITORY_ROOT / "docs/features/appendix-e-golden-vectors/design.md"
 )
 DISALLOWED_PATH = REPOSITORY_ROOT / "pyproject.toml"
+INPUT_AXES_DESCRIPTOR_PATH = (
+    REPOSITORY_ROOT
+    / "contracts/state-transition/input_axes_descriptor_v1.json"
+)
 
 
 def _load_module(name: str, path: Path) -> Any:
@@ -85,6 +89,11 @@ def _row_requirement_documents() -> tuple[Any, Any, Any, frozenset[str]]:
         _json(VOCABULARY_SEED_PATH),
         frozenset(f"req:{clause_id}" for clause_id in clause_ids),
     )
+
+
+def _input_axes_descriptor() -> Any:
+    """入力座標要求の純粋導出へ渡す descriptor の複製を返す。"""
+    return _json(INPUT_AXES_DESCRIPTOR_PATH)
 
 
 def _assert_disallowed_read_fails(operation: Callable[[], object]) -> None:
@@ -210,6 +219,112 @@ def test_partition_rule_without_source_clause_fails() -> None:
         checker.derive_row_requirements_from_documents(
             mutant, manifest, seed, clause_ids
         )
+
+
+def test_repository_input_coordinate_requirements_are_per_axis_values() -> None:
+    """26軸から軸ごとの150要求を導出し、軸間直積を主張しない。"""
+    policy = _policy()
+    requirements, trace = checker.derive_repository_input_coordinate_requirements(
+        REPOSITORY_ROOT, policy
+    )
+    descriptor = _input_axes_descriptor()
+    boundary = descriptor["inputCoordinateCoverage"]["axisCombinationBoundary"]
+
+    assert len(requirements) == 150
+    assert len({item.identity for item in requirements}) == 150
+    assert {item.axis_id for item in requirements} == {
+        axis["axisId"] for axis in descriptor["stateTransitionAxes"]
+    }
+    assert boundary["mechanicallyGuaranteed"] == "per-axis-value-coverage-only"
+    assert boundary["notMechanicallyGuaranteed"] == (
+        "cross-axis-combination-coverage"
+    )
+    assert set(trace.observed_read_paths) == set(
+        policy.derivers["required-set-input-coordinates"].allowed_read_paths
+    )
+
+
+def test_input_coordinate_bindings_use_normative_row_natural_keys() -> None:
+    """軸の適用層と自然キー上の役割がdescriptor宣言から残る。"""
+    requirements = checker.derive_input_coordinate_requirements_from_descriptor(
+        _input_axes_descriptor()
+    )
+    by_axis_and_value = {
+        item.identity: item
+        for item in requirements
+    }
+    assert by_axis_and_value[("event.perPitch.kind", '"batting-result"')].natural_key_field == (
+        "eventKind"
+    )
+    result_requirement = by_axis_and_value[("event.perPitch.resultId", '"単打"')]
+    assert result_requirement.natural_key_field == "resultId"
+    assert result_requirement.natural_key_value_projection == (
+        "vocabulary-id-to-initial-display-name"
+    )
+    assert by_axis_and_value[("event.operationKind", '"substitution"')].row_layers == (
+        "operationRows",
+    )
+    assert by_axis_and_value[("event.operationPayload", '"not-applicable"')].row_layers == (
+        "matrixRows",
+        "undoRows",
+    )
+    assert by_axis_and_value[("history.depth", "0")].natural_key_field == (
+        "precondition"
+    )
+
+
+def test_conditional_coordinate_values_follow_declared_adoption_state() -> None:
+    """FR-040の採用状態で条件付き4値を採用または除外する。"""
+    requirements = checker.derive_input_coordinate_requirements_from_descriptor(
+        _input_axes_descriptor()
+    )
+    not_adopted = checker.active_input_coordinate_requirements(
+        requirements, {"req:FR-040": "not-adopted"}
+    )
+    adopted = checker.active_input_coordinate_requirements(
+        requirements, {"req:FR-040": "adopted"}
+    )
+
+    assert len(not_adopted) == 146
+    assert len(adopted) == 150
+    assert not any(
+        item.when_clause_id is not None for item in not_adopted
+    )
+
+
+def test_undecidable_conditional_coordinate_state_fails() -> None:
+    """条件付き値の採用状態を与えない経路をfail-closedにする。"""
+    requirements = checker.derive_input_coordinate_requirements_from_descriptor(
+        _input_axes_descriptor()
+    )
+    with pytest.raises(checker.DeriverDependencyError, match="採用状態を判定できない"):
+        checker.active_input_coordinate_requirements(requirements, {})
+
+
+def test_all_rows_with_only_one_case_each_do_not_cover_input_coordinates() -> None:
+    """全47行へ各1 caseだけ置いても軸ごとの全coverage値を満たせない。"""
+    rows, _ = checker.derive_repository_row_requirements(REPOSITORY_ROOT)
+    requirements, _ = checker.derive_repository_input_coordinate_requirements(
+        REPOSITORY_ROOT
+    )
+    active = checker.active_input_coordinate_requirements(
+        requirements, {"req:FR-040": "not-adopted"}
+    )
+    one_matrix_case = tuple(
+        next(
+            item
+            for item in active
+            if item.axis_id == axis_id and "matrixRows" in item.row_layers
+        )
+        for axis_id in dict.fromkeys(
+            item.axis_id for item in active if "matrixRows" in item.row_layers
+        )
+    )
+    one_case_for_every_row = one_matrix_case * len(rows)
+
+    assert len(rows) == 47
+    with pytest.raises(checker.DeriverDependencyError, match="入力座標要求がexact-set不一致"):
+        checker.validate_input_coordinate_coverage(active, one_case_for_every_row)
 
 
 def test_claim_boundary_limits_the_claim_to_executable_derivers() -> None:

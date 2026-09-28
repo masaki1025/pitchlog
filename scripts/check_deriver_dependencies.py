@@ -86,6 +86,27 @@ class RowRequirement:
         )
 
 
+@dataclass(frozen=True)
+class InputCoordinateRequirement:
+    """descriptor の軸 1 件・coverage 値 1 件に対する要求を表す。"""
+
+    axis_id: str
+    classification: str
+    coverage_value: object
+    coverage_value_identity: str
+    row_layers: tuple[str, ...]
+    natural_key_role: str
+    natural_key_field: str | None
+    natural_key_value_projection: str
+    when_clause_id: str | None
+    when_state: str | None
+
+    @property
+    def identity(self) -> tuple[str, str]:
+        """軸間の組合せを含まない軸ごとの要求 identity を返す。"""
+        return (self.axis_id, self.coverage_value_identity)
+
+
 def _object(value: object, label: str) -> dict[str, Any]:
     """文字列キーの object を返す。"""
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
@@ -755,6 +776,235 @@ def validate_row_requirement_coverage(
         )
 
 
+def derive_input_coordinate_requirements_from_descriptor(
+    descriptor: Mapping[str, Any],
+) -> tuple[InputCoordinateRequirement, ...]:
+    """descriptor の宣言だけから軸ごとの入力座標要求を導出する。
+
+    軸間の組合せは段階2の成果物であり、この導出結果には含めない。
+
+    Args:
+        descriptor: 入力軸 descriptor。
+
+    Returns:
+        軸 ID と coverage 値の組を identity とする要求集合。
+
+    Raises:
+        DeriverDependencyError: coverage 宣言が軸集合・値集合と一致しない場合。
+    """
+    try:
+        criteria = descriptor_checker.load_descriptor_criteria(descriptor)
+        descriptor_checker._validate_input_coordinate_coverage(
+            descriptor, criteria
+        )
+    except descriptor_checker.DescriptorCheckError as error:
+        raise DeriverDependencyError(str(error)) from error
+
+    declaration = _object(
+        descriptor.get("inputCoordinateCoverage"), "inputCoordinateCoverage"
+    )
+    value_fields = _object(
+        declaration.get("coverageValueFieldsByClassification"),
+        "coverageValueFieldsByClassification",
+    )
+    conditional_policy = _object(
+        declaration.get("conditionalValuePolicy"), "conditionalValuePolicy"
+    )
+    conditional_source_field = _nonempty_string(
+        conditional_policy.get("sourceField"), "conditionalValuePolicy.sourceField"
+    )
+    conditional_clause_field = _nonempty_string(
+        conditional_policy.get("clauseIdField"),
+        "conditionalValuePolicy.clauseIdField",
+    )
+    conditional_state_field = _nonempty_string(
+        conditional_policy.get("stateField"), "conditionalValuePolicy.stateField"
+    )
+
+    raw_axes = descriptor.get("stateTransitionAxes")
+    if not isinstance(raw_axes, list) or not raw_axes:
+        raise DeriverDependencyError("stateTransitionAxesが空である")
+    axes: dict[str, Mapping[str, Any]] = {}
+    for index, raw_axis in enumerate(raw_axes):
+        axis = _object(raw_axis, f"stateTransitionAxes[{index}]")
+        axis_id = _nonempty_string(axis.get("axisId"), f"stateTransitionAxes[{index}].axisId")
+        if axis_id in axes:
+            raise DeriverDependencyError(f"stateTransitionAxesのaxisIdが重複する: {axis_id!r}")
+        axes[axis_id] = axis
+
+    binding_for_value: dict[tuple[str, str], Mapping[str, Any]] = {}
+    raw_binding_groups = declaration.get("axisBindings")
+    if not isinstance(raw_binding_groups, list) or not raw_binding_groups:
+        raise DeriverDependencyError("inputCoordinateCoverage.axisBindingsが空である")
+    for group_index, raw_group in enumerate(raw_binding_groups):
+        group = _object(raw_group, f"axisBindings[{group_index}]")
+        axis_ids = _string_list(group.get("axisIds"), f"axisBindings[{group_index}].axisIds")
+        raw_row_bindings = group.get("rowBindings")
+        if not isinstance(raw_row_bindings, list) or not raw_row_bindings:
+            raise DeriverDependencyError(
+                f"axisBindings[{group_index}].rowBindingsが空である"
+            )
+        for axis_id in axis_ids:
+            axis = axes[axis_id]
+            classification = _nonempty_string(
+                axis.get("classification"), f"{axis_id}.classification"
+            )
+            value_field = _nonempty_string(
+                value_fields.get(classification),
+                f"coverageValueFieldsByClassification.{classification}",
+            )
+            raw_values = axis.get(value_field)
+            if not isinstance(raw_values, list) or not raw_values:
+                raise DeriverDependencyError(f"{axis_id}.{value_field}が空である")
+            for row_index, raw_row_binding in enumerate(raw_row_bindings):
+                row_binding = _object(
+                    raw_row_binding,
+                    f"axisBindings[{group_index}].rowBindings[{row_index}]",
+                )
+                selector = _object(
+                    row_binding.get("coverageSelector"),
+                    f"{axis_id}.coverageSelector",
+                )
+                selected_values = selector.get("values", raw_values)
+                if not isinstance(selected_values, list) or not selected_values:
+                    raise DeriverDependencyError(
+                        f"{axis_id}.coverageSelectorが値を選択しない"
+                    )
+                for value in selected_values:
+                    value_identity = descriptor_checker._canonical_json_text(
+                        value, criteria.safe_integer_limit
+                    )
+                    key = (axis_id, value_identity)
+                    if key in binding_for_value:
+                        raise DeriverDependencyError(
+                            f"入力座標値が複数の行割当へ属する: {key!r}"
+                        )
+                    binding_for_value[key] = row_binding
+
+    requirements: list[InputCoordinateRequirement] = []
+    for axis_id, axis in axes.items():
+        classification = _nonempty_string(
+            axis.get("classification"), f"{axis_id}.classification"
+        )
+        value_field = _nonempty_string(
+            value_fields.get(classification),
+            f"coverageValueFieldsByClassification.{classification}",
+        )
+        raw_values = axis.get(value_field)
+        if not isinstance(raw_values, list) or not raw_values:
+            raise DeriverDependencyError(f"{axis_id}.{value_field}が空である")
+        conditions: dict[str, tuple[str, str]] = {}
+        raw_conditions = axis.get(conditional_source_field, [])
+        if not isinstance(raw_conditions, list):
+            raise DeriverDependencyError(
+                f"{axis_id}.{conditional_source_field}が配列でない"
+            )
+        for condition_index, raw_condition in enumerate(raw_conditions):
+            condition = _object(
+                raw_condition,
+                f"{axis_id}.{conditional_source_field}[{condition_index}]",
+            )
+            value_identity = descriptor_checker._canonical_json_text(
+                condition.get("value"), criteria.safe_integer_limit
+            )
+            if value_identity in conditions:
+                raise DeriverDependencyError(
+                    f"{axis_id}の条件付きcoverage値が重複する: {value_identity}"
+                )
+            conditions[value_identity] = (
+                _nonempty_string(
+                    condition.get(conditional_clause_field),
+                    f"{axis_id}.{conditional_clause_field}",
+                ),
+                _nonempty_string(
+                    condition.get(conditional_state_field),
+                    f"{axis_id}.{conditional_state_field}",
+                ),
+            )
+
+        for value in raw_values:
+            value_identity = descriptor_checker._canonical_json_text(
+                value, criteria.safe_integer_limit
+            )
+            binding = binding_for_value.get((axis_id, value_identity))
+            if binding is None:
+                raise DeriverDependencyError(
+                    f"入力座標値に行割当がない: {(axis_id, value_identity)!r}"
+                )
+            condition = conditions.get(value_identity)
+            natural_key_field = binding.get("naturalKeyField")
+            if natural_key_field is not None and not isinstance(natural_key_field, str):
+                raise DeriverDependencyError(
+                    f"{axis_id}.naturalKeyFieldが文字列でない"
+                )
+            requirements.append(
+                InputCoordinateRequirement(
+                    axis_id=axis_id,
+                    classification=classification,
+                    coverage_value=value,
+                    coverage_value_identity=value_identity,
+                    row_layers=_string_list(
+                        binding.get("rowLayers"), f"{axis_id}.rowLayers"
+                    ),
+                    natural_key_role=_nonempty_string(
+                        binding.get("naturalKeyRole"), f"{axis_id}.naturalKeyRole"
+                    ),
+                    natural_key_field=natural_key_field,
+                    natural_key_value_projection=_nonempty_string(
+                        binding.get("naturalKeyValueProjection"),
+                        f"{axis_id}.naturalKeyValueProjection",
+                    ),
+                    when_clause_id=condition[0] if condition is not None else None,
+                    when_state=condition[1] if condition is not None else None,
+                )
+            )
+
+    identities = [requirement.identity for requirement in requirements]
+    if len(identities) != len(set(identities)):
+        raise DeriverDependencyError("導出した入力座標要求のidentityが重複している")
+    return tuple(requirements)
+
+
+def active_input_coordinate_requirements(
+    requirements: Sequence[InputCoordinateRequirement],
+    clause_adoption_states: Mapping[str, str],
+) -> tuple[InputCoordinateRequirement, ...]:
+    """条文の採用状態を適用して有効な軸ごとの要求だけを返す。"""
+    active: list[InputCoordinateRequirement] = []
+    for requirement in requirements:
+        clause_id = requirement.when_clause_id
+        expected_state = requirement.when_state
+        if clause_id is None and expected_state is None:
+            active.append(requirement)
+            continue
+        if clause_id is None or expected_state is None:
+            raise DeriverDependencyError("条件付き入力座標要求の条件が不完全である")
+        actual_state = clause_adoption_states.get(clause_id)
+        if actual_state is None:
+            raise DeriverDependencyError(
+                f"条件付き入力座標要求の採用状態を判定できない: {clause_id}"
+            )
+        if actual_state == expected_state:
+            active.append(requirement)
+    return tuple(active)
+
+
+def validate_input_coordinate_coverage(
+    required: Sequence[InputCoordinateRequirement],
+    observed: Sequence[InputCoordinateRequirement],
+) -> None:
+    """軸ごとの入力座標 coverage を双方向 exact-set で検査する。"""
+    required_ids = {item.identity for item in required}
+    observed_ids = {item.identity for item in observed}
+    missing = sorted(required_ids - observed_ids)
+    unexpected = sorted(observed_ids - required_ids)
+    if missing or unexpected:
+        raise DeriverDependencyError(
+            "入力座標要求がexact-set不一致: "
+            f"missing={missing!r}; unexpected={unexpected!r}"
+        )
+
+
 def _derive_repository_row_requirements(root: Path) -> tuple[RowRequirement, ...]:
     """宣言された4入力だけを読み、リポジトリの行要求を導出する。"""
     try:
@@ -837,6 +1087,54 @@ def derive_repository_row_requirements(
     return requirements, trace
 
 
+def _derive_repository_input_coordinate_requirements(
+    root: Path,
+) -> tuple[InputCoordinateRequirement, ...]:
+    """入力軸 descriptor だけを読み、軸ごとの入力座標要求を導出する。"""
+    try:
+        descriptor = _object(
+            descriptor_checker.load_json(
+                root / descriptor_checker.DESCRIPTOR_PATH, "入力軸descriptor"
+            ),
+            "入力軸descriptor",
+        )
+    except descriptor_checker.DescriptorCheckError as error:
+        raise DeriverDependencyError(str(error)) from error
+    return derive_input_coordinate_requirements_from_descriptor(descriptor)
+
+
+def derive_repository_input_coordinate_requirements(
+    root: Path,
+    policy: DeriverDependencyPolicy | None = None,
+) -> tuple[tuple[InputCoordinateRequirement, ...], DeriverTrace]:
+    """依存トレース下で descriptor 由来の入力座標要求を導出する。
+
+    Args:
+        root: リポジトリルート。
+        policy: 検証済み依存宣言。省略時は実資産から読む。
+
+    Returns:
+        軸ごとの入力座標要求と実際に観測した読み取り証跡。
+
+    Raises:
+        DeriverDependencyError: descriptor または依存トレースが不正な場合。
+    """
+    active_policy = policy or load_policy(root)
+    requirements, trace = trace_deriver_file_reads(
+        root,
+        active_policy,
+        "required-set-input-coordinates",
+        lambda: _derive_repository_input_coordinate_requirements(root),
+    )
+    rule = active_policy.derivers[trace.deriver_id]
+    missing_reads = sorted(set(rule.allowed_read_paths) - set(trace.observed_read_paths))
+    if missing_reads:
+        raise DeriverDependencyError(
+            f"導出器が宣言入力を読んでいない: {missing_reads!r}"
+        )
+    return requirements, trace
+
+
 def validate_repository_policy(root: Path) -> DeriverDependencyPolicy:
     """リポジトリの導出器依存宣言を検証する。
 
@@ -852,20 +1150,25 @@ def validate_repository_policy(root: Path) -> DeriverDependencyPolicy:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """依存宣言と行要求導出の閉包を検証する。"""
+    """依存宣言と requiredSet 2段の導出閉包を検証する。"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
     args = parser.parse_args(argv)
     try:
         policy = validate_repository_policy(args.root)
         requirements, trace = derive_repository_row_requirements(args.root, policy)
+        coordinate_requirements, coordinate_trace = (
+            derive_repository_input_coordinate_requirements(args.root, policy)
+        )
     except DeriverDependencyError as error:
         print(f"deriver dependency: FAIL: {error}", file=sys.stderr)
         return 1
     print(
         "deriver dependency: PASS "
         f"(policy={policy.policy_id}, derivers={len(policy.derivers)}, "
-        f"rowRequirements={len(requirements)}, reads={len(trace.observed_read_paths)})"
+        f"rowRequirements={len(requirements)}, "
+        f"inputCoordinateRequirements={len(coordinate_requirements)}, "
+        f"reads={len(trace.observed_read_paths) + len(coordinate_trace.observed_read_paths)})"
     )
     return 0
 

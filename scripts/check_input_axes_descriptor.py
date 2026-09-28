@@ -51,6 +51,7 @@ class DescriptorCriteria:
     """資産側宣言から読み込んだdescriptor検査の凍結基準。"""
 
     top_level_fields: frozenset[str]
+    input_coordinate_coverage_identity: str
     safe_integer_limit: int
     forbidden_stage1_reference_keys: frozenset[str]
     game_end_axis_fields: Mapping[str, str]
@@ -164,8 +165,20 @@ def load_descriptor_criteria(descriptor: Mapping[str, Any]) -> DescriptorCriteri
     checker_expected_values = raw.get("checkerExpectedValues")
     if not isinstance(checker_expected_values, dict) or not checker_expected_values:
         raise DescriptorCheckError("checkerExpectedValuesが空でないobjectでない")
+    input_coordinate_coverage_identity = raw.get(
+        "inputCoordinateCoverageIdentity"
+    )
+    if (
+        not isinstance(input_coordinate_coverage_identity, str)
+        or re.fullmatch(r"sha256:[0-9a-f]{64}", input_coordinate_coverage_identity)
+        is None
+    ):
+        raise DescriptorCheckError(
+            "inputCoordinateCoverageIdentityがSHA-256識別値でない"
+        )
     return DescriptorCriteria(
         top_level_fields=_string_set(raw.get("topLevelFields"), ".topLevelFields"),
+        input_coordinate_coverage_identity=input_coordinate_coverage_identity,
         safe_integer_limit=limit,
         forbidden_stage1_reference_keys=_string_set(
             raw.get("forbiddenStage1ReferenceKeys"),
@@ -607,6 +620,10 @@ def _validate_schema_contract(
         "digestSpec",
         "freezeBaseline",
         "stage2ExternalConstraints",
+        "inputCoordinateCoverage",
+        "inputCoordinateAxisBinding",
+        "inputCoordinateRowBinding",
+        "inputCoordinateCoverageSelector",
         "supportingClauseIds",
         "ruleFieldId",
         "coverageBound",
@@ -712,6 +729,15 @@ def _validate_source_clause_ids(
             raise DescriptorCheckError(
                 "由来条文IDが正本に実在しない: "
                 f"stage2ExternalConstraints: {clause_id}"
+            )
+
+    coordinate_coverage = descriptor.get("inputCoordinateCoverage")
+    if isinstance(coordinate_coverage, dict):
+        clause_id = coordinate_coverage.get("sourceDecisionId")
+        if isinstance(clause_id, str) and clause_id not in source_clause_ids:
+            raise DescriptorCheckError(
+                "由来条文IDが正本に実在しない: "
+                f"inputCoordinateCoverage: {clause_id}"
             )
 
     projection_rules = descriptor.get("projectionRules")
@@ -850,6 +876,123 @@ def _validate_stage2_external_constraints(
         != criteria.stage2_required_artifacts
     ):
         raise DescriptorCheckError("段階2で必須の成果物がexact-set不一致")
+
+
+def _validate_input_coordinate_coverage(
+    descriptor: Mapping[str, Any], criteria: DescriptorCriteria
+) -> None:
+    """軸ごとの入力座標要求と段階2境界を資産側宣言から検証する。"""
+    declaration = descriptor.get("inputCoordinateCoverage")
+    if not isinstance(declaration, dict):
+        raise DescriptorCheckError("inputCoordinateCoverageがobjectでない")
+    actual_identity = freeze_checker.criterion_identity(declaration)
+    if actual_identity != criteria.input_coordinate_coverage_identity:
+        raise DescriptorCheckError(
+            "inputCoordinateCoverageの凍結識別値が不一致: "
+            f"expected={criteria.input_coordinate_coverage_identity}; "
+            f"actual={actual_identity}"
+        )
+
+    axes = descriptor.get("stateTransitionAxes")
+    bindings = declaration.get("axisBindings")
+    value_fields = declaration.get("coverageValueFieldsByClassification")
+    if not isinstance(axes, list) or not isinstance(bindings, list):
+        raise DescriptorCheckError("入力座標要求の軸または割当が配列でない")
+    if not isinstance(value_fields, dict):
+        raise DescriptorCheckError("coverage値フィールド対応がobjectでない")
+
+    axes_by_id: dict[str, Mapping[str, Any]] = {}
+    for axis in axes:
+        if not isinstance(axis, dict) or not isinstance(axis.get("axisId"), str):
+            raise DescriptorCheckError("入力座標要求の対象軸が不正")
+        axes_by_id[axis["axisId"]] = axis
+
+    bound_axis_ids: list[str] = []
+    for binding_index, binding in enumerate(bindings):
+        if not isinstance(binding, dict):
+            raise DescriptorCheckError(
+                f"axisBindings[{binding_index}]がobjectでない"
+            )
+        axis_ids = binding.get("axisIds")
+        row_bindings = binding.get("rowBindings")
+        if not isinstance(axis_ids, list) or not isinstance(row_bindings, list):
+            raise DescriptorCheckError(
+                f"axisBindings[{binding_index}]の軸または行割当が配列でない"
+            )
+        for axis_id in axis_ids:
+            if not isinstance(axis_id, str) or axis_id not in axes_by_id:
+                raise DescriptorCheckError(
+                    f"入力座標要求が実在しない軸を参照する: {axis_id!r}"
+                )
+            bound_axis_ids.append(axis_id)
+            axis = axes_by_id[axis_id]
+            classification = axis.get("classification")
+            value_field = value_fields.get(classification)
+            values = axis.get(value_field) if isinstance(value_field, str) else None
+            if not isinstance(values, list) or not values:
+                raise DescriptorCheckError(
+                    f"入力座標要求のcoverage値を解決できない: {axis_id}"
+                )
+            expected_value_keys = {
+                _canonical_json_text(value, criteria.safe_integer_limit)
+                for value in values
+            }
+            selected_value_keys: list[str] = []
+            for row_binding in row_bindings:
+                if not isinstance(row_binding, dict):
+                    raise DescriptorCheckError(
+                        f"入力座標要求の行割当がobjectでない: {axis_id}"
+                    )
+                selector = row_binding.get("coverageSelector")
+                if not isinstance(selector, dict):
+                    raise DescriptorCheckError(
+                        f"coverageSelectorがobjectでない: {axis_id}"
+                    )
+                selected = selector.get("values", values)
+                if not isinstance(selected, list) or not selected:
+                    raise DescriptorCheckError(
+                        f"coverageSelectorが値を選択しない: {axis_id}"
+                    )
+                selected_value_keys.extend(
+                    _canonical_json_text(value, criteria.safe_integer_limit)
+                    for value in selected
+                )
+            if len(selected_value_keys) != len(set(selected_value_keys)):
+                raise DescriptorCheckError(
+                    f"入力座標要求のcoverage値が複数の行割当へ重複する: {axis_id}"
+                )
+            actual_value_keys = set(selected_value_keys)
+            if actual_value_keys != expected_value_keys:
+                raise DescriptorCheckError(
+                    "入力座標要求のcoverage値がexact-set不一致: "
+                    f"{axis_id}: missing={sorted(expected_value_keys - actual_value_keys)!r}; "
+                    f"unexpected={sorted(actual_value_keys - expected_value_keys)!r}"
+                )
+
+    if len(bound_axis_ids) != len(set(bound_axis_ids)):
+        raise DescriptorCheckError("入力座標要求の軸割当が重複している")
+    missing_axes = sorted(set(axes_by_id) - set(bound_axis_ids))
+    extra_axes = sorted(set(bound_axis_ids) - set(axes_by_id))
+    if missing_axes or extra_axes:
+        raise DescriptorCheckError(
+            "入力座標要求の軸割当がexact-set不一致: "
+            f"missing={missing_axes!r}; unexpected={extra_axes!r}"
+        )
+
+    stage2 = descriptor.get("stage2ExternalConstraints")
+    boundary = declaration.get("axisCombinationBoundary")
+    if not isinstance(stage2, dict) or not isinstance(boundary, dict):
+        raise DescriptorCheckError("入力座標要求の段階2境界を解決できない")
+    if (
+        boundary.get("status") != stage2.get("status")
+        or boundary.get("constraintClass") not in stage2.get("constraintClasses", [])
+        or boundary.get("scope") != stage2.get("axisCombinationScope")
+        or boundary.get("requiredArtifact")
+        not in stage2.get("requiredArtifacts", [])
+    ):
+        raise DescriptorCheckError(
+            "入力座標要求の軸間組合せ境界が段階2宣言と一致しない"
+        )
 
 
 def _validate_fr040_conditionals(
@@ -1302,6 +1445,7 @@ def validate_descriptor_document(
     _validate_stage2_external_constraints(descriptor, criteria)
     _validate_fr040_conditionals(descriptor, criteria)
     _validate_coverage_obligations(descriptor, criteria)
+    _validate_input_coordinate_coverage(descriptor, criteria)
     _validate_game_end_contract(descriptor, criteria)
     _validate_projection_contract(descriptor, criteria)
     forbidden_token_parts = criteria.checker_expected_values.get(

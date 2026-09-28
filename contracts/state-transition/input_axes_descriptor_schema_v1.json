@@ -11,6 +11,7 @@
     "digestSpec",
     "freezeBaseline",
     "stage2ExternalConstraints",
+    "inputCoordinateCoverage",
     "stateTransitionAxes",
     "gameEndAxes",
     "gameEndCombinationRules",
@@ -39,6 +40,9 @@
     },
     "stage2ExternalConstraints": {
       "$ref": "#/$defs/stage2ExternalConstraints"
+    },
+    "inputCoordinateCoverage": {
+      "$ref": "#/$defs/inputCoordinateCoverage"
     },
     "stateTransitionAxes": {
       "type": "array",
@@ -235,6 +239,228 @@
           "minLength": 1
         }
       }
+    },
+    "inputCoordinateCoverage": {
+      "type": "object",
+      "required": [
+        "sourceDecisionId",
+        "requirementGranularity",
+        "coverageValueFieldsByClassification",
+        "axisCombinationBoundary",
+        "conditionalValuePolicy",
+        "axisBindings"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sourceDecisionId": {
+          "$ref": "#/$defs/sourceClauseId"
+        },
+        "requirementGranularity": {
+          "const": "per-axis-value"
+        },
+        "coverageValueFieldsByClassification": {
+          "type": "object",
+          "required": [
+            "finite-enumerable",
+            "boundary-partition"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "finite-enumerable": {
+              "const": "values"
+            },
+            "boundary-partition": {
+              "const": "boundaryValues"
+            }
+          }
+        },
+        "axisCombinationBoundary": {
+          "type": "object",
+          "required": [
+            "status",
+            "constraintClass",
+            "scope",
+            "requiredArtifact",
+            "mechanicallyGuaranteed",
+            "notMechanicallyGuaranteed"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "const": "deferred"
+            },
+            "constraintClass": {
+              "const": "state-transition-axis-combinations"
+            },
+            "scope": {
+              "const": "all-state-transition-axes"
+            },
+            "requiredArtifact": {
+              "const": "state-transition-axis-combination-rules"
+            },
+            "mechanicallyGuaranteed": {
+              "const": "per-axis-value-coverage-only"
+            },
+            "notMechanicallyGuaranteed": {
+              "const": "cross-axis-combination-coverage"
+            }
+          }
+        },
+        "conditionalValuePolicy": {
+          "type": "object",
+          "required": [
+            "sourceField",
+            "clauseIdField",
+            "stateField",
+            "includedWhen",
+            "excludedWhen",
+            "undecidableAction"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "sourceField": {
+              "const": "conditionalValues"
+            },
+            "clauseIdField": {
+              "const": "whenClauseId"
+            },
+            "stateField": {
+              "const": "whenState"
+            },
+            "includedWhen": {
+              "const": "declared-adoption-state-matches"
+            },
+            "excludedWhen": {
+              "const": "declared-adoption-state-does-not-match"
+            },
+            "undecidableAction": {
+              "const": "fail"
+            }
+          }
+        },
+        "axisBindings": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/inputCoordinateAxisBinding"
+          }
+        }
+      }
+    },
+    "inputCoordinateAxisBinding": {
+      "type": "object",
+      "required": [
+        "axisIds",
+        "rowBindings"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "axisIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/axisId"
+          }
+        },
+        "rowBindings": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/inputCoordinateRowBinding"
+          }
+        }
+      }
+    },
+    "inputCoordinateRowBinding": {
+      "type": "object",
+      "required": [
+        "rowLayers",
+        "naturalKeyRole",
+        "naturalKeyValueProjection",
+        "coverageSelector"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rowLayers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "matrixRows",
+              "operationRows",
+              "undoRows"
+            ]
+          }
+        },
+        "naturalKeyRole": {
+          "enum": [
+            "direct-field",
+            "predicate-axis",
+            "row-layer-implied-value"
+          ]
+        },
+        "naturalKeyField": {
+          "enum": [
+            "eventKind",
+            "resultId",
+            "precondition",
+            "operationKind",
+            "payloadShape",
+            "targetKind"
+          ]
+        },
+        "naturalKeyValueProjection": {
+          "enum": [
+            "identity",
+            "row-layer-implied-constant",
+            "vocabulary-id-to-initial-display-name"
+          ]
+        },
+        "coverageSelector": {
+          "$ref": "#/$defs/inputCoordinateCoverageSelector"
+        }
+      }
+    },
+    "inputCoordinateCoverageSelector": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "all-axis-values"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "values"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "explicit-values"
+            },
+            "values": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/descriptorValue"
+              }
+            }
+          }
+        }
+      ]
     },
     "descriptorValue": {
       "oneOf": [
