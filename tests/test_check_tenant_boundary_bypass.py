@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 from collections import deque
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -983,6 +984,16 @@ INVARIANT_CONTEXT = checker.frozen_history.EvaluationContext(
     None,
 )
 
+
+def _resolve_provenance_comparison_sha(revision: str) -> str:
+    """生成経路の前版比較に使う revision を完全 SHA へ解決する。"""
+    return checker._run_git(REPOSITORY_ROOT, ["rev-parse", revision]).strip()
+
+
+_REFLECTIVE_PROVENANCE_SKIP_REASON = (
+    "比較元と HEAD が同一のため弱化判定が反射的になり成立しない"
+)
+
 FROZEN_BASELINE_ASSET_CASES = tuple(
     pytest.param(relative_path, id=relative_path.name)
     for relative_path in checker.FROZEN_BASELINE_ASSETS
@@ -1653,6 +1664,12 @@ def test_generated_provenance_corpus_never_weakens_develop(
     tmp_path: Path,
 ) -> None:
     """生成経路について develop が red なら HEAD も必ず red にする。"""
+    base_sha = _resolve_provenance_comparison_sha("origin/develop")
+    head_sha = _resolve_provenance_comparison_sha("HEAD")
+    if base_sha == head_sha:
+        # 明示 skip は判定不能を記録し、判定不能を合格にする「空振り」と区別する。
+        pytest.skip(_REFLECTIVE_PROVENANCE_SKIP_REASON)
+
     develop_checker = _load_checker_from_revision(
         "origin/develop",
         tmp_path / "check_tenant_boundary_bypass_develop.py",
@@ -1680,6 +1697,58 @@ def test_generated_provenance_corpus_never_weakens_develop(
         "develop では TB007 だが HEAD で green になる生成経路: "
         + ", ".join(weakened)
     )
+
+
+def test_generated_provenance_corpus_skips_reflective_comparison(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """比較元と HEAD の解決値が同じなら明示 skip にする。"""
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_resolve_provenance_comparison_sha",
+        lambda _revision: "same-sha",
+    )
+
+    with pytest.raises(
+        pytest.skip.Exception,
+        match=_REFLECTIVE_PROVENANCE_SKIP_REASON,
+    ):
+        test_generated_provenance_corpus_never_weakens_develop(tmp_path)
+
+
+def test_generated_provenance_corpus_runs_all_cases_for_distinct_revisions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """比較元と HEAD の解決値が異なれば生成コーパスを全件判定する。"""
+    corpus = _tenant_context_provenance_corpus()
+    observed_case_ids: list[str] = []
+    resolved_shas = {
+        "origin/develop": "base-sha",
+        "HEAD": "head-sha",
+    }
+
+    def observed_corpus() -> Iterator[tuple[str, str]]:
+        for case_id, source in corpus:
+            yield case_id, source
+            observed_case_ids.append(case_id)
+
+    module = sys.modules[__name__]
+    monkeypatch.setattr(
+        module,
+        "_resolve_provenance_comparison_sha",
+        lambda revision: resolved_shas[revision],
+    )
+    monkeypatch.setattr(
+        module,
+        "_tenant_context_provenance_corpus",
+        observed_corpus,
+    )
+
+    test_generated_provenance_corpus_never_weakens_develop(tmp_path)
+
+    assert observed_case_ids == [case_id for case_id, _source in corpus]
 
 
 def test_dynamic_method_on_known_non_db_receiver_is_green() -> None:
