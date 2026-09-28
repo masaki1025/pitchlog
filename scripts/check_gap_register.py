@@ -115,6 +115,8 @@ class ClauseBranchPolicy:
     game_end_outcome_kind: str
     game_end_outcome_roles: tuple[str, ...]
     source_clause_namespace: str
+    intentional_unassigned_branch_ids: frozenset[str]
+    intentional_unassigned_reason: str
     top_level_fields: frozenset[str]
     branch_fields: frozenset[str]
     coverage_kinds: frozenset[str]
@@ -313,6 +315,8 @@ def load_clause_branch_schema_policy(
         "gameEndOutcomeRoles",
         "sourceClauseNamespace",
         "gapOwnership",
+        "intentionalUnassignedBranchIds",
+        "intentionalUnassignedReason",
         "assuranceBoundary",
     }
     if not _values_equal(set(policy), expected_policy_fields):
@@ -325,6 +329,11 @@ def load_clause_branch_schema_policy(
     roles = _criteria_string_list(
         policy.get("gameEndOutcomeRoles"), "gameEndOutcomeRoles"
     )
+    intentional_unassigned = _criteria_string_list(
+        policy.get("intentionalUnassignedBranchIds"),
+        "intentionalUnassignedBranchIds",
+    )
+    intentional_unassigned_reason = policy.get("intentionalUnassignedReason")
     if (
         not isinstance(source_path, str)
         or not source_path
@@ -338,6 +347,8 @@ def load_clause_branch_schema_policy(
         or not namespace
         or not isinstance(policy.get("gapOwnership"), str)
         or not policy["gapOwnership"]
+        or not isinstance(intentional_unassigned_reason, str)
+        or not intentional_unassigned_reason
     ):
         raise GapRegisterError("clause branch register policyの文字列宣言が不正")
     if not _values_equal(PurePosixPath(source_path), REQUIREMENTS_PATH):
@@ -499,6 +510,8 @@ def load_clause_branch_schema_policy(
         game_end_outcome_kind=outcome_kind,
         game_end_outcome_roles=tuple(roles),
         source_clause_namespace=namespace,
+        intentional_unassigned_branch_ids=frozenset(intentional_unassigned),
+        intentional_unassigned_reason=intentional_unassigned_reason,
         top_level_fields=frozenset(branch_document_properties),
         branch_fields=frozenset(branch_properties),
         coverage_kinds=coverage_kinds,
@@ -871,6 +884,24 @@ def validate_clause_branch_register_document(
     if not _values_equal(document.get("branchCount"), len(branches)):
         raise GapRegisterError("branchCountがbranchesの実数と一致しない")
     actual_ids = frozenset(branch_ids)
+    if not _is_subset(policy.intentional_unassigned_branch_ids, actual_ids):
+        raise GapRegisterError(
+            "意図的な非帰属分岐に台帳へ実在しないbranchIdがある"
+        )
+    actual_unassigned = frozenset(
+        branch["branchId"] for branch in validated if not branch["gapIds"]
+    )
+    if not _values_equal(
+        actual_unassigned, policy.intentional_unassigned_branch_ids
+    ):
+        assigned_despite_declaration = sorted(
+            policy.intentional_unassigned_branch_ids - actual_unassigned
+        )
+        raise GapRegisterError(
+            "gapへ帰属しない分岐が資産側のexact-set宣言と一致しない: "
+            f"undeclared={sorted(actual_unassigned - policy.intentional_unassigned_branch_ids)!r}; "
+            f"assignedDespiteDeclaration={assigned_despite_declaration!r}"
+        )
     requirement_entries = frozenset(
         branch["branchId"]
         for branch in validated

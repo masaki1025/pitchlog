@@ -8,7 +8,9 @@
       "clauseIds": [
         "FR-020"
       ],
-      "branchIds": [],
+      "branchIds": [
+        "XMARK-01"
+      ],
       "rowIds": [],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
@@ -19,7 +21,9 @@
       "clauseIds": [
         "E-1"
       ],
-      "branchIds": [],
+      "branchIds": [
+        "XC-13"
+      ],
       "rowIds": [],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
@@ -30,7 +34,18 @@
       "clauseIds": [
         "F-1"
       ],
-      "branchIds": [],
+      "branchIds": [
+        "COLD-01",
+        "COLD-02",
+        "COLD-03",
+        "COLD-04",
+        "COLD-05",
+        "COLD-06",
+        "COLD-07",
+        "COLD-08",
+        "COLD-09",
+        "GAME-END-NORMAL"
+      ],
       "rowIds": [],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
@@ -41,7 +56,22 @@
       "clauseIds": [
         "F-1"
       ],
-      "branchIds": [],
+      "branchIds": [
+        "DRAW-01",
+        "DRAW-02",
+        "DRAW-03",
+        "DRAW-04",
+        "DRAW-05",
+        "DRAW-06",
+        "DRAW-07",
+        "DRAW-08",
+        "DRAW-09",
+        "DRAW-10",
+        "GAME-END-NORMAL",
+        "GAME-END-EXTRA-CONTINUE",
+        "GAME-END-LIMIT-DRAW",
+        "GAME-END-TIEBREAK-CONTINUE"
+      ],
       "rowIds": [],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
@@ -53,7 +83,11 @@
         "FR-020",
         "FR-005"
       ],
-      "branchIds": [],
+      "branchIds": [
+        "XMARK-01",
+        "XMARK-02",
+        "XMARK-03"
+      ],
       "rowIds": [],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
@@ -65,7 +99,13 @@
         "A-1",
         "FR-003"
       ],
-      "branchIds": [],
+      "branchIds": [
+        "OUT3-01",
+        "OUT3-02",
+        "OUT3-03",
+        "OUT3-04",
+        "OUT3-05"
+      ],
       "rowIds": [],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
@@ -77,7 +117,24 @@
         "E-1",
         "FR-004"
       ],
-      "branchIds": [],
+      "branchIds": [
+        "ADV-01",
+        "ADV-02",
+        "ADV-03",
+        "ADV-04",
+        "INT-01",
+        "INT-02",
+        "INT-03",
+        "INT-04",
+        "INT-05",
+        "INT-06",
+        "INT-07",
+        "XC-02",
+        "XC-03",
+        "XC-08",
+        "XC-10",
+        "XC-12"
+      ],
       "rowIds": [],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
@@ -89,7 +146,15 @@
         "E-2",
         "A-2"
       ],
-      "branchIds": [],
+      "branchIds": [
+        "SO-01",
+        "SO-02",
+        "SO-03",
+        "SO-04",
+        "SO-05",
+        "XC-04",
+        "XC-11"
+      ],
       "rowIds": [],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
@@ -100,7 +165,17 @@
       "clauseIds": [
         "A-3"
       ],
-      "branchIds": [],
+      "branchIds": [
+        "RBI-01",
+        "RBI-02",
+        "RBI-03",
+        "RBI-04",
+        "RBI-05",
+        "RBI-06",
+        "RBI-07",
+        "RBI-08",
+        "RBI-09"
+      ],
       "rowIds": [],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null

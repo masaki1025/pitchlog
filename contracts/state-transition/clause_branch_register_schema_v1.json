@@ -15,16 +15,25 @@
     ],
     "sourceClauseNamespace": "req",
     "gapOwnership": "filled-bidirectionally-at-step-47",
+    "intentionalUnassignedBranchIds": [
+      "XC-01",
+      "XC-05",
+      "XC-06",
+      "XC-07"
+    ],
+    "intentionalUnassignedReason": "general-event-and-count-cross-constraints-outside-nine-definition-gap-closures",
     "assuranceBoundary": {
       "mechanicallyGuaranteed": [
         "requirement-normative-branch-id-exact-set",
         "source-clause-id-existence",
         "branch-id-and-game-end-role-uniqueness",
         "related-branch-id-resolution",
+        "intentional-unassigned-branch-id-exact-set",
         "recorded-author-signature-fields-present"
       ],
       "humanControls": [
         "source-clause-supports-branch-semantics",
+        "branch-gap-membership-and-unassignment-semantic-correctness",
         "author-identity-is-truthful",
         "branch-enumeration-is-semantically-complete-beyond-machine-readable-ids"
       ]

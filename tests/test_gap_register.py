@@ -50,6 +50,14 @@ def _register() -> dict[str, Any]:
     return value
 
 
+def _clause_only_register() -> dict[str, Any]:
+    """段別述語の単体検査用にbranch段以降を空へ戻す。"""
+    document = _register()
+    for gap in document["gaps"]:
+        gap["branchIds"] = []
+    return document
+
+
 def _clause_branch_register() -> dict[str, Any]:
     """リポジトリの条文分岐台帳を読む。"""
     value = json.loads(CLAUSE_BRANCH_REGISTER_PATH.read_text(encoding="utf-8"))
@@ -282,16 +290,28 @@ def test_missing_game_end_outcome_is_red() -> None:
         _validate_clause_branches(document)
 
 
-def test_clause_branch_index_is_ready_for_step47_without_filling_gap_ids() -> None:
-    """本ステップではgap帰属を空に保ち次ステップの双方向indexだけ提供する。"""
-    index = checker.clause_branch_reference_index(_clause_branch_register())
+def test_clause_branch_index_declares_every_unassigned_branch_exactly() -> None:
+    """9つの穴に属さない分岐だけが資産側宣言と一致して空になる。"""
+    document = _clause_branch_register()
+    policy = _clause_branch_policy()
+    index = checker.clause_branch_reference_index(document)
+    actual_unassigned = frozenset(
+        branch_id
+        for branch_id, gap_ids in index.gap_ids_by_reference.items()
+        if not gap_ids
+    )
 
     assert len(index.existing_references) == 68
-    assert all(not owners for owners in index.gap_ids_by_reference.values())
+    assert actual_unassigned == policy.intentional_unassigned_branch_ids
+    assert all(
+        index.gap_ids_by_reference[branch_id]
+        for branch_id in index.existing_references - actual_unassigned
+    )
+    _validate_clause_branches(document)
 
 
-def test_nine_open_gaps_have_only_the_clause_stage_filled() -> None:
-    """全9件がclauseIdsだけを持つopenの連続prefixである。"""
+def test_nine_open_gaps_have_clause_and_branch_prefix_filled() -> None:
+    """全9件がclauseIdsとbranchIdsまでを持つopenの連続prefixである。"""
     document = _register()
     expected_clauses = {
         "GAP-01": ["FR-020"],
@@ -311,13 +331,73 @@ def test_nine_open_gaps_have_only_the_clause_stage_filled() -> None:
     )
     assert all(gap["state"] == "open" for gap in document["gaps"])
     assert all(
-        gap["branchIds"] == []
+        gap["branchIds"]
         and gap["rowIds"] == []
         and gap["fixtureCaseIds"] == []
         and gap["generatedCaseSelector"] is None
         for gap in document["gaps"]
     )
-    _validate(document)
+    _validate(
+        document,
+        {
+            "branchIds": checker.clause_branch_reference_index(
+                _clause_branch_register()
+            )
+        },
+    )
+
+
+def test_gap_side_branch_membership_mismatch_is_red() -> None:
+    """gap側だけから既存分岐の帰属を落とした片方向変更を拒否する。"""
+    document = copy.deepcopy(_register())
+    document["gaps"][2]["branchIds"].remove("COLD-01")
+
+    with pytest.raises(checker.GapRegisterError, match="双方向一致しない"):
+        _validate(
+            document,
+            {
+                "branchIds": checker.clause_branch_reference_index(
+                    _clause_branch_register()
+                )
+            },
+        )
+
+
+def test_branch_side_gap_membership_mismatch_is_red() -> None:
+    """分岐側だけからgap帰属を落とした片方向変更を拒否する。"""
+    branch_document = copy.deepcopy(_clause_branch_register())
+    branch_document["branches"][0]["gapIds"] = []
+
+    with pytest.raises(checker.GapRegisterError, match="双方向一致しない"):
+        _validate(
+            _register(),
+            {
+                "branchIds": checker.clause_branch_reference_index(
+                    branch_document
+                )
+            },
+        )
+
+
+def test_undeclared_unassigned_branch_is_red() -> None:
+    """資産側宣言にない分岐を空のgap帰属へ戻す変更を拒否する。"""
+    document = copy.deepcopy(_clause_branch_register())
+    document["branches"][0]["gapIds"] = []
+
+    with pytest.raises(checker.GapRegisterError, match="exact-set宣言"):
+        _validate_clause_branches(document)
+
+
+def test_declared_unassigned_branch_cannot_gain_silent_ownership() -> None:
+    """非帰属宣言した分岐へgapを足すなら宣言の更新も要求する。"""
+    document = copy.deepcopy(_clause_branch_register())
+    branch = next(
+        item for item in document["branches"] if item["branchId"] == "XC-01"
+    )
+    branch["gapIds"] = ["GAP-07"]
+
+    with pytest.raises(checker.GapRegisterError, match="exact-set宣言"):
+        _validate_clause_branches(document)
 
 
 def test_requirement_clause_extractor_is_reused_and_requirement_scoped() -> None:
@@ -332,7 +412,7 @@ def test_requirement_clause_extractor_is_reused_and_requirement_scoped() -> None
 
 def test_skipping_clause_stage_before_branch_stage_is_red() -> None:
     """clauseIdsを空にしてbranchIdsだけ埋めた途中段の飛ばしを拒否する。"""
-    document = copy.deepcopy(_register())
+    document = copy.deepcopy(_clause_only_register())
     gap = document["gaps"][0]
     gap["clauseIds"] = []
     gap["branchIds"] = ["XMARK-01"]
@@ -343,7 +423,7 @@ def test_skipping_clause_stage_before_branch_stage_is_red() -> None:
 
 def test_unknown_requirement_clause_id_is_red() -> None:
     """文字列形式が妥当でも要件書に実在しないclauseIdを拒否する。"""
-    document = copy.deepcopy(_register())
+    document = copy.deepcopy(_clause_only_register())
     document["gaps"][0]["clauseIds"] = ["FR-999"]
 
     with pytest.raises(checker.GapRegisterError, match="要件書に実在しない"):
@@ -352,7 +432,7 @@ def test_unknown_requirement_clause_id_is_red() -> None:
 
 def test_open_unknown_branch_reference_is_red() -> None:
     """openの連続prefixでも所有資産に存在しないbranch参照を拒否する。"""
-    document = copy.deepcopy(_register())
+    document = copy.deepcopy(_clause_only_register())
     document["gaps"][0]["branchIds"] = ["BRANCH-MISSING"]
     indexes = {"branchIds": _reference_index("BRANCH-OTHER")}
 
@@ -362,7 +442,7 @@ def test_open_unknown_branch_reference_is_red() -> None:
 
 def test_open_filled_stage_without_reference_source_is_red() -> None:
     """参照元がまだ無い段を先に埋めても未確認を正常扱いしない。"""
-    document = copy.deepcopy(_register())
+    document = copy.deepcopy(_clause_only_register())
     document["gaps"][0]["branchIds"] = ["BRANCH-01"]
 
     with pytest.raises(checker.GapRegisterError, match="参照元が未整備"):
@@ -371,7 +451,7 @@ def test_open_filled_stage_without_reference_source_is_red() -> None:
 
 def test_open_reverse_branch_membership_mismatch_is_red() -> None:
     """gapからの参照だけがあり所有資産からの帰属が無いopenを拒否する。"""
-    document = copy.deepcopy(_register())
+    document = copy.deepcopy(_clause_only_register())
     document["gaps"][0]["branchIds"] = ["BRANCH-01"]
     indexes = {
         "branchIds": _reference_index("BRANCH-01", gap_ids=frozenset())
@@ -383,7 +463,7 @@ def test_open_reverse_branch_membership_mismatch_is_red() -> None:
 
 def test_open_contiguous_intermediate_prefix_is_green() -> None:
     """clauseとbranchまでを正しく埋めたopenの途中状態を受理する。"""
-    document = copy.deepcopy(_register())
+    document = copy.deepcopy(_clause_only_register())
     document["gaps"][0]["branchIds"] = ["BRANCH-01"]
 
     _validate(document, {"branchIds": _reference_index("BRANCH-01")})
@@ -391,7 +471,7 @@ def test_open_contiguous_intermediate_prefix_is_green() -> None:
 
 def test_resolved_without_all_five_stages_is_red() -> None:
     """clauseIdsしか持たないentryをresolvedへ変えても受理しない。"""
-    document = copy.deepcopy(_register())
+    document = copy.deepcopy(_clause_only_register())
     document["gaps"][0]["state"] = "resolved"
 
     with pytest.raises(checker.GapRegisterError, match="resolvedは5段すべて"):
@@ -400,7 +480,7 @@ def test_resolved_without_all_five_stages_is_red() -> None:
 
 def test_resolved_with_reverse_mismatch_is_red() -> None:
     """5段が埋まっていても所有資産だけにある逆方向帰属を拒否する。"""
-    document = _fill_all_stages(copy.deepcopy(_register()))
+    document = _fill_all_stages(copy.deepcopy(_clause_only_register()))
     indexes = _all_stage_indexes(document)
     indexes["rowIds"] = checker.StageReferenceIndex(
         existing_references=frozenset({"ROW-01", "ROW-EXTRA"}),
@@ -416,7 +496,7 @@ def test_resolved_with_reverse_mismatch_is_red() -> None:
 
 def test_resolved_without_clause_reverse_membership_is_red() -> None:
     """resolvedではclause段も独立資産からの逆方向帰属を必要とする。"""
-    document = _fill_all_stages(copy.deepcopy(_register()))
+    document = _fill_all_stages(copy.deepcopy(_clause_only_register()))
     indexes = _all_stage_indexes(document)
     indexes.pop("clauseIds")
 
@@ -426,7 +506,7 @@ def test_resolved_without_clause_reverse_membership_is_red() -> None:
 
 def test_resolved_with_all_bidirectional_stages_is_green() -> None:
     """5段すべてが実在し所有資産と双方向一致するresolvedを受理する。"""
-    document = _fill_all_stages(copy.deepcopy(_register()))
+    document = _fill_all_stages(copy.deepcopy(_clause_only_register()))
 
     _validate(document, _all_stage_indexes(document))
 
