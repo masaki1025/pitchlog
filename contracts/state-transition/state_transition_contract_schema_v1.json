@@ -94,6 +94,108 @@
       }
     ]
   },
+  "x-pitchlog-must-operation-coverage": {
+    "sourceDecisionId": "adr:D-6",
+    "sourceClauseId": "req:4.0-4",
+    "mappingCollection": "mappings",
+    "operationTypeField": "operationType",
+    "rowReferencesField": "rowRefs",
+    "rowLayerField": "layer",
+    "rowCoordinateField": "coordinate",
+    "rowLayerAnnotation": "x-pitchlog-normative-row-layer",
+    "coordinateFieldsAnnotation": "x-pitchlog-input-coordinate-fields",
+    "requiredOperations": [
+      {
+        "operationType": "per-pitch-input",
+        "rowLayer": "matrixRows",
+        "discriminatorField": "eventKind",
+        "exactDiscriminatorValues": [
+          "batting-result",
+          "secondary-result",
+          "runner-event"
+        ]
+      },
+      {
+        "operationType": "undo",
+        "rowLayer": "undoRows"
+      },
+      {
+        "operationType": "substitution",
+        "rowLayer": "operationRows",
+        "discriminatorField": "operationKind",
+        "exactDiscriminatorValues": [
+          "substitution"
+        ]
+      },
+      {
+        "operationType": "tiebreak-start",
+        "rowLayer": "operationRows",
+        "discriminatorField": "operationKind",
+        "exactDiscriminatorValues": [
+          "tiebreak-start"
+        ]
+      },
+      {
+        "operationType": "game-end-declaration",
+        "rowLayer": "operationRows",
+        "discriminatorField": "operationKind",
+        "exactDiscriminatorValues": [
+          "game-end-declaration"
+        ]
+      },
+      {
+        "operationType": "adhoc-registration",
+        "rowLayer": "operationRows",
+        "discriminatorField": "operationKind",
+        "exactDiscriminatorValues": [
+          "adhoc-registration"
+        ]
+      }
+    ],
+    "conditionalOperations": [
+      {
+        "operationType": "state-correction",
+        "rowLayer": "operationRows",
+        "discriminatorField": "operationKind",
+        "exactDiscriminatorValues": [
+          "state-correction"
+        ],
+        "whenClauseId": "req:FR-040",
+        "whenState": "adopted"
+      }
+    ],
+    "checks": {
+      "referenceExistence": {
+        "requiredMatchCount": 1
+      },
+      "layerAndDiscriminatorConsistency": {
+        "required": true
+      },
+      "duplicateProhibition": {
+        "operationTypeMaximumOccurrences": 1,
+        "rowReferenceMaximumOccurrences": 1
+      },
+      "unassignedRows": {
+        "maximumOccurrences": 1
+      },
+      "perPitchSubtypeExactSet": {
+        "operationType": "per-pitch-input"
+      }
+    },
+    "manifestOmissionResolution": {
+      "manifestPath": "backend/domain/manifest.json",
+      "collection": "vectors",
+      "calculationField": "calculation",
+      "calculationValue": "state-transition",
+      "exclusionsField": "excludedOptionalOperations",
+      "operationTypeField": "operationType",
+      "clauseIdField": "clauseId",
+      "adoptionStateField": "adoptionState",
+      "notAdoptedValue": "not-adopted",
+      "requiredMatchCount": 1,
+      "failWhenManifestUnavailable": true
+    }
+  },
   "x-pitchlog-matrix-cross-constraints": {
     "sourceClauseId": "req:E-1",
     "rowCollection": "matrixRows",
@@ -324,7 +426,19 @@
     },
     "mustOperationCoverage": {
       "type": "object",
-      "additionalProperties": true
+      "required": [
+        "mappings"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "mappings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/mustOperationMapping"
+          }
+        }
+      }
     },
     "requiredSet": {
       "type": "object",
@@ -1405,6 +1519,27 @@
           }
         }
       ]
+    },
+    "mustOperationMapping": {
+      "type": "object",
+      "required": [
+        "operationType",
+        "rowRefs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "operationType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rowRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/caseRowReference"
+          }
+        }
+      }
     },
     "derivedCase": {
       "type": "object",

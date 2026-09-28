@@ -27,6 +27,7 @@ DESCRIPTOR_PATH = (
 DEFAULT_VOCABULARY_IDS_BY_SEED = {
     "batting_results": frozenset({"single"}),
 }
+_DEFAULT_VECTOR_MANIFEST = object()
 
 
 class ReferenceConstraintError(ValueError):
@@ -43,6 +44,10 @@ class OperationRowConstraintError(ValueError):
 
 class UndoRowConstraintError(ValueError):
     """undo規範行の参照・交差制約違反を表す。"""
+
+
+class MustOperationCoverageError(ValueError):
+    """Must操作被覆の写像・宣言制約違反を表す。"""
 
 
 def _load_module(name: str, path: Path) -> Any:
@@ -166,6 +171,47 @@ def _minimal_contract() -> dict[str, Any]:
         "guaranteeMode": "full-equality",
         "remarks": "確定プレイを取り消す基準行",
     }
+    secondary_row = copy.deepcopy(matrix_row)
+    secondary_row["eventKind"] = "secondary-result"
+    secondary_row["remarks"] = "副次結果の基準行"
+    runner_row = copy.deepcopy(matrix_row)
+    runner_row["eventKind"] = "runner-event"
+    runner_row["plateAppearanceEnded"] = "not-applicable"
+    runner_row["batterDestination"] = {"kind": "not-applicable"}
+    runner_row["remarks"] = "走者イベントの基準行"
+
+    operation_rows = [operation_row]
+    for operation_kind, clause_id, remarks in (
+        ("tiebreak-start", "FR-009", "タイブレーク開始の基準行"),
+        ("game-end-declaration", "FR-010", "試合終了宣言の基準行"),
+        ("adhoc-registration", "FR-015", "その場登録の基準行"),
+    ):
+        row = copy.deepcopy(operation_row)
+        row["operationKind"] = operation_kind
+        row["clauseId"] = clause_id
+        row["remarks"] = remarks
+        operation_rows.append(row)
+
+    matrix_rows = [matrix_row, secondary_row, runner_row]
+    coverage_mappings = [
+        {
+            "operationType": "per-pitch-input",
+            "rowRefs": [
+                _row_reference("matrixRows", row) for row in matrix_rows
+            ],
+        },
+        {
+            "operationType": "undo",
+            "rowRefs": [_row_reference("undoRows", undo_row)],
+        },
+        *(
+            {
+                "operationType": row["operationKind"],
+                "rowRefs": [_row_reference("operationRows", row)],
+            }
+            for row in operation_rows
+        ),
+    ]
     return {
         "schemaVersion": 1,
         "version": "state_transition_contract_v1",
@@ -175,10 +221,10 @@ def _minimal_contract() -> dict[str, Any]:
             "version": descriptor["version"],
             "digest": descriptor["digest"],
         },
-        "matrixRows": [matrix_row],
-        "operationRows": [operation_row],
+        "matrixRows": matrix_rows,
+        "operationRows": operation_rows,
         "undoRows": [undo_row],
-        "mustOperationCoverage": {},
+        "mustOperationCoverage": {"mappings": coverage_mappings},
         "requiredSet": {},
         "cases": [
             {
@@ -1022,6 +1068,357 @@ def _validate_undo_rows(
             )
 
 
+def _must_operation_coverage_configuration() -> dict[str, Any]:
+    """Must操作被覆の資産側宣言を返す。
+
+    Returns:
+        状況判定契約schemaに置かれた被覆宣言。
+
+    Raises:
+        MustOperationCoverageError: 宣言がobjectでない場合。
+    """
+    value = _schema().get("x-pitchlog-must-operation-coverage")
+    if not isinstance(value, dict):
+        raise MustOperationCoverageError("Must操作被覆宣言がobjectでない")
+    return value
+
+
+def _row_reference(layer: str, row: Mapping[str, Any]) -> dict[str, Any]:
+    """規範行の入力座標参照を返す。
+
+    Args:
+        layer: 規範行層。
+        row: 参照対象の規範行。
+
+    Returns:
+        出力列を含まない入力座標参照。
+    """
+    schema = _schema()
+    rule = schema["x-pitchlog-reference-constraints"]["rowIdentity"]
+    fields = _coordinate_fields(
+        schema, layer, rule["coordinateFieldsAnnotation"]
+    )
+    return {
+        "layer": layer,
+        "coordinate": {field: copy.deepcopy(row[field]) for field in fields},
+    }
+
+
+def _resolved_vector_manifest(
+    adopted_clause_ids: Set[str] = frozenset(),
+) -> dict[str, Any]:
+    """未整備の製品manifestを模す解決済みfixtureを返す。
+
+    Args:
+        adopted_clause_ids: 採用済みの任意条文ID。
+
+    Returns:
+        schemaの解決宣言から組み立てた`vectors[]` fixture。
+    """
+    configuration = _must_operation_coverage_configuration()
+    manifest_rule = configuration["manifestOmissionResolution"]
+    exclusions = []
+    for operation in configuration["conditionalOperations"]:
+        clause_id = operation["whenClauseId"]
+        if clause_id not in adopted_clause_ids:
+            exclusions.append(
+                {
+                    manifest_rule["operationTypeField"]: operation[
+                        "operationType"
+                    ],
+                    manifest_rule["clauseIdField"]: clause_id,
+                    manifest_rule["adoptionStateField"]: manifest_rule[
+                        "notAdoptedValue"
+                    ],
+                }
+            )
+    return {
+        manifest_rule["collection"]: [
+            {
+                manifest_rule["calculationField"]: manifest_rule[
+                    "calculationValue"
+                ],
+                manifest_rule["exclusionsField"]: exclusions,
+            }
+        ]
+    }
+
+
+def _add_state_correction_operation(contract: dict[str, Any]) -> None:
+    """FR-040採用時の状態補正行と被覆写像を追加する。
+
+    Args:
+        contract: 更新する状況判定契約。
+    """
+    row = copy.deepcopy(contract["operationRows"][0])
+    row["operationKind"] = "state-correction"
+    row["clauseId"] = "FR-040"
+    row["historyEffect"] = {"pushes": True, "kind": "state-correction"}
+    row["remarks"] = "状態補正の基準行"
+    contract["operationRows"].append(row)
+    contract["mustOperationCoverage"]["mappings"].append(
+        {
+            "operationType": "state-correction",
+            "rowRefs": [_row_reference("operationRows", row)],
+        }
+    )
+
+
+def _coverage_row_index(
+    contract: Mapping[str, Any], configuration: Mapping[str, Any]
+) -> tuple[dict[tuple[str, bytes], Mapping[str, Any]], set[tuple[str, bytes]]]:
+    """規範行を入力座標で索引化する。
+
+    Args:
+        contract: 検証する状況判定契約。
+        configuration: Must操作被覆宣言。
+
+    Returns:
+        入力座標から行への索引と全入力座標の集合。
+
+    Raises:
+        MustOperationCoverageError: 行層宣言または入力座標宣言が不正な場合。
+    """
+    schema = _schema()
+    try:
+        layers = _annotated_collections(
+            schema, configuration["rowLayerAnnotation"]
+        )
+        coordinate_annotation = configuration["coordinateFieldsAnnotation"]
+        indexed_rows = [
+            (
+                (
+                    layer,
+                    schema_checker.canonicalize_json(
+                        {
+                            field: row[field]
+                            for field in _coordinate_fields(
+                                schema, layer, coordinate_annotation
+                            )
+                        }
+                    ),
+                ),
+                row,
+            )
+            for layer in layers
+            for row in contract[layer]
+        ]
+    except (KeyError, ReferenceConstraintError) as exc:
+        raise MustOperationCoverageError(
+            "規範行層または入力座標の宣言を解決できない"
+        ) from exc
+    return dict(indexed_rows), {key for key, _ in indexed_rows}
+
+
+def _validate_manifest_omission_declaration(
+    configuration: Mapping[str, Any],
+    adopted_clause_ids: Set[str],
+    vector_manifest: Mapping[str, Any] | None,
+) -> None:
+    """FR-040不採用宣言を解決し、宣言のない除外を拒否する。
+
+    Args:
+        configuration: Must操作被覆宣言。
+        adopted_clause_ids: 採用済みの任意条文ID。
+        vector_manifest: 解決済みの宣言マニフェスト。解決不能時はNone。
+
+    Raises:
+        MustOperationCoverageError: マニフェストを解決できない、または条件付き
+            操作の採用状態と除外宣言が一致しない場合。
+    """
+    manifest_rule = configuration.get("manifestOmissionResolution")
+    if not isinstance(manifest_rule, dict):
+        raise MustOperationCoverageError("マニフェスト除外宣言の解決規則が不正")
+    if vector_manifest is None:
+        if manifest_rule.get("failWhenManifestUnavailable") is True:
+            raise MustOperationCoverageError(
+                "vectors[]マニフェストを解決できず除外宣言を確認できない"
+            )
+        raise MustOperationCoverageError(
+            "マニフェスト未解決時のfail-closed宣言が欠けている"
+        )
+
+    collection = vector_manifest.get(manifest_rule["collection"])
+    if not isinstance(collection, list):
+        raise MustOperationCoverageError("マニフェストのvectors[]を解決できない")
+    vector_matches = [
+        vector
+        for vector in collection
+        if isinstance(vector, dict)
+        and vector.get(manifest_rule["calculationField"])
+        == manifest_rule["calculationValue"]
+    ]
+    if len(vector_matches) != manifest_rule["requiredMatchCount"]:
+        raise MustOperationCoverageError(
+            "状況判定のvectors[]宣言を必要件数へ解決できない"
+        )
+    exclusions = vector_matches[0].get(manifest_rule["exclusionsField"])
+    if not isinstance(exclusions, list):
+        raise MustOperationCoverageError("vectors[]の任意操作除外宣言が配列でない")
+
+    for operation in configuration["conditionalOperations"]:
+        expected = {
+            manifest_rule["operationTypeField"]: operation["operationType"],
+            manifest_rule["clauseIdField"]: operation["whenClauseId"],
+            manifest_rule["adoptionStateField"]: manifest_rule["notAdoptedValue"],
+        }
+        matches = sum(
+            isinstance(exclusion, dict)
+            and all(exclusion.get(key) == value for key, value in expected.items())
+            for exclusion in exclusions
+        )
+        adopted = operation["whenClauseId"] in adopted_clause_ids
+        expected_matches = 0 if adopted else manifest_rule["requiredMatchCount"]
+        if matches != expected_matches:
+            raise MustOperationCoverageError(
+                "FR-040の採用状態とvectors[]の除外宣言が一致しない: "
+                f"operationType={operation['operationType']!r}; matches={matches}"
+            )
+
+
+def _validate_must_operation_coverage(
+    contract: Mapping[str, Any],
+    adopted_clause_ids: Set[str],
+    vector_manifest: Mapping[str, Any] | None,
+) -> None:
+    """Must 6種と条件付き第7種の写像へ5検査を適用する。
+
+    Args:
+        contract: 検証する状況判定契約。
+        adopted_clause_ids: 採用済みの任意条文ID。
+        vector_manifest: 解決済みの宣言マニフェスト。解決不能時はNone。
+
+    Raises:
+        MustOperationCoverageError: 5検査のいずれか、またはFR-040の
+            除外宣言が成立しない場合。
+    """
+    configuration = _must_operation_coverage_configuration()
+    required_operations = configuration.get("requiredOperations")
+    conditional_operations = configuration.get("conditionalOperations")
+    checks = configuration.get("checks")
+    if not (
+        isinstance(required_operations, list)
+        and isinstance(conditional_operations, list)
+        and isinstance(checks, dict)
+    ):
+        raise MustOperationCoverageError("Must操作被覆宣言の構造が不正")
+    operation_conditions = _operation_row_configuration()[
+        "conditionalOperationKinds"
+    ]
+    coverage_conditions = [
+        {
+            "value": operation["operationType"],
+            "whenClauseId": operation["whenClauseId"],
+            "whenState": operation["whenState"],
+        }
+        for operation in conditional_operations
+    ]
+    if not _json_equal(coverage_conditions, operation_conditions):
+        raise MustOperationCoverageError(
+            "条件付き第7種の宣言がoperationKind宣言と一致しない"
+        )
+    active_operations = [
+        *required_operations,
+        *(
+            operation
+            for operation in conditional_operations
+            if operation.get("whenClauseId") in adopted_clause_ids
+        ),
+    ]
+    expected_by_type = {
+        operation["operationType"]: operation for operation in active_operations
+    }
+    if len(expected_by_type) != len(active_operations):
+        raise MustOperationCoverageError("被覆対象の操作種別宣言が重複")
+
+    coverage = contract["mustOperationCoverage"]
+    mappings = coverage[configuration["mappingCollection"]]
+    operation_type_field = configuration["operationTypeField"]
+    row_references_field = configuration["rowReferencesField"]
+    operation_type_counts = Counter(
+        mapping[operation_type_field] for mapping in mappings
+    )
+    duplicate_rule = checks["duplicateProhibition"]
+    if any(
+        count > duplicate_rule["operationTypeMaximumOccurrences"]
+        for count in operation_type_counts.values()
+    ):
+        raise MustOperationCoverageError("③操作種別の写像が重複")
+    if set(operation_type_counts) != set(expected_by_type):
+        raise MustOperationCoverageError(
+            "Must 6種と条件付き第7種の写像がexact-set不一致"
+        )
+
+    row_index, all_row_keys = _coverage_row_index(contract, configuration)
+    required_matches = checks["referenceExistence"]["requiredMatchCount"]
+    assigned_keys: list[tuple[str, bytes]] = []
+    rows_by_operation_type: dict[str, list[Mapping[str, Any]]] = {}
+    for mapping in mappings:
+        operation_type = mapping[operation_type_field]
+        operation_rule = expected_by_type[operation_type]
+        mapped_rows: list[Mapping[str, Any]] = []
+        for row_reference in mapping[row_references_field]:
+            layer = row_reference[configuration["rowLayerField"]]
+            coordinate = schema_checker.canonicalize_json(
+                row_reference[configuration["rowCoordinateField"]]
+            )
+            key = (layer, coordinate)
+            matches = int(key in row_index)
+            if matches != required_matches:
+                raise MustOperationCoverageError(
+                    "①写像の参照先を必要件数へ解決できない: "
+                    f"operationType={operation_type!r}"
+                )
+            row = row_index[key]
+            if layer != operation_rule["rowLayer"]:
+                raise MustOperationCoverageError(
+                    "②操作種別と規範行層が一致しない: "
+                    f"operationType={operation_type!r}; layer={layer!r}"
+                )
+            discriminator_field = operation_rule.get("discriminatorField")
+            exact_values = operation_rule.get("exactDiscriminatorValues")
+            if discriminator_field is not None and (
+                not isinstance(exact_values, list)
+                or row.get(discriminator_field) not in exact_values
+            ):
+                raise MustOperationCoverageError(
+                    "②操作種別と行の識別値が一致しない: "
+                    f"operationType={operation_type!r}"
+                )
+            assigned_keys.append(key)
+            mapped_rows.append(row)
+        rows_by_operation_type[operation_type] = mapped_rows
+
+    assigned_counts = Counter(assigned_keys)
+    if any(
+        count > duplicate_rule["rowReferenceMaximumOccurrences"]
+        for count in assigned_counts.values()
+    ):
+        raise MustOperationCoverageError("③同じ規範行が複数の写像へ重複帰属")
+    if set(assigned_counts) != all_row_keys:
+        raise MustOperationCoverageError("④いずれの操作種別にも帰属しない規範行が存在")
+    if any(
+        count != checks["unassignedRows"]["maximumOccurrences"]
+        for count in assigned_counts.values()
+    ):
+        raise MustOperationCoverageError("④規範行の帰属件数が不正")
+
+    per_pitch_type = checks["perPitchSubtypeExactSet"]["operationType"]
+    per_pitch_rule = expected_by_type[per_pitch_type]
+    discriminator_field = per_pitch_rule["discriminatorField"]
+    actual_subtypes = {
+        row[discriminator_field] for row in rows_by_operation_type[per_pitch_type]
+    }
+    if actual_subtypes != set(per_pitch_rule["exactDiscriminatorValues"]):
+        raise MustOperationCoverageError(
+            "⑤毎球入力の3下位分類がexact-set不一致"
+        )
+
+    _validate_manifest_omission_declaration(
+        configuration, adopted_clause_ids, vector_manifest
+    )
+
+
 def _sync_case_coordinate(contract: dict[str, Any], layer: str) -> None:
     """指定層のcase参照を先頭の規範行の入力座標へ同期する。
 
@@ -1040,6 +1437,13 @@ def _sync_case_coordinate(contract: dict[str, Any], layer: str) -> None:
     case["rowRef"]["coordinate"] = {
         field: copy.deepcopy(row[field]) for field in fields
     }
+    for mapping in contract["mustOperationCoverage"]["mappings"]:
+        for row_reference in mapping["rowRefs"]:
+            if row_reference["layer"] == layer:
+                row_reference["coordinate"] = {
+                    field: copy.deepcopy(row[field]) for field in fields
+                }
+                return
 
 
 def _validate_references(
@@ -1299,13 +1703,28 @@ def _validate(
         DEFAULT_VOCABULARY_IDS_BY_SEED
     ),
     adopted_clause_ids: Set[str] = frozenset(),
+    vector_manifest: Mapping[str, Any] | None | object = _DEFAULT_VECTOR_MANIFEST,
 ) -> None:
     """状況判定契約のschema・参照制約・交差制約を検証する。"""
+    resolved_vector_manifest = (
+        _resolved_vector_manifest(adopted_clause_ids)
+        if vector_manifest is _DEFAULT_VECTOR_MANIFEST
+        else vector_manifest
+    )
+    if resolved_vector_manifest is not None and not isinstance(
+        resolved_vector_manifest, Mapping
+    ):
+        raise MustOperationCoverageError(
+            "解決済みvectors[]マニフェストがobjectでない"
+        )
     _validate_schema(contract)
     _validate_operation_rows(contract, adopted_clause_ids)
     _validate_undo_rows(contract, adopted_clause_ids)
     _validate_references(contract, vocabulary_ids_by_seed)
     _validate_cross_constraints(contract)
+    _validate_must_operation_coverage(
+        contract, adopted_clause_ids, resolved_vector_manifest
+    )
 
 
 def test_repository_schema_accepts_the_three_normative_row_layers() -> None:
@@ -1315,6 +1734,150 @@ def test_repository_schema_accepts_the_three_normative_row_layers() -> None:
     assert schema["version"] == SCHEMA_PATH.stem
     assert "decisionRows" not in schema["properties"]
     _validate(_minimal_contract())
+
+
+def _coverage_mapping(
+    contract: Mapping[str, Any], operation_type: str
+) -> dict[str, Any]:
+    """指定操作種別の被覆写像を返す。
+
+    Args:
+        contract: 状況判定契約。
+        operation_type: 検索する操作種別。
+
+    Returns:
+        一意な被覆写像。
+    """
+    matches = [
+        mapping
+        for mapping in contract["mustOperationCoverage"]["mappings"]
+        if mapping["operationType"] == operation_type
+    ]
+    assert len(matches) == 1
+    return matches[0]
+
+
+def test_must_operation_coverage_declares_six_required_and_one_conditional_type() -> None:
+    """4.0-4のMust 6種とFR-040採用時の第7種を資産側へ宣言する。"""
+    configuration = _must_operation_coverage_configuration()
+    contract = _minimal_contract()
+    declared_required_types = {
+        operation["operationType"]
+        for operation in configuration["requiredOperations"]
+    }
+    mapped_types = {
+        mapping["operationType"]
+        for mapping in contract["mustOperationCoverage"]["mappings"]
+    }
+
+    assert mapped_types == declared_required_types
+    _validate(contract)
+
+
+def test_coverage_reference_to_unknown_normative_row_is_red() -> None:
+    """①入力座標を実在行へ解決できない被覆写像を拒否する。"""
+    contract = _minimal_contract()
+    reference = _coverage_mapping(contract, "substitution")["rowRefs"][0]
+    reference["coordinate"]["precondition"] = {
+        "op": "eq",
+        "axisId": "state.outs",
+        "value": 1,
+    }
+
+    with pytest.raises(MustOperationCoverageError, match="①写像の参照先"):
+        _validate(contract)
+
+
+def test_coverage_operation_type_must_match_row_layer_and_discriminator() -> None:
+    """②操作種別を異なる規範行層へ結び付けた写像を拒否する。"""
+    contract = _minimal_contract()
+    _coverage_mapping(contract, "substitution")["rowRefs"] = copy.deepcopy(
+        _coverage_mapping(contract, "undo")["rowRefs"]
+    )
+
+    with pytest.raises(MustOperationCoverageError, match="②操作種別と規範行層"):
+        _validate(contract)
+
+
+def test_coverage_operation_mapping_must_not_be_duplicated() -> None:
+    """③同じ操作種別を2回写像した契約を拒否する。"""
+    contract = _minimal_contract()
+    contract["mustOperationCoverage"]["mappings"].append(
+        copy.deepcopy(_coverage_mapping(contract, "substitution"))
+    )
+
+    with pytest.raises(MustOperationCoverageError, match="③操作種別の写像が重複"):
+        _validate(contract)
+
+
+def test_unassigned_normative_row_is_red() -> None:
+    """④どのMust操作にも帰属しない規範行を拒否する。"""
+    contract = _minimal_contract()
+    unassigned = copy.deepcopy(contract["matrixRows"][0])
+    unassigned["precondition"] = {
+        "op": "and",
+        "args": [
+            {"op": "eq", "axisId": "state.outs", "value": 1},
+            {"op": "eq", "axisId": "state.runners", "value": "empty"},
+        ],
+    }
+    unassigned["remarks"] = "未帰属行"
+    contract["matrixRows"].append(unassigned)
+
+    with pytest.raises(MustOperationCoverageError, match="④いずれの操作種別にも"):
+        _validate(contract)
+
+
+def test_per_pitch_subtypes_must_be_an_exact_set() -> None:
+    """⑤毎球入力から3下位分類の1つを落とした契約を拒否する。"""
+    contract = _minimal_contract()
+    runner_row = next(
+        row for row in contract["matrixRows"] if row["eventKind"] == "runner-event"
+    )
+    contract["matrixRows"].remove(runner_row)
+    mapping = _coverage_mapping(contract, "per-pitch-input")
+    mapping["rowRefs"] = [
+        reference
+        for reference in mapping["rowRefs"]
+        if reference["coordinate"]["eventKind"] != "runner-event"
+    ]
+
+    with pytest.raises(MustOperationCoverageError, match="⑤毎球入力の3下位分類"):
+        _validate(contract)
+
+
+def test_unadopted_fr040_requires_an_explicit_vector_exclusion() -> None:
+    """FR-040未採用をvectors[]へ宣言しない除外を拒否する。"""
+    contract = _minimal_contract()
+    manifest = _resolved_vector_manifest()
+    configuration = _must_operation_coverage_configuration()
+    rule = configuration["manifestOmissionResolution"]
+    manifest[rule["collection"]][0][rule["exclusionsField"]] = []
+
+    with pytest.raises(
+        MustOperationCoverageError,
+        match=r"FR-040の採用状態とvectors\[\]の除外宣言が一致しない",
+    ):
+        _validate(contract, vector_manifest=manifest)
+
+
+def test_vector_manifest_unavailability_is_red() -> None:
+    """vectors[]を解決不能な被覆検査を未確認の緑にしない。"""
+    contract = _minimal_contract()
+
+    with pytest.raises(
+        MustOperationCoverageError,
+        match=r"vectors\[\]マニフェストを解決できず",
+    ):
+        _validate(contract, vector_manifest=None)
+
+
+def test_fr040_adoption_adds_the_seventh_covered_operation() -> None:
+    """FR-040採用時だけ状態補正を第7種として被覆する。"""
+    contract = _minimal_contract()
+    _add_state_correction_operation(contract)
+
+    _validate(contract, adopted_clause_ids=frozenset({"req:FR-040"}))
 
 
 def test_schema_binding_matches_the_input_axes_descriptor_identity() -> None:
@@ -1435,22 +1998,20 @@ def test_permanent_operation_kinds_resolve_to_their_clause(
 ) -> None:
     """常設4操作の種別と典拠FRの対応を受理する。"""
     contract = _minimal_contract()
-    row = contract["operationRows"][0]
-    row["operationKind"] = operation_kind
-    row["clauseId"] = clause_id
-    _sync_case_coordinate(contract, "operationRows")
+    row = next(
+        row
+        for row in contract["operationRows"]
+        if row["operationKind"] == operation_kind
+    )
 
     _validate(contract)
+    assert row["clauseId"] == clause_id
 
 
 def test_state_correction_is_the_fr040_conditional_operation_kind() -> None:
     """状態補正をFR-040採用時だけの条件付き操作として宣言する。"""
     contract = _minimal_contract()
-    row = contract["operationRows"][0]
-    row["operationKind"] = "state-correction"
-    row["clauseId"] = "FR-040"
-    row["historyEffect"] = {"pushes": True, "kind": "state-correction"}
-    _sync_case_coordinate(contract, "operationRows")
+    _add_state_correction_operation(contract)
 
     _validate(contract, adopted_clause_ids=frozenset({"req:FR-040"}))
     configuration = _operation_row_configuration()
@@ -1680,6 +2241,7 @@ def test_state_correction_target_requires_fr040_adoption() -> None:
 def test_state_correction_target_is_accepted_when_fr040_is_adopted() -> None:
     """FR-040採用時だけ状態補正targetKindを受理する。"""
     contract = _minimal_contract()
+    _add_state_correction_operation(contract)
     contract["undoRows"][0]["targetKind"] = "state-correction"
     _sync_case_coordinate(contract, "undoRows")
 
@@ -1977,15 +2539,28 @@ def _set_runner_state(contract: dict[str, Any], runners: str) -> None:
 
 def _set_runner_event(contract: dict[str, Any]) -> None:
     """matrixRows先頭行を交差制約に適合する走者イベントへ変える。"""
-    row = contract["matrixRows"][0]
-    row["eventKind"] = "runner-event"
-    row["countEffect"] = {
-        "strikes": {"kind": "unchanged"},
-        "balls": {"kind": "unchanged"},
-    }
-    row["plateAppearanceEnded"] = "not-applicable"
-    row["batterDestination"] = {"kind": "not-applicable"}
-    _sync_case_coordinate(contract, "matrixRows")
+    runner_index = next(
+        index
+        for index, row in enumerate(contract["matrixRows"])
+        if row["eventKind"] == "runner-event"
+    )
+    contract["matrixRows"][0], contract["matrixRows"][runner_index] = (
+        contract["matrixRows"][runner_index],
+        contract["matrixRows"][0],
+    )
+
+
+def _set_secondary_result(contract: dict[str, Any]) -> None:
+    """matrixRows先頭行を副次結果行へ入れ替える。"""
+    secondary_index = next(
+        index
+        for index, row in enumerate(contract["matrixRows"])
+        if row["eventKind"] == "secondary-result"
+    )
+    contract["matrixRows"][0], contract["matrixRows"][secondary_index] = (
+        contract["matrixRows"][secondary_index],
+        contract["matrixRows"][0],
+    )
 
 
 def _set_batter_out(contract: dict[str, Any]) -> None:
@@ -2108,15 +2683,14 @@ def test_xc06_batting_result_out_cannot_continue_plate_appearance() -> None:
 def test_xc06_secondary_result_not_applicable_cannot_end_plate_appearance() -> None:
     """XC-06: secondary-resultの行き先なしと打席終了の組合せを拒否する。"""
     contract = _minimal_contract()
+    _set_secondary_result(contract)
     row = contract["matrixRows"][0]
-    row["eventKind"] = "secondary-result"
     row["countEffect"] = {
         "strikes": {"kind": "reset"},
         "balls": {"kind": "reset"},
     }
     row["plateAppearanceEnded"] = True
     row["batterDestination"] = {"kind": "not-applicable"}
-    _sync_case_coordinate(contract, "matrixRows")
 
     with pytest.raises(CrossConstraintError, match="XC-06"):
         _validate(contract)
@@ -2137,15 +2711,14 @@ def test_xc06_batting_result_continuation_cannot_reset_count() -> None:
 def test_xc06_secondary_result_cannot_use_score_destination() -> None:
     """XC-06: eventKind別allowlist外のsecondary-result得点を拒否する。"""
     contract = _minimal_contract()
+    _set_secondary_result(contract)
     row = contract["matrixRows"][0]
-    row["eventKind"] = "secondary-result"
     row["countEffect"] = {
         "strikes": {"kind": "reset"},
         "balls": {"kind": "reset"},
     }
     row["plateAppearanceEnded"] = True
     row["batterDestination"] = {"kind": "score"}
-    _sync_case_coordinate(contract, "matrixRows")
 
     with pytest.raises(CrossConstraintError, match="XC-06"):
         _validate(contract)
