@@ -105,6 +105,10 @@
         "set": "removed",
         "code": "TB002",
         "adjudications": "contracts/tenant_boundary/base-allowlist.json#/condition_2_adjudications",
+        "adjudication_symbol_field": "symbol",
+        "identity_symbol_field": "symbol",
+        "adjudication_match": "full_symbol_or_terminal_name",
+        "current_set": "current_census",
         "match_fields": [
           "path",
           "line",
@@ -121,7 +125,17 @@
           "matches_current_condition_2_contract",
           "does_not_match_anchor_condition_2_contract"
         ],
-        "forbidden_derivation_source": "candidate_checker_census"
+        "forbidden_derivation_source": "candidate_checker_census",
+        "candidate_enumeration": {
+          "source_glob": "*.py",
+          "ast_node_type": "Name",
+          "current_contract_projection": "syntax_identifier",
+          "anchor_contract_projection": "resolved_symbol",
+          "identity_symbol_projection": "resolved_symbol",
+          "identifier_normalization": "python_identifier_or_qualified_name_to_snake_case",
+          "condition": 2,
+          "message": "条件 2 の禁止シンボルを検出"
+        }
       },
       {
         "id": "difference_sets_are_nonempty",
@@ -149,6 +163,34 @@
     "acceptance_cross_check.requirement",
     "census_identity.kind",
     "census_identity.ordered_fields",
-    "pass_fail_mapping.predicates"
+    "pass_fail_mapping.predicates",
+    "pass_fail_mapping.predicates[].id",
+    "pass_fail_mapping.predicates[].sets",
+    "pass_fail_mapping.predicates[].allowed_codes",
+    "pass_fail_mapping.predicates[].set",
+    "pass_fail_mapping.predicates[].code",
+    "pass_fail_mapping.predicates[].quantifier",
+    "pass_fail_mapping.predicates[].requirement",
+    "pass_fail_mapping.predicates[].adjudications",
+    "pass_fail_mapping.predicates[].adjudication_symbol_field",
+    "pass_fail_mapping.predicates[].identity_symbol_field",
+    "pass_fail_mapping.predicates[].adjudication_match",
+    "pass_fail_mapping.predicates[].current_set",
+    "pass_fail_mapping.predicates[].match_fields",
+    "pass_fail_mapping.predicates[].required_current_code",
+    "pass_fail_mapping.predicates[].relation",
+    "pass_fail_mapping.predicates[].candidate_source",
+    "pass_fail_mapping.predicates[].filters",
+    "pass_fail_mapping.predicates[].forbidden_derivation_source",
+    "pass_fail_mapping.predicates[].candidate_enumeration",
+    "pass_fail_mapping.predicates[].candidate_enumeration.source_glob",
+    "pass_fail_mapping.predicates[].candidate_enumeration.ast_node_type",
+    "pass_fail_mapping.predicates[].candidate_enumeration.current_contract_projection",
+    "pass_fail_mapping.predicates[].candidate_enumeration.anchor_contract_projection",
+    "pass_fail_mapping.predicates[].candidate_enumeration.identity_symbol_projection",
+    "pass_fail_mapping.predicates[].candidate_enumeration.identifier_normalization",
+    "pass_fail_mapping.predicates[].candidate_enumeration.condition",
+    "pass_fail_mapping.predicates[].candidate_enumeration.message",
+    "pass_fail_mapping.predicates[].nonempty_sets"
   ]
 }
