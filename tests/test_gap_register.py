@@ -37,6 +37,10 @@ _load_module("check_input_axes_three_way_parity", PARITY_SCRIPT)
 checker = _load_module("check_gap_register_under_test", SCRIPT)
 REGISTER_PATH = REPOSITORY_ROOT / checker.REGISTER_PATH
 SCHEMA_PATH = REPOSITORY_ROOT / checker.SCHEMA_PATH
+CLAUSE_BRANCH_REGISTER_PATH = (
+    REPOSITORY_ROOT / checker.CLAUSE_BRANCH_REGISTER_PATH
+)
+CLAUSE_BRANCH_SCHEMA_PATH = REPOSITORY_ROOT / checker.CLAUSE_BRANCH_SCHEMA_PATH
 
 
 def _register() -> dict[str, Any]:
@@ -44,6 +48,30 @@ def _register() -> dict[str, Any]:
     value = json.loads(REGISTER_PATH.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return value
+
+
+def _clause_branch_register() -> dict[str, Any]:
+    """リポジトリの条文分岐台帳を読む。"""
+    value = json.loads(CLAUSE_BRANCH_REGISTER_PATH.read_text(encoding="utf-8"))
+    assert isinstance(value, dict)
+    return value
+
+
+def _clause_branch_policy() -> Any:
+    """条文分岐台帳schemaから抽出・分類方針を読む。"""
+    schema = json.loads(CLAUSE_BRANCH_SCHEMA_PATH.read_text(encoding="utf-8"))
+    assert isinstance(schema, dict)
+    return checker.load_clause_branch_schema_policy(schema)
+
+
+def _validate_clause_branches(document: dict[str, Any]) -> None:
+    """要件書から抽出した条文・分岐IDで台帳を検証する。"""
+    checker.validate_clause_branch_register_document(
+        document,
+        checker.load_requirement_clause_ids(REPOSITORY_ROOT),
+        checker.load_requirement_branch_ids(REPOSITORY_ROOT),
+        _clause_branch_policy(),
+    )
 
 
 def _criteria() -> Any:
@@ -144,6 +172,122 @@ def test_schema_declares_exact_shape_and_reference_modes() -> None:
     assert policy.resolved_additional_bidirectional_stages == frozenset(
         {"clauseIds"}
     )
+
+
+def test_clause_branch_register_has_64_rows_and_four_game_end_outcomes() -> None:
+    """規範表64 IDと終了判定4結果を別の分岐層として全件列挙する。"""
+    document = _clause_branch_register()
+    policy = _clause_branch_policy()
+    requirement_ids = checker.load_requirement_branch_ids(REPOSITORY_ROOT)
+    requirement_entries = {
+        branch["branchId"]
+        for branch in document["branches"]
+        if branch["branchKind"] == policy.requirement_branch_kind
+    }
+    outcome_entries = {
+        branch["branchId"]
+        for branch in document["branches"]
+        if branch["branchKind"] == policy.game_end_outcome_kind
+    }
+
+    assert len(requirement_ids) == 64
+    assert requirement_entries == requirement_ids
+    assert outcome_entries == set(document["gameEndOutcomeBranches"].values())
+    assert set(document["gameEndOutcomeBranches"]) == {
+        "normalEnd",
+        "extraInningContinue",
+        "limitDraw",
+        "tiebreakContinue",
+    }
+    assert document["branchCount"] == len(document["branches"]) == 68
+    assert "XC-09" not in requirement_entries
+    assert not {"H", "E", "K", "B"} & requirement_entries
+    entries_by_id = {
+        branch["branchId"]: branch for branch in document["branches"]
+    }
+    assert set(
+        entries_by_id[document["gameEndOutcomeBranches"]["normalEnd"]][
+            "relatedClauseBranchIds"
+        ]
+    ) == {"COLD-08", "COLD-09", "DRAW-06", "DRAW-10"}
+    assert set(
+        entries_by_id[
+            document["gameEndOutcomeBranches"]["extraInningContinue"]
+        ]["relatedClauseBranchIds"]
+    ) == {"DRAW-07", "DRAW-08"}
+    assert set(
+        entries_by_id[document["gameEndOutcomeBranches"]["limitDraw"]][
+            "relatedClauseBranchIds"
+        ]
+    ) == {"DRAW-09"}
+    assert set(
+        entries_by_id[
+            document["gameEndOutcomeBranches"]["tiebreakContinue"]
+        ]["relatedClauseBranchIds"]
+    ) == {"DRAW-07", "DRAW-08"}
+    _validate_clause_branches(document)
+
+
+def test_clause_branch_register_records_creation_author_without_review_claim() -> None:
+    """作成者記録を独立確認済みという署名へ読み替えず保持する。"""
+    document = _clause_branch_register()
+    schema = json.loads(CLAUSE_BRANCH_SCHEMA_PATH.read_text(encoding="utf-8"))
+
+    assert document["authorSignature"] == {
+        "authorId": "codex",
+        "recordedOn": "2026-09-28",
+        "statement": "enumerated-directly-from-approved-requirements",
+    }
+    assurance = schema["x-pitchlog-clause-branch-register-policy"][
+        "assuranceBoundary"
+    ]
+    assert "recorded-author-signature-fields-present" in assurance[
+        "mechanicallyGuaranteed"
+    ]
+    assert "author-identity-is-truthful" in assurance["humanControls"]
+
+
+def test_unknown_clause_branch_source_is_red() -> None:
+    """名前空間形式が正しくても要件書に実在しない由来条文を拒否する。"""
+    document = copy.deepcopy(_clause_branch_register())
+    document["branches"][0]["sourceClauseIds"] = ["req:FR-999"]
+
+    with pytest.raises(checker.GapRegisterError, match="実在しない由来条文ID"):
+        _validate_clause_branches(document)
+
+
+def test_missing_normative_branch_row_is_red() -> None:
+    """要件書規範表の分岐を台帳から1件落としたexact-set不一致を拒否する。"""
+    document = copy.deepcopy(_clause_branch_register())
+    document["branches"] = [
+        branch for branch in document["branches"] if branch["branchId"] != "COLD-09"
+    ]
+    document["branchCount"] = len(document["branches"])
+
+    with pytest.raises(checker.GapRegisterError, match="規範表分岐と台帳"):
+        _validate_clause_branches(document)
+
+
+def test_missing_game_end_outcome_is_red() -> None:
+    """終了判定4役割のうち1件が解決できない台帳を拒否する。"""
+    document = copy.deepcopy(_clause_branch_register())
+    document["branches"] = [
+        branch
+        for branch in document["branches"]
+        if branch["branchId"] != document["gameEndOutcomeBranches"]["limitDraw"]
+    ]
+    document["branchCount"] = len(document["branches"])
+
+    with pytest.raises(checker.GapRegisterError, match="game-end-outcome entry"):
+        _validate_clause_branches(document)
+
+
+def test_clause_branch_index_is_ready_for_step47_without_filling_gap_ids() -> None:
+    """本ステップではgap帰属を空に保ち次ステップの双方向indexだけ提供する。"""
+    index = checker.clause_branch_reference_index(_clause_branch_register())
+
+    assert len(index.existing_references) == 68
+    assert all(not owners for owners in index.gap_ids_by_reference.values())
 
 
 def test_nine_open_gaps_have_only_the_clause_stage_filled() -> None:

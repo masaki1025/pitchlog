@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/state-transition/clause_branch_register_schema_v1.json",
+  "title": "Clause branch register schema v1",
+  "x-pitchlog-clause-branch-register-policy": {
+    "requirementsSourcePath": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+    "requirementBranchExtraction": "normative-table-first-cell-machine-readable-id",
+    "requirementBranchKind": "requirement-branch-row",
+    "gameEndOutcomeKind": "game-end-outcome",
+    "gameEndOutcomeRoles": [
+      "normalEnd",
+      "extraInningContinue",
+      "limitDraw",
+      "tiebreakContinue"
+    ],
+    "sourceClauseNamespace": "req",
+    "gapOwnership": "filled-bidirectionally-at-step-47",
+    "assuranceBoundary": {
+      "mechanicallyGuaranteed": [
+        "requirement-normative-branch-id-exact-set",
+        "source-clause-id-existence",
+        "branch-id-and-game-end-role-uniqueness",
+        "related-branch-id-resolution",
+        "recorded-author-signature-fields-present"
+      ],
+      "humanControls": [
+        "source-clause-supports-branch-semantics",
+        "author-identity-is-truthful",
+        "branch-enumeration-is-semantically-complete-beyond-machine-readable-ids"
+      ]
+    }
+  },
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "version",
+    "requirementsSource",
+    "authorSignature",
+    "branchCount",
+    "gameEndOutcomeBranches",
+    "branches"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "version": {
+      "const": "clause_branch_register_v1"
+    },
+    "requirementsSource": {
+      "type": "object",
+      "required": [
+        "path",
+        "version",
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "const": "docs/requirements/requirements-pitchlog-2026-07-22.md"
+        },
+        "version": {
+          "const": "2.10"
+        },
+        "status": {
+          "const": "approved"
+        }
+      }
+    },
+    "authorSignature": {
+      "type": "object",
+      "required": [
+        "authorId",
+        "recordedOn",
+        "statement"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "authorId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recordedOn": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "statement": {
+          "const": "enumerated-directly-from-approved-requirements"
+        }
+      }
+    },
+    "branchCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "gameEndOutcomeBranches": {
+      "type": "object",
+      "required": [
+        "normalEnd",
+        "extraInningContinue",
+        "limitDraw",
+        "tiebreakContinue"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "normalEnd": {
+          "$ref": "#/$defs/branchId"
+        },
+        "extraInningContinue": {
+          "$ref": "#/$defs/branchId"
+        },
+        "limitDraw": {
+          "$ref": "#/$defs/branchId"
+        },
+        "tiebreakContinue": {
+          "$ref": "#/$defs/branchId"
+        }
+      }
+    },
+    "branches": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/branch"
+      }
+    }
+  },
+  "$defs": {
+    "branchId": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$"
+    },
+    "branch": {
+      "type": "object",
+      "required": [
+        "branchId",
+        "branchKind",
+        "coverageKind",
+        "sourceClauseIds",
+        "relatedClauseBranchIds",
+        "gapIds"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "branchId": {
+          "$ref": "#/$defs/branchId"
+        },
+        "branchKind": {
+          "enum": [
+            "requirement-branch-row",
+            "game-end-outcome"
+          ]
+        },
+        "coverageKind": {
+          "enum": [
+            "normative-case",
+            "constraint-negative",
+            "decision-row"
+          ]
+        },
+        "sourceClauseIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^req:[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*$"
+          }
+        },
+        "relatedClauseBranchIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/branchId"
+          }
+        },
+        "gapIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^GAP-[0-9]{2}$"
+          }
+        }
+      }
+    }
+  }
+}

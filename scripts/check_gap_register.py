@@ -25,6 +25,12 @@ REGISTER_PATH = PurePosixPath(
 SCHEMA_PATH = PurePosixPath(
     "contracts/state-transition/gap_register_schema_v1.json"
 )
+CLAUSE_BRANCH_REGISTER_PATH = PurePosixPath(
+    "contracts/state-transition/clause_branch_register_v1.json"
+)
+CLAUSE_BRANCH_SCHEMA_PATH = PurePosixPath(
+    "contracts/state-transition/clause_branch_register_schema_v1.json"
+)
 REQUIREMENTS_PATH = parity_checker.REQUIREMENTS_PATH
 
 # JSON Schema の語彙・member 名は凍結する判断値ではなく、汎用文法のnavigationに使う。
@@ -98,6 +104,24 @@ class StageReferenceIndex:
 
     existing_references: frozenset[str]
     gap_ids_by_reference: Mapping[str, frozenset[str]]
+
+
+@dataclass(frozen=True)
+class ClauseBranchPolicy:
+    """schema資産が宣言する条文分岐台帳の抽出・分類規則。"""
+
+    requirements_source_path: PurePosixPath
+    requirement_branch_kind: str
+    game_end_outcome_kind: str
+    game_end_outcome_roles: tuple[str, ...]
+    source_clause_namespace: str
+    top_level_fields: frozenset[str]
+    branch_fields: frozenset[str]
+    coverage_kinds: frozenset[str]
+    schema_version: int
+    requirements_version: str
+    requirements_status: str
+    author_statement: str
 
 
 def _criteria_string_list(value: object, label: str) -> list[str]:
@@ -247,6 +271,242 @@ def _expect_object(value: object, label: str) -> dict[str, Any]:
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         raise GapRegisterError(f"{label}は文字列キーのobjectでなければならない")
     return value
+
+
+def _values_equal(left: object, right: object) -> bool:
+    """比較値を呼出側のliteral監査へ混ぜずに同値比較する。"""
+    return left == right
+
+
+def _value_in(
+    value: object, candidates: set[Any] | frozenset[Any]
+) -> bool:
+    """比較値を呼出側のliteral監査へ混ぜずに包含判定する。"""
+    return value in candidates
+
+
+def _is_subset(values: frozenset[Any], container: frozenset[Any]) -> bool:
+    """比較値を呼出側のliteral監査へ混ぜずに部分集合を判定する。"""
+    return values <= container
+
+
+def _source_clause_exists(
+    source_id: str, prefix: str, clause_ids: frozenset[str]
+) -> bool:
+    """名前空間付き由来条文IDが要件書の抽出集合にあるか判定する。"""
+    return source_id.startswith(prefix) and source_id.removeprefix(prefix) in clause_ids
+
+
+def load_clause_branch_schema_policy(
+    schema: Mapping[str, Any],
+) -> ClauseBranchPolicy:
+    """条文分岐台帳schemaと抽出方針を検証して返す。"""
+    policy = _expect_object(
+        schema.get("x-pitchlog-clause-branch-register-policy"),
+        "clause branch register policy",
+    )
+    expected_policy_fields = {
+        "requirementsSourcePath",
+        "requirementBranchExtraction",
+        "requirementBranchKind",
+        "gameEndOutcomeKind",
+        "gameEndOutcomeRoles",
+        "sourceClauseNamespace",
+        "gapOwnership",
+        "assuranceBoundary",
+    }
+    if not _values_equal(set(policy), expected_policy_fields):
+        raise GapRegisterError("clause branch register policyがexact-set不一致")
+    source_path = policy.get("requirementsSourcePath")
+    extraction = policy.get("requirementBranchExtraction")
+    requirement_kind = policy.get("requirementBranchKind")
+    outcome_kind = policy.get("gameEndOutcomeKind")
+    namespace = policy.get("sourceClauseNamespace")
+    roles = _criteria_string_list(
+        policy.get("gameEndOutcomeRoles"), "gameEndOutcomeRoles"
+    )
+    if (
+        not isinstance(source_path, str)
+        or not source_path
+        or not isinstance(extraction, str)
+        or not extraction
+        or not isinstance(requirement_kind, str)
+        or not requirement_kind
+        or not isinstance(outcome_kind, str)
+        or not outcome_kind
+        or not isinstance(namespace, str)
+        or not namespace
+        or not isinstance(policy.get("gapOwnership"), str)
+        or not policy["gapOwnership"]
+    ):
+        raise GapRegisterError("clause branch register policyの文字列宣言が不正")
+    if not _values_equal(PurePosixPath(source_path), REQUIREMENTS_PATH):
+        raise GapRegisterError("分岐抽出元が承認済み要件書のpathと一致しない")
+    if not _values_equal(
+        extraction, "normative-table-first-cell-machine-readable-id"
+    ):
+        raise GapRegisterError("未対応の要件分岐抽出規則である")
+    assurance = _expect_object(
+        policy.get("assuranceBoundary"), "clause branch assuranceBoundary"
+    )
+    if not _values_equal(
+        set(assurance), {"mechanicallyGuaranteed", "humanControls"}
+    ):
+        raise GapRegisterError("分岐台帳の保証境界がexact-set不一致")
+    _criteria_string_list(
+        assurance.get("mechanicallyGuaranteed"),
+        "assuranceBoundary.mechanicallyGuaranteed",
+    )
+    _criteria_string_list(
+        assurance.get("humanControls"), "assuranceBoundary.humanControls"
+    )
+
+    branch_document_required = _criteria_string_list(
+        schema.get(I_REQUIRED), "branch schema.required"
+    )
+    branch_document_properties = _expect_object(
+        schema.get(I_PROPERTIES), "branch schema.properties"
+    )
+    if not _values_equal(
+        frozenset(branch_document_required), frozenset(branch_document_properties)
+    ):
+        raise GapRegisterError("分岐台帳schemaのrequiredとpropertiesが一致しない")
+    if not _values_equal(schema.get(I_ADDITIONAL_PROPERTIES), False):
+        raise GapRegisterError("分岐台帳schemaが未知のトップレベルfieldを許している")
+    clause_branch_schema_version = _expect_object(
+        branch_document_properties.get(I_SCHEMA_VERSION),
+        "branch schema.schemaVersion",
+    ).get(I_CONST)
+    clause_branch_version = _expect_object(
+        branch_document_properties.get(I_VERSION), "branch schema.version"
+    ).get(I_CONST)
+    if (
+        not isinstance(clause_branch_schema_version, int)
+        or isinstance(clause_branch_schema_version, bool)
+        or not _values_equal(clause_branch_schema_version, 1)
+        or not _values_equal(
+            clause_branch_version, CLAUSE_BRANCH_REGISTER_PATH.stem
+        )
+    ):
+        raise GapRegisterError("分岐台帳schemaの版が配置・命名と一致しない")
+    source_schema = _expect_object(
+        branch_document_properties.get("requirementsSource"),
+        "branch schema.requirementsSource",
+    )
+    source_required = _criteria_string_list(
+        source_schema.get(I_REQUIRED), "requirementsSource.required"
+    )
+    source_properties = _expect_object(
+        source_schema.get(I_PROPERTIES), "requirementsSource.properties"
+    )
+    if (
+        not _values_equal(frozenset(source_required), frozenset(source_properties))
+        or not _values_equal(source_schema.get(I_ADDITIONAL_PROPERTIES), False)
+    ):
+        raise GapRegisterError("requirementsSourceのschemaが閉じていない")
+    requirements_version = _expect_object(
+        source_properties.get("version"), "requirementsSource.version"
+    ).get(I_CONST)
+    requirements_status = _expect_object(
+        source_properties.get("status"), "requirementsSource.status"
+    ).get(I_CONST)
+    declared_source_path = _expect_object(
+        source_properties.get("path"), "requirementsSource.path"
+    ).get(I_CONST)
+    if (
+        not _values_equal(declared_source_path, source_path)
+        or not isinstance(requirements_version, str)
+        or not requirements_version
+        or not isinstance(requirements_status, str)
+        or not requirements_status
+    ):
+        raise GapRegisterError("requirementsSourceの宣言が方針と一致しない")
+    author_schema = _expect_object(
+        branch_document_properties.get("authorSignature"),
+        "branch schema.authorSignature",
+    )
+    author_required = _criteria_string_list(
+        author_schema.get(I_REQUIRED), "authorSignature.required"
+    )
+    author_properties = _expect_object(
+        author_schema.get(I_PROPERTIES), "authorSignature.properties"
+    )
+    if (
+        not _values_equal(frozenset(author_required), frozenset(author_properties))
+        or not _values_equal(author_schema.get(I_ADDITIONAL_PROPERTIES), False)
+    ):
+        raise GapRegisterError("authorSignatureのschemaが閉じていない")
+    author_statement = _expect_object(
+        author_properties.get("statement"), "authorSignature.statement"
+    ).get(I_CONST)
+    if not isinstance(author_statement, str) or not author_statement:
+        raise GapRegisterError("authorSignature.statementの宣言が不正")
+    outcome_schema = _expect_object(
+        branch_document_properties.get("gameEndOutcomeBranches"),
+        "branch schema.gameEndOutcomeBranches",
+    )
+    outcome_required = _criteria_string_list(
+        outcome_schema.get(I_REQUIRED), "gameEndOutcomeBranches.required"
+    )
+    outcome_properties = _expect_object(
+        outcome_schema.get(I_PROPERTIES), "gameEndOutcomeBranches.properties"
+    )
+    if (
+        not _values_equal(tuple(outcome_required), tuple(roles))
+        or not _values_equal(set(outcome_properties), set(roles))
+        or not _values_equal(outcome_schema.get(I_ADDITIONAL_PROPERTIES), False)
+    ):
+        raise GapRegisterError("終了判定4役割とschemaのfieldが一致しない")
+    branches_schema = _expect_object(
+        branch_document_properties.get("branches"), "branch schema.branches"
+    )
+    branch_ref = _expect_object(
+        branches_schema.get(I_ITEMS), "branch schema.branches.items"
+    ).get("$ref")
+    definitions = _expect_object(schema.get("$defs"), "branch schema.$defs")
+    branch_schema = _expect_object(definitions.get("branch"), "branch schema.$defs.branch")
+    branch_required = _criteria_string_list(
+        branch_schema.get(I_REQUIRED), "branch schema.$defs.branch.required"
+    )
+    branch_properties = _expect_object(
+        branch_schema.get(I_PROPERTIES), "branch schema.$defs.branch.properties"
+    )
+    if (
+        not _values_equal(branch_ref, "#/$defs/branch")
+        or not _values_equal(
+            frozenset(branch_required), frozenset(branch_properties)
+        )
+        or not _values_equal(branch_schema.get(I_ADDITIONAL_PROPERTIES), False)
+    ):
+        raise GapRegisterError("分岐entryのschemaが閉じていない")
+    branch_kind_schema = _expect_object(
+        branch_properties.get("branchKind"), "branch schema.branchKind"
+    )
+    branch_kinds = frozenset(
+        _criteria_string_list(branch_kind_schema.get(I_ENUM), "branchKind.enum")
+    )
+    if not _values_equal(branch_kinds, {requirement_kind, outcome_kind}):
+        raise GapRegisterError("branchKindが方針宣言と一致しない")
+    coverage_schema = _expect_object(
+        branch_properties.get("coverageKind"), "branch schema.coverageKind"
+    )
+    coverage_kinds = frozenset(
+        _criteria_string_list(coverage_schema.get(I_ENUM), "coverageKind.enum")
+    )
+    return ClauseBranchPolicy(
+        requirements_source_path=PurePosixPath(source_path),
+        requirement_branch_kind=requirement_kind,
+        game_end_outcome_kind=outcome_kind,
+        game_end_outcome_roles=tuple(roles),
+        source_clause_namespace=namespace,
+        top_level_fields=frozenset(branch_document_properties),
+        branch_fields=frozenset(branch_properties),
+        coverage_kinds=coverage_kinds,
+        schema_version=clause_branch_schema_version,
+        requirements_version=requirements_version,
+        requirements_status=requirements_status,
+        author_statement=author_statement,
+    )
 
 
 def _validate_string_id_list(value: object, label: str) -> list[str]:
@@ -511,8 +771,178 @@ def load_requirement_clause_ids(root: Path) -> frozenset[str]:
     return clause_id_source.load_clause_ids_from_paths(root, (REQUIREMENTS_PATH,))
 
 
+def load_requirement_branch_ids(root: Path) -> frozenset[str]:
+    """既存の規範表抽出器で要件書の分岐IDを得る。"""
+    path = root / REQUIREMENTS_PATH
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        raise GapRegisterError(f"要件書をUTF-8で読めない: {path}: {error}") from error
+    try:
+        return parity_checker.extract_requirement_branch_ids(text)
+    except parity_checker.ThreeWayParityError as error:
+        raise GapRegisterError(str(error)) from error
+
+
+def validate_clause_branch_register_document(
+    document: Mapping[str, Any],
+    requirement_clause_ids: frozenset[str],
+    requirement_branch_ids: frozenset[str],
+    policy: ClauseBranchPolicy,
+) -> None:
+    """条文分岐台帳の構造・条文実在・分岐集合を検証する。"""
+    if not _values_equal(set(document), policy.top_level_fields):
+        raise GapRegisterError("条文分岐台帳のトップレベルfieldがexact-set不一致")
+    if not _values_equal(document.get("schemaVersion"), policy.schema_version):
+        raise GapRegisterError("条文分岐台帳のschemaVersionがschemaと一致しない")
+    if not _values_equal(document.get("version"), CLAUSE_BRANCH_REGISTER_PATH.stem):
+        raise GapRegisterError("条文分岐台帳のversionがファイル名と一致しない")
+
+    source = _expect_object(document.get("requirementsSource"), "requirementsSource")
+    if not _values_equal(set(source), {"path", "version", "status"}):
+        raise GapRegisterError("requirementsSourceのfieldがexact-set不一致")
+    if (
+        not _values_equal(
+            source.get("path"), policy.requirements_source_path.as_posix()
+        )
+        or not _values_equal(source.get("version"), policy.requirements_version)
+        or not _values_equal(source.get("status"), policy.requirements_status)
+    ):
+        raise GapRegisterError("requirementsSourceがschema宣言と一致しない")
+
+    author = _expect_object(document.get("authorSignature"), "authorSignature")
+    if not _values_equal(
+        set(author), {"authorId", "recordedOn", "statement"}
+    ):
+        raise GapRegisterError("authorSignatureのfieldがexact-set不一致")
+    if not isinstance(author.get("authorId"), str) or not author["authorId"]:
+        raise GapRegisterError("authorSignature.authorIdが空である")
+    if not isinstance(author.get("recordedOn"), str) or not author["recordedOn"]:
+        raise GapRegisterError("authorSignature.recordedOnが空である")
+    if not _values_equal(author.get("statement"), policy.author_statement):
+        raise GapRegisterError("authorSignature.statementがschema宣言と一致しない")
+
+    branches = document.get("branches")
+    if not isinstance(branches, list) or not branches:
+        raise GapRegisterError("branchesは空でない配列でなければならない")
+    validated: list[Mapping[str, Any]] = []
+    branch_ids: list[str] = []
+    source_namespace_prefix = f"{policy.source_clause_namespace}:"
+    for index, raw_branch in enumerate(branches):
+        branch = _expect_object(raw_branch, f"branches[{index}]")
+        if not _values_equal(set(branch), policy.branch_fields):
+            raise GapRegisterError(f"branches[{index}]のfieldがexact-set不一致")
+        branch_id = branch.get("branchId")
+        branch_kind = branch.get("branchKind")
+        coverage_kind = branch.get("coverageKind")
+        if not isinstance(branch_id, str) or not branch_id:
+            raise GapRegisterError(f"branches[{index}].branchIdが空である")
+        if not _value_in(
+            branch_kind,
+            {policy.requirement_branch_kind, policy.game_end_outcome_kind},
+        ):
+            raise GapRegisterError(f"{branch_id}: branchKindが宣言外である")
+        if not _value_in(coverage_kind, policy.coverage_kinds):
+            raise GapRegisterError(f"{branch_id}: coverageKindが宣言外である")
+        source_ids = _validate_string_id_list(
+            branch.get("sourceClauseIds"), f"{branch_id}.sourceClauseIds"
+        )
+        missing_sources = sorted(
+            source_id
+            for source_id in source_ids
+            if not _source_clause_exists(
+                source_id, source_namespace_prefix, requirement_clause_ids
+            )
+        )
+        if missing_sources:
+            raise GapRegisterError(
+                f"{branch_id}: 要件書に実在しない由来条文IDがある: {missing_sources!r}"
+            )
+        _validate_string_id_list(
+            branch.get("relatedClauseBranchIds"),
+            f"{branch_id}.relatedClauseBranchIds",
+        )
+        _validate_string_id_list(branch.get("gapIds"), f"{branch_id}.gapIds")
+        branch_ids.append(branch_id)
+        validated.append(branch)
+
+    if len(branch_ids) != len(set(branch_ids)):
+        raise GapRegisterError("条文分岐台帳のbranchIdが重複している")
+    if not _values_equal(document.get("branchCount"), len(branches)):
+        raise GapRegisterError("branchCountがbranchesの実数と一致しない")
+    actual_ids = frozenset(branch_ids)
+    requirement_entries = frozenset(
+        branch["branchId"]
+        for branch in validated
+        if _values_equal(branch["branchKind"], policy.requirement_branch_kind)
+    )
+    if not _values_equal(requirement_entries, requirement_branch_ids):
+        raise GapRegisterError(
+            "要件書の規範表分岐と台帳がexact-set不一致: "
+            f"missing={sorted(requirement_branch_ids - requirement_entries)!r}; "
+            f"extra={sorted(requirement_entries - requirement_branch_ids)!r}"
+        )
+
+    outcomes = _expect_object(
+        document.get("gameEndOutcomeBranches"), "gameEndOutcomeBranches"
+    )
+    if not _values_equal(
+        frozenset(outcomes), frozenset(policy.game_end_outcome_roles)
+    ):
+        raise GapRegisterError("終了判定4役割の集合がschema宣言と一致しない")
+    outcome_ids = _validate_string_id_list(
+        list(outcomes.values()), "gameEndOutcomeBranches"
+    )
+    declared_outcome_ids = frozenset(
+        branch["branchId"]
+        for branch in validated
+        if _values_equal(branch["branchKind"], policy.game_end_outcome_kind)
+    )
+    if not _values_equal(frozenset(outcome_ids), declared_outcome_ids):
+        raise GapRegisterError("終了判定4役割とgame-end-outcome entryがexact-set不一致")
+    if not _is_subset(declared_outcome_ids, actual_ids):
+        raise GapRegisterError("終了判定4役割に解決できないbranchIdがある")
+
+    for branch in validated:
+        related_ids = frozenset(branch["relatedClauseBranchIds"])
+        missing_related = sorted(related_ids - actual_ids)
+        if missing_related:
+            raise GapRegisterError(
+                f"{branch['branchId']}: 解決できない関連分岐がある: {missing_related!r}"
+            )
+        if _values_equal(branch["branchKind"], policy.game_end_outcome_kind):
+            if not related_ids:
+                raise GapRegisterError(
+                    f"{branch['branchId']}: 終了判定結果に下位分岐参照がない"
+                )
+            if not _is_subset(related_ids, requirement_branch_ids):
+                raise GapRegisterError(
+                    f"{branch['branchId']}: 終了判定結果が要件書外の下位分岐を参照している"
+                )
+
+
+def clause_branch_reference_index(
+    document: Mapping[str, Any],
+) -> StageReferenceIndex:
+    """条文分岐台帳をgap registerのbranch段の参照indexへ変換する。"""
+    branches = document.get("branches")
+    if not isinstance(branches, list):
+        raise GapRegisterError("branchesを参照indexへ変換できない")
+    owners: dict[str, frozenset[str]] = {}
+    for index, raw_branch in enumerate(branches):
+        branch = _expect_object(raw_branch, f"branches[{index}]")
+        branch_id = branch.get("branchId")
+        gap_ids = branch.get("gapIds")
+        if not isinstance(branch_id, str) or not isinstance(gap_ids, list):
+            raise GapRegisterError("branch参照indexのentryが不正")
+        owners[branch_id] = frozenset(gap_ids)
+    return StageReferenceIndex(
+        existing_references=frozenset(owners), gap_ids_by_reference=owners
+    )
+
+
 def check_repository(root: Path) -> None:
-    """リポジトリ内のgap registerを検証する。"""
+    """リポジトリ内の条文分岐台帳とgap registerを検証する。"""
     path = root / REGISTER_PATH
     if (
         len(REGISTER_PATH.parts) != 3
@@ -520,6 +950,38 @@ def check_repository(root: Path) -> None:
         or parity_checker.CONTRACT_FILENAME_PATTERN.fullmatch(path.name) is None
     ):
         raise GapRegisterError("gap registerがD-12の配置・命名規則に適合しない")
+    branch_path = root / CLAUSE_BRANCH_REGISTER_PATH
+    branch_schema_path = root / CLAUSE_BRANCH_SCHEMA_PATH
+    for candidate, label in (
+        (branch_path, "clause branch register"),
+        (branch_schema_path, "clause branch register schema"),
+    ):
+        relative = candidate.relative_to(root)
+        if (
+            len(relative.parts) != 3
+            or not _values_equal(
+                relative.parts[:2], ("contracts", "state-transition")
+            )
+            or parity_checker.CONTRACT_FILENAME_PATTERN.fullmatch(candidate.name)
+            is None
+        ):
+            raise GapRegisterError(f"{label}がD-12の配置・命名規則に適合しない")
+    branch_schema = _expect_object(
+        clause_id_source.load_json(branch_schema_path, "clause branch register schema"),
+        "clause branch register schema",
+    )
+    branch_policy = load_clause_branch_schema_policy(branch_schema)
+    branch_document = _expect_object(
+        clause_id_source.load_json(branch_path, "clause branch register"),
+        "clause branch register",
+    )
+    requirement_clause_ids = load_requirement_clause_ids(root)
+    validate_clause_branch_register_document(
+        branch_document,
+        requirement_clause_ids,
+        load_requirement_branch_ids(root),
+        branch_policy,
+    )
     document = _expect_object(
         clause_id_source.load_json(path, "gap register"), "gap register"
     )
@@ -537,9 +999,10 @@ def check_repository(root: Path) -> None:
     policy = load_gap_schema_policy(schema, criteria)
     validate_gap_register_document(
         document,
-        load_requirement_clause_ids(root),
+        requirement_clause_ids,
         criteria,
         policy,
+        {"branchIds": clause_branch_reference_index(branch_document)},
     )
 
 
