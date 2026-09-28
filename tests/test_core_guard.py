@@ -44,6 +44,15 @@ DATA_MODEL_GUARD_PATHS = (
     "tests/fixtures/data-model-source.txt",
     "scripts/design_relations/fixture-sha256-data-model.txt",
 )
+ADR_001_PATH = "docs/adr/ADR-001-codex-model-selection.md"
+ADR_003_PATH = "docs/adr/ADR-003-domain-calc-method.md"
+CORE_ADR_AREA_PATHS = {
+    "sync-protocol": (ADR_001_PATH, ADR_003_PATH),
+    "game-state": (ADR_001_PATH, ADR_003_PATH),
+    "recording-rights": (ADR_001_PATH,),
+    "tenant-isolation": (ADR_001_PATH,),
+    "data-migration": (ADR_001_PATH, ADR_003_PATH),
+}
 AUTHZ_GUARD_BASE_REVISION = "56c281c409e972927940fad830aa38352df32f1e"
 AUTHZ_GUARD_CANDIDATE_PATHS = (
     "scripts/check_authz_catalog.py",
@@ -293,11 +302,73 @@ ORM_SCHEMA_MIGRATION_AREA_PATHS = {
         "tests/test_orm_acceptance_sheets.py",
     ),
 }
+APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS = (
+    "contracts/state-transition/*",
+    "contracts/vocabulary/*",
+    "scripts/check_deriver_dependencies.py",
+    "scripts/check_expander_dependencies.py",
+    "scripts/check_gap_register.py",
+    "scripts/check_human_review_signature.py",
+    "scripts/check_input_axes_descriptor.py",
+    "scripts/check_input_axes_three_way_parity.py",
+    "scripts/check_provenance.py",
+    "scripts/check_vocabulary_manifest.py",
+    "scripts/state_transition_freeze.py",
+    "tests/test_deriver_dependencies.py",
+    "tests/test_expander_dependencies.py",
+    "tests/test_game_end_contract_schema.py",
+    "tests/test_gap_register.py",
+    "tests/test_human_review_signature.py",
+    "tests/test_input_axes_descriptor.py",
+    "tests/test_input_axes_three_way_parity.py",
+    "tests/test_state_transition_contract_schema.py",
+    "tests/test_state_transition_freeze.py",
+    "tests/test_vocabulary_manifest.py",
+    "tests/test_vocabulary_seed.py",
+)
+REFERENCE_DISCOVERY_AREA_PATH_ADDITIONS = (
+    "scripts/check_frozen_baselines.py",
+    "tests/frozen_negatives/test_frozen_baseline_acceptance.py",
+    "tests/frozen_negatives/test_frozen_baseline_ci_dispatch.py",
+    "tests/frozen_negatives/test_frozen_baseline_ledger.py",
+    "tests/frozen_scan_fixtures.py",
+    "tests/test_ci_wiring.py",
+    "tests/test_core_guard.py",
+    "tests/test_frozen_negative_inventory.py",
+    "tests/test_frozen_scan_rules.py",
+)
+VOCABULARY_DATA_MIGRATION_AREA_PATH_ADDITIONS = (
+    "contracts/vocabulary/*",
+    "scripts/check_vocabulary_manifest.py",
+    "tests/test_vocabulary_manifest.py",
+    "tests/test_vocabulary_seed.py",
+)
+APPENDIX_E_GAME_STATE_ASSET_PATHS = (
+    "contracts/state-transition/deriver_dependency_policy_schema_v1.json",
+    "contracts/state-transition/deriver_dependency_policy_v1.json",
+    "contracts/state-transition/expander_dependency_policy_schema_v1.json",
+    "contracts/state-transition/expander_dependency_policy_v1.json",
+    "contracts/state-transition/game_end_contract_schema_v1.json",
+    "contracts/state-transition/gap_register_schema_v1.json",
+    "contracts/state-transition/gap_register_v1.json",
+    "contracts/state-transition/human_review_signature_schema_v1.json",
+    "contracts/state-transition/input_axes_descriptor_schema_v1.json",
+    "contracts/state-transition/input_axes_descriptor_v1.json",
+    "contracts/state-transition/state_transition_contract_schema_v1.json",
+    "contracts/vocabulary/input_vocabulary_v1.json",
+    "contracts/vocabulary/vocabulary_manifest_schema_v1.json",
+    "contracts/vocabulary/vocabulary_manifest_v1.json",
+    "contracts/vocabulary/vocabulary_seed_schema_v1.json",
+    *APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS[2:],
+)
 EXPECTED_AREA_PATHS = {
     "sync-protocol": [
         CORE_DOCUMENT_PATHS[0],
         DATA_MODEL_DOCUMENT_PATH,
         CORE_DOCUMENT_PATHS[1],
+        *CORE_ADR_AREA_PATHS["sync-protocol"],
+        *APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS,
+        *REFERENCE_DISCOVERY_AREA_PATH_ADDITIONS,
         "frontend/package.json",
         "frontend/pnpm-lock.yaml",
         "frontend/src/lib/sync/ackAdapter.spec.ts",
@@ -371,6 +442,7 @@ EXPECTED_AREA_PATHS = {
         CORE_DOCUMENT_PATHS[0],
         DATA_MODEL_DOCUMENT_PATH,
         CORE_DOCUMENT_PATHS[1],
+        *CORE_ADR_AREA_PATHS["game-state"],
         "frontend/src/lib/courseInputView.ts",
         "frontend/src/lib/displayGeometry.ts",
         "frontend/src/lib/spatialInput.ts",
@@ -395,12 +467,15 @@ EXPECTED_AREA_PATHS = {
         "frontend/src/lib/sync/canonOracle.ts",
         "frontend/src/lib/sync/canonOracle.spec.ts",
         "frontend/src/lib/sync/prohibitions.spec.ts",
+        *APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS,
+        *REFERENCE_DISCOVERY_AREA_PATH_ADDITIONS,
         *ORM_SCHEMA_MIGRATION_AREA_PATHS["game-state"],
     ],
     "recording-rights": [
         CORE_DOCUMENT_PATHS[0],
         DATA_MODEL_DOCUMENT_PATH,
         CORE_DOCUMENT_PATHS[1],
+        *CORE_ADR_AREA_PATHS["recording-rights"],
         "frontend/src/lib/sync/ackEnvelope.spec.ts",
         "frontend/src/lib/sync/ackEnvelope.ts",
         "frontend/src/lib/sync/boundaryResults.spec.ts",
@@ -444,6 +519,7 @@ EXPECTED_AREA_PATHS = {
         CORE_DOCUMENT_PATHS[0],
         DATA_MODEL_DOCUMENT_PATH,
         CORE_DOCUMENT_PATHS[1],
+        *CORE_ADR_AREA_PATHS["tenant-isolation"],
         "contracts/authz/*",
         "scripts/check_authz_catalog.py",
         "tests/test_check_authz_catalog.py",
@@ -469,6 +545,8 @@ EXPECTED_AREA_PATHS = {
     ],
     "data-migration": [
         DATA_MODEL_DOCUMENT_PATH,
+        *CORE_ADR_AREA_PATHS["data-migration"],
+        *VOCABULARY_DATA_MIGRATION_AREA_PATH_ADDITIONS,
         "frontend/src/lib/format.ts",
         "frontend/src/lib/sync/syncEvent.ts",
         "frontend/src/lib/sync/prohibitions.spec.ts",
@@ -479,6 +557,8 @@ EXPECTED_AREA_PATHS = {
 }
 NEW_CORE_PATH_CHANGES = (
     "contracts/authz/auth-catalog.json",
+    ADR_001_PATH,
+    ADR_003_PATH,
     "frontend/src/lib/courseInputView.ts",
     "frontend/src/lib/format.ts",
     "backend/conftest.py",
@@ -817,6 +897,214 @@ def load_actual_core_areas() -> dict[str, Any]:
     value = json.loads(CORE_AREAS_PATH.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return value
+
+
+def _require_reference_discovery_policy(
+    configuration: dict[str, Any],
+) -> dict[str, Any]:
+    """参照導出検査の資産側宣言を fail-closed で取得する。"""
+    policy = configuration.get("reference_discovery")
+    assert isinstance(policy, dict), "reference_discovery 宣言がない"
+    assert policy.get("schema_version") == 1
+    for key in (
+        "scan_roots",
+        "contract_roots",
+        "required_area_ids",
+        "detected_reference_forms",
+        "not_detected",
+    ):
+        values = policy.get(key)
+        assert isinstance(values, list) and values, f"{key} が空または配列でない"
+        assert all(isinstance(value, str) and value for value in values)
+        assert len(values) == len(set(values)), f"{key} に重複がある"
+    claim = policy.get("claim")
+    assert isinstance(claim, str) and claim
+    return policy
+
+
+def _static_path_parts(node: ast.AST) -> tuple[str, ...] | None:
+    """AST 式から静的に読めるパス部分を左から順に返す。"""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return (node.value,)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        right = _static_path_parts(node.right)
+        if right is None:
+            return None
+        left = _static_path_parts(node.left)
+        return (*(() if left is None else left), *right)
+    if isinstance(node, ast.Call):
+        function_name = (
+            node.func.id
+            if isinstance(node.func, ast.Name)
+            else node.func.attr
+            if isinstance(node.func, ast.Attribute)
+            else None
+        )
+        if function_name not in {"Path", "PurePath", "PurePosixPath"}:
+            return None
+        parts: list[str] = []
+        for argument in node.args:
+            argument_parts = _static_path_parts(argument)
+            if argument_parts is None:
+                parts.clear()
+                continue
+            parts.extend(argument_parts)
+        return tuple(parts) if parts else None
+    return None
+
+
+def _normalized_static_paths(tree: ast.AST) -> frozenset[str]:
+    """文字列と ``/``・Path 呼び出しから静的パス候補を導出する。"""
+    paths: set[str] = set()
+    for node in ast.walk(tree):
+        parts = _static_path_parts(node)
+        if parts is None:
+            continue
+        normalized = "/".join(
+            part.replace("\\", "/").strip("/") for part in parts if part
+        )
+        if normalized:
+            paths.add(normalized)
+    return frozenset(paths)
+
+
+def _python_import_dependencies(
+    tree: ast.AST,
+    modules: dict[str, str],
+) -> set[str]:
+    """静的 import が指す走査対象 Python ファイルを返す。"""
+    dependencies: set[str] = set()
+
+    def add_module(module_name: str) -> None:
+        dependency = modules.get(module_name)
+        if dependency is not None:
+            dependencies.add(dependency)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                add_module(alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0:
+            if node.module is not None:
+                add_module(node.module)
+                for alias in node.names:
+                    add_module(f"{node.module}.{alias.name}")
+    return dependencies
+
+
+def derive_contract_reference_python_paths(
+    root: Path,
+    configuration: dict[str, Any],
+) -> tuple[str, ...]:
+    """契約ルートへの静的参照とその逆依存閉包を決定的に導出する。
+
+    Args:
+        root: 走査対象のリポジトリルート。
+        configuration: ``core-areas.json`` の内容。
+
+    Returns:
+        コア領域へ登録すべき Python ファイルのソート済み相対パス。
+    """
+    policy = _require_reference_discovery_policy(configuration)
+    scan_roots = tuple(policy["scan_roots"])
+    contract_roots = tuple(policy["contract_roots"])
+    source_paths: list[str] = []
+    for scan_root in scan_roots:
+        directory = root / scan_root
+        assert directory.is_dir(), f"参照走査ルートを解決できない: {scan_root}"
+        source_paths.extend(
+            path.relative_to(root).as_posix()
+            for path in directory.rglob("*.py")
+            if path.is_file()
+        )
+    source_paths = sorted(set(source_paths))
+    assert source_paths, "参照走査対象の Python ファイルがない"
+
+    module_paths = {
+        source_path.removesuffix(".py").replace("/", "."): source_path
+        for source_path in source_paths
+    }
+    trees: dict[str, ast.AST] = {}
+    static_paths_by_source: dict[str, frozenset[str]] = {}
+    for source_path in source_paths:
+        source = (root / source_path).read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=source_path)
+        trees[source_path] = tree
+        static_paths_by_source[source_path] = _normalized_static_paths(tree)
+
+    direct_references = {
+        source_path
+        for source_path, static_paths in static_paths_by_source.items()
+        if any(
+            static_path == contract_root
+            or static_path.startswith(f"{contract_root}/")
+            or f"{contract_root}/" in static_path
+            for static_path in static_paths
+            for contract_root in contract_roots
+        )
+    }
+    dependencies: dict[str, set[str]] = {}
+    for source_path, tree in trees.items():
+        referenced_sources = _python_import_dependencies(tree, module_paths)
+        for static_path in static_paths_by_source[source_path]:
+            referenced_sources.update(
+                candidate
+                for candidate in source_paths
+                if candidate != source_path
+                and (
+                    static_path == candidate
+                    or f"{candidate}" in static_path
+                )
+            )
+        dependencies[source_path] = referenced_sources
+
+    discovered = set(direct_references)
+    while True:
+        dependents = {
+            source_path
+            for source_path, referenced_sources in dependencies.items()
+            if referenced_sources & discovered
+        }
+        expanded = discovered | dependents
+        if expanded == discovered:
+            break
+        discovered = expanded
+    return tuple(sorted(discovered))
+
+
+def assert_contract_reference_python_paths_are_registered(
+    root: Path,
+    configuration: dict[str, Any],
+) -> tuple[str, ...]:
+    """参照から導いた Python ファイルが宣言領域へ登録済みと示す。"""
+    policy = _require_reference_discovery_policy(configuration)
+    candidates = derive_contract_reference_python_paths(root, configuration)
+    areas = configuration.get("areas")
+    assert isinstance(areas, list)
+    areas_by_id = {
+        area.get("id"): area
+        for area in areas
+        if isinstance(area, dict) and isinstance(area.get("id"), str)
+    }
+    missing_by_area: dict[str, list[str]] = {}
+    for area_id in policy["required_area_ids"]:
+        area = areas_by_id.get(area_id)
+        assert isinstance(area, dict), f"参照登録先の領域がない: {area_id}"
+        patterns = area.get("paths")
+        assert isinstance(patterns, list)
+        missing = [
+            candidate
+            for candidate in candidates
+            if not any(
+                isinstance(pattern, str)
+                and fnmatch.fnmatchcase(candidate, pattern)
+                for pattern in patterns
+            )
+        ]
+        if missing:
+            missing_by_area[area_id] = missing
+    assert missing_by_area == {}, f"契約参照 Python ファイルが未登録: {missing_by_area}"
+    return candidates
 
 
 def load_base_core_areas(
@@ -1571,6 +1859,173 @@ def test_actual_core_area_paths_are_exact_expected_set():
 
     assert len(actual_by_id) == len(areas), "コア領域 ID が重複している"
     assert actual_by_id == EXPECTED_AREA_PATHS
+
+
+def test_core_adrs_have_the_expected_area_ownership() -> None:
+    """規範またはレビュー強制点を持つADRだけが該当領域へ帰属すると示す。"""
+    configuration = load_actual_core_areas()
+    actual_by_path = {
+        path: {
+            area["id"]
+            for area in configuration["areas"]
+            if any(fnmatch.fnmatchcase(path, pattern) for pattern in area["paths"])
+        }
+        for path in (
+            ADR_001_PATH,
+            "docs/adr/ADR-002-frontend-vue.md",
+            ADR_003_PATH,
+            "docs/adr/ADR-004-merge-gate-scope.md",
+        )
+    }
+
+    assert actual_by_path == {
+        ADR_001_PATH: set(CORE_ADR_AREA_PATHS),
+        "docs/adr/ADR-002-frontend-vue.md": set(),
+        ADR_003_PATH: {"sync-protocol", "game-state", "data-migration"},
+        "docs/adr/ADR-004-merge-gate-scope.md": set(),
+    }
+
+
+def test_appendix_e_assets_are_owned_by_game_state_and_sync_areas() -> None:
+    """付録E/Fの契約・検査資産35件が状況計算と同期へ全件帰属すると示す。"""
+    configuration = load_actual_core_areas()
+    areas_by_id = {area["id"]: area for area in configuration["areas"]}
+    assert len(APPENDIX_E_GAME_STATE_ASSET_PATHS) == 35
+    assert all((REPO / path).is_file() for path in APPENDIX_E_GAME_STATE_ASSET_PATHS)
+
+    for area_id in ("game-state", "sync-protocol"):
+        patterns = areas_by_id[area_id]["paths"]
+        assert set(APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS).issubset(patterns)
+        missing = [
+            path
+            for path in APPENDIX_E_GAME_STATE_ASSET_PATHS
+            if not any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
+        ]
+        assert missing == [], f"{area_id} に未登録: {missing}"
+
+
+def test_vocabulary_assets_are_owned_by_data_migration_area() -> None:
+    """付録D-4の語彙資産と検査がデータ移行にも帰属すると示す。"""
+    configuration = load_actual_core_areas()
+    data_migration = next(
+        area for area in configuration["areas"] if area["id"] == "data-migration"
+    )
+    patterns = data_migration["paths"]
+    vocabulary_assets = (
+        "contracts/vocabulary/input_vocabulary_v1.json",
+        "contracts/vocabulary/vocabulary_manifest_schema_v1.json",
+        "contracts/vocabulary/vocabulary_manifest_v1.json",
+        "contracts/vocabulary/vocabulary_seed_schema_v1.json",
+        "scripts/check_vocabulary_manifest.py",
+        "tests/test_vocabulary_manifest.py",
+        "tests/test_vocabulary_seed.py",
+    )
+
+    assert set(VOCABULARY_DATA_MIGRATION_AREA_PATH_ADDITIONS).issubset(patterns)
+    missing = [
+        path
+        for path in vocabulary_assets
+        if not any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
+    ]
+    assert missing == []
+
+
+def test_contract_reference_python_paths_are_registered_deterministically() -> None:
+    """契約参照から導いた全 Python 資産が両領域に登録済みと示す。"""
+    configuration = load_actual_core_areas()
+    policy = _require_reference_discovery_policy(configuration)
+    areas_by_id = {area["id"]: area for area in configuration["areas"]}
+
+    first = assert_contract_reference_python_paths_are_registered(
+        REPO,
+        configuration,
+    )
+    second = derive_contract_reference_python_paths(REPO, configuration)
+
+    assert first == second
+    assert first == tuple(sorted(set(first)))
+    for area_id in policy["required_area_ids"]:
+        assert "scripts/*" not in areas_by_id[area_id]["paths"]
+        assert "tests/*" not in areas_by_id[area_id]["paths"]
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        "scripts/unrelated_naming_style.py",
+        "tests/nested/arbitrary_asset_name.py",
+    ),
+)
+def test_unregistered_contract_reference_fails_without_updating_paths(
+    tmp_path: Path,
+    relative_path: str,
+) -> None:
+    """命名によらず静的契約参照を検出し、設定を自動更新せず fail する。"""
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "scripts").mkdir()
+    (root / "tests").mkdir()
+    configuration = json.loads(json.dumps(load_actual_core_areas()))
+    for area in configuration["areas"]:
+        if area["id"] in configuration["reference_discovery"]["required_area_ids"]:
+            area["paths"] = []
+    write_text(
+        root,
+        relative_path,
+        'CONTRACT = "contracts/state-transition/future_contract_v1.json"\n',
+    )
+    before = json.dumps(configuration, ensure_ascii=False, sort_keys=True)
+
+    with pytest.raises(AssertionError, match=relative_path):
+        assert_contract_reference_python_paths_are_registered(root, configuration)
+
+    assert json.dumps(configuration, ensure_ascii=False, sort_keys=True) == before
+
+
+def test_reverse_dependency_closure_fails_for_unregistered_dependent(
+    tmp_path: Path,
+) -> None:
+    """契約参照ファイルを静的に読む側も名前によらず登録対象にする。"""
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "scripts").mkdir()
+    (root / "tests").mkdir()
+    configuration = json.loads(json.dumps(load_actual_core_areas()))
+    for area in configuration["areas"]:
+        if area["id"] in configuration["reference_discovery"]["required_area_ids"]:
+            area["paths"] = []
+    direct_path = "scripts/opaque_asset_name.py"
+    dependent_path = "tests/another_opaque_name.py"
+    write_text(
+        root,
+        direct_path,
+        'CONTRACT = "contracts/vocabulary/future_seed_v1.json"\n',
+    )
+    write_text(
+        root,
+        dependent_path,
+        'SOURCE = Path("scripts") / "opaque_asset_name.py"\n',
+    )
+
+    candidates = derive_contract_reference_python_paths(root, configuration)
+
+    assert direct_path in candidates
+    assert dependent_path in candidates
+    with pytest.raises(AssertionError, match=dependent_path):
+        assert_contract_reference_python_paths_are_registered(root, configuration)
+
+
+def test_appendix_e_assets_trigger_actual_core_guard(tmp_path: Path) -> None:
+    """付録E/Fの資産35件の同時変更が全件強化レビュー対象になると示す。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    base_sha, head_sha = commit_changes(root, APPENDIX_E_GAME_STATE_ASSET_PATHS)
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert all(path in result.stderr for path in APPENDIX_E_GAME_STATE_ASSET_PATHS)
+    assert f"- [x] {REQUIRED_CHECK_TEXT}" in result.stderr
 
 
 def test_database_tests_have_the_same_area_ownership_as_migrations() -> None:
