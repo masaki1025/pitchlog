@@ -18,6 +18,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DESCRIPTOR_CHECKER_PATH = REPOSITORY_ROOT / "scripts/check_input_axes_descriptor.py"
 FREEZE_CHECKER_PATH = REPOSITORY_ROOT / "scripts/state_transition_freeze.py"
 VOCABULARY_CHECKER_PATH = REPOSITORY_ROOT / "scripts/check_vocabulary_manifest.py"
+PROVENANCE_CHECKER_PATH = REPOSITORY_ROOT / "scripts/check_provenance.py"
 SCHEMA_PATH = (
     REPOSITORY_ROOT
     / "contracts/state-transition/state_transition_contract_schema_v1.json"
@@ -66,6 +67,7 @@ schema_checker = _load_module(
 vocabulary_checker = _load_module(
     "check_vocabulary_manifest", VOCABULARY_CHECKER_PATH
 )
+provenance_checker = _load_module("check_provenance", PROVENANCE_CHECKER_PATH)
 
 
 def _load_object(path: Path) -> dict[str, Any]:
@@ -113,6 +115,35 @@ def _unchanged_state_effect() -> dict[str, Any]:
         "scoreboard": _unchanged_effects("scoreboardFieldEffects"),
         "statFlags": _unchanged_effects("statFlagEffects"),
         "historyAndResult": _unchanged_effects("historyAndResultEffects"),
+    }
+
+
+def _provenance() -> dict[str, Any]:
+    """宣言済みの機械保証範囲を充足する由来記録を返す。"""
+    return {
+        "subjectKind": "normative-branch-or-state-effect",
+        "sources": [
+            {
+                "sourceKind": "requirements",
+                "sourceId": "req:E-1",
+            }
+        ],
+        "authorId": "contract-author",
+        "independentVerifierId": "independent-verifier",
+        "attestations": [
+            {
+                "attestationId": "direct-source-clause-review",
+                "response": True,
+            },
+            {
+                "attestationId": "author-work-exposure",
+                "response": "not-seen-before-source-review",
+            },
+            {
+                "attestationId": "source-support-judgment",
+                "response": True,
+            },
+        ],
     }
 
 
@@ -223,6 +254,7 @@ def _minimal_contract() -> dict[str, Any]:
             "version": descriptor["version"],
             "digest": descriptor["digest"],
         },
+        "provenance": _provenance(),
         "matrixRows": matrix_rows,
         "operationRows": operation_rows,
         "undoRows": [undo_row],
@@ -1729,6 +1761,11 @@ def _validate(
             "解決済みvectors[]マニフェストがobjectでない"
         )
     _validate_schema(contract)
+    provenance_checker.validate_provenance(
+        REPOSITORY_ROOT,
+        contract["provenance"],
+        schema_value=_schema(),
+    )
     _validate_operation_rows(contract, adopted_clause_ids)
     _validate_undo_rows(contract, adopted_clause_ids)
     _validate_references(contract, resolved_vocabulary_ids)
@@ -1745,6 +1782,123 @@ def test_repository_schema_accepts_the_three_normative_row_layers() -> None:
     assert schema["version"] == SCHEMA_PATH.stem
     assert "decisionRows" not in schema["properties"]
     _validate(_minimal_contract())
+
+
+def test_provenance_declares_machine_and_human_assurance_boundaries() -> None:
+    """provenanceの機械保証と人間統制の境界を資産側で宣言する。"""
+    policy = _schema()["x-pitchlog-provenance-policy"]
+    official_rules = policy["sourceKinds"]["official-baseball-rules"]
+    assurance = policy["assuranceBoundary"]
+
+    assert official_rules["machineCapability"] == "identifier-format-only"
+    assert set(official_rules["notMechanicallyVerified"]) == {
+        "rule-number-existence",
+        "rule-content",
+    }
+    assert "official-rule-number-exists-and-content-is-correct" in assurance[
+        "humanControls"
+    ]
+    assert "ステップ43" in assurance["step43Excluded"]
+
+
+def test_provenance_is_required_at_contract_top_level() -> None:
+    """provenanceを規範行の列を増やさず契約単位で必須にする。"""
+    contract = _minimal_contract()
+    del contract["provenance"]
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError,
+        match="必須キー不足: .*provenance",
+    ):
+        _validate(contract)
+
+
+def test_same_recorded_author_and_independent_verifier_is_red() -> None:
+    """記録上の作成者と独立確認者が同一のprovenanceを拒否する。"""
+    contract = _minimal_contract()
+    contract["provenance"]["independentVerifierId"] = contract["provenance"][
+        "authorId"
+    ]
+
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError,
+        match="作成者と独立確認者が記録上同一",
+    ):
+        _validate(contract)
+
+
+def test_legacy_research_only_provenance_is_red() -> None:
+    """パスと行が実在しても旧調査資料だけの由来を拒否する。"""
+    contract = _minimal_contract()
+    contract["provenance"]["sources"] = [
+        {
+            "sourceKind": "legacy-research",
+            "sourceId": "docs/legacy/research/data-layer.md:197",
+        }
+    ]
+
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError,
+        match="対象種別を支える優先典拠が無い",
+    ):
+        _validate(contract)
+
+
+def test_missing_provenance_attestation_is_red() -> None:
+    """①由来記録の3宣誓項目から1件欠けたprovenanceを拒否する。"""
+    contract = _minimal_contract()
+    contract["provenance"]["attestations"].pop()
+
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError,
+        match="宣誓項目がexact-set不一致",
+    ):
+        _validate(contract)
+
+
+def test_unknown_requirement_source_id_is_red() -> None:
+    """要件書の機械抽出集合に実在しない典拠IDを拒否する。"""
+    contract = _minimal_contract()
+    contract["provenance"]["sources"][0]["sourceId"] = "req:FR-999"
+
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError,
+        match="要件書の典拠IDが実在しない",
+    ):
+        _validate(contract)
+
+
+def test_official_rule_source_checks_format_without_claiming_existence() -> None:
+    """公認野球規則は条番号形式だけを機械検査する。"""
+    contract = _minimal_contract()
+    contract["provenance"]["sources"] = [
+        {
+            "sourceKind": "official-baseball-rules",
+            "sourceId": "obr:99.99(z)",
+        }
+    ]
+
+    _validate(contract)
+
+
+def test_vocabulary_source_alone_is_limited_to_vocabulary_origin() -> None:
+    """vocab.ts由来だけの記録を語彙対象にのみ許す。"""
+    provenance = _provenance()
+    provenance["sources"] = [
+        {
+            "sourceKind": "legacy-vocab-mirror",
+            "sourceId": "batting-result.single",
+        }
+    ]
+
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError,
+        match="対象種別を支える優先典拠が無い",
+    ):
+        provenance_checker.validate_provenance(REPOSITORY_ROOT, provenance)
+
+    provenance["subjectKind"] = "vocabulary-origin"
+    provenance_checker.validate_provenance(REPOSITORY_ROOT, provenance)
 
 
 def _coverage_mapping(

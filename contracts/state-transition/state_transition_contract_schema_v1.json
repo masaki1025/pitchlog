@@ -359,12 +359,101 @@
       }
     ]
   },
+  "x-pitchlog-provenance-policy": {
+    "recordLocation": "contract-top-level",
+    "recordField": "provenance",
+    "sourceKinds": {
+      "requirements": {
+        "priority": 1,
+        "verificationMode": "repository-clause-id-existence",
+        "sourcePath": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+        "sourceIdNamespace": "req",
+        "machineCapability": "identifier-existence"
+      },
+      "official-baseball-rules": {
+        "priority": 2,
+        "verificationMode": "identifier-format-only",
+        "sourceIdPattern": "^obr:[1-9][0-9]*\\.[0-9]{2}(?:\\([a-z0-9]+\\))*$",
+        "machineCapability": "identifier-format-only",
+        "notMechanicallyVerified": [
+          "rule-number-existence",
+          "rule-content"
+        ]
+      },
+      "legacy-vocab-mirror": {
+        "priority": 3,
+        "verificationMode": "vocabulary-id-existence-via-manifest",
+        "manifestPath": "contracts/vocabulary/vocabulary_manifest_v1.json",
+        "machineCapability": "vocabulary-id-existence"
+      },
+      "legacy-research": {
+        "priority": 4,
+        "verificationMode": "repository-line-reference-existence",
+        "pathRoot": "docs/legacy/research",
+        "sourceIdPattern": "^(?P<path>docs/legacy/research/[A-Za-z0-9._/-]+\\.md):(?P<line>[1-9][0-9]*)$",
+        "machineCapability": "path-and-line-existence"
+      }
+    },
+    "subjectKinds": {
+      "normative-branch-or-state-effect": {
+        "sufficientSourceKinds": [
+          "requirements",
+          "official-baseball-rules"
+        ]
+      },
+      "vocabulary-origin": {
+        "sufficientSourceKinds": [
+          "requirements",
+          "official-baseball-rules",
+          "legacy-vocab-mirror"
+        ]
+      }
+    },
+    "attestationItems": {
+      "direct-source-clause-review": {
+        "acceptedResponses": [
+          true
+        ],
+        "humanMeaning": "独立確認者が典拠の条文そのものから確認し、導出物・生成物・他者の要約を根拠にしていない"
+      },
+      "author-work-exposure": {
+        "acceptedResponses": [
+          "not-seen-before-source-review",
+          "seen-and-recorded"
+        ],
+        "humanMeaning": "作成者の作業結果を見る前に典拠を読んだか、見た場合はその事実を記録した"
+      },
+      "source-support-judgment": {
+        "acceptedResponses": [
+          true
+        ],
+        "humanMeaning": "典拠が主張を支持すると独立確認者が判断した"
+      }
+    },
+    "assuranceBoundary": {
+      "mechanicallyGuaranteed": [
+        "source-reference-within-declared-machine-capability",
+        "recorded-author-and-independent-verifier-are-different",
+        "attestation-record-exact-set-and-accepted-responses"
+      ],
+      "humanControls": [
+        "independent-review-actually-performed",
+        "attestations-are-truthful",
+        "source-supports-claim",
+        "official-rule-number-exists-and-content-is-correct",
+        "vocabulary-mirror-version-is-correct",
+        "legacy-research-is-suitable-corroboration"
+      ],
+      "step43Excluded": "approved成果物の別人による条文からの直接レビュー署名はステップ43が所有する"
+    }
+  },
   "type": "object",
   "required": [
     "schemaVersion",
     "version",
     "calculation",
     "inputAxesDescriptor",
+    "provenance",
     "matrixRows",
     "operationRows",
     "undoRows",
@@ -387,6 +476,9 @@
     },
     "inputAxesDescriptor": {
       "$ref": "#/$defs/inputAxesDescriptorBinding"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
     },
     "matrixRows": {
       "x-pitchlog-normative-row-layer": true,
@@ -1538,6 +1630,88 @@
           "items": {
             "$ref": "#/$defs/caseRowReference"
           }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "subjectKind",
+        "sources",
+        "authorId",
+        "independentVerifierId",
+        "attestations"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "subjectKind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/provenanceSource"
+          }
+        },
+        "authorId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "independentVerifierId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attestations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/provenanceAttestation"
+          }
+        }
+      }
+    },
+    "provenanceSource": {
+      "type": "object",
+      "required": [
+        "sourceKind",
+        "sourceId"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sourceKind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "provenanceAttestation": {
+      "type": "object",
+      "required": [
+        "attestationId",
+        "response"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "attestationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "response": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
         }
       }
     },
