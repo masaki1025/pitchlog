@@ -201,6 +201,18 @@ def _find_node(nodes: tuple[str, ...], suffix: str) -> str:
     return matches[0]
 
 
+def _find_parameterized_nodes(
+    nodes: tuple[str, ...],
+    function_name: str,
+) -> tuple[str, ...]:
+    """指定した parameterized test の全 node ID を収集順で返す。"""
+    prefix = f"{CENSUS_TEST_PATH.as_posix()}::{function_name}["
+    matches = tuple(node for node in nodes if node.startswith(prefix))
+    if not matches:
+        raise RuntimeError(f"parameterized pytest node が無い: {function_name}")
+    return matches
+
+
 def _run_evidence_tests(nodes: tuple[str, ...]) -> dict[str, str]:
     """証跡対象の pytest node を実行し、node ごとの結果を返す。"""
     result = _run(
@@ -384,7 +396,8 @@ def _predicate_summary(predicate: dict[str, Any]) -> str:
         return (
             f"{predicate['set']} の {predicate['code']} の非裁定要素を "
             f"{predicate['current_set']} の {predicate['required_current_code']} と "
-            f"match_fields={predicate['match_fields']} で照合"
+            f"match_fields={predicate['match_fields']}、"
+            f"symbol_match={predicate['symbol_match']} で照合"
         )
     if "candidate_enumeration" in predicate:
         enumeration = predicate["candidate_enumeration"]
@@ -488,6 +501,42 @@ def _build_items() -> tuple[list[_Item], int]:
         census_nodes,
         "test_independent_added_predicate_rejects_candidate_checker_omission",
     )
+    first_review_remediation_nodes = (
+        _find_node(
+            census_nodes,
+            "test_declared_condition2_ast_node_types_match_minimal_cases",
+        ),
+        _find_node(
+            census_nodes,
+            "test_declared_unadjudicated_tb002_match_uses_symbol_prefix_relation",
+        ),
+        *_find_parameterized_nodes(
+            census_nodes,
+            "test_independent_condition2_candidates_match_checker_for_each_ast_type",
+        ),
+        _find_node(
+            census_nodes,
+            "test_removed_tb002_accepts_prefix_related_current_symbol",
+        ),
+        _find_node(
+            census_nodes,
+            "test_removed_tb002_rejects_unrelated_same_line_symbol",
+        ),
+    )
+    if len(first_review_remediation_nodes) != 12:
+        raise RuntimeError(
+            "第1周是正テストの pytest node 数が不一致: "
+            f"{len(first_review_remediation_nodes)}"
+        )
+    identifier_boundary_nodes = _find_parameterized_nodes(
+        census_nodes,
+        "test_removed_tb002_symbol_relation_honors_identifier_boundary",
+    )
+    if len(identifier_boundary_nodes) != 3:
+        raise RuntimeError(
+            "識別子境界テストの pytest node 数が不一致: "
+            f"{len(identifier_boundary_nodes)}"
+        )
     independent_predicate = next(
         predicate for predicate in predicates if "candidate_enumeration" in predicate
     )
@@ -867,6 +916,38 @@ def _build_items() -> tuple[list[_Item], int]:
             f"candidate omission mutation={outcomes[candidate_omission_node]}"
         ),
         "候補checkerの取りこぼしと同時に期待集合まで縮む循環を断てているか。",
+    )
+    add(
+        "C-8",
+        "機械",
+        "第1周是正の AST 8種・symbol 照合テスト12 node",
+        tuple(
+            dict.fromkeys(
+                _test_anchor(node) for node in first_review_remediation_nodes
+            )
+        ),
+        (
+            "declared AST node types="
+            f"{independent_predicate['candidate_enumeration']['ast_node_type']}; "
+            + _test_evidence(first_review_remediation_nodes, outcomes)
+        ),
+        "8種の独立候補列挙とsymbol照合の追加テスト12 nodeがすべて実行されているか。",
+    )
+    unadjudicated_predicate = next(
+        predicate for predicate in predicates if "symbol_match" in predicate
+    )
+    add(
+        "C-9",
+        "機械",
+        "識別子境界付き接頭辞関係の3変異",
+        tuple(
+            dict.fromkeys(_test_anchor(node) for node in identifier_boundary_nodes)
+        ),
+        (
+            f"declared relation={unadjudicated_predicate['symbol_match']['relation']}; "
+            + _test_evidence(identifier_boundary_nodes, outcomes)
+        ),
+        "属性チェーンを受理し、同名接頭辞の別識別子と無関係な識別子を拒否するか。",
     )
 
     fail_closed_titles = {
