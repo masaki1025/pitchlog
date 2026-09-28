@@ -68,6 +68,7 @@ DEFAULT_BASE_REF = "origin/develop"
 FROZEN_BASELINE_ASSETS = (
     Path("contracts/tenant_boundary/base-allowlist.json"),
     Path("contracts/tenant_boundary/cache-invalidation-contract.json"),
+    Path("contracts/tenant_boundary/census-baseline.json"),
     Path("contracts/tenant_boundary/db-api-inventory.json"),
     Path("contracts/tenant_boundary/negative-fixtures.json"),
     Path("contracts/tenant_boundary/repository-contract.json"),

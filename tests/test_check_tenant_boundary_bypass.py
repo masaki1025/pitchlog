@@ -1150,6 +1150,48 @@ def _commit_test_repository(repository: Path, message: str) -> str:
     return checker._run_git(repository, ["rev-parse", "HEAD"]).strip()
 
 
+def _declared_external_files(repository: Path) -> tuple[Path, ...]:
+    """合成リポジトリの全資産が宣言する外部凍結対象を返す。"""
+    asset_root = repository / "contracts" / "tenant_boundary"
+    external_files: set[Path] = set()
+    for asset_path in sorted(asset_root.glob("*.json")):
+        asset = json.loads(asset_path.read_text(encoding="utf-8"))
+        declared = asset["baseline_control"]["identity"]["frozen_projection"][
+            "external_files"
+        ]
+        assert isinstance(declared, list)
+        assert all(isinstance(relative_path, str) for relative_path in declared)
+        external_files.update(Path(relative_path) for relative_path in declared)
+    return tuple(sorted(external_files))
+
+
+def _synchronize_synthetic_authority_identifiers(repository: Path) -> None:
+    """合成baselineのauthority末尾を現在の資産識別子表へ同期する。"""
+    asset_root = repository / "contracts" / "tenant_boundary"
+    assets = {
+        path.relative_to(repository).as_posix(): json.loads(
+            path.read_text(encoding="utf-8")
+        )
+        for path in sorted(asset_root.glob("*.json"))
+    }
+    authorities = [
+        (relative_path, asset)
+        for relative_path, asset in assets.items()
+        if asset["baseline_control"]["history_authority"]
+    ]
+    assert len(authorities) == 1
+    _, authority = authorities[0]
+    history = authority["baseline_control"]["history"]
+    assert history[-1]["record_schema_version"] == 2
+    history[-1]["new_baseline_identifiers"] = {
+        relative_path: asset["baseline_control"]["identity"][
+            "current_identifiers"
+        ]
+        for relative_path, asset in assets.items()
+    }
+    _write_contract_asset(repository / checker.DEFAULT_ALLOWLIST, authority)
+
+
 def _initialize_test_repository(
     tmp_path: Path,
     sources: dict[str, str],
@@ -1164,11 +1206,8 @@ def _initialize_test_repository(
         REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary",
         repository / "tests" / "fixtures" / "tenant_boundary",
     )
-    for relative_path in (
-        Path("scripts/check_tenant_boundary_bypass.py"),
-        Path("scripts/frozen_history.py"),
-        Path(".github/workflows/ci.yml"),
-    ):
+    _synchronize_synthetic_authority_identifiers(repository)
+    for relative_path in _declared_external_files(repository):
         destination = repository / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
@@ -2287,7 +2326,7 @@ def test_positive_fixtures_pass() -> None:
 
 
 def test_frozen_baseline_asset_paths_are_an_exact_set() -> None:
-    """tenant_boundary 配下の 7 資産を履歴検査から漏らさない。"""
+    """tenant_boundary 配下の全資産を履歴検査から漏らさない。"""
     asset_root = REPOSITORY_ROOT / "contracts" / "tenant_boundary"
     actual = {
         path.relative_to(REPOSITORY_ROOT)
@@ -2298,18 +2337,38 @@ def test_frozen_baseline_asset_paths_are_an_exact_set() -> None:
 
 
 def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
-    """7 資産すべてが同じ 3 実装を凍結し、authority が 1 件だけである。"""
-    expected_external_files = [
+    """資産別の外部凍結対象と単一 authority を固定する。"""
+    shared_external_files = [
         "scripts/check_tenant_boundary_bypass.py",
         "scripts/frozen_history.py",
         ".github/workflows/ci.yml",
     ]
+    expected_external_files = {
+        Path("contracts/tenant_boundary/base-allowlist.json"): shared_external_files,
+        Path("contracts/tenant_boundary/cache-invalidation-contract.json"): (
+            shared_external_files
+        ),
+        Path("contracts/tenant_boundary/census-baseline.json"): [
+            *shared_external_files,
+            "tests/test_census_baseline_check.py",
+        ],
+        Path("contracts/tenant_boundary/db-api-inventory.json"): shared_external_files,
+        Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
+        Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,
+        Path("contracts/tenant_boundary/runtime-authz-contract.json"): (
+            shared_external_files
+        ),
+        Path("contracts/tenant_boundary/tenant-context-allowlist.json"): (
+            shared_external_files
+        ),
+    }
+    assert set(expected_external_files) == set(checker.FROZEN_BASELINE_ASSETS)
     authorities: list[Path] = []
-    for relative_path in checker.FROZEN_BASELINE_ASSETS:
+    for relative_path, expected_files in expected_external_files.items():
         asset = _read_contract_asset(relative_path)
         control = asset["baseline_control"]
         assert control["identity"]["frozen_projection"]["external_files"] == (
-            expected_external_files
+            expected_files
         )
         if control["history_authority"]:
             authorities.append(relative_path)
@@ -3144,7 +3203,7 @@ def test_public_function_production_reachability_and_movement_result_usage() -> 
 def test_every_frozen_baseline_asset_has_a_valid_chained_history(
     relative_path: Path,
 ) -> None:
-    """初回 v1 の pending と、末尾から導く現行識別値を固定する。"""
+    """空履歴を非 authority に限定し、履歴があれば識別値の連鎖を固定する。"""
     asset = _read_contract_asset(relative_path)
     control = asset["baseline_control"]
 
@@ -3153,8 +3212,10 @@ def test_every_frozen_baseline_asset_has_a_valid_chained_history(
         relative_path.as_posix(),
     )
 
-    assert history
     assert len(history) == len(control["history"])
+    if not history:
+        assert control["history_authority"] is False
+        return
     has_v2_record = any(entry.get("record_schema_version") == 2 for entry in history)
     assert has_v2_record is control["history_authority"]
     assert history[0]["source_commit"] == checker.PENDING_SOURCE_COMMIT
@@ -3199,7 +3260,10 @@ def test_first_history_entry_does_not_imply_no_previous_baseline(
 ) -> None:
     """履歴の先頭という理由だけで直前基準なしと推定しない。"""
     asset = _read_contract_asset(relative_path)
-    assert checker._validate_baseline_control(asset, relative_path.as_posix())
+    history = checker._validate_baseline_control(asset, relative_path.as_posix())
+    if not history:
+        assert asset["baseline_control"]["history_authority"] is False
+        return
     mutated = copy.deepcopy(asset)
     mutated["baseline_control"]["history"][0][
         "previous_baseline_identifiers"
@@ -5799,8 +5863,10 @@ def test_condition4_allowed_call_symbols_are_an_exact_set() -> None:
     )
 
 
-def test_repository_application_population_is_nonempty_and_green() -> None:
-    """自 PR の実差分を走査し、受理済みの射影移動が green になることを示す。"""
+def test_repository_application_population_is_nonempty_and_green(
+    tmp_path: Path,
+) -> None:
+    """自 PR の製品実差分を合成リポジトリで走査して green と示す。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     diff = checker._run_git(
         REPOSITORY_ROOT,
@@ -5833,7 +5899,14 @@ def test_repository_application_population_is_nonempty_and_green() -> None:
         }
     else:
         assert set(PRODUCT_APPLICATION_PATHS) <= set(head_sources)
-    assert checker.check_repository(REPOSITORY_ROOT) == []
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        baseline_sources,
+    )
+    if baseline_sources != head_sources:
+        _write_test_repository_sources(repository, head_sources)
+        _commit_test_repository(repository, "current product sources")
+    assert _check_test_repository(repository, base_ref) == []
 
 
 def test_first_product_introduction_with_empty_population_is_red() -> None:

@@ -1,0 +1,153 @@
+{
+  "contract_revision": 1,
+  "baseline_control": {
+    "identity": {
+      "scheme": "integer_revision_field",
+      "field": "contract_revision",
+      "current_identifiers": [
+        "contract_revision:1"
+      ],
+      "no_baseline_marker": "NO_BASELINE",
+      "frozen_projection": {
+        "algorithm": "sha256-canonical-json-and-external-files-v1",
+        "included": "all_top_level_fields",
+        "excluded": [
+          "baseline_control",
+          "source_digest"
+        ],
+        "external_files": [
+          "scripts/check_tenant_boundary_bypass.py",
+          "scripts/frozen_history.py",
+          ".github/workflows/ci.yml",
+          "tests/test_census_baseline_check.py"
+        ]
+      }
+    },
+    "movement_policy": {
+      "acceptance_unit": "single_review_acceptance",
+      "previous_state": "state_immediately_before_review_acceptance",
+      "new_state": "state_immediately_after_review_acceptance",
+      "intermediate_commits_are_records": false,
+      "movement_triggers": [
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+        "pass_fail_mapping"
+      ],
+      "affected_baselines": "all_baselines_matching_any_declared_trigger",
+      "history_append_only": true
+    },
+    "history": [],
+    "history_authority": false
+  },
+  "anchor": {
+    "commit": "b4ae7394a6ca038c8ea90ad9ddea40e00165ba7b",
+    "resolution": "direct_full_commit_sha"
+  },
+  "materialized_tree": {
+    "digest_algorithm": "sha256",
+    "digest": "214a708144881fede3ec914a9cbcb767cbfae0fe030a5197c6f47bc83b9c895a",
+    "file_count": 129,
+    "paths": [
+      "contracts/tenant_boundary",
+      "tests/fixtures/tenant_boundary",
+      "scripts/check_tenant_boundary_bypass.py",
+      "scripts/frozen_history.py"
+    ],
+    "path_enumeration": "git_ls_tree_recursive_names",
+    "path_order": "lexicographic_ascending",
+    "entry_encoding": "relative_path + NUL + lowercase_content_sha256 + LF"
+  },
+  "acceptance_cross_check": {
+    "acceptance_id": "masaki1025/pitchlog#80",
+    "files": [
+      "scripts/check_tenant_boundary_bypass.py",
+      "scripts/frozen_history.py"
+    ],
+    "requirement": "accepted_external_snapshot_sha256_equals_materialized_git_content_sha256"
+  },
+  "census_identity": {
+    "kind": "ordered_tuple",
+    "ordered_fields": [
+      "path",
+      "line",
+      "end_line",
+      "scope",
+      "code",
+      "symbol",
+      "message"
+    ]
+  },
+  "pass_fail_mapping": {
+    "predicates": [
+      {
+        "id": "difference_codes_within_allowed_set",
+        "sets": [
+          "added",
+          "removed"
+        ],
+        "allowed_codes": [
+          "TB002",
+          "TB007"
+        ]
+      },
+      {
+        "id": "removed_tb007_matches_declared_relaxations",
+        "set": "removed",
+        "code": "TB007",
+        "quantifier": "every",
+        "requirement": "matches_declared_relaxation"
+      },
+      {
+        "id": "unadjudicated_removed_tb002_remains_in_current_census",
+        "set": "removed",
+        "code": "TB002",
+        "adjudications": "contracts/tenant_boundary/base-allowlist.json#/condition_2_adjudications",
+        "match_fields": [
+          "path",
+          "line",
+          "code"
+        ],
+        "required_current_code": "TB002"
+      },
+      {
+        "id": "added_equals_independently_derived_condition_2_candidates",
+        "set": "added",
+        "relation": "exact_set_equality",
+        "candidate_source": "current_backend_src_ast",
+        "filters": [
+          "matches_current_condition_2_contract",
+          "does_not_match_anchor_condition_2_contract"
+        ],
+        "forbidden_derivation_source": "candidate_checker_census"
+      },
+      {
+        "id": "difference_sets_are_nonempty",
+        "nonempty_sets": [
+          "added",
+          "removed"
+        ]
+      }
+    ]
+  },
+  "implementation_field_inventory": [
+    "anchor.commit",
+    "anchor.resolution",
+    "materialized_tree.digest_algorithm",
+    "materialized_tree.digest",
+    "materialized_tree.file_count",
+    "materialized_tree.paths",
+    "materialized_tree.path_enumeration",
+    "materialized_tree.path_order",
+    "materialized_tree.entry_encoding",
+    "acceptance_cross_check.acceptance_id",
+    "acceptance_cross_check.files",
+    "acceptance_cross_check.requirement",
+    "census_identity.kind",
+    "census_identity.ordered_fields",
+    "pass_fail_mapping.predicates"
+  ]
+}
