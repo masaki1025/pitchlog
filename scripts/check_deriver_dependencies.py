@@ -112,6 +112,38 @@ def _load_json(path: Path) -> dict[str, Any]:
     return _object(value, "依存宣言")
 
 
+def load_dependency_policy_document(
+    root: Path,
+    policy_path: PurePosixPath,
+    schema_path: PurePosixPath,
+    label: str,
+) -> dict[str, Any]:
+    """共通形式の依存宣言を schema 検証して返す。
+
+    Args:
+        root: リポジトリルート。
+        policy_path: リポジトリ相対の依存宣言パス。
+        schema_path: リポジトリ相対の schema パス。
+        label: 診断に用いる資産名。
+
+    Returns:
+        schema 検証済みの依存宣言 object。
+
+    Raises:
+        DeriverDependencyError: 宣言または schema を検証できない場合。
+    """
+    raw = _load_json(root / Path(*policy_path.parts))
+    try:
+        raw_schema = descriptor_checker.load_json(
+            root / Path(*schema_path.parts), f"{label}schema"
+        )
+        schema = _object(raw_schema, f"{label}schema")
+        descriptor_checker._validate_instance(raw, schema, schema, label)
+    except descriptor_checker.DescriptorCheckError as error:
+        raise DeriverDependencyError(str(error)) from error
+    return raw
+
+
 def _repository_path(root: Path, value: str, label: str) -> PurePosixPath:
     """解決後もリポジトリ内にある相対パスを返す。"""
     path = PurePosixPath(value)
@@ -141,17 +173,9 @@ def load_policy(
     Raises:
         DeriverDependencyError: 宣言が閉じた形式を満たさない場合。
     """
-    raw = _load_json(root / Path(*policy_path.parts))
-    try:
-        raw_schema = descriptor_checker.load_json(
-            root / Path(*POLICY_SCHEMA_PATH.parts), "導出器依存宣言schema"
-        )
-        schema = _object(raw_schema, "導出器依存宣言schema")
-        descriptor_checker._validate_instance(
-            raw, schema, schema, "導出器依存宣言"
-        )
-    except descriptor_checker.DescriptorCheckError as error:
-        raise DeriverDependencyError(str(error)) from error
+    raw = load_dependency_policy_document(
+        root, policy_path, POLICY_SCHEMA_PATH, "導出器依存宣言"
+    )
     _exact_keys(
         raw,
         {
@@ -252,7 +276,9 @@ def _is_read_open(mode: object, flags: object) -> bool:
     return True
 
 
-def _observed_repository_path(root: Path, raw_path: object) -> PurePosixPath:
+def _observed_repository_path(
+    root: Path, raw_path: object, executable_label: str
+) -> PurePosixPath:
     """open 監査イベントのパスをリポジトリ相対へ正規化する。"""
     if isinstance(raw_path, int):
         raise DeriverDependencyError("追跡開始前に開かれたファイル記述子の読み取りは判定不能")
@@ -269,43 +295,42 @@ def _observed_repository_path(root: Path, raw_path: object) -> PurePosixPath:
         relative = resolved.relative_to(resolved_root)
     except ValueError as error:
         raise DeriverDependencyError(
-            f"導出器がリポジトリ外を読み取ろうとした: {resolved}"
+            f"{executable_label}がリポジトリ外を読み取ろうとした: {resolved}"
         ) from error
     return PurePosixPath(relative.as_posix())
 
 
-def trace_deriver_file_reads(
+def trace_allowed_file_reads(
     root: Path,
-    policy: DeriverDependencyPolicy,
-    deriver_id: str,
+    allowed_read_paths: tuple[PurePosixPath, ...],
+    executable_id: str,
+    executable_label: str,
     operation: Callable[[], _T],
-) -> tuple[_T, DeriverTrace]:
-    """導出器の呼出区間で観測した読み取りを allowlist と突合する。
+) -> tuple[_T, tuple[PurePosixPath, ...]]:
+    """実行可能処理の呼出区間で観測した読み取りを allowlist と突合する。
 
-    この関数が検査するのは、呼出区間に CPython の監査イベントとして現れた
-    ファイル open だけである。宣言の ``claimBoundary`` が列挙する非保証範囲を
-    機械的に確認したことにはしない。
+    この共通機構が検査するのは、呼出区間に CPython の監査イベントとして
+    現れたファイル open だけである。呼出側の宣言が列挙する非保証範囲を
+    確認したことにはしない。
 
     Args:
         root: リポジトリルート。
-        policy: 資産側から読み込んだ依存宣言。
-        deriver_id: 実行する導出器の宣言 ID。
-        operation: 追跡対象の導出処理。
+        allowed_read_paths: 資産側が宣言した読み取り許可集合。
+        executable_id: 実行する処理の宣言 ID。
+        executable_label: 診断に用いる処理種別。
+        operation: 追跡対象の実行可能処理。
 
     Returns:
-        導出処理の戻り値と、許可された読み取りの証跡。
+        実行結果と、許可された読み取りのリポジトリ相対パス。
 
     Raises:
-        DeriverDependencyError: 未宣言の導出器、allowlist 外の読み取り、または
-            子プロセスへ追跡を逃がす実行を観測した場合。
+        DeriverDependencyError: allowlist 外の読み取り、または子プロセスへ
+            追跡を逃がす実行を観測した場合。
     """
-    rule = policy.derivers.get(deriver_id)
-    if rule is None:
-        raise DeriverDependencyError(f"未宣言の導出器である: {deriver_id!r}")
     resolved_root = root.resolve()
     allowed = {
         (resolved_root / Path(*path.parts)).resolve(strict=False): path
-        for path in rule.allowed_read_paths
+        for path in allowed_read_paths
     }
     active = True
     observed: list[PurePosixPath] = []
@@ -316,21 +341,24 @@ def trace_deriver_file_reads(
             return
         if event in {"subprocess.Popen", "os.system"}:
             error = DeriverDependencyError(
-                "導出器が未追跡の子プロセスを起動しようとした"
+                f"{executable_label}が未追跡の子プロセスを起動しようとした"
             )
             violations.append(error)
             raise error
         if event != "open" or len(args) < 3 or not _is_read_open(args[1], args[2]):
             return
         try:
-            relative = _observed_repository_path(resolved_root, args[0])
+            relative = _observed_repository_path(
+                resolved_root, args[0], executable_label
+            )
         except DeriverDependencyError as error:
             violations.append(error)
             raise
         resolved = (resolved_root / Path(*relative.parts)).resolve(strict=False)
         if resolved not in allowed:
             error = DeriverDependencyError(
-                f"導出器 {deriver_id!r} がallowlist外を読み取ろうとした: {relative}"
+                f"{executable_label} {executable_id!r} がallowlist外を読み取ろうとした: "
+                f"{relative}"
             )
             violations.append(error)
             raise error
@@ -349,11 +377,43 @@ def trace_deriver_file_reads(
         raise violations[0] from caught
     if caught is not None:
         raise caught
-    trace = DeriverTrace(
-        deriver_id=deriver_id,
-        observed_read_paths=tuple(dict.fromkeys(observed)),
+    return cast(_T, result), tuple(dict.fromkeys(observed))
+
+
+def trace_deriver_file_reads(
+    root: Path,
+    policy: DeriverDependencyPolicy,
+    deriver_id: str,
+    operation: Callable[[], _T],
+) -> tuple[_T, DeriverTrace]:
+    """宣言済み導出器の呼出区間を共通機構で追跡する。
+
+    Args:
+        root: リポジトリルート。
+        policy: 資産側から読み込んだ導出器依存宣言。
+        deriver_id: 実行する導出器の宣言 ID。
+        operation: 追跡対象の導出処理。
+
+    Returns:
+        導出処理の戻り値と、許可された読み取りの証跡。
+
+    Raises:
+        DeriverDependencyError: 導出器が未宣言か、共通依存検査に違反した場合。
+    """
+    rule = policy.derivers.get(deriver_id)
+    if rule is None:
+        raise DeriverDependencyError(f"未宣言の導出器である: {deriver_id!r}")
+    result, observed = trace_allowed_file_reads(
+        root,
+        rule.allowed_read_paths,
+        deriver_id,
+        "導出器",
+        operation,
     )
-    return cast(_T, result), trace
+    return result, DeriverTrace(
+        deriver_id=deriver_id,
+        observed_read_paths=observed,
+    )
 
 
 def validate_repository_policy(root: Path) -> DeriverDependencyPolicy:

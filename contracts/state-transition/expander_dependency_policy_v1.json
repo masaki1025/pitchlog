@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "policyId": "state-transition-case-expander-dependencies",
+  "version": 1,
+  "claimBoundary": {
+    "subject": "executable-expanders-only",
+    "mechanicallyChecked": "observed-file-open-events-during-traced-expander-call",
+    "notGuaranteed": [
+      "manual-reference-history",
+      "semantic-independence-of-allowed-inputs",
+      "unexecuted-control-flow",
+      "reads-from-file-descriptors-opened-before-tracing",
+      "native-reads-without-cpython-audit-events",
+      "non-file-inputs",
+      "independence-from-clause-branch-register"
+    ],
+    "deriverCoverage": "not-covered-step-41-policy",
+    "fixtureIndependenceClaim": "manual-fixtures-independent-from-expander-only",
+    "clauseBranchRegisterIndependence": "not-claimed"
+  },
+  "traceSpec": {
+    "mechanism": "cpython-audit-open-event",
+    "pathIdentity": "resolved-repository-relative-path",
+    "outsideRepositoryAction": "fail",
+    "unresolvablePathAction": "fail",
+    "subprocessAction": "fail-untraced-child"
+  },
+  "expanders": [
+    {
+      "expanderId": "state-transition-cases",
+      "plannedImplementationStep": 75,
+      "output": "stateTransition.cases",
+      "allowedReadPaths": [
+        "contracts/state-transition/input_axes_descriptor_v1.json",
+        "contracts/vocabulary/input_vocabulary_v1.json",
+        "contracts/vocabulary/vocabulary_manifest_v1.json",
+        "contracts/state-transition/state_transition_contract_v1.json",
+        "contracts/state-transition/clause_branch_register_v1.json"
+      ]
+    },
+    {
+      "expanderId": "game-end-cases",
+      "plannedImplementationStep": 76,
+      "output": "gameEnd.cases",
+      "allowedReadPaths": [
+        "contracts/state-transition/input_axes_descriptor_v1.json",
+        "contracts/state-transition/game_end_contract_v1.json",
+        "contracts/state-transition/clause_branch_register_v1.json"
+      ]
+    }
+  ]
+}
