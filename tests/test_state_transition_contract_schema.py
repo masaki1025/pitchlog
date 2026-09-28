@@ -17,6 +17,7 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DESCRIPTOR_CHECKER_PATH = REPOSITORY_ROOT / "scripts/check_input_axes_descriptor.py"
 FREEZE_CHECKER_PATH = REPOSITORY_ROOT / "scripts/state_transition_freeze.py"
+VOCABULARY_CHECKER_PATH = REPOSITORY_ROOT / "scripts/check_vocabulary_manifest.py"
 SCHEMA_PATH = (
     REPOSITORY_ROOT
     / "contracts/state-transition/state_transition_contract_schema_v1.json"
@@ -24,9 +25,7 @@ SCHEMA_PATH = (
 DESCRIPTOR_PATH = (
     REPOSITORY_ROOT / "contracts/state-transition/input_axes_descriptor_v1.json"
 )
-DEFAULT_VOCABULARY_IDS_BY_SEED = {
-    "batting_results": frozenset({"single"}),
-}
+_DEFAULT_VOCABULARY_IDS_BY_SEED = object()
 _DEFAULT_VECTOR_MANIFEST = object()
 
 
@@ -62,7 +61,10 @@ def _load_module(name: str, path: Path) -> Any:
 
 _load_module("state_transition_freeze", FREEZE_CHECKER_PATH)
 schema_checker = _load_module(
-    "state_transition_contract_descriptor_checker", DESCRIPTOR_CHECKER_PATH
+    "check_input_axes_descriptor", DESCRIPTOR_CHECKER_PATH
+)
+vocabulary_checker = _load_module(
+    "check_vocabulary_manifest", VOCABULARY_CHECKER_PATH
 )
 
 
@@ -126,7 +128,7 @@ def _minimal_contract() -> dict[str, Any]:
     }
     matrix_row = {
         "eventKind": "batting-result",
-        "resultId": "single",
+        "resultId": "batting-result.single",
         "precondition": matrix_precondition,
         "countEffect": {
             "strikes": {"kind": "unchanged"},
@@ -1699,13 +1701,22 @@ def _validate_schema(contract: dict[str, Any]) -> None:
 
 def _validate(
     contract: dict[str, Any],
-    vocabulary_ids_by_seed: Mapping[str, Set[str]] | None = (
-        DEFAULT_VOCABULARY_IDS_BY_SEED
+    vocabulary_ids_by_seed: Mapping[str, Set[str]] | None | object = (
+        _DEFAULT_VOCABULARY_IDS_BY_SEED
     ),
     adopted_clause_ids: Set[str] = frozenset(),
     vector_manifest: Mapping[str, Any] | None | object = _DEFAULT_VECTOR_MANIFEST,
 ) -> None:
     """状況判定契約のschema・参照制約・交差制約を検証する。"""
+    resolved_vocabulary_ids = (
+        vocabulary_checker.validate_manifest(REPOSITORY_ROOT)
+        if vocabulary_ids_by_seed is _DEFAULT_VOCABULARY_IDS_BY_SEED
+        else vocabulary_ids_by_seed
+    )
+    if resolved_vocabulary_ids is not None and not isinstance(
+        resolved_vocabulary_ids, Mapping
+    ):
+        raise ReferenceConstraintError("解決済み語彙ID集合がobjectでない")
     resolved_vector_manifest = (
         _resolved_vector_manifest(adopted_clause_ids)
         if vector_manifest is _DEFAULT_VECTOR_MANIFEST
@@ -1720,7 +1731,7 @@ def _validate(
     _validate_schema(contract)
     _validate_operation_rows(contract, adopted_clause_ids)
     _validate_undo_rows(contract, adopted_clause_ids)
-    _validate_references(contract, vocabulary_ids_by_seed)
+    _validate_references(contract, resolved_vocabulary_ids)
     _validate_cross_constraints(contract)
     _validate_must_operation_coverage(
         contract, adopted_clause_ids, resolved_vector_manifest
@@ -2382,13 +2393,13 @@ def test_ambiguous_vocabulary_reference_is_red() -> None:
     """複数の宣言済み語彙シードへ解決するresultIdを拒否する。"""
     contract = _minimal_contract()
     duplicate_seed_ids = {
-        "batting_results": frozenset({"single"}),
-        "secondary_results": frozenset({"single"}),
+        "batting_results": frozenset({"batting-result.single"}),
+        "secondary_results": frozenset({"batting-result.single"}),
     }
 
     with pytest.raises(
         ReferenceConstraintError,
-        match=r"resultId='single'; matches=2",
+        match=r"resultId='batting-result.single'; matches=2",
     ):
         _validate(contract, duplicate_seed_ids)
 

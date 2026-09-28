@@ -289,12 +289,8 @@ def test_same_id_with_different_display_name_fails() -> None:
         _validate_seed(seed)
 
 
-def test_step38_does_not_create_manifest_or_content_hash() -> None:
-    """manifestと内容hashをステップ39へ残す。"""
-    assert not (
-        REPOSITORY_ROOT / "contracts/vocabulary/vocabulary_manifest_v1.json"
-    ).exists()
-
+def test_seed_does_not_embed_self_referential_content_hash() -> None:
+    """内容hashをシード自身へ埋め込まず共有manifestへ分離する。"""
     def contains_content_hash(value: object) -> bool:
         if isinstance(value, dict):
             return "contentHash" in value or any(
