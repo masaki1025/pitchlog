@@ -41,6 +41,169 @@
       "requiredMatchCount": 1
     }
   },
+  "x-pitchlog-matrix-cross-constraints": {
+    "sourceClauseId": "req:E-1",
+    "rowCollection": "matrixRows",
+    "excludedConstraintIds": [
+      "XC-09"
+    ],
+    "runnerPresence": {
+      "axisId": "state.runners",
+      "undecidableAction": "fail",
+      "baseByRunnerNumber": {
+        "1": "first",
+        "2": "second",
+        "3": "third"
+      },
+      "presentValuesByBase": {
+        "first": [
+          "first",
+          "first-second",
+          "first-third",
+          "loaded"
+        ],
+        "second": [
+          "second",
+          "first-second",
+          "second-third",
+          "loaded"
+        ],
+        "third": [
+          "third",
+          "first-third",
+          "second-third",
+          "loaded"
+        ]
+      }
+    },
+    "rules": [
+      {
+        "constraintId": "XC-01",
+        "kind": "event-requires-batter-destination",
+        "eventKind": "runner-event",
+        "requiredDestinationKind": "not-applicable"
+      },
+      {
+        "constraintId": "XC-02",
+        "kind": "absent-runner-requires-modality",
+        "requiredModality": "not-applicable"
+      },
+      {
+        "constraintId": "XC-03",
+        "kind": "advance-modality-destination-equivalence",
+        "nullDestinationModalities": [
+          "hold",
+          "not-applicable"
+        ],
+        "nonNullDestinationModalities": [
+          "forced",
+          "optional"
+        ]
+      },
+      {
+        "constraintId": "XC-04",
+        "kind": "out-count-target-cardinality-and-uniqueness",
+        "targetCanonicalization": "RFC8785"
+      },
+      {
+        "constraintId": "XC-05",
+        "kind": "event-requires-count-effect",
+        "eventKind": "runner-event",
+        "requiredEffectKind": "unchanged"
+      },
+      {
+        "constraintId": "XC-06",
+        "kind": "plate-appearance-result-count-equivalence",
+        "excludedEventKinds": [
+          "runner-event"
+        ],
+        "endedDestinationKinds": [
+          "reach",
+          "out",
+          "score"
+        ],
+        "continuingDestinationKinds": [
+          "continue",
+          "not-applicable"
+        ],
+        "requiredResetEffectKind": "reset",
+        "allowedDestinationKindsByEvent": {
+          "batting-result": [
+            "continue",
+            "reach",
+            "out",
+            "score"
+          ],
+          "secondary-result": [
+            "continue",
+            "reach",
+            "out",
+            "not-applicable"
+          ]
+        }
+      },
+      {
+        "constraintId": "XC-07",
+        "kind": "event-plate-not-applicable-equivalence",
+        "eventKind": "runner-event",
+        "notApplicableValue": "not-applicable"
+      },
+      {
+        "constraintId": "XC-08",
+        "kind": "runner-origin-destination-allowlist",
+        "allowedDestinationsByBase": {
+          "first": [
+            2,
+            3,
+            4
+          ],
+          "second": [
+            3,
+            4
+          ],
+          "third": [
+            4
+          ]
+        }
+      },
+      {
+        "constraintId": "XC-10",
+        "kind": "batter-out-target-equivalence",
+        "batterOutDestinationKind": "out",
+        "batterTarget": "batter"
+      },
+      {
+        "constraintId": "XC-11",
+        "kind": "maximum-prior-outs-plus-effect",
+        "outsAxisId": "state.outs",
+        "maximumPostPlayOuts": 3,
+        "undecidableAction": "fail"
+      },
+      {
+        "constraintId": "XC-12",
+        "kind": "absent-runner-prohibits-out-target"
+      },
+      {
+        "constraintId": "XC-13",
+        "kind": "deferred-derived-stat-flags-principle",
+        "principleId": "principle:stat-flags-derived-not-arbitrary",
+        "enforcement": "deferred-stage-2",
+        "machineGuarantee": "not-established",
+        "stage2DeclarationPointer": "/stage2ExternalConstraints",
+        "deferredConstraintClasses": [
+          "stat-flag-derivation-rules",
+          "third-out-type-observation-input",
+          "official-scorer-judgment-inputs"
+        ],
+        "requiredArtifacts": [
+          "stat-flag-derivation-table",
+          "third-out-type-input-contract",
+          "official-scorer-judgment-input-contract",
+          "negative-fixtures"
+        ]
+      }
+    ]
+  },
   "type": "object",
   "required": [
     "schemaVersion",

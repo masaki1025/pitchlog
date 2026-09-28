@@ -8,6 +8,7 @@ import json
 import sys
 from collections import Counter
 from collections.abc import Mapping, Set
+from itertools import product
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +31,10 @@ DEFAULT_VOCABULARY_IDS_BY_SEED = {
 
 class ReferenceConstraintError(ValueError):
     """状況判定契約の参照制約違反を表す。"""
+
+
+class CrossConstraintError(ValueError):
+    """状況判定契約の交差制約違反を表す。"""
 
 
 def _load_module(name: str, path: Path) -> Any:
@@ -83,7 +88,13 @@ def _stat_flag_values() -> dict[str, bool]:
 def _minimal_contract() -> dict[str, Any]:
     """構造・参照検査を通る最小の状況判定契約を返す。"""
     descriptor = _descriptor()
-    matrix_precondition = {"op": "eq", "axisId": "state.outs", "value": 0}
+    matrix_precondition = {
+        "op": "and",
+        "args": [
+            {"op": "eq", "axisId": "state.outs", "value": 0},
+            {"op": "eq", "axisId": "state.runners", "value": "empty"},
+        ],
+    }
     matrix_row = {
         "eventKind": "batting-result",
         "resultId": "single",
@@ -95,9 +106,9 @@ def _minimal_contract() -> dict[str, Any]:
         "plateAppearanceEnded": False,
         "batterDestination": {"kind": "continue"},
         "runnerDefaultAdvance": {
-            "first": {"modality": "hold", "destination": None},
-            "second": {"modality": "hold", "destination": None},
-            "third": {"modality": "hold", "destination": None},
+            "first": {"modality": "not-applicable", "destination": None},
+            "second": {"modality": "not-applicable", "destination": None},
+            "third": {"modality": "not-applicable", "destination": None},
         },
         "outEffect": {"count": 0, "targets": []},
         "statFlags": _stat_flag_values(),
@@ -269,6 +280,402 @@ def _predicate_leaves(predicate: Mapping[str, Any]) -> tuple[Mapping[str, Any], 
             for leaf in _predicate_leaves(_required_object(child, "Predicate.args[]"))
         )
     return (predicate,)
+
+
+def _json_equal(left: object, right: object) -> bool:
+    """JSON値を型も含めて比較する。"""
+    return schema_checker.canonicalize_json(left) == schema_checker.canonicalize_json(
+        right
+    )
+
+
+def _resolve_json_pointer(value: object, pointer: str) -> object:
+    """JSON Pointerが指す値を返す。
+
+    Args:
+        value: 探索元のJSON値。
+        pointer: RFC 6901形式のJSON Pointer。
+
+    Returns:
+        Pointerが指すJSON値。
+
+    Raises:
+        CrossConstraintError: Pointerを解決できない場合。
+    """
+    if not pointer.startswith("/"):
+        raise CrossConstraintError(f"JSON Pointerが不正: {pointer!r}")
+    current = value
+    for encoded_token in pointer[1:].split("/"):
+        token = encoded_token.replace("~1", "/").replace("~0", "~")
+        if not isinstance(current, dict) or token not in current:
+            raise CrossConstraintError(f"JSON Pointerを解決できない: {pointer!r}")
+        current = current[token]
+    return current
+
+
+def _descriptor_axis_values() -> dict[str, tuple[object, ...]]:
+    """Predicate評価に使う全入力軸の値域をdescriptorから返す。"""
+    schema = _schema()
+    descriptor = _descriptor()
+    rule = schema["x-pitchlog-reference-constraints"]["predicateAxisResolution"]
+    value_fields = rule["descriptorValueFieldsByClassification"]
+    axes: dict[str, tuple[object, ...]] = {}
+    for collection in rule["descriptorCollections"]:
+        for axis in descriptor[collection]:
+            axis_id = axis[rule["descriptorAxisIdField"]]
+            classification = axis[rule["descriptorClassificationField"]]
+            value_field = value_fields.get(classification)
+            values = axis.get(value_field) if isinstance(value_field, str) else None
+            if axis_id in axes or not isinstance(values, list) or not values:
+                raise CrossConstraintError(
+                    f"入力軸の値域を一意に解決できない: axisId={axis_id!r}"
+                )
+            axes[axis_id] = tuple(values)
+    return axes
+
+
+def _evaluate_predicate(
+    predicate: Mapping[str, Any], assignment: Mapping[str, object]
+) -> bool:
+    """指定した入力軸割当てでPredicateを評価する。"""
+    operator = predicate["op"]
+    if operator == "and":
+        return all(
+            _evaluate_predicate(_required_object(child, "Predicate.args[]"), assignment)
+            for child in predicate["args"]
+        )
+    if operator == "or":
+        return any(
+            _evaluate_predicate(_required_object(child, "Predicate.args[]"), assignment)
+            for child in predicate["args"]
+        )
+    if operator == "not":
+        child = _required_object(predicate["args"][0], "Predicate.args[0]")
+        return not _evaluate_predicate(child, assignment)
+
+    axis_id = predicate["axisId"]
+    if axis_id not in assignment:
+        raise CrossConstraintError(f"Predicate評価の軸割当てが無い: {axis_id!r}")
+    actual = assignment[axis_id]
+    if operator == "eq":
+        return _json_equal(actual, predicate["value"])
+    if operator == "in":
+        return any(_json_equal(actual, value) for value in predicate["values"])
+    expected = predicate["value"]
+    if (
+        not isinstance(actual, int)
+        or isinstance(actual, bool)
+        or not isinstance(expected, int)
+        or isinstance(expected, bool)
+    ):
+        raise CrossConstraintError(
+            f"順序比較を整数として判定できない: axisId={axis_id!r}"
+        )
+    if operator == "gte":
+        return actual >= expected
+    if operator == "lte":
+        return actual <= expected
+    raise CrossConstraintError(f"未対応のPredicate演算子: {operator!r}")
+
+
+def _satisfying_axis_values(
+    predicate: Mapping[str, Any], target_axis_id: str
+) -> tuple[object, ...]:
+    """Predicateを充足できる対象軸の値を射影する。"""
+    axes = _descriptor_axis_values()
+    referenced_axis_ids = {leaf["axisId"] for leaf in _predicate_leaves(predicate)}
+    enumerated_axis_ids = tuple(sorted(referenced_axis_ids | {target_axis_id}))
+    try:
+        domains = tuple(axes[axis_id] for axis_id in enumerated_axis_ids)
+    except KeyError as exc:
+        raise CrossConstraintError(
+            f"Predicateの軸値域を解決できない: {exc.args[0]!r}"
+        ) from exc
+
+    satisfying_values: dict[bytes, object] = {}
+    for values in product(*domains):
+        assignment = dict(zip(enumerated_axis_ids, values, strict=True))
+        if _evaluate_predicate(predicate, assignment):
+            target_value = assignment[target_axis_id]
+            satisfying_values[schema_checker.canonicalize_json(target_value)] = (
+                target_value
+            )
+    if not satisfying_values:
+        raise CrossConstraintError("Predicateの充足可能な入力座標が無い")
+    return tuple(satisfying_values.values())
+
+
+def _cross_constraint_configuration(
+    schema: Mapping[str, Any] | None = None,
+) -> tuple[dict[str, Any], tuple[dict[str, Any], ...]]:
+    """交差制約宣言を検証して設定と規則を返す。"""
+    active_schema = _schema() if schema is None else schema
+    configuration = _required_object(
+        active_schema.get("x-pitchlog-matrix-cross-constraints"),
+        "schema.x-pitchlog-matrix-cross-constraints",
+    )
+    raw_rules = configuration.get("rules")
+    if not isinstance(raw_rules, list) or not raw_rules:
+        raise CrossConstraintError("交差制約規則が空または配列でない")
+    rules = tuple(
+        _required_object(rule, "x-pitchlog-matrix-cross-constraints.rules[]")
+        for rule in raw_rules
+    )
+    constraint_ids = [
+        _required_string(rule.get("constraintId"), "交差制約ID") for rule in rules
+    ]
+    if len(constraint_ids) != len(set(constraint_ids)):
+        raise CrossConstraintError("交差制約IDが重複している")
+
+    parity = _descriptor()["freezeBaseline"]["criteria"]["threeWayParity"]
+    expected_ids = {
+        branch_id
+        for branch_id in parity["requirementBranchIds"]
+        if branch_id.startswith("XC-")
+    }
+    actual_ids = set(constraint_ids)
+    if actual_ids != expected_ids:
+        raise CrossConstraintError(
+            "付録E-1の交差制約IDがdescriptorの分岐集合と一致しない: "
+            f"expected={sorted(expected_ids)!r}; actual={sorted(actual_ids)!r}"
+        )
+    expected_exclusions = {
+        branch_id
+        for branch_id in parity["nonDefinitionBranchMentions"]
+        if branch_id.startswith("XC-")
+    }
+    actual_exclusions = set(configuration.get("excludedConstraintIds", []))
+    if actual_exclusions != expected_exclusions or actual_ids & actual_exclusions:
+        raise CrossConstraintError(
+            "付録E-1の外部制約除外が一致しない: "
+            f"expected={sorted(expected_exclusions)!r}; "
+            f"actual={sorted(actual_exclusions)!r}"
+        )
+
+    rules_by_id = {rule["constraintId"]: rule for rule in rules}
+    principle_markers = parity["principleMarkers"]
+    for constraint_id, principle_id in principle_markers.items():
+        rule = rules_by_id.get(constraint_id)
+        if (
+            rule is None
+            or rule.get("kind") != "deferred-derived-stat-flags-principle"
+            or rule.get("principleId") != principle_id
+            or rule.get("enforcement") != "deferred-stage-2"
+            or rule.get("machineGuarantee") != "not-established"
+        ):
+            raise CrossConstraintError(
+                f"{constraint_id}: 導出原則の段階2延期宣言が不正"
+            )
+        stage2 = _resolve_json_pointer(
+            _descriptor(), _required_string(rule.get("stage2DeclarationPointer"), "")
+        )
+        if not isinstance(stage2, dict) or stage2.get("status") != "deferred":
+            raise CrossConstraintError(
+                f"{constraint_id}: descriptorの段階2延期を確認できない"
+            )
+        if not set(rule.get("deferredConstraintClasses", [])) <= set(
+            stage2.get("constraintClasses", [])
+        ):
+            raise CrossConstraintError(
+                f"{constraint_id}: 延期した制約クラスをdescriptorへ解決できない"
+            )
+        if not set(rule.get("requiredArtifacts", [])) <= set(
+            stage2.get("requiredArtifacts", [])
+        ):
+            raise CrossConstraintError(
+                f"{constraint_id}: 段階2の必須成果物をdescriptorへ解決できない"
+            )
+    return configuration, rules
+
+
+def _runner_presence_by_base(
+    predicate: Mapping[str, Any], configuration: Mapping[str, Any]
+) -> dict[str, str]:
+    """共通規則に従い各起点塁の走者存在を判定する。"""
+    declaration = _required_object(
+        configuration.get("runnerPresence"), "runnerPresence"
+    )
+    if declaration.get("undecidableAction") != "fail":
+        raise CrossConstraintError("走者存在の判定不能時動作がfailでない")
+    axis_id = _required_string(declaration.get("axisId"), "runnerPresence.axisId")
+    possible_values = _satisfying_axis_values(predicate, axis_id)
+    present_values_by_base = _required_object(
+        declaration.get("presentValuesByBase"), "runnerPresence.presentValuesByBase"
+    )
+    result: dict[str, str] = {}
+    for base, raw_present_values in present_values_by_base.items():
+        if not isinstance(raw_present_values, list) or not raw_present_values:
+            raise CrossConstraintError(f"走者存在集合が不正: base={base!r}")
+        states = {
+            "present"
+            if any(_json_equal(value, present) for present in raw_present_values)
+            else "absent"
+            for value in possible_values
+        }
+        if len(states) != 1:
+            raise CrossConstraintError(
+                f"走者存在を一意に判定できない: base={base!r}; "
+                f"states={sorted(states)!r}"
+            )
+        result[base] = states.pop()
+    return result
+
+
+def _cross_rule_violation(
+    row: Mapping[str, Any],
+    rule: Mapping[str, Any],
+    configuration: Mapping[str, Any],
+) -> str | None:
+    """1規範行に対する1交差制約の違反理由を返す。"""
+    kind = rule["kind"]
+    if kind == "event-requires-batter-destination":
+        if (
+            row["eventKind"] == rule["eventKind"]
+            and row["batterDestination"]["kind"]
+            != rule["requiredDestinationKind"]
+        ):
+            return "走者イベントの打者行き先がnot-applicableでない"
+        return None
+    if kind == "absent-runner-requires-modality":
+        presence = _runner_presence_by_base(row["precondition"], configuration)
+        for base, state in presence.items():
+            if (
+                state == "absent"
+                and row["runnerDefaultAdvance"][base]["modality"]
+                != rule["requiredModality"]
+            ):
+                return f"不在走者の進塁種別が不正: base={base!r}"
+        return None
+    if kind == "advance-modality-destination-equivalence":
+        null_modalities = set(rule["nullDestinationModalities"])
+        non_null_modalities = set(rule["nonNullDestinationModalities"])
+        for base, advance in row["runnerDefaultAdvance"].items():
+            modality = advance["modality"]
+            destination = advance["destination"]
+            if (modality in null_modalities) != (destination is None):
+                return f"停止種別とnull到達塁が双方向不一致: base={base!r}"
+            if (modality in non_null_modalities) != (destination is not None):
+                return f"進塁種別と非null到達塁が双方向不一致: base={base!r}"
+        return None
+    if kind == "out-count-target-cardinality-and-uniqueness":
+        targets = row["outEffect"]["targets"]
+        if row["outEffect"]["count"] != len(targets):
+            return "アウト数と対象数が一致しない"
+        canonical_targets = [
+            schema_checker.canonicalize_json(target) for target in targets
+        ]
+        if len(canonical_targets) != len(set(canonical_targets)):
+            return "アウト対象が重複している"
+        return None
+    if kind == "event-requires-count-effect":
+        if row["eventKind"] != rule["eventKind"]:
+            return None
+        if any(
+            effect["kind"] != rule["requiredEffectKind"]
+            for effect in row["countEffect"].values()
+        ):
+            return "走者イベントがカウントを変更する"
+        return None
+    if kind == "plate-appearance-result-count-equivalence":
+        if row["eventKind"] in rule["excludedEventKinds"]:
+            return None
+        destination_kind = row["batterDestination"]["kind"]
+        allowed_destinations = rule["allowedDestinationKindsByEvent"].get(
+            row["eventKind"], []
+        )
+        if destination_kind not in allowed_destinations:
+            return "eventKind別allowlistに無い打者行き先"
+        ended = row["plateAppearanceEnded"] is True
+        if ended != (destination_kind in rule["endedDestinationKinds"]):
+            return "打席終了と終端の打者行き先が双方向不一致"
+        if (not ended) != (destination_kind in rule["continuingDestinationKinds"]):
+            return "打席継続と継続側の打者行き先が双方向不一致"
+        reset_kind = rule["requiredResetEffectKind"]
+        if any((effect["kind"] == reset_kind) != ended for effect in row["countEffect"].values()):
+            return "打席終了とS/Bリセットが双方向不一致"
+        return None
+    if kind == "event-plate-not-applicable-equivalence":
+        if (row["eventKind"] == rule["eventKind"]) != (
+            row["plateAppearanceEnded"] == rule["notApplicableValue"]
+        ):
+            return "走者イベントと打席終了not-applicableが双方向不一致"
+        return None
+    if kind == "runner-origin-destination-allowlist":
+        for base, advance in row["runnerDefaultAdvance"].items():
+            destination = advance["destination"]
+            if (
+                destination is not None
+                and destination not in rule["allowedDestinationsByBase"][base]
+            ):
+                return f"起点塁から到達できない塁が指定された: base={base!r}"
+        return None
+    if kind == "batter-out-target-equivalence":
+        batter_is_out = (
+            row["batterDestination"]["kind"]
+            == rule["batterOutDestinationKind"]
+        )
+        batter_is_target = any(
+            _json_equal(target, rule["batterTarget"])
+            for target in row["outEffect"]["targets"]
+        )
+        if batter_is_out != batter_is_target:
+            return "打者アウトとアウト対象が双方向不一致"
+        return None
+    if kind == "maximum-prior-outs-plus-effect":
+        if rule.get("undecidableAction") != "fail":
+            return "事前アウト数の判定不能時動作がfailでない"
+        possible_outs = _satisfying_axis_values(
+            row["precondition"], rule["outsAxisId"]
+        )
+        integer_outs: list[int] = []
+        for value in possible_outs:
+            if not isinstance(value, int) or isinstance(value, bool):
+                return "事前アウト数を整数として判定できない"
+            integer_outs.append(value)
+        if (
+            max(integer_outs) + row["outEffect"]["count"]
+            > rule["maximumPostPlayOuts"]
+        ):
+            return "許容される最大事前アウト数との合計が3を超える"
+        return None
+    if kind == "absent-runner-prohibits-out-target":
+        presence = _runner_presence_by_base(row["precondition"], configuration)
+        runner_number_to_base = configuration["runnerPresence"]["baseByRunnerNumber"]
+        for target in row["outEffect"]["targets"]:
+            if not isinstance(target, dict):
+                continue
+            base = runner_number_to_base[str(target["runner"])]
+            if presence[base] == "absent":
+                return f"不在走者がアウト対象に含まれる: base={base!r}"
+        return None
+    if kind == "deferred-derived-stat-flags-principle":
+        return None
+    return f"未対応の交差制約種別: {kind!r}"
+
+
+def _validate_cross_constraints(contract: Mapping[str, Any]) -> None:
+    """schema資産の宣言に従ってmatrixRowsの交差制約を検証する。"""
+    configuration, rules = _cross_constraint_configuration()
+    row_collection = _required_string(
+        configuration.get("rowCollection"), "crossConstraints.rowCollection"
+    )
+    for row_index, row in enumerate(contract[row_collection]):
+        violations: list[str] = []
+        for rule in rules:
+            if rule.get("enforcement") == "deferred-stage-2":
+                continue
+            constraint_id = rule["constraintId"]
+            try:
+                violation = _cross_rule_violation(row, rule, configuration)
+            except CrossConstraintError as exc:
+                violation = str(exc)
+            if violation is not None:
+                violations.append(f"{constraint_id}: {violation}")
+        if violations:
+            raise CrossConstraintError(
+                f"{row_collection}[{row_index}]の交差制約違反: "
+                + "; ".join(violations)
+            )
 
 
 def _sync_case_coordinate(contract: dict[str, Any], layer: str) -> None:
@@ -533,9 +940,10 @@ def _validate(
         DEFAULT_VOCABULARY_IDS_BY_SEED
     ),
 ) -> None:
-    """状況判定契約のschemaと参照制約を検証する。"""
+    """状況判定契約のschema・参照制約・交差制約を検証する。"""
     _validate_schema(contract)
     _validate_references(contract, vocabulary_ids_by_seed)
+    _validate_cross_constraints(contract)
 
 
 def test_repository_schema_accepts_the_three_normative_row_layers() -> None:
@@ -636,7 +1044,7 @@ def test_case_reference_to_unknown_normative_row_is_red() -> None:
 
 
 def test_case_reference_is_stable_when_only_output_columns_change() -> None:
-    """出力7列の変更では入力座標によるcase参照が変わらない。"""
+    """入力座標を保った複数出力列の変更でcase参照が変わらない。"""
     contract = _minimal_contract()
     row = contract["matrixRows"][0]
     row["countEffect"] = {
@@ -645,11 +1053,6 @@ def test_case_reference_is_stable_when_only_output_columns_change() -> None:
     }
     row["plateAppearanceEnded"] = True
     row["batterDestination"] = {"kind": "reach", "base": 1}
-    row["runnerDefaultAdvance"] = {
-        "first": {"modality": "optional", "destination": 2},
-        "second": {"modality": "optional", "destination": 3},
-        "third": {"modality": "optional", "destination": 4},
-    }
     row["outEffect"] = {"count": 0, "targets": []}
     row["statFlags"]["安打"] = True
     row["remarks"] = "出力列を更新"
@@ -661,9 +1064,11 @@ def test_input_coordinate_comparison_uses_canonical_object_order() -> None:
     """JSON objectのキー順が違っても同じ入力座標へ解決する。"""
     contract = _minimal_contract()
     contract["cases"][0]["rowRef"]["coordinate"]["precondition"] = {
-        "value": 0,
-        "axisId": "state.outs",
-        "op": "eq",
+        "args": [
+            {"value": 0, "axisId": "state.outs", "op": "eq"},
+            {"value": "empty", "axisId": "state.runners", "op": "eq"},
+        ],
+        "op": "and",
     }
 
     _validate(contract)
@@ -804,14 +1209,369 @@ def test_stat_flags_are_exactly_the_twenty_three_boolean_keys() -> None:
         _validate(unknown)
 
 
-def test_matrix_cross_column_constraints_remain_deferred() -> None:
-    """単一列では妥当な列間不一致をステップ33より前に拒否しない。"""
+def _matrix_precondition(
+    *, outs: int | None = 0, runners: str | None = "empty"
+) -> dict[str, Any]:
+    """交差制約fixture用の事前状態Predicateを返す。"""
+    leaves: list[dict[str, Any]] = []
+    if outs is not None:
+        leaves.append({"op": "eq", "axisId": "state.outs", "value": outs})
+    if runners is not None:
+        leaves.append(
+            {"op": "eq", "axisId": "state.runners", "value": runners}
+        )
+    if len(leaves) == 1:
+        return leaves[0]
+    return {"op": "and", "args": leaves}
+
+
+def _set_precondition(contract: dict[str, Any], predicate: dict[str, Any]) -> None:
+    """matrixRows先頭行の前提とcase座標を同時に更新する。"""
+    contract["matrixRows"][0]["precondition"] = predicate
+    _sync_case_coordinate(contract, "matrixRows")
+
+
+def _set_runner_state(contract: dict[str, Any], runners: str) -> None:
+    """走者配置と各起点塁の存在に整合する既定進塁を設定する。"""
+    _set_precondition(contract, _matrix_precondition(runners=runners))
+    configuration, _ = _cross_constraint_configuration()
+    present_values_by_base = configuration["runnerPresence"][
+        "presentValuesByBase"
+    ]
+    for base, present_values in present_values_by_base.items():
+        modality = "hold" if runners in present_values else "not-applicable"
+        contract["matrixRows"][0]["runnerDefaultAdvance"][base] = {
+            "modality": modality,
+            "destination": None,
+        }
+
+
+def _set_runner_event(contract: dict[str, Any]) -> None:
+    """matrixRows先頭行を交差制約に適合する走者イベントへ変える。"""
+    row = contract["matrixRows"][0]
+    row["eventKind"] = "runner-event"
+    row["countEffect"] = {
+        "strikes": {"kind": "unchanged"},
+        "balls": {"kind": "unchanged"},
+    }
+    row["plateAppearanceEnded"] = "not-applicable"
+    row["batterDestination"] = {"kind": "not-applicable"}
+    _sync_case_coordinate(contract, "matrixRows")
+
+
+def _set_batter_out(contract: dict[str, Any]) -> None:
+    """matrixRows先頭行を打者アウトの整合した出力へ変える。"""
+    row = contract["matrixRows"][0]
+    row["countEffect"] = {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"},
+    }
+    row["plateAppearanceEnded"] = True
+    row["batterDestination"] = {"kind": "out"}
+    row["outEffect"] = {"count": 1, "targets": ["batter"]}
+
+
+def test_cross_constraint_declaration_has_twelve_rules_and_excludes_xc09() -> None:
+    """E-1の12制約だけを持ち、undo固有のXC-09を除外する。"""
+    configuration, rules = _cross_constraint_configuration()
+
+    assert len(rules) == 12
+    assert "XC-09" in configuration["excludedConstraintIds"]
+    assert "XC-09" not in {rule["constraintId"] for rule in rules}
+
+
+def test_xc01_runner_event_requires_not_applicable_batter_destination() -> None:
+    """XC-01: 走者イベントで打者行き先をcontinueにできない。"""
+    contract = _minimal_contract()
+    _set_runner_event(contract)
+    contract["matrixRows"][0]["batterDestination"] = {"kind": "continue"}
+
+    with pytest.raises(CrossConstraintError, match="XC-01"):
+        _validate(contract)
+
+
+def test_xc02_absent_runner_requires_not_applicable_advance() -> None:
+    """XC-02: 不在の一塁走者をholdにできない。"""
+    contract = _minimal_contract()
+    contract["matrixRows"][0]["runnerDefaultAdvance"]["first"] = {
+        "modality": "hold",
+        "destination": None,
+    }
+
+    with pytest.raises(CrossConstraintError, match="XC-02"):
+        _validate(contract)
+
+
+def test_xc02_runner_presence_must_be_decidable() -> None:
+    """XC-02共通判定: 走者存在を一意に射影できない述語を拒否する。"""
+    contract = _minimal_contract()
+    _set_precondition(contract, _matrix_precondition(runners=None))
+
+    with pytest.raises(CrossConstraintError, match="XC-02"):
+        _validate(contract)
+
+
+@pytest.mark.parametrize(
+    ("modality", "destination"),
+    [("hold", 2), ("forced", None)],
+)
+def test_xc03_advance_modality_and_destination_are_bidirectional(
+    modality: str, destination: int | None
+) -> None:
+    """XC-03: 停止/nullと進塁/非nullの双方向不一致を拒否する。"""
+    contract = _minimal_contract()
+    _set_runner_state(contract, "first")
+    contract["matrixRows"][0]["runnerDefaultAdvance"]["first"] = {
+        "modality": modality,
+        "destination": destination,
+    }
+
+    with pytest.raises(CrossConstraintError, match="XC-03"):
+        _validate(contract)
+
+
+def test_xc04_out_count_must_match_target_count() -> None:
+    """XC-04: アウト数と対象配列長の不一致を拒否する。"""
+    contract = _minimal_contract()
+    contract["matrixRows"][0]["outEffect"] = {"count": 2, "targets": []}
+
+    with pytest.raises(CrossConstraintError, match="XC-04"):
+        _validate(contract)
+
+
+def test_xc04_out_targets_must_be_unique() -> None:
+    """XC-04: 同じ打者を2回アウト対象にする行を拒否する。"""
+    contract = _minimal_contract()
+    _set_batter_out(contract)
+    contract["matrixRows"][0]["outEffect"] = {
+        "count": 2,
+        "targets": ["batter", "batter"],
+    }
+
+    with pytest.raises(CrossConstraintError, match="XC-04"):
+        _validate(contract)
+
+
+def test_xc05_runner_event_cannot_change_count() -> None:
+    """XC-05: 走者イベントによるストライク増分を拒否する。"""
+    contract = _minimal_contract()
+    _set_runner_event(contract)
+    contract["matrixRows"][0]["countEffect"]["strikes"] = {
+        "kind": "delta",
+        "value": 1,
+    }
+
+    with pytest.raises(CrossConstraintError, match="XC-05"):
+        _validate(contract)
+
+
+def test_xc06_batting_result_out_cannot_continue_plate_appearance() -> None:
+    """XC-06: batting-resultの打者アウトと打席継続の組合せを拒否する。"""
     contract = _minimal_contract()
     row = contract["matrixRows"][0]
-    row["outEffect"] = {"count": 2, "targets": ["batter"]}
-    row["runnerDefaultAdvance"]["third"] = {
-        "modality": "hold",
+    row["batterDestination"] = {"kind": "out"}
+    row["outEffect"] = {"count": 1, "targets": ["batter"]}
+
+    with pytest.raises(CrossConstraintError, match="XC-06"):
+        _validate(contract)
+
+
+def test_xc06_secondary_result_not_applicable_cannot_end_plate_appearance() -> None:
+    """XC-06: secondary-resultの行き先なしと打席終了の組合せを拒否する。"""
+    contract = _minimal_contract()
+    row = contract["matrixRows"][0]
+    row["eventKind"] = "secondary-result"
+    row["countEffect"] = {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"},
+    }
+    row["plateAppearanceEnded"] = True
+    row["batterDestination"] = {"kind": "not-applicable"}
+    _sync_case_coordinate(contract, "matrixRows")
+
+    with pytest.raises(CrossConstraintError, match="XC-06"):
+        _validate(contract)
+
+
+def test_xc06_batting_result_continuation_cannot_reset_count() -> None:
+    """XC-06: batting-resultの打席継続時のS/Bリセットを拒否する。"""
+    contract = _minimal_contract()
+    contract["matrixRows"][0]["countEffect"] = {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"},
+    }
+
+    with pytest.raises(CrossConstraintError, match="XC-06"):
+        _validate(contract)
+
+
+def test_xc06_secondary_result_cannot_use_score_destination() -> None:
+    """XC-06: eventKind別allowlist外のsecondary-result得点を拒否する。"""
+    contract = _minimal_contract()
+    row = contract["matrixRows"][0]
+    row["eventKind"] = "secondary-result"
+    row["countEffect"] = {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"},
+    }
+    row["plateAppearanceEnded"] = True
+    row["batterDestination"] = {"kind": "score"}
+    _sync_case_coordinate(contract, "matrixRows")
+
+    with pytest.raises(CrossConstraintError, match="XC-06"):
+        _validate(contract)
+
+
+def test_xc06_does_not_apply_to_runner_event() -> None:
+    """XC-06: 正しいrunner-eventは打席終了規則の対象外である。"""
+    contract = _minimal_contract()
+    _set_runner_event(contract)
+
+    _validate(contract)
+
+
+@pytest.mark.parametrize("plate_appearance_ended", [False, "not-applicable"])
+def test_xc07_event_and_not_applicable_are_bidirectional(
+    plate_appearance_ended: bool | str,
+) -> None:
+    """XC-07: runner-eventとのnot-applicable双方向不一致を拒否する。"""
+    contract = _minimal_contract()
+    if plate_appearance_ended is False:
+        _set_runner_event(contract)
+    contract["matrixRows"][0]["plateAppearanceEnded"] = plate_appearance_ended
+
+    with pytest.raises(CrossConstraintError, match="XC-07"):
+        _validate(contract)
+
+
+def test_xc08_third_base_runner_cannot_advance_to_second() -> None:
+    """XC-08: 三塁走者の二塁到達を拒否する。"""
+    contract = _minimal_contract()
+    _set_runner_state(contract, "third")
+    contract["matrixRows"][0]["runnerDefaultAdvance"]["third"] = {
+        "modality": "optional",
         "destination": 2,
     }
 
+    with pytest.raises(CrossConstraintError, match="XC-08"):
+        _validate(contract)
+
+
+def test_xc10_batter_out_requires_batter_target() -> None:
+    """XC-10: 打者アウトなのに対象に打者がない行を拒否する。"""
+    contract = _minimal_contract()
+    _set_batter_out(contract)
+    contract["matrixRows"][0]["outEffect"] = {"count": 0, "targets": []}
+
+    with pytest.raises(CrossConstraintError, match="XC-10"):
+        _validate(contract)
+
+
+def test_xc10_batter_target_requires_batter_out() -> None:
+    """XC-10: 打者がアウトでない走者イベントの打者対象を拒否する。"""
+    contract = _minimal_contract()
+    _set_runner_event(contract)
+    contract["matrixRows"][0]["outEffect"] = {
+        "count": 1,
+        "targets": ["batter"],
+    }
+
+    with pytest.raises(CrossConstraintError, match="XC-10"):
+        _validate(contract)
+
+
+def test_xc11_unique_prior_outs_use_their_maximum() -> None:
+    """XC-11: 二死から2アウトを加える行を拒否する。"""
+    contract = _minimal_contract()
+    _set_runner_state(contract, "first")
+    _set_precondition(contract, _matrix_precondition(outs=2, runners="first"))
+    _set_batter_out(contract)
+    contract["matrixRows"][0]["outEffect"] = {
+        "count": 2,
+        "targets": ["batter", {"runner": 1}],
+    }
+
+    with pytest.raises(CrossConstraintError, match="XC-11"):
+        _validate(contract)
+
+
+def test_xc11_range_predicate_uses_maximum_prior_outs() -> None:
+    """XC-11: 0または1アウトの述語を最大値1で判定する。"""
+    contract = _minimal_contract()
+    _set_runner_state(contract, "first-second")
+    _set_precondition(
+        contract,
+        {
+            "op": "and",
+            "args": [
+                {"op": "in", "axisId": "state.outs", "values": [0, 1]},
+                {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "first-second",
+                },
+            ],
+        },
+    )
+    _set_batter_out(contract)
+    contract["matrixRows"][0]["outEffect"] = {
+        "count": 3,
+        "targets": ["batter", {"runner": 1}, {"runner": 2}],
+    }
+
+    with pytest.raises(CrossConstraintError, match="XC-11"):
+        _validate(contract)
+
+
+def test_xc11_unconstrained_outs_use_legal_maximum_two() -> None:
+    """XC-11: outsを制約しない述語を合法値の最大2で判定する。"""
+    contract = _minimal_contract()
+    _set_runner_state(contract, "first")
+    _set_precondition(contract, _matrix_precondition(outs=None, runners="first"))
+    _set_batter_out(contract)
+    contract["matrixRows"][0]["outEffect"] = {
+        "count": 2,
+        "targets": ["batter", {"runner": 1}],
+    }
+
+    with pytest.raises(CrossConstraintError, match="XC-11"):
+        _validate(contract)
+
+
+def test_xc12_absent_runner_cannot_be_out_target() -> None:
+    """XC-12: 不在の一塁走者をアウト対象にできない。"""
+    contract = _minimal_contract()
+    _set_runner_event(contract)
+    contract["matrixRows"][0]["outEffect"] = {
+        "count": 1,
+        "targets": [{"runner": 1}],
+    }
+
+    with pytest.raises(CrossConstraintError, match="XC-12"):
+        _validate(contract)
+
+
+def test_xc13_cannot_be_declared_machine_guaranteed_before_stage2() -> None:
+    """XC-13: 導出表なしで機械保証済みとする宣言を拒否する。"""
+    schema = copy.deepcopy(_schema())
+    rule = next(
+        rule
+        for rule in schema["x-pitchlog-matrix-cross-constraints"]["rules"]
+        if rule["constraintId"] == "XC-13"
+    )
+    rule["machineGuarantee"] = "established"
+
+    with pytest.raises(CrossConstraintError, match="XC-13"):
+        _cross_constraint_configuration(schema)
+
+
+def test_xc13_stat_flag_row_derivation_is_explicitly_deferred() -> None:
+    """XC-13: statFlags反転を現段階で機械保証したとは扱わない。"""
+    contract = _minimal_contract()
+    contract["matrixRows"][0]["statFlags"]["安打"] = True
+
     _validate(contract)
+    _, rules = _cross_constraint_configuration()
+    rule = next(rule for rule in rules if rule["constraintId"] == "XC-13")
+    assert rule["enforcement"] == "deferred-stage-2"
+    assert rule["machineGuarantee"] == "not-established"
