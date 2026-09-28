@@ -5,7 +5,6 @@ from __future__ import annotations
 import ast
 import copy
 import hashlib
-import importlib.util
 import json
 import shutil
 import subprocess
@@ -17,9 +16,13 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+from test_census_baseline_check import (
+    REPOSITORY_ROOT,
+    SCRIPT,
+    _load_checker_from_revision,
+    checker,
+)
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = REPOSITORY_ROOT / "scripts" / "check_tenant_boundary_bypass.py"
 POSITIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "positive"
 NEGATIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "negative"
 PRODUCT_APPLICATION_PATHS = (
@@ -220,67 +223,6 @@ def omit_call_registration(self, node, environment):
 module._FlowProvenance._expression = omit_call_registration
 raise SystemExit(module.main(sys.argv[2:]))
 """
-
-
-def _load_checker_module(path: Path, module_name: str) -> ModuleType:
-    """検査器を指定した別モジュールとして読む。"""
-    spec = importlib.util.spec_from_file_location(
-        module_name,
-        path,
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def _load_checker() -> ModuleType:
-    """検査器をリポジトリの import 設定に依存せず読む。"""
-    return _load_checker_module(
-        SCRIPT,
-        "check_tenant_boundary_bypass_under_test",
-    )
-
-
-def _load_checker_from_revision(revision: str, destination: Path) -> ModuleType:
-    """VCS 上の検査器と同 revision の依存を別モジュールとして読む。"""
-    relative_script = SCRIPT.relative_to(REPOSITORY_ROOT).as_posix()
-    result = subprocess.run(
-        ["git", "show", f"{revision}:{relative_script}"],
-        cwd=REPOSITORY_ROOT,
-        check=True,
-        capture_output=True,
-    )
-    scripts_directory = destination.parent / f"{destination.stem}_scripts"
-    scripts_directory.mkdir()
-    extracted_checker = scripts_directory / SCRIPT.name
-    extracted_checker.write_bytes(result.stdout)
-    dependency = "scripts/frozen_history.py"
-    dependency_result = subprocess.run(
-        ["git", "show", f"{revision}:{dependency}"],
-        cwd=REPOSITORY_ROOT,
-        check=False,
-        capture_output=True,
-    )
-    if dependency_result.returncode == 0:
-        (scripts_directory / "frozen_history.py").write_bytes(
-            dependency_result.stdout
-        )
-    digest = hashlib.sha256(result.stdout).hexdigest()
-    previous_dependency = sys.modules.pop("frozen_history", None)
-    previous_path = list(sys.path)
-    try:
-        sys.path.insert(0, str(scripts_directory))
-        return _load_checker_module(
-            extracted_checker,
-            f"check_tenant_boundary_bypass_{digest}",
-        )
-    finally:
-        sys.path[:] = previous_path
-        sys.modules.pop("frozen_history", None)
-        if previous_dependency is not None:
-            sys.modules["frozen_history"] = previous_dependency
 
 
 def _develop_contract_root(destination: Path) -> Path:
@@ -978,7 +920,6 @@ def _call_coverage_sets(
     )
 
 
-checker = _load_checker()
 INVARIANT_CONTEXT = checker.frozen_history.EvaluationContext(
     checker.frozen_history.EvaluationMode.INVARIANT,
     None,

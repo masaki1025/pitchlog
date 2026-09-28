@@ -1546,7 +1546,7 @@
             "contract_revision:5"
           ],
           "contracts/tenant_boundary/census-baseline.json": [
-            "contract_revision:2"
+            "contract_revision:3"
           ],
           "contracts/tenant_boundary/db-api-inventory.json": [
             "inventory_revision:7"
@@ -1591,7 +1591,7 @@
           ]
         },
         "change": {
-          "subject": "census 固定比較元の資産側宣言と直接実行結線の受理",
+          "subject": "census 固定比較元の資産側宣言・直接実行結線・実装レビュー是正の受理",
           "aspect": [
             "asset_snapshots",
             "declaration",
@@ -2000,7 +2000,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:2"
+                    "contract_revision:3"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -2297,8 +2297,8 @@
               },
               {
                 "path": "tests/test_census_baseline_check.py",
-                "sha256": "299d52cb4384f8edb2512959463044bbe25323b312f1dbf98a9e0f5778f1df18",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/299d52cb4384f8edb2512959463044bbe25323b312f1dbf98a9e0f5778f1df18"
+                "sha256": "d7401c61e72e0246977420f7fd1945f59ab594dfb73a4574dd4936b220dc5d87",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d7401c61e72e0246977420f7fd1945f59ab594dfb73a4574dd4936b220dc5d87"
               }
             ],
             "asset_snapshots": [
@@ -2314,8 +2314,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "3040624de505d14abc30d391188487287030b277659485b5533d9d4f522073b2",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3040624de505d14abc30d391188487287030b277659485b5533d9d4f522073b2"
+                "sha256": "8abd366cd518560c67cc1a1229f56f941bc16aef8ebdca3aa14d7ca68330ce9e",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8abd366cd518560c67cc1a1229f56f941bc16aef8ebdca3aa14d7ca68330ce9e"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
@@ -2345,8 +2345,8 @@
             ]
           }
         },
-        "movement_fact": "census 基準の宣言資産を新設したこと(baseline_set)と、検査器の凍結資産一覧へ 1 行を加え .github/workflows/ci.yml へ census の直接実行を足したこと(pass_fail_mapping)により、8 資産すべての射影が動いた。",
-        "reason": "TSK-440 が入れたセンサス差分テストが比較元に可変参照 origin/develop を使っており、マージ後は比較元と HEAD が同一物になって差分が必ず空になるため、develop と、develop を取り込んだ全ブランチで harness が赤になっていた。設計書 7.7-1 は基準の直書きを禁じ機構としても実装済みであるため、census 基準を資産側へ新設して 7.7 の手続で置いた。承認の取得元: 2026-09-28 の Claude Code セッションでの人間の承認(承認値の確定を求めた選択に対する回答)。",
+        "movement_fact": "census 基準の宣言資産を新設し(baseline_set)、検査器の凍結資産一覧へ 1 行を加え .github/workflows/ci.yml へ census の直接実行を足し、実装の敵対レビューの是正として合否写像の照合キーと候補列挙の AST ノード型を改め、凍結対象である census の実装を変更した(baseline_value / pass_fail_mapping)ため、資産の射影が動いた。",
+        "reason": "TSK-440 が入れたセンサス差分テストが比較元に可変参照 origin/develop を使っており、マージ後は比較元と HEAD が同一物になって差分が必ず空になるため、develop と、develop を取り込んだ全ブランチで harness が赤になっていた。設計書 7.7-1 は基準の直書きを禁じ機構としても実装済みであるため、census 基準を資産側へ新設して 7.7 の手続で置いた。本記録は一度書いたのち、実装の敵対レビューの是正(凍結外への依存の遮断、合否写像の照合キーへの symbol 追加と接頭辞関係の導入、候補列挙の AST ノード型の 8 種化)により内容が変わったため書き直している。機構は 1 受理 1 記録を強制するので追記では表現できない。前版の snapshot 2 件は参照を失って残る。承認の取得元: 2026-09-28 の Claude Code セッションでの人間の承認(実装レビューの是正案に対する承認)。",
         "approved_by": "山田正輝",
         "approved_on": "2026-09-28"
       }

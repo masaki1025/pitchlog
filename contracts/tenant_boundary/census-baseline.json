@@ -1,11 +1,11 @@
 {
-  "contract_revision": 2,
+  "contract_revision": 3,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:2"
+        "contract_revision:3"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -114,6 +114,10 @@
           "line",
           "code"
         ],
+        "symbol_match": {
+          "field": "symbol",
+          "relation": "either_is_prefix"
+        },
         "required_current_code": "TB002"
       },
       {
@@ -128,7 +132,16 @@
         "forbidden_derivation_source": "candidate_checker_census",
         "candidate_enumeration": {
           "source_glob": "*.py",
-          "ast_node_type": "Name",
+          "ast_node_type": [
+            "Name",
+            "Attribute",
+            "arg",
+            "keyword",
+            "MatchAs",
+            "MatchClass",
+            "MatchMapping",
+            "MatchStar"
+          ],
           "current_contract_projection": "syntax_identifier",
           "anchor_contract_projection": "resolved_symbol",
           "identity_symbol_projection": "resolved_symbol",
@@ -177,6 +190,8 @@
     "pass_fail_mapping.predicates[].adjudication_match",
     "pass_fail_mapping.predicates[].current_set",
     "pass_fail_mapping.predicates[].match_fields",
+    "pass_fail_mapping.predicates[].symbol_match.field",
+    "pass_fail_mapping.predicates[].symbol_match.relation",
     "pass_fail_mapping.predicates[].required_current_code",
     "pass_fail_mapping.predicates[].relation",
     "pass_fail_mapping.predicates[].candidate_source",
