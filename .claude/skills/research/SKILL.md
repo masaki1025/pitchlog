@@ -5,7 +5,7 @@ argument-hint: "<調査したいこと>"
 
 # Web 調査の Codex 委任(設計書 9.2 / ADR-001)
 
-実行はラッパー経由のみ(read-only + `web_search="live"` + terra high をラッパーが固定。コア領域に関わる深い技術検証は `--deep` で sol xhigh)。
+実行はラッパー経由のみ(read-only + `web_search="live"`。モデル・effort は ADR-001「決定」節の「Web 調査」行をラッパーが固定。コア領域に関わる深い技術検証は `--deep` — 同「Web 調査(深い技術検証 `--deep`)」行)。
 
 ```bash
 python .claude/scripts/codex_run.py research - <<'EOF'
