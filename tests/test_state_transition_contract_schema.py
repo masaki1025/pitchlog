@@ -2030,13 +2030,12 @@ def test_repository_contract_step51_to_step55_rows_satisfy_constraints() -> None
     assert "official-scorer-judgment-input-contract" in stage2["requiredArtifacts"]
 
 
-def test_repository_contract_records_step55_review_as_not_performed() -> None:
-    """凡打系3行の未実施の独立確認を装わない。"""
+def test_repository_contract_records_completed_step55_independent_review() -> None:
+    """凡打系3行の独立確認の記録内容と機械検査結果を固定する。"""
     provenance = _repository_contract()["provenance"]
 
     assert provenance["authorId"] == "codex"
-    assert provenance["independentVerifierId"] == "not-performed"
-    assert "independentReview" not in provenance
+    assert provenance["independentVerifierId"] == "山田正輝"
     assert {source["sourceId"] for source in provenance["sources"]}.issuperset(
         {
             "req:E-1",
@@ -2045,20 +2044,42 @@ def test_repository_contract_records_step55_review_as_not_performed() -> None:
             "docs/legacy/research/input-screen.md:163",
         }
     )
-    assert provenance["attestations"] == [
-        {"attestationId": "direct-source-clause-review", "response": False},
-        {"attestationId": "author-work-exposure", "response": "not-performed"},
-        {"attestationId": "source-support-judgment", "response": False},
+    independent_review = provenance["independentReview"]
+    assert independent_review["verifiedOn"] == "2026-09-30"
+    assert independent_review["reviewerRole"] == "PO"
+    assert independent_review["authorWorkExposure"] == "seen-before-source-review"
+    assert [event["sequence"] for event in independent_review["chronology"]] == [
+        1,
+        2,
+        3,
+        4,
     ]
-    with pytest.raises(
-        provenance_checker.ProvenanceCheckError,
-        match="宣誓応答が充足値でない",
-    ):
-        provenance_checker.validate_provenance(
-            REPOSITORY_ROOT,
-            provenance,
-            schema_value=_schema(),
-        )
+    assert [event["actorId"] for event in independent_review["chronology"]] == [
+        "codex",
+        "Claude",
+        "山田正輝",
+        "山田正輝",
+    ]
+    assert "見た後" in independent_review["chronology"][2]["activity"]
+    assert "独立確認者自身による典拠確認ではない" in independent_review[
+        "chronology"
+    ][1]["activity"]
+    findings = independent_review["findings"]
+    assert any("outsカテゴリ" in finding and "missカテゴリ" in finding for finding in findings)
+    assert any("安打に算入せず" in finding and "打数" in finding for finding in findings)
+    assert any("入力経路変更を避ける" in finding for finding in findings)
+    assert any("計算のふるまいを変更しない" in finding for finding in findings)
+    assert any("段階2" in finding for finding in findings)
+    assert provenance["attestations"] == [
+        {"attestationId": "direct-source-clause-review", "response": True},
+        {"attestationId": "author-work-exposure", "response": "seen-and-recorded"},
+        {"attestationId": "source-support-judgment", "response": True},
+    ]
+    provenance_checker.validate_provenance(
+        REPOSITORY_ROOT,
+        provenance,
+        schema_value=_schema(),
+    )
 
 
 def test_step53_four_ball_results_use_identity_partition_without_gap() -> None:
