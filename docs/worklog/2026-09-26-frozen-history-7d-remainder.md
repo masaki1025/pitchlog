@@ -301,3 +301,71 @@ feature_status.py                                段階: PR 段階(OPEN)・計�
 - **TSK-443 の計画**が「ファイルを残す形」を採れば、448 / 452 を待たずに PR B が進む
 - **`base-allowlist.json` の履歴が直列化点**である。**440 → 442 → 448 → 443** の順で記録が並び、後から出す側は develop を取り込んで記録を作り直す(作り直すたびに孤児が増えるので、448 の新規孤児ゼロが入るまでは手戻りが残る)
 - **台帳(`harness-evaluation.md`)への追記は 440 のマージ後**に行う(同一ファイルの衝突を避ける)
+
+---
+
+## 2026-09-30 — develop(`33afd352`)の取り込み
+
+**PR #85(ハーネスのモデル世代更新)と PR #86(センサス基準の再固定)を取り込んだ。** マージコミット `51557bb7`。競合 11 件。
+
+### 計画の改訂(承認: 山田正輝 2026-09-29)
+
+**#86 が `contracts/tenant_boundary/census-baseline.json` を追加し、凍結資産が 7 件 → 8 件になった。** 計画書の「7 資産」を「凍結資産の全件(現行 8 件)」へ改め、8 資産すべてへ `scripts/frozen_archive.py` を宣言した。
+
+**射程の拡大ではなく develop への追随**と整理した。受理記録が 8 資産を覆うことは選択の余地がない — `_asset_projection_snapshots` へ渡る資産集合は**ディレクトリ走査**で作られる(`frozen_history.py:438-447`)ので、宣言の有無にかかわらず `census-baseline.json` は記録へ入る。**残っていた選択は「宣言を 8 資産で揃えるか」だけで、揃える側を採った。**
+
+### 比較元の再固定
+
+`1a4041018c0b…` → `33afd352b778…`。design.md 6-2 の規則(比較元は「動かす前の自分」を作る**道具**なので、develop を取り込むたびに再固定する)の適用。
+
+**ancestry で検証した**: `1a404101` は develop 上の PR #80 マージコミットで「本ブランチが develop を取り込んだ直近の点」。同じ規則で新しい取り込み点は `33afd352`。
+
+**再実測(11 ケース・両版の実 CLI を PR 受理モードで)**:
+
+```
+前版 red → 新版 green     0 件
+前版 green → 新版 red     {4, 5, 6, 7, 11}   ← 従来の期待値と変わらず
+```
+
+**比較元が #86 を含む版に変わっても、archive 判定の合否集合は動かなかった。**
+
+### 未参照 snapshot 8 件の除去
+
+**#83 自身の中間コミットが作ったもので、新しい比較元に 1 件も存在しない。** design.md 1-4 が明示的に許している(「PR 中間コミットで作った不要な snapshot は最終 HEAD から除去できる」)。
+
+**機械照合**: develop の snapshot 70 件と削除 8 件の積集合 = **0 件**。比較元の snapshot は 1 件も変更・削除していない。
+
+### 実測値
+
+| | 値 |
+| --- | --- |
+| 識別値(資産順) | base:18 / cache:6 / census:5 / inventory:8 / negative:10 / repository:7 / runtime:6 / tenant-context:9 |
+| snapshot(比較元) | 70 件・2,479,373 バイト・孤児 33 件 |
+| snapshot(HEAD) | 80 件・2,813,550 バイト・孤児 33 件 |
+| 増分 | 10 件・334,177 バイト・**孤児増加 0 件** |
+| 閾値の残余 | 420 件 / 30,740,882 バイト |
+| `inventory.sha256` | `f21db5ea8e472a650e770d263e6f551af0dcdee87768f9a629a1eae5f80b74d6` |
+| `corpus_inputs.digest` | `46a60d6b65044f595486301e4a70985819c09fc4f0ede62071d8a44085b0e917` |
+
+### ゲート
+
+| | 結果 |
+| --- | --- |
+| ルート `uv run pytest tests/` | **2,093 passed / 1 failed → コミット後に green** |
+| ルート `ruff check` / `ty check` | 0 / 0 |
+| backend `ruff check` / `ty check` | 0 / 0 |
+| backend `uv run pytest` | 581 passed / **211 error(環境要因)** |
+| `check_tenant_boundary_bypass.py` | exit 0 |
+| `frozen_history.py` の develop 差分 | **0 行**(不変条件) |
+
+**マージ確定前の 1 件の failure は `test_propagation_checker_and_claude_files_are_unchanged`。** このテストは `git diff --name-only HEAD -- .claude/` が空であることを要求しており、**マージ未確定のあいだは develop 側(#85)の `.claude/` 変更 10 件が差分として見える**。**その 10 件が develop 由来だけで 448 自身の変更を含まないことを照合したうえでコミットし、再実行で green を確認した。**
+
+**backend の 211 error は開発 DB に `pitchlog_test_role` が残留していることが原因**(`backend/tests/db_fixtures.py:318`)。**`origin/develop` の作業木でも同一の失敗が再現する**ので本 PR の変更が原因ではない。開発 DB は他セッションと共有のため、ロール削除のタイミングは人間が決める。
+
+### 解消した阻害要因
+
+**旧記載の「`test_checker_census_matches_merge_base` が develop 単体でも落ちる。`fix/census-baseline-pin` が入るまで本 PR はマージできない」は解消した** — 当該 PR は **#86** としてマージ済み。
+
+### 副産物
+
+**pytest フィクスチャ `disposable_postgres_cluster` が Docker 匿名ボリュームを回収しない問題を `TSK-465` として起票した**(2026-09-29)。C: ドライブ満杯(空き 2.1GB)の原因で、暫定対処として `docker volume prune` と `ext4.vhdx` の compact を実施済み(空き 612GB へ回復)。**フィクスチャ自体は未修正。**
