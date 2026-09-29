@@ -1,7 +1,7 @@
 ---
 feature: domain-calc-dsl
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 済(2026-09-16・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-09-16・山田正輝 / 計画改訂〔§4-16 凍結基準の資産化〕の再承認 2026-09-29・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域          # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3c193b75e687816f9e27f4cfc7337c4f
@@ -128,6 +128,7 @@ created: 2026-09-01
 13. **(b)③ 構成の完全性 — 不変条件 4 つ**(frontend 閉域 / backend 閉域と実行時制限 / **表外既定の表示対応の突合** / 実在入口の全列挙)(design.md §10)
 14. **CI 配線**と**検査スコープの穴埋め**(design.md §14)
 15. **`core-guard` の基線機構**と **`core-areas.json` への登録**・文書の追随(design.md §11)
+16. **本タスクのテストが直書きしている凍結基準の資産化**(設計書 7.7-1)— 下記 §4-16。**2026-09-29 の計画改訂**
 
 ### やらないこと
 
@@ -277,6 +278,70 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 > (`--ignore=tests/db` で切り分けて実測済み)。**DB 依存分の実測は CI の `services: postgres`
 > 側で得る**(ステップ 53)。
 
+### 4-16. テストが直書きしている凍結基準を資産へ移す(2026-09-29 追加)
+
+**なぜ計画を改訂するか。** 本タスクの分岐後に develop へ `scripts/check_frozen_baselines.py`
+の走査が入り(TSK-419 系)、**本タスクが書いたテストの直書き値を検出する**ようになった。
+`harness` は必須チェックなので、**この是正なしに本 PR はマージできない**。
+別タスクへ切り出しても本 PR の待ち時間は変わらないため、本タスクの範囲へ含める。
+
+**実測(2026-09-29)**: `GITHUB_EVENT_NAME=push uv run python scripts/check_frozen_baselines.py --ci`
+が **exit 1**。指摘は 5 件。
+
+| 値 | 位置 | 正体 | 扱い |
+| --- | --- | --- | --- |
+| `50501ebe…` | `tests/domain/test_boot_seal.py:22` | `BASE_COMMIT` | **資産へ移す** |
+| `aab80b11…` | `tests/test_ci_wiring.py:2894` `:3069` | 発効証跡の `headSha` の期待値 | **資産へ移す** |
+| `a7849e1b…` | `tests/test_plan_generation.py:33` | `PB_FALSE_BASE_COMMIT` | **資産へ移す** |
+| `400d36bd…` | `tests/test_plan_generation.py:39` | `blobDigest` | **資産へ移す** |
+| `ea165f8d…` | `tests/test_ci_wiring.py:133` | `actions/upload-artifact` の**版ピン** | **`ci.yml` から読む** |
+
+**最後の 1 件だけ性質が違う。** Actions の版ピンは凍結基準ではなく、
+むしろ固定しておくべき供給網対策の値である。正は `.github/workflows/ci.yml` にあり、
+テストはそれを**写経している**。テスト側が `ci.yml` から読む形にすれば、
+単一の正になり、走査にも当たらなくなる。
+
+**allow-list への追加は機構が禁じている**(`scripts/check_frozen_baselines.py` の
+`allow-list通常規則: エントリ追加は禁止`)。逃げ道は無い。
+
+#### 置き方
+
+**走査は `rglob("*.py")` で Python だけを見る**(`check_frozen_baselines.py:1633` — 実測)。
+したがって **JSON の契約資産へ置けば走査に当たらない**。TSK-460 が
+`contracts/tenant_boundary/census-baseline.json` で通した経路をそのまま使う。
+
+**新設**: `contracts/domain_calc/frozen-inputs.json`
+
+- 4 つの基準値を宣言する。**それぞれ何の基準か・どこから来たかを併記する**
+- `baseline_control` を持ち、`identity`(`contract_revision`)/ `movement_policy` /
+  `history` / `history_authority` を宣言する
+- **`history_authority: false`** とし、受理記録は既存の権威資産へ置く
+  (`frozen_history.py:493` が非権威資産の履歴を拒否するため)
+- `external_files` に**参照する 3 つのテスト**を含める。どれを変えても射影が動く
+
+**テスト側**は資産から読む。**値をテスト本文へ再掲しない。**
+
+#### 落ちてはいけないもの
+
+| 落ちてはいけないもの | 守り方 |
+| --- | --- |
+| `headSha` の突合が空振りにならないこと | **証跡側の `headSha` を期待値として読み直さない**。資産から読む。両者が一致することを検査するのが目的である |
+| 版ピンの検査が消えないこと | `ci.yml` から読んだ値で**当該ステップの存在と `with` を検査する**。読むだけにして検査を落とさない |
+| 基準を黙って動かせないこと | 資産の `baseline_control` により、値を変えると射影が動き**受理記録が要る** |
+| 走査が再び素通りしないこと | 是正後に `--ci` が exit 0 になることを機械で確認する |
+
+#### 追加ステップ表(steps.json へ追加し、表を再生成する)
+
+| # | 内容 | 合格条件 |
+| --- | --- | --- |
+| 58 | **`contracts/domain_calc/frozen-inputs.json` の新設**(4 値 + `baseline_control`) | `[機械]` 資産の schema 検査が通る・`history: []`・`history_authority: false` |
+| 59 | **3 テストを資産参照へ改める**と、版ピンを `ci.yml` から読む形へ改める | `[機械]` `--ci` が **exit 0**・3 テストが緑・**版ピンの検査が残っていること**(変異で確認) |
+| 60 | **凍結基準の受理**(権威資産へ 1 件・snapshot 追記) | `[機械]` `check_tenant_boundary_bypass.py` が exit 0・記録は 1 件 |
+
+**ステップ表と `steps.json` の 1 対 1 は §5-3 が機械検査する。**
+`steps.json` を正として `steps.py` で再生成すること。
+
+
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
 > **◎ 2026-09-16 第 4 次再構成**(**計画レビュー 6 周目 = 承認不可**を受けた反映)。**55 → 56 ステップ。**
@@ -353,7 +418,7 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 | --- | --- | --- |
 | 1 | **配置と DSL 記述形式の確定**(design.md §1)。D-1 v0.2 の **3 類**と `NumericValue`(3 形 + nullable)/ `DisplayAtom`(不透明型)/ 供給源 3 経路を閉じた語彙の schema に。**(β) formatter の言語・配置を確定**。**トリガー 1・2・13 を評価**(**トリガー 1 の評価期限はステップ 30** — 問う 5 項目のうち本ステップで確定するのは型語彙のみで、履歴スタック = 6 / 語彙 snapshot = 1・13 / スコアボード全欄 = 47 / 規則配列〔有限の reducer〕= 26 に分かれる。**「型語彙で表現できるか」が答えられるのは宣言モデルの閉包を導出するステップ 13** — 2026-09-18 の精査) | `[機械]` 語彙 schema の **exact-set**(3 類・型 3 形・供給源 3 経路)/ **◎ 付録 A の書式 binding の母集合を、数え方の規則とともに資産へ定義する**(**複合行〔`最速・平均球速` / `勝 / 敗 / 分` / `得点 / 失点` / `イニング別得点・失点` の 4 件〕を分解するか否かを明示し、その規則で数えた件数を `assert` する** — **独立導出**。**research.md §6-11 の「全 36 件」は §7-5 で失効させた** — **要件書に件数の記載は無く、本セッションの計測は 32 行で一致しなかった**)/ **単位パラメータが存在しない** / 差分が **パス allowlist** に収まる **◎ 妥当な DSL 入力が実際に受理される**(**正例 B** — すべてを拒否する schema を排除する。**6 周目 `P1` の是正**: ステップ 7 と同じ理由で、語彙 schema も**入力を受理・拒否する機構**である)/ `[手動]` **トリガー 1・2・13 の該当性判定**(判定者: 山田正輝)。**発火なら design.md §12-2 で停止** |
 | 2 | **機械条件の判定方法の型**(design.md §2)。既存 5 型 + 本タスクの **7 型**を資産化し、以降の全ステップの `[機械]` 条件をこの型に紐づける | `[機械]` **行番号参照 0 件** / 各型に**正例と負例が 1 つ以上**ある / 型に紐づかない `[機械]` 条件が 0 件 |
-| 3 | **依拠条項台帳**(トリガー 16)。**全 57 ステップの「依拠する正本の条項 ID」**と、**`requiresPositiveB`** を資産化する | `[機械]` **文言存在**(依拠条項の逐語が正本に実在。**1 件でも不在なら fail**)/ **行番号参照 0 件** / **57 ステップすべてに行がある**(**母集合計測**)/ **`requiresPositiveB` が全行にある** / **本台帳自身も依拠条項を宣言している**(自己適用 — design.md §16-12) |
+| 3 | **依拠条項台帳**(トリガー 16)。**全 60 ステップの「依拠する正本の条項 ID」**と、**`requiresPositiveB`** を資産化する | `[機械]` **文言存在**(依拠条項の逐語が正本に実在。**1 件でも不在なら fail**)/ **行番号参照 0 件** / **60 ステップすべてに行がある**(**母集合計測**)/ **`requiresPositiveB` が全行にある** / **本台帳自身も依拠条項を宣言している**(自己適用 — design.md §16-12) |
 | 4 | **見直しトリガーの評価レコードの形式と定義**(design.md §12-1)。**16 件それぞれに `evaluationMethod`・判定者・証拠資産の置き場・発火値**を宣言する。**評価結果は各評価ステップが追記する** — **本ステップでは評価しない**(**5 周目 `P1` の是正**: 旧版は本ステップで 16 件すべての評価済みと 証拠資産の実在を要求していたが、トリガー 5・8・12・15 の証拠はステップ 30 以降・最遅 49 で作られるため **本ステップのコミット時点では合格不能**だった) | `[機械]` **母集合計測**(16 件すべてに**枠**がある)/ **`evaluationMethod` が design.md §2 の 12 型のいずれかを指す**(**集合差**)/ **判定者が PO 以外なら fail**(**文言存在**)/ **証拠資産の置き場が宣言されている**(**この時点での実在は要求しない**)/ **評価するステップ番号が実在するステップを指す**(**集合差** — 番号の陳腐化を機械検出する)/ **評価結果の欄が空であることを許す** |
 | 5 | **停止ゲート**(design.md §12-3)。**発火レコードがあれば後続ステップの実行を拒否する**。**未評価は停止対象にしない** — **評価期限(当該トリガーの評価ステップ)を過ぎた未評価のみを対象とする** | `[機械]` **発火レコードが 1 件でもあれば後続が exit 2 で拒否される**(**exit コード分離**)/ **評価期限前の未評価では拒否しない**(**5 周目 `P1` の是正**)/ **期限を過ぎた未評価は拒否する**(fail-closed)/ **◎ 発火レコードが 0 件なら後続が実際に通る**(**正例 B** — 常に exit 2 を返す実装を排除する) |
 
@@ -471,7 +536,7 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 | --- | --- | --- |
 | 49 | **変異コストの拘束実測**。ステップ 30 の合成生成物・全 runner・**4 系統の演算子**で **mutant 数 × スイート再実行時間**を実測。**トリガー 5・12 を評価** | `[機械]` 生ログ・コマンド・commit SHA・runner・mutant 分類が schema 化されて記録 / **◎ 実測レコードが実際に生成され、10 分 / 30 分以内なら通る**(**正例 B**)`[手動]` **上限判定**(判定者: 山田正輝)。**超過なら design.md §12-2 で停止し ADR 改訂ゲートへ** |
 | 50 | **見直しトリガー 16 件の評価完了検査**(**5 周目 `P1` の是正** — ステップ 4 から分離した後段)。**全 16 件に評価結果があり、未評価が 0 件**であることを検査する。**証拠資産の実在もここで要求する** | `[機械]` **16 件すべてに評価結果がある**(**母集合計測**。未評価 1 件でも fail)/ **`[手動]` 9 件の証拠資産のパスが実在する**(**パス allowlist** + 実在検査)/ **発火レコードがあれば本ステップより後をすべて拒否する**(ステップ 5 と同じ機構を再適用)/ **◎ 全件が非発火で評価済みなら実際に通る**(**正例 B**) |
-| 51 | **計画書と生成元の構造検査**(**5 周目 `P0` の是正** — §5-3 の 8 検査のうち 5 件に実装ステップが無かった。**3 周目 `P0-7` の 3 回目**)。**`steps.py` の出力と plan.md §4・§5-1 の本体を完全比較し、表の構造を検査する**。**履歴と `command` の監査はステップ 52**(**6 周目 `P1` の是正**: 一致比較・全射単射・履歴時点の実在・57 件の `command` 実行・自己整合負例を 1 コミットに集約しており、**しかも本ステップ自身の `command` を全件実行すると自己再帰する**構成だった) | `[機械]` **`emit_steps()` / `emit_dod()` の出力が plan.md の当該範囲と完全一致**(1 文字でも違えば fail)/ **全射**(ステップ表の 1〜57 がすべて DoD 表に現れる — **集合差**)/ **単射**(各 `stepId` が 1 回だけ — **母集合計測**)/ **§5-3 の「実装ステップ」列に空欄が無い**(**母集合計測**)/ **`steps.py check()` が総数・群 ID の一意性と昇順・`S[].g` と群範囲の突合・見出し範囲の存在と一致・`PB_FALSE` の exact-set を検査する** / **`PB_FALSE` が封印されており、集合とフラグの同時変更が fail する**(ステップ 9 の封印機構を流用 — **6 周目 `P1`: `PB_FALSE` へ足せば正例 B を免れる経路を塞ぐ**)/ **◎ `scripts/feature_status.py` が全 57 ステップを正しく読める**(**§16-14** — **群見出しを `####` にすると表が分断される**。**文書を読む機構を実際に走らせて確認する**)/ **◎ 一致しているとき実際に通る**(**正例 B**)/ **負例 7 種が個別に fail**(末尾 1 件を落とす / 群を誤配置する / 群 ID を重複・逆順にする / 見出し範囲を解析不能な表記へ変える / `pb` を両方 false へ倒す / `pb` と `PB_FALSE` を同時に書き換える / **群見出しを `####` にして表を分断する**) |
+| 51 | **計画書と生成元の構造検査**(**5 周目 `P0` の是正** — §5-3 の 8 検査のうち 5 件に実装ステップが無かった。**3 周目 `P0-7` の 3 回目**)。**`steps.py` の出力と plan.md §4・§5-1 の本体を完全比較し、表の構造を検査する**。**履歴と `command` の監査はステップ 52**(**6 周目 `P1` の是正**: 一致比較・全射単射・履歴時点の実在・60 件の `command` 実行・自己整合負例を 1 コミットに集約しており、**しかも本ステップ自身の `command` を全件実行すると自己再帰する**構成だった) | `[機械]` **`emit_steps()` / `emit_dod()` の出力が plan.md の当該範囲と完全一致**(1 文字でも違えば fail)/ **全射**(ステップ表の 1〜60 がすべて DoD 表に現れる — **集合差**)/ **単射**(各 `stepId` が 1 回だけ — **母集合計測**)/ **§5-3 の「実装ステップ」列に空欄が無い**(**母集合計測**)/ **`steps.py check()` が総数・群 ID の一意性と昇順・`S[].g` と群範囲の突合・見出し範囲の存在と一致・`PB_FALSE` の exact-set を検査する** / **`PB_FALSE` が封印されており、集合とフラグの同時変更が fail する**(ステップ 9 の封印機構を流用 — **6 周目 `P1`: `PB_FALSE` へ足せば正例 B を免れる経路を塞ぐ**)/ **◎ `scripts/feature_status.py` が全 60 ステップを正しく読める**(**§16-14** — **群見出しを `####` にすると表が分断される**。**文書を読む機構を実際に走らせて確認する**)/ **◎ 一致しているとき実際に通る**(**正例 B**)/ **負例 7 種が個別に fail**(末尾 1 件を落とす / 群を誤配置する / 群 ID を重複・逆順にする / 見出し範囲を解析不能な表記へ変える / `pb` を両方 false へ倒す / `pb` と `PB_FALSE` を同時に書き換える / **群見出しを `####` にして表を分断する**) |
 | 52 | **履歴と `command` の監査**(**6 周目 `P1` の是正** — ステップ 51 から分離)。**各ステップのコミットを履歴から検査し、当該ステップ完了時点で `artifact` が実在したこと**と、**`command` が実際に実行され終了コード 0 だったこと**を確認する | `[機械]` **`artifact` の実在を履歴時点で検査する**(**現在木では「当該ステップ完了時点の実在」を証明できない** — **`history_precedes` と同じく履歴を見る**)/ **各 `command` の `cwd`・期待 exit=0 を資産に持つ**(**パス allowlist**)/ **`command` の重複が無い**かつ **`artifact` の重複が無い**(**母集合計測**)/ **◎ 本ステップ自身の `command` は他ステップの `command` 実行から除外する**(**自己再帰の禁止**。**除外が実装に存在することの静的検査**)/ **◎ 全 `command` が exit 0 で完了したとき実際に通る**(**正例 B**)/ **負例 3 種**(履歴時点で不在の `artifact` / exit 非 0 の `command` / 自己再帰を許す実装)**が個別に fail** |
 | 53 | **CI ジョブの新設と配線**(design.md §14・§4-6)。`consistency` + 変異ジョブ(別ジョブ)の新設。**§14 の所有ジョブ分離**。**両ジョブに `timeout-minutes`**。**DB を使うジョブへ `services: postgres`**。**第 4 群 9 ステップの資産を `consistency` へ配線** | `[機械]` `tests/test_ci_wiring.py` の YAML 契約木の**全葉変異で escape 0** かつ **母集合計測** / **全葉変異の母集団を新設ジョブまで一般化** / **DB を使う全ジョブで image が 3 者一致** / **新設ジョブに `services: postgres` を書き忘れると red** / `services` を持たないジョブが DB テストを呼んでいない / **◎ `backend/tests/` を DB なしで回すジョブを作らない**(**`backend/tests/db/conftest.py` の `pytest_sessionfinish` は「通常の全件実行で DB テストが 0 件なら失敗にする」** — **`backend/tests/db/` を収集対象に含む実行でのみ有効**。**§14-1〔`services: postgres` の書き忘れ〕と同型の暗黙結合**。research.md §7-4) / **同一テストが二重実行されない** / **第 4 群 9 ステップの資産がすべて `consistency` の実行対象に含まれる**(**集合差** — 1 件でも外れたら fail)/ **◎ ステップ 51・52 のテストが PR 必須ジョブ ちょうど 1 件から実行される**(**集合差**。**6 周目 `P1` の是正**: 旧版は第 4 群だけを配線対象にしており、**計画書の整合検査がローカルだけで終わる構成を排除できなかった**)/ **◎ 新設ジョブが実際に実行され緑になる**(**正例 B**) |
 | 54 | **依存・lock・`ty` の対象・coverage**。`ty` の `include` / `testpaths` / package-data + 依存と lock + **`backend/.coverage` の index 除去** | `[機械]` **`domaincheck` / `domaingen` / `domainmut` が `ty check` の対象**(**`src` 配下なので既存の `include = ["src","tests"]` で自動的に入る** — **`backend/domain/` は JSON なので `ty` の対象ではない**。research.md §7-4) / **`uv sync --locked` が通る**(`TSK-343` の 3 assert を通したまま再生成)/ **`backend/.coverage` が index から消え、再生成後も untracked** / **規範資産をリポジトリルート相対パスで読む**(**既存の前例 = `backend/src/pitchlog/authz/ddl.py` が `contracts/authz/ddl-elements.json` を同方式で読む**。**この方式なら `package-data` も `MANIFEST.in` も不要** — research.md §7-4)/ **実 wheel に含まれるファイル一覧のテスト** / **◎ `uv sync --locked` と `ty check` が実際に通る**(**正例 B**) |
@@ -484,25 +549,33 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 | 56 | **`core-guard` の基線機構**(design.md §11-1・§11-2)。`EXPECTED_AREA_PATHS` を**二層方式**(据え置き / 追加分・**領域ごとに分ける**)へ改め、**base 側 commit アンカーに一本化**して基線を外部化 | `[機械]` **比較元が PR head ではなく変更不能な merge-base の blob である** / **他 3 領域は据え置き層から導出され、テスト内リテラルの書き換えだけでは green にならない** / 追加層に無い変更が fail / **JSON と期待値を同一コミットで書き換える型が fail する**負例 / **JSON・期待値・アンカーの 3 点を同時変更しても fail する**履歴 fixture / **◎ 据え置き層と追加層に正しく登録された変更が実際に通る**(**正例 B**) |
 | 57 | **`core-areas.json` の登録**。**`game-state` と `data-migration` の両方**へ該当パスを **glob で**追加(完全列挙にしない — design.md §11-5) | `[機械]` **JSON の両 area 配列に該当 glob が含まれる** / **後から足したファイルが glob に覆われる**ことを負例で示す(**集合差**)/ **他 3 領域は据え置き層のまま** / 新規各パスの変更で core-guard が発火 / **◎ 登録対象外のパスの変更では発火しない**(**正例 B** — 全変更を発火させる実装を排除する) `[手動]` **敵対レビュー + 人間承認(PR 作成者以外の逐行確認)** — 設計書 6.3-⑤ |
 
+**第 12 群 — 凍結基準の資産化と受理(58〜60)**
+
+| # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
+| --- | --- | --- |
+| 58 | **`contracts/domain_calc/frozen-inputs.json` の新設**(4 値 + `baseline_control`) | `[機械]` 資産の schema 検査が通る・`history: []`・`history_authority: false` / **◎ 妥当な資産が schema 検査を通る**(**正例 B**) |
+| 59 | **3 テストを資産参照へ改める**と、版ピンを `ci.yml` から読む形へ改める | `[機械]` `--ci` が **exit 0**・3 テストが緑・**版ピンの検査が残っていること**(変異で確認) / **◎ 修正後の `--ci` が実際に通る**(**正例 B**) |
+| 60 | **凍結基準の受理**(権威資産へ 1 件・snapshot 追記) | `[機械]` `check_tenant_boundary_bypass.py` が exit 0・記録は 1 件 / **◎ 受理記録を含む検査が実際に通る**(**正例 B**) |
+
 ## 5. DoD(受け入れ基準)
 
 > **◎ `P1-6` の是正**(3 周目)。**`stepId` / `artifact` / `acceptanceTest` / `command` の表とし、
-> 1〜57 の各 ID をちょうど 1 回参照させる。**
+> 1〜60 の各 ID をちょうど 1 回参照させる。**
 > **本表と §4 のステップ表は [`steps.json`](steps.json) を正として [`steps.py`](steps.py) が生成している**(`python3 steps.py dod`)。
 > **1 対 1 であることと、生成結果と本文が一致することは §5-3 で機械検査する。**
 
-### 5-1. ステップ ID 対応表(57 行 — 各 ID をちょうど 1 回)
+### 5-1. ステップ ID 対応表(60 行 — 各 ID をちょうど 1 回)
 
-**`pb` 列 = `requiresPositiveB`**(ステップ 3 の台帳が正)。**`✓` の 47 件だけが正例 B を要求される** —
+**`pb` 列 = `requiresPositiveB`**(ステップ 3 の台帳が正)。**`✓` の 50 件だけが正例 B を要求される** —
 **`—` の 10 件は機構を作らない宣言・導出・負例集・正例 A のステップ**であり、**正例 B を課さない**。
-**この 11 件は `steps.py` の `PB_FALSE` として閉じた集合で宣言し、exact-set で突合する**(5 周目 `P1` — **フラグの自己申告だけでは両方 false へ倒せば通ってしまう**)
+**この 10 件は `steps.py` の `PB_FALSE` として閉じた集合で宣言し、exact-set で突合する**(5 周目 `P1` — **フラグの自己申告だけでは両方 false へ倒せば通ってしまう**)
 (4 周目 `P1` の是正 — **不要な正例まで数えると「正例 B を持たないステップが 0 件」が成立しなくなる**)。
 
 | `stepId` | `pb` | `artifact` | `acceptanceTest` | `command` |
 | --- | --- | --- | --- | --- |
 | 1 | ✓ | `backend/domain/vocabulary.schema.json` | `[機械]` 語彙 schema の **exact-set**(3 類・型 3 形・供給源 3 経路)/ **◎ 付録 A の書式 binding の母集合を、数え方の規則とともに資産へ定義する**(**複合行〔`最速・平均球速` / `勝 / 敗 / 分` / `得点 / 失点` / `イニング別得点・失点` の 4 件〕を分解するか否かを明示し、その規則で数えた件数を `assert` する** — **独立導出**。**research.md §6-11 の「全 36 件」は §7-5 で失効させた** — **要件書に件数の記載は無く、本セッションの計測は 32 行で一致しなかった**)/ **単位パラメータが存在しない** / 差分が **パス allowlist** に収まる **◎ 妥当な DSL 入力が実際に受理される**(**正例 B** — すべてを拒否する schema を排除する。**6 周目 `P1` の是正**: ステップ 7 と同じ理由で、語彙 schema も**入力を受理・拒否する機構**である)/ `[手動]` **トリガー 1・2・13 の該当性判定**(判定者: 山田正輝)。**発火なら design.md §12-2 で停止** | `uv run pytest tests/domain/test_vocabulary_schema.py` |
 | 2 | — | `backend/domain/machine-conditions.json` | `[機械]` **行番号参照 0 件** / 各型に**正例と負例が 1 つ以上**ある / 型に紐づかない `[機械]` 条件が 0 件 | `uv run pytest tests/domain/test_machine_conditions.py` |
-| 3 | — | `backend/domain/step-authorities.json` | `[機械]` **文言存在**(依拠条項の逐語が正本に実在。**1 件でも不在なら fail**)/ **行番号参照 0 件** / **57 ステップすべてに行がある**(**母集合計測**)/ **`requiresPositiveB` が全行にある** / **本台帳自身も依拠条項を宣言している**(自己適用 — design.md §16-12) | `uv run pytest tests/domain/test_step_authorities.py` |
+| 3 | — | `backend/domain/step-authorities.json` | `[機械]` **文言存在**(依拠条項の逐語が正本に実在。**1 件でも不在なら fail**)/ **行番号参照 0 件** / **60 ステップすべてに行がある**(**母集合計測**)/ **`requiresPositiveB` が全行にある** / **本台帳自身も依拠条項を宣言している**(自己適用 — design.md §16-12) | `uv run pytest tests/domain/test_step_authorities.py` |
 | 4 | — | `backend/domain/review-triggers.json` | `[機械]` **母集合計測**(16 件すべてに**枠**がある)/ **`evaluationMethod` が design.md §2 の 12 型のいずれかを指す**(**集合差**)/ **判定者が PO 以外なら fail**(**文言存在**)/ **証拠資産の置き場が宣言されている**(**この時点での実在は要求しない**)/ **評価するステップ番号が実在するステップを指す**(**集合差** — 番号の陳腐化を機械検出する)/ **評価結果の欄が空であることを許す** | `uv run pytest tests/domain/test_review_triggers.py` |
 | 5 | ✓ | `backend/src/pitchlog/domaincheck/stopgate.py` | `[機械]` **発火レコードが 1 件でもあれば後続が exit 2 で拒否される**(**exit コード分離**)/ **評価期限前の未評価では拒否しない**(**5 周目 `P1` の是正**)/ **期限を過ぎた未評価は拒否する**(fail-closed)/ **◎ 発火レコードが 0 件なら後続が実際に通る**(**正例 B** — 常に exit 2 を返す実装を排除する) | `uv run pytest tests/domain/test_stopgate.py` |
 | 6 | — | `backend/domain/history-depth.json` | `[機械]` 導出が **case → 長さ → 最大値の式**として機械可読(**独立導出**)/ 典拠の**文言存在**(`FR-006 補足` の逐語)/ 主要フラグ 9 項目と表示 primitive パラメータに値域 / **`D+1` に出力同値を課していない** `[手動]` 導出の意味レビュー(判定者: 山田正輝) | `uv run pytest tests/domain/test_history_depth.py` |
@@ -550,13 +623,16 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 | 48 | ✓ | `backend/domain/display-binding.json` | `[機械]` **登録漏れ・formatter 非経由の表示経路が差分として fail**(**集合差**)/ **対象集合が schema 閉包から導出される**(**独立導出**)/ **未宣言項目がステップ 15 の封印集合に既に含まれている**(後から足せない)/ **◎ すべての表示項目が宣言と一致したとき実際に通る**(**正例 B**) | `uv run pytest tests/domain/test_display_binding.py` |
 | 49 | ✓ | `docs/features/domain-calc-dsl/mutation-cost.json` | `[機械]` 生ログ・コマンド・commit SHA・runner・mutant 分類が schema 化されて記録 / **◎ 実測レコードが実際に生成され、10 分 / 30 分以内なら通る**(**正例 B**)`[手動]` **上限判定**(判定者: 山田正輝)。**超過なら design.md §12-2 で停止し ADR 改訂ゲートへ** | `uv run pytest tests/domain/mut/test_cost_record.py` |
 | 50 | ✓ | `backend/src/pitchlog/domaincheck/trigger_completion.py` | `[機械]` **16 件すべてに評価結果がある**(**母集合計測**。未評価 1 件でも fail)/ **`[手動]` 9 件の証拠資産のパスが実在する**(**パス allowlist** + 実在検査)/ **発火レコードがあれば本ステップより後をすべて拒否する**(ステップ 5 と同じ機構を再適用)/ **◎ 全件が非発火で評価済みなら実際に通る**(**正例 B**) | `uv run pytest tests/domain/test_review_triggers_complete.py` |
-| 51 | ✓ | `tests/test_plan_generation.py` | `[機械]` **`emit_steps()` / `emit_dod()` の出力が plan.md の当該範囲と完全一致**(1 文字でも違えば fail)/ **全射**(ステップ表の 1〜57 がすべて DoD 表に現れる — **集合差**)/ **単射**(各 `stepId` が 1 回だけ — **母集合計測**)/ **§5-3 の「実装ステップ」列に空欄が無い**(**母集合計測**)/ **`steps.py check()` が総数・群 ID の一意性と昇順・`S[].g` と群範囲の突合・見出し範囲の存在と一致・`PB_FALSE` の exact-set を検査する** / **`PB_FALSE` が封印されており、集合とフラグの同時変更が fail する**(ステップ 9 の封印機構を流用 — **6 周目 `P1`: `PB_FALSE` へ足せば正例 B を免れる経路を塞ぐ**)/ **◎ `scripts/feature_status.py` が全 57 ステップを正しく読める**(**§16-14** — **群見出しを `####` にすると表が分断される**。**文書を読む機構を実際に走らせて確認する**)/ **◎ 一致しているとき実際に通る**(**正例 B**)/ **負例 7 種が個別に fail**(末尾 1 件を落とす / 群を誤配置する / 群 ID を重複・逆順にする / 見出し範囲を解析不能な表記へ変える / `pb` を両方 false へ倒す / `pb` と `PB_FALSE` を同時に書き換える / **群見出しを `####` にして表を分断する**) | `uv run pytest tests/test_plan_generation.py` |
+| 51 | ✓ | `tests/test_plan_generation.py` | `[機械]` **`emit_steps()` / `emit_dod()` の出力が plan.md の当該範囲と完全一致**(1 文字でも違えば fail)/ **全射**(ステップ表の 1〜60 がすべて DoD 表に現れる — **集合差**)/ **単射**(各 `stepId` が 1 回だけ — **母集合計測**)/ **§5-3 の「実装ステップ」列に空欄が無い**(**母集合計測**)/ **`steps.py check()` が総数・群 ID の一意性と昇順・`S[].g` と群範囲の突合・見出し範囲の存在と一致・`PB_FALSE` の exact-set を検査する** / **`PB_FALSE` が封印されており、集合とフラグの同時変更が fail する**(ステップ 9 の封印機構を流用 — **6 周目 `P1`: `PB_FALSE` へ足せば正例 B を免れる経路を塞ぐ**)/ **◎ `scripts/feature_status.py` が全 60 ステップを正しく読める**(**§16-14** — **群見出しを `####` にすると表が分断される**。**文書を読む機構を実際に走らせて確認する**)/ **◎ 一致しているとき実際に通る**(**正例 B**)/ **負例 7 種が個別に fail**(末尾 1 件を落とす / 群を誤配置する / 群 ID を重複・逆順にする / 見出し範囲を解析不能な表記へ変える / `pb` を両方 false へ倒す / `pb` と `PB_FALSE` を同時に書き換える / **群見出しを `####` にして表を分断する**) | `uv run pytest tests/test_plan_generation.py` |
 | 52 | ✓ | `tests/test_step_history_audit.py` | `[機械]` **`artifact` の実在を履歴時点で検査する**(**現在木では「当該ステップ完了時点の実在」を証明できない** — **`history_precedes` と同じく履歴を見る**)/ **各 `command` の `cwd`・期待 exit=0 を資産に持つ**(**パス allowlist**)/ **`command` の重複が無い**かつ **`artifact` の重複が無い**(**母集合計測**)/ **◎ 本ステップ自身の `command` は他ステップの `command` 実行から除外する**(**自己再帰の禁止**。**除外が実装に存在することの静的検査**)/ **◎ 全 `command` が exit 0 で完了したとき実際に通る**(**正例 B**)/ **負例 3 種**(履歴時点で不在の `artifact` / exit 非 0 の `command` / 自己再帰を許す実装)**が個別に fail** | `uv run pytest tests/test_step_history_audit.py` |
 | 53 | ✓ | `.github/workflows/ci.yml` / `tests/test_ci_wiring.py` | `[機械]` `tests/test_ci_wiring.py` の YAML 契約木の**全葉変異で escape 0** かつ **母集合計測** / **全葉変異の母集団を新設ジョブまで一般化** / **DB を使う全ジョブで image が 3 者一致** / **新設ジョブに `services: postgres` を書き忘れると red** / `services` を持たないジョブが DB テストを呼んでいない / **◎ `backend/tests/` を DB なしで回すジョブを作らない**(**`backend/tests/db/conftest.py` の `pytest_sessionfinish` は「通常の全件実行で DB テストが 0 件なら失敗にする」** — **`backend/tests/db/` を収集対象に含む実行でのみ有効**。**§14-1〔`services: postgres` の書き忘れ〕と同型の暗黙結合**。research.md §7-4) / **同一テストが二重実行されない** / **第 4 群 9 ステップの資産がすべて `consistency` の実行対象に含まれる**(**集合差** — 1 件でも外れたら fail)/ **◎ ステップ 51・52 のテストが PR 必須ジョブ ちょうど 1 件から実行される**(**集合差**。**6 周目 `P1` の是正**: 旧版は第 4 群だけを配線対象にしており、**計画書の整合検査がローカルだけで終わる構成を排除できなかった**)/ **◎ 新設ジョブが実際に実行され緑になる**(**正例 B**) | `uv run pytest tests/test_ci_wiring.py` |
 | 54 | ✓ | `backend/pyproject.toml` / `backend/uv.lock` | `[機械]` **`domaincheck` / `domaingen` / `domainmut` が `ty check` の対象**(**`src` 配下なので既存の `include = ["src","tests"]` で自動的に入る** — **`backend/domain/` は JSON なので `ty` の対象ではない**。research.md §7-4) / **`uv sync --locked` が通る**(`TSK-343` の 3 assert を通したまま再生成)/ **`backend/.coverage` が index から消え、再生成後も untracked** / **規範資産をリポジトリルート相対パスで読む**(**既存の前例 = `backend/src/pitchlog/authz/ddl.py` が `contracts/authz/ddl-elements.json` を同方式で読む**。**この方式なら `package-data` も `MANIFEST.in` も不要** — research.md §7-4)/ **実 wheel に含まれるファイル一覧のテスト** / **◎ `uv sync --locked` と `ty check` が実際に通る**(**正例 B**) | `uv sync --locked` + `uv run pytest tests/test_packaging.py` |
 | 55 | ✓ | `docs/development/github-setup.md` / `docs/development/dev-harness-design-2026-08-07.md` / `docs/README.md` | `[機械]` **「接続されている」だけでなく「実行された」ことを証跡で確認する**(§17 是正 `C` — 逐語「存在するだけでは足りない」)/ **◎ ステップ 51・52 の実行証跡が存在する**(**集合差** — 6 周目 `P1`)/ **◎ 要求①〜④が揃ったとき実際に発効する**(**正例 B** — 要求④ (iii) の本体。ステップ 25 から移した)/ **`github-setup.md` の 3 分類と Ruleset JSON の記述が 9 → 11 context へ同期**(**集合差**。**検査できるのは文書の同期のみ** — `required_status_checks` はリモートに存在せず〔個人 Free + private で Rulesets 利用不可〕、**強制は `github-setup.md` 2 章の人間の手続き**)/ `check_docs_status` / `check_doc_coverage` / `check_design_propagation` OK | `uv run pytest tests/test_ci_wiring.py` + `uv run python scripts/check_docs_status.py` |
 | 56 | ✓ | `scripts/core_guard.py` / `tests/test_core_guard.py` | `[機械]` **比較元が PR head ではなく変更不能な merge-base の blob である** / **他 3 領域は据え置き層から導出され、テスト内リテラルの書き換えだけでは green にならない** / 追加層に無い変更が fail / **JSON と期待値を同一コミットで書き換える型が fail する**負例 / **JSON・期待値・アンカーの 3 点を同時変更しても fail する**履歴 fixture / **◎ 据え置き層と追加層に正しく登録された変更が実際に通る**(**正例 B**) | `uv run pytest tests/test_core_guard.py` |
 | 57 | ✓ | `.claude/core-areas.json` | `[機械]` **JSON の両 area 配列に該当 glob が含まれる** / **後から足したファイルが glob に覆われる**ことを負例で示す(**集合差**)/ **他 3 領域は据え置き層のまま** / 新規各パスの変更で core-guard が発火 / **◎ 登録対象外のパスの変更では発火しない**(**正例 B** — 全変更を発火させる実装を排除する) `[手動]` **敵対レビュー + 人間承認(PR 作成者以外の逐行確認)** — 設計書 6.3-⑤ | `uv run pytest tests/test_core_guard.py::test_area_registration` |
+| 58 | ✓ | `contracts/domain_calc/frozen-inputs.json` | `[機械]` 資産の schema 検査が通る・`history: []`・`history_authority: false` / **◎ 妥当な資産が schema 検査を通る**(**正例 B**) | `uv run python -c 'import json,sys; from pathlib import Path; sys.path.insert(0,"scripts"); from check_tenant_boundary_bypass import _validate_baseline_control; p=Path("contracts/domain_calc/frozen-inputs.json"); _validate_baseline_control(json.loads(p.read_text(encoding="utf-8")), str(p)); print("1 passed")'` + `uv run pytest tests/test_plan_generation.py -q` |
+| 59 | ✓ | `tests/domain/test_boot_seal.py` | `[機械]` `--ci` が **exit 0**・3 テストが緑・**版ピンの検査が残っていること**(変異で確認) / **◎ 修正後の `--ci` が実際に通る**(**正例 B**) | `uv run python scripts/check_frozen_baselines.py --ci` |
+| 60 | ✓ | `contracts/tenant_boundary/base-allowlist.json` / `contracts/tenant_boundary/history-snapshots/` | `[機械]` `check_tenant_boundary_bypass.py` が exit 0・記録は 1 件 / **◎ 受理記録を含む検査が実際に通る**(**正例 B**) | `uv run pytest tests/test_check_tenant_boundary_bypass.py -q` |
 
 ### 5-2. 表に載らない DoD(**ステップに対応しない禁止事項**)
 
@@ -573,7 +649,7 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 
 | 検査 | 内容 | 型 | **実装ステップ** |
 | --- | --- | --- | --- |
-| **全射** | **ステップ表の 1〜57 がすべて DoD 表に現れる** | **集合差** | **50** |
+| **全射** | **ステップ表の 1〜60 がすべて DoD 表に現れる** | **集合差** | **50** |
 | **単射** | **DoD 表の各 `stepId` が 1 回だけ現れる** | **母集合計測** | **50** |
 | **`pb` の整合** | **`requiresPositiveB` が true の行に正例 B の条件があり、false の行には無い**。**`false` の集合が `steps.py` の `PB_FALSE` と exact-set で一致する** | **集合差**(**4 周目 `P1` で 12 件のずれ・5 周目 `P1` で自己申告の抜け道が実測された**) | **3・24・50** |
 | **`artifact` の実在** | **各行の `artifact` パスが当該ステップの完了時点で実在する** | **パス allowlist** + 実在検査 | **50** |

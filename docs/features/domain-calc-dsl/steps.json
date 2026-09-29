@@ -1,5 +1,5 @@
 {
-  "expected_total": 57,
+  "expected_total": 60,
   "pb_false": [
     2,
     3,
@@ -27,7 +27,7 @@
     "ciOwnedSingleCommandSteps": [
       {
         "ownerJob": "harness",
-        "stepIds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 44, 47, 48, 50, 53, 56, 57],
+        "stepIds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 44, 47, 48, 50, 53, 56, 57, 60],
         "reason": "harness の tests/ selector が boot・mutation・計画・履歴監査を除くルートテストを一度だけ実走する。"
       },
       {
@@ -95,6 +95,18 @@
         "command": "uv run python scripts/check_docs_status.py",
         "ownerJob": "docs-lint",
         "reason": "文書状態検査は docs-lint が実走する。"
+      },
+      {
+        "stepId": 58,
+        "command": "uv run pytest tests/test_plan_generation.py -q",
+        "ownerJob": "consistency",
+        "reason": "計画の 1 対 1 検査は consistency が実走する。"
+      },
+      {
+        "stepId": 59,
+        "command": "uv run python scripts/check_frozen_baselines.py --ci",
+        "ownerJob": "harness",
+        "reason": "凍結基準の検査コマンドは harness が直接実走する。"
       }
     ],
     "historyRunnerCommands": [
@@ -102,6 +114,11 @@
         "stepId": 54,
         "command": "uv sync --locked",
         "reason": "CI は開発依存を含む別 command `uv sync --locked --dev` を実行するため、計画書の完全一致 command は履歴監査が実走する。"
+      },
+      {
+        "stepId": 58,
+        "command": "uv run python -c 'import json,sys; from pathlib import Path; sys.path.insert(0,\"scripts\"); from check_tenant_boundary_bypass import _validate_baseline_control; p=Path(\"contracts/domain_calc/frozen-inputs.json\"); _validate_baseline_control(json.loads(p.read_text(encoding=\"utf-8\")), str(p)); print(\"1 passed\")'",
+        "reason": "新設資産の baseline_control schema 検査は履歴監査が実走する。"
       }
     ]
   },
@@ -182,6 +199,13 @@
       "note": "",
       "first": 56,
       "last": 57
+    },
+    {
+      "id": 12,
+      "title": "第 12 群 — 凍結基準の資産化と受理(58〜60)",
+      "note": "",
+      "first": 58,
+      "last": 60
     }
   ],
   "steps": [
@@ -696,6 +720,33 @@
       "criteria": "`[機械]` **JSON の両 area 配列に該当 glob が含まれる** / **後から足したファイルが glob に覆われる**ことを負例で示す(**集合差**)/ **他 3 領域は据え置き層のまま** / 新規各パスの変更で core-guard が発火 / **◎ 登録対象外のパスの変更では発火しない**(**正例 B** — 全変更を発火させる実装を排除する) `[手動]` **敵対レビュー + 人間承認(PR 作成者以外の逐行確認)** — 設計書 6.3-⑤",
       "artifact": "`.claude/core-areas.json`",
       "command": "`uv run pytest tests/test_core_guard.py::test_area_registration`",
+      "requires_positive_b": true
+    },
+    {
+      "id": 58,
+      "group": 12,
+      "title": "**`contracts/domain_calc/frozen-inputs.json` の新設**(4 値 + `baseline_control`)",
+      "criteria": "`[機械]` 資産の schema 検査が通る・`history: []`・`history_authority: false` / **◎ 妥当な資産が schema 検査を通る**(**正例 B**)",
+      "artifact": "`contracts/domain_calc/frozen-inputs.json`",
+      "command": "`uv run python -c 'import json,sys; from pathlib import Path; sys.path.insert(0,\"scripts\"); from check_tenant_boundary_bypass import _validate_baseline_control; p=Path(\"contracts/domain_calc/frozen-inputs.json\"); _validate_baseline_control(json.loads(p.read_text(encoding=\"utf-8\")), str(p)); print(\"1 passed\")'` + `uv run pytest tests/test_plan_generation.py -q`",
+      "requires_positive_b": true
+    },
+    {
+      "id": 59,
+      "group": 12,
+      "title": "**3 テストを資産参照へ改める**と、版ピンを `ci.yml` から読む形へ改める",
+      "criteria": "`[機械]` `--ci` が **exit 0**・3 テストが緑・**版ピンの検査が残っていること**(変異で確認) / **◎ 修正後の `--ci` が実際に通る**(**正例 B**)",
+      "artifact": "`tests/domain/test_boot_seal.py`",
+      "command": "`uv run python scripts/check_frozen_baselines.py --ci`",
+      "requires_positive_b": true
+    },
+    {
+      "id": 60,
+      "group": 12,
+      "title": "**凍結基準の受理**(権威資産へ 1 件・snapshot 追記)",
+      "criteria": "`[機械]` `check_tenant_boundary_bypass.py` が exit 0・記録は 1 件 / **◎ 受理記録を含む検査が実際に通る**(**正例 B**)",
+      "artifact": "`contracts/tenant_boundary/base-allowlist.json` / `contracts/tenant_boundary/history-snapshots/`",
+      "command": "`uv run pytest tests/test_check_tenant_boundary_bypass.py -q`",
       "requires_positive_b": true
     }
   ]

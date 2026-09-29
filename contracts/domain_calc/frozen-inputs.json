@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "contract_revision": 1,
+  "baseline_control": {
+    "identity": {
+      "scheme": "integer_revision_field",
+      "field": "contract_revision",
+      "current_identifiers": [
+        "contract_revision:1"
+      ],
+      "no_baseline_marker": "NO_BASELINE",
+      "frozen_projection": {
+        "algorithm": "sha256-canonical-json-and-external-files-v1",
+        "included": "all_top_level_fields",
+        "excluded": [
+          "baseline_control",
+          "source_digest"
+        ],
+        "external_files": [
+          "tests/domain/test_boot_seal.py",
+          "tests/test_ci_wiring.py",
+          "tests/test_plan_generation.py"
+        ]
+      }
+    },
+    "movement_policy": {
+      "acceptance_unit": "single_review_acceptance",
+      "previous_state": "state_immediately_before_review_acceptance",
+      "new_state": "state_immediately_after_review_acceptance",
+      "intermediate_commits_are_records": false,
+      "movement_triggers": [
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+        "pass_fail_mapping"
+      ],
+      "affected_baselines": "all_baselines_matching_any_declared_trigger",
+      "history_append_only": true
+    },
+    "history": [],
+    "history_authority": false
+  },
+  "frozen_inputs": {
+    "boot_seal_base_commit": {
+      "value": "50501ebeea70cee77a9ff4ca8e6c0951015d517a",
+      "purpose": "封印集合の固定比較元コミット",
+      "source": "tests/domain/test_boot_seal.py:BASE_COMMIT"
+    },
+    "activation_evidence_head_sha": {
+      "value": "aab80b11d60241798d76e5c725d9a3ad6dd20065",
+      "purpose": "発効証跡の headSha の期待値",
+      "sources": [
+        "tests/test_ci_wiring.py:2894",
+        "tests/test_ci_wiring.py:3069"
+      ]
+    },
+    "pb_false_base_commit": {
+      "value": "a7849e1b705a845e02ba77a4c6ff83b76d7de407",
+      "purpose": "計画生成の pb_false 封印に使う固定比較元コミット",
+      "source": "tests/test_plan_generation.py:PB_FALSE_BASE_COMMIT"
+    },
+    "pb_false_blob_digest": {
+      "value": "400d36bdbd1d1113a4e7c4aa925354a4ebc7a771e803a94e8a08de55ea4879f5",
+      "algorithm": "sha256",
+      "purpose": "pb_false 封印の固定 blob digest",
+      "source": "tests/test_plan_generation.py:PB_FALSE_SEAL.blobDigest"
+    }
+  }
+}
