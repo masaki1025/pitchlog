@@ -40,6 +40,7 @@ branch: feature/runtime-contract-switch
   - **ステップ 1 の見逃し**: 生成器の `.flush()` が迂回検査の名前駆動の TB005(Session.flush)に当たっていた。ステップ 1 の時点ではファイルが未追跡で検査の差分に入らず、ルートの全試験を回したステップ 4 で初めて出た → 03a1ba91 で是正。**教訓: backend/src に新しいファイルを足したステップは、コミットの後にルートの迂回検査の試験を回す**
   - 環境: ローカルの DSN は `+psycopg` 付きで psycopg が読めない → 実行時だけ外す。共有のローカル DB に `pitchlog_test_role` が残っていた回がある(並行セッションの衝突と見られる。消していない)
   - ルートの `test_checker_census_matches_merge_base` は develop でも落ちる既知の不具合(`fix/census-baseline-pin`)
+  - **DB 試験の後は毎回 `docker volume prune -f`**(`db_fixtures.py` の使い捨てクラスタが匿名ボリュームを残す — 別タスクで fixture を修正予定。Docker 29 の prune は未使用の匿名ボリュームだけを消し、名前付きは残る)
 
 ## 決定
 

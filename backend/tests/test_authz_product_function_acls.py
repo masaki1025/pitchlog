@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from test_authz_runtime_contract_repository import product_spec_for_repository
 
-from pitchlog.authz.asset_spec import PRODUCT_SPEC
 from pitchlog.authz.ddl import generate_authz_ddl
 from pitchlog.authz.product_function_acl import (
     build_product_function_acl_declaration,
@@ -27,6 +27,7 @@ from pitchlog.authz.runtime_contract_state import (
 )
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+PRODUCT_SPEC = product_spec_for_repository(_REPOSITORY_ROOT)
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
 _MIGRATION_VERSIONS = Path("backend/migrations/versions")
 _EXPECTED_GAPS = {

@@ -21,7 +21,10 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_authz_catalog.py"
 RUNTIME_CONTRACT_SUPPORT = (
-    REPOSITORY_ROOT / "backend" / "tests" / "runtime_contract_repository.py"
+    REPOSITORY_ROOT
+    / "backend"
+    / "tests"
+    / "test_authz_runtime_contract_repository.py"
 )
 FIXTURE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "authz_claims"
 DERIVED_ASSET_FILES = {

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
-from runtime_contract_repository import copy_product_repository
+from test_authz_runtime_contract_repository import copy_product_repository
 
 from pitchlog.authz.runtime_contract_generator import (
     check_repository,

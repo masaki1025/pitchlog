@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import json
 import shutil
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
 
+from pitchlog.authz.asset_spec import PRODUCT_SPEC, AuthzAssetSpec
 from pitchlog.authz.runtime_contract_state import (
     GENERATED_MODULE,
     PRODUCT_ASSET,
@@ -16,6 +18,7 @@ from pitchlog.authz.runtime_contract_state import (
     asset_digest,
     derive_runtime_contract_fields,
     evaluate_repository,
+    product_asset_path_for_state,
     render_runtime_contract,
 )
 
@@ -26,6 +29,24 @@ PRODUCT_STATE_TEST_FILES = (
     Path("backend/tests/test_authz_product_classification.py"),
     Path("backend/tests/test_authz_runtime_contract.py"),
 )
+
+
+def product_spec_for_repository(repository_root: Path) -> AuthzAssetSpec:
+    """共有 API が選んだ製品資産のパスを持つ試験用 spec を返す。
+
+    Args:
+        repository_root: 状態を判定するリポジトリのルート。
+
+    Returns:
+        現在の状態に対応する製品 DDL 資産の spec。
+    """
+    state, violations = evaluate_repository(repository_root)
+    if violations:
+        raise AssertionError(f"ランタイム契約違反: {sorted(violations)}")
+    product_path = product_asset_path_for_state(state)
+    if product_path is None:
+        raise AssertionError("製品 DDL 資産が存在する状態ではない")
+    return replace(PRODUCT_SPEC, ddl_elements_path=product_path)
 
 
 def copy_product_repository(source_root: Path, destination_root: Path) -> Path:
@@ -122,7 +143,7 @@ def copy_product_test_repository(
     )
     for relative_path in (
         Path("backend/tests/conftest.py"),
-        Path("backend/tests/runtime_contract_repository.py"),
+        Path("backend/tests/test_authz_runtime_contract_repository.py"),
         *PRODUCT_STATE_TEST_FILES,
     ):
         target = destination_root / relative_path

@@ -13,14 +13,15 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from runtime_contract_repository import (
+from test_authz_runtime_contract_repository import (
     PRODUCT_STATE_TEST_FILES,
     copy_product_test_repository,
+    product_spec_for_repository,
 )
 
 from pitchlog.authz import ddl as authz_ddl
 from pitchlog.authz import runtime_contract
-from pitchlog.authz.asset_spec import PROBE_SPEC, PRODUCT_SPEC, AuthzAssetSpec
+from pitchlog.authz.asset_spec import PROBE_SPEC, AuthzAssetSpec
 from pitchlog.authz.ddl import AuthzDDLGenerationError, generate_authz_ddl
 from pitchlog.authz.runtime_contract_state import (
     PRODUCT_ASSET,
@@ -31,6 +32,7 @@ from pitchlog.authz.runtime_contract_state import (
 )
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+PRODUCT_SPEC = product_spec_for_repository(_REPOSITORY_ROOT)
 _BODY_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_function_bodies.py"
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
 _TASK_ID_RE = re.compile(r"TSK-[0-9]+")
@@ -214,6 +216,7 @@ def test_target_tests_pass_in_a_product_state_copy(tmp_path: Path) -> None:
     )
     environment = dict(os.environ)
     environment[_PRODUCT_STATE_SUBPROCESS] = "1"
+    environment["PYTHONPATH"] = str(repository / "backend/src")
     result = subprocess.run(
         [
             sys.executable,
