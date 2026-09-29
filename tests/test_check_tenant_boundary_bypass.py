@@ -5,20 +5,24 @@ from __future__ import annotations
 import ast
 import copy
 import hashlib
-import importlib.util
 import json
 import shutil
 import subprocess
 import sys
 from collections import deque
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
+from test_census_baseline_check import (
+    REPOSITORY_ROOT,
+    SCRIPT,
+    _load_checker_from_revision,
+    checker,
+)
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = REPOSITORY_ROOT / "scripts" / "check_tenant_boundary_bypass.py"
 POSITIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "positive"
 NEGATIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "negative"
 PRODUCT_APPLICATION_PATHS = (
@@ -158,8 +162,6 @@ class TenantContext:
 ''',
 }
 
-CensusIdentity = tuple[str, int, int, str, str, str, str]
-
 EXPECTED_CONDITION_2_PATTERNS = (
     "(?:^|_)idempotenc[a-z0-9_]*(?:_|$)",
     "(?:^|_)idempotent_key(?:_|$)",
@@ -221,89 +223,6 @@ def omit_call_registration(self, node, environment):
 module._FlowProvenance._expression = omit_call_registration
 raise SystemExit(module.main(sys.argv[2:]))
 """
-
-
-def _load_checker_module(path: Path, module_name: str) -> ModuleType:
-    """検査器を指定した別モジュールとして読む。"""
-    spec = importlib.util.spec_from_file_location(
-        module_name,
-        path,
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def _load_checker() -> ModuleType:
-    """検査器をリポジトリの import 設定に依存せず読む。"""
-    return _load_checker_module(
-        SCRIPT,
-        "check_tenant_boundary_bypass_under_test",
-    )
-
-
-def _resolve_merge_base(base_ref: str, head_ref: str) -> str:
-    """比較元と HEAD の merge-base を解決し、取れなければ検査を失敗させる。"""
-    result = subprocess.run(
-        ["git", "merge-base", base_ref, head_ref],
-        cwd=REPOSITORY_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        detail = result.stderr.strip() or "stderr なし"
-        raise AssertionError(
-            f"{base_ref} と {head_ref} の merge-base を解決できない: {detail}"
-        )
-    merge_base = result.stdout.strip()
-    if not merge_base:
-        raise AssertionError(
-            f"{base_ref} と {head_ref} の merge-base が空"
-        )
-    return merge_base
-
-
-def _load_checker_from_revision(revision: str, destination: Path) -> ModuleType:
-    """VCS 上の検査器と同 revision の依存を別モジュールとして読む。"""
-    relative_script = SCRIPT.relative_to(REPOSITORY_ROOT).as_posix()
-    result = subprocess.run(
-        ["git", "show", f"{revision}:{relative_script}"],
-        cwd=REPOSITORY_ROOT,
-        check=True,
-        capture_output=True,
-    )
-    scripts_directory = destination.parent / f"{destination.stem}_scripts"
-    scripts_directory.mkdir()
-    extracted_checker = scripts_directory / SCRIPT.name
-    extracted_checker.write_bytes(result.stdout)
-    dependency = "scripts/frozen_history.py"
-    dependency_result = subprocess.run(
-        ["git", "show", f"{revision}:{dependency}"],
-        cwd=REPOSITORY_ROOT,
-        check=False,
-        capture_output=True,
-    )
-    if dependency_result.returncode == 0:
-        (scripts_directory / "frozen_history.py").write_bytes(
-            dependency_result.stdout
-        )
-    digest = hashlib.sha256(result.stdout).hexdigest()
-    previous_dependency = sys.modules.pop("frozen_history", None)
-    previous_path = list(sys.path)
-    try:
-        sys.path.insert(0, str(scripts_directory))
-        return _load_checker_module(
-            extracted_checker,
-            f"check_tenant_boundary_bypass_{digest}",
-        )
-    finally:
-        sys.path[:] = previous_path
-        sys.modules.pop("frozen_history", None)
-        if previous_dependency is not None:
-            sys.modules["frozen_history"] = previous_dependency
 
 
 def _develop_contract_root(destination: Path) -> Path:
@@ -376,56 +295,6 @@ def _materialize_contract_root(revision: str, destination: Path) -> Path:
         ).stdout
         target.write_bytes(content)
     return destination
-
-
-def _checker_census(
-    checker_module: ModuleType,
-    *,
-    repository_root: Path,
-    source_root: Path,
-) -> frozenset[CensusIdentity]:
-    """検査器の全文走査結果を比較用の exact-set にする。"""
-    contract = checker_module.load_contract(repository_root)
-    violations = checker_module.scan_directory(source_root, contract=contract)
-    return frozenset(
-        (
-            violation.path,
-            violation.line,
-            violation.end_line,
-            violation.scope,
-            violation.code,
-            violation.symbol,
-            violation.message,
-        )
-        for violation in violations
-    )
-
-
-def _compare_checker_census(
-    reference_checker: ModuleType,
-    candidate_checker: ModuleType,
-    *,
-    repository_root: Path,
-    source_root: Path,
-    reference_repository_root: Path | None = None,
-) -> tuple[frozenset[CensusIdentity], frozenset[CensusIdentity]]:
-    """merge-base 版から作業ツリー版への違反集合の増減を返す。
-
-    この比較が証明するのは、両版が ``source_root`` にある現在の
-    ``backend/src`` へ出す違反集合が同じこと、またはその差が期待どおりであること。
-    現在のツリーに存在しない構文やコードへの挙動は証明せず、将来のコードは覆わない。
-    """
-    reference = _checker_census(
-        reference_checker,
-        repository_root=reference_repository_root or repository_root,
-        source_root=source_root,
-    )
-    candidate = _checker_census(
-        candidate_checker,
-        repository_root=repository_root,
-        source_root=source_root,
-    )
-    return candidate - reference, reference - candidate
 
 
 def _insert_generated_use(template: str, use: str) -> str:
@@ -1004,111 +873,6 @@ def _source_is_tb007_red(
     )
 
 
-def _assert_removed_tb007_matches_declared_relaxations(
-    removed: frozenset[CensusIdentity],
-) -> None:
-    """減分が (iii) の宣言範囲への緩和だけで説明できると示す。"""
-    source_root = REPOSITORY_ROOT / "backend" / "src"
-    sources = {
-        path.relative_to(source_root).as_posix(): path.read_text(encoding="utf-8")
-        for path in sorted(source_root.rglob("*.py"))
-    }
-    reexport_map = checker._build_reexport_map(sources)
-    contract = checker.load_contract(REPOSITORY_ROOT)
-    scanners: dict[str, tuple[ast.Module, Any]] = {}
-
-    for identity in removed:
-        path, line, end_line, _, code, symbol, _ = identity
-        assert code == "TB007"
-        if path not in scanners:
-            tree = ast.parse(sources[path], filename=path)
-            scanner = checker._SourceScanner(
-                path=path,
-                module=checker._module_name(path),
-                tree=tree,
-                changed_lines=None,
-                contract=contract,
-                reject_all_db_calls=False,
-                reexport_map=reexport_map,
-            )
-            scanner.visit(tree)
-            scanner._validate_call_coverage(tree)
-            scanners[path] = (tree, scanner)
-        tree, scanner = scanners[path]
-
-        matching_calls: list[ast.Call] = []
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Call):
-                continue
-            if node.lineno != line or node.end_lineno != end_line:
-                continue
-            resolved = scanner.aliases.resolve(
-                node.func
-            ) or scanner._raw_expression(node.func)
-            if symbol == "<unresolved-callable>" or symbol == resolved:
-                matching_calls.append(node)
-
-        assert matching_calls, identity
-        explanations = []
-        for node in matching_calls:
-            if (
-                isinstance(node.func, ast.Name)
-                and id(node.func) in scanner.lexically_bound_name_ids
-            ):
-                explanations.append(node)
-                continue
-            constructor_name = contract.tenant_context.constructor_symbol.rsplit(
-                ".", 1
-            )[-1]
-            callable_name = (
-                node.func.id
-                if isinstance(node.func, ast.Name)
-                else node.func.attr
-                if isinstance(node.func, ast.Attribute)
-                else None
-            )
-            if callable_name == constructor_name:
-                continue
-            resolved = scanner.aliases.resolve(
-                node.func
-            ) or scanner._raw_expression(node.func)
-            reexport = scanner._reexport_resolution(node.func, resolved)
-            if reexport is not None and (
-                reexport.unresolved
-                or contract.tenant_context.constructor_symbol in reexport.origins
-            ):
-                continue
-            known_callable = scanner.flow.callable_symbol(node)
-            if (
-                known_callable is not None
-                and known_callable
-                != contract.tenant_context.constructor_symbol
-            ):
-                explanations.append(node)
-                continue
-            if (
-                isinstance(node.func, ast.Attribute)
-                and known_callable is None
-            ):
-                explanations.append(node)
-                continue
-            alias_resolved = scanner.aliases.resolve(node.func)
-            known_alias_callable = (
-                scanner.aliases.resolve_known(node.func)
-                if isinstance(node.func, ast.Name) and alias_resolved is not None
-                else None
-            )
-            if (
-                known_alias_callable is not None
-                and scanner.aliases.canonical(known_alias_callable)
-                != contract.tenant_context.constructor_symbol
-                and known_callable is None
-            ):
-                explanations.append(node)
-
-        assert explanations, identity
-
-
 def _omit_flow_call_registration(monkeypatch: pytest.MonkeyPatch) -> None:
     """不変条件の負例用に flow の Call 登録だけを意図的に落とす。"""
     original_expression = checker._FlowProvenance._expression
@@ -1156,10 +920,19 @@ def _call_coverage_sets(
     )
 
 
-checker = _load_checker()
 INVARIANT_CONTEXT = checker.frozen_history.EvaluationContext(
     checker.frozen_history.EvaluationMode.INVARIANT,
     None,
+)
+
+
+def _resolve_provenance_comparison_sha(revision: str) -> str:
+    """生成経路の前版比較に使う revision を完全 SHA へ解決する。"""
+    return checker._run_git(REPOSITORY_ROOT, ["rev-parse", revision]).strip()
+
+
+_REFLECTIVE_PROVENANCE_SKIP_REASON = (
+    "比較元と HEAD が同一のため弱化判定が反射的になり成立しない"
 )
 
 FROZEN_BASELINE_ASSET_CASES = tuple(
@@ -1307,6 +1080,48 @@ def _commit_test_repository(repository: Path, message: str) -> str:
     return checker._run_git(repository, ["rev-parse", "HEAD"]).strip()
 
 
+def _declared_external_files(repository: Path) -> tuple[Path, ...]:
+    """合成リポジトリの全資産が宣言する外部凍結対象を返す。"""
+    asset_root = repository / "contracts" / "tenant_boundary"
+    external_files: set[Path] = set()
+    for asset_path in sorted(asset_root.glob("*.json")):
+        asset = json.loads(asset_path.read_text(encoding="utf-8"))
+        declared = asset["baseline_control"]["identity"]["frozen_projection"][
+            "external_files"
+        ]
+        assert isinstance(declared, list)
+        assert all(isinstance(relative_path, str) for relative_path in declared)
+        external_files.update(Path(relative_path) for relative_path in declared)
+    return tuple(sorted(external_files))
+
+
+def _synchronize_synthetic_authority_identifiers(repository: Path) -> None:
+    """合成baselineのauthority末尾を現在の資産識別子表へ同期する。"""
+    asset_root = repository / "contracts" / "tenant_boundary"
+    assets = {
+        path.relative_to(repository).as_posix(): json.loads(
+            path.read_text(encoding="utf-8")
+        )
+        for path in sorted(asset_root.glob("*.json"))
+    }
+    authorities = [
+        (relative_path, asset)
+        for relative_path, asset in assets.items()
+        if asset["baseline_control"]["history_authority"]
+    ]
+    assert len(authorities) == 1
+    _, authority = authorities[0]
+    history = authority["baseline_control"]["history"]
+    assert history[-1]["record_schema_version"] == 2
+    history[-1]["new_baseline_identifiers"] = {
+        relative_path: asset["baseline_control"]["identity"][
+            "current_identifiers"
+        ]
+        for relative_path, asset in assets.items()
+    }
+    _write_contract_asset(repository / checker.DEFAULT_ALLOWLIST, authority)
+
+
 def _initialize_test_repository(
     tmp_path: Path,
     sources: dict[str, str],
@@ -1321,11 +1136,8 @@ def _initialize_test_repository(
         REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary",
         repository / "tests" / "fixtures" / "tenant_boundary",
     )
-    for relative_path in (
-        Path("scripts/check_tenant_boundary_bypass.py"),
-        Path("scripts/frozen_history.py"),
-        Path(".github/workflows/ci.yml"),
-    ):
+    _synchronize_synthetic_authority_identifiers(repository)
+    for relative_path in _declared_external_files(repository):
         destination = repository / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
@@ -1497,6 +1309,42 @@ def _repository_transition_sides(
         head_assets,
         base_implementations,
         head_implementations,
+    )
+
+
+def _evaluate_test_repository_movement(
+    repository: Path,
+    base_ref: str,
+) -> Any:
+    """合成リポジトリの比較元と作業ツリーから movement を直接評価する。"""
+    (
+        base_assets,
+        head_assets,
+        base_implementations,
+        head_implementations,
+    ) = _repository_transition_sides(repository, base_ref)
+    base_components = checker.frozen_history._repository_components(
+        base_assets,
+        "比較元",
+        allow_undeclared_authority=True,
+    )
+    head_components = checker.frozen_history._repository_components(
+        head_assets,
+        "HEAD",
+    )
+    return checker.frozen_history.evaluate_repository_movement(
+        checker.frozen_history._repository_movement_states(
+            base_assets,
+            base_components,
+            base_implementations,
+            "比較元",
+        ),
+        checker.frozen_history._repository_movement_states(
+            head_assets,
+            head_components,
+            head_implementations,
+            "HEAD",
+        ),
     )
 
 
@@ -1753,61 +1601,16 @@ def _unlisted_database_access(session: Session) -> None:
     return relative, source, mutated
 
 
-def test_checker_census_matches_merge_base(tmp_path: Path) -> None:
-    """センサス差分を今回変更した TB002・TB007 の写像だけに固定する。"""
-    merge_base = _resolve_merge_base("origin/develop", "HEAD")
-    baseline_checker = _load_checker_from_revision(
-        merge_base,
-        tmp_path / "check_tenant_boundary_bypass_merge_base.py",
-    )
-    reference_repository_root = _materialize_contract_root(
-        merge_base,
-        tmp_path / "reference_repository",
-    )
-
-    added, removed = _compare_checker_census(
-        baseline_checker,
-        checker,
-        repository_root=REPOSITORY_ROOT,
-        source_root=REPOSITORY_ROOT / "backend" / "src",
-        reference_repository_root=reference_repository_root,
-    )
-
-    assert added
-    assert {identity[4] for identity in added} <= {"TB002", "TB007"}
-    assert removed
-    assert {identity[4] for identity in removed} <= {"TB002", "TB007"}
-    removed_tb007 = frozenset(
-        identity for identity in removed if identity[4] == "TB007"
-    )
-    assert removed_tb007
-    _assert_removed_tb007_matches_declared_relaxations(removed_tb007)
-    adjudicated_symbols = set(EXPECTED_CONDITION_2_ADJUDICATIONS)
-    adjudicated_names = {
-        symbol.rsplit(".", 1)[-1] for symbol in adjudicated_symbols
-    }
-    current_census = _checker_census(
-        checker,
-        repository_root=REPOSITORY_ROOT,
-        source_root=REPOSITORY_ROOT / "backend" / "src",
-    )
-    for identity in removed:
-        if identity[4] != "TB002" or identity[5] in (
-            adjudicated_symbols | adjudicated_names
-        ):
-            continue
-        assert any(
-            current[0] == identity[0]
-            and current[1] == identity[1]
-            and current[4] == "TB002"
-            for current in current_census
-        )
-
-
 def test_generated_provenance_corpus_never_weakens_develop(
     tmp_path: Path,
 ) -> None:
     """生成経路について develop が red なら HEAD も必ず red にする。"""
+    base_sha = _resolve_provenance_comparison_sha("origin/develop")
+    head_sha = _resolve_provenance_comparison_sha("HEAD")
+    if base_sha == head_sha:
+        # 明示 skip は判定不能を記録し、判定不能を合格にする「空振り」と区別する。
+        pytest.skip(_REFLECTIVE_PROVENANCE_SKIP_REASON)
+
     develop_checker = _load_checker_from_revision(
         "origin/develop",
         tmp_path / "check_tenant_boundary_bypass_develop.py",
@@ -1835,6 +1638,58 @@ def test_generated_provenance_corpus_never_weakens_develop(
         "develop では TB007 だが HEAD で green になる生成経路: "
         + ", ".join(weakened)
     )
+
+
+def test_generated_provenance_corpus_skips_reflective_comparison(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """比較元と HEAD の解決値が同じなら明示 skip にする。"""
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_resolve_provenance_comparison_sha",
+        lambda _revision: "same-sha",
+    )
+
+    with pytest.raises(
+        pytest.skip.Exception,
+        match=_REFLECTIVE_PROVENANCE_SKIP_REASON,
+    ):
+        test_generated_provenance_corpus_never_weakens_develop(tmp_path)
+
+
+def test_generated_provenance_corpus_runs_all_cases_for_distinct_revisions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """比較元と HEAD の解決値が異なれば生成コーパスを全件判定する。"""
+    corpus = _tenant_context_provenance_corpus()
+    observed_case_ids: list[str] = []
+    resolved_shas = {
+        "origin/develop": "base-sha",
+        "HEAD": "head-sha",
+    }
+
+    def observed_corpus() -> Iterator[tuple[str, str]]:
+        for case_id, source in corpus:
+            yield case_id, source
+            observed_case_ids.append(case_id)
+
+    module = sys.modules[__name__]
+    monkeypatch.setattr(
+        module,
+        "_resolve_provenance_comparison_sha",
+        lambda revision: resolved_shas[revision],
+    )
+    monkeypatch.setattr(
+        module,
+        "_tenant_context_provenance_corpus",
+        observed_corpus,
+    )
+
+    test_generated_provenance_corpus_never_weakens_develop(tmp_path)
+
+    assert observed_case_ids == [case_id for case_id, _source in corpus]
 
 
 def test_dynamic_method_on_known_non_db_receiver_is_green() -> None:
@@ -2495,7 +2350,7 @@ def test_positive_fixtures_pass() -> None:
 
 
 def test_frozen_baseline_asset_paths_are_an_exact_set() -> None:
-    """tenant_boundary 配下の 7 資産を履歴検査から漏らさない。"""
+    """tenant_boundary 配下の全資産を履歴検査から漏らさない。"""
     asset_root = REPOSITORY_ROOT / "contracts" / "tenant_boundary"
     actual = {
         path.relative_to(REPOSITORY_ROOT)
@@ -2506,18 +2361,38 @@ def test_frozen_baseline_asset_paths_are_an_exact_set() -> None:
 
 
 def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
-    """7 資産すべてが同じ 3 実装を凍結し、authority が 1 件だけである。"""
-    expected_external_files = [
+    """資産別の外部凍結対象と単一 authority を固定する。"""
+    shared_external_files = [
         "scripts/check_tenant_boundary_bypass.py",
         "scripts/frozen_history.py",
         ".github/workflows/ci.yml",
     ]
+    expected_external_files = {
+        Path("contracts/tenant_boundary/base-allowlist.json"): shared_external_files,
+        Path("contracts/tenant_boundary/cache-invalidation-contract.json"): (
+            shared_external_files
+        ),
+        Path("contracts/tenant_boundary/census-baseline.json"): [
+            *shared_external_files,
+            "tests/test_census_baseline_check.py",
+        ],
+        Path("contracts/tenant_boundary/db-api-inventory.json"): shared_external_files,
+        Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
+        Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,
+        Path("contracts/tenant_boundary/runtime-authz-contract.json"): (
+            shared_external_files
+        ),
+        Path("contracts/tenant_boundary/tenant-context-allowlist.json"): (
+            shared_external_files
+        ),
+    }
+    assert set(expected_external_files) == set(checker.FROZEN_BASELINE_ASSETS)
     authorities: list[Path] = []
-    for relative_path in checker.FROZEN_BASELINE_ASSETS:
+    for relative_path, expected_files in expected_external_files.items():
         asset = _read_contract_asset(relative_path)
         control = asset["baseline_control"]
         assert control["identity"]["frozen_projection"]["external_files"] == (
-            expected_external_files
+            expected_files
         )
         if control["history_authority"]:
             authorities.append(relative_path)
@@ -2977,6 +2852,102 @@ def _add_synthetic_frozen_asset(
     return path
 
 
+def _mutate_census_frozen_surface(repository: Path, mutation: str) -> Path:
+    """census の実装または直接実行結線だけを合成リポジトリで壊す。"""
+    census_module = Path("tests/test_census_baseline_check.py")
+    ci_workflow = Path(".github/workflows/ci.yml")
+    if mutation == "implementation-module":
+        target = repository / census_module
+        target.write_text(
+            target.read_text(encoding="utf-8") + "\n# frozen implementation mutation\n",
+            encoding="utf-8",
+        )
+        return census_module
+    if mutation == "ci-step-deleted":
+        target = repository / ci_workflow
+        command = "      - run: uv run python tests/test_census_baseline_check.py\n"
+        source = target.read_text(encoding="utf-8")
+        assert source.count(command) == 1
+        target.write_text(source.replace(command, ""), encoding="utf-8")
+        return ci_workflow
+    if mutation == "cli-entrypoint-deleted":
+        target = repository / census_module
+        entrypoint = '\n\nif __name__ == "__main__":\n    raise SystemExit(main())\n'
+        source = target.read_text(encoding="utf-8")
+        assert source.count(entrypoint) == 1
+        target.write_text(source.replace(entrypoint, "\n"), encoding="utf-8")
+        return census_module
+    raise AssertionError(f"未知の census 凍結変異: {mutation}")
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "implementation-module",
+        "ci-step-deleted",
+        "cli-entrypoint-deleted",
+    ),
+)
+def test_census_frozen_surface_mutation_triggers_pass_fail_mapping(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """census 実装・CI・CLI 結線の単独変異が mapping movement を起こす。"""
+    repository, base_ref = _initialize_test_repository(tmp_path, {})
+    changed_path = _mutate_census_frozen_surface(repository, mutation)
+
+    changed_files = checker._run_git(
+        repository,
+        ["diff", "--name-only"],
+    ).splitlines()
+    assert changed_files == [changed_path.as_posix()]
+    evaluation = _evaluate_test_repository_movement(repository, base_ref)
+    assert evaluation.triggered_tokens == frozenset({"pass_fail_mapping"})
+    assert "contracts/tenant_boundary/census-baseline.json" in (
+        evaluation.affected_assets
+    )
+
+
+def test_census_implementation_movement_requires_record_and_identifier_bump(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """census 実装単独の movement が authority 記録と識別値更新を要求する。"""
+    repository, base_ref = _initialize_pull_request_repository(
+        tmp_path,
+        monkeypatch,
+        number=81,
+    )
+    _mutate_census_frozen_surface(repository, "implementation-module")
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / "census-implementation-movement-event.json",
+        number=81,
+    )
+    evaluation = _evaluate_test_repository_movement(repository, base_ref)
+    assert evaluation.triggered_tokens == frozenset({"pass_fail_mapping"})
+
+    with pytest.raises(checker.ContractError, match="movement.*record"):
+        checker.check_repository(repository)
+
+    _append_current_repository_transition_record(
+        repository,
+        base_ref,
+        acceptance_id="masaki1025/pitchlog#81",
+    )
+    _seal_pull_request_worktree(
+        repository,
+        base_ref,
+        monkeypatch,
+        tmp_path / "census-implementation-identifier-event.json",
+        number=81,
+    )
+    with pytest.raises(checker.ContractError, match="識別値の更新が必要"):
+        checker.check_repository(repository)
+
+
 @pytest.mark.parametrize(
     ("additional_trigger", "expects_record"),
     [
@@ -3352,7 +3323,7 @@ def test_public_function_production_reachability_and_movement_result_usage() -> 
 def test_every_frozen_baseline_asset_has_a_valid_chained_history(
     relative_path: Path,
 ) -> None:
-    """初回 v1 の pending と、末尾から導く現行識別値を固定する。"""
+    """空履歴を非 authority に限定し、履歴があれば識別値の連鎖を固定する。"""
     asset = _read_contract_asset(relative_path)
     control = asset["baseline_control"]
 
@@ -3361,8 +3332,10 @@ def test_every_frozen_baseline_asset_has_a_valid_chained_history(
         relative_path.as_posix(),
     )
 
-    assert history
     assert len(history) == len(control["history"])
+    if not history:
+        assert control["history_authority"] is False
+        return
     has_v2_record = any(entry.get("record_schema_version") == 2 for entry in history)
     assert has_v2_record is control["history_authority"]
     assert history[0]["source_commit"] == checker.PENDING_SOURCE_COMMIT
@@ -3407,7 +3380,10 @@ def test_first_history_entry_does_not_imply_no_previous_baseline(
 ) -> None:
     """履歴の先頭という理由だけで直前基準なしと推定しない。"""
     asset = _read_contract_asset(relative_path)
-    assert checker._validate_baseline_control(asset, relative_path.as_posix())
+    history = checker._validate_baseline_control(asset, relative_path.as_posix())
+    if not history:
+        assert asset["baseline_control"]["history_authority"] is False
+        return
     mutated = copy.deepcopy(asset)
     mutated["baseline_control"]["history"][0][
         "previous_baseline_identifiers"
@@ -6049,8 +6025,15 @@ def test_condition4_allowed_call_symbols_are_an_exact_set() -> None:
     )
 
 
-def test_repository_application_population_is_nonempty_and_green() -> None:
-    """自 PR の実差分を走査し、受理済みの射影移動が green になることを示す。"""
+def test_repository_is_green() -> None:
+    """実 PR 全体の契約・履歴・movement に違反がないことを検証する。"""
+    assert checker.check_repository(REPOSITORY_ROOT) == []
+
+
+def test_repository_application_population_is_nonempty_and_green(
+    tmp_path: Path,
+) -> None:
+    """自 PR の製品実差分を合成リポジトリで走査して green と示す。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     diff = checker._run_git(
         REPOSITORY_ROOT,
@@ -6085,7 +6068,14 @@ def test_repository_application_population_is_nonempty_and_green() -> None:
         )
     else:
         assert set(PRODUCT_APPLICATION_PATHS) <= set(head_sources)
-    assert checker.check_repository(REPOSITORY_ROOT) == []
+    repository, base_ref = _initialize_test_repository(
+        tmp_path,
+        baseline_sources,
+    )
+    if baseline_sources != head_sources:
+        _write_test_repository_sources(repository, head_sources)
+        _commit_test_repository(repository, "current product sources")
+    assert _check_test_repository(repository, base_ref) == []
 
 
 def test_introduced_symbol_without_definition_file_changes_is_red() -> None:

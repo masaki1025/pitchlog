@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 4
+RUNTIME_CONTRACT_REVISION = 5
 PROVISIONAL = True
 SUPERSEDED_BY = "contracts/authz/product/ddl-elements.json"
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "f234b585be6bd6146908c739411fa029f62a8df81e1723e003c6fe5c9afce8f8"
+SOURCE_DIGEST = "27840f3e6b62d32c02bc4f0407ed8f414e3f26c1bb4751f0e964cec1a2285bca"
 
 
 @dataclass(frozen=True, slots=True)

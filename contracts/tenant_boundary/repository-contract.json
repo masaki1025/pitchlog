@@ -70,7 +70,11 @@
   },
   "asset_kind": "tenant_repository_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
+<<<<<<< HEAD
   "source_digest": "db918963f8ccef259c278947a978a419c98f80141780760dd69571caed5e70eb",
+=======
+  "source_digest": "33b295e320cb49bac926e7ec62ebf3db897456e4291471155fa1562cefdcb386",
+>>>>>>> origin/develop
   "public_surface": {
     "repository_type": "pitchlog.repositories.base.TenantRepositoryBase",
     "context_binding_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
