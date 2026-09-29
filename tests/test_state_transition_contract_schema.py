@@ -1813,8 +1813,8 @@ def test_repository_schema_accepts_the_three_normative_row_layers() -> None:
     _validate(_minimal_contract())
 
 
-def test_repository_contract_step51_to_step53_rows_satisfy_constraints() -> None:
-    """継続・三振・四死球系12行が10列exact型・参照・XCを充足する。"""
+def test_repository_contract_step51_to_step54_rows_satisfy_constraints() -> None:
+    """継続・三振・四死球・安打系16行が10列exact型・参照・XCを充足する。"""
     contract = _repository_contract()
     step51_result_ids = {
         "batting-result.called-pitch",
@@ -1834,6 +1834,12 @@ def test_repository_contract_step51_to_step53_rows_satisfy_constraints() -> None
         "batting-result.hit-by-pitch",
         "batting-result.intentional-walk",
     }
+    step54_result_ids = {
+        "batting-result.single",
+        "batting-result.double",
+        "batting-result.triple",
+        "batting-result.home-run",
+    }
 
     _validate_schema(contract)
     _validate_references(
@@ -1843,10 +1849,11 @@ def test_repository_contract_step51_to_step53_rows_satisfy_constraints() -> None
     _validate_cross_constraints(contract)
 
     rows = contract["matrixRows"]
-    assert len(rows) == 12
+    assert len(rows) == 16
     assert {row["resultId"] for row in rows[:4]} == step51_result_ids
     assert {row["resultId"] for row in rows[4:9]} == step52_result_ids
-    assert {row["resultId"] for row in rows[9:]} == step53_result_ids
+    assert {row["resultId"] for row in rows[9:12]} == step53_result_ids
+    assert {row["resultId"] for row in rows[12:]} == step54_result_ids
     assert all(row["eventKind"] == "batting-result" for row in rows)
     assert all(row["plateAppearanceEnded"] is False for row in rows[:4])
     assert all(row["batterDestination"] == {"kind": "continue"} for row in rows[:4])
@@ -1881,10 +1888,15 @@ def test_repository_contract_step51_to_step53_rows_satisfy_constraints() -> None
         assert row["batterDestination"] == {"kind": "out"}
         assert row["statFlags"]["投球回算入アウト"] is True
 
-    four_ball_rows = {row["resultId"]: row for row in rows[9:]}
-    assert all(row["plateAppearanceEnded"] is True for row in rows[9:])
-    assert all(row["batterDestination"] == {"kind": "reach", "base": 1} for row in rows[9:])
-    assert all(row["outEffect"] == {"count": 0, "targets": []} for row in rows[9:])
+    four_ball_rows = {row["resultId"]: row for row in rows[9:12]}
+    assert all(row["plateAppearanceEnded"] is True for row in rows[9:12])
+    assert all(
+        row["batterDestination"] == {"kind": "reach", "base": 1}
+        for row in rows[9:12]
+    )
+    assert all(
+        row["outEffect"] == {"count": 0, "targets": []} for row in rows[9:12]
+    )
     assert all(
         row["runnerDefaultAdvance"]
         == {
@@ -1892,7 +1904,7 @@ def test_repository_contract_step51_to_step53_rows_satisfy_constraints() -> None
             "second": {"modality": "not-applicable", "destination": None},
             "third": {"modality": "hold", "destination": None},
         }
-        for row in rows[9:]
+        for row in rows[9:12]
     )
     assert {
         name
@@ -1917,41 +1929,100 @@ def test_repository_contract_step51_to_step53_rows_satisfy_constraints() -> None
         for argument in intentional_precondition["args"]
     }["event.perPitch.pitchEventKind"] == "non-pitch-event"
 
+    hit_rows = {row["resultId"]: row for row in rows[12:]}
+    assert all(row["plateAppearanceEnded"] is True for row in hit_rows.values())
+    assert all(
+        row["countEffect"]
+        == {"strikes": {"kind": "reset"}, "balls": {"kind": "reset"}}
+        for row in hit_rows.values()
+    )
+    assert all(
+        row["outEffect"] == {"count": 0, "targets": []}
+        for row in hit_rows.values()
+    )
+    total_bases_by_result = {
+        "batting-result.single": 1,
+        "batting-result.double": 2,
+        "batting-result.triple": 3,
+        "batting-result.home-run": 4,
+    }
+    for result_id, total_bases in total_bases_by_result.items():
+        row = hit_rows[result_id]
+        assert row["statFlags"]["塁打"] is True
+        assert f"塁打{total_bases}" in row["remarks"]
+    for result_id, base in {
+        "batting-result.single": 1,
+        "batting-result.double": 2,
+        "batting-result.triple": 3,
+    }.items():
+        row = hit_rows[result_id]
+        assert row["batterDestination"] == {"kind": "reach", "base": base}
+        assert {
+            name for name, enabled in row["statFlags"].items() if enabled
+        } == {"投球数", "被安打", "打席", "打数", "安打", "塁打"}
+        assert row["runnerDefaultAdvance"] == {
+            "first": {"modality": "not-applicable", "destination": None},
+            "second": {"modality": "not-applicable", "destination": None},
+            "third": {"modality": "not-applicable", "destination": None},
+        }
+    home_run = hit_rows["batting-result.home-run"]
+    assert home_run["batterDestination"] == {"kind": "score"}
+    assert home_run["runnerDefaultAdvance"] == {
+        "first": {"modality": "optional", "destination": 4},
+        "second": {"modality": "optional", "destination": 4},
+        "third": {"modality": "optional", "destination": 4},
+    }
+    assert {
+        name for name, enabled in home_run["statFlags"].items() if enabled
+    } == {
+        "投球数",
+        "被安打",
+        "被本塁打",
+        "失点",
+        "打席",
+        "打数",
+        "安打",
+        "本塁打",
+        "塁打",
+        "得点",
+        "打点",
+    }
+    home_run_precondition = {
+        argument["axisId"]: argument["value"]
+        for argument in home_run["precondition"]["args"]
+    }
+    assert home_run_precondition["state.runners"] == "loaded"
+    scored_runner_count = sum(
+        advance["destination"] == 4
+        for advance in home_run["runnerDefaultAdvance"].values()
+    )
+    assert scored_runner_count + (home_run["batterDestination"]["kind"] == "score") == 4
 
-def test_repository_contract_records_completed_step53_independent_review() -> None:
-    """四死球系3行の独立確認を提示された時系列どおり記録する。"""
+
+def test_repository_contract_records_step54_review_as_not_performed() -> None:
+    """安打系行を加えた契約が未実施の独立確認を装わない。"""
     provenance = _repository_contract()["provenance"]
 
     assert provenance["authorId"] == "codex"
-    assert provenance["independentVerifierId"] == "山田正輝"
-    assert {
-        "sourceKind": "official-baseball-rules",
-        "sourceId": "obr:9.02(a)(1)",
-    } in provenance["sources"]
-    review = provenance["independentReview"]
-    assert review["verifiedOn"] == "2026-09-30"
-    assert review["reviewerRole"] == "PO"
-    assert review["authorWorkExposure"] == "seen-before-source-review"
-    assert [event["sequence"] for event in review["chronology"]] == [1, 2, 3, 4]
-    assert "作業結果とClaudeのWeb照合結果を見た後に" in review["chronology"][2][
-        "activity"
-    ]
-    assert "一塁走者は強制進塁" in review["findings"][0]
-    assert "9.02(a)(1)" in review["findings"][1]
-    assert "申告敬遠" in review["findings"][2]
-    assert "満塁と四球の組合せは段階2" in review["findings"][4]
-    assert "3-0" in review["findings"][5]
-    assert "打者側・投手側" in review["findings"][6]
-    assert provenance["attestations"] == [
-        {"attestationId": "direct-source-clause-review", "response": True},
-        {"attestationId": "author-work-exposure", "response": "seen-and-recorded"},
-        {"attestationId": "source-support-judgment", "response": True},
-    ]
-    provenance_checker.validate_provenance(
-        REPOSITORY_ROOT,
-        provenance,
-        schema_value=_schema(),
+    assert provenance["independentVerifierId"] == "not-performed"
+    assert "independentReview" not in provenance
+    assert {source["sourceId"] for source in provenance["sources"]}.issuperset(
+        {"req:A-5", "req:ADV-03", "req:RBI-06"}
     )
+    assert provenance["attestations"] == [
+        {"attestationId": "direct-source-clause-review", "response": False},
+        {"attestationId": "author-work-exposure", "response": "not-performed"},
+        {"attestationId": "source-support-judgment", "response": False},
+    ]
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError,
+        match="宣誓応答が充足値でない",
+    ):
+        provenance_checker.validate_provenance(
+            REPOSITORY_ROOT,
+            provenance,
+            schema_value=_schema(),
+        )
 
 
 def test_step53_four_ball_results_use_identity_partition_without_gap() -> None:
@@ -1966,6 +2037,25 @@ def test_step53_four_ball_results_use_identity_partition_without_gap() -> None:
         "batting-result.walk",
         "batting-result.hit-by-pitch",
         "batting-result.intentional-walk",
+    }
+
+    assert identity_rule["partitions"] == ["identity"]
+    assert result_ids.issubset(identity_rule["vocabularyIds"])
+
+
+def test_step54_hit_results_use_identity_partition_without_gap() -> None:
+    """安打系4語彙がrequiredSet①の単一行規則に属する。"""
+    rules = _load_object(REQUIRED_SET_ROW_RULES_PATH)
+    identity_rule = next(
+        rule
+        for rule in rules["partitionRules"]
+        if rule["partitionRuleId"] == "identity"
+    )
+    result_ids = {
+        "batting-result.single",
+        "batting-result.double",
+        "batting-result.triple",
+        "batting-result.home-run",
     }
 
     assert identity_rule["partitions"] == ["identity"]

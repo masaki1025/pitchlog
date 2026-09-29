@@ -582,8 +582,9 @@ def _format_runner_advance(
             and isinstance(destination, int)
             and not isinstance(destination, bool)
         ):
-            modality_name = "強制" if modality == "forced" else "任意"
-            parts.append(f"{label}→{destination}塁（{modality_name}）")
+            modality_name = "強制" if modality == "forced" else "非フォース"
+            destination_name = "本塁" if destination == 4 else f"{destination}塁"
+            parts.append(f"{label}→{destination_name}（{modality_name}）")
             continue
         unresolved.add(f"runnerDefaultAdvance.{base}={_compact_json(advance)}")
         parts.append(f"{label}:{_compact_json(advance)}")
