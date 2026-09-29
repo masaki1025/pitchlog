@@ -200,7 +200,7 @@ def test_unsupported_declared_digest_method_is_red() -> None:
 
 
 def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> None:
-    """ステップ55の独立確認状態を契約から決定的に生成する。"""
+    """ステップ56の未確認シートを契約から決定的に生成する。"""
     generated = tmp_path / "matrix_rows_line_review.md"
 
     result = checker.main(
@@ -219,10 +219,8 @@ def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> N
         encoding="utf-8"
     )
     sheet = generated.read_text(encoding="utf-8")
-    assert "独立確認: **記録あり**" in sheet
-    assert "確認者: `山田正輝`" in sheet
-    assert "確認日: `2026-09-30`" in sheet
-    assert "作成結果を見た後に典拠確認" in sheet
+    assert "独立確認: **未実施**" in sheet
+    assert "確認者:" not in sheet
     assert "確認済み" not in sheet
     assert "本表の全行に共通する前提:** 打撃結果" in sheet
     assert "state_transition_contract_v1.json` の `matrixRows[]`" in sheet
@@ -234,7 +232,7 @@ def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> N
         if line.startswith("| ")
         and line.removeprefix("| ").split(" | ", maxsplit=1)[0].isdigit()
     ]
-    assert len(table_rows) == 19
+    assert len(table_rows) == 23
     assert "| 1 | 見逃し | 無死 / 走者なし / カウント 0-0 / 投球イベント | S+1 |" in sheet
     assert "| 4 | ボール | 無死 / 走者なし / カウント 0-0 / 投球イベント | B+1 |" in sheet
     assert "| 7 | 振り逃げ | 2死 / 走者なし / カウント 0-2 / 投球イベント |" in sheet
@@ -259,6 +257,14 @@ def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> N
     assert "| 18 | 凡打出塁 | 無死 / 走者 1塁・2塁 / カウント 0-0 / 投球イベント |" in sheet
     assert "1塁→2塁（強制） / 2塁→3塁（強制）" in sheet
     assert "| 19 | ファールフライ | 無死 / 走者なし / カウント 0-0 / 投球イベント |" in sheet
+    assert "| 20 | 併殺打 | 無死 / 走者 1塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert "| 21 | ライナー併殺 | 無死 / 走者 1塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert "2（打者・1塁走者）" in sheet
+    assert "| 22 | エラー | 無死 / 走者 1塁・2塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert "| 23 | 野手選択 | 無死 / 走者 1塁・2塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert "投球数・失策・打席・打数" in sheet
+    assert "対象野手・失策種別の公式記録判断は段階2待ち" in sheet
+    assert "野手選択とする公式記録判断は段階2待ち" in sheet
     assert "公式記録上の分類・失策導出は段階2待ち" in sheet
     assert "requiredSet①はsafe/outの2行を要求" in sheet
     assert "## 短縮表示できなかった値" not in sheet
@@ -282,8 +288,8 @@ def test_matrix_rows_line_review_renderer_accepts_later_rows() -> None:
         if line.startswith("| ")
         and line.removeprefix("| ").split(" | ", maxsplit=1)[0].isdigit()
     ]
-    assert len(table_rows) == 20
-    assert "| 20 | 単打 |" in sheet
+    assert len(table_rows) == 24
+    assert "| 24 | 単打 |" in sheet
 
 
 def test_matrix_rows_result_names_follow_vocabulary_seed(tmp_path: Path) -> None:

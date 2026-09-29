@@ -83,6 +83,14 @@
         "sourceId": "req:RBI-06"
       },
       {
+        "sourceKind": "requirements",
+        "sourceId": "req:FR-004"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:FR-020"
+      },
+      {
         "sourceKind": "legacy-research",
         "sourceId": "docs/legacy/research/input-screen.md:68"
       },
@@ -92,54 +100,19 @@
       }
     ],
     "authorId": "codex",
-    "independentVerifierId": "山田正輝",
-    "independentReview": {
-      "verifiedOn": "2026-09-30",
-      "reviewerRole": "PO",
-      "authorWorkExposure": "seen-before-source-review",
-      "chronology": [
-        {
-          "sequence": 1,
-          "actorId": "codex",
-          "activity": "作成者が凡打系の規範行3行を作成し、機械生成の逐行確認シートを出力した"
-        },
-        {
-          "sequence": 2,
-          "actorId": "Claude",
-          "activity": "docs/legacy/research/input-screen.mdの68行目・163行目を実測し、その結果を逐行確認シートと併せてPOへ提示した。この照合は独立確認者自身による典拠確認ではない"
-        },
-        {
-          "sequence": 3,
-          "actorId": "山田正輝",
-          "activity": "作成者の作業結果とClaudeの実測結果を見た後に、条文とdocs/legacy/research/input-screen.mdの68行目・163行目を自身で確認した"
-        },
-        {
-          "sequence": 4,
-          "actorId": "山田正輝",
-          "activity": "凡打系の規範行3行を承認した"
-        }
-      ],
-      "findings": [
-        "docs/legacy/research/input-screen.md:68では凡打出塁がoutsカテゴリに属し、エラー・野手選択・犠打失策のmissカテゴリとは異なる入力経路にある",
-        "docs/legacy/research/input-screen.md:163では凡打出塁の状態効果を打者出塁・全在塁走者1進としている",
-        "凡打死・凡打出塁・ファールフライはいずれも安打に算入せず、打数を計上する",
-        "凡打出塁をoutsの値として残すことで記録者は従来どおり凡打カテゴリから選べ、missへ移す入力経路変更を避ける",
-        "凡打出塁の前提を一塁・二塁とした選択は押し出し連鎖を示す代表座標であり、計算のふるまいを変更しない",
-        "凡打出塁の公式記録上の分類と失策の有無は段階2のままである"
-      ]
-    },
+    "independentVerifierId": "not-performed",
     "attestations": [
       {
         "attestationId": "direct-source-clause-review",
-        "response": true
+        "response": false
       },
       {
         "attestationId": "author-work-exposure",
-        "response": "seen-and-recorded"
+        "response": "not-performed"
       },
       {
         "attestationId": "source-support-judgment",
-        "response": true
+        "response": false
       }
     ]
   },
@@ -1131,6 +1104,214 @@
         "打点": false
       },
       "remarks": "旧outs。捕球済みの邪飛で打者アウト1件。無走者代表のためXMARK-*・OUT3-*対象外"
+    },
+    {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.double-play",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"}
+      },
+      "plateAppearanceEnded": true,
+      "batterDestination": {"kind": "out"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "hold", "destination": null},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 2, "targets": ["batter", {"runner": 1}]},
+      "statFlags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "E-2・旧outs。無死一塁の併殺打で打者と一塁走者の2アウト。0+2=2のためOUT3-*対象外"
+    },
+    {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.line-double-play",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"}
+      },
+      "plateAppearanceEnded": true,
+      "batterDestination": {"kind": "out"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "hold", "destination": null},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 2, "targets": ["batter", {"runner": 1}]},
+      "statFlags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "E-2・旧outs。無死一塁のライナー併殺で打者と一塁走者の2アウト。0+2=2のためOUT3-*対象外"
+    },
+    {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.error",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first-second"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"}
+      },
+      "plateAppearanceEnded": true,
+      "batterDestination": {"kind": "reach", "base": 1},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "forced", "destination": 2},
+        "second": {"modality": "forced", "destination": 3},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": true,
+        "打席": true,
+        "打数": true,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "旧miss。打者一塁・全在塁走者1進。resultIdに従い失策を計上するが、対象野手・失策種別の公式記録判断は段階2待ち"
+    },
+    {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.fielders-choice",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first-second"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"}
+      },
+      "plateAppearanceEnded": true,
+      "batterDestination": {"kind": "reach", "base": 1},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "forced", "destination": 2},
+        "second": {"modality": "forced", "destination": 3},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "旧miss。打者一塁・全在塁走者1進。野手選択とする公式記録判断は段階2待ち"
     }
   ],
   "operationRows": [],
@@ -1405,6 +1586,125 @@
                 "args": [
                   {"op": "eq", "axisId": "state.outs", "value": 0},
                   {"op": "eq", "axisId": "state.runners", "value": "loaded"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.batted-out",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "empty"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.batted-reach",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first-second"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.foul-fly",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "empty"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.double-play",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.line-double-play",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.error",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first-second"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.fielders-choice",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first-second"},
                   {"op": "eq", "axisId": "state.count.strikes", "value": 0},
                   {"op": "eq", "axisId": "state.count.balls", "value": 0},
                   {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
