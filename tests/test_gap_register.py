@@ -321,7 +321,7 @@ def test_nine_open_gaps_have_clause_and_branch_prefix_filled() -> None:
         "GAP-05": ["FR-020", "FR-005"],
         "GAP-06": ["A-1", "FR-003"],
         "GAP-07": ["E-1", "FR-004"],
-        "GAP-08": ["E-2", "A-2"],
+        "GAP-08": ["E-2", "A-2", "SO-03", "XC-13"],
         "GAP-09": ["A-3"],
     }
 

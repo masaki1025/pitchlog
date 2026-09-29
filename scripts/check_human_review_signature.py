@@ -325,8 +325,85 @@ def _schema_definition(
     return _object(definitions.get(definition_id), f"$defs.{definition_id}")
 
 
+def _runner_display_policy(schema: Mapping[str, Any]) -> tuple[
+    dict[str, str], dict[str, tuple[str, ...]]
+]:
+    """schemaの走者存在宣言から塁名と存在値を取得する。"""
+    constraints = _object(
+        schema.get("x-pitchlog-matrix-cross-constraints"),
+        "x-pitchlog-matrix-cross-constraints",
+    )
+    presence = _object(constraints.get("runnerPresence"), "runnerPresence")
+    base_by_number = _object(
+        presence.get("baseByRunnerNumber"),
+        "runnerPresence.baseByRunnerNumber",
+    )
+    present_values = _object(
+        presence.get("presentValuesByBase"),
+        "runnerPresence.presentValuesByBase",
+    )
+    labels: dict[str, str] = {}
+    values_by_base: dict[str, tuple[str, ...]] = {}
+    for runner_number, raw_base in base_by_number.items():
+        base = _string(raw_base, f"baseByRunnerNumber.{runner_number}")
+        labels[base] = f"{runner_number}塁"
+        values_by_base[base] = _string_list(
+            present_values.get(base),
+            f"presentValuesByBase.{base}",
+        )
+    return labels, values_by_base
+
+
+def _predicate_args(raw_precondition: object) -> list[dict[str, Any]]:
+    """共通部分の抽出に使えるand述語の引数を返す。"""
+    precondition = _object(raw_precondition, "precondition")
+    raw_args = precondition.get("args")
+    if precondition.get("op") != "and" or not isinstance(raw_args, list):
+        return []
+    return [
+        _object(raw_arg, f"precondition.args[{index}]")
+        for index, raw_arg in enumerate(raw_args)
+    ]
+
+
+def _split_common_preconditions(
+    rows: list[dict[str, Any]],
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    """全行共通の述語引数と行ごとの差分を決定的に分ける。"""
+    args_by_row = [_predicate_args(row.get("precondition")) for row in rows]
+    if not args_by_row or any(not args for args in args_by_row):
+        return None, [
+            _object(row.get("precondition"), "precondition") for row in rows
+        ]
+
+    canonical_by_row = [
+        {descriptor_checker.canonicalize_json(arg) for arg in args}
+        for args in args_by_row
+    ]
+    common_keys = set.intersection(*canonical_by_row)
+    common_args = [
+        arg
+        for arg in args_by_row[0]
+        if descriptor_checker.canonicalize_json(arg) in common_keys
+    ]
+    residuals = [
+        {
+            "op": "and",
+            "args": [
+                arg
+                for arg in args
+                if descriptor_checker.canonicalize_json(arg) not in common_keys
+            ],
+        }
+        for args in args_by_row
+    ]
+    common = {"op": "and", "args": common_args} if common_args else None
+    return common, residuals
+
+
 def _format_precondition(
     raw_precondition: object,
+    schema: Mapping[str, Any],
     unresolved: set[str],
 ) -> str:
     """現在解釈可能なPredicateを短い日本語へ整形する。"""
@@ -360,26 +437,35 @@ def _format_precondition(
     if runners == "empty":
         parts.append("走者なし")
     elif runners is not None:
-        unresolved.add(f"state.runners={_compact_json(runners)}")
-        parts.append(f"state.runners={_compact_json(runners)}")
+        labels, present_values = _runner_display_policy(schema)
+        occupied = [
+            labels[base]
+            for base in labels
+            if isinstance(runners, str) and runners in present_values[base]
+        ]
+        if occupied:
+            parts.append("走者 " + "・".join(occupied))
+        else:
+            unresolved.add(f"state.runners={_compact_json(runners)}")
+            parts.append(f"state.runners={_compact_json(runners)}")
 
     strikes = values.pop("state.count.strikes", None)
     balls = values.pop("state.count.balls", None)
-    if (
-        isinstance(strikes, int)
-        and not isinstance(strikes, bool)
-        and isinstance(balls, int)
-        and not isinstance(balls, bool)
-    ):
+    valid_strikes = isinstance(strikes, int) and not isinstance(strikes, bool)
+    valid_balls = isinstance(balls, int) and not isinstance(balls, bool)
+    if valid_strikes and valid_balls:
         parts.append(f"カウント {balls}-{strikes}")
     else:
-        for axis_id, value in (
-            ("state.count.strikes", strikes),
-            ("state.count.balls", balls),
-        ):
-            if value is not None:
-                unresolved.add(f"{axis_id}={_compact_json(value)}")
-                parts.append(f"{axis_id}={_compact_json(value)}")
+        if valid_strikes:
+            parts.append(f"S={strikes}")
+        elif strikes is not None:
+            unresolved.add(f"state.count.strikes={_compact_json(strikes)}")
+            parts.append(f"state.count.strikes={_compact_json(strikes)}")
+        if valid_balls:
+            parts.append(f"B={balls}")
+        elif balls is not None:
+            unresolved.add(f"state.count.balls={_compact_json(balls)}")
+            parts.append(f"state.count.balls={_compact_json(balls)}")
 
     pitch_event_kind = values.pop("event.perPitch.pitchEventKind", None)
     if pitch_event_kind == "pitch-event":
@@ -460,7 +546,11 @@ def _format_batter_destination(value: object, unresolved: set[str]) -> str:
     return _compact_json(destination)
 
 
-def _format_runner_advance(value: object, unresolved: set[str]) -> str:
+def _format_runner_advance(
+    value: object,
+    schema: Mapping[str, Any],
+    unresolved: set[str],
+) -> str:
     """走者の既定進塁を短縮し、全塁非該当ならダッシュを返す。"""
     advances = _object(value, "runnerDefaultAdvance")
     if advances and all(
@@ -470,8 +560,34 @@ def _format_runner_advance(value: object, unresolved: set[str]) -> str:
         for advance in advances.values()
     ):
         return "—"
-    unresolved.add(f"runnerDefaultAdvance={_compact_json(advances)}")
-    return _compact_json(advances)
+    labels, _ = _runner_display_policy(schema)
+    runner_schema = _schema_definition(schema, "runnerDefaultAdvance")
+    bases = _string_list(
+        runner_schema.get("required"),
+        "$defs.runnerDefaultAdvance.required",
+    )
+    parts: list[str] = []
+    for base in bases:
+        advance = _object(advances.get(base), f"runnerDefaultAdvance.{base}")
+        modality = advance.get("modality")
+        destination = advance.get("destination")
+        label = labels.get(base, base)
+        if modality == "not-applicable" and destination is None:
+            continue
+        if modality == "hold" and destination is None:
+            parts.append(f"{label}停止")
+            continue
+        if (
+            modality in {"forced", "optional"}
+            and isinstance(destination, int)
+            and not isinstance(destination, bool)
+        ):
+            modality_name = "強制" if modality == "forced" else "任意"
+            parts.append(f"{label}→{destination}塁（{modality_name}）")
+            continue
+        unresolved.add(f"runnerDefaultAdvance.{base}={_compact_json(advance)}")
+        parts.append(f"{label}:{_compact_json(advance)}")
+    return " / ".join(parts) if parts else "—"
 
 
 def _format_out_effect(value: object, unresolved: set[str]) -> str:
@@ -582,46 +698,51 @@ def render_matrix_rows_review_sheet(
         provenance.get("independentVerifierId"),
         "provenance.independentVerifierId",
     )
-    independent_review = _object(
-        provenance.get("independentReview"),
-        "provenance.independentReview",
-    )
-    verified_on = _string(
-        independent_review.get("verifiedOn"),
-        "provenance.independentReview.verifiedOn",
-    )
-    reviewer_role = _string(
-        independent_review.get("reviewerRole"),
-        "provenance.independentReview.reviewerRole",
-    )
-    exposure = _string(
-        independent_review.get("authorWorkExposure"),
-        "provenance.independentReview.authorWorkExposure",
-    )
-    if exposure == "seen-before-source-review":
-        exposure_text = "作成結果を見た後に典拠確認"
-    elif exposure == "not-seen-before-source-review":
-        exposure_text = "作成結果を見る前に典拠確認"
-    else:  # pragma: no cover - schemaが閉じたenumとして拒否する
-        exposure_text = exposure
+    review_summary = "- 独立確認: **未実施**"
+    if verifier_id != "not-performed":
+        independent_review = _object(
+            provenance.get("independentReview"),
+            "provenance.independentReview",
+        )
+        verified_on = _string(
+            independent_review.get("verifiedOn"),
+            "provenance.independentReview.verifiedOn",
+        )
+        reviewer_role = _string(
+            independent_review.get("reviewerRole"),
+            "provenance.independentReview.reviewerRole",
+        )
+        exposure = _string(
+            independent_review.get("authorWorkExposure"),
+            "provenance.independentReview.authorWorkExposure",
+        )
+        if exposure == "seen-before-source-review":
+            exposure_text = "作成結果を見た後に典拠確認"
+        elif exposure == "not-seen-before-source-review":
+            exposure_text = "作成結果を見る前に典拠確認"
+        else:  # pragma: no cover - schemaが閉じたenumとして拒否する
+            exposure_text = exposure
+        review_summary = (
+            "- 独立確認: **記録あり**"
+            f"（確認者: `{verifier_id}` / 役割: `{reviewer_role}` / "
+            f"確認日: `{verified_on}` / {exposure_text}）"
+        )
     source_text = " / ".join(f"`{source_id}`" for source_id in source_ids)
 
     event_kinds = [row.get("eventKind") for row in typed_rows]
     common_event_kind = event_kinds[0] if all(
         value == event_kinds[0] for value in event_kinds
     ) else None
-    precondition_keys = [
-        descriptor_checker.canonicalize_json(row.get("precondition"))
-        for row in typed_rows
-    ]
-    common_precondition = typed_rows[0].get("precondition") if all(
-        value == precondition_keys[0] for value in precondition_keys
-    ) else None
+    common_precondition, residual_preconditions = _split_common_preconditions(
+        typed_rows
+    )
     common_parts: list[str] = []
     if common_event_kind is not None:
         common_parts.append(_format_event_kind(common_event_kind, unresolved))
     if common_precondition is not None:
-        common_parts.append(_format_precondition(common_precondition, unresolved))
+        common_parts.append(
+            _format_precondition(common_precondition, schema, unresolved)
+        )
 
     lines = [
         "# `matrixRows[]` 逐行確認シート",
@@ -630,9 +751,7 @@ def render_matrix_rows_review_sheet(
         "レビューの実施や判断の正しさを証明する記録ではない。",
         "",
         f"- 作成者: `{author_id}`",
-        "- 独立確認: **記録あり**"
-        f"（確認者: `{verifier_id}` / 役割: `{reviewer_role}` / "
-        f"確認日: `{verified_on}` / {exposure_text}）",
+        review_summary,
         f"- 由来条文: {source_text}",
         f"- 完全な値: `{STATE_TRANSITION_CONTRACT_PATH.as_posix()}` の "
         "`matrixRows[]`（入力座標 = `eventKind` + `resultId` + `precondition`）",
@@ -648,7 +767,10 @@ def render_matrix_rows_review_sheet(
     if common_event_kind is None:
         headers.append("種別")
     headers.append("結果")
-    if common_precondition is None:
+    has_residual_preconditions = any(
+        residual["args"] for residual in residual_preconditions
+    )
+    if has_residual_preconditions:
         headers.append("前提")
     headers.extend(
         ["カウント", "打席", "打者", "走者", "アウト", "成績フラグ（trueのみ）", "特記"]
@@ -666,14 +788,22 @@ def render_matrix_rows_review_sheet(
         if common_event_kind is None:
             cells.append(_format_event_kind(row.get("eventKind"), unresolved))
         cells.append(result_name)
-        if common_precondition is None:
-            cells.append(_format_precondition(row.get("precondition"), unresolved))
+        if has_residual_preconditions:
+            cells.append(
+                _format_precondition(
+                    residual_preconditions[index - 1],
+                    schema,
+                    unresolved,
+                )
+            )
         cells.extend(
             [
                 _format_count_effect(row.get("countEffect"), schema, unresolved),
                 _format_plate_appearance(row.get("plateAppearanceEnded"), unresolved),
                 _format_batter_destination(row.get("batterDestination"), unresolved),
-                _format_runner_advance(row.get("runnerDefaultAdvance"), unresolved),
+                _format_runner_advance(
+                    row.get("runnerDefaultAdvance"), schema, unresolved
+                ),
                 _format_out_effect(row.get("outEffect"), unresolved),
                 _format_true_stat_flags(row.get("statFlags"), schema),
                 _string(row.get("remarks"), f"matrixRows[{index - 1}].remarks"),

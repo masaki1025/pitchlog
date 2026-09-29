@@ -27,6 +27,13 @@ CONTRACT_PATH = (
     REPOSITORY_ROOT
     / "contracts/state-transition/state_transition_contract_v1.json"
 )
+REQUIRED_SET_ROW_RULES_PATH = (
+    REPOSITORY_ROOT
+    / "contracts/state-transition/required_set_row_rules_v1.json"
+)
+GAP_REGISTER_PATH = (
+    REPOSITORY_ROOT / "contracts/state-transition/gap_register_v1.json"
+)
 DESCRIPTOR_PATH = (
     REPOSITORY_ROOT / "contracts/state-transition/input_axes_descriptor_v1.json"
 )
@@ -1806,14 +1813,21 @@ def test_repository_schema_accepts_the_three_normative_row_layers() -> None:
     _validate(_minimal_contract())
 
 
-def test_repository_contract_step51_rows_satisfy_schema_references_and_xc() -> None:
-    """継続4行が10列exact型・参照制約・実装済みXCを充足する。"""
+def test_repository_contract_step51_and_step52_rows_satisfy_constraints() -> None:
+    """継続4行と三振系5行が10列exact型・参照・XCを充足する。"""
     contract = _repository_contract()
-    expected_result_ids = {
+    step51_result_ids = {
         "batting-result.called-pitch",
         "batting-result.swinging-strike",
         "batting-result.foul",
         "batting-result.ball",
+    }
+    step52_result_ids = {
+        "batting-result.called-strikeout",
+        "batting-result.swinging-strikeout",
+        "batting-result.dropped-third-strike",
+        "batting-result.k3",
+        "batting-result.strikeout-double-play",
     }
 
     _validate_schema(contract)
@@ -1824,41 +1838,110 @@ def test_repository_contract_step51_rows_satisfy_schema_references_and_xc() -> N
     _validate_cross_constraints(contract)
 
     rows = contract["matrixRows"]
-    assert len(rows) == 4
-    assert {row["resultId"] for row in rows} == expected_result_ids
+    assert len(rows) == 9
+    assert {row["resultId"] for row in rows[:4]} == step51_result_ids
+    assert {row["resultId"] for row in rows[4:]} == step52_result_ids
     assert all(row["eventKind"] == "batting-result" for row in rows)
-    assert all(row["plateAppearanceEnded"] is False for row in rows)
-    assert all(row["batterDestination"] == {"kind": "continue"} for row in rows)
-    assert all(row["outEffect"] == {"count": 0, "targets": []} for row in rows)
+    assert all(row["plateAppearanceEnded"] is False for row in rows[:4])
+    assert all(row["batterDestination"] == {"kind": "continue"} for row in rows[:4])
+    assert all(row["outEffect"] == {"count": 0, "targets": []} for row in rows[:4])
     assert all(
         {name for name, enabled in row["statFlags"].items() if enabled}
         == {"投球数"}
-        for row in rows
+        for row in rows[:4]
     )
+    strikeout_rows = rows[4:]
+    assert all(row["plateAppearanceEnded"] is True for row in strikeout_rows)
+    assert all(
+        row["countEffect"]
+        == {"strikes": {"kind": "reset"}, "balls": {"kind": "reset"}}
+        for row in strikeout_rows
+    )
+    by_result = {row["resultId"]: row for row in strikeout_rows}
+    dropped = by_result["batting-result.dropped-third-strike"]
+    assert dropped["batterDestination"] == {"kind": "reach", "base": 1}
+    assert dropped["outEffect"] == {"count": 0, "targets": []}
+    assert {
+        name for name, enabled in dropped["statFlags"].items() if enabled
+    } == {"投球数", "奪三振", "打席", "打数", "三振"}
+    double_play = by_result["batting-result.strikeout-double-play"]
+    assert double_play["outEffect"] == {
+        "count": 2,
+        "targets": ["batter", {"runner": 1}],
+    }
+    for result_id, row in by_result.items():
+        if result_id == "batting-result.dropped-third-strike":
+            continue
+        assert row["batterDestination"] == {"kind": "out"}
+        assert row["statFlags"]["投球回算入アウト"] is True
 
 
-def test_repository_contract_records_completed_step51_independent_review() -> None:
-    """完了した独立確認の記録が由来検査を充足する。"""
+def test_repository_contract_records_step52_review_as_not_performed() -> None:
+    """三振系行を加えた契約が未実施の独立確認を装わない。"""
     provenance = _repository_contract()["provenance"]
 
     assert provenance["authorId"] == "codex"
-    assert provenance["independentVerifierId"] == "山田正輝"
-    review = provenance["independentReview"]
-    assert review["verifiedOn"] == "2026-09-29"
-    assert review["reviewerRole"] == "PO"
-    assert review["authorWorkExposure"] == "seen-before-source-review"
-    assert [event["sequence"] for event in review["chronology"]] == [1, 2, 3, 4]
-    assert "見た後に" in review["chronology"][2]["activity"]
+    assert provenance["independentVerifierId"] == "not-performed"
+    assert "independentReview" not in provenance
     assert provenance["attestations"] == [
-        {"attestationId": "direct-source-clause-review", "response": True},
-        {"attestationId": "author-work-exposure", "response": "seen-and-recorded"},
-        {"attestationId": "source-support-judgment", "response": True},
+        {"attestationId": "direct-source-clause-review", "response": False},
+        {"attestationId": "author-work-exposure", "response": "not-performed"},
+        {"attestationId": "source-support-judgment", "response": False},
     ]
-    provenance_checker.validate_provenance(
-        REPOSITORY_ROOT,
-        provenance,
-        schema_value=_schema(),
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError,
+        match="宣誓応答が充足値でない",
+    ):
+        provenance_checker.validate_provenance(
+            REPOSITORY_ROOT,
+            provenance,
+            schema_value=_schema(),
+        )
+
+
+def test_so03_deferred_partition_difference_remains_declared_and_open() -> None:
+    """SO-03の要求2件と実体1行の差を段階2待ちとして保持する。"""
+    contract = _repository_contract()
+    schema = _schema()
+    descriptor = _descriptor()
+    rules = _load_object(REQUIRED_SET_ROW_RULES_PATH)
+    gap_register = _load_object(GAP_REGISTER_PATH)
+
+    deferment = schema["x-pitchlog-deferred-row-requirements"]["deferments"][0]
+    partition_rule = next(
+        rule
+        for rule in rules["partitionRules"]
+        if rule["partitionRuleId"] == deferment["partitionRuleId"]
     )
+    rows = [
+        row
+        for row in contract["matrixRows"]
+        if row["resultId"] == "batting-result.dropped-third-strike"
+    ]
+    gap = next(
+        item for item in gap_register["gaps"] if item["gapId"] == deferment["gapId"]
+    )
+
+    assert deferment["status"] == "open-stage-2"
+    assert partition_rule["partitions"] == ["safe", "out"]
+    assert deferment["requiredPartitions"] == partition_rule["partitions"]
+    assert deferment["materializedPartitions"] == ["safe"]
+    assert deferment["missingPartitions"] == ["out"]
+    assert deferment["requiredRowCount"] == 2
+    assert deferment["materializedRowCount"] == len(rows) == 1
+    assert deferment["stage2DeclarationAsset"] == (
+        "contracts/state-transition/input_axes_descriptor_v1.json"
+    )
+    assert deferment["stage2DeclarationPointer"] == "/stage2ExternalConstraints"
+    assert deferment["deferredConstraintClass"] == (
+        "third-out-type-observation-input"
+    )
+    assert deferment["requiredArtifact"] == "third-out-type-input-contract"
+    stage2 = descriptor["stage2ExternalConstraints"]
+    assert deferment["deferredConstraintClass"] in stage2["constraintClasses"]
+    assert deferment["requiredArtifact"] in stage2["requiredArtifacts"]
+    assert gap["state"] == "open"
+    assert {"SO-03", "XC-13"}.issubset(gap["clauseIds"])
 
 
 def test_provenance_declares_machine_and_human_assurance_boundaries() -> None:

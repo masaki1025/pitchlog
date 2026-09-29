@@ -144,7 +144,9 @@
       "state": "open",
       "clauseIds": [
         "E-2",
-        "A-2"
+        "A-2",
+        "SO-03",
+        "XC-13"
       ],
       "branchIds": [
         "SO-01",

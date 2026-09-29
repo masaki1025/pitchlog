@@ -359,6 +359,37 @@
       }
     ]
   },
+  "x-pitchlog-deferred-row-requirements": {
+    "deferments": [
+      {
+        "defermentId": "SO-03-dropped-third-strike-outcome",
+        "status": "open-stage-2",
+        "partitionRuleId": "dropped-third-strike-outcome",
+        "requiredPartitions": [
+          "safe",
+          "out"
+        ],
+        "materializedPartitions": [
+          "safe"
+        ],
+        "missingPartitions": [
+          "out"
+        ],
+        "requiredRowCount": 2,
+        "materializedRowCount": 1,
+        "sourceClauseIds": [
+          "req:SO-03",
+          "req:XC-13"
+        ],
+        "gapId": "GAP-08",
+        "stage2DeclarationAsset": "contracts/state-transition/input_axes_descriptor_v1.json",
+        "stage2DeclarationPointer": "/stage2ExternalConstraints",
+        "deferredConstraintClass": "third-out-type-observation-input",
+        "requiredArtifact": "third-out-type-input-contract",
+        "reason": "SO-03が要求するセーフ／アウト2行の入力座標を分ける観測入力が段階2であるため、セーフ側1行だけを規範行へ置き、アウト側を充足済みとは扱わない"
+      }
+    ]
+  },
   "x-pitchlog-provenance-policy": {
     "recordLocation": "contract-top-level",
     "recordField": "provenance",
@@ -1640,7 +1671,6 @@
         "sources",
         "authorId",
         "independentVerifierId",
-        "independentReview",
         "attestations"
       ],
       "additionalProperties": false,
