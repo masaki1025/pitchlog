@@ -415,9 +415,12 @@
         54,
         55,
         56,
-        57
+        57,
+        58,
+        59,
+        60
       ],
-      "evaluationDeadline": 57,
+      "evaluationDeadline": 60,
       "evaluationMethod": {
         "conditionTypeIds": [
           "verbatim_presence"

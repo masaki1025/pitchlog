@@ -89,7 +89,7 @@ _MACHINE_TRIGGER_NODES: dict[int, tuple[str, ...]] = {
         "tests/domain/test_step_authorities.py::"
         "test_all_authorities_exist_verbatim_in_canonical_sources",
         "tests/domain/test_step_authorities.py::"
-        "test_registry_has_exactly_all_fifty_seven_steps",
+        "test_registry_has_exactly_all_sixty_steps",
     ),
 }
 

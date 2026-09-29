@@ -63,6 +63,9 @@ CODE_SPAN_PATTERN = re.compile(r"`([^`]+)`")
 IMPLEMENTATION_TOKEN_PATTERN = re.compile(
     r"(?:\(|（)ステップ\s+([1-9]\d*)(?:/([1-9]\d*))?(?:\)|）)"
 )
+AMENDMENT_TOKEN_PATTERN = re.compile(
+    r"(?:\(|（)ステップ\s+([1-9]\d*)\s+付記(?:\)|）)"
+)
 
 
 class AuditViolation(AssertionError):
@@ -459,6 +462,18 @@ def _implementation_commits(
         "--format=%H%x1f%s",
         f"{base_ref}..{selected_head}",
     )
+    plan_history = _git(
+        root,
+        "log",
+        "--first-parent",
+        "--format=%H",
+        f"{base_ref}..{selected_head}",
+        "--",
+        STEPS_HISTORY_PATH,
+    )
+    plan_totals = {total}
+    for revision in plan_history.stdout.splitlines():
+        plan_totals.add(int(_steps_snapshot(root, revision)["expected_total"]))
     records: list[StepCommit] = []
     for line in history.stdout.splitlines():
         commit_oid, separator, subject = line.partition("\x1f")
@@ -470,8 +485,10 @@ def _implementation_commits(
         if len(tokens) != 1:
             raise AuditViolation(f"実装ステップトークンが複数ある: {subject}")
         raw_step_id, raw_total = tokens[0]
-        if raw_total and int(raw_total) != total:
+        if raw_total and int(raw_total) not in plan_totals:
             raise AuditViolation(f"実装ステップ総数が単一定義と違う: {subject}")
+        if not 1 <= int(raw_step_id) <= (int(raw_total) if raw_total else total) <= total:
+            raise AuditViolation(f"実装ステップ番号が履歴時点の値域外: {subject}")
         records.append(
             StepCommit(
                 step_id=int(raw_step_id),
@@ -490,6 +507,38 @@ def _implementation_commits(
     if max(observed) > total:
         raise AuditViolation("計画の総数を超える実装ステップコミットがある")
     return tuple(records)
+
+
+def _step_amendment_commits(
+    root: Path,
+    base_ref: str = "origin/develop",
+    head_ref: str | None = None,
+) -> dict[int, tuple[StepCommit, ...]]:
+    """完了とは数えない付記コミットを履歴から収集する。"""
+    selected_head = head_ref or _history_head_revision()
+    history = _git(
+        root,
+        "log",
+        "--first-parent",
+        "--reverse",
+        "--format=%H%x1f%s",
+        f"{base_ref}..{selected_head}",
+    )
+    amendments: dict[int, list[StepCommit]] = {}
+    for line in history.stdout.splitlines():
+        commit_oid, separator, subject = line.partition("\x1f")
+        if not separator:
+            raise AuditViolation("Git log の commit OID と件名を分離できない")
+        matches = AMENDMENT_TOKEN_PATTERN.findall(subject)
+        if not matches:
+            continue
+        if len(matches) != 1 or IMPLEMENTATION_TOKEN_PATTERN.search(subject):
+            raise AuditViolation(f"付記のステップトークンが不正: {subject}")
+        step_id = int(matches[0])
+        amendments.setdefault(step_id, []).append(
+            StepCommit(step_id=step_id, commit_oid=commit_oid, subject=subject)
+        )
+    return {step_id: tuple(records) for step_id, records in amendments.items()}
 
 
 def _steps_snapshot(root: Path, commit_oid: str) -> dict[str, Any]:
@@ -516,6 +565,7 @@ def _assert_artifacts_at_commits(
     root: Path,
     current_steps: dict[str, Any],
     commits: Iterable[StepCommit],
+    amendments: dict[int, tuple[StepCommit, ...]] | None = None,
 ) -> None:
     """各ステップ完了コミットの tree に宣言済み artifact があることを検査する。"""
     current_by_id = {int(step["id"]): step for step in current_steps["steps"]}
@@ -526,11 +576,6 @@ def _assert_artifacts_at_commits(
         historical = _historical_step(
             _steps_snapshot(root, record.commit_oid), record.step_id
         )
-        for key in ("artifact", "command"):
-            if historical[key] != current[key]:
-                raise AuditViolation(
-                    f"ステップ {record.step_id} の {key} が完了後に再束縛された"
-                )
         for raw_path in _artifact_paths(historical):
             path = raw_path.removesuffix("/")
             result = SEAL_MODULE._run_git(root, "show", f"{record.commit_oid}:{path}")
@@ -538,6 +583,47 @@ def _assert_artifacts_at_commits(
                 raise AuditViolation(
                     f"ステップ {record.step_id} の完了時点に artifact が無い: {raw_path}"
                 )
+        if all(historical[key] == current[key] for key in ("artifact", "command")):
+            continue
+        candidates = (amendments or {}).get(record.step_id, ())
+        matched = False
+        for amendment in candidates:
+            if SEAL_MODULE._run_git(
+                root,
+                "merge-base",
+                "--is-ancestor",
+                record.commit_oid,
+                amendment.commit_oid,
+            ).returncode != 0:
+                continue
+            changed_paths = _git(
+                root,
+                "diff-tree",
+                "--no-commit-id",
+                "--name-only",
+                "-r",
+                amendment.commit_oid,
+            ).stdout.splitlines()
+            if STEPS_HISTORY_PATH not in changed_paths:
+                continue
+            amended = _historical_step(
+                _steps_snapshot(root, amendment.commit_oid), record.step_id
+            )
+            if any(amended[key] != current[key] for key in ("artifact", "command")):
+                continue
+            for raw_path in _artifact_paths(amended):
+                path = raw_path.removesuffix("/")
+                result = SEAL_MODULE._run_git(root, "show", f"{amendment.commit_oid}:{path}")
+                if result.returncode != 0:
+                    raise AuditViolation(
+                        f"ステップ {record.step_id} の付記時点に artifact が無い: {raw_path}"
+                    )
+            matched = True
+            break
+        if not matched:
+            raise AuditViolation(
+                f"ステップ {record.step_id} の artifact または command が付記なしで再束縛された"
+            )
 
 
 def _commands_for_execution(
@@ -744,7 +830,11 @@ def test_real_repository_artifacts_exist_at_each_completed_step_commit(
     commits = _implementation_commits(ROOT, total, order_exceptions=exceptions)
 
     assert len(commits) == len({record.step_id for record in commits})
-    _assert_artifacts_at_commits(ROOT, steps_data, commits)
+    completed = {record.step_id for record in commits}
+    assert set(range(1, total + 1)) - completed in (set(), {total})
+    _assert_artifacts_at_commits(
+        ROOT, steps_data, commits, _step_amendment_commits(ROOT)
+    )
 
 
 def test_undeclared_step_order_violation_is_rejected(tmp_path: Path) -> None:
@@ -1007,6 +1097,34 @@ def test_artifact_present_in_step_commit_passes_history_audit(tmp_path: Path) ->
     record = StepCommit(step_id=1, commit_oid=step_commit, subject="synthetic")
 
     _assert_artifacts_at_commits(repository, data, (record,))
+
+
+def test_artifact_rebinding_requires_a_real_step_amendment(tmp_path: Path) -> None:
+    """成果物の移動は元の成果物と付記時点の新成果物をともに要求する。"""
+    repository = _history_repository(tmp_path)
+    old = _synthetic_steps("generated/old.txt", "uv run synthetic-check")
+    _write_synthetic_steps(repository, old)
+    old_artifact = repository / "generated/old.txt"
+    old_artifact.parent.mkdir(parents=True)
+    old_artifact.write_text("old\n", encoding="utf-8")
+    original_oid = _git_commit(repository, "feat: original (ステップ 1/1)")
+
+    amended = _synthetic_steps("generated/new.txt", "uv run synthetic-check")
+    _write_synthetic_steps(repository, amended)
+    (repository / "generated/new.txt").write_text("new\n", encoding="utf-8")
+    amendment_oid = _git_commit(repository, "fix: moved (ステップ 1 付記)")
+    original = StepCommit(1, original_oid, "original")
+    amendment = StepCommit(1, amendment_oid, "amendment")
+
+    with pytest.raises(AuditViolation, match="付記なし"):
+        _assert_artifacts_at_commits(repository, amended, (original,))
+    _assert_artifacts_at_commits(repository, amended, (original,), {1: (amendment,)})
+
+    (repository / "unrelated.txt").write_text("other\n", encoding="utf-8")
+    unrelated_oid = _git_commit(repository, "fix: unrelated (ステップ 1 付記)")
+    unrelated = StepCommit(1, unrelated_oid, "unrelated")
+    with pytest.raises(AuditViolation, match="付記なし"):
+        _assert_artifacts_at_commits(repository, amended, (original,), {1: (unrelated,)})
 
 
 def test_nonzero_command_exit_is_rejected(tmp_path: Path) -> None:

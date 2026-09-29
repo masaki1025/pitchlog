@@ -56,7 +56,7 @@
       "triggerId": 16,
       "testNodes": [
         "tests/domain/test_step_authorities.py::test_all_authorities_exist_verbatim_in_canonical_sources",
-        "tests/domain/test_step_authorities.py::test_registry_has_exactly_all_fifty_seven_steps"
+        "tests/domain/test_step_authorities.py::test_registry_has_exactly_all_sixty_steps"
       ]
     }
   ],

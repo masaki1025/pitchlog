@@ -230,6 +230,18 @@
       "verbatim": "コア領域"
     },
     {
+      "id": "設計書 7.7 凍結基準の外出し",
+      "source": "docs/development/dev-harness-design-2026-08-07.md",
+      "section": "### 7.7 凍結基準の更新経路",
+      "verbatim": "**7.7-1 凍結基準の外出し**"
+    },
+    {
+      "id": "設計書 7.7 凍結基準の変更記録",
+      "source": "docs/development/dev-harness-design-2026-08-07.md",
+      "section": "### 7.7 凍結基準の更新経路",
+      "verbatim": "**7.7-2 更新の記録**"
+    },
+    {
       "id": "設計書 10.1 CI ジョブ",
       "source": "docs/development/dev-harness-design-2026-08-07.md",
       "section": "### 10.1 ci.yml（PR 必須・NFR-019 の実体）",
@@ -937,6 +949,37 @@
       "pathAllowlist": [
         ".claude/core-areas.json",
         "tests/test_core_guard.py"
+      ]
+    },
+    {
+      "stepId": 58,
+      "authorities": [
+        "設計書 7.7 凍結基準の外出し"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "contracts/tenant_boundary/frozen-inputs.json"
+      ]
+    },
+    {
+      "stepId": 59,
+      "authorities": [
+        "設計書 7.7 凍結基準の外出し"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "tests/domain/test_boot_seal.py"
+      ]
+    },
+    {
+      "stepId": 60,
+      "authorities": [
+        "設計書 7.7 凍結基準の変更記録"
+      ],
+      "requiresPositiveB": true,
+      "pathAllowlist": [
+        "contracts/tenant_boundary/base-allowlist.json",
+        "contracts/tenant_boundary/history-snapshots/"
       ]
     }
   ]

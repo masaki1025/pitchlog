@@ -82,10 +82,10 @@ def test_as_of_fifty_accepts_all_due_evaluations() -> None:
     assert report.evaluated_trigger_ids == expected
 
 
-def test_as_of_fifty_seven_rejects_unevaluated_trigger_sixteen(
+def test_as_of_sixty_rejects_unevaluated_trigger_sixteen(
     registry: dict[str, Any], tmp_path: Path
 ) -> None:
-    """期限57に達した未評価のトリガー16を拒否する。"""
+    """期限60に達した未評価のトリガー16を拒否する。"""
     asset = copy.deepcopy(registry)
     _trigger(asset, 16)["evaluation"] = None
 
@@ -93,7 +93,7 @@ def test_as_of_fifty_seven_rejects_unevaluated_trigger_sixteen(
         COMPLETION.validate_trigger_completion(
             _write_registry(tmp_path, asset),
             ROOT,
-            as_of_step=57,
+            as_of_step=60,
         )
 
 
@@ -221,7 +221,7 @@ def test_recorded_evaluations_match_machine_measurements_and_po_evidence() -> No
     report = COMPLETION.validate_trigger_completion(
         REGISTRY_PATH,
         ROOT,
-        as_of_step=57,
+        as_of_step=60,
     )
 
     assert report.applicable_trigger_ids == report.evaluated_trigger_ids
@@ -242,7 +242,7 @@ def test_machine_trigger_cannot_be_marked_without_measured_condition(
         COMPLETION.validate_trigger_completion(
             _write_registry(tmp_path, asset),
             ROOT,
-            as_of_step=57,
+            as_of_step=60,
         )
 
 
@@ -260,7 +260,7 @@ def test_machine_trigger_rejects_pytest_option_instead_of_node_id(
         COMPLETION.validate_trigger_completion(
             REGISTRY_PATH,
             ROOT,
-            as_of_step=57,
+            as_of_step=60,
             evaluation_evidence_path=_write_evidence(tmp_path, evidence),
         )
 
@@ -282,7 +282,7 @@ def test_machine_trigger_rejects_unrelated_test_in_allowed_file(
         COMPLETION.validate_trigger_completion(
             REGISTRY_PATH,
             ROOT,
-            as_of_step=57,
+            as_of_step=60,
             evaluation_evidence_path=_write_evidence(tmp_path, evidence),
         )
 
@@ -319,7 +319,7 @@ def test_po_decision_requires_named_judge_and_date(
         COMPLETION.validate_trigger_completion(
             REGISTRY_PATH,
             ROOT,
-            as_of_step=57,
+            as_of_step=60,
             evaluation_evidence_path=_write_evidence(tmp_path, evidence),
         )
 
@@ -338,7 +338,7 @@ def test_duplicate_manual_decision_id_is_rejected(tmp_path: Path) -> None:
         COMPLETION.validate_trigger_completion(
             REGISTRY_PATH,
             ROOT,
-            as_of_step=57,
+            as_of_step=60,
             evaluation_evidence_path=_write_evidence(tmp_path, evidence),
         )
 
@@ -355,6 +355,6 @@ def test_po_evidence_content_change_is_rejected(tmp_path: Path) -> None:
         COMPLETION.validate_trigger_completion(
             REGISTRY_PATH,
             ROOT,
-            as_of_step=57,
+            as_of_step=60,
             evaluation_evidence_path=_write_evidence(tmp_path, evidence),
         )

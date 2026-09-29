@@ -361,9 +361,9 @@ def test_nonexistent_evaluation_step_is_rejected(
     registry: dict[str, Any], steps_source: dict[str, Any]
 ) -> None:
     mutated = copy.deepcopy(registry)
-    mutated["triggers"][0]["evaluationSteps"].append(58)
+    mutated["triggers"][0]["evaluationSteps"].append(61)
 
-    with pytest.raises(AssertionError, match="58"):
+    with pytest.raises(AssertionError, match="61"):
         _assert_evaluation_steps_exist(mutated, steps_source)
 
 

@@ -289,15 +289,33 @@
       "evidenceId": "pb-step-57-test-area-registration",
       "testPath": "tests/test_core_guard.py",
       "testName": "test_area_registration"
+    },
+    {
+      "stepId": 58,
+      "evidenceId": "pb-step-58-frozen-inputs-declared-with-single-authority",
+      "testPath": "tests/test_check_tenant_boundary_bypass.py",
+      "testName": "test_all_assets_freeze_mode_wiring_and_declare_single_authority"
+    },
+    {
+      "stepId": 59,
+      "evidenceId": "pb-step-59-frozen-baseline-commands-run-in-harness",
+      "testPath": "tests/test_ci_wiring.py",
+      "testName": "test_frozen_baseline_commands_run_in_full_history_harness_job"
+    },
+    {
+      "stepId": 60,
+      "evidenceId": "pb-step-60-frozen-baseline-history-valid",
+      "testPath": "tests/test_check_tenant_boundary_bypass.py",
+      "testName": "test_every_frozen_baseline_asset_has_a_valid_chained_history"
     }
   ],
   "coverageScope": "docs/features/domain-calc-dsl/steps.json の expected_total から全数を取る(自己申告の打ち切り点を持たない)",
   "verification": {
-    "structuralEvidenceStepCount": 47,
+    "structuralEvidenceStepCount": 50,
     "denyAllMeasuredStepIds": [
       25,
       39
     ],
-    "limitation": "全47ステップは選択関数の AST と実行で存在・成功側の主張・pytest.raises 不使用を検査する。deny-all 変異の実測は代表2ステップ(25・39)に限り、残る45ステップの意味が名前だけで完全に証明されたとは主張しない。"
+    "limitation": "全50ステップは選択関数の AST と実行で存在・成功側の主張・pytest.raises 不使用を検査する。deny-all 変異の実測は代表2ステップ(25・39)に限り、残る48ステップの意味が名前だけで完全に証明されたとは主張しない。"
   }
 }
