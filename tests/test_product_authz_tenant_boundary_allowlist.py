@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -109,14 +110,35 @@ def _initialize_repository(tmp_path: Path) -> tuple[Path, str]:
         _REPOSITORY_ROOT / "tests/fixtures/tenant_boundary",
         repository / "tests/fixtures/tenant_boundary",
     )
-    for relative_path in (
-        Path("scripts/check_tenant_boundary_bypass.py"),
-        Path("scripts/frozen_history.py"),
-        Path(".github/workflows/ci.yml"),
-    ):
+    asset_root = repository / "contracts/tenant_boundary"
+    external_files = {
+        Path(relative_path)
+        for asset_path in asset_root.glob("*.json")
+        for relative_path in json.loads(asset_path.read_text(encoding="utf-8"))[
+            "baseline_control"
+        ]["identity"]["frozen_projection"]["external_files"]
+    }
+    for relative_path in sorted(external_files):
         destination = repository / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(_REPOSITORY_ROOT / relative_path, destination)
+
+    assets = {
+        path.relative_to(repository).as_posix(): json.loads(
+            path.read_text(encoding="utf-8")
+        )
+        for path in asset_root.glob("*.json")
+    }
+    authority_path = repository / checker.DEFAULT_ALLOWLIST
+    authority = assets[checker.DEFAULT_ALLOWLIST.as_posix()]
+    authority["baseline_control"]["history"][-1]["new_baseline_identifiers"] = {
+        name: asset["baseline_control"]["identity"]["current_identifiers"]
+        for name, asset in sorted(assets.items())
+    }
+    authority_path.write_text(
+        json.dumps(authority, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
     _run_git(repository, ["init"])
     return repository, _commit(repository, "baseline")

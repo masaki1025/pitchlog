@@ -1,11 +1,11 @@
 {
-  "contract_revision": 4,
+  "contract_revision": 5,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:4"
+        "contract_revision:5"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -85,13 +85,33 @@
       {
         "id": "difference_codes_within_allowed_set",
         "sets": [
-          "added",
-          "removed"
+          "added"
         ],
         "allowed_codes": [
           "TB002",
           "TB007"
         ]
+      },
+      {
+        "id": "removed_outside_allowed_codes_attributable_to_declared_allowlist_growth",
+        "set": "removed",
+        "applies_to_codes_outside": [
+          "TB002",
+          "TB007"
+        ],
+        "governed_codes": [
+          "TB005",
+          "TB900"
+        ],
+        "authority": "contracts/tenant_boundary/base-allowlist.json#/allowed_symbols",
+        "authority_symbol_field": "symbol",
+        "growth": "current_minus_anchor",
+        "identity_scope_field": "scope",
+        "relation": {
+          "kind": "equal_or_bidirectional_delimited_prefix",
+          "delimiter": "."
+        },
+        "quantifier": "every"
       },
       {
         "id": "removed_tb007_matches_declared_relaxations",
@@ -183,6 +203,14 @@
     "pass_fail_mapping.predicates[].id",
     "pass_fail_mapping.predicates[].sets",
     "pass_fail_mapping.predicates[].allowed_codes",
+    "pass_fail_mapping.predicates[].applies_to_codes_outside",
+    "pass_fail_mapping.predicates[].governed_codes",
+    "pass_fail_mapping.predicates[].authority",
+    "pass_fail_mapping.predicates[].authority_symbol_field",
+    "pass_fail_mapping.predicates[].growth",
+    "pass_fail_mapping.predicates[].identity_scope_field",
+    "pass_fail_mapping.predicates[].relation.kind",
+    "pass_fail_mapping.predicates[].relation.delimiter",
     "pass_fail_mapping.predicates[].set",
     "pass_fail_mapping.predicates[].code",
     "pass_fail_mapping.predicates[].quantifier",
