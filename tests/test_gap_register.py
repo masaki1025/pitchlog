@@ -322,7 +322,7 @@ def test_nine_open_gaps_have_clause_and_branch_prefix_filled() -> None:
         "GAP-06": ["A-1", "FR-003"],
         "GAP-07": ["E-1", "FR-004"],
         "GAP-08": ["E-2", "A-2", "SO-03", "XC-13"],
-        "GAP-09": ["A-3", "E-1", "ADV-02", "ADV-04", "RBI-01"],
+        "GAP-09": ["A-3", "FR-004", "E-1", "ADV-02", "ADV-04", "RBI-01"],
     }
 
     assert len(document["gaps"]) == 9

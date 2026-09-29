@@ -71,6 +71,10 @@
         "sourceId": "obr:9.02(a)(1)"
       },
       {
+        "sourceKind": "official-baseball-rules",
+        "sourceId": "obr:9.08"
+      },
+      {
         "sourceKind": "requirements",
         "sourceId": "req:A-5"
       },
@@ -104,70 +108,43 @@
       },
       {
         "sourceKind": "legacy-research",
+        "sourceId": "docs/legacy/research/input-screen.md:70"
+      },
+      {
+        "sourceKind": "legacy-research",
+        "sourceId": "docs/legacy/research/input-screen.md:71"
+      },
+      {
+        "sourceKind": "legacy-research",
         "sourceId": "docs/legacy/research/input-screen.md:163"
+      },
+      {
+        "sourceKind": "legacy-research",
+        "sourceId": "docs/legacy/research/input-screen.md:161"
+      },
+      {
+        "sourceKind": "legacy-research",
+        "sourceId": "docs/legacy/research/input-screen.md:162"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:RBI-08"
       }
     ],
     "authorId": "codex",
-    "independentVerifierId": "山田正輝",
-    "independentReview": {
-      "verifiedOn": "2026-09-30",
-      "reviewerRole": "PO",
-      "authorWorkExposure": "seen-before-source-review",
-      "chronology": [
-        {
-          "sequence": 1,
-          "actorId": "codex",
-          "activity": "作成者が併殺系2行とエラー・野手選択2行の規範行4行を作成し、機械生成の逐行確認シートを出力した"
-        },
-        {
-          "sequence": 2,
-          "actorId": "Claude",
-          "activity": "行20の併殺打で一塁走者を停止とした状態はフォースプレイの実態と合わないと指摘した。この指摘は後の要件書確認により誤りと判明した"
-        },
-        {
-          "sequence": 3,
-          "actorId": "山田正輝",
-          "activity": "Claudeの指摘に基づく是正を承認し、行20を一塁走者のフォース進塁へ変更した"
-        },
-        {
-          "sequence": 4,
-          "actorId": "codex",
-          "activity": "委任先として要件書E-1のフォース連鎖定義を確認し、batterDestination.kind = reachに限定されるため打者アウトの併殺打は連鎖外であり、最初の停止実装が条文どおりだと反証した。この反証が正しかった"
-        },
-        {
-          "sequence": 5,
-          "actorId": "山田正輝",
-          "activity": "作成者の作業結果と往復の経緯を見た後に、要件書E-1・ADV-02・ADV-04・RBI-01・XC-11と公認野球規則9.02(a)(1)を自身で確認し、行20を条文どおり停止へ戻して矛盾をGAP-09へ記録すると裁定した"
-        },
-        {
-          "sequence": 6,
-          "actorId": "山田正輝",
-          "activity": "条文どおりに戻したステップ56の規範行4行を承認した"
-        }
-      ],
-      "findings": [
-        "要件書E-1のフォース連鎖はbatterDestination.kind = reachであり、かつ事前状態で一塁から当該塁までの全ての塁に走者がいる場合に限定されるため、打者がoutとなる行20はADV-04の停止となる",
-        "RBI-01は打者のゴロによるフォースダブルプレイまたはリバースフォースダブルプレイを扱うため、現行ADV-*の判定だけからRBI-01の適用条件を導出できない矛盾がある",
-        "公認野球規則9.02(a)(1)により、失策による出塁は打数に算入し、四球・死球・犠打・犠飛・妨害による一塁付与は打数から除く",
-        "XC-11では無死の併殺は事前アウト0とoutEffect.count 2の合計が2で上限3以内となり、OUT3-*の分岐を必要としない",
-        "Claudeによる行20をフォース進塁へ変えるべきとの指摘は誤りで、委任先が要件書E-1を示して行った反証が正しかった",
-        "現行schemaはXC-*の12件だけを宣言してADV-*を機械検査せず、行20をforcedへ変異させても検査が通る検出欠落がある",
-        "ADV-*とRBI-01の矛盾およびADV-*の機械検査欠落はGAP-09でopenのまま維持する",
-        "エラーと野手選択の公式記録上の分類は段階2のままである"
-      ]
-    },
+    "independentVerifierId": "not-performed",
     "attestations": [
       {
         "attestationId": "direct-source-clause-review",
-        "response": true
+        "response": false
       },
       {
         "attestationId": "author-work-exposure",
-        "response": "seen-and-recorded"
+        "response": "not-performed"
       },
       {
         "attestationId": "source-support-judgment",
-        "response": true
+        "response": false
       }
     ]
   },
@@ -1367,6 +1344,162 @@
         "打点": false
       },
       "remarks": "旧miss。打者一塁・全在塁走者1進。野手選択とする公式記録判断は段階2待ち"
+    },
+    {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-bunt",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first-second"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"}
+      },
+      "plateAppearanceEnded": true,
+      "batterDestination": {"kind": "out"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "optional", "destination": 2},
+        "second": {"modality": "optional", "destination": 3},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 1, "targets": ["batter"]},
+      "statFlags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": true,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "A-3・ADV-03・旧sacrifice。無死一・二塁で打者アウトと引き換えに全在塁走者が1進し、犠打を計上する。9.02(a)(1)により打数へ算入しない"
+    },
+    {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-fly",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "third"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"}
+      },
+      "plateAppearanceEnded": true,
+      "batterDestination": {"kind": "out"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "not-applicable", "destination": null},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "optional", "destination": 4}
+      },
+      "outEffect": {"count": 1, "targets": ["batter"]},
+      "statFlags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": true,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "remarks": "A-3・ADV-03・RBI-08・旧sacrifice。無死三塁で打者アウト、三塁走者が生還し1得点・1打点。9.02(a)(1)により打数へ算入しない"
+    },
+    {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-bunt-error",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first-second"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"}
+      },
+      "plateAppearanceEnded": true,
+      "batterDestination": {"kind": "reach", "base": 1},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "forced", "destination": 2},
+        "second": {"modality": "forced", "destination": 3},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": true,
+        "打席": true,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": true,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "公認野球規則9.08の既定側（失策がなければ一塁アウトと思われる場合は犠打を記録し、疑義は打者に有利）として犠打を計上し、9.02(a)(1)により打数へ算入しない。記録員が安打狙いと判断して犠打を記録せず打数を記録する分岐は本行では表現できず、旧miss/sacrificeの2入力経路を1語彙へ統合した観測入力欠落としてGAP-09・段階2待ち。打者一塁・全在塁走者1進とし、対象野手・失策種別を含む公式記録上の分類の残部も段階2待ち（2026-09-30 PO裁定・案A）"
     }
   ],
   "operationRows": [],
@@ -1755,6 +1888,57 @@
             "coordinate": {
               "eventKind": "batting-result",
               "resultId": "batting-result.fielders-choice",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first-second"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.sacrifice-bunt",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first-second"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.sacrifice-fly",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "third"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.sacrifice-bunt-error",
               "precondition": {
                 "op": "and",
                 "args": [

@@ -166,6 +166,7 @@
       "state": "open",
       "clauseIds": [
         "A-3",
+        "FR-004",
         "E-1",
         "ADV-02",
         "ADV-04",

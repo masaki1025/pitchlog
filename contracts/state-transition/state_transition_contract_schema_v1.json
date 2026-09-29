@@ -45,6 +45,20 @@
       "requiredMatchCount": 1
     }
   },
+  "x-pitchlog-vocabulary-axis-coverage": {
+    "manifestPath": "contracts/vocabulary/vocabulary_manifest_v1.json",
+    "vocabularyId": "input_vocabulary",
+    "axisCollection": "axes",
+    "axisIdField": "axisId",
+    "axisId": "batting-result",
+    "entriesCollection": "entries",
+    "entryIdField": "id",
+    "rowCollection": "matrixRows",
+    "rowDiscriminatorField": "eventKind",
+    "rowDiscriminatorValue": "batting-result",
+    "rowVocabularyIdField": "resultId",
+    "requiredRelationship": "exact-set"
+  },
   "x-pitchlog-operation-row-constraints": {
     "sourceDecisionId": "adr:D-8",
     "clauseByOperationKind": {
