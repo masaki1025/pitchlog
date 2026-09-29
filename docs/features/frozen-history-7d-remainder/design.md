@@ -399,12 +399,13 @@ tenant-boundary contract error: base-allowlist.json:
 | | 値 |
 | --- | --- |
 | 当初(分岐点) | `b4ae7394`(**無効化。440 の取り込みで資産の schema が動いた**) |
-| **現行** | **`1a4041018c0b00fc0a86c11bec5ba0a38c3f2070`**(develop 取り込み点 = 440 のマージコミット) |
+| 2026-09-26 | `1a4041018c0b00fc0a86c11bec5ba0a38c3f2070`(develop 取り込み点 = 440 のマージコミット) |
+| **現行(2026-09-29)** | **`33afd352b778a5ff1a681113bed6cba43b31a60f`**(develop 取り込み点 = PR #85 のマージコミット。PR #86 を含む develop を取り込んだため、比較元を再固定) |
 
 **これは可変参照ではない** — **literal で固定し、動かすときは意図的に動かして記録する。**
 
 
-**比較元 SHA は `1a4041018c0b00fc0a86c11bec5ba0a38c3f2070`(develop の直近の取り込み点)で literal 固定する。** **その SHA を detached で取り出した清潔な作業木で旧検査器を走らせる。**
+**比較元 SHA は `33afd352b778a5ff1a681113bed6cba43b31a60f`(develop の直近の取り込み点)で literal 固定する。** **その SHA を detached で取り出した清潔な作業木で旧検査器を走らせる。**
 
 **実行経路を特定する**(敵対レビュー 2 周目 P1 — 「base/head の組」だけでは経路が決まらない):
 
@@ -435,7 +436,7 @@ tenant-boundary contract error: base-allowlist.json:
 | **入力の種類** | **Python のソース片**(`_tenant_context_provenance_corpus()` が生成) | **合成 Git リポジトリ**(履歴・snapshot・二親 merge を持つ) |
 | **対象の検査面** | **TB007(テナント文脈の由来)の静的解析** | **履歴・アーカイブ・PR 受理の経路** |
 | **呼び方** | **プロセス内で `load_contract` と解析関数を直接呼ぶ** | **実 CLI を subprocess で PR 受理モードで呼ぶ** |
-| **比較元** | **`origin/develop`(可変参照)** | **固定 SHA `1a404101`**(可変参照を使わない — 敵対レビュー 2 周目 P1) |
+| **比較元** | **`origin/develop`(可変参照)** | **固定 SHA `33afd352`**(可変参照を使わない — 敵対レビュー 2 周目 P1) |
 
 **入力の種類・検査面・呼び方のいずれも異なるので、同一ドメイン計算の重複実装には当たらない。** **440 の `_load_checker_from_revision` はモジュール 1 つを版から読む補助で、本タスクが要る「CLI + 依存資産 + 契約資産の一式を固定版で走らせる」には足りない**(作業木が要る)。**流用しない理由をここに記録する。**
 
@@ -495,6 +496,8 @@ GITHUB_EVENT_NAME=pull_request uv run pytest tests/... -q
 | 11 | **v2 記録の参照フィールドが欠落**。**比較元と HEAD の双方に同一の、`snapshot_ref` が欠落した既存 v2 prefix を置く**(HEAD だけを欠落させると prefix deep-equal で、追記 record に置くと `_validate_v2_record` で、いずれも前版 red になる — 敵対レビュー 4 周目 P2) | **green** | **red** |
 
 **判定は両版の終了コードの組を機械が集計して行う**(人の目で見比べない)。
+
+**2026-09-29 再実測**: 比較元を `33afd352b778a5ff1a681113bed6cba43b31a60f` へ再固定し、マージ後の実作業木を入力として 11 ケースを両版の実 CLI に PR 受理モードで適用した。上表の「前版」列は再実測値と一致し、`前版 red → 新版 green` は 0 件、`前版 green → 新版 red` は `{4, 5, 6, 7, 11}` だった。PR #86 の census 資産と検査器変更を含む比較元でも、archive 検査に関する合否の集合は変わらなかった。
 
 ### 6-4. 主張の限界(敵対レビュー 4 周目 P2)
 

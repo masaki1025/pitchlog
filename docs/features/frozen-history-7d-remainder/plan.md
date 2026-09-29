@@ -17,6 +17,19 @@ created: 2026-09-26
 
 **旧題「削除記録・履歴アーカイブ・安定した履歴 ID」は 2〜3 周目の射程見直しで失効した。**
 
+> **計画の改訂(2026-09-29・山田正輝承認)— 凍結資産が 7 件から 8 件になった**
+>
+> **PR #86(TSK-460)が `contracts/tenant_boundary/census-baseline.json` を凍結資産へ追加した。**
+> 本計画書が「7 資産」と書いている箇所は、**すべて「凍結資産の全件(現行 8 件 — `FROZEN_BASELINE_ASSETS`)」と読む。**
+>
+> **これは射程の拡大ではなく、develop への追随である。** 受理記録が 8 資産を覆うことは**選択の余地がない** —
+> `frozen_history.py:438-447` の `_asset_projection_snapshots` へ渡る資産集合は**ディレクトリ走査で作られる**ので、
+> `census-baseline.json` は宣言の有無にかかわらず記録へ入る。**残っていた選択は
+> `scripts/frozen_archive.py` を census 側の `external_files` にも宣言するかどうかだけで、
+> 宣言を揃える側を採った**(揃えないと記録と宣言が食い違う)。
+>
+> **本文中の過去の実測記録・レビュー周回の記述は当時の値のまま残す**(記録であって指示ではないため)。
+
 ## 1. 背景・目的
 
 **Notion**: [TSK-448](https://app.notion.com/p/3e593b75e687812dbce1f5aff1da56f5)(出所: **TSK-431 の送り出し 4 件の 1 つ**。`docs/worklog/2026-09-24-tenant-boundary-baseline.md:118`)
@@ -109,8 +122,8 @@ created: 2026-09-26
 | `scripts/frozen_archive.py`(**新設**) | 参照の構造的抽出・量の閾値・新規孤児ゼロの不変量 |
 | `scripts/check_tenant_boundary_bypass.py` | **ステップ 5 でのみ変更**(結線・`external_files` への追加) |
 | `scripts/frozen_history.py` | **変更しない**(D6 を送り出したため) |
-| `contracts/tenant_boundary/base-allowlist.json` | **本 PR の受理記録 1 件** + **7 資産の識別値** + **`inventory.sha256` の機械再計算**(検査器を触るため射影が動く) |
-| `contracts/tenant_boundary/*.json`(7 資産) | **`external_files` へ `scripts/frozen_archive.py` 1 件の追加** + **トップレベル revision field と `current_identifiers` の同期更新** + **4 資産の `source_digest` の機械再計算**([design.md](design.md) 6-4 の S3) |
+| `contracts/tenant_boundary/base-allowlist.json` | **本 PR の受理記録 1 件** + **凍結資産の全件(現行 8 件)の識別値** + **`inventory.sha256` の機械再計算**(検査器を触るため射影が動く) |
+| `contracts/tenant_boundary/*.json`(凍結資産の全件(現行 8 件)) | **`external_files` へ `scripts/frozen_archive.py` 1 件の追加** + **トップレベル revision field と `current_identifiers` の同期更新** + **4 資産の `source_digest` の機械再計算**([design.md](design.md) 6-4 の S3) |
 | `tests/test_check_tenant_boundary_bypass.py` | **`external_files` の exact-list を 4 ファイルへ更新** + **`_initialize_test_repository` が `scripts/frozen_archive.py` もコピーする** + **`test_every_frozen_baseline_asset_has_a_valid_chained_history` の authority 履歴期待件数を 2 → 3 へ**([design.md](design.md) 6-4 の S6)。**既存の検査意図は変えない** |
 | `.claude/core-areas.json` | **`tenant-isolation.paths` へ `scripts/frozen_archive.py` / `tests/fixtures/frozen-archive-cases/*`(+ 独立テストモジュールを置く場合はそのパス)を登録**(設計書 6.3 — [design.md](design.md) 6-4 の S7) |
 | `tests/test_core_guard.py` | **`TENANT_BOUNDARY_AREA_PATH_CASES` と exact-set を core-areas.json と同期**(同 S7) |
@@ -155,7 +168,7 @@ created: 2026-09-26
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
-**前版比較の比較元 SHA は `1a4041018c0b00fc0a86c11bec5ba0a38c3f2070`(本ブランチの分岐点)で固定する。**
+**前版比較の比較元 SHA は `33afd352b778a5ff1a681113bed6cba43b31a60f`(develop の直近の取り込み点)で固定する。**
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
@@ -163,7 +176,7 @@ created: 2026-09-26
 | 2 | **`scripts/frozen_archive.py`(新設・未結線)— 参照の構造的抽出**。**`record_schema_version == 2` の記録だけを対象**に 4 フィールドを走査 / `SNAPSHOT_REF_PREFIX` と 64 桁 hex と実ファイル名の一致 / **抽出表は明示表**(4 キーを「参照なし / extractor」に分類)で、**キー集合が `ASPECT_NAMES` と exact-set 一致し、分類値も期待表と exact-map 一致** | **`frozen_history.py` と `check_tenant_boundary_bypass.py` を 1 バイトも触らない**(差分で確認)。**`frozen_projection_sha256` / `source_digest` / 識別値の 64 桁 hex だけを持つ fixture で孤児判定に混入しない**。**`ASPECT_NAMES` に第 5 キーを足すと抽出表の未更新が red になる**(exact-set 一致の検査)。**現行の混在履歴(v1 + v2)から一意参照 18 件を再現する正例**(**実測確認済み**)と、**v2 の参照フィールド欠落を拒否する負例**。**v1 記録を v2 と同じ形で走査すると落ちる**ことを示す。**`declaration` / `movement_policy` に有効な `snapshot_ref` 形の値を置いても抽出されない負例**と、**4 キーの分類値を反転させると red になる変異試験**。**`frozen_history.py` の部品を import して使い、再実装しない**(NFR-018)。**import は一方向**(`frozen_archive → frozen_history`)で、**逆向きが存在しない**ことを試験する |
 | 3 | 同(未結線)— **量の閾値**。総件数 / 総バイト / 孤児の件数とバイト。**孤児は両側で算出**(`base_orphans` / `head_orphans` — design.md 1-4)。**design.md 1-3 の確定値を使う** | 合成 fixture で**各量が閾値を超えると red**。**孤児は絶対値でなく比較元との差で判定**する(比較元に 29 件ある入力で red にならない)。**両側で異なる履歴・snapshot 集合を渡す試験**を置く(片側だけを見て通る実装にしない)。**現況(47 件・1,540,497 バイト・孤児 29 件)が閾値内** |
 | 4 | 同(未結線)— **新規孤児ゼロの不変量**。「**HEAD にあって比較元に無い snapshot は、すべて HEAD の構造的参照集合に含まれる**」 | **同一受理内で記録を 2 回作り直し、前の試行の snapshot を残したまま HEAD を作ると red**。**前の試行の snapshot を除去すると green**。**比較元にすでにある孤児では red にならない**(grandfather) |
-| 5 | **結線 — 1 コミット。** **`_validate_repository_histories` の中で、比較元 snapshot を materialize したコンテキストの、既存 `frozen_history.validate_repository_histories` が成功した直後に `frozen_archive` を呼ぶ**(design.md 1-4)+ **`scripts/frozen_archive.py` を 7 資産の `external_files` へ追加** + **authority へ本 PR の受理記録 1 件と 7 資産の識別値の更新** + **7 資産のトップレベル revision field と `current_identifiers` の同期更新** + **派生値の機械再計算**(4 資産の `source_digest` / `inventory.sha256` / 3 生成モジュールの版・digest)+ **既存テストの exact-list と authority 履歴件数の更新**(S6)+ **core-areas.json への登録と test_core_guard.py の同期**(S7)。**`frozen_history.py` は 1 バイトも変えない** | **実リポジトリに対して** `uv run python scripts/check_tenant_boundary_bypass.py` が green。**CLI の import が成功する**(循環 import が無い)。**本番 `check_repository` 経路の変異テスト**で: **新規孤児を残すと red** / **閾値超過で red** / **参照が非正規だと red** / **識別値を据え置くと red**。**比較元孤児と HEAD 孤児が別々に算出されている**ことを、両側で異なる集合を渡す試験で示す。**S5(生成モジュール 3 件)と S7(core-areas.json + test_core_guard.py)を再測する**。**S5 は `backend/` ディレクトリで回す**(root の pytest では `ModuleNotFoundError` で collect されない — TSK-440 の実受理で判明) — **ステップ 1 の測り方(未コミットの仮スタブ)では観測できなかったため**(worklog の実測記録)。**`backend/` のゲートと core-guard を回し、S5・S7 の列挙と exact-set 一致することを確認する** |
+| 5 | **結線 — 1 コミット。** **`_validate_repository_histories` の中で、比較元 snapshot を materialize したコンテキストの、既存 `frozen_history.validate_repository_histories` が成功した直後に `frozen_archive` を呼ぶ**(design.md 1-4)+ **`scripts/frozen_archive.py` を 凍結資産の全件(現行 8 件)の `external_files` へ追加** + **authority へ本 PR の受理記録 1 件と 凍結資産の全件(現行 8 件)の識別値の更新** + **凍結資産の全件(現行 8 件)のトップレベル revision field と `current_identifiers` の同期更新** + **派生値の機械再計算**(4 資産の `source_digest` / `inventory.sha256` / 3 生成モジュールの版・digest)+ **既存テストの exact-list と authority 履歴件数の更新**(S6)+ **core-areas.json への登録と test_core_guard.py の同期**(S7)。**`frozen_history.py` は 1 バイトも変えない** | **実リポジトリに対して** `uv run python scripts/check_tenant_boundary_bypass.py` が green。**CLI の import が成功する**(循環 import が無い)。**本番 `check_repository` 経路の変異テスト**で: **新規孤児を残すと red** / **閾値超過で red** / **参照が非正規だと red** / **識別値を据え置くと red**。**比較元孤児と HEAD 孤児が別々に算出されている**ことを、両側で異なる集合を渡す試験で示す。**S5(生成モジュール 3 件)と S7(core-areas.json + test_core_guard.py)を再測する**。**S5 は `backend/` ディレクトリで回す**(root の pytest では `ModuleNotFoundError` で collect されない — TSK-440 の実受理で判明) — **ステップ 1 の測り方(未コミットの仮スタブ)では観測できなかったため**(worklog の実測記録)。**`backend/` のゲートと core-guard を回し、S5・S7 の列挙と exact-set 一致することを確認する** |
 | 6 | **前版との差分比較を実行する**([design.md](design.md) 6 節)— 前版と HEAD へ**同一の 11 ケース**を当て、終了コードの組を集計する | **`前版 red → 新版 green` が 0 件**。**`前版 green → 新版 red` が `{4, 5, 6, 7, 11}` と exact-set 一致**。**集計は機械が行い、結果を worklog へ転記する** |
 | 7 | **fail-closed の網羅**([design.md](design.md) 5 節の F1〜F11) | 各失敗が**非 zero 終了かつ合格と区別できる**。**すべて本番 `check_repository` 経路を通る変異テストで示す**(関数直呼びのテストだけで主張しない) |
 | 8 | **確認対象コミットの SHA を固定した人間の逐行確認を worklog へ記録**(履歴は追加しない) | worklog に**確認対象コミットの SHA** と `対象= / 範囲= / 方法=`。**確認項目に「D4・D5 の実装対応」「前版差分比較の集計結果」「孤児の現況」「退去機構を入れていないこと」「D6 を送り出したこと」「D1' の仕様が実装でなく文書であること」「`frozen_history.py` が無変更であること」が列挙されている**。**確認後の差分は worklog 等の証跡ファイルに限る** |
@@ -190,20 +203,20 @@ created: 2026-09-26
 - [ ] 【逐】**D5**: **`frozen_history.py` の既存関数をコピー実装していない**(NFR-018)
 - [ ] 【逐】**D1'**: **退去の仕様(記録形式・論理履歴・正規化規則・fail-closed)が design.md 3 節に書かれている**。**実装は 1 行も入っていない**
 - [ ] 【逐】**D1'**: **TSK-461 の新設提案と、PR B(TSK-443)への申し送り(第 3 の形と条文との距離)が PR 本文にある**
-- [ ] 【機】**前版比較**: **11 ケース corpus の内側で `前版 red → 新版 green` が 0 件**。**`前版 green → 新版 red` が `{4, 5, 6, 7, 11}` と exact-set 一致**。**比較元 SHA が `1a404101` で固定され、両版が PR 受理モードで呼ばれている**
+- [ ] 【機】**前版比較**: **11 ケース corpus の内側で `前版 red → 新版 green` が 0 件**。**`前版 green → 新版 red` が `{4, 5, 6, 7, 11}` と exact-set 一致**。**比較元 SHA が `33afd352` で固定され、両版が PR 受理モードで呼ばれている**
 - [ ] 【機】**fail-closed**: [design.md](design.md) 5 節の F1〜F11 すべてが**非 zero 終了かつ合格と区別できる**(**1 行 = 1 種で数える**)
 - [ ] 【機】**非緩和 S1**: **`scripts/frozen_history.py` の差分が 0 行**
 - [ ] 【機】**非緩和 S2**: **`scripts/check_tenant_boundary_bypass.py` の差分が「`frozen_archive` の import 1 件」と「`_validate_repository_histories` 内の指定位置への呼び出しの追加」だけ**で、**既存の文を 1 つも変更・削除していない**(**追加のみ**)
-- [ ] 【機】**非緩和 S3**: **7 資産の JSON への変更が [design.md](design.md) 6-4 の許可 exact-set(5 項目)だけ**。**`source_digest` 4 件と `inventory.sha256` は機械再計算の結果と一致する**(手で書いた値を通さない)
+- [ ] 【機】**非緩和 S3**: **凍結資産の全件(現行 8 件)の JSON への変更が [design.md](design.md) 6-4 の許可 exact-set(5 項目)だけ**。**`source_digest` 4 件と `inventory.sha256` は機械再計算の結果と一致する**(手で書いた値を通さない)
 - [ ] 【機】**非緩和 S5**: **3 生成モジュールへの変更が、資産と一致する版・digest の更新だけ**。**本体の論理に差分が無い**。**`backend/` で回して確認した**(root の pytest では観測できない)
 - [ ] 【機】**非緩和 S6**: **`tests/test_check_tenant_boundary_bypass.py` への変更が [design.md](design.md) 6-4 の 3 項目だけ**。**既存の検査意図を変えていない**
 - [ ] 【機】**非緩和 S7**: **`.claude/core-areas.json` への変更が `tenant-isolation.paths` への新パス登録だけ**で、**`tests/test_core_guard.py` の exact-set が同期している**。**ほかの領域の paths を触っていない**
 - [ ] 【機】**網羅の実測**: **ステップ 1 で得た変更対象の実測リストが、S1〜S7 の列挙と exact-set 一致する**
-- [ ] 【機】**revision の同期**: **7 資産すべてで、`identity.field` が指すトップレベル revision field と `current_identifiers` が一致している**
+- [ ] 【機】**revision の同期**: **凍結資産の全件(現行 8 件)すべてで、`identity.field` が指すトップレベル revision field と `current_identifiers` が一致している**
 - [ ] 【逐】**非緩和 S4**: **archive 検査が既存の判定の後に走り、既存の合否を変えない**
 - [ ] 【逐】**主張の限定**: **PR 本文に「11 ケース corpus 内の差分比較」と書いてあり、「全入力で緩めていない」とは書いていない**([design.md](design.md) 6-4)
 - [ ] 【機】**本番経路**: **すべてが本番 `check_repository` 経路を通る変異テストで示されている**
-- [ ] 【機】**記録**: **本 PR の受理記録は authority に 1 件だけ**。**7 資産すべての新旧識別値を持つ**。**既存 snapshot を 1 つも変更・削除していない**
+- [ ] 【機】**記録**: **本 PR の受理記録は authority に 1 件だけ**。**凍結資産の全件(現行 8 件)すべての新旧識別値を持つ**。**既存 snapshot を 1 つも変更・削除していない**
 - [ ] 【逐】**逐行確認**: **確認対象コミットの SHA を固定して実施した**。**確認後の差分は証跡ファイルに限る**
 - [ ] 【逐】**射程の明示**: **PR 本文の「主張しない範囲」が [design.md](design.md) 7 節と同じ 7 項目・同じ順序**。**「PR B を開かない」ことと 1 節の見直しが明記されている**
 - [ ] 【逐】**文書整合**: **`research.md` 冒頭に節ごとの生死を exact-set の表で示してある**(**7-3 は生存**)。**計画書 4 節が「調査の正」を生存節に限定している**

@@ -48,7 +48,6 @@ _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
-import frozen_archive  # noqa: E402
 import frozen_history  # noqa: E402
 
 DEFAULT_INVENTORY = Path("contracts/tenant_boundary/db-api-inventory.json")
@@ -69,6 +68,7 @@ DEFAULT_BASE_REF = "origin/develop"
 FROZEN_BASELINE_ASSETS = (
     Path("contracts/tenant_boundary/base-allowlist.json"),
     Path("contracts/tenant_boundary/cache-invalidation-contract.json"),
+    Path("contracts/tenant_boundary/census-baseline.json"),
     Path("contracts/tenant_boundary/db-api-inventory.json"),
     Path("contracts/tenant_boundary/negative-fixtures.json"),
     Path("contracts/tenant_boundary/repository-contract.json"),
@@ -5917,24 +5917,6 @@ def _validate_repository_histories(
                 head_snapshot_root=head_snapshot_root,
                 head_parents=head_parents,
                 evaluation_context=evaluation_context,
-            )
-            frozen_archive.validate_snapshot_archive(
-                _object(
-                    _object(
-                        previous_assets[DEFAULT_ALLOWLIST.as_posix()],
-                        f"比較元.{DEFAULT_ALLOWLIST.as_posix()}",
-                    ).get("baseline_control"),
-                    f"比較元.{DEFAULT_ALLOWLIST.as_posix()}.baseline_control",
-                ).get("history"),
-                _object(
-                    _object(
-                        current_assets[DEFAULT_ALLOWLIST.as_posix()],
-                        f"HEAD.{DEFAULT_ALLOWLIST.as_posix()}",
-                    ).get("baseline_control"),
-                    f"HEAD.{DEFAULT_ALLOWLIST.as_posix()}.baseline_control",
-                ).get("history"),
-                base_snapshot_root=base_snapshot_root,
-                head_snapshot_root=head_snapshot_root,
             )
         except frozen_history.ContractError as error:
             raise ContractError(str(error)) from error

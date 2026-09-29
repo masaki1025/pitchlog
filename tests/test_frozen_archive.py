@@ -114,11 +114,12 @@ def _current_references() -> frozenset[str]:
     )
 
 
-def test_current_mixed_history_has_35_unique_snapshot_references() -> None:
-    """現行の v1・v2 混在履歴から一意参照35件を再現する。"""
+def test_current_mixed_history_has_47_unique_snapshot_references() -> None:
+    """現行の v1・v2 混在履歴から一意参照47件を再現する。"""
     history = _current_history()
     assert [record.get("record_schema_version", 1) for record in history] == [
         1,
+        2,
         2,
         2,
         2,
@@ -126,7 +127,7 @@ def test_current_mixed_history_has_35_unique_snapshot_references() -> None:
 
     references = archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)
 
-    assert len(references) == 35
+    assert len(references) == 47
     assert references <= {path.name for path in SNAPSHOT_ROOT.iterdir()}
 
 
@@ -134,7 +135,7 @@ def test_added_aspect_is_red_after_current_table_is_green(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """ASPECT_NAMES の第5キー追加を抽出表の未更新として拒否する。"""
-    assert len(_current_references()) == 35
+    assert len(_current_references()) == 47
     monkeypatch.setattr(
         archive.frozen_history,
         "ASPECT_NAMES",
@@ -159,7 +160,7 @@ def test_reversed_aspect_classification_is_red_after_current_table_is_green(
     aspect: str,
 ) -> None:
     """4キーそれぞれの参照分類反転を exact-map 不一致として拒否する。"""
-    assert len(_current_references()) == 35
+    assert len(_current_references()) == 47
     mutated = dict(archive.ASPECT_REFERENCE_KINDS)
     current = mutated[aspect]
     mutated[aspect] = (
@@ -195,7 +196,7 @@ def test_v1_record_forced_through_v2_shape_is_red_after_mixed_history_is_green()
     history = _current_history()
     assert len(
         archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)
-    ) == 35
+    ) == 47
     history[0]["record_schema_version"] = 2
 
     with pytest.raises(archive.ContractError, match="キー集合が不一致"):
@@ -207,7 +208,7 @@ def test_missing_v2_snapshot_ref_is_red_after_current_history_is_green() -> None
     history = _current_history()
     assert len(
         archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)
-    ) == 35
+    ) == 47
     del history[1]["change"]["before"]["external_snapshots"][0][
         "snapshot_ref"
     ]
@@ -318,7 +319,7 @@ def _v2_history_with_items(
 
 
 def test_current_archive_metrics_are_within_limits() -> None:
-    """現況64件と既存孤児29件を比較元相対の予算内として受理する。"""
+    """現況80件と既存孤児33件を比較元相対の予算内として受理する。"""
     comparison = archive.validate_snapshot_archive_limits(
         _current_history(),
         _current_history(),
@@ -327,10 +328,10 @@ def test_current_archive_metrics_are_within_limits() -> None:
     )
 
     expected = archive.SnapshotArchiveMetrics(
-        snapshot_count=64,
-        snapshot_bytes=2_181_504,
-        orphan_count=29,
-        orphan_bytes=1_021_201,
+        snapshot_count=80,
+        snapshot_bytes=2_813_550,
+        orphan_count=33,
+        orphan_bytes=1_214_665,
     )
     assert archive.SNAPSHOT_COUNT_LIMIT == 500
     assert archive.SNAPSHOT_BYTES_LIMIT == 33_554_432
@@ -509,10 +510,10 @@ def test_current_archive_has_no_unreferenced_new_snapshot() -> None:
         head_snapshot_root=SNAPSHOT_ROOT,
     )
 
-    assert comparison.head.snapshot_count == 64
-    assert comparison.head.snapshot_bytes == 2_181_504
-    assert comparison.head.orphan_count == 29
-    assert comparison.head.orphan_bytes == 1_021_201
+    assert comparison.head.snapshot_count == 80
+    assert comparison.head.snapshot_bytes == 2_813_550
+    assert comparison.head.orphan_count == 33
+    assert comparison.head.orphan_bytes == 1_214_665
 
 
 def test_recreated_record_rejects_previous_attempt_until_snapshot_is_removed(

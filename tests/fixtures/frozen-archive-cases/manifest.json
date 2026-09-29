@@ -1,10 +1,10 @@
 {
   "schema_version": 2,
-  "comparison_revision": "1a4041018c0b00fc0a86c11bec5ba0a38c3f2070",
+  "comparison_revision": "33afd352b778a5ff1a681113bed6cba43b31a60f",
   "repository_full_name": "masaki1025/pitchlog",
   "pull_request_number": 83,
   "corpus_inputs": {
-    "digest": "c207083271ec0b737820fd94d7738abc0fa333eb23b8204a34a3e80e44a366c0",
+    "digest": "46a60d6b65044f595486301e4a70985819c09fc4f0ede62071d8a44085b0e917",
     "files": [
       ".github/workflows/ci.yml",
       "scripts/check_tenant_boundary_bypass.py",

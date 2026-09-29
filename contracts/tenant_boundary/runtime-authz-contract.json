@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 5,
+  "runtime_contract_revision": 6,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:5"
+        "runtime_contract_revision:6"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -73,7 +73,7 @@
   "provisional": true,
   "superseded_by": "contracts/authz/product/ddl-elements.json",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "c3ff59a4bdb846f3266929f87745d6eb0c59a7d768c00c69b05dd033f8a5a0aa",
+  "source_digest": "ad1c0fdd605d63e0af9c9ffb1855d1b6c8d5bf8ad1e77541e28987a6f50f771a",
   "application_role": {
     "rolname": "pitchlog_app",
     "attributes": {
