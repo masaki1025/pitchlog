@@ -98,6 +98,8 @@ created: 2026-09-25
 
 **計画の改訂(2026-09-27・山田正輝承認 — 実装後の敵対レビュー 3 周目の後)**: ステップ 3・4 の「参照するコードが exact-set」の、**モジュールの外**の保証を、データの流れの追跡から**構造の規則**へ置き換える: ① 2 つのモジュールの外では「`from モジュール import 公開名`」だけを許し、モジュール自体の import・`import *`・末端の名前の import は red ② 末端の名前を `__all__` に入れない(design.md 1 節)。**モジュールの中**の参照の exact-set と、その変異(参照を足す・別名への代入)は従来どおり
 
+**計画の改訂(2026-09-29・山田正輝承認 — TSK-460 の取り込みの後)**: TSK-460(#86)が `contract_revision` 17 と凍結基準の記録を先に使ったため、ステップ 2 の記録を **18** で作り直す。あわせて #86 の census の検査(`tests/test_census_baseline_check.py::test_checker_census_matches_declared_anchor`)が `allowed_symbols` に記号を足す PR をすべて落とすので、**設計は TSK-460 の担当(235)が決め、実装と記録は A2 で行う**: `contracts/tenant_boundary/census-baseline.json` の `pass_fail_mapping` に述語 `removed_outside_allowed_codes_attributable_to_declared_allowlist_growth` を足し(removed のうち TB002・TB007 以外は、TB005・TB900 で、かつ `scope` が anchor 以降に `allowed_symbols` へ足した記号と `.` 区切りで一致するものだけを許す)、`difference_codes_within_allowed_set` を added だけへ縮める。**変えてよい既存ファイルに `census-baseline.json` と `tests/test_census_baseline_check.py` を足す**(census の資産の射影が動くので、同じ受理の v2 記録に census の資産の遷移 4 → 5 も入れる)
+
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
