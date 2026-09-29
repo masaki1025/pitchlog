@@ -84,19 +84,53 @@
       }
     ],
     "authorId": "codex",
-    "independentVerifierId": "not-performed",
+    "independentVerifierId": "山田正輝",
+    "independentReview": {
+      "verifiedOn": "2026-09-30",
+      "reviewerRole": "PO",
+      "authorWorkExposure": "seen-before-source-review",
+      "chronology": [
+        {
+          "sequence": 1,
+          "actorId": "codex",
+          "activity": "作成者が安打系の規範行4行を作成し、機械生成の逐行確認シートを出力した"
+        },
+        {
+          "sequence": 2,
+          "actorId": "Claude",
+          "activity": "要件書1520行目・1539行目・RBI-06を原典で照合し、その結果を逐行確認シートと併せてPOへ提示した。この照合は独立確認者自身による条文確認ではない"
+        },
+        {
+          "sequence": 3,
+          "actorId": "山田正輝",
+          "activity": "作成者の作業結果とClaudeの照合結果を見た後に、要件書1520行目・1539行目・RBI-06の条文そのものを自身で確認した"
+        },
+        {
+          "sequence": 4,
+          "actorId": "山田正輝",
+          "activity": "安打系の規範行4行を承認した"
+        }
+      ],
+      "findings": [
+        "要件書1520行目は、複数アウト・複数得点・塁打数の数量をアウト効果・打者と走者の遷移・結果IDから取得し、フラグ自体に数量を重複保持しないと定める",
+        "要件書1539行目は、塁打フラグを有効にした行で結果IDが表す1・2・3・4の塁打数を打者へ算入すると定める",
+        "RBI-06は本塁打で有効な塁上走者の得点と打者自身の生還を打点に算入するため、満塁本塁打は得点4・打点4となる",
+        "安打と被安打、本塁打と被本塁打を打者側と投手側へ分け、本塁打では失点・得点・打点を有効にするフラグ内訳を照合した。誤ると打率・長打率・打点・防御率の表示が変わる",
+        "単打から三塁打を走者なし、本塁打を満塁とした前提選択はテストが覆う場面の違いであり、計算のふるまいを変更しないことを提示し、POが承認した"
+      ]
+    },
     "attestations": [
       {
         "attestationId": "direct-source-clause-review",
-        "response": false
+        "response": true
       },
       {
         "attestationId": "author-work-exposure",
-        "response": "not-performed"
+        "response": "seen-and-recorded"
       },
       {
         "attestationId": "source-support-judgment",
-        "response": false
+        "response": true
       }
     ]
   },
