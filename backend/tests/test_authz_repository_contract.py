@@ -175,6 +175,8 @@ def _annotation_name(annotation: object) -> str:
         return "None"
     if annotation is Any:
         return "Any"
+    if annotation is Ellipsis:
+        return "..."
     if isinstance(annotation, str):
         return annotation
     origin = get_origin(annotation)
