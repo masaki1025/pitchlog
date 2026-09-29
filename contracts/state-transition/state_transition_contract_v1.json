@@ -81,56 +81,30 @@
       {
         "sourceKind": "requirements",
         "sourceId": "req:RBI-06"
+      },
+      {
+        "sourceKind": "legacy-research",
+        "sourceId": "docs/legacy/research/input-screen.md:68"
+      },
+      {
+        "sourceKind": "legacy-research",
+        "sourceId": "docs/legacy/research/input-screen.md:163"
       }
     ],
     "authorId": "codex",
-    "independentVerifierId": "山田正輝",
-    "independentReview": {
-      "verifiedOn": "2026-09-30",
-      "reviewerRole": "PO",
-      "authorWorkExposure": "seen-before-source-review",
-      "chronology": [
-        {
-          "sequence": 1,
-          "actorId": "codex",
-          "activity": "作成者が安打系の規範行4行を作成し、機械生成の逐行確認シートを出力した"
-        },
-        {
-          "sequence": 2,
-          "actorId": "Claude",
-          "activity": "要件書1520行目・1539行目・RBI-06を原典で照合し、その結果を逐行確認シートと併せてPOへ提示した。この照合は独立確認者自身による条文確認ではない"
-        },
-        {
-          "sequence": 3,
-          "actorId": "山田正輝",
-          "activity": "作成者の作業結果とClaudeの照合結果を見た後に、要件書1520行目・1539行目・RBI-06の条文そのものを自身で確認した"
-        },
-        {
-          "sequence": 4,
-          "actorId": "山田正輝",
-          "activity": "安打系の規範行4行を承認した"
-        }
-      ],
-      "findings": [
-        "要件書1520行目は、複数アウト・複数得点・塁打数の数量をアウト効果・打者と走者の遷移・結果IDから取得し、フラグ自体に数量を重複保持しないと定める",
-        "要件書1539行目は、塁打フラグを有効にした行で結果IDが表す1・2・3・4の塁打数を打者へ算入すると定める",
-        "RBI-06は本塁打で有効な塁上走者の得点と打者自身の生還を打点に算入するため、満塁本塁打は得点4・打点4となる",
-        "安打と被安打、本塁打と被本塁打を打者側と投手側へ分け、本塁打では失点・得点・打点を有効にするフラグ内訳を照合した。誤ると打率・長打率・打点・防御率の表示が変わる",
-        "単打から三塁打を走者なし、本塁打を満塁とした前提選択はテストが覆う場面の違いであり、計算のふるまいを変更しないことを提示し、POが承認した"
-      ]
-    },
+    "independentVerifierId": "not-performed",
     "attestations": [
       {
         "attestationId": "direct-source-clause-review",
-        "response": true
+        "response": false
       },
       {
         "attestationId": "author-work-exposure",
-        "response": "seen-and-recorded"
+        "response": "not-performed"
       },
       {
         "attestationId": "source-support-judgment",
-        "response": true
+        "response": false
       }
     ]
   },
@@ -966,6 +940,162 @@
         "打点": true
       },
       "remarks": "満塁本塁打。E-2・RBI-06により4得点・4打点、結果IDから塁打4を取得する"
+    },
+    {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.batted-out",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "empty"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"}
+      },
+      "plateAppearanceEnded": true,
+      "batterDestination": {"kind": "out"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "not-applicable", "destination": null},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 1, "targets": ["batter"]},
+      "statFlags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "旧outs。無走者の凡打死で打者アウト1件"
+    },
+    {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.batted-reach",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first-second"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"}
+      },
+      "plateAppearanceEnded": true,
+      "batterDestination": {"kind": "reach", "base": 1},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "forced", "destination": 2},
+        "second": {"modality": "forced", "destination": 3},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "旧outs。打者一塁・全在塁走者1進。公式記録上の分類・失策導出は段階2待ち"
+    },
+    {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.foul-fly",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "empty"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"}
+      },
+      "plateAppearanceEnded": true,
+      "batterDestination": {"kind": "out"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "not-applicable", "destination": null},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 1, "targets": ["batter"]},
+      "statFlags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "旧outs。捕球済みの邪飛で打者アウト1件。無走者代表のためXMARK-*・OUT3-*対象外"
     }
   ],
   "operationRows": [],
