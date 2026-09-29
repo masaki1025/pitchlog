@@ -165,7 +165,11 @@
       "gapId": "GAP-09",
       "state": "open",
       "clauseIds": [
-        "A-3"
+        "A-3",
+        "E-1",
+        "ADV-02",
+        "ADV-04",
+        "RBI-01"
       ],
       "branchIds": [
         "RBI-01",
