@@ -3163,8 +3163,8 @@
               },
               {
                 "path": "tests/test_census_baseline_check.py",
-                "sha256": "c93853d5041f01853b8b6c6e9ef803ab280dd6190fabcab1034608484e9f3648",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c93853d5041f01853b8b6c6e9ef803ab280dd6190fabcab1034608484e9f3648"
+                "sha256": "101b6dd3ae291ada7cab6ea47f40b45acc3fae62d300113d2bb31c22a1a57c89",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/101b6dd3ae291ada7cab6ea47f40b45acc3fae62d300113d2bb31c22a1a57c89"
               }
             ],
             "asset_snapshots": [
@@ -3180,8 +3180,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "424e15cdc1391a90174152518a06d8b0b43d93498d02a3d286d770cbdded8884",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/424e15cdc1391a90174152518a06d8b0b43d93498d02a3d286d770cbdded8884"
+                "sha256": "f11e7a793a4e17994d3af3ea907f3b069b25f7dc477127d6ef84ba870b25ae20",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f11e7a793a4e17994d3af3ea907f3b069b25f7dc477127d6ef84ba870b25ae20"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
@@ -3212,7 +3212,7 @@
           }
         },
         "movement_fact": "base-allowlist.json の allowed_symbols に製品認可の適用器とカタログ検査器の末端シンボルを追加したため、同資産の baseline_value が移動した。 TSK-460 の census 述語を許可記号の反実仮想による実測抑止集合へ置き換えたため、census-baseline.json の baseline_value も移動した。",
-        "reason": "製品認可の DB 呼び出しを閉じた末端 2 関数に限定し、許可した DB API の exact-set を迂回検査で強制するため。 TSK-460(#86)の取り込みで A2 の記録を作り直した。旧 census 述語は code と scope の相関であって因果を証明しないため置き換え、許可記号の反実仮想の差し替えで実測した抑止集合 S_allow を免除の上限とした。実測では S_allow は 11 件(内訳 TB005=11)、逆方向は 0 件、removed の TB002/TB007 外は 11 件(内訳 TB005=11)で S_allow に含まれる。現在は集合が等しいが、他の PR に等号を課さないよう包含関係で判定する。",
+        "reason": "製品認可の DB 呼び出しを閉じた末端 2 関数に限定し、許可した DB API の exact-set を迂回検査で強制するため。 TSK-460(#86)の取り込みで A2 の記録を作り直した。旧 census 述語は code と scope の相関であって因果を証明しないため置き換え、許可記号の反実仮想の差し替えで実測した抑止集合 S_allow を免除の上限とした。実測では S_allow は 11 件(内訳 TB005=11)、逆方向は 0 件、removed の TB002/TB007 外は 11 件(内訳 TB005=11)で S_allow に含まれる。現在は集合が等しいが、他の PR に等号を課さないよう包含関係で判定する。 7b59049a の敵対レビュー P1 是正として、anchor と現行で共通する許可記号のエントリ全体の完全一致と anchor 記号の非削除を検査し、既存記号の signature や allowed_api_ids の変更による消失を S_allow に算入しないようにした。 行の追加は帰属できるが変更は帰属できない。変更は fail-closed で red にする。一般化の形は、全体の差し替えではなく記号ごとの行の差分を取り、変更された行は anchor の行と現行の行の両方で census を測って差を帰属させることとし、実際に行を変える PR が持ち込む。",
         "approved_by": "山田正輝",
         "approved_on": "2026-09-30"
       }

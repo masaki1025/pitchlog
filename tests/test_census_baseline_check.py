@@ -1460,22 +1460,44 @@ def _measured_allowlist_suppression(
         ),
         f"anchor.{substituted_field}",
     )
-    anchor_symbols = {
-        _string(_object(row, "anchor.allowed_symbols[]").get("symbol"), "anchor.symbol")
-        for row in anchor_rows
+    anchor_entries = [_object(row, "anchor.allowed_symbols[]") for row in anchor_rows]
+    current_entries = [_object(row, "current.allowed_symbols[]") for row in current_rows]
+    anchor_by_symbol = {
+        _string(row.get("symbol"), "anchor.symbol"): row for row in anchor_entries
     }
-    current_symbols = {
-        _string(_object(row, "current.allowed_symbols[]").get("symbol"), "current.symbol")
-        for row in current_rows
+    current_by_symbol = {
+        _string(row.get("symbol"), "current.symbol"): row for row in current_entries
     }
-    assert len(anchor_symbols) == len(anchor_rows)
-    assert len(current_symbols) == len(current_rows)
+    assert len(anchor_by_symbol) == len(anchor_rows)
+    assert len(current_by_symbol) == len(current_rows)
+    assert anchor_by_symbol.keys() <= current_by_symbol.keys(), (
+        "anchor の許可記号を現行から削除できない"
+    )
+    for symbol, anchor_row in anchor_by_symbol.items():
+        current_row = current_by_symbol[symbol]
+        if current_row != anchor_row:
+            missing = object()
+            different_fields = sorted(
+                field
+                for field in anchor_row.keys() | current_row.keys()
+                if anchor_row.get(field, missing) != current_row.get(field, missing)
+            )
+            raise AssertionError(
+                "共通する allowed_symbols の行が anchor と異なる"
+                f"({symbol}: {', '.join(different_fields)})。"
+                "免除の導出は anchor に無いエントリの追加しか帰属できないため、"
+                "行の変更による TB005 の消失は説明できない。"
+                "行を変える場合は、導出を記号単位の行の差分へ一般化する必要がある"
+                "(contracts/tenant_boundary/census-baseline.json の "
+                "removed_outside_allowed_codes_equals_measured_allowlist_suppression "
+                "の derivation)。"
+            )
     fixture_root = Path("tests/fixtures/tenant_boundary/positive")
     grown_fixtures: set[str] = set()
     removed_paths: set[str] = set()
     for raw_row in current_rows:
         row = _object(raw_row, "current.allowed_symbols[]")
-        if row["symbol"] in anchor_symbols:
+        if row["symbol"] in anchor_by_symbol:
             continue
         fixture = _string(row.get("fixture"), f"{row['symbol']}.fixture")
         fixture_path = Path(fixture)
@@ -1912,7 +1934,9 @@ def _assert_declared_pass_fail_mapping(
         )
 
 
-def _run_declared_census_check_core(reference_root: Path) -> None:
+def _run_declared_census_check_core(
+    reference_root: Path, *, source_root: Path | None = None
+) -> None:
     """宣言アンカーとの census 差分へ、宣言された全述語を適用する。"""
     (
         baseline_checker,
@@ -1924,16 +1948,16 @@ def _run_declared_census_check_core(reference_root: Path) -> None:
         reference_root,
     )
 
+    source_root = source_root or REPOSITORY_ROOT / "backend" / "src"
     added, removed = _compare_checker_census(
         baseline_checker,
         checker,
         repository_root=REPOSITORY_ROOT,
-        source_root=REPOSITORY_ROOT / "backend" / "src",
+        source_root=source_root,
         reference_repository_root=reference_repository_root,
     )
 
     declaration = _load_census_baseline_declaration()
-    source_root = REPOSITORY_ROOT / "backend" / "src"
     current_census = _checker_census(
         checker,
         repository_root=REPOSITORY_ROOT,
@@ -1951,10 +1975,12 @@ def _run_declared_census_check_core(reference_root: Path) -> None:
     )
 
 
-def _run_declared_census_check(reference_root: Path) -> None:
+def _run_declared_census_check(
+    reference_root: Path, *, source_root: Path | None = None
+) -> None:
     """宣言と実装の対応を監査しながら census 検査を実行する。"""
     with _audit_declaration_implementation() as audit:
-        _run_declared_census_check_core(reference_root)
+        _run_declared_census_check_core(reference_root, source_root=source_root)
         _assert_declaration_implementation_wiring(audit)
 
 
@@ -2243,46 +2269,126 @@ def test_measured_suppression_predicate_accepts_actual_a2_census(
     _assert_declared_predicate(predicate, data_sets=data_sets, **arguments)
 
 
+@pytest.mark.parametrize("field", ("missing", "signature", "allowed_api_ids"))
+def test_measured_suppression_rejects_missing_or_changed_shared_allowed_entry(
+    field: str,
+    census_predicate_context: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """共通記号の行を変えると、宣言検査の入口で fail-closed にする。"""
+    predicate, arguments, _ = _suppression_arguments(census_predicate_context)
+    locator = predicate["derivation"]["substituted_field"]
+    anchor_rows = cast(
+        list[dict[str, Any]],
+        _load_json_pointer(locator, repository_root=arguments["reference_repository_root"]),
+    )
+    shared = next(row for row in anchor_rows if len(row["allowed_api_ids"]) > 1)
+    original_loader = _load_json_pointer
+
+    def changed_shared_entry(
+        path: str, *, repository_root: Path | None = None
+    ) -> object:
+        loaded = original_loader(path, repository_root=repository_root)
+        if path == locator and repository_root is None:
+            rows = cast(list[dict[str, Any]], copy.deepcopy(loaded))
+            row = next(row for row in rows if row["symbol"] == shared["symbol"])
+            if field == "missing":
+                rows.remove(row)
+            elif field == "signature":
+                row[field] = row[field] + "_changed"
+            else:
+                row[field] = row[field][:-1]
+            return rows
+        return loaded
+
+    with monkeypatch.context() as mutation:
+        mutation.setattr(
+            sys.modules[__name__], "_load_json_pointer", changed_shared_entry
+        )
+        expected = (
+            "anchor の許可記号を現行から削除できない"
+            if field == "missing"
+            else "共通する allowed_symbols の行が anchor と異なる"
+        )
+        with pytest.raises(AssertionError, match=expected) as rejection:
+            _run_declared_census_check(tmp_path / f"shared_{field}_anchor")
+        if field != "missing":
+            message = str(rejection.value)
+            assert shared["symbol"] in message
+            assert field in message
+            assert "追加しか帰属できない" in message
+            assert "census-baseline.json" in message
+            assert "derivation" in message
+
+
 def test_measured_suppression_rejects_unrelated_api_inside_allowed_function(
     census_predicate_context: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """同じ関数内でも許可 API と無関係な TB005 は入口から拒否する。"""
-    predicate, arguments, data_sets = _suppression_arguments(
-        census_predicate_context
+    """一時ソースへ非許可 API を足し、現行 inventory だけから除いて実消失を作る。
+
+    anchor と現行の比較、反実仮想の再計測は同じ一時ソースを走査する。
+    比較結果には手を加えず、現行 checker の API 入力だけを変える。
+    """
+    predicate, arguments, _ = _suppression_arguments(census_predicate_context)
+    source_root = tmp_path / "source" / "backend" / "src"
+    shutil.copytree(REPOSITORY_ROOT / "backend" / "src", source_root)
+    target = source_root / "pitchlog" / "authz" / "product_provisioning.py"
+    source = target.read_text(encoding="utf-8")
+    marker = '    """閉じた操作を正規資産から生成し、1 トランザクションで実行する。"""\n'
+    assert source.count(marker) == 1
+    target.write_text(
+        source.replace(marker, marker + '    connection.pgconn.exec_(b"SELECT 1")\n'),
+        encoding="utf-8",
     )
-    indexes = {
-        field: index
-        for index, field in enumerate(_identity_fields(arguments["declaration"]))
-    }
-    original = next(
-        identity
-        for identity in data_sets["removed"]
-        if identity[indexes["code"]] == "TB005"
-    )
-    field = predicate["derivation"]["substituted_field"]
-    allowed_rows = _array(_load_json_pointer(field), "current.allowed_symbols")
-    anchor_rows = _array(
-        _load_json_pointer(
-            field, repository_root=arguments["reference_repository_root"]
-        ),
-        "anchor.allowed_symbols",
-    )
-    assert original[indexes["scope"]] in {
-        _object(row, "allowed_symbols[]")["symbol"] for row in allowed_rows
-    }
-    assert original[indexes["scope"]] not in {
-        _object(row, "anchor.allowed_symbols[]")["symbol"] for row in anchor_rows
-    }
-    unrelated = _replace_identity_field(
-        original, index=indexes["symbol"], value="psycopg.Connection.execute"
-    )
-    _run_with_extra_removed(
-        unrelated,
-        monkeypatch=monkeypatch,
-        reference_root=tmp_path / "unrelated_api_anchor",
-    )
+    original_load_contract = checker.load_contract
+
+    def without_unrelated_api(repository_root: Path) -> Any:
+        contract = original_load_contract(repository_root)
+        return replace(
+            contract,
+            apis=tuple(
+                api for api in contract.apis if api.id != "PSYCOPG_PGCONN_EXEC"
+            ),
+        )
+
+    with monkeypatch.context() as mutation:
+        mutation.setattr(checker, "load_contract", without_unrelated_api)
+        baseline_checker, anchor_root, *_ = _declared_anchor_checker(
+            tmp_path / "unrelated_api_preview_anchor"
+        )
+        _, removed = _compare_checker_census(
+            baseline_checker,
+            checker,
+            repository_root=REPOSITORY_ROOT,
+            source_root=source_root,
+            reference_repository_root=anchor_root,
+        )
+        actual = next(
+            identity
+            for identity in removed
+            if identity[0] == "pitchlog/authz/product_provisioning.py"
+            and identity[3] == "pitchlog.authz.product_provisioning._run_product_operation"
+            and identity[4] == "TB005"
+            and identity[5] == "psycopg.pq.PGconn.exec_"
+        )
+        current_census = _checker_census(
+            checker, repository_root=REPOSITORY_ROOT, source_root=source_root
+        )
+        assert actual not in current_census
+        suppression, _, _ = _measured_allowlist_suppression(
+            substituted_field=predicate["derivation"]["substituted_field"],
+            reference_repository_root=arguments["reference_repository_root"],
+            source_root=source_root,
+            current_census=current_census,
+        )
+        assert actual not in suppression
+        with pytest.raises(AssertionError, match=re.escape(predicate["id"])):
+            _run_declared_census_check(
+                tmp_path / "unrelated_api_anchor", source_root=source_root
+            )
 
 
 def test_measured_suppression_rejects_unrelated_scope(
