@@ -1,10 +1,10 @@
 {
   "schema_version": 2,
-  "comparison_revision": "33afd352b778a5ff1a681113bed6cba43b31a60f",
+  "comparison_revision": "ec02a0d2440bb7749ec004ec4cc79776b78b9264",
   "repository_full_name": "masaki1025/pitchlog",
   "pull_request_number": 83,
   "corpus_inputs": {
-    "digest": "46a60d6b65044f595486301e4a70985819c09fc4f0ede62071d8a44085b0e917",
+    "digest": "199bac414260249591e84d0ccfc7cd559cf06c32c3d6a552f7a309e1f1822aaf",
     "files": [
       ".github/workflows/ci.yml",
       "scripts/check_tenant_boundary_bypass.py",
@@ -154,7 +154,7 @@
     {
       "id": 10,
       "name": "mixed-v1-v2-history",
-      "description": "一意参照 18 件を持つ現行の v1・v2 混在履歴を保持する",
+      "description": "一意参照 50 件を持つ現行の v1・v2 混在履歴を保持する",
       "action": "unchanged",
       "expected": {
         "previous": "green",

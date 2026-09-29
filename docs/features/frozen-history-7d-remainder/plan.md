@@ -168,12 +168,12 @@ created: 2026-09-26
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
-**前版比較の比較元 SHA は `33afd352b778a5ff1a681113bed6cba43b31a60f`(develop の直近の取り込み点)で固定する。**
+**前版比較の比較元 SHA は `ec02a0d2440bb7749ec004ec4cc79776b78b9264`(develop の直近の取り込み点)で固定する。**
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
 | 1 | **draft PR を作る**(`acceptance_id` の PR 番号を先に確定させる)+ **比較ケース manifest 11 件と PR 受理モードの runner を `tests/fixtures/frozen-archive-cases/` へ固定する**([design.md](design.md) 6 節)+ **固定 SHA の前版を detached な作業木へ取り出し、11 ケースを当てて終了コードを記録する** + **孤児 snapshot の現況を構造的抽出で実測して記録する** + **変更対象の網羅リストを機械的に得る**(`scripts/frozen_archive.py` を 7 資産の `external_files` へ仮に足した状態でルートと `backend/` の全ゲートを回し、**落ちた検査をすべて記録して exact-set にする**。**計画の予測ではなく実測で確定する**) | **draft PR が存在し PR 番号が確定**。**runner が二親 merge と一致する event を作り、両版の CLI を PR 受理モードで呼ぶ**(不変量モードで代用していない)。**環境変数の隔離の適用範囲が [design.md](design.md) 6-2 の表どおり**(**一律消去の対象**と、**自分で合成 event を setenv する runner の例外**を分けている)。**環境変数を設定しない状態と CI 相当を設定した状態の両方で green**(TSK-440 の実受理で判明)。**11 ケースの前版終了コードが design.md 6-3 の「前版」列と完全一致**。**孤児 29 件・1,021,201 バイトが構造的抽出で再現される**。**変更対象の網羅リストが実測で得られ、[design.md](design.md) 6-4 の S1〜S7 が列挙する対象と exact-set 一致する**(食い違えば S1〜S7 を先に直す — **この確認を経ずにステップ 2 へ進まない**) |
-| 2 | **`scripts/frozen_archive.py`(新設・未結線)— 参照の構造的抽出**。**`record_schema_version == 2` の記録だけを対象**に 4 フィールドを走査 / `SNAPSHOT_REF_PREFIX` と 64 桁 hex と実ファイル名の一致 / **抽出表は明示表**(4 キーを「参照なし / extractor」に分類)で、**キー集合が `ASPECT_NAMES` と exact-set 一致し、分類値も期待表と exact-map 一致** | **`frozen_history.py` と `check_tenant_boundary_bypass.py` を 1 バイトも触らない**(差分で確認)。**`frozen_projection_sha256` / `source_digest` / 識別値の 64 桁 hex だけを持つ fixture で孤児判定に混入しない**。**`ASPECT_NAMES` に第 5 キーを足すと抽出表の未更新が red になる**(exact-set 一致の検査)。**現行の混在履歴(v1 + v2)から一意参照 18 件を再現する正例**(**実測確認済み**)と、**v2 の参照フィールド欠落を拒否する負例**。**v1 記録を v2 と同じ形で走査すると落ちる**ことを示す。**`declaration` / `movement_policy` に有効な `snapshot_ref` 形の値を置いても抽出されない負例**と、**4 キーの分類値を反転させると red になる変異試験**。**`frozen_history.py` の部品を import して使い、再実装しない**(NFR-018)。**import は一方向**(`frozen_archive → frozen_history`)で、**逆向きが存在しない**ことを試験する |
+| 2 | **`scripts/frozen_archive.py`(新設・未結線)— 参照の構造的抽出**。**`record_schema_version == 2` の記録だけを対象**に 4 フィールドを走査 / `SNAPSHOT_REF_PREFIX` と 64 桁 hex と実ファイル名の一致 / **抽出表は明示表**(4 キーを「参照なし / extractor」に分類)で、**キー集合が `ASPECT_NAMES` と exact-set 一致し、分類値も期待表と exact-map 一致** | **`frozen_history.py` と `check_tenant_boundary_bypass.py` を 1 バイトも触らない**(差分で確認)。**`frozen_projection_sha256` / `source_digest` / 識別値の 64 桁 hex だけを持つ fixture で孤児判定に混入しない**。**`ASPECT_NAMES` に第 5 キーを足すと抽出表の未更新が red になる**(exact-set 一致の検査)。**現行の混在履歴(v1 + v2)から一意参照 50 件を再現する正例**(**実測確認済み**)と、**v2 の参照フィールド欠落を拒否する負例**。**v1 記録を v2 と同じ形で走査すると落ちる**ことを示す。**`declaration` / `movement_policy` に有効な `snapshot_ref` 形の値を置いても抽出されない負例**と、**4 キーの分類値を反転させると red になる変異試験**。**`frozen_history.py` の部品を import して使い、再実装しない**(NFR-018)。**import は一方向**(`frozen_archive → frozen_history`)で、**逆向きが存在しない**ことを試験する |
 | 3 | 同(未結線)— **量の閾値**。総件数 / 総バイト / 孤児の件数とバイト。**孤児は両側で算出**(`base_orphans` / `head_orphans` — design.md 1-4)。**design.md 1-3 の確定値を使う** | 合成 fixture で**各量が閾値を超えると red**。**孤児は絶対値でなく比較元との差で判定**する(比較元に 29 件ある入力で red にならない)。**両側で異なる履歴・snapshot 集合を渡す試験**を置く(片側だけを見て通る実装にしない)。**現況(47 件・1,540,497 バイト・孤児 29 件)が閾値内** |
 | 4 | 同(未結線)— **新規孤児ゼロの不変量**。「**HEAD にあって比較元に無い snapshot は、すべて HEAD の構造的参照集合に含まれる**」 | **同一受理内で記録を 2 回作り直し、前の試行の snapshot を残したまま HEAD を作ると red**。**前の試行の snapshot を除去すると green**。**比較元にすでにある孤児では red にならない**(grandfather) |
 | 5 | **結線 — 1 コミット。** **`_validate_repository_histories` の中で、比較元 snapshot を materialize したコンテキストの、既存 `frozen_history.validate_repository_histories` が成功した直後に `frozen_archive` を呼ぶ**(design.md 1-4)+ **`scripts/frozen_archive.py` を 凍結資産の全件(現行 8 件)の `external_files` へ追加** + **authority へ本 PR の受理記録 1 件と 凍結資産の全件(現行 8 件)の識別値の更新** + **凍結資産の全件(現行 8 件)のトップレベル revision field と `current_identifiers` の同期更新** + **派生値の機械再計算**(4 資産の `source_digest` / `inventory.sha256` / 3 生成モジュールの版・digest)+ **既存テストの exact-list と authority 履歴件数の更新**(S6)+ **core-areas.json への登録と test_core_guard.py の同期**(S7)。**`frozen_history.py` は 1 バイトも変えない** | **実リポジトリに対して** `uv run python scripts/check_tenant_boundary_bypass.py` が green。**CLI の import が成功する**(循環 import が無い)。**本番 `check_repository` 経路の変異テスト**で: **新規孤児を残すと red** / **閾値超過で red** / **参照が非正規だと red** / **識別値を据え置くと red**。**比較元孤児と HEAD 孤児が別々に算出されている**ことを、両側で異なる集合を渡す試験で示す。**S5(生成モジュール 3 件)と S7(core-areas.json + test_core_guard.py)を再測する**。**S5 は `backend/` ディレクトリで回す**(root の pytest では `ModuleNotFoundError` で collect されない — TSK-440 の実受理で判明) — **ステップ 1 の測り方(未コミットの仮スタブ)では観測できなかったため**(worklog の実測記録)。**`backend/` のゲートと core-guard を回し、S5・S7 の列挙と exact-set 一致することを確認する** |
@@ -190,7 +190,7 @@ created: 2026-09-26
 - [ ] 【機】**D4**: **抽出対象が `record_schema_version == 2` の記録だけ**で、**v1 記録を v2 と同じ形で走査すると落ちる**
 - [ ] 【機】**D4**: **抽出表が明示表**で、**キー集合が `ASPECT_NAMES` と exact-set 一致**し、**分類値も期待表と exact-map 一致**する。**第 5 キーを足すと未更新が red**・**分類値を反転させると red**
 - [ ] 【機】**D4**: **「参照なし」と分類した `declaration` / `movement_policy` に有効な `snapshot_ref` 形の値を置いても抽出されない**
-- [ ] 【機】**D4**: **現行の混在履歴から一意参照 18 件を再現する**。**v2 の参照フィールド欠落を拒否する**
+- [ ] 【機】**D4**: **現行の混在履歴から一意参照 50 件を再現する**。**v2 の参照フィールド欠落を拒否する**
 - [ ] 【機】**D4**: **孤児を両側で算出する**(`base_orphans` / `head_orphans`)。**両側で異なる履歴・snapshot 集合を渡す試験がある**
 - [ ] 【機】**D4**: **総件数 500 / 総バイト 32 MiB / 孤児は比較元値からの増加ゼロ** の閾値が実装され、超えると red
 - [ ] 【機】**環境変数の隔離**: **適用範囲が [design.md](design.md) 6-2 の表どおりに分かれている**(一律消去 / runner の例外)。**環境変数なしと CI 相当あり の両方で green**
@@ -203,7 +203,7 @@ created: 2026-09-26
 - [ ] 【逐】**D5**: **`frozen_history.py` の既存関数をコピー実装していない**(NFR-018)
 - [ ] 【逐】**D1'**: **退去の仕様(記録形式・論理履歴・正規化規則・fail-closed)が design.md 3 節に書かれている**。**実装は 1 行も入っていない**
 - [ ] 【逐】**D1'**: **TSK-461 の新設提案と、PR B(TSK-443)への申し送り(第 3 の形と条文との距離)が PR 本文にある**
-- [ ] 【機】**前版比較**: **11 ケース corpus の内側で `前版 red → 新版 green` が 0 件**。**`前版 green → 新版 red` が `{4, 5, 6, 7, 11}` と exact-set 一致**。**比較元 SHA が `33afd352` で固定され、両版が PR 受理モードで呼ばれている**
+- [ ] 【機】**前版比較**: **11 ケース corpus の内側で `前版 red → 新版 green` が 0 件**。**`前版 green → 新版 red` が `{4, 5, 6, 7, 11}` と exact-set 一致**。**比較元 SHA が `ec02a0d2` で固定され、両版が PR 受理モードで呼ばれている**
 - [ ] 【機】**fail-closed**: [design.md](design.md) 5 節の F1〜F11 すべてが**非 zero 終了かつ合格と区別できる**(**1 行 = 1 種で数える**)
 - [ ] 【機】**非緩和 S1**: **`scripts/frozen_history.py` の差分が 0 行**
 - [ ] 【機】**非緩和 S2**: **`scripts/check_tenant_boundary_bypass.py` の差分が「`frozen_archive` の import 1 件」と「`_validate_repository_histories` 内の指定位置への呼び出しの追加」だけ**で、**既存の文を 1 つも変更・削除していない**(**追加のみ**)

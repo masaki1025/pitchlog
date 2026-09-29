@@ -115,6 +115,8 @@ AUTHZ_TENANT_AREA_PATH_ADDITIONS = (
     "tests/test_check_shared_preconditions.py",
     "backend/src/pitchlog/authz/*",
     AUTHZ_BACKEND_TEST_PATTERN,
+    "backend/tests/test_product_authz*.py",
+    "backend/tests/product_authz*.py",
     *AUTHZ_BACKEND_WORDING_AREA_PATH_ADDITIONS,
 )
 TENANT_BOUNDARY_AREA_PATH_CASES = (

@@ -369,3 +369,24 @@ feature_status.py                                段階: PR 段階(OPEN)・計�
 ### 副産物
 
 **pytest フィクスチャ `disposable_postgres_cluster` が Docker 匿名ボリュームを回収しない問題を `TSK-465` として起票した**(2026-09-29)。C: ドライブ満杯(空き 2.1GB)の原因で、暫定対処として `docker volume prune` と `ext4.vhdx` の compact を実施済み(空き 612GB へ回復)。**フィクスチャ自体は未修正。**
+
+## 2026-09-30 — PR #84 取り込み後の 2 回目の再導出
+
+比較元を `ec02a0d2440bb7749ec004ec4cc79776b78b9264` へ再固定した。#84 の受理記録を比較元と完全一致する prefix として保持し、その後ろへ #83 の記録を 1 件だけ再導出した。`FROZEN_BASELINE_ASSETS` は 8 件のままだった。
+
+| 実測項目 | 値 |
+| --- | --- |
+| 前版 red → 新版 green | **0 件** |
+| 前版 green → 新版 red | **`{4, 5, 6, 7, 11}`**(前回との差 0 件) |
+| 比較元 snapshot | 73 件・2,622,395 バイト・孤児 33 件 |
+| 現況 snapshot | 83 件・2,958,228 バイト・孤児 33 件 |
+| 比較元からの増分 | 10 件・335,833 バイト・孤児増加 0 件 |
+| 閾値の残余 | 417 件・30,596,204 バイト |
+| #83 の中間版から除去した snapshot | 2 件(比較元との積集合 0 件) |
+| 識別値(資産順) | base:19 / cache:6 / census:6 / inventory:8 / negative:10 / repository:7 / runtime:6 / tenant-context:9 |
+| `inventory.sha256` | `f21db5ea8e472a650e770d263e6f551af0dcdee87768f9a629a1eae5f80b74d6` |
+| `corpus_inputs.digest` | `199bac414260249591e84d0ccfc7cd559cf06c32c3d6a552f7a309e1f1822aaf` |
+
+11 ケースは、両版の実 CLI を同一の合成 PR 受理入力へ subprocess で適用した。`#84` の追加した census 述語と製品認可の変更を含む比較元でも、前版の終了コード列と締めの集合は変わらなかった。
+
+**最終ゲート(マージ未確定の作業木)**: ルート `ruff check .`・`ty check`、backend `ruff check .`・`ty check`、迂回検査、文書状態検査はすべて exit 0。ルート `pytest tests/ -q` は **2,112 passed / 1 failed・exit 1**。失敗は `test_propagation_checker_and_claude_files_are_unchanged` のみで、develop 側から取り込んだ `.claude/core-areas.json` がマージ未確定のため `git diff HEAD -- .claude/` に現れる既知の理由である。`test_frozen_archive.py` は 35 passed、比較 runner は 26 passed。backend の DB テストは委任元の実測済み環境要因に従い実行しない。
