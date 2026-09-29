@@ -8,7 +8,9 @@ import copy
 import hashlib
 import importlib.util
 import json
+import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -1358,13 +1360,14 @@ def _assert_removed_tb007_matches_declared_relaxations(
         assert explanations, identity
 
 
-def _load_json_pointer(locator: str) -> object:
+def _load_json_pointer(
+    locator: str, *, repository_root: Path | None = None
+) -> object:
     """リポジトリ相対 JSON path と RFC 6901 pointer の宣言値を読む。"""
     relative_path, separator, pointer = locator.partition("#")
     assert separator and pointer.startswith("/"), f"JSON pointer が不正: {locator}"
-    value: object = json.loads(
-        (REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8")
-    )
+    root = repository_root or REPOSITORY_ROOT
+    value: object = json.loads((root / relative_path).read_text(encoding="utf-8"))
     for raw_part in pointer.removeprefix("/").split("/"):
         part = raw_part.replace("~1", "/").replace("~0", "~")
         current = _object(value, locator)
@@ -1435,29 +1438,110 @@ def _assert_difference_codes_within_allowed_set(
         )
 
 
-def _assert_removed_attributable_to_declared_allowlist_growth(
+def _measured_allowlist_suppression(
+    *,
+    substituted_field: str,
+    reference_repository_root: Path,
+    source_root: Path,
+    current_census: frozenset[CensusIdentity],
+) -> tuple[
+    frozenset[CensusIdentity], frozenset[str], frozenset[CensusIdentity]
+]:
+    """現行 checker で許可記号だけを差し替え、実際の抑止集合を測る。
+
+    ``Violation.path`` は ``scan_directory`` の ``backend/src`` 相対パス。
+    fixture も同じ根からの相対パスへ写像するため、通常は
+    ``../../tests/fixtures/...`` となり本番モジュールとは衝突しない。
+    """
+    current_rows = _array(_load_json_pointer(substituted_field), substituted_field)
+    anchor_rows = _array(
+        _load_json_pointer(
+            substituted_field, repository_root=reference_repository_root
+        ),
+        f"anchor.{substituted_field}",
+    )
+    anchor_symbols = {
+        _string(_object(row, "anchor.allowed_symbols[]").get("symbol"), "anchor.symbol")
+        for row in anchor_rows
+    }
+    current_symbols = {
+        _string(_object(row, "current.allowed_symbols[]").get("symbol"), "current.symbol")
+        for row in current_rows
+    }
+    assert len(anchor_symbols) == len(anchor_rows)
+    assert len(current_symbols) == len(current_rows)
+    fixture_root = Path("tests/fixtures/tenant_boundary/positive")
+    grown_fixtures: set[str] = set()
+    removed_paths: set[str] = set()
+    for raw_row in current_rows:
+        row = _object(raw_row, "current.allowed_symbols[]")
+        if row["symbol"] in anchor_symbols:
+            continue
+        fixture = _string(row.get("fixture"), f"{row['symbol']}.fixture")
+        fixture_path = Path(fixture)
+        assert not fixture_path.is_absolute(), f"fixture は相対パスが必要: {fixture}"
+        try:
+            fixture_path.relative_to(fixture_root)
+        except ValueError as error:
+            raise AssertionError(f"正例 fixture の外を指す: {fixture}") from error
+        assert fixture_path.suffix == ".py" and ".." not in fixture_path.parts
+        assert (REPOSITORY_ROOT / fixture_path).is_file(), (
+            f"正例 fixture が存在しない: {fixture}"
+        )
+        mapped_path = Path(
+            os.path.relpath(REPOSITORY_ROOT / fixture_path, source_root)
+        ).as_posix()
+        grown_fixtures.add(fixture)
+        removed_paths.add(mapped_path)
+
+    with tempfile.TemporaryDirectory(prefix="census-allowlist-counterfactual-") as raw:
+        counterfactual_root = Path(raw)
+        for relative in (
+            Path("contracts/tenant_boundary"),
+            Path("tests/fixtures/tenant_boundary"),
+        ):
+            shutil.copytree(REPOSITORY_ROOT / relative, counterfactual_root / relative)
+        counterfactual_source = counterfactual_root / "backend/src"
+        shutil.copytree(source_root, counterfactual_source)
+        asset_path, _, _ = substituted_field.partition("#")
+        asset = json.loads((counterfactual_root / asset_path).read_text(encoding="utf-8"))
+        asset["allowed_symbols"] = anchor_rows
+        (counterfactual_root / asset_path).write_text(
+            json.dumps(asset, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        for fixture in grown_fixtures:
+            target = counterfactual_root / fixture
+            assert target.is_file(), f"反実仮想の正例 fixture が無い: {fixture}"
+            target.unlink()
+        counterfactual_census = _checker_census(
+            checker,
+            repository_root=counterfactual_root,
+            source_root=counterfactual_source,
+        )
+    suppression = counterfactual_census - current_census
+    assert not {str(identity[0]) for identity in suppression} & removed_paths, (
+        "除いた fixture が抑止集合を製造した"
+    )
+    return (
+        suppression,
+        frozenset(removed_paths),
+        current_census - counterfactual_census,
+    )
+
+
+def _assert_removed_equals_measured_allowlist_suppression(
     predicate: dict[str, Any],
     *,
     data_sets: dict[str, frozenset[CensusIdentity]],
     identity_indexes: dict[str, int],
-    anchor_contract: Any,
+    source_root: Path,
+    reference_repository_root: Path | None,
     **_: Any,
 ) -> None:
-    """許可集合の増分で説明できる TB005・TB900 の減分だけを受理する。"""
+    """removed の対象外 code が実測した許可記号の抑止集合に含まれることを検証する。"""
     _exact_keys(
         predicate,
-        {
-            "id",
-            "set",
-            "applies_to_codes_outside",
-            "governed_codes",
-            "authority",
-            "authority_symbol_field",
-            "growth",
-            "identity_scope_field",
-            "relation",
-            "quantifier",
-        },
+        {"id", "set", "applies_to_codes_outside", "derivation", "quantifier"},
         predicate["id"],
     )
     set_name = _string(predicate.get("set"), f"{predicate['id']}.set")
@@ -1469,61 +1553,50 @@ def _assert_removed_attributable_to_declared_allowlist_growth(
             f"{predicate['id']}.applies_to_codes_outside",
         )
     )
-    governed_codes = frozenset(
-        _string_array(
-            predicate.get("governed_codes"),
-            f"{predicate['id']}.governed_codes",
-        )
+    derivation = _object(predicate.get("derivation"), f"{predicate['id']}.derivation")
+    _exact_keys(
+        derivation,
+        {
+            "kind",
+            "checker",
+            "substituted_field",
+            "substituted_from",
+            "co_substituted",
+            "relation",
+        },
+        f"{predicate['id']}.derivation",
     )
-    assert excluded_codes.isdisjoint(governed_codes)
-    authority = _string(predicate.get("authority"), f"{predicate['id']}.authority")
-    assert authority == f"{checker.DEFAULT_ALLOWLIST.as_posix()}#/allowed_symbols"
-    symbol_field = _string(
-        predicate.get("authority_symbol_field"),
-        f"{predicate['id']}.authority_symbol_field",
+    assert _string(derivation.get("kind"), "derivation.kind") == (
+        "counterfactual_allowlist_substitution"
     )
-    assert symbol_field == "symbol"
-    assert predicate.get("growth") == "current_minus_anchor"
-    scope_field = _string(
-        predicate.get("identity_scope_field"),
-        f"{predicate['id']}.identity_scope_field",
+    assert _string(derivation.get("checker"), "derivation.checker") == "current"
+    substituted_field = _string(
+        derivation.get("substituted_field"), "derivation.substituted_field"
     )
-    assert scope_field == "scope"
-    assert scope_field in identity_indexes
-    relation = _object(predicate.get("relation"), f"{predicate['id']}.relation")
-    _exact_keys(relation, {"kind", "delimiter"}, f"{predicate['id']}.relation")
-    assert relation.get("kind") == "equal_or_bidirectional_delimited_prefix"
-    delimiter = _string(relation.get("delimiter"), f"{predicate['id']}.relation.delimiter")
-    assert delimiter == "."
-    assert predicate.get("quantifier") == "every"
-
-    current_rows = _array(_load_json_pointer(authority), f"{predicate['id']}.authority")
-    current_symbols = {
-        _string(
-            _object(row, f"{predicate['id']}.authority[]").get(symbol_field),
-            f"{predicate['id']}.authority[].{symbol_field}",
-        )
-        for row in current_rows
-    }
-    assert len(current_symbols) == len(current_rows)
-    # anchor_contract は検証済み materialized_tree 内の checker が読み込んだ値。
-    anchor_symbols = {entry.symbol for entry in anchor_contract.allowed_symbols}
-    grown_symbols = current_symbols - anchor_symbols
+    assert substituted_field == f"{checker.DEFAULT_ALLOWLIST.as_posix()}#/allowed_symbols"
+    assert _string(derivation.get("substituted_from"), "derivation.substituted_from") == (
+        "anchor_materialized_tree"
+    )
+    assert _string(derivation.get("co_substituted"), "derivation.co_substituted") == (
+        "positive_fixtures_of_allowed_symbols_absent_from_anchor"
+    )
+    assert _string(derivation.get("relation"), "derivation.relation") == (
+        "subset_of_measured_suppression"
+    )
+    assert _string(predicate.get("quantifier"), f"{predicate['id']}.quantifier") == "every"
+    assert isinstance(reference_repository_root, Path)
+    suppression = _measured_allowlist_suppression(
+        substituted_field=substituted_field,
+        reference_repository_root=reference_repository_root,
+        source_root=source_root,
+        current_census=data_sets["current_census"],
+    )[0]
     code_index = identity_indexes["code"]
-    scope_index = identity_indexes[scope_field]
     for identity in data_sets[set_name]:
         code = identity[code_index]
         if code in excluded_codes:
             continue
-        assert code in governed_codes, identity
-        assert any(
-            _matches_equal_or_delimited_prefix(
-                str(identity[scope_index]),
-                symbol,
-                delimiter=delimiter,
-            )
-            for symbol in grown_symbols
-        ), identity
+        assert identity in suppression, identity
 
 
 def _assert_removed_matches_declared_relaxations(
@@ -1762,8 +1835,8 @@ _PREDICATE_HANDLERS = {
     "difference_codes_within_allowed_set": (
         _assert_difference_codes_within_allowed_set
     ),
-    "removed_outside_allowed_codes_attributable_to_declared_allowlist_growth": (
-        _assert_removed_attributable_to_declared_allowlist_growth
+    "removed_outside_allowed_codes_equals_measured_allowlist_suppression": (
+        _assert_removed_equals_measured_allowlist_suppression
     ),
     "removed_tb007_matches_declared_relaxations": (
         _assert_removed_matches_declared_relaxations
@@ -1786,6 +1859,7 @@ def _assert_declared_predicate(
     source_root: Path,
     current_contract: Any,
     anchor_contract: Any,
+    reference_repository_root: Any = None,
 ) -> None:
     """単一の宣言述語を対応する汎用検証処理へ渡す。"""
     predicate_id = _string(predicate.get("id"), "pass_fail_mapping.predicate.id")
@@ -1803,6 +1877,7 @@ def _assert_declared_predicate(
             source_root=source_root,
             current_contract=current_contract,
             anchor_contract=anchor_contract,
+            reference_repository_root=reference_repository_root,
         )
     except AssertionError as error:
         raise AssertionError(f"{predicate_id}: {error}") from error
@@ -1817,6 +1892,7 @@ def _assert_declared_pass_fail_mapping(
     source_root: Path,
     current_contract: Any,
     anchor_contract: Any,
+    reference_repository_root: Path | None = None,
 ) -> None:
     """宣言に列挙された全述語を census 差分へ順番に適用する。"""
     data_sets = _predicate_data_sets(
@@ -1832,6 +1908,7 @@ def _assert_declared_pass_fail_mapping(
             source_root=source_root,
             current_contract=current_contract,
             anchor_contract=anchor_contract,
+            reference_repository_root=reference_repository_root,
         )
 
 
@@ -1870,6 +1947,7 @@ def _run_declared_census_check_core(reference_root: Path) -> None:
         source_root=source_root,
         current_contract=checker.load_contract(REPOSITORY_ROOT),
         anchor_contract=baseline_checker.load_contract(reference_repository_root),
+        reference_repository_root=reference_repository_root,
     )
 
 
@@ -2058,6 +2136,181 @@ def test_declared_unadjudicated_tb002_match_uses_symbol_prefix_relation() -> Non
     }
 
 
+def _suppression_predicate(declaration: dict[str, Any]) -> dict[str, Any]:
+    """反実仮想の実測抑止集合を使う述語を一意に取得する。"""
+    matching = [
+        predicate
+        for predicate in _declared_predicates(declaration)
+        if predicate.get("id")
+        == "removed_outside_allowed_codes_equals_measured_allowlist_suppression"
+    ]
+    assert len(matching) == 1
+    return matching[0]
+
+
+def _suppression_arguments(
+    context: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, frozenset[CensusIdentity]]]:
+    """実測 census と materialized anchor を述語に渡す。"""
+    declaration = cast(dict[str, Any], context["declaration"])
+    arguments = {
+        "declaration": declaration,
+        "source_root": context["source_root"],
+        "current_contract": context["current_contract"],
+        "anchor_contract": context["anchor_contract"],
+        "reference_repository_root": context["reference_repository_root"],
+    }
+    data_sets = cast(dict[str, frozenset[CensusIdentity]], context["data_sets"])
+    return _suppression_predicate(declaration), arguments, data_sets
+
+
+def _run_with_extra_removed(
+    identity: CensusIdentity,
+    *,
+    monkeypatch: pytest.MonkeyPatch,
+    reference_root: Path,
+) -> None:
+    """removed に 1 件加え、本番の宣言検査入口まで通す。"""
+    original_compare = _compare_checker_census
+
+    def with_extra_removed(
+        *args: Any, **kwargs: Any
+    ) -> tuple[frozenset[CensusIdentity], frozenset[CensusIdentity]]:
+        added, removed = original_compare(*args, **kwargs)
+        return added, removed | {identity}
+
+    with monkeypatch.context() as mutation:
+        mutation.setattr(
+            sys.modules[__name__], "_compare_checker_census", with_extra_removed
+        )
+        with pytest.raises(
+            AssertionError, match="removed_outside_allowed_codes_equals_measured"
+        ):
+            _run_declared_census_check(reference_root)
+
+
+def _copy_current_contract_tree(destination: Path) -> None:
+    """一時の現在ツリーへ、契約読取りに必要な資産と fixture を複写する。"""
+    for relative in (
+        Path("contracts/tenant_boundary"),
+        Path("tests/fixtures/tenant_boundary"),
+        Path("backend/src"),
+    ):
+        shutil.copytree(REPOSITORY_ROOT / relative, destination / relative)
+
+
+def _set_temporary_allowed_symbols(
+    destination: Path,
+    *,
+    rows: list[dict[str, Any]],
+    removed_fixtures: set[str],
+) -> None:
+    """一時ツリーの許可集合だけを差し替え、対応する正例だけを除く。"""
+    asset_path = destination / checker.DEFAULT_ALLOWLIST
+    asset = json.loads(asset_path.read_text(encoding="utf-8"))
+    asset["allowed_symbols"] = rows
+    asset_path.write_text(
+        json.dumps(asset, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    for fixture in removed_fixtures:
+        (destination / fixture).unlink()
+
+
+def test_measured_suppression_predicate_accepts_actual_a2_census(
+    census_predicate_context: dict[str, Any],
+) -> None:
+    """A2 の実差分と宣言形を確認する。"""
+    predicate, arguments, data_sets = _suppression_arguments(
+        census_predicate_context
+    )
+    assert predicate["applies_to_codes_outside"] == ["TB002", "TB007"]
+    assert predicate["derivation"] == {
+        "kind": "counterfactual_allowlist_substitution",
+        "checker": "current",
+        "substituted_field": "contracts/tenant_boundary/base-allowlist.json#/allowed_symbols",
+        "substituted_from": "anchor_materialized_tree",
+        "co_substituted": "positive_fixtures_of_allowed_symbols_absent_from_anchor",
+        "relation": "subset_of_measured_suppression",
+    }
+    indexes = {
+        field: index
+        for index, field in enumerate(_identity_fields(arguments["declaration"]))
+    }
+    assert any(
+        identity[indexes["code"]] not in predicate["applies_to_codes_outside"]
+        for identity in data_sets["removed"]
+    )
+    _assert_declared_predicate(predicate, data_sets=data_sets, **arguments)
+
+
+def test_measured_suppression_rejects_unrelated_api_inside_allowed_function(
+    census_predicate_context: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """同じ関数内でも許可 API と無関係な TB005 は入口から拒否する。"""
+    predicate, arguments, data_sets = _suppression_arguments(
+        census_predicate_context
+    )
+    indexes = {
+        field: index
+        for index, field in enumerate(_identity_fields(arguments["declaration"]))
+    }
+    original = next(
+        identity
+        for identity in data_sets["removed"]
+        if identity[indexes["code"]] == "TB005"
+    )
+    field = predicate["derivation"]["substituted_field"]
+    allowed_rows = _array(_load_json_pointer(field), "current.allowed_symbols")
+    anchor_rows = _array(
+        _load_json_pointer(
+            field, repository_root=arguments["reference_repository_root"]
+        ),
+        "anchor.allowed_symbols",
+    )
+    assert original[indexes["scope"]] in {
+        _object(row, "allowed_symbols[]")["symbol"] for row in allowed_rows
+    }
+    assert original[indexes["scope"]] not in {
+        _object(row, "anchor.allowed_symbols[]")["symbol"] for row in anchor_rows
+    }
+    unrelated = _replace_identity_field(
+        original, index=indexes["symbol"], value="psycopg.Connection.execute"
+    )
+    _run_with_extra_removed(
+        unrelated,
+        monkeypatch=monkeypatch,
+        reference_root=tmp_path / "unrelated_api_anchor",
+    )
+
+
+def test_measured_suppression_rejects_unrelated_scope(
+    census_predicate_context: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """新規記号と無関係な scope の TB005 は入口から拒否する。"""
+    _, arguments, data_sets = _suppression_arguments(census_predicate_context)
+    indexes = {
+        field: index
+        for index, field in enumerate(_identity_fields(arguments["declaration"]))
+    }
+    original = next(
+        identity
+        for identity in data_sets["removed"]
+        if identity[indexes["code"]] == "TB005"
+    )
+    unrelated = _replace_identity_field(
+        original, index=indexes["scope"], value="mutation.unrelated_scope"
+    )
+    _run_with_extra_removed(
+        unrelated,
+        monkeypatch=monkeypatch,
+        reference_root=tmp_path / "unrelated_scope_anchor",
+    )
+
+
 @pytest.mark.parametrize(
     ("node_type", "source"),
     tuple(_CONDITION_2_AST_CASES.items()),
@@ -2129,20 +2382,22 @@ def _mutate_predicate_input(
         field: index
         for index, field in enumerate(_identity_fields(declaration))
     }
-    if predicate.get("growth") == "current_minus_anchor":
+    if predicate.get("derivation") is not None:
         set_name = _string(predicate["set"], "mutation.set")
-        governed_codes = frozenset(
-            _string_array(predicate["governed_codes"], "mutation.governed_codes")
+        excluded_codes = frozenset(
+            _string_array(
+                predicate["applies_to_codes_outside"], "mutation.excluded_codes"
+            )
         )
         original = next(
             identity
             for identity in mutated[set_name]
-            if identity[indexes["code"]] in governed_codes
+            if identity[indexes["code"]] not in excluded_codes
         )
         replacement = _replace_identity_field(
             original,
-            index=indexes["scope"],
-            value="mutation.unrelated_scope",
+            index=indexes["symbol"],
+            value="mutation.unrelated_symbol",
         )
         mutated[set_name] = (mutated[set_name] - {original}) | {replacement}
         return mutated
@@ -2269,125 +2524,13 @@ def _mutate_predicate_input(
     return mutated
 
 
-def _allowlist_growth_predicate(
-    declaration: dict[str, Any],
-) -> dict[str, Any]:
-    """allowlist 増分に由来する removed の述語を一意に取得する。"""
-    matching = [
-        predicate
-        for predicate in _declared_predicates(declaration)
-        if predicate.get("id")
-        == "removed_outside_allowed_codes_attributable_to_declared_allowlist_growth"
-    ]
-    assert len(matching) == 1
-    return matching[0]
-
-
-def _allowlist_growth_arguments(
-    context: dict[str, Any],
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, frozenset[CensusIdentity]]]:
-    """実測 census を allowlist 増分述語の検証へ渡す。"""
-    declaration = cast(dict[str, Any], context["declaration"])
-    arguments = {
-        "declaration": declaration,
-        "source_root": context["source_root"],
-        "current_contract": context["current_contract"],
-        "anchor_contract": context["anchor_contract"],
-    }
-    data_sets = cast(dict[str, frozenset[CensusIdentity]], context["data_sets"])
-    return _allowlist_growth_predicate(declaration), arguments, data_sets
-
-
-def test_allowlist_growth_predicate_accepts_actual_a2_removed_census(
-    census_predicate_context: dict[str, Any],
-) -> None:
-    """A2 の実差分は 2 記号の増分に由来する removed だけを受理する。"""
-    predicate, arguments, data_sets = _allowlist_growth_arguments(
-        census_predicate_context
-    )
-    assert predicate["applies_to_codes_outside"] == ["TB002", "TB007"]
-    assert predicate["governed_codes"] == ["TB005", "TB900"]
-    assert predicate["relation"] == {
-        "kind": "equal_or_bidirectional_delimited_prefix",
-        "delimiter": ".",
-    }
-    indexes = {
-        field: index
-        for index, field in enumerate(_identity_fields(arguments["declaration"]))
-    }
-    assert any(
-        identity[indexes["code"]] in predicate["governed_codes"]
-        for identity in data_sets["removed"]
-    )
-    _assert_declared_predicate(predicate, data_sets=data_sets, **arguments)
-
-
-def test_allowlist_growth_predicate_rejects_removed_without_current_entry(
+def test_measured_suppression_rejects_removed_current_allowed_entry(
     census_predicate_context: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    """当該 allowed_symbols エントリを消すと TB005 の removed を拒否する。"""
-    predicate, arguments, data_sets = _allowlist_growth_arguments(
-        census_predicate_context
-    )
-    indexes = {
-        field: index
-        for index, field in enumerate(_identity_fields(arguments["declaration"]))
-    }
-    removed = next(
-        identity
-        for identity in data_sets["removed"]
-        if identity[indexes["code"]] == "TB005"
-    )
-    locator = cast(str, predicate["authority"])
-    rows = cast(list[dict[str, Any]], _load_json_pointer(locator))
-    anchor_symbols = {
-        entry.symbol for entry in arguments["anchor_contract"].allowed_symbols
-    }
-    matching = {
-        row["symbol"]
-        for row in rows
-        if row["symbol"] not in anchor_symbols
-        and _matches_equal_or_delimited_prefix(
-            str(removed[indexes["scope"]]), row["symbol"], delimiter="."
-        )
-    }
-    assert len(matching) == 1
-    original_loader = _load_json_pointer
-    monkeypatch.setattr(
-        sys.modules[__name__],
-        "_load_json_pointer",
-        lambda value: (
-            [row for row in rows if row["symbol"] not in matching]
-            if value == locator
-            else original_loader(value)
-        ),
-    )
-    with pytest.raises(AssertionError, match=re.escape(predicate["id"])):
-        _assert_declared_predicate(predicate, data_sets=data_sets, **arguments)
-
-
-def test_allowlist_growth_predicate_rejects_unrelated_removed_scope(
-    census_predicate_context: dict[str, Any],
-) -> None:
-    """新規記号と無関係な scope の TB005 は受理しない。"""
-    predicate, arguments, data_sets = _allowlist_growth_arguments(
-        census_predicate_context
-    )
-    mutated = _mutate_predicate_input(
-        predicate,
-        data_sets=data_sets,
-        declaration=arguments["declaration"],
-    )
-    with pytest.raises(AssertionError, match=re.escape(predicate["id"])):
-        _assert_declared_predicate(predicate, data_sets=mutated, **arguments)
-
-
-def test_allowlist_growth_predicate_rejects_ungoverned_removed_code(
-    census_predicate_context: dict[str, Any],
-) -> None:
-    """増分記号と scope が一致しても TB001 の removed は受理しない。"""
-    predicate, arguments, data_sets = _allowlist_growth_arguments(
+    """当該記号を現行から除いても removed に残した TB005 を拒否する。"""
+    predicate, arguments, data_sets = _suppression_arguments(
         census_predicate_context
     )
     indexes = {
@@ -2397,58 +2540,175 @@ def test_allowlist_growth_predicate_rejects_ungoverned_removed_code(
     original = next(
         identity
         for identity in data_sets["removed"]
-        if identity[indexes["code"]] in predicate["governed_codes"]
+        if identity[indexes["code"]] == "TB005"
     )
-    ungoverned = _replace_identity_field(
-        original, index=indexes["code"], value="TB001"
+    rows = cast(
+        list[dict[str, Any]],
+        _load_json_pointer(predicate["derivation"]["substituted_field"]),
     )
-    mutated = dict(data_sets)
-    mutated["removed"] = (data_sets["removed"] - {original}) | {ungoverned}
-    with pytest.raises(AssertionError, match=re.escape(predicate["id"])):
-        _assert_declared_predicate(predicate, data_sets=mutated, **arguments)
+    removed_entry = next(
+        row for row in rows if row["symbol"] == original[indexes["scope"]]
+    )
+    current_root = tmp_path / "current_without_entry"
+    _copy_current_contract_tree(current_root)
+    _set_temporary_allowed_symbols(
+        current_root,
+        rows=[row for row in rows if row is not removed_entry],
+        removed_fixtures={removed_entry["fixture"]},
+    )
+    current_census = _checker_census(
+        checker,
+        repository_root=current_root,
+        source_root=arguments["source_root"],
+    )
+    assert original in current_census
+    changed_sets = {**data_sets, "current_census": current_census}
+    with monkeypatch.context() as mutation:
+        mutation.setattr(sys.modules[__name__], "REPOSITORY_ROOT", current_root)
+        with pytest.raises(AssertionError, match=re.escape(predicate["id"])):
+            _assert_declared_predicate(predicate, data_sets=changed_sets, **arguments)
 
 
-def test_allowlist_growth_predicate_accepts_develop_without_growth(
+def test_measured_suppression_accepts_develop_without_growth(
     census_predicate_context: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
-    """増分が無い develop 相当では旧 5 述語を含む宣言全体が通る。"""
-    predicate, arguments, data_sets = _allowlist_growth_arguments(
+    """増分のない develop 相当では旧述語も含む宣言全体を通す。"""
+    predicate, arguments, data_sets = _suppression_arguments(
         census_predicate_context
     )
     indexes = {
         field: index
         for index, field in enumerate(_identity_fields(arguments["declaration"]))
     }
-    anchor_symbols = {
-        entry.symbol for entry in arguments["anchor_contract"].allowed_symbols
-    }
-    locator = cast(str, predicate["authority"])
-    current_rows = cast(list[dict[str, Any]], _load_json_pointer(locator))
-    anchor_rows = [
-        row for row in current_rows if row["symbol"] in anchor_symbols
-    ]
-    assert {row["symbol"] for row in anchor_rows} == anchor_symbols
-    original_loader = _load_json_pointer
-    monkeypatch.setattr(
-        sys.modules[__name__],
-        "_load_json_pointer",
-        lambda value: anchor_rows if value == locator else original_loader(value),
+    field = predicate["derivation"]["substituted_field"]
+    rows = cast(list[dict[str, Any]], _load_json_pointer(field))
+    anchor_rows = cast(
+        list[dict[str, Any]],
+        _load_json_pointer(
+            field, repository_root=arguments["reference_repository_root"]
+        ),
+    )
+    anchor_symbols = {row["symbol"] for row in anchor_rows}
+    current_root = tmp_path / "develop_without_growth"
+    _copy_current_contract_tree(current_root)
+    _set_temporary_allowed_symbols(
+        current_root,
+        rows=anchor_rows,
+        removed_fixtures={
+            row["fixture"] for row in rows if row["symbol"] not in anchor_symbols
+        },
+    )
+    current_census = _checker_census(
+        checker,
+        repository_root=current_root,
+        source_root=arguments["source_root"],
     )
     removed = frozenset(
         identity
         for identity in data_sets["removed"]
-        if identity[indexes["code"]] not in predicate["governed_codes"]
+        if identity[indexes["code"]] in predicate["applies_to_codes_outside"]
     )
-    _assert_declared_pass_fail_mapping(
-        declaration=arguments["declaration"],
-        added=data_sets["added"],
-        removed=removed,
-        current_census=data_sets["current_census"],
-        source_root=arguments["source_root"],
-        current_contract=arguments["current_contract"],
-        anchor_contract=arguments["anchor_contract"],
+    with monkeypatch.context() as mutation:
+        mutation.setattr(sys.modules[__name__], "REPOSITORY_ROOT", current_root)
+        _assert_declared_pass_fail_mapping(
+            declaration=arguments["declaration"],
+            added=data_sets["added"],
+            removed=removed,
+            current_census=current_census,
+            source_root=arguments["source_root"],
+            current_contract=checker.load_contract(current_root),
+            anchor_contract=arguments["anchor_contract"],
+            reference_repository_root=arguments["reference_repository_root"],
+        )
+
+
+def test_measured_suppression_rejects_removed_fixture_path(
+    census_predicate_context: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """除いた fixture のパスを S_allow に注入すると入口から拒否する。"""
+    predicate, arguments, data_sets = _suppression_arguments(
+        census_predicate_context
     )
+    field = predicate["derivation"]["substituted_field"]
+    rows = cast(list[dict[str, Any]], _load_json_pointer(field))
+    anchor_rows = cast(
+        list[dict[str, Any]],
+        _load_json_pointer(
+            field, repository_root=arguments["reference_repository_root"]
+        ),
+    )
+    anchor_symbols = {row["symbol"] for row in anchor_rows}
+    fixture = next(
+        row["fixture"] for row in rows if row["symbol"] not in anchor_symbols
+    )
+    mapped_path = Path(
+        os.path.relpath(REPOSITORY_ROOT / fixture, arguments["source_root"])
+    ).as_posix()
+    original = next(
+        identity for identity in data_sets["removed"] if identity[4] == "TB005"
+    )
+    injected = _replace_identity_field(original, index=0, value=mapped_path)
+    original_census = _checker_census
+
+    def with_fixture_violation(
+        checker_module: ModuleType, *, repository_root: Path, source_root: Path
+    ) -> frozenset[CensusIdentity]:
+        measured = original_census(
+            checker_module, repository_root=repository_root, source_root=source_root
+        )
+        if checker_module is checker and repository_root != REPOSITORY_ROOT:
+            return measured | {injected}
+        return measured
+
+    with monkeypatch.context() as mutation:
+        mutation.setattr(
+            sys.modules[__name__], "_checker_census", with_fixture_violation
+        )
+        with pytest.raises(AssertionError, match="除いた fixture"):
+            _run_declared_census_check(tmp_path / "fixture_path_anchor")
+
+
+def test_measured_suppression_rejects_missing_fixture_field(
+    census_predicate_context: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """新規許可記号の fixture 欄欠落は入口で fail-closed に停止する。"""
+    predicate, arguments, _ = _suppression_arguments(census_predicate_context)
+    field = predicate["derivation"]["substituted_field"]
+    rows = cast(list[dict[str, Any]], _load_json_pointer(field))
+    anchor_rows = cast(
+        list[dict[str, Any]],
+        _load_json_pointer(
+            field, repository_root=arguments["reference_repository_root"]
+        ),
+    )
+    anchor_symbols = {row["symbol"] for row in anchor_rows}
+    new_symbol = next(
+        row["symbol"] for row in rows if row["symbol"] not in anchor_symbols
+    )
+    original_loader = _load_json_pointer
+
+    def without_fixture(
+        locator: str, *, repository_root: Path | None = None
+    ) -> object:
+        loaded = original_loader(locator, repository_root=repository_root)
+        if locator == field and repository_root is None:
+            changed = cast(list[dict[str, Any]], copy.deepcopy(loaded))
+            next(row for row in changed if row["symbol"] == new_symbol).pop(
+                "fixture"
+            )
+            return changed
+        return loaded
+
+    with monkeypatch.context() as mutation:
+        mutation.setattr(sys.modules[__name__], "_load_json_pointer", without_fixture)
+        with pytest.raises(AssertionError, match="fixture"):
+            _run_declared_census_check(tmp_path / "missing_fixture_anchor")
 
 
 @pytest.mark.parametrize(
@@ -2481,6 +2741,9 @@ def test_each_declared_census_predicate_rejects_its_input_mutation(
         "source_root": census_predicate_context["source_root"],
         "current_contract": census_predicate_context["current_contract"],
         "anchor_contract": census_predicate_context["anchor_contract"],
+        "reference_repository_root": census_predicate_context[
+            "reference_repository_root"
+        ],
     }
     _assert_declared_predicate(predicate, data_sets=data_sets, **arguments)
     mutated = _mutate_predicate_input(
