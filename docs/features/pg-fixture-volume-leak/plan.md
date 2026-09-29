@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3ea93b75e687816d981ef92628c2e6b8
 branch: fix/pg-fixture-volume-leak
 created: 2026-09-30
-計画レビュー周回: 2        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -59,9 +59,10 @@ created: 2026-09-30
 1. `_run_docker("run", "--detach", ...)` の引数に `"--rm"` を加える(イメージ名より前)
 2. `finally` の `_run_docker("rm", "--force", container_name, check=False)` を `_run_docker("rm", "--force", "--volumes", container_name, check=False)` にする
 3. `docker run` の呼び出しを `try` の内側へ移す。起動に失敗してコンテナが存在しない場合、`finally` の削除は `check=False` で無害に失敗する
-4. `finally` の削除が `subprocess.TimeoutExpired` を送出した場合は、捕捉して `warnings.warn` でコンテナ名を報告する。削除側の例外で起動時・試験時の元の例外を覆わないようにするため。削除し損ねたコンテナは、既存の残存検査(`test_database_environment.py:96-104`)と 2 節の回復手順で扱う
 
-**不採用とした案(計画レビュー 2 周目 P1)**: 「`docker run` が同名の既存コンテナとの衝突で失敗した場合、`finally` が他セッションのコンテナを名前で削除してしまう」ため、コンテナ ID かラベルで所有を確かめてから削除する案。コンテナ名 `pitchlog-authz-<token>` の `<token>` は呼び出しごとに `secrets.token_hex(8)`(64 ビットの乱数)で生成される(`db_fixtures.py:633-634`)ので、既存コンテナとの名前衝突は実際上起きない。所有確認を足す複雑さに見合わないと判断した
+**不採用とした案(計画レビュー 2 周目 P1)**: 「`docker run` が同名の既存コンテナとの衝突で失敗した場合、`finally` が他セッションのコンテナを名前で削除してしまう」ため、コンテナ ID かラベルで所有を確かめてから削除する案。コンテナ名 `pitchlog-authz-<token>` の `<token>` は呼び出しごとに `secrets.token_hex(8)`(64 ビットの乱数)で生成される(`db_fixtures.py:633-634`)ので、既存コンテナとの名前衝突は実際上起きない。所有確認を足す複雑さに見合わないと判断した(3 周目で妥当と確認)
+
+**取り下げた変更(計画レビュー 2 周目 P2 → 3 周目 P2 2 件)**: 2 周目で「`finally` の削除が 90 秒でタイムアウトすると、その例外が元の例外を覆う」との指摘を受け、削除の `TimeoutExpired` を捕捉して警告にする変更を一度入れた。3 周目で、その変更が別の問題を生むと指摘された(`-W error` では警告が例外化して元の例外を覆う / 正常終了時の削除失敗が成功扱いになる)。Python は `finally` 内で送出された例外に元の例外を `__context__` として連結して表示するので、元の例外の情報は失われない。また、この挙動は修正前から同じで、本タスク(匿名ボリュームの回収)の範囲外である。以上から変更を取り下げ、削除のタイムアウトは現行どおり例外として送出する
 
 `--rm` と `rm --force --volumes` を併用しても、実機では削除が競合せず、`rm` は同期で完了する(12 回試して 12 回とも。直後の `docker inspect` でコンテナもボリュームも消えていた)。既存の「コンテナ残存なし」の assert(`backend/tests/db/test_database_environment.py:96-104`)とも整合する。仮に競合しても `check=False` なので失敗にはならない。認可・テナント分離の試験で使うクラスタの中身(ロール・DB・DSN)は変わらない。過去の決定・正本・既存の検査との整合は [research.md](research.md) を参照。
 
@@ -88,7 +89,6 @@ created: 2026-09-30
   - `run` が例外を送出: 同じコンテナ名で `rm --force --volumes` が呼ばれ、元の例外が送出される
   - `port` が例外を送出: 同上
   - 待機がタイムアウト(`_wait_for_postgres` が例外を送出): 同上
-  - 起動と削除の両方が失敗(`run` が例外、`rm` が `subprocess.TimeoutExpired`): 起動時の例外が送出され、削除の失敗は警告として報告される
 - 実機(DoD の実測・手動): 実 Docker で `disposable_postgres_cluster` を使う既存テスト(`backend/tests/db/test_database_environment.py` の残存検査を含む)を実行し、コンテナの匿名ボリューム ID が実行後に存在しないことを確認する。SIGINT / SIGKILL の 2 通りも同様に確認する
 
 ## 7. マージ後フォローアップ(運用作業 — DoD 外)
