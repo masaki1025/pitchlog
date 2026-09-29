@@ -5964,6 +5964,48 @@ def request_cache_refresh() -> CacheInvalidationRequest:
     assert {violation.code for violation in violations} == {"TB004"}
 
 
+def _source_path_for_qualified_symbol(
+    symbol: str,
+    head_sources: dict[str, str],
+) -> str:
+    """完全修飾記号を検査器と同じ module 規則で所属ファイルへ写す。"""
+    candidates = tuple(
+        (checker._module_name(path), path)
+        for path in head_sources
+        if checker._module_name(path)
+        and symbol.startswith(f"{checker._module_name(path)}.")
+    )
+    assert candidates, f"許可記号の所属ファイルを導出できない: {symbol}"
+    longest_module_length = max(len(module) for module, _ in candidates)
+    longest = tuple(
+        path
+        for module, path in candidates
+        if len(module) == longest_module_length
+    )
+    assert len(longest) == 1, f"許可記号の所属ファイルが一意でない: {symbol}"
+    return longest[0]
+
+
+def _assert_introduced_symbol_modules_have_changed_lines(
+    introduced_symbols: set[str],
+    changed_lines: dict[str, frozenset[int]],
+    head_sources: dict[str, str],
+) -> None:
+    """追加した許可記号それぞれの所属ファイルに実変更を要求する。"""
+    required_paths = {
+        _source_path_for_qualified_symbol(symbol, head_sources)
+        for symbol in introduced_symbols
+    }
+    paths_with_changed_lines = {
+        path for path, lines in changed_lines.items() if lines
+    }
+    missing = required_paths - paths_with_changed_lines
+    assert not missing, (
+        "追加した許可記号の所属ファイルに変更行が無い: "
+        + ", ".join(sorted(missing))
+    )
+
+
 def test_condition4_allowed_call_symbols_are_an_exact_set() -> None:
     """条件 4 の許可呼び出しを物理キー構築と単一 factory に閉じる。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
@@ -6019,9 +6061,11 @@ def test_repository_application_population_is_nonempty_and_green(
     assert population
     if introduced_symbols:
         assert checker._has_changed_lines(changed_lines)
-        assert set(PRODUCT_APPLICATION_PATHS) <= {
-            path for path, lines in changed_lines.items() if lines
-        }
+        _assert_introduced_symbol_modules_have_changed_lines(
+            introduced_symbols,
+            changed_lines,
+            head_sources,
+        )
     else:
         assert set(PRODUCT_APPLICATION_PATHS) <= set(head_sources)
     repository, base_ref = _initialize_test_repository(
@@ -6032,6 +6076,31 @@ def test_repository_application_population_is_nonempty_and_green(
         _write_test_repository_sources(repository, head_sources)
         _commit_test_repository(repository, "current product sources")
     assert _check_test_repository(repository, base_ref) == []
+
+
+def test_introduced_symbol_without_definition_file_changes_is_red() -> None:
+    """許可記号だけを足して所属ファイルを変えない合成変異を拒否する。"""
+    provisioning_path = "pitchlog/authz/product_provisioning.py"
+    catalog_path = "pitchlog/authz/product_catalog.py"
+    head_sources = {
+        provisioning_path: "def _run_product_operation(): pass\n",
+        catalog_path: "def _fetch_catalog_rows(): pass\n",
+    }
+    introduced_symbols = {
+        "pitchlog.authz.product_provisioning._run_product_operation",
+        "pitchlog.authz.product_catalog._fetch_catalog_rows",
+    }
+    changed_lines = {
+        provisioning_path: frozenset({1}),
+        catalog_path: frozenset(),
+    }
+
+    with pytest.raises(AssertionError, match="product_catalog.py"):
+        _assert_introduced_symbol_modules_have_changed_lines(
+            introduced_symbols,
+            changed_lines,
+            head_sources,
+        )
 
 
 def test_first_product_introduction_with_empty_population_is_red() -> None:
