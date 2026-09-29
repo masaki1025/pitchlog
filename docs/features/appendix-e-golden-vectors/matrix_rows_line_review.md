@@ -3,8 +3,8 @@
 > この文書は状況判定契約から機械生成したレビュー入力であり、レビューの実施や判断の正しさを証明する記録ではない。
 
 - 作成者: `codex`
-- 独立確認: **未実施**
-- 由来条文: `req:E-1` / `req:FR-003` / `req:4.0-2` / `req:E-2` / `req:SO-01` / `req:SO-02` / `req:SO-03` / `req:SO-04` / `req:SO-05` / `req:A-2` / `req:A-3` / `req:ADV-01` / `req:ADV-02` / `req:ADV-04`
+- 独立確認: **記録あり**（確認者: `山田正輝` / 役割: `PO` / 確認日: `2026-09-30` / 作成結果を見た後に典拠確認）
+- 由来条文: `req:E-1` / `req:FR-003` / `req:4.0-2` / `req:E-2` / `req:SO-01` / `req:SO-02` / `req:SO-03` / `req:SO-04` / `req:SO-05` / `req:A-2` / `req:A-3` / `req:ADV-01` / `req:ADV-02` / `req:ADV-04` / `obr:9.02(a)(1)`
 - 完全な値: `contracts/state-transition/state_transition_contract_v1.json` の `matrixRows[]`（入力座標 = `eventKind` + `resultId` + `precondition`）
 
 **本表の全行に共通する前提:** 打撃結果

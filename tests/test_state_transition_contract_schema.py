@@ -1918,27 +1918,40 @@ def test_repository_contract_step51_to_step53_rows_satisfy_constraints() -> None
     }["event.perPitch.pitchEventKind"] == "non-pitch-event"
 
 
-def test_repository_contract_records_step53_review_as_not_performed() -> None:
-    """四死球系行を加えた契約が未実施の独立確認を装わない。"""
+def test_repository_contract_records_completed_step53_independent_review() -> None:
+    """四死球系3行の独立確認を提示された時系列どおり記録する。"""
     provenance = _repository_contract()["provenance"]
 
     assert provenance["authorId"] == "codex"
-    assert provenance["independentVerifierId"] == "not-performed"
-    assert "independentReview" not in provenance
-    assert provenance["attestations"] == [
-        {"attestationId": "direct-source-clause-review", "response": False},
-        {"attestationId": "author-work-exposure", "response": "not-performed"},
-        {"attestationId": "source-support-judgment", "response": False},
+    assert provenance["independentVerifierId"] == "山田正輝"
+    assert {
+        "sourceKind": "official-baseball-rules",
+        "sourceId": "obr:9.02(a)(1)",
+    } in provenance["sources"]
+    review = provenance["independentReview"]
+    assert review["verifiedOn"] == "2026-09-30"
+    assert review["reviewerRole"] == "PO"
+    assert review["authorWorkExposure"] == "seen-before-source-review"
+    assert [event["sequence"] for event in review["chronology"]] == [1, 2, 3, 4]
+    assert "作業結果とClaudeのWeb照合結果を見た後に" in review["chronology"][2][
+        "activity"
     ]
-    with pytest.raises(
-        provenance_checker.ProvenanceCheckError,
-        match="宣誓応答が充足値でない",
-    ):
-        provenance_checker.validate_provenance(
-            REPOSITORY_ROOT,
-            provenance,
-            schema_value=_schema(),
-        )
+    assert "一塁走者は強制進塁" in review["findings"][0]
+    assert "9.02(a)(1)" in review["findings"][1]
+    assert "申告敬遠" in review["findings"][2]
+    assert "満塁と四球の組合せは段階2" in review["findings"][4]
+    assert "3-0" in review["findings"][5]
+    assert "打者側・投手側" in review["findings"][6]
+    assert provenance["attestations"] == [
+        {"attestationId": "direct-source-clause-review", "response": True},
+        {"attestationId": "author-work-exposure", "response": "seen-and-recorded"},
+        {"attestationId": "source-support-judgment", "response": True},
+    ]
+    provenance_checker.validate_provenance(
+        REPOSITORY_ROOT,
+        provenance,
+        schema_value=_schema(),
+    )
 
 
 def test_step53_four_ball_results_use_identity_partition_without_gap() -> None:

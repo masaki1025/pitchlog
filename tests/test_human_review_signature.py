@@ -200,7 +200,7 @@ def test_unsupported_declared_digest_method_is_red() -> None:
 
 
 def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> None:
-    """ステップ52の未確認シートを契約から決定的に生成する。"""
+    """ステップ53の独立確認表示を契約から決定的に生成する。"""
     generated = tmp_path / "matrix_rows_line_review.md"
 
     result = checker.main(
@@ -219,8 +219,10 @@ def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> N
         encoding="utf-8"
     )
     sheet = generated.read_text(encoding="utf-8")
-    assert "独立確認: **未実施**" in sheet
-    assert "確認者:" not in sheet
+    assert "独立確認: **記録あり**" in sheet
+    assert "確認者: `山田正輝`" in sheet
+    assert "確認日: `2026-09-30`" in sheet
+    assert "作成結果を見た後に典拠確認" in sheet
     assert "確認済み" not in sheet
     assert "本表の全行に共通する前提:** 打撃結果" in sheet
     assert "state_transition_contract_v1.json` の `matrixRows[]`" in sheet

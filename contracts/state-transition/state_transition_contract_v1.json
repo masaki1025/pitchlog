@@ -65,22 +65,62 @@
       {
         "sourceKind": "requirements",
         "sourceId": "req:ADV-04"
+      },
+      {
+        "sourceKind": "official-baseball-rules",
+        "sourceId": "obr:9.02(a)(1)"
       }
     ],
     "authorId": "codex",
-    "independentVerifierId": "not-performed",
+    "independentVerifierId": "山田正輝",
+    "independentReview": {
+      "verifiedOn": "2026-09-30",
+      "reviewerRole": "PO",
+      "authorWorkExposure": "seen-before-source-review",
+      "chronology": [
+        {
+          "sequence": 1,
+          "actorId": "codex",
+          "activity": "作成者が四死球系の規範行3行を作成し、機械生成の逐行確認シートを出力した"
+        },
+        {
+          "sequence": 2,
+          "actorId": "Claude",
+          "activity": "公認野球規則をWebで照合し、その結果を逐行確認シートと併せてPOへ提示した。この照合は独立確認者自身による条文確認ではない"
+        },
+        {
+          "sequence": 3,
+          "actorId": "山田正輝",
+          "activity": "作成者の作業結果とClaudeのWeb照合結果を見た後に、公認野球規則9.02(a)(1)と要件書1177行目・1542行目・ADV-02・ADV-04の条文そのものを自身で確認した"
+        },
+        {
+          "sequence": 4,
+          "actorId": "山田正輝",
+          "activity": "四死球系の規範行3行を承認した"
+        }
+      ],
+      "findings": [
+        "走者一・三塁で四球となると、一塁走者は強制進塁し、二塁が空いているため三塁走者は強制されない",
+        "公認野球規則9.02(a)(1)は、四球・死球・犠打・犠飛・妨害による一塁付与では打数を記録しないと定める",
+        "申告敬遠は四球として記録され、要件書1177行目の与四球と1542行目の四球はいずれも申告敬遠を含む",
+        "ADV-02の一・三塁で四球となる正例とADV-04の連鎖外の三塁走者を停止させる正例は、規範行3行の走者既定進塁と一致する",
+        "state.runnersのloadedはrequiredSet②で軸単独の被覆対象だが、満塁と四球の組合せは段階2のstate-transition-axis-combinationsであり、現段階では満塁×四球の行を要求しない",
+        "四球の3-0と死球・申告敬遠の0-0は代表入力座標であり、アプリのふるまいを変更しないことを提示し、POが承認した",
+        "四球・与四球と死球・与死球は打者側・投手側の別々の成績フラグであり、規範行3行で取り違えていないことを提示し、POが承認した"
+      ]
+    },
     "attestations": [
       {
         "attestationId": "direct-source-clause-review",
-        "response": false
+        "response": true
       },
       {
         "attestationId": "author-work-exposure",
-        "response": "not-performed"
+        "response": "seen-and-recorded"
       },
       {
         "attestationId": "source-support-judgment",
-        "response": false
+        "response": true
       }
     ]
   },
