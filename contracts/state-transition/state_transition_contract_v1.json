@@ -84,6 +84,14 @@
       },
       {
         "sourceKind": "requirements",
+        "sourceId": "req:RBI-01"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:XC-11"
+      },
+      {
+        "sourceKind": "requirements",
         "sourceId": "req:FR-004"
       },
       {
@@ -100,19 +108,66 @@
       }
     ],
     "authorId": "codex",
-    "independentVerifierId": "not-performed",
+    "independentVerifierId": "山田正輝",
+    "independentReview": {
+      "verifiedOn": "2026-09-30",
+      "reviewerRole": "PO",
+      "authorWorkExposure": "seen-before-source-review",
+      "chronology": [
+        {
+          "sequence": 1,
+          "actorId": "codex",
+          "activity": "作成者が併殺系2行とエラー・野手選択2行の規範行4行を作成し、機械生成の逐行確認シートを出力した"
+        },
+        {
+          "sequence": 2,
+          "actorId": "Claude",
+          "activity": "行20の併殺打で一塁走者を停止とした状態はフォースプレイの実態と合わないと指摘した。この指摘は後の要件書確認により誤りと判明した"
+        },
+        {
+          "sequence": 3,
+          "actorId": "山田正輝",
+          "activity": "Claudeの指摘に基づく是正を承認し、行20を一塁走者のフォース進塁へ変更した"
+        },
+        {
+          "sequence": 4,
+          "actorId": "codex",
+          "activity": "委任先として要件書E-1のフォース連鎖定義を確認し、batterDestination.kind = reachに限定されるため打者アウトの併殺打は連鎖外であり、最初の停止実装が条文どおりだと反証した。この反証が正しかった"
+        },
+        {
+          "sequence": 5,
+          "actorId": "山田正輝",
+          "activity": "作成者の作業結果と往復の経緯を見た後に、要件書E-1・ADV-02・ADV-04・RBI-01・XC-11と公認野球規則9.02(a)(1)を自身で確認し、行20を条文どおり停止へ戻して矛盾をGAP-09へ記録すると裁定した"
+        },
+        {
+          "sequence": 6,
+          "actorId": "山田正輝",
+          "activity": "条文どおりに戻したステップ56の規範行4行を承認した"
+        }
+      ],
+      "findings": [
+        "要件書E-1のフォース連鎖はbatterDestination.kind = reachであり、かつ事前状態で一塁から当該塁までの全ての塁に走者がいる場合に限定されるため、打者がoutとなる行20はADV-04の停止となる",
+        "RBI-01は打者のゴロによるフォースダブルプレイまたはリバースフォースダブルプレイを扱うため、現行ADV-*の判定だけからRBI-01の適用条件を導出できない矛盾がある",
+        "公認野球規則9.02(a)(1)により、失策による出塁は打数に算入し、四球・死球・犠打・犠飛・妨害による一塁付与は打数から除く",
+        "XC-11では無死の併殺は事前アウト0とoutEffect.count 2の合計が2で上限3以内となり、OUT3-*の分岐を必要としない",
+        "Claudeによる行20をフォース進塁へ変えるべきとの指摘は誤りで、委任先が要件書E-1を示して行った反証が正しかった",
+        "現行schemaはXC-*の12件だけを宣言してADV-*を機械検査せず、行20をforcedへ変異させても検査が通る検出欠落がある",
+        "ADV-*とRBI-01の矛盾およびADV-*の機械検査欠落はGAP-09でopenのまま維持する",
+        "エラーと野手選択の公式記録上の分類は段階2のままである"
+      ]
+    },
     "attestations": [
       {
         "attestationId": "direct-source-clause-review",
-        "response": false
+        "response": true
       },
       {
         "attestationId": "author-work-exposure",
-        "response": "not-performed"
+        "response": "seen-and-recorded"
       },
       {
         "attestationId": "source-support-judgment",
-        "response": false
+        "response": true
       }
     ]
   },
