@@ -117,7 +117,7 @@
       },
       {
         "stepId": 58,
-        "command": "uv run python -c 'import json,sys; from pathlib import Path; sys.path.insert(0,\"scripts\"); from check_tenant_boundary_bypass import _validate_baseline_control; p=Path(\"contracts/domain_calc/frozen-inputs.json\"); _validate_baseline_control(json.loads(p.read_text(encoding=\"utf-8\")), str(p)); print(\"1 passed\")'",
+        "command": "uv run python -c 'import json,sys; from pathlib import Path; sys.path.insert(0,\"scripts\"); from check_tenant_boundary_bypass import _validate_baseline_control; p=Path(\"contracts/tenant_boundary/frozen-inputs.json\"); _validate_baseline_control(json.loads(p.read_text(encoding=\"utf-8\")), str(p)); print(\"1 passed\")'",
         "reason": "新設資産の baseline_control schema 検査は履歴監査が実走する。"
       }
     ]
@@ -725,10 +725,10 @@
     {
       "id": 58,
       "group": 12,
-      "title": "**`contracts/domain_calc/frozen-inputs.json` の新設**(4 値 + `baseline_control`)",
+      "title": "**`contracts/tenant_boundary/frozen-inputs.json` の新設**(4 値 + `baseline_control`)",
       "criteria": "`[機械]` 資産の schema 検査が通る・`history: []`・`history_authority: false` / **◎ 妥当な資産が schema 検査を通る**(**正例 B**)",
-      "artifact": "`contracts/domain_calc/frozen-inputs.json`",
-      "command": "`uv run python -c 'import json,sys; from pathlib import Path; sys.path.insert(0,\"scripts\"); from check_tenant_boundary_bypass import _validate_baseline_control; p=Path(\"contracts/domain_calc/frozen-inputs.json\"); _validate_baseline_control(json.loads(p.read_text(encoding=\"utf-8\")), str(p)); print(\"1 passed\")'` + `uv run pytest tests/test_plan_generation.py -q`",
+      "artifact": "`contracts/tenant_boundary/frozen-inputs.json`",
+      "command": "`uv run python -c 'import json,sys; from pathlib import Path; sys.path.insert(0,\"scripts\"); from check_tenant_boundary_bypass import _validate_baseline_control; p=Path(\"contracts/tenant_boundary/frozen-inputs.json\"); _validate_baseline_control(json.loads(p.read_text(encoding=\"utf-8\")), str(p)); print(\"1 passed\")'` + `uv run pytest tests/test_plan_generation.py -q`",
       "requires_positive_b": true
     },
     {

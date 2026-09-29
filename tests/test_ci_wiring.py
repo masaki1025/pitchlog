@@ -23,7 +23,7 @@ BACKEND_SRC = REPOSITORY_ROOT / "backend/src"
 sys.path.insert(0, str(BACKEND_SRC))
 ACTIVATION = importlib.import_module("pitchlog.domaincheck.activation_evidence")
 WORKFLOW_PATH = REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml"
-FROZEN_INPUTS_PATH = REPOSITORY_ROOT / "contracts/domain_calc/frozen-inputs.json"
+FROZEN_INPUTS_PATH = REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json"
 FROZEN_INPUTS = json.loads(FROZEN_INPUTS_PATH.read_text(encoding="utf-8"))["frozen_inputs"]
 COMPOSE_PATH = REPOSITORY_ROOT / "docker-compose.yml"
 EXPECTATIONS_PATH = (

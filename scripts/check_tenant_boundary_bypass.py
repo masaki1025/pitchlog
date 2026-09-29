@@ -70,6 +70,7 @@ FROZEN_BASELINE_ASSETS = (
     Path("contracts/tenant_boundary/cache-invalidation-contract.json"),
     Path("contracts/tenant_boundary/census-baseline.json"),
     Path("contracts/tenant_boundary/db-api-inventory.json"),
+    Path("contracts/tenant_boundary/frozen-inputs.json"),
     Path("contracts/tenant_boundary/negative-fixtures.json"),
     Path("contracts/tenant_boundary/repository-contract.json"),
     Path("contracts/tenant_boundary/runtime-authz-contract.json"),

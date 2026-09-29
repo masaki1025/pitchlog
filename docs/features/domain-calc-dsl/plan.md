@@ -310,7 +310,21 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 したがって **JSON の契約資産へ置けば走査に当たらない**。TSK-460 が
 `contracts/tenant_boundary/census-baseline.json` で通した経路をそのまま使う。
 
-**新設**: `contracts/domain_calc/frozen-inputs.json`
+**置き場所は `contracts/tenant_boundary/` でなければならない(2026-09-30 訂正)。**
+凍結の機構は当該ディレクトリに固定されている — 検査器の
+`FROZEN_BASELINE_ASSETS`(`check_tenant_boundary_bypass.py:68`)も、比較元・HEAD の
+独立列挙(`:5764` `:5792`)も `contracts/tenant_boundary/*.json` しか見ない。
+**別ディレクトリへ置くと `baseline_control` を書いても誰も検証せず、基準を黙って
+動かせる**。当初 `contracts/domain_calc/` としたが、機構の外だったため訂正した。
+
+**本来の置き場所は中央台帳**(`contracts/authz/frozen-baselines.json`)である。
+台帳は新系列を拒まない(`LEGACY_PLACEMENTS.get(series)` が未知系列へ `None` を返し、
+初回記録の `placement_change.before` を `null` にすれば通る)。ただし 64 桁の digest が
+既存戦略 `literal_commit_string` に乗るかは未計測であり、`scripts/frozen_baselines.py`
+に手が要ると台帳自身の改訂(`rule_self_change`)になる。**本タスクでは測らない。
+別タスクへ申し送る**(下記 §7 の申し送り)。
+
+**新設**: `contracts/tenant_boundary/frozen-inputs.json`
 
 - 4 つの基準値を宣言する。**それぞれ何の基準か・どこから来たかを併記する**
 - `baseline_control` を持ち、`identity`(`contract_revision`)/ `movement_policy` /
@@ -334,7 +348,7 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 
 | # | 内容 | 合格条件 |
 | --- | --- | --- |
-| 58 | **`contracts/domain_calc/frozen-inputs.json` の新設**(4 値 + `baseline_control`) | `[機械]` 資産の schema 検査が通る・`history: []`・`history_authority: false` |
+| 58 | **`contracts/tenant_boundary/frozen-inputs.json` の新設**(4 値 + `baseline_control`) | `[機械]` 資産の schema 検査が通る・`history: []`・`history_authority: false` |
 | 59 | **3 テストを資産参照へ改める**と、版ピンを `ci.yml` から読む形へ改める | `[機械]` `--ci` が **exit 0**・3 テストが緑・**版ピンの検査が残っていること**(変異で確認) |
 | 60 | **凍結基準の受理**(権威資産へ 1 件・snapshot 追記) | `[機械]` `check_tenant_boundary_bypass.py` が exit 0・記録は 1 件 |
 
@@ -553,7 +567,7 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 58 | **`contracts/domain_calc/frozen-inputs.json` の新設**(4 値 + `baseline_control`) | `[機械]` 資産の schema 検査が通る・`history: []`・`history_authority: false` / **◎ 妥当な資産が schema 検査を通る**(**正例 B**) |
+| 58 | **`contracts/tenant_boundary/frozen-inputs.json` の新設**(4 値 + `baseline_control`) | `[機械]` 資産の schema 検査が通る・`history: []`・`history_authority: false` / **◎ 妥当な資産が schema 検査を通る**(**正例 B**) |
 | 59 | **3 テストを資産参照へ改める**と、版ピンを `ci.yml` から読む形へ改める | `[機械]` `--ci` が **exit 0**・3 テストが緑・**版ピンの検査が残っていること**(変異で確認) / **◎ 修正後の `--ci` が実際に通る**(**正例 B**) |
 | 60 | **凍結基準の受理**(権威資産へ 1 件・snapshot 追記) | `[機械]` `check_tenant_boundary_bypass.py` が exit 0・記録は 1 件 / **◎ 受理記録を含む検査が実際に通る**(**正例 B**) |
 
@@ -630,7 +644,7 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 | 55 | ✓ | `docs/development/github-setup.md` / `docs/development/dev-harness-design-2026-08-07.md` / `docs/README.md` | `[機械]` **「接続されている」だけでなく「実行された」ことを証跡で確認する**(§17 是正 `C` — 逐語「存在するだけでは足りない」)/ **◎ ステップ 51・52 の実行証跡が存在する**(**集合差** — 6 周目 `P1`)/ **◎ 要求①〜④が揃ったとき実際に発効する**(**正例 B** — 要求④ (iii) の本体。ステップ 25 から移した)/ **`github-setup.md` の 3 分類と Ruleset JSON の記述が 9 → 11 context へ同期**(**集合差**。**検査できるのは文書の同期のみ** — `required_status_checks` はリモートに存在せず〔個人 Free + private で Rulesets 利用不可〕、**強制は `github-setup.md` 2 章の人間の手続き**)/ `check_docs_status` / `check_doc_coverage` / `check_design_propagation` OK | `uv run pytest tests/test_ci_wiring.py` + `uv run python scripts/check_docs_status.py` |
 | 56 | ✓ | `scripts/core_guard.py` / `tests/test_core_guard.py` | `[機械]` **比較元が PR head ではなく変更不能な merge-base の blob である** / **他 3 領域は据え置き層から導出され、テスト内リテラルの書き換えだけでは green にならない** / 追加層に無い変更が fail / **JSON と期待値を同一コミットで書き換える型が fail する**負例 / **JSON・期待値・アンカーの 3 点を同時変更しても fail する**履歴 fixture / **◎ 据え置き層と追加層に正しく登録された変更が実際に通る**(**正例 B**) | `uv run pytest tests/test_core_guard.py` |
 | 57 | ✓ | `.claude/core-areas.json` | `[機械]` **JSON の両 area 配列に該当 glob が含まれる** / **後から足したファイルが glob に覆われる**ことを負例で示す(**集合差**)/ **他 3 領域は据え置き層のまま** / 新規各パスの変更で core-guard が発火 / **◎ 登録対象外のパスの変更では発火しない**(**正例 B** — 全変更を発火させる実装を排除する) `[手動]` **敵対レビュー + 人間承認(PR 作成者以外の逐行確認)** — 設計書 6.3-⑤ | `uv run pytest tests/test_core_guard.py::test_area_registration` |
-| 58 | ✓ | `contracts/domain_calc/frozen-inputs.json` | `[機械]` 資産の schema 検査が通る・`history: []`・`history_authority: false` / **◎ 妥当な資産が schema 検査を通る**(**正例 B**) | `uv run python -c 'import json,sys; from pathlib import Path; sys.path.insert(0,"scripts"); from check_tenant_boundary_bypass import _validate_baseline_control; p=Path("contracts/domain_calc/frozen-inputs.json"); _validate_baseline_control(json.loads(p.read_text(encoding="utf-8")), str(p)); print("1 passed")'` + `uv run pytest tests/test_plan_generation.py -q` |
+| 58 | ✓ | `contracts/tenant_boundary/frozen-inputs.json` | `[機械]` 資産の schema 検査が通る・`history: []`・`history_authority: false` / **◎ 妥当な資産が schema 検査を通る**(**正例 B**) | `uv run python -c 'import json,sys; from pathlib import Path; sys.path.insert(0,"scripts"); from check_tenant_boundary_bypass import _validate_baseline_control; p=Path("contracts/tenant_boundary/frozen-inputs.json"); _validate_baseline_control(json.loads(p.read_text(encoding="utf-8")), str(p)); print("1 passed")'` + `uv run pytest tests/test_plan_generation.py -q` |
 | 59 | ✓ | `tests/domain/test_boot_seal.py` | `[機械]` `--ci` が **exit 0**・3 テストが緑・**版ピンの検査が残っていること**(変異で確認) / **◎ 修正後の `--ci` が実際に通る**(**正例 B**) | `uv run python scripts/check_frozen_baselines.py --ci` |
 | 60 | ✓ | `contracts/tenant_boundary/base-allowlist.json` / `contracts/tenant_boundary/history-snapshots/` | `[機械]` `check_tenant_boundary_bypass.py` が exit 0・記録は 1 件 / **◎ 受理記録を含む検査が実際に通る**(**正例 B**) | `uv run pytest tests/test_check_tenant_boundary_bypass.py -q` |
 
@@ -709,3 +723,4 @@ design.md §12-1 が正。**トリガー 2 は再スコープした**(数値書�
 | 3 | ~~**`TSK-317` PR #3 が `core-areas.json` / `test_ci_wiring.py` をいつ触るか**~~ | **✅ 解消(2026-09-18 実測)**。**PR #66 でマージ済みだが、`core-areas.json` も `test_ci_wiring.py` も触っていない**(`TSK-355` マージ以降の 44 ファイルに含まれない)。**ステップ 55・56 の期待値は据え置きでよい** |
 | 4 | ~~**`harness` の予算基線の測り直し**~~ | **✅ 完了(2026-09-18・専有)**: **1390 passed / 599.82s**。**ステップ 53 の `timeout-minutes` はこの値で決める**。**DB 依存 194 件はローカルで測れず CI 側で得る** |
 | 5 | **再ポイント(13pt → 34pt 提案)と Notion の状態** | **人間判断**。`.claude/notion-map.json` は `ブロック中` を手動遷移と定める。**ブロッカは解消したので `進行中` のままでよい** |
+| 6 | **凍結入力資産を中央台帳(`contracts/authz/frozen-baselines.json`)へ移すか** | **別タスクへ申し送る**(2026-09-30)。本タスクは §4-16 のとおり `contracts/tenant_boundary/` へ置いた — 凍結の機構が当該ディレクトリに固定されているためであり、意味の座りではない。中央台帳が**本来の置き場所**である。台帳は新系列を拒まない(`LEGACY_PLACEMENTS.get(series)` が未知系列へ `None` を返す)が、**64 桁 digest が既存戦略 `literal_commit_string` に乗るかは未計測**で、`scripts/frozen_baselines.py` に手が要ると台帳自身の改訂(`rule_self_change`)になる。**本タスクでは測らない** |

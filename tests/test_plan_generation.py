@@ -27,7 +27,7 @@ STEPS_DATA_PATH = FEATURE_DIR / "steps.json"
 PLAN_PATH = FEATURE_DIR / "plan.md"
 FEATURE_STATUS_PATH = ROOT / "scripts/feature_status.py"
 BACKEND_SRC = ROOT / "backend/src"
-FROZEN_INPUTS_PATH = ROOT / "contracts/domain_calc/frozen-inputs.json"
+FROZEN_INPUTS_PATH = ROOT / "contracts/tenant_boundary/frozen-inputs.json"
 FROZEN_INPUTS = json.loads(FROZEN_INPUTS_PATH.read_text(encoding="utf-8"))["frozen_inputs"]
 
 # 57 ステップへ更新した PO 裁定のコミットを固定比較元とする。
