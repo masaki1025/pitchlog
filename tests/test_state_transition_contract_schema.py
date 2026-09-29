@@ -139,6 +139,19 @@ def _provenance() -> dict[str, Any]:
         ],
         "authorId": "contract-author",
         "independentVerifierId": "independent-verifier",
+        "independentReview": {
+            "verifiedOn": "2026-09-29",
+            "reviewerRole": "reviewer",
+            "authorWorkExposure": "not-seen-before-source-review",
+            "chronology": [
+                {
+                    "sequence": 1,
+                    "actorId": "independent-verifier",
+                    "activity": "典拠を確認した",
+                }
+            ],
+            "findings": ["典拠が対象を支持する"],
+        },
         "attestations": [
             {
                 "attestationId": "direct-source-clause-review",
@@ -1824,21 +1837,28 @@ def test_repository_contract_step51_rows_satisfy_schema_references_and_xc() -> N
     )
 
 
-def test_repository_contract_records_step51_independent_review_as_not_performed() -> None:
-    """未実施の独立確認を充足済みprovenanceとして受理しない。"""
+def test_repository_contract_records_completed_step51_independent_review() -> None:
+    """完了した独立確認の記録が由来検査を充足する。"""
     provenance = _repository_contract()["provenance"]
 
     assert provenance["authorId"] == "codex"
-    assert provenance["independentVerifierId"] == "not-performed"
-    with pytest.raises(
-        provenance_checker.ProvenanceCheckError,
-        match="宣誓応答が充足値でない",
-    ):
-        provenance_checker.validate_provenance(
-            REPOSITORY_ROOT,
-            provenance,
-            schema_value=_schema(),
-        )
+    assert provenance["independentVerifierId"] == "山田正輝"
+    review = provenance["independentReview"]
+    assert review["verifiedOn"] == "2026-09-29"
+    assert review["reviewerRole"] == "PO"
+    assert review["authorWorkExposure"] == "seen-before-source-review"
+    assert [event["sequence"] for event in review["chronology"]] == [1, 2, 3, 4]
+    assert "見た後に" in review["chronology"][2]["activity"]
+    assert provenance["attestations"] == [
+        {"attestationId": "direct-source-clause-review", "response": True},
+        {"attestationId": "author-work-exposure", "response": "seen-and-recorded"},
+        {"attestationId": "source-support-judgment", "response": True},
+    ]
+    provenance_checker.validate_provenance(
+        REPOSITORY_ROOT,
+        provenance,
+        schema_value=_schema(),
+    )
 
 
 def test_provenance_declares_machine_and_human_assurance_boundaries() -> None:

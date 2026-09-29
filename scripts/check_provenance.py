@@ -392,6 +392,42 @@ def validate_provenance(
                 f"宣誓応答が充足値でない: {attestation_id!r}"
             )
 
+    independent_review = _object(
+        provenance.get("independentReview"),
+        "provenance.independentReview",
+    )
+    chronology = independent_review.get("chronology")
+    if not isinstance(chronology, list) or not chronology:
+        raise ProvenanceCheckError("独立確認の経緯が空または配列でない")
+    sequences: list[int] = []
+    actors: set[str] = set()
+    for index, raw_event in enumerate(chronology):
+        event = _object(raw_event, f"independentReview.chronology[{index}]")
+        sequence = event.get("sequence")
+        if not isinstance(sequence, int) or isinstance(sequence, bool):
+            raise ProvenanceCheckError("独立確認の経緯に整数の順序が無い")
+        sequences.append(sequence)
+        actors.add(_string(event.get("actorId"), "chronology.actorId"))
+    if sequences != list(range(1, len(chronology) + 1)):
+        raise ProvenanceCheckError("独立確認の経緯が1始まりの連続順序でない")
+    if verifier_id not in actors:
+        raise ProvenanceCheckError("独立確認者が確認経緯のactorIdに現れない")
+
+    exposure = _string(
+        independent_review.get("authorWorkExposure"),
+        "independentReview.authorWorkExposure",
+    )
+    expected_exposure_by_response = {
+        "not-seen-before-source-review": "not-seen-before-source-review",
+        "seen-and-recorded": "seen-before-source-review",
+    }
+    exposure_response = recorded["author-work-exposure"]
+    expected_exposure = expected_exposure_by_response.get(exposure_response)
+    if expected_exposure is None or exposure != expected_exposure:
+        raise ProvenanceCheckError(
+            "作業結果の閲覧順序とauthor-work-exposure宣誓が一致しない"
+        )
+
 
 def main(argv: list[str] | None = None) -> int:
     """指定した状況判定契約の由来記録を検証する。"""

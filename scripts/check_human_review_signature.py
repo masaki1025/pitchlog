@@ -582,7 +582,28 @@ def render_matrix_rows_review_sheet(
         provenance.get("independentVerifierId"),
         "provenance.independentVerifierId",
     )
-    review_state = "未実施" if verifier_id == "not-performed" else "記録あり"
+    independent_review = _object(
+        provenance.get("independentReview"),
+        "provenance.independentReview",
+    )
+    verified_on = _string(
+        independent_review.get("verifiedOn"),
+        "provenance.independentReview.verifiedOn",
+    )
+    reviewer_role = _string(
+        independent_review.get("reviewerRole"),
+        "provenance.independentReview.reviewerRole",
+    )
+    exposure = _string(
+        independent_review.get("authorWorkExposure"),
+        "provenance.independentReview.authorWorkExposure",
+    )
+    if exposure == "seen-before-source-review":
+        exposure_text = "作成結果を見た後に典拠確認"
+    elif exposure == "not-seen-before-source-review":
+        exposure_text = "作成結果を見る前に典拠確認"
+    else:  # pragma: no cover - schemaが閉じたenumとして拒否する
+        exposure_text = exposure
     source_text = " / ".join(f"`{source_id}`" for source_id in source_ids)
 
     event_kinds = [row.get("eventKind") for row in typed_rows]
@@ -609,7 +630,9 @@ def render_matrix_rows_review_sheet(
         "レビューの実施や判断の正しさを証明する記録ではない。",
         "",
         f"- 作成者: `{author_id}`",
-        f"- 独立確認: **{review_state}**",
+        "- 独立確認: **記録あり**"
+        f"（確認者: `{verifier_id}` / 役割: `{reviewer_role}` / "
+        f"確認日: `{verified_on}` / {exposure_text}）",
         f"- 由来条文: {source_text}",
         f"- 完全な値: `{STATE_TRANSITION_CONTRACT_PATH.as_posix()}` の "
         "`matrixRows[]`（入力座標 = `eventKind` + `resultId` + `precondition`）",

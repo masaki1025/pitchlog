@@ -1640,6 +1640,7 @@
         "sources",
         "authorId",
         "independentVerifierId",
+        "independentReview",
         "attestations"
       ],
       "additionalProperties": false,
@@ -1663,12 +1664,80 @@
           "type": "string",
           "minLength": 1
         },
+        "independentReview": {
+          "$ref": "#/$defs/provenanceIndependentReview"
+        },
         "attestations": {
           "type": "array",
           "minItems": 1,
           "items": {
             "$ref": "#/$defs/provenanceAttestation"
           }
+        }
+      }
+    },
+    "provenanceIndependentReview": {
+      "type": "object",
+      "required": [
+        "verifiedOn",
+        "reviewerRole",
+        "authorWorkExposure",
+        "chronology",
+        "findings"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "verifiedOn": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "reviewerRole": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authorWorkExposure": {
+          "enum": [
+            "not-seen-before-source-review",
+            "seen-before-source-review"
+          ]
+        },
+        "chronology": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/provenanceReviewEvent"
+          }
+        },
+        "findings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "provenanceReviewEvent": {
+      "type": "object",
+      "required": [
+        "sequence",
+        "actorId",
+        "activity"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actorId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "activity": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },

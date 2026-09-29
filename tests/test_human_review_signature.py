@@ -219,7 +219,9 @@ def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> N
         encoding="utf-8"
     )
     sheet = generated.read_text(encoding="utf-8")
-    assert "独立確認: **未実施**" in sheet
+    assert "独立確認: **記録あり**" in sheet
+    assert "確認者: `山田正輝` / 役割: `PO`" in sheet
+    assert "確認日: `2026-09-29` / 作成結果を見た後に典拠確認" in sheet
     assert "確認済み" not in sheet
     assert "本表の全行に共通する前提:** 打撃結果 / 無死 / 走者なし / " in sheet
     assert "カウント 0-0 / 投球イベント" in sheet
