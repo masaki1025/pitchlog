@@ -325,6 +325,8 @@
         "tests/test_check_shared_preconditions.py",
         "backend/src/pitchlog/authz/*",
         "backend/tests/test_authz*.py",
+        "backend/tests/test_product_authz*.py",
+        "backend/tests/product_authz*.py",
         "backend/tests/wording_scan.py",
         "backend/tests/test_wording_scan.py",
         "tests/fixtures/authz_claims/*",
