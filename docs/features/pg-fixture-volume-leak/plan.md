@@ -53,7 +53,9 @@ created: 2026-09-30
 1. `_run_docker("run", "--detach", ...)` の引数に `"--rm"` を加える
 2. `finally` の `_run_docker("rm", "--force", container_name, check=False)` を `_run_docker("rm", "--force", "--volumes", container_name, check=False)` にする
 
-`--rm` と `rm --force --volumes` の併用で、コンテナ削除の競合(自動削除が先行した場合の `No such container`)が起きても `check=False` のため失敗にならない。認可・テナント分離の試験で使うクラスタの中身(ロール・DB・DSN)は変わらない。
+`--rm` と `rm --force --volumes` を併用しても、実機では削除が競合せず、`rm` は同期で完了する(12 回試して 12 回とも。直後の `docker inspect` でコンテナもボリュームも消えていた)。既存の「コンテナ残存なし」の assert(`backend/tests/db/test_database_environment.py:96-104`)とも整合する。仮に競合しても `check=False` なので失敗にはならない。認可・テナント分離の試験で使うクラスタの中身(ロール・DB・DSN)は変わらない。過去の決定・正本・既存の検査との整合は [research.md](research.md) を参照。
+
+単体テストは独立ファイル `backend/tests/test_disposable_cluster_cleanup.py` に置き、`pytest.skip` と 40 桁・64 桁の hex 定数を使わない。`tests/test_ci_wiring.py:1193`(db_fixtures.py 全文に対する `pytest.skip` の禁止)と `scripts/check_frozen_baselines.py:1888`(hex の走査)に掛からないようにするため(research.md)。
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
@@ -72,4 +74,4 @@ created: 2026-09-30
 ## 6. テスト計画
 
 - 単体: `_run_docker` を monkeypatch で記録器に差し替え、`docker port` の出力と `_wait_for_postgres` をスタブして factory を 1 回通し、`run` の引数に `--rm`、`rm` の引数に `--force` と `--volumes` が含まれることを検査する(Docker 不要)
-- 実機(DoD の実測・手動): 実 Docker で `disposable_postgres_cluster` を使う既存テストを 1 件実行し、コンテナの匿名ボリューム ID が実行後に存在しないことを確認する。SIGINT / SIGKILL の 2 通りも同様に確認する
+- 実機(DoD の実測・手動): 実 Docker で `disposable_postgres_cluster` を使う既存テスト(`backend/tests/db/test_database_environment.py` の残存検査を含む)を実行し、コンテナの匿名ボリューム ID が実行後に存在しないことを確認する。SIGINT / SIGKILL の 2 通りも同様に確認する
