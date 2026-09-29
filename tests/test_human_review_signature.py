@@ -219,11 +219,10 @@ def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> N
         encoding="utf-8"
     )
     sheet = generated.read_text(encoding="utf-8")
-    assert "独立確認: **記録あり**" in sheet
-    assert "確認者: `山田正輝` / 役割: `PO`" in sheet
-    assert "確認日: `2026-09-29` / 作成結果を見た後に典拠確認" in sheet
+    assert "独立確認: **未実施**" in sheet
+    assert "確認者:" not in sheet
     assert "確認済み" not in sheet
-    assert "本表の全行に共通する前提:** 打撃結果 / B=0 / 投球イベント" in sheet
+    assert "本表の全行に共通する前提:** 打撃結果" in sheet
     assert "state_transition_contract_v1.json` の `matrixRows[]`" in sheet
     assert "{\"" not in sheet
     assert "false" not in sheet
@@ -233,12 +232,17 @@ def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> N
         if line.startswith("| ")
         and line.removeprefix("| ").split(" | ", maxsplit=1)[0].isdigit()
     ]
-    assert len(table_rows) == 9
-    assert "| 1 | 見逃し | 無死 / 走者なし / S=0 | S+1 |" in sheet
-    assert "| 4 | ボール | 無死 / 走者なし / S=0 | B+1 |" in sheet
-    assert "| 7 | 振り逃げ | 2死 / 走者なし / S=2 |" in sheet
-    assert "| 9 | 三振ゲッツー | 1死 / 走者 1塁 / S=2 |" in sheet
+    assert len(table_rows) == 12
+    assert "| 1 | 見逃し | 無死 / 走者なし / カウント 0-0 / 投球イベント | S+1 |" in sheet
+    assert "| 4 | ボール | 無死 / 走者なし / カウント 0-0 / 投球イベント | B+1 |" in sheet
+    assert "| 7 | 振り逃げ | 2死 / 走者なし / カウント 0-2 / 投球イベント |" in sheet
+    assert "| 9 | 三振ゲッツー | 1死 / 走者 1塁 / カウント 0-2 / 投球イベント |" in sheet
     assert "| 終了 | アウト | 1塁停止 | 2（打者・1塁走者） |" in sheet
+    assert "| 10 | 四球 | 無死 / 走者 1塁・3塁 / カウント 3-0 / 投球イベント |" in sheet
+    assert "| 11 | 死球 | 無死 / 走者 1塁・3塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert "| 12 | 申告敬遠 | 無死 / 走者 1塁・3塁 / カウント 0-0 / 非投球イベント |" in sheet
+    assert "1塁→2塁（強制） / 3塁停止" in sheet
+    assert "| 与四球・打席・四球 |" in sheet
     assert "requiredSet①はsafe/outの2行を要求" in sheet
     assert "## 短縮表示できなかった値" not in sheet
     assert "## 人間が判断すること" in sheet
@@ -261,8 +265,8 @@ def test_matrix_rows_line_review_renderer_accepts_later_rows() -> None:
         if line.startswith("| ")
         and line.removeprefix("| ").split(" | ", maxsplit=1)[0].isdigit()
     ]
-    assert len(table_rows) == 10
-    assert "| 10 | 単打 |" in sheet
+    assert len(table_rows) == 13
+    assert "| 13 | 単打 |" in sheet
 
 
 def test_matrix_rows_result_names_follow_vocabulary_seed(tmp_path: Path) -> None:

@@ -1813,8 +1813,8 @@ def test_repository_schema_accepts_the_three_normative_row_layers() -> None:
     _validate(_minimal_contract())
 
 
-def test_repository_contract_step51_and_step52_rows_satisfy_constraints() -> None:
-    """継続4行と三振系5行が10列exact型・参照・XCを充足する。"""
+def test_repository_contract_step51_to_step53_rows_satisfy_constraints() -> None:
+    """継続・三振・四死球系12行が10列exact型・参照・XCを充足する。"""
     contract = _repository_contract()
     step51_result_ids = {
         "batting-result.called-pitch",
@@ -1829,6 +1829,11 @@ def test_repository_contract_step51_and_step52_rows_satisfy_constraints() -> Non
         "batting-result.k3",
         "batting-result.strikeout-double-play",
     }
+    step53_result_ids = {
+        "batting-result.walk",
+        "batting-result.hit-by-pitch",
+        "batting-result.intentional-walk",
+    }
 
     _validate_schema(contract)
     _validate_references(
@@ -1838,9 +1843,10 @@ def test_repository_contract_step51_and_step52_rows_satisfy_constraints() -> Non
     _validate_cross_constraints(contract)
 
     rows = contract["matrixRows"]
-    assert len(rows) == 9
+    assert len(rows) == 12
     assert {row["resultId"] for row in rows[:4]} == step51_result_ids
-    assert {row["resultId"] for row in rows[4:]} == step52_result_ids
+    assert {row["resultId"] for row in rows[4:9]} == step52_result_ids
+    assert {row["resultId"] for row in rows[9:]} == step53_result_ids
     assert all(row["eventKind"] == "batting-result" for row in rows)
     assert all(row["plateAppearanceEnded"] is False for row in rows[:4])
     assert all(row["batterDestination"] == {"kind": "continue"} for row in rows[:4])
@@ -1850,7 +1856,7 @@ def test_repository_contract_step51_and_step52_rows_satisfy_constraints() -> Non
         == {"投球数"}
         for row in rows[:4]
     )
-    strikeout_rows = rows[4:]
+    strikeout_rows = rows[4:9]
     assert all(row["plateAppearanceEnded"] is True for row in strikeout_rows)
     assert all(
         row["countEffect"]
@@ -1875,36 +1881,82 @@ def test_repository_contract_step51_and_step52_rows_satisfy_constraints() -> Non
         assert row["batterDestination"] == {"kind": "out"}
         assert row["statFlags"]["投球回算入アウト"] is True
 
+    four_ball_rows = {row["resultId"]: row for row in rows[9:]}
+    assert all(row["plateAppearanceEnded"] is True for row in rows[9:])
+    assert all(row["batterDestination"] == {"kind": "reach", "base": 1} for row in rows[9:])
+    assert all(row["outEffect"] == {"count": 0, "targets": []} for row in rows[9:])
+    assert all(
+        row["runnerDefaultAdvance"]
+        == {
+            "first": {"modality": "forced", "destination": 2},
+            "second": {"modality": "not-applicable", "destination": None},
+            "third": {"modality": "hold", "destination": None},
+        }
+        for row in rows[9:]
+    )
+    assert {
+        name
+        for name, enabled in four_ball_rows["batting-result.walk"]["statFlags"].items()
+        if enabled
+    } == {"投球数", "与四球", "打席", "四球"}
+    assert {
+        name
+        for name, enabled in four_ball_rows["batting-result.hit-by-pitch"]["statFlags"].items()
+        if enabled
+    } == {"投球数", "与死球", "打席", "死球"}
+    assert {
+        name
+        for name, enabled in four_ball_rows["batting-result.intentional-walk"]["statFlags"].items()
+        if enabled
+    } == {"与四球", "打席", "四球"}
+    intentional_precondition = four_ball_rows["batting-result.intentional-walk"][
+        "precondition"
+    ]
+    assert {
+        argument["axisId"]: argument["value"]
+        for argument in intentional_precondition["args"]
+    }["event.perPitch.pitchEventKind"] == "non-pitch-event"
 
-def test_repository_contract_records_completed_step52_independent_review() -> None:
-    """三振系5行の独立確認を提示された時系列どおり記録する。"""
+
+def test_repository_contract_records_step53_review_as_not_performed() -> None:
+    """四死球系行を加えた契約が未実施の独立確認を装わない。"""
     provenance = _repository_contract()["provenance"]
 
     assert provenance["authorId"] == "codex"
-    assert provenance["independentVerifierId"] == "山田正輝"
-    review = provenance["independentReview"]
-    assert review["verifiedOn"] == "2026-09-29"
-    assert review["reviewerRole"] == "PO"
-    assert review["authorWorkExposure"] == "seen-before-source-review"
-    assert [event["sequence"] for event in review["chronology"]] == [1, 2, 3, 4]
-    assert "作業結果とClaudeの照合結果を見た後に" in review["chronology"][2][
-        "activity"
-    ]
-    assert "K3" in review["findings"][0]
-    assert "振り逃げのアウト側ではない" in review["findings"][0]
-    assert "二死は条文上の必然ではない" in review["findings"][3]
-    assert "1塁停止" in review["findings"][4]
-    assert "outEffectでアウト" in review["findings"][4]
+    assert provenance["independentVerifierId"] == "not-performed"
+    assert "independentReview" not in provenance
     assert provenance["attestations"] == [
-        {"attestationId": "direct-source-clause-review", "response": True},
-        {"attestationId": "author-work-exposure", "response": "seen-and-recorded"},
-        {"attestationId": "source-support-judgment", "response": True},
+        {"attestationId": "direct-source-clause-review", "response": False},
+        {"attestationId": "author-work-exposure", "response": "not-performed"},
+        {"attestationId": "source-support-judgment", "response": False},
     ]
-    provenance_checker.validate_provenance(
-        REPOSITORY_ROOT,
-        provenance,
-        schema_value=_schema(),
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError,
+        match="宣誓応答が充足値でない",
+    ):
+        provenance_checker.validate_provenance(
+            REPOSITORY_ROOT,
+            provenance,
+            schema_value=_schema(),
+        )
+
+
+def test_step53_four_ball_results_use_identity_partition_without_gap() -> None:
+    """四死球系3語彙がrequiredSet①の単一行規則に属する。"""
+    rules = _load_object(REQUIRED_SET_ROW_RULES_PATH)
+    identity_rule = next(
+        rule
+        for rule in rules["partitionRules"]
+        if rule["partitionRuleId"] == "identity"
     )
+    result_ids = {
+        "batting-result.walk",
+        "batting-result.hit-by-pitch",
+        "batting-result.intentional-walk",
+    }
+
+    assert identity_rule["partitions"] == ["identity"]
+    assert result_ids.issubset(identity_rule["vocabularyIds"])
 
 
 def test_so03_deferred_partition_difference_remains_declared_and_open() -> None:

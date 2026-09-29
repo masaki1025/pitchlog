@@ -45,56 +45,42 @@
       {
         "sourceKind": "requirements",
         "sourceId": "req:SO-05"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:A-2"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:A-3"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:ADV-01"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:ADV-02"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:ADV-04"
       }
     ],
     "authorId": "codex",
-    "independentVerifierId": "山田正輝",
-    "independentReview": {
-      "verifiedOn": "2026-09-29",
-      "reviewerRole": "PO",
-      "authorWorkExposure": "seen-before-source-review",
-      "chronology": [
-        {
-          "sequence": 1,
-          "actorId": "codex",
-          "activity": "作成者が三振系の規範行5行を作成し、機械生成の逐行確認シートを出力した"
-        },
-        {
-          "sequence": 2,
-          "actorId": "Claude",
-          "activity": "要件書付録E-2のSO-01〜SO-05と要件書1176行目を原典で照合し、その結果を逐行確認シートと併せてPOへ提示した。この照合は独立確認者自身による条文確認ではない"
-        },
-        {
-          "sequence": 3,
-          "actorId": "山田正輝",
-          "activity": "作成者の作業結果とClaudeの照合結果を見た後に、要件書付録E-2のSO-01〜SO-05と1176行目の条文そのものを自身で確認した"
-        },
-        {
-          "sequence": 4,
-          "actorId": "山田正輝",
-          "activity": "三振系の規範行5行を承認した"
-        }
-      ],
-      "findings": [
-        "SO-04のK3は2ストライク後のバントがファウルとなったスリーバント失敗であり、振り逃げのアウト側ではない",
-        "SO-05は事前アウト数0または1を許し、outEffectは打者と起点塁の走者の2対象を持つ",
-        "要件書1176行目は、振り逃げで打者が出塁した場合も投手へ奪三振1を計上すると定める",
-        "行7の二死・走者なしは振り逃げセーフ側の代表前提であり、走者なしなら無死でも成立するため二死は条文上の必然ではないことを提示し、POが承認した",
-        "行9の一塁走者はrunnerDefaultAdvanceで1塁停止、outEffectでアウトとなる。既定進塁とアウト効果を別列で表す設計であることを提示し、POが承認した"
-      ]
-    },
+    "independentVerifierId": "not-performed",
     "attestations": [
       {
         "attestationId": "direct-source-clause-review",
-        "response": true
+        "response": false
       },
       {
         "attestationId": "author-work-exposure",
-        "response": "seen-and-recorded"
+        "response": "not-performed"
       },
       {
         "attestationId": "source-support-judgment",
-        "response": true
+        "response": false
       }
     ]
   },
@@ -566,6 +552,162 @@
         "打点": false
       },
       "remarks": "SO-05。一死一塁で打者三振と一塁走者の盗塁死が同じプレイに成立"
+    },
+    {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.walk",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first-third"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 3},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"}
+      },
+      "plateAppearanceEnded": true,
+      "batterDestination": {"kind": "reach", "base": 1},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "forced", "destination": 2},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "hold", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": true,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": true,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "付録E-2・ADV-02/04。一・三塁では一塁走者だけを二塁へ強制進塁させる"
+    },
+    {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.hit-by-pitch",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first-third"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"}
+      },
+      "plateAppearanceEnded": true,
+      "batterDestination": {"kind": "reach", "base": 1},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "forced", "destination": 2},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "hold", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": true,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": true,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "死球。ADV-02/04により一塁走者だけを二塁へ強制進塁させる"
+    },
+    {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.intentional-walk",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first-third"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "reset"},
+        "balls": {"kind": "reset"}
+      },
+      "plateAppearanceEnded": true,
+      "batterDestination": {"kind": "reach", "base": 1},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "forced", "destination": 2},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "hold", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": false,
+        "奪三振": false,
+        "与四球": true,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": true,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "4.0-2の非投球イベント。投球数なし、四球・与四球を計上する"
     }
   ],
   "operationRows": [],
@@ -724,6 +866,57 @@
                   {"op": "eq", "axisId": "state.count.strikes", "value": 2},
                   {"op": "eq", "axisId": "state.count.balls", "value": 0},
                   {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.walk",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first-third"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 3},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.hit-by-pitch",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first-third"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.intentional-walk",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first-third"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
                 ]
               }
             }
