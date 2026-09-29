@@ -23,6 +23,8 @@ BACKEND_SRC = REPOSITORY_ROOT / "backend/src"
 sys.path.insert(0, str(BACKEND_SRC))
 ACTIVATION = importlib.import_module("pitchlog.domaincheck.activation_evidence")
 WORKFLOW_PATH = REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml"
+FROZEN_INPUTS_PATH = REPOSITORY_ROOT / "contracts/domain_calc/frozen-inputs.json"
+FROZEN_INPUTS = json.loads(FROZEN_INPUTS_PATH.read_text(encoding="utf-8"))["frozen_inputs"]
 COMPOSE_PATH = REPOSITORY_ROOT / "docker-compose.yml"
 EXPECTATIONS_PATH = (
     REPOSITORY_ROOT / "backend" / "tests" / "db" / "environment-expectations.json"
@@ -129,13 +131,10 @@ CONSISTENCY_PYTEST_COMMAND = (
 MUTATION_PYTEST_COMMAND = "uv run pytest -c pyproject.toml tests/domain/mut/"
 MUTATION_BACKEND_SYNC_STEP = ({"run": "uv sync --project backend --locked --dev"},)
 ACTIVATION_EVIDENCE_PATH = "/tmp/boot-activation-runtime.json"
-ACTIVATION_UPLOAD_STEP = {
-    "uses": "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
-    "with": {
-        "name": "boot-activation-evidence",
-        "path": ACTIVATION_EVIDENCE_PATH,
-        "if-no-files-found": "error",
-    },
+ACTIVATION_UPLOAD_WITH = {
+    "name": "boot-activation-evidence",
+    "path": ACTIVATION_EVIDENCE_PATH,
+    "if-no-files-found": "error",
 }
 # 全葉への値変異と削除変異を一度ずつ行う契約値。木を広げた場合は意図的に更新する。
 EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS = 130
@@ -1435,8 +1434,30 @@ CONSISTENCY_EXTRA_STEPS: tuple[dict[str, Any], ...] = (
         ),
         "env": {"PYTHONPATH": "backend/src"},
     },
-    ACTIVATION_UPLOAD_STEP,
 )
+
+
+def _activation_upload_step(workflow: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """ci.yml から upload の版ピンを読み、独立した属性期待値を組み立てる。"""
+    consistency = workflow.get("jobs", {}).get("consistency", {})
+    steps = consistency.get("steps", []) if isinstance(consistency, dict) else []
+    if not isinstance(steps, list):
+        steps = []
+    candidates = [
+        step.get("uses")
+        for step in steps
+        if isinstance(step, dict)
+        and str(step.get("uses", "")).startswith("actions/upload-artifact@")
+    ]
+    errors: list[str] = []
+    if len(candidates) != 1:
+        errors.append("consistency の upload-artifact ステップは 1 件必要")
+    uses = candidates[0] if len(candidates) == 1 else ""
+    if not isinstance(uses, str) or not re.fullmatch(
+        r"actions/upload-artifact@[0-9a-f]{40}", uses
+    ):
+        errors.append("consistency の upload-artifact は 40 桁 SHA ピンが必要")
+    return {"uses": uses, "with": ACTIVATION_UPLOAD_WITH}, errors
 
 
 def _expected_new_job_steps(
@@ -1546,6 +1567,8 @@ def _domain_ci_wiring_errors(
     expected_harness_commands = [
         "uv python install",
         "uv sync --locked --dev",
+        "uv run python scripts/check_frozen_baselines.py --ci",
+        "uv run python tests/test_census_baseline_check.py",
         "uv run ruff check .",
         "uv run ty check",
         HARNESS_PYTEST_COMMAND,
@@ -1553,6 +1576,8 @@ def _domain_ci_wiring_errors(
     if _harness_commands(harness) != expected_harness_commands:
         errors.append("harness の単体テスト所有または既存検査コマンドが不正")
 
+    activation_upload_step, upload_errors = _activation_upload_step(workflow)
+    errors.extend(upload_errors)
     expected_jobs: dict[str, dict[str, Any]] = {
         "consistency": {
             "runs-on": harness.get("runs-on"),
@@ -1560,7 +1585,7 @@ def _domain_ci_wiring_errors(
             "steps": _expected_new_job_steps(
                 workflow,
                 CONSISTENCY_PYTEST_COMMAND,
-                CONSISTENCY_EXTRA_STEPS,
+                (*CONSISTENCY_EXTRA_STEPS, activation_upload_step),
                 direct_pytest=False,
             ),
         },
@@ -2891,7 +2916,7 @@ def test_historical_activation_evidence_records_both_new_jobs_green() -> None:
     _assert_activation_evidence(
         evidence,
         workflow,
-        "aab80b11d60241798d76e5c725d9a3ad6dd20065",
+        FROZEN_INPUTS["activation_evidence_head_sha"]["value"],
     )
 
 
@@ -3066,7 +3091,7 @@ def test_each_structural_audit_is_required_by_activation_evidence(
         _assert_activation_evidence(
             evidence,
             workflow,
-            "aab80b11d60241798d76e5c725d9a3ad6dd20065",
+            FROZEN_INPUTS["activation_evidence_head_sha"]["value"],
         )
 
 

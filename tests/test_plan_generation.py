@@ -27,16 +27,18 @@ STEPS_DATA_PATH = FEATURE_DIR / "steps.json"
 PLAN_PATH = FEATURE_DIR / "plan.md"
 FEATURE_STATUS_PATH = ROOT / "scripts/feature_status.py"
 BACKEND_SRC = ROOT / "backend/src"
+FROZEN_INPUTS_PATH = ROOT / "contracts/domain_calc/frozen-inputs.json"
+FROZEN_INPUTS = json.loads(FROZEN_INPUTS_PATH.read_text(encoding="utf-8"))["frozen_inputs"]
 
 # 57 ステップへ更新した PO 裁定のコミットを固定比較元とする。
 # 現在のブランチ先端からは導かず、当該変更と一緒に基準が動く経路を作らない。
-PB_FALSE_BASE_COMMIT = "a7849e1b705a845e02ba77a4c6ff83b76d7de407"
+PB_FALSE_BASE_COMMIT = FROZEN_INPUTS["pb_false_base_commit"]["value"]
 PB_FALSE_ASSET_PATH = "docs/features/domain-calc-dsl/steps.json#pb_false"
 PB_FALSE_SEAL: dict[str, object] = {
     "schemaVersion": 1,
     "assetPath": PB_FALSE_ASSET_PATH,
     "baseCommitOid": PB_FALSE_BASE_COMMIT,
-    "blobDigest": "sha256:400d36bdbd1d1113a4e7c4aa925354a4ebc7a771e803a94e8a08de55ea4879f5",
+    "blobDigest": f"sha256:{FROZEN_INPUTS['pb_false_blob_digest']['value']}",
 }
 
 SECTION_5_3_CHECKS = frozenset(

@@ -19,7 +19,10 @@ CHECK_SETS_PATH = ROOT / "backend/domain/check-sets.json"
 MANIFEST_SCHEMA_PATH = ROOT / "backend/domain/manifest.schema.json"
 REQUIREMENTS_PATH = ROOT / "docs/requirements/requirements-pitchlog-2026-07-22.md"
 BOOT_SEAL_SOURCE = BACKEND_SRC / "pitchlog/domaincheck/boot_seal.py"
-BASE_COMMIT = "50501ebeea70cee77a9ff4ca8e6c0951015d517a"
+FROZEN_INPUTS_PATH = ROOT / "contracts/domain_calc/frozen-inputs.json"
+BASE_COMMIT = json.loads(FROZEN_INPUTS_PATH.read_text(encoding="utf-8"))["frozen_inputs"][
+    "boot_seal_base_commit"
+]["value"]
 
 _SET_CHECK_SCRIPT = """
 import json
