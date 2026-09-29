@@ -48,19 +48,53 @@
       }
     ],
     "authorId": "codex",
-    "independentVerifierId": "not-performed",
+    "independentVerifierId": "山田正輝",
+    "independentReview": {
+      "verifiedOn": "2026-09-29",
+      "reviewerRole": "PO",
+      "authorWorkExposure": "seen-before-source-review",
+      "chronology": [
+        {
+          "sequence": 1,
+          "actorId": "codex",
+          "activity": "作成者が三振系の規範行5行を作成し、機械生成の逐行確認シートを出力した"
+        },
+        {
+          "sequence": 2,
+          "actorId": "Claude",
+          "activity": "要件書付録E-2のSO-01〜SO-05と要件書1176行目を原典で照合し、その結果を逐行確認シートと併せてPOへ提示した。この照合は独立確認者自身による条文確認ではない"
+        },
+        {
+          "sequence": 3,
+          "actorId": "山田正輝",
+          "activity": "作成者の作業結果とClaudeの照合結果を見た後に、要件書付録E-2のSO-01〜SO-05と1176行目の条文そのものを自身で確認した"
+        },
+        {
+          "sequence": 4,
+          "actorId": "山田正輝",
+          "activity": "三振系の規範行5行を承認した"
+        }
+      ],
+      "findings": [
+        "SO-04のK3は2ストライク後のバントがファウルとなったスリーバント失敗であり、振り逃げのアウト側ではない",
+        "SO-05は事前アウト数0または1を許し、outEffectは打者と起点塁の走者の2対象を持つ",
+        "要件書1176行目は、振り逃げで打者が出塁した場合も投手へ奪三振1を計上すると定める",
+        "行7の二死・走者なしは振り逃げセーフ側の代表前提であり、走者なしなら無死でも成立するため二死は条文上の必然ではないことを提示し、POが承認した",
+        "行9の一塁走者はrunnerDefaultAdvanceで1塁停止、outEffectでアウトとなる。既定進塁とアウト効果を別列で表す設計であることを提示し、POが承認した"
+      ]
+    },
     "attestations": [
       {
         "attestationId": "direct-source-clause-review",
-        "response": false
+        "response": true
       },
       {
         "attestationId": "author-work-exposure",
-        "response": "not-performed"
+        "response": "seen-and-recorded"
       },
       {
         "attestationId": "source-support-judgment",
-        "response": false
+        "response": true
       }
     ]
   },
