@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "fixture_set_revision": 9,
+  "fixture_set_revision": 10,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "fixture_set_revision",
       "current_identifiers": [
-        "fixture_set_revision:9"
+        "fixture_set_revision:10"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -19,6 +19,7 @@
         "external_files": [
           "scripts/check_tenant_boundary_bypass.py",
           "scripts/frozen_history.py",
+          "scripts/frozen_archive.py",
           ".github/workflows/ci.yml"
         ]
       }

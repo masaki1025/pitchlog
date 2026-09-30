@@ -364,9 +364,13 @@
         "backend/tests/db_fixtures.py",
         "scripts/check_tenant_boundary_bypass.py",
         "scripts/frozen_history.py",
+        "scripts/frozen_archive.py",
         "contracts/tenant_boundary/*",
         "tests/fixtures/tenant_boundary/*",
+        "tests/fixtures/frozen-archive-cases/*",
         "tests/test_check_tenant_boundary_bypass.py",
+        "tests/test_frozen_archive.py",
+        "tests/test_frozen_archive_case_runner.py",
         "tests/test_frozen_history.py"
       ]
     },
