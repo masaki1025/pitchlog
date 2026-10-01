@@ -206,3 +206,41 @@ branch: fix/frozen-archive-literal-pins
 | `rg -n 'versions\[0\]|versions\[1:|len\(versions\)' docs/features/frozen-archive-literal-pins/design.md` | **0**。1-2 の記載順が旧順のままと確認。 |
 
 初回の合成側試行では作業ディレクトリを `/tmp/tsk466-synthetic` にしたまま相対パスで同じファイルへ `cp` したため、コピー 2 件は終了コード 1、旧テストでの pytest は 8 failed / 1 passed（終了コード 1）となった。**この試行は測定から除外**し、測定元の絶対パスからコピーし直して再実行した。ステップ 4 以降には進んでいない。コミット・push はしていない。
+
+## ステップ 4: metrics の独立計数との照合
+
+測定元 `HEAD=6151c18c`。`tests/test_frozen_archive.py` に `_expected_current_archive_totals()` を追加した。`SNAPSHOT_ROOT` の実ファイルから総件数・総バイト数を数え、ファイル名集合とステップ 2 の `_expected_references()` の差から孤児件数・孤児バイト数を数える。被検査の抽出器は期待値側で呼ばない。
+
+- 群 A: 固定の `SnapshotArchiveMetrics(83, 2_958_228, 33, 1_214_665)` を、上記実測値から組み立てる形へ置換した。
+- 群 B: `comparison.base` と `comparison.head` の双方を、その実測由来 `expected` と照合する。`head` の件数・総バイト数が予算内であることと、孤児件数が比較元以下であることも明示した。
+- 群 C: `comparison.head` の 4 個の固定値比較を、実測した 4 値との個別比較へ置換した。
+- docstring の「現況83件と既存孤児33件」を現況非依存の文言へ改めた。
+
+独立計数と被検査実装の出力は、現況でともに `(83, 2_958_228, 33, 1_214_665)`、受理記録 +1 の合成状態でともに `(84, 2_965_310, 33, 1_214_665)`。孤児の期待値は履歴から抽出した参照集合を経由するため、ここで主張する範囲は**件数・バイト数の実測一致と、比較元から孤児件数が増えていないこと**まで。
+
+対象 2 件、件数・バイト数の閾値ちょうど受理 2 件、比較元と同数の孤児受理、および孤児バイト数の境界 1 件の合計 6 件は、現況・合成状態ともに **6 passed / 終了コード 0**。`git diff --unified=0 -- tests/test_frozen_archive.py` では差分が追加 helper、群 A/B/C、docstring のみに限られ、閾値境界テスト・孤児境界テスト・`_install_metric_mutation` は無変更。
+
+`/tmp/test_tsk466_step4_metrics_mutations.py` で `_measure_snapshot_archive` を monkeypatch した。孤児見逃しは実際の未参照ファイルを 1 件選び、孤児件数とそのファイルのバイト数を計数から除いた。各変異を群 A/B と群 C の両方へ当て、現況・合成状態ともに **6 failed / 終了コード 1**。
+
+| 変異 | 群 A/B で落ちた assertion | 群 C で落ちた assertion |
+| --- | --- | --- |
+| snapshot 件数を +1 | `tests/test_frozen_archive.py:375` の `comparison.base == expected` | 同 `:557` の `comparison.head.snapshot_count == count` |
+| snapshot バイト数を +1 | 同 `:375` の `comparison.base == expected` | 同 `:558` の `comparison.head.snapshot_bytes == total_bytes` |
+| 未参照ファイルを 1 件見逃す | 同 `:375` の `comparison.base == expected` | 同 `:559` の `comparison.head.orphan_count == orphan_count` |
+
+`_install_metric_mutation` を使う F3/F4 の統合 test node は、現況でも `runner.py:735` の corpus digest 検査が先に落ちるため **2 failed / 終了コード 1**。この gate はステップ 5 の対象なので変更していない。`/tmp/tsk466-step4-old-metric-mutation-probe.py` で同 helper と本番の `validate_snapshot_archive_limits` を単独接続し、F3/F4 がそれぞれ予定の `ContractError` 分岐へ入ることを現況・合成状態で確認した（各 **終了コード 0**）。統合 test node の green は主張しない。
+
+### 実行コマンドと終了コード
+
+| コマンド | 終了コード・結果 |
+| --- | --- |
+| `cp <worktree>/tests/test_frozen_archive.py /tmp/tsk466-synthetic/tests/test_frozen_archive.py`、`cmp <worktree>/tests/test_frozen_archive.py /tmp/tsk466-synthetic/tests/test_frozen_archive.py` | **0**。変更後テストファイルの一致。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest tests/test_frozen_archive.py::test_current_archive_metrics_are_within_limits tests/test_frozen_archive.py::test_current_archive_has_no_unreferenced_new_snapshot tests/test_frozen_archive.py::test_snapshot_count_over_limit_is_red_after_exact_limit_is_green tests/test_frozen_archive.py::test_snapshot_bytes_over_limit_is_red_after_exact_limit_is_green tests/test_frozen_archive.py::test_orphan_count_increase_is_red_after_29_orphans_are_green tests/test_frozen_archive.py::test_orphan_bytes_increase_is_red_after_equal_bytes_are_green -q`（現況・合成の各 root） | **0 / 0**。各 6 passed。 |
+| `TSK466_METRIC_ROOT=<root> UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest /tmp/test_tsk466_step4_metrics_mutations.py -q --tb=short`（現況・合成の各 root） | **1 / 1**。各 6 failed、すべて上記 assertion で停止。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run python /tmp/tsk466-step4-metrics-probe.py <root>`（現況・合成の各 root） | **0 / 0**。上記 4 値を実測。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest 'tests/test_frozen_archive.py::test_production_check_repository_fails_closed_for_each_design_failure[f3]' 'tests/test_frozen_archive.py::test_production_check_repository_fails_closed_for_each_design_failure[f4]' -q`（現況） | **1**。2 failed、両方 corpus digest gate で停止。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run python /tmp/tsk466-step4-old-metric-mutation-probe.py <root>`（現況・合成の各 root） | **0 / 0**。F3/F4 の既存分岐を確認。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run ruff check tests/test_frozen_archive.py` / `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run ty check` | **0 / 0**。 |
+| `git diff --unified=0 -- tests/test_frozen_archive.py` | **0**。変更範囲を確認。 |
+
+ステップ 5 以降の corpus digest と `scripts/`・`contracts/` は変更していない。コミット・push はしていない。

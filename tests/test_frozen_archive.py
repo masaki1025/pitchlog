@@ -335,8 +335,25 @@ def _v2_history_with_items(
     return history
 
 
+def _expected_current_archive_totals() -> tuple[int, int, int, int]:
+    """snapshot ファイルと独立参照集合から現況の集計値を導出する。"""
+    files = sorted(path for path in SNAPSHOT_ROOT.iterdir() if path.is_file())
+    expected_count = len(files)
+    expected_bytes = sum(path.stat().st_size for path in files)
+    expected_orphans = {path.name for path in files} - _expected_references()
+    expected_orphan_bytes = sum(
+        (SNAPSHOT_ROOT / name).stat().st_size for name in expected_orphans
+    )
+    return (
+        expected_count,
+        expected_bytes,
+        len(expected_orphans),
+        expected_orphan_bytes,
+    )
+
+
 def test_current_archive_metrics_are_within_limits() -> None:
-    """現況83件と既存孤児33件を比較元相対の予算内として受理する。"""
+    """現況の snapshot と既存孤児を比較元相対の予算内として受理する。"""
     comparison = archive.validate_snapshot_archive_limits(
         _current_history(),
         _current_history(),
@@ -344,16 +361,23 @@ def test_current_archive_metrics_are_within_limits() -> None:
         head_snapshot_root=SNAPSHOT_ROOT,
     )
 
+    count, total_bytes, orphan_count, orphan_bytes = (
+        _expected_current_archive_totals()
+    )
     expected = archive.SnapshotArchiveMetrics(
-        snapshot_count=83,
-        snapshot_bytes=2_958_228,
-        orphan_count=33,
-        orphan_bytes=1_214_665,
+        snapshot_count=count,
+        snapshot_bytes=total_bytes,
+        orphan_count=orphan_count,
+        orphan_bytes=orphan_bytes,
     )
     assert archive.SNAPSHOT_COUNT_LIMIT == 500
     assert archive.SNAPSHOT_BYTES_LIMIT == 33_554_432
     assert comparison.base == expected
     assert comparison.head == expected
+    metrics = comparison.head
+    assert metrics.snapshot_count <= archive.SNAPSHOT_COUNT_LIMIT
+    assert metrics.snapshot_bytes <= archive.SNAPSHOT_BYTES_LIMIT
+    assert comparison.head.orphan_count <= comparison.base.orphan_count
 
 
 def test_snapshot_count_over_limit_is_red_after_exact_limit_is_green(
@@ -527,10 +551,13 @@ def test_current_archive_has_no_unreferenced_new_snapshot() -> None:
         head_snapshot_root=SNAPSHOT_ROOT,
     )
 
-    assert comparison.head.snapshot_count == 83
-    assert comparison.head.snapshot_bytes == 2_958_228
-    assert comparison.head.orphan_count == 33
-    assert comparison.head.orphan_bytes == 1_214_665
+    count, total_bytes, orphan_count, orphan_bytes = (
+        _expected_current_archive_totals()
+    )
+    assert comparison.head.snapshot_count == count
+    assert comparison.head.snapshot_bytes == total_bytes
+    assert comparison.head.orphan_count == orphan_count
+    assert comparison.head.orphan_bytes == orphan_bytes
 
 
 def test_recreated_record_rejects_previous_attempt_until_snapshot_is_removed(
