@@ -131,14 +131,10 @@ def _current_references() -> frozenset[str]:
 def test_current_mixed_history_matches_independent_snapshot_references() -> None:
     """現行の v1・v2 混在履歴の参照集合を独立算出と照合する。"""
     history = _current_history()
-    assert [record.get("record_schema_version", 1) for record in history] == [
-        1,
-        2,
-        2,
-        2,
-        2,
-        2,
-    ]
+    versions = [record.get("record_schema_version", 1) for record in history]
+    assert len(versions) >= 2  # v1 と v2 が混在しうる長さを要求する
+    assert versions[0] == 1  # bootstrap は v1
+    assert set(versions[1:]) == {2}  # 以降はすべて v2
 
     references = archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)
 

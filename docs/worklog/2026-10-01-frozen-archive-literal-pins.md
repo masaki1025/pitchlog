@@ -156,3 +156,53 @@ branch: fix/frozen-archive-literal-pins
 | `git diff --exit-code -- scripts/ contracts/` | **0**。両ディレクトリの追跡ファイル差分なし。 |
 
 ステップ 3 以降の版列・metrics・digest は変更していない。コミット・push はしていない。
+
+## ステップ 3: 版列と authority 履歴長の構造条件
+
+測定元 `HEAD=fa04355c11bbfb2569a32c5659c8f6475fa59e5e`、開始時の作業ツリーは clean。`tests/test_frozen_archive.py` の版列固定 `[1,2,2,2,2,2]` を `len(versions) >= 2`、`versions[0] == 1`、`set(versions[1:]) == {2}` に置換した。`tests/test_check_tenant_boundary_bypass.py:3346` の `len(authority_history) == 6` は `>= 2` に置換した。版列と履歴長のどちらも現在の記録数を期待値にしていない。
+
+対象 test node は現況・受理記録 +1 の合成状態の双方で **9 passed / 終了コード 0**。合成状態では変更後の 2 テストファイルが測定元と `cmp` で一致することを確認してから実行した。版列は現況 `[1,2,2,2,2,2]`、合成 `[1,2,2,2,2,2,2]` の両方で構造条件を通過した。
+
+### `FROZEN_BASELINE_ASSETS` 8 インスタンスの内訳
+
+`/tmp/tsk466-step3-branches.py` で `_validate_baseline_control` の返却履歴と実際の分岐を両状態で読んだ。以下の authority 履歴長は現況 / 合成の順。
+
+| パラメータ | 資産 | 到達結果 | authority 履歴長 |
+| --- | --- | --- | --- |
+| `relative_path0` | `base-allowlist.json` | `>= 2` 通過 | 6 / 7 |
+| `relative_path1` | `cache-invalidation-contract.json` | `>= 2` 通過 | 6 / 7 |
+| `relative_path2` | `census-baseline.json` | 履歴 0 件のため `if not history: return` | assertion に到達せず |
+| `relative_path3` | `db-api-inventory.json` | `>= 2` 通過 | 6 / 7 |
+| `relative_path4` | `negative-fixtures.json` | `>= 2` 通過 | 6 / 7 |
+| `relative_path5` | `repository-contract.json` | `>= 2` 通過 | 6 / 7 |
+| `relative_path6` | `runtime-authz-contract.json` | `>= 2` 通過 | 6 / 7 |
+| `relative_path7` | `tenant-context-allowlist.json` | `>= 2` 通過 | 6 / 7 |
+
+### 3 変異の red と原因
+
+`/tmp/test_tsk466_step3_mutations.py` で、各状態の生履歴を変異して変更後の元テスト関数を呼んだ。差し戻しで長さ条件を先頭へ移した後、現況・合成状態ともに **3 failed / 終了コード 1**。以下は再測定で確認した失敗行。
+
+| 変異 | 現況 / 合成の red 原因 |
+| --- | --- |
+| bootstrap（先頭）を v2 にする | `tests/test_frozen_archive.py:136` の `versions[0] == 1` で失敗。 |
+| 末尾付近の v2 を v1 にする | 同 `:137` の `set(versions[1:]) == {2}` で失敗。 |
+| 履歴を先頭 1 件だけにする | 同 `:135` の `len(versions) >= 2` で失敗。 |
+
+最初の測定では、1 件への短縮変異が長さ条件より前にある集合条件で止まった。差し戻しで assertion の順序を入れ替え、3 条件を各変異で個別に発火させた。`design.md` 1-2 の順序は旧順のため、この作業では編集せず委任元へ報告する。`tests/test_check_tenant_boundary_bypass.py:3346` は差し戻し時に変更していない。
+
+### 実行コマンドと終了コード
+
+| コマンド | 終了コード・結果 |
+| --- | --- |
+| `cp /home/ymdms/projects/pitchlog-worktrees/fix-frozen-archive-literal-pins/tests/test_frozen_archive.py /tmp/tsk466-synthetic/tests/test_frozen_archive.py`、`cmp`（両状態の 2 テストファイル） | **0**。両ファイル一致。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest tests/test_frozen_archive.py::test_current_mixed_history_matches_independent_snapshot_references tests/test_check_tenant_boundary_bypass.py::test_every_frozen_baseline_asset_has_a_valid_chained_history -q`（測定元） | **0**。9 passed。 |
+| 同じ pytest コマンド（`/tmp/tsk466-synthetic`、絶対パスから 2 テストファイルをコピーし `cmp` で一致確認後） | **0**。9 passed。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run python /tmp/tsk466-step3-branches.py <root>`（現況・合成の各 root） | **0 / 0**。各々 7 件到達・1 件早期 return。 |
+| `TSK466_MUTATION_ROOT=<root> UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest /tmp/test_tsk466_step3_mutations.py -q --tb=short`（現況・合成の各 root） | **1 / 1**。両方とも意図した 3 failed。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run ruff check tests/test_frozen_archive.py tests/test_check_tenant_boundary_bypass.py` | **0**。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run ty check` | **0**。 |
+| `git diff --check` | **0**。 |
+| `git diff --exit-code -- scripts/ contracts/` | **0**。両ディレクトリの追跡ファイル差分なし。 |
+| `rg -n 'versions\[0\]|versions\[1:|len\(versions\)' docs/features/frozen-archive-literal-pins/design.md` | **0**。1-2 の記載順が旧順のままと確認。 |
+
+初回の合成側試行では作業ディレクトリを `/tmp/tsk466-synthetic` にしたまま相対パスで同じファイルへ `cp` したため、コピー 2 件は終了コード 1、旧テストでの pytest は 8 failed / 1 passed（終了コード 1）となった。**この試行は測定から除外**し、測定元の絶対パスからコピーし直して再実行した。ステップ 4 以降には進んでいない。コミット・push はしていない。

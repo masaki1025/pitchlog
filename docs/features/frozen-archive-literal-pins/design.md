@@ -66,10 +66,18 @@ assert expected  # 退化(空集合)を拒否する
 
 ```
 versions = [record.get("record_schema_version", 1) for record in history]
+assert len(versions) >= 2          # v1 と v2 が混在しうる長さを要求する
 assert versions[0] == 1            # bootstrap は v1
 assert set(versions[1:]) == {2}    # 以降はすべて v2
-assert len(versions) >= 2          # 混在していることを要求する
 ```
+
+**順序が意味を持つ(ステップ 3 の差し戻しで判明・2026-10-01)**: **長さ条件を最後に置くと、どの変異でも発火しない。** 履歴が 1 件(v1 のみ)のとき `versions[1:]` は `[]` で、`set([]) == {2}` が先に False になるため。**長さを先に見ることで、3 条件それぞれが別の変異で発火する。**
+
+| 変異 | 発火する条件 |
+| --- | --- |
+| 履歴を 1 件に減らす | `len(versions) >= 2` |
+| 先頭を v2 にする | `versions[0] == 1` |
+| 途中に v1 を混ぜる | `set(versions[1:]) == {2}` |
 
 **守るもの**: 「v1 と v2 が混在した履歴を扱えている」(3 周目 P1 — `design.md:80-86`)。**先頭が v1 であることは `check_tenant_boundary_bypass.py:82 PENDING_APPROVAL` の bootstrap 記録の性質から来る不変で、記録数とは独立。**
 
