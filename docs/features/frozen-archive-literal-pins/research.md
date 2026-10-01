@@ -41,7 +41,7 @@ date: 2026-10-01
 | 7 | `tests/test_frozen_archive.py:332-336` | `SnapshotArchiveMetrics(83, 2_958_228, 33, 1_214_665)` |
 | 8 | `tests/test_frozen_archive.py:339-340` | 同じ 4 値を `base` / `head` 両方へ exact 一致 |
 | 9 | `tests/test_frozen_archive.py:514-517` | 同じ 4 値を個別 assert |
-| 10 | `tests/test_check_tenant_boundary_bypass.py:3346` | `len(authority_history) == 6`(**`FROZEN_BASELINE_ASSETS` で parametrize されるので 8 インスタンスが同時に落ちる** — `:3323`) |
+| 10 | `tests/test_check_tenant_boundary_bypass.py:3346` | `len(authority_history) == 6`(**`FROZEN_BASELINE_ASSETS` で parametrize される。実測では 7 failed / 1 passed** — `census-baseline.json` は `history=[]` のため `if not history: return` を通り当該 assertion に到達しない。**ステップ 1 の実測 2026-10-01 で訂正**〔当初は「8 インスタンスが同時に落ちる」と書いていた〕 — `:3323`) |
 | 11 | `tests/fixtures/frozen-archive-cases/manifest.json:7` | `corpus_inputs.digest` |
 
 **11 の連鎖**: `runner.py:735 prepare_case` の冒頭で `validate_corpus_inputs`(`:440-448`)が必ず呼ばれるため、**31 テストインスタンスが連鎖的に落ちる**(`test_frozen_archive_case_runner.py:257` の 11 ケース / `test_frozen_archive.py:814` の F1〜F11 ほか)。
