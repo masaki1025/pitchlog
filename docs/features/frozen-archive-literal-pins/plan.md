@@ -83,7 +83,7 @@ created: 2026-10-01
 | 2 | **参照集合の置換**([design.md](design.md) 1-1)— `tests/test_frozen_archive.py` の `:131` `:139` `:164` `:198-200` `:210-212` を独立オラクルとの集合一致へ | **対象 assertion が受理記録 +1 の合成状態で green**(**ステップ 5 の前は corpus digest が先に落ちるため、合格は assertion 単位で判定する** — 1 周目 P2-6)。**変異で red**: 「常に空集合を返す」実装 / **期待表照合を通過する誤抽出 1 件**(`external_snapshots` の extractor が `before` 側だけを見る — 1 周目 P2-5)。**変異ごとに red の原因(どの検査が落としたか)を記録する**。**`scripts/frozen_archive.py` を 1 バイトも触らない** |
 | 3 | **版列と `len(authority_history)` の置換**([design.md](design.md) 1-2・1-4) | **対象 assertion が受理記録 +1 で green**。**変異で red**: 先頭を v2 にする / 途中に v1 を混ぜる / 履歴を 1 件に減らす。**`:3346` は `FROZEN_BASELINE_ASSETS` の 8 インスタンスすべてで green** |
 | 4 | **metrics の置換**([design.md](design.md) 1-3) | **対象 assertion が受理記録 +1 で green**。**変異で red**: `_measure_snapshot_archive` が件数を 1 ずらす / バイト数を 1 ずらす / 孤児を数え落とす。**閾値ちょうどの受理を守る試験(`:363-364` `:396-397`)が無変更で green のまま** |
-| 5 | **【前提ゲート】[design.md](design.md) 3 節の 7.7 射程判断を人間から得る**(分岐 A / B)。**そのうえで corpus digest を「追記不感応・改竄検知」の形へ**([design.md](design.md) 2-3・2-7)— `runner.py` の 3 関数と `manifest.json` の `pinned_prefixes` | **判断が [design.md](design.md) 3 節へ日付・判断者つきで記録されている**(分岐 B なら同節の追加作業を実施)。**受理記録 +1 で digest が動かない**。**変異で red**: 先頭 `k` 件の履歴のいずれかを書き換える / 固定済み snapshot を 1 件消す / 検査器 1 本を変える / 資産の宣言部を変える / 資産ファイルを 1 本足す / `runner.py` を変える / `pinned_prefixes` を改竄する。**`:147` `:167` `:193` `:237` の 4 本が red のまま**(**恒真化していないことを実測で示す**) |
+| 5 | **【前提ゲート】[design.md](design.md) 3 節の 7.7 射程判断を人間から得る**(分岐 A / B)。**そのうえで corpus digest を「追記不感応・改竄検知」の形へ**([design.md](design.md) 2-3・2-7)— `runner.py` の 3 関数と `manifest.json` の `pinned_prefixes` | **判断が [design.md](design.md) 3 節へ日付・判断者つきで記録されている**(分岐 B なら同節の追加作業を実施)。**受理記録 +1 で digest が動かない**。**変異で red**: 先頭 `k` 件の履歴のいずれかを書き換える / 固定済み snapshot を 1 件消す / 検査器 1 本を変える / 資産の宣言部を変える / 資産ファイルを 1 本足す / `runner.py` を変える / `pinned_prefixes` を改竄する。**`:147` `:167` `:193` `:237` の 4 本が red のまま**(**恒真化していないことを実測で示す**)。**安全の守り 3 つ**([design.md](design.md) 2-3): ① **除外先を資産の `baseline_control.identity.field` 宣言から導出している**(フィールド名をハードコードしていない)② **`pinned_prefixes` 自体が digest に拘束されている**(改竄で red)③ **fail-closed**: `k > len(history)`(記録の削除)/ `m` の snapshot が不在 / 宣言が読めない / `k < 2` / `m < 1` が**すべて red**(保留・skip・中立を認めない — 設計書 7.7-3 `:609-612`) |
 | 6 | **drift 試験の反転と新設**([design.md](design.md) 2-4)+ **追記不感応の実測試験**([design.md](design.md) 2-5)— `:212` を `test_prepare_case_accepts_appended_history_record` へ反転し、**既存履歴の書き換え**と**固定済み snapshot の削除**の負例を新設。あわせて `test_appended_history_record_does_not_change_case_outcomes` を足す | **反転した `:212` が green**(適法な追記で digest 不変)。**新設 2 本が red を出す**。**不感応試験が green で、11 ケースの終了コードが追記前後で一致する**。**11 ケースのうち 1 件でも期待値を変えると red** |
 | 7 | **全ゲート + 受理記録 +1 の合成状態での全件 green の実測** + **台帳と `docs/README.md` の反映** | `uv run pytest tests/` / `uv run ruff check .` / `uv run ty check` green。`uv run python scripts/check_tenant_boundary_bypass.py` exit 0。**受理記録 +1 の合成状態でも `tests/` 全件 green**(ステップ 1 の道具で再実測)。**台帳の追記が 7.6-3 前段の範囲**(版を上げない・`H-*` を採番しない) |
 | 8 | **確認対象コミットの SHA を固定した人間の逐行確認を worklog へ記録**(履歴は追加しない) | worklog に**確認対象コミットの SHA** と `対象= / 範囲= / 方法= / 確認者= / 確認日=`。**確認項目に「置換が『守りたいもの』を落としていないこと」「corpus digest が恒真化していないこと」「既存履歴の改竄と既存 snapshot の削除が依然 red になること」「7.7 の射程判断」「製品経路を触っていないこと」が列挙されている**。**確認後の差分は証跡ファイルに限る** |
@@ -101,7 +101,11 @@ created: 2026-10-01
 - [ ] 【機】`uv run ruff check .` / `uv run ty check` / `uv run python scripts/check_tenant_boundary_bypass.py` が green
 - [ ] 【機】**ステップ 1 の「失敗テスト ID → 根因の固定箇所」対応表が 11 箇所と exact-set 一致**(1 周目 P2-6)
 - [ ] 【判】**設計書 7.7 の射程判断**([design.md](design.md) 3)**が日付・判断者つきで記録され、分岐 B なら追加作業が実施されている**(判定者: **人間**)
-- [ ] 【判】**corpus digest の固定範囲が [design.md](design.md) 2-3 の表と一致している**(判定者: 人間)
+- [ ] 【判】**corpus digest の固定範囲が [design.md](design.md) 2-3 の表と一致している**(判定者: 人間。**2026-10-01 に識別値の除外と守り 3 つを承認済み**)
+- [ ] 【機】**`k > len(history)`(記録の削除)で red**(fail-closed の要)
+- [ ] 【機】**`m` の snapshot が 1 件でも不在なら red** / **`k < 2`・`m < 1` の退化値で red**
+- [ ] 【機】**除外先が資産の `baseline_control.identity.field` 宣言から導出されている**(ハードコードした列挙でない)
+- [ ] 【機】**`pinned_prefixes` を改竄すると red**(除外範囲の拡大自体が検出される)
 - [ ] 【逐】**逐行確認**: 確認対象コミットの SHA を固定して実施した。**確認後の差分は証跡ファイルに限る**
 - [ ] 【機】**射程外 4 件が新規タスクとして起票され、[design.md](design.md) 4 の表と対応している**
 
