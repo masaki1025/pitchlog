@@ -109,3 +109,50 @@ branch: fix/frozen-archive-literal-pins
 ## 未決・次の一歩
 
 `research.md` の「8 インスタンス同時失敗」と実測の 7 件の差は委任元へ報告する。作業中に `docs/features/frozen-archive-literal-pins/design.md` に本作業の操作によらない差分が現れた。こちらからは編集・復元せず保持した。測定元の `scripts/`、`contracts/`、`tests/` には差分なし。
+
+## ステップ 2: 参照集合の独立オラクルとの照合
+
+`tests/test_frozen_archive.py` に `_expected_references()` を追加した。生の `baseline_control.history` の v2 記録だけから、`external_snapshots` と `asset_snapshots` の before/after にある `snapshot_ref` を読み、`SNAPSHOT_REF_PREFIX` を取り除いて集合化する。共有するのは prefix 定数だけで、`frozen_archive.py` の抽出関数・分類表・抽出器・検証関数は呼ばない。被検査実装の結果との集合一致と、独立に求めた期待集合の非空をそれぞれ assert する。
+
+| 旧箇所 | 変更前 | 変更後 |
+| --- | --- | --- |
+| `:131` | `assert len(references) == 50` | `expected = _expected_references()`、`assert references == expected`、`assert expected`。テスト名と docstring の「50件」も現況非依存へ変更。 |
+| `:139` | `assert len(_current_references()) == 50` | `assert _current_references() == expected` と `assert expected`。 |
+| `:164` | 同上 | 同上。分類反転の 4 パラメータへ適用。 |
+| `:198-200` | `assert len(archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)) == 50` | 抽出結果と `expected` の集合一致、`assert expected`。 |
+| `:210-212` | 同上 | 同上。 |
+
+### 合成状態と変異の実測
+
+ステップ 1 で適法性を確認した `/tmp/tsk466-synthetic` に変更後のテストファイルだけをコピーし、対象 5 test node（分類反転は 4 instance）を個別に指定して実行した。**7 passed / 1 failed**。唯一の failure は `test_current_mixed_history_matches_independent_snapshot_references` が未変更の版列 assert で `7 != 6` となったもので、ステップ 3 の対象。`/tmp/tsk466-step2-oracle-probe.py` でこの後続の対象 assertion だけを直接実行すると、抽出結果と独立オラクルは **51 件で集合一致**し、期待集合は非空だった。したがって本ステップの 5 箇所の対象 assertion は合成状態で通過した。corpus digest の変更はしていない。
+
+`/tmp/test_tsk466_step2_mutations.py` から元の参照集合テストを 2 通りの変異実装で実行した結果、**2 failed**。
+
+| 変異 | 期待表照合 | red の原因 |
+| --- | --- | --- |
+| 抽出関数を常に `frozenset()` 返しにする | 抽出関数自体を monkeypatch | `tests/test_frozen_archive.py:146` の `assert references == expected`。期待集合が非空のため空集合と不一致。 |
+| `external_snapshots` の after 側だけを抽出しない | `_validate_extraction_tables()` は例外なく通過 | 同じ `:146` の集合一致。分類表は正しいままなので、期待表照合による red ではない。 |
+
+既存の変異テストは測定元で **7 instance 全部 passed**（変異先が期待どおり red になることを `pytest.raises` で確認）。`/tmp/tsk466-step2-mutation-diagnostics.py` でも拒否理由を直接捕捉した。
+
+| 既存の変異 | red の原因 |
+| --- | --- |
+| 第 5 キー追加 | `ASPECT_NAMES` と抽出表のキー集合不一致。 |
+| 分類反転（4 パラメータ） | `ASPECT_REFERENCE_KINDS` と独立の期待表の分類値不一致。独立オラクルへ到達する前に拒否。 |
+| v1 記録を v2 として走査 | `change.before` の 4 側面のキー集合不一致。 |
+| v2 の `snapshot_ref` 欠落 | `change.before.external_snapshots[0]` のキー集合不一致。 |
+
+### 実行コマンドと終了コード
+
+| コマンド | 終了コード・結果 |
+| --- | --- |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest tests/test_frozen_archive.py::test_current_mixed_history_matches_independent_snapshot_references tests/test_frozen_archive.py::test_added_aspect_is_red_after_current_table_is_green tests/test_frozen_archive.py::test_reversed_aspect_classification_is_red_after_current_table_is_green tests/test_frozen_archive.py::test_v1_record_forced_through_v2_shape_is_red_after_mixed_history_is_green tests/test_frozen_archive.py::test_missing_v2_snapshot_ref_is_red_after_current_history_is_green -q`（測定元） | **0**。8 passed。 |
+| 同じコマンドの末尾を `-q --tb=short` にしたもの（`/tmp/tsk466-synthetic`） | **1**。未変更の版列で 1 failed、7 passed。 |
+| `/tmp/tsk466-synthetic/.venv/bin/python /tmp/tsk466-step2-oracle-probe.py` | **0**。対象の集合一致と非空を通過。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest /tmp/test_tsk466_step2_mutations.py -q --tb=short` | **1**。意図した 2 failed、いずれも集合一致 assert。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run python /tmp/tsk466-step2-mutation-diagnostics.py` | **0**。既存 4 種、計 7 instance の拒否理由を確認。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run ruff check tests/test_frozen_archive.py` | **0**。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run ty check` | **0**。 |
+| `git diff --exit-code -- scripts/ contracts/` | **0**。両ディレクトリの追跡ファイル差分なし。 |
+
+ステップ 3 以降の版列・metrics・digest は変更していない。コミット・push はしていない。

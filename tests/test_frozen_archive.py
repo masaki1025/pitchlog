@@ -69,6 +69,20 @@ def _current_history() -> list[dict[str, Any]]:
     return copy.deepcopy(history)
 
 
+def _expected_references() -> frozenset[str]:
+    """生の履歴から被検査の抽出器を使わず参照集合を導出する。"""
+    prefix = archive.frozen_history.SNAPSHOT_REF_PREFIX
+    return frozenset(
+        name
+        for record in _current_history()
+        if record.get("record_schema_version") == 2
+        for aspect in ("external_snapshots", "asset_snapshots")
+        for side in ("before", "after")
+        for entry in record["change"][side][aspect]
+        if (name := entry["snapshot_ref"].removeprefix(prefix))
+    )
+
+
 def _write_snapshot(snapshot_root: Path, content: bytes) -> str:
     """テスト用 content-addressed snapshot を書き、ファイル名を返す。"""
     digest = hashlib.sha256(content).hexdigest()
@@ -114,8 +128,8 @@ def _current_references() -> frozenset[str]:
     )
 
 
-def test_current_mixed_history_has_50_unique_snapshot_references() -> None:
-    """現行の v1・v2 混在履歴から一意参照50件を再現する。"""
+def test_current_mixed_history_matches_independent_snapshot_references() -> None:
+    """現行の v1・v2 混在履歴の参照集合を独立算出と照合する。"""
     history = _current_history()
     assert [record.get("record_schema_version", 1) for record in history] == [
         1,
@@ -128,7 +142,9 @@ def test_current_mixed_history_has_50_unique_snapshot_references() -> None:
 
     references = archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)
 
-    assert len(references) == 50
+    expected = _expected_references()
+    assert references == expected
+    assert expected
     assert references <= {path.name for path in SNAPSHOT_ROOT.iterdir()}
 
 
@@ -136,7 +152,9 @@ def test_added_aspect_is_red_after_current_table_is_green(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """ASPECT_NAMES の第5キー追加を抽出表の未更新として拒否する。"""
-    assert len(_current_references()) == 50
+    expected = _expected_references()
+    assert _current_references() == expected
+    assert expected
     monkeypatch.setattr(
         archive.frozen_history,
         "ASPECT_NAMES",
@@ -161,7 +179,9 @@ def test_reversed_aspect_classification_is_red_after_current_table_is_green(
     aspect: str,
 ) -> None:
     """4キーそれぞれの参照分類反転を exact-map 不一致として拒否する。"""
-    assert len(_current_references()) == 50
+    expected = _expected_references()
+    assert _current_references() == expected
+    assert expected
     mutated = dict(archive.ASPECT_REFERENCE_KINDS)
     current = mutated[aspect]
     mutated[aspect] = (
@@ -195,9 +215,9 @@ def test_reference_shaped_value_in_non_reference_aspect_is_not_extracted(
 def test_v1_record_forced_through_v2_shape_is_red_after_mixed_history_is_green() -> None:
     """2キーだけの v1 state を v2 として走査すると拒否する。"""
     history = _current_history()
-    assert len(
-        archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)
-    ) == 50
+    expected = _expected_references()
+    assert archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT) == expected
+    assert expected
     history[0]["record_schema_version"] = 2
 
     with pytest.raises(archive.ContractError, match="キー集合が不一致"):
@@ -207,9 +227,9 @@ def test_v1_record_forced_through_v2_shape_is_red_after_mixed_history_is_green()
 def test_missing_v2_snapshot_ref_is_red_after_current_history_is_green() -> None:
     """v2 の参照フィールド欠落を拒否する。"""
     history = _current_history()
-    assert len(
-        archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)
-    ) == 50
+    expected = _expected_references()
+    assert archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT) == expected
+    assert expected
     del history[1]["change"]["before"]["external_snapshots"][0][
         "snapshot_ref"
     ]
