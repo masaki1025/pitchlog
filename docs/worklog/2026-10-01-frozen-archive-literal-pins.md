@@ -244,3 +244,44 @@ branch: fix/frozen-archive-literal-pins
 | `git diff --unified=0 -- tests/test_frozen_archive.py` | **0**。変更範囲を確認。 |
 
 ステップ 5 以降の corpus digest と `scripts/`・`contracts/` は変更していない。コミット・push はしていない。
+
+## ステップ 5: corpus digest の追記不感応と改竄検知
+
+測定元 `HEAD=5d0fe5f3`。`design.md` 2-3 の 2026-10-01・山田正輝承認を再読して再開した。**7.7 の分岐 A**であり、7.7-2 の記録は作っていない。先の中断では、適法な受理記録 +1 に `contract_revision` と `baseline_control.identity.current_identifiers` の 19→20 が伴うため、履歴だけの正規化では現況・合成の digest が一致しなかった。承認後はこの 2 値も除外した。
+
+`corpus_inputs.pinned_prefixes` は `{history_record_count: 正整数（2 以上）, snapshot_names: 昇順・一意の非空 64 桁小文字 hex 名配列}` の exact-set。実ファイルから **`k=6` / `m=83`** を測り、manifest へ固定した。`_normalized_manifest_input` に両値を入れ、除外範囲を後で広げる変更自体も digest に拘束した。生成時点の先頭 `k` 件の履歴と `m` 件の snapshot の名前・内容は hash 対象に残し、それ以降の追記だけを無視する。`base-allowlist.json` の識別値の除外先は、資産内の `baseline_control.identity.field` と `current_identifiers` から導出する。その他の原文は byte 単位で digest に残す。識別値宣言は object・scheme・field・正整数 revision・`current_identifiers` の整合を検査し、不正なら ValueError で止める。
+
+runner で機械再計算した manifest digest は **`b3a1df017e4bbaf19a2c6fc927a7cef91f14ed5bfc0503c137fd8d7e331367d7`**。現況と `/tmp/tsk466-synthetic` の両方で actual = manifest と実測した。後者はステップ 1 の適法な受理記録 +1、snapshot +1 の合成状態で、変更後の runner・manifest をコピーし `cmp` で一致確認した。`identity.field` を検証用に `schema_version` へ替えた別入力では、その欄の繰り上げだけを除外し、`contract_revision` は固定対象へ残ることも直接確認した（終了コード 0）。**欄名 `contract_revision` を除外リストへハードコードしていない。**
+
+現況の `test_production_check_repository_fails_closed_for_each_design_failure` は **F1〜F11 の 11 passed / 終了コード 0**。`test_frozen_archive_case_runner.py` の既存 drift 4 本（runner・manifest case action・契約資産・検査器の変更）はそれぞれ入力変異を拒否して **4 passed / 終了コード 0**。ファイル全体では **25 passed / 1 failed / 終了コード 1**。失敗 1 件はステップ 6 で反転予定の `test_prepare_case_rejects_appended_history_record` で、`ValueError` が発生しなくなったための期待どおりの red。今回この試験は変更していない。
+
+`/tmp/tsk466-step5-mutation-probe.py` は `/tmp` に corpus 入力をコピーし、次の変異を 1 件ずつ当てた。**全件で期待する red を確認し、スクリプトの終了コードは 0**。
+
+| 変異 | red にした検査 |
+| --- | --- |
+| 先頭 `k` 件の bootstrap `reason` を変更 | `validate_corpus_inputs` の digest 不一致。 |
+| 固定済み snapshot を 1 件削除 | `corpus_input_digest` の固定済み snapshot 存在確認。 |
+| 検査器 1 本を変更 | `validate_corpus_inputs` の digest 不一致。 |
+| 識別値以外の宣言 `movement_policy.acceptance_unit` を変更 | `validate_corpus_inputs` の digest 不一致。 |
+| 資産ファイルを 1 本追加 | `validate_corpus_inputs` の digest 不一致（tree のメンバシップを維持）。 |
+| `runner.py` を変更 | `validate_corpus_inputs` の digest 不一致。 |
+| `pinned_prefixes.snapshot_names` を 1 件減らす | 正規化 manifest の変化を直接確認し、`validate_corpus_inputs` の digest 不一致。 |
+| `k` を履歴長より大きくする | `_pinned_authority_content` の固定履歴 prefix 不足。 |
+| `m` の固定済み snapshot を 1 件削除 | `corpus_input_digest` の固定済み snapshot 存在確認。 |
+| `baseline_control.identity` を欠落させる / `field` を配列へ壊す | `_object` / `_string` の宣言形状検査。 |
+| `k=1` / `m=0` | `load_manifest` の下限・非空検査。 |
+
+### 実行コマンドと終了コード
+
+| コマンド | 結果 |
+| --- | --- |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run python /tmp/tsk466-step5-digest-probe.py <root>`（現況・合成） | **0 / 0**。同じ actual / manifest digest。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest tests/test_frozen_archive.py::test_production_check_repository_fails_closed_for_each_design_failure -q` | **0**。11 passed。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest tests/test_frozen_archive_case_runner.py::test_prepare_case_rejects_changed_runner tests/test_frozen_archive_case_runner.py::test_prepare_case_rejects_changed_manifest_case_action tests/test_frozen_archive_case_runner.py::test_prepare_case_rejects_changed_contract_asset tests/test_frozen_archive_case_runner.py::test_prepare_case_rejects_changed_checker -q` | **0**。4 passed、各変異は red。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest tests/test_frozen_archive_case_runner.py -q --tb=short` | **1**。25 passed / 1 failed（追記拒否試験のみ）。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest tests/test_frozen_archive_case_runner.py::test_prepare_case_rejects_appended_history_record -q --tb=short` | **1**。`DID NOT RAISE ValueError`。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run python /tmp/tsk466-step5-mutation-probe.py <root>` | **0**。全 13 変異が上記の箇所で red。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run ruff check tests/fixtures/frozen-archive-cases/runner.py tests/test_frozen_archive_case_runner.py` / `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run ty check` | **0 / 0**。 |
+| `git diff --check` / `git diff --exit-code -- scripts/ contracts/` | **0 / 0**。 |
+
+変更は `runner.py`・`manifest.json`・`test_frozen_archive_case_runner.py` と本 worklog のみ。ステップ 6 以降には進んでいない。コミット・push はしていない。

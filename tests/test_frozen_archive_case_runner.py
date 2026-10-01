@@ -41,6 +41,17 @@ MANIFEST = runner.load_manifest()
 
 def test_manifest_matches_design_case_set_and_transitions() -> None:
     """設計 6-3 の 11 ケースと版間遷移集合を exact-set で固定する。"""
+    raw_manifest = json.loads(runner.DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+    assert set(raw_manifest["corpus_inputs"]) == {
+        "digest",
+        "files",
+        "trees",
+        "pinned_prefixes",
+    }
+    assert set(raw_manifest["corpus_inputs"]["pinned_prefixes"]) == {
+        "history_record_count",
+        "snapshot_names",
+    }
     assert len(MANIFEST.comparison_revision) == 40
     assert MANIFEST.repository_full_name == "masaki1025/pitchlog"
     assert MANIFEST.pull_request_number == 83
