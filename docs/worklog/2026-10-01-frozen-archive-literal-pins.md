@@ -285,3 +285,31 @@ runner で機械再計算した manifest digest は **`b3a1df017e4bbaf19a2c6fc92
 | `git diff --check` / `git diff --exit-code -- scripts/ contracts/` | **0 / 0**。 |
 
 変更は `runner.py`・`manifest.json`・`test_frozen_archive_case_runner.py` と本 worklog のみ。ステップ 6 以降には進んでいない。コミット・push はしていない。
+
+## ステップ 6: 適法な追記の正例、固定 prefix の負例、11 ケースの不感応
+
+測定元 `HEAD=3a23bb1e`。`test_prepare_case_rejects_appended_history_record`（不正な `{"synthetic_corpus_drift": true}` を追記して digest 拒否を期待）を `test_prepare_case_accepts_appended_history_record` へ反転した。共通ヘルパ `_source_with_appended_acceptance` は `/tmp` の corpus 入力コピーから一時 Git リポジトリを作り、既存の `_bump_asset_revision` と `_append_current_repository_transition_record` を使って実遷移に沿う v2 記録と内容アドレス付き snapshot を追加する。固定済み prefix の不変、末尾と同じ **9 キー exact-set**、`change.before` / `after` の **4 側面 exact-set**、既存 ID との非衝突、新 snapshot の SHA-256 ファイル名一致を assert する。今回の生成 ID は実測で `masaki1025/pitchlog#85`。正例では元の base からこの遷移を PR event・二親 merge に封入して現版の本番検査器へ当て、**終了コード 0** を確認した。その後、追記済み source の corpus digest 不変と `prepare_case` の成功も確認した。
+
+新設の負例 2 本は、いずれも `prepare_case` から `_assert_prepare_rejects_corpus_drift` を経由して拒否理由を確認する。固定した先頭 `k` 件の bootstrap `reason` を書き換えると、`validate_corpus_inputs` が **「比較 corpus の入力が動いた。期待値の導き直しが要る」**で拒否。`pinned_prefixes.snapshot_names` の先頭 1 件を削除すると、`corpus_input_digest` が **「固定済み snapshot が存在しない」**で拒否した。両試験とも green。
+
+`test_appended_history_record_does_not_change_case_outcomes` は**この合成追記 1 件についてのみ**現版検査器の 11 ケースを追記前・追記後に実行し、全件が manifest の green/red 期待値にも一致したうえで `after == before` を要求する。実測した終了コードは前後とも次のとおりで、試験は green。
+
+| ケース ID | 追記前 | 追記後 |
+| --- | --- | --- |
+| 1, 2, 9, 10 | 0 | 0 |
+| 3, 4, 5, 6, 7, 8, 11 | 2 | 2 |
+
+`/tmp/tsk466-step6-outcomes-probe.py` は本試験を呼んで上の 11 件ずつを表示した。ケース 1 の**追記後終了コードだけを 0→1**にすると `assert after == before` で red。さらにケース 1 の**期待値だけを green→red**にすると `assert all(result.matches for result in results)` で red。比較・期待値検査のどちらも恒真ではない。`test_frozen_archive_case_runner.py` 全体は **29 passed / 終了コード 0**。既存の runner 変更、manifest case action 変更、契約資産変更、検査器変更の 4 本もそれぞれ変異の拒否を要求して green（対象 7 件の個別実行も **7 passed / 終了コード 0**）。
+
+### 実行コマンドと終了コード
+
+| コマンド | 結果 |
+| --- | --- |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest tests/test_frozen_archive_case_runner.py::test_prepare_case_accepts_appended_history_record tests/test_frozen_archive_case_runner.py::test_prepare_case_rejects_changed_pinned_history_record tests/test_frozen_archive_case_runner.py::test_prepare_case_rejects_missing_pinned_snapshot -q --tb=short` | **0**。3 passed。 |
+| 上記 3 件と既存 drift 4 件の計 7 test node を `uv run pytest … -q --tb=short` で実行 | **0**。7 passed。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest tests/test_frozen_archive_case_runner.py::test_appended_history_record_does_not_change_case_outcomes -q --tb=short` | **0**。1 passed。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run python /tmp/tsk466-step6-outcomes-probe.py <root>` | **0**。11 件の前後値と、1 件の終了コード変異・期待値変異の red を確認。初回は検証スクリプト側の `sys.path` 不足で終了コード 1、修正して再実行した。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run pytest tests/test_frozen_archive_case_runner.py -q --tb=short` | **0**。29 passed。 |
+| `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run ruff check tests/test_frozen_archive_case_runner.py` / `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run ty check` | **0 / 0**。 |
+
+`runner.py`・`manifest.json`・`scripts/`・`contracts/` は変更していない。ステップ 7 には進んでいない。コミット・push はしていない。
