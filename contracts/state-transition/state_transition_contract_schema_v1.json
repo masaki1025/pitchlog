@@ -50,14 +50,22 @@
     "vocabularyId": "input_vocabulary",
     "axisCollection": "axes",
     "axisIdField": "axisId",
-    "axisId": "batting-result",
     "entriesCollection": "entries",
     "entryIdField": "id",
     "rowCollection": "matrixRows",
     "rowDiscriminatorField": "eventKind",
-    "rowDiscriminatorValue": "batting-result",
     "rowVocabularyIdField": "resultId",
-    "requiredRelationship": "exact-set"
+    "requiredRelationship": "exact-set",
+    "coverageSets": [
+      {
+        "axisId": "batting-result",
+        "rowDiscriminatorValue": "batting-result"
+      },
+      {
+        "axisId": "secondary-result",
+        "rowDiscriminatorValue": "secondary-result"
+      }
+    ]
   },
   "x-pitchlog-operation-row-constraints": {
     "sourceDecisionId": "adr:D-8",

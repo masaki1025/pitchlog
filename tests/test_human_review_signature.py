@@ -200,7 +200,7 @@ def test_unsupported_declared_digest_method_is_red() -> None:
 
 
 def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> None:
-    """ステップ57の未確認表示を含むシートを契約から決定的に生成する。"""
+    """ステップ58の未確認表示を含むシートを契約から決定的に生成する。"""
     generated = tmp_path / "matrix_rows_line_review.md"
 
     result = checker.main(
@@ -221,63 +221,102 @@ def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> N
     sheet = generated.read_text(encoding="utf-8")
     assert "独立確認: **未実施**" in sheet
     assert "確認済み" not in sheet
-    assert "本表の全行に共通する前提:** 打撃結果" in sheet
+    assert "本表の全行に共通する前提:** なし" in sheet
     assert "state_transition_contract_v1.json` の `matrixRows[]`" in sheet
     assert "{\"" not in sheet
-    assert "false" not in sheet
+    assert '"投球数": false' not in sheet
     table_rows = [
         line
         for line in sheet.splitlines()
         if line.startswith("| ")
         and line.removeprefix("| ").split(" | ", maxsplit=1)[0].isdigit()
     ]
-    assert len(table_rows) == 26
-    assert "| 1 | 見逃し | 無死 / 走者なし / カウント 0-0 / 投球イベント | S+1 |" in sheet
-    assert "| 4 | ボール | 無死 / 走者なし / カウント 0-0 / 投球イベント | B+1 |" in sheet
-    assert "| 7 | 振り逃げ | 2死 / 走者なし / カウント 0-2 / 投球イベント |" in sheet
-    assert "| 9 | 三振ゲッツー | 1死 / 走者 1塁 / カウント 0-2 / 投球イベント |" in sheet
+    assert len(table_rows) == 33
+    assert (
+        "| 1 | 打撃結果 | 見逃し | 無死 / 走者なし / カウント 0-0 / "
+        "投球イベント | S+1 |"
+    ) in sheet
+    assert (
+        "| 4 | 打撃結果 | ボール | 無死 / 走者なし / カウント 0-0 / "
+        "投球イベント | B+1 |"
+    ) in sheet
+    assert "| 7 | 打撃結果 | 振り逃げ | 2死 / 走者なし / カウント 0-2 / 投球イベント |" in sheet
+    assert "| 9 | 打撃結果 | 三振ゲッツー | 1死 / 走者 1塁 / カウント 0-2 / 投球イベント |" in sheet
     assert "| 終了 | アウト | 1塁停止 | 2（打者・1塁走者） |" in sheet
-    assert "| 10 | 四球 | 無死 / 走者 1塁・3塁 / カウント 3-0 / 投球イベント |" in sheet
-    assert "| 11 | 死球 | 無死 / 走者 1塁・3塁 / カウント 0-0 / 投球イベント |" in sheet
-    assert "| 12 | 申告敬遠 | 無死 / 走者 1塁・3塁 / カウント 0-0 / 非投球イベント |" in sheet
+    assert "| 10 | 打撃結果 | 四球 | 無死 / 走者 1塁・3塁 / カウント 3-0 / 投球イベント |" in sheet
+    assert "| 11 | 打撃結果 | 死球 | 無死 / 走者 1塁・3塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert (
+        "| 12 | 打撃結果 | 申告敬遠 | 無死 / 走者 1塁・3塁 / カウント 0-0 / "
+        "非投球イベント |"
+    ) in sheet
     assert "1塁→2塁（強制） / 3塁停止" in sheet
     assert "| 与四球・打席・四球 |" in sheet
-    assert "| 13 | 単打 | 無死 / 走者なし / カウント 0-0 / 投球イベント |" in sheet
-    assert "| 14 | 二塁打 | 無死 / 走者なし / カウント 0-0 / 投球イベント |" in sheet
-    assert "| 15 | 三塁打 | 無死 / 走者なし / カウント 0-0 / 投球イベント |" in sheet
-    assert "| 16 | 本塁打 | 無死 / 走者 1塁・2塁・3塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert "| 13 | 打撃結果 | 単打 | 無死 / 走者なし / カウント 0-0 / 投球イベント |" in sheet
+    assert "| 14 | 打撃結果 | 二塁打 | 無死 / 走者なし / カウント 0-0 / 投球イベント |" in sheet
+    assert "| 15 | 打撃結果 | 三塁打 | 無死 / 走者なし / カウント 0-0 / 投球イベント |" in sheet
+    assert (
+        "| 16 | 打撃結果 | 本塁打 | 無死 / 走者 1塁・2塁・3塁 / "
+        "カウント 0-0 / 投球イベント |"
+    ) in sheet
     assert (
         "1塁→本塁（非フォース） / 2塁→本塁（非フォース） / "
         "3塁→本塁（非フォース）"
     ) in sheet
     assert "投球数・被安打・被本塁打・失点・打席・打数・安打・本塁打・塁打・得点・打点" in sheet
     assert "RBI-06により4得点・4打点" in sheet
-    assert "| 17 | 凡打死 | 無死 / 走者なし / カウント 0-0 / 投球イベント |" in sheet
-    assert "| 18 | 凡打出塁 | 無死 / 走者 1塁・2塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert "| 17 | 打撃結果 | 凡打死 | 無死 / 走者なし / カウント 0-0 / 投球イベント |" in sheet
+    assert (
+        "| 18 | 打撃結果 | 凡打出塁 | 無死 / 走者 1塁・2塁 / "
+        "カウント 0-0 / 投球イベント |"
+    ) in sheet
     assert "1塁→2塁（強制） / 2塁→3塁（強制）" in sheet
-    assert "| 19 | ファールフライ | 無死 / 走者なし / カウント 0-0 / 投球イベント |" in sheet
-    assert "| 20 | 併殺打 | 無死 / 走者 1塁 / カウント 0-0 / 投球イベント |" in sheet
-    assert "| 21 | ライナー併殺 | 無死 / 走者 1塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert (
+        "| 19 | 打撃結果 | ファールフライ | 無死 / 走者なし / "
+        "カウント 0-0 / 投球イベント |"
+    ) in sheet
+    assert "| 20 | 打撃結果 | 併殺打 | 無死 / 走者 1塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert (
+        "| 21 | 打撃結果 | ライナー併殺 | 無死 / 走者 1塁 / "
+        "カウント 0-0 / 投球イベント |"
+    ) in sheet
     assert "2（打者・1塁走者）" in sheet
-    assert "| 22 | エラー | 無死 / 走者 1塁・2塁 / カウント 0-0 / 投球イベント |" in sheet
-    assert "| 23 | 野手選択 | 無死 / 走者 1塁・2塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert (
+        "| 22 | 打撃結果 | エラー | 無死 / 走者 1塁・2塁 / "
+        "カウント 0-0 / 投球イベント |"
+    ) in sheet
+    assert (
+        "| 23 | 打撃結果 | 野手選択 | 無死 / 走者 1塁・2塁 / "
+        "カウント 0-0 / 投球イベント |"
+    ) in sheet
     assert "投球数・失策・打席・打数" in sheet
     assert "対象野手・失策種別の公式記録判断は段階2待ち" in sheet
     assert "野手選択とする公式記録判断は段階2待ち" in sheet
-    assert "| 24 | 犠打 | 無死 / 走者 1塁・2塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert "| 24 | 打撃結果 | 犠打 | 無死 / 走者 1塁・2塁 / カウント 0-0 / 投球イベント |" in sheet
     assert "1塁→2塁（非フォース） / 2塁→3塁（非フォース）" in sheet
     assert "| 投球回算入アウト・投球数・打席・犠打 |" in sheet
-    assert "| 25 | 犠飛 | 無死 / 走者 3塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert "| 25 | 打撃結果 | 犠飛 | 無死 / 走者 3塁 / カウント 0-0 / 投球イベント |" in sheet
     assert "3塁→本塁（非フォース）" in sheet
     assert "RBI-08・旧sacrifice" in sheet
-    assert "| 26 | 犠打失策 | 無死 / 走者 1塁・2塁 / カウント 0-0 / 投球イベント |" in sheet
+    assert (
+        "| 26 | 打撃結果 | 犠打失策 | 無死 / 走者 1塁・2塁 / "
+        "カウント 0-0 / 投球イベント |"
+    ) in sheet
     assert "投球数・失策・打席・犠打" in sheet
     assert "公認野球規則9.08の既定側" in sheet
     assert "安打狙いと判断して犠打を記録せず打数を記録する分岐" in sheet
     assert "GAP-09・段階2待ち" in sheet
     assert "公式記録上の分類・失策導出は段階2待ち" in sheet
     assert "requiredSet①はsafe/outの2行を要求" in sheet
-    assert "## 短縮表示できなかった値" not in sheet
+    assert "| 27 | 打撃結果2 | PB |" in sheet
+    assert "| 28 | 打撃結果2 | WP |" in sheet
+    assert "| 29 | 打撃結果2 | 守備妨害 |" in sheet
+    assert "| 30 | 打撃結果2 | 打撃妨害 |" in sheet
+    assert "| 31 | 打撃結果2 | 走塁妨害 |" in sheet
+    assert "| 32 | 打撃結果2 | ボーク |" in sheet
+    assert "| 33 | 打撃結果2 | ピッチクロック違反 |" in sheet
+    assert "規則上の既定ではない" in sheet
+    assert "GAP-07の未解決差" in sheet
+    assert "## 短縮表示できなかった値" in sheet
     assert "## 人間が判断すること" in sheet
     assert "段階2" in sheet
 
@@ -298,8 +337,8 @@ def test_matrix_rows_line_review_renderer_accepts_later_rows() -> None:
         if line.startswith("| ")
         and line.removeprefix("| ").split(" | ", maxsplit=1)[0].isdigit()
     ]
-    assert len(table_rows) == 27
-    assert "| 27 | 単打 |" in sheet
+    assert len(table_rows) == 34
+    assert "| 34 | 打撃結果 | 単打 |" in sheet
 
 
 def test_matrix_rows_result_names_follow_vocabulary_seed(tmp_path: Path) -> None:
@@ -335,4 +374,4 @@ def test_matrix_rows_result_names_follow_vocabulary_seed(tmp_path: Path) -> None
         _load_object(CONTRACT_PATH),
     )
 
-    assert "| 1 | 見逃し（テスト） |" in sheet
+    assert "| 1 | 打撃結果 | 見逃し（テスト） |" in sheet

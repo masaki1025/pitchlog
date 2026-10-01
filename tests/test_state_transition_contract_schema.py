@@ -1765,7 +1765,7 @@ def _validate_schema(contract: dict[str, Any]) -> None:
 
 
 def _validate_vocabulary_axis_coverage(contract: Mapping[str, Any]) -> None:
-    """schema宣言に従い語彙軸と規範行のID集合を照合する。
+    """schema宣言に従い複数の語彙軸と規範行のID集合を照合する。
 
     Args:
         contract: 検証する状況判定契約。
@@ -1814,12 +1814,6 @@ def _validate_vocabulary_axis_coverage(contract: Mapping[str, Any]) -> None:
     axis_id_field = _required_string(
         configuration.get("axisIdField"), "vocabularyAxisCoverage.axisIdField"
     )
-    axis_id = _required_string(
-        configuration.get("axisId"), "vocabularyAxisCoverage.axisId"
-    )
-    axes = [axis for axis in seed[axis_collection] if axis[axis_id_field] == axis_id]
-    if len(axes) != 1:
-        raise VocabularyAxisCoverageError("語彙シードの対象軸を一意に解決できない")
     entries_collection = _required_string(
         configuration.get("entriesCollection"),
         "vocabularyAxisCoverage.entriesCollection",
@@ -1828,8 +1822,6 @@ def _validate_vocabulary_axis_coverage(contract: Mapping[str, Any]) -> None:
         configuration.get("entryIdField"),
         "vocabularyAxisCoverage.entryIdField",
     )
-    expected = {entry[entry_id_field] for entry in axes[0][entries_collection]}
-
     row_collection = _required_string(
         configuration.get("rowCollection"),
         "vocabularyAxisCoverage.rowCollection",
@@ -1838,25 +1830,61 @@ def _validate_vocabulary_axis_coverage(contract: Mapping[str, Any]) -> None:
         configuration.get("rowDiscriminatorField"),
         "vocabularyAxisCoverage.rowDiscriminatorField",
     )
-    discriminator_value = _required_string(
-        configuration.get("rowDiscriminatorValue"),
-        "vocabularyAxisCoverage.rowDiscriminatorValue",
-    )
     row_id_field = _required_string(
         configuration.get("rowVocabularyIdField"),
         "vocabularyAxisCoverage.rowVocabularyIdField",
     )
-    actual = {
-        row[row_id_field]
-        for row in contract[row_collection]
-        if row[discriminator_field] == discriminator_value
-    }
-    if actual != expected:
-        raise VocabularyAxisCoverageError(
-            "語彙軸と規範行がexact-set不一致: "
-            f"missing={sorted(expected - actual)!r}; "
-            f"unexpected={sorted(actual - expected)!r}"
+    coverage_sets = configuration.get("coverageSets")
+    if not isinstance(coverage_sets, list) or not coverage_sets:
+        raise VocabularyAxisCoverageError("語彙軸被覆のcoverageSetsが空または配列でない")
+    seen_axis_ids: set[str] = set()
+    seen_discriminator_values: set[str] = set()
+    for index, raw_coverage_set in enumerate(coverage_sets):
+        coverage_set = _required_object(
+            raw_coverage_set,
+            f"vocabularyAxisCoverage.coverageSets[{index}]",
         )
+        axis_id = _required_string(
+            coverage_set.get("axisId"),
+            f"vocabularyAxisCoverage.coverageSets[{index}].axisId",
+        )
+        discriminator_value = _required_string(
+            coverage_set.get("rowDiscriminatorValue"),
+            "vocabularyAxisCoverage."
+            f"coverageSets[{index}].rowDiscriminatorValue",
+        )
+        if (
+            axis_id in seen_axis_ids
+            or discriminator_value in seen_discriminator_values
+        ):
+            raise VocabularyAxisCoverageError("語彙軸被覆の宣言が重複している")
+        seen_axis_ids.add(axis_id)
+        seen_discriminator_values.add(discriminator_value)
+
+        axes = [
+            axis
+            for axis in seed[axis_collection]
+            if axis[axis_id_field] == axis_id
+        ]
+        if len(axes) != 1:
+            raise VocabularyAxisCoverageError(
+                f"語彙シードの対象軸を一意に解決できない: axisId={axis_id!r}"
+            )
+        expected = {
+            entry[entry_id_field] for entry in axes[0][entries_collection]
+        }
+        actual = {
+            row[row_id_field]
+            for row in contract[row_collection]
+            if row[discriminator_field] == discriminator_value
+        }
+        if actual != expected:
+            raise VocabularyAxisCoverageError(
+                "語彙軸と規範行がexact-set不一致: "
+                f"axisId={axis_id!r}; "
+                f"missing={sorted(expected - actual)!r}; "
+                f"unexpected={sorted(actual - expected)!r}"
+            )
 
 
 def _validate(
@@ -1913,7 +1941,7 @@ def test_repository_schema_accepts_the_three_normative_row_layers() -> None:
 
 
 def test_repository_contract_step51_to_step57_rows_satisfy_constraints() -> None:
-    """ステップ51〜57の26行が10列exact型・参照・XCを充足する。"""
+    """ステップ51〜57の既存26行が10列exact型・参照・XCを充足する。"""
     contract = _repository_contract()
     step51_result_ids = {
         "batting-result.called-pitch",
@@ -1965,15 +1993,15 @@ def test_repository_contract_step51_to_step57_rows_satisfy_constraints() -> None
     _validate_vocabulary_axis_coverage(contract)
 
     rows = contract["matrixRows"]
-    assert len(rows) == 26
+    assert len(rows) == 33
     assert {row["resultId"] for row in rows[:4]} == step51_result_ids
     assert {row["resultId"] for row in rows[4:9]} == step52_result_ids
     assert {row["resultId"] for row in rows[9:12]} == step53_result_ids
     assert {row["resultId"] for row in rows[12:16]} == step54_result_ids
     assert {row["resultId"] for row in rows[16:19]} == step55_result_ids
     assert {row["resultId"] for row in rows[19:23]} == step56_result_ids
-    assert {row["resultId"] for row in rows[23:]} == step57_result_ids
-    assert all(row["eventKind"] == "batting-result" for row in rows)
+    assert {row["resultId"] for row in rows[23:26]} == step57_result_ids
+    assert all(row["eventKind"] == "batting-result" for row in rows[:26])
     assert all(row["plateAppearanceEnded"] is False for row in rows[:4])
     assert all(row["batterDestination"] == {"kind": "continue"} for row in rows[:4])
     assert all(row["outEffect"] == {"count": 0, "targets": []} for row in rows[:4])
@@ -2194,7 +2222,7 @@ def test_repository_contract_step51_to_step57_rows_satisfy_constraints() -> None
         if enabled
     } == {"投球数", "打席", "打数"}
 
-    step57_rows = {row["resultId"]: row for row in rows[23:]}
+    step57_rows = {row["resultId"]: row for row in rows[23:26]}
     sacrifice_bunt = step57_rows["batting-result.sacrifice-bunt"]
     assert sacrifice_bunt["batterDestination"] == {"kind": "out"}
     assert sacrifice_bunt["runnerDefaultAdvance"] == {
@@ -2251,8 +2279,97 @@ def test_repository_contract_step51_to_step57_rows_satisfy_constraints() -> None
     assert all(row["statFlags"]["打数"] is False for row in step57_rows.values())
 
 
-def test_repository_contract_records_step57_review_as_not_performed() -> None:
-    """ステップ57の独立確認を未実施のまま記録する。"""
+def test_repository_contract_step58_rows_satisfy_constraints() -> None:
+    """ステップ58の7行がexact型・参照・XCと代表分岐の宣言を充足する。"""
+    contract = _repository_contract()
+    rows = contract["matrixRows"][26:]
+    expected_result_ids = {
+        "secondary-result.passed-ball",
+        "secondary-result.wild-pitch",
+        "secondary-result.offensive-interference",
+        "secondary-result.batting-interference",
+        "secondary-result.obstruction",
+        "secondary-result.balk",
+        "secondary-result.pitch-clock-violation",
+    }
+
+    _validate_schema(contract)
+    _validate_references(
+        contract,
+        vocabulary_checker.validate_manifest(REPOSITORY_ROOT),
+    )
+    _validate_cross_constraints(contract)
+    _validate_vocabulary_axis_coverage(contract)
+
+    assert len(rows) == 7
+    assert {row["resultId"] for row in rows} == expected_result_ids
+    assert all(row["eventKind"] == "secondary-result" for row in rows)
+    step58_rows = {row["resultId"]: row for row in rows}
+
+    for result_id in {
+        "secondary-result.passed-ball",
+        "secondary-result.wild-pitch",
+        "secondary-result.balk",
+    }:
+        row = step58_rows[result_id]
+        assert row["runnerDefaultAdvance"] == {
+            "first": {"modality": "optional", "destination": 2},
+            "second": {"modality": "optional", "destination": 3},
+            "third": {"modality": "optional", "destination": 4},
+        }
+        assert "代表値" in row["remarks"]
+        assert "段階2待ち" in row["remarks"]
+
+    offensive = step58_rows["secondary-result.offensive-interference"]
+    assert offensive["batterDestination"] == {"kind": "out"}
+    assert offensive["outEffect"] == {"count": 1, "targets": ["batter"]}
+    assert offensive["statFlags"]["打数"] is True
+    assert "INT-06" in offensive["remarks"]
+    assert "INT-07" in offensive["remarks"]
+
+    batting = step58_rows["secondary-result.batting-interference"]
+    assert batting["batterDestination"] == {"kind": "reach", "base": 1}
+    assert batting["statFlags"]["打数"] is False
+    assert batting["statFlags"]["打撃妨害出塁"] is True
+    assert all(f"INT-0{number}" in batting["remarks"] for number in range(1, 4))
+
+    obstruction = step58_rows["secondary-result.obstruction"]
+    assert obstruction["batterDestination"] == {"kind": "reach", "base": 1}
+    assert obstruction["statFlags"]["打数"] is False
+    assert obstruction["statFlags"]["走塁妨害出塁"] is True
+    assert "INT-04" in obstruction["remarks"]
+    assert "INT-05" in obstruction["remarks"]
+    assert "ADV-02" in obstruction["remarks"]
+    assert "ADV-03" in obstruction["remarks"]
+
+    pitch_clock = step58_rows["secondary-result.pitch-clock-violation"]
+    assert pitch_clock["countEffect"] == {
+        "strikes": {"kind": "unchanged"},
+        "balls": {"kind": "delta", "value": 1},
+    }
+    assert pitch_clock["batterDestination"] == {"kind": "continue"}
+    assert pitch_clock["statFlags"]["投球数"] is False
+    assert "規則上の既定ではない" in pitch_clock["remarks"]
+    assert "GAP-07" in pitch_clock["remarks"]
+    assert "2ストライク未満=S+1・打席継続" in pitch_clock["remarks"]
+    assert "2ストライク=打者アウト・打席終了・S/B reset" in pitch_clock[
+        "remarks"
+    ]
+    assert (
+        "打者側ピッチクロック違反のために許す"
+        "batterDestination.kind=out経路は現状の規範行から到達不能"
+    ) in pitch_clock["remarks"]
+    gap = next(
+        item
+        for item in _load_object(GAP_REGISTER_PATH)["gaps"]
+        if item["gapId"] == "GAP-07"
+    )
+    assert gap["state"] == "open"
+    assert {"E-1", "FR-004"}.issubset(gap["clauseIds"])
+
+
+def test_repository_contract_records_step58_review_as_not_performed() -> None:
+    """ステップ58の独立確認を未実施のまま記録する。"""
     provenance = _repository_contract()["provenance"]
 
     assert provenance["authorId"] == "codex"
@@ -2265,8 +2382,17 @@ def test_repository_contract_records_step57_review_as_not_performed() -> None:
             "req:A-3",
             "req:ADV-03",
             "req:RBI-08",
+            "req:INT-01",
+            "req:INT-02",
+            "req:INT-03",
+            "req:INT-04",
+            "req:INT-05",
+            "req:INT-06",
+            "req:INT-07",
             "obr:9.02(a)(1)",
             "obr:9.08",
+            "docs/legacy/research/input-screen.md:151",
+            "docs/legacy/research/input-screen.md:152",
             "docs/legacy/research/input-screen.md:161",
             "docs/legacy/research/input-screen.md:162",
             "docs/legacy/research/input-screen.md:163",
@@ -2404,7 +2530,11 @@ def test_repository_batting_result_rows_exactly_cover_the_vocabulary_axis() -> N
 def test_batting_result_vocabulary_coverage_is_red_when_a_value_is_missing() -> None:
     """打撃結果の規範行を1値欠くとexact-set検査が拒む。"""
     contract = _repository_contract()
-    contract["matrixRows"].pop()
+    contract["matrixRows"] = [
+        row
+        for row in contract["matrixRows"]
+        if row["resultId"] != "batting-result.sacrifice-bunt-error"
+    ]
 
     with pytest.raises(VocabularyAxisCoverageError, match="missing=.*sacrifice-bunt-error"):
         _validate_vocabulary_axis_coverage(contract)
@@ -2413,11 +2543,55 @@ def test_batting_result_vocabulary_coverage_is_red_when_a_value_is_missing() -> 
 def test_batting_result_vocabulary_coverage_is_red_for_an_extra_value() -> None:
     """語彙シードに無い打撃結果を足すとexact-set検査が拒む。"""
     contract = _repository_contract()
-    extra = copy.deepcopy(contract["matrixRows"][-1])
+    extra = copy.deepcopy(contract["matrixRows"][25])
     extra["resultId"] = "batting-result.not-declared"
     contract["matrixRows"].append(extra)
 
     with pytest.raises(VocabularyAxisCoverageError, match="unexpected=.*not-declared"):
+        _validate_vocabulary_axis_coverage(contract)
+
+
+def test_repository_secondary_result_rows_exactly_cover_the_vocabulary_axis() -> None:
+    """打撃結果2の規範行が語彙シードの7値をexact-setで覆う。"""
+    contract = _repository_contract()
+
+    _validate_vocabulary_axis_coverage(contract)
+
+    secondary_rows = [
+        row
+        for row in contract["matrixRows"]
+        if row["eventKind"] == "secondary-result"
+    ]
+    assert len(secondary_rows) == 7
+
+
+def test_secondary_result_vocabulary_coverage_is_red_when_a_value_is_missing() -> None:
+    """打撃結果2の規範行を1値欠くとexact-set検査が拒む。"""
+    contract = _repository_contract()
+    contract["matrixRows"] = [
+        row
+        for row in contract["matrixRows"]
+        if row["resultId"] != "secondary-result.pitch-clock-violation"
+    ]
+
+    with pytest.raises(
+        VocabularyAxisCoverageError,
+        match="axisId='secondary-result'.*missing=.*pitch-clock-violation",
+    ):
+        _validate_vocabulary_axis_coverage(contract)
+
+
+def test_secondary_result_vocabulary_coverage_is_red_for_an_extra_value() -> None:
+    """語彙シードに無い打撃結果2を足すとexact-set検査が拒む。"""
+    contract = _repository_contract()
+    extra = copy.deepcopy(contract["matrixRows"][-1])
+    extra["resultId"] = "secondary-result.not-declared"
+    contract["matrixRows"].append(extra)
+
+    with pytest.raises(
+        VocabularyAxisCoverageError,
+        match="axisId='secondary-result'.*unexpected=.*not-declared",
+    ):
         _validate_vocabulary_axis_coverage(contract)
 
 
@@ -2446,7 +2620,7 @@ def test_repository_per_pitch_mapping_covers_all_materialized_matrix_rows() -> N
     }
 
     assert actual == expected
-    assert len(mapping["rowRefs"]) == len(contract["matrixRows"]) == 26
+    assert len(mapping["rowRefs"]) == len(contract["matrixRows"]) == 33
 
 
 def test_so03_deferred_partition_difference_remains_declared_and_open() -> None:
