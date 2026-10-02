@@ -1993,7 +1993,7 @@ def test_repository_contract_step51_to_step57_rows_satisfy_constraints() -> None
     _validate_vocabulary_axis_coverage(contract)
 
     rows = contract["matrixRows"]
-    assert len(rows) == 33
+    assert len(rows) == 36
     assert {row["resultId"] for row in rows[:4]} == step51_result_ids
     assert {row["resultId"] for row in rows[4:9]} == step52_result_ids
     assert {row["resultId"] for row in rows[9:12]} == step53_result_ids
@@ -2282,7 +2282,7 @@ def test_repository_contract_step51_to_step57_rows_satisfy_constraints() -> None
 def test_repository_contract_step58_rows_satisfy_constraints() -> None:
     """ステップ58の7行がexact型・参照・XCと代表分岐の宣言を充足する。"""
     contract = _repository_contract()
-    rows = contract["matrixRows"][26:]
+    rows = contract["matrixRows"][26:33]
     expected_result_ids = {
         "secondary-result.passed-ball",
         "secondary-result.wild-pitch",
@@ -2368,8 +2368,8 @@ def test_repository_contract_step58_rows_satisfy_constraints() -> None:
     assert {"E-1", "FR-004"}.issubset(gap["clauseIds"])
 
 
-def test_repository_contract_records_step58_review_as_not_performed() -> None:
-    """ステップ58の独立確認を未実施のまま記録する。"""
+def test_repository_contract_records_step58_and_step59_review_as_not_performed() -> None:
+    """ステップ58・59の独立確認を未実施のまま記録する。"""
     provenance = _repository_contract()["provenance"]
 
     assert provenance["authorId"] == "codex"
@@ -2389,10 +2389,13 @@ def test_repository_contract_records_step58_review_as_not_performed() -> None:
             "req:INT-05",
             "req:INT-06",
             "req:INT-07",
+            "req:A-4",
+            "req:FR-027",
             "obr:9.02(a)(1)",
             "obr:9.08",
             "docs/legacy/research/input-screen.md:151",
             "docs/legacy/research/input-screen.md:152",
+            "docs/legacy/research/input-screen.md:155",
             "docs/legacy/research/input-screen.md:161",
             "docs/legacy/research/input-screen.md:162",
             "docs/legacy/research/input-screen.md:163",
@@ -2584,7 +2587,13 @@ def test_secondary_result_vocabulary_coverage_is_red_when_a_value_is_missing() -
 def test_secondary_result_vocabulary_coverage_is_red_for_an_extra_value() -> None:
     """語彙シードに無い打撃結果2を足すとexact-set検査が拒む。"""
     contract = _repository_contract()
-    extra = copy.deepcopy(contract["matrixRows"][-1])
+    extra = copy.deepcopy(
+        next(
+            row
+            for row in contract["matrixRows"]
+            if row["resultId"] == "secondary-result.pitch-clock-violation"
+        )
+    )
     extra["resultId"] = "secondary-result.not-declared"
     contract["matrixRows"].append(extra)
 
@@ -2620,7 +2629,7 @@ def test_repository_per_pitch_mapping_covers_all_materialized_matrix_rows() -> N
     }
 
     assert actual == expected
-    assert len(mapping["rowRefs"]) == len(contract["matrixRows"]) == 33
+    assert len(mapping["rowRefs"]) == len(contract["matrixRows"]) == 36
 
 
 def test_so03_deferred_partition_difference_remains_declared_and_open() -> None:
@@ -3926,3 +3935,88 @@ def test_xc13_stat_flag_row_derivation_is_explicitly_deferred() -> None:
     rule = next(rule for rule in rules if rule["constraintId"] == "XC-13")
     assert rule["enforcement"] == "deferred-stage-2"
     assert rule["machineGuarantee"] == "not-established"
+
+
+def test_repository_contract_step59_rows_satisfy_runner_event_constraints() -> None:
+    """作戦3系統を各1行とし、走者イベントの固定列と既定進塁を検査する。"""
+    contract = _repository_contract()
+    rows = contract["matrixRows"][33:]
+    expected_result_ids = {
+        "strategy-category.steal",
+        "strategy-category.bunt",
+        "strategy-category.hit-and-run",
+    }
+
+    _validate_schema(contract)
+    _validate_references(
+        contract,
+        vocabulary_checker.validate_manifest(REPOSITORY_ROOT),
+    )
+    _validate_cross_constraints(contract)
+    _validate_vocabulary_axis_coverage(contract)
+
+    assert len(rows) == 3
+    assert {row["resultId"] for row in rows} == expected_result_ids
+    assert all(row["eventKind"] == "runner-event" for row in rows)
+    assert all(
+        row["countEffect"]
+        == {"strikes": {"kind": "unchanged"}, "balls": {"kind": "unchanged"}}
+        for row in rows
+    )
+    assert all(row["plateAppearanceEnded"] == "not-applicable" for row in rows)
+    assert all(row["batterDestination"] == {"kind": "not-applicable"} for row in rows)
+    assert all(row["outEffect"] == {"count": 0, "targets": []} for row in rows)
+    assert all(row["statFlags"]["投球回算入アウト"] is False for row in rows)
+    assert all(row["statFlags"]["投球数"] is True for row in rows)
+    assert all(
+        "event.perPitch.runnerEventPayload"
+        not in {leaf["axisId"] for leaf in _predicate_leaves(row["precondition"])}
+        for row in rows
+    )
+
+    by_result = {row["resultId"]: row for row in rows}
+    optional_advance = {
+        "first": {"modality": "optional", "destination": 2},
+        "second": {"modality": "not-applicable", "destination": None},
+        "third": {"modality": "not-applicable", "destination": None},
+    }
+    assert by_result["strategy-category.steal"]["runnerDefaultAdvance"] == optional_advance
+    assert (
+        by_result["strategy-category.hit-and-run"]["runnerDefaultAdvance"]
+        == optional_advance
+    )
+    assert by_result["strategy-category.bunt"]["runnerDefaultAdvance"] == {
+        "first": {"modality": "hold", "destination": None},
+        "second": {"modality": "not-applicable", "destination": None},
+        "third": {"modality": "not-applicable", "destination": None},
+    }
+    assert all("本行単独からは導出しない" in row["remarks"] for row in rows)
+    assert "旧input-screen:155" in by_result["strategy-category.steal"]["remarks"]
+    assert "旧input-screen:155" in by_result["strategy-category.hit-and-run"]["remarks"]
+
+
+def test_step59_strategy_results_use_identity_partition_without_gap() -> None:
+    """作戦3系統がrequiredSet①のidentity各1行に属する。"""
+    rules = _load_object(REQUIRED_SET_ROW_RULES_PATH)
+    identity_rule = next(
+        rule
+        for rule in rules["partitionRules"]
+        if rule["partitionRuleId"] == "identity"
+    )
+
+    assert identity_rule["partitions"] == ["identity"]
+    assert {
+        "strategy-category.steal",
+        "strategy-category.bunt",
+        "strategy-category.hit-and-run",
+    }.issubset(identity_rule["vocabularyIds"])
+
+
+def test_step59_does_not_complete_runner_event_vocabulary_coverage() -> None:
+    """牽制6値が揃う前はrunner-eventのexact-set宣言を追加しない。"""
+    coverage = _schema()["x-pitchlog-vocabulary-axis-coverage"]
+
+    assert coverage["coverageSets"] == [
+        {"axisId": "batting-result", "rowDiscriminatorValue": "batting-result"},
+        {"axisId": "secondary-result", "rowDiscriminatorValue": "secondary-result"},
+    ]

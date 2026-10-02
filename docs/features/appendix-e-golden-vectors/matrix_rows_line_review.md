@@ -4,7 +4,7 @@
 
 - 作成者: `codex`
 - 独立確認: **未実施**
-- 由来条文: `req:E-1` / `req:FR-003` / `req:4.0-2` / `req:E-2` / `req:SO-01` / `req:SO-02` / `req:SO-03` / `req:SO-04` / `req:SO-05` / `req:A-2` / `req:A-3` / `req:ADV-01` / `req:ADV-02` / `req:ADV-04` / `obr:9.02(a)(1)` / `obr:9.08` / `req:A-5` / `req:ADV-03` / `req:RBI-06` / `req:RBI-01` / `req:XC-11` / `req:FR-004` / `req:INT-01` / `req:INT-02` / `req:INT-03` / `req:INT-04` / `req:INT-05` / `req:INT-06` / `req:INT-07` / `req:FR-020` / `docs/legacy/research/input-screen.md:68` / `docs/legacy/research/input-screen.md:70` / `docs/legacy/research/input-screen.md:71` / `docs/legacy/research/input-screen.md:163` / `docs/legacy/research/input-screen.md:161` / `docs/legacy/research/input-screen.md:162` / `docs/legacy/research/input-screen.md:151` / `docs/legacy/research/input-screen.md:152` / `req:RBI-08`
+- 由来条文: `req:E-1` / `req:FR-003` / `req:4.0-2` / `req:E-2` / `req:SO-01` / `req:SO-02` / `req:SO-03` / `req:SO-04` / `req:SO-05` / `req:A-2` / `req:A-3` / `req:ADV-01` / `req:ADV-02` / `req:ADV-04` / `obr:9.02(a)(1)` / `obr:9.08` / `req:A-5` / `req:ADV-03` / `req:RBI-06` / `req:RBI-01` / `req:XC-11` / `req:FR-004` / `req:A-4` / `req:FR-027` / `req:INT-01` / `req:INT-02` / `req:INT-03` / `req:INT-04` / `req:INT-05` / `req:INT-06` / `req:INT-07` / `req:FR-020` / `docs/legacy/research/input-screen.md:68` / `docs/legacy/research/input-screen.md:70` / `docs/legacy/research/input-screen.md:71` / `docs/legacy/research/input-screen.md:163` / `docs/legacy/research/input-screen.md:161` / `docs/legacy/research/input-screen.md:162` / `docs/legacy/research/input-screen.md:151` / `docs/legacy/research/input-screen.md:152` / `docs/legacy/research/input-screen.md:155` / `req:RBI-08`
 - 完全な値: `contracts/state-transition/state_transition_contract_v1.json` の `matrixRows[]`（入力座標 = `eventKind` + `resultId` + `precondition`）
 
 **本表の全行に共通する前提:** なし
@@ -46,6 +46,9 @@
 | 31 | 打撃結果2 | 走塁妨害 | 無死 / 走者 1塁・3塁 / カウント 0-0 / 投球イベント / event.perPitch.interferenceRuling="obstruction:play-on-obstructed-runner-with-awarded-destinations" | S→0 / B→0 | 終了 | 1塁 | 1塁→2塁（強制） / 3塁停止 | 0 | 投球数・打席・走塁妨害出塁 | INT-04の打者走者が一塁到達前に妨害され一塁を授与された裁定を代表に選び、9.02(a)(1)により打数へ算入しない。一塁授与で生じる一塁走者の押し出しだけをADV-02のforcedとし、三塁走者は停止する。非フォースの審判授与はADV-03のoptionalである。プレイなしで最終裁定を採るINT-05は選ばず、requiredSetの別分岐として残す |
 | 32 | 打撃結果2 | ボーク | 無死 / 走者 1塁・2塁・3塁 / カウント 0-0 / 非投球イベント | — | 継続 | — | 1塁→2塁（非フォース） / 2塁→3塁（非フォース） / 3塁→本塁（非フォース） | 0 | 失点・得点 | E-1・ADV-03・旧input-screen:152。満塁を代表し、ボークで全走者を1塁ずつ非フォース進塁させる。到達塁は代表値であり、実到達塁はFR-003の記録者観測・手動上書きに依存し、payload内部制約は段階2待ち。非投球イベントのため投球数へ算入しない |
 | 33 | 打撃結果2 | ピッチクロック違反 | 無死 / 走者なし / カウント 0-0 / 非投球イベント | B+1 | 継続 | 継続 | — | 0 | なし | NPB 2026-08-03導入決定の投手違反（1ボール追加）を、違反主体を区別する入力軸がないため1行で表せる側の代表として選んだ。規則上の既定ではない。打者側の2分岐（2ストライク未満=S+1・打席継続／2ストライク=打者アウト・打席終了・S/B reset）は本行で表現できずGAP-07の未解決差である。したがってE-1が打者側ピッチクロック違反のために許すbatterDestination.kind=out経路は現状の規範行から到達不能（2026-10-01 PO裁定・案C） |
+| 34 | 走者イベント | 盗塁 | 無死 / 走者 1塁 / カウント 0-0 / 投球イベント | — | — | — | 1塁→2塁（非フォース） | 0 | 投球数 | FR-004・ADV-03・旧input-screen:155。無死一塁を代表し、旧実態の先頭走者進塁を既定として一塁走者を二塁へ非フォース進塁させる。盗塁死・停止・複数走者の実結果はrunnerEventPayloadで上書きする。A-4の成否はFR-027の分析・集計で走者イベント記録と打撃結果記録を合わせて判定し、本行単独からは導出しない |
+| 35 | 走者イベント | バント | 無死 / 走者 1塁 / カウント 0-0 / 投球イベント | — | — | — | 1塁停止 | 0 | 投球数 | FR-004・ADV-04。作戦カテゴリ単独では実際の進塁を確定しないため、一塁走者の既定を停止とする。送りバント等の状態効果は別のbatting-result行とrunnerEventPayloadの観測結果で適用する。A-4の成否はFR-027の分析・集計で走者イベント記録と打撃結果記録を合わせて判定し、本行単独からは導出しない |
+| 36 | 走者イベント | エンドラン | 無死 / 走者 1塁 / カウント 0-0 / 投球イベント | — | — | — | 1塁→2塁（非フォース） | 0 | 投球数 | FR-004・ADV-03・旧input-screen:155。無死一塁を代表し、旧実態の先頭走者進塁を既定として一塁走者を二塁へ非フォース進塁させる。走者アウト・停止・複数走者の実結果はrunnerEventPayloadで上書きする。A-4の成功（打者）・成功（走者）・失敗はFR-027の分析・集計で走者イベント記録と打撃結果記録を合わせて判定し、本行単独からは導出しない |
 
 ## 機械検査として畳む項目
 

@@ -100,6 +100,14 @@
       },
       {
         "sourceKind": "requirements",
+        "sourceId": "req:A-4"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:FR-027"
+      },
+      {
+        "sourceKind": "requirements",
         "sourceId": "req:INT-01"
       },
       {
@@ -161,6 +169,10 @@
       {
         "sourceKind": "legacy-research",
         "sourceId": "docs/legacy/research/input-screen.md:152"
+      },
+      {
+        "sourceKind": "legacy-research",
+        "sourceId": "docs/legacy/research/input-screen.md:155"
       },
       {
         "sourceKind": "requirements",
@@ -1903,6 +1915,162 @@
         "打点": false
       },
       "remarks": "NPB 2026-08-03導入決定の投手違反（1ボール追加）を、違反主体を区別する入力軸がないため1行で表せる側の代表として選んだ。規則上の既定ではない。打者側の2分岐（2ストライク未満=S+1・打席継続／2ストライク=打者アウト・打席終了・S/B reset）は本行で表現できずGAP-07の未解決差である。したがってE-1が打者側ピッチクロック違反のために許すbatterDestination.kind=out経路は現状の規範行から到達不能（2026-10-01 PO裁定・案C）"
+    },
+    {
+      "eventKind": "runner-event",
+      "resultId": "strategy-category.steal",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "unchanged"},
+        "balls": {"kind": "unchanged"}
+      },
+      "plateAppearanceEnded": "not-applicable",
+      "batterDestination": {"kind": "not-applicable"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "optional", "destination": 2},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": false,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "FR-004・ADV-03・旧input-screen:155。無死一塁を代表し、旧実態の先頭走者進塁を既定として一塁走者を二塁へ非フォース進塁させる。盗塁死・停止・複数走者の実結果はrunnerEventPayloadで上書きする。A-4の成否はFR-027の分析・集計で走者イベント記録と打撃結果記録を合わせて判定し、本行単独からは導出しない"
+    },
+    {
+      "eventKind": "runner-event",
+      "resultId": "strategy-category.bunt",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "unchanged"},
+        "balls": {"kind": "unchanged"}
+      },
+      "plateAppearanceEnded": "not-applicable",
+      "batterDestination": {"kind": "not-applicable"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "hold", "destination": null},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": false,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "FR-004・ADV-04。作戦カテゴリ単独では実際の進塁を確定しないため、一塁走者の既定を停止とする。送りバント等の状態効果は別のbatting-result行とrunnerEventPayloadの観測結果で適用する。A-4の成否はFR-027の分析・集計で走者イベント記録と打撃結果記録を合わせて判定し、本行単独からは導出しない"
+    },
+    {
+      "eventKind": "runner-event",
+      "resultId": "strategy-category.hit-and-run",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "unchanged"},
+        "balls": {"kind": "unchanged"}
+      },
+      "plateAppearanceEnded": "not-applicable",
+      "batterDestination": {"kind": "not-applicable"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "optional", "destination": 2},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": false,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "FR-004・ADV-03・旧input-screen:155。無死一塁を代表し、旧実態の先頭走者進塁を既定として一塁走者を二塁へ非フォース進塁させる。走者アウト・停止・複数走者の実結果はrunnerEventPayloadで上書きする。A-4の成功（打者）・成功（走者）・失敗はFR-027の分析・集計で走者イベント記録と打撃結果記録を合わせて判定し、本行単独からは導出しない"
     }
   ],
   "operationRows": [],
@@ -2472,6 +2640,57 @@
                   {"op": "eq", "axisId": "state.count.strikes", "value": 0},
                   {"op": "eq", "axisId": "state.count.balls", "value": 0},
                   {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "runner-event",
+              "resultId": "strategy-category.steal",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "runner-event",
+              "resultId": "strategy-category.bunt",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "runner-event",
+              "resultId": "strategy-category.hit-and-run",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
                 ]
               }
             }
