@@ -313,3 +313,71 @@ runner で機械再計算した manifest digest は **`b3a1df017e4bbaf19a2c6fc92
 | `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run ruff check tests/test_frozen_archive_case_runner.py` / `UV_CACHE_DIR=/tmp/tsk466-uv-cache uv run ty check` | **0 / 0**。 |
 
 `runner.py`・`manifest.json`・`scripts/`・`contracts/` は変更していない。ステップ 7 には進んでいない。コミット・push はしていない。
+
+---
+
+## 結果サマリ(`/pr` のクローズ処理)
+
+### 実装したもの
+
+**受理記録を足す PR をすべて落としていた 11 箇所のリテラル固定を外した。** 製品経路(`scripts/frozen_archive.py` / `scripts/check_tenant_boundary_bypass.py`)は**差分 0 バイト**で、変更はテストと fixture だけ。
+
+| クラス | 置換の形 |
+| --- | --- |
+| 参照集合(5 箇所) | **独立オラクルとの集合一致**(生 JSON から導出。被検査実装の抽出関数・分類表・抽出器・検証関数を呼ばず、共有は `SNAPSHOT_REF_PREFIX` 定数のみ) |
+| 版列・authority 履歴長(2 箇所) | **構造条件**(長さ 2 以上 → 先頭が v1 → 以降すべて v2。**この順序でないと長さ条件が死ぬ**) |
+| metrics(3 箇所) | **独立計数との照合**(ディレクトリを直接数える)+ 予算上限 + 孤児の非増加 |
+| corpus digest(1 箇所) | **「生成時点の prefix と集合」の固定**(`pinned_prefixes` = `history_record_count` `k=6` / `snapshot_names` `m=83`)。**追記は通し、改竄・削除は red** |
+
+### 検出力を壊していないことの実証
+
+| 機構 | 実証 |
+| --- | --- |
+| 参照集合のオラクル | **期待表照合を通過する誤抽出**(`external_snapshots` の after 側欠落)を捕まえる。既存の期待表照合では捕まらない変異 |
+| 版列の 3 条件 | **3 つの変異がそれぞれ別の assertion で発火**(差し戻し 1 周で是正) |
+| metrics | 変異 3 種(件数 +1 / バイト +1 / 孤児の見逃し)が各 6 件 red |
+| corpus digest | **変異 13 件がすべて意図した箇所で red**。既存 drift 4 本も恒真化していない |
+| 追記不感応 | 11 ケースの終了コードが追記前後で一致。**ケース 1 の値を変えると red**(恒真でない) |
+
+### 安全の守り 3 つ(2026-10-01・山田正輝承認の条件)
+
+1. **除外先を資産の `baseline_control.identity.field` 宣言から導出**(ハードコードした列挙にしない)
+2. **`pinned_prefixes` 自体を digest に拘束**(`runner.py:406` — 除外範囲の拡大自体が検出される)
+3. **fail-closed** — **`k > len(history)`(記録の削除)で red**(`runner.py:498`)/ 固定 snapshot の不在 / `identity` 宣言の欠落・不正 / `k < 2`(`:283`)/ `m < 1`(`:262`)。**保留・skip・中立を認めない**(設計書 7.7-3 `:609-612`)
+
+### 人間の判断 2 件
+
+| 判断 | 内容 |
+| --- | --- |
+| **設計書 7.7 の射程**(2026-10-01) | **分岐 A「対象外」。** 決め手は **7.7-2 の記録形式がテストの期待値を書く枠を持たない**こと(`scripts/frozen_history.py:20-27` の 4 側面)。**補強 3 つはいずれも当てはめで条文の裏付けではない** |
+| **除外範囲の拡大**(2026-10-01) | **識別値を除外へ加える。** 適法な受理記録の追記は `contract_revision` と `current_identifiers` も 19→20 へ繰り上げるため(実測)。**守り 3 つを条件とした** |
+
+### 正本への反映
+
+- `docs/development/harness-evaluation.md` — **`## 候補` へ新規 2 件**(7.7 の射程の両義性 / リテラル固定を外す是正の危険)+ 変更履歴表に 1 行。**版は上げない**(7.6-3 前段)・**`H-*` の採番なし**
+- `docs/README.md` — 台帳行を **候補 87 件・2026-10-01** へ現行化
+
+**TSK-444 の候補「検査が、そのタスクに無関係な PR を巻き込んで赤にする」は本記述の時点で develop へ未着地**(`feature/tenant-session-supply`)のため追記できず、**新規候補②から相互参照を張る旨だけ記した。**
+
+### ゲート
+
+| | 結果 |
+| --- | --- |
+| `uv run pytest tests/` | **2,116 passed**(終了コード 0) |
+| `uv run ruff check .` / `uv run ty check` | All checks passed |
+| `uv run python scripts/check_tenant_boundary_bypass.py` | 終了コード 0 |
+| `uv run python scripts/check_docs_status.py` | 終了コード 0 |
+| 台帳追記後の docs 系再実行 | 311 passed |
+
+### 射程外(送り出し)
+
+| 事項 | 送り先 |
+| --- | --- |
+| `acceptance_id` の `#79` / `#81` literal 11 箇所 — いまは落ちないが、将来その番号を名乗る受理記録が出たら一斉に red | **起票が必要**([design.md](../features/frozen-archive-literal-pins/design.md) 4 節) |
+| `tests/test_frozen_archive.py` の無力な assertion(`clean_history` も期待も空集合で退化実装が素通りする) | 同上 |
+| TSK-448 の `design.md:120` の「一意参照 18 件」が未更新 | 同上 |
+| TSK-448 の `research.md` の典拠の行ずれ(`:605`→`:607` / `:900`→`:895`) | 同上 |
+
+### 未解決
+
+**TSK-444 の 48 件の内訳の合計(11 + 7 + 1 + 1 + 1 = 21)が 48 にならない点は未解明。** 本タスクの実測では 48 = 固定 assertion の直接失敗 17 + corpus digest 31(直接 1・連鎖 30)で、**444 は「種類」を数えている可能性が高いが確認していない。**
