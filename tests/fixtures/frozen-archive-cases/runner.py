@@ -25,6 +25,7 @@ RUNNER_RELATIVE_PATH = Path("tests/fixtures/frozen-archive-cases/runner.py")
 HISTORY_SNAPSHOT_DIRECTORY = Path(
     "contracts/tenant_boundary/history-snapshots"
 )
+AUTHORITY_RELATIVE_PATH = Path("contracts/tenant_boundary/base-allowlist.json")
 EXPECTED_CASE_IDS = frozenset(range(1, 12))
 GITHUB_ENVIRONMENT_KEYS = frozenset(
     {
@@ -71,12 +72,21 @@ class CaseDefinition:
 
 
 @dataclass(frozen=True)
+class PinnedPrefixes:
+    """corpus 生成時点の履歴 prefix と snapshot 集合を表す。"""
+
+    history_record_count: int
+    snapshot_names: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class CorpusInputs:
     """比較 corpus の生成に使う現況入力と固定 digest を表す。"""
 
     digest: str
     files: tuple[Path, ...]
     trees: tuple[Path, ...]
+    pinned_prefixes: PinnedPrefixes
 
 
 @dataclass(frozen=True)
@@ -225,7 +235,7 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> Manifest:
         root["corpus_inputs"],
         "manifest.corpus_inputs",
     )
-    if set(raw_corpus_inputs) != {"digest", "files", "trees"}:
+    if set(raw_corpus_inputs) != {"digest", "files", "trees", "pinned_prefixes"}:
         raise ValueError("manifest.corpus_inputs のキー集合が不正")
     corpus_files = _path_list(
         raw_corpus_inputs["files"],
@@ -241,6 +251,39 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> Manifest:
         for tree_path in corpus_trees
     ):
         raise ValueError("manifest.corpus_inputs の files と trees が重複")
+    raw_pinned = _object(
+        raw_corpus_inputs["pinned_prefixes"],
+        "manifest.corpus_inputs.pinned_prefixes",
+    )
+    if set(raw_pinned) != {"history_record_count", "snapshot_names"}:
+        raise ValueError("manifest.corpus_inputs.pinned_prefixes のキー集合が不正")
+    raw_names = raw_pinned["snapshot_names"]
+    if not isinstance(raw_names, list) or not raw_names:
+        raise ValueError(
+            "manifest.corpus_inputs.pinned_prefixes.snapshot_names は非空配列が必要"
+        )
+    snapshot_names = tuple(
+        _sha256(
+            name,
+            f"manifest.corpus_inputs.pinned_prefixes.snapshot_names[{index}]",
+        )
+        for index, name in enumerate(raw_names)
+    )
+    if snapshot_names != tuple(sorted(set(snapshot_names))):
+        raise ValueError(
+            "manifest.corpus_inputs.pinned_prefixes.snapshot_names は昇順・一意が必要"
+        )
+    pinned_prefixes = PinnedPrefixes(
+        history_record_count=_positive_integer(
+            raw_pinned["history_record_count"],
+            "manifest.corpus_inputs.pinned_prefixes.history_record_count",
+        ),
+        snapshot_names=snapshot_names,
+    )
+    if pinned_prefixes.history_record_count < 2:
+        raise ValueError(
+            "manifest.corpus_inputs.pinned_prefixes.history_record_count は 2 以上が必要"
+        )
     raw_cases = root["cases"]
     if not isinstance(raw_cases, list):
         raise ValueError("manifest.cases は配列が必要")
@@ -339,6 +382,7 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> Manifest:
             ),
             files=corpus_files,
             trees=corpus_trees,
+            pinned_prefixes=pinned_prefixes,
         ),
         cases=tuple(sorted(cases, key=lambda item: item.id)),
     )
@@ -358,6 +402,14 @@ def _normalized_manifest_input(manifest: Manifest) -> bytes:
             "trees": sorted(
                 path.as_posix() for path in manifest.corpus_inputs.trees
             ),
+            "pinned_prefixes": {
+                "history_record_count": (
+                    manifest.corpus_inputs.pinned_prefixes.history_record_count
+                ),
+                "snapshot_names": list(
+                    manifest.corpus_inputs.pinned_prefixes.snapshot_names
+                ),
+            },
         },
         "cases": [
             {
@@ -393,6 +445,97 @@ def _update_digest_entry(
     digest.update(content)
 
 
+def _json_object_field_span(
+    text: str,
+    object_start: int,
+    field: str,
+) -> tuple[int, int]:
+    """JSON object の指定 field の唯一の値が占める文字範囲を返す。"""
+    if text[object_start] != "{":
+        raise ValueError(f"{field} の親は JSON object が必要")
+    decoder = json.JSONDecoder()
+    index = object_start + 1
+    matches: list[tuple[int, int]] = []
+    while True:
+        while text[index] in " \t\r\n":
+            index += 1
+        if text[index] == "}":
+            break
+        key, index = decoder.raw_decode(text, index)
+        while text[index] in " \t\r\n":
+            index += 1
+        if text[index] != ":":
+            raise ValueError(f"{field} の親が JSON object として不正")
+        index += 1
+        while text[index] in " \t\r\n":
+            index += 1
+        value_start = index
+        _, value_end = decoder.raw_decode(text, index)
+        if key == field:
+            matches.append((value_start, value_end))
+        index = value_end
+        while text[index] in " \t\r\n":
+            index += 1
+        if text[index] == "}":
+            break
+        if text[index] != ",":
+            raise ValueError(f"{field} の親が JSON object として不正")
+        index += 1
+    if len(matches) != 1:
+        raise ValueError(f"JSON object の {field} は 1 箇所が必要")
+    return matches[0]
+
+
+def _pinned_authority_content(content: bytes, record_count: int) -> bytes:
+    """履歴 suffix と宣言済み識別値だけを除外し、他の原文を保つ。"""
+    try:
+        text = content.decode("utf-8")
+        asset = _object(json.loads(text), "base-allowlist.json")
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("base-allowlist.json を JSON として読めない") from error
+    control = _object(asset.get("baseline_control"), "baseline_control")
+    history = control.get("history")
+    if not isinstance(history, list) or len(history) < record_count:
+        raise ValueError("base-allowlist.json の固定履歴 prefix が不足")
+    identity = _object(control.get("identity"), "baseline_control.identity")
+    if identity.get("scheme") != "integer_revision_field":
+        raise ValueError("baseline_control.identity.scheme が不正")
+    field = _string(identity.get("field"), "baseline_control.identity.field")
+    revision = _positive_integer(asset.get(field), f"base-allowlist.json.{field}")
+    if identity.get("current_identifiers") != [f"{field}:{revision}"]:
+        raise ValueError("baseline_control.identity.current_identifiers が不正")
+    root_start = len(text) - len(text.lstrip(" \t\r\n"))
+    control_start, _ = _json_object_field_span(
+        text, root_start, "baseline_control"
+    )
+    history_start, history_end = _json_object_field_span(
+        text, control_start, "history"
+    )
+    identity_start, _ = _json_object_field_span(
+        text, control_start, "identity"
+    )
+    identifiers_start, identifiers_end = _json_object_field_span(
+        text, identity_start, "current_identifiers"
+    )
+    revision_start, revision_end = _json_object_field_span(
+        text, root_start, field
+    )
+    pinned_history = json.dumps(
+        history[:record_count],
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    replacements = (
+        (history_start, history_end, pinned_history),
+        (identifiers_start, identifiers_end, "null"),
+        (revision_start, revision_end, "null"),
+    )
+    for start, end, value in sorted(replacements, reverse=True):
+        text = text[:start] + value + text[end:]
+    return text.encode("utf-8")
+
+
 def corpus_input_digest(source_root: Path, manifest: Manifest) -> str:
     """現況から corpus 生成入力の path・長さ・内容の digest を算出する。
 
@@ -407,6 +550,13 @@ def corpus_input_digest(source_root: Path, manifest: Manifest) -> str:
         ValueError: 固定対象が存在しないか通常ファイルでない場合。
     """
     inputs = manifest.corpus_inputs
+    pinned = inputs.pinned_prefixes
+    snapshot_root = source_root / HISTORY_SNAPSHOT_DIRECTORY
+    if not snapshot_root.is_dir():
+        raise ValueError(
+            f"corpus 入力ディレクトリが存在しない: {HISTORY_SNAPSHOT_DIRECTORY}"
+        )
+    pinned_names = set(pinned.snapshot_names)
     relative_files = set(inputs.files)
     for relative_tree in inputs.trees:
         tree = source_root / relative_tree
@@ -420,7 +570,17 @@ def corpus_input_digest(source_root: Path, manifest: Manifest) -> str:
                     f"corpus 入力が通常ファイルでない: "
                     f"{candidate.relative_to(source_root)}"
                 )
+            if (
+                candidate.parent == snapshot_root
+                and candidate.name not in pinned_names
+            ):
+                continue
             relative_files.add(candidate.relative_to(source_root))
+    for name in pinned.snapshot_names:
+        relative_path = HISTORY_SNAPSHOT_DIRECTORY / name
+        if not (source_root / relative_path).is_file():
+            raise ValueError(f"固定済み snapshot が存在しない: {relative_path}")
+        relative_files.add(relative_path)
 
     digest = hashlib.sha256()
     for relative_path in sorted(relative_files, key=lambda item: item.as_posix()):
@@ -428,6 +588,11 @@ def corpus_input_digest(source_root: Path, manifest: Manifest) -> str:
         if not path.is_file():
             raise ValueError(f"corpus 入力ファイルが存在しない: {relative_path}")
         content = path.read_bytes()
+        if relative_path == AUTHORITY_RELATIVE_PATH:
+            content = _pinned_authority_content(
+                content,
+                pinned.history_record_count,
+            )
         _update_digest_entry(digest, relative_path.as_posix(), content)
     _update_digest_entry(
         digest,

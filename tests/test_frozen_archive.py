@@ -69,6 +69,20 @@ def _current_history() -> list[dict[str, Any]]:
     return copy.deepcopy(history)
 
 
+def _expected_references() -> frozenset[str]:
+    """生の履歴から被検査の抽出器を使わず参照集合を導出する。"""
+    prefix = archive.frozen_history.SNAPSHOT_REF_PREFIX
+    return frozenset(
+        name
+        for record in _current_history()
+        if record.get("record_schema_version") == 2
+        for aspect in ("external_snapshots", "asset_snapshots")
+        for side in ("before", "after")
+        for entry in record["change"][side][aspect]
+        if (name := entry["snapshot_ref"].removeprefix(prefix))
+    )
+
+
 def _write_snapshot(snapshot_root: Path, content: bytes) -> str:
     """テスト用 content-addressed snapshot を書き、ファイル名を返す。"""
     digest = hashlib.sha256(content).hexdigest()
@@ -114,29 +128,37 @@ def _current_references() -> frozenset[str]:
     )
 
 
-def test_current_mixed_history_has_50_unique_snapshot_references() -> None:
-    """現行の v1・v2 混在履歴から一意参照50件を再現する。"""
+def test_current_mixed_history_matches_independent_snapshot_references() -> None:
+    """現行の v1・v2 混在履歴の参照集合を独立算出と照合する。"""
     history = _current_history()
-    assert [record.get("record_schema_version", 1) for record in history] == [
-        1,
-        2,
-        2,
-        2,
-        2,
-        2,
-    ]
+    versions = [record.get("record_schema_version", 1) for record in history]
+    assert len(versions) >= 2  # v1 と v2 が混在しうる長さを要求する
+    assert versions[0] == 1  # bootstrap は v1
+    assert set(versions[1:]) == {2}  # 以降はすべて v2
 
     references = archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)
 
-    assert len(references) == 50
+    expected = _expected_references()
+    assert references == expected
+    assert expected
     assert references <= {path.name for path in SNAPSHOT_ROOT.iterdir()}
+
+
+def test_current_unpinned_snapshots_are_referenced() -> None:
+    """固定後に増えた snapshot が履歴から参照されることを確認する。"""
+    pinned = set(CASE_MANIFEST.corpus_inputs.pinned_prefixes.snapshot_names)
+    present = {path.name for path in SNAPSHOT_ROOT.iterdir() if path.is_file()}
+    unpinned = present - pinned
+    assert unpinned <= _expected_references()
 
 
 def test_added_aspect_is_red_after_current_table_is_green(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """ASPECT_NAMES の第5キー追加を抽出表の未更新として拒否する。"""
-    assert len(_current_references()) == 50
+    expected = _expected_references()
+    assert _current_references() == expected
+    assert expected
     monkeypatch.setattr(
         archive.frozen_history,
         "ASPECT_NAMES",
@@ -161,7 +183,9 @@ def test_reversed_aspect_classification_is_red_after_current_table_is_green(
     aspect: str,
 ) -> None:
     """4キーそれぞれの参照分類反転を exact-map 不一致として拒否する。"""
-    assert len(_current_references()) == 50
+    expected = _expected_references()
+    assert _current_references() == expected
+    assert expected
     mutated = dict(archive.ASPECT_REFERENCE_KINDS)
     current = mutated[aspect]
     mutated[aspect] = (
@@ -195,9 +219,9 @@ def test_reference_shaped_value_in_non_reference_aspect_is_not_extracted(
 def test_v1_record_forced_through_v2_shape_is_red_after_mixed_history_is_green() -> None:
     """2キーだけの v1 state を v2 として走査すると拒否する。"""
     history = _current_history()
-    assert len(
-        archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)
-    ) == 50
+    expected = _expected_references()
+    assert archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT) == expected
+    assert expected
     history[0]["record_schema_version"] = 2
 
     with pytest.raises(archive.ContractError, match="キー集合が不一致"):
@@ -207,9 +231,9 @@ def test_v1_record_forced_through_v2_shape_is_red_after_mixed_history_is_green()
 def test_missing_v2_snapshot_ref_is_red_after_current_history_is_green() -> None:
     """v2 の参照フィールド欠落を拒否する。"""
     history = _current_history()
-    assert len(
-        archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT)
-    ) == 50
+    expected = _expected_references()
+    assert archive.extract_referenced_snapshot_names(history, SNAPSHOT_ROOT) == expected
+    assert expected
     del history[1]["change"]["before"]["external_snapshots"][0][
         "snapshot_ref"
     ]
@@ -319,8 +343,25 @@ def _v2_history_with_items(
     return history
 
 
+def _expected_current_archive_totals() -> tuple[int, int, int, int]:
+    """snapshot ファイルと独立参照集合から現況の集計値を導出する。"""
+    files = sorted(path for path in SNAPSHOT_ROOT.iterdir() if path.is_file())
+    expected_count = len(files)
+    expected_bytes = sum(path.stat().st_size for path in files)
+    expected_orphans = {path.name for path in files} - _expected_references()
+    expected_orphan_bytes = sum(
+        (SNAPSHOT_ROOT / name).stat().st_size for name in expected_orphans
+    )
+    return (
+        expected_count,
+        expected_bytes,
+        len(expected_orphans),
+        expected_orphan_bytes,
+    )
+
+
 def test_current_archive_metrics_are_within_limits() -> None:
-    """現況83件と既存孤児33件を比較元相対の予算内として受理する。"""
+    """現況の snapshot と既存孤児を比較元相対の予算内として受理する。"""
     comparison = archive.validate_snapshot_archive_limits(
         _current_history(),
         _current_history(),
@@ -328,16 +369,23 @@ def test_current_archive_metrics_are_within_limits() -> None:
         head_snapshot_root=SNAPSHOT_ROOT,
     )
 
+    count, total_bytes, orphan_count, orphan_bytes = (
+        _expected_current_archive_totals()
+    )
     expected = archive.SnapshotArchiveMetrics(
-        snapshot_count=83,
-        snapshot_bytes=2_958_228,
-        orphan_count=33,
-        orphan_bytes=1_214_665,
+        snapshot_count=count,
+        snapshot_bytes=total_bytes,
+        orphan_count=orphan_count,
+        orphan_bytes=orphan_bytes,
     )
     assert archive.SNAPSHOT_COUNT_LIMIT == 500
     assert archive.SNAPSHOT_BYTES_LIMIT == 33_554_432
     assert comparison.base == expected
     assert comparison.head == expected
+    metrics = comparison.head
+    assert metrics.snapshot_count <= archive.SNAPSHOT_COUNT_LIMIT
+    assert metrics.snapshot_bytes <= archive.SNAPSHOT_BYTES_LIMIT
+    assert comparison.head.orphan_count <= comparison.base.orphan_count
 
 
 def test_snapshot_count_over_limit_is_red_after_exact_limit_is_green(
@@ -511,10 +559,13 @@ def test_current_archive_has_no_unreferenced_new_snapshot() -> None:
         head_snapshot_root=SNAPSHOT_ROOT,
     )
 
-    assert comparison.head.snapshot_count == 83
-    assert comparison.head.snapshot_bytes == 2_958_228
-    assert comparison.head.orphan_count == 33
-    assert comparison.head.orphan_bytes == 1_214_665
+    count, total_bytes, orphan_count, orphan_bytes = (
+        _expected_current_archive_totals()
+    )
+    assert comparison.head.snapshot_count == count
+    assert comparison.head.snapshot_bytes == total_bytes
+    assert comparison.head.orphan_count == orphan_count
+    assert comparison.head.orphan_bytes == orphan_bytes
 
 
 def test_recreated_record_rejects_previous_attempt_until_snapshot_is_removed(
