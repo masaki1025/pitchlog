@@ -1,6 +1,6 @@
 ---
 feature: frozen-archive-literal-pins
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-01・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -67,6 +67,8 @@ created: 2026-10-01
 **重さ分類: コア領域。** 根拠: 変更対象 4 ファイルがすべて `.claude/core-areas.json:365-374` に登録されている(`tests/test_frozen_archive.py` / `tests/test_frozen_archive_case_runner.py` / `tests/test_check_tenant_boundary_bypass.py` / `tests/fixtures/frozen-archive-cases/*`)。**意味範囲の正は設計書 6.3 の境界定義表で、落とし込み規則 ①(`:400`)と「判定に迷うコードは含む側に倒す」(`:399`)の当てはめ**([research.md](research.md) 3)。
 
 → **ADR-001 により敵対レビュー必須・人間の逐行確認必須。**
+
+**実装の敵対レビュー**: **1 周**(2026-10-02 — P0 0 / P1 1 / P2 2 を反映。P1 = 新規孤児 snapshot の検出力低下 / P2 = 計画書の「ケース 12」の残滓・原文改竄の記述の不正確さ)。
 
 **設計の詳細は [design.md](design.md)。** 要点のみ:
 
