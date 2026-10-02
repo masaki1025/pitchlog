@@ -144,6 +144,14 @@ def test_current_mixed_history_matches_independent_snapshot_references() -> None
     assert references <= {path.name for path in SNAPSHOT_ROOT.iterdir()}
 
 
+def test_current_unpinned_snapshots_are_referenced() -> None:
+    """固定後に増えた snapshot が履歴から参照されることを確認する。"""
+    pinned = set(CASE_MANIFEST.corpus_inputs.pinned_prefixes.snapshot_names)
+    present = {path.name for path in SNAPSHOT_ROOT.iterdir() if path.is_file()}
+    unpinned = present - pinned
+    assert unpinned <= _expected_references()
+
+
 def test_added_aspect_is_red_after_current_table_is_green(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

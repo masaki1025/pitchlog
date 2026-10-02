@@ -147,7 +147,7 @@ assert comparison.head.orphan_count <= comparison.base.orphan_count
 
 | 対象 | 固定するもの | 追記したとき | 改竄・削除したとき |
 | --- | --- | --- | --- |
-| `base-allowlist.json` の `baseline_control.history` | **先頭 `k` 件の内容の digest**(`k` は corpus 生成時点の件数) | **`k` 件目までは不変 → 通る** | **prefix の digest が動く → red** |
+| `base-allowlist.json` の `baseline_control.history` | **先頭 `k` 件の内容の digest**(`k` は corpus 生成時点の件数。**正規化した JSON 値であってバイト列ではない** — 実装の敵対レビュー 1 周目 P2) | **`k` 件目までは不変 → 通る** | **prefix の digest が動く → red** |
 | `contracts/tenant_boundary/history-snapshots/` | **生成時点に存在した `m` 件の名前と内容** | **新規ファイルは digest の対象外 → 通る** | **固定した 1 件でも欠ける・変われば red** |
 | それ以外(検査器 6 本・資産の宣言部・資産のメンバシップ・`runner.py`・正規化 manifest) | **現状どおり全内容** | — | **red**(変更なし) |
 
@@ -316,6 +316,8 @@ declaration / movement_policy / external_snapshots / asset_snapshots
 2. **#74・#87・#443 が同じところで落ちることは未実測**(契約上そうなるという推論)
 3. **TSK-444 の 48 件の内訳と本調査の 11 箇所の対応は、444 の突き合わせ報告による。** 合計が合わない点は未解明([research.md](research.md) 未解決)
 4. **corpus digest の「追記不感応」は、2-5 の合成入力 1 件について実測したもの。** **あらゆる追記に対する不感応は主張しない**
-5. **7.7 の射程について本書は結論を出さない。** 両分岐の作業を書くに留める(3 節)
+5. **7.7 の射程判断は当てはめであり、条文の裏付けではない**(3 節)
 6. **独立オラクル(1-1)が単独で捕まえるのは退化と抽出漏れまで。** 分類誤りは既存の期待表照合が捕まえており、**オラクルの効力として主張しない**
 7. **2-3 の prefix 固定が守るのは「生成時点に存在したもの」まで。** **生成時点より後に追記された記録の改竄は検出しない**(その記録は corpus の主張の外にある)
+8. **固定済み履歴の「改竄を検出する」は、正規化した JSON 値についての主張である**(**実装の敵対レビュー 1 周目 P2**)。**先頭 `k` 件は JSON として読み直してから正規化するので、バイト列としての改竄(例: 重複キーの挿入)は digest を通る。** **この反例で製品の判定値が変わるかは未確認。**
+9. **新規孤児 snapshot の検出は、現況テストの `test_current_unpinned_snapshots_are_referenced` が担う**(**実装の敵対レビュー 1 周目 P1 の是正**)。**corpus digest は固定一覧に無い snapshot を見ない。** **製品検査器(`scripts/frozen_archive.py`)は実 PR の比較元と HEAD を受け取って新規孤児を拒否するが、それは本タスクの変更範囲外である。**

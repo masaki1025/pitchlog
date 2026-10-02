@@ -381,3 +381,22 @@ runner で機械再計算した manifest digest は **`b3a1df017e4bbaf19a2c6fc92
 ### 未解決
 
 **TSK-444 の 48 件の内訳の合計(11 + 7 + 1 + 1 + 1 = 21)が 48 にならない点は未解明。** 本タスクの実測では 48 = 固定 assertion の直接失敗 17 + corpus digest 31(直接 1・連鎖 30)で、**444 は「種類」を数えている可能性が高いが確認していない。**
+
+---
+
+## 敵対レビュー 1 周目 P1 是正(2026-10-02)
+
+`tests/test_frozen_archive.py` に `test_current_unpinned_snapshots_are_referenced` を追加した。既に読み込まれている `CASE_MANIFEST = case_runner.load_manifest()` の `corpus_inputs.pinned_prefixes.snapshot_names` を固定名集合とし、実ディレクトリの通常ファイル名との差集合を `_expected_references()` に包含させる。新しい件数リテラルは追加していない。固定時点の孤児は固定名集合に含まれる。
+
+| 検証 | 実測 | 落とした検査 |
+| --- | --- | --- |
+| 現況の対象ファイル全件 | 36 passed、終了コード 0 | — |
+| 適法な受理記録 +1 の `/tmp/tsk466-synthetic` の対象ファイル全件 | 36 passed、終了コード 0 | — |
+| `/tmp` の snapshot ディレクトリに、有効な SHA-256 名を持つ未参照ファイルを 1 件追加 | 1 failed、終了コード 1 | 新設テストの `assert unpinned <= _expected_references()` |
+| `/tmp` の corpus コピーから、固定済み孤児を 1 件削除 | 1 failed、終了コード 1 | 既存の `runner.validate_corpus_inputs` → `corpus_input_digest` が「固定済み snapshot が存在しない」と拒否 |
+
+合成はステップ 1 の `/tmp/tsk466-make-synthetic.py` が作ったもので、履歴記録と content-addressed snapshot を追記し、`frozen_history.validate_repository_histories` と `frozen_archive.validate_snapshot_archive` に通している。今回の検査前に `runner.py`・`manifest.json`・両検査器が現況と合成で一致することも `cmp` で確認した。
+
+実行コマンドと終了コード: `uv run pytest tests/test_frozen_archive.py::test_current_unpinned_snapshots_are_referenced -q` は現況・合成とも 0(各 1 passed)。`uv run pytest tests/test_frozen_archive.py -q` は現況・合成とも 0(各 36 passed)。`uv run pytest /tmp/test_tsk466_p1_mutations.py::<変異テスト名> -q` は 2 種を個別に実行し、それぞれ 1(意図した red)。`uv run ruff check tests/test_frozen_archive.py`、`uv run ty check`、`git diff --check`、`git diff --exit-code -- scripts/ contracts/ tests/fixtures/frozen-archive-cases/runner.py tests/fixtures/frozen-archive-cases/manifest.json` はすべて 0。`uv run pytest tests/ -q` は対象外へ広がるため進行中に中断し、終了コード 130(全件の結果は主張しない)。
+
+変更したリポジトリファイルは本テストファイルとこの worklog だけ。`scripts/`・`contracts/`・fixture の `runner.py`・`manifest.json` は差分 0。コミット・push はしていない。
