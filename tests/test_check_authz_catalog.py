@@ -205,6 +205,20 @@ def _read_json_at(root: Path, relative_path: Path) -> dict[str, Any]:
     return raw
 
 
+def _read_base_staged_asset(relative_path: Path) -> dict[str, Any]:
+    """製品状態でも比較元の未発効資産を試験入力として読む。"""
+    if (REPOSITORY_ROOT / checker.STAGED_PRODUCT_ASSET).is_file():
+        return _read_json_at(REPOSITORY_ROOT, relative_path)
+    raw = _run_git(
+        REPOSITORY_ROOT,
+        "show",
+        f"{runtime_contract_support.provisional_reference_revision(REPOSITORY_ROOT)}:{relative_path.as_posix()}",
+    )
+    value = json.loads(raw)
+    assert isinstance(value, dict)
+    return value
+
+
 def _write_json_at(root: Path, relative_path: Path, value: dict[str, Any]) -> None:
     """指定した試験用リポジトリへ JSON オブジェクトを書く。"""
     path = root / relative_path
@@ -245,6 +259,25 @@ def _copy_product_catalog_repository(tmp_path: Path) -> Path:
     return root
 
 
+def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
+    """製品状態からでも正しい未発効状態の検査用複製を組み立てる。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    (root / checker.PRODUCT_ASSET).unlink()
+    _write_json_at(
+        root,
+        checker.STAGED_PRODUCT_ASSET,
+        _read_base_staged_asset(checker.STAGED_PRODUCT_ASSET),
+    )
+    runtime_asset = _read_base_staged_asset(checker.RUNTIME_CONTRACT_ASSET)
+    _write_json_at(root, checker.RUNTIME_CONTRACT_ASSET, runtime_asset)
+    module_path = root / "backend/src/pitchlog/authz/runtime_contract.py"
+    module_path.write_text(
+        runtime_contract_support.render_runtime_contract(runtime_asset),
+        encoding="utf-8",
+    )
+    return root
+
+
 def test_product_runtime_contract_state_is_accepted(tmp_path: Path) -> None:
     """最終パスと製品化したランタイム契約を検査器が受理する。"""
     root = _copy_product_catalog_repository(tmp_path)
@@ -279,7 +312,7 @@ def test_product_runtime_contract_mutations_are_rejected(
     if mutation == "pending-switch":
         product_asset["pending_switch"] = "TSK-443"
     elif mutation == "provisional-additions":
-        staged = _read_json_at(REPOSITORY_ROOT, checker.STAGED_PRODUCT_ASSET)
+        staged = _read_base_staged_asset(checker.STAGED_PRODUCT_ASSET)
         product_asset["provisional_contract_additions"] = staged[
             "provisional_contract_additions"
         ]
@@ -303,6 +336,7 @@ def test_product_runtime_contract_mutations_are_rejected(
 
 
 def test_pending_state_always_runs_only_pending_protected_validation(
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """未発効状態で未発効用の保護対象照合だけが必ず走る。"""
@@ -328,9 +362,10 @@ def test_pending_state_always_runs_only_pending_protected_validation(
         "_validate_final_product_protected_targets",
         record_final,
     )
+    root = _copy_pending_catalog_repository(tmp_path)
     checker.validate_ddl_elements(
-        _read_json_at(REPOSITORY_ROOT, checker.STAGED_PRODUCT_ASSET),
-        REPOSITORY_ROOT,
+        _read_json_at(root, checker.STAGED_PRODUCT_ASSET),
+        root,
         checker.PRODUCT_SPEC,
     )
 
@@ -379,7 +414,11 @@ def test_invalid_runtime_contract_state_is_catalog_error(tmp_path: Path) -> None
     root = _copy_product_catalog_repository(tmp_path)
     staged_path = root / checker.STAGED_PRODUCT_ASSET
     staged_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(REPOSITORY_ROOT / checker.STAGED_PRODUCT_ASSET, staged_path)
+    _write_json_at(
+        root,
+        checker.STAGED_PRODUCT_ASSET,
+        _read_base_staged_asset(checker.STAGED_PRODUCT_ASSET),
+    )
 
     with pytest.raises(checker.CatalogError, match="BOTH_STAGED_AND_FINAL"):
         checker.validate_ddl_elements(
@@ -391,14 +430,8 @@ def test_invalid_runtime_contract_state_is_catalog_error(tmp_path: Path) -> None
 
 def test_provisional_state_has_no_product_ddl_path(tmp_path: Path) -> None:
     """暫定状態では製品 DDL manifest の検査対象パスを選ばない。"""
-    root = tmp_path / "provisional-repository"
-    for relative_path in (
-        checker.RUNTIME_CONTRACT_ASSET,
-        Path("backend/src/pitchlog/authz/runtime_contract.py"),
-    ):
-        destination = root / relative_path
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
+    root = _copy_pending_catalog_repository(tmp_path)
+    (root / checker.STAGED_PRODUCT_ASSET).unlink()
 
     state = checker._runtime_contract_state(root)
 

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 from dataclasses import replace
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast
 
@@ -29,6 +31,46 @@ PRODUCT_STATE_TEST_FILES = (
     Path("backend/tests/test_authz_product_classification.py"),
     Path("backend/tests/test_authz_runtime_contract.py"),
 )
+
+
+@lru_cache(maxsize=None)
+def provisional_reference_revision(repository_root: Path) -> str:
+    """未発効の変異試験に使う直近の staged 存在コミットを選ぶ。
+
+    Args:
+        repository_root: 履歴を持つ実リポジトリのルート。
+
+    Returns:
+        staged 製品資産が存在した比較元の commit SHA。
+    """
+    history = subprocess.run(
+        [
+            "git",
+            "rev-list",
+            "HEAD",
+            "--",
+            STAGED_PRODUCT_ASSET.as_posix(),
+        ],
+        cwd=repository_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    for revision in history.stdout.splitlines():
+        exists = subprocess.run(
+            [
+                "git",
+                "cat-file",
+                "-e",
+                f"{revision}:{STAGED_PRODUCT_ASSET.as_posix()}",
+            ],
+            cwd=repository_root,
+            check=False,
+            capture_output=True,
+        )
+        if exists.returncode == 0:
+            return revision
+    raise AssertionError("HEAD の履歴に staged 製品資産がありません")
 
 
 def product_spec_for_repository(repository_root: Path) -> AuthzAssetSpec:

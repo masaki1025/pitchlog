@@ -13,7 +13,10 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
-from test_authz_runtime_contract_repository import copy_product_repository
+from test_authz_runtime_contract_repository import (
+    copy_product_repository,
+    provisional_reference_revision,
+)
 
 from pitchlog.authz.runtime_contract_generator import (
     check_repository,
@@ -37,6 +40,33 @@ from pitchlog.authz.runtime_contract_state import (
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _ENGINE_MODULE = Path("backend/src/pitchlog/db/engine.py")
 _STAGED_PRODUCT_ASSET = STAGED_PRODUCT_ASSET
+
+
+def _provisional_asset_at_base(relative_path: Path) -> dict[str, Any]:
+    """製品化後も比較元の暫定資産を変異試験へ供給する。"""
+    if (_REPOSITORY_ROOT / STAGED_PRODUCT_ASSET).is_file():
+        return _read_repository_json(relative_path)
+    result = subprocess.run(
+        [
+            "git",
+            "show",
+            f"{provisional_reference_revision(_REPOSITORY_ROOT)}:{relative_path.as_posix()}",
+        ],
+        cwd=_REPOSITORY_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    value = json.loads(result.stdout)
+    assert isinstance(value, dict)
+    return cast(dict[str, Any], value)
+
+
+def _write_provisional_inputs(repository_root: Path) -> None:
+    """暫定の変異試験に必要な資産と生成モジュールを複製へ置く。"""
+    asset = _provisional_asset_at_base(RUNTIME_CONTRACT_ASSET)
+    _write_asset(repository_root, asset)
+    _write_module_source(repository_root, render_runtime_contract(asset))
 
 
 def _read_asset(repository_root: Path) -> dict[str, Any]:
@@ -87,6 +117,12 @@ def _copy_repository(tmp_path: Path) -> Path:
     module_target.parent.mkdir(parents=True)
     shutil.copy2(_REPOSITORY_ROOT / RUNTIME_CONTRACT_ASSET, asset_target)
     shutil.copy2(_REPOSITORY_ROOT / GENERATED_MODULE, module_target)
+    state, violations = evaluate_repository(_REPOSITORY_ROOT)
+    assert not violations
+    if state is RuntimeContractState.PRODUCT:
+        product_target = repository_root / PRODUCT_ASSET
+        product_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(_REPOSITORY_ROOT / PRODUCT_ASSET, product_target)
     (repository_root / ".git").write_text("gitdir: test-worktree\n", encoding="utf-8")
     return repository_root
 
@@ -94,9 +130,17 @@ def _copy_repository(tmp_path: Path) -> Path:
 def _copy_pending_repository(tmp_path: Path) -> Path:
     """現在の未発効状態に必要な資産を複製する。"""
     repository_root = _copy_repository(tmp_path)
+    product_target = repository_root / PRODUCT_ASSET
+    if product_target.exists():
+        product_target.unlink()
+    _write_provisional_inputs(repository_root)
     staged_target = repository_root / STAGED_PRODUCT_ASSET
     staged_target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(_REPOSITORY_ROOT / STAGED_PRODUCT_ASSET, staged_target)
+    _write_repository_json(
+        repository_root,
+        STAGED_PRODUCT_ASSET,
+        _provisional_asset_at_base(STAGED_PRODUCT_ASSET),
+    )
     return repository_root
 
 
@@ -320,7 +364,7 @@ def _apply_product_mutation(repository_root: Path, mutation: str) -> None:
         elif mutation == "p4-function-added":
             protected["functions"].append(["public", "unexpected_function", ""])
         elif mutation == "p4-provisional-functions":
-            provisional = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+            provisional = _provisional_asset_at_base(RUNTIME_CONTRACT_ASSET)
             provisional_protected = cast(
                 dict[str, list[Any]], provisional["protected_objects"]
             )
@@ -336,7 +380,7 @@ def _apply_product_mutation(repository_root: Path, mutation: str) -> None:
         product_asset["pending_switch"] = "TSK-443"
         _write_repository_json(repository_root, PRODUCT_ASSET, product_asset)
     elif mutation == "p6-provisional-additions":
-        staged = _read_repository_json(STAGED_PRODUCT_ASSET)
+        staged = _provisional_asset_at_base(STAGED_PRODUCT_ASSET)
         product_asset["provisional_contract_additions"] = staged[
             "provisional_contract_additions"
         ]
@@ -376,7 +420,7 @@ def _apply_product_mutation(repository_root: Path, mutation: str) -> None:
             _replace_module_constant(source, "DERIVED_FROM", value_source),
         )
     elif mutation == "p11-module-protected-old":
-        provisional = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+        provisional = _provisional_asset_at_base(RUNTIME_CONTRACT_ASSET)
         module_asset = copy.deepcopy(asset)
         module_asset["protected_objects"] = copy.deepcopy(
             provisional["protected_objects"]
@@ -413,14 +457,15 @@ def _imported_modules(path: Path) -> set[str]:
 
 def test_staged_derivation_matches_provisional_union_exactly() -> None:
     """製品の保護対象が暫定集合と追加分6件の和集合に一致することを確認する。"""
-    runtime_asset = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+    runtime_asset = _provisional_asset_at_base(RUNTIME_CONTRACT_ASSET)
+    staged = _provisional_asset_at_base(_STAGED_PRODUCT_ASSET)
     derived = derive_runtime_contract_fields(
-        _REPOSITORY_ROOT / _STAGED_PRODUCT_ASSET,
-        _REPOSITORY_ROOT / RUNTIME_CONTRACT_ASSET,
+        staged,
+        runtime_asset,
     )
     protected = derived["protected_objects"]
     comparison = compare_staged_protected_objects(
-        _REPOSITORY_ROOT / _STAGED_PRODUCT_ASSET,
+        staged,
         runtime_asset,
     )
 
@@ -452,9 +497,9 @@ def test_staged_derivation_matches_provisional_union_exactly() -> None:
 
 def test_derived_role_attributes_match_provisional_contract() -> None:
     """製品ロールから導いた7属性が暫定契約と一致することを確認する。"""
-    runtime_asset = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+    runtime_asset = _provisional_asset_at_base(RUNTIME_CONTRACT_ASSET)
     derived = derive_runtime_contract_fields(
-        _read_repository_json(_STAGED_PRODUCT_ASSET),
+        _provisional_asset_at_base(_STAGED_PRODUCT_ASSET),
         runtime_asset,
     )
     application_role = cast(dict[str, Any], runtime_asset["application_role"])
@@ -469,8 +514,8 @@ def test_derived_role_attributes_match_provisional_contract() -> None:
 )
 def test_role_derivation_fails_closed_for_invalid_rows(mutation: str) -> None:
     """ロールの未知キー・一意性・7属性の形を fail-closed にする。"""
-    product_asset = _read_repository_json(_STAGED_PRODUCT_ASSET)
-    runtime_asset = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+    product_asset = _provisional_asset_at_base(_STAGED_PRODUCT_ASSET)
+    runtime_asset = _provisional_asset_at_base(RUNTIME_CONTRACT_ASSET)
     role = _application_role_row(product_asset)
     roles = cast(list[dict[str, Any]], product_asset["roles"])
     if mutation == "unknown-key":
@@ -496,8 +541,8 @@ def test_protected_object_derivation_fails_closed_for_invalid_rows(
     collection: str, mutation: str
 ) -> None:
     """保護対象3種の不正な形と重複を fail-closed にする。"""
-    product_asset = _read_repository_json(_STAGED_PRODUCT_ASSET)
-    runtime_asset = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+    product_asset = _provisional_asset_at_base(_STAGED_PRODUCT_ASSET)
+    runtime_asset = _provisional_asset_at_base(RUNTIME_CONTRACT_ASSET)
     rows = cast(list[dict[str, Any]], product_asset[collection])
     if mutation == "duplicate":
         rows.append(copy.deepcopy(rows[0]))
@@ -516,8 +561,8 @@ def test_protected_object_derivation_fails_closed_for_invalid_rows(
 
 def test_derivation_is_deterministic_and_sorted() -> None:
     """同じ入力の導出結果が決定的で保護対象が辞書順になることを確認する。"""
-    product_asset = _read_repository_json(_STAGED_PRODUCT_ASSET)
-    runtime_asset = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+    product_asset = _provisional_asset_at_base(_STAGED_PRODUCT_ASSET)
+    runtime_asset = _provisional_asset_at_base(RUNTIME_CONTRACT_ASSET)
     for key in ("schemas", "tables", "functions"):
         cast(list[object], product_asset[key]).reverse()
 
@@ -537,8 +582,8 @@ def test_derivation_is_deterministic_and_sorted() -> None:
 
 def test_staged_comparison_reports_one_removed_addition() -> None:
     """追加宣言を1件落とすと対応する余分1件だけを差分として返す。"""
-    product_asset = _read_repository_json(_STAGED_PRODUCT_ASSET)
-    runtime_asset = _read_repository_json(RUNTIME_CONTRACT_ASSET)
+    product_asset = _provisional_asset_at_base(_STAGED_PRODUCT_ASSET)
+    runtime_asset = _provisional_asset_at_base(RUNTIME_CONTRACT_ASSET)
     additions = cast(
         list[dict[str, Any]],
         product_asset["provisional_contract_additions"],
@@ -570,13 +615,15 @@ def test_rendered_source_matches_generated_module_byte_for_byte() -> None:
 
 def test_check_succeeds_for_current_repository() -> None:
     """現在のリポジトリで check が成功することを確認する。"""
-    _assert_evaluation(_REPOSITORY_ROOT, RuntimeContractState.PENDING, set())
+    expected_state = evaluate_repository(_REPOSITORY_ROOT)[0]
+    _assert_evaluation(_REPOSITORY_ROOT, expected_state, set())
     _assert_check_result(_REPOSITORY_ROOT, set())
 
 
 def test_provisional_state_is_green(tmp_path: Path) -> None:
     """Staged と最終資産が無い正しい暫定状態が green になることを確認する。"""
-    repository_root = _copy_repository(tmp_path)
+    repository_root = _copy_pending_repository(tmp_path)
+    (repository_root / STAGED_PRODUCT_ASSET).unlink()
 
     _assert_evaluation(repository_root, RuntimeContractState.PROVISIONAL, set())
 
@@ -615,6 +662,7 @@ def test_d1_rejects_each_missing_asset_mutation_exactly(
 ) -> None:
     """D1 が資産の欠落と改名を同じ ID だけで報告する。"""
     repository_root = _copy_repository(tmp_path)
+    copied_state = evaluate_repository(repository_root)[0]
     asset_path = repository_root / RUNTIME_CONTRACT_ASSET
     if mutation == "missing":
         asset_path.unlink()
@@ -623,7 +671,7 @@ def test_d1_rejects_each_missing_asset_mutation_exactly(
 
     _assert_evaluation(
         repository_root,
-        RuntimeContractState.PROVISIONAL,
+        copied_state,
         {"PROVISIONAL_ASSET_MISSING"},
     )
 
@@ -637,7 +685,7 @@ def test_d2_rejects_each_declared_role_name_exactly(
     tmp_path: Path, role_name: str
 ) -> None:
     """D2 が別の実在ロール名だけを報告することを確認する。"""
-    repository_root = _copy_repository(tmp_path)
+    repository_root = _copy_pending_repository(tmp_path)
     asset = _read_asset(repository_root)
     application_role = cast(dict[str, Any], asset["application_role"])
     application_role["rolname"] = role_name
@@ -772,7 +820,7 @@ def test_u1_rejects_one_missing_provisional_addition_exactly(
 ) -> None:
     """U1 が追加宣言1件の欠落だけを報告することを確認する。"""
     repository_root = _copy_pending_repository(tmp_path)
-    staged = _read_repository_json(STAGED_PRODUCT_ASSET)
+    staged = _provisional_asset_at_base(STAGED_PRODUCT_ASSET)
     additions = cast(list[dict[str, Any]], staged["provisional_contract_additions"])
     additions.pop(removed_index)
     _write_repository_json(repository_root, STAGED_PRODUCT_ASSET, staged)

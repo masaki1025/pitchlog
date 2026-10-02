@@ -293,7 +293,7 @@ def _verify_application_role_connection(
                 WHERE (
                     namespace.nspname,
                     routine.proname,
-                    pg_catalog.pg_get_function_identity_arguments(routine.oid)
+                    pg_catalog.oidvectortypes(routine.proargtypes)
                 ) IN (
                     SELECT * FROM unnest(%s::text[], %s::text[], %s::text[])
                 )
