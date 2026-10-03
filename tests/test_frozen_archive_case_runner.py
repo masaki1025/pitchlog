@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -41,6 +42,17 @@ MANIFEST = runner.load_manifest()
 
 def test_manifest_matches_design_case_set_and_transitions() -> None:
     """設計 6-3 の 11 ケースと版間遷移集合を exact-set で固定する。"""
+    raw_manifest = json.loads(runner.DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+    assert set(raw_manifest["corpus_inputs"]) == {
+        "digest",
+        "files",
+        "trees",
+        "pinned_prefixes",
+    }
+    assert set(raw_manifest["corpus_inputs"]["pinned_prefixes"]) == {
+        "history_record_count",
+        "snapshot_names",
+    }
     assert len(MANIFEST.comparison_revision) == 40
     assert MANIFEST.repository_full_name == "masaki1025/pitchlog"
     assert MANIFEST.pull_request_number == 83
@@ -110,12 +122,90 @@ def _copy_corpus_inputs(destination: Path) -> Path:
     return destination
 
 
+def _source_with_appended_acceptance(
+    destination: Path,
+    construction_root: Path,
+) -> Path:
+    """既存の遷移記録補助で適法な v2 受理を 1 件追記する。"""
+    source_root = _copy_corpus_inputs(destination)
+    authority_path = source_root / runner.AUTHORITY_RELATIVE_PATH
+    original = json.loads(authority_path.read_text(encoding="utf-8"))
+    original_history = original["baseline_control"]["history"]
+    snapshot_root = source_root / runner.HISTORY_SNAPSHOT_DIRECTORY
+    original_snapshot_names = {path.name for path in snapshot_root.iterdir()}
+    existing_ids = {
+        record.get("acceptance_id") for record in original_history
+    }
+    number = MANIFEST.pull_request_number + 1
+    while f"{MANIFEST.repository_full_name}#{number}" in existing_ids or number in {
+        79,
+        81,
+    }:
+        number += 1
+    acceptance_id = f"{MANIFEST.repository_full_name}#{number}"
+
+    construction_root.mkdir()
+    helpers = runner._load_repository_helpers(source_root)
+    repository, base_sha = helpers._initialize_test_repository(
+        construction_root,
+        {},
+    )
+    repository_authority = repository / runner.AUTHORITY_RELATIVE_PATH
+    changed = json.loads(repository_authority.read_text(encoding="utf-8"))
+    assert changed["baseline_control"]["history"] == original_history
+    helpers._bump_asset_revision(changed)
+    helpers._write_contract_asset(repository_authority, changed)
+    helpers._append_current_repository_transition_record(
+        repository,
+        base_sha,
+        acceptance_id=acceptance_id,
+    )
+
+    appended = json.loads(repository_authority.read_text(encoding="utf-8"))
+    history = appended["baseline_control"]["history"]
+    assert history[:-1] == original_history
+    assert len(history) == len(original_history) + 1
+    record = history[-1]
+    assert record["record_schema_version"] == 2
+    assert record["acceptance_id"] == acceptance_id
+    assert acceptance_id not in existing_ids
+    assert set(record) == set(original_history[-1])
+    assert len(record) == 9
+    aspects = {
+        "declaration",
+        "movement_policy",
+        "external_snapshots",
+        "asset_snapshots",
+    }
+    assert set(record["change"]["before"]) == aspects
+    assert set(record["change"]["after"]) == aspects
+    authority_path.write_text(
+        json.dumps(appended, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    repository_snapshots = repository / runner.HISTORY_SNAPSHOT_DIRECTORY
+    for snapshot in repository_snapshots.iterdir():
+        target = snapshot_root / snapshot.name
+        if target.exists():
+            assert target.read_bytes() == snapshot.read_bytes()
+        else:
+            shutil.copy2(snapshot, target)
+    new_names = {path.name for path in snapshot_root.iterdir()} - original_snapshot_names
+    assert new_names
+    assert all(
+        hashlib.sha256((snapshot_root / name).read_bytes()).hexdigest() == name
+        for name in new_names
+    )
+    return source_root
+
+
 def _assert_prepare_rejects_corpus_drift(
     source_root: Path,
     destination: Path,
     monkeypatch: pytest.MonkeyPatch,
     definition: object = MANIFEST.cases[0],
     manifest: object = MANIFEST,
+    expected_reason: str = "比較 corpus の入力が動いた。期待値の導き直しが要る",
 ) -> None:
     """prepare_case が corpus 入力の漂流を明瞭な理由で拒否することを確認する。"""
     with pytest.raises(ValueError) as error:
@@ -126,9 +216,7 @@ def _assert_prepare_rejects_corpus_drift(
             manifest,
             monkeypatch,
         )
-    assert "比較 corpus の入力が動いた。期待値の導き直しが要る" in str(
-        error.value
-    )
+    assert expected_reason in str(error.value)
 
 
 def test_current_corpus_inputs_match_manifest_digest() -> None:
@@ -209,28 +297,97 @@ def test_prepare_case_rejects_changed_contract_asset(
     )
 
 
-def test_prepare_case_rejects_appended_history_record(
+def test_prepare_case_accepts_appended_history_record(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """履歴を1件増やす変更で corpus を red にする。"""
+    """適法な v2 追記で digest が不変のまま case を準備できる。"""
+    source_root = _source_with_appended_acceptance(
+        tmp_path / "source",
+        tmp_path / "construction",
+    )
+    repository = tmp_path / "construction" / "repository"
+    base_sha = runner._git(repository, ["rev-parse", "HEAD"]).stdout.strip()
+    authority = json.loads(
+        (source_root / runner.AUTHORITY_RELATIVE_PATH).read_text(encoding="utf-8")
+    )
+    acceptance_id = authority["baseline_control"]["history"][-1]["acceptance_id"]
+    pull_request_number = int(acceptance_id.rsplit("#", 1)[1])
+    helpers = runner._load_repository_helpers(source_root)
+    event_path = tmp_path / "appended-transition-event.json"
+    helpers._seal_pull_request_worktree(
+        repository,
+        base_sha,
+        monkeypatch,
+        event_path,
+        number=pull_request_number,
+    )
+    actual_base, head_sha, merge_sha = runner._event_and_merge(
+        repository, event_path, helpers
+    )
+    assert actual_base == base_sha
+    transition = runner.PreparedCase(
+        MANIFEST.cases[0], repository, event_path, base_sha, head_sha, merge_sha
+    )
+    transition_result = runner.run_checker(
+        transition,
+        runner.CheckerSpec(label="current", root=REPOSITORY_ROOT),
+    )
+    assert transition_result.exit_code == 0, transition_result.stderr
+    runner.validate_corpus_inputs(source_root, MANIFEST)
+    assert runner.corpus_input_digest(source_root, MANIFEST) == (
+        MANIFEST.corpus_inputs.digest
+    )
+    prepared = runner.prepare_case(
+        MANIFEST.cases[0],
+        tmp_path / "case",
+        source_root,
+        MANIFEST,
+        monkeypatch,
+    )
+    result = runner.run_checker(
+        prepared,
+        runner.CheckerSpec(label="current", root=REPOSITORY_ROOT),
+    )
+    assert result.exit_code == 0, result.stderr
+    assert result.matches
+
+
+def test_prepare_case_rejects_changed_pinned_history_record(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """固定済み履歴の書き換えを prepare_case の digest 検査で拒否する。"""
     source_root = _copy_corpus_inputs(tmp_path / "source")
-    authority_path = (
-        source_root / "contracts/tenant_boundary/base-allowlist.json"
-    )
+    authority_path = source_root / runner.AUTHORITY_RELATIVE_PATH
     authority = json.loads(authority_path.read_text(encoding="utf-8"))
-    authority["baseline_control"]["history"].append(
-        {"synthetic_corpus_drift": True}
-    )
+    history = authority["baseline_control"]["history"]
+    assert len(history) >= MANIFEST.corpus_inputs.pinned_prefixes.history_record_count
+    history[0]["reason"] += " 改竄"
     authority_path.write_text(
         json.dumps(authority, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-
     _assert_prepare_rejects_corpus_drift(
         source_root,
         tmp_path / "case",
         monkeypatch,
+    )
+
+
+def test_prepare_case_rejects_missing_pinned_snapshot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """固定済み snapshot の削除を prepare_case の存在検査で拒否する。"""
+    source_root = _copy_corpus_inputs(tmp_path / "source")
+    name = MANIFEST.corpus_inputs.pinned_prefixes.snapshot_names[0]
+    (source_root / runner.HISTORY_SNAPSHOT_DIRECTORY / name).unlink()
+    _assert_prepare_rejects_corpus_drift(
+        source_root,
+        tmp_path / "case",
+        monkeypatch,
+        expected_reason="固定済み snapshot が存在しない",
     )
 
 
@@ -252,6 +409,34 @@ def test_prepare_case_rejects_changed_checker(
         tmp_path / "case",
         monkeypatch,
     )
+
+
+def _current_case_exit_codes(source_root: Path) -> dict[int, int]:
+    """現版検査器を 11 ケースへ当て、ケース ID ごとの終了コードを返す。"""
+    results = runner.run_cases(
+        MANIFEST,
+        (runner.CheckerSpec(label="current", root=REPOSITORY_ROOT),),
+        source_root,
+    )
+    assert len(results) == len(MANIFEST.cases)
+    assert {result.case_id for result in results} == {
+        case.id for case in MANIFEST.cases
+    }
+    assert all(result.matches for result in results)
+    return {result.case_id: result.exit_code for result in results}
+
+
+def test_appended_history_record_does_not_change_case_outcomes(
+    tmp_path: Path,
+) -> None:
+    """この適法な合成追記 1 件で 11 ケースの終了コードが不変と示す。"""
+    before = _current_case_exit_codes(REPOSITORY_ROOT)
+    source_root = _source_with_appended_acceptance(
+        tmp_path / "source",
+        tmp_path / "construction",
+    )
+    after = _current_case_exit_codes(source_root)
+    assert after == before
 
 
 @pytest.mark.parametrize("definition", MANIFEST.cases, ids=lambda case: case.name)
