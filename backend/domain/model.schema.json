@@ -1,0 +1,892 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/schemas/domain/model.schema.json",
+  "title": "ドメイン計算宣言モデル",
+  "description": "ADR-003 D-1 正本の射程行に閉じた DSL 正本の schema。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "calculations",
+    "displayRules"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "calculations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Calculation"
+      },
+      "x-uniqueBy": "calculationId"
+    },
+    "displayRules": {
+      "type": "array",
+      "items": {
+        "$ref": "vocabulary.schema.json"
+      },
+      "x-uniqueBy": "id"
+    }
+  },
+  "$defs": {
+    "Identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"
+    },
+    "DisplayAtomValue": {
+      "$ref": "vocabulary.schema.json#/$defs/DisplayAtom"
+    },
+    "Calculation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "calculationId",
+        "inputs",
+        "states",
+        "events",
+        "rules",
+        "outputs",
+        "displayRuleRefs"
+      ],
+      "properties": {
+        "calculationId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FieldDeclaration"
+          },
+          "x-uniqueBy": "fieldId"
+        },
+        "states": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/StateDeclaration"
+          },
+          "x-uniqueBy": "stateId"
+        },
+        "events": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/EventDeclaration"
+          },
+          "x-uniqueBy": "eventId"
+        },
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/RuleDeclaration"
+          },
+          "x-uniqueBy": "ruleId"
+        },
+        "outputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/OutputField"
+          },
+          "x-uniqueBy": "fieldId"
+        },
+        "displayRuleRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "FieldDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fieldId",
+        "type",
+        "nullable",
+        "range",
+        "unit",
+        "scale"
+      ],
+      "properties": {
+        "fieldId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "type": {
+          "$ref": "#/$defs/FieldType"
+        },
+        "nullable": {
+          "type": "boolean"
+        },
+        "range": {
+          "$ref": "#/$defs/RangeOrNull"
+        },
+        "unit": {
+          "$ref": "#/$defs/UnitOrNull"
+        },
+        "scale": {
+          "$ref": "#/$defs/ScaleOrNull"
+        }
+      }
+    },
+    "OutputField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fieldId",
+        "type",
+        "nullable",
+        "range",
+        "unit",
+        "scale",
+        "visibility"
+      ],
+      "properties": {
+        "fieldId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "type": {
+          "$ref": "#/$defs/FieldType"
+        },
+        "nullable": {
+          "type": "boolean"
+        },
+        "range": {
+          "$ref": "#/$defs/RangeOrNull"
+        },
+        "unit": {
+          "$ref": "#/$defs/UnitOrNull"
+        },
+        "scale": {
+          "$ref": "#/$defs/ScaleOrNull"
+        },
+        "visibility": {
+          "enum": [
+            "user-visible",
+            "internal"
+          ]
+        }
+      }
+    },
+    "FieldType": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/IntegerType"
+        },
+        {
+          "$ref": "#/$defs/BooleanType"
+        },
+        {
+          "$ref": "#/$defs/EnumType"
+        },
+        {
+          "$ref": "#/$defs/NumericValueType"
+        },
+        {
+          "$ref": "#/$defs/VocabularySnapshotType"
+        },
+        {
+          "$ref": "#/$defs/HistoryStackType"
+        }
+      ]
+    },
+    "IntegerType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "integer"
+        }
+      }
+    },
+    "BooleanType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "boolean"
+        }
+      }
+    },
+    "EnumType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "values"
+      ],
+      "properties": {
+        "kind": {
+          "const": "enum"
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "NumericValueType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "valueSchema"
+      ],
+      "properties": {
+        "kind": {
+          "const": "numeric-value"
+        },
+        "valueSchema": {
+          "const": "vocabulary.schema.json#/$defs/NumericValue"
+        }
+      }
+    },
+    "VocabularySnapshotType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "valueSchema"
+      ],
+      "properties": {
+        "kind": {
+          "const": "vocabulary-snapshot"
+        },
+        "valueSchema": {
+          "const": "#/$defs/VocabularySnapshot"
+        }
+      }
+    },
+    "HistoryStackType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "valueSchema"
+      ],
+      "properties": {
+        "kind": {
+          "const": "history-stack"
+        },
+        "valueSchema": {
+          "const": "#/$defs/HistoryStack"
+        }
+      }
+    },
+    "VocabularySnapshot": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "vocabulary.schema.json#/$defs/ResolvedName"
+      }
+    },
+    "HistoryStack": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/HistoryEntry"
+      }
+    },
+    "HistoryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operationKind",
+        "differences"
+      ],
+      "properties": {
+        "operationKind": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "differences": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/StateAssignment"
+          }
+        }
+      }
+    },
+    "RangeOrNull": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/NumericRange"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "NumericRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum",
+        "maximum"
+      ],
+      "properties": {
+        "minimum": {
+          "$ref": "vocabulary.schema.json#/$defs/NumericValue"
+        },
+        "maximum": {
+          "$ref": "vocabulary.schema.json#/$defs/NumericValue"
+        }
+      }
+    },
+    "UnitOrNull": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Identifier"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ScaleOrNull": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "StateDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stateId",
+        "fields"
+      ],
+      "properties": {
+        "stateId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/FieldDeclaration"
+          },
+          "x-uniqueBy": "fieldId"
+        }
+      }
+    },
+    "EventDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "fields"
+      ],
+      "properties": {
+        "eventId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FieldDeclaration"
+          },
+          "x-uniqueBy": "fieldId"
+        }
+      }
+    },
+    "RuleDeclaration": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/GuardRule"
+        },
+        {
+          "$ref": "#/$defs/TransitionRule"
+        },
+        {
+          "$ref": "#/$defs/ReducerRule"
+        }
+      ]
+    },
+    "GuardRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "ruleId",
+        "expression"
+      ],
+      "properties": {
+        "kind": {
+          "const": "guard"
+        },
+        "ruleId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "expression": {
+          "$ref": "#/$defs/ComparisonExpression"
+        }
+      }
+    },
+    "TransitionRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "ruleId",
+        "eventRef",
+        "guardRefs",
+        "nextState"
+      ],
+      "properties": {
+        "kind": {
+          "const": "transition"
+        },
+        "ruleId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "eventRef": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "guardRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Identifier"
+          },
+          "uniqueItems": true
+        },
+        "nextState": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/StateAssignment"
+          }
+        }
+      }
+    },
+    "ReducerRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "ruleId",
+        "sourceRef",
+        "maximumItems",
+        "initial",
+        "expression"
+      ],
+      "properties": {
+        "kind": {
+          "const": "reducer"
+        },
+        "ruleId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "sourceRef": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "maximumItems": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "initial": {
+          "$ref": "vocabulary.schema.json#/$defs/NumericValue"
+        },
+        "expression": {
+          "$ref": "#/$defs/Expression"
+        }
+      }
+    },
+    "StateAssignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fieldRef",
+        "value"
+      ],
+      "properties": {
+        "fieldRef": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "value": {
+          "$ref": "#/$defs/Expression"
+        }
+      }
+    },
+    "Expression": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/NumericLiteralExpression"
+        },
+        {
+          "$ref": "#/$defs/BooleanLiteralExpression"
+        },
+        {
+          "$ref": "#/$defs/EnumLiteralExpression"
+        },
+        {
+          "$ref": "#/$defs/ReferenceExpression"
+        },
+        {
+          "$ref": "#/$defs/ArithmeticExpression"
+        },
+        {
+          "$ref": "#/$defs/ComparisonExpression"
+        },
+        {
+          "$ref": "#/$defs/ExtremumExpression"
+        },
+        {
+          "$ref": "#/$defs/RoundingExpression"
+        }
+      ]
+    },
+    "NumericLiteralExpression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "const": "numeric-literal"
+        },
+        "value": {
+          "$ref": "vocabulary.schema.json#/$defs/NumericValue"
+        }
+      }
+    },
+    "BooleanLiteralExpression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "const": "boolean-literal"
+        },
+        "value": {
+          "type": "boolean"
+        }
+      }
+    },
+    "EnumLiteralExpression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "enumId",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "const": "enum-literal"
+        },
+        "enumId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "value": {
+          "$ref": "#/$defs/Identifier"
+        }
+      }
+    },
+    "ReferenceExpression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "fieldRef"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "input-ref",
+            "state-ref",
+            "event-ref",
+            "output-ref",
+            "accumulator-ref",
+            "item-ref"
+          ]
+        },
+        "fieldRef": {
+          "$ref": "#/$defs/Identifier"
+        }
+      }
+    },
+    "ArithmeticExpression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "operator",
+        "operands"
+      ],
+      "properties": {
+        "kind": {
+          "const": "arithmetic"
+        },
+        "operator": {
+          "enum": [
+            "add",
+            "subtract",
+            "multiply",
+            "divide"
+          ]
+        },
+        "operands": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/Expression"
+          }
+        }
+      }
+    },
+    "ComparisonExpression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "operator",
+        "left",
+        "right"
+      ],
+      "properties": {
+        "kind": {
+          "const": "comparison"
+        },
+        "operator": {
+          "enum": [
+            "equal",
+            "not-equal",
+            "less-than",
+            "less-than-or-equal",
+            "greater-than",
+            "greater-than-or-equal"
+          ]
+        },
+        "left": {
+          "$ref": "#/$defs/Expression"
+        },
+        "right": {
+          "$ref": "#/$defs/Expression"
+        }
+      }
+    },
+    "ExtremumExpression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "operator",
+        "operands"
+      ],
+      "properties": {
+        "kind": {
+          "const": "extremum"
+        },
+        "operator": {
+          "enum": [
+            "min",
+            "max"
+          ]
+        },
+        "operands": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/Expression"
+          }
+        }
+      }
+    },
+    "RoundingExpression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "mode",
+        "scale",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "const": "round"
+        },
+        "mode": {
+          "const": "half-up"
+        },
+        "scale": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "value": {
+          "$ref": "#/$defs/Expression"
+        }
+      }
+    }
+  },
+  "x-authorityCatalog": [
+    {
+      "id": "ADR-003 D-1 正本の射程行",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-1: 実現手段 — 制約された宣言モデル(DSL)を正本とし、Python と TypeScript を生成する",
+      "verbatim": "| **正本の射程** |"
+    },
+    {
+      "id": "付録A-1 表示書式の共通規定",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "### A-1 共通規則",
+      "verbatim": "対象集合の正 = 宣言モデルの schema が定める両計算の出力のうち利用者可視の数値フィールドの閉包"
+    }
+  ],
+  "x-pitchlog": {
+    "scopeElements": [
+      {
+        "id": "state",
+        "schema": "#/$defs/StateDeclaration"
+      },
+      {
+        "id": "event",
+        "schema": "#/$defs/EventDeclaration"
+      },
+      {
+        "id": "guard",
+        "schema": "#/$defs/GuardRule"
+      },
+      {
+        "id": "next-state",
+        "schema": "#/$defs/TransitionRule/properties/nextState"
+      },
+      {
+        "id": "integer",
+        "schema": "#/$defs/IntegerType"
+      },
+      {
+        "id": "boolean",
+        "schema": "#/$defs/BooleanType"
+      },
+      {
+        "id": "enum",
+        "schema": "#/$defs/EnumType"
+      },
+      {
+        "id": "add",
+        "schema": "#/$defs/ArithmeticExpression/properties/operator"
+      },
+      {
+        "id": "subtract",
+        "schema": "#/$defs/ArithmeticExpression/properties/operator"
+      },
+      {
+        "id": "multiply",
+        "schema": "#/$defs/ArithmeticExpression/properties/operator"
+      },
+      {
+        "id": "divide",
+        "schema": "#/$defs/ArithmeticExpression/properties/operator"
+      },
+      {
+        "id": "comparison",
+        "schema": "#/$defs/ComparisonExpression"
+      },
+      {
+        "id": "min",
+        "schema": "#/$defs/ExtremumExpression/properties/operator"
+      },
+      {
+        "id": "max",
+        "schema": "#/$defs/ExtremumExpression/properties/operator"
+      },
+      {
+        "id": "explicit-rounding",
+        "schema": "#/$defs/RoundingExpression"
+      },
+      {
+        "id": "finite-reducer",
+        "schema": "#/$defs/ReducerRule/properties/maximumItems"
+      },
+      {
+        "id": "input-type",
+        "schema": "#/$defs/FieldDeclaration/properties/type"
+      },
+      {
+        "id": "input-range",
+        "schema": "#/$defs/FieldDeclaration/properties/range"
+      },
+      {
+        "id": "input-unit",
+        "schema": "#/$defs/FieldDeclaration/properties/unit"
+      },
+      {
+        "id": "input-scale",
+        "schema": "#/$defs/FieldDeclaration/properties/scale"
+      },
+      {
+        "id": "output-type",
+        "schema": "#/$defs/OutputField/properties/type"
+      },
+      {
+        "id": "output-range",
+        "schema": "#/$defs/OutputField/properties/range"
+      },
+      {
+        "id": "output-unit",
+        "schema": "#/$defs/OutputField/properties/unit"
+      },
+      {
+        "id": "output-scale",
+        "schema": "#/$defs/OutputField/properties/scale"
+      },
+      {
+        "id": "nullable",
+        "schema": "#/$defs/FieldDeclaration/properties/nullable"
+      },
+      {
+        "id": "enum-display-map",
+        "schema": "vocabulary.schema.json#/$defs/EnumDisplayMap"
+      },
+      {
+        "id": "declarative-display-rule",
+        "schema": "vocabulary.schema.json"
+      }
+    ],
+    "targetFieldSelectors": [
+      {
+        "id": "calculation-output-user-visible-numeric",
+        "collection": "#/$defs/Calculation/properties/outputs",
+        "itemSchema": "#/$defs/OutputField",
+        "fieldIdProperty": "fieldId",
+        "visibilityProperty": "visibility",
+        "visibleValue": "user-visible",
+        "typeKindProperty": "type.kind",
+        "numericTypeKinds": [
+          "integer",
+          "numeric-value"
+        ]
+      }
+    ],
+    "vocabularyReferences": [
+      "vocabulary.schema.json",
+      "vocabulary.schema.json#/$defs/NumericValue",
+      "vocabulary.schema.json#/$defs/DisplayAtom",
+      "vocabulary.schema.json#/$defs/ResolvedName"
+    ]
+  }
+}

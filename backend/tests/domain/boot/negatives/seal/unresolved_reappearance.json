@@ -1,0 +1,9 @@
+{
+  "caseId": "neg-seal-monotone-reappearance",
+  "clauseId": "BOOT-SEAL-MONOTONE",
+  "mechanism": "unresolved-reappearance",
+  "violation": {
+    "startingUnresolvedCount": 1,
+    "observedUnresolvedCount": 2
+  }
+}

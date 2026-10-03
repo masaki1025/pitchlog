@@ -1,0 +1,558 @@
+{
+  "schemaVersion": 1,
+  "authority": {
+    "id": "ADR-003 D-11 入力範囲表",
+    "source": "docs/adr/ADR-003-domain-calc-method.md",
+    "section": "### D-11: (b) の検査設計(**決定** — 要件書 v2.2 の再定義後の条文に対する具体化)",
+    "tableTarget": "(β)①〜⑤ の集計"
+  },
+  "vocabularySchema": {
+    "source": "backend/domain/vocabulary.schema.json",
+    "primitiveUnion": "#/$defs/NumericPrimitive",
+    "numericValueUnion": "#/$defs/NumericValue"
+  },
+  "derivation": {
+    "axisExtraction": {
+      "syntax": "slash-separated-bold-list",
+      "separator": "/"
+    },
+    "caseIdentity": "authority-id + axis-partition + schema-boundary",
+    "combinationRules": [
+      {
+        "axes": [
+          "rounding-boundary",
+          "sign"
+        ],
+        "operation": "cartesian-product",
+        "partitions": {
+          "rounding-boundary": [
+            "before",
+            "exact",
+            "after"
+          ],
+          "sign": [
+            "positive",
+            "negative"
+          ]
+        }
+      },
+      {
+        "axis": "scale-boundary",
+        "operation": "schema-minimum-maximum-per-primitive"
+      },
+      {
+        "axesFrom": "authority-row",
+        "operation": "cover-every-partition"
+      }
+    ],
+    "concreteValuePolicy": {
+      "positiveRoundingBoundary": "0.3335",
+      "negativeRoundingBoundary": "-1.5",
+      "roundingNeighborStep": "0.0001",
+      "overflow": "signed-64-bit-maximum-plus-one"
+    }
+  },
+  "axes": [
+    {
+      "id": "rounding-boundary",
+      "sourceText": "丸め境界の直前・一致・直後",
+      "partitions": [
+        "before",
+        "exact",
+        "after"
+      ],
+      "schemaPointers": [
+        "#/$defs/FixedDecimal/properties/rounding",
+        "#/$defs/Percentage/properties/rounding"
+      ]
+    },
+    {
+      "id": "scale-boundary",
+      "sourceText": "scale の上下限",
+      "partitions": [
+        "minimum",
+        "maximum"
+      ],
+      "schemaPointers": [
+        "#/$defs/FixedDecimal/properties/scale",
+        "#/$defs/Percentage/properties/scale"
+      ]
+    },
+    {
+      "id": "sign",
+      "sourceText": "正・負・0",
+      "partitions": [
+        "positive",
+        "negative",
+        "zero"
+      ],
+      "schemaPointers": [
+        "#/$defs/NumericValue"
+      ]
+    },
+    {
+      "id": "zero-denominator",
+      "sourceText": "分母 0",
+      "partitions": [
+        "zero"
+      ],
+      "schemaPointers": [
+        "#/$defs/RationalValue/properties/denominator"
+      ]
+    },
+    {
+      "id": "empty-aggregate",
+      "sourceText": "集計対象 0 件(全欠損 — 分母 0 と別 case)",
+      "partitions": [
+        "all-missing"
+      ],
+      "schemaPointers": [
+        "#/$defs/NumericValue"
+      ]
+    },
+    {
+      "id": "remainder",
+      "sourceText": "剰余 0・1・分母−1(投球回)",
+      "partitions": [
+        "zero",
+        "one",
+        "denominator-minus-one"
+      ],
+      "schemaPointers": [
+        "#/$defs/MixedFraction/properties/denominator",
+        "#/$defs/MixedFraction/properties/zeroRemainder"
+      ]
+    },
+    {
+      "id": "nullable",
+      "sourceText": "nullable",
+      "partitions": [
+        "null"
+      ],
+      "schemaPointers": [
+        "#/$defs/NumericValue",
+        "#/$defs/NullSubstitute/properties/substitute"
+      ]
+    },
+    {
+      "id": "overflow",
+      "sourceText": "オーバーフロー",
+      "partitions": [
+        "signed-64-bit-maximum-plus-one"
+      ],
+      "schemaPointers": [
+        "#/$defs/IntegerValue/properties/value"
+      ]
+    }
+  ],
+  "requiredCases": [
+    {
+      "id": "display.rounding.before.positive",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "rounding-boundary",
+          "partitionId": "before"
+        },
+        {
+          "axisId": "sign",
+          "partitionId": "positive"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "fixed-decimal",
+          "scale": 3,
+          "rounding": "half-up",
+          "leadingZero": false,
+          "sign": "negative-only-hyphen-minus"
+        },
+        "value": {
+          "kind": "exact-decimal",
+          "value": "0.3334"
+        }
+      }
+    },
+    {
+      "id": "display.rounding.before.negative",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "rounding-boundary",
+          "partitionId": "before"
+        },
+        {
+          "axisId": "sign",
+          "partitionId": "negative"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "fixed-decimal",
+          "scale": 0,
+          "rounding": "half-up",
+          "leadingZero": false,
+          "sign": "negative-only-hyphen-minus"
+        },
+        "value": {
+          "kind": "exact-decimal",
+          "value": "-1.4999"
+        }
+      }
+    },
+    {
+      "id": "display.rounding.exact.positive",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "rounding-boundary",
+          "partitionId": "exact"
+        },
+        {
+          "axisId": "sign",
+          "partitionId": "positive"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "fixed-decimal",
+          "scale": 3,
+          "rounding": "half-up",
+          "leadingZero": false,
+          "sign": "negative-only-hyphen-minus"
+        },
+        "value": {
+          "kind": "exact-decimal",
+          "value": "0.3335"
+        }
+      }
+    },
+    {
+      "id": "display.rounding.exact.negative",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "rounding-boundary",
+          "partitionId": "exact"
+        },
+        {
+          "axisId": "sign",
+          "partitionId": "negative"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "fixed-decimal",
+          "scale": 0,
+          "rounding": "half-up",
+          "leadingZero": false,
+          "sign": "negative-only-hyphen-minus"
+        },
+        "value": {
+          "kind": "exact-decimal",
+          "value": "-1.5"
+        }
+      }
+    },
+    {
+      "id": "display.rounding.after.positive",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "rounding-boundary",
+          "partitionId": "after"
+        },
+        {
+          "axisId": "sign",
+          "partitionId": "positive"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "fixed-decimal",
+          "scale": 3,
+          "rounding": "half-up",
+          "leadingZero": false,
+          "sign": "negative-only-hyphen-minus"
+        },
+        "value": {
+          "kind": "exact-decimal",
+          "value": "0.3336"
+        }
+      }
+    },
+    {
+      "id": "display.rounding.after.negative",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "rounding-boundary",
+          "partitionId": "after"
+        },
+        {
+          "axisId": "sign",
+          "partitionId": "negative"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "fixed-decimal",
+          "scale": 0,
+          "rounding": "half-up",
+          "leadingZero": false,
+          "sign": "negative-only-hyphen-minus"
+        },
+        "value": {
+          "kind": "exact-decimal",
+          "value": "-1.5001"
+        }
+      }
+    },
+    {
+      "id": "display.scale.fixed-decimal.minimum.0",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "scale-boundary",
+          "partitionId": "minimum"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "fixed-decimal",
+          "scale": 0,
+          "rounding": "half-up",
+          "leadingZero": false,
+          "sign": "negative-only-hyphen-minus"
+        },
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "display.scale.fixed-decimal.maximum.3",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "scale-boundary",
+          "partitionId": "maximum"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "fixed-decimal",
+          "scale": 3,
+          "rounding": "half-up",
+          "leadingZero": false,
+          "sign": "negative-only-hyphen-minus"
+        },
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "display.scale.percentage.minimum.0",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "scale-boundary",
+          "partitionId": "minimum"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "percentage",
+          "scale": 0,
+          "rounding": "half-up",
+          "leadingZero": false,
+          "symbol": "percent"
+        },
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "display.scale.percentage.maximum.2",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "scale-boundary",
+          "partitionId": "maximum"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "percentage",
+          "scale": 2,
+          "rounding": "half-up",
+          "leadingZero": false,
+          "symbol": "percent"
+        },
+        "value": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "display.sign.zero",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "sign",
+          "partitionId": "zero"
+        }
+      ],
+      "input": {
+        "value": {
+          "kind": "integer",
+          "value": 0
+        }
+      }
+    },
+    {
+      "id": "display.denominator.zero",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "zero-denominator",
+          "partitionId": "zero"
+        }
+      ],
+      "input": {
+        "operation": "division",
+        "numerator": 1,
+        "denominator": 0
+      }
+    },
+    {
+      "id": "display.aggregate.all-missing",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "empty-aggregate",
+          "partitionId": "all-missing"
+        }
+      ],
+      "input": {
+        "values": [
+          null,
+          null
+        ],
+        "nonNullCount": 0
+      }
+    },
+    {
+      "id": "display.remainder.zero",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "remainder",
+          "partitionId": "zero"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "mixed-fraction",
+          "denominator": 3,
+          "integerSuffix": "回",
+          "zeroRemainder": "omit-fraction",
+          "fractionStyle": "ascii-numerator-slash-denominator"
+        },
+        "value": {
+          "kind": "rational",
+          "numerator": 3,
+          "denominator": 3
+        }
+      }
+    },
+    {
+      "id": "display.remainder.one",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "remainder",
+          "partitionId": "one"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "mixed-fraction",
+          "denominator": 3,
+          "integerSuffix": "回",
+          "zeroRemainder": "omit-fraction",
+          "fractionStyle": "ascii-numerator-slash-denominator"
+        },
+        "value": {
+          "kind": "rational",
+          "numerator": 4,
+          "denominator": 3
+        }
+      }
+    },
+    {
+      "id": "display.remainder.denominator-minus-one",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "remainder",
+          "partitionId": "denominator-minus-one"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "mixed-fraction",
+          "denominator": 3,
+          "integerSuffix": "回",
+          "zeroRemainder": "omit-fraction",
+          "fractionStyle": "ascii-numerator-slash-denominator"
+        },
+        "value": {
+          "kind": "rational",
+          "numerator": 5,
+          "denominator": 3
+        }
+      }
+    },
+    {
+      "id": "display.nullable.null",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "nullable",
+          "partitionId": "null"
+        }
+      ],
+      "input": {
+        "primitive": {
+          "kind": "null-substitute",
+          "substitute": "−"
+        },
+        "value": null
+      }
+    },
+    {
+      "id": "display.overflow.signed-64-bit-maximum-plus-one",
+      "authorityId": "ADR-003 D-11 入力範囲表",
+      "covers": [
+        {
+          "axisId": "overflow",
+          "partitionId": "signed-64-bit-maximum-plus-one"
+        }
+      ],
+      "input": {
+        "value": {
+          "kind": "integer",
+          "value": 9223372036854775808
+        },
+        "signedWidth": 64
+      }
+    }
+  ]
+}

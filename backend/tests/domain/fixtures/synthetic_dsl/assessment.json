@@ -1,0 +1,54 @@
+{
+  "trigger1Materials": {
+    "historyStack": {
+      "calculationId": "syntheticMatrix",
+      "fieldId": "auditTrail",
+      "typeKind": "history-stack"
+    },
+    "ruleArray": {
+      "calculationId": "syntheticMatrix",
+      "ruleKinds": [
+        "guard",
+        "transition",
+        "reducer"
+      ]
+    },
+    "vocabularySnapshotMap": {
+      "calculationId": "syntheticMatrix",
+      "fieldId": "labelSnapshot",
+      "typeKind": "vocabulary-snapshot"
+    },
+    "scoreboardAllFields": {
+      "calculationId": "syntheticMatrix",
+      "fieldIds": [
+        "periodIndex",
+        "phaseCode",
+        "leftTotal",
+        "rightTotal",
+        "counterPrimary",
+        "counterSecondary",
+        "remainingUnits",
+        "sequenceIndex",
+        "occupancyCode"
+      ]
+    },
+    "numericValueDisplayAtom": {
+      "calculationId": "syntheticMatrix",
+      "outputFieldId": "visibleMetric",
+      "numericTypeKind": "numeric-value",
+      "displayRuleId": "metricTemplate",
+      "displayAtomType": "DisplayAtom"
+    }
+  },
+  "maintenanceProcedure": {
+    "touchedFiles": [
+      "backend/tests/domain/fixtures/synthetic_dsl/model.json",
+      "backend/tests/domain/fixtures/synthetic_dsl/manifest.json"
+    ],
+    "steps": [
+      "model.json の calculations[] に宣言を追加する",
+      "manifest.json の calculations[] に生成先と 3 層登録を追加する",
+      "生成前検査から formatter までを再実行する"
+    ]
+  }
+}

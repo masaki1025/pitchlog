@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "authorityCatalog": [
+    {
+      "id": "NFR-018 対象欄",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "- **対象**（**本項の列挙を正**とする — 達成条件(d)）"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-SEAL",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "性質による分類を免除の判定に用いない。列挙されているか否かのみで決まる"
+    },
+    {
+      "id": "NFR-018 (e) BOOT-GRANT",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### NFR-018: ドメインロジックの単一実装",
+      "verbatim": "除外は対象単位であり、変更全体ではない"
+    },
+    {
+      "id": "ADR-003 D-6 契約分類",
+      "source": "docs/adr/ADR-003-domain-calc-method.md",
+      "section": "### D-6: 正解ベクタと契約の形式・置き場・CI 配線・後続担当",
+      "verbatim": "契約は 2 種に分かれる"
+    },
+    {
+      "id": "FR-040 優先度 Should",
+      "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "section": "#### FR-040: 状態補正イベント（v1.6追補）",
+      "verbatim": "- **優先度**: Should"
+    }
+  ],
+  "targetDerivation": {
+    "authority": "NFR-018 対象欄",
+    "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+    "section": "#### NFR-018: ドメインロジックの単一実装",
+    "groups": [
+      {
+        "id": "alpha",
+        "marker": "(α)",
+        "syntax": "top-level-japanese-list",
+        "separators": [
+          "・",
+          "、および"
+        ]
+      },
+      {
+        "id": "beta",
+        "marker": "(β)",
+        "syntax": "circled-numbered-list"
+      }
+    ],
+    "combination": "set-union"
+  },
+  "checkSets": [
+    {
+      "id": "requirement-targets",
+      "sourceKind": "derived",
+      "source": "targetDerivation"
+    },
+    {
+      "id": "manifest-registrations",
+      "sourceKind": "declared",
+      "source": "backend/domain/manifest.json"
+    },
+    {
+      "id": "production-entrypoints",
+      "sourceKind": "independently-collected",
+      "source": "frontend-and-backend-production-graphs",
+      "collectors": [
+        "backend/src/pitchlog/domaincheck/collect_entrypoints_fe.py",
+        "backend/src/pitchlog/domaincheck/collect_entrypoints_be.py"
+      ]
+    },
+    {
+      "id": "executed-check-layers",
+      "sourceKind": "independently-collected",
+      "source": "vector-property-mutation-runner-evidence",
+      "layers": [
+        "vector",
+        "property",
+        "mutation"
+      ]
+    }
+  ],
+  "reportVocabulary": {
+    "field": "reportKind",
+    "values": [
+      {
+        "id": "missing-declaration",
+        "label": "宣言が無い"
+      },
+      {
+        "id": "declaration-reality-mismatch",
+        "label": "宣言はあるが実体と食い違う"
+      },
+      {
+        "id": "indeterminate",
+        "label": "判定不能"
+      }
+    ]
+  },
+  "exemptionDecision": {
+    "authority": "NFR-018 (e) BOOT-SEAL",
+    "predicate": {
+      "operator": "set-subset",
+      "left": "findings[].findingId",
+      "right": "sealedSet.unresolvedFindingIds"
+    },
+    "dependsOnlyOn": [
+      "findingId",
+      "sealedSet.unresolvedFindingIds"
+    ]
+  },
+  "exitContract": [
+    {
+      "code": 0,
+      "meaning": "封印集合の未解消要素に由来する不合格のみ",
+      "condition": {
+        "resolutionStatus": "resolved",
+        "unsealedFindingIds": "empty"
+      }
+    },
+    {
+      "code": 1,
+      "meaning": "封印集合に無い不合格が 1 件以上ある",
+      "condition": {
+        "resolutionStatus": "resolved",
+        "unsealedFindingIds": "nonempty"
+      }
+    },
+    {
+      "code": 2,
+      "meaning": "判定不能",
+      "condition": {
+        "resolutionStatus": "indeterminate"
+      }
+    }
+  ],
+  "fr040ExclusionDeclarationSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "FR-040 非採用時の契約除外宣言",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "requirement",
+      "adoption",
+      "authority",
+      "reason",
+      "scope",
+      "decider"
+    ],
+    "properties": {
+      "requirement": {
+        "const": "FR-040"
+      },
+      "adoption": {
+        "const": "not-adopted"
+      },
+      "authority": {
+        "const": "FR-040 優先度 Should"
+      },
+      "reason": {
+        "type": "string",
+        "minLength": 1
+      },
+      "scope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "contractKind",
+          "manifestField",
+          "excludedEventType",
+          "excludedCaseSelector"
+        ],
+        "properties": {
+          "contractKind": {
+            "const": "target-calculation-vector"
+          },
+          "manifestField": {
+            "const": "vectors[]"
+          },
+          "excludedEventType": {
+            "const": "state-correction"
+          },
+          "excludedCaseSelector": {
+            "const": "fr040-related"
+          }
+        }
+      },
+      "decider": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "trigger7AssessmentMaterials": {
+    "judge": "山田正輝",
+    "authorities": [
+      "FR-040 優先度 Should",
+      "ADR-003 D-6 契約分類",
+      "NFR-018 (e) BOOT-GRANT"
+    ],
+    "coexistenceExample": {
+      "fr040": "非採用を vectors[] の閉じた除外宣言に記録する",
+      "contractClassification": "状況判定は対象計算ベクタ契約のまま維持する",
+      "incrementalMerge": "他対象の不合格は封印 ID ごとに判定し、段階 2 の対象だけ BOOT-GRANT を適用しない",
+      "result": "除外は契約内容、契約分類は発効単位、封印はマージ可否をそれぞれ独立に決めるため同時に成立する"
+    },
+    "conflictCandidates": [
+      {
+        "id": "adopted-with-stale-exclusion",
+        "condition": "FR-040 採用後も除外宣言が残るか補正関連 case が復帰しない",
+        "requiredOutcome": "不合格"
+      },
+      {
+        "id": "classification-based-exemption",
+        "condition": "FR-040 除外または D-6 の分類を封印 ID の代わりに免除根拠へ使う",
+        "requiredOutcome": "不合格"
+      }
+    ]
+  }
+}

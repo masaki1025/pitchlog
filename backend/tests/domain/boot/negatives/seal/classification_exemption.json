@@ -1,0 +1,12 @@
+{
+  "caseId": "neg-seal-classification-exemption",
+  "clauseId": "BOOT-SEAL",
+  "mechanism": "classification-exemption",
+  "violation": {
+    "findingId": "synthetic-unsealed-finding",
+    "sealedFindingIds": [
+      "synthetic-sealed-finding"
+    ],
+    "reportKind": "missing-declaration"
+  }
+}
