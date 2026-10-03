@@ -8,7 +8,11 @@
     "normativeContractPath": "contracts/state-transition/state_transition_contract_v1.json",
     "requirementsPath": "docs/requirements/requirements-pitchlog-2026-07-22.md",
     "sourceClausePartition": {
-      "gameEndSourceClauseIds": ["req:F-1", "req:FR-005", "req:FR-020"],
+      "gameEndSourceClauseIds": [
+        "req:F-1",
+        "req:FR-005",
+        "req:FR-020"
+      ],
       "situationSide": "all-other-register-branches"
     },
     "fixtureKindByRegisterCoverageKind": {
@@ -33,14 +37,13 @@
       "INT-07": "打者をアウト対象に含まない側の規範行が無い",
       "XC-13": "23成績フラグの結果別導出表が段階2待ち"
     },
-    "comparisonStatus": "branch-assertions-only-until-expanded-case-and-digest-freeze",
+    "comparisonStatus": "complete-expected-case-awaits-expander-and-digest-freeze",
     "machineGuaranteesAtThisStep": [
       "schema-and-reference-shape",
       "requirement-source-id-existence",
-      "unique-normative-row-selector",
-      "positive-assertions-match-current-normative-row",
-      "negative-mutation-pointer-existence",
-      "negative-mutation-rejected-by-declared-cross-constraint",
+      "complete-input-coordinate-matches-normative-row",
+      "complete-positive-output-matches-current-normative-row",
+      "complete-negative-candidate-rejected-by-named-cross-constraint",
       "fixture-and-deferred-branch-partition"
     ],
     "futureMachineGuarantees": [
@@ -49,104 +52,726 @@
     ],
     "humanControls": [
       "semantic-completeness-of-each-branch",
-      "source-clause-supports-expected-assertions",
+      "source-clause-supports-entire-expected-case",
       "truth-of-recorded-author-identity"
     ],
-    "independenceClaim": "independent-from-expander-only-not-from-clause-branch-register"
+    "independenceClaim": "independent-from-expander-only-not-from-clause-branch-register",
+    "comparisonFields": [
+      "caseId",
+      "branchId",
+      "inputCoordinate",
+      "expected"
+    ],
+    "positiveExpectedFields": [
+      "countEffect",
+      "plateAppearanceEnded",
+      "batterDestination",
+      "runnerDefaultAdvance",
+      "outEffect",
+      "statFlags"
+    ],
+    "negativeCaseInputField": "inputCoordinate.candidateEffects"
   },
   "type": "object",
-  "required": ["schemaVersion", "version", "calculation", "fixtures"],
+  "required": [
+    "schemaVersion",
+    "version",
+    "calculation",
+    "fixtures"
+  ],
   "additionalProperties": false,
   "properties": {
-    "schemaVersion": {"const": 1},
-    "version": {"const": "state_transition_manual_fixtures_v1"},
-    "calculation": {"const": "state-transition"},
+    "schemaVersion": {
+      "const": 1
+    },
+    "version": {
+      "const": "state_transition_manual_fixtures_v1"
+    },
+    "calculation": {
+      "const": "state-transition"
+    },
     "fixtures": {
       "type": "array",
       "minItems": 1,
-      "items": {"$ref": "#/$defs/fixture"}
+      "items": {
+        "$ref": "#/$defs/fixture"
+      }
     }
   },
   "$defs": {
     "fixture": {
       "type": "object",
-      "required": ["fixtureId", "branchId", "kind", "input", "expected", "provenance"],
+      "required": [
+        "case",
+        "sourceExample",
+        "provenance"
+      ],
       "additionalProperties": false,
       "properties": {
-        "fixtureId": {"type": "string", "pattern": "^ST-[A-Z0-9-]+$"},
-        "branchId": {"type": "string", "minLength": 1},
-        "kind": {"enum": ["normative-branch", "constraint-negative"]},
-        "input": {"$ref": "#/$defs/input"},
-        "expected": {"$ref": "#/$defs/expected"},
-        "provenance": {"$ref": "#/$defs/provenance"}
-      }
-    },
-    "input": {
-      "type": "object",
-      "required": ["rowSelector", "sourceExample", "mutation"],
-      "additionalProperties": false,
-      "properties": {
-        "rowSelector": {
-          "type": "object",
-          "required": ["eventKind", "resultId"],
-          "additionalProperties": false,
-          "properties": {
-            "eventKind": {"enum": ["batting-result", "secondary-result", "runner-event"]},
-            "resultId": {"type": "string", "minLength": 1}
-          }
+        "case": {
+          "$ref": "#/$defs/case"
         },
-        "sourceExample": {"type": "string", "minLength": 1},
-        "mutation": {
-          "oneOf": [
-            {"type": "null"},
-            {
-              "type": "object",
-              "required": ["pointer", "value"],
-              "additionalProperties": false,
-              "properties": {
-                "pointer": {"type": "string", "pattern": "^/[^/]+(?:/[^/]+)*$"},
-                "value": {}
-              }
-            }
-          ]
+        "sourceExample": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
         }
       }
     },
-    "expected": {
+    "case": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/positiveCase"
+        },
+        {
+          "$ref": "#/$defs/negativeCase"
+        }
+      ]
+    },
+    "positiveCase": {
       "type": "object",
-      "required": ["assertions", "rejectedBy"],
+      "required": [
+        "caseId",
+        "branchId",
+        "inputCoordinate",
+        "expected"
+      ],
       "additionalProperties": false,
       "properties": {
-        "assertions": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["pointer", "value"],
-            "additionalProperties": false,
-            "properties": {
-              "pointer": {"type": "string", "pattern": "^/[^/]+(?:/[^/]+)*$"},
-              "value": {}
+        "caseId": {
+          "type": "string",
+          "pattern": "^ST-[A-Z0-9-]+$"
+        },
+        "branchId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inputCoordinate": {
+          "$ref": "#/$defs/inputCoordinate"
+        },
+        "expected": {
+          "$ref": "#/$defs/matrixEffects"
+        }
+      }
+    },
+    "negativeCase": {
+      "type": "object",
+      "required": [
+        "caseId",
+        "branchId",
+        "inputCoordinate",
+        "expected"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "caseId": {
+          "type": "string",
+          "pattern": "^ST-[A-Z0-9-]+$"
+        },
+        "branchId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inputCoordinate": {
+          "$ref": "#/$defs/negativeInputCoordinate"
+        },
+        "expected": {
+          "type": "object",
+          "required": [
+            "rejectedBy"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "rejectedBy": {
+              "type": "string",
+              "minLength": 1
             }
           }
+        }
+      }
+    },
+    "inputCoordinate": {
+      "type": "object",
+      "required": [
+        "eventKind",
+        "resultId",
+        "state.outs",
+        "state.runners",
+        "state.count.strikes",
+        "state.count.balls",
+        "event.perPitch.pitchEventKind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "eventKind": {
+          "enum": [
+            "batting-result",
+            "secondary-result",
+            "runner-event"
+          ]
         },
-        "rejectedBy": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "null"}]}
+        "resultId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state.outs": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "state.runners": {
+          "enum": [
+            "empty",
+            "first",
+            "second",
+            "third",
+            "first-second",
+            "first-third",
+            "second-third",
+            "loaded"
+          ]
+        },
+        "state.count.strikes": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "state.count.balls": {
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        "event.perPitch.pitchEventKind": {
+          "enum": [
+            "pitch-event",
+            "non-pitch-event"
+          ]
+        },
+        "event.perPitch.interferenceRuling": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "negativeInputCoordinate": {
+      "type": "object",
+      "required": [
+        "eventKind",
+        "resultId",
+        "state.outs",
+        "state.runners",
+        "state.count.strikes",
+        "state.count.balls",
+        "event.perPitch.pitchEventKind",
+        "candidateEffects"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "eventKind": {
+          "enum": [
+            "batting-result",
+            "secondary-result",
+            "runner-event"
+          ]
+        },
+        "resultId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state.outs": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "state.runners": {
+          "enum": [
+            "empty",
+            "first",
+            "second",
+            "third",
+            "first-second",
+            "first-third",
+            "second-third",
+            "loaded"
+          ]
+        },
+        "state.count.strikes": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "state.count.balls": {
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        "event.perPitch.pitchEventKind": {
+          "enum": [
+            "pitch-event",
+            "non-pitch-event"
+          ]
+        },
+        "event.perPitch.interferenceRuling": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidateEffects": {
+          "$ref": "#/$defs/matrixEffects"
+        }
+      }
+    },
+    "matrixEffects": {
+      "type": "object",
+      "required": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "countEffect": {
+          "$ref": "#/$defs/countEffect"
+        },
+        "plateAppearanceEnded": {
+          "$ref": "#/$defs/plateAppearanceEnded"
+        },
+        "batterDestination": {
+          "$ref": "#/$defs/batterDestination"
+        },
+        "runnerDefaultAdvance": {
+          "$ref": "#/$defs/runnerDefaultAdvance"
+        },
+        "outEffect": {
+          "$ref": "#/$defs/outEffect"
+        },
+        "statFlags": {
+          "$ref": "#/$defs/statFlags"
+        }
       }
     },
     "provenance": {
       "type": "object",
-      "required": ["authorId", "sources"],
+      "required": [
+        "authorId",
+        "sources"
+      ],
       "additionalProperties": false,
       "properties": {
-        "authorId": {"const": "codex"},
+        "authorId": {
+          "const": "codex"
+        },
         "sources": {
           "type": "array",
           "minItems": 1,
-          "items": {"oneOf": [
-            {"type": "object", "required": ["sourceKind", "sourceId"], "additionalProperties": false,
-             "properties": {"sourceKind": {"const": "requirements"}, "sourceId": {"type": "string", "pattern": "^req:[^\\s]+$"}}},
-            {"type": "object", "required": ["sourceKind", "sourceId"], "additionalProperties": false,
-             "properties": {"sourceKind": {"const": "official-baseball-rules"}, "sourceId": {"type": "string", "pattern": "^obr:[1-9][0-9]*\\.[0-9]{2}(?:\\([a-z0-9]+\\))*$"}}}
-          ]}
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "sourceKind",
+                  "sourceId"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "sourceKind": {
+                    "const": "requirements"
+                  },
+                  "sourceId": {
+                    "type": "string",
+                    "pattern": "^req:[^\\s]+$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "sourceKind",
+                  "sourceId"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "sourceKind": {
+                    "const": "official-baseball-rules"
+                  },
+                  "sourceId": {
+                    "type": "string",
+                    "pattern": "^obr:[1-9][0-9]*\\.[0-9]{2}(?:\\([a-z0-9]+\\))*$"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "countEffect": {
+      "type": "object",
+      "required": [
+        "strikes",
+        "balls"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "strikes": {
+          "$ref": "#/$defs/strikeEffect"
+        },
+        "balls": {
+          "$ref": "#/$defs/ballEffect"
+        }
+      }
+    },
+    "strikeEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "delta"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "reset"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unchanged"
+            }
+          }
+        }
+      ]
+    },
+    "ballEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "delta"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "reset"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unchanged"
+            }
+          }
+        }
+      ]
+    },
+    "plateAppearanceEnded": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "const": "not-applicable"
+        }
+      ]
+    },
+    "batterDestination": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "continue",
+                "out",
+                "score",
+                "not-applicable"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "base"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "reach"
+            },
+            "base": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            }
+          }
+        }
+      ]
+    },
+    "runnerDefaultAdvance": {
+      "type": "object",
+      "required": [
+        "first",
+        "second",
+        "third"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "first": {
+          "$ref": "#/$defs/advance"
+        },
+        "second": {
+          "$ref": "#/$defs/advance"
+        },
+        "third": {
+          "$ref": "#/$defs/advance"
+        }
+      }
+    },
+    "advance": {
+      "type": "object",
+      "required": [
+        "modality",
+        "destination"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "modality": {
+          "enum": [
+            "forced",
+            "optional",
+            "hold",
+            "not-applicable"
+          ]
+        },
+        "destination": {
+          "$ref": "#/$defs/advanceDestination"
+        }
+      }
+    },
+    "advanceDestination": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "outEffect": {
+      "type": "object",
+      "required": [
+        "count",
+        "targets"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outTarget"
+          }
+        }
+      }
+    },
+    "outTarget": {
+      "oneOf": [
+        {
+          "const": "batter"
+        },
+        {
+          "type": "object",
+          "required": [
+            "runner"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "runner": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            }
+          }
+        }
+      ]
+    },
+    "statFlags": {
+      "type": "object",
+      "required": [
+        "投球回算入アウト",
+        "投球数",
+        "奪三振",
+        "与四球",
+        "与死球",
+        "被安打",
+        "被本塁打",
+        "失点",
+        "失策",
+        "打席",
+        "打数",
+        "安打",
+        "本塁打",
+        "塁打",
+        "犠打",
+        "犠飛",
+        "四球",
+        "死球",
+        "三振",
+        "打撃妨害出塁",
+        "走塁妨害出塁",
+        "得点",
+        "打点"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "投球回算入アウト": {
+          "type": "boolean"
+        },
+        "投球数": {
+          "type": "boolean"
+        },
+        "奪三振": {
+          "type": "boolean"
+        },
+        "与四球": {
+          "type": "boolean"
+        },
+        "与死球": {
+          "type": "boolean"
+        },
+        "被安打": {
+          "type": "boolean"
+        },
+        "被本塁打": {
+          "type": "boolean"
+        },
+        "失点": {
+          "type": "boolean"
+        },
+        "失策": {
+          "type": "boolean"
+        },
+        "打席": {
+          "type": "boolean"
+        },
+        "打数": {
+          "type": "boolean"
+        },
+        "安打": {
+          "type": "boolean"
+        },
+        "本塁打": {
+          "type": "boolean"
+        },
+        "塁打": {
+          "type": "boolean"
+        },
+        "犠打": {
+          "type": "boolean"
+        },
+        "犠飛": {
+          "type": "boolean"
+        },
+        "四球": {
+          "type": "boolean"
+        },
+        "死球": {
+          "type": "boolean"
+        },
+        "三振": {
+          "type": "boolean"
+        },
+        "打撃妨害出塁": {
+          "type": "boolean"
+        },
+        "走塁妨害出塁": {
+          "type": "boolean"
+        },
+        "得点": {
+          "type": "boolean"
+        },
+        "打点": {
+          "type": "boolean"
         }
       }
     }

@@ -4922,20 +4922,50 @@ def _manual_fixture_assets() -> tuple[dict[str, Any], dict[str, Any]]:
     return _load_object(REPOSITORY_ROOT / path), schema
 
 
-def _manual_fixture_pointer(value: Any, pointer: str) -> Any:
-    """fixtureのJSON Pointerを解決する。
+def _manual_fixture_coordinate(row: dict[str, Any]) -> dict[str, Any]:
+    """規範行の自然キーを軸値の対へ展開する。
 
     Args:
-        value: 起点のJSON値。
-        pointer: JSON Pointer。
+        row: 状況判定の規範行。
 
     Returns:
-        指定された値。
+        入力座標を構成する全ての軸値。
     """
-    current = value
-    for part in pointer.split("/")[1:]:
-        current = current[int(part)] if isinstance(current, list) else current[part]
-    return current
+    coordinate = {"eventKind": row["eventKind"], "resultId": row["resultId"]}
+    assert row["precondition"]["op"] == "and"
+    for predicate in row["precondition"]["args"]:
+        assert predicate["op"] == "eq"
+        assert predicate["axisId"] not in coordinate
+        coordinate[predicate["axisId"]] = predicate["value"]
+    return coordinate
+
+
+def _manual_fixture_candidate(case: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
+    """負例の全入力座標と候補出力から検査対象行を復元する。
+
+    Args:
+        case: 手作業の完全な期待ケース。
+        row: 同じ結果IDの規範行。
+
+    Returns:
+        交差制約を検査する候補行。
+    """
+    coordinate = case["inputCoordinate"]
+    candidate = {
+        "eventKind": coordinate["eventKind"],
+        "resultId": coordinate["resultId"],
+        "precondition": {
+            "op": "and",
+            "args": [
+                {"op": "eq", "axisId": axis_id, "value": value}
+                for axis_id, value in coordinate.items()
+                if axis_id not in ("eventKind", "resultId", "candidateEffects")
+            ],
+        },
+        **copy.deepcopy(coordinate["candidateEffects"]),
+        "remarks": row["remarks"],
+    }
+    return candidate
 
 
 def _validate_manual_fixtures(
@@ -4965,43 +4995,52 @@ def _validate_manual_fixtures(
     deferred = policy["deferredBranches"]
     assert all(isinstance(reason, str) and reason for reason in deferred.values())
     fixtures = document["fixtures"]
-    fixture_ids = [fixture["fixtureId"] for fixture in fixtures]
-    branch_ids = [fixture["branchId"] for fixture in fixtures]
+    fixture_ids = [fixture["case"]["caseId"] for fixture in fixtures]
+    branch_ids = [fixture["case"]["branchId"] for fixture in fixtures]
     assert len(fixture_ids) == len(set(fixture_ids))
     assert len(branch_ids) == len(set(branch_ids))
     assert set(branch_ids).isdisjoint(deferred)
     assert set(branch_ids) | set(deferred) == situation_ids
+    output_fields = policy["positiveExpectedFields"]
+    configuration, rules = _cross_constraint_configuration()
+    rule_by_id = {rule["constraintId"]: rule for rule in rules}
     for fixture in fixtures:
-        branch = branches[fixture["branchId"]]
-        assert fixture["kind"] == policy["fixtureKindByRegisterCoverageKind"][
+        case = fixture["case"]
+        branch = branches[case["branchId"]]
+        kind = (
+            "constraint-negative"
+            if "candidateEffects" in case["inputCoordinate"]
+            else "normative-branch"
+        )
+        assert kind == policy["fixtureKindByRegisterCoverageKind"][
             branch["coverageKind"]
         ]
         for source in fixture["provenance"]["sources"]:
             if source["sourceKind"] == "requirements":
                 assert source["sourceId"] in known_sources
                 assert source["sourceId"] in branch["sourceClauseIds"]
-        selector = fixture["input"]["rowSelector"]
+        coordinate = case["inputCoordinate"]
         rows = [
             row
             for row in contract["matrixRows"]
-            if row["eventKind"] == selector["eventKind"]
-            and row["resultId"] == selector["resultId"]
+            if row["eventKind"] == coordinate["eventKind"]
+            and row["resultId"] == coordinate["resultId"]
         ]
         assert len(rows) == 1
         row = rows[0]
-        expected = fixture["expected"]
-        if fixture["kind"] == "normative-branch":
-            assert fixture["input"]["mutation"] is None
-            assert expected["rejectedBy"] is None
-            assert expected["assertions"]
-            for assertion in expected["assertions"]:
-                assert _manual_fixture_pointer(row, assertion["pointer"]) == assertion["value"]
+        if kind == "normative-branch":
+            assert coordinate == _manual_fixture_coordinate(row)
+            assert case["expected"] == {field: row[field] for field in output_fields}
         else:
-            mutation = fixture["input"]["mutation"]
-            assert mutation is not None
-            assert expected["rejectedBy"] == fixture["branchId"]
-            assert expected["assertions"] == []
-            assert _manual_fixture_pointer(row, mutation["pointer"]) != mutation["value"]
+            assert case["expected"] == {"rejectedBy": case["branchId"]}
+            candidate = _manual_fixture_candidate(case, row)
+            assert candidate != row
+            assert sum(
+                candidate[field] != row[field] for field in row
+            ) == 1
+            assert _cross_rule_violation(
+                candidate, rule_by_id[case["branchId"]], configuration
+            ) is not None
 
 
 def test_repository_manual_fixtures_match_declared_boundaries() -> None:
@@ -5010,8 +5049,12 @@ def test_repository_manual_fixtures_match_declared_boundaries() -> None:
     _validate_manual_fixtures(document, schema)
     policy = schema["x-pitchlog-manual-fixture-policy"]
     assert policy["comparisonStatus"] == (
-        "branch-assertions-only-until-expanded-case-and-digest-freeze"
+        "complete-expected-case-awaits-expander-and-digest-freeze"
     )
+    assert policy["comparisonFields"] == [
+        "caseId", "branchId", "inputCoordinate", "expected"
+    ]
+    assert len(policy["positiveExpectedFields"]) == 6
     assert "complete-equality-with-expanded-cases" in policy["futureMachineGuarantees"]
     assert "fixture-digest-freeze" in policy["futureMachineGuarantees"]
     assert "semantic-completeness-of-each-branch" in policy["humanControls"]
@@ -5035,7 +5078,7 @@ def test_manual_fixture_schema_rejects_malformed_fixture(change: str) -> None:
         _validate_manual_fixtures(document, schema)
 
 
-@pytest.mark.parametrize("change", ["missing-branch", "bad-source", "bad-assertion"])
+@pytest.mark.parametrize("change", ["missing-branch", "bad-source", "bad-expected"])
 def test_manual_fixture_reference_negatives(change: str) -> None:
     """欠落分岐・実在しない条文・行との不一致を捕まえる。"""
     document, schema = _manual_fixture_assets()
@@ -5046,7 +5089,7 @@ def test_manual_fixture_reference_negatives(change: str) -> None:
             "req:NOT-EXISTS"
         )
     else:
-        document["fixtures"][0]["expected"]["assertions"][0]["value"] = "reach"
+        document["fixtures"][0]["case"]["expected"]["statFlags"]["三振"] = False
     with pytest.raises(AssertionError):
         _validate_manual_fixtures(document, schema)
 
@@ -5066,25 +5109,43 @@ def test_manual_fixture_negative_mutations_hit_named_constraint() -> None:
     configuration, rules = _cross_constraint_configuration()
     rule_by_id = {rule["constraintId"]: rule for rule in rules}
     for fixture in document["fixtures"]:
-        if fixture["kind"] != "constraint-negative":
+        case = fixture["case"]
+        if "candidateEffects" not in case["inputCoordinate"]:
             continue
-        selector = fixture["input"]["rowSelector"]
+        coordinate = case["inputCoordinate"]
         row = copy.deepcopy(
             next(
                 row
                 for row in contract["matrixRows"]
-                if row["eventKind"] == selector["eventKind"]
-                and row["resultId"] == selector["resultId"]
+                if row["eventKind"] == coordinate["eventKind"]
+                and row["resultId"] == coordinate["resultId"]
             )
         )
-        mutation = fixture["input"]["mutation"]
-        parts = mutation["pointer"].split("/")[1:]
-        parent = row
-        for part in parts[:-1]:
-            parent = parent[int(part)] if isinstance(parent, list) else parent[part]
-        if isinstance(parent, list):
-            parent[int(parts[-1])] = mutation["value"]
-        else:
-            parent[parts[-1]] = mutation["value"]
-        rule = rule_by_id[fixture["branchId"]]
-        assert _cross_rule_violation(row, rule, configuration) is not None
+        candidate = _manual_fixture_candidate(case, row)
+        rule = rule_by_id[case["branchId"]]
+        assert _cross_rule_violation(candidate, rule, configuration) is not None
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["missing-output", "extra-output", "missing-candidate", "partial-candidate"],
+)
+def test_manual_fixture_complete_case_schema_negatives(change: str) -> None:
+    """部分的な期待値と候補入力へ戻れないことを確かめる。"""
+    document, schema = _manual_fixture_assets()
+    positive = document["fixtures"][0]["case"]
+    negative = next(
+        item["case"]
+        for item in document["fixtures"]
+        if "candidateEffects" in item["case"]["inputCoordinate"]
+    )
+    if change == "missing-output":
+        del positive["expected"]["statFlags"]
+    elif change == "extra-output":
+        positive["expected"]["unknown"] = True
+    elif change == "missing-candidate":
+        del negative["inputCoordinate"]["candidateEffects"]
+    else:
+        del negative["inputCoordinate"]["candidateEffects"]["outEffect"]
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        _validate_manual_fixtures(document, schema)
