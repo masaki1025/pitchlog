@@ -3442,7 +3442,66 @@
       "remarks": "FR-015・4.0-1・ADR-003 D-8。FR-015の受け入れ基準が名指しする名前、投(右・左)、打(右・左・両)、任意の背番号、断中のクライアント生成一時IDだけを段階1の閉じたpayloadとして列挙する。nameは自由記述の値を運ぶ暫定的なstring型であり、D-8の文字列型制約との整合を保証したり例外を確定したりしない。temporaryPlayerIdのUUID形式と断中時の必須性、背番号の字句制約もここでは確定せず、段階2のclosed-payload-schemasとpayload-string-policy-reconciliationで扱う。登録は選手マスタへの作成であって、比較面の状態量・スコアボード・成績フラグ・履歴文脈を動かさない。打順枠を変える選手交代はFR-011の別操作である。同番号の警告、過去試合での当時の背番号表示、断中一時IDから正式IDへの同期写像はこのStateEffectの比較面の外にある。FR-006の取消可能な履歴は確定プレイと採用時の状態補正のみなのでpushしない。段階1はフィールド一意性・他資産への参照整合・相反指定の排除・D-8の文字列型制約とFR-015の任意選手名との整合を保証しない。4.0-1の終了状態にはその場登録の遷移が無いため、gameEnded=trueは試合中のその場登録の前提不一致として状態を変えず拒否する。一般の選手登録全体を拒否する意味ではない。不正payloadは有効payloadを定義する規範行と同一の自然キーになるため別行にせず、payloadShapeの負例で拒否を検査する。"
     }
   ],
-  "undoRows": [],
+  "undoRows": [
+    {
+      "targetKind": "confirmed-play",
+      "precondition": {"op": "eq", "axisId": "history.depth", "value": 0},
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {"kind": "unchanged"},
+          "state.count.strikes": {"kind": "unchanged"},
+          "state.count.balls": {"kind": "unchanged"},
+          "state.outs": {"kind": "unchanged"},
+          "state.runners": {"kind": "unchanged"},
+          "state.battingOrder": {"kind": "unchanged"},
+          "state.tiebreakActive": {"kind": "unchanged"},
+          "state.gameEnded": {"kind": "unchanged"},
+          "state.inning": {"kind": "unchanged"},
+          "state.score": {"kind": "unchanged"}
+        },
+        "scoreboard": {
+          "inningScores": {"kind": "unchanged"},
+          "hits": {"kind": "unchanged"},
+          "errors": {"kind": "unchanged"},
+          "strikeouts": {"kind": "unchanged"},
+          "walks": {"kind": "unchanged"}
+        },
+        "statFlags": {
+          "投球回算入アウト": {"kind": "unchanged"},
+          "投球数": {"kind": "unchanged"},
+          "奪三振": {"kind": "unchanged"},
+          "与四球": {"kind": "unchanged"},
+          "与死球": {"kind": "unchanged"},
+          "被安打": {"kind": "unchanged"},
+          "被本塁打": {"kind": "unchanged"},
+          "失点": {"kind": "unchanged"},
+          "失策": {"kind": "unchanged"},
+          "打席": {"kind": "unchanged"},
+          "打数": {"kind": "unchanged"},
+          "安打": {"kind": "unchanged"},
+          "本塁打": {"kind": "unchanged"},
+          "塁打": {"kind": "unchanged"},
+          "犠打": {"kind": "unchanged"},
+          "犠飛": {"kind": "unchanged"},
+          "四球": {"kind": "unchanged"},
+          "死球": {"kind": "unchanged"},
+          "三振": {"kind": "unchanged"},
+          "打撃妨害出塁": {"kind": "unchanged"},
+          "走塁妨害出塁": {"kind": "unchanged"},
+          "得点": {"kind": "unchanged"},
+          "打点": {"kind": "unchanged"}
+        },
+        "historyAndResult": {
+          "history": {"kind": "unchanged"},
+          "operationResult": {"kind": "unchanged"}
+        }
+      },
+      "historyEffect": {"pops": 0},
+      "operationResult": "nothing-to-undo",
+      "guaranteeMode": "full-equality",
+      "remarks": "FR-006・ADR-003 D-8・XC-09。history.depth=0では取り消す対象が無く、状態・履歴を変えず利用者へnothing-to-undoを示す。targetKind=confirmed-playは未採用のFR-040を除く取消可能種別の識別値であり、この空履歴行に実在する対象があるという主張ではない。比較面のhistoryAndResult.operationResultは既存のoperationRowsと同じunchangedとし、行のoperationResultとの関係は未確定のままにする。確定プレイの逆差分は履歴文脈軸から特定できず、適用側の行をこの行で充足したとは主張しない。"
+    }
+  ],
   "mustOperationCoverage": {
     "mappings": [
       {
@@ -4163,6 +4222,18 @@
                   {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
                 ]
               }
+            }
+          }
+        ]
+      },
+      {
+        "operationType": "undo",
+        "rowRefs": [
+          {
+            "layer": "undoRows",
+            "coordinate": {
+              "targetKind": "confirmed-play",
+              "precondition": {"op": "eq", "axisId": "history.depth", "value": 0}
             }
           }
         ]

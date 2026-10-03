@@ -608,6 +608,38 @@ FR-015は選手の作成であって比較面の状態量を動かさないた�
 
 いずれも本ステップでは規則を追加せず、未保証の範囲として記録するにとどめる。
 
+#### ステップ65で置けたundo行と置けなかった3ケース(2026-10-03)
+
+計画書はステップ65に、空履歴・履歴先頭の種別・連続undo・深さ`D`の4ケースを置いた。
+このうち置けたのは空履歴の1件だけである。
+
+空履歴は`history.depth = 0`を`precondition`に置き、`stateEffect`を比較面の全欄
+`unchanged`、`historyEffect`を`{pops: 0}`、`operationResult`を`nothing-to-undo`、
+`guaranteeMode`を`full-equality`とした。FR-006が「状態を変えず、取り消す対象が無い
+ことを利用者へ示す」と定めるため、全欄`unchanged`は真であり、取り消す対象の差分に
+依存しない。
+
+残る3ケースはステップ62と同型の壁に当たる。D-8は`undoRows[]`の`stateEffect`を
+「対象操作の差分を逆適用」するものと定めるが、D-11のdescriptorが持つ履歴文脈軸は
+`history.depth`(0/1/2/D)・`history.composition`(top-confirmed-play ほか)・
+`history.scenarioLength`(1/2/D/D+1)の3つで、いずれも「取り消す対象が確定プレイで
+ある」ことまでしか表さず、その確定プレイが何だったかという差分を表さない。
+`FieldEffect`は`unchanged`・固定値の`set`・整数の`delta`の3種に閉じているため、
+固定値を置けば別の確定プレイを取り消す場合にも同じ結果を主張することになる。
+したがって偽の主張を避けるため行を置かない。
+
+本ステップで新たに見つかった定義上の穴が2件ある。第一に、空履歴の行にも`targetKind`が
+必須であり、「対象なし」を表す値がない。現在の行は`confirmed-play`を置いているが、
+これは取消可能種別の識別値であって実在する対象があるという主張ではない旨を`remarks`へ
+明記した。第二に、ステップ63で記録した行の`operationResult`と
+`stateEffect.historyAndResult.operationResult`の関係が未確定である点は、
+`undoRows[]`でも同じく残る。本行は既存の`operationRows[]`と同じく内側を`unchanged`と
+した。
+
+`mustOperationCoverage`の`undo`写像はこの空履歴行1件を指す。schemaの
+`requiredOperations`は`undo`に`rowLayer: "undoRows"`だけを求めdiscriminatorを持たない
+ため、1行でも写像は成立する。ただしこれは適用側の行が揃ったことを意味しない。
+
 ### 7-1. 成績計上フラグの導出元(8 周目までの記述を補正)
 
 v9 までは「付録A-2 / A-2b / A-3 / A-3b / A-5 から逆算」としていたが、**それだけでは足りない**。

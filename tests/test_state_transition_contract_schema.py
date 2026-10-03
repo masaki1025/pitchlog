@@ -3400,6 +3400,123 @@ def test_undo_precondition_must_use_only_history_context_axes() -> None:
         _validate(contract)
 
 
+def test_repository_step65_empty_history_row_and_mapping() -> None:
+    """空履歴だけを偽の逆差分なしで規範行と操作写像へ置く。"""
+    contract = _repository_contract()
+    _validate_schema(contract)
+    _validate_undo_rows(contract, frozenset())
+    _validate_references(contract, vocabulary_checker.validate_manifest(REPOSITORY_ROOT))
+
+    assert len(contract["matrixRows"]) == 42
+    assert len(contract["operationRows"]) == 6
+    assert len(contract["undoRows"]) == 1
+    row = contract["undoRows"][0]
+    assert set(row) == set(UNDO_ROW_COLUMNS)
+    assert row["targetKind"] == "confirmed-play"
+    assert row["precondition"] == {
+        "op": "eq", "axisId": "history.depth", "value": 0,
+    }
+    assert row["stateEffect"] == _unchanged_state_effect()
+    assert row["historyEffect"] == {"pops": 0}
+    assert row["operationResult"] == "nothing-to-undo"
+    assert row["guaranteeMode"] == "full-equality"
+    assert "適用側の行をこの行で充足したとは主張しない" in row["remarks"]
+
+    mappings = {
+        mapping["operationType"]: mapping["rowRefs"]
+        for mapping in contract["mustOperationCoverage"]["mappings"]
+    }
+    assert mappings["undo"] == [_row_reference("undoRows", row)]
+    assert mappings["per-pitch-input"] == [
+        _row_reference("matrixRows", item) for item in contract["matrixRows"]
+    ]
+    for operation_kind in (
+        "substitution", "game-end-declaration", "adhoc-registration",
+    ):
+        assert mappings[operation_kind] == [
+            _row_reference("operationRows", item)
+            for item in contract["operationRows"]
+            if item["operationKind"] == operation_kind
+        ]
+    assert "tiebreak-start" not in mappings
+    sources = {item["sourceId"] for item in contract["provenance"]["sources"]}
+    assert "req:FR-006" in sources
+    assert not any(source.startswith("adr:") for source in sources)
+    assert contract["provenance"]["independentVerifierId"] == "not-performed"
+
+
+@pytest.mark.parametrize("missing_column", UNDO_ROW_COLUMNS)
+def test_repository_step65_missing_undo_column_is_red(missing_column: str) -> None:
+    """実資産のundo行から必須7列のいずれかを削る変異を拒否する。"""
+    contract = _repository_contract()
+    del contract["undoRows"][0][missing_column]
+
+    with pytest.raises(schema_checker.DescriptorCheckError, match="必須キー不足"):
+        _validate_schema(contract)
+
+
+def test_repository_step65_unknown_undo_column_is_red() -> None:
+    """実資産のundo行へD-8に無い列を足す変異を拒否する。"""
+    contract = _repository_contract()
+    contract["undoRows"][0]["payloadShape"] = {}
+
+    with pytest.raises(schema_checker.DescriptorCheckError, match="未知キー"):
+        _validate_schema(contract)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("targetKind", "undo"),
+        ("operationResult", "rejected-precondition"),
+        ("guaranteeMode", "best-effort"),
+    ],
+)
+def test_repository_step65_closed_enum_rejects_mutation(
+    field: str, value: str,
+) -> None:
+    """実資産のundo対象・操作結果・保証モードのenum外変異を拒否する。"""
+    contract = _repository_contract()
+    contract["undoRows"][0][field] = value
+
+    with pytest.raises(schema_checker.DescriptorCheckError, match="enum外の値"):
+        _validate_schema(contract)
+
+
+@pytest.mark.parametrize("history_effect", [{"pops": 2}, {"pops": 0, "kind": "undo"}])
+def test_repository_step65_history_pop_is_closed(history_effect: dict[str, Any]) -> None:
+    """実資産のundo履歴効果を0または1件のpopだけに閉じる。"""
+    contract = _repository_contract()
+    contract["undoRows"][0]["historyEffect"] = history_effect
+
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        _validate_schema(contract)
+
+
+def test_repository_step65_non_history_precondition_is_red() -> None:
+    """実資産のundo行が履歴文脈以外の軸を参照する変異を拒否する。"""
+    contract = _repository_contract()
+    contract["undoRows"][0]["precondition"] = {
+        "op": "eq", "axisId": "state.outs", "value": 0,
+    }
+
+    with pytest.raises(UndoRowConstraintError, match="履歴文脈軸だけ"):
+        _validate_undo_rows(contract, frozenset())
+
+
+def test_repository_step65_liveness_only_at_depth_d_is_red() -> None:
+    """実資産の深さD行をliveness-onlyへ変異させるとXC-09で拒否する。"""
+    contract = _repository_contract()
+    row = contract["undoRows"][0]
+    row["precondition"] = {
+        "op": "eq", "axisId": "history.depth", "value": "D",
+    }
+    row["guaranteeMode"] = "liveness-only"
+
+    with pytest.raises(UndoRowConstraintError, match="XC-09"):
+        _validate_undo_rows(contract, frozenset())
+
+
 @pytest.mark.parametrize("layer", ["matrixRows", "operationRows", "undoRows"])
 def test_duplicate_input_coordinate_in_normative_layer_is_red(layer: str) -> None:
     """同じ規範行層で入力座標を再利用した契約を拒否する。"""
