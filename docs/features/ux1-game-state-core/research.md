@@ -74,7 +74,7 @@ date: 2026-10-03
 
 | 事実 | 実測 |
 | --- | --- |
-| `Expression` の分岐は **8 種** | `NumericLiteral` / `BooleanLiteral` / `EnumLiteral` / `Reference` / `Arithmetic` / `Comparison` / `Extremum` / `Rounding` |
+| `Expression` の分岐は **8 種** | `NumericLiteralExpression` / `BooleanLiteralExpression` / `EnumLiteralExpression` / `ReferenceExpression` / `ArithmeticExpression` / `ComparisonExpression` / `ExtremumExpression` / `RoundingExpression`(**`$defs` 上の名前をそのまま書く** — 略称では grep で引けない) |
 | **条件ノード(if / case / 三項)が無い** | 上記 8 種に該当なし |
 | **同一イベントに遷移を 2 本書くと拒否される** | `backend/src/pitchlog/domaingen/pregen_checks.py` — `count > 1` で逐語「**複数の遷移が成立し決定的でない**」 |
 
