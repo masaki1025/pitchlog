@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 6,
+  "runtime_contract_revision": 7,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:6"
+        "runtime_contract_revision:7"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {

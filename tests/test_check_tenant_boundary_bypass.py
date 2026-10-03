@@ -2379,6 +2379,7 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
         ],
         Path("contracts/tenant_boundary/db-api-inventory.json"): shared_external_files,
         Path("contracts/tenant_boundary/frozen-inputs.json"): [
+            "scripts/frozen_archive.py",
             "tests/domain/test_boot_seal.py",
             "tests/test_ci_wiring.py",
             "tests/test_plan_generation.py",

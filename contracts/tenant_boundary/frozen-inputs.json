@@ -17,6 +17,7 @@
           "source_digest"
         ],
         "external_files": [
+          "scripts/frozen_archive.py",
           "tests/domain/test_boot_seal.py",
           "tests/test_ci_wiring.py",
           "tests/test_plan_generation.py"
