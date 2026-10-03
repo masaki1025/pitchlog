@@ -1,0 +1,18 @@
+{
+  "fixtureId": "adversarial-forged-sql",
+  "attack": "forged-sql",
+  "targetClass": "beta-1-5",
+  "stages": [
+    "sql",
+    "typed-receiver",
+    "formatter"
+  ],
+  "mutation": {
+    "kind": "forged-sql",
+    "stage": "sql"
+  },
+  "expected": {
+    "combinedAcceptance": false
+  },
+  "assurance": "偽 SQL が返す値と期待値の差を 5 判定で不合格にする。"
+}

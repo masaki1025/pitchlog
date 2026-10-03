@@ -1,0 +1,9 @@
+{
+  "caseId": "neg-state-second-program-termination",
+  "clauseId": "BOOT-STATE",
+  "mechanism": "second-program-termination",
+  "violation": {
+    "originalGuard": "if not current:",
+    "mutatedGuard": "if not current or state.grant == GrantStatus.EXPIRED:"
+  }
+}

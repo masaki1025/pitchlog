@@ -35,6 +35,37 @@ export default [
       },
     },
   },
+  {
+    files: ['**/*.ts', '**/*.vue'],
+    plugins: {
+      '@typescript-eslint': tseslint.plugin,
+    },
+    rules: {
+      'no-eval': 'error',
+      'no-implied-eval': 'error',
+      'no-new-func': 'error',
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/lib/generated/*', '**/lib/generated/artifacts/**'],
+              message:
+                '生成物は generated/wrappers 配下の生成ラッパーを経由してください。',
+            },
+          ],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ImportExpression',
+          message: '動的 import は入口を静的に閉じられないため禁止です。',
+        },
+      ],
+      '@typescript-eslint/no-require-imports': 'error',
+    },
+  },
   // Prettier と競合する整形規則だけを最後に無効化する。
   eslintConfigPrettier,
 ]

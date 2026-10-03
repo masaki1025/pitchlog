@@ -11,7 +11,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 REQUIRED_CHECK_TEXT = "コア領域/検査経路の変更: 人間による逐行確認を実施した"
 NON_PR_SKIP_MESSAGE = "PR イベントではない — スキップ"
@@ -20,6 +20,36 @@ NO_CORE_PATHS_MESSAGE = (
     " — コア検査対象なし"
 )
 DIFF_TIMEOUT_SECONDS = 30
+CORE_AREAS_RELATIVE_PATH = ".claude/core-areas.json"
+BASELINE_DEFINITION_PATHS = frozenset(
+    {
+        "scripts/core_guard.py",
+        "tests/test_core_guard.py",
+    }
+)
+# 追加層は JSON を変更するコミットより先に固定する。同一コミットでの追随を許さない。
+AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
+    "game-state": (
+        "backend/domain/*",
+        "backend/src/pitchlog/domaincheck/*",
+        "backend/src/pitchlog/domaingen/*",
+        "backend/src/pitchlog/domainmut/*",
+        "backend/src/pitchlog/generated/*",
+        "backend/tests/domain/*",
+        "frontend/src/lib/generated/*",
+        "tests/domain/*",
+    ),
+    "data-migration": (
+        "backend/domain/*",
+        "backend/src/pitchlog/domaincheck/*",
+        "backend/src/pitchlog/domaingen/*",
+        "backend/src/pitchlog/domainmut/*",
+        "backend/src/pitchlog/generated/*",
+        "backend/tests/domain/*",
+        "frontend/src/lib/generated/*",
+        "tests/domain/*",
+    ),
+}
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
 )
@@ -112,7 +142,7 @@ def load_core_areas(root: Path) -> CoreAreas:
     Raises:
         GuardError: 設定ファイルまたはその構造が不正な場合。
     """
-    data = load_json(root / ".claude" / "core-areas.json", "core-areas.json")
+    data = load_json(root / CORE_AREAS_RELATIVE_PATH, "core-areas.json")
     if not isinstance(data, dict):
         raise GuardError("core-areas.json のルートがオブジェクトではない")
 
@@ -129,6 +159,217 @@ def load_core_areas(root: Path) -> CoreAreas:
         path_patterns.extend(paths)
 
     return CoreAreas(tuple(path_patterns), frozenset(guard_paths))
+
+
+def _run_git(root: Path, arguments: Sequence[str], label: str) -> str:
+    """Git を実行して標準出力を返す。
+
+    Args:
+        root: Git リポジトリのルート。
+        arguments: `git` へ渡す引数。
+        label: エラー時に表示する処理名。
+
+    Returns:
+        Git の標準出力。
+
+    Raises:
+        GuardError: 起動、タイムアウト、または Git の処理に失敗した場合。
+    """
+    try:
+        result = subprocess.run(
+            ["git", *arguments],
+            cwd=root,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=DIFF_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise GuardError(f"{label} がタイムアウトした") from error
+    except OSError as error:
+        raise GuardError(f"{label} を起動できない: {error}") from error
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "標準エラー出力なし"
+        raise GuardError(f"{label} に失敗した: {detail}")
+    return result.stdout
+
+
+def merge_base_revision(root: Path, base_sha: str, head_sha: str) -> str:
+    """PR の比較元と head の変更不能な共通祖先を返す。
+
+    `base_sha` 自体の blob ではなく Git が確定した merge-base を使う。これにより、
+    PR head 内で基線を指すリテラルを書き換えても比較元は移動しない。
+
+    Args:
+        root: Git リポジトリのルート。
+        base_sha: PR イベントの base SHA。
+        head_sha: PR イベントの head SHA。
+
+    Returns:
+        merge-base の完全 commit OID。
+
+    Raises:
+        GuardError: merge-base が一意に得られない場合。
+    """
+    output = _run_git(
+        root,
+        ["merge-base", "--", base_sha, head_sha],
+        "git merge-base",
+    )
+    revisions = output.splitlines()
+    if len(revisions) != 1 or not revisions[0]:
+        raise GuardError("git merge-base が一意な commit OID を返さない")
+    return revisions[0]
+
+
+def load_core_areas_at_revision(root: Path, revision: str) -> dict[str, Any]:
+    """指定 revision の core-areas.json blob を読み込む。
+
+    Args:
+        root: Git リポジトリのルート。
+        revision: 読み取る commit OID。
+
+    Returns:
+        JSON オブジェクト。
+
+    Raises:
+        GuardError: blob が読めない、または JSON オブジェクトでない場合。
+    """
+    text = _run_git(
+        root,
+        ["show", f"{revision}:{CORE_AREAS_RELATIVE_PATH}"],
+        f"{revision} の core-areas.json blob 読み取り",
+    )
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError as error:
+        raise GuardError(f"{revision} の core-areas.json が不正") from error
+    if not isinstance(value, dict):
+        raise GuardError(f"{revision} の core-areas.json がオブジェクトではない")
+    return value
+
+
+def _area_paths_by_id(document: Mapping[str, Any], label: str) -> dict[str, tuple[str, ...]]:
+    """core-areas 文書から領域別 paths を厳密に取り出す。"""
+    areas = document.get("areas")
+    if not isinstance(areas, list):
+        raise GuardError(f"{label} の areas が配列ではない")
+    paths_by_id: dict[str, tuple[str, ...]] = {}
+    for index, area in enumerate(areas):
+        if not isinstance(area, dict):
+            raise GuardError(f"{label} の areas[{index}] がオブジェクトではない")
+        area_id = area.get("id")
+        if not isinstance(area_id, str) or not area_id:
+            raise GuardError(f"{label} の areas[{index}].id が文字列ではない")
+        paths = require_string_list(area.get("paths"), f"{label} の {area_id}.paths")
+        if len(paths) != len(set(paths)):
+            raise GuardError(f"{label} の {area_id}.paths に重複がある")
+        if area_id in paths_by_id:
+            raise GuardError(f"{label} の領域 ID {area_id} が重複している")
+        paths_by_id[area_id] = tuple(paths)
+    return paths_by_id
+
+
+def validate_area_path_layers(
+    baseline: Mapping[str, Any],
+    candidate: Mapping[str, Any],
+    additions: Mapping[str, tuple[str, ...]] = AREA_PATH_ADDITIONS,
+) -> None:
+    """据え置き層と領域別追加層に candidate が一致することを検査する。
+
+    追加対象領域は基線そのもの、または基線へ宣言済み追加層を全件加えた形だけを
+    受理する。部分追加、削除、置換、並べ替え、未宣言追加はいずれも拒否する。
+
+    Args:
+        baseline: merge-base blob から読んだ変更不能な文書。
+        candidate: PR head blob から読んだ検査対象文書。
+        additions: JSON より前のコミットで固定する領域別追加層。
+
+    Raises:
+        GuardError: 領域集合または paths が二層の契約と一致しない場合。
+    """
+    baseline_paths = _area_paths_by_id(baseline, "merge-base")
+    candidate_paths = _area_paths_by_id(candidate, "PR head")
+    baseline_ids = set(baseline_paths)
+    candidate_ids = set(candidate_paths)
+    if candidate_ids != baseline_ids:
+        raise GuardError(
+            "領域 ID 集合が merge-base と不一致: "
+            f"不足={sorted(baseline_ids - candidate_ids)}, "
+            f"追加={sorted(candidate_ids - baseline_ids)}"
+        )
+
+    for area_id, base_paths in baseline_paths.items():
+        declared = additions.get(area_id, ())
+        if len(declared) != len(set(declared)):
+            raise GuardError(f"{area_id} の追加層に重複がある")
+        overlap = set(base_paths) & set(declared)
+        if overlap and overlap != set(declared):
+            raise GuardError(f"{area_id} の追加層が一部だけ基線へ取り込まれている")
+        pending_additions = () if overlap else declared
+        allowed_states = {base_paths, (*base_paths, *pending_additions)}
+        if candidate_paths[area_id] not in allowed_states:
+            raise GuardError(
+                f"{area_id}.paths が merge-base の据え置き層と宣言済み追加層に不一致"
+            )
+
+
+def _commits_between(root: Path, base_revision: str, head_sha: str) -> tuple[str, ...]:
+    """基線より後から head までのコミットを古い順で返す。"""
+    output = _run_git(
+        root,
+        ["rev-list", "--reverse", f"{base_revision}..{head_sha}"],
+        "基線以後のコミット列挙",
+    )
+    return tuple(output.splitlines())
+
+
+def _changed_paths_in_commit(root: Path, revision: str) -> frozenset[str]:
+    """指定コミットだけが変更したパス集合を返す。"""
+    output = _run_git(
+        root,
+        [
+            "diff-tree",
+            "--root",
+            "--no-commit-id",
+            "--name-only",
+            "-r",
+            revision,
+        ],
+        f"{revision} の変更パス列挙",
+    )
+    return frozenset(output.splitlines())
+
+
+def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
+    """merge-base blob と PR head の領域別二層契約を検査する。
+
+    Args:
+        root: Git リポジトリのルート。
+        base_sha: PR イベントの base SHA。
+        head_sha: PR イベントの head SHA。
+
+    Returns:
+        実際に比較へ使った merge-base の commit OID。
+
+    Raises:
+        GuardError: 二層契約違反、または JSON と基線定義の共変更がある場合。
+    """
+    baseline_revision = merge_base_revision(root, base_sha, head_sha)
+    baseline = load_core_areas_at_revision(root, baseline_revision)
+    candidate = load_core_areas_at_revision(root, head_sha)
+    validate_area_path_layers(baseline, candidate)
+
+    for revision in _commits_between(root, baseline_revision, head_sha):
+        changed = _changed_paths_in_commit(root, revision)
+        changed_definitions = sorted(changed & BASELINE_DEFINITION_PATHS)
+        if CORE_AREAS_RELATIVE_PATH in changed and changed_definitions:
+            raise GuardError(
+                "core-areas.json と基線定義を同一コミットで変更している: "
+                f"{revision}: {changed_definitions}"
+            )
+    return baseline_revision
 
 
 def load_pull_request_event() -> PullRequestEvent:
@@ -264,6 +505,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         event = load_pull_request_event()
         core_areas = load_core_areas(root)
         paths = changed_paths(root, event.base_sha, event.head_sha)
+        verify_area_path_baseline(root, event.base_sha, event.head_sha)
     except GuardError as error:
         print(f"core_guard: {error}", file=sys.stderr)
         return 1

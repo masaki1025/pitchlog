@@ -1,0 +1,10 @@
+{
+  "caseId": "neg-no-claim-transition-satisfaction",
+  "clauseId": "BOOT-NO-CLAIM",
+  "mechanism": "transition-satisfaction-claim",
+  "violation": {
+    "grantStatus": "expired",
+    "claimField": "nfr018b2Satisfied",
+    "claimValue": true
+  }
+}

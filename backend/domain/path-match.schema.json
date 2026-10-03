@@ -1,0 +1,453 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "path-match.schema.json",
+  "title": "ドメイン計算の経路一致証跡",
+  "description": "ADR-003 D-11 ③ の 6 次元要求集合と 5 判定を閉じた形式で保持する。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "requirements",
+    "evidence",
+    "setDifference"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/PathKey"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/PathEvidence"
+      }
+    },
+    "setDifference": {
+      "$ref": "#/$defs/SetDifference"
+    }
+  },
+  "$defs": {
+    "Identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+    },
+    "PathKey": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "calculation",
+        "vector",
+        "case",
+        "runner",
+        "entrypointId",
+        "directTargetId"
+      ],
+      "properties": {
+        "calculation": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "vector": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "case": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "runner": {
+          "enum": [
+            "pytest",
+            "vitest"
+          ]
+        },
+        "entrypointId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "directTargetId": {
+          "$ref": "#/$defs/Identifier"
+        }
+      }
+    },
+    "FieldContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "role",
+        "valueType",
+        "nullable",
+        "scale"
+      ],
+      "properties": {
+        "field": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "role": {
+          "enum": [
+            "structured",
+            "display"
+          ]
+        },
+        "valueType": {
+          "enum": [
+            "json",
+            "exact-number",
+            "display-string"
+          ]
+        },
+        "nullable": {
+          "type": "boolean"
+        },
+        "scale": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "valueType": {
+                "const": "exact-number"
+              }
+            },
+            "required": [
+              "valueType"
+            ]
+          },
+          "then": {
+            "properties": {
+              "scale": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "scale": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "role": {
+                "const": "display"
+              }
+            },
+            "required": [
+              "role"
+            ]
+          },
+          "then": {
+            "properties": {
+              "valueType": {
+                "const": "display-string"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "valueType": {
+                "enum": [
+                  "json",
+                  "exact-number"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "FiveJudgments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entrypointExecuted",
+        "directTargetExecuted",
+        "entrypointEqualsExpected",
+        "directTargetEqualsExpected",
+        "pathsEqual"
+      ],
+      "properties": {
+        "entrypointExecuted": {
+          "type": "boolean"
+        },
+        "directTargetExecuted": {
+          "type": "boolean"
+        },
+        "entrypointEqualsExpected": {
+          "type": "boolean"
+        },
+        "directTargetEqualsExpected": {
+          "type": "boolean"
+        },
+        "pathsEqual": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Difference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route",
+        "row",
+        "field",
+        "reason"
+      ],
+      "properties": {
+        "route": {
+          "enum": [
+            "entrypoint-expected",
+            "direct-target-expected",
+            "entrypoint-direct-target"
+          ]
+        },
+        "row": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "field": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Identifier"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "enum": [
+            "missing-execution",
+            "invalid-output",
+            "invalid-row",
+            "missing-field",
+            "unknown-field",
+            "null-not-allowed",
+            "scale-mismatch",
+            "type-mismatch",
+            "row-count-mismatch",
+            "value-mismatch",
+            "display-mismatch"
+          ]
+        }
+      }
+    },
+    "PathEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "calculation",
+        "vector",
+        "case",
+        "runner",
+        "entrypointId",
+        "directTargetId",
+        "comparisonSurface",
+        "comparedFields",
+        "normalizations",
+        "judgments",
+        "differences"
+      ],
+      "properties": {
+        "calculation": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "vector": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "case": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "runner": {
+          "enum": [
+            "pytest",
+            "vitest"
+          ]
+        },
+        "entrypointId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "directTargetId": {
+          "$ref": "#/$defs/Identifier"
+        },
+        "comparisonSurface": {
+          "enum": [
+            "structured-only",
+            "structured-and-display"
+          ]
+        },
+        "comparedFields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/FieldContract"
+          }
+        },
+        "normalizations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "total-order",
+              "exact-numeric-representation"
+            ]
+          }
+        },
+        "judgments": {
+          "$ref": "#/$defs/FiveJudgments"
+        },
+        "differences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Difference"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "comparisonSurface": {
+                "const": "structured-only"
+              }
+            },
+            "required": [
+              "comparisonSurface"
+            ]
+          },
+          "then": {
+            "properties": {
+              "comparedFields": {
+                "items": {
+                  "properties": {
+                    "role": {
+                      "const": "structured"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "comparedFields": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "role": {
+                          "const": "structured"
+                        }
+                      },
+                      "required": [
+                        "role"
+                      ]
+                    },
+                    "minContains": 1
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "role": {
+                          "const": "display"
+                        }
+                      },
+                      "required": [
+                        "role"
+                      ]
+                    },
+                    "minContains": 1
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "SetDifference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missing",
+        "unexpected"
+      ],
+      "properties": {
+        "missing": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/PathKey"
+          }
+        },
+        "unexpected": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/PathKey"
+          }
+        }
+      }
+    }
+  },
+  "x-expectations": {
+    "sixDimensions": {
+      "expected": [
+        "calculation",
+        "vector",
+        "case",
+        "runner",
+        "entrypointId",
+        "directTargetId"
+      ],
+      "comparison": "exact-set",
+      "provenance": "ADR-003 D-11 ③ 経路一致検査の理由"
+    },
+    "fiveJudgments": {
+      "expected": [
+        "entrypointExecuted",
+        "directTargetExecuted",
+        "entrypointEqualsExpected",
+        "directTargetEqualsExpected",
+        "pathsEqual"
+      ],
+      "comparison": "exact-set",
+      "provenance": "ADR-003 D-11 ③ 経路一致検査の理由"
+    },
+    "allowedNormalizations": {
+      "expected": [
+        "total-order",
+        "exact-numeric-representation"
+      ],
+      "comparison": "exact-set",
+      "provenance": "ADR-003 D-11 ③ 動的機構の禁止行"
+    }
+  }
+}
