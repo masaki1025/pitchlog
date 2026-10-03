@@ -4245,3 +4245,197 @@ def test_step60_pickoff_results_use_identity_and_exclude_pickoff_outcome_ids() -
     assert pickoff_ids.issubset(identity_rule["vocabularyIds"])
     assert pickoff_result_assignment["role"] == "not-result-id-source"
     assert "eventKind" not in pickoff_result_assignment
+
+
+def test_repository_contract_step61_substitution_rows_and_mapping() -> None:
+    """選手交代の2入力座標と比較面・Must操作写像を実資産で照合する。"""
+    contract = _repository_contract()
+    _validate_schema(contract)
+    _validate_operation_rows(contract, frozenset())
+    _validate_references(contract, vocabulary_checker.validate_manifest(REPOSITORY_ROOT))
+
+    rows = contract["operationRows"]
+    assert len(rows) == 2
+    assert {row["operationResult"] for row in rows} == {
+        "applied",
+        "rejected-precondition",
+    }
+    assert {
+        (row["precondition"]["axisId"], row["precondition"]["value"])
+        for row in rows
+    } == {("state.gameEnded", False), ("state.gameEnded", True)}
+    assert all(row["operationKind"] == "substitution" for row in rows)
+    assert all(row["clauseId"] == "FR-011" for row in rows)
+    assert all(row["historyEffect"] == {"pushes": False, "kind": None} for row in rows)
+
+    effect_definitions = _schema()["$defs"]
+    for row in rows:
+        for face, definition_name in (
+            ("stateFields", "stateFieldEffects"),
+            ("scoreboard", "scoreboardFieldEffects"),
+            ("statFlags", "statFlagEffects"),
+            ("historyAndResult", "historyAndResultEffects"),
+        ):
+            assert set(row["stateEffect"][face]) == set(
+                effect_definitions[definition_name]["required"]
+            )
+            assert all(
+                effect == {"kind": "unchanged"}
+                for effect in row["stateEffect"][face].values()
+            )
+        assert all(
+            phrase in row["remarks"]
+            for phrase in (
+                "ADR-003 D-8",
+                "状態中立",
+                "フィールド一意性",
+                "参照整合",
+                "相反指定",
+                "FR-015の任意選手名",
+            )
+        )
+
+    mappings = {
+        mapping["operationType"]: mapping["rowRefs"]
+        for mapping in contract["mustOperationCoverage"]["mappings"]
+    }
+    assert mappings["substitution"] == [
+        _row_reference("operationRows", row) for row in rows
+    ]
+    assert mappings["per-pitch-input"] == [
+        _row_reference("matrixRows", row) for row in contract["matrixRows"]
+    ]
+    assert len(contract["matrixRows"]) == 42
+    sources = {source["sourceId"] for source in contract["provenance"]["sources"]}
+    assert {"req:FR-011", "req:FR-006"} <= sources
+    assert not any(source.startswith("adr:") for source in sources)
+    assert contract["provenance"]["independentVerifierId"] == "not-performed"
+
+
+def test_repository_step61_payload_shape_accepts_only_declared_fields() -> None:
+    """段階1のpayloadは閉じた列と必須欄だけを機械判定する。"""
+    shape = _repository_contract()["operationRows"][0]["payloadShape"]
+    assert set(shape) == {"type", "properties", "required", "additionalProperties"}
+    assert shape["type"] == "object"
+    assert shape["additionalProperties"] is False
+    assert set(shape["properties"]) == {
+        "substitutionType",
+        "battingOrderSlot",
+        "outgoingPlayerId",
+        "incomingPlayerId",
+        "defensivePositionId",
+    }
+    assert set(shape["required"]) == {
+        "substitutionType",
+        "outgoingPlayerId",
+        "incomingPlayerId",
+    }
+    valid = {
+        "substitutionType": "pitcher",
+        "outgoingPlayerId": "player-1",
+        "incomingPlayerId": "player-2",
+    }
+    schema_checker._validate_instance(valid, shape, shape, "$")
+    schema_checker._validate_instance(
+        {**valid, "battingOrderSlot": 4, "defensivePositionId": "position-1"},
+        shape,
+        shape,
+        "$",
+    )
+
+
+@pytest.mark.parametrize(
+    ("invalid_payload", "message"),
+    [
+        (
+            {
+                "substitutionType": "pitcher",
+                "outgoingPlayerId": "player-1",
+                "incomingPlayerId": "player-2",
+                "comment": "余分",
+            },
+            "未知キー",
+        ),
+        ({"substitutionType": "pitcher", "incomingPlayerId": "player-2"}, "必須キー不足"),
+        (
+            {"substitutionType": "pitcher", "outgoingPlayerId": "player-1", "incomingPlayerId": 2},
+            "型不一致",
+        ),
+        (
+            {
+                "substitutionType": "unknown",
+                "outgoingPlayerId": "player-1",
+                "incomingPlayerId": "player-2",
+            },
+            "enum外",
+        ),
+    ],
+)
+def test_repository_step61_payload_rejection_is_detected(
+    invalid_payload: dict[str, Any], message: str
+) -> None:
+    """宣言外・必須欠落・型違反・交代種別外のpayloadを拒否する。"""
+    shape = _repository_contract()["operationRows"][0]["payloadShape"]
+    with pytest.raises(schema_checker.DescriptorCheckError, match=message):
+        schema_checker._validate_instance(invalid_payload, shape, shape, "$")
+
+
+@pytest.mark.parametrize("missing_column", OPERATION_ROW_COLUMNS)
+def test_repository_step61_missing_operation_column_is_red(missing_column: str) -> None:
+    """実資産の選手交代行でもD-8の8列を省略できない。"""
+    contract = _repository_contract()
+    del contract["operationRows"][0][missing_column]
+    with pytest.raises(schema_checker.DescriptorCheckError, match="必須キー不足"):
+        _validate_schema(contract)
+
+
+def test_repository_step61_unknown_operation_column_is_red() -> None:
+    """実資産の選手交代行に宣言外の列を加えると拒否する。"""
+    contract = _repository_contract()
+    contract["operationRows"][0]["extra"] = True
+    with pytest.raises(schema_checker.DescriptorCheckError, match="未知キー"):
+        _validate_schema(contract)
+
+
+def test_repository_step61_unknown_operation_result_is_red() -> None:
+    """実資産の選手交代行でoperationResultのenum外値を拒否する。"""
+    contract = _repository_contract()
+    contract["operationRows"][0]["operationResult"] = "unknown"
+    with pytest.raises(schema_checker.DescriptorCheckError, match="enum外"):
+        _validate_schema(contract)
+
+
+@pytest.mark.parametrize(
+    "history_effect",
+    [
+        {"pushes": False, "kind": "confirmed-play"},
+        {"pushes": True, "kind": None},
+    ],
+)
+def test_repository_step61_history_effect_bidirectional_violation_is_red(
+    history_effect: dict[str, Any],
+) -> None:
+    """pushesとkindの両方向制約を実資産の変異で検査する。"""
+    contract = _repository_contract()
+    contract["operationRows"][0]["historyEffect"] = history_effect
+    with pytest.raises(schema_checker.DescriptorCheckError, match="oneOf"):
+        _validate_schema(contract)
+
+
+def test_repository_step61_payload_shape_must_remain_closed() -> None:
+    """payloadShape自体の追加フィールド禁止が失われたら拒否する。"""
+    contract = _repository_contract()
+    contract["operationRows"][0]["payloadShape"]["additionalProperties"] = True
+    with pytest.raises(schema_checker.DescriptorCheckError, match="const不一致"):
+        _validate_schema(contract)
+
+
+def test_repository_step61_invalid_payload_result_cannot_duplicate_natural_key() -> None:
+    """不正payload値のない第3行を足して入力座標を重複させない。"""
+    contract = _repository_contract()
+    invalid_payload_row = copy.deepcopy(contract["operationRows"][0])
+    invalid_payload_row["operationResult"] = "rejected-invalid-payload"
+    contract["operationRows"].append(invalid_payload_row)
+
+    with pytest.raises(ReferenceConstraintError, match="入力座標が重複"):
+        _validate_references(contract, vocabulary_checker.validate_manifest(REPOSITORY_ROOT))

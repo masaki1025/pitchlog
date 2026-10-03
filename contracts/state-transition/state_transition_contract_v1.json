@@ -185,6 +185,14 @@
       {
         "sourceKind": "requirements",
         "sourceId": "req:RBI-08"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:FR-011"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:FR-006"
       }
     ],
     "authorId": "codex",
@@ -2393,7 +2401,368 @@
       "remarks": "E-1・FR-004・ADV-04・旧input-screen:153-154。無死三塁の非投球イベントとして捕手の三塁牽制を表し、三塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない"
     }
   ],
-  "operationRows": [],
+  "operationRows": [
+    {
+      "operationKind": "substitution",
+      "clauseId": "FR-011",
+      "payloadShape": {
+        "type": "object",
+        "properties": {
+          "substitutionType": {
+            "type": "string",
+            "enum": [
+              "pitcher",
+              "pinch-hitter",
+              "pinch-runner",
+              "defensive"
+            ]
+          },
+          "battingOrderSlot": {
+            "type": "integer"
+          },
+          "outgoingPlayerId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "incomingPlayerId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "defensivePositionId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "substitutionType",
+          "outgoingPlayerId",
+          "incomingPlayerId"
+        ],
+        "additionalProperties": false
+      },
+      "precondition": {
+        "op": "eq",
+        "axisId": "state.gameEnded",
+        "value": false
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "unchanged"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "unchanged"
+          },
+          "state.runners": {
+            "kind": "unchanged"
+          },
+          "state.battingOrder": {
+            "kind": "unchanged"
+          },
+          "state.tiebreakActive": {
+            "kind": "unchanged"
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "unchanged"
+          },
+          "state.score": {
+            "kind": "unchanged"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "unchanged"
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "unchanged"
+          },
+          "operationResult": {
+            "kind": "unchanged"
+          }
+        }
+      },
+      "historyEffect": {
+        "pushes": false,
+        "kind": null
+      },
+      "operationResult": "applied",
+      "remarks": "FR-011・ADR-003 D-8。受け入れ基準が名指しする交代種別・打順枠・交代前後の選手参照ID・守備位置IDだけを段階1の閉じたpayloadとして列挙する。選手交代は状態量・スコアボード・成績フラグ・履歴文脈を変えない状態中立の操作であり、選手帰属と出場履歴はこの比較面の外にある。FR-006の取消可能な履歴は確定プレイと採用時の状態補正のみなのでpushしない。段階1はフィールド一意性・他資産への参照整合・相反指定の排除・D-8の文字列型制約とFR-015の任意選手名との整合を保証しない。これらは段階2のclosed-payload-schemasで確定する。試合進行中を代表するgameEnded=falseで適用する。"
+    },
+    {
+      "operationKind": "substitution",
+      "clauseId": "FR-011",
+      "payloadShape": {
+        "type": "object",
+        "properties": {
+          "substitutionType": {
+            "type": "string",
+            "enum": [
+              "pitcher",
+              "pinch-hitter",
+              "pinch-runner",
+              "defensive"
+            ]
+          },
+          "battingOrderSlot": {
+            "type": "integer"
+          },
+          "outgoingPlayerId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "incomingPlayerId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "defensivePositionId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "substitutionType",
+          "outgoingPlayerId",
+          "incomingPlayerId"
+        ],
+        "additionalProperties": false
+      },
+      "precondition": {
+        "op": "eq",
+        "axisId": "state.gameEnded",
+        "value": true
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "unchanged"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "unchanged"
+          },
+          "state.runners": {
+            "kind": "unchanged"
+          },
+          "state.battingOrder": {
+            "kind": "unchanged"
+          },
+          "state.tiebreakActive": {
+            "kind": "unchanged"
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "unchanged"
+          },
+          "state.score": {
+            "kind": "unchanged"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "unchanged"
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "unchanged"
+          },
+          "operationResult": {
+            "kind": "unchanged"
+          }
+        }
+      },
+      "historyEffect": {
+        "pushes": false,
+        "kind": null
+      },
+      "operationResult": "rejected-precondition",
+      "remarks": "FR-011・ADR-003 D-8。受け入れ基準が名指しする交代種別・打順枠・交代前後の選手参照ID・守備位置IDだけを段階1の閉じたpayloadとして列挙する。選手交代は状態量・スコアボード・成績フラグ・履歴文脈を変えない状態中立の操作であり、選手帰属と出場履歴はこの比較面の外にある。FR-006の取消可能な履歴は確定プレイと採用時の状態補正のみなのでpushしない。段階1はフィールド一意性・他資産への参照整合・相反指定の排除・D-8の文字列型制約とFR-015の任意選手名との整合を保証しない。これらは段階2のclosed-payload-schemasで確定する。gameEnded=trueはFR-011の試合進行中前提を満たさないため拒否する。不正payloadは有効payloadを定義する規範行と同一の自然キーになるため別行にせず、payloadShapeの負例で拒否を検査する。"
+    }
+  ],
   "undoRows": [],
   "mustOperationCoverage": {
     "mappings": [
@@ -3114,6 +3483,103 @@
                   {"op": "eq", "axisId": "state.count.balls", "value": 0},
                   {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
                 ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "operationType": "substitution",
+        "rowRefs": [
+          {
+            "layer": "operationRows",
+            "coordinate": {
+              "operationKind": "substitution",
+              "payloadShape": {
+                "type": "object",
+                "properties": {
+                  "substitutionType": {
+                    "type": "string",
+                    "enum": [
+                      "pitcher",
+                      "pinch-hitter",
+                      "pinch-runner",
+                      "defensive"
+                    ]
+                  },
+                  "battingOrderSlot": {
+                    "type": "integer"
+                  },
+                  "outgoingPlayerId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "incomingPlayerId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "defensivePositionId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "substitutionType",
+                  "outgoingPlayerId",
+                  "incomingPlayerId"
+                ],
+                "additionalProperties": false
+              },
+              "precondition": {
+                "op": "eq",
+                "axisId": "state.gameEnded",
+                "value": false
+              }
+            }
+          },
+          {
+            "layer": "operationRows",
+            "coordinate": {
+              "operationKind": "substitution",
+              "payloadShape": {
+                "type": "object",
+                "properties": {
+                  "substitutionType": {
+                    "type": "string",
+                    "enum": [
+                      "pitcher",
+                      "pinch-hitter",
+                      "pinch-runner",
+                      "defensive"
+                    ]
+                  },
+                  "battingOrderSlot": {
+                    "type": "integer"
+                  },
+                  "outgoingPlayerId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "incomingPlayerId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "defensivePositionId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "substitutionType",
+                  "outgoingPlayerId",
+                  "incomingPlayerId"
+                ],
+                "additionalProperties": false
+              },
+              "precondition": {
+                "op": "eq",
+                "axisId": "state.gameEnded",
+                "value": true
               }
             }
           }

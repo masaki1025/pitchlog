@@ -497,6 +497,48 @@ descriptorと要件書D-4の改訂にあたり、確定ゲートを要するた�
 イベント種別が単一値でよいかを判断するまで、PB・WPの行がその投球の判定を保持していると
 扱わない。
 
+#### ステップ61〜64の`payloadShape`の射程(2026-10-03 PO裁定・案A)
+
+`operationRows[]`の`payloadShape`について、承認済みの2正本が正面から食い違う。
+ADR-003のD-8は、各行が当該操作のpayloadを定める閉じたJSON Schemaを持ち、許可する
+全フィールドを`properties`へ列挙して`additionalProperties: false`とすることを必須に
+している。一方、入力軸descriptorの`stage2ExternalConstraints`は、`payloadAxisIds`へ
+`event.operationPayload`を挙げ、`requiredArtifacts`へ`closed-payload-schemas`を
+挙げて、これを段階2の確定対象としている。両者は要件書v2.10・ADR-003 v0.4・
+同期プロトコル設計v0.5を一括検証した同じ確定ゲート12周を通っており、矛盾が残った。
+
+FR-011は交代の種類と期待動作を定めるが、payloadのフィールド名・必須区分・型を
+列挙していない。したがって推測でスキーマを書けばD-8違反か段階2の先取りのどちらかに
+なる。この構造は選手交代に固有ではなく、ステップ62のタイブレーク開始、63の
+試合終了宣言、64のその場登録にも同じ形で現れ、ステップ66の
+`mustOperationCoverage`が6種を覆うという合格条件にも波及する。
+
+PO裁定により、段階1と段階2で`payloadShape`の射程を次のように分ける。段階1が置くのは
+**当該FRの受け入れ基準が名指しする要素だけを`properties`へ列挙した最小の閉じた形**で
+あり、D-8が要求する`type: "object"`・`properties`の全列挙・`required`・
+`additionalProperties: false`の4点を満たす。段階2が確定する`closed-payload-schemas`は
+**内部制約まで含む完全形**であり、`constraintClasses`が挙げる`field-uniqueness`・
+`reference-integrity`・`mutual-exclusion`・`payload-string-policy-reconciliation`を
+伴う。段階1の最小形は段階2の完全形の部分集合であって競合しない。
+
+この分け方で段階1が保証しないものを明示する。フィールドの一意性、他資産への参照整合、
+相反するフィールドの同時指定の排除、およびD-8の文字列型制約とFR-015の任意選手名との
+整合は、いずれも段階1では検査しない。段階1が保証するのは、列挙したフィールド以外を
+payloadが持てないことと、必須フィールドの欠落が拒否されることだけである。
+`operationResult`の`rejected-invalid-payload`は、この範囲での拒否を表す。
+
+選手交代の`stateEffect`が比較面の全欄で`unchanged`になる点は、欠落ではない。
+`stateFieldEffects`の10欄はいずれも状態量(回・表裏・カウント・アウト・走者・打順枠・
+タイブレーク・試合終了・得点)であり、選手の識別子も守備位置も持たない。選手交代は
+これらを変えないため、全面`unchanged`は「交代は状態中立である」という検証可能な主張に
+なる。FR-011が定める以降のプレイの選手への紐づけは、出場履歴と成績帰属の側が持つ
+関心であり、本契約の比較面ではない。この切り分けを各行の`remarks`へ残す。
+
+`historyEffect`は`{pushes: false, kind: null}`とする。FR-006の補足が取消可能な操作を
+「確定プレイ」と、FR-040を採用した場合の「状態補正」に限っており、選手交代を含めない
+ためである。FR-011の補足が境界に挙げる「直前交代の取り消し」は、undoではなく同一枠への
+再交代として記録する経路を指すものと解する。
+
 ### 7-1. 成績計上フラグの導出元(8 周目までの記述を補正)
 
 v9 までは「付録A-2 / A-2b / A-3 / A-3b / A-5 から逆算」としていたが、**それだけでは足りない**。
