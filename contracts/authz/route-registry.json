@@ -16,7 +16,8 @@
       "legacy_route",
       "shared_data",
       "control_read",
-      "management_operation"
+      "management_operation",
+      "record_and_aggregate"
     ],
     "route_classes": [
       "shared_screen",
@@ -80,6 +81,11 @@
       "provenance_id": "PLAN-STEP4-LEGACY-DENY",
       "path": "docs/features/pg-authz-verification/plan.md",
       "extracted_text": "既存経路(FR-020〜032)は明示的な拒否行として保持する"
+    },
+    {
+      "provenance_id": "PLAN-TSK446-RECORD-AND-AGGREGATE",
+      "path": "docs/features/route-kind-vocabulary/plan.md",
+      "extracted_text": "既存 4 種と同じ「値域 + 種別別検査 + exact-set」の 3 点セットを持たせる。"
     }
   ],
   "routes": [

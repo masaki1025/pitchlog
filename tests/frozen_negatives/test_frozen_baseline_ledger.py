@@ -257,13 +257,14 @@ def test_absent_prior_identity_with_values_is_red(copied_ledger: Path) -> None:
 
 @pytest.mark.frozen_negative
 def test_new_identity_different_from_derived_value_is_red(copied_ledger: Path) -> None:
-    """N13: new identityの1文字改ざんを導出照合で拒否する。"""
+    """N13: 後続の連鎖検査を避けるため末尾identityを導出照合で拒否する。"""
     _assert_baseline_green(copied_ledger)
     ledger = _read_ledger(copied_ledger)
-    latest_record = ledger["history"][-1]
-    value = latest_record["new_identity"]["values"][0]["value"]
-    replacement = "0" if value[0] != "0" else "1"
-    latest_record["new_identity"]["values"][0]["value"] = replacement + value[1:]
+    value = ledger["history"][-1]["new_identity"]["values"][0]["value"]
+    replacement_prefix = "0" if value[0] != "0" else "1"
+    ledger["history"][-1]["new_identity"]["values"][0]["value"] = (
+        replacement_prefix + value[1:]
+    )
     _write_ledger(copied_ledger, ledger)
 
     _assert_red(

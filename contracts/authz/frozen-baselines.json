@@ -42,7 +42,7 @@
     "code_assets": [
       {
         "path": "scripts/check_frozen_baselines.py",
-        "sha256": "92f84bfbcf3167a844e4217cf3acb419b195cf78083985cb346a93b0a4857332"
+        "sha256": "2d45de24d8d2e48444ee2d0d43a66f13bf1f1146b940f5ba15f67ed9922cc6b9"
       },
       {
         "path": "scripts/frozen_baselines.py",
@@ -157,14 +157,14 @@
       "approved_at": "2026-09-21"
     },
     {
-      "acceptance_id": "masaki1025/pitchlog#81",
+      "acceptance_id": "masaki1025/pitchlog#77",
       "series": "oracle_input",
       "new_identity": {
         "present": true,
         "values": [
           {
             "kind": "literal_commit_string",
-            "value": "4d2312250678ba4fb2efd6d336d34f1db70ab36e"
+            "value": "70621e330610f214416aa7a1b067acf7b941f8c0"
           }
         ]
       },
@@ -179,30 +179,44 @@
       },
       "changes": [
         {
-          "aspect": "acceptance",
+          "aspect": "implementation_bindings",
           "before": {
-            "unit": "pull_request",
-            "base_ref": "develop",
-            "prior_state": "event.pull_request.base.sha",
-            "posterior_state": "checkout_head",
-            "parent_check": {
-              "first": "base.sha",
-              "second": "head.sha"
-            },
-            "acceptance_id_source": "repository_and_pr_number",
-            "self_reference": "none"
+            "code_assets": [
+              {
+                "path": "scripts/check_frozen_baselines.py",
+                "sha256": "92f84bfbcf3167a844e4217cf3acb419b195cf78083985cb346a93b0a4857332"
+              },
+              {
+                "path": "scripts/frozen_baselines.py",
+                "sha256": "8277e009a045768e2a0c7b08acba06782d7da2a02c69631b814940d09366da7c"
+              }
+            ],
+            "strategy_keys": [
+              "literal_commit_string/json_pointer_value"
+            ],
+            "registry": {
+              "path": "scripts/frozen_baselines.py",
+              "symbol": "COMPARISON_STRATEGIES"
+            }
           },
           "after": {
-            "unit": "pull_request",
-            "base_ref": "develop",
-            "prior_state": "event.pull_request.base.sha",
-            "posterior_state": "checkout_head",
-            "parent_check": {
-              "first": "base.sha",
-              "second": "head.sha"
-            },
-            "acceptance_id_source": "repository_and_pr_number",
-            "self_reference": "none"
+            "code_assets": [
+              {
+                "path": "scripts/check_frozen_baselines.py",
+                "sha256": "2d45de24d8d2e48444ee2d0d43a66f13bf1f1146b940f5ba15f67ed9922cc6b9"
+              },
+              {
+                "path": "scripts/frozen_baselines.py",
+                "sha256": "8277e009a045768e2a0c7b08acba06782d7da2a02c69631b814940d09366da7c"
+              }
+            ],
+            "strategy_keys": [
+              "literal_commit_string/json_pointer_value"
+            ],
+            "registry": {
+              "path": "scripts/frozen_baselines.py",
+              "symbol": "COMPARISON_STRATEGIES"
+            }
           }
         }
       ],
@@ -223,9 +237,9 @@
         ]
       },
       "moved": false,
-      "reason": "要件書v2.10改訂へ追随した認可oracle入力資産を第1段コミットへ再封印するため",
+      "reason": "TSK-446 で route_kind へ record_and_aggregate を足したため、oracle 入力資産 route-registry.json と auth-catalog.json の内容が変わり、入力 baseline の commit を更新する必要があるため。承認の取得元: 2026-09-25 の Claude Code セッションでの発話(逐語「承認するから入れてくれない?」)。PR masaki1025/pitchlog#77 には本記録の時点で review・comment がいずれも 0 件であり、GitHub 側の機械可読な承認記録は存在しない",
       "approved_by": "山田正輝",
-      "approved_at": "2026-09-28"
+      "approved_at": "2026-09-25"
     }
   ]
 }
