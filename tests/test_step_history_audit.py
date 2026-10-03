@@ -28,6 +28,7 @@ STEPS_PATH = ROOT / "docs/features/domain-calc-dsl/steps.json"
 BACKEND_SRC = ROOT / "backend/src"
 THIS_FILE = Path(__file__).resolve()
 STEPS_HISTORY_PATH = "docs/features/domain-calc-dsl/steps.json"
+FEATURE_PLAN_PATH = "docs/features/domain-calc-dsl/plan.md"
 
 ROOT_CWD = "."
 BACKEND_CWD = "backend"
@@ -405,6 +406,22 @@ def _assert_declared_step_order(
     )
 
 
+def _pull_request_head() -> dict[str, Any]:
+    """PR イベントの head を履歴監査と適用条件で共通に読む。"""
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if not event_path:
+        raise AuditViolation("PR 履歴監査に GITHUB_EVENT_PATH が無い")
+    try:
+        event = json.loads(Path(event_path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise AuditViolation("PR イベントを読み取れない") from error
+    pull_request = event.get("pull_request") if isinstance(event, dict) else None
+    head = pull_request.get("head") if isinstance(pull_request, dict) else None
+    if not isinstance(head, dict):
+        raise AuditViolation("PR イベントに head が無い")
+    return head
+
+
 def _history_head_revision() -> str:
     """履歴監査を始める PR head またはローカル HEAD を返す。
 
@@ -419,19 +436,54 @@ def _history_head_revision() -> str:
     """
     if os.environ.get("GITHUB_EVENT_NAME") != "pull_request":
         return "HEAD"
-    event_path = os.environ.get("GITHUB_EVENT_PATH")
-    if not event_path:
-        raise AuditViolation("PR 履歴監査に GITHUB_EVENT_PATH が無い")
-    try:
-        event = json.loads(Path(event_path).read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise AuditViolation("PR イベントを読み取れない") from error
-    pull_request = event.get("pull_request") if isinstance(event, dict) else None
-    head = pull_request.get("head") if isinstance(pull_request, dict) else None
-    head_sha = head.get("sha") if isinstance(head, dict) else None
+    head = _pull_request_head()
+    head_sha = head.get("sha")
     if not isinstance(head_sha, str) or not head_sha:
         raise AuditViolation("PR イベントに head SHA が無い")
     return head_sha
+
+
+def _current_branch(root: Path) -> str:
+    """PR ではイベントの head.ref、それ以外ではローカルのブランチ名を返す。"""
+    if os.environ.get("GITHUB_EVENT_NAME") == "pull_request":
+        head_ref = _pull_request_head().get("ref")
+        if not isinstance(head_ref, str) or not head_ref.strip():
+            raise AuditViolation("PR イベントに head.ref が無い")
+        return head_ref
+    return _git(root, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+
+
+def _declared_feature_branch(root: Path, revision: str) -> str:
+    """指定 revision の計画書 frontmatter から branch 宣言を読む。"""
+    plan = _git(root, "show", f"{revision}:{FEATURE_PLAN_PATH}").stdout
+    lines = plan.splitlines()
+    if not lines or lines[0] != "---":
+        raise AuditViolation(f"{revision} の feature 計画書に frontmatter が無い")
+    try:
+        closing = lines.index("---", 1)
+    except ValueError as error:
+        raise AuditViolation(
+            f"{revision} の feature 計画書の frontmatter が閉じていない"
+        ) from error
+    declarations = [line for line in lines[1:closing] if line.startswith("branch:")]
+    if len(declarations) != 1:
+        raise AuditViolation(f"{revision} の feature 計画書に branch 宣言が一意に無い")
+    branch = declarations[0].partition(":")[2].split("#", 1)[0].strip()
+    if not branch or any(character.isspace() for character in branch):
+        raise AuditViolation(f"{revision} の feature 計画書の branch 宣言が不正")
+    return branch
+
+
+def _should_audit_real_repository(root: Path) -> bool:
+    """比較元の宣言が不変で、現在のブランチが所有者なら監査する。"""
+    declared_base = _declared_feature_branch(root, "origin/develop")
+    declared_head = _declared_feature_branch(root, "HEAD")
+    if declared_head != declared_base:
+        raise AuditViolation(
+            "feature 計画書の branch 宣言が比較元と一致しない: "
+            f"base={declared_base} head={declared_head}"
+        )
+    return _current_branch(root) == declared_base
 
 
 def _implementation_commits(
@@ -746,6 +798,40 @@ def _history_repository(tmp_path: Path) -> Path:
     return repository
 
 
+def _write_synthetic_feature_plan(root: Path, branch: str) -> None:
+    """合成リポジトリに適用条件の branch 宣言を置く。"""
+    path = root / FEATURE_PLAN_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"---\nbranch: {branch}\n---\n", encoding="utf-8")
+
+
+def _feature_plan_repository(tmp_path: Path) -> tuple[Path, str]:
+    """比較元に所有ブランチ宣言を持つ合成リポジトリを作る。"""
+    repository = _history_repository(tmp_path)
+    _write_synthetic_feature_plan(repository, "feature/domain-calc-dsl")
+    base_commit = _git_commit(repository, "base")
+    _git(repository, "update-ref", "refs/remotes/origin/develop", base_commit)
+    return repository, base_commit
+
+
+def _set_synthetic_pull_request_event(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    head_sha: str,
+    head_ref: str | None,
+) -> None:
+    """合成 PR イベントを配置し、環境変数から読ませる。"""
+    head = {"sha": head_sha}
+    if head_ref is not None:
+        head["ref"] = head_ref
+    event_path = tmp_path / "pull-request.json"
+    event_path.write_text(
+        json.dumps({"pull_request": {"head": head}}), encoding="utf-8"
+    )
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event_path))
+
+
 def _synthetic_steps(artifact: str, command: str) -> dict[str, Any]:
     """履歴負例に必要な最小ステップ定義を返す。"""
     return {
@@ -825,6 +911,8 @@ def test_command_reporting_zero_scope_count_is_rejected() -> None:
 def test_real_repository_artifacts_exist_at_each_completed_step_commit(
     steps_data: dict[str, Any],
 ) -> None:
+    if not _should_audit_real_repository(ROOT):
+        return
     total = int(steps_data["expected_total"])
     exceptions = _history_order_exceptions(steps_data)
     commits = _implementation_commits(ROOT, total, order_exceptions=exceptions)
@@ -835,6 +923,78 @@ def test_real_repository_artifacts_exist_at_each_completed_step_commit(
     _assert_artifacts_at_commits(
         ROOT, steps_data, commits, _step_amendment_commits(ROOT)
     )
+
+
+def test_develop_checkout_does_not_run_feature_history_audit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """比較元と同じ develop 上では空の履歴範囲を監査しない。"""
+    repository, _ = _feature_plan_repository(tmp_path)
+    monkeypatch.delenv("GITHUB_EVENT_NAME", raising=False)
+    monkeypatch.setattr(sys.modules[__name__], "ROOT", repository)
+
+    test_real_repository_artifacts_exist_at_each_completed_step_commit({})
+
+
+def test_declared_owner_branch_is_audited(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """所有ブランチでは履歴監査の適用条件が成立する。"""
+    repository, _ = _feature_plan_repository(tmp_path)
+    _git(repository, "switch", "--quiet", "-c", "feature/domain-calc-dsl")
+    monkeypatch.delenv("GITHUB_EVENT_NAME", raising=False)
+
+    assert _should_audit_real_repository(repository)
+
+
+def test_pull_request_uses_head_ref_for_feature_history_audit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """合成 merge checkout のローカル develop ではなく PR head.ref を使う。"""
+    repository, _ = _feature_plan_repository(tmp_path)
+    _git(repository, "switch", "--quiet", "-c", "feature/domain-calc-dsl")
+    (repository / "step.txt").write_text("step\n", encoding="utf-8")
+    feature_head = _git_commit(repository, "feat: step")
+    _git(repository, "switch", "--quiet", "develop")
+    _git(repository, "merge", "--quiet", "--no-ff", "feature/domain-calc-dsl", "-m", "PR merge")
+    _set_synthetic_pull_request_event(
+        tmp_path, monkeypatch, feature_head, "feature/domain-calc-dsl"
+    )
+
+    assert _git(repository, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip() == "develop"
+    assert _should_audit_real_repository(repository)
+
+
+def test_pull_request_without_head_ref_rejects_feature_history_audit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PR イベントに head.ref が無ければ対象外とせず停止する。"""
+    repository, base_commit = _feature_plan_repository(tmp_path)
+    _set_synthetic_pull_request_event(tmp_path, monkeypatch, base_commit, None)
+
+    with pytest.raises(AuditViolation, match="head.ref が無い"):
+        _should_audit_real_repository(repository)
+
+
+def test_changed_branch_declaration_rejects_feature_history_audit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """同じ PR で branch 宣言を変えても監査を無効化できない。"""
+    repository, _ = _feature_plan_repository(tmp_path)
+    _git(repository, "switch", "--quiet", "-c", "feature/domain-calc-dsl")
+    _write_synthetic_feature_plan(repository, "feature/other")
+    feature_head = _git_commit(repository, "docs: 宣言変更")
+    _set_synthetic_pull_request_event(
+        tmp_path, monkeypatch, feature_head, "feature/domain-calc-dsl"
+    )
+
+    with pytest.raises(AuditViolation, match="branch 宣言が比較元と一致しない"):
+        _should_audit_real_repository(repository)
 
 
 def test_undeclared_step_order_violation_is_rejected(tmp_path: Path) -> None:
