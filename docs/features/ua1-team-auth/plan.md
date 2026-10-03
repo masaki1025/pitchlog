@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3da93b75e68781588f97fa6160c535b7
 branch: feature/ua1-team-auth
 created: 2026-09-24
-計画レビュー周回: 8        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 9        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -123,7 +123,7 @@ U-A1 は製品コードへの最短路の上にある(U-M1 の外部依存 #6 = 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
 | 1 | **起票と in-review 化**: β / γ / δ を Notion に起票し(射程・待ち合わせ・衝突面・DoD は design.md 3 節と 5 節の割り振り表)、**ID を design.md 3 節と本計画書へ記録**する。**TSK-399 カードの DoD を α の射程へ書き換える**。`data-model.md` の frontmatter を `in-review` にし、変更履歴へ**起案行(射程宣言)**を足し、索引を現行化する | 3 タスクの ID が design.md・plan.md・Notion の三者で一致 / `uv run python scripts/check_docs_status.py` exit 0 / 差分が `docs/` だけ |
-| 2 | **条文 C-1〜C-6(+ J-1・J-2 の取り込み分)を書き、確定ゲートを通して approved v0.4 にする**(`/finalize-doc`)。**反映周のコミットは `反映<r>周目` のみでステップ記法を付けない**。本ステップの完了コミットは approved 化コミット | **本ステップの間、派生値 2 か所の digest 照合は stale を返す(想定どおり。取り直しはステップ 3 で 1 回だけ)** / 確定ゲートが 7.3-2 の収束条件で終端し、**人間が明示承認** / 条文が design.md 1 節の起草案(ゲートでの改訂を反映した版)と一致 / **design.md C-1-6 の表の全行を 1 行ずつ原文と突き合わせ、意味が追随している**(件数検索だけで閉じない。補助として `grep -n "5 ロール\|5 つに分ける\|2 つ増える" docs/design/data-model.md` が 0 行)/ **定義の所在表(`:56` 付近)に「ロールの分割」行の参照節 8-2・8-3・8-6 と「チーム名の正規化とログイン名の一意性」行がある** / **「業務的一意性の全数」の 3 か所(`:57`・`:411`・`:2820`)が「主表と実装待ちの表の和」に揃い、実装待ちの表の見出しが主表と違う**(`cd backend && uv run pytest tests/test_schema_manifest.py -k exactly` が digest 以外の理由で落ちない) / `check_docs_status.py` exit 0 |
+| 2 | **条文 C-1〜C-6(+ J-1・J-2 の取り込み分)を書き、確定ゲートを通して approved v0.4 にする**(`/finalize-doc`)。**反映周のコミットは `反映<r>周目` のみでステップ記法を付けない**。本ステップの完了コミットは approved 化コミット | **本ステップの間、派生値 2 か所の digest 照合は stale を返す(想定どおり。取り直しはステップ 3 で 1 回だけ)** / 確定ゲートが 7.3-2 の収束条件で終端し、**人間が明示承認** / 条文が design.md 1 節の起草案(ゲートでの改訂を反映した版)と一致 / **design.md C-1-6 の表の全行を 1 行ずつ原文と突き合わせ、意味が追随している**(件数検索だけで閉じない。補助として `grep -n "5 ロール\|5 つに分ける\|2 つ増える" docs/design/data-model.md` が 0 行)/ **定義の所在表(`:56` 付近)に「ロールの分割」行の参照節 8-2・8-3・8-6 と「チーム名の正規化とログイン名の一意性」行がある** / **「業務的一意性の全数」の 5 か所(`:57`・`:362`・`:408`・`:411`・`:2820`)が「主表と実装待ちの表の和」に揃い、実装待ちの表の見出しが主表と違う(「実装」列がある)**(`cd backend && uv run pytest tests/test_schema_manifest.py -k exactly` が digest 以外の理由で落ちない) / `check_docs_status.py` exit 0 |
 | 3 | **クローズ処理**(`/pr`)。**派生値 2 か所の digest を approved 版の data-model.md から取り直す**(approved 化コミットの後・`/pr` の前。ステップ 2 の反映周ごとに取り直さない — 最後の 1 回だけ) | 3 節の宣言と PR 内容が突合 / **差分が `docs/` と派生値 2 ファイルだけ**(`git diff --name-only origin/develop...HEAD` が `docs/`・`contracts/authz/shared-preconditions.json`・`contracts/db/schema-manifest.json` 以外 0 行。**2 ファイルの差分は digest の値の行だけ**)/ `uv run python scripts/check_shared_preconditions.py` と `cd backend && uv run pytest tests/test_schema_manifest.py` が green / PR 本文に「12-4: 対象入口なし」/ CI 全ジョブ green |
 
 ## 5. DoD(受け入れ基準)
