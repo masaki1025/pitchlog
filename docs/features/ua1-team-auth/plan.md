@@ -1,6 +1,6 @@
 ---
 feature: ua1-team-auth
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-03・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -32,7 +32,7 @@ U-A1 は製品コードへの最短路の上にある(U-M1 の外部依存 #6 = 
    U-A1 が作るのは**その関数**であり、**関数を所有するロールが正本に無い**(`data-model.md:200`「ロールを 5 つに分ける」)
 2. **トークンの提示形式と秘密性は U-A1 に戻された**(`product-authz-surface/design.md:168`)。正本に規定が無い
 3. **チーム名 → テナントの解決規則**(`tenants.name` に一意制約なし)、**ハッシュの生成・照合の場所**、**レート制限のカウント単位**も正本に無い
-4. **律速連鎖は U-A1(関数層)→ U-A2・U-C1 の関数 PR → TSK-344 → U-A1 の入口 PR / U-M1**(research.md 追補 C)
+4. **律速連鎖は U-A1(関数層)→ U-A2・U-C1 の関数 PR → TSK-344 → U-A1 の入口 PR / U-M1**(research.md 追補 C)。**訂正(2026-10-03 午後)**: TSK-344 は同日承認・依存 3 件に改訂され、**U-A1 は TSK-344 の上流ではない**(research.md 追補 C の訂正注記)。U-M1 への効き方は γ(TSK-469)。**α の目的と射程は変わらない**
 
 人間が 2026-10-03 に設計判断 H-1〜H-6 を下した(research.md 追補 D・design.md 0 節)。
 **このうち H-3〜H-5 と H-2 の前半は、承認済み正本 `data-model.md` v0.3 の構造的変更**(ロールの数・一意性の表・認証の契約)であり、
@@ -80,8 +80,10 @@ U-A1 は製品コードへの最短路の上にある(U-M1 の外部依存 #6 = 
 | --- | --- | --- |
 | `docs/design/data-model.md` | **v0.3 → v0.4**。C-1〜C-6(+ J-1・J-2 で取り込みが決まった分)。変更履歴に起案行(射程宣言 — 設計書 7.3-7)と確定行 | **finalize-doc**(版繰り上げ・構造的変更 — 設計書 7.6-3 後段) |
 | `docs/README.md` | 索引の data-model 行を v0.4 へ | PR レビュー(7.6-3 前段) |
+| **受入突合シートの追随**(**計画からの逸脱 — 人間承認 2026-10-03**): `docs/features/orm-schema-migration/acceptance-sheets/`(N3・N7・README の再生成。既存判定は内容一致で引き継ぎ、新しい 19 行は人間承認の判定)と `tests/test_orm_acceptance_sheets.py` の期待行数 2 行 | data-model.md の本文から機械生成される派生資産で、計画時に見落としていた(v0.3 の前例 `docs/worklog/2026-09-13-merge-gate-clause.md` と同じ追随)。直接書いたテストの差分は `codex_run.py review normal` を通す | PR レビュー |
 | **派生値 2 か所**(正本ではない): `contracts/authz/shared-preconditions.json` の `mapping_target.git_blob_digest`・`contracts/db/schema-manifest.json` の `canonical_source.sha256` | **data-model.md の全文 digest の取り直しだけ**(`scripts/check_shared_preconditions.py:365`・`backend/tests/test_schema_manifest.py` の `_source_digest_violations` が照合する)。**値以外は変えない**。前例 = TSK-424 A1・A2(`product-authz-apply/design.md:91` — 「data-model.md を変えると派生資産 2 か所の取り直しが機械的に要る」・人間が承認した例外)。**7 節 J-5 で人間の承認を受ける** | PR レビュー |
-| 要件書・ADR・ハーネス設計書・運用文書 | **反映なし**(design.md 2 節) | — |
+| `docs/development/harness-evaluation.md`(運用評価台帳) | **`## 候補` へ 1 件追記**(`H-*` は採番しない・版は上げない — 7.6-3 前段): 正本の改訂で連鎖する派生資産を前例の件数で見積もると取りこぼす / 突合シートの判定の持ち越しが通し番号のずれで落ちる(2 例目)。`/pr` のクローズ処理で判断 | PR レビュー |
+| 要件書・ADR・ハーネス設計書・運用文書(台帳を除く) | **反映なし**(design.md 2 節) | — |
 
 ## 4. 実装方針
 
@@ -147,7 +149,7 @@ U-A1 は製品コードへの最短路の上にある(U-M1 の外部依存 #6 = 
 - [ ] J-1・J-2 の判断どおり、TSK-453・TSK-445 の正本側を取り込んだ / 取り込まなかった(取り込んだ場合は両カードへ記録)
 - [ ] 変更履歴に起案行と確定行、`docs/README.md` の索引が v0.4
 - [ ] β / γ / δ が Notion に起票され、元の DoD の割り振り(上表)が各カードに載っている
-- [ ] 差分が `docs/` と派生値 2 ファイル(digest の値の行だけ)。コード・テストは 0 行。`backend/tests/conftest.py` の差分 0 行
+- [ ] 差分が `docs/` と派生値 2 ファイル(digest の値の行だけ)と `tests/test_orm_acceptance_sheets.py` の期待行数 2 行(**人間承認の逸脱** — 3 節)。`backend/tests/conftest.py` の差分 0 行
 - [ ] PR 本文に「12-4: 対象入口なし」
 - [ ] CI 全ジョブ green
 
