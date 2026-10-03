@@ -1,7 +1,7 @@
 ---
 feature: product-rls-boundary-tests
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-10-03・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3d593b75e687811f8ad5f5da4a8af046
@@ -635,5 +635,5 @@ P0 の推移: **7 → 4 → 3 → 1 → 1 → 0**。
 - 「期待 node ID 集合を `origin/develop` の SHA に結び付けて**資産へ固定する形**で反映されています」
 - 「**ステップ 1〜7 の合格条件について、承認を止める実行者間の判定差は見つかりませんでした**」
 
-**`承認: 済` への変更は G1 の人間の承認時に行う。** 本節の時点では `未` のままである。
+**G1 を通過した** — 2026-10-03 に人間が承認し、frontmatter を `承認: 済(2026-10-03・山田正輝)` にした。
 
