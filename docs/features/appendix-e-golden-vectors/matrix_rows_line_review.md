@@ -4,7 +4,7 @@
 
 - 作成者: `codex`
 - 独立確認: **未実施**
-- 由来条文: `req:E-1` / `req:FR-003` / `req:4.0-2` / `req:E-2` / `req:SO-01` / `req:SO-02` / `req:SO-03` / `req:SO-04` / `req:SO-05` / `req:A-2` / `req:A-3` / `req:ADV-01` / `req:ADV-02` / `req:ADV-04` / `obr:9.02(a)(1)` / `obr:9.08` / `req:A-5` / `req:ADV-03` / `req:RBI-06` / `req:RBI-01` / `req:XC-11` / `req:FR-004` / `req:A-4` / `req:FR-027` / `req:INT-01` / `req:INT-02` / `req:INT-03` / `req:INT-04` / `req:INT-05` / `req:INT-06` / `req:INT-07` / `req:FR-020` / `docs/legacy/research/input-screen.md:68` / `docs/legacy/research/input-screen.md:70` / `docs/legacy/research/input-screen.md:71` / `docs/legacy/research/input-screen.md:163` / `docs/legacy/research/input-screen.md:161` / `docs/legacy/research/input-screen.md:162` / `docs/legacy/research/input-screen.md:151` / `docs/legacy/research/input-screen.md:152` / `docs/legacy/research/input-screen.md:155` / `req:RBI-08`
+- 由来条文: `req:E-1` / `req:FR-003` / `req:4.0-2` / `req:E-2` / `req:SO-01` / `req:SO-02` / `req:SO-03` / `req:SO-04` / `req:SO-05` / `req:A-2` / `req:A-3` / `req:ADV-01` / `req:ADV-02` / `req:ADV-04` / `obr:9.02(a)(1)` / `obr:9.08` / `req:A-5` / `req:ADV-03` / `req:RBI-06` / `req:RBI-01` / `req:XC-11` / `req:FR-004` / `req:A-4` / `req:FR-027` / `req:INT-01` / `req:INT-02` / `req:INT-03` / `req:INT-04` / `req:INT-05` / `req:INT-06` / `req:INT-07` / `req:FR-020` / `docs/legacy/research/input-screen.md:68` / `docs/legacy/research/input-screen.md:70` / `docs/legacy/research/input-screen.md:71` / `docs/legacy/research/input-screen.md:163` / `docs/legacy/research/input-screen.md:161` / `docs/legacy/research/input-screen.md:162` / `docs/legacy/research/input-screen.md:151` / `docs/legacy/research/input-screen.md:152` / `docs/legacy/research/input-screen.md:155` / `docs/legacy/research/input-screen.md:153` / `docs/legacy/research/input-screen.md:154` / `req:RBI-08`
 - 完全な値: `contracts/state-transition/state_transition_contract_v1.json` の `matrixRows[]`（入力座標 = `eventKind` + `resultId` + `precondition`）
 
 **本表の全行に共通する前提:** なし
@@ -49,6 +49,12 @@
 | 34 | 走者イベント | 盗塁 | 無死 / 走者 1塁 / カウント 0-0 / 投球イベント | — | — | — | 1塁→2塁（非フォース） | 0 | 投球数 | FR-004・ADV-03・旧input-screen:155。無死一塁を代表し、旧実態の先頭走者進塁を既定として一塁走者を二塁へ非フォース進塁させる。盗塁死・停止・複数走者の実結果はrunnerEventPayloadで上書きする。A-4の成否はFR-027の分析・集計で走者イベント記録と打撃結果記録を合わせて判定し、本行単独からは導出しない |
 | 35 | 走者イベント | バント | 無死 / 走者 1塁 / カウント 0-0 / 投球イベント | — | — | — | 1塁停止 | 0 | 投球数 | FR-004・ADV-04。作戦カテゴリ単独では実際の進塁を確定しないため、一塁走者の既定を停止とする。送りバント等の状態効果は別のbatting-result行とrunnerEventPayloadの観測結果で適用する。A-4の成否はFR-027の分析・集計で走者イベント記録と打撃結果記録を合わせて判定し、本行単独からは導出しない |
 | 36 | 走者イベント | エンドラン | 無死 / 走者 1塁 / カウント 0-0 / 投球イベント | — | — | — | 1塁→2塁（非フォース） | 0 | 投球数 | FR-004・ADV-03・旧input-screen:155。無死一塁を代表し、旧実態の先頭走者進塁を既定として一塁走者を二塁へ非フォース進塁させる。走者アウト・停止・複数走者の実結果はrunnerEventPayloadで上書きする。A-4の成功（打者）・成功（走者）・失敗はFR-027の分析・集計で走者イベント記録と打撃結果記録を合わせて判定し、本行単独からは導出しない |
+| 37 | 走者イベント | 一塁牽制 | 無死 / 走者 1塁 / カウント 0-0 / 非投球イベント | — | — | — | 1塁停止 | 0 | なし | E-1・FR-004・ADV-04・旧input-screen:153-154。無死一塁の非投球イベントとして投手の一塁牽制を表し、一塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない |
+| 38 | 走者イベント | 二塁牽制 | 無死 / 走者 2塁 / カウント 0-0 / 非投球イベント | — | — | — | 2塁停止 | 0 | なし | E-1・FR-004・ADV-04・旧input-screen:153-154。無死二塁の非投球イベントとして投手の二塁牽制を表し、二塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない |
+| 39 | 走者イベント | 三塁牽制 | 無死 / 走者 3塁 / カウント 0-0 / 非投球イベント | — | — | — | 3塁停止 | 0 | なし | E-1・FR-004・ADV-04・旧input-screen:153-154。無死三塁の非投球イベントとして投手の三塁牽制を表し、三塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない |
+| 40 | 走者イベント | 1塁牽制 | 無死 / 走者 1塁 / カウント 0-0 / 非投球イベント | — | — | — | 1塁停止 | 0 | なし | E-1・FR-004・ADV-04・旧input-screen:153-154。無死一塁の非投球イベントとして捕手の一塁牽制を表し、一塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない |
+| 41 | 走者イベント | 2塁牽制 | 無死 / 走者 2塁 / カウント 0-0 / 非投球イベント | — | — | — | 2塁停止 | 0 | なし | E-1・FR-004・ADV-04・旧input-screen:153-154。無死二塁の非投球イベントとして捕手の二塁牽制を表し、二塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない |
+| 42 | 走者イベント | 3塁牽制 | 無死 / 走者 3塁 / カウント 0-0 / 非投球イベント | — | — | — | 3塁停止 | 0 | なし | E-1・FR-004・ADV-04・旧input-screen:153-154。無死三塁の非投球イベントとして捕手の三塁牽制を表し、三塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない |
 
 ## 機械検査として畳む項目
 

@@ -175,6 +175,14 @@
         "sourceId": "docs/legacy/research/input-screen.md:155"
       },
       {
+        "sourceKind": "legacy-research",
+        "sourceId": "docs/legacy/research/input-screen.md:153"
+      },
+      {
+        "sourceKind": "legacy-research",
+        "sourceId": "docs/legacy/research/input-screen.md:154"
+      },
+      {
         "sourceKind": "requirements",
         "sourceId": "req:RBI-08"
       }
@@ -2071,6 +2079,318 @@
         "打点": false
       },
       "remarks": "FR-004・ADV-03・旧input-screen:155。無死一塁を代表し、旧実態の先頭走者進塁を既定として一塁走者を二塁へ非フォース進塁させる。走者アウト・停止・複数走者の実結果はrunnerEventPayloadで上書きする。A-4の成功（打者）・成功（走者）・失敗はFR-027の分析・集計で走者イベント記録と打撃結果記録を合わせて判定し、本行単独からは導出しない"
+    },
+    {
+      "eventKind": "runner-event",
+      "resultId": "pitcher-pickoff-destination.first",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "unchanged"},
+        "balls": {"kind": "unchanged"}
+      },
+      "plateAppearanceEnded": "not-applicable",
+      "batterDestination": {"kind": "not-applicable"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "hold", "destination": null},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": false,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": false,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "E-1・FR-004・ADV-04・旧input-screen:153-154。無死一塁の非投球イベントとして投手の一塁牽制を表し、一塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない"
+    },
+    {
+      "eventKind": "runner-event",
+      "resultId": "pitcher-pickoff-destination.second",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "second"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "unchanged"},
+        "balls": {"kind": "unchanged"}
+      },
+      "plateAppearanceEnded": "not-applicable",
+      "batterDestination": {"kind": "not-applicable"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "not-applicable", "destination": null},
+        "second": {"modality": "hold", "destination": null},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": false,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": false,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "E-1・FR-004・ADV-04・旧input-screen:153-154。無死二塁の非投球イベントとして投手の二塁牽制を表し、二塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない"
+    },
+    {
+      "eventKind": "runner-event",
+      "resultId": "pitcher-pickoff-destination.third",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "third"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "unchanged"},
+        "balls": {"kind": "unchanged"}
+      },
+      "plateAppearanceEnded": "not-applicable",
+      "batterDestination": {"kind": "not-applicable"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "not-applicable", "destination": null},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "hold", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": false,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": false,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "E-1・FR-004・ADV-04・旧input-screen:153-154。無死三塁の非投球イベントとして投手の三塁牽制を表し、三塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない"
+    },
+    {
+      "eventKind": "runner-event",
+      "resultId": "catcher-pickoff-destination.first",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "first"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "unchanged"},
+        "balls": {"kind": "unchanged"}
+      },
+      "plateAppearanceEnded": "not-applicable",
+      "batterDestination": {"kind": "not-applicable"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "hold", "destination": null},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": false,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": false,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "E-1・FR-004・ADV-04・旧input-screen:153-154。無死一塁の非投球イベントとして捕手の一塁牽制を表し、一塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない"
+    },
+    {
+      "eventKind": "runner-event",
+      "resultId": "catcher-pickoff-destination.second",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "second"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "unchanged"},
+        "balls": {"kind": "unchanged"}
+      },
+      "plateAppearanceEnded": "not-applicable",
+      "batterDestination": {"kind": "not-applicable"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "not-applicable", "destination": null},
+        "second": {"modality": "hold", "destination": null},
+        "third": {"modality": "not-applicable", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": false,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": false,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "E-1・FR-004・ADV-04・旧input-screen:153-154。無死二塁の非投球イベントとして捕手の二塁牽制を表し、二塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない"
+    },
+    {
+      "eventKind": "runner-event",
+      "resultId": "catcher-pickoff-destination.third",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "state.outs", "value": 0},
+          {"op": "eq", "axisId": "state.runners", "value": "third"},
+          {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+          {"op": "eq", "axisId": "state.count.balls", "value": 0},
+          {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
+        ]
+      },
+      "countEffect": {
+        "strikes": {"kind": "unchanged"},
+        "balls": {"kind": "unchanged"}
+      },
+      "plateAppearanceEnded": "not-applicable",
+      "batterDestination": {"kind": "not-applicable"},
+      "runnerDefaultAdvance": {
+        "first": {"modality": "not-applicable", "destination": null},
+        "second": {"modality": "not-applicable", "destination": null},
+        "third": {"modality": "hold", "destination": null}
+      },
+      "outEffect": {"count": 0, "targets": []},
+      "statFlags": {
+        "投球回算入アウト": false,
+        "投球数": false,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": false,
+        "打数": false,
+        "安打": false,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "remarks": "E-1・FR-004・ADV-04・旧input-screen:153-154。無死三塁の非投球イベントとして捕手の三塁牽制を表し、三塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない"
     }
   ],
   "operationRows": [],
@@ -2691,6 +3011,108 @@
                   {"op": "eq", "axisId": "state.count.strikes", "value": 0},
                   {"op": "eq", "axisId": "state.count.balls", "value": 0},
                   {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "runner-event",
+              "resultId": "pitcher-pickoff-destination.first",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "runner-event",
+              "resultId": "pitcher-pickoff-destination.second",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "second"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "runner-event",
+              "resultId": "pitcher-pickoff-destination.third",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "third"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "runner-event",
+              "resultId": "catcher-pickoff-destination.first",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "first"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "runner-event",
+              "resultId": "catcher-pickoff-destination.second",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "second"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
+                ]
+              }
+            }
+          },
+          {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "runner-event",
+              "resultId": "catcher-pickoff-destination.third",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {"op": "eq", "axisId": "state.outs", "value": 0},
+                  {"op": "eq", "axisId": "state.runners", "value": "third"},
+                  {"op": "eq", "axisId": "state.count.strikes", "value": 0},
+                  {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                  {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "non-pitch-event"}
                 ]
               }
             }

@@ -1764,18 +1764,24 @@ def _validate_schema(contract: dict[str, Any]) -> None:
     schema_checker._validate_instance(contract, schema, schema, "$")
 
 
-def _validate_vocabulary_axis_coverage(contract: Mapping[str, Any]) -> None:
+def _validate_vocabulary_axis_coverage(
+    contract: Mapping[str, Any],
+    *,
+    schema: Mapping[str, Any] | None = None,
+) -> None:
     """schema宣言に従い複数の語彙軸と規範行のID集合を照合する。
 
     Args:
         contract: 検証する状況判定契約。
+        schema: テスト用のschema差し替え。省略時はリポジトリ資産を使う。
 
     Raises:
         VocabularyAxisCoverageError: manifest・シード・軸を一意に解決できないか、
             語彙ID集合がexact-setで一致しない場合。
     """
+    active_schema = _schema() if schema is None else schema
     configuration = _required_object(
-        _schema().get("x-pitchlog-vocabulary-axis-coverage"),
+        active_schema.get("x-pitchlog-vocabulary-axis-coverage"),
         "schema.x-pitchlog-vocabulary-axis-coverage",
     )
     if configuration.get("requiredRelationship") != "exact-set":
@@ -1837,6 +1843,15 @@ def _validate_vocabulary_axis_coverage(contract: Mapping[str, Any]) -> None:
     coverage_sets = configuration.get("coverageSets")
     if not isinstance(coverage_sets, list) or not coverage_sets:
         raise VocabularyAxisCoverageError("語彙軸被覆のcoverageSetsが空または配列でない")
+    required_axis_ids_value = configuration.get("requiredAxisIds")
+    if not isinstance(required_axis_ids_value, list) or not required_axis_ids_value:
+        raise VocabularyAxisCoverageError("語彙軸被覆のrequiredAxisIdsが空または配列でない")
+    required_axis_ids = {
+        _required_string(axis_id, "vocabularyAxisCoverage.requiredAxisIds[]")
+        for axis_id in required_axis_ids_value
+    }
+    if len(required_axis_ids) != len(required_axis_ids_value):
+        raise VocabularyAxisCoverageError("語彙軸被覆のrequiredAxisIdsが重複している")
     seen_axis_ids: set[str] = set()
     seen_discriminator_values: set[str] = set()
     for index, raw_coverage_set in enumerate(coverage_sets):
@@ -1844,35 +1859,47 @@ def _validate_vocabulary_axis_coverage(contract: Mapping[str, Any]) -> None:
             raw_coverage_set,
             f"vocabularyAxisCoverage.coverageSets[{index}]",
         )
-        axis_id = _required_string(
-            coverage_set.get("axisId"),
-            f"vocabularyAxisCoverage.coverageSets[{index}].axisId",
-        )
+        raw_axis_ids = coverage_set.get("axisIds")
+        if not isinstance(raw_axis_ids, list) or not raw_axis_ids:
+            raise VocabularyAxisCoverageError(
+                "語彙軸被覆のaxisIdsが空または配列でない"
+            )
+        axis_ids = [
+            _required_string(
+                axis_id,
+                f"vocabularyAxisCoverage.coverageSets[{index}].axisIds[]",
+            )
+            for axis_id in raw_axis_ids
+        ]
+        if len(set(axis_ids)) != len(axis_ids):
+            raise VocabularyAxisCoverageError("語彙軸被覆の同一集合内で軸が重複")
         discriminator_value = _required_string(
             coverage_set.get("rowDiscriminatorValue"),
             "vocabularyAxisCoverage."
             f"coverageSets[{index}].rowDiscriminatorValue",
         )
-        if (
-            axis_id in seen_axis_ids
-            or discriminator_value in seen_discriminator_values
+        if seen_axis_ids.intersection(axis_ids) or (
+            discriminator_value in seen_discriminator_values
         ):
             raise VocabularyAxisCoverageError("語彙軸被覆の宣言が重複している")
-        seen_axis_ids.add(axis_id)
+        seen_axis_ids.update(axis_ids)
         seen_discriminator_values.add(discriminator_value)
 
-        axes = [
-            axis
-            for axis in seed[axis_collection]
-            if axis[axis_id_field] == axis_id
-        ]
-        if len(axes) != 1:
-            raise VocabularyAxisCoverageError(
-                f"語彙シードの対象軸を一意に解決できない: axisId={axis_id!r}"
+        expected: set[str] = set()
+        for axis_id in axis_ids:
+            axes = [
+                axis
+                for axis in seed[axis_collection]
+                if axis[axis_id_field] == axis_id
+            ]
+            if len(axes) != 1:
+                raise VocabularyAxisCoverageError(
+                    "語彙シードの対象軸を一意に解決できない: "
+                    f"axisId={axis_id!r}"
+                )
+            expected.update(
+                entry[entry_id_field] for entry in axes[0][entries_collection]
             )
-        expected = {
-            entry[entry_id_field] for entry in axes[0][entries_collection]
-        }
         actual = {
             row[row_id_field]
             for row in contract[row_collection]
@@ -1881,10 +1908,16 @@ def _validate_vocabulary_axis_coverage(contract: Mapping[str, Any]) -> None:
         if actual != expected:
             raise VocabularyAxisCoverageError(
                 "語彙軸と規範行がexact-set不一致: "
-                f"axisId={axis_id!r}; "
+                f"axisIds={axis_ids!r}; "
                 f"missing={sorted(expected - actual)!r}; "
                 f"unexpected={sorted(actual - expected)!r}"
             )
+    if seen_axis_ids != required_axis_ids:
+        raise VocabularyAxisCoverageError(
+            "語彙軸被覆の宣言軸がexact-set不一致: "
+            f"missing={sorted(required_axis_ids - seen_axis_ids)!r}; "
+            f"unexpected={sorted(seen_axis_ids - required_axis_ids)!r}"
+        )
 
 
 def _validate(
@@ -1940,8 +1973,8 @@ def test_repository_schema_accepts_the_three_normative_row_layers() -> None:
     _validate(_minimal_contract())
 
 
-def test_repository_contract_step51_to_step57_rows_satisfy_constraints() -> None:
-    """ステップ51〜57の既存26行が10列exact型・参照・XCを充足する。"""
+def test_repository_contract_step51_to_step60_rows_satisfy_constraints() -> None:
+    """ステップ51〜60の42行が10列exact型・参照・XCを充足する。"""
     contract = _repository_contract()
     step51_result_ids = {
         "batting-result.called-pitch",
@@ -1993,7 +2026,7 @@ def test_repository_contract_step51_to_step57_rows_satisfy_constraints() -> None
     _validate_vocabulary_axis_coverage(contract)
 
     rows = contract["matrixRows"]
-    assert len(rows) == 36
+    assert len(rows) == 42
     assert {row["resultId"] for row in rows[:4]} == step51_result_ids
     assert {row["resultId"] for row in rows[4:9]} == step52_result_ids
     assert {row["resultId"] for row in rows[9:12]} == step53_result_ids
@@ -2579,7 +2612,7 @@ def test_secondary_result_vocabulary_coverage_is_red_when_a_value_is_missing() -
 
     with pytest.raises(
         VocabularyAxisCoverageError,
-        match="axisId='secondary-result'.*missing=.*pitch-clock-violation",
+        match="axisIds=.*secondary-result.*missing=.*pitch-clock-violation",
     ):
         _validate_vocabulary_axis_coverage(contract)
 
@@ -2599,7 +2632,7 @@ def test_secondary_result_vocabulary_coverage_is_red_for_an_extra_value() -> Non
 
     with pytest.raises(
         VocabularyAxisCoverageError,
-        match="axisId='secondary-result'.*unexpected=.*not-declared",
+        match="axisIds=.*secondary-result.*unexpected=.*not-declared",
     ):
         _validate_vocabulary_axis_coverage(contract)
 
@@ -2629,7 +2662,7 @@ def test_repository_per_pitch_mapping_covers_all_materialized_matrix_rows() -> N
     }
 
     assert actual == expected
-    assert len(mapping["rowRefs"]) == len(contract["matrixRows"]) == 36
+    assert len(mapping["rowRefs"]) == len(contract["matrixRows"]) == 42
 
 
 def test_so03_deferred_partition_difference_remains_declared_and_open() -> None:
@@ -3940,7 +3973,7 @@ def test_xc13_stat_flag_row_derivation_is_explicitly_deferred() -> None:
 def test_repository_contract_step59_rows_satisfy_runner_event_constraints() -> None:
     """作戦3系統を各1行とし、走者イベントの固定列と既定進塁を検査する。"""
     contract = _repository_contract()
-    rows = contract["matrixRows"][33:]
+    rows = contract["matrixRows"][33:36]
     expected_result_ids = {
         "strategy-category.steal",
         "strategy-category.bunt",
@@ -4012,11 +4045,203 @@ def test_step59_strategy_results_use_identity_partition_without_gap() -> None:
     }.issubset(identity_rule["vocabularyIds"])
 
 
-def test_step59_does_not_complete_runner_event_vocabulary_coverage() -> None:
-    """牽制6値が揃う前はrunner-eventのexact-set宣言を追加しない。"""
+def test_step60_runner_event_coverage_declaration_uses_three_axis_union() -> None:
+    """走者イベント9値を3語彙軸の和集合として宣言する。"""
     coverage = _schema()["x-pitchlog-vocabulary-axis-coverage"]
 
     assert coverage["coverageSets"] == [
-        {"axisId": "batting-result", "rowDiscriminatorValue": "batting-result"},
-        {"axisId": "secondary-result", "rowDiscriminatorValue": "secondary-result"},
+        {"axisIds": ["batting-result"], "rowDiscriminatorValue": "batting-result"},
+        {
+            "axisIds": ["secondary-result"],
+            "rowDiscriminatorValue": "secondary-result",
+        },
+        {
+            "axisIds": [
+                "strategy-category",
+                "pitcher-pickoff-destination",
+                "catcher-pickoff-destination",
+            ],
+            "rowDiscriminatorValue": "runner-event",
+        },
     ]
+
+
+def test_repository_contract_step60_pickoff_rows_satisfy_constraints() -> None:
+    """投手・捕手の牽制6値を各1行の非投球走者イベントとして検査する。"""
+    contract = _repository_contract()
+    rows = contract["matrixRows"][36:]
+    expected_result_ids = {
+        "pitcher-pickoff-destination.first",
+        "pitcher-pickoff-destination.second",
+        "pitcher-pickoff-destination.third",
+        "catcher-pickoff-destination.first",
+        "catcher-pickoff-destination.second",
+        "catcher-pickoff-destination.third",
+    }
+    base_by_suffix = {"first": "first", "second": "second", "third": "third"}
+
+    _validate_schema(contract)
+    _validate_references(
+        contract,
+        vocabulary_checker.validate_manifest(REPOSITORY_ROOT),
+    )
+    _validate_cross_constraints(contract)
+    _validate_vocabulary_axis_coverage(contract)
+
+    assert len(contract["matrixRows"]) == 42
+    assert len(rows) == 6
+    assert {row["resultId"] for row in rows} == expected_result_ids
+    assert all(row["eventKind"] == "runner-event" for row in rows)
+    assert all(
+        row["countEffect"]
+        == {"strikes": {"kind": "unchanged"}, "balls": {"kind": "unchanged"}}
+        for row in rows
+    )
+    assert all(row["plateAppearanceEnded"] == "not-applicable" for row in rows)
+    assert all(row["batterDestination"] == {"kind": "not-applicable"} for row in rows)
+    assert all(row["outEffect"] == {"count": 0, "targets": []} for row in rows)
+    assert all(not any(row["statFlags"].values()) for row in rows)
+    assert all("実結果であり、本行の既定ではない" in row["remarks"] for row in rows)
+
+    for row in rows:
+        suffix = row["resultId"].rsplit(".", maxsplit=1)[1]
+        target_base = base_by_suffix[suffix]
+        leaves = {
+            leaf["axisId"]: leaf["value"]
+            for leaf in _predicate_leaves(row["precondition"])
+        }
+        assert leaves["state.runners"] == target_base
+        assert leaves["event.perPitch.pitchEventKind"] == "non-pitch-event"
+        assert row["runnerDefaultAdvance"][target_base] == {
+            "modality": "hold",
+            "destination": None,
+        }
+        assert all(
+            effect == {"modality": "not-applicable", "destination": None}
+            for base, effect in row["runnerDefaultAdvance"].items()
+            if base != target_base
+        )
+
+
+def test_pitch_count_flag_matches_pitch_event_kind_for_all_42_rows() -> None:
+    """42行で投球数フラグと投球イベント区分の同値関係を保つ。"""
+    contract = _repository_contract()
+
+    for row in contract["matrixRows"]:
+        pitch_event_kind = next(
+            leaf["value"]
+            for leaf in _predicate_leaves(row["precondition"])
+            if leaf["axisId"] == "event.perPitch.pitchEventKind"
+        )
+        assert row["statFlags"]["投球数"] is (
+            pitch_event_kind == "pitch-event"
+        )
+
+
+def test_repository_runner_event_rows_exactly_cover_three_vocabulary_axes() -> None:
+    """走者イベント9値が3語彙軸の和集合をexact-setで覆う。"""
+    contract = _repository_contract()
+
+    _validate_vocabulary_axis_coverage(contract)
+
+    runner_rows = [
+        row for row in contract["matrixRows"] if row["eventKind"] == "runner-event"
+    ]
+    assert len(runner_rows) == 9
+
+
+def test_runner_event_vocabulary_coverage_is_red_when_a_value_is_missing() -> None:
+    """走者イベントの規範行を1値欠くとexact-set検査が拒む。"""
+    contract = _repository_contract()
+    contract["matrixRows"] = [
+        row
+        for row in contract["matrixRows"]
+        if row["resultId"] != "catcher-pickoff-destination.third"
+    ]
+
+    with pytest.raises(
+        VocabularyAxisCoverageError,
+        match="missing=.*catcher-pickoff-destination.third",
+    ):
+        _validate_vocabulary_axis_coverage(contract)
+
+
+def test_runner_event_vocabulary_coverage_is_red_for_an_extra_value() -> None:
+    """語彙シードに無い走者イベントを足すとexact-set検査が拒む。"""
+    contract = _repository_contract()
+    extra = copy.deepcopy(contract["matrixRows"][-1])
+    extra["resultId"] = "catcher-pickoff-destination.not-declared"
+    contract["matrixRows"].append(extra)
+
+    with pytest.raises(
+        VocabularyAxisCoverageError,
+        match="unexpected=.*catcher-pickoff-destination.not-declared",
+    ):
+        _validate_vocabulary_axis_coverage(contract)
+
+
+def test_runner_event_vocabulary_coverage_is_red_when_one_axis_is_omitted() -> None:
+    """走者イベントの和集合宣言から1軸を外す弱化を拒む。"""
+    contract = _repository_contract()
+    schema = _schema()
+    coverage_sets = schema["x-pitchlog-vocabulary-axis-coverage"]["coverageSets"]
+    runner_coverage = next(
+        coverage_set
+        for coverage_set in coverage_sets
+        if coverage_set["rowDiscriminatorValue"] == "runner-event"
+    )
+    runner_coverage["axisIds"].remove("catcher-pickoff-destination")
+
+    with pytest.raises(
+        VocabularyAxisCoverageError,
+        match="unexpected=.*catcher-pickoff-destination",
+    ):
+        _validate_vocabulary_axis_coverage(contract, schema=schema)
+
+
+def test_runner_event_rows_are_declared_and_enforced_as_matrix_rows() -> None:
+    """走者イベントを毎球入力のmatrixRows層から他層へ移すと拒む。"""
+    schema = _schema()
+    per_pitch_rule = next(
+        operation
+        for operation in schema["x-pitchlog-must-operation-coverage"][
+            "requiredOperations"
+        ]
+        if operation["operationType"] == "per-pitch-input"
+    )
+    assert per_pitch_rule["rowLayer"] == "matrixRows"
+    assert "runner-event" in per_pitch_rule["exactDiscriminatorValues"]
+
+    contract = _repository_contract()
+    moved = next(
+        row for row in contract["matrixRows"] if row["eventKind"] == "runner-event"
+    )
+    contract["matrixRows"].remove(moved)
+    contract["operationRows"].append(moved)
+
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        _validate_schema(contract)
+
+
+def test_step60_pickoff_results_use_identity_and_exclude_pickoff_outcome_ids() -> None:
+    """牽制先6値だけをidentityのresultId源とし、牽制結果は除外する。"""
+    rules = _load_object(REQUIRED_SET_ROW_RULES_PATH)
+    identity_rule = next(
+        rule
+        for rule in rules["partitionRules"]
+        if rule["partitionRuleId"] == "identity"
+    )
+    pickoff_ids = {
+        f"{actor}-pickoff-destination.{base}"
+        for actor in ("pitcher", "catcher")
+        for base in ("first", "second", "third")
+    }
+    pickoff_result_assignment = next(
+        assignment
+        for assignment in rules["axisAssignments"]
+        if assignment["axisId"] == "pickoff-result"
+    )
+
+    assert pickoff_ids.issubset(identity_rule["vocabularyIds"])
+    assert pickoff_result_assignment["role"] == "not-result-id-source"
+    assert "eventKind" not in pickoff_result_assignment

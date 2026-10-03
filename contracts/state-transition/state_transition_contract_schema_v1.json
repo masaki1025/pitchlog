@@ -56,14 +56,33 @@
     "rowDiscriminatorField": "eventKind",
     "rowVocabularyIdField": "resultId",
     "requiredRelationship": "exact-set",
+    "requiredAxisIds": [
+      "batting-result",
+      "secondary-result",
+      "strategy-category",
+      "pitcher-pickoff-destination",
+      "catcher-pickoff-destination"
+    ],
     "coverageSets": [
       {
-        "axisId": "batting-result",
+        "axisIds": [
+          "batting-result"
+        ],
         "rowDiscriminatorValue": "batting-result"
       },
       {
-        "axisId": "secondary-result",
+        "axisIds": [
+          "secondary-result"
+        ],
         "rowDiscriminatorValue": "secondary-result"
+      },
+      {
+        "axisIds": [
+          "strategy-category",
+          "pitcher-pickoff-destination",
+          "catcher-pickoff-destination"
+        ],
+        "rowDiscriminatorValue": "runner-event"
       }
     ]
   },
