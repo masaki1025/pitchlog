@@ -193,6 +193,18 @@
       {
         "sourceKind": "requirements",
         "sourceId": "req:FR-006"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:FR-010"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:FR-005"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:4.0-1"
       }
     ],
     "authorId": "codex",
@@ -2761,6 +2773,309 @@
       },
       "operationResult": "rejected-precondition",
       "remarks": "FR-011・ADR-003 D-8。受け入れ基準が名指しする交代種別・打順枠・交代前後の選手参照ID・守備位置IDだけを段階1の閉じたpayloadとして列挙する。選手交代は状態量・スコアボード・成績フラグ・履歴文脈を変えない状態中立の操作であり、選手帰属と出場履歴はこの比較面の外にある。FR-006の取消可能な履歴は確定プレイと採用時の状態補正のみなのでpushしない。段階1はフィールド一意性・他資産への参照整合・相反指定の排除・D-8の文字列型制約とFR-015の任意選手名との整合を保証しない。これらは段階2のclosed-payload-schemasで確定する。gameEnded=trueはFR-011の試合進行中前提を満たさないため拒否する。不正payloadは有効payloadを定義する規範行と同一の自然キーになるため別行にせず、payloadShapeの負例で拒否を検査する。"
+    },
+    {
+      "operationKind": "game-end-declaration",
+      "clauseId": "FR-010",
+      "payloadShape": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "precondition": {
+        "op": "eq",
+        "axisId": "state.gameEnded",
+        "value": false
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "unchanged"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "unchanged"
+          },
+          "state.runners": {
+            "kind": "unchanged"
+          },
+          "state.battingOrder": {
+            "kind": "unchanged"
+          },
+          "state.tiebreakActive": {
+            "kind": "unchanged"
+          },
+          "state.gameEnded": {
+            "kind": "set",
+            "value": true
+          },
+          "state.inning": {
+            "kind": "unchanged"
+          },
+          "state.score": {
+            "kind": "unchanged"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "unchanged"
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "unchanged"
+          },
+          "operationResult": {
+            "kind": "unchanged"
+          }
+        }
+      },
+      "historyEffect": {
+        "pushes": false,
+        "kind": null
+      },
+      "operationResult": "applied",
+      "remarks": "FR-010・FR-005・4.0-1・ADR-003 D-8。FR-010の受け入れ基準は終了宣言payloadの具体的な要素を名指ししないため、段階1のpayloadShapeは空の閉じたobjectとし、終了理由・スコア・同期状態を推測でフィールドにしない。FR-005の終了条件検知と正式な終了宣言を分け、比較面ではstate.gameEndedだけを真にする。その時点のスコアで確定するためstate.scoreとscoreboardの値は変えず、回・表裏・カウント・アウト・走者・打順・タイブレーク・成績フラグも変えない。未同期プレイの同期・失敗通知および断中キュー・未送信表示はFR-010の別要件であり、このStateEffectの比較面に含めない。FR-006の取消可能な履歴は確定プレイと採用時の状態補正のみなのでpushしない。段階1はフィールド一意性・他資産への参照整合・相反指定の排除・D-8の文字列型制約とFR-015の任意選手名との整合を保証しない。これらは段階2のclosed-payload-schemasで確定する。4.0-1の進行中から終了への遷移を表すgameEnded=falseで適用する。"
+    },
+    {
+      "operationKind": "game-end-declaration",
+      "clauseId": "FR-010",
+      "payloadShape": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "precondition": {
+        "op": "eq",
+        "axisId": "state.gameEnded",
+        "value": true
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "unchanged"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "unchanged"
+          },
+          "state.runners": {
+            "kind": "unchanged"
+          },
+          "state.battingOrder": {
+            "kind": "unchanged"
+          },
+          "state.tiebreakActive": {
+            "kind": "unchanged"
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "unchanged"
+          },
+          "state.score": {
+            "kind": "unchanged"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "unchanged"
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "unchanged"
+          },
+          "operationResult": {
+            "kind": "unchanged"
+          }
+        }
+      },
+      "historyEffect": {
+        "pushes": false,
+        "kind": null
+      },
+      "operationResult": "rejected-precondition",
+      "remarks": "FR-010・FR-005・4.0-1・ADR-003 D-8。FR-010の受け入れ基準は終了宣言payloadの具体的な要素を名指ししないため、段階1のpayloadShapeは空の閉じたobjectとし、終了理由・スコア・同期状態を推測でフィールドにしない。FR-005の終了条件検知と正式な終了宣言を分け、比較面ではstate.gameEndedだけを真にする。その時点のスコアで確定するためstate.scoreとscoreboardの値は変えず、回・表裏・カウント・アウト・走者・打順・タイブレーク・成績フラグも変えない。未同期プレイの同期・失敗通知および断中キュー・未送信表示はFR-010の別要件であり、このStateEffectの比較面に含めない。FR-006の取消可能な履歴は確定プレイと採用時の状態補正のみなのでpushしない。段階1はフィールド一意性・他資産への参照整合・相反指定の排除・D-8の文字列型制約とFR-015の任意選手名との整合を保証しない。これらは段階2のclosed-payload-schemasで確定する。4.0-1の終了状態には終了宣言の遷移が無いため、gameEnded=trueでの再宣言は前提不一致として状態を変えず拒否する。不正payloadは有効payloadを定義する規範行と同一の自然キーになるため別行にせず、payloadShapeの負例で拒否を検査する。"
     }
   ],
   "undoRows": [],
@@ -3574,6 +3889,45 @@
                   "outgoingPlayerId",
                   "incomingPlayerId"
                 ],
+                "additionalProperties": false
+              },
+              "precondition": {
+                "op": "eq",
+                "axisId": "state.gameEnded",
+                "value": true
+              }
+            }
+          }
+        ]
+      },
+      {
+        "operationType": "game-end-declaration",
+        "rowRefs": [
+          {
+            "layer": "operationRows",
+            "coordinate": {
+              "operationKind": "game-end-declaration",
+              "payloadShape": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              },
+              "precondition": {
+                "op": "eq",
+                "axisId": "state.gameEnded",
+                "value": false
+              }
+            }
+          },
+          {
+            "layer": "operationRows",
+            "coordinate": {
+              "operationKind": "game-end-declaration",
+              "payloadShape": {
+                "type": "object",
+                "properties": {},
+                "required": [],
                 "additionalProperties": false
               },
               "precondition": {
