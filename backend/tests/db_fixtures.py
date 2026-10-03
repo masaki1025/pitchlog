@@ -635,25 +635,26 @@ def disposable_postgres_cluster() -> Callable[
         username = f"pitchlog_disposable_{token}"
         password = secrets.token_urlsafe(24)
         database = "pitchlog_disposable"
-        _run_docker(
-            "run",
-            "--detach",
-            "--pull=never",
-            "--name",
-            container_name,
-            "--publish",
-            "127.0.0.1::5432",
-            "--env",
-            f"POSTGRES_USER={username}",
-            "--env",
-            f"POSTGRES_PASSWORD={password}",
-            "--env",
-            f"POSTGRES_DB={database}",
-            "--env",
-            f"POSTGRES_INITDB_ARGS={initdb_args}",
-            image,
-        )
         try:
+            _run_docker(
+                "run",
+                "--detach",
+                "--rm",
+                "--pull=never",
+                "--name",
+                container_name,
+                "--publish",
+                "127.0.0.1::5432",
+                "--env",
+                f"POSTGRES_USER={username}",
+                "--env",
+                f"POSTGRES_PASSWORD={password}",
+                "--env",
+                f"POSTGRES_DB={database}",
+                "--env",
+                f"POSTGRES_INITDB_ARGS={initdb_args}",
+                image,
+            )
             port_output = _run_docker("port", container_name, "5432/tcp").stdout.strip()
             host_port = port_output.rsplit(":", maxsplit=1)[-1]
             dsn = make_conninfo(
@@ -670,7 +671,7 @@ def disposable_postgres_cluster() -> Callable[
                 role_dsn_template=_disposable_role_dsn_template(dsn),
             )
         finally:
-            _run_docker("rm", "--force", container_name, check=False)
+            _run_docker("rm", "--force", "--volumes", container_name, check=False)
 
     return factory
 
