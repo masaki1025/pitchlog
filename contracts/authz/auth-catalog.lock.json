@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_catalog",
   "asset_path": "contracts/authz/auth-catalog.json",
-  "asset_digest": "aa20e6946cb4e2904c9730d26664e5104da3336cb8ffea298575fc5d834851cf",
-  "entry_count": 187,
-  "aggregate_decision_digest": "479b4a6ea8e0cf5ac4c71e5d5aa6adeb3353cfb515c2063a771fae05f333e8d3",
+  "asset_digest": "5ade53d39ffeb7871dbe2569e33b7e03d92068b2f921880f701cf9eb5c52ce51",
+  "entry_count": 188,
+  "aggregate_decision_digest": "255b28fc1631200ada6aa5db41bff826f1e8d173ec4815bbcea0ae061e26403d",
   "entries": [
     {
       "entry_id": "catalog:CATALOG:SECTION-1.1/paragraph-002",

@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "contracts/authz/route-registry.json",
-  "asset_digest": "1e9124bf0c06cf4fd51e2fd7e2df09da3f12e1ddb59b65b7133dae3ddd717ccc",
-  "entry_count": 230,
-  "aggregate_decision_digest": "a21419b93ecae5c27bd88a0312f325259256c4eca4b8d1b625c32bdda79647c1",
+  "asset_digest": "9c67f6ef6ef9909f7f997304b2d6d5b3711e07974adaaa8b777ab9d39966a785",
+  "entry_count": 231,
+  "aggregate_decision_digest": "497a30b2634d2f6667f88720485593e96b4e3cd396d314e453d6b8bee4f39d60",
   "entries": [
     {
       "entry_id": "route:ROUTE:FR-020",
