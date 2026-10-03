@@ -5149,3 +5149,113 @@ def test_manual_fixture_complete_case_schema_negatives(change: str) -> None:
         del negative["inputCoordinate"]["candidateEffects"]["outEffect"]
     with pytest.raises(schema_checker.DescriptorCheckError):
         _validate_manual_fixtures(document, schema)
+
+
+def _manual_fixture_branch_coverage_assets() -> tuple[dict[str, Any], dict[str, Any]]:
+    """双方向被覆の宣言と閉じたschemaを読み込む。
+
+    Returns:
+        宣言とschemaの組。
+    """
+    directory = REPOSITORY_ROOT / "contracts/state-transition"
+    document = _load_object(directory / "manual_fixture_branch_coverage_v1.json")
+    schema = _load_object(directory / "manual_fixture_branch_coverage_schema_v1.json")
+    return document, schema
+
+
+def _validate_manual_fixture_branch_coverage(
+    document: dict[str, Any],
+    schema: dict[str, Any],
+    fixture_documents: dict[str, dict[str, Any]] | None = None,
+) -> None:
+    """台帳と両fixtureを突合し、未作成分岐の理由付きexact-setを検査する。
+
+    Args:
+        document: 未作成分岐の宣言。
+        schema: 宣言の閉じたschema。
+        fixture_documents: 負例用に変異させた実fixture文書。
+    """
+    schema_checker._validate_instance(document, schema, schema, "$")
+    register = _load_object(REPOSITORY_ROOT / document["branchRegisterPath"])
+    register_ids = [branch["branchId"] for branch in register["branches"]]
+    assert len(register_ids) == len(set(register_ids))
+    source_paths = [source["fixturePath"] for source in document["fixtureSources"]]
+    assert len(source_paths) == len(set(source_paths))
+    discovered_paths = {
+        path.relative_to(REPOSITORY_ROOT).as_posix()
+        for path in REPOSITORY_ROOT.glob(document["fixtureDiscoveryPattern"])
+    }
+    assert set(source_paths) == discovered_paths
+    fixture_ids: list[str] = []
+    case_ids: list[str] = []
+    existing_deferred: set[str] = set()
+    for source in document["fixtureSources"]:
+        fixture_path = source["fixturePath"]
+        fixture = (
+            fixture_documents[fixture_path]
+            if fixture_documents is not None
+            else _load_object(REPOSITORY_ROOT / fixture_path)
+        )
+        fixture_ids.extend(item["case"]["branchId"] for item in fixture["fixtures"])
+        case_ids.extend(item["case"]["caseId"] for item in fixture["fixtures"])
+        fixture_schema = _load_object(REPOSITORY_ROOT / source["schemaPath"])
+        deferred = fixture_schema["x-pitchlog-manual-fixture-policy"]["deferredBranches"]
+        assert existing_deferred.isdisjoint(deferred)
+        existing_deferred.update(deferred)
+    assert len(fixture_ids) == len(set(fixture_ids))
+    assert len(case_ids) == len(set(case_ids))
+    type_ids = [item["id"] for item in document["reasonTypes"]]
+    assert len(type_ids) == len(set(type_ids))
+    missing = document["missingFixtureBranches"]
+    declared_ids = [item["branchId"] for item in missing]
+    assert len(declared_ids) == len(set(declared_ids))
+    assert {item["reasonType"] for item in missing} == set(type_ids)
+    fixture_set = set(fixture_ids)
+    register_set = set(register_ids)
+    declared_set = set(declared_ids)
+    assert fixture_set - register_set == set()
+    assert register_set - fixture_set == declared_set
+    assert existing_deferred == declared_set
+
+
+def test_repository_manual_fixture_branch_coverage_is_bidirectional() -> None:
+    """実資産の31件と未作成37件を台帳の68件へ双方向で一致させる。"""
+    document, schema = _manual_fixture_branch_coverage_assets()
+    _validate_manual_fixture_branch_coverage(document, schema)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "missing-increases",
+        "missing-decreases",
+        "phantom-fixture",
+        "declaration-decreases",
+        "unknown-reason-type",
+    ],
+)
+def test_manual_fixture_branch_coverage_negatives(change: str) -> None:
+    """欠落の増減・幻の分岐・理由宣言の不整合を検出する。"""
+    document, schema = _manual_fixture_branch_coverage_assets()
+    fixtures = {
+        source["fixturePath"]: _load_object(REPOSITORY_ROOT / source["fixturePath"])
+        for source in document["fixtureSources"]
+    }
+    first_path = document["fixtureSources"][0]["fixturePath"]
+    if change == "missing-increases":
+        fixtures[first_path]["fixtures"].pop()
+    elif change in ("missing-decreases", "phantom-fixture"):
+        added = copy.deepcopy(fixtures[first_path]["fixtures"][0])
+        added["case"]["caseId"] = "ST-COVERAGE-NEGATIVE"
+        added["case"]["branchId"] = (
+            document["missingFixtureBranches"][0]["branchId"]
+            if change == "missing-decreases"
+            else "NOT-IN-REGISTER"
+        )
+        fixtures[first_path]["fixtures"].append(added)
+    elif change == "declaration-decreases":
+        document["missingFixtureBranches"].pop()
+    else:
+        document["missingFixtureBranches"][0]["reasonType"] = "unknown-type"
+    with pytest.raises(AssertionError):
+        _validate_manual_fixture_branch_coverage(document, schema, fixtures)
