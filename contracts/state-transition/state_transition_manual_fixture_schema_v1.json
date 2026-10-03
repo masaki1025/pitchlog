@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/state-transition/state_transition_manual_fixture_schema_v1.json",
+  "title": "状況判定の手作業分岐 fixture v1",
+  "x-pitchlog-manual-fixture-policy": {
+    "fixturePath": "contracts/state-transition/state_transition_manual_fixtures_v1.json",
+    "branchRegisterPath": "contracts/state-transition/clause_branch_register_v1.json",
+    "normativeContractPath": "contracts/state-transition/state_transition_contract_v1.json",
+    "requirementsPath": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+    "sourceClausePartition": {
+      "gameEndSourceClauseIds": ["req:F-1", "req:FR-005", "req:FR-020"],
+      "situationSide": "all-other-register-branches"
+    },
+    "fixtureKindByRegisterCoverageKind": {
+      "normative-case": "normative-branch",
+      "constraint-negative": "constraint-negative"
+    },
+    "deferredBranches": {
+      "OUT3-01": "第3アウト種別の観測入力と得点可否の規範行が段階2待ち",
+      "OUT3-02": "第3アウト種別の観測入力と得点可否の規範行が段階2待ち",
+      "OUT3-03": "第3アウト種別の観測入力と得点可否の規範行が段階2待ち",
+      "OUT3-04": "第3アウト種別の観測入力と得点可否の規範行が段階2待ち",
+      "OUT3-05": "第3アウト種別の観測入力と得点可否の規範行が段階2待ち",
+      "RBI-01": "得点を伴うフォース併殺とRBI適用条件の入力が未確定",
+      "RBI-02": "分岐の得点原因と打点の規範行が未整備",
+      "RBI-03": "分岐の得点原因と打点の規範行が未整備",
+      "RBI-04": "分岐の得点原因と打点の規範行が未整備",
+      "RBI-05": "分岐の得点原因と打点の規範行が未整備",
+      "RBI-07": "分岐の得点原因と打点の規範行が未整備",
+      "INT-01": "自動成立側の実プレイ結果を固定する規範行が無い",
+      "INT-03": "実プレイ選択側の実プレイ結果を固定する規範行が無い",
+      "INT-05": "妨害走者へのプレイなし側の規範行が無い",
+      "INT-07": "打者をアウト対象に含まない側の規範行が無い",
+      "XC-13": "23成績フラグの結果別導出表が段階2待ち"
+    },
+    "comparisonStatus": "branch-assertions-only-until-expanded-case-and-digest-freeze",
+    "machineGuaranteesAtThisStep": [
+      "schema-and-reference-shape",
+      "requirement-source-id-existence",
+      "unique-normative-row-selector",
+      "positive-assertions-match-current-normative-row",
+      "negative-mutation-pointer-existence",
+      "negative-mutation-rejected-by-declared-cross-constraint",
+      "fixture-and-deferred-branch-partition"
+    ],
+    "futureMachineGuarantees": [
+      "complete-equality-with-expanded-cases",
+      "fixture-digest-freeze"
+    ],
+    "humanControls": [
+      "semantic-completeness-of-each-branch",
+      "source-clause-supports-expected-assertions",
+      "truth-of-recorded-author-identity"
+    ],
+    "independenceClaim": "independent-from-expander-only-not-from-clause-branch-register"
+  },
+  "type": "object",
+  "required": ["schemaVersion", "version", "calculation", "fixtures"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "version": {"const": "state_transition_manual_fixtures_v1"},
+    "calculation": {"const": "state-transition"},
+    "fixtures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/fixture"}
+    }
+  },
+  "$defs": {
+    "fixture": {
+      "type": "object",
+      "required": ["fixtureId", "branchId", "kind", "input", "expected", "provenance"],
+      "additionalProperties": false,
+      "properties": {
+        "fixtureId": {"type": "string", "pattern": "^ST-[A-Z0-9-]+$"},
+        "branchId": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["normative-branch", "constraint-negative"]},
+        "input": {"$ref": "#/$defs/input"},
+        "expected": {"$ref": "#/$defs/expected"},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "input": {
+      "type": "object",
+      "required": ["rowSelector", "sourceExample", "mutation"],
+      "additionalProperties": false,
+      "properties": {
+        "rowSelector": {
+          "type": "object",
+          "required": ["eventKind", "resultId"],
+          "additionalProperties": false,
+          "properties": {
+            "eventKind": {"enum": ["batting-result", "secondary-result", "runner-event"]},
+            "resultId": {"type": "string", "minLength": 1}
+          }
+        },
+        "sourceExample": {"type": "string", "minLength": 1},
+        "mutation": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "required": ["pointer", "value"],
+              "additionalProperties": false,
+              "properties": {
+                "pointer": {"type": "string", "pattern": "^/[^/]+(?:/[^/]+)*$"},
+                "value": {}
+              }
+            }
+          ]
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "required": ["assertions", "rejectedBy"],
+      "additionalProperties": false,
+      "properties": {
+        "assertions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["pointer", "value"],
+            "additionalProperties": false,
+            "properties": {
+              "pointer": {"type": "string", "pattern": "^/[^/]+(?:/[^/]+)*$"},
+              "value": {}
+            }
+          }
+        },
+        "rejectedBy": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "null"}]}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["authorId", "sources"],
+      "additionalProperties": false,
+      "properties": {
+        "authorId": {"const": "codex"},
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"oneOf": [
+            {"type": "object", "required": ["sourceKind", "sourceId"], "additionalProperties": false,
+             "properties": {"sourceKind": {"const": "requirements"}, "sourceId": {"type": "string", "pattern": "^req:[^\\s]+$"}}},
+            {"type": "object", "required": ["sourceKind", "sourceId"], "additionalProperties": false,
+             "properties": {"sourceKind": {"const": "official-baseball-rules"}, "sourceId": {"type": "string", "pattern": "^obr:[1-9][0-9]*\\.[0-9]{2}(?:\\([a-z0-9]+\\))*$"}}}
+          ]}
+        }
+      }
+    }
+  }
+}

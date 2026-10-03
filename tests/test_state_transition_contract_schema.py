@@ -9,7 +9,7 @@ import sys
 from collections import Counter
 from collections.abc import Mapping, Set
 from itertools import product
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pytest
@@ -4910,3 +4910,181 @@ def test_repository_step64_invalid_payload_result_cannot_duplicate_natural_key()
     contract["operationRows"].append(invalid_payload_row)
     with pytest.raises(ReferenceConstraintError, match="入力座標が重複"):
         _validate_references(contract, vocabulary_checker.validate_manifest(REPOSITORY_ROOT))
+
+
+def _manual_fixture_assets() -> tuple[dict[str, Any], dict[str, Any]]:
+    """手作業fixtureと資産側schemaを返す。"""
+    schema = _load_object(
+        REPOSITORY_ROOT
+        / "contracts/state-transition/state_transition_manual_fixture_schema_v1.json"
+    )
+    path = schema["x-pitchlog-manual-fixture-policy"]["fixturePath"]
+    return _load_object(REPOSITORY_ROOT / path), schema
+
+
+def _manual_fixture_pointer(value: Any, pointer: str) -> Any:
+    """fixtureのJSON Pointerを解決する。
+
+    Args:
+        value: 起点のJSON値。
+        pointer: JSON Pointer。
+
+    Returns:
+        指定された値。
+    """
+    current = value
+    for part in pointer.split("/")[1:]:
+        current = current[int(part)] if isinstance(current, list) else current[part]
+    return current
+
+
+def _validate_manual_fixtures(
+    document: dict[str, Any], schema: dict[str, Any]
+) -> None:
+    """fixtureの型・典拠・分岐・行参照を確認する。
+
+    Args:
+        document: fixture文書。
+        schema: fixtureのschemaと宣言。
+    """
+    schema_checker._validate_instance(document, schema, schema, "$")
+    policy = schema["x-pitchlog-manual-fixture-policy"]
+    register = _load_object(REPOSITORY_ROOT / policy["branchRegisterPath"])
+    contract = _repository_contract()
+    known_clause_ids = schema_checker.load_clause_ids_from_paths(
+        REPOSITORY_ROOT, (PurePosixPath(policy["requirementsPath"]),)
+    )
+    known_sources = {f"req:{clause_id}" for clause_id in known_clause_ids}
+    branches = {branch["branchId"]: branch for branch in register["branches"]}
+    game_end_sources = set(policy["sourceClausePartition"]["gameEndSourceClauseIds"])
+    situation_ids = {
+        branch_id
+        for branch_id, branch in branches.items()
+        if not set(branch["sourceClauseIds"]) & game_end_sources
+    }
+    deferred = policy["deferredBranches"]
+    assert all(isinstance(reason, str) and reason for reason in deferred.values())
+    fixtures = document["fixtures"]
+    fixture_ids = [fixture["fixtureId"] for fixture in fixtures]
+    branch_ids = [fixture["branchId"] for fixture in fixtures]
+    assert len(fixture_ids) == len(set(fixture_ids))
+    assert len(branch_ids) == len(set(branch_ids))
+    assert set(branch_ids).isdisjoint(deferred)
+    assert set(branch_ids) | set(deferred) == situation_ids
+    for fixture in fixtures:
+        branch = branches[fixture["branchId"]]
+        assert fixture["kind"] == policy["fixtureKindByRegisterCoverageKind"][
+            branch["coverageKind"]
+        ]
+        for source in fixture["provenance"]["sources"]:
+            if source["sourceKind"] == "requirements":
+                assert source["sourceId"] in known_sources
+                assert source["sourceId"] in branch["sourceClauseIds"]
+        selector = fixture["input"]["rowSelector"]
+        rows = [
+            row
+            for row in contract["matrixRows"]
+            if row["eventKind"] == selector["eventKind"]
+            and row["resultId"] == selector["resultId"]
+        ]
+        assert len(rows) == 1
+        row = rows[0]
+        expected = fixture["expected"]
+        if fixture["kind"] == "normative-branch":
+            assert fixture["input"]["mutation"] is None
+            assert expected["rejectedBy"] is None
+            assert expected["assertions"]
+            for assertion in expected["assertions"]:
+                assert _manual_fixture_pointer(row, assertion["pointer"]) == assertion["value"]
+        else:
+            mutation = fixture["input"]["mutation"]
+            assert mutation is not None
+            assert expected["rejectedBy"] == fixture["branchId"]
+            assert expected["assertions"] == []
+            assert _manual_fixture_pointer(row, mutation["pointer"]) != mutation["value"]
+
+
+def test_repository_manual_fixtures_match_declared_boundaries() -> None:
+    """実資産と未作成分岐の切り分けを検査する。"""
+    document, schema = _manual_fixture_assets()
+    _validate_manual_fixtures(document, schema)
+    policy = schema["x-pitchlog-manual-fixture-policy"]
+    assert policy["comparisonStatus"] == (
+        "branch-assertions-only-until-expanded-case-and-digest-freeze"
+    )
+    assert "complete-equality-with-expanded-cases" in policy["futureMachineGuarantees"]
+    assert "fixture-digest-freeze" in policy["futureMachineGuarantees"]
+    assert "semantic-completeness-of-each-branch" in policy["humanControls"]
+    assert policy["independenceClaim"] == (
+        "independent-from-expander-only-not-from-clause-branch-register"
+    )
+
+
+@pytest.mark.parametrize("change", ["unknown-key", "missing-provenance", "wrong-author"])
+def test_manual_fixture_schema_rejects_malformed_fixture(change: str) -> None:
+    """閉じたschemaと作成者宣言の負例を確かめる。"""
+    document, schema = _manual_fixture_assets()
+    fixture = document["fixtures"][0]
+    if change == "unknown-key":
+        fixture["unexpected"] = True
+    elif change == "missing-provenance":
+        del fixture["provenance"]
+    else:
+        fixture["provenance"]["authorId"] = "human"
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        _validate_manual_fixtures(document, schema)
+
+
+@pytest.mark.parametrize("change", ["missing-branch", "bad-source", "bad-assertion"])
+def test_manual_fixture_reference_negatives(change: str) -> None:
+    """欠落分岐・実在しない条文・行との不一致を捕まえる。"""
+    document, schema = _manual_fixture_assets()
+    if change == "missing-branch":
+        document["fixtures"].pop(0)
+    elif change == "bad-source":
+        document["fixtures"][0]["provenance"]["sources"][0]["sourceId"] = (
+            "req:NOT-EXISTS"
+        )
+    else:
+        document["fixtures"][0]["expected"]["assertions"][0]["value"] = "reach"
+    with pytest.raises(AssertionError):
+        _validate_manual_fixtures(document, schema)
+
+
+def test_manual_fixture_deferred_partition_is_not_silent() -> None:
+    """未作成分岐を隠せないことを確かめる。"""
+    document, schema = _manual_fixture_assets()
+    schema["x-pitchlog-manual-fixture-policy"]["deferredBranches"].pop("OUT3-01")
+    with pytest.raises(AssertionError):
+        _validate_manual_fixtures(document, schema)
+
+
+def test_manual_fixture_negative_mutations_hit_named_constraint() -> None:
+    """XC負例が宣言した交差制約を実際に破ることを確かめる。"""
+    document, _ = _manual_fixture_assets()
+    contract = _repository_contract()
+    configuration, rules = _cross_constraint_configuration()
+    rule_by_id = {rule["constraintId"]: rule for rule in rules}
+    for fixture in document["fixtures"]:
+        if fixture["kind"] != "constraint-negative":
+            continue
+        selector = fixture["input"]["rowSelector"]
+        row = copy.deepcopy(
+            next(
+                row
+                for row in contract["matrixRows"]
+                if row["eventKind"] == selector["eventKind"]
+                and row["resultId"] == selector["resultId"]
+            )
+        )
+        mutation = fixture["input"]["mutation"]
+        parts = mutation["pointer"].split("/")[1:]
+        parent = row
+        for part in parts[:-1]:
+            parent = parent[int(part)] if isinstance(parent, list) else parent[part]
+        if isinstance(parent, list):
+            parent[int(parts[-1])] = mutation["value"]
+        else:
+            parent[parts[-1]] = mutation["value"]
+        rule = rule_by_id[fixture["branchId"]]
+        assert _cross_rule_violation(row, rule, configuration) is not None
