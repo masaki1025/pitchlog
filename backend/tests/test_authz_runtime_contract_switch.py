@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 from typing import Any, cast
@@ -31,6 +32,9 @@ from pitchlog.authz.runtime_contract_state import (
 
 _ROOT = Path(__file__).resolve().parents[2]
 _CORPUS_MANIFEST = Path("tests/fixtures/frozen-archive-cases/manifest.json")
+_JAPANESE_BETWEEN_SPACE = re.compile(
+    r"[\u3040-\u30ff\u3400-\u9fff] [\u3040-\u30ff\u3400-\u9fff]"
+)
 
 
 def _git(root: Path, *arguments: str) -> str:
@@ -300,6 +304,24 @@ def test_dryrun_tree_is_deterministic(dryrun_source: Path, tmp_path: Path) -> No
     assert first.head_sha == second.head_sha
     assert first.tree_sha == second.tree_sha
     _verify_pr_acceptance(first)
+
+
+def test_dryrun_history_text_has_no_spaces_between_japanese_characters(
+    dryrun_source: Path, tmp_path: Path
+) -> None:
+    """v2 記録の事実と理由に日本語文字同士を隔てる半角空白が無い。"""
+    result = build_dryrun(dryrun_source, tmp_path / "history-text")
+    authority = _read_json(
+        result.repository / "contracts/tenant_boundary/base-allowlist.json"
+    )
+    history = authority["baseline_control"]["history"]
+    assert isinstance(history, list) and history
+    record = history[-1]
+    assert isinstance(record, dict) and record["record_schema_version"] == 2
+    for field in ("movement_fact", "reason"):
+        value = record[field]
+        assert isinstance(value, str)
+        assert _JAPANESE_BETWEEN_SPACE.search(value) is None, f"{field}: {value}"
 
 
 def test_dryrun_rejects_unexpected_corpus_input_without_manifest_write(
