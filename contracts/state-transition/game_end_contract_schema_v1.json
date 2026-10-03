@@ -11,12 +11,30 @@
     "implementedBranchIds": [
       "GAME-END-NORMAL",
       "GAME-END-EXTRA-CONTINUE",
-      "GAME-END-LIMIT-DRAW"
+      "GAME-END-LIMIT-DRAW",
+      "GAME-END-TIEBREAK-CONTINUE",
+      "COLD-08"
     ],
+    "branchClassificationOverrides": {
+      "COLD-08": {
+        "branchKind": "requirement-branch-row",
+        "coverageKind": "normative-case"
+      }
+    },
     "outcomeByBranchId": {
       "GAME-END-NORMAL": "normal-end",
       "GAME-END-EXTRA-CONTINUE": "extra-continue",
-      "GAME-END-LIMIT-DRAW": "limit-draw"
+      "GAME-END-LIMIT-DRAW": "limit-draw",
+      "GAME-END-TIEBREAK-CONTINUE": "tiebreak-continue",
+      "COLD-08": "cold-end"
+    },
+    "outcomeSourceClauseIds": {
+      "normal-end": ["req:FR-005", "req:F-1"],
+      "extra-continue": ["req:F-1"],
+      "limit-draw": ["req:F-1"],
+      "tiebreak-continue": ["req:FR-009", "req:F-1"],
+      "cold-end": ["req:FR-005", "req:F-1"],
+      "walk-off": ["req:FR-005", "req:F-1"]
     },
     "axisDescriptorPath": "contracts/state-transition/input_axes_descriptor_v1.json",
     "evaluationPoint": "post-confirmed-play-and-after-switch-if-third-out",
@@ -28,7 +46,8 @@
       "state.inning",
       "state.half",
       "state.score",
-      "state.gameEnded"
+      "state.gameEnded",
+      "state.tiebreakActive"
     ],
     "valueFieldsByClassification": {
       "finite-enumerable": "values",
@@ -186,7 +205,7 @@
       ],
       "additionalProperties": false,
       "properties": {
-        "outcome": {"enum": ["normal-end", "extra-continue", "limit-draw", "tiebreak-continue"]},
+        "outcome": {"enum": ["normal-end", "extra-continue", "limit-draw", "tiebreak-continue", "cold-end", "walk-off"]},
         "endConditionDetected": {"type": "boolean"},
         "lockFurtherPlayInput": {"type": "boolean"},
         "promptEndDeclaration": {"type": "boolean"},

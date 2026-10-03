@@ -82,6 +82,57 @@
         "automaticallyEndsGame": false
       },
       "remarks": "FR-005・F-1。第L回裏の第3アウト確定後、攻守交代後の第L+1回表でなお同点の代表行。有限上限で引き分け条件を検知するが、FR-010の宣言前に試合状態を自動終了しない。コールド条件は空、タイブレークはなし。"
+    },
+    {
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "sourceClauseIds": ["req:FR-005", "req:FR-009", "req:F-1"],
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "gameEnd.regulationInnings", "value": 9},
+          {"op": "eq", "axisId": "gameEnd.coldConditions", "value": "tier-count:0"},
+          {"op": "eq", "axisId": "gameEnd.extensionLimit", "value": "finite:99"},
+          {"op": "eq", "axisId": "gameEnd.tiebreak", "value": "start:R+1"},
+          {"op": "eq", "axisId": "state.inning", "value": "R+1"},
+          {"op": "eq", "axisId": "state.half", "value": "top"},
+          {"op": "eq", "axisId": "state.score", "value": "tie"},
+          {"op": "eq", "axisId": "state.gameEnded", "value": false},
+          {"op": "eq", "axisId": "state.tiebreakActive", "value": true}
+        ]
+      },
+      "decision": {
+        "outcome": "tiebreak-continue",
+        "endConditionDetected": false,
+        "lockFurtherPlayInput": false,
+        "promptEndDeclaration": false,
+        "automaticallyEndsGame": false
+      },
+      "remarks": "FR-005・FR-009・F-1。R=9、L=99、発動回R+1の有効な規則設定で、タイブレーク発動後の第R+1回表に同点の確定プレイを判定する代表行。上限前で終了条件は未成立のためプレイを継続する。走者配置・先頭打者の指定値による状態効果はこの終了判定行の主張ではない。"
+    },
+    {
+      "branchId": "COLD-08",
+      "sourceClauseIds": ["req:F-1"],
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "gameEnd.regulationInnings", "value": 9},
+          {"op": "eq", "axisId": "gameEnd.coldConditions", "value": "tier-count:1"},
+          {"op": "eq", "axisId": "gameEnd.extensionLimit", "value": "none"},
+          {"op": "eq", "axisId": "gameEnd.tiebreak", "value": "none"},
+          {"op": "eq", "axisId": "state.inning", "value": "N"},
+          {"op": "eq", "axisId": "state.half", "value": "bottom"},
+          {"op": "eq", "axisId": "state.score", "value": "home-lead:M"},
+          {"op": "eq", "axisId": "state.gameEnded", "value": false}
+        ]
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      },
+      "remarks": "F-1のCOLD-02・COLD-08。コールド段を1件だけ設定し、第N回表完了後の攻守交代時に後攻がM点リードする代表行。成立段は必ずその1件だけなので、コールド終了条件を1件検知し入力をロックしてFR-010の宣言を促す。コールド検知だけでは自動終了しない。段数を複数設定して成立段が1件となる場合やCOLD-09の複数段同時成立は、この行では主張しない。"
     }
   ],
   "requiredSet": {},

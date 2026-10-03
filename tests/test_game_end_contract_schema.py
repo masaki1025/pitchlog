@@ -114,11 +114,25 @@ def _validate_decision_references(contract: Mapping[str, Any]) -> None:
     rows = contract["decisionRows"]
     branch_ids = [row["branchId"] for row in rows]
     assert len(branch_ids) == len(set(branch_ids))
+    classification_overrides = policy["branchClassificationOverrides"]
+    assert set(classification_overrides) <= set(branch_ids)
+    outcome_enum = set(schema["$defs"]["gameEndDecision"]["properties"]["outcome"]["enum"])
+    assert set(policy["outcomeSourceClauseIds"]) == outcome_enum
+    assert all(
+        sources and all(source.startswith("req:") for source in sources)
+        for sources in policy["outcomeSourceClauseIds"].values()
+    )
+    assert set(policy["outcomeByBranchId"].values()) <= outcome_enum
     for row in rows:
         branch = branches.get(row["branchId"])
         assert branch is not None
-        assert branch["branchKind"] == policy["requiredBranchKind"]
-        assert branch["coverageKind"] == policy["requiredCoverageKind"]
+        classification = classification_overrides.get(row["branchId"], {})
+        assert branch["branchKind"] == classification.get(
+            "branchKind", policy["requiredBranchKind"]
+        )
+        assert branch["coverageKind"] == classification.get(
+            "coverageKind", policy["requiredCoverageKind"]
+        )
         assert set(row["sourceClauseIds"]) == set(branch["sourceClauseIds"])
         assert row["decision"]["outcome"] == policy["outcomeByBranchId"][
             row["branchId"]
@@ -134,6 +148,7 @@ def _validate_decision_references(contract: Mapping[str, Any]) -> None:
             )
     assert set(branch_ids) == set(policy["implementedBranchIds"])
     assert set(policy["outcomeByBranchId"]) == set(branch_ids)
+    assert set(register["gameEndOutcomeBranches"].values()) <= set(branch_ids)
 
 
 def _valid_rule_snapshot() -> dict[str, Any]:
@@ -275,6 +290,56 @@ def test_nonexistent_decision_branch_is_red() -> None:
     """実在しない分岐IDをregister突合で拒否する。"""
     contract = deepcopy(_repository_contract())
     contract["decisionRows"][0]["branchId"] = "GAME-END-UNKNOWN"
+    with pytest.raises(AssertionError):
+        _validate_decision_references(contract)
+
+
+def test_normative_case_branch_cannot_be_used_as_decision_row() -> None:
+    """宣言のない中間判定分岐を終了結果行へ誤登録させない。"""
+    contract = deepcopy(_repository_contract())
+    contract["decisionRows"][0]["branchId"] = "COLD-01"
+    contract["decisionRows"][0]["sourceClauseIds"] = ["req:F-1"]
+    with pytest.raises(AssertionError):
+        _validate_decision_references(contract)
+
+
+def test_cold_outcome_and_single_tier_row_are_clause_bound() -> None:
+    """コールドの結果語彙と単一成立段の行を条文宣言へ結びつける。"""
+    schema = _schema()
+    policy = schema["x-pitchlog-decision-row-references"]
+    rows = _repository_contract()["decisionRows"]
+    cold_row = next(row for row in rows if row["branchId"] == "COLD-08")
+
+    assert policy["outcomeByBranchId"]["COLD-08"] == "cold-end"
+    assert "req:F-1" in policy["outcomeSourceClauseIds"]["cold-end"]
+    assert "req:FR-005" in policy["outcomeSourceClauseIds"]["walk-off"]
+    assert cold_row["decision"] == {
+        "outcome": "cold-end",
+        "endConditionDetected": True,
+        "lockFurtherPlayInput": True,
+        "promptEndDeclaration": True,
+        "automaticallyEndsGame": False,
+    }
+    assert {leaf["axisId"]: leaf["value"] for leaf in _decision_leaves(cold_row["precondition"])}[
+        "gameEnd.coldConditions"
+    ] == "tier-count:1"
+    _validate_decision_references(_repository_contract())
+
+
+@pytest.mark.parametrize("mutation", ["wrong-outcome", "unknown-tier"])
+def test_cold_row_mutations_are_red(mutation: str) -> None:
+    """コールド行の結果取り違えとdescriptor外の段数を拒否する。"""
+    contract = deepcopy(_repository_contract())
+    cold_row = next(row for row in contract["decisionRows"] if row["branchId"] == "COLD-08")
+    if mutation == "wrong-outcome":
+        cold_row["decision"]["outcome"] = "normal-end"
+    else:
+        leaf = next(
+            leaf
+            for leaf in _decision_leaves(cold_row["precondition"])
+            if leaf["axisId"] == "gameEnd.coldConditions"
+        )
+        leaf["value"] = "tier-count:2"
     with pytest.raises(AssertionError):
         _validate_decision_references(contract)
 
