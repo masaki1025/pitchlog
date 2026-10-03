@@ -8,6 +8,7 @@ PROVISIONAL = True
 SUPERSEDED_BY = "contracts/authz/product/ddl-elements.json"
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
 SOURCE_DIGEST = "49d00d38ccc6f3e87c4a45429838c073e0938801cc889418ac860f8a6684cb28"
+DERIVED_FROM = None
 
 
 @dataclass(frozen=True, slots=True)
