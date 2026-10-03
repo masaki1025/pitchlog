@@ -4,6 +4,37 @@
   "title": "Pitchlog game end contract schema v1",
   "version": "game_end_contract_schema_v1",
   "x-pitchlog-rule-snapshot-definition": "#/$defs/ruleSnapshot",
+  "x-pitchlog-decision-row-references": {
+    "branchRegisterPath": "contracts/state-transition/clause_branch_register_v1.json",
+    "requiredBranchKind": "game-end-outcome",
+    "requiredCoverageKind": "decision-row",
+    "implementedBranchIds": [
+      "GAME-END-NORMAL",
+      "GAME-END-EXTRA-CONTINUE",
+      "GAME-END-LIMIT-DRAW"
+    ],
+    "outcomeByBranchId": {
+      "GAME-END-NORMAL": "normal-end",
+      "GAME-END-EXTRA-CONTINUE": "extra-continue",
+      "GAME-END-LIMIT-DRAW": "limit-draw"
+    },
+    "axisDescriptorPath": "contracts/state-transition/input_axes_descriptor_v1.json",
+    "evaluationPoint": "post-confirmed-play-and-after-switch-if-third-out",
+    "allowedAxisIds": [
+      "gameEnd.regulationInnings",
+      "gameEnd.coldConditions",
+      "gameEnd.extensionLimit",
+      "gameEnd.tiebreak",
+      "state.inning",
+      "state.half",
+      "state.score",
+      "state.gameEnded"
+    ],
+    "valueFieldsByClassification": {
+      "finite-enumerable": "values",
+      "boundary-partition": "boundaryValues"
+    }
+  },
   "x-pitchlog-descriptor-projection": {
     "descriptorPath": "contracts/state-transition/input_axes_descriptor_v1.json",
     "identityDefinition": "inputAxesDescriptorBinding",
@@ -45,8 +76,7 @@
       "x-pitchlog-normative-row-layer": true,
       "type": "array",
       "items": {
-        "type": "object",
-        "additionalProperties": true
+        "$ref": "#/$defs/decisionRow"
       }
     },
     "requiredSet": {
@@ -69,6 +99,100 @@
     }
   },
   "$defs": {
+    "decisionRow": {
+      "type": "object",
+      "required": [
+        "branchId",
+        "sourceClauseIds",
+        "precondition",
+        "decision",
+        "remarks"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "branchId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceClauseIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^req:[A-Za-z0-9-]+$"
+          }
+        },
+        "precondition": {
+          "$ref": "#/$defs/decisionPredicate"
+        },
+        "decision": {
+          "$ref": "#/$defs/gameEndDecision"
+        },
+        "remarks": {
+          "type": "string"
+        }
+      }
+    },
+    "decisionPredicate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["op", "args"],
+          "additionalProperties": false,
+          "properties": {
+            "op": {"enum": ["and", "or"]},
+            "args": {
+              "type": "array",
+              "minItems": 2,
+              "items": {"$ref": "#/$defs/decisionPredicate"}
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "args"],
+          "additionalProperties": false,
+          "properties": {
+            "op": {"const": "not"},
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "items": {"$ref": "#/$defs/decisionPredicate"}
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["op", "axisId", "value"],
+          "additionalProperties": false,
+          "properties": {
+            "op": {"const": "eq"},
+            "axisId": {"type": "string", "minLength": 1},
+            "value": {"oneOf": [{"type": "integer"}, {"type": "boolean"}, {"type": "string"}]}
+          }
+        }
+      ]
+    },
+    "gameEndDecision": {
+      "type": "object",
+      "required": [
+        "outcome",
+        "endConditionDetected",
+        "lockFurtherPlayInput",
+        "promptEndDeclaration",
+        "automaticallyEndsGame"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {"enum": ["normal-end", "extra-continue", "limit-draw", "tiebreak-continue"]},
+        "endConditionDetected": {"type": "boolean"},
+        "lockFurtherPlayInput": {"type": "boolean"},
+        "promptEndDeclaration": {"type": "boolean"},
+        "automaticallyEndsGame": {"type": "boolean"}
+      }
+    },
     "inputAxesDescriptorBinding": {
       "type": "object",
       "required": [

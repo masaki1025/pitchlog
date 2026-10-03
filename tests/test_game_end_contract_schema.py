@@ -6,6 +6,7 @@ import importlib.util
 import json
 import sys
 from collections.abc import Mapping
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,9 @@ FREEZE_CHECKER_PATH = REPOSITORY_ROOT / "scripts/state_transition_freeze.py"
 SCHEMA_PATH = (
     REPOSITORY_ROOT
     / "contracts/state-transition/game_end_contract_schema_v1.json"
+)
+CONTRACT_PATH = (
+    REPOSITORY_ROOT / "contracts/state-transition/game_end_contract_v1.json"
 )
 DESCRIPTOR_PATH = (
     REPOSITORY_ROOT / "contracts/state-transition/input_axes_descriptor_v1.json"
@@ -61,6 +65,75 @@ def _schema() -> dict[str, Any]:
 def _descriptor() -> dict[str, Any]:
     """入力軸descriptorを返す。"""
     return _load_object(DESCRIPTOR_PATH)
+
+
+def _repository_contract() -> dict[str, Any]:
+    """実資産の終了判定契約を返す。"""
+    return _load_object(CONTRACT_PATH)
+
+
+def _decision_leaves(predicate: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """終了判定述語の比較葉を列挙する。
+
+    Args:
+        predicate: 閉じた述語AST。
+
+    Returns:
+        比較葉の一覧。
+    """
+    if predicate["op"] == "eq":
+        assert isinstance(predicate, dict)
+        return [predicate]
+    return [
+        leaf
+        for argument in predicate["args"]
+        for leaf in _decision_leaves(argument)
+    ]
+
+
+def _validate_decision_references(contract: Mapping[str, Any]) -> None:
+    """schemaの参照宣言に従って分岐と入力軸を検証する。
+
+    Args:
+        contract: 検証する終了判定契約。
+    """
+    schema = _schema()
+    _validate_contract(contract)
+    policy = schema["x-pitchlog-decision-row-references"]
+    register = _load_object(REPOSITORY_ROOT / policy["branchRegisterPath"])
+    descriptor = _load_object(REPOSITORY_ROOT / policy["axisDescriptorPath"])
+    branches = {row["branchId"]: row for row in register["branches"]}
+    axes = {
+        axis["axisId"]: axis
+        for collection in ("gameEndAxes", "stateTransitionAxes")
+        for axis in descriptor[collection]
+    }
+    allowed_axes = set(policy["allowedAxisIds"])
+    assert {axis["axisId"] for axis in descriptor["gameEndAxes"]} <= allowed_axes
+    assert allowed_axes <= set(axes)
+    rows = contract["decisionRows"]
+    branch_ids = [row["branchId"] for row in rows]
+    assert len(branch_ids) == len(set(branch_ids))
+    for row in rows:
+        branch = branches.get(row["branchId"])
+        assert branch is not None
+        assert branch["branchKind"] == policy["requiredBranchKind"]
+        assert branch["coverageKind"] == policy["requiredCoverageKind"]
+        assert set(row["sourceClauseIds"]) == set(branch["sourceClauseIds"])
+        assert row["decision"]["outcome"] == policy["outcomeByBranchId"][
+            row["branchId"]
+        ]
+        for leaf in _decision_leaves(row["precondition"]):
+            axis_id = leaf["axisId"]
+            assert axis_id in allowed_axes
+            axis = axes[axis_id]
+            value_field = policy["valueFieldsByClassification"][axis["classification"]]
+            assert any(
+                type(leaf["value"]) is type(value) and leaf["value"] == value
+                for value in axis[value_field]
+            )
+    assert set(branch_ids) == set(policy["implementedBranchIds"])
+    assert set(policy["outcomeByBranchId"]) == set(branch_ids)
 
 
 def _valid_rule_snapshot() -> dict[str, Any]:
@@ -171,6 +244,67 @@ def test_contract_has_d6_game_end_collections_and_descriptor_binding() -> None:
     assert binding["version"]["const"] == descriptor["version"]
     assert binding["digest"]["const"] == descriptor["digest"]
     _validate_contract(_minimal_contract())
+
+
+def test_repository_decision_rows_are_closed_and_references_resolve() -> None:
+    """実資産の規範行を閉じた型・分岐・軸の参照と突合する。"""
+    schema = _schema()
+    row_schema = schema["$defs"]["decisionRow"]
+    assert set(row_schema["required"]) == set(row_schema["properties"])
+    assert row_schema["additionalProperties"] is False
+    assert schema["x-pitchlog-decision-row-references"]["evaluationPoint"]
+    _validate_decision_references(_repository_contract())
+
+
+@pytest.mark.parametrize("mutation", ["unknown-column", "missing-column", "invalid-outcome"])
+def test_decision_row_shape_mutations_are_red(mutation: str) -> None:
+    """未知列・必須列欠落・enum外の結果を拒否する。"""
+    contract = deepcopy(_repository_contract())
+    row = contract["decisionRows"][0]
+    if mutation == "unknown-column":
+        row["unexpected"] = True
+    elif mutation == "missing-column":
+        del row["remarks"]
+    else:
+        row["decision"]["outcome"] = "unknown-outcome"
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        _validate_decision_references(contract)
+
+
+def test_nonexistent_decision_branch_is_red() -> None:
+    """実在しない分岐IDをregister突合で拒否する。"""
+    contract = deepcopy(_repository_contract())
+    contract["decisionRows"][0]["branchId"] = "GAME-END-UNKNOWN"
+    with pytest.raises(AssertionError):
+        _validate_decision_references(contract)
+
+
+def test_decision_outcome_swapped_between_existing_branches_is_red() -> None:
+    """実在する別の結果への取り違えもschema宣言との突合で拒否する。"""
+    contract = deepcopy(_repository_contract())
+    contract["decisionRows"][0]["decision"]["outcome"] = "limit-draw"
+    with pytest.raises(AssertionError):
+        _validate_decision_references(contract)
+
+
+@pytest.mark.parametrize(
+    ("axis_id", "value"),
+    [
+        ("gameEnd.extensionLimit", "finite:R-1"),
+        ("gameEnd.regulationInnings", 0),
+        ("event.operationKind", "per-pitch"),
+    ],
+)
+def test_decision_precondition_outside_declared_axes_is_red(
+    axis_id: str, value: object
+) -> None:
+    """境界値外と終了判定に許さない軸を拒否する。"""
+    contract = deepcopy(_repository_contract())
+    leaf = _decision_leaves(contract["decisionRows"][0]["precondition"])[0]
+    leaf["axisId"] = axis_id
+    leaf["value"] = value
+    with pytest.raises(AssertionError):
+        _validate_decision_references(contract)
 
 
 def test_f1_rule_snapshot_has_exactly_five_closed_fields() -> None:

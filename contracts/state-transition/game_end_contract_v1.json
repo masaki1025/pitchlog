@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "version": "game_end_contract_v1",
+  "calculation": "game-end",
+  "inputAxesDescriptor": {
+    "descriptorId": "pitchlog.input-axes",
+    "version": "input_axes_descriptor_v1",
+    "digest": "sha256:9758159e76c974df31a09fb8d3db7c0f25c46b8aa4ee3e1b28db25ac800ccce9"
+  },
+  "decisionRows": [
+    {
+      "branchId": "GAME-END-NORMAL",
+      "sourceClauseIds": ["req:FR-005", "req:F-1"],
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "gameEnd.regulationInnings", "value": 9},
+          {"op": "eq", "axisId": "gameEnd.coldConditions", "value": "tier-count:0"},
+          {"op": "eq", "axisId": "gameEnd.extensionLimit", "value": "finite:R+1"},
+          {"op": "eq", "axisId": "gameEnd.tiebreak", "value": "none"},
+          {"op": "eq", "axisId": "state.inning", "value": "L+1"},
+          {"op": "eq", "axisId": "state.half", "value": "top"},
+          {"op": "eq", "axisId": "state.gameEnded", "value": false},
+          {"op": "not", "args": [{"op": "eq", "axisId": "state.score", "value": "tie"}]}
+        ]
+      },
+      "decision": {
+        "outcome": "normal-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      },
+      "remarks": "FR-005・F-1。第L回裏の第3アウト確定後、攻守交代後の第L+1回表の状態で判定する代表行。非同点なので勝敗の終了条件を検知するが、FR-010の宣言前に試合状態を自動終了しない。コールド条件は空、タイブレークはなし。"
+    },
+    {
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "sourceClauseIds": ["req:FR-005", "req:F-1"],
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "gameEnd.regulationInnings", "value": 9},
+          {"op": "eq", "axisId": "gameEnd.coldConditions", "value": "tier-count:0"},
+          {"op": "eq", "axisId": "gameEnd.extensionLimit", "value": "finite:R+1"},
+          {"op": "eq", "axisId": "gameEnd.tiebreak", "value": "none"},
+          {"op": "eq", "axisId": "state.inning", "value": "R+1"},
+          {"op": "eq", "axisId": "state.half", "value": "top"},
+          {"op": "eq", "axisId": "state.gameEnded", "value": false},
+          {"op": "eq", "axisId": "state.score", "value": "tie"}
+        ]
+      },
+      "decision": {
+        "outcome": "extra-continue",
+        "endConditionDetected": false,
+        "lockFurtherPlayInput": false,
+        "promptEndDeclaration": false,
+        "automaticallyEndsGame": false
+      },
+      "remarks": "F-1。第R回裏を完了して第R+1回表へ攻守交代した代表行。有限上限L=R+1にまだ達しておらず同点なので延長を継続する。コールド条件は空、タイブレークはなし。"
+    },
+    {
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "sourceClauseIds": ["req:FR-005", "req:F-1"],
+      "precondition": {
+        "op": "and",
+        "args": [
+          {"op": "eq", "axisId": "gameEnd.regulationInnings", "value": 9},
+          {"op": "eq", "axisId": "gameEnd.coldConditions", "value": "tier-count:0"},
+          {"op": "eq", "axisId": "gameEnd.extensionLimit", "value": "finite:R+1"},
+          {"op": "eq", "axisId": "gameEnd.tiebreak", "value": "none"},
+          {"op": "eq", "axisId": "state.inning", "value": "L+1"},
+          {"op": "eq", "axisId": "state.half", "value": "top"},
+          {"op": "eq", "axisId": "state.gameEnded", "value": false},
+          {"op": "eq", "axisId": "state.score", "value": "tie"}
+        ]
+      },
+      "decision": {
+        "outcome": "limit-draw",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      },
+      "remarks": "FR-005・F-1。第L回裏の第3アウト確定後、攻守交代後の第L+1回表でなお同点の代表行。有限上限で引き分け条件を検知するが、FR-010の宣言前に試合状態を自動終了しない。コールド条件は空、タイブレークはなし。"
+    }
+  ],
+  "requiredSet": {},
+  "cases": [],
+  "validationErrors": []
+}
