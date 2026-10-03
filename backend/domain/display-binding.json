@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "authority": "ADR-003 D-11 構成の完全性",
+  "sources": {
+    "collector": "backend/src/pitchlog/domaincheck/collect_display_paths.py",
+    "modelSchema": "backend/domain/model.schema.json",
+    "vocabularySchema": "backend/domain/vocabulary.schema.json",
+    "manifestSchema": "backend/domain/manifest.schema.json",
+    "sealedSet": "backend/domain/boot-seal.json"
+  },
+  "targetDerivation": {
+    "schemaSelector": "#/x-pitchlog/targetFieldSelectors",
+    "collectorResult": "schemaClosure.targetFields",
+    "requireComplete": true,
+    "requireNonempty": true
+  },
+  "bindingContract": {
+    "manifestField": "displayBindings",
+    "exactFields": [
+      "displayItem",
+      "callsite",
+      "formatter",
+      "provenance"
+    ],
+    "identityFields": [
+      "displayItem",
+      "callsite",
+      "formatter"
+    ],
+    "callsiteFields": [
+      "path",
+      "symbol"
+    ],
+    "requiredCallKind": "formatter-call",
+    "generatedFormatterPathPrefix": "frontend/src/lib/generated/"
+  },
+  "sealedMissingDeclaration": {
+    "elementId": "manifest/displayBindings",
+    "constructor": "declaration_absence",
+    "canonicalKey": "declaration_absence(manifest,displayBindings)",
+    "arguments": {
+      "target": "manifest",
+      "field": "displayBindings"
+    }
+  }
+}

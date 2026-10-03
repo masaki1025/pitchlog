@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "pitchlog.domaincheck.boot.clauses",
+  "derivation": {
+    "source": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+    "section": "#### NFR-018: ドメインロジックの単一実装",
+    "startMarker": "  - **(e) 検査基盤の導入期における経過規定**",
+    "endMarker": "- **測定方法**:",
+    "clauseDeclarationPattern": "\\*\\*`(?P<id>BOOT-[A-Z]+(?:-[A-Z]+)*)`（[^）]+）\\*\\*:",
+    "clauseRangeRule": "from-declaration-to-next-declaration-or-subsection-end"
+  },
+  "clauses": [
+    {
+      "id": "BOOT-SEAL",
+      "authorityId": "NFR-018 (e) BOOT-SEAL",
+      "verbatim": "`BOOT-SEAL`",
+      "violationDetection": {
+        "kind": "clause-violation",
+        "criterionAuthority": "NFR-018 (e) BOOT-SEAL"
+      },
+      "negativeCaseIds": [
+        "neg-seal-classification-exemption"
+      ],
+      "positiveCaseIds": []
+    },
+    {
+      "id": "BOOT-STATE",
+      "authorityId": "NFR-018 (e) BOOT-STATE",
+      "verbatim": "`BOOT-STATE`",
+      "violationDetection": {
+        "kind": "clause-violation",
+        "criterionAuthority": "NFR-018 (e) BOOT-STATE"
+      },
+      "negativeCaseIds": [
+        "neg-state-second-program-termination"
+      ],
+      "positiveCaseIds": []
+    },
+    {
+      "id": "BOOT-PROGRAM",
+      "authorityId": "NFR-018 (e) BOOT-PROGRAM",
+      "verbatim": "`BOOT-PROGRAM`",
+      "violationDetection": {
+        "kind": "clause-violation",
+        "criterionAuthority": "NFR-018 (e) BOOT-PROGRAM"
+      },
+      "negativeCaseIds": [
+        "neg-program-declaration-only-resolution"
+      ],
+      "positiveCaseIds": [
+        "pos-a-program-auto-promotion"
+      ]
+    },
+    {
+      "id": "BOOT-GRANT",
+      "authorityId": "NFR-018 (e) BOOT-GRANT",
+      "verbatim": "`BOOT-GRANT`",
+      "violationDetection": {
+        "kind": "clause-violation",
+        "criterionAuthority": "NFR-018 (e) BOOT-GRANT"
+      },
+      "negativeCaseIds": [
+        "neg-grant-indeterminate-bypass"
+      ],
+      "positiveCaseIds": [
+        "pos-b-grant-sealed-failure-merge"
+      ]
+    },
+    {
+      "id": "BOOT-REAPPROVAL",
+      "authorityId": "NFR-018 (e) BOOT-REAPPROVAL",
+      "verbatim": "`BOOT-REAPPROVAL`",
+      "violationDetection": {
+        "kind": "clause-violation",
+        "criterionAuthority": "NFR-018 (e) BOOT-REAPPROVAL"
+      },
+      "negativeCaseIds": [
+        "neg-reapproval-reused-record"
+      ],
+      "positiveCaseIds": [
+        "pos-b-reapproval-recovers-grant"
+      ]
+    },
+    {
+      "id": "BOOT-NO-CLAIM",
+      "authorityId": "NFR-018 (e) BOOT-NO-CLAIM",
+      "verbatim": "`BOOT-NO-CLAIM`",
+      "violationDetection": {
+        "kind": "clause-violation",
+        "criterionAuthority": "NFR-018 (e) BOOT-NO-CLAIM"
+      },
+      "negativeCaseIds": [
+        "neg-no-claim-transition-satisfaction"
+      ],
+      "positiveCaseIds": []
+    },
+    {
+      "id": "BOOT-REPORT",
+      "authorityId": "NFR-018 (e) BOOT-REPORT",
+      "verbatim": "`BOOT-REPORT`",
+      "violationDetection": {
+        "kind": "clause-violation",
+        "criterionAuthority": "NFR-018 (e) BOOT-REPORT"
+      },
+      "negativeCaseIds": [
+        "neg-report-missing-output"
+      ],
+      "positiveCaseIds": []
+    },
+    {
+      "id": "BOOT-SEAL-BASE",
+      "authorityId": "NFR-018 (e) BOOT-SEAL-BASE",
+      "verbatim": "`BOOT-SEAL-BASE`",
+      "violationDetection": {
+        "kind": "clause-violation",
+        "criterionAuthority": "NFR-018 (e) BOOT-SEAL-BASE"
+      },
+      "negativeCaseIds": [
+        "neg-seal-base-merge-base"
+      ],
+      "positiveCaseIds": []
+    },
+    {
+      "id": "BOOT-SEAL-IMMUTABLE",
+      "authorityId": "NFR-018 (e) BOOT-SEAL-IMMUTABLE",
+      "verbatim": "`BOOT-SEAL-IMMUTABLE`",
+      "violationDetection": {
+        "kind": "clause-violation",
+        "criterionAuthority": "NFR-018 (e) BOOT-SEAL-IMMUTABLE"
+      },
+      "negativeCaseIds": [
+        "neg-seal-immutable-base-rewrite"
+      ],
+      "positiveCaseIds": []
+    },
+    {
+      "id": "BOOT-SEAL-MONOTONE",
+      "authorityId": "NFR-018 (e) BOOT-SEAL-MONOTONE",
+      "verbatim": "`BOOT-SEAL-MONOTONE`",
+      "violationDetection": {
+        "kind": "clause-violation",
+        "criterionAuthority": "NFR-018 (e) BOOT-SEAL-MONOTONE"
+      },
+      "negativeCaseIds": [
+        "neg-seal-monotone-reappearance"
+      ],
+      "positiveCaseIds": []
+    },
+    {
+      "id": "BOOT-STALL",
+      "authorityId": "NFR-018 (e) BOOT-STALL",
+      "verbatim": "`BOOT-STALL`",
+      "violationDetection": {
+        "kind": "clause-violation",
+        "criterionAuthority": "NFR-018 (e) BOOT-STALL"
+      },
+      "negativeCaseIds": [
+        "neg-stall-premature-expiry"
+      ],
+      "positiveCaseIds": [
+        "pos-a-stall-expiry"
+      ]
+    },
+    {
+      "id": "BOOT-ACTIVATION",
+      "authorityId": "NFR-018 (e) BOOT-ACTIVATION",
+      "verbatim": "`BOOT-ACTIVATION`",
+      "violationDetection": {
+        "kind": "clause-violation",
+        "criterionAuthority": "NFR-018 (e) BOOT-ACTIVATION"
+      },
+      "negativeCaseIds": [
+        "neg-activation-presence-without-execution"
+      ],
+      "positiveCaseIds": [
+        "pos-a-program-auto-promotion",
+        "pos-a-stall-expiry",
+        "pos-b-grant-sealed-failure-merge",
+        "pos-b-reapproval-recovers-grant"
+      ]
+    }
+  ]
+}
