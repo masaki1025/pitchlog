@@ -387,14 +387,12 @@ def _verify_pr_acceptance(result: DryrunResult) -> None:
         event_path = Path(directory) / "event.json"
         _write_json(event_path, event)
         _git(root, "checkout", "--detach", merge_sha)
-        env = os.environ.copy()
-        env.update(
-            {
-                "GITHUB_EVENT_NAME": "pull_request",
-                "GITHUB_EVENT_PATH": str(event_path),
-                "GITHUB_WORKSPACE": str(root),
-            }
-        )
+        env = {
+            **os.environ,
+            "GITHUB_EVENT_NAME": "pull_request",
+            "GITHUB_EVENT_PATH": str(event_path),
+            "GITHUB_WORKSPACE": str(root),
+        }
         try:
             result_process = subprocess.run(
                 [sys.executable, str(root / "scripts/check_tenant_boundary_bypass.py")],
