@@ -400,3 +400,73 @@ legacy-analyst が `docs/legacy/` 内の 2 資料間で不一致 3 点を報告�
 
 認証に関する記述(`team.password_hash` の型・bcrypt・`user_account` の構造)は**両資料で一致**している。
 U-A1 には影響しないが、**移行タスク(カスケード削除前提・接続プール設計)で効く可能性がある**。
+
+---
+
+## 追補: 2026-10-03 再測定(develop `9ff36743` 取り込み後)
+
+本ブランチへ `origin/develop`(`9ff36743`)を取り込み(差分は本 feature の docs だけで衝突 0 件)、
+調査 3 本(spec-checker / decision-tracer / Explore)で本メモの結論を測り直した。表記は本文と同じ
+(**[確認済]** = Claude が原典を読んで裏を取った / **[報告]** = 調査エージェントの報告)。
+
+### A. 結論の変化
+
+| 本文の結論 | 2026-10-03 の状態 |
+| --- | --- |
+| 1. 要件は揃っている | **変化なし**。要件書は v2.9(`requirements-pitchlog-2026-07-22.md:46`)のまま、§1 の引用行・内容とも一致 **[報告]** |
+| 2. スキーマは出揃っている | **変化なし**。`0011` は差分 0、0012〜0026 に認証 5 表を変える migration は無い **[報告]**。`data-model.md` の引用行は一律 **+2**(8-2 = `:1511`、8-3 = `:1625-1643`、8-6 = `:1706-1722`)**[報告]** |
+| 3. マージは TSK-344 待ち | **入口を開く PR についてのみ成立**(下の B)。**律速連鎖の形が変わった**(下の C) |
+| 4. 機構上の衝突 4 件 | ① **人間の決定で消滅**(D・ハッシュは DB 内)② TB002 は残るが**記号単位の裁定機構 `condition_2_adjudications`**(`contracts/tenant_boundary/base-allowlist.json:4253-4278`)が入った **[報告]** ③ allowlist は空のまま。**登録は U-A1 の責務と PR C が明文化**(`feature/tenant-session-supply` の `plan.md:72`)**[報告]** ④ **TSK-424 が決着**(下の B) |
+| 5. 設計判断 10 件以上が未決 | D-1 / D-2 / D-4 の骨格 / D-12 は人間の決定と TSK-424 で決着(下の D)。残りは計画書が既定値を置く |
+
+### B. TSK-424 が認証表の到達経路を決めた **[確認済]**
+
+- `contracts/authz/product/table-classification.json:36-67`: `tenant_auth_subjects` / `tenant_credentials` /
+  `tenant_tokens` = **`function_only`**(`access_path.reason = pre_context_authentication`)、`rate_limit_counters` =
+  **`function_only`**(`pre_context_global_mutable`)。**4 表とも `owner_unit: "U-A1"`**。`tenants` は `self_tenant_row`
+- `function_only` = **ポリシーを置かず、アプリ用ロールに権限を与えない**(期待は `42501`)
+  (`docs/features/product-authz-surface/design.md:32`)
+- 理由(同 `:40`): 「ログインは TenantContext の束縛前に走る…束縛後に使えるようにすると、
+  **パスワードハッシュをアプリ用ロールが直接読める経路が残る**」→ **到達経路 = 認証関数(所有単位 U-A1)**
+- 関数の ACL・`search_path`・関数所有ロールへの所有の付与は各単位が持つ(同 `:655`)。
+  「`pitchlog_app` が `EXECUTE` できる `SECURITY DEFINER` 関数が 0 件」を試験で表明しており、
+  **関数を足すと red になり最低要求④の試験を足すよう促す**(同 `:482`)
+- **トークンの提示形式と秘密性の確定は U-A1**(同 `:168`・`product-authz-surface/plan.md:149`)
+- `tenant_credentials.password_hash` は露出の事実「秘密の列」(`exposure-facts.json:228-250`
+  「平文と同様に直接露出させない」)
+- **関数所有ロールは正本に 2 つしかない**(`data-model.md:212-213` = 共有関数所有用 / 管理関数所有用)。
+  認証関数をどちらが持つかの記述は無い **[確認済]**
+
+→ **§4-5 の案 (a)(リポジトリ基底で結合)は成り立たない**(アプリ用ロールに権限も capability も無い)。
+**§4-8 の帰結 1「U-A1 は受け取る側」は「分類は TSK-424 で確定、関数の実装は U-A1」へ読み替える。**
+
+### C. 律速連鎖と 12-4 ゲート **[確認済]**
+
+- **TSK-344 の実体は `feature/product-rls-boundary-tests`**(計画レビュー 7 周・承認待ち)。
+  依存の exact-set は 9 件で **U-A1 は入れない**(裁定 2026-09-27 — 同 `plan.md:361`・`:381`・`:385`)。
+  依存 5〜8 は **U-C3 / U-C2 / U-C1 / U-A2 の代表関数**(同 `:377-380`)
+- 順序契約(同 `:463-478`): **U-C1 / U-C2 / U-C3 / U-A2 が「関数だけを作り、入口を 1 つも開かない PR」を先にマージ
+  → TSK-344 が実スキーマで再実行 → 各単位が入口を開く PR を出す**
+- 一方 **U-A2 と U-C1 は U-A1 に依存する**(`product-impl-unit-split/plan.md:224-225`)
+- 12-4 の「開く」の定義(`data-model.md:2461-2468`): **① 処理するコードが存在 ② 製品の外から到達できる(ルーティングに載る)
+  ③ DB を読み書きする — の 3 つがそろうこと。いずれかを欠く PR は開いていない**
+
+→ **律速連鎖 = U-A1(関数層・入口なし)→ U-A2・U-C1 の関数 PR(→ U-C2)→ TSK-344 → U-A1 の入口 PR / U-M1 の入口 PR**。
+U-A1 は TSK-344 の**上流と下流の両方**にいる。**U-A2・U-C1 の関数 PR が U-A1 の関数層のマージまで要るかは、
+単位の依存表(単位単位の粒度)からの推論で未検証**。
+
+### D. 人間の決定(2026-10-03・本セッション)
+
+| # | 論点 | 決定 |
+| --- | --- | --- |
+| H-1 | PR の分け方 | **入口を開かない関数層 PR(本ブランチ)を先にマージ**し、**HTTP の入口 PR は TSK-344 の後**に別タスクで出す。当初「依存追加 PR + 関数層 + 入口」の 3 本としたが、H-5 により依存追加 PR は不要になり **2 本** |
+| H-2 | トークンの形と伝達(D-1 / D-6) | **`tenant_tokens.id` に HMAC-SHA256 署名を付けた値**を **Cookie(`HttpOnly`・`Secure`・`SameSite=Strict`)** で渡す。CSRF はカスタムヘッダ必須化 + `Origin` 検査。毎リクエスト DB の行で世代・期限・テナント有効性を照合。**スキーマ変更なし・JWT ライブラリ不要** |
+| H-3 | チーム名 → テナント(D-2) | **正規化名に UNIQUE 索引**を足す(登録時の重複チェック `data-model.md:1497` の形を DDL で強制) |
+| H-4 | 認証関数の所有ロール | **認証専用の関数所有ロールを新設**(`NOLOGIN` + `BYPASSRLS`。正本ロール表の改訂を伴う) |
+| H-5 | ハッシュの生成・照合の場所 | **DB 内で pgcrypto**(`crypt()` / `gen_salt('bf')`)。ハッシュを DB の外へ出さない(B の TSK-424 の理由と整合)。Python の bcrypt 依存は追加しない |
+
+### E. TSK-399 の DoD(Notion カード実測・2026-10-03)**[確認済]**
+
+シークレットのハードコード・ログ出力なし(NFR-014・P0)/ パスワードの保存形式が設計正本と一致 /
+NFR-019 の越境テスト(他テナントの認証情報へ到達できないこと)/ `core-areas.json` への paths 登録を本 PR で行う /
+`backend/tests/conftest.py` の差分 0 行 / pytest・ruff・ty green。横断要求: 物理削除しない・テナント分離・自動エスケープ。
