@@ -5259,3 +5259,76 @@ def test_manual_fixture_branch_coverage_negatives(change: str) -> None:
         document["missingFixtureBranches"][0]["reasonType"] = "unknown-type"
     with pytest.raises(AssertionError):
         _validate_manual_fixture_branch_coverage(document, schema, fixtures)
+
+
+_load_module("frozen_history", REPOSITORY_ROOT / "scripts/frozen_history.py")
+manual_fixture_baseline_checker = _load_module(
+    "manual_fixture_baseline_checker",
+    REPOSITORY_ROOT / "scripts/check_manual_fixture_baselines.py",
+)
+GAME_END_MANUAL_FIXTURE_PATH = (
+    "contracts/state-transition/game_end_manual_fixtures_v1.json"
+)
+MANUAL_FIXTURE_COVERAGE_PATH = (
+    "contracts/state-transition/manual_fixture_branch_coverage_v1.json"
+)
+
+
+def test_repository_manual_fixture_baselines_are_valid() -> None:
+    """両fixtureの凍結宣言とdigestが現行資産に一致する。"""
+    manual_fixture_baseline_checker.check_repository(
+        REPOSITORY_ROOT, MANUAL_FIXTURE_COVERAGE_PATH
+    )
+
+
+def test_manual_fixture_baseline_fails_when_declaration_cannot_be_read() -> None:
+    """対象宣言を読めなければ凍結検査は閉じて失敗する。"""
+    with pytest.raises(
+        manual_fixture_baseline_checker.FixtureBaselineError, match="解決できない"
+    ):
+        manual_fixture_baseline_checker.check_repository(
+            REPOSITORY_ROOT,
+            "contracts/state-transition/missing_fixture_coverage_v1.json",
+        )
+
+
+def test_manual_fixture_baseline_fails_when_digest_differs() -> None:
+    """期待ケースを変異させると宣言されたdigestと一致しない。"""
+    asset = _load_object(REPOSITORY_ROOT / GAME_END_MANUAL_FIXTURE_PATH)
+    decision = asset["fixtures"][0]["case"]["decision"]
+    decision["automaticallyEndsGame"] = not decision["automaticallyEndsGame"]
+    with pytest.raises(
+        manual_fixture_baseline_checker.FixtureBaselineError, match="digestが不一致"
+    ):
+        manual_fixture_baseline_checker.check_repository(
+            REPOSITORY_ROOT,
+            MANUAL_FIXTURE_COVERAGE_PATH,
+            asset_overrides={GAME_END_MANUAL_FIXTURE_PATH: asset},
+        )
+
+
+def test_manual_fixture_baseline_fails_without_asset_declaration() -> None:
+    """fixture自身の凍結宣言が欠ければ失敗する。"""
+    asset = _load_object(REPOSITORY_ROOT / GAME_END_MANUAL_FIXTURE_PATH)
+    del asset["baseline_control"]
+    with pytest.raises(
+        manual_fixture_baseline_checker.FixtureBaselineError, match="baseline_control"
+    ):
+        manual_fixture_baseline_checker.check_repository(
+            REPOSITORY_ROOT,
+            MANUAL_FIXTURE_COVERAGE_PATH,
+            asset_overrides={GAME_END_MANUAL_FIXTURE_PATH: asset},
+        )
+
+
+def test_manual_fixture_baseline_history_is_append_only() -> None:
+    """既存の初回記録を書き換えた履歴は失敗する。"""
+    previous = _load_object(REPOSITORY_ROOT / GAME_END_MANUAL_FIXTURE_PATH)
+    asset = copy.deepcopy(previous)
+    asset["baseline_control"]["history"][0]["reason"] = "過去の理由を書き換えた"
+    with pytest.raises(
+        manual_fixture_baseline_checker.FixtureBaselineError, match="追記のみでない"
+    ):
+        manual_fixture_baseline_checker.validate_asset(
+            REPOSITORY_ROOT, GAME_END_MANUAL_FIXTURE_PATH, asset, previous
+        )

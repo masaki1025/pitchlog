@@ -77,7 +77,8 @@
     "schemaVersion",
     "version",
     "calculation",
-    "fixtures"
+    "fixtures",
+    "baseline_control"
   ],
   "additionalProperties": false,
   "properties": {
@@ -96,6 +97,9 @@
       "items": {
         "$ref": "#/$defs/fixture"
       }
+    },
+    "baseline_control": {
+      "type": "object"
     }
   },
   "$defs": {
