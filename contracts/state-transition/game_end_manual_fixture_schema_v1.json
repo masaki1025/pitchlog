@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/state-transition/game_end_manual_fixture_schema_v1.json",
+  "title": "終了判定の手作業fixture v1",
+  "x-pitchlog-manual-fixture-policy": {
+    "fixturePath": "contracts/state-transition/game_end_manual_fixtures_v1.json",
+    "branchRegisterPath": "contracts/state-transition/clause_branch_register_v1.json",
+    "normativeContractPath": "contracts/state-transition/game_end_contract_v1.json",
+    "normativeSchemaPath": "contracts/state-transition/game_end_contract_schema_v1.json",
+    "axisDescriptorPath": "contracts/state-transition/input_axes_descriptor_v1.json",
+    "requirementsPath": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+    "branchPartitionPolicyPath": "contracts/state-transition/state_transition_manual_fixture_schema_v1.json",
+    "comparisonProjection": ["caseId", "branchId", "inputCoordinate", "decision"],
+    "comparisonStatus": "complete-input-coordinate-and-complete-decision-not-yet-compared-with-expander-or-frozen",
+    "deferredBranches": {
+      "COLD-01": "段単位の中間判定でありdecisionRowsの終了結果ではない",
+      "COLD-02": "段単位の中間判定でありdecisionRowsの終了結果ではない",
+      "COLD-03": "段単位の中間判定でありdecisionRowsの終了結果ではない",
+      "COLD-04": "段単位の中間判定でありdecisionRowsの終了結果ではない",
+      "COLD-05": "段単位の中間判定でありdecisionRowsの終了結果ではない",
+      "COLD-06": "段単位の中間判定でありdecisionRowsの終了結果ではない",
+      "COLD-07": "成立段数の集約に先立つ中間判定でありdecisionRowsの終了結果ではない",
+      "COLD-09": "複数段の同時成立を固定する入力軸が無い",
+      "DRAW-01": "規則設定の拒否分岐であり対応する規範行が無い",
+      "DRAW-02": "規則設定の拒否分岐であり対応する規範行が無い",
+      "DRAW-03": "規則設定の拒否分岐であり対応する規範行が無い",
+      "DRAW-04": "規則設定の有効性分岐であり対応する規範行が無い",
+      "DRAW-05": "途中終了宣言による引き分けの規範行とoutcomeが無い",
+      "DRAW-06": "途中終了宣言による勝敗確定の規範行が無い",
+      "DRAW-07": "上限なしの継続を固有に表す規範行が無い",
+      "DRAW-08": "上限前の継続を固有に表す規範行が無い",
+      "DRAW-09": "上限引き分けの分岐に対応する独立した規範行が無い",
+      "DRAW-10": "上限到達時の非同点確定に対応する独立した規範行が無い",
+      "XMARK-01": "decisionの比較面にX表記が無く規範行も無い",
+      "XMARK-02": "decisionの比較面に空欄と数値の区別が無く規範行も無い",
+      "XMARK-03": "decisionの比較面にX表記が無く規範行も無い"
+    },
+    "machineGuaranteesAtThisStep": [
+      "closed-fixture-and-case-shape",
+      "source-id-existence-or-official-rule-id-format",
+      "branch-and-normative-row-reference",
+      "input-coordinate-axis-domain-and-row-predicate",
+      "complete-decision-equals-current-normative-row",
+      "fixture-and-deferred-branch-partition"
+    ],
+    "futureMachineGuarantees": [
+      "complete-case-equality-with-expanded-cases",
+      "fixture-digest-freeze"
+    ],
+    "humanControls": [
+      "semantic-completeness-of-each-branch",
+      "source-clause-supports-the-case",
+      "truth-of-recorded-author-identity"
+    ],
+    "independenceClaim": "independent-from-expander-only-not-from-clause-branch-register"
+  },
+  "type": "object",
+  "required": ["schemaVersion", "version", "calculation", "fixtures"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "version": {"const": "game_end_manual_fixtures_v1"},
+    "calculation": {"const": "game-end"},
+    "fixtures": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/fixture"}}
+  },
+  "$defs": {
+    "fixture": {
+      "type": "object",
+      "required": ["case", "sourceExample", "provenance"],
+      "additionalProperties": false,
+      "properties": {
+        "case": {"$ref": "#/$defs/completeCase"},
+        "sourceExample": {"type": "string", "minLength": 1},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "completeCase": {
+      "type": "object",
+      "required": ["caseId", "branchId", "inputCoordinate", "decision"],
+      "additionalProperties": false,
+      "properties": {
+        "caseId": {"type": "string", "pattern": "^GE-[A-Z0-9-]+$"},
+        "branchId": {"type": "string", "minLength": 1},
+        "inputCoordinate": {"$ref": "#/$defs/inputCoordinate"},
+        "decision": {"$ref": "#/$defs/decision"}
+      }
+    },
+    "inputCoordinate": {
+      "type": "object",
+      "required": [
+        "gameEnd.regulationInnings", "gameEnd.coldConditions", "gameEnd.extensionLimit",
+        "gameEnd.tiebreak", "state.inning", "state.half", "state.score",
+        "state.gameEnded", "state.tiebreakActive"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "gameEnd.regulationInnings": {"type": "integer"},
+        "gameEnd.coldConditions": {"type": "string"},
+        "gameEnd.extensionLimit": {"type": "string"},
+        "gameEnd.tiebreak": {"type": "string"},
+        "state.inning": {"oneOf": [{"type": "integer"}, {"type": "string"}]},
+        "state.half": {"type": "string"},
+        "state.score": {"type": "string"},
+        "state.gameEnded": {"type": "boolean"},
+        "state.tiebreakActive": {"type": "boolean"}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "required": [
+        "outcome", "endConditionDetected", "lockFurtherPlayInput",
+        "promptEndDeclaration", "automaticallyEndsGame"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {"enum": [
+          "normal-end", "extra-continue", "limit-draw", "tiebreak-continue",
+          "cold-end", "walk-off"
+        ]},
+        "endConditionDetected": {"type": "boolean"},
+        "lockFurtherPlayInput": {"type": "boolean"},
+        "promptEndDeclaration": {"type": "boolean"},
+        "automaticallyEndsGame": {"type": "boolean"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["authorId", "sources"],
+      "additionalProperties": false,
+      "properties": {
+        "authorId": {"const": "codex"},
+        "sources": {
+          "type": "array", "minItems": 1,
+          "items": {"oneOf": [
+            {"type": "object", "required": ["sourceKind", "sourceId"], "additionalProperties": false,
+             "properties": {"sourceKind": {"const": "requirements"}, "sourceId": {"type": "string", "pattern": "^req:[^\\s]+$"}}},
+            {"type": "object", "required": ["sourceKind", "sourceId"], "additionalProperties": false,
+             "properties": {"sourceKind": {"const": "official-baseball-rules"}, "sourceId": {"type": "string", "pattern": "^obr:[1-9][0-9]*\\.[0-9]{2}(?:\\([a-z0-9]+\\))*$"}}}
+          ]}
+        }
+      }
+    }
+  }
+}

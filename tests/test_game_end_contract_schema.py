@@ -7,7 +7,7 @@ import json
 import sys
 from collections.abc import Mapping
 from copy import deepcopy
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pytest
@@ -70,6 +70,164 @@ def _descriptor() -> dict[str, Any]:
 def _repository_contract() -> dict[str, Any]:
     """実資産の終了判定契約を返す。"""
     return _load_object(CONTRACT_PATH)
+
+
+def _manual_fixture_assets() -> tuple[dict[str, Any], dict[str, Any]]:
+    """終了判定の手作業fixtureとschemaを返す。"""
+    schema = _load_object(
+        REPOSITORY_ROOT
+        / "contracts/state-transition/game_end_manual_fixture_schema_v1.json"
+    )
+    path = schema["x-pitchlog-manual-fixture-policy"]["fixturePath"]
+    return _load_object(REPOSITORY_ROOT / path), schema
+
+
+def _fixture_predicate_holds(
+    predicate: Mapping[str, Any], coordinate: Mapping[str, Any]
+) -> bool:
+    """規範行の述語がfixtureの入力座標に一致するかを返す。
+
+    Args:
+        predicate: 規範行のPredicate AST。
+        coordinate: 完全な境界入力座標。
+
+    Returns:
+        述語が成立すればTrue。
+    """
+    operator = predicate["op"]
+    if operator == "eq":
+        actual = coordinate[predicate["axisId"]]
+        expected = predicate["value"]
+        return type(actual) is type(expected) and actual == expected
+    if operator == "and":
+        return all(_fixture_predicate_holds(arg, coordinate) for arg in predicate["args"])
+    if operator == "or":
+        return any(_fixture_predicate_holds(arg, coordinate) for arg in predicate["args"])
+    assert operator == "not"
+    return not _fixture_predicate_holds(predicate["args"][0], coordinate)
+
+
+def _validate_manual_fixtures(
+    document: dict[str, Any], schema: dict[str, Any]
+) -> None:
+    """終了判定fixtureの型・典拠・入力と出力全体を検査する。
+
+    Args:
+        document: fixture文書。
+        schema: fixtureのschemaと宣言。
+    """
+    schema_checker._validate_instance(document, schema, schema, "$")
+    policy = schema["x-pitchlog-manual-fixture-policy"]
+    register = _load_object(REPOSITORY_ROOT / policy["branchRegisterPath"])
+    contract = _load_object(REPOSITORY_ROOT / policy["normativeContractPath"])
+    contract_schema = _load_object(REPOSITORY_ROOT / policy["normativeSchemaPath"])
+    descriptor = _load_object(REPOSITORY_ROOT / policy["axisDescriptorPath"])
+    partition_schema = _load_object(REPOSITORY_ROOT / policy["branchPartitionPolicyPath"])
+    clause_ids = schema_checker.load_clause_ids_from_paths(
+        REPOSITORY_ROOT, (PurePosixPath(policy["requirementsPath"]),)
+    )
+    known_sources = {f"req:{clause_id}" for clause_id in clause_ids}
+    game_end_sources = set(
+        partition_schema["x-pitchlog-manual-fixture-policy"]
+        ["sourceClausePartition"]["gameEndSourceClauseIds"]
+    )
+    branches = {branch["branchId"]: branch for branch in register["branches"]}
+    game_end_ids = {
+        branch_id
+        for branch_id, branch in branches.items()
+        if set(branch["sourceClauseIds"]) & game_end_sources
+    }
+    deferred = policy["deferredBranches"]
+    assert all(isinstance(reason, str) and reason for reason in deferred.values())
+    cases = [fixture["case"] for fixture in document["fixtures"]]
+    case_ids = [case["caseId"] for case in cases]
+    branch_ids = [case["branchId"] for case in cases]
+    assert len(case_ids) == len(set(case_ids))
+    assert len(branch_ids) == len(set(branch_ids))
+    assert set(branch_ids).isdisjoint(deferred)
+    assert set(branch_ids) | set(deferred) == game_end_ids
+    assert set(policy["comparisonProjection"]) == set(
+        schema["$defs"]["completeCase"]["required"]
+    )
+    assert set(schema["$defs"]["inputCoordinate"]["required"]) == set(
+        contract_schema["x-pitchlog-decision-row-references"]["allowedAxisIds"]
+    )
+    assert set(schema["$defs"]["decision"]["required"]) == set(
+        contract_schema["$defs"]["gameEndDecision"]["required"]
+    )
+    assert schema["$defs"]["decision"]["properties"] == contract_schema["$defs"][
+        "gameEndDecision"
+    ]["properties"]
+    axes = {
+        axis["axisId"]: axis
+        for collection in ("gameEndAxes", "stateTransitionAxes")
+        for axis in descriptor[collection]
+    }
+    rows = {row["branchId"]: row for row in contract["decisionRows"]}
+    for fixture in document["fixtures"]:
+        case = fixture["case"]
+        branch = branches[case["branchId"]]
+        row = rows[case["branchId"]]
+        for source in fixture["provenance"]["sources"]:
+            if source["sourceKind"] == "requirements":
+                assert source["sourceId"] in known_sources
+                assert source["sourceId"] in branch["sourceClauseIds"]
+        coordinate = case["inputCoordinate"]
+        for axis_id, value in coordinate.items():
+            axis = axes[axis_id]
+            field = "boundaryValues" if axis["classification"] == "boundary-partition" else "values"
+            assert any(type(value) is type(item) and value == item for item in axis[field])
+        assert _fixture_predicate_holds(row["precondition"], coordinate)
+        assert case["decision"] == row["decision"]
+
+
+def test_repository_game_end_manual_fixtures() -> None:
+    """5件の完全な入力・出力ケースと未作成分岐の宣言を検査する。"""
+    document, schema = _manual_fixture_assets()
+    _validate_manual_fixtures(document, schema)
+    policy = schema["x-pitchlog-manual-fixture-policy"]
+    assert policy["comparisonStatus"] == (
+        "complete-input-coordinate-and-complete-decision-not-yet-compared-with-expander-or-frozen"
+    )
+    assert "complete-case-equality-with-expanded-cases" in policy["futureMachineGuarantees"]
+    assert "fixture-digest-freeze" in policy["futureMachineGuarantees"]
+    assert "semantic-completeness-of-each-branch" in policy["humanControls"]
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["unknown-field", "missing-decision-field", "wrong-author", "bad-axis-value"],
+)
+def test_game_end_manual_fixture_schema_negatives(change: str) -> None:
+    """閉じたケース形式と由来・入力値域の負例を確かめる。"""
+    document, schema = _manual_fixture_assets()
+    fixture = document["fixtures"][0]
+    if change == "unknown-field":
+        fixture["case"]["unexpected"] = True
+    elif change == "missing-decision-field":
+        del fixture["case"]["decision"]["automaticallyEndsGame"]
+    elif change == "wrong-author":
+        fixture["provenance"]["authorId"] = "human"
+    else:
+        fixture["case"]["inputCoordinate"]["gameEnd.regulationInnings"] = 8
+    with pytest.raises((AssertionError, schema_checker.DescriptorCheckError)):
+        _validate_manual_fixtures(document, schema)
+
+
+@pytest.mark.parametrize("change", ["missing-branch", "bad-source", "bad-decision"])
+def test_game_end_manual_fixture_reference_negatives(change: str) -> None:
+    """分岐欠落・偽の典拠・出力不一致を捕まえる。"""
+    document, schema = _manual_fixture_assets()
+    if change == "missing-branch":
+        document["fixtures"].pop(0)
+    elif change == "bad-source":
+        document["fixtures"][0]["provenance"]["sources"][0]["sourceId"] = (
+            "req:NOT-EXISTS"
+        )
+    else:
+        document["fixtures"][0]["case"]["decision"]["lockFurtherPlayInput"] = False
+    with pytest.raises(AssertionError):
+        _validate_manual_fixtures(document, schema)
 
 
 def _decision_leaves(predicate: Mapping[str, Any]) -> list[dict[str, Any]]:

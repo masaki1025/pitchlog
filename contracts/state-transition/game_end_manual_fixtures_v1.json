@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "version": "game_end_manual_fixtures_v1",
+  "calculation": "game-end",
+  "fixtures": [
+    {
+      "case": {
+        "caseId": "GE-GAME-END-NORMAL",
+        "branchId": "GAME-END-NORMAL",
+        "inputCoordinate": {
+          "gameEnd.regulationInnings": 9,
+          "gameEnd.coldConditions": "tier-count:0",
+          "gameEnd.extensionLimit": "finite:R+1",
+          "gameEnd.tiebreak": "none",
+          "state.inning": "L+1",
+          "state.half": "top",
+          "state.score": "home-lead:M",
+          "state.gameEnded": false,
+          "state.tiebreakActive": false
+        },
+        "decision": {
+          "outcome": "normal-end",
+          "endConditionDetected": true,
+          "lockFurtherPlayInput": true,
+          "promptEndDeclaration": true,
+          "automaticallyEndsGame": false
+        }
+      },
+      "sourceExample": "有限上限の最終回裏を完了し非同点。終了条件を検知するが宣言前に自動終了しない",
+      "provenance": {
+        "authorId": "codex",
+        "sources": [
+          {"sourceKind": "requirements", "sourceId": "req:FR-005"},
+          {"sourceKind": "requirements", "sourceId": "req:F-1"}
+        ]
+      }
+    },
+    {
+      "case": {
+        "caseId": "GE-GAME-END-EXTRA-CONTINUE",
+        "branchId": "GAME-END-EXTRA-CONTINUE",
+        "inputCoordinate": {
+          "gameEnd.regulationInnings": 9,
+          "gameEnd.coldConditions": "tier-count:0",
+          "gameEnd.extensionLimit": "finite:R+1",
+          "gameEnd.tiebreak": "none",
+          "state.inning": "R+1",
+          "state.half": "top",
+          "state.score": "tie",
+          "state.gameEnded": false,
+          "state.tiebreakActive": false
+        },
+        "decision": {
+          "outcome": "extra-continue",
+          "endConditionDetected": false,
+          "lockFurtherPlayInput": false,
+          "promptEndDeclaration": false,
+          "automaticallyEndsGame": false
+        }
+      },
+      "sourceExample": "規定最終回裏を同点で完了し、有限上限前の延長回へ進む",
+      "provenance": {
+        "authorId": "codex",
+        "sources": [{"sourceKind": "requirements", "sourceId": "req:F-1"}]
+      }
+    },
+    {
+      "case": {
+        "caseId": "GE-GAME-END-LIMIT-DRAW",
+        "branchId": "GAME-END-LIMIT-DRAW",
+        "inputCoordinate": {
+          "gameEnd.regulationInnings": 9,
+          "gameEnd.coldConditions": "tier-count:0",
+          "gameEnd.extensionLimit": "finite:R+1",
+          "gameEnd.tiebreak": "none",
+          "state.inning": "L+1",
+          "state.half": "top",
+          "state.score": "tie",
+          "state.gameEnded": false,
+          "state.tiebreakActive": false
+        },
+        "decision": {
+          "outcome": "limit-draw",
+          "endConditionDetected": true,
+          "lockFurtherPlayInput": true,
+          "promptEndDeclaration": true,
+          "automaticallyEndsGame": false
+        }
+      },
+      "sourceExample": "有限上限の最終回裏を同点で完了。引き分け条件を検知し終了宣言を促す",
+      "provenance": {
+        "authorId": "codex",
+        "sources": [{"sourceKind": "requirements", "sourceId": "req:F-1"}]
+      }
+    },
+    {
+      "case": {
+        "caseId": "GE-GAME-END-TIEBREAK-CONTINUE",
+        "branchId": "GAME-END-TIEBREAK-CONTINUE",
+        "inputCoordinate": {
+          "gameEnd.regulationInnings": 9,
+          "gameEnd.coldConditions": "tier-count:0",
+          "gameEnd.extensionLimit": "finite:99",
+          "gameEnd.tiebreak": "start:R+1",
+          "state.inning": "R+1",
+          "state.half": "top",
+          "state.score": "tie",
+          "state.gameEnded": false,
+          "state.tiebreakActive": true
+        },
+        "decision": {
+          "outcome": "tiebreak-continue",
+          "endConditionDetected": false,
+          "lockFurtherPlayInput": false,
+          "promptEndDeclaration": false,
+          "automaticallyEndsGame": false
+        }
+      },
+      "sourceExample": "延長開始回でタイブレーク発動済み・同点・上限前なのでプレイを継続する",
+      "provenance": {
+        "authorId": "codex",
+        "sources": [
+          {"sourceKind": "requirements", "sourceId": "req:FR-009"},
+          {"sourceKind": "requirements", "sourceId": "req:F-1"}
+        ]
+      }
+    },
+    {
+      "case": {
+        "caseId": "GE-COLD-08",
+        "branchId": "COLD-08",
+        "inputCoordinate": {
+          "gameEnd.regulationInnings": 9,
+          "gameEnd.coldConditions": "tier-count:1",
+          "gameEnd.extensionLimit": "none",
+          "gameEnd.tiebreak": "none",
+          "state.inning": "N",
+          "state.half": "bottom",
+          "state.score": "home-lead:M",
+          "state.gameEnded": false,
+          "state.tiebreakActive": false
+        },
+        "decision": {
+          "outcome": "cold-end",
+          "endConditionDetected": true,
+          "lockFurtherPlayInput": true,
+          "promptEndDeclaration": true,
+          "automaticallyEndsGame": false
+        }
+      },
+      "sourceExample": "コールド段が1件だけ設定され、第N回表の完了時に後攻がM点リードする",
+      "provenance": {
+        "authorId": "codex",
+        "sources": [{"sourceKind": "requirements", "sourceId": "req:F-1"}]
+      }
+    }
+  ]
+}
