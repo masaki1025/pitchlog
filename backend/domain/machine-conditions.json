@@ -1,0 +1,180 @@
+{
+  "version": 1,
+  "authority": "design.md §2 機械条件の判定方法",
+  "criteriaScan": {
+    "source": "docs/features/domain-calc-dsl/steps.json",
+    "selector": "steps[].criteria",
+    "mechanicalMarker": "`[機械]`",
+    "typeNameMarkup": "Markdown の太字内にある型名の完全一致"
+  },
+  "conditionTypes": [
+    {
+      "id": "section_scoped_diff",
+      "name": "節限定差分",
+      "origin": "sibling-task",
+      "method": "指定した節の外に差分が無いことを構文木レベルで確認する。",
+      "positiveExample": {
+        "scenario": "指定した節の構文木だけが変更され、他の節の構文木が同一である。",
+        "expected": "pass"
+      },
+      "negativeExample": {
+        "scenario": "指定した節に加えて隣接する節の構文木も変更されている。",
+        "expected": "fail"
+      }
+    },
+    {
+      "id": "same_commit",
+      "name": "同一コミット",
+      "origin": "sibling-task",
+      "method": "2 つ以上のパスの変更が同一コミットに入っていることを履歴で確認する。",
+      "positiveExample": {
+        "scenario": "正本と対応する生成物が同じコミットで変更されている。",
+        "expected": "pass"
+      },
+      "negativeExample": {
+        "scenario": "正本を変更した次のコミットで生成物が変更されている。",
+        "expected": "fail"
+      }
+    },
+    {
+      "id": "zero_line_number_references",
+      "name": "行番号参照 0 件",
+      "origin": "sibling-task",
+      "method": "資産・文書にコロンと数字を組み合わせた行番号形式の正本参照が無いことを確認する。",
+      "positiveExample": {
+        "scenario": "正本の位置を ADR-003 D-1 射程行のような条項 ID で指定している。",
+        "expected": "pass"
+      },
+      "negativeExample": {
+        "scenario": "正本の位置をファイル内の行番号だけで指定している。",
+        "expected": "fail"
+      }
+    },
+    {
+      "id": "population_measurement",
+      "name": "母集合計測",
+      "origin": "sibling-task",
+      "method": "列挙器が空でないことに加え、試行件数と期待件数の一致で母集合の大きさを固定する。",
+      "positiveExample": {
+        "scenario": "列挙器が 12 件を走査し、期待件数 12 件との一致を assert する。",
+        "expected": "pass"
+      },
+      "negativeExample": {
+        "scenario": "列挙結果が空でないことだけを確認し、期待件数を固定しない。",
+        "expected": "fail"
+      }
+    },
+    {
+      "id": "verbatim_presence",
+      "name": "文言存在",
+      "origin": "sibling-task",
+      "method": "条項 ID で位置を指定し、逐語の文言が正本に存在することを確認する。",
+      "positiveExample": {
+        "scenario": "条項 ID が指す節から期待する逐語を検索して一致する。",
+        "expected": "pass"
+      },
+      "negativeExample": {
+        "scenario": "条項 ID が指す節に期待する逐語が存在しない。",
+        "expected": "fail"
+      }
+    },
+    {
+      "id": "exit_code_separation",
+      "name": "exit コード分離",
+      "origin": "domain-calc-dsl",
+      "method": "subprocess で exit 0・1・2 をそれぞれ直接 assert する。",
+      "positiveExample": {
+        "scenario": "成功・不一致・判定不能の入力がそれぞれ exit 0・1・2 を返す。",
+        "expected": "pass"
+      },
+      "negativeExample": {
+        "scenario": "不一致と判定不能の両方が同じ exit コードを返す。",
+        "expected": "fail"
+      }
+    },
+    {
+      "id": "all_leaf_mutation",
+      "name": "全葉変異",
+      "origin": "domain-calc-dsl",
+      "method": "契約木の全葉へ値変異と削除変異を適用し、escape 0 と母集合計測を確認する。",
+      "positiveExample": {
+        "scenario": "列挙した全葉の値変異と削除変異がすべて検査を失敗させる。",
+        "expected": "pass"
+      },
+      "negativeExample": {
+        "scenario": "未試行の葉または検査を通過する変異が 1 件残る。",
+        "expected": "fail"
+      }
+    },
+    {
+      "id": "set_difference",
+      "name": "集合差",
+      "origin": "domain-calc-dsl",
+      "method": "期待集合と実測集合の差が 1 件でもあれば失敗させる。",
+      "positiveExample": {
+        "scenario": "期待集合と実測集合の双方向の差が空集合である。",
+        "expected": "pass"
+      },
+      "negativeExample": {
+        "scenario": "期待集合にだけ存在する要素が 1 件ある。",
+        "expected": "fail"
+      }
+    },
+    {
+      "id": "independent_derivation",
+      "name": "独立導出",
+      "origin": "domain-calc-dsl",
+      "method": "期待値をリテラルで持たず、規則の唯一の実装から導出して資産と突合する。",
+      "positiveExample": {
+        "scenario": "正本の表を解析して期待集合を導出し、資産の宣言と突合する。",
+        "expected": "pass"
+      },
+      "negativeExample": {
+        "scenario": "資産とテストに同じ期待値リテラルを書き、両者だけを比較する。",
+        "expected": "fail"
+      }
+    },
+    {
+      "id": "path_allowlist",
+      "name": "パス allowlist",
+      "origin": "domain-calc-dsl",
+      "method": "そのステップのコミット差分が宣言したパス集合に収まることを確認する。",
+      "positiveExample": {
+        "scenario": "コミット差分の全パスが当該ステップの許可集合に含まれる。",
+        "expected": "pass"
+      },
+      "negativeExample": {
+        "scenario": "コミット差分に当該ステップが宣言していないパスが 1 件含まれる。",
+        "expected": "fail"
+      }
+    },
+    {
+      "id": "history_precedes",
+      "name": "`history_precedes`",
+      "origin": "domain-calc-dsl",
+      "method": "あるパスの変更が別のパスの変更より履歴上先行することを確認する。",
+      "positiveExample": {
+        "scenario": "前提資産の変更コミットが、それを使う検査器の変更コミットより前にある。",
+        "expected": "pass"
+      },
+      "negativeExample": {
+        "scenario": "2 つのパスが同一コミットで変更され、時間的な先行を証明できない。",
+        "expected": "fail"
+      }
+    },
+    {
+      "id": "generated_provenance",
+      "name": "`generated_provenance`",
+      "origin": "domain-calc-dsl",
+      "method": "生成元と生成器を実行し、成果物が生成物であって手書きでないことを確認する。",
+      "positiveExample": {
+        "scenario": "宣言した生成元と生成器から再生成した内容が成果物と一致する。",
+        "expected": "pass"
+      },
+      "negativeExample": {
+        "scenario": "成果物を手で変更したため、同じ生成元と生成器からの再生成結果と一致しない。",
+        "expected": "fail"
+      }
+    }
+  ]
+}

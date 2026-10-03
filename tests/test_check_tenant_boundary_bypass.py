@@ -2365,6 +2365,7 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
     shared_external_files = [
         "scripts/check_tenant_boundary_bypass.py",
         "scripts/frozen_history.py",
+        "scripts/frozen_archive.py",
         ".github/workflows/ci.yml",
     ]
     expected_external_files = {
@@ -2377,6 +2378,12 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "tests/test_census_baseline_check.py",
         ],
         Path("contracts/tenant_boundary/db-api-inventory.json"): shared_external_files,
+        Path("contracts/tenant_boundary/frozen-inputs.json"): [
+            "scripts/frozen_archive.py",
+            "tests/domain/test_boot_seal.py",
+            "tests/test_ci_wiring.py",
+            "tests/test_plan_generation.py",
+        ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,
         Path("contracts/tenant_boundary/runtime-authz-contract.json"): (
@@ -3342,6 +3349,7 @@ def test_every_frozen_baseline_asset_has_a_valid_chained_history(
     assert history[0]["previous_baseline_identifiers"] == [checker.NO_BASELINE]
     authority = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
     authority_history = authority["baseline_control"]["history"]
+    assert len(authority_history) >= 2
     latest_record = authority_history[-1]
     assert latest_record["record_schema_version"] == 2
     latest_identifiers = latest_record["new_baseline_identifiers"][
@@ -6350,5 +6358,6 @@ def test_default_base_ref_belongs_only_to_frozen_checker_procedure() -> None:
     ] == [
         "scripts/check_tenant_boundary_bypass.py",
         "scripts/frozen_history.py",
+        "scripts/frozen_archive.py",
         ".github/workflows/ci.yml",
     ]

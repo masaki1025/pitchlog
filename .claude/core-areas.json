@@ -219,7 +219,15 @@
         "contracts/db/schema-manifest.json",
         "scripts/generate_orm_acceptance_sheets.py",
         "tests/test_environment_template.py",
-        "tests/test_orm_acceptance_sheets.py"
+        "tests/test_orm_acceptance_sheets.py",
+        "backend/domain/*",
+        "backend/src/pitchlog/domaincheck/*",
+        "backend/src/pitchlog/domaingen/*",
+        "backend/src/pitchlog/domainmut/*",
+        "backend/src/pitchlog/generated/*",
+        "backend/tests/domain/*",
+        "frontend/src/lib/generated/*",
+        "tests/domain/*"
       ]
     },
     {
@@ -364,9 +372,13 @@
         "backend/tests/db_fixtures.py",
         "scripts/check_tenant_boundary_bypass.py",
         "scripts/frozen_history.py",
+        "scripts/frozen_archive.py",
         "contracts/tenant_boundary/*",
         "tests/fixtures/tenant_boundary/*",
+        "tests/fixtures/frozen-archive-cases/*",
         "tests/test_check_tenant_boundary_bypass.py",
+        "tests/test_frozen_archive.py",
+        "tests/test_frozen_archive_case_runner.py",
         "tests/test_frozen_history.py"
       ]
     },
@@ -408,7 +420,15 @@
         "contracts/db/schema-manifest.json",
         "scripts/generate_orm_acceptance_sheets.py",
         "tests/test_environment_template.py",
-        "tests/test_orm_acceptance_sheets.py"
+        "tests/test_orm_acceptance_sheets.py",
+        "backend/domain/*",
+        "backend/src/pitchlog/domaincheck/*",
+        "backend/src/pitchlog/domaingen/*",
+        "backend/src/pitchlog/domainmut/*",
+        "backend/src/pitchlog/generated/*",
+        "backend/tests/domain/*",
+        "frontend/src/lib/generated/*",
+        "tests/domain/*"
       ]
     }
   ]

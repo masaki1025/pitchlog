@@ -1,0 +1,18 @@
+{
+  "fixtureId": "adversarial-adapter-five-true-claim",
+  "attack": "adapter-five-true-claim",
+  "targetClass": "beta-1-5",
+  "stages": [
+    "sql",
+    "typed-receiver",
+    "formatter"
+  ],
+  "mutation": {
+    "kind": "adapter-five-true-claim",
+    "stage": "sql"
+  },
+  "expected": {
+    "combinedAcceptance": false
+  },
+  "assurance": "アダプタが 5 判定を自己申告する未知キーを収集器が拒否する。"
+}
