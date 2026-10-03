@@ -10,6 +10,7 @@ from typing import Any, cast
 import pytest
 from test_authz_runtime_contract_repository import provisional_reference_revision
 
+from pitchlog.authz import runtime_contract_dryrun as dryrun
 from pitchlog.authz import runtime_contract_generator as generator
 from pitchlog.authz.runtime_contract_dryrun import (
     _verify_pr_acceptance,
@@ -29,6 +30,7 @@ from pitchlog.authz.runtime_contract_state import (
 )
 
 _ROOT = Path(__file__).resolve().parents[2]
+_CORPUS_MANIFEST = Path("tests/fixtures/frozen-archive-cases/manifest.json")
 
 
 def _git(root: Path, *arguments: str) -> str:
@@ -55,6 +57,18 @@ def _read_json(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return cast(dict[str, Any], value)
+
+
+@pytest.fixture
+def dryrun_source(tmp_path: Path) -> Path:
+    """実際の develop に依存しないドライラン元の複製を作る。"""
+    if evaluate_repository(_ROOT)[0] is RuntimeContractState.PRODUCT:
+        pytest.skip("製品化済みのリポジトリでは切り替えドライランを行わない")
+    source = tmp_path / "source"
+    _git(tmp_path, "clone", "--local", "--no-hardlinks", str(_ROOT), str(source))
+    base = _git(source, "rev-parse", "HEAD")
+    _git(source, "update-ref", "refs/remotes/origin/develop", base)
+    return source
 
 
 @pytest.fixture
@@ -278,20 +292,96 @@ def test_switch_restores_originals_if_written_revision_is_wrong(
     )
 
 
-def test_dryrun_tree_is_deterministic(tmp_path: Path) -> None:
+def test_dryrun_tree_is_deterministic(dryrun_source: Path, tmp_path: Path) -> None:
     """同一 HEAD からの 2 回のドライランは同一 tree を作る。"""
-    if evaluate_repository(_ROOT)[0] is RuntimeContractState.PRODUCT:
-        pytest.skip("製品化済みのリポジトリでは切り替えドライランを行わない")
-    source = tmp_path / "source"
-    _git(tmp_path, "clone", "--local", "--no-hardlinks", str(_ROOT), str(source))
-    base = _git(source, "rev-parse", "HEAD")
-    _git(source, "update-ref", "refs/remotes/origin/develop", base)
-    first = build_dryrun(source, tmp_path / "first")
-    second = build_dryrun(source, tmp_path / "second")
+    first = build_dryrun(dryrun_source, tmp_path / "first")
+    second = build_dryrun(dryrun_source, tmp_path / "second")
     assert first.base_sha == second.base_sha
     assert first.head_sha == second.head_sha
     assert first.tree_sha == second.tree_sha
     _verify_pr_acceptance(first)
+
+
+def test_dryrun_rejects_unexpected_corpus_input_without_manifest_write(
+    dryrun_source: Path, tmp_path: Path
+) -> None:
+    """許可外の corpus 入力を示して止まり、manifest を保持する。"""
+    unexpected = Path(".github/workflows/ci.yml")
+    target = dryrun_source / unexpected
+    target.write_bytes(target.read_bytes() + b"\n# unexpected corpus change\n")
+    _git(dryrun_source, "add", unexpected.as_posix())
+    _git(
+        dryrun_source,
+        "-c",
+        "user.name=Contract Test",
+        "-c",
+        "user.email=contract@example.invalid",
+        "commit",
+        "-m",
+        "unexpected corpus input",
+    )
+    original_manifest = (dryrun_source / _CORPUS_MANIFEST).read_bytes()
+    destination = tmp_path / "rejected"
+    with pytest.raises(ValueError, match=r"\.github/workflows/ci\.yml"):
+        build_dryrun(dryrun_source, destination)
+    assert (destination / _CORPUS_MANIFEST).read_bytes() == original_manifest
+    assert (destination / STAGED_PRODUCT_ASSET).is_file()
+
+
+def test_dryrun_keeps_manifest_when_corpus_digest_matches(
+    dryrun_source: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """既に一致する digest をドライランが書き換えない。"""
+    first = build_dryrun(dryrun_source, tmp_path / "initial")
+    manifest_path = dryrun_source / _CORPUS_MANIFEST
+    if first.corpus_digest_updated:
+        original = manifest_path.read_text(encoding="utf-8")
+        old_digest = _read_json(manifest_path)["corpus_inputs"]["digest"]
+        new_digest = _read_json(first.repository / _CORPUS_MANIFEST)["corpus_inputs"][
+            "digest"
+        ]
+        old_line = f'"digest": "{old_digest}",'
+        assert original.count(old_line) == 1
+        manifest_path.write_text(
+            original.replace(old_line, f'"digest": "{new_digest}",'),
+            encoding="utf-8",
+        )
+        _git(dryrun_source, "add", _CORPUS_MANIFEST.as_posix())
+        _git(
+            dryrun_source,
+            "-c",
+            "user.name=Contract Test",
+            "-c",
+            "user.email=contract@example.invalid",
+            "commit",
+            "-m",
+            "matching corpus digest",
+        )
+        _git(
+            dryrun_source,
+            "update-ref",
+            "refs/remotes/origin/develop",
+            _git(dryrun_source, "rev-parse", "HEAD"),
+        )
+    original_manifest = manifest_path.read_bytes()
+
+    def reject_manifest_write(_target: Path, _content: str) -> None:
+        """一致済み manifest への書き込みを拒否する。"""
+        raise AssertionError("一致済みの corpus digest を書き換えました")
+
+    monkeypatch.setattr(dryrun, "_atomic_write", reject_manifest_write)
+    second = build_dryrun(dryrun_source, tmp_path / "matching")
+    assert not second.corpus_digest_updated
+    assert (second.repository / _CORPUS_MANIFEST).read_bytes() == original_manifest
+    assert not _git(
+        second.repository,
+        "diff",
+        "--name-only",
+        "HEAD^",
+        "HEAD",
+        "--",
+        _CORPUS_MANIFEST.as_posix(),
+    )
 
 
 def test_dryrun_refuses_outside_repository(

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import subprocess
@@ -15,6 +16,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from pitchlog.authz.runtime_contract_generator import (
+    _atomic_write,
     find_repository_root,
     switch_repository,
 )
@@ -28,6 +30,8 @@ from pitchlog.authz.runtime_contract_state import (
 _AUTHORITY = Path("contracts/tenant_boundary/base-allowlist.json")
 _SNAPSHOTS = Path("contracts/tenant_boundary/history-snapshots")
 _SPEC = Path("backend/src/pitchlog/authz/asset_spec.py")
+_CORPUS_MANIFEST = Path("tests/fixtures/frozen-archive-cases/manifest.json")
+_CORPUS_RUNNER = Path("tests/fixtures/frozen-archive-cases/runner.py")
 _ACCEPTANCE_ID = "masaki1025/pitchlog#87"
 
 
@@ -39,6 +43,8 @@ class DryrunResult:
     head_sha: str
     tree_sha: str
     repository: Path
+    corpus_digest_updated: bool = False
+    corpus_changed_paths: tuple[str, ...] = ()
 
 
 def _git(root: Path, *arguments: str) -> str:
@@ -112,14 +118,26 @@ def _tenant_assets(root: Path, revision: str | None) -> dict[str, dict[str, Any]
 
 def _history_module(root: Path) -> Any:
     """複製に保存された既存の凍結履歴実装を読み込む。"""
-    import importlib.util
-
     path = root / "scripts/frozen_history.py"
     spec = importlib.util.spec_from_file_location(
         "pitchlog_dryrun_frozen_history", path
     )
     if spec is None or spec.loader is None:
         raise ValueError("複製の frozen_history.py を読み込めません")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _corpus_runner(root: Path) -> Any:
+    """複製に保存された corpus digest の正本実装を読み込む。"""
+    path = root / _CORPUS_RUNNER
+    spec = importlib.util.spec_from_file_location(
+        "pitchlog_dryrun_frozen_archive_runner", path
+    )
+    if spec is None or spec.loader is None:
+        raise ValueError(f"比較 corpus の runner を読み込めません: {path}")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
@@ -261,7 +279,11 @@ def _append_history(root: Path, base_sha: str) -> None:
         ),
         "reason": (
             "TSK-424 PR B として U-T1 の暫定ランタイム契約を製品 DDL 資産から導いた "
-            "値へ切り替える。同じパスで製品化して既存の凍結履歴を継続するため。"
+            "値へ切り替える。暫定資産を削除せず同じパスで製品化するのは、"
+            "2026-09-26 の人間の判断による。削除は現行検査器で必ず不合格となり、"
+            "退去の機構は TSK-461 の射程である。凍結対象を製品資産へ向け直すと"
+            "ファイル全体が凍結され、後続の RLS ポリシー変更も凍結基準の移動と"
+            "なるため。"
         ),
         "approved_by": "DRYRUN",
         "approved_on": "1970-01-01",
@@ -279,6 +301,138 @@ def _append_history(root: Path, base_sha: str) -> None:
             history.EvaluationMode.INVARIANT, None
         ),
     )
+
+
+def _changed_corpus_paths(
+    root: Path,
+    base_sha: str,
+    files: Sequence[Path],
+    trees: Sequence[Path],
+) -> tuple[str, ...]:
+    """比較元と複製の corpus 入力をバイト単位で比べ、許可外の移動を拒否する。
+
+    Args:
+        root: 製品化途中の複製。
+        base_sha: 比較元 S のコミット SHA。
+        files: manifest が指定する単独ファイル。
+        trees: manifest が指定するディレクトリ。
+
+    Returns:
+        動いた入力のリポジトリ相対パス。
+
+    Raises:
+        ValueError: 許可外の入力変更や既存 snapshot の変更がある場合。
+    """
+    paths = (*files, *trees, _CORPUS_MANIFEST)
+    base_paths = {
+        Path(name)
+        for name in _git(
+            root,
+            "ls-tree",
+            "-r",
+            "--name-only",
+            base_sha,
+            "--",
+            *(path.as_posix() for path in paths),
+        ).splitlines()
+    }
+    for relative_tree in trees:
+        tree = root / relative_tree
+        if tree.is_symlink() or not tree.is_dir():
+            raise ValueError(
+                f"corpus 入力の tree がディレクトリでない: {relative_tree}"
+            )
+    work_paths = {
+        path
+        for path in (*files, _CORPUS_MANIFEST)
+        if (root / path).exists() or (root / path).is_symlink()
+    } | {
+        candidate.relative_to(root)
+        for relative_tree in trees
+        for candidate in (root / relative_tree).rglob("*")
+        if not candidate.is_dir() or candidate.is_symlink()
+    }
+    changed = tuple(
+        path
+        for path in sorted(base_paths | work_paths)
+        if path not in base_paths
+        or path not in work_paths
+        or (root / path).is_symlink()
+        or not (root / path).is_file()
+        or _git_bytes(root, base_sha, path.as_posix()) != (root / path).read_bytes()
+    )
+    fixed_assets = {_AUTHORITY, RUNTIME_CONTRACT_ASSET}
+    unexpected = tuple(
+        path
+        for path in changed
+        if not (
+            path in fixed_assets
+            and path in base_paths
+            and path in work_paths
+            and (root / path).is_file()
+            and not (root / path).is_symlink()
+        )
+        and not (
+            path.parent == _SNAPSHOTS
+            and path not in base_paths
+            and path in work_paths
+            and (root / path).is_file()
+            and not (root / path).is_symlink()
+        )
+    )
+    if unexpected:
+        raise ValueError(
+            "許可外の corpus 入力変更: "
+            + ", ".join(path.as_posix() for path in unexpected)
+        )
+    return tuple(path.as_posix() for path in changed)
+
+
+def _refresh_corpus_digest(root: Path, base_sha: str) -> tuple[bool, tuple[str, ...]]:
+    """許可した入力移動だけなら正本の関数で digest を取り直す。
+
+    Args:
+        root: 製品化途中の複製。
+        base_sha: 比較元 S のコミット SHA。
+
+    Returns:
+        digest を取り直したかと、動いた入力パス。
+
+    Raises:
+        ValueError: 許可外の入力変更や manifest の想定外の差がある場合。
+    """
+    runner = _corpus_runner(root)
+    manifest_path = root / _CORPUS_MANIFEST
+    manifest = runner.load_manifest(manifest_path)
+    inputs = manifest.corpus_inputs
+    changed_paths = _changed_corpus_paths(root, base_sha, inputs.files, inputs.trees)
+    actual = runner.corpus_input_digest(root, manifest)
+    previous = inputs.digest
+    if actual == previous:
+        return False, changed_paths
+
+    original = manifest_path.read_text(encoding="utf-8")
+    lines = original.splitlines(keepends=True)
+    expected_line = f'"digest": "{previous}",'
+    matching = [
+        index for index, line in enumerate(lines) if line.strip() == expected_line
+    ]
+    if len(matching) != 1:
+        raise ValueError("manifest.corpus_inputs.digest の行を一意に特定できません")
+    updated_lines = list(lines)
+    updated_lines[matching[0]] = lines[matching[0]].replace(previous, actual)
+    if (
+        sum(before != after for before, after in zip(lines, updated_lines, strict=True))
+        != 1
+    ):
+        raise ValueError("manifest の digest 以外にも差分が生じました")
+    _atomic_write(manifest_path, "".join(updated_lines))
+    try:
+        runner.validate_corpus_inputs(root, runner.load_manifest(manifest_path))
+    except Exception:
+        _atomic_write(manifest_path, original)
+        raise
+    return True, changed_paths
 
 
 def _activate_product_spec(root: Path) -> None:
@@ -321,6 +475,14 @@ def build_dryrun(source_root: Path, destination: Path) -> DryrunResult:
     )
     if _git(destination, "rev-parse", "HEAD") != head_sha:
         raise ValueError("複製の HEAD が実作業ツリーと一致しません")
+    runner = _corpus_runner(destination)
+    manifest = runner.load_manifest(destination / _CORPUS_MANIFEST)
+    _changed_corpus_paths(
+        destination,
+        base_sha,
+        manifest.corpus_inputs.files,
+        manifest.corpus_inputs.trees,
+    )
     _git(destination, "update-ref", "refs/remotes/origin/develop", base_sha)
     _git(destination, "mv", STAGED_PRODUCT_ASSET.as_posix(), PRODUCT_ASSET.as_posix())
     product = read_json_object(destination / PRODUCT_ASSET)
@@ -330,6 +492,9 @@ def build_dryrun(source_root: Path, destination: Path) -> DryrunResult:
     _activate_product_spec(destination)
     switch_repository(destination, base_sha)
     _append_history(destination, base_sha)
+    corpus_digest_updated, corpus_changed_paths = _refresh_corpus_digest(
+        destination, base_sha
+    )
     _git(
         destination,
         "add",
@@ -338,6 +503,7 @@ def build_dryrun(source_root: Path, destination: Path) -> DryrunResult:
         _SPEC.as_posix(),
         RUNTIME_CONTRACT_ASSET.as_posix(),
         "backend/src/pitchlog/authz/runtime_contract.py",
+        _CORPUS_MANIFEST.as_posix(),
     )
     _git(
         destination,
@@ -352,7 +518,12 @@ def build_dryrun(source_root: Path, destination: Path) -> DryrunResult:
     if _git(destination, "rev-parse", "HEAD^1") != head_sha:
         raise ValueError("ドライランコミットの親が H と不一致です")
     return DryrunResult(
-        base_sha, head_sha, _git(destination, "rev-parse", "HEAD^{tree}"), destination
+        base_sha,
+        head_sha,
+        _git(destination, "rev-parse", "HEAD^{tree}"),
+        destination,
+        corpus_digest_updated,
+        corpus_changed_paths,
     )
 
 
@@ -431,6 +602,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"エラー: {error}", file=sys.stderr)
         return 1
     print(f"S={result.base_sha}\nH={result.head_sha}\nD={result.tree_sha}")
+    print(f"corpus digest: {'取り直した' if result.corpus_digest_updated else '不要'}")
+    print("corpus inputs changed:")
+    for path in result.corpus_changed_paths:
+        print(f"  {path}")
+    if not result.corpus_changed_paths:
+        print("  (なし)")
     print(f"COPY={result.repository}")
     return 0
 
