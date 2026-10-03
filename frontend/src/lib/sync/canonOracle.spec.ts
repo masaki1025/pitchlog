@@ -683,7 +683,7 @@ describe('canonOracle', () => {
   it('射程外に残す4 ID の理由へ受け取り先と依存事項を明記する', () => {
     const expectedReasonParts = Object.freeze({
       B3a: Object.freeze(['T9 の保存', 'TSK-330']),
-      DI5: Object.freeze(['U-14', 'B1・B4', 'TSK-330']),
+      DI5: Object.freeze(['混在バッチの A5', 'B3a', 'T9 の永続化', 'TSK-330']),
       I5: Object.freeze(['保存・配信', 'TSK-330']),
       I6: Object.freeze(['端末永続化', 'TSK-330']),
     })

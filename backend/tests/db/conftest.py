@@ -6,7 +6,9 @@ import pytest
 from db_fixtures import (
     _VERIFIED_AUTHZ_ROLE_IDS,
     DisposablePostgres,
+    ProductCatalogSnapshot,
     ProvisionedCatalog,
+    ProvisionedProductCatalog,
     _assert_authenticated_identity,
     _asset_rows,
     _authenticated_identity,
@@ -22,6 +24,7 @@ from db_fixtures import (
     management_caller_connection,
     outsider_role_connection,
     provisioned_catalog,
+    provisioned_product_catalog,
     table_owner_connection,
     tested_role_connection,
     verify_connection_identities,
@@ -29,7 +32,9 @@ from db_fixtures import (
 
 __all__ = (
     "DisposablePostgres",
+    "ProductCatalogSnapshot",
     "ProvisionedCatalog",
+    "ProvisionedProductCatalog",
     "_VERIFIED_AUTHZ_ROLE_IDS",
     "_assert_authenticated_identity",
     "_asset_rows",
@@ -46,6 +51,7 @@ __all__ = (
     "management_caller_connection",
     "outsider_role_connection",
     "provisioned_catalog",
+    "provisioned_product_catalog",
     "table_owner_connection",
     "tested_role_connection",
     "verify_connection_identities",

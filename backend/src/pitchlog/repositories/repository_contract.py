@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 2
+CONTRACT_REVISION = 7
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "0d9f2d298754a649742a8dd5be98601a7ba44a7f95126e4b5236f96cc8eb0323"
+SOURCE_DIGEST = "bf0cea7ef3c695467208e7794756f62401dbc43b2005d43bea4bb1bbe80f0045"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"

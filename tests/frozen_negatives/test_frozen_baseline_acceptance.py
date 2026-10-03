@@ -1,0 +1,917 @@
+"""凍結基準台帳の受理遷移に対する負例を固定する。"""
+
+from __future__ import annotations
+
+import copy
+import json
+import os
+import subprocess
+import sys
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+CHECKER_PATH = REPOSITORY_ROOT / "scripts/check_frozen_baselines.py"
+LEDGER_RELATIVE_PATH = Path("contracts/authz/frozen-baselines.json")
+SCAN_ALLOWLIST_RELATIVE_PATH = Path("scripts/frozen-baseline-scan-allowlist.json")
+TARGET_PATHS = (
+    "contracts/authz/oracle-seal.lock.json",
+    "contracts/authz/attack-tree.json",
+    "contracts/authz/boundary-proposal.json",
+    "contracts/authz/claim-mutant-map.json",
+    "contracts/authz/ddl-elements.json",
+    "contracts/authz/rejected-configs.json",
+    "contracts/authz/verification-evidence.json",
+)
+BASE_SOURCE_PATHS = (*TARGET_PATHS, "scripts/check_authz_catalog.py")
+NEW_ASSET_PATHS = (
+    "contracts/authz/frozen-baselines.json",
+    "contracts/authz/frozen-baselines.schema.json",
+    "scripts/check_frozen_baselines.py",
+    "scripts/frozen_baselines.py",
+    "scripts/frozen-baseline-scan-allowlist.json",
+)
+IDENTITY_BEARING_PATHS = frozenset(
+    (*TARGET_PATHS, LEDGER_RELATIVE_PATH.as_posix())
+)
+IDENTITY_FREE_PATHS = frozenset(
+    {
+        "scripts/check_authz_catalog.py",
+        "contracts/authz/frozen-baselines.schema.json",
+        "scripts/check_frozen_baselines.py",
+        "scripts/frozen_baselines.py",
+        "scripts/frozen-baseline-scan-allowlist.json",
+    }
+)
+assert IDENTITY_BEARING_PATHS.isdisjoint(IDENTITY_FREE_PATHS)
+assert IDENTITY_BEARING_PATHS | IDENTITY_FREE_PATHS == frozenset(
+    (*BASE_SOURCE_PATHS, *NEW_ASSET_PATHS)
+)
+MUTATION_GUARD_PATHS = tuple(
+    REPOSITORY_ROOT / path
+    for path in (
+        *BASE_SOURCE_PATHS,
+        *NEW_ASSET_PATHS,
+        ".github/workflows/ci.yml",
+        "tests/test_ci_wiring.py",
+    )
+)
+LedgerMutation = Callable[[dict[str, Any]], None]
+
+
+@dataclass(frozen=True)
+class _AcceptanceFixture:
+    """合成pull request repositoryとeventの識別値を保持する。"""
+
+    root: Path
+    event_path: Path
+    anchor_sha: str
+    base_sha: str
+    head_sha: str
+    identity_sha: str
+
+
+@pytest.fixture(autouse=True)
+def repository_assets_remain_byte_identical() -> Iterator[None]:
+    """各負例の前後で本物の対象資産が生bytes一致することを検査する。"""
+    original = {path: path.read_bytes() for path in MUTATION_GUARD_PATHS}
+
+    yield
+
+    assert {path: path.read_bytes() for path in MUTATION_GUARD_PATHS} == original
+
+
+def _git(
+    root: Path,
+    *arguments: str,
+    input_text: str | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """合成repository内でgitを実行し成功を表明する。"""
+    result = subprocess.run(
+        ["git", *arguments],
+        cwd=root,
+        input=input_text,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return result
+
+
+def _git_sha(root: Path, revision: str) -> str:
+    """合成repositoryのrevisionを完全SHAへ解決する。"""
+    sha = _git(root, "rev-parse", "--verify", f"{revision}^{{commit}}").stdout.strip()
+    assert len(sha) == 40
+    return sha
+
+
+def _ledger_oracle_input_identity() -> str:
+    """実台帳のoracle_input系列から最新の識別値を導出する。"""
+    ledger = json.loads(
+        (REPOSITORY_ROOT / LEDGER_RELATIVE_PATH).read_text(encoding="utf-8")
+    )
+    assert isinstance(ledger, dict)
+    history = ledger.get("history")
+    assert isinstance(history, list)
+    assert all(isinstance(record, dict) for record in history)
+    records = [record for record in history if record.get("series") == "oracle_input"]
+    assert records, "台帳にoracle_input系列の履歴が必要です"
+
+    new_identity = records[-1].get("new_identity")
+    assert isinstance(new_identity, dict)
+    assert new_identity.get("present") is True
+    values = new_identity.get("values")
+    assert isinstance(values, list)
+    assert len(values) == 1
+    identity = values[0]
+    assert isinstance(identity, dict)
+    assert identity.get("kind") == "literal_commit_string"
+    value = identity.get("value")
+    assert isinstance(value, str)
+    assert len(value) == 40
+    assert set(value) <= set("0123456789abcdef")
+    return value
+
+
+def _copy_with_identity(root: Path, path_text: str, identity: str) -> None:
+    """実資産を合成repositoryへコピーしcommit識別値だけを置換する。"""
+    source = REPOSITORY_ROOT / path_text
+    destination = root / path_text
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    source_bytes = source.read_bytes()
+    recorded_identity = _ledger_oracle_input_identity().encode()
+    replacement = identity.encode()
+    occurrence_count = source_bytes.count(recorded_identity)
+    classified_paths = IDENTITY_BEARING_PATHS | IDENTITY_FREE_PATHS
+    assert path_text in classified_paths, f"識別値の有無が未分類です: {path_text}"
+    if path_text in IDENTITY_BEARING_PATHS:
+        assert occurrence_count >= 1, (
+            f"{path_text}: 台帳導出識別値が1回以上必要です: "
+            f"occurrences={occurrence_count}"
+        )
+        assert replacement != recorded_identity, (
+            f"{path_text}: 置換後の識別値が台帳導出識別値と同一です"
+        )
+    else:
+        assert occurrence_count == 0, (
+            f"{path_text}: 台帳導出識別値を含まないはずです: "
+            f"occurrences={occurrence_count}"
+        )
+    replaced_bytes = source_bytes.replace(recorded_identity, replacement)
+    assert (replaced_bytes != source_bytes) == (path_text in IDENTITY_BEARING_PATHS), (
+        f"{path_text}: 識別値置換の実行結果がパス分類と一致しません"
+    )
+    destination.write_bytes(replaced_bytes)
+
+
+def _read_ledger(root: Path) -> dict[str, Any]:
+    """合成repositoryの台帳をobjectとして読む。"""
+    value = json.loads((root / LEDGER_RELATIVE_PATH).read_text(encoding="utf-8"))
+    assert isinstance(value, dict)
+    return value
+
+
+def _write_ledger(root: Path, ledger: dict[str, Any]) -> None:
+    """合成repositoryの台帳を整形済みJSONとして書く。"""
+    (root / LEDGER_RELATIVE_PATH).write_text(
+        json.dumps(ledger, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _copy_base_sources(
+    root: Path,
+    identity: str,
+    *,
+    include_legacy_assignment: bool,
+) -> None:
+    """base treeに存在する旧ソースと対象JSONをコピーする。"""
+    for path_text in BASE_SOURCE_PATHS:
+        _copy_with_identity(root, path_text, identity)
+    if include_legacy_assignment:
+        source_path = root / "scripts/check_authz_catalog.py"
+        with source_path.open("a", encoding="utf-8") as source:
+            source.write(f'\nORACLE_INPUT_BASELINE_COMMIT = "{identity}"\n')
+
+
+def _copy_new_assets(root: Path, identity: str) -> None:
+    """headで新設される台帳・schema・検査コードをコピーする。"""
+    for path_text in NEW_ASSET_PATHS:
+        if path_text == SCAN_ALLOWLIST_RELATIVE_PATH.as_posix():
+            continue
+        _copy_with_identity(root, path_text, identity)
+    _write_acceptance_scan_assets(root)
+
+
+def _write_acceptance_scan_assets(root: Path) -> None:
+    """受理遷移fixtureへbootstrap対象4組とallow-listを書く。"""
+    pending_pairs = (
+        (
+            "backend/tests/db/authz/mutation_composition.py",
+            "099a8fa20595c25f553b46de" + "dcaaa9660dd03c2e",
+        ),
+        (
+            "scripts/check_docs_status.py",
+            "523ecfd1db94c0c494b9b722b05cf4b3"
+            + "c7d4562a1a6f2648fd9b76d5074a8e52",
+        ),
+        (
+            "tests/test_check_authz_catalog.py",
+            "56c281c409e972927940fad8" + "30aa38352df32f1e",
+        ),
+        (
+            "tests/test_core_guard.py",
+            "56c281c409e972927940fad8" + "30aa38352df32f1e",
+        ),
+    )
+    entries: list[dict[str, Any]] = []
+    for path_text, value in pending_pairs:
+        source_path = root / path_text
+        source_path.parent.mkdir(parents=True, exist_ok=True)
+        source_path.write_text(f'VALUE = "{value}"\n', encoding="utf-8")
+        entries.append(
+            {
+                "path": path_text,
+                "value": value,
+                "reason": f"受理遷移の合成fixture: {path_text}",
+                "pending_removal": True,
+            }
+        )
+    allowlist_path = root / SCAN_ALLOWLIST_RELATIVE_PATH
+    allowlist_path.parent.mkdir(parents=True, exist_ok=True)
+    allowlist_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "asset_kind": "frozen_baseline_scan_allowlist",
+                "entries": entries,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _add_history_record_for_deletion(ledger: dict[str, Any]) -> None:
+    """削除検査のbaseへ実変更を主張する有効な履歴を追加する。"""
+    previous = ledger["history"][-1]
+    before_rules = copy.deepcopy(ledger["movement_rules"])
+    after_rules = copy.deepcopy(before_rules)
+    after_rules["additional_targets"]["value_change"] = ["oracle_input"]
+    ledger["movement_rules"] = copy.deepcopy(after_rules)
+    placement = copy.deepcopy(ledger["placements"]["oracle_input"])
+    ledger["history"].append(
+        {
+            "acceptance_id": "masaki1025/pitchlog#90",
+            "series": "oracle_input",
+            "new_identity": copy.deepcopy(previous["new_identity"]),
+            "prior_identity": copy.deepcopy(previous["new_identity"]),
+            "changes": [
+                {
+                    "aspect": "movement_rules",
+                    "before": before_rules,
+                    "after": after_rules,
+                }
+            ],
+            "placement_change": {
+                "before": placement,
+                "after": copy.deepcopy(placement),
+            },
+            "moved": False,
+            "reason": "削除検査の合成base記録",
+            "approved_by": "山田正輝",
+            "approved_at": "2026-09-21",
+        }
+    )
+
+
+def _append_history_claim_record(
+    ledger: dict[str, Any],
+    *,
+    acceptance_id: str,
+    changes: list[dict[str, Any]],
+    reason: str,
+) -> int:
+    """直前状態と連続する履歴主張を末尾へ追加し、そのindexを返す。"""
+    previous = ledger["history"][-1]
+    identity = copy.deepcopy(previous["new_identity"])
+    placement = copy.deepcopy(previous["placement_change"]["after"])
+    ledger["history"].append(
+        {
+            "acceptance_id": acceptance_id,
+            "series": previous["series"],
+            "new_identity": copy.deepcopy(identity),
+            "prior_identity": copy.deepcopy(identity),
+            "changes": changes,
+            "placement_change": {
+                "before": copy.deepcopy(placement),
+                "after": copy.deepcopy(placement),
+            },
+            "moved": False,
+            "reason": reason,
+            "approved_by": "山田正輝",
+            "approved_at": "2026-09-25",
+        }
+    )
+    return len(ledger["history"]) - 1
+
+
+def _build_repository(
+    root: Path,
+    *,
+    bootstrap: bool = False,
+    pull_request_number: int = 99,
+    dangling_identity: bool = False,
+    base_mutation: LedgerMutation | None = None,
+    head_mutation: LedgerMutation | None = None,
+) -> _AcceptanceFixture:
+    """完全履歴を持つsynthetic mergeとpull request eventを合成する。"""
+    root.mkdir(parents=True)
+    _git(root, "init", "-b", "develop")
+    _git(root, "config", "user.name", "Pitchlog Test")
+    _git(root, "config", "user.email", "pitchlog-test@example.invalid")
+    (root / "anchor.txt").write_text("anchor\n", encoding="utf-8")
+    _git(root, "add", "anchor.txt")
+    _git(root, "commit", "-m", "anchor")
+    anchor_sha = _git_sha(root, "HEAD")
+    identity_sha = anchor_sha
+    if dangling_identity:
+        tree_sha = _git(root, "rev-parse", f"{anchor_sha}^{{tree}}").stdout.strip()
+        identity_sha = _git(
+            root,
+            "commit-tree",
+            tree_sha,
+            input_text="dangling identity\n",
+        ).stdout.strip()
+        assert len(identity_sha) == 40
+
+    _copy_base_sources(
+        root,
+        identity_sha,
+        include_legacy_assignment=bootstrap,
+    )
+    if not bootstrap:
+        _copy_new_assets(root, identity_sha)
+        if base_mutation is not None:
+            ledger = _read_ledger(root)
+            base_mutation(ledger)
+            _write_ledger(root, ledger)
+    _git(root, "add", ".")
+    _git(root, "commit", "-m", "base")
+    base_sha = _git_sha(root, "HEAD")
+
+    _git(root, "checkout", "-b", "feature")
+    if bootstrap:
+        _copy_with_identity(root, "scripts/check_authz_catalog.py", identity_sha)
+        _copy_new_assets(root, identity_sha)
+    (root / "head-marker.txt").write_text("head\n", encoding="utf-8")
+    if head_mutation is not None:
+        ledger = _read_ledger(root)
+        head_mutation(ledger)
+        _write_ledger(root, ledger)
+    _git(root, "add", ".")
+    _git(root, "commit", "-m", "head")
+    head_sha = _git_sha(root, "HEAD")
+    _git(root, "checkout", "develop")
+    _git(root, "merge", "--no-ff", "--no-edit", "feature")
+
+    event = {
+        "repository": {"full_name": "masaki1025/pitchlog"},
+        "pull_request": {
+            "number": pull_request_number,
+            "base": {"ref": "develop", "sha": base_sha},
+            "head": {"sha": head_sha},
+        },
+    }
+    event_path = root / "event.json"
+    event_path.write_text(json.dumps(event), encoding="utf-8")
+    return _AcceptanceFixture(
+        root=root,
+        event_path=event_path,
+        anchor_sha=anchor_sha,
+        base_sha=base_sha,
+        head_sha=head_sha,
+        identity_sha=identity_sha,
+    )
+
+
+def _read_event(fixture: _AcceptanceFixture) -> dict[str, Any]:
+    """合成pull request eventをobjectとして読む。"""
+    value = json.loads(fixture.event_path.read_text(encoding="utf-8"))
+    assert isinstance(value, dict)
+    return value
+
+
+def _write_event(fixture: _AcceptanceFixture, event: dict[str, Any]) -> None:
+    """変異したpull request eventを書く。"""
+    fixture.event_path.write_text(json.dumps(event), encoding="utf-8")
+
+
+def _run_acceptance(
+    fixture: _AcceptanceFixture,
+    *,
+    include_event: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    """合成repositoryへ受理遷移検査を実行する。"""
+    environment = os.environ.copy()
+    environment.pop("GITHUB_EVENT_PATH", None)
+    if include_event:
+        environment["GITHUB_EVENT_PATH"] = str(fixture.event_path)
+    return subprocess.run(
+        [
+            sys.executable,
+            str(CHECKER_PATH),
+            "--acceptance",
+            "--root",
+            str(fixture.root),
+            "--ledger",
+            str(fixture.root / LEDGER_RELATIVE_PATH),
+        ],
+        cwd=fixture.root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _assert_normal_baseline_green(fixture: _AcceptanceFixture) -> None:
+    """通常受理遷移の変異前fixtureがgreenであることを表明する。"""
+    result = _run_acceptance(fixture)
+    assert result.returncode == 0
+    assert result.stdout == "frozen-baselines: OK\n"
+    assert result.stderr == ""
+
+
+def _assert_baseline_green(fixture: _AcceptanceFixture) -> None:
+    """履歴主張テストの変異前fixtureがgreenであることを表明する。"""
+    _assert_normal_baseline_green(fixture)
+
+
+def _assert_bootstrap_baseline_green(fixture: _AcceptanceFixture) -> None:
+    """初回bootstrap fixtureが明示メッセージ付きでgreenであることを表明する。"""
+    result = _run_acceptance(fixture)
+    assert result.returncode == 0
+    assert result.stdout == (
+        "frozen-baselines: bootstrap acceptance: 初回の信頼根は人間の逐行確認\n"
+        "frozen-baselines: bootstrap経路は、台帳を含むbase SHAで新たに評価される"
+        "develop宛PRでは到達しない\n"
+        "frozen-baselines: OK\n"
+    )
+    assert result.stderr == ""
+
+
+def _assert_red(
+    fixture: _AcceptanceFixture,
+    expected_message: str,
+    *,
+    include_event: bool = True,
+) -> None:
+    """受理検査が期待メッセージだけを出してredになることを表明する。"""
+    result = _run_acceptance(fixture, include_event=include_event)
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert result.stderr == f"frozen-baselines: ERROR: {expected_message}\n"
+
+
+@pytest.mark.frozen_negative
+def test_non_develop_event_with_broken_environment_is_red(tmp_path: Path) -> None:
+    """非develop向けPRでもSHA解決不能とgit欠落を拒否する。"""
+    fixture = _build_repository(tmp_path / "repository")
+    _assert_normal_baseline_green(fixture)
+    event = _read_event(fixture)
+    event["pull_request"]["base"]["ref"] = "release"
+    event["pull_request"]["base"]["sha"] = "0" * 40
+    _write_event(fixture, event)
+    _assert_red(
+        fixture,
+        "event.pull_request.base.sha をcommitとして解決できない: " + "0" * 40,
+    )
+
+    event["pull_request"]["base"]["sha"] = fixture.base_sha
+    event["pull_request"]["head"]["sha"] = "f" * 40
+    _write_event(fixture, event)
+    _assert_red(
+        fixture,
+        "event.pull_request.head.sha をcommitとして解決できない: " + "f" * 40,
+    )
+
+    event["pull_request"]["head"]["sha"] = fixture.head_sha
+    _write_event(fixture, event)
+    git_directory = fixture.root / ".git"
+    hidden_git_directory = fixture.root / ".git-hidden"
+    git_directory.rename(hidden_git_directory)
+    try:
+        _assert_red(fixture, "受理遷移検査には .git が必要")
+    finally:
+        hidden_git_directory.rename(git_directory)
+
+
+@pytest.mark.frozen_negative
+def test_unresolvable_sha_and_non_merge_head_are_red(tmp_path: Path) -> None:
+    """develop向けPRのSHA解決不能と2親でないHEADを拒否する。"""
+    fixture = _build_repository(tmp_path / "repository")
+    _assert_normal_baseline_green(fixture)
+    event = _read_event(fixture)
+    event["pull_request"]["base"]["sha"] = "0" * 40
+    _write_event(fixture, event)
+    _assert_red(
+        fixture,
+        "event.pull_request.base.sha をcommitとして解決できない: " + "0" * 40,
+    )
+
+    event["pull_request"]["base"]["sha"] = fixture.base_sha
+    _write_event(fixture, event)
+    _git(fixture.root, "checkout", "--detach", fixture.head_sha)
+    _assert_red(fixture, "HEAD は2親のsynthetic mergeでない: parents=1")
+
+
+@pytest.mark.frozen_negative
+def test_first_parent_different_from_event_base_is_red(tmp_path: Path) -> None:
+    """N16: HEAD第1親とevent baseの不一致を拒否する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_normal_baseline_green(fixture)
+    mutant = _build_repository(tmp_path / "mutant")
+    event = _read_event(mutant)
+    event["pull_request"]["base"]["sha"] = mutant.anchor_sha
+    _write_event(mutant, event)
+
+    _assert_red(
+        mutant,
+        "HEADの第1親がbase.shaと不一致: "
+        f"期待={mutant.anchor_sha}; 実際={mutant.base_sha}",
+    )
+
+
+@pytest.mark.frozen_negative
+def test_second_parent_different_from_event_head_is_red(tmp_path: Path) -> None:
+    """N17: HEAD第2親とevent headの不一致を拒否する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_normal_baseline_green(fixture)
+    mutant = _build_repository(tmp_path / "mutant")
+    event = _read_event(mutant)
+    event["pull_request"]["head"]["sha"] = mutant.anchor_sha
+    _write_event(mutant, event)
+
+    _assert_red(
+        mutant,
+        "HEADの第2親がhead.shaと不一致: "
+        f"期待={mutant.anchor_sha}; 実際={mutant.head_sha}",
+    )
+
+
+@pytest.mark.frozen_negative
+def test_rewritten_existing_history_record_is_red(tmp_path: Path) -> None:
+    """N18: 既存履歴の1バイト相当の書き換えを拒否する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_normal_baseline_green(fixture)
+
+    def mutate(ledger: dict[str, Any]) -> None:
+        ledger["history"][0]["approved_at"] = "2026-09-22"
+
+    mutant = _build_repository(tmp_path / "mutant", head_mutation=mutate)
+    _assert_red(mutant, "historyの既存記録が書き換えられた: index=0")
+
+
+@pytest.mark.frozen_negative
+def test_deleted_existing_history_record_is_red(tmp_path: Path) -> None:
+    """N19: 直前の連鎖を保つため末尾を選び、既存履歴の削除を拒否する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_normal_baseline_green(fixture)
+    base_history_length: int | None = None
+    head_history_length: int | None = None
+
+    def add_base_record(ledger: dict[str, Any]) -> None:
+        nonlocal base_history_length
+        _add_history_record_for_deletion(ledger)
+        base_history_length = len(ledger["history"])
+
+    def remove_last(ledger: dict[str, Any]) -> None:
+        nonlocal head_history_length
+        change = ledger["history"][-1]["changes"][0]
+        assert change["aspect"] == "movement_rules"
+        ledger["movement_rules"] = copy.deepcopy(change["before"])
+        ledger["history"].pop()
+        head_history_length = len(ledger["history"])
+
+    mutant = _build_repository(
+        tmp_path / "mutant",
+        base_mutation=add_base_record,
+        head_mutation=remove_last,
+    )
+    assert base_history_length is not None and head_history_length is not None
+    assert head_history_length == base_history_length - 1
+    _assert_red(
+        mutant,
+        "historyの既存記録が削除された: "
+        f"base={base_history_length}; head={head_history_length}",
+    )
+
+
+@pytest.mark.frozen_negative
+def test_same_length_history_replacement_is_red(tmp_path: Path) -> None:
+    """N20: 前段の連鎖を保つため末尾を選び、同数の履歴置換を拒否する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_normal_baseline_green(fixture)
+    replaced_index: int | None = None
+
+    def replace_record(ledger: dict[str, Any]) -> None:
+        nonlocal replaced_index
+        replaced_index = len(ledger["history"]) - 1
+        replacement = copy.deepcopy(ledger["history"].pop())
+        replacement["acceptance_id"] = "masaki1025/pitchlog#999"
+        ledger["history"].append(replacement)
+
+    mutant = _build_repository(tmp_path / "mutant", head_mutation=replace_record)
+    assert replaced_index is not None
+    _assert_red(mutant, f"historyの同数置換を検出した: index={replaced_index}")
+
+
+@pytest.mark.frozen_negative
+def test_second_bootstrap_after_missing_base_ledger_is_red(tmp_path: Path) -> None:
+    """N21: 初回記録だけを再構成し、別IDでのbootstrap反復を拒否する。"""
+
+    def retain_initial_bootstrap_record(ledger: dict[str, Any]) -> None:
+        initial_record = copy.deepcopy(ledger["history"][0])
+        current_identity = copy.deepcopy(ledger["history"][-1]["new_identity"])
+        initial_record["new_identity"] = current_identity
+        initial_record["prior_identity"] = copy.deepcopy(current_identity)
+        ledger["history"] = [initial_record]
+
+    fixture = _build_repository(
+        tmp_path / "baseline",
+        bootstrap=True,
+        pull_request_number=73,
+        head_mutation=retain_initial_bootstrap_record,
+    )
+    _assert_bootstrap_baseline_green(fixture)
+    mutant = _build_repository(
+        tmp_path / "mutant",
+        bootstrap=True,
+        pull_request_number=74,
+        head_mutation=retain_initial_bootstrap_record,
+    )
+
+    _assert_red(
+        mutant,
+        "bootstrap: base台帳不在を許す初回acceptance_idと不一致: "
+        "期待=masaki1025/pitchlog#73; 実際=masaki1025/pitchlog#74",
+    )
+
+
+@pytest.mark.frozen_negative
+def test_missing_inputs_and_dangling_identity_are_red(tmp_path: Path) -> None:
+    """N22: git・event欠落とHEADから到達不能なcommitをfail-closedにする。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_normal_baseline_green(fixture)
+
+    git_directory = fixture.root / ".git"
+    hidden_git_directory = fixture.root / ".git-hidden"
+    git_directory.rename(hidden_git_directory)
+    try:
+        _assert_red(fixture, "受理遷移検査には .git が必要")
+    finally:
+        hidden_git_directory.rename(git_directory)
+
+    _assert_red(fixture, "GITHUB_EVENT_PATH が設定されていない", include_event=False)
+
+    dangling = _build_repository(
+        tmp_path / "dangling",
+        dangling_identity=True,
+    )
+    existence = subprocess.run(
+        ["git", "cat-file", "-e", f"{dangling.identity_sha}^{{commit}}"],
+        cwd=dangling.root,
+        check=False,
+    )
+    ancestry = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", dangling.identity_sha, "HEAD"],
+        cwd=dangling.root,
+        check=False,
+    )
+    assert existence.returncode == 0
+    assert ancestry.returncode == 1
+    _assert_red(
+        dangling,
+        f"識別値commitがHEADから到達不能: {dangling.identity_sha}",
+    )
+
+
+@pytest.mark.frozen_negative
+def test_empty_changes_with_unchanged_identity_is_red(tmp_path: Path) -> None:
+    """N23: identityも規範状態も変えない空の履歴レコードを拒否する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+    record_index: int | None = None
+
+    def append_empty_claim(ledger: dict[str, Any]) -> None:
+        nonlocal record_index
+        record_index = _append_history_claim_record(
+            ledger,
+            acceptance_id="masaki1025/pitchlog#99",
+            changes=[],
+            reason="空の履歴レコードを拒否する負例",
+        )
+
+    mutant = _build_repository(
+        tmp_path / "mutant",
+        head_mutation=append_empty_claim,
+    )
+    assert record_index is not None
+    _assert_red(
+        mutant,
+        f"history[{record_index}]: changes が空で識別値も配置も動かず、"
+        "何も主張していない",
+    )
+
+
+@pytest.mark.frozen_negative
+def test_noop_history_change_is_red(tmp_path: Path) -> None:
+    """N24: 規範状態を変えない同値の change entry を拒否する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+    record_index: int | None = None
+
+    def append_noop_change(ledger: dict[str, Any]) -> None:
+        nonlocal record_index
+        acceptance = copy.deepcopy(ledger["acceptance"])
+        record_index = _append_history_claim_record(
+            ledger,
+            acceptance_id="masaki1025/pitchlog#99",
+            changes=[
+                {
+                    "aspect": "acceptance",
+                    "before": copy.deepcopy(acceptance),
+                    "after": copy.deepcopy(acceptance),
+                }
+            ],
+            reason="同値の change entry を拒否する負例",
+        )
+
+    mutant = _build_repository(
+        tmp_path / "mutant",
+        head_mutation=append_noop_change,
+    )
+    assert record_index is not None
+    _assert_red(
+        mutant,
+        f"history[{record_index}].changes[0]: "
+        "before と after が意味上同一で、何も変更していない",
+    )
+
+
+@pytest.mark.frozen_negative
+def test_reordered_history_change_is_red(tmp_path: Path) -> None:
+    """N25: 順序に意味のないlistの並べ替えだけを変更として拒否する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+    record_index: int | None = None
+
+    def append_reordered_change(ledger: dict[str, Any]) -> None:
+        nonlocal record_index
+        before_rules = copy.deepcopy(ledger["movement_rules"])
+        after_rules = copy.deepcopy(before_rules)
+        after_rules["triggers"] = list(reversed(after_rules["triggers"]))
+        assert before_rules != after_rules
+        ledger["movement_rules"] = copy.deepcopy(after_rules)
+        record_index = _append_history_claim_record(
+            ledger,
+            acceptance_id="masaki1025/pitchlog#99",
+            changes=[
+                {
+                    "aspect": "movement_rules",
+                    "before": before_rules,
+                    "after": after_rules,
+                }
+            ],
+            reason="triggers の並べ替えだけを変更と数えない負例",
+        )
+
+    mutant = _build_repository(
+        tmp_path / "mutant",
+        head_mutation=append_reordered_change,
+    )
+    assert record_index is not None
+    _assert_red(
+        mutant,
+        f"history[{record_index}].changes[0]: "
+        "before と after が意味上同一で、何も変更していない",
+    )
+
+
+@pytest.mark.frozen_negative
+def test_empty_changes_with_moved_identity_is_green(tmp_path: Path) -> None:
+    """identity移動と純粋な配置移動では空のchangesを受理する。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+
+    def remove_document_changes(ledger: dict[str, Any]) -> None:
+        record = ledger["history"][-1]
+        assert record["prior_identity"] != record["new_identity"]
+        record["changes"] = []
+
+    pure_value_move = _build_repository(
+        tmp_path / "pure-value-move",
+        base_mutation=remove_document_changes,
+    )
+    _assert_baseline_green(pure_value_move)
+
+    def split_initial_record_for_pure_placement(ledger: dict[str, Any]) -> None:
+        placement_record = ledger["history"][0]
+        document_change_record = copy.deepcopy(placement_record)
+        legacy_placement = copy.deepcopy(placement_record["placement_change"]["before"])
+        document_change_record["acceptance_id"] = "masaki1025/pitchlog#72"
+        document_change_record["placement_change"]["after"] = copy.deepcopy(
+            legacy_placement
+        )
+        document_change_record["moved"] = False
+        document_change_record["reason"] = "台帳文書の規範状態だけを導入する合成記録"
+        placement_record["changes"] = []
+        assert placement_record["prior_identity"] == placement_record["new_identity"]
+        assert (
+            placement_record["placement_change"]["before"]
+            != placement_record["placement_change"]["after"]
+        )
+        assert placement_record["moved"] is True
+        ledger["history"].insert(0, document_change_record)
+
+    pure_placement_move = _build_repository(
+        tmp_path / "pure-placement-move",
+        base_mutation=split_initial_record_for_pure_placement,
+    )
+    _assert_baseline_green(pure_placement_move)
+
+
+@pytest.mark.frozen_negative
+def test_empty_changes_with_reordered_placement_is_green(tmp_path: Path) -> None:
+    """locator配列の順序変更を履歴導出と同じraw equalityで移動と数える。"""
+    fixture = _build_repository(tmp_path / "baseline")
+    _assert_baseline_green(fixture)
+
+    def split_initial_record_for_reordered_placement(
+        ledger: dict[str, Any],
+    ) -> None:
+        initial_record = ledger["history"][0]
+        document_change_record = copy.deepcopy(initial_record)
+        reordered_placement_record = copy.deepcopy(initial_record)
+        final_placement_record = copy.deepcopy(initial_record)
+        legacy_placement = copy.deepcopy(initial_record["placement_change"]["before"])
+        ledger_placement = copy.deepcopy(initial_record["placement_change"]["after"])
+        combined_placement = [*legacy_placement, *ledger_placement]
+        reversed_placement = list(reversed(combined_placement))
+
+        document_change_record["acceptance_id"] = "masaki1025/pitchlog#71"
+        document_change_record["placement_change"]["after"] = copy.deepcopy(
+            combined_placement
+        )
+        document_change_record["moved"] = True
+        document_change_record["reason"] = "台帳文書と複数locator配置を導入する合成記録"
+
+        reordered_placement_record["acceptance_id"] = "masaki1025/pitchlog#72"
+        reordered_placement_record["changes"] = []
+        reordered_placement_record["placement_change"] = {
+            "before": copy.deepcopy(combined_placement),
+            "after": copy.deepcopy(reversed_placement),
+        }
+        reordered_placement_record["moved"] = True
+        reordered_placement_record["reason"] = "locator配列の順序だけを変える純粋配置移動"
+
+        final_placement_record["changes"] = []
+        final_placement_record["placement_change"] = {
+            "before": copy.deepcopy(reversed_placement),
+            "after": copy.deepcopy(ledger_placement),
+        }
+        final_placement_record["moved"] = True
+        final_placement_record["reason"] = "複数locator配置から台帳系列へ移動する合成記録"
+
+        assert (
+            reordered_placement_record["prior_identity"]
+            == reordered_placement_record["new_identity"]
+        )
+        assert (
+            reordered_placement_record["placement_change"]["before"]
+            == list(
+                reversed(
+                    reordered_placement_record["placement_change"]["after"]
+                )
+            )
+        )
+        assert reordered_placement_record["moved"] is True
+        ledger["history"][0:1] = [
+            document_change_record,
+            reordered_placement_record,
+            final_placement_record,
+        ]
+
+    reordered_placement = _build_repository(
+        tmp_path / "reordered-placement",
+        base_mutation=split_initial_record_for_reordered_placement,
+    )
+    _assert_baseline_green(reordered_placement)

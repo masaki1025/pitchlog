@@ -1,0 +1,7 @@
+-- ELEMENT-TYPE: table
+-- ELEMENT-ID: tenants
+
+ALTER TABLE public.tenants
+    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tenants
+    FORCE ROW LEVEL SECURITY;
