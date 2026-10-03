@@ -949,6 +949,34 @@ def test_declared_owner_branch_is_audited(
     assert _should_audit_real_repository(repository)
 
 
+def test_owner_branch_rejects_implementation_with_no_step_commits(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """所有ブランチでステップコミットが 0 件のまま実装した履歴を拒否する。
+
+    ステップコミットが 1 件以上ある後の無記法コミットはこの負例の対象外。
+    """
+    repository, _ = _feature_plan_repository(tmp_path)
+    _git(repository, "switch", "--quiet", "-c", "feature/domain-calc-dsl")
+    (repository / "implementation.py").write_text("implemented = True\n", encoding="utf-8")
+    feature_head = _git_commit(repository, "feat: 実装")
+    _git(repository, "switch", "--quiet", "develop")
+    _set_synthetic_pull_request_event(
+        tmp_path, monkeypatch, feature_head, "feature/domain-calc-dsl"
+    )
+    monkeypatch.setattr(sys.modules[__name__], "ROOT", repository)
+    synthetic_steps = _synthetic_steps("implementation.py", "true")
+    synthetic_steps["history_order_exceptions"] = []
+
+    with pytest.raises(
+        AuditViolation, match="実装ステップコミットを第一親履歴から取得できない"
+    ):
+        test_real_repository_artifacts_exist_at_each_completed_step_commit(
+            synthetic_steps
+        )
+
+
 def test_pull_request_uses_head_ref_for_feature_history_audit(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
