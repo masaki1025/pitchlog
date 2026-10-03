@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 2,
+  "contract_revision": 8,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:2"
+        "contract_revision:8"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -16,7 +16,12 @@
           "baseline_control",
           "source_digest"
         ],
-        "external_files": []
+        "external_files": [
+          "scripts/check_tenant_boundary_bypass.py",
+          "scripts/frozen_history.py",
+          "scripts/frozen_archive.py",
+          ".github/workflows/ci.yml"
+        ]
       }
     },
     "movement_policy": {
@@ -36,6 +41,7 @@
       "affected_baselines": "all_baselines_matching_any_declared_trigger",
       "history_append_only": true
     },
+    "history_authority": false,
     "history": [
       {
         "source_commit": "PENDING_ACCEPTANCE",
@@ -65,14 +71,15 @@
   },
   "asset_kind": "tenant_repository_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "0d9f2d298754a649742a8dd5be98601a7ba44a7f95126e4b5236f96cc8eb0323",
+  "source_digest": "ed39bd009292a68430498f2078a61caabefedaf4fa90dfdb8956b7104717824d",
   "public_surface": {
     "repository_type": "pitchlog.repositories.base.TenantRepositoryBase",
     "context_binding_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
     "cross_tenant_function_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
     "operation_token_type": "pitchlog.repositories.tokens.TenantOperationToken",
     "operation_result_type": "pitchlog.repositories.tokens.TenantOperationResult",
-    "cross_tenant_function_registry": "pitchlog.repositories.base.CROSS_TENANT_FUNCTION_REGISTRY"
+    "cross_tenant_function_registry": "pitchlog.repositories.base.CROSS_TENANT_FUNCTION_REGISTRY",
+    "transaction_scope_entry": "pitchlog.repositories.transaction.tenant_transaction_scope"
   },
   "executor": {
     "symbol": "pitchlog.repositories.base.TenantRepositoryBase._execute_operation",

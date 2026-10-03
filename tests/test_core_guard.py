@@ -115,6 +115,8 @@ AUTHZ_TENANT_AREA_PATH_ADDITIONS = (
     "tests/test_check_shared_preconditions.py",
     "backend/src/pitchlog/authz/*",
     AUTHZ_BACKEND_TEST_PATTERN,
+    "backend/tests/test_product_authz*.py",
+    "backend/tests/product_authz*.py",
     *AUTHZ_BACKEND_WORDING_AREA_PATH_ADDITIONS,
 )
 TENANT_BOUNDARY_AREA_PATH_CASES = (
@@ -127,6 +129,8 @@ TENANT_BOUNDARY_AREA_PATH_CASES = (
         "scripts/check_tenant_boundary_bypass.py",
         "scripts/check_tenant_boundary_bypass.py",
     ),
+    ("scripts/frozen_history.py", "scripts/frozen_history.py"),
+    ("scripts/frozen_archive.py", "scripts/frozen_archive.py"),
     (
         "contracts/tenant_boundary/*",
         "contracts/tenant_boundary/nested/future.json",
@@ -136,9 +140,19 @@ TENANT_BOUNDARY_AREA_PATH_CASES = (
         "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/base.py",
     ),
     (
+        "tests/fixtures/frozen-archive-cases/*",
+        "tests/fixtures/frozen-archive-cases/manifest.json",
+    ),
+    (
         "tests/test_check_tenant_boundary_bypass.py",
         "tests/test_check_tenant_boundary_bypass.py",
     ),
+    ("tests/test_frozen_archive.py", "tests/test_frozen_archive.py"),
+    (
+        "tests/test_frozen_archive_case_runner.py",
+        "tests/test_frozen_archive_case_runner.py",
+    ),
+    ("tests/test_frozen_history.py", "tests/test_frozen_history.py"),
 )
 TENANT_BOUNDARY_AREA_PATH_ADDITIONS = tuple(
     pattern for pattern, _ in TENANT_BOUNDARY_AREA_PATH_CASES

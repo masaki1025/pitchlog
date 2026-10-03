@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "tables": [
+    {"table": "team_records", "profile": "tenant_owned"},
+    {"table": "players", "profile": "tenant_owned"},
+    {"table": "games", "profile": "tenant_owned"},
+    {"table": "lineup_memories", "profile": "tenant_owned"},
+    {"table": "game_lineups", "profile": "tenant_owned"},
+    {"table": "participation_intervals", "profile": "tenant_owned"},
+    {"table": "event_slots", "profile": "tenant_owned"},
+    {"table": "operation_events", "profile": "tenant_owned"},
+    {"table": "play_rows", "profile": "tenant_owned"},
+    {"table": "play_runners", "profile": "tenant_owned"},
+    {"table": "temporary_player_id_mappings", "profile": "tenant_owned"},
+    {"table": "idempotency_ledger", "profile": "tenant_owned"},
+    {"table": "rejected_event_originals", "profile": "tenant_owned"},
+    {"table": "evacuated_event_originals", "profile": "tenant_owned"},
+    {"table": "recording_generations", "profile": "tenant_owned"},
+    {"table": "medical_notes", "profile": "tenant_owned"},
+    {"table": "medical_note_versions", "profile": "tenant_owned"},
+    {"table": "pdf_export_records", "profile": "tenant_owned"},
+    {"table": "tenant_vocabularies", "profile": "tenant_owned"},
+    {"table": "player_merge_events", "profile": "tenant_owned"},
+    {"table": "player_move_records", "profile": "tenant_owned"},
+    {"table": "invalidation_intents", "profile": "tenant_owned"},
+    {"table": "migrated_final_lineups", "profile": "tenant_owned"},
+    {"table": "tenants", "profile": "self_tenant_row"},
+    {"table": "analysis_groups", "profile": "effective_group_control"},
+    {"table": "group_memberships", "profile": "effective_group_control"},
+    {"table": "sharing_grants", "profile": "effective_group_control"},
+    {"table": "group_invitations", "profile": "effective_group_control"},
+    {"table": "game_type_rule_defaults", "profile": "global_read_only"},
+    {"table": "system_vocabularies", "profile": "global_read_only"},
+    {"table": "admin_vocabularies", "profile": "global_read_only"},
+    {"table": "system_settings", "profile": "global_read_only"},
+    {
+      "table": "tenant_auth_subjects",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "pre_context_authentication",
+        "owner_unit": "U-A1"
+      }
+    },
+    {
+      "table": "tenant_credentials",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "pre_context_authentication",
+        "owner_unit": "U-A1"
+      }
+    },
+    {
+      "table": "tenant_tokens",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "pre_context_authentication",
+        "owner_unit": "U-A1"
+      }
+    },
+    {
+      "table": "rate_limit_counters",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "pre_context_global_mutable",
+        "owner_unit": "U-A1"
+      }
+    },
+    {
+      "table": "admin_credentials",
+      "profile": "function_only",
+      "access_path": {"reason": "admin_path", "owner_unit": "U-A2"}
+    },
+    {
+      "table": "admin_sessions",
+      "profile": "function_only",
+      "access_path": {"reason": "admin_path", "owner_unit": "U-A2"}
+    },
+    {
+      "table": "admin_operation_logs",
+      "profile": "function_only",
+      "access_path": {"reason": "admin_path", "owner_unit": "U-A2"}
+    },
+    {
+      "table": "migration_runs",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "migration_batch_only",
+        "owner_unit": "migration_batch"
+      }
+    },
+    {
+      "table": "migration_quarantine",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "migration_batch_only",
+        "owner_unit": "migration_batch"
+      }
+    },
+    {
+      "table": "migration_resolution_reports",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "migration_batch_only",
+        "owner_unit": "migration_batch"
+      }
+    },
+    {
+      "table": "migration_warning_reports",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "migration_batch_only",
+        "owner_unit": "migration_batch"
+      }
+    },
+    {
+      "table": "rule_sets",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "mixed_ownership_rules",
+        "owner_unit": "U-X1"
+      }
+    },
+    {
+      "table": "tournament_rule_assignments",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "mixed_ownership_rules",
+        "owner_unit": "U-X1"
+      }
+    }
+  ]
+}

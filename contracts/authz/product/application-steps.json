@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_product_application_steps",
+  "transaction": "single",
+  "operation_kinds": [
+    "product_apply_roles",
+    "product_apply_database_and_schemas",
+    "product_apply_helper_functions",
+    "product_apply_table_rls",
+    "product_apply_policies",
+    "product_apply_table_and_column_acls",
+    "product_apply_trigger_function_acls",
+    "product_unapply_trigger_function_acls",
+    "product_unapply_table_and_column_acls",
+    "product_unapply_policies",
+    "product_unapply_table_rls",
+    "product_unapply_helper_functions",
+    "product_unapply_database_and_schemas",
+    "product_unapply_roles"
+  ],
+  "application_steps": [
+    {
+      "step_id": "PRODUCT-APPLY-01-ROLES",
+      "sequence": 1,
+      "operation_kind": "product_apply_roles",
+      "element_groups": [
+        "roles"
+      ]
+    },
+    {
+      "step_id": "PRODUCT-APPLY-02-DATABASE-AND-SCHEMAS",
+      "sequence": 2,
+      "operation_kind": "product_apply_database_and_schemas",
+      "element_groups": [
+        "databases",
+        "schemas"
+      ]
+    },
+    {
+      "step_id": "PRODUCT-APPLY-03-HELPER-FUNCTIONS",
+      "sequence": 3,
+      "operation_kind": "product_apply_helper_functions",
+      "element_groups": [
+        "functions:rls_helper"
+      ]
+    },
+    {
+      "step_id": "PRODUCT-APPLY-04-TABLE-RLS",
+      "sequence": 4,
+      "operation_kind": "product_apply_table_rls",
+      "element_groups": [
+        "tables"
+      ]
+    },
+    {
+      "step_id": "PRODUCT-APPLY-05-POLICIES",
+      "sequence": 5,
+      "operation_kind": "product_apply_policies",
+      "element_groups": [
+        "policies",
+        "predicates"
+      ]
+    },
+    {
+      "step_id": "PRODUCT-APPLY-06-TABLE-AND-COLUMN-ACLS",
+      "sequence": 6,
+      "operation_kind": "product_apply_table_and_column_acls",
+      "element_groups": [
+        "acl_expectations",
+        "column_acl_expectations"
+      ]
+    },
+    {
+      "step_id": "PRODUCT-APPLY-07-TRIGGER-FUNCTION-ACLS",
+      "sequence": 7,
+      "operation_kind": "product_apply_trigger_function_acls",
+      "element_groups": [
+        "functions:migration_trigger"
+      ]
+    }
+  ],
+  "unapplication_steps": [
+    {
+      "step_id": "PRODUCT-UNAPPLY-01-TRIGGER-FUNCTION-ACLS",
+      "sequence": 1,
+      "operation_kind": "product_unapply_trigger_function_acls",
+      "reverses_application_step_id": "PRODUCT-APPLY-07-TRIGGER-FUNCTION-ACLS"
+    },
+    {
+      "step_id": "PRODUCT-UNAPPLY-02-TABLE-AND-COLUMN-ACLS",
+      "sequence": 2,
+      "operation_kind": "product_unapply_table_and_column_acls",
+      "reverses_application_step_id": "PRODUCT-APPLY-06-TABLE-AND-COLUMN-ACLS"
+    },
+    {
+      "step_id": "PRODUCT-UNAPPLY-03-POLICIES",
+      "sequence": 3,
+      "operation_kind": "product_unapply_policies",
+      "reverses_application_step_id": "PRODUCT-APPLY-05-POLICIES"
+    },
+    {
+      "step_id": "PRODUCT-UNAPPLY-04-TABLE-RLS",
+      "sequence": 4,
+      "operation_kind": "product_unapply_table_rls",
+      "reverses_application_step_id": "PRODUCT-APPLY-04-TABLE-RLS"
+    },
+    {
+      "step_id": "PRODUCT-UNAPPLY-05-HELPER-FUNCTIONS",
+      "sequence": 5,
+      "operation_kind": "product_unapply_helper_functions",
+      "reverses_application_step_id": "PRODUCT-APPLY-03-HELPER-FUNCTIONS"
+    },
+    {
+      "step_id": "PRODUCT-UNAPPLY-06-DATABASE-AND-SCHEMAS",
+      "sequence": 6,
+      "operation_kind": "product_unapply_database_and_schemas",
+      "reverses_application_step_id": "PRODUCT-APPLY-02-DATABASE-AND-SCHEMAS"
+    },
+    {
+      "step_id": "PRODUCT-UNAPPLY-07-ROLES",
+      "sequence": 7,
+      "operation_kind": "product_unapply_roles",
+      "reverses_application_step_id": "PRODUCT-APPLY-01-ROLES"
+    }
+  ],
+  "preserved_role_ids": [
+    "pitchlog_owner"
+  ]
+}
