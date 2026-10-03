@@ -977,6 +977,87 @@ def test_owner_branch_rejects_implementation_with_no_step_commits(
         )
 
 
+def test_owner_branch_rejects_missing_artifact_at_step_commit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """所有ブランチのステップ 1 完了時点に成果物が無ければ拒否する。"""
+    repository, _ = _feature_plan_repository(tmp_path)
+    _git(repository, "switch", "--quiet", "-c", "feature/domain-calc-dsl")
+    synthetic_steps = _synthetic_steps("generated/result.txt", "true")
+    synthetic_steps["history_order_exceptions"] = []
+    _write_synthetic_steps(repository, synthetic_steps)
+    feature_head = _git_commit(repository, "feat: 成果物未作成 (ステップ 1/1)")
+    _git(repository, "switch", "--quiet", "develop")
+    _set_synthetic_pull_request_event(
+        tmp_path, monkeypatch, feature_head, "feature/domain-calc-dsl"
+    )
+    monkeypatch.setattr(sys.modules[__name__], "ROOT", repository)
+
+    with pytest.raises(AuditViolation, match="完了時点に artifact が無い"):
+        test_real_repository_artifacts_exist_at_each_completed_step_commit(
+            synthetic_steps
+        )
+
+
+def test_owner_branch_rejects_duplicate_step_commits(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """所有ブランチに同じステップ 1 の完了コミットが 2 件あれば拒否する。"""
+    repository, _ = _feature_plan_repository(tmp_path)
+    _git(repository, "switch", "--quiet", "-c", "feature/domain-calc-dsl")
+    synthetic_steps = _synthetic_steps("generated/result.txt", "true")
+    synthetic_steps["history_order_exceptions"] = []
+    _write_synthetic_steps(repository, synthetic_steps)
+    artifact = repository / "generated/result.txt"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("present\n", encoding="utf-8")
+    _git_commit(repository, "feat: 最初の完了 (ステップ 1/1)")
+    (repository / "second.txt").write_text("second\n", encoding="utf-8")
+    feature_head = _git_commit(repository, "feat: 二度目の完了 (ステップ 1/1)")
+    _git(repository, "switch", "--quiet", "develop")
+    _set_synthetic_pull_request_event(
+        tmp_path, monkeypatch, feature_head, "feature/domain-calc-dsl"
+    )
+    monkeypatch.setattr(sys.modules[__name__], "ROOT", repository)
+
+    with pytest.raises(AuditViolation, match="実装ステップコミットが重複している"):
+        test_real_repository_artifacts_exist_at_each_completed_step_commit(
+            synthetic_steps
+        )
+
+
+def test_owner_branch_rejects_step_total_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """所有ブランチで台帳 2 件に対するステップ 1/1 の申告を拒否する。"""
+    repository, _ = _feature_plan_repository(tmp_path)
+    _git(repository, "switch", "--quiet", "-c", "feature/domain-calc-dsl")
+    synthetic_steps = _synthetic_steps("generated/first.txt", "true")
+    synthetic_steps["expected_total"] = 2
+    synthetic_steps["steps"].append(
+        {"id": 2, "artifact": "`generated/second.txt`", "command": "`true`"}
+    )
+    synthetic_steps["history_order_exceptions"] = []
+    _write_synthetic_steps(repository, synthetic_steps)
+    artifact = repository / "generated/first.txt"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("present\n", encoding="utf-8")
+    feature_head = _git_commit(repository, "feat: 完了 (ステップ 1/1)")
+    _git(repository, "switch", "--quiet", "develop")
+    _set_synthetic_pull_request_event(
+        tmp_path, monkeypatch, feature_head, "feature/domain-calc-dsl"
+    )
+    monkeypatch.setattr(sys.modules[__name__], "ROOT", repository)
+
+    with pytest.raises(AuditViolation, match="実装ステップ総数が単一定義と違う"):
+        test_real_repository_artifacts_exist_at_each_completed_step_commit(
+            synthetic_steps
+        )
+
+
 def test_pull_request_uses_head_ref_for_feature_history_audit(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
