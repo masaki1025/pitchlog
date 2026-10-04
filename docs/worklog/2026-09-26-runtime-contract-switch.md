@@ -42,6 +42,13 @@ branch: feature/runtime-contract-switch
   - ルートの `test_checker_census_matches_merge_base` は develop でも落ちる既知の不具合(`fix/census-baseline-pin`)
   - **DB 試験の後は毎回 `docker volume prune -f`**(`db_fixtures.py` の使い捨てクラスタが匿名ボリュームを残す — 別タスクで fixture を修正予定。Docker 29 の prune は未使用の匿名ボリュームだけを消し、名前付きは残る)
 
+- **ステップ 8 の受理の材料(2026-10-04)**: develop(76b9f53a — #82・#74・#91 の後)を取り込み(d4be7141)、ドライランを最終化
+  - **S = 76b9f53a4cb8265d570f7cbb2293f9ef8d1ed6ac / H = 92f6fefc57b5ce316aa34701f61d63604f08db1a / D = b03a32b0386189f1f44a5759c39c48d65cfc4f53**
+  - 動いた corpus 入力は base-allowlist.json・runtime-authz-contract.json・snapshot の追加 1 件だけ → corpus digest を取り直し
+  - ドライランの複製で backend 1125 passed・4 skipped(製品化済みでは行わない切り替えの試験 — 正当)/ ルート 2859 passed。実リポジトリで backend 1129 passed
+  - **1 回目の受理と失効**: 山田正輝がセッション上で受理(2026-10-04 — 確認のうえ先へ進める指示。PR へのコメントは本人の判断で省略。代理投稿は自動判定で不可)。実行前に S・H・D の一致を確認し、ステップ 8 を 677129a3 として作成(親 = H、承認の 2 欄を戻した tree = D を確認・影響範囲の試験 green)。**push の前に #90(U-A1 α・d6f5f3c9)が develop へマージされ、design.md 4-1 の 7 により受理は失効**。人間の判断(A)で 677129a3 を外し(未 push)、取り込みからやり直す。#90 は凍結資産・corpus の入力に触れていない(14 ファイル・文書中心)
+  - 途中で見つけて直したもの: ドライランの TB005(a9f2f26c)・A2 の試験の staged 直書き(cb025e03)・記録の文面の空白(92f6fefc)。**教訓: 「複製の上で DB 試験を含む全試験」を自分で回し切るまで、受理を求めない**
+
 ## 決定
 
 - **方式 = Y2(暫定資産をその場で製品化する)**(人間の判断 2026-09-26)。削除する案(TSK-461 待ち)と、凍結対象を向け直す案(`ddl-elements.json` 全体が凍結される)は採らない
