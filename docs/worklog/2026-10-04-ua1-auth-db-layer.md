@@ -103,3 +103,15 @@ branch: feature/ua1-auth-db-layer
 **P0 0 / P1 5 / P2 0 — 全件採用**(いずれも 5 周目の反映の詰め)。core-guard の例外を逐行確認チェック未完了だけに限定 / 受理の直前に fetch と D の再計算 / `pg_stat_statements` の対象を `disposable_postgres_cluster()` の起動引数に / ステップ 1 の合格条件に一意索引の場合の再承認 / 過去ウィンドウの非参照を `EXPLAIN` で確かめる。
 
 **計画レビューはここで終える**(人間の判断)。累計 6 周・指摘 56 件・全件採用・不採用 0。
+
+## ステップ 1 の実測(2026-10-05)
+
+詳細は design.md 10-1 節。使い捨てコンテナ(PG 17.11・試験クラスタと同じ initdb 引数)と、`origin/develop` の使い捨て worktree で測った。測定用の SQL・スクリプトはリポジトリに入れていない。
+
+- ① **案 A は移行バッチ用ロールに正規化関数の `EXECUTE` を要る**(生成列への `INSERT` と `UPDATE … SET name` が `permission denied`)。同ロールの関数 `EXECUTE` は空であることを要求されている(`product_catalog.py:865`)→ **案 A1 を提案し、計画を更新**(J-4)。`alembic check` は生成列の式の違いを検出しない
+- ② 直列化: 直列化なしは 15 行に重複。勧告ロックと一意索引はどちらも数え落とし 0 → **勧告ロックを提案**(J-5)
+- ③ 受理記録の無い中間コミット: red は **tenant-boundary-bypass ジョブの受理記録の検査**と **`test_frozen_archive.py` の corpus digest(12 件)**。後者は同じコミットで再 pin すれば避けられる → 計画 4 節に規則を足した。迂回の走査はステップ 13 まで走らない
+- ④〜⑥ `pg_stat_statements`(`track = all`)で失敗 3 種の関数内 SQL が同じ `queryid`・同じ回数、`crypt` は `track_functions = all` で 1 回ずつ。既定の `top` は関数内の SQL を数えない
+- ⑦ 「前後の空白」= Unicode `White_Space` の 25 文字を `btrim` の第 2 引数で除く。小文字化は `pg_c_utf8`(glibc の版に依らない)
+- 調査用サブエージェント(③)は前のセッションの終了と、その後の人間の停止で中断した。③ は自分で測り直した。使い捨ての作業ブランチ `probe/frozen-red`・`probe/merge`(ローカルのみ・未 push)は、強制削除がフックで禁止のため残っている
+- **計画を更新し(承認欄を「未」へ)、再承認を待つ**(design.md 10 節の規則)

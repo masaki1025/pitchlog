@@ -51,7 +51,7 @@ date: 2026-10-04
 | B | **生成列 `tenants.name_normalized`** を組み込み関数だけの式で定義し、認証関数は入力を**同じ式の関数**で正規化する(関数は資産側の `definer` の内部関数) | 「1 つの関数」に対する式の重複 — 生成列の式と関数の式が同じであることを**試験で照合**する |
 | C | 式索引 | manifest の「構成列が実在」(`test_schema_manifest.py:319-320`)に当たる — **採らない見込み** |
 
-**既定は A**(v0.4 8-1「正規化は DB の 1 つの関数」の字面どおり)。**案 B は規則を生成列の式と関数の 2 か所に持つので v0.4 に反する — 採らない**(計画レビュー 1 周目 P1-2)。
+**既定は A**(v0.4 8-1「正規化は DB の 1 つの関数」の字面どおり)。**ステップ 1 の実測で、案 A は移行バッチ用ロールに正規化関数の `EXECUTE` を要ると分かった → 案 A1 を提案(10-1 節 ①・plan.md 7 節 J-4)**。**案 B は規則を生成列の式と関数の 2 か所に持つので v0.4 に反する — 採らない**(計画レビュー 1 周目 P1-2)。
 **A が EXECUTE の検査で成り立たない場合も、単一の関数を保つ別の形**(例: 関数を `PUBLIC` 実行可の純関数として種別を分け、移行バッチ用ロールの「利用者定義関数 0 件」の検査から純関数を除く根拠を条文で示す)**をステップ 1 で確定する。単一の関数を保てる形が無ければ、実装に入らず人間に上げる**。一意索引は生成列に張る。
 
 ## 4. migration 0027
@@ -98,7 +98,7 @@ date: 2026-10-04
 
 - カウント単位は**試験用の仮の形**(`team:` + 正規化名)。**β はロックを適用しない**(計数と、閾値の設定値の存在の確認〔欠落・不正値ならログインを拒否 — 不変条件⑤〕まで)。**ロックの効き方は具体設計そのもの**で、チーム名単位で新規ログインを止める仮設計は不変条件①(第三者の失敗連打で正規利用者を締め出せない)を破るため採らない(計画レビュー 2 周目 P1-4)。**具体設計の反映は δ**(DB 関数・migration の変更を含む — v0.4 12-8)
 - **③ 同一コミットで確定**: 失敗は例外にせず `NULL` を返し、計数の更新をコミットする
-- **④ 直列化**: 同じ `(scope_key, window_start)` の行を `SELECT … FOR UPDATE`。行が無い場合の競合は**一意の行を作る手段**(索引の追加か勧告ロック)を実測で選ぶ — 既存の索引は非一意(`0013_player_merge_rate_limits.py:122-127`)。**一意索引を選んだ場合は migration 0027 に索引を足し、ORM・manifest・スキーマ監査・試験もステップ 6 で更新する**(計画の更新と再承認 — 10 節)
+- **④ 直列化**: 同じ `(scope_key, window_start)` の行を `SELECT … FOR UPDATE`。行が無い場合の競合は**一意の行を作る手段**(索引の追加か勧告ロック)を実測で選ぶ — 既存の索引は非一意(`0013_player_merge_rate_limits.py:122-127`)。**一意索引を選んだ場合は migration 0027 に索引を足し、ORM・manifest・スキーマ監査・試験もステップ 6 で更新する**(計画の更新と再承認 — 10 節)。**実測と提案(勧告ロック)は 10-1 節 ②・plan.md 7 節 J-5**
 - **⑥**: 物理削除しない・`scope_key` と `window_start` は書き換えない(既存トリガ)
 
 ## 8. 受理記録・最低要求④・一様性の観測(計画レビュー 1 周目)
@@ -128,3 +128,88 @@ date: 2026-10-04
 ## 10. ステップ 1 の決定と計画の更新
 
 **ステップ 1 の実測で、正規化が案 A(migration の通常関数 + 生成列)以外の形に決まった場合、または計数の直列化に一意索引を選んだ場合は、ステップ 6 の方式・検査・合格条件を計画書と本書で更新し、実装に入る前に計画レビューへ戻して人間の承認を受け直す**(計画レビュー 3 周目 P1-8・5 周目 P1-7)。どちらでもなければ計画どおり進める。
+
+### 10-1. ステップ 1 の実測(2026-10-05)
+
+**環境**: 使い捨てコンテナ `postgres:17.11-bookworm`(試験クラスタと同じイメージ)・initdb 引数 `--encoding=UTF8 --locale-provider=libc --locale=C.UTF-8`(`docker-compose.yml:10` と同じ)・glibc 2.36。起動引数に `-c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all -c track_functions=all` を付けた。測定の SQL はリポジトリに入れない(結果だけをここに書く)。
+
+#### ① 正規化関数(案 A の成否)
+
+| 測定 | 結果 |
+| --- | --- |
+| 利用者定義関数を呼ぶ生成列への `INSERT`(呼び出し側に `EXECUTE` なし) | **`permission denied for function`** で失敗 |
+| 同じく `UPDATE … SET name`(生成列の参照列を更新) | **失敗**(同じエラー) |
+| `UPDATE … SET retired_at`(生成列の参照列でない列だけを更新) | **成功**(生成列を再計算しないので `EXECUTE` は要らない) |
+| 呼び出し側へ `EXECUTE` を与えた後の `INSERT` | 成功(`' Foo '` → `foo`・`E'\tＦＯＯ\n'` → `foo`) |
+| 関数のスキーマに `USAGE` が無く `EXECUTE` だけがある場合の `INSERT` | 成功(実行時は `USAGE` を見ない) |
+| 生成列への `CHECK (char_length(...) <= 64)` | 65 文字を拒否 |
+| `alembic` の比較(`compare_metadata`)で生成列の式を変えた場合 | **差分も警告も出ない**(`backend/migrations/env.py` は `compare_server_default` を指定していない)。**`alembic check` は式の違いで red にならないが、式の守りにもならない** → 式は schema manifest かスキーマ監査で照合する(ステップ 6) |
+| `pg_get_expr` の逆構文化 | `norm_sql(name)`(`search_path` 上のスキーマは省かれる) |
+
+**既存の検査との衝突**: 移行バッチ用ロールは `tenants` に `INSERT` を持つ(`contracts/authz/product/migration-batch-role.json` の `permissions`)が、関数の `EXECUTE` は**空であることを要求**されている(同資産の `active_role_shape.function_execute: []`・`backend/src/pitchlog/authz/product_catalog.py:865`・検査対象スキーマは `:1151-1170`)。**案 A は、移行バッチ用ロールに正規化関数の `EXECUTE` を与えないと移行の `INSERT` が失敗する**。正本(data-model.md 3-2 節「移行バッチの書き込み経路」の条件の表 `:294-303`)は関数の実行を禁じておらず、空の要求は TSK-442 の資産と検査の不変条件である。
+
+**提案(人間の判断待ち)**: **案 A1 = 案 A + 移行バッチ用ロールに正規化関数 1 件だけの `EXECUTE` を与え、`function_execute` を「空」から「資産で宣言した集合と exact」へ変える**。正規化関数は表を読まない純関数(`LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE`・`SECURITY INVOKER`)なので、与えても到達できる行は増えない。
+- 退けた案: **A2**(正規化関数を `PUBLIC` 実行可にし、検査から純関数の種別を除く)は必要より広い / **D**(生成列ではなくトリガで列を埋める)はトリガ関数から正規化関数を呼ぶ時点で同じ `EXECUTE` が要り、避けるには `SECURITY DEFINER` のトリガ関数が要る(既存の migration に `SECURITY DEFINER` は 0 件)/ **B** は v0.4 に反する(3 節)
+- **計画への影響**: ステップ 7 の合格条件「移行バッチ用ロールの関数 EXECUTE 0 件が全スキーマで維持」と、ステップ 3 の「0 件の検査」の書き方を変える → **計画の更新と再承認**(本節の冒頭の規則)
+- 後続への申し送り: テナントを作る管理経路(U-A2)の関数所有ロールも、生成列のために同じ `EXECUTE` を要る
+
+**実現式**(案 A1 で使う): `lower(btrim(normalize(t, NFKC), <White_Space の 25 文字>) COLLATE pg_c_utf8)`。
+- 組み込みはすべて `IMMUTABLE`(`normalize`・`btrim`・`lower` の `provolatile = i`)
+- **小文字化は組み込みの照合 `pg_c_utf8`(PG 17 の builtin プロバイダ)で行う**: 試した 8 文字(`İ`・`ẞ`・`ΑΣ`・`Ǆ`・`Ⅻ`・`Ａ`・`ﬀ`・`K`)で libc の `C.UTF-8` と結果が同じで、**OS の glibc の版に依らない**(libc の照合は glibc の更新で結果が変わり得て、生成列と一意索引の前提が崩れる)
+- `COLLATE "C"` は ASCII しか小文字化しない(`ÄÖ ΣΑ ǅ` が変わらない)ので使わない
+
+#### ⑦ 「前後の空白」の範囲
+
+- **Unicode の `White_Space` 性質の 25 文字**: U+0009〜U+000D・U+0020・U+0085・U+00A0・U+1680・U+2000〜U+200A・U+2028・U+2029・U+202F・U+205F・U+3000
+- `btrim(text)` の既定は U+0020 だけを除く。**文字の一覧を第 2 引数に渡す `btrim`** と、同じ一覧の正規表現のどちらでも、前後のこれらを除いて内側の空白を残すことを確かめた。**正規表現の処理系を通さない `btrim` を採る**
+- NFKC は U+3000・U+00A0 などを U+0020 に変えるが、タブ・改行・U+0085 は残す(実測)。だから一覧は NFKC の後にも要る
+- ステップ 6 で data-model.md 8-1 節にこの範囲を書き添える(実装追随)
+
+#### ② 計数の行が無い場合の直列化
+
+同じ `(scope_key, window_start)` への 16 並行 × 200 回(`pgbench`・計 3,200 回)で測った:
+
+| 手段 | 行数 | 計数の合計 |
+| --- | --- | --- |
+| 直列化なし(更新して、無ければ挿入) | **15 行**(重複)— `query returned more than one row` で中断が出る | 16 |
+| **トランザクション単位の勧告ロック**(`pg_advisory_xact_lock`)→ `SELECT … FOR UPDATE` → 無ければ挿入・有れば更新 | 1 行 | 3,200 |
+| 一意索引 `(scope_key, window_start)` + `INSERT … ON CONFLICT DO UPDATE` | 1 行 | 3,200 |
+
+**提案(人間の判断待ち)**: **勧告ロックを採る**。どちらも数え落としは無い。違いは波及の範囲:
+- **一意索引**は 3-4 節の業務的一意性に行が要り(`test_schema_manifest.py` の `_UNIQUE_ROLES` は一意制約に `business_unique` などの役割を要求する — `:55`・`:323-324`)、schema manifest・ORM・スキーマ監査・**受入突合シート(新しい行は人間の判定)**まで波及する
+- **勧告ロック**はスキーマを変えない。鍵は 2 引数の形(`pg_advisory_xact_lock(int4, int4)` — 第 1 引数を計数専用の定数にして、他の用途の勧告ロックと名前空間を分ける)。ハッシュの衝突は無関係な単位を直列化するだけで正しさを壊さない。書き込みは認証関数だけ(`function_only`)なので、全経路がロックを通る
+- 勧告ロックでは、行の有無で実行する SQL(挿入か更新か)が分かれる。これは**過去の失敗の有無**で決まり、**チーム名の存在やパスワードの誤り方では決まらない**(不変条件②の対象外の差)。一様性の試験(ステップ 8)は、失敗の種類どうしを**同じ計数の状態から**比べる
+- 一意索引を選ぶ場合は、本節冒頭の規則により計画を更新する
+
+#### ③ 受理記録の無い中間コミットで red になる範囲
+
+**方法**: `origin/develop`(`85fce8a7` — #87 のマージ後)の使い捨て worktree で、β のステップ 6 に近い変更を入れた。製品 DDL 資産(`contracts/authz/product/ddl-elements.json`)に `migration_trigger` の関数要素を 1 件足し、ランタイム契約の導出欄(`derive_runtime_contract_fields`)・`source_digest`・生成モジュール(生成器の `render`)を整合させた。受理記録は書かずにコミットし、CI と同じ形(PR の synthetic merge・`GITHUB_EVENT_NAME=pull_request`)で検査を走らせた。
+
+| 検査(CI のジョブ) | 結果 | 理由 |
+| --- | --- | --- |
+| 生成器の `check`(P4) | **green** | 導出欄・`source_digest`・生成モジュールを揃えれば通る |
+| `scripts/check_frozen_baselines.py --ci`(harness) | **green** | — |
+| **`scripts/check_tenant_boundary_bypass.py`(tenant-boundary-bypass)** | **red(終了コード 2)** | `base-allowlist.json.baseline_control.history: movement と追記 record 件数が不一致: moved=True, records=0` — **受理記録の検査そのもの**。**契約の読み込みの段階で止まるため、迂回の走査そのものはステップ 13 まで走らない**(ステップ 13 では `--base-ref` との PR 全体の差分を走査するので、見落としにはならず遅れるだけ) |
+| **`tests/test_frozen_archive.py`(harness)** | **red(12 件)** | `比較 corpus の入力が動いた` — corpus(`tests/fixtures/frozen-archive-cases/manifest.json` の `corpus_inputs`)は `contracts/tenant_boundary` の木全体を含む。**受理記録とは別の検査**で、**同じコミットで corpus の digest を再 pin すれば green にできる**(前例 `a74a62b0`・`b8fd5fe7`) |
+| それ以外の凍結関係のハーネス試験(5 ファイル・519 件) | green | — |
+| backend の非 DB 試験(契約・資産を読む 18 ファイル) | 失敗 43 件。**すべてダミー関数が migration・本体・写像表に無いことによる**(`製品関数ACL宣言がmigrationの37関数とexact-set不一致` ほか)。**受理記録に由来する失敗は 0 件** | 実際の β のステップでは、関数を migration・本体・写像表と同じコミットで足す |
+
+**決定**:
+- 中間コミットで許容する red は、**tenant-boundary-bypass ジョブの受理記録の検査(上の終了コード 2)だけ**とする。各ステップでは、その出力がこの 1 行だけであることを確かめる
+- **`contracts/tenant_boundary` を変えるステップ(5・6・7 と本体を直すステップ)は、同じコミットで比較 corpus の digest を再 pin する**。harness ジョブを red にしない
+- 迂回の走査がステップ 13 まで走らないことは、PR 本文に書く
+
+#### ④⑤⑥ 失敗経路の一様性の観測手段
+
+最小の認証関数(`SECURITY DEFINER`・`search_path = pg_catalog, pg_temp`・照会 2 件 + 照合 1 回 + 失敗時の計数)で、失敗 3 種(存在しない名前・誤った PW・無効テナント)と成功を比べた:
+
+| 観測 | 結果 |
+| --- | --- |
+| `pg_stat_statements`(`track = all`)の関数内 SQL | **失敗 3 種で同じ `queryid` の 4 文がそれぞれ 1 回**。成功は計数の 1 文が無い(不変条件②は成功を対象外とする) |
+| `pg_stat_statements.track = top`(既定) | トップレベルの 1 文しか記録しない → **関数内の照会は観測できない** |
+| `pg_stat_user_functions`(`track_functions = all`)の `crypt` | どの経路も **1 回**(C 言語の関数も数える) |
+
+**試験クラスタで使う条件**:
+- `disposable_postgres_cluster()` の `docker run`(`backend/tests/db_fixtures.py:639`)に **`-c shared_preload_libraries=pg_stat_statements`** を足す(サーバー起動時にしか効かない)。`pg_stat_statements.track` と `track_functions` は superuser が後から変えられるが、起動引数にまとめる。**既存のコード・資産で `shared_preload_libraries`・`pg_stat_statements`・`pg_extension` を参照するものは無い**(`backend`・`contracts`・`scripts`・`tests` を検索して 0 件)
+- **`CREATE EXTENSION pg_stat_statements` は `public` に置かない**: `public` に置くと移行バッチ用ロールの関数 EXECUTE の検査(`PUBLIC` 実行可の関数が入る)と、ステップ 3 で足す拡張の exact 照合に当たる。**一様性の試験の中で、カタログ検査の後に専用のスキーマへ作る**
+- 統計は別の接続から読む。`pg_stat_user_functions` はセッションの終わりかフラッシュで反映される(測定は新しい接続で読んだ)。試験では `pg_stat_force_next_flush()` か接続の切り替えで確実にする(ステップ 8 で確定)
