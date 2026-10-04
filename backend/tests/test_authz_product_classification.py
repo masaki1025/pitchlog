@@ -14,6 +14,10 @@ from pitchlog.authz.classification import (
     load_json_object,
     validate_product_table_classification,
 )
+from pitchlog.authz.runtime_contract_state import (
+    evaluate_repository,
+    product_asset_path_for_state,
+)
 from pitchlog.db import all_models
 from pitchlog.db.base import Base
 
@@ -26,9 +30,20 @@ _EXPOSURE_FACTS_PATH = (
 )
 _MANIFEST_PATH = _REPOSITORY_ROOT / "contracts" / "db" / "schema-manifest.json"
 _DATA_MODEL_PATH = _REPOSITORY_ROOT / "docs" / "design" / "data-model.md"
-_PRODUCT_DDL_PATH = (
-    _REPOSITORY_ROOT / "contracts" / "authz" / "product" / "ddl-elements.staged.json"
-)
+
+
+def _product_ddl_path() -> Path:
+    """共有 API の状態に対応する製品 DDL 資産のパスを返す。"""
+    state, violations = evaluate_repository(_REPOSITORY_ROOT)
+    if violations:
+        raise AssertionError(f"ランタイム契約違反: {sorted(violations)}")
+    relative_path = product_asset_path_for_state(state)
+    if relative_path is None:
+        raise AssertionError("製品 DDL 資産が存在する状態ではない")
+    return _REPOSITORY_ROOT / relative_path
+
+
+_PRODUCT_DDL_PATH = _product_ddl_path()
 
 _EXPECTED_PROFILES = {
     "tenant_owned": {

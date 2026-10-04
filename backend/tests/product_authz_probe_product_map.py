@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from pitchlog.authz.runtime_contract_state import STAGED_PRODUCT_ASSET
+
 
 class ProbeProductMapError(ValueError):
     """probe・製品写像が閉じた契約を満たさないことを表す。"""
@@ -32,9 +34,10 @@ _ASSET_KEYS = {
     "explicit_non_mapping",
     "product_only",
 }
+# source_assets は写像作成時の出典で、現在の製品資産の読み取り先ではない。
 _SOURCE_ASSETS = {
     "probe": "contracts/authz/ddl-elements.json",
-    "product": "contracts/authz/product/ddl-elements.staged.json",
+    "product": STAGED_PRODUCT_ASSET.as_posix(),
 }
 _ELEMENT_SECTIONS = (
     ("roles", "role", "role_id"),
