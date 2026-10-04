@@ -79,7 +79,63 @@ def test_roster_status_seed_matches_upgraded_database(
                     ("roster_status",),
                 )
                 actual = cursor.fetchall()
+                cursor.execute(
+                    "SELECT count(*) FROM system_vocabularies WHERE category = %s",
+                    ("game_type",),
+                )
+                game_type_count = cursor.fetchone()
+                cursor.execute(
+                    "SELECT disabled FROM system_vocabularies WHERE category = %s",
+                    ("roster_status",),
+                )
+                disabled_values = cursor.fetchall()
     assert actual == expected
+    assert game_type_count == (0,)
+    assert len(disabled_values) == 3
+    assert all(row[0] is False for row in disabled_values)
+
+
+def test_roster_status_seed_upgrade_rejects_existing_key(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """既存行との衝突で失敗するのは意図した設計であり、黙って採用も上書きもしない。
+
+    Args:
+        disposable_postgres_cluster: 使い捨て PostgreSQL の factory。
+        monkeypatch: Alembic の接続先を差し替える fixture。
+    """
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
+        )
+        config = Config(str(_BACKEND_ROOT / "alembic.ini"))
+        command.upgrade(config, "0026_operation_event_c12")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO system_vocabularies (key, category, display_name) "
+                    "VALUES (%s, %s, %s)",
+                    ("active", "roster_status", "別経路"),
+                )
+
+        with pytest.raises(
+            SQLAlchemyIntegrityError,
+            match="pk_system_vocabularies",
+        ) as duplicate_key:
+            command.upgrade(config, "head")
+        assert isinstance(duplicate_key.value.orig, psycopg.errors.UniqueViolation)
+        assert duplicate_key.value.orig.diag.constraint_name == "pk_system_vocabularies"
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT display_name FROM system_vocabularies WHERE key = %s",
+                    ("active",),
+                )
+                assert cursor.fetchall() == [("別経路",)]
 
 
 def _upgrade_seed_database(

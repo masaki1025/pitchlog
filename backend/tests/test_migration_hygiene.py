@@ -12,8 +12,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import sqlalchemy as sa
 from alembic.migration import MigrationContext
 from sqlalchemy import String
+from sqlalchemy.types import TypeEngine
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _VERSIONS_ROOT = _BACKEND_ROOT / "migrations" / "versions"
@@ -59,7 +61,7 @@ def _declaration_identity(declaration: Mapping[str, Any]) -> str:
 
 
 def _assert_seed_allowlist_history(ledger: Mapping[str, Any]) -> None:
-    """各系列の最新履歴が現在の宣言の識別値を指すことを確認する。"""
+    """各系列の履歴が鎖を成し、最新の識別値が宣言を指すと確認する。"""
     assert ledger["asset_kind"] == "migration_seed_allowlist"
     declarations = ledger["declarations"]
     history = ledger["history"]
@@ -79,10 +81,16 @@ def _assert_seed_allowlist_history(ledger: Mapping[str, Any]) -> None:
             ],
         }
         assert latest["new_identity"] == expected, f"{series}: 最新履歴と宣言が異なる"
-        assert latest["changes"]
-        assert latest["approved_by"] and latest["approved_at"]
+        for index, record in enumerate(records):
+            assert record["changes"]
+            assert record["approved_by"] and record["approved_at"]
+            assert isinstance(record.get("fact"), str) and record["fact"].strip()
+            assert isinstance(record.get("reason"), str) and record["reason"].strip()
+            if index == 0:
+                assert record["prior_identity"] == {"present": False, "values": []}
+            else:
+                assert record["prior_identity"] == records[index - 1]["new_identity"]
         if len(records) == 1:
-            assert records[0]["prior_identity"] == {"present": False, "values": []}
             assert records[0]["changes"] == [
                 {
                     "aspect": "declaration",
@@ -158,6 +166,20 @@ def _op_call(node: ast.Call, name: str) -> bool:
         and node.func.value.id == "op"
         and node.func.attr == name
     )
+
+
+def _sa_schema_call(node: ast.Call) -> bool:
+    """SQLAlchemy の表・列・型の直接呼び出しかを返す。"""
+    if (
+        not isinstance(node.func, ast.Attribute)
+        or not isinstance(node.func.value, ast.Name)
+        or node.func.value.id != "sa"
+    ):
+        return False
+    if node.func.attr in {"table", "column"}:
+        return True
+    candidate = getattr(sa, node.func.attr, None)
+    return isinstance(candidate, type) and issubclass(candidate, TypeEngine)
 
 
 def _literal_sql(node: ast.expr) -> ast.Constant | None:
@@ -332,8 +354,15 @@ def _migration_source_violations(
             if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 for descendant in ast.walk(statement):
                     function_by_node[id(descendant)] = statement.name
+        parents = {
+            id(child): parent
+            for parent in ast.walk(tree)
+            for child in ast.iter_child_nodes(parent)
+        }
         accepted_delete_literals: set[int] = set()
-        upgrade_call_count = 0
+        accepted_bulk_calls: set[int] = set()
+        accepted_delete_calls: set[int] = set()
+        table_argument_calls: set[int] = set()
         if allowed is not None:
             assert set(allowed["upgrade_calls"]).issubset(_FORBIDDEN_CALLS)
             for node in ast.walk(tree):
@@ -353,48 +382,62 @@ def _migration_source_violations(
                 if (
                     _call_name(node) in allowed["upgrade_calls"]
                     and function_by_node.get(id(node)) == "upgrade"
+                    and _bulk_insert_matches(node, allowed)
                 ):
-                    upgrade_call_count += 1
-                if _call_name(node) != "execute":
-                    continue
+                    accepted_bulk_calls.add(id(node))
+                    table_argument_calls.update(
+                        id(descendant)
+                        for descendant in ast.walk(node.args[0])
+                        if isinstance(descendant, ast.Call)
+                    )
                 if (
-                    not _op_call(node, "execute")
-                    or len(node.args) != 1
-                    or node.keywords
-                ):
-                    violations.append(f"{path}:{node.lineno}: execute() を解析できない")
-                    continue
-                literal = _literal_sql(node.args[0])
-                if literal is None:
-                    violations.append(
-                        f"{path}:{node.lineno}: execute() の SQL が定数でない"
+                    _op_call(node, "execute")
+                    and function_by_node.get(id(node)) == "downgrade"
+                    and len(node.args) == 1
+                    and not node.keywords
+                    and isinstance(node.args[0], ast.Constant)
+                    and isinstance(node.args[0].value, str)
+                    and _delete_matches_scope(
+                        node.args[0].value, allowed["downgrade_delete_scope"]
                     )
-                    continue
-                assert isinstance(literal.value, str)
-                if function_by_node.get(
-                    id(node)
-                ) == "downgrade" and _delete_matches_scope(
-                    literal.value, allowed["downgrade_delete_scope"]
                 ):
-                    accepted_delete_literals.add(id(literal))
-                elif _FORBIDDEN_SQL.search(literal.value) is None:
-                    violations.append(
-                        f"{path}:{node.lineno}: seed revision の SQL 対象外"
-                    )
-            if upgrade_call_count != 1:
-                violations.append(f"{path}: upgrade() の許可 API は 1 回ちょうど必要")
+                    accepted_delete_calls.add(id(node))
+                    accepted_delete_literals.add(id(node.args[0]))
+            if not accepted_bulk_calls:
+                violations.append(f"{path}: upgrade() の許可 API が使われていない")
         for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute):
+                parent = parents.get(id(node))
+                off_call_position = not (
+                    isinstance(parent, ast.Call) and parent.func is node
+                )
+                if off_call_position and (
+                    node.attr in _FORBIDDEN_CALLS
+                    or (
+                        allowed is not None
+                        and isinstance(node.value, ast.Name)
+                        and node.value.id == "op"
+                    )
+                ):
+                    violations.append(
+                        f"{path}:{node.lineno}: 禁止 API の属性参照 {node.attr}"
+                    )
             if isinstance(node, ast.Call):
                 name = _call_name(node)
+                if name == "getattr":
+                    violations.append(f"{path}:{node.lineno}: getattr() は禁止")
+                if allowed is not None and (
+                    id(node) in accepted_bulk_calls
+                    or id(node) in accepted_delete_calls
+                    or (id(node) in table_argument_calls and _sa_schema_call(node))
+                ):
+                    continue
                 if name in _FORBIDDEN_CALLS:
-                    if (
-                        allowed is not None
-                        and name in allowed["upgrade_calls"]
-                        and function_by_node.get(id(node)) == "upgrade"
-                        and _bulk_insert_matches(node, allowed)
-                    ):
-                        continue
                     violations.append(f"{path}:{node.lineno}: 禁止 API {name}()")
+                elif allowed is not None:
+                    violations.append(
+                        f"{path}:{node.lineno}: seed revision の許可外 API {name}()"
+                    )
             if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
                 continue
             for match in _FORBIDDEN_SQL.finditer(node.value):
@@ -435,6 +478,40 @@ def test_seed_allowlist_row_count_literal_is_rejected() -> None:
 def test_seed_allowlist_history_matches_current_declaration() -> None:
     """7.7-2: 最新の更新記録が現在の系列宣言を指している。"""
     _assert_seed_allowlist_history(_load_seed_allowlist())
+
+
+@pytest.mark.parametrize("case", ("empty_fact", "missing_reason", "broken_chain"))
+def test_seed_allowlist_history_missing_fields_or_broken_chain_is_red(
+    case: str,
+) -> None:
+    """事実・理由の欠落と識別値の鎖の断絶を拒否する。
+
+    Args:
+        case: 履歴への変異の種類。
+    """
+    ledger = copy.deepcopy(_load_seed_allowlist())
+    if case == "empty_fact":
+        ledger["history"][-1]["fact"] = ""
+    elif case == "missing_reason":
+        del ledger["history"][-1]["reason"]
+    else:
+        assert case == "broken_chain"
+        later = copy.deepcopy(ledger["history"][-1])
+        later["prior_identity"] = {"present": False, "values": []}
+        ledger["history"].append(later)
+
+    with pytest.raises(AssertionError):
+        _assert_seed_allowlist_history(ledger)
+
+
+def test_seed_allowlist_history_connected_chain_is_green() -> None:
+    """2 件目の直前識別値が前件へつながれば受け入れる。"""
+    ledger = copy.deepcopy(_load_seed_allowlist())
+    later = copy.deepcopy(ledger["history"][-1])
+    later["prior_identity"] = copy.deepcopy(ledger["history"][-1]["new_identity"])
+    ledger["history"].append(later)
+
+    _assert_seed_allowlist_history(ledger)
 
 
 def test_all_migration_revision_ids_fit_alembic_version_table() -> None:
@@ -543,6 +620,117 @@ def test_declared_seed_revision_synthetic_positive_is_green(tmp_path: Path) -> N
     declaration = next(iter(ledger["declarations"].values()))
     path = declaration["frozen_targets"][0]
     source = _synthetic_seed_source(declaration["allowed"])
+
+    assert (
+        _migration_source_violations(
+            _synthetic_seed_sources(tmp_path, path, source), ledger=ledger
+        )
+        == []
+    )
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_violation"),
+    (
+        ("alias", "禁止 API の属性参照 bulk_insert"),
+        ("getattr", "getattr() は禁止"),
+    ),
+)
+def test_declared_seed_rejects_indirect_dml_calls(
+    tmp_path: Path, case: str, expected_violation: str
+) -> None:
+    """宣言対象でも属性の束縛と動的呼び出しを拒否する。
+
+    Args:
+        tmp_path: 合成 revision の一時配置先。
+        case: 間接呼び出しの種類。
+        expected_violation: 検出すべき違反文言。
+    """
+    ledger = _load_seed_allowlist()
+    declaration = next(iter(ledger["declarations"].values()))
+    allowed = declaration["allowed"]
+    table = allowed["target_tables"][0]
+    if case == "alias":
+        extra_upgrade = f"    f = op.bulk_insert\n    f(sa.table({table!r}), [])\n"
+    else:
+        assert case == "getattr"
+        extra_upgrade = f"    getattr(op, 'bulk_insert')(sa.table({table!r}), [])\n"
+    source = _synthetic_seed_source(allowed, extra_upgrade=extra_upgrade)
+    path = declaration["frozen_targets"][0]
+
+    violations = _migration_source_violations(
+        _synthetic_seed_sources(tmp_path, path, source), ledger=ledger
+    )
+    assert any(expected_violation in violation for violation in violations)
+
+
+@pytest.mark.parametrize(
+    "extra_upgrade",
+    (
+        "    helper()\n",
+        "    op.get_bind()\n",
+        "    sa.table('outside')\n",
+    ),
+)
+def test_declared_seed_rejects_calls_outside_allowlist(
+    tmp_path: Path, extra_upgrade: str
+) -> None:
+    """宣言対象の追加呼び出しは許可された表定義内以外なら拒否する。
+
+    Args:
+        tmp_path: 合成 revision の一時配置先。
+        extra_upgrade: upgrade に追加する呼び出し。
+    """
+    ledger = _load_seed_allowlist()
+    declaration = next(iter(ledger["declarations"].values()))
+    source = _synthetic_seed_source(declaration["allowed"], extra_upgrade=extra_upgrade)
+    path = declaration["frozen_targets"][0]
+
+    violations = _migration_source_violations(
+        _synthetic_seed_sources(tmp_path, path, source), ledger=ledger
+    )
+    assert any("seed revision の許可外 API" in violation for violation in violations)
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_violation"),
+    (
+        ("getattr(object(), 'anything')", "getattr() は禁止"),
+        ("handler = op.bulk_insert", "禁止 API の属性参照 bulk_insert"),
+        ("handlers = [op.create_all]", "禁止 API の属性参照 create_all"),
+    ),
+)
+def test_undeclared_revision_rejects_dynamic_or_bound_dml(
+    source: str, expected_violation: str
+) -> None:
+    """宣言外の revision でも動的呼び出しと禁止 API の束縛を拒否する。
+
+    Args:
+        source: 合成 revision のソース。
+        expected_violation: 検出すべき違反文言。
+    """
+    violations = _migration_source_violations({"synthetic.py": source})
+    assert any(expected_violation in violation for violation in violations)
+
+
+def test_declared_seed_allows_repeated_matching_calls(tmp_path: Path) -> None:
+    """宣言と照合できる投入呼び出しの件数は固定しない。"""
+    ledger = _load_seed_allowlist()
+    declaration = next(iter(ledger["declarations"].values()))
+    allowed = declaration["allowed"]
+    rows = [
+        {
+            "key": key,
+            "category": allowed["upgrade_rows"]["category"],
+            "display_name": key,
+        }
+        for key in allowed["upgrade_rows"]["keys"]
+    ]
+    extra_upgrade = (
+        f"    op.bulk_insert(sa.table({allowed['target_tables'][0]!r}), {rows!r})\n"
+    )
+    source = _synthetic_seed_source(allowed, extra_upgrade=extra_upgrade)
+    path = declaration["frozen_targets"][0]
 
     assert (
         _migration_source_violations(

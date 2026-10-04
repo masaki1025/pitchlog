@@ -19,6 +19,7 @@ _REQUIREMENTS_PATH = (
     _REPOSITORY_ROOT / "docs" / "requirements" / "requirements-pitchlog-2026-07-22.md"
 )
 _EXPECTED_KEYS = {"active", "other", "ob"}
+_EXPECTED_COLUMNS = {"key", "category", "display_name"}
 
 
 def _source_inputs() -> tuple[str, str, str]:
@@ -103,8 +104,13 @@ def _assert_seed_contract(
         requirement_row: 要件書 4.0-3 のシステム固定行。
     """
     seed_rows: list[dict[str, str]] = json.loads(seed_json)
-    assert seed_rows == _revision_rows(revision_source), (
-        "A: seed と revision の行が異なる"
+    revision_rows = _revision_rows(revision_source)
+    assert seed_rows == revision_rows, "A: seed と revision の行が異なる"
+    assert all(set(row) == _EXPECTED_COLUMNS for row in seed_rows), (
+        "E: seed の列集合が契約と異なる"
+    )
+    assert all(set(row) == _EXPECTED_COLUMNS for row in revision_rows), (
+        "E: revision の列集合が契約と異なる"
     )
     assert {row["key"] for row in seed_rows} == _EXPECTED_KEYS, "B: キーが裁定と異なる"
     match = re.search(r"在籍区分（([^）]+)）", requirement_row)
@@ -157,6 +163,46 @@ def _rewrite_revision_row(
     return ast.unparse(tree)
 
 
+def _add_revision_column(source: str) -> str:
+    """投入先の列宣言と全行へ同じ余分な列を追加する。
+
+    Args:
+        source: 元の revision ソース。
+
+    Returns:
+        メモリ上で変異させた revision ソース。
+    """
+    tree = ast.parse(source)
+    call = _bulk_insert_call(tree)
+    table, rows = call.args
+    assert isinstance(table, ast.Call) and isinstance(rows, ast.List)
+    table.args.append(
+        ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id="sa", ctx=ast.Load()), attr="column", ctx=ast.Load()
+            ),
+            args=[
+                ast.Constant(value="disabled"),
+                ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Name(id="sa", ctx=ast.Load()),
+                        attr="Boolean",
+                        ctx=ast.Load(),
+                    ),
+                    args=[],
+                    keywords=[],
+                ),
+            ],
+            keywords=[],
+        )
+    )
+    for row in rows.elts:
+        assert isinstance(row, ast.Dict)
+        row.keys.append(ast.Constant(value="disabled"))
+        row.values.append(ast.Constant(value=True))
+    return ast.unparse(ast.fix_missing_locations(tree))
+
+
 def _mutated_inputs(case: str, seed_json: str, revision_source: str) -> tuple[str, str]:
     """各負例に必要な入力だけをメモリ上で変える。
 
@@ -183,6 +229,13 @@ def _mutated_inputs(case: str, seed_json: str, revision_source: str) -> tuple[st
         revision_source = _rewrite_revision_row(
             revision_source, field="display_name", value=rows[0]["display_name"]
         )
+    elif case == "same_extra_column":
+        expanded_rows: list[dict[str, object]] = [
+            row | {"disabled": True} for row in rows
+        ]
+        return json.dumps(expanded_rows, ensure_ascii=False), _add_revision_column(
+            revision_source
+        )
     else:
         raise AssertionError(f"未知の負例: {case}")
     return json.dumps(rows, ensure_ascii=False), revision_source
@@ -200,10 +253,11 @@ def test_roster_status_seed_contract_matches() -> None:
         ("revision_row_missing", "A"),
         ("same_wrong_key", "B"),
         ("same_wrong_label", "C"),
+        ("same_extra_column", "E"),
     ],
 )
 def test_roster_status_seed_mutations_are_red(case: str, expected_check: str) -> None:
-    """片側または両側を変えた四つの負例を所定の検査で拒否する。
+    """片側または両側を変えた五つの負例を所定の検査で拒否する。
 
     Args:
         case: 負例の種類。
