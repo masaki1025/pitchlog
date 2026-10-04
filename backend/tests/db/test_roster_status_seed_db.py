@@ -6,6 +6,8 @@ import json
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from pathlib import Path
+from typing import Any
+from uuid import UUID, uuid4
 
 import psycopg
 import pytest
@@ -13,6 +15,7 @@ from alembic import command
 from alembic.config import Config
 from psycopg.conninfo import conninfo_to_dict
 from sqlalchemy.engine import URL
+from sqlalchemy.exc import IntegrityError as SQLAlchemyIntegrityError
 
 from .conftest import DisposablePostgres
 
@@ -77,3 +80,185 @@ def test_roster_status_seed_matches_upgraded_database(
                 )
                 actual = cursor.fetchall()
     assert actual == expected
+
+
+def _upgrade_seed_database(
+    cluster: DisposablePostgres, monkeypatch: pytest.MonkeyPatch
+) -> Config:
+    """使い捨て DB をシード revision を含む head まで上げる。
+
+    Args:
+        cluster: 使い捨て PostgreSQL クラスタ。
+        monkeypatch: Alembic の接続先を差し替える fixture。
+
+    Returns:
+        downgrade にも使う Alembic 設定。
+    """
+    monkeypatch.setenv(
+        "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
+    )
+    config = Config(str(_BACKEND_ROOT / "alembic.ini"))
+    command.upgrade(config, "head")
+    return config
+
+
+def _insert_player_references(cursor: psycopg.Cursor[Any]) -> tuple[UUID, UUID]:
+    """選手 INSERT に必要なテナント、チーム、テナント語彙を作る。
+
+    Args:
+        cursor: 管理者接続のカーソル。
+
+    Returns:
+        テナント ID とチーム ID。
+    """
+    tenant_id = uuid4()
+    team_id = uuid4()
+    cursor.execute(
+        "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+        (tenant_id, "在籍区分テストテナント"),
+    )
+    cursor.execute(
+        "INSERT INTO team_records (tenant_id, id, kind, name) VALUES (%s, %s, %s, %s)",
+        (tenant_id, team_id, "self", "在籍区分テストチーム"),
+    )
+    cursor.execute(
+        "INSERT INTO tenant_vocabularies (tenant_id, key, category, display_name) "
+        "VALUES (%s, %s, %s, %s)",
+        (tenant_id, "roster-test-label", "roster_label", "テスト用"),
+    )
+    return tenant_id, team_id
+
+
+def _insert_player(
+    cursor: psycopg.Cursor[Any],
+    tenant_id: UUID,
+    team_id: UUID,
+    roster_status_key: str | None,
+) -> UUID:
+    """指定した在籍キーで選手を作る。
+
+    Args:
+        cursor: 管理者接続のカーソル。
+        tenant_id: 選手のテナント ID。
+        team_id: 選手のチーム ID。
+        roster_status_key: 検査する在籍キー。
+
+    Returns:
+        新しい選手 ID。
+    """
+    player_id = uuid4()
+    cursor.execute(
+        "INSERT INTO players "
+        "(tenant_id, id, team_record_id, name, roster_status_key, roster_label_key) "
+        "VALUES (%s, %s, %s, %s, %s, %s)",
+        (
+            tenant_id,
+            player_id,
+            team_id,
+            "在籍区分テスト選手",
+            roster_status_key,
+            "roster-test-label",
+        ),
+    )
+    return player_id
+
+
+def test_seeded_roster_status_player_constraints_and_referenced_downgrade(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """3 キーの参照、FK、NOT NULL、参照中 downgrade の拒否を検査する。
+
+    Args:
+        disposable_postgres_cluster: 使い捨て PostgreSQL の factory。
+        monkeypatch: Alembic の接続先を差し替える fixture。
+    """
+    with disposable_postgres_cluster() as cluster:
+        config = _upgrade_seed_database(cluster, monkeypatch)
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                tenant_id, team_id = _insert_player_references(cursor)
+                seeded_keys = ("active", "other", "ob")
+                for key in seeded_keys:
+                    _insert_player(cursor, tenant_id, team_id, key)
+                cursor.execute(
+                    "SELECT roster_status_key FROM players WHERE tenant_id = %s",
+                    (tenant_id,),
+                )
+                assert {row[0] for row in cursor.fetchall()} == set(seeded_keys)
+
+                with pytest.raises(
+                    psycopg.errors.ForeignKeyViolation,
+                    match="fk_players_roster_status",
+                ) as missing_key:
+                    _insert_player(cursor, tenant_id, team_id, "missing-roster-status")
+                assert (
+                    missing_key.value.diag.constraint_name == "fk_players_roster_status"
+                )
+
+                with pytest.raises(
+                    psycopg.errors.NotNullViolation,
+                    match="roster_status_key",
+                ) as null_key:
+                    _insert_player(cursor, tenant_id, team_id, None)
+                assert null_key.value.diag.column_name == "roster_status_key"
+
+        with pytest.raises(
+            SQLAlchemyIntegrityError,
+            match="fk_players_roster_status",
+        ) as referenced_downgrade:
+            command.downgrade(config, "0026_operation_event_c12")
+        assert isinstance(
+            referenced_downgrade.value.orig, psycopg.errors.ForeignKeyViolation
+        )
+        assert (
+            referenced_downgrade.value.orig.diag.constraint_name
+            == "fk_players_roster_status"
+        )
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT key FROM system_vocabularies WHERE category = %s",
+                    ("roster_status",),
+                )
+                assert {row[0] for row in cursor.fetchall()} == set(seeded_keys)
+
+
+def test_seeded_roster_status_is_unavailable_after_unreferenced_downgrade(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """参照の無い downgrade 後はシードキーで選手を作れない。
+
+    Args:
+        disposable_postgres_cluster: 使い捨て PostgreSQL の factory。
+        monkeypatch: Alembic の接続先を差し替える fixture。
+    """
+    with disposable_postgres_cluster() as cluster:
+        config = _upgrade_seed_database(cluster, monkeypatch)
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                tenant_id, team_id = _insert_player_references(cursor)
+
+        command.downgrade(config, "0026_operation_event_c12")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT key FROM system_vocabularies WHERE category = %s",
+                    ("roster_status",),
+                )
+                assert cursor.fetchall() == []
+                with pytest.raises(
+                    psycopg.errors.ForeignKeyViolation,
+                    match="fk_players_roster_status",
+                ) as missing_seed:
+                    _insert_player(cursor, tenant_id, team_id, "active")
+                assert (
+                    missing_seed.value.diag.constraint_name
+                    == "fk_players_roster_status"
+                )
