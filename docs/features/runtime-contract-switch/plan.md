@@ -1,6 +1,6 @@
 ---
 feature: runtime-contract-switch
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-26・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -64,6 +64,8 @@ TSK-424 PR A1 が製品の DDL 資産(`contracts/authz/product/ddl-elements.stag
 | 要件書 | **反映なし**(上位根拠の変更なし — research.md 6 節) | — |
 | ハーネス設計書(7.7・10.1・10.2) | **反映なし**(条文を変えない) | — |
 | ADR | **反映なし** | — |
+| `docs/development/harness-evaluation.md`(ハーネス運用評価台帳) | `## 候補` へ 1 件追記・既存候補 2 件へ実測を追記(/pr のクローズ処理で追加宣言)。変更履歴 1 行 | 7.6-3 前段(版は上げない)→ PR レビュー |
+| `docs/README.md` の台帳の行 | 候補数と最終更新日を現行化 | 同上 |
 
 正本ではない feature 文書(`product-authz-surface/design.md`・`tenant-boundary-enforcement/design.md`)には、改訂の注記を追記する(本文は書き換えない — design.md 6 節)。
 

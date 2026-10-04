@@ -57,8 +57,16 @@ branch: feature/runtime-contract-switch
 - **計画を承認**(2026-09-26・山田正輝)。4 周目の収束確認は行わず、3 周目の反映後に承認した。design.md 6 節の既存の決定の改訂 7 件も含む
 - 退去の機構のタスクは **TSK-461**(2026-09-26 起票・`未着手`)。調査の時点で TSK-448 の文書にあった「TSK-452」は番号の衝突で、448 側で訂正済み。448 のセッションへも伝えた
 
+## 結果(/pr のクローズ処理 — 2026-10-04)
+
+- **実装**: U-T1 の暫定ランタイム契約を、暫定資産を削除せず同じパスで製品化した(Y2)。値は製品資産 `ddl-elements.json` から生成器で導出(保護対象 スキーマ 2・表 45・関数 38 — 暫定資産の漏れ 4 関数を含む)。生成器・共有 API(4 状態の述語)・検査器と試験の状態分け・製品 DB の統合試験・`engine.py` の関数照会を型だけの突き合わせに是正・ドライランと受理の手動ゲート(S・H・D)
+- **凍結基準**: `base-allowlist.json` に v2 記録 1 件(acceptance_id = #87・runtime-authz-contract revision 7 → 8)。受理は 2 回目で成立(1 回目は #90 で失効)
+- **正本への反映**: `data-model.md` 12-8 と変更履歴(v0.4 の実装追随・版は上げない)・`docs/README.md`。要件書・設計書・ADR は反映なし
+- **/check**: harness 2859・backend 1125(4 skip — 製品化後に意味を失う切り替えの試験)・frontend 681 すべて green
+- **台帳**: 追記あり — `## 候補` へ 1 件(未追跡の新規ファイルが差分ベースの検査をすり抜ける — 本タスクで 2 回)・既存候補 2 件へ実測(PR コメントの代理投稿の遮断と受理の出所 / 直列化点の手当ての手戻り 1 回)。計画書 3 節に宣言を追記した
+
 ## 未決・次の一歩
 
-- **全 8 ステップ完了**。次: 総合検証(/check)→ /sync-docs → /pr(ready 化・敵対レビュー・人間の逐行確認)。**PR は origin/develop == d6f5f3c9 の間にマージする**(動いたら受理は失効 — design.md 4-1 の 7)
+- **次**: PR #87 の ready 化 → 実装の敵対レビュー → 人間の逐行確認 → CI green → マージ(人間)。**PR は origin/develop == d6f5f3c9 の間にマージする**(動いたら受理は失効 — design.md 4-1 の 7)
 - **ステップ 8 で corpus digest の再 pin が要る見込み**(448 のセッションより 2026-10-03): `tests/fixtures/frozen-archive-cases/manifest.json` の corpus digest は trees `contracts/tenant_boundary`・`tests/fixtures/tenant_boundary` を覆うので、受理記録と revision の変更で動く。手順: ① 動いた入力を列挙し、すべて本 PR の意図した変更だと確認 ② `uv run pytest tests/test_frozen_archive_case_runner.py` で manifest と actual を得る ③ `corpus_inputs.digest` の 1 行だけ置き換える ④ 1 file / 1 行の差分を確認 ⑤ `test_current_corpus_inputs_match_manifest_digest` が green。**develop 取り込みの後、最後の作業にする**。所有者(TSK-466)の同意はあるが、人間の許可は別途要る(計画の改訂として承認を得る)。TSK-467 が先に着地すれば不要
 - **ステップ 8 の前提の変化(2026-10-01・448 のセッションより)**: #83 がマージ(f527cddf)。凍結資産は 8 件のまま。**凍結の外部ファイルに `scripts/frozen_archive.py` が加わり 4 件になった**(443 は触れない)。base-allowlist の contract_revision は #82・#74 の後で 22 前後。マージ順は #83 → #82 → #74 → 443。**TSK-466(#89・48302ab1)**: 受理記録の追記では corpus digest が動かない(再導出不要)。`test_current_unpinned_snapshots_are_referenced` が新設され、固定一覧に無い snapshot はすべて構造的に参照されている必要がある → **ステップ 8 で未参照の snapshot を残さない**(ドライランは比較元と HEAD の両方を書くので、全件が記録から参照されるかを確認する)。digest の対象の検査器は 6 本(check_tenant_boundary_bypass.py / frozen_history.py / frozen_archive.py / runner.py / ci.yml / test_check_tenant_boundary_bypass.py)— 443 は触れない。443 が閉じたら「受理記録を最終ステップの直前に書く」形で手戻りが 1 回で済んだかを 448 へ伝える(台帳の候補の昇格条件の判定材料)
