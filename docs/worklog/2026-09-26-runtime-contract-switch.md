@@ -47,6 +47,8 @@ branch: feature/runtime-contract-switch
   - 動いた corpus 入力は base-allowlist.json・runtime-authz-contract.json・snapshot の追加 1 件だけ → corpus digest を取り直し
   - ドライランの複製で backend 1125 passed・4 skipped(製品化済みでは行わない切り替えの試験 — 正当)/ ルート 2859 passed。実リポジトリで backend 1129 passed
   - **1 回目の受理と失効**: 山田正輝がセッション上で受理(2026-10-04 — 確認のうえ先へ進める指示。PR へのコメントは本人の判断で省略。代理投稿は自動判定で不可)。実行前に S・H・D の一致を確認し、ステップ 8 を 677129a3 として作成(親 = H、承認の 2 欄を戻した tree = D を確認・影響範囲の試験 green)。**push の前に #90(U-A1 α・d6f5f3c9)が develop へマージされ、design.md 4-1 の 7 により受理は失効**。人間の判断(A)で 677129a3 を外し(未 push)、取り込みからやり直す。#90 は凍結資産・corpus の入力に触れていない(14 ファイル・文書中心)
+  - **2 回目の受理とステップ 8**: develop(d6f5f3c9 — #90 の後)を取り込み(7090842d — 衝突 4 件: data-model.md 12-8 と変更履歴〔v0.4 の実装追随〕・README・digest 2 行)。S = d6f5f3c9 / H = 7090842d / D = a65f33c1 を山田正輝がセッション上で受理(2026-10-04「承認」)。実行の直前に 3 つの一致を確認し、**ステップ 8 = fc377669**(親 = H・承認の 2 欄を戻した tree = D を確認)を push。影響範囲の試験 green(ルート 681・backend 801)。確認用の一時ブランチは削除
+  - **448 の台帳候補への材料**: 「受理記録を最終ステップの直前に書く」形での手戻りは **1 回**(#90 が受理と push の間に入った)。#90 は凍結資産に触れていなかったので、手戻りの中身は取り込み・ドライラン・受理の取り直しだけで、記録の手での再導出は 0 回
   - 途中で見つけて直したもの: ドライランの TB005(a9f2f26c)・A2 の試験の staged 直書き(cb025e03)・記録の文面の空白(92f6fefc)。**教訓: 「複製の上で DB 試験を含む全試験」を自分で回し切るまで、受理を求めない**
 
 ## 決定
@@ -57,7 +59,6 @@ branch: feature/runtime-contract-switch
 
 ## 未決・次の一歩
 
-- **ステップ 6 は PR A2(#84・OPEN)のマージ待ち**。マージ後に develop を取り込み、draft PR を作って `acceptance_id` を確定する
-- ステップ 8(切り替えと受理)は、人間が PR 上で受理を明示した後
+- **全 8 ステップ完了**。次: 総合検証(/check)→ /sync-docs → /pr(ready 化・敵対レビュー・人間の逐行確認)。**PR は origin/develop == d6f5f3c9 の間にマージする**(動いたら受理は失効 — design.md 4-1 の 7)
 - **ステップ 8 で corpus digest の再 pin が要る見込み**(448 のセッションより 2026-10-03): `tests/fixtures/frozen-archive-cases/manifest.json` の corpus digest は trees `contracts/tenant_boundary`・`tests/fixtures/tenant_boundary` を覆うので、受理記録と revision の変更で動く。手順: ① 動いた入力を列挙し、すべて本 PR の意図した変更だと確認 ② `uv run pytest tests/test_frozen_archive_case_runner.py` で manifest と actual を得る ③ `corpus_inputs.digest` の 1 行だけ置き換える ④ 1 file / 1 行の差分を確認 ⑤ `test_current_corpus_inputs_match_manifest_digest` が green。**develop 取り込みの後、最後の作業にする**。所有者(TSK-466)の同意はあるが、人間の許可は別途要る(計画の改訂として承認を得る)。TSK-467 が先に着地すれば不要
 - **ステップ 8 の前提の変化(2026-10-01・448 のセッションより)**: #83 がマージ(f527cddf)。凍結資産は 8 件のまま。**凍結の外部ファイルに `scripts/frozen_archive.py` が加わり 4 件になった**(443 は触れない)。base-allowlist の contract_revision は #82・#74 の後で 22 前後。マージ順は #83 → #82 → #74 → 443。**TSK-466(#89・48302ab1)**: 受理記録の追記では corpus digest が動かない(再導出不要)。`test_current_unpinned_snapshots_are_referenced` が新設され、固定一覧に無い snapshot はすべて構造的に参照されている必要がある → **ステップ 8 で未参照の snapshot を残さない**(ドライランは比較元と HEAD の両方を書くので、全件が記録から参照されるかを確認する)。digest の対象の検査器は 6 本(check_tenant_boundary_bypass.py / frozen_history.py / frozen_archive.py / runner.py / ci.yml / test_check_tenant_boundary_bypass.py)— 443 は触れない。443 が閉じたら「受理記録を最終ステップの直前に書く」形で手戻りが 1 回で済んだかを 448 へ伝える(台帳の候補の昇格条件の判定材料)
