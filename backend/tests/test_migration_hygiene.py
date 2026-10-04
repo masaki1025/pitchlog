@@ -188,6 +188,61 @@ def _history_append_only_violation(
     return None
 
 
+def _acceptance_transition_violation(
+    base_ledger: Mapping[str, Any], head_ledger: Mapping[str, Any]
+) -> str | None:
+    """比較元から head への各系列の変化に追記 1 件を対応させる。
+
+    Args:
+        base_ledger: 受理前の台帳。
+        head_ledger: 受理後の台帳。
+
+    Returns:
+        履歴の改変または受理と記録の不一致。整合すれば ``None``。
+    """
+    base_history = base_ledger["history"]
+    head_history = head_ledger["history"]
+    violation = _history_append_only_violation(base_history, head_history)
+    if violation is not None:
+        return violation
+
+    appended = head_history[len(base_history) :]
+    base_declarations = base_ledger["declarations"]
+    head_declarations = head_ledger["declarations"]
+    series_names = (
+        set(base_declarations)
+        | set(head_declarations)
+        | {record["series"] for record in appended}
+    )
+    absent = {"absent": True}
+    for series in sorted(series_names):
+        before = base_declarations.get(series, absent)
+        after = head_declarations.get(series, absent)
+        records = [record for record in appended if record["series"] == series]
+        if _canonical_json(before) == _canonical_json(after):
+            if records:
+                return f"{series}: 基準は不変だが記録が {len(records)} 件追記された"
+            continue
+        if len(records) != 1:
+            return f"{series}: 基準の変更には記録が 1 件必要 (追記 {len(records)} 件)"
+        changes = records[0].get("changes")
+        if not isinstance(changes, list):
+            return f"{series}: 追記記録の changes が不正"
+        declaration_changes = [
+            change
+            for change in changes
+            if isinstance(change, dict) and change.get("aspect") == "declaration"
+        ]
+        if len(declaration_changes) != 1:
+            return f"{series}: 追記記録の declaration 変更は 1 件必要"
+        change = declaration_changes[0]
+        if _canonical_json(change.get("before")) != _canonical_json(before):
+            return f"{series}: 追記記録の変更前が比較元の基準と異なる"
+        if _canonical_json(change.get("after")) != _canonical_json(after):
+            return f"{series}: 追記記録の変更後が head の基準と異なる"
+    return None
+
+
 def _git(*args: str) -> subprocess.CompletedProcess[str]:
     """リポジトリルートを指定して Git の CLI を実行する。
 
@@ -205,11 +260,11 @@ def _git(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _base_seed_history() -> tuple[list[Any] | None, str, str]:
-    """開発ブランチとの merge-base から比較元の履歴を読む。
+def _base_seed_ledger() -> tuple[dict[str, Any] | None, str, str]:
+    """開発ブランチとの merge-base から比較元の台帳を読む。
 
     Returns:
-        比較元の履歴、解決した ref、merge-base。資産が無ければ履歴は ``None``。
+        比較元の台帳、解決した ref、merge-base。資産が無ければ台帳は ``None``。
     """
     ref = next(
         (
@@ -238,9 +293,25 @@ def _base_seed_history() -> tuple[list[Any] | None, str, str]:
         )
         return None, ref, merge_base
 
-    base_history = json.loads(base_asset.stdout)["history"]
-    assert isinstance(base_history, list), "比較元の history がリストでない"
-    return base_history, ref, merge_base
+    base_ledger = json.loads(base_asset.stdout)
+    assert isinstance(base_ledger, dict), "比較元の台帳が辞書でない"
+    assert isinstance(base_ledger.get("history"), list), (
+        "比較元の history がリストでない"
+    )
+    assert isinstance(base_ledger.get("declarations"), dict), (
+        "比較元の declarations が辞書でない"
+    )
+    return base_ledger, ref, merge_base
+
+
+def _base_seed_history() -> tuple[list[Any] | None, str, str]:
+    """比較元の台帳から履歴を取り出す。
+
+    Returns:
+        比較元の履歴、解決した ref、merge-base。資産が無ければ履歴は ``None``。
+    """
+    ledger, ref, merge_base = _base_seed_ledger()
+    return (ledger["history"] if ledger is not None else None), ref, merge_base
 
 
 def _assert_checker_has_no_frozen_values(
@@ -1032,6 +1103,131 @@ def test_seed_allowlist_history_is_append_only_against_base() -> None:
     )
     violation = _history_append_only_violation(base_history, head_history)
     assert violation is None, violation
+
+
+def test_seed_allowlist_acceptance_has_one_record_per_change() -> None:
+    """実資産の追記が比較元からの各系列の変化と一対一である。"""
+    head_ledger = _load_seed_allowlist()
+    base_ledger, ref, merge_base = _base_seed_ledger()
+    if base_ledger is None:
+        print(f"7.7-2 受理対応: 初回例外 ({ref}, merge-base={merge_base[:12]})")
+        return
+
+    print(f"7.7-2 受理対応: 比較元と比較 ({ref}, merge-base={merge_base[:12]})")
+    violation = _acceptance_transition_violation(base_ledger, head_ledger)
+    assert violation is None, violation
+
+
+def test_seed_allowlist_intermediate_absence_in_one_acceptance_is_red() -> None:
+    """同じ受理で削除と再設置を 2 件に分ける経路を拒否する。"""
+    base_ledger = copy.deepcopy(_load_seed_allowlist())
+    head_ledger = _ledger_with_second_declaration_change()
+    replacement = head_ledger["history"].pop()
+    removal = copy.deepcopy(replacement)
+    removal["new_identity"] = {"present": False, "values": []}
+    removal["changes"][0]["after"] = {"absent": True}
+    restoration = copy.deepcopy(replacement)
+    restoration["prior_identity"] = copy.deepcopy(removal["new_identity"])
+    restoration["changes"][0]["before"] = {"absent": True}
+    head_ledger["history"].extend((removal, restoration))
+
+    _assert_seed_allowlist_history(head_ledger)
+    assert (
+        _history_append_only_violation(base_ledger["history"], head_ledger["history"])
+        is None
+    )
+    violation = _acceptance_transition_violation(base_ledger, head_ledger)
+    assert violation is not None and "追記 2 件" in violation
+
+
+def test_seed_allowlist_changed_declaration_without_record_is_red() -> None:
+    """宣言だけを変えて追記しない場合を拒否する。"""
+    base_ledger = copy.deepcopy(_load_seed_allowlist())
+    head_ledger = _ledger_with_second_declaration_change()
+    head_ledger["history"].pop()
+
+    violation = _acceptance_transition_violation(base_ledger, head_ledger)
+    assert violation is not None and "追記 0 件" in violation
+
+
+def test_seed_allowlist_unchanged_declaration_with_record_is_red() -> None:
+    """宣言が不変なのに追記した場合を拒否する。"""
+    base_ledger = copy.deepcopy(_load_seed_allowlist())
+    head_ledger = copy.deepcopy(base_ledger)
+    series, declaration = next(iter(head_ledger["declarations"].items()))
+    extra = copy.deepcopy(head_ledger["history"][-1])
+    extra["prior_identity"] = copy.deepcopy(extra["new_identity"])
+    extra["changes"] = [
+        {
+            "aspect": "declaration",
+            "before": copy.deepcopy(declaration),
+            "after": copy.deepcopy(declaration),
+        }
+    ]
+    head_ledger["history"].append(extra)
+
+    _assert_seed_allowlist_history(head_ledger)
+    violation = _acceptance_transition_violation(base_ledger, head_ledger)
+    assert violation is not None and series in violation and "不変" in violation
+
+
+def test_seed_allowlist_direct_change_in_one_acceptance_is_green() -> None:
+    """宣言の変更前後を 1 件で記録する場合を受け入れる。"""
+    base_ledger = copy.deepcopy(_load_seed_allowlist())
+    head_ledger = _ledger_with_second_declaration_change()
+
+    _assert_seed_allowlist_history(head_ledger)
+    assert _acceptance_transition_violation(base_ledger, head_ledger) is None
+
+
+def test_seed_allowlist_deletion_in_one_acceptance_is_green() -> None:
+    """系列の削除を 1 件で記録する場合を受け入れる。"""
+    base_ledger, _ = _ledger_with_new_series()
+    head_ledger, _ = _ledger_with_removed_series()
+
+    _assert_seed_allowlist_history(head_ledger)
+    assert _acceptance_transition_violation(base_ledger, head_ledger) is None
+
+
+def test_seed_allowlist_restoration_in_later_acceptance_is_green() -> None:
+    """別の受理で削除済み系列を 1 件で復活させる場合を受け入れる。"""
+    original_ledger, _ = _ledger_with_new_series()
+    base_ledger, series = _ledger_with_removed_series()
+    head_ledger = copy.deepcopy(base_ledger)
+    removal = head_ledger["history"][-1]
+    declaration = copy.deepcopy(removal["changes"][0]["before"])
+    head_ledger["declarations"][series] = declaration
+    restoration = copy.deepcopy(removal)
+    restoration["prior_identity"] = copy.deepcopy(removal["new_identity"])
+    restoration["new_identity"] = copy.deepcopy(
+        head_ledger["history"][-2]["new_identity"]
+    )
+    restoration["changes"] = [
+        {"aspect": "declaration", "before": {"absent": True}, "after": declaration}
+    ]
+    restoration["fact"] = "削除済み系列を再設置した"
+    restoration["reason"] = "別の受理での復活を検証するため"
+    head_ledger["history"].append(restoration)
+
+    _assert_seed_allowlist_history(head_ledger)
+    assert _acceptance_transition_violation(original_ledger, base_ledger) is None
+    assert _acceptance_transition_violation(base_ledger, head_ledger) is None
+
+
+@pytest.mark.parametrize("field", ("before", "after"))
+def test_seed_allowlist_record_transition_must_match_acceptance(field: str) -> None:
+    """追記 1 件でも受理前後と違う変更を記録したら拒否する。
+
+    Args:
+        field: 偽る変更前または変更後。
+    """
+    base_ledger = copy.deepcopy(_load_seed_allowlist())
+    head_ledger = _ledger_with_second_declaration_change()
+    head_ledger["history"][-1]["changes"][0][field]["granularity"] = "outside"
+
+    violation = _acceptance_transition_violation(base_ledger, head_ledger)
+    expected = "変更前" if field == "before" else "変更後"
+    assert violation is not None and expected in violation
 
 
 @pytest.mark.parametrize(
