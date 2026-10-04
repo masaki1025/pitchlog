@@ -53,11 +53,14 @@ def _load_seed_allowlist() -> dict[str, Any]:
     return ledger
 
 
+def _canonical_json(value: Any) -> str:
+    """JSON の値型を保ち、キー順だけを正規化した文字列を返す。"""
+    return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+
+
 def _declaration_identity(declaration: Mapping[str, Any]) -> str:
     """系列宣言の正規 JSON に対する SHA-256 を返す。"""
-    canonical = json.dumps(
-        declaration, sort_keys=True, ensure_ascii=False, separators=(",", ":")
-    ).encode("utf-8")
+    canonical = _canonical_json(declaration).encode("utf-8")
     return hashlib.sha256(canonical).hexdigest()
 
 
@@ -81,24 +84,32 @@ def _assert_seed_allowlist_history(ledger: Mapping[str, Any]) -> None:
                 }
             ],
         }
-        assert latest["new_identity"] == expected, f"{series}: 最新履歴と宣言が異なる"
+        assert _canonical_json(latest["new_identity"]) == _canonical_json(expected), (
+            f"{series}: 最新履歴と宣言が異なる"
+        )
         for index, record in enumerate(records):
             assert record["changes"]
             assert record["approved_by"] and record["approved_at"]
             assert isinstance(record.get("fact"), str) and record["fact"].strip()
             assert isinstance(record.get("reason"), str) and record["reason"].strip()
             if index == 0:
-                assert record["prior_identity"] == {"present": False, "values": []}
+                assert _canonical_json(record["prior_identity"]) == _canonical_json(
+                    {"present": False, "values": []}
+                )
             else:
-                assert record["prior_identity"] == records[index - 1]["new_identity"]
+                assert _canonical_json(record["prior_identity"]) == _canonical_json(
+                    records[index - 1]["new_identity"]
+                )
         if len(records) == 1:
-            assert records[0]["changes"] == [
-                {
-                    "aspect": "declaration",
-                    "before": {"absent": True},
-                    "after": declaration,
-                }
-            ]
+            assert _canonical_json(records[0]["changes"]) == _canonical_json(
+                [
+                    {
+                        "aspect": "declaration",
+                        "before": {"absent": True},
+                        "after": declaration,
+                    }
+                ]
+            )
 
 
 def _history_append_only_violation(
@@ -119,7 +130,7 @@ def _history_append_only_violation(
             f"(比較元 {len(base_history)} 件、head {len(head_history)} 件)"
         )
     for index, base_record in enumerate(base_history):
-        if head_history[index] != base_record:
+        if _canonical_json(head_history[index]) != _canonical_json(base_record):
             return f"history[{index}]: 既存記録が改変された (位置 {index + 1})"
     return None
 
@@ -778,6 +789,82 @@ def test_seed_allowlist_history_append_only_accepts_appended_record() -> None:
     head_history = [*copy.deepcopy(base_history), {"fact": "second"}]
 
     assert _history_append_only_violation(base_history, head_history) is None
+
+
+@pytest.mark.parametrize("case", ("boolean_as_integer", "integer_as_float"))
+def test_seed_allowlist_history_append_only_distinguishes_json_types(case: str) -> None:
+    """JSON の真偽値と数値の型を変えた既存記録を拒否する。
+
+    Args:
+        case: JSON 値型の変異。
+    """
+    base_history = copy.deepcopy(_load_seed_allowlist()["history"])
+    head_history = copy.deepcopy(base_history)
+    if case == "boolean_as_integer":
+        assert head_history[0]["new_identity"]["present"] is True
+        head_history[0]["new_identity"]["present"] = 1
+    else:
+        assert case == "integer_as_float"
+        upgrade_rows = head_history[0]["changes"][0]["after"]["allowed"]["upgrade_rows"]
+        assert type(upgrade_rows["count"]) is int
+        upgrade_rows["count"] = float(upgrade_rows["count"])
+
+    violation = _history_append_only_violation(base_history, head_history)
+    assert violation is not None
+    assert "改変" in violation
+    assert "history[0]" in violation
+
+
+def test_seed_allowlist_history_append_only_ignores_key_order() -> None:
+    """JSON オブジェクトのキー順だけが変わった記録を受け入れる。"""
+    base_history = copy.deepcopy(_load_seed_allowlist()["history"])
+    head_history = copy.deepcopy(base_history)
+    head_history[0] = dict(reversed(list(head_history[0].items())))
+    assert list(head_history[0]) != list(base_history[0])
+
+    assert _history_append_only_violation(base_history, head_history) is None
+
+
+def test_seed_allowlist_history_identity_rejects_boolean_as_integer() -> None:
+    """最新の識別値で JSON の真偽値を整数に変えると拒否する。"""
+    ledger = copy.deepcopy(_load_seed_allowlist())
+    assert ledger["history"][-1]["new_identity"]["present"] is True
+    ledger["history"][-1]["new_identity"]["present"] = 1
+
+    with pytest.raises(AssertionError, match="最新履歴と宣言が異なる"):
+        _assert_seed_allowlist_history(ledger)
+
+
+def test_seed_allowlist_history_changes_rejects_integer_as_float() -> None:
+    """初回記録の変更内容でも整数と浮動小数点数を区別する。"""
+    ledger = copy.deepcopy(_load_seed_allowlist())
+    upgrade_rows = ledger["history"][0]["changes"][0]["after"]["allowed"][
+        "upgrade_rows"
+    ]
+    upgrade_rows["count"] = float(upgrade_rows["count"])
+
+    with pytest.raises(AssertionError):
+        _assert_seed_allowlist_history(ledger)
+
+
+def test_declaration_identity_distinguishes_json_scalar_types() -> None:
+    """宣言の識別値でも真偽値と数値の JSON 値型を区別する。"""
+    declaration = copy.deepcopy(
+        next(iter(_load_seed_allowlist()["declarations"].values()))
+    )
+    float_declaration = copy.deepcopy(declaration)
+    upgrade_rows = float_declaration["allowed"]["upgrade_rows"]
+    upgrade_rows["count"] = float(upgrade_rows["count"])
+    assert _declaration_identity(declaration) != _declaration_identity(
+        float_declaration
+    )
+
+    declaration["type_probe"] = True
+    integer_declaration = copy.deepcopy(declaration)
+    integer_declaration["type_probe"] = 1
+    assert _declaration_identity(declaration) != _declaration_identity(
+        integer_declaration
+    )
 
 
 def test_all_migration_revision_ids_fit_alembic_version_table() -> None:
