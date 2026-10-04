@@ -345,6 +345,11 @@ NFR-018 ではない — 8-1)。資産の構造は関数を受け取れる形に
 
 **差し替え漏れを検出できない設計にしない。** この往復契約は 9 節にも引き継ぐ。
 
+**【改訂の注記 2026-10-03 — TSK-443(TSK-424 PR B)】上の表の 2 行を改めた**(本文は書き換えない。正は `../runtime-contract-switch/design.md` 3 節・6 節。計画の承認 2026-09-26・山田正輝)。
+- **受け渡しの場所** → 資産は `contracts/tenant_boundary/runtime-authz-contract.json`(製品化した後も同じパス)。`contracts/authz/product/ddl-elements.json` はその導出元(`derived_from`)である。生成先モジュールと公開シンボルは変えない
+- **二状態契約・旧暫定資産の除去** → 判定を「暫定資産のファイルがあるか」から「中身の述語」へ変えた。切り替えの後は `provisional: false`・`superseded_by` 欄なし・導出欄が製品資産から導いた値と exact に一致・モジュールが資産と一致、を要求する。違反 ID `PROVISIONAL_ASSET_REMAINS` と `GENERATED_MODULE_REFERENCES_PROVISIONAL` は廃止し、`PROVISIONAL_REMAINS`・`SUPERSEDED_BY_REMAINS`・`GENERATED_MODULE_SOURCE_MISMATCH`・`GENERATED_MODULE_DERIVED_FROM_MISMATCH` に置き換えた。**「差し替え漏れを検出できない設計にしない」は保っている**(暫定の値のまま切り替えると、述語が必ず red にする)
+- **所有者の照会**(5-2 節の接続時の検査)は、保護関数を型だけ(`oidvectortypes`)で突き合わせる形に改めた(2026-10-03・山田正輝の承認)。引数名を持つ補助関数が照会から黙って漏れることを、製品 DB の統合試験が検出したため
+
 ## 4. 適用経路 — migration ではない
 
 裁定 `A-2` により alembic migration は `CREATE POLICY` / `CREATE ROLE` / `ALTER ROLE` を **0 件**に保つ

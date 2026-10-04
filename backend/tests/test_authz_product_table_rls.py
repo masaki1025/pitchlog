@@ -15,6 +15,12 @@ import pytest
 from pitchlog.authz.asset_spec import PRODUCT_SPEC
 from pitchlog.authz.ddl import generate_authz_ddl
 from pitchlog.authz.product_table_rls import generate_product_table_rls_sql
+from pitchlog.authz.runtime_contract_state import (
+    GENERATED_MODULE,
+    RUNTIME_CONTRACT_ASSET,
+    evaluate_repository,
+    product_asset_path_for_state,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
@@ -78,18 +84,26 @@ def _validate_product_asset(
 
 def _copy_static_table_inputs(root: Path) -> None:
     """表の静的検査が読む正本・manifest・bodyを一時領域へ複製する。"""
+    state, violations = evaluate_repository(_REPOSITORY_ROOT)
+    assert not violations
+    product_path = product_asset_path_for_state(state)
+    assert product_path is not None
     paths = (
         Path("contracts/db/schema-manifest.json"),
         Path("contracts/authz/product/table-classification.json"),
+        Path("contracts/authz/product/exposure-facts.json"),
         PRODUCT_SPEC.body_manifest_path,
+        RUNTIME_CONTRACT_ASSET,
+        GENERATED_MODULE,
+        product_path,
     )
     for relative_path in paths:
         destination = root / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(_REPOSITORY_ROOT / relative_path, destination)
-    source_directory = _REPOSITORY_ROOT / PRODUCT_SPEC.body_directory / "tables"
-    destination_directory = root / PRODUCT_SPEC.body_directory / "tables"
-    shutil.copytree(source_directory, destination_directory)
+    source_directory = _REPOSITORY_ROOT / PRODUCT_SPEC.body_directory
+    destination_directory = root / PRODUCT_SPEC.body_directory
+    shutil.copytree(source_directory, destination_directory, dirs_exist_ok=True)
 
 
 def test_all_manifest_and_classified_tables_have_generated_enable_and_force() -> None:

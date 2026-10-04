@@ -60,8 +60,16 @@ from pitchlog.authz.product_table_access import (  # noqa: E402  # ty: ignore[un
 from pitchlog.authz.product_table_rls import (  # noqa: E402  # ty: ignore[unresolved-import]
     generate_product_table_rls_sql,
 )
-from pitchlog.authz.runtime_contract import (  # noqa: E402  # ty: ignore[unresolved-import]
-    PROTECTED_FUNCTIONS,
+from pitchlog.authz.runtime_contract_state import (  # noqa: E402  # ty: ignore[unresolved-import]
+    PRODUCT_ASSET,  # noqa: F401 - harness が検査器モジュール経由で参照する。
+    RUNTIME_CONTRACT_ASSET,
+    STAGED_PRODUCT_ASSET,  # noqa: F401 - harness が検査器モジュール経由で参照する。
+    RuntimeContractState,
+    compare_staged_protected_objects,
+    derive_runtime_contract_fields,
+    evaluate_repository,
+    product_asset_path_for_state,
+    read_json_object,
 )
 
 # このファイルはimportlibでパス指定ロードされるため、同階層importを自力で解決する。
@@ -156,9 +164,6 @@ PRODUCT_TABLE_CLASSIFICATION = Path(
 PRODUCT_EXPOSURE_FACTS = Path(PRODUCT_SPEC.asset_root / "exposure-facts.json")
 PRODUCT_SCHEMA_MANIFEST = Path("contracts/db/schema-manifest.json")
 PRODUCT_MIGRATION_VERSIONS = Path("backend/migrations/versions")
-PROVISIONAL_RUNTIME_CONTRACT = Path(
-    "contracts/tenant_boundary/runtime-authz-contract.json"
-)
 MIGRATION_FUNCTION_RE = re.compile(
     r"CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+"
     r"(?P<target>[A-Za-z_][A-Za-z0-9_.]*|\{_[A-Z0-9_]+\})"
@@ -636,6 +641,27 @@ class BasisRule:
 
 class CatalogError(Exception):
     """入力または母集合の構造不正を表す。"""
+
+
+def _runtime_contract_state(root: Path) -> RuntimeContractState:
+    """共有 API の状態と違反集合を検査し、正しい状態だけを返す。"""
+    try:
+        state, violations = evaluate_repository(root)
+    except (OSError, ValueError) as error:
+        raise CatalogError(f"ランタイム契約の状態を判定できない: {error}") from error
+    if violations:
+        raise CatalogError(f"ランタイム契約違反: {', '.join(sorted(violations))}")
+    if state is RuntimeContractState.INVALID:
+        raise CatalogError("ランタイム契約の状態が不正: BOTH_STAGED_AND_FINAL")
+    return state
+
+
+def _runtime_contract_asset_path(root: Path) -> Path:
+    """検査対象のルート内にある契約資産だけを返す。"""
+    candidate = root / RUNTIME_CONTRACT_ASSET
+    if not candidate.is_file():
+        raise CatalogError(f"PROVISIONAL_ASSET_MISSING: {candidate}")
+    return candidate
 
 
 @dataclass(frozen=True)
@@ -3174,7 +3200,8 @@ def validate_ddl_elements(
             _probe_check_tracker=tracker,
         )
     if spec == PRODUCT_SPEC:
-        return _validate_product_ddl_elements(raw, root)
+        state = _runtime_contract_state(root)
+        return _validate_product_ddl_elements(raw, root, state)
     result = tracker.run(
         "ddl_elements_closed_world",
         lambda: _validate_probe_ddl_elements(raw, root),
@@ -3685,6 +3712,7 @@ def _validate_secret_column_acl(
 def _validate_product_table_access_expectations(
     raw: dict[str, object],
     root: Path,
+    state: RuntimeContractState,
 ) -> None:
     """全5プロファイルのポリシーと表ACLを設計へ照合する。"""
     profiles = _product_table_profiles(root)
@@ -3724,9 +3752,7 @@ def _validate_product_table_access_expectations(
     )
     if table_acls != expected_acls:
         raise CatalogError("製品表ACLが全5プロファイルの定義と一致しない")
-    # 既存の表RLS単体試験は表bodyだけを複製する。実資産を持つ通常の
-    # リポジトリでは、露出の事実と全生成bodyの照合を省略できない。
-    if not (root / PRODUCT_SPEC.ddl_elements_path).is_file():
+    if state is RuntimeContractState.PROVISIONAL:
         return
     _validate_secret_column_acl(table_acls, raw["column_acl_expectations"], root)
     _validate_product_access_bodies(root, expected_policies, expected_acls)
@@ -3780,6 +3806,7 @@ def _validate_membership_helper_bodies(
 def _validate_product_membership_helper(
     raw: dict[str, object],
     root: Path,
+    state: RuntimeContractState,
 ) -> None:
     """実効参加補助関数の属性・ACL・依存列をexact-setで検査する。"""
     functions = _product_declarations_by_id(
@@ -3816,7 +3843,7 @@ def _validate_product_membership_helper(
             and "SELECT" in privileges
         ):
             raise CatalogError("補助関数所有者に表単位のSELECTを与えている")
-    if not (root / PRODUCT_SPEC.ddl_elements_path).is_file():
+    if state is RuntimeContractState.PROVISIONAL:
         return
     _validate_membership_helper_bodies(root, expected_column_acls)
 
@@ -3946,33 +3973,39 @@ def _validate_product_function_acl_bodies(
 def _validate_product_function_acl_expectations(
     raw: dict[str, object],
     root: Path,
+    state: RuntimeContractState,
 ) -> None:
-    """Migration 37関数と暫定契約差分4件をexact-setで検査する。"""
+    """製品関数 ACL と、未発効時だけ暫定契約差分を検査する。"""
     # 既存の過去ステップの単体試験はmigrationを複製しない。実リポジトリでは
     # versionsディレクトリが必須であり、ここを省略できない。
     if not (root / PRODUCT_MIGRATION_VERSIONS).is_dir():
         return
     migration_origins = _product_migration_functions(root)
     migration_functions = frozenset(migration_origins)
-    provisional_functions = frozenset(
-        (str(schema), str(name), str(identity_args))
-        for schema, name, identity_args in PROTECTED_FUNCTIONS
-    )
-    declared_gaps = frozenset(PRODUCT_PROVISIONAL_FUNCTION_GAPS)
-    if len(provisional_functions) != 33:
-        raise CatalogError("暫定ランタイム契約の関数集合が33件でない")
-    if len(migration_functions) != 37:
-        raise CatalogError("migration由来のトリガ関数集合が37件でない")
-    if (
-        provisional_functions - migration_functions
-        or migration_functions - provisional_functions != declared_gaps
-    ):
-        raise CatalogError("migrationと暫定契約の差が宣言済み4関数と一致しない")
-    for physical_id, revision in PRODUCT_PROVISIONAL_FUNCTION_GAPS.items():
-        if revision not in migration_origins[physical_id]:
-            raise CatalogError(
-                f"暫定契約漏れのmigration由来が不一致: {physical_id}: {revision}"
-            )
+    if state is RuntimeContractState.PENDING:
+        try:
+            contract = read_json_object(_runtime_contract_asset_path(root))
+        except (OSError, ValueError) as error:
+            raise CatalogError(f"暫定ランタイム契約を読めない: {error}") from error
+        provisional_functions = _protected_object_sets(
+            contract.get("protected_objects"),
+            "暫定ランタイム契約.protected_objects",
+        )[2]
+        declared_gaps = frozenset(PRODUCT_PROVISIONAL_FUNCTION_GAPS)
+        if len(provisional_functions) != 33:
+            raise CatalogError("暫定ランタイム契約の関数集合が33件でない")
+        if len(migration_functions) != 37:
+            raise CatalogError("migration由来のトリガ関数集合が37件でない")
+        if (
+            provisional_functions - migration_functions
+            or migration_functions - provisional_functions != declared_gaps
+        ):
+            raise CatalogError("migrationと暫定契約の差が宣言済み4関数と一致しない")
+        for physical_id, revision in PRODUCT_PROVISIONAL_FUNCTION_GAPS.items():
+            if revision not in migration_origins[physical_id]:
+                raise CatalogError(
+                    f"暫定契約漏れのmigration由来が不一致: {physical_id}: {revision}"
+                )
 
     expected_functions: dict[str, dict[str, object]] = {}
     for schema_name, function_name, identity_args in migration_functions:
@@ -3995,19 +4028,20 @@ def _validate_product_function_acl_expectations(
     if functions != expected_functions:
         raise CatalogError("製品関数ACL宣言がmigrationの37関数とexact-set不一致")
 
-    expected_additions = _expected_provisional_function_additions()
-    all_additions = _product_declarations_by_id(
-        raw["provisional_contract_additions"],
-        "addition_id",
-        "製品DDL manifest.provisional_contract_additions",
-    )
-    additions = {
-        addition_id: declaration
-        for addition_id, declaration in all_additions.items()
-        if declaration.get("reason") == "provisional_contract_gap"
-    }
-    if additions != expected_additions:
-        raise CatalogError("暫定契約の宣言済み追加分が理由付き4関数と一致しない")
+    if state is RuntimeContractState.PENDING:
+        expected_additions = _expected_provisional_function_additions()
+        all_additions = _product_declarations_by_id(
+            raw["provisional_contract_additions"],
+            "addition_id",
+            "製品DDL manifest.provisional_contract_additions",
+        )
+        additions = {
+            addition_id: declaration
+            for addition_id, declaration in all_additions.items()
+            if declaration.get("reason") == "provisional_contract_gap"
+        }
+        if additions != expected_additions:
+            raise CatalogError("暫定契約の宣言済み追加分が理由付き4関数と一致しない")
     _validate_product_function_acl_bodies(root, expected_functions)
 
 
@@ -4086,21 +4120,11 @@ def _protected_object_sets(
     return schemas, frozenset(tables), frozenset(functions)
 
 
-def _validate_product_protected_targets(
+def _validate_pending_product_protected_targets(
     raw: dict[str, object],
     root: Path,
 ) -> None:
     """Staged保護対象を暫定契約と宣言済み追加分の和へ照合する。"""
-    contract = _read_json(
-        root / PROVISIONAL_RUNTIME_CONTRACT,
-        "暫定ランタイム契約",
-    )
-    if not isinstance(contract, dict):
-        raise CatalogError("暫定ランタイム契約はオブジェクトでなければならない")
-    provisional_sets = _protected_object_sets(
-        contract.get("protected_objects"),
-        "暫定ランタイム契約.protected_objects",
-    )
     additions = _product_declarations_by_id(
         raw["provisional_contract_additions"],
         "addition_id",
@@ -4109,62 +4133,54 @@ def _validate_product_protected_targets(
     expected_additions = _expected_product_provisional_additions()
     if additions != expected_additions:
         raise CatalogError("未発効資産の宣言済み追加分が閉集合と一致しない")
-
-    added_schemas: set[str] = set()
-    added_functions: set[tuple[str, str, str]] = set()
-    for addition in additions.values():
-        if addition["object_kind"] == "schema":
-            added_schemas.add(str(addition["schema_name"]))
-        elif addition["object_kind"] == "function":
-            added_functions.add(
-                (
-                    str(addition["schema_name"]),
-                    str(addition["object_name"]),
-                    str(addition["identity_args"]),
-                )
-            )
-        else:  # pragma: no cover - exact宣言照合後の防御。
-            raise CatalogError("宣言済み追加分の物理種別が不正")
-
-    schemas = _product_declarations_by_id(
-        raw["schemas"],
-        "schema_id",
-        "製品DDL manifest.schemas",
-    )
-    tables = _product_declarations_by_id(
-        raw["tables"],
-        "table_id",
-        "製品DDL manifest.tables",
-    )
-    functions = _product_declarations_by_id(
-        raw["functions"],
-        "function_id",
-        "製品DDL manifest.functions",
-    )
-    staged_sets = (
-        frozenset(str(row["schema_name"]) for row in schemas.values()),
-        frozenset(
-            (str(row["schema_name"]), str(row["table_id"]))
-            for row in tables.values()
-        ),
-        frozenset(
-            (
-                str(row["schema_name"]),
-                str(row["function_name"]),
-                str(row["identity_args"]),
-            )
-            for row in functions.values()
-        ),
-    )
-    expected_sets = (
-        provisional_sets[0] | frozenset(added_schemas),
-        provisional_sets[1],
-        provisional_sets[2] | frozenset(added_functions),
-    )
-    if staged_sets != expected_sets:
+    try:
+        comparison = compare_staged_protected_objects(
+            raw,
+            _runtime_contract_asset_path(root),
+        )
+    except (OSError, ValueError) as error:
+        raise CatalogError(f"未発効状態の保護対象を照合できない: {error}") from error
+    if not comparison.matches:
         raise CatalogError(
             "staged保護対象が暫定契約と宣言済み追加分の和に一致しない"
         )
+
+
+def _validate_product_protected_targets(
+    raw: dict[str, object],
+    root: Path,
+) -> None:
+    """従来の個別試験を未発効状態の共有照合へ委譲する。"""
+    _validate_pending_product_protected_targets(raw, root)
+
+
+def _validate_final_product_protected_targets(
+    raw: dict[str, object],
+    root: Path,
+) -> None:
+    """製品ランタイム契約の保護対象を最終資産の導出値へ照合する。"""
+    try:
+        contract = read_json_object(_runtime_contract_asset_path(root))
+        derived = derive_runtime_contract_fields(raw, contract)
+    except (OSError, ValueError) as error:
+        raise CatalogError(f"製品状態の保護対象を導出できない: {error}") from error
+    if contract.get("protected_objects") != derived["protected_objects"]:
+        raise CatalogError("製品ランタイム契約の保護対象が最終資産の導出値と一致しない")
+
+
+def _validate_product_protected_targets_for_state(
+    raw: dict[str, object],
+    root: Path,
+    state: RuntimeContractState,
+) -> None:
+    """状態に対応する保護対象照合を必ず一つ実行する。"""
+    if state is RuntimeContractState.PENDING:
+        _validate_pending_product_protected_targets(raw, root)
+        return
+    if state is RuntimeContractState.PRODUCT:
+        _validate_final_product_protected_targets(raw, root)
+        return
+    raise CatalogError(f"製品 DDL を検査できないランタイム契約状態: {state.value}")
 
 
 def _validate_product_asset_correspondence(
@@ -4243,30 +4259,40 @@ def _validate_product_asset_correspondence(
         raise CatalogError("製品DDL要素・manifest・bodyファイルがexact-set不一致")
 
 
-def _validate_product_ddl_elements(raw: object, root: Path) -> dict[str, object]:
+def _validate_product_ddl_elements(
+    raw: object,
+    root: Path,
+    state: RuntimeContractState,
+) -> dict[str, object]:
     """製品ロール・DB・スキーマ・表の宣言を閉集合と照合する。"""
     if not isinstance(raw, dict):
         raise CatalogError("製品DDL manifestはオブジェクトでなければならない")
+    expected_keys = {
+        "schema_version",
+        "asset_kind",
+        "scope",
+        "roles",
+        "permanent_privileged_role_ids",
+        "membership_edges",
+        "databases",
+        "schemas",
+        "tables",
+        "predicates",
+        "policies",
+        "functions",
+        "acl_expectations",
+        "column_acl_expectations",
+    }
+    if state in (
+        RuntimeContractState.PROVISIONAL,
+        RuntimeContractState.PENDING,
+    ):
+        expected_keys.update({"pending_switch", "provisional_contract_additions"})
+    elif state is not RuntimeContractState.PRODUCT:
+        raise CatalogError(f"製品 DDL を検査できないランタイム契約状態: {state.value}")
     _expect_keys(
         raw,
-        {
-            "schema_version",
-            "asset_kind",
-            "scope",
-            "pending_switch",
-            "roles",
-            "permanent_privileged_role_ids",
-            "membership_edges",
-            "provisional_contract_additions",
-            "databases",
-            "schemas",
-            "tables",
-            "predicates",
-            "policies",
-            "functions",
-            "acl_expectations",
-            "column_acl_expectations",
-        },
+        expected_keys,
         "製品DDL manifest",
     )
     if raw["schema_version"] != 1 or raw["asset_kind"] != "authz_product_ddl_manifest":
@@ -4315,12 +4341,11 @@ def _validate_product_ddl_elements(raw: object, root: Path) -> dict[str, object]
     _validate_product_database_expectations(raw["databases"])
     _validate_product_schema_expectations(raw["schemas"])
     _validate_product_table_expectations(raw["tables"], root)
-    _validate_product_table_access_expectations(raw, root)
-    _validate_product_function_acl_expectations(raw, root)
-    _validate_product_membership_helper(raw, root)
-    if (root / PROVISIONAL_RUNTIME_CONTRACT).is_file():
-        _validate_product_protected_targets(raw, root)
-    if (root / PRODUCT_SPEC.ddl_elements_path).is_file():
+    _validate_product_table_access_expectations(raw, root, state)
+    _validate_product_function_acl_expectations(raw, root, state)
+    _validate_product_membership_helper(raw, root, state)
+    if state is not RuntimeContractState.PROVISIONAL:
+        _validate_product_protected_targets_for_state(raw, root, state)
         _validate_product_asset_correspondence(raw, root)
     return {
         "scope_status": PRODUCT_SPEC.allowed_scope_status,
@@ -7290,6 +7315,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.skip_derived and not args.skip_oracle:
             raise CatalogError("oracle 検査にはステップ4資産の検査が必要")
         root = args.root.resolve()
+        runtime_state = _runtime_contract_state(root)
         requirements_path = _resolve(root, args.requirements)
         claims_path = _resolve(root, args.claims)
         lock_path = _resolve(root, args.lock)
@@ -7360,10 +7386,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 for name, lock in locks.items():
                     _write_json(lock_paths[name], lock, f"{name} decision lock")
         oracle_result: dict[str, dict[str, object]] | None = None
-        if not args.skip_oracle:
-            ddl_elements_argument = args.ddl_elements or Path(
-                asset_spec.ddl_elements_path
+        product_ddl_path = product_asset_path_for_state(runtime_state)
+        should_validate_oracle = not args.skip_oracle and not (
+            asset_spec == PRODUCT_SPEC and product_ddl_path is None
+        )
+        if should_validate_oracle:
+            ddl_elements_argument = args.ddl_elements or (
+                product_ddl_path
+                if asset_spec == PRODUCT_SPEC
+                else Path(asset_spec.ddl_elements_path)
             )
+            assert ddl_elements_argument is not None
             oracle_path_args = {
                 "ddl_elements": ddl_elements_argument,
                 "rejected_configs": args.rejected_configs,
