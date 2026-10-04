@@ -9,11 +9,9 @@ from typing import Any
 
 from product_authz_other_profiles_cases import other_profile_seed_rows
 from product_authz_tenant_owned_cases import _migration_trigger_facts
+from test_authz_runtime_contract_repository import product_spec_for_repository
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-_DDL_ELEMENTS_PATH = (
-    _REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.staged.json"
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,8 +32,9 @@ def _load_object(path: Path) -> dict[str, Any]:
 
 
 def _asset_trigger_function_names() -> frozenset[str]:
-    """Staged 資産が宣言する migration トリガ関数名を返す。"""
-    raw_functions = _load_object(_DDL_ELEMENTS_PATH).get("functions")
+    """現在の製品資産が宣言する migration トリガ関数名を返す。"""
+    product_path = product_spec_for_repository(_REPOSITORY_ROOT).ddl_elements_path
+    raw_functions = _load_object(_REPOSITORY_ROOT / product_path).get("functions")
     if not isinstance(raw_functions, list):
         raise AssertionError("ddl-elements.functions は配列が必要")
     result: set[str] = set()
@@ -59,14 +58,12 @@ def trigger_expectations() -> tuple[TriggerExpectation, ...]:
     asset_names = _asset_trigger_function_names()
     attached_names = [trigger.function_name for trigger in migration_triggers.values()]
     if len(asset_names) != 37:
-        raise AssertionError(
-            f"staged 資産のトリガ関数が 37 個でない: {len(asset_names)}"
-        )
+        raise AssertionError(f"製品資産のトリガ関数が 37 個でない: {len(asset_names)}")
     if len(attached_names) != len(set(attached_names)):
         raise AssertionError("1 個の migration トリガ関数が複数箇所に接続されている")
     if asset_names != set(attached_names):
         raise AssertionError(
-            "staged 資産と migration の接続済みトリガ関数が一致しない: "
+            "製品資産と migration の接続済みトリガ関数が一致しない: "
             f"asset_only={sorted(asset_names - set(attached_names))}, "
             f"migration_only={sorted(set(attached_names) - asset_names)}"
         )
