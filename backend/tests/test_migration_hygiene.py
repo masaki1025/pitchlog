@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import ast
+import copy
+import hashlib
+import json
 import re
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import pytest
 from alembic.migration import MigrationContext
@@ -13,6 +17,9 @@ from sqlalchemy import String
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _VERSIONS_ROOT = _BACKEND_ROOT / "migrations" / "versions"
+_ALLOWLIST_PATH = (
+    _BACKEND_ROOT.parent / "contracts" / "migrations" / "seed-allowlist.json"
+)
 _FORBIDDEN_SQL = re.compile(
     r"(?:"
     r"CREATE\s+(?:POLICY|ROLE)\b|"
@@ -27,6 +34,205 @@ _FORBIDDEN_SQL = re.compile(
     re.IGNORECASE,
 )
 _FORBIDDEN_CALLS = {"bulk_insert", "create_all"}
+_DELETE_SQL = re.compile(
+    r"\s*DELETE\s+FROM\s+(?P<table>[A-Za-z_][A-Za-z0-9_]*)"
+    r"\s+WHERE\s+category\s*=\s*'(?P<category>(?:[^']|'')*)'"
+    r"\s+AND\s+key\s+IN\s*\((?P<keys>'(?:[^']|'')*'"
+    r"(?:\s*,\s*'(?:[^']|'')*')*)\)\s*;?\s*",
+    re.IGNORECASE,
+)
+_DELETE_KEY = re.compile(r"'((?:[^']|'')*)'")
+
+
+def _load_seed_allowlist() -> dict[str, Any]:
+    """シード DML の許可とその更新履歴を宣言資産から読む。"""
+    ledger: dict[str, Any] = json.loads(_ALLOWLIST_PATH.read_text(encoding="utf-8"))
+    return ledger
+
+
+def _declaration_identity(declaration: Mapping[str, Any]) -> str:
+    """系列宣言の正規 JSON に対する SHA-256 を返す。"""
+    canonical = json.dumps(
+        declaration, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _assert_seed_allowlist_history(ledger: Mapping[str, Any]) -> None:
+    """各系列の最新履歴が現在の宣言の識別値を指すことを確認する。"""
+    assert ledger["asset_kind"] == "migration_seed_allowlist"
+    declarations = ledger["declarations"]
+    history = ledger["history"]
+    assert isinstance(declarations, dict) and declarations
+    assert isinstance(history, list)
+    for series, declaration in declarations.items():
+        records = [record for record in history if record["series"] == series]
+        assert records, f"{series}: 7.7-2 の記録がない"
+        latest = records[-1]
+        expected = {
+            "present": True,
+            "values": [
+                {
+                    "kind": declaration["identity"],
+                    "value": _declaration_identity(declaration),
+                }
+            ],
+        }
+        assert latest["new_identity"] == expected, f"{series}: 最新履歴と宣言が異なる"
+        assert latest["changes"]
+        assert latest["approved_by"] and latest["approved_at"]
+        if len(records) == 1:
+            assert records[0]["prior_identity"] == {"present": False, "values": []}
+            assert records[0]["changes"] == [
+                {
+                    "aspect": "declaration",
+                    "before": {"absent": True},
+                    "after": declaration,
+                }
+            ]
+
+
+def _assert_checker_has_no_frozen_values(
+    ledger: Mapping[str, Any], source: str
+) -> None:
+    """許可の対象・値・行数が検査器に直書きされていないことを確認する。"""
+    tree = ast.parse(source)
+    string_literals = {
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+    direct_row_counts = {
+        part.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Compare)
+        and any(
+            isinstance(part, ast.Name) and part.id == "rows" for part in ast.walk(node)
+        )
+        for part in ast.walk(node)
+        if isinstance(part, ast.Constant) and type(part.value) is int
+    }
+    for declaration in ledger["declarations"].values():
+        allowed = declaration["allowed"]
+        rows = allowed["upgrade_rows"]
+        scope = allowed["downgrade_delete_scope"]
+        assert all(target not in source for target in declaration["frozen_targets"])
+        frozen_strings = {
+            *allowed["target_tables"],
+            rows["category"],
+            *rows["keys"],
+            scope["table"],
+            scope["category"],
+            *scope["keys"],
+        }
+        assert not string_literals.intersection(frozen_strings)
+        assert rows["count"] not in direct_row_counts
+
+
+def _declared_allowances(ledger: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+    """表示パスごとに、宣言した許可だけを対応付ける。"""
+    allowances: dict[str, Mapping[str, Any]] = {}
+    for declaration in ledger["declarations"].values():
+        allowed = declaration["allowed"]
+        for path in declaration["frozen_targets"]:
+            assert path not in allowances, f"{path}: 許可対象が重複している"
+            allowances[path] = allowed
+    return allowances
+
+
+def _call_name(node: ast.Call) -> str | None:
+    """呼び出し式の末尾の名前を返す。"""
+    function = node.func
+    if isinstance(function, ast.Attribute):
+        return function.attr
+    if isinstance(function, ast.Name):
+        return function.id
+    return None
+
+
+def _op_call(node: ast.Call, name: str) -> bool:
+    """Alembic の ``op`` に対する指定 API の呼び出しかを返す。"""
+    return (
+        isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "op"
+        and node.func.attr == name
+    )
+
+
+def _literal_sql(node: ast.expr) -> ast.Constant | None:
+    """直接の文字列または ``sa.text`` の文字列だけを取り出す。"""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "sa"
+        and node.func.attr == "text"
+        and len(node.args) == 1
+        and not node.keywords
+    ):
+        return _literal_sql(node.args[0])
+    return None
+
+
+def _delete_matches_scope(sql: str, scope: Mapping[str, Any]) -> bool:
+    """削除 SQL が宣言した表・区分・キーだけに閉じるかを返す。"""
+    match = _DELETE_SQL.fullmatch(sql)
+    if match is None:
+        return False
+    keys = [key.replace("''", "'") for key in _DELETE_KEY.findall(match["keys"])]
+    return (
+        match["table"] == scope["table"]
+        and match["category"].replace("''", "'") == scope["category"]
+        and len(keys) == len(scope["keys"])
+        and set(keys) == set(scope["keys"])
+    )
+
+
+def _bulk_insert_matches(node: ast.Call, allowed: Mapping[str, Any]) -> bool:
+    """投入先と行の集合を AST から読み、系列宣言と照合する。"""
+    if not _op_call(node, "bulk_insert") or len(node.args) != 2 or node.keywords:
+        return False
+    table, rows = node.args
+    if (
+        not isinstance(table, ast.Call)
+        or not isinstance(table.func, ast.Attribute)
+        or not isinstance(table.func.value, ast.Name)
+        or table.func.value.id != "sa"
+        or table.func.attr != "table"
+        or not table.args
+        or not isinstance(table.args[0], ast.Constant)
+        or not isinstance(table.args[0].value, str)
+        or table.args[0].value not in allowed["target_tables"]
+        or not isinstance(rows, ast.List)
+    ):
+        return False
+    expected = allowed["upgrade_rows"]
+    if len(rows.elts) != expected["count"]:
+        return False
+    keys: list[str] = []
+    for row in rows.elts:
+        if not isinstance(row, ast.Dict):
+            return False
+        fields: dict[str, Any] = {}
+        for key_node, value_node in zip(row.keys, row.values, strict=True):
+            if (
+                not isinstance(key_node, ast.Constant)
+                or not isinstance(key_node.value, str)
+                or not isinstance(value_node, ast.Constant)
+                or key_node.value in fields
+            ):
+                return False
+            fields[key_node.value] = value_node.value
+        if (
+            not isinstance(fields.get("key"), str)
+            or fields.get("category") != expected["category"]
+        ):
+            return False
+        keys.append(fields["key"])
+    return len(keys) == len(set(keys)) and set(keys) == set(expected["keys"])
 
 
 def _migration_sources() -> dict[str, str]:
@@ -99,7 +305,9 @@ def _assert_revision_ids_fit_version_table(
     assert _revision_id_length_violations(revision_ids, maximum_length) == []
 
 
-def _migration_source_violations(sources: Mapping[str, str]) -> list[str]:
+def _migration_source_violations(
+    sources: Mapping[str, str], *, ledger: Mapping[str, Any] | None = None
+) -> list[str]:
     """Revision の Python 構文木から禁止 SQL と禁止 API の使用を返す。
 
     ``BEFORE UPDATE OR DELETE`` のようなトリガ DDL は文頭の DML 文ではないため、
@@ -107,28 +315,93 @@ def _migration_source_violations(sources: Mapping[str, str]) -> list[str]:
 
     Args:
         sources: 表示用パスと Python ソースの対応。
+        ledger: 許可対象と許可範囲の宣言。省略時は資産から読む。
 
     Returns:
         パス・行番号・禁止要素だけを含む違反一覧。
     """
+    if ledger is None:
+        ledger = _load_seed_allowlist()
+    allowances = _declared_allowances(ledger)
     violations: list[str] = []
     for path, source in sorted(sources.items()):
         tree = ast.parse(source, filename=path)
+        allowed = allowances.get(path)
+        function_by_node: dict[int, str] = {}
+        for statement in tree.body:
+            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                for descendant in ast.walk(statement):
+                    function_by_node[id(descendant)] = statement.name
+        accepted_delete_literals: set[int] = set()
+        upgrade_call_count = 0
+        if allowed is not None:
+            assert set(allowed["upgrade_calls"]).issubset(_FORBIDDEN_CALLS)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.JoinedStr) or (
+                    isinstance(node, ast.BinOp)
+                    and isinstance(node.op, ast.Add)
+                    and any(
+                        isinstance(part, ast.Constant) and isinstance(part.value, str)
+                        for part in ast.walk(node)
+                    )
+                ):
+                    violations.append(
+                        f"{path}:{node.lineno}: 文字列連結 SQL は解析できない"
+                    )
+                if not isinstance(node, ast.Call):
+                    continue
+                if (
+                    _call_name(node) in allowed["upgrade_calls"]
+                    and function_by_node.get(id(node)) == "upgrade"
+                ):
+                    upgrade_call_count += 1
+                if _call_name(node) != "execute":
+                    continue
+                if (
+                    not _op_call(node, "execute")
+                    or len(node.args) != 1
+                    or node.keywords
+                ):
+                    violations.append(f"{path}:{node.lineno}: execute() を解析できない")
+                    continue
+                literal = _literal_sql(node.args[0])
+                if literal is None:
+                    violations.append(
+                        f"{path}:{node.lineno}: execute() の SQL が定数でない"
+                    )
+                    continue
+                assert isinstance(literal.value, str)
+                if function_by_node.get(
+                    id(node)
+                ) == "downgrade" and _delete_matches_scope(
+                    literal.value, allowed["downgrade_delete_scope"]
+                ):
+                    accepted_delete_literals.add(id(literal))
+                elif _FORBIDDEN_SQL.search(literal.value) is None:
+                    violations.append(
+                        f"{path}:{node.lineno}: seed revision の SQL 対象外"
+                    )
+            if upgrade_call_count != 1:
+                violations.append(f"{path}: upgrade() の許可 API は 1 回ちょうど必要")
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
-                function = node.func
-                name = (
-                    function.attr
-                    if isinstance(function, ast.Attribute)
-                    else function.id
-                    if isinstance(function, ast.Name)
-                    else None
-                )
+                name = _call_name(node)
                 if name in _FORBIDDEN_CALLS:
+                    if (
+                        allowed is not None
+                        and name in allowed["upgrade_calls"]
+                        and function_by_node.get(id(node)) == "upgrade"
+                        and _bulk_insert_matches(node, allowed)
+                    ):
+                        continue
                     violations.append(f"{path}:{node.lineno}: 禁止 API {name}()")
             if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
                 continue
             for match in _FORBIDDEN_SQL.finditer(node.value):
+                if id(node) in accepted_delete_literals and match[0].upper().startswith(
+                    "DELETE"
+                ):
+                    continue
                 line = node.lineno + node.value.count("\n", 0, match.start())
                 statement = " ".join(match[0].split())
                 violations.append(f"{path}:{line}: 禁止 SQL {statement}")
@@ -136,8 +409,32 @@ def _migration_source_violations(sources: Mapping[str, str]) -> list[str]:
 
 
 def test_all_migration_revisions_contain_only_schema_ddl() -> None:
-    """走査で得た全 revision に権限 DDL・create_all・DML がないことを確認する。"""
+    """宣言した seed 以外の revision に権限 DDL・DML がないことを確認する。"""
     assert _migration_source_violations(_migration_sources()) == []
+
+
+def test_seed_allowlist_values_are_externalized() -> None:
+    """7.7-1: 許可の基準値が検査器のソースに直書きされていない。"""
+    _assert_checker_has_no_frozen_values(
+        _load_seed_allowlist(), Path(__file__).read_text(encoding="utf-8")
+    )
+
+
+def test_seed_allowlist_row_count_literal_is_rejected() -> None:
+    """宣言行数を検査器の比較式へ直書きした場合は拒否する。"""
+    ledger = _load_seed_allowlist()
+    declaration = next(iter(ledger["declarations"].values()))
+    count = declaration["allowed"]["upgrade_rows"]["count"]
+    source = Path(__file__).read_text(encoding="utf-8")
+    source += f"\ndef synthetic_guard(rows):\n    return len(rows) == {count}\n"
+
+    with pytest.raises(AssertionError):
+        _assert_checker_has_no_frozen_values(ledger, source)
+
+
+def test_seed_allowlist_history_matches_current_declaration() -> None:
+    """7.7-2: 最新の更新記録が現在の系列宣言を指している。"""
+    _assert_seed_allowlist_history(_load_seed_allowlist())
 
 
 def test_all_migration_revision_ids_fit_alembic_version_table() -> None:
@@ -199,3 +496,200 @@ op.execute(
 '''
 
     assert _migration_source_violations({"synthetic.py": source}) == []
+
+
+def _synthetic_seed_source(
+    allowed: Mapping[str, Any],
+    *,
+    rows: list[dict[str, str]] | None = None,
+    delete_keys: list[str] | None = None,
+    extra_upgrade: str = "",
+) -> str:
+    """系列宣言の値から、検査用の seed revision を組み立てる。"""
+    expected = allowed["upgrade_rows"]
+    scope = allowed["downgrade_delete_scope"]
+    if rows is None:
+        rows = [
+            {"key": key, "category": expected["category"], "display_name": key}
+            for key in expected["keys"]
+        ]
+    if delete_keys is None:
+        delete_keys = scope["keys"]
+    key_sql = ", ".join(repr(key) for key in delete_keys)
+    delete_sql = (
+        f"DELETE FROM {scope['table']} WHERE category = {scope['category']!r} "
+        f"AND key IN ({key_sql})"
+    )
+    return (
+        "def upgrade():\n"
+        f"    op.bulk_insert(sa.table({allowed['target_tables'][0]!r}), {rows!r})\n"
+        f"{extra_upgrade}"
+        "\n"
+        "def downgrade():\n"
+        f"    op.execute({delete_sql!r})\n"
+    )
+
+
+def _synthetic_seed_sources(tmp_path: Path, path: str, source: str) -> dict[str, str]:
+    """一時ファイルの合成 revision を検査器の入力へ渡す。"""
+    revision_file = tmp_path / "synthetic_revision.py"
+    revision_file.write_text(source, encoding="utf-8")
+    return {path: revision_file.read_text(encoding="utf-8")}
+
+
+def test_declared_seed_revision_synthetic_positive_is_green(tmp_path: Path) -> None:
+    """宣言した表・行・区分・キーへの投入と限定削除だけを許す。"""
+    ledger = _load_seed_allowlist()
+    declaration = next(iter(ledger["declarations"].values()))
+    path = declaration["frozen_targets"][0]
+    source = _synthetic_seed_source(declaration["allowed"])
+
+    assert (
+        _migration_source_violations(
+            _synthetic_seed_sources(tmp_path, path, source), ledger=ledger
+        )
+        == []
+    )
+
+
+@pytest.mark.parametrize(
+    "case",
+    (
+        "unlisted_revision",
+        "checker_literal",
+        "history_not_updated",
+        "broader_downgrade",
+        "second_table",
+        "extra_row",
+        "wrong_category",
+    ),
+)
+def test_declared_seed_revision_synthetic_negative_is_red(
+    tmp_path: Path, case: str
+) -> None:
+    """7.7 と投入・削除の 7 つの負例がそれぞれ red になる。"""
+    ledger = _load_seed_allowlist()
+    declaration = next(iter(ledger["declarations"].values()))
+    allowed = declaration["allowed"]
+    path = declaration["frozen_targets"][0]
+    rows = [
+        {
+            "key": key,
+            "category": allowed["upgrade_rows"]["category"],
+            "display_name": key,
+        }
+        for key in allowed["upgrade_rows"]["keys"]
+    ]
+    source = _synthetic_seed_source(allowed)
+    if case == "unlisted_revision":
+        path = "synthetic.py"
+    elif case == "checker_literal":
+        with pytest.raises(AssertionError):
+            _assert_checker_has_no_frozen_values(
+                ledger, Path(__file__).read_text(encoding="utf-8") + repr(path)
+            )
+        return
+    elif case == "history_not_updated":
+        changed_ledger = copy.deepcopy(ledger)
+        changed = next(iter(changed_ledger["declarations"].values()))
+        changed["allowed"]["upgrade_rows"]["count"] += 1
+        with pytest.raises(AssertionError):
+            _assert_seed_allowlist_history(changed_ledger)
+        return
+    elif case == "broader_downgrade":
+        source = _synthetic_seed_source(
+            allowed, delete_keys=[*allowed["downgrade_delete_scope"]["keys"], "outside"]
+        )
+    elif case == "second_table":
+        source = _synthetic_seed_source(
+            allowed,
+            extra_upgrade=f"    op.bulk_insert(sa.table('outside'), {rows!r})\n",
+        )
+    elif case == "extra_row":
+        rows.append(
+            {
+                "key": "outside",
+                "category": allowed["upgrade_rows"]["category"],
+                "display_name": "outside",
+            }
+        )
+        source = _synthetic_seed_source(allowed, rows=rows)
+    elif case == "wrong_category":
+        rows[0]["category"] = "outside"
+        source = _synthetic_seed_source(allowed, rows=rows)
+
+    assert _migration_source_violations(
+        _synthetic_seed_sources(tmp_path, path, source), ledger=ledger
+    )
+
+
+@pytest.mark.parametrize(
+    "extra_upgrade",
+    (
+        "    op.execute('CREATE POLICY sample ON sample')\n",
+        "    op.execute('CREATE ROLE sample')\n",
+        "    op.execute('ALTER ROLE sample LOGIN')\n",
+        "    op.execute('UPDATE sample SET value = 1')\n",
+        "    op.execute('INSERT INTO sample DEFAULT VALUES')\n",
+        "    Base.metadata.create_all()\n",
+    ),
+)
+def test_declared_seed_still_rejects_existing_prohibitions(
+    tmp_path: Path, extra_upgrade: str
+) -> None:
+    """Seed 許可対象でも既存の権限 DDL・DML・create_all を拒否する。"""
+    ledger = _load_seed_allowlist()
+    declaration = next(iter(ledger["declarations"].values()))
+    path = declaration["frozen_targets"][0]
+    source = _synthetic_seed_source(declaration["allowed"], extra_upgrade=extra_upgrade)
+
+    assert _migration_source_violations(
+        _synthetic_seed_sources(tmp_path, path, source), ledger=ledger
+    )
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    (
+        "op.bulk_insert()",
+        "op.bulk_insert(sa.table(table_name), [])",
+        "op.bulk_insert(sa.table(table_name), tuple())",
+        "op.bulk_insert(sa.table(table_name), rows)",
+    ),
+)
+def test_declared_seed_rejects_unparseable_bulk_insert(
+    tmp_path: Path, replacement: str
+) -> None:
+    """表名・投入行を AST で確定できない bulk_insert は拒否する。"""
+    ledger = _load_seed_allowlist()
+    declaration = next(iter(ledger["declarations"].values()))
+    path = declaration["frozen_targets"][0]
+    source = _synthetic_seed_source(declaration["allowed"])
+    tree = ast.parse(source)
+    bulk_call = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and _call_name(node) == "bulk_insert"
+    )
+    lines = source.splitlines(keepends=True)
+    lines[bulk_call.lineno - 1] = f"    {replacement}\n"
+
+    assert _migration_source_violations(
+        _synthetic_seed_sources(tmp_path, path, "".join(lines)), ledger=ledger
+    )
+
+
+def test_declared_seed_rejects_concatenated_sql(tmp_path: Path) -> None:
+    """SQL の文字列連結で DML 検査を避ける形を拒否する。"""
+    ledger = _load_seed_allowlist()
+    declaration = next(iter(ledger["declarations"].values()))
+    path = declaration["frozen_targets"][0]
+    source = _synthetic_seed_source(declaration["allowed"])
+    source = source.replace(
+        "def downgrade():",
+        "def downgrade():\n    op.execute('DEL' + 'ETE FROM outside')",
+    )
+
+    assert _migration_source_violations(
+        _synthetic_seed_sources(tmp_path, path, source), ledger=ledger
+    )
