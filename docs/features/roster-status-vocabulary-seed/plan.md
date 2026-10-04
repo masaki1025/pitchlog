@@ -304,6 +304,25 @@ FR-015(`:361`)/ FR-016(`:371`)/ FR-018(`:390`)/ FR-029(`:551`)/ FR-038(`:790`)/ 
 | **前例** | 同ファイルの `:7813` の往復は既に **`inactive`**(seed 外)を使っており、**この形で問題なく通っている**(5 周目にレビュアが全 19 downgrade を確認し、影響するのは 4 本だけと判定) |
 | **失うもの** | **「`active` を参照した状態での往復」という検査面が無くなる。** その面は **seed 後の実 DB 試験(ステップ 7)が別に持つ**(3 キーで選手を作れること・参照が残ったままの `downgrade` が FK で失敗すること) |
 
+> ### ✅ スパイクで実証した(2026-10-04・当方計測)
+>
+> **6 周目 `P1-1` は「テスト専用キーへの付け替えだけでは閉じない」と指摘したが、計測の結果これは誤りだった。**
+>
+> **測り方**: 合成の seed revision(`0027_probe_roster_seed`・`op.bulk_insert` で 3 キー投入、
+> `downgrade` は 3 キー限定の `DELETE`)を置き、実 DB で往復テストを走らせた。**計測後に撤去した。**
+>
+> | 条件 | 結果 |
+> | --- | --- |
+> | **付け替えなし**(現状の `active` のまま) | **4 本すべて failed**。エラーは逐語で `ForeignKeyViolation: ... "fk_players_roster_status" on table "players" / DETAIL: Key (key)=(active) is still referenced from table "players"` |
+> | **付け替えあり**(4 本の選手を `roster-roundtrip` へ + ヘルパへ同キーを 1 行追加) | **4 本すべて passed** |
+> | **同ファイル全 21 件** | **21 passed**(巻き添えなし) |
+>
+> **`0010` を跨ぐ復路も通った。** 既存の `_clear_vocabulary_references_before_reupgrade` が
+> 再 upgrade の前に参照元 4 表を全削除するため、**語彙表が落ちた状態からの復路は元から成立している。**
+>
+> **実装はこの 2 点だけ**: ①`_insert_test_vocabularies` へ `("roster-roundtrip", "roster_status", "往復用")` を 1 行
+> ②4 本の選手の `roster_status_key` を `active` → `roster-roundtrip` へ。
+
 **対象 4 本**(当方実測):
 
 | # | 選手を作る | downgrade 先 |
