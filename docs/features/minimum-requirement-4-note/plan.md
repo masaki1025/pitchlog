@@ -1,6 +1,6 @@
 ---
 feature: minimum-requirement-4-note
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review          # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-04・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -144,7 +144,7 @@ created: 2026-10-04
 | 要件書 | **反映なし**(④ の意味は変えない) |
 | ADR-004 | **反映なし**(裁定 A・B を再議しない) |
 | 開発ハーネス設計書 | **反映なし** |
-| `docs/development/harness-evaluation.md` | **反映なし**(本タスクの知見は /pr のクローズ処理で判断する) |
+| `docs/development/harness-evaluation.md` | **`## 候補` へ 2 件追記 + 既存候補 1 件へ 5 事例目・変更履歴へ 1 行**(**`H-*` は採番せず版も上げない** — 設計書 7.6-3 前段)。`/pr` のクローズ処理で判断した |
 
 ## 実装方針
 
