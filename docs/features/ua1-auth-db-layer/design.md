@@ -71,14 +71,14 @@ date: 2026-10-04
 
 | 関数 | 付与先 | 要点(v0.4) |
 | --- | --- | --- |
-| `authn.login(team_name text, password text) → uuid` | `pitchlog_app` | 正規化 → 退役していないテナントを解決 → 計数の器(③〜⑥)→ 有効テナントにだけ発行・ID は `gen_random_uuid()`。**失敗はすべて `NULL`**(存在・状態・誤り方で分岐して早く終わらない — 同じ照会・計数・同コストの照合)。**有効期限と計数の各設定値を読み、欠落・不正値ならどれか 1 つでも発行しない** |
+| `authn.login(team_name text, password text) → uuid` | `pitchlog_app` | 正規化 → **正規化後 64 文字超は `NULL`**(登録と同じ上限 — B-3。長さは公開の規則なので存在は漏れない。計数はしない)→ 退役していないテナントを解決 → 計数の器(③〜⑥)→ 有効テナントにだけ発行・ID は `gen_random_uuid()`。**失敗はすべて `NULL`**(存在・状態・誤り方で分岐して早く終わらない — 同じ照会・計数・同コストの照合)。**有効期限と計数の各設定値を読み、欠落・不正値ならどれか 1 つでも発行しない** |
 | `authn.verify_token(token_id uuid) → uuid`(tenant_id) | `pitchlog_app` | 存在・期限・世代・テナント有効・テナント一致を 1 回で照合し、通れば延長。失効は `NULL`。**失効したトークンを延長で復活させない**(行ロックで直列化) |
 | `authn.logout(token_id uuid) → void` | `pitchlog_app` | 期限を現在時刻へ(行は残す)。`CHECK expires_at >= last_used_at` と両立させる |
 | `authn.change_password(token_id uuid, current_password text, new_password text) → boolean` | `pitchlog_app` | **トークンが `verify_token` と同じ有効性条件(存在・期限内・世代一致・テナント有効・テナント一致・失効していない)を満たすことを先に確かめる**(満たさなければ何もせず `false` — 計画レビュー 1 周目 P0-1)→ **対象はそのトークンの認証主体だけ**(引数で選べない)→ 現行 PW の照合 → ポリシー → ハッシュ更新・世代 +1・日時を 1 トランザクション。新トークンを発行しない |
 | `authn.issue_initial_password(tenant_id uuid, password text) → void` | 管理関数所有用ロールだけ | 認証主体と認証情報を作る(1 テナント 1 件) |
 | `authn.reset_password(tenant_id uuid, new_password text) → void` | 同上 | ポリシー → ハッシュ更新・世代 +1・日時 |
 | `authn.revoke_tenant_tokens(tenant_id uuid) → void` | 同上 | 無効化と同じトランザクションで世代 +1。認証主体が無ければ何もせず成功 |
-| `authn.record_admin_login_failure(scope_key text) → boolean`(ロック中か) | 同上 | 管理者用の計数。単位はチームと分ける(`admin:` 接頭辞) |
+| `authn.record_admin_login_failure(scope_key text) → boolean`(ロック中か) | 同上 | 管理者用の計数。単位はチームと分ける(`admin:` 接頭辞)。**管理者用の設定値の欠落・不正値なら `true`(ロック中 = 拒否)を返す**(fail-closed)。**ロックの判定は管理者用の具体設計(U-A2)が変え得る** |
 | `authn.password_policy_ok(password text) → boolean` | **付与しない**(内部) | 8 文字以上・英字と数字・上限なし |
 | `authn_crypto.*`(pgcrypto) | **付与しない** | 認証関数の内側だけで使う |
 
@@ -88,7 +88,9 @@ date: 2026-10-04
 | --- | --- | --- | --- |
 | `auth.token_ttl_seconds` | JSON 数値 | (seed しない) | 付録C の 7 日 = 604800。**未設定なら発行と延長を拒否** |
 | `auth.team_login.max_failures` / `auth.team_login.window_seconds` / `auth.team_login.lock_seconds` | JSON 数値 | (seed しない) | **計数の器の試験用**。具体設計(10 章の相談)でキーが変わり得る — **δ が反映** |
-| `auth.admin_login.*` | 同上 | 同上 | U-A2 が使う |
+| `auth.admin_login.max_failures` / `auth.admin_login.window_seconds` / `auth.admin_login.lock_seconds` | JSON 数値 | (seed しない) | `record_admin_login_failure` が読む。**欠落・不正値なら `true`(拒否)** |
+
+**値の妥当条件(全キー共通)**: JSON の整数で 1 以上。**それ以外(欠落・文字列・0 以下・小数)は不正値**として扱い、該当の関数は fail-closed(発行しない / 延長しない / ログインを拒否 / 管理者計数は拒否)。**β は `auth.team_login.*` を読んで妥当性を確かめるが、ロックは適用しない**(7 節)
 
 ## 7. 計数の器(不変条件 ③〜⑥)
 
@@ -111,9 +113,16 @@ date: 2026-10-04
 
 | 関数 | 認証情報の行 | トークンの行 |
 | --- | --- | --- |
-| `verify_token` / `change_password` の有効性確認 | `FOR SHARE`(世代を読む) | `FOR UPDATE`(延長) |
-| `change_password` の更新 / `reset_password` / `revoke_tenant_tokens` | `FOR UPDATE`(世代 +1) | — |
+| `verify_token` | `FOR SHARE`(世代を読む) | `FOR UPDATE`(延長) |
+| `change_password`(有効性確認から更新まで) | **最初から `FOR UPDATE`**(共有ロックから昇格しない — 昇格は相互待ちを生む。計画レビュー 3 周目 P0-1) | `FOR SHARE`(有効性を読む) |
+| `reset_password` / `revoke_tenant_tokens` | `FOR UPDATE`(世代 +1) | — |
 | `logout` | — | `FOR UPDATE`(期限を現在時刻へ) |
 
 - 世代の更新がコミットされた後の検証は新しい世代と照合して落ちる。**検証が先に `FOR SHARE` を取った場合、世代の更新は検証のコミットを待つ**(その検証は旧世代で通るが、更新のコミット後の要求はすべて落ちる — 即時失効の意味はこの直列化で定まる)
-- **ロックの順序は常に「認証情報 → トークン」**(デッドロックを避ける)。並行試験(plan.md 6 節)で、各組み合わせの後に失効が勝つことを確かめる
+- **ロックの順序は常に「認証情報 → トークン」**(デッドロックを避ける)。並行試験(plan.md 6 節)で、各組み合わせの後に失効が勝つことを確かめる。**両者が各ロックを保持した状態を試験で強制する**(2 接続 — 片方がロックを持ったまま、もう片方を待たせる)
+- **時刻はロックを取った後の実時刻**: 期限の判定と更新(延長・ログアウト)には `clock_timestamp()` を使う。`now()` / `CURRENT_TIMESTAMP` はトランザクション開始時刻なので、**ログアウトの後でロックを得た検証が古い時刻で期限内と判定し延長し得る**(計画レビュー 3 周目 P0-2)。試験は「ログアウトが先にトークン行のロックを持ち、検証が待つ」順序を強制する
+- **同じ照会**: 失敗の種類ごとに、照会した表と回数が同じであることを照合する(`pg_stat_user_tables` の走査回数の差分 — 統計の反映は `pg_stat_force_next_flush()` 後に読む。手段の成否はステップ 1 で確かめる)。**照会を省く変異が red**(計画レビュー 3 周目 P1-4)
+
+## 10. ステップ 1 の決定と計画の更新
+
+**ステップ 1 の実測で案 A(migration の通常関数 + 生成列)以外の形に決まった場合は、ステップ 6 の方式・検査・合格条件を計画書と本書で更新し、実装に入る前に計画レビューへ戻して人間の承認を受け直す**(計画レビュー 3 周目 P1-8)。案 A に決まった場合は計画どおり進める。
