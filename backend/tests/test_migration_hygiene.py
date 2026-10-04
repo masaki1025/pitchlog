@@ -66,6 +66,7 @@ def _declaration_identity(declaration: Mapping[str, Any]) -> str:
 
 def _assert_seed_allowlist_history(ledger: Mapping[str, Any]) -> None:
     """各系列の履歴が鎖を成し、最新の識別値が宣言を指すと確認する。"""
+    assert type(ledger.get("schema_version")) is int and ledger["schema_version"] == 1
     assert ledger["asset_kind"] == "migration_seed_allowlist"
     declarations = ledger["declarations"]
     history = ledger["history"]
@@ -87,29 +88,54 @@ def _assert_seed_allowlist_history(ledger: Mapping[str, Any]) -> None:
         assert _canonical_json(latest["new_identity"]) == _canonical_json(expected), (
             f"{series}: 最新履歴と宣言が異なる"
         )
+        previous_after: dict[str, Any] | None = None
         for index, record in enumerate(records):
-            assert record["changes"]
+            changes = record["changes"]
+            assert isinstance(changes, list) and changes
             assert record["approved_by"] and record["approved_at"]
             assert isinstance(record.get("fact"), str) and record["fact"].strip()
             assert isinstance(record.get("reason"), str) and record["reason"].strip()
+            declaration_changes = [
+                change
+                for change in changes
+                if isinstance(change, dict) and change.get("aspect") == "declaration"
+            ]
+            assert len(declaration_changes) == 1, (
+                f"{series}: history[{index}] の declaration 変更は 1 件必要"
+            )
+            change = declaration_changes[0]
+            after = change["after"]
+            assert isinstance(after, dict), f"{series}: history[{index}] の変更後が不正"
             if index == 0:
                 assert _canonical_json(record["prior_identity"]) == _canonical_json(
                     {"present": False, "values": []}
                 )
+                assert _canonical_json(change["before"]) == _canonical_json(
+                    {"absent": True}
+                ), f"{series}: history[{index}] の変更前は不在であるべき"
             else:
                 assert _canonical_json(record["prior_identity"]) == _canonical_json(
                     records[index - 1]["new_identity"]
                 )
-        if len(records) == 1:
-            assert _canonical_json(records[0]["changes"]) == _canonical_json(
-                [
+                assert _canonical_json(change["before"]) == _canonical_json(
+                    previous_after
+                ), f"{series}: history[{index}] の変更前が直前の変更後と異なる"
+            expected_record_identity = {
+                "present": True,
+                "values": [
                     {
-                        "aspect": "declaration",
-                        "before": {"absent": True},
-                        "after": declaration,
+                        "kind": after["identity"],
+                        "value": _declaration_identity(after),
                     }
-                ]
-            )
+                ],
+            }
+            assert _canonical_json(record["new_identity"]) == _canonical_json(
+                expected_record_identity
+            ), f"{series}: history[{index}] の変更後と識別値が異なる"
+            previous_after = after
+        assert _canonical_json(previous_after) == _canonical_json(declaration), (
+            f"{series}: 最新記録の変更後が現在の宣言と異なる"
+        )
 
 
 def _history_append_only_violation(
@@ -699,6 +725,61 @@ def test_seed_allowlist_history_matches_current_declaration() -> None:
     _assert_seed_allowlist_history(_load_seed_allowlist())
 
 
+@pytest.mark.parametrize("version", (2, None, "1", True))
+def test_seed_allowlist_schema_version_rejects_wrong_type_or_value(
+    version: object,
+) -> None:
+    """資産の版が整数の 1 以外なら拒否する。
+
+    Args:
+        version: 合成資産に設定する版。
+    """
+    ledger = copy.deepcopy(_load_seed_allowlist())
+    ledger["schema_version"] = version
+
+    with pytest.raises(AssertionError):
+        _assert_seed_allowlist_history(ledger)
+
+
+def _ledger_with_second_declaration_change() -> dict[str, Any]:
+    """実資産から宣言と記録を正しく更新した 2 件履歴を組み立てる。
+
+    Returns:
+        2 件目の変更前後と識別値が連続する合成台帳。
+    """
+    ledger = copy.deepcopy(_load_seed_allowlist())
+    series, declaration = next(iter(ledger["declarations"].items()))
+    previous = next(
+        record for record in reversed(ledger["history"]) if record["series"] == series
+    )
+    updated_declaration = copy.deepcopy(declaration)
+    updated_declaration["granularity"] = f"{declaration['granularity']}_next"
+    ledger["declarations"][series] = updated_declaration
+
+    later = copy.deepcopy(previous)
+    later["prior_identity"] = copy.deepcopy(previous["new_identity"])
+    later["new_identity"] = {
+        "present": True,
+        "values": [
+            {
+                "kind": updated_declaration["identity"],
+                "value": _declaration_identity(updated_declaration),
+            }
+        ],
+    }
+    later["changes"] = [
+        {
+            "aspect": "declaration",
+            "before": copy.deepcopy(previous["changes"][0]["after"]),
+            "after": copy.deepcopy(updated_declaration),
+        }
+    ]
+    later["fact"] = "系列宣言を更新した"
+    later["reason"] = "合成履歴の連続性を検証するため"
+    ledger["history"].append(later)
+    return ledger
+
+
 @pytest.mark.parametrize("case", ("empty_fact", "missing_reason", "broken_chain"))
 def test_seed_allowlist_history_missing_fields_or_broken_chain_is_red(
     case: str,
@@ -724,13 +805,82 @@ def test_seed_allowlist_history_missing_fields_or_broken_chain_is_red(
 
 
 def test_seed_allowlist_history_connected_chain_is_green() -> None:
-    """2 件目の直前識別値が前件へつながれば受け入れる。"""
-    ledger = copy.deepcopy(_load_seed_allowlist())
-    later = copy.deepcopy(ledger["history"][-1])
-    later["prior_identity"] = copy.deepcopy(ledger["history"][-1]["new_identity"])
-    ledger["history"].append(later)
+    """宣言も変えた 2 件目の変更前後と識別値がつながれば受け入れる。"""
+    ledger = _ledger_with_second_declaration_change()
 
     _assert_seed_allowlist_history(ledger)
+    assert (
+        _history_append_only_violation(
+            _load_seed_allowlist()["history"], ledger["history"]
+        )
+        is None
+    )
+
+
+def test_seed_allowlist_new_series_initial_record_is_green() -> None:
+    """新しい系列の宣言と初回記録を末尾へ足した台帳を受け入れる。"""
+    ledger = copy.deepcopy(_load_seed_allowlist())
+    prior_history = copy.deepcopy(ledger["history"])
+    declaration = copy.deepcopy(next(iter(ledger["declarations"].values())))
+    new_series = "future_seed_series"
+    original_target = declaration["frozen_targets"][0]
+    declaration["frozen_targets"] = [f"{original_target.removesuffix('.py')}_future.py"]
+    ledger["declarations"][new_series] = declaration
+
+    record = copy.deepcopy(prior_history[0])
+    record["series"] = new_series
+    record["prior_identity"] = {"present": False, "values": []}
+    record["new_identity"] = {
+        "present": True,
+        "values": [
+            {
+                "kind": declaration["identity"],
+                "value": _declaration_identity(declaration),
+            }
+        ],
+    }
+    record["changes"] = [
+        {"aspect": "declaration", "before": {"absent": True}, "after": declaration}
+    ]
+    ledger["history"].append(record)
+
+    _assert_seed_allowlist_history(ledger)
+    assert _history_append_only_violation(prior_history, ledger["history"]) is None
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_message"),
+    (
+        ("wrong_before", "変更前"),
+        ("wrong_after", "変更後"),
+        ("missing_declaration", "declaration 変更は 1 件必要"),
+        ("duplicate_declaration", "declaration 変更は 1 件必要"),
+    ),
+)
+def test_seed_allowlist_second_declaration_change_mutations_are_red(
+    case: str, expected_message: str
+) -> None:
+    """2 件目の虚偽の変更前後と宣言変更の欠落・重複を拒否する。
+
+    Args:
+        case: 2 件目に加える変異。
+        expected_message: 検出すべき違反理由。
+    """
+    ledger = _ledger_with_second_declaration_change()
+    later = ledger["history"][-1]
+    change = later["changes"][0]
+    if case == "wrong_before":
+        change["before"]["granularity"] = "outside"
+    elif case == "wrong_after":
+        change["after"]["granularity"] = "outside"
+    elif case == "missing_declaration":
+        later["changes"] = [{"aspect": "unrelated", "before": {}, "after": {}}]
+    else:
+        assert case == "duplicate_declaration"
+        later["changes"].append(copy.deepcopy(change))
+
+    with pytest.raises(AssertionError, match=expected_message):
+        _assert_seed_allowlist_history(ledger)
 
 
 def test_seed_allowlist_history_is_append_only_against_base() -> None:
