@@ -7,6 +7,7 @@ import copy
 import hashlib
 import json
 import re
+import subprocess
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -98,6 +99,84 @@ def _assert_seed_allowlist_history(ledger: Mapping[str, Any]) -> None:
                     "after": declaration,
                 }
             ]
+
+
+def _history_append_only_violation(
+    base_history: list[Any], head_history: list[Any]
+) -> str | None:
+    """比較元の履歴が head の逐語 prefix でなければ理由を返す。
+
+    Args:
+        base_history: 比較元の履歴。
+        head_history: 現在の履歴。
+
+    Returns:
+        削除・改変の位置を含む違反理由。追記だけなら ``None``。
+    """
+    if len(head_history) < len(base_history):
+        return (
+            f"history[{len(head_history)}]: 記録が削除された "
+            f"(比較元 {len(base_history)} 件、head {len(head_history)} 件)"
+        )
+    for index, base_record in enumerate(base_history):
+        if head_history[index] != base_record:
+            return f"history[{index}]: 既存記録が改変された (位置 {index + 1})"
+    return None
+
+
+def _git(*args: str) -> subprocess.CompletedProcess[str]:
+    """リポジトリルートを指定して Git の CLI を実行する。
+
+    Args:
+        args: Git に渡す引数。
+
+    Returns:
+        標準出力・標準エラーを含む実行結果。
+    """
+    return subprocess.run(
+        ("git", "-C", str(_BACKEND_ROOT.parent), *args),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _base_seed_history() -> tuple[list[Any] | None, str, str]:
+    """開発ブランチとの merge-base から比較元の履歴を読む。
+
+    Returns:
+        比較元の履歴、解決した ref、merge-base。資産が無ければ履歴は ``None``。
+    """
+    ref = next(
+        (
+            candidate
+            for candidate in ("origin/develop", "develop")
+            if _git("rev-parse", "--verify", candidate).returncode == 0
+        ),
+        None,
+    )
+    assert ref is not None, "origin/develop も develop も解決できない"
+
+    merge = _git("merge-base", ref, "HEAD")
+    assert merge.returncode == 0 and merge.stdout.strip(), (
+        f"{ref} と HEAD の merge-base を取得できない: {merge.stderr.strip()}"
+    )
+    merge_base = merge.stdout.strip()
+    asset_path = _ALLOWLIST_PATH.relative_to(_BACKEND_ROOT.parent).as_posix()
+    base_asset = _git("show", f"{merge_base}:{asset_path}")
+    if base_asset.returncode != 0:
+        presence = _git("ls-tree", "--name-only", merge_base, "--", asset_path)
+        assert presence.returncode == 0, (
+            f"比較元の資産の有無を確認できない: {presence.stderr.strip()}"
+        )
+        assert not presence.stdout.strip(), (
+            f"比較元に資産があるが読み出せない: {base_asset.stderr.strip()}"
+        )
+        return None, ref, merge_base
+
+    base_history = json.loads(base_asset.stdout)["history"]
+    assert isinstance(base_history, list), "比較元の history がリストでない"
+    return base_history, ref, merge_base
 
 
 def _assert_checker_has_no_frozen_values(
@@ -641,6 +720,64 @@ def test_seed_allowlist_history_connected_chain_is_green() -> None:
     ledger["history"].append(later)
 
     _assert_seed_allowlist_history(ledger)
+
+
+def test_seed_allowlist_history_is_append_only_against_base() -> None:
+    """実資産の履歴が比較元の全記録を逐語的に保っている。"""
+    head_history = _load_seed_allowlist()["history"]
+    base_history, ref, merge_base = _base_seed_history()
+    if base_history is None:
+        print(f"7.7-2 append-only: 初回例外 ({ref}, merge-base={merge_base[:12]})")
+        return
+
+    print(
+        "7.7-2 append-only: 比較元と比較 "
+        f"({ref}, merge-base={merge_base[:12]}, 比較元={len(base_history)} 件)"
+    )
+    violation = _history_append_only_violation(base_history, head_history)
+    assert violation is None, violation
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_word", "expected_position"),
+    (
+        ("rewritten_fact", "改変", "history[0]"),
+        ("deleted_record", "削除", "history[1]"),
+        ("reordered_records", "改変", "history[0]"),
+    ),
+)
+def test_seed_allowlist_history_append_only_mutations_are_red(
+    case: str, expected_word: str, expected_position: str
+) -> None:
+    """既存記録の改変・削除・入れ替えを位置付きで拒否する。
+
+    Args:
+        case: 合成履歴への変異。
+        expected_word: 違反の種類。
+        expected_position: 最初に違反した位置。
+    """
+    base_history = [{"fact": "first"}, {"fact": "second"}]
+    head_history = copy.deepcopy(base_history)
+    if case == "rewritten_fact":
+        head_history[0]["fact"] = "changed"
+    elif case == "deleted_record":
+        head_history.pop()
+    else:
+        assert case == "reordered_records"
+        head_history.reverse()
+
+    violation = _history_append_only_violation(base_history, head_history)
+    assert violation is not None
+    assert expected_word in violation
+    assert expected_position in violation
+
+
+def test_seed_allowlist_history_append_only_accepts_appended_record() -> None:
+    """末尾への追記なら既存履歴を保ったまま受け入れる。"""
+    base_history = [{"fact": "first"}]
+    head_history = [*copy.deepcopy(base_history), {"fact": "second"}]
+
+    assert _history_append_only_violation(base_history, head_history) is None
 
 
 def test_all_migration_revision_ids_fit_alembic_version_table() -> None:
