@@ -693,3 +693,158 @@ def test_declared_seed_rejects_concatenated_sql(tmp_path: Path) -> None:
     assert _migration_source_violations(
         _synthetic_seed_sources(tmp_path, path, source), ledger=ledger
     )
+
+
+def _real_seed_revision() -> tuple[dict[str, Any], str, str]:
+    """系列宣言が指す実 revision の表示パスとソースを返す。"""
+    ledger = _load_seed_allowlist()
+    declaration = next(iter(ledger["declarations"].values()))
+    path = declaration["frozen_targets"][0]
+    revision_file = (_BACKEND_ROOT / path).resolve()
+    assert revision_file.is_relative_to(_VERSIONS_ROOT.resolve())
+    return ledger, path, revision_file.read_text(encoding="utf-8")
+
+
+def _replace_ast_expression(source: str, node: ast.expr, replacement: str) -> str:
+    """構文木が示す式の範囲だけをソース文字列内で置き換える。
+
+    Args:
+        source: 実 revision のソース。
+        node: 置換対象の式。
+        replacement: 置換後の Python 式。
+
+    Returns:
+        対象式だけを置き換えたソース。
+    """
+    assert node.end_lineno is not None and node.end_col_offset is not None
+    lines = source.splitlines(keepends=True)
+
+    def offset(lineno: int, byte_column: int) -> int:
+        """UTF-8 のバイト列位置をソース文字列内の文字位置へ変換する。"""
+        line_prefix = lines[lineno - 1].encode("utf-8")[:byte_column]
+        return sum(len(line) for line in lines[: lineno - 1]) + len(
+            line_prefix.decode("utf-8")
+        )
+
+    start = offset(node.lineno, node.col_offset)
+    end = offset(node.end_lineno, node.end_col_offset)
+    return source[:start] + replacement + source[end:]
+
+
+def _real_revision_function(source: str, name: str) -> ast.FunctionDef:
+    """実 revision の指定関数を構文木から一意に取り出す。"""
+    functions = [
+        node
+        for node in ast.parse(source).body
+        if isinstance(node, ast.FunctionDef) and node.name == name
+    ]
+    assert len(functions) == 1
+    return functions[0]
+
+
+def _real_revision_op_call(function: ast.FunctionDef, name: str) -> ast.Call:
+    """関数内の指定 Alembic 呼び出しを構文木から一意に取り出す。"""
+    calls = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call) and _op_call(node, name)
+    ]
+    assert len(calls) == 1
+    return calls[0]
+
+
+def _mutate_real_seed_revision(
+    source: str, case: str, allowed: Mapping[str, Any]
+) -> str:
+    """実 revision の指定した一箇所だけを検査用に変異させる。
+
+    Args:
+        source: 実 revision のソース。
+        case: 変異の種類。
+        allowed: 系列宣言が定める投入先・投入行・削除範囲。
+
+    Returns:
+        変異を加えたソース。実ファイルは変更しない。
+    """
+    if case in {"second_table", "extra_row"}:
+        call = _real_revision_op_call(
+            _real_revision_function(source, "upgrade"), "bulk_insert"
+        )
+        table = call.args[0]
+        assert isinstance(table, ast.Call)
+        assert isinstance(table.args[0], ast.Constant)
+        assert table.args[0].value in allowed["target_tables"]
+        if case == "second_table":
+            assert "outside" not in allowed["target_tables"]
+            extra_call = copy.deepcopy(call)
+            table = extra_call.args[0]
+            assert isinstance(table, ast.Call)
+            table.args[0] = ast.Constant(value="outside")
+            assert call.end_lineno is not None
+            lines = source.splitlines(keepends=True)
+            lines.insert(call.end_lineno, f"    {ast.unparse(extra_call)}\n")
+            return "".join(lines)
+
+        rows = call.args[1]
+        assert isinstance(rows, ast.List) and rows.elts
+        assert len(rows.elts) == allowed["upgrade_rows"]["count"]
+        assert "outside" not in allowed["upgrade_rows"]["keys"]
+        expanded_rows = copy.deepcopy(rows)
+        extra_row = copy.deepcopy(rows.elts[0])
+        assert isinstance(extra_row, ast.Dict)
+        key_positions = [
+            index
+            for index, key in enumerate(extra_row.keys)
+            if isinstance(key, ast.Constant) and key.value == "key"
+        ]
+        assert len(key_positions) == 1
+        extra_row.values[key_positions[0]] = ast.Constant(value="outside")
+        expanded_rows.elts.append(extra_row)
+        return _replace_ast_expression(source, rows, ast.unparse(expanded_rows))
+
+    assert case == "broader_downgrade"
+    call = _real_revision_op_call(
+        _real_revision_function(source, "downgrade"), "execute"
+    )
+    assert len(call.args) == 1
+    literal = _literal_sql(call.args[0])
+    assert literal is not None and isinstance(literal.value, str)
+    match = _DELETE_SQL.fullmatch(literal.value)
+    assert match is not None
+    scope = allowed["downgrade_delete_scope"]
+    assert match["table"] == scope["table"]
+    assert match["category"] == scope["category"]
+    assert set(_DELETE_KEY.findall(match["keys"])) == set(scope["keys"])
+    assert "outside" not in scope["keys"]
+    expanded_sql = (
+        literal.value[: match.end("keys")]
+        + ", 'outside'"
+        + literal.value[match.end("keys") :]
+    )
+    return _replace_ast_expression(source, literal, repr(expanded_sql))
+
+
+def test_real_seed_revision_is_green() -> None:
+    """変異前の実 revision が DML 境界検査を通ることを確認する。"""
+    ledger, path, source = _real_seed_revision()
+    assert _migration_source_violations({path: source}, ledger=ledger) == []
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_violation"),
+    (
+        ("second_table", "禁止 API bulk_insert()"),
+        ("extra_row", "禁止 API bulk_insert()"),
+        ("broader_downgrade", "禁止 SQL DELETE FROM"),
+    ),
+)
+def test_real_seed_revision_mutations_are_red(
+    case: str, expected_violation: str
+) -> None:
+    """実 revision の別表・追加行・削除拡大がそれぞれ拒否される。"""
+    ledger, path, source = _real_seed_revision()
+    declaration = next(iter(ledger["declarations"].values()))
+    mutated = _mutate_real_seed_revision(source, case, declaration["allowed"])
+
+    violations = _migration_source_violations({path: mutated}, ledger=ledger)
+    assert any(expected_violation in violation for violation in violations)
