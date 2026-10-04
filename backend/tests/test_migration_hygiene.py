@@ -168,6 +168,111 @@ def _op_call(node: ast.Call, name: str) -> bool:
     )
 
 
+def _sa_inspect_call(node: ast.AST | None, argument: ast.AST) -> bool:
+    """指定ノードを引数に取る SQLAlchemy の inspect 呼び出しかを返す。"""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "sa"
+        and node.func.attr == "inspect"
+        and argument in node.args
+    )
+
+
+def _dialect_read_is_safe(node: ast.Attribute, parents: Mapping[int, ast.AST]) -> bool:
+    """方言属性の参照が追加の呼び出しへ流れないことを確認する。"""
+    current: ast.AST = node
+    while True:
+        parent = parents.get(id(current))
+        if isinstance(parent, ast.Attribute) and parent.value is current:
+            if parent.attr == "execute":
+                return False
+            current = parent
+            continue
+        return not isinstance(parent, ast.Call)
+
+
+def _get_bind_usage_violations(
+    tree: ast.Module,
+    path: str,
+    parents: Mapping[int, ast.AST],
+    scopes: Mapping[int, int],
+) -> list[str]:
+    """接続取得結果の直接・束縛後の用途を保守的に検査する。
+
+    Args:
+        tree: revision の構文木。
+        path: 違反表示用のパス。
+        parents: 子ノードから親ノードへの対応。
+        scopes: ノードから所属する関数への対応。
+
+    Returns:
+        接続経由の実行と追跡できない用途の違反一覧。
+    """
+    violations: list[str] = []
+    bound_names: set[tuple[int, str]] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not _op_call(node, "get_bind"):
+            continue
+        parent = parents.get(id(node))
+        if isinstance(parent, ast.Assign) and parent.value is node:
+            if all(isinstance(target, ast.Name) for target in parent.targets):
+                bound_names.update(
+                    (scopes.get(id(node), id(tree)), target.id)
+                    for target in parent.targets
+                    if isinstance(target, ast.Name)
+                )
+                continue
+        elif (
+            isinstance(parent, ast.AnnAssign)
+            and parent.value is node
+            and isinstance(parent.target, ast.Name)
+        ):
+            bound_names.add((scopes.get(id(node), id(tree)), parent.target.id))
+            continue
+        elif isinstance(parent, ast.Expr) or _sa_inspect_call(parent, node):
+            continue
+        elif (
+            isinstance(parent, ast.Attribute)
+            and parent.value is node
+            and parent.attr == "execute"
+        ):
+            violations.append(f"{path}:{node.lineno}: get_bind 経由の execute() は禁止")
+            continue
+        elif (
+            isinstance(parent, ast.Attribute)
+            and parent.value is node
+            and parent.attr == "dialect"
+            and _dialect_read_is_safe(parent, parents)
+        ):
+            continue
+        violations.append(f"{path}:{node.lineno}: op.get_bind() の用途を追跡できない")
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Name) or not isinstance(node.ctx, ast.Load):
+            continue
+        scope = scopes.get(id(node), id(tree))
+        if (scope, node.id) not in bound_names and (
+            id(tree),
+            node.id,
+        ) not in bound_names:
+            continue
+        parent = parents.get(id(node))
+        if isinstance(parent, ast.Expr) or _sa_inspect_call(parent, node):
+            continue
+        if isinstance(parent, ast.Attribute) and parent.value is node:
+            if parent.attr == "dialect" and _dialect_read_is_safe(parent, parents):
+                continue
+            if parent.attr == "execute":
+                violations.append(
+                    f"{path}:{node.lineno}: get_bind 経由の execute() は禁止"
+                )
+                continue
+        violations.append(f"{path}:{node.lineno}: get_bind の束縛先を追跡できない")
+    return violations
+
+
 def _sa_schema_call(node: ast.Call) -> bool:
     """SQLAlchemy の表・列・型の直接呼び出しかを返す。"""
     if (
@@ -352,15 +457,20 @@ def _migration_source_violations(
         tree = ast.parse(source, filename=path)
         allowed = allowances.get(path)
         function_by_node: dict[int, str] = {}
+        scope_by_node: dict[int, int] = {}
         for statement in tree.body:
             if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 for descendant in ast.walk(statement):
                     function_by_node[id(descendant)] = statement.name
+                    scope_by_node[id(descendant)] = id(statement)
         parents = {
             id(child): parent
             for parent in ast.walk(tree)
             for child in ast.iter_child_nodes(parent)
         }
+        violations.extend(
+            _get_bind_usage_violations(tree, path, parents, scope_by_node)
+        )
         accepted_delete_literals: set[int] = set()
         accepted_bulk_calls: set[int] = set()
         accepted_delete_calls: set[int] = set()
@@ -434,8 +544,6 @@ def _migration_source_violations(
                 name = _call_name(node)
                 if name == "getattr":
                     violations.append(f"{path}:{node.lineno}: getattr() は禁止")
-                if _op_call(node, "get_bind"):
-                    violations.append(f"{path}:{node.lineno}: 禁止 API op.get_bind()")
                 if (
                     isinstance(node.func, ast.Attribute)
                     and isinstance(node.func.value, ast.Name)
@@ -595,10 +703,64 @@ def test_undeclared_revision_rejects_sqlalchemy_dml(operation: str) -> None:
     source = f"op.get_bind().execute({expression})"
 
     violations = _migration_source_violations({"synthetic.py": source})
-    assert any("禁止 API op.get_bind()" in violation for violation in violations)
+    assert any(
+        "get_bind 経由の execute() は禁止" in violation for violation in violations
+    )
     assert any(
         f"禁止 SQLAlchemy DML sa.{operation}()" in violation for violation in violations
     )
+
+
+def test_get_bind_metadata_reads_are_green() -> None:
+    """接続の方言情報とカタログ参照は DDL revision で許す。"""
+    source = """
+def upgrade():
+    if op.get_bind().dialect.name == "postgresql":
+        op.create_index("ix_probe", "probe", ["id"])
+    version = op.get_bind().dialect.server_version_info
+    inspector = sa.inspect(op.get_bind())
+    bind = op.get_bind()
+    dialect_name = bind.dialect.name
+"""
+
+    assert _migration_source_violations({"synthetic.py": source}) == []
+
+
+def test_get_bind_direct_execute_is_red() -> None:
+    """接続結果から直接 SQL を実行する形を拒否する。"""
+    source = (
+        "def upgrade():\n    op.get_bind().execute(sa.insert(table).values(value=1))\n"
+    )
+
+    violations = _migration_source_violations({"synthetic.py": source})
+    assert any(
+        "get_bind 経由の execute() は禁止" in violation for violation in violations
+    )
+
+
+def test_get_bind_bound_execute_is_red() -> None:
+    """束縛した接続名から SQL を実行する形を拒否する。"""
+    source = "def upgrade():\n    bind = op.get_bind()\n    bind.execute('SELECT 1')\n"
+
+    violations = _migration_source_violations({"synthetic.py": source})
+    assert any(
+        "get_bind 経由の execute() は禁止" in violation for violation in violations
+    )
+
+    aliased_source = (
+        "def upgrade():\n"
+        "    bind = op.get_bind()\n"
+        "    alias = bind\n"
+        "    alias.execute('SELECT 1')\n"
+    )
+    aliased_violations = _migration_source_violations({"synthetic.py": aliased_source})
+    assert any("get_bind の束縛先を追跡できない" in item for item in aliased_violations)
+
+    module_binding = (
+        "bind = op.get_bind()\ndef upgrade():\n    bind.execute('SELECT 1')\n"
+    )
+    module_violations = _migration_source_violations({"synthetic.py": module_binding})
+    assert any("get_bind 経由の execute() は禁止" in item for item in module_violations)
 
 
 def test_trigger_event_words_are_not_mistaken_for_dml() -> None:
