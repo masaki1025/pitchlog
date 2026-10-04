@@ -195,7 +195,9 @@ def _literal_sql(node: ast.expr) -> ast.Constant | None:
         and len(node.args) == 1
         and not node.keywords
     ):
-        return _literal_sql(node.args[0])
+        argument = node.args[0]
+        if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+            return argument
     return None
 
 
@@ -362,6 +364,7 @@ def _migration_source_violations(
         accepted_delete_literals: set[int] = set()
         accepted_bulk_calls: set[int] = set()
         accepted_delete_calls: set[int] = set()
+        accepted_text_calls: set[int] = set()
         table_argument_calls: set[int] = set()
         if allowed is not None:
             assert set(allowed["upgrade_calls"]).issubset(_FORBIDDEN_CALLS)
@@ -395,14 +398,19 @@ def _migration_source_violations(
                     and function_by_node.get(id(node)) == "downgrade"
                     and len(node.args) == 1
                     and not node.keywords
-                    and isinstance(node.args[0], ast.Constant)
-                    and isinstance(node.args[0].value, str)
-                    and _delete_matches_scope(
-                        node.args[0].value, allowed["downgrade_delete_scope"]
-                    )
                 ):
-                    accepted_delete_calls.add(id(node))
-                    accepted_delete_literals.add(id(node.args[0]))
+                    literal = _literal_sql(node.args[0])
+                    if (
+                        literal is not None
+                        and isinstance(literal.value, str)
+                        and _delete_matches_scope(
+                            literal.value, allowed["downgrade_delete_scope"]
+                        )
+                    ):
+                        accepted_delete_calls.add(id(node))
+                        accepted_delete_literals.add(id(literal))
+                        if isinstance(node.args[0], ast.Call):
+                            accepted_text_calls.add(id(node.args[0]))
             if not accepted_bulk_calls:
                 violations.append(f"{path}: upgrade() の許可 API が使われていない")
         for node in ast.walk(tree):
@@ -426,9 +434,22 @@ def _migration_source_violations(
                 name = _call_name(node)
                 if name == "getattr":
                     violations.append(f"{path}:{node.lineno}: getattr() は禁止")
+                if _op_call(node, "get_bind"):
+                    violations.append(f"{path}:{node.lineno}: 禁止 API op.get_bind()")
+                if (
+                    isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "sa"
+                    and node.func.attr in {"insert", "update", "delete"}
+                ):
+                    violations.append(
+                        f"{path}:{node.lineno}: 禁止 SQLAlchemy DML "
+                        f"sa.{node.func.attr}()"
+                    )
                 if allowed is not None and (
                     id(node) in accepted_bulk_calls
                     or id(node) in accepted_delete_calls
+                    or id(node) in accepted_text_calls
                     or (id(node) in table_argument_calls and _sa_schema_call(node))
                 ):
                     continue
@@ -561,6 +582,25 @@ def test_migration_hygiene_negative_cases_are_red(source: str) -> None:
     assert _migration_source_violations({"synthetic.py": source})
 
 
+@pytest.mark.parametrize("operation", ("insert", "update", "delete"))
+def test_undeclared_revision_rejects_sqlalchemy_dml(operation: str) -> None:
+    """宣言外 revision の get_bind と SQLAlchemy DML を拒否する。
+
+    Args:
+        operation: SQLAlchemy の DML 呼び出し名。
+    """
+    expression = f"sa.{operation}(table)"
+    if operation != "delete":
+        expression += ".values(value=1)"
+    source = f"op.get_bind().execute({expression})"
+
+    violations = _migration_source_violations({"synthetic.py": source})
+    assert any("禁止 API op.get_bind()" in violation for violation in violations)
+    assert any(
+        f"禁止 SQLAlchemy DML sa.{operation}()" in violation for violation in violations
+    )
+
+
 def test_trigger_event_words_are_not_mistaken_for_dml() -> None:
     """トリガ DDL の UPDATE・DELETE は DML 禁止へ誤算入しない。"""
     source = '''
@@ -607,6 +647,39 @@ def _synthetic_seed_source(
     )
 
 
+def _synthetic_seed_with_text_delete(
+    allowed: Mapping[str, Any],
+    *,
+    delete_keys: list[str] | None = None,
+    dynamic: bool = False,
+) -> str:
+    """合成 revision の限定削除を sa.text 呼び出しで包む。
+
+    Args:
+        allowed: 系列宣言の許可範囲。
+        delete_keys: 削除するキー。省略時は宣言の集合。
+        dynamic: SQL 引数を定数でなく変数にするか。
+
+    Returns:
+        変異後の合成 revision ソース。
+    """
+    tree = ast.parse(_synthetic_seed_source(allowed, delete_keys=delete_keys))
+    execute = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and _op_call(node, "execute")
+    )
+    argument = ast.Name(id="sql", ctx=ast.Load()) if dynamic else execute.args[0]
+    execute.args[0] = ast.Call(
+        func=ast.Attribute(
+            value=ast.Name(id="sa", ctx=ast.Load()), attr="text", ctx=ast.Load()
+        ),
+        args=[argument],
+        keywords=[],
+    )
+    return ast.unparse(ast.fix_missing_locations(tree))
+
+
 def _synthetic_seed_sources(tmp_path: Path, path: str, source: str) -> dict[str, str]:
     """一時ファイルの合成 revision を検査器の入力へ渡す。"""
     revision_file = tmp_path / "synthetic_revision.py"
@@ -627,6 +700,55 @@ def test_declared_seed_revision_synthetic_positive_is_green(tmp_path: Path) -> N
         )
         == []
     )
+
+
+def test_declared_seed_text_wrapped_delete_is_green(tmp_path: Path) -> None:
+    """宣言の削除範囲なら sa.text で包んだ定数 SQL も許す。"""
+    ledger = _load_seed_allowlist()
+    declaration = next(iter(ledger["declarations"].values()))
+    path = declaration["frozen_targets"][0]
+    source = _synthetic_seed_with_text_delete(declaration["allowed"])
+
+    assert (
+        _migration_source_violations(
+            _synthetic_seed_sources(tmp_path, path, source), ledger=ledger
+        )
+        == []
+    )
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_violation"),
+    (
+        ("broader", "禁止 SQL DELETE FROM"),
+        ("dynamic", "seed revision の許可外 API text()"),
+    ),
+)
+def test_declared_seed_text_wrapped_delete_outside_scope_is_red(
+    tmp_path: Path, case: str, expected_violation: str
+) -> None:
+    """sa.text でも削除範囲の拡大と動的 SQL を拒否する。
+
+    Args:
+        tmp_path: 合成 revision の一時配置先。
+        case: 範囲拡大または動的 SQL。
+        expected_violation: 検出すべき違反文言。
+    """
+    ledger = _load_seed_allowlist()
+    declaration = next(iter(ledger["declarations"].values()))
+    allowed = declaration["allowed"]
+    path = declaration["frozen_targets"][0]
+    if case == "broader":
+        delete_keys = [*allowed["downgrade_delete_scope"]["keys"], "outside"]
+        source = _synthetic_seed_with_text_delete(allowed, delete_keys=delete_keys)
+    else:
+        assert case == "dynamic"
+        source = _synthetic_seed_with_text_delete(allowed, dynamic=True)
+
+    violations = _migration_source_violations(
+        _synthetic_seed_sources(tmp_path, path, source), ledger=ledger
+    )
+    assert any(expected_violation in violation for violation in violations)
 
 
 @pytest.mark.parametrize(

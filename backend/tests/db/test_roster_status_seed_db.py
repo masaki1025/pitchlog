@@ -54,7 +54,10 @@ def test_roster_status_seed_matches_upgraded_database(
     ],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """空 DB を head まで上げ、投入された三列を資産と完全照合する。
+    """空 DB を 0027 まで上げ、投入された三列を資産と完全照合する。
+
+    head ではなく 0027 へ固定するのは、後続の seed タスクが game_type を
+    正当に投入したときに本試験が落ちないようにするため。
 
     Args:
         disposable_postgres_cluster: 使い捨て PostgreSQL の factory。
@@ -69,7 +72,7 @@ def test_roster_status_seed_matches_upgraded_database(
             "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
         )
         config = Config(str(_BACKEND_ROOT / "alembic.ini"))
-        command.upgrade(config, "head")
+        command.upgrade(config, "0027_seed_roster_status")
 
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             with connection.cursor() as cursor:
