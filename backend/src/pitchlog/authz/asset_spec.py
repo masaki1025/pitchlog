@@ -633,7 +633,7 @@ PROBE_SPEC = AuthzAssetSpec(
 
 PRODUCT_SPEC = AuthzAssetSpec(
     asset_root=PurePosixPath("contracts/authz/product"),
-    ddl_elements_path=PurePosixPath("contracts/authz/product/ddl-elements.staged.json"),
+    ddl_elements_path=PurePosixPath("contracts/authz/product/ddl-elements.json"),
     body_manifest_path=PurePosixPath(
         "contracts/authz/product/function-bodies/manifest.json"
     ),
