@@ -174,3 +174,40 @@ branch: feature/harness-ledger-candidates
 **3 の解き方が本タスクの肝だった** — 条件を精緻化するのではなく、**先に証拠(両タスクの依頼文)をリポジトリへ固定して分岐そのものを消した**。
 **これは本タスクが台帳へ書こうとしている ⑦ の対応案(採否記録へ依頼文の問いを残す)を、計画段階で自分に適用した形**である。
 
+
+
+### /implement ステップ 4(2026-10-04)— 件数の実測
+
+台帳の走査条件は変更しない。以下はリポジトリルートでそのまま実行したコマンドである。`section_line` は `## 候補` の行を毎回求める。箇条書き形式は、子項目 `候補に留める理由` を持つ親箇条を数える。
+
+```bash
+ledger=docs/development/harness-evaluation.md
+section_line=$(rg -n -m 1 '^## 候補$' "$ledger" | cut -d: -f1)
+printf 'section_line=%s\n' "$section_line"
+awk '/^### \(候補\)/ {n++} END {print "prefixed_all=" n+0}' "$ledger"
+awk -v s="$section_line" 'NR>s && /^### \(候補\)/ {n++} END {print "prefixed_inside=" n+0}' "$ledger"
+awk -v s="$section_line" 'NR<s && /^### \(候補\)/ {n++} END {print "prefixed_before=" n+0}' "$ledger"
+awk -v s="$section_line" '/^### \([0-9]+\)/ {total++; if(NR>s) inside++; else outside++} END {printf "numbered_all=%d inside=%d outside=%d\n", total, inside, outside}' "$ledger"
+awk -v s="$section_line" 'NR>s && /^### / && $0 !~ /^### \(候補\)/ && $0 !~ /^### \([0-9]+\)/ {n++} END {print "plain_inside=" n+0}' "$ledger"
+awk -v s="$section_line" 'NR>s && /^### / {n++} END {print "all_inside=" n+0}' "$ledger"
+awk '/^- \*\*/ {parent=NR} /^  - \*\*候補に留める理由\*\*:/ {printf "bullet_candidate_line=%d\n", parent; n++} END {print "bullet_candidates=" n+0}' "$ledger"
+git show 2447566c^:docs/development/harness-evaluation.md | awk '/^### \(候補\)/ {n++} END {print "before_step1_prefixed_all=" n+0}'
+```
+
+実行結果(2026-10-04・ステップ 4 の変更履歴行を追加した後):
+
+```text
+section_line=1407
+prefixed_all=93
+prefixed_inside=91
+prefixed_before=2
+numbered_all=16 inside=15 outside=1
+plain_inside=4
+all_inside=110
+bullet_candidate_line=152
+bullet_candidate_line=156
+bullet_candidates=2
+before_step1_prefixed_all=89
+```
+
+`prefixed_before=2` は変更履歴表中の破損した `:77`・`:86` に当たり、本文には触れていない。既存の索引の「候補 90 件」は、併記した `^### (候補)` の見出し数としては本 PR 前も今回も再現しない。様式の統一と走査条件の変更は TSK-477 の範囲である。
