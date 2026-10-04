@@ -1,7 +1,7 @@
 ---
 feature: ua1-auth-db-layer
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-10-04・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域         # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3ee93b75e687816ca0a8dc47a32d70d9
@@ -126,6 +126,8 @@ U-A1 は α(正本 — 完了)/ **β(本タスク — 認証の DB 層)** / γ =
 | ログ | 実 DB でバインド引数が DB ログに出ない | 10 |
 
 ## 7. 人間の判断を仰ぐ事項(承認時)
+
+**決定(2026-10-04・山田正輝 — 計画の承認と同時)**: **J-1〜J-3 はすべて推奨どおり**。
 
 | # | 論点 | 推奨 |
 | --- | --- | --- |
