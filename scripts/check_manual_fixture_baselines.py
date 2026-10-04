@@ -163,6 +163,41 @@ def _projection_digest(root: Path, asset: dict[str, Any], location: str) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
+def _is_provisional_bootstrap(control: dict[str, Any]) -> bool:
+    """資産自身の暫定 marker に整合する未受理の初回記録か判定する。
+
+    Args:
+        control: 凍結基準の宣言。
+
+    Returns:
+        未受理の初回記録だけ真。
+    """
+    history = control.get("history")
+    policy = control.get("movement_policy")
+    identity = control.get("identity")
+    if (
+        not isinstance(history, list)
+        or len(history) != 1
+        or not isinstance(history[0], dict)
+        or not isinstance(policy, dict)
+        or not isinstance(identity, dict)
+    ):
+        return False
+    record = history[0]
+    change = record.get("change")
+    marker = identity.get("no_baseline_marker")
+    return (
+        "acceptance_id" not in record
+        and record.get("source_commit") == policy.get("pending_source_commit_marker")
+        and record.get("approved_by") == policy.get("pending_approval_marker")
+        and record.get("approved_on") == policy.get("pending_approval_marker")
+        and record.get("previous_baseline_identifiers") == [marker]
+        and isinstance(change, dict)
+        and change.get("before")
+        == {"state": marker, "frozen_projection_sha256": marker}
+    )
+
+
 def validate_asset(
     root: Path,
     relative: str,
@@ -222,6 +257,13 @@ def validate_asset(
     record_keys = set(record)
     if record_keys != required_record and record_keys != required_record | {"acceptance_id"}:
         raise FixtureBaselineError(f"{location}: 履歴記録のキーが不正")
+    pending_source = record.get("source_commit") == policy["pending_source_commit_marker"]
+    pending_by = record.get("approved_by") == policy["pending_approval_marker"]
+    pending_on = record.get("approved_on") == policy["pending_approval_marker"]
+    if any((pending_source, pending_by, pending_on)) and not (
+        all((pending_source, pending_by, pending_on)) and "acceptance_id" not in record
+    ):
+        raise FixtureBaselineError(f"{location}: 暫定記録の整合が崩れている")
     if record["new_baseline_identifiers"] != [expected_id]:
         raise FixtureBaselineError(f"{location}: 履歴の新識別値が不一致")
     change = _object(record["change"], f"{location}.history[-1].change")
@@ -248,6 +290,22 @@ def validate_asset(
     else:
         old_control = _object(previous["baseline_control"], f"{location}.previous")
         old_history = old_control.get("history")
+        if _is_provisional_bootstrap(old_control):
+            if not _is_provisional_bootstrap(control):
+                raise FixtureBaselineError(f"{location}: 暫定記録を受理済みに偽装できない")
+            old_identity = _object(old_control["identity"], f"{location}.previous.identity")
+            stable_identity = {
+                key: value for key, value in identity.items() if key != "current_identifiers"
+            }
+            old_stable_identity = {
+                key: value for key, value in old_identity.items() if key != "current_identifiers"
+            }
+            if (
+                policy != old_control.get("movement_policy")
+                or stable_identity != old_stable_identity
+            ):
+                raise FixtureBaselineError(f"{location}: 暫定記録の凍結方式は変更できない")
+            return
         if not isinstance(old_history, list) or history[: len(old_history)] != old_history:
             raise FixtureBaselineError(f"{location}: 凍結履歴が追記のみでない")
         if len(history) > len(old_history) + 1:

@@ -5322,12 +5322,82 @@ def test_manual_fixture_baseline_fails_without_asset_declaration() -> None:
 
 
 def test_manual_fixture_baseline_history_is_append_only() -> None:
-    """既存の初回記録を書き換えた履歴は失敗する。"""
+    """受理済みの記録を書き換えた履歴は失敗する。"""
     previous = _load_object(REPOSITORY_ROOT / GAME_END_MANUAL_FIXTURE_PATH)
+    old_record = previous["baseline_control"]["history"][0]
+    old_record["source_commit"] = "a" * 40
+    old_record["approved_by"] = "確認者"
+    old_record["approved_on"] = "2026-10-04"
+    old_record["acceptance_id"] = "example/pitchlog#1"
     asset = copy.deepcopy(previous)
     asset["baseline_control"]["history"][0]["reason"] = "過去の理由を書き換えた"
     with pytest.raises(
         manual_fixture_baseline_checker.FixtureBaselineError, match="追記のみでない"
+    ):
+        manual_fixture_baseline_checker.validate_asset(
+            REPOSITORY_ROOT, GAME_END_MANUAL_FIXTURE_PATH, asset, previous
+        )
+
+
+def test_manual_fixture_baseline_provisional_bootstrap_can_be_updated() -> None:
+    """未承認の初回記録では期待座標とdigestを同じ受理前の作業で更新できる。"""
+    previous = _load_object(REPOSITORY_ROOT / GAME_END_MANUAL_FIXTURE_PATH)
+    asset = copy.deepcopy(previous)
+    asset["fixtures"][0]["case"]["inputCoordinate"]["state.score"] = "home-lead:M"
+    digest = manual_fixture_baseline_checker._projection_digest(
+        REPOSITORY_ROOT, asset, GAME_END_MANUAL_FIXTURE_PATH
+    )
+    identity = asset["baseline_control"]["identity"]
+    identity["current_identifiers"] = [f"{identity['identifier_prefix']}{digest}"]
+    record = asset["baseline_control"]["history"][0]
+    record["new_baseline_identifiers"] = identity["current_identifiers"]
+    record["change"]["after"]["frozen_projection_sha256"] = digest
+    asset["baseline_control"]["history"][0]["reason"] = "初回受理前の根拠を補う"
+    manual_fixture_baseline_checker.validate_asset(
+        REPOSITORY_ROOT, GAME_END_MANUAL_FIXTURE_PATH, asset, previous
+    )
+
+
+def test_manual_fixture_baseline_rejects_inconsistent_provisional_record() -> None:
+    """sourceだけ暫定で承認者を人名に変えた記録は拒否する。"""
+    previous = _load_object(REPOSITORY_ROOT / GAME_END_MANUAL_FIXTURE_PATH)
+    asset = copy.deepcopy(previous)
+    asset["baseline_control"]["history"][0]["approved_by"] = "確認者"
+    with pytest.raises(
+        manual_fixture_baseline_checker.FixtureBaselineError,
+        match="暫定記録の整合",
+    ):
+        manual_fixture_baseline_checker.validate_asset(
+            REPOSITORY_ROOT, GAME_END_MANUAL_FIXTURE_PATH, asset, previous
+        )
+
+
+def test_manual_fixture_baseline_rejects_provisional_acceptance_id() -> None:
+    """暫定記録へ受理 ID だけを付けても受理済みにはできない。"""
+    previous = _load_object(REPOSITORY_ROOT / GAME_END_MANUAL_FIXTURE_PATH)
+    asset = copy.deepcopy(previous)
+    asset["baseline_control"]["history"][0]["acceptance_id"] = "example/pitchlog#1"
+    with pytest.raises(
+        manual_fixture_baseline_checker.FixtureBaselineError,
+        match="暫定記録の整合",
+    ):
+        manual_fixture_baseline_checker.validate_asset(
+            REPOSITORY_ROOT, GAME_END_MANUAL_FIXTURE_PATH, asset, previous
+        )
+
+
+def test_manual_fixture_baseline_rejects_disguised_accepted_bootstrap() -> None:
+    """暫定の初回記録を受理済みのように書き換える経路を拒否する。"""
+    previous = _load_object(REPOSITORY_ROOT / GAME_END_MANUAL_FIXTURE_PATH)
+    asset = copy.deepcopy(previous)
+    record = asset["baseline_control"]["history"][0]
+    record["source_commit"] = "a" * 40
+    record["approved_by"] = "確認者"
+    record["approved_on"] = "2026-10-04"
+    record["acceptance_id"] = "example/pitchlog#1"
+    with pytest.raises(
+        manual_fixture_baseline_checker.FixtureBaselineError,
+        match="暫定記録を受理済みに偽装",
     ):
         manual_fixture_baseline_checker.validate_asset(
             REPOSITORY_ROOT, GAME_END_MANUAL_FIXTURE_PATH, asset, previous

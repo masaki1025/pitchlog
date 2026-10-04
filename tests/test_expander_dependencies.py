@@ -62,6 +62,10 @@ _load_module("state_transition_freeze", FREEZE_CHECKER_PATH)
 schema_checker = _load_module("check_input_axes_descriptor", DESCRIPTOR_CHECKER_PATH)
 _load_module("check_deriver_dependencies", DERIVER_CHECKER_PATH)
 checker = _load_module("check_expander_dependencies", EXPANDER_CHECKER_PATH)
+representative_selection = _load_module(
+    "representative_selection",
+    REPOSITORY_ROOT / "scripts/representative_selection.py",
+)
 state_transition_expander = _load_module(
     "expand_state_transition_cases",
     REPOSITORY_ROOT / "scripts/expand_state_transition_cases.py",
@@ -248,6 +252,160 @@ def test_game_end_expander_can_process_all_current_decision_rows() -> None:
         assert game_end_expander._predicate_holds(row["precondition"], case["inputCoordinate"])
         assert case["decision"] == row["decision"]
     assert trace.observed_read_paths == _policy().expanders["game-end-cases"].allowed_read_paths
+
+
+def test_representative_policy_covers_eq_not_in_and_composites() -> None:
+    """宣言順で最初の成立値を選び、述語の各形と逆順宣言に従う。"""
+    policy = json.loads(
+        (REPOSITORY_ROOT / "contracts/state-transition/representative_selection_policy_v1.json")
+        .read_text(encoding="utf-8")
+    )
+    values = {"axis": ["a", "b", "c"]}
+    eq = {"op": "eq", "axisId": "axis", "value": "c"}
+    included = {"op": "in", "axisId": "axis", "values": ["c", "b"]}
+    not_b = {"op": "not", "args": [{"op": "eq", "axisId": "axis", "value": "b"}]}
+    combined = {"op": "and", "args": [included, not_b]}
+    alternative = {"op": "or", "args": [eq, included]}
+    assert representative_selection.select_coordinate(eq, values, ["axis"], policy) == {
+        "axis": "c"
+    }
+    assert representative_selection.select_coordinate(included, values, ["axis"], policy) == {
+        "axis": "b"
+    }
+    assert representative_selection.select_coordinate(not_b, values, ["axis"], policy) == {
+        "axis": "a"
+    }
+    assert representative_selection.select_coordinate(combined, values, ["axis"], policy) == {
+        "axis": "c"
+    }
+    assert representative_selection.select_coordinate(alternative, values, ["axis"], policy) == {
+        "axis": "b"
+    }
+    reversed_policy = {**policy, "valueOrder": "reverse-descriptor-declaration-order"}
+    assert representative_selection.select_coordinate(
+        included, values, ["axis"], reversed_policy
+    ) == {"axis": "c"}
+    last_policy = {**policy, "candidateSelection": "last-satisfying-cartesian-product"}
+    assert representative_selection.select_coordinate(
+        included, values, ["axis"], last_policy
+    ) == {"axis": "c"}
+    numeric_values = {"count": [0, 1, 2]}
+    assert representative_selection.select_coordinate(
+        {"op": "gte", "axisId": "count", "value": 1},
+        numeric_values, ["count"], policy,
+    ) == {"count": 1}
+    assert representative_selection.select_coordinate(
+        {"op": "lte", "axisId": "count", "value": 1},
+        numeric_values, ["count"], policy,
+    ) == {"count": 0}
+
+
+def test_game_end_expander_rejects_nonrepresentative_coordinate() -> None:
+    """述語は満たしても規則と異なる展開座標を拒否する。"""
+    contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
+    descriptor = json.loads(
+        (REPOSITORY_ROOT / "contracts/state-transition/input_axes_descriptor_v1.json")
+        .read_text(encoding="utf-8")
+    )
+    policy = json.loads(
+        (REPOSITORY_ROOT / "contracts/state-transition/representative_selection_policy_v1.json")
+        .read_text(encoding="utf-8")
+    )
+    values = representative_selection.axis_values(
+        descriptor, ("gameEndAxes", "stateTransitionAxes")
+    )
+    used = set().union(
+        *(representative_selection.predicate_axes(row["precondition"])
+          for row in contract["decisionRows"])
+    )
+    axes = [axis_id for axis_id in values if axis_id in used]
+    wrong = dict(contract["cases"][0]["inputCoordinate"])
+    wrong["state.score"] = "home-lead:M"
+    assert game_end_expander._predicate_holds(contract["decisionRows"][0]["precondition"], wrong)
+    with pytest.raises(
+        representative_selection.RepresentativeSelectionError,
+        match="代表値規則に一致しない",
+    ):
+        representative_selection.validate_coordinate(
+            contract["decisionRows"][0]["precondition"], wrong, values, axes, policy
+        )
+
+
+def test_game_end_expander_uses_declared_selection_rule(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """資産側の選択方式を変えると展開器の代表値も変わる。"""
+    original_read = game_end_expander._read_document
+
+    def read_with_last_choice(root: Path, relative: PurePosixPath) -> dict[str, Any]:
+        """監査下の読み取りを維持しつつ選択方式だけを変異させる。"""
+        document = original_read(root, relative)
+        if "predicateEvaluation" in document:
+            document["candidateSelection"] = "last-satisfying-cartesian-product"
+        return document
+
+    monkeypatch.setattr(game_end_expander, "_read_document", read_with_last_choice)
+    cases, trace = game_end_expander.expand_traced(REPOSITORY_ROOT, limit=1)
+    assert cases[0]["inputCoordinate"]["state.score"] == "home-lead:M+1"
+    assert trace.observed_read_paths == _policy().expanders["game-end-cases"].allowed_read_paths
+
+
+def test_positive_manual_fixture_inputs_follow_representative_policy() -> None:
+    """通常行と終了判定のfixture入力だけを代表値規則と照合する。"""
+    policy = json.loads(
+        (REPOSITORY_ROOT / "contracts/state-transition/representative_selection_policy_v1.json")
+        .read_text(encoding="utf-8")
+    )
+    descriptor = json.loads(
+        (REPOSITORY_ROOT / "contracts/state-transition/input_axes_descriptor_v1.json")
+        .read_text(encoding="utf-8")
+    )
+    mappings = json.loads(BRANCH_ROW_MAPPING_PATH.read_text(encoding="utf-8"))["mappings"]
+    state_fixtures = {
+        item["case"]["branchId"]: item["case"]["inputCoordinate"]
+        for item in json.loads(MANUAL_FIXTURE_PATH.read_text(encoding="utf-8"))["fixtures"]
+    }
+    game_fixtures = {
+        item["case"]["branchId"]: item["case"]["inputCoordinate"]
+        for item in json.loads(GAME_END_MANUAL_FIXTURE_PATH.read_text(encoding="utf-8"))["fixtures"]
+    }
+    state_values = representative_selection.axis_values(descriptor, ("stateTransitionAxes",))
+    game_values = representative_selection.axis_values(
+        descriptor, ("gameEndAxes", "stateTransitionAxes")
+    )
+    game_contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
+    game_used = set().union(
+        *(representative_selection.predicate_axes(row["precondition"])
+          for row in game_contract["decisionRows"])
+    )
+    game_axes = [axis_id for axis_id in game_values if axis_id in game_used]
+    checked = 0
+    for mapping in mappings:
+        branch_id = mapping["branchId"]
+        reference = mapping["rowRef"]["coordinate"]
+        if mapping["fixtureRelation"] == "row-output":
+            predicate = reference["precondition"]
+            used = representative_selection.predicate_axes(predicate)
+            axes = [axis_id for axis_id in state_values if axis_id in used]
+            selected = representative_selection.select_coordinate(
+                predicate, state_values, axes, policy
+            )
+            expected = {
+                "eventKind": reference["eventKind"], "resultId": reference["resultId"],
+                **selected,
+            }
+            assert state_fixtures[branch_id] == expected
+            checked += 1
+        elif mapping["fixtureRelation"] == "decision-output":
+            row = next(
+                row for row in game_contract["decisionRows"] if row["branchId"] == branch_id
+            )
+            expected = representative_selection.select_coordinate(
+                row["precondition"], game_values, game_axes, policy
+            )
+            assert game_fixtures[branch_id] == expected
+            checked += 1
+    assert checked == 20
 
 
 @pytest.mark.parametrize(

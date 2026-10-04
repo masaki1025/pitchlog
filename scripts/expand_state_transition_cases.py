@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 import check_expander_dependencies as dependency_checker
+import representative_selection
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPANDER_ID = "state-transition-cases"
@@ -54,34 +55,6 @@ def _document_by_key(
     return matches[0]
 
 
-def _flatten_precondition(predicate: dict[str, Any]) -> dict[str, Any]:
-    """等値述語の連言を具体的な入力座標へ変換する。
-
-    Args:
-        predicate: 規範行の事前条件。
-
-    Returns:
-        軸IDから値への対応。
-    """
-    operation = predicate.get("op")
-    if operation == "eq":
-        axis_id = predicate.get("axisId")
-        if not isinstance(axis_id, str):
-            raise CaseExpansionError("等値述語の軸IDが不正")
-        return {axis_id: copy.deepcopy(predicate.get("value"))}
-    if operation != "and" or not isinstance(predicate.get("args"), list):
-        raise CaseExpansionError("等値述語の連言以外は本ステップでは展開しない")
-    coordinate: dict[str, Any] = {}
-    for child in predicate["args"]:
-        if not isinstance(child, dict):
-            raise CaseExpansionError("連言の要素が述語でない")
-        for axis_id, value in _flatten_precondition(child).items():
-            if axis_id in coordinate and coordinate[axis_id] != value:
-                raise CaseExpansionError(f"入力座標の値が矛盾する: {axis_id}")
-            coordinate[axis_id] = value
-    return coordinate
-
-
 def _expand_from_declared_inputs(
     root: Path, rule: dependency_checker.ExpanderRule, limit: int
 ) -> list[dict[str, Any]]:
@@ -103,6 +76,8 @@ def _expand_from_declared_inputs(
     _, manifest = _document_by_key(documents, "seeds")
     _, contract = _document_by_key(documents, "matrixRows")
     _, register = _document_by_key(documents, "branches")
+    _, selection_policy = _document_by_key(documents, "predicateEvaluation")
+    representative_selection.validate_policy(selection_policy)
 
     binding = contract.get("inputAxesDescriptor")
     if not isinstance(binding, dict) or binding.get("digest") != descriptor.get("digest"):
@@ -118,7 +93,7 @@ def _expand_from_declared_inputs(
     axes = descriptor.get("stateTransitionAxes")
     if not isinstance(axes, list):
         raise CaseExpansionError("入力軸descriptorに状況判定軸がない")
-    axis_ids = {axis.get("axisId") for axis in axes if isinstance(axis, dict)}
+    values_by_axis = representative_selection.axis_values(descriptor, ("stateTransitionAxes",))
     vocabulary_axes = vocabulary.get("axes")
     if not isinstance(vocabulary_axes, list):
         raise CaseExpansionError("語彙seedに軸がない")
@@ -175,9 +150,11 @@ def _expand_from_declared_inputs(
         predicate = coordinate.get("precondition")
         if not isinstance(predicate, dict):
             raise CaseExpansionError("事前条件が述語でない")
-        axes_coordinate = _flatten_precondition(predicate)
-        if not set(axes_coordinate) <= axis_ids:
-            raise CaseExpansionError("入力座標に未宣言の軸がある")
+        used_axes = representative_selection.predicate_axes(predicate)
+        coordinate_axes = [axis_id for axis_id in values_by_axis if axis_id in used_axes]
+        axes_coordinate = representative_selection.select_coordinate(
+            predicate, values_by_axis, coordinate_axes, selection_policy
+        )
         input_coordinate = {
             "eventKind": coordinate["eventKind"],
             "resultId": result_id,
@@ -242,7 +219,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         cases, _ = expand_traced(args.root.resolve(), limit=args.limit)
-    except (CaseExpansionError, dependency_checker.ExpanderDependencyError) as error:
+    except (
+        CaseExpansionError,
+        dependency_checker.ExpanderDependencyError,
+        representative_selection.RepresentativeSelectionError,
+    ) as error:
         print(f"state-transition-case-expander: 違反: {error}", file=sys.stderr)
         return 1
     print(json.dumps(cases, ensure_ascii=False, indent=2))

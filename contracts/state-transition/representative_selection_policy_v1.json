@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "policyId": "descriptor-first-satisfying-representative-v1",
+  "authority": "implementation-convention-not-requirements-or-adr",
+  "rationale": "要件書とADRは述語を満たす複数の境界値から代表を選ぶ順序を定めない。eqの指定値を固定し、in・not・and・or・gte・lteは述語で候補を絞り、残る候補をdescriptorの軸順と境界値順で列挙して最初を採る。展開器と手作業fixtureの入力座標を決定的に揃えるための恣意的な実装上の約束であり、野球規則上の優先順位を意味しない。",
+  "axisOrder": "descriptor-declaration-order",
+  "valueOrder": "descriptor-declaration-order",
+  "predicateEvaluation": "appendix-e-1-predicate-ast",
+  "candidateSelection": "first-satisfying-cartesian-product",
+  "unconstrainedAxis": "first-value-in-declared-order"
+}

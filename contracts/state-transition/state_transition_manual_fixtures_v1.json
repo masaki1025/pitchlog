@@ -2217,7 +2217,7 @@
     "identity": {
       "scheme": "sha256_frozen_projection",
       "identifier_prefix": "fixture-sha256:",
-      "current_identifiers": ["fixture-sha256:0a6ad70d0de9f0f32407386f110d6d5ef22d89549b1c2507389dd8d48c8b1bd8"],
+      "current_identifiers": ["fixture-sha256:0cab1f73ea7ec14731d01821e2bc9dd98ff799d2db5d305aaa33ec9a76bc0aa1"],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
         "algorithm": "sha256-canonical-json-and-external-files-v1",
@@ -2254,7 +2254,7 @@
     "history": [
       {
         "source_commit": "PENDING_ACCEPTANCE",
-        "new_baseline_identifiers": ["fixture-sha256:0a6ad70d0de9f0f32407386f110d6d5ef22d89549b1c2507389dd8d48c8b1bd8"],
+        "new_baseline_identifiers": ["fixture-sha256:0cab1f73ea7ec14731d01821e2bc9dd98ff799d2db5d305aaa33ec9a76bc0aa1"],
         "previous_baseline_identifiers": ["NO_BASELINE"],
         "change": {
           "subject": "状況判定の手作業fixture 26件の初回凍結",
@@ -2264,7 +2264,7 @@
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "0a6ad70d0de9f0f32407386f110d6d5ef22d89549b1c2507389dd8d48c8b1bd8"
+            "frozen_projection_sha256": "0cab1f73ea7ec14731d01821e2bc9dd98ff799d2db5d305aaa33ec9a76bc0aa1"
           }
         },
         "movement_fact": "直前の資産には凍結基準がなく、26件の完全な期待ケースを初回基準として設置する。",

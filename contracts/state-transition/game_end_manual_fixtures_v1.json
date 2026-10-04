@@ -14,7 +14,7 @@
           "gameEnd.tiebreak": "none",
           "state.inning": "L+1",
           "state.half": "top",
-          "state.score": "home-lead:M",
+          "state.score": "away-lead:M+1",
           "state.gameEnded": false,
           "state.tiebreakActive": false
         },
@@ -159,7 +159,7 @@
     "identity": {
       "scheme": "sha256_frozen_projection",
       "identifier_prefix": "fixture-sha256:",
-      "current_identifiers": ["fixture-sha256:f7e35bf62d93a1e949ff934fb23872d6accaf5778ba888840fbfc83b70965bad"],
+      "current_identifiers": ["fixture-sha256:cc4f3768d2268e9eb0456edc93d134da2bf210f9ee2c5cf746aba4abc17accf8"],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
         "algorithm": "sha256-canonical-json-and-external-files-v1",
@@ -196,7 +196,7 @@
     "history": [
       {
         "source_commit": "PENDING_ACCEPTANCE",
-        "new_baseline_identifiers": ["fixture-sha256:f7e35bf62d93a1e949ff934fb23872d6accaf5778ba888840fbfc83b70965bad"],
+        "new_baseline_identifiers": ["fixture-sha256:cc4f3768d2268e9eb0456edc93d134da2bf210f9ee2c5cf746aba4abc17accf8"],
         "previous_baseline_identifiers": ["NO_BASELINE"],
         "change": {
           "subject": "終了判定の手作業fixture 5件の初回凍結",
@@ -206,7 +206,7 @@
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "f7e35bf62d93a1e949ff934fb23872d6accaf5778ba888840fbfc83b70965bad"
+            "frozen_projection_sha256": "cc4f3768d2268e9eb0456edc93d134da2bf210f9ee2c5cf746aba4abc17accf8"
           }
         },
         "movement_fact": "直前の資産には凍結基準がなく、5件の完全な期待ケースを初回基準として設置する。",
