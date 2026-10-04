@@ -5,7 +5,6 @@
     "status": "product_configuration",
     "product_schema": true
   },
-  "pending_switch": "TSK-443",
   "roles": [
     {
       "role_id": "pitchlog_owner",
@@ -56,64 +55,6 @@
     "pitchlog_owner"
   ],
   "membership_edges": [],
-  "provisional_contract_additions": [
-    {
-      "addition_id": "FUNCTION:public:prevent_invalidation_intents_target_update()",
-      "object_kind": "function",
-      "schema_name": "public",
-      "object_name": "prevent_invalidation_intents_target_update",
-      "identity_args": "",
-      "reason": "provisional_contract_gap",
-      "detail": "migration 0015_invalidation_intentsで追加され、暫定資産が追随していない",
-      "migration_revision": "0015_invalidation_intents"
-    },
-    {
-      "addition_id": "FUNCTION:public:prevent_migration_quarantine_mutation()",
-      "object_kind": "function",
-      "schema_name": "public",
-      "object_name": "prevent_migration_quarantine_mutation",
-      "identity_args": "",
-      "reason": "provisional_contract_gap",
-      "detail": "migration 0016_migration_quarantineで追加され、暫定資産が追随していない",
-      "migration_revision": "0016_migration_quarantine"
-    },
-    {
-      "addition_id": "FUNCTION:public:prevent_migrated_final_lineups_source_update()",
-      "object_kind": "function",
-      "schema_name": "public",
-      "object_name": "prevent_migrated_final_lineups_source_update",
-      "identity_args": "",
-      "reason": "provisional_contract_gap",
-      "detail": "migration 0017_migrated_final_lineupsで追加され、暫定資産が追随していない",
-      "migration_revision": "0017_migrated_final_lineups"
-    },
-    {
-      "addition_id": "FUNCTION:public:prevent_players_identity_update()",
-      "object_kind": "function",
-      "schema_name": "public",
-      "object_name": "prevent_players_identity_update",
-      "identity_args": "",
-      "reason": "provisional_contract_gap",
-      "detail": "migration 0024_players_identity_triggerで追加され、暫定資産が追随していない",
-      "migration_revision": "0024_players_identity_trigger"
-    },
-    {
-      "addition_id": "SCHEMA:authz_private",
-      "object_kind": "schema",
-      "schema_name": "authz_private",
-      "reason": "product_authz_private",
-      "detail": "製品認可の補助関数をアプリ用ロールから隔離するスキーマ"
-    },
-    {
-      "addition_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)",
-      "object_kind": "function",
-      "schema_name": "authz_private",
-      "object_name": "tenant_has_effective_membership",
-      "identity_args": "uuid, boolean",
-      "reason": "product_authz_helper",
-      "detail": "制御資源のRLSで実効グループと実効参加を再帰せず判定する補助関数"
-    }
-  ],
   "databases": [
     {
       "database_id": "current_database",
