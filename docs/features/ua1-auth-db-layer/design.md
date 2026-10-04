@@ -15,7 +15,7 @@ date: 2026-10-04
 | --- | --- | --- |
 | 認証関数所有用ロール `pitchlog_auth_fn_owner`(`NOLOGIN` + `BYPASSRLS`) | **製品 authz 資産**(`contracts/authz/product/` のロール要素 — 既存 4 ロールと同じ形) | migration は `CREATE ROLE` を禁じる(`backend/tests/test_migration_hygiene.py:16-28`) |
 | 認証関数(DML を含む) | **製品 authz 資産**の関数要素(新しい関数種別 `definer`) | migration は `INSERT INTO` / `UPDATE … SET` を禁じる(同上) |
-| 認証関数のスキーマ | **専用スキーマ `authn`**(所有 = `pitchlog_owner`・`USAGE` = `pitchlog_app` と `pitchlog_management_fn_owner` と `pitchlog_auth_fn_owner`・`CREATE` は誰にも与えない) | `authz_private` は `pitchlog_app` に `USAGE` を与えられない(`product-authz-surface/design.md:253-256`)。`public` に置くと名前解決経路の非注入の検査対象が広がる |
+| 認証関数のスキーマ | **専用スキーマ `authn`**(所有 = `pitchlog_owner`・`USAGE` = `pitchlog_app` と `pitchlog_management_fn_owner` と `pitchlog_auth_fn_owner`・`CREATE` は誰にも与えない)。**認証関数所有用ロールには `public` スキーマの `USAGE` と正規化関数の `EXECUTE` も与える**(認証表・設定値・正規化関数が `public` にあるため — 4 周目 P1-3) | `authz_private` は `pitchlog_app` に `USAGE` を与えられない(`product-authz-surface/design.md:253-256`)。`public` に置くと名前解決経路の非注入の検査対象が広がる |
 | pgcrypto | **製品 authz 資産**で、**専用スキーマ `authn_crypto`** に作る(`USAGE` = `pitchlog_auth_fn_owner` だけ) | `public` / `authz_private` に置くと移行バッチ用ロールの関数 EXECUTE 0 件の検査に当たる(research.md 3-3)。資産は superuser の適用器が流すので trusted 拡張の所有の問題を避けられる |
 | 表・列・索引・FK・`tenants.retired_at` | **migration 0027** | 表の構造は migration の役割(既存の分担) |
 | 正規化関数 | **ステップ 1 の実測で確定**(下の 3 節) | 人間の決定 B-2 |
@@ -71,7 +71,7 @@ date: 2026-10-04
 
 | 関数 | 付与先 | 要点(v0.4) |
 | --- | --- | --- |
-| `authn.login(team_name text, password text) → uuid` | `pitchlog_app` | 正規化 → **正規化後 64 文字超は `NULL`**(登録と同じ上限 — B-3。長さは公開の規則なので存在は漏れない。計数はしない)→ 退役していないテナントを解決 → 計数の器(③〜⑥)→ 有効テナントにだけ発行・ID は `gen_random_uuid()`。**失敗はすべて `NULL`**(存在・状態・誤り方で分岐して早く終わらない — 同じ照会・計数・同コストの照合)。**有効期限と計数の各設定値を読み、欠落・不正値ならどれか 1 つでも発行しない** |
+| `authn.login(team_name text, password text) → uuid` | `pitchlog_app` | 正規化 →(**長さで分岐しない** — 65 文字以上の名前も同じ失敗経路を通る。一致するテナントは `CHECK` により存在しない。入力の大きさの上限は HTTP 層〔δ〕。4 周目 P1-4)→ 退役していないテナントを解決 → 計数の器(③〜⑥)→ 有効テナントにだけ発行・ID は `gen_random_uuid()`。**失敗はすべて `NULL`**(存在・状態・誤り方で分岐して早く終わらない — 同じ照会・計数・同コストの照合)。**有効期限と計数の各設定値を読み、欠落・不正値ならどれか 1 つでも発行しない** |
 | `authn.verify_token(token_id uuid) → uuid`(tenant_id) | `pitchlog_app` | 存在・期限・世代・テナント有効・テナント一致を 1 回で照合し、通れば延長。失効は `NULL`。**失効したトークンを延長で復活させない**(行ロックで直列化) |
 | `authn.logout(token_id uuid) → void` | `pitchlog_app` | 期限を現在時刻へ(行は残す)。`CHECK expires_at >= last_used_at` と両立させる |
 | `authn.change_password(token_id uuid, current_password text, new_password text) → boolean` | `pitchlog_app` | **トークンが `verify_token` と同じ有効性条件(存在・期限内・世代一致・テナント有効・テナント一致・失効していない)を満たすことを先に確かめる**(満たさなければ何もせず `false` — 計画レビュー 1 周目 P0-1)→ **対象はそのトークンの認証主体だけ**(引数で選べない)→ 現行 PW の照合 → ポリシー → ハッシュ更新・世代 +1・日時を 1 トランザクション。新トークンを発行しない |
@@ -101,7 +101,7 @@ date: 2026-10-04
 
 ## 8. 受理記録・最低要求④・一様性の観測(計画レビュー 1 周目)
 
-- **受理記録**: 凍結基準の v2 記録は 1 受理(PR)につき 1 件(`scripts/frozen_history.py:579-592`)で、**承認者・承認日を要する**(設計書 7.7-2)。**人間が PR 上で最終状態の受理を明示した後に、ステップ 11 で 1 回だけ書く**(前例 PR B `design.md:224`)。中間のステップでは**ランタイム契約の導出欄(P4)は再導出して green に保ち、凍結基準の受理記録の検査だけ red を許容する**。PR 番号はステップ 2 の draft PR で固定する(前例 PR #82)。**ステップ 1 で、受理記録の無い中間コミットで red になる検査の範囲を実測して確定する**(凍結基準の検査以外に広がらないこと)
+- **受理記録**: 凍結基準の v2 記録は 1 受理(PR)につき 1 件(`scripts/frozen_history.py:579-592`)で、**承認者・承認日を要する**(設計書 7.7-2)。**人間が PR 上で最終状態(S・H・D)の受理を明示した後に、ステップ 13 で 1 回だけ書く**(前例 PR B `design.md:224`)。中間のステップでは**ランタイム契約の導出欄(P4)は再導出して green に保ち、凍結基準の受理記録の検査だけ red を許容する**。**PR は `/pr` で作り、受理は S・H・D を固定して求める**(plan.md ステップ 12・13。draft PR を先に開かない)。**ステップ 1 で、受理記録の無い中間コミットで red になる検査の範囲を実測して確定する**(凍結基準の検査以外に広がらないこと)
 - **最低要求④**: 「対象側が非共有なら要求元が付与していても返らないこと」(`data-model.md:2596`)。**認証関数は共有の越境ではない**ので④の適用対象外と判定し、PR と ④ 注記タスクに記録する。既存の `test_app_can_execute_no_security_definer_function`(「0 件」)は④の代用ではない(TSK-344 `plan.md:235-249`)ので、**`definer` の付与先の exact 照合(構成検査)へ置き換える**(ステップ 7)
 - **一様性の観測**: 失敗の種類ごとに ① 計数の行が同じく更新される ② `authn_crypto.crypt` の呼び出しが同じ回数(試験クラスタで `track_functions = all` と `pg_stat_user_functions`)を照合する。**照合を省く変異が red**。手段の成否はステップ 1 で確かめる
 - **独立の期待集合**: v0.4 の 3-2 節の 6 ロール(名前・`NOLOGIN`/`LOGIN`・`BYPASSRLS`)と、関数群と付与先の対応(design.md 5 節)を**資産とは別に定数で置き**、資産と実カタログの両方をそれと照合する(導出がトートロジーにならない)
@@ -121,7 +121,7 @@ date: 2026-10-04
 - 世代の更新がコミットされた後の検証は新しい世代と照合して落ちる。**検証が先に `FOR SHARE` を取った場合、世代の更新は検証のコミットを待つ**(その検証は旧世代で通るが、更新のコミット後の要求はすべて落ちる — 即時失効の意味はこの直列化で定まる)
 - **ロックの順序は常に「認証情報 → トークン」**(デッドロックを避ける)。並行試験(plan.md 6 節)で、各組み合わせの後に失効が勝つことを確かめる。**両者が各ロックを保持した状態を試験で強制する**(2 接続 — 片方がロックを持ったまま、もう片方を待たせる)
 - **時刻はロックを取った後の実時刻**: 期限の判定と更新(延長・ログアウト)には `clock_timestamp()` を使う。`now()` / `CURRENT_TIMESTAMP` はトランザクション開始時刻なので、**ログアウトの後でロックを得た検証が古い時刻で期限内と判定し延長し得る**(計画レビュー 3 周目 P0-2)。試験は「ログアウトが先にトークン行のロックを持ち、検証が待つ」順序を強制する
-- **同じ照会**: 失敗の種類ごとに、照会した表と回数が同じであることを照合する(`pg_stat_user_tables` の走査回数の差分 — 統計の反映は `pg_stat_force_next_flush()` 後に読む。手段の成否はステップ 1 で確かめる)。**照会を省く変異が red**(計画レビュー 3 周目 P1-4)
+- **同じ照会**: 失敗の種類ごとに、**実行された SQL 文(`pg_stat_statements` の `queryid`)と回数**が同じであることを照合する(表の走査回数だけでは照会の違いを区別できない — 計画レビュー 4 周目 P1-5)。試験クラスタで `pg_stat_statements` を読み込めるかはステップ 1 で確かめる。**照会を省く変異・別の照会に替える変異が red**
 
 ## 10. ステップ 1 の決定と計画の更新
 
