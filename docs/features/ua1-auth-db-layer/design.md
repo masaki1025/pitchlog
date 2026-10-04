@@ -14,7 +14,7 @@ date: 2026-10-04
 | 物 | 置き場 | 理由 |
 | --- | --- | --- |
 | 認証関数所有用ロール `pitchlog_auth_fn_owner`(`NOLOGIN` + `BYPASSRLS`) | **製品 authz 資産**(`contracts/authz/product/` のロール要素 — 既存 4 ロールと同じ形) | migration は `CREATE ROLE` を禁じる(`backend/tests/test_migration_hygiene.py:16-28`) |
-| 認証関数(DML を含む) | **製品 authz 資産**の関数要素(新しい関数種別 `auth_definer`) | migration は `INSERT INTO` / `UPDATE … SET` を禁じる(同上) |
+| 認証関数(DML を含む) | **製品 authz 資産**の関数要素(新しい関数種別 `definer`) | migration は `INSERT INTO` / `UPDATE … SET` を禁じる(同上) |
 | 認証関数のスキーマ | **専用スキーマ `authn`**(所有 = `pitchlog_owner`・`USAGE` = `pitchlog_app` と `pitchlog_management_fn_owner` と `pitchlog_auth_fn_owner`・`CREATE` は誰にも与えない) | `authz_private` は `pitchlog_app` に `USAGE` を与えられない(`product-authz-surface/design.md:253-256`)。`public` に置くと名前解決経路の非注入の検査対象が広がる |
 | pgcrypto | **製品 authz 資産**で、**専用スキーマ `authn_crypto`** に作る(`USAGE` = `pitchlog_auth_fn_owner` だけ) | `public` / `authz_private` に置くと移行バッチ用ロールの関数 EXECUTE 0 件の検査に当たる(research.md 3-3)。資産は superuser の適用器が流すので trusted 拡張の所有の問題を避けられる |
 | 表・列・索引・FK・`tenants.retired_at` | **migration 0027** | 表の構造は migration の役割(既存の分担) |
@@ -49,7 +49,8 @@ date: 2026-10-04
 | B | **生成列 `tenants.name_normalized`** を組み込み関数だけの式で定義し、認証関数は入力を**同じ式の関数**で正規化する(関数は資産側の `definer` の内部関数) | 「1 つの関数」に対する式の重複 — 生成列の式と関数の式が同じであることを**試験で照合**する |
 | C | 式索引 | manifest の「構成列が実在」(`test_schema_manifest.py:319-320`)に当たる — **採らない見込み** |
 
-**既定は A**(v0.4 の字面に最も近い)。A が EXECUTE の検査で成り立たなければ B。**どちらでも一意索引は生成列に張る**(manifest の構成列が実在する)。
+**既定は A**(v0.4 8-1「正規化は DB の 1 つの関数」の字面どおり)。**案 B は規則を生成列の式と関数の 2 か所に持つので v0.4 に反する — 採らない**(計画レビュー 1 周目 P1-2)。
+**A が EXECUTE の検査で成り立たない場合も、単一の関数を保つ別の形**(例: 関数を `PUBLIC` 実行可の純関数として種別を分け、移行バッチ用ロールの「利用者定義関数 0 件」の検査から純関数を除く根拠を条文で示す)**をステップ 1 で確定する。単一の関数を保てる形が無ければ、実装に入らず人間に上げる**。一意索引は生成列に張る。
 
 ## 4. migration 0027
 
@@ -69,10 +70,10 @@ date: 2026-10-04
 
 | 関数 | 付与先 | 要点(v0.4) |
 | --- | --- | --- |
-| `authn.login(team_name text, password text) → uuid` | `pitchlog_app` | 正規化 → 退役していないテナントを解決 → 計数の器(③〜⑥)→ 有効テナントにだけ発行・ID は `gen_random_uuid()`。**失敗はすべて `NULL`**(存在・状態・誤り方で分岐して早く終わらない — 同じ照会・計数・同コストの照合)。有効期限は設定値から読み、未設定なら発行しない |
+| `authn.login(team_name text, password text) → uuid` | `pitchlog_app` | 正規化 → 退役していないテナントを解決 → 計数の器(③〜⑥)→ 有効テナントにだけ発行・ID は `gen_random_uuid()`。**失敗はすべて `NULL`**(存在・状態・誤り方で分岐して早く終わらない — 同じ照会・計数・同コストの照合)。**有効期限と計数の各設定値を読み、欠落・不正値ならどれか 1 つでも発行しない** |
 | `authn.verify_token(token_id uuid) → uuid`(tenant_id) | `pitchlog_app` | 存在・期限・世代・テナント有効・テナント一致を 1 回で照合し、通れば延長。失効は `NULL`。**失効したトークンを延長で復活させない**(行ロックで直列化) |
 | `authn.logout(token_id uuid) → void` | `pitchlog_app` | 期限を現在時刻へ(行は残す)。`CHECK expires_at >= last_used_at` と両立させる |
-| `authn.change_password(token_id uuid, current_password text, new_password text) → boolean` | `pitchlog_app` | **対象はトークンの認証主体だけ**(引数で選べない)→ 現行 PW の照合 → ポリシー → ハッシュ更新・世代 +1・日時を 1 トランザクション。新トークンを発行しない |
+| `authn.change_password(token_id uuid, current_password text, new_password text) → boolean` | `pitchlog_app` | **トークンが `verify_token` と同じ有効性条件(存在・期限内・世代一致・テナント有効・テナント一致・失効していない)を満たすことを先に確かめる**(満たさなければ何もせず `false` — 計画レビュー 1 周目 P0-1)→ **対象はそのトークンの認証主体だけ**(引数で選べない)→ 現行 PW の照合 → ポリシー → ハッシュ更新・世代 +1・日時を 1 トランザクション。新トークンを発行しない |
 | `authn.issue_initial_password(tenant_id uuid, password text) → void` | 管理関数所有用ロールだけ | 認証主体と認証情報を作る(1 テナント 1 件) |
 | `authn.reset_password(tenant_id uuid, new_password text) → void` | 同上 | ポリシー → ハッシュ更新・世代 +1・日時 |
 | `authn.revoke_tenant_tokens(tenant_id uuid) → void` | 同上 | 無効化と同じトランザクションで世代 +1。認証主体が無ければ何もせず成功 |
@@ -94,3 +95,10 @@ date: 2026-10-04
 - **③ 同一コミットで確定**: 失敗は例外にせず `NULL` を返し、計数の更新をコミットする
 - **④ 直列化**: 同じ `(scope_key, window_start)` の行を `SELECT … FOR UPDATE`。行が無い場合の競合は**一意の行を作る手段**(索引の追加か勧告ロック)を実測で選ぶ — 既存の索引は非一意(`0013_player_merge_rate_limits.py:122-127`)
 - **⑥**: 物理削除しない・`scope_key` と `window_start` は書き換えない(既存トリガ)
+
+## 8. 受理記録・最低要求④・一様性の観測(計画レビュー 1 周目)
+
+- **受理記録**: 凍結基準の v2 記録は 1 受理(PR)につき 1 件(`scripts/frozen_history.py:579-592`)。資産を動かすステップ(7・8・10)ごとに**その 1 件を書き直し**、各コミットの CI を green に保つ。PR 番号はステップ 2 の draft PR で固定する(前例 PR #82)。**ステップ 1 で、PR 内の中間コミットに対する凍結基準の検査の挙動を実測して確定する**
+- **最低要求④**: 「対象側が非共有なら要求元が付与していても返らないこと」(`data-model.md:2596`)。**認証関数は共有の越境ではない**ので④の適用対象外と判定し、PR と ④ 注記タスクに記録する。既存の `test_app_can_execute_no_security_definer_function`(「0 件」)は④の代用ではない(TSK-344 `plan.md:235-249`)ので、**`definer` の付与先の exact 照合(構成検査)へ置き換える**(ステップ 7)
+- **一様性の観測**: 失敗の種類ごとに ① 計数の行が同じく更新される ② `authn_crypto.crypt` の呼び出しが同じ回数(試験クラスタで `track_functions = all` と `pg_stat_user_functions`)を照合する。**照合を省く変異が red**。手段の成否はステップ 1 で確かめる
+- **独立の期待集合**: v0.4 の 3-2 節の 6 ロール(名前・`NOLOGIN`/`LOGIN`・`BYPASSRLS`)と、関数群と付与先の対応(design.md 5 節)を**資産とは別に定数で置き**、資産と実カタログの両方をそれと照合する(導出がトートロジーにならない)
