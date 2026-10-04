@@ -1,6 +1,6 @@
 ---
 feature: harness-ledger-candidates
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-04・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -64,7 +64,7 @@ created: 2026-10-04
 
 | 正本 | 変更内容 | ゲート(PR レビュー / finalize-doc) |
 | --- | --- | --- |
-| **`docs/development/harness-evaluation.md`** | **更新**。**既存候補 4 件へ追記**(`:1471` / `:3890` / `:3227` / `:4586`)+ **新規候補 4 件**(②④⑥⑦)+ `:3890` へ実例 1 件 + TSK-464 の 1 件。**版は上げない**(7.6-3 前段 — 台帳 `:134`)。変更履歴表の**先頭 `:9`** へ行を足す。**状態列は、候補の追記を含む行は `候補`、ステップ 6(リンク修正のみ)の行は `approved`**(6 周目 P2 の是正 — 候補を足さない行まで `候補` にしない) | PR レビュー |
+| **`docs/development/harness-evaluation.md`** | **更新**。**既存候補 4 件へ追記**(`:1471` / `:3890` / `:3227` / `:4586`)+ **新規候補 4 件**(②④⑥⑦)+ `:3890` へ実例 1 件 + TSK-464 の 1 件。**版は上げない**(7.6-3 前段 — 台帳 `:134`)。変更履歴表の**先頭 `:9`** へ行を足す。**状態列は、候補の追記を含む行は `候補`、ステップ 6(リンク修正のみ)の行は `approved`**(6 周目 P2 の是正 — 候補を足さない行まで `候補` にしない)。**クローズ処理でさらに新規候補 1 件**(全件テストの判定が同一マシンの並行作業に左右される — `/pr` 手順 1-3 の判断による) | PR レビュー |
 | **`docs/README.md`** | **更新**。台帳行の件数・走査条件・最終更新日を現行化 | PR レビュー |
 | `docs/design/data-model.md` | **反映なし** | — |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし** | — |
