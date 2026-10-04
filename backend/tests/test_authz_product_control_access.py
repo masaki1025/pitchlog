@@ -38,6 +38,7 @@ PRODUCT_SPEC = product_spec_for_repository(_REPOSITORY_ROOT)
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
 _MIGRATION_VERSIONS = Path("backend/migrations/versions")
 _RUNTIME_CONTRACT = Path("contracts/tenant_boundary/runtime-authz-contract.json")
+_RUNTIME_CONTRACT_MODULE = Path("backend/src/pitchlog/authz/runtime_contract.py")
 _RUNTIME_CONTRACT_STATE, _RUNTIME_CONTRACT_VIOLATIONS = evaluate_repository(
     _REPOSITORY_ROOT
 )
@@ -114,6 +115,7 @@ def _copy_static_inputs(root: Path) -> None:
         Path("contracts/authz/product/exposure-facts.json"),
         PRODUCT_SPEC.ddl_elements_path,
         _RUNTIME_CONTRACT,
+        _RUNTIME_CONTRACT_MODULE,
     )
     for relative_path in paths:
         destination = root / relative_path

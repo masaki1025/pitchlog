@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Pattern, Sequence, cast
 
 _BACKEND_SOURCE_ROOT = Path(__file__).resolve().parents[1] / "backend" / "src"
-_CHECKER_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_BACKEND_SOURCE_ROOT))
 
 from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-import]
@@ -645,22 +644,24 @@ class CatalogError(Exception):
 
 
 def _runtime_contract_state(root: Path) -> RuntimeContractState:
-    """共有 API からリポジトリのランタイム契約状態を得る。"""
+    """共有 API の状態と違反集合を検査し、正しい状態だけを返す。"""
     try:
-        state, _violations = evaluate_repository(root)
+        state, violations = evaluate_repository(root)
     except (OSError, ValueError) as error:
         raise CatalogError(f"ランタイム契約の状態を判定できない: {error}") from error
+    if violations:
+        raise CatalogError(f"ランタイム契約違反: {', '.join(sorted(violations))}")
     if state is RuntimeContractState.INVALID:
         raise CatalogError("ランタイム契約の状態が不正: BOTH_STAGED_AND_FINAL")
     return state
 
 
 def _runtime_contract_asset_path(root: Path) -> Path:
-    """部分 fixture では検査器を置く実リポジトリの契約資産を返す。"""
+    """検査対象のルート内にある契約資産だけを返す。"""
     candidate = root / RUNTIME_CONTRACT_ASSET
-    if candidate.is_file():
-        return candidate
-    return _CHECKER_REPOSITORY_ROOT / RUNTIME_CONTRACT_ASSET
+    if not candidate.is_file():
+        raise CatalogError(f"PROVISIONAL_ASSET_MISSING: {candidate}")
+    return candidate
 
 
 @dataclass(frozen=True)

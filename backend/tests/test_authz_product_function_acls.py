@@ -101,6 +101,8 @@ def _copy_static_inputs(root: Path) -> None:
         Path("contracts/authz/product/exposure-facts.json"),
         PRODUCT_SPEC.ddl_elements_path,
         PRODUCT_SPEC.body_manifest_path,
+        Path("contracts/tenant_boundary/runtime-authz-contract.json"),
+        Path("backend/src/pitchlog/authz/runtime_contract.py"),
     )
     for relative_path in paths:
         destination = root / relative_path

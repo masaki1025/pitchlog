@@ -113,6 +113,14 @@ def _make_repository(tmp_path: Path) -> Path:
     catalog = _read_catalog(root)
     catalog["input_manifest"]["commit"] = _run_git(root, "rev-parse", "HEAD")
     _write_catalog(root, catalog)
+    runtime_asset = _read_base_staged_asset(checker.RUNTIME_CONTRACT_ASSET)
+    _write_json_at(root, checker.RUNTIME_CONTRACT_ASSET, runtime_asset)
+    module_path = root / "backend/src/pitchlog/authz/runtime_contract.py"
+    module_path.parent.mkdir(parents=True, exist_ok=True)
+    module_path.write_text(
+        runtime_contract_support.render_runtime_contract(runtime_asset),
+        encoding="utf-8",
+    )
     return root
 
 
@@ -325,11 +333,49 @@ def test_product_runtime_contract_mutations_are_rejected(
         functions.pop()
         functions.append(["public", "changed_protected_function", ""])
         _write_json_at(root, checker.RUNTIME_CONTRACT_ASSET, runtime_asset)
-        expected_error = "最終資産の導出値と一致しない"
+        expected_error = "DERIVED_FIELDS_STALE"
 
     with pytest.raises(checker.CatalogError, match=expected_error):
         checker.validate_ddl_elements(
             product_asset,
+            root,
+            checker.PRODUCT_SPEC,
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "violation_id"),
+    (
+        ("provisional-asset", "PROVISIONAL_REMAINS"),
+        ("provisional-module", "GENERATED_MODULE_IS_PROVISIONAL"),
+        ("missing-contract", "PROVISIONAL_ASSET_MISSING"),
+    ),
+)
+def test_product_runtime_contract_shared_violations_are_catalog_errors(
+    tmp_path: Path,
+    mutation: str,
+    violation_id: str,
+) -> None:
+    """製品状態の契約違反を検査器単独で拒否する。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    if mutation == "provisional-asset":
+        contract = _read_json_at(root, checker.RUNTIME_CONTRACT_ASSET)
+        contract["provisional"] = True
+        _write_json_at(root, checker.RUNTIME_CONTRACT_ASSET, contract)
+    elif mutation == "provisional-module":
+        module_path = root / "backend/src/pitchlog/authz/runtime_contract.py"
+        source = module_path.read_text(encoding="utf-8")
+        assert source.count("PROVISIONAL = False") == 1
+        module_path.write_text(
+            source.replace("PROVISIONAL = False", "PROVISIONAL = True", 1),
+            encoding="utf-8",
+        )
+    else:
+        (root / checker.RUNTIME_CONTRACT_ASSET).unlink()
+
+    with pytest.raises(checker.CatalogError, match=violation_id):
+        checker.validate_ddl_elements(
+            _read_json_at(root, checker.PRODUCT_ASSET),
             root,
             checker.PRODUCT_SPEC,
         )
