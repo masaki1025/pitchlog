@@ -1,0 +1,17 @@
+[
+  {
+    "key": "active",
+    "category": "roster_status",
+    "display_name": "現役"
+  },
+  {
+    "key": "other",
+    "category": "roster_status",
+    "display_name": "その他"
+  },
+  {
+    "key": "ob",
+    "category": "roster_status",
+    "display_name": "OB"
+  }
+]
