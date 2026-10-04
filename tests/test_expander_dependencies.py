@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import subprocess
 import sys
 from collections.abc import Callable
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pytest
@@ -23,6 +24,16 @@ POLICY_PATH = (
 )
 DESIGN_PATH = REPOSITORY_ROOT / "docs/features/appendix-e-golden-vectors/design.md"
 DISALLOWED_PATH = REPOSITORY_ROOT / "pyproject.toml"
+MANUAL_FIXTURE_PATH = (
+    REPOSITORY_ROOT
+    / "contracts/state-transition/state_transition_manual_fixtures_v1.json"
+)
+CONTRACT_PATH = (
+    REPOSITORY_ROOT / "contracts/state-transition/state_transition_contract_v1.json"
+)
+SCHEMA_PATH = (
+    REPOSITORY_ROOT / "contracts/state-transition/state_transition_contract_schema_v1.json"
+)
 
 
 def _load_module(name: str, path: Path) -> Any:
@@ -36,9 +47,13 @@ def _load_module(name: str, path: Path) -> Any:
 
 
 _load_module("state_transition_freeze", FREEZE_CHECKER_PATH)
-_load_module("check_input_axes_descriptor", DESCRIPTOR_CHECKER_PATH)
+schema_checker = _load_module("check_input_axes_descriptor", DESCRIPTOR_CHECKER_PATH)
 _load_module("check_deriver_dependencies", DERIVER_CHECKER_PATH)
 checker = _load_module("check_expander_dependencies", EXPANDER_CHECKER_PATH)
+state_transition_expander = _load_module(
+    "expand_state_transition_cases",
+    REPOSITORY_ROOT / "scripts/expand_state_transition_cases.py",
+)
 
 
 def _policy() -> Any:
@@ -158,3 +173,33 @@ def test_untraced_subprocess_is_fail_closed() -> None:
             rule.expander_id,
             spawn_child,
         )
+
+
+def test_state_transition_expander_output_is_traced_and_schema_valid() -> None:
+    """規範行からの派生ケースが宣言済みの読み取りとschemaを満たす。"""
+    cases, trace = state_transition_expander.expand_traced(REPOSITORY_ROOT, limit=1)
+    policy = _policy()
+    rule = policy.expanders["state-transition-cases"]
+    assert len(cases) == 1
+    assert trace.observed_read_paths == rule.allowed_read_paths
+    contract = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    assert contract["cases"] == cases
+    schema_checker._validate_instance(contract, schema, schema, "$")
+
+
+@pytest.mark.parametrize("disallowed", [DISALLOWED_PATH, MANUAL_FIXTURE_PATH])
+def test_state_transition_expander_rejects_unlisted_reads(
+    monkeypatch: pytest.MonkeyPatch, disallowed: Path
+) -> None:
+    """実際の展開呼出区間で宣言外資産と手作業fixtureを拒否する。"""
+    original_read = state_transition_expander._read_document
+
+    def read_with_disallowed(root: Path, relative: PurePosixPath) -> dict[str, Any]:
+        """展開中の読み取りへ未宣言資産を混入する。"""
+        disallowed.read_text(encoding="utf-8")
+        return original_read(root, relative)
+
+    monkeypatch.setattr(state_transition_expander, "_read_document", read_with_disallowed)
+    with pytest.raises(checker.ExpanderDependencyError, match="allowlist外"):
+        state_transition_expander.expand_traced(REPOSITORY_ROOT, limit=1)
