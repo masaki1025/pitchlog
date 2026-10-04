@@ -494,7 +494,7 @@ export const CANON_IDEMPOTENCY_OUT_OF_SCOPE = {
     {
       id: 'DI5',
       reason:
-        'U-14 の保存済み退避再掲を B1・B4 のどちらにするか未確定であり TSK-330 が受け取るため',
+        '混在バッチの A5 を扱い、B3a が T9 の永続化を伴うため TSK-330 の射程とする',
     },
   ],
   [P3_BOUNDARY_RELATION_ID]: [

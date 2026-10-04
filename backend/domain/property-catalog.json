@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "synthetic-dsl-invariants",
+  "scope": "synthetic-dsl",
+  "predicates": [
+    {
+      "propertyId": "countNonnegative",
+      "evaluatorId": "synthetic.count-nonnegative",
+      "authorityId": "ADR-003 D-11 3 層表 プロパティ層"
+    },
+    {
+      "propertyId": "emptyAggregateDisplay",
+      "evaluatorId": "synthetic.empty-aggregate-null-display",
+      "authorityId": "ADR-003 D-11 3 層表 プロパティ層"
+    }
+  ],
+  "independence": {
+    "generatorSource": "backend/src/pitchlog/domaingen",
+    "catalogPath": "backend/domain/property-catalog.json",
+    "generatorInputAllowlist": [
+      "backend/domain/model.schema.json",
+      "backend/domain/manifest.schema.json",
+      "backend/domain/vocabulary.schema.json",
+      "backend/tests/domain/fixtures/synthetic_dsl/model.json",
+      "backend/tests/domain/fixtures/synthetic_dsl/manifest.json",
+      "docs/adr/ADR-003-domain-calc-method.md"
+    ]
+  }
+}

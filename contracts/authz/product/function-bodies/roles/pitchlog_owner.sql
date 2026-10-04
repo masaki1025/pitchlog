@@ -1,0 +1,11 @@
+-- ELEMENT-TYPE: role
+-- ELEMENT-ID: pitchlog_owner
+
+ALTER ROLE pitchlog_owner WITH
+    NOSUPERUSER
+    NOBYPASSRLS
+    LOGIN
+    NOCREATEROLE
+    NOCREATEDB
+    NOREPLICATION
+    NOINHERIT;

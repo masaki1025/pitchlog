@@ -908,9 +908,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         違反なしなら 0、違反ありなら 1。
     """
     args = parse_args(argv)
+    root = args.root.resolve()
+    documents, _ = extract_indexed_documents(root)
     violations = check_repository(args.root)
     for message in violations:
         print(message, file=sys.stderr)
+    # 走査件数を出す。`exit 0` だけでは、対象を 1 件も見ずに終わった実行と区別できない。
+    print(f"docs-status: {len(documents)} documents scanned, {len(violations)} violations")
     return 1 if violations else 0
 
 

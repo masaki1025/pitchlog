@@ -20,6 +20,12 @@ import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_authz_catalog.py"
+RUNTIME_CONTRACT_SUPPORT = (
+    REPOSITORY_ROOT
+    / "backend"
+    / "tests"
+    / "test_authz_runtime_contract_repository.py"
+)
 FIXTURE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "authz_claims"
 DERIVED_ASSET_FILES = {
     "route_registry": "route-registry.json",
@@ -57,6 +63,22 @@ def _load_checker() -> Any:
 checker = _load_checker()
 
 
+def _load_runtime_contract_support() -> Any:
+    """Backend と共有する製品状態の複製 helper を読む。"""
+    spec = importlib.util.spec_from_file_location(
+        "runtime_contract_repository_for_catalog_tests",
+        RUNTIME_CONTRACT_SUPPORT,
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+runtime_contract_support = _load_runtime_contract_support()
+
+
 def _run_git(root: Path, *arguments: str) -> str:
     """一時repositoryでGitを実行し、成功時の標準出力を返す。"""
     result = subprocess.run(
@@ -91,6 +113,14 @@ def _make_repository(tmp_path: Path) -> Path:
     catalog = _read_catalog(root)
     catalog["input_manifest"]["commit"] = _run_git(root, "rev-parse", "HEAD")
     _write_catalog(root, catalog)
+    runtime_asset = _read_base_staged_asset(checker.RUNTIME_CONTRACT_ASSET)
+    _write_json_at(root, checker.RUNTIME_CONTRACT_ASSET, runtime_asset)
+    module_path = root / "backend/src/pitchlog/authz/runtime_contract.py"
+    module_path.parent.mkdir(parents=True, exist_ok=True)
+    module_path.write_text(
+        runtime_contract_support.render_runtime_contract(runtime_asset),
+        encoding="utf-8",
+    )
     return root
 
 
@@ -174,6 +204,285 @@ def _read_repository_json(relative_path: str) -> dict[str, Any]:
     raw = json.loads((REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8"))
     assert isinstance(raw, dict)
     return raw
+
+
+def _read_json_at(root: Path, relative_path: Path) -> dict[str, Any]:
+    """指定した試験用リポジトリの JSON オブジェクトを読む。"""
+    raw = json.loads((root / relative_path).read_text(encoding="utf-8"))
+    assert isinstance(raw, dict)
+    return raw
+
+
+def _read_base_staged_asset(relative_path: Path) -> dict[str, Any]:
+    """製品状態でも比較元の未発効資産を試験入力として読む。"""
+    if (REPOSITORY_ROOT / checker.STAGED_PRODUCT_ASSET).is_file():
+        return _read_json_at(REPOSITORY_ROOT, relative_path)
+    raw = _run_git(
+        REPOSITORY_ROOT,
+        "show",
+        f"{runtime_contract_support.provisional_reference_revision(REPOSITORY_ROOT)}:{relative_path.as_posix()}",
+    )
+    value = json.loads(raw)
+    assert isinstance(value, dict)
+    return value
+
+
+def _write_json_at(root: Path, relative_path: Path, value: dict[str, Any]) -> None:
+    """指定した試験用リポジトリへ JSON オブジェクトを書く。"""
+    path = root / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _copy_product_catalog_repository(tmp_path: Path) -> Path:
+    """共有 helper の製品状態へ検査器が読む補助資産を複製する。"""
+    root = runtime_contract_support.copy_product_repository(
+        REPOSITORY_ROOT,
+        tmp_path / "product-repository",
+    )
+    source_product_root = REPOSITORY_ROOT / checker.PRODUCT_SPEC.asset_root
+    for source in source_product_root.rglob("*"):
+        if not source.is_file() or source.name in {
+            checker.STAGED_PRODUCT_ASSET.name,
+            checker.PRODUCT_ASSET.name,
+        }:
+            continue
+        destination = root / source.relative_to(REPOSITORY_ROOT)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+    shutil.copytree(
+        REPOSITORY_ROOT / checker.PRODUCT_MIGRATION_VERSIONS,
+        root / checker.PRODUCT_MIGRATION_VERSIONS,
+        dirs_exist_ok=True,
+    )
+    schema_manifest = Path("contracts/db/schema-manifest.json")
+    _write_json_at(
+        root,
+        schema_manifest,
+        _read_json_at(REPOSITORY_ROOT, schema_manifest),
+    )
+    return root
+
+
+def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
+    """製品状態からでも正しい未発効状態の検査用複製を組み立てる。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    (root / checker.PRODUCT_ASSET).unlink()
+    _write_json_at(
+        root,
+        checker.STAGED_PRODUCT_ASSET,
+        _read_base_staged_asset(checker.STAGED_PRODUCT_ASSET),
+    )
+    runtime_asset = _read_base_staged_asset(checker.RUNTIME_CONTRACT_ASSET)
+    _write_json_at(root, checker.RUNTIME_CONTRACT_ASSET, runtime_asset)
+    module_path = root / "backend/src/pitchlog/authz/runtime_contract.py"
+    module_path.write_text(
+        runtime_contract_support.render_runtime_contract(runtime_asset),
+        encoding="utf-8",
+    )
+    return root
+
+
+def test_product_runtime_contract_state_is_accepted(tmp_path: Path) -> None:
+    """最終パスと製品化したランタイム契約を検査器が受理する。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    state = checker._runtime_contract_state(root)
+    product_path = checker.product_asset_path_for_state(state)
+    assert product_path == checker.PRODUCT_ASSET
+
+    result = checker.validate_ddl_elements(
+        _read_json_at(root, checker.PRODUCT_ASSET),
+        root,
+        checker.PRODUCT_SPEC,
+    )
+
+    assert result == {
+        "scope_status": checker.PRODUCT_SPEC.allowed_scope_status,
+        "product_role_count": 4,
+    }
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("pending-switch", "provisional-additions", "protected-function"),
+)
+def test_product_runtime_contract_mutations_are_rejected(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """製品状態に残した暫定欄と保護関数のずれを拒否する。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    product_asset = _read_json_at(root, checker.PRODUCT_ASSET)
+    expected_error = "キー不一致"
+    if mutation == "pending-switch":
+        product_asset["pending_switch"] = "TSK-443"
+    elif mutation == "provisional-additions":
+        staged = _read_base_staged_asset(checker.STAGED_PRODUCT_ASSET)
+        product_asset["provisional_contract_additions"] = staged[
+            "provisional_contract_additions"
+        ]
+    else:
+        runtime_asset = _read_json_at(root, checker.RUNTIME_CONTRACT_ASSET)
+        protected = runtime_asset["protected_objects"]
+        assert isinstance(protected, dict)
+        functions = protected["functions"]
+        assert isinstance(functions, list)
+        functions.pop()
+        functions.append(["public", "changed_protected_function", ""])
+        _write_json_at(root, checker.RUNTIME_CONTRACT_ASSET, runtime_asset)
+        expected_error = "DERIVED_FIELDS_STALE"
+
+    with pytest.raises(checker.CatalogError, match=expected_error):
+        checker.validate_ddl_elements(
+            product_asset,
+            root,
+            checker.PRODUCT_SPEC,
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "violation_id"),
+    (
+        ("provisional-asset", "PROVISIONAL_REMAINS"),
+        ("provisional-module", "GENERATED_MODULE_IS_PROVISIONAL"),
+        ("missing-contract", "PROVISIONAL_ASSET_MISSING"),
+    ),
+)
+def test_product_runtime_contract_shared_violations_are_catalog_errors(
+    tmp_path: Path,
+    mutation: str,
+    violation_id: str,
+) -> None:
+    """製品状態の契約違反を検査器単独で拒否する。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    if mutation == "provisional-asset":
+        contract = _read_json_at(root, checker.RUNTIME_CONTRACT_ASSET)
+        contract["provisional"] = True
+        _write_json_at(root, checker.RUNTIME_CONTRACT_ASSET, contract)
+    elif mutation == "provisional-module":
+        module_path = root / "backend/src/pitchlog/authz/runtime_contract.py"
+        source = module_path.read_text(encoding="utf-8")
+        assert source.count("PROVISIONAL = False") == 1
+        module_path.write_text(
+            source.replace("PROVISIONAL = False", "PROVISIONAL = True", 1),
+            encoding="utf-8",
+        )
+    else:
+        (root / checker.RUNTIME_CONTRACT_ASSET).unlink()
+
+    with pytest.raises(checker.CatalogError, match=violation_id):
+        checker.validate_ddl_elements(
+            _read_json_at(root, checker.PRODUCT_ASSET),
+            root,
+            checker.PRODUCT_SPEC,
+        )
+
+
+def test_pending_state_always_runs_only_pending_protected_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """未発効状態で未発効用の保護対象照合だけが必ず走る。"""
+    calls: list[str] = []
+    pending_validation = checker._validate_pending_product_protected_targets
+    final_validation = checker._validate_final_product_protected_targets
+
+    def record_pending(raw: dict[str, object], root: Path) -> None:
+        calls.append("pending")
+        pending_validation(raw, root)
+
+    def record_final(raw: dict[str, object], root: Path) -> None:
+        calls.append("product")
+        final_validation(raw, root)
+
+    monkeypatch.setattr(
+        checker,
+        "_validate_pending_product_protected_targets",
+        record_pending,
+    )
+    monkeypatch.setattr(
+        checker,
+        "_validate_final_product_protected_targets",
+        record_final,
+    )
+    root = _copy_pending_catalog_repository(tmp_path)
+    checker.validate_ddl_elements(
+        _read_json_at(root, checker.STAGED_PRODUCT_ASSET),
+        root,
+        checker.PRODUCT_SPEC,
+    )
+
+    assert calls == ["pending"]
+
+
+def test_product_state_always_runs_only_final_protected_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """製品状態で製品用の保護対象照合だけが必ず走る。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    calls: list[str] = []
+    pending_validation = checker._validate_pending_product_protected_targets
+    final_validation = checker._validate_final_product_protected_targets
+
+    def record_pending(raw: dict[str, object], repository_root: Path) -> None:
+        calls.append("pending")
+        pending_validation(raw, repository_root)
+
+    def record_final(raw: dict[str, object], repository_root: Path) -> None:
+        calls.append("product")
+        final_validation(raw, repository_root)
+
+    monkeypatch.setattr(
+        checker,
+        "_validate_pending_product_protected_targets",
+        record_pending,
+    )
+    monkeypatch.setattr(
+        checker,
+        "_validate_final_product_protected_targets",
+        record_final,
+    )
+    checker.validate_ddl_elements(
+        _read_json_at(root, checker.PRODUCT_ASSET),
+        root,
+        checker.PRODUCT_SPEC,
+    )
+
+    assert calls == ["product"]
+
+
+def test_invalid_runtime_contract_state_is_catalog_error(tmp_path: Path) -> None:
+    """Staged と最終パスが併存する不正状態を CatalogError にする。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    staged_path = root / checker.STAGED_PRODUCT_ASSET
+    staged_path.parent.mkdir(parents=True, exist_ok=True)
+    _write_json_at(
+        root,
+        checker.STAGED_PRODUCT_ASSET,
+        _read_base_staged_asset(checker.STAGED_PRODUCT_ASSET),
+    )
+
+    with pytest.raises(checker.CatalogError, match="BOTH_STAGED_AND_FINAL"):
+        checker.validate_ddl_elements(
+            _read_json_at(root, checker.PRODUCT_ASSET),
+            root,
+            checker.PRODUCT_SPEC,
+        )
+
+
+def test_provisional_state_has_no_product_ddl_path(tmp_path: Path) -> None:
+    """暫定状態では製品 DDL manifest の検査対象パスを選ばない。"""
+    root = _copy_pending_catalog_repository(tmp_path)
+    (root / checker.STAGED_PRODUCT_ASSET).unlink()
+
+    state = checker._runtime_contract_state(root)
+
+    assert state is checker.RuntimeContractState.PROVISIONAL
+    assert checker.product_asset_path_for_state(state) is None
 
 
 def _repository_derived_assets() -> tuple[
@@ -373,18 +682,25 @@ def _git_object_id(arguments: list[str]) -> str:
     return object_id
 
 
-def _assert_oracle_input_baseline_matches_seal(seal: dict[str, Any]) -> None:
-    """入力8資産の作業ツリー・基準commit・seal blobを三者照合する。"""
+def _oracle_input_drifts(
+    seal: dict[str, Any],
+) -> tuple[frozenset[str], frozenset[str]]:
+    """入力8資産の作業ツリーと基準commitの差分集合を返す。"""
     oracle_commit = seal["oracle_commit"]
     assert isinstance(oracle_commit, str) and oracle_commit
     rows = seal["input_assets"]
     assert isinstance(rows, list)
     assert len(rows) == len({row["path"] for row in rows}) == 8
+    worktree_drift: set[str] = set()
+    commit_drift: set[str] = set()
     for row in rows:
         path = row["path"]
         recorded = row["git_blob_digest"]
-        assert _git_object_id(["hash-object", "--", path]) == recorded
-        assert _git_object_id(["rev-parse", f"{oracle_commit}:{path}"]) == recorded
+        if _git_object_id(["hash-object", "--", path]) != recorded:
+            worktree_drift.add(path)
+        if _git_object_id(["rev-parse", f"{oracle_commit}:{path}"]) != recorded:
+            commit_drift.add(path)
+    return frozenset(worktree_drift), frozenset(commit_drift)
 
 
 def _strict_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -1724,6 +2040,334 @@ def test_legacy_routes_require_requirement_origin_and_source_claims() -> None:
             assert isinstance(expected_error, str)
             if expected_error not in str(error):
                 failures.append((case_name, str(error)))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+RECORD_AND_AGGREGATE_KIND = "record_and_aggregate"
+RECORD_AND_AGGREGATE_PROVENANCE_ID = "PLAN-TSK446-RECORD-AND-AGGREGATE"
+
+
+def _record_and_aggregate_registry() -> tuple[dict[str, Any], dict[str, Any]]:
+    """新種別の正常な route をメモリ上の repository 資産へ追加する。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    registry = copy.deepcopy(assets["route_registry"])
+    if RECORD_AND_AGGREGATE_KIND not in registry["enums"]["route_kinds"]:
+        registry["enums"]["route_kinds"].append(RECORD_AND_AGGREGATE_KIND)
+    if not any(
+        entry["provenance_id"] == RECORD_AND_AGGREGATE_PROVENANCE_ID
+        for entry in registry["design_provenance"]
+    ):
+        registry["design_provenance"].append(
+            {
+                "provenance_id": RECORD_AND_AGGREGATE_PROVENANCE_ID,
+                "path": "docs/features/route-kind-vocabulary/plan.md",
+                "extracted_text": "record_and_aggregate",
+            }
+        )
+    registry["routes"].append(
+        {
+            "route_id": "ROUTE:RECORD:fixture:READ",
+            "route_kind": RECORD_AND_AGGREGATE_KIND,
+            "origin": "design",
+            "source_claim_ids": [],
+            "provenance_ids": [RECORD_AND_AGGREGATE_PROVENANCE_ID],
+            "operation": "read",
+        }
+    )
+    return registry, requirement_catalog
+
+
+def _record_and_aggregate_route(registry: dict[str, Any]) -> dict[str, Any]:
+    """メモリ上の registry から新種別の route を返す。"""
+    return next(
+        route
+        for route in registry["routes"]
+        if route["route_kind"] == RECORD_AND_AGGREGATE_KIND
+    )
+
+
+def _validate_record_and_aggregate_registry(
+    registry: dict[str, Any], requirement_catalog: dict[str, Any]
+) -> dict[str, object]:
+    """新種別を追加した repository 資産を検査する。"""
+    return checker.validate_route_registry(
+        registry,
+        requirement_catalog,
+        REPOSITORY_ROOT,
+        frozenset({IMPLEMENTED_CATALOG_TEST_ID}),
+    )
+
+
+def _allow_record_and_aggregate_route_for_semantic_test(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新種別の個別意味検査中だけ未登録 route の exact-set 検査を外す。"""
+    monkeypatch.setattr(
+        checker,
+        "_validate_record_and_aggregate_route_ids",
+        lambda _route_by_id: None,
+    )
+
+
+def test_record_and_aggregate_route_requires_operation_key() -> None:
+    """新種別の必須キーを一つ欠く route を拒否する。"""
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    cases = {"operation": "キー不一致: 不足="}
+    failures: list[tuple[str, str]] = []
+
+    for missing_key, expected_error in cases.items():
+        mutated = copy.deepcopy(registry)
+        _record_and_aggregate_route(mutated).pop(missing_key)
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            if expected_error not in str(error):
+                failures.append((missing_key, str(error)))
+        except Exception as error:  # noqa: BLE001 - 素の KeyError も失敗内容へ集約する
+            failures.append((missing_key, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((missing_key, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_all_route_kind_values_reject_an_unregistered_value() -> None:
+    """資産から列挙した全 route_kind を許可外値へ変えて red にする。"""
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    failures: list[tuple[str, str]] = []
+    escaped: list[tuple[str | int, ...]] = []
+    attempts = 0
+
+    kind_paths = [
+        path
+        for path in _iter_leaf_paths(registry["routes"])
+        if path[-1] == "route_kind"
+    ]
+    for path in kind_paths:
+        mutated = copy.deepcopy(registry)
+        parent, key = _parent_and_key(mutated["routes"], path)
+        assert isinstance(parent, dict) and isinstance(key, str)
+        parent[key] = "unregistered_route_kind"
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            if "route_kindが閉じた値域にない" not in str(error):
+                failures.append((str(path), str(error)))
+        except Exception as error:  # noqa: BLE001 - 未実装箇所の例外型も収集する
+            failures.append((str(path), f"{type(error).__name__}: {error}"))
+        else:
+            escaped.append(path)
+        attempts += 1
+
+    assert attempts == len(kind_paths)
+    assert failures == []
+    assert escaped == []
+
+
+def test_record_and_aggregate_route_requires_design_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新種別を requirement origin に差し替えた route を拒否する。"""
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    _allow_record_and_aggregate_route_for_semantic_test(monkeypatch)
+    _validate_record_and_aggregate_registry(registry, requirement_catalog)
+    cases = {
+        "requirement_origin": {
+            "origin": "requirement",
+            "source_claim_ids": ["FR-034/heading-001/table_row-015"],
+            "expected_error": "record_and_aggregate route は design origin が必要",
+        }
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = copy.deepcopy(registry)
+        route = _record_and_aggregate_route(mutated)
+        route["origin"] = case["origin"]
+        route["source_claim_ids"] = case["source_claim_ids"]
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            expected_error = case["expected_error"]
+            assert isinstance(expected_error, str)
+            if expected_error not in str(error):
+                failures.append((case_name, str(error)))
+        except Exception as error:  # noqa: BLE001 - 素の KeyError も失敗内容へ集約する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_record_and_aggregate_route_id_must_match_operation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新種別の operation と一致しない route_id を拒否する。"""
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    _allow_record_and_aggregate_route_for_semantic_test(monkeypatch)
+    _validate_record_and_aggregate_registry(registry, requirement_catalog)
+    cases = {
+        "operation_mismatch": {
+            "route_id": "ROUTE:RECORD:fixture:INSERT",
+            "expected_error": "record_and_aggregate route_id が導出規則と不一致",
+        }
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = copy.deepcopy(registry)
+        _record_and_aggregate_route(mutated)["route_id"] = case["route_id"]
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            expected_error = case["expected_error"]
+            assert isinstance(expected_error, str)
+            if expected_error not in str(error):
+                failures.append((case_name, str(error)))
+        except Exception as error:  # noqa: BLE001 - 素の KeyError も失敗内容へ集約する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_record_and_aggregate_route_rejects_unregistered_operations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """閉値域だけを検査するため route_id 末尾も揃え、delete 等を拒否する。"""
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    _allow_record_and_aggregate_route_for_semantic_test(monkeypatch)
+    _validate_record_and_aggregate_registry(registry, requirement_catalog)
+    cases = {
+        "delete": {
+            "operation": "delete",
+            "expected_error": "operationが閉じた値域にない: delete",
+        },
+        "upsert": {
+            "operation": "upsert",
+            "expected_error": "operationが閉じた値域にない: upsert",
+        },
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = copy.deepcopy(registry)
+        route = _record_and_aggregate_route(mutated)
+        operation = case["operation"]
+        route["operation"] = operation
+        route["route_id"] = f"ROUTE:RECORD:fixture:{operation.upper()}"
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            expected_error = case["expected_error"]
+            if expected_error not in str(error):
+                failures.append((case_name, str(error)))
+        except Exception as error:  # noqa: BLE001 - 例外型も失敗内容へ集約する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_record_and_aggregate_route_requires_dedicated_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新種別で既存 legacy provenance を流用した route を拒否する。"""
+    registry, requirement_catalog = _record_and_aggregate_registry()
+    _allow_record_and_aggregate_route_for_semantic_test(monkeypatch)
+    _validate_record_and_aggregate_registry(registry, requirement_catalog)
+    cases = {
+        "legacy_provenance": {
+            "provenance_ids": ["PLAN-STEP4-LEGACY-DENY"],
+            "expected_error": "record_and_aggregate route は専用 provenance が必要",
+        }
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, case in cases.items():
+        mutated = copy.deepcopy(registry)
+        _record_and_aggregate_route(mutated)["provenance_ids"] = case["provenance_ids"]
+        try:
+            _validate_record_and_aggregate_registry(mutated, requirement_catalog)
+        except checker.CatalogError as error:
+            expected_error = case["expected_error"]
+            assert isinstance(expected_error, str)
+            if expected_error not in str(error):
+                failures.append((case_name, str(error)))
+        except Exception as error:  # noqa: BLE001 - 素の KeyError も失敗内容へ集約する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
+        else:
+            failures.append((case_name, "検査が成功した"))
+
+    assert failures == []
+
+
+def test_route_kind_tables_reject_missing_mapping_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """値域にだけ存在する種別を素の KeyError ではなく CatalogError にする。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    implemented = frozenset({IMPLEMENTED_CATALOG_TEST_ID})
+    registry_result = checker.validate_route_registry(
+        assets["route_registry"],
+        requirement_catalog,
+        REPOSITORY_ROOT,
+        implemented,
+    )
+    unmapped_kind = "unmapped_route_kind"
+    monkeypatch.setattr(
+        checker,
+        "ROUTE_KINDS",
+        checker.ROUTE_KINDS | frozenset({unmapped_kind}),
+    )
+
+    registry_without_mapping = copy.deepcopy(assets["route_registry"])
+    registry_without_mapping["enums"]["route_kinds"].append(unmapped_kind)
+    registry_without_mapping["routes"].append(
+        {
+            "route_id": "ROUTE:UNMAPPED",
+            "route_kind": unmapped_kind,
+            "origin": "design",
+            "source_claim_ids": [],
+        }
+    )
+    matrix_registry_result = copy.deepcopy(registry_result)
+    matrix_route_id = assets["http_matrix"]["routes"][0]["route_id"]
+    matrix_registry_result["route_by_id"][matrix_route_id]["route_kind"] = (
+        unmapped_kind
+    )
+
+    cases: dict[str, Callable[[], object]] = {
+        "expected_keys_by_kind": lambda: checker.validate_route_registry(
+            registry_without_mapping,
+            requirement_catalog,
+            REPOSITORY_ROOT,
+            implemented,
+        ),
+        "disposition_by_kind": lambda: checker.validate_http_route_matrix(
+            assets["http_matrix"],
+            matrix_registry_result,
+            REPOSITORY_ROOT,
+            implemented,
+        ),
+    }
+    failures: list[tuple[str, str]] = []
+
+    for case_name, validate in cases.items():
+        try:
+            validate()
+        except checker.CatalogError:
+            pass
+        except Exception as error:  # noqa: BLE001 - 素の KeyError を失敗として収集する
+            failures.append((case_name, f"{type(error).__name__}: {error}"))
         else:
             failures.append((case_name, "検査が成功した"))
 
@@ -4292,7 +4936,6 @@ def test_recursive_derivers_cover_generated_container_sequences_and_siblings() -
 
 def test_normal_validation_never_reseals_a_semantically_valid_drift(
     tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """意味検査を通る digest 差分でも通常実行が seal を書き換えないと示す。"""
     root = tmp_path / "repository"
@@ -4314,9 +4957,15 @@ def test_normal_validation_never_reseals_a_semantically_valid_drift(
     # clone は remote-tracking ref を運ばないため、検査器が要求する origin/develop を作る。
     # 本テストが見るのは seal のドリフトなので、基準は HEAD でよい(受取先差分は空になる)。
     _run_git(root, "branch", "--force", "origin/develop", "HEAD")
-    baseline_result = checker.main(["--root", str(root)])
-    baseline_output = capsys.readouterr()
-    assert baseline_result == 0, baseline_output.err
+    cloned_checker = root / "scripts" / "check_authz_catalog.py"
+    baseline_result = subprocess.run(
+        [sys.executable, str(cloned_checker), "--root", str(root)],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert baseline_result.returncode == 0, baseline_result.stderr
 
     evidence_path = root / "contracts/authz/verification-evidence.json"
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
@@ -4329,14 +4978,19 @@ def test_normal_validation_never_reseals_a_semantically_valid_drift(
     seal_path = root / f"contracts/authz/{ORACLE_SEAL_FILE}"
     seal_before = seal_path.read_bytes()
 
-    result = checker.main(["--root", str(root)])
-    output = capsys.readouterr()
+    result = subprocess.run(
+        [sys.executable, str(cloned_checker), "--root", str(root)],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
-    assert result == 1
+    assert result.returncode == 1
     assert (
         "contracts/authz/verification-evidence.json: "
         "canonical digest が oracle seal と不一致"
-    ) in output.err
+    ) in result.stderr
     assert seal_path.read_bytes() == seal_before
 
 
@@ -4349,7 +5003,27 @@ def test_oracle_reseal_preserves_inputs_and_expected_asset_digests() -> None:
 
     assert current["oracle_commit_semantics"] == base["oracle_commit_semantics"]
     assert _oracle_seal_meaning_body(current) == _oracle_seal_meaning_body(base)
-    _assert_oracle_input_baseline_matches_seal(current)
+    worktree_drift, commit_drift = _oracle_input_drifts(current)
+    allowed_input_drifts = (
+        frozenset(),
+        frozenset({"contracts/authz/route-registry.json"}),
+        frozenset(
+            {
+                "contracts/authz/route-registry.json",
+                "contracts/authz/route-registry.lock.json",
+            }
+        ),
+        frozenset(
+            {
+                "contracts/authz/route-registry.json",
+                "contracts/authz/route-registry.lock.json",
+                "contracts/authz/auth-catalog.json",
+                "contracts/authz/auth-catalog.lock.json",
+            }
+        ),
+    )
+    assert worktree_drift in allowed_input_drifts
+    assert commit_drift in allowed_input_drifts
     current_by_path = {paths[name]: asset for name, asset in assets.items()}
     base_by_path = {path: _base_json(path) for path in current_by_path}
     changed = {
@@ -4365,7 +5039,19 @@ def test_oracle_reseal_preserves_inputs_and_expected_asset_digests() -> None:
     assert {
         asset["oracle_context"]["oracle_commit"] for asset in assets.values()
     } == {current["oracle_commit"]}
-    checker.validate_oracle_seal(current, assets, paths, REPOSITORY_ROOT)
+    if worktree_drift or commit_drift:
+        with pytest.raises(checker.CatalogError) as error_info:
+            checker.validate_oracle_seal(current, assets, paths, REPOSITORY_ROOT)
+        expected_drift = worktree_drift or commit_drift
+        expected_label = (
+            "oracle input blob が不一致"
+            if worktree_drift
+            else "oracle commit 上の blob が不一致"
+        )
+        assert expected_label in str(error_info.value)
+        assert any(path in str(error_info.value) for path in expected_drift)
+    else:
+        checker.validate_oracle_seal(current, assets, paths, REPOSITORY_ROOT)
 
 
 def test_all_recursively_enumerated_oracle_leaves_reject_change_and_deletion() -> None:

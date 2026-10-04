@@ -1,0 +1,271 @@
+{
+  "schema_version": 2,
+  "comparison_revision": "ec02a0d2440bb7749ec004ec4cc79776b78b9264",
+  "repository_full_name": "masaki1025/pitchlog",
+  "pull_request_number": 83,
+  "corpus_inputs": {
+    "digest": "2f649f730e62bf0d0940d5db60ad4b9a2dce30bd23b1ecd04ad3bb2f77d2a088",
+    "files": [
+      ".github/workflows/ci.yml",
+      "scripts/check_tenant_boundary_bypass.py",
+      "scripts/frozen_archive.py",
+      "scripts/frozen_history.py",
+      "tests/fixtures/frozen-archive-cases/runner.py",
+      "tests/test_check_tenant_boundary_bypass.py"
+    ],
+    "trees": [
+      "contracts/tenant_boundary",
+      "tests/fixtures/tenant_boundary"
+    ],
+    "pinned_prefixes": {
+      "history_record_count": 6,
+      "snapshot_names": [
+        "02eed9eec627b91c04d1d898525ea0106a8c7b14dc64446101e4f22cae49d4d6",
+        "09cd1a57b501a0aa079c3c27a681766a41f50605ed4801af1021ea55a4b97cf4",
+        "0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8",
+        "0e5f7552b9347a05082e42a59910897df04f2133fc4a479f5305a06396efc9c4",
+        "100dd52f5a77516f9455ed71b1949b307e6ed61524c2b491e5235f574d3d6998",
+        "101b6dd3ae291ada7cab6ea47f40b45acc3fae62d300113d2bb31c22a1a57c89",
+        "12ea02ecf1c4b8db2d1648374227c3f5810f0c8e5f2e78fdf933101d5fa1892d",
+        "165105b4b24c8ba53c90114332b7c144576784de50f551b337fb3446eb474016",
+        "1cfd6169843deff1427b122c41843231e8671dc1ac500c0cfac1f7dd5fe85203",
+        "291f594f861c2aae78ec8976f45b39a6783e3962b3209565a44e2793e034abd6",
+        "299d52cb4384f8edb2512959463044bbe25323b312f1dbf98a9e0f5778f1df18",
+        "2b46433cf2f45af6c379702990d46fee7f81bf36d7052c1991cc2ed2f0a45f03",
+        "2bd22f4faeefa2e77412074f578759294ca24f27bfafc5ce094749963b0f16ee",
+        "2d15ceff5007191fc8c47efee116487609ae2861c7a56f5c21f5a5d144dc8d06",
+        "3040624de505d14abc30d391188487287030b277659485b5533d9d4f522073b2",
+        "308af45cc9c26af9726ac29a52172fd5743bd203a65c8c1e7d8decd6217f9730",
+        "346988ed49f4f798f802788a6aaff9fe6913c923b05931b13786461fe7906ad0",
+        "35d9ce18cf073076423a404201dd0cb7977fdcd04048fd617d1e7ce39babeea7",
+        "361a9de2238c00ee3517c783f92bfb97912241e5300d3e669dc7076fa37e3cb9",
+        "37c6bebbe45f6008594ce6ba2471887a653a2211b5577e1fbe7aba8fb4c778e7",
+        "39025d92ac09e582e6bec7935220a541eaef355d649e7a3d2a6cd1531a8bea9f",
+        "3bab40813e14dfdcb0035dea31b5ca4786c43ef2fbe2fee59dbfcf35924fef82",
+        "46ef05caf65c9c89651dd2c46f14fa7a3c7b21d72d75092dd74ce9e0dd1aad08",
+        "47d436cef5f1c9aed66d53d933edb1ccc738da8e284f59afeb18d1cedb10d0f4",
+        "49cc2a4e9e9e1e4f27ea24a4f516123b9b43f3a70c4513bec4162be87dc9b639",
+        "4e4c22633db5765fc8c5bf0ae7e4969dc1d9742c8035e0ced8bbb61940aed878",
+        "53b2d116a792cd04b46bfd2472796fc865b4457459c08b8d9d8efa72f18b0fd5",
+        "62cef3db7ce945ab4e03d678a3dce976dac194a118551eed438a862337d62f9f",
+        "64dac111950afc0d41642a7a9b3e99ef71b132a90ce0d7b9f0f8b14f9a1d8415",
+        "66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6",
+        "6af8779ec88016074f6328c2ffe20daac9bacc5009dea5418c4b38045e5e4f9e",
+        "6beaca58b1afd1136c0ed1f07b212658161c47f4432f873ae6046994cfe61aa3",
+        "6fdc311f0a0a429eef080017808edce854dbee70a06621a89712573e7d8194c1",
+        "719b09b3640ff11804e4bc4069b1b838b95e138f82de69b25cd5235355479e58",
+        "7276482e196e2f272d0a8e5582c675071ae645799871b425fe9300dfcbf45e77",
+        "77851b3516e98e9db7a2a3fc867a83d11c0eb22661f55046f284de2e0c6af842",
+        "7d07832d10f2a2cf790c2cfec57f9c9a6b33f9dac396ec5c11fd27886035cd99",
+        "7d845b77aecea862ddc7c3ba674da53edae3a2d196ff0bd00e2952bca4eb7909",
+        "818e47696a221c264bb6cbe689ad3dc10223aa605fb1c393898cfc17ee828d7e",
+        "84c462fc11e1408bfe98c0c29af6d1ec6668704e3f93654349c6c06577e693cb",
+        "88f05a4f2df6c93e19855f84552d8253a31a9fe5bdfb9c6d3306bb2964b03688",
+        "895995b27d55960e1d6c20bc87c411697c0b53f0b1b13cbc8d7d4ac6d03d176c",
+        "8abd366cd518560c67cc1a1229f56f941bc16aef8ebdca3aa14d7ca68330ce9e",
+        "8d792df4cd045b87ab547d10c6ba80f5dc21c9c45703a66eea821cfdf6f99797",
+        "8e78150316da3ab0b3ec7c247b5868e6d0a666969ffcc458244f418f186e19d0",
+        "98ce077cf6e474ba4e912e34397c41feaa94b07f64eac00d7c7bb9f48000ea1c",
+        "9a43dcd24a8fbe422dddc03843c834ead566f996ed53fa32017303bcb476bf69",
+        "9aa452082184cd8ecf63d836a20110edb368a8a9769c27d8c5ea4319a5cca9f3",
+        "9e793200dea3ef75ce07c16e949d5d98c28dbc6ffcc5ab8ebbb22a99cf332385",
+        "9f02fb382b5cab1b87e5f78a69a8da1914fcff739e0fa1791c4c08320cdf54dd",
+        "a01a2d65fef1b8866b40c94341d1325185894a431fb3da48ee48c513ad149089",
+        "a133198c3da2c1f09d9e0e44ec3c8f67d7c686b47f8d0e99f629681e67a70088",
+        "a2a2280028bfd0e9ebf23927c505bc8a5a2efc339cbc110db2577dba2771f194",
+        "a5cd3967a457120ada983a2ffc83544fe19bce4d428aa22c199d3b0972d7eb23",
+        "aafec79ac1b9d7e9b1bdd9328c9abdee77172534dabf1349acd47b3e860dffe3",
+        "ae017bb44c2a298c483f1659216c9105d598563f59e64b2f364bbf9d857b3d6e",
+        "af1d4b8580b57e3639de99819ed980474ff5a265e0741d63e81bc2728f13c94d",
+        "b0d45c6f2180406847c9b639f90bb4f085f07abd5c7b1517875c4d1df35fcefc",
+        "b3036d426ba27ce88e0e153c9d7df6e64abd613d8fab4b39e1ae3cabc257ab75",
+        "b30feb9c9e8b36aeb9e3ce4cf041b3da4bef776df04cc12d26fd902e3c46bde1",
+        "b3377c5ac2690505a56e6d26f55ee2046b8f11bf40c3f6787b8f159f398fc7c5",
+        "b59a080138f2ea96c755639c7806b2f356101f53ac627fbf514ff9ec8c1acfb4",
+        "b9f78396370dd21b3e04fc7b3b07a7ee1167ad89c33540be143bb0df9a3dfcfc",
+        "baec689e65570b5ea386d6c417a5c8d38ffb831a9431334f2001f0f4431da7c8",
+        "bb203eefb31dddc0d8f618480ee9e1458c4f73f133dfc4919962829d012bdbbf",
+        "bcbabafb90b4b3b45c947aafdc7e3241fea64305c40e49c2706a4f458dd05439",
+        "bcea4fd4a03b48053f7a94268a7c8b2220e1af391b9877dc0b5319bc61742a2f",
+        "c46cac30740449759c7a0193ddd81ee0cf4b7ccabc24f4cff067ae7791bef6f7",
+        "ca5084b40e42861e36a34685f28f777e8c5423beffd1226050a7e34f6b03b13d",
+        "ce66f7283b0968b0e6ef570ff4f6a1dfa68807d881d28b2575105830e7a23986",
+        "d1d685e2830b7f7023ff82b7d09291c4013cfa52f8467906beb6f740a8f71441",
+        "d4f717520b1fc1a5fdca585ef2018b36068b109dbcf10148401c189a4f6b5a23",
+        "d5c68726c76895a6806502618ea169485867927a4c5c1a80144aeaff9a864a36",
+        "d7401c61e72e0246977420f7fd1945f59ab594dfb73a4574dd4936b220dc5d87",
+        "dadd3e8604a2eff59c756ccdf0ecc93ca733ec5adb6678d8b5982c00dde05e76",
+        "dbafbcec67703e76b5d6bcf6927cb7897eaea5d7a41dd2cfa0f09f7cf90b2bae",
+        "e3fc6da92ae34b16df3c561f952bfd7a65168cffda3c4f6170b25781157a160d",
+        "e520d68ead12759c481ee31bd30354a5ddf73622aad24726949f954c37896cf8",
+        "ef645760d4832123b8854891797d12f91df697fb51c75896179ae053602f0247",
+        "ef77d142956505a8cadc7330a3e0460377e9533faad5ecae915613c4c1f01f81",
+        "f11e7a793a4e17994d3af3ea907f3b069b25f7dc477127d6ef84ba870b25ae20",
+        "f404ad772fe208ef6428b678b9e16fe3eb9098912139d6a17feb5e875a36dbb8",
+        "f623014970c51e44ea3b9b694e080629bb9c9dee639a7d5fc927c5dfc6cb0405"
+      ]
+    }
+  },
+  "cases": [
+    {
+      "id": 1,
+      "name": "unchanged-acceptance",
+      "description": "変更なしの受理（現行の正例をそのまま再現）",
+      "action": "unchanged",
+      "expected": {
+        "previous": "green",
+        "current": "green"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
+    },
+    {
+      "id": 2,
+      "name": "recorded-movement",
+      "description": "通常の movement と正しい v2 記録",
+      "action": "recorded_movement",
+      "expected": {
+        "previous": "green",
+        "current": "green"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
+    },
+    {
+      "id": 3,
+      "name": "unchanged-identifier",
+      "description": "movement を記録するが影響資産の識別値を据え置く",
+      "action": "unchanged_identifier",
+      "expected": {
+        "previous": "red",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 2,
+        "current": null
+      }
+    },
+    {
+      "id": 4,
+      "name": "new-orphan-snapshot",
+      "description": "HEAD に参照されない content-addressed snapshot を 1 件追加する",
+      "action": "new_orphan_snapshot",
+      "expected": {
+        "previous": "green",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
+    },
+    {
+      "id": 5,
+      "name": "snapshot-count-over-limit",
+      "description": "HEAD の snapshot 総件数を 501 件にする",
+      "action": "snapshot_count_over_limit",
+      "parameters": {
+        "target_snapshot_count": 501
+      },
+      "expected": {
+        "previous": "green",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
+    },
+    {
+      "id": 6,
+      "name": "snapshot-bytes-over-limit",
+      "description": "HEAD の snapshot 総バイト数を 32 MiB より 1 バイト多くする",
+      "action": "snapshot_bytes_over_limit",
+      "parameters": {
+        "target_snapshot_bytes": 33554433
+      },
+      "expected": {
+        "previous": "green",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
+    },
+    {
+      "id": 7,
+      "name": "noncanonical-existing-reference",
+      "description": "比較元と HEAD の同じ既存 v2 prefix に prefix 違いの参照値を置く",
+      "action": "noncanonical_existing_reference",
+      "expected": {
+        "previous": "green",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
+    },
+    {
+      "id": 8,
+      "name": "noncanonical-appended-reference",
+      "description": "追記 v2 record の snapshot_ref を非正規にする",
+      "action": "noncanonical_appended_reference",
+      "expected": {
+        "previous": "red",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 2,
+        "current": null
+      }
+    },
+    {
+      "id": 9,
+      "name": "grandfathered-orphans",
+      "description": "比較元から存在する現況 29 件の孤児 snapshot を保持する",
+      "action": "unchanged",
+      "expected": {
+        "previous": "green",
+        "current": "green"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
+    },
+    {
+      "id": 10,
+      "name": "mixed-v1-v2-history",
+      "description": "一意参照 50 件を持つ現行の v1・v2 混在履歴を保持する",
+      "action": "unchanged",
+      "expected": {
+        "previous": "green",
+        "current": "green"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
+    },
+    {
+      "id": 11,
+      "name": "missing-existing-v2-reference",
+      "description": "比較元と HEAD の同じ既存 v2 prefix から snapshot_ref を欠落させる",
+      "action": "missing_existing_v2_reference",
+      "expected": {
+        "previous": "green",
+        "current": "red"
+      },
+      "recorded_exit_codes": {
+        "previous": 0,
+        "current": null
+      }
+    }
+  ]
+}
