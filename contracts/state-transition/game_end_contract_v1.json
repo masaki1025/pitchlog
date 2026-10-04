@@ -136,6 +136,35 @@
     }
   ],
   "requiredSet": {},
-  "cases": [],
+  "cases": [
+    {
+      "caseId": "GE-GAME-END-NORMAL",
+      "branchId": "GAME-END-NORMAL",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "GAME-END-NORMAL"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:0",
+        "gameEnd.extensionLimit": "finite:R+1",
+        "gameEnd.tiebreak": "none",
+        "state.half": "top",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "L+1",
+        "state.score": "away-lead:M+1"
+      },
+      "decision": {
+        "outcome": "normal-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    }
+  ],
   "validationErrors": []
 }

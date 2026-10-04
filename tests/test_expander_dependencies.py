@@ -34,6 +34,18 @@ CONTRACT_PATH = (
 SCHEMA_PATH = (
     REPOSITORY_ROOT / "contracts/state-transition/state_transition_contract_schema_v1.json"
 )
+GAME_END_CONTRACT_PATH = (
+    REPOSITORY_ROOT / "contracts/state-transition/game_end_contract_v1.json"
+)
+GAME_END_SCHEMA_PATH = (
+    REPOSITORY_ROOT / "contracts/state-transition/game_end_contract_schema_v1.json"
+)
+GAME_END_MANUAL_FIXTURE_PATH = (
+    REPOSITORY_ROOT / "contracts/state-transition/game_end_manual_fixtures_v1.json"
+)
+BRANCH_ROW_MAPPING_PATH = (
+    REPOSITORY_ROOT / "contracts/state-transition/branch_row_mapping_v1.json"
+)
 
 
 def _load_module(name: str, path: Path) -> Any:
@@ -53,6 +65,10 @@ checker = _load_module("check_expander_dependencies", EXPANDER_CHECKER_PATH)
 state_transition_expander = _load_module(
     "expand_state_transition_cases",
     REPOSITORY_ROOT / "scripts/expand_state_transition_cases.py",
+)
+game_end_expander = _load_module(
+    "expand_game_end_cases",
+    REPOSITORY_ROOT / "scripts/expand_game_end_cases.py",
 )
 
 
@@ -203,3 +219,52 @@ def test_state_transition_expander_rejects_unlisted_reads(
     monkeypatch.setattr(state_transition_expander, "_read_document", read_with_disallowed)
     with pytest.raises(checker.ExpanderDependencyError, match="allowlist外"):
         state_transition_expander.expand_traced(REPOSITORY_ROOT, limit=1)
+
+
+def test_game_end_expander_output_is_traced_and_schema_valid() -> None:
+    """終了判定行からの派生ケースが3入力の追跡とschemaを満たす。"""
+    cases, trace = game_end_expander.expand_traced(REPOSITORY_ROOT, limit=1)
+    rule = _policy().expanders["game-end-cases"]
+    assert len(cases) == 1
+    assert trace.observed_read_paths == rule.allowed_read_paths
+    contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
+    schema = json.loads(GAME_END_SCHEMA_PATH.read_text(encoding="utf-8"))
+    assert contract["cases"] == cases
+    assert contract["validationErrors"] == []
+    assert cases[0]["branchId"] == contract["decisionRows"][0]["branchId"]
+    assert cases[0]["rowRef"]["coordinate"]["branchId"] == cases[0]["branchId"]
+    schema_checker._validate_instance(contract, schema, schema, "$")
+
+
+def test_game_end_expander_can_process_all_current_decision_rows() -> None:
+    """メモリ上では現行5行すべてを行自身の分岐IDから展開できる。"""
+    cases, trace = game_end_expander.expand_traced(REPOSITORY_ROOT, limit=5)
+    contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
+    assert len(cases) == len(contract["decisionRows"])
+    assert [case["branchId"] for case in cases] == [
+        row["branchId"] for row in contract["decisionRows"]
+    ]
+    for case, row in zip(cases, contract["decisionRows"], strict=True):
+        assert game_end_expander._predicate_holds(row["precondition"], case["inputCoordinate"])
+        assert case["decision"] == row["decision"]
+    assert trace.observed_read_paths == _policy().expanders["game-end-cases"].allowed_read_paths
+
+
+@pytest.mark.parametrize(
+    "disallowed",
+    [DISALLOWED_PATH, GAME_END_MANUAL_FIXTURE_PATH, BRANCH_ROW_MAPPING_PATH],
+)
+def test_game_end_expander_rejects_unlisted_reads(
+    monkeypatch: pytest.MonkeyPatch, disallowed: Path
+) -> None:
+    """宣言外ファイル・手作業fixture・対応表の読み取りを拒否する。"""
+    original_read = game_end_expander._read_document
+
+    def read_with_disallowed(root: Path, relative: PurePosixPath) -> dict[str, Any]:
+        """終了判定の展開中に未宣言の読み取りを混入する。"""
+        disallowed.read_text(encoding="utf-8")
+        return original_read(root, relative)
+
+    monkeypatch.setattr(game_end_expander, "_read_document", read_with_disallowed)
+    with pytest.raises(checker.ExpanderDependencyError, match="allowlist外"):
+        game_end_expander.expand_traced(REPOSITORY_ROOT, limit=1)
