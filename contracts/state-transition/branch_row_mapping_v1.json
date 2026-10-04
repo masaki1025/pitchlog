@@ -4,17 +4,21 @@
   "stateContractPath": "contracts/state-transition/state_transition_contract_v1.json",
   "gameEndContractPath": "contracts/state-transition/game_end_contract_v1.json",
   "fixtureCoveragePath": "contracts/state-transition/manual_fixture_branch_coverage_v1.json",
+  "expectedPositiveMatches": 20,
+  "expectedNegativeMatches": 11,
+  "expectedRegisterBranches": 68,
+  "expectedExcludedBranches": 37,
   "claimBoundary": {
     "machineVerified": [
       "分岐IDの台帳実在、fixture 31 分岐との exact-set および免除 37 分岐との整合",
       "自然キーによる規範行の一意な実在と、状況判定契約の既存行参照との一致",
-      "通常fixtureの入力述語・期待値と規範行の一致、交差制約負例の拒否IDと変異の存在",
+      "通常fixtureの入力述語・期待値と規範行の一致、交差制約負例の変異の存在",
       "終了判定行自身のbranchIdを正とした対応表との一致、入力述語および期待decisionとの一致",
       "fixture典拠と台帳のsourceClauseIdsに共通の典拠があること"
     ],
     "notGuaranteed": [
       "分岐条文の意味と選んだ規範行との意味的対応は構造検査だけでは証明できず、人間の逐行確認を要する",
-      "交差制約負例の候補値が指定したXC規則そのもので拒否される意味的正しさは本対応表検査の保証外である",
+      "交差制約負例の拒否IDと違反集合の照合は展開結果照合検査器が担当する",
       "対応表自身は凍結済み手作業fixtureのbaseline_control射影に含まれず、digest凍結されていない"
     ]
   },
@@ -688,7 +692,8 @@
           }
         }
       },
-      "fixtureRelation": "cross-constraint-negative"
+      "fixtureRelation": "cross-constraint-negative",
+      "expectedViolationIds": ["XC-01"]
     },
     {
       "branchId": "XC-02",
@@ -729,7 +734,8 @@
           }
         }
       },
-      "fixtureRelation": "cross-constraint-negative"
+      "fixtureRelation": "cross-constraint-negative",
+      "expectedViolationIds": ["XC-02"]
     },
     {
       "branchId": "XC-03",
@@ -770,7 +776,8 @@
           }
         }
       },
-      "fixtureRelation": "cross-constraint-negative"
+      "fixtureRelation": "cross-constraint-negative",
+      "expectedViolationIds": ["XC-03"]
     },
     {
       "branchId": "XC-04",
@@ -811,7 +818,8 @@
           }
         }
       },
-      "fixtureRelation": "cross-constraint-negative"
+      "fixtureRelation": "cross-constraint-negative",
+      "expectedViolationIds": ["XC-04"]
     },
     {
       "branchId": "XC-05",
@@ -852,7 +860,8 @@
           }
         }
       },
-      "fixtureRelation": "cross-constraint-negative"
+      "fixtureRelation": "cross-constraint-negative",
+      "expectedViolationIds": ["XC-05"]
     },
     {
       "branchId": "XC-06",
@@ -893,7 +902,8 @@
           }
         }
       },
-      "fixtureRelation": "cross-constraint-negative"
+      "fixtureRelation": "cross-constraint-negative",
+      "expectedViolationIds": ["XC-06"]
     },
     {
       "branchId": "XC-07",
@@ -934,7 +944,8 @@
           }
         }
       },
-      "fixtureRelation": "cross-constraint-negative"
+      "fixtureRelation": "cross-constraint-negative",
+      "expectedViolationIds": ["XC-07"]
     },
     {
       "branchId": "XC-08",
@@ -975,7 +986,8 @@
           }
         }
       },
-      "fixtureRelation": "cross-constraint-negative"
+      "fixtureRelation": "cross-constraint-negative",
+      "expectedViolationIds": ["XC-08"]
     },
     {
       "branchId": "XC-10",
@@ -1016,7 +1028,8 @@
           }
         }
       },
-      "fixtureRelation": "cross-constraint-negative"
+      "fixtureRelation": "cross-constraint-negative",
+      "expectedViolationIds": ["XC-04", "XC-10"]
     },
     {
       "branchId": "XC-11",
@@ -1057,7 +1070,8 @@
           }
         }
       },
-      "fixtureRelation": "cross-constraint-negative"
+      "fixtureRelation": "cross-constraint-negative",
+      "expectedViolationIds": ["XC-11"]
     },
     {
       "branchId": "XC-12",
@@ -1098,7 +1112,8 @@
           }
         }
       },
-      "fixtureRelation": "cross-constraint-negative"
+      "fixtureRelation": "cross-constraint-negative",
+      "expectedViolationIds": ["XC-12"]
     },
     {
       "branchId": "GAME-END-NORMAL",

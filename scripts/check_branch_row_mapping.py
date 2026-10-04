@@ -62,6 +62,10 @@ def _validate_instance(
         raise BranchRowMappingError(f"schemaのarray型違反: {path}")
     if expected_type == "string" and not isinstance(value, str):
         raise BranchRowMappingError(f"schemaのstring型違反: {path}")
+    if expected_type == "integer" and (not isinstance(value, int) or isinstance(value, bool)):
+        raise BranchRowMappingError(f"schemaのinteger型違反: {path}")
+    if expected_type == "integer" and value < schema.get("minimum", 0):
+        raise BranchRowMappingError(f"schemaの整数下限違反: {path}")
     if isinstance(value, dict):
         properties = schema.get("properties", {})
         missing = set(schema.get("required", [])) - set(value)
@@ -179,9 +183,13 @@ def check_documents(
     register_by_id = {branch["branchId"]: branch for branch in branches}
     if len(register_by_id) != len(branches):
         raise BranchRowMappingError("条文分岐台帳のIDが重複する")
+    if len(branches) != mapping["expectedRegisterBranches"]:
+        raise BranchRowMappingError("台帳の期待分岐件数が不一致")
     missing_ids = {item["branchId"] for item in coverage["missingFixtureBranches"]}
     if len(missing_ids) != len(coverage["missingFixtureBranches"]):
         raise BranchRowMappingError("fixture免除宣言のIDが重複する")
+    if len(missing_ids) != mapping["expectedExcludedBranches"]:
+        raise BranchRowMappingError("照合対象外の期待分岐件数が不一致")
     fixtures: dict[str, dict[str, Any]] = {}
     for source in coverage["fixtureSources"]:
         document = fixture_documents[source["fixturePath"]]
@@ -204,6 +212,22 @@ def check_documents(
         raise BranchRowMappingError(f"台帳にない対応表の分岐ID: {sorted(unknown)}")
     if set(entry_ids) != set(fixtures):
         raise BranchRowMappingError("対応表とfixtureを持つ分岐のexact-setが不一致")
+    positive_entries = [
+        entry for entry in entries
+        if entry["fixtureRelation"] != "cross-constraint-negative"
+    ]
+    negative_entries = [
+        entry for entry in entries
+        if entry["fixtureRelation"] == "cross-constraint-negative"
+    ]
+    if len(positive_entries) != mapping["expectedPositiveMatches"]:
+        raise BranchRowMappingError("正例の期待照合件数が不一致")
+    if len(negative_entries) != mapping["expectedNegativeMatches"]:
+        raise BranchRowMappingError("負例の期待照合件数が不一致")
+    if any("expectedViolationIds" in entry for entry in positive_entries):
+        raise BranchRowMappingError("正例に違反集合の宣言がある")
+    if any("expectedViolationIds" not in entry for entry in negative_entries):
+        raise BranchRowMappingError("負例の違反集合宣言がない")
 
     coverage_refs = [
         reference
@@ -251,8 +275,6 @@ def check_documents(
             if fixture["expected"] != row_output:
                 raise BranchRowMappingError(f"fixtureと規範行の出力が異なる: {branch_id}")
         elif relation == "cross-constraint-negative" and layer == "matrixRows":
-            if fixture["expected"] != {"rejectedBy": branch_id}:
-                raise BranchRowMappingError(f"交差制約fixtureの拒否IDが異なる: {branch_id}")
             candidate = fixture_input.get("candidateEffects")
             if not isinstance(candidate, dict) or (
                 _predicate_holds(row["precondition"], fixture_input)
