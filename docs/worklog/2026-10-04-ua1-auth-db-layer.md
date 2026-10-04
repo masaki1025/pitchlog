@@ -128,3 +128,8 @@ branch: feature/ua1-auth-db-layer
 | 4 | ステップ 7 の「全スキーマ」とステップ 3 の検査範囲の食い違い | plan ステップ 7(資産に宣言した製品スキーマの全域) |
 
 **再承認(2026-10-05・山田正輝)**: J-4 = 案 A1・J-5 = 勧告ロック(どちらも推奨どおり)。ステップ 2 へ進む。
+
+## ステップ 2(2026-10-05)
+
+- `origin/develop`(`85fce8a7` — #87 のマージ後)を取り込んだ(`2fc11f9b`・衝突 0 件)
+- 新しく作るファイルを `core-areas.json` の paths と照合 → **全件一致・JSON は登録しない**(design.md 11 節)。backend の新しい試験は `test_authz_*`・`test_product_authz_*`・`product_authz_*`・`db/*` の名前に限る

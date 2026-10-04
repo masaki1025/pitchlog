@@ -214,3 +214,23 @@ date: 2026-10-04
 - `disposable_postgres_cluster()` の `docker run`(`backend/tests/db_fixtures.py:639`)に **`-c shared_preload_libraries=pg_stat_statements`** を足す(サーバー起動時にしか効かない)。`pg_stat_statements.track` と `track_functions` は superuser が後から変えられるが、起動引数にまとめる。**既存のコード・資産で `shared_preload_libraries`・`pg_stat_statements`・`pg_extension` を参照するものは無い**(`backend`・`contracts`・`scripts`・`tests` を検索して 0 件)
 - **`CREATE EXTENSION pg_stat_statements` は `public` に置かない**: `public` に置くと移行バッチ用ロールの関数 EXECUTE の検査(`PUBLIC` 実行可の関数が入る)と、ステップ 3 で足す拡張の exact 照合に当たる。**一様性の試験の中で、カタログ検査の後に専用のスキーマへ作る**
 - 統計は別の接続から読む。`pg_stat_user_functions` はセッションの終わりかフラッシュで反映される(測定は新しい接続で読んだ)。試験では `pg_stat_force_next_flush()` か接続の切り替えで確実にする(ステップ 8 で確定)
+
+## 11. ステップ 2 — 新しく作るファイルとコア領域の paths の照合(2026-10-05)
+
+`origin/develop`(`85fce8a7` — #87 のマージ後)を取り込んだ上で(マージコミット `2fc11f9b`・衝突 0 件)、β が新しく作るファイルを `.claude/core-areas.json` の paths と `fnmatch.fnmatchcase` で照合した(`scripts/core_guard.py:467` と同じ関数。`*` は `/` にも一致する)。
+
+| 新しく作るファイル(置き場) | 一致する paths | 領域 |
+| --- | --- | --- |
+| `backend/migrations/versions/0027_*.py` | `backend/migrations/*` | テナント分離・データ移行ほか |
+| `contracts/authz/product/function-bodies/**`(認証関数・内部関数の本体、拡張・スキーマの要素の本体) | `contracts/authz/*` | テナント分離 |
+| `contracts/authz/product/*.json` に要素を足す場合の新しい資産ファイル | `contracts/authz/*` | テナント分離 |
+| `contracts/tenant_boundary/history-snapshots/<digest>`(ステップ 13 の受理記録) | `contracts/tenant_boundary/*` | テナント分離 |
+| `backend/src/pitchlog/authz/*.py`(一般化・`rederive` に新しいモジュールを足す場合) | `backend/src/pitchlog/authz/*` | テナント分離 |
+| backend の新しい試験 — **`backend/tests/test_authz_*.py`・`backend/tests/test_product_authz_*.py`・`backend/tests/product_authz_*.py`・`backend/tests/db/*` のどれかの名前にする** | 同名の paths | テナント分離(`db/*` はデータ移行ほかも) |
+
+**照合の結果: 全件一致 → `core-areas.json` へ paths を登録しない**(plan.md ステップ 2 の規則。DoD の paths 登録はこの記録で満たす)。**ステップ 3 の「(ステップ 2 で追加層を宣言した場合だけ)paths を登録」は行わない**。
+
+**置き場の規則(以降のステップの拘束)**:
+- backend の新しい試験は上の 4 つの名前のどれかにする。**`backend/tests/test_authn_*.py` のような名前はどの paths にも一致しない**(実測で不一致)ので使わない
+- ハーネス側(リポジトリ直下の `tests/`)には新しい試験ファイルを作らず、既存のコア領域の試験(`tests/test_check_authz_catalog.py` など)に足す。**`tests/test_authn_*.py` も不一致**(実測)
+- 上の表に無い場所へ新しいファイルが要るようになったら、そのステップに入る前に照合し直し、一致しなければ追加層の宣言(`scripts/core_guard.py:31` と `tests/test_core_guard.py`)を JSON より前の別コミットで入れる(`core_guard.py:302-314`)
