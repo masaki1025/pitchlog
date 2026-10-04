@@ -1,13 +1,13 @@
 ---
 feature: um1-player-roster-opponent
 status: active
-承認: 済(2026-09-24・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-10-05・山田正輝 / 改訂 2026-10-05 の承認 — 初版 2026-09-24)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..
 notion: https://app.notion.com/p/3da93b75e687812eb946c4a8cf5fc1a7
 branch: feature/um1-player-roster-opponent
 created: 2026-09-24
-計画レビュー周回: 1        # 敵対レビュー 1 周目(判定 否決・P0 16 / P1 6 / P2 1)の反映を含む
+計画レビュー周回: 6        # 敵対レビュー 1 周目(判定 否決・P0 16 / P1 6 / P2 1)/ 改訂 2026-10-05 の 1 周目(否決・P1 3 / P2 2)・2 周目(否決・P1 3 / P2 3)・3 周目(否決・P1 2 / P2 4)・4 周目(否決・P1 3 — PO 裁定で N1〜N4 へ)・5 周目(否決・P1 1〔N3〕/ P2 1)の反映を含む
 確定ゲート周回: 0
 実行方式: 通常
 反映周コミット: 適用
@@ -87,9 +87,11 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
 | `docs/design/data-model.md` / 要件書 / `docs/adr/` | **反映なし**(既決事項に従うのみ。再決定しない) | — |
-| **`.claude/core-areas.json`** | **paths を追加**(越境テスト・新規リポジトリ)。`:61` が「各核単位が自 PR で行う」と定める。**6.3-⑤ の敵対レビュー + 人間承認の対象** | PR レビュー(6.3-⑤) |
-| `contracts/authz/route-registry.json` / `http-route-matrix.json` (+ lock) | **追記**(`route_kind` 値域の決定が要る — 4 節) | PR レビュー |
+| **`.claude/core-areas.json`** | **paths を追加**(越境テスト `backend/tests/test_roster_boundary.py` の 1 件 — 新規リポジトリは既存 glob が覆う)。`:61` が「各核単位が自 PR で行う」と定める。**6.3-⑤ の敵対レビュー + 人間承認の対象** | PR レビュー(6.3-⑤) |
+| `scripts/core_guard.py` / `tests/test_core_guard.py`(**改訂 2026-10-05 で追加**) | `AREA_PATH_ADDITIONS["tenant-isolation"]` の宣言と表明の更新(4 節 ステップ 4)。`BASELINE_DEFINITION_PATHS` のため `core-areas.json` と別コミット | PR レビュー |
+| `contracts/authz/route-registry.json` / `http-route-matrix.json` (+ lock) | **追記**(`route_kind` の値域は PR #77 で決定済み — `record_and_aggregate`) | PR レビュー |
 | `contracts/tenant_boundary/repository-contract.json` | **capability 登録**。**`FROZEN_BASELINE_ASSETS` の 1 つ**(`scripts/check_tenant_boundary_bypass.py:41`)なので**設計書 7.7-2 の記録が要る** | 7.7 の更新経路 |
+| `contracts/tenant_boundary/base-allowlist.json`(権威履歴)/ 履歴 snapshot / `tests/fixtures/frozen-archive-cases/manifest.json`(**改訂 2026-10-05 で追加**) | 7.7-2 の記録 1 件・snapshot・比較 corpus の digest 再封印(4 節 ステップ 3 の内訳) | 7.7 の更新経路 |
 | `docs/features/um1-player-roster-opponent/design.md` | **新設**(暫定規約・入口表・DTO 定義) | PR レビュー |
 
 ## 4. 実装方針
@@ -194,20 +196,102 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 >
 > **したがってステップ 5 以降が待つのは `dep 4`・`dep 6`・`dep 7` の 3 本。**
 
-**着手の拘束**: **ステップ 1〜4 は外部依存の着地を待たない。ステップ 5 以降は dep 4・6・7 の着地後**
+> ## 【改訂 2026-10-05・改訂承認: 山田正輝】paths 登録を入口の直前へ移し、追加層の宣言ステップを足す
+>
+> **ステップ番号はこの改訂で付け替えた。上の 2026-10-04 の改訂ブロックの番号は旧番号**
+> (旧 1 → 新 5 / 旧 2〜4 → 新 1〜3 / 旧 5〜8 → 新 6〜9 / **新 4 は追加**)。
+>
+> ### 何が起きたか(2026-10-05 実測)
+>
+> **旧ステップ 1(`core-areas.json` へ paths を足すだけ)は core-guard を通らない。**
+>
+> - `scripts/core_guard.py:31` の `AREA_PATH_ADDITIONS`(領域別の追加層)のキーは **`game-state` と `data-migration` だけ**。
+>   `validate_area_path_layers()`(`:302-314`)は、宣言の無い領域に `{merge-base の paths}` しか許さないので、
+>   **`tenant-isolation` へ 1 件足すだけで `GuardError`**
+> - 宣言は `core-areas.json` より**前の別コミット**で入れる必要がある(`verify_area_path_baseline()` `:362-371` が
+>   `core-areas.json` と `BASELINE_DEFINITION_PATHS` = `scripts/core_guard.py`・`tests/test_core_guard.py` の**同一コミット変更を拒否**)
+> - `tests/test_core_guard.py:1617-1623` が「追加層を持つのは domain-calc の 2 領域だけ・他 3 領域は merge-base と同一」を表明しており、
+>   宣言を足すとこれも破れる
+>
+> 旧 R6 は「同一コミットにしない」までは書いていたが、**宣言のコミットをステップ表に置いていなかった**(#74 の二層方式は本書の承認〔2026-09-24〕より後に着地)。
+>
+> ### 何を変えたか
+>
+> 1. **追加層の宣言をステップ 4 として足す**(`core_guard.py` / `test_core_guard.py` — 本書の変更範囲を広げる。**本表直後の「第 2 群を後から足すときの再承認」により敵対レビュー + 人間承認の対象**)
+> 2. **paths 登録(旧 1)を新 5 へ移し、入口を開く直前に置く**。登録対象 `backend/tests/test_roster_boundary.py` を作るのは新 6 なので、前倒しする利点が無い
+> 3. **新 4・5 は TSK-344 のマージと develop の取り込みの後に行う(本書の拘束)**。TSK-344 も `tenant-isolation` へ paths を足す予定で、
+>    **同じ `AREA_PATH_ADDITIONS["tenant-isolation"]` の行を書く**。`validate_area_path_layers()`(`:303-314`)は**宣言の一部だけが merge-base に取り込まれた状態を拒否する**ので、
+>    **先着の宣言に U-M1 の 1 件を累積すると新 4 の時点で落ちる**(敵対レビュー 2 周目 P1-2 — 仮の基線・候補で実測済み)。
+>    **通る手順は「develop を取り込む → 宣言を U-M1 の未取り込み分だけに置き換える → 新 5 で JSON を merge-base ＋ その分にする」**。
+>    TSK-344 以外にも同じ領域の宣言・paths を変えるブランチ(`feature/ua1-auth-db-layer` — 同計画書 `:89-90` が条件付きで変更)があるので、
+>    **新 4 の着手時に、`AREA_PATH_ADDITIONS` または `tenant-isolation.paths` を変える未マージのブランチを確認し(対象 ref の範囲は内訳 4)、先着分を取り込んでから行う**
+>
+> ### 新 1・2 と新 6〜9 は旧 2・3 と旧 5〜8 から番号だけ変えた。新 3(旧 4)は「ステップ 3〜5 の内訳」の 3 を追加した(承認後に着地した登録機構・凍結履歴・比較 corpus への追随)
+
+**着手の拘束**: **ステップ 1〜3 は外部依存の着地を待たない(ステップ 3 の前に draft PR を作る — 内訳 3)。ステップ 4・5 は TSK-344 のマージと develop の取り込みの後(上記の改訂 3 — 本書の拘束)。ステップ 6 以降は dep 4・6・7 の着地後**
 (`/implement` は承認済み計画書を要求する)。
 **総数を確定できないため、ステップ記法に `/<N>` を書かない**(設計書 6.1 の厳密文法③)。
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **`.claude/core-areas.json` へ本単位の paths を登録する** — 越境テストと新規リポジトリのパスを `tenant-isolation` へ追加する。**`scripts/core_guard.py` / `tests/test_core_guard.py` を同一コミットに入れない**(#74 の `verify_area_path_baseline()` がチェック欄の検査より前に例外を投げるため) | `core-guard` が green。6.3-⑤ の審査対象として PR に明示されている |
-| 2 | **DTO を追加する** — `backend/src/pitchlog/api/schemas/roster.py`。[design.md](design.md) 3 節の全 DTO(`PlayerStatusPreview` を含む)を定義する | `backend/tests/test_roster_schemas.py` が green。値域・省略と明示 null の区別・空配列と重複 ID の扱いをテストで確認。`ruff check` / `ruff format --check` / `ty check` green |
-| 3 | **入口の契約資産を追記する** — `route-registry.json` と `http-route-matrix.json`(+ lock 再封印)へ本単位の入口を登録する。**既存行の `test_owner` は書き換えない**。新規行の `test_owner.status` は **`planned`** とする | `uv run pytest -c pyproject.toml tests/test_check_authz_catalog.py` が green。registry と matrix が exact-set で一致 |
-| 4 | **リポジトリと operation token を追加する** — TSK-424 の capability カタログから token 型を導き、registry へ登録する。**7.7-2 の記録**を同時に行う | `test_authz_repository_contract.py` が更新後の契約で green。凍結基準の記録が 7.7-2 の様式を満たす |
-| 5 | **選手の入口を開く** — 作成・一覧・取得・更新。`ROUTERS` へ登録し、`test_api_conventions.py` の述語 4(経路数)の期待値を更新する | `test_roster_boundary.py` の当該入口ぶんが green(認可行列どおりに通り行列外は 404)。`/health` `/version` を含む既存テストが green |
-| 6 | **在籍区分の入口を開く** — プレビューと適用。**キャッシュ無効化の発火点**を `CacheInvalidationTrigger.ROSTER_STATUS_CHANGE` で置く | 在籍区分変更後に共有集計のキャッシュが失効することを受入テストで確認(要件書 `:996`) |
-| 7 | **選手の削除ガードを実装する**(FR-018) — 紐づけゼロ判定・進行中試合の存在判定・同一トランザクション化 | 競合挿入を含む同時実行テストで、判定後に紐づいた場合に失敗すること・進行中試合があると拒否されることを確認 |
-| 8 | **対戦相手チームレコードの入口を開く**(FR-039) — 作成・一覧・更新・削除。類似名の警告と削除拒否の誘導 | 試合または選手が紐づくチームの削除が拒否されること・類似名が警告で登録続行できることを確認 |
+| 1 | **DTO を追加する** — `backend/src/pitchlog/api/schemas/roster.py`。[design.md](design.md) 4 節の全 DTO(`PlayerStatusPreview` を含む)を定義する | `backend/tests/test_roster_schemas.py` が green。値域・省略と明示 null の区別・空配列と重複 ID の扱いをテストで確認。`ruff check` / `ruff format --check` / `ty check` green |
+| 2 | **入口の契約資産を追記する** — `route-registry.json` と `http-route-matrix.json`(+ lock 再封印)へ本単位の入口を登録する。**既存行の `test_owner` は書き換えない**。新規行の `test_owner.status` は **`planned`** とする。**あわせて検査器の期待集合を更新する**(`scripts/check_authz_catalog.py:2175-2186` は `record_and_aggregate` の経路を空集合で固定している — 「経路 0 件なので空集合」は登録する単位が更新する設計 — `../route-kind-vocabulary/plan.md:88`・`:150`)。`route_id` は導出規則(`:2412-2421` — `ROUTE:RECORD:<資源>:<操作>`)と操作の閉じた値域(`:2407-2411` — read / insert / update)に従う。**細部は内訳 N1・N2** | `uv run pytest -c pyproject.toml tests/test_check_authz_catalog.py` が green。registry と matrix が exact-set で一致。期待集合が本単位の `route_id` と exact-set で一致 |
+| 3 | **リポジトリと operation token を追加する** — TSK-424 の capability カタログから token 型を導き、registry へ登録する。**7.7-2 の記録と比較 corpus の再封印**を同時に行う。**内訳は表の下「ステップ 3〜5 の内訳」の 3** | 内訳 3 の合格条件をすべて満たす |
+| 4 | **`tenant-isolation` の追加層を宣言する** — `scripts/core_guard.py` の `AREA_PATH_ADDITIONS` と `tests/test_core_guard.py`。**`.claude/core-areas.json` を同一コミットに入れない**。**内訳 4** | 内訳 4 の合格条件をすべて満たす |
+| 5 | **`.claude/core-areas.json` へ本単位の paths を登録する** — 越境テスト `backend/tests/test_roster_boundary.py` を `tenant-isolation` の末尾へ追加する(新規リポジトリは既存の `backend/src/pitchlog/repositories/*` が覆う — `fnmatch` の `*` は `/` を跨ぐ)。**ステップ 4 の宣言と完全一致させる**。単独コミット。**内訳 5** | 内訳 5 の合格条件をすべて満たす |
+| 6 | **選手の入口を開く** — 作成・一覧・取得・更新。`ROUTERS` へ登録し、`test_api_conventions.py` の述語 4(経路数)の期待値を更新する | `test_roster_boundary.py` の当該入口ぶんが green(認可行列どおりに通り行列外は 404)。`/health` `/version` を含む既存テストが green |
+| 7 | **在籍区分の入口を開く** — プレビューと適用。**キャッシュ無効化の発火点**を `CacheInvalidationTrigger.ROSTER_STATUS_CHANGE` で置く | 在籍区分変更後に共有集計のキャッシュが失効することを受入テストで確認(要件書 `:996`) |
+| 8 | **選手の削除ガードを実装する**(FR-018) — 紐づけゼロ判定・進行中試合の存在判定・同一トランザクション化 | 競合挿入を含む同時実行テストで、判定後に紐づいた場合に失敗すること・進行中試合があると拒否されることを確認 |
+| 9 | **対戦相手チームレコードの入口を開く**(FR-039) — 作成・一覧・更新・削除。類似名の警告と削除拒否の誘導 | 試合または選手が紐づくチームの削除が拒否されること・類似名が警告で登録続行できることを確認 |
+
+
+#### ステップ 3〜5 の内訳(改訂 2026-10-05 — 敵対レビュー 4 周の反映)
+
+**3. リポジトリと operation token**
+
+- **着手条件: ステップ 3 の前に branch を push し draft PR を作って `acceptance_id` を確定する**。`acceptance_id` は実際の PR 番号から導出され、PR 受理検査でイベント値との一致を要求される(`scripts/frozen_history.py:672`・`:685`)ので、番号を知らないままでは記録を完成できない(仮の番号はローカルで green でも受理時に落ちる)。前例は TSK-443(`../runtime-contract-switch/plan.md:80`「draft PR を作って `acceptance_id` を確定する」)。**作り方と `/pr` との両立は N3**
+
+- **契約と生成物**: `contracts/tenant_boundary/repository-contract.json` の `product_capability_ids` / `product_operation_token_types`(`:127-128`)へ本単位の分を登録し、生成モジュール `backend/src/pitchlog/repositories/repository_contract.py`(`PRODUCT_CAPABILITY_IDS` / `PRODUCT_OPERATION_TOKEN_TYPES`)を同期する。**`cross_tenant_functions` は空のまま**
+- **実行 registry**: `repositories/base.py` の `_OPERATION_REGISTRY` を契約と exact-set で一致させる
+- **登録文の検証**: `backend/src/pitchlog/authz/capability_registration.py`(`:1195-1269` — カタログの ID・表・操作との照合)に通す
+- **空を表明する既存テストの更新**: `backend/tests/test_authz_capability_registration.py:1022-1027`(`test_product_registries_remain_empty`)・`backend/tests/test_authz_repository_contract.py:407-417`
+- **凍結基準の記録(7.7-2)**: `repository-contract.json` 側は `baseline_control` の `contract_revision` と `current_identifiers` を同期し、**既存 history は保持する**(非権威資産への履歴の追記は拒否される — `scripts/frozen_history.py:492-519`)。
+  **追加の記録は権威履歴(`contracts/tenant_boundary/base-allowlist.json` の `baseline_control.history`)へ 1 件だけ**置き、影響を受ける凍結資産の全件・変更前後の snapshot・生成モジュールの digest を同期する(様式は設計書 `:584-608`)。
+  **記録はステップ 3 のコミット時点で、draft PR の番号とその時点の比較元に対して完全に書く**(識別値を未記入にする・revision だけ動かす形は検査が通らない)
+- **比較 corpus の再封印**: `contracts/tenant_boundary` は比較 corpus の入力 tree(`tests/fixtures/frozen-archive-cases/manifest.json:16-18`)なので、`history-snapshots/` と manifest の digest を再導出する
+- **再導出の時点**: PR の受理検査は event の `base.sha` と二親 merge で評価する(`scripts/check_tenant_boundary_bypass.py:6163`・`scripts/frozen_history.py:1185`)。**PR 直前の develop 取り込み時に再導出・再検証し、PR 作成後に base が進んだら再度行う(コミット先は N4)**
+- **前版の結果照合**: `tests/test_frozen_archive_case_runner.py` は現版だけを実行する(`:414`)ので、再封印時に runner(`tests/fixtures/frozen-archive-cases/runner.py`)を `--checker previous=<前版> --checker current=<現版>` で両方当て、**全ケースで manifest の期待値と一致する**ことを確かめる。前版の作業木は固定 SHA・detached・清潔であること(`runner.py:1034`)
+- **合格条件**: 前版・現版の全ケース一致(上)。`backend/tests/test_authz_repository_contract.py`(資産と生成モジュールの一致 `:303-309` を含む)・`backend/tests/test_authz_capability_registration.py`・`tests/test_check_tenant_boundary_bypass.py`・`tests/test_frozen_history.py`・`tests/test_frozen_archive.py`・`tests/test_frozen_archive_case_runner.py` が green。カタログ外の ID・表・操作が拒否される負例が green
+
+**4. 追加層の宣言**
+
+- **着手条件**: TSK-344 のマージ後、develop を取り込んでから行う(上の改訂 3)。着手時に `git fetch origin` し、**`origin/feature/*`・`origin/fix/*` とローカルの `refs/heads/*`(`git worktree list` の全 worktree を含む — 未 push の競合を落とさないため)のうち、`scripts/core_guard.py` の `AREA_PATH_ADDITIONS` または `.claude/core-areas.json` の `tenant-isolation.paths` を変える未マージの ref とその SHA を worklog に記録する**。未マージの競合は順序調整の対象(該当タブへ連絡)であり、宣言の基線へ取り込むのは **develop に着地した変更だけ**。ステップ 5 と PR の前に同じ確認を繰り返す
+- **逐行確認**: `scripts/core_guard.py`・`tests/test_core_guard.py`・`.claude/core-areas.json` はいずれも最上位 `guard_paths` に該当する(`:466`)。本単位の PR は元から逐行確認が必須なので、ステップ 4・5 で手続きは増えない
+- **宣言**: `AREA_PATH_ADDITIONS["tenant-isolation"]` を **U-M1 の未取り込み分だけ**(`("backend/tests/test_roster_boundary.py",)`)にする。先着ブランチの宣言は**累積せず置き換える**(部分取り込みは `scripts/core_guard.py:303-314` が拒否)
+- **テスト**: `tests/test_core_guard.py` の「宣言領域・未宣言領域」を固定する表明(`:1497`・`:1544`・`:1617-1623`)を更新する。**意図した宣言の exact-set をテスト側に独立して残す**(`set(AREA_PATH_ADDITIONS)` を実装から読んで許す形にしない)。**部分追加・並べ替え・削除・未宣言の追加の 4 種を直接試す負例**を足す(部分追加・並べ替えは複数パスを宣言した合成例で試す)
+- **検査器の性質の正確な記述**: 宣言後も、JSON が merge-base のままの状態は検査器が許す(`:310`)。**登録の欠落は検査器では検出しない** — ステップ 5 の独立確認で検出する
+- **合格条件**: `uv run pytest tests/test_core_guard.py` が green。**ステップ 4 のコミット SHA に対して `uv run python -c "import sys; from pathlib import Path; sys.path.insert(0, 'scripts'); import core_guard; print(core_guard.verify_area_path_baseline(Path('.'), '<origin/develop の SHA>', '<ステップの SHA>'))"`(リポジトリルートで。base SHA・ステップ SHA・戻り値〔merge-base の OID〕を worklog に記録) を実行し、例外なく戻ることを確かめる**(PR の CI は最終 head しか検査せず、ローカルの `core_guard.py` は PR event が無いと skip するため — `.github/workflows/ci.yml:55`・`scripts/core_guard.py:499`)
+
+**5. paths の登録**
+
+- **合格条件**: 内訳 4 と同じコマンドをステップ 5 の SHA に対して実行し、例外なく戻る(worklog に記録)。**独立確認として、実際の `tenant-isolation.paths` が「merge-base の列 ＋ `backend/tests/test_roster_boundary.py` の 1 件」に一致することを確かめる**。`uv run pytest tests/test_core_guard.py` が green。PR 本文に 6.3-⑤ の審査対象として明示する
+
+
+
+#### 実装時に原典で決める事項(N1〜N4 — 改訂 2026-10-05・PO 裁定「ステップ 2・3 の詳細は実装時に詰める」)
+
+**計画書では方針だけを固定し、手順の細部は当該ステップの委任時に原典で決めて design.md と worklog に記録する。**
+**計画時に固定しない理由**: 対象の検査器・凍結履歴の機構は他タスク(TSK-431・TSK-344 ほか)が並行して動かしており、
+2026-09-24 の計画書が承認後 11 日で 3 箇所陳腐化した(capability の登録機構・`core_guard.py` の二層方式・`record_and_aggregate` の期待集合)。
+**手順を今固定すると実装時にはずれている見込みが高く、固定した手順の正しさは計画レビューでは閉じない**(敵対レビュー 4 周で毎周新種が出た)。
+
+| # | 事項 | 方針(本書で固定) | 決める時点 | 受入証跡 |
+| --- | --- | --- | --- | --- |
+| **N1** | **入口ごとの `route_id` と操作の対応** | 導出規則 `ROUTE:RECORD:<資源>:<操作>` と操作の値域 read / insert / update に従う。**削除系の入口(FR-018 の非表示化・FR-039 の削除)は論理削除なので update に写す**(AGENTS.md「削除はすべて論理削除」)。**同じ資源・同じ操作の入口が複数ある場合(一覧と取得はどちらも read)、導出規則上 `route_id` が衝突しうるので、1 経路への集約か規則の扱いかを原典(`route_id` の一意性の検査・HTTP 行列との対応)で確かめて決める**。design.md の入口表(`:54` で未定)を埋める | ステップ 2 の委任前 | design.md の入口表に全入口の `route_id` と操作が載り、ステップ 2 の合格条件が green |
+| **N2** | **検査器の期待集合の更新範囲** | `scripts/check_authz_catalog.py` の `_validate_record_and_aggregate_route_ids` の期待集合と、対応する `tests/test_check_authz_catalog.py` の表明・負例を、ステップ 2 のコミットで本単位の `route_id` へ更新する。**期待集合を registry から読む形にしない**(独立した exact-set を残す)。両ファイルは `.claude/core-areas.json` の**最上位 `guard_paths`** に該当し(`scripts/core_guard.py:466` の完全一致)、PR 本文の逐行確認チェックを要求する(本単位はコア領域なので要求は元から掛かる — 追加の手続きは生じない) | ステップ 2 の委任前 | ステップ 2 の差分に検査器とテストが含まれ、期待集合外の `route_id` が拒否される負例が green |
+| **N3** | **`acceptance_id` を得るための早期 PR の作り方と、`/pr` との両立** | **ステップ 3 の前に PR 番号を確定する**(内訳 3)。**前例は #87(TSK-443)**: 2026-09-29 に PR を先に作り(ステップ 5/8 の時点)、2026-10-04 に `/pr` のクローズ処理を行ってから ready 化した(`docs/worklog/2026-09-26-runtime-contract-switch.md:60-76`)。ただし **`/pr` の文面は「PR 作成の唯一の入口」で、既存 OPEN PR の扱いを差し戻し後の再レビューに限っている**(`.claude/skills/pr/SKILL.md:2`・`:53`)ので、前例の流れは文面上の規定外である(敵対レビュー 5 周目 P1)。**ステップ 3 の前に人間へ確認し、(a) 前例どおり進めてよいか (b) `/pr` 側の改訂が要るか(要るならハーネスのタスクとして別に起票し、本単位では `/pr` を改訂しない)を決める**。draft 中は core-guard が逐行確認欄の未記入で red になる(想定内 — 確認は最新 HEAD に対して最後に行う。`docs/development/github-setup.md:60-61`) | ステップ 3 の前(**人間の判断を経てから PR を作る** — PR の作成は外部へ出る操作) | 人間の判断(a / b)と、PR 番号・作成時の base SHA が worklog にある。ステップ 3 の記録の `acceptance_id` が実番号と一致。**最終のクローズ処理が同じ PR で完了している** |
+| **N4** | **base が凍結資産ごと進んだときの再封印のコミット先** | **ステップ 3 の是正コミット**として行う(件名は `(ステップ 3 再導出)` — 付記つきの完全トークン。前例 `134bd39b`「(ステップ 4/8 是正)」)。記録・snapshot・corpus の digest を新しい base に対して再導出し、内訳 3 の合格条件を再度満たす。**TSK-431 など同じ資産群を触るタスクの着地を検知したら必ず行う** | PR 作成後に base が進むたび | 再導出コミットと、そのときの base SHA・合格条件の結果が worklog にある |
+
 
 **第 2 群を後から足すときの再承認**: 本表へステップを追加する場合は、**追加分について敵対レビューと人間承認を再度受ける**。
 承認済みステップの続きとして無審査で追加しない。
@@ -235,6 +319,9 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 - [ ] **5 条件すべてに一致 0**(4 節の式で実測)
 - [ ] pytest / ruff / **ruff format** / ty green
 - [ ] **契約 4 の 5 領域突合**(2 節)を書いた
+- [ ] **凍結基準の記録(7.7-2)が権威履歴に 1 件あり、PR の base に対して再導出・再検証済み**。比較 corpus の digest が再封印済み(4 節 内訳 3 — 改訂 2026-10-05)
+- [ ] **追加層の宣言(ステップ 4)と paths 登録(ステップ 5)が別コミット**で、各 SHA に対する `verify_area_path_baseline()` の green が worklog にある。`tenant-isolation.paths` が「merge-base ＋ 1 件」に一致(内訳 4・5)
+- [ ] **同領域の宣言・paths を変える未マージ ref の確認記録**(確認した ref と SHA)がステップ 4・5・PR 前の 3 時点で worklog にある
 
 ## 6. テスト計画
 
@@ -256,6 +343,8 @@ uv run ty check
 uv run pytest -c pyproject.toml
 ```
 
+**ハーネス側(リポジトリルートで — 改訂 2026-10-05 で追加)**: ステップ 3〜5 で `uv run pytest tests/test_core_guard.py tests/test_check_tenant_boundary_bypass.py tests/test_frozen_history.py tests/test_frozen_archive.py tests/test_frozen_archive_case_runner.py`。ステップ 4・5 は各コミット SHA に対する `verify_area_path_baseline()` の結果を worklog に記録する(4 節 内訳 4・5)
+
 **迂回検査は実装スケルトンの段階で当てる**:
 `uv run python scripts/check_tenant_boundary_bypass.py --base-ref origin/develop`
 
@@ -263,12 +352,12 @@ uv run pytest -c pyproject.toml
 
 | # | リスク | 対応 |
 | --- | --- | --- |
-| **R1** | 入口を開くのに**外部所有者が 5 者**(TSK-424 PR A / PR C・TSK-344・`route_kind` 値域の**空席**・**U-A1**(ブロック中)・在籍区分キーの別タスク)。1 つでも動かないとマージできない | 着地状況を /pr の前に再確認する。空席の所有者は 8 節で人間へ上げる |
-| **R2** | `test_owner.status: "implemented"` は**ハーネス側 `tests/` の node ID** としか照合されない(`scripts/check_authz_catalog.py:2674-2685`) | 新規行は **`planned` 止まり**(ステップ 3 の合格条件) |
+| **R1** | 入口を開くのに**外部所有者が 5 者**(TSK-424 PR A / PR C・TSK-344・`route_kind` 値域〔**解消済み** — PR #77〕・**U-A1**(ブロック中)・在籍区分キーの別タスク)。1 つでも動かないとマージできない | 着地状況を /pr の前に再確認する。空席の所有者は 8 節で人間へ上げる |
+| **R2** | `test_owner.status: "implemented"` は**ハーネス側 `tests/` の node ID** としか照合されない(`scripts/check_authz_catalog.py:2674-2685`) | 新規行は **`planned` 止まり**(ステップ 2 の合格条件) |
 | **R3** | `players.team_record_id` は immutability の**未分類列**(handoff `TSK-372`)。所属チーム変更の可否がコードから読めない | `PlayerUpdate` の更新対象に含めない。必要になれば TSK-372 へ上げる |
-| **R4** | **capability 登録は凍結基準を動かす**(`repository-contract.json` が `FROZEN_BASELINE_ASSETS`)。**TSK-431 が同じファイル群を触る** | ステップ 4 で **7.7-2 の記録**を同時に行い、TSK-431 と順序を調整する |
+| **R4** | **capability 登録は凍結基準を動かす**(`repository-contract.json` が `FROZEN_BASELINE_ASSETS`)。**TSK-431 が同じファイル群を触る** | ステップ 3 で **7.7-2 の記録**(権威履歴へ 1 件)と比較 corpus の再封印を同時に行い、**PR 直前の取り込みと base の前進のたびに再導出する**(4 節 内訳 3)。TSK-431 と順序を調整する |
 | **R5** | API 層は `api/**` の**全ソース連結**に対する部分一致検査を受け、**`Session`・`generation` を docstring・コメント含め書けない**(`backend/tests/test_api_conventions.py:22-37`)。**TB004 は AST 上の識別子検査**で範囲が異なる(`scripts/check_tenant_boundary_bypass.py:2672`) | [design.md](design.md) D5 で 2 つの検査を**分けて**記述し、命名を実装前に固定する |
-| **R6** | **`core-areas.json` を編集する**ため **#74 の `verify_area_path_baseline()`** が掛かる。`core_guard.py` / `test_core_guard.py` と同一コミットにすると、**後から revert しても打ち消せず force-push も `git_guard.py` が拒否する** | ステップ 1 を**単独コミット**にする(合格条件に明記) |
+| **R6** | **`core-areas.json` を編集する**ため **#74 の `verify_area_path_baseline()`** が掛かる。`core_guard.py` / `test_core_guard.py` と同一コミットにすると、**後から revert しても打ち消せず force-push も `git_guard.py` が拒否する** | **追加層の宣言(ステップ 4)と paths 登録(ステップ 5)を別コミットにする**。旧版は宣言のステップを置いていなかった(改訂 2026-10-05) |
 
 ## 8. 人間の判断を仰ぐ事項
 
@@ -276,6 +365,7 @@ uv run pytest -c pyproject.toml
 | --- | --- | --- |
 | **1** | **フロントエンド実装の帰属** — 単位分割の正本に「フロントエンド」「Vitest」「Vue」の語が **1 件も無い**(実測)。`:60` が各単位へ送るのは **UI の「設計正本」**であって実装ではない。**FR-015/017/018/039 の UI 面の受け皿が正本上空席** | **U-M1 は射程外**として線を引いた。受け皿の決定を仰ぐ |
 | **2** | **FR-015 の同期面の帰属** — 分担表に FR-015 の行が無く、「面が切れなかったときの手順」の対象外。正本上は **U-M1 の単独主所有**のまま | 帰属表を更新せずに U-S1 へ移さない。判断を仰ぐ |
-| **3** | **`route_kind` の値域決定の所有者** — `TSK-380` の射程は既存 37 経路の `test_owner` 再割り当てであり、**値域拡張は空席** | 空席として明示。所有者の指名を仰ぐ |
+| **3** | **`route_kind` の値域決定の所有者** — `TSK-380` の射程は既存 37 経路の `test_owner` 再割り当てであり、**値域拡張は空席**(**2026-09-24 時点の記述**) | **解消済み(2026-10-04 訂正 — 4 節の外部依存 5)**。TSK-446 / PR #77 が 2026-09-25 にマージ済み |
 | **4** | **在籍区分キーの値と seed の別タスク起票** — `active` のみ `data-model.md:524` に典拠。`other`/`ob` はリポジトリ内に文字列が存在しない。seed は **5 領域すべてのコア paths** で契約 3 の例外に U-M1 は含まれない | 別タスクへ切り出す前提で本書から外した。起票の可否を仰ぐ |
 | **5** | **Notion カードのコア判定が正本より古い** — **葉 6 本すべてが同型**と見られる(TSK-394 で確認) | TSK-393 のカードには訂正コメントを入れる。**他タスクのカードには触れない** |
+| **6** | **改訂 2026-10-05 の承認**(ステップ 4 の追加と番号の付け替え — 4 節の改訂ブロック)。あわせて **7.7-2 の記録の承認値**(承認者・承認日)はステップ 3 の実装時に人間へ確認する | 計画レビュー後に人間の承認を仰ぐ。承認までステップ 1 以降を実装しない。**N1〜N4 は各時点で決めて記録する(PO 裁定 2026-10-05)** |
