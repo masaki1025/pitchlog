@@ -42,6 +42,41 @@ def _asset(name: str) -> dict[str, Any]:
     return json.loads((ROOT / "contracts/state-transition" / name).read_text(encoding="utf-8"))
 
 
+def test_repository_contracts_are_within_declared_byte_limit() -> None:
+    """実契約が資産側のbyte上限以下である。"""
+    sizes = checker.check_contract_sizes(ROOT)
+    policy = _asset("contract_size_limit_v1.json")
+    assert set(sizes) == set(policy["contractPaths"])
+    assert all(size <= policy["maximumBytesPerFile"] for size in sizes.values())
+
+
+def test_contract_size_one_byte_over_limit_is_red(tmp_path: Path) -> None:
+    """上限ちょうどは通り、1 byte超過は失敗する。"""
+    policy = _asset("contract_size_limit_v1.json")
+    for name in ("contract_size_limit_v1.json", "input_axes_descriptor_schema_v1.json"):
+        target = tmp_path / "contracts/state-transition" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((ROOT / "contracts/state-transition" / name).read_bytes())
+    for relative in policy["contractPaths"]:
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"")
+    target = tmp_path / policy["contractPaths"][0]
+    with target.open("wb") as output:
+        output.truncate(policy["maximumBytesPerFile"])
+    checker.check_contract_sizes(tmp_path)
+    with target.open("wb") as output:
+        output.truncate(policy["maximumBytesPerFile"] + 1)
+    with pytest.raises(checker.RequiredSetCoverageError, match="byte上限超過"):
+        checker.check_contract_sizes(tmp_path)
+
+
+def test_contract_size_policy_missing_is_red(tmp_path: Path) -> None:
+    """上限を読めない場合は検査を成功させない。"""
+    with pytest.raises(checker.RequiredSetCoverageError, match="宣言資産を読めない"):
+        checker.check_contract_sizes(tmp_path)
+
+
 @pytest.mark.parametrize(
     ("name", "check", "error_type"),
     [

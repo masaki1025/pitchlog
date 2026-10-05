@@ -162,11 +162,83 @@ projectionRules[]       … schema への射影規則(3-4)
 **外部参照を持つ場合の規則**(JSON Pointer + 内容 hash による推移的 digest)は、
 段階 2 で schema との射影を記録するときに適用する。
 
-### 3-6. 数値基準は実測後に確定
+### 3-6. 数値基準の実測(ステップ 105)
 
-契約ファイルの byte 上限 **16 MB** のみ計画時点で確定。
-実サイズ・リポジトリ増分・検査の実行秒数は**フェーズ D 完了後に実測**し、
-測定コマンド・試行回数・判定統計・CI ランナー条件を明記する。`ci.yml` には結ばない。
+測定日: **2026-10-06**。
+
+契約ファイルの上限 **16 MB = 16,000,000 byte(十進 MB)** を
+`contracts/state-transition/contract_size_limit_v1.json` に宣言する。
+`scripts/check_required_set_coverage.py` は descriptor schema が参照する 2 契約と宣言の対象集合を
+exact-set で照合し、各ファイルの実 byte 数が上限以下であることを検査する。
+**16,000,000 byte ちょうどは通り、16,000,001 byte は失敗する**負例を持つ。
+
+| 測定対象 | 実測値 | 試行回数・判定統計 |
+| --- | ---: | --- |
+| `state_transition_contract_v1.json` | 546,961 byte | 1 回のみ。統計処理なし |
+| `game_end_contract_v1.json` | 334,193 byte | 1 回のみ。統計処理なし |
+| 2 契約の合計 | 881,154 byte | 上記 2 件の和 |
+| リポジトリ増分(`9ff36743` 基点、非圧縮の作業ツリー内容) | **3,462,485 byte** | 1 回のみ。統計処理なし |
+| 契約サイズを含む requiredSet 検査 CLI | **2.74 秒** | 5 回、中央値(2.77 / 2.71 / 2.69 / 3.13 / 2.74 秒) |
+| 影響範囲の pytest 検査群 | **63.84 秒** | 3 回、中央値(63.84 / 62.43 / 68.76 秒)。各回 679 件通過 |
+
+実サイズの測定コマンド(リポジトリルートで実行):
+
+```sh
+wc -c contracts/state-transition/{state_transition_contract_v1,game_end_contract_v1}.json
+```
+
+リポジトリ増分は、merge-base `9ff3674398b3fd8dc36b9c5554e5c553792483ba` と
+本ステップの作業ツリーを比較した。変更・新規ファイルごとに基点の Git blob サイズと現在の
+ファイルサイズを取り、差分を合計する。削除・圧縮・`.git` 内の pack サイズは測定値に含めない。
+測定コマンド(リポジトリルートで実行):
+
+```sh
+python3 - <<'PY'
+import subprocess
+from pathlib import Path
+
+base = '9ff3674398b3fd8dc36b9c5554e5c553792483ba'
+def git(*args):
+    return subprocess.check_output(['git', *args])
+
+paths = set(git('diff', '--name-only', '-z', base).decode().strip('\0').split('\0'))
+paths |= set(git('ls-files', '--others', '--exclude-standard', '-z').decode().strip('\0').split('\0'))
+paths.discard('')
+before = after = 0
+for name in sorted(paths):
+    if Path(name).name == '.env':
+        raise RuntimeError('unexpected .env path')
+    current = Path(name)
+    after += current.stat().st_size if current.is_file() else 0
+    old = subprocess.run(['git', 'cat-file', '-s', f'{base}:{name}'], capture_output=True, text=True)
+    before += int(old.stdout) if old.returncode == 0 else 0
+print(f'changed_paths={len(paths)} before={before} after={after} net_added={after-before}')
+PY
+```
+
+検査時間は `UV_CACHE_DIR=/tmp/uv-cache`、`uv run --offline`、既存 `.venv` を使い、
+`/usr/bin/time` の経過実時間 `%e`(秒)を測る。コマンドは次のとおり。
+各 `for` の反復が独立の 1 試行で、出力の中央値を判定値とする。
+
+```sh
+for i in 1 2 3 4 5; do
+  /usr/bin/time -f '%e' env UV_CACHE_DIR=/tmp/uv-cache uv run --offline \
+    python scripts/check_required_set_coverage.py
+done
+for i in 1 2 3; do
+  /usr/bin/time -f '%e' env UV_CACHE_DIR=/tmp/uv-cache uv run --offline pytest -q \
+    tests/test_input_axes_descriptor.py tests/test_input_axes_three_way_parity.py \
+    tests/test_required_set_coverage.py tests/test_state_transition_contract_schema.py \
+    tests/test_doc_check_profile.py tests/test_core_guard.py
+done
+```
+
+**測定ランナー**: 手元の WSL2 Linux 6.6.114.1、aarch64、Qualcomm Oryon(論理 CPU 12 個)、
+メモリ `MemTotal: 16121788 kB`、Python 3.12.3(`.venv`)、uv 0.11.21。
+CPU 固定・他プロセス停止は行っていない。CI 設定の `harness` ジョブは `ubuntu-latest` だが、
+**CI ランナー上の実サイズ・増分・実行秒数は測っていない**。CI の実機 CPU・メモリも測っていない。
+本節の秒数はこの手元環境での記録値であり、後続の実測と手動比較できる。
+自動合否の時間閾値は置かず、`ci.yml` に結ばない。
 
 ## 4. 契約の構成
 

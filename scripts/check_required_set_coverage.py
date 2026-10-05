@@ -34,6 +34,82 @@ def _document(root: Path, name: str) -> dict[str, Any]:
     return value
 
 
+def check_contract_sizes(root: Path) -> dict[str, int]:
+    """descriptor schemaが参照する全契約を資産側のbyte上限と比較する。
+
+    Args:
+        root: リポジトリルート。
+
+    Returns:
+        契約の相対パスと実byte数の対応。
+
+    Raises:
+        RequiredSetCoverageError: 宣言、対象集合、または実サイズが不正な場合。
+    """
+    policy = _document(root, "contract_size_limit_v1.json")
+    schema = _document(root, "input_axes_descriptor_schema_v1.json")
+    if (
+        set(policy)
+        != {
+            "schemaVersion",
+            "version",
+            "unit",
+            "maximumBytesPerFile",
+            "contractPaths",
+            "source",
+        }
+        or type(policy["schemaVersion"]) is not int
+        or policy["schemaVersion"] != 1
+        or policy["version"] != "contract_size_limit_v1"
+        or policy["unit"] != "byte"
+        or not isinstance(policy["source"], str)
+        or not policy["source"]
+    ):
+        raise RequiredSetCoverageError("契約サイズ宣言の形式または版が不正")
+    limit = policy["maximumBytesPerFile"]
+    if type(limit) is not int or limit < 1:
+        raise RequiredSetCoverageError("契約サイズ宣言のbyte上限が不正")
+    bindings = schema.get("x-pitchlog-descriptor-binding-sources")
+    if not isinstance(bindings, list) or not bindings:
+        raise RequiredSetCoverageError("descriptor schemaの契約対応を解決できない")
+    expected = []
+    for binding in bindings:
+        if not isinstance(binding, dict) or not isinstance(binding.get("contractPath"), str):
+            raise RequiredSetCoverageError("descriptor schemaの契約パスが不正")
+        expected.append(binding["contractPath"])
+    declared = policy["contractPaths"]
+    if (
+        not isinstance(declared, list)
+        or not all(isinstance(path, str) for path in declared)
+        or len(declared) != len(set(declared))
+        or set(declared) != set(expected)
+        or len(expected) != len(set(expected))
+    ):
+        raise RequiredSetCoverageError("契約サイズ宣言の契約集合がdescriptor schemaと不一致")
+    sizes = {}
+    for relative in sorted(declared):
+        path = PurePosixPath(relative)
+        if (
+            path.is_absolute()
+            or ".." in path.parts
+            or path.parts[:2] != ("contracts", "state-transition")
+        ):
+            raise RequiredSetCoverageError(f"契約パスが不正: {relative}")
+        target = root / path
+        if not target.is_file() or target.is_symlink():
+            raise RequiredSetCoverageError(f"契約ファイルを測れない: {relative}")
+        try:
+            actual = target.stat().st_size
+        except OSError as error:
+            raise RequiredSetCoverageError(f"契約ファイルを測れない: {relative}") from error
+        if actual > limit:
+            raise RequiredSetCoverageError(
+                f"契約ファイルがbyte上限超過: {relative}: actual={actual}, maximum={limit}"
+            )
+        sizes[relative] = actual
+    return sizes
+
+
 def _identity(item: dict[str, Any]) -> tuple[str, str, str]:
     """行要求の資産側identityを取得する。"""
     keys = ("vocabularyId", "partitionRuleId", "partitionId")
@@ -1278,6 +1354,7 @@ def check_game_end_coverage(
 def main() -> int:
     """実資産に状況判定と終了判定の検査を適用する。"""
     try:
+        sizes = check_contract_sizes(ROOT)
         rows = check_row_requirements(ROOT)
         coverage = check_input_coverage(ROOT)
         exact = check_input_coverage_exact(ROOT)
@@ -1293,7 +1370,7 @@ def main() -> int:
         return 1
     print(
         f"requiredSet被覆: PASS: rows={rows}; input={coverage}; "
-        f"inputExact={exact}; gameEnd={game_end}"
+        f"inputExact={exact}; gameEnd={game_end}; contractBytes={sizes}"
     )
     return 0
 
