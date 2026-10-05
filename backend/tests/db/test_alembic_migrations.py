@@ -1044,6 +1044,7 @@ def _sqlalchemy_url(dsn: str) -> str:
         host=str(required["host"]),
         port=int(str(required["port"])),
         database=str(required["dbname"]),
+        query={"sslmode": "disable"},
     ).render_as_string(hide_password=False)
 
 

@@ -42,7 +42,7 @@ def test_application_engine_uses_psycopg_driver(
     """アプリ用 URL が正規化を経由して psycopg 3 engine になる。"""
     monkeypatch.setenv(
         "PITCHLOG_DATABASE_URL",
-        "postgresql://user:password@db.example/pitchlog",
+        "postgresql://user:password@db.example/pitchlog?sslmode=verify-full",
     )
     monkeypatch.setenv("PITCHLOG_DATABASE_POOLED", "false")
 

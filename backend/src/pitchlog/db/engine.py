@@ -10,6 +10,7 @@ from psycopg.pq import TransactionStatus
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.pool import ConnectionPoolEntry, PoolProxiedConnection
 
+from pitchlog.authz.database_transport import require_database_transport
 from pitchlog.authz.runtime_contract import (
     APPLICATION_ROLE_ATTRIBUTES,
     APPLICATION_ROLE_NAME,
@@ -441,7 +442,9 @@ def create_database_engine() -> Engine:
         os.environ.get(_DATABASE_POOLED_VARIABLE),
     )
     connect_args = engine_connect_args(_database_is_pooled(pooled_value))
+    connect_args["gssencmode"] = "disable"
     normalized_url = normalize_postgresql_url(database_url)
+    require_database_transport(normalized_url, connect_args)
     engine = create_engine(normalized_url, connect_args=connect_args)
     event.listen(engine, "checkout", _verify_application_role_on_checkout)
     return engine

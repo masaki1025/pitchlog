@@ -16,6 +16,12 @@ branch: feature/ua1-auth-app-layer
 - `backend/tests/test_authz_signing_key_config.py` に `create_app()` 経由の欠落・短い鍵・不正符号化・別表記の拒否と、署名器への配線確認を追加。`"A" * 40` は文字列長 40 だが復号後 30 バイトで、実際に起動拒否される。既存の API 試験は各ファイル内で試験用の乱数鍵を設定し、`backend/tests/conftest.py` は変更していない。
 - 検証: `backend/` で `uv run --offline ruff format`: **2 files reformatted, 241 files left unchanged**、再実行: **243 files left unchanged**。`uv run --offline ruff check` / `uv run --offline ty check`: **All checks passed**。`uv run --offline pytest -c pyproject.toml tests/ -q`: **964 passed, 4 skipped, 385 errors**。エラーは DB 必須試験の接続 fixture で、この環境では DB に接続できなかった。非 DB の独立実行 `tests/ --ignore=tests/db -m 'not requires_db' -q --tb=short`: **955 passed, 4 skipped, 17 deselected**。指定の全件実行では `tests/db/` 配下の非 DB 試験 9 件も通過している。いずれも `UV_CACHE_DIR=/tmp/pitchlog-ua1-uv-cache` を指定した。
 - ステップ 2 の TB002 を実測。`base-allowlist.json` の `conditions` で `error == "TB002"` の正規表現 7 件を取得し、変更した Python 6 ファイルの現行 AST と `HEAD` の AST の差から導入識別子を採った。モジュール名・クラス名・関数名・引数名・`Name`・import 名に `re.search` を適用し、**固有 39 識別子、該当 0 件**。凍結資産の変更は不要。
+- ステップ 3 の配線先訂正: 計画書 §4-5 の `create_engine()` は SQLAlchemy の import 名であり、製品の配線先は `backend/src/pitchlog/db/engine.py` の `create_database_engine()` である。
+- ステップ 3: `authz/database_transport.py` を新設し、正規化後の URL を SQLAlchemy psycopg dialect の接続引数へ展開して `connect_args` を重ね、engine 生成前に通信経路を検証した。ローカルは明示した UNIX ドメインソケットの絶対パス、IPv4 `127.0.0.0/8`、IPv6 `::1` のみ。`localhost` と接続先省略は除外した。リモートは `sslmode=verify-full` を必須とし、GSS が TLS に優先する経路を防ぐため `gssencmode=disable` を接続引数に明示した。`PGHOSTADDR` と service によるローカル接続先の上書きも拒否する。
+- `backend/tests/test_authz_database_transport.py` の engine 生成試験で `sslmode` 未指定・`prefer`・`require`・`verify-ca`・リモートの `disable`・名前解決に依存する `localhost`・接続先の上書きを拒否した。ローカル 3 形態とリモート `verify-full` の受理、DBAPI 直前の `sslmode` と `gssencmode` も DB 接続なしで確認した。既存の非 DB/DB 試験用 URL には、各接続先に応じて明示的な `sslmode` を足した。
+- 検証: `backend/` で `uv run --offline ruff format`: 初回 **1 file reformatted, 244 files left unchanged**、最終 **245 files left unchanged**。`uv run --offline ruff check` / `uv run --offline ty check`: **All checks passed**。指定の `pytest -c pyproject.toml tests/ -q -m "not requires_db"` は **984 passed, 4 skipped, 385 deselected** だが、`tests/db/conftest.py` の既存終了時フックが DB 必須試験 0 件をエラーとするため終了コード 1。`--ignore=tests/db` を足した補助実行は追加試験前に **973 passed, 4 skipped, 17 deselected** で終了コード 0。追加試験は単独で **20 passed**。すべて `UV_CACHE_DIR=/tmp/pitchlog-ua1-uv-cache` を指定した。
+- 既存 DB 試験 `test_schema_revision_and_application_engine_use_the_database` の実行を試みたが、共通 fixture の管理接続が `psycopg.OperationalError: connection is bad` となり試験本体へ進めなかった。使い捨て DB の接続先は fixture 上 `127.0.0.1` と確認し、その URL 変換で `sslmode=disable` を明示した。実 DB で壊れていないことの確認は未了。
+- ステップ 3 の TB002 を実測。`base-allowlist.json` の `TB002` 正規表現 7 件に対し、新設 2 ファイルと既存変更 6 ファイルの Python AST と `HEAD` の AST の差から導入識別子を抽出し、検査器と同じ snake_case 相当の正規化後に `re.search` した。**固有 56 識別子、該当 0 件**。凍結資産への裁定追加は不要。
 
 ## 決定
 
@@ -28,4 +34,4 @@ branch: feature/ua1-auth-app-layer
 
 ## 未決・次の一歩
 
-- ステップ 2 まで実装済み。次は委任元がステップ 2 のコミットを作る。ステップ 3 の DB 接続 TLS 検証には着手していない。
+- ステップ 3 まで実装済み。次は委任元がステップ 3 のコミットを作る。ステップ 4 以降には着手していない。
