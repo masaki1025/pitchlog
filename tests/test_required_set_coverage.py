@@ -28,6 +28,10 @@ def _load_module(name: str, path: Path) -> Any:
 checker = _load_module(
     "check_required_set_coverage", ROOT / "scripts/check_required_set_coverage.py"
 )
+mutation_checker = _load_module(
+    "check_required_set_mutation_step104",
+    ROOT / "scripts/check_required_set_mutation.py",
+)
 expander = _load_module(
     "expand_state_transition_cases", ROOT / "scripts/expand_state_transition_cases.py"
 )
@@ -36,6 +40,75 @@ expander = _load_module(
 def _asset(name: str) -> dict[str, Any]:
     """検査対象の現行資産を読み込む。"""
     return json.loads((ROOT / "contracts/state-transition" / name).read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize(
+    ("name", "check", "error_type"),
+    [
+        (
+            "required_set_coverage_declaration_v1.json",
+            checker.check_row_requirements,
+            checker.RequiredSetCoverageError,
+        ),
+        (
+            "required_set_input_coverage_declaration_v1.json",
+            checker.check_input_coverage_exact,
+            checker.RequiredSetCoverageError,
+        ),
+        (
+            "game_end_coverage_declaration_v1.json",
+            checker.check_game_end_coverage,
+            checker.RequiredSetCoverageError,
+        ),
+        (
+            "coverage_row_binding_policy_v1.json",
+            checker.check_input_coverage_exact,
+            checker.RequiredSetCoverageError,
+        ),
+        (
+            "representative_selection_policy_v1.json",
+            checker.check_input_coverage_exact,
+            checker.RequiredSetCoverageError,
+        ),
+        (
+            "required_set_mutation_policy_v1.json",
+            mutation_checker.check_repository,
+            FileNotFoundError,
+        ),
+        (
+            "expander_dependency_policy_v1.json",
+            expander.dependency_checker.load_policy,
+            expander.dependency_checker.ExpanderDependencyError,
+        ),
+        (
+            "deriver_dependency_policy_v1.json",
+            checker.deriver.load_policy,
+            checker.deriver.DeriverDependencyError,
+        ),
+    ],
+)
+def test_step104_unreadable_declarations_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    check: Any,
+    error_type: type[Exception],
+) -> None:
+    """宣言資産1件を存在しない状態にすると実検査が必ず失敗する。"""
+    target = ROOT / "contracts/state-transition" / name
+    original_read_text = Path.read_text
+    attempted = False
+
+    def unreadable(path: Path, *args: Any, **kwargs: Any) -> str:
+        nonlocal attempted
+        if path == target:
+            attempted = True
+            raise FileNotFoundError(target)
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", unreadable)
+    with pytest.raises(error_type):
+        check(ROOT)
+    assert attempted, f"検査器が宣言資産を読んでいない: {name}"
 
 
 def _unreferenced_normative_rows(

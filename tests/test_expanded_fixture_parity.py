@@ -82,6 +82,36 @@ def test_repository_matches_all_twenty_positive_and_eleven_negative_branches() -
     assert violations["XC-10"] == _entry(mapping, "XC-10")["expectedViolationIds"]
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "branch_row_mapping_v1.json",
+        "manual_fixture_branch_coverage_v1.json",
+        "state_transition_manual_fixtures_v1.json",
+        "game_end_manual_fixtures_v1.json",
+    ],
+)
+def test_step104_fixture_parity_fails_when_declaration_is_unreadable(
+    monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    """照合に必要な対応表・対象宣言・fixtureが読めなければ失敗する。"""
+    target = ASSETS / name
+    original_read_text = Path.read_text
+    attempted = False
+
+    def unreadable(path: Path, *args: Any, **kwargs: Any) -> str:
+        nonlocal attempted
+        if path == target:
+            attempted = True
+            raise FileNotFoundError(target)
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", unreadable)
+    with pytest.raises(FileNotFoundError):
+        checker.check_repository(ROOT)
+    assert attempted, f"照合器が宣言資産を読んでいない: {name}"
+
+
 @pytest.mark.parametrize("change", ["missing", "zero", "duplicate", "input", "expected"])
 def test_positive_comparison_fails_closed(change: str) -> None:
     """欠落・0件・重複・1フィールド不一致を拒否する。"""
