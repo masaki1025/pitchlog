@@ -10,7 +10,7 @@ from collections import Counter
 from collections.abc import Mapping, Set
 from itertools import product
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -282,7 +282,7 @@ def _minimal_contract() -> dict[str, Any]:
             for row in operation_rows
         ),
     ]
-    return {
+    contract: dict[str, Any] = {
         "schemaVersion": 1,
         "version": "state_transition_contract_v1",
         "calculation": "state-transition",
@@ -329,6 +329,11 @@ def _minimal_contract() -> dict[str, Any]:
             },
         ],
     }
+    for case in cast(list[dict[str, Any]], contract["cases"]):
+        case["raw"] = copy.deepcopy(case["rowRef"]["coordinate"])
+        case["normalizationRuleId"] = "identity"
+        case["normalized"] = copy.deepcopy(case["raw"])
+    return contract
 
 
 def _required_object(value: object, label: str) -> dict[str, Any]:
@@ -5460,3 +5465,67 @@ def test_step89_normalization_schema_requires_each_point(missing: str) -> None:
             incomplete, {"$ref": examples["schemaRef"]}, schema, "$.case"
         )
     assert missing in str(error.value)
+
+
+def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> None:
+    """全caseの正規化座標と表示名から安定IDへの対応を確認する。"""
+    schema = _schema()
+    cases = _repository_contract()["cases"]
+    vocabulary = _load_object(
+        REPOSITORY_ROOT / "contracts/vocabulary/input_vocabulary_v1.json"
+    )
+    names_by_id = {
+        entry["id"]: entry["initialDisplayName"]
+        for axis in vocabulary["axes"]
+        if axis["axisId"] in ("batting-result", "secondary-result")
+        for entry in axis["entries"]
+    }
+    result_axis = next(
+        axis for axis in _descriptor()["stateTransitionAxes"]
+        if axis["axisId"] == "event.perPitch.resultId"
+    )
+    declaration = schema["x-pitchlog-stage1-normalization"]
+    display_rule = next(
+        rule for rule in declaration["ruleCatalog"]
+        if rule["ruleId"] == "result-display-name-to-id"
+    )
+    assert {"req:E-1", "req:D-4"} <= set(display_rule["basisRefs"])
+    assert display_rule["semanticOrigin"] != "step-89-local-definition"
+    assert schema["properties"]["cases"]["items"]["$ref"] == "#/$defs/normalizedCase"
+    assert declaration["inputCoordinateMapping"]["semanticOrigin"] == (
+        "step-90-task-implementation-convention"
+    )
+    assert len(cases) == 96
+    changed = []
+    for case in cases:
+        assert {"raw", "normalizationRuleId", "normalized"} <= set(case)
+        assert case["normalized"] == case["inputCoordinate"]
+        if case["normalizationRuleId"] == "identity":
+            assert case["raw"] == case["normalized"]
+        else:
+            assert case["normalizationRuleId"] == "result-display-name-to-id"
+            result_id = case["normalized"]["resultId"]
+            assert case["raw"] == {
+                **case["normalized"], "resultId": names_by_id[result_id]
+            }
+            assert case["raw"]["resultId"] in result_axis["values"]
+            assert case["raw"] != case["normalized"]
+            changed.append(case)
+    assert len(changed) == 71
+    assert "existing-cases-have-normalization-triple" not in declaration[
+        "claimBoundary"
+    ]["notGuaranteed"]
+    assert "input-coordinate-to-raw-or-normalized-mapping" not in declaration[
+        "claimBoundary"
+    ]["notGuaranteed"]
+
+
+@pytest.mark.parametrize("missing", ["raw", "normalizationRuleId", "normalized"])
+def test_step90_contract_schema_rejects_case_without_normalization_point(
+    missing: str,
+) -> None:
+    """既存caseから3点のいずれかを落とすと契約全体の検証が失敗する。"""
+    contract = _repository_contract()
+    del contract["cases"][0][missing]
+    with pytest.raises(schema_checker.DescriptorCheckError, match="必須キー不足"):
+        _validate_schema(contract)

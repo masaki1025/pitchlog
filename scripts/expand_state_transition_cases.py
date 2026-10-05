@@ -182,6 +182,7 @@ def _expand_from_declared_inputs(
     seed_path, vocabulary = _document_by_key(documents, "axes")
     _, manifest = _document_by_key(documents, "seeds")
     _, contract = _document_by_key(documents, "matrixRows")
+    _, contract_schema = _document_by_key(documents, "x-pitchlog-stage1-normalization")
     _, register = _document_by_key(documents, "branches")
     _, selection_policy = _document_by_key(documents, "predicateEvaluation")
     _, row_binding_policy = _document_by_key(documents, "rowBoundAxes")
@@ -205,6 +206,47 @@ def _expand_from_declared_inputs(
     vocabulary_axes = vocabulary.get("axes")
     if not isinstance(vocabulary_axes, list):
         raise CaseExpansionError("語彙seedに軸がない")
+    normalization = contract_schema["x-pitchlog-stage1-normalization"]
+    declared_rules = {
+        rule.get("ruleId")
+        for rule in normalization.get("ruleCatalog", [])
+        if isinstance(rule, dict)
+    }
+    if (
+        normalization.get("currentCasesSchemaRef") != "#/$defs/normalizedCase"
+        or {"identity", "result-display-name-to-id"} - declared_rules
+    ):
+        raise CaseExpansionError("正規化規則の宣言が展開器と一致しない")
+    display_names_by_id: dict[str, str] = {}
+    for axis in vocabulary_axes:
+        if not isinstance(axis, dict) or axis.get("axisId") not in (
+            "batting-result", "secondary-result"
+        ):
+            continue
+        seen_display_names: set[str] = set()
+        for entry in axis.get("entries", []):
+            if not isinstance(entry, dict):
+                raise CaseExpansionError("打撃結果の語彙エントリが不正")
+            result_id = entry.get("id")
+            display_name = entry.get("initialDisplayName")
+            if (
+                not isinstance(result_id, str)
+                or not result_id.startswith(f"{axis['axisId']}.")
+                or not isinstance(display_name, str)
+                or not display_name
+                or result_id in display_names_by_id
+                or display_name in seen_display_names
+            ):
+                raise CaseExpansionError("打撃結果の表示名とIDの対応が不正")
+            display_names_by_id[result_id] = display_name
+            seen_display_names.add(display_name)
+    result_axis = next(
+        (axis for axis in axes if axis.get("axisId") == "event.perPitch.resultId"), None
+    )
+    if not isinstance(result_axis, dict) or not set(display_names_by_id.values()) <= set(
+        result_axis.get("values", [])
+    ):
+        raise CaseExpansionError("語彙シードの初期表示名が入力軸descriptorと不一致")
     result_ids = {
         entry.get("id")
         for axis in vocabulary_axes
@@ -484,6 +526,20 @@ def _expand_from_declared_inputs(
                     },
                 }
             )
+    for case in cases:
+        normalized = copy.deepcopy(case["inputCoordinate"])
+        raw = copy.deepcopy(normalized)
+        result_id = normalized.get("resultId")
+        if normalized.get("eventKind") in ("batting-result", "secondary-result"):
+            if result_id not in display_names_by_id:
+                raise CaseExpansionError("打撃結果のIDが語彙シードの表示名へ解決できない")
+            raw["resultId"] = display_names_by_id[result_id]
+            rule_id = "result-display-name-to-id"
+        else:
+            rule_id = "identity"
+        case["raw"] = raw
+        case["normalizationRuleId"] = rule_id
+        case["normalized"] = normalized
     return cases
 
 

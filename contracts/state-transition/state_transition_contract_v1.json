@@ -7179,6 +7179,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "見逃し",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-pitch",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -7286,6 +7305,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "空振り",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strike",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -7393,6 +7431,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "ファール",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.foul",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -7500,6 +7557,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "ボール",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.ball",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -7608,6 +7684,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "見逃し三振",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -7716,6 +7811,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "空振り三振",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -7823,6 +7937,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "振り逃げ",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 2,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.dropped-third-strike",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 2,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -7931,6 +8064,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "K3",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.k3",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -8042,6 +8194,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "三振ゲッツー",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 1,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.strikeout-double-play",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 1,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -8149,6 +8320,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "四球",
+        "state.count.strikes": 0,
+        "state.count.balls": 3,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.walk",
+        "state.count.strikes": 0,
+        "state.count.balls": 3,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -8256,6 +8446,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "死球",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.hit-by-pitch",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -8363,6 +8572,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "申告敬遠",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.intentional-walk",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
       }
     },
     {
@@ -8470,6 +8698,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "単打",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.single",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -8577,6 +8824,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "二塁打",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.double",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -8684,6 +8950,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "三塁打",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.triple",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -8790,6 +9075,25 @@
           "得点": true,
           "打点": true
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "本塁打",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.home-run",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -8898,6 +9202,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "凡打死",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.batted-out",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -9005,6 +9328,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "凡打出塁",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.batted-reach",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -9113,6 +9455,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "ファールフライ",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.foul-fly",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -9224,6 +9585,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "併殺打",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.double-play",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -9335,6 +9715,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "ライナー併殺",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.line-double-play",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -9442,6 +9841,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "エラー",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.error",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -9549,6 +9967,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "野手選択",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.fielders-choice",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -9657,6 +10094,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "犠打",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.sacrifice-bunt",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -9765,6 +10221,25 @@
           "得点": true,
           "打点": true
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "犠飛",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.sacrifice-fly",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -9872,6 +10347,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "犠打失策",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.sacrifice-bunt-error",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -9978,6 +10472,25 @@
           "得点": true,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "secondary-result",
+        "resultId": "PB",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.passed-ball",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -10084,6 +10597,25 @@
           "得点": true,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "secondary-result",
+        "resultId": "WP",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.wild-pitch",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -10198,6 +10730,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "secondary-result",
+        "resultId": "守備妨害",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.offensive-interference",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases"
       }
     },
     {
@@ -10311,6 +10864,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "secondary-result",
+        "resultId": "打撃妨害",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "batting:penalty-award"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.batting-interference",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "batting:penalty-award"
       }
     },
     {
@@ -10424,6 +10998,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "secondary-result",
+        "resultId": "走塁妨害",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.obstruction",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations"
       }
     },
     {
@@ -10530,6 +11125,25 @@
           "得点": true,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "secondary-result",
+        "resultId": "ボーク",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.balk",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
       }
     },
     {
@@ -10637,6 +11251,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "secondary-result",
+        "resultId": "ピッチクロック違反",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.pitch-clock-violation",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
       }
     },
     {
@@ -10743,6 +11376,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "strategy-category.steal",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "strategy-category.steal",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -10849,6 +11501,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "strategy-category.bunt",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "strategy-category.bunt",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -10955,6 +11626,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "strategy-category.hit-and-run",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "strategy-category.hit-and-run",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
       }
     },
     {
@@ -11061,6 +11751,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "pitcher-pickoff-destination.first",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "pitcher-pickoff-destination.first",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
       }
     },
     {
@@ -11167,6 +11876,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "pitcher-pickoff-destination.second",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "second",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "pitcher-pickoff-destination.second",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "second",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
       }
     },
     {
@@ -11273,6 +12001,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "pitcher-pickoff-destination.third",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "pitcher-pickoff-destination.third",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
       }
     },
     {
@@ -11379,6 +12126,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "catcher-pickoff-destination.first",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "catcher-pickoff-destination.first",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
       }
     },
     {
@@ -11485,6 +12251,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "catcher-pickoff-destination.second",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "second",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "catcher-pickoff-destination.second",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "second",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
       }
     },
     {
@@ -11591,6 +12376,25 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "catcher-pickoff-destination.third",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "catcher-pickoff-destination.third",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "non-pitch-event"
       }
     },
     {
@@ -11699,6 +12503,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "見逃し",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.half": "top"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-pitch",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.half": "top"
       }
     },
     {
@@ -11807,6 +12632,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "空振り",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.half": "bottom"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strike",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.half": "bottom"
       }
     },
     {
@@ -11915,6 +12761,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "ファール",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 1
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.foul",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 1
       }
     },
     {
@@ -12023,6 +12890,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "ボール",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 2
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.ball",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 2
       }
     },
     {
@@ -12132,6 +13020,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "見逃し三振",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 3
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 3
       }
     },
     {
@@ -12241,6 +13150,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "空振り三振",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 4
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 4
       }
     },
     {
@@ -12349,6 +13279,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "振り逃げ",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 2,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 5
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.dropped-third-strike",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 2,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 5
       }
     },
     {
@@ -12458,6 +13409,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "K3",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 6
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.k3",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 6
       }
     },
     {
@@ -12570,6 +13542,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "三振ゲッツー",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 1,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 7
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.strikeout-double-play",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 1,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 7
       }
     },
     {
@@ -12678,6 +13671,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "四球",
+        "state.count.strikes": 0,
+        "state.count.balls": 3,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 8
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.walk",
+        "state.count.strikes": 0,
+        "state.count.balls": 3,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 8
       }
     },
     {
@@ -12786,6 +13800,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "死球",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 9
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.hit-by-pitch",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.battingOrder": 9
       }
     },
     {
@@ -12894,6 +13929,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "申告敬遠",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "state.tiebreakActive": false
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.intentional-walk",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "state.tiebreakActive": false
       }
     },
     {
@@ -13002,6 +14058,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "単打",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.tiebreakActive": true
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.single",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.tiebreakActive": true
       }
     },
     {
@@ -13110,6 +14187,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "二塁打",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.gameEnded": false
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.double",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.gameEnded": false
       }
     },
     {
@@ -13218,6 +14316,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "三塁打",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.gameEnded": true
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.triple",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.gameEnded": true
       }
     },
     {
@@ -13325,6 +14444,27 @@
           "得点": true,
           "打点": true
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "本塁打",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": 1
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.home-run",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": 1
       }
     },
     {
@@ -13434,6 +14574,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "凡打死",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "N-1"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.batted-out",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "N-1"
       }
     },
     {
@@ -13542,6 +14703,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "凡打出塁",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "N"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.batted-reach",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "N"
       }
     },
     {
@@ -13651,6 +14833,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "ファールフライ",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "N+1"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.foul-fly",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "N+1"
       }
     },
     {
@@ -13763,6 +14966,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "併殺打",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "R-1"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.double-play",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "R-1"
       }
     },
     {
@@ -13875,6 +15099,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "ライナー併殺",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "R"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.line-double-play",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "R"
       }
     },
     {
@@ -13983,6 +15228,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "エラー",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "R+1"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.error",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "R+1"
       }
     },
     {
@@ -14091,6 +15357,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "野手選択",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "L-1"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.fielders-choice",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "L-1"
       }
     },
     {
@@ -14200,6 +15487,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "犠打",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "L"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.sacrifice-bunt",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "L"
       }
     },
     {
@@ -14309,6 +15617,27 @@
           "得点": true,
           "打点": true
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "犠飛",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "L+1"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.sacrifice-fly",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "L+1"
       }
     },
     {
@@ -14417,6 +15746,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "犠打失策",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.score": "away-lead:M+1"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.sacrifice-bunt-error",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.score": "away-lead:M+1"
       }
     },
     {
@@ -14524,6 +15874,27 @@
           "得点": true,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "secondary-result",
+        "resultId": "PB",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.score": "away-lead:M"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.passed-ball",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.score": "away-lead:M"
       }
     },
     {
@@ -14631,6 +16002,27 @@
           "得点": true,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "secondary-result",
+        "resultId": "WP",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.score": "away-lead:M-1"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.wild-pitch",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.score": "away-lead:M-1"
       }
     },
     {
@@ -14746,6 +16138,29 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "secondary-result",
+        "resultId": "守備妨害",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+        "state.score": "tie"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.offensive-interference",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+        "state.score": "tie"
       }
     },
     {
@@ -14860,6 +16275,29 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "secondary-result",
+        "resultId": "打撃妨害",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "batting:penalty-award",
+        "state.score": "home-lead:M-1"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.batting-interference",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "batting:penalty-award",
+        "state.score": "home-lead:M-1"
       }
     },
     {
@@ -14974,6 +16412,29 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "secondary-result",
+        "resultId": "走塁妨害",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+        "state.score": "home-lead:M"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.obstruction",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+        "state.score": "home-lead:M"
       }
     },
     {
@@ -15081,6 +16542,27 @@
           "得点": true,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "secondary-result",
+        "resultId": "ボーク",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "state.score": "home-lead:M+1"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.balk",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "state.score": "home-lead:M+1"
       }
     },
     {
@@ -15188,6 +16670,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "strategy-category.steal",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.runnerEventPayload": "single-runner-safe-advance"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "strategy-category.steal",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.runnerEventPayload": "single-runner-safe-advance"
       }
     },
     {
@@ -15295,6 +16798,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "strategy-category.bunt",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.runnerEventPayload": "single-runner-hold"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "strategy-category.bunt",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.runnerEventPayload": "single-runner-hold"
       }
     },
     {
@@ -15402,6 +16926,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "strategy-category.hit-and-run",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "not-required"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "strategy-category.hit-and-run",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.interferenceRuling": "not-required"
       }
     },
     {
@@ -15509,6 +17054,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "pitcher-pickoff-destination.first",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "history.depth": 0
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "pitcher-pickoff-destination.first",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "history.depth": 0
       }
     },
     {
@@ -15616,6 +17182,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "pitcher-pickoff-destination.second",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "second",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "history.depth": 1
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "pitcher-pickoff-destination.second",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "second",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "history.depth": 1
       }
     },
     {
@@ -15723,6 +17310,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "pitcher-pickoff-destination.third",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "history.depth": 2
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "pitcher-pickoff-destination.third",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "history.depth": 2
       }
     },
     {
@@ -15830,6 +17438,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "catcher-pickoff-destination.first",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "history.depth": "D"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "catcher-pickoff-destination.first",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "history.depth": "D"
       }
     },
     {
@@ -15937,6 +17566,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "catcher-pickoff-destination.second",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "second",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "history.composition": "top-confirmed-play"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "catcher-pickoff-destination.second",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "second",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "history.composition": "top-confirmed-play"
       }
     },
     {
@@ -16044,6 +17694,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "runner-event",
+        "resultId": "catcher-pickoff-destination.third",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "history.composition": "top-state-correction"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "eventKind": "runner-event",
+        "resultId": "catcher-pickoff-destination.third",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "history.composition": "top-state-correction"
       }
     },
     {
@@ -16152,6 +17823,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "見逃し",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "history.composition": "top-two-different"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-pitch",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "history.composition": "top-two-different"
       }
     },
     {
@@ -16260,6 +17952,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "空振り",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "history.composition": "all-same"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strike",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "history.composition": "all-same"
       }
     },
     {
@@ -16368,6 +18081,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "ファール",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "history.scenarioLength": 1
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.foul",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "history.scenarioLength": 1
       }
     },
     {
@@ -16476,6 +18210,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "ボール",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "history.scenarioLength": 2
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.ball",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "history.scenarioLength": 2
       }
     },
     {
@@ -16585,6 +18340,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "見逃し三振",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "history.scenarioLength": "D"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "history.scenarioLength": "D"
       }
     },
     {
@@ -16694,6 +18470,27 @@
           "得点": false,
           "打点": false
         }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "空振り三振",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "history.scenarioLength": "D+1"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "history.scenarioLength": "D+1"
       }
     },
     {
@@ -16886,6 +18683,17 @@
           "kind": null
         },
         "operationResult": "applied"
+      },
+      "raw": {
+        "operationKind": "substitution",
+        "event.operationPayload": "substitution",
+        "state.gameEnded": false
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "substitution",
+        "event.operationPayload": "substitution",
+        "state.gameEnded": false
       }
     },
     {
@@ -17078,6 +18886,17 @@
           "kind": null
         },
         "operationResult": "rejected-precondition"
+      },
+      "raw": {
+        "operationKind": "substitution",
+        "event.operationPayload": "substitution",
+        "state.gameEnded": true
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "substitution",
+        "event.operationPayload": "substitution",
+        "state.gameEnded": true
       }
     },
     {
@@ -17242,6 +19061,17 @@
           "kind": null
         },
         "operationResult": "applied"
+      },
+      "raw": {
+        "operationKind": "game-end-declaration",
+        "event.operationPayload": "game-end-declaration",
+        "state.gameEnded": false
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "game-end-declaration",
+        "event.operationPayload": "game-end-declaration",
+        "state.gameEnded": false
       }
     },
     {
@@ -17405,6 +19235,17 @@
           "kind": null
         },
         "operationResult": "rejected-precondition"
+      },
+      "raw": {
+        "operationKind": "game-end-declaration",
+        "event.operationPayload": "game-end-declaration",
+        "state.gameEnded": true
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "game-end-declaration",
+        "event.operationPayload": "game-end-declaration",
+        "state.gameEnded": true
       }
     },
     {
@@ -17597,6 +19438,17 @@
           "kind": null
         },
         "operationResult": "applied"
+      },
+      "raw": {
+        "operationKind": "adhoc-registration",
+        "event.operationPayload": "adhoc-registration",
+        "state.gameEnded": false
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "adhoc-registration",
+        "event.operationPayload": "adhoc-registration",
+        "state.gameEnded": false
       }
     },
     {
@@ -17789,6 +19641,17 @@
           "kind": null
         },
         "operationResult": "rejected-precondition"
+      },
+      "raw": {
+        "operationKind": "adhoc-registration",
+        "event.operationPayload": "adhoc-registration",
+        "state.gameEnded": true
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "adhoc-registration",
+        "event.operationPayload": "adhoc-registration",
+        "state.gameEnded": true
       }
     },
     {
@@ -17944,6 +19807,15 @@
         },
         "operationResult": "nothing-to-undo",
         "guaranteeMode": "full-equality"
+      },
+      "raw": {
+        "operationKind": "undo",
+        "history.depth": 0
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "undo",
+        "history.depth": 0
       }
     }
   ]

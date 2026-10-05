@@ -5,7 +5,7 @@
   "version": "state_transition_contract_schema_v1",
   "x-pitchlog-stage1-normalization": {
     "caseSchemaRef": "#/$defs/normalizedCase",
-    "currentCasesSchemaRef": "#/$defs/derivedCase",
+    "currentCasesSchemaRef": "#/$defs/normalizedCase",
     "casesActivationStep": 90,
     "ruleCatalog": [
       {
@@ -16,18 +16,38 @@
           "docs/features/appendix-e-golden-vectors/design.md#10",
           "docs/features/appendix-e-golden-vectors/plan.md#step-89"
         ]
+      },
+      {
+        "ruleId": "result-display-name-to-id",
+        "meaning": "打撃結果または打撃結果2の raw.resultId にある語彙シードの初期表示名を、同じ eventKind の語彙エントリの安定 ID に解決し、他の入力座標を維持する",
+        "semanticOrigin": "req:E-1-matrix-column-2-and-req:D-4-vocabulary-seed",
+        "basisRefs": [
+          "req:E-1",
+          "req:D-4",
+          "req:4.0-3",
+          "contracts/vocabulary/input_vocabulary_v1.json#axes",
+          "contracts/state-transition/input_axes_descriptor_v1.json#stateTransitionAxes/event.perPitch.resultId"
+        ]
       }
     ],
-    "ruleGranularityReason": "ステップ89は3点の構造と欠落検知までを扱うため、意味を確定できる identity だけを宣言する。値が変わる規則は既存 case へ反映するステップ90で具体化する",
+    "ruleGranularityReason": "打撃結果と打撃結果2の初期表示名と安定IDの対応だけを非identity規則として追加する。走者イベントと操作・undoは本周で対応する非正規形を確定しない",
+    "inputCoordinateMapping": {
+      "semanticOrigin": "step-90-task-implementation-convention",
+      "meaning": "各 case の normalized は既存 inputCoordinate と JSON 値として一致する。identity では raw も一致する。result-display-name-to-id では raw の resultId だけを語彙シードの初期表示名に置き換え、normalized の resultId は既存の安定IDを維持する",
+      "basisRefs": [
+        "req:E-1",
+        "req:D-4",
+        "contracts/state-transition/input_axes_descriptor_v1.json#stateTransitionAxes/event.perPitch.resultId",
+        "docs/features/appendix-e-golden-vectors/plan.md#step-90"
+      ]
+    },
     "claimBoundary": {
-      "subject": "step-89-schema-and-examples",
-      "guaranteed": "normalizedCase 定義による3点の存在と規則識別子の語彙制限",
+      "subject": "step-90-existing-cases",
+      "guaranteed": "既存全caseの3点の存在、規則識別子の語彙制限、normalizedとinputCoordinateの一致、および非identityの表示名から安定IDへの例",
       "notGuaranteed": [
-        "existing-cases-have-normalization-triple",
         "normalization-rule-semantic-correctness",
         "normalizer-execution-or-comparison",
-        "noncanonical-raw-rejection",
-        "input-coordinate-to-raw-or-normalized-mapping"
+        "noncanonical-raw-rejection"
       ]
     }
   },
@@ -639,7 +659,7 @@
     "cases": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/derivedCase"
+        "$ref": "#/$defs/normalizedCase"
       }
     }
   },
@@ -1905,7 +1925,8 @@
     },
     "normalizationRuleId": {
       "enum": [
-        "identity"
+        "identity",
+        "result-display-name-to-id"
       ]
     },
     "derivedCase": {

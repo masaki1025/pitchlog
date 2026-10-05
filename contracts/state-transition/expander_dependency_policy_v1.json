@@ -35,6 +35,7 @@
         "contracts/vocabulary/input_vocabulary_v1.json",
         "contracts/vocabulary/vocabulary_manifest_v1.json",
         "contracts/state-transition/state_transition_contract_v1.json",
+        "contracts/state-transition/state_transition_contract_schema_v1.json",
         "contracts/state-transition/clause_branch_register_v1.json",
         "contracts/state-transition/representative_selection_policy_v1.json",
         "contracts/state-transition/coverage_row_binding_policy_v1.json"
