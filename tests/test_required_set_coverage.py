@@ -1,4 +1,4 @@
-"""ステップ79〜84の行要求差分と入力座標被覆を検証する。"""
+"""ステップ79〜85の行要求差分と入力座標被覆を検証する。"""
 
 from __future__ import annotations
 
@@ -56,6 +56,14 @@ def _observed_coverage(
     return checker.observed_input_coverage(
         cases, active, contract or _asset("state_transition_contract_v1.json"), display_names
     )
+
+
+def _assert_no_tiebreak_start_row(contract: dict[str, Any]) -> None:
+    """ステップ62の裁定に反する操作行がないことを確認する。"""
+    assert not any(
+        row["operationKind"] == "tiebreak-start"
+        for row in contract["operationRows"]
+    ), "tiebreak-startの規範行が現れた"
 
 
 @pytest.mark.parametrize(
@@ -388,10 +396,9 @@ def test_step84_substitution_cases_and_input_coverage() -> None:
         assert case["inputCoordinate"]["event.operationPayload"] == "substitution"
         assert case["expected"]["clauseId"] == "FR-011"
 
-    assert record["currentStep"] == 84
-    assert [entry["step"] for entry in record["history"]] == list(range(79, 85))
-    previous = record["history"][-2]["after"]
-    current = record["history"][-1]
+    assert [entry["step"] for entry in record["history"][:6]] == list(range(79, 85))
+    previous = record["history"][4]["after"]
+    current = record["history"][5]
     assert previous["count"] == 104
     assert current["before"] == previous
     before = {tuple(item) for item in current["before"]["coverageSet"]}
@@ -403,11 +410,53 @@ def test_step84_substitution_cases_and_input_coverage() -> None:
     }
     assert len(after) == current["after"]["count"] == 106
     assert _observed_coverage(cases) == after
-    assert checker.check_input_coverage(ROOT) == (106, checker._digest(after), 2)
     policy = expander.dependency_checker.load_policy(ROOT)
     assert trace.observed_read_paths == policy.expanders[
         "state-transition-cases"
     ].allowed_read_paths
+
+
+def test_step85_tiebreak_start_has_no_row_case_or_coverage_change() -> None:
+    """FR-009の規範行がない裁定を守り、②の被覆をステップ84から据え置く。"""
+    contract = _asset("state_transition_contract_v1.json")
+    record = _asset("required_set_input_coverage_v1.json")
+    _assert_no_tiebreak_start_row(contract)
+    assert not any(
+        case["rowRef"].get("coordinate", {}).get("operationKind") == "tiebreak-start"
+        or case["inputCoordinate"].get("operationKind") == "tiebreak-start"
+        or case["inputCoordinate"].get("event.operationPayload") == "tiebreak-start"
+        for case in contract["cases"]
+    )
+    assert not any(
+        mapping["operationType"] == "tiebreak-start"
+        for mapping in contract["mustOperationCoverage"]["mappings"]
+    )
+
+    assert record["currentStep"] == 85
+    assert [entry["step"] for entry in record["history"]] == list(range(79, 86))
+    previous = record["history"][5]["after"]
+    current = record["history"][6]
+    assert current["before"] == previous
+    assert current["after"] == current["before"]
+    assert current["after"]["count"] == previous["count"] == 106
+    assert current["after"]["digest"] == previous["digest"]
+    after = {tuple(item) for item in current["after"]["coverageSet"]}
+    assert ("event.operationKind", '"tiebreak-start"') not in after
+    assert ("event.operationPayload", '"tiebreak-start"') not in after
+    assert after == _observed_coverage(contract["cases"], contract)
+    assert checker.check_input_coverage(ROOT) == (106, previous["digest"], 0)
+    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+
+
+def test_step85_rejects_a_new_tiebreak_start_row() -> None:
+    """段階2で操作行が追加された場合、この周の前提を赤にする。"""
+    contract = _asset("state_transition_contract_v1.json")
+    changed = copy.deepcopy(contract)
+    changed["operationRows"].append(
+        {**copy.deepcopy(contract["operationRows"][0]), "operationKind": "tiebreak-start"}
+    )
+    with pytest.raises(AssertionError, match="tiebreak-startの規範行が現れた"):
+        _assert_no_tiebreak_start_row(changed)
 
 
 @pytest.mark.parametrize(
