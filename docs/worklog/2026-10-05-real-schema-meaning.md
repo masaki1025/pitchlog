@@ -164,3 +164,14 @@ branch: feature/real-schema-meaning
 - v0.6 を承認。frontmatter を approved へ、変更履歴に「確定ゲート通過(approved)」の行を足した(1 版 2 行 — 起案行は in-review のまま)。`docs/README.md` を approved・v0.6・2026-10-06 へ
 - docs 検査 3 本 exit 0
 - 次はステップ 7(派生資産の追随)
+
+### ステップ 7(2026-10-06): 派生資産の追随
+
+- 比較元: develop `27ff94eb`(本ブランチの merge-base。develop は進んでいない)
+- `contracts/authz/shared-preconditions.json` の data-model.md の `git_blob_digest`: `e0bbe98d…` → `47ae904b…`(旧値が develop の blob と一致することを確認)
+- `contracts/db/schema-manifest.json` の `canonical_source.sha256`: `10847d4d…` → `5875e461…`(同上)
+- 受入シートを `--carry-judgments-from 27ff94eb` で再生成した。生成器の持ち越しは連番で照合するので、12-4 の新しい見出し以降の連番がずれ、N1 21 行・N3 99 行が未判定になった
+- **連番を外した内容照合**(語・正本側・実装側の 3 つ組)で旧判定を持ち越した: N1 20 行・N3 90 行。理由欄の「見出し NNN」「出現 NNN」の参照も新しい連番へ付け替えた(u1 タブの申し送り)
+- 照合から外れた 10 行(N1 の新見出し 1・N3 の新しい出現 9 — うち 035 は旧 031、091 は旧 085 の文言が変わったもの)は**人間の判定(2026-10-06・山田正輝 — 案どおり全件「対象外」)**で記入した
+- `tests/test_orm_acceptance_sheets.py` の件数を N1 101 → 102・N3 92 → 99 へ
+- 検証: `tests/test_orm_acceptance_sheets.py` 13 passed / `tests/test_check_shared_preconditions.py` 9 passed / `check_shared_preconditions.py` OK / `backend/tests/test_schema_manifest.py` 14 passed / `check_authz_catalog.py` ok / `check_tenant_boundary_bypass.py` ok / ruff green
