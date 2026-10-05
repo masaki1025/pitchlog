@@ -9,7 +9,8 @@ branch: feature/roster-status-vocabulary-seed
 ## やったこと
 
 - 計画レビュー **7 周**(1〜6 周は否決。6 周とも当方の読み落としか作りすぎを機械が拾った)+ **スパイク 2 本**で承認(2026-10-04)
-- 実装(ステップ 1〜7): research の未解決欄の確定 → シード資産 → **7.7 準拠の限定許可**(宣言資産 + 検査器 + 更新記録)→ seed revision → 実 revision 負例 3 件 → 三者一致検査 → 実 DB の FK/NOT NULL
+- 実装(ステップ 1〜10): research の未解決欄の確定 → シード資産 → **7.7 準拠の限定許可**(宣言資産 + 検査器 + 更新記録)→ seed revision → 実 revision 負例 3 件 → 三者一致検査 → 実 DB の FK/NOT NULL → 射程外 4 件の起票 → 正本反映 → U-M1 への申し送り
+- **実装の敵対レビュー 8 周**(ステップ 11)→ 総合検証 → **クローズ処理**(ステップ 12)
 
 ## 決定
 
@@ -158,8 +159,57 @@ develop 側の競合も無い(`85fce8a7` → `da5cef8c` で両方未変更。い
 **台帳の既知の型「凍結資産が直列化点になり、後続 PR が受理記録の再導出を払う」の実例。**
 
 
+## 結果サマリ(ステップ 12 クローズ処理・2026-10-05)
+
+### 実装したもの
+
+| | 成果物 |
+| --- | --- |
+| **語彙の正** | `contracts/seeds/roster-status.json`(3 行。表示名は要件書 `:171` から逐語) |
+| **DB への投入** | `backend/migrations/versions/0027_seed_roster_status.py`(`op.bulk_insert()` / downgrade は `category` と 3 キーに限った `DELETE`) |
+| **凍結基準の宣言**(設計書 7.7-1) | `contracts/migrations/seed-allowlist.json`(限定許可 + **更新記録 1 件**) |
+| **検査器** | `backend/tests/test_migration_hygiene.py`(白リスト方式の DML 禁止 + **7.7-2 台帳の 4 検査** — 鎖 / append-only / 削除記録 / **1 受理 = 1 記録**) |
+| **三者一致** | `tests/test_roster_status_seed_contract.py`(シード資産 ↔ 実 revision〔AST〕 ↔ 要件書 4.0-3。負例 5 件) |
+| **実 DB** | `backend/tests/db/test_roster_status_seed_db.py`(FK / NOT NULL / 往復 / 既存キー衝突) |
+
+### 正本へ反映したもの
+
+| 正本 | 反映 | 版 |
+| --- | --- | --- |
+| `docs/design/data-model.md` | 10-3 節へ在籍区分 3 キーと誤参照の事実(2 項)+ 変更履歴 1 行 | **0.4 据え置き**(実装追随 — 7.6-3 前段) |
+| `docs/development/harness-evaluation.md` | **`## 候補` へ 1 件 + 既存候補 3 件へ実測** | **1.0 据え置き**(`H-*` を与えない) |
+| `docs/README.md` | 上記 2 行の最終更新日を現行化 | — |
+
+**正本外で同一 PR が運ぶもの**: `contracts/authz/shared-preconditions.json` の **blob digest 1 行**
+(`f93b06e5…` → `d02b09ee…`。`data-model.md` を直したことによる追随 — 下記 ⑨)。
+
+### 台帳への追記の判断(`/pr` 手順 1-3)
+
+**該当する**と判断し、**`## 候補` へ 1 件追記・既存候補 3 件へ実測を追記**した。**`H-*` は与えていない**
+(いずれも 1 タスクの観測か、既存候補の事例追加であり、制御目的の典拠が無い)。
+内訳は台帳の変更履歴 2026-10-05 行のとおり。
+
+### 最終検証(2026-10-05)
+
+| 検査 | 結果 |
+| --- | --- |
+| ハーネス `uv run pytest tests/` | **2868 passed / 0 failed** |
+| backend 影響範囲 | **129 passed**(`tests/db/test_alembic_migrations.py` は **21 passed**) |
+| `ruff format --check` / `ruff check` / `ty check`(backend・ルート) | すべて通過 |
+| `check_docs_status.py` | **17 documents scanned, 0 violations** |
+| `check_plan_docs_sync.py` | **exit 0** |
+
 ## 未決・次の一歩
 
-- **ステップ 12 の `/pr`**(敵対レビューは 2 周実施)
-- **人間の逐行確認が必須**(コア領域 — ADR-001 / 設計書 6.3)。対象はシード資産の全行 / seed 専用 revision の `op.bulk_insert()` と限定削除 / **宣言資産と検査器の変更** / 一致検査 / `data-model.md` の追記
+- **人間の逐行確認が必須**(コア領域 — ADR-001 / 設計書 6.3)。**対象は計画書 §4-4 の 10 行の表**
+  — シード資産の全行 / seed 専用 revision の `op.bulk_insert()` と限定削除 / **宣言資産と検査器の変更** /
+  三者一致検査 / 実 DB 試験 / `data-model.md` の追記。
+  **`tests/test_roster_status_seed_contract.py` は `areas[].paths` に未登録**なので
+  機械判定には出ない。**表で明示的に対象へ入れてある**
+- **未反映の `P1` は 1 件**(**TSK-484** — 未宣言 revision の DML の網羅)。
+  **人間が「別タスク送りでよい」と明示した記録を証跡とする**
+- **本 PR 自身の「1 受理 = 1 記録」は比較検査の対象外**(`merge-base` `85fce8a7` に台帳が無く**初回例外**を通る)。
+  **正確な言い方は「現行資産には初回記録が 1 件あり、履歴の内部整合を確認した」まで**
+- **敵対レビュー 4 周目はレビュア側が満枠(`Selected model is at capacity`)で判定前に打ち切られた**
+  (掴んだ 2 件のみ処理)。**「8 周すべてが判定を返した」ではない**
 - **`category` 強制(TSK-480)は未着手。** これが着地する前に U-M1 が選手の入口を開くと、`game_*` を在籍区分として保存できる状態が残る
