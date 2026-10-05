@@ -335,6 +335,8 @@ probe の `function-bodies/manifest.json` は、各 body の `source_commit` と
 - **述語の展開結果**(3-3)は、生成器の出力と資産の一致で検査する(digest は「生成物が古い」ことの検出に使い、凍結の基準にはしない)
 - **変異**(すべて red): manifest に無い body ファイルを足す / body の無い要素を manifest に載せる / 要素 ID とパスの対応を入れ替える / `PRODUCT_SPEC` の manifest に `source_commit` を書く(凍結の基準を黙って持ち込ませない)
 
+**【改訂の注記 2026-10-03 — TSK-443】**「既存の `test_authz_runtime_contract.py` は変えない」は PR A1・A2 の間の不変条件であり、PR B で役目を終えた。PR B は二状態の判定を、ファイルの有無から中身の述語へ書き換えた(`../runtime-contract-switch/design.md` 3 節・6 節。計画の承認 2026-09-26・山田正輝)。
+
 ### 3-3. ポリシーの本体
 
 - **表ごとにポリシーを 1 本の SQL ファイルで持つ**(`function-bodies/policies/POLICY:<table>:<profile>.sql`)
@@ -602,6 +604,13 @@ TSK-349 の旧 DoD のうち「凍結 probe 資産への追加と `--reseal-orac
 
 【1 周目 1-P1-5】
 
+
+**【改訂の注記 2026-10-03 — TSK-443(PR B)】本節の契約の一部は、PR B の計画で改めた**(本文は書き換えない。正は `../runtime-contract-switch/design.md` 6 節)。
+- **3 項(暫定資産を削除する)** → 削除せず、同じパスで製品のランタイム契約に変える(Y2 — 人間の判断 2026-09-26・山田正輝)。削除はいまの検査器で必ず不合格になり、退去の機構は TSK-461 の射程であるため
+- **1・2 項(`runtime_contract` を製品資産に足す / `SOURCE_ASSET` = 製品資産)** → 足さない。ランタイム契約の値は `contracts/tenant_boundary/runtime-authz-contract.json` に置き、`ddl-elements.json` から生成器で導く(`derived_from`)。`SOURCE_ASSET` はランタイム契約の資産を指す
+- **4 項(履歴の生存先を (a) か (b) で決める)** → 生存先は動かない。合格条件は「同じパスの資産の値の変更が、記録 1 件で受理される」に読み替える
+- **5 項(旧値を変更前の値としてそのまま記録する)** → v2 の記録の自然言語の欄は予約語を拒否するため書けない。旧値は変更されない v1 の記録にだけ残す
+- 計画の承認: 2026-09-26・山田正輝(`../runtime-contract-switch/plan.md`)
 
 ## 10. capability — 「記述」は本単位が出し、「登録」は各単位が行う
 
