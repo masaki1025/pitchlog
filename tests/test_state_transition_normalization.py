@@ -1,4 +1,4 @@
-"""状況判定ケースの宣言規則適用とidentity変異を検証する。"""
+"""状況判定と終了判定ケースの宣言規則適用とidentity変異を検証する。"""
 
 from __future__ import annotations
 
@@ -55,8 +55,48 @@ def _rules_for_schema(schema: dict[str, Any]) -> Any:
 
 
 def test_all_cases_match_declared_normalization_rules() -> None:
-    """現行96件すべてで宣言規則の適用結果がnormalizedと一致する。"""
-    assert checker.check_repository(ROOT) == 96
+    """状況判定96件と終了判定170件で宣言規則の適用結果が一致する。"""
+    assert checker.check_repository(ROOT) == 266
+
+
+def test_game_end_cases_have_triples_and_display_names_are_resolved() -> None:
+    """終了判定170件の3点と表示名165件の安定ID化を確認する。"""
+    cases, rules = checker.load_game_end_inputs(ROOT)
+    assert len(cases) == 170
+    assert all({"raw", "normalizationRuleId", "normalized"} <= set(case) for case in cases)
+    assert checker.check_cases(cases, rules) == 170
+    display_cases = [
+        case for case in cases
+        if case["normalizationRuleId"] == "game-end-result-display-name-to-id"
+    ]
+    assert len(display_cases) == 165
+    assert all(case["raw"] == case["inputCoordinate"] for case in cases)
+    assert all(
+        case["normalized"]["event.perPitch.resultId"]
+        != case["inputCoordinate"]["event.perPitch.resultId"]
+        for case in display_cases
+    )
+    assert all(
+        case["raw"] == case["normalized"] == case["inputCoordinate"]
+        for case in cases if case["normalizationRuleId"] == "identity"
+    )
+
+
+def test_game_end_display_name_fails_when_rule_is_mutated_to_identity() -> None:
+    """終了判定の表示名をidentityに変異すると突合が失敗する。"""
+    cases, _ = checker.load_game_end_inputs(ROOT)
+    case = next(
+        item for item in cases
+        if item["normalizationRuleId"] == "game-end-result-display-name-to-id"
+    )
+    schema = _asset("state_transition_contract_schema_v1.json")
+    rule = next(
+        item for item in schema["x-pitchlog-stage1-normalization"]["ruleCatalog"]
+        if item["ruleId"] == case["normalizationRuleId"]
+    )
+    rule["transform"] = {"kind": "identity"}
+    with pytest.raises(checker.NormalizationCheckError, match="event.perPitch.resultId"):
+        checker.check_cases([case], _rules_for_schema(schema))
 
 
 @pytest.mark.parametrize(

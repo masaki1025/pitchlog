@@ -237,7 +237,11 @@ def test_game_end_expander_output_is_traced_and_schema_valid() -> None:
     assert trace.observed_read_paths == rule.allowed_read_paths
     contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
     schema = json.loads(GAME_END_SCHEMA_PATH.read_text(encoding="utf-8"))
-    assert contract["cases"][:2] == cases
+    assert [
+        {key: value for key, value in case.items()
+         if key not in {"raw", "normalizationRuleId", "normalized"}}
+        for case in contract["cases"][:2]
+    ] == cases
     assert [case["branchId"] for case in cases] == [
         "GAME-END-NORMAL",
         "GAME-END-EXTRA-CONTINUE",
@@ -260,7 +264,11 @@ def test_step93_first_stage_game_end_cases_match_manual_fixtures() -> None:
     }
 
     assert len(cases) == 4
-    assert contract["cases"][:4] == cases
+    assert [
+        {key: value for key, value in case.items()
+         if key not in {"raw", "normalizationRuleId", "normalized"}}
+        for case in contract["cases"][:4]
+    ] == cases
     assert [case["branchId"] for case in cases] == [
         "GAME-END-NORMAL",
         "GAME-END-EXTRA-CONTINUE",

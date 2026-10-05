@@ -1,0 +1,88 @@
+{
+  "handoffVersion": "appendix_e_consumer_handoff_v1",
+  "calculationIds": [
+    "state-transition",
+    "game-end"
+  ],
+  "claimBoundary": {
+    "guaranteed": "状況判定caseの/expectedと終了判定caseの/decisionは、それぞれrunnerの/expectedへ写す。終了判定caseの/rawと/normalizedは実在する値を指す。終了判定の表示名165件では既存/inputCoordinateと/rawが一致し、/normalizedは安定IDを持つ",
+    "notGuaranteed": [
+      "runnerによるcase消費と出力同値の実証",
+      "終了判定の表示名165件における/normalizedと既存/inputCoordinateの一致"
+    ]
+  },
+  "consumerBindings": [
+    {
+      "calculationId": "state-transition",
+      "vectorId": "state-transition",
+      "contractPath": "contracts/state-transition/state_transition_contract_v1.json",
+      "version": "state_transition_contract_v1",
+      "schemaVersion": 1,
+      "caseSchemaRef": "#/$defs/normalizedCase",
+      "caseFieldMapping": {
+        "id": {
+          "contractPointer": "/caseId",
+          "runnerPointer": "/caseId"
+        },
+        "input": {
+          "raw": {
+            "contractPointer": "/raw",
+            "runnerPointer": "/raw"
+          },
+          "normalized": {
+            "contractPointer": "/normalized",
+            "runnerPointer": "/normalized"
+          }
+        },
+        "expected": {
+          "contractPointer": "/expected",
+          "runnerPointer": "/expected"
+        },
+        "tags": {
+          "contractPointer": null,
+          "runnerPointer": "/tags",
+          "availability": "absent"
+        }
+      },
+      "normalizationComparison": "lossless",
+      "outputComparison": "lossless",
+      "dPlusOnePolicy": "liveness-only"
+    },
+    {
+      "calculationId": "game-end",
+      "vectorId": "game-end",
+      "contractPath": "contracts/state-transition/game_end_contract_v1.json",
+      "version": "game_end_contract_v1",
+      "schemaVersion": 1,
+      "caseSchemaRef": "#/$defs/normalizedCase",
+      "caseFieldMapping": {
+        "id": {
+          "contractPointer": "/caseId",
+          "runnerPointer": "/caseId"
+        },
+        "input": {
+          "raw": {
+            "contractPointer": "/raw",
+            "runnerPointer": "/raw"
+          },
+          "normalized": {
+            "contractPointer": "/normalized",
+            "runnerPointer": "/normalized"
+          }
+        },
+        "expected": {
+          "contractPointer": "/decision",
+          "runnerPointer": "/expected"
+        },
+        "tags": {
+          "contractPointer": null,
+          "runnerPointer": "/tags",
+          "availability": "absent"
+        }
+      },
+      "normalizationComparison": "lossless",
+      "outputComparison": "lossless",
+      "dPlusOnePolicy": "liveness-only"
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/state-transition/appendix_e_consumer_handoff_schema_v1.json",
+  "title": "Pitchlog Appendix E consumer handoff schema v1, step 108",
+  "version": "appendix_e_consumer_handoff_schema_v1",
+  "type": "object",
+  "required": ["handoffVersion", "calculationIds", "claimBoundary", "consumerBindings"],
+  "additionalProperties": false,
+  "properties": {
+    "handoffVersion": {"const": "appendix_e_consumer_handoff_v1"},
+    "calculationIds": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "claimBoundary": {
+      "type": "object",
+      "required": ["guaranteed", "notGuaranteed"],
+      "additionalProperties": false,
+      "properties": {
+        "guaranteed": {"type": "string", "minLength": 1},
+        "notGuaranteed": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "consumerBindings": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"$ref": "#/$defs/consumerBinding"}
+    }
+  },
+  "$defs": {
+    "consumerBinding": {
+      "type": "object",
+      "required": [
+        "calculationId", "vectorId", "contractPath", "version", "schemaVersion",
+        "caseSchemaRef", "caseFieldMapping", "normalizationComparison",
+        "outputComparison", "dPlusOnePolicy"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "calculationId": {"type": "string", "minLength": 1},
+        "vectorId": {"type": "string", "minLength": 1},
+        "contractPath": {
+          "type": "string",
+          "pattern": "^contracts/state-transition/[a-z_]+_contract_v[1-9][0-9]*\\.json$"
+        },
+        "version": {"type": "string", "minLength": 1},
+        "schemaVersion": {"type": "integer", "minimum": 1},
+        "caseSchemaRef": {"$ref": "#/$defs/schemaPointer"},
+        "caseFieldMapping": {"$ref": "#/$defs/caseFieldMapping"},
+        "normalizationComparison": {"enum": ["exact", "lossless"]},
+        "outputComparison": {"enum": ["exact", "lossless"]},
+        "dPlusOnePolicy": {
+          "const": "liveness-only",
+          "$comment": "保証境界: D+1 のundo liveness-only行には拒否しない・切り捨てないことだけを要求し、出力同値は要求しない。ステップ66のPO裁定でこのundo行は段階2へ送られ、現行の該当行・caseは存在しない。matrixRowsにはD+1入力のcaseがあるが、この方針の実証には数えない。この宣言は行の消費やlivenessの実証ではない。"
+        }
+      }
+    },
+    "caseFieldMapping": {
+      "$comment": "contractPointerは各cases[]要素を起点とし、runnerPointerは受取側caseを起点とする。両契約の/rawと/normalizedはそれぞれrunnerの同名フィールドへ写す。期待値は状況判定の/expectedと終了判定の/decisionをrunnerの/expectedへ写す。終了判定のinputCoordinateは既存の表示名を保持し、非identity規則のケースでは/normalizedと一致しない。この写像はrunner消費を証明しない。",
+      "type": "object",
+      "required": ["id", "input", "expected", "tags"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/caseIdMapping"},
+        "input": {
+          "type": "object",
+          "required": ["raw", "normalized"],
+          "additionalProperties": false,
+          "properties": {
+            "raw": {"$ref": "#/$defs/rawMapping"},
+            "normalized": {"$ref": "#/$defs/normalizedMapping"}
+          }
+        },
+        "expected": {"$ref": "#/$defs/expectedMapping"},
+        "tags": {"$ref": "#/$defs/absentTagsMapping"}
+      }
+    },
+    "caseIdMapping": {
+      "type": "object",
+      "required": ["contractPointer", "runnerPointer"],
+      "additionalProperties": false,
+      "properties": {
+        "contractPointer": {"$ref": "#/$defs/casePointer"},
+        "runnerPointer": {"const": "/caseId"}
+      }
+    },
+    "rawMapping": {
+      "type": "object",
+      "required": ["contractPointer", "runnerPointer"],
+      "additionalProperties": false,
+      "properties": {
+        "contractPointer": {"$ref": "#/$defs/casePointer"},
+        "runnerPointer": {"const": "/raw"}
+      }
+    },
+    "normalizedMapping": {
+      "type": "object",
+      "required": ["contractPointer", "runnerPointer"],
+      "additionalProperties": false,
+      "properties": {
+        "contractPointer": {"$ref": "#/$defs/casePointer"},
+        "runnerPointer": {"const": "/normalized"}
+      }
+    },
+    "expectedMapping": {
+      "type": "object",
+      "required": ["contractPointer", "runnerPointer"],
+      "additionalProperties": false,
+      "properties": {
+        "contractPointer": {"$ref": "#/$defs/casePointer"},
+        "runnerPointer": {"const": "/expected"}
+      }
+    },
+    "absentTagsMapping": {
+      "type": "object",
+      "required": ["contractPointer", "runnerPointer", "availability"],
+      "additionalProperties": false,
+      "properties": {
+        "contractPointer": {"const": null},
+        "runnerPointer": {"const": "/tags"},
+        "availability": {"const": "absent"}
+      },
+      "$comment": "現行の2契約の全caseにtagsは無い。存在しないcontractPointerを捏造しない。"
+    },
+    "casePointer": {
+      "type": "string",
+      "pattern": "^/(?:[^~/]|~[01])*(?:/(?:[^~/]|~[01])*)*$",
+      "$comment": "RFC 6901のJSON Pointer。各cases[]要素を起点とする。"
+    },
+    "schemaPointer": {
+      "type": "string",
+      "pattern": "^#/(?:[^~/]|~[01])*(?:/(?:[^~/]|~[01])*)*$"
+    }
+  }
+}

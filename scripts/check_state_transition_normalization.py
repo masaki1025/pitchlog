@@ -1,4 +1,4 @@
-"""状況判定ケースのrawへ宣言規則を適用しnormalizedと突合する。"""
+"""状況判定と終了判定のrawへ宣言規則を適用しnormalizedと突合する。"""
 
 from __future__ import annotations
 
@@ -14,8 +14,14 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = PurePosixPath(
     "contracts/state-transition/state_transition_contract_schema_v1.json"
 )
+STATE_CONTRACT_PATH = PurePosixPath(
+    "contracts/state-transition/state_transition_contract_v1.json"
+)
 EXPANDER_POLICY_PATH = PurePosixPath(
     "contracts/state-transition/expander_dependency_policy_v1.json"
+)
+GAME_END_CONTRACT_PATH = PurePosixPath(
+    "contracts/state-transition/game_end_contract_v1.json"
 )
 
 
@@ -32,14 +38,14 @@ def _read(root: Path, path: PurePosixPath) -> dict[str, Any]:
 
 
 def load_inputs(root: Path) -> tuple[list[dict[str, Any]], NormalizationRules]:
-    """展開器と整合する許可パスから全ケースと規則を読む。"""
+    """展開器と整合する許可パスから状況判定ケースと規則を読む。"""
     schema = _read(root, SCHEMA_PATH)
     declaration = schema["x-pitchlog-stage1-normalization"]
     paths = declaration.get("claimBoundary", {}).get("allowedReadPaths")
-    if not isinstance(paths, list) or len(paths) != 4 or len(set(paths)) != 4:
+    if not isinstance(paths, list) or len(paths) != 5 or len(set(paths)) != 5:
         raise NormalizationCheckError("突合器のallowedReadPathsが不正")
     allowed = {PurePosixPath(path) for path in paths}
-    if SCHEMA_PATH not in allowed or any(
+    if not {SCHEMA_PATH, STATE_CONTRACT_PATH, GAME_END_CONTRACT_PATH} <= allowed or any(
         path.is_absolute() or ".." in path.parts for path in allowed
     ):
         raise NormalizationCheckError("突合器のallowedReadPathsに不正なパスがある")
@@ -48,23 +54,44 @@ def load_inputs(root: Path) -> tuple[list[dict[str, Any]], NormalizationRules]:
         (item for item in policy.get("expanders", [])
          if item.get("expanderId") == "state-transition-cases"), None
     )
-    if expander is None or not allowed <= {
+    if expander is None or not (allowed - {GAME_END_CONTRACT_PATH}) <= {
         PurePosixPath(path) for path in expander.get("allowedReadPaths", [])
     }:
         raise NormalizationCheckError("突合器と展開器のallowedReadPathsが不一致")
-    documents = {path: _read(root, path) for path in allowed if path != SCHEMA_PATH}
-    contract = next((doc for doc in documents.values() if "cases" in doc), None)
+    game_end_expander = next(
+        (item for item in policy.get("expanders", [])
+         if item.get("expanderId") == "game-end-cases"), None
+    )
+    if game_end_expander is None or GAME_END_CONTRACT_PATH not in {
+        PurePosixPath(path)
+        for path in game_end_expander.get("allowedReadPaths", [])
+    }:
+        raise NormalizationCheckError("終了判定契約と展開器のallowedReadPathsが不一致")
+    documents = {
+        path: _read(root, path)
+        for path in allowed - {SCHEMA_PATH, GAME_END_CONTRACT_PATH}
+    }
+    contract = documents[STATE_CONTRACT_PATH]
     manifest = next((doc for doc in documents.values() if "seeds" in doc), None)
     vocabulary_items = [
         (path, doc) for path, doc in documents.items() if "axes" in doc
     ]
-    if contract is None or manifest is None or len(vocabulary_items) != 1:
+    if manifest is None or len(vocabulary_items) != 1:
         raise NormalizationCheckError("突合器の入力資産を一意に識別できない")
     seed_path, vocabulary = vocabulary_items[0]
     cases = contract.get("cases")
     if not isinstance(cases, list):
         raise NormalizationCheckError("casesが配列でない")
     return cases, NormalizationRules(schema, vocabulary, manifest, seed_path)
+
+
+def load_game_end_inputs(root: Path) -> tuple[list[dict[str, Any]], NormalizationRules]:
+    """同じ規則宣言と終了判定契約のケースを読む。"""
+    _, rules = load_inputs(root)
+    cases = _read(root, GAME_END_CONTRACT_PATH).get("cases")
+    if not isinstance(cases, list):
+        raise NormalizationCheckError("終了判定casesが配列でない")
+    return cases, rules
 
 
 def check_cases(cases: list[dict[str, Any]], rules: NormalizationRules) -> int:
@@ -98,9 +125,13 @@ def check_cases(cases: list[dict[str, Any]], rules: NormalizationRules) -> int:
 
 
 def check_repository(root: Path = ROOT) -> int:
-    """リポジトリの全ケースを突合する。"""
+    """リポジトリの状況判定と終了判定の全ケースを突合する。"""
     cases, rules = load_inputs(root)
-    return check_cases(cases, rules)
+    count = check_cases(cases, rules)
+    game_end_cases = _read(root, GAME_END_CONTRACT_PATH).get("cases")
+    if not isinstance(game_end_cases, list):
+        raise NormalizationCheckError("終了判定casesが配列でない")
+    return count + check_cases(game_end_cases, rules)
 
 
 def main(argv: list[str] | None = None) -> int:

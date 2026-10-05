@@ -1260,8 +1260,16 @@ def _check_game_end_documents(
     expander_policy = expand_game_end_cases.dependency_checker.load_policy(root)
     if trace.observed_read_paths != expander_policy.expanders["game-end-cases"].allowed_read_paths:
         raise RequiredSetCoverageError("終了判定展開器のallowedReadPathsが実測と不一致")
-    if contract.get("cases") != generated:
+    normalization_fields = {"raw", "normalizationRuleId", "normalized"}
+    if not isinstance(contract.get("cases"), list) or len(contract["cases"]) != len(generated):
         raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
+    for case, expanded in zip(contract["cases"], generated, strict=True):
+        projection = {
+            key: value for key, value in case.items()
+            if key not in normalization_fields
+        }
+        if set(case) != (set(expanded) | normalization_fields) or projection != expanded:
+            raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
     counts, _, reachable, observed = _game_end_measure(root, contract, declaration)
     baseline = {**contract, "cases": contract["cases"][:4]}
     before, _, _, before_observed = _game_end_measure(root, baseline, declaration)

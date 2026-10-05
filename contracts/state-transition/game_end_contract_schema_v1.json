@@ -109,8 +109,7 @@
     "cases": {
       "type": "array",
       "items": {
-        "type": "object",
-        "additionalProperties": true
+        "$ref": "#/$defs/normalizedCase"
       }
     },
     "validationErrors": {
@@ -121,6 +120,21 @@
     }
   },
   "$defs": {
+    "normalizedCase": {
+      "type": "object",
+      "required": ["caseId", "branchId", "rowRef", "inputCoordinate", "decision", "raw", "normalizationRuleId", "normalized"],
+      "additionalProperties": true,
+      "properties": {
+        "caseId": {"type": "string", "minLength": 1},
+        "branchId": {"type": "string", "minLength": 1},
+        "rowRef": {"type": "object"},
+        "inputCoordinate": {"type": "object"},
+        "decision": {"$ref": "#/$defs/gameEndDecision"},
+        "raw": {"type": "object"},
+        "normalizationRuleId": {"enum": ["identity", "game-end-result-display-name-to-id"]},
+        "normalized": {"type": "object"}
+      }
+    },
     "validationError": {
       "type": "object",
       "required": ["axisId", "invalidValue", "valueIdentity", "sourceClauseIds", "expected", "claimBoundary"],

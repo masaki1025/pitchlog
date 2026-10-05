@@ -42,7 +42,7 @@ class NormalizationRules:
                 raise NormalizationError("正規化規則の識別子が重複または空")
             transform = rule.get("transform")
             if not isinstance(transform, dict) or transform.get("kind") not in (
-                "identity", "vocabulary-lookup"
+                "identity", "vocabulary-lookup", "vocabulary-lookup-any-axis"
             ):
                 raise NormalizationError(f"未対応の正規化変換: {rule_id}")
             self.rules[rule_id] = transform
@@ -81,23 +81,32 @@ class NormalizationRules:
         if not isinstance(axes, dict) or selector not in axes:
             raise NormalizationError(f"正規化対象の軸が宣言されていない: {selector}")
         axis_id = axes[selector]
-        if axis_id not in self.axes:
-            raise NormalizationError(f"正規化対象の語彙軸がない: {axis_id}")
+        return self._axis_mapping(transform, [axis_id])
+
+    def _axis_mapping(
+        self, transform: dict[str, Any], axis_ids: list[str]
+    ) -> tuple[str, dict[str, str], dict[str, str]]:
+        """宣言された語彙軸から一意の表示名とIDの対応を作る。"""
         forward: dict[str, str] = {}
         reverse: dict[str, str] = {}
-        for entry in self.axes[axis_id]:
-            if not isinstance(entry, dict):
-                raise NormalizationError("語彙エントリが不正")
-            raw = entry.get(transform["rawEntryField"])
-            normalized = entry.get(transform["normalizedEntryField"])
-            if (
-                not isinstance(raw, str) or not raw
-                or not isinstance(normalized, str) or not normalized
-                or raw in forward or normalized in reverse
-            ):
-                raise NormalizationError(f"語彙の表示値とIDが一意でない: {axis_id}")
-            forward[raw] = normalized
-            reverse[normalized] = raw
+        if not axis_ids or len(axis_ids) != len(set(axis_ids)):
+            raise NormalizationError("正規化対象の語彙軸が空または重複")
+        for axis_id in axis_ids:
+            if axis_id not in self.axes:
+                raise NormalizationError(f"正規化対象の語彙軸がない: {axis_id}")
+            for entry in self.axes[axis_id]:
+                if not isinstance(entry, dict):
+                    raise NormalizationError("語彙エントリが不正")
+                raw = entry.get(transform["rawEntryField"])
+                normalized = entry.get(transform["normalizedEntryField"])
+                if (
+                    not isinstance(raw, str) or not raw
+                    or not isinstance(normalized, str) or not normalized
+                    or raw in forward or normalized in reverse
+                ):
+                    raise NormalizationError(f"語彙の表示値とIDが一意でない: {axis_id}")
+                forward[raw] = normalized
+                reverse[normalized] = raw
         return transform["field"], forward, reverse
 
     def _convert(self, value: Any, rule_id: str, *, reverse: bool) -> Any:
@@ -112,10 +121,21 @@ class NormalizationRules:
             return result
         if not isinstance(result, dict):
             raise NormalizationError("語彙参照規則の入力がobjectでない")
-        selector = result.get(transform.get("selectorField"))
-        if not isinstance(selector, str):
-            raise NormalizationError("正規化対象の軸選択値がない")
-        field, forward, backward = self._mapping(transform, selector)
+        if transform["kind"] == "vocabulary-lookup-any-axis":
+            if set(transform) != {
+                "kind", "field", "axisIds", "rawEntryField", "normalizedEntryField"
+            } or not isinstance(transform["axisIds"], list) or not all(
+                isinstance(axis_id, str) for axis_id in transform["axisIds"]
+            ):
+                raise NormalizationError("複数語彙軸参照規則の形式が不正")
+            field, forward, backward = self._axis_mapping(
+                transform, transform["axisIds"]
+            )
+        else:
+            selector = result.get(transform.get("selectorField"))
+            if not isinstance(selector, str):
+                raise NormalizationError("正規化対象の軸選択値がない")
+            field, forward, backward = self._mapping(transform, selector)
         lookup = backward if reverse else forward
         if result.get(field) not in lookup:
             raise NormalizationError(f"語彙値を解決できない: {rule_id}, {field}")

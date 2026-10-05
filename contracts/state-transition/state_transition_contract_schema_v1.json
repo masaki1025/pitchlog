@@ -44,12 +44,30 @@
           "contracts/vocabulary/input_vocabulary_v1.json#axes",
           "contracts/state-transition/input_axes_descriptor_v1.json#stateTransitionAxes/event.perPitch.resultId"
         ]
+      },
+      {
+        "ruleId": "game-end-result-display-name-to-id",
+        "transform": {
+          "kind": "vocabulary-lookup-any-axis",
+          "field": "event.perPitch.resultId",
+          "axisIds": ["batting-result", "secondary-result"],
+          "rawEntryField": "initialDisplayName",
+          "normalizedEntryField": "id"
+        },
+        "meaning": "終了判定の raw.event.perPitch.resultId の表示名を、語彙シードの2軸にまたがる一意の安定IDへ解決する。終了判定の代表値展開ではevent.perPitch.kindと結果名の語彙軸が一致しない場合もあるため、軸選択には用いない",
+        "semanticOrigin": "step-108-game-end-case-normalization-correction",
+        "basisRefs": [
+          "req:D-4",
+          "req:F-1",
+          "contracts/vocabulary/input_vocabulary_v1.json#axes",
+          "contracts/state-transition/game_end_contract_v1.json#cases"
+        ]
       }
     ],
-    "ruleGranularityReason": "打撃結果と打撃結果2の初期表示名と安定IDの対応だけを非identity規則として追加する。走者イベントと操作・undoは本周で対応する非正規形を確定しない",
+    "ruleGranularityReason": "状況判定はeventKindで語彙軸を選び、終了判定は既存の代表値の組合せを維持して2軸の表示名から一意の安定IDを引く。操作・undoは本周で対応する非正規形を確定しない",
     "inputCoordinateMapping": {
       "semanticOrigin": "step-90-task-implementation-convention",
-      "meaning": "各 case の normalized は既存 inputCoordinate と JSON 値として一致する。identity では raw も一致する。result-display-name-to-id では raw の resultId だけを語彙シードの初期表示名に置き換え、normalized の resultId は既存の安定IDを維持する",
+      "meaning": "状況判定の各caseではnormalizedは既存inputCoordinateとJSON値として一致する。終了判定は既存inputCoordinateが表示名を保持するため、表示名を持つ165件ではrawがinputCoordinateと一致し、normalizedのevent.perPitch.resultIdだけが安定IDとなる。残り5件はidentityで3値が一致する",
       "basisRefs": [
         "req:E-1",
         "req:D-4",
@@ -59,7 +77,7 @@
     },
     "claimBoundary": {
       "subject": "step-91-normalizer-comparison",
-      "guaranteed": "既存全caseの3点の存在、規則識別子の語彙制限、normalizedとinputCoordinateの一致、および宣言規則をrawへ適用した結果とnormalizedの全件突合(identity変異の負例2件を含む)",
+      "guaranteed": "状況判定96件と終了判定170件の全caseで3点の存在と規則識別子の語彙制限を検査し、宣言規則をrawへ適用した結果とnormalizedを全件突合する。状況判定96件はnormalizedとinputCoordinateが一致する。終了判定の表示名165件はrawとinputCoordinateが一致し、正規化後の安定IDはinputCoordinateと異なる。終了判定の残り5件はidentityで3値が一致する(identity変異の負例を含む)",
       "notGuaranteed": [
         "normalization-rule-semantic-correctness",
         "noncanonical-raw-rejection"
@@ -67,6 +85,7 @@
       "allowedReadPaths": [
         "contracts/state-transition/state_transition_contract_schema_v1.json",
         "contracts/state-transition/state_transition_contract_v1.json",
+        "contracts/state-transition/game_end_contract_v1.json",
         "contracts/vocabulary/vocabulary_manifest_v1.json",
         "contracts/vocabulary/input_vocabulary_v1.json"
       ]
@@ -1947,7 +1966,8 @@
     "normalizationRuleId": {
       "enum": [
         "identity",
-        "result-display-name-to-id"
+        "result-display-name-to-id",
+        "game-end-result-display-name-to-id"
       ]
     },
     "derivedCase": {

@@ -396,10 +396,10 @@ def test_step96_invalid_value_mixed_into_normal_cases_is_rejected(
 
 
 def test_step96_validation_error_cannot_be_counted_as_a_normal_case() -> None:
-    """拒否要求を正常ケースへ追加してもケース件数として受理しない。"""
+    """拒否要求を正常ケースへ追加してもcase schemaで受理しない。"""
     contract = _asset("game_end_contract_v1.json")
     contract["cases"].append(copy.deepcopy(contract["validationErrors"][0]))
-    with pytest.raises(checker.RequiredSetCoverageError, match="正常ケースの件数"):
+    with pytest.raises(checker.RequiredSetCoverageError, match="schema違反"):
         checker._check_game_end_validation_errors(
             ROOT, contract, _asset("game_end_coverage_declaration_v1.json")
         )

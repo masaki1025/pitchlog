@@ -343,6 +343,7 @@ APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS = (
     "tests/test_state_transition_freeze.py",
     "tests/test_vocabulary_manifest.py",
     "tests/test_vocabulary_seed.py",
+    "tests/test_consumer_handoff.py",
 )
 NORMALIZATION_AREA_PATH_ADDITIONS = (
     "scripts/check_state_transition_normalization.py",
@@ -1923,10 +1924,10 @@ def test_core_adrs_have_the_expected_area_ownership() -> None:
 
 
 def test_appendix_e_assets_are_owned_by_game_state_and_sync_areas() -> None:
-    """付録E/Fの契約・検査資産42件が状況計算と同期へ全件帰属すると示す。"""
+    """付録E/Fの契約・検査資産43件が状況計算と同期へ全件帰属すると示す。"""
     configuration = load_actual_core_areas()
     areas_by_id = {area["id"]: area for area in configuration["areas"]}
-    assert len(APPENDIX_E_GAME_STATE_ASSET_PATHS) == 42
+    assert len(APPENDIX_E_GAME_STATE_ASSET_PATHS) == 43
     assert all((REPO / path).is_file() for path in APPENDIX_E_GAME_STATE_ASSET_PATHS)
 
     for area_id in ("game-state", "sync-protocol"):

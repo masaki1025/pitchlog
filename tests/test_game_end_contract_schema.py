@@ -429,6 +429,18 @@ def test_repository_decision_rows_are_closed_and_references_resolve() -> None:
     _validate_decision_references(_repository_contract())
 
 
+@pytest.mark.parametrize("missing", ["raw", "normalizationRuleId", "normalized"])
+def test_game_end_case_schema_requires_normalization_triple(missing: str) -> None:
+    """終了判定caseの正規化3点がどれか欠けたらschemaで拒否する。"""
+    schema = _schema()
+    assert schema["properties"]["cases"]["items"]["$ref"] == "#/$defs/normalizedCase"
+    contract = _repository_contract()
+    _validate_contract(contract)
+    del contract["cases"][0][missing]
+    with pytest.raises(schema_checker.DescriptorCheckError, match="必須キー不足"):
+        _validate_contract(contract)
+
+
 @pytest.mark.parametrize("mutation", ["unknown-column", "missing-column", "invalid-outcome"])
 def test_decision_row_shape_mutations_are_red(mutation: str) -> None:
     """未知列・必須列欠落・enum外の結果を拒否する。"""
