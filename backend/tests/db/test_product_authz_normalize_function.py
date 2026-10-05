@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, LiteralString, cast
 
 import psycopg
@@ -17,6 +18,34 @@ _ALLOWED_CALLS = frozenset(
     {("pg_catalog", "lower"), ("pg_catalog", "btrim"), ("pg_catalog", '"normalize"')}
 )
 _ALLOWED_OPERATORS = frozenset({"collate"})
+# 詳細設計 10-1 節 ⑦ の White_Space 25 文字。migration から導出しない。
+_EXPECTED_WHITE_SPACE = frozenset(
+    (
+        *range(0x0009, 0x000E),
+        0x0020,
+        0x0085,
+        0x00A0,
+        0x1680,
+        *range(0x2000, 0x200B),
+        0x2028,
+        0x2029,
+        0x202F,
+        0x205F,
+        0x3000,
+    )
+)
+
+
+def _white_space_literal_is_exact(value: str) -> bool:
+    """U& 文字列の全エスケープを読み、承認済みの 25 文字と照合する。"""
+    if re.fullmatch(r"(?:\\[0-9A-Fa-f]{4})+", value) is None:
+        return False
+    codepoints = tuple(
+        int(value[index + 1 : index + 5], 16) for index in range(0, len(value), 5)
+    )
+    return len(codepoints) == len(_EXPECTED_WHITE_SPACE) and frozenset(codepoints) == (
+        _EXPECTED_WHITE_SPACE
+    )
 
 
 def _sql_tokens(source: str) -> tuple[tuple[str, str], ...] | None:
@@ -51,7 +80,7 @@ def _sql_tokens(source: str) -> tuple[tuple[str, str], ...] | None:
             if index == len(source):
                 return None
             value = source[start:index]
-            tokens.append((kind, "*" if kind == "unicode_string" else value))
+            tokens.append((kind, value))
             index += 1
             continue
         if character == "$":
@@ -86,6 +115,11 @@ def _normalizer_body_is_safe(source: str) -> bool:
     """許可した組み込み呼出しと COLLATE だけの式を構文全体で照合する。"""
     tokens = _sql_tokens(source)
     if tokens is None:
+        return False
+    unicode_literals = [value for kind, value in tokens if kind == "unicode_string"]
+    if len(unicode_literals) != 1 or not _white_space_literal_is_exact(
+        unicode_literals[0]
+    ):
         return False
     if tokens and tokens[-1] == ("punct", ";"):
         tokens = tokens[:-1]
@@ -124,7 +158,7 @@ def _normalizer_body_is_safe(source: str) -> bool:
         ("string", "NFKC"),
         ("punct", ")"),
         ("punct", ","),
-        ("unicode_string", "*"),
+        ("unicode_string", unicode_literals[0]),
         ("punct", ")"),
         ("word", "collate"),
         ("word", "pg_catalog"),
@@ -193,6 +227,8 @@ def test_normalizer_catalog_has_pure_invoker_shape(
         ("table_reference", "body"),
         ("other_schema_call", "body"),
         ("unqualified_call", "body"),
+        ("missing_white_space", "body"),
+        ("extra_white_space", "body"),
         ("owner", "owner"),
         ("search_path", "search_path"),
     ),
@@ -216,7 +252,12 @@ def test_normalizer_catalog_mutations_are_rejected(
         "search_path": f"ALTER FUNCTION {_FUNCTION} RESET search_path",
     }
     catalog.observer.rollback()
-    if mutation in {"other_schema_call", "unqualified_call"}:
+    if mutation in {
+        "other_schema_call",
+        "unqualified_call",
+        "missing_white_space",
+        "extra_white_space",
+    }:
         with catalog.observer.cursor() as cursor:
             cursor.execute(
                 "SELECT prosrc FROM pg_catalog.pg_proc "
@@ -226,19 +267,29 @@ def test_normalizer_catalog_mutations_are_rejected(
             row = cursor.fetchone()
         catalog.observer.rollback()
         assert row is not None and isinstance(row[0], str)
-        extra = (
-            "public.unapproved_helper($1)"
-            if mutation == "other_schema_call"
-            else "upper($1)"
-        )
-        altered_body = row[0].strip().removesuffix(";") + " || " + extra
+        if mutation in {"other_schema_call", "unqualified_call"}:
+            extra = (
+                "public.unapproved_helper($1)"
+                if mutation == "other_schema_call"
+                else "upper($1)"
+            )
+            altered_body = row[0].strip().removesuffix(";") + " || " + extra
+        else:
+            assert row[0].count(r"\1680") == 1
+            replacement = "" if mutation == "missing_white_space" else r"\1680\0041"
+            altered_body = row[0].replace(r"\1680", replacement, 1)
     with catalog.applicator.cursor() as cursor:
         if mutation == "other_schema_call":
             cursor.execute(
                 "CREATE FUNCTION public.unapproved_helper(text) RETURNS text "
                 "LANGUAGE sql IMMUTABLE STRICT AS $$ SELECT $1 $$"
             )
-        if mutation in {"other_schema_call", "unqualified_call"}:
+        if mutation in {
+            "other_schema_call",
+            "unqualified_call",
+            "missing_white_space",
+            "extra_white_space",
+        }:
             cursor.execute(
                 sql.SQL(
                     "CREATE OR REPLACE FUNCTION public.authn_normalize_team_name(text) "
