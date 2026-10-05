@@ -97,6 +97,8 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_ASYNC_SESSION",
         "C5_BASE_INTERNAL_MUTATIONS",
         "C5_CONTEXT_AFTER_TERMINATOR",
+        "C5_CONTEXT_CAPABILITY_GETATTR",
+        "C5_CONTEXT_CAPABILITY_IMPORT",
         "C5_CONTEXT_CONDITIONAL_ALIAS_CLASS_BASE",
         "C5_CONTEXT_CONDITIONAL_ALIAS_CLOSURE",
         "C5_CONTEXT_CONTAINER_SUBSCRIPT",
@@ -124,6 +126,7 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_CONTEXT_IN_SUBSCRIPT_TARGET",
         "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
         "C5_CONTEXT_PROOF_INDIRECT_REFERENCE",
+        "C5_CONTEXT_REGISTRY_ISSUER",
         "C5_DYNAMIC_EVAL_EXECUTE",
         "C5_DYNAMIC_EXEC",
         "C5_DYNAMIC_GETATTR_EXECUTE",
@@ -3710,7 +3713,7 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
     tmp_path: Path,
     condition: int,
 ) -> None:
-    """契約済み負例 110 本を条件別の実コミット列で拒否する。"""
+    """契約済み負例を条件別の実コミット列で拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     assert {fixture.id for fixture in contract.negative_fixtures} == (
         EXPECTED_NEGATIVE_IDS
@@ -4692,6 +4695,98 @@ dynamic = getattr(context_module, "_ISSUANCE_CAPABILITY")
         tenant_context.issuance_capability_symbol,
         tenant_context.issuance_entrypoint_symbol,
     }
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_line"),
+    (
+        (
+            "from pitchlog.repositories.issuer import issue_tenant_context\n",
+            1,
+        ),
+        (
+            '''\
+from pitchlog.repositories.issuer import issue_tenant_context
+
+registry = {}
+registry["k"] = issue_tenant_context
+''',
+            4,
+        ),
+    ),
+    ids=("import", "registry"),
+)
+def test_issuance_entrypoint_import_or_registry_is_red(
+    source: str, expected_line: int
+) -> None:
+    """合成契約の発行入口を許可外から import・登録すると TB007 になる。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    entrypoint = "pitchlog.repositories.issuer.issue_tenant_context"
+    synthetic_contract = replace(
+        contract,
+        tenant_context=replace(
+            contract.tenant_context,
+            issuance_entrypoint_symbol=entrypoint,
+            issuance_entrypoint_allowed_symbols=frozenset({entrypoint}),
+        ),
+    )
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/unapproved_issuer.py",
+        contract=synthetic_contract,
+    )
+
+    assert any(
+        violation.code == "TB007"
+        and violation.symbol == entrypoint
+        and violation.line == expected_line
+        for violation in violations
+    )
+
+
+def test_reexported_entrypoint_alias_is_outside_direct_reference_rule() -> None:
+    """design.md 6-0 守らないもの 2 の射程であり、意図的に閉じていない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    entrypoint = "pitchlog.repositories.issuer.issue_tenant_context"
+    synthetic_contract = replace(
+        contract,
+        tenant_context=replace(
+            contract.tenant_context,
+            allowed_product_modules=frozenset({"pitchlog.repositories.issuer"}),
+            issuance_entrypoint_symbol=entrypoint,
+            issuance_entrypoint_allowed_symbols=frozenset({entrypoint}),
+        ),
+    )
+    issuer = "pitchlog/repositories/issuer.py"
+    consumer = "pitchlog/services/alias_consumer.py"
+    sources = {
+        issuer: '''\
+def issue_tenant_context(tenant_id):
+    return tenant_id
+
+exported = issue_tenant_context
+''',
+        consumer: '''\
+from pitchlog.repositories.issuer import exported
+
+registry = {"k": exported}
+''',
+    }
+    reexport_map = checker._build_reexport_map(sources)
+
+    assert checker.scan_source(
+        sources[issuer],
+        path=issuer,
+        contract=synthetic_contract,
+        reexport_map=reexport_map,
+    ) == []
+    assert checker.scan_source(
+        sources[consumer],
+        path=consumer,
+        contract=synthetic_contract,
+        reexport_map=reexport_map,
+    ) == []
 
 
 def test_empty_issuance_entrypoint_does_not_trigger_reference_rule() -> None:

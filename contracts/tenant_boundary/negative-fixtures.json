@@ -618,6 +618,27 @@
       "expected_error": "TB007"
     },
     {
+      "id": "C5_CONTEXT_REGISTRY_ISSUER",
+      "path": "pitchlog/services/c5_context_registry_issuer.py",
+      "condition": 5,
+      "mutation": "許可外モジュールが発行能力を registry の値へ登録する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_CAPABILITY_IMPORT",
+      "path": "pitchlog/services/c5_context_capability_import.py",
+      "condition": 5,
+      "mutation": "許可外モジュールが発行能力を import する",
+      "expected_error": "TB007"
+    },
+    {
+      "id": "C5_CONTEXT_CAPABILITY_GETATTR",
+      "path": "pitchlog/services/c5_context_capability_getattr.py",
+      "condition": 5,
+      "mutation": "許可外モジュールが getattr で発行能力を取り出す",
+      "expected_error": "TB007"
+    },
+    {
       "id": "C5_SECRET_IN_DEFAULT_CAPTURE",
       "path": "pitchlog/services/c5_secret_in_default_capture.py",
       "condition": 5,
