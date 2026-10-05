@@ -1,6 +1,6 @@
 ---
 feature: real-schema-meaning
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-05・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -79,6 +79,7 @@ created: 2026-10-05
 | `contracts/authz/shared-preconditions.json` | 正本の `git_blob_digest` を追随させる(内容の変更なし) | PR レビュー(**コア領域の逐行確認**) |
 | `contracts/db/schema-manifest.json` | `canonical_source.sha256` を追随させる(内容の変更なし) | PR レビュー(**コア領域の逐行確認**) |
 | `docs/features/orm-schema-migration/acceptance-sheets/`(N1・N3・N4・N7・README) | 生成器(`scripts/generate_orm_acceptance_sheets.py`)で再生成する。**N1** は 5〜12 章の全見出しが対象なので、12-4 の新しい小見出しで行が増える。**N3** は新しい抽出語(「変えない」など)で行が増え、行番号の相互参照もずれる(#93 の前例 `6ac0aa59`)。新しい行の判定欄は人間が埋める | PR レビュー |
+| `docs/development/harness-evaluation.md` | 既存候補「正本の改訂で連鎖する派生資産を、前例の件数で見積もると取りこぼす」へ付随観測の 3 例目を追記 / `## 候補` へ新規 1 件(develop 取り込みのマージ件名が、ステップ記法の不正形として数えられる)/ 変更履歴に 1 行(版は上げない — 7.6-3 前段) | PR レビュー |
 | `docs/requirements/` | **反映なし**(要件は「実スキーマ」も RLS も扱わない — research.md 3 節) | — |
 | `docs/adr/ADR-004-merge-gate-scope.md` | **反映なし**(裁定 A・B を再議しない。射程宣言の TSK-382 の行は記録として残す) | — |
 | `docs/design/sync-protocol.md` | **反映なし**(P-22 の出所。SP-06 の判定は変えない) | — |

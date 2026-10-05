@@ -175,3 +175,20 @@ branch: feature/real-schema-meaning
 - 照合から外れた 10 行(N1 の新見出し 1・N3 の新しい出現 9 — うち 035 は旧 031、091 は旧 085 の文言が変わったもの)は**人間の判定(2026-10-06・山田正輝 — 案どおり全件「対象外」)**で記入した
 - `tests/test_orm_acceptance_sheets.py` の件数を N1 101 → 102・N3 92 → 99 へ
 - 検証: `tests/test_orm_acceptance_sheets.py` 13 passed / `tests/test_check_shared_preconditions.py` 9 passed / `check_shared_preconditions.py` OK / `backend/tests/test_schema_manifest.py` 14 passed / `check_authz_catalog.py` ok / `check_tenant_boundary_bypass.py` ok / ruff green
+
+## 結果サマリ(/pr クローズ処理 2026-10-06)
+
+- **正本**: `docs/design/data-model.md` v0.5 → **v0.6(approved 2026-10-06・山田正輝)**
+  - 12-4 節に「実スキーマ」の定義を置いた: 4 要件・要求しないもの 4・当てはめ 9 行・1 回の実行の妥当性(重ねない前提と暫定記録)・判定記録の識別(接続先と世代)
+  - 12-6 の `SP-06` の対応を 12-4 のゲートへ結び直し、TSK-317 の行を 12-8 へ追随させた
+  - 12-7 の節末の矛盾を直し、② の対象範囲を注記した
+  - 12-4 の説明文に「対応する 4 項目」と「関数の返却契約」を入れた(4 件の要求文は不変)
+  - 3-4 節の語を書き分け、1-1 節の定義所在表に 1 行足した
+- **確定ゲート**: 7 周(全文 3・差分 4)・反映 4 周・指摘 7 件(P1 7)すべて採用・PO 裁定 1 回(範囲確定)
+- **派生資産**: digest 2 か所(shared-preconditions・schema-manifest)・受入シート N1/N3(内容照合で 110 行を持ち越し、新しい 10 行は人間の判定)・件数のテスト
+- **TSK-344 への効果**: 専用インスタンス上の対象は「実スキーマ」に当たると定まった。344 タブの後続 PR で次の 3 件を扱う
+  - ゲート通過の記録(要件 1〜4 の根拠は gate-record.md 5 節に記録済み)
+  - 12-4 ④・12-8 の現況の更新
+  - ops 2-1 の是正(要件 3・4 と、同じ対象への実行の重なりを防ぐ手順)
+- **台帳**: 既存候補 1 件へ 3 例目、`## 候補` へ新規 1 件(上記の 3 節の宣言どおり)
+- **申し送り**: `0027_seed_roster_status.py` の docstring の `data-model.md:1946`(既存の誤参照 → 10-3 節の参照へ)
