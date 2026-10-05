@@ -136,3 +136,18 @@ branch: feature/um1-player-roster-opponent
 - `test_reseal_updates_decisions_only_with_the_explicit_flag`
 - `test_aggregate_decision_digest_detects_a_changed_lock_entry`
 - `test_atomic_claim_fixture_is_valid_and_referenced_downstream`
+
+## 2026-10-05 ステップ 3(oracle の追随と人間の確認)
+
+- `oracle_commit` 7 箇所(`oracle-seal.lock.json` 1 + `attack-tree` / `boundary-proposal` / `claim-mutant-map` / `ddl-elements` / `rejected-configs` / `verification-evidence`)を `70621e33…` → ステップ 2 の `98ad97de2f796e1e9f12257d848b7c652e6e352a` へ。リポジトリ全体の grep で宣言はこの 7 箇所だけ(台帳中の旧 SHA は履歴値なので維持)
+- digest 連鎖: `failure-injection-points.json`(→ `ddl-elements.json` = `ad8cb1b1…`)・`mcdc-map.json`(→ `claim-mutant-map.json` = `f9ef489e…`)。`git hash-object` で一致を確認。`check_failure_injection_points.py` OK(5)・`check_mcdc_map.py` OK(47)
+- **N5 の結論: oracle 資産の内容追随は不要**。新 6 経路は `source_claim_ids` 空・`disposition: conditional` で HTTP 行列の `cells` は不変(12)。claim-mutant-map の正例は `cells`、管理主張は `management_operations` から導出(`scripts/check_authz_catalog.py:5709`)、attack-tree は mutant 結果(`:6223`)、boundary-proposal は AUTH catalog と凍結台帳(`:6544`)、verification-evidence は既存 probe の検証結果(`:6674`)を対象とし、いずれも経路集合を入力に取らない
+- **敵対レビュー**(`codex_run.py review adversarial`・5 軸 — N5 / oracle_commit の意味論 / digest 連鎖 / 期待失敗 / ステップ 4 への持ち越し): **承認可・指摘 0 件**。持ち越し事項 — ステップ 4 の記録は SHA 移動のみなので `changes: []`・`placement_change` は前後同値・`moved: false`(#77 の「最低 1 件」は後続で訂正済み — `scripts/check_frozen_baselines.py:418`)。`test_normal_validation_never_reseals_a_semantically_valid_drift` は HEAD を clone するので**ステップ 4 のコミット後に再実行**する
+- **人間の確認: 2026-10-05・山田正輝**(差分 9 ファイル各 1 行と N5 の結論を確認)
+
+### 期待失敗(ステップ 4 で解消を確かめる)
+
+- `check_authz_catalog.py`: `boundary proposal の oracle_commit が基準版と不一致`(台帳の最新 `oracle_input` が旧 SHA)。seal 直検査では `route-registry.json: oracle input blob が不一致`
+- `check_frozen_baselines.py --invariants-only`: `history.oracle_input.new_identity が戦略の導出値と不一致`
+- `tests/test_check_authz_catalog.py`: 37 失敗 = ステップ 2 の 31(A 2 件 + B 29 件)+ 新規 6 件 — `test_boundary_owner_population_and_final_values_are_closed` / `test_owner_mutations_pass_when_the_owner_check_is_removed` / `test_boundary_and_review_ids_reject_duplicate_rows_before_folding` / `test_s5_mutations_pass_when_the_decision_check_is_removed` / `test_g_duplicates_pass_when_the_new_multiplicity_checks_are_removed`(boundary-proposal の不一致)・`test_normal_validation_never_reseals_a_semantically_valid_drift`(HEAD の oracle 入力が未封印)
+- **N3 の決定(2026-10-05・山田正輝)**: draft PR を先に作って番号を確定する(#77・#87 の前例どおり)

@@ -8,7 +8,7 @@
     },
     "claim_mutant_map": {
       "path": "contracts/authz/claim-mutant-map.json",
-      "blob_digest": "2c68299664c25b1b275702d4bbce3a0381f71e33"
+      "blob_digest": "f9ef489e7d62cf684795e68a56071f0b4e38b88c"
     }
   },
   "decisions": [
