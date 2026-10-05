@@ -152,7 +152,7 @@ def test_acceptance_sheets_are_generated_from_current_sources() -> None:
         for filename in generator.SHEET_FILENAMES
     } == {
         "N1-table-completeness.md": 101,
-        "N3-immutability-completeness.md": 89,
+        "N3-immutability-completeness.md": 91,
         "N4-deletion-lifecycle.md": 54,
         "N7-required-attributes.md": 100,
     }

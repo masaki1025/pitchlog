@@ -211,3 +211,13 @@ branch: feature/ua1-auth-db-layer
 
 - Codex へ `--resume` で委任(中断なし・差し戻しなし)。決定は design.md 18 節
 - 確認(Claude が実行): DB 試験(`test_product_authz_authn_security.py`・回帰の `cross_cutting`・`authn_app`・`authn_limited`・`catalog`)**56 passed** / 露出の事実の典拠 4 件が正本の逐語と一致 / backend `ruff`・`format --check`・`ty` green・非 DB 試験 365 passed・4 skipped(Codex)・生成器 `check` rc=0 / ハーネス `check_authz_catalog` rc=0・`tests/test_check_authz_catalog.py` **159 passed**
+- ステップ 10 のコミット後(`9b24e94b`)の迂回の走査: `ok`
+
+## ステップ 11(2026-10-05 — Claude が直接書く。docs と派生資産だけ)
+
+- **data-model.md**: 変更履歴へ 1 行(3-4・8-1・12-8 節の実装追随 — 版は上げない)/ 12-8 節「名前解決経路の非注入」の行に認証関数への適用の完了 / TSK-424 系の行に β の範囲(使い捨てクラスタで確認済み・未発効・保護対象 スキーマ 4・表 45・関数 50)を記録し、残件から TSK-468 を外した
+- **索引**(`docs/README.md`): データモデル設計の行に 2026-10-05 の実装追随・日付
+- **digest 2 か所**: `shared-preconditions.json` blob `90659ae9` → `265574c5`・`schema-manifest.json` SHA-256 `7a75921e…` → `5f06a2b6…`
+- **受入突合シート**: `--carry-judgments-from HEAD` で再生成すると、変更履歴の追記で N3 の通し番号がずれ **86 行の判定が空**になった(α・ステップ 6 と同じ型)。`(対象から通し番号を除いたもの, 正本側, 実装側)` の内容一致で順に引き継ぎ **84 行**。**新規 2 行**(N3 出現 002「変えない」= 変更履歴の追記 / 出現 089「不変」= 12-8 節の更新した行)に既存の同種の行と同じ判定(どちらも対象外)を入れた → **人間が承認(2026-10-05・山田正輝「承認」)**。`tests/test_orm_acceptance_sheets.py` の N3 の期待行数 89 → 91
+- 確認: `check_docs_status` 0 violations / `check_shared_preconditions` OK / `test_schema_manifest.py` 14 passed / `test_orm_acceptance_sheets.py` 13 passed
+- **PR のクローズ処理(ステップ 12)へ申し送り**: 運用評価台帳の既存候補(TSK-443 で追記 — 検査器がコミット済みの差分だけを見ると未追跡の新規ファイルがローカルの検証をすり抜ける)に、本タスクの 2 例(ステップ 5 = 未追跡の新規ファイル・ステップ 6 = コミット前の変更)を実測として追記する
