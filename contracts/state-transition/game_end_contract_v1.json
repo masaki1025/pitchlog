@@ -164,6 +164,34 @@
         "promptEndDeclaration": true,
         "automaticallyEndsGame": false
       }
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "GAME-END-EXTRA-CONTINUE"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:0",
+        "gameEnd.extensionLimit": "finite:R+1",
+        "gameEnd.tiebreak": "none",
+        "state.half": "top",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "R+1",
+        "state.score": "tie"
+      },
+      "decision": {
+        "outcome": "extra-continue",
+        "endConditionDetected": false,
+        "lockFurtherPlayInput": false,
+        "promptEndDeclaration": false,
+        "automaticallyEndsGame": false
+      }
     }
   ],
   "validationErrors": []

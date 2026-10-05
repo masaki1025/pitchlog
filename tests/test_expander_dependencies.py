@@ -230,17 +230,24 @@ def test_state_transition_expander_rejects_unlisted_reads(
 
 
 def test_game_end_expander_output_is_traced_and_schema_valid() -> None:
-    """終了判定行からの派生ケースが3入力の追跡とschemaを満たす。"""
-    cases, trace = game_end_expander.expand_traced(REPOSITORY_ROOT, limit=1)
+    """通常終了と延長継続の派生ケースが宣言済み入力とschemaを満たす。"""
+    cases, trace = game_end_expander.expand_traced(REPOSITORY_ROOT, limit=2)
     rule = _policy().expanders["game-end-cases"]
-    assert len(cases) == 1
+    assert len(cases) == 2
     assert trace.observed_read_paths == rule.allowed_read_paths
     contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
     schema = json.loads(GAME_END_SCHEMA_PATH.read_text(encoding="utf-8"))
     assert contract["cases"] == cases
     assert contract["validationErrors"] == []
-    assert cases[0]["branchId"] == contract["decisionRows"][0]["branchId"]
-    assert cases[0]["rowRef"]["coordinate"]["branchId"] == cases[0]["branchId"]
+    assert [case["branchId"] for case in cases] == [
+        "GAME-END-NORMAL",
+        "GAME-END-EXTRA-CONTINUE",
+    ]
+    for case, row in zip(cases, contract["decisionRows"][:2], strict=True):
+        assert case["branchId"] == row["branchId"]
+        assert case["rowRef"]["coordinate"]["branchId"] == row["branchId"]
+        assert game_end_expander._predicate_holds(row["precondition"], case["inputCoordinate"])
+        assert case["decision"] == row["decision"]
     schema_checker._validate_instance(contract, schema, schema, "$")
 
 
