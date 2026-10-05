@@ -55,6 +55,7 @@ def _clause_only_register() -> dict[str, Any]:
     document = _register()
     for gap in document["gaps"]:
         gap["branchIds"] = []
+        gap["rowIds"] = []
     return document
 
 
@@ -63,6 +64,29 @@ def _clause_branch_register() -> dict[str, Any]:
     value = json.loads(CLAUSE_BRANCH_REGISTER_PATH.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return value
+
+
+def _row_documents() -> dict[str, dict[str, Any]]:
+    """凍結基準が宣言する規範行4層を実資産から読む。"""
+    layers = _criteria().row_layers
+    return {
+        layer["sourcePath"]: json.loads(
+            (REPOSITORY_ROOT / layer["sourcePath"]).read_text(encoding="utf-8")
+        )
+        for layer in layers
+    }
+
+
+def _real_indexes(document: dict[str, Any]) -> dict[str, Any]:
+    """実際の所有資産から分岐・規範行の逆方向indexを組み立てる。"""
+    return {
+        "branchIds": checker.clause_branch_reference_index(
+            _clause_branch_register()
+        ),
+        "rowIds": checker.row_reference_index(
+            _criteria(), document["gaps"], _row_documents()
+        ),
+    }
 
 
 def _clause_branch_policy() -> Any:
@@ -310,8 +334,8 @@ def test_clause_branch_index_declares_every_unassigned_branch_exactly() -> None:
     _validate_clause_branches(document)
 
 
-def test_nine_open_gaps_have_clause_and_branch_prefix_filled() -> None:
-    """全9件がclauseIdsとbranchIdsまでを持つopenの連続prefixである。"""
+def test_nine_open_gaps_have_row_ids_and_contiguous_prefix() -> None:
+    """全9件のrowIdsを実資産の逆方向帰属へ突合する。"""
     document = _register()
     expected_clauses = {
         "GAP-01": ["FR-020"],
@@ -330,21 +354,74 @@ def test_nine_open_gaps_have_clause_and_branch_prefix_filled() -> None:
         expected_clauses
     )
     assert all(gap["state"] == "open" for gap in document["gaps"])
+    assert {gap["gapId"]: len(gap["rowIds"]) for gap in document["gaps"]} == {
+        "GAP-01": 0, "GAP-02": 0, "GAP-03": 2,
+        "GAP-04": 4, "GAP-05": 0, "GAP-06": 0,
+        "GAP-07": 20, "GAP-08": 5, "GAP-09": 3,
+    }
     assert all(
         gap["branchIds"]
-        and gap["rowIds"] == []
+        and "rowIds" in gap
         and gap["fixtureCaseIds"] == []
         and gap["generatedCaseSelector"] is None
         for gap in document["gaps"]
     )
-    _validate(
-        document,
-        {
-            "branchIds": checker.clause_branch_reference_index(
-                _clause_branch_register()
-            )
-        },
+    _validate(document, _real_indexes(document))
+
+
+def test_normative_row_natural_keys_are_unique_in_all_four_layers() -> None:
+    """操作種別の重複も前提軸と値で分離し全54行を識別する。"""
+    document = _register()
+    index = _real_indexes(document)["rowIds"]
+
+    assert len(index.existing_references) == 54
+    assert len([row for row in index.existing_references if row.startswith("operationRows:")]) == 6
+    assert "operationRows:substitution:state.gameEnded:false" in index.existing_references
+    assert "operationRows:substitution:state.gameEnded:true" in index.existing_references
+
+
+def test_row_reference_added_only_to_gap_is_red() -> None:
+    """実在しても行側が帰属させない参照を拒否する。"""
+    document = copy.deepcopy(_register())
+    document["gaps"][0]["rowIds"].append(
+        "matrixRows:batting-result:batting-result.called-pitch"
     )
+
+    with pytest.raises(checker.GapRegisterError, match="双方向一致しない"):
+        _validate(document, _real_indexes(document))
+
+
+def test_row_reference_added_only_to_asset_is_red() -> None:
+    """規範行の備考にだけGAP帰属を足しても拒否する。"""
+    document = _register()
+    row_documents = _row_documents()
+    source = "contracts/state-transition/state_transition_contract_v1.json"
+    row_documents[source]["matrixRows"][0]["remarks"] += " GAP-01"
+    indexes = _real_indexes(document)
+    indexes["rowIds"] = checker.row_reference_index(
+        _criteria(), document["gaps"], row_documents
+    )
+
+    with pytest.raises(checker.GapRegisterError, match="双方向一致しない"):
+        _validate(document, indexes)
+
+
+def test_unknown_row_reference_is_red() -> None:
+    """存在しない行IDを指すと拒否する。"""
+    document = copy.deepcopy(_register())
+    document["gaps"][2]["rowIds"].append("decisionRows:NOT-A-ROW")
+
+    with pytest.raises(checker.GapRegisterError, match="存在しない参照"):
+        _validate(document, _real_indexes(document))
+
+
+def test_open_skipping_row_stage_for_fixture_is_red() -> None:
+    """rowIdsが空のままfixtureを先行させるprefix違反を拒否する。"""
+    document = copy.deepcopy(_register())
+    document["gaps"][0]["fixtureCaseIds"] = ["FIXTURE-01"]
+
+    with pytest.raises(checker.GapRegisterError, match="連続したprefix"):
+        _validate(document, _real_indexes(document))
 
 
 def test_gap_side_branch_membership_mismatch_is_red() -> None:

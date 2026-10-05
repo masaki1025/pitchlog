@@ -430,7 +430,7 @@ statFlagsは23件必須のexact型であるため、値を置かずに段階2へ
 `FR-004`を追加する。`FR-004`は結果IDが「エラー」以外のプレイに付随する失策を
 `officialScoringPayload`へ保持することを定める条文であり、犠打失策の公式記録側の所有に
 あたる。`gapId`は9件のexact-setとして機械検査されているため新規IDは立てず、
-`rowIds`は既存9件と同じく空のままとする。記録の実体は本節と行26の`remarks`が持ち、
+この時点の`rowIds`は既存9件と同じく空のままとする。記録の実体は本節と行26の`remarks`が持ち、
 双方が`GAP-09`を名指しして相互に辿れるようにする。
 
 この判断で製品のふるまいは変わりうる。安打狙いのバントが失策で出塁した打席で、
@@ -894,7 +894,7 @@ PO裁定により、合格条件の読みを次のとおり確定した。計画
 `required_set_coverage_declaration_v1.json`へexact-setで宣言し、各件が`gapRegister`の
 `open`エントリに典拠を持つことを機械検査する。典拠は分割規則の`sourceClauseIds`から
 `req:`接頭辞を外した集合と、GAPの`clauseIds`∪`branchIds`との交差が空でないことで引く。
-`rowIds`は使わない(ステップ69がPR後送りのため空である)。実測では
+`rowIds`は使わない(この裁定時点ではステップ69がPR後送りのため空であった)。実測では
 `dropped-third-strike`の`out`はGAP-08へ、妨害系4件はGAP-07へ解決する。宣言が実際の
 未充足集合とずれたら赤になるので、規範行を1行減らして穴を隠す経路も、未充足を
 黙って増やす経路も塞がる。
@@ -1053,6 +1053,31 @@ v8 は「どの段で途切れても fail」と無条件に書いており、**`
 逆方向帰属も含めて全5段を突合する。参照元が未整備の段を先に埋めた場合は判定不能として fail とする。
 
 **各所有ステップ(44 / 66 / 71 / 94)の合格条件に、実資産へこの検査を適用して緑になることを含める。**
+
+#### ステップ69の規範行同定と帰属(2026-10-05)
+
+規範行には共通の行 ID が無い。`freezeBaseline.criteria.gapRegister.rowLayers`に
+4層の資産パス・自然キー・帰属根拠の取得先を宣言し、次のIDを行内容から作る。
+`matrixRows`は`eventKind`と`resultId`、`operationRows`は`operationKind`と
+`precondition.axisId/value`、`undoRows`は`targetKind`と同じ前提軸・値、
+`decisionRows`は`branchId`を使い、先頭に層名を付ける。全54行で重複がないことを
+検査する。特に`operationKind`は各操作で適用・拒否の2行があるため、単独では
+同定できない。`state.gameEnded=false/true`を含む前提を加えると6行を一意に引ける。
+
+行からGAPへの帰属は、行の`remarks`に**完全な**`gapId`または当該GAPの
+`branchIds`が明記される場合、終了判定行自身の`branchId`が一致する場合だけ採る。
+終了判定行の`sourceClauseIds`は、GAPの`clauseIds`との共通典拠も確認する。
+`F-1`のような一般条文だけではGAP-03/04のどちらかを特定できないため、
+条文一致だけからは帰属させない。備考中の言及はそのGAPとの**関連**を示し、
+当該分岐の被覆やGAPの解消を主張しない。規範行の追加・備考の変更と
+`gapRegister.rowIds`の片方だけが変われば双方向検査で失敗する。
+
+実測の`rowIds`件数はGAP-01〜09の順に`0, 0, 2, 4, 0, 0, 20, 5, 3`。
+GAP-01/02/05/06には行備考または行自身の分岐IDから確定できる帰属が無く、
+推測で埋めず空配列とした。`rowIds`はschemaで全エントリの必須キーであり、
+空配列も段の未充填を表す。後続の`fixtureCaseIds`と
+`generatedCaseSelector`を空のままにする限り、これらの`open`エントリも
+連続prefixの述語に従う。暫定の凍結基準記録はPR #81のレビュー待ちを明示する。
 
 ## 8. oracle 循環の遮断
 

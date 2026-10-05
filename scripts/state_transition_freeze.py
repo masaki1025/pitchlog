@@ -607,6 +607,17 @@ def _validate_history_chain(history: Sequence[object], series: str) -> None:
                 raise FreezeBaselineError(f"{change_label}.changedAspectsが不正")
         for field in ("fact", "reason", "approvedBy", "approvedDate"):
             _require_non_empty_string(record.get(field), f"{label}.{field}")
+        provisional_marker = (
+            f"未承認(PR #{acceptance_id.rsplit('#', 1)[1]} のレビュー待ち)"
+        )
+        if (
+            provisional_marker in record["fact"]
+            or record["approvedBy"].startswith("未承認")
+        ) and (
+            record["approvedBy"] != provisional_marker
+            or provisional_marker not in record["fact"]
+        ):
+            raise FreezeBaselineError(f"{label}の暫定記録の整合が崩れている")
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}", record["approvedDate"]) is None:
             raise FreezeBaselineError(f"{label}.approvedDateの形式が不正")
 

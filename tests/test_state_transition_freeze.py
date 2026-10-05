@@ -91,6 +91,21 @@ def test_current_identities_are_derived_from_scope_and_asset_side_criteria() -> 
     }
 
 
+def test_provisional_approval_fields_stay_consistent() -> None:
+    """PR #81の暫定記録でapprovedByだけを人名へ変える偽装を拒否する。"""
+    current = copy.deepcopy(_declaration())
+    record = current["history"][-1]
+    assert record["approvedBy"] == "未承認(PR #81 のレビュー待ち)"
+    assert record["approvedBy"] in record["fact"]
+
+    record["approvedBy"] = "承認者"
+    with pytest.raises(
+        freeze_checker.FreezeBaselineError,
+        match="暫定記録の整合が崩れている",
+    ):
+        freeze_checker.validate_declaration(current)
+
+
 def test_assurance_boundary_distinguishes_guaranteed_identity_from_review_scope() -> None:
     """宣言済み同一性の保証と宣言外基準の不存在の非保証を混同しない。"""
     boundary = _declaration()["scope"]["assuranceBoundary"]
@@ -253,10 +268,12 @@ def test_asset_cannot_self_report_comparison_source_across_two_commits(
 
 
 def test_existing_history_record_rewrite_is_red() -> None:
-    """受理済み履歴の事実欄を書き換えても追記として扱わない。"""
+    """比較元の履歴の事実欄を書き換えても追記として扱わない。"""
     base = _declaration()
     current = copy.deepcopy(base)
-    current["history"][0]["fact"] = "書き換えた事実"
+    current["history"][0]["fact"] = (
+        "未承認(PR #81 のレビュー待ち)。書き換えた事実"
+    )
 
     with pytest.raises(
         freeze_checker.FreezeBaselineError,
@@ -414,6 +431,8 @@ def test_unchanged_pr_rejects_spurious_acceptance_record() -> None:
     spurious = copy.deepcopy(current["history"][-1])
     spurious["acceptanceId"] = "masaki1025/pitchlog#82"
     spurious["priorIdentity"] = copy.deepcopy(current["history"][-1]["newIdentity"])
+    spurious["approvedBy"] = "未承認(PR #82 のレビュー待ち)"
+    spurious["fact"] = "未承認(PR #82 のレビュー待ち)。無変更の追加記録"
     current["history"].append(spurious)
 
     with pytest.raises(

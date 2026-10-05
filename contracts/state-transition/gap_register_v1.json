@@ -46,7 +46,10 @@
         "COLD-09",
         "GAME-END-NORMAL"
       ],
-      "rowIds": [],
+      "rowIds": [
+        "decisionRows:COLD-08",
+        "decisionRows:GAME-END-NORMAL"
+      ],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
     },
@@ -72,7 +75,12 @@
         "GAME-END-LIMIT-DRAW",
         "GAME-END-TIEBREAK-CONTINUE"
       ],
-      "rowIds": [],
+      "rowIds": [
+        "decisionRows:GAME-END-EXTRA-CONTINUE",
+        "decisionRows:GAME-END-LIMIT-DRAW",
+        "decisionRows:GAME-END-NORMAL",
+        "decisionRows:GAME-END-TIEBREAK-CONTINUE"
+      ],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
     },
@@ -135,7 +143,28 @@
         "XC-10",
         "XC-12"
       ],
-      "rowIds": [],
+      "rowIds": [
+        "matrixRows:batting-result:batting-result.hit-by-pitch",
+        "matrixRows:batting-result:batting-result.sacrifice-bunt",
+        "matrixRows:batting-result:batting-result.sacrifice-fly",
+        "matrixRows:batting-result:batting-result.walk",
+        "matrixRows:runner-event:catcher-pickoff-destination.first",
+        "matrixRows:runner-event:catcher-pickoff-destination.second",
+        "matrixRows:runner-event:catcher-pickoff-destination.third",
+        "matrixRows:runner-event:pitcher-pickoff-destination.first",
+        "matrixRows:runner-event:pitcher-pickoff-destination.second",
+        "matrixRows:runner-event:pitcher-pickoff-destination.third",
+        "matrixRows:runner-event:strategy-category.bunt",
+        "matrixRows:runner-event:strategy-category.hit-and-run",
+        "matrixRows:runner-event:strategy-category.steal",
+        "matrixRows:secondary-result:secondary-result.balk",
+        "matrixRows:secondary-result:secondary-result.batting-interference",
+        "matrixRows:secondary-result:secondary-result.obstruction",
+        "matrixRows:secondary-result:secondary-result.offensive-interference",
+        "matrixRows:secondary-result:secondary-result.passed-ball",
+        "matrixRows:secondary-result:secondary-result.pitch-clock-violation",
+        "matrixRows:secondary-result:secondary-result.wild-pitch"
+      ],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
     },
@@ -157,7 +186,13 @@
         "XC-04",
         "XC-11"
       ],
-      "rowIds": [],
+      "rowIds": [
+        "matrixRows:batting-result:batting-result.called-strikeout",
+        "matrixRows:batting-result:batting-result.dropped-third-strike",
+        "matrixRows:batting-result:batting-result.k3",
+        "matrixRows:batting-result:batting-result.strikeout-double-play",
+        "matrixRows:batting-result:batting-result.swinging-strikeout"
+      ],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
     },
@@ -183,7 +218,11 @@
         "RBI-08",
         "RBI-09"
       ],
-      "rowIds": [],
+      "rowIds": [
+        "matrixRows:batting-result:batting-result.home-run",
+        "matrixRows:batting-result:batting-result.sacrifice-bunt-error",
+        "matrixRows:batting-result:batting-result.sacrifice-fly"
+      ],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
     }

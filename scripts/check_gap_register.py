@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -87,6 +88,7 @@ class GapCriteria:
     initial_state: str
     terminal_state: str
     schema_version: int
+    row_layers: tuple[Mapping[str, Any], ...]
 
 
 @dataclass(frozen=True)
@@ -154,6 +156,23 @@ def load_gap_criteria(descriptor: Mapping[str, Any]) -> GapCriteria:
     )
     stages = _criteria_string_list(raw.get("stageFields"), ".stageFields")
     states = _criteria_string_list(raw.get("states"), ".states")
+    row_layers = raw.get("rowLayers")
+    if not isinstance(row_layers, list) or len(row_layers) != 4:
+        raise GapRegisterError("rowLayersは規範行4層の宣言でなければならない")
+    seen_layers: set[str] = set()
+    for layer in row_layers:
+        if not isinstance(layer, dict) or set(layer) != {
+            "layer", "sourcePath", "keyPaths", "ownershipPath"
+        }:
+            raise GapRegisterError("rowLayersの宣言が不正")
+        if not all(isinstance(layer[key], str) and layer[key] for key in (
+            "layer", "sourcePath", "ownershipPath"
+        )):
+            raise GapRegisterError("rowLayersの文字列宣言が不正")
+        _criteria_string_list(layer["keyPaths"], "rowLayers.keyPaths")
+        if layer["layer"] in seen_layers:
+            raise GapRegisterError("rowLayersの層が重複している")
+        seen_layers.add(layer["layer"])
     initial_state = raw.get("initialState")
     terminal_state = raw.get("terminalState")
     expected_values = raw.get("checkerExpectedValues")
@@ -183,6 +202,7 @@ def load_gap_criteria(descriptor: Mapping[str, Any]) -> GapCriteria:
         initial_state=initial_state,
         terminal_state=terminal_state,
         schema_version=expected_values["schemaVersion"],
+        row_layers=tuple(row_layers),
     )
 
 
@@ -566,6 +586,70 @@ def canonical_reference_token(value: object) -> str:
         )
     except (TypeError, ValueError) as error:
         raise GapRegisterError(f"参照を決定的に正規化できない: {error}") from error
+
+
+def _row_key_value(row: Mapping[str, Any], key_path: str) -> str:
+    """規範行の自然キーを宣言済みのpathから取得する。"""
+    value: Any = row
+    for part in key_path.split("."):
+        if not isinstance(value, dict) or part not in value:
+            raise GapRegisterError(f"規範行に自然キーがない: {key_path}")
+        value = value[part]
+    if isinstance(value, str) and value and ":" not in value:
+        return value
+    if isinstance(value, (bool, int)):
+        return json.dumps(value)
+    raise GapRegisterError(f"規範行の自然キーがIDに使えない: {key_path}")
+
+
+def _mentions_id(remarks: str, identifier: str) -> bool:
+    """備考内の完全な識別子だけを帰属の証拠にする。"""
+    return re.search(
+        rf"(?<![A-Za-z0-9-]){re.escape(identifier)}(?![A-Za-z0-9-])",
+        remarks,
+    ) is not None
+
+
+def row_reference_index(
+    criteria: GapCriteria,
+    gaps: Sequence[Mapping[str, Any]],
+    documents: Mapping[str, Mapping[str, Any]],
+) -> StageReferenceIndex:
+    """規範行4層の自然キーと明記されたGAP・分岐から逆方向帰属を作る。"""
+    existing: set[str] = set()
+    owners_by_reference: dict[str, frozenset[str]] = {}
+    for layer in criteria.row_layers:
+        document = documents.get(layer["sourcePath"])
+        rows = document.get(layer["layer"]) if document is not None else None
+        if not isinstance(rows, list):
+            raise GapRegisterError(f"規範行層が実在しない: {layer['layer']}")
+        for row in rows:
+            if not isinstance(row, dict):
+                raise GapRegisterError(f"規範行がobjectでない: {layer['layer']}")
+            row_id = ":".join((layer["layer"], *(
+                _row_key_value(row, path) for path in layer["keyPaths"]
+            )))
+            if row_id in existing:
+                raise GapRegisterError(f"規範行の自然キーが重複している: {row_id}")
+            existing.add(row_id)
+            evidence = row.get(layer["ownershipPath"])
+            if not isinstance(evidence, str):
+                raise GapRegisterError(f"規範行の帰属根拠が文字列でない: {row_id}")
+            source_clauses = row.get("sourceClauseIds")
+            owners: set[str] = set()
+            for gap in gaps:
+                if source_clauses is not None and not any(
+                    f"req:{clause}" in source_clauses
+                    for clause in gap["clauseIds"]
+                ):
+                    continue
+                if _mentions_id(evidence, gap["gapId"]) or any(
+                    _mentions_id(evidence, branch_id)
+                    for branch_id in gap["branchIds"]
+                ):
+                    owners.add(gap["gapId"])
+            owners_by_reference[row_id] = frozenset(owners)
+    return StageReferenceIndex(frozenset(existing), owners_by_reference)
 
 
 def _stage_reference_tokens(
@@ -1028,12 +1112,25 @@ def check_repository(root: Path) -> None:
         L_SCHEMA_ASSET,
     )
     policy = load_gap_schema_policy(schema, criteria)
+    row_documents: dict[str, Mapping[str, Any]] = {}
+    for layer in criteria.row_layers:
+        relative = PurePosixPath(layer["sourcePath"])
+        if relative.is_absolute() or ".." in relative.parts:
+            raise GapRegisterError(f"規範行資産のpathが不正: {relative}")
+        if layer["sourcePath"] not in row_documents:
+            row_documents[layer["sourcePath"]] = _expect_object(
+                clause_id_source.load_json(root / relative, "規範行資産"),
+                "規範行資産",
+            )
     validate_gap_register_document(
         document,
         requirement_clause_ids,
         criteria,
         policy,
-        {"branchIds": clause_branch_reference_index(branch_document)},
+        {
+            "branchIds": clause_branch_reference_index(branch_document),
+            "rowIds": row_reference_index(criteria, document["gaps"], row_documents),
+        },
     )
 
 

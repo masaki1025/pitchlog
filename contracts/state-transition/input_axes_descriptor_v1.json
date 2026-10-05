@@ -396,6 +396,7 @@
             "json-object-member-name-used-only-for-navigation": [
               "acceptance",
               "acceptanceId",
+              "approvedBy",
               "approvedDate",
               "base",
               "changes",
@@ -408,6 +409,7 @@
               "engineExpectedValues.criterionBindingKind",
               "excludedComparisonFunctionsBySource",
               "excludedOperandRoles",
+              "fact",
               "findingId",
               "freezeBaseline",
               "history",
@@ -432,22 +434,25 @@
               "values"
             ],
             "identifier-or-format-grammar": [
+              " のレビュー待ち)",
+              "#",
               "[0-9a-f]{40}",
               "\\d{4}-\\d{2}-\\d{2}",
               "^[^/#\\s]+/[^/#\\s]+#[1-9][0-9]*$",
-              "^{commit}"
+              "^{commit}",
+              "未承認(PR #"
             ],
             "runtime-type-or-control-sentinel": [
               "",
               "--verify",
               ".acceptanceId",
               ".criterionId",
-              ".values[",
-              "].criterionId",
               ".findingId",
+              ".values[",
               "/",
               "/criteria",
               "/scope",
+              "].criterionId",
               "freezeBaseline.series",
               "git",
               "rev-parse",
@@ -600,8 +605,14 @@
               "gapIds",
               "gaps",
               "initialState",
+              "keyPaths",
+              "layer",
               "listStageFields",
+              "ownershipPath",
+              "rowLayers",
               "schemaVersion",
+              "sourceClauseIds",
+              "sourcePath",
               "stageFields",
               "state",
               "states",
@@ -609,6 +620,7 @@
               "version"
             ],
             "repository-path-or-filename-grammar": [
+              "..",
               "contracts",
               "contracts/state-transition/gap_register_v1.json",
               "state-transition"
@@ -618,6 +630,12 @@
               "__main__",
               "gap register",
               "gaps["
+            ],
+            "identifier-or-format-grammar": [
+              "(?![A-Za-z0-9-])",
+              "(?<![A-Za-z0-9-])",
+              ":",
+              "req:"
             ]
           }
         }
@@ -1185,7 +1203,46 @@
         "terminalState": "resolved",
         "checkerExpectedValues": {
           "schemaVersion": 1
-        }
+        },
+        "rowLayers": [
+          {
+            "layer": "matrixRows",
+            "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+            "keyPaths": [
+              "eventKind",
+              "resultId"
+            ],
+            "ownershipPath": "remarks"
+          },
+          {
+            "layer": "operationRows",
+            "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+            "keyPaths": [
+              "operationKind",
+              "precondition.axisId",
+              "precondition.value"
+            ],
+            "ownershipPath": "remarks"
+          },
+          {
+            "layer": "undoRows",
+            "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+            "keyPaths": [
+              "targetKind",
+              "precondition.axisId",
+              "precondition.value"
+            ],
+            "ownershipPath": "remarks"
+          },
+          {
+            "layer": "decisionRows",
+            "sourcePath": "contracts/state-transition/game_end_contract_v1.json",
+            "keyPaths": [
+              "branchId"
+            ],
+            "ownershipPath": "branchId"
+          }
+        ]
       }
     },
     "history": [
@@ -1201,7 +1258,7 @@
           "values": [
             {
               "criterionId": "freezeDefinition",
-              "identity": "sha256:f1e443e57ca59b85fbd9cf89007d5913682040b75bdbd7de0eacb66bdb4a1dae"
+              "identity": "sha256:56a000db101c1ab815a1bf4233d0d595471e491313199c0172758aa789892307"
             },
             {
               "criterionId": "threeWayParity",
@@ -1213,7 +1270,7 @@
             },
             {
               "criterionId": "gapRegister",
-              "identity": "sha256:da2dcbd9abee765f1c856e00918b3b5a2ae877bb2b900ce2a3b78435df78aa06"
+              "identity": "sha256:fee21f52bc25643435909cbcb396a3534ec97cabf2b4d8f6d73d021a7a56f69b"
             }
           ]
         },
@@ -1329,6 +1386,7 @@
                       "json-object-member-name-used-only-for-navigation": [
                         "acceptance",
                         "acceptanceId",
+                        "approvedBy",
                         "approvedDate",
                         "base",
                         "changes",
@@ -1341,6 +1399,7 @@
                         "engineExpectedValues.criterionBindingKind",
                         "excludedComparisonFunctionsBySource",
                         "excludedOperandRoles",
+                        "fact",
                         "findingId",
                         "freezeBaseline",
                         "history",
@@ -1365,22 +1424,25 @@
                         "values"
                       ],
                       "identifier-or-format-grammar": [
+                        " のレビュー待ち)",
+                        "#",
                         "[0-9a-f]{40}",
                         "\\d{4}-\\d{2}-\\d{2}",
                         "^[^/#\\s]+/[^/#\\s]+#[1-9][0-9]*$",
-                        "^{commit}"
+                        "^{commit}",
+                        "未承認(PR #"
                       ],
                       "runtime-type-or-control-sentinel": [
                         "",
                         "--verify",
                         ".acceptanceId",
                         ".criterionId",
-                        ".values[",
-                        "].criterionId",
                         ".findingId",
+                        ".values[",
                         "/",
                         "/criteria",
                         "/scope",
+                        "].criterionId",
                         "freezeBaseline.series",
                         "git",
                         "rev-parse",
@@ -1533,8 +1595,14 @@
                         "gapIds",
                         "gaps",
                         "initialState",
+                        "keyPaths",
+                        "layer",
                         "listStageFields",
+                        "ownershipPath",
+                        "rowLayers",
                         "schemaVersion",
+                        "sourceClauseIds",
+                        "sourcePath",
                         "stageFields",
                         "state",
                         "states",
@@ -1542,6 +1610,7 @@
                         "version"
                       ],
                       "repository-path-or-filename-grammar": [
+                        "..",
                         "contracts",
                         "contracts/state-transition/gap_register_v1.json",
                         "state-transition"
@@ -1551,6 +1620,12 @@
                         "__main__",
                         "gap register",
                         "gaps["
+                      ],
+                      "identifier-or-format-grammar": [
+                        "(?![A-Za-z0-9-])",
+                        "(?<![A-Za-z0-9-])",
+                        ":",
+                        "req:"
                       ]
                     }
                   }
@@ -2165,7 +2240,46 @@
                 "terminalState": "resolved",
                 "checkerExpectedValues": {
                   "schemaVersion": 1
-                }
+                },
+                "rowLayers": [
+                  {
+                    "layer": "matrixRows",
+                    "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+                    "keyPaths": [
+                      "eventKind",
+                      "resultId"
+                    ],
+                    "ownershipPath": "remarks"
+                  },
+                  {
+                    "layer": "operationRows",
+                    "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+                    "keyPaths": [
+                      "operationKind",
+                      "precondition.axisId",
+                      "precondition.value"
+                    ],
+                    "ownershipPath": "remarks"
+                  },
+                  {
+                    "layer": "undoRows",
+                    "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+                    "keyPaths": [
+                      "targetKind",
+                      "precondition.axisId",
+                      "precondition.value"
+                    ],
+                    "ownershipPath": "remarks"
+                  },
+                  {
+                    "layer": "decisionRows",
+                    "sourcePath": "contracts/state-transition/game_end_contract_v1.json",
+                    "keyPaths": [
+                      "branchId"
+                    ],
+                    "ownershipPath": "branchId"
+                  }
+                ]
               }
             },
             "changedAspects": [
@@ -2177,10 +2291,10 @@
             ]
           }
         ],
-        "fact": "敵対レビュー最終全文確認周で、凍結基準とその集合・保証境界を資産側へ移設し、任意コードに宣言外基準が無いことまでは機械監査できない事実を確認したうえで、受理遷移の比較元を資産の自己申告からGitHub PR eventへ移した",
-        "reason": "開発ハーネス設計書7.7-1・7.7-3・7.7-4に従い、宣言されたscopeとcriteriaの同一性変更を受理記録なしでは拒否し、宣言外基準の不存在は非保証かつ規範上禁止とする境界を維持しながら、同一PR内で比較元を差し替えて受理履歴を迂回する経路を閉じるため",
-        "approvedBy": "山田正輝",
-        "approvedDate": "2026-09-27"
+        "fact": "敵対レビュー最終全文確認周で、凍結基準とその集合・保証境界を資産側へ移設し、任意コードに宣言外基準が無いことまでは機械監査できない事実を確認したうえで、受理遷移の比較元を資産の自己申告からGitHub PR eventへ移した。ステップ69で規範行4層の自然キーと行帰属の基準を宣言し、実資産へのopen prefix検査を接続した。暫定記録: 未承認(PR #81 のレビュー待ち)",
+        "reason": "開発ハーネス設計書7.7-1・7.7-3・7.7-4に従い、宣言されたscopeとcriteriaの同一性変更を受理記録なしでは拒否し、宣言外基準の不存在は非保証かつ規範上禁止とする境界を維持しながら、同一PR内で比較元を差し替えて受理履歴を迂回する経路を閉じるため。ステップ69ではPR #81のレビュー前に規範行の同定と双方向帰属を機械検査するため。受理前の暫定基準であり、受理済みを表さない",
+        "approvedBy": "未承認(PR #81 のレビュー待ち)",
+        "approvedDate": "2026-10-05"
       }
     ]
   },
