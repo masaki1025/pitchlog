@@ -56,14 +56,15 @@ def _document_by_key(
 
 
 def _expand_from_declared_inputs(
-    root: Path, rule: dependency_checker.ExpanderRule, limit: int
+    root: Path, rule: dependency_checker.ExpanderRule, limit: int, mode: str
 ) -> list[dict[str, Any]]:
     """許可入力だけを読み、行参照から状況判定ケースを作る。
 
     Args:
         root: リポジトリルート。
         rule: 資産側の展開器依存宣言。
-        limit: 今回出力する最大件数。
+        limit: 今回対象とする規範行数。
+        mode: 代表値または入力座標被覆の展開方式。
 
     Returns:
         規範行から導いたケース。
@@ -127,6 +128,8 @@ def _expand_from_declared_inputs(
     references = per_pitch[0]["rowRefs"]
     if limit < 1 or limit > len(references):
         raise CaseExpansionError("出力件数が規範行参照の範囲外")
+    if mode not in ("representative", "coverage"):
+        raise CaseExpansionError(f"未対応の展開方式: {mode}")
 
     cases: list[dict[str, Any]] = []
     for reference in references[:limit]:
@@ -177,17 +180,74 @@ def _expand_from_declared_inputs(
                 "expected": expected,
             }
         )
+    if mode == "coverage":
+        coverage = descriptor.get("inputCoordinateCoverage")
+        if not isinstance(coverage, dict) or not isinstance(coverage.get("axisBindings"), list):
+            raise CaseExpansionError("入力座標被覆の宣言がない")
+        predicate_axes: set[str] = set()
+        for binding in coverage["axisBindings"]:
+            if not isinstance(binding, dict):
+                raise CaseExpansionError("入力座標軸の割当が不正")
+            for row_binding in binding.get("rowBindings", []):
+                if (
+                    isinstance(row_binding, dict)
+                    and "matrixRows" in row_binding.get("rowLayers", [])
+                    and row_binding.get("naturalKeyRole") == "predicate-axis"
+                ):
+                    predicate_axes.update(binding.get("axisIds", []))
+        next_row = 0
+        representatives = cases[:limit]
+        for axis_id in values_by_axis:
+            if axis_id not in predicate_axes:
+                continue
+            if axis_id.startswith("event.perPitch.") and not any(
+                axis_id in representative_selection.predicate_axes(
+                    base["rowRef"]["coordinate"]["precondition"]
+                )
+                for base in cases[:limit]
+            ):
+                continue
+            for value in values_by_axis[axis_id]:
+                if any(
+                    base["inputCoordinate"].get(axis_id) == value
+                    for base in representatives
+                ):
+                    continue
+                for offset in range(limit):
+                    base = representatives[(next_row + offset) % limit]
+                    coordinate = copy.deepcopy(base["inputCoordinate"])
+                    coordinate[axis_id] = copy.deepcopy(value)
+                    if representative_selection.predicate_holds(
+                        base["rowRef"]["coordinate"]["precondition"], coordinate
+                    ):
+                        identity = json.dumps(
+                            [base["caseId"], axis_id, value],
+                            sort_keys=True,
+                            ensure_ascii=False,
+                            separators=(",", ":"),
+                        )
+                        cases.append(
+                            {
+                                **copy.deepcopy(base),
+                                "caseId": "ST-COVERAGE-"
+                                + hashlib.sha256(identity.encode()).hexdigest()[:16],
+                                "inputCoordinate": coordinate,
+                            }
+                        )
+                        next_row = (next_row + offset + 1) % limit
+                        break
     return cases
 
 
 def expand_traced(
-    root: Path, *, limit: int = 1
+    root: Path, *, limit: int = 1, mode: str = "representative"
 ) -> tuple[list[dict[str, Any]], dependency_checker.ExpanderTrace]:
     """資産側allowlistで読み取りを監査しながらケースを展開する。
 
     Args:
         root: リポジトリルート。
         limit: 今回出力する最大件数。
+        mode: 代表値または入力座標被覆の展開方式。
 
     Returns:
         派生ケースと観測した読み取りの証跡。
@@ -200,7 +260,7 @@ def expand_traced(
         root,
         policy,
         EXPANDER_ID,
-        lambda: _expand_from_declared_inputs(root, rule, limit),
+        lambda: _expand_from_declared_inputs(root, rule, limit, mode),
     )
 
 
@@ -216,9 +276,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--limit", type=int, default=1)
+    parser.add_argument("--mode", choices=("representative", "coverage"), default="representative")
     args = parser.parse_args(argv)
     try:
-        cases, _ = expand_traced(args.root.resolve(), limit=args.limit)
+        cases, _ = expand_traced(args.root.resolve(), limit=args.limit, mode=args.mode)
     except (
         CaseExpansionError,
         dependency_checker.ExpanderDependencyError,
