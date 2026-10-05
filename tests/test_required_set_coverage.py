@@ -1,4 +1,4 @@
-"""ステップ79〜83の行要求差分と入力座標被覆を検証する。"""
+"""ステップ79〜84の行要求差分と入力座標被覆を検証する。"""
 
 from __future__ import annotations
 
@@ -36,6 +36,45 @@ expander = _load_module(
 def _asset(name: str) -> dict[str, Any]:
     """検査対象の現行資産を読み込む。"""
     return json.loads((ROOT / "contracts/state-transition" / name).read_text(encoding="utf-8"))
+
+
+def _observed_coverage(
+    cases: list[dict[str, Any]], contract: dict[str, Any] | None = None
+) -> set[tuple[str, str]]:
+    """現行の要求と語彙でケース集合の入力座標被覆を実測する。"""
+    requirements, _ = checker.deriver.derive_repository_input_coordinate_requirements(ROOT)
+    active = checker.deriver.active_input_coordinate_requirements(
+        requirements, {"req:FR-040": "adopted"}
+    )
+    vocabulary = json.loads(
+        (ROOT / "contracts/vocabulary/input_vocabulary_v1.json").read_text(encoding="utf-8")
+    )
+    display_names = {
+        entry["id"]: entry["initialDisplayName"]
+        for axis in vocabulary["axes"] for entry in axis["entries"]
+    }
+    return checker.observed_input_coverage(
+        cases, active, contract or _asset("state_transition_contract_v1.json"), display_names
+    )
+
+
+@pytest.mark.parametrize(
+    ("step", "matrix_limit"),
+    [(79, 12), (80, 19), (81, 26), (82, 33), (83, 42)],
+)
+def test_prior_step_coverage_matches_its_matrix_expansion(
+    step: int, matrix_limit: int
+) -> None:
+    """各周の②を、その周までのmatrixRowsだけから再実測する。"""
+    record = _asset("required_set_input_coverage_v1.json")
+    entry = next(item for item in record["history"] if item["step"] == step)
+    cases, _ = expander.expand_traced(
+        ROOT, limit=matrix_limit, mode="coverage", operation_limit=0
+    )
+    assert {case["rowRef"]["layer"] for case in cases} == {"matrixRows"}
+    assert _observed_coverage(cases) == {
+        tuple(item) for item in entry["after"]["coverageSet"]
+    }
 
 
 def test_step79_row_gap_is_exact_and_sourced() -> None:
@@ -101,8 +140,10 @@ def test_step80_input_coverage_is_preserved() -> None:
     assert record["history"][0]["after"] == record["history"][1]["before"]
     assert record["history"][0]["after"]["count"] == 71
     assert record["history"][1]["after"]["count"] == 80
-    cases, trace = expander.expand_traced(ROOT, limit=19, mode="coverage")
-    representatives, _ = expander.expand_traced(ROOT, limit=19)
+    cases, trace = expander.expand_traced(
+        ROOT, limit=19, mode="coverage", operation_limit=0
+    )
+    representatives, _ = expander.expand_traced(ROOT, limit=19, operation_limit=0)
     assert cases[:19] == representatives
     assert len(cases) == 63
     assert len(cases[19:]) == 44
@@ -144,8 +185,10 @@ def test_step81_input_coverage_is_monotone_and_matches_expansion() -> None:
     assert record["history"][2]["after"]["digest"] == checker._digest(after)
     assert len(after - before) == 8
     contract = _asset("state_transition_contract_v1.json")
-    cases, trace = expander.expand_traced(ROOT, limit=26, mode="coverage")
-    representatives, _ = expander.expand_traced(ROOT, limit=26)
+    cases, trace = expander.expand_traced(
+        ROOT, limit=26, mode="coverage", operation_limit=0
+    )
+    representatives, _ = expander.expand_traced(ROOT, limit=26, operation_limit=0)
     assert contract["cases"][:26] == representatives
     assert cases[:26] == representatives
     assert len(cases) == 70
@@ -193,8 +236,7 @@ def test_step82_secondary_results_and_input_coverage() -> None:
     assert len(secondary_missing) == 4
     assert {item["gapId"] for item in secondary_missing} == {"GAP-07"}
 
-    assert record["currentStep"] == 83
-    assert len(record["history"]) == 5
+    assert [entry["step"] for entry in record["history"][:5]] == [79, 80, 81, 82, 83]
     assert record["history"][2]["after"] == record["history"][3]["before"]
     assert record["history"][3]["after"]["count"] == 100
     assert record["history"][3]["after"]["digest"] == checker._digest(
@@ -215,8 +257,10 @@ def test_step82_secondary_results_and_input_coverage() -> None:
         )),
     }
 
-    cases, trace = expander.expand_traced(ROOT, limit=33, mode="coverage")
-    representatives, _ = expander.expand_traced(ROOT, limit=33)
+    cases, trace = expander.expand_traced(
+        ROOT, limit=33, mode="coverage", operation_limit=0
+    )
+    representatives, _ = expander.expand_traced(ROOT, limit=33, operation_limit=0)
     assert contract["cases"][:33] == cases[:33]
     assert cases[:33] == representatives
     assert len(cases) == 78
@@ -259,9 +303,11 @@ def test_step83_runner_events_and_input_coverage() -> None:
         for item in declaration["uncoveredRowRequirements"]
     )
 
-    cases, trace = expander.expand_traced(ROOT, limit=42, mode="coverage")
-    representatives, _ = expander.expand_traced(ROOT, limit=42)
-    assert contract["cases"] == cases
+    cases, trace = expander.expand_traced(
+        ROOT, limit=42, mode="coverage", operation_limit=0
+    )
+    representatives, _ = expander.expand_traced(ROOT, limit=42, operation_limit=0)
+    assert contract["cases"][:len(cases)] == cases
     assert cases[:42] == representatives
     assert len(cases) == 89
     assert len(cases[42:]) == 47
@@ -306,11 +352,196 @@ def test_step83_runner_events_and_input_coverage() -> None:
         ("event.perPitch.runnerEventPayload", '"single-runner-safe-advance"'),
         ("event.perPitch.runnerEventPayload", '"single-runner-hold"'),
     }
-    assert checker.check_input_coverage(ROOT) == (104, checker._digest(after), 4)
+    assert _observed_coverage(cases) == after
     policy = expander.dependency_checker.load_policy(ROOT)
     assert trace.observed_read_paths == policy.expanders[
         "state-transition-cases"
     ].allowed_read_paths
+
+
+def test_step84_substitution_cases_and_input_coverage() -> None:
+    """選手交代の2行と②の増分2件を現行ケースから実測する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    record = _asset("required_set_input_coverage_v1.json")
+    cases, trace = expander.expand_traced(
+        ROOT, limit=42, mode="coverage", operation_limit=2
+    )
+    representatives, _ = expander.expand_traced(
+        ROOT, limit=42, operation_limit=2
+    )
+    assert contract["cases"] == cases
+    assert len(cases) == 91
+    assert len(representatives) == 44
+    assert [case["rowRef"]["layer"] for case in cases].count("matrixRows") == 89
+    operation_cases = [
+        case for case in cases if case["rowRef"]["layer"] == "operationRows"
+    ]
+    assert operation_cases == representatives[-2:]
+    assert len(operation_cases) == 2
+    assert {case["inputCoordinate"]["state.gameEnded"] for case in operation_cases} == {
+        False, True
+    }
+    for case in operation_cases:
+        assert case["caseId"].startswith("ST-OPERATION-")
+        assert case["rowRef"]["coordinate"]["operationKind"] == "substitution"
+        assert case["inputCoordinate"]["operationKind"] == "substitution"
+        assert case["inputCoordinate"]["event.operationPayload"] == "substitution"
+        assert case["expected"]["clauseId"] == "FR-011"
+
+    assert record["currentStep"] == 84
+    assert [entry["step"] for entry in record["history"]] == list(range(79, 85))
+    previous = record["history"][-2]["after"]
+    current = record["history"][-1]
+    assert previous["count"] == 104
+    assert current["before"] == previous
+    before = {tuple(item) for item in current["before"]["coverageSet"]}
+    after = {tuple(item) for item in current["after"]["coverageSet"]}
+    assert before <= after
+    assert after - before == {
+        ("event.operationKind", '"substitution"'),
+        ("event.operationPayload", '"substitution"'),
+    }
+    assert len(after) == current["after"]["count"] == 106
+    assert _observed_coverage(cases) == after
+    assert checker.check_input_coverage(ROOT) == (106, checker._digest(after), 2)
+    policy = expander.dependency_checker.load_policy(ROOT)
+    assert trace.observed_read_paths == policy.expanders[
+        "state-transition-cases"
+    ].allowed_read_paths
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("kind", "ケースの操作またはpayloadタグ"),
+        ("payload", "ケースの操作またはpayloadタグ"),
+        ("unknown-layer", "ケースの行参照層"),
+        ("ambiguous-reference", "ケースが規範行を一意に参照しない"),
+        ("expected", "ケースの期待値が規範行と不一致"),
+    ],
+)
+def test_checker_rejects_invalid_operation_cases(mutation: str, message: str) -> None:
+    """操作行の層・タグ・参照・期待値の破損を拒否する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    changed = copy.deepcopy(contract["cases"][-1])
+    if mutation == "kind":
+        changed["inputCoordinate"]["operationKind"] = "undo"
+    elif mutation == "payload":
+        changed["inputCoordinate"]["event.operationPayload"] = "undo"
+    elif mutation == "unknown-layer":
+        changed["rowRef"]["layer"] = "undoRows"
+    elif mutation == "ambiguous-reference":
+        del changed["rowRef"]["coordinate"]["precondition"]
+    else:
+        changed["expected"]["operationResult"] = "applied"
+    with pytest.raises(checker.RequiredSetCoverageError, match=message):
+        _observed_coverage([changed])
+
+
+def test_matrix_observation_keeps_its_per_pitch_assignment() -> None:
+    """matrixRowsでは操作タグ風の追加値を被覆に算入せず、イベント不一致は拒否する。"""
+    matrix_case = copy.deepcopy(_asset("state_transition_contract_v1.json")["cases"][0])
+    baseline = _observed_coverage([matrix_case])
+    matrix_case["inputCoordinate"]["operationKind"] = "substitution"
+    matrix_case["inputCoordinate"]["event.operationPayload"] = "substitution"
+    assert _observed_coverage([matrix_case]) == baseline
+    matrix_case["inputCoordinate"]["eventKind"] = "runner-event"
+    with pytest.raises(checker.RequiredSetCoverageError, match="ケースのイベントが規範行と不一致"):
+        _observed_coverage([matrix_case])
+
+
+def test_checker_rejects_operation_row_without_payload_shape() -> None:
+    """操作行のpayloadShapeが消えた場合は②を観測しない。"""
+    contract = _asset("state_transition_contract_v1.json")
+    case = copy.deepcopy(contract["cases"][-1])
+    del case["rowRef"]["coordinate"]["payloadShape"]
+    del contract["operationRows"][1]["payloadShape"]
+    with pytest.raises(
+        checker.RequiredSetCoverageError,
+        match="ケースの操作またはpayloadタグが規範行と不一致",
+    ):
+        _observed_coverage([case], contract)
+
+
+@pytest.mark.parametrize("operation_limit", [-1, 7])
+def test_expander_rejects_operation_limit_outside_references(operation_limit: int) -> None:
+    """操作行の参照件数を越える指定と負数を拒否する。"""
+    with pytest.raises(expander.CaseExpansionError, match="操作行の出力件数"):
+        expander.expand_traced(ROOT, limit=42, operation_limit=operation_limit)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("missing-operation-rows", "操作の規範行がない"),
+        ("missing-payload-axis", "操作payload軸がない"),
+        ("missing-payload-tags", "操作payloadのタグ宣言がない"),
+        ("missing-row", "操作行参照が規範行を一意に指していない"),
+        ("ambiguous-reference", "操作行参照が規範行を一意に指していない"),
+        ("missing-tag", "操作種別に対応するpayloadタグがない"),
+        ("invalid-coordinate", "操作行の入力座標が不正"),
+        ("invalid-predicate", "操作行の事前条件が述語でない"),
+    ],
+)
+def test_expander_rejects_invalid_operation_inputs(
+    monkeypatch: pytest.MonkeyPatch, mutation: str, message: str
+) -> None:
+    """操作行の規範行・行参照・タグ・前提条件の破損を拒否する。"""
+    original = expander._read_document
+
+    def changed_document(root: Path, relative: Any) -> dict[str, Any]:
+        document = original(root, relative)
+        if (
+            mutation in {"missing-payload-axis", "missing-payload-tags", "missing-tag"}
+            and "stateTransitionAxes" in document
+        ):
+            document = copy.deepcopy(document)
+            payload_axis = next(
+                axis for axis in document["stateTransitionAxes"]
+                if axis["axisId"] == "event.operationPayload"
+            )
+            if mutation == "missing-payload-axis":
+                document["stateTransitionAxes"].remove(payload_axis)
+            elif mutation == "missing-payload-tags":
+                del payload_axis["representationCapability"]["variantTags"]
+            else:
+                payload_axis["representationCapability"]["variantTags"].remove("substitution")
+        elif "matrixRows" in document:
+            document = copy.deepcopy(document)
+            if mutation == "missing-operation-rows":
+                del document["operationRows"]
+            elif mutation == "missing-row":
+                document["operationRows"].pop(0)
+            elif mutation == "ambiguous-reference":
+                reference = next(
+                    ref
+                    for mapping in document["mustOperationCoverage"]["mappings"]
+                    for ref in mapping["rowRefs"]
+                    if ref["layer"] == "operationRows"
+                )
+                del reference["coordinate"]["precondition"]
+            elif mutation == "invalid-coordinate":
+                reference = next(
+                    ref
+                    for mapping in document["mustOperationCoverage"]["mappings"]
+                    for ref in mapping["rowRefs"]
+                    if ref["layer"] == "operationRows"
+                )
+                reference["coordinate"] = None
+            elif mutation == "invalid-predicate":
+                reference = next(
+                    ref
+                    for mapping in document["mustOperationCoverage"]["mappings"]
+                    for ref in mapping["rowRefs"]
+                    if ref["layer"] == "operationRows"
+                )
+                reference["coordinate"]["precondition"] = None
+                document["operationRows"][0]["precondition"] = None
+        return document
+
+    monkeypatch.setattr(expander, "_read_document", changed_document)
+    with pytest.raises(expander.CaseExpansionError, match=message):
+        expander.expand_traced(ROOT, limit=42, operation_limit=1)
 
 
 def test_row_binding_declaration_controls_coverage_and_checks_sources(

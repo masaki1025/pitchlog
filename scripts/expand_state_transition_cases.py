@@ -159,7 +159,8 @@ def _row_bound_value_exceptions(
 
 
 def _expand_from_declared_inputs(
-    root: Path, rule: dependency_checker.ExpanderRule, limit: int, mode: str
+    root: Path, rule: dependency_checker.ExpanderRule, limit: int, mode: str,
+    operation_limit: int,
 ) -> list[dict[str, Any]]:
     """許可入力だけを読み、行参照から状況判定ケースを作る。
 
@@ -168,6 +169,7 @@ def _expand_from_declared_inputs(
         rule: 資産側の展開器依存宣言。
         limit: 今回対象とする規範行数。
         mode: 代表値または入力座標被覆の展開方式。
+        operation_limit: 先頭から展開する操作行の数。
 
     Returns:
         規範行から導いたケース。
@@ -368,11 +370,75 @@ def _expand_from_declared_inputs(
                         )
                         next_row = (next_row + offset + 1) % limit
                         break
+    if operation_limit:
+        operation_rows = contract.get("operationRows")
+        if not isinstance(operation_rows, list):
+            raise CaseExpansionError("操作の規範行がない")
+        operation_refs = [
+            reference
+            for mapping in mappings
+            if isinstance(mapping, dict) and mapping.get("operationType") != "per-pitch-input"
+            for reference in mapping.get("rowRefs", [])
+            if isinstance(reference, dict) and reference.get("layer") == "operationRows"
+        ]
+        if operation_limit < 0 or operation_limit > len(operation_refs):
+            raise CaseExpansionError("操作行の出力件数が参照の範囲外")
+        payload_axis = next(
+            (axis for axis in axes if axis.get("axisId") == "event.operationPayload"), None
+        )
+        if not isinstance(payload_axis, dict):
+            raise CaseExpansionError("操作payload軸がない")
+        payload_tags = payload_axis.get("representationCapability", {}).get("variantTags")
+        if not isinstance(payload_tags, list):
+            raise CaseExpansionError("操作payloadのタグ宣言がない")
+        for reference in operation_refs[:operation_limit]:
+            coordinate = reference.get("coordinate")
+            if not isinstance(coordinate, dict):
+                raise CaseExpansionError("操作行の入力座標が不正")
+            matches = [
+                row for row in operation_rows
+                if isinstance(row, dict)
+                and all(row.get(field) == value for field, value in coordinate.items())
+            ]
+            if len(matches) != 1:
+                raise CaseExpansionError("操作行参照が規範行を一意に指していない")
+            row = matches[0]
+            operation_kind = coordinate.get("operationKind")
+            if operation_kind not in payload_tags:
+                raise CaseExpansionError("操作種別に対応するpayloadタグがない")
+            predicate = coordinate.get("precondition")
+            if not isinstance(predicate, dict):
+                raise CaseExpansionError("操作行の事前条件が述語でない")
+            used_axes = representative_selection.predicate_axes(predicate)
+            coordinate_axes = [axis_id for axis_id in values_by_axis if axis_id in used_axes]
+            axes_coordinate = representative_selection.select_coordinate(
+                predicate, values_by_axis, coordinate_axes, selection_policy
+            )
+            identity = json.dumps(
+                coordinate, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+            )
+            cases.append(
+                {
+                    "caseId": f"ST-OPERATION-{hashlib.sha256(identity.encode()).hexdigest()[:16]}",
+                    "rowRef": copy.deepcopy(reference),
+                    "inputCoordinate": {
+                        "operationKind": operation_kind,
+                        "event.operationPayload": operation_kind,
+                        **axes_coordinate,
+                    },
+                    "expected": {
+                        field: copy.deepcopy(value)
+                        for field, value in row.items()
+                        if field not in coordinate and field != "remarks"
+                    },
+                }
+            )
     return cases
 
 
 def expand_traced(
-    root: Path, *, limit: int = 1, mode: str = "representative"
+    root: Path, *, limit: int = 1, mode: str = "representative",
+    operation_limit: int = 0,
 ) -> tuple[list[dict[str, Any]], dependency_checker.ExpanderTrace]:
     """資産側allowlistで読み取りを監査しながらケースを展開する。
 
@@ -380,6 +446,7 @@ def expand_traced(
         root: リポジトリルート。
         limit: 今回出力する最大件数。
         mode: 代表値または入力座標被覆の展開方式。
+        operation_limit: 先頭から展開する操作行の数。
 
     Returns:
         派生ケースと観測した読み取りの証跡。
@@ -392,7 +459,7 @@ def expand_traced(
         root,
         policy,
         EXPANDER_ID,
-        lambda: _expand_from_declared_inputs(root, rule, limit, mode),
+        lambda: _expand_from_declared_inputs(root, rule, limit, mode, operation_limit),
     )
 
 
@@ -408,10 +475,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--limit", type=int, default=1)
+    parser.add_argument("--operation-limit", type=int, default=0)
     parser.add_argument("--mode", choices=("representative", "coverage"), default="representative")
     args = parser.parse_args(argv)
     try:
-        cases, _ = expand_traced(args.root.resolve(), limit=args.limit, mode=args.mode)
+        cases, _ = expand_traced(
+            args.root.resolve(), limit=args.limit, mode=args.mode,
+            operation_limit=args.operation_limit,
+        )
     except (
         CaseExpansionError,
         dependency_checker.ExpanderDependencyError,

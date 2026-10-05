@@ -16695,6 +16695,390 @@
           "打点": false
         }
       }
+    },
+    {
+      "caseId": "ST-OPERATION-242b042f3726e50d",
+      "rowRef": {
+        "layer": "operationRows",
+        "coordinate": {
+          "operationKind": "substitution",
+          "payloadShape": {
+            "type": "object",
+            "properties": {
+              "substitutionType": {
+                "type": "string",
+                "enum": [
+                  "pitcher",
+                  "pinch-hitter",
+                  "pinch-runner",
+                  "defensive"
+                ]
+              },
+              "battingOrderSlot": {
+                "type": "integer"
+              },
+              "outgoingPlayerId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "incomingPlayerId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "defensivePositionId": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "substitutionType",
+              "outgoingPlayerId",
+              "incomingPlayerId"
+            ],
+            "additionalProperties": false
+          },
+          "precondition": {
+            "op": "eq",
+            "axisId": "state.gameEnded",
+            "value": false
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "substitution",
+        "event.operationPayload": "substitution",
+        "state.gameEnded": false
+      },
+      "expected": {
+        "clauseId": "FR-011",
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "unchanged"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "unchanged"
+            },
+            "state.runners": {
+              "kind": "unchanged"
+            },
+            "state.battingOrder": {
+              "kind": "unchanged"
+            },
+            "state.tiebreakActive": {
+              "kind": "unchanged"
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "unchanged"
+            },
+            "state.score": {
+              "kind": "unchanged"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "unchanged"
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "unchanged"
+            },
+            "operationResult": {
+              "kind": "unchanged"
+            }
+          }
+        },
+        "historyEffect": {
+          "pushes": false,
+          "kind": null
+        },
+        "operationResult": "applied"
+      }
+    },
+    {
+      "caseId": "ST-OPERATION-5285ade7a59b52c8",
+      "rowRef": {
+        "layer": "operationRows",
+        "coordinate": {
+          "operationKind": "substitution",
+          "payloadShape": {
+            "type": "object",
+            "properties": {
+              "substitutionType": {
+                "type": "string",
+                "enum": [
+                  "pitcher",
+                  "pinch-hitter",
+                  "pinch-runner",
+                  "defensive"
+                ]
+              },
+              "battingOrderSlot": {
+                "type": "integer"
+              },
+              "outgoingPlayerId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "incomingPlayerId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "defensivePositionId": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "substitutionType",
+              "outgoingPlayerId",
+              "incomingPlayerId"
+            ],
+            "additionalProperties": false
+          },
+          "precondition": {
+            "op": "eq",
+            "axisId": "state.gameEnded",
+            "value": true
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "substitution",
+        "event.operationPayload": "substitution",
+        "state.gameEnded": true
+      },
+      "expected": {
+        "clauseId": "FR-011",
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "unchanged"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "unchanged"
+            },
+            "state.runners": {
+              "kind": "unchanged"
+            },
+            "state.battingOrder": {
+              "kind": "unchanged"
+            },
+            "state.tiebreakActive": {
+              "kind": "unchanged"
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "unchanged"
+            },
+            "state.score": {
+              "kind": "unchanged"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "unchanged"
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "unchanged"
+            },
+            "operationResult": {
+              "kind": "unchanged"
+            }
+          }
+        },
+        "historyEffect": {
+          "pushes": false,
+          "kind": null
+        },
+        "operationResult": "rejected-precondition"
+      }
     }
   ]
 }

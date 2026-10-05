@@ -170,56 +170,71 @@ def _digest(identities: set[tuple[str, str]]) -> str:
 
 def observed_input_coverage(
     cases: list[dict[str, Any]], requirements: tuple[deriver.InputCoordinateRequirement, ...],
-    rows: list[dict[str, Any]], display_names: dict[str, str],
+    contract: dict[str, Any], display_names: dict[str, str],
 ) -> set[tuple[str, str]]:
     """②をケースの実入力と行層から観測する。"""
     observed: set[tuple[str, str]] = set()
     for case in cases:
         reference = case.get("rowRef")
         coordinate = case.get("inputCoordinate")
-        if (
-            not isinstance(reference, dict)
-            or not isinstance(coordinate, dict)
-            or reference.get("layer") != "matrixRows"
-        ):
+        if not isinstance(reference, dict) or not isinstance(coordinate, dict):
             raise RequiredSetCoverageError("ケースの行参照または座標が不正")
+        layer = reference.get("layer")
+        if layer not in ("matrixRows", "operationRows"):
+            raise RequiredSetCoverageError("ケースの行参照層が不正")
+        rows = contract.get(layer)
+        row_coordinate = reference.get("coordinate")
+        if not isinstance(rows, list) or not isinstance(row_coordinate, dict):
+            raise RequiredSetCoverageError("ケースの行参照または規範行が不正")
         matches = [
             row for row in rows
+            if isinstance(row, dict)
             if all(
                 row.get(key) == value
-                for key, value in reference.get("coordinate", {}).items()
+                for key, value in row_coordinate.items()
             )
         ]
         if len(matches) != 1:
             raise RequiredSetCoverageError("ケースが規範行を一意に参照しない")
         row = matches[0]
-        if (
-            coordinate.get("eventKind") != row.get("eventKind")
-            or coordinate.get("resultId") != row.get("resultId")
+        if layer == "matrixRows":
+            if (
+                coordinate.get("eventKind") != row.get("eventKind")
+                or coordinate.get("resultId") != row.get("resultId")
+            ):
+                raise RequiredSetCoverageError("ケースのイベントが規範行と不一致")
+        elif (
+            coordinate.get("operationKind") != row.get("operationKind")
+            or coordinate.get("event.operationPayload") != row.get("operationKind")
+            or not isinstance(row.get("payloadShape"), dict)
         ):
-            raise RequiredSetCoverageError("ケースのイベントが規範行と不一致")
+            raise RequiredSetCoverageError("ケースの操作またはpayloadタグが規範行と不一致")
         if not representative_selection.predicate_holds(row["precondition"], coordinate):
             raise RequiredSetCoverageError("ケースが規範行の前提条件を満たさない")
         expected = {
             key: value for key, value in row.items()
-            if key not in ("eventKind", "resultId", "precondition", "remarks")
+            if key not in (*row_coordinate, "remarks")
         }
         if case.get("expected") != expected:
             raise RequiredSetCoverageError("ケースの期待値が規範行と不一致")
         for requirement in requirements:
-            if "matrixRows" not in requirement.row_layers:
+            if layer not in requirement.row_layers:
                 continue
             axis_id = requirement.axis_id
             if requirement.natural_key_role == "predicate-axis":
                 value = coordinate.get(axis_id)
-            elif axis_id == "event.perPitch.kind":
+            elif layer == "matrixRows" and axis_id == "event.perPitch.kind":
                 value = coordinate["eventKind"]
-            elif axis_id == "event.perPitch.resultId":
+            elif layer == "matrixRows" and axis_id == "event.perPitch.resultId":
                 value = display_names.get(coordinate["resultId"])
-            elif axis_id == "event.operationKind":
+            elif layer == "matrixRows" and axis_id == "event.operationKind":
                 value = "per-pitch"
-            elif axis_id == "event.operationPayload":
+            elif layer == "matrixRows" and axis_id == "event.operationPayload":
                 value = "not-applicable"
+            elif layer == "operationRows" and axis_id == "event.operationKind":
+                value = row[requirement.natural_key_field]
+            elif layer == "operationRows" and axis_id == "event.operationPayload":
+                value = coordinate[axis_id]
             else:
                 raise RequiredSetCoverageError(f"未対応の行割当: {axis_id}")
             if (
@@ -324,7 +339,7 @@ def check_input_coverage(
     cases = contract.get("cases")
     if not isinstance(cases, list) or not cases:
         raise RequiredSetCoverageError("ケース集合が空または不正")
-    actual = observed_input_coverage(cases, active, contract["matrixRows"], display_names)
+    actual = observed_input_coverage(cases, active, contract, display_names)
     declared = _identity_set(record.get("coverageSet"))
     required_ids = {item.identity for item in active}
     if declared != actual or not declared <= required_ids:
@@ -347,7 +362,7 @@ def check_input_coverage(
                 raise RequiredSetCoverageError("初回被覆の基線ケースがない")
             baseline = [case for case in cases if case.get("caseId") in baseline_ids]
             measured_before = observed_input_coverage(
-                baseline, active, contract["matrixRows"], display_names
+                baseline, active, contract, display_names
             )
             if len(baseline) != len(baseline_ids) or before != measured_before:
                 raise RequiredSetCoverageError("初回被覆の直前集合が実測と不一致")
