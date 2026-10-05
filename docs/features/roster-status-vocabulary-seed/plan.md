@@ -1,6 +1,6 @@
 ---
 feature: roster-status-vocabulary-seed
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-04・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -86,7 +86,8 @@ FR-015(`:361`)/ FR-016(`:371`)/ FR-018(`:390`)/ FR-029(`:551`)/ FR-038(`:790`)/ 
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
 | **`docs/design/data-model.md`** | **10-3 節へ在籍区分 3 値のキー文字列を記す**(`active` は既存 `:526`。残り 2 値を追記)。**版は上げない**(実装追随 — 設計書 7.6-3 前段)。変更履歴表に 1 行 | **PR レビュー** |
-| `docs/README.md` | `data-model.md` 行の最終更新日を現行化 | **PR レビュー** |
+| **`docs/development/harness-evaluation.md`** | **`## 候補` へ 1 件追記**(置き場が 2 つの機械規則に挟まれて存在しない)**・既存候補 3 件へ実測を追記**(終端条件 / 網羅主張の非収束 / 凍結資産の直列化点)。**版は上げない**(`H-*` を与えない — 設計書 7.6-3 前段)。変更履歴表に 1 行 | **PR レビュー** |
+| `docs/README.md` | `data-model.md` 行と**台帳行**の最終更新日を現行化 | **PR レビュー** |
 | `docs/requirements/**` | **反映なし。** 3 区分は要件が閉じており、本タスクはキー文字列(実装の識別子)だけを決める | — |
 | `docs/adr/**` / `docs/development/**` / `docs/ops/**` | **反映なし** | — |
 | `contracts/**` | **シード資産を新設する**(置き場は §4-3)。**正本体系の「契約」ではなく実装資産**として扱う | — |
