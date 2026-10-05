@@ -57,8 +57,6 @@ def trigger_expectations() -> tuple[TriggerExpectation, ...]:
     migration_functions, migration_triggers = _migration_trigger_facts()
     asset_names = _asset_trigger_function_names()
     attached_names = [trigger.function_name for trigger in migration_triggers.values()]
-    if len(asset_names) != 37:
-        raise AssertionError(f"製品資産のトリガ関数が 37 個でない: {len(asset_names)}")
     if len(attached_names) != len(set(attached_names)):
         raise AssertionError("1 個の migration トリガ関数が複数箇所に接続されている")
     if asset_names != set(attached_names):

@@ -40,7 +40,9 @@ def _assert_required_columns_are_present(row: cases.SeedRow) -> None:
     required = {
         str(column["name"])
         for column in columns
-        if column.get("nullable") is False and column.get("default") is None
+        if column.get("nullable") is False
+        and column.get("default") is None
+        and "generated_expression" not in column
     }
     assert required <= set(row.values), (row.table, required - set(row.values))
 

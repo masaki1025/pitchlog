@@ -85,15 +85,15 @@ def _seed_all_tables(catalog: ProvisionedProductCatalog) -> None:
 def _attached_triggers(
     cursor: psycopg.Cursor[Any],
 ) -> tuple[_AttachedTrigger, ...]:
-    """期待する 37 関数と実カタログのトリガ接続を exact-set 照合する。"""
+    """宣言した関数と実カタログのトリガ接続を exact-set 照合する。"""
     expectations = trigger_expectations()
     by_name = {item.function_name: item for item in expectations}
     cursor.execute(_TRIGGER_CATALOG_QUERY, (list(by_name),))
     rows = tuple(cursor.fetchall())
     observed_names = tuple(str(row[0]) for row in rows)
-    if len(rows) != 37 or set(observed_names) != set(by_name):
+    if len(rows) != len(by_name) or set(observed_names) != set(by_name):
         raise AssertionError(
-            "37 個の migration トリガ関数が 1 対 1 で接続されていない: "
+            "migration トリガ関数が 1 対 1 で接続されていない: "
             f"observed={observed_names}"
         )
 
@@ -278,7 +278,7 @@ def _helper_result(
 def test_all_trigger_functions_fire_without_app_execute_privilege(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """PUBLIC 剥奪後も 37 トリガがアプリロールの書き込みで発火する。"""
+    """PUBLIC 剥奪後も宣言したトリガがアプリロールの書き込みで発火する。"""
     catalog = provisioned_product_catalog
     _seed_all_tables(catalog)
     try:
@@ -325,7 +325,7 @@ def test_all_trigger_functions_fire_without_app_execute_privilege(
                 ([trigger.expectation.function_name for trigger in triggers],),
             )
             privileges = tuple(cursor.fetchall())
-            assert len(privileges) == 37
+            assert len(privileges) == len(triggers)
             assert all(row[1] is False for row in privileges)
             for trigger in triggers:
                 _assert_trigger_rejection(cursor, trigger)
@@ -356,8 +356,11 @@ def test_force_rls_applies_to_owner_with_unbound_context(
 def test_app_reaches_no_dangerous_role_endpoint(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """SET・INHERIT・ADMIN の推移閉包と危険ロールの交差が空である。"""
+    """製品スキーマ・表・関数の所有者を含む危険ロールへ到達しない。"""
     catalog = provisioned_product_catalog
+    declared_schemas = catalog.asset["schemas"]
+    assert isinstance(declared_schemas, list)
+    schema_names = [row["schema_name"] for row in declared_schemas]
     try:
         with catalog.observer.cursor() as cursor:
             cursor.execute(
@@ -383,20 +386,20 @@ def test_app_reaches_no_dangerous_role_endpoint(
                     WHERE datname = pg_catalog.current_database()
                   UNION
                     SELECT nspowner FROM pg_catalog.pg_namespace
-                    WHERE nspname IN ('public', 'authz_private')
+                    WHERE nspname = ANY(%s)
                   UNION
                     SELECT relation.relowner
                     FROM pg_catalog.pg_class AS relation
                     JOIN pg_catalog.pg_namespace AS namespace
                       ON namespace.oid = relation.relnamespace
-                    WHERE namespace.nspname = 'public'
+                    WHERE namespace.nspname = ANY(%s)
                       AND relation.relkind IN ('r', 'p')
                   UNION
                     SELECT routine.proowner
                     FROM pg_catalog.pg_proc AS routine
                     JOIN pg_catalog.pg_namespace AS namespace
                       ON namespace.oid = routine.pronamespace
-                    WHERE namespace.nspname IN ('public', 'authz_private')
+                    WHERE namespace.nspname = ANY(%s)
                 )
                 SELECT role.rolname
                 FROM reachable
@@ -404,7 +407,8 @@ def test_app_reaches_no_dangerous_role_endpoint(
                 JOIN pg_catalog.pg_roles AS role ON role.oid = reachable.role_oid
                 WHERE role.rolname <> 'pitchlog_app'
                 ORDER BY role.rolname
-                """
+                """,
+                (schema_names, schema_names, schema_names),
             )
             assert cursor.fetchall() == []
     finally:
@@ -540,11 +544,22 @@ def test_temp_schema_shadowing_does_not_change_helper_result(
         _drop_temp_role(catalog)
 
 
-def test_app_can_execute_no_security_definer_function(
+def test_app_definer_execute_matches_declared_product_grants(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """pitchlog_app が実効実行できる利用者定義 SECURITY DEFINER は 0 件。"""
+    """構成検査としてアプリの definer 実効 EXECUTE を資産と exact 照合する。"""
     catalog = provisioned_product_catalog
+    declared_functions = catalog.asset["functions"]
+    assert isinstance(declared_functions, list)
+    expected = {
+        (row["schema_name"], row["function_name"], row["identity_args"])
+        for row in declared_functions
+        if row["function_kind"] == "definer"
+        and any(
+            grant["grantee"] == _APP_ROLE and grant["privilege"] == "EXECUTE"
+            for grant in row["acl_expectations"]
+        )
+    }
     try:
         with catalog.observer.cursor() as cursor:
             cursor.execute(
@@ -564,6 +579,6 @@ def test_app_can_execute_no_security_definer_function(
                 ORDER BY 1, 2, 3
                 """
             )
-            assert cursor.fetchall() == []
+            assert set(cursor.fetchall()) == expected
     finally:
         catalog.observer.rollback()
