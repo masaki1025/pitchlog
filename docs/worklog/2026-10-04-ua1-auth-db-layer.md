@@ -199,3 +199,9 @@ branch: feature/ua1-auth-db-layer
   - DB 試験: `test_product_authz_authn_app.py` 1 回目 18 passed・2 failed(表明の誤り)→ 是正後 **20 passed** / 既存の製品 authz ほか(起動引数の変更の影響確認)**134 passed**
   - backend: `ruff`・`format --check`・`ty` green / 非 DB 試験 365 passed・4 skipped / 生成器 `check` rc=0 / `rederive` 収束
   - ハーネス: `ruff` green / 検査器 4 本 rc=0 / `test_check_authz_function_bodies.py`・`test_frozen_archive.py` 44 passed
+- ステップ 8 のコミット後(`24bb81e2`)の迂回の走査: `ok`
+
+## ステップ 9(2026-10-05)
+
+- Codex へ `--resume` で委任(中断なし・差し戻しなし)。決定は design.md 17 節(`NULL` のパスワードの是正 2 件・直接アクセスの検査対象)
+- 確認(Claude が実行): DB 試験 `test_product_authz_authn_limited.py` **11 passed** / 本体の変更の影響確認で `test_product_authz_authn_app.py` 20 passed / backend `ruff`・`format --check`・`ty` green・非 DB 試験 365 passed・4 skipped・生成器 `check` rc=0・`rederive` 収束 / ハーネス `check_authz_catalog`・`check_authz_function_bodies` rc=0・`test_check_authz_function_bodies.py`・`test_frozen_archive.py` 44 passed

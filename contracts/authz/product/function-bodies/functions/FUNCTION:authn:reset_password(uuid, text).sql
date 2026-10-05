@@ -11,7 +11,7 @@ AS $authn_function$
 DECLARE
     locked_subject_id uuid;
 BEGIN
-    IF NOT authn.password_policy_ok(p_new_password) THEN RETURN; END IF;
+    IF authn.password_policy_ok(p_new_password) IS NOT TRUE THEN RETURN; END IF;
     SELECT credential.auth_subject_id INTO locked_subject_id
       FROM public.tenant_auth_subjects AS subject
       JOIN public.tenant_credentials AS credential

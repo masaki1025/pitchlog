@@ -11,7 +11,7 @@ AS $authn_function$
 DECLARE
     new_subject_id uuid;
 BEGIN
-    IF NOT authn.password_policy_ok(p_password) THEN RETURN; END IF;
+    IF authn.password_policy_ok(p_password) IS NOT TRUE THEN RETURN; END IF;
     IF NOT EXISTS (SELECT 1 FROM public.tenants AS tenant
                     WHERE tenant.id = p_tenant_id
                       AND tenant.retired_at IS NULL) THEN RETURN; END IF;

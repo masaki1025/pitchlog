@@ -311,3 +311,10 @@ date: 2026-10-04
 - **一様性の比較の範囲**: 設定値が揃った状態の失敗 5 種(存在しない名前・誤 PW・無効テナント・退役テナント・65 文字以上の名前)の間で、計数の更新・`crypt` の回数・関数内 SQL の `queryid` と回数を比べる。**設定値の欠落・不正値は計数を更新しない分岐**があるので、比較から外し「発行しない・延長しない」の試験で扱う(15 節の申し送りの決着)
 - **関数本体の是正**: `change_password` は新パスワードが `NULL` のときポリシー判定が三値論理で通り、書き込みで例外になっていた → ポリシー結果を `IS NOT TRUE` で拒否し、現行 PW の照合も `IS DISTINCT FROM` にした
 - 試験: `backend/tests/db/test_product_authz_authn_app.py`(20 ケース — 計画書 #8 の各項目と、`crypt` の省略・コストの変更・設定照会の省略・勧告ロックの除去の各変異)
+
+## 17. ステップ 9 — 限定関数・越境・ACL の試験(2026-10-05)
+
+- 試験: `backend/tests/db/test_product_authz_authn_limited.py`(11 ケース — 計画書 #9 の各項目)
+- **関数本体の是正**: `issue_initial_password`・`reset_password` も、パスワードが `NULL` のときポリシー判定が三値論理で通り抜けていた(16 節の `change_password` と同じ型)→ `IS NOT TRUE` で拒否し、何も更新しない
+- **`function_only` 4 表への直接アクセスの検査対象**: `pitchlog_app` と試験用の非特権 LOGIN ロール。**`pitchlog_owner`(表の所有者)は ACL で拒否できないので対象外**(所有者は migration を流す信頼済みのロール — 正本 3-2 節)。限定関数の実行拒否は `pitchlog_owner` も検査する
+- **ID を返す関数**: カタログ上 `uuid` を返すのは `login` と `verify_token` の 2 件。`verify_token` の値は発行 ID でなくテナント ID であることを試験で確かめる(5 節の表どおり)
