@@ -180,7 +180,7 @@ def observed_input_coverage(
         if not isinstance(reference, dict) or not isinstance(coordinate, dict):
             raise RequiredSetCoverageError("ケースの行参照または座標が不正")
         layer = reference.get("layer")
-        if layer not in ("matrixRows", "operationRows"):
+        if layer not in ("matrixRows", "operationRows", "undoRows"):
             raise RequiredSetCoverageError("ケースの行参照層が不正")
         rows = contract.get(layer)
         row_coordinate = reference.get("coordinate")
@@ -203,12 +203,14 @@ def observed_input_coverage(
                 or coordinate.get("resultId") != row.get("resultId")
             ):
                 raise RequiredSetCoverageError("ケースのイベントが規範行と不一致")
-        elif (
+        elif layer == "operationRows" and (
             coordinate.get("operationKind") != row.get("operationKind")
             or coordinate.get("event.operationPayload") != row.get("operationKind")
             or not isinstance(row.get("payloadShape"), dict)
         ):
             raise RequiredSetCoverageError("ケースの操作またはpayloadタグが規範行と不一致")
+        elif layer == "undoRows" and coordinate.get("operationKind") != "undo":
+            raise RequiredSetCoverageError("ケースのundo操作種別が不一致")
         if not representative_selection.predicate_holds(row["precondition"], coordinate):
             raise RequiredSetCoverageError("ケースが規範行の前提条件を満たさない")
         expected = {
@@ -235,6 +237,10 @@ def observed_input_coverage(
                 value = row[requirement.natural_key_field]
             elif layer == "operationRows" and axis_id == "event.operationPayload":
                 value = coordinate[axis_id]
+            elif layer == "undoRows" and axis_id == "event.operationKind":
+                value = "undo"
+            elif layer == "undoRows" and axis_id == "event.operationPayload":
+                value = "not-applicable"
             else:
                 raise RequiredSetCoverageError(f"未対応の行割当: {axis_id}")
             if (

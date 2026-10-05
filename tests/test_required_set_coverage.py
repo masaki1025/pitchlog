@@ -1,4 +1,4 @@
-"""ステップ79〜87の行要求差分と入力座標被覆を検証する。"""
+"""ステップ79〜88の行要求差分と入力座標被覆を検証する。"""
 
 from __future__ import annotations
 
@@ -536,7 +536,7 @@ def test_step87_adhoc_registration_cases_and_input_coverage() -> None:
     representatives, _ = expander.expand_traced(
         ROOT, limit=42, operation_limit=6
     )
-    assert contract["cases"] == cases
+    assert contract["cases"][:len(cases)] == cases
     assert len(cases) == 95
     assert cases[:93] == previous_cases
     assert len(representatives) == 48
@@ -568,10 +568,10 @@ def test_step87_adhoc_registration_cases_and_input_coverage() -> None:
             "additionalProperties": False,
         }
 
-    assert record["currentStep"] == 87
-    assert [entry["step"] for entry in record["history"]] == list(range(79, 88))
-    current = record["history"][-1]
-    assert current["before"] == record["history"][-2]["after"]
+    assert record["history"][8]["step"] == 87
+    assert [entry["step"] for entry in record["history"][:9]] == list(range(79, 88))
+    current = record["history"][8]
+    assert current["before"] == record["history"][7]["after"]
     before = {tuple(item) for item in current["before"]["coverageSet"]}
     after = {tuple(item) for item in current["after"]["coverageSet"]}
     assert after - before == {
@@ -582,7 +582,9 @@ def test_step87_adhoc_registration_cases_and_input_coverage() -> None:
     assert len(after) == current["after"]["count"] == 110
     assert current["after"]["digest"] == checker._digest(after)
     assert after == _observed_coverage(cases, contract)
-    assert checker.check_input_coverage(ROOT) == (110, current["after"]["digest"], 2)
+    assert checker.check_input_coverage(ROOT) == (
+        111, record["history"][-1]["after"]["digest"], 1
+    )
     assert checker.check_row_requirements(ROOT) == (47, 42, 0)
     policy = expander.dependency_checker.load_policy(ROOT)
     assert trace.observed_read_paths == policy.expanders[
@@ -614,17 +616,20 @@ def test_step85_rejects_a_new_tiebreak_start_row() -> None:
 def test_checker_rejects_invalid_operation_cases(mutation: str, message: str) -> None:
     """操作行の層・タグ・参照・期待値の破損を拒否する。"""
     contract = _asset("state_transition_contract_v1.json")
-    changed = copy.deepcopy(contract["cases"][-1])
+    changed = copy.deepcopy(next(
+        case for case in contract["cases"]
+        if case["rowRef"]["layer"] == "operationRows"
+    ))
     if mutation == "kind":
         changed["inputCoordinate"]["operationKind"] = "undo"
     elif mutation == "payload":
         changed["inputCoordinate"]["event.operationPayload"] = "undo"
     elif mutation == "unknown-layer":
-        changed["rowRef"]["layer"] = "undoRows"
+        changed["rowRef"]["layer"] = "unknownRows"
     elif mutation == "ambiguous-reference":
         del changed["rowRef"]["coordinate"]["precondition"]
     else:
-        changed["expected"]["operationResult"] = "applied"
+        changed["expected"]["operationResult"] = "nothing-to-undo"
     with pytest.raises(checker.RequiredSetCoverageError, match=message):
         _observed_coverage([changed])
 
@@ -657,6 +662,172 @@ def test_checker_rejects_operation_row_without_payload_shape() -> None:
         match="ケースの操作またはpayloadタグが規範行と不一致",
     ):
         _observed_coverage([case], contract)
+
+
+def _assert_step88_undo_rows(contract: dict[str, Any]) -> None:
+    """本周の空履歴1行だけという規範行前提を固定する。"""
+    assert not any(
+        row.get("guaranteeMode") == "liveness-only" for row in contract["undoRows"]
+    ), "liveness-onlyの規範行が現れた"
+    assert len(contract["undoRows"]) == 1, "undoRowsの行数が変わった"
+
+
+def test_step88_empty_history_undo_case_and_coverage() -> None:
+    """空履歴undoを1件展開し、②のundo操作種別だけを増やす。"""
+    contract = _asset("state_transition_contract_v1.json")
+    record = _asset("required_set_input_coverage_v1.json")
+    _assert_step88_undo_rows(contract)
+    row = contract["undoRows"][0]
+    assert row["precondition"] == {
+        "op": "eq", "axisId": "history.depth", "value": 0,
+    }
+    assert row["historyEffect"] == {"pops": 0}
+    assert row["operationResult"] == "nothing-to-undo"
+    assert row["guaranteeMode"] == "full-equality"
+
+    cases, trace = expander.expand_traced(
+        ROOT, limit=42, mode="coverage", operation_limit=6, undo_limit=1
+    )
+    previous_cases, _ = expander.expand_traced(
+        ROOT, limit=42, mode="coverage", operation_limit=6
+    )
+    assert contract["cases"] == cases
+    assert cases[:-1] == previous_cases
+    assert len(cases) == 96
+    assert [case["rowRef"]["layer"] for case in cases].count("matrixRows") == 89
+    assert [case["rowRef"]["layer"] for case in cases].count("operationRows") == 6
+    assert [case["rowRef"]["layer"] for case in cases].count("undoRows") == 1
+    undo_case = cases[-1]
+    assert undo_case["rowRef"] == contract["mustOperationCoverage"]["mappings"][1]["rowRefs"][0]
+    assert undo_case["inputCoordinate"] == {
+        "operationKind": "undo", "history.depth": 0,
+    }
+    assert undo_case["expected"]["operationResult"] == "nothing-to-undo"
+    assert undo_case["expected"]["guaranteeMode"] == "full-equality"
+
+    assert record["currentStep"] == 88
+    assert [item["step"] for item in record["history"]] == list(range(79, 89))
+    current = record["history"][-1]
+    assert current["before"] == record["history"][-2]["after"]
+    before = {tuple(item) for item in current["before"]["coverageSet"]}
+    after = {tuple(item) for item in current["after"]["coverageSet"]}
+    assert after - before == {("event.operationKind", '"undo"')}
+    assert before <= after
+    assert len(after) == current["after"]["count"] == 111
+    assert current["after"]["digest"] == checker._digest(after)
+    assert after == _observed_coverage(cases, contract)
+    assert "ステップ66 PO裁定" in current["reason"]
+    assert "XC-09" in current["reason"]
+    assert "history.scenarioLength" in current["reason"]
+    assert "D+1" in current["fact"] and "未達" in current["fact"]
+    assert checker.check_input_coverage(ROOT) == (111, current["after"]["digest"], 1)
+    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    policy = expander.dependency_checker.load_policy(ROOT)
+    assert trace.observed_read_paths == policy.expanders[
+        "state-transition-cases"
+    ].allowed_read_paths
+
+
+def test_step88_rejects_new_liveness_only_row() -> None:
+    """段階2でliveness-only行が入れば本周の前提を赤にする。"""
+    contract = _asset("state_transition_contract_v1.json")
+    changed = copy.deepcopy(contract)
+    changed["undoRows"].append({
+        **copy.deepcopy(contract["undoRows"][0]), "guaranteeMode": "liveness-only"
+    })
+    with pytest.raises(AssertionError, match="liveness-onlyの規範行が現れた"):
+        _assert_step88_undo_rows(changed)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("kind", "ケースのundo操作種別が不一致"),
+        ("ambiguous-reference", "ケースが規範行を一意に参照しない"),
+        ("predicate", "ケースが規範行の前提条件を満たさない"),
+        ("expected", "ケースの期待値が規範行と不一致"),
+    ],
+)
+def test_checker_rejects_invalid_undo_case(mutation: str, message: str) -> None:
+    """undoRowsの分岐で種別・参照・前提・期待値の破損を拒否する。"""
+    case = copy.deepcopy(_asset("state_transition_contract_v1.json")["cases"][-1])
+    if mutation == "kind":
+        case["inputCoordinate"]["operationKind"] = "substitution"
+    elif mutation == "ambiguous-reference":
+        case["rowRef"]["coordinate"]["targetKind"] = "unknown"
+    elif mutation == "predicate":
+        case["inputCoordinate"]["history.depth"] = 1
+    else:
+        case["expected"]["operationResult"] = "applied"
+    with pytest.raises(checker.RequiredSetCoverageError, match=message):
+        _observed_coverage([case])
+
+
+def test_existing_layers_reject_swapped_undo_assignment() -> None:
+    """既存2層の操作種別とpayloadの観測をundo分岐へ流さない。"""
+    cases = _asset("state_transition_contract_v1.json")["cases"]
+    matrix_case = copy.deepcopy(next(
+        case for case in cases if case["rowRef"]["layer"] == "matrixRows"
+    ))
+    operation_case = copy.deepcopy(next(
+        case for case in cases if case["rowRef"]["layer"] == "operationRows"
+    ))
+    matrix_baseline = _observed_coverage([matrix_case])
+    operation_baseline = _observed_coverage([operation_case])
+    matrix_case["inputCoordinate"]["operationKind"] = "undo"
+    operation_case["inputCoordinate"]["event.operationPayload"] = "not-applicable"
+    assert _observed_coverage([matrix_case]) == matrix_baseline
+    with pytest.raises(checker.RequiredSetCoverageError, match="ケースの操作またはpayloadタグ"):
+        _observed_coverage([operation_case])
+    assert ("event.operationKind", '"undo"') not in operation_baseline
+
+
+@pytest.mark.parametrize("undo_limit", [-1, 2])
+def test_expander_rejects_undo_limit_outside_references(undo_limit: int) -> None:
+    """undo行参照の範囲を越える展開指定を拒否する。"""
+    with pytest.raises(expander.CaseExpansionError, match="undo行の出力件数"):
+        expander.expand_traced(ROOT, limit=42, operation_limit=6, undo_limit=undo_limit)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("missing-row", "undo行参照が規範行を一意に指していない"),
+        ("wrong-layer", "undo行の参照層が不正"),
+        ("invalid-coordinate", "undo行の入力座標が不正"),
+        ("invalid-predicate", "undo行の事前条件が述語でない"),
+    ],
+)
+def test_expander_rejects_invalid_undo_inputs(
+    monkeypatch: pytest.MonkeyPatch, mutation: str, message: str
+) -> None:
+    """undoRowsの行・参照層・入力座標・述語の破損を拒否する。"""
+    original = expander._read_document
+
+    def changed_document(root: Path, relative: Any) -> dict[str, Any]:
+        document = original(root, relative)
+        if "matrixRows" not in document:
+            return document
+        document = copy.deepcopy(document)
+        mapping = next(
+            item for item in document["mustOperationCoverage"]["mappings"]
+            if item["operationType"] == "undo"
+        )
+        reference = mapping["rowRefs"][0]
+        if mutation == "missing-row":
+            document["undoRows"].clear()
+        elif mutation == "wrong-layer":
+            reference["layer"] = "unknownRows"
+        elif mutation == "invalid-coordinate":
+            reference["coordinate"] = None
+        else:
+            reference["coordinate"]["precondition"] = None
+            document["undoRows"][0]["precondition"] = None
+        return document
+
+    monkeypatch.setattr(expander, "_read_document", changed_document)
+    with pytest.raises(expander.CaseExpansionError, match=message):
+        expander.expand_traced(ROOT, limit=42, operation_limit=6, undo_limit=1)
 
 
 @pytest.mark.parametrize("operation_limit", [-1, 7])

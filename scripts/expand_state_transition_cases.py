@@ -160,7 +160,7 @@ def _row_bound_value_exceptions(
 
 def _expand_from_declared_inputs(
     root: Path, rule: dependency_checker.ExpanderRule, limit: int, mode: str,
-    operation_limit: int,
+    operation_limit: int, undo_limit: int,
 ) -> list[dict[str, Any]]:
     """許可入力だけを読み、行参照から状況判定ケースを作る。
 
@@ -170,6 +170,7 @@ def _expand_from_declared_inputs(
         limit: 今回対象とする規範行数。
         mode: 代表値または入力座標被覆の展開方式。
         operation_limit: 先頭から展開する操作行の数。
+        undo_limit: 先頭から展開するundo行の数。
 
     Returns:
         規範行から導いたケース。
@@ -433,12 +434,62 @@ def _expand_from_declared_inputs(
                     },
                 }
             )
+    if undo_limit:
+        undo_rows = contract.get("undoRows")
+        if not isinstance(undo_rows, list):
+            raise CaseExpansionError("undoの規範行がない")
+        undo_mappings = [
+            mapping for mapping in mappings
+            if isinstance(mapping, dict) and mapping.get("operationType") == "undo"
+        ]
+        if len(undo_mappings) != 1 or not isinstance(undo_mappings[0].get("rowRefs"), list):
+            raise CaseExpansionError("undoの行参照を一意に取得できない")
+        undo_refs = undo_mappings[0]["rowRefs"]
+        if undo_limit < 0 or undo_limit > len(undo_refs):
+            raise CaseExpansionError("undo行の出力件数が参照の範囲外")
+        for reference in undo_refs[:undo_limit]:
+            if not isinstance(reference, dict) or reference.get("layer") != "undoRows":
+                raise CaseExpansionError("undo行の参照層が不正")
+            coordinate = reference.get("coordinate")
+            if not isinstance(coordinate, dict):
+                raise CaseExpansionError("undo行の入力座標が不正")
+            matches = [
+                row for row in undo_rows
+                if isinstance(row, dict)
+                and all(row.get(field) == value for field, value in coordinate.items())
+            ]
+            if len(matches) != 1:
+                raise CaseExpansionError("undo行参照が規範行を一意に指していない")
+            row = matches[0]
+            predicate = coordinate.get("precondition")
+            if not isinstance(predicate, dict):
+                raise CaseExpansionError("undo行の事前条件が述語でない")
+            used_axes = representative_selection.predicate_axes(predicate)
+            coordinate_axes = [axis_id for axis_id in values_by_axis if axis_id in used_axes]
+            axes_coordinate = representative_selection.select_coordinate(
+                predicate, values_by_axis, coordinate_axes, selection_policy
+            )
+            identity = json.dumps(
+                coordinate, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+            )
+            cases.append(
+                {
+                    "caseId": f"ST-UNDO-{hashlib.sha256(identity.encode()).hexdigest()[:16]}",
+                    "rowRef": copy.deepcopy(reference),
+                    "inputCoordinate": {"operationKind": "undo", **axes_coordinate},
+                    "expected": {
+                        field: copy.deepcopy(value)
+                        for field, value in row.items()
+                        if field not in coordinate and field != "remarks"
+                    },
+                }
+            )
     return cases
 
 
 def expand_traced(
     root: Path, *, limit: int = 1, mode: str = "representative",
-    operation_limit: int = 0,
+    operation_limit: int = 0, undo_limit: int = 0,
 ) -> tuple[list[dict[str, Any]], dependency_checker.ExpanderTrace]:
     """資産側allowlistで読み取りを監査しながらケースを展開する。
 
@@ -447,6 +498,7 @@ def expand_traced(
         limit: 今回出力する最大件数。
         mode: 代表値または入力座標被覆の展開方式。
         operation_limit: 先頭から展開する操作行の数。
+        undo_limit: 先頭から展開するundo行の数。
 
     Returns:
         派生ケースと観測した読み取りの証跡。
@@ -459,7 +511,9 @@ def expand_traced(
         root,
         policy,
         EXPANDER_ID,
-        lambda: _expand_from_declared_inputs(root, rule, limit, mode, operation_limit),
+        lambda: _expand_from_declared_inputs(
+            root, rule, limit, mode, operation_limit, undo_limit
+        ),
     )
 
 
@@ -476,12 +530,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--limit", type=int, default=1)
     parser.add_argument("--operation-limit", type=int, default=0)
+    parser.add_argument("--undo-limit", type=int, default=0)
     parser.add_argument("--mode", choices=("representative", "coverage"), default="representative")
     args = parser.parse_args(argv)
     try:
         cases, _ = expand_traced(
             args.root.resolve(), limit=args.limit, mode=args.mode,
-            operation_limit=args.operation_limit,
+            operation_limit=args.operation_limit, undo_limit=args.undo_limit,
         )
     except (
         CaseExpansionError,
