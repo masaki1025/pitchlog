@@ -1,6 +1,6 @@
 ---
 feature: ua1-auth-db-layer
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-05・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域         # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -56,7 +56,8 @@ U-A1 は α(正本 — 完了)/ **β(本タスク — 認証の DB 層)** / γ =
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
 | `docs/design/data-model.md` | **実装追随(版は上げない)**: 3-4 節の実装待ちの 2 行を主表へ移し「実装」列を外す(表の注記を整理)/ **8-1 節の長さの上限に確定値 64 文字**(人間の決定 B-3 — 登録とログインの両方)と**「前後の空白」に含める文字の範囲**(design.md 3 節 — 正本の解釈の明記)/ 12-8 節の残件の行(TSK-468 を解消済みへ)/ 変更履歴 1 行 | PR レビュー(7.6-3 前段) |
-| `docs/README.md` | 索引の data-model 行 | PR レビュー |
+| `docs/README.md` | 索引の data-model 行 / **台帳の行(クローズ処理 — 候補への追記と最終更新日)** | PR レビュー |
+| `docs/development/harness-evaluation.md` | **クローズ処理で追記**: 既存候補 3 件へ実測(`H-*` は採番しない・版は上げない) | PR レビュー(7.6-3 前段) |
 | 派生資産(正本ではない) | `contracts/authz/shared-preconditions.json`・`contracts/db/schema-manifest.json` の digest / 受入突合シート(`docs/features/orm-schema-migration/acceptance-sheets/`)の再生成と期待行数 | PR レビュー |
 | 運用文書 | **反映なし**(配備手順は δ) | — |
 
