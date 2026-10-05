@@ -23,6 +23,10 @@ SCHEMA_PATH = (
     REPOSITORY_ROOT
     / "contracts/state-transition/state_transition_contract_schema_v1.json"
 )
+NORMALIZATION_EXAMPLES_PATH = (
+    REPOSITORY_ROOT
+    / "contracts/state-transition/normalization_schema_examples_v1.json"
+)
 CONTRACT_PATH = (
     REPOSITORY_ROOT
     / "contracts/state-transition/state_transition_contract_v1.json"
@@ -5402,3 +5406,57 @@ def test_manual_fixture_baseline_rejects_disguised_accepted_bootstrap() -> None:
         manual_fixture_baseline_checker.validate_asset(
             REPOSITORY_ROOT, GAME_END_MANUAL_FIXTURE_PATH, asset, previous
         )
+
+
+def test_step89_normalization_schema_accepts_positive_example() -> None:
+    """独立した例で3点の構造と資産側の規則語彙を検証する。"""
+    schema = _schema()
+    examples = _load_object(NORMALIZATION_EXAMPLES_PATH)
+    declaration = schema["x-pitchlog-stage1-normalization"]
+    assert examples["schemaRef"] == declaration["caseSchemaRef"]
+    assert declaration["currentCasesSchemaRef"] == schema["properties"]["cases"][
+        "items"
+    ]["$ref"]
+
+    declared_ids = {rule["ruleId"] for rule in declaration["ruleCatalog"]}
+    assert declared_ids == set(schema["$defs"]["normalizationRuleId"]["enum"])
+    assert all(rule["meaning"] and rule["semanticOrigin"] for rule in declaration["ruleCatalog"])
+
+    positive = examples["positive"]
+    assert positive["raw"] == positive["normalized"]
+    schema_checker._validate_instance(
+        positive, {"$ref": examples["schemaRef"]}, schema, "$.positive"
+    )
+
+
+def test_step89_normalization_schema_rejects_missing_field_example() -> None:
+    """資産に置いた負例が3点のうち1点の欠落で失敗する。"""
+    schema = _schema()
+    examples = _load_object(NORMALIZATION_EXAMPLES_PATH)
+    negative = examples["negative"]
+    missing = negative["missingField"]
+    assert missing in schema["$defs"]["normalizedCase"]["required"]
+    assert negative["case"] == {
+        key: value for key, value in examples["positive"].items() if key != missing
+    }
+
+    with pytest.raises(schema_checker.DescriptorCheckError, match="必須キー不足") as error:
+        schema_checker._validate_instance(
+            negative["case"], {"$ref": examples["schemaRef"]}, schema, "$.negative"
+        )
+    assert missing in str(error.value)
+
+
+@pytest.mark.parametrize("missing", ["raw", "normalizationRuleId", "normalized"])
+def test_step89_normalization_schema_requires_each_point(missing: str) -> None:
+    """3点のどれを落としても専用case定義が拒否する。"""
+    schema = _schema()
+    examples = _load_object(NORMALIZATION_EXAMPLES_PATH)
+    incomplete = copy.deepcopy(examples["positive"])
+    del incomplete[missing]
+
+    with pytest.raises(schema_checker.DescriptorCheckError, match="必須キー不足") as error:
+        schema_checker._validate_instance(
+            incomplete, {"$ref": examples["schemaRef"]}, schema, "$.case"
+        )
+    assert missing in str(error.value)

@@ -3,6 +3,34 @@
   "$id": "https://pitchlog.local/contracts/state-transition/state_transition_contract_schema_v1.json",
   "title": "Pitchlog state transition contract schema v1",
   "version": "state_transition_contract_schema_v1",
+  "x-pitchlog-stage1-normalization": {
+    "caseSchemaRef": "#/$defs/normalizedCase",
+    "currentCasesSchemaRef": "#/$defs/derivedCase",
+    "casesActivationStep": 90,
+    "ruleCatalog": [
+      {
+        "ruleId": "identity",
+        "meaning": "raw の JSON 値を変更せず normalized として渡す",
+        "semanticOrigin": "step-89-local-definition",
+        "basisRefs": [
+          "docs/features/appendix-e-golden-vectors/design.md#10",
+          "docs/features/appendix-e-golden-vectors/plan.md#step-89"
+        ]
+      }
+    ],
+    "ruleGranularityReason": "ステップ89は3点の構造と欠落検知までを扱うため、意味を確定できる identity だけを宣言する。値が変わる規則は既存 case へ反映するステップ90で具体化する",
+    "claimBoundary": {
+      "subject": "step-89-schema-and-examples",
+      "guaranteed": "normalizedCase 定義による3点の存在と規則識別子の語彙制限",
+      "notGuaranteed": [
+        "existing-cases-have-normalization-triple",
+        "normalization-rule-semantic-correctness",
+        "normalizer-execution-or-comparison",
+        "noncanonical-raw-rejection",
+        "input-coordinate-to-raw-or-normalized-mapping"
+      ]
+    }
+  },
   "x-pitchlog-reference-constraints": {
     "rowIdentity": {
       "collectionAnnotation": "x-pitchlog-normative-row-layer",
@@ -1854,6 +1882,31 @@
           ]
         }
       }
+    },
+    "normalizedCase": {
+      "type": "object",
+      "required": [
+        "rowRef",
+        "raw",
+        "normalizationRuleId",
+        "normalized"
+      ],
+      "properties": {
+        "rowRef": {
+          "$ref": "#/$defs/caseRowReference"
+        },
+        "raw": {},
+        "normalizationRuleId": {
+          "$ref": "#/$defs/normalizationRuleId"
+        },
+        "normalized": {}
+      },
+      "additionalProperties": true
+    },
+    "normalizationRuleId": {
+      "enum": [
+        "identity"
+      ]
     },
     "derivedCase": {
       "type": "object",
