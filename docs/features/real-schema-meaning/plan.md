@@ -1,7 +1,7 @@
 ---
 feature: real-schema-meaning
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-10-05・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3d993b75e68781c094f9caf50fbceeab
@@ -153,6 +153,6 @@ Notion TSK-382 の DoD と同期する。
 | # | 事項 | 状態 |
 | --- | --- | --- |
 | 1 | 定義の候補・SP-06 の扱い・版の順序・追加の射程 | **裁定済み(2026-10-05・山田正輝)** — 1 節 |
-| 2 | 本計画の承認 | 計画レビューの後 |
+| 2 | 本計画の承認 | **承認済み(2026-10-05・山田正輝)** — 計画レビュー 4 周の反映後 |
 | 3 | 確定ゲートの承認(v0.6) | ステップ 5 |
 | 4 | PR の逐行確認(コア領域) | PR 時 |
