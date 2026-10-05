@@ -315,6 +315,20 @@ NEW_CORE_PATH_CHANGES = (
     *TENANT_BOUNDARY_CORE_PATHS,
 )
 DOMAIN_CALC_AREA_IDS = ("game-state", "data-migration")
+DECLARED_ADDITION_AREA_IDS = (*DOMAIN_CALC_AREA_IDS, "tenant-isolation")
+PRODUCT_RLS_AREA_PATH_ADDITIONS = (
+    "docs/ops/product-rls-real-schema.md",
+    "scripts/product_rls_real_schema/*",
+    "scripts/product-rls-real-schema-targets.json",
+)
+PRODUCT_RLS_PLANNED_PATHS = (
+    ("docs/ops/product-rls-real-schema.md",),
+    (
+        "scripts/product_rls_real_schema/runner.py",
+        "scripts/product_rls_real_schema/catalog_plugin.py",
+    ),
+    ("scripts/product-rls-real-schema-targets.json",),
+)
 EXISTING_REAL_GUARD_PATHS = (
     ".claude/core-areas.json",
     ".github/workflows/ci.yml",
@@ -1491,10 +1505,13 @@ def test_actual_core_area_paths_follow_merge_base_layers():
     baseline = core_guard.load_core_areas_at_revision(REPO, baseline_revision)
     candidate = core_guard.load_core_areas_at_revision(REPO, head_sha)
     baseline_ids = {area["id"] for area in baseline["areas"]}
-    stationary_ids = baseline_ids - set(core_guard.AREA_PATH_ADDITIONS)
+    declared_ids = set(core_guard.AREA_PATH_ADDITIONS)
+    stationary_ids = baseline_ids - declared_ids
 
     assert len(baseline_ids) == len(baseline["areas"]), "コア領域 ID が重複している"
-    assert len(stationary_ids) == 3
+    assert len(baseline_ids) == 5
+    assert declared_ids <= baseline_ids
+    assert len(stationary_ids) == len(baseline_ids) - len(declared_ids)
     core_guard.validate_area_path_layers(baseline, candidate)
 
 
@@ -1523,16 +1540,18 @@ def test_merge_base_blob_is_used_instead_of_pr_base_tip(tmp_path: Path):
 def test_each_stationary_area_is_derived_from_merge_base_and_rejects_change(
     tmp_path: Path,
 ):
-    """追加対象 2 領域を除いた 3 領域を据え置き層として固定する。"""
+    """宣言済み領域を除く全領域を据え置き層として固定する。"""
     core_guard = load_core_guard_module()
     root, base_sha = make_layered_core_repo(tmp_path)
     baseline = core_guard.load_core_areas_at_revision(root, base_sha)
     candidate = json.loads(json.dumps(baseline))
-    stationary_ids = {
-        area["id"] for area in baseline["areas"]
-    } - set(core_guard.AREA_PATH_ADDITIONS)
+    baseline_ids = {area["id"] for area in baseline["areas"]}
+    declared_ids = set(core_guard.AREA_PATH_ADDITIONS)
+    stationary_ids = baseline_ids - declared_ids
     attempts = 0
 
+    assert len(baseline_ids) == len(baseline["areas"]) == 5
+    assert declared_ids <= baseline_ids
     for area_id in sorted(stationary_ids):
         mutated = json.loads(json.dumps(candidate))
         area = next(item for item in mutated["areas"] if item["id"] == area_id)
@@ -1541,7 +1560,7 @@ def test_each_stationary_area_is_derived_from_merge_base_and_rejects_change(
             core_guard.validate_area_path_layers(baseline, mutated)
         attempts += 1
 
-    assert attempts == 3
+    assert attempts == len(baseline_ids) - len(declared_ids)
 
 
 def test_change_absent_from_declared_addition_layer_is_rejected(tmp_path: Path):
@@ -1602,8 +1621,113 @@ def test_registered_addition_layer_passes_in_a_separate_commit(tmp_path: Path):
     assert used_revision == base_sha
 
 
+def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> None:
+    """宣言だけを先にコミットしても据え置き JSON を受理する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    write_text(root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8"))
+    run_git(root, "add", "scripts/core_guard.py")
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "declaration only",
+    )
+    head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+
+    assert candidate == baseline
+    tenant_area = next(
+        area for area in candidate["areas"] if area["id"] == "tenant-isolation"
+    )
+    assert tenant_area["paths"] == ["base/tenant-isolation.py"]
+    assert PRODUCT_RLS_AREA_PATH_ADDITIONS == core_guard.AREA_PATH_ADDITIONS[
+        "tenant-isolation"
+    ]
+    core_guard.validate_area_path_layers(baseline, candidate)
+    assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
+
+
+def test_tenant_additions_declared_for_other_area_are_rejected(tmp_path: Path) -> None:
+    """別領域に同じ追加層を宣言しても tenant の変更を拒否する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    head_sha = commit_area_path_changes(
+        root, {"tenant-isolation": PRODUCT_RLS_AREA_PATH_ADDITIONS}
+    )
+    declared = dict(core_guard.AREA_PATH_ADDITIONS)
+    declared.pop("tenant-isolation")
+    declared["recording-rights"] = PRODUCT_RLS_AREA_PATH_ADDITIONS
+
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(baseline, candidate, declared)
+
+
+def test_one_of_three_tenant_additions_declared_is_rejected(tmp_path: Path) -> None:
+    """3 件を paths に足しても宣言が 1 件なら拒否する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    head_sha = commit_area_path_changes(
+        root, {"tenant-isolation": PRODUCT_RLS_AREA_PATH_ADDITIONS}
+    )
+    declared = dict(core_guard.AREA_PATH_ADDITIONS)
+    declared["tenant-isolation"] = PRODUCT_RLS_AREA_PATH_ADDITIONS[:1]
+
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(baseline, candidate, declared)
+
+
+def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
+    """3 件の宣言順を変えると計画順の paths を拒否する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    head_sha = commit_area_path_changes(
+        root, {"tenant-isolation": PRODUCT_RLS_AREA_PATH_ADDITIONS}
+    )
+    declared = dict(core_guard.AREA_PATH_ADDITIONS)
+    declared["tenant-isolation"] = tuple(reversed(PRODUCT_RLS_AREA_PATH_ADDITIONS))
+
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(baseline, candidate, declared)
+
+
+def test_product_rls_declaration_matches_planned_and_tracked_paths() -> None:
+    """計画した予定パスを覆い、現追跡ファイルを過剰に覆わない。"""
+    core_guard = load_core_guard_module()
+    assert core_guard.AREA_PATH_ADDITIONS["tenant-isolation"] == (
+        PRODUCT_RLS_AREA_PATH_ADDITIONS
+    )
+    for pattern, planned_paths in zip(
+        PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PLANNED_PATHS, strict=True
+    ):
+        assert all(fnmatch.fnmatchcase(path, pattern) for path in planned_paths)
+
+    tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
+    matches = tuple(
+        tuple(path for path in tracked_files if fnmatch.fnmatchcase(path, pattern))
+        for pattern in PRODUCT_RLS_AREA_PATH_ADDITIONS
+    )
+    assert {path for matched_paths in matches for path in matched_paths} <= {
+        path for planned_paths in PRODUCT_RLS_PLANNED_PATHS for path in planned_paths
+    }
+    # ステップ 1 の追跡集合。ステップ 3 で②③ が追跡下に入ったら期待値を更新する。
+    assert matches == (("docs/ops/product-rls-real-schema.md",), (), ())
+
+
 def test_area_registration() -> None:
-    """宣言済み追加層を対象 2 領域だけへ登録したことを検査する。"""
+    """宣言済み領域と据え置き領域の二層登録を検査する。"""
     core_guard = load_core_guard_module()
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
@@ -1612,13 +1736,27 @@ def test_area_registration() -> None:
     baseline_revision = core_guard.merge_base_revision(REPO, base_sha, head_sha)
     baseline = core_guard.load_core_areas_at_revision(REPO, baseline_revision)
     baseline_areas = {area["id"]: area for area in baseline["areas"]}
-    stationary_ids = set(areas) - set(DOMAIN_CALC_AREA_IDS)
+    tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
+    declared_ids = set(core_guard.AREA_PATH_ADDITIONS)
+    stationary_ids = set(areas) - declared_ids
 
-    assert set(core_guard.AREA_PATH_ADDITIONS) == set(DOMAIN_CALC_AREA_IDS)
-    assert len(stationary_ids) == 3
-    for area_id in DOMAIN_CALC_AREA_IDS:
+    assert len(areas) == len(configuration["areas"]) == 5
+    assert declared_ids == set(DECLARED_ADDITION_AREA_IDS)
+    assert declared_ids <= set(areas)
+    assert len(stationary_ids) == len(areas) - len(declared_ids)
+    for area_id in DECLARED_ADDITION_AREA_IDS:
         additions = core_guard.AREA_PATH_ADDITIONS[area_id]
-        assert tuple(areas[area_id]["paths"][-len(additions) :]) == additions
+        current_paths = tuple(areas[area_id]["paths"])
+        base_paths = tuple(baseline_areas[area_id]["paths"])
+        assert current_paths in {base_paths, (*base_paths, *additions)}
+        patterns_all_tracked = all(
+            any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
+            for pattern in additions
+        )
+        if patterns_all_tracked:
+            assert current_paths[-len(additions) :] == additions, (
+                f"{area_id}: 宣言パターンの対象が全て追跡下にあるのに paths へ登録されていない"
+            )
     for area_id in stationary_ids:
         assert areas[area_id]["paths"] == baseline_areas[area_id]["paths"]
     core_guard.validate_area_path_layers(baseline, configuration)
