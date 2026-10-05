@@ -934,6 +934,33 @@ exact検査は、計画書がもともとその配線を置いているステッ
 「軸がいずれかの行の前提述語に現れるなら行に束縛される」という一般規則も検討したが、
 実測で②が100件から99件へ後退し、記録済みの`not-required`が失われるため採らなかった。
 
+ステップ83で`matrixRows` 42行の`cases[]`が出そろった時点の②の残件は46件で、内訳は
+次のとおりである。
+
+| 分類 | 件数 | 内訳 |
+| --- | ---: | --- |
+| どの規範行の前提も認めない | 4 | `state.count.strikes=1`・`state.count.balls=1`・同`=2`・`state.runners=second-third` |
+| 前提は通るが接ぎ木が無意味 | 31 | `rbi.*` 11・`runnerAdvanceOverridesByRunner` 6・`thirdOutTimingByRunner` 4・`runnerEventPayload` 4・`interferenceRuling` 3・`officialScoringPayload` 3 |
+| 操作行・undo行(ステップ84〜88) | 11 | `event.operationKind` 6・`event.operationPayload` 5 |
+
+31件は、当該軸を前提で制約していない行であれば形式上どの値でも通る。たとえば
+`batting-result.ball`の行へ`rbi.wouldScoreWithoutErrorByRunner`の
+`single-runner-would-score`を乗せれば②の要求は埋まるが、見逃し三振の投球に打点の
+裁定を付けた座標に意味はない。ステップ82で`coverage_row_binding_policy_v1.json`へ
+出した行束縛と同じ問題であり、**見せかけの被覆は採らない**。31件の軸は、対応する
+規範行が無いために埋まらないものである。軸ごとの典拠の目処は
+`runnerAdvanceOverridesByRunner`と`interferenceRuling`がGAP-07(ADV-01〜04・
+INT-01〜07)、`rbi.*`と`thirdOutTimingByRunner`がGAP-09(RBI-01〜09)で、
+`runnerEventPayload`と`officialScoringPayload`の典拠は未確定である。
+
+4件は、どの規範行の前提も認めない。規範行の前提が状態軸を特定の値に固定しており、
+ストライク1・ボール1・ボール2・二三塁を前提に置く行が1つも無いためである。
+
+確定はステップ102(検査配線 — `requiredSet`差分(①②))で行う。そこまでに
+ステップ84〜88で11件が埋まる見込みで、残る35件の扱い — ①と同じく
+GAP典拠つきの宣言除外とするか、段階2へ送るか — はステップ102の着手時に
+実測値をそろえて決める。
+
 ### 7-1. 成績計上フラグの導出元(8 周目までの記述を補正)
 
 v9 までは「付録A-2 / A-2b / A-3 / A-3b / A-5 から逆算」としていたが、**それだけでは足りない**。

@@ -16,6 +16,30 @@
       ],
       "unboundValues": ["not-required"],
       "reason": "INT-01〜INT-07の具体的な妨害裁定は採用結果と対象に結び付くため、該当する結果行の前提述語で制約する。not-requiredは妨害裁定を要しない行にも適用できる。"
+    },
+    {
+      "axisId": "event.perPitch.runnerEventPayload",
+      "sourceClauseIds": ["req:FR-004"],
+      "unboundValues": [],
+      "valueRowBindings": [
+        {
+          "value": "single-runner-safe-advance",
+          "resultIds": ["strategy-category.steal", "strategy-category.hit-and-run"]
+        },
+        {
+          "value": "single-runner-hold",
+          "resultIds": [
+            "strategy-category.bunt",
+            "pitcher-pickoff-destination.first",
+            "pitcher-pickoff-destination.second",
+            "pitcher-pickoff-destination.third",
+            "catcher-pickoff-destination.first",
+            "catcher-pickoff-destination.second",
+            "catcher-pickoff-destination.third"
+          ]
+        }
+      ],
+      "reason": "FR-004の走者別結果を、規範行の既定進塁と一致する走者イベントにだけ束縛する。盗塁・エンドランはADV-03による一塁から二塁への進塁、バント・牽制はADV-04による対象走者の停止を既定とする。"
     }
   ]
 }

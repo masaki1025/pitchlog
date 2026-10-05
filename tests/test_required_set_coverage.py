@@ -1,4 +1,4 @@
-"""ステップ79〜82の行要求差分と入力座標被覆を検証する。"""
+"""ステップ79〜83の行要求差分と入力座標被覆を検証する。"""
 
 from __future__ import annotations
 
@@ -193,14 +193,12 @@ def test_step82_secondary_results_and_input_coverage() -> None:
     assert len(secondary_missing) == 4
     assert {item["gapId"] for item in secondary_missing} == {"GAP-07"}
 
-    count, digest, added = checker.check_input_coverage(ROOT)
-    assert record["currentStep"] == 82
-    assert len(record["history"]) == 4
+    assert record["currentStep"] == 83
+    assert len(record["history"]) == 5
     assert record["history"][2]["after"] == record["history"][3]["before"]
-    assert (count, digest, added) == (
-        100,
-        record["history"][3]["after"]["digest"],
-        12,
+    assert record["history"][3]["after"]["count"] == 100
+    assert record["history"][3]["after"]["digest"] == checker._digest(
+        {tuple(item) for item in record["history"][3]["after"]["coverageSet"]}
     )
     before = {tuple(item) for item in record["history"][3]["before"]["coverageSet"]}
     after = {tuple(item) for item in record["history"][3]["after"]["coverageSet"]}
@@ -219,7 +217,7 @@ def test_step82_secondary_results_and_input_coverage() -> None:
 
     cases, trace = expander.expand_traced(ROOT, limit=33, mode="coverage")
     representatives, _ = expander.expand_traced(ROOT, limit=33)
-    assert contract["cases"] == cases
+    assert contract["cases"][:33] == cases[:33]
     assert cases[:33] == representatives
     assert len(cases) == 78
     assert len(cases[33:]) == 45
@@ -235,6 +233,80 @@ def test_step82_secondary_results_and_input_coverage() -> None:
                 case["rowRef"]["coordinate"]["precondition"]
             )
             assert "event.perPitch.interferenceRuling" in predicate_axes
+    policy = expander.dependency_checker.load_policy(ROOT)
+    assert trace.observed_read_paths == policy.expanders[
+        "state-transition-cases"
+    ].allowed_read_paths
+
+
+def test_step83_runner_events_and_input_coverage() -> None:
+    """走者イベント9行を展開し、規範行と整合する走者結果だけを被覆する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    record = _asset("required_set_input_coverage_v1.json")
+    declaration = _asset("required_set_coverage_declaration_v1.json")
+    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    runner_requirements = [
+        item
+        for item in checker.deriver.derive_repository_row_requirements(ROOT)[0]
+        if item.result_id.startswith(("strategy-category.", "pitcher-pickoff-destination.",
+                                      "catcher-pickoff-destination."))
+    ]
+    assert len(runner_requirements) == 9
+    assert not any(
+        item["vocabularyId"].startswith(("strategy-category.",
+                                            "pitcher-pickoff-destination.",
+                                            "catcher-pickoff-destination."))
+        for item in declaration["uncoveredRowRequirements"]
+    )
+
+    cases, trace = expander.expand_traced(ROOT, limit=42, mode="coverage")
+    representatives, _ = expander.expand_traced(ROOT, limit=42)
+    assert contract["cases"] == cases
+    assert cases[:42] == representatives
+    assert len(cases) == 89
+    assert len(cases[42:]) == 47
+    assert sum(
+        case["rowRef"]["coordinate"]["eventKind"] == "runner-event"
+        for case in cases[42:]
+    ) == 9
+    runner_rows = contract["matrixRows"][33:]
+    assert len(runner_rows) == 9
+    assert {case["rowRef"]["coordinate"]["resultId"] for case in cases[33:42]} == {
+        row["resultId"] for row in runner_rows
+    }
+    payload_cases = [
+        case for case in cases[42:]
+        if "event.perPitch.runnerEventPayload" in case["inputCoordinate"]
+    ]
+    assert {
+        (case["rowRef"]["coordinate"]["resultId"],
+         case["inputCoordinate"]["event.perPitch.runnerEventPayload"])
+        for case in payload_cases
+    } == {
+        ("strategy-category.steal", "single-runner-safe-advance"),
+        ("strategy-category.bunt", "single-runner-hold"),
+    }
+    for case in payload_cases:
+        row = next(
+            row for row in runner_rows
+            if row["resultId"] == case["rowRef"]["coordinate"]["resultId"]
+        )
+        advance = row["runnerDefaultAdvance"]["first"]
+        if case["inputCoordinate"]["event.perPitch.runnerEventPayload"] == "single-runner-hold":
+            assert advance["modality"] == "hold"
+        else:
+            assert advance == {"modality": "optional", "destination": 2}
+
+    assert record["history"][3]["after"] == record["history"][4]["before"]
+    before = {tuple(item) for item in record["history"][4]["before"]["coverageSet"]}
+    after = {tuple(item) for item in record["history"][4]["after"]["coverageSet"]}
+    assert after - before == {
+        ("event.perPitch.kind", '"runner-event"'),
+        ("state.runners", '"second"'),
+        ("event.perPitch.runnerEventPayload", '"single-runner-safe-advance"'),
+        ("event.perPitch.runnerEventPayload", '"single-runner-hold"'),
+    }
+    assert checker.check_input_coverage(ROOT) == (104, checker._digest(after), 4)
     policy = expander.dependency_checker.load_policy(ROOT)
     assert trace.observed_read_paths == policy.expanders[
         "state-transition-cases"

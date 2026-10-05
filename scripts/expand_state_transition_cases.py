@@ -60,8 +60,8 @@ def _row_bound_value_exceptions(
     descriptor: dict[str, Any],
     rows: list[dict[str, Any]],
     values_by_axis: dict[str, list[Any]],
-) -> dict[str, list[Any]]:
-    """根拠付き宣言から、行に束縛しない軸値を検証して取得する。"""
+) -> tuple[dict[str, list[Any]], dict[str, dict[str, set[str]]]]:
+    """根拠付き宣言から、軸値の行束縛と例外を検証して取得する。"""
     if (
         set(policy) != {"schemaVersion", "policyId", "rowBoundAxes"}
         or type(policy.get("schemaVersion")) is not int
@@ -84,10 +84,17 @@ def _row_bound_value_exceptions(
         )
     )
     exceptions: dict[str, list[Any]] = {}
+    value_row_bindings: dict[str, dict[str, set[str]]] = {}
+    rows_by_id = {
+        row["resultId"]: row for row in rows
+        if isinstance(row, dict) and isinstance(row.get("resultId"), str)
+    }
     for entry in policy["rowBoundAxes"]:
-        if not isinstance(entry, dict) or set(entry) != {
-            "axisId", "sourceClauseIds", "unboundValues", "reason"
-        }:
+        required_fields = {"axisId", "sourceClauseIds", "unboundValues", "reason"}
+        if not isinstance(entry, dict) or not (
+            required_fields <= set(entry)
+            and set(entry) <= required_fields | {"valueRowBindings"}
+        ):
             raise CaseExpansionError("行束縛軸の宣言が不正")
         axis_id = entry["axisId"]
         clauses = entry["sourceClauseIds"]
@@ -95,7 +102,7 @@ def _row_bound_value_exceptions(
         if (
             not isinstance(axis_id, str)
             or axis_id in exceptions
-            or axis_id not in constrained_axes
+            or (axis_id not in constrained_axes and "valueRowBindings" not in entry)
             or axis_id not in values_by_axis
             or not isinstance(clauses, list)
             or not clauses
@@ -122,7 +129,33 @@ def _row_bound_value_exceptions(
         ):
             raise CaseExpansionError(f"行束縛軸の例外値が不正: {axis_id}")
         exceptions[axis_id] = unbound
-    return exceptions
+        if "valueRowBindings" in entry:
+            bindings = entry["valueRowBindings"]
+            if not isinstance(bindings, list) or not bindings:
+                raise CaseExpansionError(f"軸値の行束縛が空または不正: {axis_id}")
+            by_value: dict[str, set[str]] = {}
+            for binding in bindings:
+                if not isinstance(binding, dict) or set(binding) != {"value", "resultIds"}:
+                    raise CaseExpansionError(f"軸値の行束縛が不正: {axis_id}")
+                value = binding["value"]
+                identity = json.dumps(value, sort_keys=True, ensure_ascii=False)
+                result_ids = binding["resultIds"]
+                if (
+                    identity in by_value
+                    or not any(
+                        type(value) is type(candidate) and value == candidate
+                        for candidate in values_by_axis[axis_id]
+                    )
+                    or not isinstance(result_ids, list)
+                    or not result_ids
+                    or not all(isinstance(result_id, str) and result_id in rows_by_id
+                               for result_id in result_ids)
+                    or len(result_ids) != len(set(result_ids))
+                ):
+                    raise CaseExpansionError(f"軸値と規範行の束縛が不正: {axis_id}")
+                by_value[identity] = set(result_ids)
+            value_row_bindings[axis_id] = by_value
+    return exceptions, value_row_bindings
 
 
 def _expand_from_declared_inputs(
@@ -252,7 +285,7 @@ def _expand_from_declared_inputs(
             }
         )
     if mode == "coverage":
-        row_bound_exceptions = _row_bound_value_exceptions(
+        row_bound_exceptions, value_row_bindings = _row_bound_value_exceptions(
             row_binding_policy, descriptor, rows, values_by_axis
         )
         coverage = descriptor.get("inputCoordinateCoverage")
@@ -274,14 +307,23 @@ def _expand_from_declared_inputs(
         for axis_id in values_by_axis:
             if axis_id not in predicate_axes:
                 continue
-            if axis_id.startswith("event.perPitch.") and not any(
-                axis_id in representative_selection.predicate_axes(
-                    base["rowRef"]["coordinate"]["precondition"]
+            if (
+                axis_id.startswith("event.perPitch.")
+                and axis_id not in value_row_bindings
+                and not any(
+                    axis_id in representative_selection.predicate_axes(
+                        base["rowRef"]["coordinate"]["precondition"]
+                    )
+                    for base in cases[:limit]
                 )
-                for base in cases[:limit]
             ):
                 continue
             for value in values_by_axis[axis_id]:
+                permitted_rows = value_row_bindings.get(axis_id, {}).get(
+                    json.dumps(value, sort_keys=True, ensure_ascii=False)
+                )
+                if axis_id in value_row_bindings and permitted_rows is None:
+                    continue
                 if any(
                     base["inputCoordinate"].get(axis_id) == value
                     for base in representatives
@@ -289,8 +331,13 @@ def _expand_from_declared_inputs(
                     continue
                 for offset in range(limit):
                     base = representatives[(next_row + offset) % limit]
+                    if permitted_rows is not None and (
+                        base["rowRef"]["coordinate"]["resultId"] not in permitted_rows
+                    ):
+                        continue
                     if (
                         axis_id in row_bound_exceptions
+                        and axis_id not in value_row_bindings
                         and not any(
                             type(value) is type(item) and value == item
                             for item in row_bound_exceptions[axis_id]
