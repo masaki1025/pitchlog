@@ -11,6 +11,7 @@ from typing import Any
 
 import check_deriver_dependencies as deriver
 import expand_game_end_cases
+import expand_state_transition_cases
 import representative_selection
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -393,6 +394,235 @@ def check_input_coverage(
     _check_repository_history(root, record)
     previous = _identity_set(history[-1]["before"]["coverageSet"])
     return len(actual), _digest(actual), len(actual - previous)
+
+
+def _row_fixed_input_values(predicate: dict[str, Any], axis_id: str) -> set[str]:
+    """行の正の等値述語が固定する軸値をすべて得る。"""
+    if predicate.get("op") == "eq":
+        if predicate.get("axisId") == axis_id:
+            return {deriver.descriptor_checker._canonical_json_text(predicate.get("value"))}
+    if predicate.get("op") == "and":
+        return set().union(*(
+            _row_fixed_input_values(child, axis_id)
+            for child in predicate.get("args", []) if isinstance(child, dict)
+        ))
+    return set()
+
+
+def _check_unrepresented_operation_sources(
+    root: Path, declaration: dict[str, Any], descriptor: dict[str, Any],
+    rows: list[dict[str, Any]],
+) -> None:
+    """操作行が無い種別の条文と段階判断の実在を検査する。"""
+    raw = declaration.get("unrepresentedOperationSources")
+    if not isinstance(raw, list):
+        raise RequiredSetCoverageError("操作欠落の典拠宣言がない")
+    axes = {
+        axis.get("axisId"): axis for axis in descriptor.get("stateTransitionAxes", [])
+        if isinstance(axis, dict)
+    }
+    kind_axis = axes.get("event.operationKind")
+    payload_axis = axes.get("event.operationPayload")
+    if not isinstance(kind_axis, dict) or not isinstance(payload_axis, dict):
+        raise RequiredSetCoverageError("操作軸のdescriptorがない")
+    operation_values = set(kind_axis.get("values", [])) & set(
+        payload_axis.get("boundaryValues", [])
+    )
+    represented = {row.get("operationKind") for row in rows}
+    missing = operation_values - represented - {"not-applicable"}
+    declared: set[str] = set()
+    available_sources = {
+        kind_axis.get("sourceClauseId"), payload_axis.get("sourceClauseId"),
+        *kind_axis.get("supportingClauseIds", []),
+        *payload_axis.get("supportingClauseIds", []),
+    }
+    for item in raw:
+        if not isinstance(item, dict) or set(item) != {
+            "operationKind", "sourceClauseIds", "decisionSource"
+        }:
+            raise RequiredSetCoverageError("操作欠落の典拠形式が不正")
+        kind = item["operationKind"]
+        clauses = item["sourceClauseIds"]
+        evidence = item["decisionSource"]
+        if (
+            not isinstance(kind, str) or kind in declared or kind not in operation_values
+            or not isinstance(clauses, list) or not clauses
+            or not all(isinstance(clause, str) and clause in available_sources
+                       for clause in clauses)
+            or len(clauses) != len(set(clauses))
+            or not isinstance(evidence, dict)
+            or set(evidence) != {"path", "evidenceText"}
+        ):
+            raise RequiredSetCoverageError("操作欠落の条文典拠が不正")
+        path = evidence["path"]
+        snippets = evidence["evidenceText"]
+        if (
+            not isinstance(path, str)
+            or path not in {
+                "docs/features/appendix-e-golden-vectors/design.md",
+                "docs/features/appendix-e-golden-vectors/plan.md",
+            }
+            or not isinstance(snippets, list) or not snippets
+            or not all(isinstance(snippet, str) and snippet for snippet in snippets)
+        ):
+            raise RequiredSetCoverageError("操作欠落の裁定参照が不正")
+        try:
+            source_text = (root / path).read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as error:
+            raise RequiredSetCoverageError("操作欠落の裁定文書を読めない") from error
+        if not all(snippet in source_text for snippet in snippets):
+            raise RequiredSetCoverageError("操作欠落の裁定典拠が見つからない")
+        declared.add(kind)
+    # 新規の操作欠落は典拠なしでは除外しない。行が増えた分は自動で縮む。
+    if not missing <= declared:
+        raise RequiredSetCoverageError("操作欠落の典拠宣言が不足")
+
+
+def check_input_coverage_exact(
+    root: Path,
+    contract: dict[str, Any] | None = None,
+    declaration: dict[str, Any] | None = None,
+) -> tuple[int, int, int]:
+    """②の規則除外後の到達可能要求と実ケースをexact-setで照合する。"""
+    contract = contract if contract is not None else _document(
+        root, "state_transition_contract_v1.json"
+    )
+    declaration = declaration if declaration is not None else _document(
+        root, "required_set_input_coverage_declaration_v1.json"
+    )
+    descriptor = _document(root, "input_axes_descriptor_v1.json")
+    binding_policy = _document(root, "coverage_row_binding_policy_v1.json")
+    selection_policy = _document(root, "representative_selection_policy_v1.json")
+    expected_rule = {
+        "rowLayers": ["matrixRows", "operationRows", "undoRows"],
+        "axisValuePredicate": "no-normative-row-realizes-axis-value-under-row-binding-policy",
+        "fixedStateAxisPredicate": "matrix-row-fixed-state-axis-values",
+        "rowBindingPolicyId": binding_policy.get("policyId"),
+        "onNewRow": "recompute-reachability-from-current-normative-rows",
+    }
+    if (
+        declaration.get("schemaVersion") != 1
+        or declaration.get("version") != "required_set_input_coverage_declaration_v1"
+        or set(declaration) != {
+            "schemaVersion", "version", "exclusionRule", "unrepresentedOperationSources"
+        }
+        or declaration.get("exclusionRule") != expected_rule
+        or expected_rule["rowBindingPolicyId"] != "state-transition-coverage-row-binding"
+    ):
+        raise RequiredSetCoverageError("②の規則除外宣言が不正")
+    rows_by_layer: dict[str, list[dict[str, Any]]] = {}
+    for layer in expected_rule["rowLayers"]:
+        rows = contract.get(layer)
+        if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+            raise RequiredSetCoverageError("②の規範行が不正")
+        rows_by_layer[layer] = rows
+    matrix_rows = rows_by_layer["matrixRows"]
+    # 打球行が固定する状態軸を、無関係な操作行の自由値で埋めない。
+    fixed_state_values: dict[str, set[str]] = {}
+    for axis in descriptor.get("stateTransitionAxes", []):
+        axis_id = axis.get("axisId") if isinstance(axis, dict) else None
+        if not isinstance(axis_id, str) or not axis_id.startswith("state."):
+            continue
+        fixed = set().union(*(
+            _row_fixed_input_values(row["precondition"], axis_id)
+            for row in matrix_rows
+        ))
+        if fixed:
+            fixed_state_values[axis_id] = fixed
+    _check_unrepresented_operation_sources(
+        root, declaration, descriptor, rows_by_layer["operationRows"]
+    )
+    values_by_axis = representative_selection.axis_values(
+        descriptor, ("stateTransitionAxes",)
+    )
+    try:
+        unbound, value_bindings = expand_state_transition_cases._row_bound_value_exceptions(
+            binding_policy, descriptor, matrix_rows, values_by_axis
+        )
+    except expand_state_transition_cases.CaseExpansionError as error:
+        raise RequiredSetCoverageError(f"行束縛宣言が不正: {error}") from error
+    requirements, _ = deriver.derive_repository_input_coordinate_requirements(root)
+    active = deriver.active_input_coordinate_requirements(
+        requirements, {"req:FR-040": "adopted"}
+    )
+    vocabulary = json.loads(
+        (root / "contracts/vocabulary/input_vocabulary_v1.json").read_text(encoding="utf-8")
+    )
+    display_names = {
+        entry["id"]: entry["initialDisplayName"]
+        for axis in vocabulary["axes"] for entry in axis["entries"]
+    }
+    cases = contract.get("cases")
+    if not isinstance(cases, list):
+        raise RequiredSetCoverageError("②のケース集合が不正")
+    observed = observed_input_coverage(cases, active, contract, display_names)
+    required_ids = {item.identity for item in active}
+    if not observed <= required_ids:
+        raise RequiredSetCoverageError("②に要求外の被覆がある")
+
+    def row_accepts(item: deriver.InputCoordinateRequirement, layer: str,
+                    row: dict[str, Any]) -> bool:
+        axis_id = item.axis_id
+        value = item.coverage_value
+        if item.natural_key_role != "predicate-axis":
+            if layer == "matrixRows":
+                actual = {
+                    "event.operationKind": "per-pitch",
+                    "event.operationPayload": "not-applicable",
+                    "event.perPitch.kind": row.get("eventKind"),
+                    "event.perPitch.resultId": display_names.get(row.get("resultId")),
+                }.get(axis_id)
+            elif layer == "operationRows":
+                actual = row.get("operationKind")
+            else:
+                actual = {"event.operationKind": "undo",
+                          "event.operationPayload": "not-applicable"}.get(axis_id)
+            return type(actual) is type(value) and actual == value
+        identity = item.identity[1]
+        if axis_id in fixed_state_values and identity not in fixed_state_values[axis_id]:
+            return False
+        fixed_values = _row_fixed_input_values(row["precondition"], axis_id)
+        if fixed_values and fixed_values != {identity}:
+            return False
+        if axis_id in unbound and layer == "matrixRows":
+            explicitly_fixed = bool(fixed_values)
+            declared_binding = row.get("resultId") in value_bindings.get(
+                axis_id, {}
+            ).get(json.dumps(value, sort_keys=True, ensure_ascii=False), set())
+            free_value = any(type(candidate) is type(value) and candidate == value
+                             for candidate in unbound[axis_id])
+            if not (explicitly_fixed or declared_binding or free_value):
+                return False
+        predicate = {
+            "op": "and",
+            "args": [row["precondition"], {"op": "eq", "axisId": axis_id, "value": value}],
+        }
+        axes = [axis for axis in values_by_axis
+                if axis in representative_selection.predicate_axes(predicate)]
+        try:
+            representative_selection.select_coordinate(
+                predicate, values_by_axis, axes, selection_policy
+            )
+        except representative_selection.RepresentativeSelectionError:
+            return False
+        return True
+
+    reachable = {
+        item.identity for item in active
+        if any(
+            row_accepts(item, layer, row)
+            for layer in item.row_layers
+            for row in rows_by_layer[layer]
+        )
+    }
+    excluded = required_ids - reachable
+    if observed != reachable:
+        raise RequiredSetCoverageError(
+            f"②の規則除外後の差分がexact-set不一致: "
+            f"missing={sorted(reachable - observed)}; "
+            f"unexpected={sorted(observed - reachable)}"
+        )
+    return len(required_ids), len(excluded), len(reachable - observed)
 
 
 def _game_end_identity(value: Any) -> str:
@@ -1050,6 +1280,7 @@ def main() -> int:
     try:
         rows = check_row_requirements(ROOT)
         coverage = check_input_coverage(ROOT)
+        exact = check_input_coverage_exact(ROOT)
         game_end = check_game_end_coverage(ROOT)
     except (
         RequiredSetCoverageError,
@@ -1060,7 +1291,10 @@ def main() -> int:
     ) as error:
         print(f"requiredSet被覆: FAIL: {error}", file=sys.stderr)
         return 1
-    print(f"requiredSet被覆: PASS: rows={rows}; input={coverage}; gameEnd={game_end}")
+    print(
+        f"requiredSet被覆: PASS: rows={rows}; input={coverage}; "
+        f"inputExact={exact}; gameEnd={game_end}"
+    )
     return 0
 
 

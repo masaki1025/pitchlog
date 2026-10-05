@@ -1446,6 +1446,47 @@ def test_input_coverage_rejects_regression_and_digest_change() -> None:
         checker.check_input_coverage(ROOT, contract, wrong_digest)
 
 
+def test_step102_both_required_set_differences_are_empty() -> None:
+    """①の宣言除外と②の規則除外を実資産で共に検査する。"""
+    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    assert checker.check_input_coverage_exact(ROOT) == (150, 39, 0)
+
+
+def test_step102_row_requirement_difference_is_red() -> None:
+    """①の未充足宣言を1件欠かすと①のexact-setだけが赤になる。"""
+    declaration = _asset("required_set_coverage_declaration_v1.json")
+    declaration["uncoveredRowRequirements"].pop()
+    with pytest.raises(checker.RequiredSetCoverageError, match="未充足宣言がexact-set不一致"):
+        checker.check_row_requirements(
+            ROOT, _asset("state_transition_contract_v1.json"), declaration
+        )
+    assert checker.check_input_coverage_exact(ROOT) == (150, 39, 0)
+
+
+def test_step102_input_coordinate_difference_is_red_when_row_is_added() -> None:
+    """②は新行が未固定値を受け持つと除外を縮め、未被覆を赤にする。"""
+    contract = _asset("state_transition_contract_v1.json")
+    added = copy.deepcopy(contract["matrixRows"][0])
+
+    def change_strikes(predicate: dict[str, Any]) -> bool:
+        if predicate.get("op") == "eq" and predicate.get("axisId") == "state.count.strikes":
+            predicate["value"] = 1
+            return True
+        return any(
+            change_strikes(child) for child in predicate.get("args", [])
+            if isinstance(child, dict)
+        )
+
+    assert change_strikes(added["precondition"])
+    contract["matrixRows"].append(added)
+    with pytest.raises(
+        checker.RequiredSetCoverageError, match="②の規則除外後の差分がexact-set不一致"
+    ) as error:
+        checker.check_input_coverage_exact(ROOT, contract)
+    assert "('state.count.strikes', '1')" in str(error.value)
+    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+
+
 def test_coverage_history_is_append_only() -> None:
     """承認履歴の既存行の書換えと一度に複数行の追加を拒否する。"""
     current = _asset("required_set_input_coverage_v1.json")

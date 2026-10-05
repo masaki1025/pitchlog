@@ -94,7 +94,7 @@ def _row_bound_value_exceptions(
         required_fields = {"axisId", "sourceClauseIds", "unboundValues", "reason"}
         if not isinstance(entry, dict) or not (
             required_fields <= set(entry)
-            and set(entry) <= required_fields | {"valueRowBindings"}
+            and set(entry) <= required_fields | {"valueRowBindings", "bindingMode"}
         ):
             raise CaseExpansionError("行束縛軸の宣言が不正")
         axis_id = entry["axisId"]
@@ -103,7 +103,12 @@ def _row_bound_value_exceptions(
         if (
             not isinstance(axis_id, str)
             or axis_id in exceptions
-            or (axis_id not in constrained_axes and "valueRowBindings" not in entry)
+            or (
+                axis_id not in constrained_axes
+                and "valueRowBindings" not in entry
+                and entry.get("bindingMode") != "precondition-equality"
+            )
+            or entry.get("bindingMode", "precondition-equality") != "precondition-equality"
             or axis_id not in values_by_axis
             or not isinstance(clauses, list)
             or not clauses
