@@ -32,6 +32,9 @@ CLAUSE_BRANCH_REGISTER_PATH = PurePosixPath(
 CLAUSE_BRANCH_SCHEMA_PATH = PurePosixPath(
     "contracts/state-transition/clause_branch_register_schema_v1.json"
 )
+ROW_RULES_PATH = PurePosixPath(
+    "contracts/state-transition/required_set_row_rules_v1.json"
+)
 MANUAL_FIXTURE_PATHS = (
     PurePosixPath("contracts/state-transition/state_transition_manual_fixtures_v1.json"),
     PurePosixPath("contracts/state-transition/game_end_manual_fixtures_v1.json"),
@@ -635,6 +638,13 @@ def _row_key_value(row: Mapping[str, Any], key_path: str) -> str:
     raise GapRegisterError(f"規範行の自然キーがIDに使えない: {key_path}")
 
 
+def _normative_row_id(layer: Mapping[str, Any], row: Mapping[str, Any]) -> str:
+    """宣言済みの層名と自然キーから行IDを組み立てる。"""
+    return ":".join((layer["layer"], *(
+        _row_key_value(row, path) for path in layer["keyPaths"]
+    )))
+
+
 def _mentions_id(remarks: str, identifier: str) -> bool:
     """備考内の完全な識別子だけを帰属の証拠にする。"""
     return re.search(
@@ -659,9 +669,7 @@ def row_reference_index(
         for row in rows:
             if not isinstance(row, dict):
                 raise GapRegisterError(f"規範行がobjectでない: {layer['layer']}")
-            row_id = ":".join((layer["layer"], *(
-                _row_key_value(row, path) for path in layer["keyPaths"]
-            )))
+            row_id = _normative_row_id(layer, row)
             if row_id in existing:
                 raise GapRegisterError(f"規範行の自然キーが重複している: {row_id}")
             existing.add(row_id)
@@ -683,6 +691,128 @@ def row_reference_index(
                     owners.add(gap["gapId"])
             owners_by_reference[row_id] = frozenset(owners)
     return StageReferenceIndex(frozenset(existing), owners_by_reference)
+
+
+def orphan_normative_row_ids(
+    criteria: GapCriteria,
+    documents: Mapping[str, Mapping[str, Any]],
+    branch_register: Mapping[str, Any],
+    requirement_clause_ids: frozenset[str],
+    row_rules: Mapping[str, Any],
+) -> list[str]:
+    """規範行から実在する分岐または典拠条文へ辿れない行IDを返す。
+
+    Args:
+        criteria: 規範行4層と自然キーの宣言。
+        documents: 規範行を含む契約資産。
+        branch_register: 分岐台帳。
+        requirement_clause_ids: 要件書から抽出した条文ID。
+        row_rules: matrix行の語彙軸・語彙IDと典拠条文の対応宣言。
+
+    Returns:
+        帰属先を持たない行ID。
+    """
+    branches = {branch["branchId"]: branch for branch in branch_register["branches"]}
+    branch_clauses = {
+        clause for branch in branches.values() for clause in branch["sourceClauseIds"]
+    }
+    valid_branch_clauses = branch_clauses & {
+        f"req:{clause}" for clause in requirement_clause_ids
+    }
+    assignments = {
+        assignment["axisId"]: assignment
+        for assignment in row_rules["axisAssignments"]
+        if _values_equal(assignment["role"], "result-id-source")
+    }
+    partitions_by_result: dict[str, list[Mapping[str, Any]]] = {}
+    for partition in row_rules["partitionRules"]:
+        for result_id in partition["vocabularyIds"]:
+            partitions_by_result.setdefault(result_id, []).append(partition)
+    orphans: list[str] = []
+    for layer in criteria.row_layers:
+        for row in documents[layer["sourcePath"]][layer["layer"]]:
+            row_id = _normative_row_id(layer, row)
+            linked = False
+            if _values_equal(layer["layer"], "matrixRows"):
+                axis_id = row["resultId"].partition(".")[0]
+                assignment = assignments.get(axis_id)
+                partitions = partitions_by_result.get(row["resultId"], [])
+                linked = bool(
+                    assignment
+                    and _values_equal(assignment.get("eventKind"), row["eventKind"])
+                    and set(assignment["sourceClauseIds"]) & valid_branch_clauses
+                    and _values_equal(len(partitions), 1)
+                    and set(partitions[0]["sourceClauseIds"]) & valid_branch_clauses
+                )
+            elif _values_equal(layer["layer"], "operationRows"):
+                linked = _value_in(row.get("clauseId"), requirement_clause_ids)
+            elif _values_equal(layer["layer"], "undoRows"):
+                provenance_text = row.get("remarks", "")
+                linked = isinstance(provenance_text, str) and (
+                    any(_mentions_id(provenance_text, clause) for clause in requirement_clause_ids)
+                    or any(_mentions_id(provenance_text, branch_id) for branch_id in branches)
+                )
+            elif _values_equal(layer["layer"], "decisionRows"):
+                branch = branches.get(row.get("branchId"))
+                linked = bool(
+                    branch
+                    and set(row.get("sourceClauseIds", []))
+                    & set(branch["sourceClauseIds"])
+                )
+            if not linked:
+                orphans.append(row_id)
+    return orphans
+
+
+def assert_no_orphan_normative_rows(orphans: Sequence[str]) -> None:
+    """分岐または典拠条文に結び付かない行を拒否する。"""
+    if orphans:
+        raise GapRegisterError(f"孤立した規範行がある: {list(orphans)!r}")
+
+
+def unresolved_row_references(
+    criteria: GapCriteria,
+    gaps: Sequence[Mapping[str, Any]],
+    documents: Mapping[str, Mapping[str, Any]],
+    row_index: StageReferenceIndex,
+) -> list[str]:
+    """gapと生成caseの行参照で一意の規範行に解決できない箇所を返す。"""
+    layers = {layer["layer"]: layer for layer in criteria.row_layers}
+    rows_by_id = {
+        _normative_row_id(layer, row): row
+        for layer in criteria.row_layers
+        for row in documents[layer["sourcePath"]][layer["layer"]]
+    }
+    unresolved = [
+        f"{gap['gapId']}.rowIds: {row_id}"
+        for gap in gaps for row_id in gap["rowIds"]
+        if not _value_in(row_id, row_index.existing_references)
+    ]
+    for source_path, document in documents.items():
+        for case in document["cases"]:
+            case_row_reference = case["rowRef"]
+            layer = layers.get(case_row_reference["layer"])
+            coordinate = case_row_reference["coordinate"]
+            if not layer or not _values_equal(layer["sourcePath"], source_path):
+                unresolved.append(f"{case['caseId']}.rowRef: 層と資産pathが不一致")
+                continue
+            try:
+                row_id = _normative_row_id(layer, coordinate)
+            except GapRegisterError:
+                unresolved.append(f"{case['caseId']}.rowRef: 自然キーが不正")
+                continue
+            row = rows_by_id.get(row_id)
+            if not row or any(
+                not _values_equal(row.get(key), value) for key, value in coordinate.items()
+            ):
+                unresolved.append(f"{case['caseId']}.rowRef: {row_id}")
+    return unresolved
+
+
+def assert_row_ids_resolve(unresolved: Sequence[str]) -> None:
+    """一意の規範行へ解決できない参照を拒否する。"""
+    if unresolved:
+        raise GapRegisterError(f"行IDを一意に解決できない: {list(unresolved)!r}")
 
 
 def _stage_reference_tokens(
@@ -1242,6 +1372,18 @@ def check_repository(root: Path) -> None:
         for relative in MANUAL_FIXTURE_PATHS
     ]
     row_index = row_reference_index(criteria, document["gaps"], row_documents)
+    row_rules = _expect_object(
+        clause_id_source.load_json(root / ROW_RULES_PATH, "規範行の語彙軸典拠"),
+        "規範行の語彙軸典拠",
+    )
+    orphans = orphan_normative_row_ids(
+        criteria, row_documents, branch_document, requirement_clause_ids, row_rules
+    )
+    assert_no_orphan_normative_rows(orphans)
+    unresolved = unresolved_row_references(
+        criteria, document["gaps"], row_documents, row_index
+    )
+    assert_row_ids_resolve(unresolved)
     generated_documents = {
         source_path: row_documents[source_path]
         for source_path in {layer["sourcePath"] for layer in criteria.row_layers}

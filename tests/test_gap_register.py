@@ -80,6 +80,11 @@ def _row_documents() -> dict[str, dict[str, Any]]:
     }
 
 
+def _row_rules() -> dict[str, Any]:
+    """matrix行の語彙軸と典拠条文の宣言を読む。"""
+    return json.loads((REPOSITORY_ROOT / checker.ROW_RULES_PATH).read_text(encoding="utf-8"))
+
+
 def _fixture_documents() -> list[dict[str, Any]]:
     """凍結済みの手作業fixtureを実資産から読む。"""
     return [
@@ -575,6 +580,59 @@ def test_normative_row_natural_keys_are_unique_in_all_four_layers() -> None:
     assert len([row for row in index.existing_references if row.startswith("operationRows:")]) == 6
     assert "operationRows:substitution:state.gameEnded:false" in index.existing_references
     assert "operationRows:substitution:state.gameEnded:true" in index.existing_references
+
+
+def test_step99_no_orphan_normative_rows() -> None:
+    """4層54行すべてが分岐または要件条文に辿れることを確認する。"""
+    orphans = checker.orphan_normative_row_ids(
+        _criteria(), _row_documents(), _clause_branch_register(),
+        checker.load_requirement_clause_ids(REPOSITORY_ROOT), _row_rules(),
+    )
+    assert orphans == []
+
+
+def test_step99_orphan_row_is_red_without_case_coverage_check() -> None:
+    """case参照を維持し、1行だけ条文への帰属を失わせて拒否する。"""
+    rules = _row_rules()
+    target = "batting-result.called-pitch"
+    partition = next(
+        rule for rule in rules["partitionRules"] if target in rule["vocabularyIds"]
+    )
+    partition["vocabularyIds"].remove(target)
+
+    orphans = checker.orphan_normative_row_ids(
+        _criteria(), _row_documents(), _clause_branch_register(),
+        checker.load_requirement_clause_ids(REPOSITORY_ROOT), rules,
+    )
+    assert orphans == [f"matrixRows:batting-result:{target}"]
+    with pytest.raises(checker.GapRegisterError, match="孤立した規範行"):
+        checker.assert_no_orphan_normative_rows(orphans)
+
+
+def test_step99_all_row_ids_resolve() -> None:
+    """gapのrowIdsと266件のcase参照が一意な規範行へ解決する。"""
+    rows = _row_documents()
+    index = checker.row_reference_index(_criteria(), _register()["gaps"], rows)
+    assert len(index.existing_references) == 54
+    assert checker.unresolved_row_references(
+        _criteria(), _register()["gaps"], rows, index
+    ) == []
+
+
+def test_step99_unknown_case_row_id_is_red_without_other_checks() -> None:
+    """caseの行ID解決だけを検査し、未知の自然キーを拒否する。"""
+    rows = _row_documents()
+    source = "contracts/state-transition/state_transition_contract_v1.json"
+    rows[source]["cases"][0]["rowRef"]["coordinate"]["resultId"] = "missing-result"
+    index = checker.row_reference_index(_criteria(), _register()["gaps"], rows)
+
+    unresolved = checker.unresolved_row_references(
+        _criteria(), _register()["gaps"], rows, index
+    )
+    assert len(unresolved) == 1
+    assert "matrixRows:batting-result:missing-result" in unresolved[0]
+    with pytest.raises(checker.GapRegisterError, match="行IDを一意に解決できない"):
+        checker.assert_row_ids_resolve(unresolved)
 
 
 def test_row_reference_added_only_to_gap_is_red() -> None:
