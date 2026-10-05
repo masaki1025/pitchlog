@@ -1,4 +1,4 @@
-"""ステップ79〜85の行要求差分と入力座標被覆を検証する。"""
+"""ステップ79〜86の行要求差分と入力座標被覆を検証する。"""
 
 from __future__ import annotations
 
@@ -377,7 +377,7 @@ def test_step84_substitution_cases_and_input_coverage() -> None:
     representatives, _ = expander.expand_traced(
         ROOT, limit=42, operation_limit=2
     )
-    assert contract["cases"] == cases
+    assert contract["cases"][:len(cases)] == cases
     assert len(cases) == 91
     assert len(representatives) == 44
     assert [case["rowRef"]["layer"] for case in cases].count("matrixRows") == 89
@@ -432,8 +432,7 @@ def test_step85_tiebreak_start_has_no_row_case_or_coverage_change() -> None:
         for mapping in contract["mustOperationCoverage"]["mappings"]
     )
 
-    assert record["currentStep"] == 85
-    assert [entry["step"] for entry in record["history"]] == list(range(79, 86))
+    assert [entry["step"] for entry in record["history"][:7]] == list(range(79, 86))
     previous = record["history"][5]["after"]
     current = record["history"][6]
     assert current["before"] == previous
@@ -443,9 +442,78 @@ def test_step85_tiebreak_start_has_no_row_case_or_coverage_change() -> None:
     after = {tuple(item) for item in current["after"]["coverageSet"]}
     assert ("event.operationKind", '"tiebreak-start"') not in after
     assert ("event.operationPayload", '"tiebreak-start"') not in after
-    assert after == _observed_coverage(contract["cases"], contract)
-    assert checker.check_input_coverage(ROOT) == (106, previous["digest"], 0)
+    historical_cases, _ = expander.expand_traced(
+        ROOT, limit=42, mode="coverage", operation_limit=2
+    )
+    assert after == _observed_coverage(historical_cases, contract)
     assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+
+
+def test_step86_game_end_declaration_cases_and_input_coverage() -> None:
+    """FR-010の2行からケースを展開し、②の増分2件を実測する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    record = _asset("required_set_input_coverage_v1.json")
+    target_rows = [
+        row for row in contract["operationRows"]
+        if row["operationKind"] == "game-end-declaration"
+    ]
+    assert len(target_rows) == 2
+    assert all(row["clauseId"] == "FR-010" and "FR-010" in row["remarks"]
+               for row in target_rows)
+
+    cases, trace = expander.expand_traced(
+        ROOT, limit=42, mode="coverage", operation_limit=4
+    )
+    previous_cases, _ = expander.expand_traced(
+        ROOT, limit=42, mode="coverage", operation_limit=2
+    )
+    representatives, _ = expander.expand_traced(
+        ROOT, limit=42, operation_limit=4
+    )
+    assert contract["cases"] == cases
+    assert len(cases) == 93
+    assert len(previous_cases) == 91
+    assert cases[:91] == previous_cases
+    assert len(representatives) == 46
+    assert len([case for case in cases if case["rowRef"]["layer"] == "matrixRows"]) == 89
+    operation_cases = cases[-2:]
+    assert operation_cases == representatives[-2:]
+    assert [case["expected"]["operationResult"] for case in operation_cases] == [
+        "applied", "rejected-precondition"
+    ]
+    assert [case["inputCoordinate"]["state.gameEnded"] for case in operation_cases] == [
+        False, True
+    ]
+    for case in operation_cases:
+        assert case["rowRef"]["coordinate"]["operationKind"] == "game-end-declaration"
+        assert case["inputCoordinate"]["operationKind"] == "game-end-declaration"
+        assert case["inputCoordinate"]["event.operationPayload"] == "game-end-declaration"
+        assert case["rowRef"]["coordinate"]["payloadShape"] == {
+            "type": "object", "properties": {}, "required": [], "additionalProperties": False
+        }
+        assert case["expected"]["clauseId"] == "FR-010"
+
+    assert record["currentStep"] == 86
+    assert [entry["step"] for entry in record["history"]] == list(range(79, 87))
+    previous = record["history"][6]["after"]
+    current = record["history"][7]
+    assert current["before"] == previous
+    before = {tuple(item) for item in current["before"]["coverageSet"]}
+    after = {tuple(item) for item in current["after"]["coverageSet"]}
+    assert before <= after
+    assert after - before == {
+        ("event.operationKind", '"game-end-declaration"'),
+        ("event.operationPayload", '"game-end-declaration"'),
+    }
+    assert len(after) == current["after"]["count"] == 108
+    assert current["after"]["digest"] == checker._digest(after)
+    assert after == _observed_coverage(cases, contract)
+    assert checker.check_input_coverage(ROOT) == (108, current["after"]["digest"], 2)
+    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    policy = expander.dependency_checker.load_policy(ROOT)
+    assert trace.observed_read_paths == policy.expanders[
+        "state-transition-cases"
+    ].allowed_read_paths
 
 
 def test_step85_rejects_a_new_tiebreak_start_row() -> None:
@@ -502,7 +570,12 @@ def test_matrix_observation_keeps_its_per_pitch_assignment() -> None:
 def test_checker_rejects_operation_row_without_payload_shape() -> None:
     """操作行のpayloadShapeが消えた場合は②を観測しない。"""
     contract = _asset("state_transition_contract_v1.json")
-    case = copy.deepcopy(contract["cases"][-1])
+    case = copy.deepcopy(next(
+        item for item in contract["cases"]
+        if item["rowRef"]["layer"] == "operationRows"
+        and item["inputCoordinate"]["operationKind"] == "substitution"
+        and item["inputCoordinate"]["state.gameEnded"] is True
+    ))
     del case["rowRef"]["coordinate"]["payloadShape"]
     del contract["operationRows"][1]["payloadShape"]
     with pytest.raises(

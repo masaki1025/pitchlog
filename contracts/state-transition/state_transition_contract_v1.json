@@ -17079,6 +17079,333 @@
         },
         "operationResult": "rejected-precondition"
       }
+    },
+    {
+      "caseId": "ST-OPERATION-1a6c236ac3489ff9",
+      "rowRef": {
+        "layer": "operationRows",
+        "coordinate": {
+          "operationKind": "game-end-declaration",
+          "payloadShape": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          },
+          "precondition": {
+            "op": "eq",
+            "axisId": "state.gameEnded",
+            "value": false
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "game-end-declaration",
+        "event.operationPayload": "game-end-declaration",
+        "state.gameEnded": false
+      },
+      "expected": {
+        "clauseId": "FR-010",
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "unchanged"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "unchanged"
+            },
+            "state.runners": {
+              "kind": "unchanged"
+            },
+            "state.battingOrder": {
+              "kind": "unchanged"
+            },
+            "state.tiebreakActive": {
+              "kind": "unchanged"
+            },
+            "state.gameEnded": {
+              "kind": "set",
+              "value": true
+            },
+            "state.inning": {
+              "kind": "unchanged"
+            },
+            "state.score": {
+              "kind": "unchanged"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "unchanged"
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "unchanged"
+            },
+            "operationResult": {
+              "kind": "unchanged"
+            }
+          }
+        },
+        "historyEffect": {
+          "pushes": false,
+          "kind": null
+        },
+        "operationResult": "applied"
+      }
+    },
+    {
+      "caseId": "ST-OPERATION-cbebab7ff8370531",
+      "rowRef": {
+        "layer": "operationRows",
+        "coordinate": {
+          "operationKind": "game-end-declaration",
+          "payloadShape": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          },
+          "precondition": {
+            "op": "eq",
+            "axisId": "state.gameEnded",
+            "value": true
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "game-end-declaration",
+        "event.operationPayload": "game-end-declaration",
+        "state.gameEnded": true
+      },
+      "expected": {
+        "clauseId": "FR-010",
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "unchanged"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "unchanged"
+            },
+            "state.runners": {
+              "kind": "unchanged"
+            },
+            "state.battingOrder": {
+              "kind": "unchanged"
+            },
+            "state.tiebreakActive": {
+              "kind": "unchanged"
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "unchanged"
+            },
+            "state.score": {
+              "kind": "unchanged"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "unchanged"
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "unchanged"
+            },
+            "operationResult": {
+              "kind": "unchanged"
+            }
+          }
+        },
+        "historyEffect": {
+          "pushes": false,
+          "kind": null
+        },
+        "operationResult": "rejected-precondition"
+      }
     }
   ]
 }
