@@ -145,15 +145,38 @@ created: 2026-10-04
 | ADR-004 | **反映なし**(裁定 A・B を再議しない) |
 | 開発ハーネス設計書 | **反映なし** |
 | `docs/development/harness-evaluation.md` | **`## 候補` へ 2 件追記 + 既存候補 1 件へ 5 事例目・変更履歴へ 1 行**(**`H-*` は採番せず版も上げない** — 設計書 7.6-3 前段)。`/pr` のクローズ処理で判断した |
+| **`contracts/authz/shared-preconditions.json`** | **`data-model.md` の `git_blob_digest` を取り直す**(**派生資産の追随** — 同資産が正本の blob を封印しており、改訂のたびに再封印が要る。先例: `chore: data-model.md の digest を取り直す`)。**内容の変更は digest 1 行のみ** |
+| **`contracts/db/schema-manifest.json`** | **`data-model.md` の SHA-256 を取り直す**(**派生資産の追随** — `canonical_source.sha256`。**Codex レビューが検出**した 3 件目)。**変更は 1 行** |
+| **`docs/features/orm-schema-migration/acceptance-sheets/`** | **N3 シートを再生成**(変更履歴 v0.5 行が `N3_TERMS` の「変えない」を 1 件増やすため)。**既存 89 件の人間判定は内容照合で全件復元**し、**新規 1 行には同種 10 件と同一の既定判定(対象外)を記入した** |
+| **`tests/test_orm_acceptance_sheets.py`** | **N3 の期待行数 literal を 89 → 90 へ追随**(既知の候補「テストが正本の literal をハードコードし、正本の改訂で無関係に落ちる」に該当)。**変更は 1 行** |
 
 ## 実装方針
 
-### 重さ分類: 通常
+### 重さ分類: 通常(**承認時の判定**)— **/pr の時点で前提が崩れた。実体はコア領域該当**
+
+**承認時の判定と根拠**(2026-10-04):
 
 - **コア領域に当たらない** — 変更は `docs/` のみ。`.claude/core-areas.json` の 5 領域の
   `paths` は**コードのパス**であり、設計書は含まれない
 - **製品コード・凍結資産に触れない**(`backend/` `frontend/` `contracts/` への差分 0 件)
 - ただし**正本の実質改訂なので `/finalize-doc` の確定ゲートを通す**(AGENTS.md 絶対規則 4)
+
+**訂正(2026-10-05・`/pr` の `/check` で判明)**: **この前提は誤りだった。**
+**`data-model.md` の改訂は、それ自体が 3 つの派生資産の追随を強制する**:
+
+| 追随先 | 強制する機構 | コア領域 |
+| --- | --- | --- |
+| `contracts/authz/shared-preconditions.json` | 同資産が正本の `git_blob_digest` を封印している | **`tenant-isolation` の `paths`**(`contracts/authz/*`) |
+| `tests/test_orm_acceptance_sheets.py` | N3 シートの期待行数を literal で持っている | **5 領域すべての `paths`** |
+| `contracts/db/schema-manifest.json` | 同資産が正本の `sha256` を封印している | **5 領域すべての `paths`**(`contracts/db/schema-manifest.json`) |
+
+**したがって本 PR は `core-guard` のコア領域該当**であり、**敵対レビュー + 人間の逐行確認**が要る
+(設計書 6.3 / ADR-001)。**frontmatter の `重さ分類` は承認時の値のまま残す**
+(人間承認を得た値であり、事後に書き換えると承認の対象が変わる)。
+**PR 本文でコア領域として扱い、逐行確認の対象を明示する。**
+
+**この食い違い自体を台帳の候補に挙げた** — **正本の改訂が、計画段階では見えない派生資産の追随を
+強制し、重さ分類の前提を崩す**。
 
 ### 置き場所と形
 

@@ -449,3 +449,85 @@ spec-checker / decision-tracer / Explore を並列。全文は
 4. **番人の通り抜け 2 件**(トリガ経由・RLS ポリシー経由の `SECURITY DEFINER` が補助検査の母集団に入らない)— 別起票の候補
 5. **`backend` ジョブの path filter** — docs のみの本 PR では ④ の番人が 1 度も走らない — 別起票の候補
 6. **ADR-004 `:122` と `data-model.md` の 4 件の文言のずれ**(返却契約の有無)— 別起票の候補
+
+### /check で判明 — **派生資産の追随が要り、PR はコア領域該当になった**
+
+**`uv run pytest tests/` が 5 件 failed**(2857 passed)。**うち 2 件は本改訂が原因**だった。
+
+| テスト | 原因 | 処置 |
+| --- | --- | --- |
+| `test_check_shared_preconditions` | **`contracts/authz/shared-preconditions.json` が `data-model.md` の `git_blob_digest` を封印**しており、改訂でずれた(develop では OK) | **digest を取り直した**(`f93b06e5…` → `ea117523…`)。**変更は 1 行** |
+| `test_orm_acceptance_sheets` | **N3 シートが `N3_TERMS` の出現を走査**しており、変更履歴 v0.5 行の「**変えない**」で 1 件増えた | **シートを再生成**し、**テストの期待行数 literal を 89 → 90 へ追随** |
+
+**残り 3 件**(`tests/domain/mut/` の 3 本)は、**develop でも worktree でも単独実行では green**(3.5〜3.7 秒)。
+**全件走行時にのみ落ちる**ので、本改訂(docs)とは無関係と判断した。
+
+#### N3 シートの人間判定 89 件が持ち越せなかった件
+
+**`出現 NNN` という識別子が位置依存**のため、**変更履歴に 1 行足しただけで 002 以降が全部ずれ**、
+`--carry-judgments-from origin/develop` が **42 件の判定を落とした**(89 → 47)。
+**既存候補「`source_id` が位置依存の母集合では「足した行だけ更新する」が通らない」の実害 1 例目。**
+
+**処置**: **`出現 NNN` の連番を外した 3 つ組(語・正本側・実装側)で内容照合**し、
+**旧 89 件を全件復元した**(旧の未消費 0 行・新規 1 行のみ未判定)。
+**新規 1 行**(`出現 002: 変えない` — v0.5 の変更履歴行)には、
+**同種の変更履歴行 10 件すべてと同一の既定判定**を記入した:
+「**対象外** / 正本の変更履歴表(確定ゲートの周回記録)の中の出現であり、列の不変性を述べた契約ではない」。
+**これは私が入れた判定である** — `orm-schema-migration` の担当が覆してよい。
+
+**途中の失敗**: 1 回目の復元で、自作のパーサが `\|` のエスケープを壊して列数検査に落ちた。
+**シートを戻し、生成器自身の `parse_sheet_rows` / `_replace_sheet_rows` を使って再実行した。**
+
+#### 重さ分類の前提が崩れた
+
+`contracts/authz/*` は **`tenant-isolation` の `paths`**、
+`tests/test_orm_acceptance_sheets.py` は **5 領域すべての `paths`**。
+**本 PR は `core-guard` のコア領域該当**になり、**敵対レビュー + 人間の逐行確認**が要る。
+
+**計画書 frontmatter の `重さ分類: 通常` は承認時の値のまま残した**
+(人間承認を得た値であり、事後に書き換えると承認の対象が変わる)。
+**計画書 4 節へ訂正を書き、PR 本文でコア領域として扱う。**
+**この食い違い自体を台帳の候補へ挙げた**(新規③)。
+
+#### 直接書いたコード
+
+`tests/test_orm_acceptance_sheets.py` の **literal 1 行**(89 → 90)は Claude が直接書いた。
+CLAUDE.md の規定により **`codex_run.py review normal` を通す**。
+
+### Codex レビューが 3 件目の封印資産を検出した
+
+直接書いた `tests/` の 1 行に対し CLAUDE.md の規定どおり
+`codex_run.py review normal` を通したところ、**`P1`** が返った:
+
+> **`contracts/db/schema-manifest.json` の SHA-256 が旧値のまま。**
+> 現行 `data-model.md` の値は `5f1fe2f3…` で、`test_manifest_is_bound_to_the_canonical_data_model` は実際に失敗した。
+
+**事実だった。** SHA-256 を取り直し(`6f5b6d59…` → `5f1fe2f3…`)、当該テスト 14 件が green。
+
+**なぜ `/check` で出なかったか**: **`backend` の pytest を「差分は docs のみだから影響範囲外」と判断して
+省いた**ため。**封印は 3 箇所に分散している**:
+
+| 資産 | 封印の形 |
+| --- | --- |
+| `contracts/authz/shared-preconditions.json` | **git blob digest** |
+| `contracts/db/schema-manifest.json` | **ファイル内容の SHA-256** |
+| `tests/test_orm_acceptance_sheets.py` | **期待行数の literal** |
+
+**どれも正本の側からは逆引きできない。**「影響範囲だけ流す」判断が封印の分散に裏切られた 1 例として
+台帳の候補③へ書いた。
+
+### 最終的な検査結果
+
+| 層 | チェック | 結果 |
+| --- | --- | --- |
+| harness | `ruff check .` / `ty check` | **OK** |
+| harness | `pytest tests/` | **2862 passed / 0 failed**(20 分 37 秒) |
+| backend | `ruff format --check` / `ruff check` / `ty check` | **OK** |
+| backend | `pytest tests/ --ignore=tests/db` | **818 passed / 4 skipped** |
+| backend | `pytest tests/db` | **未実行**(Docker の開発 DB が要る — CI に任せる) |
+| frontend | 静的 3 本・`pnpm test` | **未実行**(分類器にブロックされた。差分 0 件の層 — CI に任せる) |
+| docs | `check_docs_status` / `check_design_propagation` / `check_doc_coverage` / `check_authz_catalog` | **OK** |
+| docs | 変更 md の相対リンク | **欠落 0** |
+
+**`/check` 初回の mutation テスト 3 件の失敗は再現しなかった**(全件 2862 件が green)。
+**全件走行時の過渡的な失敗**であり、本改訂とは無関係だったことが確認できた。
