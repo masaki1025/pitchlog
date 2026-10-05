@@ -271,3 +271,12 @@ date: 2026-10-04
 **後続ステップへの注意(推論 — 実測はしていない)**:
 - `PRODUCT-CATALOG:EXTENSIONS` は DB 全体の拡張を見る。**ステップ 8・10 で試験クラスタに `pg_stat_statements` を作ると、製品カタログの検査が red になる**(10-1 節 ④〜⑥)。その時点で、拡張を製品資産に宣言しない別の DB に置くか、観測用の拡張を検査の外にする根拠を決める
 - 関数 ACL の引数の形はリポジトリの資産ファイルから読むので、試験の中で複製した資産に新しい引数の形を足しても `product_function_id` は受けない。ステップ 5 以降で認証関数(引数 `text` など)を足すときは、資産ファイルへの宣言と同じコミットで足す
+
+## 13. ステップ 5 — `rederive` と受理記録の雛形(2026-10-05)
+
+- **`rederive`**: `cd backend && uv run python -m pitchlog.authz.runtime_contract_generator rederive --base <rev>`(`runtime_contract_generator.py` の `rederive_repository`)。終了コード = 変更なし `0`・変更あり `3`・エラー `1`
+  - `--base` はコミット SHA に正規化し、**HEAD の祖先**かつ製品状態であることを要求する。`origin/develop` の先端との一致は要求しない(最終の一致は ステップ 13 の手動ゲート)
+  - 導出欄が比較元から動いたら `runtime_contract_revision` と `current_identifiers` を**比較元 + 1**、戻れば比較元の値。何度走らせても + 1 を超えない。書いた後に拘束を確かめ、違えば元へ戻して止まる
+  - **ステップ 6・7 で使う比較元 = `git merge-base HEAD origin/develop`**(取り込み後に develop が進むと `origin/develop` は HEAD の祖先でなくなり、`rederive` は止まる — 2026-10-05 に実測。#92 の docs だけが入った)
+- **受理記録の雛形**: `cd backend && uv run python -m pitchlog.authz.runtime_contract_acceptance --repository <複製> --base <S> --acceptance-id … --approved-by … --approved-on … --reason … --movement-fact … --output <リポジトリ外のパス>`(`runtime_contract_acceptance.py`)。出力 = 追記する v2 記録 1 件と、要る history snapshot(base64)。射影・`change.aspect` の導出・予約語の検査は `scripts/frozen_history.py` を再利用する(凍結資産の検査器は変えていない)。承認者・承認日の既定値は無く、ドライランでは `DRYRUN`・`1970-01-01` を明示する
+- ステップ 12・13 の手順(Codex の報告を要約): 12 = H の複製で雛形を出し、`baseline_control.history` へ追記・snapshot を配置して `git write-tree` で D を得る / 13 = `git fetch` の後に `HEAD == H`・`origin/develop == S`・同じ代替値での D の一致を確かめ、実際の承認者・承認日で書き、コミット後に代替値へ戻した tree SHA を D と再照合する

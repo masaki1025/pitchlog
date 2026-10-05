@@ -155,3 +155,9 @@ branch: feature/ua1-auth-db-layer
   - ハーネス: `ruff check .`・`ty check` green / `tests/test_check_authz_catalog.py`・`tests/test_check_authz_function_bodies.py` 167 passed / `check_authz_catalog`・`check_authz_function_bodies`・`check_failure_injection_points`・`check_shared_preconditions`・`check_tenant_boundary_bypass` rc=0
   - **迂回の走査**(受理記録の検査だけを差し替えた一時実行): `tenant-boundary bypass check: ok`(rc=0)
   - 新しいファイル `backend/src/pitchlog/authz/product_role_contract.py` は `backend/src/pitchlog/authz/*` に一致(design.md 11 節)
+
+## ステップ 5(2026-10-05)
+
+- Codex へ `--resume` で委任(中断なし)。`rederive` と受理記録の雛形 → design.md 13 節
+- `origin/develop` が取り込み後に進んでいた(#92 — 台帳の docs だけ)。β への影響なし。**取り込みは計画 R4 どおりステップ 13 の直前の 1 回にする**。中間の `rederive` の比較元は `git merge-base HEAD origin/develop`
+- 確認(Claude が実行): backend の `ruff`・`format --check`・`ty` green / ランタイム契約の試験 101 passed・4 skipped / 生成器 `check` rc=0 / **`rederive --base HEAD` rc=0(差分 0)** / ハーネス `ruff`・`ty` green・`tests/test_frozen_history.py`・`tests/test_frozen_archive.py` 133 passed / `check_tenant_boundary_bypass` ok / **迂回の走査(差し替え版)** ok / `contracts/**` の差分 0
