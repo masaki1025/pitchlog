@@ -55,6 +55,76 @@ def _document_by_key(
     return matches[0]
 
 
+def _row_bound_value_exceptions(
+    policy: dict[str, Any],
+    descriptor: dict[str, Any],
+    rows: list[dict[str, Any]],
+    values_by_axis: dict[str, list[Any]],
+) -> dict[str, list[Any]]:
+    """根拠付き宣言から、行に束縛しない軸値を検証して取得する。"""
+    if (
+        set(policy) != {"schemaVersion", "policyId", "rowBoundAxes"}
+        or type(policy.get("schemaVersion")) is not int
+        or policy["schemaVersion"] != 1
+        or not isinstance(policy.get("policyId"), str)
+        or not policy["policyId"]
+        or not isinstance(policy.get("rowBoundAxes"), list)
+        or not policy["rowBoundAxes"]
+    ):
+        raise CaseExpansionError("行束縛宣言の形式または版が不正")
+    descriptor_axes = {
+        axis["axisId"]: axis for axis in descriptor["stateTransitionAxes"]
+        if isinstance(axis, dict) and isinstance(axis.get("axisId"), str)
+    }
+    constrained_axes = set().union(
+        *(
+            representative_selection.predicate_axes(row["precondition"])
+            for row in rows
+            if isinstance(row, dict)
+        )
+    )
+    exceptions: dict[str, list[Any]] = {}
+    for entry in policy["rowBoundAxes"]:
+        if not isinstance(entry, dict) or set(entry) != {
+            "axisId", "sourceClauseIds", "unboundValues", "reason"
+        }:
+            raise CaseExpansionError("行束縛軸の宣言が不正")
+        axis_id = entry["axisId"]
+        clauses = entry["sourceClauseIds"]
+        unbound = entry["unboundValues"]
+        if (
+            not isinstance(axis_id, str)
+            or axis_id in exceptions
+            or axis_id not in constrained_axes
+            or axis_id not in values_by_axis
+            or not isinstance(clauses, list)
+            or not clauses
+            or not all(isinstance(clause, str) and clause for clause in clauses)
+            or len(clauses) != len(set(clauses))
+            or not isinstance(unbound, list)
+            or not isinstance(entry["reason"], str)
+            or not entry["reason"]
+        ):
+            raise CaseExpansionError("行束縛軸のID・根拠または例外が不正")
+        axis = descriptor_axes[axis_id]
+        sources = {axis.get("sourceClauseId"), *axis.get("supportingClauseIds", [])}
+        if not set(clauses) <= sources:
+            raise CaseExpansionError(f"行束縛軸の根拠がdescriptorと不一致: {axis_id}")
+        identities = [
+            json.dumps(value, sort_keys=True, ensure_ascii=False) for value in unbound
+        ]
+        if len(identities) != len(set(identities)) or any(
+            not any(
+                type(value) is type(candidate) and value == candidate
+                for candidate in values_by_axis[axis_id]
+            )
+            for value in unbound
+        ):
+            raise CaseExpansionError(f"行束縛軸の例外値が不正: {axis_id}")
+        exceptions[axis_id] = unbound
+    return exceptions
+
+
 def _expand_from_declared_inputs(
     root: Path, rule: dependency_checker.ExpanderRule, limit: int, mode: str
 ) -> list[dict[str, Any]]:
@@ -78,6 +148,7 @@ def _expand_from_declared_inputs(
     _, contract = _document_by_key(documents, "matrixRows")
     _, register = _document_by_key(documents, "branches")
     _, selection_policy = _document_by_key(documents, "predicateEvaluation")
+    _, row_binding_policy = _document_by_key(documents, "rowBoundAxes")
     representative_selection.validate_policy(selection_policy)
 
     binding = contract.get("inputAxesDescriptor")
@@ -181,6 +252,9 @@ def _expand_from_declared_inputs(
             }
         )
     if mode == "coverage":
+        row_bound_exceptions = _row_bound_value_exceptions(
+            row_binding_policy, descriptor, rows, values_by_axis
+        )
         coverage = descriptor.get("inputCoordinateCoverage")
         if not isinstance(coverage, dict) or not isinstance(coverage.get("axisBindings"), list):
             raise CaseExpansionError("入力座標被覆の宣言がない")
@@ -215,6 +289,17 @@ def _expand_from_declared_inputs(
                     continue
                 for offset in range(limit):
                     base = representatives[(next_row + offset) % limit]
+                    if (
+                        axis_id in row_bound_exceptions
+                        and not any(
+                            type(value) is type(item) and value == item
+                            for item in row_bound_exceptions[axis_id]
+                        )
+                        and axis_id not in representative_selection.predicate_axes(
+                            base["rowRef"]["coordinate"]["precondition"]
+                        )
+                    ):
+                        continue
                     coordinate = copy.deepcopy(base["inputCoordinate"])
                     coordinate[axis_id] = copy.deepcopy(value)
                     if representative_selection.predicate_holds(

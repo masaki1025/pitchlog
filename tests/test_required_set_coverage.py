@@ -1,4 +1,4 @@
-"""ステップ79〜81の行要求差分と入力座標被覆を検証する。"""
+"""ステップ79〜82の行要求差分と入力座標被覆を検証する。"""
 
 from __future__ import annotations
 
@@ -136,20 +136,17 @@ def test_step80_input_coverage_is_preserved() -> None:
 
 def test_step81_input_coverage_is_monotone_and_matches_expansion() -> None:
     """対象7行の代表値と被覆展開が②を8要求増やす。"""
-    count, digest, added = checker.check_input_coverage(ROOT)
     record = _asset("required_set_input_coverage_v1.json")
-    assert record["currentStep"] == 81
-    assert len(record["history"]) == 3
     assert record["history"][1]["after"] == record["history"][2]["before"]
-    assert (count, digest, added) == (
-        88,
-        record["history"][2]["after"]["digest"],
-        8,
-    )
+    before = {tuple(item) for item in record["history"][2]["before"]["coverageSet"]}
+    after = {tuple(item) for item in record["history"][2]["after"]["coverageSet"]}
+    assert len(after) == 88
+    assert record["history"][2]["after"]["digest"] == checker._digest(after)
+    assert len(after - before) == 8
     contract = _asset("state_transition_contract_v1.json")
     cases, trace = expander.expand_traced(ROOT, limit=26, mode="coverage")
     representatives, _ = expander.expand_traced(ROOT, limit=26)
-    assert contract["cases"] == cases
+    assert contract["cases"][:26] == representatives
     assert cases[:26] == representatives
     assert len(cases) == 70
     assert len(cases[26:]) == 44
@@ -166,8 +163,6 @@ def test_step81_input_coverage_is_monotone_and_matches_expansion() -> None:
     assert {
         case["rowRef"]["coordinate"]["resultId"] for case in cases[26:]
     } >= target_ids
-    before = {tuple(item) for item in record["history"][2]["before"]["coverageSet"]}
-    after = {tuple(item) for item in record["history"][2]["after"]["coverageSet"]}
     assert after - before == {
         ("event.perPitch.resultId", f'"{name}"')
         for name in ("併殺打", "ライナー併殺", "エラー", "野手選択", "犠打", "犠飛", "犠打失策")
@@ -176,6 +171,101 @@ def test_step81_input_coverage_is_monotone_and_matches_expansion() -> None:
     assert trace.observed_read_paths == policy.expanders[
         "state-transition-cases"
     ].allowed_read_paths
+
+
+def test_step82_secondary_results_and_input_coverage() -> None:
+    """打撃結果2の7行だけを展開し、妨害裁定を該当行で被覆する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    record = _asset("required_set_input_coverage_v1.json")
+    declaration = _asset("required_set_coverage_declaration_v1.json")
+    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    secondary_requirements = [
+        item
+        for item in checker.deriver.derive_repository_row_requirements(ROOT)[0]
+        if item.result_id.startswith("secondary-result.")
+    ]
+    secondary_missing = [
+        item
+        for item in declaration["uncoveredRowRequirements"]
+        if item["vocabularyId"].startswith("secondary-result.")
+    ]
+    assert len(secondary_requirements) == 11
+    assert len(secondary_missing) == 4
+    assert {item["gapId"] for item in secondary_missing} == {"GAP-07"}
+
+    count, digest, added = checker.check_input_coverage(ROOT)
+    assert record["currentStep"] == 82
+    assert len(record["history"]) == 4
+    assert record["history"][2]["after"] == record["history"][3]["before"]
+    assert (count, digest, added) == (
+        100,
+        record["history"][3]["after"]["digest"],
+        12,
+    )
+    before = {tuple(item) for item in record["history"][3]["before"]["coverageSet"]}
+    after = {tuple(item) for item in record["history"][3]["after"]["coverageSet"]}
+    assert after - before == {
+        ("event.perPitch.kind", '"secondary-result"'),
+        *( ("event.perPitch.resultId", f'"{name}"') for name in (
+            "PB", "WP", "守備妨害", "打撃妨害", "走塁妨害", "ボーク", "ピッチクロック違反"
+        )),
+        *( ("event.perPitch.interferenceRuling", f'"{value}"') for value in (
+            "not-required",
+            "batting:penalty-award",
+            "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+            "offensive-interference:batter-included-with-out-targets-and-return-bases",
+        )),
+    }
+
+    cases, trace = expander.expand_traced(ROOT, limit=33, mode="coverage")
+    representatives, _ = expander.expand_traced(ROOT, limit=33)
+    assert contract["cases"] == cases
+    assert cases[:33] == representatives
+    assert len(cases) == 78
+    assert len(cases[33:]) == 45
+    secondary = contract["matrixRows"][26:33]
+    assert len(secondary) == 7
+    assert {case["rowRef"]["coordinate"]["resultId"] for case in cases[26:33]} == {
+        row["resultId"] for row in secondary
+    }
+    for case in cases:
+        ruling = case["inputCoordinate"].get("event.perPitch.interferenceRuling")
+        if ruling is not None and ruling != "not-required":
+            predicate_axes = expander.representative_selection.predicate_axes(
+                case["rowRef"]["coordinate"]["precondition"]
+            )
+            assert "event.perPitch.interferenceRuling" in predicate_axes
+    policy = expander.dependency_checker.load_policy(ROOT)
+    assert trace.observed_read_paths == policy.expanders[
+        "state-transition-cases"
+    ].allowed_read_paths
+
+
+def test_row_binding_declaration_controls_coverage_and_checks_sources(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """行束縛の例外を資産から読み、根拠IDの不整合を拒否する。"""
+    original = expander._read_document
+    replacement: dict[str, Any] = {}
+
+    def changed_document(root: Path, relative: Any) -> dict[str, Any]:
+        document = original(root, relative)
+        if "rowBoundAxes" in document:
+            document = copy.deepcopy(document)
+            document["rowBoundAxes"][0].update(replacement)
+        return document
+
+    monkeypatch.setattr(expander, "_read_document", changed_document)
+    replacement = {"unboundValues": []}
+    cases, _ = expander.expand_traced(ROOT, limit=33, mode="coverage")
+    assert len(cases) == 77
+    assert not any(
+        case["inputCoordinate"].get("event.perPitch.interferenceRuling") == "not-required"
+        for case in cases
+    )
+    replacement = {"sourceClauseIds": ["req:unknown"]}
+    with pytest.raises(expander.CaseExpansionError, match="根拠がdescriptorと不一致"):
+        expander.expand_traced(ROOT, limit=33, mode="coverage")
 
 
 def test_input_coverage_rejects_regression_and_digest_change() -> None:
