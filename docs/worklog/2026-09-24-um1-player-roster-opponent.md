@@ -151,3 +151,9 @@ branch: feature/um1-player-roster-opponent
 - `check_frozen_baselines.py --invariants-only`: `history.oracle_input.new_identity が戦略の導出値と不一致`
 - `tests/test_check_authz_catalog.py`: 37 失敗 = ステップ 2 の 31(A 2 件 + B 29 件)+ 新規 6 件 — `test_boundary_owner_population_and_final_values_are_closed` / `test_owner_mutations_pass_when_the_owner_check_is_removed` / `test_boundary_and_review_ids_reject_duplicate_rows_before_folding` / `test_s5_mutations_pass_when_the_decision_check_is_removed` / `test_g_duplicates_pass_when_the_new_multiplicity_checks_are_removed`(boundary-proposal の不一致)・`test_normal_validation_never_reseals_a_semantically_valid_drift`(HEAD の oracle 入力が未封印)
 - **N3 の決定(2026-10-05・山田正輝)**: draft PR を先に作って番号を確定する(#77・#87 の前例どおり)
+
+## 2026-10-05 ステップ 4(凍結基準の記録と oracle の再封印)
+
+- `frozen-baselines.json` の `history` へ 1 件: `acceptance_id: masaki1025/pitchlog#95` / series `oracle_input` / `70621e33…` → `98ad97de…` / `changes: []` / `placement_change` 前後同値 / `moved: false` / `approved_by: 山田正輝` / `approved_at: 2026-10-05`(承認値は 2026-10-05 に人間へ提示し了承)
+- `--reseal-oracle` で再封印。`check_authz_catalog.py` ok / `check_frozen_baselines.py --invariants-only` OK / `check_failure_injection_points.py` OK / `check_mcdc_map.py` OK / `tests/test_frozen_baseline_*.py` 6 passed / `tests/frozen_negatives/` green
+- ステップ 2・3 の期待失敗のうち oracle 系 8 件は解消(うち `test_normal_validation_never_reseals_a_semantically_valid_drift` はコミット後の再実行で確認)。残るのは履歴位相の 29 件(B)のみ
