@@ -1,4 +1,4 @@
-"""ステップ79〜86の行要求差分と入力座標被覆を検証する。"""
+"""ステップ79〜87の行要求差分と入力座標被覆を検証する。"""
 
 from __future__ import annotations
 
@@ -470,7 +470,7 @@ def test_step86_game_end_declaration_cases_and_input_coverage() -> None:
     representatives, _ = expander.expand_traced(
         ROOT, limit=42, operation_limit=4
     )
-    assert contract["cases"] == cases
+    assert contract["cases"][:len(cases)] == cases
     assert len(cases) == 93
     assert len(previous_cases) == 91
     assert cases[:91] == previous_cases
@@ -493,8 +493,7 @@ def test_step86_game_end_declaration_cases_and_input_coverage() -> None:
         }
         assert case["expected"]["clauseId"] == "FR-010"
 
-    assert record["currentStep"] == 86
-    assert [entry["step"] for entry in record["history"]] == list(range(79, 87))
+    assert [entry["step"] for entry in record["history"][:8]] == list(range(79, 87))
     previous = record["history"][6]["after"]
     current = record["history"][7]
     assert current["before"] == previous
@@ -508,7 +507,82 @@ def test_step86_game_end_declaration_cases_and_input_coverage() -> None:
     assert len(after) == current["after"]["count"] == 108
     assert current["after"]["digest"] == checker._digest(after)
     assert after == _observed_coverage(cases, contract)
-    assert checker.check_input_coverage(ROOT) == (108, current["after"]["digest"], 2)
+    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    policy = expander.dependency_checker.load_policy(ROOT)
+    assert trace.observed_read_paths == policy.expanders[
+        "state-transition-cases"
+    ].allowed_read_paths
+
+
+def test_step87_adhoc_registration_cases_and_input_coverage() -> None:
+    """FR-015の2行を展開し、②の増分2件と過去の被覆を照合する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    record = _asset("required_set_input_coverage_v1.json")
+    target_rows = [
+        row for row in contract["operationRows"]
+        if row["operationKind"] == "adhoc-registration"
+    ]
+    assert len(contract["operationRows"]) == 6
+    assert len(target_rows) == 2
+    assert all(row["clauseId"] == "FR-015" and "FR-015" in row["remarks"]
+               for row in target_rows)
+
+    cases, trace = expander.expand_traced(
+        ROOT, limit=42, mode="coverage", operation_limit=6
+    )
+    previous_cases, _ = expander.expand_traced(
+        ROOT, limit=42, mode="coverage", operation_limit=4
+    )
+    representatives, _ = expander.expand_traced(
+        ROOT, limit=42, operation_limit=6
+    )
+    assert contract["cases"] == cases
+    assert len(cases) == 95
+    assert cases[:93] == previous_cases
+    assert len(representatives) == 48
+    assert len([case for case in cases if case["rowRef"]["layer"] == "matrixRows"]) == 89
+    operation_cases = cases[-2:]
+    assert operation_cases == representatives[-2:]
+    assert [case["expected"]["operationResult"] for case in operation_cases] == [
+        "applied", "rejected-precondition"
+    ]
+    assert [case["inputCoordinate"]["state.gameEnded"] for case in operation_cases] == [
+        False, True
+    ]
+    for case in operation_cases:
+        assert case["rowRef"]["coordinate"]["operationKind"] == "adhoc-registration"
+        assert case["inputCoordinate"]["operationKind"] == "adhoc-registration"
+        assert case["inputCoordinate"]["event.operationPayload"] == "adhoc-registration"
+        assert case["expected"]["clauseId"] == "FR-015"
+        payload = case["rowRef"]["coordinate"]["payloadShape"]
+        assert payload == {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "throws": {"type": "string", "enum": ["right", "left"]},
+                "bats": {"type": "string", "enum": ["right", "left", "both"]},
+                "uniformNumber": {"type": "string"},
+                "temporaryPlayerId": {"type": "string"},
+            },
+            "required": ["name", "throws", "bats"],
+            "additionalProperties": False,
+        }
+
+    assert record["currentStep"] == 87
+    assert [entry["step"] for entry in record["history"]] == list(range(79, 88))
+    current = record["history"][-1]
+    assert current["before"] == record["history"][-2]["after"]
+    before = {tuple(item) for item in current["before"]["coverageSet"]}
+    after = {tuple(item) for item in current["after"]["coverageSet"]}
+    assert after - before == {
+        ("event.operationKind", '"adhoc-registration"'),
+        ("event.operationPayload", '"adhoc-registration"'),
+    }
+    assert not before - after
+    assert len(after) == current["after"]["count"] == 110
+    assert current["after"]["digest"] == checker._digest(after)
+    assert after == _observed_coverage(cases, contract)
+    assert checker.check_input_coverage(ROOT) == (110, current["after"]["digest"], 2)
     assert checker.check_row_requirements(ROOT) == (47, 42, 0)
     policy = expander.dependency_checker.load_policy(ROOT)
     assert trace.observed_read_paths == policy.expanders[
