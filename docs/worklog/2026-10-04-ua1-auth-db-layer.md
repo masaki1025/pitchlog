@@ -161,3 +161,18 @@ branch: feature/ua1-auth-db-layer
 - Codex へ `--resume` で委任(中断なし)。`rederive` と受理記録の雛形 → design.md 13 節
 - `origin/develop` が取り込み後に進んでいた(#92 — 台帳の docs だけ)。β への影響なし。**取り込みは計画 R4 どおりステップ 13 の直前の 1 回にする**。中間の `rederive` の比較元は `git merge-base HEAD origin/develop`
 - 確認(Claude が実行): backend の `ruff`・`format --check`・`ty` green / ランタイム契約の試験 101 passed・4 skipped / 生成器 `check` rc=0 / **`rederive --base HEAD` rc=0(差分 0)** / ハーネス `ruff`・`ty` green・`tests/test_frozen_history.py`・`tests/test_frozen_archive.py` 133 passed / `check_tenant_boundary_bypass` ok / **迂回の走査(差し替え版)** ok / `contracts/**` の差分 0
+
+## ステップ 5 の是正(2026-10-05)
+
+- 迂回の走査(差し替え版)が `runtime_contract_acceptance.py` の `importlib.import_module` を TB005 で検出。**ステップ 5 の確認時はファイルが未追跡で走査の対象外だった**(走査はリポジトリの追跡ファイルを見る)→ 静的 import に直し、`337bceaa`(ステップ 5/13 是正)。**以後、新しいファイルは `git add -N` で追跡に入れてから走査する**
+
+## ステップ 6(2026-10-05)
+
+- Codex へ `--resume` で委任(中断なし)+ 差し戻し 1 回(schema manifest の生成列の列定義)。決定は design.md 14 節
+- Claude の分: data-model.md 3-4 節の 2 行を主表へ移した(「実装」列を外し、他の 4 列は不変)・8-1 節に上限 64 文字と空白 25 文字を書いた / digest 2 か所(`shared-preconditions.json` blob `f93b06e5` → `90659ae9`・`schema-manifest.json` SHA-256 `6f5b6d59…` → `7a75921e…`)/ 比較 corpus の digest の再 pin(`2f649f73…` → `e4d59d79…`)
+- **受入突合シート**: `--carry-judgments-from HEAD` で再生成 → 行数は不変、**判定が空になった 11 行**(N3 10 行 = 正本の書き足し・tenants の更新可能列の `retired_at`・表の移動による 027/028 の入れ替え / N7 1 行 = 054)。**旧判定の引き継ぎ(N3 = 対象外 10 行・N7 = 一致 1 行。027 と 054 の理由は実装に合わせて更新)を人間が承認(2026-10-05・山田正輝「承認する」)**
+- 確認(Claude が実行):
+  - backend: `ruff`・`format --check`・`ty` green / 非 DB 試験 413 passed・4 skipped(是正後に `test_schema_manifest.py`・ランタイム契約の試験 115 件を再実行し green)/ 生成器 `check` rc=0 / `rederive --base $(merge-base)` rc=0(収束済み — revision 8 → 9)
+  - DB 試験: 131 passed(migration・往復・スキーマ監査・製品 authz・移行バッチ用ロール・正規化関数ほか 14 ファイル)/ 是正後に `test_schema_audit.py`・`test_alembic_migrations.py`・`test_product_authz_normalize_function.py` を再実行し 32 passed
+  - ハーネス: `ruff`・`ty` green / `test_check_authz_catalog.py`・`test_check_authz_function_bodies.py`・`test_orm_acceptance_sheets.py`・`test_frozen_archive.py` 216 passed / `test_frozen_history.py` 含む凍結資産 133 passed / 検査器 5 本 rc=0(`check_authz_catalog`・`check_authz_function_bodies`・`check_failure_injection_points`・`check_shared_preconditions`・`check_docs_status`)
+  - **迂回の走査**(差し替え版・新しいファイルを追跡に入れて): `ok` / 元の検査は受理記録の検査の 1 件だけ(「履歴末尾と 7 資産の識別値が不一致」— design.md 14 節)

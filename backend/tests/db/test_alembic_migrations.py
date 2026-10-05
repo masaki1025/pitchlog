@@ -1128,7 +1128,6 @@ def test_schema_revision_and_application_engine_use_the_database(
         command.upgrade(config, "head")
         command.current(config, check_heads=True)
         command.check(config)
-
         application_password = secrets.token_urlsafe(24)
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
             with admin.cursor() as cursor:
@@ -4717,6 +4716,8 @@ def test_authentication_tables_guards_and_migration_round_trip(
 
                 tenant_id = uuid4()
                 other_tenant_id = uuid4()
+                generation_probe_tenant_id = uuid4()
+                delete_probe_tenant_id = uuid4()
                 auth_subject_id = uuid4()
                 other_auth_subject_id = uuid4()
                 generation_probe_subject_id = uuid4()
@@ -4733,6 +4734,8 @@ def test_authentication_tables_guards_and_migration_round_trip(
                     [
                         (tenant_id, "認証テストテナント"),
                         (other_tenant_id, "別認証テストテナント"),
+                        (generation_probe_tenant_id, "世代検査テナント"),
+                        (delete_probe_tenant_id, "削除検査テナント"),
                     ],
                 )
                 cursor.executemany(
@@ -4742,9 +4745,9 @@ def test_authentication_tables_guards_and_migration_round_trip(
                     """,
                     [
                         (auth_subject_id, tenant_id),
-                        (other_auth_subject_id, tenant_id),
-                        (generation_probe_subject_id, tenant_id),
-                        (delete_probe_subject_id, tenant_id),
+                        (other_auth_subject_id, other_tenant_id),
+                        (generation_probe_subject_id, generation_probe_tenant_id),
+                        (delete_probe_subject_id, delete_probe_tenant_id),
                     ],
                 )
                 cursor.execute(
@@ -8129,3 +8132,146 @@ def test_operation_event_expanded_guard_and_migration_round_trip(
             )
         command.current(config, check_heads=True)
         command.check(config)
+
+
+@pytest.mark.parametrize(
+    "case",
+    (
+        "normalized_duplicate",
+        "name_too_long",
+        "duplicate_subject",
+        "token_tenant_mismatch",
+    ),
+)
+def test_0027_preflight_rejects_existing_inconsistency_without_changing_rows(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
+    """0027 の 4 事前検査が既存行を変更せずに中断する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
+        )
+        config = _alembic_config()
+        command.upgrade(config, "0026_operation_event_c12")
+        tenant_a, tenant_b = uuid4(), uuid4()
+        subject_a, subject_b = uuid4(), uuid4()
+        token_id = uuid4()
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                    (tenant_a, "Ａ" if case == "normalized_duplicate" else "Alpha"),
+                )
+                if case in {"normalized_duplicate", "token_tenant_mismatch"}:
+                    cursor.execute(
+                        "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                        (tenant_b, "a" if case == "normalized_duplicate" else "Beta"),
+                    )
+                if case == "name_too_long":
+                    cursor.execute(
+                        "UPDATE tenants SET name = %s WHERE id = %s",
+                        ("x" * 65, tenant_a),
+                    )
+                if case in {"duplicate_subject", "token_tenant_mismatch"}:
+                    cursor.execute(
+                        "INSERT INTO tenant_auth_subjects (id, tenant_id) "
+                        "VALUES (%s, %s)",
+                        (subject_a, tenant_a),
+                    )
+                if case == "duplicate_subject":
+                    cursor.execute(
+                        "INSERT INTO tenant_auth_subjects (id, tenant_id) "
+                        "VALUES (%s, %s)",
+                        (subject_b, tenant_a),
+                    )
+                if case == "token_tenant_mismatch":
+                    instant = datetime(2026, 9, 1, tzinfo=UTC)
+                    cursor.execute(
+                        """INSERT INTO tenant_tokens
+                           (id, tenant_id, auth_subject_id, credential_generation,
+                            expires_at, last_used_at)
+                           VALUES (%s, %s, %s, 1, %s, %s)""",
+                        (token_id, tenant_b, subject_a, instant, instant),
+                    )
+                cursor.execute("SELECT id, name FROM tenants ORDER BY id")
+                tenants_before = cursor.fetchall()
+                cursor.execute(
+                    "SELECT id, tenant_id FROM tenant_auth_subjects ORDER BY id"
+                )
+                subjects_before = cursor.fetchall()
+                cursor.execute(
+                    "SELECT id, tenant_id, auth_subject_id "
+                    "FROM tenant_tokens ORDER BY id"
+                )
+                tokens_before = cursor.fetchall()
+
+        with pytest.raises(RuntimeError, match="0027 の事前検査に失敗"):
+            command.upgrade(config, "0027_tenant_login_identity")
+
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT id, name FROM tenants ORDER BY id")
+                assert cursor.fetchall() == tenants_before
+                cursor.execute(
+                    "SELECT id, tenant_id FROM tenant_auth_subjects ORDER BY id"
+                )
+                assert cursor.fetchall() == subjects_before
+                cursor.execute(
+                    "SELECT id, tenant_id, auth_subject_id "
+                    "FROM tenant_tokens ORDER BY id"
+                )
+                assert cursor.fetchall() == tokens_before
+                cursor.execute("SELECT version_num FROM alembic_version")
+                assert cursor.fetchone() == ("0026_operation_event_c12",)
+
+
+def test_0027_generated_name_normalization_and_limits(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """生成列が安全な search_path の関数を呼び、境界と長さを守る。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
+        )
+        config = _alembic_config()
+        command.upgrade(config, "head")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                for raw, expected in (
+                    ("\t\n\u0085\u3000ＡＢＣ\u3000\u0085\n", "abc"),
+                    ("  Ａ\u3000Ｂ  ", "a b"),
+                    ("\u00a0Ⅻ\u202f", "xii"),
+                ):
+                    cursor.execute(
+                        "SELECT public.authn_normalize_team_name(%s)", (raw,)
+                    )
+                    assert cursor.fetchone() == (expected,)
+                tenant_id = uuid4()
+                cursor.execute(
+                    "INSERT INTO tenants (id, name) VALUES (%s, %s) "
+                    "RETURNING name_normalized",
+                    (tenant_id, "\tＡＢＣ\u3000"),
+                )
+                assert cursor.fetchone() == ("abc",)
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    cursor.execute(
+                        "INSERT INTO tenants (id, name) VALUES (%s, %s)",
+                        (uuid4(), "x" * 65),
+                    )
+        command.check(config)
+
+        command.downgrade(config, "base")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT pg_catalog.to_regprocedure("
+                    "'public.authn_normalize_team_name(text)')"
+                )
+                assert cursor.fetchone() == (None,)

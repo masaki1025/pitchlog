@@ -296,6 +296,35 @@ def _copy_product_catalog_repository(tmp_path: Path) -> Path:
 def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
     """製品状態からでも正しい未発効状態の検査用複製を組み立てる。"""
     root = _copy_product_catalog_repository(tmp_path)
+    (root / checker.PRODUCT_MIGRATION_VERSIONS / "0027_tenant_login_identity.py").unlink()
+    steps_path = root / checker.PRODUCT_SPEC.application_steps_path
+    steps = _read_json_at(root, checker.PRODUCT_SPEC.application_steps_path)
+    steps["application_steps"][-1]["element_groups"].remove(
+        "functions:migration_function"
+    )
+    _write_json_at(root, checker.PRODUCT_SPEC.application_steps_path, steps)
+    body_manifest_path = checker.PRODUCT_SPEC.asset_root / "function-bodies/manifest.json"
+    body_manifest = _read_json_at(root, body_manifest_path)
+    body_manifest["entries"] = [
+        entry for entry in body_manifest["entries"]
+        if entry["element_id"] != "FUNCTION:public:authn_normalize_team_name(text)"
+    ]
+    _write_json_at(root, body_manifest_path, body_manifest)
+    (root / checker.PRODUCT_SPEC.asset_root / "function-bodies/functions/"
+     "FUNCTION:public:authn_normalize_team_name(text).sql").unlink()
+    map_path = checker.PRODUCT_SPEC.asset_root / "probe-product-map.json"
+    mapping = _read_json_at(root, map_path)
+    mapping["product_only"] = [
+        entry for entry in mapping["product_only"]
+        if entry["product"] != "function:FUNCTION:public:authn_normalize_team_name(text)"
+    ]
+    _write_json_at(root, map_path, mapping)
+    failure_path = checker.PRODUCT_SPEC.asset_root / "failure-injection-points.json"
+    failure_asset = _read_json_at(root, failure_path)
+    failure_asset["source_asset"]["git_blob_digest"] = checker.git_blob_digest(
+        steps_path.read_bytes()
+    )
+    _write_json_at(root, failure_path, failure_asset)
     (root / checker.PRODUCT_ASSET).unlink()
     _write_json_at(
         root,

@@ -74,7 +74,7 @@ def test_probe_product_map_is_bidirectionally_exact() -> None:
     summary = validate_probe_product_map(mapping, probe, product)
 
     assert len(summary.probe_atoms) == 48
-    assert len(summary.product_atoms) == 195
+    assert len(summary.product_atoms) == 196
     assert summary.probe_atoms == (
         summary.mapped_probe_atoms | summary.explicit_non_mapping
     )

@@ -207,6 +207,7 @@
     {"product": "acl_privilege:ACL:system_vocabularies:pitchlog_app:SELECT", "reason": "product_only"},
     {"product": "acl_privilege:ACL:tenants:pitchlog_app:SELECT", "reason": "product_only"},
     {"product": "function:FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)", "reason": "product_only"},
+    {"product": "function:FUNCTION:public:authn_normalize_team_name(text)", "reason": "product_only"},
     {"product": "function:FUNCTION:public:prevent_admin_credentials_id_update()", "reason": "product_only"},
     {"product": "function:FUNCTION:public:prevent_admin_operation_logs_mutation()", "reason": "product_only"},
     {"product": "function:FUNCTION:public:prevent_admin_sessions_identity_update()", "reason": "product_only"},

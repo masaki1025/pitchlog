@@ -765,8 +765,8 @@ def test_generated_unapply_statements_use_structured_quoted_identifiers() -> Non
             assert f'"{element.element_id}"' in database_statements[0]
 
 
-def test_unapply_preserves_migration_regular_function_without_public_grant() -> None:
-    """通常関数は migration 所有物として残し PUBLIC EXECUTE も復帰しない。"""
+def test_unapply_restores_migration_regular_function_initial_acl() -> None:
+    """通常関数は残し、直接付与を外して migration 直後の PUBLIC を戻す。"""
     element = product_provisioning._ProductElement(
         element_type="function",
         element_id="FUNCTION:public:step4_ordinary()",
@@ -783,10 +783,16 @@ def test_unapply_preserves_migration_regular_function_without_public_grant() -> 
         source_path=PurePosixPath("test.sql"),
         sql="REVOKE EXECUTE ON FUNCTION public.step4_ordinary() FROM PUBLIC;",
     )
-    assert (
-        product_provisioning._unapplication_sql(statement, element, (element,), ())
-        is None
+    sql_text = product_provisioning._unapplication_sql(
+        statement, element, (element,), ()
     )
+    assert sql_text is not None
+    assert "pg_catalog.aclexplode(procedure.proacl)" in sql_text
+    assert "FROM %I CASCADE" in sql_text
+    assert (
+        'GRANT EXECUTE ON FUNCTION "public"."step4_ordinary"() TO PUBLIC;' in sql_text
+    )
+    assert "DROP FUNCTION" not in sql_text
 
 
 def test_definer_unapplication_never_restores_public_execute() -> None:
@@ -855,7 +861,9 @@ def test_public_apply_executes_the_canonical_generated_plan() -> None:
 
     apply_product_authz_ddl(_as_psycopg_connection(connection))
 
-    assert len(connection.executed_statements) == 158
+    assert len(connection.executed_statements) == len(
+        product_provisioning._build_operation_statements(ProductOperation.APPLY)[1]
+    )
     decoded = tuple(
         statement.decode("utf-8")
         for statement in connection.executed_statements

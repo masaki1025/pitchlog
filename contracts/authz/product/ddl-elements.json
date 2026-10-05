@@ -960,6 +960,19 @@
   ],
   "functions": [
     {
+      "function_id": "FUNCTION:public:authn_normalize_team_name(text)",
+      "schema_name": "public",
+      "function_name": "authn_normalize_team_name",
+      "identity_args": "text",
+      "function_kind": "migration_function",
+      "owner_role_id": "pitchlog_owner",
+      "acl_expectations": [],
+      "revoked_acl_expectations": [
+        {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": false},
+        {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": false}
+      ]
+    },
+    {
       "function_id": "FUNCTION:public:prevent_admin_credentials_id_update()",
       "schema_name": "public",
       "function_name": "prevent_admin_credentials_id_update",

@@ -75,7 +75,8 @@
       "sequence": 7,
       "operation_kind": "product_apply_trigger_function_acls",
       "element_groups": [
-        "functions:migration_trigger"
+        "functions:migration_trigger",
+        "functions:migration_function"
       ]
     }
   ],

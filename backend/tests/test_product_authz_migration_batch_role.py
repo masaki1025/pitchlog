@@ -65,7 +65,7 @@ def _assert_mutated_asset_is_red_through_public_inspection(
 
 
 def test_migration_batch_role_asset_matches_manifest_derived_exact_sets() -> None:
-    """19 表と 50 権限を分類資産でなく manifest から導く。"""
+    """19 表と追加された退役更新権限を manifest から導く。"""
     asset, manifest = _documents()
     expectations = product_catalog._migration_batch_expectations_from_documents(
         asset,
@@ -73,7 +73,7 @@ def test_migration_batch_role_asset_matches_manifest_derived_exact_sets() -> Non
     )
 
     assert len(expectations.write_targets) == 19
-    assert len(expectations.permissions) == 50
+    assert len(expectations.permissions) == 51
     assert {
         table
         for schema, table, column, privilege, grantable in expectations.permissions
@@ -97,7 +97,9 @@ def test_migration_batch_role_asset_matches_manifest_derived_exact_sets() -> Non
     }
     assert expectations.schema_acl == (("public", "USAGE", False),)
     assert expectations.database_acl == (("CONNECT", False),)
-    assert expectations.function_execute == ()
+    assert expectations.function_execute == (
+        ("public", "authn_normalize_team_name", "text"),
+    )
 
 
 def test_declared_function_execute_is_exact_and_has_a_closed_shape() -> None:
@@ -191,7 +193,7 @@ def test_function_execute_request_covers_every_declared_product_schema(
         query.MIGRATION_BATCH_TABLE_ACL: list(expected.permissions),
         query.MIGRATION_BATCH_SCHEMA_ACL: list(expected.schema_acl),
         query.MIGRATION_BATCH_DATABASE_ACL: list(expected.database_acl),
-        query.MIGRATION_BATCH_FUNCTION_EXECUTE: [],
+        query.MIGRATION_BATCH_FUNCTION_EXECUTE: list(expected.function_execute),
     }
     queried_schemas: list[str] = []
 
@@ -300,7 +302,9 @@ def test_active_role_public_inspection_is_green_for_exact_rows(
         product_catalog.CatalogQueryId.MIGRATION_BATCH_DATABASE_ACL: [
             tuple(entry) for entry in expectations.database_acl
         ],
-        product_catalog.CatalogQueryId.MIGRATION_BATCH_FUNCTION_EXECUTE: [],
+        product_catalog.CatalogQueryId.MIGRATION_BATCH_FUNCTION_EXECUTE: [
+            tuple(entry) for entry in expectations.function_execute
+        ],
     }
     calls: list[product_catalog.CatalogQueryId] = []
 

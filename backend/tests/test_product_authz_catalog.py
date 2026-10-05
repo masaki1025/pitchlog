@@ -516,7 +516,9 @@ def test_migration_regular_function_is_not_a_trigger(
     """通常関数は関数 ACL に含め、トリガ関数の集合から除く。"""
     asset = copy.deepcopy(product_catalog._load_product_asset())
     rows = cast(list[dict[str, Any]], asset["functions"])
-    ordinary = copy.deepcopy(rows[0])
+    ordinary = copy.deepcopy(
+        next(row for row in rows if row["function_kind"] == "migration_trigger")
+    )
     ordinary.update(
         function_id="FUNCTION:public:step4_ordinary()",
         function_name="step4_ordinary",
@@ -529,9 +531,9 @@ def test_migration_regular_function_is_not_a_trigger(
             encoding="utf-8"
         )
     )
-    steps_asset["application_steps"][-1]["element_groups"].append(
-        "functions:migration_function"
-    )
+    groups = steps_asset["application_steps"][-1]["element_groups"]
+    if "functions:migration_function" not in groups:
+        groups.append("functions:migration_function")
     steps = validate_product_application_steps(steps_asset, asset, PRODUCT_SPEC)
     monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
     monkeypatch.setattr(

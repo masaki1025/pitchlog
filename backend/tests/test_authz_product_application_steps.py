@@ -134,7 +134,8 @@ def test_migration_regular_function_uses_final_function_step(
     functions.append(ordinary)
     groups = _application_steps(steps_asset)[-1]["element_groups"]
     assert isinstance(groups, list)
-    groups.append("functions:migration_function")
+    if "functions:migration_function" not in groups:
+        groups.append("functions:migration_function")
     validated = validate_product_application_steps(steps_asset, elements, PRODUCT_SPEC)
     assert validated.application_steps[-1].element_groups[-1] == (
         "functions:migration_function"

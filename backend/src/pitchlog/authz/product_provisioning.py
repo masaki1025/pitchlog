@@ -383,7 +383,30 @@ GRANT USAGE ON SCHEMA {quoted_schema} TO PUBLIC;
         if function_kind in {"rls_helper", "definer"}:
             return f"DROP FUNCTION IF EXISTS {identity};"
         if function_kind == "migration_function":
-            return None
+            # migration は関数を PUBLIC 実行可で作る。適用中に与えた直接 grant
+            # を外してから PUBLIC を戻し、移行ロールの DROP ROLE 依存も残さない。
+            revoke = f"REVOKE EXECUTE ON FUNCTION {identity} FROM %I CASCADE"
+            revoke_literal = revoke.replace("'", "''")
+            return f"""
+DO $authz$
+DECLARE
+    grantee_name TEXT;
+BEGIN
+    FOR grantee_name IN
+        SELECT role.rolname
+        FROM pg_catalog.pg_proc AS procedure
+        CROSS JOIN LATERAL pg_catalog.aclexplode(procedure.proacl) AS acl
+        JOIN pg_catalog.pg_roles AS role ON role.oid = acl.grantee
+        WHERE procedure.oid = pg_catalog.to_regprocedure('{identity}')
+          AND acl.privilege_type = 'EXECUTE'
+          AND acl.grantee <> procedure.proowner
+    LOOP
+        EXECUTE pg_catalog.format('{revoke_literal}', grantee_name);
+    END LOOP;
+END;
+$authz$;
+GRANT EXECUTE ON FUNCTION {identity} TO PUBLIC;
+"""
         if function_kind == "migration_trigger":
             return f"GRANT EXECUTE ON FUNCTION {identity} TO PUBLIC;"
         raise ProductProvisioningError(f"未知の製品関数種別: {function_kind}")

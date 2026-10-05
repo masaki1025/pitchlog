@@ -272,7 +272,10 @@ def test_migration_function_acls_and_runtime_contract_match_exactly() -> None:
     asset = _product_asset()
     _validate_product_asset(asset)
 
-    migration_origins = _catalog_checker._product_migration_functions(_REPOSITORY_ROOT)
+    migration_kinds: dict[tuple[str, str, str], str] = {}
+    migration_origins = _catalog_checker._product_migration_functions(
+        _REPOSITORY_ROOT, kinds=migration_kinds
+    )
     migration_functions = set(migration_origins)
     protected_functions = {
         (str(schema), str(name), str(identity_args))
@@ -316,6 +319,8 @@ def test_migration_function_acls_and_runtime_contract_match_exactly() -> None:
     expected_ids = {
         product_function_id(schema_name, function_name, identity_args)
         for schema_name, function_name, identity_args in migration_functions
+        if migration_kinds[(schema_name, function_name, identity_args)]
+        == "migration_trigger"
     }
     assert set(functions) == expected_ids
     for function_id, row in functions.items():

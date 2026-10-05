@@ -730,6 +730,11 @@
         "element_id": "FUNCTION:public:prevent_tenant_vocabularies_identity_update()"
       },
       {
+        "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:authn_normalize_team_name(text).sql",
+        "element_type": "function",
+        "element_id": "FUNCTION:public:authn_normalize_team_name(text)"
+      },
+      {
         "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:protect_recording_generations_updates().sql",
         "element_type": "function",
         "element_id": "FUNCTION:public:protect_recording_generations_updates()"
