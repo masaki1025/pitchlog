@@ -39,19 +39,8 @@ AUTHN_COLUMN_GRANTS = {
 }
 
 
-def authn_stage(asset: dict[str, Any]) -> bool:
-    """ロール宣言に依存せず認証資産の段階を判定する。"""
-    return any(
-        isinstance(row, dict) and row.get("schema_name") in AUTHN_SCHEMA_USERS
-        for section in ("schemas", "functions")
-        for row in asset.get(section, [])
-    )
-
-
 def validate_authn_asset(asset: dict[str, Any]) -> None:
     """認証の関数群・付与先・スキーマ・拡張を独立集合へ照合する。"""
-    if not authn_stage(asset):
-        return
     functions = {
         (row.get("function_name"), row.get("identity_args")): row
         for row in asset["functions"]

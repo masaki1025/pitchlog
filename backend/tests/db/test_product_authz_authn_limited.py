@@ -59,7 +59,7 @@ _FUNCTION_ONLY_COLUMNS = {
 }
 _ADMIN_SETTINGS = {
     "auth.admin_login.max_failures": 2,
-    "auth.admin_login.window_seconds": 4_000_000_000,
+    "auth.admin_login.window_seconds": 2_000_000_000,
     "auth.admin_login.lock_seconds": 60,
 }
 
@@ -431,6 +431,46 @@ def test_admin_counter_bad_settings_fail_closed(
             )
             assert _counter(catalog, f"admin:{scope}") == []
             _setting(catalog, key, valid)
+
+
+def test_admin_counter_setting_upper_bound_and_next_integer(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """管理者用 3 キーも共通の上限を受け、上限 + 1 では計数せず拒否する。"""
+    catalog = provisioned_product_catalog
+    _seed_admin_settings(catalog)
+    upper = 2_147_483_647
+    for key, good in _ADMIN_SETTINGS.items():
+        _setting(catalog, key, upper)
+        with catalog.observer.cursor() as cursor:
+            cursor.execute("SELECT authn.setting_positive_integer(%s)", (key,))
+            assert cursor.fetchone() == (upper,)
+        catalog.observer.rollback()
+        valid_scope = f"upper{uuid4().hex[:12]}"
+        assert (
+            _call_management(
+                catalog,
+                "SELECT authn.record_admin_login_failure(%s)",
+                (valid_scope,),
+            )
+            is False
+        )
+        _setting(catalog, key, upper + 1)
+        with catalog.observer.cursor() as cursor:
+            cursor.execute("SELECT authn.setting_positive_integer(%s)", (key,))
+            assert cursor.fetchone() == (None,)
+        catalog.observer.rollback()
+        invalid_scope = f"over{uuid4().hex[:12]}"
+        assert (
+            _call_management(
+                catalog,
+                "SELECT authn.record_admin_login_failure(%s)",
+                (invalid_scope,),
+            )
+            is True
+        )
+        assert _counter(catalog, f"admin:{invalid_scope}") == []
+        _setting(catalog, key, good)
 
 
 def test_admin_counter_first_row_is_serialized(

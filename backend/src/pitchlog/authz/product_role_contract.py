@@ -19,13 +19,16 @@ def _role(creation: str, *, login: bool, bypass_rls: bool) -> dict[str, object]:
     }
 
 
-_BASE_PRODUCT_ROLES = {
+_PROVISIONAL_PRODUCT_ROLES = {
     "pitchlog_owner": _role("external_applicator", login=True, bypass_rls=False),
     "pitchlog_app": _role("product_ddl", login=True, bypass_rls=False),
     "pitchlog_shared_fn_owner": _role("product_ddl", login=False, bypass_rls=True),
     "pitchlog_management_fn_owner": _role("product_ddl", login=False, bypass_rls=True),
 }
-_AUTH_FUNCTION_OWNER = _role("product_ddl", login=False, bypass_rls=True)
+_PRODUCT_ROLES = {
+    **_PROVISIONAL_PRODUCT_ROLES,
+    "pitchlog_auth_fn_owner": _role("product_ddl", login=False, bypass_rls=True),
+}
 MIGRATION_BATCH_ROLE_ATTRIBUTES = {
     "superuser": False,
     "bypass_rls": True,
@@ -38,26 +41,15 @@ MIGRATION_BATCH_ROLE_ATTRIBUTES = {
 
 
 def expected_product_roles(asset: dict[str, Any]) -> dict[str, dict[str, object]]:
-    """認証スキーマの導入段階に応じた製品ロールの独立集合を返す。
+    """資産の有無に依存しない、製品状態の 5 ロールを返す。
 
-    ロール配列を段階判定に使わないため、認証関数所有ロールを削除しても
-    旧段階へ戻らない。
+    Args:
+        asset: 呼出側との互換性のために受け取る製品資産。判定には使わない。
     """
-    schemas = asset.get("schemas")
-    functions = asset.get("functions")
-    auth_schema_declared = isinstance(schemas, list) and any(
-        isinstance(row, dict) and row.get("schema_name") in {"authn", "authn_crypto"}
-        for row in schemas
-    )
-    auth_function_declared = isinstance(functions, list) and any(
-        isinstance(row, dict)
-        and (
-            row.get("schema_name") in {"authn", "authn_crypto"}
-            or row.get("owner_role_id") == "pitchlog_auth_fn_owner"
-        )
-        for row in functions
-    )
-    expected = dict(_BASE_PRODUCT_ROLES)
-    if auth_schema_declared or auth_function_declared:
-        expected["pitchlog_auth_fn_owner"] = _AUTH_FUNCTION_OWNER
-    return expected
+    del asset
+    return dict(_PRODUCT_ROLES)
+
+
+def expected_provisional_product_roles() -> dict[str, dict[str, object]]:
+    """過去の未発効契約を検査するための 4 ロールを返す。"""
+    return dict(_PROVISIONAL_PRODUCT_ROLES)

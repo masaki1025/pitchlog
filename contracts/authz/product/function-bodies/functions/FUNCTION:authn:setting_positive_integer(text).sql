@@ -27,7 +27,7 @@ BEGIN
     EXCEPTION WHEN numeric_value_out_of_range THEN
         RETURN NULL;
     END;
-    IF result < 1 THEN
+    IF result < 1 OR result > 2147483647 THEN
         RETURN NULL;
     END IF;
     RETURN result;

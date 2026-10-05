@@ -86,7 +86,7 @@ date: 2026-10-04
 | 長さの上限 | **`CHECK (char_length(name_normalized) <= 64)`**(人間の決定 B-3。正規化後の文字数。**migration 後の挿入・更新も DB が拒否する** — 計画レビュー 2 周目 P1-6) |
 | 認証主体 | `UNIQUE (tenant_id)`(業務的一意性)・`UNIQUE (tenant_id, id)`(複合参照の参照先 — 前例 `uq_idempotency_ledger_kind`) |
 | トークン | 単独参照 `fk_tenant_tokens_subject` を外し、`(tenant_id, auth_subject_id) → tenant_auth_subjects (tenant_id, id)` の複合 FK(`MATCH FULL`・`NO ACTION`)へ |
-| 事前検査 | 退役していないテナントの正規化名の重複・64 文字超・認証主体の重複・トークンのテナント食い違いがあれば **migration を止める**(名前を書き換えない)。**`FORCE` 下で所有者に 0 行に見える場合も、索引・制約の作成自体が実データで失敗する**ことを試験で確かめる(research.md 3-4 の推測) |
+| 事前検査 | 退役していないテナントの正規化名の重複・64 文字超・認証主体の重複・トークンのテナント食い違いがあれば **migration を止める**(名前を書き換えない)。製品 `FORCE` RLS 下では所有者にも行が見えず、複合 FK の作成だけではテナント不一致を見逃した。検査対象 3 表の `relforcerowsecurity` を読み、`FORCE` の表だけ同じ migration トランザクション内で一時的に `NO FORCE` にして全行を検査し、成功時は元の状態へ戻す。失敗時はトランザクションのロールバックで戻る。 |
 | downgrade | 逆順に戻す(往復試験 `test_migration_round_trip.py`) |
 
 ## 5. 認証関数(スキーマ `authn`・所有 = `pitchlog_auth_fn_owner`・`SECURITY DEFINER`・`search_path = pg_catalog, pg_temp`・本体は完全修飾)
@@ -114,7 +114,7 @@ date: 2026-10-04
 | `auth.team_login.max_failures` / `auth.team_login.window_seconds` / `auth.team_login.lock_seconds` | JSON 数値 | (seed しない) | **計数の器の試験用**。具体設計(10 章の相談)でキーが変わり得る — **δ が反映** |
 | `auth.admin_login.max_failures` / `auth.admin_login.window_seconds` / `auth.admin_login.lock_seconds` | JSON 数値 | (seed しない) | `record_admin_login_failure` が読む。**欠落・不正値なら `true`(拒否)** |
 
-**値の妥当条件(全キー共通)**: JSON の整数で 1 以上。**それ以外(欠落・文字列・0 以下・小数)は不正値**として扱い、該当の関数は fail-closed(発行しない / 延長しない / ログインを拒否 / 管理者計数は拒否)。**β は `auth.team_login.*` を読んで妥当性を確かめるが、ロックは適用しない**(7 節)
+**値の妥当条件(全キー共通)**: JSON の整数で **1 以上 2,147,483,647 以下**(上限は日時の計算があふれない範囲 — 約 68 年分の秒数。実装の敵対レビュー P1-3 で追加)。**それ以外(欠落・文字列・0 以下・小数・上限超え)は不正値**として扱い、該当の関数は fail-closed(発行しない / 延長しない / ログインを拒否 / 管理者計数は拒否)。**β は `auth.team_login.*` を読んで妥当性を確かめるが、ロックは適用しない**(7 節)
 
 ## 7. 計数の器(不変条件 ③〜⑥)
 
@@ -333,3 +333,16 @@ date: 2026-10-04
 - **develop の新しい衛生検査**(`backend/tests/test_migration_hygiene.py` — migration の中で `op.get_bind()` 経由の `execute()` を禁止)に合わせ、**事前検査を `DO` ブロック(`IF EXISTS` → `RAISE EXCEPTION`)へ書き直した**。これで、取り込み前から落ちていた `backend/tests/test_database_configuration.py::test_same_direct_url_is_valid_when_not_pooled`(**β の事前検査が alembic のオフライン実行で結果行を読もうとして落ちていた — 影響範囲に絞った試験では見えなかった**)も直った
 - **TSK-344 との順序(人間の判断)**: TSK-344 も migration を足す予定。TSK-344 が先にマージされると 0028 を取り、β は 0029 へ 2 度目の繰り下げになる(別タブ u-x1 master の全 worktree 走査 — 2026-10-05)
 - **正本**: data-model.md の「migration 0027」(β が書いた 3 か所)を 0028 へ直し、digest 2 か所と受入突合シートを追随させた(新規の判定行 0)
+
+## 20. 実装の敵対レビュー(2026-10-05 — `/pr` の前)
+
+`codex_run.py review adversarial`(β の全実装 — `git log --first-parent 85fce8a7..HEAD`)。**P0 0 件・P1 4 件・全件採用**:
+
+| # | 指摘 | 是正 | 帰属 |
+| --- | --- | --- | --- |
+| 1 | 正規化関数の安全検査が、完全修飾した別スキーマの関数呼び出しを見逃す | 本体を全字消費し、許可した関数・演算子・式の形だけを通す検査へ。完全修飾・非修飾の両方の追加呼び出しの変異が red | ステップ 6 |
+| 2 | 製品 RLS を適用した DB では、`NOBYPASSRLS` の所有者から行が 0 行に見え、0028 の事前検査が素通りする | 実 DB ではトークンのテナント不一致が残っても複合 FK の追加が通った。`MATCH FULL` かつ `NOT VALID` なしでも制約の作成に依存できない。3 表の元の `FORCE` 状態を読み、事前検査の間だけ `NO FORCE` にして、成功時は復元・失敗時は migration 全体のロールバックで復元する。4 種の不整合で停止し、行・revision・`FORCE` が変わらないことを確認する DB 試験を追加した | ステップ 6 |
+| 3 | 有効期限の設定値が巨大な整数だと、正しい資格情報のときだけ日時の計算のあふれで例外になる(失敗の一様性が崩れる) | 設定値の妥当条件に上限 2,147,483,647 を置いた(6 節)。上限・上限 + 1 の境界の試験 | ステップ 7 |
+| 4 | 認証の資産を丸ごと消すと、独立の期待集合が 4 ロールの段階に戻り検査が消える | 製品状態では資産の有無に依らず 5 ロールと認証一式を要求する(段階の切り替えをやめた。過去の未発効契約の 4 ロール検査は別関数)。認証一式の削除の変異が red | ステップ 7(4 の段階化の撤去) |
+
+是正中の DB 試験では、並行試験 2 件の `window_seconds = 4,000,000,000` が新しい上限を超えたため、`login` が `NULL` を返し、計数行も作らなかった。日時計算を守る上限を維持し、両試験の値を上限内の `2,000,000,000` に直した。試験値の追随なので帰属はステップ 8。

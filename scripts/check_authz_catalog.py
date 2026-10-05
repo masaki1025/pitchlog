@@ -28,7 +28,6 @@ from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-i
     asset_scope_validation_error,
 )
 from pitchlog.authz.product_authn_contract import (  # noqa: E402  # ty: ignore[unresolved-import]
-    authn_stage,
     validate_authn_asset,
 )
 from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[unresolved-import]
@@ -52,6 +51,7 @@ from pitchlog.authz.product_function_acl import (  # noqa: E402  # ty: ignore[un
 )
 from pitchlog.authz.product_role_contract import (  # noqa: E402  # ty: ignore[unresolved-import]
     expected_product_roles,
+    expected_provisional_product_roles,
 )
 from pitchlog.authz.product_table_access import (  # noqa: E402  # ty: ignore[unresolved-import]
     DIRECT_ACL_PROFILES,
@@ -4167,7 +4167,7 @@ def _validate_product_function_acl_expectations(
             identity_args,
             function_kind=migration_kinds[(schema_name, function_name, identity_args)],
             execute_grantees=("pitchlog_auth_fn_owner",)
-            if authn_stage(raw)
+            if state is RuntimeContractState.PRODUCT
             and (schema_name, function_name, identity_args)
             == ("public", "authn_normalize_team_name", "text")
             else (),
@@ -4481,7 +4481,11 @@ def _validate_product_ddl_elements(
             raise CatalogError(f"{label}の7属性は真偽値でなければならない")
         roles_by_id[role_id] = role_value
 
-    role_expectations = expected_product_roles(raw)
+    role_expectations = (
+        expected_product_roles(raw)
+        if state is RuntimeContractState.PRODUCT
+        else expected_provisional_product_roles()
+    )
     if set(roles_by_id) != set(role_expectations):
         raise CatalogError("製品ロール集合がdesign.md 2-0と一致しない")
     for role_id, expected in role_expectations.items():
@@ -4502,13 +4506,14 @@ def _validate_product_ddl_elements(
     memberships = raw["membership_edges"]
     if memberships != []:
         raise CatalogError("製品ロールに接するmembershipの辺は0本でなければならない")
-    try:
-        validate_authn_asset(raw)
-    except ValueError as error:
-        raise CatalogError(str(error)) from error
+    if state is RuntimeContractState.PRODUCT:
+        try:
+            validate_authn_asset(raw)
+        except ValueError as error:
+            raise CatalogError(str(error)) from error
     _validate_product_database_expectations(raw["databases"])
     _validate_product_schema_expectations(
-        raw["schemas"], authn_enabled=authn_stage(raw)
+        raw["schemas"], authn_enabled=state is RuntimeContractState.PRODUCT
     )
     _validate_product_extension_expectations(raw.get("extensions"), raw["schemas"])
     _validate_product_table_expectations(raw["tables"], root)

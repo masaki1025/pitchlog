@@ -229,3 +229,13 @@ branch: feature/ua1-auth-db-layer
 - **backend の非 DB 全件で 1 件 red**(858 passed・1 failed)— 各ステップの「影響範囲」の試験では見えなかった。正体 = `test_database_configuration.py::test_same_direct_url_is_valid_when_not_pooled`(β の事前検査が alembic のオフライン実行で結果行を読む)
 - 別タブ(u-x1 master)から共有: develop に `0027_seed_roster_status`(#94)が入った・`test_operation_event_c12.py` の head 前提・影響範囲で絞ると選び落としが見えない・`pitchlog_test_role` の残骸。原典で確かめて対応した(design.md 19 節)
 - develop(`f2dc9f9b`)を取り込み、テキストの衝突(data-model.md の変更履歴・索引・digest 2 か所)を Claude が解き、意味上の衝突(migration の番号・新しい衛生検査・head の前提・seed との相互作用)を Codex が解いた。β の migration を 0028 へ繰り下げ、事前検査を `DO` ブロックへ。受入突合シートは β 側と develop 側の判定を内容一致で全件引き継ぎ(新規 0)
+- 取り込みのマージ `e1e4efe3` の後の迂回の走査: `ok` / `rederive --base f2dc9f9b` rc=0
+- **CI と同じコマンドの全件**: backend `uv run pytest -c pyproject.toml --cov` = **1311 passed・4 skipped**(22 分)/ harness `uv run pytest -c pyproject.toml tests/` は **`/tmp` 満杯(tmpfs 7.7G のうち `/tmp/pytest-of-ymdms` が 7.4G — 全タブの pytest の残り)で出力が書けず失敗**。1 時間以上更新が無く使用中でない 18 個(2.6G)を消した。harness の全件は是正の後に流し直す
+
+## 実装の敵対レビュー(2026-10-05 — `/pr` の前)
+
+- `codex_run.py review adversarial`: **P0 0・P1 4・全件採用**(design.md 20 節)。PR の後に直すと H が動き受理を取り直すため、`/pr` の前に回した
+- 是正は Codex(混雑エラーで 3 回中断 — 同じセッションの継続も新しいセッションも 3 万トークン前後で止まり、**文脈の大きさが原因という見立ては外れ**。5 分おきの再試行の 2 回目で完了)
+- 是正後の DB 試験 1 回目: 3 failed — **P1-2 は本物だった**(製品 FORCE RLS 下でテナント不一致のトークン行が隠れていると、複合 FK の作成でも止まらない — PostgreSQL の FK 初期検証は所有者の高速経路で FORCE を考慮しない)→ 事前検査の間だけ `NO FORCE` にして元へ戻す形へ / 並行試験 2 件は試験の設定値(40 億秒)が新しい上限を超えていた → 上限内へ
+- 是正後の DB 試験 2 回目: **116 passed**
+- コミット: `c04fef4d`(ステップ 6/13 是正 — 0028・正規化関数の検査)/ 次のコミット(ステップ 7/13 是正 — 設定値の上限・認証一式の無条件要求・試験の設定値)

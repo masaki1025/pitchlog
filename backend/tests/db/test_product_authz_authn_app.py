@@ -391,6 +391,38 @@ def test_missing_and_invalid_settings_fail_closed(
             _setting(catalog, key, good)
 
 
+def test_setting_upper_bound_is_accepted_and_next_integer_fails_closed(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """全チーム用キーで上限を受け、上限 + 1 では発行・延長しない。"""
+    catalog = provisioned_product_catalog
+    _seed_settings(catalog)
+    identity = _seed_identity(catalog, _app_dsn(catalog))
+    upper = 2_147_483_647
+    for key, good in _SETTINGS.items():
+        _setting(catalog, key, upper)
+        with catalog.observer.cursor() as cursor:
+            cursor.execute("SELECT authn.setting_positive_integer(%s)", (key,))
+            assert cursor.fetchone() == (upper,)
+        catalog.observer.rollback()
+        token = _login(identity)
+        assert isinstance(token, UUID)
+        if key == "auth.token_ttl_seconds":
+            assert _verify(identity, token) == identity.tenant_id
+
+        _setting(catalog, key, upper + 1)
+        with catalog.observer.cursor() as cursor:
+            cursor.execute("SELECT authn.setting_positive_integer(%s)", (key,))
+            assert cursor.fetchone() == (None,)
+        catalog.observer.rollback()
+        assert _login(identity) is None
+        if key == "auth.token_ttl_seconds":
+            before = _token(catalog, token)
+            assert _verify(identity, token) is None
+            assert _token(catalog, token) == before
+        _setting(catalog, key, good)
+
+
 def test_normalization_boundary_and_failed_burst_does_not_lock(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
@@ -726,7 +758,7 @@ def test_first_window_concurrent_failures_are_serialized_by_advisory_lock(
     """空の窓の失敗連打を直列化し、その最中の正当な利用を遮らない。"""
     catalog = provisioned_product_catalog
     _seed_settings(catalog)
-    _setting(catalog, "auth.team_login.window_seconds", 4_000_000_000)
+    _setting(catalog, "auth.team_login.window_seconds", 2_000_000_000)
     identity = _seed_identity(catalog, _app_dsn(catalog))
     valid_token = _login(identity)
     assert isinstance(valid_token, UUID)
@@ -786,7 +818,7 @@ def test_removing_advisory_lock_creates_duplicate_first_window_rows(
     """ロック除去変異では未コミットの初行が見えず、同じ窓に 2 行できる。"""
     catalog = provisioned_product_catalog
     _seed_settings(catalog)
-    _setting(catalog, "auth.team_login.window_seconds", 4_000_000_000)
+    _setting(catalog, "auth.team_login.window_seconds", 2_000_000_000)
     identity = _seed_identity(catalog, _app_dsn(catalog))
     wrong = secrets.token_urlsafe(24)
     body = _COUNT_BODY.read_text(encoding="utf-8")

@@ -15,6 +15,7 @@ import pytest
 
 from pitchlog.authz.asset_spec import PRODUCT_SPEC
 from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
+from pitchlog.authz.product_authn_contract import validate_authn_asset
 from pitchlog.authz.product_role_contract import expected_product_roles
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -136,7 +137,7 @@ def _mutate_membership_edge(asset: dict[str, Any]) -> None:
 
 
 def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
-    """段階ごとのロール宣言とSQLが独立の意味契約へ完全一致する。"""
+    """製品ロール宣言と SQL が独立の意味契約へ完全一致する。"""
     asset = _read_product_asset()
     assert _validate_product_asset(asset) == {
         "scope_status": "product_configuration",
@@ -193,8 +194,8 @@ def test_removed_product_role_violates_independent_contract() -> None:
         _validate_product_asset(asset)
 
 
-def test_auth_stage_requires_fifth_role_even_when_role_is_missing() -> None:
-    """認証スキーマを段階印とし、所有ロールの削除で旧段階へ戻さない。"""
+def test_product_state_requires_fifth_role_even_when_role_is_missing() -> None:
+    """認証資産の宣言に依存せず所有ロールを必須にする。"""
     asset = _read_product_asset()
     asset["roles"] = [
         row for row in asset["roles"] if row["role_id"] != "pitchlog_auth_fn_owner"
@@ -208,6 +209,28 @@ def test_auth_stage_requires_fifth_role_even_when_role_is_missing() -> None:
         "pitchlog_auth_fn_owner",
     }
     assert "pitchlog_auth_fn_owner" not in {row["role_id"] for row in asset["roles"]}
+
+
+def test_whole_authn_bundle_removal_is_rejected() -> None:
+    """ロール・スキーマ・拡張・関数を一括削除しても製品期待集合を縮めない。"""
+    asset = _read_product_asset()
+    asset["roles"] = [
+        row for row in asset["roles"] if row["role_id"] != "pitchlog_auth_fn_owner"
+    ]
+    asset["schemas"] = [
+        row
+        for row in asset["schemas"]
+        if row["schema_name"] not in {"authn", "authn_crypto"}
+    ]
+    asset["extensions"] = []
+    asset["functions"] = [
+        row for row in asset["functions"] if row["schema_name"] != "authn"
+    ]
+    assert len(expected_product_roles(asset)) == 5
+    with pytest.raises(ValueError, match="署名"):
+        validate_authn_asset(asset)
+    with pytest.raises(_catalog_checker.CatalogError):
+        _validate_product_asset(asset)
 
 
 @pytest.mark.parametrize(
