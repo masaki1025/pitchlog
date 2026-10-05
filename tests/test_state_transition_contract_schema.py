@@ -3684,8 +3684,8 @@ def _invalid_matrix_column_value(column: str) -> object:
     """
     invalid_values: dict[str, object] = {
         "eventKind": "unknown-event",
-        "resultId": 1,
-        "precondition": {"op": "eq", "axisId": "state.unknown", "value": 0},
+        "resultId": "unknown-result",
+        "precondition": {"op": "eq", "axisId": "state.outs", "value": 3},
         "countEffect": {
             "strikes": {"kind": "delta", "value": 3},
             "balls": {"kind": "unchanged"},
@@ -3693,8 +3693,9 @@ def _invalid_matrix_column_value(column: str) -> object:
         "plateAppearanceEnded": "ended",
         "batterDestination": {"kind": "reach", "base": 4},
         "runnerDefaultAdvance": {
-            "first": {"modality": "hold", "destination": None},
-            "second": {"modality": "hold", "destination": None},
+            "first": {"modality": "forced", "destination": 5},
+            "second": {"modality": "not-applicable", "destination": None},
+            "third": {"modality": "not-applicable", "destination": None},
         },
         "outEffect": {"count": 0, "targets": [{"runner": 4}]},
         "statFlags": {**_stat_flag_values(), "打点": "yes"},
@@ -3705,13 +3706,76 @@ def _invalid_matrix_column_value(column: str) -> object:
 
 @pytest.mark.parametrize("column", MATRIX_COLUMNS)
 def test_each_matrix_column_rejects_an_out_of_domain_value(column: str) -> None:
-    """MatrixRowの10列それぞれについて単一列の値域違反を拒否する。"""
+    """MatrixRowの10列それぞれの値域述語で負例を拒否する。"""
     contract = _minimal_contract()
     contract["matrixRows"][0][column] = _invalid_matrix_column_value(column)
+    schema = _schema()
+    value = contract["matrixRows"][0][column]
+    column_schema = schema["$defs"]["matrixRow"]["properties"][column]
+    column_path = f"$.matrixRows[0].{column}"
+
+    if column in {"resultId", "precondition"}:
+        schema_checker._validate_instance(value, column_schema, schema, column_path)
+        _sync_case_coordinate(contract, "matrixRows")
+        expected_reference_error = (
+            "語彙IDを宣言済みシードへ必要件数で解決できない"
+            if column == "resultId"
+            else "Predicate値がdescriptorの軸値域に属さない"
+        )
+        with pytest.raises(
+            ReferenceConstraintError,
+            match=expected_reference_error,
+        ):
+            _validate_references(
+                contract, vocabulary_checker.validate_manifest(REPOSITORY_ROOT)
+            )
+    else:
+        with pytest.raises(
+            schema_checker.DescriptorCheckError,
+            match=r"schema: \$\.matrixRows\[0\]\.",
+        ) as error:
+            schema_checker._validate_instance(
+                value, column_schema, schema, column_path
+            )
+        assert column_path in str(error.value)
+        nested_bound: tuple[object, dict[str, Any], str] | None = None
+        if column == "countEffect":
+            nested_bound = (
+                value["strikes"],
+                schema["$defs"]["strikeEffect"]["oneOf"][0],
+                ".strikes",
+            )
+        elif column == "batterDestination":
+            nested_bound = (
+                value,
+                schema["$defs"]["batterDestination"]["oneOf"][1],
+                "",
+            )
+        elif column == "runnerDefaultAdvance":
+            nested_bound = (
+                value["first"]["destination"],
+                schema["$defs"]["advanceDestination"]["oneOf"][0],
+                ".first.destination",
+            )
+        elif column == "outEffect":
+            nested_bound = (
+                value["targets"][0],
+                schema["$defs"]["outTarget"]["oneOf"][1],
+                ".targets[0]",
+            )
+        if nested_bound is not None:
+            leaf_value, leaf_schema, suffix = nested_bound
+            with pytest.raises(
+                schema_checker.DescriptorCheckError,
+                match="整数が上限超過",
+            ):
+                schema_checker._validate_instance(
+                    leaf_value, leaf_schema, schema, column_path + suffix
+                )
 
     expected_error = (
         ReferenceConstraintError
-        if column == "precondition"
+        if column in {"resultId", "precondition"}
         else schema_checker.DescriptorCheckError
     )
     with pytest.raises(expected_error):
@@ -3830,6 +3894,19 @@ def _set_batter_out(contract: dict[str, Any]) -> None:
     row["outEffect"] = {"count": 1, "targets": ["batter"]}
 
 
+def _assert_cross_rule_violation(
+    contract: dict[str, Any], constraint_id: str
+) -> None:
+    """指定した交差制約の述語だけで先頭行の負例を確認する。"""
+    configuration, rules = _cross_constraint_configuration()
+    rule = next(rule for rule in rules if rule["constraintId"] == constraint_id)
+    try:
+        violation = _cross_rule_violation(contract["matrixRows"][0], rule, configuration)
+    except CrossConstraintError as exc:
+        violation = str(exc)
+    assert violation is not None, f"{constraint_id}の述語が負例を受理した"
+
+
 def test_cross_constraint_declaration_has_twelve_rules_and_excludes_xc09() -> None:
     """E-1の12制約だけを持ち、undo固有のXC-09を除外する。"""
     configuration, rules = _cross_constraint_configuration()
@@ -3845,6 +3922,8 @@ def test_xc01_runner_event_requires_not_applicable_batter_destination() -> None:
     _set_runner_event(contract)
     contract["matrixRows"][0]["batterDestination"] = {"kind": "continue"}
 
+    _assert_cross_rule_violation(contract, "XC-01")
+
     with pytest.raises(CrossConstraintError, match="XC-01"):
         _validate(contract)
 
@@ -3857,6 +3936,8 @@ def test_xc02_absent_runner_requires_not_applicable_advance() -> None:
         "destination": None,
     }
 
+    _assert_cross_rule_violation(contract, "XC-02")
+
     with pytest.raises(CrossConstraintError, match="XC-02"):
         _validate(contract)
 
@@ -3865,6 +3946,8 @@ def test_xc02_runner_presence_must_be_decidable() -> None:
     """XC-02共通判定: 走者存在を一意に射影できない述語を拒否する。"""
     contract = _minimal_contract()
     _set_precondition(contract, _matrix_precondition(runners=None))
+
+    _assert_cross_rule_violation(contract, "XC-02")
 
     with pytest.raises(CrossConstraintError, match="XC-02"):
         _validate(contract)
@@ -3885,6 +3968,8 @@ def test_xc03_advance_modality_and_destination_are_bidirectional(
         "destination": destination,
     }
 
+    _assert_cross_rule_violation(contract, "XC-03")
+
     with pytest.raises(CrossConstraintError, match="XC-03"):
         _validate(contract)
 
@@ -3893,6 +3978,8 @@ def test_xc04_out_count_must_match_target_count() -> None:
     """XC-04: アウト数と対象配列長の不一致を拒否する。"""
     contract = _minimal_contract()
     contract["matrixRows"][0]["outEffect"] = {"count": 2, "targets": []}
+
+    _assert_cross_rule_violation(contract, "XC-04")
 
     with pytest.raises(CrossConstraintError, match="XC-04"):
         _validate(contract)
@@ -3907,6 +3994,8 @@ def test_xc04_out_targets_must_be_unique() -> None:
         "targets": ["batter", "batter"],
     }
 
+    _assert_cross_rule_violation(contract, "XC-04")
+
     with pytest.raises(CrossConstraintError, match="XC-04"):
         _validate(contract)
 
@@ -3920,6 +4009,8 @@ def test_xc05_runner_event_cannot_change_count() -> None:
         "value": 1,
     }
 
+    _assert_cross_rule_violation(contract, "XC-05")
+
     with pytest.raises(CrossConstraintError, match="XC-05"):
         _validate(contract)
 
@@ -3930,6 +4021,8 @@ def test_xc06_batting_result_out_cannot_continue_plate_appearance() -> None:
     row = contract["matrixRows"][0]
     row["batterDestination"] = {"kind": "out"}
     row["outEffect"] = {"count": 1, "targets": ["batter"]}
+
+    _assert_cross_rule_violation(contract, "XC-06")
 
     with pytest.raises(CrossConstraintError, match="XC-06"):
         _validate(contract)
@@ -3947,6 +4040,8 @@ def test_xc06_secondary_result_not_applicable_cannot_end_plate_appearance() -> N
     row["plateAppearanceEnded"] = True
     row["batterDestination"] = {"kind": "not-applicable"}
 
+    _assert_cross_rule_violation(contract, "XC-06")
+
     with pytest.raises(CrossConstraintError, match="XC-06"):
         _validate(contract)
 
@@ -3958,6 +4053,8 @@ def test_xc06_batting_result_continuation_cannot_reset_count() -> None:
         "strikes": {"kind": "reset"},
         "balls": {"kind": "reset"},
     }
+
+    _assert_cross_rule_violation(contract, "XC-06")
 
     with pytest.raises(CrossConstraintError, match="XC-06"):
         _validate(contract)
@@ -3974,6 +4071,8 @@ def test_xc06_secondary_result_cannot_use_score_destination() -> None:
     }
     row["plateAppearanceEnded"] = True
     row["batterDestination"] = {"kind": "score"}
+
+    _assert_cross_rule_violation(contract, "XC-06")
 
     with pytest.raises(CrossConstraintError, match="XC-06"):
         _validate(contract)
@@ -3997,6 +4096,8 @@ def test_xc07_event_and_not_applicable_are_bidirectional(
         _set_runner_event(contract)
     contract["matrixRows"][0]["plateAppearanceEnded"] = plate_appearance_ended
 
+    _assert_cross_rule_violation(contract, "XC-07")
+
     with pytest.raises(CrossConstraintError, match="XC-07"):
         _validate(contract)
 
@@ -4010,6 +4111,8 @@ def test_xc08_third_base_runner_cannot_advance_to_second() -> None:
         "destination": 2,
     }
 
+    _assert_cross_rule_violation(contract, "XC-08")
+
     with pytest.raises(CrossConstraintError, match="XC-08"):
         _validate(contract)
 
@@ -4019,6 +4122,8 @@ def test_xc10_batter_out_requires_batter_target() -> None:
     contract = _minimal_contract()
     _set_batter_out(contract)
     contract["matrixRows"][0]["outEffect"] = {"count": 0, "targets": []}
+
+    _assert_cross_rule_violation(contract, "XC-10")
 
     with pytest.raises(CrossConstraintError, match="XC-10"):
         _validate(contract)
@@ -4032,6 +4137,8 @@ def test_xc10_batter_target_requires_batter_out() -> None:
         "count": 1,
         "targets": ["batter"],
     }
+
+    _assert_cross_rule_violation(contract, "XC-10")
 
     with pytest.raises(CrossConstraintError, match="XC-10"):
         _validate(contract)
@@ -4047,6 +4154,8 @@ def test_xc11_unique_prior_outs_use_their_maximum() -> None:
         "count": 2,
         "targets": ["batter", {"runner": 1}],
     }
+
+    _assert_cross_rule_violation(contract, "XC-11")
 
     with pytest.raises(CrossConstraintError, match="XC-11"):
         _validate(contract)
@@ -4076,6 +4185,8 @@ def test_xc11_range_predicate_uses_maximum_prior_outs() -> None:
         "targets": ["batter", {"runner": 1}, {"runner": 2}],
     }
 
+    _assert_cross_rule_violation(contract, "XC-11")
+
     with pytest.raises(CrossConstraintError, match="XC-11"):
         _validate(contract)
 
@@ -4091,6 +4202,8 @@ def test_xc11_unconstrained_outs_use_legal_maximum_two() -> None:
         "targets": ["batter", {"runner": 1}],
     }
 
+    _assert_cross_rule_violation(contract, "XC-11")
+
     with pytest.raises(CrossConstraintError, match="XC-11"):
         _validate(contract)
 
@@ -4103,6 +4216,8 @@ def test_xc12_absent_runner_cannot_be_out_target() -> None:
         "count": 1,
         "targets": [{"runner": 1}],
     }
+
+    _assert_cross_rule_violation(contract, "XC-12")
 
     with pytest.raises(CrossConstraintError, match="XC-12"):
         _validate(contract)
