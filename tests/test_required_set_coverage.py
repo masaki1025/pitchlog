@@ -1,4 +1,4 @@
-"""ステップ79・80の行要求差分と入力座標被覆を検証する。"""
+"""ステップ79〜81の行要求差分と入力座標被覆を検証する。"""
 
 from __future__ import annotations
 
@@ -95,21 +95,14 @@ def test_row_gap_declaration_is_fail_closed(tmp_path: Path) -> None:
         )
 
 
-def test_step80_input_coverage_is_monotone_and_matches_expansion() -> None:
-    """②の全体集合が前周を含み、対象7行の被覆展開と一致する。"""
-    count, digest, added = checker.check_input_coverage(ROOT)
+def test_step80_input_coverage_is_preserved() -> None:
+    """ステップ80の記録と対象7行の展開結果を保持する。"""
     record = _asset("required_set_input_coverage_v1.json")
-    assert count == 80
-    assert digest == record["history"][1]["after"]["digest"]
-    assert added == 9
-    contract = _asset("state_transition_contract_v1.json")
-    assert record["currentStep"] == 80
-    assert len(record["history"]) == 2
     assert record["history"][0]["after"] == record["history"][1]["before"]
     assert record["history"][0]["after"]["count"] == 71
+    assert record["history"][1]["after"]["count"] == 80
     cases, trace = expander.expand_traced(ROOT, limit=19, mode="coverage")
     representatives, _ = expander.expand_traced(ROOT, limit=19)
-    assert contract["cases"] == cases
     assert cases[:19] == representatives
     assert len(cases) == 63
     assert len(cases[19:]) == 44
@@ -135,6 +128,50 @@ def test_step80_input_coverage_is_monotone_and_matches_expansion() -> None:
         ("state.runners", '"first-second"'),
         ("state.runners", '"loaded"'),
     }
+    policy = expander.dependency_checker.load_policy(ROOT)
+    assert trace.observed_read_paths == policy.expanders[
+        "state-transition-cases"
+    ].allowed_read_paths
+
+
+def test_step81_input_coverage_is_monotone_and_matches_expansion() -> None:
+    """対象7行の代表値と被覆展開が②を8要求増やす。"""
+    count, digest, added = checker.check_input_coverage(ROOT)
+    record = _asset("required_set_input_coverage_v1.json")
+    assert record["currentStep"] == 81
+    assert len(record["history"]) == 3
+    assert record["history"][1]["after"] == record["history"][2]["before"]
+    assert (count, digest, added) == (
+        88,
+        record["history"][2]["after"]["digest"],
+        8,
+    )
+    contract = _asset("state_transition_contract_v1.json")
+    cases, trace = expander.expand_traced(ROOT, limit=26, mode="coverage")
+    representatives, _ = expander.expand_traced(ROOT, limit=26)
+    assert contract["cases"] == cases
+    assert cases[:26] == representatives
+    assert len(cases) == 70
+    assert len(cases[26:]) == 44
+    target_ids = {
+        "batting-result.double-play",
+        "batting-result.line-double-play",
+        "batting-result.error",
+        "batting-result.fielders-choice",
+        "batting-result.sacrifice-bunt",
+        "batting-result.sacrifice-fly",
+        "batting-result.sacrifice-bunt-error",
+    }
+    assert {case["rowRef"]["coordinate"]["resultId"] for case in cases[19:26]} == target_ids
+    assert {
+        case["rowRef"]["coordinate"]["resultId"] for case in cases[26:]
+    } >= target_ids
+    before = {tuple(item) for item in record["history"][2]["before"]["coverageSet"]}
+    after = {tuple(item) for item in record["history"][2]["after"]["coverageSet"]}
+    assert after - before == {
+        ("event.perPitch.resultId", f'"{name}"')
+        for name in ("併殺打", "ライナー併殺", "エラー", "野手選択", "犠打", "犠飛", "犠打失策")
+    } | {("state.runners", '"third"')}
     policy = expander.dependency_checker.load_policy(ROOT)
     assert trace.observed_read_paths == policy.expanders[
         "state-transition-cases"

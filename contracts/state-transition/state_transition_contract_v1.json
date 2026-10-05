@@ -9116,6 +9116,765 @@
       }
     },
     {
+      "caseId": "ST-MATRIX-68b89f19faa5c761",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.double-play",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "first"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.double-play",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "out"
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "hold",
+            "destination": null
+          },
+          "second": {
+            "modality": "not-applicable",
+            "destination": null
+          },
+          "third": {
+            "modality": "not-applicable",
+            "destination": null
+          }
+        },
+        "outEffect": {
+          "count": 2,
+          "targets": [
+            "batter",
+            {
+              "runner": 1
+            }
+          ]
+        },
+        "statFlags": {
+          "投球回算入アウト": true,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": false,
+          "失策": false,
+          "打席": true,
+          "打数": true,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": false,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        }
+      }
+    },
+    {
+      "caseId": "ST-MATRIX-cdfd8a084c302e90",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.line-double-play",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "first"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.line-double-play",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "out"
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "hold",
+            "destination": null
+          },
+          "second": {
+            "modality": "not-applicable",
+            "destination": null
+          },
+          "third": {
+            "modality": "not-applicable",
+            "destination": null
+          }
+        },
+        "outEffect": {
+          "count": 2,
+          "targets": [
+            "batter",
+            {
+              "runner": 1
+            }
+          ]
+        },
+        "statFlags": {
+          "投球回算入アウト": true,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": false,
+          "失策": false,
+          "打席": true,
+          "打数": true,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": false,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        }
+      }
+    },
+    {
+      "caseId": "ST-MATRIX-25b586f74ed482f6",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.error",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "first-second"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.error",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "reach",
+          "base": 1
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "forced",
+            "destination": 2
+          },
+          "second": {
+            "modality": "forced",
+            "destination": 3
+          },
+          "third": {
+            "modality": "not-applicable",
+            "destination": null
+          }
+        },
+        "outEffect": {
+          "count": 0,
+          "targets": []
+        },
+        "statFlags": {
+          "投球回算入アウト": false,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": false,
+          "失策": true,
+          "打席": true,
+          "打数": true,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": false,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        }
+      }
+    },
+    {
+      "caseId": "ST-MATRIX-7891b46a78b39095",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.fielders-choice",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "first-second"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.fielders-choice",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "reach",
+          "base": 1
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "forced",
+            "destination": 2
+          },
+          "second": {
+            "modality": "forced",
+            "destination": 3
+          },
+          "third": {
+            "modality": "not-applicable",
+            "destination": null
+          }
+        },
+        "outEffect": {
+          "count": 0,
+          "targets": []
+        },
+        "statFlags": {
+          "投球回算入アウト": false,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": false,
+          "失策": false,
+          "打席": true,
+          "打数": true,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": false,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        }
+      }
+    },
+    {
+      "caseId": "ST-MATRIX-8180d01ce4ed2cd9",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.sacrifice-bunt",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "first-second"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.sacrifice-bunt",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "out"
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "optional",
+            "destination": 2
+          },
+          "second": {
+            "modality": "optional",
+            "destination": 3
+          },
+          "third": {
+            "modality": "not-applicable",
+            "destination": null
+          }
+        },
+        "outEffect": {
+          "count": 1,
+          "targets": [
+            "batter"
+          ]
+        },
+        "statFlags": {
+          "投球回算入アウト": true,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": false,
+          "失策": false,
+          "打席": true,
+          "打数": false,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": true,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        }
+      }
+    },
+    {
+      "caseId": "ST-MATRIX-8a814185a0477c6b",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.sacrifice-fly",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "third"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.sacrifice-fly",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "out"
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "not-applicable",
+            "destination": null
+          },
+          "second": {
+            "modality": "not-applicable",
+            "destination": null
+          },
+          "third": {
+            "modality": "optional",
+            "destination": 4
+          }
+        },
+        "outEffect": {
+          "count": 1,
+          "targets": [
+            "batter"
+          ]
+        },
+        "statFlags": {
+          "投球回算入アウト": true,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": true,
+          "失策": false,
+          "打席": true,
+          "打数": false,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": false,
+          "犠飛": true,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": true,
+          "打点": true
+        }
+      }
+    },
+    {
+      "caseId": "ST-MATRIX-8374d4d9c01bd370",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.sacrifice-bunt-error",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "first-second"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.sacrifice-bunt-error",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "reach",
+          "base": 1
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "forced",
+            "destination": 2
+          },
+          "second": {
+            "modality": "forced",
+            "destination": 3
+          },
+          "third": {
+            "modality": "not-applicable",
+            "destination": null
+          }
+        },
+        "outEffect": {
+          "count": 0,
+          "targets": []
+        },
+        "statFlags": {
+          "投球回算入アウト": false,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": false,
+          "失策": true,
+          "打席": true,
+          "打数": false,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": true,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        }
+      }
+    },
+    {
       "caseId": "ST-COVERAGE-5ffabae886307443",
       "rowRef": {
         "layer": "matrixRows",
@@ -11176,7 +11935,773 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-804264e42e7d0451",
+      "caseId": "ST-COVERAGE-7401ae5d5fe3798b",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.double-play",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "first"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.double-play",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "R-1"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "out"
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "hold",
+            "destination": null
+          },
+          "second": {
+            "modality": "not-applicable",
+            "destination": null
+          },
+          "third": {
+            "modality": "not-applicable",
+            "destination": null
+          }
+        },
+        "outEffect": {
+          "count": 2,
+          "targets": [
+            "batter",
+            {
+              "runner": 1
+            }
+          ]
+        },
+        "statFlags": {
+          "投球回算入アウト": true,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": false,
+          "失策": false,
+          "打席": true,
+          "打数": true,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": false,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        }
+      }
+    },
+    {
+      "caseId": "ST-COVERAGE-0dd72e35c30d685a",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.line-double-play",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "first"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.line-double-play",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "R"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "out"
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "hold",
+            "destination": null
+          },
+          "second": {
+            "modality": "not-applicable",
+            "destination": null
+          },
+          "third": {
+            "modality": "not-applicable",
+            "destination": null
+          }
+        },
+        "outEffect": {
+          "count": 2,
+          "targets": [
+            "batter",
+            {
+              "runner": 1
+            }
+          ]
+        },
+        "statFlags": {
+          "投球回算入アウト": true,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": false,
+          "失策": false,
+          "打席": true,
+          "打数": true,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": false,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        }
+      }
+    },
+    {
+      "caseId": "ST-COVERAGE-455b4bd73e7b7b55",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.error",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "first-second"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.error",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "R+1"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "reach",
+          "base": 1
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "forced",
+            "destination": 2
+          },
+          "second": {
+            "modality": "forced",
+            "destination": 3
+          },
+          "third": {
+            "modality": "not-applicable",
+            "destination": null
+          }
+        },
+        "outEffect": {
+          "count": 0,
+          "targets": []
+        },
+        "statFlags": {
+          "投球回算入アウト": false,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": false,
+          "失策": true,
+          "打席": true,
+          "打数": true,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": false,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        }
+      }
+    },
+    {
+      "caseId": "ST-COVERAGE-ab622e447eb8120b",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.fielders-choice",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "first-second"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.fielders-choice",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "L-1"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "reach",
+          "base": 1
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "forced",
+            "destination": 2
+          },
+          "second": {
+            "modality": "forced",
+            "destination": 3
+          },
+          "third": {
+            "modality": "not-applicable",
+            "destination": null
+          }
+        },
+        "outEffect": {
+          "count": 0,
+          "targets": []
+        },
+        "statFlags": {
+          "投球回算入アウト": false,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": false,
+          "失策": false,
+          "打席": true,
+          "打数": true,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": false,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        }
+      }
+    },
+    {
+      "caseId": "ST-COVERAGE-e8cdbca72db48a03",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.sacrifice-bunt",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "first-second"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.sacrifice-bunt",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "L"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "out"
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "optional",
+            "destination": 2
+          },
+          "second": {
+            "modality": "optional",
+            "destination": 3
+          },
+          "third": {
+            "modality": "not-applicable",
+            "destination": null
+          }
+        },
+        "outEffect": {
+          "count": 1,
+          "targets": [
+            "batter"
+          ]
+        },
+        "statFlags": {
+          "投球回算入アウト": true,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": false,
+          "失策": false,
+          "打席": true,
+          "打数": false,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": true,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        }
+      }
+    },
+    {
+      "caseId": "ST-COVERAGE-97d07a145183a4a4",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.sacrifice-fly",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "third"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.sacrifice-fly",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "third",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.inning": "L+1"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "out"
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "not-applicable",
+            "destination": null
+          },
+          "second": {
+            "modality": "not-applicable",
+            "destination": null
+          },
+          "third": {
+            "modality": "optional",
+            "destination": 4
+          }
+        },
+        "outEffect": {
+          "count": 1,
+          "targets": [
+            "batter"
+          ]
+        },
+        "statFlags": {
+          "投球回算入アウト": true,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": true,
+          "失策": false,
+          "打席": true,
+          "打数": false,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": false,
+          "犠飛": true,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": true,
+          "打点": true
+        }
+      }
+    },
+    {
+      "caseId": "ST-COVERAGE-cd938bc6c848c4f1",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.sacrifice-bunt-error",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "first-second"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.sacrifice-bunt-error",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "state.score": "away-lead:M+1"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "reach",
+          "base": 1
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "forced",
+            "destination": 2
+          },
+          "second": {
+            "modality": "forced",
+            "destination": 3
+          },
+          "third": {
+            "modality": "not-applicable",
+            "destination": null
+          }
+        },
+        "outEffect": {
+          "count": 0,
+          "targets": []
+        },
+        "statFlags": {
+          "投球回算入アウト": false,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": false,
+          "失策": true,
+          "打席": true,
+          "打数": false,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": true,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        }
+      }
+    },
+    {
+      "caseId": "ST-COVERAGE-7a4ff892c1b680c0",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -11222,7 +12747,7 @@
         "state.outs": 0,
         "state.runners": "empty",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "state.inning": "R-1"
+        "state.score": "away-lead:M"
       },
       "expected": {
         "countEffect": {
@@ -11284,7 +12809,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-a265d96e756e3cee",
+      "caseId": "ST-COVERAGE-7ddd24ff30d24a8d",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -11330,7 +12855,7 @@
         "state.outs": 0,
         "state.runners": "empty",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "state.inning": "R"
+        "state.score": "away-lead:M-1"
       },
       "expected": {
         "countEffect": {
@@ -11392,7 +12917,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-fe9fbaf2e2fd0024",
+      "caseId": "ST-COVERAGE-11a0a905a60b05de",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -11438,7 +12963,7 @@
         "state.outs": 0,
         "state.runners": "empty",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "state.inning": "R+1"
+        "state.score": "tie"
       },
       "expected": {
         "countEffect": {
@@ -11500,7 +13025,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-40889f808da2ab78",
+      "caseId": "ST-COVERAGE-49db975319d5d7f3",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -11546,7 +13071,7 @@
         "state.outs": 0,
         "state.runners": "empty",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "state.inning": "L-1"
+        "state.score": "home-lead:M-1"
       },
       "expected": {
         "countEffect": {
@@ -11608,7 +13133,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-eb7f967fde6daa69",
+      "caseId": "ST-COVERAGE-6ce6a9b53b3fb3c9",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -11654,7 +13179,7 @@
         "state.outs": 0,
         "state.runners": "empty",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "state.inning": "L"
+        "state.score": "home-lead:M"
       },
       "expected": {
         "countEffect": {
@@ -11717,7 +13242,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-cb1bf7009750da24",
+      "caseId": "ST-COVERAGE-a0099fdcf6f45dde",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -11763,7 +13288,7 @@
         "state.outs": 0,
         "state.runners": "empty",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "state.inning": "L+1"
+        "state.score": "home-lead:M+1"
       },
       "expected": {
         "countEffect": {
@@ -11826,7 +13351,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-d638a4eff3135271",
+      "caseId": "ST-COVERAGE-df7ad3238e176ea6",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -11872,7 +13397,7 @@
         "state.outs": 2,
         "state.runners": "empty",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "state.score": "away-lead:M+1"
+        "history.depth": 0
       },
       "expected": {
         "countEffect": {
@@ -11934,7 +13459,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-2f0679c2709b6a15",
+      "caseId": "ST-COVERAGE-85fa5f8e529e2033",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -11980,7 +13505,7 @@
         "state.outs": 0,
         "state.runners": "empty",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "state.score": "away-lead:M"
+        "history.depth": 1
       },
       "expected": {
         "countEffect": {
@@ -12043,7 +13568,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-1ac5df6502907b5e",
+      "caseId": "ST-COVERAGE-aea90a4a8c01462b",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -12089,7 +13614,7 @@
         "state.outs": 1,
         "state.runners": "first",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "state.score": "away-lead:M-1"
+        "history.depth": 2
       },
       "expected": {
         "countEffect": {
@@ -12155,7 +13680,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-d89c245e93ee28a8",
+      "caseId": "ST-COVERAGE-8c7a87e20b81e21c",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -12201,7 +13726,7 @@
         "state.outs": 0,
         "state.runners": "first-third",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "state.score": "tie"
+        "history.depth": "D"
       },
       "expected": {
         "countEffect": {
@@ -12263,7 +13788,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-ca767ce78dfa170a",
+      "caseId": "ST-COVERAGE-a8df37bc4395809e",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -12309,7 +13834,7 @@
         "state.outs": 0,
         "state.runners": "first-third",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "state.score": "home-lead:M-1"
+        "history.composition": "top-confirmed-play"
       },
       "expected": {
         "countEffect": {
@@ -12371,7 +13896,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-f06588e359067820",
+      "caseId": "ST-COVERAGE-76072d56fa12fb8b",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -12417,7 +13942,7 @@
         "state.outs": 0,
         "state.runners": "first-third",
         "event.perPitch.pitchEventKind": "non-pitch-event",
-        "state.score": "home-lead:M"
+        "history.composition": "top-state-correction"
       },
       "expected": {
         "countEffect": {
@@ -12479,7 +14004,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-c3c753df84534339",
+      "caseId": "ST-COVERAGE-be1cd4f5d770f165",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -12525,7 +14050,7 @@
         "state.outs": 0,
         "state.runners": "empty",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "state.score": "home-lead:M+1"
+        "history.composition": "top-two-different"
       },
       "expected": {
         "countEffect": {
@@ -12587,7 +14112,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-72728cd3cf2e5b9d",
+      "caseId": "ST-COVERAGE-98003bd16edcca2c",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -12633,7 +14158,7 @@
         "state.outs": 0,
         "state.runners": "empty",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "history.depth": 0
+        "history.composition": "all-same"
       },
       "expected": {
         "countEffect": {
@@ -12695,7 +14220,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-2fa3cd2036369888",
+      "caseId": "ST-COVERAGE-b09047062af4e1c0",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -12741,7 +14266,7 @@
         "state.outs": 0,
         "state.runners": "empty",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "history.depth": 1
+        "history.scenarioLength": 1
       },
       "expected": {
         "countEffect": {
@@ -12803,7 +14328,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-0d224d1d22ea3112",
+      "caseId": "ST-COVERAGE-e3d880206ecbaff5",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -12849,7 +14374,7 @@
         "state.outs": 0,
         "state.runners": "loaded",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "history.depth": 2
+        "history.scenarioLength": 2
       },
       "expected": {
         "countEffect": {
@@ -12910,7 +14435,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-28a8fe8c68174cb9",
+      "caseId": "ST-COVERAGE-0ea81d64f1c9baff",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -12956,7 +14481,7 @@
         "state.outs": 0,
         "state.runners": "empty",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "history.depth": "D"
+        "history.scenarioLength": "D"
       },
       "expected": {
         "countEffect": {
@@ -13019,7 +14544,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-b624542d96464d40",
+      "caseId": "ST-COVERAGE-eea85b92ab5f8419",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -13065,7 +14590,7 @@
         "state.outs": 0,
         "state.runners": "first-second",
         "event.perPitch.pitchEventKind": "pitch-event",
-        "history.composition": "top-confirmed-play"
+        "history.scenarioLength": "D+1"
       },
       "expected": {
         "countEffect": {
@@ -13119,765 +14644,6 @@
           "四球": false,
           "死球": false,
           "三振": false,
-          "打撃妨害出塁": false,
-          "走塁妨害出塁": false,
-          "得点": false,
-          "打点": false
-        }
-      }
-    },
-    {
-      "caseId": "ST-COVERAGE-d27f3197c31cc620",
-      "rowRef": {
-        "layer": "matrixRows",
-        "coordinate": {
-          "eventKind": "batting-result",
-          "resultId": "batting-result.foul-fly",
-          "precondition": {
-            "op": "and",
-            "args": [
-              {
-                "op": "eq",
-                "axisId": "state.outs",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "state.runners",
-                "value": "empty"
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.strikes",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.balls",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "event.perPitch.pitchEventKind",
-                "value": "pitch-event"
-              }
-            ]
-          }
-        }
-      },
-      "inputCoordinate": {
-        "eventKind": "batting-result",
-        "resultId": "batting-result.foul-fly",
-        "state.count.strikes": 0,
-        "state.count.balls": 0,
-        "state.outs": 0,
-        "state.runners": "empty",
-        "event.perPitch.pitchEventKind": "pitch-event",
-        "history.composition": "top-state-correction"
-      },
-      "expected": {
-        "countEffect": {
-          "strikes": {
-            "kind": "reset"
-          },
-          "balls": {
-            "kind": "reset"
-          }
-        },
-        "plateAppearanceEnded": true,
-        "batterDestination": {
-          "kind": "out"
-        },
-        "runnerDefaultAdvance": {
-          "first": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "second": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "third": {
-            "modality": "not-applicable",
-            "destination": null
-          }
-        },
-        "outEffect": {
-          "count": 1,
-          "targets": [
-            "batter"
-          ]
-        },
-        "statFlags": {
-          "投球回算入アウト": true,
-          "投球数": true,
-          "奪三振": false,
-          "与四球": false,
-          "与死球": false,
-          "被安打": false,
-          "被本塁打": false,
-          "失点": false,
-          "失策": false,
-          "打席": true,
-          "打数": true,
-          "安打": false,
-          "本塁打": false,
-          "塁打": false,
-          "犠打": false,
-          "犠飛": false,
-          "四球": false,
-          "死球": false,
-          "三振": false,
-          "打撃妨害出塁": false,
-          "走塁妨害出塁": false,
-          "得点": false,
-          "打点": false
-        }
-      }
-    },
-    {
-      "caseId": "ST-COVERAGE-459bc92fd7655892",
-      "rowRef": {
-        "layer": "matrixRows",
-        "coordinate": {
-          "eventKind": "batting-result",
-          "resultId": "batting-result.called-pitch",
-          "precondition": {
-            "op": "and",
-            "args": [
-              {
-                "op": "eq",
-                "axisId": "state.outs",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "state.runners",
-                "value": "empty"
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.strikes",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.balls",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "event.perPitch.pitchEventKind",
-                "value": "pitch-event"
-              }
-            ]
-          }
-        }
-      },
-      "inputCoordinate": {
-        "eventKind": "batting-result",
-        "resultId": "batting-result.called-pitch",
-        "state.count.strikes": 0,
-        "state.count.balls": 0,
-        "state.outs": 0,
-        "state.runners": "empty",
-        "event.perPitch.pitchEventKind": "pitch-event",
-        "history.composition": "top-two-different"
-      },
-      "expected": {
-        "countEffect": {
-          "strikes": {
-            "kind": "delta",
-            "value": 1
-          },
-          "balls": {
-            "kind": "unchanged"
-          }
-        },
-        "plateAppearanceEnded": false,
-        "batterDestination": {
-          "kind": "continue"
-        },
-        "runnerDefaultAdvance": {
-          "first": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "second": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "third": {
-            "modality": "not-applicable",
-            "destination": null
-          }
-        },
-        "outEffect": {
-          "count": 0,
-          "targets": []
-        },
-        "statFlags": {
-          "投球回算入アウト": false,
-          "投球数": true,
-          "奪三振": false,
-          "与四球": false,
-          "与死球": false,
-          "被安打": false,
-          "被本塁打": false,
-          "失点": false,
-          "失策": false,
-          "打席": false,
-          "打数": false,
-          "安打": false,
-          "本塁打": false,
-          "塁打": false,
-          "犠打": false,
-          "犠飛": false,
-          "四球": false,
-          "死球": false,
-          "三振": false,
-          "打撃妨害出塁": false,
-          "走塁妨害出塁": false,
-          "得点": false,
-          "打点": false
-        }
-      }
-    },
-    {
-      "caseId": "ST-COVERAGE-a6919767c2d92d6c",
-      "rowRef": {
-        "layer": "matrixRows",
-        "coordinate": {
-          "eventKind": "batting-result",
-          "resultId": "batting-result.swinging-strike",
-          "precondition": {
-            "op": "and",
-            "args": [
-              {
-                "op": "eq",
-                "axisId": "state.outs",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "state.runners",
-                "value": "empty"
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.strikes",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.balls",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "event.perPitch.pitchEventKind",
-                "value": "pitch-event"
-              }
-            ]
-          }
-        }
-      },
-      "inputCoordinate": {
-        "eventKind": "batting-result",
-        "resultId": "batting-result.swinging-strike",
-        "state.count.strikes": 0,
-        "state.count.balls": 0,
-        "state.outs": 0,
-        "state.runners": "empty",
-        "event.perPitch.pitchEventKind": "pitch-event",
-        "history.composition": "all-same"
-      },
-      "expected": {
-        "countEffect": {
-          "strikes": {
-            "kind": "delta",
-            "value": 1
-          },
-          "balls": {
-            "kind": "unchanged"
-          }
-        },
-        "plateAppearanceEnded": false,
-        "batterDestination": {
-          "kind": "continue"
-        },
-        "runnerDefaultAdvance": {
-          "first": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "second": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "third": {
-            "modality": "not-applicable",
-            "destination": null
-          }
-        },
-        "outEffect": {
-          "count": 0,
-          "targets": []
-        },
-        "statFlags": {
-          "投球回算入アウト": false,
-          "投球数": true,
-          "奪三振": false,
-          "与四球": false,
-          "与死球": false,
-          "被安打": false,
-          "被本塁打": false,
-          "失点": false,
-          "失策": false,
-          "打席": false,
-          "打数": false,
-          "安打": false,
-          "本塁打": false,
-          "塁打": false,
-          "犠打": false,
-          "犠飛": false,
-          "四球": false,
-          "死球": false,
-          "三振": false,
-          "打撃妨害出塁": false,
-          "走塁妨害出塁": false,
-          "得点": false,
-          "打点": false
-        }
-      }
-    },
-    {
-      "caseId": "ST-COVERAGE-68907918cdcec80e",
-      "rowRef": {
-        "layer": "matrixRows",
-        "coordinate": {
-          "eventKind": "batting-result",
-          "resultId": "batting-result.foul",
-          "precondition": {
-            "op": "and",
-            "args": [
-              {
-                "op": "eq",
-                "axisId": "state.outs",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "state.runners",
-                "value": "empty"
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.strikes",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.balls",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "event.perPitch.pitchEventKind",
-                "value": "pitch-event"
-              }
-            ]
-          }
-        }
-      },
-      "inputCoordinate": {
-        "eventKind": "batting-result",
-        "resultId": "batting-result.foul",
-        "state.count.strikes": 0,
-        "state.count.balls": 0,
-        "state.outs": 0,
-        "state.runners": "empty",
-        "event.perPitch.pitchEventKind": "pitch-event",
-        "history.scenarioLength": 1
-      },
-      "expected": {
-        "countEffect": {
-          "strikes": {
-            "kind": "delta",
-            "value": 1
-          },
-          "balls": {
-            "kind": "unchanged"
-          }
-        },
-        "plateAppearanceEnded": false,
-        "batterDestination": {
-          "kind": "continue"
-        },
-        "runnerDefaultAdvance": {
-          "first": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "second": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "third": {
-            "modality": "not-applicable",
-            "destination": null
-          }
-        },
-        "outEffect": {
-          "count": 0,
-          "targets": []
-        },
-        "statFlags": {
-          "投球回算入アウト": false,
-          "投球数": true,
-          "奪三振": false,
-          "与四球": false,
-          "与死球": false,
-          "被安打": false,
-          "被本塁打": false,
-          "失点": false,
-          "失策": false,
-          "打席": false,
-          "打数": false,
-          "安打": false,
-          "本塁打": false,
-          "塁打": false,
-          "犠打": false,
-          "犠飛": false,
-          "四球": false,
-          "死球": false,
-          "三振": false,
-          "打撃妨害出塁": false,
-          "走塁妨害出塁": false,
-          "得点": false,
-          "打点": false
-        }
-      }
-    },
-    {
-      "caseId": "ST-COVERAGE-74908e4c51a7dd84",
-      "rowRef": {
-        "layer": "matrixRows",
-        "coordinate": {
-          "eventKind": "batting-result",
-          "resultId": "batting-result.ball",
-          "precondition": {
-            "op": "and",
-            "args": [
-              {
-                "op": "eq",
-                "axisId": "state.outs",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "state.runners",
-                "value": "empty"
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.strikes",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.balls",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "event.perPitch.pitchEventKind",
-                "value": "pitch-event"
-              }
-            ]
-          }
-        }
-      },
-      "inputCoordinate": {
-        "eventKind": "batting-result",
-        "resultId": "batting-result.ball",
-        "state.count.strikes": 0,
-        "state.count.balls": 0,
-        "state.outs": 0,
-        "state.runners": "empty",
-        "event.perPitch.pitchEventKind": "pitch-event",
-        "history.scenarioLength": 2
-      },
-      "expected": {
-        "countEffect": {
-          "strikes": {
-            "kind": "unchanged"
-          },
-          "balls": {
-            "kind": "delta",
-            "value": 1
-          }
-        },
-        "plateAppearanceEnded": false,
-        "batterDestination": {
-          "kind": "continue"
-        },
-        "runnerDefaultAdvance": {
-          "first": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "second": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "third": {
-            "modality": "not-applicable",
-            "destination": null
-          }
-        },
-        "outEffect": {
-          "count": 0,
-          "targets": []
-        },
-        "statFlags": {
-          "投球回算入アウト": false,
-          "投球数": true,
-          "奪三振": false,
-          "与四球": false,
-          "与死球": false,
-          "被安打": false,
-          "被本塁打": false,
-          "失点": false,
-          "失策": false,
-          "打席": false,
-          "打数": false,
-          "安打": false,
-          "本塁打": false,
-          "塁打": false,
-          "犠打": false,
-          "犠飛": false,
-          "四球": false,
-          "死球": false,
-          "三振": false,
-          "打撃妨害出塁": false,
-          "走塁妨害出塁": false,
-          "得点": false,
-          "打点": false
-        }
-      }
-    },
-    {
-      "caseId": "ST-COVERAGE-fef715e2bfd98c87",
-      "rowRef": {
-        "layer": "matrixRows",
-        "coordinate": {
-          "eventKind": "batting-result",
-          "resultId": "batting-result.called-strikeout",
-          "precondition": {
-            "op": "and",
-            "args": [
-              {
-                "op": "eq",
-                "axisId": "state.outs",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "state.runners",
-                "value": "empty"
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.strikes",
-                "value": 2
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.balls",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "event.perPitch.pitchEventKind",
-                "value": "pitch-event"
-              }
-            ]
-          }
-        }
-      },
-      "inputCoordinate": {
-        "eventKind": "batting-result",
-        "resultId": "batting-result.called-strikeout",
-        "state.count.strikes": 2,
-        "state.count.balls": 0,
-        "state.outs": 0,
-        "state.runners": "empty",
-        "event.perPitch.pitchEventKind": "pitch-event",
-        "history.scenarioLength": "D"
-      },
-      "expected": {
-        "countEffect": {
-          "strikes": {
-            "kind": "reset"
-          },
-          "balls": {
-            "kind": "reset"
-          }
-        },
-        "plateAppearanceEnded": true,
-        "batterDestination": {
-          "kind": "out"
-        },
-        "runnerDefaultAdvance": {
-          "first": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "second": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "third": {
-            "modality": "not-applicable",
-            "destination": null
-          }
-        },
-        "outEffect": {
-          "count": 1,
-          "targets": [
-            "batter"
-          ]
-        },
-        "statFlags": {
-          "投球回算入アウト": true,
-          "投球数": true,
-          "奪三振": true,
-          "与四球": false,
-          "与死球": false,
-          "被安打": false,
-          "被本塁打": false,
-          "失点": false,
-          "失策": false,
-          "打席": true,
-          "打数": true,
-          "安打": false,
-          "本塁打": false,
-          "塁打": false,
-          "犠打": false,
-          "犠飛": false,
-          "四球": false,
-          "死球": false,
-          "三振": true,
-          "打撃妨害出塁": false,
-          "走塁妨害出塁": false,
-          "得点": false,
-          "打点": false
-        }
-      }
-    },
-    {
-      "caseId": "ST-COVERAGE-98248365563bcca0",
-      "rowRef": {
-        "layer": "matrixRows",
-        "coordinate": {
-          "eventKind": "batting-result",
-          "resultId": "batting-result.swinging-strikeout",
-          "precondition": {
-            "op": "and",
-            "args": [
-              {
-                "op": "eq",
-                "axisId": "state.outs",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "state.runners",
-                "value": "empty"
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.strikes",
-                "value": 2
-              },
-              {
-                "op": "eq",
-                "axisId": "state.count.balls",
-                "value": 0
-              },
-              {
-                "op": "eq",
-                "axisId": "event.perPitch.pitchEventKind",
-                "value": "pitch-event"
-              }
-            ]
-          }
-        }
-      },
-      "inputCoordinate": {
-        "eventKind": "batting-result",
-        "resultId": "batting-result.swinging-strikeout",
-        "state.count.strikes": 2,
-        "state.count.balls": 0,
-        "state.outs": 0,
-        "state.runners": "empty",
-        "event.perPitch.pitchEventKind": "pitch-event",
-        "history.scenarioLength": "D+1"
-      },
-      "expected": {
-        "countEffect": {
-          "strikes": {
-            "kind": "reset"
-          },
-          "balls": {
-            "kind": "reset"
-          }
-        },
-        "plateAppearanceEnded": true,
-        "batterDestination": {
-          "kind": "out"
-        },
-        "runnerDefaultAdvance": {
-          "first": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "second": {
-            "modality": "not-applicable",
-            "destination": null
-          },
-          "third": {
-            "modality": "not-applicable",
-            "destination": null
-          }
-        },
-        "outEffect": {
-          "count": 1,
-          "targets": [
-            "batter"
-          ]
-        },
-        "statFlags": {
-          "投球回算入アウト": true,
-          "投球数": true,
-          "奪三振": true,
-          "与四球": false,
-          "与死球": false,
-          "被安打": false,
-          "被本塁打": false,
-          "失点": false,
-          "失策": false,
-          "打席": true,
-          "打数": true,
-          "安打": false,
-          "本塁打": false,
-          "塁打": false,
-          "犠打": false,
-          "犠飛": false,
-          "四球": false,
-          "死球": false,
-          "三振": true,
           "打撃妨害出塁": false,
           "走塁妨害出塁": false,
           "得点": false,
