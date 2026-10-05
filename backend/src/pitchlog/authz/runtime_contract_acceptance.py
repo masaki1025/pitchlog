@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
-import importlib
 import json
 import subprocess
 import sys
@@ -15,14 +14,16 @@ from typing import Any
 
 _SOURCE_ROOT = Path(__file__).resolve().parents[4]
 _SNAPSHOT_DIRECTORY = Path("contracts/tenant_boundary/history-snapshots")
+_SCRIPTS_PATH = str(_SOURCE_ROOT / "scripts")
+if _SCRIPTS_PATH not in sys.path:
+    sys.path.insert(0, _SCRIPTS_PATH)
+
+import frozen_history  # noqa: E402  # ty: ignore[unresolved-import]
 
 
 def _history_module() -> Any:
     """同じリポジトリの凍結履歴検査器を再利用する。"""
-    scripts = str(_SOURCE_ROOT / "scripts")
-    if scripts not in sys.path:
-        sys.path.insert(0, scripts)
-    return importlib.import_module("frozen_history")
+    return frozen_history
 
 
 def _git(repository_root: Path, *arguments: str) -> bytes:
