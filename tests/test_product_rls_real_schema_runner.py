@@ -1,9 +1,12 @@
 """製品 RLS の対象確認と撤去入口を DB なしで検証する。"""
 
 import importlib.util
+import os
 import sys
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -142,10 +145,130 @@ def test_migration_url_uses_owner_on_target_database() -> None:
     )
 
 
+def test_test_environment_uses_frozen_names_and_target_database() -> None:
+    """試験の DSN 名は資産から取り、値だけを対象 DB へ向ける。"""
+    admin = "postgresql://admin:dummy@127.0.0.1:65432/initial"
+    tested = "postgresql://tested:dummy@127.0.0.1:65432/target"
+
+    assert runner._test_environment(admin, tested, "target") == {
+        "PITCHLOG_TEST_ADMIN_DSN": "postgresql://admin:dummy@127.0.0.1:65432/target",
+        "PITCHLOG_TEST_ROLE_DSN": tested,
+    }
+    with pytest.raises(runner.RunnerError):
+        runner._test_environment(admin, tested, "other")
+
+
+def test_test_observations_require_all_nodes_on_exact_target() -> None:
+    """資産が定める node の接続に欠落または別対象があれば中止する。"""
+    expected_nodes = runner._load_targets().expected_test_nodes
+    count = expected_nodes * runner.OBSERVED_CONNECTIONS_PER_NODE
+    observations = [("101", "target")] * count
+    runner._validate_test_observations(observations, "101", "target", expected_nodes)
+    with pytest.raises(runner.RunnerError):
+        runner._validate_test_observations(
+            observations, "101", "target", expected_nodes + 1
+        )
+
+    with pytest.raises(runner.RunnerError):
+        runner._validate_test_observations(
+            observations[:-1], "101", "target", expected_nodes
+        )
+    observations[-1] = ("101", "other")
+    with pytest.raises(runner.RunnerError):
+        runner._validate_test_observations(observations, "101", "target", expected_nodes)
+
+
+def test_product_tests_use_in_process_supply_and_ignore_pre_ddl_failures(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """試験が失敗しても供給内の接続先だけで判定し、環境を戻す。"""
+    calls: list[str] = []
+    observations = SimpleNamespace(connections=[])
+
+    @contextmanager
+    def supply(**kwargs: Any) -> Any:
+        calls.append("enter")
+        assert kwargs["owner_dsn"] == "owner-secret"
+        try:
+            yield observations
+        finally:
+            calls.append("exit")
+
+    def fake_pytest_main(arguments: list[str]) -> int:
+        calls.append("pytest")
+        assert len([arg for arg in arguments if arg.startswith("tests/db/test_")]) == 3
+        assert os.environ["PITCHLOG_TEST_ADMIN_DSN"].endswith("/target")
+        expected_nodes = runner._load_targets().expected_test_nodes
+        observations.connections.extend(
+            [("101", "target")] * (expected_nodes * runner.OBSERVED_CONNECTIONS_PER_NODE)
+        )
+        print("hidden-connection-marker")
+        return 1
+
+    fixture_module = SimpleNamespace(
+        DisposablePostgres=lambda **kwargs: SimpleNamespace(**kwargs),
+        supply_external_product_catalog=supply,
+    )
+    real_import = runner.importlib.import_module
+    monkeypatch.setattr(runner, "_container_cluster", lambda *_: "101")
+    monkeypatch.setattr(runner, "_container_id", lambda *_: "container")
+
+    def fake_import(name: str) -> Any:
+        return fixture_module if name == "db_fixtures" else SimpleNamespace(main=fake_pytest_main)
+
+    monkeypatch.setattr(
+        runner.importlib,
+        "import_module",
+        fake_import,
+    )
+    admin = "postgresql://admin:dummy@127.0.0.1:65432/initial"
+    tested = "postgresql://tested:dummy@127.0.0.1:65432/target"
+    original_directory = Path.cwd()
+    try:
+        runner._run_product_tests(
+            runner._load_targets(),
+            admin,
+            "owner-secret",
+            tested,
+            "target",
+            runner._target_digest("101", "target"),
+        )
+    finally:
+        monkeypatch.setattr(runner.importlib, "import_module", real_import)
+
+    assert calls == ["enter", "pytest", "exit"]
+    assert Path.cwd() == original_directory
+    assert "hidden-connection-marker" not in capsys.readouterr().out
+
+
+def test_main_passes_generated_owner_connection_without_printing_it(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """再構築時の所有者接続を戻り値で受けて供給し、出力しない。"""
+    received: list[str] = []
+
+    def prepare() -> runner.PreparedTarget:
+        owner_dsn = "postgresql://owner:private-marker@127.0.0.1:65432/target"
+        return runner.PreparedTarget("generation", "digest", "head", owner_dsn)
+
+    def run_tests(*args: Any) -> None:
+        received.append(args[2])
+
+    monkeypatch.setattr(runner, "_required_environment", lambda _: "unused")
+    monkeypatch.setattr(runner, "_run_product_tests", run_tests)
+
+    assert runner.main(prepare) == 0
+    assert received == [
+        "postgresql://owner:private-marker@127.0.0.1:65432/target"
+    ]
+    output = capsys.readouterr()
+    assert "private-marker" not in output.out + output.err
+
+
 def test_cli_does_not_print_unexpected_exception_content(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    def fail() -> tuple[str, str, str]:
+    def fail() -> runner.PreparedTarget:
         raise RuntimeError("sensitive-marker")
 
     assert runner.main(fail) == 1

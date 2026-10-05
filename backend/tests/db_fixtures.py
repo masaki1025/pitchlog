@@ -491,6 +491,110 @@ class ProvisionedProductCatalog:
     pre_application_catalog: ProductCatalogSnapshot
 
 
+@dataclass
+class _ExternalProductCatalogObservations:
+    """外部供給で各試験が開いた接続先の観測値を集める。"""
+
+    connections: list[tuple[str, str]]
+
+
+@dataclass(frozen=True)
+class _ExternalProductCatalogSupply:
+    """外部で準備した製品カタログの接続情報と適用前記録。"""
+
+    cluster: DisposablePostgres
+    applicator_dsn: str
+    owner_dsn: str
+    pre_application_catalog: ProductCatalogSnapshot
+    data_tables: tuple[str, ...]
+    observations: _ExternalProductCatalogObservations
+
+
+_external_product_catalog: _ExternalProductCatalogSupply | None = None
+
+
+def _product_data_tables() -> tuple[str, ...]:
+    """分類資産から初期化対象の製品表を読む。"""
+    path = _REPOSITORY_ROOT / "contracts/authz/product/table-classification.json"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    rows = raw.get("tables") if isinstance(raw, dict) else None
+    if not isinstance(rows, list):
+        raise AssertionError("製品表の分類資産を読めない")
+    names = tuple(row.get("table") for row in rows if isinstance(row, dict))
+    if (
+        len(names) != 45
+        or len(names) != len(rows)
+        or any(not isinstance(name, str) or not name for name in names)
+        or len(names) != len(set(names))
+        or "alembic_version" in names
+    ):
+        raise AssertionError("製品表の分類資産が 45 表の一意な集合ではない")
+    return cast(tuple[str, ...], names)
+
+
+def _clear_product_data(owner_dsn: str, tables: tuple[str, ...]) -> None:
+    """所有者権限で製品表の行と採番だけを初期化する。"""
+    table_list = sql.SQL(", ").join(sql.Identifier("public", name) for name in tables)
+    with psycopg.connect(owner_dsn) as owner:
+        with owner.cursor() as cursor:
+            cursor.execute(
+                sql.SQL("TRUNCATE TABLE {} RESTART IDENTITY").format(table_list)
+            )
+
+
+def _observe_product_connection(
+    connection: psycopg.Connection[Any],
+    observations: _ExternalProductCatalogObservations,
+) -> None:
+    """接続先のクラスタ実体と接続中 DB を同じ読み取りで記録する。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT (SELECT system_identifier FROM pg_control_system()), "
+            "current_database()"
+        )
+        row = cursor.fetchone()
+    if row is None or row[0] is None or row[1] is None:
+        raise AssertionError("製品試験の接続先を観測できない")
+    observations.connections.append((str(row[0]), str(row[1])))
+    connection.rollback()
+
+
+@contextmanager
+def supply_external_product_catalog(
+    *, cluster: DisposablePostgres, applicator_dsn: str, owner_dsn: str
+) -> Iterator[_ExternalProductCatalogObservations]:
+    """製品 DDL 適用前の記録を 1 回取り、外部供給を一時登録する。
+
+    Args:
+        cluster: 既に起動した専用インスタンスのハンドル。
+        applicator_dsn: 対象 DB への管理接続。
+        owner_dsn: 対象 DB の所有者接続。
+
+    Yields:
+        各試験の接続先を集める観測器。
+    """
+    global _external_product_catalog
+    if _external_product_catalog is not None:
+        raise AssertionError("製品カタログの外部供給が重複している")
+    asset = _load_ddl_asset(PRODUCT_SPEC)
+    with psycopg.connect(applicator_dsn) as observer:
+        snapshot = _snapshot_product_catalog(observer, _product_role_ids(asset))
+        observer.rollback()
+    observations = _ExternalProductCatalogObservations(connections=[])
+    _external_product_catalog = _ExternalProductCatalogSupply(
+        cluster=cluster,
+        applicator_dsn=applicator_dsn,
+        owner_dsn=owner_dsn,
+        pre_application_catalog=snapshot,
+        data_tables=_product_data_tables(),
+        observations=observations,
+    )
+    try:
+        yield observations
+    finally:
+        _external_product_catalog = None
+
+
 def _run_docker(
     *arguments: str, check: bool = True
 ) -> subprocess.CompletedProcess[str]:
@@ -953,7 +1057,35 @@ def provisioned_product_catalog(
     ],
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[ProvisionedProductCatalog]:
-    """Migration 後の製品認可を外部 superuser で適用して供給する。"""
+    """既定では製品認可を適用し、外部供給時は既存対象を使う。"""
+    supply = _external_product_catalog
+    if supply is not None:
+        spec = PRODUCT_SPEC
+        asset = _load_ddl_asset(spec)
+        statements = generate_authz_ddl(_REPOSITORY_ROOT, spec)
+        application_steps = load_product_application_steps(_REPOSITORY_ROOT, spec)
+        _clear_product_data(supply.owner_dsn, supply.data_tables)
+        try:
+            with (
+                psycopg.connect(supply.applicator_dsn) as applicator,
+                psycopg.connect(supply.applicator_dsn) as observer,
+            ):
+                _observe_product_connection(applicator, supply.observations)
+                _observe_product_connection(observer, supply.observations)
+                yield ProvisionedProductCatalog(
+                    cluster=supply.cluster,
+                    applicator=applicator,
+                    observer=observer,
+                    owner_dsn=supply.owner_dsn,
+                    asset=asset,
+                    statements=statements,
+                    application_steps=application_steps,
+                    pre_application_catalog=supply.pre_application_catalog,
+                )
+        finally:
+            _clear_product_data(supply.owner_dsn, supply.data_tables)
+        return
+
     spec = PRODUCT_SPEC
     asset = _load_ddl_asset(spec)
     statements = generate_authz_ddl(_REPOSITORY_ROOT, spec)

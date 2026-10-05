@@ -1,4 +1,4 @@
-"""専用クラスタの対象を検査し、撤去とスキーマの作り直しまで行う。
+"""専用クラスタを作り直し、越境試験の接続先まで確かめる。
 
 実行例: ``uv run --project backend python -m scripts.product_rls_real_schema.runner``
 接続情報は環境変数からのみ読む。失敗時は対象を推測せず、最初から再実行する。
@@ -14,6 +14,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import importlib
+import io
 import json
 import os
 import re
@@ -21,6 +22,7 @@ import secrets
 import subprocess
 import sys
 from collections.abc import Callable, Mapping
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,6 +42,7 @@ CONTAINER_CONTROL_QUERY = (
     '"SELECT system_identifier FROM pg_control_system()"'
 )
 ROLE_ID_PATTERN = re.compile(r"(?m)^-- ELEMENT-ID: ([A-Za-z_][A-Za-z0-9_]*)$")
+OBSERVED_CONNECTIONS_PER_NODE = 2
 
 
 class RunnerError(RuntimeError):
@@ -54,6 +57,7 @@ class TargetsConfig:
     compose_service: str
     shared_compose_service: str
     compose_volume: str
+    expected_test_nodes: int
     admin_dsn_env: str
     target_db_env: str
     test_role_dsn_env: str
@@ -62,6 +66,16 @@ class TargetsConfig:
     owner_role_asset: Path
     temporary_role_source: Path
     temporary_role_constant: str
+
+
+@dataclass(frozen=True, repr=False)
+class PreparedTarget:
+    """作り直した対象の非公開接続と、出力可能な識別値。"""
+
+    generation_id: str
+    target_digest: str
+    migration_head: str
+    owner_dsn: str
 
 
 @dataclass(frozen=True, repr=False)
@@ -171,7 +185,7 @@ def _load_targets() -> TargetsConfig:
         raw = json.loads(TARGETS_PATH.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise RunnerError("対象定義を読めない") from error
-    keys = {
+    string_keys = {
         "compose_project",
         "compose_service",
         "shared_compose_service",
@@ -185,10 +199,13 @@ def _load_targets() -> TargetsConfig:
         "temporary_role_source",
         "temporary_role_constant",
     }
-    if not isinstance(raw, dict) or set(raw) != keys:
+    if not isinstance(raw, dict) or set(raw) != {*string_keys, "expected_test_nodes"}:
         raise RunnerError("対象定義の項目が不正")
-    if any(not isinstance(raw[key], str) or not raw[key] for key in keys):
+    if any(not isinstance(raw[key], str) or not raw[key] for key in string_keys):
         raise RunnerError("対象定義の値が不正")
+    expected_test_nodes = raw["expected_test_nodes"]
+    if type(expected_test_nodes) is not int or expected_test_nodes <= 0:
+        raise RunnerError("試験 node 数の期待値が不正")
     role_dir = (REPOSITORY_ROOT / raw["role_assets_dir"]).resolve()
     if not role_dir.is_relative_to(REPOSITORY_ROOT) or not role_dir.is_dir():
         raise RunnerError("ロール資産の場所が不正")
@@ -197,6 +214,7 @@ def _load_targets() -> TargetsConfig:
         compose_service=raw["compose_service"],
         shared_compose_service=raw["shared_compose_service"],
         compose_volume=raw["compose_volume"],
+        expected_test_nodes=expected_test_nodes,
         admin_dsn_env=raw["admin_dsn_env"],
         target_db_env=raw["target_db_env"],
         test_role_dsn_env=raw["test_role_dsn_env"],
@@ -249,6 +267,107 @@ def _database_dsn(admin_dsn: str, database: str) -> str:
     """管理接続の libpq URL の DB 部分だけを対象へ替える。"""
     parsed = _split_dsn(admin_dsn)
     return urlunsplit(parsed._replace(path=f"/{quote(database, safe='')}"))
+
+
+def _test_environment(
+    admin_dsn: str, test_role_dsn: str, database: str
+) -> dict[str, str]:
+    """凍結済み資産の変数名へ専用対象の接続値を割り当てる。"""
+    path = REPOSITORY_ROOT / "backend/tests/db/environment-expectations.json"
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        variables = raw["dsn_environment_variables"]
+        admin_name = variables["admin_connection"]["expected_name"]
+        role_name = variables["tested_role_connection"]["expected_name"]
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise RunnerError("試験の接続変数名を判定できない") from error
+    if (
+        not isinstance(admin_name, str)
+        or not admin_name
+        or not isinstance(role_name, str)
+        or not role_name
+        or admin_name == role_name
+    ):
+        raise RunnerError("試験の接続変数名が不正")
+    if _dsn_user_and_database(test_role_dsn)[1] != database:
+        raise RunnerError("被検査ロールの接続先が対象 DB と一致しない")
+    return {
+        admin_name: _database_dsn(admin_dsn, database),
+        role_name: test_role_dsn,
+    }
+
+
+def _validate_test_observations(
+    observations: list[tuple[str, str]],
+    cluster: str,
+    database: str,
+    expected_test_nodes: int,
+) -> None:
+    """各 node の接続が同じ専用クラスタ・対象 DB を指すか確かめる。"""
+    if len(observations) != expected_test_nodes * OBSERVED_CONNECTIONS_PER_NODE:
+        raise RunnerError("製品越境試験の接続観測が期待 node 数分そろっていない")
+    if any(item != (cluster, database) for item in observations):
+        raise RunnerError("製品越境試験の接続先が専用対象と一致しない")
+
+
+def _run_product_tests(
+    config: TargetsConfig,
+    admin_dsn: str,
+    owner_dsn: str,
+    test_role_dsn: str,
+    database: str,
+    target_digest: str,
+) -> None:
+    """同一プロセスの外部供給で試験を実行し、接続先だけを照合する。"""
+    cluster = _container_cluster(config, config.compose_service)
+    if _target_digest(cluster, database) != target_digest:
+        raise RunnerError("作り直した対象と試験対象の要約値が一致しない")
+    test_environment = _test_environment(admin_dsn, test_role_dsn, database)
+    tests_dir = REPOSITORY_ROOT / "backend/tests"
+    original_path = tuple(sys.path)
+    previous_environment = {name: os.environ.get(name) for name in test_environment}
+    previous_directory = Path.cwd()
+    try:
+        sys.path.insert(0, str(tests_dir))
+        os.environ.update(test_environment)
+        os.chdir(REPOSITORY_ROOT / "backend")
+        fixtures = importlib.import_module("db_fixtures")
+        pytest = importlib.import_module("pytest")
+        handle = fixtures.DisposablePostgres(
+            container_name=_container_id(config, config.compose_service),
+            admin_dsn=admin_dsn,
+            role_dsn_template=test_role_dsn,
+        )
+        with fixtures.supply_external_product_catalog(
+            cluster=handle,
+            applicator_dsn=_database_dsn(admin_dsn, database),
+            owner_dsn=owner_dsn,
+        ) as observations:
+            # ステップ 4 は接続先だけを見るため、DDL 未適用による失敗出力を捨てる。
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                pytest.main(
+                    [
+                        "-c",
+                        "pyproject.toml",
+                        "--tb=no",
+                        "--show-capture=no",
+                        "-q",
+                        "tests/db/test_product_authz_tenant_owned.py",
+                        "tests/db/test_product_authz_cross_cutting.py",
+                        "tests/db/test_product_authz_other_profiles.py",
+                    ]
+                )
+        _validate_test_observations(
+            observations.connections, cluster, database, config.expected_test_nodes
+        )
+    finally:
+        os.chdir(previous_directory)
+        sys.path[:] = original_path
+        for name, value in previous_environment.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
 
 def _migration_url(admin_dsn: str, database: str, owner: str, password: str) -> str:
@@ -516,7 +635,7 @@ def _assert_target_connection(
         raise RunnerError("移行の対象接続が確認済みのクラスタ・データベースと不一致")
 
 
-def _prepare_target() -> tuple[str, str, str]:
+def _prepare_target() -> PreparedTarget:
     """運用正本 2-2 の手順 1〜4 を先頭から一度だけ実行する。"""
     config = _load_targets()
     admin_dsn = _required_environment(config.admin_dsn_env)
@@ -640,20 +759,35 @@ def _prepare_target() -> tuple[str, str, str]:
             revisions = cursor.fetchall()
     if len(revisions) != 1 or not isinstance(revisions[0][0], str):
         raise RunnerError("migration head を一意に判定できない")
-    return generation, digest, revisions[0][0]
+    return PreparedTarget(
+        generation_id=generation,
+        target_digest=digest,
+        migration_head=revisions[0][0],
+        owner_dsn=owner_dsn,
+    )
 
 
-def main(run: Callable[[], tuple[str, str, str]] | None = None) -> int:
-    """準備を実行し、接続情報を表示せず終了コードを返す。
+def main(run: Callable[[], PreparedTarget] | None = None) -> int:
+    """準備と試験接続先の照合を実行し、接続情報を表示しない。
 
     Args:
         run: 単体試験で準備処理を差し替えるための関数。
 
     Returns:
-        成功時 0、判定不能・不一致・実行失敗時 1。
+        接続先の照合成功時 0、判定不能・不一致・実行失敗時 1。
+        試験本体の合否はこの段階の終了コードへ反映しない。
     """
     try:
-        generation, digest, head = (run or _prepare_target)()
+        prepared = (run or _prepare_target)()
+        config = _load_targets()
+        _run_product_tests(
+            config,
+            _required_environment(config.admin_dsn_env),
+            prepared.owner_dsn,
+            _required_environment(config.test_role_dsn_env),
+            _required_environment(config.target_db_env),
+            prepared.target_digest,
+        )
     except RunnerError as error:
         print(f"製品 RLS 対象準備を中止: {error}", file=sys.stderr)
         return 1
@@ -662,7 +796,11 @@ def main(run: Callable[[], tuple[str, str, str]] | None = None) -> int:
         return 1
     print(
         json.dumps(
-            {"generation_id": generation, "target_digest": digest, "migration_head": head}
+            {
+                "generation_id": prepared.generation_id,
+                "target_digest": prepared.target_digest,
+                "migration_head": prepared.migration_head,
+            }
         )
     )
     return 0
