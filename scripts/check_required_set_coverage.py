@@ -521,13 +521,18 @@ def _game_end_measure(
     invalid_ids: set[tuple[str, ...]] = {
         tuple(item.identity) for item in required.invalid_boundary_requirements
     }
-    if len(invalid_ids) != 12:
-        raise RequiredSetCoverageError("不正値拒否の件数が裁定の12件と異なる")
-    if declaration.get("deferredValidationErrors") != {
-        "requirementKind": "invalid-boundary", "count": 12,
-        "ownerStep": 96, "targetCollection": "validationErrors",
-    }:
-        raise RequiredSetCoverageError("不正値拒否12件のステップ96への移管宣言が不正")
+    transfer = declaration.get("deferredValidationErrors")
+    if not isinstance(transfer, dict) or set(transfer) != {
+        "requirementKind", "count", "ownerStep", "targetCollection",
+        "status", "verification",
+    } or any(transfer.get(key) != value for key, value in {
+        "requirementKind": "invalid-boundary", "ownerStep": 96,
+        "targetCollection": "validationErrors", "status": "materialized",
+        "verification": "derived-exact-set",
+    }.items()) or type(transfer.get("count")) is not int or transfer["count"] != len(
+        invalid_ids
+    ):
+        raise RequiredSetCoverageError("不正値拒否の引受宣言と導出件数が不一致")
 
     raw_branches = declaration.get("uncoveredClauseBranches")
     if not isinstance(raw_branches, list):
@@ -720,6 +725,138 @@ def _check_game_end_decision_properties(
                 )
 
 
+def _check_game_end_validation_errors(
+    root: Path, contract: dict[str, Any], declaration: dict[str, Any],
+    state_contract: dict[str, Any] | None = None,
+) -> None:
+    """不正値拒否の引受と両契約の正常ケースをdescriptorに照合する。"""
+    game_schema = _document(root, "game_end_contract_schema_v1.json")
+    state_schema = _document(root, "state_transition_contract_schema_v1.json")
+    current_state = (
+        state_contract if state_contract is not None
+        else _document(root, "state_transition_contract_v1.json")
+    )
+    try:
+        for document, schema, name in (
+            (contract, game_schema, "gameEnd"),
+            (current_state, state_schema, "stateTransition"),
+        ):
+            deriver.descriptor_checker._validate_instance(document, schema, schema, name)
+    except deriver.descriptor_checker.DescriptorCheckError as error:
+        raise RequiredSetCoverageError(
+            f"正常ケースまたは不正値拒否のschema違反: {error}"
+        ) from error
+
+    expected_counts = declaration.get("normalCaseCounts")
+    if not isinstance(expected_counts, dict) or set(expected_counts) != {
+        "stateTransition", "gameEnd"
+    } or any(type(value) is not int or value < 1 for value in expected_counts.values()):
+        raise RequiredSetCoverageError("正常ケースの件数宣言が不正")
+    if len(contract["cases"]) != expected_counts["gameEnd"] or len(
+        current_state["cases"]
+    ) != expected_counts["stateTransition"]:
+        raise RequiredSetCoverageError("正常ケースの件数が宣言と不一致")
+
+    descriptor = _document(root, "input_axes_descriptor_v1.json")
+    axes = {
+        axis["axisId"]: axis
+        for collection in ("stateTransitionAxes", "gameEndAxes")
+        for axis in descriptor[collection]
+    }
+    legal = {
+        axis_id: {
+            _game_end_identity(value)
+            for value in axis.get("values", axis.get("boundaryValues", []))
+        }
+        for axis_id, axis in axes.items()
+    }
+    aliases = declaration.get("stateTransitionCaseAliases")
+    schema_aliases = {
+        field
+        for layer in ("matrixRows", "operationRows", "undoRows")
+        for field in state_schema["properties"][layer].get(
+            "x-pitchlog-input-coordinate-fields", []
+        )
+    }
+    if not isinstance(aliases, list) or not aliases or any(
+        not isinstance(alias, str) or not alias for alias in aliases
+    ) or len(set(aliases)) != len(aliases) or not set(aliases) <= schema_aliases:
+        raise RequiredSetCoverageError("状況判定ケースの別名軸宣言が不正")
+    seen_aliases: set[str] = set()
+    for name, document in (("stateTransition", current_state), ("gameEnd", contract)):
+        for case in document["cases"]:
+            coordinate = case.get("inputCoordinate")
+            if not isinstance(coordinate, dict):
+                raise RequiredSetCoverageError(f"正常ケースの入力座標が不正: {name}")
+            for axis_id, value in coordinate.items():
+                if axis_id in legal and _game_end_identity(value) not in legal[axis_id]:
+                    raise RequiredSetCoverageError(
+                        f"正常ケースにschema外値がある: {name} {case.get('caseId')} {axis_id}"
+                    )
+                if name == "gameEnd" and axis_id not in legal:
+                    raise RequiredSetCoverageError(
+                        f"終了判定ケースに未知の入力軸がある: {case.get('caseId')} {axis_id}"
+                    )
+                if name == "stateTransition" and axis_id not in legal and axis_id not in aliases:
+                    raise RequiredSetCoverageError(
+                        f"状況判定ケースに未知の入力軸がある: {case.get('caseId')} {axis_id}"
+                    )
+                if name == "stateTransition" and axis_id in aliases:
+                    seen_aliases.add(axis_id)
+            if name == "stateTransition":
+                if "eventKind" in coordinate and coordinate[
+                    "eventKind"
+                ] not in state_schema["$defs"]["eventKind"]["enum"]:
+                    raise RequiredSetCoverageError(
+                        f"正常ケースにschema外値がある: {name} {case.get('caseId')} eventKind"
+                    )
+                if "operationKind" in coordinate and _game_end_identity(
+                    coordinate["operationKind"]
+                ) not in legal["event.operationKind"]:
+                    raise RequiredSetCoverageError(
+                        f"正常ケースにschema外値がある: {name} {case.get('caseId')} operationKind"
+                    )
+                if "resultId" in coordinate and coordinate["resultId"] != case.get(
+                    "rowRef", {}
+                ).get("coordinate", {}).get("resultId"):
+                    raise RequiredSetCoverageError(
+                        f"正常ケースの結果IDが行参照と不一致: {case.get('caseId')}"
+                    )
+    if seen_aliases != set(aliases):
+        raise RequiredSetCoverageError("状況判定ケースの別名軸宣言が実測と不一致")
+
+    required, _ = deriver.derive_repository_game_end_required_set(root)
+    expected = {item.identity: item for item in required.invalid_boundary_requirements}
+    entries = contract.get("validationErrors")
+    transfer = declaration["deferredValidationErrors"]
+    if not isinstance(entries, list) or len(expected) != transfer["count"] or len(
+        entries
+    ) != transfer["count"]:
+        raise RequiredSetCoverageError("validationErrorsの件数が導出要求と不一致")
+    actual: set[tuple[str, str, str]] = set()
+    for entry in entries:
+        identity = ("invalid-boundary", entry["axisId"], entry["valueIdentity"])
+        if entry["valueIdentity"] != _game_end_identity(entry["invalidValue"]):
+            raise RequiredSetCoverageError("validationErrorsの不正値identityが値と不一致")
+        boundary = entry["claimBoundary"]
+        shown_value = str(entry["invalidValue"])
+        if not all(
+            entry["axisId"] in boundary[field] and shown_value in boundary[field]
+            for field in ("guaranteed", "notGuaranteed")
+        ) or "保証範囲外" not in boundary["notGuaranteed"]:
+            raise RequiredSetCoverageError("validationErrorsの各件に保証範囲外の記述がない")
+        requirement = expected.get(identity)
+        if requirement is None or entry["sourceClauseIds"] != list(
+            requirement.source_clause_ids
+        ):
+            raise RequiredSetCoverageError("validationErrorsが導出要求と不一致")
+        if identity in actual:
+            raise RequiredSetCoverageError("validationErrorsに重複がある")
+        actual.add(identity)
+    if actual != set(expected):
+        raise RequiredSetCoverageError("validationErrorsが導出要求とexact-set不一致")
+
+
 def _check_game_end_documents(
     root: Path, contract: dict[str, Any], declaration: dict[str, Any],
     record: dict[str, Any],
@@ -730,6 +867,7 @@ def _check_game_end_documents(
             "schemaVersion", "version", "exclusionRule", "unfixedGameEndAxisValues",
             "uncoveredClauseBranches", "deferredValidationErrors", "checkerAllowedReadPaths",
             "step94Contraction", "step94UnmetCriteria", "step95DecisionProperties",
+            "normalCaseCounts", "stateTransitionCaseAliases",
         }
         or declaration.get("schemaVersion") != 1
         or declaration.get("version") != "game_end_coverage_declaration_v1"
@@ -812,6 +950,7 @@ def _check_game_end_documents(
     ) != 2 or unmet["walkOffScoring"].get("sourceClauseId") != "req:A-1":
         raise RequiredSetCoverageError("ステップ94の未達事項の典拠・送り先が不正")
     _check_game_end_decision_properties(root, contract, declaration)
+    _check_game_end_validation_errors(root, contract, declaration)
     generated, trace = expand_game_end_cases.expand_coverage_traced(root)
     expander_policy = expand_game_end_cases.dependency_checker.load_policy(root)
     if trace.observed_read_paths != expander_policy.expanders["game-end-cases"].allowed_read_paths:

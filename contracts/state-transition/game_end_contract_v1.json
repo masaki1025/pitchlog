@@ -8052,5 +8052,253 @@
       }
     }
   ],
-  "validationErrors": []
+  "validationErrors": [
+    {
+      "axisId": "gameEnd.regulationInnings",
+      "invalidValue": 0,
+      "valueIdentity": "0",
+      "sourceClauseIds": [
+        "req:F-1",
+        "req:FR-014",
+        "req:DRAW-01",
+        "req:DRAW-03",
+        "adr:D-11"
+      ],
+      "expected": "reject-invalid-rule-setting",
+      "claimBoundary": {
+        "guaranteed": "gameEnd.regulationInnings の不正値 0 を拒否すべきことを宣言し、導出器の不正値要求と照合する",
+        "notGuaranteed": "保証範囲外: gameEnd.regulationInnings の不正値 0 に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
+      }
+    },
+    {
+      "axisId": "gameEnd.regulationInnings",
+      "invalidValue": 100,
+      "valueIdentity": "100",
+      "sourceClauseIds": [
+        "req:F-1",
+        "req:FR-014",
+        "req:DRAW-01",
+        "req:DRAW-03",
+        "adr:D-11"
+      ],
+      "expected": "reject-invalid-rule-setting",
+      "claimBoundary": {
+        "guaranteed": "gameEnd.regulationInnings の不正値 100 を拒否すべきことを宣言し、導出器の不正値要求と照合する",
+        "notGuaranteed": "保証範囲外: gameEnd.regulationInnings の不正値 100 に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
+      }
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "invalidValue": "tier-count:17",
+      "valueIdentity": "\"tier-count:17\"",
+      "sourceClauseIds": [
+        "req:F-1",
+        "req:FR-014",
+        "req:COLD-01",
+        "req:COLD-02",
+        "req:COLD-03",
+        "req:COLD-04",
+        "req:COLD-05",
+        "req:COLD-06",
+        "req:COLD-07",
+        "req:COLD-08",
+        "req:COLD-09",
+        "req:DRAW-02",
+        "adr:D-11"
+      ],
+      "expected": "reject-invalid-rule-setting",
+      "claimBoundary": {
+        "guaranteed": "gameEnd.coldConditions の不正値 tier-count:17 を拒否すべきことを宣言し、導出器の不正値要求と照合する",
+        "notGuaranteed": "保証範囲外: gameEnd.coldConditions の不正値 tier-count:17 に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
+      }
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "invalidValue": "point-difference:0",
+      "valueIdentity": "\"point-difference:0\"",
+      "sourceClauseIds": [
+        "req:F-1",
+        "req:FR-014",
+        "req:COLD-01",
+        "req:COLD-02",
+        "req:COLD-03",
+        "req:COLD-04",
+        "req:COLD-05",
+        "req:COLD-06",
+        "req:COLD-07",
+        "req:COLD-08",
+        "req:COLD-09",
+        "req:DRAW-02",
+        "adr:D-11"
+      ],
+      "expected": "reject-invalid-rule-setting",
+      "claimBoundary": {
+        "guaranteed": "gameEnd.coldConditions の不正値 point-difference:0 を拒否すべきことを宣言し、導出器の不正値要求と照合する",
+        "notGuaranteed": "保証範囲外: gameEnd.coldConditions の不正値 point-difference:0 に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
+      }
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "invalidValue": "point-difference:100",
+      "valueIdentity": "\"point-difference:100\"",
+      "sourceClauseIds": [
+        "req:F-1",
+        "req:FR-014",
+        "req:COLD-01",
+        "req:COLD-02",
+        "req:COLD-03",
+        "req:COLD-04",
+        "req:COLD-05",
+        "req:COLD-06",
+        "req:COLD-07",
+        "req:COLD-08",
+        "req:COLD-09",
+        "req:DRAW-02",
+        "adr:D-11"
+      ],
+      "expected": "reject-invalid-rule-setting",
+      "claimBoundary": {
+        "guaranteed": "gameEnd.coldConditions の不正値 point-difference:100 を拒否すべきことを宣言し、導出器の不正値要求と照合する",
+        "notGuaranteed": "保証範囲外: gameEnd.coldConditions の不正値 point-difference:100 に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
+      }
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "invalidValue": "start-inning:0",
+      "valueIdentity": "\"start-inning:0\"",
+      "sourceClauseIds": [
+        "req:F-1",
+        "req:FR-014",
+        "req:COLD-01",
+        "req:COLD-02",
+        "req:COLD-03",
+        "req:COLD-04",
+        "req:COLD-05",
+        "req:COLD-06",
+        "req:COLD-07",
+        "req:COLD-08",
+        "req:COLD-09",
+        "req:DRAW-02",
+        "adr:D-11"
+      ],
+      "expected": "reject-invalid-rule-setting",
+      "claimBoundary": {
+        "guaranteed": "gameEnd.coldConditions の不正値 start-inning:0 を拒否すべきことを宣言し、導出器の不正値要求と照合する",
+        "notGuaranteed": "保証範囲外: gameEnd.coldConditions の不正値 start-inning:0 に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
+      }
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "invalidValue": "start-inning:100",
+      "valueIdentity": "\"start-inning:100\"",
+      "sourceClauseIds": [
+        "req:F-1",
+        "req:FR-014",
+        "req:COLD-01",
+        "req:COLD-02",
+        "req:COLD-03",
+        "req:COLD-04",
+        "req:COLD-05",
+        "req:COLD-06",
+        "req:COLD-07",
+        "req:COLD-08",
+        "req:COLD-09",
+        "req:DRAW-02",
+        "adr:D-11"
+      ],
+      "expected": "reject-invalid-rule-setting",
+      "claimBoundary": {
+        "guaranteed": "gameEnd.coldConditions の不正値 start-inning:100 を拒否すべきことを宣言し、導出器の不正値要求と照合する",
+        "notGuaranteed": "保証範囲外: gameEnd.coldConditions の不正値 start-inning:100 に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
+      }
+    },
+    {
+      "axisId": "gameEnd.extensionLimit",
+      "invalidValue": "finite:R-1",
+      "valueIdentity": "\"finite:R-1\"",
+      "sourceClauseIds": [
+        "req:F-1",
+        "req:DRAW-01",
+        "req:DRAW-03",
+        "req:DRAW-07",
+        "req:DRAW-08",
+        "req:DRAW-09",
+        "req:DRAW-10",
+        "adr:D-11"
+      ],
+      "expected": "reject-invalid-rule-setting",
+      "claimBoundary": {
+        "guaranteed": "gameEnd.extensionLimit の不正値 finite:R-1 を拒否すべきことを宣言し、導出器の不正値要求と照合する",
+        "notGuaranteed": "保証範囲外: gameEnd.extensionLimit の不正値 finite:R-1 に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
+      }
+    },
+    {
+      "axisId": "gameEnd.extensionLimit",
+      "invalidValue": "finite:100",
+      "valueIdentity": "\"finite:100\"",
+      "sourceClauseIds": [
+        "req:F-1",
+        "req:DRAW-01",
+        "req:DRAW-03",
+        "req:DRAW-07",
+        "req:DRAW-08",
+        "req:DRAW-09",
+        "req:DRAW-10",
+        "adr:D-11"
+      ],
+      "expected": "reject-invalid-rule-setting",
+      "claimBoundary": {
+        "guaranteed": "gameEnd.extensionLimit の不正値 finite:100 を拒否すべきことを宣言し、導出器の不正値要求と照合する",
+        "notGuaranteed": "保証範囲外: gameEnd.extensionLimit の不正値 finite:100 に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
+      }
+    },
+    {
+      "axisId": "gameEnd.tiebreak",
+      "invalidValue": "start:R",
+      "valueIdentity": "\"start:R\"",
+      "sourceClauseIds": [
+        "req:F-1",
+        "req:FR-009",
+        "req:DRAW-03",
+        "adr:D-11"
+      ],
+      "expected": "reject-invalid-rule-setting",
+      "claimBoundary": {
+        "guaranteed": "gameEnd.tiebreak の不正値 start:R を拒否すべきことを宣言し、導出器の不正値要求と照合する",
+        "notGuaranteed": "保証範囲外: gameEnd.tiebreak の不正値 start:R に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
+      }
+    },
+    {
+      "axisId": "gameEnd.tiebreak",
+      "invalidValue": "start:L+1-when-finite",
+      "valueIdentity": "\"start:L+1-when-finite\"",
+      "sourceClauseIds": [
+        "req:F-1",
+        "req:FR-009",
+        "req:DRAW-03",
+        "adr:D-11"
+      ],
+      "expected": "reject-invalid-rule-setting",
+      "claimBoundary": {
+        "guaranteed": "gameEnd.tiebreak の不正値 start:L+1-when-finite を拒否すべきことを宣言し、導出器の不正値要求と照合する",
+        "notGuaranteed": "保証範囲外: gameEnd.tiebreak の不正値 start:L+1-when-finite に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
+      }
+    },
+    {
+      "axisId": "gameEnd.tiebreak",
+      "invalidValue": "start:100",
+      "valueIdentity": "\"start:100\"",
+      "sourceClauseIds": [
+        "req:F-1",
+        "req:FR-009",
+        "req:DRAW-03",
+        "adr:D-11"
+      ],
+      "expected": "reject-invalid-rule-setting",
+      "claimBoundary": {
+        "guaranteed": "gameEnd.tiebreak の不正値 start:100 を拒否すべきことを宣言し、導出器の不正値要求と照合する",
+        "notGuaranteed": "保証範囲外: gameEnd.tiebreak の不正値 start:100 に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
+      }
+    }
+  ]
 }

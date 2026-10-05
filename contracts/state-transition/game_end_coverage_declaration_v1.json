@@ -194,8 +194,15 @@
     "requirementKind": "invalid-boundary",
     "count": 12,
     "ownerStep": 96,
-    "targetCollection": "validationErrors"
+    "targetCollection": "validationErrors",
+    "status": "materialized",
+    "verification": "derived-exact-set"
   },
+  "normalCaseCounts": {
+    "stateTransition": 96,
+    "gameEnd": 170
+  },
+  "stateTransitionCaseAliases": ["eventKind", "operationKind", "resultId"],
   "step95DecisionProperties": {
     "automaticTransition": {
       "field": "automaticallyEndsGame",
@@ -255,6 +262,8 @@
     "contracts/state-transition/game_end_coverage_declaration_v1.json",
     "contracts/state-transition/game_end_contract_v1.json",
     "contracts/state-transition/game_end_contract_schema_v1.json",
+    "contracts/state-transition/state_transition_contract_v1.json",
+    "contracts/state-transition/state_transition_contract_schema_v1.json",
     "contracts/state-transition/game_end_input_coverage_v1.json",
     "contracts/state-transition/expander_dependency_policy_v1.json",
     "contracts/state-transition/expander_dependency_policy_schema_v1.json",

@@ -238,7 +238,6 @@ def test_game_end_expander_output_is_traced_and_schema_valid() -> None:
     contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
     schema = json.loads(GAME_END_SCHEMA_PATH.read_text(encoding="utf-8"))
     assert contract["cases"][:2] == cases
-    assert contract["validationErrors"] == []
     assert [case["branchId"] for case in cases] == [
         "GAME-END-NORMAL",
         "GAME-END-EXTRA-CONTINUE",

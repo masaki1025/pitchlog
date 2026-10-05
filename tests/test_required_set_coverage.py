@@ -121,6 +121,98 @@ def test_step95_decision_properties_hold_for_all_cases() -> None:
     assert checker.check_game_end_coverage(ROOT) == counts
 
 
+def test_step96_validation_errors_are_exact_and_separate_from_cases() -> None:
+    """導出器の不正値要求12件を別集合で引き受け、正常ケースに算入しない。"""
+    contract = _asset("game_end_contract_v1.json")
+    declaration = _asset("game_end_coverage_declaration_v1.json")
+    state = _asset("state_transition_contract_v1.json")
+    required, _ = checker.deriver.derive_repository_game_end_required_set(ROOT)
+    expected = {item.identity for item in required.invalid_boundary_requirements}
+    entries = contract["validationErrors"]
+    actual = {
+        ("invalid-boundary", item["axisId"], item["valueIdentity"])
+        for item in entries
+    }
+    assert len(entries) == len(actual) == len(expected) == 12
+    assert actual == expected
+    assert declaration["deferredValidationErrors"]["status"] == "materialized"
+    assert declaration["deferredValidationErrors"]["count"] == len(expected)
+    assert len(state["cases"]) == 96
+    assert len(contract["cases"]) == 170
+    assert all("caseId" not in item and "inputCoordinate" not in item for item in entries)
+    assert all("保証範囲外" in item["claimBoundary"]["notGuaranteed"] for item in entries)
+    checker._check_game_end_validation_errors(ROOT, contract, declaration, state)
+    counts, _, _, _ = checker._game_end_measure(ROOT, contract, declaration)
+    assert counts["cases"] == 170
+    assert counts["invalid"] == len(entries) == 12
+
+
+@pytest.mark.parametrize("mutation", ["missing", "extra", "replaced"])
+def test_step96_validation_error_set_mutations_are_rejected(mutation: str) -> None:
+    """不正値拒否の欠落・余剰・同件数での差し替えを拒否する。"""
+    contract = _asset("game_end_contract_v1.json")
+    declaration = _asset("game_end_coverage_declaration_v1.json")
+    if mutation == "missing":
+        contract["validationErrors"].pop()
+    elif mutation == "extra":
+        extra = copy.deepcopy(contract["validationErrors"][0])
+        extra["invalidValue"] = -1
+        extra["valueIdentity"] = "-1"
+        contract["validationErrors"].append(extra)
+    else:
+        replaced = contract["validationErrors"][0]
+        replaced["invalidValue"] = -1
+        replaced["valueIdentity"] = "-1"
+        for field in ("guaranteed", "notGuaranteed"):
+            replaced["claimBoundary"][field] = replaced["claimBoundary"][field].replace(
+                " 0 ", " -1 "
+            )
+    with pytest.raises(checker.RequiredSetCoverageError, match="validationErrors"):
+        checker._check_game_end_validation_errors(ROOT, contract, declaration)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "without-label"])
+def test_step96_missing_claim_boundary_is_rejected(mutation: str) -> None:
+    """1件でも保証範囲外の記述が欠ければ赤になる。"""
+    contract = _asset("game_end_contract_v1.json")
+    boundary = contract["validationErrors"][0]["claimBoundary"]
+    if mutation == "missing":
+        del boundary["notGuaranteed"]
+    else:
+        boundary["notGuaranteed"] = boundary["notGuaranteed"].replace("保証範囲外", "対象外")
+    with pytest.raises(checker.RequiredSetCoverageError, match="schema違反|保証範囲外"):
+        checker._check_game_end_validation_errors(
+            ROOT, contract, _asset("game_end_coverage_declaration_v1.json")
+        )
+
+
+@pytest.mark.parametrize("contract_kind", ["gameEnd", "stateTransition"])
+def test_step96_invalid_value_mixed_into_normal_cases_is_rejected(
+    contract_kind: str,
+) -> None:
+    """両契約の正常ケースに不正な軸値を1件混ぜると赤になる。"""
+    contract = _asset("game_end_contract_v1.json")
+    state = _asset("state_transition_contract_v1.json")
+    if contract_kind == "gameEnd":
+        contract["cases"][0]["inputCoordinate"]["gameEnd.regulationInnings"] = 0
+    else:
+        state["cases"][0]["inputCoordinate"]["state.outs"] = 4
+    with pytest.raises(checker.RequiredSetCoverageError, match="schema外値"):
+        checker._check_game_end_validation_errors(
+            ROOT, contract, _asset("game_end_coverage_declaration_v1.json"), state
+        )
+
+
+def test_step96_validation_error_cannot_be_counted_as_a_normal_case() -> None:
+    """拒否要求を正常ケースへ追加してもケース件数として受理しない。"""
+    contract = _asset("game_end_contract_v1.json")
+    contract["cases"].append(copy.deepcopy(contract["validationErrors"][0]))
+    with pytest.raises(checker.RequiredSetCoverageError, match="正常ケースの件数"):
+        checker._check_game_end_validation_errors(
+            ROOT, contract, _asset("game_end_coverage_declaration_v1.json")
+        )
+
+
 def test_step95_automatic_transition_mutation_is_rejected() -> None:
     """1ケースだけ試合状態を自動遷移させると検査器が失敗する。"""
     contract = _asset("game_end_contract_v1.json")

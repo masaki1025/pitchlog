@@ -112,12 +112,35 @@
     "validationErrors": {
       "type": "array",
       "items": {
-        "type": "object",
-        "additionalProperties": true
+        "$ref": "#/$defs/validationError"
       }
     }
   },
   "$defs": {
+    "validationError": {
+      "type": "object",
+      "required": ["axisId", "invalidValue", "valueIdentity", "sourceClauseIds", "expected", "claimBoundary"],
+      "additionalProperties": false,
+      "properties": {
+        "axisId": {"type": "string", "pattern": "^gameEnd\\."},
+        "invalidValue": {"oneOf": [{"type": "integer"}, {"type": "string"}]},
+        "valueIdentity": {"type": "string", "minLength": 1},
+        "sourceClauseIds": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "expected": {"const": "reject-invalid-rule-setting"},
+        "claimBoundary": {
+          "type": "object",
+          "required": ["guaranteed", "notGuaranteed"],
+          "additionalProperties": false,
+          "properties": {
+            "guaranteed": {"type": "string", "minLength": 1},
+            "notGuaranteed": {"type": "string", "pattern": "保証範囲外"}
+          }
+        }
+      }
+    },
     "decisionRow": {
       "type": "object",
       "required": [
