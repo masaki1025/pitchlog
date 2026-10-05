@@ -1,0 +1,14 @@
+{
+  "compose_project": "pitchlog",
+  "compose_service": "product-rls-db",
+  "shared_compose_service": "db",
+  "compose_volume": "product_rls_postgres_data",
+  "admin_dsn_env": "PITCHLOG_PRODUCT_RLS_ADMIN_DSN",
+  "target_db_env": "PITCHLOG_PRODUCT_RLS_TARGET_DB",
+  "test_role_dsn_env": "PITCHLOG_PRODUCT_RLS_TEST_ROLE_DSN",
+  "initial_db_env": "PITCHLOG_PRODUCT_RLS_POSTGRES_DB",
+  "role_assets_dir": "contracts/authz/product/function-bodies/roles",
+  "owner_role_asset": "contracts/authz/product/function-bodies/roles/pitchlog_owner.sql",
+  "temporary_role_source": "backend/tests/db/test_product_authz_cross_cutting.py",
+  "temporary_role_constant": "_TEMP_ROLE"
+}

@@ -321,7 +321,16 @@ PRODUCT_RLS_AREA_PATH_ADDITIONS = (
     "scripts/product_rls_real_schema/*",
     "scripts/product-rls-real-schema-targets.json",
 )
-PRODUCT_RLS_PLANNED_PATHS = (
+# 計画書 4-8 節の予定パス。①③ は完全パス、② は専用ディレクトリ配下とする。
+PRODUCT_RLS_PLANNED_EXACT_PATHS = frozenset(
+    {
+        "docs/ops/product-rls-real-schema.md",
+        "scripts/product-rls-real-schema-targets.json",
+    }
+)
+PRODUCT_RLS_PLANNED_DIRECTORY = "scripts/product_rls_real_schema/"
+# 同表の代表パスで各パターンの fnmatch 一致を確かめる。
+PRODUCT_RLS_PATTERN_EXAMPLES = (
     ("docs/ops/product-rls-real-schema.md",),
     (
         "scripts/product_rls_real_schema/runner.py",
@@ -1710,7 +1719,7 @@ def test_product_rls_declaration_matches_planned_and_tracked_paths() -> None:
         PRODUCT_RLS_AREA_PATH_ADDITIONS
     )
     for pattern, planned_paths in zip(
-        PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PLANNED_PATHS, strict=True
+        PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PATTERN_EXAMPLES, strict=True
     ):
         assert all(fnmatch.fnmatchcase(path, pattern) for path in planned_paths)
 
@@ -1719,11 +1728,21 @@ def test_product_rls_declaration_matches_planned_and_tracked_paths() -> None:
         tuple(path for path in tracked_files if fnmatch.fnmatchcase(path, pattern))
         for pattern in PRODUCT_RLS_AREA_PATH_ADDITIONS
     )
-    assert {path for matched_paths in matches for path in matched_paths} <= {
-        path for planned_paths in PRODUCT_RLS_PLANNED_PATHS for path in planned_paths
-    }
-    # ステップ 1 の追跡集合。ステップ 3 で②③ が追跡下に入ったら期待値を更新する。
-    assert matches == (("docs/ops/product-rls-real-schema.md",), (), ())
+    assert all(
+        path in PRODUCT_RLS_PLANNED_EXACT_PATHS
+        or path.startswith(PRODUCT_RLS_PLANNED_DIRECTORY)
+        for matched_paths in matches
+        for path in matched_paths
+    )
+    # ステップ 3 の追跡集合。runner パッケージと対象定義が追加層に入る。
+    assert matches == (
+        ("docs/ops/product-rls-real-schema.md",),
+        (
+            "scripts/product_rls_real_schema/__init__.py",
+            "scripts/product_rls_real_schema/runner.py",
+        ),
+        ("scripts/product-rls-real-schema-targets.json",),
+    )
 
 
 def test_area_registration() -> None:
