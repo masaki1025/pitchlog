@@ -1734,11 +1734,12 @@ def test_product_rls_declaration_matches_planned_and_tracked_paths() -> None:
         for matched_paths in matches
         for path in matched_paths
     )
-    # ステップ 3 の追跡集合。runner パッケージと対象定義が追加層に入る。
+    # ステップ 6 の追跡集合。固定した期待 node 資産も追加層に入る。
     assert matches == (
         ("docs/ops/product-rls-real-schema.md",),
         (
             "scripts/product_rls_real_schema/__init__.py",
+            "scripts/product_rls_real_schema/expected-nodes-f2dc9f9b.txt",
             "scripts/product_rls_real_schema/runner.py",
         ),
         ("scripts/product-rls-real-schema-targets.json",),

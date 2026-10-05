@@ -1,8 +1,10 @@
 """製品 RLS の対象確認と撤去入口を DB なしで検証する。"""
 
 import importlib.util
+import json
 import os
 import sys
+import xml.etree.ElementTree as ET
 from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
@@ -164,7 +166,7 @@ def test_test_environment_uses_frozen_names_and_initial_database() -> None:
 
 def test_test_observations_require_all_nodes_on_exact_target() -> None:
     """資産が定める node の接続に欠落または別対象があれば中止する。"""
-    expected_nodes = runner._load_targets().expected_test_nodes
+    expected_nodes = len(runner._expected_nodes(runner._load_targets().expected_nodes_asset))
     count = expected_nodes * runner.OBSERVED_CONNECTIONS_PER_NODE
     observations = [("101", "target")] * count
     runner._validate_test_observations(observations, "101", "target", expected_nodes)
@@ -252,9 +254,9 @@ def test_product_application_checks_target_before_apply_and_catalog_afterward(
     admin = "postgresql://admin:dummy@127.0.0.1:65432/initial"
     owner = "postgresql://owner:dummy@127.0.0.1:65432/target"
     try:
-        assert runner._apply_product_ddl(
-            runner._load_targets(), admin, owner, "target", "101"
-        ) == 0
+        result = runner._apply_product_ddl(
+            runner._load_targets(), admin, owner, "target", "101", "generation"
+        )
     finally:
         monkeypatch.setattr(runner.importlib, "import_module", real_import)
 
@@ -274,6 +276,7 @@ def test_product_application_checks_target_before_apply_and_catalog_afterward(
         "clear_password",
         "catalog",
     ]
+    assert result == runner.ApplicationResult("generation", "generation", 0)
 
 
 def test_catalog_violation_stops_product_application(
@@ -302,10 +305,141 @@ def test_unrejected_application_stops_runner() -> None:
         )
 
 
-def test_product_tests_use_in_process_supply_and_ignore_pre_ddl_failures(
+def _passed_reports(nodes: frozenset[str]) -> runner._NodeReports:
+    """各 node の全フェーズを passed とした観測を作る。"""
+    reports = runner._NodeReports()
+    reports.outcomes = {
+        node: [
+            ("setup", "passed", False),
+            ("call", "passed", False),
+            ("teardown", "passed", False),
+        ]
+        for node in nodes
+    }
+    return reports
+
+
+def test_missing_executed_node_is_rejected() -> None:
+    """期待集合の node が 1 件欠ければ差分を示して中止する。"""
+    expected = runner._expected_nodes(runner._load_targets().expected_nodes_asset)
+    missing = min(expected)
+    reports = _passed_reports(expected - {missing})
+
+    with pytest.raises(runner.RunnerError, match="不足") as error:
+        runner._validate_node_reports(expected, reports, 0)
+    assert missing in str(error.value)
+
+
+def test_unexpected_executed_node_is_rejected() -> None:
+    """期待集合に無い node が 1 件混ざれば差分を示して中止する。"""
+    expected = runner._expected_nodes(runner._load_targets().expected_nodes_asset)
+    extra = "tests/db/test_product_authz_other_profiles.py::test_unexpected"
+    reports = _passed_reports(expected | {extra})
+
+    with pytest.raises(runner.RunnerError, match="余分") as error:
+        runner._validate_node_reports(expected, reports, 0)
+    assert extra in str(error.value)
+
+
+def test_skipped_node_is_not_counted_as_green() -> None:
+    """48 件がそろっていても skip を passed に数えない。"""
+    expected = runner._expected_nodes(runner._load_targets().expected_nodes_asset)
+    reports = _passed_reports(expected)
+    skipped = min(expected)
+    reports.outcomes[skipped][1] = ("call", "skipped", False)
+
+    with pytest.raises(runner.RunnerError, match="全件 passed") as error:
+        runner._validate_node_reports(expected, reports, 0)
+    assert skipped in str(error.value)
+
+
+def test_different_generation_ids_are_rejected() -> None:
+    """適用・カタログ検査・再実行の生成回のずれを拒否する。"""
+    prepared = runner.PreparedTarget("generation", "digest", "head", "private")
+    report = Path("/tmp/product-rls-generation-demo/report.xml")
+    for application_id, catalog_id, test_id in (
+        ("other", "generation", "generation"),
+        ("generation", "other", "generation"),
+        ("generation", "generation", "other"),
+    ):
+        result = runner.RunResult(
+            runner.ApplicationResult(application_id, catalog_id, 0),
+            runner.TestResult(test_id, "nodes", report),
+        )
+        with pytest.raises(runner.RunnerError, match="生成 ID"):
+            runner._assert_generation_ids(prepared, result)
+
+
+def test_junit_report_keeps_only_names_and_results(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """試験が失敗しても供給内の接続先だけで判定し、環境を戻す。"""
+    """pytest の XML から接続文字列や捕捉出力を除いて残す。"""
+    config = runner._load_targets()
+    expected = runner._expected_nodes(config.expected_nodes_asset)
+    observed = SimpleNamespace(
+        connections=[("101", "target")]
+        * (len(expected) * runner.OBSERVED_CONNECTIONS_PER_NODE)
+    )
+    original_import = runner.importlib.import_module
+
+    def fake_main(args: list[str], *, plugins: list[Any]) -> int:
+        report_arg = next(arg for arg in args if arg.startswith("--junitxml="))
+        report_path = Path(report_arg.split("=", 1)[1])
+        suites = ET.Element("testsuites", hostname="private-marker")
+        suite = ET.SubElement(suites, "testsuite", hostname="private-marker")
+        for node in expected:
+            module, name = node.split("::", 1)
+            testcase = ET.SubElement(
+                suite, "testcase", classname=Path(module).stem, name=name
+            )
+            ET.SubElement(testcase, "system-out").text = "postgresql://private-marker"
+            for phase in ("setup", "call", "teardown"):
+                plugins[0].pytest_runtest_logreport(
+                    SimpleNamespace(nodeid=node, when=phase, outcome="passed")
+                )
+        ET.ElementTree(suites).write(report_path, encoding="utf-8")
+        print("private-marker")
+        return 0
+
+    def fake_import(name: str) -> Any:
+        return SimpleNamespace(main=fake_main) if name == "pytest" else original_import(name)
+
+    monkeypatch.setattr(runner.importlib, "import_module", fake_import)
+    result = runner._run_product_tests(config, observed, "101", "target", "generation")
+    report = result.junit_report.read_text(encoding="utf-8")
+    assert "private-marker" not in report + capsys.readouterr().out
+    assert "postgresql://" not in report
+    assert len(ET.fromstring(report).findall(".//testcase")) == len(expected)
+
+
+def test_junit_failure_details_are_redacted(tmp_path: Path) -> None:
+    """失敗時の例外文に含まれる接続文字列も成果物へ残さない。"""
+    node = "tests/db/test_product_authz_other_profiles.py::test_example"
+    path = tmp_path / "report.xml"
+    root = ET.Element("testsuites")
+    suite = ET.SubElement(root, "testsuite")
+    case = ET.SubElement(
+        suite,
+        "testcase",
+        classname="tests.db.test_product_authz_other_profiles",
+        name="test_example",
+    )
+    failure = ET.SubElement(case, "failure", message="postgresql://private-marker")
+    failure.text = "postgresql://private-marker"
+    ET.ElementTree(root).write(path, encoding="utf-8")
+
+    assert runner._redact_junit_report(path, frozenset({node})) == [
+        ("test_product_authz_other_profiles", "test_example", "failure")
+    ]
+    report = path.read_text(encoding="utf-8")
+    assert "private-marker" not in report
+    assert "<failure" in report
+
+
+def test_product_evidence_applies_before_in_process_tests(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """同一の供給内で適用から試験へ進み、環境を戻す。"""
     calls: list[str] = []
     observations = SimpleNamespace(connections=[])
 
@@ -318,16 +452,12 @@ def test_product_tests_use_in_process_supply_and_ignore_pre_ddl_failures(
         finally:
             calls.append("exit")
 
-    def fake_pytest_main(arguments: list[str]) -> int:
+    def fake_run_tests(*args: Any) -> runner.TestResult:
         calls.append("pytest")
-        assert len([arg for arg in arguments if arg.startswith("tests/db/test_")]) == 3
         assert os.environ["PITCHLOG_TEST_ADMIN_DSN"].endswith("/initial")
-        expected_nodes = runner._load_targets().expected_test_nodes
-        observations.connections.extend(
-            [("101", "target")] * (expected_nodes * runner.OBSERVED_CONNECTIONS_PER_NODE)
+        return runner.TestResult(
+            "generation", "digest", Path("/tmp/product-rls-generation-demo/report.xml")
         )
-        print("hidden-connection-marker")
-        return 1
 
     fixture_module = SimpleNamespace(
         DisposablePostgres=lambda **kwargs: SimpleNamespace(**kwargs),
@@ -339,11 +469,14 @@ def test_product_tests_use_in_process_supply_and_ignore_pre_ddl_failures(
     monkeypatch.setattr(
         runner,
         "_apply_product_ddl",
-        lambda *_: calls.append("apply") or 0,
+        lambda *_: calls.append("apply")
+        or runner.ApplicationResult("generation", "generation", 0),
     )
+    monkeypatch.setattr(runner, "_run_product_tests", fake_run_tests)
 
     def fake_import(name: str) -> Any:
-        return fixture_module if name == "db_fixtures" else SimpleNamespace(main=fake_pytest_main)
+        assert name == "db_fixtures"
+        return fixture_module
 
     monkeypatch.setattr(
         runner.importlib,
@@ -354,7 +487,7 @@ def test_product_tests_use_in_process_supply_and_ignore_pre_ddl_failures(
     tested = "postgresql://tested:dummy@127.0.0.1:65432/initial"
     original_directory = Path.cwd()
     try:
-        violations = runner._run_product_tests(
+        result = runner._run_product_evidence(
             runner._load_targets(),
             admin,
             "owner-secret",
@@ -362,11 +495,13 @@ def test_product_tests_use_in_process_supply_and_ignore_pre_ddl_failures(
             "target",
             "initial",
             runner._target_digest("101", "target"),
+            "generation",
         )
     finally:
         monkeypatch.setattr(runner.importlib, "import_module", real_import)
 
-    assert violations == 0
+    assert result.application.catalog_violations == 0
+    assert result.tests.generation_id == "generation"
     assert calls == ["enter", "apply", "pytest", "exit"]
     assert Path.cwd() == original_directory
     assert "hidden-connection-marker" not in capsys.readouterr().out
@@ -379,23 +514,49 @@ def test_main_passes_generated_owner_connection_without_printing_it(
     received: list[str] = []
 
     def prepare() -> runner.PreparedTarget:
-        owner_dsn = "postgresql://owner:private-marker@127.0.0.1:65432/target"
+        owner_dsn = (
+            "postgresql://user-private:password-private@host-private.invalid:65432/"
+            "database-private"
+        )
         return runner.PreparedTarget("generation", "digest", "head", owner_dsn)
 
-    def run_tests(*args: Any) -> int:
+    def run_tests(*args: Any) -> runner.RunResult:
         received.append(args[2])
-        return 0
+        return runner.RunResult(
+            runner.ApplicationResult("generation", "generation", 0),
+            runner.TestResult(
+                "generation",
+                "node-digest",
+                Path("/tmp/product-rls-generation-demo/report.xml"),
+            ),
+        )
 
     monkeypatch.setattr(runner, "_required_environment", lambda _: "unused")
-    monkeypatch.setattr(runner, "_run_product_tests", run_tests)
+    monkeypatch.setattr(runner, "_run_product_evidence", run_tests)
+    monkeypatch.setattr(runner, "_ddl_asset_digest", lambda: "ddl-digest")
+    monkeypatch.setattr(runner, "_test_tree_commit", lambda: "a" * 40)
 
     assert runner.main(prepare) == 0
     assert received == [
-        "postgresql://owner:private-marker@127.0.0.1:65432/target"
+        "postgresql://user-private:password-private@host-private.invalid:65432/"
+        "database-private"
     ]
     output = capsys.readouterr()
-    assert "private-marker" not in output.out + output.err
-    assert '"catalog_violations": 0' in output.out
+    assert all(
+        value not in output.out + output.err
+        for value in (
+            "postgresql://",
+            "user-private",
+            "password-private",
+            "host-private.invalid",
+            "65432",
+            "database-private",
+        )
+    )
+    evidence = json.loads(output.out)
+    assert evidence["catalog_violations"] == 0
+    assert evidence["expected_nodes_asset"] == "expected-nodes-f2dc9f9b.txt"
+    assert evidence["executed_nodes"] == "node-digest"
 
 
 def test_cli_does_not_print_unexpected_exception_content(

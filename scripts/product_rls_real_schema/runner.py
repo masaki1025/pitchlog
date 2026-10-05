@@ -22,6 +22,8 @@ import re
 import secrets
 import subprocess
 import sys
+import tempfile
+import xml.etree.ElementTree as ET
 from collections.abc import Callable, Mapping
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
@@ -44,6 +46,11 @@ CONTAINER_CONTROL_QUERY = (
 )
 ROLE_ID_PATTERN = re.compile(r"(?m)^-- ELEMENT-ID: ([A-Za-z_][A-Za-z0-9_]*)$")
 OBSERVED_CONNECTIONS_PER_NODE = 2
+PRODUCT_TEST_PATHS = (
+    "tests/db/test_product_authz_tenant_owned.py",
+    "tests/db/test_product_authz_cross_cutting.py",
+    "tests/db/test_product_authz_other_profiles.py",
+)
 
 
 class RunnerError(RuntimeError):
@@ -58,7 +65,7 @@ class TargetsConfig:
     compose_service: str
     shared_compose_service: str
     compose_volume: str
-    expected_test_nodes: int
+    expected_nodes_asset: Path
     admin_dsn_env: str
     target_db_env: str
     test_role_dsn_env: str
@@ -77,6 +84,32 @@ class PreparedTarget:
     target_digest: str
     migration_head: str
     owner_dsn: str
+
+
+@dataclass(frozen=True)
+class ApplicationResult:
+    """適用とカタログ検査を同じ生成回へ結び付ける。"""
+
+    application_generation_id: str
+    catalog_generation_id: str
+    catalog_violations: int
+
+
+@dataclass(frozen=True)
+class TestResult:
+    """試験結果と成果物を生成回へ結び付ける。"""
+
+    generation_id: str
+    executed_nodes: str
+    junit_report: Path
+
+
+@dataclass(frozen=True)
+class RunResult:
+    """同一起動の適用結果と試験結果を保持する。"""
+
+    application: ApplicationResult
+    tests: TestResult
 
 
 @dataclass(frozen=True, repr=False)
@@ -195,6 +228,7 @@ def _load_targets() -> TargetsConfig:
         "compose_service",
         "shared_compose_service",
         "compose_volume",
+        "expected_nodes_asset",
         "admin_dsn_env",
         "target_db_env",
         "test_role_dsn_env",
@@ -204,13 +238,16 @@ def _load_targets() -> TargetsConfig:
         "temporary_role_source",
         "temporary_role_constant",
     }
-    if not isinstance(raw, dict) or set(raw) != {*string_keys, "expected_test_nodes"}:
+    if not isinstance(raw, dict) or set(raw) != string_keys:
         raise RunnerError("対象定義の項目が不正")
     if any(not isinstance(raw[key], str) or not raw[key] for key in string_keys):
         raise RunnerError("対象定義の値が不正")
-    expected_test_nodes = raw["expected_test_nodes"]
-    if type(expected_test_nodes) is not int or expected_test_nodes <= 0:
-        raise RunnerError("試験 node 数の期待値が不正")
+    asset_name = raw["expected_nodes_asset"]
+    if Path(asset_name).name != asset_name:
+        raise RunnerError("試験 node 資産の名前が不正")
+    expected_nodes_asset = _asset_path(
+        f"scripts/product_rls_real_schema/{asset_name}"
+    )
     role_dir = (REPOSITORY_ROOT / raw["role_assets_dir"]).resolve()
     if not role_dir.is_relative_to(REPOSITORY_ROOT) or not role_dir.is_dir():
         raise RunnerError("ロール資産の場所が不正")
@@ -219,7 +256,7 @@ def _load_targets() -> TargetsConfig:
         compose_service=raw["compose_service"],
         shared_compose_service=raw["shared_compose_service"],
         compose_volume=raw["compose_volume"],
-        expected_test_nodes=expected_test_nodes,
+        expected_nodes_asset=expected_nodes_asset,
         admin_dsn_env=raw["admin_dsn_env"],
         target_db_env=raw["target_db_env"],
         test_role_dsn_env=raw["test_role_dsn_env"],
@@ -316,6 +353,111 @@ def _validate_test_observations(
         raise RunnerError("製品越境試験の接続先が専用対象と一致しない")
 
 
+def _expected_nodes(asset: Path) -> frozenset[str]:
+    """固定した基準コミットの node 集合を資産から読む。"""
+    try:
+        nodes = asset.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError) as error:
+        raise RunnerError("試験 node 資産を読めない") from error
+    if not nodes or any(not node or "::" not in node for node in nodes):
+        raise RunnerError("試験 node 資産の内容が不正")
+    if len(nodes) != len(set(nodes)):
+        raise RunnerError("試験 node 資産に重複がある")
+    return frozenset(nodes)
+
+
+class _NodeReports:
+    """pytest の各 node と全フェーズの結果を収集する。"""
+
+    def __init__(self) -> None:
+        self.outcomes: dict[str, list[tuple[str, str, bool]]] = {}
+
+    def pytest_runtest_logreport(self, report: Any) -> None:
+        """setup・call・teardown の skip と xfail も保存する。"""
+        self.outcomes.setdefault(report.nodeid, []).append(
+            (report.when, report.outcome, hasattr(report, "wasxfail"))
+        )
+
+
+def _validate_node_reports(
+    expected: frozenset[str], reports: _NodeReports, exit_code: int
+) -> None:
+    """実行 node の exact-set と全件 passed を要求する。"""
+    actual = set(reports.outcomes)
+    missing = sorted(expected - actual)
+    unexpected = sorted(actual - expected)
+    if missing or unexpected:
+        raise RunnerError(f"試験 node 集合が不一致: 不足={missing}, 余分={unexpected}")
+    not_passed = sorted(
+        node
+        for node, outcomes in reports.outcomes.items()
+        if not any(phase == "call" and result == "passed" and not xfail
+                   for phase, result, xfail in outcomes)
+        or any(result != "passed" or xfail for _, result, xfail in outcomes)
+    )
+    if exit_code != 0 or not_passed:
+        raise RunnerError(f"製品越境試験が全件 passed ではない: {not_passed}")
+
+
+def _redact_junit_report(
+    path: Path, expected: frozenset[str]
+) -> list[tuple[str, str, str]]:
+    """JUnit の例外・捕捉出力を消し、試験名と結果だけを残す。"""
+    try:
+        tree = ET.parse(path)
+        root = tree.getroot()
+        expected_cases = {
+            (Path(node.split("::", 1)[0]).stem, node.split("::", 1)[1])
+            for node in expected
+        }
+        suites = root.findall("testsuite")
+        if root.tag != "testsuites" or len(suites) != 1:
+            raise RunnerError("JUnit 成果物の形式が不正")
+        root.attrib.clear()
+        root.text = None
+        for child in list(root):
+            if child.tag != "testsuite":
+                root.remove(child)
+        suite = suites[0]
+        suite.attrib.clear()
+        suite.text = None
+        suite.tail = None
+        observed_cases: list[tuple[str, str, str]] = []
+        for element in list(suite):
+            if element.tag != "testcase":
+                suite.remove(element)
+                continue
+            pair = (
+                element.get("classname", "").split(".")[-1],
+                element.get("name", ""),
+            )
+            statuses = [
+                child.tag
+                for child in element
+                if child.tag in {"failure", "error", "skipped"}
+            ]
+            observed_cases.append((*pair, statuses[0] if statuses else "passed"))
+            element.attrib.clear()
+            if pair in expected_cases:
+                element.set("classname", pair[0])
+                element.set("name", pair[1])
+            else:
+                element.set("classname", "unexpected")
+                element.set("name", "unexpected-node")
+            element.text = None
+            element.tail = None
+            for child in list(element):
+                if child.tag in {"failure", "error", "skipped"}:
+                    child.clear()
+                else:
+                    element.remove(child)
+        tree.write(path, encoding="utf-8", xml_declaration=True)
+    except (OSError, ET.ParseError, ValueError, RunnerError) as error:
+        path.unlink(missing_ok=True)
+        raise RunnerError("JUnit 成果物を安全に保存できない") from error
+    return observed_cases
+
+
 def _catalog_violations(connection: Any, inspect: Callable[..., Any]) -> int:
     """適用主体の OID で製品カタログを検査し、違反件数だけ返す。"""
     try:
@@ -356,7 +498,8 @@ def _apply_product_ddl(
     owner_dsn: str,
     database: str,
     cluster: str,
-) -> int:
+    generation_id: str,
+) -> ApplicationResult:
     """対象照合後に正規入口で適用し、カタログと拒否経路を確かめる。"""
     driver = _driver()
     provisioning = importlib.import_module("pitchlog.authz.product_provisioning")
@@ -369,7 +512,9 @@ def _apply_product_ddl(
         _assert_target_connection(config, admin, cluster, database)
         admin.rollback()
         apply(admin)
+        application_generation_id = generation_id
         violations = _catalog_violations(admin, inspect)
+        catalog_generation_id = generation_id
 
         with driver.connect(owner_dsn) as owner:
             _catalog_violations(admin, inspect)
@@ -399,10 +544,62 @@ def _apply_product_ddl(
             _execute(admin, f"ALTER ROLE {_quote_identifier('pitchlog_app')} PASSWORD NULL")
             admin.commit()
         _catalog_violations(admin, inspect)
-    return violations
+    return ApplicationResult(application_generation_id, catalog_generation_id, violations)
 
 
 def _run_product_tests(
+    config: TargetsConfig,
+    observations: Any,
+    cluster: str,
+    database: str,
+    generation_id: str,
+) -> TestResult:
+    """固定 node を同一プロセスで実行し、接続先と合否を検査する。"""
+    expected = _expected_nodes(config.expected_nodes_asset)
+    reports = _NodeReports()
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", generation_id):
+        raise RunnerError("生成 ID の形式が不正")
+    report_dir = Path(
+        tempfile.mkdtemp(prefix=f"product-rls-{generation_id}-", dir="/tmp")
+    )
+    report_path = report_dir / "report.xml"
+    pytest = importlib.import_module("pytest")
+    try:
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            exit_code = int(
+                pytest.main(
+                    [
+                        "-c",
+                        "pyproject.toml",
+                        "--tb=no",
+                        "--show-capture=no",
+                        "-q",
+                        f"--junitxml={report_path}",
+                        *PRODUCT_TEST_PATHS,
+                    ],
+                    plugins=[reports],
+                )
+            )
+    finally:
+        if report_path.is_file():
+            junit_cases = _redact_junit_report(report_path, expected)
+    if not report_path.is_file():
+        raise RunnerError("JUnit 成果物が作成されなかった")
+    _validate_node_reports(expected, reports, exit_code)
+    expected_cases = {
+        (Path(node.split("::", 1)[0]).stem, node.split("::", 1)[1])
+        for node in expected
+    }
+    if len(junit_cases) != len(expected) or {case[:2] for case in junit_cases} != expected_cases:
+        raise RunnerError("JUnit 成果物の試験集合が実行した node と一致しない")
+    if any(status != "passed" for _, _, status in junit_cases):
+        raise RunnerError("JUnit 成果物に passed 以外の結果がある")
+    _validate_test_observations(observations.connections, cluster, database, len(expected))
+    digest = hashlib.sha256("\n".join(sorted(reports.outcomes)).encode("utf-8")).hexdigest()
+    return TestResult(generation_id, digest, report_path)
+
+
+def _run_product_evidence(
     config: TargetsConfig,
     admin_dsn: str,
     owner_dsn: str,
@@ -410,8 +607,9 @@ def _run_product_tests(
     database: str,
     initial_database: str,
     target_digest: str,
-) -> int:
-    """適用前記録から DDL 適用へ進み、同一プロセスで試験を実行する。"""
+    generation_id: str,
+) -> RunResult:
+    """適用前記録を保持し、適用と試験を順に呼ぶ。"""
     cluster = _container_cluster(config, config.compose_service)
     if _target_digest(cluster, database) != target_digest:
         raise RunnerError("作り直した対象と試験対象の要約値が一致しない")
@@ -427,7 +625,6 @@ def _run_product_tests(
         os.environ.update(test_environment)
         os.chdir(REPOSITORY_ROOT / "backend")
         fixtures = importlib.import_module("db_fixtures")
-        pytest = importlib.import_module("pytest")
         handle = fixtures.DisposablePostgres(
             container_name=_container_id(config, config.compose_service),
             admin_dsn=admin_dsn,
@@ -438,27 +635,13 @@ def _run_product_tests(
             applicator_dsn=_database_dsn(admin_dsn, database),
             owner_dsn=owner_dsn,
         ) as observations:
-            violations = _apply_product_ddl(
-                config, admin_dsn, owner_dsn, database, cluster
+            application = _apply_product_ddl(
+                config, admin_dsn, owner_dsn, database, cluster, generation_id
             )
-            # ステップ 6 まで試験本体の合否を判定せず、出力も表示しない。
-            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                pytest.main(
-                    [
-                        "-c",
-                        "pyproject.toml",
-                        "--tb=no",
-                        "--show-capture=no",
-                        "-q",
-                        "tests/db/test_product_authz_tenant_owned.py",
-                        "tests/db/test_product_authz_cross_cutting.py",
-                        "tests/db/test_product_authz_other_profiles.py",
-                    ]
-                )
-        _validate_test_observations(
-            observations.connections, cluster, database, config.expected_test_nodes
-        )
-        return violations
+            tests = _run_product_tests(
+                config, observations, cluster, database, generation_id
+            )
+        return RunResult(application, tests)
     finally:
         os.chdir(previous_directory)
         sys.path[:] = original_path
@@ -866,20 +1049,62 @@ def _prepare_target() -> PreparedTarget:
     )
 
 
+def _ddl_asset_digest() -> str:
+    """追跡下の製品 DDL 資産の内容を一方向に要約する。"""
+    listing = _command(["git", "ls-files", "-z", "--", "contracts/authz/product/"])
+    paths = sorted(path for path in listing.split("\0") if path)
+    if not paths:
+        raise RunnerError("製品 DDL 資産の追跡ファイルが無い")
+    digest = hashlib.sha256()
+    try:
+        # git ls-files のパス順で各ファイルの内容を連結し、SHA-256 を計算する。
+        for relative in paths:
+            digest.update((REPOSITORY_ROOT / relative).read_bytes())
+    except OSError as error:
+        raise RunnerError("製品 DDL 資産を読めない") from error
+    return digest.hexdigest()
+
+
+def _test_tree_commit() -> str:
+    """実行する 3 試験ファイルを最後に変更した commit を読む。"""
+    commit = _command(
+        [
+            "git", "log", "-1", "--format=%H", "--",
+            *(f"backend/{path}" for path in PRODUCT_TEST_PATHS),
+        ]
+    )
+    if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", commit):
+        raise RunnerError("試験ファイルの commit を判定できない")
+    return commit
+
+
+def _assert_generation_ids(prepared: PreparedTarget, result: RunResult) -> None:
+    """準備・適用・カタログ検査・再実行の生成 ID を照合する。"""
+    ids = (
+        prepared.generation_id,
+        result.application.application_generation_id,
+        result.application.catalog_generation_id,
+        result.tests.generation_id,
+    )
+    if not ids[0] or len(set(ids)) != 1:
+        raise RunnerError("準備・適用・検査・試験の生成 ID が一致しない")
+    if not result.tests.junit_report.parent.name.startswith(f"product-rls-{ids[0]}-"):
+        raise RunnerError("JUnit 成果物の生成 ID が一致しない")
+
+
 def main(run: Callable[[], PreparedTarget] | None = None) -> int:
-    """準備と試験接続先の照合を実行し、接続情報を表示しない。
+    """同一生成回の適用と試験を判定し、接続情報を表示しない。
 
     Args:
         run: 単体試験で準備処理を差し替えるための関数。
 
     Returns:
-        接続先の照合成功時 0、判定不能・不一致・実行失敗時 1。
-        試験本体の合否はこの段階の終了コードへ反映しない。
+        全 node が成功したとき 0、判定不能・不一致・実行失敗時 1。
     """
     try:
         prepared = (run or _prepare_target)()
         config = _load_targets()
-        catalog_violations = _run_product_tests(
+        result = _run_product_evidence(
             config,
             _required_environment(config.admin_dsn_env),
             prepared.owner_dsn,
@@ -887,7 +1112,11 @@ def main(run: Callable[[], PreparedTarget] | None = None) -> int:
             _required_environment(config.target_db_env),
             _required_environment(config.initial_db_env),
             prepared.target_digest,
+            prepared.generation_id,
         )
+        _assert_generation_ids(prepared, result)
+        ddl_asset_digest = _ddl_asset_digest()
+        test_tree_commit = _test_tree_commit()
     except RunnerError as error:
         print(f"製品 RLS 対象準備を中止: {error}", file=sys.stderr)
         return 1
@@ -900,7 +1129,16 @@ def main(run: Callable[[], PreparedTarget] | None = None) -> int:
                 "generation_id": prepared.generation_id,
                 "target_digest": prepared.target_digest,
                 "migration_head": prepared.migration_head,
-                "catalog_violations": catalog_violations,
+                "catalog_violations": result.application.catalog_violations,
+                "instance_identity": {
+                    "compose_service": config.compose_service,
+                    "compose_volume": config.compose_volume,
+                },
+                "ddl_asset_digest": ddl_asset_digest,
+                "test_tree_commit": test_tree_commit,
+                "executed_nodes": result.tests.executed_nodes,
+                "expected_nodes_asset": config.expected_nodes_asset.name,
+                "junit_report": str(result.tests.junit_report),
             }
         )
     )
