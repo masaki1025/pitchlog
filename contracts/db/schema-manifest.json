@@ -5,7 +5,7 @@
   "canonical_source": {
     "path": "docs/design/data-model.md",
     "digest_kind": "ファイル内容のSHA-256",
-    "sha256": "9349da0ec189cdaad6bdf5bd7effe4e7fa27b183708e657b352f184b0fa9e521",
+    "sha256": "10847d4d74e94c325779b6e282c4c3639da2cdf9b10bd4a277c41d745015494f",
     "reproduction": "リポジトリルートで sha256sum docs/design/data-model.md を実行する"
   },
   "provenance_methods": {
@@ -31,17 +31,22 @@
       "columns": [
         {"name": "id", "type": "uuid", "nullable": false, "default": null},
         {"name": "name", "type": "text", "nullable": false, "default": null},
+        {"name": "name_normalized", "type": "text", "nullable": false, "default": null, "generated_expression": "public.authn_normalize_team_name(name)"},
         {"name": "enabled", "type": "boolean", "nullable": false, "default": "true"},
         {"name": "disabled_at", "type": "timestamptz", "nullable": true, "default": null},
-        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null}
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "retired_at", "type": "timestamptz", "nullable": true, "default": null}
       ],
-      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
+      "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "退役述語を持つ"},
       "foreign_keys": [{"name": "fk_tenants_import_batch", "columns": ["import_batch_id"], "references": {"table": "migration_runs", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}],
-      "checks": ["enabled OR disabled_at IS NOT NULL"],
-      "unique_constraints": [{"name": "pk_tenants", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "checks": ["enabled OR disabled_at IS NOT NULL", "pg_catalog.char_length(name_normalized) <= 64"],
+      "unique_constraints": [
+        {"name": "pk_tenants", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_tenants_active_name_normalized", "kind": "UNIQUE INDEX", "columns": ["name_normalized"], "predicate": "retired_at IS NULL", "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "8-1", "uniqueness": "テナントのチーム名は正規化名で 1 件", "key_shape": "UNIQUE (正規化(チーム名)) WHERE 退役していない(述語は 12-3 節の退役の不変条件 5)", "scope": "outside"}}
+      ],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["name", "enabled", "disabled_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
+      "immutability": {"protected_columns": [], "allowed_update_columns": ["name", "enabled", "disabled_at", "retired_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "team_records",
@@ -758,7 +763,11 @@
       "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [{"name": "fk_tenant_auth_subjects_tenant", "columns": ["tenant_id"], "references": {"table": "tenants", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}],
       "checks": [],
-      "unique_constraints": [{"name": "pk_tenant_auth_subjects", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
+      "unique_constraints": [
+        {"name": "pk_tenant_auth_subjects", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]},
+        {"name": "uq_tenant_auth_subjects_tenant", "kind": "UNIQUE", "columns": ["tenant_id"], "predicate": null, "roles": ["business_unique"], "verification": "正本表から照合", "source_row": {"section": "8-2", "uniqueness": "テナントの認証主体は 1 件", "key_shape": "UNIQUE (tenant_id) — 認証主体表の側", "scope": "scoped"}},
+        {"name": "uq_tenant_auth_subjects_tenant_id", "kind": "UNIQUE", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["fk_target"]}
+      ],
       "indexes": [{"name": "ix_tenant_auth_subjects_tenant", "columns": ["tenant_id", "id"], "predicate": null, "purpose": "lookup"}],
       "forbidden_columns": ["user_id", "role", "v12", "created_by", "created_by_user_id", "inputter_id"],
       "immutability": {"protected_columns": ["id", "tenant_id"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
@@ -837,7 +846,7 @@
       "lifecycle": {"deletion": "親に従う", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [
         {"name": "fk_tenant_tokens_tenant", "columns": ["tenant_id"], "references": {"table": "tenants", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false},
-        {"name": "fk_tenant_tokens_subject", "columns": ["auth_subject_id"], "references": {"table": "tenant_auth_subjects", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}
+        {"name": "fk_tenant_tokens_subject", "columns": ["tenant_id", "auth_subject_id"], "references": {"table": "tenant_auth_subjects", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
       ],
       "checks": ["credential_generation > 0", "expires_at >= last_used_at"],
       "unique_constraints": [{"name": "pk_tenant_tokens", "kind": "PRIMARY KEY", "columns": ["id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 8,
+  "runtime_contract_revision": 9,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:8"
+        "runtime_contract_revision:9"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -72,7 +72,7 @@
   "asset_kind": "tenant_boundary_runtime_authz_contract",
   "provisional": false,
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "2cec3e73471c6172efc421312b1a8cbf6370b95fbf16fdf61ea81ac6829ae9a5",
+  "source_digest": "c849cdbaf77b9f60e8073dd563e2be31698ab497d6c8764484ee5dffddc9559d",
   "application_role": {
     "rolname": "pitchlog_app",
     "attributes": {
@@ -87,6 +87,8 @@
   },
   "protected_objects": {
     "schemas": [
+      "authn",
+      "authn_crypto",
       "authz_private",
       "public"
     ],
@@ -274,9 +276,69 @@
     ],
     "functions": [
       [
+        "authn",
+        "change_password",
+        "uuid, text, text"
+      ],
+      [
+        "authn",
+        "issue_initial_password",
+        "uuid, text"
+      ],
+      [
+        "authn",
+        "login",
+        "text, text"
+      ],
+      [
+        "authn",
+        "logout",
+        "uuid"
+      ],
+      [
+        "authn",
+        "password_policy_ok",
+        "text"
+      ],
+      [
+        "authn",
+        "record_admin_login_failure",
+        "text"
+      ],
+      [
+        "authn",
+        "record_failure",
+        "text, bigint, bigint, bigint, boolean"
+      ],
+      [
+        "authn",
+        "reset_password",
+        "uuid, text"
+      ],
+      [
+        "authn",
+        "revoke_tenant_tokens",
+        "uuid"
+      ],
+      [
+        "authn",
+        "setting_positive_integer",
+        "text"
+      ],
+      [
+        "authn",
+        "verify_token",
+        "uuid"
+      ],
+      [
         "authz_private",
         "tenant_has_effective_membership",
         "uuid, boolean"
+      ],
+      [
+        "public",
+        "authn_normalize_team_name",
+        "text"
       ],
       [
         "public",
