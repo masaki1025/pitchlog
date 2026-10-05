@@ -3,7 +3,7 @@
   "compose_service": "product-rls-db",
   "shared_compose_service": "db",
   "compose_volume": "product_rls_postgres_data",
-  "expected_nodes_asset": "expected-nodes-f2dc9f9b.txt",
+  "expected_nodes_asset": "expected-nodes-27ff94eb.txt",
   "admin_dsn_env": "PITCHLOG_PRODUCT_RLS_ADMIN_DSN",
   "target_db_env": "PITCHLOG_PRODUCT_RLS_TARGET_DB",
   "test_role_dsn_env": "PITCHLOG_PRODUCT_RLS_TEST_ROLE_DSN",

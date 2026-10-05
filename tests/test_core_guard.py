@@ -1739,7 +1739,7 @@ def test_product_rls_declaration_matches_planned_and_tracked_paths() -> None:
         ("docs/ops/product-rls-real-schema.md",),
         (
             "scripts/product_rls_real_schema/__init__.py",
-            "scripts/product_rls_real_schema/expected-nodes-f2dc9f9b.txt",
+            "scripts/product_rls_real_schema/expected-nodes-27ff94eb.txt",
             "scripts/product_rls_real_schema/runner.py",
         ),
         ("scripts/product-rls-real-schema-targets.json",),

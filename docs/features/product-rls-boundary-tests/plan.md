@@ -1,6 +1,6 @@
 ---
 feature: product-rls-boundary-tests
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-05・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -82,14 +82,33 @@ created: 2026-09-24
 | --- | --- | --- |
 | **`docs/ops/product-rls-real-schema.md`** | **新設(最小版・4 節)**。適用主体 / 専用 DB の識別と作り直し / 既存接続 0 件の確かめ方 / 失敗時に serving へ戻さない扱い | **`/finalize-doc`**(7.6 の決定表 — **新設は敵対レビュー + 人間承認**。**確定前に実運用へ使わない**) |
 | **`.claude/core-areas.json`** | **3 件**を `tenant-isolation` の `paths` へ追加する — ① 上記の運用正本 ② **`scripts/` に新設する runner とプラグイン** ③ **その設定資産**。**1 周目 P0-7 の是正**: 既存 `paths` は `scripts/` 全体を覆っておらず(`scripts/check_tenant_boundary_bypass.py` など個別列挙)、**新 runner は DROP 先と越境判定の両方を変えうる**ので、保護外のままだと後続 PR がコアレビューなしで対象を差し替えられる | PR レビュー |
-| **`docs/README.md`** | 索引へ上記を追加する | PR レビュー |
 | **`scripts/core_guard.py`** | **`AREA_PATH_ADDITIONS` へ `tenant-isolation` の宣言層を追加する**(上の 3 パターンと exact 一致)。**改訂 2026-10-05**: 宣言の無い領域は `paths` を 1 件でも足すと `GuardError` になり、**`core-areas.json` と同一コミットにできない**(4-8 節) | PR レビュー(**最上位 `guard_paths` 該当 — 人間の逐行確認が必須**) |
 | **`tests/test_core_guard.py`** | **据え置き領域を 3 と固定している表明 3 箇所を追随させ、宣言層の負例を足す**(**1 周目 P1-1 の是正** — 当初は 1 箇所しか挙げていなかった): ① `test_actual_core_area_paths_follow_merge_base_layers`(`:1497` の `len(stationary_ids) == 3`)② `test_each_stationary_area_is_derived_from_merge_base_and_rejects_change`(`:1545` の `attempts == 3` と docstring の「3 領域」)③ `test_area_registration`(`:1617` `:1618` `:1622`)。**据え置き領域の「数」は `AREA_PATH_ADDITIONS` から導く**(「2 領域」への書き換えにしない — 次に領域が増えても追随不要)。**ただし宣言の「内容」は計画書 4-8 節の表を写した独立リテラルで照合する** — 実装から導くだけにすると**意図しない宣言を足しても検出できない**(U-M1 側の敵対レビュー P2 と同じ結論。2026-10-05 に両タブで形を合わせた)。このリテラルは宣言と同じく回転するので、**後着側は「定数 1 行 + テストのリテラル 1 行」を置き換える**。**負例 3 本を新設**(4-8 節) | PR レビュー(**同上**) |
 | `docs/design/data-model.md` | **反映なし**。12-4 の定義は変えない。**最低要求 4 件の文言も変えない**(`:2533` が「**4 件の文言は変えない** — 12-7 (1) が同じ 4 件を列挙しているため」と明記)。12-8 節の実装追随は TSK-424 の射程 | — |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし** | — |
 | `docs/adr/` | **新設なし**(既決の制約の実行であり、新しい決定を持たない) | — |
 | `contracts/authz/product/*` | **変更しない**(TSK-424 / TSK-443 の資産を**読むだけ**) | — |
+| **`docs/development/harness-evaluation.md`**(ハーネス運用評価台帳) | **`## 候補` へ 3 件追記 + 既存候補 2 件へ実測を追記**(**`H-*` は採番しない・版は上げない** — 7.6-3 前段)。`/pr` 手順 1-3 の判断による | PR レビュー |
+| **`docs/README.md`** | 索引へ運用正本を追加(済)。**あわせて台帳行の最終更新日を現行化する** | PR レビュー |
 | **Notion カード TSK-344 の DoD** | **現行化する**(PO 裁定 — カードは正本ではない) | — |
+
+### 正本体系外だが同一 PR で更新するもの(**/pr の逆突合用** — 設計書 6.1・`/pr` 手順 2-2)
+
+**正本の索引に無いため `check_plan_docs_sync.py` の突合対象外だが、本 PR が同時に運ぶファイル。**
+
+| ファイル | 変更内容 | ステップ |
+| --- | --- | --- |
+| `docker-compose.yml` | **専用 Postgres インスタンスのサービスを追加**(別サービス・別ポート・別ボリューム・`product-rls` プロファイル)。**共有開発 DB のサービス定義は 0 行差分** | 2 |
+| `.env.example` | **7 キーを追加**(値は空)。接続情報の実値は置かない(NFR-014) | 2・3 |
+| `scripts/product_rls_real_schema/runner.py` | **新設**。運用正本 2-2 の手順 1〜5 と 48 node の実行・証跡の出力 | 3・4・5・6 |
+| `scripts/product_rls_real_schema/__init__.py` | **新設**(パッケージ宣言) | 3 |
+| `scripts/product_rls_real_schema/expected-nodes-27ff94eb.txt` | **新設**。期待 node 集合を基準コミットで固定した資産(48 行) | 6 |
+| `scripts/product-rls-real-schema-targets.json` | **新設**。**接続情報を 1 つも含まない**対象定義(環境変数の名前・compose の識別子・資産の場所) | 3・4・6 |
+| `backend/tests/db_fixtures.py` | **外部供給の入口を 1 つだけ追加**(裁定 B)。**試験の新設 0 本・既存 fixture の再定義 0 件**。**`tenant-isolation` の `paths` に既に入っているので逐行確認の対象** | 4 |
+| `tests/test_product_rls_real_schema_runner.py` | **新設**。runner の DB 不要な単体試験 | 3・4・5・6 |
+| `tests/test_environment_template.py` | **閉じた集合へ 2 キーを追加し、値が空であることを求める試験を 1 本追加**(ステップ 2・3 の退行の是正) | 4 |
+
+**`backend/migrations/` と `contracts/` は 0 行差分**(宣言どおり触っていない)。
 
 ## 4. 実装方針
 
@@ -457,7 +476,7 @@ created: 2026-09-24
 | 1 | **core-guard の宣言層を固定する**(4-8 節)— `scripts/core_guard.py` の `AREA_PATH_ADDITIONS` へ `tenant-isolation` の 3 パターンを宣言し、`tests/test_core_guard.py` の 3 表明を追随させる。**`.claude/core-areas.json` には触れない** | ① **宣言が 4-8 節の 3 パターンと exact 一致**(**順序も含む**。期待値は**計画書の表**であって `AREA_PATH_ADDITIONS` 自身ではない — **1 周目 P1-2 の是正**:宣言から期待値を作ると、別領域への宣言・1 件だけの宣言・逆順の宣言がすべて green になる〔レビューが実設定で実証〕)② **負例 3 本が red になる** — **別領域へ宣言した場合** / **3 件のうち 1 件だけを宣言した場合** / **順序を入れ替えた場合**(4-8 節)③ `uv run pytest tests/test_core_guard.py` が green、かつ**据え置き領域の表明 3 箇所が `AREA_PATH_ADDITIONS` から導かれている**(3 節)④ **宣言済み・JSON 未反映の状態で二層検査が通る**(`validate_area_path_layers` が `base_paths` を受理する側。ステップ 2 までこの状態が続く)⑤ **同一コミットの差分に `.claude/core-areas.json` が無い**(`verify_area_path_baseline` の共変更禁止 — 差分で確かめる)⑥ **④-a・④-b**(4-8 節) |
 | 2 | **専用 Postgres インスタンスを `docker-compose.yml` へ足す**(別サービス・別ポート・別の名前付きボリューム)+ **G2-b の `.claude/core-areas.json` の `paths` 追加(ステップ 1 で宣言した 3 件を全件)を同一コミットに含める** | ① **専用サービスだけを名指しで起動**でき(`docker compose up -d <service>`)、`pg_isready` が通る ② **共有開発 DB のサービス定義の差分 0 行** ③ `.env.example` にキーを追加(**値は書かない**)④ **専用ポートが占有されていたら起動失敗を終了コードで返す**(既定値で別ポートへ逃げない)⑤ **追加キーが未設定なら起動前に失敗する**(`:?required` と同じ形)⑥ **追加 3 件が `tenant-isolation.paths` の末尾に並ぶ**(`tests/test_core_guard.py` の末尾照合 — 4-8 節)⑦ **3 件を 1 コミットでまとめて足す** — **core-guard は head の JSON しか見ないのでこれは機構の強制ではない**。**コミット差分を直接見て確かめる**(4-8 節の制約 4・**1 周目 P2 の是正**)|
 | 3 | **`scripts/` の runner に対象検査と撤去・作り直しを置く** | ① 4-5 節の対象検査が**すべて通ったときだけ** DROP へ進む ② **判定不能・不一致なら終了コード非 0 で中止し、DROP を実行しない** ③ 撤去 → 作り直し → `alembic upgrade head` を 2 回連続実行して、**2 回とも終了コード 0** かつ **2 回目の migration head が 1 回目と一致**(**2 周目 P1 の是正** — 「一致」だけだと両方失敗でも満たす)④ **`backend/tests/` の差分 0 行**(この時点では触らない)⑤ **4-8 節のパターン②③ が実在の追跡ファイルに当たる** — **②③ の実ファイルを作るのが本ステップなので、ここが最初の確認点である**(**2 周目 P1 の是正** — 当初はステップ 5 に置いており、**空振りのままステップ 3・4 を完了できる窓**が空いていた。空振りすると保護対象から漏れたまま緑になる) |
-| 4 | **外部供給の入口を 1 つ足し、runner から渡す**(裁定 B) | ① **既定の収集集合が不変** — `--collect-only` の `::` 行集合が本 PR の前後で exact 一致(**基準線は PR の base で測り直す** — 2026-10-05 の `origin/develop` `f2dc9f9b` 時点で 1041→**1219 件**)② **既定実行の挙動が不変** — 供給を与えない通常の `uv run pytest -c pyproject.toml` が**全件 green**(**3 周目 P1 の是正** — 17 本だけでなく既定 pytest 全体。`db_fixtures.py` は他 fixture も収める共有モジュールのため)③ **試験の新設 0 本・既存 fixture の再定義 0 件** ④ runner 経由で 17 本が**専用インスタンスへ接続する** |
+| 4 | **外部供給の入口を 1 つ足し、runner から渡す**(裁定 B) | ① **既定の収集集合が不変** — `--collect-only` の `::` 行集合が本 PR の前後で exact 一致(**基準線は PR の base で測り直す** — 2026-10-05 の `origin/develop` `27ff94eb` 時点で **1328 件**)② **既定実行の挙動が不変** — 供給を与えない通常の `uv run pytest -c pyproject.toml` が**全件 green**(**3 周目 P1 の是正** — 17 本だけでなく既定 pytest 全体。`db_fixtures.py` は他 fixture も収める共有モジュールのため)③ **試験の新設 0 本・既存 fixture の再定義 0 件** ④ runner 経由で 17 本が**専用インスタンスへ接続する** |
 | 5 | **製品 authz DDL を専用インスタンスへ適用する**(通過条件① — **4-4-c 節の 1〜4**) | ① `apply_product_authz_ddl` が終了コード 0 ② **実行中に Docker のコンテナ作成が 1 回も起きていない**(**観測は Docker 側から取る** — 4-4-d 節。作成呼び出しか `docker events` を観測。**前後の一覧比較は偽陽性**)③ **接続したサーバーの識別値が compose の実コンテナと一致し、接続中のデータベース名が対象と一致する**(設定値どうしの自己照合にしない — **2 周目 P0-3 の是正**。**DB 名も見る** — 9 周目 P1)④ カタログ検査が 0 件の差分で、**その結果が生成 ID に拘束されている** ⑤ **非 superuser と `pitchlog_app` での適用が拒否される**(故障系 2 本) |
 | 6 | **既存 17 本を、同一起動の中で適用した対象に対して実行する**(通過条件② — **4-4-c 節の 5〜6。runner を別に起動しない**) | ① **node ID の exact-set が期待集合と一致**(**48 件** — `tenant_owned` 34 / `cross_cutting` 7 / `other_profiles` 7。**2 関数が parametrize されているので関数数 17 と node 数は違う** — 4-4-b 節)**かつ全件 green**(skip を成功に数えない)② **fixture による再 provision が 0 回**(**観測は runner から独立に取る** — 4-4-d 節)— 実行中に **`CREATE ROLE pitchlog_owner`** / `CREATE DATABASE` / `alembic upgrade head` / `apply_product_authz_ddl` が呼ばれず、**入口の分岐を 48 回とも通った**ことを観測(**試験本体の一時ロールと変異 DDL は対象外** — 4-3 節の限定)③ **実行中に Docker のコンテナ作成が 1 回も起きていない**(**観測は Docker 側から取る** — 4-4-d 節。ステップ 5② と同じ観測。**5 周目 P0 の是正** — ステップ 5 だけに置くと、ステップ 6 で外部供給が効かず使い捨てクラスタで走っても気づけない)④ **試験が使った各接続のサーバー・DB がステップ 5 と同一**(**設定値の自己照合にしない**。**クラスタ実体の識別値と接続中のデータベース名の 2 つ**を照合する — 4-3 節)⑤ test ファイルの commit と **生成 ID が適用時と一致** |
 | 7 | **12-4 の判定を [gate-record.md](gate-record.md) へ書き、PR 本文へ転記する**(**改訂 2026-10-05** — **DoD 6〔ゲート通過の記録〕だけを後続へ繰り延べ**、実測の記録は本 PR で閉じる。人間の決定) | 正本由来 4 項目(`../../design/data-model.md` 12-4 節ゲート表「判定の記録」行)+ 同一対象 5 項目(4-5 節)。**入口は「対象入口なし」・④ は「対象なし」と書く(項目を省かない)**。**限界 2 件**・**TSK-478 の未確定**・**観測の独立性の限界 1 件**を明記。**ステップ 5・6 の実測が揃うまで記録しない** |
@@ -484,7 +503,7 @@ created: 2026-09-24
   **`test_app_can_execute_no_security_definer_function` を根拠として名指さない** — **同検査は `pitchlog_app` が `EXECUTE` を持つ definer 関数だけを母集団とし呼出経路を調べないので ④ の充足を示さない**(v0.5 の明記。旧 DoD はこれを根拠に名指しており誤りだった)
 - [x] **入口を開かない再実行契機の判定単位が未確定であることと、受け取り先 [TSK-478](https://app.notion.com/p/3ef93b75e687811d884cf0421ad3ef78) を判定記録に明記した**(v0.5 `:2614`。**本タスクはその契機に当たるが、4 件がいずれも「対象なし」に落ちるので記録の中身は変わらない**) → **✅** — 同 8-1 節
 - [x] **限界 2 件を判定記録に明記した** — ① **変異による感度の確認は TSK-442 の試験 ID に委ねた** ② **既存データを持つ DB への適用は検証していない** → **✅** — 同 7 節
-- [x] **既存ジョブの配線と backend pytest の収集集合を変えていない**、かつ**増えた検査対象が green**(6 節の 4 項目) → **✅ 実測** — 収集集合は base・head とも **1219 件で exact 一致**、既定 pytest は **1215 passed / 4 skipped**(develop 側と同一)。同 9 節
+- [x] **既存ジョブの配線と backend pytest の収集集合を変えていない**、かつ**増えた検査対象が green**(6 節の 4 項目) → **✅ 実測**(**再測 2026-10-05 / base `27ff94eb`**)— 収集集合は base・head とも **1328 件で exact 一致**、既定 pytest は **1324 passed / 4 skipped**。同 9 節
 - [x] **`.claude/core-areas.json` の `tenant-isolation` の `paths` に 3 件が登録されている** — 運用正本 / `scripts/` の runner / その設定資産 → **✅**(ステップ 2・`1c98cc06`)
 - [x] **`scripts/core_guard.py` の `AREA_PATH_ADDITIONS["tenant-isolation"]` がその 3 件と exact 一致し、`.claude/core-areas.json` の変更とは別コミットである**(4-8 節の制約 1・2) → **✅**(ステップ 1・`9b10137e`。`.claude/core-areas.json` とは別コミット)
 - [x] **追加 3 件が `tenant-isolation.paths` の末尾に、1 コミットでまとめて入っている**(同節の制約 4。**末尾の照合は `AREA_PATH_ADDITIONS` から導き、3 件をリテラルで焼き込まない**) → **✅**(ステップ 2 の単一コミットで 3 行追加。末尾照合は `AREA_PATH_ADDITIONS` から導出)
@@ -523,7 +542,7 @@ created: 2026-09-24
 **保証する 2 つ**:
 
 1. **既存ジョブの配線を変えない** — `.github/workflows/` の差分 0 行 / DB の外部依存を増やさない / 既存ジョブの選択条件を変えない
-2. **backend pytest の収集集合を変えない** — `backend/` で `uv run pytest -c pyproject.toml --collect-only -q` を実行し、**`::` を含む行を集合として比較して exact 一致**。**基準線は固定値ではなく、PR の base(`origin/develop`)で都度測り直す** — **2026-10-05 の `f2dc9f9b` 時点で 1219 件**(うち `tests/db/` 配下が 306 件)。**本 PR の head も 1219 件で exact 一致**(実測)。**過去に書いた 792 件(2026-10-03)・1041 件(develop 取り込み前)はいずれも古い** — `backend/tests/` は他タスクのマージで増え続けるので、**数を固定値として引かない**。**終了コードは見ない** — `--collect-only` でも `backend/tests/db/conftest.py` の DB ガードが働いて `exit=1` になる(実測)
+2. **backend pytest の収集集合を変えない** — `backend/` で `uv run pytest -c pyproject.toml --collect-only -q` を実行し、**`::` を含む行を集合として比較して exact 一致**。**基準線は固定値ではなく、PR の base(`origin/develop`)で都度測り直す** — **2026-10-05 の `27ff94eb` 時点で 1328 件**(うち `tests/db/` 配下が 377 件)。**本 PR の head も 1328 件で exact 一致**(実測)。**過去に書いた 792・1041・1219 件はいずれも古い**(**同じ日のうちに 3 回動いた** — PR #87・#94・#93・#96 のマージによる) — `backend/tests/` は他タスクのマージで増え続けるので、**数を固定値として引かない**。**終了コードは見ない** — `--collect-only` でも `backend/tests/db/conftest.py` の DB ガードが働いて `exit=1` になる(実測)
 
 **増える検査対象については「変えない」ではなく「green であること」を条件にする**:
 
@@ -551,7 +570,7 @@ created: 2026-09-24
 裁定 2026-09-28 の趣旨は「**実スキーマ不在の無関係な PR が既定 pytest で赤になるのを防ぐ**」ことである。
 **opt-in で既定の挙動が不変なら趣旨に反しない。** 次を機械で示すことを条件とする。
 
-1. **既定の収集集合が不変** — `backend/` で `--collect-only` の `::` を含む行の集合が本 PR の前後で exact 一致(**基準線は PR の base で測り直す** — 2026-10-05 時点 1219 件)
+1. **既定の収集集合が不変** — `backend/` で `--collect-only` の `::` を含む行の集合が本 PR の前後で exact 一致(**基準線は PR の base で測り直す** — 2026-10-05 の `27ff94eb` 時点 1328 件)
 2. **既定実行の挙動が不変** — 追加した経路を使わない通常の `uv run pytest -c pyproject.toml` が**全件 green**(17 本だけでなく既定 pytest 全体)
 3. **追加は 1 経路だけ** — 既存 fixture の再定義・置換をしない。**足すのは外部供給を受け取る入口 1 つ**
 
@@ -655,7 +674,7 @@ created: 2026-09-24
 ### 引き継いだもの
 
 2 節のやること骨子 / 3 節の正本影響(`docs/ops/` 新設・`core-areas.json` への paths 追加・読み取り専用の宣言)/
-DoD 現行化の内容 / `--collect-only` の測り方(**基準線は PR の base で測り直す** — 2026-10-05 時点 1219 件) / 判定記録の同一対象の考え方(**4 項目 → 5 項目へ拡張**)/
+DoD 現行化の内容 / `--collect-only` の測り方(**基準線は PR の base で測り直す** — 2026-10-05 の `27ff94eb` 時点 1328 件) / 判定記録の同一対象の考え方(**4 項目 → 5 項目へ拡張**)/
 non-serving 区間の定義と「途中で失敗したら serving に戻さない」/ 9 節の射程表。
 
 ### 落としたもの

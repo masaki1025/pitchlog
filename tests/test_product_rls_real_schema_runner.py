@@ -555,7 +555,7 @@ def test_main_passes_generated_owner_connection_without_printing_it(
     )
     evidence = json.loads(output.out)
     assert evidence["catalog_violations"] == 0
-    assert evidence["expected_nodes_asset"] == "expected-nodes-f2dc9f9b.txt"
+    assert evidence["expected_nodes_asset"] == "expected-nodes-27ff94eb.txt"
     assert evidence["executed_nodes"] == "node-digest"
 
 

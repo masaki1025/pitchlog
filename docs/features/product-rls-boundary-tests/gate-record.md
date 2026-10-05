@@ -22,8 +22,8 @@
 | 項目 | 記録 |
 | --- | --- |
 | **誰が** | 実装 = Codex(ADR-001 のコア領域モデル)/ 進行・検証・記録 = Claude Opus 5 / **逐行確認とマージ判断 = 山田正輝** |
-| **いつ** | **2026-10-05**(証跡実行 `20261005T125315Z`・UTC) |
-| **どの対象に対して green を確認したか** | **対象の要約値 `95725d375a5315d0a14cb998e71ceb6feff6cc8e15572c4389dcb7d1018343df`**(クラスタ実体の識別値と対象データベース名から導いた一方向の要約)。**接続情報は識別子も含めて記録しない**(NFR-014・4-5 節) |
+| **いつ** | **2026-10-05**(証跡実行 `20261005T134920Z`・UTC) |
+| **どの対象に対して green を確認したか** | **対象の要約値 `ff49744d79d11225e1f6e711f8b44c8c81faf0491aeefb208964063aee60c148`**(クラスタ実体の識別値と対象データベース名から導いた一方向の要約)。**接続情報は識別子も含めて記録しない**(NFR-014・4-5 節) |
 | **どの入口について判定したか** | **対象入口なし。** 本 PR は入口を 1 つも開かない — 12-4 節「経路と入口の定義」の 3 条件(① 処理する製品コードが存在する ② 製品の外から到達できる ③ DB のデータを読むか書く)を同時に満たす状態になったものが 0 件である。**項目を省かずにこの行を書く**(同節「省くと判定したのか書き忘れたのかが区別できない」) |
 
 ---
@@ -54,7 +54,7 @@
 | | |
 | --- | --- |
 | 実行した試験 | **既存 17 関数 / node 48 件**(`tenant_owned` 34 / `cross_cutting` 7 / `other_profiles` 7)。**新設 0 本** |
-| 期待集合 | `scripts/product_rls_real_schema/expected-nodes-f2dc9f9b.txt`(48 行)と **exact-set で一致** |
+| 期待集合 | `scripts/product_rls_real_schema/expected-nodes-27ff94eb.txt`(48 行)と **exact-set で一致** |
 | 結果 | **48 件すべて `passed`**。**skip・xfail・error は 0 件**(成功に数えていない) |
 
 **②の green は適用単位の範囲で判定した** — 本 PR が開いていない入口を理由に不合格としていない
@@ -89,12 +89,32 @@
 **越境関数が 1 件でも加わった時点で、各単位の責務になる。**
 
 **補助検査を ④ の充足根拠として名指さない** —
-`test_app_can_execute_no_security_definer_function` は**製品側の `SECURITY DEFINER` のうち
-`pitchlog_app` が `EXECUTE` を持つものだけを母集団とし、呼出経路を調べない**。
+`data-model.md` v0.5 が名指しした補助検査 `test_app_can_execute_no_security_definer_function` は、
+**製品側の `SECURITY DEFINER` のうち `pitchlog_app` が `EXECUTE` を持つものだけを母集団とし、呼出経路を調べない**。
 トリガ経由・RLS ポリシー経由の definer 関数は母集団に入らない
 (現行の唯一の definer 関数 `tenant_has_effective_membership` が後者の形)。
 **したがって ④ の充足を示さない**(v0.5 の明記。本計画書の旧 DoD はこれを根拠に名指しており、
 **2026-10-05 に是正した**)。
+
+**なお当該検査は PR #96 のマージで `test_app_definer_execute_matches_declared_product_grants`
+へ置き換わった**(「definer 関数が 0 件」から「資産が宣言した付与と exact 照合」へ)。
+**置き換わっても ④ の充足を示さないことは変わらない** — 母集団の決め方が
+`pitchlog_app` の `EXECUTE` のままで、**呼出経路を調べない**点は同じだからである。
+
+### PR #96(認証の DB 層)が ④ の判定を変えないことの確認
+
+**#96 は `authn` スキーマへ definer 関数 11 件を足し、うち 4 件
+(`login` / `verify_token` / `logout` / `change_password`)に `pitchlog_app` の `EXECUTE` を与えた。**
+**これらは (i) に当たらない。** 確認した事実:
+
+| 確認 | 実測 |
+| --- | --- |
+| **④ が掛かるのは認可行列の対象になるデータ**(他テナントの記録・集計)**を返し得る経路** | 11 件はいずれも**認証の操作**(ログイン・トークン検証・ログアウト・パスワード変更)で、`profile` を持たない。**他テナントの記録・集計を返す経路ではない** |
+| **共有の読み取りを持つ表が増えていないか** | `contracts/authz/product/table-classification.json` の profile 内訳は `tenant_owned` 23 / `function_only` 13 / `effective_group_control` 4 / `global_read_only` 4 / `self_tenant_row` 1 で、**`shared_read` は 0 件**。**共有集計の越境経路そのものが存在しない** |
+| **制御資源の扱い** | `effective_group_control` の 4 表は**制御資源**であり、v0.5 が **④ の対象外**と明記している(FR-034 の受け入れ基準が別に定める) |
+| **(ii) 入口が増えていないか** | `backend/src/pitchlog/api/app.py` の `ROUTERS` は `(meta.router,)` のまま。**#96 は `backend/src/pitchlog/api/` を 1 行も変えていない**(`git diff --stat 9cc96ecc 27ff94eb -- backend/src/pitchlog/api/` が空) |
+
+**したがって (i)(ii) とも 0 のままで、「④: 対象なし」は変わらない。**
 
 ---
 
@@ -112,10 +132,10 @@
 | 要素 | 値 |
 | --- | --- |
 | **インスタンス識別** | compose サービス `product-rls-db` / ボリューム `product_rls_postgres_data`(**リポジトリ内の定義であって接続情報ではない**) |
-| **対象の要約値** | `95725d375a5315d0a14cb998e71ceb6feff6cc8e15572c4389dcb7d1018343df` |
-| **生成 ID** | `20261005T125315Z-846f2a8de93c70f8` |
-| **migration head** | `0027_seed_roster_status` |
-| **DDL 資産の digest** | `75f48760427677615f1ca6b4fc6ab72606c8871107f74182876be08c8859a3d9`(`contracts/authz/product/` 配下の追跡ファイルをパス順に連結した一方向の要約) |
+| **対象の要約値** | `ff49744d79d11225e1f6e711f8b44c8c81faf0491aeefb208964063aee60c148` |
+| **生成 ID** | `20261005T134920Z-35760747d3d15e2c` |
+| **migration head** | `0028_tenant_login_identity` |
+| **DDL 資産の digest** | `54e16a6d736ed3d7d3a23749d9d6f22bc205c4e167aefa34b389c5ceadb30c47`(`contracts/authz/product/` 配下の追跡ファイルをパス順に連結した一方向の要約) |
 
 **生成 ID は 1 起動に 1 つで、適用・カタログ検査・再実行・本記録の 4 者が同じ値を指す**
 (運用正本 2-3 節の 4 者照合)。**食い違えば runner が中止する。**
@@ -124,14 +144,72 @@
 
 | | |
 | --- | --- |
-| **実行した test の commit** | `88eef6b2a2f1b8e628d0f3fbb335d9aea862de11`(3 つの試験ファイルの内容が決まるコミット) |
-| **node ID の exact-set** | `scripts/product_rls_real_schema/expected-nodes-f2dc9f9b.txt`(48 行)。実行集合の一方向要約 `d331eeb569b58cac359b79c944d46556f0074408143672d700350bc06b111844` |
-| **実行コードの commit** | `5551efbd55dc1b718802d9d3fd4ee219c148ff12` |
+| **実行した test の commit** | `38daaaa5ee783a2690262c5b66d8215ad6d084a7`(3 つの試験ファイルの内容が決まるコミット) |
+| **node ID の exact-set** | `scripts/product_rls_real_schema/expected-nodes-27ff94eb.txt`(48 行)。実行集合の一方向要約 `7773d96181c677a80af4a05eaf41ce883967e1866c1fa8cfe76094950ae107f1` |
+| **実行コードの commit** | `c9499b51d5bf39b3031551fa46c6c241c5aa6bb3` |
 
-**基準集合の更新はしていない** — 固定時の base `f2dc9f9b` と、本 PR の base `9cc96ecc` で
-**採り直した 48 件が exact 一致**することを実測で確かめた(差分 0 件)。
+### 基準集合を 1 度更新した(本計画書 4-4-b 節「更新時は差分の中身を書く」)
+
+| | |
+| --- | --- |
+| 旧 | `expected-nodes-f2dc9f9b.txt`(base `f2dc9f9b`) |
+| 新 | `expected-nodes-27ff94eb.txt`(base `27ff94eb` = **U-A1 β / PR #96 のマージ後**) |
+| 件数 | **48 → 48**(増減なし) |
+
+**差分の中身は 1 件の入れ替わりだけである**:
+
+```
+- tests/db/test_product_authz_cross_cutting.py::test_app_can_execute_no_security_definer_function
++ tests/db/test_product_authz_cross_cutting.py::test_app_definer_execute_matches_declared_product_grants
+```
+
+**理由**: PR #96 が `authn` スキーマへ **definer 関数 11 件**を足し、
+うち **4 件**(`login` / `verify_token` / `logout` / `change_password`)に
+`pitchlog_app` の `EXECUTE` が付いた。**「definer 関数が 0 件であること」を見ていた試験が成り立たなくなり、
+「資産が宣言した付与と exact 照合する」試験へ置き換わった。**
+
+**なお base `9cc96ecc`(PR #93 のマージ後)の時点では、旧資産と採り直した 48 件が exact 一致していた**
+(差分 0 件)。基準が動いたのは #96 による。
 
 ---
+
+### 対象が TSK-382 v0.6 の 4 要件を満たすことの根拠
+
+**本記録はゲート通過の判定を下さない**(8-2 節)が、**後続がその判定を書けるよう、
+[TSK-382](https://app.notion.com/p/3d693b75e6878186a5f6d7baec4ea9b4) の「実スキーマ」定義案
+(`feature/real-schema-meaning` `480cae86`・**v0.6 起案・in-review**)の 4 要件について、
+本 PR の対象が満たす根拠を実測で残す。**
+
+> **v0.6 はまだ approved ではない。** 下表は「要件を満たす事実」の記録であって、
+> 「この対象が実スキーマである」という判定ではない。**判定は確定後に後続が書く。**
+
+| 要件(v0.6) | 本 PR の対象 | 根拠 |
+| --- | --- | --- |
+| **1. 製品の `migration` を `head` まで適用して作られている** | **満たす** | runner が `alembic upgrade head` を実行し、`alembic_version` を読んで **`0028_tenant_login_identity` が一意**であることを確かめる。**手書き DDL・ORM メタデータからの直接生成は経路に無い** |
+| **2. RLS の DDL が製品コードの適用経路で適用されている** | **満たす** | 入口は `backend/src/pitchlog/authz/product_provisioning.py` の **`apply_product_authz_ddl()` ただ 1 つ**。runner は自前で DDL を組み立てず資産も読み直さない(2 節) |
+| **3. 使い捨てのクラスタ上にない**(判定はクラスタの**寿命**) | **満たす** | 対象は `docker-compose.yml` の `product-rls` プロファイルのサービス **`product-rls-db`** で、**名前付きボリューム `product_rls_postgres_data` に PGDATA を持ち、実行をまたいで残る**。**1 回の実行のために作られ実行終了とともに破棄される形ではない**(実測: 同一インスタンス上で複数回の実行を行い、対象データベースだけを毎回作り直した)。**データベースを実行ごとに作り直すことは v0.6 が「使い捨てに当たらない」と明記している。** 本タスクの検証期間だけ生かし完了時に撤去する形は、**v0.6 の当てはめ表が「当たる」と定めた行**に該当する |
+| **4. その対象のための専用クラスタ上にある** | **満たす** | ① **専用プロファイル** `product-rls` でしか起動せず、既定の `docker compose up -d` では立たない ② **専用サービス・専用ボリューム**で、共有開発 DB の `db` サービスとは別の実体 ③ runner が**毎回クラスタ実体の識別値を読み、共有開発クラスタのそれと一致しないことを確かめる**(一致したら中止)④ **当該対象の作成・適用・検査以外の用途が、リポジトリ内の配備定義に 1 つも無い**(`docker-compose.yml` の当該サービスを参照するのは `scripts/product-rls-real-schema-targets.json` だけ) |
+
+**ops v1.0 の 2-1 は、要件 3 と 4 の全部を検査していない**(**こちらから TSK-382 へ指摘した 2 件**):
+
+- **要件 3(クラスタの寿命)を見る条件が 2-1 に無い**
+- **要件 4 について、2-1 が見るのは「共有開発クラスタと一致しないこと」まで**で、
+  **別の対象が同居するクラスタを排除しない**
+
+**したがって ops 2-1 の通過は、v0.6 の定義の必要条件であって十分条件ではない。**
+上表の③④は runner が機械で確かめるが、**①②(配備定義の形)は本記録が人の確認として残す。**
+**ops 側の是正(2-1 への条件追加、または注記)は本 PR の射程外**であり、
+**後続タスク(DoD 6 と 12-4 ④・12-8 の現況更新を運ぶもの)で扱う** — 8-2 節。
+
+### 実測が従った手順とその版
+
+| | |
+| --- | --- |
+| **手順** | [`docs/ops/product-rls-real-schema.md`](../../ops/product-rls-real-schema.md) の **2-2(対象の識別と撤去・作り直し)** と **3-1(破壊の前に他の利用者がいないことを確かめる)** |
+| **版** | **v1.0**(`status: approved`。確定ゲート 24 周・反映 19 周・指摘 57 件全件採用・不採用 0 件。PO 承認 2026-10-03) |
+
+**実装は `scripts/product_rls_real_schema/runner.py` が上記手順を機械で実行する。**
+手順どおりでなければ**対象を推測せず中止する**(判定不能を成功にしない)。
 
 ## 6. 観測の独立性(本計画書 4-4-d 節)
 
@@ -198,9 +276,18 @@
 TSK-382 の着地後に後続で行う。** 理由は、本 PR が実測としては完結しており、
 **保持し続けると U-M1(TSK-393)の core-guard の宣言の窓口を不要に塞ぐ**ためである。
 
-**本 PR が残すもの**: 1〜7 節の実測と判定(①②の充足・4 件・測定経路・同一対象 5 項目・限界)。
-**後続が足すもの**: 「この対象は 12-4 の実スキーマに当たる / 当たらない」という判断と、
-それに基づく**ゲート通過の記録**。
+**本 PR が残すもの**: 1〜7 節の実測と判定(①②の充足・4 件・測定経路・同一対象 5 項目・限界)、
+および **v0.6 の 4 要件を満たす根拠**(5 節)。
+**後続が足すもの**(**3 件とも TSK-382 の確定を待つ**):
+
+1. 「この対象は 12-4 の実スキーマに当たる / 当たらない」という判断と、それに基づく**ゲート通過の記録**
+2. **12-4 節 ④ の行と 12-8 節の RLS DDL の行の現況更新** — 「製品の DDL 資産はまだ実スキーマへ
+   適用されておらず」が偽になる(**実装追随・版は上げない**。TSK-382 側と合意済み 2026-10-05)
+3. **ops v1.0 の 2-1 の是正** — 要件 3(クラスタの寿命)と要件 4(別の対象の同居)を
+   検査していないので、**条件を足すか「2-1 は必要条件であって十分条件ではない」と注記する**
+   (TSK-382 側から依頼 2026-10-05)
+
+**3 件とも「実スキーマ」の定義が確定してはじめて書ける**ので、1 本の後続 PR にまとめる。
 
 > **ゲートの適用単位は PR である**(12-4 節ゲート表)。したがって
 > **「ゲートを通った」という記録は、各 PR の側に残る**。
@@ -212,8 +299,8 @@ TSK-382 の着地後に後続で行う。** 理由は、本 PR が実測とし�
 
 | # | 条件 | 実測 |
 | --- | --- | --- |
-| 1 | **backend pytest の収集集合が不変** | `origin/develop`(`9cc96ecc`)と本 PR の head で、`--collect-only` の `::` 行集合が **exact 一致**(`diff` が空) |
-| 2 | **既定実行の挙動が不変** | 供給を与えない通常の `uv run pytest -c pyproject.toml` が **1215 passed / 4 skipped / 終了コード 0**。**develop 側も同じ 1215 passed / 4 skipped** で、skip 4 件は同一箇所(`test_authz_runtime_contract_switch.py` の「製品化済みのリポジトリでは切り替えドライランを行わない」) |
+| 1 | **backend pytest の収集集合が不変** | `origin/develop`(**`27ff94eb`**)と本 PR の head がともに **1328 件**で、`--collect-only` の `::` 行集合が **exact 一致**(`diff` が空) |
+| 2 | **既定実行の挙動が不変** | 供給を与えない通常の `uv run pytest -c pyproject.toml` が **1324 passed / 4 skipped / 終了コード 0**。**skip 4 件は `test_authz_runtime_contract_switch.py` の「製品化済みのリポジトリでは切り替えドライランを行わない」**で、同ファイルは `origin/develop` と差分 0 行(**develop 側の全件実行でも同じ 4 件が skip することを実測で確かめた** — base が `9cc96ecc` の時点で両側とも 1215 passed / 4 skipped) |
 | 3 | `.github/workflows/` の差分 | **0 行** |
 | 4 | DB の外部依存・既存ジョブの選択条件 | **変えていない**(専用インスタンスは compose の `product-rls` プロファイルにあり、既定の `docker compose up -d` では起動しない) |
 
