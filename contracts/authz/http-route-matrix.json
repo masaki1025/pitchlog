@@ -367,6 +367,60 @@
         "id": "TSK-217.http-route.HTTP:ROUTE:MANAGEMENT:CLOSE_GROUP",
         "status": "planned"
       }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:RECORD:players:insert",
+      "route_id": "ROUTE:RECORD:players:insert",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:players:insert",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:RECORD:players:read",
+      "route_id": "ROUTE:RECORD:players:read",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:players:read",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:RECORD:players:update",
+      "route_id": "ROUTE:RECORD:players:update",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:players:update",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:RECORD:team_records:insert",
+      "route_id": "ROUTE:RECORD:team_records:insert",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:team_records:insert",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:RECORD:team_records:read",
+      "route_id": "ROUTE:RECORD:team_records:read",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:team_records:read",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:RECORD:team_records:update",
+      "route_id": "ROUTE:RECORD:team_records:update",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:team_records:update",
+        "status": "planned"
+      }
     }
   ],
   "cells": [

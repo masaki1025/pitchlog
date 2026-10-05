@@ -87,3 +87,52 @@ branch: feature/um1-player-roster-opponent
   ⑤ Notion カードの陳腐化(葉 6 本)
 - **承認依頼**を上げる。承認後、外部依存(TSK-424 PR A / PR C・TSK-344・値域・U-A1・別タスク)の着地を待って `/implement`
 - **製品コード第 1 号への最短路は U-M1 ではなく TSK-424 PR A**(capability カタログ)
+
+## 2026-10-05 ステップ 2(契約資産・検査器・派生 lock)
+
+- 経路 6 本を `route-registry.json`・`http-route-matrix.json` へ追加。派生 lock の entries は registry 230→236・matrix 49→55(各 +6 行)。既存行の判定・digest は不変。`cells` は共有データ経路だけの検査対象なので 12 件のまま
+- 新規行の `test_owner.id` は既存行の命名(`TSK-217.http-route.<matrix_route_id>`)に揃え `status: planned`。ステップ 8 で実テストへ結ぶときに見直す
+- fixture 側の lock は fixture の JSON が変わらないので更新不要
+- 検査器の期待集合を 6 本の独立リテラルへ。負例(期待集合外・導出規則違反〔接頭辞違い・空資源〕)を追加
+
+### 期待失敗(全件実行で確定 — `tests/test_check_authz_catalog.py` 31 失敗 / 129 成功)
+
+**A. oracle 封印の不一致 — ステップ 3・4 で解消を確かめる(2 件)**
+
+- `test_repository_catalog_covers_the_entire_requirements_file`
+- `test_repository_oracle_assets_are_valid`
+- 通常の `scripts/check_authz_catalog.py` は `contracts/authz/route-registry.json: oracle input blob が不一致` の 1 件で落ちる(`--skip-oracle` では `routes=43 cells=12` で ok)
+
+**B. 本ステップと無関係 — 変更前の HEAD でも同じく落ちる(29 件・抜き取りで確認)**
+
+- 原因: `backend/tests/test_authz_runtime_contract_repository.py:46-73` が `git rev-list HEAD -- contracts/authz/product/ddl-elements.staged.json` で staged 資産の履歴を探すが、本ブランチは staged 資産が生まれる前に develop から分岐し、#87(staged を削除)後の develop を取り込んだため、履歴の単純化で develop 側が辿られず 0 件になる(develop 上では 3 件見つかる)
+- PR の CI(merge ref は develop が第 1 親)では辿れる見込み — **推論・未検証**。ブランチの位相に依存する脆さとして別途起票を検討
+- `test_product_runtime_contract_mutations_are_rejected[provisional-additions]`
+- `test_pending_state_always_runs_only_pending_protected_validation`
+- `test_invalid_runtime_contract_state_is_catalog_error`
+- `test_provisional_state_has_no_product_ddl_path`
+- `test_fixture_has_a_valid_multi_layer_claim`
+- `test_mutation_1_deleted_known_clause_is_red`
+- `test_mutation_2_unregistered_authorization_clause_is_red`
+- `test_mutation_3_added_table_row_is_red`
+- `test_mutation_4_added_layer_without_test_owner_is_red`
+- `test_mutation_5_auth_claim_moved_to_out_of_scope_is_red`
+- `test_mutation_6_deleted_whole_section_is_red_by_heading_manifest`
+- `test_additional_mutation_unregistered_plain_paragraph_is_red`
+- `test_missing_classification_is_red`
+- `test_free_form_classification_reason_is_red`
+- `test_empty_auth_rule_applicability_is_red`
+- `test_invalid_closed_world_declarations_are_red`
+- `test_scalar_decidable_at_is_red`
+- `test_missing_layer_is_red`
+- `test_line_number_based_stable_id_is_red`
+- `test_source_text_digest_drift_is_red`
+- `test_source_blob_digest_drift_is_red`
+- `test_manifest_start_and_end_must_match_closed_heading_set`
+- `test_basis_rule_id_is_a_closed_required_value`
+- `test_decision_lock_reports_source_id_and_changed_field`
+- `test_normal_validation_never_reseals_a_changed_decision`
+- `test_normal_validation_does_not_create_a_missing_lock`
+- `test_reseal_updates_decisions_only_with_the_explicit_flag`
+- `test_aggregate_decision_digest_detects_a_changed_lock_entry`
+- `test_atomic_claim_fixture_is_valid_and_referenced_downstream`

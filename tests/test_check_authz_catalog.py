@@ -1940,7 +1940,9 @@ def test_document_specific_traps_live_in_catalog_data() -> None:
     assert out_rule["forbidden_source_text_patterns"]
 
 
-def test_invalid_claim_dispositions_are_red() -> None:
+def test_invalid_claim_dispositions_are_red(monkeypatch: pytest.MonkeyPatch) -> None:
+    """fixture の主張結線に対する不正な裁定を拒否する。"""
+    _allow_record_and_aggregate_route_for_semantic_test(monkeypatch)
     catalog = _read_catalog(FIXTURE_ROOT)
     registry = json.loads(
         (FIXTURE_ROOT / "route-registry.json").read_text(encoding="utf-8")
@@ -1975,7 +1977,11 @@ def test_invalid_claim_dispositions_are_red() -> None:
     assert failures == []
 
 
-def test_fixture_route_registry_closes_http_and_cache_claims() -> None:
+def test_fixture_route_registry_closes_http_and_cache_claims(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """fixture の HTTP と cache の主張結線を検証する。"""
+    _allow_record_and_aggregate_route_for_semantic_test(monkeypatch)
     catalog = _read_catalog(FIXTURE_ROOT)
     registry = json.loads(
         (FIXTURE_ROOT / "route-registry.json").read_text(encoding="utf-8")
@@ -2082,11 +2088,11 @@ def _record_and_aggregate_registry() -> tuple[dict[str, Any], dict[str, Any]]:
 
 
 def _record_and_aggregate_route(registry: dict[str, Any]) -> dict[str, Any]:
-    """メモリ上の registry から新種別の route を返す。"""
+    """メモリ上の registry から検証用 route を返す。"""
     return next(
         route
         for route in registry["routes"]
-        if route["route_kind"] == RECORD_AND_AGGREGATE_KIND
+        if route["route_id"] == "ROUTE:RECORD:fixture:READ"
     )
 
 
@@ -2105,12 +2111,53 @@ def _validate_record_and_aggregate_registry(
 def _allow_record_and_aggregate_route_for_semantic_test(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """新種別の個別意味検査中だけ未登録 route の exact-set 検査を外す。"""
+    """製品 6 経路を含まない試験入力の個別検査で集合照合を外す。"""
     monkeypatch.setattr(
         checker,
         "_validate_record_and_aggregate_route_ids",
         lambda _route_by_id: None,
     )
+
+
+def test_record_and_aggregate_route_ids_match_approved_set() -> None:
+    """承認済み 6 経路と registry・HTTP 行列の集合が一致する。"""
+    assets, _locks, _paths = _repository_derived_assets()
+    registry_ids = {
+        route["route_id"]
+        for route in assets["route_registry"]["routes"]
+        if route["route_kind"] == RECORD_AND_AGGREGATE_KIND
+    }
+    matrix_ids = {route["route_id"] for route in assets["http_matrix"]["routes"]}
+    all_registry_ids = {route["route_id"] for route in assets["route_registry"]["routes"]}
+
+    assert registry_ids == {
+        "ROUTE:RECORD:players:insert",
+        "ROUTE:RECORD:players:read",
+        "ROUTE:RECORD:players:update",
+        "ROUTE:RECORD:team_records:insert",
+        "ROUTE:RECORD:team_records:read",
+        "ROUTE:RECORD:team_records:update",
+    }
+    assert matrix_ids == all_registry_ids
+
+
+def test_record_and_aggregate_rejects_route_outside_approved_set() -> None:
+    """導出規則に合っていても承認集合の外にある経路を拒否する。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    registry = copy.deepcopy(assets["route_registry"])
+    route = next(
+        row
+        for row in registry["routes"]
+        if row["route_id"] == "ROUTE:RECORD:players:insert"
+    )
+    route["route_id"] = "ROUTE:RECORD:unlisted:insert"
+
+    with pytest.raises(checker.CatalogError) as error_info:
+        _validate_record_and_aggregate_registry(registry, requirement_catalog)
+
+    assert "record_and_aggregate route の exact-set 不一致" in str(error_info.value)
+    assert "ROUTE:RECORD:unlisted:insert" in str(error_info.value)
 
 
 def test_record_and_aggregate_route_requires_operation_key() -> None:
@@ -2215,7 +2262,15 @@ def test_record_and_aggregate_route_id_must_match_operation(
         "operation_mismatch": {
             "route_id": "ROUTE:RECORD:fixture:INSERT",
             "expected_error": "record_and_aggregate route_id が導出規則と不一致",
-        }
+        },
+        "wrong_prefix": {
+            "route_id": "ROUTE:OTHER:fixture:read",
+            "expected_error": "record_and_aggregate route_id が導出規則と不一致",
+        },
+        "empty_resource": {
+            "route_id": "ROUTE:RECORD::read",
+            "expected_error": "record_and_aggregate route_id が導出規則と不一致",
+        },
     }
     failures: list[tuple[str, str]] = []
 
@@ -5019,6 +5074,14 @@ def test_oracle_reseal_preserves_inputs_and_expected_asset_digests() -> None:
                 "contracts/authz/route-registry.lock.json",
                 "contracts/authz/auth-catalog.json",
                 "contracts/authz/auth-catalog.lock.json",
+            }
+        ),
+        frozenset(
+            {
+                "contracts/authz/route-registry.json",
+                "contracts/authz/route-registry.lock.json",
+                "contracts/authz/http-route-matrix.json",
+                "contracts/authz/http-route-matrix.lock.json",
             }
         ),
     )
