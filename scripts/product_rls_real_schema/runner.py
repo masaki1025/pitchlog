@@ -13,7 +13,9 @@ Compose の解釈には共有側の ``POSTGRES_USER`` / ``POSTGRES_PASSWORD`` /
 from __future__ import annotations
 
 import ast
+import base64
 import hashlib
+import hmac
 import importlib
 import io
 import json
@@ -35,15 +37,17 @@ from urllib.parse import SplitResult, parse_qsl, quote, unquote, urlsplit, urlun
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 TARGETS_PATH = REPOSITORY_ROOT / "scripts/product-rls-real-schema-targets.json"
 CONTROL_QUERY = (
-    "SELECT (SELECT system_identifier FROM pg_control_system()), "
-    "current_database(), current_user, "
-    "(SELECT rolsuper FROM pg_roles WHERE rolname = current_user)"
+    "SELECT (SELECT system_identifier FROM pg_catalog.pg_control_system()), "
+    "pg_catalog.current_database(), pg_catalog.current_user(), "
+    "(SELECT rolsuper FROM pg_catalog.pg_roles "
+    "WHERE rolname = pg_catalog.current_user())"
 )
 CONTAINER_CONTROL_QUERY = (
     'PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 '
     '-U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atqc '
-    '"SELECT system_identifier FROM pg_control_system()"'
+    '"SELECT system_identifier FROM pg_catalog.pg_control_system()"'
 )
+SCRAM_ITERATIONS = 4096
 ROLE_ID_PATTERN = re.compile(r"(?m)^-- ELEMENT-ID: ([A-Za-z_][A-Za-z0-9_]*)$")
 OBSERVED_CONNECTIONS_PER_NODE = 2
 PRODUCT_TEST_PATHS = (
@@ -464,7 +468,7 @@ def _catalog_violations(connection: Any, inspect: Callable[..., Any]) -> int:
         row = _fetch_one(
             connection,
             "SELECT role.oid FROM pg_catalog.pg_roles AS role "
-            "WHERE role.rolname = current_user",
+            "WHERE role.rolname = pg_catalog.current_user()",
         )
     finally:
         connection.rollback()
@@ -509,6 +513,7 @@ def _apply_product_ddl(
     rejected_error = provisioning.ProductProvisioningError
     target_dsn = _database_dsn(admin_dsn, database)
     with driver.connect(target_dsn) as admin:
+        _set_safe_search_path(admin)
         _assert_target_connection(config, admin, cluster, database)
         admin.rollback()
         apply(admin)
@@ -517,6 +522,7 @@ def _apply_product_ddl(
         catalog_generation_id = generation_id
 
         with driver.connect(owner_dsn) as owner:
+            _set_safe_search_path(owner)
             _catalog_violations(admin, inspect)
             _require_application_rejection(owner, apply, rejected_error)
             _catalog_violations(admin, inspect)
@@ -526,8 +532,7 @@ def _apply_product_ddl(
         admin.rollback()
         _execute(
             admin,
-            f"ALTER ROLE {_quote_identifier('pitchlog_app')} "
-            f"PASSWORD {_quote_literal(password)}",
+            _app_password_sql(password),
         )
         admin.commit()
         app_dsn = _migration_url(owner_dsn, database, "pitchlog_app", password).replace(
@@ -535,6 +540,7 @@ def _apply_product_ddl(
         )
         try:
             with driver.connect(app_dsn) as app:
+                _set_safe_search_path(app)
                 _catalog_violations(admin, inspect)
                 _require_application_rejection(app, apply, rejected_error)
                 _catalog_violations(admin, inspect)
@@ -717,8 +723,53 @@ def _quote_identifier(name: str) -> str:
 
 
 def _quote_literal(value: str) -> str:
-    """生成したロール用パスワードを SQL リテラルへ変換する。"""
+    """SCRAM 検証子を SQL リテラルへ変換する。"""
     return "'" + value.replace("'", "''") + "'"
+
+
+def _scram_verifier(password: str, salt: bytes, iterations: int) -> str:
+    """RFC 5802/7677 の鍵導出で PostgreSQL 用 SCRAM 検証子を作る。"""
+    if not salt or iterations <= 0:
+        raise RunnerError("SCRAM 検証子の条件が不正")
+    salted = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
+    client_key = hmac.digest(salted, b"Client Key", "sha256")
+    stored_key = hashlib.sha256(client_key).digest()
+    server_key = hmac.digest(salted, b"Server Key", "sha256")
+    def encoded(value: bytes) -> str:
+        return base64.b64encode(value).decode("ascii")
+    return (
+        f"SCRAM-SHA-256${iterations}:{encoded(salt)}$"
+        f"{encoded(stored_key)}:{encoded(server_key)}"
+    )
+
+
+def _password_verifier(password: str) -> str:
+    """実行ごとに新しい salt で検証子を作る。"""
+    return _scram_verifier(password, secrets.token_bytes(16), SCRAM_ITERATIONS)
+
+
+def _owner_create_sql(owner: str, password: str) -> str:
+    """平文を含めずに所有者ロールの作成 SQL を作る。"""
+    return (
+        f"CREATE ROLE {_quote_identifier(owner)} WITH "
+        "NOSUPERUSER NOBYPASSRLS LOGIN NOCREATEROLE NOCREATEDB "
+        f"NOREPLICATION NOINHERIT PASSWORD {_quote_literal(_password_verifier(password))}"
+    )
+
+
+def _app_password_sql(password: str) -> str:
+    """平文を含めずにアプリロールの更新 SQL を作る。"""
+    return (
+        f"ALTER ROLE {_quote_identifier('pitchlog_app')} "
+        f"PASSWORD {_quote_literal(_password_verifier(password))}"
+    )
+
+
+def _set_safe_search_path(connection: Any) -> None:
+    """接続直後にカタログだけを検索し、後の rollback でも維持する。"""
+    _execute(connection, "SET SESSION search_path = pg_catalog")
+    if not connection.autocommit:
+        connection.commit()
 
 
 def _command(
@@ -838,8 +889,8 @@ def _evidence(
     params: tuple[Any, ...] = ()
     if with_connections:
         query += (
-            ", (SELECT count(*) FROM pg_stat_activity "
-            "WHERE datname = %s AND pid <> pg_backend_pid())"
+            ", (SELECT count(*) FROM pg_catalog.pg_stat_activity "
+            "WHERE datname = %s AND pid <> pg_catalog.pg_backend_pid())"
         )
         params = (approved_database,)
     row = _fetch_one(connection, query, params)
@@ -887,7 +938,9 @@ def _role_exists(connection: Any, role: str) -> bool:
     """ロールが存在するかだけを調べる。"""
     return bool(
         _fetch_one(
-            connection, "SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = %s)", (role,)
+            connection,
+            "SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = %s)",
+            (role,),
         )[0]
     )
 
@@ -905,7 +958,8 @@ def _assert_target_connection(
     shared = _container_cluster(config, config.shared_compose_service)
     row = _fetch_one(
         connection,
-        "SELECT (SELECT system_identifier FROM pg_control_system()), current_database()",
+        "SELECT (SELECT system_identifier FROM pg_catalog.pg_control_system()), "
+        "pg_catalog.current_database()",
     )
     if (
         row[0] is None
@@ -930,6 +984,7 @@ def _prepare_target() -> PreparedTarget:
     _split_dsn(admin_dsn)
     driver = _driver()
     with driver.connect(admin_dsn, autocommit=True) as admin:
+        _set_safe_search_path(admin)
         initial, _ = _evidence(
             config,
             admin,
@@ -1002,9 +1057,7 @@ def _prepare_target() -> PreparedTarget:
             approved_database,
             test_role_database,
             initial_database,
-            f"CREATE ROLE {_quote_identifier(roles.owner)} WITH "
-            "NOSUPERUSER NOBYPASSRLS LOGIN NOCREATEROLE NOCREATEDB "
-            f"NOREPLICATION NOINHERIT PASSWORD {_quote_literal(owner_password)}",
+            _owner_create_sql(roles.owner, owner_password),
             role_operand=roles.owner,
             allowed_roles=allowed_roles,
         )
@@ -1024,6 +1077,7 @@ def _prepare_target() -> PreparedTarget:
     migration_url = _migration_url(admin_dsn, approved_database, roles.owner, owner_password)
     owner_dsn = migration_url.replace("postgresql+psycopg://", "postgresql://", 1)
     with driver.connect(owner_dsn) as target:
+        _set_safe_search_path(target)
         _assert_target_connection(config, target, cluster, approved_database)
 
     migration_env = dict(os.environ)
@@ -1035,9 +1089,10 @@ def _prepare_target() -> PreparedTarget:
     )
     target_dsn = _database_dsn(admin_dsn, approved_database)
     with driver.connect(target_dsn) as target:
+        _set_safe_search_path(target)
         _assert_target_connection(config, target, cluster, approved_database)
         with target.cursor() as cursor:
-            cursor.execute("SELECT version_num FROM alembic_version")
+            cursor.execute("SELECT version_num FROM public.alembic_version")
             revisions = cursor.fetchall()
     if len(revisions) != 1 or not isinstance(revisions[0][0], str):
         raise RunnerError("migration head を一意に判定できない")
@@ -1101,6 +1156,7 @@ def main(run: Callable[[], PreparedTarget] | None = None) -> int:
     Returns:
         全 node が成功したとき 0、判定不能・不一致・実行失敗時 1。
     """
+    started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     try:
         prepared = (run or _prepare_target)()
         config = _load_targets()
@@ -1123,9 +1179,12 @@ def main(run: Callable[[], PreparedTarget] | None = None) -> int:
     except Exception:
         print("製品 RLS 対象準備を中止: 予期しない実行失敗", file=sys.stderr)
         return 1
+    finished_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     print(
         json.dumps(
             {
+                "started_at": started_at,
+                "finished_at": finished_at,
                 "generation_id": prepared.generation_id,
                 "target_digest": prepared.target_digest,
                 "migration_head": prepared.migration_head,

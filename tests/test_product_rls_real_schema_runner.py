@@ -1,5 +1,6 @@
 """製品 RLS の対象確認と撤去入口を DB なしで検証する。"""
 
+import base64
 import importlib.util
 import json
 import os
@@ -7,6 +8,7 @@ import sys
 import xml.etree.ElementTree as ET
 from contextlib import contextmanager
 from dataclasses import replace
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -108,6 +110,81 @@ def test_admin_connection_must_use_initial_database_and_superuser() -> None:
     _assert_stops_before_drop(replace(VALID_EVIDENCE, admin_is_superuser=False))
 
 
+@pytest.mark.parametrize(
+    (
+        "connected_cluster",
+        "deployed_cluster",
+        "connected_database",
+        "admin_user",
+        "operand",
+        "connections",
+    ),
+    (
+        ("303", "101", "initial", "administrator", "approved", 0),
+        (None, "101", "initial", "administrator", "approved", 0),
+        ("", "101", "initial", "administrator", "approved", 0),
+        ("101", "101", None, "administrator", "approved", 0),
+        ("101", "101", "", "administrator", "approved", 0),
+        ("101", "101", "initial", None, "approved", 0),
+        ("101", "101", "initial", "", "approved", 0),
+        ("202", "202", "initial", "administrator", "approved", 0),
+        ("101", "101", "initial", "administrator", "other", 0),
+        ("101", "101", "initial", "administrator", "approved", 1),
+    ),
+)
+def test_adverse_target_values_never_issue_first_drop(
+    monkeypatch: pytest.MonkeyPatch,
+    connected_cluster: str | None,
+    deployed_cluster: str,
+    connected_database: str | None,
+    admin_user: str | None,
+    operand: str,
+    connections: int,
+) -> None:
+    """偽装・欠損・共有・別 DB・他接続を SQL 発行前に拒否する。"""
+    sql: list[str] = []
+
+    class FakeCursor:
+        """問い合わせと DROP を記録するカーソル。"""
+
+        def __enter__(self) -> Any:
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            pass
+
+        def execute(self, statement: str, params: tuple[Any, ...] = ()) -> None:
+            sql.append(statement)
+
+        def fetchone(self) -> tuple[Any, ...]:
+            return (connected_cluster, connected_database, admin_user, True, connections)
+
+    connection = SimpleNamespace(autocommit=True, cursor=FakeCursor)
+    config = runner._load_targets()
+    monkeypatch.setattr(
+        runner,
+        "_container_cluster",
+        lambda _, service: deployed_cluster if service == config.compose_service else "202",
+    )
+
+    runner._set_safe_search_path(connection)
+    evidence, count = runner._evidence(
+        config, connection, "approved", "initial", "initial", operand,
+        with_connections=True,
+    )
+    with pytest.raises(runner.RunnerError):
+        runner.guard_drop(
+            evidence,
+            count,
+            lambda: runner._execute(connection, 'DROP DATABASE IF EXISTS "approved"'),
+        )
+
+    assert sql[0] == "SET SESSION search_path = pg_catalog"
+    assert "pg_catalog.pg_control_system()" in sql[1]
+    assert "pg_catalog.pg_stat_activity" in sql[1]
+    assert not any(statement.startswith("DROP ") for statement in sql)
+
+
 def test_target_digest_changes_when_only_database_name_changes() -> None:
     first = runner._target_digest("101", "first")
     second = runner._target_digest("101", "second")
@@ -146,6 +223,102 @@ def test_migration_url_uses_owner_on_target_database() -> None:
     assert runner._migration_url(admin, "target", "owner", "temporary") == (
         "postgresql+psycopg://owner:temporary@127.0.0.1:65432/target"
     )
+
+
+def test_scram_verifier_matches_rfc_7677_example() -> None:
+    """RFC 7677 の pencil・salt・4096 回から固定した検証子と照合する。"""
+    salt = base64.b64decode("W22ZaJ0SNY7soEsUEjb6gQ==")
+    expected = (
+        "SCRAM-SHA-256$4096:W22ZaJ0SNY7soEsUEjb6gQ==$"
+        "WG5d8oPm3OtcPnkdi4Uo7BkeZkBFzpcXkuLmtbsT4qY=:"
+        "wfPLwcE6nTWhTAmQ7tl2KeoiWGPlZqQxSrmfPwDl2dU="
+    )
+    verifier = runner._scram_verifier("pencil", salt, 4096)
+
+    assert verifier == expected
+    assert verifier.startswith("SCRAM-SHA-256$")
+    assert "pencil" not in verifier
+
+
+def test_role_password_sql_contains_only_scram_verifiers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """実際の CREATE・ALTER 文に平文を含めない。"""
+    monkeypatch.setattr(runner.secrets, "token_bytes", lambda _: b"fixed-salt-16byt")
+    plaintext = "plain-password-marker"
+    statements = (
+        runner._owner_create_sql("pitchlog_owner", plaintext),
+        runner._app_password_sql(plaintext),
+    )
+
+    assert statements[0].startswith('CREATE ROLE "pitchlog_owner"')
+    assert statements[1].startswith('ALTER ROLE "pitchlog_app"')
+    assert all("PASSWORD 'SCRAM-SHA-256$" in statement for statement in statements)
+    assert all(plaintext not in statement for statement in statements)
+
+
+def test_safe_search_path_is_committed_before_later_rollback() -> None:
+    """接続直後の設定を commit し、後の rollback で戻さない。"""
+    events: list[str] = []
+
+    class FakeCursor:
+        """検索経路の設定を記録するカーソル。"""
+
+        def __enter__(self) -> Any:
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            pass
+
+        def execute(self, statement: str) -> None:
+            events.append(statement)
+
+    connection = SimpleNamespace(
+        autocommit=False,
+        cursor=FakeCursor,
+        commit=lambda: events.append("commit"),
+        rollback=lambda: events.append("rollback"),
+    )
+
+    runner._set_safe_search_path(connection)
+    connection.rollback()
+
+    assert events == ["SET SESSION search_path = pg_catalog", "commit", "rollback"]
+
+
+def test_remaining_catalog_queries_are_schema_qualified(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """対象照合・ロール存在・検査主体の全問い合わせを修飾する。"""
+    queries: list[str] = []
+
+    def fetch_one(_connection: Any, query: str, *_params: Any) -> tuple[Any, ...]:
+        queries.append(query)
+        if "system_identifier" in query:
+            return (101, "approved")
+        if "role.oid" in query:
+            return (42,)
+        return (True,)
+
+    config = runner._load_targets()
+    monkeypatch.setattr(runner, "_fetch_one", fetch_one)
+    monkeypatch.setattr(
+        runner,
+        "_container_cluster",
+        lambda _, service: "101" if service == config.compose_service else "202",
+    )
+    connection = SimpleNamespace(rollback=lambda: None)
+
+    runner._assert_target_connection(config, connection, "101", "approved")
+    assert runner._role_exists(connection, "pitchlog_owner")
+    assert runner._catalog_violations(
+        connection,
+        lambda *_args, **_kwargs: SimpleNamespace(ok=True, violations=()),
+    ) == 0
+    assert "pg_catalog.pg_control_system()" in queries[0]
+    assert "pg_catalog.current_database()" in queries[0]
+    assert "pg_catalog.pg_roles" in queries[1]
+    assert "pg_catalog.current_user()" in queries[2]
 
 
 def test_test_environment_uses_frozen_names_and_initial_database() -> None:
@@ -198,6 +371,7 @@ def test_product_application_checks_target_before_apply_and_catalog_afterward(
 
         def __init__(self, kind: str) -> None:
             self.kind = kind
+            self.autocommit = False
 
         def __enter__(self) -> Any:
             return self
@@ -247,7 +421,11 @@ def test_product_application_checks_target_before_apply_and_catalog_afterward(
         runner,
         "_execute",
         lambda _, sql: events.append(
-            "clear_password" if sql.endswith("PASSWORD NULL") else "set_password"
+            "search_path"
+            if sql.startswith("SET SESSION")
+            else "clear_password"
+            if sql.endswith("PASSWORD NULL")
+            else "set_password"
         ),
     )
     monkeypatch.setattr(runner.secrets, "token_urlsafe", lambda _: "temporary")
@@ -261,14 +439,17 @@ def test_product_application_checks_target_before_apply_and_catalog_afterward(
         monkeypatch.setattr(runner.importlib, "import_module", real_import)
 
     assert events == [
+        "search_path",
         "target_check",
         "apply",
         "catalog",
+        "search_path",
         "catalog",
         "reject_owner",
         "catalog",
         "target_check",
         "set_password",
+        "search_path",
         "catalog",
         "reject_app",
         "catalog",
@@ -554,6 +735,11 @@ def test_main_passes_generated_owner_connection_without_printing_it(
         )
     )
     evidence = json.loads(output.out)
+    started_at = datetime.fromisoformat(evidence["started_at"])
+    finished_at = datetime.fromisoformat(evidence["finished_at"])
+    assert started_at <= finished_at
+    assert started_at.tzinfo == finished_at.tzinfo == timezone.utc
+    assert started_at.microsecond == finished_at.microsecond == 0
     assert evidence["catalog_violations"] == 0
     assert evidence["expected_nodes_asset"] == "expected-nodes-27ff94eb.txt"
     assert evidence["executed_nodes"] == "node-digest"
