@@ -51,9 +51,9 @@ U-01 は**型だけ**を確定し中身を葉に残した([`../u01-dto-base/desi
 **入口** = 製品の外からの要求を受け取り DB のデータへ到達する 1 本の口(HTTP なら **method と path の組**)。
 **経路** = **同じ `route_id` を持つ入口の集合**。**判定・測定・記録の単位は入口**であり、**両者は 1 対 1 ではない**。
 
-**下表は入口 11 本。`route_id` は未定**(`route_kind` の値域決定が空席 — plan.md 4 節)。
+**下表は入口 11 本。`route_id` は【2026-10-05 決定 — plan.md 第 2 改訂の N1】の表のとおり**(旧記述: 「`route_id` は未定 — `route_kind` の値域決定が空席」。値域は PR #77 で決定済み)。
 **分割検討の閾値「経路 10 本超」**([`../product-impl-unit-split/design.md`](../product-impl-unit-split/design.md)`:136-145`)は
-**route registry から経路を数える契約**なので、**`route_id` 付与後でなければ判定できない**。本書では判定を保留する。
+**route registry から経路を数える契約**なので、**`route_id` 付与後でなければ判定できない**。~~本書では判定を保留する。~~ **【2026-10-05】経路 6 本に決めたので閾値に掛からない**(下の「経路 6 本と入口の対応」)。
 
 既定拒否は**全入口 404**(要件書 `:641`「第三者として記録した対戦相手データ → 付与によらず不可 → 404」)。
 403 は器が 404 へ写す(`backend/src/pitchlog/api/errors.py`)。
@@ -71,6 +71,21 @@ U-01 は**型だけ**を確定し中身を葉に残した([`../u01-dto-base/desi
 | 9 | GET | `/team-records` | `roster_team_list` | `TeamRecordListRequest` | `Page[TeamRecordRead]` | 404 | 同上 | FR-039 |
 | 10 | PATCH | `/team-records/{team_record_id}` | `roster_team_update` | `TeamRecordUpdate` | `TeamRecordRead` | 404 | 同上 | FR-039 |
 | 11 | DELETE | `/team-records/{team_record_id}` | `roster_team_delete` | — | `TeamRecordRead` | 404 | 同上 | FR-039 |
+
+### 【2026-10-05 決定】経路 6 本と入口の対応(plan.md N1)
+
+経路は**資源 × 操作**で切る(`route_id` の導出規則 `ROUTE:RECORD:<資源>:<操作>` — `scripts/check_authz_catalog.py:2407-2421`、操作の値域は read / insert / update)。
+資源名は capability カタログの表名に揃える。**削除は論理削除なので update**(`../route-kind-vocabulary/plan.md:130`)。
+**経路 6 本**なので、分割検討の閾値「経路 10 本超」に掛からない。
+
+| `route_id` | 入口(上表の #) |
+| --- | --- |
+| `ROUTE:RECORD:players:insert` | 1 |
+| `ROUTE:RECORD:players:read` | 2・3・5(プレビューは POST だが副作用を持たない — 4 節) |
+| `ROUTE:RECORD:players:update` | 4・6・7 |
+| `ROUTE:RECORD:team_records:insert` | 8 |
+| `ROUTE:RECORD:team_records:read` | 9 |
+| `ROUTE:RECORD:team_records:update` | 10・11 |
 
 **5 と 6 を分ける理由**: FR-017 が「**プレビュー→確認→実行**」を受入基準に持つため(要件書 `:382` — (A))。
 **パスはハイフン表記**(`status-preview` / `status-apply`)。TB004 は `_` 境界のパターンなのでパス文字列は一致せず、
@@ -182,4 +197,4 @@ FR-015「同番号で登録 → **警告が表示される(意図的なら登録
 6. **一括要求の空配列・重複 ID を 422 にした**
 7. **警告を応答に載せる形**にした(`PlayerCreated.same_number_players` / `TeamRecordCreated.similar_names`)
 8. **`operation_id` を `roster_<資源>_<動作>` とした**(D6)
-9. **入口 11 本の分割判定を保留した**(`route_id` 未定のため)
+9. ~~**入口 11 本の分割判定を保留した**(`route_id` 未定のため)~~ **【2026-10-05】経路 6 本に決め、閾値「経路 10 本超」に掛からないと判定した**(3 節)
