@@ -105,7 +105,7 @@ created: 2026-10-05
 
 確定ゲートの各周で正本が変わるので、**派生資産の追随は確定後に 1 回だけ行う**(#93 の前例 `f68bf0c7`)。それまでの CI の赤(digest 不一致)は想定内とし、worklog に記録する。
 
-**版の取り合い**: #93(v0.5)は着地済みで、develop を取り込み済み(`375e961b`)。ほかに `data-model.md` を改訂中の PR があれば、確定ゲートの前に develop を取り込み直す。
+**版の取り合い**: #93(v0.5)と U-A1 β(#96 — 3-4・8-1・12-8 節の実装追随・版は上げない)は着地済みで、develop を取り込み済み(`906d219c`)。ほかに `data-model.md` を改訂中の PR があれば、確定ゲートの前に develop を取り込み直す。
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
@@ -117,7 +117,7 @@ created: 2026-10-05
 | 4 | **変更履歴に「起案」の 1 行**(v0.6・in-review。「12-9」の誤記の注記と射程宣言を含む)と、`docs/README.md` の索引の現行化 | `[機械]` docs 検査 3 本が OK |
 | 5 | **`/finalize-doc` の確定ゲート**(敵対レビュー + 人間承認)。反映周のコミットには `反映<r>周目` を付け、ステップ記法を付けない | `[手動]` **ハーネス設計書 7.3-2 に従い、指摘の採否処理の後の最終全文確認周が収束**し、その後に人間が承認する。TSK-344 の受け入れ条件(TSK-344 の対象が当たるか否かが条文から一意に決まる)を、344 タブと照合した記録が worklog にある。**照合には、TSK-344 の判定記録(`docs/features/product-rls-boundary-tests/gate-record.md`)へ、実測が従った運用正本の手順とその版を追記してもらう申し送りを含む**(本定義が判定の記録に求める項目) |
 | 6 | **承認後に「確定ゲート通過(approved)」の行を足す** | `[機械]` docs 検査 3 本が OK。`[手動]` 1 版 2 行の規律(起案の行と確定の行) |
-| 7 | **派生資産を追随させる**: `shared-preconditions.json` の `git_blob_digest`・`schema-manifest.json` の `sha256`・**生成器(`scripts/generate_orm_acceptance_sheets.py`)で N1・N3・N4・N7 と README を再生成する。既定の再生成は全シートの判定欄を空にするので、`--carry-judgments-from <本ブランチの merge-base の develop>` で判定を持ち越す**。**持ち越されずに空になった行は、N1・N3 に限らず全件、人間が判定し直す**(`tests/test_orm_acceptance_sheets.py` は未判定の行を検出するので、判定し終えるまで red になる)。差分を全件確認する・`tests/test_orm_acceptance_sheets.py` の件数 | `[機械]` `uv run pytest -c pyproject.toml tests/test_orm_acceptance_sheets.py` と、digest を検査するテストが green — `backend/tests/test_schema_manifest.py`(manifest の正本 digest)と、`shared-preconditions.json` を読むテスト(`tests/`・`backend/tests/` を実行前に grep で列挙する)。`uv run python scripts/check_authz_catalog.py` が ok(oracle の入力資産は不変) |
+| 7 | **派生資産を追随させる**: `shared-preconditions.json` の `git_blob_digest`・`schema-manifest.json` の `sha256`・**生成器(`scripts/generate_orm_acceptance_sheets.py`)で N1・N3・N4・N7 と README を再生成する。既定の再生成は全シートの判定欄を空にするので、`--carry-judgments-from <本ブランチの merge-base の develop>` で判定を持ち越す**。**N3 の持ち越しは、連番を外した 3 つ組の内容照合で行い、判定理由の中の「出現 NNN」の参照も内容照合で追随させる**(U-A1 β = #96 がこれを落とした — u1 タブの申し送り 2026-10-05)。**持ち越されずに空になった行は、N1・N3 に限らず全件、人間が判定し直す**(`tests/test_orm_acceptance_sheets.py` は未判定の行を検出するので、判定し終えるまで red になる)。差分を全件確認する・`tests/test_orm_acceptance_sheets.py` の件数 | `[機械]` `uv run pytest -c pyproject.toml tests/test_orm_acceptance_sheets.py` と、digest を検査するテストが green — `backend/tests/test_schema_manifest.py`(manifest の正本 digest)と、`shared-preconditions.json` を読むテスト(`tests/`・`backend/tests/` を実行前に grep で列挙する)。`uv run python scripts/check_authz_catalog.py` が ok(oracle の入力資産は不変) |
 
 ## 5. DoD(受け入れ基準)
 
