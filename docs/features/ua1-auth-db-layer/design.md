@@ -318,3 +318,10 @@ date: 2026-10-04
 - **関数本体の是正**: `issue_initial_password`・`reset_password` も、パスワードが `NULL` のときポリシー判定が三値論理で通り抜けていた(16 節の `change_password` と同じ型)→ `IS NOT TRUE` で拒否し、何も更新しない
 - **`function_only` 4 表への直接アクセスの検査対象**: `pitchlog_app` と試験用の非特権 LOGIN ロール。**`pitchlog_owner`(表の所有者)は ACL で拒否できないので対象外**(所有者は migration を流す信頼済みのロール — 正本 3-2 節)。限定関数の実行拒否は `pitchlog_owner` も検査する
 - **ID を返す関数**: カタログ上 `uuid` を返すのは `login` と `verify_token` の 2 件。`verify_token` の値は発行 ID でなくテナント ID であることを試験で確かめる(5 節の表どおり)
+
+## 18. ステップ 10 — 最低要求 ②③・④の適用判定・DB ログ・露出の事実(2026-10-05)
+
+- 試験: `backend/tests/db/test_product_authz_authn_security.py`(6 ケース — `authn` 全関数の `PUBLIC`・信頼しない LOGIN ロールの `EXECUTE` 拒否 / スキーマの所有者・`USAGE`・`CREATE` / 全関数の固定 `search_path` / `pg_temp` に同名の表・関数・演算子を置き呼び出し元の経路を変えても結果が変わらない / DB ログ / トークン ID)
+- **最低要求④の適用判定**: 既存の判定と同じく **DB 試験の docstring** に置いた —「最低要求④の適用判定: authn は共有対象行を返さないため対象外。」(集合を返す認証関数・共有対象表への参照が無いことも検査する)。**PR と ④ 注記タスクへの連絡は ステップ 12(`/pr`)で行う**(7 節 J-2)
+- **DB ログ**: 試験内の superuser セッションで `log_parameter_max_length = 0`・`log_parameter_max_length_on_error = 0`・`log_statement = all` を設定し、アプリ用ロールでバインド引数付きで呼んで、通常文・エラー文のどちらでも `docker logs` に試験用パスワードが出ないことを表明する(ログ本文は試験の出力へ出さない)
+- **露出の事実**(`contracts/authz/product/exposure-facts.json` の `secret_column`): 3 件の典拠を v0.4 の非露出の条文へ差し替え(8-2・8-2-A・9-3)、`tenant_tokens.id` を追加(8-3「ID の列は秘密の列として扱う」)。**4 件とも正本の逐語と一致することを確かめた**
