@@ -69,11 +69,12 @@ class Game(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
         CheckConstraint(
             "status IN ('preparing', 'in_progress', 'finished', 'trashed', 'hidden')"
         ),
+        CheckConstraint("game_type_category = 'game_type'"),
         ForeignKeyConstraint(
-            ["game_type_key"],
-            ["system_vocabularies.key"],
+            ["game_type_key", "game_type_category"],
+            ["system_vocabularies.key", "system_vocabularies.category"],
             name="fk_games_game_type",
-            match="SIMPLE",
+            match="FULL",
             ondelete="NO ACTION",
             info={"cross_tenant": False},
         ),
@@ -114,6 +115,9 @@ class Game(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
         DateTime(timezone=True), nullable=False
     )
     game_type_key: Mapped[str] = mapped_column(Text, nullable=False)
+    game_type_category: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'game_type'")
+    )
     tournament_key: Mapped[str] = mapped_column(Text, nullable=False)
     away_team_record_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True), nullable=False
@@ -408,11 +412,12 @@ class GameTypeRuleDefault(LifecycleMixin, Base):
 
     __tablename__ = "game_type_rule_defaults"
     __table_args__ = (
+        CheckConstraint("game_type_category = 'game_type'"),
         ForeignKeyConstraint(
-            ["game_type_key"],
-            ["system_vocabularies.key"],
+            ["game_type_key", "game_type_category"],
+            ["system_vocabularies.key", "system_vocabularies.category"],
             name="fk_game_type_rule_defaults_type",
-            match="SIMPLE",
+            match="FULL",
             ondelete="NO ACTION",
             info={"cross_tenant": False},
         ),
@@ -432,6 +437,9 @@ class GameTypeRuleDefault(LifecycleMixin, Base):
     )
 
     game_type_key: Mapped[str] = mapped_column(Text, nullable=False)
+    game_type_category: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'game_type'")
+    )
     rule_set_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
 
     lifecycle = Lifecycle(

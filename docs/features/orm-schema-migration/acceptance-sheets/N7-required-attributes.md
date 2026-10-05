@@ -26,7 +26,7 @@
 
 ### §5-1 games
 
-**列契約（manifest: `games`）**: tenant_id:uuid/NOT NULL/default=なし, id:uuid/NOT NULL/default=なし, scheduled_at:timestamptz/NOT NULL/default=なし, game_type_key:text/NOT NULL/default=なし, tournament_key:text/NOT NULL/default=なし, away_team_record_id:uuid/NOT NULL/default=なし, home_team_record_id:uuid/NOT NULL/default=なし, plate_umpire:text/NULL/default=なし, section_label:text/NULL/default=なし, week_label:text/NULL/default=なし, day_label:text/NULL/default=なし, game_number_label:text/NULL/default=なし, started_at:timestamptz/NULL/default=なし, status:text/NOT NULL/default='preparing', applied_rules:jsonb/NOT NULL/default=なし, rule_override:jsonb/NULL/default=なし, trashed_at:timestamptz/NULL/default=なし, hidden_at:timestamptz/NULL/default=なし, import_batch_id:uuid/NULL/default=なし
+**列契約（manifest: `games`）**: tenant_id:uuid/NOT NULL/default=なし, id:uuid/NOT NULL/default=なし, scheduled_at:timestamptz/NOT NULL/default=なし, game_type_key:text/NOT NULL/default=なし, tournament_key:text/NOT NULL/default=なし, away_team_record_id:uuid/NOT NULL/default=なし, home_team_record_id:uuid/NOT NULL/default=なし, plate_umpire:text/NULL/default=なし, section_label:text/NULL/default=なし, week_label:text/NULL/default=なし, day_label:text/NULL/default=なし, game_number_label:text/NULL/default=なし, started_at:timestamptz/NULL/default=なし, status:text/NOT NULL/default='preparing', applied_rules:jsonb/NOT NULL/default=なし, rule_override:jsonb/NULL/default=なし, trashed_at:timestamptz/NULL/default=なし, hidden_at:timestamptz/NULL/default=なし, import_batch_id:uuid/NULL/default=なし, game_type_category:text/NOT NULL/default='game_type'
 
 | 対象 | 正本側 | 実装側 | 判定 | 理由と典拠 |
 | --- | --- | --- | --- | --- |
@@ -123,7 +123,7 @@
 
 **列契約（manifest: `rule_sets`）**: id:uuid/NOT NULL/default=なし, regulation_innings:integer/NOT NULL/default=なし, called_game_conditions:jsonb/NOT NULL/default=なし, extra_innings_limit:integer/NULL/default=なし, tiebreak_rule:jsonb/NULL/default=なし, uses_dh:boolean/NOT NULL/default=false
 
-**列契約（manifest: `game_type_rule_defaults`）**: game_type_key:text/NOT NULL/default=なし, rule_set_id:uuid/NOT NULL/default=なし
+**列契約（manifest: `game_type_rule_defaults`）**: game_type_key:text/NOT NULL/default=なし, rule_set_id:uuid/NOT NULL/default=なし, game_type_category:text/NOT NULL/default='game_type'
 
 **列契約（manifest: `tournament_rule_assignments`）**: tenant_id:uuid/NOT NULL/default=なし, tournament_key:text/NOT NULL/default=なし, rule_set_id:uuid/NOT NULL/default=なし
 
@@ -133,7 +133,7 @@
 
 ### §7-2 players
 
-**列契約（manifest: `players`）**: tenant_id:uuid/NOT NULL/default=なし, id:uuid/NOT NULL/default=なし, team_record_id:uuid/NOT NULL/default=なし, name:text/NOT NULL/default=なし, throws:text/NULL/default=なし, bats:text/NULL/default=なし, uniform_number:text/NULL/default=なし, roster_status_key:text/NOT NULL/default=なし, roster_label_key:text/NULL/default=なし, hidden_at:timestamptz/NULL/default=なし, import_batch_id:uuid/NULL/default=なし
+**列契約（manifest: `players`）**: tenant_id:uuid/NOT NULL/default=なし, id:uuid/NOT NULL/default=なし, team_record_id:uuid/NOT NULL/default=なし, name:text/NOT NULL/default=なし, throws:text/NULL/default=なし, bats:text/NULL/default=なし, uniform_number:text/NULL/default=なし, roster_status_key:text/NOT NULL/default=なし, roster_label_key:text/NULL/default=なし, hidden_at:timestamptz/NULL/default=なし, import_batch_id:uuid/NULL/default=なし, roster_status_category:text/NOT NULL/default='roster_status'
 
 | 対象 | 正本側 | 実装側 | 判定 | 理由と典拠 |
 | --- | --- | --- | --- | --- |
