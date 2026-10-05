@@ -16,6 +16,7 @@ from pitchlog.authz.asset_spec import (
     ProductApplicationSteps,
     load_product_application_steps,
 )
+from pitchlog.authz.product_function_acl import valid_product_identity_args
 
 _REPOSITORY_ROOT = Path(__file__).parents[4]
 _MIGRATION_BATCH_ROLE_PATH = (
@@ -28,6 +29,7 @@ _SQL_TOKEN_RE = re.compile(
 )
 _SQL_LINE_COMMENT_RE = re.compile(r"--[^\n]*(?:\n|$)")
 _SQL_BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
+_IDENTIFIER_RE = re.compile(r"[a-z_][a-z0-9_]*\Z")
 
 _ROLES_QUERY: LiteralString = """
 SELECT role.oid, role.rolname, role.rolsuper, role.rolbypassrls,
@@ -74,6 +76,15 @@ JOIN pg_catalog.pg_database AS database
 JOIN pg_catalog.pg_roles AS database_owner ON database_owner.oid = database.datdba
 WHERE namespace.nspname = ANY(%s)
 ORDER BY namespace.nspname
+"""
+
+_EXTENSIONS_QUERY: LiteralString = """
+SELECT extension.extname, namespace.nspname
+FROM pg_catalog.pg_extension AS extension
+JOIN pg_catalog.pg_namespace AS namespace
+  ON namespace.oid = extension.extnamespace
+WHERE extension.extname <> 'plpgsql'
+ORDER BY extension.extname, namespace.nspname
 """
 
 _SCHEMA_ACL_QUERY: LiteralString = """
@@ -446,6 +457,7 @@ class CatalogQueryId(Enum):
     DATABASE = "database"
     DATABASE_ACL = "database_acl"
     SCHEMAS = "schemas"
+    EXTENSIONS = "extensions"
     SCHEMA_ACL = "schema_acl"
     TABLES = "tables"
     POLICIES = "policies"
@@ -507,6 +519,7 @@ class _ProductExpectations:
     database_acl: tuple[tuple[object, ...], ...]
     schema_names: tuple[str, ...]
     schemas: tuple[tuple[object, ...], ...]
+    extensions: tuple[tuple[str, str], ...]
     schema_acl: tuple[tuple[object, ...], ...]
     table_names: tuple[str, ...]
     tables: tuple[tuple[object, ...], ...]
@@ -528,6 +541,7 @@ class _MigrationBatchExpectations:
     attributes: tuple[bool, bool, bool, bool, bool, bool, bool]
     database_acl: tuple[tuple[str, bool], ...]
     schema_acl: tuple[tuple[str, str, bool], ...]
+    function_execute: tuple[tuple[str, str, str], ...]
 
 
 class _ReportBuilder:
@@ -782,6 +796,7 @@ def _manifest_migration_permissions(
 def _migration_batch_expectations_from_documents(
     asset: dict[str, object],
     manifest: dict[str, object],
+    product_asset: dict[str, object] | None = None,
 ) -> _MigrationBatchExpectations:
     """移行ロール資産を manifest 由来の集合と exact-set 検証する。"""
     expected_targets, expected_permissions = _manifest_migration_permissions(manifest)
@@ -862,8 +877,50 @@ def _migration_batch_expectations_from_documents(
         raise ProductCatalogError("移行ロールに接する membership 辺は 0 本が必要")
     if raw_shape.get("ownership") != []:
         raise ProductCatalogError("移行ロールの所有対象は 0 件が必要")
-    if raw_shape.get("function_execute") != []:
-        raise ProductCatalogError("移行ロールの関数 EXECUTE は 0 件が必要")
+    if product_asset is None:
+        product_asset = _load_product_asset()
+    schema_names = {
+        _text(row, "schema_name", "schemas") for row in _rows(product_asset, "schemas")
+    }
+    declared_functions = {
+        (
+            _text(row, "schema_name", "functions"),
+            _text(row, "function_name", "functions"),
+            row.get("identity_args"),
+        )
+        for row in _rows(product_asset, "functions")
+    }
+    raw_function_execute = raw_shape.get("function_execute")
+    if not isinstance(raw_function_execute, list):
+        raise ProductCatalogError("function_execute は object 配列が必要")
+    function_execute: list[tuple[str, str, str]] = []
+    for index, entry in enumerate(raw_function_execute):
+        label = f"function_execute[{index}]"
+        if not isinstance(entry, dict) or set(entry) != {
+            "schema_name",
+            "function_name",
+            "identity_args",
+        }:
+            raise ProductCatalogError(f"{label} の形が不正")
+        schema_name = _text(entry, "schema_name", label)
+        function_name = _text(entry, "function_name", label)
+        identity_args = entry["identity_args"]
+        if not isinstance(identity_args, str) or not valid_product_identity_args(
+            identity_args
+        ):
+            raise ProductCatalogError(f"{label}.identity_args が不正")
+        if (
+            _IDENTIFIER_RE.fullmatch(schema_name) is None
+            or _IDENTIFIER_RE.fullmatch(function_name) is None
+        ):
+            raise ProductCatalogError(f"{label} の関数識別子が不正")
+        if schema_name not in schema_names:
+            raise ProductCatalogError(f"{label}.schema_name が製品スキーマにない")
+        if (schema_name, function_name, identity_args) not in declared_functions:
+            raise ProductCatalogError(f"{label} が製品関数に宣言されていない")
+        function_execute.append((schema_name, function_name, identity_args))
+    if len(function_execute) != len(set(function_execute)):
+        raise ProductCatalogError("function_execute が重複している")
 
     raw_database_acl = (
         raw_shape["database_acl"] if "database_acl" in raw_shape else None
@@ -910,6 +967,7 @@ def _migration_batch_expectations_from_documents(
         attributes=role_attributes,
         database_acl=database_acl,
         schema_acl=schema_acl,
+        function_execute=tuple(sorted(function_execute)),
     )
 
 
@@ -918,6 +976,7 @@ def _load_migration_batch_expectations() -> _MigrationBatchExpectations:
     return _migration_batch_expectations_from_documents(
         _load_json_object(_MIGRATION_BATCH_ROLE_PATH, "migration-batch-role 資産"),
         _load_json_object(_SCHEMA_MANIFEST_PATH, "schema manifest"),
+        _load_product_asset(),
     )
 
 
@@ -981,6 +1040,24 @@ def _load_product_expectations() -> _ProductExpectations:
         )
     )
     schema_names = tuple(row[0] for row in schemas)
+    raw_extensions = asset.get("extensions", [])
+    if not isinstance(raw_extensions, list):
+        raise ProductCatalogError("extensions は object 配列が必要")
+    extensions: list[tuple[str, str]] = []
+    for row in raw_extensions:
+        if not isinstance(row, dict):
+            raise ProductCatalogError("extensions は object 配列が必要")
+        extension_name = _text(row, "extension_name", "extensions")
+        if extension_name == "plpgsql":
+            raise ProductCatalogError("組み込み拡張 plpgsql は宣言対象外")
+        if _text(row, "extension_id", "extensions") != extension_name:
+            raise ProductCatalogError("extension_id が extension_name と一致しない")
+        schema_name = _text(row, "schema_name", "extensions")
+        if schema_name not in schema_names:
+            raise ProductCatalogError("拡張の schema_name が未宣言")
+        extensions.append((extension_name, schema_name))
+    if len(extensions) != len(set(extensions)):
+        raise ProductCatalogError("extensions が重複している")
     schema_acl_entries: list[tuple[object, ...]] = []
     for row in schema_rows:
         schema_name = _text(row, "schema_name", "schemas")
@@ -1079,7 +1156,7 @@ def _load_product_expectations() -> _ProductExpectations:
         function_names.append(function_name)
         if function_kind == "migration_trigger":
             trigger_function_keys.append(key)
-        elif function_kind != "rls_helper":
+        elif function_kind not in {"rls_helper", "definer"}:
             raise ProductCatalogError(f"未知の製品関数種別: {function_kind}")
         for grantee, privilege, grantable in _direct_acl(
             row, "acl_expectations", "functions"
@@ -1095,6 +1172,7 @@ def _load_product_expectations() -> _ProductExpectations:
         database_acl=database_acl,
         schema_names=schema_names,
         schemas=schemas,
+        extensions=tuple(sorted(extensions)),
         schema_acl=tuple(sorted(schema_acl_entries)),
         table_names=table_names,
         tables=tables,
@@ -1122,6 +1200,7 @@ def _catalog_requests(
         _CatalogRequest(CatalogQueryId.DATABASE, ()),
         _CatalogRequest(CatalogQueryId.DATABASE_ACL, ()),
         _CatalogRequest(CatalogQueryId.SCHEMAS, (schemas,)),
+        _CatalogRequest(CatalogQueryId.EXTENSIONS, ()),
         _CatalogRequest(CatalogQueryId.SCHEMA_ACL, (schemas,)),
         _CatalogRequest(CatalogQueryId.TABLES, (schemas, tables)),
         _CatalogRequest(CatalogQueryId.POLICIES, (schemas, tables)),
@@ -1146,9 +1225,11 @@ def _catalog_requests(
 
 def _migration_batch_catalog_requests(
     role_oid: int,
+    product_schemas: tuple[str, ...],
 ) -> tuple[_CatalogRequest, ...]:
     """渡された OID の有効な間の形を観測する問い合わせを返す。"""
-    product_schemas = ["public", "authz_private"]
+    if not product_schemas:
+        raise ProductCatalogError("製品スキーマの宣言が空")
     return (
         _CatalogRequest(CatalogQueryId.MIGRATION_BATCH_ROLE, (role_oid,)),
         _CatalogRequest(
@@ -1167,7 +1248,7 @@ def _migration_batch_catalog_requests(
         _CatalogRequest(CatalogQueryId.MIGRATION_BATCH_DATABASE_ACL, (role_oid,)),
         _CatalogRequest(
             CatalogQueryId.MIGRATION_BATCH_FUNCTION_EXECUTE,
-            (product_schemas, role_oid),
+            (list(product_schemas), role_oid),
         ),
     )
 
@@ -1182,6 +1263,8 @@ def _query_for_id(query_id: CatalogQueryId) -> LiteralString:
         return _DATABASE_ACL_QUERY
     if query_id is CatalogQueryId.SCHEMAS:
         return _SCHEMAS_QUERY
+    if query_id is CatalogQueryId.EXTENSIONS:
+        return _EXTENSIONS_QUERY
     if query_id is CatalogQueryId.SCHEMA_ACL:
         return _SCHEMA_ACL_QUERY
     if query_id is CatalogQueryId.TABLES:
@@ -1517,7 +1600,7 @@ def _migration_batch_report(
     )
     report.compare(
         "MIGRATION-BATCH:FUNCTION-EXECUTE",
-        (),
+        expectations.function_execute,
         _observed_rows(
             observations,
             CatalogQueryId.MIGRATION_BATCH_FUNCTION_EXECUTE,
@@ -1558,8 +1641,14 @@ def inspect_product_authz_catalog(
     else:
         _validate_role_oid(_migration_batch_role_oid)
         product_expectations = None
-        requests = _migration_batch_catalog_requests(_migration_batch_role_oid)
         migration_expectations = _load_migration_batch_expectations()
+        product_schemas = tuple(
+            _text(row, "schema_name", "schemas")
+            for row in _rows(_load_product_asset(), "schemas")
+        )
+        requests = _migration_batch_catalog_requests(
+            _migration_batch_role_oid, product_schemas
+        )
     observations: list[tuple[CatalogQueryId, tuple[tuple[object, ...], ...]]] = []
     try:
         for request in requests:
@@ -1605,6 +1694,18 @@ def inspect_product_authz_catalog(
         "PRODUCT-CATALOG:SCHEMAS",
         expectations.schemas,
         _actual_schemas(_observed_rows(frozen_observations, CatalogQueryId.SCHEMAS)),
+    )
+    report.compare(
+        "PRODUCT-CATALOG:EXTENSIONS",
+        expectations.extensions,
+        tuple(
+            sorted(
+                (str(row[0]), str(row[1]))
+                for row in _observed_rows(
+                    frozen_observations, CatalogQueryId.EXTENSIONS
+                )
+            )
+        ),
     )
     report.compare(
         "PRODUCT-CATALOG:SCHEMA-ACL",

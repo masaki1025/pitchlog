@@ -234,3 +234,18 @@ date: 2026-10-04
 - backend の新しい試験は上の 4 つの名前のどれかにする。**`backend/tests/test_authn_*.py` のような名前はどの paths にも一致しない**(実測で不一致)ので使わない
 - ハーネス側(リポジトリ直下の `tests/`)には新しい試験ファイルを作らず、既存のコア領域の試験(`tests/test_check_authz_catalog.py` など)に足す。**`tests/test_authn_*.py` も不一致**(実測)
 - 上の表に無い場所へ新しいファイルが要るようになったら、そのステップに入る前に照合し直し、一致しなければ追加層の宣言(`scripts/core_guard.py:31` と `tests/test_core_guard.py`)を JSON より前の別コミットで入れる(`core_guard.py:302-314`)
+
+## 12. ステップ 3 — 資産基盤の一般化 1 の実現(2026-10-05)
+
+| 項目 | 実現 |
+| --- | --- |
+| 関数種別 `definer` | `_PRODUCT_FUNCTION_KINDS` に追加(`asset_spec.py`)。**「付与先・所有ロール・スキーマ」は種別単位ではなく関数の行ごとに宣言する**(`schema_name` が `schemas` に、`owner_role_id` が `roles` に宣言済みであること・`acl_expectations` と `revoked_acl_expectations` が配列であること・`definer` は `security_mode = definer` であることを検査)。種別ごとの付与先の正しさは、ステップ 7 の独立の期待集合で照合する |
+| 適用手順 | `definer` 関数の群は手順 3(補助関数)の後、拡張の群は手順 2(DB とスキーマ)の後に、**宣言があるときだけ**加える。手順の連番・取り外し番号・実行の繰り返しは手順数から導く(`range(1, 8)`・`8 - n` の固定を廃止) |
+| 拡張 | `extensions` は任意の要素群(未宣言・空配列を許す)。実カタログの照合は `PRODUCT-CATALOG:EXTENSIONS`(`pg_extension` と所属スキーマを、`plpgsql` を除く**DB 全体**で exact)。取り外しは `DROP EXTENSION IF EXISTS`(`CASCADE` なし) |
+| 取り外しの `PUBLIC` 復帰 | `migration_trigger` だけ。`rls_helper` と `definer` は `DROP FUNCTION`。未知の種別は例外 |
+| 関数 ACL の引数の形 | 固定集合 `{"", "uuid, boolean"}` を廃し、**リポジトリの製品資産の宣言**から導く(形の検査 = 型名の並びだけを許す正規表現) |
+| 移行バッチ用ロールの関数 EXECUTE | 検査対象スキーマ = 製品資産の `schemas` の全件。期待集合 = `migration-batch-role.json` の `function_execute`(要素は `schema_name`・`function_name`・`identity_args` の 3 キー exact。製品資産に宣言された関数だけを許す)。**現時点の宣言は空のまま** |
+
+**後続ステップへの注意(推論 — 実測はしていない)**:
+- `PRODUCT-CATALOG:EXTENSIONS` は DB 全体の拡張を見る。**ステップ 8・10 で試験クラスタに `pg_stat_statements` を作ると、製品カタログの検査が red になる**(10-1 節 ④〜⑥)。その時点で、拡張を製品資産に宣言しない別の DB に置くか、観測用の拡張を検査の外にする根拠を決める
+- 関数 ACL の引数の形はリポジトリの資産ファイルから読むので、試験の中で複製した資産に新しい引数の形を足しても `product_function_id` は受けない。ステップ 5 以降で認証関数(引数 `text` など)を足すときは、資産ファイルへの宣言と同じコミットで足す

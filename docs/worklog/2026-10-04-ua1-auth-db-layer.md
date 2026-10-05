@@ -133,3 +133,14 @@ branch: feature/ua1-auth-db-layer
 
 - `origin/develop`(`85fce8a7` — #87 のマージ後)を取り込んだ(`2fc11f9b`・衝突 0 件)
 - 新しく作るファイルを `core-areas.json` の paths と照合 → **全件一致・JSON は登録しない**(design.md 11 節)。backend の新しい試験は `test_authz_*`・`test_product_authz_*`・`product_authz_*`・`db/*` の名前に限る
+
+## ステップ 3(2026-10-05)
+
+- Codex へ委任(`codex_run.py implement`)。**モデルの混雑(`Selected model is at capacity`)で 4 回中断**した(OpenAI 側の混雑と判断 — 同じ秒に別タブも弾かれている。手元に親を失った Codex は無かった)。最後は `--resume` で同じセッションを継続して完了
+- 実現の要点と後続への注意は design.md 12 節
+- 確認(Claude が実行):
+  - backend: `ruff check`・`ruff format --check`・`ty check` green / 影響範囲の非 DB 試験 230 件 green / ランタイム契約の生成器 `check` rc=0
+  - DB 試験(`tests/db/` の製品 authz 5 ファイル): 1 回目は 47 passed・1 error(故障注入 `AFTER-HELPER-FUNCTION-DROP` の後片付けのエラー)。単独 7 件・同じ組の再実行 47 件はどちらも全件 green で再現しなかった
+  - ハーネス: `ruff check .`・`ty check` green / `tests/test_check_authz_catalog.py`・`tests/test_check_authz_function_bodies.py`・`tests/test_frozen_archive.py` 203 件 green / `check_authz_catalog`・`check_authz_function_bodies`・`check_failure_injection_points`・`check_shared_preconditions` rc=0
+  - **迂回の走査**(受理記録の検査だけを差し替えた一時実行 — 計画 4 節 ①): `tenant-boundary bypass check: ok`(rc=0)。差し替えない元の検査も rc=0(このステップは資産を変えないので受理記録の不一致は生じない)
+  - 変更 16 ファイルは全件がコア領域の paths に一致(design.md 11 節の置き場の規則どおり)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import copy
+import json
 import secrets
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -12,6 +14,8 @@ from alembic import command
 from alembic.config import Config
 from psycopg import sql
 
+from pitchlog.authz import product_catalog
+from pitchlog.authz.asset_spec import PRODUCT_SPEC, validate_product_application_steps
 from pitchlog.authz.product_catalog import (
     ProductCatalogReport,
     inspect_product_authz_catalog,
@@ -185,6 +189,54 @@ def test_applied_product_catalog_is_green(
     assert report.violations == ()
     assert before == ("public, pg_catalog",)
     assert after == before
+
+
+def test_extension_in_other_schema_is_red(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """試験用資産の宣言と異なる拡張スキーマを実カタログで検出する。"""
+    catalog = provisioned_product_catalog
+    product_asset = copy.deepcopy(catalog.asset)
+    product_asset["extensions"] = [
+        {
+            "extension_id": "pgcrypto",
+            "extension_name": "pgcrypto",
+            "schema_name": "authz_private",
+        }
+    ]
+    assert PRODUCT_SPEC.application_steps_path is not None
+    steps_asset = json.loads(
+        (_BACKEND_ROOT.parent / PRODUCT_SPEC.application_steps_path).read_text(
+            encoding="utf-8"
+        )
+    )
+    steps_asset["application_steps"][1]["element_groups"].append("extensions")
+    steps = validate_product_application_steps(steps_asset, product_asset, PRODUCT_SPEC)
+    monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: product_asset)
+    monkeypatch.setattr(
+        product_catalog, "load_product_application_steps", lambda root, spec: steps
+    )
+    privileged_oid = _bootstrap_superuser_oid(catalog)
+    try:
+        with catalog.applicator.cursor() as cursor:
+            cursor.execute("CREATE EXTENSION pgcrypto WITH SCHEMA authz_private")
+        green = inspect_product_authz_catalog(
+            catalog.applicator,
+            privileged_role_oids=frozenset({privileged_oid}),
+        )
+        assert green.ok
+        with catalog.applicator.cursor() as cursor:
+            cursor.execute("ALTER EXTENSION pgcrypto SET SCHEMA public")
+        report = inspect_product_authz_catalog(
+            catalog.applicator,
+            privileged_role_oids=frozenset({privileged_oid}),
+        )
+        assert "PRODUCT-CATALOG:EXTENSIONS" in {
+            violation.check_id for violation in report.violations
+        }
+    finally:
+        catalog.applicator.rollback()
 
 
 def test_admin_only_membership_edge_is_red(

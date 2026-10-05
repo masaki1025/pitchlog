@@ -10,7 +10,7 @@ from __future__ import annotations
 import ast
 import re
 from collections.abc import Iterator
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
 import psycopg
@@ -728,6 +728,7 @@ def test_generated_unapply_statements_use_structured_quoted_identifiers() -> Non
         'DROP FUNCTION IF EXISTS "authz_private".'
         '"tenant_has_effective_membership"(uuid, boolean);' in sql_texts
     )
+
     assert 'DROP ROLE IF EXISTS "pitchlog_app";' in sql_texts
     assert 'DROP SCHEMA IF EXISTS "authz_private";' in sql_texts
     assert any(
@@ -756,6 +757,37 @@ def test_generated_unapply_statements_use_structured_quoted_identifiers() -> Non
         "pitchlog_management_fn_owner",
     ):
         assert f'"{role_id}"' in database_statements[0]
+
+
+def test_definer_unapplication_never_restores_public_execute() -> None:
+    """definerの取り外しは関数を落とし、PUBLIC実行権を復帰しない。"""
+    from pitchlog.authz.ddl import DDLStatement
+
+    fields: dict[str, object] = {
+        "schema_name": "authn",
+        "function_name": "test_definer",
+        "identity_args": "text",
+        "function_kind": "definer",
+    }
+    element = product_provisioning._ProductElement(
+        "function", "FUNCTION:authn:test_definer(text)", fields
+    )
+    statement = DDLStatement(
+        element_type="function",
+        element_id=element.element_id,
+        source_path=PurePosixPath(
+            "contracts/authz/product/function-bodies/functions/test.sql"
+        ),
+        sql=(
+            "CREATE FUNCTION authn.test_definer(text) RETURNS text "
+            "LANGUAGE sql AS 'SELECT $1';"
+        ),
+    )
+    sql_text = product_provisioning._unapplication_sql(
+        statement, element, (element,), ()
+    )
+    assert sql_text == 'DROP FUNCTION IF EXISTS "authn"."test_definer"(text);'
+    assert "TO PUBLIC" not in sql_text
 
 
 def test_product_identifier_quoting_escapes_embedded_double_quotes() -> None:

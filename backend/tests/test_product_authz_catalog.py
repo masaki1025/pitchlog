@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 import json
 from collections.abc import Iterator
 from enum import Enum
@@ -18,7 +19,7 @@ import psycopg
 import pytest
 
 from pitchlog.authz import product_catalog
-from pitchlog.authz.asset_spec import PRODUCT_SPEC
+from pitchlog.authz.asset_spec import PRODUCT_SPEC, validate_product_application_steps
 from pitchlog.authz.product_catalog import (
     CatalogQueryId,
     ProductCatalogError,
@@ -388,6 +389,7 @@ def _raw_catalog_rows(
         CatalogQueryId.DATABASE: [("pitchlog_product", expectations.database_owner)],
         CatalogQueryId.DATABASE_ACL: list(expectations.database_acl),
         CatalogQueryId.SCHEMAS: list(expectations.schemas),
+        CatalogQueryId.EXTENSIONS: list(expectations.extensions),
         CatalogQueryId.SCHEMA_ACL: list(expectations.schema_acl),
         CatalogQueryId.TABLES: list(expectations.tables),
         CatalogQueryId.POLICIES: policy_rows,
@@ -445,6 +447,54 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
         step.sequence for step in expectations.application_steps.application_steps
     ) == tuple(range(1, 8))
     assert expectations.application_steps.transaction == "single"
+
+
+def test_definer_function_is_derived_from_test_asset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """definer関数のスキーマ・所有者・実行ACLを資産から導く。"""
+    asset = copy.deepcopy(product_catalog._load_product_asset())
+    rows = asset["functions"]
+    assert isinstance(rows, list)
+    definer = copy.deepcopy(rows[-1])
+    definer.update(
+        function_id="FUNCTION:authz_private:step3_definer(uuid, boolean)",
+        function_name="step3_definer",
+        function_kind="definer",
+        acl_expectations=[
+            {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": False}
+        ],
+    )
+    rows.append(definer)
+    assert PRODUCT_SPEC.application_steps_path is not None
+    steps_asset = json.loads(
+        (_REPOSITORY_ROOT / PRODUCT_SPEC.application_steps_path).read_text(
+            encoding="utf-8"
+        )
+    )
+    steps_asset["application_steps"][2]["element_groups"].append("functions:definer")
+    steps = validate_product_application_steps(steps_asset, asset, PRODUCT_SPEC)
+    monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
+    monkeypatch.setattr(
+        product_catalog, "load_product_application_steps", lambda root, spec: steps
+    )
+
+    expectations = product_catalog._load_product_expectations()
+    assert (
+        "authz_private",
+        "step3_definer",
+        "uuid, boolean",
+        "pitchlog_shared_fn_owner",
+        True,
+    ) in expectations.functions
+    assert (
+        "authz_private",
+        "step3_definer",
+        "uuid, boolean",
+        "pitchlog_app",
+        "EXECUTE",
+        False,
+    ) in expectations.function_acl
 
 
 def test_fetch_terminal_has_registered_signature_and_one_exact_reference() -> None:
@@ -808,6 +858,7 @@ def test_public_inspection_is_green_for_asset_exact_rows(
         CatalogQueryId.DATABASE,
         CatalogQueryId.DATABASE_ACL,
         CatalogQueryId.SCHEMAS,
+        CatalogQueryId.EXTENSIONS,
         CatalogQueryId.SCHEMA_ACL,
         CatalogQueryId.TABLES,
         CatalogQueryId.POLICIES,
@@ -819,7 +870,7 @@ def test_public_inspection_is_green_for_asset_exact_rows(
         CatalogQueryId.DANGEROUS_LOGIN_ROLES,
         CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS,
     ]
-    assert len(report.checked_ids) == 15
+    assert len(report.checked_ids) == 16
 
 
 def test_unqualified_public_relation_in_policy_is_red(

@@ -30,6 +30,33 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PRODUCT_SPEC = product_spec_for_repository(_REPOSITORY_ROOT)
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
 _MIGRATION_VERSIONS = Path("backend/migrations/versions")
+
+
+def test_product_function_argument_shapes_come_from_asset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """新しい引数形は複製した製品資産の宣言で許可する。"""
+    from pitchlog.authz import product_function_acl
+
+    asset = json.loads(
+        (_REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    asset["functions"].append({"identity_args": "text"})
+    path = tmp_path / "contracts/authz/product/ddl-elements.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(asset), encoding="utf-8")
+    monkeypatch.setattr(product_function_acl, "_REPOSITORY_ROOT", tmp_path)
+
+    assert (
+        product_function_id("public", "sample", "text")
+        == "FUNCTION:public:sample(text)"
+    )
+    with pytest.raises(ValueError, match="資産宣言"):
+        product_function_id("public", "sample", "integer")
+
+
 _EXPECTED_GAPS = {
     (
         "public",

@@ -63,6 +63,32 @@ def _load_checker() -> Any:
 checker = _load_checker()
 
 
+def test_product_extension_and_new_schema_declarations() -> None:
+    """複製した製品資産の新スキーマと拡張を受け、不正な参照を拒否する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    schemas = copy.deepcopy(asset["schemas"])
+    extra = copy.deepcopy(schemas[1])
+    extra["schema_id"] = "authn_crypto"
+    extra["schema_name"] = "authn_crypto"
+    schemas.append(extra)
+    checker._validate_product_schema_expectations(schemas)
+    extensions = [
+        {
+            "extension_id": "pgcrypto",
+            "extension_name": "pgcrypto",
+            "schema_name": "authn_crypto",
+        }
+    ]
+    checker._validate_product_extension_expectations(extensions, schemas)
+    extensions[0]["schema_name"] = "unlisted"
+    with pytest.raises(checker.CatalogError, match="拡張スキーマ"):
+        checker._validate_product_extension_expectations(extensions, schemas)
+
+
 def _load_runtime_contract_support() -> Any:
     """Backend と共有する製品状態の複製 helper を読む。"""
     spec = importlib.util.spec_from_file_location(

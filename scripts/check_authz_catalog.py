@@ -3338,8 +3338,49 @@ def _validate_product_schema_expectations(value: object) -> None:
                 f"{label}.revoked_acl_expectations",
             ),
         }
-    if actual != PRODUCT_SCHEMA_EXPECTATIONS:
-        raise CatalogError("製品スキーマの所有者またはACLがdesign.md 2-1と一致しない")
+    for schema_id, expected in PRODUCT_SCHEMA_EXPECTATIONS.items():
+        if actual.get(schema_id) != expected:
+            raise CatalogError(
+                "製品スキーマの既存の所有者またはACLがdesign.md 2-1と一致しない"
+            )
+    for schema_id, declaration in actual.items():
+        if schema_id in PRODUCT_SCHEMA_EXPECTATIONS:
+            continue
+        if declaration["schema_name"] != schema_id:
+            raise CatalogError(f"{schema_id}: schema_idとschema_nameが不一致")
+        if declaration["creation"] != "product_ddl":
+            raise CatalogError(f"{schema_id}: 新しいスキーマは製品DDLで作成する")
+        if declaration["ownership_path"] != "direct":
+            raise CatalogError(f"{schema_id}: 新しいスキーマの所有経路が不正")
+
+
+def _validate_product_extension_expectations(
+    value: object, schemas: object
+) -> None:
+    """拡張が宣言済みスキーマだけを参照することを検査する。"""
+    if value is None:
+        return
+    if not isinstance(value, list):
+        raise CatalogError("製品DDL manifest.extensionsは配列でなければならない")
+    if not isinstance(schemas, list):
+        raise CatalogError("製品DDL manifest.schemasは配列でなければならない")
+    schema_names = {
+        row.get("schema_name") for row in schemas if isinstance(row, dict)
+    }
+    extension_names: set[str] = set()
+    for index, row in enumerate(value):
+        label = f"製品DDL manifest.extensions[{index}]"
+        if not isinstance(row, dict):
+            raise CatalogError(f"{label}はオブジェクトでなければならない")
+        _expect_keys(row, {"extension_id", "extension_name", "schema_name"}, label)
+        extension_id = _expect_string(row["extension_id"], f"{label}.extension_id")
+        extension_name = _expect_string(row["extension_name"], f"{label}.extension_name")
+        schema_name = _expect_string(row["schema_name"], f"{label}.schema_name")
+        if extension_id != extension_name or extension_name in extension_names:
+            raise CatalogError(f"{label}の拡張IDが不正または重複")
+        if extension_name == "plpgsql" or schema_name not in schema_names:
+            raise CatalogError(f"{label}の拡張スキーマが不正")
+        extension_names.add(extension_name)
 
 
 def _product_table_universe(root: Path) -> frozenset[str]:
@@ -4208,6 +4249,8 @@ def _validate_product_asset_correspondence(
     declared_elements: set[tuple[str, str]] = set()
     for section in PRODUCT_SPEC.element_sections:
         rows = raw.get(section.section_name)
+        if section.section_name == "extensions" and rows is None:
+            continue
         if not isinstance(rows, list):
             raise CatalogError(
                 f"製品DDL manifest.{section.section_name}は配列でなければならない"
@@ -4283,6 +4326,8 @@ def _validate_product_ddl_elements(
         "acl_expectations",
         "column_acl_expectations",
     }
+    if "extensions" in raw:
+        expected_keys.add("extensions")
     if state in (
         RuntimeContractState.PROVISIONAL,
         RuntimeContractState.PENDING,
@@ -4340,6 +4385,7 @@ def _validate_product_ddl_elements(
         raise CatalogError("製品ロールに接するmembershipの辺は0本でなければならない")
     _validate_product_database_expectations(raw["databases"])
     _validate_product_schema_expectations(raw["schemas"])
+    _validate_product_extension_expectations(raw.get("extensions"), raw["schemas"])
     _validate_product_table_expectations(raw["tables"], root)
     _validate_product_table_access_expectations(raw, root, state)
     _validate_product_function_acl_expectations(raw, root, state)
