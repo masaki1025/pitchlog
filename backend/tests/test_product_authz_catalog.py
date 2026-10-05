@@ -17,6 +17,7 @@ from typing import Any, cast
 
 import psycopg
 import pytest
+from db.test_product_authz_normalize_function import _normalizer_body_is_safe
 
 from pitchlog.authz import product_catalog
 from pitchlog.authz.asset_spec import PRODUCT_SPEC, validate_product_application_steps
@@ -563,6 +564,17 @@ def test_migration_regular_function_is_not_a_trigger(
 def test_fetch_terminal_has_registered_signature_and_one_exact_reference() -> None:
     """DB 末端は登録シグネチャを持ち、公開検査から 1 回だけ参照される。"""
     _validate_terminal_boundary(_SOURCE_ROOT)
+
+
+def test_normalizer_body_allowlist_rejects_extra_calls() -> None:
+    """追加の完全修飾・非修飾呼出しを字句全体の許可式が拒否する。"""
+    body = r"""SELECT pg_catalog.lower(
+        pg_catalog.btrim(pg_catalog."normalize"($1, 'NFKC'), U&'\0009')
+        COLLATE pg_catalog.pg_c_utf8
+    )"""
+    assert _normalizer_body_is_safe(body)
+    assert not _normalizer_body_is_safe(body + " || public.unapproved_helper($1)")
+    assert not _normalizer_body_is_safe(body + " || upper($1)")
 
 
 @pytest.mark.parametrize(

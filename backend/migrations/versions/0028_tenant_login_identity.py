@@ -20,11 +20,39 @@ _WHITE_SPACE = (
 
 
 def _reject_existing_rows() -> None:
-    """既存行の不整合を検出し、名前や参照先を変更せずに止める。"""
+    """所有者に全行を見せて不整合を検出し、元の FORCE 状態へ戻す。"""
     op.execute(
         """
         DO $preflight$
+        DECLARE
+            tenants_forced boolean;
+            subjects_forced boolean;
+            tokens_forced boolean;
         BEGIN
+            SELECT relforcerowsecurity INTO tenants_forced
+            FROM pg_catalog.pg_class
+            WHERE oid = 'public.tenants'::pg_catalog.regclass;
+            SELECT relforcerowsecurity INTO subjects_forced
+            FROM pg_catalog.pg_class
+            WHERE oid = 'public.tenant_auth_subjects'::pg_catalog.regclass;
+            SELECT relforcerowsecurity INTO tokens_forced
+            FROM pg_catalog.pg_class
+            WHERE oid = 'public.tenant_tokens'::pg_catalog.regclass;
+
+            -- FORCE 下の FK 初期検証は所有者の不可視行を見落とし得る。
+            -- 所有者は NO FORCE の間だけ全行を読める。失敗時は migration
+            -- トランザクションのロールバックで元の FORCE 状態に戻る。
+            IF tenants_forced THEN
+                EXECUTE 'ALTER TABLE public.tenants NO FORCE ROW LEVEL SECURITY';
+            END IF;
+            IF subjects_forced THEN
+                EXECUTE 'ALTER TABLE public.tenant_auth_subjects
+                         NO FORCE ROW LEVEL SECURITY';
+            END IF;
+            IF tokens_forced THEN
+                EXECUTE 'ALTER TABLE public.tenant_tokens NO FORCE ROW LEVEL SECURITY';
+            END IF;
+
             IF EXISTS (
                 SELECT 1 FROM public.tenants
                 WHERE retired_at IS NULL
@@ -56,6 +84,17 @@ def _reject_existing_rows() -> None:
                 WHERE token.tenant_id <> subject.tenant_id
             ) THEN
                 RAISE EXCEPTION '0028 の事前検査に失敗: トークンのテナント不一致';
+            END IF;
+
+            IF tokens_forced THEN
+                EXECUTE 'ALTER TABLE public.tenant_tokens FORCE ROW LEVEL SECURITY';
+            END IF;
+            IF subjects_forced THEN
+                EXECUTE 'ALTER TABLE public.tenant_auth_subjects
+                         FORCE ROW LEVEL SECURITY';
+            END IF;
+            IF tenants_forced THEN
+                EXECUTE 'ALTER TABLE public.tenants FORCE ROW LEVEL SECURITY';
             END IF;
         END
         $preflight$;
