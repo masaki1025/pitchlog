@@ -189,3 +189,13 @@ branch: feature/ua1-auth-db-layer
   - backend: `ruff`・`format --check`・`ty` green / 非 DB 試験 400 passed・4 skipped / 生成器 `check` rc=0 / `rederive` 収束(revision 9 のまま)
   - DB 試験(製品 authz 全ファイル・スキーマ監査・migration・往復・ランタイム契約の統合・適用器): 1 回目 129 passed・5 failed → 是正後 **134 passed**
   - ハーネス: `ruff`・`ty` green / `test_check_authz_catalog.py`・`test_check_authz_function_bodies.py`・`test_orm_acceptance_sheets.py`・`test_frozen_archive.py`・`test_frozen_history.py` 313 passed / 検査器 4 本 rc=0 / 比較 corpus の digest は Codex が再 pin 済み
+- ステップ 7 のコミット後(`38daaaa5`)の迂回の走査: `ok` / 元の検査は受理記録の 1 件だけ
+
+## ステップ 8(2026-10-05)
+
+- Codex へ `--resume` で委任(中断なし)+ 差し戻し 1 回(`void` の戻り値の表明 — psycopg は `''` を返す)。決定は design.md 16 節
+- **共有の開発 DB での衝突**: 2 回目の実行で 20 件が準備段階のエラー(「被検査ロールがテスト開始前から存在する: pitchlog_test_role」)。**別タブ(roster-status)が同時に共有 DB(`pitchlog-db-1`)で DB 試験を流していた**。向こうの終了後に再実行して green。コードの問題ではない
+- 確認(Claude が実行):
+  - DB 試験: `test_product_authz_authn_app.py` 1 回目 18 passed・2 failed(表明の誤り)→ 是正後 **20 passed** / 既存の製品 authz ほか(起動引数の変更の影響確認)**134 passed**
+  - backend: `ruff`・`format --check`・`ty` green / 非 DB 試験 365 passed・4 skipped / 生成器 `check` rc=0 / `rederive` 収束
+  - ハーネス: `ruff` green / 検査器 4 本 rc=0 / `test_check_authz_function_bodies.py`・`test_frozen_archive.py` 44 passed

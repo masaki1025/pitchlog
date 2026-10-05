@@ -654,6 +654,12 @@ def disposable_postgres_cluster() -> Callable[
                 "--env",
                 f"POSTGRES_INITDB_ARGS={initdb_args}",
                 image,
+                "-c",
+                "shared_preload_libraries=pg_stat_statements",
+                "-c",
+                "pg_stat_statements.track=all",
+                "-c",
+                "track_functions=all",
             )
             port_output = _run_docker("port", container_name, "5432/tcp").stdout.strip()
             host_port = port_output.rsplit(":", maxsplit=1)[-1]

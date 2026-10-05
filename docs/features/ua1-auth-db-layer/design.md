@@ -304,3 +304,10 @@ date: 2026-10-04
 - **計数の勧告ロックの鍵**: `pg_advisory_xact_lock(87001223, hashtext(scope_key || ':' || epoch(window_start)))`(第 1 引数 = 計数専用の定数)。`(scope_key, window_start)` を 1 回だけ決めて鍵・照会・更新に共用し、照会の前に取る(10-1 節 ②)
 - **構成検査の置き換え**: 「アプリが実行できる `SECURITY DEFINER` は 0 件」を、**`pitchlog_app` が実効 `EXECUTE` できる `definer` の集合 == 資産で `pitchlog_app` に付与した集合**の exact 照合へ(最低要求④の試験ではない — 7 節 J-2)。危険ロールへの到達の試験は、所有者の照会を資産で宣言した全スキーマへ広げた
 - **ステップ 8 で特に確かめる点**(レビューで気づいた点 — 推論): `login` のダミーハッシュ(`$2a$12$…`)が本当にコスト 12 の有効な bcrypt 値で、実ハッシュと同じコストで照合されること / 設定値が欠けたときは計数を更新しない分岐がある(失敗の種類の間の一様性の比較から、設定値の欠落は外すか、別に扱うかを決める)
+
+## 16. ステップ 8 — アプリ用の認証関数の試験(2026-10-05)
+
+- **観測の置き場**: 試験クラスタの起動引数に `shared_preload_libraries=pg_stat_statements`・`pg_stat_statements.track=all`・`track_functions=all`(`backend/tests/db_fixtures.py`)。**`pg_stat_statements` の拡張は製品 DB でなく同じクラスタの保守用 DB(`postgres`)に作り、製品 DB の `dbid` で絞って読む**(製品 DB に作ると `PRODUCT-CATALOG:EXTENSIONS` — DB 全体の拡張の exact 照合 — が red になるため。12 節の申し送りの決着)。統計はクラスタ共有なので製品 DB の関数内の SQL も観測できる
+- **一様性の比較の範囲**: 設定値が揃った状態の失敗 5 種(存在しない名前・誤 PW・無効テナント・退役テナント・65 文字以上の名前)の間で、計数の更新・`crypt` の回数・関数内 SQL の `queryid` と回数を比べる。**設定値の欠落・不正値は計数を更新しない分岐**があるので、比較から外し「発行しない・延長しない」の試験で扱う(15 節の申し送りの決着)
+- **関数本体の是正**: `change_password` は新パスワードが `NULL` のときポリシー判定が三値論理で通り、書き込みで例外になっていた → ポリシー結果を `IS NOT TRUE` で拒否し、現行 PW の照合も `IS DISTINCT FROM` にした
+- 試験: `backend/tests/db/test_product_authz_authn_app.py`(20 ケース — 計画書 #8 の各項目と、`crypt` の省略・コストの変更・設定照会の省略・勧告ロックの除去の各変異)

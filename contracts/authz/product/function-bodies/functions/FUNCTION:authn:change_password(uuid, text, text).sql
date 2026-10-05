@@ -49,9 +49,11 @@ BEGIN
        OR authn.setting_positive_integer('auth.token_ttl_seconds') IS NULL THEN
         RETURN false;
     END IF;
+    IF authn.password_policy_ok(p_new_password) IS NOT TRUE THEN
+        RETURN false;
+    END IF;
     IF authn_crypto.crypt(coalesce(p_current_password, ''),
-                         current_hash) <> current_hash
-       OR NOT authn.password_policy_ok(p_new_password) THEN
+                         current_hash) IS DISTINCT FROM current_hash THEN
         RETURN false;
     END IF;
     UPDATE public.tenant_credentials
