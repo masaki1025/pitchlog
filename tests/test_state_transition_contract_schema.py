@@ -2897,7 +2897,7 @@ def test_coverage_reference_to_unknown_normative_row_is_red() -> None:
     }
 
     with pytest.raises(MustOperationCoverageError, match="①写像の参照先"):
-        _validate(contract)
+        _validate_must_operation_coverage(contract, frozenset(), None)
 
 
 def test_coverage_operation_type_must_match_row_layer_and_discriminator() -> None:
@@ -2908,7 +2908,7 @@ def test_coverage_operation_type_must_match_row_layer_and_discriminator() -> Non
     )
 
     with pytest.raises(MustOperationCoverageError, match="②操作種別と規範行層"):
-        _validate(contract)
+        _validate_must_operation_coverage(contract, frozenset(), None)
 
 
 def test_coverage_operation_mapping_must_not_be_duplicated() -> None:
@@ -2919,7 +2919,7 @@ def test_coverage_operation_mapping_must_not_be_duplicated() -> None:
     )
 
     with pytest.raises(MustOperationCoverageError, match="③操作種別の写像が重複"):
-        _validate(contract)
+        _validate_must_operation_coverage(contract, frozenset(), None)
 
 
 def test_unassigned_normative_row_is_red() -> None:
@@ -2937,7 +2937,7 @@ def test_unassigned_normative_row_is_red() -> None:
     contract["matrixRows"].append(unassigned)
 
     with pytest.raises(MustOperationCoverageError, match="④いずれの操作種別にも"):
-        _validate(contract)
+        _validate_must_operation_coverage(contract, frozenset(), None)
 
 
 def test_per_pitch_subtypes_must_be_an_exact_set() -> None:
@@ -2955,7 +2955,33 @@ def test_per_pitch_subtypes_must_be_an_exact_set() -> None:
     ]
 
     with pytest.raises(MustOperationCoverageError, match="⑤毎球入力の3下位分類"):
-        _validate(contract)
+        _validate_must_operation_coverage(contract, frozenset(), None)
+
+
+def test_repository_must_operation_coverage_reports_deferred_tiebreak_gap() -> None:
+    """段階2送りの1種だけが未写像であり、検査器が不足を拒否する。"""
+    contract = _repository_contract()
+    required = {
+        item["operationType"]
+        for item in _must_operation_coverage_configuration()["requiredOperations"]
+    }
+    mapped = {
+        item["operationType"]
+        for item in contract["mustOperationCoverage"]["mappings"]
+    }
+    assert len(required) == 6
+    assert len(mapped) == 5
+    assert required - mapped == {"tiebreak-start"}
+    assert not any(
+        row["operationKind"] == "tiebreak-start" for row in contract["operationRows"]
+    )
+    design = (
+        REPOSITORY_ROOT / "docs/features/appendix-e-golden-vectors/design.md"
+    ).read_text(encoding="utf-8")
+    assert "「`mustOperationCoverage`が6種を覆う」は未達" in design
+
+    with pytest.raises(MustOperationCoverageError, match="写像がexact-set不一致"):
+        _validate_must_operation_coverage(contract, frozenset(), None)
 
 
 def test_unadopted_fr040_requires_an_explicit_vector_exclusion() -> None:
