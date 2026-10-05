@@ -11,6 +11,7 @@ import subprocess
 import sys
 from collections import deque
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -4588,6 +4589,173 @@ leaked = getattr(context_module, "_TENANT_CONTEXT_SECRET")
     )
 
     assert {violation.code for violation in violations} == {"TB007"}
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "from pitchlog.repositories.context import _ISSUANCE_CAPABILITY\n",
+        "capability = _ISSUANCE_CAPABILITY\n",
+        "import pitchlog.repositories.context as context_module\n"
+        "capability = context_module._ISSUANCE_CAPABILITY\n",
+        "import pitchlog.repositories.context as context_module\n"
+        'capability = getattr(context_module, "_ISSUANCE_CAPABILITY")\n',
+    ),
+)
+def test_issuance_capability_reference_outside_allowlist_is_red(source: str) -> None:
+    """未許可モジュールからの import・裸名・属性・getattr を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/unapproved_issuer.py",
+        contract=contract,
+    )
+
+    assert violations
+    assert {violation.code for violation in violations} == {"TB007"}
+    assert {violation.symbol for violation in violations} == {
+        contract.tenant_context.issuance_capability_symbol
+    }
+
+
+def test_issuance_capability_reference_from_allowed_test_module_passes() -> None:
+    """許可テストモジュールの直接参照と getattr は通す。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = '''\
+from pitchlog.repositories.context import _ISSUANCE_CAPABILITY
+import pitchlog.repositories.context as context_module
+
+direct = _ISSUANCE_CAPABILITY
+dynamic = getattr(context_module, "_ISSUANCE_CAPABILITY")
+'''
+
+    assert checker.scan_source(
+        source,
+        path="test_authz_tenant_context.py",
+        contract=contract,
+    ) == []
+
+
+def test_issuance_capability_reference_from_allowed_symbol_passes() -> None:
+    """context.py 内の許可シンボルから発行能力を直接参照できる。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = '''\
+from uuid import UUID
+
+class TenantContext:
+    def __init__(
+        self, tenant_id: UUID, issuance_capability: TenantContextIssuanceCapability
+    ) -> None:
+        capability = _ISSUANCE_CAPABILITY
+'''
+
+    assert checker.scan_source(
+        source,
+        path="pitchlog/repositories/context.py",
+        contract=contract,
+    ) == []
+
+
+def test_synthetic_product_issuer_can_name_capability_and_entrypoint() -> None:
+    """合成契約に登録した製品モジュールだけが新しい2件を直接名指せる。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    tenant_context = replace(
+        contract.tenant_context,
+        allowed_product_modules=frozenset({"pitchlog.services.allowed_issuer"}),
+        issuance_entrypoint_symbol="pitchlog.repositories.issuer.issue_tenant_context",
+        issuance_entrypoint_allowed_symbols=frozenset(
+            {"pitchlog.repositories.issuer.issue_tenant_context"}
+        ),
+    )
+    synthetic_contract = replace(contract, tenant_context=tenant_context)
+    source = '''\
+from pitchlog.repositories.context import _ISSUANCE_CAPABILITY
+from pitchlog.repositories.issuer import issue_tenant_context
+import pitchlog.repositories.context as context_module
+
+registry = (_ISSUANCE_CAPABILITY, issue_tenant_context)
+dynamic = getattr(context_module, "_ISSUANCE_CAPABILITY")
+'''
+
+    for path in ("pitchlog/services/allowed_issuer.py", "test_authz_tenant_context.py"):
+        assert checker.scan_source(source, path=path, contract=synthetic_contract) == []
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/unapproved_issuer.py",
+        contract=synthetic_contract,
+    )
+    assert violations
+    assert {violation.code for violation in violations} == {"TB007"}
+    assert {violation.symbol for violation in violations} == {
+        tenant_context.issuance_capability_symbol,
+        tenant_context.issuance_entrypoint_symbol,
+    }
+
+
+def test_empty_issuance_entrypoint_does_not_trigger_reference_rule() -> None:
+    """発行入口の契約値が空なら同名の直接参照を拒否しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    assert contract.tenant_context.issuance_entrypoint_symbol == ""
+    source = '''\
+from pitchlog.repositories.issuer import issue_tenant_context
+
+registry = issue_tenant_context
+'''
+
+    assert checker.scan_source(
+        source,
+        path="pitchlog/services/unapproved_issuer.py",
+        contract=contract,
+    ) == []
+
+
+def test_issuance_entrypoint_getattr_remains_outside_reference_rule() -> None:
+    """発行入口の getattr は名前の直接比較規則の対象外に置く。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    synthetic_contract = replace(
+        contract,
+        tenant_context=replace(
+            contract.tenant_context,
+            issuance_entrypoint_symbol="pitchlog.repositories.issuer.issue_tenant_context",
+            issuance_entrypoint_allowed_symbols=frozenset(
+                {"pitchlog.repositories.issuer.issue_tenant_context"}
+            ),
+        ),
+    )
+    source = '''\
+import pitchlog.repositories.issuer as issuer
+
+entrypoint = getattr(issuer, "issue_tenant_context")
+'''
+
+    assert checker.scan_source(
+        source,
+        path="pitchlog/services/unapproved_issuer.py",
+        contract=synthetic_contract,
+    ) == []
+
+
+def test_existing_proof_references_remain_red_in_allowed_test_module() -> None:
+    """許可テストモジュール内の未許可関数には従来の2件を開かない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = '''\
+def inspect_proof():
+    return _TENANT_CONTEXT_SECRET, _tenant_context_proof
+'''
+
+    violations = checker.scan_source(
+        source,
+        path="test_authz_tenant_context.py",
+        contract=contract,
+    )
+    assert violations
+    assert {violation.code for violation in violations} == {"TB007"}
+    assert {violation.symbol for violation in violations} == {
+        contract.tenant_context.integrity_secret_symbol,
+        contract.tenant_context.integrity_proof_factory_symbol,
+    }
 
 
 def test_known_non_database_receivers_and_unrelated_replace_pass() -> None:

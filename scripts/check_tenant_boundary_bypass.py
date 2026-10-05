@@ -4769,7 +4769,10 @@ class _SourceScanner(ast.NodeVisitor):
         )
 
     def _check_integrity_reference(self, text: str, node: ast.AST) -> None:
-        """発行証跡の秘密・導出関数を許可シンボル外へ公開しない。"""
+        """発行証跡の秘密・導出関数を許可シンボル外へ公開しない。
+
+        発行能力と発行入口もそれぞれの許可範囲に限る。
+        """
         if not self._is_changed(node):
             return
         protected = (
@@ -4783,11 +4786,41 @@ class _SourceScanner(ast.NodeVisitor):
                 self.contract.tenant_context.integrity_proof_factory_allowed_symbols,
                 "TenantContext 発行証跡の導出関数は許可シンボル外から参照できない",
             ),
+            (
+                self.contract.tenant_context.issuance_capability_symbol,
+                self.contract.tenant_context.issuance_capability_allowed_symbols,
+                "TenantContext 発行能力は許可範囲外から参照できない",
+            ),
+            (
+                self.contract.tenant_context.issuance_entrypoint_symbol,
+                self.contract.tenant_context.issuance_entrypoint_allowed_symbols,
+                "TenantContext 発行入口は許可範囲外から参照できない",
+            ),
         )
         for symbol, allowed_symbols, message in protected:
+            if not symbol:
+                continue
             if text not in {symbol, symbol.rsplit(".", 1)[1]}:
                 continue
             if self._current_symbol() in allowed_symbols:
+                return
+            if (
+                symbol == self.contract.tenant_context.issuance_capability_symbol
+                and self.module
+                in (
+                    self.contract.tenant_context.allowed_test_modules
+                    | self.contract.tenant_context.allowed_product_modules
+                )
+            ):
+                return
+            if (
+                symbol == self.contract.tenant_context.issuance_entrypoint_symbol
+                and self.module
+                in (
+                    self.contract.tenant_context.allowed_test_modules
+                    | self.contract.tenant_context.allowed_product_modules
+                )
+            ):
                 return
             self._add(
                 node,
@@ -4837,6 +4870,22 @@ class _SourceScanner(ast.NodeVisitor):
                     symbol=symbol,
                     message="getattr による TenantContext 発行証跡内部への参照は禁止",
                 )
+        issuance_capability = self.contract.tenant_context.issuance_capability_symbol
+        if (
+            method == issuance_capability.rsplit(".", 1)[1]
+            and self.module
+            not in (
+                self.contract.tenant_context.allowed_test_modules
+                | self.contract.tenant_context.allowed_product_modules
+            )
+        ):
+            self._add(
+                node,
+                condition=5,
+                code="TB007",
+                symbol=issuance_capability,
+                message="getattr による TenantContext 発行能力への参照は許可範囲外で禁止",
+            )
         provenance = self.flow.argument_provenance(node, 0)
         member_owners = {
             api.symbol.rsplit(".", 1)[0]
