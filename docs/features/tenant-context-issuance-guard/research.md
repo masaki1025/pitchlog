@@ -65,7 +65,7 @@ TSK-440 は条件 5 の保証範囲を縮小したが、**代償は付いてい�
 - モジュール名は source root 相対のドット名(`_module_name:1417`)。
   `backend/src` 配下 → `pitchlog.repositories.context`、`backend/tests` 配下 → `test_authz_tenant_context`
 - 製品側に `TenantContext(` の呼び出しは **0 件**(`grep`)。
-  `backend/tests/test_check_tenant_boundary_bypass.py` の
+  `tests/test_check_tenant_boundary_bypass.py` の
   `test_tenant_repository_product_definition_passes_bypass_scan` が
   「現行の製品コードそのものが全行検査を通る」ことを assert している
 - 0 件の機械強制(`scripts/check_tenant_boundary_bypass.py:1178-1181`):
