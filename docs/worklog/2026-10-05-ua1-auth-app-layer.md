@@ -22,6 +22,11 @@ branch: feature/ua1-auth-app-layer
 - 検証: `backend/` で `uv run --offline ruff format`: 初回 **1 file reformatted, 244 files left unchanged**、最終 **245 files left unchanged**。`uv run --offline ruff check` / `uv run --offline ty check`: **All checks passed**。指定の `pytest -c pyproject.toml tests/ -q -m "not requires_db"` は **984 passed, 4 skipped, 385 deselected** だが、`tests/db/conftest.py` の既存終了時フックが DB 必須試験 0 件をエラーとするため終了コード 1。`--ignore=tests/db` を足した補助実行は追加試験前に **973 passed, 4 skipped, 17 deselected** で終了コード 0。追加試験は単独で **20 passed**。すべて `UV_CACHE_DIR=/tmp/pitchlog-ua1-uv-cache` を指定した。
 - 既存 DB 試験 `test_schema_revision_and_application_engine_use_the_database` の実行を試みたが、共通 fixture の管理接続が `psycopg.OperationalError: connection is bad` となり試験本体へ進めなかった。使い捨て DB の接続先は fixture 上 `127.0.0.1` と確認し、その URL 変換で `sslmode=disable` を明示した。実 DB で壊れていないことの確認は未了。
 - ステップ 3 の TB002 を実測。`base-allowlist.json` の `TB002` 正規表現 7 件に対し、新設 2 ファイルと既存変更 6 ファイルの Python AST と `HEAD` の AST の差から導入識別子を抽出し、検査器と同じ snake_case 相当の正規化後に `re.search` した。**固有 56 識別子、該当 0 件**。凍結資産への裁定追加は不要。
+- ステップ 4: `authz/verified_tenant.py` に公開入口 `verify_tenant_id()` を 1 つ作った。関数内で `TokenPresentation.decode()` を先に実行し、成功した戻り値だけを固定 SQL `authn.verify_token(:token_id)` に束縛する。生の UUID を受け取る DB 呼び出し関数は作らず、署名器は実際の `TokenPresentation` 型に限定した。署名不正と DB 関数の NULL はどちらも `None` とし、DB 例外は入力を含まない文言に変換する。例外の `__context__` に SQLAlchemy の引数が残らないよう、DB 例外を捕捉したブロックの外で再送出する。`TenantContext` は生成しない。
+- `backend/tests/test_authz_verified_tenant.py` で公開シンボルの exact-set、照合後の ID だけの DB 到達、生の UUID・改ざん提示値・偽の decode オブジェクトからの DB 非到達、DB NULL と例外文言を確認した。**6 passed**。
+- `backend/tests/db/test_authz_verified_tenant.py` に `requires_db` を付け、実 DB 上で正常トークンのテナント ID と利用時刻・期限の更新を確認してから、**ログアウト失効、認証情報の世代繰り上げ、テナント無効化、主体とトークンのテナント不一致、期限切れ**を各 1 件作り、正しく署名した提示値が `None` となり行が更新されないことを確認する試験を追加した。実行を試みたが、共通 fixture の管理接続が `psycopg.OperationalError: connection is bad` で止まり、**5 件とも本体は未実行**。実 DB での負例と延長は未確認。DB ログ設定は変更していない。
+- 非 DB 全件 `pytest -c pyproject.toml tests/ -q -m "not requires_db" --ignore=tests/db`: **981 passed, 4 skipped, 17 deselected**。`ruff format`: **248 files left unchanged**、`ruff check` / `ty check`: **All checks passed**。実行には `UV_CACHE_DIR=/tmp/pitchlog-ua1-uv-cache` と `uv run --offline` を使用した。
+- ステップ 4 の TB002 を実測。新設した Python 3 ファイルの AST からモジュール名・クラス名・関数名・引数名・代入先名・属性名・import 名など **固有 109 識別子**を採り、検査器と同じ snake_case 相当の正規化を施し、`base-allowlist.json` の TB002 正規表現 7 件と照合した。**該当 0 件**。SQL 中の `generation` は Python 識別子ではない。
 
 ## 決定
 
@@ -34,4 +39,4 @@ branch: feature/ua1-auth-app-layer
 
 ## 未決・次の一歩
 
-- ステップ 3 まで実装済み。次は委任元がステップ 3 のコミットを作る。ステップ 4 以降には着手していない。
+- ステップ 4 まで実装済み。委任元がステップ 4 のコミットを作る。実 DB 負例 5 件は接続可能な環境で実行し、結果を確認する必要がある。ステップ 5 以降には着手していない。
