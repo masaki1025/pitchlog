@@ -56,6 +56,7 @@ def _clause_only_register() -> dict[str, Any]:
     for gap in document["gaps"]:
         gap["branchIds"] = []
         gap["rowIds"] = []
+        gap["fixtureCaseIds"] = []
     return document
 
 
@@ -77,14 +78,25 @@ def _row_documents() -> dict[str, dict[str, Any]]:
     }
 
 
+def _fixture_documents() -> list[dict[str, Any]]:
+    """凍結済みの手作業fixtureを実資産から読む。"""
+    return [
+        json.loads((REPOSITORY_ROOT / path).read_text(encoding="utf-8"))
+        for path in checker.MANUAL_FIXTURE_PATHS
+    ]
+
+
 def _real_indexes(document: dict[str, Any]) -> dict[str, Any]:
-    """実際の所有資産から分岐・規範行の逆方向indexを組み立てる。"""
+    """実際の所有資産から分岐・規範行・fixtureの逆方向indexを組み立てる。"""
     return {
         "branchIds": checker.clause_branch_reference_index(
             _clause_branch_register()
         ),
         "rowIds": checker.row_reference_index(
             _criteria(), document["gaps"], _row_documents()
+        ),
+        "fixtureCaseIds": checker.fixture_reference_index(
+            _clause_branch_register(), _fixture_documents()
         ),
     }
 
@@ -334,8 +346,8 @@ def test_clause_branch_index_declares_every_unassigned_branch_exactly() -> None:
     _validate_clause_branches(document)
 
 
-def test_nine_open_gaps_have_row_ids_and_contiguous_prefix() -> None:
-    """全9件のrowIdsを実資産の逆方向帰属へ突合する。"""
+def test_nine_open_gaps_have_rows_and_fixtures_with_contiguous_prefix() -> None:
+    """全9件のrowIdsとfixtureCaseIdsを実資産の逆方向帰属へ突合する。"""
     document = _register()
     expected_clauses = {
         "GAP-01": ["FR-020"],
@@ -359,14 +371,75 @@ def test_nine_open_gaps_have_row_ids_and_contiguous_prefix() -> None:
         "GAP-04": 4, "GAP-05": 0, "GAP-06": 0,
         "GAP-07": 20, "GAP-08": 5, "GAP-09": 3,
     }
+    assert {gap["gapId"]: len(gap["fixtureCaseIds"]) for gap in document["gaps"]} == {
+        "GAP-01": 0, "GAP-02": 0, "GAP-03": 2,
+        "GAP-04": 4, "GAP-05": 0, "GAP-06": 0,
+        "GAP-07": 12, "GAP-08": 7, "GAP-09": 3,
+    }
     assert all(
         gap["branchIds"]
         and "rowIds" in gap
-        and gap["fixtureCaseIds"] == []
+        and "fixtureCaseIds" in gap
         and gap["generatedCaseSelector"] is None
         for gap in document["gaps"]
     )
     _validate(document, _real_indexes(document))
+
+
+def test_fixture_index_uses_branch_register_gap_ownership() -> None:
+    """両fixtureのcaseIdを分岐台帳のgapIdsから逆引きする。"""
+    index = _real_indexes(_register())["fixtureCaseIds"]
+
+    assert len(index.existing_references) == 31
+    assert index.gap_ids_by_reference["GE-GAME-END-NORMAL"] == frozenset(
+        {"GAP-03", "GAP-04"}
+    )
+    assert index.gap_ids_by_reference["ST-XC-01"] == frozenset()
+
+
+def test_fixture_reference_added_only_to_gap_is_red() -> None:
+    """GAP側だけに実在する別帰属のfixtureを足しても拒否する。"""
+    document = copy.deepcopy(_register())
+    document["gaps"][6]["fixtureCaseIds"].append("ST-XC-01")
+
+    with pytest.raises(checker.GapRegisterError, match="双方向一致しない"):
+        _validate(document, _real_indexes(document))
+
+
+def test_fixture_reference_added_only_to_asset_is_red() -> None:
+    """fixture側のbranchIdだけを変更した逆方向帰属の追加を拒否する。"""
+    document = _register()
+    fixture_documents = _fixture_documents()
+    fixture = next(
+        fixture for fixture in fixture_documents[0]["fixtures"]
+        if fixture["case"]["caseId"] == "ST-XC-01"
+    )
+    fixture["case"]["branchId"] = "XC-02"
+    indexes = _real_indexes(document)
+    indexes["fixtureCaseIds"] = checker.fixture_reference_index(
+        _clause_branch_register(), fixture_documents
+    )
+
+    with pytest.raises(checker.GapRegisterError, match="双方向一致しない"):
+        _validate(document, indexes)
+
+
+def test_unknown_fixture_reference_is_red() -> None:
+    """存在しないfixtureのcaseIdを指すと拒否する。"""
+    document = copy.deepcopy(_register())
+    document["gaps"][6]["fixtureCaseIds"].append("ST-NOT-A-FIXTURE")
+
+    with pytest.raises(checker.GapRegisterError, match="存在しない参照"):
+        _validate(document, _real_indexes(document))
+
+
+def test_open_skipping_fixture_stage_for_generated_selector_is_red() -> None:
+    """fixtureCaseIdsが空のまま生成case段を埋めるprefix違反を拒否する。"""
+    document = copy.deepcopy(_register())
+    document["gaps"][0]["generatedCaseSelector"] = {"caseIds": ["CASE-01"]}
+
+    with pytest.raises(checker.GapRegisterError, match="連続したprefix"):
+        _validate(document, _real_indexes(document))
 
 
 def test_normative_row_natural_keys_are_unique_in_all_four_layers() -> None:

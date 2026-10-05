@@ -50,7 +50,10 @@
         "decisionRows:COLD-08",
         "decisionRows:GAME-END-NORMAL"
       ],
-      "fixtureCaseIds": [],
+      "fixtureCaseIds": [
+        "GE-GAME-END-NORMAL",
+        "GE-COLD-08"
+      ],
       "generatedCaseSelector": null
     },
     {
@@ -81,7 +84,12 @@
         "decisionRows:GAME-END-NORMAL",
         "decisionRows:GAME-END-TIEBREAK-CONTINUE"
       ],
-      "fixtureCaseIds": [],
+      "fixtureCaseIds": [
+        "GE-GAME-END-NORMAL",
+        "GE-GAME-END-EXTRA-CONTINUE",
+        "GE-GAME-END-LIMIT-DRAW",
+        "GE-GAME-END-TIEBREAK-CONTINUE"
+      ],
       "generatedCaseSelector": null
     },
     {
@@ -165,7 +173,20 @@
         "matrixRows:secondary-result:secondary-result.pitch-clock-violation",
         "matrixRows:secondary-result:secondary-result.wild-pitch"
       ],
-      "fixtureCaseIds": [],
+      "fixtureCaseIds": [
+        "ST-INT-02",
+        "ST-INT-04",
+        "ST-INT-06",
+        "ST-ADV-01",
+        "ST-ADV-02",
+        "ST-ADV-03",
+        "ST-ADV-04",
+        "ST-XC-02",
+        "ST-XC-03",
+        "ST-XC-08",
+        "ST-XC-10",
+        "ST-XC-12"
+      ],
       "generatedCaseSelector": null
     },
     {
@@ -193,7 +214,15 @@
         "matrixRows:batting-result:batting-result.strikeout-double-play",
         "matrixRows:batting-result:batting-result.swinging-strikeout"
       ],
-      "fixtureCaseIds": [],
+      "fixtureCaseIds": [
+        "ST-SO-01",
+        "ST-SO-02",
+        "ST-SO-03",
+        "ST-SO-04",
+        "ST-SO-05",
+        "ST-XC-04",
+        "ST-XC-11"
+      ],
       "generatedCaseSelector": null
     },
     {
@@ -223,7 +252,11 @@
         "matrixRows:batting-result:batting-result.sacrifice-bunt-error",
         "matrixRows:batting-result:batting-result.sacrifice-fly"
       ],
-      "fixtureCaseIds": [],
+      "fixtureCaseIds": [
+        "ST-RBI-06",
+        "ST-RBI-08",
+        "ST-RBI-09"
+      ],
       "generatedCaseSelector": null
     }
   ]

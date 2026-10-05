@@ -32,6 +32,10 @@ CLAUSE_BRANCH_REGISTER_PATH = PurePosixPath(
 CLAUSE_BRANCH_SCHEMA_PATH = PurePosixPath(
     "contracts/state-transition/clause_branch_register_schema_v1.json"
 )
+MANUAL_FIXTURE_PATHS = (
+    PurePosixPath("contracts/state-transition/state_transition_manual_fixtures_v1.json"),
+    PurePosixPath("contracts/state-transition/game_end_manual_fixtures_v1.json"),
+)
 REQUIREMENTS_PATH = parity_checker.REQUIREMENTS_PATH
 
 # JSON Schema の語彙・member 名は凍結する判断値ではなく、汎用文法のnavigationに使う。
@@ -1056,6 +1060,36 @@ def clause_branch_reference_index(
     )
 
 
+def fixture_reference_index(
+    branch_document: Mapping[str, Any],
+    fixture_documents: Sequence[Mapping[str, Any]],
+) -> StageReferenceIndex:
+    """fixtureの分岐IDを分岐台帳のgapIdsへ結び付け逆方向帰属を作る。"""
+    branch_index = clause_branch_reference_index(branch_document)
+    owners: dict[str, frozenset[str]] = {}
+    for document in fixture_documents:
+        fixtures = document.get("fixtures")
+        if not isinstance(fixtures, list):
+            raise GapRegisterError("fixture資産にfixtures配列がない")
+        for position, raw_fixture in enumerate(fixtures):
+            fixture = _expect_object(raw_fixture, f"fixtures[{position}]")
+            case = _expect_object(fixture.get("case"), f"fixtures[{position}].case")
+            case_id = case.get("caseId")
+            branch_id = case.get("branchId")
+            if not isinstance(case_id, str) or not case_id:
+                raise GapRegisterError("fixtureのcaseIdが不正")
+            if not isinstance(branch_id, str) or not _value_in(
+                branch_id, branch_index.existing_references
+            ):
+                raise GapRegisterError(f"{case_id}: fixtureのbranchIdが分岐台帳にない")
+            if _value_in(case_id, frozenset(owners)):
+                raise GapRegisterError(f"fixtureのcaseIdが重複している: {case_id}")
+            owners[case_id] = branch_index.gap_ids_by_reference[branch_id]
+    return StageReferenceIndex(
+        existing_references=frozenset(owners), gap_ids_by_reference=owners
+    )
+
+
 def check_repository(root: Path) -> None:
     """リポジトリ内の条文分岐台帳とgap registerを検証する。"""
     path = root / REGISTER_PATH
@@ -1122,6 +1156,13 @@ def check_repository(root: Path) -> None:
                 clause_id_source.load_json(root / relative, "規範行資産"),
                 "規範行資産",
             )
+    fixture_documents = [
+        _expect_object(
+            clause_id_source.load_json(root / relative, "手作業fixture"),
+            "手作業fixture",
+        )
+        for relative in MANUAL_FIXTURE_PATHS
+    ]
     validate_gap_register_document(
         document,
         requirement_clause_ids,
@@ -1130,6 +1171,9 @@ def check_repository(root: Path) -> None:
         {
             "branchIds": clause_branch_reference_index(branch_document),
             "rowIds": row_reference_index(criteria, document["gaps"], row_documents),
+            "fixtureCaseIds": fixture_reference_index(
+                branch_document, fixture_documents
+            ),
         },
     )
 
