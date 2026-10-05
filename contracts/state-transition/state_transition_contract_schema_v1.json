@@ -697,7 +697,7 @@
           "const": "input_axes_descriptor_v1"
         },
         "digest": {
-          "const": "sha256:9758159e76c974df31a09fb8d3db7c0f25c46b8aa4ee3e1b28db25ac800ccce9"
+          "const": "sha256:ca421500e9eabf1ad6891884178d309c1d3dfae4f6c03628a4d6c7fe996b84da"
         }
       }
     },
