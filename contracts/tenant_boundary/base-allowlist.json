@@ -8032,7 +8032,7 @@
     },
     {
       "symbol": "pitchlog.repositories.context.TenantContext.__init__",
-      "signature": "__init__(self, tenant_id: UUID) -> None",
+      "signature": "__init__(self, tenant_id: UUID, issuance_capability: TenantContextIssuanceCapability) -> None",
       "allowed_api_ids": [],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/context.py"
     },
