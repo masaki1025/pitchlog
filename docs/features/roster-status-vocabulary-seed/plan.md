@@ -101,6 +101,8 @@ FR-015(`:361`)/ FR-016(`:371`)/ FR-018(`:390`)/ FR-029(`:551`)/ FR-038(`:790`)/ 
 
 `backend/migrations/versions/00XX_*.py`(新規)/ シード資産 / `backend/tests/**` / **宣言資産**(`contracts/migrations/seed-allowlist.json`)/
 `docs/features/roster-status-vocabulary-seed/**` / `docs/worklog/2026-10-03-roster-status-vocabulary-seed.md` /
+**`data-model.md` の digest を固定している凍結資産 2 件**(`contracts/authz/shared-preconditions.json` の `git_blob_digest` /
+`contracts/db/schema-manifest.json` の `canonical_source.sha256` — **いずれも 1 行の取り直しのみ**。§4-9・§4-10) /
 
 
 ## 4. 実装方針
@@ -489,12 +491,18 @@ FR-015(`:361`)/ FR-016(`:371`)/ FR-018(`:390`)/ FR-029(`:551`)/ FR-038(`:790`)/ 
 | 2 | `contracts/migrations/seed-allowlist.json` | **全行**(宣言と 7.7-2 の記録) |
 | 3 | `backend/migrations/versions/0027_seed_roster_status.py` | **全行**(`op.bulk_insert()` と限定削除を含む) |
 | 4 | `backend/tests/test_migration_hygiene.py` | **全変更行**(検査器) |
-| 5 | `backend/tests/test_roster_status_seed.py` | **全行**(一致検査) |
+| 5 | **`tests/test_roster_status_seed_contract.py`** | **全行**(一致検査。**`areas[].paths` へ未登録のため機械判定では落ちる。表で明示的に対象へ入れる**) |
 | 6 | **`backend/tests/db/test_roster_status_seed_db.py`** | **全行**(実 DB の FK / NOT NULL / 往復 / 既存キー衝突) |
 | 7 | **`backend/tests/db/test_alembic_migrations.py`** | **付け替えの 6 行**(`:1079` 付近の語彙 1 行と選手 5 箇所) |
-| 9 | **`tests/test_roster_status_seed_contract.py`** | **全行**(**`areas[].paths` へ未登録のため、機械判定では落ちる。表で明示的に対象へ入れる**) |
+| 8 | **`backend/tests/db/test_operation_event_c12.py`** | **末尾の 4 行**(**head を前提にしていた箇所の是正** — §4-10) |
+| 9 | `docs/design/data-model.md` | **追記 2 項と変更履歴 1 行** |
 | 10 | `contracts/authz/shared-preconditions.json` | **1 行**(`data-model.md` の `git_blob_digest` の取り直し) |
-| 8 | `docs/design/data-model.md` | **追記 2 項と変更履歴 1 行** |
+| 11 | **`contracts/db/schema-manifest.json`** | **1 行**(`data-model.md` の **SHA-256** の取り直し — §4-10) |
+| 12 | `docs/development/harness-evaluation.md` | **追記分**(`H-*` を与えない判断の当否) |
+
+> **表 5 行目は当初 `backend/tests/test_roster_status_seed.py` と書いていた。**
+> **置き場を 2 度動かした(§4-8)あと、表の更新が漏れていた** — **実ファイルは存在しない。**
+> **CI が赤になったあとの点検で発見し、是正した(2026-10-05)。**
 
 **`backend/migrations/*` と `backend/tests/db/*` はいずれも `.claude/core-areas.json` の paths に入る。**
 **PR の実施記録行には、上表ではなく実差分の該当ファイルと行数を書く**(上表は漏れの起きやすい箇所の目安)。
@@ -886,6 +894,33 @@ authz-shared-preconditions: 違反: docs/design/data-model.md: git_blob_digest�
 | **develop との競合** | **無い。** `85fce8a7` → `da5cef8c` の間で `data-model.md` も同資産も変わっていない(当方実測) |
 
 **これは台帳の既知の型「凍結資産が直列化点になり、後続 PR が受理記録の再導出を払う」の実例**である。
+
+> **【2026-10-05 追記 — 上の記述は不完全だった】**
+> **`data-model.md` の digest を固定する凍結点は 1 つではなく 2 つあった。** §4-10 を参照。
+
+### 4-10. CI が出した 2 件 — **ローカルの検証範囲を当方が絞ったために通り抜けた**
+
+**PR #94 の `backend` ジョブが fail した**(`harness` を含む他の 11 ジョブは pass)。
+
+| | 失敗した試験 | 原因 |
+| --- | --- | --- |
+| ① | `tests/test_schema_manifest.py::test_manifest_is_bound_to_the_canonical_data_model` | **`contracts/db/schema-manifest.json` も `data-model.md` の SHA-256 を固定していた。** §4-9 で `shared-preconditions.json` の **blob digest** だけを取り直し、**2 つ目の凍結点を見落とした** |
+| ② | `tests/db/test_operation_event_c12.py::test_c12_truth_table_and_migration_round_trip` | **`0027` を足したことで head が先へ進んだ。** 同試験は `0026` まで戻してから `command.current(check_heads=True)` を呼ぶが、**`0026` はもはや head ではない** |
+
+**是正**:
+
+| | |
+| --- | --- |
+| ① | `canonical_source.sha256` を `6f5b6d59…` → `521be209…`(**1 行**)。再現手順は資産自身が持つ(`sha256sum docs/design/data-model.md`) |
+| ② | `command.current(check_heads=True)` の直前へ **`command.upgrade(config, "head")` を 1 行**足し、**なぜ必要かを 3 行のコメントで残した**。**試験の意図(「往復のあとに head へ戻れること」)は変えていない** |
+
+**なぜローカルで出なかったか** — **当方が backend の実行範囲を「影響範囲」として自分で選び、全件を回さなかった。**
+**①②はいずれもその選択の外にあった。** **CI は `uv run pytest -c pyproject.toml --cov` で全件を回す。**
+
+**これは台帳の既知の候補「検証コマンドを人が選ぶと、CI が走らせるコマンドとの差分が黙って残る」そのもの**である。
+**本件の差は「オプション」ではなく「母集団」にあり、件数でも出ない**(絞った実行は 129 passed で緑に見えた)。
+
+**是正後は backend 全件をローカルで回す**(下記の検証結果)。
 
 ## 5. DoD(受け入れ基準)
 
