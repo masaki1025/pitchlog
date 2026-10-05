@@ -9,8 +9,9 @@ from pathlib import Path
 
 import pytest
 
-_BACKEND_ROOT = Path(__file__).resolve().parents[1]
-_REPOSITORY_ROOT = _BACKEND_ROOT.parent
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+_BACKEND_ROOT = _REPOSITORY_ROOT / "backend"
+
 _SEED_PATH = _REPOSITORY_ROOT / "contracts" / "seeds" / "roster-status.json"
 _REVISION_PATH = (
     _BACKEND_ROOT / "migrations" / "versions" / "0027_seed_roster_status.py"
