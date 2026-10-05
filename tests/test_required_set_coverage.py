@@ -1,4 +1,4 @@
-"""ステップ79の行要求差分と入力座標被覆を検証する。"""
+"""ステップ79・80の行要求差分と入力座標被覆を検証する。"""
 
 from __future__ import annotations
 
@@ -95,18 +95,46 @@ def test_row_gap_declaration_is_fail_closed(tmp_path: Path) -> None:
         )
 
 
-def test_step79_input_coverage_is_monotone_and_matches_expansion() -> None:
-    """②の全体集合が前周を含み、展開器の被覆モードと一致する。"""
+def test_step80_input_coverage_is_monotone_and_matches_expansion() -> None:
+    """②の全体集合が前周を含み、対象7行の被覆展開と一致する。"""
     count, digest, added = checker.check_input_coverage(ROOT)
-    assert count == 71
-    assert digest.startswith("sha256:")
-    assert added == 62
+    record = _asset("required_set_input_coverage_v1.json")
+    assert count == 80
+    assert digest == record["history"][1]["after"]["digest"]
+    assert added == 9
     contract = _asset("state_transition_contract_v1.json")
-    cases, trace = expander.expand_traced(ROOT, limit=12, mode="coverage")
-    representatives, _ = expander.expand_traced(ROOT, limit=12)
+    assert record["currentStep"] == 80
+    assert len(record["history"]) == 2
+    assert record["history"][0]["after"] == record["history"][1]["before"]
+    assert record["history"][0]["after"]["count"] == 71
+    cases, trace = expander.expand_traced(ROOT, limit=19, mode="coverage")
+    representatives, _ = expander.expand_traced(ROOT, limit=19)
     assert contract["cases"] == cases
-    assert cases[:12] == representatives
-    assert len(cases) == 56
+    assert cases[:19] == representatives
+    assert len(cases) == 63
+    assert len(cases[19:]) == 44
+    target_ids = {
+        "batting-result.single",
+        "batting-result.double",
+        "batting-result.triple",
+        "batting-result.home-run",
+        "batting-result.batted-out",
+        "batting-result.batted-reach",
+        "batting-result.foul-fly",
+    }
+    assert {case["rowRef"]["coordinate"]["resultId"] for case in cases[12:19]} == target_ids
+    assert {
+        case["rowRef"]["coordinate"]["resultId"] for case in cases[19:]
+    } >= target_ids
+    before = {tuple(item) for item in record["history"][1]["before"]["coverageSet"]}
+    after = {tuple(item) for item in record["history"][1]["after"]["coverageSet"]}
+    assert after - before == {
+        ("event.perPitch.resultId", f'"{name}"')
+        for name in ("単打", "二塁打", "三塁打", "本塁打", "凡打死", "凡打出塁", "ファールフライ")
+    } | {
+        ("state.runners", '"first-second"'),
+        ("state.runners", '"loaded"'),
+    }
     policy = expander.dependency_checker.load_policy(ROOT)
     assert trace.observed_read_paths == policy.expanders[
         "state-transition-cases"
