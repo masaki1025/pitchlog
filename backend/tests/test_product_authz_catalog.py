@@ -568,8 +568,14 @@ def test_fetch_terminal_has_registered_signature_and_one_exact_reference() -> No
 
 def test_normalizer_body_allowlist_rejects_extra_calls() -> None:
     """追加の完全修飾・非修飾呼出しを字句全体の許可式が拒否する。"""
-    body = r"""SELECT pg_catalog.lower(
-        pg_catalog.btrim(pg_catalog."normalize"($1, 'NFKC'), U&'\0009')
+    # 詳細設計 10-1 節 ⑦ の 25 文字を、migration に依存せず指定する。
+    white_space = (
+        r"\0009\000A\000B\000C\000D\0020\0085\00A0"
+        r"\1680\2000\2001\2002\2003\2004\2005\2006"
+        r"\2007\2008\2009\200A\2028\2029\202F\205F\3000"
+    )
+    body = rf"""SELECT pg_catalog.lower(
+        pg_catalog.btrim(pg_catalog."normalize"($1, 'NFKC'), U&'{white_space}')
         COLLATE pg_catalog.pg_c_utf8
     )"""
     assert _normalizer_body_is_safe(body)
