@@ -5,8 +5,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0027_tenant_login_identity"
-down_revision: str | Sequence[str] | None = "0026_operation_event_c12"
+revision: str = "0028_tenant_login_identity"
+down_revision: str | Sequence[str] | None = "0027_seed_roster_status"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -21,52 +21,46 @@ _WHITE_SPACE = (
 
 def _reject_existing_rows() -> None:
     """既存行の不整合を検出し、名前や参照先を変更せずに止める。"""
-    connection = op.get_bind()
-    checks = (
-        (
-            "退役していないテナントの正規化名が重複",
-            """
-            SELECT 1 FROM public.tenants
-            WHERE retired_at IS NULL
-            GROUP BY public.authn_normalize_team_name(name)
-            HAVING pg_catalog.count(*) > 1
-            LIMIT 1
-            """,
-        ),
-        (
-            "退役していないテナントの正規化名が 64 文字超",
-            """
-            SELECT 1 FROM public.tenants
-            WHERE retired_at IS NULL
-              AND pg_catalog.char_length(
-                  public.authn_normalize_team_name(name)
-              ) > 64
-            LIMIT 1
-            """,
-        ),
-        (
-            "同じテナントに複数の認証主体",
-            """
-            SELECT 1 FROM public.tenant_auth_subjects
-            GROUP BY tenant_id HAVING pg_catalog.count(*) > 1
-            LIMIT 1
-            """,
-        ),
-        (
-            "トークンと認証主体のテナントが不一致",
-            """
-            SELECT 1
-            FROM public.tenant_tokens AS token
-            JOIN public.tenant_auth_subjects AS subject
-              ON subject.id = token.auth_subject_id
-            WHERE token.tenant_id <> subject.tenant_id
-            LIMIT 1
-            """,
-        ),
+    op.execute(
+        """
+        DO $preflight$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM public.tenants
+                WHERE retired_at IS NULL
+                GROUP BY public.authn_normalize_team_name(name)
+                HAVING pg_catalog.count(*) > 1
+            ) THEN
+                RAISE EXCEPTION '0028 の事前検査に失敗: 正規化名の重複';
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM public.tenants
+                WHERE retired_at IS NULL
+                  AND pg_catalog.char_length(
+                      public.authn_normalize_team_name(name)
+                  ) > 64
+            ) THEN
+                RAISE EXCEPTION '0028 の事前検査に失敗: 正規化名が 64 文字超';
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM public.tenant_auth_subjects
+                GROUP BY tenant_id HAVING pg_catalog.count(*) > 1
+            ) THEN
+                RAISE EXCEPTION '0028 の事前検査に失敗: 同じテナントに複数の認証主体';
+            END IF;
+            IF EXISTS (
+                SELECT 1
+                FROM public.tenant_tokens AS token
+                JOIN public.tenant_auth_subjects AS subject
+                  ON subject.id = token.auth_subject_id
+                WHERE token.tenant_id <> subject.tenant_id
+            ) THEN
+                RAISE EXCEPTION '0028 の事前検査に失敗: トークンのテナント不一致';
+            END IF;
+        END
+        $preflight$;
+        """
     )
-    for message, query in checks:
-        if connection.execute(sa.text(query)).first() is not None:
-            raise RuntimeError(f"0027 の事前検査に失敗: {message}")
 
 
 def upgrade() -> None:
@@ -135,7 +129,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """複合参照から逆順に外し、0026 時点の表構造へ戻す。"""
+    """複合参照から逆順に外し、0027 seed 時点の表構造へ戻す。"""
     op.drop_constraint("fk_tenant_tokens_subject", "tenant_tokens", type_="foreignkey")
     op.create_foreign_key(
         "fk_tenant_tokens_subject",

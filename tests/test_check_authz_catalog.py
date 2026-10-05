@@ -299,7 +299,7 @@ def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
     provisional_revision = runtime_contract_support.provisional_reference_revision(
         REPOSITORY_ROOT
     )
-    (root / checker.PRODUCT_MIGRATION_VERSIONS / "0027_tenant_login_identity.py").unlink()
+    (root / checker.PRODUCT_MIGRATION_VERSIONS / "0028_tenant_login_identity.py").unlink()
     steps_path = root / checker.PRODUCT_SPEC.application_steps_path
     steps = _read_json_at(root, checker.PRODUCT_SPEC.application_steps_path)
     for step in steps["application_steps"]:

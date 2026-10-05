@@ -23,6 +23,7 @@ from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.types.json import Jsonb
 from sqlalchemy import Column, Integer, MetaData, Table
 from sqlalchemy.engine import URL
+from sqlalchemy.exc import DBAPIError
 
 from pitchlog.authz.runtime_contract import APPLICATION_ROLE_NAME
 from pitchlog.db.base import Base
@@ -1075,6 +1076,7 @@ def _insert_test_vocabularies(cursor: psycopg.Cursor[Any], tenant_id: object) ->
         [
             ("official", "game_type", "公式戦"),
             ("active", "roster_status", "在籍"),
+            ("roster-roundtrip", "roster_status", "往復用"),
         ],
     )
     cursor.executemany(
@@ -2455,7 +2457,7 @@ def test_play_projection_constraints_and_migration_round_trip(
                             runner_id,
                             self_team_id,
                             "走者",
-                            "active",
+                            "roster-roundtrip",
                             "roster-active",
                         ),
                         (
@@ -2463,7 +2465,7 @@ def test_play_projection_constraints_and_migration_round_trip(
                             responsible_pitcher_id,
                             opponent_team_id,
                             "責任投手",
-                            "active",
+                            "roster-roundtrip",
                             "roster-active",
                         ),
                     ],
@@ -3910,7 +3912,7 @@ def test_medical_notes_and_pdf_exports_guards_and_migration_round_trip(
                         player_id,
                         team_id,
                         "選手",
-                        "active",
+                        "roster-roundtrip",
                         "roster-active",
                     ),
                 )
@@ -4515,7 +4517,7 @@ def test_vocabulary_layers_and_settings_guards_and_migration_round_trip(
                         name,
                         roster_status_key,
                         roster_label_key
-                    ) VALUES (%s, %s, %s, %s, 'active', 'roster-active')
+                    ) VALUES (%s, %s, %s, %s, 'roster-roundtrip', 'roster-active')
                     """,
                     (tenant_id, player_id, self_team_id, "語彙参照選手"),
                 )
@@ -5464,7 +5466,7 @@ def test_player_merge_move_and_rate_limit_guards_and_migration_round_trip(
                         name,
                         roster_status_key,
                         roster_label_key
-                    ) VALUES (%s, %s, %s, %s, 'active', 'roster-active')
+                    ) VALUES (%s, %s, %s, %s, 'roster-roundtrip', 'roster-active')
                     """,
                     [
                         (tenant_id, source_player_id, team_id, "統合元選手"),
@@ -8143,20 +8145,20 @@ def test_operation_event_expanded_guard_and_migration_round_trip(
         "token_tenant_mismatch",
     ),
 )
-def test_0027_preflight_rejects_existing_inconsistency_without_changing_rows(
+def test_0028_preflight_rejects_existing_inconsistency_without_changing_rows(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
     ],
     monkeypatch: pytest.MonkeyPatch,
     case: str,
 ) -> None:
-    """0027 の 4 事前検査が既存行を変更せずに中断する。"""
+    """0027 の seed 後に、0028 の 4 事前検査が行を変えずに止まる。"""
     with disposable_postgres_cluster() as cluster:
         monkeypatch.setenv(
             "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
         )
         config = _alembic_config()
-        command.upgrade(config, "0026_operation_event_c12")
+        command.upgrade(config, "0027_seed_roster_status")
         tenant_a, tenant_b = uuid4(), uuid4()
         subject_a, subject_b = uuid4(), uuid4()
         token_id = uuid4()
@@ -8209,8 +8211,9 @@ def test_0027_preflight_rejects_existing_inconsistency_without_changing_rows(
                 )
                 tokens_before = cursor.fetchall()
 
-        with pytest.raises(RuntimeError, match="0027 の事前検査に失敗"):
-            command.upgrade(config, "0027_tenant_login_identity")
+        with pytest.raises(DBAPIError, match="0028 の事前検査に失敗") as raised:
+            command.upgrade(config, "0028_tenant_login_identity")
+        assert isinstance(raised.value.orig, psycopg.errors.RaiseException)
 
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             with connection.cursor() as cursor:
@@ -8226,10 +8229,15 @@ def test_0027_preflight_rejects_existing_inconsistency_without_changing_rows(
                 )
                 assert cursor.fetchall() == tokens_before
                 cursor.execute("SELECT version_num FROM alembic_version")
-                assert cursor.fetchone() == ("0026_operation_event_c12",)
+                assert cursor.fetchone() == ("0027_seed_roster_status",)
+                cursor.execute(
+                    "SELECT key FROM system_vocabularies "
+                    "WHERE category = 'roster_status' ORDER BY key"
+                )
+                assert cursor.fetchall() == [("active",), ("ob",), ("other",)]
 
 
-def test_0027_generated_name_normalization_and_limits(
+def test_0028_generated_name_normalization_and_limits(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
     ],
@@ -8267,6 +8275,29 @@ def test_0027_generated_name_normalization_and_limits(
                     )
         command.check(config)
 
+        command.downgrade(config, "0027_seed_roster_status")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT version_num FROM alembic_version")
+                assert cursor.fetchone() == ("0027_seed_roster_status",)
+                cursor.execute(
+                    "SELECT key FROM system_vocabularies "
+                    "WHERE category = 'roster_status' ORDER BY key"
+                )
+                assert cursor.fetchall() == [("active",), ("ob",), ("other",)]
+                cursor.execute(
+                    "SELECT pg_catalog.to_regprocedure("
+                    "'public.authn_normalize_team_name(text)')"
+                )
+                assert cursor.fetchone() == (None,)
+        command.downgrade(config, "0026_operation_event_c12")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT key FROM system_vocabularies "
+                    "WHERE category = 'roster_status'"
+                )
+                assert cursor.fetchall() == []
         command.downgrade(config, "base")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             with connection.cursor() as cursor:

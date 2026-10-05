@@ -221,3 +221,11 @@ branch: feature/ua1-auth-db-layer
 - **受入突合シート**: `--carry-judgments-from HEAD` で再生成すると、変更履歴の追記で N3 の通し番号がずれ **86 行の判定が空**になった(α・ステップ 6 と同じ型)。`(対象から通し番号を除いたもの, 正本側, 実装側)` の内容一致で順に引き継ぎ **84 行**。**新規 2 行**(N3 出現 002「変えない」= 変更履歴の追記 / 出現 089「不変」= 12-8 節の更新した行)に既存の同種の行と同じ判定(どちらも対象外)を入れた → **人間が承認(2026-10-05・山田正輝「承認」)**。`tests/test_orm_acceptance_sheets.py` の N3 の期待行数 89 → 91
 - 確認: `check_docs_status` 0 violations / `check_shared_preconditions` OK / `test_schema_manifest.py` 14 passed / `test_orm_acceptance_sheets.py` 13 passed
 - **PR のクローズ処理(ステップ 12)へ申し送り**: 運用評価台帳の既存候補(TSK-443 で追記 — 検査器がコミット済みの差分だけを見ると未追跡の新規ファイルがローカルの検証をすり抜ける)に、本タスクの 2 例(ステップ 5 = 未追跡の新規ファイル・ステップ 6 = コミット前の変更)を実測として追記する
+- ステップ 11 のコミット後(`5e6c0892`)の迂回の走査: `ok`
+
+## 総合検証と develop の取り込み(2026-10-05)
+
+- `/check`: harness・backend の `ruff`・`ty`・`format --check` green / frontend は変更なしでスキップ / 変更した markdown の相対リンクの壊れ 0(`<…>` 形式の 3 件は確認スクリプトの読み違い — 実在)
+- **backend の非 DB 全件で 1 件 red**(858 passed・1 failed)— 各ステップの「影響範囲」の試験では見えなかった。正体 = `test_database_configuration.py::test_same_direct_url_is_valid_when_not_pooled`(β の事前検査が alembic のオフライン実行で結果行を読む)
+- 別タブ(u-x1 master)から共有: develop に `0027_seed_roster_status`(#94)が入った・`test_operation_event_c12.py` の head 前提・影響範囲で絞ると選び落としが見えない・`pitchlog_test_role` の残骸。原典で確かめて対応した(design.md 19 節)
+- develop(`f2dc9f9b`)を取り込み、テキストの衝突(data-model.md の変更履歴・索引・digest 2 か所)を Claude が解き、意味上の衝突(migration の番号・新しい衛生検査・head の前提・seed との相互作用)を Codex が解いた。β の migration を 0028 へ繰り下げ、事前検査を `DO` ブロックへ。受入突合シートは β 側と develop 側の判定を内容一致で全件引き継ぎ(新規 0)

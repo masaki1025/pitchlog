@@ -283,7 +283,7 @@ date: 2026-10-04
 
 ## 14. ステップ 6 — migration 0027 と正規化関数(2026-10-05)
 
-- **migration**: `backend/migrations/versions/0027_tenant_login_identity.py`。正規化関数 `public.authn_normalize_team_name(text)`(10-1 節 ① の安全条件)・`tenants.retired_at`・生成列 `name_normalized`・`uq_tenants_active_name_normalized`(`WHERE retired_at IS NULL`)・`CHECK (char_length(name_normalized) <= 64)`・`uq_tenant_auth_subjects_tenant`・`uq_tenant_auth_subjects_tenant_id`・トークンの複合 FK(`MATCH FULL`)・事前検査 4 種・downgrade
+- **migration**: `backend/migrations/versions/0027_tenant_login_identity.py`(**develop の取り込みで `0028_tenant_login_identity.py` へ繰り下げた — 19 節**)。正規化関数 `public.authn_normalize_team_name(text)`(10-1 節 ① の安全条件)・`tenants.retired_at`・生成列 `name_normalized`・`uq_tenants_active_name_normalized`(`WHERE retired_at IS NULL`)・`CHECK (char_length(name_normalized) <= 64)`・`uq_tenant_auth_subjects_tenant`・`uq_tenant_auth_subjects_tenant_id`・トークンの複合 FK(`MATCH FULL`)・事前検査 4 種・downgrade
 - **`migration_function` の取り外し**(2-1 節の持ち越しの決着): **migration が関数を作った直後の状態へ戻す** = 資産が与えた直接の付与を取り消し、資産が剥奪した `PUBLIC` の実行権を戻す(`migration_trigger` と同じ考え方)。直接の付与を残すと付与先ロールの `DROP ROLE` が依存で失敗するため。**往復(適用 → 取り外し)で関数 ACL が適用前と一致し、`DROP ROLE` が成功する**ことを `backend/tests/db/test_product_authz_round_trip.py` で確かめた。2 節の表の「取り外しの `PUBLIC` 復帰 = `migration_trigger` だけ」は、**migration 由来の関数(トリガ・通常)を戻し、`definer` と `rls_helper` は戻さない**と読み替える
 - **生成列の式の照合**: schema manifest の列定義に `generated_expression` を許し(生成列に限る。空の式・通常の既定値との併存は拒否 — `backend/tests/test_schema_manifest.py`)、スキーマ監査が実カタログの式と照合する(`alembic check` は式の違いを検出しない — 10-1 節 ①)
 - **受理記録の検査の文言**: このステップから、受理記録の無い中間コミットの red は「`base-allowlist.json.baseline_control.history: 履歴末尾と 7 資産の識別値が不一致`」(ランタイム契約の識別値が比較元 + 1 に動いたため)。10-1 節 ③ の「movement と追記 record 件数が不一致」と同じ `_validate_repository_histories` の検査で、差し替えた走査は違反 0 件
@@ -325,3 +325,11 @@ date: 2026-10-04
 - **最低要求④の適用判定**: 既存の判定と同じく **DB 試験の docstring** に置いた —「最低要求④の適用判定: authn は共有対象行を返さないため対象外。」(集合を返す認証関数・共有対象表への参照が無いことも検査する)。**PR と ④ 注記タスクへの連絡は ステップ 12(`/pr`)で行う**(7 節 J-2)
 - **DB ログ**: 試験内の superuser セッションで `log_parameter_max_length = 0`・`log_parameter_max_length_on_error = 0`・`log_statement = all` を設定し、アプリ用ロールでバインド引数付きで呼んで、通常文・エラー文のどちらでも `docker logs` に試験用パスワードが出ないことを表明する(ログ本文は試験の出力へ出さない)
 - **露出の事実**(`contracts/authz/product/exposure-facts.json` の `secret_column`): 3 件の典拠を v0.4 の非露出の条文へ差し替え(8-2・8-2-A・9-3)、`tenant_tokens.id` を追加(8-3「ID の列は秘密の列として扱う」)。**4 件とも正本の逐語と一致することを確かめた**
+
+## 19. develop の取り込みと migration の繰り下げ(2026-10-05 — ステップ 12 の前)
+
+- **取り込んだ比較元**: `origin/develop` = `f2dc9f9b`(#94 TSK-475 のマージ後)。凍結資産(`contracts/tenant_boundary`)は develop 側で動いていない
+- **migration の番号**: develop に `0027_seed_roster_status`(親 0026)が入り、β の 0027 と head が 2 本になった → **β の側を `0028_tenant_login_identity`(親 = `0027_seed_roster_status`)へ繰り下げた**。本書の 4 節・14 節の「0027」は β の migration を指す(繰り下げ後は 0028)
+- **develop の新しい衛生検査**(`backend/tests/test_migration_hygiene.py` — migration の中で `op.get_bind()` 経由の `execute()` を禁止)に合わせ、**事前検査を `DO` ブロック(`IF EXISTS` → `RAISE EXCEPTION`)へ書き直した**。これで、取り込み前から落ちていた `backend/tests/test_database_configuration.py::test_same_direct_url_is_valid_when_not_pooled`(**β の事前検査が alembic のオフライン実行で結果行を読もうとして落ちていた — 影響範囲に絞った試験では見えなかった**)も直った
+- **TSK-344 との順序(人間の判断)**: TSK-344 も migration を足す予定。TSK-344 が先にマージされると 0028 を取り、β は 0029 へ 2 度目の繰り下げになる(別タブ u-x1 master の全 worktree 走査 — 2026-10-05)
+- **正本**: data-model.md の「migration 0027」(β が書いた 3 か所)を 0028 へ直し、digest 2 か所と受入突合シートを追随させた(新規の判定行 0)
