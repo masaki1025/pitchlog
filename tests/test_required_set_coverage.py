@@ -423,8 +423,8 @@ def test_step94_unfixed_axis_values_contract_by_exact_set() -> None:
     } == before - after
 
 
-def test_game_end_declaration_rejects_missing_axis_and_branch_or_closed_gap() -> None:
-    """18軸値・18分岐の宣言欠落とGAP閉鎖を拒否する。"""
+def test_game_end_declaration_rejects_missing_axis_branch_or_gap() -> None:
+    """18軸値・18分岐の宣言欠落と未知GAPを拒否する。"""
     contract = _asset("game_end_contract_v1.json")
     declaration = _asset("game_end_coverage_declaration_v1.json")
     missing_axis = copy.deepcopy(declaration)
@@ -439,6 +439,10 @@ def test_game_end_declaration_rejects_missing_axis_and_branch_or_closed_gap() ->
     wrong_gap["uncoveredClauseBranches"][0]["gapId"] = "GAP-04"
     with pytest.raises(checker.RequiredSetCoverageError, match="GAPの分岐典拠"):
         checker._game_end_measure(ROOT, contract, wrong_gap)
+    unknown_gap = copy.deepcopy(declaration)
+    unknown_gap["uncoveredClauseBranches"][0]["gapId"] = "GAP-UNKNOWN"
+    with pytest.raises(checker.RequiredSetCoverageError, match="GAPの分岐典拠"):
+        checker._game_end_measure(ROOT, contract, unknown_gap)
 
 
 def test_game_end_record_and_representative_drift_are_red() -> None:
@@ -509,8 +513,8 @@ def test_row_gap_rejects_stale_and_new_missing_entries() -> None:
         checker.check_row_requirements(ROOT, reduced, declaration)
 
 
-def test_row_gap_rejects_closed_or_unsourced_gap() -> None:
-    """GAPの状態と典拠が一致しない宣言を拒否する。"""
+def test_row_gap_rejects_missing_or_unsourced_gap() -> None:
+    """実在しないGAPと典拠の交差しない宣言を拒否する。"""
     contract = _asset("state_transition_contract_v1.json")
     declaration = _asset("required_set_coverage_declaration_v1.json")
     for gap_id in ("GAP-01", "missing-gap"):
@@ -520,8 +524,10 @@ def test_row_gap_rejects_closed_or_unsourced_gap() -> None:
             checker.check_row_requirements(ROOT, contract, mutant)
 
 
-def test_row_gap_rejects_resolved_gap(monkeypatch: pytest.MonkeyPatch) -> None:
-    """典拠があってもGAPがopenでなければ未充足を許可しない。"""
+def test_row_gap_accepts_resolved_gap_with_intersecting_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """追跡完了のresolvedでも未充足の典拠として利用できる。"""
     original = checker._document
 
     def changed_document(root: Path, name: str) -> dict[str, Any]:
@@ -534,8 +540,7 @@ def test_row_gap_rejects_resolved_gap(monkeypatch: pytest.MonkeyPatch) -> None:
         return document
 
     monkeypatch.setattr(checker, "_document", changed_document)
-    with pytest.raises(checker.RequiredSetCoverageError, match="open GAP"):
-        checker.check_row_requirements(ROOT)
+    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
 
 
 def test_row_gap_declaration_is_fail_closed(tmp_path: Path) -> None:

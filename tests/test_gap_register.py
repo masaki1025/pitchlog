@@ -54,9 +54,11 @@ def _clause_only_register() -> dict[str, Any]:
     """段別述語の単体検査用にbranch段以降を空へ戻す。"""
     document = _register()
     for gap in document["gaps"]:
+        gap["state"] = "open"
         gap["branchIds"] = []
         gap["rowIds"] = []
         gap["fixtureCaseIds"] = []
+        gap["generatedCaseSelector"] = None
     return document
 
 
@@ -87,17 +89,20 @@ def _fixture_documents() -> list[dict[str, Any]]:
 
 
 def _real_indexes(document: dict[str, Any]) -> dict[str, Any]:
-    """実際の所有資産から分岐・規範行・fixtureの逆方向indexを組み立てる。"""
+    """実際の所有資産から5段すべての逆方向indexを組み立てる。"""
+    rows = _row_documents()
+    row_index = checker.row_reference_index(_criteria(), document["gaps"], rows)
+    case_index, _ = checker.generated_case_reference_index(_criteria(), row_index, rows)
     return {
+        "clauseIds": checker.clause_reference_index(_policy()),
         "branchIds": checker.clause_branch_reference_index(
             _clause_branch_register()
         ),
-        "rowIds": checker.row_reference_index(
-            _criteria(), document["gaps"], _row_documents()
-        ),
+        "rowIds": row_index,
         "fixtureCaseIds": checker.fixture_reference_index(
             _clause_branch_register(), _fixture_documents()
         ),
+        "generatedCaseSelector": case_index,
     }
 
 
@@ -346,8 +351,8 @@ def test_clause_branch_index_declares_every_unassigned_branch_exactly() -> None:
     _validate_clause_branches(document)
 
 
-def test_nine_open_gaps_have_rows_and_fixtures_with_contiguous_prefix() -> None:
-    """全9件のrowIdsとfixtureCaseIdsを実資産の逆方向帰属へ突合する。"""
+def test_five_resolved_four_open_gaps_have_real_bidirectional_references() -> None:
+    """5件のresolvedと4件のopenを実資産の5段へ突合する。"""
     document = _register()
     expected_clauses = {
         "GAP-01": ["FR-020"],
@@ -365,7 +370,12 @@ def test_nine_open_gaps_have_rows_and_fixtures_with_contiguous_prefix() -> None:
     assert {gap["gapId"]: gap["clauseIds"] for gap in document["gaps"]} == (
         expected_clauses
     )
-    assert all(gap["state"] == "open" for gap in document["gaps"])
+    assert {gap["gapId"] for gap in document["gaps"] if gap["state"] == "resolved"} == {
+        "GAP-03", "GAP-04", "GAP-07", "GAP-08", "GAP-09"
+    }
+    assert {gap["gapId"] for gap in document["gaps"] if gap["state"] == "open"} == {
+        "GAP-01", "GAP-02", "GAP-05", "GAP-06"
+    }
     assert {gap["gapId"]: len(gap["rowIds"]) for gap in document["gaps"]} == {
         "GAP-01": 0, "GAP-02": 0, "GAP-03": 2,
         "GAP-04": 4, "GAP-05": 0, "GAP-06": 0,
@@ -377,13 +387,127 @@ def test_nine_open_gaps_have_rows_and_fixtures_with_contiguous_prefix() -> None:
         "GAP-07": 12, "GAP-08": 7, "GAP-09": 3,
     }
     assert all(
-        gap["branchIds"]
-        and "rowIds" in gap
-        and "fixtureCaseIds" in gap
-        and gap["generatedCaseSelector"] is None
-        for gap in document["gaps"]
+        all(checker._filled_stage_flags(gap, _criteria()))
+        for gap in document["gaps"] if gap["state"] == "resolved"
+    )
+    assert all(
+        checker._filled_stage_flags(gap, _criteria()) == (True, True, False, False, False)
+        for gap in document["gaps"] if gap["state"] == "open"
     )
     _validate(document, _real_indexes(document))
+
+
+def test_generated_selector_selects_cases_by_normative_row_ownership() -> None:
+    """固定case IDなしでrowRefから5件のcase群を機械的に引く。"""
+    document = _register()
+    rows = _row_documents()
+    row_index = checker.row_reference_index(_criteria(), document["gaps"], rows)
+    _, selected = checker.generated_case_reference_index(_criteria(), row_index, rows)
+    expected = {"GAP-03": 68, "GAP-04": 136, "GAP-07": 39,
+                "GAP-08": 12, "GAP-09": 6}
+
+    assert {
+        gap["gapId"]: len(selected[checker.canonical_reference_token(
+            gap["generatedCaseSelector"]
+        )])
+        for gap in document["gaps"] if gap["state"] == "resolved"
+    } == expected
+    assert all(
+        gap["generatedCaseSelector"]["caseCount"] == expected[gap["gapId"]]
+        for gap in document["gaps"] if gap["state"] == "resolved"
+    )
+
+
+def test_generated_case_added_only_to_asset_is_red() -> None:
+    """生成caseだけ増やすとselectorの件数と逆方向帰属がずれる。"""
+    document = _register()
+    rows = _row_documents()
+    source = "contracts/state-transition/game_end_contract_v1.json"
+    added = copy.deepcopy(rows[source]["cases"][0])
+    added["caseId"] = "GE-GAME-END-NORMAL-ADDED-ONLY-TO-ASSET"
+    rows[source]["cases"].append(added)
+    row_index = checker.row_reference_index(_criteria(), document["gaps"], rows)
+    case_index, _ = checker.generated_case_reference_index(_criteria(), row_index, rows)
+    indexes = _real_indexes(document)
+    indexes["generatedCaseSelector"] = case_index
+
+    with pytest.raises(checker.GapRegisterError, match="存在しない参照|双方向一致しない"):
+        _validate(document, indexes)
+
+
+@pytest.mark.parametrize(
+    ("stage", "extra"),
+    [
+        ("clauseIds", "E-1"),
+        ("branchIds", "SO-01"),
+        ("rowIds", "matrixRows:batting-result:batting-result.walk"),
+        ("fixtureCaseIds", "ST-SO-01"),
+        ("generatedCaseSelector", None),
+    ],
+)
+def test_resolved_gap_only_reference_is_red(stage: str, extra: str | None) -> None:
+    """5段のどれもGAP側だけの参照増加を受け入れない。"""
+    document = copy.deepcopy(_register())
+    indexes = _real_indexes(document)
+    gap = document["gaps"][2]
+    if stage == "generatedCaseSelector":
+        gap[stage]["caseCount"] += 1
+    else:
+        assert extra is not None
+        gap[stage].append(extra)
+
+    with pytest.raises(checker.GapRegisterError, match="存在しない参照|双方向一致しない"):
+        _validate(document, indexes)
+
+
+@pytest.mark.parametrize(
+    ("stage", "extra"),
+    [
+        ("clauseIds", "E-1"),
+        ("branchIds", "SO-01"),
+        ("rowIds", "matrixRows:batting-result:batting-result.walk"),
+        ("fixtureCaseIds", "ST-SO-01"),
+        ("generatedCaseSelector", None),
+    ],
+)
+def test_resolved_asset_only_reference_is_red(stage: str, extra: str | None) -> None:
+    """5段のどれも所有資産側だけのGAP帰属増加を受け入れない。"""
+    document = _register()
+    indexes = _real_indexes(document)
+    if stage == "generatedCaseSelector":
+        extra = checker.canonical_reference_token(
+            document["gaps"][6]["generatedCaseSelector"]
+        )
+    assert extra is not None
+    index = indexes[stage]
+    owners = dict(index.gap_ids_by_reference)
+    owners[extra] = owners[extra] | frozenset({"GAP-03"})
+    indexes[stage] = checker.StageReferenceIndex(index.existing_references, owners)
+
+    with pytest.raises(checker.GapRegisterError, match="双方向一致しない"):
+        _validate(document, indexes)
+
+
+@pytest.mark.parametrize("stage", [
+    "clauseIds", "branchIds", "rowIds", "fixtureCaseIds", "generatedCaseSelector"
+])
+def test_resolved_with_any_empty_stage_is_red(stage: str) -> None:
+    """resolvedの5段のいずれかを空にすると実資産検査で拒否する。"""
+    document = copy.deepcopy(_register())
+    document["gaps"][2][stage] = None if stage == "generatedCaseSelector" else []
+
+    with pytest.raises(checker.GapRegisterError):
+        _validate(document, _real_indexes(document))
+
+
+@pytest.mark.parametrize("gap_id", ["GAP-01", "GAP-02", "GAP-05", "GAP-06"])
+def test_open_gap_without_rows_cannot_be_resolved(gap_id: str) -> None:
+    """規範行のない4件をstate変更だけでresolvedにする経路を塞ぐ。"""
+    document = copy.deepcopy(_register())
+    next(gap for gap in document["gaps"] if gap["gapId"] == gap_id)["state"] = "resolved"
+
+    with pytest.raises(checker.GapRegisterError, match="resolvedは5段すべて"):
+        _validate(document, _real_indexes(document))
 
 
 def test_fixture_index_uses_branch_register_gap_ownership() -> None:
@@ -662,10 +786,10 @@ def test_resolved_with_all_bidirectional_stages_is_green() -> None:
 
 
 def test_state_progression_is_one_way() -> None:
-    """openからresolvedだけを許しresolvedからopenへの逆遷移を拒否する。"""
-    open_document = _register()
-    resolved_document = copy.deepcopy(open_document)
-    resolved_document["gaps"][0]["state"] = "resolved"
+    """実資産のresolvedをopenへ戻す逆遷移を拒否する。"""
+    resolved_document = _register()
+    open_document = copy.deepcopy(resolved_document)
+    open_document["gaps"][2]["state"] = "open"
 
     checker.validate_state_progression(
         open_document, resolved_document, _criteria()

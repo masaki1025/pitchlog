@@ -15,7 +15,59 @@
     ],
     "resolvedAdditionalBidirectionalStages": [
       "clauseIds"
-    ]
+    ],
+    "clauseGapOwnership": {
+      "A-1": [
+        "GAP-06"
+      ],
+      "A-2": [
+        "GAP-08"
+      ],
+      "A-3": [
+        "GAP-09"
+      ],
+      "ADV-02": [
+        "GAP-09"
+      ],
+      "ADV-04": [
+        "GAP-09"
+      ],
+      "E-1": [
+        "GAP-02",
+        "GAP-07",
+        "GAP-09"
+      ],
+      "E-2": [
+        "GAP-08"
+      ],
+      "F-1": [
+        "GAP-03",
+        "GAP-04"
+      ],
+      "FR-003": [
+        "GAP-06"
+      ],
+      "FR-004": [
+        "GAP-07",
+        "GAP-09"
+      ],
+      "FR-005": [
+        "GAP-05"
+      ],
+      "FR-020": [
+        "GAP-01",
+        "GAP-05"
+      ],
+      "RBI-01": [
+        "GAP-09"
+      ],
+      "SO-03": [
+        "GAP-08"
+      ],
+      "XC-13": [
+        "GAP-08"
+      ]
+    }
   },
   "type": "object",
   "required": [

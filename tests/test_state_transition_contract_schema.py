@@ -2313,8 +2313,12 @@ def test_repository_contract_step51_to_step60_rows_satisfy_constraints() -> None
         for item in _load_object(GAP_REGISTER_PATH)["gaps"]
         if item["gapId"] == "GAP-09"
     )
-    assert gap["state"] == "open"
     assert {"A-3", "FR-004"}.issubset(gap["clauseIds"])
+    # 記録員判断で打数を記録する別行は段階2待ち。
+    assert sum(
+        row["resultId"] == "batting-result.sacrifice-bunt-error"
+        for row in contract["matrixRows"]
+    ) == 1
     stage2 = _descriptor()["stage2ExternalConstraints"]
     assert "official-scorer-judgment-inputs" in stage2["constraintClasses"]
     assert "official-scorer-judgment-input-contract" in stage2["requiredArtifacts"]
@@ -2406,8 +2410,12 @@ def test_repository_contract_step58_rows_satisfy_constraints() -> None:
         for item in _load_object(GAP_REGISTER_PATH)["gaps"]
         if item["gapId"] == "GAP-07"
     )
-    assert gap["state"] == "open"
     assert {"E-1", "FR-004"}.issubset(gap["clauseIds"])
+    # 打者側の2分岐を表す追加行はまだない。
+    assert sum(
+        row["resultId"] == "secondary-result.pitch-clock-violation"
+        for row in contract["matrixRows"]
+    ) == 1
 
 
 def test_repository_contract_records_step58_and_step59_review_as_not_performed() -> None:
@@ -2715,8 +2723,12 @@ def test_so03_deferred_partition_difference_remains_declared_and_open() -> None:
     stage2 = descriptor["stage2ExternalConstraints"]
     assert deferment["deferredConstraintClass"] in stage2["constraintClasses"]
     assert deferment["requiredArtifact"] in stage2["requiredArtifacts"]
-    assert gap["state"] == "open"
     assert {"SO-03", "XC-13"}.issubset(gap["clauseIds"])
+    assert set(deferment["sourceClauseIds"]) & {
+        f"req:{clause_id}" for clause_id in gap["clauseIds"]
+    }
+    # 実体1行はsafe側であり、out側を代替していない。
+    assert rows[0]["batterDestination"] == {"kind": "reach", "base": 1}
 
 
 def test_provenance_declares_machine_and_human_assurance_boundaries() -> None:

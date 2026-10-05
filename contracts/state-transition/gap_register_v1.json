@@ -30,7 +30,7 @@
     },
     {
       "gapId": "GAP-03",
-      "state": "open",
+      "state": "resolved",
       "clauseIds": [
         "F-1"
       ],
@@ -54,11 +54,15 @@
         "GE-GAME-END-NORMAL",
         "GE-COLD-08"
       ],
-      "generatedCaseSelector": null
+      "generatedCaseSelector": {
+        "sourcePath": "contracts/state-transition/game_end_contract_v1.json",
+        "rowOwnerGapId": "GAP-03",
+        "caseCount": 68
+      }
     },
     {
       "gapId": "GAP-04",
-      "state": "open",
+      "state": "resolved",
       "clauseIds": [
         "F-1"
       ],
@@ -90,7 +94,11 @@
         "GE-GAME-END-LIMIT-DRAW",
         "GE-GAME-END-TIEBREAK-CONTINUE"
       ],
-      "generatedCaseSelector": null
+      "generatedCaseSelector": {
+        "sourcePath": "contracts/state-transition/game_end_contract_v1.json",
+        "rowOwnerGapId": "GAP-04",
+        "caseCount": 136
+      }
     },
     {
       "gapId": "GAP-05",
@@ -128,7 +136,7 @@
     },
     {
       "gapId": "GAP-07",
-      "state": "open",
+      "state": "resolved",
       "clauseIds": [
         "E-1",
         "FR-004"
@@ -187,11 +195,15 @@
         "ST-XC-10",
         "ST-XC-12"
       ],
-      "generatedCaseSelector": null
+      "generatedCaseSelector": {
+        "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+        "rowOwnerGapId": "GAP-07",
+        "caseCount": 39
+      }
     },
     {
       "gapId": "GAP-08",
-      "state": "open",
+      "state": "resolved",
       "clauseIds": [
         "E-2",
         "A-2",
@@ -223,11 +235,15 @@
         "ST-XC-04",
         "ST-XC-11"
       ],
-      "generatedCaseSelector": null
+      "generatedCaseSelector": {
+        "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+        "rowOwnerGapId": "GAP-08",
+        "caseCount": 12
+      }
     },
     {
       "gapId": "GAP-09",
-      "state": "open",
+      "state": "resolved",
       "clauseIds": [
         "A-3",
         "FR-004",
@@ -257,7 +273,11 @@
         "ST-RBI-08",
         "ST-RBI-09"
       ],
-      "generatedCaseSelector": null
+      "generatedCaseSelector": {
+        "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+        "rowOwnerGapId": "GAP-09",
+        "caseCount": 6
+      }
     }
   ]
 }

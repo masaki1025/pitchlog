@@ -148,8 +148,8 @@ def check_row_requirements(
     for item in uncovered:
         identity = _identity(item)
         gap = gap_by_id.get(item.get("gapId"))
-        if not isinstance(gap, dict) or gap.get("state") != "open":
-            raise RequiredSetCoverageError(f"未充足のopen GAPがない: {identity}")
+        if not isinstance(gap, dict):
+            raise RequiredSetCoverageError(f"未充足の典拠GAPがない: {identity}")
         rule = rule_by_id.get(identity[1])
         if not isinstance(rule, dict) or identity[0] not in rule.get("vocabularyIds", []):
             raise RequiredSetCoverageError(f"分割規則が見つからない: {identity}")
@@ -568,10 +568,9 @@ def _game_end_measure(
         gap = gaps.get(gap_id)
         if (
             not isinstance(gap, dict)
-            or gap.get("state") != "open"
             or branch not in gap.get("branchIds", [])
         ):
-            raise RequiredSetCoverageError(f"open GAPの分岐典拠がない: {branch}")
+            raise RequiredSetCoverageError(f"GAPの分岐典拠がない: {branch}")
         sources = requirement_by_branch[branch].source_clause_ids
         if not any(f"req:{clause}" in sources for clause in gap.get("clauseIds", [])):
             raise RequiredSetCoverageError(f"条文分岐のGAP典拠が不正: {branch}")

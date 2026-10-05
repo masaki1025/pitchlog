@@ -102,6 +102,7 @@ class GapPredicatePolicy:
     existence_only_stages: frozenset[str]
     bidirectional_stages: frozenset[str]
     resolved_additional_bidirectional_stages: frozenset[str]
+    clause_gap_ownership: Mapping[str, frozenset[str]]
 
 
 @dataclass(frozen=True)
@@ -285,10 +286,20 @@ def load_gap_schema_policy(
         criteria.stage_fields
     ):
         raise GapRegisterError("resolvedの双方向検査が5段のexact-setを覆っていない")
+    raw_ownership = _expect_object(policy.get("clauseGapOwnership"), "clauseGapOwnership")
+    clause_gap_ownership: dict[str, frozenset[str]] = {}
+    for clause_id, raw_gap_ids in raw_ownership.items():
+        owned_gap_ids = _criteria_string_list(
+            raw_gap_ids, f"clauseGapOwnership.{clause_id}"
+        )
+        if not _is_subset(frozenset(owned_gap_ids), criteria.gap_ids):
+            raise GapRegisterError(f"{clause_id}: 未知のGAPへの条文帰属がある")
+        clause_gap_ownership[clause_id] = frozenset(owned_gap_ids)
     return GapPredicatePolicy(
         existence_only_stages=existence_set,
         bidirectional_stages=bidirectional_set,
         resolved_additional_bidirectional_stages=resolved_additional_set,
+        clause_gap_ownership=clause_gap_ownership,
     )
 
 
@@ -590,6 +601,24 @@ def canonical_reference_token(value: object) -> str:
         )
     except (TypeError, ValueError) as error:
         raise GapRegisterError(f"参照を決定的に正規化できない: {error}") from error
+
+
+def generated_case_selector(
+    source_path: str, gap_id: str, case_count: int
+) -> dict[str, str | int]:
+    """規範行の逆方向帰属で生成caseを選ぶ述語を作る。"""
+    return {
+        "sourcePath": source_path,
+        "rowOwnerGapId": gap_id,
+        "caseCount": case_count,
+    }
+
+
+def clause_reference_index(policy: GapPredicatePolicy) -> StageReferenceIndex:
+    """schema側の独立した条文帰属宣言を逆方向indexへ変換する。"""
+    return StageReferenceIndex(
+        frozenset(policy.clause_gap_ownership), policy.clause_gap_ownership
+    )
 
 
 def _row_key_value(row: Mapping[str, Any], key_path: str) -> str:
@@ -1090,6 +1119,55 @@ def fixture_reference_index(
     )
 
 
+def generated_case_reference_index(
+    criteria: GapCriteria,
+    row_index: StageReferenceIndex,
+    documents: Mapping[str, Mapping[str, Any]],
+) -> tuple[StageReferenceIndex, dict[str, frozenset[str]]]:
+    """caseのrowRefを規範行へ結び、GAPごとの生成case集合を逆引きする。"""
+    layers = {layer["layer"]: layer for layer in criteria.row_layers}
+    owners: dict[str, frozenset[str]] = {}
+    selected_by_group: dict[tuple[str, str], set[str]] = {}
+    selected: dict[str, frozenset[str]] = {}
+    seen_case_ids: set[str] = set()
+    for source_path, document in documents.items():
+        cases = document.get("cases")
+        if not isinstance(cases, list):
+            raise GapRegisterError(f"生成case資産にcases配列がない: {source_path}")
+        for position, raw_case in enumerate(cases):
+            case = _expect_object(raw_case, f"{source_path}.cases[{position}]")
+            case_id = case.get("caseId")
+            row_ref = _expect_object(case.get("rowRef"), f"{source_path}.{case_id}.rowRef")
+            layer_name = row_ref.get("layer")
+            if not isinstance(layer_name, str):
+                raise GapRegisterError(f"{case_id}: rowRefの層が文字列でない")
+            layer = layers.get(layer_name)
+            if layer is None or not _values_equal(layer["sourcePath"], source_path):
+                raise GapRegisterError(f"{case_id}: rowRefの層または資産pathが不正")
+            coordinate = _expect_object(row_ref.get("coordinate"), f"{case_id}.coordinate")
+            row_id = ":".join((layer_name, *(
+                _row_key_value(coordinate, path) for path in layer["keyPaths"]
+            )))
+            if row_id not in row_index.existing_references:
+                raise GapRegisterError(f"{case_id}: rowRefが規範行に存在しない: {row_id}")
+            if not isinstance(case_id, str) or not case_id or _value_in(
+                case_id, frozenset(seen_case_ids)
+            ):
+                raise GapRegisterError(f"生成caseIdが不正または重複: {case_id}")
+            seen_case_ids.add(case_id)
+            for gap_id in row_index.gap_ids_by_reference[row_id]:
+                selected_by_group.setdefault((source_path, gap_id), set()).add(case_id)
+    for (source_path, gap_id), case_ids in selected_by_group.items():
+        selector = generated_case_selector(source_path, gap_id, len(case_ids))
+        token = canonical_reference_token(selector)
+        owners[token] = frozenset({gap_id})
+        selected[token] = frozenset(case_ids)
+    return (
+        StageReferenceIndex(frozenset(owners), owners),
+        selected,
+    )
+
+
 def check_repository(root: Path) -> None:
     """リポジトリ内の条文分岐台帳とgap registerを検証する。"""
     path = root / REGISTER_PATH
@@ -1163,17 +1241,27 @@ def check_repository(root: Path) -> None:
         )
         for relative in MANUAL_FIXTURE_PATHS
     ]
+    row_index = row_reference_index(criteria, document["gaps"], row_documents)
+    generated_documents = {
+        source_path: row_documents[source_path]
+        for source_path in {layer["sourcePath"] for layer in criteria.row_layers}
+    }
+    generated_index, _ = generated_case_reference_index(
+        criteria, row_index, generated_documents
+    )
     validate_gap_register_document(
         document,
         requirement_clause_ids,
         criteria,
         policy,
         {
+            "clauseIds": clause_reference_index(policy),
             "branchIds": clause_branch_reference_index(branch_document),
-            "rowIds": row_reference_index(criteria, document["gaps"], row_documents),
+            "rowIds": row_index,
             "fixtureCaseIds": fixture_reference_index(
                 branch_document, fixture_documents
             ),
+            "generatedCaseSelector": generated_index,
         },
     )
 
