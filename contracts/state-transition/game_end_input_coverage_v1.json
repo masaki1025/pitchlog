@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "version": "game_end_input_coverage_v1",
+  "currentStep": 93,
+  "basis": "game_end_contract_v1.cases and independently derived gameEnd.requiredSet",
+  "history": [
+    {
+      "step": 93,
+      "baselineCaseIds": [
+        "GE-GAME-END-NORMAL",
+        "GE-GAME-END-EXTRA-CONTINUE",
+        "GE-GAME-END-LIMIT-DRAW",
+        "GE-GAME-END-TIEBREAK-CONTINUE"
+      ],
+      "before": {
+        "caseCount": 4,
+        "coveredCount": 51,
+        "coveredDigest": "sha256:22c2343846e1870c473bf65fbf724f7a370adfff6ca253005771443a49ac3344"
+      },
+      "after": {
+        "caseCount": 136,
+        "coveredCount": 763,
+        "coveredDigest": "sha256:6fdf9dd072a800a36210e241e5eb0072ac9de84c601d3b81a15d2b7e6e4d7aef"
+      }
+    }
+  ]
+}

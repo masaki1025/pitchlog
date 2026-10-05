@@ -237,7 +237,7 @@ def test_game_end_expander_output_is_traced_and_schema_valid() -> None:
     assert trace.observed_read_paths == rule.allowed_read_paths
     contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
     schema = json.loads(GAME_END_SCHEMA_PATH.read_text(encoding="utf-8"))
-    assert contract["cases"] == cases
+    assert contract["cases"][:2] == cases
     assert contract["validationErrors"] == []
     assert [case["branchId"] for case in cases] == [
         "GAME-END-NORMAL",
@@ -249,6 +249,31 @@ def test_game_end_expander_output_is_traced_and_schema_valid() -> None:
         assert game_end_expander._predicate_holds(row["precondition"], case["inputCoordinate"])
         assert case["decision"] == row["decision"]
     schema_checker._validate_instance(contract, schema, schema, "$")
+
+
+def test_step93_first_stage_game_end_cases_match_manual_fixtures() -> None:
+    """終了判定4分岐を展開し、派生ケースを手作業fixtureと照合する。"""
+    cases, trace = game_end_expander.expand_traced(REPOSITORY_ROOT, limit=4)
+    contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
+    fixtures = json.loads(GAME_END_MANUAL_FIXTURE_PATH.read_text(encoding="utf-8"))
+    fixture_by_branch = {
+        item["case"]["branchId"]: item["case"] for item in fixtures["fixtures"]
+    }
+
+    assert len(cases) == 4
+    assert contract["cases"][:4] == cases
+    assert [case["branchId"] for case in cases] == [
+        "GAME-END-NORMAL",
+        "GAME-END-EXTRA-CONTINUE",
+        "GAME-END-LIMIT-DRAW",
+        "GAME-END-TIEBREAK-CONTINUE",
+    ]
+    assert trace.observed_read_paths == _policy().expanders["game-end-cases"].allowed_read_paths
+    for case in cases:
+        fixture = fixture_by_branch[case["branchId"]]
+        assert case["caseId"] == fixture["caseId"]
+        assert case["inputCoordinate"] == fixture["inputCoordinate"]
+        assert case["decision"] == fixture["decision"]
 
 
 def test_game_end_expander_can_process_all_current_decision_rows() -> None:

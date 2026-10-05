@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "version": "game_end_coverage_declaration_v1",
+  "exclusionRule": {
+    "rowLayer": "decisionRows",
+    "axisValuePredicate": "no-row-fixes-game-end-axis-value",
+    "combinationPredicate": "no-single-row-satisfies-all-targets-and-state-event-value",
+    "onNewRow": "intersect-declared-values-with-currently-unfixed-values"
+  },
+  "unfixedGameEndAxisValues": [
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"point-difference:1\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"point-difference:99\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"point-difference:M\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"point-difference:M+1\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"point-difference:M-1\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"start-inning:1\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"start-inning:99\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"start-inning:N\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"start-inning:N+1\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"start-inning:N-1\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"tier-count:16\""
+    },
+    {
+      "axisId": "gameEnd.extensionLimit",
+      "valueIdentity": "\"finite:R\""
+    },
+    {
+      "axisId": "gameEnd.regulationInnings",
+      "valueIdentity": "1"
+    },
+    {
+      "axisId": "gameEnd.regulationInnings",
+      "valueIdentity": "5"
+    },
+    {
+      "axisId": "gameEnd.regulationInnings",
+      "valueIdentity": "7"
+    },
+    {
+      "axisId": "gameEnd.regulationInnings",
+      "valueIdentity": "99"
+    },
+    {
+      "axisId": "gameEnd.tiebreak",
+      "valueIdentity": "\"start:99\""
+    },
+    {
+      "axisId": "gameEnd.tiebreak",
+      "valueIdentity": "\"start:L\""
+    }
+  ],
+  "uncoveredClauseBranches": [
+    {
+      "branchId": "COLD-01",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-02",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-03",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-04",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-05",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-06",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-07",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-09",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "DRAW-01",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-02",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-03",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-04",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-05",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-06",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-07",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-08",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-09",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-10",
+      "gapId": "GAP-04"
+    }
+  ],
+  "deferredValidationErrors": {
+    "requirementKind": "invalid-boundary",
+    "count": 12,
+    "ownerStep": 96,
+    "targetCollection": "validationErrors"
+  },
+  "checkerAllowedReadPaths": [
+    "contracts/state-transition/game_end_coverage_declaration_v1.json",
+    "contracts/state-transition/game_end_contract_v1.json",
+    "contracts/state-transition/game_end_input_coverage_v1.json",
+    "contracts/state-transition/expander_dependency_policy_v1.json",
+    "contracts/state-transition/expander_dependency_policy_schema_v1.json",
+    "contracts/state-transition/input_axes_descriptor_v1.json",
+    "contracts/state-transition/clause_branch_register_v1.json",
+    "contracts/state-transition/representative_selection_policy_v1.json",
+    "contracts/state-transition/deriver_dependency_policy_v1.json",
+    "contracts/state-transition/deriver_dependency_policy_schema_v1.json",
+    "contracts/state-transition/gap_register_v1.json",
+    "docs/requirements/requirements-pitchlog-2026-07-22.md"
+  ]
+}

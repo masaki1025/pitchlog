@@ -161,6 +161,82 @@ def expand_traced(
     )
 
 
+def _expand_coverage_from_declared_inputs(
+    root: Path, rule: dependency_checker.ExpanderRule
+) -> list[dict[str, Any]]:
+    """ステップ93までの4分岐に状態・イベント軸値の代表ケースを加える。"""
+    documents = [(path, _read_document(root, path)) for path in rule.allowed_read_paths]
+    descriptor = _document_by_key(documents, "gameEndAxes")
+    contract = _document_by_key(documents, "decisionRows")
+    policy = _document_by_key(documents, "predicateEvaluation")
+    values_by_axis = representative_selection.axis_values(
+        descriptor, ("gameEndAxes", "stateTransitionAxes")
+    )
+    base_cases = _expand_from_declared_inputs(root, rule, 4)
+    result = list(base_cases)
+    for row in contract["decisionRows"][:4]:
+        predicate = row["precondition"]
+        used = representative_selection.predicate_axes(predicate)
+        axes = [
+            axis for axis in values_by_axis
+            if axis in used or axis.startswith(("state.", "event."))
+        ]
+        choices: dict[str, list[Any]] = {}
+        for axis in axes:
+            if not axis.startswith(("state.", "event.")):
+                continue
+            allowed = []
+            for value in values_by_axis[axis]:
+                constraint = {"op": "eq", "axisId": axis, "value": value}
+                try:
+                    representative_selection.select_coordinate(
+                        {"op": "and", "args": [predicate, constraint]},
+                        values_by_axis, axes, policy,
+                    )
+                except representative_selection.RepresentativeSelectionError:
+                    continue
+                allowed.append(value)
+            if not allowed:
+                raise CaseExpansionError(f"行が状態・イベント軸に到達できない: {axis}")
+            choices[axis] = allowed
+        for index in range(max(map(len, choices.values()))):
+            constraints = [
+                {"op": "eq", "axisId": axis, "value": values[index % len(values)]}
+                for axis, values in choices.items()
+            ]
+            coordinate = representative_selection.select_coordinate(
+                {"op": "and", "args": [predicate, *constraints]},
+                values_by_axis, axes, policy,
+            )
+            result.append(
+                {
+                    "caseId": f"GE-{row['branchId']}-COVERAGE-{index + 1:03d}",
+                    "branchId": row["branchId"],
+                    "rowRef": {
+                        "layer": "decisionRows",
+                        "coordinate": {"branchId": row["branchId"]},
+                    },
+                    "inputCoordinate": coordinate,
+                    "decision": copy.deepcopy(row["decision"]),
+                }
+            )
+    return result
+
+
+def expand_coverage_traced(
+    root: Path,
+) -> tuple[list[dict[str, Any]], dependency_checker.ExpanderTrace]:
+    """追加代表ケースを既存のallowlist監査下で展開する。"""
+    policy = dependency_checker.load_policy(root)
+    if EXPANDER_ID not in policy.expanders:
+        raise CaseExpansionError("終了判定展開器の依存宣言がない")
+    rule = policy.expanders[EXPANDER_ID]
+    return dependency_checker.trace_expander_file_reads(
+        root, policy, EXPANDER_ID,
+        lambda: _expand_coverage_from_declared_inputs(root, rule),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLIで追跡済みの終了判定ケースを表示する。
 

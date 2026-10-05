@@ -66,6 +66,122 @@ def _assert_no_tiebreak_start_row(contract: dict[str, Any]) -> None:
     ), "tiebreak-startの規範行が現れた"
 
 
+def test_step93_game_end_declaration_and_direct_coverage() -> None:
+    """終了判定の除外集合と独立被覆記録を実ケースで照合する。"""
+    assert checker.check_game_end_coverage(ROOT) == {
+        "total": 3844, "reachable": 1015, "unreachable": 2817,
+        "invalid": 12, "covered": 763, "cases": 136,
+    }
+    contract = _asset("game_end_contract_v1.json")
+    declaration = _asset("game_end_coverage_declaration_v1.json")
+    before, _, _, _ = checker._game_end_measure(
+        ROOT, {**contract, "cases": contract["cases"][:4]}, declaration
+    )
+    assert before["covered"] == 51
+
+
+def test_step93_two_new_branches_cover_every_reachable_requirement() -> None:
+    """本周の上限引き分け・タイブレーク継続だけで737要求を直接充足する。"""
+    contract = _asset("game_end_contract_v1.json")
+    declaration = _asset("game_end_coverage_declaration_v1.json")
+    descriptor = _asset("input_axes_descriptor_v1.json")
+    rows = contract["decisionRows"][2:4]
+    branches = {row["branchId"] for row in rows}
+    cases = [case for case in contract["cases"] if case["branchId"] in branches]
+    game_axes = {axis["axisId"] for axis in descriptor["gameEndAxes"]}
+    fixed = {
+        (axis, value)
+        for row in rows
+        for axis, value in checker._fixed_game_end_values(row, game_axes).items()
+    }
+    all_values = {
+        (axis["axisId"], checker._game_end_identity(value))
+        for axis in descriptor["gameEndAxes"] for value in axis["boundaryValues"]
+    }
+    scoped_declaration = copy.deepcopy(declaration)
+    scoped_declaration["unfixedGameEndAxisValues"] = [
+        {"axisId": axis, "valueIdentity": value}
+        for axis, value in sorted(all_values - fixed)
+    ]
+    scoped_declaration["uncoveredClauseBranches"].append(
+        {"branchId": "COLD-08", "gapId": "GAP-03"}
+    )
+    counts, _, reachable, observed = checker._game_end_measure(
+        ROOT, {**contract, "decisionRows": rows, "cases": cases}, scoped_declaration
+    )
+    assert counts["reachable"] == counts["covered"] == 737
+    assert reachable == observed
+
+    four_rows = contract["decisionRows"][:4]
+    four_fixed = {
+        (axis, value)
+        for row in four_rows
+        for axis, value in checker._fixed_game_end_values(row, game_axes).items()
+    }
+    four_declaration = copy.deepcopy(declaration)
+    four_declaration["unfixedGameEndAxisValues"] = [
+        {"axisId": axis, "valueIdentity": value}
+        for axis, value in sorted(all_values - four_fixed)
+    ]
+    four_declaration["uncoveredClauseBranches"].append(
+        {"branchId": "COLD-08", "gapId": "GAP-03"}
+    )
+    four_counts, _, four_reachable, four_observed = checker._game_end_measure(
+        ROOT, {**contract, "decisionRows": four_rows}, four_declaration
+    )
+    assert four_counts["reachable"] == four_counts["covered"] == 763
+    assert four_counts["unreachable"] == 3069
+    assert four_reachable == four_observed
+
+
+def test_game_end_declaration_rejects_missing_axis_and_branch_or_closed_gap() -> None:
+    """18軸値・18分岐の宣言欠落とGAP閉鎖を拒否する。"""
+    contract = _asset("game_end_contract_v1.json")
+    declaration = _asset("game_end_coverage_declaration_v1.json")
+    missing_axis = copy.deepcopy(declaration)
+    missing_axis["unfixedGameEndAxisValues"].pop()
+    with pytest.raises(checker.RequiredSetCoverageError, match="exact-set不一致"):
+        checker._game_end_measure(ROOT, contract, missing_axis)
+    missing_branch = copy.deepcopy(declaration)
+    missing_branch["uncoveredClauseBranches"].pop()
+    with pytest.raises(checker.RequiredSetCoverageError, match="exact-set不一致"):
+        checker._game_end_measure(ROOT, contract, missing_branch)
+    wrong_gap = copy.deepcopy(declaration)
+    wrong_gap["uncoveredClauseBranches"][0]["gapId"] = "GAP-04"
+    with pytest.raises(checker.RequiredSetCoverageError, match="GAPの分岐典拠"):
+        checker._game_end_measure(ROOT, contract, wrong_gap)
+
+
+def test_game_end_record_and_representative_drift_are_red() -> None:
+    """実ケースの座標と終了判定専用被覆記録のずれを拒否する。"""
+    contract = _asset("game_end_contract_v1.json")
+    record = _asset("game_end_input_coverage_v1.json")
+    drifted = copy.deepcopy(record)
+    drifted["history"][0]["after"]["coveredCount"] -= 1
+    with pytest.raises(checker.RequiredSetCoverageError, match="独立被覆記録"):
+        checker.check_game_end_coverage(ROOT, record=drifted)
+    changed = copy.deepcopy(contract)
+    changed["cases"][4]["inputCoordinate"]["state.outs"] = 2
+    with pytest.raises(checker.RequiredSetCoverageError, match="代表値展開"):
+        checker.check_game_end_coverage(ROOT, contract=changed)
+
+
+def test_game_end_exclusion_shrinks_when_row_fixes_a_declared_value() -> None:
+    """新行が既宣言の軸値を固定すると、有効な除外集合が自動的に縮む。"""
+    contract = _asset("game_end_contract_v1.json")
+    declaration = _asset("game_end_coverage_declaration_v1.json")
+    extra = copy.deepcopy(contract["decisionRows"][0])
+    extra["branchId"] = "TEST-NEW"
+    next(
+        term for term in extra["precondition"]["args"]
+        if term.get("axisId") == "gameEnd.regulationInnings"
+    )["value"] = 7
+    expanded = {**contract, "decisionRows": [*contract["decisionRows"], extra]}
+    counts, _, _, _ = checker._game_end_measure(ROOT, expanded, declaration)
+    assert counts["reachable"] > 1015
+    assert counts["unreachable"] < 2817
+
+
 @pytest.mark.parametrize(
     ("step", "matrix_limit"),
     [(79, 12), (80, 19), (81, 26), (82, 33), (83, 42)],
