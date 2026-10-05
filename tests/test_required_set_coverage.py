@@ -38,6 +38,90 @@ def _asset(name: str) -> dict[str, Any]:
     return json.loads((ROOT / "contracts/state-transition" / name).read_text(encoding="utf-8"))
 
 
+def _unreferenced_normative_rows(
+    contract: dict[str, Any], schema: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """各規範行を入力座標で同定し、caseから未参照の行を返す。
+
+    Args:
+        contract: 状況判定または終了判定の契約。
+        schema: 対応する契約schema。
+
+    Returns:
+        caseから参照されない規範行の参照一覧。
+    """
+    def key(reference: dict[str, Any]) -> str:
+        return json.dumps(reference, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+    referenced = {key(case["rowRef"]) for case in contract["cases"]}
+    missing = []
+    for layer in ("matrixRows", "operationRows", "undoRows", "decisionRows"):
+        if layer not in contract:
+            continue
+        fields = (
+            ("branchId",)
+            if layer == "decisionRows"
+            else schema["properties"][layer]["x-pitchlog-input-coordinate-fields"]
+        )
+        for row in contract[layer]:
+            reference = {
+                "layer": layer,
+                "coordinate": {field: row[field] for field in fields},
+            }
+            if key(reference) not in referenced:
+                missing.append(reference)
+    return missing
+
+
+def _assert_all_normative_rows_referenced(
+    contract: dict[str, Any], schema: dict[str, Any]
+) -> None:
+    """未参照の規範行が1行でもあれば全行参照違反として失敗させる。"""
+    missing = _unreferenced_normative_rows(contract, schema)
+    assert not missing, f"全行参照違反: {missing!r}"
+
+
+def test_step98_all_normative_rows_are_referenced_by_cases() -> None:
+    """実資産の4層54行すべてにcaseからの参照があることを確認する。"""
+    state = _asset("state_transition_contract_v1.json")
+    game_end = _asset("game_end_contract_v1.json")
+    assert [len(state[layer]) for layer in ("matrixRows", "operationRows", "undoRows")] == [
+        42, 6, 1,
+    ]
+    assert len(game_end["decisionRows"]) == 5
+    assert len(state["cases"]) == 96
+    assert len(game_end["cases"]) == 170
+    for contract, schema_name in (
+        (state, "state_transition_contract_schema_v1.json"),
+        (game_end, "game_end_contract_schema_v1.json"),
+    ):
+        _assert_all_normative_rows_referenced(contract, _asset(schema_name))
+
+
+@pytest.mark.parametrize("layer", ["matrixRows", "operationRows", "undoRows", "decisionRows"])
+def test_step98_unreferenced_row_is_red_without_other_checks(layer: str) -> None:
+    """件数を維持した参照差し替えを全行参照の述語だけで拒否する。"""
+    game_end = layer == "decisionRows"
+    contract = _asset(
+        "game_end_contract_v1.json" if game_end else "state_transition_contract_v1.json"
+    )
+    schema = _asset(
+        "game_end_contract_schema_v1.json"
+        if game_end else "state_transition_contract_schema_v1.json"
+    )
+    target = next(case["rowRef"] for case in contract["cases"] if case["rowRef"]["layer"] == layer)
+    replacement = next(case["rowRef"] for case in contract["cases"] if case["rowRef"] != target)
+    original_count = len(contract["cases"])
+    for case in contract["cases"]:
+        if case["rowRef"] == target:
+            case["rowRef"] = copy.deepcopy(replacement)
+
+    assert len(contract["cases"]) == original_count
+    assert _unreferenced_normative_rows(contract, schema) == [target]
+    with pytest.raises(AssertionError, match="全行参照違反"):
+        _assert_all_normative_rows_referenced(contract, schema)
+
+
 def _observed_coverage(
     cases: list[dict[str, Any]], contract: dict[str, Any] | None = None
 ) -> set[tuple[str, str]]:
