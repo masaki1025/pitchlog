@@ -173,6 +173,10 @@ class TenantContextConstructionContract:
     integrity_secret_allowed_symbols: frozenset[str]
     integrity_proof_factory_symbol: str
     integrity_proof_factory_allowed_symbols: frozenset[str]
+    issuance_capability_symbol: str
+    issuance_capability_allowed_symbols: frozenset[str]
+    issuance_entrypoint_symbol: str
+    issuance_entrypoint_allowed_symbols: frozenset[str]
     allowed_test_modules: frozenset[str]
     allowed_product_modules: frozenset[str]
 
@@ -1071,6 +1075,10 @@ def _load_tenant_context_allowlist(
             "integrity_secret_allowed_symbols",
             "integrity_proof_factory_symbol",
             "integrity_proof_factory_allowed_symbols",
+            "issuance_capability_symbol",
+            "issuance_capability_allowed_symbols",
+            "issuance_entrypoint_symbol",
+            "issuance_entrypoint_allowed_symbols",
             "allowed_test_modules",
             "allowed_product_modules",
             "baseline_control",
@@ -1157,6 +1165,33 @@ def _load_tenant_context_allowlist(
         integrity_proof_factory_allowed_symbols
     ):
         raise ContractError("発行証跡の導出関数と参照許可シンボルは閉集合が必要")
+    issuance_capability_symbol = _string(
+        value["issuance_capability_symbol"],
+        "tenant_context.issuance_capability_symbol",
+    )
+    issuance_capability_allowed_symbols = frozenset(
+        _string_array(
+            value["issuance_capability_allowed_symbols"],
+            "tenant_context.issuance_capability_allowed_symbols",
+        )
+    )
+    if not issuance_capability_symbol.startswith("pitchlog.") or not (
+        issuance_capability_allowed_symbols
+    ):
+        raise ContractError("発行能力と参照許可シンボルは閉集合が必要")
+    issuance_entrypoint_symbol = value["issuance_entrypoint_symbol"]
+    if not isinstance(issuance_entrypoint_symbol, str):
+        raise ContractError("tenant_context.issuance_entrypoint_symbol: 文字列が必要")
+    issuance_entrypoint_allowed_symbols = frozenset(
+        _string_array(
+            value["issuance_entrypoint_allowed_symbols"],
+            "tenant_context.issuance_entrypoint_allowed_symbols",
+        )
+    )
+    if bool(issuance_entrypoint_symbol) != bool(issuance_entrypoint_allowed_symbols):
+        raise ContractError("発行入口と参照許可シンボルは両方とも空か非空が必要")
+    if issuance_entrypoint_symbol and "." not in issuance_entrypoint_symbol:
+        raise ContractError("発行入口は完全修飾名が必要")
     allowed_test_modules = frozenset(
         _string_array(
             value["allowed_test_modules"], "tenant_context.allowed_test_modules"
@@ -1191,6 +1226,10 @@ def _load_tenant_context_allowlist(
         integrity_proof_factory_allowed_symbols=(
             integrity_proof_factory_allowed_symbols
         ),
+        issuance_capability_symbol=issuance_capability_symbol,
+        issuance_capability_allowed_symbols=issuance_capability_allowed_symbols,
+        issuance_entrypoint_symbol=issuance_entrypoint_symbol,
+        issuance_entrypoint_allowed_symbols=issuance_entrypoint_allowed_symbols,
         allowed_test_modules=allowed_test_modules,
         allowed_product_modules=allowed_product_modules,
     )

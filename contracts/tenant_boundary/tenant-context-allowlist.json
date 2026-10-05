@@ -71,7 +71,7 @@
   },
   "asset_kind": "tenant_context_construction_allowlist",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "8d2b2a1752502a67c85cbf7183d6aceea6fc44f47db1a13b1f514efb2efef3c1",
+  "source_digest": "b0d0b7cd1e91067e855b40083e89f34e86bd318176781926dbc625996c9f4d30",
   "constructor_symbol": "pitchlog.repositories.context.TenantContext",
   "forbidden_construction_symbols": [
     "builtins.object.__new__",
@@ -88,6 +88,12 @@
     "pitchlog.repositories.context.TenantContext.__init__",
     "pitchlog.repositories.context.TenantContext._has_valid_integrity_proof"
   ],
+  "issuance_capability_symbol": "pitchlog.repositories.context._ISSUANCE_CAPABILITY",
+  "issuance_capability_allowed_symbols": [
+    "pitchlog.repositories.context.TenantContext.__init__"
+  ],
+  "issuance_entrypoint_symbol": "",
+  "issuance_entrypoint_allowed_symbols": [],
   "allowed_test_modules": [
     "test_authz_tenant_context"
   ],

@@ -5825,6 +5825,103 @@ def test_proof_factory_aliases_and_lexical_callable_scope(
     assert ("TB007" in {violation.code for violation in violations}) is expected_tb007
 
 
+@pytest.mark.parametrize(
+    ("symbol", "allowed_symbols"),
+    (
+        ("", ["pitchlog.repositories.context.TenantContext.__init__"]),
+        (
+            "external.context._ISSUANCE_CAPABILITY",
+            ["pitchlog.repositories.context.TenantContext.__init__"],
+        ),
+        ("pitchlog.repositories.context._ISSUANCE_CAPABILITY", []),
+    ),
+)
+def test_issuance_capability_requires_nonempty_closed_symbols(
+    symbol: str, allowed_symbols: list[str]
+) -> None:
+    """発行能力には製品名と非空の参照許可集合を要求する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_TENANT_CONTEXT_ALLOWLIST).read_text(
+            encoding="utf-8"
+        )
+    )
+    assert isinstance(asset, dict)
+    asset["issuance_capability_symbol"] = symbol
+    asset["issuance_capability_allowed_symbols"] = allowed_symbols
+    asset["source_digest"] = _contract_digest(asset)
+
+    with pytest.raises(checker.ContractError):
+        checker._load_tenant_context_allowlist(asset)
+
+
+def test_issuance_entrypoint_allows_empty_or_complete_pair() -> None:
+    """発行入口は両欄が空でも、完全修飾名と許可集合が揃っても受理する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_TENANT_CONTEXT_ALLOWLIST).read_text(
+            encoding="utf-8"
+        )
+    )
+    assert isinstance(asset, dict)
+
+    inactive = checker._load_tenant_context_allowlist(asset)
+    assert inactive.issuance_entrypoint_symbol == ""
+    assert inactive.issuance_entrypoint_allowed_symbols == frozenset()
+
+    asset["issuance_entrypoint_symbol"] = "pitchlog.repositories.issuer.issue_tenant_context"
+    asset["issuance_entrypoint_allowed_symbols"] = [
+        "pitchlog.repositories.issuer.issue_tenant_context"
+    ]
+    asset["source_digest"] = _contract_digest(asset)
+    active = checker._load_tenant_context_allowlist(asset)
+    assert active.issuance_entrypoint_symbol == asset["issuance_entrypoint_symbol"]
+    assert active.issuance_entrypoint_allowed_symbols == frozenset(
+        asset["issuance_entrypoint_allowed_symbols"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("symbol", "allowed_symbols"),
+    (
+        ("", ["pitchlog.repositories.issuer.issue_tenant_context"]),
+        ("pitchlog.repositories.issuer.issue_tenant_context", []),
+    ),
+)
+def test_issuance_entrypoint_rejects_one_sided_pair(
+    symbol: str, allowed_symbols: list[str]
+) -> None:
+    """発行入口の片方だけが空の契約を拒否する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_TENANT_CONTEXT_ALLOWLIST).read_text(
+            encoding="utf-8"
+        )
+    )
+    assert isinstance(asset, dict)
+    asset["issuance_entrypoint_symbol"] = symbol
+    asset["issuance_entrypoint_allowed_symbols"] = allowed_symbols
+    asset["source_digest"] = _contract_digest(asset)
+
+    with pytest.raises(checker.ContractError, match="両方とも空か非空"):
+        checker._load_tenant_context_allowlist(asset)
+
+
+def test_issuance_entrypoint_requires_fully_qualified_symbol() -> None:
+    """発行入口に値を入れた場合は完全修飾名を要求する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_TENANT_CONTEXT_ALLOWLIST).read_text(
+            encoding="utf-8"
+        )
+    )
+    assert isinstance(asset, dict)
+    asset["issuance_entrypoint_symbol"] = "issue_tenant_context"
+    asset["issuance_entrypoint_allowed_symbols"] = [
+        "pitchlog.repositories.issuer.issue_tenant_context"
+    ]
+    asset["source_digest"] = _contract_digest(asset)
+
+    with pytest.raises(checker.ContractError, match="完全修飾名"):
+        checker._load_tenant_context_allowlist(asset)
+
+
 def test_product_module_cannot_be_added_before_authenticated_entry_exists() -> None:
     """認証入口の導入前に製品モジュールを許可する変異を拒否する。"""
     asset = json.loads(

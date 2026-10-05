@@ -70,6 +70,18 @@ def _generated_snapshot() -> dict[str, object]:
         "integrity_proof_factory_allowed_symbols": list(
             tenant_context_contract.INTEGRITY_PROOF_FACTORY_ALLOWED_SYMBOLS
         ),
+        "issuance_capability_symbol": (
+            tenant_context_contract.ISSUANCE_CAPABILITY_SYMBOL
+        ),
+        "issuance_capability_allowed_symbols": list(
+            tenant_context_contract.ISSUANCE_CAPABILITY_ALLOWED_SYMBOLS
+        ),
+        "issuance_entrypoint_symbol": (
+            tenant_context_contract.ISSUANCE_ENTRYPOINT_SYMBOL
+        ),
+        "issuance_entrypoint_allowed_symbols": list(
+            tenant_context_contract.ISSUANCE_ENTRYPOINT_ALLOWED_SYMBOLS
+        ),
         "allowed_test_modules": list(tenant_context_contract.ALLOWED_TEST_MODULES),
         "allowed_product_modules": list(
             tenant_context_contract.ALLOWED_PRODUCT_MODULES
@@ -163,6 +175,10 @@ def test_product_construction_allowlist_is_empty() -> None:
         "forbidden_construction_symbols",
         "integrity_secret_symbol",
         "integrity_secret_allowed_symbols",
+        "issuance_capability_symbol",
+        "issuance_capability_allowed_symbols",
+        "issuance_entrypoint_symbol",
+        "issuance_entrypoint_allowed_symbols",
         "allowed_test_modules",
         "allowed_product_modules",
     ),
