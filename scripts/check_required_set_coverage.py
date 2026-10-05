@@ -634,6 +634,92 @@ def _game_end_measure(
     return counts, actual_unreachable, reachable, observed
 
 
+def _check_game_end_decision_properties(
+    root: Path, contract: dict[str, Any], declaration: dict[str, Any]
+) -> None:
+    """宣言した終了判定の出力を全ケースで照合する。"""
+    policy = declaration.get("step95DecisionProperties")
+    if not isinstance(policy, dict) or set(policy) != {
+        "automaticTransition", "branchExpectations", "xMark"
+    }:
+        raise RequiredSetCoverageError("ステップ95の出力宣言が不正")
+    automatic = policy["automaticTransition"]
+    if not isinstance(automatic, dict) or set(automatic) != {
+        "field", "expected", "clauseIds"
+    } or automatic["field"] != "automaticallyEndsGame" or type(
+        automatic["expected"]
+    ) is not bool:
+        raise RequiredSetCoverageError("自動遷移の宣言が不正")
+    schema = _document(root, "game_end_contract_schema_v1.json")
+    decision_schema = schema.get("$defs", {}).get("gameEndDecision", {})
+    schema_fields = decision_schema.get("properties", {})
+    if (
+        not isinstance(schema_fields, dict)
+        or set(decision_schema.get("required", [])) != set(schema_fields)
+        or decision_schema.get("additionalProperties") is not False
+        or automatic["field"] not in schema_fields
+    ):
+        raise RequiredSetCoverageError("終了判定decision schemaが不正")
+    x_mark = policy["xMark"]
+    if not isinstance(x_mark, dict) or set(x_mark) != {
+        "status", "decisionField", "clauseIds", "searchedScope",
+        "observedDecisionFields", "reason"
+    } or x_mark["status"] != "not-represented-in-decision" or x_mark[
+        "decisionField"
+    ] is not None or set(x_mark["observedDecisionFields"]) != set(
+        schema_fields
+    ) or not isinstance(x_mark["reason"], str) or not x_mark["reason"]:
+        raise RequiredSetCoverageError("X表記の出力不在宣言が実測と不一致")
+    if not isinstance(x_mark["searchedScope"], list) or not x_mark[
+        "searchedScope"
+    ] or not all(isinstance(item, str) and item for item in x_mark["searchedScope"]):
+        raise RequiredSetCoverageError("X表記の調査範囲が不正")
+    requirements = (root / "docs/requirements/requirements-pitchlog-2026-07-22.md").read_text(
+        encoding="utf-8"
+    )
+    branches = policy["branchExpectations"]
+    rows = contract.get("decisionRows", [])
+    if not isinstance(branches, list) or not all(isinstance(item, dict) and set(item) == {
+        "branchId", "lockFurtherPlayInput", "promptEndDeclaration", "clauseIds"
+    } for item in branches):
+        raise RequiredSetCoverageError("分岐別の出力宣言が不正")
+    by_branch = {item["branchId"]: item for item in branches}
+    if len(by_branch) != len(branches) or set(by_branch) != {
+        row["branchId"] for row in rows
+    }:
+        raise RequiredSetCoverageError("分岐別の出力宣言がexact-set不一致")
+    for item in [automatic, x_mark, *branches]:
+        clause_ids = item.get("clauseIds")
+        if not isinstance(clause_ids, list) or not clause_ids or not all(
+            isinstance(source, str) and source.startswith("req:")
+            and source[4:] in requirements for source in clause_ids
+        ) or len(set(clause_ids)) != len(clause_ids):
+            raise RequiredSetCoverageError("ステップ95の条文典拠が不正")
+    for row in rows:
+        branch = by_branch[row["branchId"]]
+        if not set(row["sourceClauseIds"]) <= set(branch["clauseIds"]):
+            raise RequiredSetCoverageError("分岐別の出力宣言の典拠が規範行と不一致")
+        for field in ("lockFurtherPlayInput", "promptEndDeclaration"):
+            if type(branch[field]) is not bool:
+                raise RequiredSetCoverageError(f"分岐別の{field}期待値が不正")
+    for case in contract.get("cases", []):
+        decision = case.get("decision")
+        branch = by_branch.get(case.get("branchId"))
+        if not isinstance(decision, dict) or branch is None or set(decision) != set(
+            schema_fields
+        ):
+            raise RequiredSetCoverageError(
+                f"終了判定decisionのフィールドが不正: {case.get('caseId')}"
+            )
+        if decision[automatic["field"]] is not automatic["expected"]:
+            raise RequiredSetCoverageError(f"試合状態が自動遷移する: {case.get('caseId')}")
+        for field in ("lockFurtherPlayInput", "promptEndDeclaration"):
+            if decision[field] is not branch[field]:
+                raise RequiredSetCoverageError(
+                    f"分岐別の{field}期待値と不一致: {case.get('caseId')}"
+                )
+
+
 def _check_game_end_documents(
     root: Path, contract: dict[str, Any], declaration: dict[str, Any],
     record: dict[str, Any],
@@ -643,7 +729,7 @@ def _check_game_end_documents(
         set(declaration) != {
             "schemaVersion", "version", "exclusionRule", "unfixedGameEndAxisValues",
             "uncoveredClauseBranches", "deferredValidationErrors", "checkerAllowedReadPaths",
-            "step94Contraction", "step94UnmetCriteria",
+            "step94Contraction", "step94UnmetCriteria", "step95DecisionProperties",
         }
         or declaration.get("schemaVersion") != 1
         or declaration.get("version") != "game_end_coverage_declaration_v1"
@@ -725,6 +811,7 @@ def _check_game_end_documents(
         "ownerStage"
     ) != 2 or unmet["walkOffScoring"].get("sourceClauseId") != "req:A-1":
         raise RequiredSetCoverageError("ステップ94の未達事項の典拠・送り先が不正")
+    _check_game_end_decision_properties(root, contract, declaration)
     generated, trace = expand_game_end_cases.expand_coverage_traced(root)
     expander_policy = expand_game_end_cases.dependency_checker.load_policy(root)
     if trace.observed_read_paths != expander_policy.expanders["game-end-cases"].allowed_read_paths:
