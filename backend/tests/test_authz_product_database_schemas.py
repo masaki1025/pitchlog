@@ -39,12 +39,14 @@ _EXPECTED_SCHEMAS = {
         "acl_expectations": {
             ("pitchlog_app", "USAGE", False),
             ("pitchlog_shared_fn_owner", "USAGE", False),
+            ("pitchlog_auth_fn_owner", "USAGE", False),
         },
         "revoked_acl_expectations": {
             ("PUBLIC", "USAGE", False),
             ("PUBLIC", "CREATE", False),
             ("pitchlog_app", "CREATE", False),
             ("pitchlog_shared_fn_owner", "CREATE", False),
+            ("pitchlog_auth_fn_owner", "CREATE", False),
         },
     },
     "authz_private": {
@@ -211,18 +213,33 @@ def _mutate_authz_private_app_usage(asset: dict[str, Any]) -> None:
 
 
 def test_product_database_and_schema_assets_match_design() -> None:
-    """DB・2スキーマの所有者とACLがdesign.md 2-1へ完全一致する。"""
+    """DBと認可・認証スキーマの所有者とACLを完全照合する。"""
     asset = _read_product_asset()
     _validate_product_asset(asset)
 
     databases = asset["databases"]
     schemas = asset["schemas"]
     assert isinstance(databases, list) and len(databases) == 1
-    assert isinstance(schemas, list) and len(schemas) == 2
+    assert isinstance(schemas, list) and len(schemas) == 4
     assert _normalized_object(databases[0], "database_id") == _EXPECTED_DATABASE
-    assert {
+    normalized = {
         str(row["schema_id"]): _normalized_object(row, "schema_id") for row in schemas
-    } == _EXPECTED_SCHEMAS
+    }
+    assert {key: normalized[key] for key in _EXPECTED_SCHEMAS} == _EXPECTED_SCHEMAS
+    assert set(normalized) == {*_EXPECTED_SCHEMAS, "authn", "authn_crypto"}
+    assert normalized["authn"]["owner"] == "pitchlog_owner"
+    assert normalized["authn"]["acl_expectations"] == {
+        (role, "USAGE", False)
+        for role in (
+            "pitchlog_app",
+            "pitchlog_management_fn_owner",
+            "pitchlog_auth_fn_owner",
+        )
+    }
+    assert normalized["authn_crypto"]["owner"] == "pitchlog_owner"
+    assert normalized["authn_crypto"]["acl_expectations"] == {
+        ("pitchlog_auth_fn_owner", "USAGE", False)
+    }
 
     sql_by_element = _statement_map(generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC))
     database_sql = sql_by_element[("database", "current_database")]

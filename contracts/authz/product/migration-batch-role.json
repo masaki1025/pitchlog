@@ -26,6 +26,7 @@
   "permissions": [
     {"table_id": "tenants", "column_id": null, "privilege": "INSERT", "grantable": false},
     {"table_id": "tenants", "column_id": null, "privilege": "SELECT", "grantable": false},
+    {"table_id": "tenants", "column_id": "retired_at", "privilege": "UPDATE", "grantable": false},
     {"table_id": "team_records", "column_id": null, "privilege": "INSERT", "grantable": false},
     {"table_id": "team_records", "column_id": null, "privilege": "SELECT", "grantable": false},
     {"table_id": "players", "column_id": null, "privilege": "INSERT", "grantable": false},
@@ -93,6 +94,8 @@
     "schema_acl": [
       {"schema_name": "public", "privilege": "USAGE", "grantable": false}
     ],
-    "function_execute": []
+    "function_execute": [
+      {"schema_name": "public", "function_name": "authn_normalize_team_name", "identity_args": "text"}
+    ]
   }
 }
