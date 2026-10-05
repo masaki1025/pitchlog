@@ -33,7 +33,7 @@ VALID_EVIDENCE = runner.TargetEvidence(
     shared_cluster="202",
     operand_database="approved",
     approved_database="approved",
-    test_role_database="approved",
+    test_role_database="initial",
     connected_database="initial",
     initial_database="initial",
     admin_user="administrator",
@@ -96,8 +96,9 @@ def test_other_user_connection_stops_before_drop(other_connections: int | None) 
     _assert_stops_before_drop(VALID_EVIDENCE, other_connections)
 
 
-def test_test_role_dsn_database_must_match_approved_name() -> None:
+def test_test_role_dsn_database_must_match_initial_database() -> None:
     _assert_stops_before_drop(replace(VALID_EVIDENCE, test_role_database="other"))
+    _assert_stops_before_drop(replace(VALID_EVIDENCE, test_role_database="approved"))
 
 
 def test_admin_connection_must_use_initial_database_and_superuser() -> None:
@@ -145,17 +146,20 @@ def test_migration_url_uses_owner_on_target_database() -> None:
     )
 
 
-def test_test_environment_uses_frozen_names_and_target_database() -> None:
-    """試験の DSN 名は資産から取り、値だけを対象 DB へ向ける。"""
+def test_test_environment_uses_frozen_names_and_initial_database() -> None:
+    """試験の 2 接続を初期化時 DB へ向け、対象 DB を拒否する。"""
     admin = "postgresql://admin:dummy@127.0.0.1:65432/initial"
-    tested = "postgresql://tested:dummy@127.0.0.1:65432/target"
+    tested = "postgresql://tested:dummy@127.0.0.1:65432/initial"
 
-    assert runner._test_environment(admin, tested, "target") == {
-        "PITCHLOG_TEST_ADMIN_DSN": "postgresql://admin:dummy@127.0.0.1:65432/target",
+    assert runner._test_environment(admin, tested, "target", "initial") == {
+        "PITCHLOG_TEST_ADMIN_DSN": admin,
         "PITCHLOG_TEST_ROLE_DSN": tested,
     }
     with pytest.raises(runner.RunnerError):
-        runner._test_environment(admin, tested, "other")
+        runner._test_environment(admin, tested, "target", "other")
+    target_role_dsn = "postgresql://tested:dummy@127.0.0.1:65432/target"
+    with pytest.raises(runner.RunnerError):
+        runner._test_environment(admin, target_role_dsn, "target", "initial")
 
 
 def test_test_observations_require_all_nodes_on_exact_target() -> None:
@@ -178,6 +182,126 @@ def test_test_observations_require_all_nodes_on_exact_target() -> None:
         runner._validate_test_observations(observations, "101", "target", expected_nodes)
 
 
+def test_product_application_checks_target_before_apply_and_catalog_afterward(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """適用直前の照合から適用・検査・拒否試行への順を固定する。"""
+    events: list[str] = []
+
+    class FakeProvisioningError(Exception):
+        """非許可主体の適用拒否を表す。"""
+
+    class FakeConnection:
+        """適用主体だけを持つ DB 不要の接続。"""
+
+        def __init__(self, kind: str) -> None:
+            self.kind = kind
+
+        def __enter__(self) -> Any:
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            pass
+
+        def rollback(self) -> None:
+            pass
+
+        def commit(self) -> None:
+            pass
+
+    def connect(dsn: str) -> FakeConnection:
+        if "pitchlog_app:" in dsn:
+            return FakeConnection("app")
+        if "owner:" in dsn:
+            return FakeConnection("owner")
+        return FakeConnection("admin")
+
+    def apply(connection: FakeConnection) -> None:
+        if connection.kind == "admin":
+            events.append("apply")
+            return
+        events.append(f"reject_{connection.kind}")
+        raise FakeProvisioningError("rejected")
+
+    provisioning = SimpleNamespace(
+        apply_product_authz_ddl=apply,
+        ProductProvisioningError=FakeProvisioningError,
+    )
+    catalog = SimpleNamespace(inspect_product_authz_catalog=lambda *_: None)
+    real_import = runner.importlib.import_module
+
+    def fake_import(name: str) -> Any:
+        return provisioning if name.endswith("product_provisioning") else catalog
+
+    monkeypatch.setattr(runner.importlib, "import_module", fake_import)
+    monkeypatch.setattr(runner, "_driver", lambda: SimpleNamespace(connect=connect))
+    monkeypatch.setattr(
+        runner, "_assert_target_connection", lambda *_: events.append("target_check")
+    )
+    monkeypatch.setattr(
+        runner, "_catalog_violations", lambda *_: events.append("catalog") or 0
+    )
+    monkeypatch.setattr(
+        runner,
+        "_execute",
+        lambda _, sql: events.append(
+            "clear_password" if sql.endswith("PASSWORD NULL") else "set_password"
+        ),
+    )
+    monkeypatch.setattr(runner.secrets, "token_urlsafe", lambda _: "temporary")
+    admin = "postgresql://admin:dummy@127.0.0.1:65432/initial"
+    owner = "postgresql://owner:dummy@127.0.0.1:65432/target"
+    try:
+        assert runner._apply_product_ddl(
+            runner._load_targets(), admin, owner, "target", "101"
+        ) == 0
+    finally:
+        monkeypatch.setattr(runner.importlib, "import_module", real_import)
+
+    assert events == [
+        "target_check",
+        "apply",
+        "catalog",
+        "catalog",
+        "reject_owner",
+        "catalog",
+        "target_check",
+        "set_password",
+        "catalog",
+        "reject_app",
+        "catalog",
+        "target_check",
+        "clear_password",
+        "catalog",
+    ]
+
+
+def test_catalog_violation_stops_product_application(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """カタログ違反を成功扱いにせず中止する。"""
+    connection = SimpleNamespace(rollback=lambda: None)
+    monkeypatch.setattr(runner, "_fetch_one", lambda *_: (42,))
+
+    with pytest.raises(runner.RunnerError, match="カタログ"):
+        runner._catalog_violations(
+            connection,
+            lambda *_args, **_kwargs: SimpleNamespace(
+                ok=False, violations=("violation",)
+            ),
+        )
+
+
+def test_unrejected_application_stops_runner() -> None:
+    """非許可主体の適用が通れば中止する。"""
+    connection = SimpleNamespace(rollback=lambda: None)
+
+    with pytest.raises(runner.RunnerError, match="拒否されなかった"):
+        runner._require_application_rejection(
+            connection, lambda _: None, RuntimeError
+        )
+
+
 def test_product_tests_use_in_process_supply_and_ignore_pre_ddl_failures(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -197,7 +321,7 @@ def test_product_tests_use_in_process_supply_and_ignore_pre_ddl_failures(
     def fake_pytest_main(arguments: list[str]) -> int:
         calls.append("pytest")
         assert len([arg for arg in arguments if arg.startswith("tests/db/test_")]) == 3
-        assert os.environ["PITCHLOG_TEST_ADMIN_DSN"].endswith("/target")
+        assert os.environ["PITCHLOG_TEST_ADMIN_DSN"].endswith("/initial")
         expected_nodes = runner._load_targets().expected_test_nodes
         observations.connections.extend(
             [("101", "target")] * (expected_nodes * runner.OBSERVED_CONNECTIONS_PER_NODE)
@@ -212,6 +336,11 @@ def test_product_tests_use_in_process_supply_and_ignore_pre_ddl_failures(
     real_import = runner.importlib.import_module
     monkeypatch.setattr(runner, "_container_cluster", lambda *_: "101")
     monkeypatch.setattr(runner, "_container_id", lambda *_: "container")
+    monkeypatch.setattr(
+        runner,
+        "_apply_product_ddl",
+        lambda *_: calls.append("apply") or 0,
+    )
 
     def fake_import(name: str) -> Any:
         return fixture_module if name == "db_fixtures" else SimpleNamespace(main=fake_pytest_main)
@@ -222,21 +351,23 @@ def test_product_tests_use_in_process_supply_and_ignore_pre_ddl_failures(
         fake_import,
     )
     admin = "postgresql://admin:dummy@127.0.0.1:65432/initial"
-    tested = "postgresql://tested:dummy@127.0.0.1:65432/target"
+    tested = "postgresql://tested:dummy@127.0.0.1:65432/initial"
     original_directory = Path.cwd()
     try:
-        runner._run_product_tests(
+        violations = runner._run_product_tests(
             runner._load_targets(),
             admin,
             "owner-secret",
             tested,
             "target",
+            "initial",
             runner._target_digest("101", "target"),
         )
     finally:
         monkeypatch.setattr(runner.importlib, "import_module", real_import)
 
-    assert calls == ["enter", "pytest", "exit"]
+    assert violations == 0
+    assert calls == ["enter", "apply", "pytest", "exit"]
     assert Path.cwd() == original_directory
     assert "hidden-connection-marker" not in capsys.readouterr().out
 
@@ -251,8 +382,9 @@ def test_main_passes_generated_owner_connection_without_printing_it(
         owner_dsn = "postgresql://owner:private-marker@127.0.0.1:65432/target"
         return runner.PreparedTarget("generation", "digest", "head", owner_dsn)
 
-    def run_tests(*args: Any) -> None:
+    def run_tests(*args: Any) -> int:
         received.append(args[2])
+        return 0
 
     monkeypatch.setattr(runner, "_required_environment", lambda _: "unused")
     monkeypatch.setattr(runner, "_run_product_tests", run_tests)
@@ -263,6 +395,7 @@ def test_main_passes_generated_owner_connection_without_printing_it(
     ]
     output = capsys.readouterr()
     assert "private-marker" not in output.out + output.err
+    assert '"catalog_violations": 0' in output.out
 
 
 def test_cli_does_not_print_unexpected_exception_content(

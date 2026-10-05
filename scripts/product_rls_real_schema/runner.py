@@ -7,6 +7,7 @@ Compose の解釈には共有側の ``POSTGRES_USER`` / ``POSTGRES_PASSWORD`` /
 ``POSTGRES_DB`` と専用側の ``PITCHLOG_PRODUCT_RLS_POSTGRES_*`` 4 変数が必要。
 共有側の値は Compose の解釈にだけ使うため、実コンテナと一致しなくてよい。
 共有クラスタの識別値はコンテナ内の環境変数で ``psql`` を実行して読む。
+被検査ロールの DSN は専用インスタンスの初期化時 DB を指すこと。
 """
 
 from __future__ import annotations
@@ -137,8 +138,12 @@ def validate_target(evidence: TargetEvidence) -> None:
         raise RunnerError("共有開発クラスタに接続している")
     if evidence.operand_database != evidence.approved_database:
         raise RunnerError("操作対象の名前が承認された対象名と一致しない")
-    if evidence.test_role_database != evidence.approved_database:
-        raise RunnerError("被検査ロールの接続先が承認された対象名と一致しない")
+    # 対象 DB は pitchlog_app だけが接続できるため、同一性検査は初期化時 DB を使う。
+    if (
+        evidence.test_role_database != evidence.initial_database
+        or evidence.test_role_database == evidence.approved_database
+    ):
+        raise RunnerError("被検査ロールの接続先が初期化時 DB と一致しない")
     if (
         evidence.connected_database != evidence.initial_database
         or evidence.connected_database == evidence.approved_database
@@ -270,9 +275,9 @@ def _database_dsn(admin_dsn: str, database: str) -> str:
 
 
 def _test_environment(
-    admin_dsn: str, test_role_dsn: str, database: str
+    admin_dsn: str, test_role_dsn: str, database: str, initial_database: str
 ) -> dict[str, str]:
-    """凍結済み資産の変数名へ専用対象の接続値を割り当てる。"""
+    """凍結済み資産の変数名へ初期化時 DB の接続値を割り当てる。"""
     path = REPOSITORY_ROOT / "backend/tests/db/environment-expectations.json"
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -289,10 +294,11 @@ def _test_environment(
         or admin_name == role_name
     ):
         raise RunnerError("試験の接続変数名が不正")
-    if _dsn_user_and_database(test_role_dsn)[1] != database:
-        raise RunnerError("被検査ロールの接続先が対象 DB と一致しない")
+    test_role_database = _dsn_user_and_database(test_role_dsn)[1]
+    if test_role_database != initial_database or test_role_database == database:
+        raise RunnerError("被検査ロールの接続先が初期化時 DB と一致しない")
     return {
-        admin_name: _database_dsn(admin_dsn, database),
+        admin_name: _database_dsn(admin_dsn, initial_database),
         role_name: test_role_dsn,
     }
 
@@ -310,19 +316,108 @@ def _validate_test_observations(
         raise RunnerError("製品越境試験の接続先が専用対象と一致しない")
 
 
+def _catalog_violations(connection: Any, inspect: Callable[..., Any]) -> int:
+    """適用主体の OID で製品カタログを検査し、違反件数だけ返す。"""
+    try:
+        row = _fetch_one(
+            connection,
+            "SELECT role.oid FROM pg_catalog.pg_roles AS role "
+            "WHERE role.rolname = current_user",
+        )
+    finally:
+        connection.rollback()
+    role_oid = row[0]
+    if type(role_oid) is not int or role_oid <= 0:
+        raise RunnerError("適用主体のロール OID を判定できない")
+    try:
+        report = inspect(connection, privileged_role_oids=frozenset({role_oid}))
+    finally:
+        connection.rollback()
+    if report.ok is not True or report.violations != ():
+        raise RunnerError("製品カタログの検査に違反がある")
+    return len(report.violations)
+
+
+def _require_application_rejection(
+    connection: Any, apply: Callable[[Any], None], rejected_error: type[Exception]
+) -> None:
+    """非許可主体への適用が指定の例外で拒否されることを要求する。"""
+    try:
+        apply(connection)
+    except rejected_error:
+        connection.rollback()
+        return
+    raise RunnerError("非許可主体への製品認可適用が拒否されなかった")
+
+
+def _apply_product_ddl(
+    config: TargetsConfig,
+    admin_dsn: str,
+    owner_dsn: str,
+    database: str,
+    cluster: str,
+) -> int:
+    """対象照合後に正規入口で適用し、カタログと拒否経路を確かめる。"""
+    driver = _driver()
+    provisioning = importlib.import_module("pitchlog.authz.product_provisioning")
+    catalog = importlib.import_module("pitchlog.authz.product_catalog")
+    apply = provisioning.apply_product_authz_ddl
+    inspect = catalog.inspect_product_authz_catalog
+    rejected_error = provisioning.ProductProvisioningError
+    target_dsn = _database_dsn(admin_dsn, database)
+    with driver.connect(target_dsn) as admin:
+        _assert_target_connection(config, admin, cluster, database)
+        admin.rollback()
+        apply(admin)
+        violations = _catalog_violations(admin, inspect)
+
+        with driver.connect(owner_dsn) as owner:
+            _catalog_violations(admin, inspect)
+            _require_application_rejection(owner, apply, rejected_error)
+            _catalog_violations(admin, inspect)
+
+        password = secrets.token_urlsafe(24)
+        _assert_target_connection(config, admin, cluster, database)
+        admin.rollback()
+        _execute(
+            admin,
+            f"ALTER ROLE {_quote_identifier('pitchlog_app')} "
+            f"PASSWORD {_quote_literal(password)}",
+        )
+        admin.commit()
+        app_dsn = _migration_url(owner_dsn, database, "pitchlog_app", password).replace(
+            "postgresql+psycopg://", "postgresql://", 1
+        )
+        try:
+            with driver.connect(app_dsn) as app:
+                _catalog_violations(admin, inspect)
+                _require_application_rejection(app, apply, rejected_error)
+                _catalog_violations(admin, inspect)
+        finally:
+            _assert_target_connection(config, admin, cluster, database)
+            admin.rollback()
+            _execute(admin, f"ALTER ROLE {_quote_identifier('pitchlog_app')} PASSWORD NULL")
+            admin.commit()
+        _catalog_violations(admin, inspect)
+    return violations
+
+
 def _run_product_tests(
     config: TargetsConfig,
     admin_dsn: str,
     owner_dsn: str,
     test_role_dsn: str,
     database: str,
+    initial_database: str,
     target_digest: str,
-) -> None:
-    """同一プロセスの外部供給で試験を実行し、接続先だけを照合する。"""
+) -> int:
+    """適用前記録から DDL 適用へ進み、同一プロセスで試験を実行する。"""
     cluster = _container_cluster(config, config.compose_service)
     if _target_digest(cluster, database) != target_digest:
         raise RunnerError("作り直した対象と試験対象の要約値が一致しない")
-    test_environment = _test_environment(admin_dsn, test_role_dsn, database)
+    test_environment = _test_environment(
+        admin_dsn, test_role_dsn, database, initial_database
+    )
     tests_dir = REPOSITORY_ROOT / "backend/tests"
     original_path = tuple(sys.path)
     previous_environment = {name: os.environ.get(name) for name in test_environment}
@@ -343,7 +438,10 @@ def _run_product_tests(
             applicator_dsn=_database_dsn(admin_dsn, database),
             owner_dsn=owner_dsn,
         ) as observations:
-            # ステップ 4 は接続先だけを見るため、DDL 未適用による失敗出力を捨てる。
+            violations = _apply_product_ddl(
+                config, admin_dsn, owner_dsn, database, cluster
+            )
+            # ステップ 6 まで試験本体の合否を判定せず、出力も表示しない。
             with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                 pytest.main(
                     [
@@ -360,6 +458,7 @@ def _run_product_tests(
         _validate_test_observations(
             observations.connections, cluster, database, config.expected_test_nodes
         )
+        return violations
     finally:
         os.chdir(previous_directory)
         sys.path[:] = original_path
@@ -780,12 +879,13 @@ def main(run: Callable[[], PreparedTarget] | None = None) -> int:
     try:
         prepared = (run or _prepare_target)()
         config = _load_targets()
-        _run_product_tests(
+        catalog_violations = _run_product_tests(
             config,
             _required_environment(config.admin_dsn_env),
             prepared.owner_dsn,
             _required_environment(config.test_role_dsn_env),
             _required_environment(config.target_db_env),
+            _required_environment(config.initial_db_env),
             prepared.target_digest,
         )
     except RunnerError as error:
@@ -800,6 +900,7 @@ def main(run: Callable[[], PreparedTarget] | None = None) -> int:
                 "generation_id": prepared.generation_id,
                 "target_digest": prepared.target_digest,
                 "migration_head": prepared.migration_head,
+                "catalog_violations": catalog_violations,
             }
         )
     )
