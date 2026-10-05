@@ -1075,6 +1075,7 @@ def _insert_test_vocabularies(cursor: psycopg.Cursor[Any], tenant_id: object) ->
         [
             ("official", "game_type", "公式戦"),
             ("active", "roster_status", "在籍"),
+            ("roster-roundtrip", "roster_status", "往復用"),
         ],
     )
     cursor.executemany(
@@ -2456,7 +2457,7 @@ def test_play_projection_constraints_and_migration_round_trip(
                             runner_id,
                             self_team_id,
                             "走者",
-                            "active",
+                            "roster-roundtrip",
                             "roster-active",
                         ),
                         (
@@ -2464,7 +2465,7 @@ def test_play_projection_constraints_and_migration_round_trip(
                             responsible_pitcher_id,
                             opponent_team_id,
                             "責任投手",
-                            "active",
+                            "roster-roundtrip",
                             "roster-active",
                         ),
                     ],
@@ -3911,7 +3912,7 @@ def test_medical_notes_and_pdf_exports_guards_and_migration_round_trip(
                         player_id,
                         team_id,
                         "選手",
-                        "active",
+                        "roster-roundtrip",
                         "roster-active",
                     ),
                 )
@@ -4516,7 +4517,7 @@ def test_vocabulary_layers_and_settings_guards_and_migration_round_trip(
                         name,
                         roster_status_key,
                         roster_label_key
-                    ) VALUES (%s, %s, %s, %s, 'active', 'roster-active')
+                    ) VALUES (%s, %s, %s, %s, 'roster-roundtrip', 'roster-active')
                     """,
                     (tenant_id, player_id, self_team_id, "語彙参照選手"),
                 )
@@ -5461,7 +5462,7 @@ def test_player_merge_move_and_rate_limit_guards_and_migration_round_trip(
                         name,
                         roster_status_key,
                         roster_label_key
-                    ) VALUES (%s, %s, %s, %s, 'active', 'roster-active')
+                    ) VALUES (%s, %s, %s, %s, 'roster-roundtrip', 'roster-active')
                     """,
                     [
                         (tenant_id, source_player_id, team_id, "統合元選手"),

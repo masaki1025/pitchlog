@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "asset_kind": "migration_seed_allowlist",
+  "declarations": {
+    "roster_status_seed": {
+      "frozen_targets": [
+        "migrations/versions/0027_seed_roster_status.py"
+      ],
+      "identity": "sha256_canonical_json",
+      "granularity": "declaration_series",
+      "allowed": {
+        "upgrade_calls": [
+          "bulk_insert"
+        ],
+        "target_tables": [
+          "system_vocabularies"
+        ],
+        "upgrade_rows": {
+          "count": 3,
+          "category": "roster_status",
+          "keys": [
+            "active",
+            "other",
+            "ob"
+          ]
+        },
+        "downgrade_delete_scope": {
+          "table": "system_vocabularies",
+          "category": "roster_status",
+          "keys": [
+            "active",
+            "other",
+            "ob"
+          ]
+        }
+      }
+    }
+  },
+  "history": [
+    {
+      "series": "roster_status_seed",
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "sha256_canonical_json",
+            "value": "98697198df42a214bdf95b26df5045ed0482d92417950ebd4ce8613ee7d7e4e4"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": false,
+        "values": []
+      },
+      "changes": [
+        {
+          "aspect": "declaration",
+          "before": {
+            "absent": true
+          },
+          "after": {
+            "frozen_targets": [
+              "migrations/versions/0027_seed_roster_status.py"
+            ],
+            "identity": "sha256_canonical_json",
+            "granularity": "declaration_series",
+            "allowed": {
+              "upgrade_calls": [
+                "bulk_insert"
+              ],
+              "target_tables": [
+                "system_vocabularies"
+              ],
+              "upgrade_rows": {
+                "count": 3,
+                "category": "roster_status",
+                "keys": [
+                  "active",
+                  "other",
+                  "ob"
+                ]
+              },
+              "downgrade_delete_scope": {
+                "table": "system_vocabularies",
+                "category": "roster_status",
+                "keys": [
+                  "active",
+                  "other",
+                  "ob"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "fact": "migration の DML 検査に seed 専用 revision の限定許可を初めて置いた",
+      "reason": "小さな初期データの bulk_insert を正本に従って許し、他の revision の禁止を維持するため",
+      "approved_by": "山田正輝",
+      "approved_at": "2026-10-04"
+    }
+  ]
+}
