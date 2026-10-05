@@ -577,3 +577,54 @@ CLAUDE.md の規定により **`codex_run.py review normal` を通す**。
 
 **取り込み後の確認**: `data-model.md` の blob digest・SHA-256 ともに**封印値と一致したまま**
 (develop 側は同書を触っていない)。**`pytest tests/` 2862 passed / 0 failed**・docs 検査 3 本 OK。
+
+### develop を 2 回目に取り込んだ(#94 = TSK-475)
+
+**人間が #94 をマージし、PR #93 が再び `CONFLICTING` になった。** 取り込みは**本ブランチで 2 回目**。
+
+**#94 は `data-model.md` の 10-3 節を直しており、本 PR と同じ封印 2 件を取り直していた。**
+既存候補「**凍結資産が直列化点になり、後続の PR が受理記録の再導出を払う**」の実測がもう 1 件増えた —
+**費用は取り込み回数に比例する**(本 PR はこれで 2 回払った)。別タブ(u-x1 master)が
+#94 の側から同じ候補へ「**authority を触らない PR でも、正本を直しただけで固定 digest の追随を払う**」を
+追記しており、本 PR の実測はその裏返し(**先に正本を直した側が、後から入る改訂のたびに払い直す**)。
+
+**衝突 5 ファイル**:
+
+| ファイル | 解決 |
+| --- | --- |
+| `docs/design/data-model.md` | 変更履歴表の先頭。**両方を残した**(本 PR の 0.5 行 → TSK-475 の 0.4 行)。**条文の衝突は無い**(本 PR は 12-4 節・TSK-475 は 10-3 節) |
+| `docs/README.md` | 索引 2 行。**本 PR 側を基に** TSK-475 の追記を差し込んだ。データモデル設計の行は「以下は v0.4 までの経緯」の先頭へ(**版は上げない実装追随なので v0.4 の群に入る**)/ 台帳の行は `**approved**(…)` の**内側**へ(**develop 側は閉じ括弧の外に付いていた**) |
+| `docs/development/harness-evaluation.md` | 変更履歴表の先頭。**3 行とも残した**(本 PR → TSK-475 の 2 行) |
+| `contracts/authz/shared-preconditions.json` | **封印を取り直した** |
+| `contracts/db/schema-manifest.json` | **封印を取り直した** |
+
+**封印 2 件は取り込み後の `data-model.md` から再計算した**(いずれも 1 行):
+
+| 資産 | 封印の形 | 新しい値 |
+| --- | --- | --- |
+| `contracts/authz/shared-preconditions.json` | git blob digest | `967889fa0cb1f8ccae824fa1c2c1b12f7f22c036` |
+| `contracts/db/schema-manifest.json` | ファイル内容の SHA-256 | `9349da0ec189cdaad6bdf5bd7effe4e7fa27b183708e657b352f184b0fa9e521` |
+
+**件数は走査条件つきで測り直した**: `^### (候補)` の全文見出し数 = **100**(TSK-471 後の 96 + 本 PR の 3 + TSK-475 の 1)。
+`^### ([0-9]+)` = **16**(変化なし)。**走査条件は TSK-471 のものを維持した**。
+
+**N3 受入シートは再生成不要だった。** TSK-475 が 10-3 節へ足した記述に **N3 の語が 1 つも無く**、
+`出現 NNN` の採番は動いていない(`tests/test_orm_acceptance_sheets.py` **13 passed**)。
+**位置依存の識別子は、今回は運良く当たらなかっただけ**で、`data-model.md` を触る PR が
+N3 の語を 1 つでも足せば同じ 89 件の復元作業がまた要る。
+
+#### 全件走行が 972 errors を出し、再走行で消えた(既存候補の実測)
+
+1 回目の `pytest tests/` が **1896 passed / 972 errors**。errors の出た
+`tests/test_verify_nfr021_evidence.py` を**単独で走らせると 195 passed**。
+**同じマシンで別セッションの Codex が `feature-appendix-e-golden-vectors` のテストを走らせていた**。
+**再走行は 2868 passed / 0 failed**(30m11s)。
+
+既存候補「**全件テストの判定が同一マシンの並行作業に左右される**」の実測が 1 件増えた。
+**本 PR の `/check` 初回でも同型の過渡的失敗が出ている**(`tests/domain/mut/` 3 件)。
+**「赤が出たら単独で走らせ直す」という回避が常態化しており、
+本物の失敗を同じ手つきで消してしまう余地が残る**ことを申し送る。
+
+**取り込み後の検査**: harness `ruff` / `ty` OK・`pytest tests/` **2868 passed / 0 failed** /
+backend `ruff format --check` / `ruff check` / `ty` OK・`pytest --ignore=tests/db` **904 passed / 4 skipped** /
+docs 検査 4 本 OK・`check_plan_docs_sync` exit 0。
