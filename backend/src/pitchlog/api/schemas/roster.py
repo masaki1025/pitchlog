@@ -13,6 +13,7 @@ from pitchlog.api.schemas.base import (
 )
 
 UniformNumber = Annotated[str, Field(min_length=1)]
+ROSTER_PAGE_SIZE_MAX = 200
 
 
 class TeamRecordRead(ReadSchema):
@@ -124,7 +125,7 @@ class PlayerCreated(PlayerRead):
 class PlayerListRequest(PageRequest):
     """選手一覧の絞り込みとページ位置を表す。"""
 
-    limit: int = Field(ge=1, le=200)
+    limit: int = Field(ge=1, le=ROSTER_PAGE_SIZE_MAX)
     team_record_id: EntityId | None = None
     roster_status_key: str | None = None
     include_hidden: bool = False
@@ -133,7 +134,7 @@ class PlayerListRequest(PageRequest):
 class TeamRecordListRequest(PageRequest):
     """チームレコード一覧のページ位置を表す。"""
 
-    limit: int = Field(ge=1, le=200)
+    limit: int = Field(ge=1, le=ROSTER_PAGE_SIZE_MAX)
     include_hidden: bool = False
 
 

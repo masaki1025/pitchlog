@@ -30,14 +30,17 @@ from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.pq import TransactionStatus
 from sqlalchemy import (
+    Column,
     Connection,
     Engine,
+    MetaData,
+    Table,
+    Text,
+    Uuid,
     bindparam,
-    column,
     create_engine,
     event,
     select,
-    table,
     text,
 )
 from sqlalchemy.engine import URL
@@ -58,12 +61,10 @@ from pitchlog.db.engine import (
     create_database_engine,
 )
 from pitchlog.repositories import base as repository_base
-from pitchlog.repositories.base import (
-    TenantRepositoryBase,
-    _TenantScopedOperation,
-)
+from pitchlog.repositories.base import TenantRepositoryBase
 from pitchlog.repositories.binding import TenantBindingError, _tenant_transaction
 from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.operation_registration import OperationRegistration
 from pitchlog.repositories.tokens import TenantOperationToken
 
 # DB fixture は backend/tests/conftest.py を経由せず、平場へ明示的に再公開する。
@@ -104,10 +105,11 @@ _PROBE_STATEMENT = (
     "SELECT marker FROM public.tenant_binding_probe WHERE tenant_id = :tenant_id"
 )
 _CURRENT_TENANT_STATEMENT = "SELECT current_setting('app.tenant_id', true)"
-_TENANT_BINDING_PROBE = table(
+_TENANT_BINDING_PROBE = Table(
     "tenant_binding_probe",
-    column("tenant_id"),
-    column("marker"),
+    MetaData(),
+    Column("tenant_id", Uuid),
+    Column("marker", Text),
     schema="public",
 )
 _REPOSITORY_PROBE_STATEMENT = select(_TENANT_BINDING_PROBE.c.marker).where(
@@ -134,7 +136,7 @@ class _TenantBindingProbeToken(TenantOperationToken):
     @property
     def capability_id(self) -> str:
         """テスト専用 capability ID を返す。"""
-        return "test.tenant-binding-probe.select"
+        return "CAP:tenant_binding_probe:read"
 
 
 class _TenantBindingProbeRepository(TenantRepositoryBase):
@@ -1248,13 +1250,15 @@ def test_repository_base_binds_and_emits_explicit_tenant_predicate(
         application_role_database.application_url,
     )
     token = _TenantBindingProbeToken()
-    operation = _TenantScopedOperation(
+    operation = OperationRegistration(
+        token_type=_TenantBindingProbeToken,
         capability_id=token.capability_id,
         statement=cast(
             Select[tuple[object, ...]],
             _REPOSITORY_PROBE_STATEMENT,
         ),
         tenant_column=_TENANT_BINDING_PROBE.c.tenant_id,
+        prepare=lambda _: (cast(Select[Any], _REPOSITORY_PROBE_STATEMENT), {}),
     )
     monkeypatch.setattr(
         repository_base,

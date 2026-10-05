@@ -404,16 +404,35 @@ def test_public_repository_surface_and_signature_are_exact() -> None:
     assert getattr(TenantRepositoryBase.execute, "__final__", False) is True
 
 
-def test_product_capabilities_tokens_and_cross_tenant_registry_are_empty() -> None:
-    """TSK-424 と所有単位の実装前は製品操作と越境関数を一件も開かない。"""
-    assert repository_contract.PRODUCT_CAPABILITY_IDS == ()
-    assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == ()
+def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
+    """選手と対戦相手の 6 操作だけを製品 registry に公開する。"""
+    expected_capabilities = (
+        "CAP:players:read",
+        "CAP:players:insert",
+        "CAP:players:update",
+        "CAP:team_records:read",
+        "CAP:team_records:insert",
+        "CAP:team_records:update",
+    )
+    expected_token_types = (
+        "pitchlog.repositories.roster.PlayerReadToken",
+        "pitchlog.repositories.roster.PlayerCreateToken",
+        "pitchlog.repositories.roster.PlayerUpdateToken",
+        "pitchlog.repositories.roster.TeamRecordReadToken",
+        "pitchlog.repositories.roster.TeamRecordCreateToken",
+        "pitchlog.repositories.roster.TeamRecordUpdateToken",
+    )
+    assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
+    assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
     )
     assert type(repository_base._OPERATION_REGISTRY) is MappingProxyType
-    assert repository_base._OPERATION_REGISTRY == {}
+    assert {
+        f"{token_type.__module__}.{token_type.__qualname__}": spec.capability_id
+        for token_type, spec in repository_base._OPERATION_REGISTRY.items()
+    } == dict(zip(expected_token_types, expected_capabilities, strict=True))
     assert CROSS_TENANT_FUNCTION_REGISTRY == frozenset()
 
 

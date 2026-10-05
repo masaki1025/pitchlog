@@ -157,3 +157,41 @@ branch: feature/um1-player-roster-opponent
 - `frozen-baselines.json` の `history` へ 1 件: `acceptance_id: masaki1025/pitchlog#95` / series `oracle_input` / `70621e33…` → `98ad97de…` / `changes: []` / `placement_change` 前後同値 / `moved: false` / `approved_by: 山田正輝` / `approved_at: 2026-10-05`(承認値は 2026-10-05 に人間へ提示し了承)
 - `--reseal-oracle` で再封印。`check_authz_catalog.py` ok / `check_frozen_baselines.py --invariants-only` OK / `check_failure_injection_points.py` OK / `check_mcdc_map.py` OK / `tests/test_frozen_baseline_*.py` 6 passed / `tests/frozen_negatives/` green
 - ステップ 2・3 の期待失敗のうち oracle 系 8 件は解消(うち `test_normal_validation_never_reseals_a_semantically_valid_drift` はコミット後の再実行で確認)。残るのは履歴位相の 29 件(B)のみ
+
+## 2026-10-05 ステップ 5(リポジトリと operation token・7.7-2 の記録・比較 corpus の再封印)
+
+- **契約**: `repository-contract.json` の `product_capability_ids` を 6 件(`CAP:{players,team_records}:{read,insert,update}`)、`product_operation_token_types` を 6 件に。`contract_revision` 9 → 10。既存 history は保持。生成モジュール `repository_contract.py` を同期した
+- **権威履歴**: `base-allowlist.json` の `baseline_control.history` へ 1 件(`acceptance_id: masaki1025/pitchlog#95`)。影響する凍結資産 9 件の前後 snapshot(新 `history-snapshots/0ad989ea…`)。承認値は 山田正輝 / 2026-10-05
+- **比較 corpus**: manifest の digest を `3174c650…` へ。runner は前版(固定 SHA の detached・清潔な worktree)と現版の両方で 11/11 一致
+- **実装の形**:
+  - 登録型 `operation_registration.py` と製品登録表 `operation_registry.py` を置いた。基底(`base.py`)は製品の種類を知らない
+  - 準備と検査は `_prepare_operation` 1 箇所にまとめ、base と transaction の両方の経路が通る
+  - 表定義は ORM の `__table__` を使う
+- **実行直前の検査**(登録時と同じ capability 検査器を再利用する):
+  - 単一の実表に限る(別名・結合・CTE・入れ子は拒否)
+  - 操作の種類が capability と一致する
+  - `tenant_id = :tenant_id`
+  - UPDATE は `id = :id` が必須
+  - 必須の追加条件(チーム操作の `kind = :kind`)
+  - 一覧は LIMIT の束縛値の上限が 201(DTO 定数 `ROSTER_PAGE_SIZE_MAX` から導出)
+  - UPDATE は token ごとに許可した SET 列に限る(`hidden_at`・`team_record_id` は不可 — 論理削除はステップ 10・11)
+- **検査器の補強(計画の範囲内 — 内訳 5「登録文の検証に通す」)**: `backend/src/pitchlog/authz/capability_registration.py`
+  - 見落としを直した: Column 経由の別表参照
+  - 追加した: 単一の実表に限る形の検査(`_validate_single_target_table_shape`)
+  - 検査器自身のテストに負例を足した
+- **敵対レビュー 5 周**:
+  - 1 周目: P1 2 件・P2 1 件(対象表 / UPDATE の ID 条件 / INSERT の負例)
+  - 2 周目: P1 1 件(同じ表の別名で直積 — 他テナントの行を引けることを実測)
+  - 3 周目: P1 2 件・P2 2 件(transaction 経路の退行 / kind 条件 / LIMIT / count の誤拒否)
+  - 4 周目: P1 2 件(LIMIT の上限 / SET 列)
+  - 5 周目: **P0・P1 なし**。ここで収束とした
+- **持ち越し(P2)**:
+  - ① DTO の `name` は空文字を受理するが token は拒否する → **ステップ 8**(DTO→token の変換を作る入口)で値域を揃える
+  - ② SET 列の重複キー(文字列と Column)と、値の出所(`SET name = players.hidden_at`)を検査しない → 将来の組み立て関数変更に対する検出網。現行コードに実害の経路なし
+  - ③ `count()` の誤拒否(3 周目)→ 集計を登録する単位で監査して許可する
+- **検証**:
+  - ルート指定テスト 468 passed
+  - backend(DB 不要)240 passed
+  - `check_tenant_boundary_bypass` ok / `check_authz_catalog` ok
+  - ruff・ty は green
+  - **PostgreSQL が要るテスト(`backend/tests/db/test_tenant_transaction_scope.py`・`test_authz_tenant_binding.py::test_repository_base_binds_and_emits_explicit_tenant_predicate` — fixture を登録型へ更新)は手元で未実行**。共有 DB を避け、PR #95 の CI で確認する

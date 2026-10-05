@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 9,
+  "contract_revision": 10,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:9"
+        "contract_revision:10"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -71,7 +71,7 @@
   },
   "asset_kind": "tenant_repository_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "405f770bb234de84546d18be3490cff90ae7f32adbf652a96b01c1c60b25568f",
+  "source_digest": "3c12eee2d9a032749c1a7b47468ded915e86d6666d5c8a91926e8aa897b5fcd5",
   "public_surface": {
     "repository_type": "pitchlog.repositories.base.TenantRepositoryBase",
     "context_binding_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
@@ -124,7 +124,21 @@
       "non_frozen_dataclass"
     ]
   },
-  "product_capability_ids": [],
-  "product_operation_token_types": [],
+  "product_capability_ids": [
+    "CAP:players:read",
+    "CAP:players:insert",
+    "CAP:players:update",
+    "CAP:team_records:read",
+    "CAP:team_records:insert",
+    "CAP:team_records:update"
+  ],
+  "product_operation_token_types": [
+    "pitchlog.repositories.roster.PlayerReadToken",
+    "pitchlog.repositories.roster.PlayerCreateToken",
+    "pitchlog.repositories.roster.PlayerUpdateToken",
+    "pitchlog.repositories.roster.TeamRecordReadToken",
+    "pitchlog.repositories.roster.TeamRecordCreateToken",
+    "pitchlog.repositories.roster.TeamRecordUpdateToken"
+  ],
   "cross_tenant_functions": []
 }
