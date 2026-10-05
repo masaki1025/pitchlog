@@ -288,3 +288,19 @@ date: 2026-10-04
 - **生成列の式の照合**: schema manifest の列定義に `generated_expression` を許し(生成列に限る。空の式・通常の既定値との併存は拒否 — `backend/tests/test_schema_manifest.py`)、スキーマ監査が実カタログの式と照合する(`alembic check` は式の違いを検出しない — 10-1 節 ①)
 - **受理記録の検査の文言**: このステップから、受理記録の無い中間コミットの red は「`base-allowlist.json.baseline_control.history: 履歴末尾と 7 資産の識別値が不一致`」(ランタイム契約の識別値が比較元 + 1 に動いたため)。10-1 節 ③ の「movement と追記 record 件数が不一致」と同じ `_validate_repository_histories` の検査で、差し替えた走査は違反 0 件
 - **派生資産**: data-model.md の digest 2 か所(`shared-preconditions.json` の blob・`schema-manifest.json` の SHA-256)/ 受入突合シートの再生成(判定の持ち越しで 11 行が空になった → 人間の判定 — worklog)/ 比較 corpus の digest の再 pin(`tests/fixtures/frozen-archive-cases/manifest.json`)
+
+## 15. ステップ 7 — 認証の資産一式(2026-10-05)
+
+- **宣言**: ロール `pitchlog_auth_fn_owner` / スキーマ `authn`・`authn_crypto` / 拡張 pgcrypto(`authn_crypto`。全メンバー関数の `PUBLIC` を剥奪し認証関数所有用ロールにだけ与える)/ 関数 11 件(5 節の 9 件 + 内部の補助 2 件)。独立の期待集合は `backend/src/pitchlog/authz/product_authn_contract.py`(関数の署名・付与先・スキーマ・拡張・表/列 ACL)
+- **付与先**(全関数 = 所有 `pitchlog_auth_fn_owner`・`SECURITY DEFINER`・`search_path = pg_catalog, pg_temp`):
+
+| 付与先 | 関数 |
+| --- | --- |
+| `pitchlog_app` | `login`・`verify_token`・`logout`・`change_password` |
+| `pitchlog_management_fn_owner` | `issue_initial_password`・`reset_password`・`revoke_tenant_tokens`・`record_admin_login_failure` |
+| 付与しない(内部) | `password_policy_ok`・`setting_positive_integer`(設定値の妥当性 — 6 節)・`record_failure`(計数の共通部) |
+
+- **認証関数所有用ロールの表/列権限**: 認証主体 = `SELECT, INSERT` / 認証情報・トークン・計数 = `SELECT, INSERT, UPDATE` / `tenants` = 列 `id, name_normalized, enabled, retired_at` の `SELECT` / `system_settings` = 列 `key, value` の `SELECT` / `public` の `USAGE` と正規化関数の `EXECUTE`。`DELETE` は与えない(物理削除しない)
+- **計数の勧告ロックの鍵**: `pg_advisory_xact_lock(87001223, hashtext(scope_key || ':' || epoch(window_start)))`(第 1 引数 = 計数専用の定数)。`(scope_key, window_start)` を 1 回だけ決めて鍵・照会・更新に共用し、照会の前に取る(10-1 節 ②)
+- **構成検査の置き換え**: 「アプリが実行できる `SECURITY DEFINER` は 0 件」を、**`pitchlog_app` が実効 `EXECUTE` できる `definer` の集合 == 資産で `pitchlog_app` に付与した集合**の exact 照合へ(最低要求④の試験ではない — 7 節 J-2)。危険ロールへの到達の試験は、所有者の照会を資産で宣言した全スキーマへ広げた
+- **ステップ 8 で特に確かめる点**(レビューで気づいた点 — 推論): `login` のダミーハッシュ(`$2a$12$…`)が本当にコスト 12 の有効な bcrypt 値で、実ハッシュと同じコストで照合されること / 設定値が欠けたときは計数を更新しない分岐がある(失敗の種類の間の一様性の比較から、設定値の欠落は外すか、別に扱うかを決める)

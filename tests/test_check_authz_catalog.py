@@ -72,15 +72,15 @@ def test_product_extension_and_new_schema_declarations() -> None:
     )
     schemas = copy.deepcopy(asset["schemas"])
     extra = copy.deepcopy(schemas[1])
-    extra["schema_id"] = "authn_crypto"
-    extra["schema_name"] = "authn_crypto"
+    extra["schema_id"] = "test_extension_schema"
+    extra["schema_name"] = "test_extension_schema"
     schemas.append(extra)
-    checker._validate_product_schema_expectations(schemas)
+    checker._validate_product_schema_expectations(schemas, authn_enabled=True)
     extensions = [
         {
-            "extension_id": "pgcrypto",
-            "extension_name": "pgcrypto",
-            "schema_name": "authn_crypto",
+            "extension_id": "test_extension",
+            "extension_name": "test_extension",
+            "schema_name": "test_extension_schema",
         }
     ]
     checker._validate_product_extension_expectations(extensions, schemas)
@@ -296,27 +296,56 @@ def _copy_product_catalog_repository(tmp_path: Path) -> Path:
 def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
     """製品状態からでも正しい未発効状態の検査用複製を組み立てる。"""
     root = _copy_product_catalog_repository(tmp_path)
+    provisional_revision = runtime_contract_support.provisional_reference_revision(
+        REPOSITORY_ROOT
+    )
     (root / checker.PRODUCT_MIGRATION_VERSIONS / "0027_tenant_login_identity.py").unlink()
     steps_path = root / checker.PRODUCT_SPEC.application_steps_path
     steps = _read_json_at(root, checker.PRODUCT_SPEC.application_steps_path)
+    for step in steps["application_steps"]:
+        step["element_groups"] = [
+            group for group in step["element_groups"]
+            if group not in {"extensions", "functions:definer"}
+        ]
     steps["application_steps"][-1]["element_groups"].remove(
         "functions:migration_function"
     )
     _write_json_at(root, checker.PRODUCT_SPEC.application_steps_path, steps)
+    staged = _read_base_staged_asset(checker.STAGED_PRODUCT_ASSET)
+    allowed = {
+        (section.element_type, row[section.id_field])
+        for section in checker.PRODUCT_SPEC.element_sections
+        for row in staged.get(section.section_name, [])
+    }
     body_manifest_path = checker.PRODUCT_SPEC.asset_root / "function-bodies/manifest.json"
     body_manifest = _read_json_at(root, body_manifest_path)
+    for entry in body_manifest["entries"]:
+        if (entry["element_type"], entry["element_id"]) not in allowed:
+            (root / entry["path"]).unlink()
     body_manifest["entries"] = [
         entry for entry in body_manifest["entries"]
-        if entry["element_id"] != "FUNCTION:public:authn_normalize_team_name(text)"
+        if (entry["element_type"], entry["element_id"]) in allowed
     ]
     _write_json_at(root, body_manifest_path, body_manifest)
-    (root / checker.PRODUCT_SPEC.asset_root / "function-bodies/functions/"
-     "FUNCTION:public:authn_normalize_team_name(text).sql").unlink()
+    public_body = checker.PRODUCT_SPEC.asset_root / "function-bodies/schemas/public.sql"
+    (root / public_body).write_text(
+        _run_git(
+            REPOSITORY_ROOT,
+            "show",
+            f"{provisional_revision}:{public_body.as_posix()}",
+        ),
+        encoding="utf-8",
+    )
     map_path = checker.PRODUCT_SPEC.asset_root / "probe-product-map.json"
     mapping = _read_json_at(root, map_path)
+    if str(REPOSITORY_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPOSITORY_ROOT))
+    from backend.tests.product_authz_probe_product_map import atomic_elements
+
+    staged_atoms = atomic_elements(staged, label="product")
     mapping["product_only"] = [
         entry for entry in mapping["product_only"]
-        if entry["product"] != "function:FUNCTION:public:authn_normalize_team_name(text)"
+        if entry["product"] in staged_atoms
     ]
     _write_json_at(root, map_path, mapping)
     failure_path = checker.PRODUCT_SPEC.asset_root / "failure-injection-points.json"

@@ -89,11 +89,15 @@ def test_derived_product_runtime_contract_exists_and_authenticates(
     schemas = objects["schemas"]
     tables = [tuple(row) for row in objects["tables"]]
     functions = [tuple(row) for row in objects["functions"]]
+    declared_schemas = catalog.asset["schemas"]
+    declared_tables = catalog.asset["tables"]
     declared_functions = catalog.asset["functions"]
+    assert isinstance(declared_schemas, list)
+    assert isinstance(declared_tables, list)
     assert isinstance(declared_functions, list)
     assert (len(schemas), len(tables), len(functions)) == (
-        2,
-        45,
+        len(declared_schemas),
+        len(declared_tables),
         len(declared_functions),
     )
     assert (
@@ -186,3 +190,4 @@ def test_derived_product_runtime_contract_exists_and_authenticates(
     assert owner_counts == [len(schemas), len(tables), len(functions)]
     assert len(observation) == 1
     assert "pitchlog_shared_fn_owner" in observation[0].dangerous_roles
+    assert "pitchlog_auth_fn_owner" in observation[0].dangerous_roles

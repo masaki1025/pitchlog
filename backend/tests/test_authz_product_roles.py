@@ -196,7 +196,9 @@ def test_removed_product_role_violates_independent_contract() -> None:
 def test_auth_stage_requires_fifth_role_even_when_role_is_missing() -> None:
     """認証スキーマを段階印とし、所有ロールの削除で旧段階へ戻さない。"""
     asset = _read_product_asset()
-    asset["schemas"].append({"schema_name": "authn"})
+    asset["roles"] = [
+        row for row in asset["roles"] if row["role_id"] != "pitchlog_auth_fn_owner"
+    ]
     expected = expected_product_roles(asset)
     assert set(expected) == {
         "pitchlog_owner",
@@ -231,7 +233,7 @@ def test_product_role_mutations_are_rejected(
 
 
 def test_product_role_assets_contain_no_secrets_or_connection_strings() -> None:
-    """DDL宣言と全bodyにpasswordや接続文字列を含めない。"""
+    """DDL宣言と全bodyに平文の固定パスワードや接続文字列を含めない。"""
     paths = [_REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path]
     paths.extend(
         path
@@ -241,5 +243,5 @@ def test_product_role_assets_contain_no_secrets_or_connection_strings() -> None:
     assert paths
     for path in paths:
         text = path.read_text(encoding="utf-8")
-        assert "password" not in text.casefold(), path
+        assert re.search(r"\bpassword\s*=\s*'[^']+'", text, re.I) is None, path
         assert _CONNECTION_STRING_RE.search(text) is None, path

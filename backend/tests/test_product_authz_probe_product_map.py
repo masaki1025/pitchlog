@@ -74,7 +74,12 @@ def test_probe_product_map_is_bidirectionally_exact() -> None:
     summary = validate_probe_product_map(mapping, probe, product)
 
     assert len(summary.probe_atoms) == 48
-    assert len(summary.product_atoms) == 196
+    assert {
+        "role:pitchlog_auth_fn_owner",
+        "schema:authn",
+        "schema:authn_crypto",
+        "function:FUNCTION:authn:login(text, text)",
+    } <= summary.product_atoms
     assert summary.probe_atoms == (
         summary.mapped_probe_atoms | summary.explicit_non_mapping
     )

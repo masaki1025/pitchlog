@@ -97,19 +97,19 @@ def test_extension_and_new_schema_asset_is_green(
     schemas = elements["schemas"]
     assert isinstance(schemas, list)
     new_schema = copy.deepcopy(schemas[1])
-    new_schema["schema_id"] = "authn_crypto"
-    new_schema["schema_name"] = "authn_crypto"
+    new_schema["schema_id"] = "test_crypto"
+    new_schema["schema_name"] = "test_crypto"
     schemas.append(new_schema)
     elements["extensions"] = [
         {
-            "extension_id": "pgcrypto",
-            "extension_name": "pgcrypto",
-            "schema_name": "authn_crypto",
+            "extension_id": "test_extension",
+            "extension_name": "test_extension",
+            "schema_name": "test_crypto",
         }
     ]
     groups = _application_steps(steps_asset)[1]["element_groups"]
     assert isinstance(groups, list)
-    groups.append("extensions")
+    assert "extensions" in groups
 
     validated = validate_product_application_steps(steps_asset, elements, PRODUCT_SPEC)
     assert validated.application_steps[1].element_groups == (
@@ -166,10 +166,10 @@ def test_invalid_extension_declaration_is_red(
         "schema_name": "public",
     }
     elements["extensions"] = [extension]
-    if mutation != "missing_group":
+    if mutation == "missing_group":
         groups = _application_steps(steps_asset)[1]["element_groups"]
         assert isinstance(groups, list)
-        groups.append("extensions")
+        groups.remove("extensions")
     if mutation == "wrong_schema":
         extension["schema_name"] = "unlisted"
     elif mutation == "wrong_id":
@@ -187,7 +187,9 @@ def test_definer_group_follows_helper_group(
     elements = copy.deepcopy(ddl_elements)
     functions = elements["functions"]
     assert isinstance(functions, list)
-    definer = copy.deepcopy(functions[-1])
+    definer = copy.deepcopy(
+        next(row for row in functions if row["function_kind"] == "rls_helper")
+    )
     definer.update(
         function_id="FUNCTION:public:test_definer(text)",
         schema_name="public",
@@ -199,7 +201,7 @@ def test_definer_group_follows_helper_group(
     functions.append(definer)
     groups = _application_steps(steps_asset)[2]["element_groups"]
     assert isinstance(groups, list)
-    groups.append("functions:definer")
+    assert "functions:definer" in groups
     validated = validate_product_application_steps(steps_asset, elements, PRODUCT_SPEC)
     assert validated.application_steps[2].element_groups == (
         "functions:rls_helper",
@@ -230,7 +232,9 @@ def test_definer_declaration_requires_schema_owner_and_acl(
     elements = copy.deepcopy(ddl_elements)
     functions = elements["functions"]
     assert isinstance(functions, list)
-    definer = copy.deepcopy(functions[-1])
+    definer = copy.deepcopy(
+        next(row for row in functions if row["function_kind"] == "rls_helper")
+    )
     definer["function_id"] = "FUNCTION:public:test_definer(text)"
     definer["function_name"] = "test_definer"
     definer["identity_args"] = "text"
@@ -239,7 +243,7 @@ def test_definer_declaration_requires_schema_owner_and_acl(
     functions.append(definer)
     groups = _application_steps(steps_asset)[2]["element_groups"]
     assert isinstance(groups, list)
-    groups.append("functions:definer")
+    assert "functions:definer" in groups
     _assert_rejected(steps_asset, elements, match)
 
 

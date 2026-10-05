@@ -33,7 +33,8 @@
       "operation_kind": "product_apply_database_and_schemas",
       "element_groups": [
         "databases",
-        "schemas"
+        "schemas",
+        "extensions"
       ]
     },
     {
@@ -41,7 +42,8 @@
       "sequence": 3,
       "operation_kind": "product_apply_helper_functions",
       "element_groups": [
-        "functions:rls_helper"
+        "functions:rls_helper",
+        "functions:definer"
       ]
     },
     {

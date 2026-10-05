@@ -328,7 +328,21 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
         expected_sql[("policy", f"POLICY:{table_id}:{CONTROL_PROFILE}")] = (
             generate_control_policy_sql(table_id)
         )
-    assert actual_sql == expected_sql
+    assert {
+        key: sql
+        for key, sql in actual_sql.items()
+        if key[0] != "acl_expectation" or key[1].endswith(":pitchlog_app")
+    } == expected_sql
+    owner_acls = [
+        row
+        for row in asset["acl_expectations"]
+        if row["grantee_role_id"] == "pitchlog_auth_fn_owner"
+    ]
+    assert {
+        key
+        for key in actual_sql
+        if key[0] == "acl_expectation" and key[1].endswith(":pitchlog_auth_fn_owner")
+    } == {("acl_expectation", row["acl_id"]) for row in owner_acls}
 
 
 def test_function_owner_table_acl_is_derived_from_declaration() -> None:

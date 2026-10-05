@@ -155,6 +155,7 @@ def _expected_role_rows(
 def _catalog_fingerprint(
     connection: psycopg.Connection[Any],
     role_ids: tuple[str, ...],
+    schema_names: tuple[str, ...],
 ) -> tuple[tuple[object, ...], ...]:
     """前提拒否の前後で製品が触るカタログの内容を記録する。"""
     with connection.cursor() as cursor:
@@ -177,7 +178,7 @@ def _catalog_fingerprint(
             SELECT 'schema', namespace.nspname,
                    pg_catalog.concat_ws(',', namespace.nspowner, namespace.nspacl::text)
             FROM pg_catalog.pg_namespace AS namespace
-            WHERE namespace.nspname IN ('public', 'authz_private')
+            WHERE namespace.nspname = ANY(%s)
             UNION ALL
             SELECT 'relation', relation.oid::text,
                    pg_catalog.concat_ws(
@@ -209,7 +210,7 @@ def _catalog_fingerprint(
             FROM pg_catalog.pg_proc AS procedure
             JOIN pg_catalog.pg_namespace AS namespace
               ON namespace.oid = procedure.pronamespace
-            WHERE namespace.nspname IN ('public', 'authz_private')
+            WHERE namespace.nspname = ANY(%s)
             UNION ALL
             SELECT 'column', attribute.attrelid::text || ':' || attribute.attnum,
                    attribute.attacl::text
@@ -223,7 +224,7 @@ def _catalog_fingerprint(
               AND NOT attribute.attisdropped
             ORDER BY 1, 2, 3
             """,
-            (list(role_ids),),
+            (list(role_ids), list(schema_names), list(schema_names)),
         )
         rows = tuple(tuple(row) for row in cursor.fetchall())
     connection.rollback()
@@ -257,19 +258,22 @@ def _assert_rejected_without_catalog_change(
 ) -> None:
     """公開経路の拒否と、別接続から見たカタログ不変を表明する。"""
     role_ids = tuple(_asset_roles(catalog))
-    before = _catalog_fingerprint(catalog.observer, role_ids)
+    declared_schemas = catalog.asset["schemas"]
+    assert isinstance(declared_schemas, list)
+    schema_names = tuple(row["schema_name"] for row in declared_schemas)
+    before = _catalog_fingerprint(catalog.observer, role_ids, schema_names)
     counting_connection = _CountingConnection(connection)
     with pytest.raises(ProductProvisioningError, match=message):
         apply_product_authz_ddl(cast(psycopg.Connection[Any], counting_connection))
     assert counting_connection.execute_count == 0
-    after = _catalog_fingerprint(catalog.observer, role_ids)
+    after = _catalog_fingerprint(catalog.observer, role_ids, schema_names)
     assert after == before
 
 
 def test_product_fixture_migrates_as_owner_then_applies_as_external_superuser(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """Migration の所有者と適用後の主体・固定 7 手順を実 DB で表明する。"""
+    """Migration の所有者と適用後の主体・資産の手順を実 DB で表明する。"""
     catalog = provisioned_product_catalog
     with catalog.applicator.cursor() as cursor:
         cursor.execute("SELECT current_user::text, session_user::text")

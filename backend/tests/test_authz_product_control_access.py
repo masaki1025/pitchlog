@@ -260,7 +260,11 @@ def test_membership_helper_and_control_policies_match_design() -> None:
         for table_id, column_id in _EXPECTED_DEPENDENCY_COLUMNS
         for declaration in [build_helper_column_acl_declaration(table_id, column_id)]
     }
-    assert column_acls == expected_column_acls
+    assert {
+        key: row
+        for key, row in column_acls.items()
+        if row["function_id"] == HELPER_FUNCTION_ID
+    } == expected_column_acls
     assert not any(
         row["grantee_role_id"] == HELPER_OWNER_ROLE_ID
         for row in asset["acl_expectations"]

@@ -692,6 +692,28 @@ def test_unlisted_function_execute_in_private_schema_is_red(
             catalog.applicator.rollback()
 
 
+def test_unlisted_pgcrypto_execute_is_red(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """移行ロールの authn_crypto での余分な EXECUTE を検出する。"""
+    catalog = provisioned_product_catalog
+    with _active_migration_role(catalog) as role:
+        try:
+            with catalog.applicator.cursor() as cursor:
+                cursor.execute(
+                    sql.SQL(
+                        "GRANT EXECUTE ON FUNCTION authn_crypto.crypt(text, text) TO {}"
+                    ).format(sql.Identifier(role.name))
+                )
+            _assert_active_red(
+                catalog.applicator,
+                role.oid,
+                "MIGRATION-BATCH:FUNCTION-EXECUTE",
+            )
+        finally:
+            catalog.applicator.rollback()
+
+
 def test_public_function_execute_mutation_is_red(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:

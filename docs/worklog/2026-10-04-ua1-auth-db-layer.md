@@ -176,3 +176,16 @@ branch: feature/ua1-auth-db-layer
   - DB 試験: 131 passed(migration・往復・スキーマ監査・製品 authz・移行バッチ用ロール・正規化関数ほか 14 ファイル)/ 是正後に `test_schema_audit.py`・`test_alembic_migrations.py`・`test_product_authz_normalize_function.py` を再実行し 32 passed
   - ハーネス: `ruff`・`ty` green / `test_check_authz_catalog.py`・`test_check_authz_function_bodies.py`・`test_orm_acceptance_sheets.py`・`test_frozen_archive.py` 216 passed / `test_frozen_history.py` 含む凍結資産 133 passed / 検査器 5 本 rc=0(`check_authz_catalog`・`check_authz_function_bodies`・`check_failure_injection_points`・`check_shared_preconditions`・`check_docs_status`)
   - **迂回の走査**(差し替え版・新しいファイルを追跡に入れて): `ok` / 元の検査は受理記録の検査の 1 件だけ(「履歴末尾と 7 資産の識別値が不一致」— design.md 14 節)
+
+## ステップ 6 の是正(2026-10-05)
+
+- **迂回の走査は作業ツリーでなく HEAD のコミット(と `base...HEAD` の差分)を読む**(`check_tenant_boundary_bypass.py:5647` の `git show`・`:807`)。**コミット前に走らせた確認は 1 つ前のコミットを見ていた** → ステップ 6 の `models.py:69`(`sqlalchemy.text` — TB005 は変更行だけを見る)を見逃した。ステップ 6 のコミットを一時 worktree で走査して再現を確かめ、`column("retired_at").is_(None)` に直して `6f9bd072`(ステップ 6/13 是正)。是正後の HEAD で走査 ok。この時点の HEAD の走査でステップ 3〜6 の他の違反は 0 件
+- **以後、迂回の走査はコミットの後に走らせ、違反があれば是正コミットを足す**
+
+## ステップ 7(2026-10-05)
+
+- Codex へ `--resume` で委任(中断なし)+ 差し戻し 1 回(DB 試験 5 件 — 拡張の重複追加・ロール削除の試験が適用で先に失敗・旧い「0 件」の表明・危険ロールの所有者照会・保護スキーマ 2 件の固定。探索で適用器の DB 試験の指紋も直した)。決定は design.md 15 節
+- 確認(Claude が実行):
+  - backend: `ruff`・`format --check`・`ty` green / 非 DB 試験 400 passed・4 skipped / 生成器 `check` rc=0 / `rederive` 収束(revision 9 のまま)
+  - DB 試験(製品 authz 全ファイル・スキーマ監査・migration・往復・ランタイム契約の統合・適用器): 1 回目 129 passed・5 failed → 是正後 **134 passed**
+  - ハーネス: `ruff`・`ty` green / `test_check_authz_catalog.py`・`test_check_authz_function_bodies.py`・`test_orm_acceptance_sheets.py`・`test_frozen_archive.py`・`test_frozen_history.py` 313 passed / 検査器 4 本 rc=0 / 比較 corpus の digest は Codex が再 pin 済み

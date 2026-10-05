@@ -803,6 +803,131 @@
         "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:group_memberships:status:pitchlog_shared_fn_owner.sql",
         "element_type": "column_acl_expectation",
         "element_id": "COLUMN-ACL:public:group_memberships:status:pitchlog_shared_fn_owner"
-      }
+      },
+    {
+      "path": "contracts/authz/product/function-bodies/roles/pitchlog_auth_fn_owner.sql",
+      "element_type": "role",
+      "element_id": "pitchlog_auth_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/schemas/authn.sql",
+      "element_type": "schema",
+      "element_id": "authn"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/schemas/authn_crypto.sql",
+      "element_type": "schema",
+      "element_id": "authn_crypto"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/extensions/pgcrypto.sql",
+      "element_type": "extension",
+      "element_id": "pgcrypto"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/acl_expectations/ACL:tenant_auth_subjects:pitchlog_auth_fn_owner.sql",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:tenant_auth_subjects:pitchlog_auth_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/acl_expectations/ACL:tenant_credentials:pitchlog_auth_fn_owner.sql",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:tenant_credentials:pitchlog_auth_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/acl_expectations/ACL:tenant_tokens:pitchlog_auth_fn_owner.sql",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:tenant_tokens:pitchlog_auth_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/acl_expectations/ACL:rate_limit_counters:pitchlog_auth_fn_owner.sql",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:rate_limit_counters:pitchlog_auth_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenants:id:pitchlog_auth_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tenants:id:pitchlog_auth_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenants:name_normalized:pitchlog_auth_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tenants:name_normalized:pitchlog_auth_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenants:enabled:pitchlog_auth_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tenants:enabled:pitchlog_auth_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenants:retired_at:pitchlog_auth_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tenants:retired_at:pitchlog_auth_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:system_settings:key:pitchlog_auth_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:system_settings:key:pitchlog_auth_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:system_settings:value:pitchlog_auth_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:system_settings:value:pitchlog_auth_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:change_password(uuid, text, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:authn:change_password(uuid, text, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:issue_initial_password(uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:authn:issue_initial_password(uuid, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:login(text, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:authn:login(text, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:logout(uuid).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:authn:logout(uuid)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:password_policy_ok(text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:authn:password_policy_ok(text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:record_admin_login_failure(text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:authn:record_admin_login_failure(text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:record_failure(text, bigint, bigint, bigint, boolean).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:authn:record_failure(text, bigint, bigint, bigint, boolean)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:reset_password(uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:authn:reset_password(uuid, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:revoke_tenant_tokens(uuid).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:authn:revoke_tenant_tokens(uuid)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:setting_positive_integer(text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:authn:setting_positive_integer(text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:verify_token(uuid).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:authn:verify_token(uuid)"
+    }
   ]
 }

@@ -49,6 +49,17 @@
       "create_db": false,
       "replication": false,
       "inherit": false
+    },
+    {
+      "role_id": "pitchlog_auth_fn_owner",
+      "creation": "product_ddl",
+      "superuser": false,
+      "bypass_rls": true,
+      "login": false,
+      "create_role": false,
+      "create_db": false,
+      "replication": false,
+      "inherit": false
     }
   ],
   "permanent_privileged_role_ids": [
@@ -108,6 +119,11 @@
           "grantee": "pitchlog_shared_fn_owner",
           "privilege": "USAGE",
           "grantable": false
+        },
+        {
+          "grantee": "pitchlog_auth_fn_owner",
+          "privilege": "USAGE",
+          "grantable": false
         }
       ],
       "revoked_acl_expectations": [
@@ -128,6 +144,11 @@
         },
         {
           "grantee": "pitchlog_shared_fn_owner",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_auth_fn_owner",
           "privilege": "CREATE",
           "grantable": false
         }
@@ -158,6 +179,88 @@
         },
         {
           "grantee": "pitchlog_app",
+          "privilege": "CREATE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "schema_id": "authn",
+      "schema_name": "authn",
+      "creation": "product_ddl",
+      "owner": "pitchlog_owner",
+      "ownership_path": "direct",
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_management_fn_owner",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_auth_fn_owner",
+          "privilege": "USAGE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "PUBLIC",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_management_fn_owner",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_auth_fn_owner",
+          "privilege": "CREATE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "schema_id": "authn_crypto",
+      "schema_name": "authn_crypto",
+      "creation": "product_ddl",
+      "owner": "pitchlog_owner",
+      "ownership_path": "direct",
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_auth_fn_owner",
+          "privilege": "USAGE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "PUBLIC",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_auth_fn_owner",
           "privilege": "CREATE",
           "grantable": false
         }
@@ -966,10 +1069,24 @@
       "identity_args": "text",
       "function_kind": "migration_function",
       "owner_role_id": "pitchlog_owner",
-      "acl_expectations": [],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_auth_fn_owner",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
       "revoked_acl_expectations": [
-        {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": false},
-        {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": false}
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
       ]
     },
     {
@@ -1777,6 +1894,318 @@
           "grantable": false
         }
       ]
+    },
+    {
+      "function_id": "FUNCTION:authn:login(text, text)",
+      "schema_name": "authn",
+      "function_name": "login",
+      "identity_args": "text, text",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_auth_fn_owner",
+      "language": "plpgsql",
+      "returns": "uuid",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:authn:verify_token(uuid)",
+      "schema_name": "authn",
+      "function_name": "verify_token",
+      "identity_args": "uuid",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_auth_fn_owner",
+      "language": "plpgsql",
+      "returns": "uuid",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:authn:logout(uuid)",
+      "schema_name": "authn",
+      "function_name": "logout",
+      "identity_args": "uuid",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_auth_fn_owner",
+      "language": "plpgsql",
+      "returns": "void",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:authn:change_password(uuid, text, text)",
+      "schema_name": "authn",
+      "function_name": "change_password",
+      "identity_args": "uuid, text, text",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_auth_fn_owner",
+      "language": "plpgsql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:authn:issue_initial_password(uuid, text)",
+      "schema_name": "authn",
+      "function_name": "issue_initial_password",
+      "identity_args": "uuid, text",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_auth_fn_owner",
+      "language": "plpgsql",
+      "returns": "void",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_management_fn_owner",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:authn:reset_password(uuid, text)",
+      "schema_name": "authn",
+      "function_name": "reset_password",
+      "identity_args": "uuid, text",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_auth_fn_owner",
+      "language": "plpgsql",
+      "returns": "void",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_management_fn_owner",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:authn:revoke_tenant_tokens(uuid)",
+      "schema_name": "authn",
+      "function_name": "revoke_tenant_tokens",
+      "identity_args": "uuid",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_auth_fn_owner",
+      "language": "plpgsql",
+      "returns": "void",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_management_fn_owner",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:authn:record_admin_login_failure(text)",
+      "schema_name": "authn",
+      "function_name": "record_admin_login_failure",
+      "identity_args": "text",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_auth_fn_owner",
+      "language": "plpgsql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_management_fn_owner",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:authn:password_policy_ok(text)",
+      "schema_name": "authn",
+      "function_name": "password_policy_ok",
+      "identity_args": "text",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_auth_fn_owner",
+      "language": "plpgsql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:authn:setting_positive_integer(text)",
+      "schema_name": "authn",
+      "function_name": "setting_positive_integer",
+      "identity_args": "text",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_auth_fn_owner",
+      "language": "plpgsql",
+      "returns": "bigint",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:authn:record_failure(text, bigint, bigint, bigint, boolean)",
+      "schema_name": "authn",
+      "function_name": "record_failure",
+      "identity_args": "text, bigint, bigint, bigint, boolean",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_auth_fn_owner",
+      "language": "plpgsql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
     }
   ],
   "acl_expectations": [
@@ -2161,6 +2590,61 @@
         "SELECT"
       ],
       "grant_option": false
+    },
+    {
+      "acl_id": "ACL:tenant_auth_subjects:pitchlog_auth_fn_owner",
+      "object_kind": "table",
+      "object_schema": "public",
+      "object_id": "tenant_auth_subjects",
+      "profile": "function_only",
+      "grantee_role_id": "pitchlog_auth_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:tenant_credentials:pitchlog_auth_fn_owner",
+      "object_kind": "table",
+      "object_schema": "public",
+      "object_id": "tenant_credentials",
+      "profile": "function_only",
+      "grantee_role_id": "pitchlog_auth_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:tenant_tokens:pitchlog_auth_fn_owner",
+      "object_kind": "table",
+      "object_schema": "public",
+      "object_id": "tenant_tokens",
+      "profile": "function_only",
+      "grantee_role_id": "pitchlog_auth_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:rate_limit_counters:pitchlog_auth_fn_owner",
+      "object_kind": "table",
+      "object_schema": "public",
+      "object_id": "rate_limit_counters",
+      "profile": "function_only",
+      "grantee_role_id": "pitchlog_auth_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ],
+      "grant_option": false
     }
   ],
   "column_acl_expectations": [
@@ -2267,6 +2751,91 @@
       ],
       "grant_option": false,
       "function_id": "FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:tenants:id:pitchlog_auth_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "tenants",
+      "column_id": "id",
+      "grantee_role_id": "pitchlog_auth_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authn:login(text, text)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:tenants:name_normalized:pitchlog_auth_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "tenants",
+      "column_id": "name_normalized",
+      "grantee_role_id": "pitchlog_auth_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authn:login(text, text)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:tenants:enabled:pitchlog_auth_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "tenants",
+      "column_id": "enabled",
+      "grantee_role_id": "pitchlog_auth_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authn:login(text, text)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:tenants:retired_at:pitchlog_auth_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "tenants",
+      "column_id": "retired_at",
+      "grantee_role_id": "pitchlog_auth_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authn:login(text, text)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:system_settings:key:pitchlog_auth_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "system_settings",
+      "column_id": "key",
+      "grantee_role_id": "pitchlog_auth_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authn:login(text, text)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:system_settings:value:pitchlog_auth_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "system_settings",
+      "column_id": "value",
+      "grantee_role_id": "pitchlog_auth_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:authn:login(text, text)"
+    }
+  ],
+  "extensions": [
+    {
+      "extension_id": "pgcrypto",
+      "extension_name": "pgcrypto",
+      "schema_name": "authn_crypto"
     }
   ]
 }

@@ -178,11 +178,8 @@ def test_function_execute_request_covers_every_declared_product_schema(
     asset = _load_object(_REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json")
     raw_schemas = asset["schemas"]
     assert isinstance(raw_schemas, list)
-    extra_schema = copy.deepcopy(raw_schemas[-1])
-    extra_schema["schema_id"] = "authn_crypto"
-    extra_schema["schema_name"] = "authn_crypto"
-    raw_schemas.append(extra_schema)
     declared_schemas = tuple(row["schema_name"] for row in raw_schemas)
+    assert set(declared_schemas) == {"public", "authz_private", "authn", "authn_crypto"}
     monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
     expected = product_catalog._load_migration_batch_expectations()
     query = product_catalog.CatalogQueryId
@@ -216,6 +213,41 @@ def test_function_execute_request_covers_every_declared_product_schema(
     assert report.ok
     assert set(queried_schemas) == set(declared_schemas)
     assert len(queried_schemas) == len(declared_schemas)
+
+
+def test_removing_authn_crypto_from_function_scan_is_red(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """認証用スキーマを EXECUTE の検査範囲から外せない。"""
+    original = product_catalog._migration_batch_catalog_requests
+
+    def omitted(
+        role_oid: int, product_schemas: tuple[str, ...]
+    ) -> tuple[product_catalog._CatalogRequest, ...]:
+        requests = list(original(role_oid, product_schemas))
+        for index, request in enumerate(requests):
+            if (
+                request.query_id
+                is product_catalog.CatalogQueryId.MIGRATION_BATCH_FUNCTION_EXECUTE
+            ):
+                requests[index] = product_catalog._CatalogRequest(
+                    request.query_id,
+                    (
+                        [
+                            schema
+                            for schema in product_schemas
+                            if schema != "authn_crypto"
+                        ],
+                        role_oid,
+                    ),
+                )
+        return tuple(requests)
+
+    monkeypatch.setattr(product_catalog, "_migration_batch_catalog_requests", omitted)
+    with pytest.raises(ProductCatalogError, match="検査対象スキーマ"):
+        product_catalog.inspect_migration_batch_role_catalog(
+            cast(psycopg.Connection[Any], object()), role_oid=910
+        )
 
 
 def test_adding_a_write_target_is_red(monkeypatch: pytest.MonkeyPatch) -> None:

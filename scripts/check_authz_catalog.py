@@ -27,6 +27,10 @@ from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-i
     AuthzAssetSpec,
     asset_scope_validation_error,
 )
+from pitchlog.authz.product_authn_contract import (  # noqa: E402  # ty: ignore[unresolved-import]
+    authn_stage,
+    validate_authn_asset,
+)
 from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[unresolved-import]
     CONTROL_PROFILE,
     HELPER_FUNCTION_ID,
@@ -3253,7 +3257,9 @@ def _validate_product_database_expectations(value: object) -> None:
         raise CatalogError("製品DBの所有者またはACLがdesign.md 2-1と一致しない")
 
 
-def _validate_product_schema_expectations(value: object) -> None:
+def _validate_product_schema_expectations(
+    value: object, *, authn_enabled: bool = False
+) -> None:
     """製品スキーマの所有者とACLをdesign.md 2-1へ照合する。"""
     if not isinstance(value, list):
         raise CatalogError("製品DDL manifest.schemasは配列でなければならない")
@@ -3302,6 +3308,19 @@ def _validate_product_schema_expectations(value: object) -> None:
             ),
         }
     for schema_id, expected in PRODUCT_SCHEMA_EXPECTATIONS.items():
+        if schema_id == "public" and authn_enabled:
+            expected = {
+                **expected,
+                "acl_expectations": cast(
+                    frozenset[tuple[str, str, bool]], expected["acl_expectations"]
+                )
+                | frozenset({("pitchlog_auth_fn_owner", "USAGE", False)}),
+                "revoked_acl_expectations": cast(
+                    frozenset[tuple[str, str, bool]],
+                    expected["revoked_acl_expectations"],
+                )
+                | frozenset({("pitchlog_auth_fn_owner", "CREATE", False)}),
+            }
         if actual.get(schema_id) != expected:
             raise CatalogError(
                 "製品スキーマの既存の所有者またはACLがdesign.md 2-1と一致しない"
@@ -4093,6 +4112,10 @@ def _validate_product_function_acl_bodies(
             schema_name,
             function_name,
             identity_args,
+            execute_grantees=tuple(
+                str(grant["grantee"])
+                for grant in cast(list[dict[str, object]], declaration["acl_expectations"])
+            ),
         ):
             raise CatalogError(f"{function_id}のPUBLIC EXECUTE剥奪が生成結果と不一致")
 
@@ -4143,6 +4166,11 @@ def _validate_product_function_acl_expectations(
             function_name,
             identity_args,
             function_kind=migration_kinds[(schema_name, function_name, identity_args)],
+            execute_grantees=("pitchlog_auth_fn_owner",)
+            if authn_stage(raw)
+            and (schema_name, function_name, identity_args)
+            == ("public", "authn_normalize_team_name", "text")
+            else (),
         )
         expected_functions[str(declaration["function_id"])] = declaration
     all_functions = _product_declarations_by_id(
@@ -4474,8 +4502,14 @@ def _validate_product_ddl_elements(
     memberships = raw["membership_edges"]
     if memberships != []:
         raise CatalogError("製品ロールに接するmembershipの辺は0本でなければならない")
+    try:
+        validate_authn_asset(raw)
+    except ValueError as error:
+        raise CatalogError(str(error)) from error
     _validate_product_database_expectations(raw["databases"])
-    _validate_product_schema_expectations(raw["schemas"])
+    _validate_product_schema_expectations(
+        raw["schemas"], authn_enabled=authn_stage(raw)
+    )
     _validate_product_extension_expectations(raw.get("extensions"), raw["schemas"])
     _validate_product_table_expectations(raw["tables"], root)
     _validate_product_table_access_expectations(raw, root, state)

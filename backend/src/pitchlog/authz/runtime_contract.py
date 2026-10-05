@@ -7,7 +7,7 @@ RUNTIME_CONTRACT_REVISION = 9
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "a12acdd875c15d73f0c0a0b6d65c9116ad15c4f8041b98b046e5a356dda1033f"
+SOURCE_DIGEST = "c849cdbaf77b9f60e8073dd563e2be31698ab497d6c8764484ee5dffddc9559d"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -35,7 +35,7 @@ APPLICATION_ROLE_ATTRIBUTES = ApplicationRoleAttributes(
     rolinherit=False,
 )
 
-PROTECTED_SCHEMAS = ("authz_private", "public")
+PROTECTED_SCHEMAS = ("authn", "authn_crypto", "authz_private", "public")
 PROTECTED_TABLES = (
     ("public", "admin_credentials"),
     ("public", "admin_operation_logs"),
@@ -84,6 +84,17 @@ PROTECTED_TABLES = (
     ("public", "tournament_rule_assignments"),
 )
 PROTECTED_FUNCTIONS = (
+    ("authn", "change_password", "uuid, text, text"),
+    ("authn", "issue_initial_password", "uuid, text"),
+    ("authn", "login", "text, text"),
+    ("authn", "logout", "uuid"),
+    ("authn", "password_policy_ok", "text"),
+    ("authn", "record_admin_login_failure", "text"),
+    ("authn", "record_failure", "text, bigint, bigint, bigint, boolean"),
+    ("authn", "reset_password", "uuid, text"),
+    ("authn", "revoke_tenant_tokens", "uuid"),
+    ("authn", "setting_positive_integer", "text"),
+    ("authn", "verify_token", "uuid"),
     ("authz_private", "tenant_has_effective_membership", "uuid, boolean"),
     ("public", "authn_normalize_team_name", "text"),
     ("public", "prevent_admin_credentials_id_update", ""),

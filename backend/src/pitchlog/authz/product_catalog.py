@@ -16,6 +16,15 @@ from pitchlog.authz.asset_spec import (
     ProductApplicationSteps,
     load_product_application_steps,
 )
+from pitchlog.authz.product_authn_contract import (
+    AUTHN_COLUMN_GRANTS,
+    AUTHN_EXTENSION,
+    AUTHN_FUNCTION_GRANTEES,
+    AUTHN_OWNER,
+    AUTHN_SCHEMA_USERS,
+    AUTHN_TABLE_GRANTS,
+    validate_authn_asset,
+)
 from pitchlog.authz.product_function_acl import valid_product_identity_args
 from pitchlog.authz.product_role_contract import (
     MIGRATION_BATCH_ROLE_ATTRIBUTES,
@@ -89,6 +98,27 @@ JOIN pg_catalog.pg_namespace AS namespace
   ON namespace.oid = extension.extnamespace
 WHERE extension.extname <> 'plpgsql'
 ORDER BY extension.extname, namespace.nspname
+"""
+
+_PGCRYPTO_MEMBER_ACL_QUERY: LiteralString = """
+SELECT routine.oid, namespace.nspname, routine.proname,
+       pg_catalog.oidvectortypes(routine.proargtypes),
+       CASE WHEN privilege.grantee = 0 THEN 'PUBLIC' ELSE grantee.rolname END,
+       privilege.privilege_type, privilege.is_grantable
+FROM pg_catalog.pg_extension AS extension
+JOIN pg_catalog.pg_depend AS dependency
+  ON dependency.refobjid = extension.oid
+ AND dependency.refclassid = 'pg_catalog.pg_extension'::pg_catalog.regclass
+ AND dependency.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+ AND dependency.deptype = 'e'
+JOIN pg_catalog.pg_proc AS routine ON routine.oid = dependency.objid
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
+LEFT JOIN LATERAL pg_catalog.aclexplode(
+    COALESCE(routine.proacl, pg_catalog.acldefault('f', routine.proowner))
+) AS privilege ON privilege.grantee <> routine.proowner
+LEFT JOIN pg_catalog.pg_roles AS grantee ON grantee.oid = privilege.grantee
+WHERE extension.extname = 'pgcrypto'
+ORDER BY 1, 5, 6
 """
 
 _SCHEMA_ACL_QUERY: LiteralString = """
@@ -223,7 +253,7 @@ FROM pg_catalog.pg_proc AS routine
 JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
 JOIN pg_catalog.pg_roles AS owner ON owner.oid = routine.proowner
 WHERE namespace.nspname = ANY(%s)
-  AND routine.proname = ANY(%s)
+  AND (routine.proname = ANY(%s) OR namespace.nspname = 'authn')
 ORDER BY namespace.nspname, routine.proname,
          pg_catalog.oidvectortypes(routine.proargtypes)
 """
@@ -243,7 +273,7 @@ CROSS JOIN LATERAL pg_catalog.aclexplode(
 ) AS privilege
 LEFT JOIN pg_catalog.pg_roles AS grantee ON grantee.oid = privilege.grantee
 WHERE namespace.nspname = ANY(%s)
-  AND routine.proname = ANY(%s)
+  AND (routine.proname = ANY(%s) OR namespace.nspname = 'authn')
   AND privilege.grantee <> routine.proowner
 ORDER BY 1, 2, 3, 4, 5, 6
 """
@@ -293,7 +323,7 @@ WHERE role.rolcanlogin
           JOIN pg_catalog.pg_namespace AS namespace
             ON namespace.oid = routine.pronamespace
           WHERE namespace.nspname = ANY(%s)
-            AND routine.proname = ANY(%s)
+            AND (routine.proname = ANY(%s) OR namespace.nspname = 'authn')
             AND routine.proowner = role.oid
       )
   )
@@ -462,6 +492,7 @@ class CatalogQueryId(Enum):
     DATABASE_ACL = "database_acl"
     SCHEMAS = "schemas"
     EXTENSIONS = "extensions"
+    PGCRYPTO_MEMBER_ACL = "pgcrypto_member_acl"
     SCHEMA_ACL = "schema_acl"
     TABLES = "tables"
     POLICIES = "policies"
@@ -989,7 +1020,6 @@ def _load_product_expectations() -> _ProductExpectations:
     """Staged 資産と適用手順資産から exact-set 期待値を導出する。"""
     asset = _load_product_asset()
     application_steps = load_product_application_steps(_REPOSITORY_ROOT, PRODUCT_SPEC)
-
     role_rows = _rows(asset, "roles")
     roles = tuple(
         sorted(
@@ -1018,6 +1048,10 @@ def _load_product_expectations() -> _ProductExpectations:
     }
     if declared_roles != semantic_roles:
         raise ProductCatalogError("製品ロールが独立の意味契約と一致しない")
+    try:
+        validate_authn_asset(asset)
+    except ValueError as error:
+        raise ProductCatalogError(str(error)) from error
     semantic_catalog_roles = tuple(
         sorted(
             (
@@ -1231,6 +1265,7 @@ def _catalog_requests(
         _CatalogRequest(CatalogQueryId.DATABASE_ACL, ()),
         _CatalogRequest(CatalogQueryId.SCHEMAS, (schemas,)),
         _CatalogRequest(CatalogQueryId.EXTENSIONS, ()),
+        _CatalogRequest(CatalogQueryId.PGCRYPTO_MEMBER_ACL, ()),
         _CatalogRequest(CatalogQueryId.SCHEMA_ACL, (schemas,)),
         _CatalogRequest(CatalogQueryId.TABLES, (schemas, tables)),
         _CatalogRequest(CatalogQueryId.POLICIES, (schemas, tables)),
@@ -1295,6 +1330,8 @@ def _query_for_id(query_id: CatalogQueryId) -> LiteralString:
         return _SCHEMAS_QUERY
     if query_id is CatalogQueryId.EXTENSIONS:
         return _EXTENSIONS_QUERY
+    if query_id is CatalogQueryId.PGCRYPTO_MEMBER_ACL:
+        return _PGCRYPTO_MEMBER_ACL_QUERY
     if query_id is CatalogQueryId.SCHEMA_ACL:
         return _SCHEMA_ACL_QUERY
     if query_id is CatalogQueryId.TABLES:
@@ -1679,6 +1716,18 @@ def inspect_product_authz_catalog(
         requests = _migration_batch_catalog_requests(
             _migration_batch_role_oid, product_schemas
         )
+        function_requests = tuple(
+            request
+            for request in requests
+            if request.query_id is CatalogQueryId.MIGRATION_BATCH_FUNCTION_EXECUTE
+        )
+        if len(function_requests) != 1 or function_requests[0].params != (
+            list(product_schemas),
+            _migration_batch_role_oid,
+        ):
+            raise ProductCatalogError(
+                "移行バッチ用ロールの関数検査対象スキーマが製品資産と不一致"
+            )
     observations: list[tuple[CatalogQueryId, tuple[tuple[object, ...], ...]]] = []
     try:
         for request in requests:
@@ -1737,6 +1786,81 @@ def inspect_product_authz_catalog(
             )
         ),
     )
+    if "authn" in expectations.schema_names:
+        actual_schemas = _actual_schemas(
+            _observed_rows(frozen_observations, CatalogQueryId.SCHEMAS)
+        )
+        report.compare(
+            "PRODUCT-CATALOG:AUTHN-SCHEMAS-INDEPENDENT",
+            tuple(sorted((name, "pitchlog_owner") for name in AUTHN_SCHEMA_USERS)),
+            tuple(row for row in actual_schemas if row[0] in AUTHN_SCHEMA_USERS),
+        )
+        actual_extensions = tuple(
+            sorted(
+                (str(row[0]), str(row[1]))
+                for row in _observed_rows(
+                    frozen_observations, CatalogQueryId.EXTENSIONS
+                )
+                if str(row[0]) == AUTHN_EXTENSION[0]
+            )
+        )
+        report.compare(
+            "PRODUCT-CATALOG:AUTHN-EXTENSION-INDEPENDENT",
+            (AUTHN_EXTENSION,),
+            actual_extensions,
+        )
+        authn_functions = tuple(
+            sorted(
+                ("authn", name, args, AUTHN_OWNER, True)
+                for name, args in AUTHN_FUNCTION_GRANTEES
+            )
+        )
+        report.compare(
+            "PRODUCT-CATALOG:AUTHN-FUNCTIONS-INDEPENDENT",
+            authn_functions,
+            tuple(row for row in _actual_functions(function_rows) if row[0] == "authn"),
+        )
+        authn_grants = tuple(
+            sorted(
+                ("authn", name, args, grantee, "EXECUTE", False)
+                for (name, args), grantee in AUTHN_FUNCTION_GRANTEES.items()
+                if grantee is not None
+            )
+        )
+        observed_grants = _actual_acl(
+            _observed_rows(frozen_observations, CatalogQueryId.FUNCTION_ACL), 4
+        )
+        report.compare(
+            "PRODUCT-CATALOG:AUTHN-GRANTS-INDEPENDENT",
+            authn_grants,
+            tuple(row for row in observed_grants if row[0] == "authn"),
+        )
+        member_rows = _observed_rows(
+            frozen_observations, CatalogQueryId.PGCRYPTO_MEMBER_ACL
+        )
+        members = {(str(row[1]), str(row[2]), str(row[3])) for row in member_rows}
+        expected_members = tuple(
+            sorted((*member, AUTHN_OWNER, "EXECUTE", False) for member in members)
+        )
+        actual_members = tuple(
+            sorted(
+                (
+                    str(row[1]),
+                    str(row[2]),
+                    str(row[3]),
+                    str(row[4]),
+                    str(row[5]),
+                    bool(row[6]),
+                )
+                for row in member_rows
+            )
+        )
+        report.compare("PRODUCT-CATALOG:PGCRYPTO-MEMBERS-PRESENT", True, bool(members))
+        report.compare(
+            "PRODUCT-CATALOG:PGCRYPTO-MEMBER-ACL-INDEPENDENT",
+            expected_members,
+            actual_members,
+        )
     report.compare(
         "PRODUCT-CATALOG:SCHEMA-ACL",
         expectations.schema_acl,
@@ -1745,6 +1869,26 @@ def inspect_product_authz_catalog(
             2,
         ),
     )
+    if "authn" in expectations.schema_names:
+        schema_acl = _actual_acl(
+            _observed_rows(frozen_observations, CatalogQueryId.SCHEMA_ACL), 2
+        )
+        expected_authn_schema_acl = tuple(
+            sorted(
+                (schema, role, "USAGE", False)
+                for schema, users in AUTHN_SCHEMA_USERS.items()
+                for role in users
+            )
+        ) + (("public", AUTHN_OWNER, "USAGE", False),)
+        report.compare(
+            "PRODUCT-CATALOG:AUTHN-SCHEMA-ACL-INDEPENDENT",
+            tuple(sorted(expected_authn_schema_acl)),
+            tuple(
+                row
+                for row in schema_acl
+                if row[0] in AUTHN_SCHEMA_USERS or row[1] == AUTHN_OWNER
+            ),
+        )
     report.compare(
         "PRODUCT-CATALOG:TABLES",
         expectations.tables,
@@ -1771,6 +1915,34 @@ def inspect_product_authz_catalog(
             4,
         ),
     )
+    if "authn" in expectations.schema_names:
+        table_acl = _actual_acl(
+            _observed_rows(frozen_observations, CatalogQueryId.TABLE_ACL), 3
+        )
+        report.compare(
+            "PRODUCT-CATALOG:AUTHN-TABLE-ACL-INDEPENDENT",
+            tuple(
+                sorted(
+                    ("public", table, AUTHN_OWNER, privilege, False)
+                    for table, privileges in AUTHN_TABLE_GRANTS.items()
+                    for privilege in privileges
+                )
+            ),
+            tuple(row for row in table_acl if row[2] == AUTHN_OWNER),
+        )
+        column_acl = _actual_acl(
+            _observed_rows(frozen_observations, CatalogQueryId.COLUMN_ACL), 4
+        )
+        report.compare(
+            "PRODUCT-CATALOG:AUTHN-COLUMN-ACL-INDEPENDENT",
+            tuple(
+                sorted(
+                    ("public", table, column, AUTHN_OWNER, "SELECT", False)
+                    for table, column in AUTHN_COLUMN_GRANTS
+                )
+            ),
+            tuple(row for row in column_acl if row[3] == AUTHN_OWNER),
+        )
     report.compare(
         "PRODUCT-CATALOG:FUNCTIONS",
         expectations.functions,
@@ -1784,6 +1956,29 @@ def inspect_product_authz_catalog(
             4,
         ),
     )
+    if "authn" in expectations.schema_names:
+        function_acl = _actual_acl(
+            _observed_rows(frozen_observations, CatalogQueryId.FUNCTION_ACL), 4
+        )
+        report.compare(
+            "PRODUCT-CATALOG:AUTHN-NORMALIZER-EXECUTE-INDEPENDENT",
+            (
+                (
+                    "public",
+                    "authn_normalize_team_name",
+                    "text",
+                    AUTHN_OWNER,
+                    "EXECUTE",
+                    False,
+                ),
+            ),
+            tuple(
+                row
+                for row in function_acl
+                if row[:3] == ("public", "authn_normalize_team_name", "text")
+                and row[3] == AUTHN_OWNER
+            ),
+        )
     report.compare(
         "PRODUCT-CATALOG:MEMBERSHIPS",
         (),

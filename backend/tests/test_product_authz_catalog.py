@@ -390,6 +390,17 @@ def _raw_catalog_rows(
         CatalogQueryId.DATABASE_ACL: list(expectations.database_acl),
         CatalogQueryId.SCHEMAS: list(expectations.schemas),
         CatalogQueryId.EXTENSIONS: list(expectations.extensions),
+        CatalogQueryId.PGCRYPTO_MEMBER_ACL: [
+            (
+                200,
+                "authn_crypto",
+                "crypt",
+                "text, text",
+                "pitchlog_auth_fn_owner",
+                "EXECUTE",
+                False,
+            )
+        ],
         CatalogQueryId.SCHEMA_ACL: list(expectations.schema_acl),
         CatalogQueryId.TABLES: list(expectations.tables),
         CatalogQueryId.POLICIES: policy_rows,
@@ -469,7 +480,9 @@ def test_definer_function_is_derived_from_test_asset(
     asset = copy.deepcopy(product_catalog._load_product_asset())
     rows = asset["functions"]
     assert isinstance(rows, list)
-    definer = copy.deepcopy(rows[-1])
+    definer = copy.deepcopy(
+        next(row for row in rows if row["function_kind"] == "rls_helper")
+    )
     definer.update(
         function_id="FUNCTION:authz_private:step3_definer(uuid, boolean)",
         function_name="step3_definer",
@@ -485,7 +498,6 @@ def test_definer_function_is_derived_from_test_asset(
             encoding="utf-8"
         )
     )
-    steps_asset["application_steps"][2]["element_groups"].append("functions:definer")
     steps = validate_product_application_steps(steps_asset, asset, PRODUCT_SPEC)
     monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
     monkeypatch.setattr(
@@ -910,6 +922,7 @@ def test_public_inspection_is_green_for_asset_exact_rows(
         CatalogQueryId.DATABASE_ACL,
         CatalogQueryId.SCHEMAS,
         CatalogQueryId.EXTENSIONS,
+        CatalogQueryId.PGCRYPTO_MEMBER_ACL,
         CatalogQueryId.SCHEMA_ACL,
         CatalogQueryId.TABLES,
         CatalogQueryId.POLICIES,
@@ -921,7 +934,7 @@ def test_public_inspection_is_green_for_asset_exact_rows(
         CatalogQueryId.DANGEROUS_LOGIN_ROLES,
         CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS,
     ]
-    assert len(report.checked_ids) == 16
+    assert len(report.checked_ids) == 26
 
 
 def test_unqualified_public_relation_in_policy_is_red(
@@ -1116,3 +1129,120 @@ def test_invalid_privileged_role_oids_are_red_before_catalog_access(
             privileged_role_oids=privileged_role_oids,
         )
     assert not called
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("missing_function", "署名"),
+        ("wrong_grantee", "付与先"),
+        ("wrong_extension_schema", "拡張"),
+        ("missing_table_grant", "表 ACL"),
+    ],
+)
+def test_authn_asset_mutations_fail_independent_contract(
+    mutation: str, message: str
+) -> None:
+    """認証資産の関数・権限・拡張を独立した意味集合へ照合する。"""
+    from pitchlog.authz.product_authn_contract import validate_authn_asset
+
+    asset = cast(dict[str, Any], copy.deepcopy(product_catalog._load_product_asset()))
+    validate_authn_asset(asset)
+    if mutation == "missing_function":
+        asset["functions"] = [
+            row for row in asset["functions"] if row["function_name"] != "login"
+        ]
+    elif mutation == "wrong_grantee":
+        function = next(
+            row for row in asset["functions"] if row["function_name"] == "login"
+        )
+        function["acl_expectations"][0]["grantee"] = "pitchlog_management_fn_owner"
+    elif mutation == "wrong_extension_schema":
+        asset["extensions"][0]["schema_name"] = "public"
+    else:
+        asset["acl_expectations"] = [
+            row
+            for row in asset["acl_expectations"]
+            if row["object_id"] != "rate_limit_counters"
+            or row["grantee_role_id"] != "pitchlog_auth_fn_owner"
+        ]
+    with pytest.raises(ValueError, match=message):
+        validate_authn_asset(asset)
+
+
+def test_missing_role_is_rejected_before_dependent_authn_grants(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ロールと依存する付与を消しても独立のロール集合で拒否する。"""
+    role_name = "pitchlog_management_fn_owner"
+    asset = cast(dict[str, Any], copy.deepcopy(product_catalog._load_product_asset()))
+    asset["roles"] = [row for row in asset["roles"] if row["role_id"] != role_name]
+    for section in ("schemas", "functions"):
+        for row in asset[section]:
+            for field in ("acl_expectations", "revoked_acl_expectations"):
+                row[field] = [
+                    grant for grant in row[field] if grant["grantee"] != role_name
+                ]
+    monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
+    with pytest.raises(ProductCatalogError, match="独立の意味契約"):
+        product_catalog._load_product_expectations()
+
+
+@pytest.mark.parametrize(
+    ("mutation", "check_id"),
+    [
+        ("extra_member_public", "PRODUCT-CATALOG:PGCRYPTO-MEMBER-ACL-INDEPENDENT"),
+        ("wrong_extension_schema", "PRODUCT-CATALOG:AUTHN-EXTENSION-INDEPENDENT"),
+        ("missing_app_grant", "PRODUCT-CATALOG:AUTHN-GRANTS-INDEPENDENT"),
+        (
+            "missing_normalizer_grant",
+            "PRODUCT-CATALOG:AUTHN-NORMALIZER-EXECUTE-INDEPENDENT",
+        ),
+    ],
+)
+def test_authn_catalog_mutations_fail_independent_checks(
+    mutation: str, check_id: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """実カタログの認証権限変異を資産由来でない期待集合が拒否する。"""
+    rows = _raw_catalog_rows(900)
+    if mutation == "extra_member_public":
+        rows[CatalogQueryId.PGCRYPTO_MEMBER_ACL].append(
+            (200, "authn_crypto", "crypt", "text, text", "PUBLIC", "EXECUTE", False)
+        )
+    elif mutation == "wrong_extension_schema":
+        rows[CatalogQueryId.EXTENSIONS][0] = ("pgcrypto", "public")
+    elif mutation == "missing_app_grant":
+        rows[CatalogQueryId.FUNCTION_ACL] = [
+            row
+            for row in rows[CatalogQueryId.FUNCTION_ACL]
+            if row[:3] != ("authn", "login", "text, text")
+        ]
+    else:
+        rows[CatalogQueryId.FUNCTION_ACL] = [
+            row
+            for row in rows[CatalogQueryId.FUNCTION_ACL]
+            if row[:3] != ("public", "authn_normalize_team_name", "text")
+            or row[3] != "pitchlog_auth_fn_owner"
+        ]
+    _install_catalog_rows(monkeypatch, rows)
+    report = inspect_product_authz_catalog(
+        cast(psycopg.Connection[Any], object()),
+        privileged_role_oids=frozenset({900}),
+    )
+    assert check_id in {violation.check_id for violation in report.violations}
+
+
+def test_authn_bcrypt_cost_is_twelve_in_all_hash_paths() -> None:
+    """ダミーハッシュと実ハッシュ生成の bcrypt コストを同じ 12 に固定する。"""
+    directory = _REPOSITORY_ROOT / "contracts/authz/product/function-bodies/functions"
+    login = (directory / "FUNCTION:authn:login(text, text).sql").read_text(
+        encoding="utf-8"
+    )
+    assert "$2a$12$" in login
+    for filename in (
+        "FUNCTION:authn:change_password(uuid, text, text).sql",
+        "FUNCTION:authn:issue_initial_password(uuid, text).sql",
+        "FUNCTION:authn:reset_password(uuid, text).sql",
+    ):
+        body = (directory / filename).read_text(encoding="utf-8")
+        assert "authn_crypto.gen_salt('bf', 12)" in body

@@ -83,6 +83,7 @@ def build_product_function_acl_declaration(
     identity_args: str,
     *,
     function_kind: str = "migration_trigger",
+    execute_grantees: tuple[str, ...] = (),
 ) -> dict[str, object]:
     """migration由来の関数の所有者とACL期待を組み立てる。"""
     if function_kind not in {"migration_trigger", "migration_function"}:
@@ -98,7 +99,10 @@ def build_product_function_acl_declaration(
         "identity_args": identity_args,
         "function_kind": function_kind,
         "owner_role_id": "pitchlog_owner",
-        "acl_expectations": [],
+        "acl_expectations": [
+            {"grantee": role, "privilege": "EXECUTE", "grantable": False}
+            for role in execute_grantees
+        ],
         "revoked_acl_expectations": [
             {
                 "grantee": "PUBLIC",
@@ -118,8 +122,10 @@ def generate_product_function_acl_sql(
     schema_name: str,
     function_name: str,
     identity_args: str,
+    *,
+    execute_grantees: tuple[str, ...] = (),
 ) -> str:
-    """PUBLICとアプリ用ロールから関数実行権を剥奪するSQLを生成する。"""
+    """PUBLICを剥奪し、宣言したロールだけへ実行権を与えるSQLを生成する。"""
     function_id = product_function_id(
         schema_name,
         function_name,
@@ -132,4 +138,8 @@ def generate_product_function_acl_sql(
         "\n"
         f"REVOKE EXECUTE ON FUNCTION {physical_name} FROM PUBLIC;\n"
         f"REVOKE EXECUTE ON FUNCTION {physical_name} FROM pitchlog_app;\n"
+        + "".join(
+            f"GRANT EXECUTE ON FUNCTION {physical_name} TO {role};\n"
+            for role in execute_grantees
+        )
     )
