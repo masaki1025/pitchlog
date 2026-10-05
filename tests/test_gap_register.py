@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -872,3 +873,66 @@ def test_register_path_and_version_follow_d12_naming() -> None:
     )
     assert document["version"] == checker.REGISTER_PATH.stem
     assert document["schemaVersion"] == 1
+
+
+REPORT_PATH = (
+    REPOSITORY_ROOT
+    / "docs/features/appendix-e-golden-vectors/unresolved-report.md"
+)
+DESIGN_PATH = REPOSITORY_ROOT / "docs/features/appendix-e-golden-vectors/design.md"
+
+
+def _report_rows(section: str, column_count: int) -> list[list[str]]:
+    """未解消レポートの指定区分を表の行として読む。"""
+    report = REPORT_PATH.read_text(encoding="utf-8")
+    start = f"<!-- report:{section}:start -->"
+    end = f"<!-- report:{section}:end -->"
+    assert report.count(start) == report.count(end) == 1
+    table = report.split(start, 1)[1].split(end, 1)[0]
+    lines = [line for line in table.splitlines() if line.startswith("|")]
+    assert lines[1].startswith("| ---")
+    rows = [[cell.strip() for cell in line.strip("|").split("|")] for line in lines]
+    assert all(len(row) == column_count for row in rows)
+    return rows[2:]
+
+
+def test_unresolved_report_gap_states_match_register() -> None:
+    """レポートの全GAP状態と送り先を実台帳に突き合わせる。"""
+    report = REPORT_PATH.read_text(encoding="utf-8")
+    assert "## 1. `gapRegister` の状態（9件）" in report
+    assert "追跡状態" in report
+    assert "解決したことを意味しない" in report
+    rows = _report_rows("gap", 4)
+    actual = {row[0]: row[1] for row in rows}
+    expected = {gap["gapId"]: gap["state"] for gap in _register()["gaps"]}
+    assert len(rows) == len(actual) == 9
+    assert actual == expected
+    assert {state: list(actual.values()).count(state) for state in set(actual.values())} == {
+        "resolved": 5,
+        "open": 4,
+    }
+    assert all(row[2] and row[3] for row in rows)
+    stage2_ids = {row[0] for row in _report_rows("stage2", 4)}
+    assert all(
+        set(re.findall(r"\bS\d{2}\b", row[3])) <= stage2_ids for row in rows
+    )
+
+
+def test_unresolved_report_human_and_stage2_sources_resolve() -> None:
+    """人間統制と段階2送りの全行に担当と設計書の実在断片を要求する。"""
+    design = DESIGN_PATH.read_text(encoding="utf-8")
+    report = REPORT_PATH.read_text(encoding="utf-8")
+    sections = {"human": 9, "stage2": 32}
+    assert "## 2. 人間統制に委ねた項目（9件）" in report
+    assert "## 3. 段階2へ送った項目（32件）" in report
+    for section, count in sections.items():
+        rows = _report_rows(section, 4)
+        ids = [row[0] for row in rows]
+        prefix = "H" if section == "human" else "S"
+        assert ids == [f"{prefix}{number:02}" for number in range(1, count + 1)]
+        assert all(row[1] and row[2] and row[3] in design for row in rows)
+
+    stage2 = {row[0]: row for row in _report_rows("stage2", 4)}
+    assert "39件" in stage2["S25"][1]
+    assert "2817件" in stage2["S28"][1]
+    assert "12件" in stage2["S29"][1]
