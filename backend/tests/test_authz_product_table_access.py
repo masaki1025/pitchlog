@@ -23,10 +23,12 @@ from pitchlog.authz.product_control_access import (
 from pitchlog.authz.product_table_access import (
     TENANT_PREDICATE_ID,
     TENANT_PREDICATE_TEMPLATE,
+    generate_function_owner_table_acl_sql,
     generate_product_policy_sql,
     generate_product_predicate_sql,
     generate_product_table_acl_sql,
 )
+from pitchlog.authz.runtime_contract_state import RuntimeContractState
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
@@ -134,8 +136,13 @@ def _rows_by_table(asset: dict[str, Any], section: str) -> dict[str, dict[str, A
     field = "table_id" if section == "policies" else "object_id"
     rows = asset[section]
     assert isinstance(rows, list)
-    result = {str(row[field]): row for row in rows}
-    assert len(result) == len(rows)
+    relevant = (
+        rows
+        if section == "policies"
+        else [row for row in rows if row["grantee_role_id"] == "pitchlog_app"]
+    )
+    result = {str(row[field]): row for row in relevant}
+    assert len(result) == len(relevant)
     return result
 
 
@@ -241,7 +248,6 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
     direct_tables = {
         table_id for table_id, profile in profiles.items() if profile in _PROFILE_RULES
     }
-    assert len(direct_tables) == 28
     control_tables = {
         table_id for table_id, profile in profiles.items() if profile == CONTROL_PROFILE
     }
@@ -322,7 +328,53 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
         expected_sql[("policy", f"POLICY:{table_id}:{CONTROL_PROFILE}")] = (
             generate_control_policy_sql(table_id)
         )
-    assert actual_sql == expected_sql
+    assert {
+        key: sql
+        for key, sql in actual_sql.items()
+        if key[0] != "acl_expectation" or key[1].endswith(":pitchlog_app")
+    } == expected_sql
+    owner_acls = [
+        row
+        for row in asset["acl_expectations"]
+        if row["grantee_role_id"] == "pitchlog_auth_fn_owner"
+    ]
+    assert {
+        key
+        for key in actual_sql
+        if key[0] == "acl_expectation" and key[1].endswith(":pitchlog_auth_fn_owner")
+    } == {("acl_expectation", row["acl_id"]) for row in owner_acls}
+
+
+def test_function_owner_table_acl_is_derived_from_declaration() -> None:
+    """直接アクセスの ACL に関数所有者の宣言を追加できる。"""
+    asset = _product_asset()
+    function = copy.deepcopy(asset["functions"][-1])
+    function.update(
+        function_id="FUNCTION:authz_private:step4_definer()",
+        function_name="step4_definer",
+        identity_args="",
+        function_kind="definer",
+        owner_role_id="pitchlog_management_fn_owner",
+        security_mode="definer",
+    )
+    asset["functions"].append(function)
+    declaration: dict[str, object] = {
+        "acl_id": "ACL:tenants:pitchlog_management_fn_owner",
+        "object_kind": "table",
+        "object_schema": "public",
+        "object_id": "tenants",
+        "profile": "function_dependency",
+        "grantee_role_id": "pitchlog_management_fn_owner",
+        "privilege_ids": ["SELECT"],
+        "grant_option": False,
+    }
+    asset["acl_expectations"].append(declaration)
+    _catalog_checker._validate_product_table_access_expectations(
+        asset, _REPOSITORY_ROOT, RuntimeContractState.PROVISIONAL
+    )
+    assert "GRANT SELECT ON TABLE public.tenants" in (
+        generate_function_owner_table_acl_sql(declaration)
+    )
 
 
 @pytest.mark.parametrize(

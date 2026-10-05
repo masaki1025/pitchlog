@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import ast
+import base64
 import copy
+import importlib
 import json
 import shutil
 import subprocess
@@ -18,9 +20,11 @@ from test_authz_runtime_contract_repository import (
     provisional_reference_revision,
 )
 
+from pitchlog.authz import runtime_contract_generator as generator
 from pitchlog.authz.runtime_contract_generator import (
     check_repository,
     main,
+    rederive_repository,
     render_repository,
 )
 from pitchlog.authz.runtime_contract_state import (
@@ -193,6 +197,60 @@ def _synchronize_with_lifecycle_overrides(
 def _copy_product_repository(tmp_path: Path) -> Path:
     """Switch を使わず、試験用の正しい製品状態を組み立てる。"""
     return copy_product_repository(_REPOSITORY_ROOT, tmp_path / "repository")
+
+
+def _git_repository_for_rederive(tmp_path: Path, *, full_history: bool = False) -> Path:
+    """製品契約の比較元コミットを持つ使い捨てリポジトリを作る。"""
+    root = tmp_path / "repository"
+    for relative in (RUNTIME_CONTRACT_ASSET, GENERATED_MODULE, PRODUCT_ASSET):
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(_REPOSITORY_ROOT / relative, target)
+    if full_history:
+        shutil.copytree(
+            _REPOSITORY_ROOT / "contracts/tenant_boundary",
+            root / "contracts/tenant_boundary",
+            dirs_exist_ok=True,
+        )
+        external_paths = {
+            Path(path)
+            for asset_path in (root / "contracts/tenant_boundary").glob("*.json")
+            for path in json.loads(asset_path.read_text(encoding="utf-8"))[
+                "baseline_control"
+            ]["identity"]["frozen_projection"]["external_files"]
+        }
+        for relative in sorted(external_paths):
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(_REPOSITORY_ROOT / relative, target)
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "add", "."], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "-qm",
+            "base",
+        ],
+        check=True,
+    )
+    return root
+
+
+def _add_test_function(root: Path) -> None:
+    """製品 DDL 宣言に重複しない関数を 1 件加える。"""
+    product = _read_copied_json(root, PRODUCT_ASSET)
+    function = copy.deepcopy(cast(list[dict[str, Any]], product["functions"])[0])
+    function["function_id"] = "FUNCTION:public:test_rederive_step_five()"
+    function["function_name"] = "test_rederive_step_five"
+    cast(list[dict[str, Any]], product["functions"]).append(function)
+    _write_repository_json(root, PRODUCT_ASSET, product)
 
 
 def _synchronize_repository(repository_root: Path, asset: dict[str, Any]) -> None:
@@ -474,7 +532,7 @@ def test_staged_derivation_matches_provisional_union_exactly() -> None:
     assert comparison.extra.is_empty
     assert len(protected["schemas"]) == 2
     assert len(protected["tables"]) == 45
-    assert len(protected["functions"]) == 38
+    assert len(protected["functions"]) == len(staged["functions"])
 
     provisional = cast(dict[str, list[Any]], runtime_asset["protected_objects"])
     added_schemas = set(protected["schemas"]) - set(provisional["schemas"])
@@ -964,6 +1022,284 @@ def test_rendered_source_is_already_ruff_formatted(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_rederive_no_change_and_one_revision_from_base(tmp_path: Path) -> None:
+    """再導出を繰り返しても比較元 +1 に止まり P4 が解消する。"""
+    root = _git_repository_for_rederive(tmp_path)
+    asset_before = (root / RUNTIME_CONTRACT_ASSET).read_bytes()
+    module_before = (root / GENERATED_MODULE).read_bytes()
+    assert main(["rederive", "--base", "HEAD"], repository_root=root) == 0
+    assert (root / RUNTIME_CONTRACT_ASSET).read_bytes() == asset_before
+    assert (root / GENERATED_MODULE).read_bytes() == module_before
+
+    _add_test_function(root)
+    assert check_repository(root) == {"DERIVED_FIELDS_STALE"}
+    base_revision = _read_asset(root)["runtime_contract_revision"]
+    assert main(["rederive", "--base", "HEAD"], repository_root=root) == 3
+    updated = _read_asset(root)
+    assert updated["runtime_contract_revision"] == base_revision + 1
+    assert updated["baseline_control"]["identity"]["current_identifiers"] == [
+        f"runtime_contract_revision:{base_revision + 1}"
+    ]
+    assert updated["source_digest"] == asset_digest(updated)
+    assert updated["protected_objects"] != json.loads(asset_before)["protected_objects"]
+    assert (root / GENERATED_MODULE).read_text(
+        encoding="utf-8"
+    ) == render_runtime_contract(updated)
+    assert check_repository(root) == set()
+    assert main(["rederive", "--base", "HEAD"], repository_root=root) == 0
+    assert _read_asset(root)["runtime_contract_revision"] == base_revision + 1
+    _write_repository_json(root, PRODUCT_ASSET, _read_repository_json(PRODUCT_ASSET))
+    assert main(["rederive", "--base", "HEAD"], repository_root=root) == 3
+    restored = _read_asset(root)
+    assert restored["runtime_contract_revision"] == base_revision
+    assert restored["baseline_control"]["identity"]["current_identifiers"] == [
+        f"runtime_contract_revision:{base_revision}"
+    ]
+
+
+def test_rederive_rejects_revision_plus_two_and_nonancestor(tmp_path: Path) -> None:
+    """改訂の飛び越しと HEAD の祖先でない比較元を拒否する。"""
+    root = _git_repository_for_rederive(tmp_path)
+    asset = _read_asset(root)
+    asset["runtime_contract_revision"] += 2
+    _write_asset(root, asset)
+    assert main(["rederive", "--base", "HEAD"], repository_root=root) == 1
+    _write_asset(root, _read_repository_json(RUNTIME_CONTRACT_ASSET))
+    original_branch = subprocess.check_output(
+        ["git", "-C", str(root), "branch", "--show-current"], text=True
+    ).strip()
+    subprocess.run(["git", "-C", str(root), "checkout", "-qb", "other"], check=True)
+    (root / "marker.txt").write_text("other\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(root), "add", "marker.txt"], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "-qm",
+            "other",
+        ],
+        check=True,
+    )
+    other = subprocess.check_output(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], text=True
+    ).strip()
+    subprocess.run(
+        ["git", "-C", str(root), "checkout", "-q", original_branch], check=True
+    )
+    assert main(["rederive", "--base", other], repository_root=root) == 1
+
+
+def test_rederive_rejects_provisional_base(tmp_path: Path) -> None:
+    """比較元が製品状態でなければ再導出しない。"""
+    root = _git_repository_for_rederive(tmp_path)
+    asset = _read_asset(root)
+    asset["provisional"] = True
+    _write_asset(root, asset)
+    subprocess.run(["git", "-C", str(root), "add", "."], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "-qm",
+            "provisional",
+        ],
+        check=True,
+    )
+    provisional_base = subprocess.check_output(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], text=True
+    ).strip()
+    _write_asset(root, _read_repository_json(RUNTIME_CONTRACT_ASSET))
+    assert main(["rederive", "--base", provisional_base], repository_root=root) == 1
+
+
+def test_rederive_restores_both_files_on_postwrite_revision_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """書き込み後の改訂拘束が破れたら二つのファイルを戻す。"""
+    root = _git_repository_for_rederive(tmp_path)
+    _add_test_function(root)
+    asset_path = root / RUNTIME_CONTRACT_ASSET
+    module_path = root / GENERATED_MODULE
+    original_asset = asset_path.read_bytes()
+    original_module = module_path.read_bytes()
+    atomic_write = generator._atomic_write
+    calls = 0
+
+    def corrupt_once(target: Path, content: str) -> None:
+        nonlocal calls
+        if target == asset_path and calls == 0:
+            calls += 1
+            value = json.loads(content)
+            value["runtime_contract_revision"] += 1
+            atomic_write(target, json.dumps(value, ensure_ascii=False, indent=2) + "\n")
+            return
+        atomic_write(target, content)
+
+    monkeypatch.setattr(generator, "_atomic_write", corrupt_once)
+    with pytest.raises(ValueError, match="書き込み後の revision"):
+        rederive_repository(root, "HEAD")
+    assert asset_path.read_bytes() == original_asset
+    assert module_path.read_bytes() == original_module
+
+
+def test_acceptance_template_passes_frozen_history_in_committed_copy(
+    tmp_path: Path,
+) -> None:
+    """雛形を複製へ追記し、v2 と識別値移動の検査を通す。"""
+    scripts_path = str(_REPOSITORY_ROOT / "scripts")
+    if scripts_path not in sys.path:
+        sys.path.insert(0, scripts_path)
+    frozen_history = importlib.import_module("frozen_history")
+    root = _git_repository_for_rederive(tmp_path, full_history=True)
+    base_sha = subprocess.check_output(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], text=True
+    ).strip()
+    base_snapshot_root = tmp_path / "base-snapshots"
+    shutil.copytree(
+        root / "contracts/tenant_boundary/history-snapshots", base_snapshot_root
+    )
+    _add_test_function(root)
+    assert rederive_repository(root, base_sha)
+    subprocess.run(["git", "-C", str(root), "add", "."], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "-qm",
+            "head",
+        ],
+        check=True,
+    )
+    head_sha = subprocess.check_output(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], text=True
+    ).strip()
+    output = tmp_path / "acceptance.json"
+    cli = [
+        sys.executable,
+        "-m",
+        "pitchlog.authz.runtime_contract_acceptance",
+        "--repository",
+        str(root),
+        "--base",
+        base_sha,
+        "--acceptance-id",
+        "example/pitchlog#123",
+        "--approved-by",
+        "試験者",
+        "--approved-on",
+        "2026-10-05",
+        "--reason",
+        "製品資産の変更を受理するため。",
+        "--movement-fact",
+        "保護関数を一件追加した。",
+        "--output",
+        str(output),
+    ]
+    subprocess.run(cli, check=True)
+    bundle = json.loads(output.read_text(encoding="utf-8"))
+    record = bundle["record"]
+    assert record["change"]["aspect"] == ["asset_snapshots", "declaration"]
+    stdout_result = subprocess.run(cli[:-2], capture_output=True, text=True, check=True)
+    assert json.loads(stdout_result.stdout) == bundle
+    inside_output = [*cli]
+    inside_output[-1] = str(root / "acceptance.json")
+    inside_result = subprocess.run(
+        inside_output, capture_output=True, text=True, check=False
+    )
+    assert inside_result.returncode == 1
+    assert not (root / "acceptance.json").exists()
+    rejected = [*cli]
+    rejected[rejected.index("製品資産の変更を受理するため。")] = "PENDING"
+    result = subprocess.run(rejected, capture_output=True, text=True, check=False)
+    assert result.returncode == 1
+    assert "予約 marker" in result.stderr
+    authority_path = root / bundle["authority_asset"]
+    authority = json.loads(authority_path.read_text(encoding="utf-8"))
+    authority["baseline_control"]["history"].append(record)
+    authority_path.write_text(
+        json.dumps(authority, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    snapshot_root = root / "contracts/tenant_boundary/history-snapshots"
+    for digest, content in bundle["snapshots_base64"].items():
+        (snapshot_root / digest).write_bytes(base64.b64decode(content))
+    subprocess.run(["git", "-C", str(root), "add", "."], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "-qm",
+            "record",
+        ],
+        check=True,
+    )
+    asset_paths = sorted(
+        path.relative_to(root).as_posix()
+        for path in (root / "contracts/tenant_boundary").glob("*.json")
+    )
+    base_assets = {
+        path: json.loads(
+            subprocess.check_output(
+                ["git", "-C", str(root), "show", f"{base_sha}:{path}"]
+            )
+        )
+        for path in asset_paths
+    }
+    head_assets = {
+        path: json.loads((root / path).read_text(encoding="utf-8"))
+        for path in asset_paths
+    }
+    base_implementations = {}
+    head_implementations = {}
+    for asset in base_assets.values():
+        for path in asset["baseline_control"]["identity"]["frozen_projection"][
+            "external_files"
+        ]:
+            base_implementations[path] = subprocess.check_output(
+                ["git", "-C", str(root), "show", f"{base_sha}:{path}"]
+            )
+            head_implementations[path] = (root / path).read_bytes()
+    context = frozen_history.EvaluationContext(
+        frozen_history.EvaluationMode.PR_ACCEPTANCE,
+        frozen_history.PullRequestEvent(
+            "example/pitchlog", 123, "develop", base_sha, head_sha
+        ),
+    )
+    frozen_history.validate_repository_histories(
+        base_assets,
+        head_assets,
+        base_implementations=base_implementations,
+        head_implementations=head_implementations,
+        base_snapshot_root=base_snapshot_root,
+        head_snapshot_root=snapshot_root,
+        head_parents=(base_sha, head_sha),
+        evaluation_context=context,
+    )
 
 
 @pytest.mark.parametrize("relative_path", (GENERATED_MODULE, _ENGINE_MODULE))

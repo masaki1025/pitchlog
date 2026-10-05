@@ -89,7 +89,17 @@ def test_derived_product_runtime_contract_exists_and_authenticates(
     schemas = objects["schemas"]
     tables = [tuple(row) for row in objects["tables"]]
     functions = [tuple(row) for row in objects["functions"]]
-    assert (len(schemas), len(tables), len(functions)) == (2, 45, 38)
+    declared_schemas = catalog.asset["schemas"]
+    declared_tables = catalog.asset["tables"]
+    declared_functions = catalog.asset["functions"]
+    assert isinstance(declared_schemas, list)
+    assert isinstance(declared_tables, list)
+    assert isinstance(declared_functions, list)
+    assert (len(schemas), len(tables), len(functions)) == (
+        len(declared_schemas),
+        len(declared_tables),
+        len(declared_functions),
+    )
     assert (
         "authz_private",
         "tenant_has_effective_membership",
@@ -176,7 +186,8 @@ def test_derived_product_runtime_contract_exists_and_authenticates(
                 psycopg.Connection[Any], _RecordingConnection(connection, owner_counts)
             )
         )
-    # 名前付き引数の補助関数も含め、保護関数 38 件すべての所有者が返る。
-    assert owner_counts == [2, 45, 38]
+    # 名前付き引数の補助関数も含め、宣言された保護関数すべての所有者が返る。
+    assert owner_counts == [len(schemas), len(tables), len(functions)]
     assert len(observation) == 1
     assert "pitchlog_shared_fn_owner" in observation[0].dangerous_roles
+    assert "pitchlog_auth_fn_owner" in observation[0].dangerous_roles

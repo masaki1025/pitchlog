@@ -208,6 +208,113 @@ def switch_repository(repository_root: Path, base_revision: str) -> bool:
     return changed
 
 
+def rederive_repository(repository_root: Path, base_revision: str) -> bool:
+    """製品資産から導出欄を更新し、比較元に対して改訂を一度だけ進める。
+
+    Args:
+        repository_root: 再導出対象のリポジトリルート。
+        base_revision: 比較元となる Git revision。
+
+    Returns:
+        資産または生成モジュールの内容を変更した場合は ``True``。
+
+    Raises:
+        ValueError: 比較元、製品状態、改訂番号の拘束に反する場合。
+
+    ``origin/develop`` の先端との一致は要求しない。中間ステップ中に develop が
+    進み得るため、最終の一致は受理記録を確定するステップのゲートで調べる。
+    """
+    base_sha = _git(
+        repository_root, "rev-parse", "--verify", f"{base_revision}^{{commit}}"
+    )
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", base_sha, "HEAD"],
+        cwd=repository_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if ancestor.returncode != 0:
+        raise ValueError("--base は HEAD の祖先でなければなりません")
+    base_asset = _git_json_asset(repository_root, base_sha, RUNTIME_CONTRACT_ASSET)
+    if base_asset.get("provisional") is not False:
+        raise ValueError("比較元は製品状態でなければなりません")
+    base_value = base_asset.get("runtime_contract_revision")
+    if type(base_value) is not int:
+        raise ValueError("比較元の runtime_contract_revision は整数が必要です")
+
+    asset_path = repository_root / RUNTIME_CONTRACT_ASSET
+    module_path = repository_root / GENERATED_MODULE
+    original_asset = asset_path.read_bytes()
+    original_module = module_path.read_bytes()
+    current = read_json_object(asset_path)
+    if current.get("provisional") is not False:
+        raise ValueError("現在のランタイム契約は製品状態が必要です")
+    current_value = current.get("runtime_contract_revision")
+    if type(current_value) is not int or current_value not in (
+        base_value,
+        base_value + 1,
+    ):
+        raise ValueError("現在の runtime_contract_revision が比較元 + 1 を超えています")
+
+    product = read_json_object(repository_root / PRODUCT_ASSET)
+    desired = copy.deepcopy(current)
+    derived = derive_runtime_contract_fields(product, desired)
+    application_role = desired.get("application_role")
+    if not isinstance(application_role, dict):
+        raise ValueError("application_role が不正です")
+    application_role["attributes"] = derived["application_role"]["attributes"]
+    desired["protected_objects"] = derived["protected_objects"]
+    base_role = base_asset.get("application_role")
+    if not isinstance(base_role, dict):
+        raise ValueError("比較元の application_role が不正です")
+    moved = derived["application_role"]["attributes"] != base_role.get(
+        "attributes"
+    ) or derived["protected_objects"] != base_asset.get("protected_objects")
+    expected_revision = base_value + int(moved)
+    desired["runtime_contract_revision"] = expected_revision
+    baseline = desired.get("baseline_control")
+    if not isinstance(baseline, dict) or not isinstance(baseline.get("identity"), dict):
+        raise ValueError("baseline_control.identity が不正です")
+    identity = baseline["identity"]
+    base_identity = base_asset.get("baseline_control")
+    if not isinstance(base_identity, dict) or not isinstance(
+        base_identity.get("identity"), dict
+    ):
+        raise ValueError("比較元の baseline_control.identity が不正です")
+    if moved:
+        identity["current_identifiers"] = [
+            f"runtime_contract_revision:{expected_revision}"
+        ]
+    else:
+        identity["current_identifiers"] = base_identity["identity"].get(
+            "current_identifiers"
+        )
+    desired["source_digest"] = asset_digest(desired)
+    desired_asset = (json.dumps(desired, ensure_ascii=False, indent=2) + "\n").encode()
+    desired_module = render_runtime_contract(desired).encode()
+    if original_asset == desired_asset and original_module == desired_module:
+        return False
+    try:
+        if original_asset != desired_asset:
+            _atomic_write(asset_path, desired_asset.decode())
+        if original_module != desired_module:
+            _atomic_write(module_path, desired_module.decode())
+        written = read_json_object(asset_path)
+        written_identity = written.get("baseline_control")
+        if (
+            written.get("runtime_contract_revision") != expected_revision
+            or not isinstance(written_identity, dict)
+            or written_identity.get("identity") != identity
+        ):
+            raise ValueError("書き込み後の revision と識別値が比較元の拘束と不一致")
+    except (OSError, ValueError):
+        _atomic_write(asset_path, original_asset.decode())
+        _atomic_write(module_path, original_module.decode())
+        raise
+    return True
+
+
 def _git(repository_root: Path, *arguments: str) -> str:
     """Git の標準出力を返し、失敗を切り替えエラーにする。"""
     result = subprocess.run(
@@ -261,14 +368,17 @@ def main(
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "mode", nargs="?", choices=("check", "render", "switch"), default="check"
+        "mode",
+        nargs="?",
+        choices=("check", "render", "switch", "rederive"),
+        default="check",
     )
-    parser.add_argument("--base", help="switch の比較元 Git revision")
+    parser.add_argument("--base", help="switch/rederive の比較元 Git revision")
     args = parser.parse_args(argv)
-    if args.mode == "switch" and args.base is None:
-        parser.error("switch には --base が必要です")
-    if args.mode != "switch" and args.base is not None:
-        parser.error("--base は switch 専用です")
+    if args.mode in ("switch", "rederive") and args.base is None:
+        parser.error(f"{args.mode} には --base が必要です")
+    if args.mode not in ("switch", "rederive") and args.base is not None:
+        parser.error("--base は switch/rederive 専用です")
 
     root = (
         find_repository_root(repository_root)
@@ -289,6 +399,8 @@ def main(
         if args.mode == "switch":
             switch_repository(root, args.base)
             return 0
+        if args.mode == "rederive":
+            return 3 if rederive_repository(root, args.base) else 0
 
         violations = check_repository(root)
         if not violations:

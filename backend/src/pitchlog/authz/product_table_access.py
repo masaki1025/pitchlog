@@ -184,3 +184,35 @@ def generate_product_table_acl_sql(table_id: str, profile: str) -> str:
         "FROM PUBLIC, pitchlog_app;\n"
         f"GRANT {privileges} ON TABLE public.{table_id} TO pitchlog_app;\n"
     )
+
+
+def generate_function_owner_table_acl_sql(declaration: dict[str, object]) -> str:
+    """資産で宣言した関数所有者の表 ACL SQL を生成する。"""
+    acl_id = str(declaration["acl_id"])
+    schema_name = str(declaration["object_schema"])
+    table_id = str(declaration["object_id"])
+    role_id = str(declaration["grantee_role_id"])
+    privileges = declaration["privilege_ids"]
+    for value in (schema_name, table_id, role_id):
+        _require_identifier(value, "関数所有者表 ACL の識別子")
+    if (
+        not isinstance(privileges, list)
+        or not privileges
+        or not all(
+            isinstance(item, str)
+            and item
+            in {"SELECT", "INSERT", "UPDATE", "DELETE", "REFERENCES", "TRIGGER"}
+            for item in privileges
+        )
+        or len(privileges) != len(set(privileges))
+    ):
+        raise ValueError("関数所有者表 ACL の権限が不正")
+    if declaration.get("grant_option") is not False:
+        raise ValueError("関数所有者表 ACL の GRANT OPTION は許可しない")
+    return (
+        "-- ELEMENT-TYPE: acl_expectation\n"
+        f"-- ELEMENT-ID: {acl_id}\n"
+        "\n"
+        f"GRANT {', '.join(privileges)} ON TABLE {schema_name}.{table_id} "
+        f"TO {role_id};\n"
+    )

@@ -74,10 +74,10 @@ def test_product_application_steps_asset_is_green() -> None:
     )
     assert validated.transaction == "single"
     assert tuple(step.sequence for step in validated.application_steps) == tuple(
-        range(1, 8)
+        range(1, len(validated.application_steps) + 1)
     )
     assert tuple(step.sequence for step in validated.unapplication_steps) == tuple(
-        range(1, 8)
+        range(1, len(validated.unapplication_steps) + 1)
     )
     assert tuple(
         step.reverses_application_step_id for step in validated.unapplication_steps
@@ -86,6 +86,165 @@ def test_product_application_steps_asset_is_green() -> None:
     assert set(validated.operation_kinds).isdisjoint(
         operation.operation_kind for operation in PROBE_SPEC.operation_handlers
     )
+
+
+def test_extension_and_new_schema_asset_is_green(
+    application_asset: dict[str, object], ddl_elements: dict[str, object]
+) -> None:
+    """複製した資産に新スキーマと拡張を加えて第2手順で受理する。"""
+    steps_asset = copy.deepcopy(application_asset)
+    elements = copy.deepcopy(ddl_elements)
+    schemas = elements["schemas"]
+    assert isinstance(schemas, list)
+    new_schema = copy.deepcopy(schemas[1])
+    new_schema["schema_id"] = "test_crypto"
+    new_schema["schema_name"] = "test_crypto"
+    schemas.append(new_schema)
+    elements["extensions"] = [
+        {
+            "extension_id": "test_extension",
+            "extension_name": "test_extension",
+            "schema_name": "test_crypto",
+        }
+    ]
+    groups = _application_steps(steps_asset)[1]["element_groups"]
+    assert isinstance(groups, list)
+    assert "extensions" in groups
+
+    validated = validate_product_application_steps(steps_asset, elements, PRODUCT_SPEC)
+    assert validated.application_steps[1].element_groups == (
+        "databases",
+        "schemas",
+        "extensions",
+    )
+
+
+def test_migration_regular_function_uses_final_function_step(
+    application_asset: dict[str, object], ddl_elements: dict[str, object]
+) -> None:
+    """通常関数の要素群を migration トリガと同じ最終手順で受理する。"""
+    steps_asset = copy.deepcopy(application_asset)
+    elements = copy.deepcopy(ddl_elements)
+    functions = elements["functions"]
+    assert isinstance(functions, list)
+    ordinary = copy.deepcopy(functions[0])
+    ordinary["function_id"] = "FUNCTION:public:step4_ordinary()"
+    ordinary["function_name"] = "step4_ordinary"
+    ordinary["function_kind"] = "migration_function"
+    functions.append(ordinary)
+    groups = _application_steps(steps_asset)[-1]["element_groups"]
+    assert isinstance(groups, list)
+    if "functions:migration_function" not in groups:
+        groups.append("functions:migration_function")
+    validated = validate_product_application_steps(steps_asset, elements, PRODUCT_SPEC)
+    assert validated.application_steps[-1].element_groups[-1] == (
+        "functions:migration_function"
+    )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    [
+        ("missing_group", "全要素"),
+        ("wrong_schema", "schema_name"),
+        ("wrong_id", "extension_id"),
+        ("duplicate", "重複"),
+    ],
+)
+def test_invalid_extension_declaration_is_red(
+    application_asset: dict[str, object],
+    ddl_elements: dict[str, object],
+    mutation: str,
+    match: str,
+) -> None:
+    """拡張群の手順漏れと不正な宣言を拒否する。"""
+    steps_asset = copy.deepcopy(application_asset)
+    elements = copy.deepcopy(ddl_elements)
+    extension = {
+        "extension_id": "pgcrypto",
+        "extension_name": "pgcrypto",
+        "schema_name": "public",
+    }
+    elements["extensions"] = [extension]
+    if mutation == "missing_group":
+        groups = _application_steps(steps_asset)[1]["element_groups"]
+        assert isinstance(groups, list)
+        groups.remove("extensions")
+    if mutation == "wrong_schema":
+        extension["schema_name"] = "unlisted"
+    elif mutation == "wrong_id":
+        extension["extension_id"] = "other"
+    elif mutation == "duplicate":
+        elements["extensions"].append(copy.deepcopy(extension))
+    _assert_rejected(steps_asset, elements, match)
+
+
+def test_definer_group_follows_helper_group(
+    application_asset: dict[str, object], ddl_elements: dict[str, object]
+) -> None:
+    """definer関数を補助関数の後に宣言した資産だけを受理する。"""
+    steps_asset = copy.deepcopy(application_asset)
+    elements = copy.deepcopy(ddl_elements)
+    functions = elements["functions"]
+    assert isinstance(functions, list)
+    definer = copy.deepcopy(
+        next(row for row in functions if row["function_kind"] == "rls_helper")
+    )
+    definer.update(
+        function_id="FUNCTION:public:test_definer(text)",
+        schema_name="public",
+        function_name="test_definer",
+        identity_args="text",
+        function_kind="definer",
+        owner_role_id="pitchlog_management_fn_owner",
+    )
+    functions.append(definer)
+    groups = _application_steps(steps_asset)[2]["element_groups"]
+    assert isinstance(groups, list)
+    assert "functions:definer" in groups
+    validated = validate_product_application_steps(steps_asset, elements, PRODUCT_SPEC)
+    assert validated.application_steps[2].element_groups == (
+        "functions:rls_helper",
+        "functions:definer",
+    )
+    groups.reverse()
+    _assert_rejected(steps_asset, elements, "固定順序")
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "match"),
+    [
+        ("schema_name", "unlisted", "schema_name"),
+        ("owner_role_id", "unlisted", "owner_role_id"),
+        ("security_mode", "invoker", "security_mode"),
+        ("acl_expectations", None, "ACL付与先"),
+    ],
+)
+def test_definer_declaration_requires_schema_owner_and_acl(
+    application_asset: dict[str, object],
+    ddl_elements: dict[str, object],
+    field: str,
+    value: object,
+    match: str,
+) -> None:
+    """definerのスキーマ・所有者・付与先の宣言不備を拒否する。"""
+    steps_asset = copy.deepcopy(application_asset)
+    elements = copy.deepcopy(ddl_elements)
+    functions = elements["functions"]
+    assert isinstance(functions, list)
+    definer = copy.deepcopy(
+        next(row for row in functions if row["function_kind"] == "rls_helper")
+    )
+    definer["function_id"] = "FUNCTION:public:test_definer(text)"
+    definer["function_name"] = "test_definer"
+    definer["identity_args"] = "text"
+    definer["function_kind"] = "definer"
+    definer[field] = value
+    functions.append(definer)
+    groups = _application_steps(steps_asset)[2]["element_groups"]
+    assert isinstance(groups, list)
+    assert "functions:definer" in groups
+    _assert_rejected(steps_asset, elements, match)
 
 
 def test_swapping_helper_functions_and_policies_is_red(
