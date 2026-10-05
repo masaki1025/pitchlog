@@ -10,6 +10,7 @@
     "ruleCatalog": [
       {
         "ruleId": "identity",
+        "transform": {"kind": "identity"},
         "meaning": "raw の JSON 値を変更せず normalized として渡す",
         "semanticOrigin": "step-89-local-definition",
         "basisRefs": [
@@ -19,6 +20,17 @@
       },
       {
         "ruleId": "result-display-name-to-id",
+        "transform": {
+          "kind": "vocabulary-lookup",
+          "field": "resultId",
+          "selectorField": "eventKind",
+          "axisBySelector": {
+            "batting-result": "batting-result",
+            "secondary-result": "secondary-result"
+          },
+          "rawEntryField": "initialDisplayName",
+          "normalizedEntryField": "id"
+        },
         "meaning": "打撃結果または打撃結果2の raw.resultId にある語彙シードの初期表示名を、同じ eventKind の語彙エントリの安定 ID に解決し、他の入力座標を維持する",
         "semanticOrigin": "req:E-1-matrix-column-2-and-req:D-4-vocabulary-seed",
         "basisRefs": [
@@ -42,12 +54,17 @@
       ]
     },
     "claimBoundary": {
-      "subject": "step-90-existing-cases",
-      "guaranteed": "既存全caseの3点の存在、規則識別子の語彙制限、normalizedとinputCoordinateの一致、および非identityの表示名から安定IDへの例",
+      "subject": "step-91-normalizer-comparison",
+      "guaranteed": "既存全caseの3点の存在、規則識別子の語彙制限、normalizedとinputCoordinateの一致、および宣言規則をrawへ適用した結果とnormalizedの全件突合(identity変異の負例2件を含む)",
       "notGuaranteed": [
         "normalization-rule-semantic-correctness",
-        "normalizer-execution-or-comparison",
         "noncanonical-raw-rejection"
+      ],
+      "allowedReadPaths": [
+        "contracts/state-transition/state_transition_contract_schema_v1.json",
+        "contracts/state-transition/state_transition_contract_v1.json",
+        "contracts/vocabulary/vocabulary_manifest_v1.json",
+        "contracts/vocabulary/input_vocabulary_v1.json"
       ]
     }
   },

@@ -12,6 +12,7 @@ from typing import Any
 
 import check_expander_dependencies as dependency_checker
 import representative_selection
+from state_transition_normalization import NormalizationError, NormalizationRules
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPANDER_ID = "state-transition-cases"
@@ -191,14 +192,7 @@ def _expand_from_declared_inputs(
     binding = contract.get("inputAxesDescriptor")
     if not isinstance(binding, dict) or binding.get("digest") != descriptor.get("digest"):
         raise CaseExpansionError("契約と入力軸descriptorの識別値が一致しない")
-    seed_bindings = manifest.get("seeds")
-    if not isinstance(seed_bindings, list) or not any(
-        isinstance(item, dict)
-        and item.get("path") == seed_path.as_posix()
-        and item.get("vocabularyId") == vocabulary.get("vocabularyId")
-        for item in seed_bindings
-    ):
-        raise CaseExpansionError("語彙manifestとseedの対応が一致しない")
+    normalizer = NormalizationRules(contract_schema, vocabulary, manifest, seed_path)
     axes = descriptor.get("stateTransitionAxes")
     if not isinstance(axes, list):
         raise CaseExpansionError("入力軸descriptorに状況判定軸がない")
@@ -207,46 +201,23 @@ def _expand_from_declared_inputs(
     if not isinstance(vocabulary_axes, list):
         raise CaseExpansionError("語彙seedに軸がない")
     normalization = contract_schema["x-pitchlog-stage1-normalization"]
-    declared_rules = {
-        rule.get("ruleId")
-        for rule in normalization.get("ruleCatalog", [])
-        if isinstance(rule, dict)
-    }
-    if (
-        normalization.get("currentCasesSchemaRef") != "#/$defs/normalizedCase"
-        or {"identity", "result-display-name-to-id"} - declared_rules
-    ):
+    if normalization.get("currentCasesSchemaRef") != "#/$defs/normalizedCase":
         raise CaseExpansionError("正規化規則の宣言が展開器と一致しない")
-    display_names_by_id: dict[str, str] = {}
-    for axis in vocabulary_axes:
-        if not isinstance(axis, dict) or axis.get("axisId") not in (
-            "batting-result", "secondary-result"
-        ):
+    for transform in normalizer.rules.values():
+        if transform["kind"] != "vocabulary-lookup":
             continue
-        seen_display_names: set[str] = set()
-        for entry in axis.get("entries", []):
-            if not isinstance(entry, dict):
-                raise CaseExpansionError("打撃結果の語彙エントリが不正")
-            result_id = entry.get("id")
-            display_name = entry.get("initialDisplayName")
-            if (
-                not isinstance(result_id, str)
-                or not result_id.startswith(f"{axis['axisId']}.")
-                or not isinstance(display_name, str)
-                or not display_name
-                or result_id in display_names_by_id
-                or display_name in seen_display_names
-            ):
-                raise CaseExpansionError("打撃結果の表示名とIDの対応が不正")
-            display_names_by_id[result_id] = display_name
-            seen_display_names.add(display_name)
-    result_axis = next(
-        (axis for axis in axes if axis.get("axisId") == "event.perPitch.resultId"), None
-    )
-    if not isinstance(result_axis, dict) or not set(display_names_by_id.values()) <= set(
-        result_axis.get("values", [])
-    ):
-        raise CaseExpansionError("語彙シードの初期表示名が入力軸descriptorと不一致")
+        display_names = {
+            entry[transform["rawEntryField"]]
+            for axis_id in transform["axisBySelector"].values()
+            for entry in normalizer.axes[axis_id]
+        }
+        result_axis = next(
+            (axis for axis in axes if axis.get("axisId") == "event.perPitch.resultId"), None
+        )
+        if not isinstance(result_axis, dict) or not display_names <= set(
+            result_axis.get("values", [])
+        ):
+            raise CaseExpansionError("語彙シードの初期表示名が入力軸descriptorと不一致")
     result_ids = {
         entry.get("id")
         for axis in vocabulary_axes
@@ -528,15 +499,7 @@ def _expand_from_declared_inputs(
             )
     for case in cases:
         normalized = copy.deepcopy(case["inputCoordinate"])
-        raw = copy.deepcopy(normalized)
-        result_id = normalized.get("resultId")
-        if normalized.get("eventKind") in ("batting-result", "secondary-result"):
-            if result_id not in display_names_by_id:
-                raise CaseExpansionError("打撃結果のIDが語彙シードの表示名へ解決できない")
-            raw["resultId"] = display_names_by_id[result_id]
-            rule_id = "result-display-name-to-id"
-        else:
-            rule_id = "identity"
+        raw, rule_id = normalizer.raw_for_normalized(normalized)
         case["raw"] = raw
         case["normalizationRuleId"] = rule_id
         case["normalized"] = normalized
@@ -598,6 +561,7 @@ def main(argv: list[str] | None = None) -> int:
         CaseExpansionError,
         dependency_checker.ExpanderDependencyError,
         representative_selection.RepresentativeSelectionError,
+        NormalizationError,
     ) as error:
         print(f"state-transition-case-expander: 違反: {error}", file=sys.stderr)
         return 1

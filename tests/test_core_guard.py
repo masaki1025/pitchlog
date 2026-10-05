@@ -344,6 +344,11 @@ APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS = (
     "tests/test_vocabulary_manifest.py",
     "tests/test_vocabulary_seed.py",
 )
+NORMALIZATION_AREA_PATH_ADDITIONS = (
+    "scripts/check_state_transition_normalization.py",
+    "scripts/state_transition_normalization.py",
+    "tests/test_state_transition_normalization.py",
+)
 REFERENCE_DISCOVERY_AREA_PATH_ADDITIONS = (
     "scripts/check_frozen_baselines.py",
     "tests/frozen_negatives/test_frozen_baseline_acceptance.py",
@@ -378,6 +383,7 @@ APPENDIX_E_GAME_STATE_ASSET_PATHS = (
     "contracts/vocabulary/vocabulary_manifest_v1.json",
     "contracts/vocabulary/vocabulary_seed_schema_v1.json",
     *APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS[2:],
+    *NORMALIZATION_AREA_PATH_ADDITIONS,
 )
 EXPECTED_AREA_PATHS = {
     "sync-protocol": [
@@ -391,6 +397,7 @@ EXPECTED_AREA_PATHS = {
         *APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS[13:14],
         "tests/test_expanded_fixture_parity.py",
         *APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS[14:],
+        *NORMALIZATION_AREA_PATH_ADDITIONS,
         *REFERENCE_DISCOVERY_AREA_PATH_ADDITIONS,
         "frontend/package.json",
         "frontend/pnpm-lock.yaml",
@@ -496,6 +503,7 @@ EXPECTED_AREA_PATHS = {
         *APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS[13:14],
         "tests/test_expanded_fixture_parity.py",
         *APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS[14:],
+        *NORMALIZATION_AREA_PATH_ADDITIONS,
         *REFERENCE_DISCOVERY_AREA_PATH_ADDITIONS,
         *ORM_SCHEMA_MIGRATION_AREA_PATHS["game-state"],
     ],
@@ -1915,15 +1923,16 @@ def test_core_adrs_have_the_expected_area_ownership() -> None:
 
 
 def test_appendix_e_assets_are_owned_by_game_state_and_sync_areas() -> None:
-    """付録E/Fの契約・検査資産39件が状況計算と同期へ全件帰属すると示す。"""
+    """付録E/Fの契約・検査資産42件が状況計算と同期へ全件帰属すると示す。"""
     configuration = load_actual_core_areas()
     areas_by_id = {area["id"]: area for area in configuration["areas"]}
-    assert len(APPENDIX_E_GAME_STATE_ASSET_PATHS) == 39
+    assert len(APPENDIX_E_GAME_STATE_ASSET_PATHS) == 42
     assert all((REPO / path).is_file() for path in APPENDIX_E_GAME_STATE_ASSET_PATHS)
 
     for area_id in ("game-state", "sync-protocol"):
         patterns = areas_by_id[area_id]["paths"]
         assert set(APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS).issubset(patterns)
+        assert set(NORMALIZATION_AREA_PATH_ADDITIONS).issubset(patterns)
         missing = [
             path
             for path in APPENDIX_E_GAME_STATE_ASSET_PATHS
