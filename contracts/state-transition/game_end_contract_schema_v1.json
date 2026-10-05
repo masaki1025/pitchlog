@@ -3,6 +3,10 @@
   "$id": "https://pitchlog.local/contracts/state-transition/game_end_contract_schema_v1.json",
   "title": "Pitchlog game end contract schema v1",
   "version": "game_end_contract_schema_v1",
+  "x-pitchlog-descriptor-identity-binding": {
+    "contractField": "inputAxesDescriptor",
+    "schemaDefinition": "inputAxesDescriptorBinding"
+  },
   "x-pitchlog-rule-snapshot-definition": "#/$defs/ruleSnapshot",
   "x-pitchlog-decision-row-references": {
     "branchRegisterPath": "contracts/state-transition/clause_branch_register_v1.json",

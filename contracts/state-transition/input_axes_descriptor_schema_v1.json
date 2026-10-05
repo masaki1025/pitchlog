@@ -3,6 +3,16 @@
   "$id": "https://pitchlog.local/contracts/state-transition/input_axes_descriptor_schema_v1.json",
   "title": "Pitchlog input axes descriptor v1",
   "version": "input_axes_descriptor_schema_v1",
+  "x-pitchlog-descriptor-binding-sources": [
+    {
+      "contractPath": "contracts/state-transition/state_transition_contract_v1.json",
+      "schemaPath": "contracts/state-transition/state_transition_contract_schema_v1.json"
+    },
+    {
+      "contractPath": "contracts/state-transition/game_end_contract_v1.json",
+      "schemaPath": "contracts/state-transition/game_end_contract_schema_v1.json"
+    }
+  ],
   "type": "object",
   "required": [
     "descriptorId",

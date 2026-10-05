@@ -3,6 +3,10 @@
   "$id": "https://pitchlog.local/contracts/state-transition/state_transition_contract_schema_v1.json",
   "title": "Pitchlog state transition contract schema v1",
   "version": "state_transition_contract_schema_v1",
+  "x-pitchlog-descriptor-identity-binding": {
+    "contractField": "inputAxesDescriptor",
+    "schemaDefinition": "inputAxesDescriptorBinding"
+  },
   "x-pitchlog-stage1-normalization": {
     "caseSchemaRef": "#/$defs/normalizedCase",
     "currentCasesSchemaRef": "#/$defs/normalizedCase",

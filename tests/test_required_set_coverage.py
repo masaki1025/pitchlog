@@ -1446,6 +1446,23 @@ def test_input_coverage_rejects_regression_and_digest_change() -> None:
         checker.check_input_coverage(ROOT, contract, wrong_digest)
 
 
+def test_step103_coverage_count_changed_by_one_is_red() -> None:
+    """②の被覆件数だけを1増やすと件数照合の述語が拒否する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    record = _asset("required_set_input_coverage_v1.json")
+    snapshot = record["history"][-1]["after"]
+    original_digest = snapshot["digest"]
+    assert original_digest == checker._digest(checker._identity_set(snapshot["coverageSet"]))
+    snapshot["count"] += 1
+    assert snapshot["digest"] == original_digest
+    assert snapshot["count"] == len(snapshot["coverageSet"]) + 1
+
+    with pytest.raises(
+        checker.RequiredSetCoverageError, match="被覆集合の件数またはdigestが不一致"
+    ):
+        checker.check_input_coverage(ROOT, contract, record)
+
+
 def test_step102_both_required_set_differences_are_empty() -> None:
     """①の宣言除外と②の規則除外を実資産で共に検査する。"""
     assert checker.check_row_requirements(ROOT) == (47, 42, 0)

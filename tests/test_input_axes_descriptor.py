@@ -53,6 +53,77 @@ def _schema() -> dict[str, Any]:
     return _load_object(SCHEMA_PATH)
 
 
+def _binding_documents() -> dict[str, tuple[dict[str, Any], dict[str, Any]]]:
+    """descriptor digestを固定する契約・schemaの実資産を読む。"""
+    sources = _schema()["x-pitchlog-descriptor-binding-sources"]
+    assert isinstance(sources, list) and sources
+    assert all(
+        isinstance(source, dict)
+        and set(source) == {"contractPath", "schemaPath"}
+        for source in sources
+    )
+    asset_dir = DESCRIPTOR_PATH.parent
+    declared_contracts = {Path(source["contractPath"]) for source in sources}
+    declared_schemas = {Path(source["schemaPath"]) for source in sources}
+    assert declared_contracts == {
+        path.relative_to(REPOSITORY_ROOT)
+        for path in asset_dir.glob("*_contract_v1.json")
+    }
+    assert declared_schemas == {
+        path.relative_to(REPOSITORY_ROOT)
+        for path in asset_dir.glob("*_contract_schema_v1.json")
+    }
+    assert len(declared_contracts) == len(declared_schemas) == len(sources)
+    documents = {}
+    for source in sources:
+        contract_path = REPOSITORY_ROOT / source["contractPath"]
+        schema_path = REPOSITORY_ROOT / source["schemaPath"]
+        name = contract_path.name.removesuffix("_contract_v1.json")
+        assert schema_path.name == f"{name}_contract_schema_v1.json"
+        documents[name] = (_load_object(contract_path), _load_object(schema_path))
+    return documents
+
+
+def _assert_descriptor_bindings(
+    descriptor: dict[str, Any],
+    documents: dict[str, tuple[dict[str, Any], dict[str, Any]]],
+) -> None:
+    """自己digestと外部の契約・schema固定値を実内容へ照合する。"""
+    identity_rules = [
+        rule
+        for rule in descriptor["projectionRules"]
+        if rule["sourceKind"] == "descriptor-identity"
+    ]
+    assert len(identity_rules) == 1
+    target_ids = identity_rules[0]["targetIds"]
+    assert "digest" in target_ids and len(target_ids) == len(set(target_ids))
+    expected_digest = checker.compute_descriptor_digest(descriptor)
+    expected = {
+        key: expected_digest if key == "digest" else descriptor[key]
+        for key in target_ids
+    }
+    assert descriptor["digest"] == expected_digest, "descriptorの自己digestが不一致"
+    for name, (contract, schema) in documents.items():
+        location = schema["x-pitchlog-descriptor-identity-binding"]
+        assert set(location) == {"contractField", "schemaDefinition"}
+        field = location["contractField"]
+        definition = location["schemaDefinition"]
+        assert schema["properties"][field] == {"$ref": f"#/$defs/{definition}"}
+        binding = contract[field]
+        binding_schema = schema["$defs"][definition]
+        rules = binding_schema["properties"]
+        assert set(binding) == set(rules) == set(expected)
+        assert set(binding_schema["required"]) == set(expected)
+        assert binding_schema["additionalProperties"] is False
+        for key, value in expected.items():
+            assert rules[key]["const"] == value, (
+                f"{name} schemaのdescriptor {key}固定値が実内容と不一致"
+            )
+            assert binding[key] == value, (
+                f"{name}契約のdescriptor {key}固定値が実内容と不一致"
+            )
+
+
 def _criteria() -> Any:
     """資産側宣言からdescriptor検査基準を読む。"""
     return checker.load_descriptor_criteria(_descriptor())
@@ -82,6 +153,46 @@ def test_repository_descriptor_passes_schema_and_digest_validation() -> None:
     assert result.returncode == 0, result.stderr
     assert result.stdout == "input-axes-descriptor: OK\n"
     assert result.stderr == ""
+
+
+def test_step103_descriptor_digest_bindings_are_exact() -> None:
+    """実内容のdigestを契約2件とschema2件の固定値へ照合する。"""
+    documents = _binding_documents()
+    _assert_descriptor_bindings(_descriptor(), documents)
+
+
+def test_step103_external_digest_pin_changed_by_one_character_is_red() -> None:
+    """外部固定値の1文字ずれと自己digestだけの更新を直接拒否する。"""
+    descriptor = _descriptor()
+    documents = _binding_documents()
+    for name in documents:
+        for owner in ("contract", "schema"):
+            changed = copy.deepcopy(documents)
+            contract, schema = changed[name]
+            location = schema["x-pitchlog-descriptor-identity-binding"]
+            if owner == "contract":
+                pin = contract[location["contractField"]]
+                field = "digest"
+            else:
+                pin = schema["$defs"][location["schemaDefinition"]]["properties"]["digest"]
+                field = "const"
+            original = pin[field]
+            mutated = "0" if original[-1] != "0" else "1"
+            pin[field] = original[:-1] + mutated
+            with pytest.raises(
+                AssertionError,
+                match=rf"{name}.*descriptor digest固定値が実内容と不一致",
+            ):
+                _assert_descriptor_bindings(descriptor, changed)
+    changed_descriptor = copy.deepcopy(descriptor)
+    changed_descriptor["stage2ExternalConstraints"]["reason"] += "。"
+    changed_descriptor["digest"] = checker.compute_descriptor_digest(changed_descriptor)
+    assert changed_descriptor["digest"] != descriptor["digest"]
+    with pytest.raises(
+        AssertionError,
+        match="descriptor digest固定値が実内容と不一致",
+    ):
+        _assert_descriptor_bindings(changed_descriptor, documents)
 
 
 def test_game_end_combination_drift_is_red_after_schema_and_digest_follow() -> None:
