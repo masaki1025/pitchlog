@@ -195,3 +195,16 @@ branch: feature/um1-player-roster-opponent
   - `check_tenant_boundary_bypass` ok / `check_authz_catalog` ok
   - ruff・ty は green
   - **PostgreSQL が要るテスト(`backend/tests/db/test_tenant_transaction_scope.py`・`test_authz_tenant_binding.py::test_repository_base_binds_and_emits_explicit_tenant_predicate` — fixture を登録型へ更新)は手元で未実行**。共有 DB を避け、PR #95 の CI で確認する
+
+## 2026-10-05 夜 ステップ 8 の射程の変化と申し送り(第 3 改訂の入力 — 未改訂)
+
+- **人間の裁定 (b')(2026-10-05・山田正輝)**: U-A1 γ(TSK-469)から、次の 4 つが U-M1 のステップ 8 へ移った(原典は `docs/features/ua1-auth-app-layer/plan.md` 4-7 節・コミット `dd9b6d64`)
+  1. `contracts/tenant_boundary/tenant-context-allowlist.json` の `allowed_product_modules` への登録
+  2. TenantContext の生成モジュール(γ は検証済みのテナント ID〔UUID〕だけを返す)
+  3. `scripts/check_tenant_boundary_bypass.py` の「製品モジュールは 0 件必須」の解除
+  4. 7.7 の受理記録と snapshot
+  - **要注意**: 受理記録は 1 PR につき 1 件(`intermediate_commits_are_records: false`)。ステップ 5 の #95 の記録を導出し直して、1 件にまとめる
+- **TSK-457(TenantContext の実行時の封じ込め)**: 235 タブが担当。分界は「0 件必須の解除」で切る案に同意した。登録・解除・記録・生成箇所は U-M1 のステップ 8 が持ち、先後は 457 が先。**ステップ 8 の外部依存に TSK-457 を入れる**(第 3 改訂)。発行モジュールの登録が 457 の時点で避けられない形になったら、457 の計画承認の前に人間の裁定に上げてもらう
+- **TSK-480**: ステップ 8 の前に外部依存として入れる(第 3 改訂)
+- **feature_status の「ステップ記法が不正」**: 原因は develop 取り込みのマージ `638b796f` の件名「(ステップ 3・4 が要る…」。push 済みで、後続の oracle の記録が SHA で参照しているので書き換えない。表示だけの影響(`/pr` は転記するだけで止めない)。PR 本文で説明する。台帳の候補: 不正形の検査が `is_develop_integration_merge` の判定より先に走る
+- **ステップ 5 の持ち越し P2**(再掲): DTO の `name` の空文字はステップ 8 で揃える
