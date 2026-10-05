@@ -17,6 +17,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    column,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -66,7 +67,7 @@ class Tenant(ImportBatchMixin, RetirementMixin, LifecycleMixin, Base):
             "uq_tenants_active_name_normalized",
             "name_normalized",
             unique=True,
-            postgresql_where=text("retired_at IS NULL"),
+            postgresql_where=column("retired_at").is_(None),
             info={"roles": ("business_unique",)},
         ),
     )
