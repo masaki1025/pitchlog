@@ -7,6 +7,41 @@
     "combinationPredicate": "no-single-row-satisfies-all-targets-and-state-event-value",
     "onNewRow": "intersect-declared-values-with-currently-unfixed-values"
   },
+  "step94Contraction": {
+    "beforeRowCount": 4,
+    "afterRowCount": 5,
+    "beforeUnfixedCount": 20,
+    "afterUnfixedCount": 18,
+    "removedAxisValues": [
+      {"axisId": "gameEnd.coldConditions", "valueIdentity": "\"tier-count:1\""},
+      {"axisId": "gameEnd.extensionLimit", "valueIdentity": "\"none\""}
+    ]
+  },
+  "step94UnmetCriteria": {
+    "walkOff": {
+      "status": "unmet-no-decision-row",
+      "reason": "2026-10-03のステップ67〜68 PO裁定でoutcomeへwalk-offを追加したが、ステップ46で列挙した68分岐のclauseBranchRegisterにサヨナラの分岐IDがないため、ADR-003 D-6の規範行を結び付けられない",
+      "sources": ["req:FR-005", "req:A-1", "design:step67-68-po-decision"],
+      "ownerStep": 46,
+      "stage2Acceptance": "分岐台帳に条文由来のサヨナラ分岐IDを追加した後、walk-offの規範行とcases[]で終了検知および余剰得点の計上を検査する"
+    },
+    "cold09": {
+      "status": "unmet-no-decision-row",
+      "reason": "gameEnd.coldConditionsのtier-count:Nは設定した段数を表し、同時に成立した段数をpreconditionで固定する入力軸がない",
+      "sources": ["req:F-1", "design:step67-68-po-decision"],
+      "ownerStage": 2,
+      "stage2Acceptance": "成立段数と根拠集合を識別する入力軸を設け、複数段が同時成立しても終了条件を1件だけ検知することを検査する"
+    },
+    "walkOffScoring": {
+      "status": "unverified-no-walk-off-row",
+      "sourceClauseId": "req:A-1",
+      "planReference": "付録A-1:1103",
+      "currentLocation": "付録A A-1 共通規則「サヨナラ時の得点計上」",
+      "rule": "本塁打のサヨナラは打者と全走者の有効得点をすべて計上する。本塁打以外は決勝点が記録された時点までを計上し、余剰得点を計上しない",
+      "ordering": "先にOUT3-*で有効得点を確定し、その後にサヨナラ時の得点計上を適用する。無効な本塁到達ではサヨナラは成立しない",
+      "stage2Acceptance": "本塁打以外で決勝点より後の有効な本塁到達を計上しないケースと、本塁打で打者・全走者を計上するケースを照合する"
+    }
+  },
   "unfixedGameEndAxisValues": [
     {
       "axisId": "gameEnd.coldConditions",

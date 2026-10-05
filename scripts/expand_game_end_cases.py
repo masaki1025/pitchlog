@@ -164,7 +164,7 @@ def expand_traced(
 def _expand_coverage_from_declared_inputs(
     root: Path, rule: dependency_checker.ExpanderRule
 ) -> list[dict[str, Any]]:
-    """ステップ93までの4分岐に状態・イベント軸値の代表ケースを加える。"""
+    """既存4分岐を保持し、コールド行の状態・イベント代表を追加する。"""
     documents = [(path, _read_document(root, path)) for path in rule.allowed_read_paths]
     descriptor = _document_by_key(documents, "gameEndAxes")
     contract = _document_by_key(documents, "decisionRows")
@@ -172,9 +172,11 @@ def _expand_coverage_from_declared_inputs(
     values_by_axis = representative_selection.axis_values(
         descriptor, ("gameEndAxes", "stateTransitionAxes")
     )
-    base_cases = _expand_from_declared_inputs(root, rule, 4)
-    result = list(base_cases)
-    for row in contract["decisionRows"][:4]:
+    base_cases = _expand_from_declared_inputs(root, rule, len(contract["decisionRows"]))
+    result = list(base_cases[:4])
+    for row_index, row in enumerate(contract["decisionRows"]):
+        if row["branchId"] == "COLD-08":
+            result.append(base_cases[row_index])
         predicate = row["precondition"]
         used = representative_selection.predicate_axes(predicate)
         axes = [

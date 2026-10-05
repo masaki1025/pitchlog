@@ -6504,6 +6504,1552 @@
         "promptEndDeclaration": false,
         "automaticallyEndsGame": false
       }
+    },
+    {
+      "caseId": "GE-COLD-08",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-001",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.battingOrder": 1,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "per-pitch",
+        "event.operationPayload": "not-applicable",
+        "event.perPitch.kind": "batting-result",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "見逃し",
+        "event.perPitch.runnerEventPayload": "not-required",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+        "event.perPitch.thirdOutTimingByRunner": "not-required",
+        "event.perPitch.interferenceRuling": "not-required",
+        "event.perPitch.officialScoringPayload": "no-error",
+        "event.perPitch.rbi.doublePlayRelayError": "not-required",
+        "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-002",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 1,
+        "state.count.balls": 1,
+        "state.outs": 1,
+        "state.runners": "first",
+        "state.battingOrder": 2,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "substitution",
+        "event.operationPayload": "substitution",
+        "event.perPitch.kind": "secondary-result",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "空振り",
+        "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+        "event.perPitch.interferenceRuling": "batting:penalty-award",
+        "event.perPitch.officialScoringPayload": "single-error",
+        "event.perPitch.rbi.doublePlayRelayError": false,
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-003",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 2,
+        "state.count.balls": 2,
+        "state.outs": 2,
+        "state.runners": "second",
+        "state.battingOrder": 3,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "tiebreak-start",
+        "event.operationPayload": "tiebreak-start",
+        "event.perPitch.kind": "runner-event",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "ファール",
+        "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+        "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+        "event.perPitch.officialScoringPayload": "multiple-errors",
+        "event.perPitch.rbi.doublePlayRelayError": true,
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-004",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 3,
+        "state.outs": 0,
+        "state.runners": "third",
+        "state.battingOrder": 4,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "game-end-declaration",
+        "event.operationPayload": "game-end-declaration",
+        "event.perPitch.kind": "batting-result",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "ボール",
+        "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+        "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+        "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+        "event.perPitch.officialScoringPayload": "no-error",
+        "event.perPitch.rbi.doublePlayRelayError": "not-required",
+        "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-005",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 1,
+        "state.count.balls": 0,
+        "state.outs": 1,
+        "state.runners": "first-second",
+        "state.battingOrder": 5,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "adhoc-registration",
+        "event.operationPayload": "adhoc-registration",
+        "event.perPitch.kind": "secondary-result",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "単打",
+        "event.perPitch.runnerEventPayload": "single-runner-hold",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+        "event.perPitch.thirdOutTimingByRunner": "not-required",
+        "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+        "event.perPitch.officialScoringPayload": "single-error",
+        "event.perPitch.rbi.doublePlayRelayError": false,
+        "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-006",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 2,
+        "state.count.balls": 1,
+        "state.outs": 2,
+        "state.runners": "first-third",
+        "state.battingOrder": 6,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "state-correction",
+        "event.operationPayload": "state-correction",
+        "event.perPitch.kind": "runner-event",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "二塁打",
+        "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+        "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+        "event.perPitch.officialScoringPayload": "multiple-errors",
+        "event.perPitch.rbi.doublePlayRelayError": true,
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-007",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 2,
+        "state.outs": 0,
+        "state.runners": "second-third",
+        "state.battingOrder": 7,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "undo",
+        "event.operationPayload": "not-applicable",
+        "event.perPitch.kind": "batting-result",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "三塁打",
+        "event.perPitch.runnerEventPayload": "not-required",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+        "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+        "event.perPitch.officialScoringPayload": "no-error",
+        "event.perPitch.rbi.doublePlayRelayError": "not-required",
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-008",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 1,
+        "state.count.balls": 3,
+        "state.outs": 1,
+        "state.runners": "loaded",
+        "state.battingOrder": 8,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "per-pitch",
+        "event.operationPayload": "substitution",
+        "event.perPitch.kind": "secondary-result",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "本塁打",
+        "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+        "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+        "event.perPitch.interferenceRuling": "not-required",
+        "event.perPitch.officialScoringPayload": "single-error",
+        "event.perPitch.rbi.doublePlayRelayError": false,
+        "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-009",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 2,
+        "state.runners": "empty",
+        "state.battingOrder": 9,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "substitution",
+        "event.operationPayload": "tiebreak-start",
+        "event.perPitch.kind": "runner-event",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "凡打死",
+        "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+        "event.perPitch.thirdOutTimingByRunner": "not-required",
+        "event.perPitch.interferenceRuling": "batting:penalty-award",
+        "event.perPitch.officialScoringPayload": "multiple-errors",
+        "event.perPitch.rbi.doublePlayRelayError": true,
+        "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-010",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 1,
+        "state.outs": 0,
+        "state.runners": "first",
+        "state.battingOrder": 1,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "tiebreak-start",
+        "event.operationPayload": "game-end-declaration",
+        "event.perPitch.kind": "batting-result",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "併殺打",
+        "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+        "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+        "event.perPitch.officialScoringPayload": "no-error",
+        "event.perPitch.rbi.doublePlayRelayError": "not-required",
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-011",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 1,
+        "state.count.balls": 2,
+        "state.outs": 1,
+        "state.runners": "second",
+        "state.battingOrder": 2,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "game-end-declaration",
+        "event.operationPayload": "adhoc-registration",
+        "event.perPitch.kind": "secondary-result",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "ライナー併殺",
+        "event.perPitch.runnerEventPayload": "single-runner-hold",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+        "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+        "event.perPitch.officialScoringPayload": "single-error",
+        "event.perPitch.rbi.doublePlayRelayError": false,
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-012",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 2,
+        "state.count.balls": 3,
+        "state.outs": 2,
+        "state.runners": "third",
+        "state.battingOrder": 3,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "adhoc-registration",
+        "event.operationPayload": "state-correction",
+        "event.perPitch.kind": "runner-event",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "凡打出塁",
+        "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+        "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+        "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+        "event.perPitch.officialScoringPayload": "multiple-errors",
+        "event.perPitch.rbi.doublePlayRelayError": true,
+        "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-013",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "first-second",
+        "state.battingOrder": 4,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "state-correction",
+        "event.operationPayload": "not-applicable",
+        "event.perPitch.kind": "batting-result",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "ファールフライ",
+        "event.perPitch.runnerEventPayload": "not-required",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+        "event.perPitch.thirdOutTimingByRunner": "not-required",
+        "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+        "event.perPitch.officialScoringPayload": "no-error",
+        "event.perPitch.rbi.doublePlayRelayError": "not-required",
+        "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-014",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 1,
+        "state.count.balls": 1,
+        "state.outs": 1,
+        "state.runners": "first-third",
+        "state.battingOrder": 5,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "undo",
+        "event.operationPayload": "substitution",
+        "event.perPitch.kind": "secondary-result",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "エラー",
+        "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+        "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+        "event.perPitch.officialScoringPayload": "single-error",
+        "event.perPitch.rbi.doublePlayRelayError": false,
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-015",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 2,
+        "state.count.balls": 2,
+        "state.outs": 2,
+        "state.runners": "second-third",
+        "state.battingOrder": 6,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "per-pitch",
+        "event.operationPayload": "tiebreak-start",
+        "event.perPitch.kind": "runner-event",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "野手選択",
+        "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+        "event.perPitch.interferenceRuling": "not-required",
+        "event.perPitch.officialScoringPayload": "multiple-errors",
+        "event.perPitch.rbi.doublePlayRelayError": true,
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-016",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 3,
+        "state.outs": 0,
+        "state.runners": "loaded",
+        "state.battingOrder": 7,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "substitution",
+        "event.operationPayload": "game-end-declaration",
+        "event.perPitch.kind": "batting-result",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "犠打",
+        "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+        "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+        "event.perPitch.interferenceRuling": "batting:penalty-award",
+        "event.perPitch.officialScoringPayload": "no-error",
+        "event.perPitch.rbi.doublePlayRelayError": "not-required",
+        "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-017",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 1,
+        "state.count.balls": 0,
+        "state.outs": 1,
+        "state.runners": "empty",
+        "state.battingOrder": 8,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "tiebreak-start",
+        "event.operationPayload": "adhoc-registration",
+        "event.perPitch.kind": "secondary-result",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "犠飛",
+        "event.perPitch.runnerEventPayload": "single-runner-hold",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+        "event.perPitch.thirdOutTimingByRunner": "not-required",
+        "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+        "event.perPitch.officialScoringPayload": "single-error",
+        "event.perPitch.rbi.doublePlayRelayError": false,
+        "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-018",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 2,
+        "state.count.balls": 1,
+        "state.outs": 2,
+        "state.runners": "first",
+        "state.battingOrder": 9,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "game-end-declaration",
+        "event.operationPayload": "state-correction",
+        "event.perPitch.kind": "runner-event",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "犠打失策",
+        "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+        "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+        "event.perPitch.officialScoringPayload": "multiple-errors",
+        "event.perPitch.rbi.doublePlayRelayError": true,
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-019",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 2,
+        "state.outs": 0,
+        "state.runners": "second",
+        "state.battingOrder": 1,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "adhoc-registration",
+        "event.operationPayload": "not-applicable",
+        "event.perPitch.kind": "batting-result",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "見逃し三振",
+        "event.perPitch.runnerEventPayload": "not-required",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+        "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+        "event.perPitch.officialScoringPayload": "no-error",
+        "event.perPitch.rbi.doublePlayRelayError": "not-required",
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-020",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 1,
+        "state.count.balls": 3,
+        "state.outs": 1,
+        "state.runners": "third",
+        "state.battingOrder": 2,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "state-correction",
+        "event.operationPayload": "substitution",
+        "event.perPitch.kind": "secondary-result",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "空振り三振",
+        "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+        "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+        "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+        "event.perPitch.officialScoringPayload": "single-error",
+        "event.perPitch.rbi.doublePlayRelayError": false,
+        "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-021",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 2,
+        "state.runners": "first-second",
+        "state.battingOrder": 3,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "undo",
+        "event.operationPayload": "tiebreak-start",
+        "event.perPitch.kind": "runner-event",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "振り逃げ",
+        "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+        "event.perPitch.thirdOutTimingByRunner": "not-required",
+        "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+        "event.perPitch.officialScoringPayload": "multiple-errors",
+        "event.perPitch.rbi.doublePlayRelayError": true,
+        "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-022",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 1,
+        "state.outs": 0,
+        "state.runners": "first-third",
+        "state.battingOrder": 4,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "per-pitch",
+        "event.operationPayload": "game-end-declaration",
+        "event.perPitch.kind": "batting-result",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "K3",
+        "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+        "event.perPitch.interferenceRuling": "not-required",
+        "event.perPitch.officialScoringPayload": "no-error",
+        "event.perPitch.rbi.doublePlayRelayError": "not-required",
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-023",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 1,
+        "state.count.balls": 2,
+        "state.outs": 1,
+        "state.runners": "second-third",
+        "state.battingOrder": 5,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "substitution",
+        "event.operationPayload": "adhoc-registration",
+        "event.perPitch.kind": "secondary-result",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "三振ゲッツー",
+        "event.perPitch.runnerEventPayload": "single-runner-hold",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+        "event.perPitch.interferenceRuling": "batting:penalty-award",
+        "event.perPitch.officialScoringPayload": "single-error",
+        "event.perPitch.rbi.doublePlayRelayError": false,
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-024",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 2,
+        "state.count.balls": 3,
+        "state.outs": 2,
+        "state.runners": "loaded",
+        "state.battingOrder": 6,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "tiebreak-start",
+        "event.operationPayload": "state-correction",
+        "event.perPitch.kind": "runner-event",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "四球",
+        "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+        "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+        "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+        "event.perPitch.officialScoringPayload": "multiple-errors",
+        "event.perPitch.rbi.doublePlayRelayError": true,
+        "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-025",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.battingOrder": 7,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "game-end-declaration",
+        "event.operationPayload": "not-applicable",
+        "event.perPitch.kind": "batting-result",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "死球",
+        "event.perPitch.runnerEventPayload": "not-required",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+        "event.perPitch.thirdOutTimingByRunner": "not-required",
+        "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+        "event.perPitch.officialScoringPayload": "no-error",
+        "event.perPitch.rbi.doublePlayRelayError": "not-required",
+        "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-026",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 1,
+        "state.count.balls": 1,
+        "state.outs": 1,
+        "state.runners": "first",
+        "state.battingOrder": 8,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "adhoc-registration",
+        "event.operationPayload": "substitution",
+        "event.perPitch.kind": "secondary-result",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "申告敬遠",
+        "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+        "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+        "event.perPitch.officialScoringPayload": "single-error",
+        "event.perPitch.rbi.doublePlayRelayError": false,
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-027",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 2,
+        "state.count.balls": 2,
+        "state.outs": 2,
+        "state.runners": "second",
+        "state.battingOrder": 9,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "state-correction",
+        "event.operationPayload": "tiebreak-start",
+        "event.perPitch.kind": "runner-event",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "PB",
+        "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+        "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+        "event.perPitch.officialScoringPayload": "multiple-errors",
+        "event.perPitch.rbi.doublePlayRelayError": true,
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-028",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 3,
+        "state.outs": 0,
+        "state.runners": "third",
+        "state.battingOrder": 1,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "undo",
+        "event.operationPayload": "game-end-declaration",
+        "event.perPitch.kind": "batting-result",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "WP",
+        "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+        "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+        "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+        "event.perPitch.officialScoringPayload": "no-error",
+        "event.perPitch.rbi.doublePlayRelayError": "not-required",
+        "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-029",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 1,
+        "state.count.balls": 0,
+        "state.outs": 1,
+        "state.runners": "first-second",
+        "state.battingOrder": 2,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "per-pitch",
+        "event.operationPayload": "adhoc-registration",
+        "event.perPitch.kind": "secondary-result",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "守備妨害",
+        "event.perPitch.runnerEventPayload": "single-runner-hold",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+        "event.perPitch.thirdOutTimingByRunner": "not-required",
+        "event.perPitch.interferenceRuling": "not-required",
+        "event.perPitch.officialScoringPayload": "single-error",
+        "event.perPitch.rbi.doublePlayRelayError": false,
+        "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-030",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 2,
+        "state.count.balls": 1,
+        "state.outs": 2,
+        "state.runners": "first-third",
+        "state.battingOrder": 3,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "substitution",
+        "event.operationPayload": "state-correction",
+        "event.perPitch.kind": "runner-event",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "打撃妨害",
+        "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+        "event.perPitch.interferenceRuling": "batting:penalty-award",
+        "event.perPitch.officialScoringPayload": "multiple-errors",
+        "event.perPitch.rbi.doublePlayRelayError": true,
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-031",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 2,
+        "state.outs": 0,
+        "state.runners": "second-third",
+        "state.battingOrder": 4,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "tiebreak-start",
+        "event.operationPayload": "not-applicable",
+        "event.perPitch.kind": "batting-result",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "走塁妨害",
+        "event.perPitch.runnerEventPayload": "not-required",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+        "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+        "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+        "event.perPitch.officialScoringPayload": "no-error",
+        "event.perPitch.rbi.doublePlayRelayError": "not-required",
+        "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-032",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 1,
+        "state.count.balls": 3,
+        "state.outs": 1,
+        "state.runners": "loaded",
+        "state.battingOrder": 5,
+        "state.tiebreakActive": true,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "game-end-declaration",
+        "event.operationPayload": "substitution",
+        "event.perPitch.kind": "secondary-result",
+        "event.perPitch.pitchEventKind": "non-pitch-event",
+        "event.perPitch.resultId": "ボーク",
+        "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+        "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+        "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+        "event.perPitch.officialScoringPayload": "single-error",
+        "event.perPitch.rbi.doublePlayRelayError": false,
+        "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-033",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 2,
+        "state.count.balls": 0,
+        "state.outs": 2,
+        "state.runners": "empty",
+        "state.battingOrder": 6,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M",
+        "event.operationKind": "adhoc-registration",
+        "event.operationPayload": "tiebreak-start",
+        "event.perPitch.kind": "runner-event",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.resultId": "ピッチクロック違反",
+        "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+        "event.perPitch.thirdOutTimingByRunner": "not-required",
+        "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+        "event.perPitch.officialScoringPayload": "multiple-errors",
+        "event.perPitch.rbi.doublePlayRelayError": true,
+        "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false
+      }
     }
   ],
   "validationErrors": []
