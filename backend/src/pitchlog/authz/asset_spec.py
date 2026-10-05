@@ -250,7 +250,12 @@ _PRODUCT_APPLICATION_ELEMENT_GROUPS = (
     ("acl_expectations", "column_acl_expectations"),
     ("functions:migration_trigger",),
 )
-_PRODUCT_FUNCTION_KINDS = ("rls_helper", "definer", "migration_trigger")
+_PRODUCT_FUNCTION_KINDS = (
+    "rls_helper",
+    "definer",
+    "migration_trigger",
+    "migration_function",
+)
 
 
 def _read_json_object(path: Path, label: str) -> dict[str, object]:
@@ -407,6 +412,12 @@ def _validate_element_coverage(
                 for row in raw_rows
             ):
                 expected_groups.add("functions:definer")
+            if any(
+                isinstance(row, dict)
+                and row.get("function_kind") == "migration_function"
+                for row in raw_rows
+            ):
+                expected_groups.add("functions:migration_function")
         else:
             if raw_rows:
                 expected_groups.add(section.section_name)
@@ -582,6 +593,11 @@ def validate_product_application_steps(
         for row in functions
     ):
         expected_groups[2].append("functions:definer")
+    if isinstance(functions, list) and any(
+        isinstance(row, dict) and row.get("function_kind") == "migration_function"
+        for row in functions
+    ):
+        expected_groups[-1].append("functions:migration_function")
     if tuple(step.element_groups for step in application_steps) != tuple(
         tuple(groups) for groups in expected_groups
     ):

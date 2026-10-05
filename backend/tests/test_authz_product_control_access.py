@@ -18,7 +18,6 @@ from pitchlog.authz.ddl import generate_authz_ddl
 from pitchlog.authz.product_control_access import (
     CONTROL_PROFILE,
     CONTROL_TABLE_IDS,
-    HELPER_DEPENDENCY_COLUMNS,
     HELPER_FUNCTION_ID,
     HELPER_OWNER_ROLE_ID,
     build_control_policy_declaration,
@@ -251,7 +250,11 @@ def test_membership_helper_and_control_policies_match_design() -> None:
     column_acls = {
         row["expectation_id"]: row for row in asset["column_acl_expectations"]
     }
-    assert frozenset(HELPER_DEPENDENCY_COLUMNS) == _EXPECTED_DEPENDENCY_COLUMNS
+    assert {
+        (row["object_id"], row["column_id"])
+        for row in column_acls.values()
+        if row["function_id"] == HELPER_FUNCTION_ID
+    } == _EXPECTED_DEPENDENCY_COLUMNS
     expected_column_acls = {
         declaration["expectation_id"]: declaration
         for table_id, column_id in _EXPECTED_DEPENDENCY_COLUMNS
@@ -405,6 +408,36 @@ def test_schema_qualified_coalesce_in_helper_body_is_rejected(
 
     with pytest.raises(_catalog_checker.CatalogError, match="生成結果と不一致"):
         _validate_product_asset(asset, root)
+
+
+def test_additional_declared_helper_column_acl_is_accepted(tmp_path: Path) -> None:
+    """補助関数の列 ACL 件数を資産宣言から導出する。"""
+    root = tmp_path / "repository"
+    _copy_static_inputs(root)
+    asset = _product_asset()
+    declaration = build_helper_column_acl_declaration("tenants", "name")
+    asset["column_acl_expectations"].append(declaration)
+    path = (
+        PRODUCT_SPEC.body_directory
+        / "column_acl_expectations"
+        / f"{declaration['expectation_id']}.sql"
+    )
+    (root / path).write_text(
+        generate_helper_column_acl_sql("tenants", "name"), encoding="utf-8"
+    )
+    manifest_path = root / PRODUCT_SPEC.body_manifest_path
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["entries"].append(
+        {
+            "path": path.as_posix(),
+            "element_type": "column_acl_expectation",
+            "element_id": declaration["expectation_id"],
+        }
+    )
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    assert _validate_product_asset(asset, root)["product_role_count"] == len(
+        asset["roles"]
+    )
 
 
 def test_protected_targets_match_the_repository_state() -> None:

@@ -29,7 +29,6 @@ from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-i
 )
 from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[unresolved-import]
     CONTROL_PROFILE,
-    HELPER_DEPENDENCY_COLUMNS,
     HELPER_FUNCTION_ID,
     HELPER_NAME,
     HELPER_OWNER_ROLE_ID,
@@ -38,6 +37,7 @@ from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[
     build_helper_column_acl_declaration,
     build_membership_helper_declaration,
     generate_control_policy_sql,
+    generate_function_owner_column_acl_sql,
     generate_helper_column_acl_sql,
     generate_membership_helper_sql,
 )
@@ -46,6 +46,9 @@ from pitchlog.authz.product_function_acl import (  # noqa: E402  # ty: ignore[un
     generate_product_function_acl_sql,
     product_function_id,
 )
+from pitchlog.authz.product_role_contract import (  # noqa: E402  # ty: ignore[unresolved-import]
+    expected_product_roles,
+)
 from pitchlog.authz.product_table_access import (  # noqa: E402  # ty: ignore[unresolved-import]
     DIRECT_ACL_PROFILES,
     DIRECT_POLICY_PROFILES,
@@ -53,6 +56,7 @@ from pitchlog.authz.product_table_access import (  # noqa: E402  # ty: ignore[un
     build_product_policy_declaration,
     build_product_predicate_declaration,
     build_product_table_acl_declaration,
+    generate_function_owner_table_acl_sql,
     generate_product_policy_sql,
     generate_product_predicate_sql,
     generate_product_table_acl_sql,
@@ -167,7 +171,8 @@ PRODUCT_MIGRATION_VERSIONS = Path("backend/migrations/versions")
 MIGRATION_FUNCTION_RE = re.compile(
     r"CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+"
     r"(?P<target>[A-Za-z_][A-Za-z0-9_.]*|\{_[A-Z0-9_]+\})"
-    r"\s*\((?P<identity_args>[^)]*)\)",
+    r"\s*\((?P<identity_args>[^)]*)\)\s+RETURNS\s+"
+    r"(?P<return_type>[A-Za-z_][A-Za-z0-9_.]*(?:\[\])?)",
     re.IGNORECASE,
 )
 PRODUCT_PROVISIONAL_FUNCTION_GAPS = {
@@ -204,48 +209,6 @@ PRODUCT_ROLE_ATTRIBUTE_NAMES = frozenset(
         "inherit",
     }
 )
-PRODUCT_ROLE_EXPECTATIONS: dict[str, dict[str, object]] = {
-    "pitchlog_owner": {
-        "creation": "external_applicator",
-        "superuser": False,
-        "bypass_rls": False,
-        "login": True,
-        "create_role": False,
-        "create_db": False,
-        "replication": False,
-        "inherit": False,
-    },
-    "pitchlog_app": {
-        "creation": "product_ddl",
-        "superuser": False,
-        "bypass_rls": False,
-        "login": True,
-        "create_role": False,
-        "create_db": False,
-        "replication": False,
-        "inherit": False,
-    },
-    "pitchlog_shared_fn_owner": {
-        "creation": "product_ddl",
-        "superuser": False,
-        "bypass_rls": True,
-        "login": False,
-        "create_role": False,
-        "create_db": False,
-        "replication": False,
-        "inherit": False,
-    },
-    "pitchlog_management_fn_owner": {
-        "creation": "product_ddl",
-        "superuser": False,
-        "bypass_rls": True,
-        "login": False,
-        "create_role": False,
-        "create_db": False,
-        "replication": False,
-        "inherit": False,
-    },
-}
 PRODUCT_DATABASE_EXPECTATIONS: dict[str, dict[str, object]] = {
     "current_database": {
         "name_expression": "current_database()",
@@ -3663,6 +3626,7 @@ def _validate_product_access_bodies(
     root: Path,
     expected_policies: dict[str, dict[str, object]],
     expected_acls: dict[str, dict[str, object]],
+    declared_acls: dict[str, dict[str, object]],
 ) -> None:
     """述語・ポリシー・表ACLのbodyを生成器の出力へ照合する。"""
     predicate_paths = _product_body_paths(root, "predicate")
@@ -3700,18 +3664,22 @@ def _validate_product_access_bodies(
             raise CatalogError(f"{policy_id}の展開結果が生成器と不一致")
 
     acl_paths = _product_body_paths(root, "acl_expectation")
-    if set(acl_paths) != set(expected_acls):
-        raise CatalogError("表ACL bodyが直接アクセス表とexact-set不一致")
-    for acl_id, declaration in expected_acls.items():
+    if set(acl_paths) != set(declared_acls):
+        raise CatalogError("表ACL bodyが資産宣言とexact-set不一致")
+    for acl_id, declaration in declared_acls.items():
         table_id = str(declaration["object_id"])
-        profile = str(declaration["profile"])
         expected_path = (
             f"{PRODUCT_SPEC.body_directory.as_posix()}/acl_expectations/{acl_id}.sql"
         )
         if acl_paths[acl_id] != expected_path:
             raise CatalogError(f"{acl_id}のbody manifest対応が不正")
         body = _read_text(root / expected_path, f"表ACL body[{acl_id}]")
-        if body != generate_product_table_acl_sql(table_id, profile):
+        expected_body = (
+            generate_product_table_acl_sql(table_id, str(declaration["profile"]))
+            if acl_id in expected_acls
+            else generate_function_owner_table_acl_sql(declaration)
+        )
+        if body != expected_body:
             raise CatalogError(f"{acl_id}のSQLが生成結果と不一致")
 
 
@@ -3791,19 +3759,82 @@ def _validate_product_table_access_expectations(
         "acl_id",
         "製品DDL manifest.acl_expectations",
     )
-    if table_acls != expected_acls:
-        raise CatalogError("製品表ACLが全5プロファイルの定義と一致しない")
+    app_acls = {
+        acl_id: declaration
+        for acl_id, declaration in table_acls.items()
+        if declaration.get("grantee_role_id") == "pitchlog_app"
+    }
+    if app_acls != expected_acls:
+        raise CatalogError("アプリ用表ACLが全5プロファイルの定義と一致しない")
+    functions = _product_declarations_by_id(
+        raw["functions"], "function_id", "製品DDL manifest.functions"
+    )
+    owner_roles = {
+        function.get("owner_role_id")
+        for function in functions.values()
+        if function.get("function_kind") in {"rls_helper", "definer"}
+    }
+    tables = _product_declarations_by_id(
+        raw["tables"], "table_id", "製品DDL manifest.tables"
+    )
+    for acl_id, declaration in table_acls.items():
+        if acl_id in expected_acls:
+            continue
+        _expect_keys(
+            declaration,
+            {
+                "acl_id",
+                "object_kind",
+                "object_schema",
+                "object_id",
+                "profile",
+                "grantee_role_id",
+                "privilege_ids",
+                "grant_option",
+            },
+            f"関数所有者表ACL[{acl_id}]",
+        )
+        role_id = declaration.get("grantee_role_id")
+        table_id = declaration.get("object_id")
+        if (
+            role_id not in owner_roles
+            or not isinstance(table_id, str)
+            or table_id not in tables
+            or declaration.get("object_kind") != "table"
+            or declaration.get("object_schema") != tables[table_id].get("schema_name")
+            or declaration.get("acl_id") != f"ACL:{table_id}:{role_id}"
+            or not isinstance(declaration.get("profile"), str)
+            or not declaration["profile"]
+        ):
+            raise CatalogError("関数所有者の表ACL宣言が不正")
+        try:
+            generate_function_owner_table_acl_sql(declaration)
+        except (KeyError, ValueError) as error:
+            raise CatalogError(f"関数所有者の表ACL宣言が不正: {error}") from error
     if state is RuntimeContractState.PROVISIONAL:
         return
     _validate_secret_column_acl(table_acls, raw["column_acl_expectations"], root)
-    _validate_product_access_bodies(root, expected_policies, expected_acls)
+    _validate_product_access_bodies(root, expected_policies, expected_acls, table_acls)
 
 
-def _expected_helper_column_acls() -> dict[str, dict[str, object]]:
-    """補助関数所有者に必要な列SELECTの閉集合を返す。"""
+def _expected_helper_column_acls(
+    raw: dict[str, object],
+) -> dict[str, dict[str, object]]:
+    """資産が補助関数へ結び付けた列SELECTを検証して返す。"""
     expectations: dict[str, dict[str, object]] = {}
-    for table_id, column_id in HELPER_DEPENDENCY_COLUMNS:
+    rows = raw.get("column_acl_expectations")
+    if not isinstance(rows, list):
+        raise CatalogError("製品DDL manifest.column_acl_expectationsは配列でなければならない")
+    for row in rows:
+        if not isinstance(row, dict):
+            raise CatalogError("列ACL宣言はobjectでなければならない")
+        if row.get("function_id") != HELPER_FUNCTION_ID:
+            continue
+        table_id = _expect_string(row.get("object_id"), "補助関数列ACL.object_id")
+        column_id = _expect_string(row.get("column_id"), "補助関数列ACL.column_id")
         declaration = build_helper_column_acl_declaration(table_id, column_id)
+        if row != declaration:
+            raise CatalogError(f"補助関数列ACL宣言が不正: {table_id}.{column_id}")
         expectations[str(declaration["expectation_id"])] = declaration
     return expectations
 
@@ -3811,6 +3842,7 @@ def _expected_helper_column_acls() -> dict[str, dict[str, object]]:
 def _validate_membership_helper_bodies(
     root: Path,
     expected_column_acls: dict[str, dict[str, object]],
+    declared_column_acls: dict[str, dict[str, object]],
 ) -> None:
     """補助関数と所有者の列ACL bodyを生成結果へ照合する。"""
     function_paths = _product_body_paths(root, "function")
@@ -3828,9 +3860,9 @@ def _validate_membership_helper_bodies(
         raise CatalogError("実効参加補助関数bodyが生成結果と不一致")
 
     column_acl_paths = _product_body_paths(root, "column_acl_expectation")
-    if set(column_acl_paths) != set(expected_column_acls):
-        raise CatalogError("補助関数所有者の列ACL bodyがexact-set不一致")
-    for expectation_id, declaration in expected_column_acls.items():
+    if set(column_acl_paths) != set(declared_column_acls):
+        raise CatalogError("関数所有者の列ACL bodyが資産とexact-set不一致")
+    for expectation_id, declaration in declared_column_acls.items():
         table_id = str(declaration["object_id"])
         column_id = str(declaration["column_id"])
         expected_path = (
@@ -3840,7 +3872,12 @@ def _validate_membership_helper_bodies(
         if column_acl_paths[expectation_id] != expected_path:
             raise CatalogError(f"{expectation_id}のbody manifest対応が不正")
         body = _read_text(root / expected_path, f"列ACL body[{expectation_id}]")
-        if body != generate_helper_column_acl_sql(table_id, column_id):
+        expected_body = (
+            generate_helper_column_acl_sql(table_id, column_id)
+            if expectation_id in expected_column_acls
+            else generate_function_owner_column_acl_sql(declaration)
+        )
+        if body != expected_body:
             raise CatalogError(f"{expectation_id}のSQLが生成結果と不一致")
 
 
@@ -3859,16 +3896,57 @@ def _validate_product_membership_helper(
     if functions.get(HELPER_FUNCTION_ID) != expected_function:
         raise CatalogError("実効参加補助関数の属性またはEXECUTE ACLが不正")
 
-    expected_column_acls = _expected_helper_column_acls()
+    expected_column_acls = _expected_helper_column_acls(raw)
     column_acls = _product_declarations_by_id(
         raw["column_acl_expectations"],
         "expectation_id",
         "製品DDL manifest.column_acl_expectations",
     )
-    if column_acls != expected_column_acls:
-        raise CatalogError("補助関数所有者の列SELECTがexact-set不一致")
+    for expectation_id, declaration in column_acls.items():
+        if declaration.get("function_id") == HELPER_FUNCTION_ID:
+            if expected_column_acls.get(expectation_id) != declaration:
+                raise CatalogError("補助関数所有者の列SELECT宣言が不正")
+            continue
+        _expect_keys(
+            declaration,
+            {
+                "expectation_id",
+                "object_kind",
+                "object_schema",
+                "object_id",
+                "column_id",
+                "grantee_role_id",
+                "privilege_ids",
+                "grant_option",
+                "function_id",
+            },
+            f"関数所有者列ACL[{expectation_id}]",
+        )
+        if declaration.get("function_id") not in functions:
+            raise CatalogError("列ACLの関数参照が製品資産にない")
+        function = functions[str(declaration["function_id"])]
+        if function.get("function_kind") != "definer":
+            raise CatalogError("追加の列ACLはdefiner関数だけに宣言できる")
+        if declaration.get("grantee_role_id") != function.get("owner_role_id"):
+            raise CatalogError("列ACLの付与先が関数所有者と一致しない")
+        if declaration.get("object_kind") != "column" or declaration.get(
+            "object_schema"
+        ) != "public":
+            raise CatalogError("列ACLの対象種別またはスキーマが不正")
+        if declaration.get("privilege_ids") != ["SELECT"] or declaration.get(
+            "grant_option"
+        ) is not False:
+            raise CatalogError("関数所有者の列ACL権限が不正")
+        try:
+            generate_function_owner_column_acl_sql(declaration)
+        except (KeyError, ValueError) as error:
+            raise CatalogError(f"関数所有者の列ACL宣言が不正: {error}") from error
     manifest_columns = _product_manifest_columns(root)
-    if not set(HELPER_DEPENDENCY_COLUMNS) <= set(manifest_columns):
+    dependency_columns = {
+        (str(row["object_id"]), str(row["column_id"]))
+        for row in column_acls.values()
+    }
+    if not dependency_columns <= set(manifest_columns):
         raise CatalogError("補助関数の依存列がschema manifestに存在しない")
 
     table_acls = _product_declarations_by_id(
@@ -3877,16 +3955,11 @@ def _validate_product_membership_helper(
         "製品DDL manifest.acl_expectations",
     )
     for declaration in table_acls.values():
-        privileges = declaration.get("privilege_ids")
-        if (
-            declaration.get("grantee_role_id") == HELPER_OWNER_ROLE_ID
-            and isinstance(privileges, list)
-            and "SELECT" in privileges
-        ):
-            raise CatalogError("補助関数所有者に表単位のSELECTを与えている")
+        if declaration.get("grantee_role_id") == HELPER_OWNER_ROLE_ID:
+            raise CatalogError("補助関数所有者に表単位の権限を与えている")
     if state is RuntimeContractState.PROVISIONAL:
         return
-    _validate_membership_helper_bodies(root, expected_column_acls)
+    _validate_membership_helper_bodies(root, expected_column_acls, column_acls)
 
 
 def _migration_string_constants(tree: ast.Module) -> dict[str, str]:
@@ -3910,6 +3983,8 @@ def _migration_string_constants(tree: ast.Module) -> dict[str, str]:
 
 def _product_migration_functions(
     root: Path,
+    *,
+    kinds: dict[tuple[str, str, str], str] | None = None,
 ) -> dict[tuple[str, str, str], frozenset[str]]:
     """MigrationのCREATE FUNCTION実体から物理識別子を導出する。"""
     migration_root = root / PRODUCT_MIGRATION_VERSIONS
@@ -3957,6 +4032,17 @@ def _product_migration_functions(
                     f"migrationの関数物理識別子が不正: {path}:{target}"
                 ) from error
             origins[(schema_name, function_name, identity_args)].add(path.stem)
+            if kinds is not None:
+                physical_id = (schema_name, function_name, identity_args)
+                kind = (
+                    "migration_trigger"
+                    if match.group("return_type").casefold().rsplit(".", 1)[-1]
+                    == "trigger"
+                    else "migration_function"
+                )
+                if physical_id in kinds and kinds[physical_id] != kind:
+                    raise CatalogError(f"migration関数の戻り値種別が不一致: {physical_id}")
+                kinds[physical_id] = kind
     return {physical_id: frozenset(revisions) for physical_id, revisions in origins.items()}
 
 
@@ -3989,10 +4075,10 @@ def _validate_product_function_acl_bodies(
     root: Path,
     expected_functions: dict[str, dict[str, object]],
 ) -> None:
-    """37関数のACL bodyを生成器の出力へ照合する。"""
+    """migration由来の関数ACL bodyを生成器の出力へ照合する。"""
     function_paths = _product_body_paths(root, "function")
     if not set(expected_functions) <= set(function_paths):
-        raise CatalogError("関数ACL bodyにmigrationの37関数がそろっていない")
+        raise CatalogError("関数ACL bodyにmigration由来の関数がそろっていない")
     for function_id, declaration in expected_functions.items():
         expected_path = (
             f"{PRODUCT_SPEC.body_directory.as_posix()}/functions/{function_id}.sql"
@@ -4021,8 +4107,14 @@ def _validate_product_function_acl_expectations(
     # versionsディレクトリが必須であり、ここを省略できない。
     if not (root / PRODUCT_MIGRATION_VERSIONS).is_dir():
         return
-    migration_origins = _product_migration_functions(root)
+    migration_kinds: dict[tuple[str, str, str], str] = {}
+    migration_origins = _product_migration_functions(root, kinds=migration_kinds)
     migration_functions = frozenset(migration_origins)
+    migration_triggers = frozenset(
+        physical_id
+        for physical_id, kind in migration_kinds.items()
+        if kind == "migration_trigger"
+    )
     if state is RuntimeContractState.PENDING:
         try:
             contract = read_json_object(_runtime_contract_asset_path(root))
@@ -4033,13 +4125,9 @@ def _validate_product_function_acl_expectations(
             "暫定ランタイム契約.protected_objects",
         )[2]
         declared_gaps = frozenset(PRODUCT_PROVISIONAL_FUNCTION_GAPS)
-        if len(provisional_functions) != 33:
-            raise CatalogError("暫定ランタイム契約の関数集合が33件でない")
-        if len(migration_functions) != 37:
-            raise CatalogError("migration由来のトリガ関数集合が37件でない")
         if (
-            provisional_functions - migration_functions
-            or migration_functions - provisional_functions != declared_gaps
+            provisional_functions - migration_triggers
+            or migration_triggers - provisional_functions != declared_gaps
         ):
             raise CatalogError("migrationと暫定契約の差が宣言済み4関数と一致しない")
         for physical_id, revision in PRODUCT_PROVISIONAL_FUNCTION_GAPS.items():
@@ -4054,6 +4142,7 @@ def _validate_product_function_acl_expectations(
             schema_name,
             function_name,
             identity_args,
+            function_kind=migration_kinds[(schema_name, function_name, identity_args)],
         )
         expected_functions[str(declaration["function_id"])] = declaration
     all_functions = _product_declarations_by_id(
@@ -4064,10 +4153,11 @@ def _validate_product_function_acl_expectations(
     functions = {
         function_id: declaration
         for function_id, declaration in all_functions.items()
-        if declaration.get("function_kind") == "migration_trigger"
+        if declaration.get("function_kind")
+        in {"migration_trigger", "migration_function"}
     }
     if functions != expected_functions:
-        raise CatalogError("製品関数ACL宣言がmigrationの37関数とexact-set不一致")
+        raise CatalogError("製品関数ACL宣言がmigration由来の関数と種別込みでexact-set不一致")
 
     if state is RuntimeContractState.PENDING:
         expected_additions = _expected_provisional_function_additions()
@@ -4363,9 +4453,10 @@ def _validate_product_ddl_elements(
             raise CatalogError(f"{label}の7属性は真偽値でなければならない")
         roles_by_id[role_id] = role_value
 
-    if set(roles_by_id) != set(PRODUCT_ROLE_EXPECTATIONS):
+    role_expectations = expected_product_roles(raw)
+    if set(roles_by_id) != set(role_expectations):
         raise CatalogError("製品ロール集合がdesign.md 2-0と一致しない")
-    for role_id, expected in PRODUCT_ROLE_EXPECTATIONS.items():
+    for role_id, expected in role_expectations.items():
         actual = {
             key: value
             for key, value in roles_by_id[role_id].items()

@@ -85,15 +85,15 @@ def _seed_all_tables(catalog: ProvisionedProductCatalog) -> None:
 def _attached_triggers(
     cursor: psycopg.Cursor[Any],
 ) -> tuple[_AttachedTrigger, ...]:
-    """期待する 37 関数と実カタログのトリガ接続を exact-set 照合する。"""
+    """宣言した関数と実カタログのトリガ接続を exact-set 照合する。"""
     expectations = trigger_expectations()
     by_name = {item.function_name: item for item in expectations}
     cursor.execute(_TRIGGER_CATALOG_QUERY, (list(by_name),))
     rows = tuple(cursor.fetchall())
     observed_names = tuple(str(row[0]) for row in rows)
-    if len(rows) != 37 or set(observed_names) != set(by_name):
+    if len(rows) != len(by_name) or set(observed_names) != set(by_name):
         raise AssertionError(
-            "37 個の migration トリガ関数が 1 対 1 で接続されていない: "
+            "migration トリガ関数が 1 対 1 で接続されていない: "
             f"observed={observed_names}"
         )
 
@@ -278,7 +278,7 @@ def _helper_result(
 def test_all_trigger_functions_fire_without_app_execute_privilege(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """PUBLIC 剥奪後も 37 トリガがアプリロールの書き込みで発火する。"""
+    """PUBLIC 剥奪後も宣言したトリガがアプリロールの書き込みで発火する。"""
     catalog = provisioned_product_catalog
     _seed_all_tables(catalog)
     try:
@@ -325,7 +325,7 @@ def test_all_trigger_functions_fire_without_app_execute_privilege(
                 ([trigger.expectation.function_name for trigger in triggers],),
             )
             privileges = tuple(cursor.fetchall())
-            assert len(privileges) == 37
+            assert len(privileges) == len(triggers)
             assert all(row[1] is False for row in privileges)
             for trigger in triggers:
                 _assert_trigger_rejection(cursor, trigger)

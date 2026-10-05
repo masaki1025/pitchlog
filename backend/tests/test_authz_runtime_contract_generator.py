@@ -474,7 +474,7 @@ def test_staged_derivation_matches_provisional_union_exactly() -> None:
     assert comparison.extra.is_empty
     assert len(protected["schemas"]) == 2
     assert len(protected["tables"]) == 45
-    assert len(protected["functions"]) == 38
+    assert len(protected["functions"]) == len(staged["functions"])
 
     provisional = cast(dict[str, list[Any]], runtime_asset["protected_objects"])
     added_schemas = set(protected["schemas"]) - set(provisional["schemas"])

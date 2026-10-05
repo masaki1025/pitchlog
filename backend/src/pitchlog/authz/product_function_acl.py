@@ -81,8 +81,12 @@ def build_product_function_acl_declaration(
     schema_name: str,
     function_name: str,
     identity_args: str,
+    *,
+    function_kind: str = "migration_trigger",
 ) -> dict[str, object]:
-    """migrationトリガ関数の所有者とACL期待を組み立てる。"""
+    """migration由来の関数の所有者とACL期待を組み立てる。"""
+    if function_kind not in {"migration_trigger", "migration_function"}:
+        raise ValueError(f"migration関数種別が不正: {function_kind}")
     return {
         "function_id": product_function_id(
             schema_name,
@@ -92,7 +96,7 @@ def build_product_function_acl_declaration(
         "schema_name": schema_name,
         "function_name": function_name,
         "identity_args": identity_args,
-        "function_kind": "migration_trigger",
+        "function_kind": function_kind,
         "owner_role_id": "pitchlog_owner",
         "acl_expectations": [],
         "revoked_acl_expectations": [

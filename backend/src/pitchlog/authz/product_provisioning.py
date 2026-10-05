@@ -382,6 +382,8 @@ GRANT USAGE ON SCHEMA {quoted_schema} TO PUBLIC;
         function_kind = _element_text(element, "function_kind")
         if function_kind in {"rls_helper", "definer"}:
             return f"DROP FUNCTION IF EXISTS {identity};"
+        if function_kind == "migration_function":
+            return None
         if function_kind == "migration_trigger":
             return f"GRANT EXECUTE ON FUNCTION {identity} TO PUBLIC;"
         raise ProductProvisioningError(f"未知の製品関数種別: {function_kind}")

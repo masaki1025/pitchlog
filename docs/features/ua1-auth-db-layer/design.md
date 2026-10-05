@@ -37,6 +37,28 @@ date: 2026-10-04
 | 保護関数・migration 関数の件数 | 38 件・37 件を試験の複数か所で固定 | **固定値を資産からの導出へ置き換える**(トートロジーにしない — 資産と実カタログの照合は残す)。**migration 由来の関数を「トリガ関数」と「通常関数」(正規化関数)に分けて宣言・照合**する(現行は全件を `migration_trigger` と照合) |
 | 製品状態のランタイム契約 | 再導出モードなし(`runtime_contract_generator.py:264`) | **`rederive` モードを足す**(資産の変更 → 導出欄の再計算 → 7.7-2 の受理記録 1 件)。**PR B(#87)のマージ後の版を前提に書く** |
 
+### 2-1. ステップ 4 — 固定値の全数探索と置き換え(2026-10-05)
+
+**探索の範囲と方法**(Codex の報告 — 行番号は変更前): `backend/src`・`backend/tests`・`scripts`・`tests` の Python を AST で全走査し、整数リテラル `4`・`8`・`37`・`38`(43・106・20・84 箇所、計 253 箇所)を確認した。ロール名の列挙と `range(1, 8)` は別に検索した。
+
+| 位置 | 固定値 | 扱い |
+| --- | --- | --- |
+| `scripts/check_authz_catalog.py:207-249`・`:4366`、`backend/tests/test_authz_product_roles.py:40-80`・`:184` | 4 ロールの列挙・件数 | **独立の期待集合**(`backend/src/pitchlog/authz/product_role_contract.py`)へ置換 |
+| `backend/src/pitchlog/authz/product_control_access.py:22-31`、`scripts/check_authz_catalog.py:3805`・`:3871`、`backend/tests/test_authz_product_control_access.py:254` | 補助関数の列 ACL 8 件 | 検査器は宣言から導く。試験の依存列集合は意味の検査として残す |
+| `scripts/check_authz_catalog.py:3753`、`backend/tests/test_authz_product_table_access.py:248` | 表 ACL をアプリ用の固定集合とする扱い・件数 | アプリ用の独立の検査は残し、関数所有ロールの宣言を受ける |
+| `scripts/check_authz_catalog.py:3992`・`:4038`・`:4067`、`backend/tests/test_authz_product_function_acls.py:253`・`:262` | migration 関数 37 件・保護関数 38 件 | 資産・migration・ランタイム契約の集合照合へ置換 |
+| `backend/tests/test_product_authz_catalog.py:433`・`:436-448`、`backend/tests/test_authz_runtime_contract_generator.py:477`、`backend/tests/db/test_runtime_contract_product_integration.py:92`・`:180` | ロール・関数・列 ACL の件数 | 資産から導く(表 ACL の件数の照合を追加) |
+| `backend/tests/product_authz_cross_cutting_cases.py:60`、`backend/tests/db/test_product_authz_cross_cutting.py:94`・`:281`・`:328`、`backend/tests/test_product_authz_provisioning.py:718` | トリガ 37 件 | 宣言したトリガの集合から導く |
+| `backend/tests/test_authz_product_application_steps.py:77-80`、`test_product_authz_provisioning.py:176`・`:666`・`:872`、`test_product_authz_failure_injection_points.py:86`、`db/test_product_authz_provisioning.py:306` | `range(1, 8)` | 手順数から導く |
+| `backend/tests/test_authz_product_staging.py:255`、`tests/test_check_authz_catalog.py:330` | `product_role_count: 4` | 宣言の件数へ置換 |
+| `backend/tests/test_product_authz_provisioning.py`(DB の取り外し検査) | 作るロール 3 件の列挙 | 資産の `creation = product_ddl` から導く |
+
+**残した固定値**(製品のロール・ACL・関数の件数ではない): 分類プロファイルの各 4 件(`test_authz_product_classification.py:304-305`・`product_authz_other_profiles_cases.py:90-91`)/ 暫定契約の漏れの 4 件(`test_authz_product_function_acls.py:300` — 過去の受理の記録)/ 特定の手順・故障注入点の番号 / 要素セクションの位置 / PostgreSQL の表権限 8 種(`check_authz_catalog.py:4447-4448`・`test_check_authz_catalog.py:5470`)/ oracle 入力 8 資産(同 `:719`)/ 経緯の説明の「38 件」(`runtime_contract_dryrun.py:270`)。
+
+**独立の期待集合と段階化**: ロールの属性は `product_role_contract.py` に設計値として置き(資産から読まない)、**資産の宣言と実カタログの両方**をこれと照合する(`PRODUCT-CATALOG:ROLES` は資産でなくこの集合と比べる)。**5 件目(`pitchlog_auth_fn_owner`)を要求する条件 = 資産に `authn`・`authn_crypto` スキーマ、またはそこに置く関数・同ロールが所有する関数が宣言されていること**(ロール配列を段階の判定に使わないので、ロールを 1 つ消すと必ず red)。移行バッチ用ロールの属性は同じモジュールの別の定数。
+
+**migration 由来の関数の 2 種別**: `RETURNS trigger` = `migration_trigger`、それ以外 = `migration_function`。宣言・ACL・検査は種別込みの exact。現時点の `migration_function` は 0 件。**取り外しでは `migration_function` に何もしない**(`PUBLIC` の復帰も、宣言した付与の取り消しもしない)。→ **ステップ 6 で決め直す(推論 — 未実測)**: 正規化関数に資産から `EXECUTE` を与えると、取り外しで付与が残り、`DROP ROLE` が「依存するオブジェクトがある」で失敗するおそれがある。また migration が作った直後の状態(`PUBLIC` 実行可かどうかは 0027 の書き方による)へ戻らない。ステップ 6 で、0027 の `REVOKE` の有無と合わせて取り外しの文を決め、適用 → 取り外しの往復試験で確かめる
+
 ## 3. 正規化関数(ステップ 1 で確定)
 
 **規則(v0.4 8-1)**: Unicode NFKC → 前後の空白の除去 → 小文字化。**組み込みはすべて IMMUTABLE**([実測] — research.md 3-2)。

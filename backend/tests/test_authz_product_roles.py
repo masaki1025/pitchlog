@@ -15,6 +15,7 @@ import pytest
 
 from pitchlog.authz.asset_spec import PRODUCT_SPEC
 from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
+from pitchlog.authz.product_role_contract import expected_product_roles
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _BODY_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_function_bodies.py"
@@ -36,48 +37,6 @@ _SQL_ATTRIBUTE_TOKENS = {
     "create_db": ("CREATEDB", "NOCREATEDB"),
     "replication": ("REPLICATION", "NOREPLICATION"),
     "inherit": ("INHERIT", "NOINHERIT"),
-}
-_EXPECTED_ROLES: dict[str, dict[str, object]] = {
-    "pitchlog_owner": {
-        "creation": "external_applicator",
-        "superuser": False,
-        "bypass_rls": False,
-        "login": True,
-        "create_role": False,
-        "create_db": False,
-        "replication": False,
-        "inherit": False,
-    },
-    "pitchlog_app": {
-        "creation": "product_ddl",
-        "superuser": False,
-        "bypass_rls": False,
-        "login": True,
-        "create_role": False,
-        "create_db": False,
-        "replication": False,
-        "inherit": False,
-    },
-    "pitchlog_shared_fn_owner": {
-        "creation": "product_ddl",
-        "superuser": False,
-        "bypass_rls": True,
-        "login": False,
-        "create_role": False,
-        "create_db": False,
-        "replication": False,
-        "inherit": False,
-    },
-    "pitchlog_management_fn_owner": {
-        "creation": "product_ddl",
-        "superuser": False,
-        "bypass_rls": True,
-        "login": False,
-        "create_role": False,
-        "create_db": False,
-        "replication": False,
-        "inherit": False,
-    },
 }
 _CONNECTION_STRING_RE = re.compile(
     r"(?:[a-z][a-z0-9+.-]*://|\b(?:host|dbname|user|port)=)",
@@ -177,11 +136,11 @@ def _mutate_membership_edge(asset: dict[str, Any]) -> None:
 
 
 def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
-    """4ロールの宣言とSQLが設計の属性表へ完全一致する。"""
+    """段階ごとのロール宣言とSQLが独立の意味契約へ完全一致する。"""
     asset = _read_product_asset()
     assert _validate_product_asset(asset) == {
         "scope_status": "product_configuration",
-        "product_role_count": 4,
+        "product_role_count": len(expected_product_roles(asset)),
     }
     role_rows = asset["roles"]
     assert isinstance(role_rows, list)
@@ -191,14 +150,15 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
         }
         for row in role_rows
     }
-    assert actual_roles == _EXPECTED_ROLES
+    expected_roles = expected_product_roles(asset)
+    assert actual_roles == expected_roles
     assert asset["permanent_privileged_role_ids"] == ["pitchlog_owner"]
     assert asset["membership_edges"] == []
 
     statements = generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC)
     statements_by_role = _statement_by_role(statements)
-    assert set(statements_by_role) == set(_EXPECTED_ROLES)
-    for role_id, expected in _EXPECTED_ROLES.items():
+    assert set(statements_by_role) == set(expected_roles)
+    for role_id, expected in expected_roles.items():
         sql = statements_by_role[role_id].sql
         matches = re.findall(
             rf"ALTER ROLE {re.escape(role_id)} WITH\s+([^;]+);",
@@ -219,6 +179,33 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
     catalog_result = _run_checker(_CATALOG_CHECKER)
     assert body_result.returncode == 0, body_result.stderr
     assert catalog_result.returncode == 0, catalog_result.stderr
+
+
+def test_removed_product_role_violates_independent_contract() -> None:
+    """資産からロールを消しても意味上の期待集合は縮まらない。"""
+    asset = _read_product_asset()
+    asset["roles"] = [
+        row
+        for row in asset["roles"]
+        if row["role_id"] != "pitchlog_management_fn_owner"
+    ]
+    with pytest.raises(_catalog_checker.CatalogError, match="製品ロール集合"):
+        _validate_product_asset(asset)
+
+
+def test_auth_stage_requires_fifth_role_even_when_role_is_missing() -> None:
+    """認証スキーマを段階印とし、所有ロールの削除で旧段階へ戻さない。"""
+    asset = _read_product_asset()
+    asset["schemas"].append({"schema_name": "authn"})
+    expected = expected_product_roles(asset)
+    assert set(expected) == {
+        "pitchlog_owner",
+        "pitchlog_app",
+        "pitchlog_shared_fn_owner",
+        "pitchlog_management_fn_owner",
+        "pitchlog_auth_fn_owner",
+    }
+    assert "pitchlog_auth_fn_owner" not in {row["role_id"] for row in asset["roles"]}
 
 
 @pytest.mark.parametrize(

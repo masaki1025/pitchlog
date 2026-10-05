@@ -17,6 +17,10 @@ from pitchlog.authz.asset_spec import (
     load_product_application_steps,
 )
 from pitchlog.authz.product_function_acl import valid_product_identity_args
+from pitchlog.authz.product_role_contract import (
+    MIGRATION_BATCH_ROLE_ATTRIBUTES,
+    expected_product_roles,
+)
 
 _REPOSITORY_ROOT = Path(__file__).parents[4]
 _MIGRATION_BATCH_ROLE_PATH = (
@@ -515,6 +519,7 @@ class _ProductExpectations:
     role_ids: tuple[str, ...]
     permanent_privileged_role_ids: tuple[str, ...]
     roles: tuple[tuple[object, ...], ...]
+    semantic_roles: tuple[tuple[object, ...], ...]
     database_owner: str
     database_acl: tuple[tuple[object, ...], ...]
     schema_names: tuple[str, ...]
@@ -871,7 +876,7 @@ def _migration_batch_expectations_from_documents(
         _boolean(attributes, "replication", "attributes"),
         _boolean(attributes, "inherit", "attributes"),
     )
-    if role_attributes != (False, True, True, False, False, False, False):
+    if attributes != MIGRATION_BATCH_ROLE_ATTRIBUTES:
         raise ProductCatalogError("移行ロールの 7 属性が設計値と一致しない")
     if raw_shape.get("membership_edges") != []:
         raise ProductCatalogError("移行ロールに接する membership 辺は 0 本が必要")
@@ -1004,6 +1009,30 @@ def _load_product_expectations() -> _ProductExpectations:
     role_ids = tuple(row[0] for row in roles if isinstance(row[0], str))
     if len(role_ids) != len(set(role_ids)):
         raise ProductCatalogError("製品ロール ID が重複している")
+    semantic_roles = expected_product_roles(asset)
+    declared_roles = {
+        _text(row, "role_id", "roles"): {
+            key: value for key, value in row.items() if key != "role_id"
+        }
+        for row in role_rows
+    }
+    if declared_roles != semantic_roles:
+        raise ProductCatalogError("製品ロールが独立の意味契約と一致しない")
+    semantic_catalog_roles = tuple(
+        sorted(
+            (
+                role_id,
+                attributes["superuser"],
+                attributes["bypass_rls"],
+                attributes["login"],
+                attributes["create_role"],
+                attributes["create_db"],
+                attributes["replication"],
+                attributes["inherit"],
+            )
+            for role_id, attributes in semantic_roles.items()
+        )
+    )
     raw_permanent_role_ids = (
         asset["permanent_privileged_role_ids"]
         if "permanent_privileged_role_ids" in asset
@@ -1156,7 +1185,7 @@ def _load_product_expectations() -> _ProductExpectations:
         function_names.append(function_name)
         if function_kind == "migration_trigger":
             trigger_function_keys.append(key)
-        elif function_kind not in {"rls_helper", "definer"}:
+        elif function_kind not in {"rls_helper", "definer", "migration_function"}:
             raise ProductCatalogError(f"未知の製品関数種別: {function_kind}")
         for grantee, privilege, grantable in _direct_acl(
             row, "acl_expectations", "functions"
@@ -1168,6 +1197,7 @@ def _load_product_expectations() -> _ProductExpectations:
         role_ids=role_ids,
         permanent_privileged_role_ids=permanent_privileged_role_ids,
         roles=roles,
+        semantic_roles=semantic_catalog_roles,
         database_owner=database_owner,
         database_acl=database_acl,
         schema_names=schema_names,
@@ -1672,7 +1702,7 @@ def inspect_product_authz_catalog(
     report = _ReportBuilder()
     report.compare(
         "PRODUCT-CATALOG:ROLES",
-        expectations.roles,
+        expectations.semantic_roles,
         _actual_roles(role_rows),
     )
     report.compare(

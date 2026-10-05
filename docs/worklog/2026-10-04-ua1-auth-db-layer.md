@@ -144,3 +144,14 @@ branch: feature/ua1-auth-db-layer
   - ハーネス: `ruff check .`・`ty check` green / `tests/test_check_authz_catalog.py`・`tests/test_check_authz_function_bodies.py`・`tests/test_frozen_archive.py` 203 件 green / `check_authz_catalog`・`check_authz_function_bodies`・`check_failure_injection_points`・`check_shared_preconditions` rc=0
   - **迂回の走査**(受理記録の検査だけを差し替えた一時実行 — 計画 4 節 ①): `tenant-boundary bypass check: ok`(rc=0)。差し替えない元の検査も rc=0(このステップは資産を変えないので受理記録の不一致は生じない)
   - 変更 16 ファイルは全件がコア領域の paths に一致(design.md 11 節の置き場の規則どおり)
+
+## ステップ 4(2026-10-05)
+
+- Codex へ `--resume` で委任(混雑による中断なし)。全数探索の一覧・独立の期待集合と段階化・migration 由来の関数の 2 種別は design.md 2-1 節
+- **ステップ 6 へ持ち越した判断**: `migration_function` の取り外しは何もしない実装 → 正規化関数へ付与した後の `DROP ROLE` の失敗と、往復で元へ戻らないおそれ(推論)。ステップ 6 で 0027 の `REVOKE` と合わせて決め、往復試験で確かめる(design.md 2-1 節)
+- 確認(Claude が実行):
+  - backend: `ruff check`・`ruff format --check`・`ty check` green / 影響範囲の非 DB 試験 355 passed・4 skipped(切り替えドライランの既存のスキップ)/ 生成器 `check` rc=0
+  - DB 試験(`tests/db/` の製品 authz・ランタイム契約の統合 等 9 ファイル): 94 passed
+  - ハーネス: `ruff check .`・`ty check` green / `tests/test_check_authz_catalog.py`・`tests/test_check_authz_function_bodies.py` 167 passed / `check_authz_catalog`・`check_authz_function_bodies`・`check_failure_injection_points`・`check_shared_preconditions`・`check_tenant_boundary_bypass` rc=0
+  - **迂回の走査**(受理記録の検査だけを差し替えた一時実行): `tenant-boundary bypass check: ok`(rc=0)
+  - 新しいファイル `backend/src/pitchlog/authz/product_role_contract.py` は `backend/src/pitchlog/authz/*` に一致(design.md 11 節)

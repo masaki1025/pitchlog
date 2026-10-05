@@ -427,25 +427,38 @@ def _install_catalog_rows(
 
 
 def test_product_expectations_cover_every_catalog_surface() -> None:
-    """Staged 資産と適用手順から全件数と 7 手順を導出する。"""
+    """製品資産と適用手順から全カタログ期待値を導出する。"""
     expectations = product_catalog._load_product_expectations()
+    asset = product_catalog._load_product_asset()
+    asset_roles = cast(list[dict[str, Any]], asset["roles"])
+    asset_functions = cast(list[dict[str, Any]], asset["functions"])
+    asset_table_acls = cast(list[dict[str, Any]], asset["acl_expectations"])
+    asset_column_acls = cast(list[dict[str, Any]], asset["column_acl_expectations"])
 
-    assert len(expectations.roles) == 4
+    assert len(expectations.roles) == len(asset_roles)
+    assert expectations.roles == expectations.semantic_roles
     assert len(expectations.tables) == 45
     assert len(expectations.policies) == 32
-    assert len(expectations.functions) == 38
-    assert len(expectations.trigger_function_keys) == 37
+    assert len(expectations.functions) == len(asset_functions)
+    assert len(expectations.trigger_function_keys) == sum(
+        row["function_kind"] == "migration_trigger" for row in asset_functions
+    )
     assert {key[2] for key in expectations.trigger_function_keys} == {""}
     assert {
         row[2]
         for row in expectations.functions
         if row[0:2] == ("authz_private", "tenant_has_effective_membership")
     } == {"uuid, boolean"}
-    assert len(expectations.column_acl) == 8
+    assert len(expectations.column_acl) == sum(
+        len(row["privilege_ids"]) for row in asset_column_acls
+    )
+    assert len(expectations.table_acl) == sum(
+        len(row["privilege_ids"]) for row in asset_table_acls
+    )
     assert expectations.database_acl == (("pitchlog_app", "CONNECT", False),)
     assert tuple(
         step.sequence for step in expectations.application_steps.application_steps
-    ) == tuple(range(1, 8))
+    ) == tuple(range(1, len(expectations.application_steps.application_steps) + 1))
     assert expectations.application_steps.transaction == "single"
 
 
@@ -495,6 +508,42 @@ def test_definer_function_is_derived_from_test_asset(
         "EXECUTE",
         False,
     ) in expectations.function_acl
+
+
+def test_migration_regular_function_is_not_a_trigger(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """通常関数は関数 ACL に含め、トリガ関数の集合から除く。"""
+    asset = copy.deepcopy(product_catalog._load_product_asset())
+    rows = cast(list[dict[str, Any]], asset["functions"])
+    ordinary = copy.deepcopy(rows[0])
+    ordinary.update(
+        function_id="FUNCTION:public:step4_ordinary()",
+        function_name="step4_ordinary",
+        function_kind="migration_function",
+    )
+    rows.append(ordinary)
+    assert PRODUCT_SPEC.application_steps_path is not None
+    steps_asset = json.loads(
+        (_REPOSITORY_ROOT / PRODUCT_SPEC.application_steps_path).read_text(
+            encoding="utf-8"
+        )
+    )
+    steps_asset["application_steps"][-1]["element_groups"].append(
+        "functions:migration_function"
+    )
+    steps = validate_product_application_steps(steps_asset, asset, PRODUCT_SPEC)
+    monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
+    monkeypatch.setattr(
+        product_catalog, "load_product_application_steps", lambda root, spec: steps
+    )
+    expectations = product_catalog._load_product_expectations()
+    key = ("public", "step4_ordinary", "")
+    assert (*key, "pitchlog_owner", False) in expectations.functions
+    assert key not in expectations.trigger_function_keys
+    assert len(expectations.trigger_function_keys) == sum(
+        row["function_kind"] == "migration_trigger" for row in rows
+    )
 
 
 def test_fetch_terminal_has_registered_signature_and_one_exact_reference() -> None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Final
 
 CONTROL_PROFILE: Final = "effective_group_control"
@@ -19,16 +20,6 @@ HELPER_FUNCTION_ID: Final = (
 )
 HELPER_OWNER_ROLE_ID: Final = "pitchlog_shared_fn_owner"
 HELPER_SEARCH_PATH: Final = ("pg_catalog", "pg_temp")
-HELPER_DEPENDENCY_COLUMNS: Final = (
-    ("tenants", "id"),
-    ("tenants", "enabled"),
-    ("analysis_groups", "id"),
-    ("analysis_groups", "status"),
-    ("group_memberships", "group_id"),
-    ("group_memberships", "tenant_id"),
-    ("group_memberships", "role"),
-    ("group_memberships", "status"),
-)
 _CONTROL_POLICY_EXPRESSIONS: Final = (
     (
         "analysis_groups",
@@ -182,9 +173,10 @@ def generate_membership_helper_sql() -> str:
 
 
 def column_acl_expectation_id(table_id: str, column_id: str) -> str:
-    """補助関数所有者の列ACL IDを返す。"""
-    if (table_id, column_id) not in HELPER_DEPENDENCY_COLUMNS:
-        raise ValueError(f"補助関数の依存列が閉集合にない: {table_id}.{column_id}")
+    """補助関数所有者の列ACL IDを安全な識別子から返す。"""
+    for value in (table_id, column_id):
+        if re.fullmatch(r"[a-z_][a-z0-9_]*", value) is None:
+            raise ValueError(f"列ACLの識別子が不正: {value!r}")
     return f"COLUMN-ACL:public:{table_id}:{column_id}:{HELPER_OWNER_ROLE_ID}"
 
 
@@ -216,4 +208,32 @@ def generate_helper_column_acl_sql(table_id: str, column_id: str) -> str:
         "\n"
         f"GRANT SELECT ({column_id}) ON TABLE public.{table_id} "
         f"TO {HELPER_OWNER_ROLE_ID};\n"
+    )
+
+
+def generate_function_owner_column_acl_sql(
+    declaration: dict[str, object],
+) -> str:
+    """資産で宣言した関数所有者の列 SELECT SQL を生成する。"""
+    acl_id = str(declaration["expectation_id"])
+    schema_name = str(declaration["object_schema"])
+    table_id = str(declaration["object_id"])
+    column_id = str(declaration["column_id"])
+    role_id = str(declaration["grantee_role_id"])
+    for value in (schema_name, table_id, column_id, role_id):
+        if re.fullmatch(r"[a-z_][a-z0-9_]*", value) is None:
+            raise ValueError(f"列ACLの識別子が不正: {value!r}")
+    if acl_id != f"COLUMN-ACL:{schema_name}:{table_id}:{column_id}:{role_id}":
+        raise ValueError("関数所有者の列 ACL ID が物理識別子と一致しない")
+    if (
+        declaration.get("privilege_ids") != ["SELECT"]
+        or declaration.get("grant_option") is not False
+    ):
+        raise ValueError("関数所有者の列 ACL は SELECT だけを許可する")
+    return (
+        "-- ELEMENT-TYPE: column_acl_expectation\n"
+        f"-- ELEMENT-ID: {acl_id}\n"
+        "\n"
+        f"GRANT SELECT ({column_id}) ON TABLE {schema_name}.{table_id} "
+        f"TO {role_id};\n"
     )

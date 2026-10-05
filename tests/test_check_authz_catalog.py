@@ -327,7 +327,7 @@ def test_product_runtime_contract_state_is_accepted(tmp_path: Path) -> None:
 
     assert result == {
         "scope_status": checker.PRODUCT_SPEC.allowed_scope_status,
-        "product_role_count": 4,
+        "product_role_count": len(_read_json_at(root, checker.PRODUCT_ASSET)["roles"]),
     }
 
 

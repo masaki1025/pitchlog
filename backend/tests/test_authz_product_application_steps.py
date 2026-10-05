@@ -74,10 +74,10 @@ def test_product_application_steps_asset_is_green() -> None:
     )
     assert validated.transaction == "single"
     assert tuple(step.sequence for step in validated.application_steps) == tuple(
-        range(1, 8)
+        range(1, len(validated.application_steps) + 1)
     )
     assert tuple(step.sequence for step in validated.unapplication_steps) == tuple(
-        range(1, 8)
+        range(1, len(validated.unapplication_steps) + 1)
     )
     assert tuple(
         step.reverses_application_step_id for step in validated.unapplication_steps
@@ -116,6 +116,28 @@ def test_extension_and_new_schema_asset_is_green(
         "databases",
         "schemas",
         "extensions",
+    )
+
+
+def test_migration_regular_function_uses_final_function_step(
+    application_asset: dict[str, object], ddl_elements: dict[str, object]
+) -> None:
+    """通常関数の要素群を migration トリガと同じ最終手順で受理する。"""
+    steps_asset = copy.deepcopy(application_asset)
+    elements = copy.deepcopy(ddl_elements)
+    functions = elements["functions"]
+    assert isinstance(functions, list)
+    ordinary = copy.deepcopy(functions[0])
+    ordinary["function_id"] = "FUNCTION:public:step4_ordinary()"
+    ordinary["function_name"] = "step4_ordinary"
+    ordinary["function_kind"] = "migration_function"
+    functions.append(ordinary)
+    groups = _application_steps(steps_asset)[-1]["element_groups"]
+    assert isinstance(groups, list)
+    groups.append("functions:migration_function")
+    validated = validate_product_application_steps(steps_asset, elements, PRODUCT_SPEC)
+    assert validated.application_steps[-1].element_groups[-1] == (
+        "functions:migration_function"
     )
 
 

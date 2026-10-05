@@ -303,7 +303,7 @@ def test_product_fixture_migrates_as_owner_then_applies_as_external_superuser(
     assert database_owner == ("pitchlog_owner",)
     assert tuple(
         step.sequence for step in catalog.application_steps.application_steps
-    ) == tuple(range(1, 8))
+    ) == tuple(range(1, len(catalog.application_steps.application_steps) + 1))
     assert catalog.application_steps.transaction == "single"
 
     expected = _expected_role_rows(catalog)
