@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
 import json
 import sys
@@ -138,6 +139,34 @@ def _validate_handoff(handoff: dict[str, Any]) -> dict[str, int]:
     ):
         raise HandoffReferenceError("calculationIdsとconsumerBindingsが不一致")
 
+    artifact_paths = [item["path"] for item in handoff["artifacts"]]
+    if len(artifact_paths) != len(set(artifact_paths)):
+        raise HandoffReferenceError("artifactsのpathが重複")
+    expected_paths = {
+        item["contractPath"] for item in handoff["consumerBindings"]
+    } | {handoff["descriptorParity"]["descriptorPath"]}
+    if set(artifact_paths) != expected_paths:
+        raise HandoffReferenceError("artifactsとbinding・descriptorの対象が不一致")
+    for artifact in handoff["artifacts"]:
+        path = REPOSITORY_ROOT / artifact["path"]
+        if not path.is_file() or not path.resolve().is_relative_to(REPOSITORY_ROOT):
+            raise HandoffReferenceError(f"artifactsの参照先が不達: {artifact['path']}")
+        actual_digest = f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
+        if artifact["digest"] != actual_digest:
+            raise HandoffReferenceError(
+                f"artifactsのdigestが実ファイルと不一致: {artifact['path']}"
+            )
+        if _load_object(path)["version"] != artifact["version"]:
+            raise HandoffReferenceError(f"artifactsの版が実ファイルと不一致: {artifact['path']}")
+
+    descriptor_parity = handoff["descriptorParity"]
+    descriptor = _load_object(REPOSITORY_ROOT / descriptor_parity["descriptorPath"])
+    rules = _resolve_pointer(descriptor, descriptor_parity["projectionRulesPointer"])
+    if not isinstance(rules, list) or not rules:
+        raise HandoffReferenceError("descriptorParityの射影規則が不達")
+    if descriptor_parity["descriptorId"] != descriptor["descriptorId"]:
+        raise HandoffReferenceError("descriptorParityのdescriptorIdが不一致")
+
     counts = {}
     for binding in handoff["consumerBindings"]:
         _validate_execution_paths(binding, schema)
@@ -253,5 +282,21 @@ def test_runner_revision_cannot_claim_resolved() -> None:
     """段階1でrunnerのcommit OIDを確定済みと宣言できない。"""
     handoff = copy.deepcopy(_handoff())
     handoff["consumerBindings"][0]["executionPaths"][0]["runnerRevision"] = "a" * 40
+    with pytest.raises(schema_checker.DescriptorCheckError, match="const不一致"):
+        _validate_handoff(handoff)
+
+
+def test_artifact_digest_mismatch_is_red() -> None:
+    """実ファイルと異なるdigestはschema形状が正しくても拒否する。"""
+    handoff = copy.deepcopy(_handoff())
+    handoff["artifacts"][0]["digest"] = "sha256:" + "0" * 64
+    with pytest.raises(HandoffReferenceError, match="digestが実ファイルと不一致"):
+        _validate_handoff(handoff)
+
+
+def test_consumption_verification_must_remain_pending() -> None:
+    """段階1の消費未検証宣言をverifiedへ変更できない。"""
+    handoff = copy.deepcopy(_handoff())
+    handoff["consumptionVerification"] = "verified"
     with pytest.raises(schema_checker.DescriptorCheckError, match="const不一致"):
         _validate_handoff(handoff)
