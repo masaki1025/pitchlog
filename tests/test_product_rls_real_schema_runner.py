@@ -545,14 +545,73 @@ def test_different_generation_ids_are_rejected() -> None:
     ):
         result = runner.RunResult(
             runner.ApplicationResult(application_id, catalog_id, 0),
-            runner.TestResult(test_id, "nodes", report),
+            runner.TestResult(test_id, "nodes", report, True),
         )
         with pytest.raises(runner.RunnerError, match="生成 ID"):
             runner._assert_generation_ids(prepared, result)
 
 
+def test_docker_is_unreachable_in_filtered_path_and_restored_afterward(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """複数の docker 配置ディレクトリをすべて外し、元の PATH へ戻す。"""
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    safe = tmp_path / "safe"
+    for directory in (first, second, safe):
+        directory.mkdir()
+    for directory in (first, second):
+        docker = directory / "docker"
+        docker.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        docker.chmod(0o755)
+    original = os.pathsep.join(str(path) for path in (first, safe, second))
+    monkeypatch.setenv("PATH", original)
+    assert runner.shutil.which("docker") == str(first / "docker")
+
+    with runner._without_docker_on_path():
+        assert os.environ["PATH"] == str(safe)
+        assert runner.shutil.which("docker") is None
+
+    assert os.environ["PATH"] == original
+    assert runner.shutil.which("docker") == str(first / "docker")
+
+
+def test_docker_constraint_refuses_unreachable_check_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PATH を絞った後も docker が見えれば中止し、PATH を戻す。"""
+    monkeypatch.setenv("PATH", "/dev/null")
+    monkeypatch.setattr(runner.shutil, "which", lambda *_args, **_kwargs: "/fake/docker")
+
+    with pytest.raises(runner.RunnerError, match="docker"):
+        with runner._without_docker_on_path():
+            pytest.fail("到達検査が通った")
+
+    assert os.environ["PATH"] == "/dev/null"
+
+
+def test_docker_constraint_restores_path_after_test_exception(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """試験が例外で終わっても元の PATH を復元する。"""
+    docker = tmp_path / "docker"
+    docker.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    docker.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+
+    with pytest.raises(ValueError, match="test failed"):
+        with runner._without_docker_on_path():
+            assert runner.shutil.which("docker") is None
+            raise ValueError("test failed")
+
+    assert os.environ["PATH"] == str(tmp_path)
+    assert runner.shutil.which("docker") == str(docker)
+
+
 def test_junit_report_keeps_only_names_and_results(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """pytest の XML から接続文字列や捕捉出力を除いて残す。"""
     config = runner._load_targets()
@@ -562,8 +621,14 @@ def test_junit_report_keeps_only_names_and_results(
         * (len(expected) * runner.OBSERVED_CONNECTIONS_PER_NODE)
     )
     original_import = runner.importlib.import_module
+    docker = tmp_path / "docker"
+    docker.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    docker.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    assert runner.shutil.which("docker") == str(docker)
 
     def fake_main(args: list[str], *, plugins: list[Any]) -> int:
+        assert runner.shutil.which("docker") is None
         report_arg = next(arg for arg in args if arg.startswith("--junitxml="))
         report_path = Path(report_arg.split("=", 1)[1])
         suites = ET.Element("testsuites", hostname="private-marker")
@@ -587,6 +652,9 @@ def test_junit_report_keeps_only_names_and_results(
 
     monkeypatch.setattr(runner.importlib, "import_module", fake_import)
     result = runner._run_product_tests(config, observed, "101", "target", "generation")
+    assert runner.shutil.which("docker") == str(docker)
+    assert os.environ["PATH"] == str(tmp_path)
+    assert result.docker_unreachable_during_tests is True
     report = result.junit_report.read_text(encoding="utf-8")
     assert "private-marker" not in report + capsys.readouterr().out
     assert "postgresql://" not in report
@@ -637,7 +705,7 @@ def test_product_evidence_applies_before_in_process_tests(
         calls.append("pytest")
         assert os.environ["PITCHLOG_TEST_ADMIN_DSN"].endswith("/initial")
         return runner.TestResult(
-            "generation", "digest", Path("/tmp/product-rls-generation-demo/report.xml")
+            "generation", "digest", Path("/tmp/product-rls-generation-demo/report.xml"), True
         )
 
     fixture_module = SimpleNamespace(
@@ -709,6 +777,7 @@ def test_main_passes_generated_owner_connection_without_printing_it(
                 "generation",
                 "node-digest",
                 Path("/tmp/product-rls-generation-demo/report.xml"),
+                True,
             ),
         )
 
@@ -743,6 +812,7 @@ def test_main_passes_generated_owner_connection_without_printing_it(
     assert evidence["catalog_violations"] == 0
     assert evidence["expected_nodes_asset"] == "expected-nodes-27ff94eb.txt"
     assert evidence["executed_nodes"] == "node-digest"
+    assert evidence["docker_unreachable_during_tests"] is True
 
 
 def test_cli_does_not_print_unexpected_exception_content(

@@ -22,12 +22,13 @@ import json
 import os
 import re
 import secrets
+import shutil
 import subprocess
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
-from collections.abc import Callable, Mapping
-from contextlib import redirect_stderr, redirect_stdout
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -106,6 +107,7 @@ class TestResult:
     generation_id: str
     executed_nodes: str
     junit_report: Path
+    docker_unreachable_during_tests: bool
 
 
 @dataclass(frozen=True)
@@ -553,6 +555,28 @@ def _apply_product_ddl(
     return ApplicationResult(application_generation_id, catalog_generation_id, violations)
 
 
+@contextmanager
+def _without_docker_on_path() -> Iterator[None]:
+    """pytest の実行中だけ全 PATH から docker への到達経路を外す。"""
+    original_path = os.environ.get("PATH")
+    entries = [] if original_path is None else original_path.split(os.pathsep)
+    safe_entries = []
+    for entry in entries:
+        directory = os.path.abspath(entry or os.curdir)
+        if shutil.which("docker", path=directory) is None:
+            safe_entries.append(directory)
+    os.environ["PATH"] = os.pathsep.join(safe_entries) if safe_entries else os.devnull
+    try:
+        if shutil.which("docker") is not None:
+            raise RunnerError("試験中に docker へ到達できる")
+        yield
+    finally:
+        if original_path is None:
+            os.environ.pop("PATH", None)
+        else:
+            os.environ["PATH"] = original_path
+
+
 def _run_product_tests(
     config: TargetsConfig,
     observations: Any,
@@ -572,20 +596,21 @@ def _run_product_tests(
     pytest = importlib.import_module("pytest")
     try:
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-            exit_code = int(
-                pytest.main(
-                    [
-                        "-c",
-                        "pyproject.toml",
-                        "--tb=no",
-                        "--show-capture=no",
-                        "-q",
-                        f"--junitxml={report_path}",
-                        *PRODUCT_TEST_PATHS,
-                    ],
-                    plugins=[reports],
+            with _without_docker_on_path():
+                exit_code = int(
+                    pytest.main(
+                        [
+                            "-c",
+                            "pyproject.toml",
+                            "--tb=no",
+                            "--show-capture=no",
+                            "-q",
+                            f"--junitxml={report_path}",
+                            *PRODUCT_TEST_PATHS,
+                        ],
+                        plugins=[reports],
+                    )
                 )
-            )
     finally:
         if report_path.is_file():
             junit_cases = _redact_junit_report(report_path, expected)
@@ -602,7 +627,7 @@ def _run_product_tests(
         raise RunnerError("JUnit 成果物に passed 以外の結果がある")
     _validate_test_observations(observations.connections, cluster, database, len(expected))
     digest = hashlib.sha256("\n".join(sorted(reports.outcomes)).encode("utf-8")).hexdigest()
-    return TestResult(generation_id, digest, report_path)
+    return TestResult(generation_id, digest, report_path, True)
 
 
 def _run_product_evidence(
@@ -1171,6 +1196,8 @@ def main(run: Callable[[], PreparedTarget] | None = None) -> int:
             prepared.generation_id,
         )
         _assert_generation_ids(prepared, result)
+        if not result.tests.docker_unreachable_during_tests:
+            raise RunnerError("試験中の docker 到達禁止を確認できない")
         ddl_asset_digest = _ddl_asset_digest()
         test_tree_commit = _test_tree_commit()
     except RunnerError as error:
@@ -1198,6 +1225,7 @@ def main(run: Callable[[], PreparedTarget] | None = None) -> int:
                 "executed_nodes": result.tests.executed_nodes,
                 "expected_nodes_asset": config.expected_nodes_asset.name,
                 "junit_report": str(result.tests.junit_report),
+                "docker_unreachable_during_tests": result.tests.docker_unreachable_during_tests,
             }
         )
     )
