@@ -27,6 +27,12 @@ branch: feature/ua1-auth-app-layer
 - `backend/tests/db/test_authz_verified_tenant.py` に `requires_db` を付け、実 DB 上で正常トークンのテナント ID と利用時刻・期限の更新を確認してから、**ログアウト失効、認証情報の世代繰り上げ、テナント無効化、主体とトークンのテナント不一致、期限切れ**を各 1 件作り、正しく署名した提示値が `None` となり行が更新されないことを確認する試験を追加した。実行を試みたが、共通 fixture の管理接続が `psycopg.OperationalError: connection is bad` で止まり、**5 件とも本体は未実行**。実 DB での負例と延長は未確認。DB ログ設定は変更していない。
 - 非 DB 全件 `pytest -c pyproject.toml tests/ -q -m "not requires_db" --ignore=tests/db`: **981 passed, 4 skipped, 17 deselected**。`ruff format`: **248 files left unchanged**、`ruff check` / `ty check`: **All checks passed**。実行には `UV_CACHE_DIR=/tmp/pitchlog-ua1-uv-cache` と `uv run --offline` を使用した。
 - ステップ 4 の TB002 を実測。新設した Python 3 ファイルの AST からモジュール名・クラス名・関数名・引数名・代入先名・属性名・import 名など **固有 109 識別子**を採り、検査器と同じ snake_case 相当の正規化を施し、`base-allowlist.json` の TB002 正規表現 7 件と照合した。**該当 0 件**。SQL 中の `generation` は Python 識別子ではない。
+- ステップ 5: `backend/tests/test_authz_app_layer_surface.py` に公開操作と DB 到達点の期待集合を置いた。実装の Python AST から公開関数・クラス操作、製品コードから公開操作への呼び出し、`authn.*` を含む SQL 実行箇所を導出し、非空かつ exact-set で照合する。公開操作 6 件、DB 到達点 1 件(`verify_tenant_id` → `authn.verify_token`)。既存の製品呼び出し元 4 件(型注釈で結び付く `presentation.decode()` を含む)も exact-set とした。公開操作 6 件それぞれの不正入力と、正しく署名した提示値に対する DB NULL の負例を追加した。`verify_token` の検証と延長は同一呼び出しで、別々の到達点に数えない。
+- β の関数資産を実測。`authn.logout(uuid)` は存在し、対象トークン行の `expires_at` を更新し、`pitchlog_app` に EXECUTE が付与されている。`authn.change_password(uuid, text, text)` も存在する。ただし本単位の製品コードには両関数の呼び出し元がないため、DB 到達点の機械可読マップには両方を **`None`(未接続)** と明記した。HTTP のログアウト・パスワード変更経路は δ の射程であり、このステップでは追加しない。
+- 空集合変異を実施。試験ファイルの公開操作期待集合と DB 到達点期待集合をそれぞれ一時的に空にし、各照合試験を `pytest` で実行した。**どちらも終了コード 1 / 1 failed / `期待集合が空です`**。原状に戻した。恒久試験にも期待集合・導出集合の空集合拒否を入れた。
+- 実装側の呼び出し元追加変異を実施。`backend/src/pitchlog/authz/_step5_mutation_probe.py` を一時的に作り、`verify_tenant_id()` を呼ぶ関数と `connection.execute('SELECT authn.logout(...)')` を呼ぶ関数を追加した。**先に AST で新関数 2 件と呼び出し式 2 件が実装へ届いたことを確認**。その後、公開呼び出し元と DB 到達点の照合試験は **終了コード 1 / 2 failed** となり、失敗出力に新しい呼び出し元が両方現れた。一時ファイルを削除した。恒久試験でもソース複製への公開操作・公開呼び出し元・DB 呼び出しの追加変異が各照合を失敗させる。関数内の SQL 変数を `exec_driver_sql` へ渡す `change_password` 呼び出し変異も検出した。
+- ステップ 5 の TB002 を実測。新設試験ファイルの Python AST からモジュール名・関数名・クラス名・引数名・Name・Attribute・import 名を採り、検査器と同じ snake_case 相当へ正規化し、`base-allowlist.json` の TB002 正規表現 7 件と照合した。**固有 188 識別子、該当 0 件**。凍結資産や検査器は変更していない。
+- ステップ 5 の最終検証(`backend/`、`UV_CACHE_DIR=/tmp/pitchlog-ua1-uv-cache`、`uv run --offline`): 指定の非 DB 全件は **996 passed, 4 skipped, 17 deselected**。`ruff format`: **249 files left unchanged**、`ruff check` / `ty check`: **All checks passed**。実 DB の試験は本ステップで追加・実行していない。
 
 ## 決定
 
@@ -39,4 +45,4 @@ branch: feature/ua1-auth-app-layer
 
 ## 未決・次の一歩
 
-- ステップ 4 まで実装済み。委任元がステップ 4 のコミットを作る。実 DB 負例 5 件は接続可能な環境で実行し、結果を確認する必要がある。ステップ 5 以降には着手していない。
+- ステップ 5 まで実装済み。委任元がステップ 5 のコミットを作る。実 DB 負例 5 件は接続可能な環境で実行し、結果を確認する必要がある。ステップ 6 以降には着手していない。
