@@ -101,6 +101,32 @@ def _binding_pointers(binding: dict[str, Any]) -> list[str]:
     ]
 
 
+def _validate_execution_paths(binding: dict[str, Any], schema: dict[str, Any]) -> None:
+    """軽量schema検証器が未対応のallOf/containsも宣言どおり照合する。"""
+    path_schema = schema["$defs"]["executionPaths"]
+    paths = binding["executionPaths"]
+    allowed_runners = set(schema["$defs"]["executionPath"]["properties"]["runner"]["enum"])
+    conditions = path_schema["allOf"]
+    declared_runners = [
+        condition["contains"]["properties"]["runner"]["const"]
+        for condition in conditions
+    ]
+    if len(declared_runners) != len(allowed_runners) or set(declared_runners) != allowed_runners:
+        raise HandoffReferenceError("executionPathsのexact-set宣言が不完全")
+    for condition in conditions:
+        matches = 0
+        for path in paths:
+            try:
+                schema_checker._validate_instance(
+                    path, condition["contains"], schema, "$.executionPaths[]"
+                )
+            except schema_checker.DescriptorCheckError:
+                continue
+            matches += 1
+        if not condition["minContains"] <= matches <= condition["maxContains"]:
+            raise HandoffReferenceError("executionPathsのrunner exact-setが不一致")
+
+
 def _validate_handoff(handoff: dict[str, Any]) -> dict[str, int]:
     """schemaと全caseの参照を照合する。"""
     schema = _schema()
@@ -114,6 +140,7 @@ def _validate_handoff(handoff: dict[str, Any]) -> dict[str, int]:
 
     counts = {}
     for binding in handoff["consumerBindings"]:
+        _validate_execution_paths(binding, schema)
         contract_path = REPOSITORY_ROOT / binding["contractPath"]
         contract = _load_object(contract_path)
         if (
@@ -203,4 +230,28 @@ def test_non_pointer_mapping_fails_schema() -> None:
         "contractPointer"
     ] = "caseId"
     with pytest.raises(schema_checker.DescriptorCheckError, match="pattern不一致"):
+        _validate_handoff(handoff)
+
+
+def test_single_execution_path_fails_schema() -> None:
+    """片方のrunner経路を欠くbindingを拒否する。"""
+    handoff = copy.deepcopy(_handoff())
+    handoff["consumerBindings"][0]["executionPaths"].pop()
+    with pytest.raises(schema_checker.DescriptorCheckError, match="配列要素数が下限未満"):
+        _validate_handoff(handoff)
+
+
+def test_duplicate_runner_fails_exact_set() -> None:
+    """2経路あっても同一runnerの重複は拒否する。"""
+    handoff = copy.deepcopy(_handoff())
+    handoff["consumerBindings"][0]["executionPaths"][1]["runner"] = "pytest"
+    with pytest.raises(HandoffReferenceError, match="runner exact-set"):
+        _validate_handoff(handoff)
+
+
+def test_runner_revision_cannot_claim_resolved() -> None:
+    """段階1でrunnerのcommit OIDを確定済みと宣言できない。"""
+    handoff = copy.deepcopy(_handoff())
+    handoff["consumerBindings"][0]["executionPaths"][0]["runnerRevision"] = "a" * 40
+    with pytest.raises(schema_checker.DescriptorCheckError, match="const不一致"):
         _validate_handoff(handoff)

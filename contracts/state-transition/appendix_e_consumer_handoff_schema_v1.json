@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://pitchlog.local/contracts/state-transition/appendix_e_consumer_handoff_schema_v1.json",
-  "title": "Pitchlog Appendix E consumer handoff schema v1, step 108",
+  "title": "Pitchlog Appendix E consumer handoff schema v1, step 109",
   "version": "appendix_e_consumer_handoff_schema_v1",
   "type": "object",
   "required": ["handoffVersion", "calculationIds", "claimBoundary", "consumerBindings"],
@@ -41,7 +41,7 @@
       "required": [
         "calculationId", "vectorId", "contractPath", "version", "schemaVersion",
         "caseSchemaRef", "caseFieldMapping", "normalizationComparison",
-        "outputComparison", "dPlusOnePolicy"
+        "outputComparison", "dPlusOnePolicy", "executionPaths"
       ],
       "additionalProperties": false,
       "properties": {
@@ -60,8 +60,45 @@
         "dPlusOnePolicy": {
           "const": "liveness-only",
           "$comment": "保証境界: D+1 のundo liveness-only行には拒否しない・切り捨てないことだけを要求し、出力同値は要求しない。ステップ66のPO裁定でこのundo行は段階2へ送られ、現行の該当行・caseは存在しない。matrixRowsにはD+1入力のcaseがあるが、この方針の実証には数えない。この宣言は行の消費やlivenessの実証ではない。"
-        }
+        },
+        "executionPaths": {"$ref": "#/$defs/executionPaths"}
       }
+    },
+    "executionPaths": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"$ref": "#/$defs/executionPath"},
+      "allOf": [
+        {
+          "contains": {"type": "object", "properties": {"runner": {"const": "pytest"}}},
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {"type": "object", "properties": {"runner": {"const": "vitest"}}},
+          "minContains": 1,
+          "maxContains": 1
+        }
+      ],
+      "$comment": "各bindingの実行経路はpytestとvitestのexact-set。段階1では識別子・runner revisionが未確定であり、消費可能性は保証しない。"
+    },
+    "executionPath": {
+      "type": "object",
+      "required": [
+        "runner", "runnerRevision", "normalizerId", "entrypointId",
+        "directTargetId", "resolutionStage"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "runner": {"enum": ["pytest", "vitest"]},
+        "runnerRevision": {"const": "pending"},
+        "normalizerId": {"type": "null"},
+        "entrypointId": {"type": "null"},
+        "directTargetId": {"type": "null"},
+        "resolutionStage": {"const": "stage-2"}
+      },
+      "$comment": "既存runnerの実体がこの作業ツリーに無いため識別子を捏造せずnullとする。段階2で実装に基づいて確定する。"
     },
     "caseFieldMapping": {
       "$comment": "contractPointerは各cases[]要素を起点とし、runnerPointerは受取側caseを起点とする。両契約の/rawと/normalizedはそれぞれrunnerの同名フィールドへ写す。期待値は状況判定の/expectedと終了判定の/decisionをrunnerの/expectedへ写す。両契約のinputCoordinateは/normalizedと一致し、終了判定の非identity規則のケースでは/rawが表示名を保持する。この写像はrunner消費を証明しない。",

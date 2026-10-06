@@ -7,7 +7,8 @@
   "claimBoundary": {
     "guaranteed": "状況判定caseの/expectedと終了判定caseの/decisionは、それぞれrunnerの/expectedへ写す。両契約の全caseで/inputCoordinateは正規形であり/normalizedと一致する。終了判定caseの/rawと/normalizedは実在する値を指し、表示名165件では/rawの結果名を安定IDへ正規化する",
     "notGuaranteed": [
-      "runnerによるcase消費と出力同値の実証"
+      "runnerによるcase消費と出力同値の実証",
+      "この作業ツリーに既存のベクタrunner実装とvectors.pyは存在しない。normalizerId・entrypointId・directTargetIdはnullであり、runnerRevisionとともに段階2で確定する"
     ]
   },
   "consumerBindings": [
@@ -45,7 +46,25 @@
       },
       "normalizationComparison": "lossless",
       "outputComparison": "lossless",
-      "dPlusOnePolicy": "liveness-only"
+      "dPlusOnePolicy": "liveness-only",
+      "executionPaths": [
+        {
+          "runner": "pytest",
+          "runnerRevision": "pending",
+          "normalizerId": null,
+          "entrypointId": null,
+          "directTargetId": null,
+          "resolutionStage": "stage-2"
+        },
+        {
+          "runner": "vitest",
+          "runnerRevision": "pending",
+          "normalizerId": null,
+          "entrypointId": null,
+          "directTargetId": null,
+          "resolutionStage": "stage-2"
+        }
+      ]
     },
     {
       "calculationId": "game-end",
@@ -81,7 +100,25 @@
       },
       "normalizationComparison": "lossless",
       "outputComparison": "lossless",
-      "dPlusOnePolicy": "liveness-only"
+      "dPlusOnePolicy": "liveness-only",
+      "executionPaths": [
+        {
+          "runner": "pytest",
+          "runnerRevision": "pending",
+          "normalizerId": null,
+          "entrypointId": null,
+          "directTargetId": null,
+          "resolutionStage": "stage-2"
+        },
+        {
+          "runner": "vitest",
+          "runnerRevision": "pending",
+          "normalizerId": null,
+          "entrypointId": null,
+          "directTargetId": null,
+          "resolutionStage": "stage-2"
+        }
+      ]
     }
   ]
 }
