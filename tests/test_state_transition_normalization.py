@@ -70,9 +70,9 @@ def test_game_end_cases_have_triples_and_display_names_are_resolved() -> None:
         if case["normalizationRuleId"] == "game-end-result-display-name-to-id"
     ]
     assert len(display_cases) == 165
-    assert all(case["raw"] == case["inputCoordinate"] for case in cases)
+    assert all(case["normalized"] == case["inputCoordinate"] for case in cases)
     assert all(
-        case["normalized"]["event.perPitch.resultId"]
+        case["raw"]["event.perPitch.resultId"]
         != case["inputCoordinate"]["event.perPitch.resultId"]
         for case in display_cases
     )
@@ -80,6 +80,22 @@ def test_game_end_cases_have_triples_and_display_names_are_resolved() -> None:
         case["raw"] == case["normalized"] == case["inputCoordinate"]
         for case in cases if case["normalizationRuleId"] == "identity"
     )
+
+
+@pytest.mark.parametrize(
+    "contract", ["state_transition_contract_v1.json", "game_end_contract_v1.json"]
+)
+def test_input_coordinate_must_equal_normalized_in_both_contracts(contract: str) -> None:
+    """どちらの契約でも座標が正規形から外れたら拒否する。"""
+    cases = _asset(contract)["cases"]
+    rules = checker.load_inputs(ROOT)[1]
+    assert checker.check_cases(cases, rules) == len(cases)
+    mutated = copy.deepcopy(next(case for case in cases if case["raw"] != case["normalized"]))
+    mutated["inputCoordinate"] = copy.deepcopy(mutated["raw"])
+    with pytest.raises(
+        checker.NormalizationCheckError, match="inputCoordinateとnormalizedが不一致"
+    ):
+        checker.check_cases([mutated], rules)
 
 
 def test_game_end_display_name_fails_when_rule_is_mutated_to_identity() -> None:

@@ -172,6 +172,9 @@ def test_game_end_binding_uses_actual_normalization_points() -> None:
     boundary = _handoff()["claimBoundary"]
     assert "状況判定caseの/expected" in boundary["guaranteed"]
     assert "終了判定caseの/decision" in boundary["guaranteed"]
+    assert "/inputCoordinateは正規形" in boundary["guaranteed"]
+    assert "/normalizedと一致する" in boundary["guaranteed"]
+    assert all("/inputCoordinate" not in item for item in boundary["notGuaranteed"])
 
 
 @pytest.mark.parametrize("field", _schema()["$defs"]["consumerBinding"]["required"])

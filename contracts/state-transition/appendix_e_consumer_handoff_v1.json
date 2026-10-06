@@ -5,10 +5,9 @@
     "game-end"
   ],
   "claimBoundary": {
-    "guaranteed": "状況判定caseの/expectedと終了判定caseの/decisionは、それぞれrunnerの/expectedへ写す。終了判定caseの/rawと/normalizedは実在する値を指す。終了判定の表示名165件では既存/inputCoordinateと/rawが一致し、/normalizedは安定IDを持つ",
+    "guaranteed": "状況判定caseの/expectedと終了判定caseの/decisionは、それぞれrunnerの/expectedへ写す。両契約の全caseで/inputCoordinateは正規形であり/normalizedと一致する。終了判定caseの/rawと/normalizedは実在する値を指し、表示名165件では/rawの結果名を安定IDへ正規化する",
     "notGuaranteed": [
-      "runnerによるcase消費と出力同値の実証",
-      "終了判定の表示名165件における/normalizedと既存/inputCoordinateの一致"
+      "runnerによるcase消費と出力同値の実証"
     ]
   },
   "consumerBindings": [

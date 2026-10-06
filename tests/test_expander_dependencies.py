@@ -265,8 +265,11 @@ def test_step93_first_stage_game_end_cases_match_manual_fixtures() -> None:
 
     assert len(cases) == 4
     assert [
-        {key: value for key, value in case.items()
-         if key not in {"raw", "normalizationRuleId", "normalized"}}
+        {
+            **{key: value for key, value in case.items()
+               if key not in {"raw", "normalizationRuleId", "normalized"}},
+            "inputCoordinate": case["raw"],
+        }
         for case in contract["cases"][:4]
     ] == cases
     assert [case["branchId"] for case in cases] == [

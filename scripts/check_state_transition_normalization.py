@@ -95,7 +95,7 @@ def load_game_end_inputs(root: Path) -> tuple[list[dict[str, Any]], Normalizatio
 
 
 def check_cases(cases: list[dict[str, Any]], rules: NormalizationRules) -> int:
-    """全ケースで適用結果とnormalizedのJSON値を突合する。"""
+    """全ケースで正規形の座標と宣言規則の適用結果を突合する。"""
     for index, case in enumerate(cases):
         if not isinstance(case, dict) or not {
             "raw", "normalizationRuleId", "normalized"
@@ -120,6 +120,11 @@ def check_cases(cases: list[dict[str, Any]], rules: NormalizationRules) -> int:
             raise NormalizationCheckError(
                 f"cases[{index}] {case.get('caseId')}: "
                 f"{rule_id}の適用結果とnormalizedが不一致 ({sorted(differing)})"
+            )
+        if case.get("inputCoordinate") != case["normalized"]:
+            raise NormalizationCheckError(
+                f"cases[{index}] {case.get('caseId')}: "
+                "inputCoordinateとnormalizedが不一致"
             )
     return len(cases)
 

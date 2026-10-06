@@ -34,6 +34,11 @@ def _document(root: Path, name: str) -> dict[str, Any]:
     return value
 
 
+def _result_display_name(value: Any, display_names: dict[str, str]) -> str | None:
+    """結果の安定IDを被覆identityの表示名へ変換する。"""
+    return display_names.get(value) if isinstance(value, str) else None
+
+
 def check_contract_sizes(root: Path) -> dict[str, int]:
     """descriptor schemaが参照する全契約を資産側のbyte上限と比較する。
 
@@ -306,7 +311,7 @@ def observed_input_coverage(
             elif layer == "matrixRows" and axis_id == "event.perPitch.kind":
                 value = coordinate["eventKind"]
             elif layer == "matrixRows" and axis_id == "event.perPitch.resultId":
-                value = display_names.get(coordinate["resultId"])
+                value = _result_display_name(coordinate["resultId"], display_names)
             elif layer == "matrixRows" and axis_id == "event.operationKind":
                 value = "per-pitch"
             elif layer == "matrixRows" and axis_id == "event.operationPayload":
@@ -646,7 +651,9 @@ def check_input_coverage_exact(
                     "event.operationKind": "per-pitch",
                     "event.operationPayload": "not-applicable",
                     "event.perPitch.kind": row.get("eventKind"),
-                    "event.perPitch.resultId": display_names.get(row.get("resultId")),
+                    "event.perPitch.resultId": _result_display_name(
+                        row.get("resultId"), display_names
+                    ),
                 }.get(axis_id)
             elif layer == "operationRows":
                 actual = row.get("operationKind")
@@ -706,6 +713,30 @@ def _game_end_identity(value: Any) -> str:
     return deriver.descriptor_checker._canonical_json_text(value)
 
 
+def _game_end_display_names(root: Path) -> dict[str, str]:
+    """状況判定の正規形とrawから終了判定の被覆用表示名を得る。"""
+    state = _document(root, "state_transition_contract_v1.json")
+    names: dict[str, str] = {}
+    for case in state.get("cases", []):
+        normalized = case.get("normalized")
+        raw = case.get("raw")
+        if not isinstance(normalized, dict) or not isinstance(raw, dict):
+            raise RequiredSetCoverageError("状況判定ケースの正規化値が不正")
+        result_id = normalized.get("resultId")
+        if result_id is None:
+            continue
+        display_name = raw.get("resultId")
+        if (
+            not isinstance(result_id, str) or not isinstance(display_name, str)
+            or result_id in names and names[result_id] != display_name
+        ):
+            raise RequiredSetCoverageError("状況判定の結果IDと表示名が一意でない")
+        names[result_id] = display_name
+    if not names:
+        raise RequiredSetCoverageError("状況判定の結果IDと表示名がない")
+    return names
+
+
 def _fixed_game_end_values(
     row: dict[str, Any], axis_ids: set[str]
 ) -> dict[str, str]:
@@ -738,6 +769,7 @@ def _game_end_measure(
         descriptor, ("gameEndAxes", "stateTransitionAxes")
     )
     selection_policy = _document(root, "representative_selection_policy_v1.json")
+    display_names = _game_end_display_names(root)
     game_axes = {axis["axisId"] for axis in descriptor["gameEndAxes"]}
     rows = contract.get("decisionRows")
     cases = contract.get("cases")
@@ -917,9 +949,19 @@ def _game_end_measure(
         reference = {"layer": "decisionRows", "coordinate": {"branchId": row["branchId"]}}
         if case.get("rowRef") != reference:
             raise RequiredSetCoverageError("終了判定ケースの行参照が不正")
-        if not representative_selection.predicate_holds(row["precondition"], coordinate):
+        if not representative_selection.predicate_holds(row["precondition"], case["raw"]):
             raise RequiredSetCoverageError("終了判定ケースが行前提を満たさない")
-        actual = {axis: _game_end_identity(value) for axis, value in coordinate.items()}
+        result_id = coordinate.get("event.perPitch.resultId")
+        result_name = _result_display_name(result_id, display_names)
+        if result_id is not None and result_name != case["raw"].get("event.perPitch.resultId"):
+            raise RequiredSetCoverageError("終了判定ケースの結果IDと表示名が不一致")
+        actual = {
+            axis: _game_end_identity(
+                _result_display_name(value, display_names)
+                if axis == "event.perPitch.resultId" else value
+            )
+            for axis, value in coordinate.items()
+        }
         for item in required.pairwise_requirements:
             if (
                 actual.get(item.left_axis_id) == item.left_value_identity
@@ -1075,6 +1117,7 @@ def _check_game_end_validation_errors(
         }
         for axis_id, axis in axes.items()
     }
+    display_names = _game_end_display_names(root)
     aliases = declaration.get("stateTransitionCaseAliases")
     schema_aliases = {
         field
@@ -1094,7 +1137,12 @@ def _check_game_end_validation_errors(
             if not isinstance(coordinate, dict):
                 raise RequiredSetCoverageError(f"正常ケースの入力座標が不正: {name}")
             for axis_id, value in coordinate.items():
-                if axis_id in legal and _game_end_identity(value) not in legal[axis_id]:
+                coverage_value = (
+                    _result_display_name(value, display_names)
+                    if name == "gameEnd" and axis_id == "event.perPitch.resultId"
+                    else value
+                )
+                if axis_id in legal and _game_end_identity(coverage_value) not in legal[axis_id]:
                     raise RequiredSetCoverageError(
                         f"正常ケースにschema外値がある: {name} {case.get('caseId')} {axis_id}"
                     )
@@ -1264,10 +1312,13 @@ def _check_game_end_documents(
     if not isinstance(contract.get("cases"), list) or len(contract["cases"]) != len(generated):
         raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
     for case, expanded in zip(contract["cases"], generated, strict=True):
+        if case["inputCoordinate"] != case["normalized"]:
+            raise RequiredSetCoverageError("終了判定ケースが代表値展開の正規形と不一致")
         projection = {
             key: value for key, value in case.items()
             if key not in normalization_fields
         }
+        projection["inputCoordinate"] = case["raw"]
         if set(case) != (set(expanded) | normalization_fields) or projection != expanded:
             raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
     counts, _, reachable, observed = _game_end_measure(root, contract, declaration)

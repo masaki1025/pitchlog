@@ -64,7 +64,7 @@
       }
     },
     "caseFieldMapping": {
-      "$comment": "contractPointerは各cases[]要素を起点とし、runnerPointerは受取側caseを起点とする。両契約の/rawと/normalizedはそれぞれrunnerの同名フィールドへ写す。期待値は状況判定の/expectedと終了判定の/decisionをrunnerの/expectedへ写す。終了判定のinputCoordinateは既存の表示名を保持し、非identity規則のケースでは/normalizedと一致しない。この写像はrunner消費を証明しない。",
+      "$comment": "contractPointerは各cases[]要素を起点とし、runnerPointerは受取側caseを起点とする。両契約の/rawと/normalizedはそれぞれrunnerの同名フィールドへ写す。期待値は状況判定の/expectedと終了判定の/decisionをrunnerの/expectedへ写す。両契約のinputCoordinateは/normalizedと一致し、終了判定の非identity規則のケースでは/rawが表示名を保持する。この写像はrunner消費を証明しない。",
       "type": "object",
       "required": ["id", "input", "expected", "tags"],
       "additionalProperties": false,

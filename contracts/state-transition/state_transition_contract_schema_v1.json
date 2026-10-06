@@ -67,7 +67,7 @@
     "ruleGranularityReason": "状況判定はeventKindで語彙軸を選び、終了判定は既存の代表値の組合せを維持して2軸の表示名から一意の安定IDを引く。操作・undoは本周で対応する非正規形を確定しない",
     "inputCoordinateMapping": {
       "semanticOrigin": "step-90-task-implementation-convention",
-      "meaning": "状況判定の各caseではnormalizedは既存inputCoordinateとJSON値として一致する。終了判定は既存inputCoordinateが表示名を保持するため、表示名を持つ165件ではrawがinputCoordinateと一致し、normalizedのevent.perPitch.resultIdだけが安定IDとなる。残り5件はidentityで3値が一致する",
+      "meaning": "両契約の全caseでinputCoordinateは正規形でありnormalizedとJSON値として一致する。終了判定の表示名165件ではraw.event.perPitch.resultIdだけが表示名で、inputCoordinateとnormalizedは安定IDを持つ。残り5件はidentityで3値が一致する",
       "basisRefs": [
         "req:E-1",
         "req:D-4",
@@ -77,7 +77,7 @@
     },
     "claimBoundary": {
       "subject": "step-91-normalizer-comparison",
-      "guaranteed": "状況判定96件と終了判定170件の全caseで3点の存在と規則識別子の語彙制限を検査し、宣言規則をrawへ適用した結果とnormalizedを全件突合する。状況判定96件はnormalizedとinputCoordinateが一致する。終了判定の表示名165件はrawとinputCoordinateが一致し、正規化後の安定IDはinputCoordinateと異なる。終了判定の残り5件はidentityで3値が一致する(identity変異の負例を含む)",
+      "guaranteed": "状況判定96件と終了判定170件の全caseで3点の存在と規則識別子の語彙制限を検査し、宣言規則をrawへ適用した結果とnormalizedを全件突合する。両契約の全caseでnormalizedとinputCoordinateが一致する。終了判定の表示名165件ではrawの結果名が表示名で、正規化後の安定IDはinputCoordinateと一致する。終了判定の残り5件はidentityで3値が一致する(identity変異の負例を含む)",
       "notGuaranteed": [
         "normalization-rule-semantic-correctness",
         "noncanonical-raw-rejection"
