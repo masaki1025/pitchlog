@@ -1485,13 +1485,37 @@ def _counterfactual_allowed_symbol_rows(
 
 
 def _allowed_symbol_product_path(symbol: str, source_root: Path) -> str:
-    """許可記号の所属する製品モジュールを実在ファイルから求める。"""
+    """許可記号の所属する製品モジュールを曖昧さなく求める。"""
     parts = symbol.split(".")
     for length in range(len(parts) - 1, 0, -1):
-        relative = Path(*parts[:length]).with_suffix(".py")
-        if (source_root / relative).is_file():
-            return relative.as_posix()
+        module = Path(*parts[:length])
+        candidates = (
+            module.with_suffix(".py"),
+            module / "__init__.py",
+        )
+        existing = [
+            candidate for candidate in candidates if (source_root / candidate).is_file()
+        ]
+        assert len(existing) <= 1, (
+            f"許可記号の製品モジュールが曖昧: {symbol}: "
+            f"{[path.as_posix() for path in existing]}"
+        )
+        if existing:
+            return existing[0].as_posix()
     raise AssertionError(f"許可記号の製品モジュールが無い: {symbol}")
+
+
+def _scoped_signature_suppression(
+    identities: frozenset[CensusIdentity], *, product_path: str, symbol: str
+) -> frozenset[CensusIdentity]:
+    """署名差による製品定義の TB005 だけを帰属対象にする。"""
+    return frozenset(
+        identity
+        for identity in identities
+        if identity[0] == product_path
+        and identity[4] == "TB005"
+        and identity[5] == symbol
+    )
 
 
 def _measured_allowlist_suppression(
@@ -1577,11 +1601,11 @@ def _measured_allowlist_suppression(
             ]
             product_path = _allowed_symbol_product_path(symbol, source_root)
             signature_suppression.update(
-                identity
-                for identity in scan_with_rows(single_row_reverted) - current_census
-                if identity[0] == product_path
-                and identity[4] == "TB005"
-                and identity[5] == symbol
+                _scoped_signature_suppression(
+                    scan_with_rows(single_row_reverted) - current_census,
+                    product_path=product_path,
+                    symbol=symbol,
+                )
             )
         for fixture in grown_fixtures:
             target = counterfactual_root / fixture
@@ -2322,13 +2346,16 @@ def test_measured_suppression_predicate_accepts_actual_a2_census(
 def test_measured_suppression_shared_allowed_entry_follows_declared_substitution(
     field: str,
     census_predicate_context: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """共通行の署名だけを個別に帰属し、記号削除や API 差は拒否する。
 
     署名変更を正当に含むため、従来の「行変更は常に拒否」を改める。
     実変更のある行を避けて合成変異を作り、その行自体の処理を検証する。
+    署名ケースの全走査による帰属までは検査しない。実差分は A2 検証で扱い、
+    帰属の 3 条件は合成 identity の変異テストで固定する。
     """
-    predicate, arguments, _ = _suppression_arguments(census_predicate_context)
+    predicate, arguments, data_sets = _suppression_arguments(census_predicate_context)
     locator = predicate["derivation"]["substituted_field"]
     anchor_rows = cast(
         list[dict[str, Any]],
@@ -2363,6 +2390,27 @@ def test_measured_suppression_shared_allowed_entry_follows_declared_substitution
                 anchor_entries=anchor_rows,
                 substituted_from=predicate["derivation"]["substituted_from"],
             )
+        original_loader = _load_json_pointer
+
+        def changed_current_rows(
+            path: str, *, repository_root: Path | None = None
+        ) -> object:
+            if path == locator and repository_root is None:
+                return rows
+            return original_loader(path, repository_root=repository_root)
+
+        with monkeypatch.context() as mutation:
+            mutation.setattr(
+                sys.modules[__name__], "_load_json_pointer", changed_current_rows
+            )
+            with pytest.raises(AssertionError, match=expected):
+                _measured_allowlist_suppression(
+                    substituted_field=locator,
+                    substituted_from=predicate["derivation"]["substituted_from"],
+                    reference_repository_root=arguments["reference_repository_root"],
+                    source_root=arguments["source_root"],
+                    current_census=data_sets["current_census"],
+                )
         return
 
     assert changed != shared
@@ -2377,6 +2425,64 @@ def test_measured_suppression_shared_allowed_entry_follows_declared_substitution
         {row["symbol"] for row in current_rows}
         - {row["symbol"] for row in anchor_rows}
     )
+
+
+@pytest.mark.parametrize(
+    ("changed_index", "changed_value"),
+    (
+        (0, "pitchlog/repositories/other.py"),
+        (4, "TB007"),
+        (5, "pitchlog.repositories.context.Other.__init__"),
+    ),
+)
+def test_scoped_signature_suppression_rejects_each_mismatched_identity(
+    changed_index: int, changed_value: str
+) -> None:
+    """製品パス・TB005・許可記号の各条件を外す変異を拒否する。"""
+    product_path = "pitchlog/repositories/context.py"
+    symbol = "pitchlog.repositories.context.TenantContext.__init__"
+    matching: CensusIdentity = (
+        product_path,
+        46,
+        58,
+        "pitchlog.repositories.context.TenantContext.<module>",
+        "TB005",
+        symbol,
+        "signature mismatch",
+    )
+    mismatched = _replace_identity_field(
+        matching, index=changed_index, value=changed_value
+    )
+    assert mismatched != matching
+    assert _scoped_signature_suppression(
+        frozenset({matching, mismatched}),
+        product_path=product_path,
+        symbol=symbol,
+    ) == frozenset({matching})
+
+
+@pytest.mark.parametrize(
+    ("paths", "expected"),
+    (
+        (("pitchlog/foo.py",), "pitchlog/foo.py"),
+        (("pitchlog/foo/__init__.py",), "pitchlog/foo/__init__.py"),
+        (("pitchlog/foo.py", "pitchlog/foo/__init__.py"), None),
+    ),
+)
+def test_allowed_symbol_product_path_requires_unique_module(
+    paths: tuple[str, ...], expected: str | None, tmp_path: Path
+) -> None:
+    """単一の .py・__init__.py は解決し、同名モジュールの重複は拒否する。"""
+    for path in paths:
+        target = tmp_path / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.touch()
+    symbol = "pitchlog.foo.issue"
+    if expected is None:
+        with pytest.raises(AssertionError, match="製品モジュールが曖昧"):
+            _allowed_symbol_product_path(symbol, tmp_path)
+    else:
+        assert _allowed_symbol_product_path(symbol, tmp_path) == expected
 
 
 def test_measured_suppression_rejects_unrelated_api_inside_allowed_function(
@@ -2693,7 +2799,7 @@ def test_measured_suppression_rejects_removed_current_allowed_entry(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """当該記号を現行から除いても removed に残した TB005 を拒否する。"""
+    """anchor にない許可記号を現行から除いても残る TB005 を拒否する。"""
     predicate, arguments, data_sets = _suppression_arguments(
         census_predicate_context
     )
@@ -2701,14 +2807,24 @@ def test_measured_suppression_rejects_removed_current_allowed_entry(
         field: index
         for index, field in enumerate(_identity_fields(arguments["declaration"]))
     }
+    locator = predicate["derivation"]["substituted_field"]
+    rows = cast(
+        list[dict[str, Any]],
+        _load_json_pointer(locator),
+    )
+    anchor_rows = cast(
+        list[dict[str, Any]],
+        _load_json_pointer(
+            locator, repository_root=arguments["reference_repository_root"]
+        ),
+    )
+    anchor_symbols = {row["symbol"] for row in anchor_rows}
+    added_symbols = {row["symbol"] for row in rows} - anchor_symbols
     original = next(
         identity
         for identity in data_sets["removed"]
         if identity[indexes["code"]] == "TB005"
-    )
-    rows = cast(
-        list[dict[str, Any]],
-        _load_json_pointer(predicate["derivation"]["substituted_field"]),
+        and identity[indexes["scope"]] in added_symbols
     )
     removed_entry = next(
         row for row in rows if row["symbol"] == original[indexes["scope"]]
