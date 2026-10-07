@@ -154,3 +154,64 @@ U-T1 がその 4 例目で、**有効だった手当ては「脅威モデルを�
 - `../features/tenant-boundary-enforcement/design.md` の 1-1 と 6-0 へ保証単位ブロックを
   **逐語同文で追補**し、`:492`「別タスクで起票する」を本タスクの到達点へ差し替えた。
   **既存の 4 箇所の逐語同文ブロックは 1 文字も動いていない**(削除行は差し替えた 1 行のみ)
+
+## 人間の逐行確認(2026-10-07)
+
+- `../features/tenant-context-issuance-guard/verification-sheet.md`(93 行・`4c3928b1`)を作成。
+  差分 19 ファイル・+1744 / -14 のうち、**目視が要る 4 ファイル 129 行**を 19 項目へ分解した。
+  シートが引用するテスト名 19 件は、`def <name>` の実在を機械確認してある
+- **承認を受領**(2026-10-07・山田正輝)
+
+## 全件検証で見つかった想定外の赤(2026-10-07)
+
+`uv run pytest tests/`(ルート)= **42 failed / 2848 passed**。内訳は 2 系統:
+
+| 系統 | 件数 | 扱い |
+| --- | --- | --- |
+| 凍結ゲート(`test_repository_is_green`)と比較 corpus digest の連鎖 | 34 | **想定内** — ステップ 7 で解消 |
+| `tests/test_census_baseline_check.py` | **8** | **想定外の回帰**(develop では 48 passed) |
+
+backend は非 DB で 960 passed / 4 skipped、ruff・ty・format はルートと backend の双方 green。
+
+### 原因
+
+ステップ 1 で `base-allowlist.json` の `TenantContext.__init__` の `signature` を書き換えたため、
+センサス基準の反実仮想導出が入口で fail-closed になった。検査の文言そのものが手当てを名指している:
+
+> 共通する allowed_symbols の行が anchor と異なる(…: signature)。免除の導出は **anchor に無い
+> エントリの追加しか帰属できない**ため、行の変更による TB005 の消失は説明できない。
+> **行を変える場合は、導出を記号単位の行の差分へ一般化する必要がある**
+
+anchor は `b4ae7394`(2026-09-26・PR #78)で、**新設以来 1 度も動いていない**。
+anchor 以降に `allowed_symbols` へ**行を足した**タスクは複数あるが、
+**共通行を書き換えたのは本タスクが初めて**である。
+
+**署名 pin を据え置く道は無い** — `scripts/check_tenant_boundary_bypass.py:5114` と `:5680-5692` が
+製品定義と pin の一致を要求する。
+
+**既存の変異テストが偽の緑になっている**: `test_measured_suppression_rejects_missing_or_changed_shared_allowed_entry[signature]`
+は合成変異による拒否を期待するが、現状は**本タスクの実変更**が同じ入口で先に落とすため通っている。
+一般化はこの偽緑も解消しなければならない。
+
+### 人間の裁定 6(2026-10-07・山田正輝)
+
+**導出を記号単位の行差へ一般化する。** 退けた案:
+
+| 案 | 退けた理由 |
+| --- | --- |
+| `anchor` を現行へ繰り上げる | 反実仮想の比較元が「今」になり、anchor 以降の免除の帰属がすべて消えて述語が恒真化する。TSK-444 が「digest を現況から再計算する = drift 変異テストが恒真になる」として退けたのと同じ失敗型 |
+| 機構を `__new__` 封鎖へ差し替える | 裁定 3 の撤回。検査器 `:4540` のハードコード免除と資産の `integrity_proof_factory_allowed_symbols` を追加で動かす |
+| 署名 pin を据え置く | 不可(上記) |
+
+**コミットは `(ステップ 1/7 是正)`** — 実装ステップ表の総数 7 は動かさない
+(総数を変えると既存 6 コミットの `/7` が `scripts/feature_status.py:517` で不整合になる)。
+
+## ステップ 7 の実行順序の是正(2026-10-07)
+
+受理記録の `acceptance_id` は `scripts/frozen_history.py:674-680` が **GitHub event からの導出値との
+一致**を要求するため、**記録は PR 作成の後にしか書けない**。計画初版の「ステップ 7 → /pr」は誤りで、
+正しい順序は **逐行確認 → /sync-docs → /pr → S・H・D の受理 → ステップ 7** である
+(前例 `ba1a02d6`)。計画書 4 節に明記した。
+
+あわせて、比較 corpus の `corpus_inputs.digest` の再 pin をステップ 7 へ含める
+(前例 `6b787555`。触るのは 1 行だけで `pinned_prefixes`・`files`・`trees`・`cases` は変えない)。

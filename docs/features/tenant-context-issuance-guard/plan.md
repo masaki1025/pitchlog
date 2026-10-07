@@ -71,13 +71,16 @@ TSK-440 は `scripts/check_tenant_boundary_bypass.py` の条件 5(TB007)の保�
 | `contracts/tenant_boundary/tenant-context-allowlist.json` | **4 欄追加**(発行能力のシンボルと許可シンボル / 発行入口のシンボルと許可シンボル)・`contract_revision` +1・`source_digest` 再計算 | 凍結受理(7.7) |
 | `contracts/tenant_boundary/base-allowlist.json` | `allowed_symbols` の署名 pin 追随・`contract_revision` +1・**受理記録 1 件** | 凍結受理(7.7) |
 | `contracts/tenant_boundary/negative-fixtures.json` | 負例 **3 件**(直接形のみ。発行入口の 2 本は台帳に載せず合成契約の単体テストで扱う — レビュー 2 周目 `P1`)・`fixture_set_revision` +1 | 凍結受理(7.7) |
-| `contracts/tenant_boundary/{cache-invalidation-contract,census-baseline,db-api-inventory,repository-contract,runtime-authz-contract}.json` | 識別値 +1 のみ(内容は不変) | 凍結受理(7.7) |
+| `contracts/tenant_boundary/census-baseline.json` | **`pass_fail_mapping.predicates[1].derivation` の一般化**(共通記号の行差の扱いを宣言へ足す — **裁定 6**)・識別値 +1 | 凍結受理(7.7) |
+| `contracts/tenant_boundary/{cache-invalidation-contract,db-api-inventory,repository-contract,runtime-authz-contract}.json` | 識別値 +1 のみ(内容は不変) | 凍結受理(7.7) |
 | `backend/src/pitchlog/repositories/tenant_context_contract.py` | **4 定数追加** + revision / digest 追随 | PR レビュー |
 | `backend/src/pitchlog/repositories/repository_contract.py`・`backend/src/pitchlog/authz/runtime_contract.py` | revision / digest 追随のみ | PR レビュー |
 | `backend/tests/test_authz_tenant_context.py` | `make_tenant_context` の新署名・封鎖の単体テスト・docstring の新 assert・`_generated_snapshot()` と stale 変異の 4 欄追随 | PR レビュー |
 | `backend/tests/test_authz_tenant_binding.py` | 強制点の対称性の AST テスト・`binding.py` の挙動差の実行時テスト | PR レビュー |
 | `tests/test_check_tenant_boundary_bypass.py` | 検査器の単体テスト・合成契約のテスト・`EXPECTED_NEGATIVE_IDS` に 3 件 | PR レビュー |
 | `tests/fixtures/tenant_boundary/positive/pitchlog/repositories/context.py` | 署名追随 | PR レビュー |
+| `tests/test_census_baseline_check.py` | `_measured_allowlist_suppression` の一般化と、共通行の変異 3 ケースの作り直し(**裁定 6**) | PR レビュー |
+| `tests/fixtures/frozen-archive-cases/manifest.json` | `corpus_inputs.digest` の再 pin 1 行のみ(`pinned_prefixes`・`files`・`trees`・`cases` は不変) | PR レビュー |
 | `tests/fixtures/tenant_boundary/negative/pitchlog/services/c5_context_{registry_issuer,capability_import,capability_getattr}.py` | **新設 3**(発行入口の 2 件は fixture ではなく合成契約の単体テストで扱う) | PR レビュー |
 | `docs/features/tenant-boundary-enforcement/design.md` | 1-1 と 6-0 へ保証単位ブロックを**追補**、`:492` に本タスクの到達点 | /finalize-doc |
 | `docs/features/tenant-context-issuance-guard/design.md` | **新設**(保証単位・採らなかった案・申し送り) | 計画ゲート |
@@ -113,6 +116,7 @@ TSK-440 は `scripts/check_tenant_boundary_bypass.py` の条件 5(TB007)の保�
 | 3 | **`__init__` に capability 引数**を採る(`__new__` 封鎖ではない) | 人間・2026-10-05 |
 | 4 | **`binding.py` の非対称を閉じる** | 同上 |
 | 5 | **検査規則は capability 名の保護のみ**(TB008 を新設しない) | 同上 |
+| 6 | **センサス基準の反実仮想導出を記号単位の行差へ一般化する**(`anchor` の繰り上げも `__new__` 封鎖への差し替えも採らない) | 人間・2026-10-07・山田正輝 |
 
 ### 4-2. 機構 — 発行能力を「名前」にして、名指せる場所を縛る
 
@@ -227,7 +231,27 @@ TSK-440 は `scripts/check_tenant_boundary_bypass.py` の条件 5(TB007)の保�
 | 4 | **負例 3 件 + 発行入口の単体テスト 2 件**。負例台帳へ載せるのは発行能力の 3 件(`c5_context_{registry_issuer,capability_import,capability_getattr}.py`)だけにする。**発行入口の 2 件は負例台帳に載せない** — 負例ランナー 2 本はいずれも `load_contract(REPOSITORY_ROOT)` で**実契約**を読み、本タスクでは発行入口が空で不活性のため red にできない(2 周目 `P1`)。発行入口は**合成 `Contract` を渡す検査器単体テスト**で扱う | 負例ランナー 2 本が 3 件とも TB007 で red / **合成契約で発行入口に値を入れると、許可外モジュールからの直接 import と直接登録が TB007** / 既存負例が 1 本も緑化していない / **`fixture_set_revision` はまだ上げない** / **凍結ゲートは対象外** |
 | 5 | **`binding.py` の強制点を exact 型 + 発行証跡へ揃え、4 強制点の対称性を AST テストで固定**。あわせて**挙動差を実行時テストで固定**する(レビュー F6 — AST の対称性だけでは拒否が実際に起きることを示せない) | **発見規則**(実測で確定 — 収束確認周): 「`backend/src/pitchlog/repositories/` 配下(**`context.py` を除く**)で、`TenantContext` 値の属性(`tenant_id` または `_integrity_proof`)を読むか `_has_valid_integrity_proof()` を呼ぶ関数」。この規則が拾うのは **5 関数**である。**宣言集合も 5 件**とし、内訳を分ける — **強制点 4 件**(`TenantRepositoryBase.execute` / `_tenant_transaction` / `_TenantTransactionScope.__enter__` / `_TenantTransaction.run`)と、**理由付きの免除 1 件**(`TenantRepositoryBase._execute_operation` — `context.tenant_id` をバインド引数に渡すが、`execute` からのみ到達し、そこで exact 型検査と証跡検査が済んでいる)。合格条件は ① 発見集合 == 宣言集合 ② **強制点 4 件がいずれも exact 型検査と発行証跡の検査を持つ** ③ 免除 1 件の呼び出し元が `execute` だけである ④ **5 つ目の強制点を足した変異で必ず落ちる** / 4 箇所すべてが exact 型検査と発行証跡の検査を持つ / **`_tenant_transaction` の直呼びで、派生型と証跡改竄がいずれも SQL 発行 0 件・期待メッセージで拒否される** / 既存 binding テストが**例外メッセージ逐語のまま** green / **凍結ゲートは対象外** |
 | 6 | **正本の反映**。`docs/features/tenant-context-issuance-guard/design.md` 新設(保証単位・採らなかった案・申し送り)、`../tenant-boundary-enforcement/design.md` 1-1 と 6-0 へ保証単位ブロックを追補・`:492` を本タスクの到達点へ、worklog 追記 | **既存 4 箇所の逐語同文ブロックが `git diff` で 1 文字も動いていない** / 新ブロックが追補先で逐語同文 / `check_docs_status` ほか docs 系検査 green / **凍結ゲートは対象外** |
-| 7 | **凍結資産の受理記録**(**人間の逐行確認・承認の後**)。8 本の識別値 +1(`frozen-inputs.json` は据え置き・記録には同値で列挙)、`source_digest` 再計算、配布モジュール 3 本の revision / digest 追随、`base-allowlist.json` に受理記録 1 件 | `/check` 全 green / `tests/test_frozen_*` green / `python scripts/check_tenant_boundary_bypass.py --base-ref origin/develop` が 0 件 / 予約 marker 不在 / 9 資産すべてが `previous_/new_baseline_identifiers` に列挙され `aspect` に `external_snapshots` を含む |
+| 7 | **凍結資産の受理記録**(**人間の逐行確認・承認の後、かつ PR 作成の後** — 下記「ステップ 7 の実行順序」)。8 本の識別値 +1(`frozen-inputs.json` は据え置き・記録には同値で列挙)、`source_digest` 再計算、配布モジュール 3 本の revision / digest 追随、`base-allowlist.json` に受理記録 1 件、**`tests/fixtures/frozen-archive-cases/manifest.json` の `corpus_inputs.digest` 再 pin** | `/check` 全 green / `tests/test_frozen_*` green / `python scripts/check_tenant_boundary_bypass.py --base-ref origin/develop` が 0 件 / 予約 marker 不在 / 9 資産すべてが `previous_/new_baseline_identifiers` に列挙され `aspect` に `external_snapshots` を含む |
+
+#### ステップ 1 の是正(**2026-10-07・裁定 6**)— 表の総数は動かさない
+
+全件検証で、ステップ 1 の署名 pin の追随が `tests/test_census_baseline_check.py` の 8 件を赤にすることが判明した(develop では 48 passed)。原因はセンサス基準の反実仮想導出が **anchor に無いエントリの追加しか帰属できない**ことで、`base-allowlist.json` の**共通記号の行**を書き換えると入口で fail-closed になる。署名 pin を据え置く道は無い(`scripts/check_tenant_boundary_bypass.py:5114` `:5680-5692` が製品定義と pin の一致を要求する)。
+
+**是正の射程**: `contracts/tenant_boundary/census-baseline.json` の `derivation` 宣言と `tests/test_census_baseline_check.py` の `_measured_allowlist_suppression` を、**共通記号の行差を帰属できる形へ一般化する**。
+
+**コミットは `(ステップ 1/7 是正)`** とし、**実装ステップ表の総数 7 は動かさない**。総数を変えると既存 6 コミットの `/7` が `scripts/feature_status.py:517` で不整合になる(前例: `a1e5313d`「(ステップ 6/13 是正)」)。
+
+#### ステップ 7 の実行順序(**実測で判明 — 2026-10-07**)
+
+受理記録の `acceptance_id` は `owner/repository#number` で、`scripts/frozen_history.py:674-680` が **GitHub event からの導出値との一致**を要求する。したがって**記録は PR 作成の後にしか書けない**。本計画の初版は「ステップ 7 → /pr」の順で書いていたが、**実際の順序は次である**(前例: `ba1a02d6`「凍結基準の受理記録を足す — U-A1 β の認証の DB 層(PR #96) (ステップ 13/13)」):
+
+1. 人間の逐行確認・承認(**2026-10-07 受領済み**)
+2. /sync-docs → **/pr(PR 番号が確定する)**
+3. ドライランで S(比較元 SHA)・H(HEAD)・D(受理後の射影)を求め、PR 本文へ載せる
+4. 人間が S・H・D を受理する
+5. **ステップ 7 のコミット**(識別値の繰り上げ・`source_digest`・配布 3 本・受理記録 1 件・**比較 corpus の digest 再 pin**)
+
+**比較 corpus の digest の再 pin をステップ 7 に含める**: 本タスクは検査器と `contracts/tenant_boundary` を動かすので `tests/fixtures/frozen-archive-cases/manifest.json` の `corpus_inputs.digest` が必ず動く(現況 42 件の赤のうち 34 件がこれに連鎖する)。これは**設計どおりの発火**であり、前例 `6b787555`(「比較 corpus の digest を再導出し連鎖する 33 件を解消する」)が同じ手当てを取っている。触るのは `corpus_inputs.digest` の 1 行だけで、`pinned_prefixes`・`files`・`trees`・`cases` は変えない。
 
 ## 5. DoD(受け入れ基準)
 
