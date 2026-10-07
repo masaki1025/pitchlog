@@ -513,7 +513,11 @@ def test_scope_rejects_non_exact_tenant_context_subclass(
         (cast(type[Any], TenantContext),),
         {},
     )
-    derived_context = cast(TenantContext, derived_type(_TENANT_ID))
+    context = make_tenant_context(_TENANT_ID)
+    derived_context = cast(TenantContext, object.__new__(derived_type))
+    object.__setattr__(derived_context, "tenant_id", context.tenant_id)
+    object.__setattr__(derived_context, "_integrity_proof", context._integrity_proof)
+    assert derived_context._has_valid_integrity_proof() is True
 
     with _transaction_database(disposable_postgres_cluster) as database:
         _configure_application_database(monkeypatch, database)
