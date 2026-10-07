@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
-from typing import Any, cast
+from typing import Any, Union, cast
 from uuid import UUID
 
 from sqlalchemy import (
@@ -19,7 +19,7 @@ from sqlalchemy import (
     select,
     update,
 )
-from sqlalchemy.sql.dml import Update
+from sqlalchemy.sql.dml import Insert, Update
 from sqlalchemy.sql.selectable import Select
 
 from pitchlog.api.schemas.roster import (
@@ -244,182 +244,236 @@ class TeamRecordUpdateToken(TenantOperationToken):
         return "CAP:team_records:update"
 
 
-_PLAYER_READ = (
-    select(
-        _PLAYERS.c.id,
-        _PLAYERS.c.team_record_id,
-        _PLAYERS.c.name,
-        _PLAYERS.c.throws,
-        _PLAYERS.c.bats,
-        _PLAYERS.c.uniform_number,
-        _PLAYERS.c.roster_status_key,
-        _PLAYERS.c.roster_label_key,
-        _PLAYERS.c.hidden_at,
-    )
-    .where(_PLAYERS.c.tenant_id == bindparam("tenant_id"))
-    .where(
-        or_(
-            bindparam("record_id", type_=Uuid(as_uuid=True)).is_(None),
-            _PLAYERS.c.id == bindparam("record_id", type_=Uuid(as_uuid=True)),
-        )
-    )
-    .where(
-        or_(
-            bindparam("team_record_id", type_=Uuid(as_uuid=True)).is_(None),
-            _PLAYERS.c.team_record_id
-            == bindparam("team_record_id", type_=Uuid(as_uuid=True)),
-        )
-    )
-    .where(
-        or_(
-            bindparam("roster_status_key", type_=Text).is_(None),
-            _PLAYERS.c.roster_status_key == bindparam("roster_status_key", type_=Text),
-        )
-    )
-    .where(
-        or_(
-            bindparam("include_hidden", type_=Boolean).is_(True),
-            _PLAYERS.c.hidden_at.is_(None),
-        )
-    )
-    .where(
-        or_(
-            bindparam("cursor_team_record_id", type_=Uuid(as_uuid=True)).is_(None),
-            _PLAYERS.c.team_record_id
-            > bindparam("cursor_team_record_id", type_=Uuid(as_uuid=True)),
-            and_(
-                _PLAYERS.c.team_record_id
-                == bindparam("cursor_team_record_id", type_=Uuid(as_uuid=True)),
-                _PLAYERS.c.id > bindparam("cursor_id", type_=Uuid(as_uuid=True)),
-            ),
-        )
-    )
-    .order_by(_PLAYERS.c.team_record_id, _PLAYERS.c.id)
-    .limit(bindparam("limit", type_=Integer))
+type _RosterBuilderOperation = (
+    PlayerReadToken | PlayerUpdateToken | TeamRecordReadToken | None
 )
-_PLAYER_CREATE = insert(_PLAYERS).values(
-    tenant_id=bindparam("tenant_id"),
-    id=bindparam("id"),
-    team_record_id=bindparam("team_record_id"),
-    name=bindparam("name"),
-    throws=bindparam("throws"),
-    bats=bindparam("bats"),
-    uniform_number=bindparam("uniform_number"),
-    roster_status_key=bindparam("roster_status_key"),
-    roster_label_key=bindparam("roster_label_key"),
-)
-_PLAYER_UPDATE = (
-    update(_PLAYERS)
-    .where(_PLAYERS.c.tenant_id == bindparam("tenant_id"))
-    .where(_PLAYERS.c.id == bindparam("id"))
-    .values(name=bindparam("value_name"))
-)
-_TEAM_RECORD_READ = (
-    select(
-        _TEAM_RECORDS.c.id,
-        _TEAM_RECORDS.c.kind,
-        _TEAM_RECORDS.c.name,
-        _TEAM_RECORDS.c.hidden_at,
-    )
-    .where(_TEAM_RECORDS.c.tenant_id == bindparam("tenant_id"))
-    .where(_TEAM_RECORDS.c.kind == bindparam("kind", type_=Text))
-    .where(
-        or_(
-            bindparam("record_id", type_=Uuid(as_uuid=True)).is_(None),
-            _TEAM_RECORDS.c.id == bindparam("record_id", type_=Uuid(as_uuid=True)),
+
+
+def _build_roster_statement(
+    kind: str,
+    operation: _RosterBuilderOperation,
+) -> Union[Select, Insert, Update]:
+    """許可された組み立て API だけで登録文と実行文を作る。"""
+    if kind == "player_read":
+        if operation is not None and not isinstance(operation, PlayerReadToken):
+            raise ValueError("player_read には PlayerReadToken が必要")
+        if operation is None:
+            return (
+                select(
+                    _PLAYERS.c.id,
+                    _PLAYERS.c.team_record_id,
+                    _PLAYERS.c.name,
+                    _PLAYERS.c.throws,
+                    _PLAYERS.c.bats,
+                    _PLAYERS.c.uniform_number,
+                    _PLAYERS.c.roster_status_key,
+                    _PLAYERS.c.roster_label_key,
+                    _PLAYERS.c.hidden_at,
+                )
+                .where(_PLAYERS.c.tenant_id == bindparam("tenant_id"))
+                .where(
+                    or_(
+                        bindparam("record_id", type_=Uuid(as_uuid=True)).is_(None),
+                        _PLAYERS.c.id
+                        == bindparam("record_id", type_=Uuid(as_uuid=True)),
+                    )
+                )
+                .where(
+                    or_(
+                        bindparam("team_record_id", type_=Uuid(as_uuid=True)).is_(None),
+                        _PLAYERS.c.team_record_id
+                        == bindparam("team_record_id", type_=Uuid(as_uuid=True)),
+                    )
+                )
+                .where(
+                    or_(
+                        bindparam("roster_status_key", type_=Text).is_(None),
+                        _PLAYERS.c.roster_status_key
+                        == bindparam("roster_status_key", type_=Text),
+                    )
+                )
+                .where(
+                    or_(
+                        bindparam("include_hidden", type_=Boolean).is_(True),
+                        _PLAYERS.c.hidden_at.is_(None),
+                    )
+                )
+                .where(
+                    or_(
+                        bindparam(
+                            "cursor_team_record_id", type_=Uuid(as_uuid=True)
+                        ).is_(None),
+                        _PLAYERS.c.team_record_id
+                        > bindparam("cursor_team_record_id", type_=Uuid(as_uuid=True)),
+                        and_(
+                            _PLAYERS.c.team_record_id
+                            == bindparam(
+                                "cursor_team_record_id", type_=Uuid(as_uuid=True)
+                            ),
+                            _PLAYERS.c.id
+                            > bindparam("cursor_id", type_=Uuid(as_uuid=True)),
+                        ),
+                    )
+                )
+                .order_by(_PLAYERS.c.team_record_id, _PLAYERS.c.id)
+                .limit(bindparam("limit", type_=Integer))
+            )
+        token = operation
+        statement = select(
+            *cast(
+                Select[Any], _build_roster_statement("player_read", None)
+            ).selected_columns
+        ).where(_PLAYERS.c.tenant_id == bindparam("tenant_id"))
+        if not token.include_hidden:
+            statement = statement.where(_PLAYERS.c.hidden_at.is_(None))
+        if token.record_id is not None:
+            statement = statement.where(_PLAYERS.c.id == bindparam("record_id"))
+        if token.team_record_id is not None:
+            statement = statement.where(
+                _PLAYERS.c.team_record_id == bindparam("team_record_id")
+            )
+        if token.roster_status_key is not None:
+            statement = statement.where(
+                _PLAYERS.c.roster_status_key == bindparam("roster_status_key")
+            )
+        if token.cursor_team_record_id is not None:
+            statement = statement.where(
+                or_(
+                    _PLAYERS.c.team_record_id
+                    > bindparam("cursor_team_record_id", type_=Uuid(as_uuid=True)),
+                    and_(
+                        _PLAYERS.c.team_record_id
+                        == bindparam("cursor_team_record_id", type_=Uuid(as_uuid=True)),
+                        _PLAYERS.c.id
+                        > bindparam("cursor_id", type_=Uuid(as_uuid=True)),
+                    ),
+                )
+            )
+        return statement.order_by(_PLAYERS.c.team_record_id, _PLAYERS.c.id).limit(
+            bindparam("limit", type_=Integer)
         )
-    )
-    .where(
-        or_(
-            bindparam("include_hidden", type_=Boolean).is_(True),
-            _TEAM_RECORDS.c.hidden_at.is_(None),
+    if kind == "player_create":
+        if operation is not None:
+            raise ValueError("player_create には operation を渡せない")
+        return insert(_PLAYERS).values(
+            tenant_id=bindparam("tenant_id"),
+            id=bindparam("id"),
+            team_record_id=bindparam("team_record_id"),
+            name=bindparam("name"),
+            throws=bindparam("throws"),
+            bats=bindparam("bats"),
+            uniform_number=bindparam("uniform_number"),
+            roster_status_key=bindparam("roster_status_key"),
+            roster_label_key=bindparam("roster_label_key"),
         )
-    )
-    .where(
-        or_(
-            bindparam("cursor_id", type_=Uuid(as_uuid=True)).is_(None),
-            _TEAM_RECORDS.c.id > bindparam("cursor_id", type_=Uuid(as_uuid=True)),
+    if kind == "player_update":
+        if operation is not None and not isinstance(operation, PlayerUpdateToken):
+            raise ValueError("player_update には PlayerUpdateToken が必要")
+        if operation is None:
+            return (
+                update(_PLAYERS)
+                .where(_PLAYERS.c.tenant_id == bindparam("tenant_id"))
+                .where(_PLAYERS.c.id == bindparam("id"))
+                .values(name=bindparam("value_name"))
+            )
+        token = operation
+        values = {name: bindparam(f"value_{name}") for name, _ in token.changes}
+        return (
+            update(_PLAYERS)
+            .where(_PLAYERS.c.tenant_id == bindparam("tenant_id"))
+            .where(_PLAYERS.c.id == bindparam("id"))
+            .values(**values)
         )
-    )
-    .order_by(_TEAM_RECORDS.c.id)
-    .limit(bindparam("limit", type_=Integer))
-)
-_TEAM_RECORD_CREATE = insert(_TEAM_RECORDS).values(
-    tenant_id=bindparam("tenant_id"),
-    id=bindparam("id"),
-    kind=bindparam("kind", type_=Text),
-    name=bindparam("name"),
-)
-_TEAM_RECORD_UPDATE = (
-    update(_TEAM_RECORDS)
-    .where(_TEAM_RECORDS.c.tenant_id == bindparam("tenant_id"))
-    .where(_TEAM_RECORDS.c.id == bindparam("id"))
-    .where(_TEAM_RECORDS.c.kind == bindparam("kind", type_=Text))
-    .values(name=bindparam("name"))
-)
+    if kind == "team_read":
+        if operation is not None and not isinstance(operation, TeamRecordReadToken):
+            raise ValueError("team_read には TeamRecordReadToken が必要")
+        if operation is None:
+            return (
+                select(
+                    _TEAM_RECORDS.c.id,
+                    _TEAM_RECORDS.c.kind,
+                    _TEAM_RECORDS.c.name,
+                    _TEAM_RECORDS.c.hidden_at,
+                )
+                .where(_TEAM_RECORDS.c.tenant_id == bindparam("tenant_id"))
+                .where(_TEAM_RECORDS.c.kind == bindparam("kind", type_=Text))
+                .where(
+                    or_(
+                        bindparam("record_id", type_=Uuid(as_uuid=True)).is_(None),
+                        _TEAM_RECORDS.c.id
+                        == bindparam("record_id", type_=Uuid(as_uuid=True)),
+                    )
+                )
+                .where(
+                    or_(
+                        bindparam("include_hidden", type_=Boolean).is_(True),
+                        _TEAM_RECORDS.c.hidden_at.is_(None),
+                    )
+                )
+                .where(
+                    or_(
+                        bindparam("cursor_id", type_=Uuid(as_uuid=True)).is_(None),
+                        _TEAM_RECORDS.c.id
+                        > bindparam("cursor_id", type_=Uuid(as_uuid=True)),
+                    )
+                )
+                .order_by(_TEAM_RECORDS.c.id)
+                .limit(bindparam("limit", type_=Integer))
+            )
+        token = operation
+        statement = (
+            select(
+                *cast(
+                    Select[Any], _build_roster_statement("team_read", None)
+                ).selected_columns
+            )
+            .where(_TEAM_RECORDS.c.tenant_id == bindparam("tenant_id"))
+            .where(_TEAM_RECORDS.c.kind == bindparam("kind", type_=Text))
+        )
+        if not token.include_hidden:
+            statement = statement.where(_TEAM_RECORDS.c.hidden_at.is_(None))
+        if token.record_id is not None:
+            statement = statement.where(_TEAM_RECORDS.c.id == bindparam("record_id"))
+        if token.cursor_id is not None:
+            statement = statement.where(_TEAM_RECORDS.c.id > bindparam("cursor_id"))
+        return statement.order_by(_TEAM_RECORDS.c.id).limit(
+            bindparam("limit", type_=Integer)
+        )
+    if kind == "team_create":
+        if operation is not None:
+            raise ValueError("team_create には operation を渡せない")
+        return insert(_TEAM_RECORDS).values(
+            tenant_id=bindparam("tenant_id"),
+            id=bindparam("id"),
+            kind=bindparam("kind", type_=Text),
+            name=bindparam("name"),
+        )
+    if kind == "team_update":
+        if operation is not None:
+            raise ValueError("team_update には operation を渡せない")
+        return (
+            update(_TEAM_RECORDS)
+            .where(_TEAM_RECORDS.c.tenant_id == bindparam("tenant_id"))
+            .where(_TEAM_RECORDS.c.id == bindparam("id"))
+            .where(_TEAM_RECORDS.c.kind == bindparam("kind", type_=Text))
+            .values(name=bindparam("name"))
+        )
+    raise ValueError(f"未知の roster 文: {kind}")
 
 
 def player_update_statement(operation: PlayerUpdateToken) -> Update:
     """閉じた変更列から 1 個の UPDATE 文を組み立てる。"""
-    values = {name: bindparam(f"value_{name}") for name, _ in operation.changes}
-    return (
-        update(_PLAYERS)
-        .where(_PLAYERS.c.tenant_id == bindparam("tenant_id"))
-        .where(_PLAYERS.c.id == bindparam("id"))
-        .values(**values)
-    )
+    return cast(Update, _build_roster_statement("player_update", operation))
 
 
 def player_read_statement(operation: PlayerReadToken) -> Select[Any]:
     """指定された条件だけを使い、索引に沿う 1 個の SELECT 文を作る。"""
-    statement = select(*_PLAYER_READ.selected_columns).where(
-        _PLAYERS.c.tenant_id == bindparam("tenant_id")
-    )
-    if not operation.include_hidden:
-        statement = statement.where(_PLAYERS.c.hidden_at.is_(None))
-    if operation.record_id is not None:
-        statement = statement.where(_PLAYERS.c.id == bindparam("record_id"))
-    if operation.team_record_id is not None:
-        statement = statement.where(
-            _PLAYERS.c.team_record_id == bindparam("team_record_id")
-        )
-    if operation.roster_status_key is not None:
-        statement = statement.where(
-            _PLAYERS.c.roster_status_key == bindparam("roster_status_key")
-        )
-    if operation.cursor_team_record_id is not None:
-        statement = statement.where(
-            or_(
-                _PLAYERS.c.team_record_id
-                > bindparam("cursor_team_record_id", type_=Uuid(as_uuid=True)),
-                and_(
-                    _PLAYERS.c.team_record_id
-                    == bindparam("cursor_team_record_id", type_=Uuid(as_uuid=True)),
-                    _PLAYERS.c.id > bindparam("cursor_id", type_=Uuid(as_uuid=True)),
-                ),
-            )
-        )
-    return statement.order_by(_PLAYERS.c.team_record_id, _PLAYERS.c.id).limit(
-        bindparam("limit", type_=Integer)
-    )
+    return cast(Select[Any], _build_roster_statement("player_read", operation))
 
 
 def team_record_read_statement(operation: TeamRecordReadToken) -> Select[Any]:
     """対戦相手だけを対象に、指定条件で 1 個の SELECT 文を作る。"""
-    statement = (
-        select(*_TEAM_RECORD_READ.selected_columns)
-        .where(_TEAM_RECORDS.c.tenant_id == bindparam("tenant_id"))
-        .where(_TEAM_RECORDS.c.kind == bindparam("kind", type_=Text))
-    )
-    if not operation.include_hidden:
-        statement = statement.where(_TEAM_RECORDS.c.hidden_at.is_(None))
-    if operation.record_id is not None:
-        statement = statement.where(_TEAM_RECORDS.c.id == bindparam("record_id"))
-    if operation.cursor_id is not None:
-        statement = statement.where(_TEAM_RECORDS.c.id > bindparam("cursor_id"))
-    return statement.order_by(_TEAM_RECORDS.c.id).limit(
-        bindparam("limit", type_=Integer)
-    )
+    return cast(Select[Any], _build_roster_statement("team_read", operation))
 
 
 def _token_parameters(operation: TenantOperationToken) -> dict[str, object]:
@@ -440,7 +494,7 @@ def _prepare_player_read(operation: TenantOperationToken) -> PreparedOperation:
 
 def _prepare_player_create(operation: TenantOperationToken) -> PreparedOperation:
     """選手追加の束縛値を準備する。"""
-    return _PLAYER_CREATE, _token_parameters(operation)
+    return _build_roster_statement("player_create", None), _token_parameters(operation)
 
 
 def _prepare_player_update(operation: TenantOperationToken) -> PreparedOperation:
@@ -462,12 +516,18 @@ def _prepare_team_record_read(operation: TenantOperationToken) -> PreparedOperat
 
 def _prepare_team_record_create(operation: TenantOperationToken) -> PreparedOperation:
     """対戦相手の固定種別と追加値を準備する。"""
-    return _TEAM_RECORD_CREATE, {**_token_parameters(operation), "kind": "opponent"}
+    return _build_roster_statement("team_create", None), {
+        **_token_parameters(operation),
+        "kind": "opponent",
+    }
 
 
 def _prepare_team_record_update(operation: TenantOperationToken) -> PreparedOperation:
     """対戦相手の固定種別と更新値を準備する。"""
-    return _TEAM_RECORD_UPDATE, {**_token_parameters(operation), "kind": "opponent"}
+    return _build_roster_statement("team_update", None), {
+        **_token_parameters(operation),
+        "kind": "opponent",
+    }
 
 
 # クラス集合は repository-contract.json の token 型集合と一致させる。
@@ -475,7 +535,7 @@ ROSTER_OPERATIONS: tuple[OperationRegistration, ...] = (
     OperationRegistration(
         PlayerReadToken,
         "CAP:players:read",
-        _PLAYER_READ,
+        _build_roster_statement("player_read", None),
         _PLAYERS.c.tenant_id,
         _prepare_player_read,
         required_limit_parameter="limit",
@@ -484,14 +544,14 @@ ROSTER_OPERATIONS: tuple[OperationRegistration, ...] = (
     OperationRegistration(
         PlayerCreateToken,
         "CAP:players:insert",
-        _PLAYER_CREATE,
+        _build_roster_statement("player_create", None),
         _PLAYERS.c.tenant_id,
         _prepare_player_create,
     ),
     OperationRegistration(
         PlayerUpdateToken,
         "CAP:players:update",
-        _PLAYER_UPDATE,
+        _build_roster_statement("player_update", None),
         _PLAYERS.c.tenant_id,
         _prepare_player_update,
         allowed_update_columns=_PLAYER_UPDATE_COLUMNS,
@@ -499,7 +559,7 @@ ROSTER_OPERATIONS: tuple[OperationRegistration, ...] = (
     OperationRegistration(
         TeamRecordReadToken,
         "CAP:team_records:read",
-        _TEAM_RECORD_READ,
+        _build_roster_statement("team_read", None),
         _TEAM_RECORDS.c.tenant_id,
         _prepare_team_record_read,
         required_bindings=(RequiredBinding(_TEAM_RECORDS.c.kind, "kind", "opponent"),),
@@ -509,7 +569,7 @@ ROSTER_OPERATIONS: tuple[OperationRegistration, ...] = (
     OperationRegistration(
         TeamRecordCreateToken,
         "CAP:team_records:insert",
-        _TEAM_RECORD_CREATE,
+        _build_roster_statement("team_create", None),
         _TEAM_RECORDS.c.tenant_id,
         _prepare_team_record_create,
         required_bindings=(RequiredBinding(_TEAM_RECORDS.c.kind, "kind", "opponent"),),
@@ -517,7 +577,7 @@ ROSTER_OPERATIONS: tuple[OperationRegistration, ...] = (
     OperationRegistration(
         TeamRecordUpdateToken,
         "CAP:team_records:update",
-        _TEAM_RECORD_UPDATE,
+        _build_roster_statement("team_update", None),
         _TEAM_RECORDS.c.tenant_id,
         _prepare_team_record_update,
         required_bindings=(RequiredBinding(_TEAM_RECORDS.c.kind, "kind", "opponent"),),

@@ -6270,6 +6270,52 @@ def _unlisted_database_access(session: Session) -> None:
     assert {violation.code for violation in violations} == {"TB005"}
 
 
+def test_roster_builder_uses_only_registered_construction_apis() -> None:
+    """登録済み組み立て関数の現行コードを全行走査する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/roster.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+
+    assert checker.scan_source(source, path=relative, contract=contract) == []
+
+
+def test_roster_builder_rejects_execution_api_mutation() -> None:
+    """組み立てを許した関数でも文の実行は拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/roster.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        '    if kind == "player_read":',
+        '    session.execute(select(1))\n    if kind == "player_read":',
+        1,
+    )
+
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, "session.execute(select(1))"),
+        contract=contract,
+    )
+
+    assert {(item.code, item.symbol) for item in violations} == {
+        ("TB005", "sqlalchemy.orm.Session.execute")
+    }
+
+
+def test_unregistered_module_cannot_construct_roster_select() -> None:
+    """同じ SELECT の組み立てを未登録モジュールへ移すと拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/services/unregistered_roster.py"
+    source = "from sqlalchemy import select\n\ndef build():\n    return select(1)\n"
+
+    violations = checker.scan_source(source, path=relative, contract=contract)
+
+    assert {(item.code, item.symbol) for item in violations} == {
+        ("TB005", "sqlalchemy.select")
+    }
+
+
 @pytest.mark.parametrize(
     "case_id",
     (

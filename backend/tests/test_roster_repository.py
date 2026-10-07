@@ -6,6 +6,7 @@ import json
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, replace
+from hashlib import sha256
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, cast
@@ -47,6 +48,30 @@ _PLAYER_ALIAS = cast(Alias, cast(Table, Player.__table__).alias("unscoped_player
 _PLAYER_TARGET_ALIAS = cast(
     Alias, cast(Table, Player.__table__).alias("unscoped_target_players")
 )
+
+
+def _replace_built_statement(
+    monkeypatch: pytest.MonkeyPatch,
+    kind: str,
+    statement: ClauseElement,
+) -> None:
+    """登録文の組み立て入口だけを負例の文へ差し替える。"""
+    original = roster_module._build_roster_statement
+
+    def replacement(
+        requested_kind: str,
+        operation: PlayerReadToken
+        | PlayerUpdateToken
+        | TeamRecordReadToken
+        | None = None,
+    ) -> ClauseElement:
+        if requested_kind == kind:
+            return statement
+        return original(requested_kind, operation)
+
+    monkeypatch.setattr(roster_module, "_build_roster_statement", replacement)
+
+
 _PLAYER_CTE = select(Player.__table__.c.id).cte("unscoped_players")
 
 
@@ -258,6 +283,111 @@ def test_registered_statement_variants_match_catalog() -> None:
         assert prefix == "CAP"
         assert catalog_rows[registration.capability_id] == (table_id, operation)
         assert cast(Table, registration.tenant_column.table).name == table_id
+
+
+@pytest.mark.parametrize(
+    ("kind", "operation"),
+    (
+        ("player_read", TeamRecordReadToken(1)),
+        ("player_create", PlayerReadToken(1)),
+        ("player_update", PlayerReadToken(1)),
+        ("team_read", PlayerReadToken(1)),
+        ("team_create", TeamRecordReadToken(1)),
+        ("team_update", PlayerUpdateToken(_PLAYER_ID, (("name", "更新"),))),
+    ),
+)
+def test_builder_rejects_mismatched_kind_and_token(
+    kind: str,
+    operation: PlayerReadToken | PlayerUpdateToken | TeamRecordReadToken,
+) -> None:
+    """同じ表や操作に見える token の取り違えも文を作る前に拒否する。"""
+    with pytest.raises(ValueError):
+        roster_module._build_roster_statement(kind, operation)
+
+
+def test_builder_rejects_unknown_kind() -> None:
+    """未知の文種を既定の更新として扱わない。"""
+    with pytest.raises(ValueError, match="未知の roster 文"):
+        roster_module._build_roster_statement("unknown", None)
+
+
+def test_builder_preserves_registered_and_prepared_sql_shapes() -> None:
+    """是正前の登録文 6 件と条件付き文 5 件の SQL 形状を固定する。"""
+    statements = {
+        kind: roster_module._build_roster_statement(kind, None)
+        for kind in (
+            "player_read",
+            "player_create",
+            "player_update",
+            "team_read",
+            "team_create",
+            "team_update",
+        )
+    }
+    statements.update(
+        player_read_dynamic=player_read_statement(PlayerReadToken(200)),
+        player_read_filtered=player_read_statement(
+            PlayerReadToken(
+                200,
+                record_id=_PLAYER_ID,
+                team_record_id=_TEAM_ID,
+                roster_status_key="active",
+                cursor_team_record_id=_TEAM_ID,
+                cursor_id=_PLAYER_ID,
+                include_hidden=True,
+            )
+        ),
+        team_read_dynamic=team_record_read_statement(TeamRecordReadToken(200)),
+        team_read_filtered=team_record_read_statement(
+            TeamRecordReadToken(
+                200, record_id=_TEAM_ID, cursor_id=_TEAM_ID, include_hidden=True
+            )
+        ),
+        player_update_dynamic=player_update_statement(
+            PlayerUpdateToken(
+                _PLAYER_ID,
+                (("name", "更新"), ("throws", None), ("roster_status_key", "active")),
+            )
+        ),
+    )
+    assert {
+        kind: sha256(str(statement).encode("utf-8")).hexdigest()
+        for kind, statement in statements.items()
+    } == {
+        "player_read": (
+            "864ae978151ad2724a389106a79cdc6240106038c04f3e14d4abccdf936e11e1"
+        ),
+        "player_create": (
+            "10ada9ab0bb67bfd948c17fc7a7548577e8157d334b438d35cc7f10218386140"
+        ),
+        "player_update": (
+            "5305fd11bc1391e27bdcfc6a755ea458f40c63eed86069d88267664d3c82d50d"
+        ),
+        "team_read": (
+            "866f3892080deca8f47160efe7ffd48e179843a6cf7d4b1f4bb4b41050adb2f6"
+        ),
+        "team_create": (
+            "f94dcdedfbd67a9cf2b3455a77298e7edd10e7c66111744300e569e2f7deb9d6"
+        ),
+        "team_update": (
+            "1b2bf02d020d9b8ba9a405bbd07e1cb256574dd7114365598a80d582fa8aea9c"
+        ),
+        "player_read_dynamic": (
+            "30a02ffa31c3f8e8bafab428a8828703dcdc5ac7d61de4ad33d74ddfd5310616"
+        ),
+        "player_read_filtered": (
+            "f7ba12073cbcaaeda2a6ec086b0146c74ba0d8cbcbb13db7810e340222101837"
+        ),
+        "team_read_dynamic": (
+            "285cbd47d150659af1c98dda93ae99d5dd26ff29cb4e321e8880e80f12a6ab71"
+        ),
+        "team_read_filtered": (
+            "d19d2e521ae3e99d2d1720f9c1d9667f5b0c0965c64a604b0be5d00cda282d7d"
+        ),
+        "player_update_dynamic": (
+            "4846babe5ad4211c58cde8ec19cd4831b63858119890a64a5fde36c8178512a7"
+        ),
+    }
 
 
 def test_player_patch_rejects_unclassified_and_invalid_columns() -> None:
@@ -521,7 +651,7 @@ def test_prepared_update_requires_target_id(
     if statement_name == "player_update_statement":
         monkeypatch.setattr(roster_module, statement_name, lambda _: statement)
     else:
-        monkeypatch.setattr(roster_module, statement_name, statement)
+        _replace_built_statement(monkeypatch, "team_update", statement)
     with pytest.raises(repository_base._TenantOperationError, match="id = :id"):
         _Repository(recorder).execute(make_tenant_context(_TENANT_ID), operation)
     assert recorder.calls == []
@@ -553,7 +683,7 @@ def test_prepared_insert_requires_tenant_bind(
     statement: ClauseElement,
 ) -> None:
     """テナント値の省略・別名 bind・定数を業務文発行前に拒否する。"""
-    monkeypatch.setattr(roster_module, "_TEAM_RECORD_CREATE", statement)
+    _replace_built_statement(monkeypatch, "team_create", statement)
     with pytest.raises(repository_base._TenantOperationError, match="tenant_id"):
         _Repository(recorder).execute(
             make_tenant_context(_TENANT_ID),
@@ -612,7 +742,7 @@ def test_required_kind_and_page_limit_cannot_be_removed(
 ) -> None:
     """チーム種別または一覧上限の欠落を両実行経路で拒否する。"""
     if builder_name == "_TEAM_RECORD_UPDATE":
-        monkeypatch.setattr(roster_module, builder_name, statement)
+        _replace_built_statement(monkeypatch, "team_update", statement)
     else:
         monkeypatch.setattr(roster_module, builder_name, lambda _: statement)
     context = make_tenant_context(_TENANT_ID)
@@ -758,7 +888,7 @@ def test_update_set_columns_stay_within_token_declaration(
 ) -> None:
     """UPDATE SET の余分な列と空集合を両経路で拒否する。"""
     if builder_name == "_TEAM_RECORD_UPDATE":
-        monkeypatch.setattr(roster_module, builder_name, statement)
+        _replace_built_statement(monkeypatch, "team_update", statement)
     else:
         monkeypatch.setattr(roster_module, builder_name, lambda _: statement)
     context = make_tenant_context(_TENANT_ID)
