@@ -24,6 +24,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     Text,
     Uuid,
+    literal_column,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -116,7 +117,7 @@ class Game(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
     )
     game_type_key: Mapped[str] = mapped_column(Text, nullable=False)
     game_type_category: Mapped[str] = mapped_column(
-        Text, nullable=False, server_default=text("'game_type'")
+        Text, nullable=False, server_default=literal_column("'game_type'")
     )
     tournament_key: Mapped[str] = mapped_column(Text, nullable=False)
     away_team_record_id: Mapped[UUID] = mapped_column(
@@ -438,7 +439,7 @@ class GameTypeRuleDefault(LifecycleMixin, Base):
 
     game_type_key: Mapped[str] = mapped_column(Text, nullable=False)
     game_type_category: Mapped[str] = mapped_column(
-        Text, nullable=False, server_default=text("'game_type'")
+        Text, nullable=False, server_default=literal_column("'game_type'")
     )
     rule_set_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
 

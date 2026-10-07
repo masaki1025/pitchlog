@@ -18,6 +18,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     column,
+    literal_column,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -213,7 +214,7 @@ class Player(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
     uniform_number: Mapped[str | None] = mapped_column(Text, nullable=True)
     roster_status_key: Mapped[str] = mapped_column(Text, nullable=False)
     roster_status_category: Mapped[str] = mapped_column(
-        Text, nullable=False, server_default=text("'roster_status'")
+        Text, nullable=False, server_default=literal_column("'roster_status'")
     )
     roster_label_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     hidden_at: Mapped[datetime | None] = mapped_column(
