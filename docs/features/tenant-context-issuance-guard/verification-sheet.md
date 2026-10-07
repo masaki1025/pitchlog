@@ -91,3 +91,56 @@ ADR-001 により**人間の逐行確認が必須**。差分は 19 ファイル�
 新しい負例 3 件: `C5_CONTEXT_REGISTRY_ISSUER` / `C5_CONTEXT_CAPABILITY_IMPORT` / `C5_CONTEXT_CAPABILITY_GETATTR`。
 発行入口の 2 件は**負例台帳に載せていない**(ランナーが実契約を読み、発行入口が空で不活性のため red にできない)。
 合成契約の単体テストで扱っている。
+
+---
+
+## 7. 追補: ステップ 1 の是正(2026-10-07・裁定 6)
+
+初回の承認(2026-10-07)の後、全件検証で `tests/test_census_baseline_check.py` の 8 件が赤になることが分かり、
+人間の裁定 6 で**センサス基準の反実仮想導出を記号単位の行差へ一般化**した。
+是正は 2 コミット(`62bebb31` / `ffaee32b`)で、差分は 3 ファイル・+291 / -88 行。
+
+**逐行確認が要るのは契約資産の 1 行だけ**である(残りはテストと設計書)。
+
+| # | ファイル | 変更 | 確認の観点 |
+| --- | --- | --- | --- |
+| 7-1 | `contracts/tenant_boundary/census-baseline.json` | `pass_fail_mapping.predicates[1].derivation.substituted_from` を `anchor_materialized_tree` → `anchor_symbol_set_plus_scoped_signature_rows` へ(**1 行のみ**) | 既存の宣言**欄**を使っており、欄を増やしていないこと。`anchor.commit`・`contract_revision`・`allowed_symbols` は 1 文字も動いていないこと |
+
+### 何が変わったか(機構)
+
+反実仮想を **2 つに分けて測る**ようにした。
+
+1. **新規記号の効果** — 共通記号の行は**現行値のまま残し**、anchor に無い記号の行と対応する正例 fixture だけを除いて測る
+2. **署名差の効果** — 署名だけが異なる共通行を、**1 記号ずつ** anchor の行へ戻して測る
+
+2 から抑止集合へ入れるのは、**その記号の製品モジュールに現れる・同じ記号の・TB005** だけ(3 条件の同時成立)。
+帰属が記号・コード・モジュールの 3 点で絞られるため、**署名差が無関係な `removed` を吸収できない**。
+
+### 緩めた線と、緩めていない線
+
+| | |
+| --- | --- |
+| **通るようになった入力** | anchor と共通する記号について、**非空文字列の `signature` だけ**を変えた行(複数行可) |
+| **引き続き拒否する入力** | 共通記号の削除 / 記号の重複 / **署名以外の欄の差**(`allowed_api_ids`・`fixture`)/ 欠落・空・文字列でない署名 |
+
+### 敵対レビュー 1 周目(`P0` なし)
+
+| 重み | 指摘 | 対応 |
+| --- | --- | --- |
+| P1 | `_allowed_symbol_product_path` が `__init__.py` を見ず、同名モジュールが共存すると誤帰属し得る | **両方を探し、2 つ見つかったら落とす**形へ。**現行 102 ファイルに重複は 0 件**で、現に成立する欠陥ではなく将来の罠 |
+| P2 | 帰属の 3 条件が実装内の定数で、外しても落ちるテストが無い | `_scoped_signature_suppression` へ切り出し、**3 条件それぞれを外した変異で落ちるテスト**を追加 |
+| P2 | 変異テストが行分割ヘルパーだけを見ている | 記号削除と許可 API 差は**測定入口を通した経路でも拒否される**ことを確認。署名差の end-to-end 帰属は全走査が 1 回増えるため求めない(docstring に明記) |
+| P2 | 全走査が署名差の件数 +1 回 | **申し送り**(design.md 6 節)。現行 `n=1`・単独全走査 約 3.9 秒 |
+
+**偽の緑を 1 件解消した**: 変異テストの `signature` ケースは、従来**本タスクの実変更**が同じ入口で先に落とすため通っていた。
+実変更のある行を避けて合成変異を作る形へ直してある。
+
+### 是正後の実測
+
+| 検査 | 結果 |
+| --- | --- |
+| `uv run pytest tests/test_census_baseline_check.py` | **54 passed**(是正前 48・develop も 48) |
+| `uv run pytest tests/` | **2862 passed / 34 failed** — 赤は**凍結ゲートと比較 corpus digest の連鎖のみ**(ステップ 7 で解消) |
+| `uv run ruff check .` / `uv run ty check`(ルート) | green |
+| backend `ruff format --check` / `ruff check` / `ty check` | green |
+| backend `pytest`(非 DB) | 960 passed / 4 skipped |
