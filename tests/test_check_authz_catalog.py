@@ -4980,42 +4980,72 @@ def test_multiplicity_scanner_reaches_the_actual_deepest_array() -> None:
     assert maximum_depth > path_depth
 
 
-def test_recursive_derivers_cover_generated_container_sequences_and_siblings() -> None:
-    """深さ d の全容器列・述語分岐・葉型と幅 w の全兄弟を探針で覆う。"""
-    maximum_width, maximum_depth = _frozen_container_limits()
-    leaf_values: tuple[object, ...] = ("text", 1, True, None, {}, [])
-    sequences = tuple(
-        sequence
-        for depth in range(1, maximum_depth + 1)
-        for sequence in itertools.product(("dict", "list"), repeat=depth)
+_CONTAINER_PROBE_WIDTH, _CONTAINER_PROBE_DEPTH = _frozen_container_limits()
+_CONTAINER_PROBE_CASES = tuple(
+    (sequence, widened_index)
+    for depth in range(1, _CONTAINER_PROBE_DEPTH + 1)
+    for sequence in itertools.product(("dict", "list"), repeat=depth)
+    for widened_index in range(len(sequence))
+)
+
+
+def test_recursive_deriver_cases_cover_every_container_sequence_and_width() -> None:
+    """旧走査の全容器列と拡幅位置がパラメータ列に一意にあることを検査する。"""
+    _maximum_width, maximum_depth = _frozen_container_limits()
+    expected: set[tuple[tuple[str, ...], int]] = set()
+    for depth in range(1, maximum_depth + 1):
+        for sequence in itertools.product(("dict", "list"), repeat=depth):
+            for widened_index in range(len(sequence)):
+                expected.add((sequence, widened_index))
+
+    assert len(_CONTAINER_PROBE_CASES) == len(set(_CONTAINER_PROBE_CASES))
+    assert set(_CONTAINER_PROBE_CASES) == expected
+    assert len(_CONTAINER_PROBE_CASES) == sum(
+        2**depth * depth for depth in range(1, maximum_depth + 1)
     )
+
+
+@pytest.mark.parametrize(
+    ("sequence", "widened_index"),
+    [
+        pytest.param(
+            sequence,
+            widened_index,
+            id=f"{'-'.join(sequence)}-w{widened_index}",
+        )
+        for sequence, widened_index in _CONTAINER_PROBE_CASES
+    ],
+)
+def test_recursive_derivers_cover_generated_container_sequences_and_siblings(
+    sequence: tuple[str, ...], widened_index: int
+) -> None:
+    """深さ d の全容器列・述語分岐・葉型と幅 w の全兄弟を探針で覆う。"""
+    leaf_values: tuple[object, ...] = ("text", 1, True, None, {}, [])
     leaf_probe_value = {
         f"{predicate}_probe_{index}": copy.deepcopy(leaf)
         for index, leaf in enumerate(leaf_values)
         for predicate in ("owner", "task_id")
     }
-    expected_leaf_count = len(leaf_probe_value) * maximum_width
+    expected_leaf_count = len(leaf_probe_value) * _CONTAINER_PROBE_WIDTH
 
-    for sequence in sequences:
-        for widened_index in range(len(sequence)):
-            array_probe = _wrap_with_wide_container(
-                sequence, widened_index, ["array-probe"], maximum_width
-            )
-            terminal_arrays = [
-                array
-                for _path, array in _walk_json_arrays(array_probe)
-                if array == ["array-probe"]
-            ]
-            assert len(terminal_arrays) == maximum_width
+    array_probe = _wrap_with_wide_container(
+        sequence, widened_index, ["array-probe"], _CONTAINER_PROBE_WIDTH
+    )
+    terminal_arrays = [
+        array
+        for _path, array in _walk_json_arrays(array_probe)
+        if array == ["array-probe"]
+    ]
+    assert len(terminal_arrays) == _CONTAINER_PROBE_WIDTH
 
-            leaf_probe = _wrap_with_wide_container(
-                sequence,
-                widened_index,
-                leaf_probe_value,
-                maximum_width,
-            )
-            assert len(_iter_matching_key_paths(leaf_probe)) == expected_leaf_count
-            assert len(_iter_leaf_paths(leaf_probe)) == expected_leaf_count
+    leaf_probe = _wrap_with_wide_container(
+        sequence,
+        widened_index,
+        leaf_probe_value,
+        _CONTAINER_PROBE_WIDTH,
+    )
+    assert len(_iter_matching_key_paths(leaf_probe)) == expected_leaf_count
+    assert len(_iter_leaf_paths(leaf_probe)) == expected_leaf_count
 
 
 def test_normal_validation_never_reseals_a_semantically_valid_drift(
@@ -5138,41 +5168,87 @@ def test_oracle_reseal_preserves_inputs_and_expected_asset_digests() -> None:
         checker.validate_oracle_seal(current, assets, paths, REPOSITORY_ROOT)
 
 
-def test_all_recursively_enumerated_oracle_leaves_reject_change_and_deletion() -> None:
-    """6資産とsealから全葉を再帰列挙し、値改変・削除を全数 red にする。"""
-    assets, seal, paths = _repository_oracle_assets()
-    leaf_counts = {name: len(_iter_leaf_paths(asset)) for name, asset in assets.items()}
-    leaf_counts["oracle_seal"] = len(_iter_leaf_paths(seal))
-    escaped: list[tuple[str, tuple[str | int, ...], str]] = []
-    attempts = 0
+def _oracle_leaf_mutation_cases() -> tuple[tuple[str, ArrayPath, str], ...]:
+    """リポジトリ資産の全葉と改変・削除を収集時に列挙する。"""
+    assets, seal, _paths = _repository_oracle_assets()
+    sources = {**assets, "oracle_seal": seal}
+    return tuple(
+        (name, leaf_path, mutation)
+        for name, asset in sources.items()
+        for leaf_path in _iter_leaf_paths(asset)
+        for mutation in ("change", "delete")
+    )
 
+
+def _oracle_leaf_mutation_case_id(case: tuple[str, ArrayPath, str]) -> str:
+    """資産名・型付き葉パス・変異を一意なケース ID にする。"""
+    name, leaf_path, mutation = case
+    path_label = json.dumps(leaf_path, ensure_ascii=False, separators=(",", ":"))
+    return f"{name}-{path_label}-{mutation}"
+
+
+_ORACLE_LEAF_MUTATION_CASES = _oracle_leaf_mutation_cases()
+
+
+def test_oracle_leaf_mutation_cases_cover_every_source_leaf() -> None:
+    """旧走査の全葉と二変異がパラメータ列に一意にあることを検査する。"""
+    assets, seal, _paths = _repository_oracle_assets()
+    leaf_counts: dict[str, int] = {}
+    expected: set[tuple[str, ArrayPath, str]] = set()
     for name, asset in assets.items():
-        for leaf_path in _iter_leaf_paths(asset):
+        leaf_paths = _iter_leaf_paths(asset)
+        leaf_counts[name] = len(leaf_paths)
+        for leaf_path in leaf_paths:
             for mutation in ("change", "delete"):
-                mutated = _mutate_leaf(asset, leaf_path, delete=mutation == "delete")
-                try:
-                    checker.validate_oracle_asset_seal(mutated, paths[name], seal)
-                except checker.CatalogError:
-                    pass
-                else:
-                    escaped.append((name, leaf_path, mutation))
-                attempts += 1
-    for leaf_path in _iter_leaf_paths(seal):
+                expected.add((name, leaf_path, mutation))
+    seal_leaf_paths = _iter_leaf_paths(seal)
+    leaf_counts["oracle_seal"] = len(seal_leaf_paths)
+    for leaf_path in seal_leaf_paths:
         for mutation in ("change", "delete"):
-            mutated_seal = _mutate_leaf(seal, leaf_path, delete=mutation == "delete")
-            try:
-                checker.validate_oracle_seal(
-                    mutated_seal, assets, paths, REPOSITORY_ROOT
-                )
-            except checker.CatalogError:
-                pass
-            else:
-                escaped.append(("oracle_seal", leaf_path, mutation))
-            attempts += 1
+            expected.add(("oracle_seal", leaf_path, mutation))
 
+    assert len(assets) == len(ORACLE_ASSET_FILES)
     assert all(count > 0 for count in leaf_counts.values())
-    assert attempts == sum(leaf_counts.values()) * 2
-    assert escaped == []
+    assert len(_ORACLE_LEAF_MUTATION_CASES) == len(set(_ORACLE_LEAF_MUTATION_CASES))
+    assert set(_ORACLE_LEAF_MUTATION_CASES) == expected
+    assert len(_ORACLE_LEAF_MUTATION_CASES) == sum(leaf_counts.values()) * 2
+    case_ids = {_oracle_leaf_mutation_case_id(case) for case in _ORACLE_LEAF_MUTATION_CASES}
+    assert len(case_ids) == len(_ORACLE_LEAF_MUTATION_CASES)
+
+
+@pytest.fixture(scope="module")
+def oracle_mutation_sources() -> tuple[
+    dict[str, dict[str, Any]], dict[str, Any], dict[str, str]
+]:
+    """各 worker で検証用の資産と seal を一度だけ読む。"""
+    return _repository_oracle_assets()
+
+
+@pytest.mark.parametrize(
+    ("name", "leaf_path", "mutation"),
+    [
+        pytest.param(*case, id=_oracle_leaf_mutation_case_id(case))
+        for case in _ORACLE_LEAF_MUTATION_CASES
+    ],
+)
+def test_all_recursively_enumerated_oracle_leaves_reject_change_and_deletion(
+    name: str,
+    leaf_path: ArrayPath,
+    mutation: str,
+    oracle_mutation_sources: tuple[
+        dict[str, dict[str, Any]], dict[str, Any], dict[str, str]
+    ],
+) -> None:
+    """6資産とsealから全葉を再帰列挙し、値改変・削除を全数 red にする。"""
+    assets, seal, paths = oracle_mutation_sources
+    if name == "oracle_seal":
+        mutated_seal = _mutate_leaf(seal, leaf_path, delete=mutation == "delete")
+        with pytest.raises(checker.CatalogError):
+            checker.validate_oracle_seal(mutated_seal, assets, paths, REPOSITORY_ROOT)
+    else:
+        mutated = _mutate_leaf(assets[name], leaf_path, delete=mutation == "delete")
+        with pytest.raises(checker.CatalogError):
+            checker.validate_oracle_asset_seal(mutated, paths[name], seal)
 
 
 def test_all_claim_execution_classes_reject_the_opposite_class() -> None:
