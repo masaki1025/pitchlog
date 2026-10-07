@@ -89,14 +89,14 @@ TSK-440 は `scripts/check_tenant_boundary_bypass.py` の条件 5(TB007)の保�
 
 | 正本 | 理由 |
 | --- | --- |
-| `.claude/core-areas.json` | **1 行も足さない。** 本タスクが変更する**コード・契約・テスト**が既存 glob(`backend/src/pitchlog/repositories/*`・`backend/tests/test_authz*.py`・`scripts/check_tenant_boundary_bypass.py`・`contracts/tenant_boundary/*`・`tests/fixtures/tenant_boundary/*`・`tests/test_check_tenant_boundary_bypass.py`)に該当するため**追加は 0 件**(追補する設計文書と worklog はコア paths に該当しない)。DoD の「ディレクトリ全体を足さない」を構造的に満たし、6.3-⑤ の P0 を踏めない |
-| `contracts/tenant_boundary/frozen-inputs.json` | 射影に検査器を含まない唯一の資産。識別値は据え置き、受理記録には同値で列挙する |
-| `docs/requirements/requirements-pitchlog-2026-07-22.md` | NFR-010 / FR-034 は性質を Must で要求し**手段を指定しない**([research.md](research.md) §7)。NFR-019 も改訂不要 |
-| `docs/design/data-model.md` | 裁定 A-3 は不変。移行は発行モジュールの利用者ではない(同 §3)。`:16` の γ 帰属の現行化は**射程外 — 申し送り** |
-| `docs/adr/` | **新設しない**。決定の置き場は `../tenant-boundary-enforcement/design.md` 1-1 / 6-0 で、本タスクはそこへ 1 ブロック足して完結する。既存 ADR 4 本はいずれも横断的な方式選択(モデル選定・フロントエンド・ドメイン計算方式・マージゲート) |
-| `docs/features/tenant-boundary-scope/verification-sheet.md` | TSK-440 の受理記録。閉じた単位の合格シートは動かさない |
-| `docs/development/dev-harness-design-2026-08-07.md` 7.7 | 7.7 の**受理記録の作成**は U-M1 ステップ 8(裁定 1)。本タスクは凍結資産の受理記録を書くが、7.7 の手続き文書自体は変えない |
-| `docs/features/ua1-auth-app-layer/plan.md` | `:76` が既に本タスクを申し送り済み。**このファイルは未マージの `feature/ua1-auth-app-layer` 上にあり、本 worktree には存在しない**(レビュー F7)。**U-M1 ステップ 8 の現物計画との逐語突合は未確認**と記す。`../ua1-team-auth/design.md:264`・同 `plan.md:110`・`../../design/data-model.md:16` が生成と登録を γ に割り当てたままなのは、**裁定 b'(2026-10-05)による上書き前の記述**であり、現行化は射程外 — 申し送り |
+| `.claude/core-areas.json` | **反映なし** — **1 行も足さない。** 本タスクが変更する**コード・契約・テスト**が既存 glob(`backend/src/pitchlog/repositories/*`・`backend/tests/test_authz*.py`・`scripts/check_tenant_boundary_bypass.py`・`contracts/tenant_boundary/*`・`tests/fixtures/tenant_boundary/*`・`tests/test_check_tenant_boundary_bypass.py`)に該当するため**追加は 0 件**(追補する設計文書と worklog はコア paths に該当しない)。DoD の「ディレクトリ全体を足さない」を構造的に満たし、6.3-⑤ の P0 を踏めない |
+| `contracts/tenant_boundary/frozen-inputs.json` | **反映なし** — 射影に検査器を含まない唯一の資産。識別値は据え置き、受理記録には同値で列挙する |
+| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし** — NFR-010 / FR-034 は性質を Must で要求し**手段を指定しない**([research.md](research.md) §7)。NFR-019 も改訂不要 |
+| `docs/design/data-model.md` | **反映なし** — 裁定 A-3 は不変。移行は発行モジュールの利用者ではない(同 §3)。`:16` の γ 帰属の現行化は**射程外 — 申し送り** |
+| `docs/adr/` | **反映なし** — **新設しない**。決定の置き場は `../tenant-boundary-enforcement/design.md` 1-1 / 6-0 で、本タスクはそこへ 1 ブロック足して完結する。既存 ADR 4 本はいずれも横断的な方式選択(モデル選定・フロントエンド・ドメイン計算方式・マージゲート) |
+| `docs/features/tenant-boundary-scope/verification-sheet.md` | **反映なし** — TSK-440 の受理記録。閉じた単位の合格シートは動かさない |
+| `docs/development/dev-harness-design-2026-08-07.md` 7.7 | **反映なし** — 7.7 の**受理記録の作成**は U-M1 ステップ 8(裁定 1)。本タスクは凍結資産の受理記録を書くが、7.7 の手続き文書自体は変えない |
+| `docs/features/ua1-auth-app-layer/plan.md` | **反映なし** — `:76` が既に本タスクを申し送り済み。**このファイルは未マージの `feature/ua1-auth-app-layer` 上にあり、本 worktree には存在しない**(レビュー F7)。**U-M1 ステップ 8 の現物計画との逐語突合は未確認**と記す。`../ua1-team-auth/design.md:264`・同 `plan.md:110`・`../../design/data-model.md:16` が生成と登録を γ に割り当てたままなのは、**裁定 b'(2026-10-05)による上書き前の記述**であり、現行化は射程外 — 申し送り |
 
 ## 4. 実装方針
 
