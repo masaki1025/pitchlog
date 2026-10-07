@@ -136,3 +136,67 @@ U-T1 テナント境界が 4 例目で、有効だった手当ては**脅威モ�
 - `_check_integrity_reference` の新しい 2 件の許可判定が、条件式の形で重複している。
   まとめても挙動は変わらないが、4 件それぞれ別に持たせるという設計意図は読み取りにくくなる。
   整理するなら PR レビューで判断する
+
+## 7. ステップ 1 の是正 2 件目: DB テストの派生型構築(2026-10-08・PR #101 の CI)
+
+### 事象
+
+PR #101 の CI(`backend` ジョブ)が `TypeError` で 1 件赤になった。
+
+```
+FAILED tests/db/test_tenant_transaction_scope.py::test_scope_rejects_non_exact_tenant_context_subclass
+  - TypeError: TenantContext.__init__() missing 1 required positional argument: 'issuance_capability'
+1 failed, 1336 passed, 4 skipped
+```
+
+当該テストは `derived_type(_TENANT_ID)` と旧シグネチャで `TenantContext` の派生型を構築して
+いた。ステップ 1 で `__init__` に発行能力を必須化したため、**テスト本体へ到達する前に**
+落ちていた。
+
+### 是正
+
+同一ブランチの `backend/tests/test_authz_tenant_binding.py` が既に解いている形へ揃えた。
+
+```python
+context = make_tenant_context(_TENANT_ID)
+derived_context = cast(TenantContext, object.__new__(derived_type))
+object.__setattr__(derived_context, "tenant_id", context.tenant_id)
+object.__setattr__(derived_context, "_integrity_proof", context._integrity_proof)
+assert derived_context._has_valid_integrity_proof() is True
+```
+
+**最後の assert が本体**である。これが無いと、拒否されたのが exact 型検査のためか証跡検査の
+ためかを区別できず、テストの主張が空洞になる。`_tenant_transaction` と
+`_TenantTransactionScope.__enter__` はいずれも exact 型検査 → 証跡検査 → `Session` 生成の順で
+並んでいるので、証跡が有効であれば拒否は exact 型検査に帰属する。
+
+逐語 match「TenantContext が無い」と、`created_sessions == []` /
+`observed_statements == []` の 2 つの空集合 assert は 1 文字も変えていない。
+
+### 敵対レビュー(sol xhigh・6 軸)
+
+**P0 / P1 / P2 いずれもゼロ。** 軸ごとの判定は次のとおり。
+
+| 軸 | 判定 | 要点 |
+| --- | --- | --- |
+| 主張の空洞化 | されない | `@final` は実行時の継承禁止ではなく、生成しているのは実際の派生型 |
+| 拒否の帰属 | されない | 証跡 assert だけでは不十分だが、exact 型検査が証跡検査と `Session` 生成に先行する |
+| 証跡の写し | されない | 証跡は秘密と `tenant_id.bytes` のみから計算し、型やインスタンス識別を含まない |
+| 未初期化スロット | されない | 現行のフィールドは 2 つで、両方を設定している |
+| 同型の見落とし | されない | `backend/tests/db/` の他 20 箇所はすべて `make_tenant_context` 経由 |
+| 逐語性 | されない | match と 2 つの空集合 assert は差分で変更されていない |
+
+### 申し送り(軸 4)
+
+**`TenantContext` にフィールドまたは構築時の検証処理が増えたら、この構築形は再確認が要る。**
+`object.__new__` は `__init__` を飛ばすので、新しいフィールドは未初期化のまま残る。
+現行は `tenant_id` と `_integrity_proof` の 2 つで、テストは両方を設定している。
+
+### 見逃した理由(検証の母集団)
+
+共有開発 DB が消失しているため、ローカルの検証は一貫して `--ignore=tests/db` で回していた。
+**この層は 6 ステップのあいだ一度も評価されていない。** 非 DB の件数は最後まで 960 passed の
+まま動かず、件数でも終了コードでも差が出なかった。台帳の既存候補「検証コマンドを人が選ぶと、
+CI が走らせるコマンドとの差分が黙って残る」へ 9 例目として記録し、対応案 (h) を足した
+——**実行できないことは、静的に探せないことを意味しない**(本件は
+`grep -rn "TenantContext(" backend/tests/db/` の 1 回で的中する)。
