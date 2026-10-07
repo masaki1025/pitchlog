@@ -1,13 +1,13 @@
 ---
 feature: um1-player-roster-opponent
 status: active
-承認: 済(2026-10-07・山田正輝 / 第 3 改訂 — 第 2 改訂・第 1 改訂 2026-10-05・初版 2026-09-24)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-10-08・山田正輝 / 第 4 改訂 — 第 3 改訂 2026-10-07・第 2 改訂・第 1 改訂 2026-10-05・初版 2026-09-24)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..
 notion: https://app.notion.com/p/3da93b75e687812eb946c4a8cf5fc1a7
 branch: feature/um1-player-roster-opponent
 created: 2026-09-24
-計画レビュー周回: 10       # 敵対レビュー 1 周目(判定 否決・P0 16 / P1 6 / P2 1)/ 改訂 2026-10-05 の 1 周目(否決・P1 3 / P2 2)・2 周目(否決・P1 3 / P2 3)・3 周目(否決・P1 2 / P2 4)・4 周目(否決・P1 3 — PO 裁定で N1〜N4 へ)・5 周目(否決・P1 1〔N3〕/ P2 1)/ 第 2 改訂の 1 周目(否決・P1 4 / P2 1)・2 周目(否決・P1 1 / P2 1)/ 第 3 改訂の 1 周目(否決・P0 2 / P1 2)・2 周目(否決・P1 2)の反映を含む
+計画レビュー周回: 11       # 敵対レビュー 1 周目(判定 否決・P0 16 / P1 6 / P2 1)/ 改訂 2026-10-05 の 1 周目(否決・P1 3 / P2 2)・2 周目(否決・P1 3 / P2 3)・3 周目(否決・P1 2 / P2 4)・4 周目(否決・P1 3 — PO 裁定で N1〜N4 へ)・5 周目(否決・P1 1〔N3〕/ P2 1)/ 第 2 改訂の 1 周目(否決・P1 4 / P2 1)・2 周目(否決・P1 1 / P2 1)/ 第 3 改訂の 1 周目(否決・P0 2 / P1 2)・2 周目(否決・P1 2)/ 第 4 改訂の 1 周目(否決・P1 4)の反映を含む
 確定ゲート周回: 0
 実行方式: 通常
 反映周コミット: 適用
@@ -92,7 +92,7 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 | `contracts/authz/route-registry.json` / `http-route-matrix.json` (+ lock) | **追記**(`route_kind` の値域は PR #77 で決定済み — `record_and_aggregate`) | PR レビュー |
 | `contracts/authz/oracle-seal.lock.json` / oracle 資産(`oracle_commit` 7 箇所)/ `contracts/authz/frozen-baselines.json` / `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py`(**第 2 改訂で追加**) | route-registry と HTTP 行列が oracle 封印の入力資産のため、oracle の追随・凍結基準の記録(series `oracle_input`)・`--reseal-oracle` による再封印。検査器の期待集合の更新(4 節 ステップ 2〜4) | 7.7 の更新経路・**人間の確認**(`reseal_policy`) |
 | `contracts/tenant_boundary/repository-contract.json` | **capability 登録**。**`FROZEN_BASELINE_ASSETS` の 1 つ**(`scripts/check_tenant_boundary_bypass.py:41`)なので**設計書 7.7-2 の記録が要る** | 7.7 の更新経路 |
-| `contracts/tenant_boundary/base-allowlist.json`(権威履歴)/ 履歴 snapshot / `tests/fixtures/frozen-archive-cases/manifest.json`(**改訂 2026-10-05 で追加**) | 7.7-2 の記録 1 件・snapshot・比較 corpus の digest 再封印(4 節 ステップ 5 の内訳) | 7.7 の更新経路 |
+| `contracts/tenant_boundary/base-allowlist.json`(権威履歴)/ 履歴 snapshot / `tests/fixtures/frozen-archive-cases/manifest.json`(**改訂 2026-10-05 で追加**) | 7.7-2 の記録 1 件・snapshot・比較 corpus の digest 再封印(4 節 ステップ 5 の内訳)。**第 4 改訂で追加**: `base-allowlist.json` の `allowed_symbols` へ文の組み立て関数を登録し、シンボルごとの正例 fixture を `tests/fixtures/tenant_boundary/positive/pitchlog/repositories/` に置く(内訳 5 の是正) | 7.7 の更新経路 |
 | `contracts/tenant_boundary/tenant-context-allowlist.json` / 配布モジュール `backend/src/pitchlog/repositories/tenant_context_contract.py` / `scripts/check_tenant_boundary_bypass.py` / `tests/test_check_tenant_boundary_bypass.py`(**第 3 改訂で追加**) | 発行専用モジュールの登録と発行入口の 2 欄・0 件必須の分岐の置き換え・テストの改訂(4 節 ステップ 9)。受理記録はステップ 10。allowlist は凍結資産で、検査器は `frozen_projection.external_files` に入る | 7.7 の更新経路(受理記録はステップ 5 の分と合わせて 1 件)・**人間の逐行確認** |
 | `.env.example`(**第 3 改訂で追加・該当するときだけ**) | リクエストの認証の設定値を持つ場合に、名前と説明だけを足す(実値なし — NFR-014。N6) | PR レビュー |
 | `docs/design/data-model.md` / `docs/features/ua1-team-auth/design.md`(**第 3 改訂で確認 — 反映なし**) | **反映なし**。12-8 節の残件の行は δ を「認証の HTTP の入口」の受け取り先としており、データへ届く入口のリクエストの認証を名指していない。`../ua1-team-auth/design.md` 3 節の δ の行(Cookie と CSRF)は作業ディレクトリの記録で、正本ではない。**帰属の変更(依存表 12)は本書と Notion(TSK-470 へのコメント)に記録する** | — |
@@ -150,7 +150,7 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 | 2 | 同期セマンティクスを扱わない | `\b(idempotenc\|idempotent_key\|seq_no\|sequence_no\|tombstone\|revision_no\|generation)\b` | — |
 | 3 | NFR-018 の対象計算を含まない | `responsible_pitcher\|earned_run\|at_bat_result\|inning_state\|rbi\|era\|avg\|obp\|slg` | — |
 | 4 | キャッシュ無効化契約に触れない | `\b(invalidate\|cache_clear\|evict\|purge_cache)` | `pitchlog.repositories.cache_invalidation` の公開シンボルの import / 参照 / 呼び出しのみ |
-| 5 | テナントデータは U-T1 の越境関数経由だけ | `\b(session\.(execute\|query\|scalars)\|select\(\|text\(\|engine\.\|raw_connection)` | U-T1 のリポジトリ基底の継承・呼び出しのみ |
+| 5 | テナントデータは U-T1 の越境関数経由だけ | `\b(session\.(execute\|query\|scalars)\|select\(\|text\(\|engine\.\|raw_connection)` | U-T1 のリポジトリ基底の継承・呼び出し。**および `base-allowlist.json` の `allowed_symbols` に登録した文の組み立て関数の中の組み立て API(`select(` / `insert(` / `update(`)**(第 4 改訂 — 裁定 2026-10-08)。実行系(`session.execute` ほか)は従来どおり基底だけ |
 
 **条件 3 の注意**: `era` は `operation` の部分文字列に一致する(`../u01-dto-base/plan.md:150` の先例)。**差分行限定**で当てる。
 **条件 4 の注意**: `_normalize_identifier`(`scripts/check_tenant_boundary_bypass.py:1440-1445`)が**最後に `.lower()` する**ため、
@@ -295,6 +295,33 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 > - **受理記録を別ステップに分ける**: 前例はステップ 2〜4(資産の変更 → oracle の追随 → 記録と再封印)。記録は確定した SHA を参照するので、変更と同じコミットに置くと作り直しが要る。ステップ 9 の SHA では凍結履歴の検査が期待どおり落ち、ステップ 10 で解消する
 > - **新 8 を分ける**: 新 8 は外部依存を待たない。新 9 と同じコミットにすると、γ・TSK-457・TSK-480 を待つ間、新 8 も止まる
 
+> ## 【第 4 改訂 2026-10-08・改訂承認: 山田正輝】ステップ 5 の是正 — 文の組み立てを許可シンボルへ登録し、検証を確定した状態で当てる
+>
+> **ステップの番号と表は変えない**。ステップ 5 の是正コミット 1 本(`(ステップ 5 是正)` — 変更と受理記録を同じコミットに置く)を足し、4 節の「5 条件」表の条件 5・3 節・内訳 5・6 節の実行手順を書き換える。
+>
+> ### 何が起きたか(2026-10-08 実測)
+>
+> - **ステップ 5 のコミット `3a4a7297` は、迂回検査の条件 5(TB005)で 9 件落ちる**。`backend/src/pitchlog/repositories/roster.py` が `sqlalchemy.select` / `insert` / `update` で文を組み立てているが、`contracts/tenant_boundary/base-allowlist.json` の `allowed_symbols` に、これらの API を許すシンボルが 1 つも無い。**develop の取り込み(`8ada3d9d`)とは無関係** — `3a4a7297` を当時の base `85fce8a7` に対して検査しても同じ 9 件が出る
+> - **当時の検証が空振りした理由は 2 つ**
+>   - 迂回検査は `git diff {base_ref}...HEAD` の**コミット済みの差分**だけを見る(`base-allowlist.json` の `diff.command`)。ステップ 5 の検証(worklog「`check_tenant_boundary_bypass` ok」)は**コミット前**に行い、`roster.py` は未追跡の新規ファイルだったので検査の母集団に入らなかった(台帳の既存候補「検査器がコミット済みの差分だけを見ると未追跡の新規ファイルがローカルの検証をすり抜ける」と同型)
+>   - **PR #95 の CI は 1 度も走っていない**(`gh pr checks 95` が `no checks reported`)。draft 作成後の push で検査が回る前提が成り立っていなかった
+> - **根は 2 つの設計の継ぎ目**: TSK-424 の capability 登録は、各単位が SQLAlchemy の公開 API で組み立てた文を token に載せる前提(`../product-authz-surface/design.md` 10 節の登録の検査の保証範囲)。U-T1 の条件 5 は、DB 到達 API(`contracts/tenant_boundary/db-api-inventory.json` は `select` / `insert` / `update` を含む)を `allowed_symbols` の内側だけに許す。**製品のリポジトリは U-M1 が最初なので、この継ぎ目に最初に当たった**。本書の 4 節「5 条件」の条件 5(`select\(` の一致 0)にもステップ 5 は反していた
+>
+> ### 裁定(2026-10-08・山田正輝)
+>
+> **文を組み立てる関数を `roster.py` に置き、`base-allowlist.json` の `allowed_symbols` に登録する**(選択肢: 許可シンボルに登録〔採用〕/ 組み立てを基底へ移す / 組み立て API を目録の対象外にする)。
+> `allowed_symbols` は基底以外のシンボルにも使われている(`pitchlog.authz.product_provisioning._run_product_operation`・`pitchlog.authz.product_catalog._fetch_catalog_rows`)ので、既存の拡張点の範囲で閉じる。
+>
+> ### 何を変えたか
+>
+> 1. **`(ステップ 5 是正)` を足す**(内訳 5 の末尾「是正 — 第 4 改訂」)。`roster.py` の文の組み立てを**少数の組み立て関数**へ集め、各関数を `allowed_symbols` へ登録する。**許す API は文の組み立て(`SQLA_SELECT` / `SQLA_INSERT` / `SQLA_UPDATE`)のうち、その関数が使うものだけ**。文の実行は従来どおり基底(`TenantRepositoryBase._execute_operation` / `_TenantTransaction.run`)だけが行い、capability 検査器の実行直前の検査(単一の実表・テナント条件ほか — ステップ 5)も変えない
+> 2. **同じコミットで #95 の受理記録を 1 件追記する**。**現 HEAD の履歴に #95 の記録は無い**(取り込み `8ada3d9d` で権威履歴の衝突を develop 側で解いた。第 3 改訂の「#95 はステップ 5 で 1 件持っている」は取り込み前の状態)。#96 までの履歴を保ち、ステップ 5 と是正の両方の変更(`repository-contract.json` と `base-allowlist.json` の `allowed_symbols`)を覆う 1 件を末尾へ足す。`base-allowlist.json` 自身の `contract_revision` と `current_identifiers` も更新する。**変更と記録を別コミットにしない** — 間のコミットでは検査器が履歴の検証で止まり、TB005 の有無まで到達しない(計画レビュー 1 周目 P1)
+> 3. **4 節「5 条件」の条件 5 の許可側**を「U-T1 のリポジトリ基底の継承・呼び出し、**および `allowed_symbols` に登録した文の組み立て関数の中の組み立て API**」へ書き換える
+> 4. **検証を確定した状態で当てる**(6 節): 迂回検査と凍結履歴の検査は、**ステップのコミットを作った後に、作業ツリーが清潔で HEAD がそのコミットであることを確かめてから**実行する(検査器はソースを HEAD から、契約資産を作業ツリーから読む)。コミット前に当てた結果を合格の根拠にしない。あわせて、**draft PR の CI が実際に走ったこと**(`gh pr checks 95` に検査が並ぶこと)を、push のたびに確かめる
+> 5. **ステップ 10 以降の扱い**: ステップ 10 は #95 の記録を 1 件にまとめる。**ステップ 10 より後(11〜13)に凍結資産を動かすステップは、そのステップの中で記録を導出し直し、1 件のまま保つ**(文を足すなら、既存の組み立て関数を使うか、同じ方式で `allowed_symbols` に登録する)
+>
+> **ステップ 6・7 はこの是正と独立**(`scripts/core_guard.py` と `.claude/core-areas.json` だけ)なので、是正の前後どちらで行ってもよい。
+
 
 **着手の拘束**: **ステップ 1〜3 は外部依存の着地を待たない。ステップ 4 の前に PR 番号を確定する(N3 — 人間の判断を経てから PR を作る)。ステップ 5 はステップ 4 と同じ PR 番号を使う。ステップ 6・7 は TSK-344 のマージと develop の取り込みの後(第 1 改訂の 3 — 本書の拘束)。**
 **第 3 改訂の番号で: ステップ 8 は外部依存を待たない(ステップ 7 の後)。ステップ 9 以降は dep 4・6(γ)・7・10(TSK-480)・11(TSK-457)の develop 着地後**
@@ -358,6 +385,24 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 - **前版の結果照合**: `tests/test_frozen_archive_case_runner.py` は現版だけを実行する(`:414`)ので、再封印時に runner(`tests/fixtures/frozen-archive-cases/runner.py`)を `--checker previous=<前版> --checker current=<現版>` で両方当て、**全ケースで manifest の期待値と一致する**ことを確かめる。前版の作業木は固定 SHA・detached・清潔であること(`runner.py:1034`)
 - **合格条件**: 前版・現版の全ケース一致(上)。`backend/tests/test_authz_repository_contract.py`(資産と生成モジュールの一致 `:303-309` を含む)・`backend/tests/test_authz_capability_registration.py`・`tests/test_check_tenant_boundary_bypass.py`・`tests/test_frozen_history.py`・`tests/test_frozen_archive.py`・`tests/test_frozen_archive_case_runner.py` が green。カタログ外の ID・表・操作が拒否される負例が green
 
+**5 の是正 — 第 4 改訂 2026-10-08(`(ステップ 5 是正)` の 1 コミット)**
+
+- **前提(現 HEAD の状態)**: develop の取り込み(`8ada3d9d`)で権威履歴の衝突を develop 側で解いたので、**現 HEAD の `base-allowlist.json` の履歴に #95 の記録は無い**(末尾は develop が足した #96 の記録)。旧記録の snapshot も外した。比較元(merge-base)の履歴 prefix は変更・削除できない(`scripts/frozen_history.py`)ので、**#96 までの履歴をそのまま保ち、#95 の記録を末尾へ 1 件追記する**
+- **1 コミットに入れるもの**(ステップ 5 と同じく、変更と記録を同じコミットに置く — 記録を別コミットにすると、間のコミットでは検査器が履歴の検証で止まり、ソースの違反〔TB005〕の有無まで到達しない。検査器は履歴を先に検証し、その後にソースの違反を集める)
+  - `roster.py` の文の組み立てを、**少数の組み立て関数**へ集める。モジュール直下の文の定数は置かない(条件 5 は「許可シンボルの内側」で判定するので、関数の外の組み立ては常に TB005)。関数の数は最小にする — `allowed_symbols` は 1 シンボルにつき 1 つの正例 fixture を要求し、fixture は一意で、正例 fixture のディレクトリと exact-set で一致しなければならない(`scripts/check_tenant_boundary_bypass.py` の allowlist の読み込み)
+  - 各関数を `contracts/tenant_boundary/base-allowlist.json` の `allowed_symbols` へ登録する: `symbol`・`signature`(関数の実際の署名と一致)・`allowed_api_ids`(**その関数が使う組み立て API だけ** — `SQLA_SELECT` / `SQLA_INSERT` / `SQLA_UPDATE` の部分集合。**実行系の API〔`SQLA_SESSION_EXECUTE` ほか〕は入れない**)・`fixture`(`tests/fixtures/tenant_boundary/positive/pitchlog/repositories/` 配下にシンボルごとの正例 fixture)
+  - **`base-allowlist.json` 自身の凍結射影が動く**ので、その `contract_revision` の繰り上げと `baseline_control.current_identifiers` の更新を行う
+  - **#95 の受理記録を 1 件追記する**。覆う変更は、ステップ 5 の `repository-contract.json` と、本是正の `base-allowlist.json`(`allowed_symbols`)の両方。影響する凍結資産の全件・前後の snapshot・生成モジュールの digest・比較 corpus の再封印は内訳 5 の手順を準用し、新しい base(`origin/develop`)に対して導出する。`approved_by` / `approved_on`(tenant_boundary の権威履歴のキー — authz の `frozen-baselines.json` は `approved_at`) は人間に確認した値
+  - **文の中身・token・capability 検査器の実行直前の検査は変えない**(登録型・`_prepare_operation`・単一の実表ほか — ステップ 5)
+- **合格条件**(**すべて、コミットした後に、作業ツリーが清潔で HEAD がそのコミットであることを確かめてから実行する** — 検査器はソースを HEAD から読み、契約資産を作業ツリーから読むので、未コミットの資産が残ると混合状態を検査する)
+  - `uv run python scripts/check_tenant_boundary_bypass.py --base-ref origin/develop` が ok(TB005 が 0 件で、履歴の検証も通る)
+  - 登録した関数に実行系の API を書くと TB005 になる / 登録外のモジュールに同じ組み立てを書くと TB005 になる(既存の負例の仕組みで足りるかを原典で確かめ、足りなければ検査器のテストに足す)
+  - 権威履歴の #95 の記録が 1 件だけで、#96 までの prefix が merge-base と一致
+  - 内訳 5 の合格条件(前版・現版の全ケース一致を含む)
+  - `backend/` の `tests/test_authz_repository_contract.py`・`tests/test_authz_capability_registration.py`・`tests/test_roster_repository.py` が green
+  - 実行時の HEAD SHA・作業ツリーが清潔だったこと・各コマンドの結果を worklog に記録する
+- **push の後**: `gh pr checks 95` に検査が並び、`tenant-boundary-bypass` が実際に走ったことを確かめる
+
 **6. 追加層の宣言**
 
 - **着手条件**: TSK-344 のマージ後、develop を取り込んでから行う(上の改訂 3)。着手時に `git fetch origin` し、**`origin/feature/*`・`origin/fix/*` とローカルの `refs/heads/*`(`git worktree list` の全 worktree を含む — 未 push の競合を落とさないため)のうち、`scripts/core_guard.py` の `AREA_PATH_ADDITIONS` または `.claude/core-areas.json` の `tenant-isolation.paths` を変える未マージの ref とその SHA を worklog に記録する**。未マージの競合は順序調整の対象(該当タブへ連絡)であり、宣言の基線へ取り込むのは **develop に着地した変更だけ**。ステップ 7 と PR の前に同じ確認を繰り返す
@@ -399,7 +444,7 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 
 **10. 受理記録の 1 件化**
 
-- **手順**: 権威履歴(`contracts/tenant_boundary/base-allowlist.json` の `baseline_control.history`)の #95 の記録を、**ステップ 5 とステップ 9 の両方の変更を覆う 1 件へ導出し直す**。影響する凍結資産・前後の snapshot・生成モジュールの digest・比較 corpus の再封印は内訳 5 の手順を準用する。`frozen_projection.external_files` に検査器自身が入っていることを踏まえる。`approved_by` / `approved_at` は人間に確認した値
+- **手順**: 権威履歴(`contracts/tenant_boundary/base-allowlist.json` の `baseline_control.history`)の #95 の記録を、**ステップ 5 とステップ 9 の両方の変更を覆う 1 件へ導出し直す**。影響する凍結資産・前後の snapshot・生成モジュールの digest・比較 corpus の再封印は内訳 5 の手順を準用する。`frozen_projection.external_files` に検査器自身が入っていることを踏まえる。`approved_by` / `approved_on`(tenant_boundary の権威履歴のキー — authz の `frozen-baselines.json` は `approved_at`) は人間に確認した値
 - **合格条件**: 内訳 5 の合格条件をこのステップの状態で再度満たす(前版・現版の全ケース一致を含む)/ **権威履歴にある #95 の記録が 1 件だけ** / ステップ 9 の期待失敗がすべて解消 / `uv run python scripts/check_tenant_boundary_bypass.py --base-ref origin/develop` が ok / `tests/test_check_tenant_boundary_bypass.py`・`tests/test_frozen_history.py`・`tests/test_frozen_archive.py`・`tests/test_frozen_archive_case_runner.py`・`backend/tests/test_authz_tenant_context.py` が green
 
 
@@ -445,7 +490,7 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 
 - [ ] **`backend/tests/conftest.py` の差分が 0 行**(`.claude/core-areas.json:326` の `backend/*conftest.py` に一致するため。fixture は `backend/tests/api_fixtures.py` へ置き明示 import — U-00 の先例 `test_api_errors.py:7`)
 - [ ] **`test_authz*` の命名を使わない**(同 `:319` に一致するため。**越境テストは名前ではなく paths 登録でコア化する** — 3 節)
-- [ ] **5 条件すべてに一致 0**(4 節の式で実測)
+- [ ] **5 条件すべてで、許可側を除いた違反が 0**(4 節の式で実測。**条件 5 は第 4 改訂の許可側〔`allowed_symbols` に登録した組み立て関数の中の組み立て API〕を除く** — その判定は、登録シンボル・署名・`allowed_api_ids` の照合と `check_tenant_boundary_bypass.py --base-ref origin/develop` の合格で行う)
 - [ ] pytest / ruff / **ruff format** / ty green
 - [ ] **契約 4 の 5 領域突合**(2 節)を書いた
 - [ ] **凍結基準の記録(7.7-2)が権威履歴に 1 件あり、PR の base に対して再導出・再検証済み**。比較 corpus の digest が再封印済み(4 節 内訳 5 — 改訂 2026-10-05)
@@ -493,6 +538,8 @@ uv run pytest -c pyproject.toml
 **迂回検査は実装スケルトンの段階で当てる**:
 `uv run python scripts/check_tenant_boundary_bypass.py --base-ref origin/develop`
 
+**検証は確定した状態で当てる**(第 4 改訂): 迂回検査と凍結履歴の検査は `git diff {base_ref}...HEAD` のコミット済みの差分しか見ない。**ステップのコミットを作った後に、作業ツリーが清潔で HEAD がそのコミットであることを確かめてから実行した結果だけを合格の根拠にする**(コミット前は未追跡の新規ファイルが母集団から落ちる — ステップ 5 で実際に起きた。また検査器はソースを HEAD から、契約資産を作業ツリーから読むので、未コミットの資産が残ると混合状態を検査する)。**push のたびに `gh pr checks 95` で CI が実際に走ったことを確かめる**
+
 ## 7. リスク
 
 | # | リスク | 対応 |
@@ -519,3 +566,5 @@ uv run pytest -c pyproject.toml
 | **7** | **第 2 改訂 2026-10-05 の承認**(ステップ 2 の分割と新 3・4 の追加・番号の付け替え・N1/N2 の決定・N5 の追加)。あわせてステップ 3 の **oracle の追随の人間確認**と、ステップ 4 の記録の承認値 | **2026-10-05 に承認済み(山田正輝)**。ステップ 3 の oracle 追随の人間確認とステップ 4 の記録の承認値は各ステップの実装時に仰ぐ |
 | **8** | **リクエストの認証の帰属**(Cookie から提示値を取り出す・CSRF の検査) | **【裁定 2026-10-07・山田正輝】U-M1 ステップ 8 が持つ**(δ から移す — 依存表 12・R7) |
 | **9** | **第 3 改訂 2026-10-07 の承認**(ステップ 8 を 3 本に分割・新 8・10 の追加・番号の付け替え・依存表 6・10・12・N6・N7・DoD と R7・R8 の追加)。あわせてステップ 10 の受理記録の承認値 | **2026-10-07 に承認済み(山田正輝)**。ステップ 10 の承認値は実装時に仰ぐ |
+| **10** | **ステップ 5 の文の組み立てが迂回検査の条件 5(TB005)に反する件の直し方** | **【裁定 2026-10-08・山田正輝】文の組み立て関数を `allowed_symbols` に登録する**(第 4 改訂 — 他の選択肢: 組み立てを基底へ移す / 組み立て API を目録の対象外にする) |
+| **11** | **第 4 改訂 2026-10-08 の承認**(ステップ 5 の是正 1 コミット〔変更と記録〕・条件 5 の許可側・検証を確定した状態で当てる規律・ステップ 10 以降の記録の扱い) | **2026-10-08 に承認済み(山田正輝)** |
