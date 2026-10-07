@@ -22,7 +22,7 @@ date: 2026-10-08
 - harness の 2,620 件・974 秒(手元)のうち **上位 40 件 ≈ 800 秒(約 82%)**。律速は少数の全数変異テスト: `tests/test_check_authz_catalog.py`(≈400 秒・最長 111.5 秒と 98.8 秒の 2 件はプロセス内 CPU 律速)と `tests/test_census_baseline_check.py`(≈310 秒・アンカーの実体化と現行センサスの全文走査をテストごとに再計算)
 - pytest は 1 プロセス直列(xdist 未導入)で、4 vCPU のランナーの 1 コアしか使っていない。共有状態は少なく(`tmp_path` 1,932 箇所・chdir 2・固定 `/tmp` は文字列のみ)、並列化の障害は小さい
 - backend は `pytest --cov`(閾値なし・行カバレッジのみ)。Python 3.12 + coverage 7.15.4 なので `COVERAGE_CORE=sysmon` が使える。手元に Docker がなく内訳は未計測 → CI で `--durations=25` を取る
-- 射程: `ci.yml`(guard_paths)・`tests/test_ci_wiring.py`(harness の pytest コマンド文字列を固定)・ルート `pyproject.toml`/`uv.lock`(xdist 追加)・設計書 10.1 の harness/backend 行(節更新・版は上げない)・`/check` スキル
+- 射程: ルート `pyproject.toml`/`uv.lock`(xdist 追加・addopts — guard_paths)・`backend/pyproject.toml`(addopts・coverage core)・設計書 10.1 の harness/backend 行(節更新・版は上げない)・`/check` スキル。**`ci.yml` と `tests/test_ci_wiring.py` には触れない**(§5 — `ci.yml` は凍結の外部入力。2026-10-08 ステップ 1 で実測し計画を修正)
 
 ## 詳細と典拠
 
@@ -68,8 +68,8 @@ date: 2026-10-08
 ### §5 射程(正本・guard_paths・機構)
 
 - 設計書 10.1 の表(`docs/development/dev-harness-design-2026-08-07.md` 10.1)— harness 行「ruff / ty / pytest(`-c pyproject.toml` で設定固定)」・backend 行「`pytest -c pyproject.toml --cov`」。本タスクは **ジョブ構成・必須チェック・path filter を変えない**ので実装追随の節更新(7.6-3 前段・版は上げない)
-- `ci.yml` は `.claude/core-areas.json` の guard_paths → PR で人間の逐行確認・実施記録行(6.3)
-- `.claude/skills/check/SKILL.md`(正本体系外・guard_paths ではない)— ローカル `-n 8`
+- `ci.yml` は `.claude/core-areas.json` の guard_paths であるだけでなく、**テナント分離の凍結資産 `contracts/tenant_boundary/base-allowlist.json` の `frozen_projection.external_files`(`:19-24`)と比較 corpus `tests/fixtures/frozen-archive-cases/manifest.json` の `corpus_inputs.files` に含まれる凍結の外部入力**(2026-10-08 ステップ 1 で実測: 1 行の変更で `test_repository_is_green` 1 件 + `test_frozen_archive*` 33 件が red。`docs/features/tenant-boundary-baseline/design.md:114` の設計どおり)。変更すると 7.7-2 の受理記録と digest 再 pin(いずれもコア領域 paths)が要るため、本タスクは `-n auto` をルート `pyproject.toml` の addopts に置き `ci.yml` に触れない
+- `.claude/skills/check/SKILL.md`(正本体系外・guard_paths ではない)— ローカルは `PYTEST_XDIST_AUTO_NUM_WORKERS=8`(xdist の `auto` の上書き — 3.8.0 で実測)
 - 後続タスク B(入力に基づく選択 + develop/nightly 全件)は 10.1 の構造変更(path filter を付けない方針 `ci.yml:189-192,208-211` との整合を含む)で v1.20 の確定ゲート
 
 ### §6 手元環境固有の赤(本タスクの対象外)
@@ -79,4 +79,5 @@ date: 2026-10-08
 ## 未解決・申し送り
 
 - backend の内訳は CI の `--durations=25` 出力を待つ(次の打ち手: 非 DB テストの xdist / DB テストの worker 別スキーマ / PR での `--cov` 省略)
-- xdist 導入後に順序依存の揺れが出た場合は、当該ファイルだけ `--dist loadfile` 相当にまとめる(ステップ 1 の合格条件で 2 回連続 green を要求する)
+- xdist 導入後に順序依存の揺れが出た場合は、当該ファイルだけ `--dist loadfile` 相当にまとめる(ステップ 1 の合格条件で 2 回連続 green を要求する)。実測(2026-10-08): 順序依存ではなく**別 worker の import が書く `backend/src/pitchlog/__pycache__` をツリースナップショットが拾う**型が 1 件(`tests/domain/gen/test_backends.py`)— スナップショットから `__pycache__` を除外して対処
+- 凍結点(どの資産がどのファイルを固定しているか)の一覧はリポジトリに無い(運用評価台帳 2026-10-05 の候補)。本タスクで踏んだ 2 点(`ci.yml` → base-allowlist の `external_files` / corpus manifest)は plan.md 4 節「凍結点への注意」に記録した

@@ -68,10 +68,20 @@ branch: feature/ci-harness-parallel
 - 指摘なし → 反映差分なし。`計画レビュー周回` は 3 のまま(収束確認周は数えない)
 - **PO 裁定(2026-10-08)に基づき承認扱い**: `承認: 済(2026-10-08・徳光 尋弥)` を記入。計画レビュー合計 4 回(全文 1・差分 1・P0 限定 2)。残指摘 0・不採用 0。/implement へ
 
+### /implement — ステップ 1(1 回目の委任・2026-10-08・Codex `implement`・114,194 tok・22 分)— **差し戻し(方式変更)**
+
+- 依存追加(`pytest-xdist>=3` → 3.8.0・`execnet` 2.1.2)は Codex サンドボックスがネットワーク不可・`~/.cache/uv` 書込不可のため **Claude が `uv add --dev` で実施**(uv 生成の差分のみ。Codex が内容を確認)。Codex は `ci.yml` の harness pytest に `-n auto`・`tests/test_ci_wiring.py` の `HARNESS_PYTEST_COMMAND` 同期・`/check` を `-n 8` に変更
+- **実測**: `-n 8` でハーネス全件 **400.96 秒 / 393.96 秒**(直列 974 秒 → 約 41%)。ただし失敗を含む参考値
+- **失敗の内訳**(既知 5 件はいずれも非該当): ① `tests/test_check_tenant_boundary_bypass.py::test_repository_is_green` × 2 回 — 「射影が動いた資産は識別値の更新が必要: base-allowlist.json」(`ci.yml` が `external_files`)② `tests/test_frozen_archive*.py` 33 件 × 2 回 — corpus digest 不一致(`manifest.json` の `corpus_inputs.files` に `ci.yml`)③ `tests/domain/gen/test_backends.py::test_generation_writes_neither_product_paths_nor_contracts` 1 回目のみ — 別 worker の import が書く `__pycache__` を `_tree_snapshot` が拾う(並列の揺れ)④ `tests/test_packaging.py` 2 件 — サンドボックスのネットワーク不可(手元では green を確認)⑤ `tests/test_doc_check_profile.py::test_propagation_checker_and_claude_files_are_unchanged` — 未コミットの `.claude` 差分(コミット後に解消する既知の型)
+- **発見**: `ci.yml` はテナント分離の凍結資産 7 件を束ねる `base-allowlist.json` の `frozen_projection.external_files`(`tenant-boundary-baseline/design.md:114` の設計)と比較 corpus の入力。変更 = 7.7-2 の受理記録(識別値繰り上げ・PR 番号・PO 受理)+ digest 再 pin = コア領域 paths の変更 → PR が敵対レビュー経路に。計画レビュー 4 回(全文 1・差分 1・P0 限定 2)はこれを拾えなかった(凍結点の一覧がリポジトリに無い — 運用評価台帳 2026-10-05 候補の再演)
+- **PO 判断(2026-10-08・徳光 尋弥)**: **B = `ci.yml` に触れない方式へ計画修正**(`-n auto` はルート `pyproject.toml` の addopts・ローカルは `PYTEST_XDIST_AUTO_NUM_WORKERS=8`・ステップ 4 は `backend/pyproject.toml` の addopts と `[tool.coverage.run] core`)/ **pycache の揺れはスナップショットから `__pycache__` を除外**(計画外 1 ファイルをステップ 1 に含める)/ **修正は P0 限定の差分レビュー 1 回**(可決なら承認扱いで続行)。Codex の `ci.yml`・`test_ci_wiring.py`・`SKILL.md` 変更は取り消し(`git checkout`)、`pyproject.toml`・`uv.lock` の依存追加は保持
+- 事前確認(Claude): root / backend の `pyproject.toml` の `addopts`・`[tool.coverage.run]` を固定する検査は無い(`tests/test_ci_wiring.py` は `markers` のみ参照 `:1915,3386`)/ xdist 3.8.0 は `PYTEST_XDIST_AUTO_NUM_WORKERS` に対応(実測)/ coverage 7.15.4 は `core` 設定に対応(`coverage debug config` → `core: sysmon`)/ backend の非 DB テストは 943 件(手元で実行可)
+
 ## 決定
 
 - タスク分割(A/B)とワーカー数(上記)
 - 計画レビューの PO 裁定(2026-10-08): 上限到達後は包括続行指示(P0 限定・最大 2 回)。P0 ゼロで承認扱い(`承認: 済` を記入して /implement へ)
+- 2026-10-08(ステップ 1 の実測後): `ci.yml`・`tests/test_ci_wiring.py`・`contracts/**`・`tests/fixtures/frozen-archive-cases/**` に触れない(凍結の外部入力)。xdist はルート pyproject の addopts、ローカル上限は環境変数。pycache はスナップショットから除外。計画修正は P0 限定レビュー 1 回(可決で承認扱い)
 
 ## 未決・次の一歩
 
