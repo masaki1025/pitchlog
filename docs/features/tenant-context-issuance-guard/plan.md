@@ -1,6 +1,6 @@
 ---
 feature: tenant-context-issuance-guard
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-06・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -84,6 +84,8 @@ TSK-440 は `scripts/check_tenant_boundary_bypass.py` の条件 5(TB007)の保�
 | `tests/fixtures/tenant_boundary/negative/pitchlog/services/c5_context_{registry_issuer,capability_import,capability_getattr}.py` | **新設 3**(発行入口の 2 件は fixture ではなく合成契約の単体テストで扱う) | PR レビュー |
 | `docs/features/tenant-boundary-enforcement/design.md` | 1-1 と 6-0 へ保証単位ブロックを**追補**、`:492` に本タスクの到達点 | /finalize-doc |
 | `docs/features/tenant-context-issuance-guard/design.md` | **新設**(保証単位・採らなかった案・申し送り) | 計画ゲート |
+| `docs/development/harness-evaluation.md` | **H-64 の更新**(同一機構の 2 例目 — 記録済みの回避策が覆わない入力の形。`H-*` の新設はしないので**版は上げない** — 7.6-3 前段)+ 変更履歴表に 1 行 | /pr クローズ処理 |
+| `docs/README.md` | 台帳行の最終更新日の現行化 | /pr クローズ処理 |
 
 ### 反映なし(明示)
 
