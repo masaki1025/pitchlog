@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3f293b75e6878195a980c5cf8ca32e4a
 branch: feature/ci-harness-parallel
 created: 2026-10-08
-計画レビュー周回: 0        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 1        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -30,7 +30,7 @@ created: 2026-10-08
 1. **pytest-xdist の導入**: ルート `pyproject.toml` の dev 依存に `pytest-xdist` を追加(`uv.lock` 更新)。`ci.yml` の harness ジョブの pytest に `-n auto`(ランナー = 4 vCPU → 4 ワーカー)。`tests/test_ci_wiring.py` の `HARNESS_PYTEST_COMMAND` を同期。`.claude/skills/check/SKILL.md` の harness pytest を **`-n 8`**(ローカル上限 — PO 決定 2026-10-08)に
 2. **巨大 2 テストのパラメトライズ分割**(`tests/test_check_authz_catalog.py:4983` `test_recursive_derivers_cover_generated_container_sequences_and_siblings`・`:5141` `test_all_recursively_enumerated_oracle_leaves_reject_change_and_deletion`): 容器列 / (資産, 葉, 変異) を収集時に列挙して `parametrize` に展開し、xdist で分散できる粒度にする。**全数性は維持**する(展開件数が旧ループの試行数と一致することを別テストで固定し、各資産の葉数 > 0 の検査も残す)
 3. **census 系の重複準備の共有**(`tests/test_census_baseline_check.py`): 宣言アンカーの実体化(`_declared_anchor_checker`・9 箇所)と現行センサス(`_checker_census`・15 箇所)のうち**入力が同一のもの**を module スコープの fixture またはメモ化で共有する。変異ごとの計算と、宣言と実装の対応監査(`_audit_declaration_implementation` の母集団)は変えない
-4. **backend ジョブの計測**: `ci.yml` の backend pytest に `--durations=25`、ジョブ `env` に `COVERAGE_CORE: sysmon`(Python 3.12 + coverage 7.15.4)。`tests/test_ci_wiring.py` の該当固定があれば同期。PR の run で内訳を取り worklog に記録(次の打ち手の判断材料)
+4. **backend ジョブの計測**: backend の pytest **コマンドは変えない**(期待値資産 `backend/tests/db/environment-expectations.json` が `uv run pytest -c pyproject.toml --cov` を完全一致で固定し、同資産はコア領域 paths `backend/tests/db/*` に含まれる — 触れるとコア領域のレビュー経路になる)。代わりに **ジョブ `env`** へ `PYTEST_ADDOPTS: "--durations=25"` と `COVERAGE_CORE: sysmon`(Python 3.12 + coverage 7.15.4)を置く。`tests/test_ci_wiring.py` は mutation ジョブの `env` を backend の `env` の複製として期待する(`:1593`)ため **mutation ジョブにも同値で追加**し、全葉の変異試行数の固定値 `EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS`(`:140`)を新しい葉数に更新する。内訳は PR 作成後の CI run から取り worklog に記録(DoD 検証・次の打ち手の判断材料)
 5. **文書の追随**(Claude): 設計書 10.1 の harness 行(`-n auto` 並列・ローカル 8)と backend 行(`--durations=25`・`COVERAGE_CORE=sysmon`)を節更新し変更履歴に 1 行(版は上げない — 7.6-3 前段)、`docs/README.md` を現行化
 
 ### やらないこと
@@ -56,28 +56,31 @@ created: 2026-10-08
 
 - **重さ分類 = 通常** の根拠: 変更対象は CI 設定・ハーネスのテスト・依存・スキル本文・設計書の節更新で、コア領域 5 領域の `paths` には該当しない(`ci.yml` は guard_paths だが ADR-001 の重さ分類上のコア領域ではない)。軽微でもない(CI の実行形態と 50 行超の差分)。機械的軽作業でもない(テストの分割・共有の設計判断を伴う)。**コードとテスト(ステップ 1〜4)は Codex へ委任**、文書(ステップ 5)は Claude が編集する(設計書 3 章)
 - **ワーカー数**: CI = `-n auto`(ランナーの 4 vCPU に追随。`-n 4` 固定にしない — ランナー変更時に自動で追随)/ ローカル = `-n 8`(PO 決定。24 コア機でも子プロセスを多数起動するテストのため過負荷を避ける)。`pyproject.toml` の `addopts` には書かない(CI と手元で値が違うため、コマンド側で指定する)
-- **分割の方針(ステップ 2)**: 収集時の列挙はリポジトリ資産を読む(`_repository_oracle_assets()`)。収集コストは数十 ms 級で許容。ID は `資産名-葉パス-変異` の形で可読にし、xdist の `load` 分配に任せる。「全数」の保証は、① パラメータ列の件数 = 旧ループの `attempts` と一致、② 各資産の葉数 > 0、を独立のテストで固定する(分割で母集団が黙って減る経路を閉じる)
-- **共有の方針(ステップ 3)**: 共有してよいのは「同一入力(同一 revision のアンカー・同一 `backend/src` ツリー・同一検査器)」の計算だけ。変異テスト(述語の除去・入力の改変)は個別に計算する。宣言と実装の対応監査(`_audit_declaration_implementation`)が数える呼び出し母集団が変わらないことを、既存テストが red/green で示すこと(監査が検出する「結線が外れた」型 — 台帳の実例 — を再生産しない)
-- **xdist の揺れへの備え**: ステップ 1 の合格条件で `-n 8` を 2 回連続 green とし、順序依存が出たファイルは当該ファイルだけ同一 worker にまとめる(`pytest-xdist` の `--dist loadfile` 相当・`xdist_group`)。原因不明のまま `-n 1` へ戻さない
-- **計測の記録**: ステップ 1 の前後で手元(`-n 8`)の所要時間、PR の run で CI の harness/backend の所要時間と `--durations` 出力を worklog に記録する(DoD の「25 分 → 8 分以内」の判定材料)
+- **分割の方針(ステップ 2)**: 収集時の列挙はリポジトリ資産を読む(`_repository_oracle_assets()`)。収集コストは数十 ms 級で許容。ID は `資産名-葉パス-変異` の形で可読にし、xdist の `load` 分配に任せる。「全数」の保証(分割で母集団が黙って減る・重複する経路を閉じる)は独立のテストで固定する: ① 葉側 — 旧ループと同じ走査(`_iter_leaf_paths` × 6 資産 + seal × 改変/削除)で**独立に導出した期待キー集合**と、パラメータ列のキー集合が**完全一致**し、かつキーが**一意**であること(件数一致だけでは 1 件の重複と 1 件の欠落を見分けられない)② 容器列側(`test_recursive_derivers_cover_generated_container_sequences_and_siblings` には `attempts` が無い)— 期待件数を**幅 w・深さ d から定義**(Σ_{depth=1..d} 2^depth × depth の (sequence, widened_index) 組)し、パラメータ列の件数と一致すること ③ 各資産の葉数 > 0
+- **共有の方針(ステップ 3)**: 共有してよいのは「同一入力」の計算だけで、同一入力 = **同じ `reference_root`**(アンカーはその配下へ書き出され、ロードした検査器のパスもその先と照合される — `tests/test_census_baseline_check.py:415,592`)・同一 revision のアンカー・同一 `backend/src` ツリー・同一検査器。**別の `reference_root` を渡す呼び出し、監査(`_audit_declaration_implementation`)の実行中、変異中(述語の除去・入力の改変・`source_root` 差し替え)は再計算する**。実装は、まず `_declared_anchor_checker`(9 箇所)と `_checker_census`(15 箇所)の呼び出し元を列挙し、上記条件で共有可能なものだけを module スコープの fixture / メモ化(キー = `reference_root`・revision・ツリー digest・検査器 digest)に置き換える。宣言と実装の対応監査が数える呼び出し母集団(監査は実行ごとに宣言読取りを記録する — `:1982`)は変えない。既存テストが red/green で示すこと(監査が検出する「結線が外れた」型 — 台帳の実例 — を再生産しない)
+- **xdist の揺れへの備え**: ステップ 1 の合格条件で `-n 8` を 2 回連続・新規失敗ゼロとし、順序依存が出たファイルは当該ファイルだけ同一 worker にまとめる(`pytest-xdist` の `--dist loadfile` 相当・`xdist_group`)。原因不明のまま `-n 1` へ戻さない
+- **手元の既知失敗(固定集合 — research.md §6)**: `tests/domain/gen/test_formatter.py::test_alpha_python_typescript_and_reference_return_same_display`・`tests/domain/test_review_triggers_complete.py::{test_as_of_fifty_accepts_all_due_evaluations, test_nine_po_evidence_locations_are_allowed_and_exist, test_recorded_evaluations_match_machine_measurements_and_po_evidence, test_machine_trigger_cannot_be_marked_without_measured_condition}` の 5 件(develop でも同じく失敗・CI では green)。手元の合格条件は「この 5 件以外の失敗がゼロ」、CI では全件 green
+- **計測の定義**: 手元の所要時間は同じワーカー数で前後を比べる。census の「ファイル合計時間」= **`-n 1`(直列)で `--durations=0` を付けて得た各テストの call 時間の合計**(壁時計ではない — 並列化の効果と共有の効果を混ぜない)。CI の実測(harness / backend の所要時間・`--durations` 出力)は **PR 作成後の DoD 検証**として run から取得し worklog に記録する(正本の順序 = ステップ検証 → コミット → 文書反映 → PR → CI。ステップの合格条件には置かない)
 - **ステップの担当**: ステップ 1〜4 = Codex(`/implement` でステップ単位)。ステップ 5 = Claude(文書)。Codex はコミットしない(Claude が 1 ステップ 1 コミット)
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **xdist 導入**(Codex): ルート `pyproject.toml` dev 依存に `pytest-xdist` + `uv.lock` 更新 / `ci.yml` harness の pytest に `-n auto` / `tests/test_ci_wiring.py` の `HARNESS_PYTEST_COMMAND` 同期 / `.claude/skills/check/SKILL.md` の harness pytest を `-n 8` に | `uv run pytest -c pyproject.toml -n 8 tests/ --ignore=tests/domain/boot --ignore=tests/domain/mut --ignore=tests/test_plan_generation.py --ignore=tests/test_step_history_audit.py` が **2 回連続**で green(research.md §6 の手元固有の赤を除く)/ `uv run pytest tests/test_ci_wiring.py` green / `uv run ruff check .`・`uv run ty check` green / 所要時間を worklog に記録 |
-| 2 | **巨大 2 テストのパラメトライズ分割**(Codex): `tests/test_check_authz_catalog.py:4983,5141` を収集時列挙の `parametrize` へ展開し、件数一致(= 旧 `attempts`)と葉数 > 0 を固定する独立テストを追加 | `uv run pytest tests/test_check_authz_catalog.py -n 8 --durations=10` で green・**最長単体テスト < 30 秒**・展開件数が旧ループの試行数と一致(テストで固定)/ `-n 1` でも green(順序非依存) |
-| 3 | **census 系の重複準備の共有**(Codex): `tests/test_census_baseline_check.py` の同一入力のアンカー実体化・現行センサスを module スコープ fixture / メモ化で共有(変異計算と監査母集団は不変) | `uv run pytest tests/test_census_baseline_check.py -n 8 --durations=10` で green・ファイル合計時間が導入前(≈ 310 秒 / 直列)の **半分以下** / `uv run python tests/test_census_baseline_check.py`(CI の直接実行経路)が従来どおり `census-baseline: OK` / 監査 wiring のテストが不変で green |
-| 4 | **backend ジョブの計測**(Codex): `ci.yml` backend の pytest に `--durations=25`・ジョブ `env` に `COVERAGE_CORE: sysmon` / `tests/test_ci_wiring.py` の該当固定があれば同期 | `uv run pytest tests/test_ci_wiring.py` green / YAML が `python -c "import yaml,sys; yaml.safe_load(open('.github/workflows/ci.yml'))"` で読める / (PR 作成後)backend ジョブの run に durations 出力が出る |
-| 5 | **文書の追随**(Claude): 設計書 10.1 の harness/backend 行・変更履歴 1 行(版は上げない)・`docs/README.md`・worklog に実測(手元 `-n 8` の前後・CI の前後) | `uv run python scripts/check_docs_status.py` 0 違反 / `uv run python scripts/check_plan_docs_sync.py --plan docs/features/ci-harness-parallel/plan.md --base origin/develop` exit 0 |
+| 1 | **xdist 導入**(Codex): ルート `pyproject.toml` dev 依存に `pytest-xdist` + `uv.lock` 更新 / `ci.yml` harness の pytest に `-n auto` / `tests/test_ci_wiring.py` の `HARNESS_PYTEST_COMMAND` 同期 / `.claude/skills/check/SKILL.md` の harness pytest を `-n 8` に | `uv run pytest -c pyproject.toml -n 8 tests/ --ignore=tests/domain/boot --ignore=tests/domain/mut --ignore=tests/test_plan_generation.py --ignore=tests/test_step_history_audit.py` を **2 回連続**実行し、いずれも **4 節「手元の既知失敗(固定集合)」5 件以外の失敗がゼロ** / `uv run pytest tests/test_ci_wiring.py` green / `uv run ruff check .`・`uv run ty check` green / 導入前(直列 974 秒)と `-n 8` の所要時間を worklog に記録 |
+| 2 | **巨大 2 テストのパラメトライズ分割**(Codex): `tests/test_check_authz_catalog.py:4983,5141` を収集時列挙の `parametrize` へ展開し、4 節「分割の方針」①〜③(独立導出した期待キー集合との完全一致・一意性 / 容器列の期待件数を幅・深さから定義 / 葉数 > 0)を固定する独立テストを追加 | `uv run pytest tests/test_check_authz_catalog.py -n 8 --durations=0` で 5 件の既知失敗以外ゼロ・**分割で生じたパラメータケース(2 テスト由来の node ID)の最長 call 時間 < 30 秒**(変更対象外の `test_g_*` 3 件〔40〜42 秒〕は対象外)/ 期待キー集合との完全一致・一意性・容器列の件数のテストが green / `-n 1` でも同じ結果(順序非依存) |
+| 3 | **census 系の重複準備の共有**(Codex): 4 節「共有の方針」に従い `_declared_anchor_checker`(9 箇所)・`_checker_census`(15 箇所)の呼び出し元を列挙し、同一 `reference_root`・同一入力のものだけを module スコープ fixture / メモ化へ(別 `reference_root`・監査中・変異中は再計算) | **`-n 1` + `--durations=0`** で測った `tests/test_census_baseline_check.py` の各テスト call 時間の合計が、同条件の導入前(≈ 310 秒)の **半分以下** / 同ファイルが `-n 8` と `-n 1` の両方で green / `uv run python tests/test_census_baseline_check.py`(CI の直接実行経路)が従来どおり `census-baseline: OK` / 監査 wiring のテスト(結線が外れた型を red にするもの)が不変で green |
+| 4 | **backend ジョブの計測**(Codex): `ci.yml` の backend と mutation の両ジョブ `env` に `PYTEST_ADDOPTS: "--durations=25"`・`COVERAGE_CORE: sysmon` を同値で追加(pytest コマンドと期待値資産は不変)/ `tests/test_ci_wiring.py` の `EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS` を新しい葉数に更新し、backend 固有の 2 変数の値を固定する検査(mutation の env が backend の複製であることの照合は既存のまま)を追加 | `uv run pytest tests/test_ci_wiring.py` green(全葉変異テストを含む)/ YAML が `python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"` で読める / `git diff` に backend の pytest コマンド行と `backend/tests/db/environment-expectations.json` の変更が**無い** / `uv run ruff check .` green |
+| 5 | **文書の追随**(Claude): 設計書 10.1 の harness/backend 行・変更履歴 1 行(版は上げない)・`docs/README.md`・worklog に手元の実測(`-n 8` の前後・census の `-n 1` 合計の前後) | `uv run python scripts/check_docs_status.py` 0 違反 / `uv run python scripts/check_plan_docs_sync.py --plan docs/features/ci-harness-parallel/plan.md --base origin/develop` exit 0 / 設計書 10.1 の harness 行に `-n auto`、backend 行に `PYTEST_ADDOPTS`・`COVERAGE_CORE` の記述がある |
+
+**PR 作成後の DoD 検証(ステップではない — 正本の順序どおり PR → CI の後に行う)**: PR の run から harness ジョブの所要時間(目標 8 分以内)と backend ジョブの `--durations` 出力・所要時間を取得し、worklog に記録する。目標未達なら理由(最長ケース・ワーカー数・揺れ)を記録して後続タスクへ送る
 
 ## 5. DoD(受け入れ基準)
 
-- [ ] harness ジョブの pytest が `-n auto` で並列実行され、CI の harness 所要時間が **8 分以内**(PR の run で実測・worklog に記録)。ローカル `/check` は `-n 8`
-- [ ] `test_check_authz_catalog` の全数変異 2 テストがパラメトライズで分割され、網羅性(件数一致・葉数 > 0)をテストで固定したまま最長単体テストが 30 秒未満
-- [ ] census 系テストの同一入力の準備が共有され、ファイル合計時間が半分以下。CI の直接実行経路と監査母集団は不変
-- [ ] backend ジョブに `--durations=25` と `COVERAGE_CORE=sysmon` が入り、所要時間の内訳が worklog に記録されている
+- [ ] harness ジョブの pytest が `-n auto` で並列実行され、**PR 作成後の CI run で** harness 所要時間が **8 分以内**(実測を worklog に記録 — PR 後の DoD 検証)。ローカル `/check` は `-n 8`
+- [ ] `test_check_authz_catalog` の全数変異 2 テストがパラメトライズで分割され、網羅性(独立導出した期待キー集合との完全一致・一意性・容器列の期待件数・葉数 > 0)をテストで固定したまま、分割由来のケースの最長 call 時間が 30 秒未満
+- [ ] census 系テストの同一入力の準備が共有され、`-n 1` の call 時間合計が導入前の半分以下。CI の直接実行経路と監査母集団は不変
+- [ ] backend ジョブに `PYTEST_ADDOPTS=--durations=25` と `COVERAGE_CORE=sysmon` が(mutation ジョブと同値で)入り、**PR 作成後の CI run で** backend の所要時間の内訳が worklog に記録されている。期待値資産(`backend/tests/db/environment-expectations.json`)と pytest コマンドは不変
 - [ ] 設計書 10.1 の harness/backend 行と `/check` スキルが追随し、docs-lint・plan/docs 突合が green。PR は guard_paths(`ci.yml`)の逐行確認を経る
 
 ## 6. テスト計画
