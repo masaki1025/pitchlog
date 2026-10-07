@@ -445,6 +445,9 @@ def create_database_engine() -> Engine:
     connect_args["gssencmode"] = "disable"
     normalized_url = normalize_postgresql_url(database_url)
     require_database_transport(normalized_url, connect_args)
-    engine = create_engine(normalized_url, connect_args=connect_args)
+    # 認証 ID を含む束縛値を SQLAlchemy のログと例外から隠す。
+    engine = create_engine(
+        normalized_url, connect_args=connect_args, hide_parameters=True
+    )
     event.listen(engine, "checkout", _verify_application_role_on_checkout)
     return engine

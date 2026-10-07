@@ -74,3 +74,52 @@ branch: feature/ua1-auth-app-layer
 - 条件文にある**正しく署名された失効済み・無効テナントの ID**は `tests/db/test_authz_verified_tenant.py::test_signed_invalid_token_returns_no_tenant` の 5 ケース(`logged_out` / `stale_credential` / `disabled` / `wrong_tenant` / `expired`)に対応する。委任元が使い捨て Postgres で実行済み。本サンドボックスでは管理接続が立たないため、この DB 依存の変異・再実行は行っていない。新設試験の対応表は計画書の条件文を起点に、参照する関数とパラメータ名の実在を確認する。
 - TB002: 新設ファイルの AST からモジュール名・関数名・クラス名・引数名・`Name`・`Attribute`・import 名を採り、検査器と同じ snake_case 相当で正規化し、`base-allowlist.json` の候補パターン 7 件と照合した。**固有 124 識別子、該当 0 件**。
 - 最終検証(`backend/`、`UV_CACHE_DIR=/tmp/pitchlog-ua1-uv-cache`、`uv run --offline`): 非 DB 全件 **1011 passed, 4 skipped, 17 deselected**。`ruff format`: **1 file reformatted, 249 files left unchanged**、`ruff check --fix` / `ty check`: **All checks passed**。ステップ 7 の作業には着手していない。
+
+## 2026-10-07 ステップ 7 のログ・例外確認(本委任の範囲のみ)
+
+- **例外の条件文からの照合**: 既存 `test_authz_verified_tenant.py::test_logout_db_error_omits_presentation_and_id_from_full_traceback` は、DB 例外に提示値と ID が含まれていても、公開 `RuntimeError` のメッセージ・`__context__`・`__cause__`・`traceback.format_exception()` 全文から両値が消えることを確認済み。一方、既存 `test_db_error_message_omits_token_id` はメッセージと `__context__` だけで、全トレースは未確認だった。既存試験は書き換えず、`test_authz_log_safety.py::test_verify_db_exception_hides_material_from_full_traceback` で照合側のメッセージ・文脈・全トレースに提示値・ID・鍵の Base64 値がないことを補った。同ファイルで起動時の不正鍵と通信設定の拒否についても、例外メッセージと全トレースに設定値がないことを確認した。
+- **SQLAlchemy の実測と是正**: `sqlalchemy.engine` に INFO ハンドラを付け、DB を使わず SQLite engine から実際の `verify_tenant_id()` と `logout_token()` を呼んだ。両 SQL のログを採取でき、`hide_parameters=False` では束縛したトークン ID が **出た**。同じ入力で `hide_parameters=True` なら **出ず**、提示値は両条件で出なかった。各条件 8 レコード。製品の `create_database_engine()` に `hide_parameters=True` を設定し、engine 属性と `echo` が無効であることを試験で固定した。SQL の `:token_id` 束縛は維持した。ログ設定を INFO に上げても束縛値を出さない範囲を製品 engine で確保した。
+- **アプリの実測**: `pitchlog` ロガーに DEBUG ハンドラを付け、試験用メッセージを 1 件受けることを先に確認した。その後、正しい鍵による `create_app()`、鍵の欠落・短さによる起動拒否、明示ローカル DB 設定の受理と不正 TLS 設定の拒否を実行し、捕捉したログに鍵の Base64・hex・`repr`、署名付き提示値、トークン ID がないことを機械照合した。ハンドラはメモリ内だけに保持し、設定は試験後に復元する。
+- **psycopg の確認範囲**: `psycopg` ロガーに DEBUG ハンドラを付けて失敗するローカル接続を実行したところ、接続試行・失敗の **3 レコード**を採取できた。この測定は SQL 実行を伴わないため、束縛 ID の非露出の根拠にはしない。実際の `authn.verify_token`・`authn.logout` 呼び出しでは実 DB が要るため、`tests/db/test_authz_log_safety.py::test_real_driver_and_engine_logs_omit_auth_material` を `requires_db` で追加した。製品 engine と `psycopg` DEBUG / SQLAlchemy INFO の整形済みログを採取し、SQL の実行と提示値・ID・鍵・接続パスワードの非露出を確認する。**この環境では実 DB 試験を実行しておらず、委任元の使い捨て Postgres での結果待ち**。DB サーバーのログ設定は変更していない。
+- **δ・運用側への申し送り**: δ の HTTP 経路は今回設定を固定した製品 `create_database_engine()` を使う必要がある。別の engine を作るなら同じ束縛値非表示設定が要る。`hide_parameters=True` は SQLAlchemy の束縛値ログと SQLAlchemy 例外を隠す設定であり、Postgres サーバーの文ログや、手動で有効化する psycopg の低層 libpq トレース(`psycopg.pq._debug.PGconnDebug`)の設定までは制御しない。配備時にこれらを有効化しない運用確認が要る。後者はローカルの psycopg 実装を読んで確認したもので、この委任では実際に有効化していない。
+- **検証**: `backend/` で `uv run --offline ruff format`: 初回 **2 files reformatted, 250 files left unchanged**、最終 **252 files left unchanged**。`ruff check --fix` / `ty check`: **All checks passed**。影響範囲の `tests/test_authz_*.py -m 'not requires_db'`: **574 passed, 4 skipped, 17 deselected**。最後の試験内の機密値を失敗出力へ載せない微修正後、追加ファイルを単独で再実行し **6 passed**。初回は `-m` 指定がなく、同じ glob に含まれる DB 必須の `test_authz_tenant_binding.py` が管理接続 fixture で **17 errors** になった。DB 試験本体は実行されず、非 DB 指定で再実行した。全件試験は実行していない。
+- **TB002**: 新設した非 DB/DB 試験ファイル 2 件と製品 `engine.py` の `HEAD` 差分の Python AST から、モジュール・クラス・関数・引数・名前・属性・import・キーワード引数の導入識別子を抽出。検査器と同じ snake_case 相当への正規化後、`base-allowlist.json` の TB002 正規表現 **7 件**へ照合し、**固有 147 識別子、該当 0 件**。凍結資産は変更していない。
+
+## 2026-10-07 ステップ 7 の実 DB ログ試験是正
+
+- 委任元の使い捨て Postgres で `test_real_driver_and_engine_logs_omit_auth_material` が 1 件 red。他 5 件は passed との報告。SQLAlchemy の `authn.verify_token` / `authn.logout` のログには `[SQL parameters hidden due to hide_parameters=True]` が出ており、束縛値の非表示は実 DB でも確認できた。`driver_messages` の非空要求は不適切だった。委任元は通常の認証 SQL で psycopg DEBUG が 0 件と報告したが、旧試験は捕捉ハンドラが INFO になっていたため、その空集合だけでは非出力を立証しない。
+- 旧試験の `caplog.at_level()` は psycopg DEBUG の後に SQLAlchemy INFO を適用していた。後者が共通捕捉ハンドラのレベルも INFO に変えるため、psycopg DEBUG を捕捉できない形だった。設定順を SQLAlchemy INFO → psycopg DEBUG に直した。
+- 同一試験内の**陽性対照**として、ローカルの接続失敗を発生させ、`psycopg` ロガーの `connection attempt` と `connection failed` の両方を捕捉できることを先に要求する。`caplog` を消し、製品 engine の物理接続を先に開いて接続ログを分離し、再度消してから検証・ログアウト・再検証の SQL 区間だけを採取する。この区間では psycopg のログ **0 件**を明示的に要求し、出力が増えた場合は red として再評価する。SQLAlchemy の 2 関数のログと、両ロガーへの認証素材の非露出の照合は維持した。
+- DB を使わない一時的な同形の `caplog` 探針を実行した。旧順序では既知の接続失敗 DEBUG を `caplog.records` に採れず、陽性対照は **1 failed**。是正後の順序では **1 passed**。どちらも一時ファイルは削除した。実 DB を要する本試験の再実行は委任元待ちであり、是正後の green は未観測。DB サーバーのログ設定は変更していない。
+- 影響範囲の非 DB authz 試験は **574 passed, 4 skipped, 17 deselected**。`ruff format`: 初回 **1 file reformatted, 251 files left unchanged**、最終 **252 files left unchanged**。`ruff check --fix` / `ty check`: **All checks passed**。導入識別子を Python AST と TB002 正規表現 7 件で再照合し、**固有 157 件、該当 0 件**。製品コードと禁止された資産は今回の是正で変更していない。
+
+## 2026-10-07 ステップ 7 の正本の現行化と U-M1 への申し送りの確認(委任元)
+
+- **正本の現行化**: `data-model.md` 12-8 節「実装時に確定する範囲」の残件の 1 項目を現行化した。
+  計画書 4-8 は `:2928` と書いていたが、**#97・#98 の取り込みで `:2972` へ移っていた**ので、
+  行番号ではなく**文言**(「署名と検証・テナント文脈の生成 = **TSK-469**(U-A1 γ)」)で特定した。
+  新しい所有は 署名と検証 = TSK-469 / 発行の機構と検査器 = TSK-457 /
+  発行モジュールの実体・登録・生成箇所 = U-M1 ステップ 8 の 3 つ。**版は据え置き**(実装追随 — 7.6-3 前段)。
+  変更履歴に 1 行、`docs/README.md` の最終更新日を 2026-10-06 → 2026-10-07 へ。
+- **digest 2 件**: 計画書 4-8 の警告どおり**両方**を取り直した(TSK-475 は片方だけ直して CI で落ちた)。
+  `shared-preconditions.json` の `git_blob_digest` = `7047aee9…`(ハッシュ化コマンドで取得)/
+  `schema-manifest.json` の `canonical_source.sha256` = `48b64926…`(`sha256sum` — 資産自身の再現手順)。
+  **値は取り直す時点の develop(`1fdf1eec`)を基準にした。先に測って焼き込んでいない。**
+  `check_docs_status.py` 0 violations / `tests/test_check_shared_preconditions.py` 9 passed /
+  `backend/tests/test_schema_manifest.py` 14 passed。**取り直した後にもう一度実測して一致を確認した。**
+- **U-M1 への申し送り(4-7 節)の所在を原典で確認した**。`um1-player-roster-opponent/plan.md` の
+  第 3 改訂(2026-10-07 承認・`74e29eda`)に、裁定 b'・TSK-457 の射程・受理記録 1 件化・
+  **ログアウトの入口は γ が持つ(依存表 6)**が記録されている。機械で辿れる形という合格条件を満たす。
+- **ただし 4-7 節の 2 項目は、記録の後に現況が動いた**。申し送り先へ伝えた:
+  - **4-7 の 4「TSK-457 が未着手・担当者なし」は古い。** TSK-457 は**ステップ 6/7 まで実装済み**で、
+    ステップ 7(凍結資産の繰り上げと受理記録)が**人間の逐行確認待ち**である(2026-10-07 実測)
+  - **4-7 の 6「越境テストは U-M1 のステップ 8 で発効する」の番号が変わった。** 第 3 改訂の
+    番号の付け替えで、**データ経路の入口を開くのはステップ 9** である(新 8 = 要求面・Cookie と CSRF)
+- **`_PUBLIC_CALLERS` の形は変えていない**。(呼び出し元, 呼び出し先)の 2 要素タプルの集合のまま、
+  裁定⑫の是正で `logout_token → decode` の 1 対を足しただけである。
+  **U-M1 ステップ 9 が 1 対を足す予定とのことだが、集合の形は変わらないので支障はない。**
+- **実 DB のログ試験**: 委任先の 1 回目は `tests/db/test_authz_log_safety.py` が 1 件 red だった。
+  原因は製品ではなく試験の設計で、**`caplog.at_level()` の適用順**が psycopg DEBUG の後に
+  SQLAlchemy INFO を置いており、**共通ハンドラのレベルが INFO へ上書きされて psycopg を捕捉できない**形だった。
+  **「出なかった」と「見ていなかった」が区別できない**ので、陽性対照(接続失敗のログを先に捕まえる)を
+  入れる形へ是正した。使い捨て Postgres で再実行し **6 passed**。
