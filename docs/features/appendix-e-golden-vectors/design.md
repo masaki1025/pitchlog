@@ -1308,6 +1308,16 @@ descriptor、共有語彙 seed / manifest、状況判定契約、および `clau
 不具合 2(不変条件ガード欠如)・3(サヨナラ余剰得点)・4(スコア取消の情報喪失)・5(9 回固定)は**正す**。
 6(走者同定)は**制約**で射程外、7 は**推奨**で穴 7 として解決。**タイムプレイ**は穴 6。
 
+### 8-6. 契約参照の導出がコア領域登録へ過剰検出する(2026-10-08 develop 取り込みで判明)
+
+コア領域への登録要求は `contracts/state-transition` と `contracts/vocabulary` への静的参照から機械で導出する(`tests/test_core_guard.py` の `derive_contract_reference_python_paths`)。導出は直接参照に加えて**逆依存閉包**を取り、その辺に「**ある Python ファイルの静的文字列の中に、別の Python ファイルのパスが現れる**」を含む。
+
+この辺は**パスを並べる道具を無差別に巻き込む**。develop(`1fdf1eec`)の取り込み後の実測で、登録要求に乗る 48 件のうち **11 件が状況判定契約の消費者でない**ことが分かった。直接参照は 1 件だけで、**それは TSK-236 自身が `scripts/core_guard.py` の `AREA_PATH_ADDITIONS` へ `contracts/state-transition/*` と書いたことによる自己参照**である。残り 10 件はその閉包で、ガード・NFR-021 証跡検査・凍結アーカイブの runner など、パスを列挙する機構が並ぶ。
+
+**閉包の辺を import だけに絞る案は採れない。** 実測すると未登録は 11 件から 4 件へ減るが、同時に **TSK-236 が意図して登録した 18 件が導出から落ちる**(`tests/test_input_axes_descriptor.py`・`tests/test_state_transition_freeze.py`・`scripts/check_frozen_baselines.py` ほか)。きれいな述語は段階 1 の範囲では見つからない。
+
+段階 1 では**除外を資産側の宣言に置く**(7.7-1)。`.claude/core-areas.json` の `reference_discovery.declared_exclusions` へ 11 件の exact-set と理由と送り先を宣言し、検査は資産から読む。宣言より増えても減っても赤になる。**導出規則そのものの設計やり直しは段階 2 へ送る**(S34)。
+
 ### 8-5. 台帳候補 (10)
 
 **`H-91`** を採番。(**計画時は `H-90` を予約していたが、TSK-448 が 2026-09-27 に取得し PR #83 が 09-30 にマージ済みであることを原典で確認したため `H-91` へ。PO 承認 2026-10-08**)**台帳追記・変更履歴・`docs/README.md` の台帳行は同一コミット**。

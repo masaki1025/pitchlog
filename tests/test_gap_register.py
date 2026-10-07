@@ -922,9 +922,9 @@ def test_unresolved_report_human_and_stage2_sources_resolve() -> None:
     """人間統制と段階2送りの全行に担当と設計書の実在断片を要求する。"""
     design = DESIGN_PATH.read_text(encoding="utf-8")
     report = REPORT_PATH.read_text(encoding="utf-8")
-    sections = {"human": 9, "stage2": 33}
+    sections = {"human": 9, "stage2": 34}
     assert "## 2. 人間統制に委ねた項目（9件）" in report
-    assert "## 3. 段階2へ送った項目（33件）" in report
+    assert "## 3. 段階2へ送った項目（34件）" in report
     for section, count in sections.items():
         rows = _report_rows(section, 4)
         ids = [row[0] for row in rows]

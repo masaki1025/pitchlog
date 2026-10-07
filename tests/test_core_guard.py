@@ -886,7 +886,10 @@ def _require_reference_discovery_policy(
     assert paths == sorted(set(paths)), "declared_exclusions.paths に重複または順序違反"
     reason = exclusions.get("reason")
     assert isinstance(reason, str) and reason
-    assert exclusions.get("deferred_to") == "段階2送り"
+    assert (
+        exclusions.get("deferred_to")
+        == "段階2送り（unresolved-report.md の S34・design.md 8-6）"
+    )
     return policy
 
 
