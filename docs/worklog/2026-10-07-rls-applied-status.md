@@ -80,4 +80,30 @@ TSK-478 へ送られており未確定**なので、**判定はしない**。以
 
 ## 台帳への追記の判断
 
-`/pr` のクローズ処理で判断する。
+**該当する。既存候補 2 件へ実測を追記した**(**新規候補なし・`H-*` は採番しない・版は上げない** — 7.6-3 前段)。
+候補の見出し数は **105 件のまま**である。
+
+1. **「同じ論旨を別の言い方で述べた箇所は、検索では取り残される」** —
+   **散文ではなく機械可読資産のキー名で起きた**。同じ正本の digest を
+   **`git_blob_digest`(shared-preconditions)と `sha256`(schema-manifest)**が別名で持っており、
+   **前者の語で走査して後者を取り逃がした**。**手当ては「語ではなく参照先のパスで引く」。**
+2. **「検証コマンドを人が選ぶと、CI が走らせるコマンドとの差分が黙って残る」の 9 例目** —
+   **`docs/` しか触らない PR だったので `backend/` を回さず、red のまま「全部通った」と報告した。**
+   **対応案 (h)**: **正本の文書だけを変える PR でも `backend` と root の両方を回す。**
+
+## 結果サマリ(`/pr` クローズ処理)
+
+**実装 7 ステップ**。正本の実差分は **`data-model.md` 6 行 / `docs/README.md` 2 行 /
+派生 digest 2 件**で、**条文は 1 つも変えていない**。
+
+| 検証 | 結果 |
+| --- | --- |
+| backend `pytest -c pyproject.toml` | **1324 passed / 4 skipped** |
+| ハーネス `pytest tests/` | **2927 passed** |
+| `ruff check` / `ty check`(ハーネス) | All checks passed |
+| `check_docs_status.py` | **18 文書・違反 0 件** |
+| `check_design_propagation` / `check_doc_coverage` / `check_shared_preconditions` | exit 0 / OK |
+| backend の `--collect-only` | **base・head とも 1328 件で exact 一致** |
+
+**レビュー**: 計画の敵対レビュー **3 周**(P0 なし / P1 5→3→2 / P2 3→2→2)+
+**差分の敵対レビュー 1 周**(P0 なし / P1 4 / P2 1)。**指摘 20 件を全件採用・不採用 0 件。**

@@ -1,6 +1,6 @@
 ---
 feature: rls-applied-status
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-08・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -169,7 +169,7 @@ rg -n 'TSK-344' docs/design/data-model.md
 | `docs/features/rls-applied-status/plan.md` | 本計画書 |
 | `docs/worklog/2026-10-07-rls-applied-status.md` | 作業ログ。**再実行契機の記録はここと PR 本文に置く**(4 節) |
 
-**`docs/development/harness-evaluation.md`(評価台帳)への追記は `/pr` のクローズ処理で判断する**(該当しなければ worklog に理由を残す)。
+**`docs/development/harness-evaluation.md`(評価台帳)**: **該当する**(`/pr` のクローズ処理で判断・2026-10-08)。**既存候補 2 件へ実測を追記した** — ①「同じ論旨を別の言い方で述べた箇所は、検索では取り残される」(**機械可読資産のキー名で起きた型**)②「検証コマンドを人が選ぶと、CI が走らせるコマンドとの差分が黙って残る」の **9 例目**(**`docs/` だけの PR で `backend/` を回さなかった**)。**新規候補なし・`H-*` は採番しない・版は上げない**(7.6-3 前段)。候補の見出し数は **105 件のまま**。**あわせて `docs/README.md` の台帳行の最終更新日を現行化した。**
 
 ## 4. 実装方針
 
