@@ -9,13 +9,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 
 from pitchlog.authz.token_presentation import TokenPresentation
-from pitchlog.authz.verified_tenant import verify_tenant_id
+from pitchlog.authz.verified_tenant import logout_token, verify_tenant_id
 
 from .conftest import ProvisionedProductCatalog
 from .test_product_authz_authn_app import (
     _app_dsn,
     _login,
-    _scalar,
     _seed_identity,
     _seed_settings,
     _token,
@@ -81,7 +80,11 @@ def test_signed_invalid_token_returns_no_tenant(
                 )
             catalog.applicator.commit()
         elif invalid == "logged_out":
-            assert _scalar(app_dsn, "SELECT authn.logout(%s)", (token,)) == ""
+            before_logout = _token(catalog, token)
+            assert logout_token(signer.encode(token), signer, engine) is None
+            after_logout = _token(catalog, token)
+            assert after_logout[0] < before_logout[0]
+            assert after_logout[1] == before_logout[1]
         else:
             with catalog.applicator.cursor() as cursor:
                 if invalid == "stale_credential":

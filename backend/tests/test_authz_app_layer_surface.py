@@ -19,7 +19,7 @@ from pitchlog.authz.signing_key_config import (
     require_signing_key_configuration,
 )
 from pitchlog.authz.token_presentation import TokenPresentation
-from pitchlog.authz.verified_tenant import verify_tenant_id
+from pitchlog.authz.verified_tenant import logout_token, verify_tenant_id
 
 _SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src" / "pitchlog"
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -39,11 +39,13 @@ _PUBLIC_OPERATIONS = frozenset(
         "authz.signing_key_config.require_signing_key_configuration",
         "authz.database_transport.require_database_transport",
         "authz.verified_tenant.verify_tenant_id",
+        "authz.verified_tenant.logout_token",
     }
 )
 _DB_ENDPOINTS: dict[str, str | None] = {
     "authn.verify_token": "authz.verified_tenant.verify_tenant_id",
-    "authn.logout": None,
+    "authn.logout": "authz.verified_tenant.logout_token",
+    # data-model.md 8-3 節②の列挙は検証・延長・ログアウトであり、PW 変更を含まない。
     "authn.change_password": None,
 }
 _DB_REACH = frozenset(
@@ -64,6 +66,10 @@ _PUBLIC_CALLERS = frozenset(
         ),
         (
             "authz.verified_tenant.verify_tenant_id",
+            "authz.token_presentation.TokenPresentation.decode",
+        ),
+        (
+            "authz.verified_tenant.logout_token",
             "authz.token_presentation.TokenPresentation.decode",
         ),
     }
@@ -270,19 +276,19 @@ def test_public_operations_and_callers_are_exact_sets() -> None:
 
 
 def test_db_reach_is_exact_set_and_absences_are_explicit() -> None:
-    """検証兼延長だけを到達点とし、未接続の二関数を明示する。"""
+    """検証兼延長とログアウトの到達点、PW 変更の未接続を固定する。"""
     assert set(_DB_ENDPOINTS) == {
         "authn.verify_token",
         "authn.logout",
         "authn.change_password",
     }
-    assert _DB_ENDPOINTS["authn.logout"] is None
+    assert _DB_ENDPOINTS["authn.logout"] == "authz.verified_tenant.logout_token"
     assert _DB_ENDPOINTS["authn.change_password"] is None
     _assert_exact(_DB_REACH, _db_reach(_SOURCE_ROOT))
 
 
 def test_beta_functions_and_current_absences_are_explicit() -> None:
-    """β の三関数とアプリ層の未接続点を資産から確かめる。"""
+    """β の三関数と PW 変更だけの未接続を資産から確かめる。"""
     functions = _REPOSITORY_ROOT / "contracts/authz/product/function-bodies/functions"
     verified = (functions / "FUNCTION:authn:verify_token(uuid).sql").read_text(
         encoding="utf-8"
@@ -303,7 +309,7 @@ def test_beta_functions_and_current_absences_are_explicit() -> None:
     )
     assert "GRANT EXECUTE ON FUNCTION authn.logout(uuid) TO pitchlog_app" in logged_out
     assert "CREATE OR REPLACE FUNCTION authn.change_password(p_token_id uuid" in changed
-    assert _DB_ENDPOINTS["authn.logout"] is None
+    assert _DB_ENDPOINTS["authn.logout"] == "authz.verified_tenant.logout_token"
     assert _DB_ENDPOINTS["authn.verify_token"] == (
         "authz.verified_tenant.verify_tenant_id"
     )
@@ -433,6 +439,13 @@ def test_each_public_operation_has_a_negative_case(operation: str) -> None:
         engine = MagicMock()
         assert (
             verify_tenant_id(str(UUID(int=1)), TokenPresentation(b"test" * 8), engine)
+            is None
+        )
+        engine.begin.assert_not_called()
+    elif operation == "authz.verified_tenant.logout_token":
+        engine = MagicMock()
+        assert (
+            logout_token(str(UUID(int=1)), TokenPresentation(b"test" * 8), engine)
             is None
         )
         engine.begin.assert_not_called()

@@ -46,3 +46,14 @@ branch: feature/ua1-auth-app-layer
 ## 未決・次の一歩
 
 - ステップ 5 まで実装済み。委任元がステップ 5 のコミットを作る。実 DB 負例 5 件は接続可能な環境で実行し、結果を確認する必要がある。ステップ 6 以降には着手していない。
+
+## 2026-10-07 裁定⑫の追随(ステップ 5 の是正)
+
+- `verified_tenant.py` に公開入口 `logout_token()` を追加。実際の `TokenPresentation` 型に限定し、`decode()` で署名を照合した ID だけを `authn.logout()` へ渡す。DB 関数は `void` なので戻り値は常に `None`。DB 例外は捕捉ブロックの外で入力を含まない `RuntimeError` に変換する。`TenantContext` は生成していない。
+- 集合を **公開操作 7 件 / DB 到達点 2 件**へ是正した。到達点は `verify_tenant_id → authn.verify_token`(検証と延長は同一呼び出し)と `logout_token → authn.logout`。`authn.change_password` は `None`(本単位から未接続)のまま明示した。理由は `data-model.md` 8-3 節②の逐語列挙が「検証・延長・ログアウト」であり、PW 変更を含まないため。製品呼び出し元の exact-set は 5 件。
+- DB 不要の負例実測: 生 UUID 文字列・署名 1 文字改変・署名なし・別鍵の提示値は**各 DB 到達 0 回 / `None`**。偽の署名器・派生クラスは**各 DB 到達 0 回 / `TypeError`**。正しい提示値は**DB 到達 1 回 / `None`**。DB 例外は到達 1 回の後に `RuntimeError` となり、`__context__` と `__cause__` は `None`、公開メッセージと `traceback.format_exception()` の全文に提示値・トークン ID が含まれないことを確認した。
+- 実 DB 試験の `logged_out` ケースを公開入口経由に変更。正しい提示値でログアウトしたあとにトークン行の期限短縮と最終使用時刻の不変を観測し、同じ提示値の `verify_tenant_id()` が `None` を返すことを検査する。**実行は setup の管理接続で `psycopg.OperationalError: connection is bad` となり、試験本体は未実行**(4 deselected, 1 error)。DB のログ設定は変えていない。
+- 空集合変異は期待集合 2 種をそれぞれ空にし、**先に AST で代入の空集合化を確認**したあと各照合を実行した。両方とも **終了コード 1 / 1 failed / `期待集合が空です`**。実装側へ `logout_token()` の新しい呼び出し元と `authn.change_password()` の新しい DB 呼び出し元を一時追加し、**先に AST で新関数 2 件と呼び出し式 2 件を確認**したあと照合を実行した。**終了コード 1 / 2 failed** で、失敗出力に両呼び出し元が現れた。変異を原状に戻した。
+- TB002: 変更した Python 4 ファイルを `HEAD` の AST と比較して導入識別子を採り、検査器と同じ snake_case 相当の正規化で `base-allowlist.json` の正規表現 7 件と照合した。**固有 21 識別子、該当 0 件**。
+- 最終検証(`backend/`、`UV_CACHE_DIR=/tmp/pitchlog-ua1-uv-cache`、`uv run --offline`): 非 DB 全件 **1004 passed, 4 skipped, 17 deselected**。`ruff format`: **249 files left unchanged**、`ruff check --fix` / `ty check`: **All checks passed**。
+- β の SQL の `expires_at = greatest(logged_out_at, previous_last_used_at)` は、式の上では期限が `logged_out_at` **以上**となる。今回の実 DB 試験はこの大小関係の断定に頼らず、期限の短縮と同じ提示値での検証失敗を観測する。

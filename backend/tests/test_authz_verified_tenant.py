@@ -1,6 +1,7 @@
 """署名照合と DB 呼び出しの順序を DB なしで検査する。"""
 
 import secrets
+import traceback
 from typing import cast
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -10,17 +11,17 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from pitchlog.authz import verified_tenant
 from pitchlog.authz.token_presentation import TokenPresentation
-from pitchlog.authz.verified_tenant import verify_tenant_id
+from pitchlog.authz.verified_tenant import logout_token, verify_tenant_id
 
 _TOKEN_ID = UUID("a1b2c3d4-e5f6-47a8-9b0c-d1e2f3a4b5c6")
 _TENANT_ID = UUID("b1b2c3d4-e5f6-47a8-9b0c-d1e2f3a4b5c6")
 
 
 def test_public_route_is_exact_set() -> None:
-    """このモジュールの公開入口を 1 関数に固定する。"""
+    """このモジュールの公開入口を 2 関数に固定する。"""
     public_names = {name for name in vars(verified_tenant) if not name.startswith("_")}
-    assert verified_tenant.__all__ == ["verify_tenant_id"]
-    assert public_names == {"verify_tenant_id"}
+    assert verified_tenant.__all__ == ["verify_tenant_id", "logout_token"]
+    assert public_names == {"verify_tenant_id", "logout_token"}
 
 
 def test_signed_value_reaches_db_as_decoded_uuid() -> None:
@@ -92,3 +93,83 @@ def test_db_error_message_omits_token_id() -> None:
     assert str(_TOKEN_ID) not in str(error.value)
     assert value not in str(error.value)
     assert error.value.__context__ is None
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    ("raw_uuid", "tampered_signature", "unsigned", "another_key"),
+)
+def test_logout_rejects_unsigned_values_without_db(invalid: str) -> None:
+    """署名の無い ID や別鍵の提示値を DB に渡さない。"""
+    presentation = TokenPresentation(secrets.token_bytes(32))
+    signed = presentation.encode(_TOKEN_ID)
+    if invalid == "raw_uuid":
+        value = str(_TOKEN_ID)
+    elif invalid == "tampered_signature":
+        value = signed[:-1] + ("0" if signed[-1] != "0" else "1")
+    elif invalid == "unsigned":
+        value = "unsigned"
+    else:
+        value = TokenPresentation(secrets.token_bytes(32)).encode(_TOKEN_ID)
+    engine = MagicMock()
+
+    assert logout_token(value, presentation, engine) is None
+    assert engine.begin.call_count == 0
+    assert engine.begin.return_value.__enter__.return_value.execute.call_count == 0
+
+
+def test_logout_rejects_fake_and_subclassed_presentation_without_db() -> None:
+    """同名の decode と派生クラスを DB 到達前に拒否する。"""
+
+    class DerivedTokenPresentation(TokenPresentation):
+        """厳密な型検査を確認するための派生クラス。"""
+
+    engine = MagicMock()
+    fake = MagicMock()
+    fake.decode.return_value = _TOKEN_ID
+    derived = DerivedTokenPresentation(secrets.token_bytes(32))
+    for presentation in (cast(TokenPresentation, fake), derived):
+        with pytest.raises(TypeError, match="署名器の型が不正です"):
+            logout_token("opaque", presentation, engine)
+
+    fake.decode.assert_not_called()
+    assert engine.begin.call_count == 0
+    assert engine.begin.return_value.__enter__.return_value.execute.call_count == 0
+
+
+def test_signed_logout_calls_db_once_and_returns_none() -> None:
+    """署名済み ID だけを authn.logout に 1 回渡し void を維持する。"""
+    presentation = TokenPresentation(secrets.token_bytes(32))
+    engine = MagicMock()
+    connection = engine.begin.return_value.__enter__.return_value
+
+    assert logout_token(presentation.encode(_TOKEN_ID), presentation, engine) is None
+    assert engine.begin.call_count == 1
+    assert connection.execute.call_count == 1
+    statement, parameters = connection.execute.call_args.args
+    assert str(statement) == "SELECT authn.logout(:token_id)"
+    assert parameters == {"token_id": _TOKEN_ID}
+
+
+def test_logout_db_error_omits_presentation_and_id_from_full_traceback() -> None:
+    """DB 例外の文脈を切り、メッセージと全トレースに入力を残さない。"""
+    presentation = TokenPresentation(secrets.token_bytes(32))
+    value = presentation.encode(_TOKEN_ID)
+    engine = MagicMock()
+    connection = engine.begin.return_value.__enter__.return_value
+    connection.execute.side_effect = SQLAlchemyError(f"{_TOKEN_ID} {value}")
+
+    with pytest.raises(
+        RuntimeError, match="トークンのログアウトを完了できない"
+    ) as error:
+        logout_token(value, presentation, engine)
+
+    assert engine.begin.call_count == 1
+    assert connection.execute.call_count == 1
+    assert error.value.__context__ is None
+    assert error.value.__cause__ is None
+    assert str(_TOKEN_ID) not in str(error.value)
+    assert value not in str(error.value)
+    formatted = "".join(traceback.format_exception(error.value))
+    assert str(_TOKEN_ID) not in formatted
+    assert value not in formatted

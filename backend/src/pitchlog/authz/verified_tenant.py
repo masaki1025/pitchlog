@@ -1,4 +1,4 @@
-"""署名済み提示値と DB の認証関数からテナント ID を確定する。"""
+"""署名を照合した ID だけを DB の認証関数へ渡す境界を提供する。"""
 
 from uuid import UUID as _UUID
 
@@ -8,9 +8,10 @@ from sqlalchemy.exc import SQLAlchemyError as _SQLAlchemyError
 
 from pitchlog.authz.token_presentation import TokenPresentation as _TokenPresentation
 
-__all__ = ["verify_tenant_id"]
+__all__ = ["verify_tenant_id", "logout_token"]
 
 _VERIFY_TOKEN = _text("SELECT authn.verify_token(:token_id)")
+_LOGOUT_TOKEN = _text("SELECT authn.logout(:token_id)")
 
 
 def verify_tenant_id(
@@ -52,3 +53,35 @@ def verify_tenant_id(
     except _SQLAlchemyError:
         pass
     raise RuntimeError("トークンの照合を完了できない")
+
+
+def logout_token(value: str, presentation: _TokenPresentation, engine: _Engine) -> None:
+    """署名済み提示値から得た ID だけを使ってトークンを失効させる。
+
+    ``authn.logout`` は void を返すため、行の有無や失効の成否を
+    戻り値で区別しない。署名を照合できない提示値では DB に接続しない。
+
+    Args:
+        value: 外部から受け取った署名付き提示値。
+        presentation: 起動時に設定した鍵を保持する署名器。
+        engine: アプリ用ロールで接続する SQLAlchemy engine。
+
+    Raises:
+        TypeError: 署名器が設定済みの型と異なる場合。
+        RuntimeError: DB の失効処理を完了できない場合。入力値は例外に含めない。
+    """
+    if type(presentation) is not _TokenPresentation:
+        raise TypeError("署名器の型が不正です")
+
+    try:
+        verified_id = presentation.decode(value)
+    except ValueError:
+        return
+
+    try:
+        with engine.begin() as connection:
+            connection.execute(_LOGOUT_TOKEN, {"token_id": verified_id})
+            return
+    except _SQLAlchemyError:
+        pass
+    raise RuntimeError("トークンのログアウトを完了できない")
