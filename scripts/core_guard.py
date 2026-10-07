@@ -49,6 +49,11 @@ AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
         "frontend/src/lib/generated/*",
         "tests/domain/*",
     ),
+    "tenant-isolation": (
+        "docs/ops/product-rls-real-schema.md",
+        "scripts/product_rls_real_schema/*",
+        "scripts/product-rls-real-schema-targets.json",
+    ),
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"

@@ -5,7 +5,7 @@
   "canonical_source": {
     "path": "docs/design/data-model.md",
     "digest_kind": "ファイル内容のSHA-256",
-    "sha256": "10847d4d74e94c325779b6e282c4c3639da2cdf9b10bd4a277c41d745015494f",
+    "sha256": "5875e461b6a965a228cc0fff3e116cc9a67ec5c4708ec28f3ca66bc0939ce174",
     "reproduction": "リポジトリルートで sha256sum docs/design/data-model.md を実行する"
   },
   "provenance_methods": {
