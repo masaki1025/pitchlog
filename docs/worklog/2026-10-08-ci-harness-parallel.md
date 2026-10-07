@@ -77,11 +77,20 @@ branch: feature/ci-harness-parallel
 - **PO 判断(2026-10-08・徳光 尋弥)**: **B = `ci.yml` に触れない方式へ計画修正**(`-n auto` はルート `pyproject.toml` の addopts・ローカルは `PYTEST_XDIST_AUTO_NUM_WORKERS=8`・ステップ 4 は `backend/pyproject.toml` の addopts と `[tool.coverage.run] core`)/ **pycache の揺れはスナップショットから `__pycache__` を除外**(計画外 1 ファイルをステップ 1 に含める)/ **修正は P0 限定の差分レビュー 1 回**(可決なら承認扱いで続行)。Codex の `ci.yml`・`test_ci_wiring.py`・`SKILL.md` 変更は取り消し(`git checkout`)、`pyproject.toml`・`uv.lock` の依存追加は保持
 - 事前確認(Claude): root / backend の `pyproject.toml` の `addopts`・`[tool.coverage.run]` を固定する検査は無い(`tests/test_ci_wiring.py` は `markers` のみ参照 `:1915,3386`)/ xdist 3.8.0 は `PYTEST_XDIST_AUTO_NUM_WORKERS` に対応(実測)/ coverage 7.15.4 は `core` 設定に対応(`coverage debug config` → `core: sysmon`)/ backend の非 DB テストは 943 件(手元で実行可)
 
+### /plan — 計画レビュー 5 回目(2026-10-08・`review normal`・**P0 限定**〔PO 裁定: 計画修正差分の追加レビュー 1 回〕・対象 = 計画修正差分 243dd3fa..31cbdb75・**129,574 tok**・判定 = **否決 P0 1 / P1 0 / P2 0**)— **採用(修正案とは別の形)**
+
+| # | 重大度 | 起因 | 受理範囲 | 要旨 | 採否と反映 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | P0 | 起因 | 正本違反 | ステップ 4 の移し先 `backend/pyproject.toml` は `.claude/core-areas.json` のコア領域 paths(5 領域すべて)。`重さ分類: 通常` のままでは 6.3 の敵対レビュー・逐行確認を欠く | 採用 — レビューの修正案(コア領域へ再分類)ではなく、`--durations=25` を本タスクから外し(非コア・非 `ci.yml` の置き場が無い: `addopts`/conftest はコア、`PYTEST_ADDOPTS` は `ci.yml`)、coverage の `core = sysmon` だけを **`backend/.coveragerc`(新規・非コア — 5 領域の backend 配下 glob に該当せず、backend 直下を列挙するテストも無い。`coverage debug config` で `config_files_read` と `core: sysmon` を実測)** に置く。重さ分類は通常のまま。4 節「コア領域 paths への注意」新設 |
+
+- **PO 判断(2026-10-08・徳光 尋弥)**: ステップ 4 は `.coveragerc` の sysmon だけに縮小(内訳計測は後続タスク B へ)/ この修正は **PO 直接承認**(追加レビューなし — 変更は新規 2 行のファイルで、コア paths・凍結入力・backend 直下の列挙テストの不在を Claude が確認済み)。`承認: 済` は維持。計画レビュー合計 5 回(全文 1・差分 1・P0 限定 3)・Codex 約 654K tok
+
 ## 決定
 
 - タスク分割(A/B)とワーカー数(上記)
 - 計画レビューの PO 裁定(2026-10-08): 上限到達後は包括続行指示(P0 限定・最大 2 回)。P0 ゼロで承認扱い(`承認: 済` を記入して /implement へ)
 - 2026-10-08(ステップ 1 の実測後): `ci.yml`・`tests/test_ci_wiring.py`・`contracts/**`・`tests/fixtures/frozen-archive-cases/**` に触れない(凍結の外部入力)。xdist はルート pyproject の addopts、ローカル上限は環境変数。pycache はスナップショットから除外。計画修正は P0 限定レビュー 1 回(可決で承認扱い)
+- 2026-10-08(5 回目レビュー後): ステップ 4 = `backend/.coveragerc` の `core = sysmon` のみ(`--durations` の内訳は後続タスク B)。`backend/pyproject.toml`・`backend/*conftest.py` はコア領域 paths で触れない。この修正は PO 直接承認
 
 ## 未決・次の一歩
 

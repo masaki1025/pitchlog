@@ -22,7 +22,7 @@ date: 2026-10-08
 - harness の 2,620 件・974 秒(手元)のうち **上位 40 件 ≈ 800 秒(約 82%)**。律速は少数の全数変異テスト: `tests/test_check_authz_catalog.py`(≈400 秒・最長 111.5 秒と 98.8 秒の 2 件はプロセス内 CPU 律速)と `tests/test_census_baseline_check.py`(≈310 秒・アンカーの実体化と現行センサスの全文走査をテストごとに再計算)
 - pytest は 1 プロセス直列(xdist 未導入)で、4 vCPU のランナーの 1 コアしか使っていない。共有状態は少なく(`tmp_path` 1,932 箇所・chdir 2・固定 `/tmp` は文字列のみ)、並列化の障害は小さい
 - backend は `pytest --cov`(閾値なし・行カバレッジのみ)。Python 3.12 + coverage 7.15.4 なので `COVERAGE_CORE=sysmon` が使える。手元に Docker がなく内訳は未計測 → CI で `--durations=25` を取る
-- 射程: ルート `pyproject.toml`/`uv.lock`(xdist 追加・addopts — guard_paths)・`backend/pyproject.toml`(addopts・coverage core)・設計書 10.1 の harness/backend 行(節更新・版は上げない)・`/check` スキル。**`ci.yml` と `tests/test_ci_wiring.py` には触れない**(§5 — `ci.yml` は凍結の外部入力。2026-10-08 ステップ 1 で実測し計画を修正)
+- 射程: ルート `pyproject.toml`/`uv.lock`(xdist 追加・addopts — guard_paths)・`backend/.coveragerc`(coverage core — 新規・非コア)・設計書 10.1 の harness/backend 行(節更新・版は上げない)・`/check` スキル。**`ci.yml` と `tests/test_ci_wiring.py` には触れない**(§5 — `ci.yml` は凍結の外部入力。2026-10-08 ステップ 1 で実測し計画を修正)。**`backend/pyproject.toml`・`backend/*conftest.py` もコア領域 paths(5 領域)で触れない**(計画レビュー 5 回目)
 
 ## 詳細と典拠
 
@@ -62,7 +62,7 @@ date: 2026-10-08
 
 ### §4 backend ジョブ
 
-- `uv run pytest -c pyproject.toml --cov`(`ci.yml` backend ジョブ)。`backend/pyproject.toml` に `[tool.coverage]` 節なし(行カバレッジ既定・閾値なし)、`requires-python = ">=3.12,<3.13"`、`uv.lock` の coverage = 7.15.4 → `COVERAGE_CORE=sysmon`(sys.monitoring 方式)が利用可能
+- `uv run pytest -c pyproject.toml --cov`(`ci.yml` backend ジョブ・`working-directory: backend`)。`backend/pyproject.toml` に `[tool.coverage]` 節なし(行カバレッジ既定・閾値なし)、`requires-python = ">=3.12,<3.13"`、`uv.lock` の coverage = 7.15.4 → sysmon(sys.monitoring 方式)が利用可能。置き場は **`backend/.coveragerc` の `[run] core = sysmon`**(coverage が既定で読む — `coverage debug config` で実測。`backend/pyproject.toml` はコア領域 paths のため不可)
 - テスト 738 件(`def test_` 計測)、うち `backend/tests/db/` 189 件・`requires_db` 39 ファイル。手元に Docker がない(WSL の Docker Desktop 統合無効)ため内訳は未計測
 
 ### §5 射程(正本・guard_paths・機構)
@@ -78,6 +78,6 @@ date: 2026-10-08
 
 ## 未解決・申し送り
 
-- backend の内訳は CI の `--durations=25` 出力を待つ(次の打ち手: 非 DB テストの xdist / DB テストの worker 別スキーマ / PR での `--cov` 省略)
+- backend の内訳(`--durations`)は本タスクでは取れない(置き場 = `backend/pyproject.toml` / conftest はコア領域 paths、環境変数は `ci.yml`)。後続タスク B で取る。本タスクは `.coveragerc` の sysmon のみ(次の打ち手: 非 DB テストの xdist / DB テストの worker 別スキーマ / PR での `--cov` 省略)
 - xdist 導入後に順序依存の揺れが出た場合は、当該ファイルだけ `--dist loadfile` 相当にまとめる(ステップ 1 の合格条件で 2 回連続 green を要求する)。実測(2026-10-08): 順序依存ではなく**別 worker の import が書く `backend/src/pitchlog/__pycache__` をツリースナップショットが拾う**型が 1 件(`tests/domain/gen/test_backends.py`)— スナップショットから `__pycache__` を除外して対処
 - 凍結点(どの資産がどのファイルを固定しているか)の一覧はリポジトリに無い(運用評価台帳 2026-10-05 の候補)。本タスクで踏んだ 2 点(`ci.yml` → base-allowlist の `external_files` / corpus manifest)は plan.md 4 節「凍結点への注意」に記録した
