@@ -87,7 +87,7 @@ FR-006 のキュー投入・同期状態非依存 → 同期側のテスト / �
 `mustOperationCoverage` / `requiredSet`(2 段)/ 語彙シード + 内容 hash /
 `clauseBranchRegister` / **手作業 fixture**(作成・突合・凍結)/ oracle 遮断 4 層 /
 展開器と `cases[]` / **`gapRegister` の 5 段を各所有ステップで充填** /
-`.claude/core-areas.json` への paths 追加 / 台帳候補 (10) を `H-90` へ昇格 /
+`.claude/core-areas.json` への paths 追加 / 台帳候補 (10) を `H-91` へ昇格 /
 未解消レポート / **段階 2 への引き渡し契約**(`consumerBindings[]` を含む exact 型)
 
 ### やらないこと
@@ -108,7 +108,7 @@ FR-006 のキュー投入・同期状態非依存 → 同期側のテスト / �
 | **要件書**(`docs/requirements/requirements-pitchlog-2026-07-22.md`) | 付録E-1(境界 / **全 10 列の exact 型** / **交差制約 `XC-*`** / 表示名の読み替え)/ **定義の穴 9 件** / 管理者語彙の二段階ゲート / NFR-018(b)②。**版繰り上げ** | **finalize-doc** |
 | **ADR-003**(`docs/adr/ADR-003-domain-calc-method.md`) | **D-11**(規範行駆動 + **descriptor を両段階を通した唯一の正**とし schema を派生物に + **射影規則**)/ **D-6** / **D-8** / **D-12**。**版繰り上げ** | **finalize-doc**(同一ゲート) |
 | **`docs/design/sync-protocol.md`** | :1309 / :1588 の正を「D-6 で登録された状況判定ベクタ全体」へ。**版繰り上げ** | **finalize-doc**(同一ゲート) |
-| **`docs/development/harness-evaluation.md`** | 候補 (10) → **`H-90`** + 変更履歴 1 行。**`docs/README.md` の台帳行と同一コミット** | **PR レビュー** |
+| **`docs/development/harness-evaluation.md`** | 候補 (10) → **`H-91`** + 変更履歴 1 行。**`docs/README.md` の台帳行と同一コミット** | **PR レビュー** |
 | **`contracts/README.md`** / **`docs/README.md`** | 索引の追加と現行化 | **PR レビュー** |
 | **`docs/design/data-model.md`** / **`dev-harness-design-2026-08-07.md`** / **ADR-001・002・004** | **反映なし** | — |
 
@@ -270,7 +270,7 @@ FR-006 のキュー投入・同期状態非依存 → 同期側のテスト / �
 | 103 | 検査配線 — **件数・digest** | 緑。負例 2 件で fail | E |
 | 104 | 検査配線 — **凍結と fixture 一致** | 緑。fail-closed(宣言不読で fail) | E |
 | 105 | **数値基準を実測して確定**(design.md 3-6) | 実サイズ・増分・実行秒数に実測値と測定条件(コマンド・試行回数・判定統計・ランナー条件)。**16 MB を超えていない** | E |
-| 106 | 台帳候補 (10) → **`H-90`** + 変更履歴 1 行 + **`docs/README.md` の台帳行を同一コミットで** | `check_docs_status.py` 緑。**採番時の未使用検査**。**3 点が 1 コミット** | E |
+| 106 | 台帳候補 (10) → **`H-91`**(**計画時は `H-90` を予約していたが、TSK-448 が 2026-09-27 に取得し PR #83 が 09-30 にマージ済みであることを原典で確認したため `H-91` へ。PO 承認 2026-10-08**) + 変更履歴 1 行 + **`docs/README.md` の台帳行を同一コミットで** | `check_docs_status.py` 緑。**採番時の未使用検査**。**3 点が 1 コミット** | E |
 | 107 | **未解消レポート** | `gapRegister` の状態 / 人間統制に委ねた項目 / 段階 2 へ送った項目の 3 区分。各項目に送り先または担当 | E |
 | 108 | 引き渡し契約 — **`consumerBindings[]` の本体**(design.md 1-3) | 対象計算 2 件それぞれに `contractPath` / **`version` と `schemaVersion` の両方** / `caseSchemaRef` / **JSON Pointer ベースの `caseFieldMapping`**(`id`/`input`/`expected`/`tags` → `caseId`/`raw`/`normalized`/`expected`/`tags`)/ **`normalizationComparison` と `outputComparison` の 2 面** / `dPlusOnePolicy`。**schema 検証が緑** | E |
 | 109 | 引き渡し契約 — **`executionPaths[]`**(design.md 1-3)| 各 binding に **runner の exact-set**。**`"pytest"` と `"vitest"` の 2 経路**((α) は両 runner が対象 — ADR-003:284)。各経路に `normalizerId` / `entrypointId` / `directTargetId`。**`runnerRevision` は段階 1 では `"pending"`**(Vitest 側は TSK-455 未着手・pytest 側は TSK-235 未マージ)で `resolutionStage: "stage-2"` を持つ。**片方の経路しか無いと fail**(負例 1 件) | E |
@@ -296,7 +296,7 @@ FR-006 のキュー投入・同期状態非依存 → 同期側のテスト / �
 - [ ] **oracle 遮断 4 層**が配線され、**機械保証と人間統制の境界が明示**されている
 - [ ] **数値基準が実測で確定**している
 - [ ] **`.claude/core-areas.json`** に paths 登録(6.3-⑤ の承認済み)
-- [ ] **候補 (10) が `H-90` へ昇格**し、**台帳・変更履歴・索引が同一コミット**
+- [ ] **候補 (10) が `H-91` へ昇格**し、**台帳・変更履歴・索引が同一コミット**
 - [ ] **規範行の人間確認が署名付きで記録**され、**PR の逐行確認記録と対応**している
 - [ ] **未解消レポート**と、**exact 型の引き渡し契約** — `consumerBindings[]` に
       **`executionPaths[]`(pytest / vitest の 2 経路)**・**2 面の比較契約**・JSON Pointer ベースの `caseFieldMapping`、

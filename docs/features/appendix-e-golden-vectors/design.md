@@ -1310,7 +1310,7 @@ descriptor、共有語彙 seed / manifest、状況判定契約、および `clau
 
 ### 8-5. 台帳候補 (10)
 
-**`H-90`** を採番。**台帳追記・変更履歴・`docs/README.md` の台帳行は同一コミット**。
+**`H-91`** を採番。(**計画時は `H-90` を予約していたが、TSK-448 が 2026-09-27 に取得し PR #83 が 09-30 にマージ済みであることを原典で確認したため `H-91` へ。PO 承認 2026-10-08**)**台帳追記・変更履歴・`docs/README.md` の台帳行は同一コミット**。
 
 ## 9. 語彙シード
 
@@ -1336,7 +1336,7 @@ case は 3 点(生値 / 規則識別子 / 正規化後の値)を持つ。**段�
 | **B** | 契約 schema(構造 → 参照 → 値域 → 交差制約 → operation/undo 別表)→ `mustOperationCoverage` → 終了判定 schema → 語彙シード → 遮断機構 → `gapRegister` 検査 → core-areas |
 | **C** | `clauseBranchRegister` → **`gapRegister.branchIds`** → `requiredSet` → 規範行 4 層 → **`gapRegister.rowIds`** → 手作業 fixture(作成 → 突合 → 凍結)→ **`gapRegister.fixtureCaseIds`** |
 | **D** | 展開器 → 一致検査 → 変異耐性 → `cases[]` → 正規化 → **`gapRegister.generatedCaseSelector` と `resolved` 遷移** |
-| **E** | 検査配線(検査器単位)→ 数値基準の実測 → 台帳 `H-90` → 未解消レポート → 引き渡し契約 |
+| **E** | 検査配線(検査器単位)→ 数値基準の実測 → 台帳 `H-91` → 未解消レポート → 引き渡し契約 |
 
 **`/check` と `/pr` はステップのコミット内容から外す。**
 
