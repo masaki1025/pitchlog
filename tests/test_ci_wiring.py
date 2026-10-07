@@ -1568,6 +1568,7 @@ def _domain_ci_wiring_errors(
         "uv python install",
         "uv sync --locked --dev",
         "uv run python scripts/check_frozen_baselines.py --ci",
+        "uv run python scripts/check_input_axes_three_way_parity.py --ci",
         "uv run python tests/test_census_baseline_check.py",
         "uv run ruff check .",
         "uv run ty check",
