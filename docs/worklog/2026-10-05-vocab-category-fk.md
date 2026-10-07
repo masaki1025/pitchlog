@@ -26,6 +26,12 @@ branch: feature/vocab-category-fk
   - (c) の失敗が `DID NOT RAISE` だったこと = **事前検査を外すと、FORCE RLS で所有者から隠れた区分違いの行が残ったまま 0029 の upgrade が通る**(FK 作成時の初期検証が隠れた行を見落とす)。事前検査の必要性を実測で確かめた(計画書 4-2 の根拠の裏付け)
 - 2026-10-07: backend 全件(DB を含む・`-c pyproject.toml --cov`)1336 passed / 4 skipped・alembic 3 点 OK・ruff/ty OK
 - 2026-10-07: **ステップ 1 是正**(f8b640f7): ルート `tests/` で `test_check_tenant_boundary_bypass.py` の 2 件が red — ステップ 1 の ORM の定数列 3 本の `server_default=text(...)` が TB005(変更行の `sqlalchemy.text`)。**ステップ 1 の確認時は走査がコミット前の HEAD を読んでいて見逃した**(U-A1 β worklog 2026-10-04 :182 と同じ落とし穴 — 迂回の走査はコミット後に回す)。Codex へ差し戻し → `literal_column("'<値>'")` へ(`server_default.arg` の文字列・DDL の DEFAULT は不変を確認)。是正後: 走査 2 件 green / schema_audit・新 DB テスト・往復 14 passed / alembic check OK / 非 DB 939 passed
+- 2026-10-07: PR #98(data-model v0.6)のマージを受け、develop(`1fdf1eec` — #97・#98 を含む)を取り込み(`4ded6a44`・衝突なし)
+- 2026-10-07: **ステップ 3**(`5cb46677`): Claude が data-model.md 10-3 節の ⚠ 項を是正済みの記録へ・変更履歴 1 行(v0.6 据え置き・実装追随)・`docs/README.md`(日付 2026-10-07)を書き、Codex が封印 2 つを取り直し(Claude が `sha256sum` / `git hash-object` で一致を確認)。受入突合シートは `--carry-judgments-from 4ded6a44` で再生成 — N3 が 99 → 101 行(本書の書き換えで「変えない」の出現が 2 つ増えた)。新しい 2 行(出現 001 = 変更履歴の行・出現 080 = 「3-4 節は変えない」)は対象外、番号ずれの 89 行は 3 列一致で旧判定を戻した → **人間承認(2026-10-07)** → amend。期待行数を追随
+- 2026-10-07: `codex_run.py review normal`(正本の差分)→ **P2 1 件**: 「層をまたぐ誤参照」は 10-3 の層の定義と食い違う(試合区分・在籍区分はどちらもシステム固定の層)→ 「システム固定の層の中で区分をまたぐ誤参照」へ直し、封印を取り直して amend(シートは不変)。他の観点 A〜D は指摘なし
+- 2026-10-07: 取り込み後の確認: backend 全件(DB を含む)1336 passed / 4 skipped・alembic 3 点 OK / ルート `tests/` 2927 passed・ruff・ty・shared-preconditions・frozen-baselines(--invariants-only)OK(コミット後に実行)
+- 2026-10-07: 受入シートの旧判定の理由にある data-model.md の行番号参照 13 か所は、**develop の時点で既に約 25 行ずれている**(例: 「§4-3 冒頭(:637)」の実際は :662)。本 PR の起因ではないので触れない
+- 2026-10-08: 共有の `/tmp`(7.7GB の tmpfs)が `/tmp/pytest-of-ymdms` 7.4GB で満杯になり、ルート `tests/` の実行が出力を失った。10-05〜10-06 の古い basetemp(約 4.5GB・走行中のものは無し)を削除して再実行。TSK-236 タブへ連絡(同タブの実行は無事)
 
 ## 決定
 
@@ -35,5 +41,6 @@ branch: feature/vocab-category-fk
 ## 未決・次の一歩
 
 - **PR の人間逐行確認で見てもらう点**: 上記のテナント内複合 FK 検査の限定(テナント分離の検査の意味に関わる)
-- ステップ 3(data-model 10-3・封印 2 つ・シート)は **PR #98(TSK-382・data-model v0.6)のマージを待ってから**行う — #98 が同じ変更履歴・封印 2 つ・受入シートに触れるため、develop の取り込みと封印の取り直しを 1 回で済ませる(人間判断 2026-10-07)
+- ステップ 3 は PR #98 のマージを待ってから行った(人間判断 2026-10-07 — 取り込みと封印の取り直しを 1 回で済ませるため)
+- 次: /check → /pr
 - admin / tenant 層の同型非拘束 → TSK-489 起票済み
