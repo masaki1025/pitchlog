@@ -203,6 +203,23 @@ N3 受入シートは**本書全文から設計指定の 9 語を文書順に機
 - **U-M1**: `_PUBLIC_CALLERS` は(呼び出し元, 呼び出し先)の 2 要素タプルの**集合**のままで、
   **形は変えていない**。U-M1 側が 1 対を足す予定だが支障はない
 - **TSK-457**: 本単位は**テナント文脈を生成しない**。発行の機構と検査器は 457 の射程である
+- **δ(TSK-470)— P1-②(ループバック TCP)**: 敵対レビューの読みは**原典で正しい**
+  (`data-model.md` 8-2 節がローカル接続を **UNIX ドメインソケット**と定義している)。
+  だが `docker-compose.yml` は **`127.0.0.1:5432`** を公開しており、**条文どおりに締めると開発 DB が落ちる**。
+  **本単位はログインの経路を開かないので、締める実益がここには無い。**
+  `_local_endpoint()` は**判定内容を変えずに残した**。
+  **δ がログインの経路を開くときに、compose を UNIX ソケットへ寄せたうえで締める**
+- **ハーネス(別タスク)— スキーマ契約テストの母集団の規則**: ステップ 7 の
+  `backend/tests/db/test_authz_log_safety.py` が `pitchlog.db.engine`(**接続の工場**)を import するため
+  母集団へ拾われ、`tests/test_core_guard.py` の
+  `test_schema_contract_test_population_does_not_depend_on_branch` が red になる。
+  **同じ形で入っているファイルは他に 2 件**(`backend/tests/test_authz_connection_guard.py` /
+  `backend/tests/test_authz_log_safety.py`)あり、**表明が `backend/tests/db/test_authz_` という
+  接頭辞で切っているため見逃されていた** — **規則が広すぎるのであって、本 PR の新設ファイルが
+  特異なのではない**。**3 件とも `core-areas.json` の別パターンで既に保護対象**
+  (`backend/tests/db/*` / `backend/tests/test_authz*.py`)なので、
+  **規則を狭めても保護範囲は 1 件も減らない**(当方実測)。
+  **`tests/test_core_guard.py` は検査経路そのもの**なので本単位では触らない
 
 ### 検証
 

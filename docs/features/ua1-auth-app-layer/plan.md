@@ -107,6 +107,14 @@ created: 2026-10-05
 **`backend/src/pitchlog/api/app.py`**(`create_app()` への配線 — **`paths` に当たらない**。§4-6 の逐行確認へ明示的に入れる)/
 **`backend/src/pitchlog/db/engine.py`**(`create_engine()` への配線 — **5 領域すべての `paths` に当たる**)/
 `backend/tests/**` / リポジトリ直下の設定サンプル /
+**ハーネス側の `tests/**`(第 1 改訂で入った分の宣言漏れを補う)** —
+`tests/test_check_tenant_boundary_bypass.py`(迂回の走査の負例・陽性対照)/
+`tests/fixtures/tenant_boundary/positive/pitchlog/authz/verified_tenant*`(同左の fixture・既存の規律に従う)/
+`tests/fixtures/frozen-archive-cases/manifest.json`(**digest の機械的追随** — 同 manifest の
+`corpus_inputs.files` に `tests/test_check_tenant_boundary_bypass.py` が入っているため)。
+**`tests/test_core_guard.py` は含まない** — **検査経路そのもの**であり、
+**スキーマ契約テストの母集団の規則が本単位の新設ファイルと衝突している件は、本単位では触らず人間の判断へ送る**
+(下の「人間の判断へ送るもの」)/
 **`data-model.md` の digest を固定している 2 件**(`contracts/authz/shared-preconditions.json` の `git_blob_digest` /
 `contracts/db/schema-manifest.json` の `canonical_source.sha256` — **いずれも 1 行の取り直しのみ**。§4-8)/
 `docs/features/ua1-auth-app-layer/**` / `docs/worklog/2026-10-05-ua1-auth-app-layer.md` /
@@ -136,6 +144,28 @@ created: 2026-10-05
 > 明示 import へ替える。**`TSK-480` の `f8b640f7`「定数列の既定値を `literal_column` で書き、迂回の走査 TB005 を解く」と同型**)。
 > **ただし `data-model.md` を 1 行直すため、その digest を固定している 2 資産の取り直しは要る**(§4-8)。
 > **この 2 資産は `baseline_control` を持たない**ので(当方実測)、**7.7 の記録は不要で digest の取り直しだけ**である。
+
+### 人間の判断へ送るもの(本単位では触らない)
+
+**① P1-②(ループバック TCP をローカル接続と認めるか)— δ(TSK-470)へ申し送る。**
+敵対レビューの読みは**原典で正しい**(`data-model.md` 8-2 節がローカル接続を **UNIX ドメインソケット**と定義している)。
+一方 `docker-compose.yml` は **`127.0.0.1:5432`** を公開しており、**判定を条文どおりに締めると開発 DB が落ちる**。
+本単位は**ログインの経路を開かない**ので、**締める実益がここには無い**。
+`database_transport.py` の `_local_endpoint()` は**判定内容を変えずに残す**。
+**δ がログインの経路を開くときに、compose を UNIX ソケットへ寄せたうえで条文どおりに締める**のが筋である。
+
+**② スキーマ契約テストの母集団の規則(`tests/test_core_guard.py`)— 本 PR では直せない。**
+ステップ 7 の `backend/tests/db/test_authz_log_safety.py` が `pitchlog.db.engine`(**接続の工場**)を import するため、
+母集団の規則(`SCHEMA_CONTRACT_TOKENS` に `pitchlog.db` が入っている)に拾われ、
+`test_schema_contract_test_population_does_not_depend_on_branch` の
+「`backend/tests/db/test_authz_` を巻き込まない」という表明に当たる。
+**当方の実測**: 同じ形で入っているファイルは他に 2 件(`backend/tests/test_authz_connection_guard.py` /
+`backend/tests/test_authz_log_safety.py`)あり、**表明が接頭辞で切っているため見逃されていた**。
+**3 件とも `core-areas.json` の別パターンで既に保護対象**なので(`backend/tests/db/*` /
+`backend/tests/test_authz*.py`)、**規則を狭めても保護範囲は 1 件も減らない**。
+**`engine.py` はテーブルを 1 つも定義しない**(接続生成とロール検証のみ — 当方実測)。
+**ただし `tests/test_core_guard.py` は検査経路そのもの**であり、**本単位の禁止範囲**でもあるため、
+**別タスクとして人間の判断を仰ぐ**。
 
 ## 4. 実装方針
 
