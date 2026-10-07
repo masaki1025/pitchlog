@@ -162,6 +162,20 @@ branch: feature/ci-harness-parallel
 - 正本: 設計書 10.1 節更新(版は上げない)・索引・台帳(既存候補へ実測)
 - 残課題(後続へ): census の重複計算削減(実装済み・凍結資産 census-baseline.json の 7.7-2 受理を伴う再適用)/ `--durations` の内訳計測 / 入力に基づくテスト選択 + develop/nightly 全件(タスク B)/ 凍結の外部入力とコア領域 paths を /plan で変更予定ファイル全件に機械突合する手順
 
+### PR 後の DoD 検証(2026-10-08・PR #102 の run `37671711799`・head `c1cbac46`)— **harness 8 分以内は未達 → 差し戻し(plan を `active` へ・Notion を `進行中` へ)**
+
+| ジョブ / ステップ | 導入前(3 run) | 今回 | 差 |
+| --- | --- | --- | --- |
+| harness ジョブ | 24.5 / 27.6 / 27.2 分 | **18 分 35 秒** | −30% |
+| └ `uv run pytest -c pyproject.toml tests/ …`(4 ワーカー・28,092 件・全件 pass) | 23.7 / 26.6 / 26.4 分 | **1,061 秒(17 分 41 秒)** | −30% |
+| └ `uv run python tests/test_census_baseline_check.py` | 0.6〜0.7 分 | 38 秒 | — |
+| backend ジョブ(`pytest --cov`・sysmon) | 15.7 / 15.8 / 15.9 分(pytest 15.2 分) | **12 分 50 秒**(pytest 742 秒) | −19% |
+| mutation ジョブ(`tests/domain/mut/`・`-n auto`) | 0.1〜0.9 分 | 32 秒 | — |
+
+- **判定**: DoD「harness 8 分以内」は**未達**(17 分 41 秒)。計画書 4 節「PR 作成後の DoD 検証」どおり差し戻し: plan `in-review → active`・Notion `確認待ち → 進行中`・PR #102 にコメント。原因分析と是正の後に再計測する
+- **一次分析**: 4 ワーカーでの並列効率が約 1.4 倍にとどまる(直列 1,420〜1,600 秒 → 1,061 秒)。手元(8 ワーカー・24 コア)では 437〜517 秒。ubuntu-latest の 4 vCPU は物理 2 コア × HT 相当で CPU 律速のテストは 4 倍にならない見込み。加えて (a) 28,092 件(うち 25,571 件が分割由来)の xdist 制御オーバーヘッド (b) census の共有を revert したため同ファイルの CPU(手元 310 秒・CI 換算 500 秒級)が丸ごと残る (c) `test_g_*` 40 秒級 × 3 などの尾。手元 `-n 4 --durations=40` と `--dist worksteal` の比較を実測して切り分ける
+- **backend**: sysmon で 15.2 → 12.4 分(−19%)。内訳(`--durations`)は置き場が無く未取得(後続)
+
 ## 決定
 
 - タスク分割(A/B)とワーカー数(上記)
