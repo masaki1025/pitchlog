@@ -23,6 +23,9 @@ _EXPECTED_DSN_KEYS = frozenset(
         "PITCHLOG_MIGRATION_DATABASE_URL",
         "PITCHLOG_TEST_ADMIN_DSN",
         "PITCHLOG_TEST_ROLE_DSN",
+        # 製品 RLS runner の管理接続と被検査ロール接続を許可する。
+        "PITCHLOG_PRODUCT_RLS_ADMIN_DSN",
+        "PITCHLOG_PRODUCT_RLS_TEST_ROLE_DSN",
     }
 )
 _DECLARED_KEY_PATTERN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=", re.MULTILINE)
@@ -131,6 +134,17 @@ def test_database_configuration_values_are_empty() -> None:
     assert {key: assignments[key] for key in _REQUIRED_DATABASE_KEYS} == {
         key: "" for key in _REQUIRED_DATABASE_KEYS
     }
+
+
+def test_product_rls_runner_connection_values_are_empty() -> None:
+    """製品 RLS runner の接続情報をテンプレートに記録しない。"""
+    assignments = _assignments(_ENVIRONMENT_TEMPLATE_PATH.read_text(encoding="utf-8"))
+    keys = {
+        "PITCHLOG_PRODUCT_RLS_ADMIN_DSN",
+        "PITCHLOG_PRODUCT_RLS_TEST_ROLE_DSN",
+    }
+
+    assert {key: assignments[key] for key in keys} == {key: "" for key in keys}
 
 
 def test_pitchlog_database_connection_keys_are_closed_set() -> None:
