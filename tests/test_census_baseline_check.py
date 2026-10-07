@@ -1438,16 +1438,73 @@ def _assert_difference_codes_within_allowed_set(
         )
 
 
+def _counterfactual_allowed_symbol_rows(
+    *,
+    current_entries: list[dict[str, Any]],
+    anchor_entries: list[dict[str, Any]],
+    substituted_from: str,
+) -> tuple[
+    list[dict[str, Any]], list[dict[str, Any]], dict[str, dict[str, Any]]
+]:
+    """新規行と共通行の署名差を、記号単位の反実仮想に分ける。"""
+    assert substituted_from == "anchor_symbol_set_plus_scoped_signature_rows"
+    anchor_symbols = [
+        _string(row.get("symbol"), "anchor.symbol") for row in anchor_entries
+    ]
+    current_symbols = [
+        _string(row.get("symbol"), "current.symbol") for row in current_entries
+    ]
+    assert len(set(anchor_symbols)) == len(anchor_symbols)
+    assert len(set(current_symbols)) == len(current_symbols)
+    anchor_set = set(anchor_symbols)
+    assert anchor_set <= set(current_symbols), (
+        "anchor の許可記号を現行から削除できない"
+    )
+    retained = [row for row in current_entries if row["symbol"] in anchor_set]
+    added = [row for row in current_entries if row["symbol"] not in anchor_set]
+    current_by_symbol = {row["symbol"]: row for row in retained}
+    changed_signatures: dict[str, dict[str, Any]] = {}
+    for anchor_row in anchor_entries:
+        symbol = anchor_row["symbol"]
+        current_row = current_by_symbol[symbol]
+        missing = object()
+        different_fields = sorted(
+            field
+            for field in anchor_row.keys() | current_row.keys()
+            if anchor_row.get(field, missing) != current_row.get(field, missing)
+        )
+        if different_fields:
+            assert different_fields == ["signature"], (
+                "共通する allowed_symbols の行差は署名だけ帰属できる"
+                f"({symbol}: {', '.join(different_fields)})"
+            )
+            _string(anchor_row.get("signature"), f"anchor.{symbol}.signature")
+            _string(current_row.get("signature"), f"current.{symbol}.signature")
+            changed_signatures[symbol] = anchor_row
+    return retained, added, changed_signatures
+
+
+def _allowed_symbol_product_path(symbol: str, source_root: Path) -> str:
+    """許可記号の所属する製品モジュールを実在ファイルから求める。"""
+    parts = symbol.split(".")
+    for length in range(len(parts) - 1, 0, -1):
+        relative = Path(*parts[:length]).with_suffix(".py")
+        if (source_root / relative).is_file():
+            return relative.as_posix()
+    raise AssertionError(f"許可記号の製品モジュールが無い: {symbol}")
+
+
 def _measured_allowlist_suppression(
     *,
     substituted_field: str,
+    substituted_from: str,
     reference_repository_root: Path,
     source_root: Path,
     current_census: frozenset[CensusIdentity],
 ) -> tuple[
     frozenset[CensusIdentity], frozenset[str], frozenset[CensusIdentity]
 ]:
-    """現行 checker で許可記号だけを差し替え、実際の抑止集合を測る。
+    """現行 checker で新規行と共通行の署名差を個別に測る。
 
     ``Violation.path`` は ``scan_directory`` の ``backend/src`` 相対パス。
     fixture も同じ根からの相対パスへ写像するため、通常は
@@ -1462,43 +1519,15 @@ def _measured_allowlist_suppression(
     )
     anchor_entries = [_object(row, "anchor.allowed_symbols[]") for row in anchor_rows]
     current_entries = [_object(row, "current.allowed_symbols[]") for row in current_rows]
-    anchor_by_symbol = {
-        _string(row.get("symbol"), "anchor.symbol"): row for row in anchor_entries
-    }
-    current_by_symbol = {
-        _string(row.get("symbol"), "current.symbol"): row for row in current_entries
-    }
-    assert len(anchor_by_symbol) == len(anchor_rows)
-    assert len(current_by_symbol) == len(current_rows)
-    assert anchor_by_symbol.keys() <= current_by_symbol.keys(), (
-        "anchor の許可記号を現行から削除できない"
+    retained_rows, added_rows, changed_signatures = _counterfactual_allowed_symbol_rows(
+        current_entries=current_entries,
+        anchor_entries=anchor_entries,
+        substituted_from=substituted_from,
     )
-    for symbol, anchor_row in anchor_by_symbol.items():
-        current_row = current_by_symbol[symbol]
-        if current_row != anchor_row:
-            missing = object()
-            different_fields = sorted(
-                field
-                for field in anchor_row.keys() | current_row.keys()
-                if anchor_row.get(field, missing) != current_row.get(field, missing)
-            )
-            raise AssertionError(
-                "共通する allowed_symbols の行が anchor と異なる"
-                f"({symbol}: {', '.join(different_fields)})。"
-                "免除の導出は anchor に無いエントリの追加しか帰属できないため、"
-                "行の変更による TB005 の消失は説明できない。"
-                "行を変える場合は、導出を記号単位の行の差分へ一般化する必要がある"
-                "(contracts/tenant_boundary/census-baseline.json の "
-                "removed_outside_allowed_codes_equals_measured_allowlist_suppression "
-                "の derivation)。"
-            )
     fixture_root = Path("tests/fixtures/tenant_boundary/positive")
     grown_fixtures: set[str] = set()
     removed_paths: set[str] = set()
-    for raw_row in current_rows:
-        row = _object(raw_row, "current.allowed_symbols[]")
-        if row["symbol"] in anchor_by_symbol:
-            continue
+    for row in added_rows:
         fixture = _string(row.get("fixture"), f"{row['symbol']}.fixture")
         fixture_path = Path(fixture)
         assert not fixture_path.is_absolute(), f"fixture は相対パスが必要: {fixture}"
@@ -1527,20 +1556,39 @@ def _measured_allowlist_suppression(
         shutil.copytree(source_root, counterfactual_source)
         asset_path, _, _ = substituted_field.partition("#")
         asset = json.loads((counterfactual_root / asset_path).read_text(encoding="utf-8"))
-        asset["allowed_symbols"] = anchor_rows
-        (counterfactual_root / asset_path).write_text(
-            json.dumps(asset, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+        def scan_with_rows(rows: list[dict[str, Any]]) -> frozenset[CensusIdentity]:
+            """同じソースに対し、指定した許可行で checker を走らせる。"""
+            asset["allowed_symbols"] = rows
+            (counterfactual_root / asset_path).write_text(
+                json.dumps(asset, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            return _checker_census(
+                checker,
+                repository_root=counterfactual_root,
+                source_root=counterfactual_source,
+            )
+
+        signature_suppression: set[CensusIdentity] = set()
+        for symbol, anchor_row in changed_signatures.items():
+            single_row_reverted = [
+                anchor_row if row["symbol"] == symbol else row
+                for row in current_entries
+            ]
+            product_path = _allowed_symbol_product_path(symbol, source_root)
+            signature_suppression.update(
+                identity
+                for identity in scan_with_rows(single_row_reverted) - current_census
+                if identity[0] == product_path
+                and identity[4] == "TB005"
+                and identity[5] == symbol
+            )
         for fixture in grown_fixtures:
             target = counterfactual_root / fixture
             assert target.is_file(), f"反実仮想の正例 fixture が無い: {fixture}"
             target.unlink()
-        counterfactual_census = _checker_census(
-            checker,
-            repository_root=counterfactual_root,
-            source_root=counterfactual_source,
-        )
-    suppression = counterfactual_census - current_census
+        counterfactual_census = scan_with_rows(retained_rows)
+    suppression = (counterfactual_census - current_census) | signature_suppression
     assert not {str(identity[0]) for identity in suppression} & removed_paths, (
         "除いた fixture が抑止集合を製造した"
     )
@@ -1597,7 +1645,7 @@ def _assert_removed_equals_measured_allowlist_suppression(
     )
     assert substituted_field == f"{checker.DEFAULT_ALLOWLIST.as_posix()}#/allowed_symbols"
     assert _string(derivation.get("substituted_from"), "derivation.substituted_from") == (
-        "anchor_materialized_tree"
+        "anchor_symbol_set_plus_scoped_signature_rows"
     )
     assert _string(derivation.get("co_substituted"), "derivation.co_substituted") == (
         "positive_fixtures_of_allowed_symbols_absent_from_anchor"
@@ -1609,6 +1657,7 @@ def _assert_removed_equals_measured_allowlist_suppression(
     assert isinstance(reference_repository_root, Path)
     suppression = _measured_allowlist_suppression(
         substituted_field=substituted_field,
+        substituted_from=derivation["substituted_from"],
         reference_repository_root=reference_repository_root,
         source_root=source_root,
         current_census=data_sets["current_census"],
@@ -2254,7 +2303,7 @@ def test_measured_suppression_predicate_accepts_actual_a2_census(
         "kind": "counterfactual_allowlist_substitution",
         "checker": "current",
         "substituted_field": "contracts/tenant_boundary/base-allowlist.json#/allowed_symbols",
-        "substituted_from": "anchor_materialized_tree",
+        "substituted_from": "anchor_symbol_set_plus_scoped_signature_rows",
         "co_substituted": "positive_fixtures_of_allowed_symbols_absent_from_anchor",
         "relation": "subset_of_measured_suppression",
     }
@@ -2270,56 +2319,64 @@ def test_measured_suppression_predicate_accepts_actual_a2_census(
 
 
 @pytest.mark.parametrize("field", ("missing", "signature", "allowed_api_ids"))
-def test_measured_suppression_rejects_missing_or_changed_shared_allowed_entry(
+def test_measured_suppression_shared_allowed_entry_follows_declared_substitution(
     field: str,
     census_predicate_context: dict[str, Any],
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
 ) -> None:
-    """共通記号の行を変えると、宣言検査の入口で fail-closed にする。"""
+    """共通行の署名だけを個別に帰属し、記号削除や API 差は拒否する。
+
+    署名変更を正当に含むため、従来の「行変更は常に拒否」を改める。
+    実変更のある行を避けて合成変異を作り、その行自体の処理を検証する。
+    """
     predicate, arguments, _ = _suppression_arguments(census_predicate_context)
     locator = predicate["derivation"]["substituted_field"]
     anchor_rows = cast(
         list[dict[str, Any]],
         _load_json_pointer(locator, repository_root=arguments["reference_repository_root"]),
     )
-    shared = next(row for row in anchor_rows if len(row["allowed_api_ids"]) > 1)
-    original_loader = _load_json_pointer
+    current_rows = cast(list[dict[str, Any]], _load_json_pointer(locator))
+    current_by_symbol = {row["symbol"]: row for row in current_rows}
+    shared = next(
+        row
+        for row in anchor_rows
+        if len(row["allowed_api_ids"]) > 1
+        and current_by_symbol[row["symbol"]] == row
+    )
+    rows = copy.deepcopy(current_rows)
+    changed = next(row for row in rows if row["symbol"] == shared["symbol"])
+    if field == "missing":
+        rows.remove(changed)
+    elif field == "signature":
+        changed[field] += "_changed"
+    else:
+        changed[field] = changed[field][:-1]
 
-    def changed_shared_entry(
-        path: str, *, repository_root: Path | None = None
-    ) -> object:
-        loaded = original_loader(path, repository_root=repository_root)
-        if path == locator and repository_root is None:
-            rows = cast(list[dict[str, Any]], copy.deepcopy(loaded))
-            row = next(row for row in rows if row["symbol"] == shared["symbol"])
-            if field == "missing":
-                rows.remove(row)
-            elif field == "signature":
-                row[field] = row[field] + "_changed"
-            else:
-                row[field] = row[field][:-1]
-            return rows
-        return loaded
-
-    with monkeypatch.context() as mutation:
-        mutation.setattr(
-            sys.modules[__name__], "_load_json_pointer", changed_shared_entry
-        )
+    if field in ("missing", "allowed_api_ids"):
         expected = (
             "anchor の許可記号を現行から削除できない"
             if field == "missing"
-            else "共通する allowed_symbols の行が anchor と異なる"
+            else re.escape(f"{shared['symbol']}: allowed_api_ids")
         )
-        with pytest.raises(AssertionError, match=expected) as rejection:
-            _run_declared_census_check(tmp_path / f"shared_{field}_anchor")
-        if field != "missing":
-            message = str(rejection.value)
-            assert shared["symbol"] in message
-            assert field in message
-            assert "追加しか帰属できない" in message
-            assert "census-baseline.json" in message
-            assert "derivation" in message
+        with pytest.raises(AssertionError, match=expected):
+            _counterfactual_allowed_symbol_rows(
+                current_entries=rows,
+                anchor_entries=anchor_rows,
+                substituted_from=predicate["derivation"]["substituted_from"],
+            )
+        return
+
+    assert changed != shared
+    retained, added, changed_signatures = _counterfactual_allowed_symbol_rows(
+        current_entries=rows,
+        anchor_entries=anchor_rows,
+        substituted_from=predicate["derivation"]["substituted_from"],
+    )
+    assert next(row for row in retained if row["symbol"] == shared["symbol"]) == changed
+    assert changed_signatures[shared["symbol"]] == shared
+    assert {row["symbol"] for row in added} == (
+        {row["symbol"] for row in current_rows}
+        - {row["symbol"] for row in anchor_rows}
+    )
 
 
 def test_measured_suppression_rejects_unrelated_api_inside_allowed_function(
@@ -2380,6 +2437,7 @@ def test_measured_suppression_rejects_unrelated_api_inside_allowed_function(
         assert actual not in current_census
         suppression, _, _ = _measured_allowlist_suppression(
             substituted_field=predicate["derivation"]["substituted_field"],
+            substituted_from=predicate["derivation"]["substituted_from"],
             reference_repository_root=arguments["reference_repository_root"],
             source_root=source_root,
             current_census=current_census,
