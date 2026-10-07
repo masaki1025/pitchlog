@@ -156,7 +156,8 @@ rg -n 'TSK-344' docs/design/data-model.md
 | `docs/ops/product-rls-real-schema.md` | **反映なし**(別タスクへ切り出し) | — |
 | `docs/adr/ADR-004-merge-gate-scope.md` | **反映なし**(裁定 A・B を再議しない) | — |
 | `docs/design/sync-protocol.md` | **反映なし** | — |
-| `contracts/**` | **反映なし**(差分 0 行) | — |
+| **`contracts/authz/shared-preconditions.json`** | **`docs/design/data-model.md` の `git_blob_digest` を取り直す**(**本文を 1 文字でも変えると機械検査が red になる派生資産**。**内容の判断は含まない**) | PR レビュー |
+| `contracts/**`(上記以外) | **反映なし**(差分 0 行) | — |
 | `.claude/core-areas.json` | **反映なし**(paths を足さない) | — |
 
 ### 正本体系外だが同一 PR で更新するもの
@@ -207,6 +208,8 @@ CLAUDE.md の役割分担(設計書 3 章)では **ドキュメントは Claude 
 | 3 | **12-8 の 2 箇所を直す** — ① RLS DDL の行(`:2972`)の末尾を現況へ ② 射程宣言の TSK-344 の行を併記へ書き換え、受け取り先を後続タスクへ付け替える | ① 「まだ実スキーマへ適用されていない」「越境テスト自体がまだ存在しない」が本文から **0 件** ② **`git diff` 上で、PR A1・A2・B・U-A1 β の `未発効` を含む記述がいずれも不変**(**総件数の一致では別箇所の削除と追加が相殺するので使わない** — 確定ゲート 3 周目 `P2`)③ **行末の要約が「#97 が専用の検証対象への適用を確認した」に限定され、本番の配備先は「本記録の対象外」と書かれている**(**「まだ行われていない」と断定していない**)④ **射程宣言に TSK-344 の行が残り、そこに「適用と再実行は完了」「通過の記録は保留」「受け取り先」の 3 つがある** ⑤ **条文(通過条件・適用単位・測定経路・最低要求 4 件の要求文)が `git diff` に含まれない** |
 | 4 | **変更履歴に 1 行足し、`docs/README.md` の索引を現行化する**(**版は上げない**) | `check_docs_status.py` が違反 0 件。**変更履歴表の版の列が v0.6 のまま**(新しい版番号を作っていない)。**既存行を書き換えていない**(`git diff` で確認) |
 | 5 | **記録を残す**(**本ステップの成果物はコミットされるファイルだけ**)— ① worklog へ 4 節の 5 点 ② `gate-record.md` の 8-2 節へ DoD 6 の繰り延べ先と理由を追記し、`:212` と `:363` の古い送り先を「当時の予定」と現在の分担に書き分ける | **逐行照合**: ① worklog に 4 節の 5 点がすべてある ② **「ゲートを通った」と書いていない** ③ **DoD 6 を閉じていない**(`gate-record.md` 8-2 が繰り延べのまま)④ **`:212` と `:363` が現在の分担と食い違っていない** ⑤ `check_plan_docs_sync.py` が exit 0。**PR 本文への 5 点の転記は本ステップの合格条件に含めない** — ステップはコミット単位で、PR 作成は後の `/pr` であるため(確定ゲート 2 周目 `P1`)。**転記の確認は 5 節の DoD に置く** |
+
+| 6 | **派生資産の追随**(**総合検証で判明した漏れ** — 計画 3 節の宣言も同時に直す)— ① `contracts/authz/shared-preconditions.json` の `data-model.md` の `git_blob_digest` を取り直す ② **`docs/features/orm-schema-migration/acceptance-sheets/` を変えずに済ませる**ため、**変更履歴の文言から N3 の走査語を外す**(`scripts/generate_orm_acceptance_sheets.py` の `N3_TERMS`) | `check_shared_preconditions.py` が OK / `pytest tests/test_orm_acceptance_sheets.py` が全件 green / **受入突合シート 4 枚の差分が 0 行**(**生成器を走らせない** — 走らせると人手の判定が全消しになる)|
 
 > `/<N>` を書かない(総数が変わりうる — 設計書 6.1 厳密文法③)。
 
