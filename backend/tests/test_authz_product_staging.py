@@ -1,9 +1,10 @@
-"""製品認可資産の未発効状態と資産指定の分離を検査する。"""
+"""製品認可資産の状態と資産指定の分離を検査する。"""
 
 from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -12,17 +13,30 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from test_authz_runtime_contract_repository import (
+    PRODUCT_STATE_TEST_FILES,
+    copy_product_test_repository,
+    product_spec_for_repository,
+)
 
 from pitchlog.authz import ddl as authz_ddl
 from pitchlog.authz import runtime_contract
-from pitchlog.authz.asset_spec import PROBE_SPEC, PRODUCT_SPEC, AuthzAssetSpec
+from pitchlog.authz.asset_spec import PROBE_SPEC, AuthzAssetSpec
 from pitchlog.authz.ddl import AuthzDDLGenerationError, generate_authz_ddl
+from pitchlog.authz.runtime_contract_state import (
+    PRODUCT_ASSET,
+    STAGED_PRODUCT_ASSET,
+    RuntimeContractState,
+    evaluate_repository,
+    product_asset_path_for_state,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+PRODUCT_SPEC = product_spec_for_repository(_REPOSITORY_ROOT)
 _BODY_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_function_bodies.py"
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
-_FINAL_PRODUCT_PATH = Path("contracts/authz/product/ddl-elements.json")
 _TASK_ID_RE = re.compile(r"TSK-[0-9]+")
+_PRODUCT_STATE_SUBPROCESS = "PITCHLOG_PRODUCT_STATE_TEST"
 
 
 def _load_catalog_checker() -> Any:
@@ -49,15 +63,16 @@ def _read_json_object(path: Path) -> dict[str, Any]:
     return value
 
 
-def _staged_asset(root: Path) -> dict[str, Any]:
-    """二重正本を拒否して未発効資産を読む。"""
-    staged_path = root / PRODUCT_SPEC.ddl_elements_path
-    final_path = root / _FINAL_PRODUCT_PATH
-    if staged_path.exists() and final_path.exists():
+def _product_asset(root: Path) -> dict[str, Any]:
+    """共有 API の状態に対応する製品資産を読む。"""
+    state, violations = evaluate_repository(root)
+    if state is RuntimeContractState.INVALID:
         raise AssertionError("stagedと最終パスが同時に存在する")
-    if not staged_path.is_file() or final_path.exists():
-        raise AssertionError("未発効状態のパス条件を満たさない")
-    return _read_json_object(staged_path)
+    assert violations == set()
+    relative_path = product_asset_path_for_state(state)
+    if relative_path is None:
+        raise AssertionError("製品資産が存在する状態ではない")
+    return _read_json_object(root / relative_path)
 
 
 def _run_body_checker(
@@ -110,14 +125,29 @@ def _copy_asset_to_spec_paths(
         root / "scripts",
         dirs_exist_ok=True,
     )
+    package_root = Path("backend/src/pitchlog")
+    package_destination = root / package_root
+    package_destination.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(
+        _REPOSITORY_ROOT / package_root / "__init__.py",
+        package_destination / "__init__.py",
+    )
+    shutil.copytree(
+        _REPOSITORY_ROOT / package_root / "authz",
+        package_destination / "authz",
+        dirs_exist_ok=True,
+    )
 
 
 def test_product_spec_and_unfrozen_manifest_are_explicit() -> None:
     """製品の配置・scope・空の操作集合と非凍結manifestを固定する。"""
+    state, violations = evaluate_repository(_REPOSITORY_ROOT)
+    product_path = product_asset_path_for_state(state)
+
+    assert violations == set()
+    assert product_path is not None
     assert PRODUCT_SPEC.asset_root == Path("contracts/authz/product")
-    assert PRODUCT_SPEC.ddl_elements_path == Path(
-        "contracts/authz/product/ddl-elements.staged.json"
-    )
+    assert PRODUCT_SPEC.ddl_elements_path == product_path
     assert PRODUCT_SPEC.body_directory == Path(
         "contracts/authz/product/function-bodies"
     )
@@ -144,27 +174,68 @@ def test_product_spec_and_unfrozen_manifest_are_explicit() -> None:
     )
 
 
-def test_repository_is_in_the_explicit_unactivated_product_state() -> None:
-    """Stagedだけが存在し、暫定ランタイムと切替タスクを維持する。"""
-    asset = _staged_asset(_REPOSITORY_ROOT)
-    pending_switch = asset.get("pending_switch")
+def test_repository_product_state_has_matching_lifecycle_fields() -> None:
+    """状態に対応するランタイム契約と切替欄を検査する。"""
+    state, violations = evaluate_repository(_REPOSITORY_ROOT)
+    asset = _product_asset(_REPOSITORY_ROOT)
 
-    assert runtime_contract.PROVISIONAL is True
-    assert isinstance(pending_switch, str)
-    assert _TASK_ID_RE.fullmatch(pending_switch)
-    assert pending_switch == "TSK-443"
+    assert violations == set()
+    if state is RuntimeContractState.PENDING:
+        pending_switch = asset.get("pending_switch")
+        assert runtime_contract.PROVISIONAL is True
+        assert isinstance(pending_switch, str)
+        assert _TASK_ID_RE.fullmatch(pending_switch)
+        assert pending_switch == "TSK-443"
+    else:
+        assert state is RuntimeContractState.PRODUCT
+        assert runtime_contract.PROVISIONAL is False
+        assert "pending_switch" not in asset
+        assert "provisional_contract_additions" not in asset
 
 
 def test_staged_and_final_product_paths_cannot_coexist(tmp_path: Path) -> None:
     """Stagedと最終パスを同時に置く二重正本の変異を拒否する。"""
-    staged_path = tmp_path / PRODUCT_SPEC.ddl_elements_path
-    final_path = tmp_path / _FINAL_PRODUCT_PATH
+    staged_path = tmp_path / STAGED_PRODUCT_ASSET
+    final_path = tmp_path / PRODUCT_ASSET
     staged_path.parent.mkdir(parents=True)
     staged_path.write_text("{}\n", encoding="utf-8")
     final_path.write_text("{}\n", encoding="utf-8")
 
     with pytest.raises(AssertionError, match="同時に存在"):
-        _staged_asset(tmp_path)
+        _product_asset(tmp_path)
+
+
+def test_target_tests_pass_in_a_product_state_copy(tmp_path: Path) -> None:
+    """製品状態の複製で対象試験を無編集のまま再実行する。"""
+    if os.environ.get(_PRODUCT_STATE_SUBPROCESS) == "1":
+        return
+
+    repository = copy_product_test_repository(
+        _REPOSITORY_ROOT,
+        tmp_path / "product-repository",
+    )
+    environment = dict(os.environ)
+    environment[_PRODUCT_STATE_SUBPROCESS] = "1"
+    environment["PYTHONPATH"] = str(repository / "backend/src")
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            *(
+                path.relative_to("backend").as_posix()
+                for path in PRODUCT_STATE_TEST_FILES
+            ),
+        ],
+        cwd=repository / "backend",
+        capture_output=True,
+        text=True,
+        check=False,
+        env=environment,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_product_assets_are_accepted_by_all_three_readers() -> None:
@@ -181,7 +252,7 @@ def test_product_assets_are_accepted_by_all_three_readers() -> None:
         PRODUCT_SPEC,
     ) == {
         "scope_status": PRODUCT_SPEC.allowed_scope_status,
-        "product_role_count": 4,
+        "product_role_count": len(product_asset["roles"]),
     }
 
 

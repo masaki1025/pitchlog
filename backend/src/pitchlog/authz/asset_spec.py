@@ -250,7 +250,12 @@ _PRODUCT_APPLICATION_ELEMENT_GROUPS = (
     ("acl_expectations", "column_acl_expectations"),
     ("functions:migration_trigger",),
 )
-_PRODUCT_FUNCTION_KINDS = ("rls_helper", "migration_trigger")
+_PRODUCT_FUNCTION_KINDS = (
+    "rls_helper",
+    "definer",
+    "migration_trigger",
+    "migration_function",
+)
 
 
 def _read_json_object(path: Path, label: str) -> dict[str, object]:
@@ -387,19 +392,35 @@ def _validate_element_coverage(
     pitchlog_owner_is_external = False
     for section in spec.element_sections:
         if section.section_name not in ddl_elements:
+            if section.section_name == "extensions":
+                continue
             raise AuthzApplicationStepsError(
                 f"ddl-elements.{section.section_name}が存在しない"
             )
         raw_rows = ddl_elements[section.section_name]
-        if not isinstance(raw_rows, list) or not raw_rows:
+        if not isinstance(raw_rows, list) or (
+            not raw_rows and section.section_name != "extensions"
+        ):
             raise AuthzApplicationStepsError(
                 f"ddl-elements.{section.section_name}は空でないarrayでなければならない"
             )
         if section.section_name == "functions":
-            for function_kind in _PRODUCT_FUNCTION_KINDS:
-                expected_groups.add(f"functions:{function_kind}")
+            expected_groups.add("functions:rls_helper")
+            expected_groups.add("functions:migration_trigger")
+            if any(
+                isinstance(row, dict) and row.get("function_kind") == "definer"
+                for row in raw_rows
+            ):
+                expected_groups.add("functions:definer")
+            if any(
+                isinstance(row, dict)
+                and row.get("function_kind") == "migration_function"
+                for row in raw_rows
+            ):
+                expected_groups.add("functions:migration_function")
         else:
-            expected_groups.add(section.section_name)
+            if raw_rows:
+                expected_groups.add(section.section_name)
         for index in range(len(raw_rows)):
             raw_row = raw_rows[index]
             label = f"ddl-elements.{section.section_name}[{index}]"
@@ -423,6 +444,58 @@ def _validate_element_coverage(
                 if function_kind not in _PRODUCT_FUNCTION_KINDS:
                     raise AuthzApplicationStepsError(
                         f"関数の要素群が未定義: {function_kind!r}"
+                    )
+                schema_name = _require_string(
+                    raw_row.get("schema_name"), f"{label}.schema_name"
+                )
+                owner_role_id = _require_string(
+                    raw_row.get("owner_role_id"), f"{label}.owner_role_id"
+                )
+                schemas = ddl_elements.get("schemas")
+                roles = ddl_elements.get("roles")
+                if not isinstance(schemas, list) or schema_name not in {
+                    row.get("schema_name") for row in schemas if isinstance(row, dict)
+                }:
+                    raise AuthzApplicationStepsError(
+                        f"{label}.schema_nameがschemasに宣言されていない"
+                    )
+                if not isinstance(roles, list) or owner_role_id not in {
+                    row.get("role_id") for row in roles if isinstance(row, dict)
+                }:
+                    raise AuthzApplicationStepsError(
+                        f"{label}.owner_role_idがrolesに宣言されていない"
+                    )
+                if not all(
+                    isinstance(raw_row.get(key), list)
+                    for key in ("acl_expectations", "revoked_acl_expectations")
+                ):
+                    raise AuthzApplicationStepsError(
+                        f"{label}の関数ACL付与先は配列で宣言しなければならない"
+                    )
+                if (
+                    function_kind == "definer"
+                    and raw_row.get("security_mode") != "definer"
+                ):
+                    raise AuthzApplicationStepsError(
+                        f"{label}.security_modeはdefinerでなければならない"
+                    )
+            if section.section_name == "extensions":
+                extension_name = _require_string(
+                    raw_row.get("extension_name"), f"{label}.extension_name"
+                )
+                schema_name = _require_string(
+                    raw_row.get("schema_name"), f"{label}.schema_name"
+                )
+                if element_id != extension_name:
+                    raise AuthzApplicationStepsError(
+                        f"{label}.extension_idはextension_nameと一致しなければならない"
+                    )
+                schemas = ddl_elements.get("schemas")
+                if not isinstance(schemas, list) or schema_name not in {
+                    row.get("schema_name") for row in schemas if isinstance(row, dict)
+                }:
+                    raise AuthzApplicationStepsError(
+                        f"{label}.schema_nameがschemasに宣言されていない"
                     )
             if section.section_name == "roles" and element_id == "pitchlog_owner":
                 pitchlog_owner_is_external = (
@@ -495,11 +568,13 @@ def validate_product_application_steps(
         asset["preserved_role_ids"], "preserved_role_ids"
     )
 
-    expected_sequences = tuple(range(1, 8))
+    expected_sequences = tuple(range(1, len(application_steps) + 1))
+    if len(unapplication_steps) != len(application_steps):
+        raise AuthzApplicationStepsError("適用と取り外しの手順数が一致しない")
     if tuple(step.sequence for step in application_steps) != expected_sequences:
-        raise AuthzApplicationStepsError("適用手順は1から7の連番でなければならない")
+        raise AuthzApplicationStepsError("適用手順は1からの連番でなければならない")
     if tuple(step.sequence for step in unapplication_steps) != expected_sequences:
-        raise AuthzApplicationStepsError("取り外し手順は1から7の連番でなければならない")
+        raise AuthzApplicationStepsError("取り外し手順は1からの連番でなければならない")
     application_ids = tuple(step.step_id for step in application_steps)
     unapplication_ids = tuple(step.step_id for step in unapplication_steps)
     if len(application_ids) != len(set(application_ids)) or len(
@@ -509,8 +584,22 @@ def validate_product_application_steps(
             "適用・取り外しのstep_idは一意でなければならない"
         )
     _validate_element_coverage(ddl_elements, application_steps, spec)
-    if tuple(step.element_groups for step in application_steps) != (
-        _PRODUCT_APPLICATION_ELEMENT_GROUPS
+    expected_groups = [list(groups) for groups in _PRODUCT_APPLICATION_ELEMENT_GROUPS]
+    if "extensions" in ddl_elements and ddl_elements["extensions"]:
+        expected_groups[1].append("extensions")
+    functions = ddl_elements.get("functions")
+    if isinstance(functions, list) and any(
+        isinstance(row, dict) and row.get("function_kind") == "definer"
+        for row in functions
+    ):
+        expected_groups[2].append("functions:definer")
+    if isinstance(functions, list) and any(
+        isinstance(row, dict) and row.get("function_kind") == "migration_function"
+        for row in functions
+    ):
+        expected_groups[-1].append("functions:migration_function")
+    if tuple(step.element_groups for step in application_steps) != tuple(
+        tuple(groups) for groups in expected_groups
     ):
         raise AuthzApplicationStepsError(
             "適用手順が補助関数をポリシーより先に置く固定順序と一致しない"
@@ -633,7 +722,7 @@ PROBE_SPEC = AuthzAssetSpec(
 
 PRODUCT_SPEC = AuthzAssetSpec(
     asset_root=PurePosixPath("contracts/authz/product"),
-    ddl_elements_path=PurePosixPath("contracts/authz/product/ddl-elements.staged.json"),
+    ddl_elements_path=PurePosixPath("contracts/authz/product/ddl-elements.json"),
     body_manifest_path=PurePosixPath(
         "contracts/authz/product/function-bodies/manifest.json"
     ),
@@ -647,21 +736,22 @@ PRODUCT_SPEC = AuthzAssetSpec(
         AuthzElementSectionSpec("role", "roles", "role_id", position=0),
         AuthzElementSectionSpec("database", "databases", "database_id", position=1),
         AuthzElementSectionSpec("schema", "schemas", "schema_id", position=2),
-        AuthzElementSectionSpec("function", "functions", "function_id", position=3),
-        AuthzElementSectionSpec("table", "tables", "table_id", position=4),
-        AuthzElementSectionSpec("predicate", "predicates", "predicate_id", position=5),
-        AuthzElementSectionSpec("policy", "policies", "policy_id", position=6),
+        AuthzElementSectionSpec("extension", "extensions", "extension_id", position=3),
+        AuthzElementSectionSpec("function", "functions", "function_id", position=4),
+        AuthzElementSectionSpec("table", "tables", "table_id", position=5),
+        AuthzElementSectionSpec("predicate", "predicates", "predicate_id", position=6),
+        AuthzElementSectionSpec("policy", "policies", "policy_id", position=7),
         AuthzElementSectionSpec(
             "acl_expectation",
             "acl_expectations",
             "acl_id",
-            position=7,
+            position=8,
         ),
         AuthzElementSectionSpec(
             "column_acl_expectation",
             "column_acl_expectations",
             "expectation_id",
-            position=8,
+            position=9,
         ),
     ),
     operation_handlers=(),

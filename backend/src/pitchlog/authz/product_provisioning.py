@@ -84,7 +84,11 @@ def _load_product_elements() -> tuple[_ProductElement, ...]:
     elements: list[_ProductElement] = []
     for section in PRODUCT_SPEC.element_sections:
         rows = asset[section.section_name] if section.section_name in asset else None
-        if not isinstance(rows, list) or not rows:
+        if section.section_name == "extensions" and rows is None:
+            continue
+        if not isinstance(rows, list) or (
+            not rows and section.section_name != "extensions"
+        ):
             raise ProductProvisioningError(
                 f"製品認可資産の {section.section_name} は空でない配列が必要"
             )
@@ -222,6 +226,8 @@ def _element_group(statement: DDLStatement, element: _ProductElement) -> str:
         return "databases"
     if statement.element_type == "schema":
         return "schemas"
+    if statement.element_type == "extension":
+        return "extensions"
     if statement.element_type == "function":
         return f"functions:{_element_text(element, 'function_kind')}"
     if statement.element_type == "table":
@@ -258,6 +264,28 @@ def _application_sequence(
     return matches[0]
 
 
+def _ordered_generated_statements(
+    generated: tuple[DDLStatement, ...],
+    steps: ProductApplicationSteps,
+    elements: tuple[_ProductElement, ...],
+) -> tuple[DDLStatement, ...]:
+    """手順と要素群の宣言順で SQL 要素を並べる。"""
+    ranked: list[tuple[int, int, int, DDLStatement]] = []
+    for index, statement in enumerate(generated):
+        element = _element_for_statement(statement, elements)
+        sequence = _application_sequence(statement, steps, element)
+        groups = steps.application_steps[sequence - 1].element_groups
+        ranked.append(
+            (
+                sequence,
+                groups.index(_element_group(statement, element)),
+                index,
+                statement,
+            )
+        )
+    return tuple(row[3] for row in sorted(ranked))
+
+
 def _application_statements(
     generated: tuple[DDLStatement, ...],
     steps: ProductApplicationSteps,
@@ -265,7 +293,7 @@ def _application_statements(
 ) -> tuple[_ProductStatement, ...]:
     """生成文を補助関数がポリシーより先になる順序へ並べる。"""
     statements: list[_ProductStatement] = []
-    for statement in generated:
+    for statement in _ordered_generated_statements(generated, steps, elements):
         element = _element_for_statement(statement, elements)
         if statement.element_type == "predicate":
             continue
@@ -340,15 +368,48 @@ REVOKE ALL PRIVILEGES ON SCHEMA {quoted_schema}
     FROM {grantees};
 GRANT USAGE ON SCHEMA {quoted_schema} TO PUBLIC;
 """
+    if statement.element_type == "extension":
+        return (
+            "DROP EXTENSION IF EXISTS "
+            f"{_quote_identifier(_element_text(element, 'extension_name'))};"
+        )
     if statement.element_type == "function":
         qualified_function = _qualified_identifier(
             _element_text(element, "schema_name"),
             _element_text(element, "function_name"),
         )
         identity = f"{qualified_function}({_element_string(element, 'identity_args')})"
-        if _element_text(element, "function_kind") == "rls_helper":
+        function_kind = _element_text(element, "function_kind")
+        if function_kind in {"rls_helper", "definer"}:
             return f"DROP FUNCTION IF EXISTS {identity};"
-        return f"GRANT EXECUTE ON FUNCTION {identity} TO PUBLIC;"
+        if function_kind == "migration_function":
+            # migration は関数を PUBLIC 実行可で作る。適用中に与えた直接 grant
+            # を外してから PUBLIC を戻し、移行ロールの DROP ROLE 依存も残さない。
+            revoke = f"REVOKE EXECUTE ON FUNCTION {identity} FROM %I CASCADE"
+            revoke_literal = revoke.replace("'", "''")
+            return f"""
+DO $authz$
+DECLARE
+    grantee_name TEXT;
+BEGIN
+    FOR grantee_name IN
+        SELECT role.rolname
+        FROM pg_catalog.pg_proc AS procedure
+        CROSS JOIN LATERAL pg_catalog.aclexplode(procedure.proacl) AS acl
+        JOIN pg_catalog.pg_roles AS role ON role.oid = acl.grantee
+        WHERE procedure.oid = pg_catalog.to_regprocedure('{identity}')
+          AND acl.privilege_type = 'EXECUTE'
+          AND acl.grantee <> procedure.proowner
+    LOOP
+        EXECUTE pg_catalog.format('{revoke_literal}', grantee_name);
+    END LOOP;
+END;
+$authz$;
+GRANT EXECUTE ON FUNCTION {identity} TO PUBLIC;
+"""
+        if function_kind == "migration_trigger":
+            return f"GRANT EXECUTE ON FUNCTION {identity} TO PUBLIC;"
+        raise ProductProvisioningError(f"未知の製品関数種別: {function_kind}")
     if statement.element_type == "table":
         table = _qualified_identifier(
             _element_text(element, "schema_name"),
@@ -397,7 +458,9 @@ def _unapplication_statements(
 ) -> tuple[_ProductStatement, ...]:
     """生成文からポリシーを補助関数より先に落とす逆順を作る。"""
     statements: list[_ProductStatement] = []
-    for statement in reversed(generated):
+    for statement in reversed(
+        _ordered_generated_statements(generated, steps, elements)
+    ):
         element = _element_for_statement(statement, elements)
         application_sequence = _application_sequence(statement, steps, element)
         sql_text = _unapplication_sql(
@@ -408,7 +471,10 @@ def _unapplication_statements(
         )
         if sql_text is not None:
             statements.append(
-                _ProductStatement(sequence=8 - application_sequence, sql=sql_text)
+                _ProductStatement(
+                    sequence=len(steps.application_steps) + 1 - application_sequence,
+                    sql=sql_text,
+                )
             )
     return tuple(sorted(statements, key=lambda statement: statement.sequence))
 
@@ -426,8 +492,15 @@ def _build_operation_statements(
         statements = _unapplication_statements(generated, steps, elements)
     else:  # pragma: no cover - Enum の閉包を型検査にも明示する。
         raise ProductProvisioningError(f"未定義の製品認可操作: {operation!r}")
-    if {statement.sequence for statement in statements} != set(range(1, 8)):
-        raise ProductProvisioningError("製品認可の実行文が固定の 7 手順を覆っていない")
+    selected_steps = (
+        steps.application_steps
+        if operation is ProductOperation.APPLY
+        else steps.unapplication_steps
+    )
+    if {statement.sequence for statement in statements} != {
+        step.sequence for step in selected_steps
+    }:
+        raise ProductProvisioningError("製品認可の実行文が全手順を覆っていない")
     return steps, statements
 
 
@@ -534,7 +607,7 @@ def _run_product_operation(
     current_sequence = 1
     try:
         with connection.cursor() as cursor:
-            for sequence in range(1, 8):
+            for sequence in range(1, len(steps.application_steps) + 1):
                 current_sequence = sequence
                 step_statements = tuple(
                     statement

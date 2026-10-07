@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, TypedDict, cast
+from typing import Any, NotRequired, TypedDict, cast
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
     Column,
+    Computed,
     DateTime,
     Text,
     UniqueConstraint,
@@ -114,6 +115,7 @@ class _ColumnContract(TypedDict):
     type: str
     nullable: bool
     default: str | None
+    generated_expression: NotRequired[str]
 
 
 class _UniqueContract(TypedDict):
@@ -164,6 +166,8 @@ def _column_default(column: Column[Any]) -> str | None:
         raise AssertionError(f"Python 側だけの既定値がある: {column.name}")
     if column.server_default is None:
         return None
+    if isinstance(column.server_default, Computed):
+        return None
     if not isinstance(column.server_default, DefaultClause):
         raise AssertionError(f"未対応のサーバー既定値: {column.name}")
     return str(column.server_default.arg)
@@ -175,14 +179,15 @@ def _model_columns(table: Table) -> list[_ColumnContract]:
     for column in table.columns:
         if column.nullable is None:
             raise AssertionError(f"NULL 性が未確定である: {table.name}.{column.name}")
-        contracts.append(
-            _ColumnContract(
-                name=column.name,
-                type=_column_type_name(column),
-                nullable=column.nullable,
-                default=_column_default(column),
-            )
+        contract = _ColumnContract(
+            name=column.name,
+            type=_column_type_name(column),
+            nullable=column.nullable,
+            default=_column_default(column),
         )
+        if isinstance(column.server_default, Computed):
+            contract["generated_expression"] = str(column.server_default.sqltext)
+        contracts.append(contract)
     return sorted(contracts, key=lambda column: column["name"])
 
 

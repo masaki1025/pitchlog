@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import secrets
+import shutil
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -12,6 +14,8 @@ from alembic import command
 from alembic.config import Config
 from psycopg import sql
 
+from pitchlog.authz import product_catalog, product_provisioning
+from pitchlog.authz.asset_spec import PRODUCT_SPEC
 from pitchlog.authz.product_catalog import (
     ProductCatalogReport,
     inspect_product_authz_catalog,
@@ -187,6 +191,155 @@ def test_applied_product_catalog_is_green(
     assert after == before
 
 
+def test_extension_in_other_schema_is_red(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """Pgcrypto を宣言と異なるスキーマへ移すと検出する。"""
+    catalog = provisioned_product_catalog
+    assert catalog.asset["extensions"] == [
+        {
+            "extension_id": "pgcrypto",
+            "extension_name": "pgcrypto",
+            "schema_name": "authn_crypto",
+        }
+    ]
+    privileged_oid = _bootstrap_superuser_oid(catalog)
+    try:
+        assert _inspect(catalog).ok
+        with catalog.applicator.cursor() as cursor:
+            cursor.execute("ALTER EXTENSION pgcrypto SET SCHEMA public")
+        report = inspect_product_authz_catalog(
+            catalog.applicator,
+            privileged_role_oids=frozenset({privileged_oid}),
+        )
+        assert "PRODUCT-CATALOG:EXTENSIONS" in {
+            violation.check_id for violation in report.violations
+        }
+    finally:
+        catalog.observer.rollback()
+        catalog.applicator.rollback()
+
+
+def test_unlisted_table_acl_is_red(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """実カタログへ表 ACL を 1 件足すと資産との exact 照合が失敗する。"""
+    catalog = provisioned_product_catalog
+    with catalog.applicator.cursor() as cursor:
+        cursor.execute("GRANT SELECT ON TABLE public.analysis_groups TO pitchlog_app")
+    catalog.applicator.commit()
+    try:
+        _assert_red(catalog, "PRODUCT-CATALOG:TABLE-ACL")
+    finally:
+        catalog.observer.rollback()
+        with catalog.applicator.cursor() as cursor:
+            cursor.execute(
+                "REVOKE SELECT ON TABLE public.analysis_groups FROM pitchlog_app"
+            )
+        catalog.applicator.commit()
+
+
+def test_removed_role_after_new_application_is_red(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """ロールを 1 件消した試験用資産を新規適用して独立集合と照合する。"""
+    catalog = provisioned_product_catalog
+    removed_role = "pitchlog_management_fn_owner"
+    root = tmp_path / "repository"
+    repository_root = _BACKEND_ROOT.parent
+    shutil.copytree(
+        repository_root / PRODUCT_SPEC.asset_root, root / PRODUCT_SPEC.asset_root
+    )
+    asset_path = root / PRODUCT_SPEC.ddl_elements_path
+    mutated_asset = json.loads(asset_path.read_text(encoding="utf-8"))
+    mutated_asset["roles"] = [
+        row for row in mutated_asset["roles"] if row["role_id"] != removed_role
+    ]
+    declared_function_grants = sum(
+        grant["grantee"] == removed_role
+        for row in mutated_asset["functions"]
+        for grant in row["acl_expectations"]
+    )
+    assert declared_function_grants > 0
+    for section in ("schemas", "functions"):
+        for row in mutated_asset[section]:
+            for field in ("acl_expectations", "revoked_acl_expectations"):
+                row[field] = [
+                    grant for grant in row[field] if grant["grantee"] != removed_role
+                ]
+    assert removed_role not in json.dumps(mutated_asset)
+    asset_path.write_text(json.dumps(mutated_asset), encoding="utf-8")
+    manifest_path = root / PRODUCT_SPEC.body_manifest_path
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    role_entry = next(
+        entry
+        for entry in manifest["entries"]
+        if entry["element_type"] == "role" and entry["element_id"] == removed_role
+    )
+    manifest["entries"].remove(role_entry)
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    (root / role_entry["path"]).unlink()
+    for relative_path in (
+        "databases/current_database.sql",
+        "schemas/authz_private.sql",
+        "schemas/public.sql",
+        "schemas/authn.sql",
+    ):
+        body_path = root / PRODUCT_SPEC.body_directory / relative_path
+        body = body_path.read_text(encoding="utf-8")
+        assert ", pitchlog_management_fn_owner" in body
+        body_path.write_text(
+            body.replace(", pitchlog_management_fn_owner", ""), encoding="utf-8"
+        )
+    removed_function_grants = 0
+    for entry in manifest["entries"]:
+        if entry["element_type"] != "function":
+            continue
+        body_path = root / entry["path"]
+        body = body_path.read_text(encoding="utf-8")
+        lines = body.splitlines(keepends=True)
+        retained = [
+            line for line in lines if "TO pitchlog_management_fn_owner;" not in line
+        ]
+        removed_function_grants += len(lines) - len(retained)
+        if len(retained) != len(lines):
+            body_path.write_text("".join(retained), encoding="utf-8")
+    assert removed_function_grants == declared_function_grants
+    assert all(
+        removed_role not in (root / entry["path"]).read_text(encoding="utf-8")
+        for entry in manifest["entries"]
+    )
+    checker_path = root / PRODUCT_SPEC.body_checker_path
+    checker_path.parent.mkdir(parents=True)
+    checker_path.symlink_to(repository_root / PRODUCT_SPEC.body_checker_path)
+
+    unapply_product_authz_ddl(catalog.applicator)
+    mutated_applied = False
+    try:
+        with monkeypatch.context() as mutation:
+            mutation.setattr(product_provisioning, "_REPOSITORY_ROOT", root)
+            apply_product_authz_ddl(catalog.applicator)
+        mutated_applied = True
+        _assert_red(catalog, "PRODUCT-CATALOG:ROLES")
+        with monkeypatch.context() as mutation:
+            mutation.setattr(
+                product_catalog, "_load_product_asset", lambda: mutated_asset
+            )
+            with pytest.raises(
+                product_catalog.ProductCatalogError, match="独立の意味契約"
+            ):
+                _inspect(catalog)
+    finally:
+        catalog.observer.rollback()
+        if mutated_applied:
+            with monkeypatch.context() as mutation:
+                mutation.setattr(product_provisioning, "_REPOSITORY_ROOT", root)
+                unapply_product_authz_ddl(catalog.applicator)
+        apply_product_authz_ddl(catalog.applicator)
+
+
 def test_admin_only_membership_edge_is_red(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
@@ -299,3 +452,67 @@ def test_null_trigger_function_acl_is_red(
     finally:
         catalog.observer.rollback()
         apply_product_authz_ddl(catalog.applicator)
+
+
+def test_authn_definers_have_independent_catalog_shape(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """認証関数の署名・所有者・実行モード・固定 search_path を実カタログで照合する。"""
+    from pitchlog.authz.product_authn_contract import (
+        AUTHN_FUNCTION_GRANTEES,
+        AUTHN_OWNER,
+    )
+
+    catalog = provisioned_product_catalog
+    try:
+        with catalog.observer.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT routine.proname,
+                       pg_catalog.oidvectortypes(routine.proargtypes),
+                       owner.rolname, routine.prosecdef,
+                       routine.proconfig, language.lanname
+                FROM pg_catalog.pg_proc AS routine
+                JOIN pg_catalog.pg_namespace AS namespace
+                  ON namespace.oid = routine.pronamespace
+                JOIN pg_catalog.pg_roles AS owner ON owner.oid = routine.proowner
+                JOIN pg_catalog.pg_language AS language
+                  ON language.oid = routine.prolang
+                WHERE namespace.nspname = 'authn'
+                ORDER BY 1, 2
+                """
+            )
+            rows = cursor.fetchall()
+        assert {(row[0], row[1]) for row in rows} == set(AUTHN_FUNCTION_GRANTEES)
+        for _, _, owner, is_definer, settings, language in rows:
+            assert owner == AUTHN_OWNER
+            assert is_definer is True
+            assert language == "plpgsql"
+            assert settings is not None
+            assert tuple(value.replace(" ", "") for value in settings) == (
+                "search_path=pg_catalog,pg_temp",
+            )
+    finally:
+        catalog.observer.rollback()
+
+
+def test_pgcrypto_public_execute_mutation_is_red(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """拡張メンバー関数への PUBLIC EXECUTE を実カタログの検査で拒否する。"""
+    catalog = provisioned_product_catalog
+    try:
+        with catalog.applicator.cursor() as cursor:
+            cursor.execute(
+                "GRANT EXECUTE ON FUNCTION authn_crypto.crypt(text, text) TO PUBLIC"
+            )
+        catalog.applicator.commit()
+        _assert_red(catalog, "PRODUCT-CATALOG:PGCRYPTO-MEMBER-ACL-INDEPENDENT")
+    finally:
+        catalog.observer.rollback()
+        catalog.applicator.rollback()
+        with catalog.applicator.cursor() as cursor:
+            cursor.execute(
+                "REVOKE EXECUTE ON FUNCTION authn_crypto.crypt(text, text) FROM PUBLIC"
+            )
+        catalog.applicator.commit()

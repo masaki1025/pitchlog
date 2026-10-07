@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/schemas/domain/boot-report.schema.json",
+  "title": "BOOT-REPORT 未解消要素レポート",
+  "description": "NFR-018 (e) BOOT-REPORT が要求する機械可読な未解消要素一覧。",
+  "x-outputPath": "backend/domain/boot-report.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "reportType",
+    "sealedSet",
+    "provenance",
+    "unresolvedCount",
+    "unresolvedElements",
+    "transitionMeaning"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "reportType": {
+      "const": "boot-unresolved-elements"
+    },
+    "sealedSet": {
+      "const": "backend/domain/boot-seal.json"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commitOid",
+        "inputDigest",
+        "inputFiles",
+        "sealedSetDigest",
+        "resolutionEvidenceDigest"
+      ],
+      "properties": {
+        "commitOid": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "inputDigest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "inputFiles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "x-uniqueBy": "path",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "digest"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "digest": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              }
+            }
+          }
+        },
+        "sealedSetDigest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "resolutionEvidenceDigest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      }
+    },
+    "unresolvedCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "unresolvedElements": {
+      "type": "array",
+      "uniqueItems": true,
+      "x-uniqueBy": "elementId",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "elementId",
+          "canonicalKey"
+        ],
+        "properties": {
+          "elementId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "canonicalKey": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "transitionMeaning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "noClaimAuthority",
+        "nfr018b2Satisfied",
+        "nfr019aPassed",
+        "ciMeaningAuthority",
+        "ciGreenMeaning",
+        "statement"
+      ],
+      "properties": {
+        "noClaimAuthority": {
+          "const": "NFR-018 (e) BOOT-NO-CLAIM"
+        },
+        "nfr018b2Satisfied": {
+          "const": false
+        },
+        "nfr019aPassed": {
+          "const": false
+        },
+        "ciMeaningAuthority": {
+          "const": "設計書 10.1 BOOT-CI-MEANING"
+        },
+        "ciGreenMeaning": {
+          "const": "transition-requirements-only"
+        },
+        "statement": {
+          "const": "移行状態では NFR-018 (b)② の充足および NFR-019(a) の合格を主張しない。CI 全ジョブ green は移行状態の要求を満たしていることのみを意味する。"
+        }
+      }
+    }
+  }
+}

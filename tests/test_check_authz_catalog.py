@@ -20,6 +20,12 @@ import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPOSITORY_ROOT / "scripts" / "check_authz_catalog.py"
+RUNTIME_CONTRACT_SUPPORT = (
+    REPOSITORY_ROOT
+    / "backend"
+    / "tests"
+    / "test_authz_runtime_contract_repository.py"
+)
 FIXTURE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "authz_claims"
 DERIVED_ASSET_FILES = {
     "route_registry": "route-registry.json",
@@ -57,6 +63,48 @@ def _load_checker() -> Any:
 checker = _load_checker()
 
 
+def test_product_extension_and_new_schema_declarations() -> None:
+    """複製した製品資産の新スキーマと拡張を受け、不正な参照を拒否する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    schemas = copy.deepcopy(asset["schemas"])
+    extra = copy.deepcopy(schemas[1])
+    extra["schema_id"] = "test_extension_schema"
+    extra["schema_name"] = "test_extension_schema"
+    schemas.append(extra)
+    checker._validate_product_schema_expectations(schemas, authn_enabled=True)
+    extensions = [
+        {
+            "extension_id": "test_extension",
+            "extension_name": "test_extension",
+            "schema_name": "test_extension_schema",
+        }
+    ]
+    checker._validate_product_extension_expectations(extensions, schemas)
+    extensions[0]["schema_name"] = "unlisted"
+    with pytest.raises(checker.CatalogError, match="拡張スキーマ"):
+        checker._validate_product_extension_expectations(extensions, schemas)
+
+
+def _load_runtime_contract_support() -> Any:
+    """Backend と共有する製品状態の複製 helper を読む。"""
+    spec = importlib.util.spec_from_file_location(
+        "runtime_contract_repository_for_catalog_tests",
+        RUNTIME_CONTRACT_SUPPORT,
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+runtime_contract_support = _load_runtime_contract_support()
+
+
 def _run_git(root: Path, *arguments: str) -> str:
     """一時repositoryでGitを実行し、成功時の標準出力を返す。"""
     result = subprocess.run(
@@ -91,6 +139,14 @@ def _make_repository(tmp_path: Path) -> Path:
     catalog = _read_catalog(root)
     catalog["input_manifest"]["commit"] = _run_git(root, "rev-parse", "HEAD")
     _write_catalog(root, catalog)
+    runtime_asset = _read_base_staged_asset(checker.RUNTIME_CONTRACT_ASSET)
+    _write_json_at(root, checker.RUNTIME_CONTRACT_ASSET, runtime_asset)
+    module_path = root / "backend/src/pitchlog/authz/runtime_contract.py"
+    module_path.parent.mkdir(parents=True, exist_ok=True)
+    module_path.write_text(
+        runtime_contract_support.render_runtime_contract(runtime_asset),
+        encoding="utf-8",
+    )
     return root
 
 
@@ -174,6 +230,343 @@ def _read_repository_json(relative_path: str) -> dict[str, Any]:
     raw = json.loads((REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8"))
     assert isinstance(raw, dict)
     return raw
+
+
+def _read_json_at(root: Path, relative_path: Path) -> dict[str, Any]:
+    """指定した試験用リポジトリの JSON オブジェクトを読む。"""
+    raw = json.loads((root / relative_path).read_text(encoding="utf-8"))
+    assert isinstance(raw, dict)
+    return raw
+
+
+def _read_base_staged_asset(relative_path: Path) -> dict[str, Any]:
+    """製品状態でも比較元の未発効資産を試験入力として読む。"""
+    if (REPOSITORY_ROOT / checker.STAGED_PRODUCT_ASSET).is_file():
+        return _read_json_at(REPOSITORY_ROOT, relative_path)
+    raw = _run_git(
+        REPOSITORY_ROOT,
+        "show",
+        f"{runtime_contract_support.provisional_reference_revision(REPOSITORY_ROOT)}:{relative_path.as_posix()}",
+    )
+    value = json.loads(raw)
+    assert isinstance(value, dict)
+    return value
+
+
+def _write_json_at(root: Path, relative_path: Path, value: dict[str, Any]) -> None:
+    """指定した試験用リポジトリへ JSON オブジェクトを書く。"""
+    path = root / relative_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(value, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _copy_product_catalog_repository(tmp_path: Path) -> Path:
+    """共有 helper の製品状態へ検査器が読む補助資産を複製する。"""
+    root = runtime_contract_support.copy_product_repository(
+        REPOSITORY_ROOT,
+        tmp_path / "product-repository",
+    )
+    source_product_root = REPOSITORY_ROOT / checker.PRODUCT_SPEC.asset_root
+    for source in source_product_root.rglob("*"):
+        if not source.is_file() or source.name in {
+            checker.STAGED_PRODUCT_ASSET.name,
+            checker.PRODUCT_ASSET.name,
+        }:
+            continue
+        destination = root / source.relative_to(REPOSITORY_ROOT)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+    shutil.copytree(
+        REPOSITORY_ROOT / checker.PRODUCT_MIGRATION_VERSIONS,
+        root / checker.PRODUCT_MIGRATION_VERSIONS,
+        dirs_exist_ok=True,
+    )
+    schema_manifest = Path("contracts/db/schema-manifest.json")
+    _write_json_at(
+        root,
+        schema_manifest,
+        _read_json_at(REPOSITORY_ROOT, schema_manifest),
+    )
+    return root
+
+
+def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
+    """製品状態からでも正しい未発効状態の検査用複製を組み立てる。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    provisional_revision = runtime_contract_support.provisional_reference_revision(
+        REPOSITORY_ROOT
+    )
+    (root / checker.PRODUCT_MIGRATION_VERSIONS / "0028_tenant_login_identity.py").unlink()
+    steps_path = root / checker.PRODUCT_SPEC.application_steps_path
+    steps = _read_json_at(root, checker.PRODUCT_SPEC.application_steps_path)
+    for step in steps["application_steps"]:
+        step["element_groups"] = [
+            group for group in step["element_groups"]
+            if group not in {"extensions", "functions:definer"}
+        ]
+    steps["application_steps"][-1]["element_groups"].remove(
+        "functions:migration_function"
+    )
+    _write_json_at(root, checker.PRODUCT_SPEC.application_steps_path, steps)
+    staged = _read_base_staged_asset(checker.STAGED_PRODUCT_ASSET)
+    allowed = {
+        (section.element_type, row[section.id_field])
+        for section in checker.PRODUCT_SPEC.element_sections
+        for row in staged.get(section.section_name, [])
+    }
+    body_manifest_path = checker.PRODUCT_SPEC.asset_root / "function-bodies/manifest.json"
+    body_manifest = _read_json_at(root, body_manifest_path)
+    for entry in body_manifest["entries"]:
+        if (entry["element_type"], entry["element_id"]) not in allowed:
+            (root / entry["path"]).unlink()
+    body_manifest["entries"] = [
+        entry for entry in body_manifest["entries"]
+        if (entry["element_type"], entry["element_id"]) in allowed
+    ]
+    _write_json_at(root, body_manifest_path, body_manifest)
+    public_body = checker.PRODUCT_SPEC.asset_root / "function-bodies/schemas/public.sql"
+    (root / public_body).write_text(
+        _run_git(
+            REPOSITORY_ROOT,
+            "show",
+            f"{provisional_revision}:{public_body.as_posix()}",
+        ),
+        encoding="utf-8",
+    )
+    map_path = checker.PRODUCT_SPEC.asset_root / "probe-product-map.json"
+    mapping = _read_json_at(root, map_path)
+    if str(REPOSITORY_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPOSITORY_ROOT))
+    from backend.tests.product_authz_probe_product_map import atomic_elements
+
+    staged_atoms = atomic_elements(staged, label="product")
+    mapping["product_only"] = [
+        entry for entry in mapping["product_only"]
+        if entry["product"] in staged_atoms
+    ]
+    _write_json_at(root, map_path, mapping)
+    failure_path = checker.PRODUCT_SPEC.asset_root / "failure-injection-points.json"
+    failure_asset = _read_json_at(root, failure_path)
+    failure_asset["source_asset"]["git_blob_digest"] = checker.git_blob_digest(
+        steps_path.read_bytes()
+    )
+    _write_json_at(root, failure_path, failure_asset)
+    (root / checker.PRODUCT_ASSET).unlink()
+    _write_json_at(
+        root,
+        checker.STAGED_PRODUCT_ASSET,
+        _read_base_staged_asset(checker.STAGED_PRODUCT_ASSET),
+    )
+    runtime_asset = _read_base_staged_asset(checker.RUNTIME_CONTRACT_ASSET)
+    _write_json_at(root, checker.RUNTIME_CONTRACT_ASSET, runtime_asset)
+    module_path = root / "backend/src/pitchlog/authz/runtime_contract.py"
+    module_path.write_text(
+        runtime_contract_support.render_runtime_contract(runtime_asset),
+        encoding="utf-8",
+    )
+    return root
+
+
+def test_product_runtime_contract_state_is_accepted(tmp_path: Path) -> None:
+    """最終パスと製品化したランタイム契約を検査器が受理する。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    state = checker._runtime_contract_state(root)
+    product_path = checker.product_asset_path_for_state(state)
+    assert product_path == checker.PRODUCT_ASSET
+
+    result = checker.validate_ddl_elements(
+        _read_json_at(root, checker.PRODUCT_ASSET),
+        root,
+        checker.PRODUCT_SPEC,
+    )
+
+    assert result == {
+        "scope_status": checker.PRODUCT_SPEC.allowed_scope_status,
+        "product_role_count": len(_read_json_at(root, checker.PRODUCT_ASSET)["roles"]),
+    }
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("pending-switch", "provisional-additions", "protected-function"),
+)
+def test_product_runtime_contract_mutations_are_rejected(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """製品状態に残した暫定欄と保護関数のずれを拒否する。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    product_asset = _read_json_at(root, checker.PRODUCT_ASSET)
+    expected_error = "キー不一致"
+    if mutation == "pending-switch":
+        product_asset["pending_switch"] = "TSK-443"
+    elif mutation == "provisional-additions":
+        staged = _read_base_staged_asset(checker.STAGED_PRODUCT_ASSET)
+        product_asset["provisional_contract_additions"] = staged[
+            "provisional_contract_additions"
+        ]
+    else:
+        runtime_asset = _read_json_at(root, checker.RUNTIME_CONTRACT_ASSET)
+        protected = runtime_asset["protected_objects"]
+        assert isinstance(protected, dict)
+        functions = protected["functions"]
+        assert isinstance(functions, list)
+        functions.pop()
+        functions.append(["public", "changed_protected_function", ""])
+        _write_json_at(root, checker.RUNTIME_CONTRACT_ASSET, runtime_asset)
+        expected_error = "DERIVED_FIELDS_STALE"
+
+    with pytest.raises(checker.CatalogError, match=expected_error):
+        checker.validate_ddl_elements(
+            product_asset,
+            root,
+            checker.PRODUCT_SPEC,
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "violation_id"),
+    (
+        ("provisional-asset", "PROVISIONAL_REMAINS"),
+        ("provisional-module", "GENERATED_MODULE_IS_PROVISIONAL"),
+        ("missing-contract", "PROVISIONAL_ASSET_MISSING"),
+    ),
+)
+def test_product_runtime_contract_shared_violations_are_catalog_errors(
+    tmp_path: Path,
+    mutation: str,
+    violation_id: str,
+) -> None:
+    """製品状態の契約違反を検査器単独で拒否する。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    if mutation == "provisional-asset":
+        contract = _read_json_at(root, checker.RUNTIME_CONTRACT_ASSET)
+        contract["provisional"] = True
+        _write_json_at(root, checker.RUNTIME_CONTRACT_ASSET, contract)
+    elif mutation == "provisional-module":
+        module_path = root / "backend/src/pitchlog/authz/runtime_contract.py"
+        source = module_path.read_text(encoding="utf-8")
+        assert source.count("PROVISIONAL = False") == 1
+        module_path.write_text(
+            source.replace("PROVISIONAL = False", "PROVISIONAL = True", 1),
+            encoding="utf-8",
+        )
+    else:
+        (root / checker.RUNTIME_CONTRACT_ASSET).unlink()
+
+    with pytest.raises(checker.CatalogError, match=violation_id):
+        checker.validate_ddl_elements(
+            _read_json_at(root, checker.PRODUCT_ASSET),
+            root,
+            checker.PRODUCT_SPEC,
+        )
+
+
+def test_pending_state_always_runs_only_pending_protected_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """未発効状態で未発効用の保護対象照合だけが必ず走る。"""
+    calls: list[str] = []
+    pending_validation = checker._validate_pending_product_protected_targets
+    final_validation = checker._validate_final_product_protected_targets
+
+    def record_pending(raw: dict[str, object], root: Path) -> None:
+        calls.append("pending")
+        pending_validation(raw, root)
+
+    def record_final(raw: dict[str, object], root: Path) -> None:
+        calls.append("product")
+        final_validation(raw, root)
+
+    monkeypatch.setattr(
+        checker,
+        "_validate_pending_product_protected_targets",
+        record_pending,
+    )
+    monkeypatch.setattr(
+        checker,
+        "_validate_final_product_protected_targets",
+        record_final,
+    )
+    root = _copy_pending_catalog_repository(tmp_path)
+    checker.validate_ddl_elements(
+        _read_json_at(root, checker.STAGED_PRODUCT_ASSET),
+        root,
+        checker.PRODUCT_SPEC,
+    )
+
+    assert calls == ["pending"]
+
+
+def test_product_state_always_runs_only_final_protected_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """製品状態で製品用の保護対象照合だけが必ず走る。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    calls: list[str] = []
+    pending_validation = checker._validate_pending_product_protected_targets
+    final_validation = checker._validate_final_product_protected_targets
+
+    def record_pending(raw: dict[str, object], repository_root: Path) -> None:
+        calls.append("pending")
+        pending_validation(raw, repository_root)
+
+    def record_final(raw: dict[str, object], repository_root: Path) -> None:
+        calls.append("product")
+        final_validation(raw, repository_root)
+
+    monkeypatch.setattr(
+        checker,
+        "_validate_pending_product_protected_targets",
+        record_pending,
+    )
+    monkeypatch.setattr(
+        checker,
+        "_validate_final_product_protected_targets",
+        record_final,
+    )
+    checker.validate_ddl_elements(
+        _read_json_at(root, checker.PRODUCT_ASSET),
+        root,
+        checker.PRODUCT_SPEC,
+    )
+
+    assert calls == ["product"]
+
+
+def test_invalid_runtime_contract_state_is_catalog_error(tmp_path: Path) -> None:
+    """Staged と最終パスが併存する不正状態を CatalogError にする。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    staged_path = root / checker.STAGED_PRODUCT_ASSET
+    staged_path.parent.mkdir(parents=True, exist_ok=True)
+    _write_json_at(
+        root,
+        checker.STAGED_PRODUCT_ASSET,
+        _read_base_staged_asset(checker.STAGED_PRODUCT_ASSET),
+    )
+
+    with pytest.raises(checker.CatalogError, match="BOTH_STAGED_AND_FINAL"):
+        checker.validate_ddl_elements(
+            _read_json_at(root, checker.PRODUCT_ASSET),
+            root,
+            checker.PRODUCT_SPEC,
+        )
+
+
+def test_provisional_state_has_no_product_ddl_path(tmp_path: Path) -> None:
+    """暫定状態では製品 DDL manifest の検査対象パスを選ばない。"""
+    root = _copy_pending_catalog_repository(tmp_path)
+    (root / checker.STAGED_PRODUCT_ASSET).unlink()
+
+    state = checker._runtime_contract_state(root)
+
+    assert state is checker.RuntimeContractState.PROVISIONAL
+    assert checker.product_asset_path_for_state(state) is None
 
 
 def _repository_derived_assets() -> tuple[

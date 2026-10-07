@@ -216,6 +216,12 @@ def _expected_elements(
         element_type = section.element_type
         section_name = section.section_name
         id_field = section.id_field
+        if (
+            spec.asset_kind == "product"
+            and section_name == "extensions"
+            and section_name not in raw
+        ):
+            continue
         rows = _expect_list(raw.get(section_name), f"ddl-elements.{section_name}")
         for index, raw_row in enumerate(rows):
             label = f"ddl-elements.{section_name}[{index}]"

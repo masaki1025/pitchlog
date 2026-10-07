@@ -33,6 +33,26 @@ _load_module("check_authz_catalog", CATALOG_SCRIPT)
 checker = _load_module("check_authz_function_bodies_under_test", SCRIPT)
 
 
+def test_optional_product_extensions_are_covered_when_declared() -> None:
+    """未宣言の拡張群は通し、宣言時には要素IDを被覆へ加える。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    baseline = checker._expected_elements(asset, checker.PRODUCT_SPEC)
+    asset["extensions"] = [
+        {
+            "extension_id": "pgcrypto",
+            "extension_name": "pgcrypto",
+            "schema_name": "authz_private",
+        }
+    ]
+    assert checker._expected_elements(asset, checker.PRODUCT_SPEC) == baseline | {
+        ("extension", "pgcrypto")
+    }
+
+
 BODY_DIRECTORY = REPOSITORY_ROOT / checker.BODY_DIRECTORY
 MANIFEST_PATH = REPOSITORY_ROOT / checker.MANIFEST_PATH
 DDL_ELEMENTS_PATH = REPOSITORY_ROOT / checker.DDL_ELEMENTS_PATH

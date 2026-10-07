@@ -172,6 +172,17 @@ def _grant_asset_permissions(
                     sql.Identifier(role_name),
                 )
             )
+    for schema_name, function_name, identity_args in expectations.function_execute:
+        argument_types = sql.SQL(", ").join(
+            sql.Identifier(argument.strip()) for argument in identity_args.split(",")
+        )
+        cursor.execute(
+            sql.SQL("GRANT EXECUTE ON FUNCTION {}({}) TO {}").format(
+                sql.Identifier(schema_name, function_name),
+                argument_types,
+                sql.Identifier(role_name),
+            )
+        )
 
 
 @contextmanager
@@ -365,6 +376,45 @@ def test_asset_role_performs_minimum_operations_and_matches_active_shape(
     restored_report = _inspect_steady(catalog)
     assert restored_report.ok
     assert restored_report.violations == ()
+
+
+def test_normalize_function_execute_is_needed_for_tenant_insert(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """正規化関数の付与を外すと INSERT が拒否され、exact 検査も落ちる。"""
+    catalog = provisioned_product_catalog
+    with _active_migration_role(catalog) as role:
+        with psycopg.connect(role.dsn) as connection:
+            with connection.cursor() as cursor:
+                with pytest.raises(psycopg.Error) as length_error:
+                    cursor.execute(
+                        "INSERT INTO public.tenants(id, name) VALUES (%s, %s)",
+                        (_id("long-team"), "a" * 65),
+                    )
+                assert length_error.value.sqlstate == "23514"
+            connection.rollback()
+        with catalog.applicator.cursor() as cursor:
+            cursor.execute(
+                sql.SQL(
+                    "REVOKE EXECUTE ON FUNCTION "
+                    "public.authn_normalize_team_name(text) FROM {}"
+                ).format(sql.Identifier(role.name))
+            )
+        catalog.applicator.commit()
+        _assert_active_red(
+            catalog.observer,
+            role.oid,
+            "MIGRATION-BATCH:FUNCTION-EXECUTE",
+        )
+        with psycopg.connect(role.dsn) as connection:
+            with connection.cursor() as cursor:
+                with pytest.raises(psycopg.Error) as permission_error:
+                    cursor.execute(
+                        "INSERT INTO public.tenants(id, name) VALUES (%s, %s)",
+                        (_id("no-function-execute"), "Allowed"),
+                    )
+                assert permission_error.value.sqlstate == "42501"
+            connection.rollback()
 
 
 def test_table_level_update_mutation_is_red_and_opens_forbidden_columns(
@@ -602,6 +652,57 @@ def test_out_of_target_security_definer_execute_mutation_is_red(
                     sql.SQL(
                         "GRANT EXECUTE ON FUNCTION "
                         "public.step10_write_admin_log() TO {}"
+                    ).format(sql.Identifier(role.name))
+                )
+            _assert_active_red(
+                catalog.applicator,
+                role.oid,
+                "MIGRATION-BATCH:FUNCTION-EXECUTE",
+            )
+        finally:
+            catalog.applicator.rollback()
+
+
+def test_unlisted_function_execute_in_private_schema_is_red(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """製品スキーマ1つを検査対象から外すと見逃す権限を検出する。"""
+    catalog = provisioned_product_catalog
+    with _active_migration_role(catalog) as role:
+        try:
+            with catalog.applicator.cursor() as cursor:
+                cursor.execute(
+                    "CREATE FUNCTION authz_private.step3_extra() "
+                    "RETURNS integer LANGUAGE sql AS 'SELECT 3'"
+                )
+                cursor.execute(
+                    "REVOKE EXECUTE ON FUNCTION authz_private.step3_extra() FROM PUBLIC"
+                )
+                cursor.execute(
+                    sql.SQL(
+                        "GRANT EXECUTE ON FUNCTION authz_private.step3_extra() TO {}"
+                    ).format(sql.Identifier(role.name))
+                )
+            _assert_active_red(
+                catalog.applicator,
+                role.oid,
+                "MIGRATION-BATCH:FUNCTION-EXECUTE",
+            )
+        finally:
+            catalog.applicator.rollback()
+
+
+def test_unlisted_pgcrypto_execute_is_red(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """移行ロールの authn_crypto での余分な EXECUTE を検出する。"""
+    catalog = provisioned_product_catalog
+    with _active_migration_role(catalog) as role:
+        try:
+            with catalog.applicator.cursor() as cursor:
+                cursor.execute(
+                    sql.SQL(
+                        "GRANT EXECUTE ON FUNCTION authn_crypto.crypt(text, text) TO {}"
                     ).format(sql.Identifier(role.name))
                 )
             _assert_active_red(

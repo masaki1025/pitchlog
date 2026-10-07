@@ -81,9 +81,9 @@ def _actual_operation_checkpoints(
     operation: ProductOperation,
 ) -> tuple[tuple[int, str], ...]:
     """正規の操作計画に対して適用器が返す全記録点を列挙する。"""
-    _, statements = product_provisioning._build_operation_statements(operation)
+    steps, statements = product_provisioning._build_operation_statements(operation)
     checkpoints: list[tuple[int, str]] = []
-    for sequence in range(1, 8):
+    for sequence in range(1, len(steps.application_steps) + 1):
         statement_count = sum(
             statement.sequence == sequence for statement in statements
         )

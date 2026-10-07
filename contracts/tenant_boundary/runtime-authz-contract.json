@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 6,
+  "runtime_contract_revision": 9,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:6"
+        "runtime_contract_revision:9"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -70,10 +70,9 @@
     ]
   },
   "asset_kind": "tenant_boundary_runtime_authz_contract",
-  "provisional": true,
-  "superseded_by": "contracts/authz/product/ddl-elements.json",
+  "provisional": false,
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "ad1c0fdd605d63e0af9c9ffb1855d1b6c8d5bf8ad1e77541e28987a6f50f771a",
+  "source_digest": "c849cdbaf77b9f60e8073dd563e2be31698ab497d6c8764484ee5dffddc9559d",
   "application_role": {
     "rolname": "pitchlog_app",
     "attributes": {
@@ -88,48 +87,35 @@
   },
   "protected_objects": {
     "schemas": [
+      "authn",
+      "authn_crypto",
+      "authz_private",
       "public"
     ],
     "tables": [
       [
         "public",
-        "tenants"
+        "admin_credentials"
       ],
       [
         "public",
-        "team_records"
+        "admin_operation_logs"
       ],
       [
         "public",
-        "players"
+        "admin_sessions"
       ],
       [
         "public",
-        "games"
+        "admin_vocabularies"
       ],
       [
         "public",
-        "lineup_memories"
+        "analysis_groups"
       ],
       [
         "public",
-        "game_lineups"
-      ],
-      [
-        "public",
-        "participation_intervals"
-      ],
-      [
-        "public",
-        "rule_sets"
-      ],
-      [
-        "public",
-        "game_type_rule_defaults"
-      ],
-      [
-        "public",
-        "tournament_rule_assignments"
+        "evacuated_event_originals"
       ],
       [
         "public",
@@ -137,7 +123,75 @@
       ],
       [
         "public",
+        "game_lineups"
+      ],
+      [
+        "public",
+        "game_type_rule_defaults"
+      ],
+      [
+        "public",
+        "games"
+      ],
+      [
+        "public",
+        "group_invitations"
+      ],
+      [
+        "public",
+        "group_memberships"
+      ],
+      [
+        "public",
+        "idempotency_ledger"
+      ],
+      [
+        "public",
+        "invalidation_intents"
+      ],
+      [
+        "public",
+        "lineup_memories"
+      ],
+      [
+        "public",
+        "medical_note_versions"
+      ],
+      [
+        "public",
+        "medical_notes"
+      ],
+      [
+        "public",
+        "migrated_final_lineups"
+      ],
+      [
+        "public",
+        "migration_quarantine"
+      ],
+      [
+        "public",
+        "migration_resolution_reports"
+      ],
+      [
+        "public",
+        "migration_runs"
+      ],
+      [
+        "public",
+        "migration_warning_reports"
+      ],
+      [
+        "public",
         "operation_events"
+      ],
+      [
+        "public",
+        "participation_intervals"
+      ],
+      [
+        "public",
+        "pdf_export_records"
       ],
       [
         "public",
@@ -149,19 +203,19 @@
       ],
       [
         "public",
-        "temporary_player_id_mappings"
+        "player_merge_events"
       ],
       [
         "public",
-        "idempotency_ledger"
+        "player_move_records"
       ],
       [
         "public",
-        "rejected_event_originals"
+        "players"
       ],
       [
         "public",
-        "evacuated_event_originals"
+        "rate_limit_counters"
       ],
       [
         "public",
@@ -169,15 +223,19 @@
       ],
       [
         "public",
-        "medical_notes"
+        "rejected_event_originals"
       ],
       [
         "public",
-        "medical_note_versions"
+        "rule_sets"
       ],
       [
         "public",
-        "pdf_export_records"
+        "sharing_grants"
+      ],
+      [
+        "public",
+        "system_settings"
       ],
       [
         "public",
@@ -185,15 +243,11 @@
       ],
       [
         "public",
-        "admin_vocabularies"
+        "team_records"
       ],
       [
         "public",
-        "tenant_vocabularies"
-      ],
-      [
-        "public",
-        "system_settings"
+        "temporary_player_id_mappings"
       ],
       [
         "public",
@@ -205,74 +259,87 @@
       ],
       [
         "public",
-        "admin_credentials"
-      ],
-      [
-        "public",
-        "admin_sessions"
-      ],
-      [
-        "public",
         "tenant_tokens"
       ],
       [
         "public",
-        "admin_operation_logs"
+        "tenant_vocabularies"
       ],
       [
         "public",
-        "player_merge_events"
+        "tenants"
       ],
       [
         "public",
-        "player_move_records"
-      ],
-      [
-        "public",
-        "rate_limit_counters"
-      ],
-      [
-        "public",
-        "analysis_groups"
-      ],
-      [
-        "public",
-        "group_memberships"
-      ],
-      [
-        "public",
-        "sharing_grants"
-      ],
-      [
-        "public",
-        "group_invitations"
-      ],
-      [
-        "public",
-        "invalidation_intents"
-      ],
-      [
-        "public",
-        "migration_quarantine"
-      ],
-      [
-        "public",
-        "migrated_final_lineups"
-      ],
-      [
-        "public",
-        "migration_runs"
-      ],
-      [
-        "public",
-        "migration_resolution_reports"
-      ],
-      [
-        "public",
-        "migration_warning_reports"
+        "tournament_rule_assignments"
       ]
     ],
     "functions": [
+      [
+        "authn",
+        "change_password",
+        "uuid, text, text"
+      ],
+      [
+        "authn",
+        "issue_initial_password",
+        "uuid, text"
+      ],
+      [
+        "authn",
+        "login",
+        "text, text"
+      ],
+      [
+        "authn",
+        "logout",
+        "uuid"
+      ],
+      [
+        "authn",
+        "password_policy_ok",
+        "text"
+      ],
+      [
+        "authn",
+        "record_admin_login_failure",
+        "text"
+      ],
+      [
+        "authn",
+        "record_failure",
+        "text, bigint, bigint, bigint, boolean"
+      ],
+      [
+        "authn",
+        "reset_password",
+        "uuid, text"
+      ],
+      [
+        "authn",
+        "revoke_tenant_tokens",
+        "uuid"
+      ],
+      [
+        "authn",
+        "setting_positive_integer",
+        "text"
+      ],
+      [
+        "authn",
+        "verify_token",
+        "uuid"
+      ],
+      [
+        "authz_private",
+        "tenant_has_effective_membership",
+        "uuid, boolean"
+      ],
+      [
+        "public",
+        "authn_normalize_team_name",
+        "text"
+      ],
       [
         "public",
         "prevent_admin_credentials_id_update",
@@ -330,12 +397,27 @@
       ],
       [
         "public",
+        "prevent_invalidation_intents_target_update",
+        ""
+      ],
+      [
+        "public",
         "prevent_medical_note_versions_content_update",
         ""
       ],
       [
         "public",
         "prevent_medical_notes_identity_update",
+        ""
+      ],
+      [
+        "public",
+        "prevent_migrated_final_lineups_source_update",
+        ""
+      ],
+      [
+        "public",
+        "prevent_migration_quarantine_mutation",
         ""
       ],
       [
@@ -376,6 +458,11 @@
       [
         "public",
         "prevent_player_move_records_mutation",
+        ""
+      ],
+      [
+        "public",
+        "prevent_players_identity_update",
         ""
       ],
       [
@@ -461,5 +548,6 @@
       "category": "function_owner",
       "fixture_id": "DANGER_FUNCTION_OWNER"
     }
-  ]
+  ],
+  "derived_from": "contracts/authz/product/ddl-elements.json"
 }

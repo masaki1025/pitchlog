@@ -3,7 +3,7 @@
   "asset_kind": "authz_product_failure_injection_points",
   "source_asset": {
     "path": "contracts/authz/product/application-steps.json",
-    "git_blob_digest": "05dac896d88988ebed4529d880ac2d2b7283b8a0"
+    "git_blob_digest": "81a31256d97e8a7c2f531942924eca10a39c64dc"
   },
   "injection_points": [
     {
