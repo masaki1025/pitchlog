@@ -139,6 +139,29 @@ branch: feature/ci-harness-parallel
 
 - 次 = 敵対レビュー 2 回目(反映差分と影響箇所 = #2 の是正 + ステップ 3 の revert)。2 回目に P0 が残れば P0 限定の 3 回目(6.3)
 
+### 敵対レビュー 2 回目(コア領域 PR・2026-10-08・`review adversarial`・対象 = 1 回目の反映差分〔`test_backends` の是正 `afcbfbf2`〕と影響箇所 + census テストの PR 差分が空であることの確認・**58,113 tok**・判定 = **可決 P0 0 / P1 0 / P2 0**)
+
+- 指摘なし。「除外は backend の監視にだけ指定され、frontend・contracts では `.pyc` の書込みを検出する構成。新設テストは除外の有無と監視先への指定を確認している。`tests/test_census_baseline_check.py` の PR 差分は空」
+- 敵対レビュー合計 2 回(基本枠内・P0 例外なし)・約 195K tok。残指摘 0・不採用 0。次 = 人間の逐行確認(PR)
+
+### 総合検証(2026-10-08・Claude・worktree・ステップ 3 revert 後)と /sync-docs・クローズ処理
+
+- **harness**(CI と同じコマンド・8 ワーカー): ruff / ty green。pytest **5 failed〔既知 5 件のみ〕/ 28,087 passed**(**517.30 秒** — 導入前の直列 974 秒。CI の 4 ワーカーでの実測は PR の run で取る)。失敗は手元固有の既知失敗(4 節の固定集合 5 件)のみ
+- **mutation 相当**(`uv run pytest -c pyproject.toml tests/domain/mut/` — addopts の `-n auto` が効く): 82 passed・3 failed(`test_cost_record`・`test_lang_operators[typescript]`・`[sql]`)— **`-n 0` でも同じ 3 件**なので並列化由来ではなく手元環境固有(CI の mutation ジョブは develop で green)。
+- **census の直接実行経路** `uv run python tests/test_census_baseline_check.py` → `census-baseline: OK` / `test_repository_is_green` green(revert 後)
+- **backend**: `ruff format --check`(239 files already formatted)/ `ruff check` / `ty check` green。非 DB pytest `--cov` **939 passed, 4 skipped, 385 deselected・TOTAL 60%**(終了コードは DB ガードで 1 — 10.1 の fail-closed)。DB 必須テストは手元に Docker が無いため CI で確認
+- **frontend**: 変更なし(スキップ — 本 PR は frontend を触らない)
+- **敵対レビュー(コア領域 PR・6.3)**: 1 回目 否決 P0 2 / P1 1(採用 1〔test_backends の除外を backend 監視に限定・コミット afcbfbf2〕・ステップ 3 の revert で対象消滅 2)→ 2 回目 可決 P0 0 / P1 0 / P2 0。計 2 回・約 195K tok
+- **ステップ 5(文書・Claude)**: 設計書 10.1 の harness 行(xdist 並列 — addopts・ローカル 8・`ci.yml` 不変の理由・conftest 互換)と backend 行(coverage `core = sysmon` — `.coveragerc`)を節更新・変更履歴 1 行(版は上げない)/ `docs/README.md` の設計書行を 2026-10-08 実装追随へ / 台帳の既存候補「凍結資産が直列化点になり…」へ別の向きの実測を追記(新規候補なし — 凍結点一覧の不在と同根)・台帳の変更履歴 1 行・索引の台帳行(件数不変)。コミット `3a8a67f1`
+- **Codex 消費(TSK-501 合計)**: 計画レビュー 5 回 ≈ 654K / 実装 7 回(ステップ 1 × 2・2・3〔revert〕・4・付記)≈ 1.70M / 敵対レビュー(下記)→ 合計は PR 本文に記載。実装の差し戻し(ci.yml 方式)・計画修正 3 回・ステップ 3 の revert が約 0.75M の追加費用
+- **PR 後の DoD 検証(未)**: PR の run で harness ジョブ ≤ 8 分と backend ジョブの所要時間(導入前 15.7〜15.9 分)を取り、本 worklog に追記する。8 分超なら DoD 不合格として差し戻す(plan を `active` へ戻す)
+
+## 結果サマリ
+
+- 実装: ルート `pyproject.toml`(pytest-xdist・`addopts = "-n auto"`)/ `uv.lock` / `conftest.py`(新規・xdist 互換)/ `.claude/skills/check/SKILL.md`(ローカル 8)/ `tests/domain/gen/test_backends.py`(pycache 除外)/ `tests/test_check_authz_catalog.py`(25,571 ケースへ分割 + 全数性テスト 2 件)/ `backend/.coveragerc`(sysmon)。**`ci.yml`・`tests/test_ci_wiring.py`・`contracts/**`・`tests/fixtures/frozen-archive-cases/**`・`backend/pyproject.toml`・`tests/test_census_baseline_check.py`(revert)は不変**
+- 正本: 設計書 10.1 節更新(版は上げない)・索引・台帳(既存候補へ実測)
+- 残課題(後続へ): census の重複計算削減(実装済み・凍結資産 census-baseline.json の 7.7-2 受理を伴う再適用)/ `--durations` の内訳計測 / 入力に基づくテスト選択 + develop/nightly 全件(タスク B)/ 凍結の外部入力とコア領域 paths を /plan で変更予定ファイル全件に機械突合する手順
+
 ## 決定
 
 - タスク分割(A/B)とワーカー数(上記)
@@ -150,4 +173,4 @@ branch: feature/ci-harness-parallel
 
 ## 未決・次の一歩
 
-- /implement(ステップ 1〜4 = Codex・ステップ単位、5 = Claude)→ /check → /sync-docs → /pr(ci.yml は guard_paths → 人間の逐行確認)→ PR 後の DoD 検証(harness ≤ 8 分・backend durations)
+- /pr 後: 人間の逐行確認(guard_paths = `pyproject.toml`・`uv.lock`・`conftest.py`・`tests/test_check_authz_catalog.py`)→ CI → **PR 後の DoD 検証**(harness ≤ 8 分・backend 所要時間)→ マージ → /task-done。PR #99(v1.19)のマージ後に develop を取り込む(索引・台帳の衝突が見込まれる)
