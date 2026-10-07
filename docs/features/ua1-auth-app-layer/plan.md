@@ -1,6 +1,6 @@
 ---
 feature: ua1-auth-app-layer
-status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-05・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -112,9 +112,27 @@ created: 2026-10-05
 `docs/features/ua1-auth-app-layer/**` / `docs/worklog/2026-10-05-ua1-auth-app-layer.md` /
 **`docs/worklog/2026-10-07-completion-forecast.md`**(**feature に紐づかない単発調査** — `/investigate` の末尾規定で worklog に記録して終える。本 PR は置き場を提供するだけで、内容は本単位と無関係)
 
-> **`contracts/tenant_boundary/` 配下と `scripts/check_tenant_boundary_bypass.py` は本 PR の差分に現れない**
-> (裁定 b' と 2026-10-05 の TSK-457 の裁定により、U-M1 ステップ 8 と TSK-457 へ移った)。
-> **設計書 7.7 の受理記録も作らない。**
+> **【第 1 改訂・2026-10-08 — 改訂承認: 山田正輝】`contracts/tenant_boundary/base-allowlist.json` の
+> `allowed_symbols` へ本単位の 2 シンボルと fixture を足す**(**設計書 7.7 の受理記録を 1 件作る**)。
+> **他のファイル・他のキーの差分は 0 行**で、**`scripts/check_tenant_boundary_bypass.py` の差分も 0 行**である。
+>
+> **旧**: 「`contracts/tenant_boundary/` 配下と `scripts/check_tenant_boundary_bypass.py` は本 PR の差分に
+> 現れない(裁定 b' と 2026-10-05 の TSK-457 の裁定により、U-M1 ステップ 8 と TSK-457 へ移った)。
+> 設計書 7.7 の受理記録も作らない。」
+>
+> **改める理由**: 裁定 b' が移したのは **`allowed_product_modules` への登録**(`TenantContext` の生成許可)であって、
+> **`allowed_symbols`(DB 到達 API の許可)ではない**。本単位は `authn.verify_token()` と `authn.logout()` を
+> 自分で呼ぶので、**後者は本単位が持たざるを得ない**。**CI の `tenant-boundary-bypass` が exit 1**
+> (**TB005 6 件 / TB007 1 件** — 当方実測。develop は exit 0)で、この取り違えが機構として表面化した。
+>
+> **既存の許可シンボルを通る道は無い**(当方実測): `_tenant_transaction` も
+> `TenantRepositoryBase._execute_operation` も **`TenantContext` を引数に要求する**ため、
+> **裁定 b' で `TenantContext` を作れない本単位は通れない**。
+> **`pitchlog.authz.product_provisioning._run_product_operation` など authz モジュールの登録は
+> 既に `allowed_symbols` にあり、設計された経路である。**
+>
+> **TB007 1 件はコード側で解く**(`database_transport.py` の `url.get_dialect()()` が完全修飾名へ解決できない —
+> 明示 import へ替える。**`TSK-480` の `f8b640f7`「定数列の既定値を `literal_column` で書き、迂回の走査 TB005 を解く」と同型**)。
 > **ただし `data-model.md` を 1 行直すため、その digest を固定している 2 資産の取り直しは要る**(§4-8)。
 > **この 2 資産は `baseline_control` を持たない**ので(当方実測)、**7.7 の記録は不要で digest の取り直しだけ**である。
 
@@ -302,7 +320,8 @@ created: 2026-10-05
       (`authz/` 内の関数を単体で呼ぶだけでは満たさない)
 - [ ] **DB 接続がローカルでも証明書検証付き TLS でもない設定を拒否する**
 - [ ] **`TenantContext` を構築していない**(裁定 b')
-- [ ] **`contracts/tenant_boundary/` 配下と `scripts/check_tenant_boundary_bypass.py` の差分が 0 行**(7.7 の受理記録を作らない)
+- [ ] **`contracts/tenant_boundary/` の差分は `base-allowlist.json` の `allowed_symbols` へ本単位の 2 シンボル(`verify_tenant_id` / `logout_token`)と対応する fixture を足すことに限る**(**第 1 改訂・2026-10-08 — 改訂承認: 山田正輝**)。**他のファイル・他のキーの差分は 0 行**。**`scripts/check_tenant_boundary_bypass.py` の差分は 0 行**。**7.7 の受理記録を 1 件作る**
+  > **旧**: 「`contracts/tenant_boundary/` 配下と `scripts/check_tenant_boundary_bypass.py` の差分が 0 行(7.7 の受理記録を作らない)」。**CI の `tenant-boundary-bypass` が exit 1(TB005 6 件 / TB007 1 件)**で機構と正面衝突したため改める。**TB007 1 件はコード側で解く**(動的な dialect 解決を明示 import へ — `TSK-480` の `f8b640f7` と同型)。**TB005 6 件は `allowed_symbols` への登録でしか解けない** — **裁定 b' により本単位は `TenantContext` を作れず**、既存の許可シンボル(`_tenant_transaction` / `_execute_operation` — いずれも `TenantContext` が必須)を通る道が無い(当方実測)。**`pitchlog.authz.product_provisioning._run_product_operation` など authz モジュールの登録は既に前例があり、設計された経路である**
 - [ ] **`core-areas.json` を変更していない**(§4-3 の判定)
 - [ ] **`backend/tests/conftest.py` の差分が 0 行**(カード記載)
 - [ ] **アプリとドライバのログ・例外に平文と提示値が出ない**
@@ -310,6 +329,7 @@ created: 2026-10-05
 - [ ] **`data-model.md:2928` の 1 行が現行化され、版が据え置きで、変更履歴と `docs/README.md` が現行化されている**
 - [ ] **`data-model.md` の digest を固定する 2 資産を取り直し、両方とも green**(片方だけ直さない — TSK-475 の実測)
 - [ ] pytest / ruff / ty green(**backend は CI と同じ全件で確認する** — TSK-475 の実測)
+- [ ] **敵対レビュー(2026-10-08)の `P1` 3 件を是正した**(**第 1 改訂で追加**) — ① **正規鍵で署名された提示値だけが認証関数へ到達する**(型検査だけでなく、起動時に作った署名器との結び付き) ② **ループバックの平文 TCP を「ローカル」として許可しない**(条文 8-2 節が平文を許すのは UNIX ドメインソケット) ③ **`select(func.authn.*)` 形式の呼び出しが閉じた集合の照合をすり抜けない**
 - [ ] **コア領域のため敵対レビューと人間の逐行確認を通した**
 - [ ] 物理削除しない / テナント分離を全機能に適用 / 自動エスケープ(横断要求)
 
