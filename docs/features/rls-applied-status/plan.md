@@ -104,7 +104,7 @@ rg -n 'TSK-344' docs/design/data-model.md
 | **本番の配備先への適用** | **本番の運用手順**(v0.6 が送った先) |
 | **ゲートの通過条件・適用単位・測定経路・最低要求 4 件の要求文** | **変えない**(ADR-004 の裁定 A・B を再議しない) |
 | **④ の結論の変更** | **変えない**。「④: 対象なし」のまま |
-| 実装コード・`contracts/`・`backend/`・`frontend/`・`scripts/` | **差分 0 行** |
+| 実装コード・`backend/`・`frontend/`・`scripts/` | **差分 0 行**。**`contracts/` は派生 digest 2 件のみ**(3 節の宣言) |
 
 ### DoD 6 を外した理由(射程の縮小 — 人間の承認を要する)
 
@@ -156,6 +156,7 @@ rg -n 'TSK-344' docs/design/data-model.md
 | `docs/ops/product-rls-real-schema.md` | **反映なし**(別タスクへ切り出し) | — |
 | `docs/adr/ADR-004-merge-gate-scope.md` | **反映なし**(裁定 A・B を再議しない) | — |
 | `docs/design/sync-protocol.md` | **反映なし** | — |
+| **`contracts/db/schema-manifest.json`** | **`docs/design/data-model.md` の `sha256` を取り直す**(**同上の派生資産**。`backend/tests/test_schema_manifest.py` が `stale: data-model.md` で red になる) | PR レビュー |
 | **`contracts/authz/shared-preconditions.json`** | **`docs/design/data-model.md` の `git_blob_digest` を取り直す**(**本文を 1 文字でも変えると機械検査が red になる派生資産**。**内容の判断は含まない**) | PR レビュー |
 | `contracts/**`(上記以外) | **反映なし**(差分 0 行) | — |
 | `.claude/core-areas.json` | **反映なし**(paths を足さない) | — |
@@ -209,7 +210,7 @@ CLAUDE.md の役割分担(設計書 3 章)では **ドキュメントは Claude 
 | 4 | **変更履歴に 1 行足し、`docs/README.md` の索引を現行化する**(**版は上げない**) | `check_docs_status.py` が違反 0 件。**変更履歴表の版の列が v0.6 のまま**(新しい版番号を作っていない)。**既存行を書き換えていない**(`git diff` で確認) |
 | 5 | **記録を残す**(**本ステップの成果物はコミットされるファイルだけ**)— ① worklog へ 4 節の 5 点 ② `gate-record.md` の 8-2 節へ DoD 6 の繰り延べ先と理由を追記し、`:212` と `:363` の古い送り先を「当時の予定」と現在の分担に書き分ける | **逐行照合**: ① worklog に 4 節の 5 点がすべてある ② **「ゲートを通った」と書いていない** ③ **DoD 6 を閉じていない**(`gate-record.md` 8-2 が繰り延べのまま)④ **`:212` と `:363` が現在の分担と食い違っていない** ⑤ `check_plan_docs_sync.py` が exit 0。**PR 本文への 5 点の転記は本ステップの合格条件に含めない** — ステップはコミット単位で、PR 作成は後の `/pr` であるため(確定ゲート 2 周目 `P1`)。**転記の確認は 5 節の DoD に置く** |
 
-| 6 | **派生資産の追随**(**総合検証で判明した漏れ** — 計画 3 節の宣言も同時に直す)— ① `contracts/authz/shared-preconditions.json` の `data-model.md` の `git_blob_digest` を取り直す ② **`docs/features/orm-schema-migration/acceptance-sheets/` を変えずに済ませる**ため、**変更履歴の文言から N3 の走査語を外す**(`scripts/generate_orm_acceptance_sheets.py` の `N3_TERMS`) | `check_shared_preconditions.py` が OK / `pytest tests/test_orm_acceptance_sheets.py` が全件 green / **受入突合シート 4 枚の差分が 0 行**(**生成器を走らせない** — 走らせると人手の判定が全消しになる)|
+| 6 | **派生資産の追随**(**総合検証で判明した漏れ** — 計画 3 節の宣言も同時に直す)— ① **`data-model.md` の digest を持つ派生資産 2 件を取り直す**(`contracts/authz/shared-preconditions.json` の `git_blob_digest` と `contracts/db/schema-manifest.json` の `sha256`)② **`docs/features/orm-schema-migration/acceptance-sheets/` を変えずに済ませる**ため、**変更履歴の文言から N3 の走査語を外す**(`scripts/generate_orm_acceptance_sheets.py` の `N3_TERMS`) | `check_shared_preconditions.py` が OK / `pytest tests/test_orm_acceptance_sheets.py` が全件 green / **受入突合シート 4 枚の差分が 0 行**(**生成器を走らせない** — 走らせると人手の判定が全消しになる)|
 
 > `/<N>` を書かない(総数が変わりうる — 設計書 6.1 厳密文法③)。
 
@@ -243,7 +244,7 @@ CLAUDE.md の役割分担(設計書 3 章)では **ドキュメントは Claude 
 - [ ] **同じ 5 点を PR 本文へ転記した**(`/pr` の時点で確認する — ステップの合格条件ではない)
 - [ ] **TSK-478 の受け取り内容を取り違えていない** — TSK-478 が受け取るのは**判定単位と記録の帰属**であって、**DoD 6 の通過判定ではない**
 - [ ] **「ゲートを通った」と書いていない**
-- [ ] **CI の実行内容を変えていない** — `.github/workflows/` の差分 0 行 / `backend/`・`frontend/`・`contracts/`・`scripts/` の差分 0 行 / backend の `--collect-only` の node ID 集合が本 PR の前後で exact 一致(**基準線は本 PR の base で都度測り直す** — 固定値を書かない)
+- [ ] **CI の実行内容を変えていない** — `.github/workflows/` の差分 0 行 / `backend/`・`frontend/`・`scripts/`・`.github/` の差分 0 行(**`contracts/` は派生 digest 2 件だけが変わる** — 3 節の宣言のとおり) / backend の `--collect-only` の node ID 集合が本 PR の前後で exact 一致(**基準線は本 PR の base で都度測り直す** — 固定値を書かない)
 - [ ] **PR 本文に「コア領域/検査経路の変更: 人間による逐行確認を実施した」を記録した**(`scripts/core_guard.py` の `REQUIRED_CHECK_TEXT` と完全一致)
 
 ## 6. テスト計画
