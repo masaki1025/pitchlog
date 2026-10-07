@@ -231,7 +231,13 @@ def _tree_snapshot(root: Path) -> tuple[tuple[str, str], ...]:
     if not root.exists():
         return ()
     values: list[tuple[str, str]] = []
-    for path in sorted(candidate for candidate in root.rglob("*") if candidate.is_file()):
+    for path in sorted(
+        candidate
+        for candidate in root.rglob("*")
+        if candidate.is_file()
+        and "__pycache__" not in candidate.parts
+        and candidate.suffix != ".pyc"
+    ):
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         values.append((path.relative_to(root).as_posix(), digest))
     return tuple(values)
