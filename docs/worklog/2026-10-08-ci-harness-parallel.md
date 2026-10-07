@@ -93,6 +93,12 @@ branch: feature/ci-harness-parallel
 - サンドボックス固有: `~/.cache/uv` が読み取り専用のため Codex は `UV_CACHE_DIR=/tmp/... UV_NO_SYNC=1` を付けて実行(手元では不要)
 - 残り時間の律速は `tests/test_check_authz_catalog.py` の 2 テスト(111 / 99 秒)→ ステップ 2 で分割
 
+### /implement — ステップ 2(2026-10-08・Codex `implement --resume`・236,512 tok・16 分)— **合格・コミット `51deefca`**
+
+- 変更 1 ファイル(`tests/test_check_authz_catalog.py` +132/-56): 容器列テストを **3,586 ケース**(深さ 1〜8 の Σ 2^depth × depth)、葉の変異テストを **21,826 ケース**(6 資産 + seal の全 10,913 葉 × 改変・削除)の収集時 `parametrize` へ展開(旧ループの試行数と一致)。全数性の独立テスト 2 件を新設(`test_recursive_deriver_cases_cover_every_container_sequence_and_width`・`test_oracle_leaf_mutation_cases_cover_every_source_leaf` — 旧走査で独立導出した期待キー集合との完全一致・一意性・各資産の葉数 > 0)。検査器本体は不変
+- **実測**: 同ファイル 25,571 件 — 8 ワーカー **206.09 秒** / `-n 1` **358.88 秒**(分割前の直列 ≈ 400 秒)。**分割由来ケースの最長 call = 容器列 0.13 秒・葉 0.12 秒**(< 30 秒)。残る上位は対象外の `test_g_*` 38.86 / 38.64 / 37.48 秒。収集 0.75 秒(Claude 実測)。失敗ゼロ・ruff・ty green・`git status` は対象ファイルのみ
+- 直列の総時間がほぼ変わらない(400 → 359 秒)のは想定どおり — 分割の目的は xdist で分散できる粒度にすること(最長単体テスト 111 秒 → 0.13 秒)
+
 ## 決定
 
 - タスク分割(A/B)とワーカー数(上記)
