@@ -52,6 +52,6 @@ python-version = "3.12"
 include = ["scripts", "tests"]
 
 [tool.pytest.ini_options]
-addopts = "-n auto"
+addopts = "-n auto --dist worksteal"
 testpaths = ["tests"]
 markers = ["frozen_negative: 凍結基準の検査が red になることを固定する負例"]
