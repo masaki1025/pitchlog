@@ -106,6 +106,17 @@ branch: feature/ci-harness-parallel
 - CI の直接実行経路 `uv run python tests/test_census_baseline_check.py` → `census-baseline: OK`(Claude も再確認)/ 監査・来歴・契約差し替えの回帰テストは変更なしで green / ruff・ty green / `git status` は対象ファイルのみ
 - 目標未達の理由(実測から): 残りの大半は変異テストが契約を差し替えるため設計上共有できない再計算(28 秒級)と、監査内で毎回走るアンカーの実体化・隔離ロード(書き出しは不変条件のため削減対象外)。計画書どおり「下限達成なら手法を変えずに進む」
 
+### /implement — ステップ 4(2026-10-08・Codex `implement --resume`・398,595 tok・3 分)— **合格・コミット `ff515e1a`**
+
+- 変更 1 ファイル(新規 `backend/.coveragerc` — `[run] core = sysmon` の 2 行)。`backend/` で `uv run coverage debug config` → `config_files_read: backend/.coveragerc`・`core: sysmon`(Claude も再確認)。`ci.yml`・`backend/pyproject.toml`・期待値資産・`tests/test_ci_wiring.py` は不変
+- 非 DB 実行 `uv run pytest -c pyproject.toml -m "not requires_db" --cov`: カバレッジ表 TOTAL 60%・**939 passed, 4 skipped**。終了コードは 1 — `backend/tests/db/conftest.py` の「DB テスト 0 件実行は fail」ガード(10.1 の fail-closed)によるもので、`-m "not requires_db"` とは両立しない。合格条件の文言を「failed 0」に改めた(計画修正 3)
+
+### /implement — ステップ 1 付記(2026-10-08・Codex `implement --resume`・429,436 tok・2 分)— **コミット `c327e336`** — addopts の副作用の実測と対処
+
+- **実測(ステップ 4 の検証で発覚)**: `backend/tests/test_authz_product_roles.py::test_product_role_assets_match_design_and_all_readers_accept_them` が `scripts/check_authz_catalog.py` を backend の venv の Python で起動し、同検査器の `collect_pytest_node_ids`(`:2960`)が `python -m pytest --collect-only -q tests/` を**ルート**で走らせる → ルート `pyproject.toml` の `addopts = "-n auto"` が xdist の無い backend 環境で `unrecognized arguments: -n` → **CI の backend ジョブが赤になる経路**。計画修正 2 の P0 限定レビュー(5 回目)はこの経路を拾っていない(依頼文で「`-n auto` 既定が他経路と衝突しないか」を問うていたが、別 venv からのルート起動は反例に挙がらなかった)
+- **採れない対処**: backend に xdist(`backend/pyproject.toml` = コア領域 paths)/ 検査器の変更(guard_paths・digest 固定)/ `ci.yml` の env(凍結の外部入力)
+- **採った対処**: ルートに `conftest.py` を新設し、`importlib.util.find_spec("xdist") is None` のときだけダミーの `-n`/`--numprocesses` を `pytest_addoption` で登録(xdist がある環境では何も登録しない)。`conftest.py` は guard_paths(逐行確認)だがコア領域 paths ではない。**PO への報告事項**(計画外の新規ファイル 1 件・計画修正 3 として plan.md に記録)
+
 ## 決定
 
 - タスク分割(A/B)とワーカー数(上記)
