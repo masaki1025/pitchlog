@@ -129,6 +129,16 @@ branch: feature/ci-harness-parallel
 - 解消には 7.7-2 の受理(識別値 7 → 8・PR 番号付き v2 受理記録・PO 受理 = コア資産の変更。develop が進むと書き直し)が要る。**PO 判断(2026-10-08・徳光 尋弥)= revert して後続タスクへ**(失うのは `-n 1` で約 90 秒・8 ワーカーでは数十秒)
 - 教訓(台帳へ): 凍結の外部入力は「触りたいファイル名で `contracts/**` と `tests/fixtures/*/manifest.json` を grep」で機械的に出る。計画段階でこの突合を手順化しないと、同じタスク内で 3 度踏む
 
+### 敵対レビュー 1 回目(コア領域 PR・2026-10-08・`review adversarial` = gpt-6-sol xhigh・対象 = `origin/develop...HEAD` のコード差分全体〔revert 前〕・**136,931 tok**・判定 = **否決 P0 2 / P1 1 / P2 0**)
+
+| # | 重大度 | 起因 | 所在 | 要旨 | 採否と反映 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | P0 | 起因 | `tests/test_census_baseline_check.py:719` | メモ化キーが `load_contract`・`scan_directory` の同一性しか見ず、後者が呼ぶ `scan_source`(`scripts/check_tenant_boundary_bypass.py:5424`)の差し替えを検出できない → 走査の変異を見逃す | **対象消滅**(ステップ 3 を revert `eaa23178` — 同ファイルは develop と同一)。後続タスクで再適用する際の要件として plan 4 節「共有の方針」の撤回注記に残す(キーに `scan_source` 等の依存関数の同一性も含める) |
+| 2 | P0 | 起因 | `tests/domain/gen/test_backends.py:238` | `__pycache__`・`.pyc` の除外が監視対象 3 つすべてに効き、`contracts/` に `.pyc` を書いても「製品パス・contracts に書かない」検査が通る | **採用** — 除外を `backend/src/pitchlog` の監視だけに限定し、除外なし/ありの検出を固定するテストを追加(コミット `afcbfbf2`・Codex) |
+| 3 | P1 | 起因 | `tests/test_census_baseline_check.py:387` | `git cat-file --batch` 応答の missing・型違い・サイズ不一致を拒否する分岐に負例テストがない | **対象消滅**(同上 revert)。後続タスクの要件として同じ注記に残す |
+
+- 次 = 敵対レビュー 2 回目(反映差分と影響箇所 = #2 の是正 + ステップ 3 の revert)。2 回目に P0 が残れば P0 限定の 3 回目(6.3)
+
 ## 決定
 
 - タスク分割(A/B)とワーカー数(上記)
