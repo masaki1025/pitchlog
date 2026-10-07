@@ -1,6 +1,6 @@
 ---
 feature: ua1-auth-app-layer
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-05・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -97,8 +97,9 @@ created: 2026-10-05
 | --- | --- | --- |
 | `docs/requirements/**` | **反映なし。** 8-3 節が条文の正で、要件書の改訂は行わない(裁定③) | — |
 | **`docs/design/data-model.md`** | **12-8 節(射程宣言)の残件 1 行を現行化する**(`:2928`)。**裁定 b' で `TenantContext` の生成が U-M1 ステップ 8 へ移った**のに、同行が「署名と検証・テナント文脈の生成 = **TSK-469**(U-A1 γ)」のままであるため。**版は上げない**(実装追随 — 設計書 7.6-3 前段)。変更履歴表に 1 行。**§4-8 を参照** | **PR レビュー** |
-| `docs/adr/**` / `docs/development/**` / `docs/ops/**` | **反映なし** | — |
-| `docs/README.md` | `data-model.md` 行の最終更新日を現行化 | **PR レビュー** |
+| **`docs/development/harness-evaluation.md`** | **`## 候補` へ事例追加 2 件 + 新規候補 1 件**(①「正本の行番号引用が…外れる」へ **6 事例目** — **他タブの改訂で動く変種**と**ステップ番号という新しい腐り方** ②「『何も起きていない』型の合格条件は、母集団を自分で閉じられないと実測できない」へ事例追加 — **陽性対照のない探針** ③ 新規候補 — **合格条件がログ経路を名指ししていたため NFR-014 の漏れが実測で出た**)。**`H-*` の新規採番はしない・版は上げない**(7.6-3 前段)。変更履歴表に 1 行 | **PR レビュー** |
+| `docs/adr/**` / `docs/ops/**` / `docs/development/**`(評価台帳を除く) | **反映なし** | — |
+| `docs/README.md` | `data-model.md` 行と**評価台帳行**の最終更新日を現行化 | **PR レビュー** |
 
 ### 正本体系外だが同一 PR で運ぶもの
 
