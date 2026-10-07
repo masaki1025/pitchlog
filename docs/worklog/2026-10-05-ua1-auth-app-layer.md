@@ -57,3 +57,20 @@ branch: feature/ua1-auth-app-layer
 - TB002: 変更した Python 4 ファイルを `HEAD` の AST と比較して導入識別子を採り、検査器と同じ snake_case 相当の正規化で `base-allowlist.json` の正規表現 7 件と照合した。**固有 21 識別子、該当 0 件**。
 - 最終検証(`backend/`、`UV_CACHE_DIR=/tmp/pitchlog-ua1-uv-cache`、`uv run --offline`): 非 DB 全件 **1004 passed, 4 skipped, 17 deselected**。`ruff format`: **249 files left unchanged**、`ruff check --fix` / `ty check`: **All checks passed**。
 - β の SQL の `expires_at = greatest(logged_out_at, previous_last_used_at)` は、式の上では期限が `logged_out_at` **以上**となる。今回の実 DB 試験はこの大小関係の断定に頼らず、期限の短縮と同じ提示値での検証失敗を観測する。
+
+## 2026-10-07 ステップ 6(故障系)
+
+- `backend/tests/test_authz_failure_mutations.py` を新設。既存試験の期待を書き換えず、製品ソースを一時ディレクトリへ複製して守りを外す。**red の前に**変異後 AST が異なること・変更文が複製先にあること・子プロセスがその複製先からモジュールを import することを確認する。試験後に元のバイト列へ戻し、元ソースとの差分 0 を確認してから同じ試験を green で実行する。作業ツリーの製品ソースには変異を残さない。
+
+| 条件文の群 | 既存試験との対応・補足 | 実装側で外した守り | red → green |
+| --- | --- | --- | --- |
+| ① 署名の改ざん | `test_authz_verified_tenant.py::test_logout_rejects_unsigned_values_without_db[tampered_signature]` | ①②共通: `TokenPresentation.decode()` の `compare_digest` 判定を無効化 | ①②の合計 **2 failed → 2 passed**(各 1 件) |
+| ② 鍵の入れ替え後のトークン | `test_authz_token_presentation.py::test_signature_from_another_key_is_rejected_without_leaking_input`。旧鍵の提示値を別鍵で拒む同じ事実なので、①と 1 変異に寄せた | ①と同じ | ①②の合計に含む |
+| ③ 不正な形式の提示値 | 既存 `test_malformed_presentation_is_rejected` に加え、新設ファイルの `test_valid_signed_value_with_suffix_is_rejected`。既存の余分な文字の入力は署名自体も不正なので、正しい署名に末尾文字を足す負例を補った | `fullmatch` を `match` へ変更 | **1 failed → 1 passed** |
+| ④ 鍵の欠落・短い鍵で起動拒否 | `test_authz_signing_key_config.py::test_missing_signing_key_prevents_app_creation` / `test_short_decoded_signing_key_prevents_app_creation`(2 ケース) | 鍵設定関数の冒頭で固定長鍵を返し、起動時検証を飛ばす | **3 failed → 3 passed** |
+| ⑤ TLS でない設定を拒否 | `test_authz_database_transport.py::test_engine_rejects_unverified_or_ambiguous_transport`(12 ケース。`create_database_engine()` 経由) | 通信設定検証関数を冒頭で返す | **12 failed → 12 passed** |
+| ⑥ 署名未照合 ID の `verify_token` / `logout` 非到達 | `test_authz_verified_tenant.py::test_unsigned_id_and_tampered_value_never_open_db` / `test_logout_rejects_unsigned_values_without_db[raw_uuid]`。到達点そのものは `test_authz_app_layer_surface.py::test_db_reach_is_exact_set_and_absences_are_explicit` | 両公開入口の `presentation.decode()` を生 UUID の解析へ置換 | **2 failed → 2 passed** |
+
+- 条件文にある**正しく署名された失効済み・無効テナントの ID**は `tests/db/test_authz_verified_tenant.py::test_signed_invalid_token_returns_no_tenant` の 5 ケース(`logged_out` / `stale_credential` / `disabled` / `wrong_tenant` / `expired`)に対応する。委任元が使い捨て Postgres で実行済み。本サンドボックスでは管理接続が立たないため、この DB 依存の変異・再実行は行っていない。新設試験の対応表は計画書の条件文を起点に、参照する関数とパラメータ名の実在を確認する。
+- TB002: 新設ファイルの AST からモジュール名・関数名・クラス名・引数名・`Name`・`Attribute`・import 名を採り、検査器と同じ snake_case 相当で正規化し、`base-allowlist.json` の候補パターン 7 件と照合した。**固有 124 識別子、該当 0 件**。
+- 最終検証(`backend/`、`UV_CACHE_DIR=/tmp/pitchlog-ua1-uv-cache`、`uv run --offline`): 非 DB 全件 **1011 passed, 4 skipped, 17 deselected**。`ruff format`: **1 file reformatted, 249 files left unchanged**、`ruff check --fix` / `ty check`: **All checks passed**。ステップ 7 の作業には着手していない。
