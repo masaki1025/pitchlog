@@ -6971,36 +6971,7 @@
       },
       {
         "record_schema_version": 2,
-        "acceptance_id": "masaki1025/pitchlog#95",
-        "new_baseline_identifiers": {
-          "contracts/tenant_boundary/base-allowlist.json": [
-            "contract_revision:21"
-          ],
-          "contracts/tenant_boundary/cache-invalidation-contract.json": [
-            "contract_revision:7"
-          ],
-          "contracts/tenant_boundary/census-baseline.json": [
-            "contract_revision:7"
-          ],
-          "contracts/tenant_boundary/db-api-inventory.json": [
-            "inventory_revision:9"
-          ],
-          "contracts/tenant_boundary/frozen-inputs.json": [
-            "contract_revision:2"
-          ],
-          "contracts/tenant_boundary/negative-fixtures.json": [
-            "fixture_set_revision:11"
-          ],
-          "contracts/tenant_boundary/repository-contract.json": [
-            "contract_revision:10"
-          ],
-          "contracts/tenant_boundary/runtime-authz-contract.json": [
-            "runtime_contract_revision:8"
-          ],
-          "contracts/tenant_boundary/tenant-context-allowlist.json": [
-            "contract_revision:10"
-          ]
-        },
+        "acceptance_id": "masaki1025/pitchlog#96",
         "previous_baseline_identifiers": {
           "contracts/tenant_boundary/base-allowlist.json": [
             "contract_revision:21"
@@ -7030,8 +7001,37 @@
             "contract_revision:10"
           ]
         },
+        "new_baseline_identifiers": {
+          "contracts/tenant_boundary/base-allowlist.json": [
+            "contract_revision:21"
+          ],
+          "contracts/tenant_boundary/cache-invalidation-contract.json": [
+            "contract_revision:7"
+          ],
+          "contracts/tenant_boundary/census-baseline.json": [
+            "contract_revision:7"
+          ],
+          "contracts/tenant_boundary/db-api-inventory.json": [
+            "inventory_revision:9"
+          ],
+          "contracts/tenant_boundary/frozen-inputs.json": [
+            "contract_revision:2"
+          ],
+          "contracts/tenant_boundary/negative-fixtures.json": [
+            "fixture_set_revision:11"
+          ],
+          "contracts/tenant_boundary/repository-contract.json": [
+            "contract_revision:9"
+          ],
+          "contracts/tenant_boundary/runtime-authz-contract.json": [
+            "runtime_contract_revision:9"
+          ],
+          "contracts/tenant_boundary/tenant-context-allowlist.json": [
+            "contract_revision:10"
+          ]
+        },
         "change": {
-          "subject": "U-M1(TSK-393): 選手と対戦相手チームのリポジトリ操作 6 件を登録する",
+          "subject": "masaki1025/pitchlog#96 の製品認可契約の受理",
           "aspect": [
             "asset_snapshots",
             "declaration"
@@ -7668,7 +7668,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:10"
+                    "contract_revision:9"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -7693,7 +7693,7 @@
                   "scheme": "integer_revision_field",
                   "field": "runtime_contract_revision",
                   "current_identifiers": [
-                    "runtime_contract_revision:8"
+                    "runtime_contract_revision:9"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -7969,13 +7969,13 @@
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "0ad989eac540675f966f1542c7c70d149a991ad9a2de1120b882eec0e5893d69",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0ad989eac540675f966f1542c7c70d149a991ad9a2de1120b882eec0e5893d69"
+                "sha256": "15d55e0522e666684564b44b16d20f151ca0b9154c1da06c2b5a444ce8da8485",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/15d55e0522e666684564b44b16d20f151ca0b9154c1da06c2b5a444ce8da8485"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
-                "sha256": "10e210c1aac3228d553cad271efbca753f8811974e01c6504d2c4220fe239cf8",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/10e210c1aac3228d553cad271efbca753f8811974e01c6504d2c4220fe239cf8"
+                "sha256": "c117acc2d1e8713276925153073661dc76bd9b855b0d52858bba9339a0a6411c",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c117acc2d1e8713276925153073661dc76bd9b855b0d52858bba9339a0a6411c"
               },
               {
                 "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
@@ -7985,8 +7985,8 @@
             ]
           }
         },
-        "movement_fact": "repository-contract.json の製品 capability 6 件と operation token 型 6 件を追加し、contract_revision を 9 から 10 に進めた。生成モジュール repository_contract.py と実行 registry を同期した。凍結射影が動いた資産は repository-contract.json の 1 件で、外部凍結対象 8 件の内容は変えていない。比較元は origin/develop の f2dc9f9b73723c840eb50042f1d17329a8a35bcd。",
-        "reason": "U-M1(TSK-393)の選手・対戦相手チーム操作を TSK-424 の capability カタログに結び付け、製品リポジトリの閉じた操作集合と凍結基準を一致させるため。",
+        "movement_fact": "① ランタイム契約の保護対象を製品資産から再導出した(足したのは スキーマ authn と authn_crypto・認証関数 11 件・正規化関数 public.authn_normalize_team_name(text) 1 件)② runtime_contract_revision を比較元の 8 から 9 へ 1 つだけ上げ、識別値を runtime_contract_revision:9 にそろえた(他の 6 資産の識別値は比較元と同じ)③ 製品の資産は使い捨てクラスタで確認済みで、実スキーマへの適用は TSK-344 が行う ④ 受理の対象とした比較元のコミットは 9cc96eccc8b21c65fb5a92c5022eaf1772264ad8",
+        "reason": "TSK-468(U-A1 β — 認証の DB 層)として、製品 authz 資産へ認証の資産一式(認証関数所有用ロール・スキーマ authn と authn_crypto・pgcrypto・認証関数 11 件)を足し、正規化関数 1 件を migration 由来の通常関数として宣言したため、製品資産から導くランタイム契約の保護対象が動いた。条文は data-model.md v0.4 の 3-2・8-1〜8-6 節。計画: docs/features/ua1-auth-db-layer/plan.md",
         "approved_by": "山田正輝",
         "approved_on": "2026-10-05"
       }

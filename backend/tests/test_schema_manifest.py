@@ -283,8 +283,18 @@ def _manifest_shape_violations(manifest: dict[str, Any]) -> list[str]:
         if len(column_names) != len(set(column_names)):
             violations.append(f"{name}: 列名が重複している")
         for column in table["columns"]:
-            if set(column) != {"name", "type", "nullable", "default"}:
+            base_fields = {"name", "type", "nullable", "default"}
+            fields = set(column)
+            if fields not in (base_fields, base_fields | {"generated_expression"}):
                 violations.append(f"{name}: 列定義の項目が不正: {column.get('name')}")
+            elif "generated_expression" in column and (
+                not isinstance(column["generated_expression"], str)
+                or not column["generated_expression"].strip()
+                or column["default"] is not None
+            ):
+                violations.append(
+                    f"{name}: 生成列の式または既定値が不正: {column['name']}"
+                )
         for foreign_key in table["foreign_keys"]:
             expected = {
                 "name",

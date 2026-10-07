@@ -252,7 +252,7 @@ def test_product_assets_are_accepted_by_all_three_readers() -> None:
         PRODUCT_SPEC,
     ) == {
         "scope_status": PRODUCT_SPEC.allowed_scope_status,
-        "product_role_count": 4,
+        "product_role_count": len(product_asset["roles"]),
     }
 
 

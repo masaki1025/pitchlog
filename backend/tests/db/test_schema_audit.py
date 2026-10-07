@@ -41,6 +41,7 @@ _MANIFEST_PATH = _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.js
 _ALEMBIC_INTERNAL_TABLES = {"alembic_version"}
 # data-model.md 12-3 節「移行バッチの退役」の不変条件 5 が列挙する 7 件。
 _CANONICAL_RETIREMENT_CONSTRAINTS = {
+    "tenants": "uq_tenants_active_name_normalized",
     "lineup_memories": "uq_lineup_memories_active",
     "participation_intervals": "uq_participation_intervals_active",
     "operation_events": "uq_operation_events_active_d2",
@@ -209,7 +210,9 @@ def _column_catalog(
                 attribute.attname,
                 format_type(attribute.atttypid, attribute.atttypmod),
                 NOT attribute.attnotnull,
-                pg_get_expr(default_row.adbin, default_row.adrelid, true)
+                CASE WHEN attribute.attgenerated = ''
+                     THEN pg_get_expr(default_row.adbin, default_row.adrelid, true)
+                     ELSE NULL END
             FROM pg_attribute AS attribute
             JOIN pg_class AS relation ON relation.oid = attribute.attrelid
             JOIN pg_namespace AS namespace
@@ -252,6 +255,48 @@ def _manifest_columns(manifest: Mapping[str, Any]) -> set[_ColumnContract]:
         for table in manifest["tables"]
         for column in table["columns"]
     }
+
+
+def _generated_expression_violations(
+    connection: psycopg.Connection[Any], manifest: Mapping[str, Any]
+) -> list[str]:
+    """生成列の式を manifest と照合する。alembic check はこの式を検出しない。"""
+    expected = {
+        (table["name"], column["name"]): column["generated_expression"]
+        for table in manifest["tables"]
+        for column in table["columns"]
+        if "generated_expression" in column
+    }
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT relation.relname, attribute.attname,
+                   pg_catalog.pg_get_expr(definition.adbin, definition.adrelid, true)
+            FROM pg_catalog.pg_attribute AS attribute
+            JOIN pg_catalog.pg_class AS relation ON relation.oid = attribute.attrelid
+            JOIN pg_catalog.pg_namespace AS namespace
+              ON namespace.oid = relation.relnamespace
+            JOIN pg_catalog.pg_attrdef AS definition
+              ON definition.adrelid = attribute.attrelid
+             AND definition.adnum = attribute.attnum
+            WHERE namespace.nspname = 'public'
+              AND attribute.attgenerated = 's'
+            """
+        )
+        observed = cursor.fetchall()
+
+    def normalize(expression: str) -> str:
+        return _normalize_sql(expression).replace("public.", "")
+
+    actual = {
+        (str(table), str(column)): normalize(str(expr))
+        for table, column, expr in observed
+    }
+    return _set_violations(
+        "生成列の式",
+        {(key, normalize(value)) for key, value in expected.items()},
+        set(actual.items()),
+    )
 
 
 def _index_kinds(
@@ -677,9 +722,9 @@ def _cross_table_audit_violations(
         set(_CANONICAL_RETIREMENT_CONSTRAINTS),
         retirement_tables,
     )
-    if len(retirement_tables) != 7:
+    if len(retirement_tables) != 8:
         retirement_violations.append(
-            f"退役述語対象: 7 件ではない: {len(retirement_tables)} 件"
+            f"退役述語対象: 8 件ではない: {len(retirement_tables)} 件"
         )
     for table, constraint_name in _CANONICAL_RETIREMENT_CONSTRAINTS.items():
         if "retired_at" not in columns_by_table.get(table, {}):
@@ -725,13 +770,13 @@ def _cross_table_audit_violations(
         for name in sorted(canonical_outside)
         if "tenant_id" in columns_by_table.get(business_constraint_tables[name], {})
     ]
-    if len(business_constraints) != 27:
+    if len(business_constraints) != 29:
         global_uniqueness_violations.append(
-            f"business_unique が 27 件ではない: {len(business_constraints)} 件"
+            f"business_unique が 29 件ではない: {len(business_constraints)} 件"
         )
-    if len(canonical_outside) != 4:
+    if len(canonical_outside) != 5:
         global_uniqueness_violations.append(
-            f"テナント外 business_unique が 4 件ではない: {len(canonical_outside)} 件"
+            f"テナント外 business_unique が 5 件ではない: {len(canonical_outside)} 件"
         )
 
     violations = {
@@ -807,6 +852,9 @@ def test_schema_manifest_matches_catalog_and_cross_table_rules(
                 ),
                 "checks": check_violations,
                 "indexes": _set_violations("索引", expected_indexes, actual_indexes),
+                "generated_expressions": _generated_expression_violations(
+                    connection, manifest
+                ),
             }
             cross_table_violations = _cross_table_audit_violations(
                 manifest,

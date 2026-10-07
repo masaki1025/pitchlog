@@ -63,6 +63,32 @@ def _load_checker() -> Any:
 checker = _load_checker()
 
 
+def test_product_extension_and_new_schema_declarations() -> None:
+    """複製した製品資産の新スキーマと拡張を受け、不正な参照を拒否する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    schemas = copy.deepcopy(asset["schemas"])
+    extra = copy.deepcopy(schemas[1])
+    extra["schema_id"] = "test_extension_schema"
+    extra["schema_name"] = "test_extension_schema"
+    schemas.append(extra)
+    checker._validate_product_schema_expectations(schemas, authn_enabled=True)
+    extensions = [
+        {
+            "extension_id": "test_extension",
+            "extension_name": "test_extension",
+            "schema_name": "test_extension_schema",
+        }
+    ]
+    checker._validate_product_extension_expectations(extensions, schemas)
+    extensions[0]["schema_name"] = "unlisted"
+    with pytest.raises(checker.CatalogError, match="拡張スキーマ"):
+        checker._validate_product_extension_expectations(extensions, schemas)
+
+
 def _load_runtime_contract_support() -> Any:
     """Backend と共有する製品状態の複製 helper を読む。"""
     spec = importlib.util.spec_from_file_location(
@@ -270,6 +296,64 @@ def _copy_product_catalog_repository(tmp_path: Path) -> Path:
 def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
     """製品状態からでも正しい未発効状態の検査用複製を組み立てる。"""
     root = _copy_product_catalog_repository(tmp_path)
+    provisional_revision = runtime_contract_support.provisional_reference_revision(
+        REPOSITORY_ROOT
+    )
+    (root / checker.PRODUCT_MIGRATION_VERSIONS / "0028_tenant_login_identity.py").unlink()
+    steps_path = root / checker.PRODUCT_SPEC.application_steps_path
+    steps = _read_json_at(root, checker.PRODUCT_SPEC.application_steps_path)
+    for step in steps["application_steps"]:
+        step["element_groups"] = [
+            group for group in step["element_groups"]
+            if group not in {"extensions", "functions:definer"}
+        ]
+    steps["application_steps"][-1]["element_groups"].remove(
+        "functions:migration_function"
+    )
+    _write_json_at(root, checker.PRODUCT_SPEC.application_steps_path, steps)
+    staged = _read_base_staged_asset(checker.STAGED_PRODUCT_ASSET)
+    allowed = {
+        (section.element_type, row[section.id_field])
+        for section in checker.PRODUCT_SPEC.element_sections
+        for row in staged.get(section.section_name, [])
+    }
+    body_manifest_path = checker.PRODUCT_SPEC.asset_root / "function-bodies/manifest.json"
+    body_manifest = _read_json_at(root, body_manifest_path)
+    for entry in body_manifest["entries"]:
+        if (entry["element_type"], entry["element_id"]) not in allowed:
+            (root / entry["path"]).unlink()
+    body_manifest["entries"] = [
+        entry for entry in body_manifest["entries"]
+        if (entry["element_type"], entry["element_id"]) in allowed
+    ]
+    _write_json_at(root, body_manifest_path, body_manifest)
+    public_body = checker.PRODUCT_SPEC.asset_root / "function-bodies/schemas/public.sql"
+    (root / public_body).write_text(
+        _run_git(
+            REPOSITORY_ROOT,
+            "show",
+            f"{provisional_revision}:{public_body.as_posix()}",
+        ),
+        encoding="utf-8",
+    )
+    map_path = checker.PRODUCT_SPEC.asset_root / "probe-product-map.json"
+    mapping = _read_json_at(root, map_path)
+    if str(REPOSITORY_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPOSITORY_ROOT))
+    from backend.tests.product_authz_probe_product_map import atomic_elements
+
+    staged_atoms = atomic_elements(staged, label="product")
+    mapping["product_only"] = [
+        entry for entry in mapping["product_only"]
+        if entry["product"] in staged_atoms
+    ]
+    _write_json_at(root, map_path, mapping)
+    failure_path = checker.PRODUCT_SPEC.asset_root / "failure-injection-points.json"
+    failure_asset = _read_json_at(root, failure_path)
+    failure_asset["source_asset"]["git_blob_digest"] = checker.git_blob_digest(
+        steps_path.read_bytes()
+    )
+    _write_json_at(root, failure_path, failure_asset)
     (root / checker.PRODUCT_ASSET).unlink()
     _write_json_at(
         root,
@@ -301,7 +385,7 @@ def test_product_runtime_contract_state_is_accepted(tmp_path: Path) -> None:
 
     assert result == {
         "scope_status": checker.PRODUCT_SPEC.allowed_scope_status,
-        "product_role_count": 4,
+        "product_role_count": len(_read_json_at(root, checker.PRODUCT_ASSET)["roles"]),
     }
 
 

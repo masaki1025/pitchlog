@@ -139,6 +139,7 @@ _EXPECTED_SECRET_COLUMNS = {
     ("tenant_credentials", "password_hash"),
     ("admin_credentials", "password_hash"),
     ("group_invitations", "code_hash"),
+    ("tenant_tokens", "id"),
 }
 _PROFILE_MUTATIONS = (
     ("admin_credentials", "global_read_only"),
@@ -369,6 +370,8 @@ def test_exposure_facts_are_complete_and_reference_manifest_objects(
         for column_name in column_names
         if column_name in {"password_hash", "code_hash"}
     }
+    assert "id" in manifest_columns["tenant_tokens"]
+    scanned_secret_columns.add(("tenant_tokens", "id"))
 
     assert actual_table_facts == _EXPECTED_FACT_TABLES
     assert actual_secret_columns == scanned_secret_columns == _EXPECTED_SECRET_COLUMNS
@@ -387,7 +390,7 @@ def test_exposure_facts_are_complete_and_reference_manifest_objects(
     assert all(entry["reason"] for entry in secret_entries)
 
 
-def test_removed_unsubstantiated_secret_ids_do_not_change_access_boundaries(
+def test_token_secret_id_and_admin_sessions_keep_function_only_boundaries(
     documents: tuple[
         dict[str, Any],
         dict[str, Any],
@@ -396,13 +399,14 @@ def test_removed_unsubstantiated_secret_ids_do_not_change_access_boundaries(
         frozenset[str],
     ],
 ) -> None:
-    """典拠のない秘密列を除いても対象表の分類と ACL を閉じたままにする。"""
+    """秘密列になったトークン ID と管理セッションの直接 ACL を閉じる。"""
     classification, exposure_facts, _manifest, _data_model, _models = documents
     target_tables = {"tenant_tokens", "admin_sessions"}
     secret_entries = _fact_for_kind(exposure_facts, "secret_column")["entries"]
     secret_columns = {(entry["table"], entry["column"]) for entry in secret_entries}
 
-    assert target_tables.isdisjoint(table for table, _column in secret_columns)
+    assert ("tenant_tokens", "id") in secret_columns
+    assert "admin_sessions" not in {table for table, _column in secret_columns}
     assert all(
         _row_for_table(classification, table_name)["profile"] == "function_only"
         for table_name in target_tables

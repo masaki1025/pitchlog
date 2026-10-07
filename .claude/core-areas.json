@@ -379,7 +379,10 @@
         "tests/test_check_tenant_boundary_bypass.py",
         "tests/test_frozen_archive.py",
         "tests/test_frozen_archive_case_runner.py",
-        "tests/test_frozen_history.py"
+        "tests/test_frozen_history.py",
+        "docs/ops/product-rls-real-schema.md",
+        "scripts/product_rls_real_schema/*",
+        "scripts/product-rls-real-schema-targets.json"
       ]
     },
     {

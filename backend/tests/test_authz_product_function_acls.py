@@ -30,6 +30,33 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PRODUCT_SPEC = product_spec_for_repository(_REPOSITORY_ROOT)
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
 _MIGRATION_VERSIONS = Path("backend/migrations/versions")
+
+
+def test_product_function_argument_shapes_come_from_asset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """新しい引数形は複製した製品資産の宣言で許可する。"""
+    from pitchlog.authz import product_function_acl
+
+    asset = json.loads(
+        (_REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    asset["functions"].append({"identity_args": "text"})
+    path = tmp_path / "contracts/authz/product/ddl-elements.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(asset), encoding="utf-8")
+    monkeypatch.setattr(product_function_acl, "_REPOSITORY_ROOT", tmp_path)
+
+    assert (
+        product_function_id("public", "sample", "text")
+        == "FUNCTION:public:sample(text)"
+    )
+    with pytest.raises(ValueError, match="資産宣言"):
+        product_function_id("public", "sample", "integer")
+
+
 _EXPECTED_GAPS = {
     (
         "public",
@@ -149,6 +176,43 @@ def _mutate_remove_function(asset: dict[str, Any]) -> None:
     asset["functions"].pop(index)
 
 
+def test_unlisted_migration_regular_function_is_red(tmp_path: Path) -> None:
+    """複製した migration に通常関数を足すと種別込みの照合が失敗する。"""
+    root = tmp_path / "repository"
+    _copy_static_inputs(root)
+    asset = _product_asset()
+    migration = next((root / _MIGRATION_VERSIONS).glob("*.py"))
+    migration.write_text(
+        migration.read_text(encoding="utf-8")
+        + "\n_STEP4_ORDINARY = '''\n"
+        + "CREATE FUNCTION public.step4_unlisted_ordinary()\n"
+        + "RETURNS text\nLANGUAGE sql\nAS $$ SELECT 'x'::text $$;\n"
+        + "'''\n",
+        encoding="utf-8",
+    )
+    kinds: dict[tuple[str, str, str], str] = {}
+    _catalog_checker._product_migration_functions(root, kinds=kinds)
+    assert kinds[("public", "step4_unlisted_ordinary", "")] == "migration_function"
+    with pytest.raises(
+        _catalog_checker.CatalogError, match="種別込みでexact-set不一致"
+    ):
+        _validate_product_asset(asset, root)
+
+
+def test_migration_regular_function_declares_revoked_execute() -> None:
+    """通常関数もトリガ関数と同じ関数 ACL の閉じた形を持つ。"""
+    declaration = build_product_function_acl_declaration(
+        "public", "step4_ordinary", "", function_kind="migration_function"
+    )
+    assert declaration["function_kind"] == "migration_function"
+    assert declaration["owner_role_id"] == "pitchlog_owner"
+    assert declaration["acl_expectations"] == []
+    assert declaration["revoked_acl_expectations"] == [
+        {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False},
+        {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": False},
+    ]
+
+
 def _mutate_remove_gap(asset: dict[str, Any]) -> None:
     """暫定契約の宣言済み追加分を1件消す。"""
     index = next(
@@ -204,11 +268,14 @@ _DECLARATION_MUTATIONS = (
 
 
 def test_migration_function_acls_and_runtime_contract_match_exactly() -> None:
-    """Migration 37関数と状態別ランタイム契約を完全照合する。"""
+    """Migration 由来の関数と状態別ランタイム契約を完全照合する。"""
     asset = _product_asset()
     _validate_product_asset(asset)
 
-    migration_origins = _catalog_checker._product_migration_functions(_REPOSITORY_ROOT)
+    migration_kinds: dict[tuple[str, str, str], str] = {}
+    migration_origins = _catalog_checker._product_migration_functions(
+        _REPOSITORY_ROOT, kinds=migration_kinds
+    )
     migration_functions = set(migration_origins)
     protected_functions = {
         (str(schema), str(name), str(identity_args))
@@ -223,16 +290,23 @@ def test_migration_function_acls_and_runtime_contract_match_exactly() -> None:
         for row in asset["functions"]
     }
     assert _RUNTIME_CONTRACT_VIOLATIONS == set()
-    assert len(migration_functions) == 37
+    declared_migration_functions = {
+        (str(row["schema_name"]), str(row["function_name"]), str(row["identity_args"]))
+        for row in asset["functions"]
+        if row["function_kind"] in {"migration_trigger", "migration_function"}
+    }
+    assert migration_functions == declared_migration_functions
     if _RUNTIME_CONTRACT_STATE is RuntimeContractState.PENDING:
-        assert len(protected_functions) == 33
+        assert len(protected_functions) == len(migration_functions) - len(
+            _EXPECTED_GAPS
+        )
         assert migration_functions - protected_functions == set(_EXPECTED_GAPS)
         assert protected_functions <= migration_functions
         for physical_id, revision in _EXPECTED_GAPS.items():
             assert revision in migration_origins[physical_id]
     else:
         assert _RUNTIME_CONTRACT_STATE is RuntimeContractState.PRODUCT
-        assert len(protected_functions) == 38
+        assert len(protected_functions) == len(declared_functions)
         assert protected_functions == declared_functions
         assert migration_functions < protected_functions
         assert "provisional_contract_additions" not in asset
@@ -245,6 +319,8 @@ def test_migration_function_acls_and_runtime_contract_match_exactly() -> None:
     expected_ids = {
         product_function_id(schema_name, function_name, identity_args)
         for schema_name, function_name, identity_args in migration_functions
+        if migration_kinds[(schema_name, function_name, identity_args)]
+        == "migration_trigger"
     }
     assert set(functions) == expected_ids
     for function_id, row in functions.items():

@@ -10,7 +10,7 @@ from __future__ import annotations
 import ast
 import re
 from collections.abc import Iterator
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
 import psycopg
@@ -23,6 +23,7 @@ from pitchlog.authz.asset_spec import (
     ProductApplicationSteps,
     load_product_application_steps,
 )
+from pitchlog.authz.ddl import DDLStatement
 from pitchlog.authz.product_provisioning import (
     ProductOperation,
     ProductProvisioningError,
@@ -173,7 +174,7 @@ def _small_operation_plan(
             sequence=sequence,
             sql=f"SELECT {sequence}",
         )
-        for sequence in range(1, 8)
+        for sequence in range(1, len(steps.application_steps) + 1)
     )
     return steps, statements
 
@@ -663,7 +664,9 @@ def test_generated_apply_and_unapply_statements_never_change_subject() -> None:
     for operation in ProductOperation:
         steps, statements = product_provisioning._build_operation_statements(operation)
         assert steps.transaction == "single"
-        assert {statement.sequence for statement in statements} == set(range(1, 8))
+        assert {statement.sequence for statement in statements} == set(
+            range(1, len(steps.application_steps) + 1)
+        )
         product_provisioning._assert_no_subject_change(statements)
 
     _, apply_statements = product_provisioning._build_operation_statements(
@@ -715,7 +718,12 @@ def test_generated_unapply_statements_use_structured_quoted_identifiers() -> Non
         for sql_text in sql_texts
         if sql_text.startswith("GRANT EXECUTE ON FUNCTION")
     )
-    assert len(trigger_function_grants) == 37
+    asset = product_provisioning._load_product_elements()
+    assert len(trigger_function_grants) == sum(
+        element.element_type == "function"
+        and element.fields.get("function_kind") == "migration_trigger"
+        for element in asset
+    )
     trigger_function_pattern = re.compile(
         r'^GRANT EXECUTE ON FUNCTION "public"\."[a-z0-9_]+"\(\) TO PUBLIC;$'
     )
@@ -723,11 +731,11 @@ def test_generated_unapply_statements_use_structured_quoted_identifiers() -> Non
         trigger_function_pattern.fullmatch(sql_text) is not None
         for sql_text in trigger_function_grants
     )
-
     assert (
         'DROP FUNCTION IF EXISTS "authz_private".'
         '"tenant_has_effective_membership"(uuid, boolean);' in sql_texts
     )
+
     assert 'DROP ROLE IF EXISTS "pitchlog_app";' in sql_texts
     assert 'DROP SCHEMA IF EXISTS "authz_private";' in sql_texts
     assert any(
@@ -750,12 +758,72 @@ def test_generated_unapply_statements_use_structured_quoted_identifiers() -> Non
         sql_text for sql_text in sql_texts if "ON DATABASE %I" in sql_text
     )
     assert len(database_statements) == 1
-    for role_id in (
-        "pitchlog_app",
-        "pitchlog_shared_fn_owner",
-        "pitchlog_management_fn_owner",
-    ):
-        assert f'"{role_id}"' in database_statements[0]
+    for element in asset:
+        if element.element_type == "role" and element.fields.get("creation") == (
+            "product_ddl"
+        ):
+            assert f'"{element.element_id}"' in database_statements[0]
+
+
+def test_unapply_restores_migration_regular_function_initial_acl() -> None:
+    """通常関数は残し、直接付与を外して migration 直後の PUBLIC を戻す。"""
+    element = product_provisioning._ProductElement(
+        element_type="function",
+        element_id="FUNCTION:public:step4_ordinary()",
+        fields={
+            "schema_name": "public",
+            "function_name": "step4_ordinary",
+            "identity_args": "",
+            "function_kind": "migration_function",
+        },
+    )
+    statement = DDLStatement(
+        element_type="function",
+        element_id=element.element_id,
+        source_path=PurePosixPath("test.sql"),
+        sql="REVOKE EXECUTE ON FUNCTION public.step4_ordinary() FROM PUBLIC;",
+    )
+    sql_text = product_provisioning._unapplication_sql(
+        statement, element, (element,), ()
+    )
+    assert sql_text is not None
+    assert "pg_catalog.aclexplode(procedure.proacl)" in sql_text
+    assert "FROM %I CASCADE" in sql_text
+    assert (
+        'GRANT EXECUTE ON FUNCTION "public"."step4_ordinary"() TO PUBLIC;' in sql_text
+    )
+    assert "DROP FUNCTION" not in sql_text
+
+
+def test_definer_unapplication_never_restores_public_execute() -> None:
+    """definerの取り外しは関数を落とし、PUBLIC実行権を復帰しない。"""
+    from pitchlog.authz.ddl import DDLStatement
+
+    fields: dict[str, object] = {
+        "schema_name": "authn",
+        "function_name": "test_definer",
+        "identity_args": "text",
+        "function_kind": "definer",
+    }
+    element = product_provisioning._ProductElement(
+        "function", "FUNCTION:authn:test_definer(text)", fields
+    )
+    statement = DDLStatement(
+        element_type="function",
+        element_id=element.element_id,
+        source_path=PurePosixPath(
+            "contracts/authz/product/function-bodies/functions/test.sql"
+        ),
+        sql=(
+            "CREATE FUNCTION authn.test_definer(text) RETURNS text "
+            "LANGUAGE sql AS 'SELECT $1';"
+        ),
+    )
+    sql_text = product_provisioning._unapplication_sql(
+        statement, element, (element,), ()
+    )
+    assert sql_text == 'DROP FUNCTION IF EXISTS "authn"."test_definer"(text);'
+    assert "TO PUBLIC" not in sql_text
 
 
 def test_product_identifier_quoting_escapes_embedded_double_quotes() -> None:
@@ -793,7 +861,9 @@ def test_public_apply_executes_the_canonical_generated_plan() -> None:
 
     apply_product_authz_ddl(_as_psycopg_connection(connection))
 
-    assert len(connection.executed_statements) == 158
+    assert len(connection.executed_statements) == len(
+        product_provisioning._build_operation_statements(ProductOperation.APPLY)[1]
+    )
     decoded = tuple(
         statement.decode("utf-8")
         for statement in connection.executed_statements
@@ -837,7 +907,8 @@ def test_apply_uses_one_transaction_and_checks_identity_at_every_checkpoint(
     apply_product_authz_ddl(_as_psycopg_connection(connection))
 
     assert connection.executed_statements == [
-        f"SELECT {sequence}".encode() for sequence in range(1, 8)
+        f"SELECT {sequence}".encode()
+        for sequence in range(1, len(application_steps.application_steps) + 1)
     ]
     assert connection.commit_count == 1
     assert connection.rollback_count == 0

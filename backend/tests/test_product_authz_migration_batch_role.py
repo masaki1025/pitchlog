@@ -65,7 +65,7 @@ def _assert_mutated_asset_is_red_through_public_inspection(
 
 
 def test_migration_batch_role_asset_matches_manifest_derived_exact_sets() -> None:
-    """19 表と 50 権限を分類資産でなく manifest から導く。"""
+    """19 表と追加された退役更新権限を manifest から導く。"""
     asset, manifest = _documents()
     expectations = product_catalog._migration_batch_expectations_from_documents(
         asset,
@@ -73,7 +73,7 @@ def test_migration_batch_role_asset_matches_manifest_derived_exact_sets() -> Non
     )
 
     assert len(expectations.write_targets) == 19
-    assert len(expectations.permissions) == 50
+    assert len(expectations.permissions) == 51
     assert {
         table
         for schema, table, column, privilege, grantable in expectations.permissions
@@ -97,6 +97,157 @@ def test_migration_batch_role_asset_matches_manifest_derived_exact_sets() -> Non
     }
     assert expectations.schema_acl == (("public", "USAGE", False),)
     assert expectations.database_acl == (("CONNECT", False),)
+    assert expectations.function_execute == (
+        ("public", "authn_normalize_team_name", "text"),
+    )
+
+
+def test_declared_function_execute_is_exact_and_has_a_closed_shape() -> None:
+    """移行ロールの関数権限は製品関数の宣言を参照する3要素である。"""
+    asset, manifest = _documents()
+    product_asset = _load_object(
+        _REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json"
+    )
+    shape = asset["active_role_shape"]
+    assert isinstance(shape, dict)
+    shape["function_execute"] = [
+        {
+            "schema_name": "authz_private",
+            "function_name": "tenant_has_effective_membership",
+            "identity_args": "uuid, boolean",
+        }
+    ]
+    expectations = product_catalog._migration_batch_expectations_from_documents(
+        asset, manifest, product_asset
+    )
+    assert expectations.function_execute == (
+        ("authz_private", "tenant_has_effective_membership", "uuid, boolean"),
+    )
+    shape["function_execute"][0]["identity_args"] = "uuid); DROP ROLE pitchlog_app; --"
+    with pytest.raises(ProductCatalogError, match="identity_args"):
+        product_catalog._migration_batch_expectations_from_documents(
+            asset, manifest, product_asset
+        )
+
+
+def test_extra_function_execute_is_red_against_nonempty_declaration() -> None:
+    """宣言した1件が通り、宣言外を1件足すと exact 照合が落ちる。"""
+    asset, manifest = _documents()
+    product_asset = _load_object(
+        _REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json"
+    )
+    shape = asset["active_role_shape"]
+    assert isinstance(shape, dict)
+    shape["function_execute"] = [
+        {
+            "schema_name": "authz_private",
+            "function_name": "tenant_has_effective_membership",
+            "identity_args": "uuid, boolean",
+        }
+    ]
+    expected = product_catalog._migration_batch_expectations_from_documents(
+        asset, manifest, product_asset
+    )
+    query = product_catalog.CatalogQueryId
+    observations = (
+        (query.MIGRATION_BATCH_ROLE, (tuple(expected.attributes),)),
+        (query.MIGRATION_BATCH_MEMBERSHIPS, ()),
+        (query.MIGRATION_BATCH_OWNERSHIP, ()),
+        (query.MIGRATION_BATCH_TABLE_ACL, tuple(expected.permissions)),
+        (query.MIGRATION_BATCH_SCHEMA_ACL, tuple(expected.schema_acl)),
+        (query.MIGRATION_BATCH_DATABASE_ACL, tuple(expected.database_acl)),
+        (query.MIGRATION_BATCH_FUNCTION_EXECUTE, tuple(expected.function_execute)),
+    )
+    assert product_catalog._migration_batch_report(observations, expected).ok
+    mutated = observations[:-1] + (
+        (
+            query.MIGRATION_BATCH_FUNCTION_EXECUTE,
+            tuple(expected.function_execute) + (("public", "unlisted", ""),),
+        ),
+    )
+    report = product_catalog._migration_batch_report(mutated, expected)
+    assert "MIGRATION-BATCH:FUNCTION-EXECUTE" in {
+        violation.check_id for violation in report.violations
+    }
+
+
+def test_function_execute_request_covers_every_declared_product_schema(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """検査対象スキーマを1つ外す変異を問い合わせ束縛値の比較で検出する。"""
+    asset = _load_object(_REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json")
+    raw_schemas = asset["schemas"]
+    assert isinstance(raw_schemas, list)
+    declared_schemas = tuple(row["schema_name"] for row in raw_schemas)
+    assert set(declared_schemas) == {"public", "authz_private", "authn", "authn_crypto"}
+    monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
+    expected = product_catalog._load_migration_batch_expectations()
+    query = product_catalog.CatalogQueryId
+    rows_by_query: dict[product_catalog.CatalogQueryId, list[tuple[object, ...]]] = {
+        query.MIGRATION_BATCH_ROLE: [tuple(expected.attributes)],
+        query.MIGRATION_BATCH_MEMBERSHIPS: [],
+        query.MIGRATION_BATCH_OWNERSHIP: [],
+        query.MIGRATION_BATCH_TABLE_ACL: list(expected.permissions),
+        query.MIGRATION_BATCH_SCHEMA_ACL: list(expected.schema_acl),
+        query.MIGRATION_BATCH_DATABASE_ACL: list(expected.database_acl),
+        query.MIGRATION_BATCH_FUNCTION_EXECUTE: list(expected.function_execute),
+    }
+    queried_schemas: list[str] = []
+
+    def fetch(
+        connection: psycopg.Connection[Any],
+        query_id: product_catalog.CatalogQueryId,
+        params: tuple[object, ...],
+    ) -> list[tuple[object, ...]]:
+        del connection
+        if query_id is query.MIGRATION_BATCH_FUNCTION_EXECUTE:
+            raw = params[0]
+            assert isinstance(raw, list)
+            queried_schemas.extend(raw)
+        return rows_by_query[query_id]
+
+    monkeypatch.setattr(product_catalog, "_fetch_catalog_rows", fetch)
+    report = product_catalog.inspect_migration_batch_role_catalog(
+        cast(psycopg.Connection[Any], object()), role_oid=910
+    )
+    assert report.ok
+    assert set(queried_schemas) == set(declared_schemas)
+    assert len(queried_schemas) == len(declared_schemas)
+
+
+def test_removing_authn_crypto_from_function_scan_is_red(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """認証用スキーマを EXECUTE の検査範囲から外せない。"""
+    original = product_catalog._migration_batch_catalog_requests
+
+    def omitted(
+        role_oid: int, product_schemas: tuple[str, ...]
+    ) -> tuple[product_catalog._CatalogRequest, ...]:
+        requests = list(original(role_oid, product_schemas))
+        for index, request in enumerate(requests):
+            if (
+                request.query_id
+                is product_catalog.CatalogQueryId.MIGRATION_BATCH_FUNCTION_EXECUTE
+            ):
+                requests[index] = product_catalog._CatalogRequest(
+                    request.query_id,
+                    (
+                        [
+                            schema
+                            for schema in product_schemas
+                            if schema != "authn_crypto"
+                        ],
+                        role_oid,
+                    ),
+                )
+        return tuple(requests)
+
+    monkeypatch.setattr(product_catalog, "_migration_batch_catalog_requests", omitted)
+    with pytest.raises(ProductCatalogError, match="検査対象スキーマ"):
+        product_catalog.inspect_migration_batch_role_catalog(
+            cast(psycopg.Connection[Any], object()), role_oid=910
+        )
 
 
 def test_adding_a_write_target_is_red(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -183,7 +334,9 @@ def test_active_role_public_inspection_is_green_for_exact_rows(
         product_catalog.CatalogQueryId.MIGRATION_BATCH_DATABASE_ACL: [
             tuple(entry) for entry in expectations.database_acl
         ],
-        product_catalog.CatalogQueryId.MIGRATION_BATCH_FUNCTION_EXECUTE: [],
+        product_catalog.CatalogQueryId.MIGRATION_BATCH_FUNCTION_EXECUTE: [
+            tuple(entry) for entry in expectations.function_execute
+        ],
     }
     calls: list[product_catalog.CatalogQueryId] = []
 
