@@ -205,11 +205,38 @@ branch: feature/review-round-cap
 - 採否一覧(21 件全採用・不採用 0)と最終反映(反映7周目・`8d15c7c5`)の差分 4 箇所(6.3 (3)・6.3 (6) 新設・7.3-4・7.3-6 表の追加レビュー行)を提示 → **PO 承認**。設計書 frontmatter を `approved`・変更履歴に「確定ゲート通過(approved)」行(版 1.19 確定)・`docs/README.md` の設計書行を approved へ
 - 次 = ステップ 2(写像の追随: `.claude/skills/{finalize-doc,plan,pr}/SKILL.md`・`CLAUDE.md`)→ /sync-docs の突合 → /pr
 
+### ステップ 2 — 写像の追随(Claude 直接編集)
+
+- `.claude/skills/finalize-doc/SKILL.md`(description・規範の参照先・手順 2〜5・末尾注記)/ `.claude/skills/plan/SKILL.md`(レビューと承認 1〜2)/ `.claude/skills/pr/SKILL.md`(レビュー導線の案内)/ `CLAUDE.md`(コア領域の行)を approved の 6.3 / 7.3 へ同期(値は複製せず条文を参照)。置換スクリプトで原子的に適用
+- 残存検査: スキル本文・CLAUDE.md に `最終全文確認周`・`6 周警告`・`収束(7.3-2)まで`・`収束(7.3 の収束規則)` の残存 0 件 / `finalize-doc` に「最終反映の差分」の手順あり
+- **反対側レビュー**(Claude 直接編集のため `codex_run.py review normal`・設計書 6.3 の上限内で実施): **1 回目**(差分全体・117,535 tok)= 否決 P0 1 / P1 2 — ① pr スキルの残指摘の終端が「採否記録で閉じる」で PO 判断を飛ばす(P0)② finalize-doc 手順 5 が 1 回目指摘ゼロの場合(反映周コミットなし)を想定していない ③ plan スキルの承認条件「上限内で収束したら」が収束待ちの読みを残す → **全件採用・反映** → **2 回目**(反映差分・76,012 tok)= **可決**。計 2 回・約 194K トークン(v1.19 の基本枠どおり)
+- 機械検査: `uv run ruff check .` 緑 / `check_docs_status.py` 0 違反 / `check_plan_docs_sync.py --base origin/develop` exit 0(status active 時点)/ `uv run pytest tests/` = **2860 passed / 10 failed**(15 分)— 失敗の切り分けは下記「/check と失敗テストの切り分け」
+
+### /check と失敗テストの切り分け
+
+- `uv run ruff check .` 緑 / `uv run python scripts/check_docs_status.py` 0 違反 / `uv run pytest tests/` = 1 回目 2860 passed / 10 failed(917 s)、ステップ 2 コミット後の再実行 = **2862 passed / 8 failed**(919 s)
+- 解消した 2 件: `tests/test_doc_check_profile.py::test_propagation_checker_and_claude_files_are_unchanged`(`.claude/` の未コミット差分を検出する検査 — ステップ 2 のコミットで通過)/ 1 件は再実行で通過(揺れ)
+- **残る 8 件はすべて develop(`27ff94eb`)でも同じ 8 件が失敗**(同一テスト ID を develop 側の main tree で実行: `8 failed in 6.71s`)— `tests/domain/gen/test_formatter.py`(表示の言語間一致)・`tests/domain/mut/test_cost_record.py`・`tests/domain/mut/test_lang_operators.py[typescript|sql]`(変異テスト)・`tests/domain/test_review_triggers_complete.py` 4 件(見直しトリガー 3 の記録と機械実測の不一致・発火済み)。いずれも本タスクの変更ファイル(設計書・README・台帳・スキル・CLAUDE.md・feature 文書)と無関係なドメイン検査で、**既存の赤**。本 PR では触らない(是正は所管タスクへ)
+
+### /pr クローズ処理(2026-10-07)
+
+- 計画書 frontmatter を `status: in-review` へ。計画レビュー周回 2・確定ゲート周回 7・反映周コミット突合 = 一致(`feature_status.py`)
+- **運用評価台帳への追記 = 該当**(ハーネス運用上の知見あり)— `## 候補` へ **6 件追記**(版は上げない — 7.6-3 前段。`H-*` の新規採番なし): ① v1.18 規則の最後の確定ゲートの実測(v1.19 の効果測定の基準値)② `確定ゲート周回` > 3 の注記機構化(7.3-8 が候補として追跡と明記)③ worklog の集計行と各回合計の不一致 ④ ADR-001 実測期間を適用版で層別 ⑤ 計画の実行不能に対する承認取り消し・再審査の経路の不在(TSK-421 型・確定ゲートで未解消と記録)⑥ 逐行確認の検査実効性の確認項目の不在(U-T1 型・同前)。台帳の変更履歴 1 行・`docs/README.md` の台帳行(候補 100 → 106 件・最終更新 2026-10-07)を現行化。計画書 3 節の宣言と一致
+- **結果サマリ**: 設計書 **v1.19 approved**(6.3「レビュー回数の上限」新設 — 基本枠 2 回 + P0 例外 + PO 裁定による追加・包括続行指示 / 7.3-2 の最終全文確認周ループ廃止・7.3-4〜7.3-6・7.3-8 整合 / 6.1 計画レビューの回数・受理範囲 3 種・重大度定義 / 6.3 表・7.3 流れ図・8.4 同期)。写像 = `finalize-doc`・`plan`・`pr` スキルと CLAUDE.md を追随(反対側レビュー 2 回で可決)。正本の反映は計画書 3 節のとおり(設計書 = finalize-doc / README・台帳・finalize-doc スキル = PR レビュー〔finalize-doc・pr スキルは guard_paths → 逐行確認〕)
+- **コストの実績**: Codex(gpt-6-sol)= 計画レビュー 3 回 約 287K + 確定ゲート 9 回 約 1.06M + 写像レビュー 2 回 約 194K ≈ **1.54M トークン**。Claude 側(Max 枠)= 調査の集計エージェントが子 7 本へ分割して約 2M を消費(想定外・/investigate 節に記録)
+- 後続: TSK-340 へ本タスクの参照と「DoD ①〜③ を吸収」をコメントし、PO が取り下げ(Notion のステータス変更は人間判断で手動)。Notion TSK-496 を `確認待ち` へ・URL に PR
+
 ## 決定
 
 - 上限の形・適用範囲・確定経路の 3 点(上記 PO 判断)
 - 計画承認と PO 判断①②(上記)
 - 確定ゲートの PO 裁定 3 回(続行・続行・打ち切り)と人間承認(上記)
+- 失敗テスト 8 件は develop 時点からの既存の赤として本 PR では触らない(所管タスクへ)
+
+## 未決・次の一歩
+
+- PR の人間逐行確認(guard_paths: `finalize-doc`・`pr` スキル)と設計書の差分確認 → CI → 人間がマージ → /task-done
+- TSK-340 の取り下げ(PO・手動)/ 台帳候補 6 件の昇格条件の追跡 / v1.19 適用後の最初の確定ゲートで各回のトークンと P0 の位置を記録し効果測定の基準値と比較
 
 ## 未決・次の一歩
 
