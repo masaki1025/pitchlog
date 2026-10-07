@@ -85,6 +85,14 @@ branch: feature/ci-harness-parallel
 
 - **PO 判断(2026-10-08・徳光 尋弥)**: ステップ 4 は `.coveragerc` の sysmon だけに縮小(内訳計測は後続タスク B へ)/ この修正は **PO 直接承認**(追加レビューなし — 変更は新規 2 行のファイルで、コア paths・凍結入力・backend 直下の列挙テストの不在を Claude が確認済み)。`承認: 済` は維持。計画レビュー合計 5 回(全文 1・差分 1・P0 限定 3)・Codex 約 654K tok
 
+### /implement — ステップ 1(2 回目の委任・修正版・2026-10-08・Codex `implement --resume`・164,334 tok・15 分)— **合格・コミット `7bb4610f`**
+
+- 変更 3 ファイル(+ 依存 2 ファイル): ルート `pyproject.toml` の `[tool.pytest.ini_options]` に `addopts = "-n auto"`(dev 依存 `pytest-xdist>=3` と `uv.lock` は Claude の `uv add`)/ `.claude/skills/check/SKILL.md` の harness pytest を `PYTEST_XDIST_AUTO_NUM_WORKERS=8 uv run pytest tests/` に / `tests/domain/gen/test_backends.py::_tree_snapshot` から `__pycache__` 配下と `*.pyc` を除外。**`ci.yml`・`tests/test_ci_wiring.py`・`contracts/`・`tests/fixtures/frozen-archive-cases/` は不変**(`git status` で確認)
+- **実測(8 ワーカー・2 回連続・全件 2,677 件)**: **358.60 秒 / 380.75 秒**(直列 974 秒 → 約 37〜39%)。失敗は両回とも `tests/test_doc_check_profile.py::test_propagation_checker_and_claude_files_are_unchanged` 1 件のみ(未コミットの `.claude` 差分由来 — コミット後に green を確認)。手元の既知失敗 5 件はサンドボックスでは出なかった(環境依存)
+- `uv run pytest tests/test_ci_wiring.py` 86 件 green(変更なし)/ ruff・ty green
+- サンドボックス固有: `~/.cache/uv` が読み取り専用のため Codex は `UV_CACHE_DIR=/tmp/... UV_NO_SYNC=1` を付けて実行(手元では不要)
+- 残り時間の律速は `tests/test_check_authz_catalog.py` の 2 テスト(111 / 99 秒)→ ステップ 2 で分割
+
 ## 決定
 
 - タスク分割(A/B)とワーカー数(上記)
