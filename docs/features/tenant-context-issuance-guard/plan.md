@@ -253,6 +253,10 @@ TSK-440 は `scripts/check_tenant_boundary_bypass.py` の条件 5(TB007)の保�
 
 **比較 corpus の digest の再 pin をステップ 7 に含める**: 本タスクは検査器と `contracts/tenant_boundary` を動かすので `tests/fixtures/frozen-archive-cases/manifest.json` の `corpus_inputs.digest` が必ず動く(現況 42 件の赤のうち 34 件がこれに連鎖する)。これは**設計どおりの発火**であり、前例 `6b787555`(「比較 corpus の digest を再導出し連鎖する 33 件を解消する」)が同じ手当てを取っている。触るのは `corpus_inputs.digest` の 1 行だけで、`pinned_prefixes`・`files`・`trees`・`cases` は変えない。
 
+**再 pin はステップ 7 の最後の編集にする(実測 — 2026-10-07)**: `corpus_inputs.trees` は `contracts/tenant_boundary` を含む(`files` 6 本・`trees` 2 本の実測)。識別値の繰り上げ・`source_digest`・受理記録はすべてこのツリーの中なので、**digest を先に導き直すと同じコミットの後続編集で即座に陳腐化する**。ステップ 7 の編集順は「8 本の識別値 → `source_digest` → 配布 3 本 → 受理記録 1 件 → **最後に digest 再 pin**」とする。
+
+**develop の進行は再 pin を陳腐化させない(実測 — 2026-10-07)**: pin 対象は `.github/workflows/ci.yml`・`scripts/check_tenant_boundary_bypass.py`・`scripts/frozen_archive.py`・`scripts/frozen_history.py`・`tests/fixtures/frozen-archive-cases/runner.py`・`tests/test_check_tenant_boundary_bypass.py` と `contracts/tenant_boundary`・`tests/fixtures/tenant_boundary` の 2 ツリーのみ。TSK-344(`410b7ff8`)の取り込みでは 1 つも動かず、digest も変わらなかった。陳腐化要因は**自分の編集だけ**である。
+
 ## 5. DoD(受け入れ基準)
 
 Notion タスクの DoD を**裁定 2 の形で書き直したもの**(カードにもコメントで記録済み)。

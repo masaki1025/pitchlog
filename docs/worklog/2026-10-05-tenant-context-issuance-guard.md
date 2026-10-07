@@ -215,3 +215,32 @@ anchor 以降に `allowed_symbols` へ**行を足した**タスクは複数あ�
 
 あわせて、比較 corpus の `corpus_inputs.digest` の再 pin をステップ 7 へ含める
 (前例 `6b787555`。触るのは 1 行だけで `pinned_prefixes`・`files`・`trees`・`cases` は変えない)。
+
+## develop の取り込みと比較 corpus の実測(2026-10-07)
+
+TSK-344(PR #97)で develop が `27ff94eb` → `410b7ff8` へ動いた。本ブランチとの
+**変更ファイルの交差は 0 件**で、凍結資産 9 本・検査器のいずれも develop 側は触って
+いない。取り込みは PR 直前の 1 回が最遅かつ最小なので、ここで入れた
+(凍結資産の取り込み費用 = 取り込み回数)。
+
+取り込み後の全件検証は **34 failed / 2919 passed**。赤の集合は取り込み前と完全に同一で、
+増えた 57 passed は develop 側の新規テスト(`test_product_rls_real_schema_runner.py`・
+`test_core_guard.py`・`test_environment_template.py`)である。
+
+### 比較 corpus の pin 対象を実測した
+
+| 種別 | 対象 |
+| --- | --- |
+| `files`(6) | `.github/workflows/ci.yml` / `scripts/check_tenant_boundary_bypass.py` / `scripts/frozen_archive.py` / `scripts/frozen_history.py` / `tests/fixtures/frozen-archive-cases/runner.py` / `tests/test_check_tenant_boundary_bypass.py` |
+| `trees`(2) | `contracts/tenant_boundary` / `tests/fixtures/tenant_boundary` |
+
+ここから 2 つ分かった。
+
+1. **digest が動いた原因は develop ではなく自分の是正**である。実測値は
+   `53c902edb8…` → `596c49e220…` と動いたが、TSK-344 は pin 対象を 1 つも触って
+   いない。動かしたのは `census-baseline.json`(= `contracts/tenant_boundary` ツリー)
+   を書き換えた `62bebb31` である。したがって**develop の進行は再 pin を陳腐化させない**。
+2. **逆に自分の編集は必ず陳腐化させる**。ステップ 7 が繰り上げる識別値・`source_digest`・
+   受理記録はすべて `contracts/tenant_boundary` の中にある。digest を先に導き直すと
+   同じコミットの後続編集で即座に陳腐化するので、**再 pin はステップ 7 の最後の編集**に
+   する。編集順を計画書 4 節へ明記した。
