@@ -80,4 +80,5 @@ date: 2026-10-08
 
 - backend の内訳(`--durations`)は本タスクでは取れない(置き場 = `backend/pyproject.toml` / conftest はコア領域 paths、環境変数は `ci.yml`)。後続タスク B で取る。本タスクは `.coveragerc` の sysmon のみ(次の打ち手: 非 DB テストの xdist / DB テストの worker 別スキーマ / PR での `--cov` 省略)
 - xdist 導入後に順序依存の揺れが出た場合は、当該ファイルだけ `--dist loadfile` 相当にまとめる(ステップ 1 の合格条件で 2 回連続 green を要求する)。実測(2026-10-08): 順序依存ではなく**別 worker の import が書く `backend/src/pitchlog/__pycache__` をツリースナップショットが拾う**型が 1 件(`tests/domain/gen/test_backends.py`)— スナップショットから `__pycache__` を除外して対処
+- **CI の並列効率(PR #102・2026-10-08 実測)**: 4 ワーカー・28,092 件で 1,061 秒(直列 1,420〜1,600 秒 → 約 1.4 倍)。手元 24 コア機の 4 ワーカーは 532 秒(load)/ 307 秒(worksteal)なので、ランナーは約 2 倍遅い(ubuntu-latest 4 vCPU = HT 2 コア相当)。既定の load 分配は 25k 件の小ケースと 40 秒級の尾の混在で不利 → `--dist worksteal` を既定に。8 分はタスク B(選択)で
 - 凍結点(どの資産がどのファイルを固定しているか)の一覧はリポジトリに無い(運用評価台帳 2026-10-05 の候補)。本タスクで踏んだ 3 点(`ci.yml` → base-allowlist の `external_files` / corpus manifest / **`tests/test_census_baseline_check.py` → census-baseline.json の `external_files`**)は plan.md 4 節「凍結点への注意」に記録した。census の共有(実装済み・revert)は 7.7-2 の受理を伴う後続タスクへ

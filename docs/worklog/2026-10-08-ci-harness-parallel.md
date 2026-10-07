@@ -176,6 +176,12 @@ branch: feature/ci-harness-parallel
 - **一次分析**: 4 ワーカーでの並列効率が約 1.4 倍にとどまる(直列 1,420〜1,600 秒 → 1,061 秒)。手元(8 ワーカー・24 コア)では 437〜517 秒。ubuntu-latest の 4 vCPU は物理 2 コア × HT 相当で CPU 律速のテストは 4 倍にならない見込み。加えて (a) 28,092 件(うち 25,571 件が分割由来)の xdist 制御オーバーヘッド (b) census の共有を revert したため同ファイルの CPU(手元 310 秒・CI 換算 500 秒級)が丸ごと残る (c) `test_g_*` 40 秒級 × 3 などの尾。手元 `-n 4 --durations=40` と `--dist worksteal` の比較を実測して切り分ける
 - **backend**: sysmon で 15.2 → 12.4 分(−19%)。内訳(`--durations`)は置き場が無く未取得(後続)
 
+### 差し戻し修正(2026-10-08・PO 判断 = worksteal を足して再計測し、DoD を実測へ改訂)
+
+- **切り分け(手元・4 ワーカー)**: 全件 `--dist load` 532.25 秒 / `--dist worksteal` **306.60 秒(−42%)** / `tests/test_check_authz_catalog.py` 単体 213.81 → 145.54 秒(−32%)。`--durations=40` の尾 = census 40.74 / 40.23 / 34.56 / 24.18 秒・`test_g_*` 38.20 / 37.89 / 37.65 秒・`test_all_recursively_enumerated_asset_leaves_reject_change_and_deletion` 20.44 秒(未分割の全数テスト)。CI ランナーは手元の約 2 倍遅い(4 vCPU = HT 2 コア相当)
+- **PO 判断**: ① addopts を `-n auto --dist worksteal` に(Codex・コミット `6c854e8b`。ルート `conftest.py` の互換オプションを `--dist` にも拡張)② CI をもう 1 回回して再計測 ③ DoD「harness 8 分以内」を「導入前比で短縮を記録。8 分以内はタスク B で達成」へ改訂(計画修正 6・PO 直接承認)。改訂後に逐行確認へ
+- 8 分未達の理由(記録): 本タスクの制約(`ci.yml` 不変・census 共有は凍結で revert・検査器本体は触らない)と、計画時の見積りが 4 コア線形スケール前提で甘かったこと。CPU 総量を減らすのはタスク B(選択)か検査器側の最適化(別タスク)
+
 ## 決定
 
 - タスク分割(A/B)とワーカー数(上記)
@@ -183,6 +189,7 @@ branch: feature/ci-harness-parallel
 - 2026-10-08(ステップ 1 の実測後): `ci.yml`・`tests/test_ci_wiring.py`・`contracts/**`・`tests/fixtures/frozen-archive-cases/**` に触れない(凍結の外部入力)。xdist はルート pyproject の addopts、ローカル上限は環境変数。pycache はスナップショットから除外。計画修正は P0 限定レビュー 1 回(可決で承認扱い)
 - 2026-10-08(5 回目レビュー後): ステップ 4 = `backend/.coveragerc` の `core = sysmon` のみ(`--durations` の内訳は後続タスク B)。`backend/pyproject.toml`・`backend/*conftest.py` はコア領域 paths で触れない。この修正は PO 直接承認
 - 2026-10-08(PR 作成前): 変更ファイル 2 件がコア領域 paths(テナント分離・状況計算・データ移行)→ 重さ分類をコア領域へ訂正し、PR に `review adversarial`(6.3 の上限内)+ 逐行確認を適用
+- 2026-10-08(CI 実測後): `--dist worksteal` を既定に。DoD「harness 8 分以内」は実測記録へ改訂し、8 分はタスク B で達成(PO 直接承認)
 - 2026-10-08(総合検証後): ステップ 3(census の共有)は revert — `tests/test_census_baseline_check.py` が census-baseline.json の `external_files`。7.7-2 の受理を伴う後続タスクへ
 
 ## 未決・次の一歩
