@@ -117,12 +117,26 @@ branch: feature/ci-harness-parallel
 - **採れない対処**: backend に xdist(`backend/pyproject.toml` = コア領域 paths)/ 検査器の変更(guard_paths・digest 固定)/ `ci.yml` の env(凍結の外部入力)
 - **採った対処**: ルートに `conftest.py` を新設し、`importlib.util.find_spec("xdist") is None` のときだけダミーの `-n`/`--numprocesses` を `pytest_addoption` で登録(xdist がある環境では何も登録しない)。`conftest.py` は guard_paths(逐行確認)だがコア領域 paths ではない。**PO への報告事項**(計画外の新規ファイル 1 件・計画修正 3 として plan.md に記録)
 
+### 重さ分類の誤り(2026-10-08・PR 作成前の機械突合で発覚)— **通常 → コア領域 へ訂正・PO 判断 = 敵対レビューを回す**
+
+- `git diff --no-renames --name-only origin/develop...HEAD` を base の `.claude/core-areas.json` と突合: guard_paths 該当 = `pyproject.toml`・`uv.lock`・`conftest.py`・`tests/test_check_authz_catalog.py` / **コア領域 paths 該当 = `tests/test_check_authz_catalog.py`(tenant-isolation)・`tests/domain/gen/test_backends.py`(game-state・data-migration の `tests/domain/*`)**
+- 計画書 4 節の「コア領域 5 領域の paths には該当しない」は guard_paths の一覧だけを見た誤り。計画レビュー 5 回(`review normal`)は拾えなかった(5 回目は `backend/pyproject.toml` のコア該当を拾ったが、同じ突合を変更ファイル全件に掛けていない)
+- **PO 判断(2026-10-08・徳光 尋弥)**: 6.3 どおりコード差分に `review adversarial`(1 回目 = PR 差分全体)を回す。計画書の `重さ分類` をコア領域へ訂正(計画レビューが `review normal` だった事実は記録のみ)。PR 本文のコア領域チェック(adversarial 済み・逐行確認)を有効化する
+
+### ステップ 3 の撤回(2026-10-08・総合検証で判明・PO 判断 = revert して後続へ)— コミット `eaa23178`
+
+- 総合検証(8 ワーカー全件)で `tests/test_check_tenant_boundary_bypass.py::test_repository_is_green` が red: 「射影が動いた資産は識別値の更新が必要: contracts/tenant_boundary/census-baseline.json」。原因 = **`tests/test_census_baseline_check.py` 自体が census-baseline.json の `frozen_projection.external_files`**(検査器・helper・`frozen_archive.py`・`ci.yml`・同テストファイル)に含まれ、ステップ 3 の変更で射影が動いた。計画書 4 節「凍結点への注意」は `ci.yml` と corpus manifest を記録したが、同じ資産の `external_files` 一覧を最後まで読んでいなかった(5 件目が当該テストファイル)
+- 解消には 7.7-2 の受理(識別値 7 → 8・PR 番号付き v2 受理記録・PO 受理 = コア資産の変更。develop が進むと書き直し)が要る。**PO 判断(2026-10-08・徳光 尋弥)= revert して後続タスクへ**(失うのは `-n 1` で約 90 秒・8 ワーカーでは数十秒)
+- 教訓(台帳へ): 凍結の外部入力は「触りたいファイル名で `contracts/**` と `tests/fixtures/*/manifest.json` を grep」で機械的に出る。計画段階でこの突合を手順化しないと、同じタスク内で 3 度踏む
+
 ## 決定
 
 - タスク分割(A/B)とワーカー数(上記)
 - 計画レビューの PO 裁定(2026-10-08): 上限到達後は包括続行指示(P0 限定・最大 2 回)。P0 ゼロで承認扱い(`承認: 済` を記入して /implement へ)
 - 2026-10-08(ステップ 1 の実測後): `ci.yml`・`tests/test_ci_wiring.py`・`contracts/**`・`tests/fixtures/frozen-archive-cases/**` に触れない(凍結の外部入力)。xdist はルート pyproject の addopts、ローカル上限は環境変数。pycache はスナップショットから除外。計画修正は P0 限定レビュー 1 回(可決で承認扱い)
 - 2026-10-08(5 回目レビュー後): ステップ 4 = `backend/.coveragerc` の `core = sysmon` のみ(`--durations` の内訳は後続タスク B)。`backend/pyproject.toml`・`backend/*conftest.py` はコア領域 paths で触れない。この修正は PO 直接承認
+- 2026-10-08(PR 作成前): 変更ファイル 2 件がコア領域 paths(テナント分離・状況計算・データ移行)→ 重さ分類をコア領域へ訂正し、PR に `review adversarial`(6.3 の上限内)+ 逐行確認を適用
+- 2026-10-08(総合検証後): ステップ 3(census の共有)は revert — `tests/test_census_baseline_check.py` が census-baseline.json の `external_files`。7.7-2 の受理を伴う後続タスクへ
 
 ## 未決・次の一歩
 
