@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Iterable
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
@@ -94,6 +95,11 @@ CENSUS_BASELINE_PATH = (
     REPOSITORY_ROOT / "contracts" / "tenant_boundary" / "census-baseline.json"
 )
 CensusIdentity = tuple[str, int, int, str, str, str, str]
+_ORIGINAL_LOAD_CONTRACT = checker.load_contract
+_ORIGINAL_SCAN_DIRECTORY = checker.scan_directory
+_CURRENT_CENSUS_CACHE: dict[
+    tuple[str, str, str, str, str], frozenset[CensusIdentity]
+] = {}
 
 _CONDITION_2_AST_CASES = {
     "Name": "idempotency_key\n",
@@ -378,6 +384,48 @@ def _assert_declared_anchor_materialization_provenance(
         )
 
 
+def _anchor_blobs_from_git_batch(
+    anchor_commit: str, relative_paths: tuple[str, ...]
+) -> dict[str, bytes]:
+    """今回のアンカーに属する blob を一度の Git プロセスで取得する。"""
+    requests = b"".join(
+        f"{anchor_commit}:{relative_path}\n".encode("utf-8")
+        for relative_path in relative_paths
+    )
+    result = subprocess.run(
+        ["git", "cat-file", "--batch"],
+        cwd=REPOSITORY_ROOT,
+        input=requests,
+        check=True,
+        capture_output=True,
+    )
+    output = result.stdout
+    offset = 0
+    contents: dict[str, bytes] = {}
+    for relative_path in relative_paths:
+        header_end = output.find(b"\n", offset)
+        assert header_end >= 0, f"git cat-file 応答が不足: {relative_path}"
+        header = output[offset:header_end]
+        assert not header.endswith(b" missing"), (
+            f"git cat-file にアンカーの blob が無い: {relative_path}"
+        )
+        fields = header.split(b" ")
+        assert len(fields) == 3 and fields[1] == b"blob", (
+            f"git cat-file の blob ヘッダーが不正: {relative_path}: {header!r}"
+        )
+        size = int(fields[2])
+        assert size >= 0
+        content_start = header_end + 1
+        content_end = content_start + size
+        assert output[content_end : content_end + 1] == b"\n", (
+            f"git cat-file の blob サイズが不正: {relative_path}"
+        )
+        contents[relative_path] = output[content_start:content_end]
+        offset = content_end + 1
+    assert offset == len(output), "git cat-file の余剰応答がある"
+    return contents
+
+
 def _materialize_declared_anchor(
     destination: Path,
 ) -> tuple[dict[str, Any], dict[str, bytes], str]:
@@ -415,18 +463,14 @@ def _materialize_declared_anchor(
     destination.mkdir(parents=True)
     contents: dict[str, bytes] = {}
     monitor = object()
+    batch_contents = _anchor_blobs_from_git_batch(anchor_commit, relative_paths)
     observed_blobs: dict[str, _ObservedGitBlob] = {}
     written_blobs: dict[str, _ObservedGitBlob] = {}
     digest_rows: list[bytes] = []
     for relative_path in relative_paths:
         path = Path(relative_path)
         assert not path.is_absolute() and ".." not in path.parts
-        content = subprocess.run(
-            ["git", "show", f"{anchor_commit}:{relative_path}"],
-            cwd=REPOSITORY_ROOT,
-            check=True,
-            capture_output=True,
-        ).stdout
+        content = batch_contents[relative_path]
         target = destination / path
         observed = _ObservedGitBlob(monitor, anchor_commit, content)
         observed_blobs[relative_path] = observed
@@ -627,6 +671,76 @@ def _declared_anchor_checker(
     )
 
 
+def _files_digest(root: Path, relative_paths: Iterable[Path]) -> str:
+    """パス名と内容を合わせて入力集合の digest にする。"""
+    digest = hashlib.sha256()
+    for relative_path in sorted(set(relative_paths), key=lambda path: path.as_posix()):
+        digest.update(relative_path.as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(hashlib.sha256((root / relative_path).read_bytes()).digest())
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def _contract_inputs_digest(checker_module: ModuleType, repository_root: Path) -> str:
+    """load_contract が読む資産と fixture 集合を内容込みで識別する。"""
+    asset_paths = {
+        value
+        for name, value in vars(checker_module).items()
+        if name.startswith("DEFAULT_") and isinstance(value, Path)
+    }
+    asset_paths.update(Path(value) for value in checker_module.FROZEN_BASELINE_ASSETS)
+    fixture_root = Path("tests/fixtures/tenant_boundary")
+    for kind in ("positive", "negative"):
+        asset_paths.update(
+            path.relative_to(repository_root)
+            for path in (repository_root / fixture_root / kind).rglob("*.py")
+        )
+    return _files_digest(repository_root, asset_paths)
+
+
+def _source_tree_digest(source_root: Path) -> str:
+    """scan_directory が列挙する Python ファイルのツリーを識別する。"""
+    return _files_digest(
+        source_root,
+        (
+            path.relative_to(source_root)
+            for path in source_root.rglob("*.py")
+        ),
+    )
+
+
+def _current_census_cache_key(
+    checker_module: ModuleType, *, repository_root: Path, source_root: Path
+) -> tuple[str, str, str, str, str] | None:
+    """元の検査器関数が有効な場合だけ現行 census の入力を識別する。"""
+    if (
+        checker_module is not checker
+        or checker_module.load_contract is not _ORIGINAL_LOAD_CONTRACT
+        or checker_module.scan_directory is not _ORIGINAL_SCAN_DIRECTORY
+        or _checker_census is not _ORIGINAL_CHECKER_CENSUS
+    ):
+        return None
+    checker_file = checker_module.__file__
+    if checker_file is None:
+        return None
+    resolved_repository = repository_root.resolve()
+    resolved_source = source_root.resolve()
+    try:
+        checker_digest = hashlib.sha256(Path(checker_file).read_bytes()).hexdigest()
+        contract_digest = _contract_inputs_digest(checker_module, resolved_repository)
+        source_digest = _source_tree_digest(resolved_source)
+    except OSError:
+        return None
+    return (
+        checker_digest,
+        str(resolved_repository),
+        contract_digest,
+        str(resolved_source),
+        source_digest,
+    )
+
+
 def _checker_census(
     checker_module: ModuleType,
     *,
@@ -634,9 +748,14 @@ def _checker_census(
     source_root: Path,
 ) -> frozenset[CensusIdentity]:
     """検査器の全文走査結果を比較用の exact-set にする。"""
+    cache_key = _current_census_cache_key(
+        checker_module, repository_root=repository_root, source_root=source_root
+    )
+    if cache_key is not None and cache_key in _CURRENT_CENSUS_CACHE:
+        return _CURRENT_CENSUS_CACHE[cache_key]
     contract = checker_module.load_contract(repository_root)
     violations = checker_module.scan_directory(source_root, contract=contract)
-    return frozenset(
+    census = frozenset(
         (
             violation.path,
             violation.line,
@@ -648,6 +767,12 @@ def _checker_census(
         )
         for violation in violations
     )
+    if cache_key is not None:
+        _CURRENT_CENSUS_CACHE[cache_key] = census
+    return census
+
+
+_ORIGINAL_CHECKER_CENSUS = _checker_census
 
 
 def _compare_checker_census(
