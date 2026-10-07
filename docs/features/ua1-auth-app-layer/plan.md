@@ -114,7 +114,8 @@ created: 2026-10-05
 
 > **【第 1 改訂・2026-10-08 — 改訂承認: 山田正輝】`contracts/tenant_boundary/base-allowlist.json` の
 > `allowed_symbols` へ本単位の 2 シンボルと fixture を足す**(**設計書 7.7 の受理記録を 1 件作る**)。
-> **他のファイル・他のキーの差分は 0 行**で、**`scripts/check_tenant_boundary_bypass.py` の差分も 0 行**である。
+> **他のキーの差分は 0 行**で、**`scripts/check_tenant_boundary_bypass.py` の差分も 0 行**である。
+> **`history-snapshots/` 直下の 1 ファイル新設だけは含む** — **7.7 の受理記録の保管先そのもの**であり、**凍結基準を動かす以上は機構が必ず要求する**(既存 101 ファイル・`frozen_history.py:38` と検査器 `:5716` が参照 — 当方実測)。
 >
 > **旧**: 「`contracts/tenant_boundary/` 配下と `scripts/check_tenant_boundary_bypass.py` は本 PR の差分に
 > 現れない(裁定 b' と 2026-10-05 の TSK-457 の裁定により、U-M1 ステップ 8 と TSK-457 へ移った)。
@@ -320,7 +321,7 @@ created: 2026-10-05
       (`authz/` 内の関数を単体で呼ぶだけでは満たさない)
 - [ ] **DB 接続がローカルでも証明書検証付き TLS でもない設定を拒否する**
 - [ ] **`TenantContext` を構築していない**(裁定 b')
-- [ ] **`contracts/tenant_boundary/` の差分は `base-allowlist.json` の `allowed_symbols` へ本単位の 2 シンボル(`verify_tenant_id` / `logout_token`)と対応する fixture を足すことに限る**(**第 1 改訂・2026-10-08 — 改訂承認: 山田正輝**)。**他のファイル・他のキーの差分は 0 行**。**`scripts/check_tenant_boundary_bypass.py` の差分は 0 行**。**7.7 の受理記録を 1 件作る**
+- [ ] **`contracts/tenant_boundary/` の差分は `base-allowlist.json` の `allowed_symbols` へ本単位の 2 シンボル(`verify_tenant_id` / `logout_token`)と対応する fixture を足すことに限る**(**第 1 改訂・2026-10-08 — 改訂承認: 山田正輝**)。**他のキーの差分は 0 行**。**他のファイルは、7.7 の受理記録が機構上要求する `contracts/tenant_boundary/history-snapshots/` 直下の 1 ファイル新設に限る**(**同ディレクトリは `frozen_history.py` と検査器が参照する受理記録そのものの保管先**で、既存 101 ファイル — 当方実測)。**`scripts/check_tenant_boundary_bypass.py` の差分は 0 行**。**7.7 の受理記録を 1 件作る**
   > **旧**: 「`contracts/tenant_boundary/` 配下と `scripts/check_tenant_boundary_bypass.py` の差分が 0 行(7.7 の受理記録を作らない)」。**CI の `tenant-boundary-bypass` が exit 1(TB005 6 件 / TB007 1 件)**で機構と正面衝突したため改める。**TB007 1 件はコード側で解く**(動的な dialect 解決を明示 import へ — `TSK-480` の `f8b640f7` と同型)。**TB005 6 件は `allowed_symbols` への登録でしか解けない** — **裁定 b' により本単位は `TenantContext` を作れず**、既存の許可シンボル(`_tenant_transaction` / `_execute_operation` — いずれも `TenantContext` が必須)を通る道が無い(当方実測)。**`pitchlog.authz.product_provisioning._run_product_operation` など authz モジュールの登録は既に前例があり、設計された経路である**
 - [ ] **`core-areas.json` を変更していない**(§4-3 の判定)
 - [ ] **`backend/tests/conftest.py` の差分が 0 行**(カード記載)

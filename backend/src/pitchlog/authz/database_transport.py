@@ -4,6 +4,7 @@ import ipaddress
 import os
 from collections.abc import Mapping
 
+from sqlalchemy.dialects.postgresql.psycopg import PGDialect_psycopg
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -61,7 +62,7 @@ def require_database_transport(
     """
     try:
         url = make_url(normalized_url)
-        _, url_parameters = url.get_dialect()().create_connect_args(url)
+        _, url_parameters = PGDialect_psycopg().create_connect_args(url)
     except (SQLAlchemyError, TypeError, ValueError, KeyError):
         raise DatabaseTransportConfigurationError(
             "DB 接続の通信設定を解釈できない"

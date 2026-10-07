@@ -10,8 +10,15 @@ from pitchlog.authz.token_presentation import TokenPresentation as _TokenPresent
 
 __all__ = ["verify_tenant_id", "logout_token"]
 
-_VERIFY_TOKEN = _text("SELECT authn.verify_token(:token_id)")
-_LOGOUT_TOKEN = _text("SELECT authn.logout(:token_id)")
+_ACTIVE_PRESENTATION: tuple[_TokenPresentation, bytes] | None = None
+
+
+def _activate_presentation(presentation: _TokenPresentation) -> None:
+    """起動時に検証した鍵から作った署名器を現在の唯一の署名器にする。"""
+    if type(presentation) is not _TokenPresentation:
+        raise TypeError("署名器の型が不正です")
+    global _ACTIVE_PRESENTATION
+    _ACTIVE_PRESENTATION = (presentation, presentation._key)
 
 
 def verify_tenant_id(
@@ -37,6 +44,13 @@ def verify_tenant_id(
     """
     if type(presentation) is not _TokenPresentation:
         raise TypeError("署名器の型が不正です")
+    active = _ACTIVE_PRESENTATION
+    if (
+        active is None
+        or presentation is not active[0]
+        or presentation._key is not active[1]
+    ):
+        raise TypeError("設定済みの署名器ではありません")
 
     try:
         verified_id = presentation.decode(value)
@@ -45,7 +59,10 @@ def verify_tenant_id(
 
     try:
         with engine.begin() as connection:
-            result = connection.execute(_VERIFY_TOKEN, {"token_id": verified_id})
+            result = connection.execute(
+                _text("SELECT authn.verify_token(:token_id)"),
+                {"token_id": verified_id},
+            )
             tenant_id = result.scalar_one()
             if tenant_id is None or isinstance(tenant_id, _UUID):
                 return tenant_id
@@ -72,6 +89,13 @@ def logout_token(value: str, presentation: _TokenPresentation, engine: _Engine) 
     """
     if type(presentation) is not _TokenPresentation:
         raise TypeError("署名器の型が不正です")
+    active = _ACTIVE_PRESENTATION
+    if (
+        active is None
+        or presentation is not active[0]
+        or presentation._key is not active[1]
+    ):
+        raise TypeError("設定済みの署名器ではありません")
 
     try:
         verified_id = presentation.decode(value)
@@ -80,7 +104,10 @@ def logout_token(value: str, presentation: _TokenPresentation, engine: _Engine) 
 
     try:
         with engine.begin() as connection:
-            connection.execute(_LOGOUT_TOKEN, {"token_id": verified_id})
+            connection.execute(
+                _text("SELECT authn.logout(:token_id)"),
+                {"token_id": verified_id},
+            )
             return
     except _SQLAlchemyError:
         pass

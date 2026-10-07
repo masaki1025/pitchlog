@@ -8,6 +8,7 @@ from pitchlog.api.errors import register_exception_handlers
 from pitchlog.api.routers import meta
 from pitchlog.authz.signing_key_config import require_signing_key_configuration
 from pitchlog.authz.token_presentation import TokenPresentation
+from pitchlog.authz.verified_tenant import _activate_presentation
 
 ROUTERS: tuple[APIRouter, ...] = (meta.router,)
 _SIGNING_KEY_VARIABLE = "PITCHLOG_TOKEN_SIGNING_KEY_B64"
@@ -32,4 +33,5 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     for router in ROUTERS:
         app.include_router(router)
+    _activate_presentation(app.state.token_presentation)
     return app

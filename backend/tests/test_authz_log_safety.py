@@ -60,10 +60,22 @@ def _capture_logger(name: str, level: int) -> Iterator[list[str]]:
         logger.propagate = previous_propagation
 
 
-def test_verify_db_exception_hides_material_from_full_traceback() -> None:
+def _configured_presentation(
+    monkeypatch: pytest.MonkeyPatch, key: bytes
+) -> TokenPresentation:
+    """試験用の鍵でアプリを起動し、正規の署名器を返す。"""
+    monkeypatch.setenv(
+        "PITCHLOG_TOKEN_SIGNING_KEY_B64", base64.b64encode(key).decode("ascii")
+    )
+    return create_app().state.token_presentation
+
+
+def test_verify_db_exception_hides_material_from_full_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """既存の照合例外試験に不足するトレースバック全文を確認する。"""
     key = secrets.token_bytes(32)
-    presentation = TokenPresentation(key)
+    presentation = _configured_presentation(monkeypatch, key)
     token_id = uuid4()
     value = presentation.encode(token_id)
     engine = MagicMock()
@@ -118,11 +130,11 @@ def test_configuration_exceptions_hide_values_from_full_traceback(
     ("hide_parameters", "id_is_logged"), ((False, True), (True, False))
 )
 def test_sqlalchemy_info_logging_observes_bound_token_id(
-    hide_parameters: bool, id_is_logged: bool
+    hide_parameters: bool, id_is_logged: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """INFO では束縛 ID が出る条件と隠す条件を実行して区別する。"""
     token_id = uuid4()
-    presentation = TokenPresentation(secrets.token_bytes(32))
+    presentation = _configured_presentation(monkeypatch, secrets.token_bytes(32))
     value = presentation.encode(token_id)
     engine = create_engine(
         "sqlite+pysqlite:///:memory:", hide_parameters=hide_parameters

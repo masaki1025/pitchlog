@@ -2,6 +2,8 @@
 
 import pytest
 from sqlalchemy import Engine, event
+from sqlalchemy.dialects.postgresql.psycopg import PGDialect_psycopg
+from sqlalchemy.engine import make_url
 
 from pitchlog.authz.database_transport import DatabaseTransportConfigurationError
 from pitchlog.db import engine as engine_module
@@ -11,6 +13,26 @@ _DATABASE_URL_VARIABLE = "PITCHLOG_DATABASE_URL"
 
 class _ConnectionObserved(Exception):
     """DBAPI 接続前の引数を観測したことを表す。"""
+
+
+@pytest.mark.parametrize(
+    "normalized_url",
+    (
+        "postgresql+psycopg://user:password@127.0.0.1/pitchlog?sslmode=disable",
+        "postgresql+psycopg://user:password@/pitchlog?host=%2Ftmp&sslmode=disable",
+        "postgresql+psycopg://user:password@db.example/pitchlog?sslmode=verify-full",
+        "postgresql+psycopg://user:password@db.example/pitchlog?hostaddr=203.0.113.1&sslmode=verify-full",
+    ),
+)
+def test_explicit_psycopg_dialect_preserves_connection_arguments(
+    normalized_url: str,
+) -> None:
+    """明示した psycopg 3 方言と従来の URL 解決結果が一致する。"""
+    url = make_url(normalized_url)
+    assert url.get_dialect() is PGDialect_psycopg
+    assert PGDialect_psycopg().create_connect_args(url) == (
+        url.get_dialect()().create_connect_args(url)
+    )
 
 
 def _create_engine(monkeypatch: pytest.MonkeyPatch, database_url: str) -> Engine:

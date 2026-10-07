@@ -1,5 +1,6 @@
 """署名照合と DB 呼び出しの順序を DB なしで検査する。"""
 
+import base64
 import secrets
 import traceback
 from typing import cast
@@ -9,12 +10,23 @@ from uuid import UUID
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
+from pitchlog.api.app import create_app
 from pitchlog.authz import verified_tenant
 from pitchlog.authz.token_presentation import TokenPresentation
 from pitchlog.authz.verified_tenant import logout_token, verify_tenant_id
 
 _TOKEN_ID = UUID("a1b2c3d4-e5f6-47a8-9b0c-d1e2f3a4b5c6")
 _TENANT_ID = UUID("b1b2c3d4-e5f6-47a8-9b0c-d1e2f3a4b5c6")
+
+
+@pytest.fixture
+def configured_presentation(monkeypatch: pytest.MonkeyPatch) -> TokenPresentation:
+    """起動時に検証した鍵を持つ署名器を返す。"""
+    monkeypatch.setenv(
+        "PITCHLOG_TOKEN_SIGNING_KEY_B64",
+        base64.b64encode(secrets.token_bytes(32)).decode("ascii"),
+    )
+    return create_app().state.token_presentation
 
 
 def test_public_route_is_exact_set() -> None:
@@ -24,9 +36,11 @@ def test_public_route_is_exact_set() -> None:
     assert public_names == {"verify_tenant_id", "logout_token"}
 
 
-def test_signed_value_reaches_db_as_decoded_uuid() -> None:
+def test_signed_value_reaches_db_as_decoded_uuid(
+    configured_presentation: TokenPresentation,
+) -> None:
     """署名照合後の ID を固定された認証関数へ渡して結果を返す。"""
-    presentation = TokenPresentation(secrets.token_bytes(32))
+    presentation = configured_presentation
     engine = MagicMock()
     connection = engine.begin.return_value.__enter__.return_value
     connection.execute.return_value.scalar_one.return_value = _TENANT_ID
@@ -41,9 +55,11 @@ def test_signed_value_reaches_db_as_decoded_uuid() -> None:
     engine.begin.assert_called_once_with()
 
 
-def test_unsigned_id_and_tampered_value_never_open_db() -> None:
+def test_unsigned_id_and_tampered_value_never_open_db(
+    configured_presentation: TokenPresentation,
+) -> None:
     """生の UUID と改ざんされた提示値から DB 呼び出しに到達できない。"""
-    presentation = TokenPresentation(secrets.token_bytes(32))
+    presentation = configured_presentation
     engine = MagicMock()
     signed = presentation.encode(_TOKEN_ID)
     forged = f"{_TENANT_ID}.{signed.split('.')[1]}"
@@ -67,9 +83,72 @@ def test_fake_decoder_cannot_supply_unsigned_id() -> None:
     engine.begin.assert_not_called()
 
 
-def test_db_null_is_same_public_result_for_invalid_records() -> None:
+def test_unconfigured_signers_never_reach_authn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """正規鍵と同じ鍵でも別途作った署名器を DB 到達前に拒否する。"""
+    configured_key = secrets.token_bytes(32)
+    monkeypatch.setenv(
+        "PITCHLOG_TOKEN_SIGNING_KEY_B64",
+        base64.b64encode(configured_key).decode("ascii"),
+    )
+    create_app()
+    engine = MagicMock()
+
+    for key in (configured_key, secrets.token_bytes(32)):
+        unconfigured = TokenPresentation(key)
+        value = unconfigured.encode(_TOKEN_ID)
+        for action in (verify_tenant_id, logout_token):
+            with pytest.raises(TypeError, match="設定済みの署名器ではありません"):
+                action(value, unconfigured, engine)
+
+    engine.begin.assert_not_called()
+
+
+def test_replaced_startup_signer_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """鍵の入れ替え後は旧アプリの署名器を DB 到達前に拒否する。"""
+    monkeypatch.setenv(
+        "PITCHLOG_TOKEN_SIGNING_KEY_B64",
+        base64.b64encode(secrets.token_bytes(32)).decode("ascii"),
+    )
+    old_presentation = create_app().state.token_presentation
+    monkeypatch.setenv(
+        "PITCHLOG_TOKEN_SIGNING_KEY_B64",
+        base64.b64encode(secrets.token_bytes(32)).decode("ascii"),
+    )
+    new_presentation = create_app().state.token_presentation
+    engine = MagicMock()
+
+    for action in (verify_tenant_id, logout_token):
+        with pytest.raises(TypeError, match="設定済みの署名器ではありません"):
+            action(old_presentation.encode(_TOKEN_ID), old_presentation, engine)
+
+    engine.begin.assert_not_called()
+    assert new_presentation is not old_presentation
+
+
+def test_registered_signer_with_replaced_key_never_reaches_authn(
+    configured_presentation: TokenPresentation,
+) -> None:
+    """起動後に署名器の鍵を差し替えても DB 到達できない。"""
+    configured_presentation._key = secrets.token_bytes(32)
+    value = configured_presentation.encode(_TOKEN_ID)
+    engine = MagicMock()
+
+    for action in (verify_tenant_id, logout_token):
+        with pytest.raises(TypeError, match="設定済みの署名器ではありません"):
+            action(value, configured_presentation, engine)
+
+    engine.begin.assert_not_called()
+
+
+def test_db_null_is_same_public_result_for_invalid_records(
+    configured_presentation: TokenPresentation,
+) -> None:
     """DB 側の無効理由に関係なく NULL を None のまま返す。"""
-    presentation = TokenPresentation(secrets.token_bytes(32))
+    presentation = configured_presentation
     engine = MagicMock()
     connection = engine.begin.return_value.__enter__.return_value
     connection.execute.return_value.scalar_one.return_value = None
@@ -79,9 +158,11 @@ def test_db_null_is_same_public_result_for_invalid_records() -> None:
     )
 
 
-def test_db_error_message_omits_token_id() -> None:
+def test_db_error_message_omits_token_id(
+    configured_presentation: TokenPresentation,
+) -> None:
     """DB の例外メッセージに ID があっても公開例外には載せない。"""
-    presentation = TokenPresentation(secrets.token_bytes(32))
+    presentation = configured_presentation
     engine = MagicMock()
     connection = engine.begin.return_value.__enter__.return_value
     connection.execute.side_effect = SQLAlchemyError(str(_TOKEN_ID))
@@ -99,9 +180,11 @@ def test_db_error_message_omits_token_id() -> None:
     "invalid",
     ("raw_uuid", "tampered_signature", "unsigned", "another_key"),
 )
-def test_logout_rejects_unsigned_values_without_db(invalid: str) -> None:
+def test_logout_rejects_unsigned_values_without_db(
+    invalid: str, configured_presentation: TokenPresentation
+) -> None:
     """署名の無い ID や別鍵の提示値を DB に渡さない。"""
-    presentation = TokenPresentation(secrets.token_bytes(32))
+    presentation = configured_presentation
     signed = presentation.encode(_TOKEN_ID)
     if invalid == "raw_uuid":
         value = str(_TOKEN_ID)
@@ -137,9 +220,11 @@ def test_logout_rejects_fake_and_subclassed_presentation_without_db() -> None:
     assert engine.begin.return_value.__enter__.return_value.execute.call_count == 0
 
 
-def test_signed_logout_calls_db_once_and_returns_none() -> None:
+def test_signed_logout_calls_db_once_and_returns_none(
+    configured_presentation: TokenPresentation,
+) -> None:
     """署名済み ID だけを authn.logout に 1 回渡し void を維持する。"""
-    presentation = TokenPresentation(secrets.token_bytes(32))
+    presentation = configured_presentation
     engine = MagicMock()
     connection = engine.begin.return_value.__enter__.return_value
 
@@ -151,9 +236,11 @@ def test_signed_logout_calls_db_once_and_returns_none() -> None:
     assert parameters == {"token_id": _TOKEN_ID}
 
 
-def test_logout_db_error_omits_presentation_and_id_from_full_traceback() -> None:
+def test_logout_db_error_omits_presentation_and_id_from_full_traceback(
+    configured_presentation: TokenPresentation,
+) -> None:
     """DB 例外の文脈を切り、メッセージと全トレースに入力を残さない。"""
-    presentation = TokenPresentation(secrets.token_bytes(32))
+    presentation = configured_presentation
     value = presentation.encode(_TOKEN_ID)
     engine = MagicMock()
     connection = engine.begin.return_value.__enter__.return_value

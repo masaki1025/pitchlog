@@ -1,5 +1,6 @@
 """署名済み提示値から実 DB の無効状態を拒否する。"""
 
+import base64
 import secrets
 from uuid import UUID, uuid4
 
@@ -8,6 +9,7 @@ from psycopg.conninfo import conninfo_to_dict
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 
+from pitchlog.api.app import create_app
 from pitchlog.authz.token_presentation import TokenPresentation
 from pitchlog.authz.verified_tenant import logout_token, verify_tenant_id
 
@@ -28,7 +30,9 @@ pytestmark = pytest.mark.requires_db
     ("logged_out", "stale_credential", "disabled", "wrong_tenant", "expired"),
 )
 def test_signed_invalid_token_returns_no_tenant(
-    provisioned_product_catalog: ProvisionedProductCatalog, invalid: str
+    provisioned_product_catalog: ProvisionedProductCatalog,
+    invalid: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """失効・認証情報更新・無効化・所属不一致・期限切れを実 DB で拒否する。"""
     catalog = provisioned_product_catalog
@@ -37,7 +41,11 @@ def test_signed_invalid_token_returns_no_tenant(
     identity = _seed_identity(catalog, app_dsn)
     token = _login(identity)
     assert isinstance(token, UUID)
-    signer = TokenPresentation(secrets.token_bytes(32))
+    monkeypatch.setenv(
+        "PITCHLOG_TOKEN_SIGNING_KEY_B64",
+        base64.b64encode(secrets.token_bytes(32)).decode("ascii"),
+    )
+    signer: TokenPresentation = create_app().state.token_presentation
     connection_options = conninfo_to_dict(app_dsn)
     engine = create_engine(
         URL.create(

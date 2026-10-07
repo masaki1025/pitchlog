@@ -10,6 +10,7 @@ import pytest
 from psycopg.conninfo import conninfo_to_dict
 from sqlalchemy.engine import URL
 
+from pitchlog.api.app import create_app
 from pitchlog.authz.token_presentation import TokenPresentation
 from pitchlog.authz.verified_tenant import logout_token, verify_tenant_id
 from pitchlog.db.engine import create_database_engine
@@ -38,7 +39,10 @@ def test_real_driver_and_engine_logs_omit_auth_material(
     token_id = _login(identity)
     assert isinstance(token_id, UUID)
     key = secrets.token_bytes(32)
-    presentation = TokenPresentation(key)
+    monkeypatch.setenv(
+        "PITCHLOG_TOKEN_SIGNING_KEY_B64", base64.b64encode(key).decode("ascii")
+    )
+    presentation: TokenPresentation = create_app().state.token_presentation
     value = presentation.encode(token_id)
     options = conninfo_to_dict(app_dsn)
     url = URL.create(
