@@ -32,6 +32,14 @@ branch: feature/vocab-category-fk
 - 2026-10-07: 取り込み後の確認: backend 全件(DB を含む)1336 passed / 4 skipped・alembic 3 点 OK / ルート `tests/` 2927 passed・ruff・ty・shared-preconditions・frozen-baselines(--invariants-only)OK(コミット後に実行)
 - 2026-10-07: 受入シートの旧判定の理由にある data-model.md の行番号参照 13 か所は、**develop の時点で既に約 25 行ずれている**(例: 「§4-3 冒頭(:637)」の実際は :662)。本 PR の起因ではないので触れない
 - 2026-10-08: 共有の `/tmp`(7.7GB の tmpfs)が `/tmp/pytest-of-ymdms` 7.4GB で満杯になり、ルート `tests/` の実行が出力を失った。10-05〜10-06 の古い basetemp(約 4.5GB・走行中のものは無し)を削除して再実行。TSK-236 タブへ連絡(同タブの実行は無事)
+- 2026-10-09: `/pr` の直前に develop が進んだ(#99・#102・#103 — #103 が data-model.md と封印 2 つを変更)。**未 push の履歴を組み直す `reset --hard` は自動モードで拒否** → 人間判断で「上に積んでマージ」。マージ `9726aa63` で衝突 4 ファイルを解決(変更履歴は両方の行を残し TSK-480 の行を 2026-10-09 で先頭へ / README の索引は develop 側に TSK-480 の追随を足す / 封印 2 つは取り込み後の data-model.md から `sha256sum`・`git hash-object` で取り直し)。受入シートの再生成は差分 0・空欄 0(承認のやり直し不要)
+- 2026-10-09: 取り込み後の確認: ルート `tests/` 28342 passed(#102 で xdist 並列)・ruff・ty・shared-preconditions・frozen-baselines OK / backend 全件(DB を含む・`-c pyproject.toml --cov`)1336 passed / 4 skipped・ruff format/check・ty OK・alembic upgrade head / current --check-heads / check OK
+
+## 結果(/pr 時点)
+
+- **実装**: migration 0029 で `system_vocabularies` を参照する 3 本の FK に `category` を拘束(参照元の定数列 + 参照先の `UNIQUE (key, category)` + `MATCH FULL` の複合 FK・FORCE RLS 下でも全行を見る事前検査)。ORM・schema manifest・既存テストを追随。新しい DB テスト 12 件と変異 11 種の再現
+- **正本への反映**: data-model.md 10-3 節の ⚠ 項を是正済みの記録へ(実装追随・v0.6 据え置き)・変更履歴・`docs/README.md`・封印 2 つ・受入突合シート(判定の引き継ぎは人間承認 2 回)
+- **ハーネス運用評価台帳**: **既存候補 2 件へ実測を追記**(コミット前の全試験が迂回の走査を見逃した — 別タスクで 3 例目 / 共有の `/tmp` が 3 日で再び満杯)。**新規候補は立てない・`H-*` は採番しない**(いずれも既存候補の再発で、二重計上を避けるため。採番は PO 判断)
 
 ## 決定
 
@@ -42,5 +50,5 @@ branch: feature/vocab-category-fk
 
 - **PR の人間逐行確認で見てもらう点**: 上記のテナント内複合 FK 検査の限定(テナント分離の検査の意味に関わる)
 - ステップ 3 は PR #98 のマージを待ってから行った(人間判断 2026-10-07 — 取り込みと封印の取り直しを 1 回で済ませるため)
-- 次: /check → /pr
+- 次: PR の CI・敵対レビュー・人間の逐行確認 → マージ。PR 後に U-M1・TSK-479・U-G1 の状態を測り直す。マージ後に使い捨ての DB コンテナ `pitchlog-tsk480-db` を名指しで撤去する
 - admin / tenant 層の同型非拘束 → TSK-489 起票済み

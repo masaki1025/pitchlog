@@ -1,6 +1,6 @@
 ---
 feature: vocab-category-fk
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-06・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -66,7 +66,9 @@ created: 2026-10-05
 | `docs/design/data-model.md` 変更履歴 | 実装追随(TSK-480・版は上げない)の追記 | PR レビュー |
 | `docs/README.md`(索引) | data-model 行へ実装追随の追記 | PR レビュー |
 | `docs/requirements/` | **反映なし**(一意性の範囲を定める条文が無い — research.md 1 節) | — |
-| `docs/adr/` / `docs/development/` / `docs/ops/` | **反映なし** | — |
+| `docs/development/harness-evaluation.md` | `/pr` クローズ処理で既存候補 2 件へ実測を追記(「検査器が『コミット済みの差分』だけを見ると…」・「長時間 DB テストの強制終了が teardown を飛ばし…」)と変更履歴 1 行。`H-*` は採番しない | PR レビュー |
+| `docs/README.md`(索引)の台帳行 | 上記の追記を先頭へ足し、最終更新日を現行化 | PR レビュー |
+| `docs/adr/` / `docs/ops/` / `docs/development/` の他の文書 | **反映なし** | — |
 
 ### 正本体系外だが同一 PR で運ぶもの
 
