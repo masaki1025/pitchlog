@@ -1,6 +1,6 @@
 ---
 feature: vocab-category-fk
-status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-06・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -119,7 +119,7 @@ created: 2026-10-05
   2. **Claude** が委任の結果を検証し、**ステップ記法つきの件名で**ローカルにコミットする(push しない)
   3. **Claude** が `uv run python scripts/generate_orm_acceptance_sheets.py --carry-judgments-from <ステップ開始時の HEAD>` で再生成する(変更識別子が 2 のコミットの差分から拾われる)
   4. **Claude** が引き継ぎ・判定案を作り、**人間の承認**を受け、シートと期待行数の追随を 2 のコミットへ amend する(1 ステップ = 1 コミット。**amend は push 前に限る**)
-  
+
   そのうえで**空になった行を全件**拾い、`(対象から通し番号を除いたもの, 正本側, 実装側)` の内容一致で旧判定を引き継げる行は引き継ぎ、新規の行には既存の同種の行と同じ判定案を入れる。**持ち越された行のうち、対象が本タスクで変えた 4 表(`players` / `games` / `game_type_rule_defaults` / `system_vocabularies`)または 10-3 節に当たる行も全件**、空になった行と合わせて人間に示す。**引き継ぎと判定案は人間の承認を受けてから amend を確定する**(前例: TSK-468 — worklog 2026-10-04-ua1-auth-db-layer.md:173,:221)。行数が変わったら `tests/test_orm_acceptance_sheets.py` の期待行数を追随させる。**develop 取り込み(TSK-382 など)の後は N3 の通し番号がずれるので、同じ手順をやり直す**
 
 ### 4-5. 重さ分類 = **コア領域**
