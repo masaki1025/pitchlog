@@ -50,9 +50,8 @@ AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
         "tests/domain/*",
     ),
     "tenant-isolation": (
-        "docs/ops/product-rls-real-schema.md",
-        "scripts/product_rls_real_schema/*",
-        "scripts/product-rls-real-schema-targets.json",
+        "backend/tests/test_*_boundary.py",
+        "backend/tests/test_*_repository.py",
     ),
 }
 REQUIRED_CHECK_RE = re.compile(
