@@ -203,10 +203,11 @@ date: 2026-10-08
 - R-5: **UM01 の #95 の上に積む**(起点を feature/um1-player-roster-opponent にする)
 - R-3: **HTTP 入口は U-S1 では開かない**。サービス層は入口から直接呼べる形で作る。入口は TSK-331 で形式が決まった後に、小さな PR で開く。人間の判断基準は「製品コードが早く develop に入る方」
 
-- R-9: **U-S1 が TSK-332(NFR-019(d) の資産契約の再設計とシナリオ資産)も吸収する**(2026-10-08・人間。スパイクで資産の実際の形が見えたため)。復元ライフサイクルの故障シナリオ 12 本の送り先は、計画書の Q-9 で人間の確認を待つ
+- R-9: **U-S1 が TSK-332(NFR-019(d) の資産契約の再設計とシナリオ資産)も吸収する**(2026-10-08・人間。スパイクで資産の実際の形が見えたため)。繰り延べ 12 ID の送り先は R-11 で裁定した
 
 - R-10: **正本 sync-protocol.md 10-3 の比較単位を改訂する(v0.5)**。U-S1 の PR に確定ゲートを含める(2026-10-08・人間。計画レビュー 2 周目で、資産の比較単位が正本と食い違うと判定されたため)
 - R-11: **TSK-330 の繰り延べ 12 ID のうち、復元ライフサイクルの 10 件は U-R1(TSK-392)へ送る**。`p3-invalidation-consumed-before-complete`・`o4-persisted-d2-equivalence` は U-S1 で作る(2026-10-08・人間)
+- R-12: **ポートの別スレッドへの書き込みの預け入れは、アプリの層で最大限に防ぎ、残りは記録する**。DB のトリガ案は採らず、投影の表の持ち主 U-X1 へ申し送る。I6 の端末側の検証は U-S1 で閉じる(Vitest 側の runner)(2026-10-08・人間。計画レビュー 3 周目)
 ## スパイクの結果(2026-10-08・feature/us1-sync-spike)
 
 人間の裁定でスパイクを打った(書き手は Codex。計画書は `feature/us1-sync-spike` の `docs/features/us1-sync-spike/plan.md`。敵対レビュー 3 周で承認)。起点は UM01 #95 の `3e19b295`。ステップ 3 本のコミットは `34aab643`・`cafc9b48`・`fa9975e9`。**DB テスト 20 件 green**(Codex の sandbox は Docker を使えないため、Claude が使い捨てクラスタで実行した)。ブランチは push していない。
@@ -230,7 +231,7 @@ date: 2026-10-08
 | 台帳の既存行の照合(`result` の JSONB を読む) | 通過 | **拒否**(`_TenantOperationError`: 結果に `dict` を実体化できない) |
 | UPDATE 全般(`operation_events.replaced_at`・`players.name`) | 通過 | **CompileError**(下記) |
 
-- **#95 自体の疑い**: UM01 の `PlayerUpdateToken` を `_prepare_operation` に通すと、パラメータのキーは `id`・`tenant_id`・`value_name` になる。これを PostgreSQL 方言でコンパイルすると `CompileError: bindparam() name 'tenant_id' is reserved for automatic usage in the VALUES or SET clause` になる(Claude がコンパイル段階で再現。実 DB での実行は未確認)。#95 の UPDATE の試験は偽 session で行われていて、実際のコンパイルを通らない。**UM01 へ報告済み**(2026-10-08)。UM01 が確認し、SQLite でも再現した(PlayerUpdateToken・TeamRecordUpdateToken の両方。INSERT・SELECT は落ちない)。#95 に「ステップ 5 是正」として直す: UPDATE の WHERE の bind 名を列名と重ならない名前へ替え、base.py の UPDATE 検査を追随させる。**U-S1 の UPDATE は、是正後の bind 名に合わせる**
+- **#95 自体の疑い**: UM01 の `PlayerUpdateToken` を `_prepare_operation` に通すと、パラメータのキーは `id`・`tenant_id`・`value_name` になる。これを PostgreSQL 方言でコンパイルすると `CompileError: bindparam() name 'tenant_id' is reserved for automatic usage in the VALUES or SET clause` になる(Claude がコンパイル段階で再現。実 DB での実行は未確認)。#95 の UPDATE の試験は偽 session で行われていて、実際のコンパイルを通らない。**UM01 へ報告済み**(2026-10-08)。UM01 が確認し、SQLite でも再現した(PlayerUpdateToken・TeamRecordUpdateToken の両方。INSERT・SELECT は落ちない)。#95 に「ステップ 5 是正」として直す: UPDATE の WHERE の bind 名を列名と重ならない名前へ替え、base.py の UPDATE 検査を追随させる。**U-S1 の UPDATE は、是正後の bind 名に合わせる**。**是正済み**(2026-10-08。`origin/feature/um1-player-roster-opponent` の先頭 `18f0e4ff`、本体 `67c4495b`): UPDATE の WHERE は `テナント列 = :where_tenant_id` と `id 列 = :where_id`(team_records の `kind` は `:where_kind`)。旧名は検査で拒否される。SELECT・INSERT の bind 名は変わらない
 - **台帳の `result` は NOT NULL で、変更を禁止するトリガがある**。そのため T1(D5 の記録)と T6(確定結果)を時間的に分けて書けない。T1 の時点で確定結果まで書く形になる(SP 8-1 の T1・T6 の区別は、書き込みの順序ではなく内容の区別として読む必要がある)
 
 ### S-4: TSK-332 の契約の争点
