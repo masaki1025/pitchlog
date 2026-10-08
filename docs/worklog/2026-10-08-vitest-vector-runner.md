@@ -40,5 +40,6 @@ branch: feature/vitest-vector-runner
 
 ## 未決・次の一歩
 
-- 236 タブへ照会中: (a) (α) 契約 schema は凍ったか (b) PR 分割の有無・#81 のマージ見込み・ローカル先行分の push 予定
-- schema が未凍結なら /plan まで進めて実装は待つ
+- 236 タブの回答(2026-10-09): (a) schema は凍結済み (b) `origin/feature/appendix-e-golden-vectors` を `a023f062` へ早送り push 済みで、`contracts/state-transition/` の 38 ファイルをリモートで読める(`state_transition_contract_schema_v1.json`・`game_end_contract_schema_v1.json`・`appendix_e_consumer_handoff_v1.json`〔`caseFieldMapping` / `executionPaths[]` の実値〕・`normalization_schema_examples_v1.json`)。PR #81 は draft のまま(凍結資産の受理記録と backend 全件が残る)
+- 「#1〜#4 分割」の出どころは Notion TSK-455 カード本文(2026-09-24 作成)で、計画レビュー 2 周目の草案が固着したもの。正本(plan.md・引き渡し契約)には無い。カードの訂正は 469 タブが人間へ上げている。段階 2 の依存という読みで合っている
+- 再開時: schema が凍っているので /plan へ進める。実装は #81 のマージ後
