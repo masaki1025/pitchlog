@@ -31,6 +31,12 @@ branch: feature/us1-sync-apply-core
 
 ## 決定
 
+- 2026-10-08 人間の裁定(research.md の R-1・R-2・R-5):
+  - R-1: **U-S1 が TSK-330 を全部吸収する**(runner・P3 の T7・I5・I6 を含む)。TSK-330 は取り下げか統合として扱う。`canonOracle.spec.ts:685-688` の「TSK-330」文字列も追随させる
+  - R-2: 記録権の判定(V12・D4・RG1)と状態遷移(T4・再計算)は、**注入境界で受ける**。本物は U-R1・U-X1 が差し込む。FR-012 は U-S1 では部分充足とする
+  - R-5: **UM01 の #95 の上に積む**(起点を feature/um1-player-roster-opponent にする)
+  - R-3: **HTTP 入口は U-S1 では開かない**。サービス層は入口から直接呼べる形で作る。入口は TSK-331 で形式が決まった後に、小さな PR で開く。人間の判断基準は「製品コードが早く develop に入る方」
+
 ## 未決・次の一歩
 
 - /investigate で下調べ → /plan

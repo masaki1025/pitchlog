@@ -185,6 +185,7 @@ date: 2026-10-08
 - **R-3 入口を開くか**: U-S1 ではサービス層と DB テストまでにして、HTTP 入口は開かない(wire は TSK-331)。こうすれば 12-4 ゲートと route_id(tenant-isolation のコア)を避けられる(推論)
 - **R-4 TB002 との衝突**: 同期語彙の禁止を U-S1 の置き場所だけ外すのか、シンボル単位の裁定で通すのか。どちらも tenant-isolation のコアに触れる
 - **R-5 書き込みの登録形式**: リポジトリ基底を Select 以外に広げる変更を U-S1 で行うのか、別単位として切り出すのか(U-T1 側の拡張)
+  - 追記(2026-10-08 実測): UM01(U-M1・PR #95 draft)が、`transaction.py` の Select 限定を外し、`_prepare_operation` と `_materialize_execution_result` へ一般化している(`feature/um1-player-roster-opponent` の `origin/develop...HEAD` 差分。repository_contract.py と repository-contract.json も改訂)。**U-S1 は #95 のマージ後にこれを再利用するのが最短**(推論)。その場合、U-S1 の実装は #95 のマージを待つ
 - **R-6 core-areas.json**: 窓口が空くのを待つのか(469 master が順番を調整)、既存の glob に収まる置き場所(`db/sync_protocol/<sub>/` など)を選ぶのか。重複帰属の明示に JSON の変更が要るかも決める
 - **R-7 NFR-018**: D5 分類と処理段階は frontend に TS で既にある。サーバー側で Python で書くことが、コピー実装に当たるか。NFR-018 の対象列挙には同期が含まれない(REQ:892)が、sync-server-apply では TS での再実装を P0 と判断した(`docs/features/sync-server-apply/design.md:268`)
 - **R-8 D2 の直列化方式**(O1・O2): 方式((B)18)を U-S1 で決めるか。新しい表を作るなら、45 表の固定(`backend/tests/db_fixtures.py:526-532`)と RLS 分類も改訂する
@@ -194,3 +195,10 @@ date: 2026-10-08
 - カードの DoD「contracts/ のゴールデンベクタとの一致」は対象が存在しない。`tests/fixtures/sync-protocol-failures/`(SP:1712)への読み替えを、カードの修正として人間へ上げる
 - `applied_prefix` の意味(TSK-372 へ送付済み)を計画の前に確認する
 - 射程外のまま残るもの: U-1・U-2・RR-1(TSK-267。未着手)、通知(TSK-441)
+
+## 裁定(2026-10-08・人間)
+
+- R-1: **U-S1 が TSK-330 を全部吸収する**(runner・P3 の T7・I5・I6 を含む)。TSK-330 は取り下げか統合として扱う。`canonOracle.spec.ts:685-688` の「TSK-330」文字列も追随させる
+- R-2: 記録権の判定(V12・D4・RG1)と状態遷移(T4・再計算)は、**注入境界で受ける**。本物は U-R1・U-X1 が差し込む。FR-012 は U-S1 では部分充足とする
+- R-5: **UM01 の #95 の上に積む**(起点を feature/um1-player-roster-opponent にする)
+- R-3: **HTTP 入口は U-S1 では開かない**。サービス層は入口から直接呼べる形で作る。入口は TSK-331 で形式が決まった後に、小さな PR で開く。人間の判断基準は「製品コードが早く develop に入る方」
