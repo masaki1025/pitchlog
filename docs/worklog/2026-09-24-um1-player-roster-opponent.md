@@ -269,3 +269,38 @@ branch: feature/um1-player-roster-opponent
 | --- | --- | --- | --- |
 | 1 | tenant_boundary の受理記録の日時キーは `approved_on`(`scripts/frozen_history.py` の v2 record)で、計画書の `approved_at` は誤り | P2 | **採用**(P0/P1 ゼロの周の P2 として一括反映)。内訳 5 の是正と内訳 10 の 2 箇所を `approved_on` に直した。authz の `frozen-baselines.json` は `approved_at` のまま(原典で両方を確認) |
 - **第 4 改訂の承認: 2026-10-08・山田正輝**。#95 の受理記録の承認値は前回どおり 山田正輝 / 2026-10-05 を引き継ぐ(承認時に提示し、変更の指示なし)
+
+## 2026-10-08 ステップ 5 の是正(`b167fff1`)
+
+- **実装**(Codex・`--resume`): `roster.py` の組み立てを `_build_roster_statement(kind, operation)` 1 関数へ集め、`allowed_symbols` へ登録(`SQLA_SELECT` / `SQLA_INSERT` / `SQLA_UPDATE` だけ)。正例 fixture 1 件。`base-allowlist.json` 21→22。権威履歴は #96 までを保ち #95 を 1 件追記(`repository-contract.json` 9→10 と `base-allowlist.json` 21→22 を覆う・承認値 山田正輝 / 2026-10-05)。snapshot 2 件(`0ad989ea…`・`75227a89…`)・manifest `4e139505…`。runner 前版 `ec02a0d2` / 現版 11/11
+- **コミット前の敵対レビュー**: 可決(P0 0 / P1 0 / P2 2)。P2 2 件(`kind` と token の取り違えを実行時に拒否する — 実行直前の検査は同一表・同一操作での SET 列と `token.changes` の一致までは保証しない / 正例 fixture の分岐値を実装に揃える)を同じ是正に反映し、署名・記録・manifest を取り直した
+- **確定した状態での検証**(第 4 改訂の規律): 作業ツリーが清潔で HEAD = `b167fff17e41551df53788259fbabbbdcc11d857` を確かめてから実行
+  - `check_tenant_boundary_bypass.py --base-ref origin/develop` ok / `check_authz_catalog.py` ok
+  - ルート 4 ファイル 471 passed / backend 3 ファイル 210 passed / backend ruff・format・ty green
+- **backend の非 DB 全件**: 手元のブランチでは 34 failed + 10 errors(`test_authz_runtime_contract_generator.py`・`test_authz_runtime_contract_switch.py`、すべて「HEAD の履歴に staged 製品資産がありません」)。原因は**テストの前提が履歴の形に依存すること**: テストは `git rev-list HEAD -- contracts/authz/product/ddl-elements.staged.json` で過去版を探すが、既定の履歴の単純化は TREESAME の第 1 親だけを辿るので、develop を第 2 親で取り込んだブランチ上では 0 件になる(`--full-history` なら 21 件)。**CI と同じ形(develop を第 1 親にした `--no-ff` のマージコミット)では 1040 passed で全件 green** — 本 PR の欠陥ではない。台帳の候補になりうる(develop を取り込んだ作業ブランチ上で既存テストが偽の赤を出す)
+- **push と CI**: `b167fff1` を push。**PR #95 で CI が初めて走った**(10 ジョブ)
+
+## 2026-10-08 第 5 改訂(ステップ 6・7 の paths 登録を glob へ)
+
+- **提案**: 469 master(`AREA_PATH_ADDITIONS` は回転式の窓口で 1 本ずつしか通れない。後続 17 単位の越境テストを glob で 1 回に畳む)。点 1(0 件の glob を許すか)は develop に実例 `backend/src/pitchlog/generated/*` があり許す、点 2(命名規約の置き場)は TSK-485 の射程 — いずれも 469 master の実測
+- **裁定(2026-10-08・山田正輝)**: glob `backend/tests/test_*_boundary.py` で登録する
+- **当方の実測**: `git ls-files` を `fnmatch.fnmatchcase` で照合して当たる追跡ファイルは 0 件(`backend/tests/test_type_boundary_contract.py` は末尾が `_contract.py`)
+
+### 計画レビュー(第 5 改訂)1 周目 — 可決(P0 0 / P1 0 / P2 1)
+
+| # | 指摘 | 重大度 | 採否と反映 |
+| --- | --- | --- | --- |
+| 1 | 「後続が揃わなくても当たらないだけ」は言い切れない。`*` は `/` を跨ぐので、規約外のファイルが将来当たりうる | P2 | **採用**(P0/P1 ゼロの周の一括反映)。規約外でも当たりうること・その場合はコア領域が広がる側に倒れることを明記し、TSK-485 への申し送りに後続での実パス照合を含めた |
+
+`計画レビュー周回` は 13 へ(指摘反映を伴う周は可決でも数える — 第 4 改訂の 2 周目〔P2 1 件を反映〕を数え漏らしていたので、あわせて訂正した)。
+
+### 承認(2026-10-08・山田正輝)
+
+第 5 改訂を承認。frontmatter の `承認` と 8 節 14 を更新した。
+
+## 2026-10-08 `b167fff1` の CI(PR #95 で初回)
+
+- **tenant-boundary-bypass は合格**(ステップ 5 の是正が CI でも通った)。backend・consistency・docs-lint・mutation・nfr021-append-only・secrets・frontend も合格
+- **core-guard は失敗**(想定どおり — draft の間は逐行確認のチェックが未記入)
+- **harness は失敗**(想定外): `scripts/check_frozen_baselines.py --ci` が、`backend/tests/test_roster_repository.py` に是正で足した SQL 形状の sha256 の 16 進文字列 11 件を「走査で見つかったが allow-list にない」として拒否した。64 桁の 16 進文字列はリポジトリ全体で凍結値の候補として走査される。**ローカルではこのスクリプトを回しておらず取り逃がした**(ルートの pytest と迂回検査だけを回していた)
+- 対処: 形状の比較をハッシュ値でなく SQL の文字列そのものとの照合に替える(ステップ 5 是正の追補)。以後、是正の後は `check_frozen_baselines.py` も回す
