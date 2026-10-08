@@ -9007,8 +9007,8 @@
             ]
           }
         },
-        "movement_fact": "① _check_integrity_reference の protected へ発行能力の保護を 1 件足し、許容単位を「シンボル or モジュール」へ広げた。② 契約資産へ issuance_capability_symbol と issuance_capability_allowed_symbols の 2 欄を新設した。③ 負例 3 件（registry 登録・import・getattr）を足した。④ 識別値は 8 本を +1 し、frozen-inputs.json は射影が S と H で完全一致のため contract_revision:2 を据え置いた。⑤ allowed_product_modules は空のままで、製品モジュールの発行は 1 件も開いていない。⑥ 受理の対象とした比較元のコミットは 7167c18245699251b9af4f597f42d68be9142675。",
-        "reason": "TSK-457 として TenantContext の発行を専用モジュールへ機械的に封じ込めた。TSK-440 が代償なしで縮小した条件 5（TB007）の保証を発行境界の機構で埋めるため、検査器 scripts/check_tenant_boundary_bypass.py に発行能力の保護規則を足し、契約資産へ issuance_capability_symbol / issuance_capability_allowed_symbols の 2 欄を新設した。条文は docs/features/tenant-boundary-enforcement/design.md 6-0-a。計画: docs/features/tenant-context-issuance-guard/plan.md。",
+        "movement_fact": "① _check_integrity_reference の protected へ発行能力の保護を 1 件足し、許容単位を「シンボル or モジュール」へ広げた。② 契約資産へ issuance_capability_symbol、issuance_capability_allowed_symbols、issuance_entrypoint_symbol、issuance_entrypoint_allowed_symbols の 4 欄を新設した。発行入口の 2 欄は現在ともに空で判定が不活性であり、片方だけ空の組み合わせは ContractError で拒否する。U-M1 ステップ 8 が値を入れる。③ 負例 3 件（registry 登録・import・getattr）を足した。④ 識別値は 8 本を +1 し、frozen-inputs.json は射影が S と H で完全一致のため contract_revision:2 を据え置いた。⑤ allowed_product_modules は空のままで、製品モジュールの発行は 1 件も開いていない。⑥ 受理の対象とした比較元のコミットは 7167c18245699251b9af4f597f42d68be9142675。",
+        "reason": "TSK-457 では、TenantContext.__init__ が発行能力の実体 _ISSUANCE_CAPABILITY との identity 一致を要求し、不一致を TypeError で拒否する実行時検査と、検査器 scripts/check_tenant_boundary_bypass.py が allowlist 外のモジュールによる発行能力シンボルの直接参照（import・Load 参照・getattr）を TB007 で拒否する規則を成立させた。TSK-440 が代償なしで縮小した条件 5（TB007）の保証を補うための発行境界である。専用発行モジュールの実体と allowed_product_modules への登録は本単位では行っておらず、U-M1 ステップ 8 の担当である。条文は docs/features/tenant-boundary-enforcement/design.md 6-0-a。計画: docs/features/tenant-context-issuance-guard/plan.md。",
         "approved_by": "山田正輝",
         "approved_on": "2026-10-09"
       }
