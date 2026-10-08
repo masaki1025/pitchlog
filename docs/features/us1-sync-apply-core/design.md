@@ -45,9 +45,9 @@ date: 2026-10-08
 2. **ポートの実装は `TenantContext` を発行できない**。発行は既存の allowlist(`backend/src/pitchlog/repositories/tenant_context_contract.py` の `ALLOWED_PRODUCT_MODULES`)が許したモジュールに限られる。ポートは文脈を受け取らず作れもしないので、**どのスレッドでも**独自の `tenant_transaction_scope` を開けない(計画レビュー 2 周目: 同じスレッドの検査だけでは別スレッドを防げない)
 3. 多層防御として、**適用核のトランザクションが開いている間は、同じスレッドで新しい `tenant_transaction_scope` を開けない**実行時の検査も足す(適用中の印をコンテキスト変数に立て、入口で拒否する)。repositories の基底に触れるので tenant-isolation のコア(4 節と同じステップ)
 
-4. **ポート実装モジュールの登録表**: 適用核は、`sync/ports.py` の登録表にあるモジュールのポートだけを受け付ける(実行時)。登録表のモジュールは、pitchlog パッケージ内の推移的な import に、トランザクション・文脈・スレッド・非同期実行のモジュール(`pitchlog.repositories.transaction`・`pitchlog.repositories.context`・`threading`・`concurrent.futures`・`asyncio`・`multiprocessing`)を含めてはならない(静的検査)
+4. **ポート実装モジュールの登録表**: 適用核は、`sync/ports.py` の登録表にあるモジュールのポートだけを受け付ける(実行時)。登録表のモジュールは、pitchlog パッケージ内の推移的な import に、トランザクション・文脈・**DB 接続**・スレッド・非同期実行のモジュール(`pitchlog.repositories.transaction`・`pitchlog.repositories.context`・`pitchlog.db.engine`・`sqlalchemy`・`psycopg`・`threading`・`concurrent.futures`・`asyncio`・`multiprocessing`)を含めてはならない(静的検査。計画レビュー 4 周目: `pitchlog.db.engine` から別接続を作れば、同じスレッドでもスコープの拒否を通らずに書ける)
 
-試験: ① ポートの署名に `TenantContext`・ハンドル・session が現れない(静的)② 同じスレッドで独自スコープを開こうとするポートを差し込むと、適用が失敗し何も残らない ③ 登録表にないポートは拒否される ④ 禁止モジュールを推移的に import するモジュールを登録すると静的検査が落ちる
+試験: ① ポートの署名に `TenantContext`・ハンドル・session が現れない(静的)② **テスト中だけ合成ポートを登録表に足し**(製品の登録表は空のまま。monkeypatch で差し込む)、同じスレッドで独自スコープを開こうとするポートを差し込むと、**ポートが呼ばれた後に**スコープの入口で拒否され(呼び出しと拒否を spy で記録して確かめる)、適用が失敗し何も残らない ③ 登録表にないポートは、呼ばれる前に拒否される ④ 禁止モジュール(DB 接続を含む)を推移的に import するモジュールを登録すると静的検査が落ちる(負例: `pitchlog.db.engine` から別接続を作るポート)
 
 **残る穴(R-12 で受容)**: 外から有効な文脈を持ち込み、禁止モジュールを経由せずに別の実行単位へ書き込みを預け、待たずに戻るポート(例: 動的 import・外部プロセス)は、アプリの層では止められない。崩れるのは同じテナントの中の原子性で、テナント分離は破れない(RLS は効く)。逐行確認で防ぐ。**完全な遮断は DB 側**(投影の表に、適用核がトランザクション内で立てる印を要求するトリガ)で、表の持ち主の U-X1 が本物の投影ポートを作るときに入れる(申し送り)
 
