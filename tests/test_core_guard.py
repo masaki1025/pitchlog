@@ -1886,13 +1886,15 @@ def test_schema_contract_population_closes_forward_only(
 
 
 def test_schema_contract_test_population_does_not_depend_on_branch() -> None:
-    """スキーマ契約テストの母集団がブランチの状態に依存しないと示す。"""
+    """スキーマ契約テストの母集団がブランチの状態に依存しないと示す。
+
+    名前による判定は正当な経路の試験も禁じ、別の場所へ広がる退行を見逃す。
+    閉包の向きは `test_schema_contract_population_closes_forward_only` が
+    import の挙動で固定する。
+    """
     population = schema_contract_test_paths()
     assert population, "backend/tests/ の母集団が空になっている"
     assert "backend/tests/test_operation_event_kind_contract.py" in population
-    assert not any(
-        name.startswith("backend/tests/db/test_authz_") for name in population
-    ), "認可検証の資産まで巻き込んでいる"
 
 
 def test_unregistered_schema_contract_test_is_rejected() -> None:
