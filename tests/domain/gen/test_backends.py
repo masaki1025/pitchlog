@@ -226,15 +226,50 @@ def _assert_language_population(artifacts: Collection[Any]) -> None:
     assert observed == expected
 
 
-def _tree_snapshot(root: Path) -> tuple[tuple[str, str], ...]:
+def _tree_snapshot(
+    root: Path, *, ignore_import_cache: bool = False
+) -> tuple[tuple[str, str], ...]:
     """ディレクトリ配下のパスと内容 hash を返す。"""
     if not root.exists():
         return ()
     values: list[tuple[str, str]] = []
     for path in sorted(candidate for candidate in root.rglob("*") if candidate.is_file()):
+        # TSK-501: xdist の別 worker による backend import のキャッシュ書込みは揺れる。
+        if ignore_import_cache and (
+            "__pycache__" in path.relative_to(root).parent.parts
+            or path.suffix == ".pyc"
+        ):
+            continue
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         values.append((path.relative_to(root).as_posix(), digest))
     return tuple(values)
+
+
+def test_tree_snapshot_detects_import_cache_write_by_default(tmp_path: Path) -> None:
+    """除外を指定しなければ import キャッシュも書込みとして検出する。"""
+    before = _tree_snapshot(tmp_path)
+    cache = tmp_path / "__pycache__"
+    cache.mkdir()
+    (cache / "x.pyc").write_bytes(b"compiled")
+
+    assert _tree_snapshot(tmp_path) != before
+
+
+def test_tree_snapshot_ignores_only_import_cache_when_requested(tmp_path: Path) -> None:
+    """キャッシュだけを除外し、通常ファイルの書込みは検出する。"""
+    before = _tree_snapshot(tmp_path, ignore_import_cache=True)
+    cache = tmp_path / "__pycache__"
+    cache.mkdir()
+    (cache / "x.pyc").write_bytes(b"compiled")
+    (cache / "metadata.txt").write_text("cache", encoding="utf-8")
+    package = tmp_path / "pkg"
+    package.mkdir()
+    (package / "other.pyc").write_bytes(b"compiled")
+
+    assert _tree_snapshot(tmp_path, ignore_import_cache=True) == before
+
+    (package / "new_file.py").write_text("value = 1\n", encoding="utf-8")
+    assert _tree_snapshot(tmp_path, ignore_import_cache=True) != before
 
 
 def test_language_population_is_exactly_three(schemas: Any) -> None:
@@ -427,11 +462,46 @@ def test_valid_intermediate_outputs_all_three_languages(schemas: Any) -> None:
 
 
 def test_generation_writes_neither_product_paths_nor_contracts(schemas: Any) -> None:
-    watched = (ROOT / "backend/src/pitchlog", ROOT / "frontend", ROOT / "contracts")
-    before = tuple(_tree_snapshot(path) for path in watched)
+    watched = (
+        (ROOT / "backend/src/pitchlog", True),
+        (ROOT / "frontend", False),
+        (ROOT / "contracts", False),
+    )
+    before = tuple(
+        _tree_snapshot(path, ignore_import_cache=ignore_import_cache)
+        for path, ignore_import_cache in watched
+    )
 
     artifacts = _artifacts(schemas)
 
-    after = tuple(_tree_snapshot(path) for path in watched)
+    after = tuple(
+        _tree_snapshot(path, ignore_import_cache=ignore_import_cache)
+        for path, ignore_import_cache in watched
+    )
     assert artifacts
     assert after == before
+
+
+def test_generation_watch_excludes_import_cache_only_for_backend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """生成前後の監視で backend のルートにだけ除外を指定する。"""
+    calls: list[tuple[Path, bool]] = []
+
+    def record_snapshot(
+        root: Path, *, ignore_import_cache: bool = False
+    ) -> tuple[tuple[str, str], ...]:
+        calls.append((root, ignore_import_cache))
+        return ()
+
+    with monkeypatch.context() as mutation:
+        mutation.setattr(sys.modules[__name__], "_tree_snapshot", record_snapshot)
+        mutation.setattr(sys.modules[__name__], "_artifacts", lambda _schemas: (object(),))
+        test_generation_writes_neither_product_paths_nor_contracts(None)
+
+    expected = [
+        (ROOT / "backend/src/pitchlog", True),
+        (ROOT / "frontend", False),
+        (ROOT / "contracts", False),
+    ]
+    assert calls == expected * 2
