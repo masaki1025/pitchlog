@@ -12,8 +12,21 @@ from typing import Any, cast
 from uuid import UUID
 
 import pytest
-from sqlalchemy import Table, bindparam, insert, select, update
+from sqlalchemy import (
+    Column,
+    MetaData,
+    Table,
+    Text,
+    Uuid,
+    bindparam,
+    create_engine,
+    insert,
+    select,
+    update,
+)
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.dml import Update
 from sqlalchemy.sql.elements import ClauseElement
 from sqlalchemy.sql.selectable import Alias, Select
 from test_authz_tenant_context import make_tenant_context
@@ -37,7 +50,7 @@ from pitchlog.repositories.roster import (
     player_update_statement,
     team_record_read_statement,
 )
-from pitchlog.repositories.tokens import TenantOperationResult
+from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 
 _ROOT = Path(__file__).resolve().parents[2]
 _TENANT_ID = UUID("00000000-0000-0000-0000-000000000101")
@@ -207,16 +220,144 @@ def test_all_roster_tokens_use_prepared_statement_in_both_paths(
     transaction_statement, transaction_parameters = transaction_recorder.calls[0]
     assert str(repository_statement) == str(transaction_statement)
     assert repository_parameters == transaction_parameters
-    assert repository_parameters["tenant_id"] == _TENANT_ID
+    tenant_bind = (
+        "where_tenant_id"
+        if isinstance(operation, (PlayerUpdateToken, TeamRecordUpdateToken))
+        else "tenant_id"
+    )
+    assert repository_parameters[tenant_bind] == _TENANT_ID
+    if isinstance(operation, (PlayerUpdateToken, TeamRecordUpdateToken)):
+        assert repository_parameters["where_id"] == operation.id
     if isinstance(operation, (PlayerReadToken, TeamRecordReadToken)):
         assert repository_parameters["limit"] == operation.limit + 1
         if operation.record_id is not None:
             assert repository_parameters["record_id"] == operation.record_id
-    if isinstance(
-        operation,
-        (TeamRecordReadToken, TeamRecordCreateToken, TeamRecordUpdateToken),
-    ):
+    if isinstance(operation, (TeamRecordReadToken, TeamRecordCreateToken)):
         assert repository_parameters["kind"] == "opponent"
+    if isinstance(operation, TeamRecordUpdateToken):
+        assert repository_parameters["where_kind"] == "opponent"
+
+
+@pytest.mark.parametrize(
+    "operation",
+    (
+        PlayerReadToken(limit=2, record_id=_PLAYER_ID),
+        PlayerCreateToken(_PLAYER_ID, _TEAM_ID, "選手", "active"),
+        PlayerUpdateToken(_PLAYER_ID, (("name", "改名"),)),
+        TeamRecordReadToken(limit=2, record_id=_TEAM_ID),
+        TeamRecordCreateToken(_TEAM_ID, "対戦相手"),
+        TeamRecordUpdateToken(_TEAM_ID, "改名"),
+    ),
+    ids=(
+        "player-read",
+        "player-create",
+        "player-update",
+        "team-read",
+        "team-create",
+        "team-update",
+    ),
+)
+def test_prepared_tokens_compile_with_session_column_keys(
+    operation: TenantOperationToken,
+) -> None:
+    """6 種の準備結果を実 Session と同じ列キーでコンパイルする。"""
+    statement, parameters = repository_base._prepare_operation(operation, _TENANT_ID)
+    compiled = statement.compile(
+        dialect=postgresql.dialect(),
+        column_keys=list(parameters),
+    )
+    assert str(compiled)
+
+
+def test_sqlite_session_executes_both_prepared_updates() -> None:
+    """両表の UPDATE を実 Session で実行し、対象テナントだけを変更する。"""
+    other_tenant = UUID("00000000-0000-0000-0000-000000000104")
+    metadata = MetaData()
+    players = Table(
+        "players",
+        metadata,
+        Column("tenant_id", Uuid(as_uuid=True), primary_key=True),
+        Column("id", Uuid(as_uuid=True), primary_key=True),
+        Column("name", Text),
+    )
+    teams = Table(
+        "team_records",
+        metadata,
+        Column("tenant_id", Uuid(as_uuid=True), primary_key=True),
+        Column("id", Uuid(as_uuid=True), primary_key=True),
+        Column("kind", Text),
+        Column("name", Text),
+    )
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    try:
+        metadata.create_all(engine)
+        with Session(engine) as session:
+            session.execute(
+                insert(players),
+                (
+                    {"tenant_id": _TENANT_ID, "id": _PLAYER_ID, "name": "旧選手"},
+                    {"tenant_id": other_tenant, "id": _PLAYER_ID, "name": "他選手"},
+                ),
+            )
+            session.execute(
+                insert(teams),
+                (
+                    {
+                        "tenant_id": _TENANT_ID,
+                        "id": _TEAM_ID,
+                        "kind": "opponent",
+                        "name": "旧対戦相手",
+                    },
+                    {
+                        "tenant_id": other_tenant,
+                        "id": _TEAM_ID,
+                        "kind": "opponent",
+                        "name": "他対戦相手",
+                    },
+                ),
+            )
+            for operation in (
+                PlayerUpdateToken(_PLAYER_ID, (("name", "新選手"),)),
+                TeamRecordUpdateToken(_TEAM_ID, "新対戦相手"),
+            ):
+                statement, parameters = repository_base._prepare_operation(
+                    operation, _TENANT_ID
+                )
+                session.execute(statement, parameters)
+            assert (
+                session.execute(
+                    select(players.c.name).where(
+                        players.c.tenant_id == _TENANT_ID, players.c.id == _PLAYER_ID
+                    )
+                ).scalar_one()
+                == "新選手"
+            )
+            assert (
+                session.execute(
+                    select(players.c.name).where(
+                        players.c.tenant_id == other_tenant, players.c.id == _PLAYER_ID
+                    )
+                ).scalar_one()
+                == "他選手"
+            )
+            assert (
+                session.execute(
+                    select(teams.c.name).where(
+                        teams.c.tenant_id == _TENANT_ID, teams.c.id == _TEAM_ID
+                    )
+                ).scalar_one()
+                == "新対戦相手"
+            )
+            assert (
+                session.execute(
+                    select(teams.c.name).where(
+                        teams.c.tenant_id == other_tenant, teams.c.id == _TEAM_ID
+                    )
+                ).scalar_one()
+                == "他対戦相手"
+            )
+    finally:
+        engine.dispose()
 
 
 def test_registered_statement_variants_match_catalog() -> None:
@@ -375,7 +516,7 @@ def test_builder_preserves_registered_and_prepared_sql_shapes() -> None:
         ),
         "player_update": (
             "UPDATE players SET name=:value_name WHERE players.tenant_id = "
-            ":tenant_id AND players.id = :id"
+            ":where_tenant_id AND players.id = :where_id"
         ),
         "team_read": (
             "SELECT team_records.id, team_records.kind, team_records.name, "
@@ -394,7 +535,8 @@ def test_builder_preserves_registered_and_prepared_sql_shapes() -> None:
         ),
         "team_update": (
             "UPDATE team_records SET name=:name WHERE team_records.tenant_id = "
-            ":tenant_id AND team_records.id = :id AND team_records.kind = :kind"
+            ":where_tenant_id AND team_records.id = :where_id AND "
+            "team_records.kind = :where_kind"
         ),
         "player_read_dynamic": (
             "SELECT players.id, players.team_record_id, players.name, "
@@ -440,7 +582,7 @@ def test_builder_preserves_registered_and_prepared_sql_shapes() -> None:
         "player_update_dynamic": (
             "UPDATE players SET name=:value_name, throws=:value_throws, "
             "roster_status_key=:value_roster_status_key WHERE players.tenant_id "
-            "= :tenant_id AND players.id = :id"
+            "= :where_tenant_id AND players.id = :where_id"
         ),
     }
 
@@ -487,10 +629,15 @@ def test_create_and_update_execute_one_business_statement(
         assert len(operation_recorder.calls) == 1
         statement, parameters = operation_recorder.calls[0]
         calls.append((statement, parameters))
-        assert parameters["tenant_id"] == _TENANT_ID
+        assert (
+            parameters[
+                "where_tenant_id" if isinstance(statement, Update) else "tenant_id"
+            ]
+            == _TENANT_ID
+        )
         assert not isinstance(statement, Select)
     assert calls[0][1]["kind"] == "opponent"
-    assert calls[1][1]["kind"] == "opponent"
+    assert calls[1][1]["where_kind"] == "opponent"
     assert calls[3][1]["value_throws"] is None
 
 
@@ -528,7 +675,7 @@ def test_reads_are_paged_and_omit_tenant_from_rows(recorder: _RecordingSession) 
             "player_update_statement",
             PlayerUpdateToken(_PLAYER_ID, (("name", "改名"),)),
             update(cast(Table, Player.__table__))
-            .where(Player.__table__.c.id == bindparam("id"))
+            .where(Player.__table__.c.id == bindparam("where_id"))
             .values(name=bindparam("value_name")),
         ),
     ),
@@ -554,8 +701,8 @@ def test_prepared_statement_without_tenant_predicate_is_rejected(
             "player_update_statement",
             PlayerUpdateToken(_PLAYER_ID, (("name", "改名"),)),
             update(cast(Table, Player.__table__))
-            .where(Player.__table__.c.tenant_id == bindparam("tenant_id"))
-            .where(Player.__table__.c.id == bindparam("id"))
+            .where(Player.__table__.c.tenant_id == bindparam("where_tenant_id"))
+            .where(Player.__table__.c.id == bindparam("where_id"))
             .where(TeamRecord.__table__.c.id == bindparam("other_id"))
             .values(name=bindparam("value_name")),
         ),
@@ -563,8 +710,8 @@ def test_prepared_statement_without_tenant_predicate_is_rejected(
             "player_update_statement",
             PlayerUpdateToken(_PLAYER_ID, (("name", "改名"),)),
             update(cast(Table, TeamRecord.__table__))
-            .where(Player.__table__.c.tenant_id == bindparam("tenant_id"))
-            .where(TeamRecord.__table__.c.id == bindparam("id"))
+            .where(Player.__table__.c.tenant_id == bindparam("where_tenant_id"))
+            .where(TeamRecord.__table__.c.id == bindparam("where_id"))
             .values(name=bindparam("value_name")),
         ),
         (
@@ -588,8 +735,8 @@ def test_prepared_statement_without_tenant_predicate_is_rejected(
             "player_read_statement",
             PlayerReadToken(limit=1),
             update(cast(Table, Player.__table__))
-            .where(Player.__table__.c.tenant_id == bindparam("tenant_id"))
-            .where(Player.__table__.c.id == bindparam("id"))
+            .where(Player.__table__.c.tenant_id == bindparam("where_tenant_id"))
+            .where(Player.__table__.c.id == bindparam("where_id"))
             .values(name=bindparam("value_name")),
         ),
     ),
@@ -623,8 +770,8 @@ def test_prepared_statement_rejects_capability_mismatch(
             "player_update_statement",
             PlayerUpdateToken(_PLAYER_ID, (("name", "改名"),)),
             update(_PLAYER_TARGET_ALIAS)
-            .where(Player.__table__.c.tenant_id == bindparam("tenant_id"))
-            .where(Player.__table__.c.id == bindparam("id"))
+            .where(Player.__table__.c.tenant_id == bindparam("where_tenant_id"))
+            .where(Player.__table__.c.id == bindparam("where_id"))
             .values(name=bindparam("value_name")),
             "変更対象は実表",
         ),
@@ -640,8 +787,8 @@ def test_prepared_statement_rejects_capability_mismatch(
             "player_update_statement",
             PlayerUpdateToken(_PLAYER_ID, (("name", "改名"),)),
             update(cast(Table, Player.__table__))
-            .where(Player.__table__.c.tenant_id == bindparam("tenant_id"))
-            .where(Player.__table__.c.id == bindparam("id"))
+            .where(Player.__table__.c.tenant_id == bindparam("where_tenant_id"))
+            .where(Player.__table__.c.id == bindparam("where_id"))
             .values(name=select(Player.__table__.c.name).scalar_subquery()),
             "別名・結合・入れ子のFROM",
         ),
@@ -649,8 +796,8 @@ def test_prepared_statement_rejects_capability_mismatch(
             "player_update_statement",
             PlayerUpdateToken(_PLAYER_ID, (("name", "改名"),)),
             update(cast(Table, Player.__table__))
-            .where(Player.__table__.c.tenant_id == bindparam("tenant_id"))
-            .where(Player.__table__.c.id == bindparam("id"))
+            .where(Player.__table__.c.tenant_id == bindparam("where_tenant_id"))
+            .where(Player.__table__.c.id == bindparam("where_id"))
             .where(_PLAYER_ALIAS.c.id == bindparam("other_id"))
             .values(name=bindparam("value_name")),
             "実表以外の列",
@@ -682,15 +829,15 @@ def test_prepared_statement_rejects_non_direct_from(
             PlayerUpdateToken(_PLAYER_ID, (("name", "改名"),)),
             "player_update_statement",
             update(cast(Table, Player.__table__))
-            .where(Player.__table__.c.tenant_id == bindparam("tenant_id"))
+            .where(Player.__table__.c.tenant_id == bindparam("where_tenant_id"))
             .values(name=bindparam("value_name")),
         ),
         (
             TeamRecordUpdateToken(_TEAM_ID, "改名"),
             "_TEAM_RECORD_UPDATE",
             update(cast(Table, TeamRecord.__table__))
-            .where(TeamRecord.__table__.c.tenant_id == bindparam("tenant_id"))
-            .where(TeamRecord.__table__.c.kind == bindparam("kind"))
+            .where(TeamRecord.__table__.c.tenant_id == bindparam("where_tenant_id"))
+            .where(TeamRecord.__table__.c.kind == bindparam("where_kind"))
             .values(name=bindparam("name")),
         ),
     ),
@@ -707,8 +854,80 @@ def test_prepared_update_requires_target_id(
         monkeypatch.setattr(roster_module, statement_name, lambda _: statement)
     else:
         _replace_built_statement(monkeypatch, "team_update", statement)
-    with pytest.raises(repository_base._TenantOperationError, match="id = :id"):
+    with pytest.raises(repository_base._TenantOperationError, match="id = :where_id"):
         _Repository(recorder).execute(make_tenant_context(_TENANT_ID), operation)
+    assert recorder.calls == []
+
+
+@pytest.mark.parametrize(
+    ("operation", "kind"),
+    (
+        (PlayerUpdateToken(_PLAYER_ID, (("name", "改名"),)), "player_update"),
+        (TeamRecordUpdateToken(_TEAM_ID, "改名"), "team_update"),
+    ),
+)
+@pytest.mark.parametrize(
+    ("tenant_bind", "id_bind", "expected_error"),
+    (
+        ("tenant_id", "where_id", "tenant_id = :where_tenant_id"),
+        ("where_tenant_id", "id", "id = :where_id"),
+        (None, "where_id", "tenant_id = :where_tenant_id"),
+        ("where_tenant_id", None, "id = :where_id"),
+    ),
+)
+def test_update_rejects_old_or_missing_where_bindings(
+    monkeypatch: pytest.MonkeyPatch,
+    recorder: _RecordingSession,
+    operation: PlayerUpdateToken | TeamRecordUpdateToken,
+    kind: str,
+    tenant_bind: str | None,
+    id_bind: str | None,
+    expected_error: str,
+) -> None:
+    """旧名または欠けたテナント・行条件を両表とも実行前に拒否する。"""
+    table = cast(
+        Table,
+        Player.__table__ if kind == "player_update" else TeamRecord.__table__,
+    )
+    value_bind = "value_name" if kind == "player_update" else "name"
+    statement = update(table).values(name=bindparam(value_bind))
+    if tenant_bind is not None:
+        statement = statement.where(table.c.tenant_id == bindparam(tenant_bind))
+    if id_bind is not None:
+        statement = statement.where(table.c.id == bindparam(id_bind))
+    if kind == "team_update":
+        statement = statement.where(table.c.kind == bindparam("where_kind"))
+        _replace_built_statement(monkeypatch, kind, statement)
+    else:
+        monkeypatch.setattr(
+            roster_module, "player_update_statement", lambda _: statement
+        )
+
+    with pytest.raises(repository_base._TenantOperationError, match=expected_error):
+        _Repository(recorder).execute(make_tenant_context(_TENANT_ID), operation)
+    assert recorder.calls == []
+
+
+def test_team_update_rejects_old_kind_bind_name(
+    monkeypatch: pytest.MonkeyPatch,
+    recorder: _RecordingSession,
+) -> None:
+    """UPDATE の種別条件へ列名と重なる旧 bind 名を使わせない。"""
+    table = cast(Table, TeamRecord.__table__)
+    statement = (
+        update(table)
+        .where(table.c.tenant_id == bindparam("where_tenant_id"))
+        .where(table.c.id == bindparam("where_id"))
+        .where(table.c.kind == bindparam("kind"))
+        .values(name=bindparam("name"))
+    )
+    _replace_built_statement(monkeypatch, "team_update", statement)
+    with pytest.raises(
+        repository_base._TenantOperationError, match="kind = :where_kind"
+    ):
+        _Repository(recorder).execute(
+            make_tenant_context(_TENANT_ID), TeamRecordUpdateToken(_TEAM_ID, "改名")
+        )
     assert recorder.calls == []
 
 
@@ -763,10 +982,10 @@ def test_prepared_insert_requires_tenant_bind(
             "_TEAM_RECORD_UPDATE",
             TeamRecordUpdateToken(_TEAM_ID, "改名"),
             update(cast(Table, TeamRecord.__table__))
-            .where(TeamRecord.__table__.c.tenant_id == bindparam("tenant_id"))
-            .where(TeamRecord.__table__.c.id == bindparam("id"))
+            .where(TeamRecord.__table__.c.tenant_id == bindparam("where_tenant_id"))
+            .where(TeamRecord.__table__.c.id == bindparam("where_id"))
             .values(name=bindparam("name")),
-            "kind = :kind",
+            "kind = :where_kind",
         ),
         (
             "player_read_statement",
@@ -895,8 +1114,8 @@ def test_page_limit_above_registered_maximum_is_rejected(
                 PlayerUpdateToken(_PLAYER_ID, (("name", "改名"),)),
                 "player_update_statement",
                 update(cast(Table, Player.__table__))
-                .where(Player.__table__.c.tenant_id == bindparam("tenant_id"))
-                .where(Player.__table__.c.id == bindparam("id"))
+                .where(Player.__table__.c.tenant_id == bindparam("where_tenant_id"))
+                .where(Player.__table__.c.id == bindparam("where_id"))
                 .values(
                     **{
                         "name": bindparam("value_name"),
@@ -911,9 +1130,9 @@ def test_page_limit_above_registered_maximum_is_rejected(
             TeamRecordUpdateToken(_TEAM_ID, "改名"),
             "_TEAM_RECORD_UPDATE",
             update(cast(Table, TeamRecord.__table__))
-            .where(TeamRecord.__table__.c.tenant_id == bindparam("tenant_id"))
-            .where(TeamRecord.__table__.c.id == bindparam("id"))
-            .where(TeamRecord.__table__.c.kind == bindparam("kind"))
+            .where(TeamRecord.__table__.c.tenant_id == bindparam("where_tenant_id"))
+            .where(TeamRecord.__table__.c.id == bindparam("where_id"))
+            .where(TeamRecord.__table__.c.kind == bindparam("where_kind"))
             .values(
                 {
                     TeamRecord.__table__.c.name: bindparam("name"),
@@ -926,8 +1145,8 @@ def test_page_limit_above_registered_maximum_is_rejected(
             PlayerUpdateToken(_PLAYER_ID, (("name", "改名"),)),
             "player_update_statement",
             update(cast(Table, Player.__table__))
-            .where(Player.__table__.c.tenant_id == bindparam("tenant_id"))
-            .where(Player.__table__.c.id == bindparam("id")),
+            .where(Player.__table__.c.tenant_id == bindparam("where_tenant_id"))
+            .where(Player.__table__.c.id == bindparam("where_id")),
             "許可済み列が 1 件以上",
         ),
     ),

@@ -372,16 +372,16 @@ def _build_roster_statement(
         if operation is None:
             return (
                 update(_PLAYERS)
-                .where(_PLAYERS.c.tenant_id == bindparam("tenant_id"))
-                .where(_PLAYERS.c.id == bindparam("id"))
+                .where(_PLAYERS.c.tenant_id == bindparam("where_tenant_id"))
+                .where(_PLAYERS.c.id == bindparam("where_id"))
                 .values(name=bindparam("value_name"))
             )
         token = operation
         values = {name: bindparam(f"value_{name}") for name, _ in token.changes}
         return (
             update(_PLAYERS)
-            .where(_PLAYERS.c.tenant_id == bindparam("tenant_id"))
-            .where(_PLAYERS.c.id == bindparam("id"))
+            .where(_PLAYERS.c.tenant_id == bindparam("where_tenant_id"))
+            .where(_PLAYERS.c.id == bindparam("where_id"))
             .values(**values)
         )
     if kind == "team_read":
@@ -453,9 +453,9 @@ def _build_roster_statement(
             raise ValueError("team_update には operation を渡せない")
         return (
             update(_TEAM_RECORDS)
-            .where(_TEAM_RECORDS.c.tenant_id == bindparam("tenant_id"))
-            .where(_TEAM_RECORDS.c.id == bindparam("id"))
-            .where(_TEAM_RECORDS.c.kind == bindparam("kind", type_=Text))
+            .where(_TEAM_RECORDS.c.tenant_id == bindparam("where_tenant_id"))
+            .where(_TEAM_RECORDS.c.id == bindparam("where_id"))
+            .where(_TEAM_RECORDS.c.kind == bindparam("where_kind", type_=Text))
             .values(name=bindparam("name"))
         )
     raise ValueError(f"未知の roster 文: {kind}")
@@ -500,7 +500,7 @@ def _prepare_player_create(operation: TenantOperationToken) -> PreparedOperation
 def _prepare_player_update(operation: TenantOperationToken) -> PreparedOperation:
     """選手 PATCH の変更列と束縛値を準備する。"""
     token = cast(PlayerUpdateToken, operation)
-    parameters = {"id": token.id}
+    parameters = {"where_id": token.id}
     parameters.update({f"value_{name}": value for name, value in token.changes})
     return player_update_statement(token), parameters
 
@@ -524,9 +524,11 @@ def _prepare_team_record_create(operation: TenantOperationToken) -> PreparedOper
 
 def _prepare_team_record_update(operation: TenantOperationToken) -> PreparedOperation:
     """対戦相手の固定種別と更新値を準備する。"""
+    token = cast(TeamRecordUpdateToken, operation)
     return _build_roster_statement("team_update", None), {
-        **_token_parameters(operation),
-        "kind": "opponent",
+        "where_id": token.id,
+        "name": token.name,
+        "where_kind": "opponent",
     }
 
 
@@ -580,7 +582,9 @@ ROSTER_OPERATIONS: tuple[OperationRegistration, ...] = (
         _build_roster_statement("team_update", None),
         _TEAM_RECORDS.c.tenant_id,
         _prepare_team_record_update,
-        required_bindings=(RequiredBinding(_TEAM_RECORDS.c.kind, "kind", "opponent"),),
+        required_bindings=(
+            RequiredBinding(_TEAM_RECORDS.c.kind, "where_kind", "opponent"),
+        ),
         allowed_update_columns=_TEAM_RECORD_UPDATE_COLUMNS,
     ),
 )
