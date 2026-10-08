@@ -201,6 +201,11 @@ branch: feature/ci-harness-parallel
   - `harness-evaluation.md`: TSK-501(10-08)と TSK-496(10-07)の両行を残す
 - 検証: docs-lint 相当 4 本(`check_docs_status` 18 文書 0 違反・`check_design_propagation`・`check_doc_coverage`・`check_plan_docs_sync`)すべて exit 0。CI は push 後の run が正
 
+### 逐行確認の下読み(2026-10-08・Claude)— 指摘 1 件 → 修正 `945384c5`
+
+- 対象 8 ファイル(guard_paths 5 + 取り込みの競合解決 3)を develop との差分で通読。差し戻し相当の欠陥なし(`_mutate_leaf` は深いコピー・backend/pyproject.toml に coverage 節なし・uv.lock の追加は execnet と pytest-xdist のみ)
+- **指摘**: 設計書 10.1 の harness 行・その変更履歴行・索引の TSK-501 注記の 3 か所が addopts を `-n auto` と書いていた(実体は計画修正 6 以降 `-n auto --dist worksteal`)。実装追随の行が実装と違う → 人間の指示で修正し push。人間の逐行確認とチェック記入はこの後
+
 ## 決定
 
 - タスク分割(A/B)とワーカー数(上記)
