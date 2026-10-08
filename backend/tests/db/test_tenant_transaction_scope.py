@@ -77,7 +77,7 @@ _WRITE_PROBE_TABLE = Table(
 )
 _WRITE_STATEMENT = (
     update(_WRITE_PROBE_TABLE)
-    .where(_WRITE_PROBE_TABLE.c.tenant_scope == bindparam("tenant_id"))
+    .where(_WRITE_PROBE_TABLE.c.tenant_scope == bindparam("where_tenant_id"))
     .values(marker="changed")
     .returning(_WRITE_PROBE_TABLE.c.marker)
 )
