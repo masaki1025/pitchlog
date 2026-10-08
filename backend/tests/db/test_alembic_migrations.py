@@ -38,6 +38,15 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 )
+# テナントに属さないシステム固定語彙への複合 FK だけを除外する。
+# 足すときは個別にレビューする（admin / tenant 層の同型は TSK-489）。
+_NON_TENANT_SYSTEM_VOCABULARY_FKS = frozenset(
+    {
+        "fk_players_roster_status",
+        "fk_games_game_type",
+        "fk_game_type_rule_defaults_type",
+    }
+)
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -5984,7 +5993,7 @@ def test_analysis_group_cross_tenant_guards_and_migration_round_trip(
                 table["name"]: table["forbidden_columns"]
                 for table in manifest["tables"]
             }
-            assert excluded_non_tenant_targets
+            assert excluded_non_tenant_targets == _NON_TENANT_SYSTEM_VOCABULARY_FKS
             assert all(
                 "tenant_id" in manifest_forbidden_columns[actual_foreign_keys[name][1]]
                 for name in excluded_non_tenant_targets
