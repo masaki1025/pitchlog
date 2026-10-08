@@ -138,7 +138,19 @@ S-1 に入れる値の基準: 正本で条件なしに必須(正本 4-3 の V1�
 | `replacement_state` | E-1 のイベント | V9 | JSON のオブジェクト | 墓標・改訂 | `fields.V9` |
 | `target_reference` | イベント | V10 | `game_id`・`d4`・`d1` の 3 要素 | 種別条件付き / P3 は必須 | `fields.V10`(要素名は `試合`・`対象の D4`・`対象の D1`) |
 | `expected_version` | E-2 の `change` | V11 | 3-4 | P3 | `fields.V11` |
-| (4 節で追加) | | | | | |
+| `boundary_result` | ACK・P3 の結果 | A3 / P3 の結果 | L-4 | ACK・P3 の結果で必須 | `boundaryResults.ts` の `boundaryResult` / `p3Result.ts` の `boundaryResult` |
+| `advanced_d3` | ACK | D3 | L-2 | ACK で必須 | `advancedD3` |
+| `event_results` | ACK | A5 | 配列 | ACK で必須 | `eventResults` |
+| `event_results[].d4`・`.d1`・`.d5` | ACK | A5 の `(D4, D1, D5)` | L-1〜L-3 | 必須 | `d4`・`d1`・`d5` |
+| `event_results[].a5_result` | ACK | A5 の結果 | L-4 | 必須 | `a5Result` |
+| `event_results[].rejection` | ACK | B3a・B3b・O4 | `kind`・`branch`・`reason` | `"拒否"` のときだけ | `rejectionReason.ts` の `kind`・`branch`・`reason` |
+| `player_id_mappings` | ACK | A4 | 配列 | 受理・重複の選手登録を行うイベント(#6・元が #6 の #9)があるとき(4-2) | `playerIdMappings` |
+| `player_id_mappings[].temporary_id`・`.official_id` | ACK | 一時 ID・正式 ID | L-1 の表記 | 必須 | `temporaryId`・`officialId` |
+| `accepted_result` | P3 の結果 | I6 | オブジェクト | 変更受理のときだけ | `acceptedResult` |
+| `accepted_result.target_reference`・`.expected_version`・`.d5`・`.confirmed_content`・`.accepted_at` | P3 の結果 | V10・V11・V1・確定内容・I6 の時刻 | 3 節・L-5 | 必須 | `targetReference`・`expectedVersion`・`d5`・`confirmedContent`・`acceptedAt` |
+| `current_version` | P3 の結果 | B8 の現在版 | 3-4 | B8 のときだけ | (なし — 6 節) |
+| `b9_cause` | P3 の結果 | B9 の成立条件 | L-4 | B9 のときだけ | (なし — 6 節) |
+| `reason` | P3 の結果 | B14 の理由 | 4-5 | B14 のときだけ | (なし — 6 節) |
 
 ## 3. エンドポイントと要求の形
 
@@ -246,6 +258,102 @@ S-1 に入れる値の基準: 正本で条件なしに必須(正本 4-3 の V1�
 | **V11 期待版の表現** | 対象の確定版の物理形式に従う | 変更イベントを実装する単位(U-G2) |
 | **D4・復旧世代・V12 の物理形式と長さの上限** | 発行する側が決める(L-3) | U-R1(TSK-392) |
 | **E-1 の件数の上限** | 定数は決めない(W-6) | 入口 PR |
+
+## 4. 応答の形と HTTP ステータス
+
+### 4-1. 表れ方の写像(plan.md の原則 W-5)
+
+| 群(W-5) | 結果 | 経路 | HTTP ステータス | 本文 | 層 |
+| --- | --- | --- | --- | --- | --- |
+| ① | **B1・B2・B3・B4** | E-1 | **200** | ACK(4-2) | (A)+(B) |
+| ② | **変更受理** | E-2 | **200** | P3 の受理結果(4-3) | (A)+(B) |
+| ③ | **B8・B9・B13・B14** | E-2 | **409** | P3 の拒否結果(4-3) | (A)+(B) |
+| ④ | **B5** / **B11** | E-1 / E-2 | **401** | 共通エラー封筒 | (A)+(B) |
+| ④ | **B6** / **B12** | E-1 / E-2 | **404** | **自テナントに存在しない試合の 404 と同一のバイト列**(4-4) | (A) |
+| ④ | **B7** / **B10** | E-1 / E-2 | **408・500・502・503・504**、または**応答なし**(通信断・タイムアウト) | 応答があるときは共通エラー封筒 | (A)+(B) |
+| — | **S-1 違反**(2-4 — 境界結果ではない) | E-1・E-2 | **422** | 共通エラー封筒(`fields` は発生箇所だけ) | (B) |
+
+- **共通エラー封筒**は `backend/src/pitchlog/api/schemas/base.py` の `ErrorEnvelope`(`{"error": {"message": ..., "fields": [{"location": ...}]}}` — 理由コードを持たない)。文言は `backend/src/pitchlog/api/errors.py` の固定文言を使い、**同期の内部状態を文言に含めない**
+- **③ を 409 にまとめ、422 を S-1 違反だけにする理由**: 正本は B8 を「成功として返さない」とする(正本 6-3 の P3 の独立境界結果)ので成功ステータスは使えない。B14 に 422 を当てると、既存の検証ハンドラ(`errors.py` の `_request_validation_exception_handler` — 422)が返す S-1 違反とステータスで区別できなくなる。③の 4 結果は本文の `boundary_result` で区別する
+- **B7・B10 に当てるステータスを 5 つに限る理由**: 408・500・502・503・504 は正本 6-3 の B7・P3 の独立境界結果の B10 の成立条件に当たる。**501 など、処理しないことを確定して返すステータスは当たらない**ので、下の「上表に無いステータス」として扱う。`Retry-After` を付けるか・その値は入口 PR が決める(W-6)
+- **上表に無いステータス**(400・413・429・501 など)を受けたクライアントは、2-5 と同じく応答を解釈せず、キューと P3 の保持内容を変えずに顕在化する。入口 PR が件数の上限超過(413)や流量制限(429)を導入する場合は、その表れ方を本表に足してから導入する(W-6)。一時的に処理しない応答(429 など)は、B7・B10 の成立条件に当たるかで群を決める
+
+### 4-2. ACK の本文(E-1・B1〜B4)
+
+```json
+{
+  "boundary_result": "B3",
+  "advanced_d3": 41,
+  "event_results": [
+    {"d4": "<不透明な文字列>", "d1": 41, "d5": "<UUID>", "a5_result": "受理"},
+    {"d4": "<不透明な文字列>", "d1": 42, "d5": "<UUID>", "a5_result": "拒否",
+     "rejection": {"kind": "内容起因", "branch": "B3a", "reason": {}}},
+    {"d4": "<不透明な文字列>", "d1": 43, "d5": "<UUID>", "a5_result": "未処理"}
+  ],
+  "player_id_mappings": [
+    {"temporary_id": "<UUID>", "official_id": "<UUID>"}
+  ]
+}
+```
+
+| キー | 正本 ID | 規約 |
+| --- | --- | --- |
+| `boundary_result` | **A3** の境界結果 | `"B1"`〜`"B4"` のどれか(L-4)。ACK が返るのはこの 4 つだけ(正本 7-1 の A3) |
+| `advanced_d3` | 前進後(または据え置き)の **D3** | L-2。**ACK の必須要素**(正本 7-1「ACK の必須要素は前進後の D3」) |
+| `event_results` | **A5** | 要求に含めた**全イベント**について 1 件ずつ(正本 7-1 の A5)。並び順に意味を持たせない |
+| `event_results[].d4`・`.d1`・`.d5` | A5 の `(D4, D1, D5)` | 要求で送った値を文字列・整数としてそのまま返す(L-1〜L-3) |
+| `event_results[].a5_result` | A5 の結果 | `"受理"`・`"重複"`・`"拒否"`・`"退避"`・`"未処理"`(L-4 — 正本 2-5 の R-ACK-STATE の要素全集合) |
+| `event_results[].rejection` | B3 の分岐と理由・O4 | **`a5_result` が `"拒否"` のときだけ持つ**。`kind` は `"内容起因"` または `"O4"`。`kind` が `"内容起因"` のとき `branch` は `"B3a"` または `"B3b"`(正本 7-1 の B3a・B3b)。`reason` は理由の内容(4-5) |
+| `player_id_mappings` | **A4**(正本 4-4 の C1・C3・C4) | `a5_result` が `"受理"` または `"重複"` の**選手登録を行うイベント 1 件ごとに、その一時 ID の要素がちょうど 1 つある**(C1)。選手登録を行うイベントは、選手のその場登録(正本 5-5 の #6)と、その改訂版(#9 — 元の参加区分を継承する)。該当イベントが無い要求では持たない。要素は `temporary_id`(一時 ID — L-1)と `official_id`(正式 ID — **UUID の正規形の文字列**。表記は L-1 と同じ。選手 ID は `backend/src/pitchlog/db/sync_protocol/models.py` で `Uuid`)。再送で返す正式 ID は C3 に従う。**要素が欠けた ACK はクライアントが解釈しない**(2-5・正本 4-4 の C4) |
+
+- **`advanced_d3` を `boundary_result` と一緒に返す**ので、B2・B3 で「どこで止まったか」をクライアントが特定できる(正本 6-3 の B2・B3 の通知列)。件数だけを返さない
+- 再送で同じ要求が来たときに返す値は正本 7-1(A5・DI2)と 4-4 の C3 に従う。本書は形だけを決める
+
+### 4-3. P3 の結果の本文(E-2)
+
+**変更受理(200)**:
+
+```json
+{
+  "boundary_result": "変更受理",
+  "accepted_result": {
+    "target_reference": {"game_id": "<UUID>", "d4": "<不透明な文字列>", "d1": 12},
+    "expected_version": "<V11 — 要求で送った値>",
+    "d5": "<UUID>",
+    "confirmed_content": {},
+    "accepted_at": "2026-10-09T14:03:21+09:00"
+  }
+}
+```
+
+**拒否(409)**:
+
+```json
+{"boundary_result": "B8", "current_version": "<対象の現在の確定版>"}
+```
+
+| キー | 正本 ID | 規約 |
+| --- | --- | --- |
+| `boundary_result` | P3 の結果 | `"変更受理"`・`"B8"`・`"B9"`・`"B13"`・`"B14"`(L-4)。200 なら `"変更受理"`、409 なら他の 4 つ |
+| `accepted_result` | **I6** の受理結果 | 変更受理のときだけ持つ。`target_reference`(V10)・`expected_version`(要求時の V11)・`d5`(V1)・`confirmed_content`(サーバーが確定した変更内容)・`accepted_at`(サーバー確定時刻 — L-5)の 5 つ。**キー名 `accepted_at` は正本 7-1 の I6 の表記と同じ** |
+| `current_version` | B8 で伝える**現在版** | B8 のときだけ持つ(正本 8-3「B8 は期待版不一致と現在版」)。表現は V11 と同じ(3-4) |
+| `b9_cause` | B9 の成立条件のどれか | B9 のときだけ持つ。`"記録権不保持"`(進行中の P3 の V12 不成立 — VF5)または `"旧復旧世代"`(要求作成時の復旧世代の不一致 — 正本 6-2 の P3 の③-b)。正本 6-3 の B9 は両者で利用者への帰結を分けている |
+| `reason` | B14 の理由 | B14 のときだけ持つ(正本 6-3 の B14「理由を顕在化」)。中身は 4-5 |
+
+- **B13 は `boundary_result` だけを持つ**(先着の保存済み操作の内容を返さない — 正本 6-3 の B13・4-5)
+- **409 の本文は、試合が自テナントに属することを③で確認した後にしか返らない**(正本 6-2 の P3 の段階順)ので、内容を含めても存在は漏れない
+
+### 4-4. B6・B12 の 404 の同一性
+
+- B6・B12 の応答は、**同じ path で自テナントに存在しない試合を指したときの 404 と、ステータス・ヘッダー・本文が同一**でなければならない(正本 6-5「自テナントに存在しない試合と同じ応答」・要件書 [FR-034](../../requirements/requirements-pitchlog-2026-07-22.md#FR-034)・[NFR-010](../../requirements/requirements-pitchlog-2026-07-22.md#NFR-010))。既存の規律(`backend/tests/test_api_conventions.py` の `test_forbidden_response_is_hidden_as_not_found` — 403 を 404 と同一の本文へ写す)と同じ扱い
+- 本文に `boundary_result`・理由・D3・A5 を含めない(正本 6-5)
+- 監査のための記録はサーバー側のログに残す(正本 6-5 の「監査」行)
+
+### 4-5. 理由(`reason`)の中身
+
+- B3a・O4・B14 の `reason` は **JSON の値**として運ぶ。**中身(理由の語彙・構造)は本書で決めない** — 内容の検証(正本 6-2 の⑦ / P3 の⑥)を実装する単位が決める(送り先 — 6 節)。frontend の既存の受け取り側も `reason` を解釈しない(`frontend/src/lib/sync/rejectionReason.ts` の `B3ContentRejection.reason: unknown`)
+- B3b の `reason` は、先着の原本の内容を含めない(正本 4-5 の衝突時の扱い — 先着の保存済み操作は変えず、後着を受理しない)
+- **クライアントは `reason` を利用者へ表示するとき自動エスケープを通す**(要件書 [NFR-023](../../requirements/requirements-pitchlog-2026-07-22.md#NFR-023))
 
 ## 未解決・検討メモ
 
