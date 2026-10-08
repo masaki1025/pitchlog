@@ -1,6 +1,6 @@
 ---
 feature: schema-contract-population
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-09・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -64,8 +64,8 @@ assert not any(
 | `docs/design/*` | **反映なし** | — |
 | `docs/adr/*` | **反映なし** | — |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし**(6.3 の規則①は変えない。母集団の走査規則は設計書に書かれていない) | — |
-| `docs/development/harness-evaluation.md` | **反映なし** — 台帳への追記は **`/pr` のクローズ処理で判断**する。**追記すると判断した場合は、突合の前に本節を「追記する」へ書き換える**(`check_plan_docs_sync.py` は本節を反映宣言として読む) | PR レビュー |
-| `docs/README.md` | **反映なし** — 上記で台帳へ追記したときだけ索引を現行化し、本節も同時に書き換える | PR レビュー |
+| `docs/development/harness-evaluation.md` | **`## 候補` へ 1 件追記**(`/pr` のクローズ処理で判断した結果・2026-10-09)— 「退行の固定を『名前の形』で代理すると、守備範囲が広すぎかつ狭すぎになる」。**`H-*` は採番しない**(1 件)。**版は上げない**(7.6-3 前段)+ 変更履歴に 1 行 | PR レビュー |
+| `docs/README.md` | **索引の台帳行を現行化**(候補 112 件・最終更新 2026-10-09) | PR レビュー |
 | `.claude/core-areas.json` | **反映なし**(変更しない) | — |
 
 **正本体系外だが同一 PR で更新するもの**: `tests/test_core_guard.py` / `docs/features/schema-contract-population/{plan,research}.md` / `docs/worklog/2026-10-09-schema-contract-population.md`
