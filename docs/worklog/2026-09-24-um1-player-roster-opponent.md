@@ -364,3 +364,20 @@ branch: feature/um1-player-roster-opponent
 - `check_frozen_baselines.py --ci`(`GITHUB_EVENT_NAME=push`)OK・迂回検査 ok・`ruff check .` 合格
 - ルートの `uv run pytest tests/`: **2930 passed・3 failed**(20 分 55 秒)。失敗は `tests/domain/mut/test_cost_record.py::test_actual_measurement_is_generated_and_passes_both_budgets`・`tests/domain/mut/test_lang_operators.py::test_each_language_mutants_are_actually_killed[sql]`・`::test_sql_mutation_with_unreachable_postgres_is_fail_closed`
 - **分類**: 3 件を単独で実行すると、develop(`1fdf1eec`)でも同じマージ状態でも 3 passed。全件実行の負荷の下でだけ落ちる(PostgreSQL と時間予算に依存するミューテーション検査)。本単位の変更(fixture・`core_guard.py`・`core-areas.json`・テスト)とは関係しない。**既知の取り込みトポロジーの偽陽性とは別の種類**として記録し、push する(CI の mutation ジョブで最終確認)
+
+## 2026-10-08 ステップ 8(`5899b9c2`)
+
+- **N6 の値**(design.md 7 節): Cookie `__Host-pitchlog_token`・パス `/`・期限は `Max-Age`(値は δ)/ CSRF の対象 = `GET`・`HEAD`・`OPTIONS` 以外のすべて / カスタムヘッダ `X-Pitchlog-Request: 1` / `Origin` の許可値 = 環境変数 `PITCHLOG_ALLOWED_ORIGINS`(閉じた文法で検証・RFC 6454 の形へ正規化・未設定なら状態を変える要求をすべて拒否)。**δ(TSK-470)への連絡は人間の確認の後**
+- **エラー規約**: 要求面の拒否は専用例外で区別し 401 / 403 で返す。認可の拒否の 403 → 404 は不変(資源の参照前・資源に依存しない拒否なので存在は漏れない — design.md 7 節。層 (B)・TSK-346 へ申し送り)
+- **敵対レビュー 4 周で可決**:
+
+| 周 | 判定 | 指摘と反映 |
+| --- | --- | --- |
+| 1 | 否決(P1 2 / P2 1) | `Origin: null` が許可値に入る → 設定値をオリジンとして検証 / import 禁止の構造テストが相対・動的 import を見ない → 解決して検査・合成負例 6 件 / 秘密性テストに `repr` が無い → 追加 |
+| 2 | 否決(P1 1) | 大文字・既定ポート付きの設定値がシリアライズ済みの `Origin` と一致しない → 設定値を RFC 6454 の形へ正規化(要求側は完全一致のまま) |
+| 3 | 否決(P1 1) | 括弧付きの IPvFuture が括弧を外した DNS 名として許可される → 汎用の URL 解析をやめ、閉じた文法に当たる値だけを許可 |
+| 4 | 可決(指摘なし) | — |
+
+- Codex の報告: backend の対象テスト 83 passed・ruff / format / ty 合格・ルートの `tests/test_core_guard.py` 215 passed
+- **N6 の値の確認と連絡**: 2026-10-08 山田正輝が「この値で連絡する」と確認。δ(Notion TSK-470「U-A1 δ 認証の HTTP の入口」)へコメントで連絡した(Cookie 名・パス・期限の表現・CSRF の対象メソッド・ヘッダ・`Origin` の許可値の出所と拒否の応答。ログイン等の Cookie が無い入口での CSRF 検査の掛け方は δ が決める旨を付記)
+- **push 前の全件実行**(CI と同じ `--no-ff` マージ — `5899b9c2` を `1fdf1eec` へ): `check_frozen_baselines.py --ci` OK・迂回検査 ok・ルート ruff 合格 / backend: format 247 files 合格・ruff・ty 合格・`pytest` **1503 passed・4 skipped** / ルート `pytest tests/` **2933 passed・失敗 0**(前回の負荷依存の 3 件も今回は合格)
