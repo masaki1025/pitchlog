@@ -1876,3 +1876,106 @@ FAILED test_adr_d8_xc09_definition_removal_is_red_after_digest_recalculation
 
 **検査機構が正しく働いた事例でもある** — 作成者の手作業ミスを、
 反映 7〜9 周目で入れた負例が捕まえた。
+
+## /pr(2026-10-08)— 結果サマリ
+
+### 実装の到達点
+
+**全 110 ステップ完了**(最終は `a4742593`「引き渡し契約を完成させる(ステップ 110/110)」2026-10-07)。
+段階 1 の**ベクタ資産側**成果物は `contracts/state-transition/` 配下 38 ファイルとして成立している。
+
+### 正本へ反映したもの
+
+| 正本 | 反映 |
+| --- | --- |
+| 要件書 | 付録E-1 の全 10 列 exact 型 / 交差制約 `XC-*` / 定義の穴 9 件 / 管理者語彙の二段階ゲート / NFR-018(b)② / 付録A-3 へ「打点」行。**版繰り上げ(確定ゲート 12 周)** |
+| ADR-003 | D-6 / D-8 / D-11(descriptor を両段階を通した唯一の正とし schema を派生物へ)/ D-12。**版繰り上げ** |
+| `docs/design/sync-protocol.md` | :1309 / :1588 の正を「D-6 で登録された状況判定ベクタ全体」へ。**v0.5** |
+| `docs/development/harness-evaluation.md` | 候補 (10) → **`H-91`** + 変更履歴 1 行 |
+| `docs/README.md` | 索引の現行化(台帳行 候補 110 件・走査条件つき) |
+| `contracts/README.md` | 索引の追加 |
+
+**正本体系外**: `.claude/core-areas.json`(6.3-⑤)/ `tests/test_core_guard.py` /
+`.github/workflows/ci.yml`(`check_input_axes_three_way_parity.py --ci` の 1 ステップ追加)。
+
+### 台帳への追記の判断(手順 1-3)
+
+**該当する**と判断し、**`H-91` を実施済み**(`9978e20d`)。
+内容は「**規則は作られたが、`docs/features/` 配下にあって確定ゲートが掛からず次へ渡る経路が無い**」型。
+計画書 3 節の宣言 → 台帳本体 → 変更履歴 → `docs/README.md` の順で、②〜④ を同一コミットに置いた。
+
+**採番の訂正**: 計画時は `H-90` を予約していたが、**TSK-448 が 2026-09-27 に取得し PR #83 が
+09-30 にマージ済み**であることを原典で確認したため `H-91` へ繰り下げた(PO 承認 2026-10-08)。
+**台帳の採番の正は本文の昇格行**であって `### H-NN` 見出しではない — 見出し走査だけだと小さく出る。
+
+### develop の取り込み(`dc6451c5`)
+
+取り込み先は develop `1fdf1eec`(#97 と #98 の両方を含む)。**1 回だけ**行った
+(先行して作った 2 回分は、他タブのマージで陳腐化したため破棄した)。衝突 4 件の解き方:
+
+| 衝突 | 解き方 |
+| --- | --- |
+| `tests/test_core_guard.py` | **develop 側を採る**(`EXPECTED_AREA_PATHS` の 276 行リテラルを落とす) |
+| `harness-evaluation.md` | 変更履歴は日付降順で develop 先・候補節は連結 |
+| `manifest.json` の `corpus_inputs.digest` | **どちらの宣言値でもなく実測値**を置いた(両者が `ci.yml` に触れたため) |
+| `shared-preconditions.json` | 自動マージ(別行) |
+
+**取り込み前に不要と判明した作業**: 引き継ぎにあった「`data-model.md` の 2 digest の張り直し」は、
+**本ブランチが `data-model.md` にも `schema-manifest.json` にも触れていない**ため対象外だった。
+
+### core-guard の赤を消した 2 つの是正
+
+develop が `EXPECTED_AREA_PATHS`(検査器への直書き)を**回転式の窓口**
+(`AREA_PATH_ADDITIONS` + merge-base blob の据え置き層)へ置き換えていたため、取り込み直後は赤だった。
+
+1. **236 自身の `.claude/core-areas.json` の追加を各領域の末尾へ寄せた** —
+   develop の `validate_area_path_layers` を**一行も変えずに**通る。
+   (実装委任先が当初その関数を緩める変更を入れていたのを戻した。**コア領域の機構を緩める変更は射程外**)
+2. **同一コミット検査を時点で限定した** — `scripts/core_guard.py:383`。
+   親コミットの `scripts/core_guard.py` に `AREA_PATH_ADDITIONS` の定義が無ければ対象外とする。
+   **機構が存在しなかった時期のコミットを後から違反にしない**。過去の該当 6 コミットは対象外、
+   `origin/develop` 先端は対象と実測。負例テストつき。
+
+### S34(段階 2 送り)— 宣言を資産側へ置いた
+
+実装委任先が `tests/test_core_guard.py` へ **11 件のパスをリテラルで凍結し
+`pytest.raises(AssertionError)` で「登録検査が落ちること」を固定**していた。
+**これは設計書 7.7-1「凍結の基準は資産側の機械可読な宣言に置く — 検査器へ直書き禁止」違反**で、
+かつ**台帳に最も多く記録されている欠陥型**そのもの。
+
+是正: `.claude/core-areas.json` の `reference_discovery.declared_exclusions` へ
+`paths`(11 件)・`reason`・`deferred_to`(段階 2 送り)を置き、テストは**資産から読んで**
+除外後の集合が全件登録済みであることを確かめる形にした。
+**宣言側(`fda6be5b`)と資産側(`d76e2cf5`)を別コミットに割った** — 同一コミット検査に自分で掛かるため。
+
+### 実測(CI の harness ジョブ相当)
+
+```
+pytest(CI と同じ除外条件)       3368 passed / 1 failed
+ruff check . / ty check           緑
+check_docs_status                 緑
+check_design_propagation          緑
+check_doc_coverage                緑
+check_frozen_baselines            緑(--invariants-only)
+check_input_axes_three_way_parity 緑(--invariants-only)
+tests/test_census_baseline_check.py 緑
+verify_area_path_baseline         緑(基線 1fdf1eec)
+```
+
+**唯一の赤**: `tests/test_check_tenant_boundary_bypass.py::test_repository_is_green`
+= **凍結資産の受理記録が未記入**。`.github/workflows/ci.yml` を変えたため
+テナント分離 9 資産すべての凍結射影が動いており(`movement_trigger: pass_fail_mapping`)、
+各資産の整数識別値の繰り上げと authority 履歴への v2 記録 1 件が要る。
+**`acceptance_id` は GitHub の pull_request event から導出される**(= `masaki1025/pitchlog#81`)。
+
+### 残作業
+
+1. **凍結資産の受理記録**(上記)— 9 資産の識別値繰り上げ + v2 記録 1 件。
+   **`approved_by` / `approved_on` は人間の受理を書く欄**であり、先行記入は PR #96 等の先例に倣う形になる。
+   **develop が進むと取り直しが要る**(先例: `9f108027`「develop が進んだため受理記録を外す」)
+2. **backend 全件 1 回**(使い捨て postgres — CI の backend ジョブが `contracts/**` で発火する)
+3. **`receiverTaskId` の Notion 起票**(引き渡し契約で `null` のまま)
+4. **`provenance` の `direct-source-clause-review`** — 条文を人が読む。**この検査器は CI に結線されていない**
+   (`grep -c check_provenance .github/workflows/ci.yml` = 0)ため、CI の緑はこの未達を保証しない
+5. **コア領域の逐行確認**(人間)— 据え置き層 0・同一コミット検査の時点・宣言窓口の張り替えの 3 点
+6. **TSK-455 が `dependencies[]` に不在** — Vitest runner の成果物のパス・版・OID が未確定のため

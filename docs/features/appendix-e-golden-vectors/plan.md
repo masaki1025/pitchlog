@@ -1,6 +1,6 @@
 ---
 feature: appendix-e-golden-vectors
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-09-25・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -122,8 +122,8 @@ FR-006 のキュー投入・同期状態非依存 → 同期側のテスト / �
 **`frozen-baselines.json`**(TSK-421 が検査器の `ORACLE_INPUT_BASELINE_COMMIT` を台帳へ移した先)、
 および `tests/test_check_authz_catalog.py`(期待件数のハードコード)。
 
-**`docs/design/data-model.md` も `shared-preconditions.json` に digest を凍結されている**が、
-**本タスクは同ファイルを変更しない**ため追随の対象外。
+**`docs/design/data-model.md` も `shared-preconditions.json` に digest を凍結されている**が、**反映なし**。
+**本タスクは同ファイルを変更しない**ため追随の対象外(上表と同じ区分)。
 
 ## 4. 実装方針
 
