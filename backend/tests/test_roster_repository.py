@@ -6,7 +6,6 @@ import json
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, replace
-from hashlib import sha256
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, cast
@@ -350,42 +349,98 @@ def test_builder_preserves_registered_and_prepared_sql_shapes() -> None:
             )
         ),
     )
-    assert {
-        kind: sha256(str(statement).encode("utf-8")).hexdigest()
-        for kind, statement in statements.items()
-    } == {
+    assert {kind: str(statement) for kind, statement in statements.items()} == {
         "player_read": (
-            "864ae978151ad2724a389106a79cdc6240106038c04f3e14d4abccdf936e11e1"
+            "SELECT players.id, players.team_record_id, players.name, "
+            "players.throws, players.bats, players.uniform_number, "
+            "players.roster_status_key, players.roster_label_key, "
+            "players.hidden_at \n"
+            "FROM players \n"
+            "WHERE players.tenant_id = :tenant_id AND (:record_id IS NULL OR "
+            "players.id = :record_id) AND (:team_record_id IS NULL OR "
+            "players.team_record_id = :team_record_id) AND (:roster_status_key "
+            "IS NULL OR players.roster_status_key = :roster_status_key) AND "
+            "(:include_hidden IS true OR players.hidden_at IS NULL) AND "
+            "(:cursor_team_record_id IS NULL OR players.team_record_id > "
+            ":cursor_team_record_id OR players.team_record_id = "
+            ":cursor_team_record_id AND players.id > :cursor_id) ORDER BY "
+            "players.team_record_id, players.id\n"
+            " LIMIT :limit"
         ),
         "player_create": (
-            "10ada9ab0bb67bfd948c17fc7a7548577e8157d334b438d35cc7f10218386140"
+            "INSERT INTO players (id, team_record_id, name, throws, bats, "
+            "uniform_number, roster_status_key, roster_label_key, tenant_id) "
+            "VALUES (:id, :team_record_id, :name, :throws, :bats, "
+            ":uniform_number, :roster_status_key, :roster_label_key, :tenant_id)"
         ),
         "player_update": (
-            "5305fd11bc1391e27bdcfc6a755ea458f40c63eed86069d88267664d3c82d50d"
+            "UPDATE players SET name=:value_name WHERE players.tenant_id = "
+            ":tenant_id AND players.id = :id"
         ),
         "team_read": (
-            "866f3892080deca8f47160efe7ffd48e179843a6cf7d4b1f4bb4b41050adb2f6"
+            "SELECT team_records.id, team_records.kind, team_records.name, "
+            "team_records.hidden_at \n"
+            "FROM team_records \n"
+            "WHERE team_records.tenant_id = :tenant_id AND team_records.kind = "
+            ":kind AND (:record_id IS NULL OR team_records.id = :record_id) AND "
+            "(:include_hidden IS true OR team_records.hidden_at IS NULL) AND "
+            "(:cursor_id IS NULL OR team_records.id > :cursor_id) ORDER BY "
+            "team_records.id\n"
+            " LIMIT :limit"
         ),
         "team_create": (
-            "f94dcdedfbd67a9cf2b3455a77298e7edd10e7c66111744300e569e2f7deb9d6"
+            "INSERT INTO team_records (id, kind, name, tenant_id) VALUES (:id, "
+            ":kind, :name, :tenant_id)"
         ),
         "team_update": (
-            "1b2bf02d020d9b8ba9a405bbd07e1cb256574dd7114365598a80d582fa8aea9c"
+            "UPDATE team_records SET name=:name WHERE team_records.tenant_id = "
+            ":tenant_id AND team_records.id = :id AND team_records.kind = :kind"
         ),
         "player_read_dynamic": (
-            "30a02ffa31c3f8e8bafab428a8828703dcdc5ac7d61de4ad33d74ddfd5310616"
+            "SELECT players.id, players.team_record_id, players.name, "
+            "players.throws, players.bats, players.uniform_number, "
+            "players.roster_status_key, players.roster_label_key, "
+            "players.hidden_at \n"
+            "FROM players \n"
+            "WHERE players.tenant_id = :tenant_id AND players.hidden_at IS NULL "
+            "ORDER BY players.team_record_id, players.id\n"
+            " LIMIT :limit"
         ),
         "player_read_filtered": (
-            "f7ba12073cbcaaeda2a6ec086b0146c74ba0d8cbcbb13db7810e340222101837"
+            "SELECT players.id, players.team_record_id, players.name, "
+            "players.throws, players.bats, players.uniform_number, "
+            "players.roster_status_key, players.roster_label_key, "
+            "players.hidden_at \n"
+            "FROM players \n"
+            "WHERE players.tenant_id = :tenant_id AND players.id = :record_id "
+            "AND players.team_record_id = :team_record_id AND "
+            "players.roster_status_key = :roster_status_key AND "
+            "(players.team_record_id > :cursor_team_record_id OR "
+            "players.team_record_id = :cursor_team_record_id AND players.id > "
+            ":cursor_id) ORDER BY players.team_record_id, players.id\n"
+            " LIMIT :limit"
         ),
         "team_read_dynamic": (
-            "285cbd47d150659af1c98dda93ae99d5dd26ff29cb4e321e8880e80f12a6ab71"
+            "SELECT team_records.id, team_records.kind, team_records.name, "
+            "team_records.hidden_at \n"
+            "FROM team_records \n"
+            "WHERE team_records.tenant_id = :tenant_id AND team_records.kind = "
+            ":kind AND team_records.hidden_at IS NULL ORDER BY team_records.id\n"
+            " LIMIT :limit"
         ),
         "team_read_filtered": (
-            "d19d2e521ae3e99d2d1720f9c1d9667f5b0c0965c64a604b0be5d00cda282d7d"
+            "SELECT team_records.id, team_records.kind, team_records.name, "
+            "team_records.hidden_at \n"
+            "FROM team_records \n"
+            "WHERE team_records.tenant_id = :tenant_id AND team_records.kind = "
+            ":kind AND team_records.id = :record_id AND team_records.id > "
+            ":cursor_id ORDER BY team_records.id\n"
+            " LIMIT :limit"
         ),
         "player_update_dynamic": (
-            "4846babe5ad4211c58cde8ec19cd4831b63858119890a64a5fde36c8178512a7"
+            "UPDATE players SET name=:value_name, throws=:value_throws, "
+            "roster_status_key=:value_roster_status_key WHERE players.tenant_id "
+            "= :tenant_id AND players.id = :id"
         ),
     }
 
