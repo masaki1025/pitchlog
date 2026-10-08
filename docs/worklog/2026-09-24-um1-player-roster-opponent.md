@@ -381,3 +381,14 @@ branch: feature/um1-player-roster-opponent
 - Codex の報告: backend の対象テスト 83 passed・ruff / format / ty 合格・ルートの `tests/test_core_guard.py` 215 passed
 - **N6 の値の確認と連絡**: 2026-10-08 山田正輝が「この値で連絡する」と確認。δ(Notion TSK-470「U-A1 δ 認証の HTTP の入口」)へコメントで連絡した(Cookie 名・パス・期限の表現・CSRF の対象メソッド・ヘッダ・`Origin` の許可値の出所と拒否の応答。ログイン等の Cookie が無い入口での CSRF 検査の掛け方は δ が決める旨を付記)
 - **push 前の全件実行**(CI と同じ `--no-ff` マージ — `5899b9c2` を `1fdf1eec` へ): `check_frozen_baselines.py --ci` OK・迂回検査 ok・ルート ruff 合格 / backend: format 247 files 合格・ruff・ty 合格・`pytest` **1503 passed・4 skipped** / ルート `pytest tests/` **2933 passed・失敗 0**(前回の負荷依存の 3 件も今回は合格)
+
+## 2026-10-08 ステップ 5 の是正 — UPDATE の実行時 CompileError(`67c4495b`)
+
+- **発見**: 391 タブ(U-S1 — #95 の上に積む)からの連絡。`base._prepare_operation` の UPDATE 文を `Session.execute(statement, parameters)` で実行すると、SQLAlchemy が実行パラメータのキーを column_keys としてコンパイルし、WHERE の `bindparam("tenant_id")`・`("id")`(チーム表は `("kind")` も)が対象表の列名と衝突して `CompileError` になる。**選手・対戦相手チームの更新(更新・在籍区分の適用・論理削除)がすべて実行できない状態だった**
+- **当方の確認**: PostgreSQL 方言のコンパイルと SQLite の実 Session の両方で再現(コンパイル段階なので方言に依らない)。INSERT・SELECT は問題なし。`Update.params()` による事前束縛は SQLAlchemy が UPDATE で受けない(NotImplementedError)ので不可
+- **見逃した理由**: UPDATE のテストを記録用の偽 session(`_RecordingSession`)で実行していて、実コンパイルを通っていなかった。実 DB の試験(`backend/tests/db/`)に UPDATE の token を実行するものが無い — 越境テスト・DB 試験はステップ 9 以降
+- **是正**: UPDATE の WHERE の bind 名を `where_tenant_id`・`where_id`・`where_kind` にし(ORM の全 23 表の列名と非衝突)、`base.py` の UPDATE の検査と束縛を追随。SELECT・INSERT の bind 名と検査は不変。テストは 6 token を Session と同じ column_keys でコンパイル・両 UPDATE を SQLite の実 Session で実行・旧 bind 名と条件欠落の負例。SQL 照合は UPDATE の 3 形状だけ更新(他 8 形状は不変)。契約資産・正例 fixture は不変(契約資産は capability と token 型を宣言し、fixture は組み立て API を検査するため)
+- **敵対レビュー 可決**(指摘なし)。旧 bind 名が同じコンパイル条件で `CompileError` になる(是正前なら落ちる)こともレビュー側で確認
+- **台帳の候補**: 偽の実行面(記録用 session)だけのテストは、SQL の組み立てが実コンパイルを通ることを保証しない。リポジトリの単体テストに「Session と同じ条件でのコンパイル」を必須にするか — /pr の台帳判断で扱う
+- 391 タブへ再現の確認と是正の方針を返信済み(bind 名が変わるので U-S1 は是正後の名前に合わせる)
+- **push 前の全件実行**(CI と同じ `--no-ff` マージ — `67c4495b`): 凍結値の走査 OK・迂回検査 ok・ruff / format / ty 合格・ルート **2933 passed**・backend **1518 passed・4 skipped・1 failed** — `tests/db/test_tenant_transaction_scope.py::test_unvalidated_update_is_rejected_before_execute`(実 DB)。探査 UPDATE が旧 bind 名 `tenant_id` のままで、RETURNING の拒否より先にテナント条件で拒否されていた。**是正の取りこぼし**(Codex は DB 必須の試験を実行できず、当方の全件実行で検出)。探査文を `where_tenant_id` へ(Claude の直接編集 — review normal 可決)。同ファイル 18 passed(実 DB)。変更はこの 1 ファイルだけなので、全件は再実行せず、同ファイルと凍結値の走査を清潔な HEAD で取り直した
