@@ -33,7 +33,7 @@ created: 2026-10-08
 | R-3 | HTTP 入口は開かない。入口は TSK-331 で wire 形式が決まった後に、別の小さな PR で開く |
 | R-5 | UM01 の #95 の上に積む(起点 `3e19b295`)。実装の開始は #95 のマージ後 |
 | R-9 | **U-S1 が TSK-332(NFR-019(d) の資産契約の再設計とシナリオ資産)も吸収する**。スパイク(`feature/us1-sync-spike`)で資産の実際の形が見えたため |
-| R-10 | **正本 `docs/design/sync-protocol.md` 10-3 の比較単位を改訂する**(v0.5)。資産の比較単位が `scenarioId × caseId × 注入対象 × 観測点 × expected の全フィールド` になり、現行の「`scenarioId × 観測点 × expected の全フィールド`」(SP:1716)と食い違うため(計画レビュー 2 周目)。U-S1 の PR に確定ゲート(/finalize-doc)を含める |
+| R-10 | **正本 `docs/design/sync-protocol.md` 10-3 の比較単位を改訂する**(v0.6)。資産の比較単位が `scenarioId × caseId × 注入対象 × 観測点 × expected の全フィールド` になり、現行の「`scenarioId × 観測点 × expected の全フィールド`」(SP:1716)と食い違うため(計画レビュー 2 周目)。U-S1 の PR に確定ゲート(/finalize-doc)を含める |
 | R-12 | **ポートの別スレッドへの書き込みの預け入れは、アプリの層で最大限に防ぎ、残りは記録する**(計画レビュー 3 周目 P1。人間の判断 2026-10-08)。DB のトリガで完全に閉じる案は採らない。投影の表の持ち主である U-X1 が、本物の投影ポートを作るときにトリガを入れる(申し送り)。**I6 の端末側の検証は U-S1 で閉じる**(Vitest 側の runner) |
 | R-11 | **TSK-330 から引き継いだ繰り延べ 12 ID のうち、復元ライフサイクルの 10 件は U-R1(TSK-392)へ送る**。残り 2 件(`p3-invalidation-consumed-before-complete`・`o4-persisted-d2-equivalence`)は U-S1 で作る。R-1 の「吸収」から 10 件を除く |
 
@@ -74,11 +74,11 @@ created: 2026-10-08
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
-| `docs/design/sync-protocol.md` | **10-3 の (d) 資産契約を改訂する(v0.5。R-10)**: 比較単位に `caseId` と注入対象を加える、単一の `faultInjection`・`expected` を `cases` 構造にする、`tElementCommitment` の T の内部単位と `no-write` / `no-change`。意味規則(6〜9 章)は変えない。v0.2 は TSK-267 の先約なので v0.5 を使う。変更履歴に追記し、`docs/README.md` の索引を現行化する | **finalize-doc**(敵対レビュー + 人間承認)。Claude が行い、Codex のステップにしない。**ステップ 14 の前に確定させる** |
+| `docs/design/sync-protocol.md` | **10-3 の (d) 資産契約を改訂する(v0.6。R-10)**: 比較単位に `caseId` と注入対象を加える、単一の `faultInjection`・`expected` を `cases` 構造にする、`tElementCommitment` の T の内部単位と `no-write` / `no-change`。意味規則(6〜9 章)は変えない。v0.2 は TSK-267、v0.5 は #81(TSK-236・2026-09-28 approved)の先約なので v0.6 を使う(2026-10-09 山田正輝の裁定)。確定ゲートは #81 のマージ後に通す。変更履歴に追記し、`docs/README.md` の索引を現行化する | **finalize-doc**(敵対レビュー + 人間承認)。Claude が行い、Codex のステップにしない。**ステップ 14 の前に確定させる** |
 | `contracts/tenant_boundary/base-allowlist.json`(凍結資産) | 条件 2 に同期核の所有パスを足す。凍結基準の履歴追記を伴う | PR レビュー + 敵対レビュー + 人間承認(コア) |
 | `contracts/tenant_boundary/repository-contract.json`(凍結資産) | 複合主キー UPDATE・行ロック・JSONB 結果・registry の集約・同期の capability と token を足す | 同上 |
 | `.claude/core-areas.json` | `backend/src/pitchlog/sync/*`・`backend/src/pitchlog/repositories/sync_apply.py`・`backend/tests/test_sync_apply_*.py` を sync-protocol と recording-rights の両方に登録する | 敵対レビュー + 人間承認(6.3 規則⑤) |
-| `docs/README.md` | sync-protocol.md の版の表示を v0.5 にする | finalize-doc と同じ |
+| `docs/README.md` | sync-protocol.md の版の表示を v0.6 にする | finalize-doc と同じ |
 | 要件書・data-model.md・ADR | **反映なし** | — |
 
 ## 4. 実装方針
@@ -140,7 +140,7 @@ Notion カードの DoD と対応づける。カードの文言と食い違う 1
 - [ ] 横断要求: 物理削除しない(墓標はイベントの追加・改訂は旧版を残す)/ テナント分離(越境テスト)/ 利用者 ID を持たない
 - [ ] 緑を「FR-012 充足」と報告しない。FR-012 は、ポートの本物(U-R1・U-X1)が入るまで部分充足
 - [ ] TSK-330・TSK-332 を Notion で U-S1 に統合した(取り下げ + 相互リンク)。復元系 10 件を TSK-392(U-R1)へ送ったことを、同カードに記録した
-- [ ] sync-protocol.md 10-3 の改訂(v0.5)が /finalize-doc で確定している(R-10)
+- [ ] sync-protocol.md 10-3 の改訂(v0.6)が /finalize-doc で確定している(R-10)
 
 **カードの修正(人間へ上げる)**: カードの「ゴールデンベクタ(`contracts/`)との一致」は対象が存在しない。同期の故障系テストの置き場は `tests/fixtures/sync-protocol-failures/`(SP:1712)で、`contracts/` は NFR-019(a) 専用(`contracts/README.md:3`)。本 PR では「(d) 資産と runner」に読み替える。
 

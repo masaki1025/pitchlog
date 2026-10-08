@@ -122,6 +122,6 @@ TSK-332 の射程(Notion カード。設計の蓄積は `docs/features/sync-serv
 | Q-5 | 改訂版と通常版の区別(TSK-373) | U-S1 では列を足さない |
 | Q-6 | `confirmed_watermark` と `applied_prefix` のどちらが D3 か | `confirmed_watermark` を D3 とする(スパイクもこれで動いた)。`applied_prefix` の意味を計画レビューで確定する |
 | Q-7 | RG1 の所有者 | `RecordingRightsPort` に含める。U-S1 が保証するのは同期経路の停止まで。全変更経路の停止は復元の単位 |
-| Q-8 | (d) 資産の比較単位が正本 10-3 と食い違うか | **裁定済み(R-10)**: 食い違う。正本を v0.5 に改訂する |
+| Q-8 | (d) 資産の比較単位が正本 10-3 と食い違うか | **裁定済み(R-10)**: 食い違う。正本を v0.6 に改訂する(v0.5 は #81 の先約 — 2026-10-09 裁定) |
 | Q-9 | TSK-330 の繰り延べ 12 ID の送り先 | **裁定済み(R-11)**: 復元系 10 件は U-R1。`p3-invalidation-consumed-before-complete`・`o4-persisted-d2-equivalence` は U-S1 |
 | Q-10 | I5 の配信先 | `InvalidationSinkPort` で受け、配信と再試行は U-S1 が持つ。配信先の本物は未定 |
