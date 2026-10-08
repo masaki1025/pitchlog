@@ -226,7 +226,7 @@ date: 2026-10-08
 | 台帳の既存行の照合(`result` の JSONB を読む) | 通過 | **拒否**(`_TenantOperationError`: 結果に `dict` を実体化できない) |
 | UPDATE 全般(`operation_events.replaced_at`・`players.name`) | 通過 | **CompileError**(下記) |
 
-- **#95 自体の疑い**: UM01 の `PlayerUpdateToken` を `_prepare_operation` に通すと、パラメータのキーは `id`・`tenant_id`・`value_name` になる。これを PostgreSQL 方言でコンパイルすると `CompileError: bindparam() name 'tenant_id' is reserved for automatic usage in the VALUES or SET clause` になる(Claude がコンパイル段階で再現。実 DB での実行は未確認)。#95 の UPDATE の試験は偽 session で行われていて、実際のコンパイルを通らない。**UM01 へ報告済み**(2026-10-08)
+- **#95 自体の疑い**: UM01 の `PlayerUpdateToken` を `_prepare_operation` に通すと、パラメータのキーは `id`・`tenant_id`・`value_name` になる。これを PostgreSQL 方言でコンパイルすると `CompileError: bindparam() name 'tenant_id' is reserved for automatic usage in the VALUES or SET clause` になる(Claude がコンパイル段階で再現。実 DB での実行は未確認)。#95 の UPDATE の試験は偽 session で行われていて、実際のコンパイルを通らない。**UM01 へ報告済み**(2026-10-08)。UM01 が確認し、SQLite でも再現した(PlayerUpdateToken・TeamRecordUpdateToken の両方。INSERT・SELECT は落ちない)。#95 に「ステップ 5 是正」として直す: UPDATE の WHERE の bind 名を列名と重ならない名前へ替え、base.py の UPDATE 検査を追随させる。**U-S1 の UPDATE は、是正後の bind 名に合わせる**
 - **台帳の `result` は NOT NULL で、変更を禁止するトリガがある**。そのため T1(D5 の記録)と T6(確定結果)を時間的に分けて書けない。T1 の時点で確定結果まで書く形になる(SP 8-1 の T1・T6 の区別は、書き込みの順序ではなく内容の区別として読む必要がある)
 
 ### S-4: TSK-332 の契約の争点
