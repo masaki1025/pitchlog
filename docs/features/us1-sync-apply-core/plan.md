@@ -95,7 +95,7 @@ created: 2026-10-08
 
 **開始条件**:
 - #95(UM01)のマージ(UPDATE の CompileError の是正 = #95 の「ステップ 5 是正」を含む)。マージ後に develop を取り込んでから始める
-- ステップ 1・2(core-areas)は、追加の窓口が空いていることを 469 master と確認してから(UM01 の注意: #95 の宣言を累積させない。PR #81 も同じ窓口を使う)
+- ステップ 1・2(core-areas)は、**#95 → #81 → U-S1 の順**で窓口を使う(469 master の実測 2026-10-08: #81 は sync-protocol と recording-rights を宣言済みで、U-S1 と同じ領域で当たる)。#81 のマージ後に develop を取り込んでから始める
 
 **正本の改訂の順序**: ステップ 13 の後、ステップ 14 の前に、sync-protocol.md 10-3 の改訂を /finalize-doc で確定させる(R-10)。資産契約(ステップ 14〜17)は改訂後の正本に従う。
 
@@ -107,7 +107,7 @@ created: 2026-10-08
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **core-areas の宣言**: `scripts/core_guard.py` の `AREA_PATH_ADDITIONS` に、sync-protocol と recording-rights への追加分(`backend/src/pitchlog/sync/*`・`backend/src/pitchlog/repositories/sync_apply.py`・`backend/tests/test_sync_apply_*.py`)を宣言する | `tests/test_core_guard.py` が green。宣言と JSON を同じコミットで変えていない。#95 の宣言を累積していない |
+| 1 | **core-areas の宣言**: `scripts/core_guard.py` の `AREA_PATH_ADDITIONS` に、sync-protocol と recording-rights への追加分(`backend/src/pitchlog/sync/*`・`backend/src/pitchlog/repositories/sync_apply.py`・`backend/tests/test_sync_apply_*.py`)を宣言する | `tests/test_core_guard.py` が green。宣言と JSON を同じコミットで変えていない。**他の単位の宣言(#95・#81 ほか、基線の core-areas.json に取り込み済みのもの)を累積していない** |
 | 2 | **core-areas の登録**: `.claude/core-areas.json` に登録し、`test_core_guard.py` の期待集合を追随させる | core-guard の CI 相当が green。新しいパスが sync-protocol と recording-rights の両方に一致する(重複帰属の明示) |
 | 3 | **TB002 の所有パス**: 条件 2 に同期核の所有パスを足す。所有パスは、検査時点で core-areas.json の sync-protocol の paths に一致するパスに限って発効する。凍結基準の履歴を追記する | 所有パス内の同期語彙が TB002 にならない(正例)。所有パス外(例: `repositories/roster.py`)は TB002 になる(負例)。core-areas.json から外したパスは免除されない(負例)。条件 1・3・4・5 は所有パス内でも効く(負例 3 件)。迂回検査のテストが green |
 | 4 | **リポジトリ基底の拡張**: 複合主キーの UPDATE 条件、行ロックの宣言、JSONB の結果の不変表現への実体化、registry を複数モジュールから集める形、適用中に同じスレッドで新しい `tenant_transaction_scope` を開けない検査(多層防御の 2 層目。1 層目はステップ 5 の `TenantContext` を渡さない拘束)。repository-contract を改訂する | 複合主キーの全列を束縛しない UPDATE が登録時に拒否される(負例)。宣言していない文はロックを取らない。JSONB の結果が不変な表現で返る。適用中の印があると、同じスレッドで新しいスコープを開けない(負例)。#95 の roster の operation が変わらず green。`backend/tests/conftest.py` の差分 0 行 |
