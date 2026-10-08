@@ -205,6 +205,8 @@ date: 2026-10-08
 
 - R-9: **U-S1 が TSK-332(NFR-019(d) の資産契約の再設計とシナリオ資産)も吸収する**(2026-10-08・人間。スパイクで資産の実際の形が見えたため)。復元ライフサイクルの故障シナリオ 12 本の送り先は、計画書の Q-9 で人間の確認を待つ
 
+- R-10: **正本 sync-protocol.md 10-3 の比較単位を改訂する(v0.5)**。U-S1 の PR に確定ゲートを含める(2026-10-08・人間。計画レビュー 2 周目で、資産の比較単位が正本と食い違うと判定されたため)
+- R-11: **TSK-330 の繰り延べ 12 ID のうち、復元ライフサイクルの 10 件は U-R1(TSK-392)へ送る**。`p3-invalidation-consumed-before-complete`・`o4-persisted-d2-equivalence` は U-S1 で作る(2026-10-08・人間)
 ## スパイクの結果(2026-10-08・feature/us1-sync-spike)
 
 人間の裁定でスパイクを打った(書き手は Codex。計画書は `feature/us1-sync-spike` の `docs/features/us1-sync-spike/plan.md`。敵対レビュー 3 周で承認)。起点は UM01 #95 の `3e19b295`。ステップ 3 本のコミットは `34aab643`・`cafc9b48`・`fa9975e9`。**DB テスト 20 件 green**(Codex の sandbox は Docker を使えないため、Claude が使い捨てクラスタで実行した)。ブランチは push していない。
