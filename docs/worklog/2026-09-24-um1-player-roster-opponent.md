@@ -332,3 +332,35 @@ branch: feature/um1-player-roster-opponent
 ### 承認(2026-10-08・山田正輝)
 
 第 6 改訂を承認。frontmatter の `承認` と 8 節 16 を更新した。
+
+## 2026-10-08 ステップ 2 是正・ステップ 6・ステップ 7
+
+### ステップ 2 是正(`482127c9`)
+
+- `tests/fixtures/authz_claims/route-registry.json` に 6 本を追加(契約資産の 6 行と 6/6 一致)。fixture 内で provenance の参照を閉じるため合成の設計文書 `record-and-aggregate-design.md` を追加。派生 lock の fixture を再導出(18→24 entries・既存 18 は不変)
+- Codex の報告: 対象 2 モジュールは 153 passed・29 failed(29 件はすべて既知の「HEAD の履歴に staged 製品資産がありません」)。履歴条件を再現した一時 clone で `test_atomic_claim_fixture_is_valid_and_referenced_downstream` 1 passed。同じ fixture を読む他の 3 テスト 3 passed・spec 21 passed
+
+### ステップ 6(`2a5a0f85`)
+
+- 着手時の未マージ ref の確認: 上の「`2040ed8d` の CI と第 6 改訂」のとおり(競合なし)
+- 宣言を `("backend/tests/test_*_boundary.py", "backend/tests/test_*_repository.py")` へ。テストは 344 の宣言の固定を JSON 登録済みの確認へ直し、宣言の期待値をテスト側に独立して持ち、4 種の負例(部分追加 `test_one_of_three_tenant_additions_is_rejected`・並べ替え `test_reordered_tenant_additions_are_rejected`・削除 `test_deleting_baseline_tenant_path_is_rejected`・未宣言の追加 `test_undeclared_tenant_path_addition_is_rejected`)を追加
+- 敵対レビュー 可決(指摘なし)。4 種の負例がいずれも層不一致の規則で落ちることをレビュー側でも確認
+- **検証(清潔な HEAD = `2a5a0f85`)**: `verify_area_path_baseline(Path('.'), '1fdf1eecdfb698eae1afaf24adb025233d084bbb', '2a5a0f85d4a10a416f07f01a6bef1f7fd767e6d8')` → `1fdf1eecdfb698eae1afaf24adb025233d084bbb`(例外なし)。`tests/test_core_guard.py` 214 passed・1 failed(`test_all_schema_contract_assets_match_an_actual_core_area_path` — 第 6 改訂の 3 の例外)
+
+### ステップ 7(`1bd5e33d`)
+
+- **着手前の未マージ ref の確認**(`git fetch` 後・リモートとローカルの refs/heads を走査):
+  - `feature/appendix-e-golden-vectors`(ローカル `d76e2cf5`・origin `1636b170`・PR #81 draft OPEN・2026-10-08 更新)— **`AREA_PATH_ADDITIONS` を書き換え、`tenant-isolation` へ `docs/adr/ADR-001-codex-model-selection.md` を宣言している**。本単位の glob とは重ならない。**回転式の窓口なので、後からマージされる側が develop の取り込み時に宣言を自分の未取り込み分だけへ直す**(順序調整の対象 — 該当タブへの連絡を人間に依頼)
+  - `fix/oracle-input-baseline`(ローカル `76e98ff0`・origin `35d5fdf4`・PR #63 CLOSED)— `AREA_PATH_ADDITIONS` には触れない
+  - `backup/before-subject-fix-20261004`(`47984a3d`)— `core-areas.json` に差分があるが `tenant-isolation` と宣言には触れない
+- `.claude/core-areas.json` の `tenant-isolation.paths` 末尾へ 2 本を登録(Claude の直接編集 — review normal 可決・指摘なし)
+- **遡及の確認**: `git ls-files` を `fnmatch.fnmatchcase` で照合し、`test_*_boundary.py` は 0 件、`test_*_repository.py` は `backend/tests/test_roster_repository.py`(本単位)と `backend/tests/test_authz_runtime_contract_repository.py`(merge-base の `tenant-isolation.paths` の `backend/tests/test_authz*.py` に当たる)の 2 件だけ
+- **独立確認**: `tenant-isolation.paths` が merge-base の列 ＋ 2 本(この順)と完全一致、他の領域・キーは不変(review normal で確認)
+- **検証(清潔な HEAD = `1bd5e33d`)**: `verify_area_path_baseline(Path('.'), '1fdf1eecdfb698eae1afaf24adb025233d084bbb', '1bd5e33dcdb24dc8f51ad006bc2ecbd9502400fe')` → `1fdf1eecdfb698eae1afaf24adb025233d084bbb`(例外なし)。`tests/test_core_guard.py` 215 passed(スキーマ契約資産の検査を含む)
+
+### push 前の全件実行(第 6 改訂の 7)
+
+- **CI と同じ形**: 一時 worktree で `origin/develop`(`1fdf1eec`)へ `1bd5e33d` を `--no-ff` マージ(`34b66f8c`)して実行
+- `check_frozen_baselines.py --ci`(`GITHUB_EVENT_NAME=push`)OK・迂回検査 ok・`ruff check .` 合格
+- ルートの `uv run pytest tests/`: **2930 passed・3 failed**(20 分 55 秒)。失敗は `tests/domain/mut/test_cost_record.py::test_actual_measurement_is_generated_and_passes_both_budgets`・`tests/domain/mut/test_lang_operators.py::test_each_language_mutants_are_actually_killed[sql]`・`::test_sql_mutation_with_unreachable_postgres_is_fail_closed`
+- **分類**: 3 件を単独で実行すると、develop(`1fdf1eec`)でも同じマージ状態でも 3 passed。全件実行の負荷の下でだけ落ちる(PostgreSQL と時間予算に依存するミューテーション検査)。本単位の変更(fixture・`core_guard.py`・`core-areas.json`・テスト)とは関係しない。**既知の取り込みトポロジーの偽陽性とは別の種類**として記録し、push する(CI の mutation ジョブで最終確認)
