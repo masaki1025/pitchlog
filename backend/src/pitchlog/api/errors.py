@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from pitchlog.api.request_presentation import RequestGateError
 from pitchlog.api.schemas.base import ErrorDetail, ErrorEnvelope, ErrorField
 
 _LOGGER = logging.getLogger(__name__)
@@ -15,6 +16,8 @@ _VALIDATION_ERROR_MESSAGE = "入力に誤りがあります"
 _NOT_FOUND_ERROR_MESSAGE = "対象が見つかりません"
 _REQUEST_ERROR_MESSAGE = "リクエストを処理できません"
 _INTERNAL_SERVER_ERROR_MESSAGE = "サーバー内部でエラーが発生しました"
+_CREDENTIAL_ERROR_MESSAGE = "認証情報がありません"
+_CSRF_ERROR_MESSAGE = "要求を確認できません"
 
 
 def _error_response(
@@ -92,6 +95,25 @@ async def _http_exception_handler(
     )
 
 
+async def _request_gate_exception_handler(
+    _request: Request,
+    exception: Exception,
+) -> JSONResponse:
+    """要求面の拒否を値を含まない共通封筒へ写す。
+
+    Args:
+        _request: 例外が発生したリクエスト。
+        exception: 要求面の拒否。
+
+    Returns:
+        拒否理由に対応する固定文言の応答。
+    """
+    gate_error = cast(RequestGateError, exception)
+    if gate_error.reason == "credential":
+        return _error_response(status_code=401, message=_CREDENTIAL_ERROR_MESSAGE)
+    return _error_response(status_code=403, message=_CSRF_ERROR_MESSAGE)
+
+
 async def _unhandled_exception_handler(
     _request: Request,
     _exception: Exception,
@@ -120,4 +142,5 @@ def register_exception_handlers(app: FastAPI) -> None:
         _request_validation_exception_handler,
     )
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
+    app.add_exception_handler(RequestGateError, _request_gate_exception_handler)
     app.add_exception_handler(Exception, _unhandled_exception_handler)
