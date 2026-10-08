@@ -193,6 +193,14 @@ branch: feature/ci-harness-parallel
 - pytest の要約: 4 workers [28092 items] / 28092 passed in 648.42s (0:10:48)
 - 当初目標の 8 分以内はタスク B(入力に基づく選択 + develop/nightly 全件)で達成する(計画修正 6・PO 判断)。次 = 人間の逐行確認(guard_paths 4 + コア paths 2)→ マージ → /task-done
 
+### develop の取り込み(PR #99 マージ後・2026-10-08・Claude・worktree)
+
+- PR #99(TSK-496・設計書 v1.19)が `6c9dbc8a` でマージされたので、申し送りどおり develop を取り込んだ(マージコミット `a040705d`)。予想どおり競合 3 件 — すべて変更履歴表・索引の同位置追記で、両側の行を残して解決
+  - `docs/README.md`: 設計書行は v1.19(TSK-496)を土台に TSK-501 の実装追随を前置。台帳行は **候補 111 件**(走査条件 `^### (候補)` で再実測 = develop 105 + TSK-496 の 6・TSK-501 は件数不変)へ現行化し、実測点を PR #102 への `6c9dbc8a` 取り込み後に書き換えた
+  - `dev-harness-design-2026-08-07.md`: TSK-501 の実装追随行を最上段に残し、**版の列を 1.18 → 1.19 へ**(「版は上げない追随」は現行版の上に載るため。1.18 のまま v1.19 行の上に置くと退行に読める — 判断は Claude。逐行確認で異議があれば戻す)
+  - `harness-evaluation.md`: TSK-501(10-08)と TSK-496(10-07)の両行を残す
+- 検証: docs-lint 相当 4 本(`check_docs_status` 18 文書 0 違反・`check_design_propagation`・`check_doc_coverage`・`check_plan_docs_sync`)すべて exit 0。CI は push 後の run が正
+
 ## 決定
 
 - タスク分割(A/B)とワーカー数(上記)
@@ -205,4 +213,5 @@ branch: feature/ci-harness-parallel
 
 ## 未決・次の一歩
 
-- /pr 後: 人間の逐行確認(guard_paths = `pyproject.toml`・`uv.lock`・`conftest.py`・`tests/test_check_authz_catalog.py`)→ CI → **PR 後の DoD 検証**(harness ≤ 8 分・backend 所要時間)→ マージ → /task-done。PR #99(v1.19)のマージ後に develop を取り込む(索引・台帳の衝突が見込まれる)
+- 済: PR 後の DoD 検証 2 回目(改訂 DoD = 導入前比の短縮を記録)/ PR #99 マージ後の develop 取り込み(`a040705d`)
+- 残: 人間の逐行確認(guard_paths = `pyproject.toml`・`uv.lock`・`conftest.py`・`tests/test_check_authz_catalog.py`・`tests/domain/gen/test_backends.py` + 取り込みの競合解決 3 ファイル)→ PR 本文のチェック記入 → core-guard 緑 → 人間がマージ → /task-done
