@@ -123,10 +123,10 @@ S-1 に入れる値の基準: 正本で条件なしに必須(正本 4-3 の V1�
 
 | wire キー | 位置 | 正本 ID | 値の表現 | 必須条件 | 既存 DTO のキー |
 | --- | --- | --- | --- | --- | --- |
-| `recording_right_proof` | E-1・E-2 の要求本文 | V12 | L-3 | VF1〜VF3 | (なし — 6 節) |
-| `recovery_generation` | E-2 の要求本文 | 要求作成時の復旧世代 | L-3 | 全 P3 | (なし — 6 節) |
-| `events` | E-1 の要求本文 | — | 配列 | E-1 で必須 | (なし — 6 節) |
-| `change` | E-2 の要求本文 | — | オブジェクト | E-2 で必須 | (なし — 6 節) |
+| `recording_right_proof` | E-1・E-2 の要求本文 | V12 | L-3 | VF1〜VF3 | `RequestBoundaryEnvelope.requestValues.V12`(5-1) |
+| `recovery_generation` | E-2 の要求本文 | 要求作成時の復旧世代 | L-3 | 全 P3 | `RequestBoundaryEnvelope.recoveryGenerationAtCreation`(5-1) |
+| `events` | E-1 の要求本文 | — | 配列 | E-1 で必須 | `SyncEvent` の並び(5-1) |
+| `change` | E-2 の要求本文 | — | オブジェクト | E-2 で必須 | `SyncEvent` 1 件(5-1) |
 | `d5` | イベント | V1(D5) | L-1 | 全イベント | `fields.V1` |
 | `d1` | E-1 のイベント | V2(D1) | L-2 | P1・P2・P4 | `fields.V2` |
 | `d4` | E-1 のイベント | V3(D4) | L-3 | P1・P2・P4 | `fields.V3` |
@@ -148,9 +148,10 @@ S-1 に入れる値の基準: 正本で条件なしに必須(正本 4-3 の V1�
 | `player_id_mappings[].temporary_id`・`.official_id` | ACK | 一時 ID・正式 ID | L-1 の表記 | 必須 | `temporaryId`・`officialId` |
 | `accepted_result` | P3 の結果 | I6 | オブジェクト | 変更受理のときだけ | `acceptedResult` |
 | `accepted_result.target_reference`・`.expected_version`・`.d5`・`.confirmed_content`・`.accepted_at` | P3 の結果 | V10・V11・V1・確定内容・I6 の時刻 | 3 節・L-5 | 必須 | `targetReference`・`expectedVersion`・`d5`・`confirmedContent`・`acceptedAt` |
-| `current_version` | P3 の結果 | B8 の現在版 | 3-4 | B8 のときだけ | (なし — 6 節) |
-| `b9_cause` | P3 の結果 | B9 の成立条件 | L-4 | B9 のときだけ | (なし — 6 節) |
-| `reason` | P3 の結果 | B14 の理由 | 4-5 | B14 のときだけ | (なし — 6 節) |
+| `current_version` | P3 の結果 | B8 の現在版 | 3-4 | B8 のときだけ | (受け口なし — 5-3 の X-2) |
+| `b9_cause` | P3 の結果 | B9 の成立条件 | L-4 | B9 のときだけ | (受け口なし — 5-3 の X-2) |
+| `reason` | P3 の結果 | B14 の理由 | 4-5 | B14 のときだけ | (受け口なし — 5-3 の X-2) |
+| `error`・`error.message`・`error.fields`・`error.fields[].location` | 共通エラー封筒(4-1) | — | `backend/src/pitchlog/api/schemas/base.py` の `ErrorEnvelope`・`ErrorDetail`・`ErrorField` | 4-1 の表のとおり | (受け口なし — 5-3 の X-3) |
 
 ## 3. エンドポイントと要求の形
 
@@ -354,6 +355,50 @@ S-1 に入れる値の基準: 正本で条件なしに必須(正本 4-3 の V1�
 - B3a・O4・B14 の `reason` は **JSON の値**として運ぶ。**中身(理由の語彙・構造)は本書で決めない** — 内容の検証(正本 6-2 の⑦ / P3 の⑥)を実装する単位が決める(送り先 — 6 節)。frontend の既存の受け取り側も `reason` を解釈しない(`frontend/src/lib/sync/rejectionReason.ts` の `B3ContentRejection.reason: unknown`)
 - B3b の `reason` は、先着の原本の内容を含めない(正本 4-5 の衝突時の扱い — 先着の保存済み操作は変えず、後着を受理しない)
 - **クライアントは `reason` を利用者へ表示するとき自動エスケープを通す**(要件書 [NFR-023](../../requirements/requirements-pitchlog-2026-07-22.md#NFR-023))
+
+## 5. 既存 DTO への写像と差分
+
+既存の frontend DTO(`frontend/src/lib/sync/`)は transport-neutral で、**wire ⇄ DTO の変換(以下「codec」)は入口 PR が持つ**(plan.md 原則 W-2)。本節は codec が何を写すかと、DTO に受け口が無い値(差分)を決める。**U-S1 のサービス層の型との対応は本節で扱わない**(型がまだ無い — 6 節で入口 PR の義務にする)。
+
+### 5-1. 要求の写像
+
+| wire | DTO | 写し方 |
+| --- | --- | --- |
+| E-1 の `events` / E-2 の `change` | `SyncEvent` の並び / `SyncEvent` 1 件 | 要素ごとに下の行で写す |
+| E-1・E-2 のイベントのキー(`d5`・`d1`・`d4`・`game_id`・`event_kind`・`d2`・`payload`・`state_diff`・`replacement_state`・`target_reference`・`expected_version`) | `syncEvent.ts` の `SyncEvent.fields` の `V1`〜`V11` | 2-6 の対応表の行どおりに 1 対 1 で写す。`fields` に無いスロットはキーごと省く(3-2) |
+| `target_reference` の `game_id`・`d4`・`d1` | `TargetEventReference` の `試合`・`対象の D4`・`対象の D1`(`syncEvent.ts` の `TARGET_EVENT_REFERENCE_ELEMENTS`) | **要素名を明示的に対応させる**(DTO の要素名は日本語なので K-3 の機械変換は当たらない) |
+| `recording_right_proof` | `requestBoundary.ts` の `RequestBoundaryEnvelope.requestValues` の `V12` | そのまま写す。終了後の P3 で `V12` が無ければキーごと省く |
+| E-2 の `recovery_generation` | `RequestBoundaryEnvelope.recoveryGenerationAtCreation`(`path` が P3 のとき) | そのまま写す |
+| (運ばない) | `RequestBoundaryEnvelope.recoveryGenerationAtCreation`(`path` が P1・P2・P4 のとき) | **E-1 には載せない**。正本は要求作成時の復旧世代を P3 の要求境界にだけ結合し(正本 4-3-A 末尾の段落・6-2 の P3 の③-b)、D1 付き経路は V12 の結合(VF6)で扱う。この値はクライアント内部だけで使う |
+| (運ばない) | `RequestBoundaryEnvelope.p3State`(進行中 / 終了後) | **wire に載せない**。進行中か終了後かはサーバーが試合の状態から決める(正本 4-3-A の W4) |
+| E-1 / E-2 の選択 | `RequestBoundaryEnvelope.path` | P1・P2・P4 → E-1、P3 → E-2 |
+
+### 5-2. 応答の写像
+
+| wire | DTO | 写し方 |
+| --- | --- | --- |
+| ACK の `advanced_d3`・`event_results`(`d4`・`d1`・`d5`・`a5_result`)・`player_id_mappings`(`temporary_id`・`official_id`) | `ackEnvelope.ts` の `D1AckEnvelope`(`advancedD3`・`eventResults`〔`d4`・`d1`・`d5`・`a5Result`〕・`playerIdMappings`〔`temporaryId`・`officialId`〕) | K-3 の名前の変換だけで写す。`a5_result` の値は正本の語のままで、DTO も同じ語で照合する(`canonOracle.ts` の `readCanonAckStateResults` — R-ACK-STATE の要素) |
+| ACK の `boundary_result` | `ackAdapter.ts` の `D1AckAdapterInput.boundaryResult` | **封筒とは別の入力として、`"B1"`〜`"B4"` の ID 文字列をそのまま渡す**(`boundaryResults.ts` の `parseAckBoundaryResult` が ID 文字列を受け取り、`AckBoundaryResult` を返す) |
+| ACK の `event_results[].rejection` | `D1AckAdapterInput.b3Rejection`(`rejectionReason.ts` の `parseB3Rejection` — `kind`・`branch`・`reason`) | 現在の `b3Rejection` は 1 件だけを受け、アダプタはそれを拒否されたすべてのイベントの区分に使う(`ackAdapter.ts` の `classifyB3`)。正本 7-1 の A5 の再掲に対応できないので、写し方は差分 X-1 で変える |
+| B5〜B7(401・404・408・500・502・503・504・応答なし) | (`D1AckAdapterInput` には渡さない — `envelope` が必須で、`parseAckBoundaryResult` は ACK の無い結果を拒否する) | HTTP ステータスから 4-1 の表で結果を決める。受け口は差分 X-3 |
+| P3 の `boundary_result`・`accepted_result`(`target_reference`・`expected_version`・`d5`・`confirmed_content`・`accepted_at`) | `p3Result.ts` の `P3ResultEnvelope`(`boundaryResult`・`acceptedResult`〔`targetReference`・`expectedVersion`・`d5`・`confirmedContent`・`acceptedAt`〕) | K-3 の名前の変換で写す。`target_reference` の要素は 5-1 と同じ明示の対応。`boundary_result` は `readCanonP3BoundaryResults` で正本の結果へ引き当てる。**既存の受け取り側は受理結果の各値を端末が保持する受理期待と `Object.is` で照合する**(`p3Result.ts` の `parseP3ResultEnvelope`)ので、オブジェクトの値(`confirmed_content` など)は差分 X-6 の手順で渡す |
+| P3 の `current_version`・`b9_cause`・`reason` | (受け口なし) | 差分 X-2 |
+| B10〜B12(5xx・応答なし・401・404) | `P3ResultEnvelope` は返らない | HTTP ステータスから 4-1 の表で結果を決める。受け口は差分 X-3 |
+| S-1 違反(422)・4-1 の表に無いステータス・2-5 の解釈できない応答 | (受け口なし) | 差分 X-3 |
+| 共通エラー封筒の `error`・`error.message`・`error.fields`・`error.fields[].location`(4-1) | (受け口なし) | 結果の判定には使わない(判定は HTTP ステータスだけで行う — 4-1)。S-1 違反の `location` は顕在化の診断に使う。差分 X-3 |
+
+### 5-3. 差分一覧(入口 PR の作業)
+
+**既存 DTO と受け取り側の入力のキー集合は変えない**。`frontend/src/lib/sync/prohibitions.spec.ts` が封筒(`D1AckEnvelope`・`D1AckEventResult`・`D1AckPlayerIdMapping`・`P3AcceptedResultEnvelope`・`P3RejectedResultEnvelope`・`I6AcceptedResult`)と、アダプタの入力(`AckAdapterRequest`・`D1AckAdapterInput`・`P3ResultAdapterInput`)・注入のキー集合を固定している。**キー集合を保ったまま値の型を変える必要があるのは X-1 だけ**で、その理由を X-1 に書く。
+
+| # | 差分 | DTO の現状 | 入口 PR がすること |
+| --- | --- | --- | --- |
+| **X-1** | ACK の拒否の理由を**イベントごとに**分類すること(正本 7-1 の A5) | `D1AckAdapterInput.b3Rejection` は 1 件だけで、`classifyB3` が拒否されたすべてのイベントに同じ区分を返す | **必須**: `b3Rejection` の値を `(D4, D1, D5)` ごとの理由の並びに変え(**キー名 `b3Rejection` は変えない** — `prohibitions.spec.ts` のキー集合を保つ)、`classifyB3` がイベントのキーで理由を引き当てるようにする。**既存テストの追随**: `frontend/src/lib/sync/ackAdapter.spec.ts` の、`b3Rejection` に単一のオブジェクトを渡す 2 件の入力と期待値をイベント単位へ直す。**理由**: 現状のままでは、区分の違う拒否が 1 つの ACK に並んだとき、キューが誤った区分で要操作へ移す(正本 7-2・6-4) |
+| **X-2** | P3 の `current_version`(B8)・`b9_cause`(B9)・`reason`(B14) | `P3RejectedResultEnvelope` は `boundaryResult` だけ | **アダプタを通さず**、通知の層(`frontend/src/lib/sync/syncNotices.ts` など)へ渡し、正本 8-3 の P3 の通知行を表示できるようにする。キューと I6 の状態遷移には使わない値なので、アダプタの入力のキー集合を変えずに済む |
+| **X-3** | ACK・結果が返らない表れ方(B5〜B7・B10〜B12 の HTTP ステータス・応答なし)、S-1 違反、4-1 の表に無いステータス、2-5 の解釈できない応答、共通エラー封筒の 4 キー | 通信層が無い(`fetch`・`axios` は 0 件 — research.md 3 節)。ACK の無い結果をアダプタへ渡す口も無い | codec と通信層を作り、4-1 の表どおりに振り分ける。ACK の無い結果はアダプタを通さない経路で扱う。S-1 違反と解釈できない応答はキューと P3 の保持内容を変えずに顕在化する(2-4・2-5) |
+| **X-4** | `target_reference` の要素名(wire は `game_id`・`d4`・`d1`、DTO は日本語) | — | codec で明示的に対応させる(5-1) |
+| **X-5** | wire の値の表現の検査(L-1 の UUID の正規形・L-2 の整数・L-5 のオフセット付き時刻) | 既存の受け取り側は値を不透明に扱い、形式を検査しない(`ackEnvelope.spec.ts`・`p3Result.spec.ts` がソースに形式検査が無いことを検査している) | **形式の検査は codec に置き、既存の受け取り側には足さない**(既存の spec を壊さない) |
+| **X-6** | P3 の受理結果のオブジェクトの値(`confirmed_content`、オブジェクトの場合の `expected_version`)の照合 | `parseP3ResultEnvelope` は受理期待と `Object.is` で照合する。wire から作ったオブジェクトは端末の保持する値と参照が違うので、内容が同じでも拒否される | codec が wire の値と端末の受理期待の値の**構造の一致**を確かめ、一致したら**端末が保持する値(同じ参照)**を受け取り側へ渡す。一致しなければ 2-5 の解釈できない応答として扱う |
 
 ## 未解決・検討メモ
 
