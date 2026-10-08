@@ -304,3 +304,31 @@ branch: feature/um1-player-roster-opponent
 - **core-guard は失敗**(想定どおり — draft の間は逐行確認のチェックが未記入)
 - **harness は失敗**(想定外): `scripts/check_frozen_baselines.py --ci` が、`backend/tests/test_roster_repository.py` に是正で足した SQL 形状の sha256 の 16 進文字列 11 件を「走査で見つかったが allow-list にない」として拒否した。64 桁の 16 進文字列はリポジトリ全体で凍結値の候補として走査される。**ローカルではこのスクリプトを回しておらず取り逃がした**(ルートの pytest と迂回検査だけを回していた)
 - 対処: 形状の比較をハッシュ値でなく SQL の文字列そのものとの照合に替える(ステップ 5 是正の追補)。以後、是正の後は `check_frozen_baselines.py` も回す
+
+## 2026-10-08 `2040ed8d` の CI と第 6 改訂
+
+- **`2040ed8d`(ステップ 5 是正の追補)**: SQL 形状の照合を sha256 値から SQL 文字列へ替えた。置き換え前に 11/11 件のハッシュ一致を確かめ、旧テスト(HEAD 版を一時ファイルに書き出したもの)と新テストを同じコードに当てて両方合格(113 passed)。清潔な HEAD で `check_frozen_baselines.py --ci` OK・迂回検査 ok
+- **CI(`2040ed8d`)**: harness が 2 件で失敗(2680 passed)。ほかは core-guard(想定どおり)を除き全合格
+  1. `tests/test_core_guard.py::test_all_schema_contract_assets_match_an_actual_core_area_path` — `backend/tests/test_roster_repository.py`(ステップ 5)がスキーマ契約に触れるのにどの paths にも当たらない
+  2. `tests/test_check_authz_catalog.py::test_atomic_claim_fixture_is_valid_and_referenced_downstream` — ステップ 2(`98ad97de`)で期待集合を 6 本にしたが、テスト用 fixture `tests/fixtures/authz_claims/route-registry.json` に 6 本が無い(不足 = 6 本)
+- **取り逃がした理由**: ステップ 2・5 の検証が対象テストの部分集合だけで、ルートの全件を回していなかった。#95 の CI は `b167fff1` まで一度も合格しておらず(`3a4a7297`・`a5c5f698` も失敗)、失敗の中身を確かめていなかった
+- **ステップ 6 の着手時の確認**: `git fetch` のうえで、`scripts/core_guard.py`・`.claude/core-areas.json`・`tests/test_core_guard.py` を変える未マージの ref を走査した。該当は `origin/fix/oracle-input-baseline`(`35d5fdf4`・PR #63 CLOSED・2026-09-16)だけで、`AREA_PATH_ADDITIONS` には触れていない — 競合なし
+- **ステップ 6 の下書き**: Codex が宣言を `("backend/tests/test_*_boundary.py",)` にして表明を直した段階で上の 1 が判明。下書きは scratchpad に patch として退避し、作業ツリーは HEAD に戻した(第 6 改訂の承認後に 2 本で作り直す)
+- **裁定(2026-10-08・山田正輝)**: リポジトリのテストの glob `backend/tests/test_*_repository.py` を足して 2 本にする
+- **第 6 改訂**: 宣言値・登録値を 2 本へ・遡及の確認の書き換え・ステップ 6 の合格条件の例外・ステップ 2 の是正(1 コミット)・push 前の全件実行の規律
+
+### 計画レビュー(第 6 改訂)1 周目 — 否決(P0 0 / P1 1 / P2 0)
+
+| # | 指摘 | 重大度 | 採否と反映 |
+| --- | --- | --- | --- |
+| 1 | DoD の paths 登録件数が「merge-base ＋ 1 件」のままで、内訳 7 の 2 件と矛盾する | P1 | **採用**。DoD を「merge-base ＋ glob 2 件(順序つき)」にし、遡及の確認の記録を DoD に足した |
+
+観点 1〜3 は該当なし(片方の glob だけ空振りする状態は検査器・既存テストと矛盾しない / `test_*_repository.py` に当たる本単位以外の 1 件は登録前から `tenant-isolation` / fixture の是正は合格条件と全件実行で確かめられる)。
+
+### 計画レビュー(第 6 改訂)2 周目 — 可決(P0 0 / P1 0 / P2 0)。1 周目の 1 件は終結
+
+`計画レビュー周回` は 14 へ(1 周目の反映ぶん)。
+
+### 承認(2026-10-08・山田正輝)
+
+第 6 改訂を承認。frontmatter の `承認` と 8 節 16 を更新した。
