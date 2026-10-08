@@ -1863,6 +1863,28 @@ def test_unregistered_schema_contract_asset_is_rejected_without_creating_it():
         assert_schema_contract_assets_are_registered(assets)
 
 
+def test_schema_contract_population_closes_forward_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """スキーマ契約テストの母集団は import 先だけを推移的に含める。"""
+    write_text(
+        tmp_path,
+        "backend/tests/test_seed.py",
+        'import helper\nSCHEMA_REF = "migrations"\n',
+    )
+    write_text(tmp_path, "backend/tests/helper.py", "VALUE = 1\n")
+    write_text(tmp_path, "backend/tests/test_importer.py", "import helper\n")
+    monkeypatch.setattr(sys.modules[__name__], "REPO", tmp_path)
+
+    population = schema_contract_test_paths()
+
+    assert "backend/tests/test_seed.py" in population
+    assert "backend/tests/helper.py" in population
+    assert "backend/tests/test_importer.py" not in population, (
+        "逆向きの閉包は認可検証の資産を巻き込む"
+    )
+
+
 def test_schema_contract_test_population_does_not_depend_on_branch() -> None:
     """スキーマ契約テストの母集団がブランチの状態に依存しないと示す。"""
     population = schema_contract_test_paths()
