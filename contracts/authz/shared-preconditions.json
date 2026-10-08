@@ -16,7 +16,7 @@
     {
       "path": "docs/design/data-model.md",
       "document_role": "mapping_target",
-      "git_blob_digest": "75b7c843c519493267a64dba44483d0a6d203ea7"
+      "git_blob_digest": "210dda27ac32e2c28f0abf0b2be21aa14830343c"
     }
   ],
   "preconditions": [

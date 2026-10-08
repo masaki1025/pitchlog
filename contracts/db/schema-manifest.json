@@ -5,7 +5,7 @@
   "canonical_source": {
     "path": "docs/design/data-model.md",
     "digest_kind": "ファイル内容のSHA-256",
-    "sha256": "9cf859f6350077c7235ff305b13c010220126f6108ae3965fe3f7df74e9bc9d1",
+    "sha256": "afe231b8e8e74025c1cbed3c7be4f84058b4e31531f0bcb68fdba4b70f0b30ed",
     "reproduction": "リポジトリルートで sha256sum docs/design/data-model.md を実行する"
   },
   "provenance_methods": {
@@ -91,15 +91,16 @@
         {"name": "roster_status_key", "type": "text", "nullable": false, "default": null},
         {"name": "roster_label_key", "type": "text", "nullable": true, "default": null},
         {"name": "hidden_at", "type": "timestamptz", "nullable": true, "default": null},
-        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null}
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "roster_status_category", "type": "text", "nullable": false, "default": "'roster_status'"}
       ],
       "lifecycle": {"deletion": "非表示", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [
         {"name": "fk_players_team", "columns": ["tenant_id", "team_record_id"], "references": {"table": "team_records", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
-        {"name": "fk_players_roster_status", "columns": ["roster_status_key"], "references": {"table": "system_vocabularies", "columns": ["key"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false},
+        {"name": "fk_players_roster_status", "columns": ["roster_status_key", "roster_status_category"], "references": {"table": "system_vocabularies", "columns": ["key", "category"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
         {"name": "fk_players_roster_label", "columns": ["tenant_id", "roster_label_key"], "references": {"table": "tenant_vocabularies", "columns": ["tenant_id", "key"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
       ],
-      "checks": [],
+      "checks": ["roster_status_category = 'roster_status'"],
       "unique_constraints": [{"name": "pk_players", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_players_team", "columns": ["tenant_id", "team_record_id", "id"], "predicate": "hidden_at IS NULL", "purpose": "lookup"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "enrollment_year", "school_year"],
@@ -129,16 +130,17 @@
         {"name": "rule_override", "type": "jsonb", "nullable": true, "default": null},
         {"name": "trashed_at", "type": "timestamptz", "nullable": true, "default": null},
         {"name": "hidden_at", "type": "timestamptz", "nullable": true, "default": null},
-        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null}
+        {"name": "import_batch_id", "type": "uuid", "nullable": true, "default": null},
+        {"name": "game_type_category", "type": "text", "nullable": false, "default": "'game_type'"}
       ],
       "lifecycle": {"deletion": "ゴミ箱", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [
         {"name": "fk_games_away_team", "columns": ["tenant_id", "away_team_record_id"], "references": {"table": "team_records", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
         {"name": "fk_games_home_team", "columns": ["tenant_id", "home_team_record_id"], "references": {"table": "team_records", "columns": ["tenant_id", "id"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
-        {"name": "fk_games_game_type", "columns": ["game_type_key"], "references": {"table": "system_vocabularies", "columns": ["key"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false},
+        {"name": "fk_games_game_type", "columns": ["game_type_key", "game_type_category"], "references": {"table": "system_vocabularies", "columns": ["key", "category"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
         {"name": "fk_games_tournament", "columns": ["tenant_id", "tournament_key"], "references": {"table": "tenant_vocabularies", "columns": ["tenant_id", "key"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false}
       ],
-      "checks": ["status IN ('preparing', 'in_progress', 'finished', 'trashed', 'hidden')"],
+      "checks": ["status IN ('preparing', 'in_progress', 'finished', 'trashed', 'hidden')", "game_type_category = 'game_type'"],
       "unique_constraints": [{"name": "pk_games", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_games_list", "columns": ["tenant_id", "scheduled_at DESC", "id DESC"], "predicate": "trashed_at IS NULL AND hidden_at IS NULL", "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
@@ -254,14 +256,15 @@
       "provenance": {"table": "手動転記", "columns": "カタログ照合", "lifecycle": "手動転記", "foreign_keys": "カタログ照合", "checks": "カタログ照合", "unique_constraints": "カタログ照合", "indexes": "カタログ照合", "forbidden_columns": "カタログ照合", "immutability": "手動転記"},
       "columns": [
         {"name": "game_type_key", "type": "text", "nullable": false, "default": null},
-        {"name": "rule_set_id", "type": "uuid", "nullable": false, "default": null}
+        {"name": "rule_set_id", "type": "uuid", "nullable": false, "default": null},
+        {"name": "game_type_category", "type": "text", "nullable": false, "default": "'game_type'"}
       ],
       "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [
-        {"name": "fk_game_type_rule_defaults_type", "columns": ["game_type_key"], "references": {"table": "system_vocabularies", "columns": ["key"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false},
+        {"name": "fk_game_type_rule_defaults_type", "columns": ["game_type_key", "game_type_category"], "references": {"table": "system_vocabularies", "columns": ["key", "category"]}, "match": "FULL", "on_delete": "NO ACTION", "composite": true, "cross_tenant": false},
         {"name": "fk_game_type_rule_defaults_rule", "columns": ["rule_set_id"], "references": {"table": "rule_sets", "columns": ["id"]}, "match": "SIMPLE", "on_delete": "NO ACTION", "composite": false, "cross_tenant": false}
       ],
-      "checks": [],
+      "checks": ["game_type_category = 'game_type'"],
       "unique_constraints": [{"name": "pk_game_type_rule_defaults", "kind": "PRIMARY KEY", "columns": ["game_type_key"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
@@ -687,7 +690,10 @@
       "lifecycle": {"deletion": "無効化", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [],
       "checks": ["category IN ('game_type', 'roster_status')"],
-      "unique_constraints": [{"name": "pk_system_vocabularies", "kind": "PRIMARY KEY", "columns": ["key"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "10-3", "uniqueness": "語彙のうちシステム固定の層", "key_shape": "UNIQUE (キー名)", "scope": "outside"}}],
+      "unique_constraints": [
+        {"name": "pk_system_vocabularies", "kind": "PRIMARY KEY", "columns": ["key"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "10-3", "uniqueness": "語彙のうちシステム固定の層", "key_shape": "UNIQUE (キー名)", "scope": "outside"}},
+        {"name": "uq_system_vocabularies_key_category", "kind": "UNIQUE", "columns": ["key", "category"], "predicate": null, "roles": ["fk_target"], "verification": "カタログ照合"}
+      ],
       "indexes": [],
       "forbidden_columns": ["tenant_id", "v12", "created_by", "created_by_user_id", "inputter_id"],
       "immutability": {"protected_columns": ["key", "category", "display_name", "disabled"], "allowed_update_columns": [], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
