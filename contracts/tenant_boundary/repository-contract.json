@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 11,
+  "contract_revision": 12,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:11"
+        "contract_revision:12"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -71,7 +71,7 @@
   },
   "asset_kind": "tenant_repository_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "c996f947bc72b386745a4678e621ecfd36bce103f0ca1acba2336b2b4c658f5f",
+  "source_digest": "7d29e7144e70ee89d69af0efdd0b6ed5a90adb51d2ce3fe8702657b1243de0fd",
   "public_surface": {
     "repository_type": "pitchlog.repositories.base.TenantRepositoryBase",
     "context_binding_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
