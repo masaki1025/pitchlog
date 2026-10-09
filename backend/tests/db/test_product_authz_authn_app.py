@@ -37,6 +37,12 @@ _SETTINGS = {
     "auth.team_login.throttle_step_ms": 25,
     "auth.team_login.throttle_max_ms": 200,
 }
+_TEAM_LOGIN_SETTING_KEYS = (
+    "auth.team_login.window_seconds",
+    "auth.team_login.throttle_threshold",
+    "auth.team_login.throttle_step_ms",
+    "auth.team_login.throttle_max_ms",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -428,6 +434,56 @@ def test_token_ttl_upper_bound_is_accepted_and_next_integer_fails_closed(
             before = _token(catalog, token)
             assert _verify(identity, token) is None
             assert _token(catalog, token) == before
+        _setting(catalog, key, good)
+
+
+def test_team_login_settings_missing_or_invalid_reject_valid_credentials(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """新 4 キーの欠落・不正値で正しい資格情報の発行を拒否する。"""
+    catalog = provisioned_product_catalog
+    _seed_settings(catalog)
+    identity = _seed_identity(catalog, _app_dsn(catalog))
+    assert isinstance(_login(identity), UUID)
+    for key in _TEAM_LOGIN_SETTING_KEYS:
+        good = _SETTINGS[key]
+        for bad in (None, "invalid", 0, -1, 1.5):
+            if bad is None:
+                with catalog.applicator.cursor() as cursor:
+                    cursor.execute(
+                        "DELETE FROM public.system_settings WHERE key = %s", (key,)
+                    )
+                catalog.applicator.commit()
+            else:
+                _setting(catalog, key, bad)
+            assert _login(identity) is None
+            _setting(catalog, key, good)
+        assert isinstance(_login(identity), UUID)
+
+
+def test_team_login_settings_upper_bound_and_next_integer(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """新 4 キーの共通上限は受理し、上限超えでは発行しない。"""
+    catalog = provisioned_product_catalog
+    _seed_settings(catalog)
+    identity = _seed_identity(catalog, _app_dsn(catalog))
+    upper = 2_147_483_647
+    for key in _TEAM_LOGIN_SETTING_KEYS:
+        good = _SETTINGS[key]
+        _setting(catalog, key, upper)
+        with catalog.observer.cursor() as cursor:
+            cursor.execute("SELECT authn.setting_positive_integer(%s)", (key,))
+            assert cursor.fetchone() == (upper,)
+        catalog.observer.rollback()
+        assert isinstance(_login(identity), UUID)
+
+        _setting(catalog, key, upper + 1)
+        with catalog.observer.cursor() as cursor:
+            cursor.execute("SELECT authn.setting_positive_integer(%s)", (key,))
+            assert cursor.fetchone() == (None,)
+        catalog.observer.rollback()
+        assert _login(identity) is None
         _setting(catalog, key, good)
 
 
