@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "policyId": "state-transition-coverage-row-binding",
+  "rowBoundAxes": [
+    {
+      "axisId": "event.perPitch.interferenceRuling",
+      "sourceClauseIds": [
+        "req:FR-004",
+        "req:INT-01",
+        "req:INT-02",
+        "req:INT-03",
+        "req:INT-04",
+        "req:INT-05",
+        "req:INT-06",
+        "req:INT-07"
+      ],
+      "unboundValues": ["not-required"],
+      "reason": "INT-01〜INT-07の具体的な妨害裁定は採用結果と対象に結び付くため、該当する結果行の前提述語で制約する。not-requiredは妨害裁定を要しない行にも適用できる。"
+    },
+    {
+      "axisId": "event.perPitch.runnerEventPayload",
+      "sourceClauseIds": ["req:FR-004"],
+      "unboundValues": [],
+      "valueRowBindings": [
+        {
+          "value": "single-runner-safe-advance",
+          "resultIds": ["strategy-category.steal", "strategy-category.hit-and-run"]
+        },
+        {
+          "value": "single-runner-hold",
+          "resultIds": [
+            "strategy-category.bunt",
+            "pitcher-pickoff-destination.first",
+            "pitcher-pickoff-destination.second",
+            "pitcher-pickoff-destination.third",
+            "catcher-pickoff-destination.first",
+            "catcher-pickoff-destination.second",
+            "catcher-pickoff-destination.third"
+          ]
+        }
+      ],
+      "reason": "FR-004の走者別結果を、規範行の既定進塁と一致する走者イベントにだけ束縛する。盗塁・エンドランはADV-03による一塁から二塁への進塁、バント・牽制はADV-04による対象走者の停止を既定とする。"
+    },
+    {
+      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
+      "sourceClauseIds": ["req:FR-003"],
+      "unboundValues": [],
+      "bindingMode": "precondition-equality",
+      "reason": "FR-003の手動進塁上書きは走者別の実結果であり、前提でその値を固定しない行へ任意に接ぎ木しない。"
+    },
+    {
+      "axisId": "event.perPitch.thirdOutTimingByRunner",
+      "sourceClauseIds": ["req:FR-003", "req:OUT3-01", "req:OUT3-02", "req:OUT3-03", "req:OUT3-04", "req:OUT3-05"],
+      "unboundValues": [],
+      "bindingMode": "precondition-equality",
+      "reason": "FR-003とOUT3-01〜05の走者別時機判断は第3アウトと生還候補に結び付くため、前提で固定した行だけで被覆する。"
+    },
+    {
+      "axisId": "event.perPitch.officialScoringPayload",
+      "sourceClauseIds": ["req:FR-004"],
+      "unboundValues": [],
+      "bindingMode": "precondition-equality",
+      "reason": "FR-004の公式失策記録は結果IDから推定できず、前提で失策件数を固定しない行へ任意に接ぎ木しない。"
+    },
+    {
+      "axisId": "event.perPitch.rbi.doublePlayRelayError",
+      "sourceClauseIds": ["req:FR-003", "req:RBI-02"],
+      "unboundValues": [],
+      "bindingMode": "precondition-equality",
+      "reason": "FR-003とRBI-02の併殺完成送球時の失策判断は、前提で固定した行だけで被覆する。"
+    },
+    {
+      "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+      "sourceClauseIds": ["req:FR-003", "req:RBI-03", "req:RBI-04"],
+      "unboundValues": [],
+      "bindingMode": "precondition-equality",
+      "reason": "FR-003とRBI-03・04の走者別継続判断は、前提で固定した行だけで被覆する。"
+    },
+    {
+      "axisId": "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+      "sourceClauseIds": ["req:FR-003", "req:RBI-05"],
+      "unboundValues": [],
+      "bindingMode": "precondition-equality",
+      "reason": "FR-003とRBI-05の走者別因果判断は、前提で固定した行だけで被覆する。"
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/state-transition/manual_fixture_branch_coverage_schema_v1.json",
+  "title": "手作業fixtureと分岐台帳の双方向被覆宣言 v1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "version",
+    "branchRegisterPath",
+    "fixtureDiscoveryPattern",
+    "fixtureSources",
+    "reasonTypes",
+    "missingFixtureBranches"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "version": {"const": "manual_fixture_branch_coverage_v1"},
+    "branchRegisterPath": {"type": "string", "minLength": 1},
+    "fixtureDiscoveryPattern": {"type": "string", "minLength": 1},
+    "fixtureSources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/fixtureSource"}
+    },
+    "reasonTypes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/reasonType"}
+    },
+    "missingFixtureBranches": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/missingBranch"}
+    }
+  },
+  "$defs": {
+    "fixtureSource": {
+      "type": "object",
+      "required": ["fixturePath", "schemaPath"],
+      "additionalProperties": false,
+      "properties": {
+        "fixturePath": {"type": "string", "minLength": 1},
+        "schemaPath": {"type": "string", "minLength": 1}
+      }
+    },
+    "reasonType": {
+      "type": "object",
+      "required": ["id", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1}
+      }
+    },
+    "missingBranch": {
+      "type": "object",
+      "required": ["branchId", "reasonType", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "branchId": {"type": "string", "minLength": 1},
+        "reasonType": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

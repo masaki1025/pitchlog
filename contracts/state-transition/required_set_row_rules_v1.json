@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "version": "required_set_row_rules_v1",
+  "sourceClausePath": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+  "vocabulary": {
+    "manifestPath": "contracts/vocabulary/vocabulary_manifest_v1.json",
+    "vocabularyId": "input_vocabulary",
+    "seedPath": "contracts/vocabulary/input_vocabulary_v1.json"
+  },
+  "axisAssignments": [
+    {
+      "axisId": "batting-result",
+      "role": "result-id-source",
+      "eventKind": "batting-result",
+      "reason": "E-1が打撃結果を毎球入力の規範行層に置き、resultIdで語彙シードを参照するため",
+      "sourceClauseIds": ["req:E-1", "req:FR-003"]
+    },
+    {
+      "axisId": "secondary-result",
+      "role": "result-id-source",
+      "eventKind": "secondary-result",
+      "reason": "E-1が打撃結果2を毎球入力の規範行層に置き、resultIdで語彙シードを参照するため",
+      "sourceClauseIds": ["req:E-1", "req:FR-004"]
+    },
+    {
+      "axisId": "pitch-type",
+      "role": "not-result-id-source",
+      "reason": "球種は投球入力の属性であり、4.0-3はチーム拡張語彙に値ごとの状態遷移規範を持たせないため",
+      "sourceClauseIds": ["req:4.0-3", "req:D-4"]
+    },
+    {
+      "axisId": "strategy-category",
+      "role": "result-id-source",
+      "eventKind": "runner-event",
+      "reason": "FR-004が作戦を走者・特殊プレイとして記録対象にし、A-4が作戦3系統の成否を定めるため",
+      "sourceClauseIds": ["req:FR-004", "req:A-4", "req:E-1"]
+    },
+    {
+      "axisId": "strategy-detail",
+      "role": "not-result-id-source",
+      "reason": "作戦の詳細値はstrategy-categoryで識別した走者イベントの内訳であり、A-4の作戦種別そのものではないため",
+      "sourceClauseIds": ["req:A-4", "req:D-4"]
+    },
+    {
+      "axisId": "strategy-result",
+      "role": "not-result-id-source",
+      "reason": "作戦の成功・失敗はA-4から判定する結果側の値であり、走者イベントの種別ではないため",
+      "sourceClauseIds": ["req:A-4", "req:D-4"]
+    },
+    {
+      "axisId": "error-type",
+      "role": "not-result-id-source",
+      "reason": "失策の種類はFR-004の公式記録payloadに属し、E-1のイベント種別を識別するresultIdではないため",
+      "sourceClauseIds": ["req:FR-004", "req:D-4"]
+    },
+    {
+      "axisId": "pitcher-pickoff-destination",
+      "role": "result-id-source",
+      "eventKind": "runner-event",
+      "reason": "FR-004が投手牽制を走者イベントとして規範行の対象にし、語彙軸が投手牽制の対象塁を識別するため",
+      "sourceClauseIds": ["req:FR-004", "req:E-1", "req:D-4"]
+    },
+    {
+      "axisId": "catcher-pickoff-destination",
+      "role": "result-id-source",
+      "eventKind": "runner-event",
+      "reason": "FR-004が捕手牽制を走者イベントとして規範行の対象にし、語彙軸が捕手牽制の対象塁を識別するため",
+      "sourceClauseIds": ["req:FR-004", "req:E-1", "req:D-4"]
+    },
+    {
+      "axisId": "pickoff-result",
+      "role": "not-result-id-source",
+      "reason": "セーフ・アウト・失策はFR-004が走者キー付きpayloadへ保持させる牽制結果であり、投手・捕手と対象塁を識別するイベント種別ではないため",
+      "sourceClauseIds": ["req:FR-004", "req:D-4"]
+    },
+    {
+      "axisId": "batted-ball-type",
+      "role": "not-result-id-source",
+      "reason": "打球タイプは4.0-3が打球情報として分離した入力属性であり、付録Eの打撃結果resultIdではないため",
+      "sourceClauseIds": ["req:4.0-3", "req:FR-004", "req:D-4"]
+    },
+    {
+      "axisId": "batted-ball-strength",
+      "role": "not-result-id-source",
+      "reason": "打球強度は4.0-3が打球情報として分離した入力属性であり、付録Eの打撃結果resultIdではないため",
+      "sourceClauseIds": ["req:4.0-3", "req:FR-004", "req:D-4"]
+    },
+    {
+      "axisId": "batter-status",
+      "role": "not-result-id-source",
+      "reason": "打者状況はE-1のbatterDestinationとoutEffectが表す状態効果側の値であり、入力イベントのresultIdではないため",
+      "sourceClauseIds": ["req:E-1", "req:D-4"]
+    },
+    {
+      "axisId": "first-runner-status",
+      "role": "not-result-id-source",
+      "reason": "一塁走者状況はE-1のrunnerDefaultAdvanceとoutEffectが表す状態効果側の値であり、入力イベントのresultIdではないため",
+      "sourceClauseIds": ["req:E-1", "req:D-4"]
+    },
+    {
+      "axisId": "second-runner-status",
+      "role": "not-result-id-source",
+      "reason": "二塁走者状況はE-1のrunnerDefaultAdvanceとoutEffectが表す状態効果側の値であり、入力イベントのresultIdではないため",
+      "sourceClauseIds": ["req:E-1", "req:D-4"]
+    },
+    {
+      "axisId": "third-runner-status",
+      "role": "not-result-id-source",
+      "reason": "三塁走者状況はE-1のrunnerDefaultAdvanceとoutEffectが表す状態効果側の値であり、入力イベントのresultIdではないため",
+      "sourceClauseIds": ["req:E-1", "req:D-4"]
+    }
+  ],
+  "partitionRules": [
+    {
+      "partitionRuleId": "identity",
+      "vocabularyIds": [
+        "batting-result.called-pitch",
+        "batting-result.swinging-strike",
+        "batting-result.foul",
+        "batting-result.ball",
+        "batting-result.single",
+        "batting-result.double",
+        "batting-result.triple",
+        "batting-result.home-run",
+        "batting-result.batted-out",
+        "batting-result.double-play",
+        "batting-result.line-double-play",
+        "batting-result.batted-reach",
+        "batting-result.foul-fly",
+        "batting-result.error",
+        "batting-result.fielders-choice",
+        "batting-result.sacrifice-bunt",
+        "batting-result.sacrifice-fly",
+        "batting-result.sacrifice-bunt-error",
+        "batting-result.called-strikeout",
+        "batting-result.swinging-strikeout",
+        "batting-result.k3",
+        "batting-result.strikeout-double-play",
+        "batting-result.walk",
+        "batting-result.hit-by-pitch",
+        "batting-result.intentional-walk",
+        "secondary-result.passed-ball",
+        "secondary-result.wild-pitch",
+        "secondary-result.balk",
+        "secondary-result.pitch-clock-violation",
+        "strategy-category.steal",
+        "strategy-category.bunt",
+        "strategy-category.hit-and-run",
+        "pitcher-pickoff-destination.first",
+        "pitcher-pickoff-destination.second",
+        "pitcher-pickoff-destination.third",
+        "catcher-pickoff-destination.first",
+        "catcher-pickoff-destination.second",
+        "catcher-pickoff-destination.third"
+      ],
+      "partitions": ["identity"],
+      "sourceClauseIds": ["req:E-1"]
+    },
+    {
+      "partitionRuleId": "dropped-third-strike-outcome",
+      "vocabularyIds": ["batting-result.dropped-third-strike"],
+      "partitions": ["safe", "out"],
+      "sourceClauseIds": ["req:E-2", "req:SO-03"]
+    },
+    {
+      "partitionRuleId": "batting-interference-ruling",
+      "vocabularyIds": ["secondary-result.batting-interference"],
+      "partitions": [
+        "automatic-play-result",
+        "penalty-award",
+        "selected-play-result"
+      ],
+      "sourceClauseIds": [
+        "req:FR-004",
+        "req:E-1",
+        "req:INT-01",
+        "req:INT-02",
+        "req:INT-03"
+      ]
+    },
+    {
+      "partitionRuleId": "obstruction-ruling",
+      "vocabularyIds": ["secondary-result.obstruction"],
+      "partitions": [
+        "play-on-obstructed-runner",
+        "no-play-on-obstructed-runner"
+      ],
+      "sourceClauseIds": [
+        "req:FR-004",
+        "req:E-1",
+        "req:INT-04",
+        "req:INT-05"
+      ]
+    },
+    {
+      "partitionRuleId": "offensive-interference-ruling",
+      "vocabularyIds": ["secondary-result.offensive-interference"],
+      "partitions": ["batter-target-included", "runner-targets-only"],
+      "sourceClauseIds": [
+        "req:FR-004",
+        "req:E-1",
+        "req:INT-06",
+        "req:INT-07"
+      ]
+    }
+  ]
+}

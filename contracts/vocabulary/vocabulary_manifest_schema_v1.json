@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/vocabulary/vocabulary_manifest_schema_v1.json",
+  "title": "Pitchlog vocabulary manifest schema v1",
+  "version": "vocabulary_manifest_schema_v1",
+  "x-pitchlog-uniqueBy": [
+    "vocabularyId",
+    "path"
+  ],
+  "x-pitchlog-seed-location": {
+    "root": "contracts/vocabulary",
+    "pathField": "path",
+    "vocabularyIdField": "vocabularyId",
+    "versionField": "version",
+    "schemaVersionField": "schemaVersion"
+  },
+  "x-pitchlog-content-hash": {
+    "field": "contentHash",
+    "algorithm": "SHA-256",
+    "canonicalization": "RFC8785",
+    "encoding": "UTF-8",
+    "source": "entire-seed-document"
+  },
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "version",
+    "seeds"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "version": {
+      "const": "vocabulary_manifest_v1"
+    },
+    "seeds": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/seedDeclaration"
+      }
+    }
+  },
+  "$defs": {
+    "seedDeclaration": {
+      "type": "object",
+      "required": [
+        "vocabularyId",
+        "path",
+        "version",
+        "schemaVersion",
+        "contentHash"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "vocabularyId": {
+          "type": "string",
+          "pattern": "^[a-z]+(?:_[a-z]+)*$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^contracts/vocabulary/[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*\\.json$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*$"
+        },
+        "schemaVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

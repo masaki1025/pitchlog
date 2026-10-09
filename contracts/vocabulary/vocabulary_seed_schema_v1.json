@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/vocabulary/vocabulary_seed_schema_v1.json",
+  "title": "Pitchlog vocabulary seed schema v1",
+  "version": "vocabulary_seed_schema_v1",
+  "x-pitchlog-global-entry-id-uniqueness": {
+    "axesCollection": "axes",
+    "entriesCollection": "entries",
+    "idField": "id",
+    "displayNameField": "initialDisplayName",
+    "maximumOccurrences": 1
+  },
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "version",
+    "vocabularyId",
+    "source",
+    "axes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*$"
+    },
+    "vocabularyId": {
+      "type": "string",
+      "pattern": "^[a-z]+(?:_[a-z]+)*$"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "axes": {
+      "type": "array",
+      "minItems": 1,
+      "x-pitchlog-uniqueBy": "axisId",
+      "items": {
+        "$ref": "#/$defs/axis"
+      }
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": [
+        "repository",
+        "tag",
+        "path",
+        "blobSha",
+        "evidencePaths"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "blobSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$"
+        },
+        "evidencePaths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "axis": {
+      "type": "object",
+      "required": [
+        "axisId",
+        "sourceRef",
+        "entries"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "axisId": {
+          "type": "string",
+          "pattern": "^[a-z]+(?:[.-][a-z0-9]+)*$"
+        },
+        "sourceRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "x-pitchlog-uniqueBy": "id",
+          "items": {
+            "$ref": "#/$defs/entry"
+          }
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "required": [
+        "id",
+        "initialDisplayName",
+        "classification"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$"
+        },
+        "initialDisplayName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "classification": {
+          "type": "string",
+          "pattern": "^[a-z]+(?:-[a-z0-9]+)*$"
+        },
+        "shortCode": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

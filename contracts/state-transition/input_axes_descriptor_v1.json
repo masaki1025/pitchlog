@@ -1,0 +1,3296 @@
+{
+  "descriptorId": "pitchlog.input-axes",
+  "version": "input_axes_descriptor_v1",
+  "digest": "sha256:ca421500e9eabf1ad6891884178d309c1d3dfae4f6c03628a4d6c7fe996b84da",
+  "digestSpec": {
+    "excludedJsonPointers": [
+      "/digest"
+    ],
+    "canonicalization": "RFC8785",
+    "encoding": "UTF-8",
+    "hashAlgorithm": "SHA-256",
+    "stage1ExternalReferences": "forbidden",
+    "stage2DigestRule": "json-pointer-plus-content-hash-transitive"
+  },
+  "stage2ExternalConstraints": {
+    "status": "deferred",
+    "sourceClauseId": "adr:D-11",
+    "payloadAxisIds": [
+      "event.operationPayload",
+      "event.perPitch.runnerEventPayload",
+      "event.perPitch.runnerAdvanceOverridesByRunner",
+      "event.perPitch.interferenceRuling",
+      "event.perPitch.officialScoringPayload",
+      "event.perPitch.rbi.runnerContinuityByRunner",
+      "event.perPitch.rbi.wouldScoreWithoutErrorByRunner"
+    ],
+    "constraintClasses": [
+      "field-uniqueness",
+      "reference-integrity",
+      "mutual-exclusion",
+      "state-transition-axis-combinations",
+      "payload-string-policy-reconciliation",
+      "stat-flag-derivation-rules",
+      "third-out-type-observation-input",
+      "official-scorer-judgment-inputs"
+    ],
+    "axisCombinationScope": "all-state-transition-axes",
+    "resolutionStage": "stage2-vector-and-checker-implementation",
+    "requiredArtifacts": [
+      "closed-payload-schemas",
+      "state-transition-axis-combination-rules",
+      "payload-string-policy-reconciliation-rule",
+      "stat-flag-derivation-table",
+      "third-out-type-input-contract",
+      "official-scorer-judgment-input-contract",
+      "negative-fixtures"
+    ],
+    "reason": "ADR-003 D-11の既存委任条項と2026-09-26の2回目のPO射程縮小を適用し、payload内部制約・状態遷移軸の組合せ規則・文字列規定の整合に加え、XC-13の23フラグ導出表、第3アウト種別の観測入力、および記録員判断の入力契約は、ベクタと検査基盤を実機で整備する段階2で確定する"
+  },
+  "inputCoordinateCoverage": {
+    "sourceDecisionId": "adr:D-6",
+    "requirementGranularity": "per-axis-value",
+    "coverageValueFieldsByClassification": {
+      "finite-enumerable": "values",
+      "boundary-partition": "boundaryValues"
+    },
+    "axisCombinationBoundary": {
+      "status": "deferred",
+      "constraintClass": "state-transition-axis-combinations",
+      "scope": "all-state-transition-axes",
+      "requiredArtifact": "state-transition-axis-combination-rules",
+      "mechanicallyGuaranteed": "per-axis-value-coverage-only",
+      "notMechanicallyGuaranteed": "cross-axis-combination-coverage"
+    },
+    "conditionalValuePolicy": {
+      "sourceField": "conditionalValues",
+      "clauseIdField": "whenClauseId",
+      "stateField": "whenState",
+      "includedWhen": "declared-adoption-state-matches",
+      "excludedWhen": "declared-adoption-state-does-not-match",
+      "undecidableAction": "fail"
+    },
+    "axisBindings": [
+      {
+        "axisIds": [
+          "state.half",
+          "state.count.strikes",
+          "state.count.balls",
+          "state.outs",
+          "state.runners",
+          "state.battingOrder",
+          "state.tiebreakActive",
+          "state.gameEnded",
+          "state.inning",
+          "state.score"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows",
+              "operationRows",
+              "undoRows"
+            ],
+            "naturalKeyRole": "predicate-axis",
+            "naturalKeyValueProjection": "identity",
+            "naturalKeyField": "precondition",
+            "coverageSelector": {
+              "kind": "all-axis-values"
+            }
+          }
+        ]
+      },
+      {
+        "axisIds": [
+          "event.operationKind"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows"
+            ],
+            "naturalKeyRole": "row-layer-implied-value",
+            "naturalKeyValueProjection": "row-layer-implied-constant",
+            "coverageSelector": {
+              "kind": "explicit-values",
+              "values": [
+                "per-pitch"
+              ]
+            }
+          },
+          {
+            "rowLayers": [
+              "operationRows"
+            ],
+            "naturalKeyRole": "direct-field",
+            "naturalKeyValueProjection": "identity",
+            "naturalKeyField": "operationKind",
+            "coverageSelector": {
+              "kind": "explicit-values",
+              "values": [
+                "substitution",
+                "tiebreak-start",
+                "game-end-declaration",
+                "adhoc-registration",
+                "state-correction"
+              ]
+            }
+          },
+          {
+            "rowLayers": [
+              "undoRows"
+            ],
+            "naturalKeyRole": "row-layer-implied-value",
+            "naturalKeyValueProjection": "row-layer-implied-constant",
+            "coverageSelector": {
+              "kind": "explicit-values",
+              "values": [
+                "undo"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "axisIds": [
+          "event.operationPayload"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows",
+              "undoRows"
+            ],
+            "naturalKeyRole": "row-layer-implied-value",
+            "naturalKeyValueProjection": "row-layer-implied-constant",
+            "coverageSelector": {
+              "kind": "explicit-values",
+              "values": [
+                "not-applicable"
+              ]
+            }
+          },
+          {
+            "rowLayers": [
+              "operationRows"
+            ],
+            "naturalKeyRole": "direct-field",
+            "naturalKeyValueProjection": "identity",
+            "naturalKeyField": "payloadShape",
+            "coverageSelector": {
+              "kind": "explicit-values",
+              "values": [
+                "substitution",
+                "tiebreak-start",
+                "game-end-declaration",
+                "adhoc-registration",
+                "state-correction"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "axisIds": [
+          "event.perPitch.kind"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows"
+            ],
+            "naturalKeyRole": "direct-field",
+            "naturalKeyValueProjection": "identity",
+            "naturalKeyField": "eventKind",
+            "coverageSelector": {
+              "kind": "all-axis-values"
+            }
+          }
+        ]
+      },
+      {
+        "axisIds": [
+          "event.perPitch.resultId"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows"
+            ],
+            "naturalKeyRole": "direct-field",
+            "naturalKeyValueProjection": "vocabulary-id-to-initial-display-name",
+            "naturalKeyField": "resultId",
+            "coverageSelector": {
+              "kind": "all-axis-values"
+            }
+          }
+        ]
+      },
+      {
+        "axisIds": [
+          "event.perPitch.pitchEventKind",
+          "event.perPitch.runnerEventPayload",
+          "event.perPitch.runnerAdvanceOverridesByRunner",
+          "event.perPitch.thirdOutTimingByRunner",
+          "event.perPitch.interferenceRuling",
+          "event.perPitch.officialScoringPayload",
+          "event.perPitch.rbi.doublePlayRelayError",
+          "event.perPitch.rbi.runnerContinuityByRunner",
+          "event.perPitch.rbi.wouldScoreWithoutErrorByRunner"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows"
+            ],
+            "naturalKeyRole": "predicate-axis",
+            "naturalKeyValueProjection": "identity",
+            "naturalKeyField": "precondition",
+            "coverageSelector": {
+              "kind": "all-axis-values"
+            }
+          }
+        ]
+      },
+      {
+        "axisIds": [
+          "history.depth",
+          "history.composition",
+          "history.scenarioLength"
+        ],
+        "rowBindings": [
+          {
+            "rowLayers": [
+              "matrixRows",
+              "operationRows",
+              "undoRows"
+            ],
+            "naturalKeyRole": "predicate-axis",
+            "naturalKeyValueProjection": "identity",
+            "naturalKeyField": "precondition",
+            "coverageSelector": {
+              "kind": "all-axis-values"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "freezeBaseline": {
+    "schemaVersion": 1,
+    "series": "state-transition-contract-checks",
+    "acceptance": {
+      "unit": "pull_request",
+      "acceptanceIdSource": "github-pull-request-event.repository.full_name-plus-pull_request.number",
+      "comparisonSource": "github-pull-request-event.pull_request.base.sha",
+      "missingComparisonSourceAction": "fail-in-acceptance-mode-and-explicit-not-checked-in-invariants-only",
+      "posteriorState": "pull-request-head"
+    },
+    "identitySpec": {
+      "granularity": "checker-criteria-object",
+      "algorithm": "SHA-256",
+      "canonicalization": "json-sort-keys-no-whitespace-v1",
+      "encoding": "UTF-8"
+    },
+    "scope": {
+      "identityCriterionId": "freezeDefinition",
+      "criterionOrder": [
+        "threeWayParity",
+        "inputAxesDescriptor",
+        "gapRegister"
+      ],
+      "criterionBindings": {
+        "threeWayParity": {
+          "kind": "checker-criteria",
+          "sourcePath": "scripts/check_input_axes_three_way_parity.py"
+        },
+        "inputAxesDescriptor": {
+          "kind": "checker-criteria",
+          "sourcePath": "scripts/check_input_axes_descriptor.py"
+        },
+        "gapRegister": {
+          "kind": "checker-criteria",
+          "sourcePath": "scripts/check_gap_register.py"
+        }
+      },
+      "assuranceBoundary": {
+        "mechanicallyGuaranteed": {
+          "subjectJsonPointers": [
+            "/freezeBaseline/scope",
+            "/freezeBaseline/criteria"
+          ],
+          "identitySource": "/freezeBaseline/identitySpec",
+          "changeWithoutAcceptanceRecord": "fail",
+          "comparisonSource": "github-pull-request-event.pull_request.base.sha",
+          "missingComparisonSourceAction": "fail-in-acceptance-mode",
+          "localInvariantModeResult": "acceptance-transition-not-checked-explicit"
+        },
+        "notMechanicallyGuaranteed": {
+          "propertyId": "absence-of-undeclared-implementation-baselines",
+          "reason": "arbitrary-program-semantic-analysis-is-undecidable",
+          "normativeStatus": "prohibited-by-dev-harness-7.7-1",
+          "reviewControl": "pull-request-review"
+        }
+      },
+      "selectionRule": {
+        "includedComparison": {
+          "leftOperandOrigin": "descriptor-json-value",
+          "operatorKinds": [
+            "equality",
+            "inequality",
+            "membership",
+            "subset"
+          ],
+          "rightOperandOrigin": "checker-source-literal-or-module-constant"
+        },
+        "requiredRepresentation": "bound-criterion-value-loaded-at-runtime",
+        "excludedOperandRoles": [
+          "json-object-member-name-used-only-for-navigation",
+          "json-schema-vocabulary-used-by-generic-validator",
+          "identifier-or-format-grammar",
+          "repository-path-or-filename-grammar",
+          "runtime-type-or-control-sentinel",
+          "relation-derived-only-from-current-asset-values",
+          "closed-object-grammar-key-set",
+          "diagnostic-text"
+        ],
+        "knownDirectComparisonDispositions": [
+          {
+            "findingId": "round10-require-exact-keys-48",
+            "sourcePath": "scripts/state_transition_freeze.py",
+            "construct": "_require_exact_keys.expected-key-set",
+            "observedValue": 48,
+            "disposition": "outside-frozen-criterion-values",
+            "selectionRuleRole": "closed-object-grammar-key-set",
+            "reason": "宣言JSONの閉じた文法を識別するobject member名であり、凍結するchecker判断値ではない"
+          }
+        ]
+      },
+      "sourceLiteralAudit": {
+        "assuranceLevel": "supplemental-non-exhaustive-regression-signal",
+        "coveredConstructs": [
+          "direct-string-literal-in-ast.Compare",
+          "module-assigned-string-literal-referenced-from-ast.Compare"
+        ],
+        "notCoveredConstructs": [
+          "numeric-literal",
+          "helper-argument-propagation",
+          "bytes-derived-value",
+          "operator-function-call",
+          "imported-constant",
+          "per-occurrence-semantic-role"
+        ],
+        "occurrenceRoleValidation": "not-performed-flat-literal-value-set-only",
+        "engineSourcePath": "scripts/state_transition_freeze.py",
+        "forbiddenImplementationSetNames": [
+          "CRITERIA_SECTIONS"
+        ],
+        "excludedComparisonFunctionsBySource": {
+          "scripts/state_transition_freeze.py": [],
+          "scripts/check_input_axes_descriptor.py": [],
+          "scripts/check_input_axes_three_way_parity.py": [],
+          "scripts/check_gap_register.py": []
+        },
+        "permittedComparisonLiteralsBySource": {
+          "scripts/state_transition_freeze.py": {
+            "json-object-member-name-used-only-for-navigation": [
+              "acceptance",
+              "acceptanceId",
+              "approvedBy",
+              "approvedDate",
+              "base",
+              "changes",
+              "criteria",
+              "criterionBindingKind",
+              "criterionBindings",
+              "criterionId",
+              "criterionOrder",
+              "engineExpectedValues",
+              "engineExpectedValues.criterionBindingKind",
+              "excludedComparisonFunctionsBySource",
+              "excludedOperandRoles",
+              "fact",
+              "findingId",
+              "freezeBaseline",
+              "history",
+              "identityCriterionId",
+              "identitySpec",
+              "kind",
+              "newIdentity",
+              "number",
+              "operatorKinds",
+              "permittedComparisonLiteralsBySource",
+              "present",
+              "priorIdentity",
+              "schemaVersion",
+              "scope",
+              "selectionRule",
+              "selectionRuleRole",
+              "series",
+              "sha",
+              "sourcePath",
+              "subjectJsonPointers",
+              "value",
+              "values"
+            ],
+            "identifier-or-format-grammar": [
+              " のレビュー待ち)",
+              "#",
+              "[0-9a-f]{40}",
+              "\\d{4}-\\d{2}-\\d{2}",
+              "^[^/#\\s]+/[^/#\\s]+#[1-9][0-9]*$",
+              "^{commit}",
+              "未承認(PR #"
+            ],
+            "runtime-type-or-control-sentinel": [
+              "",
+              "--verify",
+              ".acceptanceId",
+              ".criterionId",
+              ".findingId",
+              ".values[",
+              "/",
+              "/criteria",
+              "/scope",
+              "].criterionId",
+              "freezeBaseline.series",
+              "git",
+              "rev-parse",
+              "scope.identityCriterionId"
+            ]
+          },
+          "scripts/check_input_axes_descriptor.py": {
+            "json-object-member-name-used-only-for-navigation": [
+              "$defs",
+              "$ref",
+              "$schema",
+              "additionalProperties",
+              "axis",
+              "axisCombinationBoundary",
+              "axisCombinationScope",
+              "axisClassification",
+              "axisId",
+              "boundaryPartitionAxis",
+              "boundaryValues",
+              "classification",
+              "conditionalValues",
+              "const",
+              "constraintClass",
+              "constraintClasses",
+              "coverageBound",
+              "coverageBounds",
+              "deferredStructuredAxisDimensions",
+              "deferredStructuredAxisVariants",
+              "digest",
+              "digestSpec",
+              "dimension",
+              "dimensions",
+              "jsonSchemaDialect",
+              "fieldId",
+              "finiteEnumerableAxis",
+              "freezeBaseline",
+              "gameEndAxisClassification",
+              "gameEndAxisSupportingClauseId",
+              "gameEndCombinationRules",
+              "identityTargetIds",
+              "inputCoordinateAxisBinding",
+              "inputCoordinateCoverage",
+              "inputCoordinateCoverageIdentity",
+              "inputCoordinateCoverageSelector",
+              "inputCoordinateRowBinding",
+              "invalid",
+              "invalidBoundaryValues",
+              "jsonSchemaKeywords",
+              "kind",
+              "letter",
+              "maxItems",
+              "maximum",
+              "minItems",
+              "minLength",
+              "minimumCoverageObligationsPerAxis",
+              "minimum",
+              "nonCoverageField",
+              "nonCoverageSchemaRetention",
+              "nonFiniteAxis",
+              "oneOf",
+              "operationPayloadAxisId",
+              "parityChecks",
+              "pattern",
+              "payloadAxisIds",
+              "projectionMode",
+              "projectionRule",
+              "projectionRules",
+              "properties",
+              "representationCapability",
+              "required",
+              "requiredArtifact",
+              "requiredArtifacts",
+              "requiredJsonSchemaKeywords",
+              "requiredParityChecks",
+              "ruleFieldId",
+              "ruleId",
+              "safeIntegerLimit",
+              "schemaRetention",
+              "scope",
+              "sourceClauseId",
+              "sourceDecisionId",
+              "sourceKind",
+              "status",
+              "stage2ExternalConstraints",
+              "supportingClauseIds",
+              "targetIds",
+              "type",
+              "undecidableAction",
+              "uniqueItems",
+              "valid",
+              "value",
+              "valueSchema",
+              "values",
+              "variantTags",
+              "version",
+              "x-pitchlog-uniqueBy"
+            ],
+            "json-schema-vocabulary-used-by-generic-validator": [
+              "object"
+            ],
+            "identifier-or-format-grammar": [
+              "sha256:[0-9a-f]{64}"
+            ],
+            "repository-path-or-filename-grammar": [
+              "contracts/state-transition/input_axes_descriptor_schema_v1.json"
+            ],
+            "runtime-type-or-control-sentinel": [
+              ".",
+              ".deferredStructuredAxisVariants.",
+              "__main__",
+              "index=",
+              "入力軸descriptor",
+              "入力軸descriptor schema"
+            ]
+          },
+          "scripts/check_input_axes_three_way_parity.py": {
+            "json-object-member-name-used-only-for-navigation": [
+              "clause_id",
+              "collection",
+              "constraint_id",
+              "decisionId",
+              "decision_id",
+              "layer",
+              "sourceClauseId",
+              "supportingClauseIds",
+              "version"
+            ],
+            "identifier-or-format-grammar": [
+              "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*\\.json$",
+              "freeze-baseline-(?:field|series|scope|assurance):[A-Za-z][A-Za-z0-9.-]*",
+              "req:"
+            ],
+            "repository-path-or-filename-grammar": [
+              "contracts",
+              "state-transition"
+            ],
+            "runtime-type-or-control-sentinel": [
+              "GITHUB_EVENT_NAME",
+              "pull_request",
+              "__main__"
+            ]
+          },
+          "scripts/check_gap_register.py": {
+            "json-object-member-name-used-only-for-navigation": [
+              ".gapIds",
+              ".listStageFields",
+              ".stageFields",
+              ".states",
+              "gapId",
+              "gapIds",
+              "gaps",
+              "initialState",
+              "keyPaths",
+              "layer",
+              "listStageFields",
+              "ownershipPath",
+              "rowLayers",
+              "schemaVersion",
+              "sourceClauseIds",
+              "sourcePath",
+              "stageFields",
+              "state",
+              "states",
+              "terminalState",
+              "version"
+            ],
+            "repository-path-or-filename-grammar": [
+              "..",
+              "contracts",
+              "contracts/state-transition/gap_register_v1.json",
+              "state-transition"
+            ],
+            "runtime-type-or-control-sentinel": [
+              "]",
+              "__main__",
+              "gap register",
+              "gaps["
+            ],
+            "identifier-or-format-grammar": [
+              "(?![A-Za-z0-9-])",
+              "(?<![A-Za-z0-9-])",
+              ":",
+              "req:"
+            ]
+          }
+        }
+      },
+      "engineExpectedValues": {
+        "schemaVersion": 1,
+        "acceptance": {
+          "unit": "pull_request",
+          "acceptanceIdSource": "github-pull-request-event.repository.full_name-plus-pull_request.number",
+          "comparisonSource": "github-pull-request-event.pull_request.base.sha",
+          "missingComparisonSourceAction": "fail-in-acceptance-mode-and-explicit-not-checked-in-invariants-only",
+          "posteriorState": "pull-request-head"
+        },
+        "identitySpec": {
+          "granularity": "checker-criteria-object",
+          "algorithm": "SHA-256",
+          "canonicalization": "json-sort-keys-no-whitespace-v1",
+          "encoding": "UTF-8"
+        },
+        "criterionBindingKind": "checker-criteria"
+      }
+    },
+    "criteria": {
+      "threeWayParity": {
+        "requirementBranchIds": [
+          "ADV-01",
+          "ADV-02",
+          "ADV-03",
+          "ADV-04",
+          "COLD-01",
+          "COLD-02",
+          "COLD-03",
+          "COLD-04",
+          "COLD-05",
+          "COLD-06",
+          "COLD-07",
+          "COLD-08",
+          "COLD-09",
+          "DRAW-01",
+          "DRAW-02",
+          "DRAW-03",
+          "DRAW-04",
+          "DRAW-05",
+          "DRAW-06",
+          "DRAW-07",
+          "DRAW-08",
+          "DRAW-09",
+          "DRAW-10",
+          "INT-01",
+          "INT-02",
+          "INT-03",
+          "INT-04",
+          "INT-05",
+          "INT-06",
+          "INT-07",
+          "OUT3-01",
+          "OUT3-02",
+          "OUT3-03",
+          "OUT3-04",
+          "OUT3-05",
+          "RBI-01",
+          "RBI-02",
+          "RBI-03",
+          "RBI-04",
+          "RBI-05",
+          "RBI-06",
+          "RBI-07",
+          "RBI-08",
+          "RBI-09",
+          "SO-01",
+          "SO-02",
+          "SO-03",
+          "SO-04",
+          "SO-05",
+          "XC-01",
+          "XC-02",
+          "XC-03",
+          "XC-04",
+          "XC-05",
+          "XC-06",
+          "XC-07",
+          "XC-08",
+          "XC-10",
+          "XC-11",
+          "XC-12",
+          "XC-13",
+          "XMARK-01",
+          "XMARK-02",
+          "XMARK-03"
+        ],
+        "nonDefinitionBranchMentions": [
+          "XC-09"
+        ],
+        "principleMarkers": {
+          "XC-13": "principle:stat-flags-derived-not-arbitrary"
+        },
+        "adrD8ConstraintIds": [
+          "XC-09"
+        ],
+        "requirementConstraintOwners": {
+          "XC-09": {
+            "decisionId": "D-8",
+            "layer": "undoRows[]"
+          }
+        },
+        "requirementConstraintExclusions": {
+          "XC-09": "E-1"
+        },
+        "branchCoverageExclusions": {
+          "ADV-01": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+          "ADV-02": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+          "ADV-03": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+          "ADV-04": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+          "DRAW-04": "DRAW-01〜03を通過した有効設定の残余分岐であり、判定入力は既存のgameEnd軸が持つ",
+          "RBI-01": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+          "RBI-06": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+          "RBI-07": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+          "RBI-08": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+          "RBI-09": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+          "SO-01": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+          "SO-02": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+          "SO-03": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+          "SO-04": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+          "SO-05": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+          "XC-01": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-02": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-03": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-04": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-05": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-06": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-07": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-08": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-10": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-11": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-12": "規範行の列間交差制約であり、単独の入力軸ではない",
+          "XC-13": "成績計上フラグの導出原則であり、23件の具体的な導出表と観測入力は2026-09-26の2回目のPO射程縮小により段階2で確定する"
+        },
+        "d11CollectionBindings": {
+          "gameEndAxes[]": "gameEndAxes",
+          "nonCoverageFields[]": "nonCoverageFields",
+          "projectionRules[]": "projectionRules",
+          "stateTransitionAxes[]": "stateTransitionAxes"
+        },
+        "d11RequiredCollections": [
+          "gameEndAxes[]",
+          "nonCoverageFields[]",
+          "projectionRules[]"
+        ],
+        "d12RequiredCodeLiterals": [
+          "<対象>_v<N>.json",
+          "contracts/<領域>/",
+          "freeze-baseline-assurance:declared-identities-only",
+          "freeze-baseline-field:freezeBaseline",
+          "freeze-baseline-scope:freezeBaseline.scope",
+          "freeze-baseline-series:state-transition-contract-checks",
+          "gap_register_v<N>.json",
+          "input_axes_descriptor_v<N>.json",
+          "state-transition/"
+        ]
+      },
+      "inputAxesDescriptor": {
+        "topLevelFields": [
+          "descriptorId",
+          "digest",
+          "digestSpec",
+          "freezeBaseline",
+          "gameEndAxes",
+          "gameEndCombinationRules",
+          "inputCoordinateCoverage",
+          "nonCoverageFields",
+          "projectionRules",
+          "stage2ExternalConstraints",
+          "stateTransitionAxes",
+          "version"
+        ],
+        "inputCoordinateCoverageIdentity": "sha256:169a9631b6caed70f742190a804567cb0c661974cd8167fcd443b6bd2671c216",
+        "safeIntegerLimit": 9007199254740991,
+        "forbiddenStage1ReferenceKeys": [
+          "$ref",
+          "externalRef",
+          "externalReference",
+          "externalReferences"
+        ],
+        "gameEndAxisFields": {
+          "gameEnd.coldConditions": "coldConditions",
+          "gameEnd.extensionLimit": "extensionLimit",
+          "gameEnd.regulationInnings": "regulationInnings",
+          "gameEnd.tiebreak": "tiebreak"
+        },
+        "f1RuleFields": [
+          "coldConditions",
+          "dh",
+          "extensionLimit",
+          "regulationInnings",
+          "tiebreak"
+        ],
+        "nonCoverageFields": [
+          "dh",
+          "tiebreak.leadoffRule",
+          "tiebreak.runnerPlacement"
+        ],
+        "exactStructuredAxisIds": [
+          "event.perPitch.thirdOutTimingByRunner"
+        ],
+        "deferredStructuredAxisKinds": {
+          "event.operationPayload": "tagged-operation-payload",
+          "event.perPitch.interferenceRuling": "tagged-targeted-ruling",
+          "event.perPitch.officialScoringPayload": "official-scoring-payload",
+          "event.perPitch.rbi.runnerContinuityByRunner": "runner-keyed-observation",
+          "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "runner-keyed-observation",
+          "event.perPitch.runnerAdvanceOverridesByRunner": "runner-keyed-advance-override",
+          "event.perPitch.runnerEventPayload": "runner-keyed-event-payload"
+        },
+        "deferredStructuredAxisDimensions": {
+          "event.operationPayload": [
+            "operation-kind",
+            "operation-payload"
+          ],
+          "event.perPitch.interferenceRuling": [
+            "interference-kind",
+            "adopted-result",
+            "target-identity",
+            "awarded-or-return-destination"
+          ],
+          "event.perPitch.officialScoringPayload": [
+            "error-count",
+            "fielder-reference"
+          ],
+          "event.perPitch.rbi.runnerContinuityByRunner": [
+            "runner-identity",
+            "continuity-observation"
+          ],
+          "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": [
+            "runner-identity",
+            "would-score-without-error"
+          ],
+          "event.perPitch.runnerAdvanceOverridesByRunner": [
+            "runner-identity",
+            "outcome",
+            "destination"
+          ],
+          "event.perPitch.runnerEventPayload": [
+            "event-kind",
+            "runner-identity",
+            "outcome",
+            "destination",
+            "out-kind"
+          ]
+        },
+        "deferredStructuredAxisVariants": {
+          "event.operationPayload": [
+            "adhoc-registration",
+            "game-end-declaration",
+            "not-applicable",
+            "state-correction",
+            "substitution",
+            "tiebreak-start"
+          ],
+          "event.perPitch.interferenceRuling": [
+            "batting-interference",
+            "not-required",
+            "obstruction",
+            "offensive-interference"
+          ],
+          "event.perPitch.officialScoringPayload": [
+            "error-recorded",
+            "no-error"
+          ],
+          "event.perPitch.rbi.runnerContinuityByRunner": [
+            "not-required",
+            "observed"
+          ],
+          "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": [
+            "not-required",
+            "observed"
+          ],
+          "event.perPitch.runnerAdvanceOverridesByRunner": [
+            "not-applied",
+            "overridden"
+          ],
+          "event.perPitch.runnerEventPayload": [
+            "not-applicable",
+            "runner-event"
+          ]
+        },
+        "stage2ConstraintClasses": [
+          "field-uniqueness",
+          "mutual-exclusion",
+          "official-scorer-judgment-inputs",
+          "payload-string-policy-reconciliation",
+          "reference-integrity",
+          "stat-flag-derivation-rules",
+          "state-transition-axis-combinations",
+          "third-out-type-observation-input"
+        ],
+        "stage2RequiredArtifacts": [
+          "closed-payload-schemas",
+          "negative-fixtures",
+          "official-scorer-judgment-input-contract",
+          "payload-string-policy-reconciliation-rule",
+          "stat-flag-derivation-table",
+          "state-transition-axis-combination-rules",
+          "third-out-type-input-contract"
+        ],
+        "fr040ConditionalValues": {
+          "event.operationKind": [
+            "state-correction"
+          ],
+          "event.operationPayload": [
+            "state-correction"
+          ],
+          "history.composition": [
+            "top-state-correction",
+            "top-two-different"
+          ]
+        },
+        "requiredGameEndBoundaryValues": {
+          "gameEnd.tiebreak": {
+            "valid": [
+              "none",
+              "start:R+1",
+              "start:L"
+            ],
+            "invalid": [
+              "start:R",
+              "start:L+1-when-finite"
+            ]
+          }
+        },
+        "forbiddenGameEndInvalidBoundaryValues": {
+          "gameEnd.coldConditions": [
+            "start-inning:R+1"
+          ]
+        },
+        "ambiguousSourceBindings": {
+          "event.perPitch.resultId": "req:D-4"
+        },
+        "checkerExpectedValues": {
+          "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+          "fr040ConditionalEntry": {
+            "whenClauseId": "req:FR-040",
+            "whenState": "adopted"
+          },
+          "operationPayloadAxisId": "event.operationPayload",
+          "coverageValueFieldsByClassification": {
+            "finite-enumerable": [
+              "values"
+            ],
+            "boundary-partition": [
+              "boundaryValues",
+              "invalidBoundaryValues"
+            ]
+          },
+          "gameEndAxisSupportingClauseId": "adr:D-11",
+          "gameEndAxisClassification": "boundary-partition",
+          "nonCoverageSchemaRetention": "required-by-projection",
+          "gameEndCombinationRules": {
+            "ruleFieldCombination": "pairwise-all-game-end-axes",
+            "boundaryValueCombination": "full-cross-product-with-all-state-and-event-axes"
+          },
+          "minimumCoverageObligationsPerAxis": 1,
+          "nonCoverageTargetKind": "non-coverage-field",
+          "conditionalProjectionRequirements": {
+            "requiredJsonSchemaKeywords": [
+              "x-pitchlog-conditional-values"
+            ],
+            "requiredParityChecks": [
+              "conditional-values-exact"
+            ]
+          },
+          "projectionRules": {
+            "projection.finiteEnumerable": {
+              "sourceKind": "finite-enumerable",
+              "projectionMode": "exact-enum",
+              "requiredTargetFields": [],
+              "forbiddenTargetFields": [],
+              "requiredJsonSchemaKeywords": [
+                "enum"
+              ],
+              "requiredParityChecks": [
+                "values-exact-set"
+              ],
+              "undecidableAction": "fail"
+            },
+            "projection.boundaryPartition": {
+              "sourceKind": "boundary-partition",
+              "projectionMode": "boundary-annotations",
+              "requiredTargetFields": [],
+              "forbiddenTargetFields": [
+                "coverageBounds",
+                "representationCapability",
+                "valueSchema"
+              ],
+              "requiredJsonSchemaKeywords": [
+                "x-pitchlog-boundary-values"
+              ],
+              "requiredParityChecks": [
+                "boundaries-exact-set"
+              ],
+              "undecidableAction": "fail"
+            },
+            "projection.structuredBoundaryPartition": {
+              "sourceKind": "boundary-partition",
+              "projectionMode": "structured-boundary-annotations",
+              "requiredTargetFields": [
+                "valueSchema"
+              ],
+              "forbiddenTargetFields": [
+                "coverageBounds",
+                "representationCapability"
+              ],
+              "requiredJsonSchemaKeywords": [
+                "x-pitchlog-boundary-values",
+                "x-pitchlog-value-schema"
+              ],
+              "requiredParityChecks": [
+                "boundaries-exact-set",
+                "value-schema-exact"
+              ],
+              "undecidableAction": "fail"
+            },
+            "projection.deferredStructuredBoundaryPartition": {
+              "sourceKind": "boundary-partition",
+              "projectionMode": "deferred-structured-boundary-annotations",
+              "requiredTargetFields": [
+                "representationCapability"
+              ],
+              "forbiddenTargetFields": [
+                "coverageBounds",
+                "valueSchema"
+              ],
+              "requiredJsonSchemaKeywords": [
+                "x-pitchlog-boundary-values",
+                "x-pitchlog-representation-capability",
+                "x-pitchlog-stage2-external-constraints"
+              ],
+              "requiredParityChecks": [
+                "boundaries-exact-set",
+                "representation-capability-exact",
+                "stage2-delegation-exact"
+              ],
+              "undecidableAction": "fail"
+            },
+            "projection.boundedBoundaryPartition": {
+              "sourceKind": "boundary-partition",
+              "projectionMode": "bounded-boundary-annotations",
+              "requiredTargetFields": [
+                "coverageBounds"
+              ],
+              "forbiddenTargetFields": [
+                "representationCapability",
+                "valueSchema"
+              ],
+              "requiredJsonSchemaKeywords": [
+                "minimum",
+                "maximum",
+                "x-pitchlog-boundary-values"
+              ],
+              "requiredParityChecks": [
+                "boundaries-exact-set",
+                "range-exact"
+              ],
+              "undecidableAction": "fail"
+            },
+            "projection.nonFinite": {
+              "sourceKind": "non-finite",
+              "projectionMode": "open-domain-with-reason",
+              "requiredTargetFields": [],
+              "forbiddenTargetFields": [],
+              "requiredJsonSchemaKeywords": [
+                "type",
+                "x-pitchlog-non-finite-reason"
+              ],
+              "requiredParityChecks": [
+                "non-finite-reason-exact"
+              ],
+              "undecidableAction": "fail"
+            },
+            "projection.nonCoverageField": {
+              "sourceKind": "non-coverage-field",
+              "projectionMode": "required-schema-property",
+              "requiredTargetFields": [],
+              "forbiddenTargetFields": [],
+              "requiredJsonSchemaKeywords": [
+                "properties",
+                "required"
+              ],
+              "requiredParityChecks": [
+                "field-id-exact",
+                "schema-retention-exact"
+              ],
+              "undecidableAction": "fail"
+            },
+            "projection.descriptorIdentity": {
+              "sourceKind": "descriptor-identity",
+              "projectionMode": "descriptor-identity-binding",
+              "identityTargetIds": [
+                "descriptorId",
+                "version",
+                "digest"
+              ],
+              "requiredJsonSchemaKeywords": [
+                "x-pitchlog-descriptor-id",
+                "x-pitchlog-descriptor-version",
+                "x-pitchlog-descriptor-digest"
+              ],
+              "requiredParityChecks": [
+                "descriptor-identity-exact"
+              ],
+              "undecidableAction": "fail"
+            }
+          },
+          "forbiddenDocumentTokenParts": [
+            [
+              "history-depth",
+              ".json"
+            ]
+          ]
+        }
+      },
+      "gapRegister": {
+        "topLevelFields": [
+          "gaps",
+          "schemaVersion",
+          "version"
+        ],
+        "gapFields": [
+          "branchIds",
+          "clauseIds",
+          "fixtureCaseIds",
+          "gapId",
+          "generatedCaseSelector",
+          "rowIds",
+          "state"
+        ],
+        "gapIds": [
+          "GAP-01",
+          "GAP-02",
+          "GAP-03",
+          "GAP-04",
+          "GAP-05",
+          "GAP-06",
+          "GAP-07",
+          "GAP-08",
+          "GAP-09"
+        ],
+        "listStageFields": [
+          "clauseIds",
+          "branchIds",
+          "rowIds",
+          "fixtureCaseIds"
+        ],
+        "stageFields": [
+          "clauseIds",
+          "branchIds",
+          "rowIds",
+          "fixtureCaseIds",
+          "generatedCaseSelector"
+        ],
+        "states": [
+          "open",
+          "resolved"
+        ],
+        "initialState": "open",
+        "terminalState": "resolved",
+        "checkerExpectedValues": {
+          "schemaVersion": 1
+        },
+        "rowLayers": [
+          {
+            "layer": "matrixRows",
+            "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+            "keyPaths": [
+              "eventKind",
+              "resultId"
+            ],
+            "ownershipPath": "remarks"
+          },
+          {
+            "layer": "operationRows",
+            "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+            "keyPaths": [
+              "operationKind",
+              "precondition.axisId",
+              "precondition.value"
+            ],
+            "ownershipPath": "remarks"
+          },
+          {
+            "layer": "undoRows",
+            "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+            "keyPaths": [
+              "targetKind",
+              "precondition.axisId",
+              "precondition.value"
+            ],
+            "ownershipPath": "remarks"
+          },
+          {
+            "layer": "decisionRows",
+            "sourcePath": "contracts/state-transition/game_end_contract_v1.json",
+            "keyPaths": [
+              "branchId"
+            ],
+            "ownershipPath": "branchId"
+          }
+        ]
+      }
+    },
+    "history": [
+      {
+        "acceptanceId": "masaki1025/pitchlog#81",
+        "series": "state-transition-contract-checks",
+        "priorIdentity": {
+          "present": false,
+          "values": []
+        },
+        "newIdentity": {
+          "present": true,
+          "values": [
+            {
+              "criterionId": "freezeDefinition",
+              "identity": "sha256:56a000db101c1ab815a1bf4233d0d595471e491313199c0172758aa789892307"
+            },
+            {
+              "criterionId": "threeWayParity",
+              "identity": "sha256:b3abb02ed1bb7e4974ca1d8745b995ac1a50b40ef74ac379addca64efdc881de"
+            },
+            {
+              "criterionId": "inputAxesDescriptor",
+              "identity": "sha256:05cfe14563f32fd9651746b2c1dd90058d82a9b7c7d4f5bc2f4e2a57d02f766d"
+            },
+            {
+              "criterionId": "gapRegister",
+              "identity": "sha256:fee21f52bc25643435909cbcb396a3534ec97cabf2b4d8f6d73d021a7a56f69b"
+            }
+          ]
+        },
+        "changes": [
+          {
+            "criterionId": "freezeDefinition",
+            "before": {
+              "present": false
+            },
+            "after": {
+              "present": true,
+              "value": {
+                "identityCriterionId": "freezeDefinition",
+                "criterionOrder": [
+                  "threeWayParity",
+                  "inputAxesDescriptor",
+                  "gapRegister"
+                ],
+                "criterionBindings": {
+                  "threeWayParity": {
+                    "kind": "checker-criteria",
+                    "sourcePath": "scripts/check_input_axes_three_way_parity.py"
+                  },
+                  "inputAxesDescriptor": {
+                    "kind": "checker-criteria",
+                    "sourcePath": "scripts/check_input_axes_descriptor.py"
+                  },
+                  "gapRegister": {
+                    "kind": "checker-criteria",
+                    "sourcePath": "scripts/check_gap_register.py"
+                  }
+                },
+                "assuranceBoundary": {
+                  "mechanicallyGuaranteed": {
+                    "subjectJsonPointers": [
+                      "/freezeBaseline/scope",
+                      "/freezeBaseline/criteria"
+                    ],
+                    "identitySource": "/freezeBaseline/identitySpec",
+                    "changeWithoutAcceptanceRecord": "fail",
+                    "comparisonSource": "github-pull-request-event.pull_request.base.sha",
+                    "missingComparisonSourceAction": "fail-in-acceptance-mode",
+                    "localInvariantModeResult": "acceptance-transition-not-checked-explicit"
+                  },
+                  "notMechanicallyGuaranteed": {
+                    "propertyId": "absence-of-undeclared-implementation-baselines",
+                    "reason": "arbitrary-program-semantic-analysis-is-undecidable",
+                    "normativeStatus": "prohibited-by-dev-harness-7.7-1",
+                    "reviewControl": "pull-request-review"
+                  }
+                },
+                "selectionRule": {
+                  "includedComparison": {
+                    "leftOperandOrigin": "descriptor-json-value",
+                    "operatorKinds": [
+                      "equality",
+                      "inequality",
+                      "membership",
+                      "subset"
+                    ],
+                    "rightOperandOrigin": "checker-source-literal-or-module-constant"
+                  },
+                  "requiredRepresentation": "bound-criterion-value-loaded-at-runtime",
+                  "excludedOperandRoles": [
+                    "json-object-member-name-used-only-for-navigation",
+                    "json-schema-vocabulary-used-by-generic-validator",
+                    "identifier-or-format-grammar",
+                    "repository-path-or-filename-grammar",
+                    "runtime-type-or-control-sentinel",
+                    "relation-derived-only-from-current-asset-values",
+                    "closed-object-grammar-key-set",
+                    "diagnostic-text"
+                  ],
+                  "knownDirectComparisonDispositions": [
+                    {
+                      "findingId": "round10-require-exact-keys-48",
+                      "sourcePath": "scripts/state_transition_freeze.py",
+                      "construct": "_require_exact_keys.expected-key-set",
+                      "observedValue": 48,
+                      "disposition": "outside-frozen-criterion-values",
+                      "selectionRuleRole": "closed-object-grammar-key-set",
+                      "reason": "宣言JSONの閉じた文法を識別するobject member名であり、凍結するchecker判断値ではない"
+                    }
+                  ]
+                },
+                "sourceLiteralAudit": {
+                  "assuranceLevel": "supplemental-non-exhaustive-regression-signal",
+                  "coveredConstructs": [
+                    "direct-string-literal-in-ast.Compare",
+                    "module-assigned-string-literal-referenced-from-ast.Compare"
+                  ],
+                  "notCoveredConstructs": [
+                    "numeric-literal",
+                    "helper-argument-propagation",
+                    "bytes-derived-value",
+                    "operator-function-call",
+                    "imported-constant",
+                    "per-occurrence-semantic-role"
+                  ],
+                  "occurrenceRoleValidation": "not-performed-flat-literal-value-set-only",
+                  "engineSourcePath": "scripts/state_transition_freeze.py",
+                  "forbiddenImplementationSetNames": [
+                    "CRITERIA_SECTIONS"
+                  ],
+                  "excludedComparisonFunctionsBySource": {
+                    "scripts/state_transition_freeze.py": [],
+                    "scripts/check_input_axes_descriptor.py": [],
+                    "scripts/check_input_axes_three_way_parity.py": [],
+                    "scripts/check_gap_register.py": []
+                  },
+                  "permittedComparisonLiteralsBySource": {
+                    "scripts/state_transition_freeze.py": {
+                      "json-object-member-name-used-only-for-navigation": [
+                        "acceptance",
+                        "acceptanceId",
+                        "approvedBy",
+                        "approvedDate",
+                        "base",
+                        "changes",
+                        "criteria",
+                        "criterionBindingKind",
+                        "criterionBindings",
+                        "criterionId",
+                        "criterionOrder",
+                        "engineExpectedValues",
+                        "engineExpectedValues.criterionBindingKind",
+                        "excludedComparisonFunctionsBySource",
+                        "excludedOperandRoles",
+                        "fact",
+                        "findingId",
+                        "freezeBaseline",
+                        "history",
+                        "identityCriterionId",
+                        "identitySpec",
+                        "kind",
+                        "newIdentity",
+                        "number",
+                        "operatorKinds",
+                        "permittedComparisonLiteralsBySource",
+                        "present",
+                        "priorIdentity",
+                        "schemaVersion",
+                        "scope",
+                        "selectionRule",
+                        "selectionRuleRole",
+                        "series",
+                        "sha",
+                        "sourcePath",
+                        "subjectJsonPointers",
+                        "value",
+                        "values"
+                      ],
+                      "identifier-or-format-grammar": [
+                        " のレビュー待ち)",
+                        "#",
+                        "[0-9a-f]{40}",
+                        "\\d{4}-\\d{2}-\\d{2}",
+                        "^[^/#\\s]+/[^/#\\s]+#[1-9][0-9]*$",
+                        "^{commit}",
+                        "未承認(PR #"
+                      ],
+                      "runtime-type-or-control-sentinel": [
+                        "",
+                        "--verify",
+                        ".acceptanceId",
+                        ".criterionId",
+                        ".findingId",
+                        ".values[",
+                        "/",
+                        "/criteria",
+                        "/scope",
+                        "].criterionId",
+                        "freezeBaseline.series",
+                        "git",
+                        "rev-parse",
+                        "scope.identityCriterionId"
+                      ]
+                    },
+                    "scripts/check_input_axes_descriptor.py": {
+                      "json-object-member-name-used-only-for-navigation": [
+                        "$defs",
+                        "$ref",
+                        "$schema",
+                        "additionalProperties",
+                        "axis",
+                        "axisCombinationBoundary",
+                        "axisCombinationScope",
+                        "axisClassification",
+                        "axisId",
+                        "boundaryPartitionAxis",
+                        "boundaryValues",
+                        "classification",
+                        "conditionalValues",
+                        "const",
+                        "constraintClass",
+                        "constraintClasses",
+                        "coverageBound",
+                        "coverageBounds",
+                        "deferredStructuredAxisDimensions",
+                        "deferredStructuredAxisVariants",
+                        "digest",
+                        "digestSpec",
+                        "dimension",
+                        "dimensions",
+                        "jsonSchemaDialect",
+                        "fieldId",
+                        "finiteEnumerableAxis",
+                        "freezeBaseline",
+                        "gameEndAxisClassification",
+                        "gameEndAxisSupportingClauseId",
+                        "gameEndCombinationRules",
+                        "identityTargetIds",
+                        "inputCoordinateAxisBinding",
+                        "inputCoordinateCoverage",
+                        "inputCoordinateCoverageIdentity",
+                        "inputCoordinateCoverageSelector",
+                        "inputCoordinateRowBinding",
+                        "invalid",
+                        "invalidBoundaryValues",
+                        "jsonSchemaKeywords",
+                        "kind",
+                        "letter",
+                        "maxItems",
+                        "maximum",
+                        "minItems",
+                        "minLength",
+                        "minimumCoverageObligationsPerAxis",
+                        "minimum",
+                        "nonCoverageField",
+                        "nonCoverageSchemaRetention",
+                        "nonFiniteAxis",
+                        "oneOf",
+                        "operationPayloadAxisId",
+                        "parityChecks",
+                        "pattern",
+                        "payloadAxisIds",
+                        "projectionMode",
+                        "projectionRule",
+                        "projectionRules",
+                        "properties",
+                        "representationCapability",
+                        "required",
+                        "requiredArtifact",
+                        "requiredArtifacts",
+                        "requiredJsonSchemaKeywords",
+                        "requiredParityChecks",
+                        "ruleFieldId",
+                        "ruleId",
+                        "safeIntegerLimit",
+                        "schemaRetention",
+                        "scope",
+                        "sourceClauseId",
+                        "sourceDecisionId",
+                        "sourceKind",
+                        "status",
+                        "stage2ExternalConstraints",
+                        "supportingClauseIds",
+                        "targetIds",
+                        "type",
+                        "undecidableAction",
+                        "uniqueItems",
+                        "valid",
+                        "value",
+                        "valueSchema",
+                        "values",
+                        "variantTags",
+                        "version",
+                        "x-pitchlog-uniqueBy"
+                      ],
+                      "json-schema-vocabulary-used-by-generic-validator": [
+                        "object"
+                      ],
+                      "identifier-or-format-grammar": [
+                        "sha256:[0-9a-f]{64}"
+                      ],
+                      "repository-path-or-filename-grammar": [
+                        "contracts/state-transition/input_axes_descriptor_schema_v1.json"
+                      ],
+                      "runtime-type-or-control-sentinel": [
+                        ".",
+                        ".deferredStructuredAxisVariants.",
+                        "__main__",
+                        "index=",
+                        "入力軸descriptor",
+                        "入力軸descriptor schema"
+                      ]
+                    },
+                    "scripts/check_input_axes_three_way_parity.py": {
+                      "json-object-member-name-used-only-for-navigation": [
+                        "clause_id",
+                        "collection",
+                        "constraint_id",
+                        "decisionId",
+                        "decision_id",
+                        "layer",
+                        "sourceClauseId",
+                        "supportingClauseIds",
+                        "version"
+                      ],
+                      "identifier-or-format-grammar": [
+                        "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*\\.json$",
+                        "freeze-baseline-(?:field|series|scope|assurance):[A-Za-z][A-Za-z0-9.-]*",
+                        "req:"
+                      ],
+                      "repository-path-or-filename-grammar": [
+                        "contracts",
+                        "state-transition"
+                      ],
+                      "runtime-type-or-control-sentinel": [
+                        "GITHUB_EVENT_NAME",
+                        "pull_request",
+                        "__main__"
+                      ]
+                    },
+                    "scripts/check_gap_register.py": {
+                      "json-object-member-name-used-only-for-navigation": [
+                        ".gapIds",
+                        ".listStageFields",
+                        ".stageFields",
+                        ".states",
+                        "gapId",
+                        "gapIds",
+                        "gaps",
+                        "initialState",
+                        "keyPaths",
+                        "layer",
+                        "listStageFields",
+                        "ownershipPath",
+                        "rowLayers",
+                        "schemaVersion",
+                        "sourceClauseIds",
+                        "sourcePath",
+                        "stageFields",
+                        "state",
+                        "states",
+                        "terminalState",
+                        "version"
+                      ],
+                      "repository-path-or-filename-grammar": [
+                        "..",
+                        "contracts",
+                        "contracts/state-transition/gap_register_v1.json",
+                        "state-transition"
+                      ],
+                      "runtime-type-or-control-sentinel": [
+                        "]",
+                        "__main__",
+                        "gap register",
+                        "gaps["
+                      ],
+                      "identifier-or-format-grammar": [
+                        "(?![A-Za-z0-9-])",
+                        "(?<![A-Za-z0-9-])",
+                        ":",
+                        "req:"
+                      ]
+                    }
+                  }
+                },
+                "engineExpectedValues": {
+                  "schemaVersion": 1,
+                  "acceptance": {
+                    "unit": "pull_request",
+                    "acceptanceIdSource": "github-pull-request-event.repository.full_name-plus-pull_request.number",
+                    "comparisonSource": "github-pull-request-event.pull_request.base.sha",
+                    "missingComparisonSourceAction": "fail-in-acceptance-mode-and-explicit-not-checked-in-invariants-only",
+                    "posteriorState": "pull-request-head"
+                  },
+                  "identitySpec": {
+                    "granularity": "checker-criteria-object",
+                    "algorithm": "SHA-256",
+                    "canonicalization": "json-sort-keys-no-whitespace-v1",
+                    "encoding": "UTF-8"
+                  },
+                  "criterionBindingKind": "checker-criteria"
+                }
+              }
+            },
+            "changedAspects": [
+              "set",
+              "value",
+              "placement",
+              "frozen-target-correspondence",
+              "identity-granularity-and-interpretation"
+            ]
+          },
+          {
+            "criterionId": "threeWayParity",
+            "before": {
+              "present": false
+            },
+            "after": {
+              "present": true,
+              "value": {
+                "requirementBranchIds": [
+                  "ADV-01",
+                  "ADV-02",
+                  "ADV-03",
+                  "ADV-04",
+                  "COLD-01",
+                  "COLD-02",
+                  "COLD-03",
+                  "COLD-04",
+                  "COLD-05",
+                  "COLD-06",
+                  "COLD-07",
+                  "COLD-08",
+                  "COLD-09",
+                  "DRAW-01",
+                  "DRAW-02",
+                  "DRAW-03",
+                  "DRAW-04",
+                  "DRAW-05",
+                  "DRAW-06",
+                  "DRAW-07",
+                  "DRAW-08",
+                  "DRAW-09",
+                  "DRAW-10",
+                  "INT-01",
+                  "INT-02",
+                  "INT-03",
+                  "INT-04",
+                  "INT-05",
+                  "INT-06",
+                  "INT-07",
+                  "OUT3-01",
+                  "OUT3-02",
+                  "OUT3-03",
+                  "OUT3-04",
+                  "OUT3-05",
+                  "RBI-01",
+                  "RBI-02",
+                  "RBI-03",
+                  "RBI-04",
+                  "RBI-05",
+                  "RBI-06",
+                  "RBI-07",
+                  "RBI-08",
+                  "RBI-09",
+                  "SO-01",
+                  "SO-02",
+                  "SO-03",
+                  "SO-04",
+                  "SO-05",
+                  "XC-01",
+                  "XC-02",
+                  "XC-03",
+                  "XC-04",
+                  "XC-05",
+                  "XC-06",
+                  "XC-07",
+                  "XC-08",
+                  "XC-10",
+                  "XC-11",
+                  "XC-12",
+                  "XC-13",
+                  "XMARK-01",
+                  "XMARK-02",
+                  "XMARK-03"
+                ],
+                "nonDefinitionBranchMentions": [
+                  "XC-09"
+                ],
+                "principleMarkers": {
+                  "XC-13": "principle:stat-flags-derived-not-arbitrary"
+                },
+                "adrD8ConstraintIds": [
+                  "XC-09"
+                ],
+                "requirementConstraintOwners": {
+                  "XC-09": {
+                    "decisionId": "D-8",
+                    "layer": "undoRows[]"
+                  }
+                },
+                "requirementConstraintExclusions": {
+                  "XC-09": "E-1"
+                },
+                "branchCoverageExclusions": {
+                  "ADV-01": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+                  "ADV-02": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+                  "ADV-03": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+                  "ADV-04": "runnerDefaultAdvanceの期待出力分岐であり、判定入力はstate.runnersと結果IDが持つ",
+                  "DRAW-04": "DRAW-01〜03を通過した有効設定の残余分岐であり、判定入力は既存のgameEnd軸が持つ",
+                  "RBI-01": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+                  "RBI-06": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+                  "RBI-07": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+                  "RBI-08": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+                  "RBI-09": "打点の期待出力分岐であり、RBI-02〜05以外は追加の観測入力軸を要求しない",
+                  "SO-01": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+                  "SO-02": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+                  "SO-03": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+                  "SO-04": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+                  "SO-05": "語彙IDに対応する状態効果の出力分岐であり、本除外はSO-03内のアウト成否coverageを保証しない",
+                  "XC-01": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-02": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-03": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-04": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-05": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-06": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-07": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-08": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-10": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-11": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-12": "規範行の列間交差制約であり、単独の入力軸ではない",
+                  "XC-13": "成績計上フラグの導出原則であり、23件の具体的な導出表と観測入力は2026-09-26の2回目のPO射程縮小により段階2で確定する"
+                },
+                "d11CollectionBindings": {
+                  "gameEndAxes[]": "gameEndAxes",
+                  "nonCoverageFields[]": "nonCoverageFields",
+                  "projectionRules[]": "projectionRules",
+                  "stateTransitionAxes[]": "stateTransitionAxes"
+                },
+                "d11RequiredCollections": [
+                  "gameEndAxes[]",
+                  "nonCoverageFields[]",
+                  "projectionRules[]"
+                ],
+                "d12RequiredCodeLiterals": [
+                  "<対象>_v<N>.json",
+                  "contracts/<領域>/",
+                  "freeze-baseline-assurance:declared-identities-only",
+                  "freeze-baseline-field:freezeBaseline",
+                  "freeze-baseline-scope:freezeBaseline.scope",
+                  "freeze-baseline-series:state-transition-contract-checks",
+                  "gap_register_v<N>.json",
+                  "input_axes_descriptor_v<N>.json",
+                  "state-transition/"
+                ]
+              }
+            },
+            "changedAspects": [
+              "set",
+              "value",
+              "placement",
+              "frozen-target-correspondence",
+              "identity-granularity-and-interpretation"
+            ]
+          },
+          {
+            "criterionId": "inputAxesDescriptor",
+            "before": {
+              "present": false
+            },
+            "after": {
+              "present": true,
+              "value": {
+                "topLevelFields": [
+                  "descriptorId",
+                  "digest",
+                  "digestSpec",
+                  "freezeBaseline",
+                  "gameEndAxes",
+                  "gameEndCombinationRules",
+                  "inputCoordinateCoverage",
+                  "nonCoverageFields",
+                  "projectionRules",
+                  "stage2ExternalConstraints",
+                  "stateTransitionAxes",
+                  "version"
+                ],
+                "inputCoordinateCoverageIdentity": "sha256:169a9631b6caed70f742190a804567cb0c661974cd8167fcd443b6bd2671c216",
+                "safeIntegerLimit": 9007199254740991,
+                "forbiddenStage1ReferenceKeys": [
+                  "$ref",
+                  "externalRef",
+                  "externalReference",
+                  "externalReferences"
+                ],
+                "gameEndAxisFields": {
+                  "gameEnd.coldConditions": "coldConditions",
+                  "gameEnd.extensionLimit": "extensionLimit",
+                  "gameEnd.regulationInnings": "regulationInnings",
+                  "gameEnd.tiebreak": "tiebreak"
+                },
+                "f1RuleFields": [
+                  "coldConditions",
+                  "dh",
+                  "extensionLimit",
+                  "regulationInnings",
+                  "tiebreak"
+                ],
+                "nonCoverageFields": [
+                  "dh",
+                  "tiebreak.leadoffRule",
+                  "tiebreak.runnerPlacement"
+                ],
+                "exactStructuredAxisIds": [
+                  "event.perPitch.thirdOutTimingByRunner"
+                ],
+                "deferredStructuredAxisKinds": {
+                  "event.operationPayload": "tagged-operation-payload",
+                  "event.perPitch.interferenceRuling": "tagged-targeted-ruling",
+                  "event.perPitch.officialScoringPayload": "official-scoring-payload",
+                  "event.perPitch.rbi.runnerContinuityByRunner": "runner-keyed-observation",
+                  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "runner-keyed-observation",
+                  "event.perPitch.runnerAdvanceOverridesByRunner": "runner-keyed-advance-override",
+                  "event.perPitch.runnerEventPayload": "runner-keyed-event-payload"
+                },
+                "deferredStructuredAxisDimensions": {
+                  "event.operationPayload": [
+                    "operation-kind",
+                    "operation-payload"
+                  ],
+                  "event.perPitch.interferenceRuling": [
+                    "interference-kind",
+                    "adopted-result",
+                    "target-identity",
+                    "awarded-or-return-destination"
+                  ],
+                  "event.perPitch.officialScoringPayload": [
+                    "error-count",
+                    "fielder-reference"
+                  ],
+                  "event.perPitch.rbi.runnerContinuityByRunner": [
+                    "runner-identity",
+                    "continuity-observation"
+                  ],
+                  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": [
+                    "runner-identity",
+                    "would-score-without-error"
+                  ],
+                  "event.perPitch.runnerAdvanceOverridesByRunner": [
+                    "runner-identity",
+                    "outcome",
+                    "destination"
+                  ],
+                  "event.perPitch.runnerEventPayload": [
+                    "event-kind",
+                    "runner-identity",
+                    "outcome",
+                    "destination",
+                    "out-kind"
+                  ]
+                },
+                "deferredStructuredAxisVariants": {
+                  "event.operationPayload": [
+                    "adhoc-registration",
+                    "game-end-declaration",
+                    "not-applicable",
+                    "state-correction",
+                    "substitution",
+                    "tiebreak-start"
+                  ],
+                  "event.perPitch.interferenceRuling": [
+                    "batting-interference",
+                    "not-required",
+                    "obstruction",
+                    "offensive-interference"
+                  ],
+                  "event.perPitch.officialScoringPayload": [
+                    "error-recorded",
+                    "no-error"
+                  ],
+                  "event.perPitch.rbi.runnerContinuityByRunner": [
+                    "not-required",
+                    "observed"
+                  ],
+                  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": [
+                    "not-required",
+                    "observed"
+                  ],
+                  "event.perPitch.runnerAdvanceOverridesByRunner": [
+                    "not-applied",
+                    "overridden"
+                  ],
+                  "event.perPitch.runnerEventPayload": [
+                    "not-applicable",
+                    "runner-event"
+                  ]
+                },
+                "stage2ConstraintClasses": [
+                  "field-uniqueness",
+                  "mutual-exclusion",
+                  "official-scorer-judgment-inputs",
+                  "payload-string-policy-reconciliation",
+                  "reference-integrity",
+                  "stat-flag-derivation-rules",
+                  "state-transition-axis-combinations",
+                  "third-out-type-observation-input"
+                ],
+                "stage2RequiredArtifacts": [
+                  "closed-payload-schemas",
+                  "negative-fixtures",
+                  "official-scorer-judgment-input-contract",
+                  "payload-string-policy-reconciliation-rule",
+                  "stat-flag-derivation-table",
+                  "state-transition-axis-combination-rules",
+                  "third-out-type-input-contract"
+                ],
+                "fr040ConditionalValues": {
+                  "event.operationKind": [
+                    "state-correction"
+                  ],
+                  "event.operationPayload": [
+                    "state-correction"
+                  ],
+                  "history.composition": [
+                    "top-state-correction",
+                    "top-two-different"
+                  ]
+                },
+                "requiredGameEndBoundaryValues": {
+                  "gameEnd.tiebreak": {
+                    "valid": [
+                      "none",
+                      "start:R+1",
+                      "start:L"
+                    ],
+                    "invalid": [
+                      "start:R",
+                      "start:L+1-when-finite"
+                    ]
+                  }
+                },
+                "forbiddenGameEndInvalidBoundaryValues": {
+                  "gameEnd.coldConditions": [
+                    "start-inning:R+1"
+                  ]
+                },
+                "ambiguousSourceBindings": {
+                  "event.perPitch.resultId": "req:D-4"
+                },
+                "checkerExpectedValues": {
+                  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+                  "fr040ConditionalEntry": {
+                    "whenClauseId": "req:FR-040",
+                    "whenState": "adopted"
+                  },
+                  "operationPayloadAxisId": "event.operationPayload",
+                  "coverageValueFieldsByClassification": {
+                    "finite-enumerable": [
+                      "values"
+                    ],
+                    "boundary-partition": [
+                      "boundaryValues",
+                      "invalidBoundaryValues"
+                    ]
+                  },
+                  "gameEndAxisSupportingClauseId": "adr:D-11",
+                  "gameEndAxisClassification": "boundary-partition",
+                  "nonCoverageSchemaRetention": "required-by-projection",
+                  "gameEndCombinationRules": {
+                    "ruleFieldCombination": "pairwise-all-game-end-axes",
+                    "boundaryValueCombination": "full-cross-product-with-all-state-and-event-axes"
+                  },
+                  "minimumCoverageObligationsPerAxis": 1,
+                  "nonCoverageTargetKind": "non-coverage-field",
+                  "conditionalProjectionRequirements": {
+                    "requiredJsonSchemaKeywords": [
+                      "x-pitchlog-conditional-values"
+                    ],
+                    "requiredParityChecks": [
+                      "conditional-values-exact"
+                    ]
+                  },
+                  "projectionRules": {
+                    "projection.finiteEnumerable": {
+                      "sourceKind": "finite-enumerable",
+                      "projectionMode": "exact-enum",
+                      "requiredTargetFields": [],
+                      "forbiddenTargetFields": [],
+                      "requiredJsonSchemaKeywords": [
+                        "enum"
+                      ],
+                      "requiredParityChecks": [
+                        "values-exact-set"
+                      ],
+                      "undecidableAction": "fail"
+                    },
+                    "projection.boundaryPartition": {
+                      "sourceKind": "boundary-partition",
+                      "projectionMode": "boundary-annotations",
+                      "requiredTargetFields": [],
+                      "forbiddenTargetFields": [
+                        "coverageBounds",
+                        "representationCapability",
+                        "valueSchema"
+                      ],
+                      "requiredJsonSchemaKeywords": [
+                        "x-pitchlog-boundary-values"
+                      ],
+                      "requiredParityChecks": [
+                        "boundaries-exact-set"
+                      ],
+                      "undecidableAction": "fail"
+                    },
+                    "projection.structuredBoundaryPartition": {
+                      "sourceKind": "boundary-partition",
+                      "projectionMode": "structured-boundary-annotations",
+                      "requiredTargetFields": [
+                        "valueSchema"
+                      ],
+                      "forbiddenTargetFields": [
+                        "coverageBounds",
+                        "representationCapability"
+                      ],
+                      "requiredJsonSchemaKeywords": [
+                        "x-pitchlog-boundary-values",
+                        "x-pitchlog-value-schema"
+                      ],
+                      "requiredParityChecks": [
+                        "boundaries-exact-set",
+                        "value-schema-exact"
+                      ],
+                      "undecidableAction": "fail"
+                    },
+                    "projection.deferredStructuredBoundaryPartition": {
+                      "sourceKind": "boundary-partition",
+                      "projectionMode": "deferred-structured-boundary-annotations",
+                      "requiredTargetFields": [
+                        "representationCapability"
+                      ],
+                      "forbiddenTargetFields": [
+                        "coverageBounds",
+                        "valueSchema"
+                      ],
+                      "requiredJsonSchemaKeywords": [
+                        "x-pitchlog-boundary-values",
+                        "x-pitchlog-representation-capability",
+                        "x-pitchlog-stage2-external-constraints"
+                      ],
+                      "requiredParityChecks": [
+                        "boundaries-exact-set",
+                        "representation-capability-exact",
+                        "stage2-delegation-exact"
+                      ],
+                      "undecidableAction": "fail"
+                    },
+                    "projection.boundedBoundaryPartition": {
+                      "sourceKind": "boundary-partition",
+                      "projectionMode": "bounded-boundary-annotations",
+                      "requiredTargetFields": [
+                        "coverageBounds"
+                      ],
+                      "forbiddenTargetFields": [
+                        "representationCapability",
+                        "valueSchema"
+                      ],
+                      "requiredJsonSchemaKeywords": [
+                        "minimum",
+                        "maximum",
+                        "x-pitchlog-boundary-values"
+                      ],
+                      "requiredParityChecks": [
+                        "boundaries-exact-set",
+                        "range-exact"
+                      ],
+                      "undecidableAction": "fail"
+                    },
+                    "projection.nonFinite": {
+                      "sourceKind": "non-finite",
+                      "projectionMode": "open-domain-with-reason",
+                      "requiredTargetFields": [],
+                      "forbiddenTargetFields": [],
+                      "requiredJsonSchemaKeywords": [
+                        "type",
+                        "x-pitchlog-non-finite-reason"
+                      ],
+                      "requiredParityChecks": [
+                        "non-finite-reason-exact"
+                      ],
+                      "undecidableAction": "fail"
+                    },
+                    "projection.nonCoverageField": {
+                      "sourceKind": "non-coverage-field",
+                      "projectionMode": "required-schema-property",
+                      "requiredTargetFields": [],
+                      "forbiddenTargetFields": [],
+                      "requiredJsonSchemaKeywords": [
+                        "properties",
+                        "required"
+                      ],
+                      "requiredParityChecks": [
+                        "field-id-exact",
+                        "schema-retention-exact"
+                      ],
+                      "undecidableAction": "fail"
+                    },
+                    "projection.descriptorIdentity": {
+                      "sourceKind": "descriptor-identity",
+                      "projectionMode": "descriptor-identity-binding",
+                      "identityTargetIds": [
+                        "descriptorId",
+                        "version",
+                        "digest"
+                      ],
+                      "requiredJsonSchemaKeywords": [
+                        "x-pitchlog-descriptor-id",
+                        "x-pitchlog-descriptor-version",
+                        "x-pitchlog-descriptor-digest"
+                      ],
+                      "requiredParityChecks": [
+                        "descriptor-identity-exact"
+                      ],
+                      "undecidableAction": "fail"
+                    }
+                  },
+                  "forbiddenDocumentTokenParts": [
+                    [
+                      "history-depth",
+                      ".json"
+                    ]
+                  ]
+                }
+              }
+            },
+            "changedAspects": [
+              "set",
+              "value",
+              "placement",
+              "frozen-target-correspondence",
+              "identity-granularity-and-interpretation"
+            ]
+          },
+          {
+            "criterionId": "gapRegister",
+            "before": {
+              "present": false
+            },
+            "after": {
+              "present": true,
+              "value": {
+                "topLevelFields": [
+                  "gaps",
+                  "schemaVersion",
+                  "version"
+                ],
+                "gapFields": [
+                  "branchIds",
+                  "clauseIds",
+                  "fixtureCaseIds",
+                  "gapId",
+                  "generatedCaseSelector",
+                  "rowIds",
+                  "state"
+                ],
+                "gapIds": [
+                  "GAP-01",
+                  "GAP-02",
+                  "GAP-03",
+                  "GAP-04",
+                  "GAP-05",
+                  "GAP-06",
+                  "GAP-07",
+                  "GAP-08",
+                  "GAP-09"
+                ],
+                "listStageFields": [
+                  "clauseIds",
+                  "branchIds",
+                  "rowIds",
+                  "fixtureCaseIds"
+                ],
+                "stageFields": [
+                  "clauseIds",
+                  "branchIds",
+                  "rowIds",
+                  "fixtureCaseIds",
+                  "generatedCaseSelector"
+                ],
+                "states": [
+                  "open",
+                  "resolved"
+                ],
+                "initialState": "open",
+                "terminalState": "resolved",
+                "checkerExpectedValues": {
+                  "schemaVersion": 1
+                },
+                "rowLayers": [
+                  {
+                    "layer": "matrixRows",
+                    "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+                    "keyPaths": [
+                      "eventKind",
+                      "resultId"
+                    ],
+                    "ownershipPath": "remarks"
+                  },
+                  {
+                    "layer": "operationRows",
+                    "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+                    "keyPaths": [
+                      "operationKind",
+                      "precondition.axisId",
+                      "precondition.value"
+                    ],
+                    "ownershipPath": "remarks"
+                  },
+                  {
+                    "layer": "undoRows",
+                    "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+                    "keyPaths": [
+                      "targetKind",
+                      "precondition.axisId",
+                      "precondition.value"
+                    ],
+                    "ownershipPath": "remarks"
+                  },
+                  {
+                    "layer": "decisionRows",
+                    "sourcePath": "contracts/state-transition/game_end_contract_v1.json",
+                    "keyPaths": [
+                      "branchId"
+                    ],
+                    "ownershipPath": "branchId"
+                  }
+                ]
+              }
+            },
+            "changedAspects": [
+              "set",
+              "value",
+              "placement",
+              "frozen-target-correspondence",
+              "identity-granularity-and-interpretation"
+            ]
+          }
+        ],
+        "fact": "敵対レビュー最終全文確認周で、凍結基準とその集合・保証境界を資産側へ移設し、任意コードに宣言外基準が無いことまでは機械監査できない事実を確認したうえで、受理遷移の比較元を資産の自己申告からGitHub PR eventへ移した。ステップ69で規範行4層の自然キーと行帰属の基準を宣言し、実資産へのopen prefix検査を接続した。暫定記録: 未承認(PR #81 のレビュー待ち)",
+        "reason": "開発ハーネス設計書7.7-1・7.7-3・7.7-4に従い、宣言されたscopeとcriteriaの同一性変更を受理記録なしでは拒否し、宣言外基準の不存在は非保証かつ規範上禁止とする境界を維持しながら、同一PR内で比較元を差し替えて受理履歴を迂回する経路を閉じるため。ステップ69ではPR #81のレビュー前に規範行の同定と双方向帰属を機械検査するため。受理前の暫定基準であり、受理済みを表さない",
+        "approvedBy": "未承認(PR #81 のレビュー待ち)",
+        "approvedDate": "2026-10-05"
+      }
+    ]
+  },
+  "stateTransitionAxes": [
+    {
+      "axisId": "state.half",
+      "sourceClauseId": "req:FR-005",
+      "classification": "finite-enumerable",
+      "values": [
+        "top",
+        "bottom"
+      ]
+    },
+    {
+      "axisId": "state.count.strikes",
+      "sourceClauseId": "req:E-1",
+      "classification": "finite-enumerable",
+      "values": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "axisId": "state.count.balls",
+      "sourceClauseId": "req:E-1",
+      "classification": "finite-enumerable",
+      "values": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "axisId": "state.outs",
+      "sourceClauseId": "req:FR-005",
+      "classification": "finite-enumerable",
+      "values": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "axisId": "state.runners",
+      "sourceClauseId": "req:E-1",
+      "classification": "finite-enumerable",
+      "values": [
+        "empty",
+        "first",
+        "second",
+        "third",
+        "first-second",
+        "first-third",
+        "second-third",
+        "loaded"
+      ]
+    },
+    {
+      "axisId": "state.battingOrder",
+      "sourceClauseId": "req:FR-005",
+      "supportingClauseIds": [
+        "req:FR-001"
+      ],
+      "classification": "finite-enumerable",
+      "values": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "axisId": "state.tiebreakActive",
+      "sourceClauseId": "req:FR-009",
+      "classification": "finite-enumerable",
+      "values": [
+        false,
+        true
+      ]
+    },
+    {
+      "axisId": "state.gameEnded",
+      "sourceClauseId": "req:FR-010",
+      "classification": "finite-enumerable",
+      "values": [
+        false,
+        true
+      ]
+    },
+    {
+      "axisId": "state.inning",
+      "sourceClauseId": "req:F-1",
+      "supportingClauseIds": [
+        "req:COLD-01",
+        "req:COLD-02",
+        "req:COLD-03",
+        "req:COLD-04",
+        "req:COLD-05",
+        "req:COLD-06",
+        "req:DRAW-07",
+        "req:DRAW-08",
+        "req:DRAW-09",
+        "req:DRAW-10",
+        "req:XMARK-01",
+        "req:XMARK-02",
+        "req:XMARK-03"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        1,
+        "N-1",
+        "N",
+        "N+1",
+        "R-1",
+        "R",
+        "R+1",
+        "L-1",
+        "L",
+        "L+1"
+      ]
+    },
+    {
+      "axisId": "state.score",
+      "sourceClauseId": "req:F-1",
+      "supportingClauseIds": [
+        "req:FR-020",
+        "req:COLD-02",
+        "req:COLD-03",
+        "req:COLD-04",
+        "req:COLD-05",
+        "req:COLD-06",
+        "req:DRAW-05",
+        "req:DRAW-06",
+        "req:DRAW-09",
+        "req:DRAW-10",
+        "req:XMARK-01",
+        "req:XMARK-02"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "away-lead:M+1",
+        "away-lead:M",
+        "away-lead:M-1",
+        "tie",
+        "home-lead:M-1",
+        "home-lead:M",
+        "home-lead:M+1"
+      ]
+    },
+    {
+      "axisId": "event.operationKind",
+      "sourceClauseId": "req:4.0-4",
+      "supportingClauseIds": [
+        "req:FR-040"
+      ],
+      "classification": "finite-enumerable",
+      "values": [
+        "per-pitch",
+        "substitution",
+        "tiebreak-start",
+        "game-end-declaration",
+        "adhoc-registration",
+        "state-correction",
+        "undo"
+      ],
+      "conditionalValues": [
+        {
+          "value": "state-correction",
+          "whenClauseId": "req:FR-040",
+          "whenState": "adopted"
+        }
+      ]
+    },
+    {
+      "axisId": "event.operationPayload",
+      "sourceClauseId": "adr:D-8",
+      "supportingClauseIds": [
+        "req:FR-009",
+        "req:FR-010",
+        "req:FR-011",
+        "req:FR-015",
+        "req:FR-040"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-applicable",
+        "substitution",
+        "tiebreak-start",
+        "game-end-declaration",
+        "adhoc-registration",
+        "state-correction"
+      ],
+      "conditionalValues": [
+        {
+          "value": "state-correction",
+          "whenClauseId": "req:FR-040",
+          "whenState": "adopted"
+        }
+      ],
+      "representationCapability": {
+        "kind": "tagged-operation-payload",
+        "dimensions": [
+          "operation-kind",
+          "operation-payload"
+        ],
+        "variantTags": [
+          "not-applicable",
+          "substitution",
+          "tiebreak-start",
+          "game-end-declaration",
+          "adhoc-registration",
+          "state-correction"
+        ],
+        "description": "操作種別ごとのpayloadをタグ付きで区別できる。内部フィールドの一意性・参照整合・相反排除はstage2ExternalConstraintsが定める段階2の確定対象である"
+      }
+    },
+    {
+      "axisId": "event.perPitch.kind",
+      "sourceClauseId": "req:E-1",
+      "classification": "finite-enumerable",
+      "values": [
+        "batting-result",
+        "secondary-result",
+        "runner-event"
+      ]
+    },
+    {
+      "axisId": "event.perPitch.pitchEventKind",
+      "sourceClauseId": "req:4.0-2",
+      "classification": "finite-enumerable",
+      "values": [
+        "pitch-event",
+        "non-pitch-event"
+      ]
+    },
+    {
+      "axisId": "event.perPitch.resultId",
+      "sourceClauseId": "req:D-4",
+      "supportingClauseIds": [
+        "req:4.0-3"
+      ],
+      "classification": "finite-enumerable",
+      "values": [
+        "見逃し",
+        "空振り",
+        "ファール",
+        "ボール",
+        "単打",
+        "二塁打",
+        "三塁打",
+        "本塁打",
+        "凡打死",
+        "併殺打",
+        "ライナー併殺",
+        "凡打出塁",
+        "ファールフライ",
+        "エラー",
+        "野手選択",
+        "犠打",
+        "犠飛",
+        "犠打失策",
+        "見逃し三振",
+        "空振り三振",
+        "振り逃げ",
+        "K3",
+        "三振ゲッツー",
+        "四球",
+        "死球",
+        "申告敬遠",
+        "PB",
+        "WP",
+        "守備妨害",
+        "打撃妨害",
+        "走塁妨害",
+        "ボーク",
+        "ピッチクロック違反"
+      ]
+    },
+    {
+      "axisId": "event.perPitch.runnerEventPayload",
+      "sourceClauseId": "req:FR-004",
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-required",
+        "single-runner-safe-advance",
+        "single-runner-caught-stealing",
+        "single-runner-pickoff-out",
+        "single-runner-hold",
+        "multiple-runner-mixed-outcomes"
+      ],
+      "representationCapability": {
+        "kind": "runner-keyed-event-payload",
+        "dimensions": [
+          "event-kind",
+          "runner-identity",
+          "outcome",
+          "destination",
+          "out-kind"
+        ],
+        "variantTags": [
+          "not-applicable",
+          "runner-event"
+        ],
+        "description": "同一イベント内で走者別に結果・到達塁・アウト種別を表現できる。内部フィールド制約はstage2ExternalConstraintsが定める段階2の確定対象である"
+      }
+    },
+    {
+      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
+      "sourceClauseId": "req:FR-003",
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-applied",
+        "single-runner-stop",
+        "single-runner-out",
+        "single-runner-destination-base",
+        "single-runner-destination-home",
+        "multiple-runners-mixed"
+      ],
+      "representationCapability": {
+        "kind": "runner-keyed-advance-override",
+        "dimensions": [
+          "runner-identity",
+          "outcome",
+          "destination"
+        ],
+        "variantTags": [
+          "not-applied",
+          "overridden"
+        ],
+        "description": "打撃結果または特殊プレイの既定進塁を、変更した走者ごとの停止・アウト・実到達塁で上書きできる。内部フィールド制約はstage2ExternalConstraintsが定める段階2の確定対象である"
+      }
+    },
+    {
+      "axisId": "event.perPitch.thirdOutTimingByRunner",
+      "sourceClauseId": "req:FR-003",
+      "supportingClauseIds": [
+        "req:OUT3-01",
+        "req:OUT3-02",
+        "req:OUT3-03",
+        "req:OUT3-04",
+        "req:OUT3-05"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-required",
+        "single-runner-home-before-third-out",
+        "single-runner-not-before-third-out",
+        "multiple-runners-mixed-timing"
+      ],
+      "valueSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "batter": {
+            "enum": [
+              "home-before-third-out",
+              "not-before-third-out"
+            ]
+          },
+          "first": {
+            "enum": [
+              "home-before-third-out",
+              "not-before-third-out"
+            ]
+          },
+          "second": {
+            "enum": [
+              "home-before-third-out",
+              "not-before-third-out"
+            ]
+          },
+          "third": {
+            "enum": [
+              "home-before-third-out",
+              "not-before-third-out"
+            ]
+          }
+        },
+        "description": "空objectはOUT3-01〜OUT3-03により入力を要求しないことを表す"
+      }
+    },
+    {
+      "axisId": "event.perPitch.interferenceRuling",
+      "sourceClauseId": "req:FR-004",
+      "supportingClauseIds": [
+        "req:INT-01",
+        "req:INT-02",
+        "req:INT-03",
+        "req:INT-04",
+        "req:INT-05",
+        "req:INT-06",
+        "req:INT-07"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-required",
+        "batting:penalty-award",
+        "batting:play-result-with-resultId",
+        "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+        "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+        "offensive-interference:batter-included-with-out-targets-and-return-bases",
+        "offensive-interference:runner-only-with-out-targets-and-return-bases"
+      ],
+      "representationCapability": {
+        "kind": "tagged-targeted-ruling",
+        "dimensions": [
+          "interference-kind",
+          "adopted-result",
+          "target-identity",
+          "awarded-or-return-destination"
+        ],
+        "variantTags": [
+          "not-required",
+          "batting-interference",
+          "obstruction",
+          "offensive-interference"
+        ],
+        "description": "妨害種別ごとに採用結果と対象別の授与塁・アウト対象・帰塁先を表現できる。内部フィールド制約はstage2ExternalConstraintsが定める段階2の確定対象である"
+      }
+    },
+    {
+      "axisId": "event.perPitch.officialScoringPayload",
+      "sourceClauseId": "req:FR-004",
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "no-error",
+        "single-error",
+        "multiple-errors"
+      ],
+      "representationCapability": {
+        "kind": "official-scoring-payload",
+        "dimensions": [
+          "error-count",
+          "fielder-reference"
+        ],
+        "variantTags": [
+          "no-error",
+          "error-recorded"
+        ],
+        "description": "結果IDとは独立に、公式記録として採用した失策の件数と帰属野手を表現できる。内部フィールド制約はstage2ExternalConstraintsが定める段階2の確定対象である"
+      }
+    },
+    {
+      "axisId": "event.perPitch.rbi.doublePlayRelayError",
+      "sourceClauseId": "req:FR-003",
+      "supportingClauseIds": [
+        "req:RBI-02"
+      ],
+      "classification": "finite-enumerable",
+      "values": [
+        "not-required",
+        false,
+        true
+      ]
+    },
+    {
+      "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+      "sourceClauseId": "req:FR-003",
+      "supportingClauseIds": [
+        "req:RBI-03",
+        "req:RBI-04"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-required",
+        "single-runner-kept-running",
+        "single-runner-stopped-and-restarted",
+        "multiple-runners-mixed-continuity"
+      ],
+      "representationCapability": {
+        "kind": "runner-keyed-observation",
+        "dimensions": [
+          "runner-identity",
+          "continuity-observation"
+        ],
+        "variantTags": [
+          "not-required",
+          "observed"
+        ],
+        "description": "生還候補走者ごとに走り続けたか停止後に再開したかを表現できる。内部フィールド制約はstage2ExternalConstraintsが定める段階2の確定対象である"
+      }
+    },
+    {
+      "axisId": "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+      "sourceClauseId": "req:FR-003",
+      "supportingClauseIds": [
+        "req:RBI-05"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "not-required",
+        "single-runner-would-score",
+        "single-runner-would-not-score",
+        "multiple-runners-mixed-ruling"
+      ],
+      "representationCapability": {
+        "kind": "runner-keyed-observation",
+        "dimensions": [
+          "runner-identity",
+          "would-score-without-error"
+        ],
+        "variantTags": [
+          "not-required",
+          "observed"
+        ],
+        "description": "生還候補走者ごとに失策がなくても得点できたかを表現できる。内部フィールド制約はstage2ExternalConstraintsが定める段階2の確定対象である"
+      }
+    },
+    {
+      "axisId": "history.depth",
+      "sourceClauseId": "adr:D-11",
+      "supportingClauseIds": [
+        "req:FR-006"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        0,
+        1,
+        2,
+        "D"
+      ]
+    },
+    {
+      "axisId": "history.composition",
+      "sourceClauseId": "adr:D-11",
+      "supportingClauseIds": [
+        "req:FR-006",
+        "req:FR-040"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        "top-confirmed-play",
+        "top-state-correction",
+        "top-two-different",
+        "all-same"
+      ],
+      "conditionalValues": [
+        {
+          "value": "top-state-correction",
+          "whenClauseId": "req:FR-040",
+          "whenState": "adopted"
+        },
+        {
+          "value": "top-two-different",
+          "whenClauseId": "req:FR-040",
+          "whenState": "adopted"
+        }
+      ]
+    },
+    {
+      "axisId": "history.scenarioLength",
+      "sourceClauseId": "adr:D-11",
+      "supportingClauseIds": [
+        "req:FR-006"
+      ],
+      "classification": "boundary-partition",
+      "boundaryValues": [
+        1,
+        2,
+        "D",
+        "D+1"
+      ]
+    }
+  ],
+  "gameEndAxes": [
+    {
+      "axisId": "gameEnd.regulationInnings",
+      "sourceClauseId": "req:F-1",
+      "supportingClauseIds": [
+        "req:FR-014",
+        "req:DRAW-01",
+        "req:DRAW-03",
+        "adr:D-11"
+      ],
+      "ruleFieldId": "regulationInnings",
+      "classification": "boundary-partition",
+      "coverageBounds": [
+        {
+          "dimension": "innings",
+          "minimum": 1,
+          "maximum": 99
+        }
+      ],
+      "boundaryValues": [
+        1,
+        5,
+        7,
+        9,
+        99
+      ],
+      "invalidBoundaryValues": [
+        0,
+        100
+      ]
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "sourceClauseId": "req:F-1",
+      "supportingClauseIds": [
+        "req:FR-014",
+        "req:COLD-01",
+        "req:COLD-02",
+        "req:COLD-03",
+        "req:COLD-04",
+        "req:COLD-05",
+        "req:COLD-06",
+        "req:COLD-07",
+        "req:COLD-08",
+        "req:COLD-09",
+        "req:DRAW-02",
+        "adr:D-11"
+      ],
+      "ruleFieldId": "coldConditions",
+      "classification": "boundary-partition",
+      "coverageBounds": [
+        {
+          "dimension": "pointDifference",
+          "minimum": 1,
+          "maximum": 99
+        },
+        {
+          "dimension": "startInning",
+          "minimum": 1,
+          "maximum": 99
+        },
+        {
+          "dimension": "tierCount",
+          "minimum": 0,
+          "maximum": 16
+        }
+      ],
+      "boundaryValues": [
+        "tier-count:0",
+        "tier-count:1",
+        "tier-count:16",
+        "point-difference:1",
+        "point-difference:M-1",
+        "point-difference:M",
+        "point-difference:M+1",
+        "point-difference:99",
+        "start-inning:1",
+        "start-inning:N-1",
+        "start-inning:N",
+        "start-inning:N+1",
+        "start-inning:99"
+      ],
+      "invalidBoundaryValues": [
+        "tier-count:17",
+        "point-difference:0",
+        "point-difference:100",
+        "start-inning:0",
+        "start-inning:100"
+      ]
+    },
+    {
+      "axisId": "gameEnd.extensionLimit",
+      "sourceClauseId": "req:F-1",
+      "supportingClauseIds": [
+        "req:DRAW-01",
+        "req:DRAW-03",
+        "req:DRAW-07",
+        "req:DRAW-08",
+        "req:DRAW-09",
+        "req:DRAW-10",
+        "adr:D-11"
+      ],
+      "ruleFieldId": "extensionLimit",
+      "classification": "boundary-partition",
+      "coverageBounds": [
+        {
+          "dimension": "innings",
+          "minimum": 1,
+          "maximum": 99
+        }
+      ],
+      "boundaryValues": [
+        "none",
+        "finite:R",
+        "finite:R+1",
+        "finite:99"
+      ],
+      "invalidBoundaryValues": [
+        "finite:R-1",
+        "finite:100"
+      ]
+    },
+    {
+      "axisId": "gameEnd.tiebreak",
+      "sourceClauseId": "req:F-1",
+      "supportingClauseIds": [
+        "req:FR-009",
+        "req:DRAW-03",
+        "adr:D-11"
+      ],
+      "ruleFieldId": "tiebreak",
+      "classification": "boundary-partition",
+      "coverageBounds": [
+        {
+          "dimension": "startInning",
+          "minimum": 1,
+          "maximum": 99
+        }
+      ],
+      "boundaryValues": [
+        "none",
+        "start:R+1",
+        "start:L",
+        "start:99"
+      ],
+      "invalidBoundaryValues": [
+        "start:R",
+        "start:L+1-when-finite",
+        "start:100"
+      ]
+    }
+  ],
+  "gameEndCombinationRules": {
+    "sourceClauseId": "adr:D-11",
+    "ruleFieldCombination": "pairwise-all-game-end-axes",
+    "boundaryValueCombination": "full-cross-product-with-all-state-and-event-axes"
+  },
+  "nonCoverageFields": [
+    {
+      "fieldId": "dh",
+      "sourceClauseId": "req:F-1",
+      "supportingClauseIds": [
+        "adr:D-11"
+      ],
+      "reason": "DH制は打順の構成に影響するが、F-1の終了条件の成立判定には参照されない",
+      "schemaRetention": "required-by-projection"
+    },
+    {
+      "fieldId": "tiebreak.runnerPlacement",
+      "sourceClauseId": "req:F-1",
+      "supportingClauseIds": [
+        "adr:D-11"
+      ],
+      "reason": "走者配置はタイブレーク開始時の初期状態を定めるが、終了条件の判定には参照されない",
+      "schemaRetention": "required-by-projection"
+    },
+    {
+      "fieldId": "tiebreak.leadoffRule",
+      "sourceClauseId": "req:F-1",
+      "supportingClauseIds": [
+        "adr:D-11"
+      ],
+      "reason": "先頭打者規則はタイブレーク開始時の初期状態を定めるが、終了条件の判定には参照されない",
+      "schemaRetention": "required-by-projection"
+    }
+  ],
+  "projectionRules": [
+    {
+      "ruleId": "projection.finiteEnumerable",
+      "sourceClauseId": "adr:D-11",
+      "sourceKind": "finite-enumerable",
+      "targetIds": [
+        "state.half",
+        "state.count.strikes",
+        "state.count.balls",
+        "state.outs",
+        "state.runners",
+        "state.battingOrder",
+        "state.tiebreakActive",
+        "state.gameEnded",
+        "event.operationKind",
+        "event.perPitch.kind",
+        "event.perPitch.pitchEventKind",
+        "event.perPitch.resultId",
+        "event.perPitch.rbi.doublePlayRelayError"
+      ],
+      "projectionMode": "exact-enum",
+      "jsonSchemaKeywords": [
+        "enum",
+        "x-pitchlog-axis-id",
+        "x-pitchlog-axis-classification",
+        "x-pitchlog-conditional-values"
+      ],
+      "parityChecks": [
+        "axis-id-exact",
+        "classification-exact",
+        "values-exact-set",
+        "conditional-values-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "有限列挙軸のvaluesをenumへ射影し、axisId・分類・値集合をexact-set比較する"
+    },
+    {
+      "ruleId": "projection.boundaryPartition",
+      "sourceClauseId": "adr:D-11",
+      "sourceKind": "boundary-partition",
+      "targetIds": [
+        "state.inning",
+        "state.score",
+        "history.depth",
+        "history.composition",
+        "history.scenarioLength"
+      ],
+      "projectionMode": "boundary-annotations",
+      "jsonSchemaKeywords": [
+        "x-pitchlog-axis-id",
+        "x-pitchlog-axis-classification",
+        "x-pitchlog-boundary-values",
+        "x-pitchlog-conditional-values"
+      ],
+      "parityChecks": [
+        "axis-id-exact",
+        "classification-exact",
+        "boundaries-exact-set",
+        "conditional-values-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "境界値は代表coverage座標であり受理値のenumではないため必須注釈へ射影し、境界集合をexact-set比較する"
+    },
+    {
+      "ruleId": "projection.structuredBoundaryPartition",
+      "sourceClauseId": "adr:D-11",
+      "sourceKind": "boundary-partition",
+      "targetIds": [
+        "event.perPitch.thirdOutTimingByRunner"
+      ],
+      "projectionMode": "structured-boundary-annotations",
+      "jsonSchemaKeywords": [
+        "x-pitchlog-axis-id",
+        "x-pitchlog-axis-classification",
+        "x-pitchlog-boundary-values",
+        "x-pitchlog-value-schema",
+        "x-pitchlog-conditional-values"
+      ],
+      "parityChecks": [
+        "axis-id-exact",
+        "classification-exact",
+        "boundaries-exact-set",
+        "value-schema-exact",
+        "conditional-values-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "第3アウト時機の走者別写像は境界集合に加えて閉じたvalueSchemaを射影し、段階1でexact比較する"
+    },
+    {
+      "ruleId": "projection.deferredStructuredBoundaryPartition",
+      "sourceClauseId": "adr:D-11",
+      "sourceKind": "boundary-partition",
+      "targetIds": [
+        "event.operationPayload",
+        "event.perPitch.runnerEventPayload",
+        "event.perPitch.runnerAdvanceOverridesByRunner",
+        "event.perPitch.interferenceRuling",
+        "event.perPitch.officialScoringPayload",
+        "event.perPitch.rbi.runnerContinuityByRunner",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner"
+      ],
+      "projectionMode": "deferred-structured-boundary-annotations",
+      "jsonSchemaKeywords": [
+        "x-pitchlog-axis-id",
+        "x-pitchlog-axis-classification",
+        "x-pitchlog-boundary-values",
+        "x-pitchlog-representation-capability",
+        "x-pitchlog-stage2-external-constraints",
+        "x-pitchlog-conditional-values"
+      ],
+      "parityChecks": [
+        "axis-id-exact",
+        "classification-exact",
+        "boundaries-exact-set",
+        "representation-capability-exact",
+        "stage2-delegation-exact",
+        "conditional-values-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "段階1では走者別・対象別・タグ付き入力を表現できる能力と境界集合だけを射影する。payload内部の一意性・参照整合・相反排除と状態遷移軸の組合せ規則はstage2ExternalConstraintsの成果物で閉じる"
+    },
+    {
+      "ruleId": "projection.boundedBoundaryPartition",
+      "sourceClauseId": "adr:D-11",
+      "sourceKind": "boundary-partition",
+      "targetIds": [
+        "gameEnd.regulationInnings",
+        "gameEnd.coldConditions",
+        "gameEnd.extensionLimit",
+        "gameEnd.tiebreak"
+      ],
+      "projectionMode": "bounded-boundary-annotations",
+      "jsonSchemaKeywords": [
+        "minimum",
+        "maximum",
+        "x-pitchlog-axis-id",
+        "x-pitchlog-axis-classification",
+        "x-pitchlog-boundary-values",
+        "x-pitchlog-invalid-boundary-values",
+        "x-pitchlog-coverage-bounds"
+      ],
+      "parityChecks": [
+        "axis-id-exact",
+        "classification-exact",
+        "boundaries-exact-set",
+        "range-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "coverageBoundsの各整数次元をminimum・maximumへ、正負の境界集合を必須注釈へ射影して値域と集合を一致比較する"
+    },
+    {
+      "ruleId": "projection.nonFinite",
+      "sourceClauseId": "adr:D-11",
+      "sourceKind": "non-finite",
+      "targetIds": [],
+      "projectionMode": "open-domain-with-reason",
+      "jsonSchemaKeywords": [
+        "type",
+        "x-pitchlog-axis-id",
+        "x-pitchlog-axis-classification",
+        "x-pitchlog-non-finite-reason"
+      ],
+      "parityChecks": [
+        "axis-id-exact",
+        "classification-exact",
+        "non-finite-reason-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "非有限軸はenumや有限境界へ縮小せず実値の型と非有限理由を必須注釈へ射影する。現版に該当軸はない"
+    },
+    {
+      "ruleId": "projection.nonCoverageField",
+      "sourceClauseId": "adr:D-11",
+      "sourceKind": "non-coverage-field",
+      "targetIds": [
+        "dh",
+        "tiebreak.runnerPlacement",
+        "tiebreak.leadoffRule"
+      ],
+      "projectionMode": "required-schema-property",
+      "jsonSchemaKeywords": [
+        "properties",
+        "required",
+        "x-pitchlog-non-coverage-field",
+        "x-pitchlog-non-coverage-reason"
+      ],
+      "parityChecks": [
+        "field-id-exact",
+        "reason-exact",
+        "schema-retention-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "coverage件数には加えず、fieldId・除外理由とともにschemaのrequired propertyへ必ず保持する"
+    },
+    {
+      "ruleId": "projection.descriptorIdentity",
+      "sourceClauseId": "adr:D-11",
+      "sourceKind": "descriptor-identity",
+      "targetIds": [
+        "descriptorId",
+        "version",
+        "digest"
+      ],
+      "projectionMode": "descriptor-identity-binding",
+      "jsonSchemaKeywords": [
+        "x-pitchlog-descriptor-id",
+        "x-pitchlog-descriptor-version",
+        "x-pitchlog-descriptor-digest"
+      ],
+      "parityChecks": [
+        "descriptor-identity-exact",
+        "no-extra-or-missing-targets"
+      ],
+      "verificationStage": "stage2-descriptorParity",
+      "mismatchAction": "manifest-registration-denied",
+      "undecidableAction": "fail",
+      "description": "派生schemaへdescriptorId・version・digestを固定し、1項目でも不一致ならmanifest登録を拒否する"
+    }
+  ]
+}
