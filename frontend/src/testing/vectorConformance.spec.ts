@@ -94,6 +94,15 @@ it.each(scenarios)('$id: $description', async (scenario) => {
     expect(report.complete).toBe(true)
     expect(report.declaredCaseIds).toEqual(scenario.expected.declaredCaseIds)
     expect(report.consumedCaseIds).toEqual(scenario.expected.consumedCaseIds)
+    expect(report.executions).toEqual(
+      scenario.expected.consumedCaseIds.map((caseId) => ({
+        caseId,
+        generatedId: scenario.normalizer.generatedId,
+        sourceHash: scenario.normalizer.sourceHash,
+        normalizationMatched: true,
+        outputMatched: true,
+      })),
+    )
   } else {
     let error: unknown
     try {
