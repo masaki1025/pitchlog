@@ -421,6 +421,10 @@ PRODUCT_RLS_AREA_PATH_ADDITIONS = (
     "scripts/product_rls_real_schema/*",
     "scripts/product-rls-real-schema-targets.json",
 )
+HTTP_TENANT_AREA_PATH_ADDITIONS = (
+    "backend/src/pitchlog/api/*",
+    "backend/tests/test_api*.py",
+)
 # 計画書 4-8 節の予定パス。①③ は完全パス、② は専用ディレクトリ配下とする。
 PRODUCT_RLS_PLANNED_EXACT_PATHS = frozenset(
     {
@@ -2115,9 +2119,37 @@ def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> 
         area for area in candidate["areas"] if area["id"] == "tenant-isolation"
     )
     assert tenant_area["paths"] == ["base/tenant-isolation.py"]
-    assert core_guard.AREA_PATH_ADDITIONS["tenant-isolation"] == (ADR_001_PATH,)
+    assert (
+        core_guard.AREA_PATH_ADDITIONS["tenant-isolation"]
+        == HTTP_TENANT_AREA_PATH_ADDITIONS
+    )
     core_guard.validate_area_path_layers(baseline, candidate)
     assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
+
+
+def test_http_tenant_addition_layer_accepts_only_complete_pair() -> None:
+    """基線のままか、新 2 件を同順で全件足した形だけを受理する。"""
+    core_guard = load_core_guard_module()
+    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
+    additions = HTTP_TENANT_AREA_PATH_ADDITIONS
+
+    for paths in ((), additions):
+        candidate = json.loads(json.dumps(baseline))
+        tenant_area = next(
+            area for area in candidate["areas"] if area["id"] == "tenant-isolation"
+        )
+        tenant_area["paths"].extend(paths)
+        core_guard.validate_area_path_layers(baseline, candidate)
+
+    for paths in ((additions[0],), (additions[1],), tuple(reversed(additions))):
+        candidate = json.loads(json.dumps(baseline))
+        tenant_area = next(
+            area for area in candidate["areas"] if area["id"] == "tenant-isolation"
+        )
+        tenant_area["paths"].extend(paths)
+        with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+            core_guard.validate_area_path_layers(baseline, candidate)
 
 
 def test_tenant_additions_declared_for_other_area_are_rejected(tmp_path: Path) -> None:
@@ -2175,20 +2207,23 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     configuration = load_actual_core_areas()
-    for document, expected_tail in (
-        (baseline, PRODUCT_RLS_AREA_PATH_ADDITIONS),
-        (
-            configuration,
-            (
-                *PRODUCT_RLS_AREA_PATH_ADDITIONS,
-                *core_guard.AREA_PATH_ADDITIONS["tenant-isolation"],
-            ),
-        ),
-    ):
-        tenant_area = next(
-            area for area in document["areas"] if area["id"] == "tenant-isolation"
-        )
-        assert tuple(tenant_area["paths"][-len(expected_tail) :]) == expected_tail
+    baseline_paths = tuple(
+        next(area for area in baseline["areas"] if area["id"] == "tenant-isolation")[
+            "paths"
+        ]
+    )
+    current_paths = tuple(
+        next(
+            area for area in configuration["areas"] if area["id"] == "tenant-isolation"
+        )["paths"]
+    )
+    additions = core_guard.AREA_PATH_ADDITIONS["tenant-isolation"]
+    assert additions == HTTP_TENANT_AREA_PATH_ADDITIONS
+    for paths in (baseline_paths, current_paths):
+        assert tuple(
+            path for path in paths if path in PRODUCT_RLS_AREA_PATH_ADDITIONS
+        ) == PRODUCT_RLS_AREA_PATH_ADDITIONS
+    assert current_paths in (baseline_paths, (*baseline_paths, *additions))
     for pattern, planned_paths in zip(
         PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PATTERN_EXAMPLES, strict=True
     ):
@@ -2218,7 +2253,7 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
 
 
 def test_area_registration() -> None:
-    """5 領域の追加層が取り込み後の比較元へ全件登録されたと示す。"""
+    """実設定が基線か基線に宣言全件を加えた形であると示す。"""
     core_guard = load_core_guard_module()
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
@@ -2232,7 +2267,7 @@ def test_area_registration() -> None:
         "sync-protocol": 49,
         "game-state": 49,
         "recording-rights": 1,
-        "tenant-isolation": 1,
+        "tenant-isolation": 2,
         "data-migration": 6,
     }
     appendix_e_additions = (
@@ -2251,7 +2286,7 @@ def test_area_registration() -> None:
         "sync-protocol": appendix_e_additions,
         "game-state": appendix_e_additions,
         "recording-rights": (ADR_001_PATH,),
-        "tenant-isolation": (ADR_001_PATH,),
+        "tenant-isolation": HTTP_TENANT_AREA_PATH_ADDITIONS,
         "data-migration": (
             ADR_001_PATH,
             ADR_003_PATH,
@@ -2275,9 +2310,7 @@ def test_area_registration() -> None:
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in additions
         )
-        base_set = set(base_paths)
-        assert tuple(path for path in current_paths if path in base_set) == base_paths
-        assert tuple(path for path in current_paths if path not in base_set) == additions
+        assert current_paths in (base_paths, (*base_paths, *additions))
     core_guard.validate_area_path_layers(baseline, configuration)
 
 

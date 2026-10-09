@@ -91,7 +91,10 @@ AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
     "sync-protocol": APPENDIX_E_AREA_PATH_ADDITIONS,
     "game-state": APPENDIX_E_AREA_PATH_ADDITIONS,
     "recording-rights": ("docs/adr/ADR-001-codex-model-selection.md",),
-    "tenant-isolation": ("docs/adr/ADR-001-codex-model-selection.md",),
+    "tenant-isolation": (
+        "backend/src/pitchlog/api/*",
+        "backend/tests/test_api*.py",
+    ),
     "data-migration": VOCABULARY_AREA_PATH_ADDITIONS,
 }
 REQUIRED_CHECK_RE = re.compile(
