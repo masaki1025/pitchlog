@@ -315,6 +315,14 @@ function waitForPipes(closedPromise: Promise<void>): Promise<boolean> {
   })
 }
 
+function describeError(error: unknown): string {
+  try {
+    return String(error)
+  } catch {
+    return '(文字列化できない例外)'
+  }
+}
+
 export async function runVectors(
   cases: unknown,
   contract: VectorContract,
@@ -371,6 +379,7 @@ export async function runVectors(
   let exited = false
   let exitStatus: CloseStatus | undefined
   let spawnFailure: Error | undefined
+  let childFailure: Error | undefined
   let inputFailure: Error | undefined
   child.stderr.setEncoding('utf8')
   child.stderr.on('data', (chunk: string) => {
@@ -386,12 +395,16 @@ export async function runVectors(
       exitStatus = { code, signal }
       resolveExit(exitStatus)
     })
-    child.once('error', (error: Error) => {
-      spawnFailure = error
+    child.on('error', (error: Error) => {
       reader.fail(error)
-      exited = true
-      exitStatus = { code: null, signal: null }
-      resolveExit(exitStatus)
+      if (child.pid === undefined) {
+        spawnFailure ??= error
+        exited = true
+        exitStatus = { code: null, signal: null }
+        resolveExit(exitStatus)
+      } else {
+        childFailure ??= error
+      }
     })
   })
   const stopProcessGroup = (): void => {
@@ -426,6 +439,7 @@ export async function runVectors(
   let hasAdapterError = false
   let rethrowAdapterError = false
   let mainFailed = false
+  let primaryInternal: VectorRunnerError | undefined
   try {
     child.stdin.write(start)
     let terminal: JsonRecord | undefined
@@ -483,10 +497,11 @@ export async function runVectors(
     }
     child.stdin.end()
     const status = await waitForExit(exitPromise, timeoutMs)
-    if (spawnFailure || inputFailure || status.code !== 0) {
+    if (spawnFailure || childFailure || inputFailure || status.code !== 0) {
       throw internal(
         `子の終了が異常: code=${status.code}, signal=${status.signal}, ` +
-          `spawn=${String(spawnFailure)}, stdin=${String(inputFailure)}`,
+          `spawn=${String(spawnFailure)}, child=${String(childFailure)}, ` +
+          `stdin=${String(inputFailure)}`,
       )
     }
     if (terminal.type === 'report') return reportFrom(terminal)
@@ -512,27 +527,33 @@ export async function runVectors(
         }
       }
       await waitForPipeClose()
-      throw internal(
+      primaryInternal = internal(
         `終端前に子が終了した: code=${exitStatus?.code ?? null}, ` +
           `signal=${exitStatus?.signal ?? null}`,
       )
+      throw primaryInternal
     }
     if (rethrowAdapterError || error instanceof VectorRunError) throw error
-    if (error instanceof VectorRunnerError) throw internal(error.message)
-    throw internal(`ブリッジの実行に失敗: ${String(error)}`)
+    primaryInternal =
+      error instanceof VectorRunnerError
+        ? internal(error.message)
+        : internal(`ブリッジの実行に失敗: ${String(error)}`)
+    throw primaryInternal
   } finally {
-    let cleanupError: unknown
+    const cleanupIssues: string[] = []
     if (!exited) {
       try {
         stopProcessGroup()
       } catch (error) {
-        cleanupError = error
+        cleanupIssues.push(`signal 失敗: ${describeError(error)}`)
       }
       try {
         await waitForExit(exitPromise, REAP_TIMEOUT_MS)
       } catch (error) {
-        cleanupError ??= error
+        cleanupIssues.push(`終了未観測: ${describeError(error)}`)
       }
+      if (childFailure)
+        cleanupIssues.push(`子の error: ${describeError(childFailure)}`)
     }
     // 子の exit 後はパイプだけを期限付きで待ち、signal は送らない。
     if (exited) await waitForPipeClose()
@@ -540,10 +561,13 @@ export async function runVectors(
       try {
         stream.destroy()
       } catch (error) {
-        cleanupError ??= error
+        cleanupIssues.push(`stdio の破棄に失敗: ${describeError(error)}`)
       }
     }
-    if (cleanupError && !mainFailed)
-      throw internal(`子を回収できない: ${String(cleanupError)}`)
+    if (cleanupIssues.length > 0) {
+      const detail = `子を回収できない: ${cleanupIssues.join(', ')}`
+      if (primaryInternal) primaryInternal.message += `; ${detail}`
+      else if (!mainFailed) throw internal(detail)
+    }
   }
 }
