@@ -1,13 +1,13 @@
 ---
 feature: um1-player-roster-opponent
 status: active
-承認: 済(2026-10-09・山田正輝 / 第 7 改訂 — 第 6 改訂 2026-10-08・第 5 改訂 2026-10-08・第 4 改訂 2026-10-08・第 3 改訂 2026-10-07・第 2 改訂・第 1 改訂 2026-10-05・初版 2026-09-24)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-10-09・山田正輝 / 第 8 改訂 — 第 7 改訂 2026-10-09・第 6 改訂 2026-10-08・第 5 改訂 2026-10-08・第 4 改訂 2026-10-08・第 3 改訂 2026-10-07・第 2 改訂・第 1 改訂 2026-10-05・初版 2026-09-24)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業(ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..
 notion: https://app.notion.com/p/3da93b75e687812eb946c4a8cf5fc1a7
 branch: feature/um1-player-roster-opponent
 created: 2026-09-24
-計画レビュー周回: 18       # 敵対レビュー 1 周目(判定 否決・P0 16 / P1 6 / P2 1)/ 改訂 2026-10-05 の 1 周目(否決・P1 3 / P2 2)・2 周目(否決・P1 3 / P2 3)・3 周目(否決・P1 2 / P2 4)・4 周目(否決・P1 3 — PO 裁定で N1〜N4 へ)・5 周目(否決・P1 1〔N3〕/ P2 1)/ 第 2 改訂の 1 周目(否決・P1 4 / P2 1)・2 周目(否決・P1 1 / P2 1)/ 第 3 改訂の 1 周目(否決・P0 2 / P1 2)・2 周目(否決・P1 2)/ 第 4 改訂の 1 周目(否決・P1 4)・2 周目(可決・P2 1)/ 第 5 改訂の 1 周目(可決・P2 1)/ 第 6 改訂の 1 周目(否決・P1 1)/ 第 7 改訂の 1 周目(否決・P0 1 / P1 5 / P2 1)・2 周目(否決・P1 4)・3 周目(否決・P1 1)・4 周目(否決・P1 2)の反映を含む
+計画レビュー周回: 19       # 敵対レビュー 1 周目(判定 否決・P0 16 / P1 6 / P2 1)/ 改訂 2026-10-05 の 1 周目(否決・P1 3 / P2 2)・2 周目(否決・P1 3 / P2 3)・3 周目(否決・P1 2 / P2 4)・4 周目(否決・P1 3 — PO 裁定で N1〜N4 へ)・5 周目(否決・P1 1〔N3〕/ P2 1)/ 第 2 改訂の 1 周目(否決・P1 4 / P2 1)・2 周目(否決・P1 1 / P2 1)/ 第 3 改訂の 1 周目(否決・P0 2 / P1 2)・2 周目(否決・P1 2)/ 第 4 改訂の 1 周目(否決・P1 4)・2 周目(可決・P2 1)/ 第 5 改訂の 1 周目(可決・P2 1)/ 第 6 改訂の 1 周目(否決・P1 1)/ 第 7 改訂の 1 周目(否決・P0 1 / P1 5 / P2 1)・2 周目(否決・P1 4)・3 周目(否決・P1 1)・4 周目(否決・P1 2)/ 第 8 改訂の 1 周目(否決・P1 1 / P2 2)の反映を含む
 確定ゲート周回: 0
 実行方式: 通常
 反映周コミット: 適用
@@ -87,7 +87,7 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
 | `docs/design/data-model.md` / 要件書 / `docs/adr/` | **反映なし**(既決事項に従うのみ。再決定しない) | — |
-| **`.claude/core-areas.json`** | **paths を追加**(glob 2 件 — 越境テストの `backend/tests/test_*_boundary.py` とリポジトリのテストの `backend/tests/test_*_repository.py`。本単位の `backend/tests/test_roster_boundary.py`・`backend/tests/test_roster_repository.py` と後続単位の同名規約のテストを覆う。**第 5 改訂で 1 ファイル名から glob へ・第 6 改訂でリポジトリのテストの glob を追加**。新規リポジトリは既存 glob が覆う。**第 7 改訂で API 層の 2 ファイル `backend/src/pitchlog/api/tenant_access.py`・`backend/src/pitchlog/api/routers/players.py` を追加**)。`:61` が「各核単位が自 PR で行う」と定める。**6.3-⑤ の敵対レビュー + 人間承認の対象** | PR レビュー(6.3-⑤) |
+| **`.claude/core-areas.json`** | **paths を追加**(glob 2 件 — 越境テストの `backend/tests/test_*_boundary.py` とリポジトリのテストの `backend/tests/test_*_repository.py`。本単位の `backend/tests/test_roster_boundary.py`・`backend/tests/test_roster_repository.py` と後続単位の同名規約のテストを覆う。**第 5 改訂で 1 ファイル名から glob へ・第 6 改訂でリポジトリのテストの glob を追加**。新規リポジトリは既存 glob が覆う。**第 7 改訂で API 層の 2 ファイルを追加し、第 8 改訂で API 層全体の glob `backend/src/pitchlog/api/*` へ替えた**)。`:61` が「各核単位が自 PR で行う」と定める。**6.3-⑤ の敵対レビュー + 人間承認の対象** | PR レビュー(6.3-⑤) |
 | `scripts/core_guard.py` / `tests/test_core_guard.py`(**改訂 2026-10-05 で追加**) | `AREA_PATH_ADDITIONS["tenant-isolation"]` の宣言と表明の更新(4 節 ステップ 6)。`BASELINE_DEFINITION_PATHS` のため `core-areas.json` と別コミット | PR レビュー |
 | `contracts/authz/route-registry.json` / `http-route-matrix.json` (+ lock) | **追記**(`route_kind` の値域は PR #77 で決定済み — `record_and_aggregate`) | PR レビュー |
 | `contracts/authz/oracle-seal.lock.json` / oracle 資産(`oracle_commit` 7 箇所)/ `contracts/authz/frozen-baselines.json` / `scripts/check_authz_catalog.py` / `tests/test_check_authz_catalog.py`(**第 2 改訂で追加**) | route-registry と HTTP 行列が oracle 封印の入力資産のため、oracle の追随・凍結基準の記録(series `oracle_input`)・`--reseal-oracle` による再封印。検査器の期待集合の更新(4 節 ステップ 2〜4) | 7.7 の更新経路・**人間の確認**(`reseal_policy`) |
@@ -393,6 +393,28 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 > 4. **API 層の 2 ファイルを登録する**(④): ステップ 6・7 の是正を 2 コミット置く。`(ステップ 6 是正)` で宣言値を **`("backend/tests/test_*_boundary.py", "backend/tests/test_*_repository.py", "backend/src/pitchlog/api/tenant_access.py", "backend/src/pitchlog/api/routers/players.py")`**(この順)にし、`tests/test_core_guard.py` の独立の期待値と 4 負例を追随させる(JSON は触らない)。`(ステップ 7 是正)` で `.claude/core-areas.json` の `tenant-isolation.paths` の末尾に 2 ファイルを足す(基線定義は触らない)。どちらも 1 ファイル名なので遡及の確認は不要で、登録の時点で実ファイルに当たる。**本改訂の承認は paths を追加する方針の承認**であり、**実際の JSON と宣言の差分は、6.3-⑤ に従い 2 コミットそれぞれの敵対レビューと、PR の人間の逐行確認で審査する**(計画の承認では代えない)。後続単位が API の入口を足すときの登録の規約は TSK-485 への申し送りに足す
 >
 
+> ## 【第 8 改訂 2026-10-09・改訂承認: 山田正輝】API 層の登録を 2 ファイル名から `backend/src/pitchlog/api/*` の glob 1 本へ替える
+>
+> **ステップの番号と表の行数は変えない**。第 7 改訂の 4(API 層の 2 ファイルの登録)の宣言値・登録値だけを書き換える。第 7 改訂の他の項目は変えない。
+>
+> ### 何が起きたか
+>
+> - 第 7 改訂の 4 に沿って作った `(ステップ 6 是正)`(`e22b141d`)・`(ステップ 7 是正)`(`1e45c107`)の敵対レビューで、`1e45c107` が否決(P1 1)。**同じ PR で足し・変えた API 層の強制点 3 ファイルがどのコア領域にも当たらない**: `backend/src/pitchlog/api/request_presentation.py`(ステップ 8 — Cookie・CSRF の検査)・`api/errors.py`(拒否の応答 — 401・403 と認可の 403→404)・`api/app.py`(入口〔ルータ〕の登録)。ハーネス設計書 6.3 の境界定義(テナント分離 — 認可判定・API 直叩き)と paths の落とし込み規則 ①(強制点を変え得るファイル)に当たる。第 7 改訂で 2 ファイルに絞ったのは見落とし
+> - 2 コミットは未 push
+>
+> ### 裁定(2026-10-09・山田正輝)
+>
+> **API 層全体を glob `backend/src/pitchlog/api/*` 1 本で登録する**(選択肢: glob 1 本〔採用〕/ 3 ファイルを個別に足して 7 件)。規則の「迷えば含む側に倒す(fail-closed)」「過剰包含は PR 単位の例外で外さず、モジュール分割で境界を切ってから paths を狭める」(6.3 の規則 ④)に沿う。後続単位が足す API の入口も自動で覆う。**代わりに、DTO(`api/schemas/*`)や `/health`・`/version`(`api/routers/meta.py`)だけを触る PR もコア領域の扱い(敵対レビュー・人間の逐行確認)になる**ことを受け入れる
+>
+> ### 何を変えたか
+>
+> 1. **宣言値・登録値**: 第 7 改訂の 4 の 4 件を **`("backend/tests/test_*_boundary.py", "backend/tests/test_*_repository.py", "backend/src/pitchlog/api/*")`**(この順・3 件)へ替える。`fnmatch.fnmatchcase` の `*` は `/` を跨ぐので `api/routers/*`・`api/schemas/*` も覆う
+> 2. **コミットの作り直し**: 未 push の `e22b141d`・`1e45c107` は捨て、`(ステップ 6 是正)`・`(ステップ 7 是正)` を 3 件の値で作り直す。合格条件は内訳「6・7 の是正(第 7 改訂)」と同じ形(1 本目の SHA は期待どおり赤 — JSON の追加 2 件に対し宣言 3 件。2 本目で ①〜⑤)。② は「`backend/src/pitchlog/api/*` に当たる追跡ファイルが、`tenant-isolation` のパターンだけを渡した `matched_paths()` ですべて返る」へ読み替える
+> 3. **遡及の確認**(2 本目の SHA): `backend/src/pitchlog/api/*` に当たる追跡ファイルが API 層の 11 件だけであること(2026-10-09 の実測 — `api/__init__.py`・`app.py`・`errors.py`・`request_presentation.py`・`tenant_access.py`・`routers/{__init__,meta,players}.py`・`schemas/{__init__,base,roster}.py`)。API 層の外のファイルが当たらないこと
+> 4. **TSK-485 への申し送り**(8 節 13 行)を「API 層は glob で `tenant-isolation` に入っているので、後続単位の入口は自動で覆われる。API 層の外に強制点を置くときは実パスを照合して登録する」へ書き換える
+> 5. DoD・3 節・6 節の 4 件の記述を 3 件へ追随させる
+>
+
 **着手の拘束**: **ステップ 1〜3 は外部依存の着地を待たない。ステップ 4 の前に PR 番号を確定する(N3 — 人間の判断を経てから PR を作る)。ステップ 5 はステップ 4 と同じ PR 番号を使う。ステップ 6・7 は TSK-344 のマージと develop の取り込みの後(第 1 改訂の 3 — 本書の拘束)。**
 **第 3 改訂の番号で: ステップ 8 は外部依存を待たない(ステップ 7 の後)。ステップ 9 以降は dep 4・6(γ)・7・10(TSK-480)・11(TSK-457)の develop 着地後**
 (`/implement` は承認済み計画書を要求する)。
@@ -482,10 +504,10 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 - **検査器の性質の正確な記述**: 宣言後も、JSON が merge-base のままの状態は検査器が許す(`:310`)。**登録の欠落は検査器では検出しない** — ステップ 7 の独立確認で検出する
 - **合格条件**: `uv run pytest tests/test_core_guard.py` が green(**`test_all_schema_contract_assets_match_an_actual_core_area_path` の 1 件だけはステップ 7 で緑になるので除く** — 第 6 改訂の 3)。**ステップ 6 のコミット SHA に対して `uv run python -c "import sys; from pathlib import Path; sys.path.insert(0, 'scripts'); import core_guard; print(core_guard.verify_area_path_baseline(Path('.'), '<origin/develop の SHA>', '<ステップの SHA>'))"`(リポジトリルートで。base SHA・ステップ SHA・戻り値〔merge-base の OID〕を worklog に記録) を実行し、例外なく戻ることを確かめる**(PR の CI は最終 head しか検査せず、ローカルの `core_guard.py` は PR event が無いと skip するため — `.github/workflows/ci.yml:55`・`scripts/core_guard.py:499`)
 
-**6・7 の是正(第 7 改訂)**: ステップ 6・7 の合格条件(宣言値・登録値が 2 件)は**実施済みのステップ 6・7 の時点の状態**を表す。第 7 改訂の是正 2 コミットの後の状態は 4 件で、DoD はこちらを要求する。
+**6・7 の是正(第 7 改訂・第 8 改訂で値を替えた)**: ステップ 6・7 の合格条件(宣言値・登録値が 2 件)は**実施済みのステップ 6・7 の時点の状態**を表す。是正 2 コミットの後の状態は 3 件で、DoD はこちらを要求する。
 
-- **`(ステップ 6 是正)`**: 宣言値を 4 件(`backend/tests/test_*_boundary.py`・`backend/tests/test_*_repository.py`・`backend/src/pitchlog/api/tenant_access.py`・`backend/src/pitchlog/api/routers/players.py` の順)にし、`tests/test_core_guard.py` の独立の期待値と 4 負例(部分追加・順序入れ替え・baseline の削除・未宣言の追加)を追随させる。`core-areas.json` は触らない。**このコミットの SHA は期待どおり赤になる**: 検査器が受け入れるのは「JSON が merge-base のまま」か「merge-base ＋ 宣言の全件」だけで(`scripts/core_guard.py` の `validate_area_path_layers`)、既登録の 2 件だけがある中間状態は `verify_area_path_baseline()` が `GuardError` を返し、`tests/test_core_guard.py` の登録数と宣言値の一致の表明も落ちる(JSON と基線定義を同じコミットで変えられないので、2 件 → 4 件の移行で中間の赤は避けられない)。**合格条件**: 期待失敗が「宣言 4 件に対して JSON の追加が 2 件」に由来するものだけであること(`verify_area_path_baseline()` のメッセージと `tests/test_core_guard.py` の失敗の一覧を worklog に記録)/ 敵対レビュー。CI は PR の先頭だけを見るので、次のコミットと同じ push で送る
-- **`(ステップ 7 是正)`**: `core-areas.json` の `tenant-isolation.paths` の末尾に 2 ファイルを足す。基線定義は触らない。**合格条件**(内訳 7 の確認はステップ 7 の時点〔追加 2 件・越境テストの一致 0 件〕のもので、ここでは使わない): このコミットの SHA に対して ① 実際の `tenant-isolation.paths` が「merge-base の列 ＋ 4 件(上の順)」と完全一致し、他の領域・キーが不変 ② 2 ファイルがこの SHA の追跡ファイルに存在し(`git ls-files`)、`tenant-isolation` のパターンだけを渡した `matched_paths()` が 2 ファイルのパスをそれぞれ返す ③ `verify_area_path_baseline()` が例外なく戻る ④ `uv run pytest tests/test_core_guard.py` が green(前のコミットの期待失敗がすべて解消)/ 結果を worklog に記録 / 敵対レビュー
+- **`(ステップ 6 是正)`**: 宣言値を 3 件(`backend/tests/test_*_boundary.py`・`backend/tests/test_*_repository.py`・`backend/src/pitchlog/api/*` の順 — 第 8 改訂)にし、`tests/test_core_guard.py` の独立の期待値と 4 負例(部分追加・順序入れ替え・baseline の削除・未宣言の追加)を追随させる。`core-areas.json` は触らない。**このコミットの SHA は期待どおり赤になる**: 検査器が受け入れるのは「JSON が merge-base のまま」か「merge-base ＋ 宣言の全件」だけで(`scripts/core_guard.py` の `validate_area_path_layers`)、既登録の 2 件だけがある中間状態は `verify_area_path_baseline()` が `GuardError` を返し、`tests/test_core_guard.py` の登録数と宣言値の一致の表明も落ちる(JSON と基線定義を同じコミットで変えられないので、中間の赤は避けられない)。**合格条件**: 期待失敗が「宣言 3 件に対して JSON の追加が 2 件」に由来するものだけであること(`verify_area_path_baseline()` のメッセージと `tests/test_core_guard.py` の失敗の一覧を worklog に記録)/ 敵対レビュー。CI は PR の先頭だけを見るので、次のコミットと同じ push で送る
+- **`(ステップ 7 是正)`**: `core-areas.json` の `tenant-isolation.paths` の末尾に `backend/src/pitchlog/api/*` を足す。基線定義は触らない。**合格条件**(内訳 7 の確認はステップ 7 の時点〔追加 2 件・越境テストの一致 0 件〕のもので、ここでは使わない): このコミットの SHA に対して ① 実際の `tenant-isolation.paths` が「merge-base の列 ＋ 3 件(上の順)」と完全一致し、他の領域・キーが不変 ② `backend/src/pitchlog/api/*` に当たるこの SHA の追跡ファイル(`git ls-files`)が、`tenant-isolation` のパターンだけを渡した `matched_paths()` ですべて返る ③ 遡及の確認 — `backend/src/pitchlog/api/*` に当たる追跡ファイルが API 層のファイルだけ(2026-10-09 の実測で 11 件 — 第 8 改訂の 3)④ `verify_area_path_baseline()` が例外なく戻る ⑤ `uv run pytest tests/test_core_guard.py` が green(前のコミットの期待失敗がすべて解消)/ 結果を worklog に記録 / 敵対レビュー
 
 **7. paths の登録**
 
@@ -571,7 +593,7 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 - [ ] **契約 4 の 5 領域突合**(2 節)を書いた
 - [ ] **凍結基準の記録(7.7-2)が権威履歴に 1 件あり、PR の base に対して再導出・再検証済み**。比較 corpus の digest が再封印済み(4 節 内訳 5 — 改訂 2026-10-05)
 - [ ] **oracle 封印の再封印と凍結基準(series `oracle_input`)の記録が 1 件あり、人間の確認(ステップ 3)を経ている**。PR の base に対して再導出・再検証済み(第 2 改訂)
-- [ ] **追加層の宣言(ステップ 6)と paths 登録(ステップ 7)が別コミット**で、各 SHA に対する `verify_area_path_baseline()` の green が worklog にある。`tenant-isolation.paths` が「merge-base ＋ 4 件(`backend/tests/test_*_boundary.py`・`backend/tests/test_*_repository.py`・`backend/src/pitchlog/api/tenant_access.py`・`backend/src/pitchlog/api/routers/players.py` の順)」に一致(内訳 6・7 — 第 6・第 7 改訂)。ステップ 7 の時点の遡及の確認(内訳 7)の記録が worklog にある
+- [ ] **追加層の宣言(ステップ 6)と paths 登録(ステップ 7)が別コミット**で、ステップ 6・7 と `(ステップ 7 是正)` の各 SHA に対する `verify_area_path_baseline()` の green と、`(ステップ 6 是正)` の SHA の所定の期待失敗(宣言 3 件に対し JSON の追加 2 件 — 内訳「6・7 の是正」)が worklog にある。`tenant-isolation.paths` が「merge-base ＋ 3 件(`backend/tests/test_*_boundary.py`・`backend/tests/test_*_repository.py`・`backend/src/pitchlog/api/*` の順)」に一致(内訳 6・7 — 第 6・第 7・第 8 改訂)。ステップ 7 の時点の遡及の確認(内訳 7)の記録が worklog にある
 - [ ] **同領域の宣言・paths を変える未マージ ref の確認記録**(確認した ref と SHA)がステップ 6・7・PR 前の 3 時点で worklog にある
 - [ ] **リクエストの認証**(第 3 改訂): Cookie は H-2 の属性・状態を変える要求はカスタムヘッダと `Origin` の両方を検査・提示値を分解しない・提示値がログ・例外・応答に出ない(内訳 8)。N6 の値を δ の担当へ連絡済み
 - [ ] **`TenantContext` の発行**(第 3 改訂): 発行専用モジュールが `allowed_product_modules` と exact-set で一致し、検査器は 0 件必須を解除せず「資産の発行入口が属するモジュール 1 件」へ置き換えた(期待値は資産から導出し、検査器に直書きしない)。発行関数の名前の衝突が 0 件。**発行関数の入力は提示値で、γ の公開入口は発行専用モジュールの中だけで呼ぶ**(内訳 9)
@@ -645,8 +667,9 @@ uv run pytest -c pyproject.toml
 | **10** | **ステップ 5 の文の組み立てが迂回検査の条件 5(TB005)に反する件の直し方** | **【裁定 2026-10-08・山田正輝】文の組み立て関数を `allowed_symbols` に登録する**(第 4 改訂 — 他の選択肢: 組み立てを基底へ移す / 組み立て API を目録の対象外にする) |
 | **11** | **第 4 改訂 2026-10-08 の承認**(ステップ 5 の是正 1 コミット〔変更と記録〕・条件 5 の許可側・検証を確定した状態で当てる規律・ステップ 10 以降の記録の扱い) | **2026-10-08 に承認済み(山田正輝)** |
 | **12** | **ステップ 7 の paths 登録を 1 ファイル名から越境テストの glob へ替えるか**(469 master の提案) | **【裁定 2026-10-08・山田正輝】glob `backend/tests/test_*_boundary.py` で登録する**(第 5 改訂) |
-| **13** | **越境テストの命名規約 `backend/tests/test_<単位>_boundary.py` の置き場** | **本単位の射程の外**。**TSK-485**(コア領域の paths を足す手順の文書化)へ申し送る(Notion にコメント)。本単位は自分の越境テストをこの名前で作る。**第 7 改訂で申し送りに足す**: 後続単位が API 層に強制点(提示値の照合・拒否)や入口(テナントのデータを返すルータ)を足すときも、実パスを照合して `tenant-isolation` に登録する(API 層はどの領域の glob にも入っていない — ハーネス設計書 6.3 の境界定義表と paths の落とし込み規則 ①) |
+| **13** | **越境テストの命名規約 `backend/tests/test_<単位>_boundary.py` の置き場** | **本単位の射程の外**。**TSK-485**(コア領域の paths を足す手順の文書化)へ申し送る(Notion にコメント)。本単位は自分の越境テストをこの名前で作る。**第 8 改訂で申し送りに足す**: API 層は glob `backend/src/pitchlog/api/*` で `tenant-isolation` に入っているので、後続単位が足す API の強制点・入口は自動で覆われる。**API 層の外に強制点(提示値の照合・拒否・テナント文脈の受け渡し)を置くときは、実パスを照合して登録する**(ハーネス設計書 6.3 の境界定義表と paths の落とし込み規則 ①) |
 | **14** | **第 5 改訂 2026-10-08 の承認**(ステップ 6・7 の宣言値と登録値を glob へ・遡及の確認・344 の宣言を固定する表明の扱い) | **承認 2026-10-08・山田正輝** |
 | **15** | **ステップ 5 のリポジトリのテストがコア領域の paths に当たらない件の直し方**(PR #95 の CI) | **【裁定 2026-10-08・山田正輝】リポジトリのテストの glob `backend/tests/test_*_repository.py` を足して 2 本にする**(第 6 改訂 — 他の選択肢: 1 ファイル名を足す) |
 | **16** | **第 6 改訂 2026-10-08 の承認**(ステップ 6・7 の宣言値・登録値を glob 2 本へ・遡及の確認とステップ 6 の合格条件の例外・ステップ 2 の是正・push 前の全件実行) | **承認 2026-10-08・山田正輝** |
 | **17** | **第 7 改訂 2026-10-09 の承認**(比較 corpus の前版照合を外す・ステップ 10 のセンサス基準・API 層の 2 ファイルの登録〔ステップ 6・7 の是正 2 コミット〕・N4 に宣言の張り替え) | **承認 2026-10-09・山田正輝** |
+| **18** | **第 8 改訂 2026-10-09 の承認**(API 層の登録を 2 ファイル名から glob `backend/src/pitchlog/api/*` へ・未 push の是正 2 コミットの作り直し) | **承認 2026-10-09・山田正輝** |
