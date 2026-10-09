@@ -12,7 +12,7 @@ date: 2026-10-09
 > 入口を開く前に、要件書 10 章の相談で決まった具体設計か、**人間が承認した暫定設計を持ち**、
 > それが下の不変条件を満たすことを確かめる(`docs/design/data-model.md:1787`)
 
-**本書は敵対レビュー 2 周で否決された 2 案を差し替えた 3 案目である。** 経緯は 5 節。
+**本書は敵対レビュー 3 周で否決された 3 案を差し替えた 4 案目である。** 経緯は 5 節(とくに 5-2-b)。
 
 ## 1. レート制限の暫定設計
 
@@ -220,11 +220,19 @@ FR-033(`docs/requirements/requirements-pitchlog-2026-07-22.md:596`)は**相反�
 **`authn.login(text, text)` を `authn.login_attempt(text, text, text)` へ置き換え、
 旧 2 引数版は除去する**(残すと制限の効かない入口が並存する)。
 
-**戻り値は `token_id uuid`**(失敗は `NULL`)。**`tenant_id` ではない** —
+**トークンの識別子は `token_id uuid`**(失敗は `NULL`)。**`tenant_id` ではない** —
 現行 `login` は `public.tenant_tokens` の行 ID を返し、署名器 `TokenPresentation` も
 その ID を受ける(`FUNCTION:authn:login(text, text).sql:68-75`・
-`backend/src/pitchlog/authz/token_presentation.py`)。**遅延は関数の内側で消費するので、
-戻り値に遅延を含めない。**
+`backend/src/pitchlog/authz/token_presentation.py`)。
+
+**戻り値は `token_id` と待ち時間の 2 値**とし、`OUT` 引数で返す
+(`login_attempt(p_team_name text, p_password text, p_source text,
+OUT token_id uuid, OUT wait_ms integer)`)。PostgreSQL の関数識別子は IN 引数だけで決まるので、
+要素 ID は `FUNCTION:authn:login_attempt(text, text, text)` のままである。
+
+**待ちは関数の内側で消費しない。** 1-3 の c5 のとおり待ち時間を返してコミットし、
+**アプリ側がコミット後に待つ**。関数の内側で待つと、3 周目 P0-2(待ちが DB 接続と勧告ロックを
+占有する)へ戻ってしまう。
 
 旧署名が固定されている先: `contracts/authz/product/function-bodies/` の SQL manifest /
 `contracts/authz/product/probe-product-map.json` / `backend/src/pitchlog/authz/runtime_contract.py` の
