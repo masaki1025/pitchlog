@@ -1,13 +1,13 @@
 ---
 feature: ua1-auth-http-entry
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-10-09・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3ee93b75e68781c99d5bd3a15f6e83b5
 branch: feature/ua1-auth-http-entry
 created: 2026-10-09
-計画レビュー周回: 2        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -38,16 +38,17 @@ U-A1 は α(正本)→ β(DB 層)→ γ(アプリ層)→ **δ(HTTP の入口)**�
 要件書 10 章の当該行自体が「**FR-033 の暫定設計で着手**」である。
 **本計画書の承認をもって、[design.md](design.md) 1〜4 節を「人間が承認した暫定設計」とする。**
 
-### 人間の裁定が要る項目(承認時に合わせて判断いただく)
+### 人間の裁定(2026-10-09・山田正輝 — すべて本計画の推奨どおり)
 
-| # | 項目 | 本計画の提案 |
+| # | 項目 | 裁定 |
 | --- | --- | --- |
-| 1 | **レート制限の暫定設計** | [design.md](design.md) 1 節。**制限を失敗にだけ掛ける**(成功は遅延も順番待ちも受けない)。残余リスクは同 4 節 |
-| 2 | **「試行が制限される」の読み** | **「失敗した試行の速度に上限が掛かること」**と読む([design.md](design.md) 1-1・5-2)。**この読みを認めない場合、FR-033 の 2 つの要求は両立しない**ことが敵対レビュー 2 周で実証された |
-| 3 | **閾値の置き場** | **付録C には書かず** `system_settings` に置く([design.md](design.md) 3 節 E) |
-| 4 | **ループバック TCP を締めるか** | **締めない。** 運用文書に前提を書き、`_local_endpoint()` の判定は変えない。締めると `docker-compose.yml` だけでなく **CI の DB 試験(`127.0.0.1:5432` / `sslmode=disable`)も落ちる**(4 節) |
-| 5 | **U-M1(#95)への依存** | **依存に置く。** Cookie から提示値を取り出す処理は 2026-10-07 の裁定で U-M1 へ移っており、**ログアウトと PW 変更はそれが無いと叩けない**。δ が自前で足すと NFR-018 の二重実装になる |
-| 6 | **配備先での確認を誰がいつ行うか** | 本 PR では**手順の整備と、使い捨て Postgres を配備先に見立てた再現**まで。**実配備先での確認は人間の作業として DoD に残す**(`data-model.md:1550` が「入口を開く配備先」での確認を求めており、PR の中では実施できない) |
+| 1 | **レート制限の暫定設計** | **承認。** [design.md](design.md) 1 節の 4 案目 — **照合を先に済ませ、成功はロックを取らずに抜ける。失敗だけが予約票を取り、待ちは DB の外で消費する**。残余リスクは同 4 節 |
+| 2 | **「試行が制限される」の読み** | **承認。「失敗した試行の応答速度に上限が掛かること」**と読む(根拠 = 不変条件 ② の「正しい資格情報による成功は対象外」)|
+| 2-a | **不変条件 ④ から成功を外す読み** | **承認。** ④ の括弧書き「同時の失敗を数え落とさない」が条文の目的で、**成功は計数の対象ではない**([design.md](design.md) 5-2-b)|
+| 3 | **閾値の置き場** | **承認。** **付録C には書かず** `system_settings` に置く([design.md](design.md) 3 節 E) |
+| 4 | **ループバック TCP を締めるか** | **承認 — 締めない。** 運用文書に前提を書き、`_local_endpoint()` の判定は変えない。締めると `docker-compose.yml` だけでなく **CI の DB 試験(`127.0.0.1:5432` / `sslmode=disable`)も落ちる**(4 節) |
+| 5 | **U-M1(#95)への依存** | **承認 — 依存に置く。** Cookie から提示値を取り出す処理は 2026-10-07 の裁定で U-M1 へ移っており、**ログアウトと PW 変更はそれが無いと叩けない**。δ が自前で足すと NFR-018 の二重実装になる |
+| 6 | **配備先での確認を誰がいつ行うか** | **承認。** 本 PR では**手順の整備と、使い捨て Postgres を配備先に見立てた再現**まで。**実配備先での確認は人間の作業として DoD に残す**(`data-model.md:1550` が「入口を開く配備先」での確認を求めており、PR の中では実施できない) |
 
 ## 2. スコープ
 
@@ -151,7 +152,7 @@ U-A1 は α(正本)→ β(DB 層)→ γ(アプリ層)→ **δ(HTTP の入口)**�
 | 1 | **射程の記述を現行化する** — U-A1 の feature 文書 4 箇所から Cookie/CSRF の「読む側」を外し、U-M1 へ移った旨と典拠を書く。`data-model.md` 12-8 節の本文 1 行を番号で指さない形へ。変更履歴表に 1 行・`docs/README.md` | docs 系 3 検査が exit 0 / **変更履歴の既存行が 1 文字も動いていない** / 版が上がっていない |
 | 2 | **窓口の追加層を先に固定する** — `scripts/core_guard.py` の `AREA_PATH_ADDITIONS["tenant-isolation"]` へ 2 行。**`.claude/core-areas.json` と `tests/test_core_guard.py` は触らない** | `uv run pytest tests/test_core_guard.py` green / 他 2 ファイルの差分が 0 行 |
 | 3 | **窓口を登録する** — `.claude/core-areas.json` の `tenant-isolation.paths` へ 2 行、`tests/test_core_guard.py` の `AUTHZ_TENANT_AREA_PATH_ADDITIONS` へ**同じ順序で**同じ 2 行 | `tests/test_core_guard.py` green / `backend/src/pitchlog/api/app.py` がコア領域と判定される |
-| 4 | **`authn.login` を `authn.login_attempt` へ置き換える** — 試行元を受け、**勧告ロックを試行元のみを鍵に、読む前に**取る。照合・計数・**失敗時の遅延の消費**を 1 トランザクションに収め、**`token_id uuid`**(失敗は `NULL`)を返す。**成功は遅延を消費せず即コミット**。遅延は**現ウィンドウ + 直前ウィンドウの失敗数の合計**で決める。**旧 2 引数版を除去**し、SQL manifest・`probe-product-map.json`・`runtime_contract.py` の `PROTECTED_FUNCTIONS`・生成モジュール・`backend/tests/db/test_product_authz_authn_app.py`・**`backend/tests/test_product_authz_catalog.py`**・**`backend/tests/test_product_authz_probe_product_map.py`** を追随 | **旧 `authn.login(text,text)` が実 DB に存在しない**ことを試験で固定 / **成功が、先行する失敗の有無によらず一定時間で返る** / 並行した失敗が直列化され、同時に照合が走らない / **ウィンドウ境界をまたいだ 2 件が同じ鍵で直列化される** / 戻り値がトークン行 ID である(`TokenPresentation` が受ける形) / 既存の DB テストが緑 |
+| 4 | **`authn.login` を `authn.login_attempt` へ置き換える** — 試行元を受け、**照合を勧告ロックの前**に行う。**成功はロックを取らずにトークン行を作り `token_id` を返す**。**失敗だけが試行元のみを鍵にロックを取り**、失敗数から応答間隔を決め、予約票(`rate_limit_counters.locked_until`)を進めて**待ち時間を返す**。**待ちはアプリ側でコミット後に消費**し、DB 接続もロックも保持しない。遅延は**現ウィンドウ + 直前ウィンドウの失敗数の合計**で決める。**旧 2 引数版を除去**し、SQL manifest・`probe-product-map.json`・`runtime_contract.py` の `PROTECTED_FUNCTIONS`・生成モジュール・`backend/tests/db/test_product_authz_authn_app.py`・**`backend/tests/test_product_authz_catalog.py`**・**`backend/tests/test_product_authz_probe_product_map.py`** を追随 | **旧 `authn.login(text,text)` が実 DB に存在しない**ことを試験で固定 / **成功が、先行する失敗が何件積まれていても一定時間で返る**(勧告ロックを取らないことを含めて確認)/ **同一試行元の失敗の応答が、間隔あたり 1 件に揃う** / **ウィンドウ境界をまたいだ 2 件が同じ鍵で計数される** / **待ちの間に DB 接続とロックを保持していない** / 戻り値がトークン行 ID である / 既存の DB テストが緑 |
 | 5 | **設定値の投入経路と fail-closed** — 4 キーの投入手順と、**未設定・不正値でログインを拒否する**ことの試験(条文の逐語どおり — `data-model.md:1793`) | 4 キーのいずれかが欠落・不正ならログインが拒否される / **実値が検査器・テストに直書きされていない** |
 | 6 | **ログインの HTTP 経路** — ルータ・スキーマ・`verified_tenant` 側の公開境界・`Set-Cookie` の発行 | 正しい資格情報で `Set-Cookie`(`__Host-pitchlog_token`・`HttpOnly`・`Secure`・`SameSite=Strict`・`Max-Age`)が返る / **提示値が応答本文・URL・ログに出ない** / `test_api_conventions.py` の DB 用語・`errors.py`・`operation_id`・403 の 4 表明が維持されている |
 | 7 | **行の累積の監視** — 現ウィンドウ外の行数と試行元の種類数を観測する経路と、運用文書への記載 | 監視の値が取得できる / **監視が物理削除を伴わない**(⑥) |
