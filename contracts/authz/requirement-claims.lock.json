@@ -5,7 +5,7 @@
   "basis_rules_digest": "4adf829b6fd001aa582e9bd94e7a0170d8b91460afee2557fa4f770c07c2aedc",
   "layer_ids_digest": "8d4eac464984bfc093e708840dfb5e30550792a7ad87119a2e313e53f5ff6e1e",
   "decision_count": 1380,
-  "aggregate_decision_digest": "5067af92e51cf650f9ed724ea7d02db85b871174560ae14cedfd6e1994066ec5",
+  "aggregate_decision_digest": "5411c67d239d126bf8ae622b6a03776a78bf94c913c3343a44d457ecb0152d5b",
   "decisions": [
     {
       "source_id": "PREAMBLE/frontmatter-001",
@@ -10455,8 +10455,8 @@
       "source_id": "SECTION-10/table_row-007",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "aed8fbe774f8bf5822d035999fb6e318a95dc72517ed8d76aa13987970071df1",
-      "decision_digest": "938a64dd0a637a9c6c9fd5f02b963dad2f52db0ccf402318e782a4e346ba4bec"
+      "source_text_digest": "64aa524527cc586af0c428b671a0e32ab0f73b1d82de04cd1340cb7348b0e391",
+      "decision_digest": "73cbd438f9e72c8cf53b583d0c5cdacd08186011a270bd32781b12d16d66fcb0"
     },
     {
       "source_id": "SECTION-10/table_row-008",
