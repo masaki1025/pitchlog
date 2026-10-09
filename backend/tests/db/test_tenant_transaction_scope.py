@@ -211,6 +211,7 @@ def _sqlalchemy_url(dsn: str) -> str:
         host=None if host is None else str(host),
         port=None if port is None else int(port),
         database=None if database is None else str(database),
+        query={"sslmode": "disable"},
     ).render_as_string(hide_password=False)
 
 
