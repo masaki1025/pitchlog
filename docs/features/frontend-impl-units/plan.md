@@ -160,5 +160,5 @@ uv run python scripts/check_plan_docs_sync.py --plan docs/features/frontend-impl
 
 - **ADR-002 と逐語移植の並存** — ADR-002「旧システムの React UI コードは仕様・挙動の参照資料としてのみ扱い、**コード再利用はしない**」と、PO 裁定 2026-08-16「**機械的な逐語移植**」。**ADR を改訂した記録が無い。** どちらが優先かは本タスクの射程外
 - **UI 設計書が実在しない** — ADR-002 が「コンポーネント設計規約は設計フェーズの UI 設計書で確定する」とするが、`docs/design/` には `sync-protocol.md` と `data-model.md` しか無い
-- **`../frontend-skeleton/research.md` の古い記述** — タグ `pitchlog-req-v2.0-evidence` を「`0423851`・48 ファイル・9 画面」としているが、**実測では `dd03160`・13 画面**。是正の送り先を決める
+- **`../frontend-skeleton/research.md` の古い記述** — タグ `pitchlog-req-v2.0-evidence` を「`0423851`・48 ファイル・9 画面」としているが、**実測では `dd03160`・13 画面**。**別カードへ起票済み**(https://app.notion.com/p/3f493b75e687812ea790ec2636f0391f ・`着手可`)— **申し送りだけだと次に読む人がまた古い値を拾う**ため(現に本タスクの調査が拾った)
 - **13 章の射程宣言との衝突** — 「最初の 1 回だけ」の裁定を 2 回目へ拡張した。**13 章の改訂が要ると判断されたら、それは別タスクの確定ゲートである**
