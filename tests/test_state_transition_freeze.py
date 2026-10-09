@@ -402,14 +402,62 @@ def test_unchanged_followup_pr_keeps_prior_acceptance_id_green(
     )
 
 
-def test_changed_pr_rejects_acceptance_id_from_another_pr() -> None:
+def _create_changed_baseline_repository(tmp_path: Path) -> tuple[Path, str, str]:
+    """基準を新たに置いたPR相当(比較元にdescriptorが無い)を作る。
+
+    実リポジトリの `origin/develop..HEAD` を比較元に使うと、取り込み後は
+    比較元と HEAD が同じ宣言になり追記が 0 件になるため、照合の枝へ入らない。
+    前提(このPRが基準を動かした)を合成側で必ず成立させる。
+    """
+    root = _copy_audited_sources(tmp_path)
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "freeze-test@example.invalid"],
+        cwd=root,
+        check=True,
+    )
+    subprocess.run(["git", "config", "user.name", "freeze test"], cwd=root, check=True)
+    subprocess.run(["git", "add", "."], cwd=root, check=True)
+    subprocess.run(
+        ["git", "commit", "-qm", "baseline before freeze declaration"],
+        cwd=root,
+        check=True,
+    )
+    base_sha = _git_sha(root, "HEAD")
+    descriptor_path = root / descriptor_checker.DESCRIPTOR_PATH
+    descriptor_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(REPOSITORY_ROOT / descriptor_checker.DESCRIPTOR_PATH, descriptor_path)
+    subprocess.run(["git", "add", "."], cwd=root, check=True)
+    subprocess.run(
+        ["git", "commit", "-qm", "freeze declaration accepted"], cwd=root, check=True
+    )
+    return root, base_sha, _git_sha(root, "HEAD")
+
+
+def test_changed_pr_accepts_matching_acceptance_id(tmp_path: Path) -> None:
+    """基準を動かしたPRは、PR番号と一致する受理IDを受理する。"""
+    root, base_sha, head_sha = _create_changed_baseline_repository(tmp_path)
+    freeze_checker.validate_repository_history(
+        root,
+        descriptor_checker.DESCRIPTOR_PATH,
+        _declaration(),
+        freeze_checker.PullRequestAcceptanceContext(
+            base_sha=base_sha,
+            head_sha=head_sha,
+            repository="masaki1025/pitchlog",
+            number=81,
+        ),
+    )
+
+
+def test_changed_pr_rejects_acceptance_id_from_another_pr(tmp_path: Path) -> None:
     """基準を動かしたPRでは追加記録を現在のPR番号と照合する。"""
-    context = _repository_acceptance_context()
+    root, base_sha, head_sha = _create_changed_baseline_repository(tmp_path)
     wrong_context = freeze_checker.PullRequestAcceptanceContext(
-        base_sha=context.base_sha,
-        head_sha=context.head_sha,
-        repository=context.repository,
-        number=context.number + 1,
+        base_sha=base_sha,
+        head_sha=head_sha,
+        repository="masaki1025/pitchlog",
+        number=82,
     )
 
     with pytest.raises(
@@ -417,7 +465,7 @@ def test_changed_pr_rejects_acceptance_id_from_another_pr() -> None:
         match="追加受理記録のacceptanceIdがPR eventと一致しない",
     ):
         freeze_checker.validate_repository_history(
-            REPOSITORY_ROOT,
+            root,
             descriptor_checker.DESCRIPTOR_PATH,
             _declaration(),
             wrong_context,
