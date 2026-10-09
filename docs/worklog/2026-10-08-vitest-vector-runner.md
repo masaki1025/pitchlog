@@ -43,3 +43,23 @@ branch: feature/vitest-vector-runner
 - 236 タブの回答(2026-10-09): (a) schema は凍結済み (b) `origin/feature/appendix-e-golden-vectors` を `a023f062` へ早送り push 済みで、`contracts/state-transition/` の 38 ファイルをリモートで読める(`state_transition_contract_schema_v1.json`・`game_end_contract_schema_v1.json`・`appendix_e_consumer_handoff_v1.json`〔`caseFieldMapping` / `executionPaths[]` の実値〕・`normalization_schema_examples_v1.json`)。PR #81 は draft のまま(凍結資産の受理記録と backend 全件が残る)
 - 「#1〜#4 分割」の出どころは Notion TSK-455 カード本文(2026-09-24 作成)で、計画レビュー 2 周目の草案が固着したもの。正本(plan.md・引き渡し契約)には無い。カードの訂正は 469 タブが人間へ上げている。段階 2 の依存という読みで合っている
 - 再開時: schema が凍っているので /plan へ進める。実装は #81 のマージ後
+
+### /plan(2026-10-09)
+
+- Notion を 保留中 → 進行中 へ戻し、ブランチを origin/develop(`7167c182`)へ rebase(未 push・docs のみ)
+- 方式: **Python の `run_vectors` を子プロセスのブリッジで動かし、TS は正規化と計算 adapter の呼び出しだけを持つ**。判定の論理を TS に複製しない(design.md 1)。実契約の読み込みは段階 2 なので、**#81 のマージに依存しない**
+- 重さ分類: コア領域(ブリッジが `backend/src/pitchlog/domaincheck/*`、テストが `tests/domain/*`)
+
+### 計画レビュー 1 周目(敵対・2026-10-09)
+
+所見: **不可**(P1×3・P2×3)。U-3 と方式の整合は「矛盾しない」との判定。
+
+| # | 指摘 | 扱い |
+| --- | --- | --- |
+| P1-1 | `ci.yml` は凍結 corpus の入力(`tests/fixtures/frozen-archive-cases/manifest.json:9`)。filter を変えると harness の digest テストが赤になる | **人間の判断待ち**(凍結資産の受理は人間の許可が要る) |
+| P1-2 | TS runner・spec・`tests/fixtures/vector-conformance/` は既存のコア glob に入らない | **人間の判断待ち**(core-areas の追加は回転式の窓口に並ぶ) |
+| P1-3 | `-0` が JSON 往復で `0` に化ける(ADR-003:287 が禁止) | 採用: 送る前に再帰的に検出して拒否。ステップ 3 で検証 |
+| P2-4 | `unsupported` は計算 adapter にだけ当てはまる(`vectors.py:242`) | 採用: 正規化側の `UnsupportedVectorCase` は `adapter-error` で元のまま伝える |
+| P2-5 | `prettier`・`vue-tsc`・`depcruise` に `pnpm exec` がない | 採用 |
+| P2-6 | 子プロセスの flush・stderr・期限・`report` 後の終了確認が規約とテストにない | 採用: 寿命の規約を design.md 1-3 に追加し、ステップ 3 で無応答・終了しない子・0 以外の終了を検証。adapter は同期に限り thenable を拒否 |
+

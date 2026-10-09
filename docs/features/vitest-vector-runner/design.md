@@ -29,6 +29,13 @@ Vitest 側 runner は **判定の論理を TS に複製しない**。Python の 
 - `python3 -m pitchlog.domaincheck.runners.vector_bridge`、`PYTHONPATH=<repo>/backend/src`、`cwd=<repo>`(前例と同じ形)
 - domaincheck の import 連鎖は標準ライブラリだけで閉じている(`cli.py`・`path_match.py`・`collect_layers.py`・`vectors.py` の import 行を確認。`StrEnum` のため Python 3.11 以上)。ローカルは 3.14、CI の ubuntu-latest は 3.12
 - 1 回の `runVectors` 呼び出しにつき子プロセスを 1 個起動し、終了時に必ず回収する(成功・失敗・例外のいずれでも)
+- 寿命の規約:
+  - PY は 1 行書くごとに flush する。TS は 1 行ごとに書き、改行で区切る
+  - TS は stderr を常に読み続けて保持する(パイプが詰まって子が止まるのを防ぐ)。異常時のメッセージに含める
+  - TS は PY からの各応答を**期限つき**で待つ(既定 30 秒。テスト用に上書きできる)。期限を過ぎたら子を kill し、回収してから runner の内部異常を送出する
+  - 終端メッセージ(`report`・`vector-run-error`・`adapter-error`・`protocol-error`)の後、TS は stdin を閉じ、子が**期限内に終了コード 0** で終わることを確かめる。終わらなければ kill して異常、0 以外なら異常(終端が `report` でも完走にしない)
+  - 子が終端メッセージの前に終了した場合は、終了コードと stderr を添えて異常にする
+  - テストのため、起動コマンドと期限を `runVectors` の任意引数で差し替えられるようにする(無応答の子・`report` 後に止まらない子を作るため)
 
 ## 2. ブリッジの通信規約
 
@@ -41,7 +48,7 @@ Vitest 側 runner は **判定の論理を TS に複製しない**。Python の 
 | TS → PY | `normalized` | `value` | 正規化の結果 |
 | PY → TS | `execute` | `caseId`・`normalized` | 計算 adapter を 1 回呼ぶ |
 | TS → PY | `executed` | `value` | 計算結果 |
-| TS → PY | `unsupported` | — | adapter が `UnsupportedVectorCase` を投げた。PY 側で `UnsupportedVectorCase` を送出し、PY の既存処理が `VectorRunError("未対応 case: …")` に包む |
+| TS → PY | `unsupported` | — | **計算 adapter** が `UnsupportedVectorCase` を投げた。PY 側の計算 proxy が `UnsupportedVectorCase` を送出し、PY の既存処理が `VectorRunError("未対応 case: …")` に包む。**`normalize` への応答には使えない**(PY が包むのは `calculation.execute` の例外だけ — `vectors.py:242`。正規化 adapter が `UnsupportedVectorCase` を投げた場合は次行の `adapter-error` として元の例外のまま伝える) |
 | TS → PY | `adapter-error` | `message` | adapter がそれ以外の例外を投げた。PY 側で専用例外を送出する。PY の `run_vectors` はこれを包まない(research C-4 の 5)ので、そのまま終了まで伝わる |
 | PY → TS | `report` | `declaredCaseIds`・`consumedCaseIds`・`executions`・`complete` | 完走。`complete` は PY の `VectorRunReport.complete` の値をそのまま運ぶ(TS で再計算しない) |
 | PY → TS | `vector-run-error` | `message` | PY が `VectorRunError` を送出した |
@@ -51,7 +58,8 @@ Vitest 側 runner は **判定の論理を TS に複製しない**。Python の 
 ### 2-1. 同一性と値の往復
 
 - PY は `execute` に `normalized` を載せる。TS は直前の `normalize` で adapter が返した**元のオブジェクト**を保持しておき、受け取った `normalized` がそれと深い等値であることを確かめたうえで、**保持している元のオブジェクト**を計算 adapter に渡す。PY のテストが確かめている「計算に渡る値は正規化の出力そのもの」(`calculation.inputs[i][1] is normalizer.outputs[i]`)を TS 側でも保つ
-- TS が PY に送る値は JSON で往復できるものに限る。`undefined`・関数・`bigint`・非有限数・`Number.isSafeInteger` を満たさない整数を含む値は、**送る前に** runner の内部異常として拒否する(黙って `null` や丸めた値に化けるのを防ぐ)
+- TS が PY に送る値は JSON で往復できるものに限る。`undefined`・関数・`bigint`・非有限数・`-0`(ADR-003:287 が禁止。`JSON.stringify` で `0` に化ける)・`Number.isSafeInteger` を満たさない整数を含む値は、**送る前に**再帰的に検出し、runner の内部異常として拒否する(黙って `null` や丸めた値に化けるのを防ぐ)
+- adapter は**同期関数に限る**(PY の Protocol と同じ)。戻り値が thenable なら runner の内部異常として拒否する
 
 ### 2-2. TS 側の公開面
 
