@@ -43,6 +43,38 @@ branch: feature/ui-design-doc-reference
 
 **合流させるかは人間の判断**なので、**`/plan` の中で案として出す。カードは勝手に統合しない。**
 
+### 新しい worktree の全件実行で、`backend/.venv` の不在が DB 接続エラーに化けた(台帳の候補)
+
+**2 つのセッションが独立に「共有開発 DB の問題」と誤診した。**
+
+| 場所 | `backend/.venv/bin/python` | `uv run pytest tests/domain/mut/ -q` |
+| --- | --- | --- |
+| 新 worktree `feature/ui-design-doc-reference` | **不在** | **3 failed**, 82 passed |
+| メインツリー `develop` | 存在 | **85 passed** |
+
+失敗の実体は `subprocess` が `backend/.venv/bin/python` を起動できないことなのに、
+**例外が `psycopg.OperationalError: connection to server at "127.0.0.1", port 5432 failed:
+Connection refused` の形で表に出る**。測定スイートを子プロセスで回す試験
+(`test_cost_record` の `differential` スコープ)が連鎖して落ちるため、
+**「DB が落ちている」という読みが自然に見えてしまう。**
+
+**誤診の経路**:
+
+1. こちらが「共有開発 DB が落ちている」と報告(**この時点では実際に落ちていた** — `docker ps` が空)
+2. `docker compose up -d db` が環境変数ファイルの変数補間で止まる(**これは実測どおり**・`docker-compose.yml:25` が自己注記)
+3. master が「`docker compose down -v` を誰かが打った」と推定(**後に撤回**)
+4. master が別の場所で 85 passed を得て「DB は落ちていない」と結論
+5. **実測で切り分け** — DB は稼働中(`Up About an hour`)だが、**赤の原因は `backend/.venv` の不在**だった
+
+**変数補間で compose が止まる件は、赤の原因とは別の事実である。**
+2 つの独立した問題が同時にあり、**片方の解消がもう片方の説明に使われた。**
+
+**運用上の含意**: **新しい worktree で全件を回す前に `backend` の依存を入れる。**
+「実 PostgreSQL が要る試験は除く」という運用例外は**不要**(原因の取り違えに基づく)。
+
+**観測の限界**: 2 セッション・1 日。**同型が再発するかは未確認。**
+
+
 ## 決定
 
 ## 未決・次の一歩
