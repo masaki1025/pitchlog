@@ -529,7 +529,11 @@
         "docs/adr/ADR-001-codex-model-selection.md",
         "backend/tests/test_*_boundary.py",
         "backend/tests/test_*_repository.py",
-        "backend/src/pitchlog/api/*"
+        "backend/src/pitchlog/api/*",
+        "backend/tests/test_api_*.py",
+        "backend/tests/test_roster_*.py",
+        "backend/tests/test_request_presentation.py",
+        "tests/test_census_baseline_check.py"
       ]
     },
     {
