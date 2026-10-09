@@ -1,0 +1,2042 @@
+{
+  "scenarios": [
+    {
+      "id": "valid-two-cases",
+      "description": "正規化から計算まで二つの case を完走する。",
+      "contract": {
+        "calculation": "syntheticVectorCalculation",
+        "vector": "syntheticVector",
+        "entrypointId": "syntheticEntrypoint",
+        "directTargetId": "syntheticNormalizerTarget",
+        "caseSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caseId",
+            "raw",
+            "normalized",
+            "expected"
+          ],
+          "properties": {
+            "caseId": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+            },
+            "raw": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "legacyValue"
+                ],
+                "properties": {
+                  "legacyValue": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  }
+                }
+              }
+            },
+            "normalized": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "expected": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "normalizationComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        },
+        "outputComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        }
+      },
+      "normalizer": {
+        "generatedId": "syntheticNormalizer",
+        "sourceHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "mode": "table",
+        "table": [
+          {
+            "raw": [
+              {
+                "legacyValue": "001"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          },
+          {
+            "raw": [
+              {
+                "legacyValue": "002"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "calculation": {
+        "supportedCaseIds": [
+          "caseOne",
+          "caseTwo"
+        ]
+      },
+      "cases": [
+        {
+          "caseId": "caseOne",
+          "raw": [
+            {
+              "legacyValue": "001"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ]
+        },
+        {
+          "caseId": "caseTwo",
+          "raw": [
+            {
+              "legacyValue": "002"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "outcome": "complete",
+        "declaredCaseIds": [
+          "caseOne",
+          "caseTwo"
+        ],
+        "consumedCaseIds": [
+          "caseOne",
+          "caseTwo"
+        ]
+      },
+      "trace": {
+        "normalizeCalls": 2,
+        "executedCaseIds": [
+          "caseOne",
+          "caseTwo"
+        ]
+      }
+    },
+    {
+      "id": "passthrough-normalizer",
+      "description": "素通りの正規化を最初の case で拒否する。",
+      "contract": {
+        "calculation": "syntheticVectorCalculation",
+        "vector": "syntheticVector",
+        "entrypointId": "syntheticEntrypoint",
+        "directTargetId": "syntheticNormalizerTarget",
+        "caseSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caseId",
+            "raw",
+            "normalized",
+            "expected"
+          ],
+          "properties": {
+            "caseId": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+            },
+            "raw": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "legacyValue"
+                ],
+                "properties": {
+                  "legacyValue": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  }
+                }
+              }
+            },
+            "normalized": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "expected": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "normalizationComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        },
+        "outputComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        }
+      },
+      "normalizer": {
+        "generatedId": "syntheticNormalizer",
+        "sourceHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "mode": "passthrough",
+        "table": [
+          {
+            "raw": [
+              {
+                "legacyValue": "001"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          },
+          {
+            "raw": [
+              {
+                "legacyValue": "002"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "calculation": {
+        "supportedCaseIds": [
+          "caseOne",
+          "caseTwo"
+        ]
+      },
+      "cases": [
+        {
+          "caseId": "caseOne",
+          "raw": [
+            {
+              "legacyValue": "001"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ]
+        },
+        {
+          "caseId": "caseTwo",
+          "raw": [
+            {
+              "legacyValue": "002"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "outcome": "vector-run-error",
+        "messagePrefix": "生成済み正規化の出力が不一致: caseOne"
+      },
+      "trace": {
+        "normalizeCalls": 1,
+        "executedCaseIds": []
+      }
+    },
+    {
+      "id": "unsupported-case",
+      "description": "二つ目の case が計算 adapter で未対応となる。",
+      "contract": {
+        "calculation": "syntheticVectorCalculation",
+        "vector": "syntheticVector",
+        "entrypointId": "syntheticEntrypoint",
+        "directTargetId": "syntheticNormalizerTarget",
+        "caseSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caseId",
+            "raw",
+            "normalized",
+            "expected"
+          ],
+          "properties": {
+            "caseId": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+            },
+            "raw": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "legacyValue"
+                ],
+                "properties": {
+                  "legacyValue": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  }
+                }
+              }
+            },
+            "normalized": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "expected": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "normalizationComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        },
+        "outputComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        }
+      },
+      "normalizer": {
+        "generatedId": "syntheticNormalizer",
+        "sourceHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "mode": "table",
+        "table": [
+          {
+            "raw": [
+              {
+                "legacyValue": "001"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          },
+          {
+            "raw": [
+              {
+                "legacyValue": "002"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "calculation": {
+        "supportedCaseIds": [
+          "caseOne"
+        ]
+      },
+      "cases": [
+        {
+          "caseId": "caseOne",
+          "raw": [
+            {
+              "legacyValue": "001"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ]
+        },
+        {
+          "caseId": "caseTwo",
+          "raw": [
+            {
+              "legacyValue": "002"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "outcome": "vector-run-error",
+        "messagePrefix": "未対応 case: caseTwo"
+      },
+      "trace": {
+        "normalizeCalls": 2,
+        "executedCaseIds": [
+          "caseOne"
+        ]
+      }
+    },
+    {
+      "id": "unknown-case-field",
+      "description": "case schema にないフィールドを拒否する。",
+      "contract": {
+        "calculation": "syntheticVectorCalculation",
+        "vector": "syntheticVector",
+        "entrypointId": "syntheticEntrypoint",
+        "directTargetId": "syntheticNormalizerTarget",
+        "caseSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caseId",
+            "raw",
+            "normalized",
+            "expected"
+          ],
+          "properties": {
+            "caseId": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+            },
+            "raw": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "legacyValue"
+                ],
+                "properties": {
+                  "legacyValue": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  }
+                }
+              }
+            },
+            "normalized": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "expected": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "normalizationComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        },
+        "outputComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        }
+      },
+      "normalizer": {
+        "generatedId": "syntheticNormalizer",
+        "sourceHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "mode": "table",
+        "table": [
+          {
+            "raw": [
+              {
+                "legacyValue": "001"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          },
+          {
+            "raw": [
+              {
+                "legacyValue": "002"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "calculation": {
+        "supportedCaseIds": [
+          "caseOne",
+          "caseTwo"
+        ]
+      },
+      "cases": [
+        {
+          "caseId": "caseOne",
+          "raw": [
+            {
+              "legacyValue": "001"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ],
+          "ignored": true
+        },
+        {
+          "caseId": "caseTwo",
+          "raw": [
+            {
+              "legacyValue": "002"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "outcome": "vector-run-error",
+        "messagePrefix": "case schema 不一致: cases[0]"
+      },
+      "trace": {
+        "normalizeCalls": 0,
+        "executedCaseIds": []
+      }
+    },
+    {
+      "id": "duplicate-case-id",
+      "description": "異なる case が同じ ID を持つ場合に拒否する。",
+      "contract": {
+        "calculation": "syntheticVectorCalculation",
+        "vector": "syntheticVector",
+        "entrypointId": "syntheticEntrypoint",
+        "directTargetId": "syntheticNormalizerTarget",
+        "caseSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caseId",
+            "raw",
+            "normalized",
+            "expected"
+          ],
+          "properties": {
+            "caseId": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+            },
+            "raw": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "legacyValue"
+                ],
+                "properties": {
+                  "legacyValue": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  }
+                }
+              }
+            },
+            "normalized": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "expected": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "normalizationComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        },
+        "outputComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        }
+      },
+      "normalizer": {
+        "generatedId": "syntheticNormalizer",
+        "sourceHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "mode": "table",
+        "table": [
+          {
+            "raw": [
+              {
+                "legacyValue": "001"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          },
+          {
+            "raw": [
+              {
+                "legacyValue": "002"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "calculation": {
+        "supportedCaseIds": [
+          "duplicateCase"
+        ]
+      },
+      "cases": [
+        {
+          "caseId": "duplicateCase",
+          "raw": [
+            {
+              "legacyValue": "001"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ]
+        },
+        {
+          "caseId": "duplicateCase",
+          "raw": [
+            {
+              "legacyValue": "002"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "outcome": "vector-run-error",
+        "messagePrefix": "case ID が重複"
+      },
+      "trace": {
+        "normalizeCalls": 0,
+        "executedCaseIds": []
+      }
+    },
+    {
+      "id": "case-schema-mismatch",
+      "description": "raw の値の型が case schema と異なる場合に拒否する。",
+      "contract": {
+        "calculation": "syntheticVectorCalculation",
+        "vector": "syntheticVector",
+        "entrypointId": "syntheticEntrypoint",
+        "directTargetId": "syntheticNormalizerTarget",
+        "caseSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caseId",
+            "raw",
+            "normalized",
+            "expected"
+          ],
+          "properties": {
+            "caseId": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+            },
+            "raw": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "legacyValue"
+                ],
+                "properties": {
+                  "legacyValue": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  }
+                }
+              }
+            },
+            "normalized": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "expected": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "normalizationComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        },
+        "outputComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        }
+      },
+      "normalizer": {
+        "generatedId": "syntheticNormalizer",
+        "sourceHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "mode": "table",
+        "table": [
+          {
+            "raw": [
+              {
+                "legacyValue": "001"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          },
+          {
+            "raw": [
+              {
+                "legacyValue": "002"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "calculation": {
+        "supportedCaseIds": [
+          "caseOne",
+          "caseTwo"
+        ]
+      },
+      "cases": [
+        {
+          "caseId": "caseOne",
+          "raw": [
+            {
+              "legacyValue": 1
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ]
+        },
+        {
+          "caseId": "caseTwo",
+          "raw": [
+            {
+              "legacyValue": "002"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "outcome": "vector-run-error",
+        "messagePrefix": "case schema 不一致: cases[0]"
+      },
+      "trace": {
+        "normalizeCalls": 0,
+        "executedCaseIds": []
+      }
+    },
+    {
+      "id": "output-mismatch",
+      "description": "計算結果が期待値と異なる場合に拒否する。",
+      "contract": {
+        "calculation": "syntheticVectorCalculation",
+        "vector": "syntheticVector",
+        "entrypointId": "syntheticEntrypoint",
+        "directTargetId": "syntheticNormalizerTarget",
+        "caseSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caseId",
+            "raw",
+            "normalized",
+            "expected"
+          ],
+          "properties": {
+            "caseId": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+            },
+            "raw": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "legacyValue"
+                ],
+                "properties": {
+                  "legacyValue": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  }
+                }
+              }
+            },
+            "normalized": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "expected": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "normalizationComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        },
+        "outputComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        }
+      },
+      "normalizer": {
+        "generatedId": "syntheticNormalizer",
+        "sourceHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "mode": "table",
+        "table": [
+          {
+            "raw": [
+              {
+                "legacyValue": "001"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          },
+          {
+            "raw": [
+              {
+                "legacyValue": "002"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "calculation": {
+        "supportedCaseIds": [
+          "caseOne",
+          "caseTwo"
+        ],
+        "outputs": {
+          "caseTwo": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 3
+              }
+            }
+          ]
+        }
+      },
+      "cases": [
+        {
+          "caseId": "caseOne",
+          "raw": [
+            {
+              "legacyValue": "001"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ]
+        },
+        {
+          "caseId": "caseTwo",
+          "raw": [
+            {
+              "legacyValue": "002"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "outcome": "vector-run-error",
+        "messagePrefix": "計算結果が不一致: caseTwo"
+      },
+      "trace": {
+        "normalizeCalls": 2,
+        "executedCaseIds": [
+          "caseOne",
+          "caseTwo"
+        ]
+      }
+    },
+    {
+      "id": "invalid-normalizer-hash",
+      "description": "正規化生成物の hash が不正な場合に拒否する。",
+      "contract": {
+        "calculation": "syntheticVectorCalculation",
+        "vector": "syntheticVector",
+        "entrypointId": "syntheticEntrypoint",
+        "directTargetId": "syntheticNormalizerTarget",
+        "caseSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caseId",
+            "raw",
+            "normalized",
+            "expected"
+          ],
+          "properties": {
+            "caseId": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+            },
+            "raw": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "legacyValue"
+                ],
+                "properties": {
+                  "legacyValue": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  }
+                }
+              }
+            },
+            "normalized": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "expected": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "normalizationComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        },
+        "outputComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        }
+      },
+      "normalizer": {
+        "generatedId": "syntheticNormalizer",
+        "sourceHash": "invalid-hash",
+        "mode": "table",
+        "table": [
+          {
+            "raw": [
+              {
+                "legacyValue": "001"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          },
+          {
+            "raw": [
+              {
+                "legacyValue": "002"
+              }
+            ],
+            "normalized": [
+              {
+                "value": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "calculation": {
+        "supportedCaseIds": [
+          "caseOne",
+          "caseTwo"
+        ]
+      },
+      "cases": [
+        {
+          "caseId": "caseOne",
+          "raw": [
+            {
+              "legacyValue": "001"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          ]
+        },
+        {
+          "caseId": "caseTwo",
+          "raw": [
+            {
+              "legacyValue": "002"
+            }
+          ],
+          "normalized": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ],
+          "expected": [
+            {
+              "value": {
+                "kind": "integer",
+                "value": 2
+              }
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "outcome": "vector-run-error",
+        "messagePrefix": "正規化生成物 hash が不正"
+      },
+      "trace": {
+        "normalizeCalls": 0,
+        "executedCaseIds": []
+      }
+    },
+    {
+      "id": "empty-cases",
+      "description": "case が空の場合に拒否する。",
+      "contract": {
+        "calculation": "syntheticVectorCalculation",
+        "vector": "syntheticVector",
+        "entrypointId": "syntheticEntrypoint",
+        "directTargetId": "syntheticNormalizerTarget",
+        "caseSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caseId",
+            "raw",
+            "normalized",
+            "expected"
+          ],
+          "properties": {
+            "caseId": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+            },
+            "raw": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "legacyValue"
+                ],
+                "properties": {
+                  "legacyValue": {
+                    "type": "string",
+                    "pattern": "^[0-9]+$"
+                  }
+                }
+              }
+            },
+            "normalized": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "expected": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "integer"
+                      },
+                      "value": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "normalizationComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        },
+        "outputComparison": {
+          "surface": "structured-only",
+          "fields": [
+            {
+              "field": "value",
+              "role": "structured",
+              "valueType": "exact-number",
+              "nullable": false,
+              "scale": 0
+            }
+          ],
+          "normalizations": [
+            "exact-numeric-representation"
+          ]
+        }
+      },
+      "normalizer": {
+        "generatedId": "syntheticNormalizer",
+        "sourceHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "mode": "table",
+        "table": []
+      },
+      "calculation": {
+        "supportedCaseIds": []
+      },
+      "cases": [],
+      "expected": {
+        "outcome": "vector-run-error",
+        "messagePrefix": "cases が空でない array でない"
+      },
+      "trace": {
+        "normalizeCalls": 0,
+        "executedCaseIds": []
+      }
+    }
+  ]
+}
