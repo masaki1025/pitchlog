@@ -52,11 +52,15 @@ def _tenant_transaction(
         束縛済みトランザクションの有効期間。値は返さない。
 
     Raises:
-        TenantBindingError: 文脈欠落、既存トランザクション、Session の再利用、
-            または autocommit 接続を検出した場合。
+        TenantBindingError: 文脈欠落、発行証跡不一致、既存トランザクション、
+            Session の再利用、または autocommit 接続を検出した場合。
     """
-    if not isinstance(context, TenantContext):
+    if type(context) is not TenantContext:
         raise TenantBindingError("TenantContext が無いため業務 SQL を開始できない")
+    if not context._has_valid_integrity_proof():
+        raise TenantBindingError(
+            "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
+        )
     if _BOUND_TENANT_INFO_KEY in session.info:
         raise TenantBindingError("同一 Session へテナント文脈を再束縛できない")
     if session.in_transaction():

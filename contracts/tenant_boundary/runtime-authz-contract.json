@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 9,
+  "runtime_contract_revision": 10,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:9"
+        "runtime_contract_revision:10"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -72,7 +72,7 @@
   "asset_kind": "tenant_boundary_runtime_authz_contract",
   "provisional": false,
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "c849cdbaf77b9f60e8073dd563e2be31698ab497d6c8764484ee5dffddc9559d",
+  "source_digest": "a3f8dca20bf6a3653bc62a07d4feebae9a73b85995a59aa4674051e047fc403e",
   "application_role": {
     "rolname": "pitchlog_app",
     "attributes": {
