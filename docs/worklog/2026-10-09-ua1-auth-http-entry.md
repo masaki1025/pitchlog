@@ -174,6 +174,19 @@ FR-033 の 2 つの要求が両立しないことだった**。レビューは�
 
 | 8 | ステップ 6 の着手前 | 公開関数を 1 本足すことの追随先 6 件をステップ 6 の射程へ明記し、3 節へ `tests/fixtures/tenant_boundary/positive/**` と `tests/test_check_tenant_boundary_bypass.py` を足した | **`verified_tenant` は「公開名を 2 関数で固定」する表明が 3 本ある**(`test_authz_verified_tenant.py` / `test_authz_app_layer_surface.py` / `test_api_app.py`)。さらに allowlist の**正例 fixture は symbol ごとに 1 ファイル**で exact-set 突合(`check_tenant_boundary_bypass.py:1409`)なので**新規 1 本が要る**。いずれも委任先が編集前に挙げた |
 
+| 9 | ステップ 6 の着手前 | 新しい公開関数の置き場を `verified_tenant.py` から新モジュール `authz/team_login.py` へ移した | **検査器に構造上の上限があった。** fixture のパスからモジュール名を導き(`:1456`)、`fixture` は symbol ごとに一意(`:884`)。同じモジュール名を導けるパスは `X.py` と `X/__init__.py` の 2 通りだけで両方使用済み。**1 モジュールに許可 symbol は 2 本まで**である。置き場を分ければ機構を変えずに済む |
+
+### 検査器の構造上の上限(申し送り)
+
+**`contracts/tenant_boundary/base-allowlist.json` の 1 モジュールあたりの許可 symbol は 2 本が上限である。**
+`fixture` が symbol ごとに一意(`check_tenant_boundary_bypass.py:884`)で、
+正例 fixture のパスから検査対象のモジュール名を導く(`:1456`)ため、
+**同じモジュール名を導けるパスが `X.py` と `X/__init__.py` の 2 通りしかない**ことによる。
+
+**δ はモジュールを分けて回避した**ので、本タスクでは機構を変えない。
+ただし**3 本目を同じモジュールに置きたい単位が来たら、そこで必ず止まる**。
+`fixture` と symbol の対応を多対一にするか、fixture の配置規則を変えるかの判断が要る。
+
 ### 停止が 3 回続いた — 列挙の当て方が間違っている
 
 **3 回とも委任先の判断が正しく、3 回とも編集前に止まっている**ので費用は掛かっていない。
