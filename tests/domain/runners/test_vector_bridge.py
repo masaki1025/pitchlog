@@ -23,6 +23,8 @@ BRIDGE_SOURCE = BACKEND_SRC / "pitchlog/domaincheck/runners/vector_bridge.py"
 
 sys.path.insert(0, str(BACKEND_SRC))
 BRIDGE = importlib.import_module("pitchlog.domaincheck.runners.vector_bridge")
+VECTORS = importlib.import_module("pitchlog.domaincheck.runners.vectors")
+PATH_MATCH = importlib.import_module("pitchlog.domaincheck.path_match")
 
 
 def _scenarios() -> list[dict[str, Any]]:
@@ -42,6 +44,99 @@ def _start(scenario: dict[str, Any]) -> dict[str, object]:
             "generatedId": normalizer["generatedId"],
             "sourceHash": normalizer["sourceHash"],
         },
+    }
+
+
+class _DirectNormalizer:
+    """直接実行で fixture の正規化表だけを参照する。"""
+
+    def __init__(self, config: dict[str, Any]) -> None:
+        """生成物属性と表を保持する。"""
+        self.generated_id: str = config["generatedId"]
+        self.source_hash: str = config["sourceHash"]
+        self.mode: str = config["mode"]
+        self.table: list[dict[str, object]] = config["table"]
+        self.calls = 0
+
+    def normalize(self, raw: object) -> object:
+        """呼び出し順の表の値、または入力値を返す。"""
+        if self.mode == "passthrough":
+            return raw
+        entry = self.table[self.calls]
+        self.calls += 1
+        assert raw == entry["raw"]
+        return entry["normalized"]
+
+
+class _DirectCalculation:
+    """直接実行で fixture の対応 ID と出力表だけを参照する。"""
+
+    def __init__(self, config: dict[str, Any]) -> None:
+        """対応 ID と出力表を保持する。"""
+        self.supported_case_ids: set[str] = set(config["supportedCaseIds"])
+        self.outputs: dict[str, object] = config.get("outputs", {})
+
+    def execute(self, case_id: str, normalized: object) -> object:
+        """未対応を送出し、対応 ID は表の値か入力値を返す。"""
+        if case_id not in self.supported_case_ids:
+            raise VECTORS.UnsupportedVectorCase(case_id)
+        return self.outputs.get(case_id, normalized)
+
+
+def _direct_comparison(config: dict[str, Any]) -> Any:
+    """fixture の比較面を直接実行用の契約へ変換する。"""
+    return PATH_MATCH.ComparisonContract(
+        surface=config["surface"],
+        fields=tuple(
+            PATH_MATCH.FieldContract(
+                field=field["field"],
+                role=field["role"],
+                value_type=field["valueType"],
+                nullable=field["nullable"],
+                scale=field["scale"],
+            )
+            for field in config["fields"]
+        ),
+        normalizations=frozenset(config["normalizations"]),
+    )
+
+
+def _direct_report(scenario: dict[str, Any]) -> dict[str, object]:
+    """同じシナリオの直接実行報告を通信上の名前へ写す。"""
+    config = scenario["contract"]
+    contract = VECTORS.VectorContract(
+        calculation=config["calculation"],
+        vector=config["vector"],
+        runner="vitest",
+        entrypoint_id=config["entrypointId"],
+        direct_target_id=config["directTargetId"],
+        case_schema=config["caseSchema"],
+        normalization_comparison=_direct_comparison(
+            config["normalizationComparison"]
+        ),
+        output_comparison=_direct_comparison(config["outputComparison"]),
+    )
+    report = VECTORS.run_vectors(
+        scenario["cases"],
+        contract,
+        _DirectNormalizer(scenario["normalizer"]),
+        _DirectCalculation(scenario["calculation"]),
+    )
+    return {
+        "type": "report",
+        "declaredCaseIds": list(report.declared_case_ids),
+        "consumedCaseIds": list(report.consumed_case_ids),
+        "executions": [
+            {
+                "caseId": item.case_id,
+                "generatedId": item.generated_id,
+                "sourceHash": item.source_hash,
+                "normalizationMatched": item.normalization_matched,
+                "outputMatched": item.output_matched,
+            }
+            for item in report.executions
+        ],
+        "complete": report.complete,
     }
 
 
@@ -156,15 +251,7 @@ def test_complete_message_order_and_report() -> None:
     ]
     assert host.stdout.flush_count == len(host.stdout.messages)
     report = host.stdout.messages[-1]
-    assert report["complete"] is True
-    assert report["declaredCaseIds"] == ["caseOne", "caseTwo"]
-    assert report["consumedCaseIds"] == ["caseOne", "caseTwo"]
-    assert [item["caseId"] for item in report["executions"]] == [
-        "caseOne",
-        "caseTwo",
-    ]
-    assert all(item["normalizationMatched"] for item in report["executions"])
-    assert all(item["outputMatched"] for item in report["executions"])
+    assert report == _direct_report(scenario)
 
 
 def test_unsupported_becomes_vector_run_error() -> None:
@@ -255,6 +342,7 @@ def test_shared_conformance_via_bridge(scenario: dict[str, Any]) -> None:
     expected = scenario["expected"]
     if expected["outcome"] == "complete":
         assert terminal["type"] == "report"
+        assert terminal == _direct_report(scenario)
         assert terminal["complete"] is True
         assert terminal["declaredCaseIds"] == expected["declaredCaseIds"]
         assert terminal["consumedCaseIds"] == expected["consumedCaseIds"]
