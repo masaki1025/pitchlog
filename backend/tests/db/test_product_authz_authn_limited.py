@@ -50,6 +50,11 @@ _LIMITED_CALLS: tuple[tuple[str, LiteralString, tuple[object, ...]], ...] = (
         "SELECT authn.record_admin_login_failure(%s)",
         ("untrusted",),
     ),
+    (
+        "authn.observe_rate_limit_counters()",
+        "SELECT * FROM authn.observe_rate_limit_counters()",
+        (),
+    ),
 )
 _FUNCTION_ONLY_COLUMNS = {
     "tenant_auth_subjects": "tenant_id",
@@ -660,6 +665,7 @@ def test_authn_result_types_are_exact_and_verify_returns_tenant_id(
         ("reset_password", "uuid, text"): "void",
         ("revoke_tenant_tokens", "uuid"): "void",
         ("record_admin_login_failure", "text"): "boolean",
+        ("observe_rate_limit_counters", ""): "record",
         ("password_policy_ok", "text"): "boolean",
         ("setting_positive_integer", "text"): "bigint",
         ("record_failure", "text, bigint, bigint, bigint, boolean"): "boolean",

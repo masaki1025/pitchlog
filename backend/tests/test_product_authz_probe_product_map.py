@@ -79,6 +79,7 @@ def test_probe_product_map_is_bidirectionally_exact() -> None:
         "schema:authn",
         "schema:authn_crypto",
         "function:FUNCTION:authn:login_attempt(text, text, text)",
+        "function:FUNCTION:authn:observe_rate_limit_counters()",
     } <= summary.product_atoms
     assert summary.probe_atoms == (
         summary.mapped_probe_atoms | summary.explicit_non_mapping

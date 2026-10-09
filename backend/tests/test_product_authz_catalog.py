@@ -1154,6 +1154,7 @@ def test_invalid_privileged_role_oids_are_red_before_catalog_access(
     [
         ("missing_function", "署名"),
         ("wrong_grantee", "付与先"),
+        ("wrong_monitor_grantee", "付与先"),
         ("wrong_extension_schema", "拡張"),
         ("missing_table_grant", "表 ACL"),
     ],
@@ -1175,6 +1176,13 @@ def test_authn_asset_mutations_fail_independent_contract(
             row for row in asset["functions"] if row["function_name"] == "login_attempt"
         )
         function["acl_expectations"][0]["grantee"] = "pitchlog_management_fn_owner"
+    elif mutation == "wrong_monitor_grantee":
+        function = next(
+            row
+            for row in asset["functions"]
+            if row["function_name"] == "observe_rate_limit_counters"
+        )
+        function["acl_expectations"][0]["grantee"] = "pitchlog_app"
     elif mutation == "wrong_extension_schema":
         asset["extensions"][0]["schema_name"] = "public"
     else:

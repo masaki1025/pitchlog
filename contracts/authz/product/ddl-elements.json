@@ -1986,6 +1986,36 @@
       ]
     },
     {
+      "function_id": "FUNCTION:authn:observe_rate_limit_counters()",
+      "schema_name": "authn",
+      "function_name": "observe_rate_limit_counters",
+      "identity_args": "",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_auth_fn_owner",
+      "language": "plpgsql",
+      "returns": "record",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_management_fn_owner",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
       "function_id": "FUNCTION:authn:change_password(uuid, text, text)",
       "schema_name": "authn",
       "function_name": "change_password",

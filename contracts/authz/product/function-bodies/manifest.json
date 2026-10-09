@@ -895,6 +895,11 @@
       "element_id": "FUNCTION:authn:logout(uuid)"
     },
     {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:observe_rate_limit_counters().sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:authn:observe_rate_limit_counters()"
+    },
+    {
       "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:password_policy_ok(text).sql",
       "element_type": "function",
       "element_id": "FUNCTION:authn:password_policy_ok(text)"
