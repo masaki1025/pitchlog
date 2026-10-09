@@ -82,3 +82,16 @@ branch: feature/vitest-vector-runner
 - ステップ 3 の `frontend/src/testing/vectorRunner.ts` が既存の `frontend/src/lib/sync/prohibitions.spec.ts` を赤にした。同テストは `src/testing/**/*.ts` を同期の禁止事項の raw 走査対象とし、ファイル集合を `EXPECTED_TESTING_SOURCE_FILE_NAMES` で固定している(新しいファイルを明示させる仕組み)。frontend 全件で 1 file failed・670 tests passed
 - 一覧に `'testing/vectorRunner.ts'` を足した状態で同 spec は 41 件緑(試行後に元へ戻した)。`prohibitions.spec.ts` は同期プロトコルのコア領域(`core-areas.json` に該当)で、計画の変更範囲外だった
 - **人間の裁定(2026-10-09)**: 一覧に 1 行足す。置き場は移さない。計画書のステップ 3 とやらないことに追記した
+
+### 実装(/implement・2026-10-09)
+
+| ステップ | 内容 | 差し戻し |
+| --- | --- | --- |
+| 1 | 適合ベクタ 9 シナリオ・schema・pytest 側の消費 | 1 回: `test_vectors.py` との対応表を「全 test_ 関数 = 対応表 ∪ 対象外(静的検査 1 件)」の等式に |
+| 2 | Python ブリッジ `vector_bridge.py` と単体テスト | 1 回: 静的検査を import 名だけでなく AST 全体の名前・属性・`cli` の import まで |
+| 3 | TS runner `vectorRunner.ts` と spec | 1 回: `prohibitions.spec.ts` の走査一覧へ 1 行(上記の裁定) |
+| 4 | Vitest 側の適合ベクタ消費 `vectorConformance.spec.ts` | なし |
+
+- `vectors.py`・`cli.py`・`path_match.py` の差分 0 件
+- 総合検証中に、ハーネス全件で `tests/test_check_tenant_boundary_bypass.py::test_repository_is_green` が赤(`base-allowlist.json` の履歴 prefix 不一致)。原因は本変更ではなく、起点 `7167c182` 以降に develop で同ファイルの履歴が伸びたこと(#101・#100)。未 push だったので origin/develop へ rebase して解消(競合なし)
+- Codex のサンドボックス内では `spawnSync` が `EPERM` になる既存 spec が 9 件ある(`dependencyClosure`・`entrypointClosure`)。サンドボックス外では緑
