@@ -95,3 +95,18 @@ branch: feature/vitest-vector-runner
 - `vectors.py`・`cli.py`・`path_match.py` の差分 0 件
 - 総合検証中に、ハーネス全件で `tests/test_check_tenant_boundary_bypass.py::test_repository_is_green` が赤(`base-allowlist.json` の履歴 prefix 不一致)。原因は本変更ではなく、起点 `7167c182` 以降に develop で同ファイルの履歴が伸びたこと(#101・#100)。未 push だったので origin/develop へ rebase して解消(競合なし)
 - Codex のサンドボックス内では `spawnSync` が `EPERM` になる既存 spec が 9 件ある(`dependencyClosure`・`entrypointClosure`)。サンドボックス外では緑
+
+## 結果サマリ(/pr クローズ処理・2026-10-09)
+
+- **実装したもの**: (α) ベクタ契約の Vitest 側 runner。判定は Python の `run_vectors` の 1 系統だけで、Vitest からは子プロセスのブリッジ(`vector_bridge.py`・JSON Lines)経由で駆動する。TS(`frontend/src/testing/vectorRunner.ts`)が持つのは正規化と計算 adapter の呼び出し・値の往復検査・子プロセスの回収だけ。共通の適合ベクタ 9 シナリオを pytest(直接)と Vitest(ブリッジ経由)の両方で消費し、結果と痕跡の一致を固定した
+- **正本への反映**: なし(計画書 3 節の宣言どおり。/sync-docs で差分を検算済み)
+- **検証**: ハーネス非 DB 全件 28,405 passed / backend 非 DB 全件 1,041 passed / frontend 全件 721 passed / ruff・ty・eslint・prettier・vue-tsc・depcruise 緑(origin/develop へ rebase 後)
+- **段階 2 へ送る事項**: design.md「未解決・検討メモ」と計画書 4 節の残余 R-a・R-b。マージ後に runner のパスとマージ commit OID とともに TSK-236 側へ伝える(DoD)
+
+### ハーネス運用評価台帳への追記: なし
+
+本タスクの観測 3 件を台帳と突合し、いずれも追記しないと判断した。
+
+1. **Codex の sandbox 内で既存 spec の `spawnSync` が `EPERM`**(`dependencyClosure`・`entrypointClosure` の 9 件。同じ sandbox で本タスクの spec の `spawn` は通った)— H-69「sandbox の制限により Codex へ委任できない検証がある」と同型で、委任側が sandbox 外で再実行して確かめる既存の手当てで足りた。原因(同期 spawn と非同期 spawn の差か)は切り分けておらず、型を確定できないので追記しない
+2. **走査一覧の固定(`prohibitions.spec.ts` の `EXPECTED_TESTING_SOURCE_FILE_NAMES`)が新しいファイルで赤**— 固定の意図(新しいファイルを明示させる)どおりに働いた例で、穴ではない。計画レビュー 2 周が拾わなかったのは、依頼文が問うた軸しか出ない既知の性質による
+3. **起点が古いブランチで `test_repository_is_green` が「比較元の履歴 prefix は変更・削除できない」で赤**— 既存候補「並行ブランチが CI 契約に規則を足すと、先行して設計済みのブランチが後から抵触する」と同じ機構(比較元 = `origin/develop` が先に進む)。本タスクは凍結資産に触れておらず、手元の全件でだけ赤になり、rebase 1 回で解消した。CI はマージ ref で走るので影響しない。新しい型ではないので追記しない
