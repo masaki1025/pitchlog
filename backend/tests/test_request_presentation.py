@@ -1,8 +1,10 @@
 """要求からの提示値の取り出しと CSRF 条件を検証する。"""
 
 import ast
+import base64
 import inspect
 import logging
+import secrets
 from importlib.util import resolve_name
 from typing import Annotated
 
@@ -17,6 +19,13 @@ from pitchlog.api.request_presentation import RequestGateError, require_presente
 _COOKIE_NAME = "__Host-pitchlog_token"
 _ALLOWED_ORIGIN = "https://allowed.example"
 _METHODS = ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE", "PROPFIND"]
+
+
+@pytest.fixture(autouse=True)
+def _signing_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """アプリ生成が要求する署名鍵を検証ごとに設定する。"""
+    encoded_key = base64.b64encode(secrets.token_bytes(32)).decode("ascii")
+    monkeypatch.setenv("PITCHLOG_TOKEN_SIGNING_KEY_B64", encoded_key)
 
 
 def _make_test_app(received: list[str]) -> FastAPI:
