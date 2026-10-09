@@ -1,7 +1,7 @@
 """API 例外を共通のエラー封筒へ変換する。"""
 
 import logging
-from typing import cast
+from typing import Literal, cast
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -18,6 +18,21 @@ _REQUEST_ERROR_MESSAGE = "リクエストを処理できません"
 _INTERNAL_SERVER_ERROR_MESSAGE = "サーバー内部でエラーが発生しました"
 _CREDENTIAL_ERROR_MESSAGE = "認証情報がありません"
 _CSRF_ERROR_MESSAGE = "要求を確認できません"
+_TEAM_GAME_ERROR_MESSAGE = (
+    "試合が紐づいているため削除できません。名前を変更してください"
+)
+_TEAM_PLAYER_ERROR_MESSAGE = (
+    "選手が紐づいているため削除できません。名前を変更してください"
+)
+
+
+class TeamRecordDeleteBlocked(Exception):
+    """削除を妨げる紐づきの種類だけを保持する。"""
+
+    def __init__(self, reason: Literal["games", "players"]) -> None:
+        """固定された理由を保持する。"""
+        self.reason = reason
+        super().__init__(reason)
 
 
 def _error_response(
@@ -131,6 +146,20 @@ async def _unhandled_exception_handler(
     return _error_response(status_code=500, message=_INTERNAL_SERVER_ERROR_MESSAGE)
 
 
+async def _team_delete_exception_handler(
+    _request: Request,
+    exception: Exception,
+) -> JSONResponse:
+    """削除不可の理由と改名の案内を固定文言で返す。"""
+    blocked = cast(TeamRecordDeleteBlocked, exception)
+    message = (
+        _TEAM_GAME_ERROR_MESSAGE
+        if blocked.reason == "games"
+        else _TEAM_PLAYER_ERROR_MESSAGE
+    )
+    return _error_response(status_code=409, message=message)
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """FastAPI インスタンスへ共通例外ハンドラを登録する。
 
@@ -143,4 +172,5 @@ def register_exception_handlers(app: FastAPI) -> None:
     )
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
     app.add_exception_handler(RequestGateError, _request_gate_exception_handler)
+    app.add_exception_handler(TeamRecordDeleteBlocked, _team_delete_exception_handler)
     app.add_exception_handler(Exception, _unhandled_exception_handler)

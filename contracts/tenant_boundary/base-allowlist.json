@@ -11078,7 +11078,7 @@
             "fixture_set_revision:14"
           ],
           "contracts/tenant_boundary/repository-contract.json": [
-            "contract_revision:12"
+            "contract_revision:13"
           ],
           "contracts/tenant_boundary/runtime-authz-contract.json": [
             "runtime_contract_revision:12"
@@ -11117,7 +11117,7 @@
           ]
         },
         "change": {
-          "subject": "U-M1(TSK-393): 製品リポジトリ操作と TenantContext 発行入口を登録する",
+          "subject": "U-M1(TSK-393): 製品操作・TenantContext 発行入口・対戦相手チーム入口を登録する",
           "aspect": [
             "asset_snapshots",
             "declaration",
@@ -11755,7 +11755,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:12"
+                    "contract_revision:13"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -12056,8 +12056,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "db0166982e8d95dc5cd873ce1cd4adc69add1c6be51d5d7b454740b47a7e2232",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/db0166982e8d95dc5cd873ce1cd4adc69add1c6be51d5d7b454740b47a7e2232"
+                "sha256": "0e8cbc0bcd813f3fb13b3d073232a1696d0ce62dc1fee1d459ea555bcc29ec57",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0e8cbc0bcd813f3fb13b3d073232a1696d0ce62dc1fee1d459ea555bcc29ec57"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
@@ -12072,10 +12072,10 @@
             ]
           }
         },
-        "movement_fact": "比較元は origin/develop の f833154b388c98b429df5190baf5dc8167a3474b。ステップ5の選手・チーム操作6件と roster._build_roster_statement の許可、ステップ9の TenantContext 発行入口・発行専用モジュールの登録と検査器変更を1受理にまとめた。凍結射影が動いた8資産は base-allowlist.json contract_revision:24→contract_revision:25; cache-invalidation-contract.json contract_revision:9→contract_revision:10; census-baseline.json contract_revision:9→contract_revision:10; db-api-inventory.json inventory_revision:11→inventory_revision:12; negative-fixtures.json fixture_set_revision:13→fixture_set_revision:14; repository-contract.json contract_revision:11→contract_revision:12; runtime-authz-contract.json runtime_contract_revision:11→runtime_contract_revision:12; tenant-context-allowlist.json contract_revision:12→contract_revision:13。frozen-inputs.json は据え置いた。配布モジュール3本の SOURCE_DIGEST は各契約資産から再計算した。",
-        "reason": "U-M1(TSK-393)の選手・対戦相手チーム操作を capability カタログに結び付け、SQL 文の組み立てを許可シンボルに閉じるとともに、認証済み提示値からの TenantContext 発行入口と許可製品モジュールを登録したため、テナント境界の凍結基準を更新する。",
+        "movement_fact": "比較元は origin/develop の 62fc5bfcb1ee7812b0a32e24e6e0095927f28e28。実内容の movement は contracts/tenant_boundary/base-allowlist.json、contracts/tenant_boundary/cache-invalidation-contract.json、contracts/tenant_boundary/census-baseline.json、contracts/tenant_boundary/db-api-inventory.json、contracts/tenant_boundary/negative-fixtures.json、contracts/tenant_boundary/repository-contract.json、contracts/tenant_boundary/runtime-authz-contract.json、contracts/tenant_boundary/tenant-context-allowlist.json に及ぶ。変更前後の全資産射影と外部実装を内容アドレス snapshot で固定した。",
+        "reason": "U-M1(TSK-393)のステップ5で選手・対戦相手チームのリポジトリ操作、ステップ9で認証済み提示値からの TenantContext 発行入口、ステップ11で対戦相手チームの試合参照・名前変更・論理削除の操作と入口を登録したため、テナント境界の凍結基準を更新する。",
         "approved_by": "山田正輝",
-        "approved_on": "2026-10-05"
+        "approved_on": "2026-10-10"
       }
     ]
   },

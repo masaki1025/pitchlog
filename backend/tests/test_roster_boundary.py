@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import base64
 import secrets
+import unicodedata
 from collections.abc import Iterator
 from contextlib import contextmanager
 from importlib.util import resolve_name
@@ -32,17 +33,22 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import IntegrityError
 
 from pitchlog.api.app import create_app
-from pitchlog.api.routers import players
+from pitchlog.api.routers import players, team_records
 from pitchlog.authz.token_presentation import TokenPresentation
 from pitchlog.repositories import tenant_context_issuance
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.roster import (
+    GameTeamLinkReadToken,
     PlayerCreateToken,
     PlayerReadToken,
     PlayerUpdateToken,
     RosterReferenceUnavailable,
+    TeamRecordCreateToken,
+    TeamRecordDeleteToken,
+    TeamRecordReadToken,
+    TeamRecordUpdateToken,
 )
-from pitchlog.repositories.tokens import TenantOperationResult
+from pitchlog.repositories.tokens import ImmutableValue, TenantOperationResult
 
 _SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src" / "pitchlog"
 _ORIGIN = "https://roster.example"
@@ -198,6 +204,174 @@ def _headers() -> dict[str, str]:
 
 def _body() -> dict[str, str]:
     return {"team_record_id": str(_TEAM_A), "name": "乙", "roster_status_key": "active"}
+
+
+class _TeamStore:
+    """対戦相手の入口を外から検査するための記録器。"""
+
+    def __init__(self) -> None:
+        self.rows: dict[tuple[UUID, UUID], tuple[object, ...]] = {
+            (_TENANT_A, _TEAM_A): (_TEAM_A, "opponent", "東京", None),
+        }
+        self.games: set[tuple[UUID, UUID]] = set()
+        self.players: set[tuple[UUID, UUID]] = set()
+
+    def run(self, tenant_id: UUID, operation: object) -> TenantOperationResult:
+        """登録 token の結果をテナントごとに返す。"""
+        if isinstance(operation, TeamRecordReadToken):
+            rows = [
+                row
+                for (owner, record_id), row in self.rows.items()
+                if owner == tenant_id
+                and (operation.record_id is None or record_id == operation.record_id)
+                and (operation.cursor_id is None or record_id > operation.cursor_id)
+                and (operation.exclude_id is None or record_id != operation.exclude_id)
+                and (operation.include_hidden or row[3] is None)
+                and (
+                    operation.similar_name is None
+                    or unicodedata.normalize("NFKC", str(row[2])).strip().lower()
+                    == unicodedata.normalize("NFKC", operation.similar_name)
+                    .strip()
+                    .lower()
+                )
+            ]
+            return TenantOperationResult(
+                cast(
+                    tuple[tuple[ImmutableValue, ...], ...],
+                    tuple(sorted(rows)[: operation.limit + 1]),
+                )
+            )
+        if isinstance(operation, TeamRecordCreateToken):
+            self.rows[(tenant_id, operation.id)] = (
+                operation.id,
+                "opponent",
+                operation.name,
+                None,
+            )
+            return TenantOperationResult(((1,),))
+        if isinstance(operation, (TeamRecordUpdateToken, TeamRecordDeleteToken)):
+            key = (tenant_id, operation.id)
+            row = self.rows.get(key)
+            if row is None or row[3] is not None:
+                return TenantOperationResult(((0,),))
+            self.rows[key] = (
+                row[0],
+                row[1],
+                operation.name
+                if isinstance(operation, TeamRecordUpdateToken)
+                else row[2],
+                operation.hidden_at
+                if isinstance(operation, TeamRecordDeleteToken)
+                else None,
+            )
+            return TenantOperationResult(((1,),))
+        if isinstance(operation, GameTeamLinkReadToken):
+            return TenantOperationResult(
+                ((uuid4(),),)
+                if (tenant_id, operation.team_record_id) in self.games
+                else ()
+            )
+        if isinstance(operation, PlayerReadToken):
+            return TenantOperationResult(
+                ((uuid4(),),)
+                if (tenant_id, operation.team_record_id) in self.players
+                else ()
+            )
+        raise AssertionError("未登録の操作")
+
+
+def _team_client_app(monkeypatch: pytest.MonkeyPatch, store: _TeamStore) -> FastAPI:
+    """公開アプリに対戦相手の記録器を接続する。"""
+    app = _client_app(monkeypatch, _PlayerStore())
+
+    @contextmanager
+    def scope(context: TenantContext) -> Iterator[object]:
+        class Handle:
+            def run(self, operation: object) -> TenantOperationResult:
+                return store.run(context.tenant_id, operation)
+
+        yield Handle()
+
+    monkeypatch.setattr(team_records, "tenant_transaction_scope", scope)
+    return app
+
+
+@pytest.mark.anyio
+async def test_team_record_http_routes_warn_and_guard_deletion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """外部要求で警告と試合・選手別の削除拒否を確認する。"""
+    store = _TeamStore()
+    app = _team_client_app(monkeypatch, store)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        client.cookies.set("__Host-pitchlog_token", "token-a")
+        created = await client.post(
+            "/team-records", json={"name": "東京"}, headers=_headers()
+        )
+        assert created.status_code == 201
+        created_id = UUID(created.json()["id"])
+        assert created.json()["similar_names"] == ["東京"]
+        assert "tenant_id" not in created.json()
+        listed = await client.get("/team-records", params={"limit": 1})
+        assert listed.status_code == 200
+        assert len(listed.json()["items"]) == 1
+        assert listed.json()["next_cursor"] is not None
+        renamed = await client.patch(
+            f"/team-records/{created_id}", json={"name": "大阪"}, headers=_headers()
+        )
+        assert renamed.status_code == 200
+        assert renamed.json()["name"] == "大阪"
+        store.games.add((_TENANT_A, created_id))
+        blocked_game = await client.delete(
+            f"/team-records/{created_id}", headers=_headers()
+        )
+        assert blocked_game.status_code == 409
+        assert "試合" in blocked_game.json()["error"]["message"]
+        store.games.clear()
+        store.players.add((_TENANT_A, created_id))
+        blocked_player = await client.delete(
+            f"/team-records/{created_id}", headers=_headers()
+        )
+        assert blocked_player.status_code == 409
+        assert "選手" in blocked_player.json()["error"]["message"]
+        store.players.clear()
+        deleted = await client.delete(f"/team-records/{created_id}", headers=_headers())
+        assert deleted.status_code == 200
+        assert deleted.json()["hidden_at"] is not None
+        missing = await client.delete(f"/team-records/{created_id}", headers=_headers())
+        assert missing.status_code == 404
+        client.cookies.set("__Host-pitchlog_token", "token-b")
+        foreign = await client.delete(f"/team-records/{_TEAM_A}", headers=_headers())
+        absent = await client.delete(f"/team-records/{uuid4()}", headers=_headers())
+        assert foreign.status_code == absent.status_code == 404
+        assert foreign.content == absent.content
+
+
+@pytest.mark.anyio
+async def test_team_record_http_routes_apply_request_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cookie と状態変更要求の門を外部要求で確認する。"""
+    app = _team_client_app(monkeypatch, _TeamStore())
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        requests = (
+            ("POST", "/team-records", {"name": "東京"}),
+            ("GET", "/team-records?limit=1", None),
+            ("PATCH", f"/team-records/{_TEAM_A}", {"name": "変更"}),
+            ("DELETE", f"/team-records/{_TEAM_A}", None),
+        )
+        for method, path, body in requests:
+            missing = await client.request(method, path, json=body, headers=_headers())
+            assert missing.status_code == 401
+            client.cookies.set("__Host-pitchlog_token", "token-a")
+            if method != "GET":
+                no_header = await client.request(method, path, json=body)
+                assert no_header.status_code == 403
+            client.cookies.clear()
 
 
 @pytest.mark.requires_db
@@ -413,6 +587,200 @@ async def test_real_player_http_boundary_enforces_tenant_and_request_gates(
             assert expired.json() == {"error": {"message": "認証情報がありません"}}
 
 
+@pytest.mark.requires_db
+@pytest.mark.anyio
+async def test_real_team_record_http_boundary_and_delete_guards(
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """実スキーマ上の作成・一覧・更新・論理削除と越境拒否を確認する。"""
+    catalog = cast(
+        ProvisionedProductCatalog,
+        request.getfixturevalue("provisioned_product_catalog"),
+    )
+    _seed_settings(catalog)
+    app_dsn = _app_dsn(catalog)
+    tenant_a = _seed_identity(catalog, app_dsn)
+    tenant_b = _seed_identity(catalog, app_dsn)
+    token_a = _login(tenant_a)
+    token_b = _login(tenant_b)
+    assert isinstance(token_a, UUID)
+    assert isinstance(token_b, UUID)
+    self_a, self_b = uuid4(), uuid4()
+    team_a, team_b, team_player, team_game = uuid4(), uuid4(), uuid4(), uuid4()
+    team_hidden_player, team_trashed_game = uuid4(), uuid4()
+    team_spaced, team_wide, team_wide_b = uuid4(), uuid4(), uuid4()
+    with catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO public.system_vocabularies(key, category, display_name) "
+            "VALUES ('roster-game-test', 'game_type', '試合') ON CONFLICT DO NOTHING"
+        )
+        for tenant_id, record_id, kind, name in (
+            (tenant_a.tenant_id, self_a, "self", "自チーム A"),
+            (tenant_b.tenant_id, self_b, "self", "自チーム B"),
+            (tenant_a.tenant_id, team_a, "opponent", "東京"),
+            (tenant_b.tenant_id, team_b, "opponent", "東京"),
+            (tenant_a.tenant_id, team_player, "opponent", "選手あり"),
+            (tenant_a.tenant_id, team_game, "opponent", "試合あり"),
+            (tenant_a.tenant_id, team_hidden_player, "opponent", "非表示選手あり"),
+            (tenant_a.tenant_id, team_trashed_game, "opponent", "削除済み試合あり"),
+            (tenant_a.tenant_id, team_spaced, "opponent", " 東京 "),
+            (tenant_a.tenant_id, team_wide, "opponent", " Ｔｏｋｙｏ "),
+            (tenant_b.tenant_id, team_wide_b, "opponent", " Ｔｏｋｙｏ "),
+        ):
+            cursor.execute(
+                "INSERT INTO public.team_records(tenant_id, id, kind, name) "
+                "VALUES (%s, %s, %s, %s)",
+                (tenant_id, record_id, kind, name),
+            )
+        cursor.execute(
+            "INSERT INTO public.tenant_vocabularies "
+            "(tenant_id, key, category, display_name) "
+            "VALUES (%s, 'roster-game-test', 'tournament', '大会')",
+            (tenant_a.tenant_id,),
+        )
+        cursor.execute(
+            "INSERT INTO public.players "
+            "(tenant_id, id, team_record_id, name, roster_status_key) "
+            "VALUES (%s, %s, %s, '紐づく選手', 'active')",
+            (tenant_a.tenant_id, uuid4(), team_player),
+        )
+        cursor.execute(
+            "INSERT INTO public.players "
+            "(tenant_id, id, team_record_id, name, roster_status_key, hidden_at) "
+            "VALUES (%s, %s, %s, '非表示の選手', 'active', "
+            "pg_catalog.clock_timestamp())",
+            (tenant_a.tenant_id, uuid4(), team_hidden_player),
+        )
+        cursor.execute(
+            "INSERT INTO public.games "
+            "(tenant_id, id, scheduled_at, game_type_key, tournament_key, "
+            "away_team_record_id, home_team_record_id, applied_rules) "
+            "VALUES (%s, %s, pg_catalog.clock_timestamp(), 'roster-game-test', "
+            "'roster-game-test', %s, %s, '{}'::jsonb)",
+            (tenant_a.tenant_id, uuid4(), team_game, self_a),
+        )
+        cursor.execute(
+            "INSERT INTO public.games "
+            "(tenant_id, id, scheduled_at, game_type_key, tournament_key, "
+            "away_team_record_id, home_team_record_id, applied_rules, "
+            "status, trashed_at) "
+            "VALUES (%s, %s, pg_catalog.clock_timestamp(), 'roster-game-test', "
+            "'roster-game-test', %s, %s, '{}'::jsonb, 'trashed', "
+            "pg_catalog.clock_timestamp())",
+            (tenant_a.tenant_id, uuid4(), team_trashed_game, self_a),
+        )
+    catalog.applicator.commit()
+
+    monkeypatch.setenv(
+        "PITCHLOG_DATABASE_URL", f"{_product_migration_url(app_dsn)}?sslmode=disable"
+    )
+    monkeypatch.setenv("PITCHLOG_DATABASE_POOLED", "false")
+    monkeypatch.setenv("PITCHLOG_ALLOWED_ORIGINS", _ORIGIN)
+    monkeypatch.setenv(
+        "PITCHLOG_TOKEN_SIGNING_KEY_B64",
+        base64.b64encode(secrets.token_bytes(32)).decode("ascii"),
+    )
+    app = create_app()
+    signer: TokenPresentation = app.state.token_presentation
+    presented_a = signer.encode(token_a)
+    presented_b = signer.encode(token_b)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        client.cookies.set("__Host-pitchlog_token", presented_a)
+        created = await client.post(
+            "/team-records", json={"name": "東京"}, headers=_headers()
+        )
+        assert created.status_code == 201
+        assert set(created.json()["similar_names"]) == {"東京", " 東京 "}
+        wide_created = await client.post(
+            "/team-records", json={"name": "Tokyo"}, headers=_headers()
+        )
+        assert wide_created.status_code == 201
+        assert wide_created.json()["similar_names"] == [" Ｔｏｋｙｏ "]
+        assert "tenant_id" not in created.text
+        created_id = UUID(created.json()["id"])
+        listed = await client.get("/team-records", params={"limit": 1})
+        assert listed.status_code == 200
+        assert len(listed.json()["items"]) == 1
+        assert listed.json()["next_cursor"] is not None
+        updated = await client.patch(
+            f"/team-records/{created_id}", json={"name": "大阪"}, headers=_headers()
+        )
+        assert updated.status_code == 200
+        assert updated.json()["name"] == "大阪"
+        game_blocked = await client.delete(
+            f"/team-records/{team_game}", headers=_headers()
+        )
+        player_blocked = await client.delete(
+            f"/team-records/{team_player}", headers=_headers()
+        )
+        hidden_player_blocked = await client.delete(
+            f"/team-records/{team_hidden_player}", headers=_headers()
+        )
+        trashed_game_blocked = await client.delete(
+            f"/team-records/{team_trashed_game}", headers=_headers()
+        )
+        assert game_blocked.status_code == player_blocked.status_code == 409
+        assert hidden_player_blocked.status_code == 409
+        assert trashed_game_blocked.status_code == 409
+        assert "試合" in game_blocked.json()["error"]["message"]
+        assert "選手" in player_blocked.json()["error"]["message"]
+        assert "選手" in hidden_player_blocked.json()["error"]["message"]
+        assert "試合" in trashed_game_blocked.json()["error"]["message"]
+        deleted = await client.delete(f"/team-records/{created_id}", headers=_headers())
+        assert deleted.status_code == 200
+        assert deleted.json()["hidden_at"] is not None
+        assert (
+            await client.delete(f"/team-records/{created_id}", headers=_headers())
+        ).status_code == 404
+        client.cookies.set("__Host-pitchlog_token", presented_b)
+        own_list = await client.get("/team-records", params={"limit": 20})
+        assert own_list.status_code == 200
+        assert {row["id"] for row in own_list.json()["items"]} == {
+            str(team_b),
+            str(team_wide_b),
+        }
+        missing_id = uuid4()
+        foreign_update = await client.patch(
+            f"/team-records/{team_a}", json={"name": "変更"}, headers=_headers()
+        )
+        absent_update = await client.patch(
+            f"/team-records/{missing_id}", json={"name": "変更"}, headers=_headers()
+        )
+        assert foreign_update.status_code == absent_update.status_code == 404
+        assert foreign_update.content == absent_update.content
+        foreign_delete = await client.delete(
+            f"/team-records/{team_a}", headers=_headers()
+        )
+        absent_delete = await client.delete(
+            f"/team-records/{missing_id}", headers=_headers()
+        )
+        assert foreign_delete.status_code == absent_delete.status_code == 404
+        assert foreign_delete.content == absent_delete.content
+        client.cookies.clear()
+        for method, path, body in (
+            ("POST", "/team-records", {"name": "新規"}),
+            ("GET", "/team-records?limit=1", None),
+            ("PATCH", f"/team-records/{team_b}", {"name": "変更"}),
+            ("DELETE", f"/team-records/{team_b}", None),
+        ):
+            response = await client.request(method, path, json=body, headers=_headers())
+            assert response.status_code == 401
+        client.cookies.set("__Host-pitchlog_token", presented_b)
+        for method, path, body in (
+            ("POST", "/team-records", {"name": "新規"}),
+            ("PATCH", f"/team-records/{team_b}", {"name": "変更"}),
+            ("DELETE", f"/team-records/{team_b}", None),
+        ):
+            missing_header = await client.request(method, path, json=body)
+            missing_origin = await client.request(
+                method, path, json=body, headers={"X-Pitchlog-Request": "1"}
+            )
+            assert missing_header.status_code == missing_origin.status_code == 403
+
+
 @pytest.mark.anyio
 @pytest.mark.parametrize(
     ("method", "path", "body"),
@@ -574,13 +942,12 @@ async def test_player_entry_does_not_expose_other_tenant_rows(
         ("POST", "/players/status-preview", 404),
         ("POST", "/players/status-apply", 404),
         ("DELETE", f"/players/{_PLAYER_A}", 405),
-        ("GET", "/team-records", 404),
     ],
 )
 async def test_future_entries_remain_closed(
     method: str, path: str, expected: int, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """後続ステップの入口は公開しない。"""
+    """後続 PR に送った入口は公開しない。"""
     app = _client_app(monkeypatch, _PlayerStore())
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"

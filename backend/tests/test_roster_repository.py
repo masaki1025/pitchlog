@@ -6,6 +6,7 @@ import json
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from pathlib import Path
 from types import MappingProxyType, SimpleNamespace
 from typing import Any, cast
@@ -34,6 +35,7 @@ from test_authz_tenant_context import make_tenant_context
 
 from pitchlog.api.schemas.roster import ROSTER_PAGE_SIZE_MAX
 from pitchlog.authz.capability_registration import validate_capability_registrations
+from pitchlog.db.game_state.models import Game
 from pitchlog.db.tenant_isolation.models import Player, TeamRecord
 from pitchlog.repositories import base as repository_base
 from pitchlog.repositories import roster as roster_module
@@ -41,11 +43,13 @@ from pitchlog.repositories import transaction as transaction_module
 from pitchlog.repositories.base import TenantRepositoryBase
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.roster import (
+    GameTeamLinkReadToken,
     PlayerCreateToken,
     PlayerReadToken,
     PlayerUpdateToken,
     RosterReferenceUnavailable,
     TeamRecordCreateToken,
+    TeamRecordDeleteToken,
     TeamRecordReadToken,
     TeamRecordUpdateToken,
     create_roster_player,
@@ -228,6 +232,8 @@ def _run_transaction_token(
         | TeamRecordReadToken
         | TeamRecordCreateToken
         | TeamRecordUpdateToken
+        | TeamRecordDeleteToken
+        | GameTeamLinkReadToken
     ),
 ) -> TenantOperationResult:
     """実 DB なしで run の登録文準備と実行を通す。"""
@@ -259,6 +265,8 @@ def _run_transaction_token(
         TeamRecordReadToken(limit=2, record_id=_TEAM_ID),
         TeamRecordCreateToken(_TEAM_ID, "対戦相手"),
         TeamRecordUpdateToken(_TEAM_ID, "改名"),
+        TeamRecordDeleteToken(_TEAM_ID, datetime(2026, 10, 10, tzinfo=timezone.utc)),
+        GameTeamLinkReadToken(_TEAM_ID),
     ),
 )
 def test_all_roster_tokens_use_prepared_statement_in_both_paths(
@@ -270,9 +278,11 @@ def test_all_roster_tokens_use_prepared_statement_in_both_paths(
         | TeamRecordReadToken
         | TeamRecordCreateToken
         | TeamRecordUpdateToken
+        | TeamRecordDeleteToken
+        | GameTeamLinkReadToken
     ),
 ) -> None:
-    """リポジトリとトランザクションで 6 token の同じ準備結果を実行する。"""
+    """リポジトリとトランザクションで 8 形の同じ準備結果を実行する。"""
     context = make_tenant_context(_TENANT_ID)
     transaction_recorder = _RecordingSession()
     repository_result = _Repository(recorder).execute(context, operation)
@@ -287,11 +297,15 @@ def test_all_roster_tokens_use_prepared_statement_in_both_paths(
     assert repository_parameters == transaction_parameters
     tenant_bind = (
         "where_tenant_id"
-        if isinstance(operation, (PlayerUpdateToken, TeamRecordUpdateToken))
+        if isinstance(
+            operation, (PlayerUpdateToken, TeamRecordUpdateToken, TeamRecordDeleteToken)
+        )
         else "tenant_id"
     )
     assert repository_parameters[tenant_bind] == _TENANT_ID
-    if isinstance(operation, (PlayerUpdateToken, TeamRecordUpdateToken)):
+    if isinstance(
+        operation, (PlayerUpdateToken, TeamRecordUpdateToken, TeamRecordDeleteToken)
+    ):
         assert repository_parameters["where_id"] == operation.id
     if isinstance(operation, (PlayerReadToken, TeamRecordReadToken)):
         assert repository_parameters["limit"] == operation.limit + 1
@@ -299,7 +313,7 @@ def test_all_roster_tokens_use_prepared_statement_in_both_paths(
             assert repository_parameters["record_id"] == operation.record_id
     if isinstance(operation, (TeamRecordReadToken, TeamRecordCreateToken)):
         assert repository_parameters["kind"] == "opponent"
-    if isinstance(operation, TeamRecordUpdateToken):
+    if isinstance(operation, (TeamRecordUpdateToken, TeamRecordDeleteToken)):
         assert repository_parameters["where_kind"] == "opponent"
 
 
@@ -312,6 +326,8 @@ def test_all_roster_tokens_use_prepared_statement_in_both_paths(
         TeamRecordReadToken(limit=2, record_id=_TEAM_ID),
         TeamRecordCreateToken(_TEAM_ID, "対戦相手"),
         TeamRecordUpdateToken(_TEAM_ID, "改名"),
+        TeamRecordDeleteToken(_TEAM_ID, datetime(2026, 10, 10, tzinfo=timezone.utc)),
+        GameTeamLinkReadToken(_TEAM_ID),
     ),
     ids=(
         "player-read",
@@ -320,12 +336,14 @@ def test_all_roster_tokens_use_prepared_statement_in_both_paths(
         "team-read",
         "team-create",
         "team-update",
+        "team-delete",
+        "game-team-link-read",
     ),
 )
 def test_prepared_tokens_compile_with_session_column_keys(
     operation: TenantOperationToken,
 ) -> None:
-    """6 種の準備結果を実 Session と同じ列キーでコンパイルする。"""
+    """8 形の準備結果を実 Session と同じ列キーでコンパイルする。"""
     statement, parameters = repository_base._prepare_operation(operation, _TENANT_ID)
     compiled = statement.compile(
         dialect=postgresql.dialect(),
@@ -352,6 +370,7 @@ def test_sqlite_session_executes_both_prepared_updates() -> None:
         Column("id", Uuid(as_uuid=True), primary_key=True),
         Column("kind", Text),
         Column("name", Text),
+        Column("hidden_at", Text),
     )
     engine = create_engine("sqlite+pysqlite:///:memory:")
     try:
@@ -420,6 +439,21 @@ def test_sqlite_session_executes_both_prepared_updates() -> None:
                     )
                 ).scalar_one()
                 == "他対戦相手"
+            )
+            statement, parameters = repository_base._prepare_operation(
+                TeamRecordDeleteToken(
+                    _TEAM_ID, datetime(2026, 10, 10, tzinfo=timezone.utc)
+                ),
+                _TENANT_ID,
+            )
+            assert getattr(session.execute(statement, parameters), "rowcount") == 1
+            assert (
+                session.execute(
+                    select(teams.c.hidden_at).where(
+                        teams.c.tenant_id == _TENANT_ID, teams.c.id == _TEAM_ID
+                    )
+                ).scalar_one()
+                is not None
             )
     finally:
         engine.dispose()
@@ -601,7 +635,7 @@ def test_builder_preserves_registered_and_prepared_sql_shapes() -> None:
         "team_update": (
             "UPDATE team_records SET name=:name WHERE team_records.tenant_id = "
             ":where_tenant_id AND team_records.id = :where_id AND "
-            "team_records.kind = :where_kind"
+            "team_records.kind = :where_kind AND team_records.hidden_at IS NULL"
         ),
         "player_read_dynamic": (
             "SELECT players.id, players.team_record_id, players.name, "
@@ -1279,3 +1313,116 @@ def test_update_column_declarations_match_dto_fields() -> None:
     assert repository_base._OPERATION_REGISTRY[
         TeamRecordUpdateToken
     ].allowed_update_columns == frozenset({"name"})
+    assert repository_base._OPERATION_REGISTRY[
+        TeamRecordDeleteToken
+    ].allowed_update_columns == frozenset({"hidden_at"})
+
+
+def test_game_link_lookup_is_single_table_and_bounded() -> None:
+    """削除ガード用の試合照会は対象テナントの 1 件だけを読む。"""
+    statement, parameters = repository_base._prepare_operation(
+        GameTeamLinkReadToken(_TEAM_ID), _TENANT_ID
+    )
+    assert isinstance(statement, Select)
+    assert statement.get_final_froms() == [Game.__table__]
+    assert parameters == {
+        "tenant_id": _TENANT_ID,
+        "team_record_id": _TEAM_ID,
+        "limit": 1,
+    }
+    assert "games.tenant_id = :tenant_id" in str(statement)
+    assert "games.home_team_record_id = :team_record_id" in str(statement)
+    assert "games.away_team_record_id = :team_record_id" in str(statement)
+
+
+def test_similar_team_lookup_is_filtered_and_bounded_in_sql() -> None:
+    """類似名は SQL 側でテナント・種別・名前を絞って返す。"""
+    statement, parameters = repository_base._prepare_operation(
+        TeamRecordReadToken(
+            limit=ROSTER_PAGE_SIZE_MAX,
+            similar_name="Tokyo",
+            exclude_id=_TEAM_ID,
+        ),
+        _TENANT_ID,
+    )
+    assert isinstance(statement, Select)
+    assert statement.get_final_froms() == [TeamRecord.__table__]
+    sql = str(statement)
+    assert "team_records.tenant_id = :tenant_id" in sql
+    assert "team_records.kind = :kind" in sql
+    assert "team_records.hidden_at IS NULL" in sql
+    assert "pg_catalog.normalize(team_records.name" in sql
+    assert "pg_catalog.normalize(:similar_name" in sql
+    assert "pg_catalog.btrim" in sql
+    assert "pg_catalog.lower" in sql
+    compiled = statement.compile(dialect=postgresql.dialect())
+    assert compiled.params["similar_form"] == "NFKC"
+    assert "\u3000" in compiled.params["similar_whitespace"]
+    assert "team_records.id != :exclude_id" in sql
+    assert parameters["limit"] == ROSTER_PAGE_SIZE_MAX + 1
+
+
+def test_team_delete_token_sets_only_hidden_at() -> None:
+    """論理削除は名前を変えず、更新文を実行前に検査する。"""
+    hidden_at = datetime.now(timezone.utc)
+    statement, parameters = repository_base._prepare_operation(
+        TeamRecordDeleteToken(_TEAM_ID, hidden_at), _TENANT_ID
+    )
+    assert "SET hidden_at=:hidden_at" in str(statement)
+    assert "team_records.hidden_at IS NULL" in str(statement)
+    assert parameters["hidden_at"] == hidden_at
+    with pytest.raises(ValueError):
+        TeamRecordUpdateToken(_TEAM_ID, "")
+
+
+@pytest.mark.parametrize("path", ("repository", "transaction"))
+def test_team_name_token_cannot_set_hidden_at(
+    monkeypatch: pytest.MonkeyPatch,
+    recorder: _RecordingSession,
+    path: str,
+) -> None:
+    """名前変更の token から論理削除列を変える文を拒否する。"""
+    statement = (
+        update(cast(Table, TeamRecord.__table__))
+        .where(TeamRecord.__table__.c.tenant_id == bindparam("where_tenant_id"))
+        .where(TeamRecord.__table__.c.id == bindparam("where_id"))
+        .where(TeamRecord.__table__.c.kind == bindparam("where_kind"))
+        .values(hidden_at=bindparam("hidden_at"))
+    )
+    _replace_built_statement(monkeypatch, "team_update", statement)
+    context = make_tenant_context(_TENANT_ID)
+    with pytest.raises(repository_base._TenantOperationError, match="未許可列"):
+        if path == "repository":
+            _Repository(recorder).execute(
+                context, TeamRecordUpdateToken(_TEAM_ID, "変更")
+            )
+        else:
+            _run_transaction_token(
+                context, recorder, TeamRecordUpdateToken(_TEAM_ID, "変更")
+            )
+    assert recorder.calls == []
+
+
+@pytest.mark.parametrize("path", ("repository", "transaction"))
+def test_team_delete_token_cannot_set_name(
+    monkeypatch: pytest.MonkeyPatch,
+    recorder: _RecordingSession,
+    path: str,
+) -> None:
+    """削除 token の登録集合に名前を混ぜても SQL 発行前に拒否する。"""
+    statement = (
+        update(cast(Table, TeamRecord.__table__))
+        .where(TeamRecord.__table__.c.tenant_id == bindparam("where_tenant_id"))
+        .where(TeamRecord.__table__.c.id == bindparam("where_id"))
+        .where(TeamRecord.__table__.c.kind == bindparam("where_kind"))
+        .values(hidden_at=bindparam("hidden_at"), name=bindparam("name"))
+    )
+    _replace_built_statement(monkeypatch, "team_delete", statement)
+    context = make_tenant_context(_TENANT_ID)
+    token = TeamRecordDeleteToken(_TEAM_ID, datetime.now(timezone.utc))
+    with pytest.raises(repository_base._TenantOperationError, match="未許可列"):
+        if path == "repository":
+            _Repository(recorder).execute(context, token)
+        else:
+            _run_transaction_token(context, recorder, token)
+    assert recorder.calls == []

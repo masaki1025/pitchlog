@@ -18,6 +18,7 @@ from sqlalchemy.sql.selectable import Select  # ty: ignore[unresolved-import]
 
 _PLAYERS = Table("players", MetaData(), Column("id", Integer))
 _TEAM_RECORDS = Table("team_records", MetaData(), Column("id", Integer))
+_GAMES = Table("games", MetaData(), Column("id", Integer))
 
 
 class PlayerReadToken:
@@ -32,8 +33,26 @@ class TeamRecordReadToken:
     """対戦相手の読み取り操作を表す。"""
 
 
+class TeamRecordUpdateToken:
+    """対戦相手の更新操作を表す。"""
+
+
+class TeamRecordDeleteToken:
+    """対戦相手の論理削除操作を表す。"""
+
+
+class GameTeamLinkReadToken:
+    """試合の参照確認を表す。"""
+
+
 type _RosterBuilderOperation = (
-    PlayerReadToken | PlayerUpdateToken | TeamRecordReadToken | None
+    PlayerReadToken
+    | PlayerUpdateToken
+    | TeamRecordReadToken
+    | GameTeamLinkReadToken
+    | TeamRecordUpdateToken
+    | TeamRecordDeleteToken
+    | None
 )
 
 
@@ -63,7 +82,15 @@ def _build_roster_statement(
             raise ValueError("team_create には operation を渡せない")
         return insert(_TEAM_RECORDS)
     if kind == "team_update":
-        if operation is not None:
-            raise ValueError("team_update には operation を渡せない")
+        if operation is not None and not isinstance(operation, TeamRecordUpdateToken):
+            raise ValueError("team_update には TeamRecordUpdateToken が必要")
         return update(_TEAM_RECORDS)
+    if kind == "team_delete":
+        if operation is not None and not isinstance(operation, TeamRecordDeleteToken):
+            raise ValueError("team_delete には TeamRecordDeleteToken が必要")
+        return update(_TEAM_RECORDS)
+    if kind == "game_team_link_read":
+        if operation is not None and not isinstance(operation, GameTeamLinkReadToken):
+            raise ValueError("game_team_link_read には GameTeamLinkReadToken が必要")
+        return select(_GAMES.c.id)
     raise ValueError(f"未知の roster 文: {kind}")

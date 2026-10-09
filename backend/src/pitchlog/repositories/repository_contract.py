@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 12
+CONTRACT_REVISION = 13
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "7d29e7144e70ee89d69af0efdd0b6ed5a90adb51d2ce3fe8702657b1243de0fd"
+SOURCE_DIGEST = "ab1d46858098562cb65b79d57278324c12065c21b19fc85e2fccf8ee3328dfea"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -62,6 +62,7 @@ PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:team_records:read",
     "CAP:team_records:insert",
     "CAP:team_records:update",
+    "CAP:games:read",
 )
 PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -70,5 +71,7 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.roster.TeamRecordReadToken",
     "pitchlog.repositories.roster.TeamRecordCreateToken",
     "pitchlog.repositories.roster.TeamRecordUpdateToken",
+    "pitchlog.repositories.roster.TeamRecordDeleteToken",
+    "pitchlog.repositories.roster.GameTeamLinkReadToken",
 )
 CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()

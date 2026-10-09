@@ -120,10 +120,30 @@ ORM は実装済み(`backend/src/pitchlog/db/tenant_isolation/models.py`)。**�
   `kind` は `protected_columns`(`models.py:135`)で不変、DB 側に既定値は無く(`models.py:123`)、
   **`UNIQUE (tenant_id) WHERE kind='self'`**(`models.py:113-118` — 述語は `:117`)があるため
   **API から作れるのは `opponent` だけ**である
-- `Update`: `name: str` のみ(`allowed_update_columns={"name","hidden_at"}` — `models.py:135` 付近)
+- `Update`: `name: str` のみ。名前変更 token の登録は `allowed_update_columns={"name"}`、論理削除は別 token・別登録で `allowed_update_columns={"hidden_at"}`。どちらも認可行列の `CAP:team_records:update` を使う
 - **`TeamRecordCreated`**: `TeamRecordRead` + `similar_names: list[str]`。
   **チーム名に一意制約は無い**(`data-model.md:1363-1364`)。**類似名は警告**であってエラーにしない(FR-039)ため、
   **登録は成功させたうえで応答に警告を載せる**
+
+**ステップ 11 の類似名**: 同一テナントの非表示でない対戦相手レコードのうち、
+新しい名前と大文字小文字を無視して一致する名前を類似名とする。新規行自身は除く。
+DB で双方の名前を NFKC 正規化し、Unicode White_Space の前後を除き、
+小文字化した等価条件で絞る。ID 順で最大 200 件を返す。
+`public.authn_normalize_team_name` はアプリ用ロールの EXECUTE が契約上取り消されているため、
+`pg_catalog.normalize`・`btrim`・`lower` を用いる。
+元の表記を `similar_names` に載せ、該当があっても登録は成功する。
+要件書 FR-039 は類似度の計算法を定めていないため、誤警告を抑えるこの判定を採る。
+
+**削除不可の応答**: `DELETE` で対象が無い・他テナントの対象・自チームなら共通の 404。
+試合への紐づきがあれば 409 と共通エラー封筒の固定文言
+「試合が紐づいているため削除できません。名前を変更してください」、
+選手への紐づきがあれば同じ 409 で
+「選手が紐づいているため削除できません。名前を変更してください」を返す。
+両方ある場合は試合を先に示す。非表示の選手も紐づきとして数える。
+論理削除済みの試合と非表示の選手も紐づきとして数える。
+判定と論理削除は同じテナントの 1 トランザクションで行う。
+削除ガードは同一トランザクションでの判定までとする。並行する紐づけ挿入は
+TSK-459 の射程に、試合の相手チームと選手の所属チームを含めて申し送る。
 
 ### `PlayerRead(ReadSchema)`
 

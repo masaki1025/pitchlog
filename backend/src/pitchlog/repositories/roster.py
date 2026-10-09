@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
+from datetime import datetime
 from typing import Any, Union, cast
 from uuid import UUID
 
@@ -14,6 +15,7 @@ from sqlalchemy import (
     Uuid,
     and_,
     bindparam,
+    func,
     insert,
     or_,
     select,
@@ -32,6 +34,7 @@ from pitchlog.api.schemas.roster import (
 from pitchlog.api.schemas.roster import (
     TeamRecordUpdate as TeamRecordUpdateSchema,
 )
+from pitchlog.db.game_state.models import Game
 from pitchlog.db.tenant_isolation.models import Player, TeamRecord
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.operation_registration import (
@@ -50,6 +53,8 @@ __all__ = (
     "TeamRecordCreateToken",
     "TeamRecordReadToken",
     "TeamRecordUpdateToken",
+    "TeamRecordDeleteToken",
+    "GameTeamLinkReadToken",
 )
 
 
@@ -83,9 +88,15 @@ def create_roster_player(
 
 _PLAYERS = cast(Table, Player.__table__)
 _TEAM_RECORDS = cast(Table, TeamRecord.__table__)
+_GAMES = cast(Table, Game.__table__)
 
 _PLAYER_UPDATE_COLUMNS = frozenset(PlayerUpdateSchema.model_fields)
 _TEAM_RECORD_UPDATE_COLUMNS = frozenset(TeamRecordUpdateSchema.model_fields)
+# migration 0028 と同じ Unicode White_Space 集合を、類似名の SQL 判定に渡す。
+_SIMILAR_NAME_WHITESPACE = (
+    "\t\n\v\f\r \x85\xa0\u1680\u2000\u2001\u2002\u2003\u2004\u2005"
+    "\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000"
+)
 
 
 def _require_uuid(value: object, field: str) -> None:
@@ -229,6 +240,8 @@ class TeamRecordReadToken(TenantOperationToken):
     record_id: UUID | None = None
     cursor_id: UUID | None = None
     include_hidden: bool = False
+    similar_name: str | None = None
+    exclude_id: UUID | None = None
 
     def __post_init__(self) -> None:
         """ページ上限を検査する。"""
@@ -238,6 +251,8 @@ class TeamRecordReadToken(TenantOperationToken):
             raise ValueError("include_hidden は真偽値が必要")
         _require_optional_uuid(self.record_id, "record_id")
         _require_optional_uuid(self.cursor_id, "cursor_id")
+        _require_optional_uuid(self.exclude_id, "exclude_id")
+        _require_optional_text(self.similar_name, "similar_name")
 
     @property
     def capability_id(self) -> str:
@@ -281,8 +296,49 @@ class TeamRecordUpdateToken(TenantOperationToken):
         return "CAP:team_records:update"
 
 
+@dataclass(frozen=True, slots=True)
+class TeamRecordDeleteToken(TenantOperationToken):
+    """対戦相手チームの非表示時刻だけを 1 行更新する。"""
+
+    id: UUID
+    hidden_at: datetime
+
+    def __post_init__(self) -> None:
+        """対象 ID と非表示時刻を検査する。"""
+        _require_uuid(self.id, "id")
+        if type(self.hidden_at) is not datetime or self.hidden_at.tzinfo is None:
+            raise ValueError("非表示時刻はタイムゾーン付き日時が必要")
+
+    @property
+    def capability_id(self) -> str:
+        """論理削除に使うチーム更新 capability を返す。"""
+        return "CAP:team_records:update"
+
+
+@dataclass(frozen=True, slots=True)
+class GameTeamLinkReadToken(TenantOperationToken):
+    """指定チームを参照する試合があるかを 1 件だけ調べる。"""
+
+    team_record_id: UUID
+
+    def __post_init__(self) -> None:
+        """対象 ID の型を検査する。"""
+        _require_uuid(self.team_record_id, "team_record_id")
+
+    @property
+    def capability_id(self) -> str:
+        """試合の読み取り capability を返す。"""
+        return "CAP:games:read"
+
+
 type _RosterBuilderOperation = (
-    PlayerReadToken | PlayerUpdateToken | TeamRecordReadToken | None
+    PlayerReadToken
+    | PlayerUpdateToken
+    | TeamRecordReadToken
+    | GameTeamLinkReadToken
+    | TeamRecordUpdateToken
+    | TeamRecordDeleteToken
+    | None
 )
 
 
@@ -479,6 +535,32 @@ def _build_roster_statement(
             statement = statement.where(_TEAM_RECORDS.c.id == bindparam("record_id"))
         if token.cursor_id is not None:
             statement = statement.where(_TEAM_RECORDS.c.id > bindparam("cursor_id"))
+        if token.similar_name is not None:
+            normalized_name = func.pg_catalog.lower(
+                func.pg_catalog.btrim(
+                    func.pg_catalog.normalize(
+                        _TEAM_RECORDS.c.name,
+                        bindparam("similar_form", "NFKC", type_=Text),
+                    ),
+                    bindparam(
+                        "similar_whitespace", _SIMILAR_NAME_WHITESPACE, type_=Text
+                    ),
+                )
+            )
+            normalized_input = func.pg_catalog.lower(
+                func.pg_catalog.btrim(
+                    func.pg_catalog.normalize(
+                        bindparam("similar_name", type_=Text),
+                        bindparam("similar_form", "NFKC", type_=Text),
+                    ),
+                    bindparam(
+                        "similar_whitespace", _SIMILAR_NAME_WHITESPACE, type_=Text
+                    ),
+                )
+            )
+            statement = statement.where(normalized_name == normalized_input)
+        if token.exclude_id is not None:
+            statement = statement.where(_TEAM_RECORDS.c.id != bindparam("exclude_id"))
         return statement.order_by(_TEAM_RECORDS.c.id).limit(
             bindparam("limit", type_=Integer)
         )
@@ -492,14 +574,40 @@ def _build_roster_statement(
             name=bindparam("name"),
         )
     if kind == "team_update":
-        if operation is not None:
-            raise ValueError("team_update には operation を渡せない")
+        if operation is not None and not isinstance(operation, TeamRecordUpdateToken):
+            raise ValueError("team_update には TeamRecordUpdateToken が必要")
         return (
             update(_TEAM_RECORDS)
             .where(_TEAM_RECORDS.c.tenant_id == bindparam("where_tenant_id"))
             .where(_TEAM_RECORDS.c.id == bindparam("where_id"))
             .where(_TEAM_RECORDS.c.kind == bindparam("where_kind", type_=Text))
+            .where(_TEAM_RECORDS.c.hidden_at.is_(None))
             .values(name=bindparam("name"))
+        )
+    if kind == "team_delete":
+        if operation is not None and not isinstance(operation, TeamRecordDeleteToken):
+            raise ValueError("team_delete には TeamRecordDeleteToken が必要")
+        return (
+            update(_TEAM_RECORDS)
+            .where(_TEAM_RECORDS.c.tenant_id == bindparam("where_tenant_id"))
+            .where(_TEAM_RECORDS.c.id == bindparam("where_id"))
+            .where(_TEAM_RECORDS.c.kind == bindparam("where_kind", type_=Text))
+            .where(_TEAM_RECORDS.c.hidden_at.is_(None))
+            .values(hidden_at=bindparam("hidden_at"))
+        )
+    if kind == "game_team_link_read":
+        if operation is not None and not isinstance(operation, GameTeamLinkReadToken):
+            raise ValueError("game_team_link_read には GameTeamLinkReadToken が必要")
+        return (
+            select(_GAMES.c.id)
+            .where(_GAMES.c.tenant_id == bindparam("tenant_id"))
+            .where(
+                or_(
+                    _GAMES.c.home_team_record_id == bindparam("team_record_id"),
+                    _GAMES.c.away_team_record_id == bindparam("team_record_id"),
+                )
+            )
+            .limit(bindparam("limit", type_=Integer))
         )
     raise ValueError(f"未知の roster 文: {kind}")
 
@@ -568,10 +676,30 @@ def _prepare_team_record_create(operation: TenantOperationToken) -> PreparedOper
 def _prepare_team_record_update(operation: TenantOperationToken) -> PreparedOperation:
     """対戦相手の固定種別と更新値を準備する。"""
     token = cast(TeamRecordUpdateToken, operation)
-    return _build_roster_statement("team_update", None), {
+    parameters: dict[str, object] = {
         "where_id": token.id,
-        "name": token.name,
         "where_kind": "opponent",
+        "name": token.name,
+    }
+    return _build_roster_statement("team_update", token), parameters
+
+
+def _prepare_team_record_delete(operation: TenantOperationToken) -> PreparedOperation:
+    """対戦相手の固定種別と非表示時刻を準備する。"""
+    token = cast(TeamRecordDeleteToken, operation)
+    return _build_roster_statement("team_delete", token), {
+        "where_id": token.id,
+        "where_kind": "opponent",
+        "hidden_at": token.hidden_at,
+    }
+
+
+def _prepare_game_team_link_read(operation: TenantOperationToken) -> PreparedOperation:
+    """試合の参照確認を 1 件に閉じる。"""
+    token = cast(GameTeamLinkReadToken, operation)
+    return _build_roster_statement("game_team_link_read", token), {
+        "team_record_id": token.team_record_id,
+        "limit": 1,
     }
 
 
@@ -629,5 +757,25 @@ ROSTER_OPERATIONS: tuple[OperationRegistration, ...] = (
             RequiredBinding(_TEAM_RECORDS.c.kind, "where_kind", "opponent"),
         ),
         allowed_update_columns=_TEAM_RECORD_UPDATE_COLUMNS,
+    ),
+    OperationRegistration(
+        TeamRecordDeleteToken,
+        "CAP:team_records:update",
+        _build_roster_statement("team_delete", None),
+        _TEAM_RECORDS.c.tenant_id,
+        _prepare_team_record_delete,
+        required_bindings=(
+            RequiredBinding(_TEAM_RECORDS.c.kind, "where_kind", "opponent"),
+        ),
+        allowed_update_columns=frozenset({"hidden_at"}),
+    ),
+    OperationRegistration(
+        GameTeamLinkReadToken,
+        "CAP:games:read",
+        _build_roster_statement("game_team_link_read", None),
+        _GAMES.c.tenant_id,
+        _prepare_game_team_link_read,
+        required_limit_parameter="limit",
+        required_limit_max=1,
     ),
 )

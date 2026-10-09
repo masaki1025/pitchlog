@@ -1083,7 +1083,7 @@ def test_unreferenced_dml_cte_is_rejected(
 
 
 def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> None:
-    """登録した 6 文がカタログの ID・単一表・操作と一致する。"""
+    """8 token の各文と 7 capability の対応を個別に検査する。"""
     expected = {
         "CAP:players:read",
         "CAP:players:insert",
@@ -1091,15 +1091,18 @@ def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> Non
         "CAP:team_records:read",
         "CAP:team_records:insert",
         "CAP:team_records:update",
+        "CAP:games:read",
     }
     assert set(repository_contract.PRODUCT_CAPABILITY_IDS) == expected
     assert {
         spec.capability_id for spec in repository_base._OPERATION_REGISTRY.values()
     } == expected
-    validate_capability_registrations(
-        catalog=catalog,
-        registrations=repository_base._OPERATION_REGISTRY.values(),
-    )
+    assert len(repository_base._OPERATION_REGISTRY) == 8
+    for registration in repository_base._OPERATION_REGISTRY.values():
+        validate_capability_registrations(
+            catalog=catalog,
+            registrations=(registration,),
+        )
     assert repository_contract.CROSS_TENANT_FUNCTIONS == ()
 
 

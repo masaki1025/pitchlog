@@ -479,7 +479,7 @@ def test_public_repository_surface_and_signature_are_exact() -> None:
 
 
 def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
-    """選手と対戦相手の 6 操作だけを製品 registry に公開する。"""
+    """選手・対戦相手・削除ガードの 7 操作だけを公開する。"""
     expected_capabilities = (
         "CAP:players:read",
         "CAP:players:insert",
@@ -487,6 +487,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "CAP:team_records:read",
         "CAP:team_records:insert",
         "CAP:team_records:update",
+        "CAP:games:read",
     )
     expected_token_types = (
         "pitchlog.repositories.roster.PlayerReadToken",
@@ -495,6 +496,8 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.roster.TeamRecordReadToken",
         "pitchlog.repositories.roster.TeamRecordCreateToken",
         "pitchlog.repositories.roster.TeamRecordUpdateToken",
+        "pitchlog.repositories.roster.TeamRecordDeleteToken",
+        "pitchlog.repositories.roster.GameTeamLinkReadToken",
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
@@ -506,7 +509,17 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
     assert {
         f"{token_type.__module__}.{token_type.__qualname__}": spec.capability_id
         for token_type, spec in repository_base._OPERATION_REGISTRY.items()
-    } == dict(zip(expected_token_types, expected_capabilities, strict=True))
+    } == dict(
+        zip(
+            expected_token_types,
+            (
+                *expected_capabilities[:6],
+                "CAP:team_records:update",
+                expected_capabilities[6],
+            ),
+            strict=True,
+        )
+    )
     assert CROSS_TENANT_FUNCTION_REGISTRY == frozenset()
 
 
