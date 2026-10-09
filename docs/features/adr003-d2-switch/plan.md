@@ -109,12 +109,14 @@ U-X1 が主所有しており、U-X1 は本 ADR の方式決定を待ってい�
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
 | `docs/adr/ADR-003-domain-calc-method.md` | **版繰り上げ**。D-1 / D-2 の改訂、整数符号化の裁定、文法の帰属、トリガー発火後の手続き、Q1 の帰属の記録。**D-2 を採る場合は D-3・D-11・D-1-d の適用規則と発効条件も** | **/finalize-doc**(確定ゲート — 7.6 決定表の「版繰り上げ」) |
-| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **10 章 `:1129` の記録を追随する**(**実装追随**)。方式を名指しした記録に、**D-14 が切り替えを決定したこと**と**発効までは現記述が現行であること**を併記する。**条文は変えない**。**規範の改訂(付録A-1 `:1169` ほか)は本 PR で行わず、D-2 の発効条件として別タスクへ送る** | PR レビュー(実装追随 — 7.6-3 前段) |
+| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし**(**PO 裁定 2026-10-10 — 射程縮小**)。当初は **10 章 `:1129` の実装追随**を宣言していたが、**要件書の 1 行変更が `contracts/authz/` の凍結入力を直列化した**(要件書の git blob digest → `requirement-claims.json` の入力マニフェストと当該行の原文 digest → lock → 派生 3 資産 → **`oracle-seal.lock.json` の `oracle_commit`** → それを固定する 7 資産)。**`oracle_commit` は認可側の基準版**(`last_committed_step_4_input_baseline`)であり、**要件書の注記のために動かす筋ではない**。**発効条件に要件書の規範改訂が入っている**ため、**そのタスクで 1 回だけ凍結の費用を払う**。**本 PR では要件書に触れない** | — |
 | `docs/README.md` | 索引(ADR-003 の版・最終更新日・台帳行の現行化) | PR レビュー |
 | `docs/development/harness-evaluation.md` | 候補の追記(下記 2 件は TSK-236 からの持ち越し)+ 本タスクの知見 | PR レビュー(`H-*` を与えない追記 — 7.6-3 前段) |
 | `docs/design/sync-protocol.md` | **反映なし**。本タスクは同期プロトコルに触れない | — |
 | `docs/design/data-model.md` | **反映なし**。本タスクはデータモデルに触れない | — |
 
+
+**ステップ 8 の要件書分は取り下げた**(上記 PO 裁定)。**ADR 側の記述は変えていない** — D-14 は要件書の追随を**発効条件**として明示しており、**追随が済んでいないことと発効していないことは同じ意味**である。**取り下げによって正本間の食い違いは生じない。**
 **正本体系外だが同一 PR で更新するもの**: `docs/features/adr003-d2-switch/{plan,research}.md` /
 `docs/worklog/2026-10-09-adr003-d2-switch.md` /
 `docs/features/domain-calc-dsl/design.md`(**`:1504` の「D-2 へ倒す判断は ADR-003 が先取りして否定済み」が
