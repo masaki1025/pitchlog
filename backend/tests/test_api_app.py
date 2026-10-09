@@ -1,5 +1,7 @@
 """API アプリケーションの構成を検証する。"""
 
+import base64
+import secrets
 from importlib import metadata
 
 import pytest
@@ -7,6 +9,13 @@ from fastapi.routing import APIRoute
 from httpx import ASGITransport, AsyncClient
 
 import pitchlog.api.app as api_app
+
+
+@pytest.fixture(autouse=True)
+def _configure_signing_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """アプリ生成試験へ CSPRNG 由来の署名鍵を与える。"""
+    encoded_key = base64.b64encode(secrets.token_bytes(32)).decode("ascii")
+    monkeypatch.setenv("PITCHLOG_TOKEN_SIGNING_KEY_B64", encoded_key)
 
 
 @pytest.mark.anyio

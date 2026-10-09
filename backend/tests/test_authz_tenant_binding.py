@@ -6,10 +6,12 @@
 トランザクションのテナント束縛・fail-closed・Session 分離を検証する。
 """
 
+import ast
 import secrets
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any, cast
 from unittest.mock import MagicMock
@@ -113,6 +115,192 @@ _TENANT_BINDING_PROBE = table(
 _REPOSITORY_PROBE_STATEMENT = select(_TENANT_BINDING_PROBE.c.marker).where(
     _TENANT_BINDING_PROBE.c.tenant_id == bindparam("tenant_id")
 )
+_REPOSITORY_SOURCE_ROOT = (
+    Path(__file__).resolve().parents[1] / "src/pitchlog/repositories"
+)
+_CONTEXT_ENFORCEMENT_POINTS = {
+    "pitchlog.repositories.base.TenantRepositoryBase.execute": "context",
+    "pitchlog.repositories.binding._tenant_transaction": "context",
+    "pitchlog.repositories.transaction._TenantTransactionScope.__enter__": (
+        "self._context"
+    ),
+    "pitchlog.repositories.transaction._TenantTransaction.run": "self._context",
+}
+_CONTEXT_READER_EXEMPTIONS = {
+    "pitchlog.repositories.base.TenantRepositoryBase._execute_operation": (
+        "execute だけから到達し、そこで exact 型と発行証跡を検査済み"
+    ),
+}
+
+
+def _repository_sources() -> dict[str, str]:
+    """context.py を除くリポジトリ実装の Python ソースを読む。"""
+    return {
+        path.relative_to(_REPOSITORY_SOURCE_ROOT).as_posix(): path.read_text(
+            encoding="utf-8"
+        )
+        for path in _REPOSITORY_SOURCE_ROOT.rglob("*.py")
+        if path.name != "context.py"
+    }
+
+
+def _context_parameters(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+    """TenantContext と注釈された引数名を返す。"""
+    arguments = (
+        *node.args.posonlyargs,
+        *node.args.args,
+        *node.args.kwonlyargs,
+    )
+    return {
+        argument.arg
+        for argument in arguments
+        if isinstance(argument.annotation, ast.Name)
+        and argument.annotation.id == "TenantContext"
+    }
+
+
+def _stored_context_fields(class_node: ast.ClassDef) -> frozenset[str]:
+    """TenantContext 引数を self に保存した属性名を導出する。"""
+    fields: set[str] = set()
+    for method in class_node.body:
+        if not isinstance(method, ast.FunctionDef) or method.name != "__init__":
+            continue
+        parameters = _context_parameters(method)
+        for assignment in ast.walk(method):
+            if not isinstance(assignment, ast.Assign):
+                continue
+            if not isinstance(assignment.value, ast.Name):
+                continue
+            if assignment.value.id not in parameters:
+                continue
+            for target in assignment.targets:
+                if (
+                    isinstance(target, ast.Attribute)
+                    and isinstance(target.value, ast.Name)
+                    and target.value.id == "self"
+                ):
+                    fields.add(target.attr)
+    return frozenset(fields)
+
+
+def _repository_functions(
+    sources: dict[str, str],
+) -> tuple[
+    dict[str, ast.FunctionDef | ast.AsyncFunctionDef],
+    dict[str, frozenset[str]],
+]:
+    """関数の完全修飾名とクラスが保持する文脈属性を AST から導出する。"""
+    functions: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
+    class_fields: dict[str, frozenset[str]] = {}
+    for relative_path, source in sources.items():
+        module = "pitchlog.repositories." + ".".join(
+            Path(relative_path).with_suffix("").parts
+        )
+        for node in ast.parse(source, filename=relative_path).body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                functions[f"{module}.{node.name}"] = node
+            elif isinstance(node, ast.ClassDef):
+                class_name = f"{module}.{node.name}"
+                class_fields[class_name] = _stored_context_fields(node)
+                for method in node.body:
+                    if isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        functions[f"{class_name}.{method.name}"] = method
+    return functions, class_fields
+
+
+def _is_context_receiver(
+    node: ast.expr, parameters: set[str], fields: frozenset[str]
+) -> bool:
+    """式が注釈済み引数またはそこから保存した self 属性か判定する。"""
+    if isinstance(node, ast.Name):
+        return node.id in parameters
+    return (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "self"
+        and node.attr in fields
+    )
+
+
+def _context_reader_functions(
+    sources: dict[str, str],
+) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
+    """TenantContext の値を読む関数を型引数と保存先から発見する。"""
+    functions, class_fields = _repository_functions(sources)
+    readers: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
+    for symbol, function in functions.items():
+        parameters = _context_parameters(function)
+        fields = class_fields.get(symbol.rsplit(".", 1)[0], frozenset())
+        calls = {
+            id(node.func) for node in ast.walk(function) if isinstance(node, ast.Call)
+        }
+        for node in ast.walk(function):
+            if not isinstance(node, ast.Attribute) or not isinstance(
+                node.ctx, ast.Load
+            ):
+                continue
+            if not _is_context_receiver(node.value, parameters, fields):
+                continue
+            if node.attr in {"tenant_id", "_integrity_proof"} or (
+                node.attr == "_has_valid_integrity_proof" and id(node) in calls
+            ):
+                readers[symbol] = function
+                break
+    return readers
+
+
+def _assert_declared_context_readers(
+    readers: dict[str, ast.FunctionDef | ast.AsyncFunctionDef],
+) -> None:
+    """発見した文脈読取関数と強制点・免除の宣言集合を突き合わせる。"""
+    assert set(readers) == (
+        set(_CONTEXT_ENFORCEMENT_POINTS) | set(_CONTEXT_READER_EXEMPTIONS)
+    )
+
+
+def _has_exact_context_type_rejection(
+    function: ast.FunctionDef | ast.AsyncFunctionDef, receiver: str
+) -> bool:
+    """指定した文脈値への type(...) is not TenantContext を見つける。"""
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Compare) or len(node.ops) != 1:
+            continue
+        if not isinstance(node.ops[0], ast.IsNot) or len(node.comparators) != 1:
+            continue
+        comparison = node.comparators[0]
+        if not isinstance(comparison, ast.Name) or comparison.id != "TenantContext":
+            continue
+        call = node.left
+        if (
+            isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Name)
+            and call.func.id == "type"
+            and len(call.args) == 1
+            and not call.keywords
+            and ast.unparse(call.args[0]) == receiver
+        ):
+            return True
+    return False
+
+
+def _has_context_proof_rejection(
+    function: ast.FunctionDef | ast.AsyncFunctionDef, receiver: str
+) -> bool:
+    """指定した文脈値の証跡を否定条件で検査する呼び出しを見つける。"""
+    for node in ast.walk(function):
+        if not isinstance(node, ast.UnaryOp) or not isinstance(node.op, ast.Not):
+            continue
+        call = node.operand
+        if not isinstance(call, ast.Call) or call.args or call.keywords:
+            continue
+        method = call.func
+        if (
+            isinstance(method, ast.Attribute)
+            and method.attr == "_has_valid_integrity_proof"
+            and ast.unparse(method.value) == receiver
+        ):
+            return True
+    return False
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,7 +349,9 @@ def _sqlalchemy_url(dsn: str, *, options: str | None = None) -> str:
         パスワードを含むテスト専用 SQLAlchemy URL。
     """
     values = conninfo_to_dict(dsn)
-    query = {} if options is None else {"options": options}
+    query = {"sslmode": "disable"}
+    if options is not None:
+        query["options"] = options
     username = values.get("user")
     password = values.get("password")
     host = values.get("host")
@@ -443,6 +633,115 @@ def _assert_duplicate_fixture_registrations_share_one_session_resource() -> None
             assert teardown_count == 0
         assert teardown_count == 0
     assert teardown_count == 1
+
+
+def test_tenant_context_reader_set_matches_enforcements_and_exemption() -> None:
+    """文脈読取の発見集合を強制点4件と理由付き免除1件に固定する。"""
+    readers = _context_reader_functions(_repository_sources())
+
+    _assert_declared_context_readers(readers)
+    assert len(readers) == 5
+    assert _CONTEXT_READER_EXEMPTIONS == {
+        "pitchlog.repositories.base.TenantRepositoryBase._execute_operation": (
+            "execute だけから到達し、そこで exact 型と発行証跡を検査済み"
+        )
+    }
+
+
+def test_all_tenant_context_enforcements_check_exact_type_and_proof() -> None:
+    """4 強制点が同じ文脈値を exact 型と発行証跡で検査する。"""
+    functions, _ = _repository_functions(_repository_sources())
+
+    for symbol, receiver in _CONTEXT_ENFORCEMENT_POINTS.items():
+        function = functions[symbol]
+        assert _has_exact_context_type_rejection(function, receiver), symbol
+        assert _has_context_proof_rejection(function, receiver), symbol
+
+
+def test_exempt_context_reader_is_called_only_by_execute() -> None:
+    """免除した _execute_operation の呼び出し元は execute だけに限る。"""
+    functions, _ = _repository_functions(_repository_sources())
+    callers = {
+        symbol
+        for symbol, function in functions.items()
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "_execute_operation"
+            for node in ast.walk(function)
+        )
+    }
+
+    assert callers == {"pitchlog.repositories.base.TenantRepositoryBase.execute"}
+
+
+def test_fifth_tenant_context_reader_fails_declared_set_check() -> None:
+    """合成した5番目の強制点を発見し、宣言集合との不一致で落とす。"""
+    sources = _repository_sources()
+    sources["binding.py"] += """\
+
+def fifth_context_reader(context: TenantContext) -> object:
+    return context.tenant_id
+"""
+    readers = _context_reader_functions(sources)
+
+    assert "pitchlog.repositories.binding.fifth_context_reader" in readers
+    with pytest.raises(AssertionError):
+        _assert_declared_context_readers(readers)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_message"),
+    (
+        ("derived", "TenantContext が無いため業務 SQL を開始できない"),
+        (
+            "tampered",
+            "TenantContext の発行証跡が不一致のため業務 SQL を開始できない",
+        ),
+    ),
+)
+def test_tenant_transaction_direct_call_rejects_invalid_context_without_sql(
+    mutation: str, expected_message: str
+) -> None:
+    """直呼びの派生型と証跡改竄を SQL 発行前に逐語メッセージで拒否する。"""
+    context = make_tenant_context(_TENANT_BINDING_IDS[0])
+    candidate: TenantContext = context
+    if mutation == "derived":
+        derived_type = type("DerivedTenantContext", (cast(Any, TenantContext),), {})
+        candidate = cast(TenantContext, object.__new__(derived_type))
+        object.__setattr__(candidate, "tenant_id", context.tenant_id)
+        object.__setattr__(candidate, "_integrity_proof", context._integrity_proof)
+        assert candidate._has_valid_integrity_proof() is True
+    else:
+        object.__setattr__(candidate, "tenant_id", _TENANT_BINDING_IDS[1])
+        assert candidate._has_valid_integrity_proof() is False
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    observed_statements: list[str] = []
+
+    def observe_sql(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        observed_statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", observe_sql)
+    try:
+        with Session(engine) as session:
+            with pytest.raises(TenantBindingError) as error:
+                with _tenant_transaction(session, candidate):
+                    raise AssertionError("不正な文脈で業務処理へ到達した")
+            assert str(error.value) == expected_message
+            assert not session.in_transaction()
+    finally:
+        event.remove(engine, "before_cursor_execute", observe_sql)
+        engine.dispose()
+
+    assert observed_statements == []
 
 
 def test_binding_precedes_business_work_in_explicit_transaction() -> None:

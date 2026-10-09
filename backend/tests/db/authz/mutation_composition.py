@@ -992,6 +992,22 @@ def _oracle_meaning_body(
 
 
 APPROVALS_RELATIVE_PATH = "contracts/authz/oracle-meaning-change-approvals.json"
+_APPROVALS_SCHEMA_VERSION = 1
+_APPROVALS_ASSET_KIND = "authz_oracle_meaning_change_approvals"
+_APPROVALS_DOCUMENT_KEYS = frozenset(
+    {"schema_version", "asset_kind", "base_revision", "statement", "approvals"}
+)
+_APPROVAL_ENTRY_KEYS = frozenset(
+    {
+        "approval_id",
+        "path",
+        "approved_by",
+        "approved_on",
+        "reason",
+        "insertions",
+    }
+)
+_APPROVAL_INSERTION_KEYS = frozenset({"collection", "index", "row"})
 
 
 def _approved_meaning_changes(
@@ -1013,6 +1029,17 @@ def _approved_meaning_changes(
         MutationCompositionError: 宣言が読めない、または固定基準と食い違う場合。
     """
     document = _read_json_object(root.resolve() / APPROVALS_RELATIVE_PATH)
+    if set(document) != _APPROVALS_DOCUMENT_KEYS:
+        raise MutationCompositionError(
+            f"{APPROVALS_RELATIVE_PATH}: トップレベルのキー集合が宣言と不一致"
+        )
+    if document.get("schema_version") != _APPROVALS_SCHEMA_VERSION:
+        raise MutationCompositionError(
+            f"{APPROVALS_RELATIVE_PATH}: schema_version が未知"
+        )
+    if document.get("asset_kind") != _APPROVALS_ASSET_KIND:
+        raise MutationCompositionError(f"{APPROVALS_RELATIVE_PATH}: asset_kind が未知")
+    _text(document.get("statement"), f"{APPROVALS_RELATIVE_PATH}.statement")
     base_revision = _text(
         document.get("base_revision"), f"{APPROVALS_RELATIVE_PATH}.base_revision"
     )
@@ -1021,30 +1048,45 @@ def _approved_meaning_changes(
             f"{APPROVALS_RELATIVE_PATH}: base_revision が固定基準と不一致"
         )
     changes: dict[str, list[dict[str, object]]] = {}
-    for position, entry in enumerate(
-        _expect_rows(document.get("approvals"), f"{APPROVALS_RELATIVE_PATH}.approvals")
-    ):
+    seen_approval_ids: set[str] = set()
+    entries = _expect_rows(
+        document.get("approvals"), f"{APPROVALS_RELATIVE_PATH}.approvals"
+    )
+    if not entries:
+        raise MutationCompositionError(f"{APPROVALS_RELATIVE_PATH}: approvals が空")
+    for position, entry in enumerate(entries):
         label = f"{APPROVALS_RELATIVE_PATH}.approvals[{position}]"
+        if set(entry) != _APPROVAL_ENTRY_KEYS:
+            raise MutationCompositionError(f"{label}: キー集合が宣言と不一致")
         path = _text(entry.get("path"), f"{label}.path")
-        _text(entry.get("approval_id"), f"{label}.approval_id")
+        approval_id = _text(entry.get("approval_id"), f"{label}.approval_id")
+        if approval_id in seen_approval_ids:
+            raise MutationCompositionError(f"{label}: approval_id が重複している")
+        seen_approval_ids.add(approval_id)
         _text(entry.get("approved_by"), f"{label}.approved_by")
         _text(entry.get("approved_on"), f"{label}.approved_on")
         _text(entry.get("reason"), f"{label}.reason")
+        insertions = _expect_rows(entry.get("insertions"), f"{label}.insertions")
+        if not insertions:
+            raise MutationCompositionError(f"{label}: insertions が空")
         rows = changes.setdefault(path, [])
-        for order, insertion in enumerate(
-            _expect_rows(entry.get("insertions"), f"{label}.insertions")
-        ):
+        for order, insertion in enumerate(insertions):
             inner = f"{label}.insertions[{order}]"
+            if set(insertion) != _APPROVAL_INSERTION_KEYS:
+                raise MutationCompositionError(f"{inner}: キー集合が宣言と不一致")
             index = insertion.get("index")
             if not isinstance(index, int) or isinstance(index, bool) or index < 0:
                 raise MutationCompositionError(f"{inner}.index が非負整数ではない")
+            row = _expect_object(insertion.get("row"), f"{inner}.row")
+            if not row:
+                raise MutationCompositionError(f"{inner}.row が空")
             rows.append(
                 {
                     "collection": _text(
                         insertion.get("collection"), f"{inner}.collection"
                     ),
                     "index": index,
-                    "row": _expect_object(insertion.get("row"), f"{inner}.row"),
+                    "row": row,
                 }
             )
     return {path: tuple(rows) for path, rows in changes.items()}
@@ -1274,7 +1316,7 @@ def intentionally_changed_frozen_oracle_paths(
     resolved = root.resolve()
     current_seal = _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
     changed = _changed_oracle_meaning_paths(resolved, base_ref, current_seal)
-    if changed != STEP2_CHANGED_CANONICAL_ASSET_PATHS:
+    if changed != _changed_canonical_asset_paths(resolved):
         raise MutationCompositionError(
             "意味本文が変わった資産がステップ2の確定集合と不一致: "
             f"{tuple(sorted(changed))}"
@@ -1297,7 +1339,7 @@ def verify_frozen_oracle_unchanged(
     _verify_oracle_input_assets(resolved, current_seal)
     _verify_current_sealed_assets(resolved, current_seal)
     changed = _changed_oracle_meaning_paths(resolved, base_ref, current_seal)
-    if changed != STEP2_CHANGED_CANONICAL_ASSET_PATHS:
+    if changed != _changed_canonical_asset_paths(resolved):
         raise MutationCompositionError(
             "意味本文が変わった資産がステップ2の確定集合と不一致: "
             f"{tuple(sorted(changed))}"
