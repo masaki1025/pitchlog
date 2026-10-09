@@ -361,6 +361,15 @@ REFERENCE_DISCOVERY_AREA_PATH_ADDITIONS = (
     "tests/test_frozen_negative_inventory.py",
     "tests/test_frozen_scan_rules.py",
 )
+# 敵対レビュー指摘 1 — ケース生成・代表選択・凍結の検査を担う新規 6 本の登録。
+CASE_GENERATION_AREA_PATH_ADDITIONS = (
+    "scripts/check_branch_row_mapping.py",
+    "scripts/check_manual_fixture_baselines.py",
+    "scripts/expand_game_end_cases.py",
+    "scripts/expand_state_transition_cases.py",
+    "scripts/representative_selection.py",
+    "tests/test_branch_row_mapping.py",
+)
 VOCABULARY_DATA_MIGRATION_AREA_PATH_ADDITIONS = (
     "contracts/vocabulary/*",
     "scripts/check_vocabulary_manifest.py",
@@ -2220,8 +2229,8 @@ def test_area_registration() -> None:
     declared_ids = set(core_guard.AREA_PATH_ADDITIONS)
     stationary_ids = set(areas) - declared_ids
     expected_counts = {
-        "sync-protocol": 43,
-        "game-state": 43,
+        "sync-protocol": 49,
+        "game-state": 49,
         "recording-rights": 1,
         "tenant-isolation": 1,
         "data-migration": 6,
@@ -2236,6 +2245,7 @@ def test_area_registration() -> None:
         *APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS[14:],
         *NORMALIZATION_AREA_PATH_ADDITIONS,
         *REFERENCE_DISCOVERY_AREA_PATH_ADDITIONS,
+        *CASE_GENERATION_AREA_PATH_ADDITIONS,
     )
     expected_additions = {
         "sync-protocol": appendix_e_additions,
