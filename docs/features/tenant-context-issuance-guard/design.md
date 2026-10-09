@@ -200,3 +200,71 @@ assert derived_context._has_valid_integrity_proof() is True
 CI が走らせるコマンドとの差分が黙って残る」へ 9 例目として記録し、対応案 (h) を足した
 ——**実行できないことは、静的に探せないことを意味しない**(本件は
 `grep -rn "TenantContext(" backend/tests/db/` の 1 回で的中する)。
+
+## 8. ステップ 7: 凍結基準の受理(2026-10-09)
+
+PR 番号が確定したので、保留していた受理記録を書いた。`acceptance_id` は
+`masaki1025/pitchlog#101`、`approved_by` / `approved_on` は人間が与えた値をそのまま置いた
+(**この 2 欄は `scripts/frozen_history.py:1521-1523` が非空文字列と ISO 日付の形しか見ない
+純粋な人間の申告**で、機構は突き合わせない。`acceptance_id` だけがマージ時に
+GitHub event の `{repository.full_name}#{pull_request.number}` と照合される)。
+
+### 編集順序
+
+射影は他の資産の内容を取り込むため、**順序を違えると自分の書いた値が自分で腐る**。
+
+1. 8 本の識別値(`frozen-inputs.json` は据え置き — 射影に検査器を含まない唯一の資産)
+2. 各資産の `source_digest`
+3. 配布モジュール 3 本(`tenant_context_contract` / `repository_contract` / `authz/runtime_contract`)の revision と `SOURCE_DIGEST`
+4. `base-allowlist.json` の `baseline_control.history` へ受理記録 1 件(11 件目)
+5. **最後に** `tests/fixtures/frozen-archive-cases/manifest.json` の `corpus_inputs.digest` を再 pin
+
+### `base-allowlist.json` の射影は他資産の bump に連動する
+
+ドライランで出した `base-allowlist.json` の受理後射影 `9791f9a629…` は**誤っていた**。
+正しい値は `be5c884cdb2e71cbaa223f1abbb6cb061f9f82f12cc52edce47f033f3902cc0f`。
+
+原因は `base-allowlist.json` が top-level に **`inventory` 欄で `db-api-inventory.json` の
+`sha256` を pin している**こと。`db-api-inventory.json` の `inventory_revision` を 9 → 10 へ
+上げると pin した hash が変わり、**`base-allowlist.json` 自身の射影も動く**。
+ドライランは 8 本を互いに独立に bump して射影を出しており、この連鎖を模していなかった。
+
+**一般則**: 射影の事前計算は、資産間の pin 関係を含めて**同時に**行わなければ合わない。
+資産を 1 本ずつ独立に動かした見積もりは、pin の下流で外れる。
+
+### 受理の対象は内容であって観測時点の識別子ではない
+
+委任プロンプトの停止条件に「着手時の `origin/develop` が `347d7059` であること」と書いていた。
+ドライラン中に PR #104 がマージされて develop が `7167c182` へ動き、**Codex は正しく止まった**。
+
+人間が受理したのは **D の値と識別値の対応表**であって、観測時点の develop の SHA ではない。
+#104 は pin した 6 ファイル・2 ツリーにも `contracts/tenant_boundary/` にも触れておらず、
+**両方の base でドライランを回して D の指紋 `f6a9e0ac66957641` が一致する**ことを確認した上で、
+停止条件を 2 つの不変量へ書き換えた —— **(A) 射影が動いた資産がちょうど 8 本**
+**(B) 識別値の前後が受理された表と一致**。台帳の既存候補
+「承認済み計画に書いた実測値が、他タスクのマージで同じ日のうちに何度も腐る」へ実測を足した。
+
+### 敵対レビュー(sol xhigh・7 軸)
+
+7 軸中 5 軸(識別値の整合 / digest と snapshot / 編集順序 / 人間判断の先取り / 予約 marker)は
+「該当しない」。指摘 2 件は**いずれも受理記録の文面**で、実装の欠陥ではない。
+
+| 重大度 | 指摘 | 是正 |
+| --- | --- | --- |
+| P1 | `reason` が「発行を専用モジュールへ機械的に封じ込めた」と**完了形**で書いていた。`allowed_product_modules` は `[]` のままで、専用モジュールの実体は U-M1 ステップ 8 の担当 | 成立した 2 つ(identity 一致の実行時検査 / 検査器の直接参照制限)に絞り、未了の範囲を明記した |
+| P2 | `movement_fact` が追加欄を 2 件としていたが、実際は**発行入口を含む 4 欄** | 4 欄へ訂正し、発行入口の対が空で不活性であること・片側だけの対が `ContractError` になることを併記した |
+
+**P1 の原因はタスク名の流用**である。TSK-457 の名前「発行を専用モジュールへ機械的に封じ込める」を
+そのまま成果の記述に使うと、**裁定 1 で射程外にした部分まで完了したことになる**。
+受理記録は凍結基準に恒久的に残るので、タスク名ではなく**その単位で成立した機構**を書く。
+
+P2 は記録だけの数え違いで、実装は意図どおり(件名 `adfe2336`「…4 欄を足す」・
+突合シート §3-3 / §3-5 / §3-9 / §4-3 / §4-4 で 2026-10-07 に人間確認済み)。
+
+### develop(`7167c182`)の取り込み
+
+衝突は **2 ファイル**(`docs/README.md`・`docs/development/harness-evaluation.md`)。
+469 タブが PR #100 で踏んだ 5 ファイルのうち `docs/design/data-model.md` に由来する 3 件は、
+**本 PR が `data-model.md` に触れていないため発生しない**。
+`docs/README.md` の `data-model.md` 行と設計書行は本ブランチ側が merge-base と完全同一だったので
+develop 側を採り、台帳行だけ両者を合成した。台帳の候補件数は取り込み後に再実測して **111**。
