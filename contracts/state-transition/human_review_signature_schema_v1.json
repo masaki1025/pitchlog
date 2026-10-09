@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/state-transition/human_review_signature_schema_v1.json",
+  "title": "Recorded human review signature schema v1",
+  "x-pitchlog-human-review-signature-policy": {
+    "recordLocation": "separate-document",
+    "subjectDigest": {
+      "documentKind": "json",
+      "pathRoot": "contracts/state-transition",
+      "canonicalization": "RFC8785",
+      "algorithm": "sha256",
+      "safeIntegerLimit": 9007199254740991
+    },
+    "recordedMethods": {
+      "direct-clause-comparison": {
+        "humanMeaning": "記録上の確認者が対象を典拠条文と直接突合したと記載する"
+      }
+    },
+    "attestationItems": {
+      "direct-clause-review-declared": {
+        "acceptedRecordedResponses": [
+          true
+        ],
+        "humanMeaning": "記録上の確認者がapproved対象を作成者とは別人として典拠条文から直接レビューしたと宣誓した、という記載"
+      }
+    },
+    "assuranceBoundary": {
+      "mechanicallyGuaranteed": [
+        "subject-path-resolves-to-readable-json",
+        "subject-digest-matches-recorded-value",
+        "record-fields-conform-to-schema-and-declared-vocabulary",
+        "recorded-author-and-reviewer-identifiers-differ",
+        "attestation-record-exact-set-and-accepted-recorded-responses"
+      ],
+      "humanControls": [
+        "review-actually-performed",
+        "reviewer-is-actually-a-different-person",
+        "review-was-actually-direct-from-authoritative-clauses",
+        "record-was-actually-authored-by-recorded-reviewer",
+        "recorded-author-reviewer-date-scope-and-method-are-truthful",
+        "attestation-is-truthful",
+        "review-judgment-is-correct"
+      ],
+      "wordingRule": "record-presence-and-value-checks-not-human-action-proof"
+    },
+    "provenanceRelation": "step40-provenance-records-creation-step43-signature-separately-records-approval-review",
+    "devHarness63Relation": "separate-from-pr-line-review-operation-record-and-does-not-validate-it"
+  },
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "signatureId",
+    "subject",
+    "artifactAuthorId",
+    "recordedReviewerId",
+    "recordedOn",
+    "reviewScope",
+    "recordedMethod",
+    "attestations"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "signatureId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "subject": {
+      "type": "object",
+      "required": [
+        "path",
+        "digest"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "artifactAuthorId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recordedReviewerId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recordedOn": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "reviewScope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recordedMethod": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attestations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/recordedAttestation"
+      }
+    }
+  },
+  "$defs": {
+    "recordedAttestation": {
+      "type": "object",
+      "required": [
+        "attestationId",
+        "recordedResponse"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "attestationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recordedResponse": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
+        }
+      }
+    }
+  }
+}

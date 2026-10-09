@@ -1,0 +1,278 @@
+{
+  "schemaVersion": 1,
+  "version": "game_end_coverage_declaration_v1",
+  "exclusionRule": {
+    "rowLayer": "decisionRows",
+    "axisValuePredicate": "no-row-fixes-game-end-axis-value",
+    "combinationPredicate": "no-single-row-satisfies-all-targets-and-state-event-value",
+    "onNewRow": "intersect-declared-values-with-currently-unfixed-values"
+  },
+  "step94Contraction": {
+    "beforeRowCount": 4,
+    "afterRowCount": 5,
+    "beforeUnfixedCount": 20,
+    "afterUnfixedCount": 18,
+    "removedAxisValues": [
+      {"axisId": "gameEnd.coldConditions", "valueIdentity": "\"tier-count:1\""},
+      {"axisId": "gameEnd.extensionLimit", "valueIdentity": "\"none\""}
+    ]
+  },
+  "step94UnmetCriteria": {
+    "walkOff": {
+      "status": "unmet-no-decision-row",
+      "reason": "2026-10-03のステップ67〜68 PO裁定でoutcomeへwalk-offを追加したが、ステップ46で列挙した68分岐のclauseBranchRegisterにサヨナラの分岐IDがないため、ADR-003 D-6の規範行を結び付けられない",
+      "sources": ["req:FR-005", "req:A-1", "design:step67-68-po-decision"],
+      "ownerStep": 46,
+      "stage2Acceptance": "分岐台帳に条文由来のサヨナラ分岐IDを追加した後、walk-offの規範行とcases[]で終了検知および余剰得点の計上を検査する"
+    },
+    "cold09": {
+      "status": "unmet-no-decision-row",
+      "reason": "gameEnd.coldConditionsのtier-count:Nは設定した段数を表し、同時に成立した段数をpreconditionで固定する入力軸がない",
+      "sources": ["req:F-1", "design:step67-68-po-decision"],
+      "ownerStage": 2,
+      "stage2Acceptance": "成立段数と根拠集合を識別する入力軸を設け、複数段が同時成立しても終了条件を1件だけ検知することを検査する"
+    },
+    "walkOffScoring": {
+      "status": "unverified-no-walk-off-row",
+      "sourceClauseId": "req:A-1",
+      "planReference": "付録A-1:1103",
+      "currentLocation": "付録A A-1 共通規則「サヨナラ時の得点計上」",
+      "rule": "本塁打のサヨナラは打者と全走者の有効得点をすべて計上する。本塁打以外は決勝点が記録された時点までを計上し、余剰得点を計上しない",
+      "ordering": "先にOUT3-*で有効得点を確定し、その後にサヨナラ時の得点計上を適用する。無効な本塁到達ではサヨナラは成立しない",
+      "stage2Acceptance": "本塁打以外で決勝点より後の有効な本塁到達を計上しないケースと、本塁打で打者・全走者を計上するケースを照合する"
+    }
+  },
+  "unfixedGameEndAxisValues": [
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"point-difference:1\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"point-difference:99\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"point-difference:M\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"point-difference:M+1\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"point-difference:M-1\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"start-inning:1\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"start-inning:99\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"start-inning:N\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"start-inning:N+1\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"start-inning:N-1\""
+    },
+    {
+      "axisId": "gameEnd.coldConditions",
+      "valueIdentity": "\"tier-count:16\""
+    },
+    {
+      "axisId": "gameEnd.extensionLimit",
+      "valueIdentity": "\"finite:R\""
+    },
+    {
+      "axisId": "gameEnd.regulationInnings",
+      "valueIdentity": "1"
+    },
+    {
+      "axisId": "gameEnd.regulationInnings",
+      "valueIdentity": "5"
+    },
+    {
+      "axisId": "gameEnd.regulationInnings",
+      "valueIdentity": "7"
+    },
+    {
+      "axisId": "gameEnd.regulationInnings",
+      "valueIdentity": "99"
+    },
+    {
+      "axisId": "gameEnd.tiebreak",
+      "valueIdentity": "\"start:99\""
+    },
+    {
+      "axisId": "gameEnd.tiebreak",
+      "valueIdentity": "\"start:L\""
+    }
+  ],
+  "uncoveredClauseBranches": [
+    {
+      "branchId": "COLD-01",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-02",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-03",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-04",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-05",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-06",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-07",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "COLD-09",
+      "gapId": "GAP-03"
+    },
+    {
+      "branchId": "DRAW-01",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-02",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-03",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-04",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-05",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-06",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-07",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-08",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-09",
+      "gapId": "GAP-04"
+    },
+    {
+      "branchId": "DRAW-10",
+      "gapId": "GAP-04"
+    }
+  ],
+  "deferredValidationErrors": {
+    "requirementKind": "invalid-boundary",
+    "count": 12,
+    "ownerStep": 96,
+    "targetCollection": "validationErrors",
+    "status": "materialized",
+    "verification": "derived-exact-set"
+  },
+  "normalCaseCounts": {
+    "stateTransition": 96,
+    "gameEnd": 170
+  },
+  "stateTransitionCaseAliases": ["eventKind", "operationKind", "resultId"],
+  "step95DecisionProperties": {
+    "automaticTransition": {
+      "field": "automaticallyEndsGame",
+      "expected": false,
+      "clauseIds": ["req:FR-005", "req:F-1"]
+    },
+    "branchExpectations": [
+      {
+        "branchId": "GAME-END-NORMAL",
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "clauseIds": ["req:FR-005", "req:F-1"]
+      },
+      {
+        "branchId": "GAME-END-EXTRA-CONTINUE",
+        "lockFurtherPlayInput": false,
+        "promptEndDeclaration": false,
+        "clauseIds": ["req:FR-005", "req:F-1"]
+      },
+      {
+        "branchId": "GAME-END-LIMIT-DRAW",
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "clauseIds": ["req:FR-005", "req:F-1"]
+      },
+      {
+        "branchId": "GAME-END-TIEBREAK-CONTINUE",
+        "lockFurtherPlayInput": false,
+        "promptEndDeclaration": false,
+        "clauseIds": ["req:FR-005", "req:FR-009", "req:F-1"]
+      },
+      {
+        "branchId": "COLD-08",
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "clauseIds": ["req:FR-005", "req:F-1"]
+      }
+    ],
+    "xMark": {
+      "status": "not-represented-in-decision",
+      "decisionField": null,
+      "clauseIds": ["req:FR-005", "req:FR-020", "req:XMARK-01", "req:XMARK-02", "req:XMARK-03"],
+      "searchedScope": [
+        "docs/requirements/requirements-pitchlog-2026-07-22.md FR-005・FR-020 XMARK-01〜03",
+        "docs/adr/ADR-003-domain-calc-method.md D-6・D-8",
+        "contracts/state-transition/game_end_contract_schema_v1.json $defs.gameEndDecision",
+        "contracts/state-transition/game_end_contract_v1.json decisionRows[].decision・cases[].decision"
+      ],
+      "observedDecisionFields": [
+        "outcome", "endConditionDetected", "lockFurtherPlayInput",
+        "promptEndDeclaration", "automaticallyEndsGame"
+      ],
+      "reason": "XMARK-02はスコアボードの未開始の裏セルの表示規則だが、現行decisionにはセル表示値もX判定値もない。終了判定ケースのX表記の正誤はこの契約では検査不能。"
+    }
+  },
+  "checkerAllowedReadPaths": [
+    "contracts/state-transition/game_end_coverage_declaration_v1.json",
+    "contracts/state-transition/game_end_contract_v1.json",
+    "contracts/state-transition/game_end_contract_schema_v1.json",
+    "contracts/state-transition/state_transition_contract_v1.json",
+    "contracts/state-transition/state_transition_contract_schema_v1.json",
+    "contracts/state-transition/game_end_input_coverage_v1.json",
+    "contracts/state-transition/expander_dependency_policy_v1.json",
+    "contracts/state-transition/expander_dependency_policy_schema_v1.json",
+    "contracts/state-transition/input_axes_descriptor_v1.json",
+    "contracts/state-transition/clause_branch_register_v1.json",
+    "contracts/state-transition/representative_selection_policy_v1.json",
+    "contracts/state-transition/deriver_dependency_policy_v1.json",
+    "contracts/state-transition/deriver_dependency_policy_schema_v1.json",
+    "contracts/state-transition/gap_register_v1.json",
+    "docs/requirements/requirements-pitchlog-2026-07-22.md"
+  ]
+}

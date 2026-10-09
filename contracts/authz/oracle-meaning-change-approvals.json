@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "asset_kind": "authz_oracle_meaning_change_approvals",
+  "base_revision": "099a8fa20595c25f553b46dedcaaa9660dd03c2e",
+  "statement": "固定基準 base_revision からの oracle 意味本文の変更のうち、人間が承認したものを宣言する。検査器はこの宣言を基準へ適用した形だけを受理し、宣言に無い変更は拒否する。承認の記録は contracts/authz/oracle-seal.lock.json の reseal_policy が求める再レビューに対応する。",
+  "approvals": [
+    {
+      "approval_id": "masaki1025/pitchlog#81",
+      "path": "contracts/authz/claim-mutant-map.json",
+      "approved_by": "山田正輝",
+      "approved_on": "2026-10-09",
+      "reason": "TSK-236(付録E ゴールデンケース全表 + 終了判定ベクタ 段階 1)の確定ゲートで承認済みの要件書改訂が、authz の母集合へ波及したもの。要件書 FR-037 の list_item-010(語彙の表示順・チーム非表示設定の変更が入力画面のボタン配列へ反映される)がauth_claim に分類されたため、対応する claim と変異を 1 件ずつ足す。実行分類は contract_only で、ランタイム経路が未確定のため実行時検証は TSK-270 へ引き渡す。既存の判定の書き換え・削除は含まない。",
+      "insertions": [
+        {
+          "collection": "claims",
+          "index": 168,
+          "row": {
+            "claim_id": "FR-037/list_item-010",
+            "claim_origin": "requirement",
+            "execution_class": "contract_only",
+            "classification_rule_id": "CONTRACT_ONLY_RUNTIME_TARGET_PENDING",
+            "mutant_ids": [
+              "MUT:AUTH:FR-037/list_item-010:NEGATE-DECISION"
+            ],
+            "schema_drift_test_owner": {
+              "id": "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid",
+              "status": "implemented"
+            },
+            "runtime_test_owner": {
+              "id": "TSK-270.group2.runtime.FR-037/list_item-010",
+              "status": "planned"
+            },
+            "runtime_kill_required": false,
+            "runtime_evidence_kind": "handoff_runtime_test",
+            "receiving_task_id": "PENDING:FR-037",
+            "contract_only_reason_code": "route_universe_pending"
+          }
+        },
+        {
+          "collection": "mutants",
+          "index": 168,
+          "row": {
+            "mutant_id": "MUT:AUTH:FR-037/list_item-010:NEGATE-DECISION",
+            "axis": "authorization_predicate",
+            "operator_id": "NEGATE_CLAIM_DECISION_UNIT",
+            "decision_form": "CLAIM_DECISION",
+            "claim_ids": [
+              "FR-037/list_item-010"
+            ],
+            "target_element_ids": [
+              "FR-037/list_item-010"
+            ],
+            "expected_application_outcome": "applies",
+            "expected_drift_outcome": "red",
+            "expected_runtime_outcome": "handoff",
+            "runtime_kill_required": false,
+            "requires_disposable_cluster": false,
+            "schema_drift_test_id": "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid",
+            "runtime_test_id": "TSK-270.group2.runtime.FR-037/list_item-010",
+            "runtime_kill_waiver_reason": "contract_only_handoff",
+            "expected_positive_outcome": "handoff",
+            "positive_kill_required": false,
+            "positive_case_scope_id": null
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schemaVersion", "version", "stateContractPath", "gameEndContractPath", "fixtureCoveragePath", "claimBoundary", "expectedPositiveMatches", "expectedNegativeMatches", "expectedRegisterBranches", "expectedExcludedBranches", "mappings"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "version": {"const": "branch_row_mapping_v1"},
+    "stateContractPath": {"const": "contracts/state-transition/state_transition_contract_v1.json"},
+    "gameEndContractPath": {"const": "contracts/state-transition/game_end_contract_v1.json"},
+    "fixtureCoveragePath": {"const": "contracts/state-transition/manual_fixture_branch_coverage_v1.json"},
+    "expectedPositiveMatches": {"type": "integer", "minimum": 1},
+    "expectedNegativeMatches": {"type": "integer", "minimum": 1},
+    "expectedRegisterBranches": {"type": "integer", "minimum": 1},
+    "expectedExcludedBranches": {"type": "integer", "minimum": 1},
+    "claimBoundary": {
+      "type": "object",
+      "required": ["machineVerified", "notGuaranteed"],
+      "properties": {
+        "machineVerified": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "notGuaranteed": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+      },
+      "additionalProperties": false
+    },
+    "mappings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["branchId", "rowRef", "fixtureRelation"],
+        "properties": {
+          "branchId": {"type": "string", "minLength": 1},
+          "rowRef": {"$ref": "#/$defs/rowReference"},
+          "fixtureRelation": {"enum": ["row-output", "cross-constraint-negative", "decision-output"]},
+          "expectedViolationIds": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "rowReference": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["layer", "coordinate"],
+          "properties": {
+            "layer": {"const": "matrixRows"},
+            "coordinate": {
+              "type": "object",
+              "required": ["eventKind", "resultId", "precondition"],
+              "properties": {
+                "eventKind": {"type": "string", "minLength": 1},
+                "resultId": {"type": "string", "minLength": 1},
+                "precondition": {"type": "object"}
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["layer", "coordinate"],
+          "properties": {
+            "layer": {"const": "operationRows"},
+            "coordinate": {
+              "type": "object",
+              "required": ["operationKind", "clauseId", "precondition"],
+              "properties": {
+                "operationKind": {"type": "string", "minLength": 1},
+                "clauseId": {"type": "string", "minLength": 1},
+                "precondition": {"type": "object"}
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["layer", "coordinate"],
+          "properties": {
+            "layer": {"const": "undoRows"},
+            "coordinate": {
+              "type": "object",
+              "required": ["targetKind", "precondition"],
+              "properties": {
+                "targetKind": {"type": "string", "minLength": 1},
+                "precondition": {"type": "object"}
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["layer", "coordinate"],
+          "properties": {
+            "layer": {"const": "decisionRows"},
+            "coordinate": {
+              "type": "object",
+              "required": ["branchId"],
+              "properties": {"branchId": {"type": "string", "minLength": 1}},
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

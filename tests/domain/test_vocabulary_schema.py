@@ -459,7 +459,7 @@ def test_appendix_a_binding_population_is_derived_from_authoritative_tables(
     assert {section: len(rows) for section, rows in by_section.items()} == {
         "A-2": 12,
         "A-2b": 4,
-        "A-3": 7,
+        "A-3": 8,
         "A-4": 1,
         "A-5": 8,
     }
@@ -472,7 +472,7 @@ def test_appendix_a_binding_population_is_derived_from_authoritative_tables(
         "イニング別得点・失点",
     }
     assert set(policy["compositeRows"]).issubset(derived_bindings)
-    assert len(derived_bindings) == 32
+    assert len(derived_bindings) == 33
 
 
 def test_authority_references_use_clause_ids(schema: dict[str, Any]) -> None:
