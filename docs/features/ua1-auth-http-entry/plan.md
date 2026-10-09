@@ -98,7 +98,7 @@ U-A1 は α(正本)→ β(DB 層)→ γ(アプリ層)→ **δ(HTTP の入口)**�
 | ファイル | 変更内容 |
 | --- | --- |
 | `.claude/core-areas.json` | `tenant-isolation` の `paths` へ 2 行 — **6.3-⑤ の敵対レビュー + 人間承認の対象** |
-| `scripts/core_guard.py` / `tests/test_core_guard.py` | 追加層と、その順序を固定するタプル |
+| `scripts/core_guard.py` / `tests/test_core_guard.py` | 回転式の窓口の宣言を新 2 件へ置換し、期待値を追随(**同一コミットで `.claude/core-areas.json` は触らない**) |
 | `contracts/authz/route-registry.json` / `http-route-matrix.json` | 認証 3 経路 + `claim_dispositions` の付録C 由来の主張 |
 | `contracts/authz/product/ddl-elements.json` / `function-bodies/` | `authn.login_attempt` の宣言と本体、旧 `authn.login` の除去 |
 | `contracts/authz/product/probe-product-map.json` | 旧署名の対応行の追随 |
@@ -118,13 +118,29 @@ U-A1 は α(正本)→ β(DB 層)→ γ(アプリ層)→ **δ(HTTP の入口)**�
 
 ### 窓口(`core-areas.json`)を 2 コミットに分ける
 
-`scripts/core_guard.py:30` —「**追加層は JSON を変更するコミットより先に固定する。
-同一コミットでの追随を許さない**」。一方 `tests/test_core_guard.py` の
-`AUTHZ_TENANT_AREA_PATH_ADDITIONS` は**実 JSON に全件あること**(`:962`)と
-**登録順がタプルと一致すること**(`:1244`)を表明するので、**このタプルは JSON と同じコミットで動かす**。
+**【承認後の改訂 1 — 2026-10-09・山田正輝】** 承認時の分割は誤っていた。実測で次が分かった。
 
-- **ステップ 2** = `scripts/core_guard.py` の `AREA_PATH_ADDITIONS` のみ。テストのタプルは触らない
-- **ステップ 3** = `.claude/core-areas.json` と `tests/test_core_guard.py` のタプルを同じコミットで
+**`AREA_PATH_ADDITIONS` は累積する台帳ではなく、「この PR が基線へ足す分」だけを宣言する
+回転式の窓口である。** `validate_area_path_layers` の docstring(`scripts/core_guard.py:323-331`)—
+「基線そのもの、または基線へ**宣言済み追加層を全件加えた形だけ**を受理する。部分追加、削除、置換、
+並べ替え、未宣言追加はいずれも拒否する」。
+
+- **既存の宣言は基線に入っている**ので、そこへ足して 5 件にすると「宣言 5 / 実際の追加 2」で拒否される。
+  **置き換えが正しい**(JSON 側の既存 paths は消さない — 外すのは宣言からだけ)
+- **`core_guard.py:30` の「先に固定する」はコミット順序の強制ではない。** CI(`ci.yml:55` →
+  `core_guard.py:350`)が見るのは **merge-base と PR head の比較**で、コードが強制するのは
+  **JSON と `core_guard.py` / テストを同一コミットで変えることの禁止**だけである。
+  中間コミットの JSON 内容は検査しない
+
+したがって分割は次のとおり。
+
+- **ステップ 2** = `scripts/core_guard.py` の宣言を**新 2 件へ置換**し、`tests/test_core_guard.py` の
+  期待値を追随させる。**`.claude/core-areas.json` は触らない**
+- **ステップ 3** = `.claude/core-areas.json` **のみ**
+
+**取り込み時点の develop は `tests/test_core_guard.py` が 2 件赤い**(#81 がマージ後に窓口を
+空へ戻していないため — `8164c87a` では 215 passed、`f833154b` で 2 failed)。
+**本ステップで宣言を自分の 2 件へ置き換えると、本ブランチ上ではこの赤も消える。**
 
 ### U-M1(#95)への依存(1 節の裁定 6)
 
@@ -150,8 +166,8 @@ U-A1 は α(正本)→ β(DB 層)→ γ(アプリ層)→ **δ(HTTP の入口)**�
 | # | ステップ | 合格条件 |
 | --- | --- | --- |
 | 1 | **射程の記述を現行化する** — U-A1 の feature 文書 4 箇所から Cookie/CSRF の「読む側」を外し、U-M1 へ移った旨と典拠を書く。`data-model.md` 12-8 節の本文 1 行を番号で指さない形へ。変更履歴表に 1 行・`docs/README.md` | docs 系 3 検査が exit 0 / **変更履歴の既存行が 1 文字も動いていない** / 版が上がっていない |
-| 2 | **窓口の追加層を先に固定する** — `scripts/core_guard.py` の `AREA_PATH_ADDITIONS["tenant-isolation"]` へ 2 行。**`.claude/core-areas.json` と `tests/test_core_guard.py` は触らない** | `uv run pytest tests/test_core_guard.py` green / 他 2 ファイルの差分が 0 行 |
-| 3 | **窓口を登録する** — `.claude/core-areas.json` の `tenant-isolation.paths` へ 2 行、`tests/test_core_guard.py` の `AUTHZ_TENANT_AREA_PATH_ADDITIONS` へ**同じ順序で**同じ 2 行 | `tests/test_core_guard.py` green / `backend/src/pitchlog/api/app.py` がコア領域と判定される |
+| 2 | **窓口を回す** — `scripts/core_guard.py` の `AREA_PATH_ADDITIONS["tenant-isolation"]` を**新 2 行へ置換**(既存の宣言は基線に入っているので外す)。`tests/test_core_guard.py` の期待値を追随させ、**実 JSON は「基線のまま」と「基線 + 新 2 件を同順で全件」の 2 状態だけ**を受けるようにする。**`.claude/core-areas.json` は触らない** | `uv run pytest tests/test_core_guard.py` **全件 green**(develop から引き継いだ 2 件の赤を含めて解消)/ `.claude/core-areas.json` の差分が 0 行 / `ruff check` `ty check` green |
+| 3 | **窓口を登録する** — `.claude/core-areas.json` の `tenant-isolation.paths` の**末尾へ**、宣言と**同じ順序で** 2 行。**他のファイルは触らない**(同一コミットでの JSON とコードの同時変更は `core_guard` が拒否する) | `tests/test_core_guard.py` green / `backend/src/pitchlog/api/app.py` と `backend/tests/test_api_conventions.py` がコア領域と判定される |
 | 4 | **`authn.login` を `authn.login_attempt` へ置き換える** — 試行元を受け、**照合を勧告ロックの前**に行う。**成功はロックを取らずにトークン行を作り `token_id` を返す**。**失敗だけが試行元のみを鍵にロックを取り**、失敗数から応答間隔を決め、予約票(`rate_limit_counters.locked_until`)を進めて**待ち時間を返す**。**待ちはアプリ側でコミット後に消費**し、DB 接続もロックも保持しない。遅延は**現ウィンドウ + 直前ウィンドウの失敗数の合計**で決める。**旧 2 引数版を除去**し、SQL manifest・`probe-product-map.json`・`runtime_contract.py` の `PROTECTED_FUNCTIONS`・生成モジュール・`backend/tests/db/test_product_authz_authn_app.py`・**`backend/tests/test_product_authz_catalog.py`**・**`backend/tests/test_product_authz_probe_product_map.py`** を追随 | **旧 `authn.login(text,text)` が実 DB に存在しない**ことを試験で固定 / **成功が、先行する失敗が何件積まれていても一定時間で返る**(勧告ロックを取らないことを含めて確認)/ **同一試行元の失敗の応答が、間隔あたり 1 件に揃う** / **ウィンドウ境界をまたいだ 2 件が同じ鍵で計数される** / **待ちの間に DB 接続とロックを保持していない** / 戻り値がトークン行 ID である / 既存の DB テストが緑 |
 | 5 | **設定値の投入経路と fail-closed** — 4 キーの投入手順と、**未設定・不正値でログインを拒否する**ことの試験(条文の逐語どおり — `data-model.md:1793`) | 4 キーのいずれかが欠落・不正ならログインが拒否される / **実値が検査器・テストに直書きされていない** |
 | 6 | **ログインの HTTP 経路** — ルータ・スキーマ・`verified_tenant` 側の公開境界・`Set-Cookie` の発行 | 正しい資格情報で `Set-Cookie`(`__Host-pitchlog_token`・`HttpOnly`・`Secure`・`SameSite=Strict`・`Max-Age`)が返る / **提示値が応答本文・URL・ログに出ない** / `test_api_conventions.py` の DB 用語・`errors.py`・`operation_id`・403 の 4 表明が維持されている |
