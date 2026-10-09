@@ -5906,6 +5906,29 @@ def test_repository_base_symbol_has_only_execute_database_api() -> None:
     assert matching_rows[0]["allowed_api_ids"] == ["SQLA_SESSION_EXECUTE"]
 
 
+def test_authn_entry_symbols_have_only_required_database_apis() -> None:
+    """検証とログアウトの許可 API を各 3 件に固定する。"""
+    allowlist = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text(encoding="utf-8")
+    )
+    rows = {
+        row["symbol"]: row
+        for row in allowlist["allowed_symbols"]
+        if row["symbol"].startswith("pitchlog.authz.verified_tenant.")
+    }
+    assert set(rows) == {
+        "pitchlog.authz.verified_tenant.verify_tenant_id",
+        "pitchlog.authz.verified_tenant.logout_token",
+    }
+    for row in rows.values():
+        assert row["allowed_api_ids"] == [
+            "SQLA_TEXT",
+            "SQLA_ENGINE_BEGIN",
+            "SQLA_CONNECTION_EXECUTE",
+        ]
+        assert (REPOSITORY_ROOT / row["fixture"]).is_file()
+
+
 def test_condition4_allows_only_the_declared_request_api_call() -> None:
     """葉が provider の公開型と純粋要求生成器だけを利用できる。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
