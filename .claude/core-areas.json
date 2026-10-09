@@ -528,7 +528,8 @@
         "scripts/product-rls-real-schema-targets.json",
         "docs/adr/ADR-001-codex-model-selection.md",
         "backend/tests/test_*_boundary.py",
-        "backend/tests/test_*_repository.py"
+        "backend/tests/test_*_repository.py",
+        "backend/src/pitchlog/api/*"
       ]
     },
     {
