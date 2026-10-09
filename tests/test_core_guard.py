@@ -408,16 +408,12 @@ DOMAIN_CALC_AREA_IDS = ("game-state", "data-migration")
 UM1_TENANT_AREA_PATH_ADDITIONS = (
     "backend/tests/test_*_boundary.py",
     "backend/tests/test_*_repository.py",
+    "backend/src/pitchlog/api/*",
 )
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     "tenant-isolation": UM1_TENANT_AREA_PATH_ADDITIONS,
 }
 DECLARED_ADDITION_AREA_IDS = tuple(EXPECTED_AREA_PATH_ADDITIONS)
-SYNTHETIC_TENANT_AREA_PATH_ADDITIONS = (
-    "example/tenant/first.py",
-    "example/tenant/second.py",
-    "example/tenant/third.py",
-)
 DOMAIN_CALC_GLOBS = (
     "backend/domain/*",
     "backend/src/pitchlog/domaincheck/*",
@@ -576,7 +572,10 @@ def make_repo(tmp_path: Path, core_paths: list[str] | None = None) -> Path:
 
 
 def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
-    """実リポジトリの core-areas.json を持つ一時 git リポジトリを作る。
+    """実設定を基に宣言の全件を登録した合成リポジトリを作る。
+
+    ステップ 6 是正の中間状態では実設定に 2 件だけが登録されている。
+    個別パスの検査では不足する 1 件を一時リポジトリだけへ補う。
 
     Args:
         tmp_path: pytest が提供する一時ディレクトリ。
@@ -587,10 +586,18 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
     root = tmp_path / "repo"
     root.mkdir()
     run_git(root, "init", "-q", "-b", "feature/test")
+    configuration = load_actual_core_areas()
+    tenant_area = next(
+        area for area in configuration["areas"] if area["id"] == "tenant-isolation"
+    )
+    current_suffix = tuple(tenant_area["paths"][-len(UM1_TENANT_AREA_PATH_ADDITIONS) :])
+    if current_suffix != UM1_TENANT_AREA_PATH_ADDITIONS:
+        assert current_suffix[-2:] == UM1_TENANT_AREA_PATH_ADDITIONS[:2]
+        tenant_area["paths"].extend(UM1_TENANT_AREA_PATH_ADDITIONS[2:])
     write_text(
         root,
         ".claude/core-areas.json",
-        CORE_AREAS_PATH.read_text(encoding="utf-8"),
+        json.dumps(configuration, ensure_ascii=False, indent=2) + "\n",
     )
     write_text(root, "README.md", "base\n")
     run_git(root, "add", ".")
@@ -1927,7 +1934,7 @@ def test_change_absent_from_declared_addition_layer_is_rejected(tmp_path: Path):
     root, base_sha = make_layered_core_repo(tmp_path)
     head_sha = commit_area_path_changes(
         root,
-        {"tenant-isolation": ("unregistered/probe.py",)},
+        {"tenant-isolation": (*UM1_TENANT_AREA_PATH_ADDITIONS, "unregistered/probe.py")},
     )
 
     with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
@@ -1944,6 +1951,7 @@ def test_deleting_baseline_tenant_path_is_rejected(tmp_path: Path) -> None:
         area for area in candidate["areas"] if area["id"] == "tenant-isolation"
     )
     tenant_area["paths"].remove("base/tenant-isolation.py")
+    tenant_area["paths"].extend(UM1_TENANT_AREA_PATH_ADDITIONS)
 
     with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
         core_guard.validate_area_path_layers(
@@ -2172,19 +2180,19 @@ def test_tenant_additions_declared_for_other_area_are_rejected(tmp_path: Path) -
 
 
 def test_one_of_three_tenant_additions_declared_is_rejected(tmp_path: Path) -> None:
-    """合成した 3 件の宣言に対して 1 件だけの部分追加を拒否する。"""
+    """本単位の 3 件の宣言に対して 1 件だけの部分追加を拒否する。"""
     core_guard = load_core_guard_module()
     root, base_sha = make_layered_core_repo(tmp_path)
     head_sha = commit_area_path_changes(
-        root, {"tenant-isolation": SYNTHETIC_TENANT_AREA_PATH_ADDITIONS[:1]}
+        root, {"tenant-isolation": UM1_TENANT_AREA_PATH_ADDITIONS[:1]}
     )
-    declared = dict(EXPECTED_AREA_PATH_ADDITIONS)
-    declared["tenant-isolation"] = SYNTHETIC_TENANT_AREA_PATH_ADDITIONS
 
     baseline = core_guard.load_core_areas_at_revision(root, base_sha)
     candidate = core_guard.load_core_areas_at_revision(root, head_sha)
     with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
-        core_guard.validate_area_path_layers(baseline, candidate, declared)
+        core_guard.validate_area_path_layers(
+            baseline, candidate, EXPECTED_AREA_PATH_ADDITIONS
+        )
 
 
 def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
@@ -2193,36 +2201,39 @@ def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
     root, base_sha = make_layered_core_repo(tmp_path)
     head_sha = commit_area_path_changes(
         root,
-        {"tenant-isolation": tuple(reversed(SYNTHETIC_TENANT_AREA_PATH_ADDITIONS))},
+        {"tenant-isolation": tuple(reversed(UM1_TENANT_AREA_PATH_ADDITIONS))},
     )
-    declared = dict(EXPECTED_AREA_PATH_ADDITIONS)
-    declared["tenant-isolation"] = SYNTHETIC_TENANT_AREA_PATH_ADDITIONS
 
     baseline = core_guard.load_core_areas_at_revision(root, base_sha)
     candidate = core_guard.load_core_areas_at_revision(root, head_sha)
     with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
-        core_guard.validate_area_path_layers(baseline, candidate, declared)
+        core_guard.validate_area_path_layers(
+            baseline, candidate, EXPECTED_AREA_PATH_ADDITIONS
+        )
 
 
 def test_product_rls_paths_remain_in_develop_baseline() -> None:
-    """着地済み RLS と ADR のパスが比較元と現設定に残る。"""
+    """着地済み RLS と ADR のパスが追加層の前に残る。"""
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     configuration = load_actual_core_areas()
     registered_tail = (*PRODUCT_RLS_AREA_PATH_ADDITIONS, ADR_001_PATH)
-    for document, expected_tail in (
-        (baseline, registered_tail),
-        (
-            configuration,
-            (*registered_tail, *UM1_TENANT_AREA_PATH_ADDITIONS),
-        ),
-    ):
-        tenant_area = next(
-            area for area in document["areas"] if area["id"] == "tenant-isolation"
-        )
-        assert tuple(tenant_area["paths"][-len(expected_tail) :]) == expected_tail
+    base_area = next(
+        area for area in baseline["areas"] if area["id"] == "tenant-isolation"
+    )
+    current_area = next(
+        area for area in configuration["areas"] if area["id"] == "tenant-isolation"
+    )
+    base_paths = tuple(base_area["paths"])
+    current_paths = tuple(current_area["paths"])
+    assert base_paths[-len(registered_tail) :] == registered_tail
+    assert current_paths[: len(base_paths)] == base_paths
+    assert current_paths[len(base_paths) :] in (
+        UM1_TENANT_AREA_PATH_ADDITIONS[:2],
+        UM1_TENANT_AREA_PATH_ADDITIONS,
+    )
     for pattern, planned_paths in zip(
         PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PATTERN_EXAMPLES, strict=True
     ):
@@ -2252,7 +2263,7 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
 
 
 def test_area_registration() -> None:
-    """#81 の追加が比較元にあり、#95 の 2 本だけが現追加層と示す。"""
+    """#81 の追加が比較元にあり、#95 の 3 件が追加層と示す。"""
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     configuration = load_actual_core_areas()
@@ -2277,7 +2288,7 @@ def test_area_registration() -> None:
         "tenant-isolation": 75,
         "data-migration": 48,
     }
-    current_counts = baseline_counts | {"tenant-isolation": 77}
+    current_counts = baseline_counts | {"tenant-isolation": 78}
     appendix_e_additions = (
         ADR_001_PATH,
         ADR_003_PATH,

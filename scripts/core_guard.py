@@ -32,6 +32,7 @@ AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
     "tenant-isolation": (
         "backend/tests/test_*_boundary.py",
         "backend/tests/test_*_repository.py",
+        "backend/src/pitchlog/api/*",
     ),
 }
 REQUIRED_CHECK_RE = re.compile(
