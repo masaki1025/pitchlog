@@ -409,6 +409,10 @@ UM1_TENANT_AREA_PATH_ADDITIONS = (
     "backend/tests/test_*_boundary.py",
     "backend/tests/test_*_repository.py",
     "backend/src/pitchlog/api/*",
+    "backend/tests/test_api_*.py",
+    "backend/tests/test_roster_*.py",
+    "backend/tests/test_request_presentation.py",
+    "tests/test_census_baseline_check.py",
 )
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     "tenant-isolation": UM1_TENANT_AREA_PATH_ADDITIONS,
@@ -574,8 +578,8 @@ def make_repo(tmp_path: Path, core_paths: list[str] | None = None) -> Path:
 def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
     """実設定を基に宣言の全件を登録した合成リポジトリを作る。
 
-    ステップ 6 是正の中間状態では実設定に 2 件だけが登録されている。
-    個別パスの検査では不足する 1 件を一時リポジトリだけへ補う。
+    ステップ 6 是正の中間状態では実設定に 3 件だけが登録されている。
+    個別パスの検査では不足する 4 件を一時リポジトリだけへ補う。
 
     Args:
         tmp_path: pytest が提供する一時ディレクトリ。
@@ -592,8 +596,8 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
     )
     current_suffix = tuple(tenant_area["paths"][-len(UM1_TENANT_AREA_PATH_ADDITIONS) :])
     if current_suffix != UM1_TENANT_AREA_PATH_ADDITIONS:
-        assert current_suffix[-2:] == UM1_TENANT_AREA_PATH_ADDITIONS[:2]
-        tenant_area["paths"].extend(UM1_TENANT_AREA_PATH_ADDITIONS[2:])
+        assert current_suffix[-3:] == UM1_TENANT_AREA_PATH_ADDITIONS[:3]
+        tenant_area["paths"].extend(UM1_TENANT_AREA_PATH_ADDITIONS[3:])
     write_text(
         root,
         ".claude/core-areas.json",
@@ -2179,8 +2183,8 @@ def test_tenant_additions_declared_for_other_area_are_rejected(tmp_path: Path) -
         core_guard.validate_area_path_layers(baseline, candidate, declared)
 
 
-def test_one_of_three_tenant_additions_declared_is_rejected(tmp_path: Path) -> None:
-    """本単位の 3 件の宣言に対して 1 件だけの部分追加を拒否する。"""
+def test_one_of_seven_tenant_additions_declared_is_rejected(tmp_path: Path) -> None:
+    """本単位の 7 件の宣言に対して 1 件だけの部分追加を拒否する。"""
     core_guard = load_core_guard_module()
     root, base_sha = make_layered_core_repo(tmp_path)
     head_sha = commit_area_path_changes(
@@ -2196,7 +2200,7 @@ def test_one_of_three_tenant_additions_declared_is_rejected(tmp_path: Path) -> N
 
 
 def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
-    """3 件の宣言順を変えると計画順の paths を拒否する。"""
+    """7 件の宣言順を変えると計画順の paths を拒否する。"""
     core_guard = load_core_guard_module()
     root, base_sha = make_layered_core_repo(tmp_path)
     head_sha = commit_area_path_changes(
@@ -2241,7 +2245,7 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
         assert base_paths[-len(registered_tail) :] == registered_tail
         assert current_paths[: len(base_paths)] == base_paths
         assert current_paths[len(base_paths) :] in (
-            UM1_TENANT_AREA_PATH_ADDITIONS[:2],
+            UM1_TENANT_AREA_PATH_ADDITIONS[:3],
             UM1_TENANT_AREA_PATH_ADDITIONS,
         )
     for pattern, planned_paths in zip(
@@ -2273,7 +2277,7 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
 
 
 def test_area_registration() -> None:
-    """#81 の追加が比較元にあり、#95 の 3 件が追加層と示す。"""
+    """#81 の追加が比較元にあり、#95 の 7 件が追加層と示す。"""
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     configuration = load_actual_core_areas()
@@ -2298,7 +2302,7 @@ def test_area_registration() -> None:
         "tenant-isolation": 75,
         "data-migration": 48,
     }
-    current_counts = baseline_counts | {"tenant-isolation": 78}
+    current_counts = baseline_counts | {"tenant-isolation": 82}
     appendix_e_additions = (
         ADR_001_PATH,
         ADR_003_PATH,

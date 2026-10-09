@@ -33,6 +33,10 @@ AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
         "backend/tests/test_*_boundary.py",
         "backend/tests/test_*_repository.py",
         "backend/src/pitchlog/api/*",
+        "backend/tests/test_api_*.py",
+        "backend/tests/test_roster_*.py",
+        "backend/tests/test_request_presentation.py",
+        "tests/test_census_baseline_check.py",
     ),
 }
 REQUIRED_CHECK_RE = re.compile(
