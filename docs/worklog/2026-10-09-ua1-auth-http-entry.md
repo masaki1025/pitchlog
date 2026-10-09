@@ -211,3 +211,63 @@ FR-033 の 2 つの要求が両立しないことだった**。レビューは�
 
 **見つかったのは、ステップ 4 の後に backend の全件を回したから。** ステップ 1 の時点で
 「影響範囲だけ」で止めていたら、PR の CI まで残っていた。
+
+
+## ステップ 10 は承認済みの射程では閉じない(人間の判断が要る)
+
+**委任先が編集前に停止し、4 点を挙げた。全部こちらで原典を当たって確認した。**
+
+### 1. 計画書の `in_registry` という値は存在しない
+
+```python
+# scripts/check_authz_catalog.py:313
+CLAIM_DISPOSITIONS = frozenset({"out_of_registry", "routed"})
+```
+
+**正しい値は `routed` である。** 計画書の「`in_registry` へ」は誤記だった。
+`CLAIM_DISPOSITION_REASON_BY_LOCATION` が `http` に対して `design_pending_task` を
+固定しているので、**別の理由コードへ移すにも検査器の改訂が要る**。
+
+### 2. 付録C の 5 件のうち、δ のものは 2 件だけだった
+
+要件書 `:1299-1309` の表を数えた結果:
+
+| 主張 | 中身 | 持ち主 |
+| --- | --- | --- |
+| `table_row-004` | トークン有効期限(7日・スライディング延長) | **δ**(NFR-011) |
+| `table_row-006` | レート制限の閾値・ロック時間(未決・10章) | **δ**(FR-033) |
+| `blockquote-001` | 管理コンソールで変更できる値であること | **FR-037 の単位** |
+| `table_row-009` | 共同分析グループの参加テナント上限 | **FR-041 の単位** |
+| `table_row-010` | 同時比較表示上限 | **FR-041 の単位** |
+
+**計画書の「付録C 由来の主張を移す」は、5 件すべてを指すと読める書き方だった。**
+**δ が動かしてよいのは 2 件である。** 残り 3 件を動かす根拠は無い。
+
+### 3. 経路の値域は JSON ではなく検査器が閉じている
+
+`route_kinds` / 種別ごとの必須項目(`:300`)・HTTP 側の disposition(`:2690`)が
+検査器側で閉じており、**JSON の列挙に足すだけでは通らない**。
+
+### 4. 2 資産は decision lock と oracle seal で既存 commit に固定されている
+
+```
+contracts/authz/route-registry.lock.json
+contracts/authz/http-route-matrix.lock.json
+contracts/authz/oracle-seal.lock.json
+  oracle_commit: 1f32e12a8c0e8acc66df448a22fc166be4643a3f
+  reseal_policy: {normal_validation_reseals: false,
+                  dedicated_flag: "--reseal-oracle",
+                  human_review_required: true}
+  review_policy: 「改訂 2 以降で oracle を変えるなら本ステップまで戻って再レビューする」
+```
+
+**`route-registry.json` を変えると oracle seal の封が割れる。** 封を貼り直すには
+専用フラグと**人間のレビュー**が要る。これは δ の承認済み計画に無い工程である。
+
+**さらに、別タブが `fix/oracle-input-baseline`(確定ゲート 8 周)で oracle の入力基線を
+触っている。** δ が同じ封へ手を入れると正面から衝突する。
+
+### 判断の材料
+
+**ステップ 10 は「資産へ 3 行足す」仕事ではなく、「authz の封を貼り直す」仕事だった。**
+承認時の見積りが外れている。**人間の判断が要るので、ここで止めて 11・12 を先に進める。**
