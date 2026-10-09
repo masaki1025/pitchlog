@@ -4,9 +4,11 @@
 
 やること:
     1. 候補ごとの宣言(calculation)を組み立て、1 つの宣言モデル `expressible_models.json` に書き出す
-    2. `backend/domain/model.schema.json` に対する検証(生成コアの検証器 `core._validate_source_document`)
+    2. `backend/domain/model.schema.json` に対する検証
+       (生成コアの検証器 `core._validate_source_document`)
     3. 生成前検査 `pregen_checks.run_pregen_checks`(5 系統)
-    4. 遷移の値を評価する小さな参照評価器で、結果が分かれる具体例 2 つ以上を計算し、手で導いた期待値と照合する
+    4. 遷移の値を評価する小さな参照評価器で、結果が分かれる具体例 2 つ以上を計算し、
+       手で導いた期待値と照合する
 
 評価器の意味論について:
     宣言モデルから実行コードを生成する経路は存在しない(research.md §4)。そのため本評価器は、
@@ -65,27 +67,35 @@ def arith(operator: str, *operands: Expr) -> Expr:
 
 
 def add(*operands: Expr) -> Expr:
+    """加算。"""
     return arith("add", *operands)
 
 
 def sub(left: Expr, right: Expr) -> Expr:
+    """減算(2 項)。"""
     return arith("subtract", left, right)
 
 
 def mul(*operands: Expr) -> Expr:
+    """乗算。"""
     return arith("multiply", *operands)
 
 
 def minimum(*operands: Expr) -> Expr:
+    """最小値。"""
     return {"kind": "extremum", "operator": "min", "operands": list(operands)}
 
 
 def maximum(*operands: Expr) -> Expr:
+    """最大値。"""
     return {"kind": "extremum", "operator": "max", "operands": list(operands)}
 
 
 def at_least(value: Expr, threshold: int) -> Expr:
-    """整数 `value >= threshold` なら 1、そうでなければ 0(= max(0, min(1, value - threshold + 1)))。"""
+    """整数 `value >= threshold` なら 1、そうでなければ 0。
+
+    式は max(0, min(1, value - threshold + 1))。
+    """
     return maximum(lit(0), minimum(lit(1), add(sub(value, lit(threshold)), lit(1))))
 
 
@@ -208,7 +218,8 @@ def build_model() -> dict[str, object]:
         )
     )
 
-    # C2 論理演算 — 振り逃げの前提「第3ストライク不捕球 かつ(二死 または 一塁空き)」(付録E-1 R:1256)。
+    # C2 論理演算 — 振り逃げの前提(付録E-1 R:1256):
+    # 「第3ストライク不捕球 かつ(二死 または 一塁空き)」
     eligible = mul(
         event("thirdStrike"),
         logical_not(event("caught")),
@@ -324,9 +335,11 @@ def build_model() -> dict[str, object]:
         )
     )
 
-    # C16 状態を変えないイベント — 履歴文脈が空の undo は状態を変えず「取り消す対象が無い」を返す(FR-006 R:243)。
-    # 空かどうかは、取消可能な操作の数 `undoableDepth` を状態として数えて判定する(履歴スタックを読まない)。
-    # resultCode: 1=適用された, 0=取り消す対象が無い。**空でない場合の状態の復元は本記述の射程外(候補 C4)。**
+    # C16 状態を変えないイベント(FR-006 R:243) — 履歴文脈が空の undo は状態を変えず、
+    # 「取り消す対象が無い」を返す。空かどうかは、取消可能な操作の数 `undoableDepth` を
+    # 状態として数えて判定する(履歴スタックを読まない)。
+    # resultCode: 1=適用された, 0=取り消す対象が無い。
+    # 空でない場合の状態の復元は本記述の射程外(候補 C4)。
     nonempty = logical_not(equals(state("undoableDepth"), 0))
     calculations.append(
         calculation(
@@ -388,7 +401,8 @@ def build_model() -> dict[str, object]:
         )
     )
 
-    # C27 手動値の優先 — 自動設定(単打で全走者 1 つ進塁)より、確定時の手動値を優先する(FR-003 R:215)。
+    # C27 手動値の優先(FR-003 R:215) — 自動設定(単打で全走者 1 つ進塁)より、
+    # 確定時の手動値を優先する。
     override = event("manualOverride")
     calculations.append(
         calculation(
@@ -546,31 +560,228 @@ COLD_INPUTS = {
 
 CASES: list[Case] = [
     # (候補, 計算, イベント, 事前状態, イベント値, 入力, 期待する事後状態)
-    ("C1", "c1ThirdOutChange", "outRecorded", {"outs": 2, "half": 0, "inning": 3}, {"delta": 1}, {}, {"outs": 0, "half": 1, "inning": 3}),
-    ("C1", "c1ThirdOutChange", "outRecorded", {"outs": 0, "half": 1, "inning": 3}, {"delta": 1}, {}, {"outs": 1, "half": 1, "inning": 3}),
-    ("C1", "c1ThirdOutChange", "outRecorded", {"outs": 2, "half": 1, "inning": 3}, {"delta": 1}, {}, {"outs": 0, "half": 0, "inning": 4}),
-    ("C2", "c2DroppedThirdStrike", "pitch", {"outs": 1, "firstOccupied": 1, "batterMayRun": 0}, {"thirdStrike": 1, "caught": 0}, {}, {"outs": 1, "firstOccupied": 1, "batterMayRun": 0}),
-    ("C2", "c2DroppedThirdStrike", "pitch", {"outs": 2, "firstOccupied": 1, "batterMayRun": 0}, {"thirdStrike": 1, "caught": 0}, {}, {"outs": 2, "firstOccupied": 1, "batterMayRun": 1}),
-    ("C2", "c2DroppedThirdStrike", "pitch", {"outs": 0, "firstOccupied": 0, "batterMayRun": 0}, {"thirdStrike": 1, "caught": 0}, {}, {"outs": 0, "firstOccupied": 0, "batterMayRun": 1}),
-    ("C2", "c2DroppedThirdStrike", "pitch", {"outs": 2, "firstOccupied": 0, "batterMayRun": 0}, {"thirdStrike": 1, "caught": 1}, {}, {"outs": 2, "firstOccupied": 0, "batterMayRun": 0}),
-    ("C9", "c9BattingOrderWrap", "plateAppearanceCompleted", {"battingOrder": 9}, {}, {}, {"battingOrder": 1}),
-    ("C9", "c9BattingOrderWrap", "plateAppearanceCompleted", {"battingOrder": 3}, {}, {}, {"battingOrder": 4}),
-    ("C14", "c14ColdSegments", "playConfirmed", {"home": 9, "away": 0, "inning": 5, "coldReached": 0}, {"homeRuns": 1, "awayRuns": 0}, COLD_INPUTS, {"home": 10, "away": 0, "inning": 5, "coldReached": 1}),
-    ("C14", "c14ColdSegments", "playConfirmed", {"home": 8, "away": 0, "inning": 6, "coldReached": 0}, {"homeRuns": 0, "awayRuns": 0}, COLD_INPUTS, {"home": 8, "away": 0, "inning": 6, "coldReached": 0}),
-    ("C14", "c14ColdSegments", "playConfirmed", {"home": 0, "away": 7, "inning": 7, "coldReached": 0}, {"homeRuns": 0, "awayRuns": 0}, COLD_INPUTS, {"home": 0, "away": 7, "inning": 7, "coldReached": 1}),
-    ("C16", "c16UndoOnEmptyHistory", "undo", {"outs": 1, "undoableDepth": 0, "resultCode": 1}, {}, {}, {"outs": 1, "undoableDepth": 0, "resultCode": 0}),
-    ("C16", "c16UndoOnEmptyHistory", "undo", {"outs": 2, "undoableDepth": 0, "resultCode": 1}, {}, {}, {"outs": 2, "undoableDepth": 0, "resultCode": 0}),
-    ("C16", "c16UndoOnEmptyHistory", "undo", {"outs": 1, "undoableDepth": 2, "resultCode": 0}, {}, {}, {"outs": 1, "undoableDepth": 1, "resultCode": 1}),
-    ("C17", "c17InputLock", "playConfirmed", {"score": 3, "locked": 0, "resultCode": 1}, {"runs": 2, "endConditionMet": 1}, {}, {"score": 5, "locked": 1, "resultCode": 1}),
-    ("C17", "c17InputLock", "playConfirmed", {"score": 5, "locked": 1, "resultCode": 1}, {"runs": 2, "endConditionMet": 0}, {}, {"score": 5, "locked": 1, "resultCode": 0}),
-    ("C27", "c27ManualOverride", "singleConfirmed", {"first": 1, "second": 0, "third": 0}, {"manualOverride": 0, "manualFirst": 0, "manualSecond": 0, "manualThird": 0}, {}, {"first": 1, "second": 1, "third": 0}),
-    ("C27", "c27ManualOverride", "singleConfirmed", {"first": 1, "second": 0, "third": 0}, {"manualOverride": 1, "manualFirst": 1, "manualSecond": 0, "manualThird": 1}, {}, {"first": 1, "second": 0, "third": 1}),
-    ("C8/C22", "c8c22CurrentPitcherPitchCount", "recordConfirmed", {"pitchCount": 41}, {"isPitchEvent": 1}, {}, {"pitchCount": 42}),
-    ("C8/C22", "c8c22CurrentPitcherPitchCount", "recordConfirmed", {"pitchCount": 41}, {"isPitchEvent": 0}, {}, {"pitchCount": 41}),
-    ("C8/C22", "c8c22CurrentPitcherPitchCount", "pitcherChanged", {"pitchCount": 41}, {}, {}, {"pitchCount": 0}),
-    ("C19", "c19FiscalYear", "derive", {"fiscalYear": 1999}, {}, {"gameYear": 2026, "gameMonth": 3}, {"fiscalYear": 2025}),
-    ("C19", "c19FiscalYear", "derive", {"fiscalYear": 1999}, {}, {"gameYear": 2026, "gameMonth": 4}, {"fiscalYear": 2026}),
+    (
+        "C1",
+        "c1ThirdOutChange",
+        "outRecorded",
+        {"outs": 2, "half": 0, "inning": 3},
+        {"delta": 1},
+        {},
+        {"outs": 0, "half": 1, "inning": 3},
+    ),
+    (
+        "C1",
+        "c1ThirdOutChange",
+        "outRecorded",
+        {"outs": 0, "half": 1, "inning": 3},
+        {"delta": 1},
+        {},
+        {"outs": 1, "half": 1, "inning": 3},
+    ),
+    (
+        "C1",
+        "c1ThirdOutChange",
+        "outRecorded",
+        {"outs": 2, "half": 1, "inning": 3},
+        {"delta": 1},
+        {},
+        {"outs": 0, "half": 0, "inning": 4},
+    ),
+    (
+        "C2",
+        "c2DroppedThirdStrike",
+        "pitch",
+        {"outs": 1, "firstOccupied": 1, "batterMayRun": 0},
+        {"thirdStrike": 1, "caught": 0},
+        {},
+        {"outs": 1, "firstOccupied": 1, "batterMayRun": 0},
+    ),
+    (
+        "C2",
+        "c2DroppedThirdStrike",
+        "pitch",
+        {"outs": 2, "firstOccupied": 1, "batterMayRun": 0},
+        {"thirdStrike": 1, "caught": 0},
+        {},
+        {"outs": 2, "firstOccupied": 1, "batterMayRun": 1},
+    ),
+    (
+        "C2",
+        "c2DroppedThirdStrike",
+        "pitch",
+        {"outs": 0, "firstOccupied": 0, "batterMayRun": 0},
+        {"thirdStrike": 1, "caught": 0},
+        {},
+        {"outs": 0, "firstOccupied": 0, "batterMayRun": 1},
+    ),
+    (
+        "C2",
+        "c2DroppedThirdStrike",
+        "pitch",
+        {"outs": 2, "firstOccupied": 0, "batterMayRun": 0},
+        {"thirdStrike": 1, "caught": 1},
+        {},
+        {"outs": 2, "firstOccupied": 0, "batterMayRun": 0},
+    ),
+    (
+        "C9",
+        "c9BattingOrderWrap",
+        "plateAppearanceCompleted",
+        {"battingOrder": 9},
+        {},
+        {},
+        {"battingOrder": 1},
+    ),
+    (
+        "C9",
+        "c9BattingOrderWrap",
+        "plateAppearanceCompleted",
+        {"battingOrder": 3},
+        {},
+        {},
+        {"battingOrder": 4},
+    ),
+    (
+        "C14",
+        "c14ColdSegments",
+        "playConfirmed",
+        {"home": 9, "away": 0, "inning": 5, "coldReached": 0},
+        {"homeRuns": 1, "awayRuns": 0},
+        COLD_INPUTS,
+        {"home": 10, "away": 0, "inning": 5, "coldReached": 1},
+    ),
+    (
+        "C14",
+        "c14ColdSegments",
+        "playConfirmed",
+        {"home": 8, "away": 0, "inning": 6, "coldReached": 0},
+        {"homeRuns": 0, "awayRuns": 0},
+        COLD_INPUTS,
+        {"home": 8, "away": 0, "inning": 6, "coldReached": 0},
+    ),
+    (
+        "C14",
+        "c14ColdSegments",
+        "playConfirmed",
+        {"home": 0, "away": 7, "inning": 7, "coldReached": 0},
+        {"homeRuns": 0, "awayRuns": 0},
+        COLD_INPUTS,
+        {"home": 0, "away": 7, "inning": 7, "coldReached": 1},
+    ),
+    (
+        "C16",
+        "c16UndoOnEmptyHistory",
+        "undo",
+        {"outs": 1, "undoableDepth": 0, "resultCode": 1},
+        {},
+        {},
+        {"outs": 1, "undoableDepth": 0, "resultCode": 0},
+    ),
+    (
+        "C16",
+        "c16UndoOnEmptyHistory",
+        "undo",
+        {"outs": 2, "undoableDepth": 0, "resultCode": 1},
+        {},
+        {},
+        {"outs": 2, "undoableDepth": 0, "resultCode": 0},
+    ),
+    (
+        "C16",
+        "c16UndoOnEmptyHistory",
+        "undo",
+        {"outs": 1, "undoableDepth": 2, "resultCode": 0},
+        {},
+        {},
+        {"outs": 1, "undoableDepth": 1, "resultCode": 1},
+    ),
+    (
+        "C17",
+        "c17InputLock",
+        "playConfirmed",
+        {"score": 3, "locked": 0, "resultCode": 1},
+        {"runs": 2, "endConditionMet": 1},
+        {},
+        {"score": 5, "locked": 1, "resultCode": 1},
+    ),
+    (
+        "C17",
+        "c17InputLock",
+        "playConfirmed",
+        {"score": 5, "locked": 1, "resultCode": 1},
+        {"runs": 2, "endConditionMet": 0},
+        {},
+        {"score": 5, "locked": 1, "resultCode": 0},
+    ),
+    (
+        "C27",
+        "c27ManualOverride",
+        "singleConfirmed",
+        {"first": 1, "second": 0, "third": 0},
+        {"manualOverride": 0, "manualFirst": 0, "manualSecond": 0, "manualThird": 0},
+        {},
+        {"first": 1, "second": 1, "third": 0},
+    ),
+    (
+        "C27",
+        "c27ManualOverride",
+        "singleConfirmed",
+        {"first": 1, "second": 0, "third": 0},
+        {"manualOverride": 1, "manualFirst": 1, "manualSecond": 0, "manualThird": 1},
+        {},
+        {"first": 1, "second": 0, "third": 1},
+    ),
+    (
+        "C8/C22",
+        "c8c22CurrentPitcherPitchCount",
+        "recordConfirmed",
+        {"pitchCount": 41},
+        {"isPitchEvent": 1},
+        {},
+        {"pitchCount": 42},
+    ),
+    (
+        "C8/C22",
+        "c8c22CurrentPitcherPitchCount",
+        "recordConfirmed",
+        {"pitchCount": 41},
+        {"isPitchEvent": 0},
+        {},
+        {"pitchCount": 41},
+    ),
+    (
+        "C8/C22",
+        "c8c22CurrentPitcherPitchCount",
+        "pitcherChanged",
+        {"pitchCount": 41},
+        {},
+        {},
+        {"pitchCount": 0},
+    ),
+    (
+        "C19",
+        "c19FiscalYear",
+        "derive",
+        {"fiscalYear": 1999},
+        {},
+        {"gameYear": 2026, "gameMonth": 3},
+        {"fiscalYear": 2025},
+    ),
+    (
+        "C19",
+        "c19FiscalYear",
+        "derive",
+        {"fiscalYear": 1999},
+        {},
+        {"gameYear": 2026, "gameMonth": 4},
+        {"fiscalYear": 2026},
+    ),
 ]
+
+
+def mark(ok: bool) -> str:
+    """合否の記号。"""
+    return "✓" if ok else "✗"
 
 
 def render(expression: Mapping[str, object]) -> str:
@@ -590,6 +801,7 @@ def render(expression: Mapping[str, object]) -> str:
 
 
 def main() -> int:
+    """証拠を組み立てて検証し、結果を書き出す。終了コード 0 = すべて通過。"""
     model = build_model()
     model_path = HERE / "expressible_models.json"
     model_path.write_text(json.dumps(model, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -647,7 +859,8 @@ def main() -> int:
         )
     out("")
 
-    # 陽性対照: 検証器が違反を実際に拾うことを確かめる(通過が「見ていない」ことの結果でないことの確認)
+    # 陽性対照: 検証器が違反を実際に拾うことを確かめる
+    # (通過が「見ていない」ことの結果でないことの確認)
     out("## 陽性対照(違反を仕込んだ記述が落ちること)")
     out("")
     controls_ok = True
@@ -664,7 +877,8 @@ def main() -> int:
         out("- 条件ノード(`kind: conditional`)を入れた記述: schema 検証を**通ってしまった** ✗")
         controls_ok = False
     except core.GenerationError as error:
-        out(f"- 条件ノード(`kind: conditional`)を入れた記述: schema 検証で**拒否** ✓ — `{str(error)[:120]}`")
+        detail = str(error)[:120]
+        out(f"- 条件ノード(`kind: conditional`)を入れた記述: schema 検証で**拒否** ✓ — `{detail}`")
 
     duplicated = json.loads(json.dumps(model))
     rules = duplicated["calculations"][2]["rules"]
@@ -674,7 +888,8 @@ def main() -> int:
         out("- 同じイベントに遷移 2 本: 生成前検査を**通ってしまった** ✗")
         controls_ok = False
     else:
-        out(f"- 同じイベントに遷移 2 本: 生成前検査で**違反** ✓ — `{duplicate_report.violations[0]}`")
+        detail = duplicate_report.violations[0]
+        out(f"- 同じイベントに遷移 2 本: 生成前検査で**違反** ✓ — `{detail}`")
 
     mistyped = json.loads(json.dumps(model))
     mistyped["calculations"][2]["rules"][0]["nextState"][0]["value"] = {
@@ -688,12 +903,13 @@ def main() -> int:
         out("- 整数の状態へ比較式(真偽値)を代入: 生成前検査を**通ってしまった** ✗")
         controls_ok = False
     else:
-        out(f"- 整数の状態へ比較式(真偽値)を代入: 生成前検査で**違反** ✓ — `{mistyped_report.violations[0]}`")
+        detail = mistyped_report.violations[0]
+        out(f"- 整数の状態へ比較式(真偽値)を代入: 生成前検査で**違反** ✓ — `{detail}`")
     out("")
 
     out(
-        f"**総合**: schema {'✓' if schema_ok else '✗'} / 生成前検査 {'✓' if report.passed else '✗'} "
-        f"/ 具体例 {'全件一致' if all_ok else '不一致あり'} / 陽性対照 {'✓' if controls_ok else '✗'}"
+        f"**総合**: schema {mark(schema_ok)} / 生成前検査 {mark(report.passed)} "
+        f"/ 具体例 {'全件一致' if all_ok else '不一致あり'} / 陽性対照 {mark(controls_ok)}"
     )
     all_ok &= controls_ok
 
