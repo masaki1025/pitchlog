@@ -240,6 +240,49 @@
       "reason": "TSK-446 で route_kind へ record_and_aggregate を足したため、oracle 入力資産 route-registry.json と auth-catalog.json の内容が変わり、入力 baseline の commit を更新する必要があるため。承認の取得元: 2026-09-25 の Claude Code セッションでの発話(逐語「承認するから入れてくれない?」)。PR masaki1025/pitchlog#77 には本記録の時点で review・comment がいずれも 0 件であり、GitHub 側の機械可読な承認記録は存在しない",
       "approved_by": "山田正輝",
       "approved_at": "2026-09-25"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#81",
+      "series": "oracle_input",
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "1f32e12a8c0e8acc66df448a22fc166be4643a3f"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "70621e330610f214416aa7a1b067acf7b941f8c0"
+          }
+        ]
+      },
+      "changes": [],
+      "placement_change": {
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "moved": false,
+      "reason": "develop 取り込み後の認可 oracle 入力8資産を第1段コミットへ再封印するため",
+      "approved_by": "未承認(PR #81 のレビュー待ち)",
+      "approved_at": "2026-10-05"
     }
   ]
 }

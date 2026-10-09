@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "version": "manual_fixture_branch_coverage_v1",
+  "branchRegisterPath": "contracts/state-transition/clause_branch_register_v1.json",
+  "fixtureDiscoveryPattern": "contracts/state-transition/*_manual_fixtures_v1.json",
+  "fixtureSources": [
+    {
+      "fixturePath": "contracts/state-transition/state_transition_manual_fixtures_v1.json",
+      "schemaPath": "contracts/state-transition/state_transition_manual_fixture_schema_v1.json"
+    },
+    {
+      "fixturePath": "contracts/state-transition/game_end_manual_fixtures_v1.json",
+      "schemaPath": "contracts/state-transition/game_end_manual_fixture_schema_v1.json"
+    }
+  ],
+  "reasonTypes": [
+    {"id": "rule-setting-branch-outside-decision-rows", "description": "規則設定の拒否または有効性を扱い、終了判定の結果行ではない"},
+    {"id": "runtime-decision-row-absent", "description": "実行時の分岐だが対応する独立した終了判定行が無い"},
+    {"id": "cold-intermediate-evaluation", "description": "コールド段ごとの中間判定であり終了判定の結果ではない"},
+    {"id": "cold-simultaneous-input-absent", "description": "複数段の同時成立を固定する入力軸が無い"},
+    {"id": "rbi-input-or-row-unresolved", "description": "打点の適用条件を固定する入力または対応する規範行が未整備"},
+    {"id": "third-out-input-deferred", "description": "第3アウト種別の観測入力が段階2待ち"},
+    {"id": "interference-representative-row-absent", "description": "代表に選ばれなかった妨害分岐の規範行が無い"},
+    {"id": "xmark-comparison-surface-absent", "description": "X表記と空欄・数値の区別を現行の終了判定出力で表せない"},
+    {"id": "stat-flag-derivation-deferred", "description": "23成績フラグの結果別導出表が段階2待ち"}
+  ],
+  "missingFixtureBranches": [
+    {"branchId": "DRAW-01", "reasonType": "rule-setting-branch-outside-decision-rows", "reason": "規則設定の不正を拒否する分岐で、validationErrors[]は規範行の代替にならない"},
+    {"branchId": "DRAW-02", "reasonType": "rule-setting-branch-outside-decision-rows", "reason": "点差設定の不正を拒否する分岐で、validationErrors[]は規範行の代替にならない"},
+    {"branchId": "DRAW-03", "reasonType": "rule-setting-branch-outside-decision-rows", "reason": "タイブレーク設定の不正を拒否する分岐で、validationErrors[]は規範行の代替にならない"},
+    {"branchId": "DRAW-04", "reasonType": "rule-setting-branch-outside-decision-rows", "reason": "有効な規則設定の宣言であり、対応する終了判定結果行が無い"},
+    {"branchId": "DRAW-05", "reasonType": "runtime-decision-row-absent", "reason": "途中終了宣言による引き分けをlimit-drawへ読み替えられず、対応する規範行とoutcomeが無い"},
+    {"branchId": "DRAW-06", "reasonType": "runtime-decision-row-absent", "reason": "途中終了宣言による勝敗確定の独立した規範行が無い"},
+    {"branchId": "DRAW-07", "reasonType": "runtime-decision-row-absent", "reason": "延長上限なしの継続を固有に表す規範行が無い"},
+    {"branchId": "DRAW-08", "reasonType": "runtime-decision-row-absent", "reason": "延長上限前の継続を固有に表す規範行が無い"},
+    {"branchId": "DRAW-09", "reasonType": "runtime-decision-row-absent", "reason": "上限引き分けに対応する独立した分岐IDの規範行が無い"},
+    {"branchId": "DRAW-10", "reasonType": "runtime-decision-row-absent", "reason": "上限到達時の非同点確定に対応する独立した規範行が無い"},
+    {"branchId": "COLD-01", "reasonType": "cold-intermediate-evaluation", "reason": "段単位の成立・未成立を判定する中間分岐であり終了結果行ではない"},
+    {"branchId": "COLD-02", "reasonType": "cold-intermediate-evaluation", "reason": "段単位の成立・未成立を判定する中間分岐であり終了結果行ではない"},
+    {"branchId": "COLD-03", "reasonType": "cold-intermediate-evaluation", "reason": "段単位の成立・未成立を判定する中間分岐であり終了結果行ではない"},
+    {"branchId": "COLD-04", "reasonType": "cold-intermediate-evaluation", "reason": "段単位の成立・未成立を判定する中間分岐であり終了結果行ではない"},
+    {"branchId": "COLD-05", "reasonType": "cold-intermediate-evaluation", "reason": "段単位の成立・未成立を判定する中間分岐であり終了結果行ではない"},
+    {"branchId": "COLD-06", "reasonType": "cold-intermediate-evaluation", "reason": "段単位の成立・未成立を判定する中間分岐であり終了結果行ではない"},
+    {"branchId": "COLD-07", "reasonType": "cold-intermediate-evaluation", "reason": "設定が空または成立段0件の集約に先立つ中間判定であり終了結果行ではない"},
+    {"branchId": "COLD-09", "reasonType": "cold-simultaneous-input-absent", "reason": "設定段数と成立段数は異なり、複数段の同時成立をpreconditionで固定する入力軸が無い"},
+    {"branchId": "RBI-01", "reasonType": "rbi-input-or-row-unresolved", "reason": "ADVのフォース連鎖定義とRBI-01のフォースダブルプレイ記述が食い違い、適用条件を機械的に導けない"},
+    {"branchId": "RBI-02", "reasonType": "rbi-input-or-row-unresolved", "reason": "失策と送球の因果判断に必要な記録員の観測入力が段階2待ち"},
+    {"branchId": "RBI-03", "reasonType": "rbi-input-or-row-unresolved", "reason": "走者の継続・停止を判定する観測入力が段階2待ち"},
+    {"branchId": "RBI-04", "reasonType": "rbi-input-or-row-unresolved", "reason": "走者の停止と再発進を判定する観測入力が段階2待ち"},
+    {"branchId": "RBI-05", "reasonType": "rbi-input-or-row-unresolved", "reason": "失策がなくても得点したかの記録員判断入力が段階2待ち"},
+    {"branchId": "RBI-07", "reasonType": "rbi-input-or-row-unresolved", "reason": "満塁での一塁授与と押し出し得点を表す対応規範行が無い。軸間組合せは段階2待ち"},
+    {"branchId": "OUT3-01", "reasonType": "third-out-input-deferred", "reason": "第3アウト種別と得点可否を決める観測入力が段階2待ち"},
+    {"branchId": "OUT3-02", "reasonType": "third-out-input-deferred", "reason": "第3アウト種別と得点可否を決める観測入力が段階2待ち"},
+    {"branchId": "OUT3-03", "reasonType": "third-out-input-deferred", "reason": "第3アウト種別と得点可否を決める観測入力が段階2待ち"},
+    {"branchId": "OUT3-04", "reasonType": "third-out-input-deferred", "reason": "第3アウト種別と得点可否を決める観測入力が段階2待ち"},
+    {"branchId": "OUT3-05", "reasonType": "third-out-input-deferred", "reason": "第3アウト種別と得点可否を決める観測入力が段階2待ち"},
+    {"branchId": "INT-01", "reasonType": "interference-representative-row-absent", "reason": "打撃妨害の自動成立側は代表INT-02と別であり規範行が無い"},
+    {"branchId": "INT-03", "reasonType": "interference-representative-row-absent", "reason": "打撃妨害の実プレイ選択側は代表INT-02と別であり規範行が無い"},
+    {"branchId": "INT-05", "reasonType": "interference-representative-row-absent", "reason": "走塁妨害のプレイなし側は代表INT-04と別であり規範行が無い"},
+    {"branchId": "INT-07", "reasonType": "interference-representative-row-absent", "reason": "守備妨害の走者アウトだけの側は代表INT-06と別であり規範行が無い"},
+    {"branchId": "XMARK-01", "reasonType": "xmark-comparison-surface-absent", "reason": "現行decisionの比較面にX表記がなく規範行も無い"},
+    {"branchId": "XMARK-02", "reasonType": "xmark-comparison-surface-absent", "reason": "現行decisionの比較面に空欄と数値の区別がなく規範行も無い"},
+    {"branchId": "XMARK-03", "reasonType": "xmark-comparison-surface-absent", "reason": "現行decisionの比較面にX表記がなく規範行も無い"},
+    {"branchId": "XC-13", "reasonType": "stat-flag-derivation-deferred", "reason": "23成績フラグの結果別導出表が段階2待ち"}
+  ]
+}

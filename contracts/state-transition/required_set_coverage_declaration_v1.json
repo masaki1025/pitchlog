@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "version": "required_set_coverage_declaration_v1",
+  "rowPartitionObservations": [
+    {
+      "vocabularyId": "batting-result.dropped-third-strike",
+      "partitionRuleId": "dropped-third-strike-outcome",
+      "partitionId": "safe",
+      "signal": {"location": "expected", "field": "batterDestination.kind", "value": "reach"}
+    },
+    {
+      "vocabularyId": "secondary-result.batting-interference",
+      "partitionRuleId": "batting-interference-ruling",
+      "partitionId": "penalty-award",
+      "signal": {"location": "precondition", "axisId": "event.perPitch.interferenceRuling", "value": "batting:penalty-award"}
+    },
+    {
+      "vocabularyId": "secondary-result.obstruction",
+      "partitionRuleId": "obstruction-ruling",
+      "partitionId": "play-on-obstructed-runner",
+      "signal": {"location": "precondition", "axisId": "event.perPitch.interferenceRuling", "value": "obstruction:play-on-obstructed-runner-with-awarded-destinations"}
+    },
+    {
+      "vocabularyId": "secondary-result.offensive-interference",
+      "partitionRuleId": "offensive-interference-ruling",
+      "partitionId": "batter-target-included",
+      "signal": {"location": "precondition", "axisId": "event.perPitch.interferenceRuling", "value": "offensive-interference:batter-included-with-out-targets-and-return-bases"}
+    }
+  ],
+  "uncoveredRowRequirements": [
+    {"vocabularyId": "batting-result.dropped-third-strike", "partitionRuleId": "dropped-third-strike-outcome", "partitionId": "out", "gapId": "GAP-08"},
+    {"vocabularyId": "secondary-result.batting-interference", "partitionRuleId": "batting-interference-ruling", "partitionId": "automatic-play-result", "gapId": "GAP-07"},
+    {"vocabularyId": "secondary-result.batting-interference", "partitionRuleId": "batting-interference-ruling", "partitionId": "selected-play-result", "gapId": "GAP-07"},
+    {"vocabularyId": "secondary-result.obstruction", "partitionRuleId": "obstruction-ruling", "partitionId": "no-play-on-obstructed-runner", "gapId": "GAP-07"},
+    {"vocabularyId": "secondary-result.offensive-interference", "partitionRuleId": "offensive-interference-ruling", "partitionId": "runner-targets-only", "gapId": "GAP-07"}
+  ]
+}

@@ -1353,7 +1353,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1083 auth_claim=184 out_of_scope=899" in result.stdout
+    assert "total=1380 auth_claim=185 out_of_scope=1195" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -1870,8 +1870,8 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 899
-    assert attempts == 899
+    assert len(out_claims) == 1195
+    assert attempts == 1195
     assert escaped == []
 
 
@@ -2922,7 +2922,7 @@ def test_claim_execution_support_fixture_is_valid() -> None:
         "contract_only_reason_code"
     ] == "route_universe_pending"
     assert result["execution_counts"] == Counter(
-        {"contract_only": 165, "probe_executable": 33}
+        {"contract_only": 166, "probe_executable": 33}
     )
 
 
@@ -3002,7 +3002,7 @@ def test_repository_derived_assets_are_valid() -> None:
     )
 
     assert IMPLEMENTED_CATALOG_TEST_ID in implemented_test_ids
-    assert result["catalog"]["db_claim_count"] == 187
+    assert result["catalog"]["db_claim_count"] == 188
     assert len(result["registry"]["route_by_id"]) == len(
         assets["route_registry"]["routes"]
     )
@@ -4375,10 +4375,10 @@ def test_repository_oracle_assets_are_valid() -> None:
     mutant_result = result["mutants"]
 
     assert mutant_result["execution_counts"] == Counter(
-        {"contract_only": 165, "probe_executable": 33}
+        {"contract_only": 166, "probe_executable": 33}
     )
     assert mutant_result["axis_counts"] == Counter(
-        {"authorization_predicate": 205, "configuration": 24, "r8_provisioning": 2}
+        {"authorization_predicate": 206, "configuration": 24, "r8_provisioning": 2}
     )
     assert mutant_result["positive_case_count"] == 6
     assert len(mutant_result["positive_kill_mutant_ids"]) == 2
@@ -5654,7 +5654,7 @@ def test_all_runtime_kill_waivers_have_a_closed_machine_checked_reason() -> None
 
     assert reasons == Counter(
             {
-                "contract_only_handoff": 173,
+                "contract_only_handoff": 174,
                 "covered_by_two_factor_cut_set": 3,
             "positive_case_kill_only": 2,
             "application_expected_to_fail": 1,
