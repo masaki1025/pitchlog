@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 11,
+  "contract_revision": 12,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:11"
+        "contract_revision:12"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -71,7 +71,7 @@
   },
   "asset_kind": "tenant_context_construction_allowlist",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "7e1312da55da577da6b06c73e5b520588cdb25136f419debb2eb87c8c9ee4fbb",
+  "source_digest": "a4dbbaf27218786d3793553462d4255221dcfac4d4842ee3e3e1b1a94d876e84",
   "constructor_symbol": "pitchlog.repositories.context.TenantContext",
   "forbidden_construction_symbols": [
     "builtins.object.__new__",

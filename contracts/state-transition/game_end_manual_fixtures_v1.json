@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "version": "game_end_manual_fixtures_v1",
+  "calculation": "game-end",
+  "fixtures": [
+    {
+      "case": {
+        "caseId": "GE-GAME-END-NORMAL",
+        "branchId": "GAME-END-NORMAL",
+        "inputCoordinate": {
+          "gameEnd.regulationInnings": 9,
+          "gameEnd.coldConditions": "tier-count:0",
+          "gameEnd.extensionLimit": "finite:R+1",
+          "gameEnd.tiebreak": "none",
+          "state.inning": "L+1",
+          "state.half": "top",
+          "state.score": "away-lead:M+1",
+          "state.gameEnded": false,
+          "state.tiebreakActive": false
+        },
+        "decision": {
+          "outcome": "normal-end",
+          "endConditionDetected": true,
+          "lockFurtherPlayInput": true,
+          "promptEndDeclaration": true,
+          "automaticallyEndsGame": false
+        }
+      },
+      "sourceExample": "有限上限の最終回裏を完了し非同点。終了条件を検知するが宣言前に自動終了しない",
+      "provenance": {
+        "authorId": "codex",
+        "sources": [
+          {"sourceKind": "requirements", "sourceId": "req:FR-005"},
+          {"sourceKind": "requirements", "sourceId": "req:F-1"}
+        ]
+      }
+    },
+    {
+      "case": {
+        "caseId": "GE-GAME-END-EXTRA-CONTINUE",
+        "branchId": "GAME-END-EXTRA-CONTINUE",
+        "inputCoordinate": {
+          "gameEnd.regulationInnings": 9,
+          "gameEnd.coldConditions": "tier-count:0",
+          "gameEnd.extensionLimit": "finite:R+1",
+          "gameEnd.tiebreak": "none",
+          "state.inning": "R+1",
+          "state.half": "top",
+          "state.score": "tie",
+          "state.gameEnded": false,
+          "state.tiebreakActive": false
+        },
+        "decision": {
+          "outcome": "extra-continue",
+          "endConditionDetected": false,
+          "lockFurtherPlayInput": false,
+          "promptEndDeclaration": false,
+          "automaticallyEndsGame": false
+        }
+      },
+      "sourceExample": "規定最終回裏を同点で完了し、有限上限前の延長回へ進む",
+      "provenance": {
+        "authorId": "codex",
+        "sources": [{"sourceKind": "requirements", "sourceId": "req:F-1"}]
+      }
+    },
+    {
+      "case": {
+        "caseId": "GE-GAME-END-LIMIT-DRAW",
+        "branchId": "GAME-END-LIMIT-DRAW",
+        "inputCoordinate": {
+          "gameEnd.regulationInnings": 9,
+          "gameEnd.coldConditions": "tier-count:0",
+          "gameEnd.extensionLimit": "finite:R+1",
+          "gameEnd.tiebreak": "none",
+          "state.inning": "L+1",
+          "state.half": "top",
+          "state.score": "tie",
+          "state.gameEnded": false,
+          "state.tiebreakActive": false
+        },
+        "decision": {
+          "outcome": "limit-draw",
+          "endConditionDetected": true,
+          "lockFurtherPlayInput": true,
+          "promptEndDeclaration": true,
+          "automaticallyEndsGame": false
+        }
+      },
+      "sourceExample": "有限上限の最終回裏を同点で完了。引き分け条件を検知し終了宣言を促す",
+      "provenance": {
+        "authorId": "codex",
+        "sources": [{"sourceKind": "requirements", "sourceId": "req:F-1"}]
+      }
+    },
+    {
+      "case": {
+        "caseId": "GE-GAME-END-TIEBREAK-CONTINUE",
+        "branchId": "GAME-END-TIEBREAK-CONTINUE",
+        "inputCoordinate": {
+          "gameEnd.regulationInnings": 9,
+          "gameEnd.coldConditions": "tier-count:0",
+          "gameEnd.extensionLimit": "finite:99",
+          "gameEnd.tiebreak": "start:R+1",
+          "state.inning": "R+1",
+          "state.half": "top",
+          "state.score": "tie",
+          "state.gameEnded": false,
+          "state.tiebreakActive": true
+        },
+        "decision": {
+          "outcome": "tiebreak-continue",
+          "endConditionDetected": false,
+          "lockFurtherPlayInput": false,
+          "promptEndDeclaration": false,
+          "automaticallyEndsGame": false
+        }
+      },
+      "sourceExample": "延長開始回でタイブレーク発動済み・同点・上限前なのでプレイを継続する",
+      "provenance": {
+        "authorId": "codex",
+        "sources": [
+          {"sourceKind": "requirements", "sourceId": "req:FR-009"},
+          {"sourceKind": "requirements", "sourceId": "req:F-1"}
+        ]
+      }
+    },
+    {
+      "case": {
+        "caseId": "GE-COLD-08",
+        "branchId": "COLD-08",
+        "inputCoordinate": {
+          "gameEnd.regulationInnings": 9,
+          "gameEnd.coldConditions": "tier-count:1",
+          "gameEnd.extensionLimit": "none",
+          "gameEnd.tiebreak": "none",
+          "state.inning": "N",
+          "state.half": "bottom",
+          "state.score": "home-lead:M",
+          "state.gameEnded": false,
+          "state.tiebreakActive": false
+        },
+        "decision": {
+          "outcome": "cold-end",
+          "endConditionDetected": true,
+          "lockFurtherPlayInput": true,
+          "promptEndDeclaration": true,
+          "automaticallyEndsGame": false
+        }
+      },
+      "sourceExample": "コールド段が1件だけ設定され、第N回表の完了時に後攻がM点リードする",
+      "provenance": {
+        "authorId": "codex",
+        "sources": [{"sourceKind": "requirements", "sourceId": "req:F-1"}]
+      }
+    }
+  ],
+  "baseline_control": {
+    "identity": {
+      "scheme": "sha256_frozen_projection",
+      "identifier_prefix": "fixture-sha256:",
+      "current_identifiers": ["fixture-sha256:cc4f3768d2268e9eb0456edc93d134da2bf210f9ee2c5cf746aba4abc17accf8"],
+      "no_baseline_marker": "NO_BASELINE",
+      "frozen_projection": {
+        "algorithm": "sha256-canonical-json-and-external-files-v1",
+        "included": "all_top_level_fields",
+        "excluded": ["baseline_control"],
+        "external_files": [
+          "contracts/state-transition/manual_fixture_branch_coverage_v1.json",
+          "contracts/state-transition/manual_fixture_branch_coverage_schema_v1.json",
+          "contracts/state-transition/game_end_manual_fixture_schema_v1.json",
+          "scripts/check_manual_fixture_baselines.py"
+        ]
+      }
+    },
+    "movement_policy": {
+      "acceptance_unit": "single-fixture-review-acceptance",
+      "previous_state": "state_immediately_before_review_acceptance",
+      "new_state": "state_immediately_after_review_acceptance",
+      "intermediate_commits_are_records": false,
+      "movement_triggers": [
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+        "pass_fail_mapping"
+      ],
+      "affected_baselines": "all_baselines_matching_any_declared_trigger",
+      "history_append_only": true,
+      "pending_approval_marker": "未承認(PR のレビュー待ち)",
+      "pending_source_commit_marker": "PENDING_ACCEPTANCE"
+    },
+    "history_authority": true,
+    "history": [
+      {
+        "source_commit": "PENDING_ACCEPTANCE",
+        "new_baseline_identifiers": ["fixture-sha256:cc4f3768d2268e9eb0456edc93d134da2bf210f9ee2c5cf746aba4abc17accf8"],
+        "previous_baseline_identifiers": ["NO_BASELINE"],
+        "change": {
+          "subject": "終了判定の手作業fixture 5件の初回凍結",
+          "before": {
+            "state": "NO_BASELINE",
+            "frozen_projection_sha256": "NO_BASELINE"
+          },
+          "after": {
+            "state": "PRESENT",
+            "frozen_projection_sha256": "cc4f3768d2268e9eb0456edc93d134da2bf210f9ee2c5cf746aba4abc17accf8"
+          }
+        },
+        "movement_fact": "直前の資産には凍結基準がなく、5件の完全な期待ケースを初回基準として設置する。",
+        "reason": "展開器との完全一致を独立した手作業fixtureへ固定し、fixture・被覆宣言・検査規則の黙った変更を検出するため。",
+        "approved_by": "未承認(PR のレビュー待ち)",
+        "approved_on": "未承認(PR のレビュー待ち)"
+      }
+    ]
+  }
+}

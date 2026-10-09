@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "policyId": "required-set-descriptor-mutation-v1",
+  "descriptorPath": "contracts/state-transition/input_axes_descriptor_v1.json",
+  "requirementsPath": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+  "iterationOrder": "descriptor-array-order-then-value-index",
+  "operators": [
+    {
+      "operatorId": "axis-deletion",
+      "kind": "delete-one-axis",
+      "axisCollections": ["stateTransitionAxes", "gameEndAxes"],
+      "expectedMutantCount": 30
+    },
+    {
+      "operatorId": "boundary-value-replacement",
+      "kind": "replace-one-boundary-value",
+      "axisCollections": ["stateTransitionAxes", "gameEndAxes"],
+      "valueField": "boundaryValues",
+      "replacementTemplate": "__required_set_mutation__:{axisId}:{valueIndex}",
+      "collisionDomain": "axis-values-and-invalid-boundary-values",
+      "collisionResolution": "append-colon-and-smallest-nonnegative-integer-until-unique",
+      "expectedMutantCount": 95
+    }
+  ],
+  "affectedOutputsByAxisPrefix": {
+    "stateTransitionAxes": {
+      "state": ["requiredSet.inputCoordinates", "gameEnd.requiredSet"],
+      "event": ["requiredSet.inputCoordinates", "gameEnd.requiredSet"],
+      "history": ["requiredSet.inputCoordinates"]
+    },
+    "gameEndAxes": {
+      "gameEnd": ["gameEnd.requiredSet"]
+    }
+  },
+  "supportUpdates": [
+    "axis-deletion:remove-axis-id-from-inputCoordinateCoverage.axisBindings-and-empty-group",
+    "boundary-value-replacement:update-matching-explicit-coverageSelector-and-conditionalValues"
+  ],
+  "excludedDescriptorTopLevelFields": [
+    {"field": "descriptorId", "reason": "識別子であり軸・境界値ではない"},
+    {"field": "version", "reason": "版識別子であり軸・境界値ではない"},
+    {"field": "digest", "reason": "原本の内容同一性記録であり変異対象ではない"},
+    {"field": "digestSpec", "reason": "原本のdigest算出規則であり変異対象ではない"},
+    {"field": "stage2ExternalConstraints", "reason": "段階2の外部制約でありrequiredSetの入力座標ではない"},
+    {"field": "inputCoordinateCoverage", "reason": "主変異対象ではなく軸削除・明示値置換の参照整合だけをメモリ上で追随する"},
+    {"field": "freezeBaseline", "reason": "descriptorの軸内容ではなく凍結の記録である"},
+    {"field": "gameEndCombinationRules", "reason": "演算子は軸と境界値だけを対象とする"},
+    {"field": "nonCoverageFields", "reason": "入力座標ではない"},
+    {"field": "projectionRules", "reason": "射影規則であり軸・境界値ではない"}
+  ],
+  "excludedDerivedOutputs": [
+    {"output": "requiredSet.rowRequirements", "reason": "行要求はdescriptorから導出されない"}
+  ],
+  "claimBoundary": {
+    "subject": "requiredSet-descriptor-mutation-sensitivity",
+    "mechanicallyChecked": "each-declared-mutant-changes-each-applicable-derived-output-identity-set",
+    "notGuaranteed": [
+      "shared-omissions-in-descriptor-and-deriver",
+      "semantic-correctness-of-observed-differences",
+      "mutation-types-outside-declared-two-operators",
+      "production-descriptor-validation-of-intentionally-mutated-frozen-inputs"
+    ]
+  }
+}

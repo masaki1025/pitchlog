@@ -33,8 +33,8 @@ MCDC_MAP_PATH = REPOSITORY_ROOT / "contracts/authz/mcdc-map.json"
 ORACLE_SEAL_RELATIVE_PATH = "contracts/authz/oracle-seal.lock.json"
 _BOUNDARY_PROPOSAL_RELATIVE_PATH = "contracts/authz/boundary-proposal.json"
 _DDL_ELEMENTS_RELATIVE_PATH = "contracts/authz/ddl-elements.json"
+_CLAIM_MUTANT_MAP_RELATIVE_PATH = "contracts/authz/claim-mutant-map.json"
 STEP2_BASE_REVISION = "099a8fa20595c25f553b46dedcaaa9660dd03c2e"
-STEP2_CHANGED_CANONICAL_ASSET_PATHS: frozenset[str] = frozenset()
 
 INTERACTION_FILTER_ENV = "PITCHLOG_MUTATION_INTERACTION"
 CUT_SET_FILTER_ENV = "PITCHLOG_MUTATION_CUT_SET"
@@ -991,13 +991,142 @@ def _oracle_meaning_body(
     return body
 
 
+APPROVALS_RELATIVE_PATH = "contracts/authz/oracle-meaning-change-approvals.json"
+_APPROVALS_SCHEMA_VERSION = 1
+_APPROVALS_ASSET_KIND = "authz_oracle_meaning_change_approvals"
+_APPROVALS_DOCUMENT_KEYS = frozenset(
+    {"schema_version", "asset_kind", "base_revision", "statement", "approvals"}
+)
+_APPROVAL_ENTRY_KEYS = frozenset(
+    {
+        "approval_id",
+        "path",
+        "approved_by",
+        "approved_on",
+        "reason",
+        "insertions",
+    }
+)
+_APPROVAL_INSERTION_KEYS = frozenset({"collection", "index", "row"})
+
+
+def _approved_meaning_changes(
+    root: Path = REPOSITORY_ROOT,
+) -> dict[str, tuple[dict[str, object], ...]]:
+    """承認済みの意味変更を資産から読み、path ごとの差し込み宣言へ畳む。
+
+    設計書 7.7-1 により、動かした凍結基準の値は検査器のソースへ直書きしない。
+    承認した行本文・差し込み位置・対象 path はすべて資産側の宣言が正本で、
+    本関数はそれを読むだけで、既定値も代替値も持たない。
+
+    Args:
+        root: リポジトリのルート。
+
+    Returns:
+        対象 path から差し込み宣言の並びへの写像。
+
+    Raises:
+        MutationCompositionError: 宣言が読めない、または固定基準と食い違う場合。
+    """
+    document = _read_json_object(root.resolve() / APPROVALS_RELATIVE_PATH)
+    if set(document) != _APPROVALS_DOCUMENT_KEYS:
+        raise MutationCompositionError(
+            f"{APPROVALS_RELATIVE_PATH}: トップレベルのキー集合が宣言と不一致"
+        )
+    if document.get("schema_version") != _APPROVALS_SCHEMA_VERSION:
+        raise MutationCompositionError(
+            f"{APPROVALS_RELATIVE_PATH}: schema_version が未知"
+        )
+    if document.get("asset_kind") != _APPROVALS_ASSET_KIND:
+        raise MutationCompositionError(f"{APPROVALS_RELATIVE_PATH}: asset_kind が未知")
+    _text(document.get("statement"), f"{APPROVALS_RELATIVE_PATH}.statement")
+    base_revision = _text(
+        document.get("base_revision"), f"{APPROVALS_RELATIVE_PATH}.base_revision"
+    )
+    if base_revision != STEP2_BASE_REVISION:
+        raise MutationCompositionError(
+            f"{APPROVALS_RELATIVE_PATH}: base_revision が固定基準と不一致"
+        )
+    changes: dict[str, list[dict[str, object]]] = {}
+    seen_approval_ids: set[str] = set()
+    entries = _expect_rows(
+        document.get("approvals"), f"{APPROVALS_RELATIVE_PATH}.approvals"
+    )
+    if not entries:
+        raise MutationCompositionError(f"{APPROVALS_RELATIVE_PATH}: approvals が空")
+    for position, entry in enumerate(entries):
+        label = f"{APPROVALS_RELATIVE_PATH}.approvals[{position}]"
+        if set(entry) != _APPROVAL_ENTRY_KEYS:
+            raise MutationCompositionError(f"{label}: キー集合が宣言と不一致")
+        path = _text(entry.get("path"), f"{label}.path")
+        approval_id = _text(entry.get("approval_id"), f"{label}.approval_id")
+        if approval_id in seen_approval_ids:
+            raise MutationCompositionError(f"{label}: approval_id が重複している")
+        seen_approval_ids.add(approval_id)
+        _text(entry.get("approved_by"), f"{label}.approved_by")
+        _text(entry.get("approved_on"), f"{label}.approved_on")
+        _text(entry.get("reason"), f"{label}.reason")
+        insertions = _expect_rows(entry.get("insertions"), f"{label}.insertions")
+        if not insertions:
+            raise MutationCompositionError(f"{label}: insertions が空")
+        rows = changes.setdefault(path, [])
+        for order, insertion in enumerate(insertions):
+            inner = f"{label}.insertions[{order}]"
+            if set(insertion) != _APPROVAL_INSERTION_KEYS:
+                raise MutationCompositionError(f"{inner}: キー集合が宣言と不一致")
+            index = insertion.get("index")
+            if not isinstance(index, int) or isinstance(index, bool) or index < 0:
+                raise MutationCompositionError(f"{inner}.index が非負整数ではない")
+            row = _expect_object(insertion.get("row"), f"{inner}.row")
+            if not row:
+                raise MutationCompositionError(f"{inner}.row が空")
+            rows.append(
+                {
+                    "collection": _text(
+                        insertion.get("collection"), f"{inner}.collection"
+                    ),
+                    "index": index,
+                    "row": row,
+                }
+            )
+    return {path: tuple(rows) for path, rows in changes.items()}
+
+
+def _changed_canonical_asset_paths(
+    root: Path = REPOSITORY_ROOT,
+) -> frozenset[str]:
+    """意味本文の変更が承認されている資産 path の集合を資産から導く。"""
+    return frozenset(_approved_meaning_changes(root))
+
+
+STEP2_CHANGED_CANONICAL_ASSET_PATHS: frozenset[str] = _changed_canonical_asset_paths()
+
+
+def _rows_with_approved_insertion(
+    rows: tuple[dict[str, object], ...],
+    index: int,
+    approved: dict[str, object],
+    label: str,
+) -> list[dict[str, object]]:
+    """承認済みの1行を所定の位置へ差し込んだ行列を返す。"""
+    if not 0 <= index <= len(rows):
+        raise MutationCompositionError(f"{label}: 差し込み位置が行数の外にある")
+    result = [dict(row) for row in rows]
+    result.insert(index, _json_copy(approved, label))
+    return result
+
+
 def _expected_step2_meaning_body(
     relative_path: str,
     base: dict[str, object],
+    approved: Mapping[str, tuple[dict[str, object], ...]],
 ) -> dict[str, object]:
-    """承認済み2資産の意味変更を期待本文へ適用する。
+    """承認済み資産の意味変更を期待本文へ適用する。
 
-    099a8faへ畳み込み済みのため現基準ではno-opであり、分岐の削除はTSK-421で扱う。
+    boundary-proposalとddl-elementsの分岐は099a8faへ畳み込み済みのため現基準では
+    no-opであり、分岐の削除はTSK-421で扱う。claim-mutant-mapの分岐はTSK-236で
+    要件書FR-037の1行が母集合へ入ったことによる追加であり、人間が承認している
+    (2026-10-09 山田正輝 — oracle-seal.lock.jsonのreseal_policyが求める再レビュー)。
     """
     expected = _oracle_meaning_body(base, f"base asset {relative_path}")
     if relative_path == _BOUNDARY_PROPOSAL_RELATIVE_PATH:
@@ -1022,6 +1151,19 @@ def _expected_step2_meaning_body(
         scope = _expect_object(expected.get("scope"), "base DDL scope")
         scope["status"] = "verified_probe_configuration"
         scope["second_group_approval_required"] = False
+    for insertion in approved.get(relative_path, ()):
+        collection = insertion["collection"]
+        assert isinstance(collection, str)
+        index = insertion["index"]
+        assert isinstance(index, int)
+        row = insertion["row"]
+        assert isinstance(row, dict)
+        expected[collection] = _rows_with_approved_insertion(
+            _expect_rows(expected.get(collection), f"base {collection}"),
+            index,
+            row,
+            f"{relative_path}:{collection}[{index}] の承認済み行",
+        )
     return expected
 
 
@@ -1147,6 +1289,7 @@ def _changed_oracle_meaning_paths(
     current_seal: dict[str, object],
 ) -> frozenset[str]:
     """可動ポインタを除いて固定基準から意味が変わった資産を返す。"""
+    approved = _approved_meaning_changes(root)
     current_paths = set(_sealed_rows_by_path(current_seal, "current oracle seal"))
     base_seal = _oracle_seal_at_revision(root, base_ref)
     base_paths = set(_sealed_rows_by_path(base_seal, "base oracle seal"))
@@ -1159,7 +1302,7 @@ def _changed_oracle_meaning_paths(
         current_body = _oracle_meaning_body(current, f"current asset {path}")
         if current_body != _oracle_meaning_body(base, f"base asset {path}"):
             changed.add(path)
-        expected = _expected_step2_meaning_body(path, base)
+        expected = _expected_step2_meaning_body(path, base, approved)
         if current_body != expected:
             raise MutationCompositionError(f"{path}: 承認済みのoracle意味本文と不一致")
     return frozenset(changed)
@@ -1173,7 +1316,7 @@ def intentionally_changed_frozen_oracle_paths(
     resolved = root.resolve()
     current_seal = _read_json_object(resolved / ORACLE_SEAL_RELATIVE_PATH)
     changed = _changed_oracle_meaning_paths(resolved, base_ref, current_seal)
-    if changed != STEP2_CHANGED_CANONICAL_ASSET_PATHS:
+    if changed != _changed_canonical_asset_paths(resolved):
         raise MutationCompositionError(
             "意味本文が変わった資産がステップ2の確定集合と不一致: "
             f"{tuple(sorted(changed))}"
@@ -1196,7 +1339,7 @@ def verify_frozen_oracle_unchanged(
     _verify_oracle_input_assets(resolved, current_seal)
     _verify_current_sealed_assets(resolved, current_seal)
     changed = _changed_oracle_meaning_paths(resolved, base_ref, current_seal)
-    if changed != STEP2_CHANGED_CANONICAL_ASSET_PATHS:
+    if changed != _changed_canonical_asset_paths(resolved):
         raise MutationCompositionError(
             "意味本文が変わった資産がステップ2の確定集合と不一致: "
             f"{tuple(sorted(changed))}"

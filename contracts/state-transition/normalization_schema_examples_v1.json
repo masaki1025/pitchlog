@@ -1,0 +1,52 @@
+{
+  "exampleScope": "step-89-schema-fragments-only",
+  "schemaRef": "#/$defs/normalizedCase",
+  "positive": {
+    "rowRef": {
+      "layer": "matrixRows",
+      "coordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-pitch",
+        "precondition": {
+          "op": "eq",
+          "axisId": "state.outs",
+          "value": 0
+        }
+      }
+    },
+    "raw": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.called-pitch",
+      "state.outs": 0
+    },
+    "normalizationRuleId": "identity",
+    "normalized": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.called-pitch",
+      "state.outs": 0
+    }
+  },
+  "negative": {
+    "missingField": "normalized",
+    "case": {
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.called-pitch",
+          "precondition": {
+            "op": "eq",
+            "axisId": "state.outs",
+            "value": 0
+          }
+        }
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-pitch",
+        "state.outs": 0
+      },
+      "normalizationRuleId": "identity"
+    }
+  }
+}

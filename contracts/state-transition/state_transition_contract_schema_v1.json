@@ -1,0 +1,1986 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/state-transition/state_transition_contract_schema_v1.json",
+  "title": "Pitchlog state transition contract schema v1",
+  "version": "state_transition_contract_schema_v1",
+  "x-pitchlog-descriptor-identity-binding": {
+    "contractField": "inputAxesDescriptor",
+    "schemaDefinition": "inputAxesDescriptorBinding"
+  },
+  "x-pitchlog-stage1-normalization": {
+    "caseSchemaRef": "#/$defs/normalizedCase",
+    "currentCasesSchemaRef": "#/$defs/normalizedCase",
+    "casesActivationStep": 90,
+    "ruleCatalog": [
+      {
+        "ruleId": "identity",
+        "transform": {"kind": "identity"},
+        "meaning": "raw の JSON 値を変更せず normalized として渡す",
+        "semanticOrigin": "step-89-local-definition",
+        "basisRefs": [
+          "docs/features/appendix-e-golden-vectors/design.md#10",
+          "docs/features/appendix-e-golden-vectors/plan.md#step-89"
+        ]
+      },
+      {
+        "ruleId": "result-display-name-to-id",
+        "transform": {
+          "kind": "vocabulary-lookup",
+          "field": "resultId",
+          "selectorField": "eventKind",
+          "axisBySelector": {
+            "batting-result": "batting-result",
+            "secondary-result": "secondary-result"
+          },
+          "rawEntryField": "initialDisplayName",
+          "normalizedEntryField": "id"
+        },
+        "meaning": "打撃結果または打撃結果2の raw.resultId にある語彙シードの初期表示名を、同じ eventKind の語彙エントリの安定 ID に解決し、他の入力座標を維持する",
+        "semanticOrigin": "req:E-1-matrix-column-2-and-req:D-4-vocabulary-seed",
+        "basisRefs": [
+          "req:E-1",
+          "req:D-4",
+          "req:4.0-3",
+          "contracts/vocabulary/input_vocabulary_v1.json#axes",
+          "contracts/state-transition/input_axes_descriptor_v1.json#stateTransitionAxes/event.perPitch.resultId"
+        ]
+      },
+      {
+        "ruleId": "game-end-result-display-name-to-id",
+        "transform": {
+          "kind": "vocabulary-lookup-any-axis",
+          "field": "event.perPitch.resultId",
+          "axisIds": ["batting-result", "secondary-result"],
+          "rawEntryField": "initialDisplayName",
+          "normalizedEntryField": "id"
+        },
+        "meaning": "終了判定の raw.event.perPitch.resultId の表示名を、語彙シードの2軸にまたがる一意の安定IDへ解決する。終了判定の代表値展開ではevent.perPitch.kindと結果名の語彙軸が一致しない場合もあるため、軸選択には用いない",
+        "semanticOrigin": "step-108-game-end-case-normalization-correction",
+        "basisRefs": [
+          "req:D-4",
+          "req:F-1",
+          "contracts/vocabulary/input_vocabulary_v1.json#axes",
+          "contracts/state-transition/game_end_contract_v1.json#cases"
+        ]
+      }
+    ],
+    "ruleGranularityReason": "状況判定はeventKindで語彙軸を選び、終了判定は既存の代表値の組合せを維持して2軸の表示名から一意の安定IDを引く。操作・undoは本周で対応する非正規形を確定しない",
+    "inputCoordinateMapping": {
+      "semanticOrigin": "step-90-task-implementation-convention",
+      "meaning": "両契約の全caseでinputCoordinateは正規形でありnormalizedとJSON値として一致する。終了判定の表示名165件ではraw.event.perPitch.resultIdだけが表示名で、inputCoordinateとnormalizedは安定IDを持つ。残り5件はidentityで3値が一致する",
+      "basisRefs": [
+        "req:E-1",
+        "req:D-4",
+        "contracts/state-transition/input_axes_descriptor_v1.json#stateTransitionAxes/event.perPitch.resultId",
+        "docs/features/appendix-e-golden-vectors/plan.md#step-90"
+      ]
+    },
+    "claimBoundary": {
+      "subject": "step-91-normalizer-comparison",
+      "guaranteed": "状況判定96件と終了判定170件の全caseで3点の存在と規則識別子の語彙制限を検査し、宣言規則をrawへ適用した結果とnormalizedを全件突合する。両契約の全caseでnormalizedとinputCoordinateが一致する。終了判定の表示名165件ではrawの結果名が表示名で、正規化後の安定IDはinputCoordinateと一致する。終了判定の残り5件はidentityで3値が一致する(identity変異の負例を含む)",
+      "notGuaranteed": [
+        "normalization-rule-semantic-correctness",
+        "noncanonical-raw-rejection"
+      ],
+      "allowedReadPaths": [
+        "contracts/state-transition/state_transition_contract_schema_v1.json",
+        "contracts/state-transition/state_transition_contract_v1.json",
+        "contracts/state-transition/game_end_contract_v1.json",
+        "contracts/vocabulary/vocabulary_manifest_v1.json",
+        "contracts/vocabulary/input_vocabulary_v1.json"
+      ]
+    }
+  },
+  "x-pitchlog-reference-constraints": {
+    "rowIdentity": {
+      "collectionAnnotation": "x-pitchlog-normative-row-layer",
+      "coordinateFieldsAnnotation": "x-pitchlog-input-coordinate-fields",
+      "canonicalization": "RFC8785",
+      "maximumOccurrences": 1
+    },
+    "caseResolution": {
+      "collection": "cases",
+      "referenceField": "rowRef",
+      "layerField": "layer",
+      "coordinateField": "coordinate",
+      "requiredMatchCount": 1
+    },
+    "vocabularyResolution": {
+      "collectionAnnotation": "x-pitchlog-vocabulary-reference-layer",
+      "referenceField": "resultId",
+      "manifestPath": "contracts/vocabulary/vocabulary_manifest_v1.json",
+      "requiredMatchCount": 1,
+      "failWhenManifestUnavailable": true
+    },
+    "predicateAxisResolution": {
+      "rowCollections": [
+        "matrixRows",
+        "operationRows",
+        "undoRows"
+      ],
+      "predicateField": "precondition",
+      "axisIdField": "axisId",
+      "descriptorCollections": [
+        "stateTransitionAxes",
+        "gameEndAxes"
+      ],
+      "descriptorAxisIdField": "axisId",
+      "descriptorClassificationField": "classification",
+      "descriptorValueFieldsByClassification": {
+        "finite-enumerable": "values",
+        "boundary-partition": "boundaryValues"
+      },
+      "requiredMatchCount": 1
+    }
+  },
+  "x-pitchlog-vocabulary-axis-coverage": {
+    "manifestPath": "contracts/vocabulary/vocabulary_manifest_v1.json",
+    "vocabularyId": "input_vocabulary",
+    "axisCollection": "axes",
+    "axisIdField": "axisId",
+    "entriesCollection": "entries",
+    "entryIdField": "id",
+    "rowCollection": "matrixRows",
+    "rowDiscriminatorField": "eventKind",
+    "rowVocabularyIdField": "resultId",
+    "requiredRelationship": "exact-set",
+    "requiredAxisIds": [
+      "batting-result",
+      "secondary-result",
+      "strategy-category",
+      "pitcher-pickoff-destination",
+      "catcher-pickoff-destination"
+    ],
+    "coverageSets": [
+      {
+        "axisIds": [
+          "batting-result"
+        ],
+        "rowDiscriminatorValue": "batting-result"
+      },
+      {
+        "axisIds": [
+          "secondary-result"
+        ],
+        "rowDiscriminatorValue": "secondary-result"
+      },
+      {
+        "axisIds": [
+          "strategy-category",
+          "pitcher-pickoff-destination",
+          "catcher-pickoff-destination"
+        ],
+        "rowDiscriminatorValue": "runner-event"
+      }
+    ]
+  },
+  "x-pitchlog-operation-row-constraints": {
+    "sourceDecisionId": "adr:D-8",
+    "clauseByOperationKind": {
+      "substitution": "FR-011",
+      "tiebreak-start": "FR-009",
+      "game-end-declaration": "FR-010",
+      "adhoc-registration": "FR-015",
+      "state-correction": "FR-040"
+    },
+    "conditionalOperationKinds": [
+      {
+        "value": "state-correction",
+        "whenClauseId": "req:FR-040",
+        "whenState": "adopted"
+      }
+    ],
+    "payloadSchemaRequiredKeywords": [
+      "type",
+      "properties",
+      "required",
+      "additionalProperties"
+    ]
+  },
+  "x-pitchlog-undo-row-constraints": {
+    "sourceDecisionId": "adr:D-8",
+    "sourceClauseId": "req:FR-006",
+    "preconditionAxisIdPrefix": "history.",
+    "conditionalTargetKinds": [
+      {
+        "value": "state-correction",
+        "whenClauseId": "req:FR-040",
+        "whenState": "adopted"
+      }
+    ],
+    "rules": [
+      {
+        "constraintId": "XC-09",
+        "definitionId": "constraint:XC-09",
+        "kind": "liveness-only-at-d-plus-one",
+        "depthAxisId": "history.depth",
+        "depthLimitValue": "D",
+        "scenarioLengthAxisId": "history.scenarioLength",
+        "dPlusOneValue": "D+1",
+        "livenessMode": "liveness-only",
+        "defaultMode": "full-equality",
+        "undecidableAction": "fail"
+      }
+    ]
+  },
+  "x-pitchlog-must-operation-coverage": {
+    "sourceDecisionId": "adr:D-6",
+    "sourceClauseId": "req:4.0-4",
+    "mappingCollection": "mappings",
+    "operationTypeField": "operationType",
+    "rowReferencesField": "rowRefs",
+    "rowLayerField": "layer",
+    "rowCoordinateField": "coordinate",
+    "rowLayerAnnotation": "x-pitchlog-normative-row-layer",
+    "coordinateFieldsAnnotation": "x-pitchlog-input-coordinate-fields",
+    "requiredOperations": [
+      {
+        "operationType": "per-pitch-input",
+        "rowLayer": "matrixRows",
+        "discriminatorField": "eventKind",
+        "exactDiscriminatorValues": [
+          "batting-result",
+          "secondary-result",
+          "runner-event"
+        ]
+      },
+      {
+        "operationType": "undo",
+        "rowLayer": "undoRows"
+      },
+      {
+        "operationType": "substitution",
+        "rowLayer": "operationRows",
+        "discriminatorField": "operationKind",
+        "exactDiscriminatorValues": [
+          "substitution"
+        ]
+      },
+      {
+        "operationType": "tiebreak-start",
+        "rowLayer": "operationRows",
+        "discriminatorField": "operationKind",
+        "exactDiscriminatorValues": [
+          "tiebreak-start"
+        ]
+      },
+      {
+        "operationType": "game-end-declaration",
+        "rowLayer": "operationRows",
+        "discriminatorField": "operationKind",
+        "exactDiscriminatorValues": [
+          "game-end-declaration"
+        ]
+      },
+      {
+        "operationType": "adhoc-registration",
+        "rowLayer": "operationRows",
+        "discriminatorField": "operationKind",
+        "exactDiscriminatorValues": [
+          "adhoc-registration"
+        ]
+      }
+    ],
+    "conditionalOperations": [
+      {
+        "operationType": "state-correction",
+        "rowLayer": "operationRows",
+        "discriminatorField": "operationKind",
+        "exactDiscriminatorValues": [
+          "state-correction"
+        ],
+        "whenClauseId": "req:FR-040",
+        "whenState": "adopted"
+      }
+    ],
+    "checks": {
+      "referenceExistence": {
+        "requiredMatchCount": 1
+      },
+      "layerAndDiscriminatorConsistency": {
+        "required": true
+      },
+      "duplicateProhibition": {
+        "operationTypeMaximumOccurrences": 1,
+        "rowReferenceMaximumOccurrences": 1
+      },
+      "unassignedRows": {
+        "maximumOccurrences": 1
+      },
+      "perPitchSubtypeExactSet": {
+        "operationType": "per-pitch-input"
+      }
+    },
+    "manifestOmissionResolution": {
+      "manifestPath": "backend/domain/manifest.json",
+      "collection": "vectors",
+      "calculationField": "calculation",
+      "calculationValue": "state-transition",
+      "exclusionsField": "excludedOptionalOperations",
+      "operationTypeField": "operationType",
+      "clauseIdField": "clauseId",
+      "adoptionStateField": "adoptionState",
+      "notAdoptedValue": "not-adopted",
+      "requiredMatchCount": 1,
+      "failWhenManifestUnavailable": true
+    }
+  },
+  "x-pitchlog-matrix-cross-constraints": {
+    "sourceClauseId": "req:E-1",
+    "rowCollection": "matrixRows",
+    "excludedConstraintIds": [
+      "XC-09"
+    ],
+    "runnerPresence": {
+      "axisId": "state.runners",
+      "undecidableAction": "fail",
+      "baseByRunnerNumber": {
+        "1": "first",
+        "2": "second",
+        "3": "third"
+      },
+      "presentValuesByBase": {
+        "first": [
+          "first",
+          "first-second",
+          "first-third",
+          "loaded"
+        ],
+        "second": [
+          "second",
+          "first-second",
+          "second-third",
+          "loaded"
+        ],
+        "third": [
+          "third",
+          "first-third",
+          "second-third",
+          "loaded"
+        ]
+      }
+    },
+    "rules": [
+      {
+        "constraintId": "XC-01",
+        "kind": "event-requires-batter-destination",
+        "eventKind": "runner-event",
+        "requiredDestinationKind": "not-applicable"
+      },
+      {
+        "constraintId": "XC-02",
+        "kind": "absent-runner-requires-modality",
+        "requiredModality": "not-applicable"
+      },
+      {
+        "constraintId": "XC-03",
+        "kind": "advance-modality-destination-equivalence",
+        "nullDestinationModalities": [
+          "hold",
+          "not-applicable"
+        ],
+        "nonNullDestinationModalities": [
+          "forced",
+          "optional"
+        ]
+      },
+      {
+        "constraintId": "XC-04",
+        "kind": "out-count-target-cardinality-and-uniqueness",
+        "targetCanonicalization": "RFC8785"
+      },
+      {
+        "constraintId": "XC-05",
+        "kind": "event-requires-count-effect",
+        "eventKind": "runner-event",
+        "requiredEffectKind": "unchanged"
+      },
+      {
+        "constraintId": "XC-06",
+        "kind": "plate-appearance-result-count-equivalence",
+        "excludedEventKinds": [
+          "runner-event"
+        ],
+        "endedDestinationKinds": [
+          "reach",
+          "out",
+          "score"
+        ],
+        "continuingDestinationKinds": [
+          "continue",
+          "not-applicable"
+        ],
+        "requiredResetEffectKind": "reset",
+        "allowedDestinationKindsByEvent": {
+          "batting-result": [
+            "continue",
+            "reach",
+            "out",
+            "score"
+          ],
+          "secondary-result": [
+            "continue",
+            "reach",
+            "out",
+            "not-applicable"
+          ]
+        }
+      },
+      {
+        "constraintId": "XC-07",
+        "kind": "event-plate-not-applicable-equivalence",
+        "eventKind": "runner-event",
+        "notApplicableValue": "not-applicable"
+      },
+      {
+        "constraintId": "XC-08",
+        "kind": "runner-origin-destination-allowlist",
+        "allowedDestinationsByBase": {
+          "first": [
+            2,
+            3,
+            4
+          ],
+          "second": [
+            3,
+            4
+          ],
+          "third": [
+            4
+          ]
+        }
+      },
+      {
+        "constraintId": "XC-10",
+        "kind": "batter-out-target-equivalence",
+        "batterOutDestinationKind": "out",
+        "batterTarget": "batter"
+      },
+      {
+        "constraintId": "XC-11",
+        "kind": "maximum-prior-outs-plus-effect",
+        "outsAxisId": "state.outs",
+        "maximumPostPlayOuts": 3,
+        "undecidableAction": "fail"
+      },
+      {
+        "constraintId": "XC-12",
+        "kind": "absent-runner-prohibits-out-target"
+      },
+      {
+        "constraintId": "XC-13",
+        "kind": "deferred-derived-stat-flags-principle",
+        "principleId": "principle:stat-flags-derived-not-arbitrary",
+        "enforcement": "deferred-stage-2",
+        "machineGuarantee": "not-established",
+        "stage2DeclarationPointer": "/stage2ExternalConstraints",
+        "deferredConstraintClasses": [
+          "stat-flag-derivation-rules",
+          "third-out-type-observation-input",
+          "official-scorer-judgment-inputs"
+        ],
+        "requiredArtifacts": [
+          "stat-flag-derivation-table",
+          "third-out-type-input-contract",
+          "official-scorer-judgment-input-contract",
+          "negative-fixtures"
+        ]
+      }
+    ]
+  },
+  "x-pitchlog-deferred-row-requirements": {
+    "deferments": [
+      {
+        "defermentId": "SO-03-dropped-third-strike-outcome",
+        "status": "open-stage-2",
+        "partitionRuleId": "dropped-third-strike-outcome",
+        "requiredPartitions": [
+          "safe",
+          "out"
+        ],
+        "materializedPartitions": [
+          "safe"
+        ],
+        "missingPartitions": [
+          "out"
+        ],
+        "requiredRowCount": 2,
+        "materializedRowCount": 1,
+        "sourceClauseIds": [
+          "req:SO-03",
+          "req:XC-13"
+        ],
+        "gapId": "GAP-08",
+        "stage2DeclarationAsset": "contracts/state-transition/input_axes_descriptor_v1.json",
+        "stage2DeclarationPointer": "/stage2ExternalConstraints",
+        "deferredConstraintClass": "third-out-type-observation-input",
+        "requiredArtifact": "third-out-type-input-contract",
+        "reason": "SO-03が要求するセーフ／アウト2行の入力座標を分ける観測入力が段階2であるため、セーフ側1行だけを規範行へ置き、アウト側を充足済みとは扱わない"
+      }
+    ]
+  },
+  "x-pitchlog-provenance-policy": {
+    "recordLocation": "contract-top-level",
+    "recordField": "provenance",
+    "sourceKinds": {
+      "requirements": {
+        "priority": 1,
+        "verificationMode": "repository-clause-id-existence",
+        "sourcePath": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+        "sourceIdNamespace": "req",
+        "machineCapability": "identifier-existence"
+      },
+      "official-baseball-rules": {
+        "priority": 2,
+        "verificationMode": "identifier-format-only",
+        "sourceIdPattern": "^obr:[1-9][0-9]*\\.[0-9]{2}(?:\\([a-z0-9]+\\))*$",
+        "machineCapability": "identifier-format-only",
+        "notMechanicallyVerified": [
+          "rule-number-existence",
+          "rule-content"
+        ]
+      },
+      "legacy-vocab-mirror": {
+        "priority": 3,
+        "verificationMode": "vocabulary-id-existence-via-manifest",
+        "manifestPath": "contracts/vocabulary/vocabulary_manifest_v1.json",
+        "machineCapability": "vocabulary-id-existence"
+      },
+      "legacy-research": {
+        "priority": 4,
+        "verificationMode": "repository-line-reference-existence",
+        "pathRoot": "docs/legacy/research",
+        "sourceIdPattern": "^(?P<path>docs/legacy/research/[A-Za-z0-9._/-]+\\.md):(?P<line>[1-9][0-9]*)$",
+        "machineCapability": "path-and-line-existence"
+      }
+    },
+    "subjectKinds": {
+      "normative-branch-or-state-effect": {
+        "sufficientSourceKinds": [
+          "requirements",
+          "official-baseball-rules"
+        ]
+      },
+      "vocabulary-origin": {
+        "sufficientSourceKinds": [
+          "requirements",
+          "official-baseball-rules",
+          "legacy-vocab-mirror"
+        ]
+      }
+    },
+    "attestationItems": {
+      "direct-source-clause-review": {
+        "acceptedResponses": [
+          true
+        ],
+        "humanMeaning": "独立確認者が典拠の条文そのものから確認し、導出物・生成物・他者の要約を根拠にしていない"
+      },
+      "author-work-exposure": {
+        "acceptedResponses": [
+          "not-seen-before-source-review",
+          "seen-and-recorded"
+        ],
+        "humanMeaning": "作成者の作業結果を見る前に典拠を読んだか、見た場合はその事実を記録した"
+      },
+      "source-support-judgment": {
+        "acceptedResponses": [
+          true
+        ],
+        "humanMeaning": "典拠が主張を支持すると独立確認者が判断した"
+      }
+    },
+    "assuranceBoundary": {
+      "mechanicallyGuaranteed": [
+        "source-reference-within-declared-machine-capability",
+        "recorded-author-and-independent-verifier-are-different",
+        "attestation-record-exact-set-and-accepted-responses"
+      ],
+      "humanControls": [
+        "independent-review-actually-performed",
+        "attestations-are-truthful",
+        "source-supports-claim",
+        "official-rule-number-exists-and-content-is-correct",
+        "vocabulary-mirror-version-is-correct",
+        "legacy-research-is-suitable-corroboration"
+      ],
+      "step43Excluded": "approved成果物の別人による条文からの直接レビュー署名はステップ43が所有する"
+    }
+  },
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "version",
+    "calculation",
+    "inputAxesDescriptor",
+    "provenance",
+    "matrixRows",
+    "operationRows",
+    "undoRows",
+    "mustOperationCoverage",
+    "requiredSet",
+    "cases"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*$"
+    },
+    "calculation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "inputAxesDescriptor": {
+      "$ref": "#/$defs/inputAxesDescriptorBinding"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "matrixRows": {
+      "x-pitchlog-normative-row-layer": true,
+      "x-pitchlog-vocabulary-reference-layer": true,
+      "x-pitchlog-input-coordinate-fields": [
+        "eventKind",
+        "resultId",
+        "precondition"
+      ],
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/matrixRow"
+      }
+    },
+    "operationRows": {
+      "x-pitchlog-normative-row-layer": true,
+      "x-pitchlog-input-coordinate-fields": [
+        "operationKind",
+        "payloadShape",
+        "precondition"
+      ],
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/operationRow"
+      }
+    },
+    "undoRows": {
+      "x-pitchlog-normative-row-layer": true,
+      "x-pitchlog-input-coordinate-fields": [
+        "targetKind",
+        "precondition"
+      ],
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/undoRow"
+      }
+    },
+    "mustOperationCoverage": {
+      "type": "object",
+      "required": [
+        "mappings"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "mappings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/mustOperationMapping"
+          }
+        }
+      }
+    },
+    "requiredSet": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/normalizedCase"
+      }
+    }
+  },
+  "$defs": {
+    "inputAxesDescriptorBinding": {
+      "type": "object",
+      "required": [
+        "descriptorId",
+        "version",
+        "digest"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "descriptorId": {
+          "const": "pitchlog.input-axes"
+        },
+        "version": {
+          "const": "input_axes_descriptor_v1"
+        },
+        "digest": {
+          "const": "sha256:ca421500e9eabf1ad6891884178d309c1d3dfae4f6c03628a4d6c7fe996b84da"
+        }
+      }
+    },
+    "literal": {
+      "oneOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "predicate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "args"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "enum": [
+                "and",
+                "or"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "$ref": "#/$defs/predicate"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "args"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "not"
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "items": {
+                "$ref": "#/$defs/predicate"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "axisId",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "enum": [
+                "eq",
+                "gte",
+                "lte"
+              ]
+            },
+            "axisId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "$ref": "#/$defs/literal"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "op",
+            "axisId",
+            "values"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "const": "in"
+            },
+            "axisId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "values": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/literal"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "eventKind": {
+      "enum": [
+        "batting-result",
+        "secondary-result",
+        "runner-event"
+      ]
+    },
+    "strikeEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "delta"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "reset"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unchanged"
+            }
+          }
+        }
+      ]
+    },
+    "ballEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "delta"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "reset"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unchanged"
+            }
+          }
+        }
+      ]
+    },
+    "countEffect": {
+      "type": "object",
+      "required": [
+        "strikes",
+        "balls"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "strikes": {
+          "$ref": "#/$defs/strikeEffect"
+        },
+        "balls": {
+          "$ref": "#/$defs/ballEffect"
+        }
+      }
+    },
+    "plateAppearanceEnded": {
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "const": "not-applicable"
+        }
+      ]
+    },
+    "batterDestination": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "continue",
+                "out",
+                "score",
+                "not-applicable"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "base"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "reach"
+            },
+            "base": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            }
+          }
+        }
+      ]
+    },
+    "advanceDestination": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "advance": {
+      "type": "object",
+      "required": [
+        "modality",
+        "destination"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "modality": {
+          "enum": [
+            "forced",
+            "optional",
+            "hold",
+            "not-applicable"
+          ]
+        },
+        "destination": {
+          "$ref": "#/$defs/advanceDestination"
+        }
+      }
+    },
+    "runnerDefaultAdvance": {
+      "type": "object",
+      "required": [
+        "first",
+        "second",
+        "third"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "first": {
+          "$ref": "#/$defs/advance"
+        },
+        "second": {
+          "$ref": "#/$defs/advance"
+        },
+        "third": {
+          "$ref": "#/$defs/advance"
+        }
+      }
+    },
+    "outTarget": {
+      "oneOf": [
+        {
+          "const": "batter"
+        },
+        {
+          "type": "object",
+          "required": [
+            "runner"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "runner": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            }
+          }
+        }
+      ]
+    },
+    "outEffect": {
+      "type": "object",
+      "required": [
+        "count",
+        "targets"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outTarget"
+          }
+        }
+      }
+    },
+    "statFlags": {
+      "type": "object",
+      "required": [
+        "投球回算入アウト",
+        "投球数",
+        "奪三振",
+        "与四球",
+        "与死球",
+        "被安打",
+        "被本塁打",
+        "失点",
+        "失策",
+        "打席",
+        "打数",
+        "安打",
+        "本塁打",
+        "塁打",
+        "犠打",
+        "犠飛",
+        "四球",
+        "死球",
+        "三振",
+        "打撃妨害出塁",
+        "走塁妨害出塁",
+        "得点",
+        "打点"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "投球回算入アウト": {"type": "boolean"},
+        "投球数": {"type": "boolean"},
+        "奪三振": {"type": "boolean"},
+        "与四球": {"type": "boolean"},
+        "与死球": {"type": "boolean"},
+        "被安打": {"type": "boolean"},
+        "被本塁打": {"type": "boolean"},
+        "失点": {"type": "boolean"},
+        "失策": {"type": "boolean"},
+        "打席": {"type": "boolean"},
+        "打数": {"type": "boolean"},
+        "安打": {"type": "boolean"},
+        "本塁打": {"type": "boolean"},
+        "塁打": {"type": "boolean"},
+        "犠打": {"type": "boolean"},
+        "犠飛": {"type": "boolean"},
+        "四球": {"type": "boolean"},
+        "死球": {"type": "boolean"},
+        "三振": {"type": "boolean"},
+        "打撃妨害出塁": {"type": "boolean"},
+        "走塁妨害出塁": {"type": "boolean"},
+        "得点": {"type": "boolean"},
+        "打点": {"type": "boolean"}
+      }
+    },
+    "matrixRow": {
+      "type": "object",
+      "required": [
+        "eventKind",
+        "resultId",
+        "precondition",
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "remarks"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "eventKind": {
+          "$ref": "#/$defs/eventKind"
+        },
+        "resultId": {
+          "type": "string"
+        },
+        "precondition": {
+          "$ref": "#/$defs/predicate"
+        },
+        "countEffect": {
+          "$ref": "#/$defs/countEffect"
+        },
+        "plateAppearanceEnded": {
+          "$ref": "#/$defs/plateAppearanceEnded"
+        },
+        "batterDestination": {
+          "$ref": "#/$defs/batterDestination"
+        },
+        "runnerDefaultAdvance": {
+          "$ref": "#/$defs/runnerDefaultAdvance"
+        },
+        "outEffect": {
+          "$ref": "#/$defs/outEffect"
+        },
+        "statFlags": {
+          "$ref": "#/$defs/statFlags"
+        },
+        "remarks": {
+          "type": "string"
+        }
+      }
+    },
+    "operationKind": {
+      "enum": [
+        "substitution",
+        "tiebreak-start",
+        "game-end-declaration",
+        "adhoc-registration",
+        "state-correction"
+      ],
+      "x-pitchlog-conditional-values": [
+        {
+          "value": "state-correction",
+          "whenClauseId": "req:FR-040",
+          "whenState": "adopted"
+        }
+      ]
+    },
+    "operationPayloadShape": {
+      "type": "object",
+      "required": [
+        "type",
+        "properties",
+        "required",
+        "additionalProperties"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "object"
+        },
+        "properties": {
+          "type": "object"
+        },
+        "required": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": {
+          "const": false
+        }
+      }
+    },
+    "fieldEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unchanged"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "set"
+            },
+            "value": {}
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "delta"
+            },
+            "value": {
+              "type": "integer"
+            }
+          }
+        }
+      ]
+    },
+    "stateFieldEffects": {
+      "type": "object",
+      "required": [
+        "state.half",
+        "state.count.strikes",
+        "state.count.balls",
+        "state.outs",
+        "state.runners",
+        "state.battingOrder",
+        "state.tiebreakActive",
+        "state.gameEnded",
+        "state.inning",
+        "state.score"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "state.half": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.count.strikes": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.count.balls": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.outs": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.runners": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.battingOrder": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.tiebreakActive": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.gameEnded": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.inning": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "state.score": {
+          "$ref": "#/$defs/fieldEffect"
+        }
+      }
+    },
+    "scoreboardFieldEffects": {
+      "type": "object",
+      "required": [
+        "inningScores",
+        "hits",
+        "errors",
+        "strikeouts",
+        "walks"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "inningScores": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "hits": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "errors": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "strikeouts": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "walks": {
+          "$ref": "#/$defs/fieldEffect"
+        }
+      }
+    },
+    "statFlagEffects": {
+      "type": "object",
+      "required": [
+        "投球回算入アウト",
+        "投球数",
+        "奪三振",
+        "与四球",
+        "与死球",
+        "被安打",
+        "被本塁打",
+        "失点",
+        "失策",
+        "打席",
+        "打数",
+        "安打",
+        "本塁打",
+        "塁打",
+        "犠打",
+        "犠飛",
+        "四球",
+        "死球",
+        "三振",
+        "打撃妨害出塁",
+        "走塁妨害出塁",
+        "得点",
+        "打点"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "投球回算入アウト": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "投球数": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "奪三振": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "与四球": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "与死球": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "被安打": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "被本塁打": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "失点": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "失策": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "打席": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "打数": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "安打": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "本塁打": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "塁打": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "犠打": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "犠飛": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "四球": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "死球": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "三振": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "打撃妨害出塁": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "走塁妨害出塁": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "得点": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "打点": {
+          "$ref": "#/$defs/fieldEffect"
+        }
+      }
+    },
+    "historyAndResultEffects": {
+      "type": "object",
+      "required": [
+        "history",
+        "operationResult"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "history": {
+          "$ref": "#/$defs/fieldEffect"
+        },
+        "operationResult": {
+          "$ref": "#/$defs/fieldEffect"
+        }
+      }
+    },
+    "stateEffect": {
+      "type": "object",
+      "required": [
+        "stateFields",
+        "scoreboard",
+        "statFlags",
+        "historyAndResult"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "stateFields": {
+          "$ref": "#/$defs/stateFieldEffects"
+        },
+        "scoreboard": {
+          "$ref": "#/$defs/scoreboardFieldEffects"
+        },
+        "statFlags": {
+          "$ref": "#/$defs/statFlagEffects"
+        },
+        "historyAndResult": {
+          "$ref": "#/$defs/historyAndResultEffects"
+        }
+      }
+    },
+    "operationHistoryEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "pushes",
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "pushes": {
+              "const": false
+            },
+            "kind": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "pushes",
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "pushes": {
+              "const": true
+            },
+            "kind": {
+              "enum": [
+                "confirmed-play",
+                "state-correction"
+              ],
+              "x-pitchlog-conditional-values": [
+                {
+                  "value": "state-correction",
+                  "whenClauseId": "req:FR-040",
+                  "whenState": "adopted"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "operationRow": {
+      "type": "object",
+      "required": [
+        "operationKind",
+        "clauseId",
+        "payloadShape",
+        "precondition",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "remarks"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "operationKind": {
+          "$ref": "#/$defs/operationKind"
+        },
+        "clauseId": {
+          "type": "string",
+          "pattern": "^FR-[0-9]{3}$"
+        },
+        "payloadShape": {
+          "$ref": "#/$defs/operationPayloadShape"
+        },
+        "precondition": {
+          "$ref": "#/$defs/predicate"
+        },
+        "stateEffect": {
+          "$ref": "#/$defs/stateEffect"
+        },
+        "historyEffect": {
+          "$ref": "#/$defs/operationHistoryEffect"
+        },
+        "operationResult": {
+          "enum": [
+            "applied",
+            "rejected-precondition",
+            "rejected-invalid-payload"
+          ]
+        },
+        "remarks": {
+          "type": "string"
+        }
+      }
+    },
+    "undoTargetKind": {
+      "enum": [
+        "confirmed-play",
+        "state-correction"
+      ],
+      "x-pitchlog-conditional-values": [
+        {
+          "value": "state-correction",
+          "whenClauseId": "req:FR-040",
+          "whenState": "adopted"
+        }
+      ]
+    },
+    "undoHistoryEffect": {
+      "type": "object",
+      "required": [
+        "pops"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pops": {
+          "enum": [
+            0,
+            1
+          ]
+        }
+      }
+    },
+    "undoRow": {
+      "type": "object",
+      "required": [
+        "targetKind",
+        "precondition",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "guaranteeMode",
+        "remarks"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "targetKind": {
+          "$ref": "#/$defs/undoTargetKind"
+        },
+        "precondition": {
+          "$ref": "#/$defs/predicate"
+        },
+        "stateEffect": {
+          "$ref": "#/$defs/stateEffect"
+        },
+        "historyEffect": {
+          "$ref": "#/$defs/undoHistoryEffect"
+        },
+        "operationResult": {
+          "enum": [
+            "applied",
+            "nothing-to-undo"
+          ]
+        },
+        "guaranteeMode": {
+          "enum": [
+            "full-equality",
+            "liveness-only"
+          ]
+        },
+        "remarks": {
+          "type": "string"
+        }
+      }
+    },
+    "matrixInputCoordinate": {
+      "type": "object",
+      "required": [
+        "eventKind",
+        "resultId",
+        "precondition"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "eventKind": {
+          "$ref": "#/$defs/eventKind"
+        },
+        "resultId": {
+          "type": "string"
+        },
+        "precondition": {
+          "$ref": "#/$defs/predicate"
+        }
+      }
+    },
+    "operationInputCoordinate": {
+      "type": "object",
+      "required": [
+        "operationKind",
+        "payloadShape",
+        "precondition"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "operationKind": {
+          "$ref": "#/$defs/operationKind"
+        },
+        "payloadShape": {
+          "$ref": "#/$defs/operationPayloadShape"
+        },
+        "precondition": {
+          "$ref": "#/$defs/predicate"
+        }
+      }
+    },
+    "undoInputCoordinate": {
+      "type": "object",
+      "required": [
+        "targetKind",
+        "precondition"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "targetKind": {
+          "$ref": "#/$defs/undoTargetKind"
+        },
+        "precondition": {
+          "$ref": "#/$defs/predicate"
+        }
+      }
+    },
+    "caseRowReference": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "layer",
+            "coordinate"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "layer": {
+              "const": "matrixRows"
+            },
+            "coordinate": {
+              "$ref": "#/$defs/matrixInputCoordinate"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "layer",
+            "coordinate"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "layer": {
+              "const": "operationRows"
+            },
+            "coordinate": {
+              "$ref": "#/$defs/operationInputCoordinate"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "layer",
+            "coordinate"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "layer": {
+              "const": "undoRows"
+            },
+            "coordinate": {
+              "$ref": "#/$defs/undoInputCoordinate"
+            }
+          }
+        }
+      ]
+    },
+    "mustOperationMapping": {
+      "type": "object",
+      "required": [
+        "operationType",
+        "rowRefs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "operationType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rowRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/caseRowReference"
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "subjectKind",
+        "sources",
+        "authorId",
+        "independentVerifierId",
+        "attestations"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "subjectKind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/provenanceSource"
+          }
+        },
+        "authorId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "independentVerifierId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "independentReview": {
+          "$ref": "#/$defs/provenanceIndependentReview"
+        },
+        "attestations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/provenanceAttestation"
+          }
+        }
+      }
+    },
+    "provenanceIndependentReview": {
+      "type": "object",
+      "required": [
+        "verifiedOn",
+        "reviewerRole",
+        "authorWorkExposure",
+        "chronology",
+        "findings"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "verifiedOn": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "reviewerRole": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authorWorkExposure": {
+          "enum": [
+            "not-seen-before-source-review",
+            "seen-before-source-review"
+          ]
+        },
+        "chronology": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/provenanceReviewEvent"
+          }
+        },
+        "findings": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "provenanceReviewEvent": {
+      "type": "object",
+      "required": [
+        "sequence",
+        "actorId",
+        "activity"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actorId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "activity": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "provenanceSource": {
+      "type": "object",
+      "required": [
+        "sourceKind",
+        "sourceId"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sourceKind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "provenanceAttestation": {
+      "type": "object",
+      "required": [
+        "attestationId",
+        "response"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "attestationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "response": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
+        }
+      }
+    },
+    "normalizedCase": {
+      "type": "object",
+      "required": [
+        "rowRef",
+        "raw",
+        "normalizationRuleId",
+        "normalized"
+      ],
+      "properties": {
+        "rowRef": {
+          "$ref": "#/$defs/caseRowReference"
+        },
+        "raw": {},
+        "normalizationRuleId": {
+          "$ref": "#/$defs/normalizationRuleId"
+        },
+        "normalized": {}
+      },
+      "additionalProperties": true
+    },
+    "normalizationRuleId": {
+      "enum": [
+        "identity",
+        "result-display-name-to-id",
+        "game-end-result-display-name-to-id"
+      ]
+    },
+    "derivedCase": {
+      "type": "object",
+      "required": [
+        "rowRef"
+      ],
+      "properties": {
+        "rowRef": {
+          "$ref": "#/$defs/caseRowReference"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

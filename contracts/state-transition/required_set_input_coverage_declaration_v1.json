@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "version": "required_set_input_coverage_declaration_v1",
+  "exclusionRule": {
+    "rowLayers": ["matrixRows", "operationRows", "undoRows"],
+    "axisValuePredicate": "no-normative-row-realizes-axis-value-under-row-binding-policy",
+    "fixedStateAxisPredicate": "matrix-row-fixed-state-axis-values",
+    "rowBindingPolicyId": "state-transition-coverage-row-binding",
+    "onNewRow": "recompute-reachability-from-current-normative-rows"
+  },
+  "unrepresentedOperationSources": [
+    {
+      "operationKind": "tiebreak-start",
+      "sourceClauseIds": ["req:FR-009"],
+      "decisionSource": {
+        "path": "docs/features/appendix-e-golden-vectors/design.md",
+        "evidenceText": ["ステップ62は段階2へ送る", "operationKind = \"tiebreak-start\""]
+      }
+    },
+    {
+      "operationKind": "state-correction",
+      "sourceClauseIds": ["req:FR-040"],
+      "decisionSource": {
+        "path": "docs/features/appendix-e-golden-vectors/plan.md",
+        "evidenceText": ["FR-040 宣言の manifest 記載", "**段階 2**"]
+      }
+    }
+  ]
+}

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 8,
+  "contract_revision": 9,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:8"
+        "contract_revision:9"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -71,7 +71,7 @@
   },
   "asset_kind": "cache_invalidation_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "1fbe76e2061d222db5b474b8526baa2328a9f2a65e59cbf3f859c0c9fdce469e",
+  "source_digest": "0c6524f64bd040169a2a7e4e380b098e821333a814562cd7af81743c40ca07cc",
   "source": {
     "document": "docs/design/data-model.md",
     "section": "11-2",
