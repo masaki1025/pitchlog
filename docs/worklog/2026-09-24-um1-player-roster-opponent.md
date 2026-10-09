@@ -392,3 +392,11 @@ branch: feature/um1-player-roster-opponent
 - **台帳の候補**: 偽の実行面(記録用 session)だけのテストは、SQL の組み立てが実コンパイルを通ることを保証しない。リポジトリの単体テストに「Session と同じ条件でのコンパイル」を必須にするか — /pr の台帳判断で扱う
 - 391 タブへ再現の確認と是正の方針を返信済み(bind 名が変わるので U-S1 は是正後の名前に合わせる)
 - **push 前の全件実行**(CI と同じ `--no-ff` マージ — `67c4495b`): 凍結値の走査 OK・迂回検査 ok・ruff / format / ty 合格・ルート **2933 passed**・backend **1518 passed・4 skipped・1 failed** — `tests/db/test_tenant_transaction_scope.py::test_unvalidated_update_is_rejected_before_execute`(実 DB)。探査 UPDATE が旧 bind 名 `tenant_id` のままで、RETURNING の拒否より先にテナント条件で拒否されていた。**是正の取りこぼし**(Codex は DB 必須の試験を実行できず、当方の全件実行で検出)。探査文を `where_tenant_id` へ(Claude の直接編集 — review normal 可決)。同ファイル 18 passed(実 DB)。変更はこの 1 ファイルだけなので、全件は再実行せず、同ファイルと凍結値の走査を清潔な HEAD で取り直した
+
+## 2026-10-09 依存の着地・マージ順・敵対レビューの事後補完
+
+- **依存の再測**: γ #100(03:10Z)・TSK-480 #104(10-08)・TSK-344 #97(10-07)・TSK-475 #94(10-05)がマージ済み。ステップ 9 の着手条件で残るのは TSK-457 #101 だけ。#100 の公開入口 `verify_tenant_id(value, presentation, engine) -> UUID | None` は計画の前提(提示値 → γ → 照合済み ID)と一致する。presentation と engine の供給経路(`app.state.token_presentation` / `create_database_engine()` を想定)は計画書に無く、ステップ 9 の着手時に詰める
+- **#95 の分割はしない**(2026-10-09・山田正輝): 469 master から「1〜8 を先にマージ」の提案があったが、計画どおりステップ 13 まで 1 PR とする
+- **マージ順と取り込み**(469 master と合意・山田正輝の確定待ち): `#106 → #101 → #81 → #95 → U-S1`。取り込みは #101 着地後(1 回目 — CONFLICTING のまま 5 ステップ進めると CI の run が作られないため、CI の回復が目的)と #81 着地後(2 回目 — 受理値を確定)の 2 回。`base-allowlist.json` の `contract_revision` は #81 の後で 25 の見込み(2 回目に実測)。`source_digest` と配布モジュール 3 本の追随は CI の backend ジョブでしか出ないので、完了判定は MERGEABLE + CI backend で行う
+- **敵対レビューの事後補完**: 469 master の指摘(core-guard は敵対レビューの実施を機械検査しない)を受けて証跡を棚卸しした。テナント分離に当たるのに敵対レビューの証跡が無いコミットが 5 本あった — `98ad97de`(ステップ 2)・`2e9fe0cf`(ステップ 4)・`482127c9`(ステップ 2 是正)・`2040ed8d`(ステップ 5 是正の追補)・`5719f664`(review normal のみ)。5 本をまとめて `codex_run.py review adversarial` にかけ、**可決(P0 0 / P1 0 / P2 0)**。観点は認可行列・検査器の弱化・凍結記録・fixture の整合・テストの空洞化。Codex は実 DB 試験を実行できないが、`5719f664` の対象ファイルは 10-08 に実 DB で 18 passed を確認済み
+- **台帳の候補**: コア領域の敵対レビューは設計書 6.3 で必須だが、core-guard は逐行確認のチェックしか見ない。ステップ単位で回す運用でも、計画外の是正コミットや Claude の直接編集で抜けが出る(本単位で 5 本)— /pr の台帳判断で扱う
