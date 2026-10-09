@@ -75,3 +75,10 @@ branch: feature/vitest-vector-runner
 | P1-1 | runner の既定期限 30 秒が Vitest の既定テスト期限 5 秒より長く、既定のままでは回収の保証を検証できない | 採用: 既定を `DEFAULT_RESPONSE_TIMEOUT_MS = 10_000` とし、runner を使う spec のテスト期限をその 3 倍以上にする大小関係を design.md 1-3 に固定。ステップ 3 で既定期限のままの無応答を検証 |
 | P2-2 | 起動コマンドと期限の差し替えが公開シグネチャにない | 採用: 第 5 引数 `options` の型を design.md 2-2 に明記 |
 | P2-3 | R-a の「pytest 側で捕まる」は言い過ぎ(ブリッジ経由の回帰は直接呼び出しでは捕まらない) | 採用: ステップ順を入れ替え(1 = 適合ベクタ、2 = ブリッジ)、ブリッジの単体テストで 9 シナリオをブリッジ経由でも通す。R-a の捕捉範囲を書き直した |
+
+### 実装中の計画修正: 走査一覧の固定(2026-10-09)
+
+- ステップ 1(適合ベクタ・pytest 消費)と 2(Python ブリッジ)をコミット。各 1 回差し戻し(対応表の検査を等式に / 静的検査をモジュール経由の参照まで)
+- ステップ 3 の `frontend/src/testing/vectorRunner.ts` が既存の `frontend/src/lib/sync/prohibitions.spec.ts` を赤にした。同テストは `src/testing/**/*.ts` を同期の禁止事項の raw 走査対象とし、ファイル集合を `EXPECTED_TESTING_SOURCE_FILE_NAMES` で固定している(新しいファイルを明示させる仕組み)。frontend 全件で 1 file failed・670 tests passed
+- 一覧に `'testing/vectorRunner.ts'` を足した状態で同 spec は 41 件緑(試行後に元へ戻した)。`prohibitions.spec.ts` は同期プロトコルのコア領域(`core-areas.json` に該当)で、計画の変更範囲外だった
+- **人間の裁定(2026-10-09)**: 一覧に 1 行足す。置き場は移さない。計画書のステップ 3 とやらないことに追記した
