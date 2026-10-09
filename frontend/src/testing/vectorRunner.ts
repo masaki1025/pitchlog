@@ -4,6 +4,8 @@ import { isDeepStrictEqual } from 'node:util'
 import type { Readable } from 'node:stream'
 
 export const DEFAULT_RESPONSE_TIMEOUT_MS = 10_000
+const MAX_RESPONSE_TIMEOUT_MS = 2 ** 31 - 1
+const REAP_TIMEOUT_MS = 1_000
 
 export type VectorContract = Readonly<{
   calculation: string
@@ -207,7 +209,14 @@ function assertJsonValue(
       }
       for (const key of Reflect.ownKeys(value)) {
         if (key === 'length') continue
-        if (typeof key !== 'string' || !/^(0|[1-9]\d*)$/.test(key)) {
+        const index = typeof key === 'string' ? Number(key) : NaN
+        if (
+          typeof key !== 'string' ||
+          !Number.isInteger(index) ||
+          index < 0 ||
+          index >= value.length ||
+          String(index) !== key
+        ) {
           throw new VectorRunnerError(`${location} に JSON 外の配列属性がある`)
         }
       }
@@ -268,21 +277,21 @@ function reportFrom(message: JsonRecord): VectorRunReport {
   }
 }
 
-function waitForClose(
-  closePromise: Promise<CloseStatus>,
+function waitForExit(
+  exitPromise: Promise<CloseStatus>,
   timeoutMs: number,
 ): Promise<CloseStatus> {
-  return new Promise((resolveClose, rejectClose) => {
+  return new Promise((resolveExit, rejectExit) => {
     const timer = setTimeout(
       () =>
-        rejectClose(
+        rejectExit(
           new VectorRunnerError(`子の終了が ${timeoutMs} ms を超えた`),
         ),
       timeoutMs,
     )
-    closePromise.then((status) => {
+    exitPromise.then((status) => {
       clearTimeout(timer)
-      resolveClose(status)
+      resolveExit(status)
     })
   })
 }
@@ -295,8 +304,14 @@ export async function runVectors(
   options: Options = {},
 ): Promise<VectorRunReport> {
   const timeoutMs = options.responseTimeoutMs ?? DEFAULT_RESPONSE_TIMEOUT_MS
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
-    throw new VectorRunnerError('応答期限が正の安全な整数でない')
+  if (
+    !Number.isSafeInteger(timeoutMs) ||
+    timeoutMs <= 0 ||
+    timeoutMs > MAX_RESPONSE_TIMEOUT_MS
+  ) {
+    throw new VectorRunnerError(
+      '応答期限が Node のタイマー範囲内の正の整数でない',
+    )
   }
   const command = options.command ?? [
     'python3',
@@ -321,10 +336,11 @@ export async function runVectors(
     cwd: root,
     env: { ...process.env, PYTHONPATH: resolve(root, 'backend/src') },
     stdio: ['pipe', 'pipe', 'pipe'],
+    detached: process.platform !== 'win32',
   })
   const reader = new LineReader(child.stdout)
   let stderr = ''
-  let closed = false
+  let exited = false
   let spawnFailure: Error | undefined
   let inputFailure: Error | undefined
   child.stderr.setEncoding('utf8')
@@ -335,19 +351,33 @@ export async function runVectors(
     inputFailure = error
     reader.fail(error)
   })
-  child.once('error', (error: Error) => {
-    spawnFailure = error
-    reader.fail(error)
-  })
-  const closePromise = new Promise<CloseStatus>((resolveClose) => {
-    child.once('close', (code, signal) => {
-      closed = true
-      reader.fail(
-        new Error(`終端前に子が終了した: code=${code}, signal=${signal}`),
-      )
-      resolveClose({ code, signal })
+  const exitPromise = new Promise<CloseStatus>((resolveExit) => {
+    child.once('exit', (code, signal) => {
+      exited = true
+      resolveExit({ code, signal })
+    })
+    child.once('error', (error: Error) => {
+      spawnFailure = error
+      reader.fail(error)
+      exited = true
+      resolveExit({ code: null, signal: null })
     })
   })
+  const stopProcessGroup = (): void => {
+    let groupError: unknown
+    if (process.platform !== 'win32' && child.pid !== undefined) {
+      try {
+        process.kill(-child.pid, 'SIGKILL')
+        return
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
+          groupError = error
+        }
+      }
+    }
+    if (!exited) child.kill('SIGKILL')
+    if (groupError) throw groupError
+  }
   const send = (message: unknown): void => {
     const line = encodeLine(message)
     if (child.stdin.destroyed || !child.stdin.writable) {
@@ -419,7 +449,7 @@ export async function runVectors(
       }
     }
     child.stdin.end()
-    const status = await waitForClose(closePromise, timeoutMs)
+    const status = await waitForExit(exitPromise, timeoutMs)
     if (spawnFailure || inputFailure || status.code !== 0) {
       throw internal(
         `子の終了が異常: code=${status.code}, signal=${status.signal}, ` +
@@ -443,9 +473,25 @@ export async function runVectors(
     if (error instanceof VectorRunnerError) throw internal(error.message)
     throw internal(`ブリッジの実行に失敗: ${String(error)}`)
   } finally {
-    if (!closed) {
-      child.kill('SIGKILL')
-      await closePromise
+    let cleanupError: unknown
+    try {
+      if (!exited) {
+        stopProcessGroup()
+        await waitForExit(exitPromise, REAP_TIMEOUT_MS)
+      }
+    } catch (error) {
+      cleanupError = error
     }
+    // 子が先に終了しても、パイプを継承した孫を止めて入出力を閉じる。
+    try {
+      stopProcessGroup()
+    } catch (error) {
+      cleanupError ??= error
+    }
+    child.stdin.destroy()
+    child.stdout.destroy()
+    child.stderr.destroy()
+    if (cleanupError)
+      throw internal(`子を回収できない: ${String(cleanupError)}`)
   }
 }

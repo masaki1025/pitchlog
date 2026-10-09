@@ -87,12 +87,35 @@ function expectPidGone(pid: number): void {
   expect(code).toBe('ESRCH')
 }
 
+async function expectPidStopped(pid: number): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    let state: string | undefined
+    try {
+      state = readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1]?.[0]
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+    // 親が先に終了すると、停止済みの孫が一時的に zombie として残る。
+    if (state === undefined || state === 'Z') return
+    await new Promise((resolveWait) => setTimeout(resolveWait, 10))
+  }
+  throw new Error(`孫プロセス ${pid} が実行中のまま残った`)
+}
+
 function script(body: string): readonly [string, string, string] {
   return [
     'python3',
     '-c',
     `import os,sys,time\nprint('PID='+str(os.getpid()), file=sys.stderr, flush=True)\n${body}`,
   ]
+}
+
+function arrayWithLostNumericKey<T>(items: T[]): T[] {
+  Object.defineProperty(items, '4294967295', {
+    value: 'JSON に含まれない値',
+    enumerable: true,
+  })
+  return items
 }
 
 it('正規化出力の元のオブジェクトを計算 adapter へ渡す', async () => {
@@ -218,6 +241,42 @@ it.each([
   ).rejects.toBeInstanceOf(VectorRunnerError)
 })
 
+it('start の cases に添字でない数字キーがある配列を拒否する', async () => {
+  await expect(
+    runVectors(
+      arrayWithLostNumericKey([...cases]),
+      contract,
+      standardNormalizer(),
+      echo,
+    ),
+  ).rejects.toBeInstanceOf(VectorRunnerError)
+})
+
+it.each(['normalizer', 'calculation'])(
+  '%s の戻り値に添字でない数字キーがある配列を拒否する',
+  async (phase) => {
+    if (phase === 'normalizer') {
+      await expect(
+        runVectors(
+          cases,
+          contract,
+          {
+            ...standardNormalizer(),
+            normalize: () => arrayWithLostNumericKey([values[0]]),
+          },
+          echo,
+        ),
+      ).rejects.toBeInstanceOf(VectorRunnerError)
+    } else {
+      await expect(
+        runVectors(cases, contract, standardNormalizer(), {
+          execute: () => arrayWithLostNumericKey([values[0]]),
+        }),
+      ).rejects.toBeInstanceOf(VectorRunnerError)
+    }
+  },
+)
+
 it.each(['normalizer', 'calculation'])(
   '%s の thenable を拒否する',
   async (phase) => {
@@ -251,6 +310,14 @@ it('計算 adapter の戻り値も送信前に再帰的に検査する', async (
   ).rejects.toBeInstanceOf(VectorRunnerError)
 })
 
+it('Node のタイマー上限を超える応答期限を拒否する', async () => {
+  await expect(
+    runVectors(cases, contract, standardNormalizer(), echo, {
+      responseTimeoutMs: 2 ** 31,
+    }),
+  ).rejects.toBeInstanceOf(VectorRunnerError)
+})
+
 it('起動に失敗した子を内部異常として扱う', async () => {
   const error = await expectInternal(['/definitely/missing/vector-bridge'])
   expect(error.message).toContain('spawn')
@@ -276,6 +343,37 @@ it('report 後も終了しない子を停止し回収する', async () => {
   )
   expect(error.message).toContain('終了')
   expectReaped(error)
+})
+
+it('子が終了しても孫がパイプを保持するときは孫を止めて決着する', async () => {
+  const timeoutMs = 300
+  const started = Date.now()
+  const report = await runVectors(cases, contract, standardNormalizer(), echo, {
+    command: script(
+      `import json,subprocess\ngrandchild=subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'], stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)\nprint(json.dumps({'type':'report','declaredCaseIds':[str(os.getpid()),str(grandchild.pid)],'consumedCaseIds':[],'executions':[],'complete':False}), flush=True)`,
+    ),
+    responseTimeoutMs: timeoutMs,
+  })
+  expect(Date.now() - started).toBeLessThan(timeoutMs + 1_000)
+  expect(report.complete).toBe(false)
+  expectPidGone(Number(report.declaredCaseIds[0]))
+  await expectPidStopped(Number(report.declaredCaseIds[1]))
+})
+
+it('終端前に子が終了して孫がパイプを保持しても期限内に回収する', async () => {
+  const timeoutMs = 300
+  const started = Date.now()
+  const error = await expectInternal(
+    script(
+      `import subprocess\ngrandchild=subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'], stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)\nprint('GRANDCHILD='+str(grandchild.pid), file=sys.stderr, flush=True)`,
+    ),
+    timeoutMs,
+  )
+  expect(Date.now() - started).toBeLessThan(timeoutMs + 1_000)
+  expectReaped(error)
+  const match = /GRANDCHILD=(\d+)/.exec(error.message)
+  expect(match).not.toBeNull()
+  await expectPidStopped(Number(match?.[1]))
 })
 
 it('report 後の非 0 終了を内部異常として扱い子を回収する', async () => {
