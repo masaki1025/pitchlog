@@ -2228,12 +2228,22 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
     )
     base_paths = tuple(base_area["paths"])
     current_paths = tuple(current_area["paths"])
-    assert base_paths[-len(registered_tail) :] == registered_tail
-    assert current_paths[: len(base_paths)] == base_paths
-    assert current_paths[len(base_paths) :] in (
-        UM1_TENANT_AREA_PATH_ADDITIONS[:2],
-        UM1_TENANT_AREA_PATH_ADDITIONS,
+    # マージ後は比較元(origin/develop)が現設定と同じになり、宣言した追加層が
+    # 基線にも現れる(#108 と同じ理由)。PR の上では基線に無い。双方を受理する。
+    absorbed = base_paths[-len(UM1_TENANT_AREA_PATH_ADDITIONS) :] == (
+        UM1_TENANT_AREA_PATH_ADDITIONS
     )
+    if absorbed:
+        absorbed_base = base_paths[: -len(UM1_TENANT_AREA_PATH_ADDITIONS)]
+        assert absorbed_base[-len(registered_tail) :] == registered_tail
+        assert current_paths == base_paths
+    else:
+        assert base_paths[-len(registered_tail) :] == registered_tail
+        assert current_paths[: len(base_paths)] == base_paths
+        assert current_paths[len(base_paths) :] in (
+            UM1_TENANT_AREA_PATH_ADDITIONS[:2],
+            UM1_TENANT_AREA_PATH_ADDITIONS,
+        )
     for pattern, planned_paths in zip(
         PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PATTERN_EXAMPLES, strict=True
     ):
@@ -2323,19 +2333,27 @@ def test_area_registration() -> None:
         registered = registered_additions[area_id]
         current_paths = tuple(areas[area_id]["paths"])
         base_paths = tuple(baseline_areas[area_id]["paths"])
+        additions = (
+            UM1_TENANT_AREA_PATH_ADDITIONS if area_id == "tenant-isolation" else ()
+        )
+        # 宣言は回転式の窓口であり、マージ後は宣言した追加層が比較元の末尾へ
+        # 吸収される(#108 と同じ理由)。「未取り込み = 宣言」と「吸収済みで
+        # 未取り込みなし」の双方を受理し、件数と末尾は吸収分を除いて確かめる。
+        absorbed = bool(additions) and base_paths[-len(additions) :] == additions
+        pre_additions = base_paths[: -len(additions)] if absorbed else base_paths
         assert len(registered) == registered_counts[area_id]
-        assert len(base_paths) == baseline_counts[area_id]
+        assert len(pre_additions) == baseline_counts[area_id]
         assert len(current_paths) == current_counts[area_id]
-        assert base_paths[-len(registered) :] == registered
+        assert pre_additions[-len(registered) :] == registered
         assert len(registered) == len(set(registered))
         assert all(
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in registered
         )
-        additions = (
-            UM1_TENANT_AREA_PATH_ADDITIONS if area_id == "tenant-isolation" else ()
-        )
-        assert current_paths == (*base_paths, *additions)
+        if absorbed:
+            assert current_paths == base_paths
+        else:
+            assert current_paths == (*base_paths, *additions)
     assert all(
         any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
         for pattern in UM1_TENANT_AREA_PATH_ADDITIONS
