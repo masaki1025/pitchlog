@@ -19,6 +19,7 @@ from sqlalchemy import (
     select,
     update,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.dml import Insert, Update
 from sqlalchemy.sql.selectable import Select
 
@@ -32,14 +33,17 @@ from pitchlog.api.schemas.roster import (
     TeamRecordUpdate as TeamRecordUpdateSchema,
 )
 from pitchlog.db.tenant_isolation.models import Player, TeamRecord
+from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.operation_registration import (
     OperationRegistration,
     PreparedOperation,
     RequiredBinding,
 )
-from pitchlog.repositories.tokens import TenantOperationToken
+from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 
 __all__ = (
+    "RosterReferenceUnavailable",
+    "create_roster_player",
     "PlayerCreateToken",
     "PlayerReadToken",
     "PlayerUpdateToken",
@@ -47,6 +51,35 @@ __all__ = (
     "TeamRecordReadToken",
     "TeamRecordUpdateToken",
 )
+
+
+class RosterReferenceUnavailable(Exception):
+    """選手の参照先を対象テナント内で利用できないことを表す。"""
+
+
+_PLAYER_REFERENCE_FKS = frozenset(
+    {"fk_players_team", "fk_players_roster_status", "fk_players_roster_label"}
+)
+
+
+def create_roster_player(
+    context: TenantContext, operation: PlayerCreateToken
+) -> TenantOperationResult:
+    """選手を追加し、参照先不在を外へ漏らさない拒否へ写す。"""
+    from pitchlog.repositories.transaction import tenant_transaction_scope
+
+    try:
+        with tenant_transaction_scope(context) as scope:
+            return scope.run(operation)
+    except IntegrityError as error:
+        diagnostic = getattr(error.orig, "diag", None)
+        if (
+            getattr(error.orig, "sqlstate", None) == "23503"
+            and getattr(diagnostic, "constraint_name", None) in _PLAYER_REFERENCE_FKS
+        ):
+            raise RosterReferenceUnavailable from error
+        raise
+
 
 _PLAYERS = cast(Table, Player.__table__)
 _TEAM_RECORDS = cast(Table, TeamRecord.__table__)
@@ -87,6 +120,8 @@ class PlayerReadToken(TenantOperationToken):
     record_id: UUID | None = None
     team_record_id: UUID | None = None
     roster_status_key: str | None = None
+    uniform_number: str | None = None
+    exclude_id: UUID | None = None
     cursor_team_record_id: UUID | None = None
     cursor_id: UUID | None = None
     include_hidden: bool = False
@@ -100,11 +135,13 @@ class PlayerReadToken(TenantOperationToken):
         for field in (
             "record_id",
             "team_record_id",
+            "exclude_id",
             "cursor_team_record_id",
             "cursor_id",
         ):
             _require_optional_uuid(getattr(self, field), field)
         _require_optional_text(self.roster_status_key, "roster_status_key")
+        _require_optional_text(self.uniform_number, "uniform_number")
         if (self.cursor_team_record_id is None) != (self.cursor_id is None):
             raise ValueError("選手カーソルの 2 つの ID は同時に指定する")
 
@@ -336,6 +373,12 @@ def _build_roster_statement(
             statement = statement.where(
                 _PLAYERS.c.roster_status_key == bindparam("roster_status_key")
             )
+        if token.uniform_number is not None:
+            statement = statement.where(
+                _PLAYERS.c.uniform_number == bindparam("uniform_number")
+            )
+        if token.exclude_id is not None:
+            statement = statement.where(_PLAYERS.c.id != bindparam("exclude_id"))
         if token.cursor_team_record_id is not None:
             statement = statement.where(
                 or_(

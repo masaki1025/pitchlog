@@ -7,7 +7,7 @@ from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 from typing import Any, cast
 from uuid import UUID
 
@@ -25,6 +25,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.dml import Update
 from sqlalchemy.sql.elements import ClauseElement
@@ -43,9 +44,11 @@ from pitchlog.repositories.roster import (
     PlayerCreateToken,
     PlayerReadToken,
     PlayerUpdateToken,
+    RosterReferenceUnavailable,
     TeamRecordCreateToken,
     TeamRecordReadToken,
     TeamRecordUpdateToken,
+    create_roster_player,
     player_read_statement,
     player_update_statement,
     team_record_read_statement,
@@ -60,6 +63,68 @@ _PLAYER_ALIAS = cast(Alias, cast(Table, Player.__table__).alias("unscoped_player
 _PLAYER_TARGET_ALIAS = cast(
     Alias, cast(Table, Player.__table__).alias("unscoped_target_players")
 )
+
+
+@pytest.mark.parametrize(
+    ("constraint_name", "sqlstate", "hidden"),
+    [
+        ("fk_players_team", "23503", True),
+        ("fk_players_roster_status", "23503", True),
+        ("fk_players_roster_label", "23503", True),
+        ("fk_players_other", "23503", False),
+        ("pk_players", "23505", False),
+        ("players_roster_status_category_check", "23514", False),
+        ("fk_players_team", "23514", False),
+    ],
+)
+def test_create_player_maps_only_known_reference_fks_to_closed_rejection(
+    monkeypatch: pytest.MonkeyPatch,
+    constraint_name: str,
+    sqlstate: str,
+    hidden: bool,
+) -> None:
+    """既知の参照先 FK だけを 404 用の拒否へ写す。"""
+    context = make_tenant_context(_TENANT_ID)
+    operation = PlayerCreateToken(
+        id=_PLAYER_ID,
+        team_record_id=_TEAM_ID,
+        name="甲",
+        roster_status_key="active",
+    )
+
+    class DatabaseFailure(Exception):
+        def __init__(self) -> None:
+            self.sqlstate = sqlstate
+            self.diag = SimpleNamespace(constraint_name=constraint_name)
+
+    failure = IntegrityError("INSERT", {}, DatabaseFailure())
+
+    class FailedScope:
+        def run(self, _operation: TenantOperationToken) -> TenantOperationResult:
+            raise failure
+
+    @contextmanager
+    def failed_scope(_context: TenantContext) -> Iterator[FailedScope]:
+        yield FailedScope()
+
+    monkeypatch.setattr(transaction_module, "tenant_transaction_scope", failed_scope)
+    if hidden:
+        with pytest.raises(RosterReferenceUnavailable):
+            create_roster_player(context, operation)
+    else:
+        with pytest.raises(IntegrityError) as caught:
+            create_roster_player(context, operation)
+        assert caught.value is failure
+
+
+def test_player_reference_fks_match_model() -> None:
+    """404 へ写す制約名が ORM の参照先 FK と一致することを確認する。"""
+    table = cast(Table, Player.__table__)
+    assert {constraint.name for constraint in table.foreign_key_constraints} == {
+        "fk_players_team",
+        "fk_players_roster_status",
+        "fk_players_roster_label",
+    }
 
 
 def _replace_built_statement(
@@ -656,6 +721,29 @@ def test_reads_are_paged_and_omit_tenant_from_rows(recorder: _RecordingSession) 
         PlayerReadToken(limit=201)
     with pytest.raises(ValueError):
         TeamRecordReadToken(limit=0)
+
+
+def test_same_number_read_uses_bounded_database_predicates() -> None:
+    """同番号警告は tenant・現役・未削除・本人除外を DB 側で絞る。"""
+    token = PlayerReadToken(
+        limit=ROSTER_PAGE_SIZE_MAX,
+        roster_status_key="active",
+        uniform_number="7",
+        exclude_id=_PLAYER_ID,
+    )
+    statement, parameters = repository_base._prepare_operation(token, _TENANT_ID)
+    sql = str(statement)
+    assert "players.tenant_id = :tenant_id" in sql
+    assert "players.hidden_at IS NULL" in sql
+    assert "players.roster_status_key = :roster_status_key" in sql
+    assert "players.uniform_number = :uniform_number" in sql
+    assert "players.id != :exclude_id" in sql
+    assert "LIMIT :limit" in sql
+    assert parameters["tenant_id"] == _TENANT_ID
+    assert parameters["roster_status_key"] == "active"
+    assert parameters["uniform_number"] == "7"
+    assert parameters["exclude_id"] == _PLAYER_ID
+    assert parameters["limit"] == ROSTER_PAGE_SIZE_MAX + 1
 
 
 @pytest.mark.parametrize(

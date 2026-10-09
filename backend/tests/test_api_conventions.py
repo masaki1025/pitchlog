@@ -141,12 +141,19 @@ async def test_forbidden_response_is_hidden_as_not_found() -> None:
     assert forbidden_response.content == not_found_response.content
 
 
-def test_router_routes_are_only_meta_routes() -> None:
-    """静的登録した API 経路がメタ情報の 2 本だけであることを確認する。"""
+def test_router_routes_are_static_roster_and_meta() -> None:
+    """静的登録した入口がメタ情報と選手の 6 本だけであることを確認する。"""
     routes = _router_routes()
 
-    assert len(routes) == 2
-    assert {route.path for route in routes} == {"/health", "/version"}
+    assert len(routes) == 6
+    assert {(route.path, frozenset(route.methods or ())) for route in routes} == {
+        ("/health", frozenset({"GET"})),
+        ("/version", frozenset({"GET"})),
+        ("/players", frozenset({"POST"})),
+        ("/players", frozenset({"GET"})),
+        ("/players/{player_id:uuid}", frozenset({"GET"})),
+        ("/players/{player_id:uuid}", frozenset({"PATCH"})),
+    }
     assert all(route.response_model is not None for route in routes)
 
 

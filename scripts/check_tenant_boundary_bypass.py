@@ -1210,9 +1210,14 @@ def _load_tenant_context_allowlist(
             "tenant_context.allowed_product_modules",
         )
     )
-    if allowed_product_modules:
+    if not issuance_entrypoint_symbol:
+        raise ContractError("製品の発行入口は非空が必要")
+    expected_product_modules = frozenset(
+        {issuance_entrypoint_symbol.rpartition(".")[0]}
+    )
+    if allowed_product_modules != expected_product_modules:
         raise ContractError(
-            "U-A1 / TSK-217 が未導入のため製品モジュールの生成経路は 0 件が必要"
+            "製品の生成経路は発行入口が属するモジュール 1 件と一致が必要"
         )
     return TenantContextConstructionContract(
         schema_version=schema_version,
