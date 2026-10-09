@@ -395,6 +395,7 @@ export async function runVectors(
     })
   })
   const stopProcessGroup = (): void => {
+    if (exited) return
     let groupError: unknown
     if (process.platform !== 'win32' && child.pid !== undefined) {
       try {
@@ -533,14 +534,8 @@ export async function runVectors(
         cleanupError ??= error
       }
     }
-    // 子が終了してもパイプを保持する孫がいる場合だけ、グループを止める。
-    if (exited && !(await waitForPipeClose())) {
-      try {
-        stopProcessGroup()
-      } catch (error) {
-        cleanupError ??= error
-      }
-    }
+    // 子の exit 後はパイプだけを期限付きで待ち、signal は送らない。
+    if (exited) await waitForPipeClose()
     for (const stream of [child.stdin, child.stdout, child.stderr]) {
       try {
         stream.destroy()

@@ -109,6 +109,14 @@ function denyGroupSignal(onAttempt: () => void): ReturnType<typeof vi.spyOn> {
   })
 }
 
+function recordGroupSignals(calls: number[]): ReturnType<typeof vi.spyOn> {
+  const realKill = process.kill.bind(process)
+  return vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+    if (pid < 0) calls.push(pid)
+    return realKill(pid, signal)
+  })
+}
+
 async function expectPidStopped(pid: number): Promise<void> {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     let state: string | undefined
@@ -392,19 +400,35 @@ it('report 後も終了しない子を停止し回収する', async () => {
   expectReaped(error)
 })
 
-it('子が終了しても孫がパイプを保持するときは孫を止めて決着する', async () => {
+it('子が終了して孫がパイプを保持しても signal せず決着する', async () => {
+  // 別セッションの孫がパイプを保持しても元のグループへ signal しない。
   const timeoutMs = 300
   const started = Date.now()
-  const report = await runVectors(cases, contract, standardNormalizer(), echo, {
-    command: script(
-      `import json,subprocess\ngrandchild=subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'], stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)\nprint(json.dumps({'type':'report','declaredCaseIds':[str(os.getpid()),str(grandchild.pid)],'consumedCaseIds':[],'executions':[],'complete':False}), flush=True)`,
-    ),
-    responseTimeoutMs: timeoutMs,
-  })
-  expect(Date.now() - started).toBeLessThan(timeoutMs + 1_000)
-  expect(report.complete).toBe(false)
-  expectPidGone(Number(report.declaredCaseIds[0]))
-  await expectPidStopped(Number(report.declaredCaseIds[1]))
+  const groupSignals: number[] = []
+  const spy = recordGroupSignals(groupSignals)
+  let grandchildPid: number | undefined
+  try {
+    const report = await runVectors(
+      cases,
+      contract,
+      standardNormalizer(),
+      echo,
+      {
+        command: script(
+          `import json,subprocess\ngrandchild=subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'], stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr, start_new_session=True)\nprint(json.dumps({'type':'report','declaredCaseIds':[str(os.getpid()),str(grandchild.pid)],'consumedCaseIds':[],'executions':[],'complete':False}), flush=True)`,
+        ),
+        responseTimeoutMs: timeoutMs,
+      },
+    )
+    grandchildPid = Number(report.declaredCaseIds[1])
+    expect(Date.now() - started).toBeLessThan(timeoutMs + 1_000)
+    expect(report.complete).toBe(false)
+    expectPidGone(Number(report.declaredCaseIds[0]))
+    expect(groupSignals).toEqual([])
+  } finally {
+    spy.mockRestore()
+    stopGrandchild(grandchildPid)
+  }
 })
 
 it('パイプを継承しない孫は成功後も生存する', async () => {
@@ -426,7 +450,7 @@ it('パイプを継承しない孫は成功後も生存する', async () => {
   await expectPidStopped(grandchildPid)
 })
 
-it('後処理の signal 失敗より VectorRunError を優先する', async () => {
+it('子の exit 後は VectorRunError でもグループへ signal しない', async () => {
   let grandchildPid: number | undefined
   let signalAttempts = 0
   const spy = denyGroupSignal(() => {
@@ -453,12 +477,12 @@ it('後処理の signal 失敗より VectorRunError を優先する', async () =
     spy.mockRestore()
     stopGrandchild(grandchildPid)
   }
-  expect(signalAttempts).toBeGreaterThan(0)
+  expect(signalAttempts).toBe(0)
   expect(caught).toBeInstanceOf(VectorRunError)
   expect((caught as VectorRunError).message).toBe('意図したベクタ異常')
 })
 
-it('後処理の signal 失敗より adapter の元の例外を優先する', async () => {
+it('子の exit 後は adapter の元の例外でもグループへ signal しない', async () => {
   const failure = new Error('元の adapter 例外')
   let grandchildPid: number | undefined
   let signalAttempts = 0
@@ -486,8 +510,26 @@ it('後処理の signal 失敗より adapter の元の例外を優先する', as
     spy.mockRestore()
     stopGrandchild(grandchildPid)
   }
-  expect(signalAttempts).toBeGreaterThan(0)
+  expect(signalAttempts).toBe(0)
   expect(caught).toBe(failure)
+})
+
+it('主処理の内部異常は回収中の signal 失敗で上書きしない', async () => {
+  let signalAttempts = 0
+  const spy = denyGroupSignal(() => {
+    signalAttempts += 1
+  })
+  let error: VectorRunnerError
+  try {
+    error = await expectInternal(
+      script("print('not json', flush=True)\ntime.sleep(30)"),
+    )
+  } finally {
+    spy.mockRestore()
+  }
+  expect(signalAttempts).toBeGreaterThan(0)
+  expect(error.message).toContain('ブリッジの JSON 行が不正')
+  expectReaped(error)
 })
 
 it('終端前に子が終了して孫がパイプを保持しても期限内に回収する', async () => {
@@ -500,11 +542,15 @@ it('終端前に子が終了して孫がパイプを保持しても期限内に�
     timeoutMs,
   )
   // 応答期限のあと、パイプの閉鎖を最大 1 秒待つ。
-  expect(Date.now() - started).toBeLessThan(timeoutMs + 1_500)
-  expectReaped(error)
   const match = /GRANDCHILD=(\d+)/.exec(error.message)
-  expect(match).not.toBeNull()
-  await expectPidStopped(Number(match?.[1]))
+  const grandchildPid = match ? Number(match[1]) : undefined
+  try {
+    expect(Date.now() - started).toBeLessThan(timeoutMs + 1_500)
+    expectReaped(error)
+    expect(match).not.toBeNull()
+  } finally {
+    stopGrandchild(grandchildPid)
+  }
 })
 
 it('report 後の非 0 終了を内部異常として扱い子を回収する', async () => {
