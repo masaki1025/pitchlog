@@ -1,5 +1,5 @@
 ---
-status: approved
+status: in-review
 ---
 
 # ADR-002: フロントエンドフレームワークは Vue.js を採用
