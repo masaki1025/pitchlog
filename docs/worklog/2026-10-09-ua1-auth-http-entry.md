@@ -172,6 +172,20 @@ FR-033 の 2 つの要求が両立しないことだった**。レビューは�
 
 | 7 | ステップ 6 の着手前 | `authn.login_attempt` へ `OUT expires_at timestamptz` を足すことを、ステップ 6 の射程として明記した | ステップ 6 の合格条件が `Set-Cookie` の **`Max-Age`** を要求しているが、**アプリ用ロールにはその値を知る経路が 1 つも無い**。`tenant_tokens` の直接参照は権限が無く、`authn.setting_positive_integer` は付与先が無く(`product_authn_contract.py:19`)、署名付き提示値にも期限が入っていない(`token_presentation.py`)。**関数から返す以外に無い** |
 
+| 8 | ステップ 6 の着手前 | 公開関数を 1 本足すことの追随先 6 件をステップ 6 の射程へ明記し、3 節へ `tests/fixtures/tenant_boundary/positive/**` と `tests/test_check_tenant_boundary_bypass.py` を足した | **`verified_tenant` は「公開名を 2 関数で固定」する表明が 3 本ある**(`test_authz_verified_tenant.py` / `test_authz_app_layer_surface.py` / `test_api_app.py`)。さらに allowlist の**正例 fixture は symbol ごとに 1 ファイル**で exact-set 突合(`check_tenant_boundary_bypass.py:1409`)なので**新規 1 本が要る**。いずれも委任先が編集前に挙げた |
+
+### 停止が 3 回続いた — 列挙の当て方が間違っている
+
+**3 回とも委任先の判断が正しく、3 回とも編集前に止まっている**ので費用は掛かっていない。
+ただし**同じ型を 3 回繰り返した**ので、原因を書いておく。
+
+**こちらは「変える対象」から追随先を引いていた。** ステップ 4 なら「旧 `authn.login` を `grep`」、
+ステップ 6 なら「`api/` と `verified_tenant.py`」。**これだと、対象を名指しで固定している表明が落ちる。**
+
+**引くべきは「いま固定されている形」である。** `exact` / `完全一致` / `==` で集合を固定している
+表明は、**足した瞬間に落ちる**。ステップ 6 の 6 件は全部この型だった。
+**次のステップからは、触るモジュールの公開名・経路・symbol を固定している表明を先に数える。**
+
 ### ステップ 1 の積み残しを 1 件回収した(`c19649bd`)
 
 **`contracts/db/schema-manifest.json` の `canonical_source.sha256` が、
