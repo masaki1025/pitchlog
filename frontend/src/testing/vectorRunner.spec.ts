@@ -87,6 +87,28 @@ function expectPidGone(pid: number): void {
   expect(code).toBe('ESRCH')
 }
 
+function stopGrandchild(pid: number | undefined): void {
+  if (pid === undefined) return
+  try {
+    process.kill(pid, 'SIGKILL')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error
+  }
+}
+
+function denyGroupSignal(onAttempt: () => void): ReturnType<typeof vi.spyOn> {
+  const realKill = process.kill.bind(process)
+  return vi.spyOn(process, 'kill').mockImplementation((pid, signal) => {
+    if (pid < 0 && signal === 'SIGKILL') {
+      onAttempt()
+      throw Object.assign(new Error('注入したグループ signal 失敗'), {
+        code: 'EPERM',
+      })
+    }
+    return realKill(pid, signal)
+  })
+}
+
 async function expectPidStopped(pid: number): Promise<void> {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     let state: string | undefined
@@ -108,6 +130,18 @@ function script(body: string): readonly [string, string, string] {
     '-c',
     `import os,sys,time\nprint('PID='+str(os.getpid()), file=sys.stderr, flush=True)\n${body}`,
   ]
+}
+
+function inheritedPipeCommand(
+  terminal: 'vector-run-error' | 'adapter-error',
+): readonly [string, string, string] {
+  const message =
+    terminal === 'vector-run-error'
+      ? "{'type':'vector-run-error','message':'意図したベクタ異常'}"
+      : "{'type':'adapter-error'}"
+  return script(
+    `import json,subprocess\ngrandchild=subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'], stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)\nprint(json.dumps({'type':'normalize','raw':{'grandchildPid':grandchild.pid}}), flush=True)\nsys.stdin.readline()\nprint(json.dumps(${message}), flush=True)`,
+  )
 }
 
 function arrayWithLostNumericKey<T>(items: T[]): T[] {
@@ -313,9 +347,13 @@ it('計算 adapter の戻り値も送信前に再帰的に検査する', async (
 it('Node のタイマー上限を超える応答期限を拒否する', async () => {
   await expect(
     runVectors(cases, contract, standardNormalizer(), echo, {
+      command: ['/definitely/missing/vector-bridge'],
       responseTimeoutMs: 2 ** 31,
     }),
-  ).rejects.toBeInstanceOf(VectorRunnerError)
+  ).rejects.toMatchObject({
+    name: 'VectorRunnerError',
+    message: expect.stringContaining('タイマー範囲'),
+  } satisfies Partial<VectorRunnerError>)
 })
 
 it('起動に失敗した子を内部異常として扱う', async () => {
@@ -325,6 +363,15 @@ it('起動に失敗した子を内部異常として扱う', async () => {
 
 it('終端前に終了した子を回収する', async () => {
   const error = await expectInternal(script('sys.exit(0)'))
+  expectReaped(error)
+})
+
+it('終端前に終了した子のコードと stderr を診断に残す', async () => {
+  const error = await expectInternal(
+    script("print('診断用 stderr', file=sys.stderr, flush=True)\nsys.exit(7)"),
+  )
+  expect(error.message).toContain('code=7')
+  expect(error.message).toContain('診断用 stderr')
   expectReaped(error)
 })
 
@@ -360,6 +407,89 @@ it('子が終了しても孫がパイプを保持するときは孫を止めて�
   await expectPidStopped(Number(report.declaredCaseIds[1]))
 })
 
+it('パイプを継承しない孫は成功後も生存する', async () => {
+  const report = await runVectors(cases, contract, standardNormalizer(), echo, {
+    command: script(
+      `import json,subprocess\ngrandchild=subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\nprint(json.dumps({'type':'report','declaredCaseIds':[str(grandchild.pid)],'consumedCaseIds':[],'executions':[],'complete':False}), flush=True)`,
+    ),
+    responseTimeoutMs: 300,
+  })
+  const grandchildPid = Number(report.declaredCaseIds[0])
+  try {
+    expect(process.kill(grandchildPid, 0)).toBe(true)
+    expect(
+      readFileSync(`/proc/${grandchildPid}/stat`, 'utf8').split(') ')[1]?.[0],
+    ).not.toBe('Z')
+  } finally {
+    stopGrandchild(grandchildPid)
+  }
+  await expectPidStopped(grandchildPid)
+})
+
+it('後処理の signal 失敗より VectorRunError を優先する', async () => {
+  let grandchildPid: number | undefined
+  let signalAttempts = 0
+  const spy = denyGroupSignal(() => {
+    signalAttempts += 1
+  })
+  let caught: unknown
+  try {
+    await runVectors(
+      cases,
+      contract,
+      {
+        ...standardNormalizer(),
+        normalize: (raw) => {
+          grandchildPid = (raw as { grandchildPid: number }).grandchildPid
+          return raw
+        },
+      },
+      echo,
+      { command: inheritedPipeCommand('vector-run-error') },
+    )
+  } catch (error) {
+    caught = error
+  } finally {
+    spy.mockRestore()
+    stopGrandchild(grandchildPid)
+  }
+  expect(signalAttempts).toBeGreaterThan(0)
+  expect(caught).toBeInstanceOf(VectorRunError)
+  expect((caught as VectorRunError).message).toBe('意図したベクタ異常')
+})
+
+it('後処理の signal 失敗より adapter の元の例外を優先する', async () => {
+  const failure = new Error('元の adapter 例外')
+  let grandchildPid: number | undefined
+  let signalAttempts = 0
+  const spy = denyGroupSignal(() => {
+    signalAttempts += 1
+  })
+  let caught: unknown
+  try {
+    await runVectors(
+      cases,
+      contract,
+      {
+        ...standardNormalizer(),
+        normalize: (raw) => {
+          grandchildPid = (raw as { grandchildPid: number }).grandchildPid
+          throw failure
+        },
+      },
+      echo,
+      { command: inheritedPipeCommand('adapter-error') },
+    )
+  } catch (error) {
+    caught = error
+  } finally {
+    spy.mockRestore()
+    stopGrandchild(grandchildPid)
+  }
+  expect(signalAttempts).toBeGreaterThan(0)
+  expect(caught).toBe(failure)
+})
+
 it('終端前に子が終了して孫がパイプを保持しても期限内に回収する', async () => {
   const timeoutMs = 300
   const started = Date.now()
@@ -369,7 +499,8 @@ it('終端前に子が終了して孫がパイプを保持しても期限内に�
     ),
     timeoutMs,
   )
-  expect(Date.now() - started).toBeLessThan(timeoutMs + 1_000)
+  // 応答期限のあと、パイプの閉鎖を最大 1 秒待つ。
+  expect(Date.now() - started).toBeLessThan(timeoutMs + 1_500)
   expectReaped(error)
   const match = /GRANDCHILD=(\d+)/.exec(error.message)
   expect(match).not.toBeNull()

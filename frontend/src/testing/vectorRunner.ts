@@ -90,6 +90,8 @@ type PendingLine = {
   timer: ReturnType<typeof setTimeout>
 }
 
+class StdoutClosedError extends Error {}
+
 class LineReader {
   private buffer = ''
   private readonly lines: string[] = []
@@ -99,7 +101,7 @@ class LineReader {
   constructor(stream: Readable) {
     stream.setEncoding('utf8')
     stream.on('data', (chunk: string) => this.accept(chunk))
-    stream.once('end', () => this.fail(new Error('終端前に stdout が閉じた')))
+    stream.once('end', () => this.fail(new StdoutClosedError()))
     stream.once('error', (error: Error) => this.fail(error))
   }
 
@@ -296,6 +298,23 @@ function waitForExit(
   })
 }
 
+function streamClosed(stream: Readable): Promise<void> {
+  if (stream.closed) return Promise.resolve()
+  return new Promise((resolveClosed) => {
+    stream.once('close', () => resolveClosed())
+  })
+}
+
+function waitForPipes(closedPromise: Promise<void>): Promise<boolean> {
+  return new Promise((resolveClosed) => {
+    const timer = setTimeout(() => resolveClosed(false), REAP_TIMEOUT_MS)
+    closedPromise.then(() => {
+      clearTimeout(timer)
+      resolveClosed(true)
+    })
+  })
+}
+
 export async function runVectors(
   cases: unknown,
   contract: VectorContract,
@@ -338,9 +357,19 @@ export async function runVectors(
     stdio: ['pipe', 'pipe', 'pipe'],
     detached: process.platform !== 'win32',
   })
+  const pipesClosedPromise = Promise.all([
+    streamClosed(child.stdout),
+    streamClosed(child.stderr),
+  ]).then(() => undefined)
+  let pipeCloseWait: Promise<boolean> | undefined
+  const waitForPipeClose = (): Promise<boolean> => {
+    pipeCloseWait ??= waitForPipes(pipesClosedPromise)
+    return pipeCloseWait
+  }
   const reader = new LineReader(child.stdout)
   let stderr = ''
   let exited = false
+  let exitStatus: CloseStatus | undefined
   let spawnFailure: Error | undefined
   let inputFailure: Error | undefined
   child.stderr.setEncoding('utf8')
@@ -354,13 +383,15 @@ export async function runVectors(
   const exitPromise = new Promise<CloseStatus>((resolveExit) => {
     child.once('exit', (code, signal) => {
       exited = true
-      resolveExit({ code, signal })
+      exitStatus = { code, signal }
+      resolveExit(exitStatus)
     })
     child.once('error', (error: Error) => {
       spawnFailure = error
       reader.fail(error)
       exited = true
-      resolveExit({ code: null, signal: null })
+      exitStatus = { code: null, signal: null }
+      resolveExit(exitStatus)
     })
   })
   const stopProcessGroup = (): void => {
@@ -393,6 +424,7 @@ export async function runVectors(
   let adapterError: unknown
   let hasAdapterError = false
   let rethrowAdapterError = false
+  let mainFailed = false
   try {
     child.stdin.write(start)
     let terminal: JsonRecord | undefined
@@ -469,29 +501,54 @@ export async function runVectors(
     rethrowAdapterError = true
     throw adapterError
   } catch (error) {
+    mainFailed = true
+    if (error instanceof StdoutClosedError) {
+      if (!exited) {
+        try {
+          await waitForExit(exitPromise, REAP_TIMEOUT_MS)
+        } catch {
+          // 終了待ちの期限内に状態が得られない場合も診断を返す。
+        }
+      }
+      await waitForPipeClose()
+      throw internal(
+        `終端前に子が終了した: code=${exitStatus?.code ?? null}, ` +
+          `signal=${exitStatus?.signal ?? null}`,
+      )
+    }
     if (rethrowAdapterError || error instanceof VectorRunError) throw error
     if (error instanceof VectorRunnerError) throw internal(error.message)
     throw internal(`ブリッジの実行に失敗: ${String(error)}`)
   } finally {
     let cleanupError: unknown
-    try {
-      if (!exited) {
+    if (!exited) {
+      try {
         stopProcessGroup()
-        await waitForExit(exitPromise, REAP_TIMEOUT_MS)
+      } catch (error) {
+        cleanupError = error
       }
-    } catch (error) {
-      cleanupError = error
+      try {
+        await waitForExit(exitPromise, REAP_TIMEOUT_MS)
+      } catch (error) {
+        cleanupError ??= error
+      }
     }
-    // 子が先に終了しても、パイプを継承した孫を止めて入出力を閉じる。
-    try {
-      stopProcessGroup()
-    } catch (error) {
-      cleanupError ??= error
+    // 子が終了してもパイプを保持する孫がいる場合だけ、グループを止める。
+    if (exited && !(await waitForPipeClose())) {
+      try {
+        stopProcessGroup()
+      } catch (error) {
+        cleanupError ??= error
+      }
     }
-    child.stdin.destroy()
-    child.stdout.destroy()
-    child.stderr.destroy()
-    if (cleanupError)
+    for (const stream of [child.stdin, child.stdout, child.stderr]) {
+      try {
+        stream.destroy()
+      } catch (error) {
+        cleanupError ??= error
+      }
+    }
+    if (cleanupError && !mainFailed)
       throw internal(`子を回収できない: ${String(cleanupError)}`)
   }
 }
