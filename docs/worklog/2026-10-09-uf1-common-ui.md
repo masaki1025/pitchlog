@@ -50,6 +50,8 @@ P0 ゼロのため P0 例外(3 回目)は発生しない。基本枠 2 回を使
 
 - ステップ 1(ネットワーク有効 — 人間了承済み): Codex が package.json(2 行)と lock を更新したが、sandbox で別の pnpm ストアを使ったため `--frozen-lockfile` が TTY 確認で停止(環境起因)。主セッションで検証したところ **`ERR_PNPM_IGNORED_BUILDS: vue-demi@0.14.10`** で install と以後の `pnpm exec` がすべて失敗
 - **計画変更(PO 決定 2026-10-10)**: `frontend/pnpm-workspace.yaml` を新設し `allowBuilds: { vue-demi: false }`。理由: postinstall は Vue 2/3 のファイル差し替えだけで同梱の既定が Vue 3 用 / 第三者スクリプトを install で走らせない。`pnpm-workspace.yaml` はコア paths に当たらない(実測)。計画書ステップ 1 の内容と合格条件を更新
+- ステップ 2・3 は差し戻しなしで合格(閉域 spec の EPERM は sandbox 起因 — sandbox の外で全件緑を確認)
+- ステップ 4: クラス文字列 9 本が旧と同一。**ビルド CSS の規則順序で、active の sky 系クラスが danger の背景以外すべて負ける**と判明 → **計画変更(PO 決定 2026-10-10)= 決定 L**: active 時は variant 側の競合する色クラスを外す。ステップ 4 の是正コミットで対応
 
 ## 決定
 
