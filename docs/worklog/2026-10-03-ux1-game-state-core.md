@@ -45,3 +45,23 @@ branch: feature/ux1-game-state-core
 | 2 | **トリガー 1 を発火させるか** | **判定者は山田正輝**。本書は材料のみ |
 | 3 | **段階 2 の生成経路の所有者が不在** | 起票が要る |
 | 4 | **FR-040 / FR-007 / FR-011 の受け皿**・**旧システムの 6 形態** | いずれもエージェントの報告のみで当方未確認。反例の成立には不要 |
+
+## 再開(2026-10-09 — 担当セッション交代)
+
+- 計画承認(2026-10-03)から 6 日空いた。ブランチは `origin/develop` より 565 コミット遅れていたため、`origin/develop` = `0bbf3be6d90b5f0d2aae55946e919290ba0c7d2a` を取り込んだ(衝突なし。本ブランチの差分は `docs/features/ux1-game-state-core/**` と本 worklog だけ)
+- **前提の再測**(証拠の基準 `0492b9af` → `0bbf3be6`、`git diff --stat 0492b9af 0bbf3be6 -- <path>`):
+
+  | 資産 | 結果 |
+  | --- | --- |
+  | `backend/domain/**`(`model.schema.json`・`review-triggers.json` を含む) | **差分なし** |
+  | `backend/src/pitchlog/domaingen/**`(`pregen_checks.py` を含む) | **差分なし** |
+  | `docs/features/domain-calc-dsl/design.md` | **差分なし** |
+  | `docs/adr/ADR-003-domain-calc-method.md` | **差分なし**(`:377` / `:441` の凍結条項・見直しトリガー第 1 項はそのまま) |
+  | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **差分なし**(`FR-004:224`・`NFR-019:930`・付録B-6 `:1208` はそのまま) |
+  | `docs/features/product-impl-unit-split/{plan,design}.md` | **差分なし**(`plan.md:396` の凍結はそのまま) |
+  | `contracts/**` | 43 ファイル変更。**内訳は `authz/`・`tenant_boundary/`・`db/schema-manifest.json`・`migrations/seed-allowlist.json`・`seeds/roster-status.json`(在籍区分)だけ**。DSL・付録 E のゴールデンベクタ・付録B-6 の領域シードには触れていない |
+
+  → **計画の前提はすべて成立している。** 証拠の基準 `0492b9af` を据え置き、ステップ 1 へ進む(PO 了承 2026-10-09)
+- **DoD の検査コマンドの読み替え**: DoD・6 節の `git diff 0492b9af...HEAD -- backend/ frontend/ contracts/` は、develop を取り込んだ後は develop 側の変更(127 ファイル)まで拾い、「本ブランチが製品コードに触れていない」ことを測れなくなった。**本ブランチの差分は `git diff origin/develop...HEAD -- backend/ frontend/ contracts/` で測る**(取り込み直後の実測 = 空)。計画書の文言の是正はステップ 8 の敵対レビューで扱う
+- **U-S1(TSK-391)からの申し送り**(Notion 2026-10-08 — `ProjectionPort`・`ContentValidationPort` の本物の実装と、投影の表への DB トリガの検討): **U-X1 を実装する段階の事項で、本タスク(製品コードを書かない)の射程外**。U-X1 の実装計画へ引き継ぐ(カードのコメントが残っている)
+- 未決 1(ステップ 30 でトリガー 1 を再評価したか)は計画レビュー 1 周目で解消済み(`design.md:1532-1544` に PO 裁定が実在)
