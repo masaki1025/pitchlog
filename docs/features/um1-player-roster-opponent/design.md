@@ -144,7 +144,7 @@ ORM は実装済み(`backend/src/pitchlog/db/tenant_isolation/models.py`)。**�
 - `Create`: `team_record_id` / `name` / `throws?` / `bats?` / `uniform_number?` / `roster_status_key` / `roster_label_key?`
 - `Update`: **`name` / `throws` / `bats` / `uniform_number` / `roster_status_key` / `roster_label_key` のみ**
   (`allowed_update_columns` の完全な集合は `models.py:206-215`。`hidden_at` は削除経路が扱う)
-- **ステップ 9 の PATCH では `roster_status_key` / `roster_label_key` を受けない**(指定された要求は 422)。在籍区分の変更はプレビュー・確認・適用を伴うステップ 11 で開く。これらを PATCH でも受けるかはステップ 11 で決める
+- **ステップ 9 の PATCH では `roster_status_key` / `roster_label_key` を受けない**(指定された要求は 422)。在籍区分の変更はプレビュー・確認・適用を伴う在籍区分の入口で開く(計画書の第 10 改訂で #95 から外し、#95 のマージ後に TSK-447 と同じ後続 PR で開く — 旧ステップ 11)。これらを PATCH でも受けるかはその PR で決める
 - **`team_record_id` を `Update` に含めない**: immutability の `protected_columns` にも `allowed_update_columns` にも入らない
   **未分類列**で `unclassified_handoff="TSK-372"`。**所属チーム変更の可否がコードから読めない**(plan.md R3)
 
