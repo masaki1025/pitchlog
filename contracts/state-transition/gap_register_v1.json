@@ -1,0 +1,283 @@
+{
+  "schemaVersion": 1,
+  "version": "gap_register_v1",
+  "gaps": [
+    {
+      "gapId": "GAP-01",
+      "state": "open",
+      "clauseIds": [
+        "FR-020"
+      ],
+      "branchIds": [
+        "XMARK-01"
+      ],
+      "rowIds": [],
+      "fixtureCaseIds": [],
+      "generatedCaseSelector": null
+    },
+    {
+      "gapId": "GAP-02",
+      "state": "open",
+      "clauseIds": [
+        "E-1"
+      ],
+      "branchIds": [
+        "XC-13"
+      ],
+      "rowIds": [],
+      "fixtureCaseIds": [],
+      "generatedCaseSelector": null
+    },
+    {
+      "gapId": "GAP-03",
+      "state": "resolved",
+      "clauseIds": [
+        "F-1"
+      ],
+      "branchIds": [
+        "COLD-01",
+        "COLD-02",
+        "COLD-03",
+        "COLD-04",
+        "COLD-05",
+        "COLD-06",
+        "COLD-07",
+        "COLD-08",
+        "COLD-09",
+        "GAME-END-NORMAL"
+      ],
+      "rowIds": [
+        "decisionRows:COLD-08",
+        "decisionRows:GAME-END-NORMAL"
+      ],
+      "fixtureCaseIds": [
+        "GE-GAME-END-NORMAL",
+        "GE-COLD-08"
+      ],
+      "generatedCaseSelector": {
+        "sourcePath": "contracts/state-transition/game_end_contract_v1.json",
+        "rowOwnerGapId": "GAP-03",
+        "caseCount": 68
+      }
+    },
+    {
+      "gapId": "GAP-04",
+      "state": "resolved",
+      "clauseIds": [
+        "F-1"
+      ],
+      "branchIds": [
+        "DRAW-01",
+        "DRAW-02",
+        "DRAW-03",
+        "DRAW-04",
+        "DRAW-05",
+        "DRAW-06",
+        "DRAW-07",
+        "DRAW-08",
+        "DRAW-09",
+        "DRAW-10",
+        "GAME-END-NORMAL",
+        "GAME-END-EXTRA-CONTINUE",
+        "GAME-END-LIMIT-DRAW",
+        "GAME-END-TIEBREAK-CONTINUE"
+      ],
+      "rowIds": [
+        "decisionRows:GAME-END-EXTRA-CONTINUE",
+        "decisionRows:GAME-END-LIMIT-DRAW",
+        "decisionRows:GAME-END-NORMAL",
+        "decisionRows:GAME-END-TIEBREAK-CONTINUE"
+      ],
+      "fixtureCaseIds": [
+        "GE-GAME-END-NORMAL",
+        "GE-GAME-END-EXTRA-CONTINUE",
+        "GE-GAME-END-LIMIT-DRAW",
+        "GE-GAME-END-TIEBREAK-CONTINUE"
+      ],
+      "generatedCaseSelector": {
+        "sourcePath": "contracts/state-transition/game_end_contract_v1.json",
+        "rowOwnerGapId": "GAP-04",
+        "caseCount": 136
+      }
+    },
+    {
+      "gapId": "GAP-05",
+      "state": "open",
+      "clauseIds": [
+        "FR-020",
+        "FR-005"
+      ],
+      "branchIds": [
+        "XMARK-01",
+        "XMARK-02",
+        "XMARK-03"
+      ],
+      "rowIds": [],
+      "fixtureCaseIds": [],
+      "generatedCaseSelector": null
+    },
+    {
+      "gapId": "GAP-06",
+      "state": "open",
+      "clauseIds": [
+        "A-1",
+        "FR-003"
+      ],
+      "branchIds": [
+        "OUT3-01",
+        "OUT3-02",
+        "OUT3-03",
+        "OUT3-04",
+        "OUT3-05"
+      ],
+      "rowIds": [],
+      "fixtureCaseIds": [],
+      "generatedCaseSelector": null
+    },
+    {
+      "gapId": "GAP-07",
+      "state": "resolved",
+      "clauseIds": [
+        "E-1",
+        "FR-004"
+      ],
+      "branchIds": [
+        "ADV-01",
+        "ADV-02",
+        "ADV-03",
+        "ADV-04",
+        "INT-01",
+        "INT-02",
+        "INT-03",
+        "INT-04",
+        "INT-05",
+        "INT-06",
+        "INT-07",
+        "XC-02",
+        "XC-03",
+        "XC-08",
+        "XC-10",
+        "XC-12"
+      ],
+      "rowIds": [
+        "matrixRows:batting-result:batting-result.hit-by-pitch",
+        "matrixRows:batting-result:batting-result.sacrifice-bunt",
+        "matrixRows:batting-result:batting-result.sacrifice-fly",
+        "matrixRows:batting-result:batting-result.walk",
+        "matrixRows:runner-event:catcher-pickoff-destination.first",
+        "matrixRows:runner-event:catcher-pickoff-destination.second",
+        "matrixRows:runner-event:catcher-pickoff-destination.third",
+        "matrixRows:runner-event:pitcher-pickoff-destination.first",
+        "matrixRows:runner-event:pitcher-pickoff-destination.second",
+        "matrixRows:runner-event:pitcher-pickoff-destination.third",
+        "matrixRows:runner-event:strategy-category.bunt",
+        "matrixRows:runner-event:strategy-category.hit-and-run",
+        "matrixRows:runner-event:strategy-category.steal",
+        "matrixRows:secondary-result:secondary-result.balk",
+        "matrixRows:secondary-result:secondary-result.batting-interference",
+        "matrixRows:secondary-result:secondary-result.obstruction",
+        "matrixRows:secondary-result:secondary-result.offensive-interference",
+        "matrixRows:secondary-result:secondary-result.passed-ball",
+        "matrixRows:secondary-result:secondary-result.pitch-clock-violation",
+        "matrixRows:secondary-result:secondary-result.wild-pitch"
+      ],
+      "fixtureCaseIds": [
+        "ST-INT-02",
+        "ST-INT-04",
+        "ST-INT-06",
+        "ST-ADV-01",
+        "ST-ADV-02",
+        "ST-ADV-03",
+        "ST-ADV-04",
+        "ST-XC-02",
+        "ST-XC-03",
+        "ST-XC-08",
+        "ST-XC-10",
+        "ST-XC-12"
+      ],
+      "generatedCaseSelector": {
+        "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+        "rowOwnerGapId": "GAP-07",
+        "caseCount": 39
+      }
+    },
+    {
+      "gapId": "GAP-08",
+      "state": "resolved",
+      "clauseIds": [
+        "E-2",
+        "A-2",
+        "SO-03",
+        "XC-13"
+      ],
+      "branchIds": [
+        "SO-01",
+        "SO-02",
+        "SO-03",
+        "SO-04",
+        "SO-05",
+        "XC-04",
+        "XC-11"
+      ],
+      "rowIds": [
+        "matrixRows:batting-result:batting-result.called-strikeout",
+        "matrixRows:batting-result:batting-result.dropped-third-strike",
+        "matrixRows:batting-result:batting-result.k3",
+        "matrixRows:batting-result:batting-result.strikeout-double-play",
+        "matrixRows:batting-result:batting-result.swinging-strikeout"
+      ],
+      "fixtureCaseIds": [
+        "ST-SO-01",
+        "ST-SO-02",
+        "ST-SO-03",
+        "ST-SO-04",
+        "ST-SO-05",
+        "ST-XC-04",
+        "ST-XC-11"
+      ],
+      "generatedCaseSelector": {
+        "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+        "rowOwnerGapId": "GAP-08",
+        "caseCount": 12
+      }
+    },
+    {
+      "gapId": "GAP-09",
+      "state": "resolved",
+      "clauseIds": [
+        "A-3",
+        "FR-004",
+        "E-1",
+        "ADV-02",
+        "ADV-04",
+        "RBI-01"
+      ],
+      "branchIds": [
+        "RBI-01",
+        "RBI-02",
+        "RBI-03",
+        "RBI-04",
+        "RBI-05",
+        "RBI-06",
+        "RBI-07",
+        "RBI-08",
+        "RBI-09"
+      ],
+      "rowIds": [
+        "matrixRows:batting-result:batting-result.home-run",
+        "matrixRows:batting-result:batting-result.sacrifice-bunt-error",
+        "matrixRows:batting-result:batting-result.sacrifice-fly"
+      ],
+      "fixtureCaseIds": [
+        "ST-RBI-06",
+        "ST-RBI-08",
+        "ST-RBI-09"
+      ],
+      "generatedCaseSelector": {
+        "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+        "rowOwnerGapId": "GAP-09",
+        "caseCount": 6
+      }
+    }
+  ]
+}

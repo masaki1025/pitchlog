@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_http_route_matrix",
   "asset_path": "contracts/authz/http-route-matrix.json",
-  "asset_digest": "b9ad7f8c38b190753bb05700faccab610e74b4f84cfc6716eb6b49f51ccba959",
-  "entry_count": 55,
-  "aggregate_decision_digest": "c532abc4e6ee96df724263a292656a8c54d1e4b1a707c93511206eab23e8e8f9",
+  "asset_digest": "4ec2084fc7fbde768ba3e9007f185b3bbb4c4fb400e23067a884a8db37397195",
+  "entry_count": 49,
+  "aggregate_decision_digest": "cca8dc15a488e999f28397c84af0a72fab121247a10b55169b16d80d5425653a",
   "entries": [
     {
       "entry_id": "route:HTTP:ROUTE:FR-020",
@@ -486,84 +486,6 @@
         }
       },
       "decision_digest": "d64d0b37645c1689881a1c8ea4787c28653e5d9f728b1bba6d2ef0f3429d1e57"
-    },
-    {
-      "entry_id": "route:HTTP:ROUTE:RECORD:players:insert",
-      "decision": {
-        "matrix_route_id": "HTTP:ROUTE:RECORD:players:insert",
-        "route_id": "ROUTE:RECORD:players:insert",
-        "disposition": "conditional",
-        "test_owner": {
-          "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:players:insert",
-          "status": "planned"
-        }
-      },
-      "decision_digest": "9ebdc54261260330b1f74603d001b79e893bf213f9632a6f89f81e12e3b7dd62"
-    },
-    {
-      "entry_id": "route:HTTP:ROUTE:RECORD:players:read",
-      "decision": {
-        "matrix_route_id": "HTTP:ROUTE:RECORD:players:read",
-        "route_id": "ROUTE:RECORD:players:read",
-        "disposition": "conditional",
-        "test_owner": {
-          "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:players:read",
-          "status": "planned"
-        }
-      },
-      "decision_digest": "b765845ebbac70d3621109cebfec6569bd2a96f6c08a0741ff2cfd128bb69da6"
-    },
-    {
-      "entry_id": "route:HTTP:ROUTE:RECORD:players:update",
-      "decision": {
-        "matrix_route_id": "HTTP:ROUTE:RECORD:players:update",
-        "route_id": "ROUTE:RECORD:players:update",
-        "disposition": "conditional",
-        "test_owner": {
-          "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:players:update",
-          "status": "planned"
-        }
-      },
-      "decision_digest": "950c327d32848d731c7a4d6584847f956258e23b9ee442a87a5e098649100954"
-    },
-    {
-      "entry_id": "route:HTTP:ROUTE:RECORD:team_records:insert",
-      "decision": {
-        "matrix_route_id": "HTTP:ROUTE:RECORD:team_records:insert",
-        "route_id": "ROUTE:RECORD:team_records:insert",
-        "disposition": "conditional",
-        "test_owner": {
-          "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:team_records:insert",
-          "status": "planned"
-        }
-      },
-      "decision_digest": "942f3c4d276da83ee1caad3c15f81405bf790ed3a9c04f912a31babc6030db79"
-    },
-    {
-      "entry_id": "route:HTTP:ROUTE:RECORD:team_records:read",
-      "decision": {
-        "matrix_route_id": "HTTP:ROUTE:RECORD:team_records:read",
-        "route_id": "ROUTE:RECORD:team_records:read",
-        "disposition": "conditional",
-        "test_owner": {
-          "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:team_records:read",
-          "status": "planned"
-        }
-      },
-      "decision_digest": "b307091983ecfc81d9933951b9e685d01f341141ec98596357c0920ed146106c"
-    },
-    {
-      "entry_id": "route:HTTP:ROUTE:RECORD:team_records:update",
-      "decision": {
-        "matrix_route_id": "HTTP:ROUTE:RECORD:team_records:update",
-        "route_id": "ROUTE:RECORD:team_records:update",
-        "disposition": "conditional",
-        "test_owner": {
-          "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:team_records:update",
-          "status": "planned"
-        }
-      },
-      "decision_digest": "9eb65ec24fce4598d04fcc60603f905c0d48c2fc7275f254c17bf7dd65b67853"
     },
     {
       "entry_id": "cell:CELL:shared_screen:team_metrics:screen",

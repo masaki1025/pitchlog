@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "version": "vocabulary_manifest_v1",
+  "seeds": [
+    {
+      "vocabularyId": "input_vocabulary",
+      "path": "contracts/vocabulary/input_vocabulary_v1.json",
+      "version": "input_vocabulary_v1",
+      "schemaVersion": 1,
+      "contentHash": "sha256:0d126947a0cc884a0be731fd9cd12a93b6ce37dfa2bd649fc2ab0094a63955fe"
+    }
+  ]
+}

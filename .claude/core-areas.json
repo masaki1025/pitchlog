@@ -1,5 +1,49 @@
 {
   "description": "コア領域の機械可読定義(設計書 6.3 / ADR-001 / 敵対レビュー P1-11)。意味範囲の正は設計書 6.3 の境界定義表(v1.6)で、各 description はその**要約(網羅ではない — 網羅は 6.3 の表)**。paths は実装資産の追加に追随して 6.3 の「paths への落とし込み規則」に従い登録する(追加・削除・縮小は 6.3-⑤ の敵対レビュー + 人間承認の対象)。CI の必須チェック(core-guard)と /pr がこのファイルを正として参照する",
+  "reference_discovery": {
+    "schema_version": 1,
+    "scan_roots": [
+      "scripts",
+      "tests"
+    ],
+    "contract_roots": [
+      "contracts/state-transition",
+      "contracts/vocabulary"
+    ],
+    "required_area_ids": [
+      "game-state",
+      "sync-protocol"
+    ],
+    "detected_reference_forms": [
+      "python-ast-string-literal-containing-contract-root",
+      "python-ast-static-path-expression-under-contract-root",
+      "python-ast-import-or-static-python-path-reverse-dependency-closure"
+    ],
+    "not_detected": [
+      "実行時の文字列連結・format・環境変数・設定値・関数戻り値で初めて確定するパス",
+      "importlib.import_module等で実行時に初めて確定する動的import",
+      "Python以外のファイルからの参照",
+      "ファイルを開かず外部プロセス・ネットワーク等を介して行う間接参照"
+    ],
+    "declared_exclusions": {
+      "paths": [
+        "scripts/check_nfr021_append_only.py",
+        "scripts/check_plan_docs_sync.py",
+        "scripts/core_guard.py",
+        "scripts/verify_nfr021_evidence.py",
+        "tests/fixtures/frozen-archive-cases/runner.py",
+        "tests/test_check_plan_docs_sync.py",
+        "tests/test_check_tenant_boundary_bypass.py",
+        "tests/test_frozen_archive.py",
+        "tests/test_frozen_archive_case_runner.py",
+        "tests/test_nfr021_append_only.py",
+        "tests/test_verify_nfr021_evidence.py"
+      ],
+      "reason": "scripts/core_guard.py の直接参照1件はTSK-236自身が宣言へ contracts/state-transition/* と書いたことによる自己参照。残り10件は逆依存閉包で文字列中に他ファイルのパスが現れる辺から巻き込まれた。いずれも状況判定契約の消費者ではない",
+      "deferred_to": "段階2送り（unresolved-report.md の S34・design.md 8-6）"
+    },
+    "claim": "静的に導出したPythonファイルからdeclared_exclusions.pathsを除いた全件がrequired_area_idsのpathsに登録されていなければfailする。除外は導出結果との差分の完全一致で固定する。検査はpathsを自動更新せず、not_detectedの経路を検出するとは主張しない"
+  },
   "guard_paths": [
     ".claude/core-areas.json",
     ".github/workflows/ci.yml",
@@ -159,7 +203,56 @@
         "contracts/db/schema-manifest.json",
         "scripts/generate_orm_acceptance_sheets.py",
         "tests/test_environment_template.py",
-        "tests/test_orm_acceptance_sheets.py"
+        "tests/test_orm_acceptance_sheets.py",
+        "docs/adr/ADR-001-codex-model-selection.md",
+        "docs/adr/ADR-003-domain-calc-method.md",
+        "contracts/state-transition/*",
+        "contracts/vocabulary/*",
+        "scripts/check_deriver_dependencies.py",
+        "scripts/check_expanded_fixture_parity.py",
+        "scripts/check_expander_dependencies.py",
+        "scripts/check_gap_register.py",
+        "scripts/check_human_review_signature.py",
+        "scripts/check_input_axes_descriptor.py",
+        "scripts/check_input_axes_three_way_parity.py",
+        "scripts/check_provenance.py",
+        "scripts/check_required_set_mutation.py",
+        "scripts/check_required_set_coverage.py",
+        "scripts/check_vocabulary_manifest.py",
+        "scripts/state_transition_freeze.py",
+        "tests/test_deriver_dependencies.py",
+        "tests/test_expanded_fixture_parity.py",
+        "tests/test_expander_dependencies.py",
+        "tests/test_game_end_contract_schema.py",
+        "tests/test_gap_register.py",
+        "tests/test_human_review_signature.py",
+        "tests/test_input_axes_descriptor.py",
+        "tests/test_input_axes_three_way_parity.py",
+        "tests/test_required_set_mutation.py",
+        "tests/test_required_set_coverage.py",
+        "tests/test_state_transition_contract_schema.py",
+        "tests/test_state_transition_freeze.py",
+        "tests/test_vocabulary_manifest.py",
+        "tests/test_vocabulary_seed.py",
+        "tests/test_consumer_handoff.py",
+        "scripts/check_state_transition_normalization.py",
+        "scripts/state_transition_normalization.py",
+        "tests/test_state_transition_normalization.py",
+        "scripts/check_frozen_baselines.py",
+        "tests/frozen_negatives/test_frozen_baseline_acceptance.py",
+        "tests/frozen_negatives/test_frozen_baseline_ci_dispatch.py",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py",
+        "tests/frozen_scan_fixtures.py",
+        "tests/test_ci_wiring.py",
+        "tests/test_core_guard.py",
+        "tests/test_frozen_negative_inventory.py",
+        "tests/test_frozen_scan_rules.py",
+        "scripts/check_branch_row_mapping.py",
+        "scripts/check_manual_fixture_baselines.py",
+        "scripts/expand_game_end_cases.py",
+        "scripts/expand_state_transition_cases.py",
+        "scripts/representative_selection.py",
+        "tests/test_branch_row_mapping.py"
       ]
     },
     {
@@ -227,7 +320,56 @@
         "backend/src/pitchlog/generated/*",
         "backend/tests/domain/*",
         "frontend/src/lib/generated/*",
-        "tests/domain/*"
+        "tests/domain/*",
+        "docs/adr/ADR-001-codex-model-selection.md",
+        "docs/adr/ADR-003-domain-calc-method.md",
+        "contracts/state-transition/*",
+        "contracts/vocabulary/*",
+        "scripts/check_deriver_dependencies.py",
+        "scripts/check_expanded_fixture_parity.py",
+        "scripts/check_expander_dependencies.py",
+        "scripts/check_gap_register.py",
+        "scripts/check_human_review_signature.py",
+        "scripts/check_input_axes_descriptor.py",
+        "scripts/check_input_axes_three_way_parity.py",
+        "scripts/check_provenance.py",
+        "scripts/check_required_set_mutation.py",
+        "scripts/check_required_set_coverage.py",
+        "scripts/check_vocabulary_manifest.py",
+        "scripts/state_transition_freeze.py",
+        "tests/test_deriver_dependencies.py",
+        "tests/test_expanded_fixture_parity.py",
+        "tests/test_expander_dependencies.py",
+        "tests/test_game_end_contract_schema.py",
+        "tests/test_gap_register.py",
+        "tests/test_human_review_signature.py",
+        "tests/test_input_axes_descriptor.py",
+        "tests/test_input_axes_three_way_parity.py",
+        "tests/test_required_set_mutation.py",
+        "tests/test_required_set_coverage.py",
+        "tests/test_state_transition_contract_schema.py",
+        "tests/test_state_transition_freeze.py",
+        "tests/test_vocabulary_manifest.py",
+        "tests/test_vocabulary_seed.py",
+        "tests/test_consumer_handoff.py",
+        "scripts/check_state_transition_normalization.py",
+        "scripts/state_transition_normalization.py",
+        "tests/test_state_transition_normalization.py",
+        "scripts/check_frozen_baselines.py",
+        "tests/frozen_negatives/test_frozen_baseline_acceptance.py",
+        "tests/frozen_negatives/test_frozen_baseline_ci_dispatch.py",
+        "tests/frozen_negatives/test_frozen_baseline_ledger.py",
+        "tests/frozen_scan_fixtures.py",
+        "tests/test_ci_wiring.py",
+        "tests/test_core_guard.py",
+        "tests/test_frozen_negative_inventory.py",
+        "tests/test_frozen_scan_rules.py",
+        "scripts/check_branch_row_mapping.py",
+        "scripts/check_manual_fixture_baselines.py",
+        "scripts/expand_game_end_cases.py",
+        "scripts/expand_state_transition_cases.py",
+        "scripts/representative_selection.py",
+        "tests/test_branch_row_mapping.py"
       ]
     },
     {
@@ -301,7 +443,8 @@
         "contracts/db/schema-manifest.json",
         "scripts/generate_orm_acceptance_sheets.py",
         "tests/test_environment_template.py",
-        "tests/test_orm_acceptance_sheets.py"
+        "tests/test_orm_acceptance_sheets.py",
+        "docs/adr/ADR-001-codex-model-selection.md"
       ]
     },
     {
@@ -383,6 +526,7 @@
         "docs/ops/product-rls-real-schema.md",
         "scripts/product_rls_real_schema/*",
         "scripts/product-rls-real-schema-targets.json",
+        "docs/adr/ADR-001-codex-model-selection.md",
         "backend/tests/test_*_boundary.py",
         "backend/tests/test_*_repository.py"
       ]
@@ -433,7 +577,13 @@
         "backend/src/pitchlog/generated/*",
         "backend/tests/domain/*",
         "frontend/src/lib/generated/*",
-        "tests/domain/*"
+        "tests/domain/*",
+        "docs/adr/ADR-001-codex-model-selection.md",
+        "docs/adr/ADR-003-domain-calc-method.md",
+        "contracts/vocabulary/*",
+        "scripts/check_vocabulary_manifest.py",
+        "tests/test_vocabulary_manifest.py",
+        "tests/test_vocabulary_seed.py"
       ]
     }
   ]

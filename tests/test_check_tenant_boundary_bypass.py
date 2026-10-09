@@ -2728,14 +2728,14 @@ def test_transition_passes_when_base_declares_only_universal_triggers(
     _append_current_repository_transition_record(
         repository,
         comparison_base,
-        acceptance_id="masaki1025/pitchlog#81",
+        acceptance_id="masaki1025/pitchlog#9081",
     )
     _seal_pull_request_worktree(
         repository,
         comparison_base,
         monkeypatch,
         tmp_path / "six-trigger-event.json",
-        number=81,
+        number=9081,
     )
 
     assert checker.check_repository(repository) == []
@@ -2928,7 +2928,7 @@ def test_census_implementation_movement_requires_record_and_identifier_bump(
     repository, base_ref = _initialize_pull_request_repository(
         tmp_path,
         monkeypatch,
-        number=81,
+        number=9081,
     )
     _mutate_census_frozen_surface(repository, "implementation-module")
     _seal_pull_request_worktree(
@@ -2936,7 +2936,7 @@ def test_census_implementation_movement_requires_record_and_identifier_bump(
         base_ref,
         monkeypatch,
         tmp_path / "census-implementation-movement-event.json",
-        number=81,
+        number=9081,
     )
     evaluation = _evaluate_test_repository_movement(repository, base_ref)
     assert evaluation.triggered_tokens == frozenset({"pass_fail_mapping"})
@@ -2947,14 +2947,14 @@ def test_census_implementation_movement_requires_record_and_identifier_bump(
     _append_current_repository_transition_record(
         repository,
         base_ref,
-        acceptance_id="masaki1025/pitchlog#81",
+        acceptance_id="masaki1025/pitchlog#9081",
     )
     _seal_pull_request_worktree(
         repository,
         base_ref,
         monkeypatch,
         tmp_path / "census-implementation-identifier-event.json",
-        number=81,
+        number=9081,
     )
     with pytest.raises(checker.ContractError, match="識別値の更新が必要"):
         checker.check_repository(repository)
@@ -2998,7 +2998,7 @@ def test_additional_trigger_declaration_changes_production_movement_decision(
         comparison_base,
         monkeypatch,
         tmp_path / f"additional-trigger-{additional_trigger}.json",
-        number=81,
+        number=9081,
     )
     if expects_record:
         with pytest.raises(checker.ContractError, match="movement.*record"):
@@ -3009,14 +3009,14 @@ def test_additional_trigger_declaration_changes_production_movement_decision(
         _append_current_repository_transition_record(
             repository,
             comparison_base,
-            acceptance_id="masaki1025/pitchlog#81",
+            acceptance_id="masaki1025/pitchlog#9081",
         )
         _seal_pull_request_worktree(
             repository,
             comparison_base,
             monkeypatch,
             tmp_path / "additional-trigger-recorded.json",
-            number=81,
+            number=9081,
         )
 
     assert checker.check_repository(repository) == []

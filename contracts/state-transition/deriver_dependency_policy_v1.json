@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "policyId": "state-transition-required-set-deriver-dependencies",
+  "version": 1,
+  "claimBoundary": {
+    "subject": "executable-derivers-only",
+    "mechanicallyChecked": "observed-file-open-events-during-traced-deriver-call",
+    "notGuaranteed": [
+      "manual-reference-history",
+      "semantic-independence-of-allowed-inputs",
+      "unexecuted-control-flow",
+      "reads-from-file-descriptors-opened-before-tracing",
+      "native-reads-without-cpython-audit-events",
+      "non-file-inputs"
+    ],
+    "expanderCoverage": "not-covered-step-42"
+  },
+  "traceSpec": {
+    "mechanism": "cpython-audit-open-event",
+    "pathIdentity": "resolved-repository-relative-path",
+    "outsideRepositoryAction": "fail",
+    "unresolvablePathAction": "fail",
+    "subprocessAction": "fail-untraced-child"
+  },
+  "derivers": [
+    {
+      "deriverId": "required-set-row-requirements",
+      "plannedImplementationStep": 48,
+      "output": "requiredSet.rowRequirements",
+      "allowedReadPaths": [
+        "contracts/state-transition/required_set_row_rules_v1.json",
+        "contracts/vocabulary/input_vocabulary_v1.json",
+        "contracts/vocabulary/vocabulary_manifest_v1.json",
+        "docs/requirements/requirements-pitchlog-2026-07-22.md"
+      ]
+    },
+    {
+      "deriverId": "required-set-input-coordinates",
+      "plannedImplementationStep": 49,
+      "output": "requiredSet.inputCoordinates",
+      "allowedReadPaths": [
+        "contracts/state-transition/input_axes_descriptor_v1.json"
+      ]
+    },
+    {
+      "deriverId": "required-set-game-end",
+      "plannedImplementationStep": 50,
+      "output": "gameEnd.requiredSet",
+      "allowedReadPaths": [
+        "contracts/state-transition/input_axes_descriptor_v1.json",
+        "docs/requirements/requirements-pitchlog-2026-07-22.md"
+      ]
+    }
+  ]
+}

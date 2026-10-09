@@ -242,14 +242,14 @@
       "approved_at": "2026-09-25"
     },
     {
-      "acceptance_id": "masaki1025/pitchlog#95",
+      "acceptance_id": "masaki1025/pitchlog#81",
       "series": "oracle_input",
       "new_identity": {
         "present": true,
         "values": [
           {
             "kind": "literal_commit_string",
-            "value": "98ad97de2f796e1e9f12257d848b7c652e6e352a"
+            "value": "1f32e12a8c0e8acc66df448a22fc166be4643a3f"
           }
         ]
       },
@@ -280,8 +280,8 @@
         ]
       },
       "moved": false,
-      "reason": "U-M1(TSK-393)で record_and_aggregate 経路 6 本を route-registry.json と http-route-matrix.json に登録し、oracle 入力 blob が変わったため oracle_commit を更新する",
-      "approved_by": "山田正輝",
+      "reason": "develop 取り込み後の認可 oracle 入力8資産を第1段コミットへ再封印するため",
+      "approved_by": "未承認(PR #81 のレビュー待ち)",
       "approved_at": "2026-10-05"
     }
   ]

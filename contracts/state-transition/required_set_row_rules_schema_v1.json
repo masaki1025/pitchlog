@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/state-transition/required_set_row_rules_schema_v1.json",
+  "title": "requiredSet 行要求導出規則 schema v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "version",
+    "sourceClausePath",
+    "vocabulary",
+    "axisAssignments",
+    "partitionRules"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "version": {
+      "const": "required_set_row_rules_v1"
+    },
+    "sourceClausePath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifestPath", "vocabularyId", "seedPath"],
+      "properties": {
+        "manifestPath": {"type": "string", "minLength": 1},
+        "vocabularyId": {"type": "string", "minLength": 1},
+        "seedPath": {"type": "string", "minLength": 1}
+      }
+    },
+    "axisAssignments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {"$ref": "#/$defs/resultIdSourceAssignment"},
+          {"$ref": "#/$defs/nonResultIdSourceAssignment"}
+        ]
+      },
+      "x-pitchlog-uniqueBy": "axisId"
+    },
+    "partitionRules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/partitionRule"},
+      "x-pitchlog-uniqueBy": "partitionRuleId"
+    }
+  },
+  "$defs": {
+    "clauseIds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^req:(?:FR-\\d+|NFR-\\d+|\\d+\\.\\d+-\\d+|[A-Z]-\\d+[a-z]?|(?:COLD|DRAW|XMARK|OUT3|ADV|INT|SO|RBI|XC)-\\d+)$"
+      }
+    },
+    "resultIdSourceAssignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axisId",
+        "role",
+        "eventKind",
+        "reason",
+        "sourceClauseIds"
+      ],
+      "properties": {
+        "axisId": {"type": "string", "minLength": 1},
+        "role": {"const": "result-id-source"},
+        "eventKind": {
+          "enum": ["batting-result", "secondary-result", "runner-event"]
+        },
+        "reason": {"type": "string", "minLength": 1},
+        "sourceClauseIds": {"$ref": "#/$defs/clauseIds"}
+      }
+    },
+    "nonResultIdSourceAssignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axisId", "role", "reason", "sourceClauseIds"],
+      "properties": {
+        "axisId": {"type": "string", "minLength": 1},
+        "role": {"const": "not-result-id-source"},
+        "reason": {"type": "string", "minLength": 1},
+        "sourceClauseIds": {"$ref": "#/$defs/clauseIds"}
+      }
+    },
+    "partitionRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "partitionRuleId",
+        "vocabularyIds",
+        "partitions",
+        "sourceClauseIds"
+      ],
+      "properties": {
+        "partitionRuleId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+        },
+        "vocabularyIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "partitions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+          }
+        },
+        "sourceClauseIds": {"$ref": "#/$defs/clauseIds"}
+      }
+    }
+  }
+}
