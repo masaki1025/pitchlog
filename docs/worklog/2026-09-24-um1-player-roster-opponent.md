@@ -413,4 +413,27 @@ branch: feature/um1-player-roster-opponent
 - **一次レビュー(Claude)の差し戻し 3 件**: ① 発行の名前と置き場が選手専用に読める — 製品で発行できるモジュールは 1 つだけなので、後続単位も使う汎用の名前へ(後で付け替えると tenant-context-allowlist の受理をもう一度通す)② ルータを `routers/__init__.py` から `routers/players.py` へ ③ 作成時の IntegrityError を一律 404 にしない — 参照先 3 FK の違反だけ 404 へ写す。あわせて越境テストが偽物(`_PlayerStore`)だけで、計画書 6 節「12-4 の判定」行の「実スキーマの上で green」を満たさないため、実 DB で HTTP を叩くテストを足させた
 - **敵対レビュー 1 周目 — 否決(P0 0 / P1 3)**: ① 発行入口の `getattr` 参照が TB007 にならない — **不採用**(TSK-457 の保証宣言 `docs/features/tenant-boundary-enforcement/design.md:520-532` と同計画書 4-3 節が人間の裁定で射程外とした線。design.md の N7 節に引き継ぎを明記)② PATCH で在籍区分・ラベルを先行して変更できる — **採用**(ステップ 11 で無効化とともに開くまで 422)③ 作成応答に同番号警告が無い — **採用**(`PlayerCreated.same_number_players`。同一テナント・同番号・現役・未削除・本人除く・DB 側の絞り込み・上限 200)
 - **敵対レビュー 2 周目 — 可決(P0 0 / P1 0 / P2 0)**。不採用 ① はレビュー側が取り下げ
-- **API の 2 ファイルのコア領域登録**: `api/tenant_access.py`・`api/routers/players.py` は現行のどの paths にも当たらない(API 層はもともとコア領域外)。登録するかは人間の判断待ち(登録するなら第 7 改訂 — 宣言と JSON の 2 コミット)
+- **API の 2 ファイルのコア領域登録**: `api/tenant_access.py`・`api/routers/players.py` は現行のどの paths にも当たらない(API 層はもともとコア領域外)。第 7 改訂で登録すると決めた(下の節)
+
+### ステップ 9 の期待失敗(全件実行で確定 — CI と同じ形: develop `8164c87a` へ `c0aac005` を `--no-ff` でマージ)
+
+- ルート: **40 failed / 28343 passed**。すべてテナント境界の凍結履歴・比較 corpus・センサス基準の検査(受理記録が資産に追いついていないことに由来 — ステップ 10 で解消): `test_census_baseline_check.py` 5(`removed_tb007_matches_declared_relaxations` ほか — 発行モジュールの登録で消える TB007 の減分が宣言済みの緩和で説明できない)・`test_check_tenant_boundary_bypass.py` 2(`test_every_frozen_baseline_asset_has_a_valid_chained_history[relative_path8]`・`test_repository_is_green`)・`test_frozen_archive.py` 11・`test_frozen_archive_case_runner.py` 22。`check_frozen_baselines.py --ci` OK・迂回検査は「7 資産の新識別値が不一致」
+- backend: **1 failed / 1681 passed / 4 skipped**。`tests/test_api_app.py::test_routers_register_only_meta_routes` — **期待失敗ではない**(ルータが meta だけであることを固定するテストの追随漏れ。計画書は `test_api_conventions.py` の述語 4 だけを挙げていた)。`(ステップ 9 是正)` で直す
+
+## 2026-10-09 取り込み 2 回目(#81)と N4 (ii) の再導出
+
+- **#81(`f833154b`)の取り込み `b7e108f1`**: 21 ファイルが衝突。#81 は authz の封印入力(requirement-claims・route-registry・http-route-matrix)・oracle 資産・凍結基準・tenant_boundary の権威履歴・core_guard の宣言を動かした。衝突は develop 側に揃え、#95 の受理値はここで確定させなかった。**各親との差分**: 第 2 親(develop)に対して基線定義(`core_guard.py`・`test_core_guard.py`)は 0 行、`core-areas.json` は `tenant-isolation.paths` の末尾 2 行(#95 の glob)の追加だけ — 著者が解決したのは JSON の合成だけ
+- **`04058d29`(ステップ 6 再導出)**: 宣言を #95 の 2 glob だけへ張り替え(#81 の 5 領域の宣言は merge-base の JSON に入った)。`test_core_guard.py` 230 passed・`verify_area_path_baseline` は merge-base `f833154b` で合格。敵対レビュー 可決(指摘なし)。**469 master の連絡**: develop は #81 の宣言が残ったままで `test_core_guard.py` 2 件が赤(509 タブが fix/ PR で窓口を空へ戻す)。#95 は張り替え済みなので引き継がない。ただし `tests/test_state_transition_freeze.py::test_changed_pr_rejects_acceptance_id_from_another_pr` は develop から引き継いで #95 でも落ちる(391 タブの連絡・当方で再現)— 509 の fix の着地後に取り込んで解消する
+- **`cc949c69`(ステップ 2 再導出)**: route-registry・HTTP 行列の lock に #95 の 6 経路を再導出(#81 側の 37 行は不変・route ID は各 43 本で exact-set 一致)
+- **`64858d6a`(ステップ 3 再導出)**: oracle_commit 7 箇所を `1f32e12a`(#81)→ `cc949c69`。参照 digest 2 本を追随。N5: 6 経路で oracle の内容追随は不要(HTTP 行列の許可セル 12 のまま)。#81 の `oracle-meaning-change-approvals.json` に新しい行は不要。敵対レビュー 可決(指摘なし)・**人間の再確認 2026-10-09・山田正輝**
+- **`c8e53be0`(ステップ 4 再導出)**: frozen-baselines に #95 の oracle_input の記録を #81 の後ろへ 1 件(承認 山田正輝 / 2026-10-09)・`--reseal-oracle`。`check_authz_catalog.py` ok・`check_frozen_baselines.py --ci` OK
+
+## 2026-10-09 第 7 改訂(計画レビュー 5 周 — 1〜4 周目は否決、5 周目で可決)
+
+- **発端**: ステップ 10 で ① 比較 corpus の前版 `ec02a0d2` が #101 の契約拡張を読めず、前版の照合が実行できない(#101・#81 も前版の照合をしていない — develop 自身が条件を満たさない)② センサス基準がステップ 9 の登録で落ちる。Codex は manifest の `comparison_revision` を `c0aac005` へ付け替えていた(依頼外 — develop と同じ値へ戻させた。前版の期待値・`recorded_exit_codes` は develop と同一)
+- **裁定(2026-10-09・山田正輝)**: ① 現版だけで判定(前版の付け替えは共有の基準を動かすので不採用)④ API 層の 2 ファイルを `tenant-isolation` に登録する — **当初は当方の推奨で「登録しない」と裁定したが、計画レビュー 1 周目の P0(ハーネス設計書 6.3 の境界定義表はテナント分離に「API 直叩き」を含め、paths の落とし込み規則 ① は強制点を変え得るファイルを含める)を受けて改めた**。当方の推奨は正本を確かめないまま出したもので誤りだった
+- **1 周目 否決(P0 1 / P1 5 / P2 1)**: P0 API 2 ファイル — 採用 / P1 取り込みマージが同一コミット禁止を満たさない — 一部採用(マージで基線定義に著者の手を入れず、各親との差分を確かめて記録する手順を足す。履歴は作り直さない — 後続が SHA で参照し人間の再確認済み)→ 2 周目で取り下げ / P1 前版を外した後の保証の明記・内訳 5 の手順の矛盾・センサスのステップ表/内訳 10/6 節への反映・N4 本文への追記 — 採用 / P2 #101 の SHA の帰属 — 採用
+- **2 周目 否決(P1 4)**: ステップ 6・7 の合格条件(2 件)と DoD(4 件)の食い違い・計画改訂の承認を 6.3-⑤ の審査として扱った・センサスが 3 節に無い・TSK-485 への申し送りが 8 節に無い — すべて採用
+- **3 周目 否決(P1 1)**: 宣言先行の 2 コミットを各 SHA で green にする手順は成立しない(検査器は「merge-base のまま」か「merge-base ＋ 宣言の全件」だけを許す)— 採用。`(ステップ 6 是正)` の SHA は期待どおり赤とした
+- **4 周目 否決(P1 2)**: 是正 SHA に内訳 7 の確認は当てはまらない・`matched_paths()` は存在を確かめない — 採用。確認を ①〜④ に分けた
+- **5 周目 可決(指摘なし)**。**第 7 改訂の承認: 2026-10-09・山田正輝**。計画レビュー周回 14 → 18
