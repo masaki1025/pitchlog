@@ -26,8 +26,8 @@ async def test_routers_is_module_level_tuple() -> None:
 
 
 @pytest.mark.anyio
-async def test_routers_register_only_meta_routes() -> None:
-    """静的ルータ登録から得られる経路がメタ情報だけであることを確認する。"""
+async def test_routers_register_meta_and_player_routes() -> None:
+    """静的ルータ登録の経路がメタ情報と選手の 4 入口だけであることを確認する。"""
     routes = tuple(
         route
         for router in api_app.ROUTERS
@@ -35,7 +35,16 @@ async def test_routers_register_only_meta_routes() -> None:
         if isinstance(route, APIRoute)
     )
 
-    assert tuple(route.path for route in routes) == ("/health", "/version")
+    assert tuple(
+        (tuple(sorted(route.methods or ())), route.path) for route in routes
+    ) == (
+        (("GET",), "/health"),
+        (("GET",), "/version"),
+        (("POST",), "/players"),
+        (("GET",), "/players"),
+        (("GET",), "/players/{player_id:uuid}"),
+        (("PATCH",), "/players/{player_id:uuid}"),
+    )
 
 
 @pytest.mark.anyio
