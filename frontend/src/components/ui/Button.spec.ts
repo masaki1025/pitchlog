@@ -32,6 +32,36 @@ const expectedVariants = {
 const expectedActive =
   'bg-sky-100 border-sky-500 text-sky-900 dark:bg-sky-900/60 dark:border-sky-400 dark:text-sky-100'
 
+const expectedRemovedColors = {
+  primary: ['bg-sky-600', 'text-white'],
+  result: [
+    'bg-white',
+    'text-slate-900',
+    'border-slate-300',
+    'dark:bg-slate-800',
+    'dark:text-slate-100',
+    'dark:border-slate-600',
+  ],
+  secondary: [
+    'bg-white',
+    'text-slate-800',
+    'border-slate-300',
+    'dark:bg-slate-800',
+    'dark:text-slate-100',
+    'dark:border-slate-600',
+  ],
+  ghost: ['text-slate-700', 'dark:text-slate-200'],
+  danger: ['bg-red-600', 'text-white'],
+  chip: [
+    'bg-white',
+    'text-slate-800',
+    'border-slate-300',
+    'dark:bg-slate-800',
+    'dark:text-slate-100',
+    'dark:border-slate-600',
+  ],
+} as const
+
 const expectedKeyHint =
   'pointer-events-none absolute right-1.5 top-1 hidden rounded border border-slate-300 bg-slate-100 px-1 text-[10px] font-mono font-normal leading-4 text-slate-500 lg:inline dark:border-slate-600 dark:bg-slate-900 dark:text-slate-400'
 
@@ -52,8 +82,22 @@ describe('Button', () => {
 
   it.each(variants)('%s の active クラスを切り替える', async (variant) => {
     const wrapper = mount(Button, { props: { variant, active: true } })
-    const activeClasses = `${expectedBase} ${expectedVariants[variant]} ${expectedActive}`
+    const classes = wrapper.classes()
+    const removed = expectedRemovedColors[variant] as readonly string[]
+    const preserved = expectedVariants[variant]
+      .split(' ')
+      .filter((classToken) => !removed.includes(classToken))
+    const activeClasses = `${expectedBase} ${preserved.join(' ')} ${expectedActive}`
 
+    for (const classToken of expectedActive.split(' ')) {
+      expect(classes).toContain(classToken)
+    }
+    for (const classToken of removed) {
+      expect(classes).not.toContain(classToken)
+    }
+    for (const classToken of [...expectedBase.split(' '), ...preserved]) {
+      expect(classes).toContain(classToken)
+    }
     expect(classSet(wrapper.attributes('class') ?? '')).toStrictEqual(
       classSet(activeClasses),
     )

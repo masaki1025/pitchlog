@@ -34,8 +34,50 @@ const variants: Record<Variant, string> = {
 const activeCls =
   'bg-sky-100 border-sky-500 text-sky-900 dark:bg-sky-900/60 dark:border-sky-400 dark:text-sky-100'
 
+// 旧は active の sky 系クラスが variant 側に負け、見た目が効かなかった。
+// active 時は競合する色クラスだけを外す（計画書 決定 L）。
+const activeColorRemovals: Record<Variant, readonly string[]> = {
+  primary: ['bg-sky-600', 'text-white'],
+  result: [
+    'bg-white',
+    'text-slate-900',
+    'border-slate-300',
+    'dark:bg-slate-800',
+    'dark:text-slate-100',
+    'dark:border-slate-600',
+  ],
+  secondary: [
+    'bg-white',
+    'text-slate-800',
+    'border-slate-300',
+    'dark:bg-slate-800',
+    'dark:text-slate-100',
+    'dark:border-slate-600',
+  ],
+  ghost: ['text-slate-700', 'dark:text-slate-200'],
+  danger: ['bg-red-600', 'text-white'],
+  chip: [
+    'bg-white',
+    'text-slate-800',
+    'border-slate-300',
+    'dark:bg-slate-800',
+    'dark:text-slate-100',
+    'dark:border-slate-600',
+  ],
+}
+
+const variantClass = computed(() => {
+  const variant = props.variant
+  if (!props.active) return variants[variant]
+
+  return variants[variant]
+    .split(' ')
+    .filter((classToken) => !activeColorRemovals[variant].includes(classToken))
+    .join(' ')
+})
+
 const buttonClass = computed(() =>
-  cx(base, variants[props.variant], props.active && activeCls),
+  cx(base, variantClass.value, props.active && activeCls),
 )
 </script>
 
