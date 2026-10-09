@@ -10,6 +10,7 @@ from psycopg.pq import TransactionStatus
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.pool import ConnectionPoolEntry, PoolProxiedConnection
 
+from pitchlog.authz.database_transport import require_database_transport
 from pitchlog.authz.runtime_contract import (
     APPLICATION_ROLE_ATTRIBUTES,
     APPLICATION_ROLE_NAME,
@@ -293,7 +294,7 @@ def _verify_application_role_connection(
                 WHERE (
                     namespace.nspname,
                     routine.proname,
-                    pg_catalog.pg_get_function_identity_arguments(routine.oid)
+                    pg_catalog.oidvectortypes(routine.proargtypes)
                 ) IN (
                     SELECT * FROM unnest(%s::text[], %s::text[], %s::text[])
                 )
@@ -441,7 +442,12 @@ def create_database_engine() -> Engine:
         os.environ.get(_DATABASE_POOLED_VARIABLE),
     )
     connect_args = engine_connect_args(_database_is_pooled(pooled_value))
+    connect_args["gssencmode"] = "disable"
     normalized_url = normalize_postgresql_url(database_url)
-    engine = create_engine(normalized_url, connect_args=connect_args)
+    require_database_transport(normalized_url, connect_args)
+    # 認証 ID を含む束縛値を SQLAlchemy のログと例外から隠す。
+    engine = create_engine(
+        normalized_url, connect_args=connect_args, hide_parameters=True
+    )
     event.listen(engine, "checkout", _verify_application_role_on_checkout)
     return engine

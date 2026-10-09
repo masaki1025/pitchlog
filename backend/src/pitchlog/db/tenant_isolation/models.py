@@ -9,6 +9,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Computed,
     DateTime,
     ForeignKeyConstraint,
     Index,
@@ -16,6 +17,8 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    column,
+    literal_column,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -38,12 +41,16 @@ from pitchlog.db.model_metadata import (
 )
 
 
-class Tenant(ImportBatchMixin, LifecycleMixin, Base):
+class Tenant(ImportBatchMixin, RetirementMixin, LifecycleMixin, Base):
     """データ所有と有効状態の単位となるテナント。"""
 
     __tablename__ = "tenants"
     __table_args__ = (
         CheckConstraint("enabled OR disabled_at IS NOT NULL"),
+        CheckConstraint(
+            "pg_catalog.char_length(name_normalized) <= 64",
+            name="ck_tenants_name_normalized_length",
+        ),
         ForeignKeyConstraint(
             ["import_batch_id"],
             ["migration_runs.id"],
@@ -57,10 +64,22 @@ class Tenant(ImportBatchMixin, LifecycleMixin, Base):
             name="pk_tenants",
             info={"roles": ("primary_key", "fk_target")},
         ),
+        Index(
+            "uq_tenants_active_name_normalized",
+            "name_normalized",
+            unique=True,
+            postgresql_where=column("retired_at").is_(None),
+            info={"roles": ("business_unique",)},
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    name_normalized: Mapped[str] = mapped_column(
+        Text,
+        Computed("public.authn_normalize_team_name(name)", persisted=True),
+        nullable=False,
+    )
     enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("true")
     )
@@ -71,11 +90,13 @@ class Tenant(ImportBatchMixin, LifecycleMixin, Base):
     lifecycle = Lifecycle(
         deletion=DeletionLifecycle.DISABLED,
         append_mode=AppendMode.MUTABLE,
-        migration_retirement=MigrationRetirement.NONE,
+        migration_retirement=MigrationRetirement.HAS_PREDICATE,
     )
     immutability = Immutability(
         protected_columns=frozenset(),
-        allowed_update_columns=frozenset({"name", "enabled", "disabled_at"}),
+        allowed_update_columns=frozenset(
+            {"name", "enabled", "disabled_at", "retired_at"}
+        ),
         coverage=ImmutabilityCoverage.PARTIAL,
         unclassified_handoff="TSK-372",
     )
@@ -144,6 +165,7 @@ class Player(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
 
     __tablename__ = "players"
     __table_args__ = (
+        CheckConstraint("roster_status_category = 'roster_status'"),
         ForeignKeyConstraint(
             ["tenant_id", "team_record_id"],
             ["team_records.tenant_id", "team_records.id"],
@@ -153,10 +175,10 @@ class Player(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
             info={"cross_tenant": False},
         ),
         ForeignKeyConstraint(
-            ["roster_status_key"],
-            ["system_vocabularies.key"],
+            ["roster_status_key", "roster_status_category"],
+            ["system_vocabularies.key", "system_vocabularies.category"],
             name="fk_players_roster_status",
-            match="SIMPLE",
+            match="FULL",
             ondelete="NO ACTION",
             info={"cross_tenant": False},
         ),
@@ -191,6 +213,9 @@ class Player(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
     bats: Mapped[str | None] = mapped_column(Text, nullable=True)
     uniform_number: Mapped[str | None] = mapped_column(Text, nullable=True)
     roster_status_key: Mapped[str] = mapped_column(Text, nullable=False)
+    roster_status_category: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=literal_column("'roster_status'")
+    )
     roster_label_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     hidden_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -410,6 +435,17 @@ class TenantAuthSubject(TenantMixin, LifecycleMixin, Base):
             name="pk_tenant_auth_subjects",
             info={"roles": ("primary_key", "fk_target")},
         ),
+        UniqueConstraint(
+            "tenant_id",
+            name="uq_tenant_auth_subjects_tenant",
+            info={"roles": ("business_unique",)},
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "id",
+            name="uq_tenant_auth_subjects_tenant_id",
+            info={"roles": ("fk_target",)},
+        ),
         Index(
             "ix_tenant_auth_subjects_tenant",
             "tenant_id",
@@ -586,10 +622,10 @@ class TenantToken(TenantMixin, LifecycleMixin, Base):
             info={"cross_tenant": False},
         ),
         ForeignKeyConstraint(
-            ["auth_subject_id"],
-            ["tenant_auth_subjects.id"],
+            ["tenant_id", "auth_subject_id"],
+            ["tenant_auth_subjects.tenant_id", "tenant_auth_subjects.id"],
             name="fk_tenant_tokens_subject",
-            match="SIMPLE",
+            match="FULL",
             ondelete="NO ACTION",
             info={"cross_tenant": False},
         ),
@@ -1121,6 +1157,12 @@ class SystemVocabulary(LifecycleMixin, Base):
             "key",
             name="pk_system_vocabularies",
             info={"roles": ("business_unique", "primary_key", "fk_target")},
+        ),
+        UniqueConstraint(
+            "key",
+            "category",
+            name="uq_system_vocabularies_key_category",
+            info={"roles": ("fk_target",)},
         ),
     )
 

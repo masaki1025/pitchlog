@@ -307,196 +307,36 @@ ORM_SCHEMA_MIGRATION_AREA_PATHS = {
         "tests/test_orm_acceptance_sheets.py",
     ),
 }
-EXPECTED_AREA_PATHS = {
-    "sync-protocol": [
-        CORE_DOCUMENT_PATHS[0],
-        DATA_MODEL_DOCUMENT_PATH,
-        CORE_DOCUMENT_PATHS[1],
-        "frontend/package.json",
-        "frontend/pnpm-lock.yaml",
-        "frontend/src/lib/sync/ackAdapter.spec.ts",
-        "frontend/src/lib/sync/ackAdapter.ts",
-        "frontend/src/lib/sync/ackEnvelope.spec.ts",
-        "frontend/src/lib/sync/ackEnvelope.ts",
-        "frontend/src/lib/sync/boundaryResults.spec.ts",
-        "frontend/src/lib/sync/boundaryResults.ts",
-        "frontend/src/lib/sync/canonOracle.spec.ts",
-        "frontend/src/lib/sync/canonOracle.ts",
-        "frontend/src/lib/sync/changeOperationGate.spec.ts",
-        "frontend/src/lib/sync/changeOperationGate.ts",
-        "frontend/src/lib/sync/clientDiscipline.spec.ts",
-        "frontend/src/lib/sync/clientDiscipline.ts",
-        "frontend/src/lib/sync/durableQueue.spec.ts",
-        "frontend/src/lib/sync/durableQueue.ts",
-        "frontend/src/lib/sync/eventFieldRules.spec.ts",
-        "frontend/src/lib/sync/eventFieldRules.ts",
-        "frontend/src/lib/sync/eventKinds.spec.ts",
-        "frontend/src/lib/sync/eventKinds.ts",
-        "frontend/src/lib/sync/failureScenarioContract.spec.ts",
-        "frontend/src/lib/sync/failureScenarioContract.ts",
-        "frontend/src/lib/sync/idempotencyCollision.spec.ts",
-        "frontend/src/lib/sync/idempotencyCollision.ts",
-        "frontend/src/lib/sync/k5Tombstone.spec.ts",
-        "frontend/src/lib/sync/k5Tombstone.ts",
-        "frontend/src/lib/sync/localQueueFile.spec.ts",
-        "frontend/src/lib/sync/localQueueFile.ts",
-        "frontend/src/lib/sync/mappingConfirmationGate.spec.ts",
-        "frontend/src/lib/sync/mappingConfirmationGate.ts",
-        "frontend/src/lib/sync/p3Result.spec.ts",
-        "frontend/src/lib/sync/p3Result.ts",
-        "frontend/src/lib/sync/playerIdMapping.spec.ts",
-        "frontend/src/lib/sync/playerIdMapping.ts",
-        "frontend/src/lib/sync/processingStages.spec.ts",
-        "frontend/src/lib/sync/processingStages.snapshot.json",
-        "frontend/src/lib/sync/processingStages.ts",
-        "frontend/src/lib/sync/restoreAdjustmentGate.spec.ts",
-        "frontend/src/lib/sync/restoreAdjustmentGate.ts",
-        "frontend/src/lib/sync/prohibitions.spec.ts",
-        "frontend/src/lib/sync/queueState.spec.ts",
-        "frontend/src/lib/sync/queueState.ts",
-        "frontend/src/lib/sync/queueTransition.spec.ts",
-        "frontend/src/lib/sync/queueTransition.ts",
-        *RECEPTION_INPUT_AREA_PATHS,
-        "frontend/src/lib/sync/rejectionReason.spec.ts",
-        "frontend/src/lib/sync/rejectionReason.ts",
-        "frontend/src/lib/sync/requestBoundary.spec.ts",
-        "frontend/src/lib/sync/requestBoundary.ts",
-        "frontend/src/lib/sync/resendRange.spec.ts",
-        "frontend/src/lib/sync/resendRange.ts",
-        "frontend/src/lib/sync/singleWriter.spec.ts",
-        "frontend/src/lib/sync/singleWriter.ts",
-        "frontend/src/lib/sync/syncEvent.ts",
-        "frontend/src/lib/sync/syncNotices.spec.ts",
-        "frontend/src/lib/sync/syncNotices.ts",
-        "frontend/src/lib/sync/temporaryIdMapping.spec.ts",
-        "frontend/src/lib/sync/temporaryIdMapping.ts",
-        "frontend/src/lib/sync/undoQueueing.spec.ts",
-        "frontend/src/lib/sync/undoQueueing.ts",
-        "frontend/src/lib/sync/validateSyncEvent.spec.ts",
-        "frontend/src/lib/sync/validateSyncEvent.ts",
-        "frontend/src/testing/failureScenarioAdapter.spec.ts",
-        "frontend/src/testing/failureScenarioAdapter.ts",
-        "frontend/tsconfig.app.json",
-        "frontend/vite.config.ts",
-        "tests/fixtures/sync-protocol-failures/**",
-        *ORM_SCHEMA_MIGRATION_AREA_PATHS["sync-protocol"],
-    ],
-    "game-state": [
-        CORE_DOCUMENT_PATHS[0],
-        DATA_MODEL_DOCUMENT_PATH,
-        CORE_DOCUMENT_PATHS[1],
-        "frontend/src/lib/courseInputView.ts",
-        "frontend/src/lib/displayGeometry.ts",
-        "frontend/src/lib/spatialInput.ts",
-        "frontend/src/components/zone/StrikeZone.vue",
-        "frontend/src/lib/courseCoordinateContract.spec.ts",
-        "frontend/src/lib/displayGeometry.spec.ts",
-        "frontend/src/components/zone/StrikeZone.spec.ts",
-        "contracts/display_geometry_263_v1.json",
-        "frontend/vite.config.ts",
-        "frontend/vitest.config.ts",
-        "frontend/package.json",
-        "frontend/tsconfig.app.json",
-        "frontend/tsconfig.json",
-        "frontend/pnpm-lock.yaml",
-        "mise.toml",
-        "frontend/src/lib/sync/eventKinds.ts",
-        "frontend/src/lib/sync/eventKinds.spec.ts",
-        "frontend/src/lib/sync/eventFieldRules.ts",
-        "frontend/src/lib/sync/eventFieldRules.spec.ts",
-        "frontend/src/lib/sync/validateSyncEvent.ts",
-        "frontend/src/lib/sync/validateSyncEvent.spec.ts",
-        "frontend/src/lib/sync/canonOracle.ts",
-        "frontend/src/lib/sync/canonOracle.spec.ts",
-        "frontend/src/lib/sync/prohibitions.spec.ts",
-        *ORM_SCHEMA_MIGRATION_AREA_PATHS["game-state"],
-    ],
-    "recording-rights": [
-        CORE_DOCUMENT_PATHS[0],
-        DATA_MODEL_DOCUMENT_PATH,
-        CORE_DOCUMENT_PATHS[1],
-        "frontend/src/lib/sync/ackEnvelope.spec.ts",
-        "frontend/src/lib/sync/ackEnvelope.ts",
-        "frontend/src/lib/sync/boundaryResults.spec.ts",
-        "frontend/src/lib/sync/boundaryResults.ts",
-        "frontend/src/lib/sync/canonOracle.spec.ts",
-        "frontend/src/lib/sync/canonOracle.ts",
-        "frontend/src/lib/sync/changeOperationGate.spec.ts",
-        "frontend/src/lib/sync/changeOperationGate.ts",
-        "frontend/src/lib/sync/durableQueue.spec.ts",
-        "frontend/src/lib/sync/durableQueue.ts",
-        "frontend/src/lib/sync/eventFieldRules.spec.ts",
-        "frontend/src/lib/sync/eventFieldRules.ts",
-        "frontend/src/lib/sync/k5Tombstone.spec.ts",
-        "frontend/src/lib/sync/k5Tombstone.ts",
-        "frontend/src/lib/sync/localQueueFile.spec.ts",
-        "frontend/src/lib/sync/localQueueFile.ts",
-        "frontend/src/lib/sync/p3Result.spec.ts",
-        "frontend/src/lib/sync/p3Result.ts",
-        "frontend/src/lib/sync/processingStages.spec.ts",
-        "frontend/src/lib/sync/processingStages.snapshot.json",
-        "frontend/src/lib/sync/processingStages.ts",
-        "frontend/src/lib/sync/restoreAdjustmentGate.spec.ts",
-        "frontend/src/lib/sync/restoreAdjustmentGate.ts",
-        "frontend/src/lib/sync/queueState.spec.ts",
-        "frontend/src/lib/sync/queueState.ts",
-        "frontend/src/lib/sync/queueTransition.spec.ts",
-        "frontend/src/lib/sync/queueTransition.ts",
-        *RECEPTION_INPUT_AREA_PATHS,
-        "frontend/src/lib/sync/requestBoundary.spec.ts",
-        "frontend/src/lib/sync/requestBoundary.ts",
-        "frontend/src/lib/sync/resendRange.spec.ts",
-        "frontend/src/lib/sync/resendRange.ts",
-        "frontend/src/lib/sync/syncEvent.ts",
-        "frontend/src/lib/sync/undoQueueing.spec.ts",
-        "frontend/src/lib/sync/undoQueueing.ts",
-        "frontend/src/lib/sync/validateSyncEvent.spec.ts",
-        "frontend/src/lib/sync/validateSyncEvent.ts",
-        *ORM_SCHEMA_MIGRATION_AREA_PATHS["recording-rights"],
-    ],
-    "tenant-isolation": [
-        CORE_DOCUMENT_PATHS[0],
-        DATA_MODEL_DOCUMENT_PATH,
-        CORE_DOCUMENT_PATHS[1],
-        "contracts/authz/*",
-        "scripts/check_authz_catalog.py",
-        "tests/test_check_authz_catalog.py",
-        *AUTHZ_TENANT_AREA_PATH_ADDITIONS,
-        "tests/fixtures/authz_claims/*",
-        "backend/tests/db/*",
-        "backend/pyproject.toml",
-        "backend/uv.lock",
-        "backend/*conftest.py",
-        "backend/.python-version",
-        "docker-compose.yml",
-        "frontend/src/lib/sync/canonOracle.spec.ts",
-        "frontend/src/lib/sync/canonOracle.ts",
-        "frontend/src/lib/sync/idempotencyCollision.ts",
-        "frontend/src/lib/sync/idempotencyCollision.spec.ts",
-        "frontend/src/lib/sync/processingStages.spec.ts",
-        "frontend/src/lib/sync/processingStages.snapshot.json",
-        "frontend/src/lib/sync/processingStages.ts",
-        "frontend/src/lib/sync/restoreAdjustmentGate.spec.ts",
-        "frontend/src/lib/sync/restoreAdjustmentGate.ts",
-        *ORM_SCHEMA_MIGRATION_AREA_PATHS["tenant-isolation"],
-        *TENANT_BOUNDARY_AREA_PATH_ADDITIONS,
-    ],
-    "data-migration": [
-        DATA_MODEL_DOCUMENT_PATH,
-        "frontend/src/lib/format.ts",
-        "frontend/src/lib/sync/syncEvent.ts",
-        "frontend/src/lib/sync/prohibitions.spec.ts",
-        "frontend/src/lib/sync/eventFieldRules.spec.ts",
-        "frontend/src/lib/sync/validateSyncEvent.spec.ts",
-        *ORM_SCHEMA_MIGRATION_AREA_PATHS["data-migration"],
-    ],
-}
 NEW_CORE_PATH_CHANGES = (
     "contracts/authz/auth-catalog.json",
     "frontend/src/lib/courseInputView.ts",
     "frontend/src/lib/format.ts",
     "backend/conftest.py",
     *TENANT_BOUNDARY_CORE_PATHS,
+)
+DOMAIN_CALC_AREA_IDS = ("game-state", "data-migration")
+DECLARED_ADDITION_AREA_IDS = (*DOMAIN_CALC_AREA_IDS, "tenant-isolation")
+PRODUCT_RLS_AREA_PATH_ADDITIONS = (
+    "docs/ops/product-rls-real-schema.md",
+    "scripts/product_rls_real_schema/*",
+    "scripts/product-rls-real-schema-targets.json",
+)
+# 計画書 4-8 節の予定パス。①③ は完全パス、② は専用ディレクトリ配下とする。
+PRODUCT_RLS_PLANNED_EXACT_PATHS = frozenset(
+    {
+        "docs/ops/product-rls-real-schema.md",
+        "scripts/product-rls-real-schema-targets.json",
+    }
+)
+PRODUCT_RLS_PLANNED_DIRECTORY = "scripts/product_rls_real_schema/"
+# 同表の代表パスで各パターンの fnmatch 一致を確かめる。
+PRODUCT_RLS_PATTERN_EXAMPLES = (
+    ("docs/ops/product-rls-real-schema.md",),
+    (
+        "scripts/product_rls_real_schema/runner.py",
+        "scripts/product_rls_real_schema/catalog_plugin.py",
+    ),
+    ("scripts/product-rls-real-schema-targets.json",),
 )
 EXISTING_REAL_GUARD_PATHS = (
     ".claude/core-areas.json",
@@ -654,6 +494,94 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
         "base",
     )
     return root
+
+
+def make_layered_core_repo(tmp_path: Path) -> tuple[Path, str]:
+    """5 領域と基線定義を持つ履歴検査用リポジトリを作る。
+
+    Args:
+        tmp_path: pytest が提供する一時ディレクトリ。
+
+    Returns:
+        合成リポジトリと変更不能な初期コミット OID。
+    """
+    root = tmp_path / "layered-repo"
+    root.mkdir()
+    run_git(root, "init", "-q", "-b", "main")
+    areas = [
+        {
+            "id": area_id,
+            "name": area_id,
+            "description": "合成領域",
+            "paths": [f"base/{area_id}.py"],
+        }
+        for area_id in (
+            "sync-protocol",
+            "game-state",
+            "recording-rights",
+            "tenant-isolation",
+            "data-migration",
+        )
+    ]
+    write_json(
+        root,
+        ".claude/core-areas.json",
+        {"description": "合成基線", "guard_paths": [], "areas": areas},
+    )
+    write_text(root, "scripts/core_guard.py", "ANCHOR = 'base'\n")
+    write_text(root, "tests/test_core_guard.py", "EXPECTED = 'base'\n")
+    run_git(root, "add", ".")
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "baseline",
+    )
+    return root, run_git(root, "rev-parse", "HEAD").stdout.strip()
+
+
+def commit_area_path_changes(
+    root: Path,
+    additions: dict[str, tuple[str, ...]],
+    *,
+    cochanged_paths: tuple[str, ...] = (),
+) -> str:
+    """領域別 paths と指定した基線定義を同一コミットで変更する。
+
+    Args:
+        root: 合成リポジトリのルート。
+        additions: 領域 ID ごとの追加パス。
+        cochanged_paths: JSON と同一コミットで変更するパス。
+
+    Returns:
+        作成したコミットの OID。
+    """
+    path = root / ".claude/core-areas.json"
+    document = json.loads(path.read_text(encoding="utf-8"))
+    for area in document["areas"]:
+        area["paths"].extend(additions.get(area["id"], ()))
+    write_json(root, ".claude/core-areas.json", document)
+    for relative_path in cochanged_paths:
+        current = (root / relative_path).read_text(encoding="utf-8")
+        write_text(root, relative_path, current + "CHANGED = True\n")
+    run_git(root, "add", ".")
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "area paths change",
+    )
+    return run_git(root, "rev-parse", "HEAD").stdout.strip()
 
 
 def commit_change(
@@ -1577,14 +1505,334 @@ def test_copied_actual_config_rejects_one_missing_data_model_path(tmp_path):
     assert not has_expected_data_model_registrations(copied_configuration)
 
 
-def test_actual_core_area_paths_are_exact_expected_set():
-    configuration = load_actual_core_areas()
-    areas = configuration["areas"]
-    assert isinstance(areas, list)
-    actual_by_id = {area["id"]: area["paths"] for area in areas}
+def test_actual_core_area_paths_follow_merge_base_layers():
+    """実設定を head 内リテラルでなく merge-base blob と突合する。"""
+    core_guard = load_core_guard_module()
+    head_sha = run_git(REPO, "rev-parse", "HEAD").stdout.strip()
+    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    baseline_revision = core_guard.merge_base_revision(REPO, base_sha, head_sha)
+    baseline = core_guard.load_core_areas_at_revision(REPO, baseline_revision)
+    candidate = core_guard.load_core_areas_at_revision(REPO, head_sha)
+    baseline_ids = {area["id"] for area in baseline["areas"]}
+    declared_ids = set(core_guard.AREA_PATH_ADDITIONS)
+    stationary_ids = baseline_ids - declared_ids
 
-    assert len(actual_by_id) == len(areas), "コア領域 ID が重複している"
-    assert actual_by_id == EXPECTED_AREA_PATHS
+    assert len(baseline_ids) == len(baseline["areas"]), "コア領域 ID が重複している"
+    assert len(baseline_ids) == 5
+    assert declared_ids <= baseline_ids
+    assert len(stationary_ids) == len(baseline_ids) - len(declared_ids)
+    core_guard.validate_area_path_layers(baseline, candidate)
+
+
+def test_merge_base_blob_is_used_instead_of_pr_base_tip(tmp_path: Path):
+    """base ブランチ先端が動いても分岐点の blob を比較元にする。"""
+    core_guard = load_core_guard_module()
+    root, original_base = make_layered_core_repo(tmp_path)
+    run_git(root, "branch", "feature", original_base)
+    target_tip = commit_area_path_changes(
+        root,
+        {"sync-protocol": ("base-branch-only.py",)},
+    )
+    run_git(root, "checkout", "-q", "feature")
+    feature_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+
+    used_revision = core_guard.verify_area_path_baseline(
+        root,
+        target_tip,
+        feature_head,
+    )
+
+    assert used_revision == original_base
+    assert used_revision != target_tip
+
+
+def test_each_stationary_area_is_derived_from_merge_base_and_rejects_change(
+    tmp_path: Path,
+):
+    """宣言済み領域を除く全領域を据え置き層として固定する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = json.loads(json.dumps(baseline))
+    baseline_ids = {area["id"] for area in baseline["areas"]}
+    declared_ids = set(core_guard.AREA_PATH_ADDITIONS)
+    stationary_ids = baseline_ids - declared_ids
+    attempts = 0
+
+    assert len(baseline_ids) == len(baseline["areas"]) == 5
+    assert declared_ids <= baseline_ids
+    for area_id in sorted(stationary_ids):
+        mutated = json.loads(json.dumps(candidate))
+        area = next(item for item in mutated["areas"] if item["id"] == area_id)
+        area["paths"].append("unregistered/probe.py")
+        with pytest.raises(core_guard.GuardError, match=rf"{area_id}\.paths"):
+            core_guard.validate_area_path_layers(baseline, mutated)
+        attempts += 1
+
+    assert attempts == len(baseline_ids) - len(declared_ids)
+
+
+def test_change_absent_from_declared_addition_layer_is_rejected(tmp_path: Path):
+    """追加対象領域でも追加層に無いパスを拒否する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    head_sha = commit_area_path_changes(
+        root,
+        {"game-state": ("unregistered/probe.py",)},
+    )
+
+    with pytest.raises(core_guard.GuardError, match="game-state.paths"):
+        core_guard.verify_area_path_baseline(root, base_sha, head_sha)
+
+
+def test_json_and_expected_literal_cochange_cannot_redefine_baseline(tmp_path: Path):
+    """03c41ca 型の JSON と期待値の共変更を merge-base 基線で拒否する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    head_sha = commit_area_path_changes(
+        root,
+        {"sync-protocol": ("same-line.py",)},
+        cochanged_paths=("tests/test_core_guard.py",),
+    )
+
+    with pytest.raises(core_guard.GuardError, match="sync-protocol.paths"):
+        core_guard.verify_area_path_baseline(root, base_sha, head_sha)
+
+
+def test_json_expected_and_anchor_cochange_is_rejected(tmp_path: Path):
+    """JSON・期待値・アンカーの 3 点を同時変更しても基線を動かせない。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    head_sha = commit_area_path_changes(
+        root,
+        dict(core_guard.AREA_PATH_ADDITIONS),
+        cochanged_paths=(
+            "scripts/core_guard.py",
+            "tests/test_core_guard.py",
+        ),
+    )
+
+    with pytest.raises(core_guard.GuardError, match="同一コミット"):
+        core_guard.verify_area_path_baseline(root, base_sha, head_sha)
+
+
+def test_registered_addition_layer_passes_in_a_separate_commit(tmp_path: Path):
+    """据え置き層と宣言済み追加層だけから成る変更が実際に通る。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    head_sha = commit_area_path_changes(
+        root,
+        dict(core_guard.AREA_PATH_ADDITIONS),
+    )
+
+    used_revision = core_guard.verify_area_path_baseline(root, base_sha, head_sha)
+
+    assert used_revision == base_sha
+
+
+def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> None:
+    """宣言だけを先にコミットしても据え置き JSON を受理する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    write_text(root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8"))
+    run_git(root, "add", "scripts/core_guard.py")
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "declaration only",
+    )
+    head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+
+    assert candidate == baseline
+    tenant_area = next(
+        area for area in candidate["areas"] if area["id"] == "tenant-isolation"
+    )
+    assert tenant_area["paths"] == ["base/tenant-isolation.py"]
+    assert PRODUCT_RLS_AREA_PATH_ADDITIONS == core_guard.AREA_PATH_ADDITIONS[
+        "tenant-isolation"
+    ]
+    core_guard.validate_area_path_layers(baseline, candidate)
+    assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
+
+
+def test_tenant_additions_declared_for_other_area_are_rejected(tmp_path: Path) -> None:
+    """別領域に同じ追加層を宣言しても tenant の変更を拒否する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    head_sha = commit_area_path_changes(
+        root, {"tenant-isolation": PRODUCT_RLS_AREA_PATH_ADDITIONS}
+    )
+    declared = dict(core_guard.AREA_PATH_ADDITIONS)
+    declared.pop("tenant-isolation")
+    declared["recording-rights"] = PRODUCT_RLS_AREA_PATH_ADDITIONS
+
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(baseline, candidate, declared)
+
+
+def test_one_of_three_tenant_additions_declared_is_rejected(tmp_path: Path) -> None:
+    """3 件を paths に足しても宣言が 1 件なら拒否する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    head_sha = commit_area_path_changes(
+        root, {"tenant-isolation": PRODUCT_RLS_AREA_PATH_ADDITIONS}
+    )
+    declared = dict(core_guard.AREA_PATH_ADDITIONS)
+    declared["tenant-isolation"] = PRODUCT_RLS_AREA_PATH_ADDITIONS[:1]
+
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(baseline, candidate, declared)
+
+
+def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
+    """3 件の宣言順を変えると計画順の paths を拒否する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    head_sha = commit_area_path_changes(
+        root, {"tenant-isolation": PRODUCT_RLS_AREA_PATH_ADDITIONS}
+    )
+    declared = dict(core_guard.AREA_PATH_ADDITIONS)
+    declared["tenant-isolation"] = tuple(reversed(PRODUCT_RLS_AREA_PATH_ADDITIONS))
+
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(baseline, candidate, declared)
+
+
+def test_product_rls_declaration_matches_planned_and_tracked_paths() -> None:
+    """計画した予定パスを覆い、現追跡ファイルを過剰に覆わない。"""
+    core_guard = load_core_guard_module()
+    assert core_guard.AREA_PATH_ADDITIONS["tenant-isolation"] == (
+        PRODUCT_RLS_AREA_PATH_ADDITIONS
+    )
+    for pattern, planned_paths in zip(
+        PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PATTERN_EXAMPLES, strict=True
+    ):
+        assert all(fnmatch.fnmatchcase(path, pattern) for path in planned_paths)
+
+    tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
+    matches = tuple(
+        tuple(path for path in tracked_files if fnmatch.fnmatchcase(path, pattern))
+        for pattern in PRODUCT_RLS_AREA_PATH_ADDITIONS
+    )
+    assert all(
+        path in PRODUCT_RLS_PLANNED_EXACT_PATHS
+        or path.startswith(PRODUCT_RLS_PLANNED_DIRECTORY)
+        for matched_paths in matches
+        for path in matched_paths
+    )
+    # ステップ 6 の追跡集合。固定した期待 node 資産も追加層に入る。
+    assert matches == (
+        ("docs/ops/product-rls-real-schema.md",),
+        (
+            "scripts/product_rls_real_schema/__init__.py",
+            "scripts/product_rls_real_schema/expected-nodes-27ff94eb.txt",
+            "scripts/product_rls_real_schema/runner.py",
+        ),
+        ("scripts/product-rls-real-schema-targets.json",),
+    )
+
+
+def test_area_registration() -> None:
+    """宣言済み領域と据え置き領域の二層登録を検査する。"""
+    core_guard = load_core_guard_module()
+    configuration = load_actual_core_areas()
+    areas = {area["id"]: area for area in configuration["areas"]}
+    head_sha = run_git(REPO, "rev-parse", "HEAD").stdout.strip()
+    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    baseline_revision = core_guard.merge_base_revision(REPO, base_sha, head_sha)
+    baseline = core_guard.load_core_areas_at_revision(REPO, baseline_revision)
+    baseline_areas = {area["id"]: area for area in baseline["areas"]}
+    tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
+    declared_ids = set(core_guard.AREA_PATH_ADDITIONS)
+    stationary_ids = set(areas) - declared_ids
+
+    assert len(areas) == len(configuration["areas"]) == 5
+    assert declared_ids == set(DECLARED_ADDITION_AREA_IDS)
+    assert declared_ids <= set(areas)
+    assert len(stationary_ids) == len(areas) - len(declared_ids)
+    for area_id in DECLARED_ADDITION_AREA_IDS:
+        additions = core_guard.AREA_PATH_ADDITIONS[area_id]
+        current_paths = tuple(areas[area_id]["paths"])
+        base_paths = tuple(baseline_areas[area_id]["paths"])
+        assert current_paths in {base_paths, (*base_paths, *additions)}
+        patterns_all_tracked = all(
+            any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
+            for pattern in additions
+        )
+        if patterns_all_tracked:
+            assert current_paths[-len(additions) :] == additions, (
+                f"{area_id}: 宣言パターンの対象が全て追跡下にあるのに paths へ登録されていない"
+            )
+    for area_id in stationary_ids:
+        assert areas[area_id]["paths"] == baseline_areas[area_id]["paths"]
+    core_guard.validate_area_path_layers(baseline, configuration)
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    load_core_guard_module().AREA_PATH_ADDITIONS["game-state"],
+)
+def test_future_domain_calc_file_is_covered_by_each_registered_glob(
+    pattern: str,
+) -> None:
+    """各 glob が将来追加される下位ファイルも自動的に覆うと示す。"""
+    configuration = load_actual_core_areas()
+    areas = {area["id"]: area for area in configuration["areas"]}
+    future_path = f"{pattern.removesuffix('*')}future/nested_probe.py"
+
+    for area_id in DOMAIN_CALC_AREA_IDS:
+        patterns = areas[area_id]["paths"]
+        assert any(fnmatch.fnmatchcase(future_path, item) for item in patterns)
+        without_glob = [item for item in patterns if item != pattern]
+        assert not any(
+            fnmatch.fnmatchcase(future_path, item) for item in without_glob
+        ), f"{area_id} で {pattern} を除いても将来ファイルが被覆されている"
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    load_core_guard_module().AREA_PATH_ADDITIONS["game-state"],
+)
+def test_each_domain_calc_glob_change_triggers_guard(
+    tmp_path: Path,
+    pattern: str,
+) -> None:
+    """各追加 glob 配下の新規パス変更で core-guard が発火する。"""
+    future_path = f"{pattern.removesuffix('*')}future/nested_probe.py"
+    root = make_repo_with_actual_core_areas(tmp_path)
+    base_sha, head_sha = commit_change(root, future_path)
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert future_path in result.stderr
+
+
+def test_domain_calc_adjacent_path_does_not_trigger_guard(tmp_path: Path) -> None:
+    """登録対象外の隣接パス変更では core-guard が発火しない。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    path = "backend/src/pitchlog/domain_other/future_probe.py"
+    base_sha, head_sha = commit_change(root, path)
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_database_tests_have_the_same_area_ownership_as_migrations() -> None:
@@ -1615,14 +1863,38 @@ def test_unregistered_schema_contract_asset_is_rejected_without_creating_it():
         assert_schema_contract_assets_are_registered(assets)
 
 
+def test_schema_contract_population_closes_forward_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """スキーマ契約テストの母集団は import 先だけを推移的に含める。"""
+    write_text(
+        tmp_path,
+        "backend/tests/test_seed.py",
+        'import helper\nSCHEMA_REF = "migrations"\n',
+    )
+    write_text(tmp_path, "backend/tests/helper.py", "VALUE = 1\n")
+    write_text(tmp_path, "backend/tests/test_importer.py", "import helper\n")
+    monkeypatch.setattr(sys.modules[__name__], "REPO", tmp_path)
+
+    population = schema_contract_test_paths()
+
+    assert "backend/tests/test_seed.py" in population
+    assert "backend/tests/helper.py" in population
+    assert "backend/tests/test_importer.py" not in population, (
+        "逆向きの閉包は認可検証の資産を巻き込む"
+    )
+
+
 def test_schema_contract_test_population_does_not_depend_on_branch() -> None:
-    """スキーマ契約テストの母集団がブランチの状態に依存しないと示す。"""
+    """スキーマ契約テストの母集団がブランチの状態に依存しないと示す。
+
+    名前による判定は正当な経路の試験も禁じ、別の場所へ広がる退行を見逃す。
+    閉包の向きは `test_schema_contract_population_closes_forward_only` が
+    import の挙動で固定する。
+    """
     population = schema_contract_test_paths()
     assert population, "backend/tests/ の母集団が空になっている"
     assert "backend/tests/test_operation_event_kind_contract.py" in population
-    assert not any(
-        name.startswith("backend/tests/db/test_authz_") for name in population
-    ), "認可検証の資産まで巻き込んでいる"
 
 
 def test_unregistered_schema_contract_test_is_rejected() -> None:

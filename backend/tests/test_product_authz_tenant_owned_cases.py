@@ -40,7 +40,9 @@ def _assert_required_columns_are_present(row: cases.SeedRow) -> None:
     required = {
         str(column["name"])
         for column in columns
-        if column.get("nullable") is False and column.get("default") is None
+        if column.get("nullable") is False
+        and column.get("default") is None
+        and "generated_expression" not in column
     }
     assert required <= set(row.values), (row.table, required - set(row.values))
 
@@ -51,6 +53,13 @@ def _assert_fk_targets_precede(
 ) -> None:
     """値を持つ全 FK が先行行を exact に参照することを確かめる。"""
     table = _manifest_by_name()[row.table]
+    text_defaults = {
+        str(column["name"]): default[1:-1]
+        for column in _object_rows(table.get("columns"), f"{row.table}.columns")
+        if isinstance((default := column.get("default")), str)
+        and default.startswith("'")
+        and default.endswith("'")
+    }
     foreign_keys = _object_rows(table.get("foreign_keys"), f"{row.table}.foreign_keys")
     for foreign_key in foreign_keys:
         child_columns = foreign_key.get("columns")
@@ -61,7 +70,10 @@ def _assert_fk_targets_precede(
         parent_columns = references.get("columns")
         assert isinstance(parent_table, str)
         assert isinstance(parent_columns, list)
-        values = tuple(row.values.get(str(column)) for column in child_columns)
+        values = tuple(
+            row.values.get(str(column), text_defaults.get(str(column)))
+            for column in child_columns
+        )
         if all(value is None for value in values):
             continue
         if foreign_key.get("match") == "SIMPLE" and any(

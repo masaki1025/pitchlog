@@ -119,7 +119,18 @@ def test_unapply_migration_round_trip_and_reapply_restore_both_catalogs(
     first_snapshot = _snapshot(catalog)
     assert first_report.ok
 
+    with catalog.applicator.cursor() as cursor:
+        cursor.execute("CREATE ROLE step6_migration_batch_probe NOLOGIN")
+        cursor.execute(
+            "GRANT EXECUTE ON FUNCTION public.authn_normalize_team_name(text) "
+            "TO step6_migration_batch_probe"
+        )
+    catalog.applicator.commit()
+
     unapply_product_authz_ddl(catalog.applicator)
+    with catalog.applicator.cursor() as cursor:
+        cursor.execute("DROP ROLE step6_migration_batch_probe")
+    catalog.applicator.commit()
     _assert_subject_is_session(catalog)
     unapplied_report = _inspect(catalog, privileged_role_oid)
     unapplied_snapshot = _snapshot(catalog)

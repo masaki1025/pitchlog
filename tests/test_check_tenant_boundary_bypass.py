@@ -2378,6 +2378,12 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "tests/test_census_baseline_check.py",
         ],
         Path("contracts/tenant_boundary/db-api-inventory.json"): shared_external_files,
+        Path("contracts/tenant_boundary/frozen-inputs.json"): [
+            "scripts/frozen_archive.py",
+            "tests/domain/test_boot_seal.py",
+            "tests/test_ci_wiring.py",
+            "tests/test_plan_generation.py",
+        ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,
         Path("contracts/tenant_boundary/runtime-authz-contract.json"): (
@@ -5898,6 +5904,29 @@ def test_repository_base_symbol_has_only_execute_database_api() -> None:
         "operation: TenantOperationToken) -> TenantOperationResult"
     )
     assert matching_rows[0]["allowed_api_ids"] == ["SQLA_SESSION_EXECUTE"]
+
+
+def test_authn_entry_symbols_have_only_required_database_apis() -> None:
+    """検証とログアウトの許可 API を各 3 件に固定する。"""
+    allowlist = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text(encoding="utf-8")
+    )
+    rows = {
+        row["symbol"]: row
+        for row in allowlist["allowed_symbols"]
+        if row["symbol"].startswith("pitchlog.authz.verified_tenant.")
+    }
+    assert set(rows) == {
+        "pitchlog.authz.verified_tenant.verify_tenant_id",
+        "pitchlog.authz.verified_tenant.logout_token",
+    }
+    for row in rows.values():
+        assert row["allowed_api_ids"] == [
+            "SQLA_TEXT",
+            "SQLA_ENGINE_BEGIN",
+            "SQLA_CONNECTION_EXECUTE",
+        ]
+        assert (REPOSITORY_ROOT / row["fixture"]).is_file()
 
 
 def test_condition4_allows_only_the_declared_request_api_call() -> None:

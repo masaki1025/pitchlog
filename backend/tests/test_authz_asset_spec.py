@@ -113,12 +113,13 @@ def test_element_section_positions_are_explicit_and_asset_specific() -> None:
         ("roles", 0),
         ("databases", 1),
         ("schemas", 2),
-        ("functions", 3),
-        ("tables", 4),
-        ("predicates", 5),
-        ("policies", 6),
-        ("acl_expectations", 7),
-        ("column_acl_expectations", 8),
+        ("extensions", 3),
+        ("functions", 4),
+        ("tables", 5),
+        ("predicates", 6),
+        ("policies", 7),
+        ("acl_expectations", 8),
+        ("column_acl_expectations", 9),
     )
 
 

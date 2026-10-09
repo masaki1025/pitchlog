@@ -1,0 +1,9 @@
+{
+  "caseId": "neg-reapproval-reused-record",
+  "clauseId": "BOOT-REAPPROVAL",
+  "mechanism": "reused-reapproval-record",
+  "violation": {
+    "approvalId": "synthetic-reapproval",
+    "recordPath": "approvals/reapproval.json"
+  }
+}

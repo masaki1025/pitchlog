@@ -161,7 +161,9 @@ def _sqlalchemy_url(dsn: str, *, options: str | None = None) -> str:
         パスワードを含むテスト専用 SQLAlchemy URL。
     """
     values = conninfo_to_dict(dsn)
-    query = {} if options is None else {"options": options}
+    query = {"sslmode": "disable"}
+    if options is not None:
+        query["options"] = options
     username = values.get("user")
     password = values.get("password")
     host = values.get("host")

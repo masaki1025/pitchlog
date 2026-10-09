@@ -12,10 +12,23 @@ from product_authz_probe_product_map import (
     validate_probe_product_map,
 )
 
+from pitchlog.authz.runtime_contract_state import (
+    evaluate_repository,
+    product_asset_path_for_state,
+)
+
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _MAP_PATH = _REPOSITORY_ROOT / "contracts/authz/product/probe-product-map.json"
 _PROBE_PATH = _REPOSITORY_ROOT / "contracts/authz/ddl-elements.json"
-_PRODUCT_PATH = _REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.staged.json"
+
+
+def _product_path() -> Path:
+    """共有 API が判定した状態の製品資産パスを返す。"""
+    state, violations = evaluate_repository(_REPOSITORY_ROOT)
+    assert not violations
+    path = product_asset_path_for_state(state)
+    assert path is not None
+    return _REPOSITORY_ROOT / path
 
 
 def _load_object(path: Path) -> dict[str, object]:
@@ -26,11 +39,11 @@ def _load_object(path: Path) -> dict[str, object]:
 
 
 def _documents() -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
-    """写像・probe・staged 製品資産を返す。"""
+    """写像・probe・現在の製品資産を返す。"""
     return (
         _load_object(_MAP_PATH),
         _load_object(_PROBE_PATH),
-        _load_object(_PRODUCT_PATH),
+        _load_object(_product_path()),
     )
 
 
@@ -61,7 +74,12 @@ def test_probe_product_map_is_bidirectionally_exact() -> None:
     summary = validate_probe_product_map(mapping, probe, product)
 
     assert len(summary.probe_atoms) == 48
-    assert len(summary.product_atoms) == 195
+    assert {
+        "role:pitchlog_auth_fn_owner",
+        "schema:authn",
+        "schema:authn_crypto",
+        "function:FUNCTION:authn:login(text, text)",
+    } <= summary.product_atoms
     assert summary.probe_atoms == (
         summary.mapped_probe_atoms | summary.explicit_non_mapping
     )
