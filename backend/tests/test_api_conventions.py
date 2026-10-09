@@ -1,6 +1,8 @@
 """API 器が非コアの規約を守ることを検証する。"""
 
+import base64
 import json
+import secrets
 from pathlib import Path
 from typing import Final
 
@@ -41,6 +43,13 @@ _REQUEST_ACCESS_PATTERNS: Final[tuple[str, ...]] = (
     "request.query_params",
     "cookies",
 )
+
+
+@pytest.fixture(autouse=True)
+def _configure_signing_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """アプリ生成試験へ CSPRNG 由来の署名鍵を与える。"""
+    encoded_key = base64.b64encode(secrets.token_bytes(32)).decode("ascii")
+    monkeypatch.setenv("PITCHLOG_TOKEN_SIGNING_KEY_B64", encoded_key)
 
 
 def _api_source_files() -> tuple[Path, ...]:
