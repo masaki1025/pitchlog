@@ -38,6 +38,15 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 )
+# テナントに属さないシステム固定語彙への複合 FK だけを除外する。
+# 足すときは個別にレビューする（admin / tenant 層の同型は TSK-489）。
+_NON_TENANT_SYSTEM_VOCABULARY_FKS = frozenset(
+    {
+        "fk_players_roster_status",
+        "fk_games_game_type",
+        "fk_game_type_rule_defaults_type",
+    }
+)
 _TRIGGER_NAME = "trg_team_records_kind_immutable"
 _TRIGGER_DEFINITION = (
     "CREATE TRIGGER trg_team_records_kind_immutable BEFORE UPDATE OF kind "
@@ -1044,6 +1053,7 @@ def _sqlalchemy_url(dsn: str) -> str:
         host=str(required["host"]),
         port=int(str(required["port"])),
         database=str(required["dbname"]),
+        query={"sslmode": "disable"},
     ).render_as_string(hide_password=False)
 
 
@@ -4288,13 +4298,13 @@ def test_vocabulary_layers_and_settings_guards_and_migration_round_trip(
                         "fk_game_type_rule_defaults_type",
                         "game_type_rule_defaults",
                         "system_vocabularies",
-                        "s",
+                        "f",
                     ),
                     (
                         "fk_games_game_type",
                         "games",
                         "system_vocabularies",
-                        "s",
+                        "f",
                     ),
                     (
                         "fk_games_tournament",
@@ -4312,7 +4322,7 @@ def test_vocabulary_layers_and_settings_guards_and_migration_round_trip(
                         "fk_players_roster_status",
                         "players",
                         "system_vocabularies",
-                        "s",
+                        "f",
                     ),
                     (
                         "fk_tournament_rule_assignments_tournament",
@@ -4321,6 +4331,26 @@ def test_vocabulary_layers_and_settings_guards_and_migration_round_trip(
                         "f",
                     ),
                 ]
+
+                foreign_keys = _foreign_key_catalog_contracts(connection)
+                assert foreign_keys["fk_players_roster_status"] == (
+                    "players",
+                    "system_vocabularies",
+                    ["roster_status_key", "roster_status_category"],
+                    ["key", "category"],
+                )
+                assert foreign_keys["fk_games_game_type"] == (
+                    "games",
+                    "system_vocabularies",
+                    ["game_type_key", "game_type_category"],
+                    ["key", "category"],
+                )
+                assert foreign_keys["fk_game_type_rule_defaults_type"] == (
+                    "game_type_rule_defaults",
+                    "system_vocabularies",
+                    ["game_type_key", "game_type_category"],
+                    ["key", "category"],
+                )
 
                 cursor.execute(
                     "INSERT INTO tenants (id, name) VALUES (%s, %s)",
@@ -5950,12 +5980,25 @@ def test_analysis_group_cross_tenant_guards_and_migration_round_trip(
                 and foreign_key[1] != "tenants"
                 and name not in expected_cross_tenant
             } == set()
+            excluded_non_tenant_targets: set[str] = set()
             for name, foreign_key in expected_foreign_keys.items():
                 if foreign_key[4] or not foreign_key[5]:
                     continue
                 actual_foreign_key = actual_foreign_keys[name]
+                if "tenant_id" not in table_columns[actual_foreign_key[1]]:
+                    excluded_non_tenant_targets.add(name)
+                    continue
                 assert "tenant_id" in actual_foreign_key[2]
                 assert "tenant_id" in actual_foreign_key[3]
+            manifest_forbidden_columns = {
+                table["name"]: table["forbidden_columns"]
+                for table in manifest["tables"]
+            }
+            assert excluded_non_tenant_targets == _NON_TENANT_SYSTEM_VOCABULARY_FKS
+            assert all(
+                "tenant_id" in manifest_forbidden_columns[actual_foreign_keys[name][1]]
+                for name in excluded_non_tenant_targets
+            )
 
             index_contracts = {
                 "uq_group_memberships_active": (

@@ -18,6 +18,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     column,
+    literal_column,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -164,6 +165,7 @@ class Player(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
 
     __tablename__ = "players"
     __table_args__ = (
+        CheckConstraint("roster_status_category = 'roster_status'"),
         ForeignKeyConstraint(
             ["tenant_id", "team_record_id"],
             ["team_records.tenant_id", "team_records.id"],
@@ -173,10 +175,10 @@ class Player(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
             info={"cross_tenant": False},
         ),
         ForeignKeyConstraint(
-            ["roster_status_key"],
-            ["system_vocabularies.key"],
+            ["roster_status_key", "roster_status_category"],
+            ["system_vocabularies.key", "system_vocabularies.category"],
             name="fk_players_roster_status",
-            match="SIMPLE",
+            match="FULL",
             ondelete="NO ACTION",
             info={"cross_tenant": False},
         ),
@@ -211,6 +213,9 @@ class Player(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
     bats: Mapped[str | None] = mapped_column(Text, nullable=True)
     uniform_number: Mapped[str | None] = mapped_column(Text, nullable=True)
     roster_status_key: Mapped[str] = mapped_column(Text, nullable=False)
+    roster_status_category: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=literal_column("'roster_status'")
+    )
     roster_label_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     hidden_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -1152,6 +1157,12 @@ class SystemVocabulary(LifecycleMixin, Base):
             "key",
             name="pk_system_vocabularies",
             info={"roles": ("business_unique", "primary_key", "fk_target")},
+        ),
+        UniqueConstraint(
+            "key",
+            "category",
+            name="uq_system_vocabularies_key_category",
+            info={"roles": ("fk_target",)},
         ),
     )
 
