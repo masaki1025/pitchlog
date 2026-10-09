@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "version": "contract_size_limit_v1",
+  "unit": "byte",
+  "maximumBytesPerFile": 16000000,
+  "contractPaths": [
+    "contracts/state-transition/state_transition_contract_v1.json",
+    "contracts/state-transition/game_end_contract_v1.json"
+  ],
+  "source": "docs/features/appendix-e-golden-vectors/design.md#3-6"
+}

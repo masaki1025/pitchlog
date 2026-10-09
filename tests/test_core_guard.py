@@ -44,6 +44,15 @@ DATA_MODEL_GUARD_PATHS = (
     "tests/fixtures/data-model-source.txt",
     "scripts/design_relations/fixture-sha256-data-model.txt",
 )
+ADR_001_PATH = "docs/adr/ADR-001-codex-model-selection.md"
+ADR_003_PATH = "docs/adr/ADR-003-domain-calc-method.md"
+CORE_ADR_AREA_PATHS = {
+    "sync-protocol": (ADR_001_PATH, ADR_003_PATH),
+    "game-state": (ADR_001_PATH, ADR_003_PATH),
+    "recording-rights": (ADR_001_PATH,),
+    "tenant-isolation": (ADR_001_PATH,),
+    "data-migration": (ADR_001_PATH, ADR_003_PATH),
+}
 AUTHZ_GUARD_BASE_REVISION = "56c281c409e972927940fad830aa38352df32f1e"
 AUTHZ_GUARD_CANDIDATE_PATHS = (
     "scripts/check_authz_catalog.py",
@@ -307,15 +316,106 @@ ORM_SCHEMA_MIGRATION_AREA_PATHS = {
         "tests/test_orm_acceptance_sheets.py",
     ),
 }
+APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS = (
+    "contracts/state-transition/*",
+    "contracts/vocabulary/*",
+    "scripts/check_deriver_dependencies.py",
+    "scripts/check_expander_dependencies.py",
+    "scripts/check_gap_register.py",
+    "scripts/check_human_review_signature.py",
+    "scripts/check_input_axes_descriptor.py",
+    "scripts/check_input_axes_three_way_parity.py",
+    "scripts/check_provenance.py",
+    "scripts/check_required_set_mutation.py",
+    "scripts/check_required_set_coverage.py",
+    "scripts/check_vocabulary_manifest.py",
+    "scripts/state_transition_freeze.py",
+    "tests/test_deriver_dependencies.py",
+    "tests/test_expander_dependencies.py",
+    "tests/test_game_end_contract_schema.py",
+    "tests/test_gap_register.py",
+    "tests/test_human_review_signature.py",
+    "tests/test_input_axes_descriptor.py",
+    "tests/test_input_axes_three_way_parity.py",
+    "tests/test_required_set_mutation.py",
+    "tests/test_required_set_coverage.py",
+    "tests/test_state_transition_contract_schema.py",
+    "tests/test_state_transition_freeze.py",
+    "tests/test_vocabulary_manifest.py",
+    "tests/test_vocabulary_seed.py",
+    "tests/test_consumer_handoff.py",
+)
+NORMALIZATION_AREA_PATH_ADDITIONS = (
+    "scripts/check_state_transition_normalization.py",
+    "scripts/state_transition_normalization.py",
+    "tests/test_state_transition_normalization.py",
+)
+REFERENCE_DISCOVERY_AREA_PATH_ADDITIONS = (
+    "scripts/check_frozen_baselines.py",
+    "tests/frozen_negatives/test_frozen_baseline_acceptance.py",
+    "tests/frozen_negatives/test_frozen_baseline_ci_dispatch.py",
+    "tests/frozen_negatives/test_frozen_baseline_ledger.py",
+    "tests/frozen_scan_fixtures.py",
+    "tests/test_ci_wiring.py",
+    "tests/test_core_guard.py",
+    "tests/test_frozen_negative_inventory.py",
+    "tests/test_frozen_scan_rules.py",
+)
+# 敵対レビュー指摘 1 — ケース生成・代表選択・凍結の検査を担う新規 6 本の登録。
+CASE_GENERATION_AREA_PATH_ADDITIONS = (
+    "scripts/check_branch_row_mapping.py",
+    "scripts/check_manual_fixture_baselines.py",
+    "scripts/expand_game_end_cases.py",
+    "scripts/expand_state_transition_cases.py",
+    "scripts/representative_selection.py",
+    "tests/test_branch_row_mapping.py",
+)
+VOCABULARY_DATA_MIGRATION_AREA_PATH_ADDITIONS = (
+    "contracts/vocabulary/*",
+    "scripts/check_vocabulary_manifest.py",
+    "tests/test_vocabulary_manifest.py",
+    "tests/test_vocabulary_seed.py",
+)
+APPENDIX_E_GAME_STATE_ASSET_PATHS = (
+    "contracts/state-transition/deriver_dependency_policy_schema_v1.json",
+    "contracts/state-transition/deriver_dependency_policy_v1.json",
+    "contracts/state-transition/expander_dependency_policy_schema_v1.json",
+    "contracts/state-transition/expander_dependency_policy_v1.json",
+    "contracts/state-transition/game_end_contract_schema_v1.json",
+    "contracts/state-transition/gap_register_schema_v1.json",
+    "contracts/state-transition/gap_register_v1.json",
+    "contracts/state-transition/human_review_signature_schema_v1.json",
+    "contracts/state-transition/input_axes_descriptor_schema_v1.json",
+    "contracts/state-transition/input_axes_descriptor_v1.json",
+    "contracts/state-transition/state_transition_contract_schema_v1.json",
+    "contracts/vocabulary/input_vocabulary_v1.json",
+    "contracts/vocabulary/vocabulary_manifest_schema_v1.json",
+    "contracts/vocabulary/vocabulary_manifest_v1.json",
+    "contracts/vocabulary/vocabulary_seed_schema_v1.json",
+    *APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS[2:],
+    *NORMALIZATION_AREA_PATH_ADDITIONS,
+)
 NEW_CORE_PATH_CHANGES = (
     "contracts/authz/auth-catalog.json",
+    ADR_001_PATH,
+    ADR_003_PATH,
     "frontend/src/lib/courseInputView.ts",
     "frontend/src/lib/format.ts",
     "backend/conftest.py",
     *TENANT_BOUNDARY_CORE_PATHS,
 )
 DOMAIN_CALC_AREA_IDS = ("game-state", "data-migration")
-DECLARED_ADDITION_AREA_IDS = (*DOMAIN_CALC_AREA_IDS, "tenant-isolation")
+DECLARED_ADDITION_AREA_IDS = DATA_MODEL_AREA_IDS
+DOMAIN_CALC_GLOBS = (
+    "backend/domain/*",
+    "backend/src/pitchlog/domaincheck/*",
+    "backend/src/pitchlog/domaingen/*",
+    "backend/src/pitchlog/domainmut/*",
+    "backend/src/pitchlog/generated/*",
+    "backend/tests/domain/*",
+    "frontend/src/lib/generated/*",
+    "tests/domain/*",
+)
 PRODUCT_RLS_AREA_PATH_ADDITIONS = (
     "docs/ops/product-rls-real-schema.md",
     "scripts/product_rls_real_schema/*",
@@ -496,11 +596,14 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
     return root
 
 
-def make_layered_core_repo(tmp_path: Path) -> tuple[Path, str]:
+def make_layered_core_repo(
+    tmp_path: Path, *, has_area_path_additions: bool = True
+) -> tuple[Path, str]:
     """5 領域と基線定義を持つ履歴検査用リポジトリを作る。
 
     Args:
         tmp_path: pytest が提供する一時ディレクトリ。
+        has_area_path_additions: 基線の親側に追加層の定義を置くか。
 
     Returns:
         合成リポジトリと変更不能な初期コミット OID。
@@ -528,7 +631,10 @@ def make_layered_core_repo(tmp_path: Path) -> tuple[Path, str]:
         ".claude/core-areas.json",
         {"description": "合成基線", "guard_paths": [], "areas": areas},
     )
-    write_text(root, "scripts/core_guard.py", "ANCHOR = 'base'\n")
+    source = "ANCHOR = 'base'\n"
+    if has_area_path_additions:
+        source += "AREA_PATH_ADDITIONS = {}\n"
+    write_text(root, "scripts/core_guard.py", source)
     write_text(root, "tests/test_core_guard.py", "EXPECTED = 'base'\n")
     run_git(root, "add", ".")
     run_git(
@@ -759,6 +865,231 @@ def load_actual_core_areas() -> dict[str, Any]:
     value = json.loads(CORE_AREAS_PATH.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return value
+
+
+def _require_reference_discovery_policy(
+    configuration: dict[str, Any],
+) -> dict[str, Any]:
+    """参照導出検査の資産側宣言を fail-closed で取得する。"""
+    policy = configuration.get("reference_discovery")
+    assert isinstance(policy, dict), "reference_discovery 宣言がない"
+    assert policy.get("schema_version") == 1
+    for key in (
+        "scan_roots",
+        "contract_roots",
+        "required_area_ids",
+        "detected_reference_forms",
+        "not_detected",
+    ):
+        values = policy.get(key)
+        assert isinstance(values, list) and values, f"{key} が空または配列でない"
+        assert all(isinstance(value, str) and value for value in values)
+        assert len(values) == len(set(values)), f"{key} に重複がある"
+    claim = policy.get("claim")
+    assert isinstance(claim, str) and claim
+    exclusions = policy.get("declared_exclusions")
+    assert isinstance(exclusions, dict), "declared_exclusions 宣言がない"
+    paths = exclusions.get("paths")
+    assert isinstance(paths, list) and len(paths) == 11
+    assert all(isinstance(path, str) and path for path in paths)
+    assert paths == sorted(set(paths)), "declared_exclusions.paths に重複または順序違反"
+    reason = exclusions.get("reason")
+    assert isinstance(reason, str) and reason
+    assert (
+        exclusions.get("deferred_to")
+        == "段階2送り（unresolved-report.md の S34・design.md 8-6）"
+    )
+    return policy
+
+
+def _static_path_parts(node: ast.AST) -> tuple[str, ...] | None:
+    """AST 式から静的に読めるパス部分を左から順に返す。"""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return (node.value,)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        right = _static_path_parts(node.right)
+        if right is None:
+            return None
+        left = _static_path_parts(node.left)
+        return (*(() if left is None else left), *right)
+    if isinstance(node, ast.Call):
+        function_name = (
+            node.func.id
+            if isinstance(node.func, ast.Name)
+            else node.func.attr
+            if isinstance(node.func, ast.Attribute)
+            else None
+        )
+        if function_name not in {"Path", "PurePath", "PurePosixPath"}:
+            return None
+        parts: list[str] = []
+        for argument in node.args:
+            argument_parts = _static_path_parts(argument)
+            if argument_parts is None:
+                parts.clear()
+                continue
+            parts.extend(argument_parts)
+        return tuple(parts) if parts else None
+    return None
+
+
+def _normalized_static_paths(tree: ast.AST) -> frozenset[str]:
+    """文字列と ``/``・Path 呼び出しから静的パス候補を導出する。"""
+    paths: set[str] = set()
+    for node in ast.walk(tree):
+        parts = _static_path_parts(node)
+        if parts is None:
+            continue
+        normalized = "/".join(
+            part.replace("\\", "/").strip("/") for part in parts if part
+        )
+        if normalized:
+            paths.add(normalized)
+    return frozenset(paths)
+
+
+def _python_import_dependencies(
+    tree: ast.AST,
+    modules: dict[str, str],
+) -> set[str]:
+    """静的 import が指す走査対象 Python ファイルを返す。"""
+    dependencies: set[str] = set()
+
+    def add_module(module_name: str) -> None:
+        dependency = modules.get(module_name)
+        if dependency is not None:
+            dependencies.add(dependency)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                add_module(alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0:
+            if node.module is not None:
+                add_module(node.module)
+                for alias in node.names:
+                    add_module(f"{node.module}.{alias.name}")
+    return dependencies
+
+
+def derive_contract_reference_python_paths(
+    root: Path,
+    configuration: dict[str, Any],
+) -> tuple[str, ...]:
+    """契約ルートへの静的参照とその逆依存閉包を決定的に導出する。
+
+    Args:
+        root: 走査対象のリポジトリルート。
+        configuration: ``core-areas.json`` の内容。
+
+    Returns:
+        コア領域へ登録すべき Python ファイルのソート済み相対パス。
+    """
+    policy = _require_reference_discovery_policy(configuration)
+    scan_roots = tuple(policy["scan_roots"])
+    contract_roots = tuple(policy["contract_roots"])
+    source_paths: list[str] = []
+    for scan_root in scan_roots:
+        directory = root / scan_root
+        assert directory.is_dir(), f"参照走査ルートを解決できない: {scan_root}"
+        source_paths.extend(
+            path.relative_to(root).as_posix()
+            for path in directory.rglob("*.py")
+            if path.is_file()
+        )
+    source_paths = sorted(set(source_paths))
+    assert source_paths, "参照走査対象の Python ファイルがない"
+
+    module_paths = {
+        source_path.removesuffix(".py").replace("/", "."): source_path
+        for source_path in source_paths
+    }
+    trees: dict[str, ast.AST] = {}
+    static_paths_by_source: dict[str, frozenset[str]] = {}
+    for source_path in source_paths:
+        source = (root / source_path).read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=source_path)
+        trees[source_path] = tree
+        static_paths_by_source[source_path] = _normalized_static_paths(tree)
+
+    direct_references = {
+        source_path
+        for source_path, static_paths in static_paths_by_source.items()
+        if any(
+            static_path == contract_root
+            or static_path.startswith(f"{contract_root}/")
+            or f"{contract_root}/" in static_path
+            for static_path in static_paths
+            for contract_root in contract_roots
+        )
+    }
+    dependencies: dict[str, set[str]] = {}
+    for source_path, tree in trees.items():
+        referenced_sources = _python_import_dependencies(tree, module_paths)
+        for static_path in static_paths_by_source[source_path]:
+            referenced_sources.update(
+                candidate
+                for candidate in source_paths
+                if candidate != source_path
+                and (
+                    static_path == candidate
+                    or f"{candidate}" in static_path
+                )
+            )
+        dependencies[source_path] = referenced_sources
+
+    discovered = set(direct_references)
+    while True:
+        dependents = {
+            source_path
+            for source_path, referenced_sources in dependencies.items()
+            if referenced_sources & discovered
+        }
+        expanded = discovered | dependents
+        if expanded == discovered:
+            break
+        discovered = expanded
+    return tuple(sorted(discovered))
+
+
+def assert_contract_reference_python_paths_are_registered(
+    root: Path,
+    configuration: dict[str, Any],
+) -> tuple[str, ...]:
+    """参照から導いた Python ファイルが宣言領域へ登録済みと示す。"""
+    policy = _require_reference_discovery_policy(configuration)
+    excluded = set(policy["declared_exclusions"]["paths"])
+    candidates = tuple(
+        path
+        for path in derive_contract_reference_python_paths(root, configuration)
+        if path not in excluded
+    )
+    areas = configuration.get("areas")
+    assert isinstance(areas, list)
+    areas_by_id = {
+        area.get("id"): area
+        for area in areas
+        if isinstance(area, dict) and isinstance(area.get("id"), str)
+    }
+    missing_by_area: dict[str, list[str]] = {}
+    for area_id in policy["required_area_ids"]:
+        area = areas_by_id.get(area_id)
+        assert isinstance(area, dict), f"参照登録先の領域がない: {area_id}"
+        patterns = area.get("paths")
+        assert isinstance(patterns, list)
+        missing = [
+            candidate
+            for candidate in candidates
+            if not any(
+                isinstance(pattern, str)
+                and fnmatch.fnmatchcase(candidate, pattern)
+                for pattern in patterns
+            )
+        ]
+        if missing:
+            missing_by_area[area_id] = missing
+    assert missing_by_area == {}, f"契約参照 Python ファイルが未登録: {missing_by_area}"
+    return candidates
 
 
 def load_base_core_areas(
@@ -1506,21 +1837,19 @@ def test_copied_actual_config_rejects_one_missing_data_model_path(tmp_path):
 
 
 def test_actual_core_area_paths_follow_merge_base_layers():
-    """実設定を head 内リテラルでなく merge-base blob と突合する。"""
+    """マージ作業ツリーを取り込み後の比較元 blob と突合する。"""
     core_guard = load_core_guard_module()
-    head_sha = run_git(REPO, "rev-parse", "HEAD").stdout.strip()
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
-    baseline_revision = core_guard.merge_base_revision(REPO, base_sha, head_sha)
-    baseline = core_guard.load_core_areas_at_revision(REPO, baseline_revision)
-    candidate = core_guard.load_core_areas_at_revision(REPO, head_sha)
+    baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
+    candidate = load_actual_core_areas()
     baseline_ids = {area["id"] for area in baseline["areas"]}
     declared_ids = set(core_guard.AREA_PATH_ADDITIONS)
     stationary_ids = baseline_ids - declared_ids
 
     assert len(baseline_ids) == len(baseline["areas"]), "コア領域 ID が重複している"
     assert len(baseline_ids) == 5
-    assert declared_ids <= baseline_ids
-    assert len(stationary_ids) == len(baseline_ids) - len(declared_ids)
+    assert declared_ids == baseline_ids
+    assert len(stationary_ids) == 0
     core_guard.validate_area_path_layers(baseline, candidate)
 
 
@@ -1546,30 +1875,36 @@ def test_merge_base_blob_is_used_instead_of_pr_base_tip(tmp_path: Path):
     assert used_revision != target_tip
 
 
-def test_each_stationary_area_is_derived_from_merge_base_and_rejects_change(
+def test_each_area_becomes_stationary_when_omitted_from_declaration(
     tmp_path: Path,
 ):
-    """宣言済み領域を除く全領域を据え置き層として固定する。"""
+    """回転後に宣言から外れた各領域を据え置き層として固定する。"""
     core_guard = load_core_guard_module()
     root, base_sha = make_layered_core_repo(tmp_path)
     baseline = core_guard.load_core_areas_at_revision(root, base_sha)
     candidate = json.loads(json.dumps(baseline))
     baseline_ids = {area["id"] for area in baseline["areas"]}
     declared_ids = set(core_guard.AREA_PATH_ADDITIONS)
-    stationary_ids = baseline_ids - declared_ids
     attempts = 0
 
     assert len(baseline_ids) == len(baseline["areas"]) == 5
-    assert declared_ids <= baseline_ids
-    for area_id in sorted(stationary_ids):
+    assert declared_ids == baseline_ids
+    for area_id in sorted(baseline_ids):
         mutated = json.loads(json.dumps(candidate))
         area = next(item for item in mutated["areas"] if item["id"] == area_id)
         area["paths"].append("unregistered/probe.py")
+        remaining_declarations = {
+            key: value
+            for key, value in core_guard.AREA_PATH_ADDITIONS.items()
+            if key != area_id
+        }
         with pytest.raises(core_guard.GuardError, match=rf"{area_id}\.paths"):
-            core_guard.validate_area_path_layers(baseline, mutated)
+            core_guard.validate_area_path_layers(
+                baseline, mutated, remaining_declarations
+            )
         attempts += 1
 
-    assert attempts == len(baseline_ids) - len(declared_ids)
+    assert attempts == 5
 
 
 def test_change_absent_from_declared_addition_layer_is_rejected(tmp_path: Path):
@@ -1600,7 +1935,7 @@ def test_json_and_expected_literal_cochange_cannot_redefine_baseline(tmp_path: P
 
 
 def test_json_expected_and_anchor_cochange_is_rejected(tmp_path: Path):
-    """JSON・期待値・アンカーの 3 点を同時変更しても基線を動かせない。"""
+    """親に追加層の定義があれば JSON・期待値・アンカーの共変更を拒否する。"""
     core_guard = load_core_guard_module()
     root, base_sha = make_layered_core_repo(tmp_path)
     head_sha = commit_area_path_changes(
@@ -1616,6 +1951,101 @@ def test_json_expected_and_anchor_cochange_is_rejected(tmp_path: Path):
         core_guard.verify_area_path_baseline(root, base_sha, head_sha)
 
 
+def test_cochange_before_area_path_additions_is_accepted(tmp_path: Path):
+    """親に追加層の定義がなければ当時の JSON と期待値の共変更を受理する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(
+        tmp_path, has_area_path_additions=False
+    )
+    head_sha = commit_area_path_changes(
+        root,
+        dict(core_guard.AREA_PATH_ADDITIONS),
+        cochanged_paths=("scripts/core_guard.py", "tests/test_core_guard.py"),
+    )
+
+    assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
+
+
+def test_parent_without_core_guard_does_not_activate_cochange_rule(tmp_path: Path):
+    """ルートと親に core_guard.py がないコミットには規則を適用しない。"""
+    core_guard = load_core_guard_module()
+    root = make_repo(tmp_path)
+    base_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    write_text(root, "scripts/core_guard.py", "AREA_PATH_ADDITIONS = {}\n")
+    run_git(root, "add", ".")
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "add guard",
+    )
+    head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+
+    assert not core_guard._parent_has_area_path_additions(root, base_sha)
+    assert not core_guard._parent_has_area_path_additions(root, head_sha)
+
+
+def test_merge_checks_all_parents_but_diff_tree_remains_empty(tmp_path: Path):
+    """複数親のどれかに定義があれば認識し、通常のマージ差分は空のまま扱う。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(
+        tmp_path, has_area_path_additions=False
+    )
+    write_text(root, "scripts/core_guard.py", "AREA_PATH_ADDITIONS = {}\n")
+    run_git(root, "add", ".")
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "add layer definition",
+    )
+    run_git(root, "branch", "with-definition")
+    run_git(root, "reset", "--hard", base_sha)
+    write_text(root, "other.txt", "other branch\n")
+    run_git(root, "add", ".")
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "other branch",
+    )
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "merge",
+        "-q",
+        "--no-ff",
+        "-s",
+        "ours",
+        "with-definition",
+        "-m",
+        "merge",
+    )
+    merge_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+
+    assert core_guard._parent_has_area_path_additions(root, merge_sha)
+    assert core_guard._changed_paths_in_commit(root, merge_sha) == frozenset()
+    assert core_guard.verify_area_path_baseline(root, base_sha, merge_sha) == base_sha
+
+
 def test_registered_addition_layer_passes_in_a_separate_commit(tmp_path: Path):
     """据え置き層と宣言済み追加層だけから成る変更が実際に通る。"""
     core_guard = load_core_guard_module()
@@ -1628,6 +2058,35 @@ def test_registered_addition_layer_passes_in_a_separate_commit(tmp_path: Path):
     used_revision = core_guard.verify_area_path_baseline(root, base_sha, head_sha)
 
     assert used_revision == base_sha
+
+
+def test_addition_layer_requires_complete_declared_suffix(tmp_path: Path) -> None:
+    """追加層が基線の末尾に宣言順で全件続く場合だけ受理する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    base_area = next(area for area in baseline["areas"] if area["id"] == "game-state")
+    base_area["paths"].append("base/second.py")
+    candidate = json.loads(json.dumps(baseline))
+    area = next(area for area in candidate["areas"] if area["id"] == "game-state")
+    additions = core_guard.AREA_PATH_ADDITIONS["game-state"]
+    area["paths"] = [*base_area["paths"], *additions]
+
+    core_guard.validate_area_path_layers(baseline, candidate)
+    for changed_paths in (
+        [base_area["paths"][1], base_area["paths"][0], *additions],
+        [additions[0], *base_area["paths"], *additions[1:]],
+        [base_area["paths"][0], additions[0], base_area["paths"][1], *additions[1:]],
+        [*base_area["paths"], additions[1], additions[0], *additions[2:]],
+        [*base_area["paths"], *additions[:-1]],
+    ):
+        mutated = json.loads(json.dumps(candidate))
+        mutated_area = next(
+            item for item in mutated["areas"] if item["id"] == "game-state"
+        )
+        mutated_area["paths"] = changed_paths
+        with pytest.raises(core_guard.GuardError, match="game-state.paths"):
+            core_guard.validate_area_path_layers(baseline, mutated)
 
 
 def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> None:
@@ -1656,9 +2115,7 @@ def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> 
         area for area in candidate["areas"] if area["id"] == "tenant-isolation"
     )
     assert tenant_area["paths"] == ["base/tenant-isolation.py"]
-    assert PRODUCT_RLS_AREA_PATH_ADDITIONS == core_guard.AREA_PATH_ADDITIONS[
-        "tenant-isolation"
-    ]
+    assert core_guard.AREA_PATH_ADDITIONS["tenant-isolation"] == (ADR_001_PATH,)
     core_guard.validate_area_path_layers(baseline, candidate)
     assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
 
@@ -1712,12 +2169,26 @@ def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
         core_guard.validate_area_path_layers(baseline, candidate, declared)
 
 
-def test_product_rls_declaration_matches_planned_and_tracked_paths() -> None:
-    """計画した予定パスを覆い、現追跡ファイルを過剰に覆わない。"""
+def test_product_rls_paths_remain_in_develop_baseline() -> None:
+    """着地済み RLS パスが比較元と現設定に残り、対象を過剰に覆わない。"""
     core_guard = load_core_guard_module()
-    assert core_guard.AREA_PATH_ADDITIONS["tenant-isolation"] == (
-        PRODUCT_RLS_AREA_PATH_ADDITIONS
-    )
+    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
+    configuration = load_actual_core_areas()
+    for document, expected_tail in (
+        (baseline, PRODUCT_RLS_AREA_PATH_ADDITIONS),
+        (
+            configuration,
+            (
+                *PRODUCT_RLS_AREA_PATH_ADDITIONS,
+                *core_guard.AREA_PATH_ADDITIONS["tenant-isolation"],
+            ),
+        ),
+    ):
+        tenant_area = next(
+            area for area in document["areas"] if area["id"] == "tenant-isolation"
+        )
+        assert tuple(tenant_area["paths"][-len(expected_tail) :]) == expected_tail
     for pattern, planned_paths in zip(
         PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PATTERN_EXAMPLES, strict=True
     ):
@@ -1747,44 +2218,72 @@ def test_product_rls_declaration_matches_planned_and_tracked_paths() -> None:
 
 
 def test_area_registration() -> None:
-    """宣言済み領域と据え置き領域の二層登録を検査する。"""
+    """5 領域の追加層が取り込み後の比較元へ全件登録されたと示す。"""
     core_guard = load_core_guard_module()
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
-    head_sha = run_git(REPO, "rev-parse", "HEAD").stdout.strip()
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
-    baseline_revision = core_guard.merge_base_revision(REPO, base_sha, head_sha)
-    baseline = core_guard.load_core_areas_at_revision(REPO, baseline_revision)
+    baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     baseline_areas = {area["id"]: area for area in baseline["areas"]}
     tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
     declared_ids = set(core_guard.AREA_PATH_ADDITIONS)
     stationary_ids = set(areas) - declared_ids
+    expected_counts = {
+        "sync-protocol": 49,
+        "game-state": 49,
+        "recording-rights": 1,
+        "tenant-isolation": 1,
+        "data-migration": 6,
+    }
+    appendix_e_additions = (
+        ADR_001_PATH,
+        ADR_003_PATH,
+        *APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS[:3],
+        "scripts/check_expanded_fixture_parity.py",
+        *APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS[3:14],
+        "tests/test_expanded_fixture_parity.py",
+        *APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS[14:],
+        *NORMALIZATION_AREA_PATH_ADDITIONS,
+        *REFERENCE_DISCOVERY_AREA_PATH_ADDITIONS,
+        *CASE_GENERATION_AREA_PATH_ADDITIONS,
+    )
+    expected_additions = {
+        "sync-protocol": appendix_e_additions,
+        "game-state": appendix_e_additions,
+        "recording-rights": (ADR_001_PATH,),
+        "tenant-isolation": (ADR_001_PATH,),
+        "data-migration": (
+            ADR_001_PATH,
+            ADR_003_PATH,
+            *VOCABULARY_DATA_MIGRATION_AREA_PATH_ADDITIONS,
+        ),
+    }
 
     assert len(areas) == len(configuration["areas"]) == 5
+    assert len(DOMAIN_CALC_GLOBS) == 8
     assert declared_ids == set(DECLARED_ADDITION_AREA_IDS)
-    assert declared_ids <= set(areas)
-    assert len(stationary_ids) == len(areas) - len(declared_ids)
+    assert declared_ids == set(areas) == set(expected_counts)
+    assert len(stationary_ids) == 0
     for area_id in DECLARED_ADDITION_AREA_IDS:
         additions = core_guard.AREA_PATH_ADDITIONS[area_id]
         current_paths = tuple(areas[area_id]["paths"])
         base_paths = tuple(baseline_areas[area_id]["paths"])
-        assert current_paths in {base_paths, (*base_paths, *additions)}
-        patterns_all_tracked = all(
+        assert len(additions) == expected_counts[area_id]
+        assert additions == expected_additions[area_id]
+        assert len(additions) == len(set(additions))
+        assert all(
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in additions
         )
-        if patterns_all_tracked:
-            assert current_paths[-len(additions) :] == additions, (
-                f"{area_id}: 宣言パターンの対象が全て追跡下にあるのに paths へ登録されていない"
-            )
-    for area_id in stationary_ids:
-        assert areas[area_id]["paths"] == baseline_areas[area_id]["paths"]
+        base_set = set(base_paths)
+        assert tuple(path for path in current_paths if path in base_set) == base_paths
+        assert tuple(path for path in current_paths if path not in base_set) == additions
     core_guard.validate_area_path_layers(baseline, configuration)
 
 
 @pytest.mark.parametrize(
     "pattern",
-    load_core_guard_module().AREA_PATH_ADDITIONS["game-state"],
+    DOMAIN_CALC_GLOBS,
 )
 def test_future_domain_calc_file_is_covered_by_each_registered_glob(
     pattern: str,
@@ -1805,7 +2304,7 @@ def test_future_domain_calc_file_is_covered_by_each_registered_glob(
 
 @pytest.mark.parametrize(
     "pattern",
-    load_core_guard_module().AREA_PATH_ADDITIONS["game-state"],
+    DOMAIN_CALC_GLOBS,
 )
 def test_each_domain_calc_glob_change_triggers_guard(
     tmp_path: Path,
@@ -1833,6 +2332,185 @@ def test_domain_calc_adjacent_path_does_not_trigger_guard(tmp_path: Path) -> Non
     result = run_guard(root, event_name="pull_request", event_path=event_path)
 
     assert result.returncode == 0, result.stderr
+
+
+def test_core_adrs_have_the_expected_area_ownership() -> None:
+    """規範またはレビュー強制点を持つADRだけが該当領域へ帰属すると示す。"""
+    configuration = load_actual_core_areas()
+    actual_by_path = {
+        path: {
+            area["id"]
+            for area in configuration["areas"]
+            if any(fnmatch.fnmatchcase(path, pattern) for pattern in area["paths"])
+        }
+        for path in (
+            ADR_001_PATH,
+            "docs/adr/ADR-002-frontend-vue.md",
+            ADR_003_PATH,
+            "docs/adr/ADR-004-merge-gate-scope.md",
+        )
+    }
+
+    assert actual_by_path == {
+        ADR_001_PATH: set(CORE_ADR_AREA_PATHS),
+        "docs/adr/ADR-002-frontend-vue.md": set(),
+        ADR_003_PATH: {"sync-protocol", "game-state", "data-migration"},
+        "docs/adr/ADR-004-merge-gate-scope.md": set(),
+    }
+
+
+def test_appendix_e_assets_are_owned_by_game_state_and_sync_areas() -> None:
+    """付録E/Fの契約・検査資産43件が状況計算と同期へ全件帰属すると示す。"""
+    configuration = load_actual_core_areas()
+    areas_by_id = {area["id"]: area for area in configuration["areas"]}
+    assert len(APPENDIX_E_GAME_STATE_ASSET_PATHS) == 43
+    assert all((REPO / path).is_file() for path in APPENDIX_E_GAME_STATE_ASSET_PATHS)
+
+    for area_id in ("game-state", "sync-protocol"):
+        patterns = areas_by_id[area_id]["paths"]
+        assert set(APPENDIX_E_GAME_STATE_AREA_PATH_ADDITIONS).issubset(patterns)
+        assert set(NORMALIZATION_AREA_PATH_ADDITIONS).issubset(patterns)
+        missing = [
+            path
+            for path in APPENDIX_E_GAME_STATE_ASSET_PATHS
+            if not any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
+        ]
+        assert missing == [], f"{area_id} に未登録: {missing}"
+
+
+def test_vocabulary_assets_are_owned_by_data_migration_area() -> None:
+    """付録D-4の語彙資産と検査がデータ移行にも帰属すると示す。"""
+    configuration = load_actual_core_areas()
+    data_migration = next(
+        area for area in configuration["areas"] if area["id"] == "data-migration"
+    )
+    patterns = data_migration["paths"]
+    vocabulary_assets = (
+        "contracts/vocabulary/input_vocabulary_v1.json",
+        "contracts/vocabulary/vocabulary_manifest_schema_v1.json",
+        "contracts/vocabulary/vocabulary_manifest_v1.json",
+        "contracts/vocabulary/vocabulary_seed_schema_v1.json",
+        "scripts/check_vocabulary_manifest.py",
+        "tests/test_vocabulary_manifest.py",
+        "tests/test_vocabulary_seed.py",
+    )
+
+    assert set(VOCABULARY_DATA_MIGRATION_AREA_PATH_ADDITIONS).issubset(patterns)
+    missing = [
+        path
+        for path in vocabulary_assets
+        if not any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
+    ]
+    assert missing == []
+
+
+def test_contract_reference_python_paths_are_discovered_deterministically() -> None:
+    """契約参照の導出と資産で宣言した除外の完全一致を固定する。"""
+    configuration = load_actual_core_areas()
+    policy = _require_reference_discovery_policy(configuration)
+    areas_by_id = {area["id"]: area for area in configuration["areas"]}
+
+    first = derive_contract_reference_python_paths(REPO, configuration)
+    second = derive_contract_reference_python_paths(REPO, configuration)
+    excluded = tuple(policy["declared_exclusions"]["paths"])
+
+    assert first == second
+    assert first == tuple(sorted(set(first)))
+    assert set(excluded) <= set(first)
+    for area_id in policy["required_area_ids"]:
+        patterns = areas_by_id[area_id]["paths"]
+        assert "scripts/*" not in patterns
+        assert "tests/*" not in patterns
+        missing = tuple(
+            path
+            for path in first
+            if not any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
+        )
+        assert missing == excluded
+
+    assert (
+        assert_contract_reference_python_paths_are_registered(REPO, configuration)
+        == tuple(path for path in first if path not in excluded)
+    )
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        "scripts/unrelated_naming_style.py",
+        "tests/nested/arbitrary_asset_name.py",
+    ),
+)
+def test_unregistered_contract_reference_fails_without_updating_paths(
+    tmp_path: Path,
+    relative_path: str,
+) -> None:
+    """命名によらず静的契約参照を検出し、設定を自動更新せず fail する。"""
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "scripts").mkdir()
+    (root / "tests").mkdir()
+    configuration = json.loads(json.dumps(load_actual_core_areas()))
+    for area in configuration["areas"]:
+        if area["id"] in configuration["reference_discovery"]["required_area_ids"]:
+            area["paths"] = []
+    write_text(
+        root,
+        relative_path,
+        'CONTRACT = "contracts/state-transition/future_contract_v1.json"\n',
+    )
+    before = json.dumps(configuration, ensure_ascii=False, sort_keys=True)
+
+    with pytest.raises(AssertionError, match=relative_path):
+        assert_contract_reference_python_paths_are_registered(root, configuration)
+
+    assert json.dumps(configuration, ensure_ascii=False, sort_keys=True) == before
+
+
+def test_reverse_dependency_closure_fails_for_unregistered_dependent(
+    tmp_path: Path,
+) -> None:
+    """契約参照ファイルを静的に読む側も名前によらず登録対象にする。"""
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "scripts").mkdir()
+    (root / "tests").mkdir()
+    configuration = json.loads(json.dumps(load_actual_core_areas()))
+    for area in configuration["areas"]:
+        if area["id"] in configuration["reference_discovery"]["required_area_ids"]:
+            area["paths"] = []
+    direct_path = "scripts/opaque_asset_name.py"
+    dependent_path = "tests/another_opaque_name.py"
+    write_text(
+        root,
+        direct_path,
+        'CONTRACT = "contracts/vocabulary/future_seed_v1.json"\n',
+    )
+    write_text(
+        root,
+        dependent_path,
+        'SOURCE = Path("scripts") / "opaque_asset_name.py"\n',
+    )
+
+    candidates = derive_contract_reference_python_paths(root, configuration)
+
+    assert direct_path in candidates
+    assert dependent_path in candidates
+    with pytest.raises(AssertionError, match=dependent_path):
+        assert_contract_reference_python_paths_are_registered(root, configuration)
+
+
+def test_appendix_e_assets_trigger_actual_core_guard(tmp_path: Path) -> None:
+    """付録E/Fの資産43件の同時変更が全件強化レビュー対象になると示す。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    base_sha, head_sha = commit_changes(root, APPENDIX_E_GAME_STATE_ASSET_PATHS)
+    event_path = write_event(tmp_path, base_sha, head_sha, "")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert all(path in result.stderr for path in APPENDIX_E_GAME_STATE_ASSET_PATHS)
+    assert f"- [x] {REQUIRED_CHECK_TEXT}" in result.stderr
 
 
 def test_database_tests_have_the_same_area_ownership_as_migrations() -> None:

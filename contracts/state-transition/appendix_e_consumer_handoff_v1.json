@@ -1,0 +1,189 @@
+{
+  "handoffVersion": "appendix_e_consumer_handoff_v1",
+  "calculationIds": [
+    "state-transition",
+    "game-end"
+  ],
+  "claimBoundary": {
+    "guaranteed": "状況判定caseの/expectedと終了判定caseの/decisionは、それぞれrunnerの/expectedへ写す。両契約の全caseで/inputCoordinateは正規形であり/normalizedと一致する。終了判定caseの/rawと/normalizedは実在する値を指し、表示名165件では/rawの結果名を安定IDへ正規化する",
+    "notGuaranteed": [
+      "runnerによるcase消費と出力同値の実証",
+      "この作業ツリーに既存のベクタrunner実装とvectors.pyは存在しない。normalizerId・entrypointId・directTargetIdはnullであり、runnerRevisionとともに段階2で確定する"
+    ]
+  },
+  "consumerBindings": [
+    {
+      "calculationId": "state-transition",
+      "vectorId": "state-transition",
+      "contractPath": "contracts/state-transition/state_transition_contract_v1.json",
+      "version": "state_transition_contract_v1",
+      "schemaVersion": 1,
+      "caseSchemaRef": "#/$defs/normalizedCase",
+      "caseFieldMapping": {
+        "id": {
+          "contractPointer": "/caseId",
+          "runnerPointer": "/caseId"
+        },
+        "input": {
+          "raw": {
+            "contractPointer": "/raw",
+            "runnerPointer": "/raw"
+          },
+          "normalized": {
+            "contractPointer": "/normalized",
+            "runnerPointer": "/normalized"
+          }
+        },
+        "expected": {
+          "contractPointer": "/expected",
+          "runnerPointer": "/expected"
+        },
+        "tags": {
+          "contractPointer": null,
+          "runnerPointer": "/tags",
+          "availability": "absent"
+        }
+      },
+      "normalizationComparison": "lossless",
+      "outputComparison": "lossless",
+      "dPlusOnePolicy": "liveness-only",
+      "executionPaths": [
+        {
+          "runner": "pytest",
+          "runnerRevision": "pending",
+          "normalizerId": null,
+          "entrypointId": null,
+          "directTargetId": null,
+          "resolutionStage": "stage-2"
+        },
+        {
+          "runner": "vitest",
+          "runnerRevision": "pending",
+          "normalizerId": null,
+          "entrypointId": null,
+          "directTargetId": null,
+          "resolutionStage": "stage-2"
+        }
+      ]
+    },
+    {
+      "calculationId": "game-end",
+      "vectorId": "game-end",
+      "contractPath": "contracts/state-transition/game_end_contract_v1.json",
+      "version": "game_end_contract_v1",
+      "schemaVersion": 1,
+      "caseSchemaRef": "#/$defs/normalizedCase",
+      "caseFieldMapping": {
+        "id": {
+          "contractPointer": "/caseId",
+          "runnerPointer": "/caseId"
+        },
+        "input": {
+          "raw": {
+            "contractPointer": "/raw",
+            "runnerPointer": "/raw"
+          },
+          "normalized": {
+            "contractPointer": "/normalized",
+            "runnerPointer": "/normalized"
+          }
+        },
+        "expected": {
+          "contractPointer": "/decision",
+          "runnerPointer": "/expected"
+        },
+        "tags": {
+          "contractPointer": null,
+          "runnerPointer": "/tags",
+          "availability": "absent"
+        }
+      },
+      "normalizationComparison": "lossless",
+      "outputComparison": "lossless",
+      "dPlusOnePolicy": "liveness-only",
+      "executionPaths": [
+        {
+          "runner": "pytest",
+          "runnerRevision": "pending",
+          "normalizerId": null,
+          "entrypointId": null,
+          "directTargetId": null,
+          "resolutionStage": "stage-2"
+        },
+        {
+          "runner": "vitest",
+          "runnerRevision": "pending",
+          "normalizerId": null,
+          "entrypointId": null,
+          "directTargetId": null,
+          "resolutionStage": "stage-2"
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "contracts/state-transition/state_transition_contract_v1.json",
+      "version": "state_transition_contract_v1",
+      "digest": "sha256:2ca98cd766d56c47334ff796f0056c173586d8759847878c30dd20bdd5b4cbab"
+    },
+    {
+      "path": "contracts/state-transition/game_end_contract_v1.json",
+      "version": "game_end_contract_v1",
+      "digest": "sha256:cbe6c19c8a4e79756d3ac6722d0d14cde13e30cbad65918fd07582e083442629"
+    },
+    {
+      "path": "contracts/state-transition/input_axes_descriptor_v1.json",
+      "version": "input_axes_descriptor_v1",
+      "digest": "sha256:9e51ee51258435f529f849af1f7fa7726fadb9c7a7326e7d5d93df81f5a7c527"
+    }
+  ],
+  "dependencies": [
+    {
+      "taskId": "TSK-235",
+      "artifactPath": "backend/domain/history-depth.json",
+      "commitOid": "b8fd5fe73e85ae80b3aa82b28bef7f2911f29b12",
+      "version": 1,
+      "establishmentCondition": "段階2でTSK-235を取り込み、履歴上限Dの実値を同資産から解決し、descriptorの履歴境界と一致させる。現時点では別ブランチのGit objectだけを確認済み。"
+    },
+    {
+      "taskId": "TSK-235",
+      "artifactPath": "backend/domain/check-sets.json",
+      "commitOid": "b8fd5fe73e85ae80b3aa82b28bef7f2911f29b12",
+      "version": 1,
+      "establishmentCondition": "段階2でTSK-235を取り込み、FR-040の採否宣言schemaと製品manifestの宣言を照合する。現時点では別ブランチのGit objectだけを確認済み。"
+    }
+  ],
+  "receiverDoD": [
+    "段階2入口ゲートの4工程をpytestとVitestの両経路で満たし、全caseの消費記録を残す",
+    "consumerBindingsの未確定runner識別子とrevisionを実装の実在値で確定する",
+    "descriptorと派生schemaの射影を全projectionRulesで照合し、判定不能時はmanifest登録を拒否する",
+    "正規化後の値を製品計算へ投入した証跡を示す",
+    "FR-040の採否と根拠を製品manifestへ宣言する",
+    "未解消レポートの段階2項目に検証先を割り当てる"
+  ],
+  "fr040Declaration": {
+    "content": "FR-040はShould。状態補正を採用する場合は操作イベント、履歴、undo、再計算および補正を含む一致性ケースを対象に加える。採用しない場合は対象外であることとその根拠を明示する。",
+    "basis": "docs/requirements/requirements-pitchlog-2026-07-22.md の FR-040 および docs/adr/ADR-003-domain-calc-method.md の D-11",
+    "recordStage": "stage-2",
+    "recordTarget": "製品manifest"
+  },
+  "descriptorParity": {
+    "descriptorPath": "contracts/state-transition/input_axes_descriptor_v1.json",
+    "descriptorId": "pitchlog.input-axes",
+    "projectionRulesPointer": "/projectionRules",
+    "designPath": "docs/features/appendix-e-golden-vectors/design.md",
+    "designSection": "3-4",
+    "requirement": "軸IDのexact-set・値域一致、descriptorId/version/digestの拘束、nonCoverageFieldsの保持、history-depth.jsonとの一致とDの実値解決を段階2で検査する。判定不能ならfail。",
+    "verificationStage": "stage-2"
+  },
+  "consumptionVerification": "pending",
+  "stage2EntryGate": {
+    "topLevelLoad": "2契約とdescriptorをトップレベルから読み、cases[]だけの直読では通さない",
+    "versionCheck": "handoffVersion、契約version/schemaVersion、descriptorId/version/digest、依存版とcommit OIDを検査する",
+    "bindingConstruction": "各consumerBindingからpytestとVitestのVectorContractを構築し、未確定runner識別子・revisionを実在値へ解決する",
+    "allCasesConsumption": "両runnerで対象計算の全caseを消費する。D+1のundo liveness-only caseを含め、拒否・切り捨てがないことを検証する。D+1には出力同値を要求しない",
+    "dPlusOnePrerequisite": "D+1のundo規範行・caseはステップ66のPO裁定で段階2へ送られ、現存しない。段階2で行とcaseを整備してから全case消費を判定する"
+  },
+  "receiverTaskId": null
+}

@@ -28,32 +28,71 @@ BASELINE_DEFINITION_PATHS = frozenset(
     }
 )
 # 追加層は JSON を変更するコミットより先に固定する。同一コミットでの追随を許さない。
+APPENDIX_E_AREA_PATH_ADDITIONS = (
+    "docs/adr/ADR-001-codex-model-selection.md",
+    "docs/adr/ADR-003-domain-calc-method.md",
+    "contracts/state-transition/*",
+    "contracts/vocabulary/*",
+    "scripts/check_deriver_dependencies.py",
+    "scripts/check_expanded_fixture_parity.py",
+    "scripts/check_expander_dependencies.py",
+    "scripts/check_gap_register.py",
+    "scripts/check_human_review_signature.py",
+    "scripts/check_input_axes_descriptor.py",
+    "scripts/check_input_axes_three_way_parity.py",
+    "scripts/check_provenance.py",
+    "scripts/check_required_set_mutation.py",
+    "scripts/check_required_set_coverage.py",
+    "scripts/check_vocabulary_manifest.py",
+    "scripts/state_transition_freeze.py",
+    "tests/test_deriver_dependencies.py",
+    "tests/test_expanded_fixture_parity.py",
+    "tests/test_expander_dependencies.py",
+    "tests/test_game_end_contract_schema.py",
+    "tests/test_gap_register.py",
+    "tests/test_human_review_signature.py",
+    "tests/test_input_axes_descriptor.py",
+    "tests/test_input_axes_three_way_parity.py",
+    "tests/test_required_set_mutation.py",
+    "tests/test_required_set_coverage.py",
+    "tests/test_state_transition_contract_schema.py",
+    "tests/test_state_transition_freeze.py",
+    "tests/test_vocabulary_manifest.py",
+    "tests/test_vocabulary_seed.py",
+    "tests/test_consumer_handoff.py",
+    "scripts/check_state_transition_normalization.py",
+    "scripts/state_transition_normalization.py",
+    "tests/test_state_transition_normalization.py",
+    "scripts/check_frozen_baselines.py",
+    "tests/frozen_negatives/test_frozen_baseline_acceptance.py",
+    "tests/frozen_negatives/test_frozen_baseline_ci_dispatch.py",
+    "tests/frozen_negatives/test_frozen_baseline_ledger.py",
+    "tests/frozen_scan_fixtures.py",
+    "tests/test_ci_wiring.py",
+    "tests/test_core_guard.py",
+    "tests/test_frozen_negative_inventory.py",
+    "tests/test_frozen_scan_rules.py",
+    "scripts/check_branch_row_mapping.py",
+    "scripts/check_manual_fixture_baselines.py",
+    "scripts/expand_game_end_cases.py",
+    "scripts/expand_state_transition_cases.py",
+    "scripts/representative_selection.py",
+    "tests/test_branch_row_mapping.py",
+)
+VOCABULARY_AREA_PATH_ADDITIONS = (
+    "docs/adr/ADR-001-codex-model-selection.md",
+    "docs/adr/ADR-003-domain-calc-method.md",
+    "contracts/vocabulary/*",
+    "scripts/check_vocabulary_manifest.py",
+    "tests/test_vocabulary_manifest.py",
+    "tests/test_vocabulary_seed.py",
+)
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "game-state": (
-        "backend/domain/*",
-        "backend/src/pitchlog/domaincheck/*",
-        "backend/src/pitchlog/domaingen/*",
-        "backend/src/pitchlog/domainmut/*",
-        "backend/src/pitchlog/generated/*",
-        "backend/tests/domain/*",
-        "frontend/src/lib/generated/*",
-        "tests/domain/*",
-    ),
-    "data-migration": (
-        "backend/domain/*",
-        "backend/src/pitchlog/domaincheck/*",
-        "backend/src/pitchlog/domaingen/*",
-        "backend/src/pitchlog/domainmut/*",
-        "backend/src/pitchlog/generated/*",
-        "backend/tests/domain/*",
-        "frontend/src/lib/generated/*",
-        "tests/domain/*",
-    ),
-    "tenant-isolation": (
-        "docs/ops/product-rls-real-schema.md",
-        "scripts/product_rls_real_schema/*",
-        "scripts/product-rls-real-schema-targets.json",
-    ),
+    "sync-protocol": APPENDIX_E_AREA_PATH_ADDITIONS,
+    "game-state": APPENDIX_E_AREA_PATH_ADDITIONS,
+    "recording-rights": ("docs/adr/ADR-001-codex-model-selection.md",),
+    "tenant-isolation": ("docs/adr/ADR-001-codex-model-selection.md",),
+    "data-migration": VOCABULARY_AREA_PATH_ADDITIONS,
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
@@ -347,6 +386,31 @@ def _changed_paths_in_commit(root: Path, revision: str) -> frozenset[str]:
     return frozenset(output.splitlines())
 
 
+def _parent_has_area_path_additions(root: Path, revision: str) -> bool:
+    """いずれかの親で領域別追加層の定義が存在したかを返す。"""
+    parents = _run_git(
+        root,
+        ["show", "-s", "--format=%P", revision],
+        f"{revision} の親コミット列挙",
+    ).split()
+    for parent in parents:
+        paths = _run_git(
+            root,
+            ["ls-tree", "--name-only", parent, "--", "scripts/core_guard.py"],
+            f"{parent} の core_guard.py 存在確認",
+        )
+        if "scripts/core_guard.py" not in paths.splitlines():
+            continue
+        source = _run_git(
+            root,
+            ["show", f"{parent}:scripts/core_guard.py"],
+            f"{parent} の core_guard.py blob 読み取り",
+        )
+        if re.search(r"(?m)^AREA_PATH_ADDITIONS\s*(?::[^=\n]+)?=", source):
+            return True
+    return False
+
+
 def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
     """merge-base blob と PR head の領域別二層契約を検査する。
 
@@ -369,7 +433,11 @@ def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
     for revision in _commits_between(root, baseline_revision, head_sha):
         changed = _changed_paths_in_commit(root, revision)
         changed_definitions = sorted(changed & BASELINE_DEFINITION_PATHS)
-        if CORE_AREAS_RELATIVE_PATH in changed and changed_definitions:
+        if (
+            CORE_AREAS_RELATIVE_PATH in changed
+            and changed_definitions
+            and _parent_has_area_path_additions(root, revision)
+        ):
             raise GuardError(
                 "core-areas.json と基線定義を同一コミットで変更している: "
                 f"{revision}: {changed_definitions}"
