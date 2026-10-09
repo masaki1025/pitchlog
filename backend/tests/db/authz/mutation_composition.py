@@ -35,9 +35,6 @@ _BOUNDARY_PROPOSAL_RELATIVE_PATH = "contracts/authz/boundary-proposal.json"
 _DDL_ELEMENTS_RELATIVE_PATH = "contracts/authz/ddl-elements.json"
 _CLAIM_MUTANT_MAP_RELATIVE_PATH = "contracts/authz/claim-mutant-map.json"
 STEP2_BASE_REVISION = "099a8fa20595c25f553b46dedcaaa9660dd03c2e"
-STEP2_CHANGED_CANONICAL_ASSET_PATHS: frozenset[str] = frozenset(
-    {"contracts/authz/claim-mutant-map.json"}
-)
 
 INTERACTION_FILTER_ENV = "PITCHLOG_MUTATION_INTERACTION"
 CUT_SET_FILTER_ENV = "PITCHLOG_MUTATION_CUT_SET"
@@ -994,50 +991,73 @@ def _oracle_meaning_body(
     return body
 
 
-_APPROVED_FR037_CLAIM_INDEX = 168
-_APPROVED_FR037_CLAIM: dict[str, object] = {
-    "claim_id": "FR-037/list_item-010",
-    "claim_origin": "requirement",
-    "execution_class": "contract_only",
-    "classification_rule_id": "CONTRACT_ONLY_RUNTIME_TARGET_PENDING",
-    "mutant_ids": ["MUT:AUTH:FR-037/list_item-010:NEGATE-DECISION"],
-    "schema_drift_test_owner": {
-        "id": (
-            "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid"
-        ),
-        "status": "implemented",
-    },
-    "runtime_test_owner": {
-        "id": "TSK-270.group2.runtime.FR-037/list_item-010",
-        "status": "planned",
-    },
-    "runtime_kill_required": False,
-    "runtime_evidence_kind": "handoff_runtime_test",
-    "receiving_task_id": "PENDING:FR-037",
-    "contract_only_reason_code": "route_universe_pending",
-}
-_APPROVED_FR037_MUTANT_INDEX = 168
-_APPROVED_FR037_MUTANT: dict[str, object] = {
-    "mutant_id": "MUT:AUTH:FR-037/list_item-010:NEGATE-DECISION",
-    "axis": "authorization_predicate",
-    "operator_id": "NEGATE_CLAIM_DECISION_UNIT",
-    "decision_form": "CLAIM_DECISION",
-    "claim_ids": ["FR-037/list_item-010"],
-    "target_element_ids": ["FR-037/list_item-010"],
-    "expected_application_outcome": "applies",
-    "expected_drift_outcome": "red",
-    "expected_runtime_outcome": "handoff",
-    "runtime_kill_required": False,
-    "requires_disposable_cluster": False,
-    "schema_drift_test_id": (
-        "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid"
-    ),
-    "runtime_test_id": "TSK-270.group2.runtime.FR-037/list_item-010",
-    "runtime_kill_waiver_reason": "contract_only_handoff",
-    "expected_positive_outcome": "handoff",
-    "positive_kill_required": False,
-    "positive_case_scope_id": None,
-}
+APPROVALS_RELATIVE_PATH = "contracts/authz/oracle-meaning-change-approvals.json"
+
+
+def _approved_meaning_changes(
+    root: Path = REPOSITORY_ROOT,
+) -> dict[str, tuple[dict[str, object], ...]]:
+    """承認済みの意味変更を資産から読み、path ごとの差し込み宣言へ畳む。
+
+    設計書 7.7-1 により、動かした凍結基準の値は検査器のソースへ直書きしない。
+    承認した行本文・差し込み位置・対象 path はすべて資産側の宣言が正本で、
+    本関数はそれを読むだけで、既定値も代替値も持たない。
+
+    Args:
+        root: リポジトリのルート。
+
+    Returns:
+        対象 path から差し込み宣言の並びへの写像。
+
+    Raises:
+        MutationCompositionError: 宣言が読めない、または固定基準と食い違う場合。
+    """
+    document = _read_json_object(root.resolve() / APPROVALS_RELATIVE_PATH)
+    base_revision = _text(
+        document.get("base_revision"), f"{APPROVALS_RELATIVE_PATH}.base_revision"
+    )
+    if base_revision != STEP2_BASE_REVISION:
+        raise MutationCompositionError(
+            f"{APPROVALS_RELATIVE_PATH}: base_revision が固定基準と不一致"
+        )
+    changes: dict[str, list[dict[str, object]]] = {}
+    for position, entry in enumerate(
+        _expect_rows(document.get("approvals"), f"{APPROVALS_RELATIVE_PATH}.approvals")
+    ):
+        label = f"{APPROVALS_RELATIVE_PATH}.approvals[{position}]"
+        path = _text(entry.get("path"), f"{label}.path")
+        _text(entry.get("approval_id"), f"{label}.approval_id")
+        _text(entry.get("approved_by"), f"{label}.approved_by")
+        _text(entry.get("approved_on"), f"{label}.approved_on")
+        _text(entry.get("reason"), f"{label}.reason")
+        rows = changes.setdefault(path, [])
+        for order, insertion in enumerate(
+            _expect_rows(entry.get("insertions"), f"{label}.insertions")
+        ):
+            inner = f"{label}.insertions[{order}]"
+            index = insertion.get("index")
+            if not isinstance(index, int) or isinstance(index, bool) or index < 0:
+                raise MutationCompositionError(f"{inner}.index が非負整数ではない")
+            rows.append(
+                {
+                    "collection": _text(
+                        insertion.get("collection"), f"{inner}.collection"
+                    ),
+                    "index": index,
+                    "row": _expect_object(insertion.get("row"), f"{inner}.row"),
+                }
+            )
+    return {path: tuple(rows) for path, rows in changes.items()}
+
+
+def _changed_canonical_asset_paths(
+    root: Path = REPOSITORY_ROOT,
+) -> frozenset[str]:
+    """意味本文の変更が承認されている資産 path の集合を資産から導く。"""
+    return frozenset(_approved_meaning_changes(root))
+
+
+STEP2_CHANGED_CANONICAL_ASSET_PATHS: frozenset[str] = _changed_canonical_asset_paths()
 
 
 def _rows_with_approved_insertion(
@@ -1057,6 +1077,7 @@ def _rows_with_approved_insertion(
 def _expected_step2_meaning_body(
     relative_path: str,
     base: dict[str, object],
+    approved: Mapping[str, tuple[dict[str, object], ...]],
 ) -> dict[str, object]:
     """承認済み資産の意味変更を期待本文へ適用する。
 
@@ -1088,18 +1109,18 @@ def _expected_step2_meaning_body(
         scope = _expect_object(expected.get("scope"), "base DDL scope")
         scope["status"] = "verified_probe_configuration"
         scope["second_group_approval_required"] = False
-    elif relative_path == _CLAIM_MUTANT_MAP_RELATIVE_PATH:
-        expected["claims"] = _rows_with_approved_insertion(
-            _expect_rows(expected.get("claims"), "base claims"),
-            _APPROVED_FR037_CLAIM_INDEX,
-            _APPROVED_FR037_CLAIM,
-            "approved FR-037 claim",
-        )
-        expected["mutants"] = _rows_with_approved_insertion(
-            _expect_rows(expected.get("mutants"), "base mutants"),
-            _APPROVED_FR037_MUTANT_INDEX,
-            _APPROVED_FR037_MUTANT,
-            "approved FR-037 mutant",
+    for insertion in approved.get(relative_path, ()):
+        collection = insertion["collection"]
+        assert isinstance(collection, str)
+        index = insertion["index"]
+        assert isinstance(index, int)
+        row = insertion["row"]
+        assert isinstance(row, dict)
+        expected[collection] = _rows_with_approved_insertion(
+            _expect_rows(expected.get(collection), f"base {collection}"),
+            index,
+            row,
+            f"{relative_path}:{collection}[{index}] の承認済み行",
         )
     return expected
 
@@ -1226,6 +1247,7 @@ def _changed_oracle_meaning_paths(
     current_seal: dict[str, object],
 ) -> frozenset[str]:
     """可動ポインタを除いて固定基準から意味が変わった資産を返す。"""
+    approved = _approved_meaning_changes(root)
     current_paths = set(_sealed_rows_by_path(current_seal, "current oracle seal"))
     base_seal = _oracle_seal_at_revision(root, base_ref)
     base_paths = set(_sealed_rows_by_path(base_seal, "base oracle seal"))
@@ -1238,7 +1260,7 @@ def _changed_oracle_meaning_paths(
         current_body = _oracle_meaning_body(current, f"current asset {path}")
         if current_body != _oracle_meaning_body(base, f"base asset {path}"):
             changed.add(path)
-        expected = _expected_step2_meaning_body(path, base)
+        expected = _expected_step2_meaning_body(path, base, approved)
         if current_body != expected:
             raise MutationCompositionError(f"{path}: 承認済みのoracle意味本文と不一致")
     return frozenset(changed)
