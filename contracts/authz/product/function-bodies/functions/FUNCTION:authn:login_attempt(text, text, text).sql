@@ -3,7 +3,7 @@
 
 CREATE OR REPLACE FUNCTION authn.login_attempt(
     p_team_name text, p_password text, p_source text,
-    OUT token_id uuid, OUT wait_ms integer
+    OUT token_id uuid, OUT wait_ms integer, OUT expires_at timestamptz
 )
 LANGUAGE plpgsql
 VOLATILE
@@ -70,17 +70,19 @@ BEGIN
     IF NOT failure THEN
         issued_at := pg_catalog.clock_timestamp();
         token_id := pg_catalog.gen_random_uuid();
+        expires_at := issued_at + token_ttl * INTERVAL '1 second';
         INSERT INTO public.tenant_tokens
             (id, tenant_id, auth_subject_id, credential_generation,
              expires_at, last_used_at)
         VALUES (token_id, tenant_id, subject_id, credential_generation,
-                issued_at + token_ttl * INTERVAL '1 second', issued_at);
+                expires_at, issued_at);
         wait_ms := 0;
         RETURN;
     END IF;
 
     token_id := NULL;
     wait_ms := 0;
+    expires_at := NULL;
     IF window_seconds IS NULL OR throttle_threshold IS NULL
        OR throttle_step_ms IS NULL OR throttle_max_ms IS NULL THEN
         RETURN;

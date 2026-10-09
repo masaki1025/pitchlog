@@ -21,8 +21,10 @@ from pitchlog.authz.signing_key_config import (
     SigningKeyConfigurationError,
     require_signing_key_configuration,
 )
+from pitchlog.authz.team_login import get_login_connection, login_attempt
 from pitchlog.authz.token_presentation import TokenPresentation
 from pitchlog.authz.verified_tenant import logout_token, verify_tenant_id
+from pitchlog.db.config import DatabaseConfigurationError
 
 _SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src" / "pitchlog"
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -32,6 +34,7 @@ _MODULES = frozenset(
         "authz.signing_key_config",
         "authz.database_transport",
         "authz.verified_tenant",
+        "authz.team_login",
     }
 )
 _OTHER_AUTHZ_MODULES = frozenset(
@@ -68,9 +71,12 @@ _PUBLIC_OPERATIONS = frozenset(
         "authz.database_transport.require_database_transport",
         "authz.verified_tenant.verify_tenant_id",
         "authz.verified_tenant.logout_token",
+        "authz.team_login.get_login_connection",
+        "authz.team_login.login_attempt",
     }
 )
 _DB_ENDPOINTS: dict[str, str | None] = {
+    "authn.login_attempt": "authz.team_login.login_attempt",
     "authn.verify_token": "authz.verified_tenant.verify_tenant_id",
     "authn.logout": "authz.verified_tenant.logout_token",
     # data-model.md 8-3 節②の列挙は検証・延長・ログアウトであり、PW 変更を含まない。
@@ -100,6 +106,12 @@ _PUBLIC_CALLERS = frozenset(
             "authz.verified_tenant.logout_token",
             "authz.token_presentation.TokenPresentation.decode",
         ),
+        (
+            "authz.team_login.login_attempt",
+            "authz.token_presentation.TokenPresentation.encode",
+        ),
+        ("api.routers.auth.login", "authz.team_login.login_attempt"),
+        ("api.routers.auth.login", "authz.team_login.get_login_connection"),
     }
 )
 _AUTHN_REFERENCE = re.compile(r"\bauthn\.([a-z_]+)\b")
@@ -336,6 +348,7 @@ def test_public_operations_and_callers_are_exact_sets() -> None:
 def test_db_reach_is_exact_set_and_absences_are_explicit() -> None:
     """検証兼延長とログアウトの到達点、PW 変更の未接続を固定する。"""
     assert set(_DB_ENDPOINTS) == {
+        "authn.login_attempt",
         "authn.verify_token",
         "authn.logout",
         "authn.change_password",
@@ -595,6 +608,21 @@ def test_each_public_operation_has_a_negative_case(
         signer = create_app().state.token_presentation
         engine = MagicMock()
         assert logout_token(str(UUID(int=1)), signer, engine) is None
+        engine.begin.assert_not_called()
+    elif operation == "authz.team_login.get_login_connection":
+        get_login_connection.cache_clear()
+        monkeypatch.delenv("PITCHLOG_DATABASE_URL", raising=False)
+        try:
+            with pytest.raises(DatabaseConfigurationError):
+                get_login_connection()
+        finally:
+            get_login_connection.cache_clear()
+    elif operation == "authz.team_login.login_attempt":
+        engine = MagicMock()
+        with pytest.raises(TypeError, match="署名器の型が不正です"):
+            login_attempt(
+                "team", "password", "source", cast(TokenPresentation, object()), engine
+            )
         engine.begin.assert_not_called()
     else:
         pytest.fail(f"負例のない公開操作: {operation}")

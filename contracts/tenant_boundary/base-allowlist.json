@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 24,
+  "contract_revision": 25,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:24"
+        "contract_revision:25"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -11159,6 +11159,16 @@
         "SQLA_CONNECTION_EXECUTE"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/authz/verified_tenant/__init__.py"
+    },
+    {
+      "symbol": "pitchlog.authz.team_login.login_attempt",
+      "signature": "login_attempt(team_name: str, password: str, source: str, presentation: _TokenPresentation, engine: _Engine) -> tuple[str, _datetime] | int",
+      "allowed_api_ids": [
+        "SQLA_TEXT",
+        "SQLA_ENGINE_BEGIN",
+        "SQLA_CONNECTION_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/authz/team_login.py"
     },
     {
       "symbol": "pitchlog.repositories.transaction._TenantTransaction.run",

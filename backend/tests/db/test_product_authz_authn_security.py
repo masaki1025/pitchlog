@@ -264,7 +264,7 @@ def test_authn_is_outside_minimum_requirement_four(
 def test_token_id_is_generated_inside_login(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """呼出側に ID 引数がなく、OUT の 2 値で発行 ID と待ち時間を返す。"""
+    """呼出側に ID 引数がなく、OUT の 3 値で発行 ID・待ち時間・期限を返す。"""
     catalog = provisioned_product_catalog
     _seed_settings(catalog)
     app_dsn = _app_dsn(catalog)
@@ -287,7 +287,8 @@ def test_token_id_is_generated_inside_login(
             assert (row := cursor.fetchone()) is not None
             assert row[0] == (
                 "p_team_name text, p_password text, p_source text, "
-                "OUT token_id uuid, OUT wait_ms integer"
+                "OUT token_id uuid, OUT wait_ms integer, "
+                "OUT expires_at timestamp with time zone"
             )
             assert "token_id := pg_catalog.gen_random_uuid();" in row[1]
             cursor.execute(

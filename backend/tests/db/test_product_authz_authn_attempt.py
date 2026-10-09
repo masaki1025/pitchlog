@@ -26,19 +26,22 @@ pytestmark = pytest.mark.requires_db
 
 def _attempt(
     dsn: str, name: str, password: str, source: str
-) -> tuple[UUID | None, int, float]:
-    """接続を閉じてから、トークン ID・待ち時間・経過時間を返す。"""
+) -> tuple[UUID | None, int, float, datetime | None]:
+    """接続を閉じてから、発行結果・待ち時間・経過時間・期限を返す。"""
     started = time.monotonic()
     with psycopg.connect(dsn) as connection, connection.cursor() as cursor:
         cursor.execute(
-            "SELECT token_id, wait_ms FROM authn.login_attempt(%s, %s, %s)",
+            "SELECT token_id, wait_ms, expires_at FROM authn.login_attempt(%s, %s, %s)",
             (name, password, source),
         )
         row = cursor.fetchone()
         assert row is not None
-        token_id, wait_ms = row
+        token_id, wait_ms, expires_at = row
     assert isinstance(wait_ms, int)
-    return token_id, wait_ms, time.monotonic() - started
+    assert (token_id is None and expires_at is None) or (
+        isinstance(token_id, UUID) and isinstance(expires_at, datetime)
+    )
+    return token_id, wait_ms, time.monotonic() - started, expires_at
 
 
 def _reservation(
@@ -81,17 +84,18 @@ def test_old_login_is_absent_and_token_id_names_issued_row(
         row = cursor.fetchone()
     catalog.observer.rollback()
     assert row is not None and row[0] is None and row[1] is not None
-    token, wait_ms, _ = _attempt(
+    token, wait_ms, _, expires_at = _attempt(
         identity.app_dsn, identity.name, identity.password, uuid4().hex
     )
     assert isinstance(token, UUID) and token != identity.tenant_id
     assert wait_ms == 0
+    assert isinstance(expires_at, datetime)
     with catalog.observer.cursor() as cursor:
         cursor.execute(
-            "SELECT id, tenant_id FROM public.tenant_tokens WHERE id = %s",
+            "SELECT id, tenant_id, expires_at FROM public.tenant_tokens WHERE id = %s",
             (token,),
         )
-        assert cursor.fetchone() == (token, identity.tenant_id)
+        assert cursor.fetchone() == (token, identity.tenant_id, expires_at)
     catalog.observer.rollback()
 
 
@@ -121,10 +125,11 @@ def test_success_bypasses_failure_lock_and_does_not_change_ticket(
                 _attempt, identity.app_dsn, identity.name, identity.password, source
             )
             try:
-                token, wait_ms, elapsed = future.result(timeout=5)
+                token, wait_ms, elapsed, expires_at = future.result(timeout=5)
             finally:
                 holder.rollback()
     assert isinstance(token, UUID) and wait_ms == 0
+    assert isinstance(expires_at, datetime)
     assert elapsed < baseline + 2
     assert _reservation(catalog, source) == before
 
@@ -202,10 +207,11 @@ def test_previous_window_count_and_ticket_cross_boundary(
         )
     catalog.applicator.commit()
     previous_count, previous_until = _reservation(catalog, source)
-    token, wait_ms, _ = _attempt(
+    token, wait_ms, _, expires_at = _attempt(
         identity.app_dsn, identity.name, secrets.token_urlsafe(24), source
     )
     assert token is None
+    assert expires_at is None
     assert wait_ms == _SETTINGS["auth.team_login.throttle_max_ms"]
     current_count, current_until = _reservation(catalog, source)
     assert previous_count == _SETTINGS["auth.team_login.throttle_threshold"] + 1
