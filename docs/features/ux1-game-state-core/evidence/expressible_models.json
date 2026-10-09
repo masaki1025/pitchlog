@@ -1,0 +1,3266 @@
+{
+  "schemaVersion": 1,
+  "calculations": [
+    {
+      "calculationId": "c1ThirdOutChange",
+      "inputs": [],
+      "states": [
+        {
+          "stateId": "s",
+          "fields": [
+            {
+              "fieldId": "outs",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "half",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "inning",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 1
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 99
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "eventId": "outRecorded",
+          "fields": [
+            {
+              "fieldId": "delta",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 1
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 3
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "kind": "transition",
+          "ruleId": "applyOut",
+          "eventRef": "outRecorded",
+          "guardRefs": [],
+          "nextState": [
+            {
+              "fieldRef": "outs",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "multiply",
+                "operands": [
+                  {
+                    "kind": "arithmetic",
+                    "operator": "add",
+                    "operands": [
+                      {
+                        "kind": "state-ref",
+                        "fieldRef": "outs"
+                      },
+                      {
+                        "kind": "event-ref",
+                        "fieldRef": "delta"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "subtract",
+                    "operands": [
+                      {
+                        "kind": "numeric-literal",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      },
+                      {
+                        "kind": "extremum",
+                        "operator": "max",
+                        "operands": [
+                          {
+                            "kind": "numeric-literal",
+                            "value": {
+                              "kind": "integer",
+                              "value": 0
+                            }
+                          },
+                          {
+                            "kind": "extremum",
+                            "operator": "min",
+                            "operands": [
+                              {
+                                "kind": "numeric-literal",
+                                "value": {
+                                  "kind": "integer",
+                                  "value": 1
+                                }
+                              },
+                              {
+                                "kind": "arithmetic",
+                                "operator": "add",
+                                "operands": [
+                                  {
+                                    "kind": "arithmetic",
+                                    "operator": "subtract",
+                                    "operands": [
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "add",
+                                        "operands": [
+                                          {
+                                            "kind": "state-ref",
+                                            "fieldRef": "outs"
+                                          },
+                                          {
+                                            "kind": "event-ref",
+                                            "fieldRef": "delta"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 3
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 1
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "fieldRef": "half",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "subtract",
+                "operands": [
+                  {
+                    "kind": "arithmetic",
+                    "operator": "add",
+                    "operands": [
+                      {
+                        "kind": "state-ref",
+                        "fieldRef": "half"
+                      },
+                      {
+                        "kind": "extremum",
+                        "operator": "max",
+                        "operands": [
+                          {
+                            "kind": "numeric-literal",
+                            "value": {
+                              "kind": "integer",
+                              "value": 0
+                            }
+                          },
+                          {
+                            "kind": "extremum",
+                            "operator": "min",
+                            "operands": [
+                              {
+                                "kind": "numeric-literal",
+                                "value": {
+                                  "kind": "integer",
+                                  "value": 1
+                                }
+                              },
+                              {
+                                "kind": "arithmetic",
+                                "operator": "add",
+                                "operands": [
+                                  {
+                                    "kind": "arithmetic",
+                                    "operator": "subtract",
+                                    "operands": [
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "add",
+                                        "operands": [
+                                          {
+                                            "kind": "state-ref",
+                                            "fieldRef": "outs"
+                                          },
+                                          {
+                                            "kind": "event-ref",
+                                            "fieldRef": "delta"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 3
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 1
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "multiply",
+                    "operands": [
+                      {
+                        "kind": "numeric-literal",
+                        "value": {
+                          "kind": "integer",
+                          "value": 2
+                        }
+                      },
+                      {
+                        "kind": "state-ref",
+                        "fieldRef": "half"
+                      },
+                      {
+                        "kind": "extremum",
+                        "operator": "max",
+                        "operands": [
+                          {
+                            "kind": "numeric-literal",
+                            "value": {
+                              "kind": "integer",
+                              "value": 0
+                            }
+                          },
+                          {
+                            "kind": "extremum",
+                            "operator": "min",
+                            "operands": [
+                              {
+                                "kind": "numeric-literal",
+                                "value": {
+                                  "kind": "integer",
+                                  "value": 1
+                                }
+                              },
+                              {
+                                "kind": "arithmetic",
+                                "operator": "add",
+                                "operands": [
+                                  {
+                                    "kind": "arithmetic",
+                                    "operator": "subtract",
+                                    "operands": [
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "add",
+                                        "operands": [
+                                          {
+                                            "kind": "state-ref",
+                                            "fieldRef": "outs"
+                                          },
+                                          {
+                                            "kind": "event-ref",
+                                            "fieldRef": "delta"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 3
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 1
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "fieldRef": "inning",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "add",
+                "operands": [
+                  {
+                    "kind": "state-ref",
+                    "fieldRef": "inning"
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "multiply",
+                    "operands": [
+                      {
+                        "kind": "extremum",
+                        "operator": "max",
+                        "operands": [
+                          {
+                            "kind": "numeric-literal",
+                            "value": {
+                              "kind": "integer",
+                              "value": 0
+                            }
+                          },
+                          {
+                            "kind": "extremum",
+                            "operator": "min",
+                            "operands": [
+                              {
+                                "kind": "numeric-literal",
+                                "value": {
+                                  "kind": "integer",
+                                  "value": 1
+                                }
+                              },
+                              {
+                                "kind": "arithmetic",
+                                "operator": "add",
+                                "operands": [
+                                  {
+                                    "kind": "arithmetic",
+                                    "operator": "subtract",
+                                    "operands": [
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "add",
+                                        "operands": [
+                                          {
+                                            "kind": "state-ref",
+                                            "fieldRef": "outs"
+                                          },
+                                          {
+                                            "kind": "event-ref",
+                                            "fieldRef": "delta"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 3
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 1
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "state-ref",
+                        "fieldRef": "half"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "fieldId": "inningOut",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 1
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 99
+            }
+          },
+          "unit": null,
+          "scale": 0,
+          "visibility": "user-visible"
+        }
+      ],
+      "displayRuleRefs": []
+    },
+    {
+      "calculationId": "c2DroppedThirdStrike",
+      "inputs": [],
+      "states": [
+        {
+          "stateId": "s",
+          "fields": [
+            {
+              "fieldId": "outs",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "firstOccupied",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "batterMayRun",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "eventId": "pitch",
+          "fields": [
+            {
+              "fieldId": "thirdStrike",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "caught",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "kind": "transition",
+          "ruleId": "judgeDroppedThirdStrike",
+          "eventRef": "pitch",
+          "guardRefs": [],
+          "nextState": [
+            {
+              "fieldRef": "outs",
+              "value": {
+                "kind": "state-ref",
+                "fieldRef": "outs"
+              }
+            },
+            {
+              "fieldRef": "firstOccupied",
+              "value": {
+                "kind": "state-ref",
+                "fieldRef": "firstOccupied"
+              }
+            },
+            {
+              "fieldRef": "batterMayRun",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "multiply",
+                "operands": [
+                  {
+                    "kind": "event-ref",
+                    "fieldRef": "thirdStrike"
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "subtract",
+                    "operands": [
+                      {
+                        "kind": "numeric-literal",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      },
+                      {
+                        "kind": "event-ref",
+                        "fieldRef": "caught"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "subtract",
+                    "operands": [
+                      {
+                        "kind": "arithmetic",
+                        "operator": "add",
+                        "operands": [
+                          {
+                            "kind": "arithmetic",
+                            "operator": "subtract",
+                            "operands": [
+                              {
+                                "kind": "numeric-literal",
+                                "value": {
+                                  "kind": "integer",
+                                  "value": 1
+                                }
+                              },
+                              {
+                                "kind": "extremum",
+                                "operator": "min",
+                                "operands": [
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 1
+                                    }
+                                  },
+                                  {
+                                    "kind": "extremum",
+                                    "operator": "max",
+                                    "operands": [
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "subtract",
+                                        "operands": [
+                                          {
+                                            "kind": "state-ref",
+                                            "fieldRef": "outs"
+                                          },
+                                          {
+                                            "kind": "numeric-literal",
+                                            "value": {
+                                              "kind": "integer",
+                                              "value": 2
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "subtract",
+                                        "operands": [
+                                          {
+                                            "kind": "numeric-literal",
+                                            "value": {
+                                              "kind": "integer",
+                                              "value": 2
+                                            }
+                                          },
+                                          {
+                                            "kind": "state-ref",
+                                            "fieldRef": "outs"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "arithmetic",
+                            "operator": "subtract",
+                            "operands": [
+                              {
+                                "kind": "numeric-literal",
+                                "value": {
+                                  "kind": "integer",
+                                  "value": 1
+                                }
+                              },
+                              {
+                                "kind": "state-ref",
+                                "fieldRef": "firstOccupied"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "arithmetic",
+                        "operator": "multiply",
+                        "operands": [
+                          {
+                            "kind": "arithmetic",
+                            "operator": "subtract",
+                            "operands": [
+                              {
+                                "kind": "numeric-literal",
+                                "value": {
+                                  "kind": "integer",
+                                  "value": 1
+                                }
+                              },
+                              {
+                                "kind": "extremum",
+                                "operator": "min",
+                                "operands": [
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 1
+                                    }
+                                  },
+                                  {
+                                    "kind": "extremum",
+                                    "operator": "max",
+                                    "operands": [
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "subtract",
+                                        "operands": [
+                                          {
+                                            "kind": "state-ref",
+                                            "fieldRef": "outs"
+                                          },
+                                          {
+                                            "kind": "numeric-literal",
+                                            "value": {
+                                              "kind": "integer",
+                                              "value": 2
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "subtract",
+                                        "operands": [
+                                          {
+                                            "kind": "numeric-literal",
+                                            "value": {
+                                              "kind": "integer",
+                                              "value": 2
+                                            }
+                                          },
+                                          {
+                                            "kind": "state-ref",
+                                            "fieldRef": "outs"
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "arithmetic",
+                            "operator": "subtract",
+                            "operands": [
+                              {
+                                "kind": "numeric-literal",
+                                "value": {
+                                  "kind": "integer",
+                                  "value": 1
+                                }
+                              },
+                              {
+                                "kind": "state-ref",
+                                "fieldRef": "firstOccupied"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "fieldId": "batterMayRunOut",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          "unit": null,
+          "scale": 0,
+          "visibility": "user-visible"
+        }
+      ],
+      "displayRuleRefs": []
+    },
+    {
+      "calculationId": "c9BattingOrderWrap",
+      "inputs": [],
+      "states": [
+        {
+          "stateId": "s",
+          "fields": [
+            {
+              "fieldId": "battingOrder",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 1
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 9
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "eventId": "plateAppearanceCompleted",
+          "fields": []
+        }
+      ],
+      "rules": [
+        {
+          "kind": "transition",
+          "ruleId": "advanceBattingOrder",
+          "eventRef": "plateAppearanceCompleted",
+          "guardRefs": [],
+          "nextState": [
+            {
+              "fieldRef": "battingOrder",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "subtract",
+                "operands": [
+                  {
+                    "kind": "arithmetic",
+                    "operator": "add",
+                    "operands": [
+                      {
+                        "kind": "state-ref",
+                        "fieldRef": "battingOrder"
+                      },
+                      {
+                        "kind": "numeric-literal",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "multiply",
+                    "operands": [
+                      {
+                        "kind": "numeric-literal",
+                        "value": {
+                          "kind": "integer",
+                          "value": 9
+                        }
+                      },
+                      {
+                        "kind": "arithmetic",
+                        "operator": "subtract",
+                        "operands": [
+                          {
+                            "kind": "numeric-literal",
+                            "value": {
+                              "kind": "integer",
+                              "value": 1
+                            }
+                          },
+                          {
+                            "kind": "extremum",
+                            "operator": "min",
+                            "operands": [
+                              {
+                                "kind": "numeric-literal",
+                                "value": {
+                                  "kind": "integer",
+                                  "value": 1
+                                }
+                              },
+                              {
+                                "kind": "extremum",
+                                "operator": "max",
+                                "operands": [
+                                  {
+                                    "kind": "arithmetic",
+                                    "operator": "subtract",
+                                    "operands": [
+                                      {
+                                        "kind": "state-ref",
+                                        "fieldRef": "battingOrder"
+                                      },
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 9
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "kind": "arithmetic",
+                                    "operator": "subtract",
+                                    "operands": [
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 9
+                                        }
+                                      },
+                                      {
+                                        "kind": "state-ref",
+                                        "fieldRef": "battingOrder"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "fieldId": "battingOrderOut",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 1
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 9
+            }
+          },
+          "unit": null,
+          "scale": 0,
+          "visibility": "user-visible"
+        }
+      ],
+      "displayRuleRefs": []
+    },
+    {
+      "calculationId": "c14ColdSegments",
+      "inputs": [
+        {
+          "fieldId": "segment1Active",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          "unit": null,
+          "scale": 0
+        },
+        {
+          "fieldId": "segment1Lead",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 1
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 99
+            }
+          },
+          "unit": null,
+          "scale": 0
+        },
+        {
+          "fieldId": "segment1Inning",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 1
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 99
+            }
+          },
+          "unit": null,
+          "scale": 0
+        },
+        {
+          "fieldId": "segment2Active",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          "unit": null,
+          "scale": 0
+        },
+        {
+          "fieldId": "segment2Lead",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 1
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 99
+            }
+          },
+          "unit": null,
+          "scale": 0
+        },
+        {
+          "fieldId": "segment2Inning",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 1
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 99
+            }
+          },
+          "unit": null,
+          "scale": 0
+        }
+      ],
+      "states": [
+        {
+          "stateId": "s",
+          "fields": [
+            {
+              "fieldId": "home",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 999
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "away",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 999
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "inning",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 1
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 99
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "coldReached",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "eventId": "playConfirmed",
+          "fields": [
+            {
+              "fieldId": "homeRuns",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 4
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "awayRuns",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 4
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "kind": "transition",
+          "ruleId": "scoreAndJudgeCold",
+          "eventRef": "playConfirmed",
+          "guardRefs": [],
+          "nextState": [
+            {
+              "fieldRef": "home",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "add",
+                "operands": [
+                  {
+                    "kind": "state-ref",
+                    "fieldRef": "home"
+                  },
+                  {
+                    "kind": "event-ref",
+                    "fieldRef": "homeRuns"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldRef": "away",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "add",
+                "operands": [
+                  {
+                    "kind": "state-ref",
+                    "fieldRef": "away"
+                  },
+                  {
+                    "kind": "event-ref",
+                    "fieldRef": "awayRuns"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldRef": "inning",
+              "value": {
+                "kind": "state-ref",
+                "fieldRef": "inning"
+              }
+            },
+            {
+              "fieldRef": "coldReached",
+              "value": {
+                "kind": "extremum",
+                "operator": "max",
+                "operands": [
+                  {
+                    "kind": "state-ref",
+                    "fieldRef": "coldReached"
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "subtract",
+                    "operands": [
+                      {
+                        "kind": "arithmetic",
+                        "operator": "add",
+                        "operands": [
+                          {
+                            "kind": "arithmetic",
+                            "operator": "multiply",
+                            "operands": [
+                              {
+                                "kind": "input-ref",
+                                "fieldRef": "segment1Active"
+                              },
+                              {
+                                "kind": "extremum",
+                                "operator": "max",
+                                "operands": [
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 0
+                                    }
+                                  },
+                                  {
+                                    "kind": "extremum",
+                                    "operator": "min",
+                                    "operands": [
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 1
+                                        }
+                                      },
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "add",
+                                        "operands": [
+                                          {
+                                            "kind": "arithmetic",
+                                            "operator": "subtract",
+                                            "operands": [
+                                              {
+                                                "kind": "extremum",
+                                                "operator": "max",
+                                                "operands": [
+                                                  {
+                                                    "kind": "arithmetic",
+                                                    "operator": "subtract",
+                                                    "operands": [
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "home"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "homeRuns"
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "away"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "awayRuns"
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "kind": "arithmetic",
+                                                    "operator": "subtract",
+                                                    "operands": [
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "away"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "awayRuns"
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "home"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "homeRuns"
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "kind": "input-ref",
+                                                "fieldRef": "segment1Lead"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "kind": "numeric-literal",
+                                            "value": {
+                                              "kind": "integer",
+                                              "value": 1
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "extremum",
+                                "operator": "max",
+                                "operands": [
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 0
+                                    }
+                                  },
+                                  {
+                                    "kind": "extremum",
+                                    "operator": "min",
+                                    "operands": [
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 1
+                                        }
+                                      },
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "add",
+                                        "operands": [
+                                          {
+                                            "kind": "arithmetic",
+                                            "operator": "subtract",
+                                            "operands": [
+                                              {
+                                                "kind": "state-ref",
+                                                "fieldRef": "inning"
+                                              },
+                                              {
+                                                "kind": "input-ref",
+                                                "fieldRef": "segment1Inning"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "kind": "numeric-literal",
+                                            "value": {
+                                              "kind": "integer",
+                                              "value": 1
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "arithmetic",
+                            "operator": "multiply",
+                            "operands": [
+                              {
+                                "kind": "input-ref",
+                                "fieldRef": "segment2Active"
+                              },
+                              {
+                                "kind": "extremum",
+                                "operator": "max",
+                                "operands": [
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 0
+                                    }
+                                  },
+                                  {
+                                    "kind": "extremum",
+                                    "operator": "min",
+                                    "operands": [
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 1
+                                        }
+                                      },
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "add",
+                                        "operands": [
+                                          {
+                                            "kind": "arithmetic",
+                                            "operator": "subtract",
+                                            "operands": [
+                                              {
+                                                "kind": "extremum",
+                                                "operator": "max",
+                                                "operands": [
+                                                  {
+                                                    "kind": "arithmetic",
+                                                    "operator": "subtract",
+                                                    "operands": [
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "home"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "homeRuns"
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "away"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "awayRuns"
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "kind": "arithmetic",
+                                                    "operator": "subtract",
+                                                    "operands": [
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "away"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "awayRuns"
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "home"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "homeRuns"
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "kind": "input-ref",
+                                                "fieldRef": "segment2Lead"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "kind": "numeric-literal",
+                                            "value": {
+                                              "kind": "integer",
+                                              "value": 1
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "extremum",
+                                "operator": "max",
+                                "operands": [
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 0
+                                    }
+                                  },
+                                  {
+                                    "kind": "extremum",
+                                    "operator": "min",
+                                    "operands": [
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 1
+                                        }
+                                      },
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "add",
+                                        "operands": [
+                                          {
+                                            "kind": "arithmetic",
+                                            "operator": "subtract",
+                                            "operands": [
+                                              {
+                                                "kind": "state-ref",
+                                                "fieldRef": "inning"
+                                              },
+                                              {
+                                                "kind": "input-ref",
+                                                "fieldRef": "segment2Inning"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "kind": "numeric-literal",
+                                            "value": {
+                                              "kind": "integer",
+                                              "value": 1
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "arithmetic",
+                        "operator": "multiply",
+                        "operands": [
+                          {
+                            "kind": "arithmetic",
+                            "operator": "multiply",
+                            "operands": [
+                              {
+                                "kind": "input-ref",
+                                "fieldRef": "segment1Active"
+                              },
+                              {
+                                "kind": "extremum",
+                                "operator": "max",
+                                "operands": [
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 0
+                                    }
+                                  },
+                                  {
+                                    "kind": "extremum",
+                                    "operator": "min",
+                                    "operands": [
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 1
+                                        }
+                                      },
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "add",
+                                        "operands": [
+                                          {
+                                            "kind": "arithmetic",
+                                            "operator": "subtract",
+                                            "operands": [
+                                              {
+                                                "kind": "extremum",
+                                                "operator": "max",
+                                                "operands": [
+                                                  {
+                                                    "kind": "arithmetic",
+                                                    "operator": "subtract",
+                                                    "operands": [
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "home"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "homeRuns"
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "away"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "awayRuns"
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "kind": "arithmetic",
+                                                    "operator": "subtract",
+                                                    "operands": [
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "away"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "awayRuns"
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "home"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "homeRuns"
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "kind": "input-ref",
+                                                "fieldRef": "segment1Lead"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "kind": "numeric-literal",
+                                            "value": {
+                                              "kind": "integer",
+                                              "value": 1
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "extremum",
+                                "operator": "max",
+                                "operands": [
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 0
+                                    }
+                                  },
+                                  {
+                                    "kind": "extremum",
+                                    "operator": "min",
+                                    "operands": [
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 1
+                                        }
+                                      },
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "add",
+                                        "operands": [
+                                          {
+                                            "kind": "arithmetic",
+                                            "operator": "subtract",
+                                            "operands": [
+                                              {
+                                                "kind": "state-ref",
+                                                "fieldRef": "inning"
+                                              },
+                                              {
+                                                "kind": "input-ref",
+                                                "fieldRef": "segment1Inning"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "kind": "numeric-literal",
+                                            "value": {
+                                              "kind": "integer",
+                                              "value": 1
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "arithmetic",
+                            "operator": "multiply",
+                            "operands": [
+                              {
+                                "kind": "input-ref",
+                                "fieldRef": "segment2Active"
+                              },
+                              {
+                                "kind": "extremum",
+                                "operator": "max",
+                                "operands": [
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 0
+                                    }
+                                  },
+                                  {
+                                    "kind": "extremum",
+                                    "operator": "min",
+                                    "operands": [
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 1
+                                        }
+                                      },
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "add",
+                                        "operands": [
+                                          {
+                                            "kind": "arithmetic",
+                                            "operator": "subtract",
+                                            "operands": [
+                                              {
+                                                "kind": "extremum",
+                                                "operator": "max",
+                                                "operands": [
+                                                  {
+                                                    "kind": "arithmetic",
+                                                    "operator": "subtract",
+                                                    "operands": [
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "home"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "homeRuns"
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "away"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "awayRuns"
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  },
+                                                  {
+                                                    "kind": "arithmetic",
+                                                    "operator": "subtract",
+                                                    "operands": [
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "away"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "awayRuns"
+                                                          }
+                                                        ]
+                                                      },
+                                                      {
+                                                        "kind": "arithmetic",
+                                                        "operator": "add",
+                                                        "operands": [
+                                                          {
+                                                            "kind": "state-ref",
+                                                            "fieldRef": "home"
+                                                          },
+                                                          {
+                                                            "kind": "event-ref",
+                                                            "fieldRef": "homeRuns"
+                                                          }
+                                                        ]
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "kind": "input-ref",
+                                                "fieldRef": "segment2Lead"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "kind": "numeric-literal",
+                                            "value": {
+                                              "kind": "integer",
+                                              "value": 1
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "extremum",
+                                "operator": "max",
+                                "operands": [
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 0
+                                    }
+                                  },
+                                  {
+                                    "kind": "extremum",
+                                    "operator": "min",
+                                    "operands": [
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 1
+                                        }
+                                      },
+                                      {
+                                        "kind": "arithmetic",
+                                        "operator": "add",
+                                        "operands": [
+                                          {
+                                            "kind": "arithmetic",
+                                            "operator": "subtract",
+                                            "operands": [
+                                              {
+                                                "kind": "state-ref",
+                                                "fieldRef": "inning"
+                                              },
+                                              {
+                                                "kind": "input-ref",
+                                                "fieldRef": "segment2Inning"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "kind": "numeric-literal",
+                                            "value": {
+                                              "kind": "integer",
+                                              "value": 1
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "fieldId": "coldReachedOut",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          "unit": null,
+          "scale": 0,
+          "visibility": "user-visible"
+        }
+      ],
+      "displayRuleRefs": []
+    },
+    {
+      "calculationId": "c16UndoOnEmptyHistory",
+      "inputs": [],
+      "states": [
+        {
+          "stateId": "s",
+          "fields": [
+            {
+              "fieldId": "outs",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "undoableDepth",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 9999
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "resultCode",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "eventId": "undo",
+          "fields": []
+        }
+      ],
+      "rules": [
+        {
+          "kind": "transition",
+          "ruleId": "undoOrReportNothing",
+          "eventRef": "undo",
+          "guardRefs": [],
+          "nextState": [
+            {
+              "fieldRef": "outs",
+              "value": {
+                "kind": "state-ref",
+                "fieldRef": "outs"
+              }
+            },
+            {
+              "fieldRef": "undoableDepth",
+              "value": {
+                "kind": "extremum",
+                "operator": "max",
+                "operands": [
+                  {
+                    "kind": "numeric-literal",
+                    "value": {
+                      "kind": "integer",
+                      "value": 0
+                    }
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "subtract",
+                    "operands": [
+                      {
+                        "kind": "state-ref",
+                        "fieldRef": "undoableDepth"
+                      },
+                      {
+                        "kind": "numeric-literal",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "fieldRef": "resultCode",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "subtract",
+                "operands": [
+                  {
+                    "kind": "numeric-literal",
+                    "value": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "subtract",
+                    "operands": [
+                      {
+                        "kind": "numeric-literal",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      },
+                      {
+                        "kind": "extremum",
+                        "operator": "min",
+                        "operands": [
+                          {
+                            "kind": "numeric-literal",
+                            "value": {
+                              "kind": "integer",
+                              "value": 1
+                            }
+                          },
+                          {
+                            "kind": "extremum",
+                            "operator": "max",
+                            "operands": [
+                              {
+                                "kind": "arithmetic",
+                                "operator": "subtract",
+                                "operands": [
+                                  {
+                                    "kind": "state-ref",
+                                    "fieldRef": "undoableDepth"
+                                  },
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 0
+                                    }
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "arithmetic",
+                                "operator": "subtract",
+                                "operands": [
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 0
+                                    }
+                                  },
+                                  {
+                                    "kind": "state-ref",
+                                    "fieldRef": "undoableDepth"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "fieldId": "resultCodeOut",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          "unit": null,
+          "scale": 0,
+          "visibility": "user-visible"
+        }
+      ],
+      "displayRuleRefs": []
+    },
+    {
+      "calculationId": "c17InputLock",
+      "inputs": [],
+      "states": [
+        {
+          "stateId": "s",
+          "fields": [
+            {
+              "fieldId": "score",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 999
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "locked",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "resultCode",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "eventId": "playConfirmed",
+          "fields": [
+            {
+              "fieldId": "runs",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 4
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "endConditionMet",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "kind": "transition",
+          "ruleId": "applyUnlessLocked",
+          "eventRef": "playConfirmed",
+          "guardRefs": [],
+          "nextState": [
+            {
+              "fieldRef": "score",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "add",
+                "operands": [
+                  {
+                    "kind": "state-ref",
+                    "fieldRef": "score"
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "multiply",
+                    "operands": [
+                      {
+                        "kind": "arithmetic",
+                        "operator": "subtract",
+                        "operands": [
+                          {
+                            "kind": "numeric-literal",
+                            "value": {
+                              "kind": "integer",
+                              "value": 1
+                            }
+                          },
+                          {
+                            "kind": "state-ref",
+                            "fieldRef": "locked"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "event-ref",
+                        "fieldRef": "runs"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "fieldRef": "locked",
+              "value": {
+                "kind": "extremum",
+                "operator": "max",
+                "operands": [
+                  {
+                    "kind": "state-ref",
+                    "fieldRef": "locked"
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "multiply",
+                    "operands": [
+                      {
+                        "kind": "arithmetic",
+                        "operator": "subtract",
+                        "operands": [
+                          {
+                            "kind": "numeric-literal",
+                            "value": {
+                              "kind": "integer",
+                              "value": 1
+                            }
+                          },
+                          {
+                            "kind": "state-ref",
+                            "fieldRef": "locked"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "event-ref",
+                        "fieldRef": "endConditionMet"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "fieldRef": "resultCode",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "subtract",
+                "operands": [
+                  {
+                    "kind": "numeric-literal",
+                    "value": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "state-ref",
+                    "fieldRef": "locked"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "fieldId": "scoreOut",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 999
+            }
+          },
+          "unit": null,
+          "scale": 0,
+          "visibility": "user-visible"
+        }
+      ],
+      "displayRuleRefs": []
+    },
+    {
+      "calculationId": "c27ManualOverride",
+      "inputs": [],
+      "states": [
+        {
+          "stateId": "s",
+          "fields": [
+            {
+              "fieldId": "first",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "second",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "third",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "eventId": "singleConfirmed",
+          "fields": [
+            {
+              "fieldId": "manualOverride",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "manualFirst",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "manualSecond",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            },
+            {
+              "fieldId": "manualThird",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "kind": "transition",
+          "ruleId": "advanceOrOverride",
+          "eventRef": "singleConfirmed",
+          "guardRefs": [],
+          "nextState": [
+            {
+              "fieldRef": "first",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "add",
+                "operands": [
+                  {
+                    "kind": "arithmetic",
+                    "operator": "multiply",
+                    "operands": [
+                      {
+                        "kind": "event-ref",
+                        "fieldRef": "manualOverride"
+                      },
+                      {
+                        "kind": "event-ref",
+                        "fieldRef": "manualFirst"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "multiply",
+                    "operands": [
+                      {
+                        "kind": "arithmetic",
+                        "operator": "subtract",
+                        "operands": [
+                          {
+                            "kind": "numeric-literal",
+                            "value": {
+                              "kind": "integer",
+                              "value": 1
+                            }
+                          },
+                          {
+                            "kind": "event-ref",
+                            "fieldRef": "manualOverride"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "numeric-literal",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "fieldRef": "second",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "add",
+                "operands": [
+                  {
+                    "kind": "arithmetic",
+                    "operator": "multiply",
+                    "operands": [
+                      {
+                        "kind": "event-ref",
+                        "fieldRef": "manualOverride"
+                      },
+                      {
+                        "kind": "event-ref",
+                        "fieldRef": "manualSecond"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "multiply",
+                    "operands": [
+                      {
+                        "kind": "arithmetic",
+                        "operator": "subtract",
+                        "operands": [
+                          {
+                            "kind": "numeric-literal",
+                            "value": {
+                              "kind": "integer",
+                              "value": 1
+                            }
+                          },
+                          {
+                            "kind": "event-ref",
+                            "fieldRef": "manualOverride"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "state-ref",
+                        "fieldRef": "first"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "fieldRef": "third",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "add",
+                "operands": [
+                  {
+                    "kind": "arithmetic",
+                    "operator": "multiply",
+                    "operands": [
+                      {
+                        "kind": "event-ref",
+                        "fieldRef": "manualOverride"
+                      },
+                      {
+                        "kind": "event-ref",
+                        "fieldRef": "manualThird"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "multiply",
+                    "operands": [
+                      {
+                        "kind": "arithmetic",
+                        "operator": "subtract",
+                        "operands": [
+                          {
+                            "kind": "numeric-literal",
+                            "value": {
+                              "kind": "integer",
+                              "value": 1
+                            }
+                          },
+                          {
+                            "kind": "event-ref",
+                            "fieldRef": "manualOverride"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "state-ref",
+                        "fieldRef": "second"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "fieldId": "firstOut",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          "unit": null,
+          "scale": 0,
+          "visibility": "user-visible"
+        }
+      ],
+      "displayRuleRefs": []
+    },
+    {
+      "calculationId": "c8c22CurrentPitcherPitchCount",
+      "inputs": [],
+      "states": [
+        {
+          "stateId": "s",
+          "fields": [
+            {
+              "fieldId": "pitchCount",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 999
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "eventId": "recordConfirmed",
+          "fields": [
+            {
+              "fieldId": "isPitchEvent",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 0
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        },
+        {
+          "eventId": "pitcherChanged",
+          "fields": []
+        }
+      ],
+      "rules": [
+        {
+          "kind": "transition",
+          "ruleId": "countPitch",
+          "eventRef": "recordConfirmed",
+          "guardRefs": [],
+          "nextState": [
+            {
+              "fieldRef": "pitchCount",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "add",
+                "operands": [
+                  {
+                    "kind": "state-ref",
+                    "fieldRef": "pitchCount"
+                  },
+                  {
+                    "kind": "event-ref",
+                    "fieldRef": "isPitchEvent"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "kind": "transition",
+          "ruleId": "resetOnChange",
+          "eventRef": "pitcherChanged",
+          "guardRefs": [],
+          "nextState": [
+            {
+              "fieldRef": "pitchCount",
+              "value": {
+                "kind": "numeric-literal",
+                "value": {
+                  "kind": "integer",
+                  "value": 0
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "fieldId": "pitchCountOut",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 0
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 999
+            }
+          },
+          "unit": null,
+          "scale": 0,
+          "visibility": "user-visible"
+        }
+      ],
+      "displayRuleRefs": []
+    },
+    {
+      "calculationId": "c19FiscalYear",
+      "inputs": [
+        {
+          "fieldId": "gameYear",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 2000
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 2999
+            }
+          },
+          "unit": null,
+          "scale": 0
+        },
+        {
+          "fieldId": "gameMonth",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 1
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 12
+            }
+          },
+          "unit": null,
+          "scale": 0
+        }
+      ],
+      "states": [
+        {
+          "stateId": "s",
+          "fields": [
+            {
+              "fieldId": "fiscalYear",
+              "type": {
+                "kind": "integer"
+              },
+              "nullable": false,
+              "range": {
+                "minimum": {
+                  "kind": "integer",
+                  "value": 1999
+                },
+                "maximum": {
+                  "kind": "integer",
+                  "value": 2999
+                }
+              },
+              "unit": null,
+              "scale": 0
+            }
+          ]
+        }
+      ],
+      "events": [
+        {
+          "eventId": "derive",
+          "fields": []
+        }
+      ],
+      "rules": [
+        {
+          "kind": "transition",
+          "ruleId": "deriveFiscalYear",
+          "eventRef": "derive",
+          "guardRefs": [],
+          "nextState": [
+            {
+              "fieldRef": "fiscalYear",
+              "value": {
+                "kind": "arithmetic",
+                "operator": "subtract",
+                "operands": [
+                  {
+                    "kind": "input-ref",
+                    "fieldRef": "gameYear"
+                  },
+                  {
+                    "kind": "arithmetic",
+                    "operator": "subtract",
+                    "operands": [
+                      {
+                        "kind": "numeric-literal",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      },
+                      {
+                        "kind": "extremum",
+                        "operator": "max",
+                        "operands": [
+                          {
+                            "kind": "numeric-literal",
+                            "value": {
+                              "kind": "integer",
+                              "value": 0
+                            }
+                          },
+                          {
+                            "kind": "extremum",
+                            "operator": "min",
+                            "operands": [
+                              {
+                                "kind": "numeric-literal",
+                                "value": {
+                                  "kind": "integer",
+                                  "value": 1
+                                }
+                              },
+                              {
+                                "kind": "arithmetic",
+                                "operator": "add",
+                                "operands": [
+                                  {
+                                    "kind": "arithmetic",
+                                    "operator": "subtract",
+                                    "operands": [
+                                      {
+                                        "kind": "input-ref",
+                                        "fieldRef": "gameMonth"
+                                      },
+                                      {
+                                        "kind": "numeric-literal",
+                                        "value": {
+                                          "kind": "integer",
+                                          "value": 4
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "kind": "numeric-literal",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 1
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "fieldId": "fiscalYearOut",
+          "type": {
+            "kind": "integer"
+          },
+          "nullable": false,
+          "range": {
+            "minimum": {
+              "kind": "integer",
+              "value": 1999
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 2999
+            }
+          },
+          "unit": null,
+          "scale": 0,
+          "visibility": "user-visible"
+        }
+      ],
+      "displayRuleRefs": []
+    }
+  ],
+  "displayRules": []
+}
