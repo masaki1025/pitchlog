@@ -56,10 +56,12 @@ branch: feature/vitest-vector-runner
 
 | # | 指摘 | 扱い |
 | --- | --- | --- |
-| P1-1 | `ci.yml` は凍結 corpus の入力(`tests/fixtures/frozen-archive-cases/manifest.json:9`)。filter を変えると harness の digest テストが赤になる | **人間の判断待ち**(凍結資産の受理は人間の許可が要る) |
-| P1-2 | TS runner・spec・`tests/fixtures/vector-conformance/` は既存のコア glob に入らない | **人間の判断待ち**(core-areas の追加は回転式の窓口に並ぶ) |
+| P1-1 | `ci.yml` は凍結 corpus の入力(`tests/fixtures/frozen-archive-cases/manifest.json:9`)。filter を変えると harness の digest テストが赤になる | **人間の裁定(2026-10-09)**: `ci.yml` を変えない。ステップ 5 を削除し、残余 R-a として記録 |
+| P1-2 | TS runner・spec・`tests/fixtures/vector-conformance/` は既存のコア glob に入らない | **人間の裁定(2026-10-09)**: `core-areas.json` を変えない。適合ベクタを `tests/domain/runners/fixtures/vector-conformance/` へ移して既存 glob で覆い、TS runner は残余 R-b として記録 |
 | P1-3 | `-0` が JSON 往復で `0` に化ける(ADR-003:287 が禁止) | 採用: 送る前に再帰的に検出して拒否。ステップ 3 で検証 |
 | P2-4 | `unsupported` は計算 adapter にだけ当てはまる(`vectors.py:242`) | 採用: 正規化側の `UnsupportedVectorCase` は `adapter-error` で元のまま伝える |
 | P2-5 | `prettier`・`vue-tsc`・`depcruise` に `pnpm exec` がない | 採用 |
 | P2-6 | 子プロセスの flush・stderr・期限・`report` 後の終了確認が規約とテストにない | 採用: 寿命の規約を design.md 1-3 に追加し、ステップ 3 で無応答・終了しない子・0 以外の終了を検証。adapter は同期に限り thenable を拒否 |
 
+
+- 気づき(範囲外): ハーネス設計書 10.1 の `frontend` 行は「paths filter: frontend/ contracts/」と書くが、`ci.yml` の実体には `mise.toml`・`frontend/pnpm-lock.yaml`・`.github/workflows/ci.yml`・`scripts/design_relations/sync-protocol.json` も入っている。本タスクは `ci.yml` を変えないので直さない

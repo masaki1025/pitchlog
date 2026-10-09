@@ -78,7 +78,7 @@ Vitest 側 runner は **判定の論理を TS に複製しない**。Python の 
 
 ### 3-2. 置き場と形
 
-- `tests/fixtures/vector-conformance/vector_conformance_v1.json` と、それを閉じる `vector_conformance_schema_v1.json`(`additionalProperties: false`。pytest 側が `validate_asset` で検証する)
+- `tests/domain/runners/fixtures/vector-conformance/vector_conformance_v1.json` と、それを閉じる `vector_conformance_schema_v1.json`(`additionalProperties: false`。pytest 側が `validate_asset` で検証する)
 - 1 シナリオの形:
 
 | キー | 中身 |
@@ -109,12 +109,23 @@ PY の既存テスト 6 件(`tests/domain/runners/test_vectors.py`)をすべて�
 | `invalid-normalizer-hash` | 追加 | `正規化生成物 hash が不正`。正規化 0 回 |
 | `empty-cases` | 追加 | `cases が空でない array でない` |
 
-## 4. CI の発火条件
+## 4. 置き場とコア領域・CI の範囲(2026-10-09 人間の裁定)
 
-`.github/workflows/ci.yml` の `frontend-changes` の filter に `backend/src/pitchlog/domaincheck/**` と `tests/fixtures/vector-conformance/**` を足す。どちらも Vitest が読むのに、現状ではそこだけを変えた PR で frontend ジョブが走らない(前例 `entrypointClosure.spec.ts` も domaincheck を起動しているが、filter に入っていない)。`tests/test_ci_wiring.py:2280-2306` の前例(`scripts/design_relations/sync-protocol.json` の包含を検査)に倣い、包含を検査するテストを足す。
+計画レビュー 1 周目の P1-1・P1-2 に対する裁定。どちらも、マージを待たせる費用を避けて残余を記録する。
+
+- **置き場**: 適合ベクタは `tests/domain/runners/fixtures/vector-conformance/` に置く。既存の glob `tests/domain/*` で覆われ、コア領域の判定に入る。U-3 の「`tests/fixtures/`」から置き場だけを変えた(両 runner に流す方式は同じ)
+- **`ci.yml` は変えない**: `ci.yml` は凍結 corpus の入力(`tests/fixtures/frozen-archive-cases/manifest.json:9`)なので、変えると凍結資産の受理が要る
+- **`core-areas.json` は変えない**: 追加は回転式の窓口に並ぶ(#95 → #81 → U-S1 の後ろ)
+
+残余(段階 2 受取タスクへ送る):
+
+| # | 残余 | 捕まる場所 |
+| --- | --- | --- |
+| R-a | 適合ベクタかブリッジだけを変えた PR では、Vitest(frontend ジョブ)が走らない。`frontend-changes` の filter は `frontend/**`・`contracts/**` などで、`tests/domain/**`・`backend/src/pitchlog/domaincheck/**` を含まない(前例 `entrypointClosure.spec.ts` も同じ状態) | 判定のずれは pytest 側(`test_vector_conformance.py`・`test_vector_bridge.py`。harness ジョブで常時実行)で捕まる。捕まらないのは TS 側との規約ずれだけで、次に `frontend/**` を変える PR で赤になる |
+| R-b | `frontend/src/testing/vectorRunner.ts`・`vectorConformance.spec.ts`・`vectorRunner.spec.ts` は既存のコア glob に入らない。後日これらだけを変える PR はコア判定(敵対レビュー・逐行確認)を通らない | 本タスクの PR はブリッジと `tests/domain/*` を含むのでコア判定に入る。段階 2 は `frontend/src/lib/generated/*`(コア)に触れるので、そのときに paths の追加を判断する |
 
 ## 未解決・検討メモ
 
-- **段階 2 受取タスクへ送るもの**(裁定 U-1・U-2・U-4): 実契約(`contracts/state-transition/`)の読み込みと `caseFieldMapping` の適用、schemaVersion・version・トップレベルの検査、全件の列挙、本物の 2 経路(①入口・②直接呼び出し)、JSON 証跡と収集器の拡張。いずれも Python 側と揃えて入れる
+- **段階 2 受取タスクへ送るもの**(裁定 U-1・U-2・U-4、および 4 節の残余 R-a・R-b): 実契約(`contracts/state-transition/`)の読み込みと `caseFieldMapping` の適用、schemaVersion・version・トップレベルの検査、全件の列挙、本物の 2 経路(①入口・②直接呼び出し)、JSON 証跡と収集器の拡張。いずれも Python 側と揃えて入れる
 - **段階 2 で読み込み層を作るときの注意**: TS の `JSON.parse` は 2^53 を超える整数の精度を落とす。ブリッジは送る前に拒否するが、ファイルを読んだ時点で落ちた値は検出できない。読み込み層で対処する
 - **カードとのずれ**: Notion カードの「やること」1(実契約を読む)・3(schemaVersion 不一致の fail)・5(5 判定の証跡形式)は、裁定 U-1・U-2・U-4 により本タスクの範囲外。タイトルの「PR #4 の開始条件」はリポジトリに根拠がない(research B-1)。カードの訂正は 469 master が人間へ上げている
