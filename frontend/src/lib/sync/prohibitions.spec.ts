@@ -576,6 +576,7 @@ const EXPECTED_TYPE_EXPORTS = {
 
 const EXPECTED_TESTING_SOURCE_FILE_NAMES = [
   'testing/failureScenarioAdapter.ts',
+  'testing/vectorRunner.ts',
 ] as const
 
 const EXPECTED_SCANNED_SOURCE_FILE_NAMES = [
