@@ -1,6 +1,6 @@
 ---
 feature: ui-design-doc-reference
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-10・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -88,13 +88,13 @@ created: 2026-10-10
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
 | `docs/adr/ADR-002-frontend-vue.md` | **改訂あり**(v1.0 → **v1.1**)— 「帰結」節の `:34` と `:36` を書き換え、変更履歴表へ 1 行追記する。**「決定」節は変えない** | **finalize-doc**(7.3 の確定ゲート) |
-| `docs/README.md` | **改訂あり** — ADR-002 の版と最終更新日を現行化する | PR レビュー |
+| `docs/README.md` | **改訂あり** — ADR-002 の版と最終更新日を現行化する。**台帳行も現行化する**(候補件数 +1・最終更新日) | PR レビュー |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし** | — |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし** | — |
 | `docs/design/*` | **反映なし**(**UI 設計書を新設しない** — 新設は `U-F1` の成果が出てから) | — |
 | `docs/improvements-from-baseball-scoring.md` | **反映なし**(`I-28` は既に限定つきで確定済み) | — |
 | `docs/adr/ADR-001` / `ADR-003` / `ADR-004` | **反映なし** | — |
-| `docs/development/harness-evaluation.md` | **反映なし** — 本タスクは台帳へ追記しない。**`/pr` のクローズ処理で「追記すべき知見がある」と判断した場合は、突合の前に本節と 5 節の DoD を同時に書き換える**(`check_plan_docs_sync.py` は本節を反映宣言として読むため、片方だけ直すと違反になる) | PR レビュー |
+| `docs/development/harness-evaluation.md` | **反映あり**(`/pr` のクローズ処理で判断・2026-10-10)— **既存候補「`H-68` 型で機械条件を先送りするとき、送り先が空手形になる」へ実測 1 件**と、**新規候補 1 件**(先例を段階を確かめずに引くと、通過後の姿を進行中の姿として読む)。**`H-*` は採番しない・版は上げない**(7.6-3 前段)。変更履歴表へ 1 行追記する | PR レビュー |
 | `.claude/core-areas.json` | **反映なし** | — |
 | `contracts/**` | **反映なし** | — |
 
@@ -219,7 +219,8 @@ develop の全正本 8 件を走査しても**ゲート中のものは 1 件も�
 - [ ] 【S】**`docs/README.md` の索引が v1.1 / 2026-10-10 へ現行化**されている
 - [ ] 【S】**`NFR-022`(Won't)と衝突する要求を書いていない** — アクセシビリティ規約を必須にしていない(射程宣言の 4 項目)
 - [ ] 【S】**`porting-rules.md` を改訂も昇格もしていない**(取り残しの事実は 7 節の申し送りへ)
-- [ ] 【S】**要件書・設計書・`docs/design/*`・`core-areas.json`・`contracts/**` を 1 行も触っていない**。**台帳へ追記すると判断した場合は、3 節の宣言と本項を同時に書き換えてから突合する**
+- [ ] 【S】**要件書・設計書・`docs/design/*`・`core-areas.json`・`contracts/**` を 1 行も触っていない**
+- [ ] 【S】**ハーネス運用評価台帳への追記を判断し、既存候補へ実測 1 件・新規候補 1 件を追記した**(`H-*` の採番なし・版の繰り上げなし)。**3 節の宣言と本項を同時に書き換えてから突合した**
 - [ ] 【S】`uv run python scripts/check_docs_status.py` が**違反 0**・`check_plan_docs_sync.py` が **exit 0**
 - [ ] 【G】**版が 1.0 → 1.1 へ繰り上がり、7.3 の確定ゲートを通って人間承認で approved 化**されている
 
