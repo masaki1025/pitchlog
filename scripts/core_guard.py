@@ -72,6 +72,12 @@ APPENDIX_E_AREA_PATH_ADDITIONS = (
     "tests/test_core_guard.py",
     "tests/test_frozen_negative_inventory.py",
     "tests/test_frozen_scan_rules.py",
+    "scripts/check_branch_row_mapping.py",
+    "scripts/check_manual_fixture_baselines.py",
+    "scripts/expand_game_end_cases.py",
+    "scripts/expand_state_transition_cases.py",
+    "scripts/representative_selection.py",
+    "tests/test_branch_row_mapping.py",
 )
 VOCABULARY_AREA_PATH_ADDITIONS = (
     "docs/adr/ADR-001-codex-model-selection.md",
