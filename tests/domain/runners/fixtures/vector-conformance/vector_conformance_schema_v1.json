@@ -1,0 +1,729 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scenarios"
+  ],
+  "properties": {
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Scenario"
+      },
+      "minItems": 9,
+      "maxItems": 9,
+      "x-uniqueBy": "id"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "CaseSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "type",
+        "additionalProperties",
+        "required",
+        "properties"
+      ],
+      "properties": {
+        "$schema": {
+          "const": "https://json-schema.org/draft/2020-12/schema"
+        },
+        "type": {
+          "const": "object"
+        },
+        "additionalProperties": {
+          "const": false
+        },
+        "required": {
+          "const": [
+            "caseId",
+            "raw",
+            "normalized",
+            "expected"
+          ]
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "caseId",
+            "raw",
+            "normalized",
+            "expected"
+          ],
+          "properties": {
+            "caseId": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "pattern"
+              ],
+              "properties": {
+                "type": {
+                  "const": "string"
+                },
+                "pattern": {
+                  "const": "^[A-Za-z][A-Za-z0-9._-]*$"
+                }
+              }
+            },
+            "raw": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "minItems",
+                "items"
+              ],
+              "properties": {
+                "type": {
+                  "const": "array"
+                },
+                "minItems": {
+                  "const": 1
+                },
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "additionalProperties",
+                    "required",
+                    "properties"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "object"
+                    },
+                    "additionalProperties": {
+                      "const": false
+                    },
+                    "required": {
+                      "const": [
+                        "legacyValue"
+                      ]
+                    },
+                    "properties": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "legacyValue"
+                      ],
+                      "properties": {
+                        "legacyValue": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "type",
+                            "pattern"
+                          ],
+                          "properties": {
+                            "type": {
+                              "const": "string"
+                            },
+                            "pattern": {
+                              "const": "^[0-9]+$"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "normalized": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "minItems",
+                "items"
+              ],
+              "properties": {
+                "type": {
+                  "const": "array"
+                },
+                "minItems": {
+                  "const": 1
+                },
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "additionalProperties",
+                    "required",
+                    "properties"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "object"
+                    },
+                    "additionalProperties": {
+                      "const": false
+                    },
+                    "required": {
+                      "const": [
+                        "value"
+                      ]
+                    },
+                    "properties": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value"
+                      ],
+                      "properties": {
+                        "value": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "type",
+                            "additionalProperties",
+                            "required",
+                            "properties"
+                          ],
+                          "properties": {
+                            "type": {
+                              "const": "object"
+                            },
+                            "additionalProperties": {
+                              "const": false
+                            },
+                            "required": {
+                              "const": [
+                                "kind",
+                                "value"
+                              ]
+                            },
+                            "properties": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "kind",
+                                "value"
+                              ],
+                              "properties": {
+                                "kind": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "const"
+                                  ],
+                                  "properties": {
+                                    "const": {
+                                      "const": "integer"
+                                    }
+                                  }
+                                },
+                                "value": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "const": "integer"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "expected": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "minItems",
+                "items"
+              ],
+              "properties": {
+                "type": {
+                  "const": "array"
+                },
+                "minItems": {
+                  "const": 1
+                },
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type",
+                    "additionalProperties",
+                    "required",
+                    "properties"
+                  ],
+                  "properties": {
+                    "type": {
+                      "const": "object"
+                    },
+                    "additionalProperties": {
+                      "const": false
+                    },
+                    "required": {
+                      "const": [
+                        "value"
+                      ]
+                    },
+                    "properties": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "value"
+                      ],
+                      "properties": {
+                        "value": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "type",
+                            "additionalProperties",
+                            "required",
+                            "properties"
+                          ],
+                          "properties": {
+                            "type": {
+                              "const": "object"
+                            },
+                            "additionalProperties": {
+                              "const": false
+                            },
+                            "required": {
+                              "const": [
+                                "kind",
+                                "value"
+                              ]
+                            },
+                            "properties": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "required": [
+                                "kind",
+                                "value"
+                              ],
+                              "properties": {
+                                "kind": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "const"
+                                  ],
+                                  "properties": {
+                                    "const": {
+                                      "const": "integer"
+                                    }
+                                  }
+                                },
+                                "value": {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "type"
+                                  ],
+                                  "properties": {
+                                    "type": {
+                                      "const": "integer"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "RawRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "legacyValue"
+      ],
+      "properties": {
+        "legacyValue": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        }
+      }
+    },
+    "RawRows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RawRow"
+      },
+      "minItems": 1
+    },
+    "NumericValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "const": "integer"
+        },
+        "value": {
+          "type": "integer"
+        }
+      }
+    },
+    "NumericRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value"
+      ],
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/NumericValue"
+        }
+      }
+    },
+    "NumericRows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/NumericRow"
+      },
+      "minItems": 1
+    },
+    "Case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caseId",
+        "raw",
+        "normalized",
+        "expected"
+      ],
+      "properties": {
+        "caseId": {
+          "type": "string"
+        },
+        "raw": {
+          "$ref": "#/$defs/RawRows"
+        },
+        "normalized": {
+          "$ref": "#/$defs/NumericRows"
+        },
+        "expected": {
+          "$ref": "#/$defs/NumericRows"
+        },
+        "ignored": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "role",
+        "valueType",
+        "nullable",
+        "scale"
+      ],
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "valueType": {
+          "type": "string"
+        },
+        "nullable": {
+          "type": "boolean"
+        },
+        "scale": {
+          "type": "integer"
+        }
+      }
+    },
+    "Comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "fields",
+        "normalizations"
+      ],
+      "properties": {
+        "surface": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Field"
+          },
+          "minItems": 1
+        },
+        "normalizations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "calculation",
+        "vector",
+        "entrypointId",
+        "directTargetId",
+        "caseSchema",
+        "normalizationComparison",
+        "outputComparison"
+      ],
+      "properties": {
+        "calculation": {
+          "type": "string"
+        },
+        "vector": {
+          "type": "string"
+        },
+        "entrypointId": {
+          "type": "string"
+        },
+        "directTargetId": {
+          "type": "string"
+        },
+        "caseSchema": {
+          "$ref": "#/$defs/CaseSchema"
+        },
+        "normalizationComparison": {
+          "$ref": "#/$defs/Comparison"
+        },
+        "outputComparison": {
+          "$ref": "#/$defs/Comparison"
+        }
+      }
+    },
+    "NormalizerEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw",
+        "normalized"
+      ],
+      "properties": {
+        "raw": {
+          "$ref": "#/$defs/RawRows"
+        },
+        "normalized": {
+          "$ref": "#/$defs/NumericRows"
+        }
+      }
+    },
+    "Normalizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "generatedId",
+        "sourceHash",
+        "mode",
+        "table"
+      ],
+      "properties": {
+        "generatedId": {
+          "type": "string"
+        },
+        "sourceHash": {
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "table",
+            "passthrough"
+          ]
+        },
+        "table": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NormalizerEntry"
+          }
+        }
+      }
+    },
+    "Outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "caseOne": {
+          "$ref": "#/$defs/NumericRows"
+        },
+        "caseTwo": {
+          "$ref": "#/$defs/NumericRows"
+        },
+        "duplicateCase": {
+          "$ref": "#/$defs/NumericRows"
+        }
+      }
+    },
+    "Calculation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supportedCaseIds"
+      ],
+      "properties": {
+        "supportedCaseIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "outputs": {
+          "$ref": "#/$defs/Outputs"
+        }
+      }
+    },
+    "Complete": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome",
+        "declaredCaseIds",
+        "consumedCaseIds"
+      ],
+      "properties": {
+        "outcome": {
+          "const": "complete"
+        },
+        "declaredCaseIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "consumedCaseIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "VectorRunError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome",
+        "messagePrefix"
+      ],
+      "properties": {
+        "outcome": {
+          "const": "vector-run-error"
+        },
+        "messagePrefix": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "normalizeCalls",
+        "executedCaseIds"
+      ],
+      "properties": {
+        "normalizeCalls": {
+          "type": "integer"
+        },
+        "executedCaseIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "description",
+        "contract",
+        "normalizer",
+        "calculation",
+        "cases",
+        "expected",
+        "trace"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "contract": {
+          "$ref": "#/$defs/Contract"
+        },
+        "normalizer": {
+          "$ref": "#/$defs/Normalizer"
+        },
+        "calculation": {
+          "$ref": "#/$defs/Calculation"
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Case"
+          }
+        },
+        "expected": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Complete"
+            },
+            {
+              "$ref": "#/$defs/VectorRunError"
+            }
+          ]
+        },
+        "trace": {
+          "$ref": "#/$defs/Trace"
+        }
+      }
+    }
+  }
+}
