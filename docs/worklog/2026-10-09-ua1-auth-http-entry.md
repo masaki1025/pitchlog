@@ -271,3 +271,39 @@ contracts/authz/oracle-seal.lock.json
 
 **ステップ 10 は「資産へ 3 行足す」仕事ではなく、「authz の封を貼り直す」仕事だった。**
 承認時の見積りが外れている。**人間の判断が要るので、ここで止めて 11・12 を先に進める。**
+
+
+### 訂正 — ステップ 10 は「別単位へ切り出す」ではなく「#95 の後に回す」
+
+**上の判断を取り下げる。** UM01(#95)から事実が来たので原典で確認した。
+
+**#95 も `route-registry.json` に 6 経路を足し、同じ封を貼り直している。**
+
+```
+$ git diff --name-only origin/develop...feature/um1-player-roster-opponent
+contracts/authz/route-registry.json / .lock.json
+contracts/authz/http-route-matrix.json / .lock.json
+contracts/authz/oracle-seal.lock.json
+tests/fixtures/authz_claims/route-registry.json / .lock.json   ← こちらが数え落としていた
+```
+
+**つまり未知の工程ではなく、#95 が実際に通した 3 段の手順である** —
+入力と lock → oracle の差し替えと人間の再確認 → 履歴と再封印。
+**封に単一の所有者はなく、変える PR ごとに人間の再確認を経る運用**だと回答があった。
+
+**ただし #95 がマージされると `oracle_commit` が `1f32e12a` → `cc949c69` へ動く。**
+いま貼り直すと #95 のマージで陳腐化し、**貼り直しが 2 回**になる。
+**凍結資産の取り込みと同じ理屈で、1 回で済ませるのが最小である。**
+
+**よってステップ 10 は δ に残したまま、#95 の取り込み後へ回す。**
+ステップ 13(受理記録)も PR 番号待ちなので、**10 → 8・9 → 13 を #95 の後にまとめる**。
+
+### 併せて直した 2 件
+
+- **`in_registry` は存在しない値だった。** 正しくは `routed`(`check_authz_catalog.py:313`)
+- **U-M1 の依存先の番号が古かった。** Cookie の取り出しは
+  `api/request_presentation.py` の `require_presented_token` で、**#95 のステップ 8**
+  (本計画が書いていた「ステップ 12」は第 3 改訂前の番号)。実装済み・未マージ
+
+**教訓は前と同じ型である。** 他単位の番号も、資産の固定も、**原典を当たるまで見積りに使えない**。
+今回は委任先が止めてくれたので、封を割る前に気づけた。
