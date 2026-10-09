@@ -2175,20 +2175,24 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     configuration = load_actual_core_areas()
-    for document, expected_tail in (
-        (baseline, PRODUCT_RLS_AREA_PATH_ADDITIONS),
-        (
-            configuration,
-            (
-                *PRODUCT_RLS_AREA_PATH_ADDITIONS,
-                *core_guard.AREA_PATH_ADDITIONS["tenant-isolation"],
-            ),
-        ),
+    absorbed_tail = (
+        *PRODUCT_RLS_AREA_PATH_ADDITIONS,
+        *core_guard.AREA_PATH_ADDITIONS["tenant-isolation"],
+    )
+    # マージ後は比較元(origin/develop)が現設定と同じになり、宣言した追加層が
+    # 基線にも現れる。PR の上では基線に無い。双方を受理する(上の型と同じ理由)。
+    for document, expected_tails in (
+        (baseline, (PRODUCT_RLS_AREA_PATH_ADDITIONS, absorbed_tail)),
+        (configuration, (absorbed_tail,)),
     ):
         tenant_area = next(
             area for area in document["areas"] if area["id"] == "tenant-isolation"
         )
-        assert tuple(tenant_area["paths"][-len(expected_tail) :]) == expected_tail
+        paths = tuple(tenant_area["paths"])
+        assert any(
+            paths[-len(expected_tail) :] == expected_tail
+            for expected_tail in expected_tails
+        )
     for pattern, planned_paths in zip(
         PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PATTERN_EXAMPLES, strict=True
     ):
@@ -2277,7 +2281,14 @@ def test_area_registration() -> None:
         )
         base_set = set(base_paths)
         assert tuple(path for path in current_paths if path in base_set) == base_paths
-        assert tuple(path for path in current_paths if path not in base_set) == additions
+        pending = tuple(path for path in current_paths if path not in base_set)
+        # 宣言は回転式の窓口であり、マージ後は宣言した追加層が基線へ吸収される。
+        # その状態では未取り込み分が空になり、宣言と一致しない。機構側
+        # (validate_area_path_layers)は吸収済みを許容するため、ここでも
+        # 「未取り込み = 宣言」と「吸収済みで未取り込みなし」の双方を受理する。
+        assert pending == additions or (
+            pending == () and set(additions) <= base_set
+        )
     core_guard.validate_area_path_layers(baseline, configuration)
 
 
