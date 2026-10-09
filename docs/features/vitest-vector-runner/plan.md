@@ -2,7 +2,7 @@
 feature: vitest-vector-runner
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
-重さ分類:                 # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
+重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3e593b75e687812ba2e8c20d469ea6db
 branch: feature/vitest-vector-runner
@@ -17,46 +17,79 @@ created: 2026-10-08
 
 ## 1. 背景・目的
 
-<!-- なぜやるか。Notion タスクと要件 FR/NFR へのリンクを必ず含める -->
+- Notion: [TSK-455](https://app.notion.com/p/3e593b75e687812ba2e8c20d469ea6db)
+- ADR-003:284 は、(α) の契約を **pytest と Vitest の両 runner** が同じファイルで全件消費することを求める。Python 側には `run_vectors`(`backend/src/pitchlog/domaincheck/runners/vectors.py`)があるが、Vitest 側の runner はない([research.md](research.md) A・B-1)
+- 要件: [NFR-018](../../requirements/requirements-pitchlog-2026-07-22.md#NFR-018)(α は双方で同一コードに由来する実行体を使う。一致の正は `contracts/` のベクタ)・[NFR-019](../../requirements/requirements-pitchlog-2026-07-22.md#NFR-019)(フロントエンドの runner は Vitest。PR ごとに CI で全部緑)
+- 位置づけ: **段階 2 の依存**であり、段階 1 を止めるタスクではない(research B-1。TSK-236 の計画書 plan.md:67・:77)。実契約の全件消費は、TS の生成済み正規化と計算が揃う段階 2 でしか緑にできない(research 結論)。本タスクは、そのとき Vitest 側で使う runner の土台を、Python 側と同じ意味で動く形で先に用意する
+- 人間の裁定(2026-10-08。research.md 末尾): U-1 Vitest は Python `run_vectors` の現状に揃える / U-2 経路一致は Python と同じ形 / U-3 共通の適合ベクタを両 runner に流す / U-4 証跡は報告オブジェクトまで
 
-調査: [research.md](research.md)
+調査: [research.md](research.md) / 詳細設計: [design.md](design.md)
 
 ## 2. スコープ
 
 ### やること
 
+1. **Python 側のブリッジ** `backend/src/pitchlog/domaincheck/runners/vector_bridge.py`: 子プロセスとして起動され、標準入出力の JSON Lines で TS とやりとりしながら、**既存の `run_vectors` をそのまま**動かす(design.md 1・2)
+2. **TS 側の runner** `frontend/src/testing/vectorRunner.ts`: ブリッジを起動し、Python からの要求に応じて生成済み正規化と計算 adapter を呼ぶ。schema 検査・lossless 比較・完走判定は **TS に書かない**(design.md 1-2)
+3. **共通の適合ベクタ** `tests/fixtures/vector-conformance/`: シナリオ 9 件(既存の Python テスト 6 件の写しと、失敗経路 3 件の追加)。pytest は `run_vectors` を直接、Vitest はブリッジ経由で同じシナリオを消費し、結果と呼び出しの痕跡が一致することを両側で検査する(design.md 3)
+4. **CI の発火条件**: `frontend-changes` の filter に、Vitest が読む `backend/src/pitchlog/domaincheck/**` と `tests/fixtures/vector-conformance/**` を足す(design.md 4)
+
 ### やらないこと
+
+- **Python の `run_vectors`・`validate_asset`・`path_match` の変更**(U-1。`vectors.py`・`cli.py`・`path_match.py` の差分は 0 件)
+- **実契約(`contracts/state-transition/`)の読み込み**と `caseFieldMapping` の適用、schemaVersion・version・トップレベルの検査、全件の列挙 → 段階 2 受取タスク(U-1。両側を揃えて入れる)。このため **本タスクは #81 のマージに依存しない**
+- **本物の 2 経路**(①製品の入口経由・②生成物の直接呼び出し)→ 段階 2(U-2)
+- **JSON 証跡・reporter・収集器の拡張** → ADR-003:251 の「検査基盤の実装タスク」(U-4)。`frontend/vitest.config.ts` には触れない
+- **TS の生成済み正規化・計算の生成**(段階 2)
+- **Notion カードのタイトル(「PR #4 の開始条件」)の訂正**: 469 master が人間へ上げている(research B-1)。本計画では本文の「やること」1・3・5 が範囲外になったことを、DoD の同期とあわせてカードへ記録するだけにする
 
 ## 3. 影響する正本
 
-<!-- この feature が更新・新設すべき正本を列挙。「反映なし」の場合も明示する(空欄禁止) -->
-
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
+| `docs/development/dev-harness-design-2026-08-07.md` 10.1 | `frontend` 行の「paths filter: frontend/ contracts/」を `ci.yml` の実体に合わせる(今回足す 2 件に加え、既に入っている `mise.toml`・`frontend/pnpm-lock.yaml`・`.github/workflows/ci.yml`・`scripts/design_relations/sync-protocol.json` も書き漏れているので揃える)。変更履歴に「実装追随(版は上げない — 7.6-3 前段)」の行を足す | PR レビュー(実装追随の節更新) |
+| `docs/README.md` | 開発ハーネス設計書の行の注記を現行化する | PR レビュー |
+| ADR-003 | **反映なし**。条件は変えない(本タスクは条件の一部を満たす土台を作るだけで、満たした範囲を正本で宣言しない) | — |
 
 ## 4. 実装方針
 
-<!-- 重さ分類(frontmatter)の根拠を明記。コア領域(CLAUDE.md の列挙)に触れるかを必ず判定。
-     詳細設計・長文の検討は design.md(テンプレ: design-template.md)へ分離し、本節からは相対リンクで参照する
-     (内容を複製しない — 設計書 7.1-1。design.md は任意 — 密度が高くなる場合に /plan が分離) -->
+**重さ分類: コア領域**。根拠: `backend/src/pitchlog/domaincheck/*` と `tests/domain/*` は `.claude/core-areas.json` の「状況計算(クライアント・サーバー)」「データ移行」の paths に該当し(`scripts/core_guard.py:472` は `fnmatchcase` なので `*` がディレクトリをまたぐ)、`.github/workflows/ci.yml` は `guard_paths` にある。既存の glob で覆われるので、**core-areas.json への追加は要らない**。
+
+方式の要点(詳細は [design.md](design.md)):
+
+- **判定は Python の 1 系統だけ**: TS へ移植せず、`run_vectors` をブリッジで動かす。言語差(research C-4 の 1〜4)が構造的に生じない。根拠と比較は design.md 1-2
+- **同一性の保持**: 計算 adapter には、正規化 adapter が返した元のオブジェクトを渡す(design.md 2-1)。JSON で往復できない値は送る前に拒否する
+- **例外の扱いを Python と揃える**: `VectorRunError` はメッセージをそのまま、adapter の想定外の例外は包まずに元の例外として送出する(research C-4 の 5。design.md 2)
+- **適合ベクタは宣言だけ**: 正規化と計算の振る舞いを表で持ち、両言語のテスト側に論理を書かない(design.md 3-2)
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
-<!-- 1 ステップ = 1 委任 = 1 コミット(レビュー可能な粒度・1 論理変更)。/implement がこの表を上から実行する。
-     ラッパーは「番号・ステップ・合格条件の3セルすべてが埋まった行」が最低1つ無いと実行を拒否する(空テンプレ不可)。
-     番号列は 1 からの連番(欠番・重複不可)。ステップコミットの件名には完全トークン「(ステップ <k>[/<N>][ 付記])」を
-     ちょうど 1 個含める(/<N> と付記は任意・全半角括弧可 — feature_status.py が進捗導出)。承認・起票コミットには付けない -->
-
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | (例: 投球イベントのモデルとマイグレーション) | (例: pytest の該当ケース green・alembic upgrade 成功) |
+| 1 | **Python ブリッジ** `backend/src/pitchlog/domaincheck/runners/vector_bridge.py`(design.md 2 の規約。`run_vectors` を呼ぶだけで、schema 検査・比較・完走判定を自前で持たない)と単体テスト `tests/domain/runners/test_vector_bridge.py`(入出力を差し替えて in-process で駆動する) | `uv run pytest tests/domain/runners/` 緑。テストで次を確かめる: 完走時のメッセージ列(`normalize`→`normalized`→`execute`→`executed` の繰り返しと `report`)/ `unsupported` が `未対応 case: …` の `vector-run-error` になる / `adapter-error` が包まれずに伝わる / 未知の `type`・順序違反・JSON でない行が `protocol-error` になる / ブリッジが `validate_asset`・`compare_path_set` を直接 import せず `run_vectors` を使う(静的検査)。`git diff` で `vectors.py`・`cli.py`・`path_match.py` が無変更。`uv run ruff check`・`uv run ty check` 緑 |
+| 2 | **適合ベクタ**: `tests/fixtures/vector-conformance/vector_conformance_v1.json`(design.md 3-3 の 9 シナリオ)と `vector_conformance_schema_v1.json`、pytest 側の消費 `tests/domain/runners/test_vector_conformance.py`(`run_vectors` を直接呼び、表で宣言した adapter を使う) | `uv run pytest tests/domain/runners/` 緑。fixture が schema に適合する(`validate_asset`)。9 シナリオすべてで `expected` と `trace` が一致する。`test_vectors.py` の 6 テストそれぞれに対応するシナリオがあることを ID の対応表で検査する |
+| 3 | **TS runner** `frontend/src/testing/vectorRunner.ts`(design.md 2-2 の公開面)と単体テスト `frontend/src/testing/vectorRunner.spec.ts` | `pnpm test -- --run src/testing/vectorRunner.spec.ts` 緑。テストで次を確かめる: 計算 adapter に正規化の出力と同一のオブジェクトが渡る / JSON で往復できない値(`undefined`・`bigint`・`NaN`・安全でない整数)を送る前に拒否する / adapter の例外が元のオブジェクトのまま送出される / `python3` の起動失敗・途中終了が runner の異常として送出され、子プロセスが残らない / `vectorRunner.ts` に比較・schema 検査の実装がない(静的検査: `additionalProperties`・`total-order`・`exact-numeric-representation` の語を含まない)。`pnpm exec eslint .`・`prettier --check .`・`vue-tsc --noEmit`・`depcruise src --validate` 緑 |
+| 4 | **Vitest 側の適合ベクタ消費** `frontend/src/testing/vectorConformance.spec.ts`(ステップ 2 と同じ fixture をブリッジ経由で消費する) | `pnpm test -- --run src/testing/vectorConformance.spec.ts` 緑。9 シナリオすべてで `expected`・`trace` が pytest 側と同じ値で一致する。fixture のシナリオ件数と消費件数が一致する(取りこぼし 0)。lint 一式緑 |
+| 5 | **CI の発火条件**: `.github/workflows/ci.yml` の `frontend-changes` filter に `backend/src/pitchlog/domaincheck/**` と `tests/fixtures/vector-conformance/**` を追加し、`tests/test_ci_wiring.py` に包含の検査を足す(既存の `test_frontend_paths_filter_includes_sync_protocol_oracle` に倣う)。あわせてハーネス設計書 10.1 の `frontend` 行・変更履歴・`docs/README.md` を 3 節のとおり現行化する | `uv run pytest tests/test_ci_wiring.py` 緑。追加した検査は、filter から片方を外すと赤になる(手元で確認して worklog に記録)。10.1 の `frontend` 行の列挙が `ci.yml` の filter と一致する(目視)。`uv run python scripts/check_docs_status.py` 緑 |
 
 ## 5. DoD(受け入れ基準)
 
-<!-- Notion タスクの DoD と同期させる。全 ON で完了にできる粒度 -->
-
-- [ ]
+- [ ] ステップ 1〜5 がそれぞれ 1 コミットで入り、各合格条件を満たす
+- [ ] `vectors.py`・`cli.py`・`path_match.py` に差分がない(U-1)
+- [ ] 適合ベクタ 9 シナリオで、pytest(直接)と Vitest(ブリッジ経由)の結果と痕跡が一致する(U-3)
+- [ ] TS 側に schema 検査・lossless 比較・完走判定の実装がない(静的検査で固定)
+- [ ] CI の全ジョブが緑(frontend ジョブが本 PR で発火していること)
+- [ ] コア領域の敵対レビューと、人間の逐行確認を通過している
+- [ ] 段階 2 へ送る事項(design.md「未解決・検討メモ」)を、TSK-236 側(236 タブ、不在なら Notion の TSK-236 カード)へ runner のパスとマージ commit OID とともに伝えている(research B-2: `dependencies[]` 用)
+- [ ] Notion カードの DoD を本節と同期し、「やること」1・3・5 が範囲外になった理由(U-1・U-2・U-4)を記録している
 
 ## 6. テスト計画
 
-<!-- NFR-019 のどのテスト種別(単体・一致性・越境・E2E・故障系)に何を足すか -->
+| NFR-019 の種別 | 追加するもの |
+| --- | --- |
+| 単体 | `test_vector_bridge.py`(ブリッジの規約・例外の伝わり方)/ `vectorRunner.spec.ts`(同一性・JSON 往復の拒否・子プロセスの回収・静的検査) |
+| 一致性 | 適合ベクタ 9 シナリオを pytest(`test_vector_conformance.py`)と Vitest(`vectorConformance.spec.ts`)の両方で消費し、同じ期待値に一致させる。製品の対象計算の一致性(実契約)は段階 2 |
+| 越境・E2E・故障系 | 追加なし(本タスクは製品の経路に触れない) |
+| CI 配線 | `test_ci_wiring.py` に filter 包含の検査 |
+
+テストの実行範囲は影響範囲に絞り(上記の各ファイルと lint 一式)、全件は CI に任せる。
