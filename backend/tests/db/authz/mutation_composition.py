@@ -33,8 +33,11 @@ MCDC_MAP_PATH = REPOSITORY_ROOT / "contracts/authz/mcdc-map.json"
 ORACLE_SEAL_RELATIVE_PATH = "contracts/authz/oracle-seal.lock.json"
 _BOUNDARY_PROPOSAL_RELATIVE_PATH = "contracts/authz/boundary-proposal.json"
 _DDL_ELEMENTS_RELATIVE_PATH = "contracts/authz/ddl-elements.json"
+_CLAIM_MUTANT_MAP_RELATIVE_PATH = "contracts/authz/claim-mutant-map.json"
 STEP2_BASE_REVISION = "099a8fa20595c25f553b46dedcaaa9660dd03c2e"
-STEP2_CHANGED_CANONICAL_ASSET_PATHS: frozenset[str] = frozenset()
+STEP2_CHANGED_CANONICAL_ASSET_PATHS: frozenset[str] = frozenset(
+    {"contracts/authz/claim-mutant-map.json"}
+)
 
 INTERACTION_FILTER_ENV = "PITCHLOG_MUTATION_INTERACTION"
 CUT_SET_FILTER_ENV = "PITCHLOG_MUTATION_CUT_SET"
@@ -991,13 +994,76 @@ def _oracle_meaning_body(
     return body
 
 
+_APPROVED_FR037_CLAIM_INDEX = 168
+_APPROVED_FR037_CLAIM: dict[str, object] = {
+    "claim_id": "FR-037/list_item-010",
+    "claim_origin": "requirement",
+    "execution_class": "contract_only",
+    "classification_rule_id": "CONTRACT_ONLY_RUNTIME_TARGET_PENDING",
+    "mutant_ids": ["MUT:AUTH:FR-037/list_item-010:NEGATE-DECISION"],
+    "schema_drift_test_owner": {
+        "id": (
+            "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid"
+        ),
+        "status": "implemented",
+    },
+    "runtime_test_owner": {
+        "id": "TSK-270.group2.runtime.FR-037/list_item-010",
+        "status": "planned",
+    },
+    "runtime_kill_required": False,
+    "runtime_evidence_kind": "handoff_runtime_test",
+    "receiving_task_id": "PENDING:FR-037",
+    "contract_only_reason_code": "route_universe_pending",
+}
+_APPROVED_FR037_MUTANT_INDEX = 168
+_APPROVED_FR037_MUTANT: dict[str, object] = {
+    "mutant_id": "MUT:AUTH:FR-037/list_item-010:NEGATE-DECISION",
+    "axis": "authorization_predicate",
+    "operator_id": "NEGATE_CLAIM_DECISION_UNIT",
+    "decision_form": "CLAIM_DECISION",
+    "claim_ids": ["FR-037/list_item-010"],
+    "target_element_ids": ["FR-037/list_item-010"],
+    "expected_application_outcome": "applies",
+    "expected_drift_outcome": "red",
+    "expected_runtime_outcome": "handoff",
+    "runtime_kill_required": False,
+    "requires_disposable_cluster": False,
+    "schema_drift_test_id": (
+        "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid"
+    ),
+    "runtime_test_id": "TSK-270.group2.runtime.FR-037/list_item-010",
+    "runtime_kill_waiver_reason": "contract_only_handoff",
+    "expected_positive_outcome": "handoff",
+    "positive_kill_required": False,
+    "positive_case_scope_id": None,
+}
+
+
+def _rows_with_approved_insertion(
+    rows: tuple[dict[str, object], ...],
+    index: int,
+    approved: dict[str, object],
+    label: str,
+) -> list[dict[str, object]]:
+    """承認済みの1行を所定の位置へ差し込んだ行列を返す。"""
+    if not 0 <= index <= len(rows):
+        raise MutationCompositionError(f"{label}: 差し込み位置が行数の外にある")
+    result = [dict(row) for row in rows]
+    result.insert(index, _json_copy(approved, label))
+    return result
+
+
 def _expected_step2_meaning_body(
     relative_path: str,
     base: dict[str, object],
 ) -> dict[str, object]:
-    """承認済み2資産の意味変更を期待本文へ適用する。
+    """承認済み資産の意味変更を期待本文へ適用する。
 
-    099a8faへ畳み込み済みのため現基準ではno-opであり、分岐の削除はTSK-421で扱う。
+    boundary-proposalとddl-elementsの分岐は099a8faへ畳み込み済みのため現基準では
+    no-opであり、分岐の削除はTSK-421で扱う。claim-mutant-mapの分岐はTSK-236で
+    要件書FR-037の1行が母集合へ入ったことによる追加であり、人間が承認している
+    (2026-10-09 山田正輝 — oracle-seal.lock.jsonのreseal_policyが求める再レビュー)。
     """
     expected = _oracle_meaning_body(base, f"base asset {relative_path}")
     if relative_path == _BOUNDARY_PROPOSAL_RELATIVE_PATH:
@@ -1022,6 +1088,19 @@ def _expected_step2_meaning_body(
         scope = _expect_object(expected.get("scope"), "base DDL scope")
         scope["status"] = "verified_probe_configuration"
         scope["second_group_approval_required"] = False
+    elif relative_path == _CLAIM_MUTANT_MAP_RELATIVE_PATH:
+        expected["claims"] = _rows_with_approved_insertion(
+            _expect_rows(expected.get("claims"), "base claims"),
+            _APPROVED_FR037_CLAIM_INDEX,
+            _APPROVED_FR037_CLAIM,
+            "approved FR-037 claim",
+        )
+        expected["mutants"] = _rows_with_approved_insertion(
+            _expect_rows(expected.get("mutants"), "base mutants"),
+            _APPROVED_FR037_MUTANT_INDEX,
+            _APPROVED_FR037_MUTANT,
+            "approved FR-037 mutant",
+        )
     return expected
 
 
