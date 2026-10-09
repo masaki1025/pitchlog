@@ -282,7 +282,7 @@
     {"product": "acl_privilege:ACL:tenant_tokens:pitchlog_auth_fn_owner:UPDATE", "reason": "product_only"},
     {"product": "function:FUNCTION:authn:change_password(uuid, text, text)", "reason": "product_only"},
     {"product": "function:FUNCTION:authn:issue_initial_password(uuid, text)", "reason": "product_only"},
-    {"product": "function:FUNCTION:authn:login(text, text)", "reason": "product_only"},
+    {"product": "function:FUNCTION:authn:login_attempt(text, text, text)", "reason": "product_only"},
     {"product": "function:FUNCTION:authn:logout(uuid)", "reason": "product_only"},
     {"product": "function:FUNCTION:authn:password_policy_ok(text)", "reason": "product_only"},
     {"product": "function:FUNCTION:authn:record_admin_login_failure(text)", "reason": "product_only"},

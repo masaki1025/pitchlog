@@ -324,7 +324,11 @@ def test_revoke_tenant_tokens_invalidates_existing_and_accepts_no_subject(
         )
         == ""
     )
-    token = _scalar(app_dsn, "SELECT authn.login(%s, %s)", (name, password))
+    token = _scalar(
+        app_dsn,
+        "SELECT token_id FROM authn.login_attempt(%s, %s, %s)",
+        (name, password, uuid4().hex),
+    )
     assert isinstance(token, UUID)
     assert _scalar(app_dsn, "SELECT authn.verify_token(%s)", (token,)) == tenant_id
     before = _credential(catalog, tenant_id)
@@ -365,7 +369,7 @@ def _seed_admin_settings(catalog: ProvisionedProductCatalog) -> None:
 def test_admin_counter_is_separate_from_team_and_locks_at_threshold(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """管理者の単位を team: と分離し、閾値で拒否を返す。"""
+    """管理者の単位を src: と分離し、閾値で拒否を返す。"""
     catalog = provisioned_product_catalog
     _seed_admin_settings(catalog)
     _seed_settings(catalog)
@@ -391,12 +395,12 @@ def test_admin_counter_is_separate_from_team_and_locks_at_threshold(
     assert (
         _scalar(
             app_dsn,
-            "SELECT authn.login(%s, %s)",
-            (scope, secrets.token_urlsafe(24)),
+            "SELECT token_id FROM authn.login_attempt(%s, %s, %s)",
+            (scope, secrets.token_urlsafe(24), scope),
         )
         is None
     )
-    assert [row[1] for row in _counter(catalog, f"team:{scope}")] == [1]
+    assert [row[1] for row in _counter(catalog, f"src:{scope}")] == [1]
     assert [row[1] for row in _counter(catalog, f"admin:{scope}")] == [2]
 
 
@@ -648,7 +652,7 @@ def test_authn_result_types_are_exact_and_verify_returns_tenant_id(
     """関数戻り値の集合を照合し、検証が返す UUID はテナント ID と確かめる。"""
     catalog = provisioned_product_catalog
     expected = {
-        ("login", "text, text"): "uuid",
+        ("login_attempt", "text, text, text"): "record",
         ("verify_token", "uuid"): "uuid",
         ("logout", "uuid"): "void",
         ("change_password", "uuid, text, text"): "boolean",
@@ -676,7 +680,6 @@ def test_authn_result_types_are_exact_and_verify_returns_tenant_id(
     catalog.observer.rollback()
     assert actual == expected
     assert {name for (name, _), result in actual.items() if result == "uuid"} == {
-        "login",
         "verify_token",
     }
     _seed_settings(catalog)
@@ -691,7 +694,11 @@ def test_authn_result_types_are_exact_and_verify_returns_tenant_id(
         )
         == ""
     )
-    token = _scalar(app_dsn, "SELECT authn.login(%s, %s)", (name, password))
+    token = _scalar(
+        app_dsn,
+        "SELECT token_id FROM authn.login_attempt(%s, %s, %s)",
+        (name, password, uuid4().hex),
+    )
     assert isinstance(token, UUID)
     assert token != tenant_id
     assert _scalar(app_dsn, "SELECT authn.verify_token(%s)", (token,)) == tenant_id

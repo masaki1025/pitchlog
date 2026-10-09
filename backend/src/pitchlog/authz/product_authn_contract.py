@@ -7,7 +7,7 @@ from typing import Any
 AUTHN_OWNER = "pitchlog_auth_fn_owner"
 AUTHN_EXTENSION = ("pgcrypto", "authn_crypto")
 AUTHN_FUNCTION_GRANTEES = {
-    ("login", "text, text"): "pitchlog_app",
+    ("login_attempt", "text, text, text"): "pitchlog_app",
     ("verify_token", "uuid"): "pitchlog_app",
     ("logout", "uuid"): "pitchlog_app",
     ("change_password", "uuid, text, text"): "pitchlog_app",

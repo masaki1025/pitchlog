@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 11
+RUNTIME_CONTRACT_REVISION = 12
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "d9aabdb39d7f82ee33c4e7510b5112085b5ee88d7d9a839326f0488da7575978"
+SOURCE_DIGEST = "142cebb55156ea06ffce947c4f2a03180143a2605691e053b1a3625fc750aab2"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -86,7 +86,7 @@ PROTECTED_TABLES = (
 PROTECTED_FUNCTIONS = (
     ("authn", "change_password", "uuid, text, text"),
     ("authn", "issue_initial_password", "uuid, text"),
-    ("authn", "login", "text, text"),
+    ("authn", "login_attempt", "text, text, text"),
     ("authn", "logout", "uuid"),
     ("authn", "password_policy_ok", "text"),
     ("authn", "record_admin_login_failure", "text"),

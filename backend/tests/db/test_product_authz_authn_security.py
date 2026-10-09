@@ -87,8 +87,8 @@ def test_authn_public_and_untrusted_logins_cannot_execute(
     with psycopg.connect(outsider_dsn) as connection:
         _assert_sqlstate(
             connection,
-            "SELECT authn.login(%s, %s)",
-            ("untrusted", None),
+            "SELECT token_id, wait_ms FROM authn.login_attempt(%s, %s, %s)",
+            ("untrusted", None, "untrusted"),
         )
 
 
@@ -215,7 +215,10 @@ def test_temp_objects_and_caller_search_path_cannot_hijack_authn(
             config == ["search_path=pg_catalog, pg_temp"] and security_definer
             for _, config, security_definer in attributes
         )
-        cursor.execute("SELECT authn.login(%s, %s)", (identity.name, identity.password))
+        cursor.execute(
+            "SELECT token_id, wait_ms FROM authn.login_attempt(%s, %s, %s)",
+            (identity.name, identity.password, identity.tenant_id.hex),
+        )
         row = cursor.fetchone()
         assert row is not None
         token = row[0]
@@ -261,7 +264,7 @@ def test_authn_is_outside_minimum_requirement_four(
 def test_token_id_is_generated_inside_login(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """呼出側に ID 引数がなく、DB の乱数で発行した ID だけが保存される。"""
+    """呼出側に ID 引数がなく、OUT の 2 値で発行 ID と待ち時間を返す。"""
     catalog = provisioned_product_catalog
     _seed_settings(catalog)
     app_dsn = _app_dsn(catalog)
@@ -277,11 +280,15 @@ def test_token_id_is_generated_inside_login(
                 FROM pg_catalog.pg_proc AS procedure
                 JOIN pg_catalog.pg_namespace AS namespace
                   ON namespace.oid = procedure.pronamespace
-                WHERE namespace.nspname = 'authn' AND procedure.proname = 'login'
+                WHERE namespace.nspname = 'authn'
+                  AND procedure.proname = 'login_attempt'
                 """
             )
             assert (row := cursor.fetchone()) is not None
-            assert row[0] == "p_team_name text, p_password text"
+            assert row[0] == (
+                "p_team_name text, p_password text, p_source text, "
+                "OUT token_id uuid, OUT wait_ms integer"
+            )
             assert "token_id := pg_catalog.gen_random_uuid();" in row[1]
             cursor.execute(
                 "SELECT id FROM public.tenant_tokens WHERE tenant_id = %s",
@@ -318,15 +325,15 @@ def test_bound_password_is_absent_from_database_logs(
             assert cursor.fetchone() == ("0", "0", "all")
             try:
                 cursor.execute(
-                    "SELECT authn.login(%s, %s)",
-                    (identity.name, identity.password),
+                    "SELECT token_id, wait_ms FROM authn.login_attempt(%s, %s, %s)",
+                    (identity.name, identity.password, identity.tenant_id.hex),
                 )
             except psycopg.Error:
                 raise AssertionError("認証関数の通常呼出しが失敗した") from None
             try:
                 cursor.execute(
-                    "SELECT authn.login(%s, %s), 1 / %s",
-                    (identity.name, identity.password, 0),
+                    "SELECT authn.login_attempt(%s, %s, %s), 1 / %s",
+                    (identity.name, identity.password, identity.tenant_id.hex, 0),
                 )
             except psycopg.Error as error:
                 if error.sqlstate != "22012":
@@ -344,7 +351,7 @@ def test_bound_password_is_absent_from_database_logs(
         if time.monotonic() >= deadline:
             raise AssertionError("DB ログの終端を確認できなかった")
         time.sleep(0.05)
-    if "authn.login" not in logged or "division by zero" not in logged:
+    if "authn.login_attempt" not in logged or "division by zero" not in logged:
         raise AssertionError("通常文またはエラー文の DB ログを確認できなかった")
     if identity.password in logged:
         raise AssertionError("DB ログにバインド値が露出した")

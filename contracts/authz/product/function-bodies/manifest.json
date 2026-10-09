@@ -885,9 +885,9 @@
       "element_id": "FUNCTION:authn:issue_initial_password(uuid, text)"
     },
     {
-      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:login(text, text).sql",
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:login_attempt(text, text, text).sql",
       "element_type": "function",
-      "element_id": "FUNCTION:authn:login(text, text)"
+      "element_id": "FUNCTION:authn:login_attempt(text, text, text)"
     },
     {
       "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:logout(uuid).sql",

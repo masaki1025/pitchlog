@@ -1896,14 +1896,14 @@
       ]
     },
     {
-      "function_id": "FUNCTION:authn:login(text, text)",
+      "function_id": "FUNCTION:authn:login_attempt(text, text, text)",
       "schema_name": "authn",
-      "function_name": "login",
-      "identity_args": "text, text",
+      "function_name": "login_attempt",
+      "identity_args": "text, text, text",
       "function_kind": "definer",
       "owner_role_id": "pitchlog_auth_fn_owner",
       "language": "plpgsql",
-      "returns": "uuid",
+      "returns": "record",
       "security_mode": "definer",
       "volatility": "volatile",
       "search_path": [
@@ -2763,7 +2763,7 @@
         "SELECT"
       ],
       "grant_option": false,
-      "function_id": "FUNCTION:authn:login(text, text)"
+      "function_id": "FUNCTION:authn:login_attempt(text, text, text)"
     },
     {
       "expectation_id": "COLUMN-ACL:public:tenants:name_normalized:pitchlog_auth_fn_owner",
@@ -2776,7 +2776,7 @@
         "SELECT"
       ],
       "grant_option": false,
-      "function_id": "FUNCTION:authn:login(text, text)"
+      "function_id": "FUNCTION:authn:login_attempt(text, text, text)"
     },
     {
       "expectation_id": "COLUMN-ACL:public:tenants:enabled:pitchlog_auth_fn_owner",
@@ -2789,7 +2789,7 @@
         "SELECT"
       ],
       "grant_option": false,
-      "function_id": "FUNCTION:authn:login(text, text)"
+      "function_id": "FUNCTION:authn:login_attempt(text, text, text)"
     },
     {
       "expectation_id": "COLUMN-ACL:public:tenants:retired_at:pitchlog_auth_fn_owner",
@@ -2802,7 +2802,7 @@
         "SELECT"
       ],
       "grant_option": false,
-      "function_id": "FUNCTION:authn:login(text, text)"
+      "function_id": "FUNCTION:authn:login_attempt(text, text, text)"
     },
     {
       "expectation_id": "COLUMN-ACL:public:system_settings:key:pitchlog_auth_fn_owner",
@@ -2815,7 +2815,7 @@
         "SELECT"
       ],
       "grant_option": false,
-      "function_id": "FUNCTION:authn:login(text, text)"
+      "function_id": "FUNCTION:authn:login_attempt(text, text, text)"
     },
     {
       "expectation_id": "COLUMN-ACL:public:system_settings:value:pitchlog_auth_fn_owner",
@@ -2828,7 +2828,7 @@
         "SELECT"
       ],
       "grant_option": false,
-      "function_id": "FUNCTION:authn:login(text, text)"
+      "function_id": "FUNCTION:authn:login_attempt(text, text, text)"
     }
   ],
   "extensions": [

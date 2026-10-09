@@ -78,7 +78,7 @@ def test_probe_product_map_is_bidirectionally_exact() -> None:
         "role:pitchlog_auth_fn_owner",
         "schema:authn",
         "schema:authn_crypto",
-        "function:FUNCTION:authn:login(text, text)",
+        "function:FUNCTION:authn:login_attempt(text, text, text)",
     } <= summary.product_atoms
     assert summary.probe_atoms == (
         summary.mapped_probe_atoms | summary.explicit_non_mapping
