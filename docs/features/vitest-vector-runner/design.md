@@ -32,7 +32,8 @@ Vitest 側 runner は **判定の論理を TS に複製しない**。Python の 
 - 寿命の規約:
   - PY は 1 行書くごとに flush する。TS は 1 行ごとに書き、改行で区切る
   - TS は stderr を常に読み続けて保持する(パイプが詰まって子が止まるのを防ぐ)。異常時のメッセージに含める
-  - TS は PY からの各応答を**期限つき**で待つ(既定 30 秒。テスト用に上書きできる)。期限を過ぎたら子を kill し、回収してから runner の内部異常を送出する
+  - TS は PY からの各応答を**期限つき**で待つ。既定は `DEFAULT_RESPONSE_TIMEOUT_MS = 10_000`(export する)。期限を過ぎたら子を kill し、回収してから runner の内部異常を送出する
+  - **期限の大小関係**: runner を使う spec は、ファイル単位でテスト期限を `3 × DEFAULT_RESPONSE_TIMEOUT_MS` 以上に設定する(Vitest の既定 5 秒より runner の既定期限が長いため。期限超過・kill・回収・終了確認の 3 段がテスト期限内に収まる)
   - 終端メッセージ(`report`・`vector-run-error`・`adapter-error`・`protocol-error`)の後、TS は stdin を閉じ、子が**期限内に終了コード 0** で終わることを確かめる。終わらなければ kill して異常、0 以外なら異常(終端が `report` でも完走にしない)
   - 子が終端メッセージの前に終了した場合は、終了コードと stderr を添えて異常にする
   - テストのため、起動コマンドと期限を `runVectors` の任意引数で差し替えられるようにする(無応答の子・`report` 後に止まらない子を作るため)
@@ -67,7 +68,7 @@ Vitest 側 runner は **判定の論理を TS に複製しない**。Python の 
 
 - 型 `VectorContract`(PY の同名 dataclass と同じフィールドを camelCase で持つ。`runner` は `'vitest'` 固定)、`GeneratedNormalizer`(`generatedId`・`sourceHash`・`normalize(raw)`)、`CalculationAdapter`(`execute(caseId, normalized)`)、`VectorRunReport`
 - 例外 `VectorRunError`(PY の `VectorRunError` のメッセージをそのまま持つ)、`UnsupportedVectorCase`(adapter が投げる)
-- `runVectors(cases, contract, normalizer, calculation): Promise<VectorRunReport>`
+- `runVectors(cases, contract, normalizer, calculation, options?): Promise<VectorRunReport>`。`options` は `Readonly<{ command?: readonly [string, ...string[]]; responseTimeoutMs?: number }>`(テスト用。既定は `python3 -m pitchlog.domaincheck.runners.vector_bridge` と `DEFAULT_RESPONSE_TIMEOUT_MS`)
 - 置き場は `frontend/src/testing/`(テスト専用の前例 `failureScenarioAdapter.ts` と同じ)。製品のバンドルには入らない
 
 ## 3. 共通の適合ベクタ(裁定 U-3)
@@ -121,7 +122,7 @@ PY の既存テスト 6 件(`tests/domain/runners/test_vectors.py`)をすべて�
 
 | # | 残余 | 捕まる場所 |
 | --- | --- | --- |
-| R-a | 適合ベクタかブリッジだけを変えた PR では、Vitest(frontend ジョブ)が走らない。`frontend-changes` の filter は `frontend/**`・`contracts/**` などで、`tests/domain/**`・`backend/src/pitchlog/domaincheck/**` を含まない(前例 `entrypointClosure.spec.ts` も同じ状態) | 判定のずれは pytest 側(`test_vector_conformance.py`・`test_vector_bridge.py`。harness ジョブで常時実行)で捕まる。捕まらないのは TS 側との規約ずれだけで、次に `frontend/**` を変える PR で赤になる |
+| R-a | 適合ベクタかブリッジだけを変えた PR では、Vitest(frontend ジョブ)が走らない。`frontend-changes` の filter は `frontend/**`・`contracts/**` などで、`tests/domain/**`・`backend/src/pitchlog/domaincheck/**` を含まない(前例 `entrypointClosure.spec.ts` も同じ状態) | pytest 側(harness ジョブで常時実行)で捕まる範囲: `run_vectors` の判定の変化と fixture の誤り(`test_vector_conformance.py` が直接呼び出しで検査)、ブリッジによる意味の変化(`test_vector_bridge.py` が同じ 9 シナリオをブリッジ経由で検査)。**捕まらないのは、ブリッジの規約を変えて TS 側の宿主と食い違った場合だけ**で、次に `frontend/**` を変える PR で赤になる |
 | R-b | `frontend/src/testing/vectorRunner.ts`・`vectorConformance.spec.ts`・`vectorRunner.spec.ts` は既存のコア glob に入らない。後日これらだけを変える PR はコア判定(敵対レビュー・逐行確認)を通らない | 本タスクの PR はブリッジと `tests/domain/*` を含むのでコア判定に入る。段階 2 は `frontend/src/lib/generated/*`(コア)に触れるので、そのときに paths の追加を判断する |
 
 ## 未解決・検討メモ

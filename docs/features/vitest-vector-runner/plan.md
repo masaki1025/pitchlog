@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3e593b75e687812ba2e8c20d469ea6db
 branch: feature/vitest-vector-runner
 created: 2026-10-08
-計画レビュー周回: 1        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 2        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -65,10 +65,10 @@ created: 2026-10-08
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **Python ブリッジ** `backend/src/pitchlog/domaincheck/runners/vector_bridge.py`(design.md 2 の規約。`run_vectors` を呼ぶだけで、schema 検査・比較・完走判定を自前で持たない)と単体テスト `tests/domain/runners/test_vector_bridge.py`(入出力を差し替えて in-process で駆動する) | `uv run pytest tests/domain/runners/` 緑。テストで次を確かめる: 完走時のメッセージ列(`normalize`→`normalized`→`execute`→`executed` の繰り返しと `report`)/ `unsupported` が `未対応 case: …` の `vector-run-error` になる / `adapter-error` が包まれずに伝わる / 未知の `type`・順序違反・JSON でない行が `protocol-error` になる / ブリッジが `validate_asset`・`compare_path_set` を直接 import せず `run_vectors` を使う(静的検査)。`git diff` で `vectors.py`・`cli.py`・`path_match.py` が無変更。`uv run ruff check`・`uv run ty check` 緑 |
-| 2 | **適合ベクタ**: `tests/domain/runners/fixtures/vector-conformance/vector_conformance_v1.json`(design.md 3-3 の 9 シナリオ)と `vector_conformance_schema_v1.json`、pytest 側の消費 `tests/domain/runners/test_vector_conformance.py`(`run_vectors` を直接呼び、表で宣言した adapter を使う) | `uv run pytest tests/domain/runners/` 緑。fixture が schema に適合する(`validate_asset`)。9 シナリオすべてで `expected` と `trace` が一致する。`test_vectors.py` の 6 テストそれぞれに対応するシナリオがあることを ID の対応表で検査する |
-| 3 | **TS runner** `frontend/src/testing/vectorRunner.ts`(design.md 2-2 の公開面)と単体テスト `frontend/src/testing/vectorRunner.spec.ts` | `pnpm test -- --run src/testing/vectorRunner.spec.ts` 緑。テストで次を確かめる: 計算 adapter に正規化の出力と同一のオブジェクトが渡る / JSON で往復できない値(`undefined`・`bigint`・`NaN`・`-0`・安全でない整数。入れ子の中も)を送る前に拒否する / thenable を返す adapter を拒否する / adapter の例外が元のオブジェクトのまま送出される(正規化 adapter が投げた `UnsupportedVectorCase` も包まれない)/ `python3` の起動失敗・終端前の終了・無応答(期限超過)・`report` 後に終了しない子・終了コード 0 以外が、いずれも runner の異常として送出され、どの場合も子プロセスが残らない / `vectorRunner.ts` に比較・schema 検査の実装がない(静的検査: `additionalProperties`・`total-order`・`exact-numeric-representation` の語を含まない)。`pnpm exec eslint .`・`pnpm exec prettier --check .`・`pnpm exec vue-tsc --noEmit`・`pnpm exec depcruise src --validate` 緑 |
-| 4 | **Vitest 側の適合ベクタ消費** `frontend/src/testing/vectorConformance.spec.ts`(ステップ 2 と同じ fixture をブリッジ経由で消費する) | `pnpm test -- --run src/testing/vectorConformance.spec.ts` 緑。9 シナリオすべてで `expected`・`trace` が pytest 側と同じ値で一致する。fixture のシナリオ件数と消費件数が一致する(取りこぼし 0)。lint 一式緑 |
+| 1 | **適合ベクタ**: `tests/domain/runners/fixtures/vector-conformance/vector_conformance_v1.json`(design.md 3-3 の 9 シナリオ)と `vector_conformance_schema_v1.json`、pytest 側の消費 `tests/domain/runners/test_vector_conformance.py`(`run_vectors` を直接呼び、表で宣言した adapter を使う) | `uv run pytest tests/domain/runners/` 緑。fixture が schema に適合する(`validate_asset`)。9 シナリオすべてで `expected` と `trace` が一致する。`test_vectors.py` の 6 テストそれぞれに対応するシナリオがあることを ID の対応表で検査する |
+| 2 | **Python ブリッジ** `backend/src/pitchlog/domaincheck/runners/vector_bridge.py`(design.md 2 の規約。`run_vectors` を呼ぶだけで、schema 検査・比較・完走判定を自前で持たない)と単体テスト `tests/domain/runners/test_vector_bridge.py`(入出力を差し替えて in-process で駆動する) | `uv run pytest tests/domain/runners/` 緑。テストで次を確かめる: 完走時のメッセージ列(`normalize`→`normalized`→`execute`→`executed` の繰り返しと `report`)/ `unsupported` が `未対応 case: …` の `vector-run-error` になる / `adapter-error` が包まれずに伝わる / 未知の `type`・順序違反・JSON でない行が `protocol-error` になる / **ステップ 1 の 9 シナリオをブリッジ経由でも通し**(テスト側の宿主は表で宣言した adapter を Python で返すだけ)、`expected`・`trace` が直接呼び出しと一致する / ブリッジが `validate_asset`・`compare_path_set` を直接 import せず `run_vectors` を使う(静的検査)。`git diff` で `vectors.py`・`cli.py`・`path_match.py` が無変更。`uv run ruff check`・`uv run ty check` 緑 |
+| 3 | **TS runner** `frontend/src/testing/vectorRunner.ts`(design.md 2-2 の公開面)と単体テスト `frontend/src/testing/vectorRunner.spec.ts` | `pnpm test -- --run src/testing/vectorRunner.spec.ts` 緑。テストで次を確かめる: 計算 adapter に正規化の出力と同一のオブジェクトが渡る / JSON で往復できない値(`undefined`・`bigint`・`NaN`・`-0`・安全でない整数。入れ子の中も)を送る前に拒否する / thenable を返す adapter を拒否する / adapter の例外が元のオブジェクトのまま送出される(正規化 adapter が投げた `UnsupportedVectorCase` も包まれない)/ `python3` の起動失敗・終端前の終了・無応答(期限超過)・`report` 後に終了しない子・終了コード 0 以外が、いずれも runner の異常として送出され、どの場合も子プロセスが残らない(期限は差し替えて短くする)/ **既定の期限のまま**の無応答の子でも、テストの期限より先に runner が異常を送出して子を回収する(design.md 1-3 の大小関係) / `vectorRunner.ts` に比較・schema 検査の実装がない(静的検査: `additionalProperties`・`total-order`・`exact-numeric-representation` の語を含まない)。`pnpm exec eslint .`・`pnpm exec prettier --check .`・`pnpm exec vue-tsc --noEmit`・`pnpm exec depcruise src --validate` 緑 |
+| 4 | **Vitest 側の適合ベクタ消費** `frontend/src/testing/vectorConformance.spec.ts`(ステップ 1 と同じ fixture をブリッジ経由で消費する) | `pnpm test -- --run src/testing/vectorConformance.spec.ts` 緑。9 シナリオすべてで `expected`・`trace` が pytest 側と同じ値で一致する。fixture のシナリオ件数と消費件数が一致する(取りこぼし 0)。lint 一式緑 |
 
 ## 5. DoD(受け入れ基準)
 
@@ -85,7 +85,7 @@ created: 2026-10-08
 
 | NFR-019 の種別 | 追加するもの |
 | --- | --- |
-| 単体 | `test_vector_bridge.py`(ブリッジの規約・例外の伝わり方)/ `vectorRunner.spec.ts`(同一性・JSON 往復の拒否・子プロセスの回収・静的検査) |
+| 単体 | `test_vector_bridge.py`(ブリッジの規約・例外の伝わり方・9 シナリオのブリッジ経由での一致)/ `vectorRunner.spec.ts`(同一性・JSON 往復の拒否・子プロセスの回収・静的検査) |
 | 一致性 | 適合ベクタ 9 シナリオを pytest(`test_vector_conformance.py`)と Vitest(`vectorConformance.spec.ts`)の両方で消費し、同じ期待値に一致させる。製品の対象計算の一致性(実契約)は段階 2 |
 | 越境・E2E・故障系 | 追加なし(本タスクは製品の経路に触れない) |
 

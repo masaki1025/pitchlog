@@ -65,3 +65,13 @@ branch: feature/vitest-vector-runner
 
 
 - 気づき(範囲外): ハーネス設計書 10.1 の `frontend` 行は「paths filter: frontend/ contracts/」と書くが、`ci.yml` の実体には `mise.toml`・`frontend/pnpm-lock.yaml`・`.github/workflows/ci.yml`・`scripts/design_relations/sync-protocol.json` も入っている。本タスクは `ci.yml` を変えないので直さない
+
+### 計画レビュー 2 周目(敵対・差分・2026-10-09)
+
+所見: **不可**(P1×1・P2×2)。1 周目の P1-3・P2-4・P2-5・P2-6 は閉じたとの判定。P0 がないので 3 周目は行わない(設計書 6.3 の上限)。3 件とも採用して反映した。
+
+| # | 指摘 | 扱い |
+| --- | --- | --- |
+| P1-1 | runner の既定期限 30 秒が Vitest の既定テスト期限 5 秒より長く、既定のままでは回収の保証を検証できない | 採用: 既定を `DEFAULT_RESPONSE_TIMEOUT_MS = 10_000` とし、runner を使う spec のテスト期限をその 3 倍以上にする大小関係を design.md 1-3 に固定。ステップ 3 で既定期限のままの無応答を検証 |
+| P2-2 | 起動コマンドと期限の差し替えが公開シグネチャにない | 採用: 第 5 引数 `options` の型を design.md 2-2 に明記 |
+| P2-3 | R-a の「pytest 側で捕まる」は言い過ぎ(ブリッジ経由の回帰は直接呼び出しでは捕まらない) | 採用: ステップ順を入れ替え(1 = 適合ベクタ、2 = ブリッジ)、ブリッジの単体テストで 9 シナリオをブリッジ経由でも通す。R-a の捕捉範囲を書き直した |
