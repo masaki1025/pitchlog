@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_rejected_configurations",
   "oracle_context": {
-    "oracle_commit": "1f32e12a8c0e8acc66df448a22fc166be4643a3f",
+    "oracle_commit": "cc949c690a7da6d7e719561f9fa02153e1857610",
     "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
   },
   "required_initial_rejection_ids": [

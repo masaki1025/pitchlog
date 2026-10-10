@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "contracts/authz/route-registry.json",
-  "asset_digest": "9c67f6ef6ef9909f7f997304b2d6d5b3711e07974adaaa8b777ab9d39966a785",
-  "entry_count": 231,
-  "aggregate_decision_digest": "497a30b2634d2f6667f88720485593e96b4e3cd396d314e453d6b8bee4f39d60",
+  "asset_digest": "0a56f7c327658a5544efa45098e606ba64c5611c2e27c75daa43af79f7ce9160",
+  "entry_count": 237,
+  "aggregate_decision_digest": "4606c9dafb6e946f61f4876ce2a132bc461a6bb909bdccdeb5408077896e650c",
   "entries": [
     {
       "entry_id": "route:ROUTE:FR-020",
@@ -632,6 +632,90 @@
         "operation_id": "close_group"
       },
       "decision_digest": "869c3fe5d6769422199da8bc7cd23b0f77da65997f52b37738d07752d410e3e9"
+    },
+    {
+      "entry_id": "route:ROUTE:RECORD:players:insert",
+      "decision": {
+        "route_id": "ROUTE:RECORD:players:insert",
+        "route_kind": "record_and_aggregate",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-TSK446-RECORD-AND-AGGREGATE"
+        ],
+        "operation": "insert"
+      },
+      "decision_digest": "b02ed7468c7dd04b7601a9c84af1ef9120fd31f7dc2b084e80d0855806ab14c2"
+    },
+    {
+      "entry_id": "route:ROUTE:RECORD:players:read",
+      "decision": {
+        "route_id": "ROUTE:RECORD:players:read",
+        "route_kind": "record_and_aggregate",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-TSK446-RECORD-AND-AGGREGATE"
+        ],
+        "operation": "read"
+      },
+      "decision_digest": "9a1c4476f215806e110096cba6bc8a0959410698adecd22e9b58480a3367fc97"
+    },
+    {
+      "entry_id": "route:ROUTE:RECORD:players:update",
+      "decision": {
+        "route_id": "ROUTE:RECORD:players:update",
+        "route_kind": "record_and_aggregate",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-TSK446-RECORD-AND-AGGREGATE"
+        ],
+        "operation": "update"
+      },
+      "decision_digest": "c50300f98e7bf5ff265ae6b684593ac8da05b75cfb80ff75faa40fb3ddbc70e8"
+    },
+    {
+      "entry_id": "route:ROUTE:RECORD:team_records:insert",
+      "decision": {
+        "route_id": "ROUTE:RECORD:team_records:insert",
+        "route_kind": "record_and_aggregate",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-TSK446-RECORD-AND-AGGREGATE"
+        ],
+        "operation": "insert"
+      },
+      "decision_digest": "1f6915c10345313bde556393e5a6e5b54bea365ee131a6fb310900d6e4ac4734"
+    },
+    {
+      "entry_id": "route:ROUTE:RECORD:team_records:read",
+      "decision": {
+        "route_id": "ROUTE:RECORD:team_records:read",
+        "route_kind": "record_and_aggregate",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-TSK446-RECORD-AND-AGGREGATE"
+        ],
+        "operation": "read"
+      },
+      "decision_digest": "d777d55ee4e032f31d0205a45feb5000d0c97b803043b981c5d7f5be1fea9fca"
+    },
+    {
+      "entry_id": "route:ROUTE:RECORD:team_records:update",
+      "decision": {
+        "route_id": "ROUTE:RECORD:team_records:update",
+        "route_kind": "record_and_aggregate",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-TSK446-RECORD-AND-AGGREGATE"
+        ],
+        "operation": "update"
+      },
+      "decision_digest": "62d85b022b40a4d7fb6cbb1cce6cdd7d7e9ec0847ada12b9619034fde53f236c"
     },
     {
       "entry_id": "operation:create_group",

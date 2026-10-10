@@ -8,13 +8,11 @@ from typing import final
 from uuid import UUID
 
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import Select
 
 from pitchlog.db.engine import create_database_engine
 from pitchlog.repositories.base import (
-    _materialize_rows,
-    _operation_spec,
-    _TenantOperationError,
+    _materialize_execution_result,
+    _prepare_operation,
 )
 from pitchlog.repositories.binding import TenantBindingError, _tenant_transaction
 from pitchlog.repositories.context import TenantContext
@@ -106,18 +104,10 @@ class _TenantTransaction:
                 "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
             )
 
-        spec = _operation_spec(operation)
-        if not isinstance(spec.statement, Select):
-            raise _TenantOperationError(
-                "トランザクション operation は Select だけを実行できる"
-            )
         session, _ = runtime
-        execution_result = session.execute(
-            spec.statement,
-            {"tenant_id": self._bound_tenant_id},
-        )
-        rows = tuple(tuple(row) for row in execution_result)
-        return _materialize_rows(rows)
+        statement, parameters = _prepare_operation(operation, self._bound_tenant_id)
+        execution_result = session.execute(statement, parameters)
+        return _materialize_execution_result(statement, execution_result)
 
 
 class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
