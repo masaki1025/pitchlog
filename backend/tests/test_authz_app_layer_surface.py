@@ -112,6 +112,10 @@ _PUBLIC_CALLERS = frozenset(
         ),
         ("api.routers.auth.login", "authz.team_login.login_attempt"),
         ("api.routers.auth.login", "authz.team_login.get_login_connection"),
+        (
+            "repositories.tenant_context_issuance.issue_tenant_context_from_presented_token",
+            "authz.verified_tenant.verify_tenant_id",
+        ),
     }
 )
 _AUTHN_REFERENCE = re.compile(r"\bauthn\.([a-z_]+)\b")

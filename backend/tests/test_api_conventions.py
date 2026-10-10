@@ -141,12 +141,24 @@ async def test_forbidden_response_is_hidden_as_not_found() -> None:
     assert forbidden_response.content == not_found_response.content
 
 
-def test_router_routes_include_login() -> None:
-    """静的登録した API 経路にログインを含むことを確認する。"""
+def test_router_routes_are_static_login_roster_and_meta() -> None:
+    """静的登録したメタ情報・ログイン・選手・対戦相手の 11 本を照合する。"""
     routes = _router_routes()
 
-    assert len(routes) == 3
-    assert {route.path for route in routes} == {"/health", "/version", "/auth/login"}
+    assert len(routes) == 11
+    assert tuple((route.path, frozenset(route.methods or ())) for route in routes) == (
+        ("/health", frozenset({"GET"})),
+        ("/version", frozenset({"GET"})),
+        ("/auth/login", frozenset({"POST"})),
+        ("/players", frozenset({"POST"})),
+        ("/players", frozenset({"GET"})),
+        ("/players/{player_id:uuid}", frozenset({"GET"})),
+        ("/players/{player_id:uuid}", frozenset({"PATCH"})),
+        ("/team-records", frozenset({"POST"})),
+        ("/team-records", frozenset({"GET"})),
+        ("/team-records/{team_record_id:uuid}", frozenset({"PATCH"})),
+        ("/team-records/{team_record_id:uuid}", frozenset({"DELETE"})),
+    )
     assert all(route.response_model is not None for route in routes)
 
 

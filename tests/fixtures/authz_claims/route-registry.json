@@ -54,6 +54,11 @@
       "provenance_id": "FIXTURE-REQUIREMENTS",
       "path": "requirements.md",
       "extracted_text": "合成認可要件"
+    },
+    {
+      "provenance_id": "PLAN-TSK446-RECORD-AND-AGGREGATE",
+      "path": "record-and-aggregate-design.md",
+      "extracted_text": "選手と対戦相手チームの作成・参照・更新は record_and_aggregate 経路として扱う。"
     }
   ],
   "routes": [
@@ -221,6 +226,66 @@
         "FR-900/list_item-001"
       ],
       "operation_id": "fixture_operation"
+    },
+    {
+      "route_id": "ROUTE:RECORD:players:insert",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE"
+      ],
+      "operation": "insert"
+    },
+    {
+      "route_id": "ROUTE:RECORD:players:read",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE"
+      ],
+      "operation": "read"
+    },
+    {
+      "route_id": "ROUTE:RECORD:players:update",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE"
+      ],
+      "operation": "update"
+    },
+    {
+      "route_id": "ROUTE:RECORD:team_records:insert",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE"
+      ],
+      "operation": "insert"
+    },
+    {
+      "route_id": "ROUTE:RECORD:team_records:read",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE"
+      ],
+      "operation": "read"
+    },
+    {
+      "route_id": "ROUTE:RECORD:team_records:update",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE"
+      ],
+      "operation": "update"
     }
   ],
   "management_operations": [
