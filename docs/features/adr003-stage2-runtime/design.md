@@ -69,6 +69,36 @@ quickjs-ng を採用する条件(**すべて満たすこと**。1 つでも欠�
 
 **費用の実測**(`ADR3:9` が段階 2 に送ったもの)を design.md に追記する。試験の後、PO がエンジンを承認する(ゲート ②)。
 
+### 4-1. エンジン試験の結果(ステップ 1)
+
+2026-10-11 に `quickjs-ng==0.17.0.1` と Node 24.16.0 で合成 artifact を実行した。以下の「合格」は各条件の実測範囲を指す。エンジンの採否はゲート ② で PO が決める。
+
+| 条件 | quickjs-ng | 常駐 Node | 根拠となるテスト |
+| --- | --- | --- | --- |
+| 1. 十進文字列の BigInt 往復 | **合格**。6 境界値が保存された。ただし Python `int` の直接バインドは `number` になり、`2147483648` → `-2147483648`、`9007199254740993` → `1` などへ変化する | **合格**。同じ 6 境界値を保存 | `test_decimal_string_bigint_round_trip`、`test_direct_python_int_binding_is_number_and_can_change_value`、`test_persistent_node_reads_same_artifact_over_ndjson` |
+| 2. `eval`・`Function`・動的 `import()` の拒否 | **不合格**。`Context` に `disable_eval=True` を渡しても無視される。`globalThis.eval` の削除後も `new Function` と `Function.prototype.constructor` は実行できる。動的 import は構文として通り、モジュール解決時に拒否されるだけ | **合格**。起動オプション `--disallow-code-generation-from-strings` と `vm.createContext({ codeGeneration: { strings: false, wasm: false } })` の併用で 3 経路を拒否。動的 import はローダーのコールバックを与えず `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING` で拒否。起動オプション単独では `vm` 内の `Function` を止められない | `test_eval_deletion_does_not_block_function_constructors`、`test_dynamic_import_has_no_module_loader_but_is_not_syntax_rejected`、`test_vm_options_reject_eval_function_and_dynamic_import`、`test_node_flag_alone_does_not_restrict_vm_context` |
+| 3. 同一 artifact のバイト一致 | **合格**。同値キーの安定ソート、負数、BigInt 境界、明示例外と 0 除算を含む同一入力で一致 | **合格** | `test_same_artifact_outputs_identical_bytes`、`test_persistent_node_reads_same_artifact_over_ndjson` |
+| 4. メモリ・時間超過の fail-closed | **合格**。`set_memory_limit` は out of memory、`set_time_limit` は interrupted、`set_max_stack_size` は StackOverflow を返す | **合格**。`--max-old-space-size=16` の超過でプロセスが異常終了し、`vm` の timeout は `ERR_SCRIPT_EXECUTION_TIMEOUT` を返す。外側のプロセスタイムアウトでは停止できる | `test_memory_limit_fails_closed`、`test_time_limit_fails_closed`、`test_stack_limit_fails_closed`、`test_heap_limit_stops_excessive_allocation`、`test_vm_timeout_rejects_unbounded_guest`、`test_process_timeout_stops_unbounded_guest` |
+| 5. Linux・CPython 3.12 の wheel | **合格**。aarch64 で実際にインストールし、wheel の tag を確認。PyPI の公開一覧で x86_64 版も確認 | 対象外 | `test_installed_wheel_targets_current_linux_platform`、[PyPI 0.17.0.1 の配布一覧](https://pypi.org/pypi/quickjs-ng/0.17.0.1/json) |
+
+条件 5 で確認した wheel のファイル名(どちらも `cp310-abi3` で CPython 3.12 に適合):
+
+```text
+quickjs_ng-0.17.0.1-cp310-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
+quickjs_ng-0.17.0.1-cp310-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+```
+
+**費用の実測**: aarch64 Linux、CPython 3.12.3、Node 24.16.0。合成 artifact を使い、ロードはファイル読込済みのコードを新しいコンテキストに評価する時間(各 200 回の中央値)、呼び出しはロード済み engine への Python からの 1 回の時間(QuickJS 1000 回、Node 500 回の中央値)を測った。試験の合否には使わない。
+
+| engine | artifact ロード | 1 呼び出し | メモリ |
+| --- | ---: | ---: | --- |
+| quickjs-ng | 0.1268 ms | 0.0035 ms | context の `malloc_size` 104,640 B。測定 Python プロセス全体の RSS 34,400 KiB |
+| 常駐 Node | 0.3081 ms | 0.2610 ms(stdin/stdout の往復を含む) | Node プロセスの RSS 61,164 KiB |
+
+Node の起動から初回応答までは 32.6345 ms。RSS の 2 値はそれぞれ Python プロセス全体と Node プロセス単体なので、engine 単体のメモリ差としては読めない。Node の heap 上限はプロセス全体の RSS 上限ではない。製品ホストの上限と停止処理はステップ 7 で固定する。
+
+**判定案**: 条件 2 が quickjs-ng バインディングで不合格のため、§4 の決定則に従い**常駐 Node を推奨**する。Node は起動オプションに加えて `vm` の `codeGeneration` 設定と動的 import ローダーを与えない構成が必要である([Node 24.16.0 CLI](https://nodejs.org/download/release/v24.16.0/docs/api/cli.html)、[Node 24.16.0 vm](https://nodejs.org/download/release/v24.16.0/docs/api/vm.html))。この段階では採否を確定しない。
+
 ## 5. 契約 9 件の順序と依存
 
 | 順 | ID | 中身 | 依存 | 正本 |
