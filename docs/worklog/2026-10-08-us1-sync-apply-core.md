@@ -128,3 +128,13 @@ branch: feature/us1-sync-apply-core
   - P2: 3 節の repository-contract の行から registry の集約を外した
 - **計画レビュー 2 回目**(反映差分): 否決(P1 3)→ **全件採用**(周回 5 → 6)。① sync-protocol 10-3 の P3 の期待結果「安定した意図 ID」(単数 `:1715`)も v0.6 の範囲へ(範囲ごとの全意図 ID・永続状態・再掲後の件数を観測対象と明記)② 新ステップ 13 に「P3 の初回受理で範囲ごとの意図が同一トランザクションで保存される」を追加 ③ R-10 の版指定を v0.7 に統一。**上限(基本 2 回)到達・P0 なしのため 3 回目は無く、本反映は再レビューを受けていない** — 改訂の承認の場で差分を確認していただく
 - **第 1 改訂の承認**: 2026-10-11・山田正輝(7 節 A-1 D1 付き経路の意図 ID = イベントの D5 + 範囲 / A-2 行の量を受け入れる / A-3 スパイクの削除 を含む)。R-14 の影響範囲の見落とし(sync-protocol の「1 件」)は承認の場で報告済み
+
+### 新ステップ 1(正本の改訂案 — data-model v0.8・sync-protocol v0.6)
+
+- **data-model**: 11-2 節 `B03` の表の「表」(`I5` は `T7` と、D1 付き経路は D3 を前進させたイベントの適用と同一トランザクションで、対象範囲ごとに 1 件)・「一意性」(意図 ID = 対象イベントの識別 + 範囲 — `I5` は `V10` + 確定版 + 範囲、D1 付き経路は D5 + 範囲)・直後の注記 / `B06` の「配信の所有」を同期を通らないトリガーに限り、同期経路は同期側が持つと明記 / 一意性の索引表の 11-2 行の注記 / 変更履歴 v0.8(in-review・射程宣言)
+- **sync-protocol**: 8-1 の `T7` の段落・10-2 の P3 の行・10-3 の P3 の期待結果と `T7` の必須観測を「範囲ごとに 1 件」「範囲ごとの安定した意図 ID の全集合」へ(意味規則は不変)/ 変更履歴 v0.6(in-review・射程宣言)
+- **追随**(#114 の教訓どおり同じステップで): `contracts/db/schema-manifest.json` の sha256・`contracts/authz/shared-preconditions.json` の blob digest・ORM 受入シート(N3 の判定 90 行を持ち越し、新しい 3 行〔v0.8 の変更履歴行・v0.6 の変更履歴行 2 行〕を旧版の同種の行に倣って判定)・固定行数 N3 103 → 104・`docs/README.md` の 2 行
+- **途中の失敗 2 件**: ① 一意性の索引表の 2 列目(業務上の一意性の名前)を manifest が完全一致で写しているのに、そこへ補足を足して `test_schema_manifest.py` が赤 → 補足を 4 列目へ移した ② 受入シートを `--carry-judgments-from` なしで生成し直して判定を空にした → develop の版に戻して持ち越しからやり直した
+- `test_authz_cache_invalidation.py` の正本の文言照合(「T7 と同一トランザクション」)を保つ語順にした
+- 合格条件: `check_docs_status`・`check_design_propagation`・`check_doc_coverage`・`check_shared_preconditions` ok / `check_authz_catalog` ok(`requirement-claims.json` の抜粋の digest には当たらず、oracle の再導出は要らない)/ backend の DB 不要の全件は既知の偽の赤 44 件(「HEAD の履歴に staged 製品資産がありません」— develop を第 2 親で取り込んだ形)以外 green / ORM 受入シート・shared-preconditions・doc profiles 30 passed
+
