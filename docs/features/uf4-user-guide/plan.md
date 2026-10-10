@@ -1,6 +1,6 @@
 ---
 feature: uf4-user-guide
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-10・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: 通常            # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -118,8 +118,8 @@ created: 2026-10-10
 | `docs/adr/*` | **反映なし**(ADR-002 v1.1 の委任先はコンポーネント設計規約で、別タスク TSK-534 が担う) | — |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし** | — |
 | `docs/improvements-from-baseball-scoring.md` | **反映なし**。前提 C は I-28 `:241` が定める「実装計画書ゲートで PO へ上げる」経路を使うだけで、**台帳の改訂は要求しない**(I-28 は「新たな該当判断は当該 feature の実装計画書に dd03160 の典拠つきで記録し、PO 承認を得る」と定める — 記録先は本書) | — |
-| `docs/development/harness-evaluation.md` | **`/pr` のクローズ処理で判断**(版の取り違えの型が有力 — 下記 4 節) | PR レビュー |
-| `docs/README.md` | 台帳へ追記したときだけ現行化 | PR レビュー |
+| `docs/development/harness-evaluation.md` | **追記する**(`/pr` のクローズ処理で判断・2026-10-10)。**`H-*` は採番しない** — 新規候補 2 件(保全クローンの作業ツリーが固定コミットでない / 逐語移植の例外は全数走査を成果物にしないと 1 周 1 件ずつしか出ない)+ 既存 `H-69` と既存候補 (13) への再発追記。**版は上げない**(7.6-3 前段) | PR レビュー |
+| `docs/README.md` | 台帳行の最終更新日を現行化(上記の追記に伴う) | PR レビュー |
 | `.claude/core-areas.json` | **変更しない** | — |
 
 **正本体系外だが同一 PR で更新するもの**: `frontend/src/screens/HelpScreen.vue`(新規)/ `frontend/src/screens/HelpScreen.spec.ts`(新規)/ `docs/features/uf4-user-guide/{plan,research}.md` / **`docs/features/uf4-user-guide/design.md`(新規 — 表 A: 文言の例外一覧 / 表 B: 旧 → 新の契約対応表。ステップ 1 が作る)** / `docs/worklog/2026-10-10-uf4-user-guide.md`
