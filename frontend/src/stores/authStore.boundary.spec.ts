@@ -77,7 +77,7 @@ function switchOtherTabToB(): void {
     AUTH_STORAGE_KEY,
     JSON.stringify({
       version: 1,
-      sessionId: 'other-tab-session-b',
+      sessionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
       teamName: 'チーム B',
       teamId: 'team-b',
     }),
@@ -85,10 +85,7 @@ function switchOtherTabToB(): void {
   window.dispatchEvent(new StorageEvent('storage', { key: AUTH_STORAGE_KEY }))
 }
 
-function openTestDatabase(): Promise<IDBDatabase> {
-  databaseSequence += 1
-  const name = `bb-sync-test-${databaseSequence}`
-  databaseNames.push(name)
+function openTestDatabase(name: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(name, 1)
     request.onupgradeneeded = () => {
@@ -129,19 +126,26 @@ function readQueueRecord(
   })
 }
 
-async function prepareQueueFixture(): Promise<IDBDatabase> {
-  const database = await openTestDatabase()
+async function prepareQueueFixture(): Promise<string> {
+  databaseSequence += 1
+  const name = `bb-sync-test-${databaseSequence}`
+  databaseNames.push(name)
+  const database = await openTestDatabase(name)
   await writeQueueRecord(database)
+  database.close()
   for (const [key, value] of Object.entries(otherStorageValues)) {
     localStorage.setItem(key, value)
   }
-  return database
+  return name
 }
 
-async function expectQueueAndOtherKeysUntouched(
-  database: IDBDatabase,
-): Promise<void> {
-  expect(await readQueueRecord(database)).toEqual(queueRecord)
+async function expectQueueAndOtherKeysUntouched(name: string): Promise<void> {
+  const database = await openTestDatabase(name)
+  try {
+    expect(await readQueueRecord(database)).toStrictEqual(queueRecord)
+  } finally {
+    database.close()
+  }
   for (const [key, value] of Object.entries(otherStorageValues)) {
     expect(localStorage.getItem(key)).toBe(value)
   }
@@ -240,24 +244,24 @@ describe('authStore の越境', () => {
   })
 
   it('失効後に A へ再ログインしても未同期キューと他のキーを保つ', async () => {
-    const database = await prepareQueueFixture()
+    const databaseName = await prepareQueueFixture()
     const store = useAuthStore()
     store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
 
     store.expireSession()
     store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
 
-    await expectQueueAndOtherKeysUntouched(database)
+    await expectQueueAndOtherKeysUntouched(databaseName)
   })
 
   it('signOut 後に B へログインしても未同期キューと他のキーを保つ', async () => {
-    const database = await prepareQueueFixture()
+    const databaseName = await prepareQueueFixture()
     const store = useAuthStore()
     store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
 
     store.signOut()
     store.signIn({ teamName: 'チーム B', teamId: 'team-b' })
 
-    await expectQueueAndOtherKeysUntouched(database)
+    await expectQueueAndOtherKeysUntouched(databaseName)
   })
 })
