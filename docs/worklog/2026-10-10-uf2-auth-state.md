@@ -52,3 +52,32 @@ branch: feature/uf2-auth-state
 - 2 回目の P0 2 件は閉じたと判定。テナント照合の窓を δ・U-F6 の契約へ送る扱いは単位境界(`frontend-impl-units/design.md:309`)に沿うと判定。ただし**製品として窓が閉じるのは δ・U-F6 の契約が実装された時点**(残余 — δ・U-F6 への申し送りで追跡)
 - 切り離し状態から新たな P0 なし
 - 回数の上限に到達(2 回 + P0 例外 1 回)。人間の承認へ上げる
+
+### /implement
+
+| ステップ | コミット | 要点 |
+| --- | --- | --- |
+| 1 | `04332630` | pinia 4.0.3・@vue/devtools-api 8.2.1。lockfile 追加 8 パッケージ・install スクリプトなし。初回は `PITCHLOG_NET_REASON` 未指定でラッパーが停止(12.1 の記録が必須)→ 付けて再実行。Codex は既定ストアの SQLite を開けず `/tmp` ストアを経由(H-69 の再発)。sandbox 外で frozen install・vue-tsc・build を確認 |
+| 2 | `81ee74b4` | authStore(決定 A〜F・H・I・J の authEpoch)。spec 23 件 |
+| 3 | `8a1e0823` | `syncFromStorage()`・storage イベント・切り離し状態。spec +18 件 |
+| 4 | `08175c0b` | 越境試験 7 件。鍵なしの対照で `clear()` 後も A の表示が残ることを確認(決定 J の根拠) |
+| 5 | `e0f06b4a` | `AREA_PATH_ADDITIONS` を U-M1 の 7 件から本単位の 1 件へ置き換え。試験は登録前後の両状態を受理(230 件) |
+| 6 | `19bd74d9` | `.claude/core-areas.json` へ登録。`matched_paths()` で authStore 3 件を検知・`other.ts` は非検知 |
+| 7 | (本コミット) | porting-rules.md 10 節と 6 節 3 行の注記・design.md の U-F2 行の注記・Notion 申し送り |
+
+- ステップ 5 の委任直前に `/tmp`(tmpfs 7.7G)が満杯になり、プロンプトの書き出しが ENOSPC で失敗した。主因は `/tmp/pytest-of-ymdms`(5.8G)。前日の `pytest-37`・`pytest-143` と、ステップ 1 で Codex が作った `/tmp/pitchlog-uf2-pnpm-store` を消して 5G 空けた(当日の他セッションの run は残した)
+- Codex がステップ 6 の検証で worktree 内に `.uv-cache` を作った → 削除
+
+#### Notion への申し送り(ステップ 7 ③ — 2026-10-10)
+
+| 宛先 | カード |
+| --- | --- |
+| U-F3 ログイン | https://app.notion.com/p/3f493b75e687814ca3c7fead50df2a14 |
+| U-F6 共通 API | https://app.notion.com/p/3f493b75e6878145aa82d873e8cb65f3 |
+| U-F7 耐久キュー | https://app.notion.com/p/3f493b75e687816f8cb4cac7bb1200ea |
+| U-F13 起動入口 | https://app.notion.com/p/3f493b75e68781628422c331bfebc350 |
+| δ TSK-470 | https://app.notion.com/p/3ee93b75e68781c99d5bd3a15f6e83b5 |
+| U-F5 チーム・選手 | https://app.notion.com/p/3f493b75e68781ac8f9be34909d424a2 |
+| U-F8 試合記録 | https://app.notion.com/p/3f493b75e68781b49976fc6c5ed970d5 |
+| U-F10 分析・カルテ | https://app.notion.com/p/3f493b75e6878119ac98f7953c488290 |
+| U-F12 スコアカード | https://app.notion.com/p/3f493b75e687815293abd2b3ebd7d9d0 |
