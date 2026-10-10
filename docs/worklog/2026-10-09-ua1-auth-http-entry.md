@@ -714,3 +714,86 @@ PW 変更の公開関数は**新モジュール `backend/src/pitchlog/authz/pass
 
 **テストを回すたびに溜まる。** 長い作業では `/tmp` の残量を見ておくこと。
 
+## ステップ 9(2026-10-10)— `c03b21b0`
+
+### 承認後の改訂 14 — 期限の出どころが無かった(人間の裁定 2026-10-10・山田正輝)
+
+`authn.verify_token` は照合のたびに `expires_at` を延ばすのに、**`Set-Cookie` を出すのは
+ログインのときだけ**だった。**DB 側が延びてもブラウザは最初の期限で Cookie を捨てる**ので、
+使い続けていても TTL ぶんで必ず再ログインになる。
+
+**延長後の期限を知る経路が無かった。** `verify_token` は `RETURNS uuid` で期限を返さず、
+`tenant_tokens` は `function_only` でアプリ用ロールから直接読めない。
+
+**裁定: `authn.verify_token(uuid)` に `OUT tenant_id uuid, OUT expires_at timestamptz` を足す。**
+
+```
+authn.verify_token
+  → authz/verified_tenant.py                 verify_tenant_id               (γ)
+  → repositories/tenant_context_issuance.py  issue_tenant_context_...       (#95)
+  → api/tenant_access.py                     require_tenant_access          (δ)
+  → Set-Cookie を出し直す
+```
+
+**改訂 7 で `login_attempt` に `OUT expires_at` を足したのと同じ型**(「関数から返す以外に
+経路が無い」)。ただし今回は **γ と #95 のモジュールに手が入る**ので、人間の裁定を取った。
+
+**却下した案**: アプリ側で `auth.token_ttl_seconds` を読んで `Max-Age` を計算する。
+`system_settings` はアプリ用ロールが `SELECT` できるので**実装はできる**が、
+**「期限 = 今 + TTL」が DB とアプリの 2 箇所に出て、時計のズレ分だけ Cookie の寿命が前後する**。
+
+### 設計上の確認
+
+- **失敗時は `tenant_id` と `expires_at` の両方を `NULL` のまま返す**。呼び出し側は
+  `(None, None)` を拒否と判定する。**拒否時は `Set-Cookie` を出さない**
+- **ログアウトと PW 変更の経路には触れていない**(どちらも Cookie を消す側)
+- **`IN` 引数だけを鍵にしている追随先は差分なし** — `manifest.json` /
+  `probe-product-map.json` / `runtime-authz-contract.json` / `runtime_contract.py` /
+  `product_authn_contract.py` は要素 ID も `uuid` の鍵も変わらない。**実際に動かして確認した**
+
+### DB テストが 5 件落ちた — 製品ではなくテストの添字
+
+実 DB で `test_signed_invalid_token_returns_no_tenant` が 5 件(`logged_out` /
+`stale_credential` / `disabled` / `wrong_tenant` / `expired`)落ちた。
+
+```
+assert valid_after[1] == verified[1]
+E  AssertionError: 11:53:08.489968+00:00 == 12:53:08.489968+00:00
+```
+
+**ちょうど TTL(1 時間)ずれ、マイクロ秒まで一致していた。**
+`_token()`(`backend/tests/db/test_product_authz_authn_app.py:199`)は
+**`(expires_at, last_used_at)`** を返すので、`[1]` は `last_used_at` である。
+**期限と最終使用時刻を比べていた。**
+
+**製品コードは正しい。** `verify_token` は `expires_at := checked_at + token_ttl` を代入してから
+`UPDATE ... SET expires_at = verify_token.expires_at` で保存するので、
+**返す値と保存する値は同一**である。
+
+**同じ委任先が `test_product_authz_authn_app.py` では `assert verified[1] == after[0]` と
+正しく書いていた。** 1 箇所だけの取り違えだった。
+
+添字を `[0]` に直して 5 件とも通った。直接書いたので `codex_run.py review normal` を通し、
+**可決・指摘ゼロ**。レビューは次の 3 点を典拠つきで確認した。
+
+1. `_token()` の戻り値の順序(`expires_at` が `[0]`)
+2. 製品 SQL が返す値をそのまま保存していること
+3. **ステップ 9 が触った 6 ファイルに、他の添字の取り違えが無いこと**
+
+**ずれの大きさがちょうど TTL でマイクロ秒まで一致していたのが手掛かりだった。**
+経過時間なら端数が出る。**「きれいにずれている」ときは、時間の差ではなく値の取り違えを疑う。**
+
+### 実測
+
+| 対象 | 結果 |
+| --- | --- |
+| backend 非 DB 全件 | **1330 passed / 4 skipped**(ステップ 9 前は 1324 — **+6**) |
+| backend DB(触った 7 ファイル) | **52 passed**(実 PostgreSQL) |
+| ルート全件 | **34 failed / 29140 passed** — 赤は既知の赤窓だけ、**新しい赤 0** |
+| `ruff` / `ty` | ルート・backend とも green |
+| `api/` の禁止語 | 0 件 |
+
+**委任先のルート全件は 41 件と出ていた**が、差の 7 件は
+**未コミットを `HEAD` と比べる検査 5 件**と **PostgreSQL 不達 2 件**で、
+コミット後にこちらで測ったら消えた。**委任先の赤の件数をそのまま受け取らないこと。**
+
