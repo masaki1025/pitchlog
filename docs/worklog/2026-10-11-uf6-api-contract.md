@@ -21,3 +21,8 @@ branch: feature/uf6-api-contract
 ## 決定
 
 ## 未決・次の一歩
+
+### /plan
+
+- /plan 前に PO へ分岐 4 点を確認(2026-10-10・山田): Q1 いまの backend に合わせる / Q2 モックは移植しない / Q3 U-F6 は土台だけ(同期は TSK-506)/ Q4 `/api` を付けて送り proxy で外す。すべて推奨案
+- 5 領域判定を当て直し: T のみ該当(S・G・R・D は持つ範囲から外れた)。`vite.config.ts` が機械判定に当たるため PR 全体はコア領域
