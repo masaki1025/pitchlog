@@ -545,3 +545,93 @@ AGENTS.md 絶対規則 5(計画にない変更範囲へ触れない)に抵触す
 oracle seal の両資産一覧に本ファイルが無いこと / **他に取り残された pin は無いこと** /
 `schema-manifest.json` は現行と一致すること。
 
+## #95 の取り込み(2026-10-10)— `3a6f9a51`
+
+**#95(U-M1)がマージされ、develop が `f79c14e0` になった。** ステップ 8〜11 の
+待ちが解けた。衝突は 9 ファイル。
+
+**素性はどれも同じ**で、**#95 が入口 10 本を、δ が 1 本を、同じ完全一致の表明と
+同じ宣言へ足していた**もの。合流させれば済む。解消は Codex へ委任した
+(コア領域なので sol xhigh)。
+
+| ファイル | 採った側 | 理由 |
+| --- | --- | --- |
+| `.claude/core-areas.json` / `scripts/core_guard.py` / `tests/test_core_guard.py` | **develop 側のみ** | 下記 |
+| `backend/src/pitchlog/api/app.py` | **合流** | router 4 本。順は `meta → auth → players → team_records` |
+| `backend/tests/test_api_app.py` / `test_api_conventions.py` | **合流** | 完全一致を **11 本**へ。どちらの表明も緩めていない |
+| `backend/tests/test_authz_app_layer_surface.py` | **合流** | δ の呼び出し 3 件 + develop の 1 件 |
+| `contracts/tenant_boundary/runtime-authz-contract.json` / `backend/src/pitchlog/authz/runtime_contract.py` | **再導出** | 生成物なので片側を選ばない |
+
+### 承認後の改訂 13 — ステップ 2・3 が不要になった
+
+**#95 のステップ 7 が `backend/src/pitchlog/api/*` と `backend/tests/test_api_*.py` を
+基線へ入れていた。** δ が宣言しようとしていた窓口は**吸収された**。δ の対象 3 ファイル
+(`test_api_app.py` / `test_api_conventions.py` / `backend/tests/db/test_api_login_entry.py`)は
+**いずれも既存 glob に該当する**(最後のものは `backend/tests/db/*`)。
+
+**したがって δ は宣言も登録もしない。** 取り込み後の 3 ファイルは develop と一致している。
+
+**他タブから「窓口が閉じたままで、新しい追加層を宣言すると受理されない」という注意が来たが、
+原典で確かめたところ正しくない。** `core_guard.py:296-300` の分岐は `overlap` の有無で決まる。
+
+- #95 の 7 件に**足して**宣言 → `overlap` が declared の真部分集合 → 「一部だけ基線へ取り込まれている」で落ちる
+- #95 の 7 件を**消して自分の分だけ**を宣言 → `overlap` が空 → `pending_additions = declared` → 通る
+
+**窓口は閉じていない。回転させれば回る。** 「宣言を空に戻す別作業」は要らない。
+
+### 実測
+
+| 対象 | 結果 |
+| --- | --- |
+| ルート全件 | **35 failed / 29138 passed**(取り込み前は 36 failed) |
+| backend 非 DB 全件 | **1295 passed / 4 skipped** |
+| backend DB(影響範囲 + `test_authz_tenant_binding`) | **80 passed**(実 PostgreSQL) |
+
+**赤 35 件の内訳**: 既知の赤窓 **34 件**(`test_frozen_archive_case_runner` 22 /
+`test_frozen_archive` 11 / `test_check_tenant_boundary_bypass` 1)と、
+**マージ未コミットに起因する `test_doc_check_profile` 1 件**。
+後者は `git diff --name-only HEAD -- .claude/` が空であることを求める試験で、
+**マージをコミットしたら緑になった**(68 passed)。
+
+**`test_check_tenant_boundary_bypass` は 3 → 1 に減った**(#95 が 2 件を解消した)。
+
+### NFR-018 の境界確認(ステップ 8 の前提)
+
+**Cookie からの提示値の取り出しと CSRF の検査は
+`backend/src/pitchlog/api/request_presentation.py` の `require_presented_token` のみにある。**
+δ 側に重複実装は無い。**δ は `Set-Cookie` を出す側だけ**という 2026-10-07 の裁定どおり。
+
+### 申し送り — 共有 DB のスイートを途中で殺さない
+
+**DB 全件を `timeout` で打ち切ったら、被検査ロール `pitchlog_test_role` が共有 DB に残り、
+以降の DB テストが全部 setup で止まった**(48 error / 0.35 秒)。
+`DROP OWNED BY` + `DROP ROLE` で掃除して復旧した。
+
+**これは 2 回目である。** 原因も同じで、**後片付けが走らないまま落とすと残る**。
+
+- **共有 DB を使うスイートを 2 本同時に走らせない**(今回これもやって、
+  `test_authz_tenant_binding.py` が 17 error になった)
+- **DB 全件は CI に任せ、手元では影響範囲だけ測る**
+- 打ち切ったら**必ず `pg_roles` に `pitchlog_test%` が残っていないか見る**
+
+### 残っている作業
+
+ステップ **8**(PW 変更・ログアウトの HTTP 経路)/ **9**(スライディング延長の
+`Set-Cookie` 出し直し)/ **10**(`route_id` の採番と再封印 — `oracle_commit` は
+**`1f32e12a` → `cc949c69`** へ移動済み)/ **11 の残り**(直叩きテスト)/
+**12 の残り**(PR 本文の記録)/ **13**(凍結受理)。
+
+### PO へ上げる 1 件(U-F2 からの問い合わせ)
+
+**`GET /auth/session` を置くかどうか。** U-F2(認証状態)から
+「ログイン応答に表示名・ID を入れるか」「起動時にセッションを確かめる入口を持つか」を
+問われた。現状の応答は `{"status": "authenticated"}` だけで、**アプリ層はテナント ID も
+表示名も受け取っていない**(`login_attempt` が返すのは `token_id` / `wait_ms` / `expires_at`)。
+
+**ログイン応答に足しても解けない** — Cookie が HttpOnly なので**再読み込みの後に
+ログイン応答は来ない**。**2 件をまとめて `GET /auth/session` 1 本にするのが推奨**だが、
+**入口 4 本目は承認済みの射程の外**なので、計画書の改訂と人間承認が要る
+(足すならステップ 10 の `route_id` も 3 → 4)。
+
+**U-F2 は待たなくてよい** — 楽観 + 初回 401 で戻す作り方は、後から足しても正しいまま。
+
