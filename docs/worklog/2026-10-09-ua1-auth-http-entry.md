@@ -971,3 +971,92 @@ oracle入力blobが三者不一致: contracts/authz/route-registry.json
 | **ステップ 12 の残り**(PR 本文の記録) | 第3段の後 |
 | **ステップ 13**(凍結受理) | **人間の逐行確認** |
 
+## #114 の取り込み(2026-10-11)— `634fcc5e`
+
+**#114(TSK-447)がマージされ develop が `212379b5` になった。** open PR はゼロ。
+**PR を出す前に取り込む**(`acceptance_id` が PR 番号を要求するので、
+先に出すと封を貼り直す回数が増える)。
+
+### 衝突 4 ファイル — 事前の予測どおりだった
+
+| ファイル | 解消 |
+| --- | --- |
+| `docs/design/data-model.md` | 変更履歴表で両側が行を足していた。**3 行とも残した**(v0.7 の 2 行が上、δ の v0.6 行が下)。本文は重なっていない |
+| `contracts/authz/shared-preconditions.json` | **取り直した** → `fc31a0bd…` |
+| `contracts/db/schema-manifest.json` | **取り直した** → `a50f5333…` |
+| `backend/tests/test_api_conventions.py` | 経路の完全一致を **13 本 → 15 本** |
+
+**digest 2 つは「どちらかを選ぶ」ではなく「解消後の本文から導出する」。**
+δ の `274577a9…` も #114 の `0f2bf403…` も、マージ後の本文とは一致しない。
+**`git hash-object` の出力と突き合わせて一致を確認してから書いた**
+(第2段で SHA を捏造しかけた反省)。
+
+**ステップ 1 の pin 債務は、これで 2 件が同じ場所に揃った。**
+`data-model.md` を pin している資産は**この 2 つで全部**であることを、レビューも確認した。
+
+### マージの自動解消が 1 箇所間違えていた
+
+`test_api_conventions.py` の経路の並びで、`/players/status-preview` と
+`/players/status-apply` が `/players/{player_id:uuid}` より**前**に入っていた。
+**実体は後ろ**である。
+
+```
+At index 7 diff: ('/players/{player_id:uuid}', GET)
+              != ('/players/status-preview', POST)
+```
+
+**#95 の取り込みでこの試験を set から順序つき tuple へ締めていたので検出できた。**
+当時は「依頼していない変更」として報告した箇所だが、**set のままなら並び違いは
+黙って通っていた**。`test_api_app.py` が固定している並びへ揃えた。
+
+### 通常レビューの指摘(`codex_run.py review normal`)
+
+**判定は否決(P0 0 / P1 3 / P2 0)。**
+
+| # | 指摘 | 採否 |
+| --- | --- | --- |
+| 1 | **並びの修正が未ステージ**(作業ツリーは通るがインデックスは落ちる) | **採用。** ステージした |
+| 2 | `contracts/tenant_boundary/base-allowlist.json` が #114 の **rev26 のまま**。凍結射影が `c53eb806…` → `3c0bb1e9…` へ動いている | **ステップ 13 の入力として記録**(下記) |
+| 3 | `contracts/tenant_boundary/runtime-authz-contract.json` が **rev12 のまま**。凍結射影が `c3564a4d…` → `806b4c84…` へ動いている | 同上 |
+
+**2・3 は計画書 4 節が宣言した既知の赤窓そのものである。**
+
+> **既知の赤窓**: ステップ 4 以降、凍結資産が動いた時点から**ステップ 13 まで**
+> `frozen_history` 系ゲートは赤。**各ステップの合格条件からこのゲートを明示的に除外する**。
+> `acceptance_id` は PR 番号と突合されるため、**ステップ 13 は PR 作成後**になる。
+
+**ただし指摘は有用である。** どの資産がどの値へ動いたかを特定してくれたので、
+**ステップ 13 で突き合わせる入力**になる。
+
+### ステップ 13 の入力(レビューが特定した分)
+
+| 資産 | 現在の版 | 凍結射影の記録値 → 実測値 |
+| --- | --- | --- |
+| `contracts/tenant_boundary/base-allowlist.json` | rev26(#114 のまま) | `c53eb806…` → `3c0bb1e9…` |
+| `contracts/tenant_boundary/runtime-authz-contract.json` | rev12(#114 のまま) | `c3564a4d…` → `806b4c84…` |
+
+**ステップ 13 で版と `current_identifiers` を進め、`runtime-authz-contract.json` は
+`source_digest` も再計算する。** 受理記録は PR 番号を鍵にする履歴 1 件。
+**上の値は実測し直してから使うこと**(ステップ 10 第3段と PR 作成で、さらに動きうる)。
+
+### 実測
+
+| 対象 | 結果 |
+| --- | --- |
+| backend 非 DB | **1344 passed / 4 skipped**。赤 **2 件** |
+| `check_shared_preconditions` | exit 0 |
+| `test_schema_manifest` | 14 passed |
+| `test_api_conventions.py` + `test_api_app.py` | 15 passed |
+
+**赤 2 件はステップ 10 第3段の再封印待ち。**
+
+### `/api` 接頭辞の申し送り(uf6 から)
+
+uf6 が「vite の proxy は `/api` を残して転送するが、backend は接頭辞なしで待っている」を
+山田さんへ上げている。**δ の入口 3 本は接頭辞なし**(`/auth/login` ほか)で、
+develop の既存経路(`/players`・`/team-records` ほか)と揃っている。
+
+**δ の `route_id` に path は入っていない**(`ROUTE:AUTH:login:create`)ので、
+**裁定がどちらに転んでも登録は無効にならない**。影響するのは
+**ステップ 12 で PR 本文に書く method/path だけ**で、PR を出す直前に確定すれば足りる。
+
