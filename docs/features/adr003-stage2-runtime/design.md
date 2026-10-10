@@ -101,6 +101,8 @@ Node の起動から初回応答までは 32.6345 ms。RSS の 2 値はそれぞ
 
 **ゲート ② の決定(2026-10-11・山田正輝)**: **常駐 Node を採用する**。backend の実行環境に Node 24.16.0(`mise.toml` と同じ版)を同梱し、FastAPI から常駐プロセスとして使う。ステップ 2 は Node 選択時の合格条件(本番用の Node の版・配布・起動の固定)で進める。quickjs-ng の試験(`tests/domain/runtime/test_quickjs_engine.py`)は不採用の根拠として残す(quickjs-ng が無い環境では skip)
 
+**配布定義の追加(2026-10-11・山田正輝)**: 本番の配布定義がリポジトリに無かった(開発 DB の `docker-compose.yml` のみ)ため、**ステップ 2 で `backend/Dockerfile` を新設し Node 24.16.0 を同梱する**(本番の CPU は x86_64・aarch64 の両方)。計画書を改訂し、計画レビューを経て再承認を得る
+
 ## 5. 契約 9 件の順序と依存
 
 | 順 | ID | 中身 | 依存 | 正本 |
