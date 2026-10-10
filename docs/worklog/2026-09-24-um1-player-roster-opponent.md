@@ -495,7 +495,7 @@ branch: feature/um1-player-roster-opponent
 ### 正本への反映
 
 - 要件書・`data-model.md`・ADR: **反映なし**(計画書 3 節)
-- `docs/development/harness-evaluation.md` / `docs/README.md`: 台帳の `## 候補` へ 3 件追記・既存候補 4 件へ実測を追記(版は上げない)・README の台帳行(候補 122 → 125 — 走査で実測)
+- `docs/development/harness-evaluation.md` / `docs/README.md`: 台帳の `## 候補` へ 3 件追記・既存候補 4 件へ実測を追記(版は上げない)・README の台帳行(候補 122 → 125 — 走査で実測。develop `7c8bfdbd`〔#112・#113〕の取り込みで develop 側の 1 件と合わせ 126)
 
 ### 後続へ送ったもの
 

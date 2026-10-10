@@ -100,7 +100,7 @@ U-M1 は pitchlog **最初の製品コード**。主所有 FR は 4 件、**分�
 | `.env.example`(**第 3 改訂で追加・該当するときだけ**) | リクエストの認証の設定値を持つ場合に、名前と説明だけを足す(実値なし — NFR-014。N6) | PR レビュー |
 | `docs/design/data-model.md` / `docs/features/ua1-team-auth/design.md`(**第 3 改訂で確認 — 反映なし**) | **反映なし**。12-8 節の残件の行は δ を「認証の HTTP の入口」の受け取り先としており、データへ届く入口のリクエストの認証を名指していない。`../ua1-team-auth/design.md` 3 節の δ の行(Cookie と CSRF)は作業ディレクトリの記録で、正本ではない。**帰属の変更(依存表 12)は本書と Notion(TSK-470 へのコメント)に記録する** | — |
 | `docs/features/um1-player-roster-opponent/design.md` | **新設**(暫定規約・入口表・DTO 定義)。**第 3 改訂で追記**: リクエストの認証の細部(N6)・発行専用モジュールの名前と置き場(N7) | PR レビュー |
-| `docs/development/harness-evaluation.md` / `docs/README.md`(**`/pr` のクローズ処理で追加**) | 台帳の `## 候補` へ 3 件追記・既存候補 4 件へ実測を追記・変更履歴表に 1 行(版は上げない — 7.6-3 前段)/ `docs/README.md` の台帳行の候補件数(125 — 走査で実測)と最終更新日 | PR レビュー(7.6-3 前段) |
+| `docs/development/harness-evaluation.md` / `docs/README.md`(**`/pr` のクローズ処理で追加**) | 台帳の `## 候補` へ 3 件追記・既存候補 4 件へ実測を追記・変更履歴表に 1 行(版は上げない — 7.6-3 前段)/ `docs/README.md` の台帳行の候補件数(126 — develop `7c8bfdbd` 取り込み後に走査で実測)と最終更新日 | PR レビュー(7.6-3 前段) |
 
 ## 4. 実装方針
 
