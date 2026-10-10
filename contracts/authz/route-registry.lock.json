@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "contracts/authz/route-registry.json",
-  "asset_digest": "0a56f7c327658a5544efa45098e606ba64c5611c2e27c75daa43af79f7ce9160",
-  "entry_count": 237,
-  "aggregate_decision_digest": "4606c9dafb6e946f61f4876ce2a132bc461a6bb909bdccdeb5408077896e650c",
+  "asset_digest": "4c9f90aebf41755813576380452cec0aafc3ca6ebf0b45590bbb55422297c7ec",
+  "entry_count": 240,
+  "aggregate_decision_digest": "11df94bf08a502faf682fc8a4e5c9e9412bc5fc90ce001ed09bc2d74b600f30b",
   "entries": [
     {
       "entry_id": "route:ROUTE:FR-020",
@@ -718,6 +718,46 @@
       "decision_digest": "62d85b022b40a4d7fb6cbb1cce6cdd7d7e9ec0847ada12b9619034fde53f236c"
     },
     {
+      "entry_id": "route:ROUTE:AUTH:login:create",
+      "decision": {
+        "route_id": "ROUTE:AUTH:login:create",
+        "route_kind": "authentication_entry",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "APPENDIX-C/table_row-004",
+          "APPENDIX-C/table_row-006"
+        ],
+        "provenance_ids": []
+      },
+      "decision_digest": "13505d17691a32c1e0a17881bdc9b01e10cadad254eb82636e8a93d345838665"
+    },
+    {
+      "entry_id": "route:ROUTE:AUTH:logout:create",
+      "decision": {
+        "route_id": "ROUTE:AUTH:logout:create",
+        "route_kind": "authentication_entry",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-UA1-AUTH-HTTP-ENTRY"
+        ]
+      },
+      "decision_digest": "1bb89da55d3e2a3b127a7147f9f4f78de959fac93ece72b2a48f7ced3c09f493"
+    },
+    {
+      "entry_id": "route:ROUTE:AUTH:password:update",
+      "decision": {
+        "route_id": "ROUTE:AUTH:password:update",
+        "route_kind": "authentication_entry",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-UA1-AUTH-HTTP-ENTRY"
+        ]
+      },
+      "decision_digest": "ff71f8cba523e6cb8b93d3df722df650f5a2748c1d5905601c1fa3c89c6737bc"
+    },
+    {
       "entry_id": "operation:create_group",
       "decision": {
         "operation_id": "create_group",
@@ -940,20 +980,24 @@
       "decision": {
         "source_id": "APPENDIX-C/table_row-004",
         "location": "http",
-        "disposition": "out_of_registry",
-        "reason_code": "design_pending_task"
+        "disposition": "routed",
+        "route_ids": [
+          "ROUTE:AUTH:login:create"
+        ]
       },
-      "decision_digest": "e32dee119beab2ab0463390cc9029c666c311b4421cc616cbe8acf3975916a57"
+      "decision_digest": "82edaf696ae4559d02e502412ba45092d04eb0175199d62561d4dafcf5f09628"
     },
     {
       "entry_id": "claim_disposition:APPENDIX-C/table_row-006:http",
       "decision": {
         "source_id": "APPENDIX-C/table_row-006",
         "location": "http",
-        "disposition": "out_of_registry",
-        "reason_code": "design_pending_task"
+        "disposition": "routed",
+        "route_ids": [
+          "ROUTE:AUTH:login:create"
+        ]
       },
-      "decision_digest": "a6547e7c1fabbd1e6f8272a0144a73cadb7d0e42d0e0ec0f60f09e1b6a561f49"
+      "decision_digest": "e0e90c13bdd483144854f22e71ea91910cf7704526c24a3006d3feec89c7ecce"
     },
     {
       "entry_id": "claim_disposition:APPENDIX-C/table_row-009:http",

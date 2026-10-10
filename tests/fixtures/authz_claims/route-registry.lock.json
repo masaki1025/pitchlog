@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "route-registry.json",
-  "asset_digest": "8d0f20e7e48f1044223266d042590d8d057924c0286527dc4be2dd86542ee969",
-  "entry_count": 24,
-  "aggregate_decision_digest": "4ce6f268e9a401fa30d8fac631a8d7e16e37404c26be657b5a05fc69d479f09b",
+  "asset_digest": "f71da3899ffaf56703208c49c7ceb835f0af11f049e6e21afaa2ad04e1f9347f",
+  "entry_count": 27,
+  "aggregate_decision_digest": "45edf878269e5a317f8439ac6b00ec157f409438f897525432e0cda64f70f530",
   "entries": [
     {
       "entry_id": "route:ROUTE:FIXTURE:LEGACY",
@@ -314,6 +314,45 @@
         "operation": "update"
       },
       "decision_digest": "62d85b022b40a4d7fb6cbb1cce6cdd7d7e9ec0847ada12b9619034fde53f236c"
+    },
+    {
+      "entry_id": "route:ROUTE:AUTH:login:create",
+      "decision": {
+        "route_id": "ROUTE:AUTH:login:create",
+        "route_kind": "authentication_entry",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "provenance_ids": []
+      },
+      "decision_digest": "f35b875cd295ce1d571ebda0b306944c28598f98660a036f62d58696409def23"
+    },
+    {
+      "entry_id": "route:ROUTE:AUTH:logout:create",
+      "decision": {
+        "route_id": "ROUTE:AUTH:logout:create",
+        "route_kind": "authentication_entry",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "provenance_ids": []
+      },
+      "decision_digest": "d8b4d18b5c4fd04fef46362805ca56fbbc07335ea590e064c3debe22dd518079"
+    },
+    {
+      "entry_id": "route:ROUTE:AUTH:password:update",
+      "decision": {
+        "route_id": "ROUTE:AUTH:password:update",
+        "route_kind": "authentication_entry",
+        "origin": "requirement",
+        "source_claim_ids": [
+          "FR-900/list_item-001"
+        ],
+        "provenance_ids": []
+      },
+      "decision_digest": "9a57d679352ac238e00fd5c71d6117d31614e64202588cfc5b6f22108a676867"
     },
     {
       "entry_id": "operation:fixture_operation",

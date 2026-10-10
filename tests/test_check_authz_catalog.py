@@ -2244,6 +2244,90 @@ def test_record_and_aggregate_rejects_route_outside_approved_set() -> None:
     assert "ROUTE:RECORD:unlisted:insert" in str(error_info.value)
 
 
+def test_authentication_entry_routes_and_claims_match_approved_set() -> None:
+    """認証 3 経路と付録 C の担当 2 主張だけを固定する。"""
+    assets, _locks, _paths = _repository_derived_assets()
+    registry = assets["route_registry"]
+    matrix = assets["http_matrix"]
+    authentication_ids = {
+        route["route_id"]
+        for route in registry["routes"]
+        if route["route_kind"] == "authentication_entry"
+    }
+    assert authentication_ids == {
+        "ROUTE:AUTH:login:create",
+        "ROUTE:AUTH:logout:create",
+        "ROUTE:AUTH:password:update",
+    }
+    assert authentication_ids.isdisjoint(registry["enums"]["operation_ids"])
+    matrix_rows = {
+        row["route_id"]: row for row in matrix["routes"]
+        if row["route_id"] in authentication_ids
+    }
+    assert set(matrix_rows) == authentication_ids
+    assert all(
+        row["matrix_route_id"] == f"HTTP:{route_id}"
+        and row["disposition"] == "conditional"
+        for route_id, row in matrix_rows.items()
+    )
+    appendix = {
+        row["source_id"]: row
+        for row in registry["claim_dispositions"]
+        if row["source_id"].startswith("APPENDIX-C/")
+    }
+    for claim_id in ("APPENDIX-C/table_row-004", "APPENDIX-C/table_row-006"):
+        assert appendix[claim_id] == {
+            "source_id": claim_id,
+            "location": "http",
+            "disposition": "routed",
+            "route_ids": ["ROUTE:AUTH:login:create"],
+        }
+    for claim_id in (
+        "APPENDIX-C/blockquote-001",
+        "APPENDIX-C/table_row-009",
+        "APPENDIX-C/table_row-010",
+    ):
+        assert appendix[claim_id] == {
+            "source_id": claim_id,
+            "location": "http",
+            "disposition": "out_of_registry",
+            "reason_code": "design_pending_task",
+        }
+
+
+def test_authentication_entry_rejects_route_outside_approved_set() -> None:
+    """認証の入口を増減しても exact-set が拒否する。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    registry = copy.deepcopy(assets["route_registry"])
+    route = next(
+        row for row in registry["routes"]
+        if row["route_id"] == "ROUTE:AUTH:logout:create"
+    )
+    route["route_id"] = "ROUTE:AUTH:logout:delete"
+
+    with pytest.raises(
+        checker.CatalogError,
+        match="authentication_entry route の exact-set 不一致",
+    ):
+        _validate_record_and_aggregate_registry(registry, requirement_catalog)
+
+
+def test_routed_claim_disposition_rejects_unlinked_route() -> None:
+    """routed の route_ids は実際の source_claim_ids と一致させる。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    registry = copy.deepcopy(assets["route_registry"])
+    row = next(
+        entry for entry in registry["claim_dispositions"]
+        if entry["source_id"] == "APPENDIX-C/table_row-004"
+    )
+    row["route_ids"] = ["ROUTE:AUTH:logout:create"]
+
+    with pytest.raises(checker.CatalogError, match="source_claim_ids の結線と不一致"):
+        _validate_record_and_aggregate_registry(registry, requirement_catalog)
+
+
 def test_record_and_aggregate_route_requires_operation_key() -> None:
     """新種別の必須キーを一つ欠く route を拒否する。"""
     registry, requirement_catalog = _record_and_aggregate_registry()

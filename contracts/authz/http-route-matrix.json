@@ -421,6 +421,33 @@
         "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:team_records:update",
         "status": "planned"
       }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:AUTH:login:create",
+      "route_id": "ROUTE:AUTH:login:create",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:AUTH:login:create",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:AUTH:logout:create",
+      "route_id": "ROUTE:AUTH:logout:create",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:AUTH:logout:create",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:AUTH:password:update",
+      "route_id": "ROUTE:AUTH:password:update",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:AUTH:password:update",
+        "status": "planned"
+      }
     }
   ],
   "cells": [
