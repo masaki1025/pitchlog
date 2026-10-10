@@ -123,3 +123,11 @@ branch: feature/uf2-auth-state
 | P1-2 | 読み取りが一度だけ失敗して失効したあと、回復すると同じ保存値 A から認証が戻り失効表示も下りる | **不採用**。保存値が A のままなら最後に成功したログイン(=共有 Cookie)も A であり、戻るのが正しい状態。別チームの値が混ざる経路ではない。失効表示が下りるのは状態が正に戻ったため |
 
 - 最後の反映(`f12458e1`・`cdf90d80`・`2e8613a7`)は 2 回目で Codex が確認済み。残る検査は人間の逐行確認
+
+### CI の frontend 失敗(PR #116 — 敵対レビューの上限の後)
+
+- `pnpm exec depcruise src --validate` が `no-unresolvable-dependency` / `no-unknown-dependency: src/stores/authStore.ts → pinia` で失敗。pinia 4.0.3 は入口を `exports` でしか示さず(`main` なし)、dependency-cruiser 18.3.1 は既定で `exportsFields: []`(`src/main/resolve-options/normalize.mjs`)のため。Node・Vite・enhanced-resolve 単体では解決できることを確認
+- PO 決定(2026-10-10): `frontend/.dependency-cruiser.cjs` の解決設定に `exportsFields: ['exports']`・`conditionNames`(dependency-cruiser の設定雛形と同じ値)を足す(pinia だけの alias は採らない)。`forbidden` の規則は変えない。計画書 2 節へ実装中の計画変更として記録
+- 是正(ステップ 1 是正)の後、CI の frontend の全手順(eslint・prettier・vue-tsc・depcruise 違反 0・build・test 843 件)を手元で通した
+- **`/check` に depcruise と build が無い**ため、この落ちは PR 作成後の CI で初めて出た → 台帳の `## 候補` へ 1 件追記(索引の候補件数 129 → 130)
+- この修正は敵対レビューの上限の後に入ったため、検査は人間の逐行確認だけになる(PR 本文に明示)
