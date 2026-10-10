@@ -3,7 +3,7 @@ status: in-review
 ---
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
-| 0.1 | 2026-10-10 | **新設(起案 — U-A1 δ・TSK-470)**: DB ログ設定〔束縛値を出さない 2 設定〕・DB 接続の経路〔ループバック TCP の裁定を含む〕・レート制限と有効期限の設定値の投入〔5 キー・fail-closed〕・カウンタの累積量の監視の 4 項。**実配備先での確認は未実施**で、各項に確認欄を置いた。**射程宣言を 0 節へ追加し確定ゲートへ投入**。**確定ゲート 反映1周目** — 敵対レビュー 1 回目(全文・sol xhigh)の P0 1 / P1 8 / P2 1 を**全件採用** | in-review |
+| 0.1 | 2026-10-10 | **新設(起案 — U-A1 δ・TSK-470)**: DB ログ設定〔束縛値を出さない 2 設定〕・DB 接続の経路〔ループバック TCP の裁定を含む〕・レート制限と有効期限の設定値の投入〔5 キー・fail-closed〕・カウンタの累積量の監視の 4 項。**実配備先での確認は未実施**で、各項に確認欄を置いた。**射程宣言を 0 節へ追加し確定ゲートへ投入**。**確定ゲート 反映1周目** — 1 回目(全文)の P0 1 / P1 8 / P2 1 を**全件採用**。**反映2周目** — 2 回目(反映差分+影響節)の P0 0 / P1 5 / P2 2 を**全件採用**(全件起因)。**基本枠 2 回を使い切り、P0 ゼロで収束** | in-review |
 
 # 認証の入口を配備するときの前提
 
@@ -159,8 +159,19 @@ DB の接続資源は**最初のログイン要求のときに作られ、そこ
 
 ### 投入の手順
 
-**実行する主体**: `public.system_settings` へ書ける権限を持つ接続
-(アプリ用ロールではない。表の所有側か DB 管理者)。**アプリ用ロールに書き込み権限を足さない。**
+**実行する主体**: **DB 管理者(superuser)の接続。**
+
+**表の所有側では通らない。** `public.system_settings` は
+`ENABLE` に加えて **`FORCE ROW LEVEL SECURITY`** が設定されており
+(`contracts/authz/product/function-bodies/tables/system_settings.sql`)、
+**`FORCE` は表の所有者にも適用される**。置かれているポリシーは
+**アプリ用ロールの `SELECT` 1 本だけ**で
+(`POLICY:system_settings:global_read_only.sql`)、
+**どのロールにも書き込みを許すポリシーが無い**。
+
+したがって投入できるのは、**RLS を迂回できる主体 = superuser** である
+(`BYPASSRLS` を持つ関数所有用ロールは `NOLOGIN` なので接続できない)。
+**アプリ用ロールに書き込み権限を足さない。** 書き込みポリシーも足さない。
 
 **既存行がありうるので、投入は冪等にする。** 同表は `key` の更新を不変トリガが禁じているため、
 **`key` は変えず `value` だけを更新する**形にする。
@@ -179,11 +190,17 @@ ON CONFLICT (key) DO UPDATE
 **`updated_at` を明示して更新する。** 列には既定値があるが、それが効くのは `INSERT` のときだけで、
 `DO UPDATE` の側では更新されない。
 
-**投入したら読み戻して確かめる。**
+**投入したら読み戻して確かめる。5 行返ることを見る。**
+**前置き一致(`LIKE 'auth.team_login.%'`)で引かない** — 残すと決めた旧 2 キー
+(`max_failures` / `lock_seconds`)も返り、件数が合わなくなる。
 
 ```sql
 SELECT key, value FROM public.system_settings
- WHERE key = 'auth.token_ttl_seconds' OR key LIKE 'auth.team_login.%'
+ WHERE key IN ('auth.token_ttl_seconds',
+               'auth.team_login.window_seconds',
+               'auth.team_login.throttle_threshold',
+               'auth.team_login.throttle_step_ms',
+               'auth.team_login.throttle_max_ms')
  ORDER BY key;
 ```
 
