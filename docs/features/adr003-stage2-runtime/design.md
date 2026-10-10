@@ -39,7 +39,7 @@ frontend/src/domain/            TS 正本(人手で保守する唯一の実装 �
 ```
 
 - **manifest は置かない**(1 周目 P1-6 で、報告経路への接続を本タスクに含めた): `backend/domain/manifest.json` を置くと consistency ジョブが `CheckerExecutionError` で落ちる(`backend/src/pitchlog/domaincheck/boot/report.py:227-231`)。schema は `calculations[]` 1 件以上を要求し、段階 2 判定器は 13 対象 ID 以外を拒否する。**manifest を置くのは U-X1 の最初の対象計算の PR**。本タスクはその前提となる収集器と `boot/report.py` への接続(ステップ 14)を用意し、manifest ありの一時リポジトリで未解消一覧を出せることを試験で固定する
-- **artifact の置き場**: ブラウザ配信用は `frontend/public/` 配下(無変換配信の唯一の道 — research.md §3)。サーバーは同じファイルをリテラルパスで読む。配布物への同梱方法(`tests/test_packaging.py:268-303` は `backend/domain` の JSON を wheel に含めないことを固定)は**ステップ 7 で決め、design.md に追記する**
+- **artifact の置き場**: ブラウザ配信用は `frontend/public/domain/pitchlog-domain.js` と SHA-256 宣言 `pitchlog-domain.json`(無変換配信の唯一の道 — research.md §3)。サーバー実行イメージはリポジトリルートをビルドコンテキストとし、両ファイルを root 所有で同じ相対配置の `/app/frontend/public/domain/` に COPY する。仮想環境も root 所有で COPY し、実行ユーザーに Node ホストを書き換えさせない。Python の製品入口はコンテナ内の固定基準 `/app`、ソース実行時は `host.py` の固定相対配置から導くリポジトリルートを基準に、両リテラルパスを読む。SHA-256 照合済みのソースだけを Node に渡す。Node ホスト `node_host.mjs` は `pitchlog.domainrt` の package-data として wheel のパッケージ内に同梱し、`host.py` の隣から読む。`backend/domain` の規範 JSON は wheel に含めない(`tests/test_packaging.py:268-303`)。
 - **R-b**(TSK-455 送り — `docs/features/vitest-vector-runner/design.md:126`): `frontend/src/testing/vectorRunner.ts` と spec 2 本をコア登録の対象に含める(ステップ 17・18)
 
 ## 3. 条文の要求と担保の対応

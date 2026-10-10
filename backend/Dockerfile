@@ -14,8 +14,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/backend/.venv/bin:${PATH}"
 WORKDIR /app/backend
 RUN groupadd --system pitchlog && useradd --system --gid pitchlog --home-dir /app/backend pitchlog
-COPY --from=build --chown=pitchlog:pitchlog /app/backend/.venv ./.venv
+COPY --from=build /app/backend/.venv ./.venv
 COPY --from=node_runtime /usr/local/bin/node /usr/local/bin/node
+COPY frontend/public/domain/pitchlog-domain.js /app/frontend/public/domain/pitchlog-domain.js
+COPY frontend/public/domain/pitchlog-domain.json /app/frontend/public/domain/pitchlog-domain.json
 USER pitchlog
 EXPOSE 8000
 CMD ["uvicorn", "pitchlog.main:app", "--host", "0.0.0.0", "--port", "8000"]

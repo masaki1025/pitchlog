@@ -69,3 +69,27 @@ def test_runtime_uses_non_root_user() -> None:
     users = re.findall(r"^USER\s+(\S+)\s*$", runtime[1], flags=re.IGNORECASE | re.MULTILINE)
     assert users
     assert users[-1] not in {"root", "0", "0:0"}
+
+
+def test_runtime_assets_are_copied_without_chown() -> None:
+    """artifact・宣言・仮想環境を実行ユーザーの所有物にしない。"""
+    copy_lines = [
+        line.strip()
+        for line in DOCKERFILE.read_text(encoding="utf-8").splitlines()
+        if line.lstrip().upper().startswith("COPY ")
+    ]
+    expected_copies = {
+        "/app/backend/.venv": "COPY --from=build /app/backend/.venv ./.venv",
+        "frontend/public/domain/pitchlog-domain.js": (
+            "COPY frontend/public/domain/pitchlog-domain.js "
+            "/app/frontend/public/domain/pitchlog-domain.js"
+        ),
+        "frontend/public/domain/pitchlog-domain.json": (
+            "COPY frontend/public/domain/pitchlog-domain.json "
+            "/app/frontend/public/domain/pitchlog-domain.json"
+        ),
+    }
+    for source, expected in expected_copies.items():
+        matching = [line for line in copy_lines if source in line.split()]
+        assert matching == [expected]
+        assert all("--chown" not in line.lower() for line in matching)
