@@ -12088,7 +12088,7 @@
             "contract_revision:11"
           ],
           "contracts/tenant_boundary/census-baseline.json": [
-            "contract_revision:10"
+            "contract_revision:11"
           ],
           "contracts/tenant_boundary/db-api-inventory.json": [
             "inventory_revision:12"
@@ -12139,10 +12139,11 @@
           ]
         },
         "change": {
-          "subject": "TSK-447: キャッシュ無効化契約 revision 11 と在籍区分変更の意図記録境界を正本 v0.7 B06 に追随させる",
+          "subject": "TSK-447: 正本 v0.7 B06 のキャッシュ無効化・在籍区分変更と TB004 センサス基準を追随させる",
           "aspect": [
             "asset_snapshots",
-            "declaration"
+            "declaration",
+            "external_snapshots"
           ],
           "before": {
             "declaration": {
@@ -12675,7 +12676,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:10"
+                    "contract_revision:11"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -13030,8 +13031,8 @@
               },
               {
                 "path": "tests/test_census_baseline_check.py",
-                "sha256": "f7273e41d02920429505f08daedf532cbe5062a1e32e8e1e642d4ceb10c6a13b",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f7273e41d02920429505f08daedf532cbe5062a1e32e8e1e642d4ceb10c6a13b"
+                "sha256": "9bb59e6adc254996bc8e4bfb933cd4bc1fd45419cb8243b5f8c58fae0564e5ed",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9bb59e6adc254996bc8e4bfb933cd4bc1fd45419cb8243b5f8c58fae0564e5ed"
               },
               {
                 "path": "tests/test_ci_wiring.py",
@@ -13057,8 +13058,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "ee0aefafa575ffbe4049997d3661b9a0d811196497a90c0485ad69e71c2e9915",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/ee0aefafa575ffbe4049997d3661b9a0d811196497a90c0485ad69e71c2e9915"
+                "sha256": "de954d37e255964a16d4ef52980da3d0ec8025c6d572c25a0ce15858a9c47b09",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/de954d37e255964a16d4ef52980da3d0ec8025c6d572c25a0ce15858a9c47b09"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
@@ -13093,8 +13094,8 @@
             ]
           }
         },
-        "movement_fact": "比較元は origin/develop の f79c14e0082f3d129992a244f740bcf5a139c997。実内容の movement は contracts/tenant_boundary/base-allowlist.json、contracts/tenant_boundary/cache-invalidation-contract.json、contracts/tenant_boundary/repository-contract.json に及ぶ。変更前後の全資産射影と外部実装を内容アドレス snapshot で固定した。",
-        "reason": "正本 data-model.md v0.7 B06 に従い、キャッシュ無効化契約 revision 11 の同期を通らないトリガーと選択子、ならびに在籍区分変更の意図記録 token と repository 契約 revision 14 を追加したため、テナント境界の凍結基準を更新する。",
+        "movement_fact": "比較元は origin/develop の 8df9f3d102982ea636fbba2ddea91a75c1eab773。実内容の movement は contracts/tenant_boundary/base-allowlist.json、contracts/tenant_boundary/cache-invalidation-contract.json、contracts/tenant_boundary/repository-contract.json、contracts/tenant_boundary/census-baseline.json に及ぶ。変更前後の全資産射影と外部実装を内容アドレス snapshot で固定した。",
+        "reason": "正本 data-model.md v0.7 B06 に従うキャッシュ無効化契約 revision 11 と在籍区分変更の意図記録 token・repository 契約 revision 14 に加え、宣言済み SharedAggregateTargetSelector の許可による TB004 抑止を許可シンボルの反実仮想で実測するため census 基準を revision 11 へ更新した。anchor は変更しない。",
         "approved_by": "山田正輝",
         "approved_on": "2026-10-10"
       }

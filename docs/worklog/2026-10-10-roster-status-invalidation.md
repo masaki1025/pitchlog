@@ -117,6 +117,16 @@ branch: feature/roster-status-invalidation
   - 2 回目: **可決**
 - 実 DB テスト(Claude): `test_roster_status_boundary.py`・`test_roster_boundary.py`・`test_api_app.py` 41 passed。差し戻し後の 1 件の失敗はテストの期待値の誤り(404 の本文を FastAPI 既定の `{"detail": "Not Found"}` と期待していた — 既存の約束 `{"error": {"message": "対象が見つかりません"}}` へ Claude が直した)
 
+### ステップ 5(受理記録の最終導出・センサス基準)
+
+- ステップ 4 のコミット後に `tests/test_census_baseline_check.py` が 5 件失敗: ステップ 2 で `SharedAggregateTargetSelector` を TB004 の許可呼び出しに足したことで抑止された検出 4 件(`players.py` の import と呼び出し・`invalidation_intents.py` の import と呼び出し)が、センサス基準の「許可による抑止の実測集合」に無かった。**ステップ 2 の合格条件にセンサスのテストを入れていなかった**ため、ステップ 2〜4 のコミットはこのテストで赤のまま(台帳候補 — クローズ処理で判断)
+- Codex 委任: センサス基準 revision 11(TB004 の許可呼び出しの追加による抑止を、許可シンボルを anchor の値へ戻した反実仮想で実測する導出を宣言)・`test_census_baseline_check.py` の判定と負例、PR #114 の記録 1 件の再導出・snapshot・比較 corpus
+- develop が `8df9f3d1`(#115 — 文書だけ)へ進んだ。`contracts/` は不変なので取り込まず、記録の比較元だけ新しい develop にした(CI も PR の base を新しい develop で評価する)
+- 敵対レビュー:
+  - 1 回目: 否決(P1 2)→ 採用。anchor を進めた後に差分ゼロで赤になる / 公開シンボルだけの追加で赤になる → 追加 0 件なら抑止 0 件として受理、追加集合の同一性要求を外して実測した抑止のコードとシンボルだけを照合、4 箇所の固定照合は本 PR の版に限定
+  - 2 回目: 否決(P1 1)→ 採用。記録の `change.after.declaration` でセンサス基準の識別子が `contract_revision:10` のまま(実資産は 11)。**ローカルの迂回検査は PR 受理モード(`GITHUB_EVENT_NAME=pull_request`)ではないので通ってしまう** → 9 資産すべての `change.before`/`after` を比較元と作業ツリーから機械的に導出し直した。PR 受理モードの履歴検証関数を一時 event で直接実行して ok(Codex)。CLI での確認は二親マージの HEAD を要するので CI で確認する。**上限到達のため本反映は再レビューせず**
+- 合格条件: 凍結履歴・センサス・比較 corpus 185 passed / 迂回検査 ok(Codex)
+
 ## 決定
 
 - J1 同期を通らない 9 トリガーの規則は `data-model.md` 11-2 に新設(実装はトリガー 14 だけ)/ J2 確定ゲート / J3 意図は対象テナント単位の粗い 1 行・展開は配信側 / J4 配信はその範囲のキャッシュ本体を初めて導入する単位(2026-10-10・山田正輝)
