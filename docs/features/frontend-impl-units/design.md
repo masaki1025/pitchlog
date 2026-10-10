@@ -305,7 +305,7 @@ date: 2026-10-09
 
 | 候補 | ① 含む面 | ② 担う FR の面（候補） | ④ 依存する面・既存単位 |
 | --- | --- | --- | --- |
-| **U-F1 共通表示** | `components/ui/**`、`index.css`、`lib/queryClient.ts`・`registerServiceWorker.ts`・`teamSearch*`。汎用の表示・取得補助。 | FR-002 の入力操作、FR-020〜023 の表示に共通する UI 器具。個別の記録・集計の成立判定は利用画面側。 | 現行 frontend の起動基盤。ほかの候補への実装依存はない。 |
+| **U-F1 共通表示** | `components/ui/**`、`index.css`、`lib/queryClient.ts`・`registerServiceWorker.ts`・`teamSearch*`。汎用の表示・取得補助。**注記(2026-10-10・PO 決定): `registerServiceWorker.ts` は `public/sw.js` とあわせて TSK-533 へ切り出した(U-F1 の計画書 `../uf1-common-ui/plan.md` 2 節)。** | FR-002 の入力操作、FR-020〜023 の表示に共通する UI 器具。個別の記録・集計の成立判定は利用画面側。 | 現行 frontend の起動基盤。ほかの候補への実装依存はない。 |
 | **U-F2 認証状態** | `stores/authStore.ts`。全画面に渡す認証主体・チーム・役割の境界。 | FR-033 のセッション保持、FR-034 のクライアント側認可源。 | 認証・テナント契約 `U-A1`・`U-T1`。 |
 | **U-F3 ログイン** | `screens/LoginScreen.tsx`。 | FR-033 のログイン入力・失敗表示面。 | `U-F1`・`U-F2`・`U-F6`、認証契約 `U-A1`。 |
 | **U-F4 利用ガイド** | `screens/HelpScreen.tsx`。 | FR-002 の入力操作と FR-012 の断中操作を利用者へ説明する補助面。要件書「8. 完了条件・リリース判定基準」の利用ガイドにも接する。 | `U-F1`・`U-F2`。記録・同期の実装には依存しない。 |
