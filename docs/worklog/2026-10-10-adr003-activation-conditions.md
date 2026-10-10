@@ -520,3 +520,45 @@ check_authz_catalog.py: source blob digest が不一致:
 3. **上の 7.7-2 記録の 1〜3 の内容が正しいか**
 
 **この 3 点が決まるまでステップ 9 は進めない。**
+
+### ステップ 9 の実行(2026-10-11・PO 承認を得て再開)
+
+**PO 裁定**: ① `--reseal-oracle` を実行してよい / ② **`review_policy` の再レビューは発火しない**(追随であって改訂ではない)/
+③ 7.7-2 記録の内容は正しいが**置き場が worklog ではなく台帳**。
+
+**② の根拠(実測)**: `contracts/authz/frozen-baselines.json` の `history` に **受理記録が 4 件**あり、
+**すべて `series: oracle_input`**、`acceptance_id` は **PR 番号**(#73 / #77 / #81 / #95)。
+**直前の #95 は `1f32e12a` → `cc949c69`** で、**今回と同型の「入力資産が変わったので oracle_commit を進める」操作**である。
+**4 件のいずれも `return_to_step_5_and_re_review` を実行していない。**
+**`changes` 欄は #81・#95 とも 0 件**で、**同一性の粒度・識別値の解釈を変えていない**ことを意味する。
+**今回も `oracle_commit_semantics` は不変で `changes` は 0 件になる。**
+
+**`oracle_change_in_revision_2_or_later` の「改訂」は authz 検証タスク自身の改訂を指し、
+下流タスクが入力の変化を追う「追随」は含まない** — **先例 4 件がその読みで運用されている**
+(**ただし「改訂」の定義を明文で書いた条文は見つからなかった。先例による読みである**)。
+
+### 再封印で踏んだ 4 段
+
+| # | 止まった箇所 | 対処 |
+| --- | --- | --- |
+| 1 | `oracle input blob が不一致` | `--reseal-oracle` では直らない |
+| 2 | `oracle commit 上の blob が不一致` | **`oracle_commit` 自体は手で進める**(TSK-509 が止まった箇所)。`0749afaa`(ステップ 8)へ。`input_assets` 8 件の digest も実値へ |
+| 3 | `ddl_elements: oracle_commit が seal と不一致` | **`sealed_assets` 6 件が旧 `oracle_commit` を持っていた**。各 1 箇所を置換 |
+| 4 | `boundary proposal の oracle_commit が基準版と不一致` | **台帳 `frozen-baselines.json` の `history` が旧識別値のまま** — **下記の順序制約により、ここで止める** |
+
+### 順序の制約が出た — 台帳記録は PR 作成後にしかできない
+
+**7.7-2 の記録は `frozen-baselines.json` の `history` へ積む。**
+**その `acceptance_id` は PR 番号である**(`acceptance.acceptance_id_source: "repository_and_pr_number"`。
+先例 4 件はすべて `masaki1025/pitchlog#NN`)。
+
+**一方、設計書 7.7-2 は「基準の履歴は追記のみとする。既存の記録を書き換える変更・削除する変更を受理しない」と定める。**
+
+**したがって仮の `acceptance_id` を書いて後から直すことができない。**
+**PR 番号が確定するまで台帳へ記録できず、それまで `check_authz_catalog` は red のままになる。**
+
+**先例もこの順序である** — `history` の 4 件はいずれも **PR のレビュー中に積まれた**
+(コミット名「develop 取り込み後の authz 派生資産を再導出する」「凍結基準の履歴に #95 の記録を積み直し」等)。
+
+**進め方**: **ステップ 10 を先に済ませ、`/pr` で PR を作り、その番号で台帳へ 7.7-2 記録を積む。**
+**`human_require_review` は PR の人間の逐行確認で満たす**(先例 4 件も PR の受理を承認の単位にしている)。

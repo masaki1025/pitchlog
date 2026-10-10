@@ -1,40 +1,40 @@
 {
   "schema_version": 1,
   "asset_kind": "authz_oracle_seal",
-  "oracle_commit": "cc949c690a7da6d7e719561f9fa02153e1857610",
+  "oracle_commit": "0749afaa4b3c6f6ae007f38cbe951f6540330667",
   "oracle_commit_semantics": "last_committed_step_4_input_baseline",
   "input_assets": [
     {
       "path": "contracts/authz/requirement-claims.json",
-      "git_blob_digest": "2d4edf5eb98616d92dab0fa524f4477e27fccf29"
+      "git_blob_digest": "6b74d640aa7f443a40dd6f914cdebb2fadd9b47e"
     },
     {
       "path": "contracts/authz/requirement-claims.lock.json",
-      "git_blob_digest": "95bac6bb3995db5d37487ec98ea74dc96bf58453"
+      "git_blob_digest": "75f16167fae0aa9240465eae1081f0300848d6eb"
     },
     {
       "path": "contracts/authz/route-registry.json",
-      "git_blob_digest": "161091975b90d4b017df24a9ec4dd054701f5be9"
+      "git_blob_digest": "f8070dfb3623134b1c48a1f9eafe79fd2f2a5bd0"
     },
     {
       "path": "contracts/authz/route-registry.lock.json",
-      "git_blob_digest": "fc47f9985f3f550f475611a5b0c1d96f41cfd2ab"
+      "git_blob_digest": "12bfbd2717ac0510229a85b867ed536cba197f0c"
     },
     {
       "path": "contracts/authz/auth-catalog.json",
-      "git_blob_digest": "2e640e96beef63f61a79b5135bfd34f076d55e36"
+      "git_blob_digest": "9c588a9cc43fd2e2cffa9b17f8e64a9ce4e8b151"
     },
     {
       "path": "contracts/authz/auth-catalog.lock.json",
-      "git_blob_digest": "ebf9a0cc86a0fd481f7cb95c0c0aa8b998d08909"
+      "git_blob_digest": "bb6d66b28c76f22c244a19ad103ab5ea238c40e0"
     },
     {
       "path": "contracts/authz/http-route-matrix.json",
-      "git_blob_digest": "335390c33e0428ac68b21b53336af6ab073e7a7b"
+      "git_blob_digest": "3f5c0480a478c6cb305b60c43fc5d04d262125b1"
     },
     {
       "path": "contracts/authz/http-route-matrix.lock.json",
-      "git_blob_digest": "a8af783d35ce464bc907d6189bd7be9d1e38aacd"
+      "git_blob_digest": "40f6ef98b40ff535fa334ebe3e89199f9070aca9"
     }
   ],
   "sealed_assets": [
