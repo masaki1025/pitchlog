@@ -1,6 +1,6 @@
 ---
 feature: uf1-common-ui
-status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-10・山田正輝) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -112,6 +112,7 @@ Tailwind クラスの一致と試験で確かめる。`.ts` も逐語で置か�
 | J | `teamSearch` の試験 | `node:test` の `.test.mjs` → **Vitest の `.spec.ts`**。4 ケースの入力と期待値は変えない。`assert.deepEqual`(strict)→ `toStrictEqual`、`equal` → `toBe`、undefined → `toBeUndefined` | NFR-019(要件書 `:969`)がフロントのランナーを Vitest に固定。旧の `.test.mjs` を残すと Vitest の既定 include に拾われ失敗する見込み(research.md 4-6 節)。移植規則に `.test.mjs` の定めが無い(`frontend-impl-units/design.md:13`)ため逸脱として記録する |
 | K | `.ts` の作り方 | `queryClient.ts`・`teamSearch.ts` は**逐語で置かず書き起こす**。`.prettierignore` に足さず、Prettier を全ファイルに適用する | PO 決定 2026-10-10(ADR-002:34)。`porting-rules.md` 7 節の Prettier 対象外は「受入条件が逐語比較であるファイル」に限るため、本タスクの `.ts` は当たらない |
 | L | `Button` の active の色 | **active のときは variant 側の競合する色クラス(背景・枠線色・文字色とそれぞれの `dark:` 版)を外し、`activeCls` を効かせる**。形・寸法・`hover:`・`active:`(押下)・`disabled:` のクラスは残す | 実装中の計画変更(PO 決定 2026-10-10)。ステップ 4 のビルド CSS の規則順序で、`sky` 系の active クラスは danger の背景以外すべて variant 側に負け、active の見た目が効かないと判明(tailwindcss 4.3.3 — ステップ 4 のコミット本文)。旧と同じクラス構成の欠陥(旧 4.3.2 でも同じと推論)を、旧の意図(選択中を示す)どおりに直す。I-28 の「改善既決」ではない旧挙動からの逸脱のため、PO 決定として記録する |
+| M | `Sheet` の重ね表示のキー操作 | **開いている Sheet をモジュール全体の積み重ね(開いた順)で管理し、最前面の 1 枚だけが Escape と Tab を処理する** | 実装中の計画変更(PO 決定 2026-10-10 — PR #113 敵対レビュー 1 回目 P0)。各 Sheet が `window` の capture 段階に keydown を登録し、`stopPropagation()` は同じ対象(window)の後続リスナーを止めないため、2 枚重ねて Escape を押すと両方が `close` を通知していた。旧 `Sheet.tsx:100-118` も同じ構造の欠陥。I-28 の「改善既決」ではない旧挙動からの逸脱のため、PO 決定として記録する |
 
 ### 照合の手順(H-59 — 照合した項目を先に列挙してから合否を述べる)
 
@@ -122,7 +123,7 @@ Tailwind クラスの一致と試験で確かめる。`.ts` も逐語で置か�
 3. props / emits — 名前・型・必須性・既定値が 1:1。callback prop(`onClose`)は `defineEmits` の `close`(規則 `porting-rules.md` 3 節)
 4. 座標変換 — 3 部品とも座標計算なし → 「非該当」と書く
 
-`Button` の active かつ result/secondary/chip では `bg-white` と `bg-sky-100` が同時に付く(旧 `:22-24,30,34`)。どちらが勝つかは class の並びでなく生成 CSS の規則の順序で決まるため、**ステップ 4 でビルドした CSS の規則の順序を確かめて勝敗を記録する**(現行 tailwindcss 4.3.3。旧の解決版は 4.3.2 — research.md 4-3 節の照合。版差で順序が変わりうる点は記録に残す)。画面全体の見た目の照合は利用画面の移植時に行う(計画レビュー 2 回目 P1)。
+**旧** `Button` では active かつ result/secondary/chip のとき `bg-white` と `bg-sky-100` が同時に付いていた(旧 `:22-24,30,34`)。ステップ 4 でビルド CSS の規則順序を確かめた結果、sky 系の active クラスは danger の背景以外すべて負けていたため(ステップ 4 のコミット本文)、**決定 L で active 時は競合する色クラスを外す形に改めた**。現在の合格条件は「active 時に外す色クラスが付かず、activeCls が付く」こと(ステップ 4 是正のコミット)。画面全体の見た目の照合は利用画面の移植時に行う(計画レビュー 2 回目 P1・PR #113 敵対レビュー 1 回目 P2)。
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
@@ -134,7 +135,7 @@ Tailwind クラスの一致と試験で確かめる。`.ts` も逐語で置か�
 | 4 | **`Button` を移植する** — `components/ui/Button.vue` と `Button.spec.ts`。`eslint.config.js` に決定 H の `ignores` を足す(本ステップで 3 名すべて) | 4 点判定を項目ごとに列挙(① 非該当 ② variant 6 種・active・keyHint の各クラス集合が旧と一致 ③ props `variant`(既定 `'secondary'`)・`keyHint?`・`active?`(既定 false)が 1:1 ④ 非該当)/ spec: 各 variant のクラス・active・keyHint の `<span>` の有無・attrs と class の fallthrough・`type` の上書き / **`pnpm build` の出力 CSS で `.bg-white` と `.bg-sky-100` の規則の順序を確かめ、active 時にどちらが勝つかをコミット本文に記録する** / `eslint .` green |
 | 5 | **`Toast` を移植する** — `components/ui/Toast.vue`(決定 E・F)と `Toast.spec.ts` | 4 点判定を列挙(① 非該当 ② コンテナ・各トースト・色 4 種のクラス集合が旧と一致 ③ export(`ToastTone`・`useToast`・既定 export の Provider)と `push(message, tone='info', durationMs?)` の引数が 1:1 ④ 非該当)/ spec(fake timers): 最大 5 件(6 件目で最古が消える)・info 4000ms / error 6000ms / `durationMs` 優先・`role="status"`・**Provider の外で `useToast()` を呼ぶと例外**・**`<img src=x onerror=…>` を含む文言が要素にならずテキストで出る**(NFR-023) |
 | 6 | **`Sheet` を移植する** — `components/ui/Sheet.vue`(決定 A〜D)と `Sheet.spec.ts` | 4 点判定を列挙(① 閉じるアイコンの描画結果が決定 D の照合結果(class の差 1 件のみ)と一致することを spec で検査 ② 外枠・背景・パネル(right / bottom / wide)・見出し・閉じるボタン・本文のクラス集合が旧と一致 ③ props `open`・`title`・`side`(既定 `'right'`)・`wide`(既定 false)と emit `close` が 1:1 ④ 非該当)/ spec: 閉じているとき何も描かない・body へ Teleport・`role="dialog" aria-modal aria-label`・開くと閉じるボタンへフォーカス・Escape で `close`・Tab / Shift+Tab の循環・閉じたら元の要素へフォーカスが戻る・背景ロック(`#app` が `inert`+`aria-hidden`、body の overflow が `hidden`、閉じると復元)・**2 枚重ねて 1 枚閉じてもロックが残り、2 枚目を閉じると解ける**(参照カウンタ)・背景クリックで `close`・**`open=true` のままマウントしても、開いた直後と同じ状態(閉じるボタンへフォーカス・背景ロック・Escape と Tab が効く)になる**・**開いたままアンマウントしてもロックが解ける**・**title に HTML を入れてもテキストで出る**(NFR-023) |
-| 7 | **移植規則と単位定義へ追記し、下流へ申し送る**(Claude) — ① `porting-rules.md` に「U-F1 で追加した不可避差分」節を足す。**載せるのは決定 A・B・C・D・E・F・H・J・K・L の 10 件**(L は旧からの意図的な逸脱として、K は「U-F1 から `.ts` を逐語で置かず書き起こす — PO 2026-10-10」の方針として載せる。G・I は既存規則どおりのため載せない)。D は照合結果(パス・svg 属性は一致、class に `lucide-x-icon` が 1 つ増える)を書く ② `frontend-impl-units/design.md` の U-F1 行に「`registerServiceWorker.ts` は TSK-533 へ切り出し(PO 2026-10-10)」を注記 ③ research.md「下流への申し送り」の 4 件を、宛先 6 単位(U-F2・U-F5・U-F7・U-F8・U-F10・U-F12)の Notion カードへコメントで届け、各コメントの宛先と日付を worklog に記録する | ① の節に 10 件すべてがあり 4 節の決定表と食い違わない / ② の注記がある / ③ worklog に 6 カード分の記録がある / `uv run python scripts/check_plan_docs_sync.py` が 3 節の宣言(正本の反映なし)と矛盾しない |
+| 7 | **移植規則と単位定義へ追記し、下流へ申し送る**(Claude) — ① `porting-rules.md` に「U-F1 で追加した不可避差分」節を足す。**載せるのは決定 A・B・C・D・E・F・H・J・K・L・M の 11 件**(L・M は旧からの意図的な逸脱として、K は「U-F1 から `.ts` を逐語で置かず書き起こす — PO 2026-10-10」の方針として載せる。G・I は既存規則どおりのため載せない)。D は照合結果(パス・svg 属性は一致、class に `lucide-x-icon` が 1 つ増える)を書く ② `frontend-impl-units/design.md` の U-F1 行に「`registerServiceWorker.ts` は TSK-533 へ切り出し(PO 2026-10-10)」を注記 ③ research.md「下流への申し送り」の 4 件を、宛先 6 単位(U-F2・U-F5・U-F7・U-F8・U-F10・U-F12)の Notion カードへコメントで届け、各コメントの宛先と日付を worklog に記録する | ① の節に 11 件すべてがあり 4 節の決定表と食い違わない / ② の注記がある / ③ worklog に 6 カード分の記録がある / `uv run python scripts/check_plan_docs_sync.py` が 3 節の宣言(正本の反映なし)と矛盾しない |
 
 各ステップ共通: `pnpm exec prettier --check .`・`pnpm exec eslint .`・`pnpm exec vue-tsc --noEmit`・影響する spec が green。
 
@@ -151,7 +152,7 @@ Notion TSK-516 の DoD と同期(括弧内は担当ステップ)。
 - [ ] `pnpm exec vue-tsc --noEmit` / `pnpm test` / `pnpm exec eslint .` / `pnpm exec prettier --check .` / `pnpm build` が green(全ステップ)
 - [ ] 依存 2 件が完全一致の版で入っている(1)
 - [ ] `registerServiceWorker` の切り出し先 TSK-533 が起票され、単位定義に注記されている(起票済み・注記は 7)
-- [ ] 不可避差分と意図的な逸脱(決定 A・B・C・D・E・F・H・J・K・L)が `porting-rules.md` に記録されている(7)
+- [ ] 不可避差分と意図的な逸脱(決定 A・B・C・D・E・F・H・J・K・L・M)が `porting-rules.md` に記録されている(7)
 - [ ] 下流への申し送り 4 件(research.md 末尾)が宛先 6 単位の Notion カードへ届き、worklog に記録されている(7)
 - [ ] コア領域のレビュー: 敵対レビュー + 人間の逐行確認(PR)
 
