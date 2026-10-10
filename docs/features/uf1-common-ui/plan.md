@@ -1,6 +1,6 @@
 ---
 feature: uf1-common-ui
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-10・山田正輝) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -76,6 +76,8 @@ Tailwind クラスの一致と試験で確かめる。`.ts` も逐語で置か�
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
 | (なし) | **反映なし**。要件書・設計書・ADR・ハーネス設計書・ops のいずれも変えない。ライブラリ 2 件の導入は ADR-002(フレームワーク・ツールチェーンのみを決定 — `:26-28`)の射程外で、本計画書の承認で扱う | — |
+| `docs/development/harness-evaluation.md` | `/pr` クローズ処理で追記(PR 作成時に宣言を追加): **H-69 へ再発の実測**(Codex の sandbox で pnpm ストアを `/tmp` へ逃がし `--frozen-lockfile` が TTY 確認で停止・閉域 spec の子プロセス起動が `EPERM`)と **候補 (13) へ再発・亜種の実測**(`git -C $W`・heredoc 本文の語句・複雑な引用符で git_guard が遮断)。`H-*` は採番しない・版は上げない | PR レビュー(7.6-3 前段) |
+| `docs/README.md` | 台帳行の最終更新日を現行化 | PR レビュー |
 
 正本ではない文書で更新するもの(PR レビューで扱う):
 - `docs/features/frontend-skeleton/porting-rules.md` — 4 節の逸脱表を「U-F1 で追加した不可避差分」として追記

@@ -65,6 +65,18 @@ P0 ゼロのため P0 例外(3 回目)は発生しない。基本枠 2 回を使
 | U-F12 スコアカード | index.css の `.scorecard-*` |
 | U-F13 起動・入口(追加) | VueQueryPlugin の install と Toast Provider の App 配置は U-F13 / useToast は Provider 外で例外 |
 
+### /pr クローズ処理(2026-10-10)
+
+- **結果**: U-F1 の共通部品 3 つ(`Button`・`Toast`・`Sheet`)と取得補助 2 つ(`queryClient`・`teamSearch`)を、旧コードを複製せず Vue / TS で書き起こした。依存 2 件(`@tanstack/vue-query` 5.101.4・`lucide-vue-next` 1.0.0)を追加し、`vue-demi` の postinstall は `allowBuilds` で実行しない。全 7 ステップ + ステップ 4 是正 1 件
+- **正本への反映**: 機能面はなし(`/sync-docs` で検算)。`porting-rules.md` 9 節・`frontend-impl-units/design.md` の注記は正本外
+- **台帳**: H-69 へ再発の実測(pnpm の sandbox 制約 2 種)、候補 (13) へ再発 1 件と亜種 2 件(git_guard)を追記。新規の `H-*`・候補は無い(いずれも既存項目と同型のため)。計画書 3 節へ宣言を足してから追記した
+- **/check**: frontend 全件緑(45 files・784 tests)/ harness の ruff・ty 緑・pytest は 8 並列の全件で 3 件失敗 → `--lf` の単独再実行で 3 件通過(名前はキャッシュ消去で未記録 — CI で確認)/ backend の ruff・ty・非 DB pytest 緑
+
 ## 決定
 
+- 依存は U-F1 の PR に含める(コア領域)/ Service Worker は TSK-533 へ / 旧コードは複製せず書き起こす / `vue-demi` の postinstall は実行しない / `Button` の active は競合する色クラスを外す(いずれも PO 2026-10-10)
+
 ## 未決・次の一歩
+
+- PR のコア領域レビュー(敵対レビュー + 人間の逐行確認)
+- ADR-002「コード再利用はしない」と 8/16 裁定「機械的な逐語移植」の並存の整理は未起票のまま(frontend-impl-units の申し送り)
