@@ -2310,7 +2310,16 @@ def test_area_registration() -> None:
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in additions
         )
-        assert current_paths in (base_paths, (*base_paths, *additions))
+        base_set = set(base_paths)
+        assert tuple(path for path in current_paths if path in base_set) == base_paths
+        pending = tuple(path for path in current_paths if path not in base_set)
+        # 宣言は回転式の窓口であり、マージ後は宣言した追加層が基線へ吸収される。
+        # その状態では未取り込み分が空になり、宣言と一致しない。機構側
+        # (validate_area_path_layers)は吸収済みを許容するため、ここでも
+        # 「未取り込み = 宣言」と「吸収済みで未取り込みなし」の双方を受理する。
+        assert pending == additions or (
+            pending == () and set(additions) <= base_set
+        )
     core_guard.validate_area_path_layers(baseline, configuration)
 
 

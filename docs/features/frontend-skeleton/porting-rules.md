@@ -189,3 +189,35 @@ gh api "repos/masaki1025/Baseball_Scoring-archive/contents/frontend/src/lib/<nam
 3. **props / emits** — 名前・型・必須性が 1:1（`className` は prop を新設せず fallthrough）
 4. **座標変換の結果** — テストで検査する。**jsdom はレイアウト計算をしないので
    `getBoundingClientRect()` は固定スタブが必須**（無いと 0 が返り検査が無意味になる）
+
+## 9. U-F1 共通表示で追加した差分(TSK-516 — 2026-10-10)
+
+計画書: [`../uf1-common-ui/plan.md`](../uf1-common-ui/plan.md)(4 節の決定表が正)。対象は旧 `components/ui/{Button,Sheet,Toast}.tsx`・`lib/queryClient.ts`・`lib/teamSearch.ts`。
+
+### 作り方の方針(決定 K — PO 決定 2026-10-10)
+
+**U-F1 は、旧コードを複製せず Vue / TypeScript で書き起こした**(PO の選択)。**これは ADR-002 の要求ではない** — ADR-002 v1.1(2026-10-10)は「コード再利用はしない」が禁じるのを旧システムを依存として抱えることに限り、本リポジトリの資産として取り込み保守責任を負うものは逐語一致でも当たらないとした(`docs/adr/ADR-002-frontend-vue.md:36`)。後続の単位は、逐語取り込みと書き起こしのどちらも選べる(計画書で決める)。
+見た目と挙動が旧と同じであることは、Tailwind クラス文字列の一致と試験で確かめる。`.ts` も逐語で置かないため、7 節の Prettier 対象外には当たらない
+(`queryClient.ts`・`teamSearch.ts` は `.prettierignore` に入れていない)。8 節で逐語移植した `.ts` 4 件は変えていない。
+
+### Vue と React の差で不可避な差分
+
+| 決定 | 対象 | 規則 | 旧の典拠 |
+| --- | --- | --- | --- |
+| A | `Sheet` の背景ロック | `getElementById('root')` → **`'app'`**。現行のマウント先は `#app`(`index.html`・`main.ts`)で、`'root'` のままだと常に代替経路(body 直下の全要素を inert)に入る。`index.css` の `#root` → `#app` と同じ扱い | 旧: `frontend/src/components/ui/Sheet.tsx:38` |
+| B | `Sheet` のポータル | `createPortal(…, document.body)` → **`<Teleport to="body">`** | 旧: `Sheet.tsx:127,157` |
+| C | `Sheet` の開閉副作用 | `useEffect(…, [open])` → **変化は `watch(() => props.open, …, { flush: 'post' })`、初期 `open=true` は `onMounted`、後始末は閉じたときと `onBeforeUnmount`**。Vue の `watch` は初期値では走らず既定で DOM 反映前に走るため。`immediate: true` は初回を同期実行し template ref が null のため使わない | 旧: `Sheet.tsx:95-124` |
+| D | `Sheet` の閉じるアイコン | lucide-react 0.525.0 の `<X size={22} />` → lucide-vue-next 1.0.0 の `<X :size="22" />`。パス 2 本と svg 属性は一致し、**class だけ `lucide lucide-x` → `lucide lucide-x-icon lucide-x`**(1.0.0 が `lucide-<name>-icon` を足す)。`index.css` に `lucide` のセレクタは無く見た目は変わらない | 旧: `Sheet.tsx:3,144-152` |
+| E | `Toast` の Context | 3 節の規則どおり `InjectionKey` の `provide` / `inject`。**inject 失敗は例外を投げる**(旧の既定値は何もしない関数) | 旧: `Toast.tsx:23` |
+| F | `Toast` のファイル構成 | `Toast.vue` の通常の `<script lang="ts">` で `ToastTone`・`ToastApi`・`toastKey`・`useToast` を名前付き export し、`<script setup>` を Provider 本体(既定 export)にする。ファイルの 1:1 対応を保つため | 旧: `Toast.tsx:11-37` |
+| H | 1 語のコンポーネント名 | `eslint.config.js` で `vue/multi-word-component-names` の `ignores` に `Button`・`Sheet`・`Toast` を入れる。現行 eslint は `flat/recommended` を全 error に引き上げており、ファイル名を変えると 1:1 対応が崩れる。**後続の単位で 1 語の部品を足すときも同じ `ignores` へ追加する** | — |
+| J | 旧の `node:test` の試験 | `*.test.mjs`(`node:test` + `node:assert/strict`)は **Vitest の `*.spec.ts` へ書き換える**(NFR-019)。入力と期待値は変えない。`assert.deepEqual` → `toStrictEqual`、`equal` → `toBe`、undefined → `toBeUndefined`。旧ファイルを残すと Vitest の既定 include に拾われる | 旧: `lib/teamSearch.test.mjs:1-35` |
+
+### 旧からの意図的な逸脱
+
+| 決定 | 対象 | 内容 | 根拠 |
+| --- | --- | --- | --- |
+| L | `Button` の active | **active のときは variant 側の競合する色クラス(背景・枠線色・文字色とその `dark:` 版)を外し、`activeCls` を効かせる**。外す対象は variant ごとの表で明示する。active でないときのクラス文字列は旧と同一 | ビルド CSS(tailwindcss 4.3.3)では同じプロパティの規則が名前順に並び、active の `sky` 系クラスが danger の背景以外すべて variant 側に負けて、選択中の表示が効かなかった(旧と同じクラス構成の欠陥 — 旧の 4.3.2 でも同じと推論)。PO 決定 2026-10-10 |
+| M | `Sheet` の重ね表示 | **開いている Sheet をモジュール全体の積み重ね(開いた順)で管理し、最前面の 1 枚だけが Escape と Tab を処理する(フォーカスがパネルの外なら中へ引き戻す)。最前面でない Sheet を閉じるときはフォーカスを動かさず、戻り先をすぐ上の Sheet へ引き継ぐ** | 各 Sheet が `window` の capture 段階に keydown を登録し、`stopPropagation()` は同じ対象(window)の後続リスナーを止めないため、旧では 2 枚重ねて Escape を押すと両方が閉じ、中段を閉じると最前面からフォーカスが外れていた(旧: `Sheet.tsx:95-124`)。PR #113 の敵対レビュー 1・2 回目で検出。PO 決定 2026-10-10 |
+
+**後続の単位への注意**: Tailwind では `cx` に渡す順序でなく生成 CSS の規則順序で勝敗が決まる。**同じプロパティのクラスを条件で重ねるときは、上書きされる側を外す**(決定 L と同じ形)。
