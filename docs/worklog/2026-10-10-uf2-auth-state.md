@@ -81,3 +81,20 @@ branch: feature/uf2-auth-state
 | U-F8 試合記録 | https://app.notion.com/p/3f493b75e68781b49976fc6c5ed970d5 |
 | U-F10 分析・カルテ | https://app.notion.com/p/3f493b75e6878119ac98f7953c488290 |
 | U-F12 スコアカード | https://app.notion.com/p/3f493b75e687815293abd2b3ebd7d9d0 |
+
+### 総合検証(/check)
+
+- frontend: prettier・eslint・vue-tsc・Vitest 838 件・`pnpm build` すべて成功
+- harness: ruff・ty 成功。pytest 全件(8 並列・`--basetemp` を `/tmp` の外へ)は 29,172 件中 3 件失敗(`tests/domain/mut/` の 3 件 — U-F1 と同じ顔ぶれ)。単独の再実行で 3 件とも通過。本 PR は `tests/domain/` に触れていない
+- backend: 触れていないため CI に任せる
+
+### /sync-docs
+
+- 正本の反映なし(計画書 3 節どおり)。`check_plan_docs_sync.py` exit 0。`core-areas.json` の変更は paths(機械可読)の正の更新で、設計書 6.3 の境界定義表(意味範囲の正)は変えていない
+
+### /pr クローズ処理
+
+- 結果: 旧 `authStore` を、トークン・個人アカウント・役割を持たない「チーム 1 つ分の認証状態」として Pinia で書き起こした。認証の変化でクエリキャッシュを捨て(未同期キューには触れない)、`authEpoch` で購読中の画面を作り直せる鍵を出し、タブ間で `sessionId` を照合する。`frontend/src/stores/authStore*` を tenant-isolation の paths に登録した
+- 正本への反映: なし。正本外で `porting-rules.md` 10 節・`frontend-impl-units/design.md` の U-F2 行を更新
+- 運用評価台帳: **追記あり**(H-69 の再発・候補「長時間 DB テストの強制終了…」へ `/tmp` 満杯の 3 回目)。`H-*` は採番しない・版は上げない。索引の台帳行はすでに 2026-10-10
+- 残余: 別タブのログインで Cookie が先に変わる窓は、δ・U-F6 のテナント照合契約が実装されるまで閉じない(計画書 決定 G・Notion で申し送り済み)
