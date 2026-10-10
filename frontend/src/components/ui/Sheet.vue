@@ -13,6 +13,7 @@ interface OverflowSnapshot {
 interface SheetStackEntry {
   token: symbol
   previousFocus: HTMLElement | null
+  panelElement: HTMLDivElement | null
 }
 
 let openSheetCount = 0
@@ -154,7 +155,11 @@ function activate(): void {
     document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null
-  const stackEntry: SheetStackEntry = { token: sheetToken, previousFocus }
+  const stackEntry: SheetStackEntry = {
+    token: sheetToken,
+    previousFocus,
+    panelElement: panel.value,
+  }
   closeButton.value?.focus()
   const unlockBackground = lockBackground()
   openSheetStack.push(stackEntry)
@@ -166,9 +171,14 @@ function activate(): void {
     if (index !== -1) {
       openSheetStack.splice(index, 1)
       if (!wasTop) {
-        // 中段を閉じても最前面のフォーカスは動かさず、戻り先を直上へ渡す（決定 M）。
+        // 直上の戻り先が自分のパネル内にあるときだけ引き継ぐ（決定 M）。
         const above = openSheetStack[index]
-        if (above) above.previousFocus = stackEntry.previousFocus
+        if (
+          above?.previousFocus &&
+          stackEntry.panelElement?.contains(above.previousFocus)
+        ) {
+          above.previousFocus = stackEntry.previousFocus
+        }
       }
     }
     unlockBackground()

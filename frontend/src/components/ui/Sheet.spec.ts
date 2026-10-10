@@ -326,6 +326,35 @@ describe('Sheet', () => {
     expect(document.activeElement).toBe(aOrigin)
   })
 
+  it('上の戻り先が中段の外なら引き継がずに維持する', async () => {
+    mountSheet({ open: true, title: 'A' }, () =>
+      h('button', { id: 'a-other' }, 'A 内の別のボタン'),
+    )
+    await nextTick()
+    const aClose = document.querySelector<HTMLButtonElement>(
+      '[role="dialog"] button[aria-label="閉じる"]',
+    )
+    const middle = mountSheet({ open: true, title: 'B' })
+    await nextTick()
+
+    const aOther = document.getElementById('a-other') as HTMLButtonElement
+    aOther.focus()
+    const upper = mountSheet({ open: true, title: 'C' })
+    await nextTick()
+    const upperPanel =
+      document.querySelectorAll<HTMLElement>('[role="dialog"]')[2]
+    const upperClose = upperPanel?.querySelector<HTMLButtonElement>(
+      'button[aria-label="閉じる"]',
+    )
+    expect(document.activeElement).toBe(upperClose)
+
+    await middle.setProps({ open: false })
+    expect(document.activeElement).toBe(upperClose)
+    await upper.setProps({ open: false })
+    expect(document.activeElement).toBe(aOther)
+    expect(document.activeElement).not.toBe(aClose)
+  })
+
   it('下の Sheet を先に閉じても上の Escape が効く', async () => {
     const lower = mountSheet({ open: true, title: '下' })
     const upper = mountSheet({ open: true, title: '上' })
