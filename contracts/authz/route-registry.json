@@ -567,6 +567,66 @@
         "FR-035/list_item-014"
       ],
       "operation_id": "close_group"
+    },
+    {
+      "route_id": "ROUTE:RECORD:players:insert",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE"
+      ],
+      "operation": "insert"
+    },
+    {
+      "route_id": "ROUTE:RECORD:players:read",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE"
+      ],
+      "operation": "read"
+    },
+    {
+      "route_id": "ROUTE:RECORD:players:update",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE"
+      ],
+      "operation": "update"
+    },
+    {
+      "route_id": "ROUTE:RECORD:team_records:insert",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE"
+      ],
+      "operation": "insert"
+    },
+    {
+      "route_id": "ROUTE:RECORD:team_records:read",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE"
+      ],
+      "operation": "read"
+    },
+    {
+      "route_id": "ROUTE:RECORD:team_records:update",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE"
+      ],
+      "operation": "update"
     }
   ],
   "management_operations": [

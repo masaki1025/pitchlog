@@ -2142,15 +2142,29 @@ def _validate_claim_dispositions(
 def _validate_record_and_aggregate_route_ids(
     route_by_id: dict[str, dict[str, object]],
 ) -> None:
-    """record_and_aggregate route が未登録であることを検査する。"""
+    """記録・集計経路が承認済みの集合と一致することを検査する。"""
     actual_route_ids = frozenset(
         route_id
         for route_id, route in route_by_id.items()
         if route["route_kind"] == "record_and_aggregate"
     )
-    expected_route_ids: frozenset[str] = frozenset()
+    expected_route_ids: frozenset[str] = frozenset(
+        {
+            "ROUTE:RECORD:players:insert",
+            "ROUTE:RECORD:players:read",
+            "ROUTE:RECORD:players:update",
+            "ROUTE:RECORD:team_records:insert",
+            "ROUTE:RECORD:team_records:read",
+            "ROUTE:RECORD:team_records:update",
+        }
+    )
     if actual_route_ids != expected_route_ids:
-        raise CatalogError("record_and_aggregate route が空集合と exact-set 不一致")
+        missing = sorted(expected_route_ids - actual_route_ids)
+        unexpected = sorted(actual_route_ids - expected_route_ids)
+        raise CatalogError(
+            "record_and_aggregate route の exact-set 不一致: "
+            f"不足={missing}, 未登録={unexpected}"
+        )
 
 
 def validate_route_registry(

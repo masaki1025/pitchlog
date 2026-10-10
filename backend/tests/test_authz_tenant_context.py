@@ -157,10 +157,12 @@ def test_generated_allowlist_matches_asset() -> None:
     assert _generated_snapshot() == _asset_snapshot(asset)
 
 
-def test_product_construction_allowlist_is_empty() -> None:
-    """U-A1 / TSK-217 の導入前は製品側の生成入口を開けない。"""
+def test_product_construction_allowlist_names_roster_issuer_only() -> None:
+    """製品側の生成入口を選手の発行専用モジュールへ閉じる。"""
     assert __name__ in tenant_context_contract.ALLOWED_TEST_MODULES
-    assert tenant_context_contract.ALLOWED_PRODUCT_MODULES == ()
+    assert tenant_context_contract.ALLOWED_PRODUCT_MODULES == (
+        "pitchlog.repositories.tenant_context_issuance",
+    )
 
 
 @pytest.mark.parametrize(

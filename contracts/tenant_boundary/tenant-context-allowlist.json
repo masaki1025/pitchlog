@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 12,
+  "contract_revision": 13,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:12"
+        "contract_revision:13"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -71,7 +71,7 @@
   },
   "asset_kind": "tenant_context_construction_allowlist",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "a4dbbaf27218786d3793553462d4255221dcfac4d4842ee3e3e1b1a94d876e84",
+  "source_digest": "b6e5ce76fa80225284416141b178c3e26d828452bacead0f4501b456ecea8dd3",
   "constructor_symbol": "pitchlog.repositories.context.TenantContext",
   "forbidden_construction_symbols": [
     "builtins.object.__new__",
@@ -92,10 +92,14 @@
   "issuance_capability_allowed_symbols": [
     "pitchlog.repositories.context.TenantContext.__init__"
   ],
-  "issuance_entrypoint_symbol": "",
-  "issuance_entrypoint_allowed_symbols": [],
+  "issuance_entrypoint_symbol": "pitchlog.repositories.tenant_context_issuance.issue_tenant_context_from_presented_token",
+  "issuance_entrypoint_allowed_symbols": [
+    "pitchlog.api.tenant_access.require_tenant_access"
+  ],
   "allowed_test_modules": [
     "test_authz_tenant_context"
   ],
-  "allowed_product_modules": []
+  "allowed_product_modules": [
+    "pitchlog.repositories.tenant_context_issuance"
+  ]
 }

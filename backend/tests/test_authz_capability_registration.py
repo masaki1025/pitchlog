@@ -33,7 +33,7 @@ from sqlalchemy.sql import operators, quoted_name
 from sqlalchemy.sql.base import ExecutableOption
 from sqlalchemy.sql.elements import ClauseElement, UnaryExpression
 from sqlalchemy.sql.schema import Table
-from sqlalchemy.sql.selectable import CTE, Select
+from sqlalchemy.sql.selectable import CTE, Alias, Select
 from sqlalchemy.sql.sqltypes import TableValueType
 from sqlalchemy.types import TypeDecorator, UserDefinedType
 
@@ -185,6 +185,54 @@ def _undeclared_subquery(
     return (_Registration("CAP:games:read", statement),)
 
 
+def _same_table_alias_read(games: Table, _players: Table) -> tuple[_Registration, ...]:
+    """対象表の別名を追加した直積を作る。"""
+    statement = select(games.c.id).select_from(games.alias("unscoped_games"))
+    return (_Registration("CAP:games:read", statement),)
+
+
+def _same_table_alias_update_target(
+    games: Table, _players: Table
+) -> tuple[_Registration, ...]:
+    """対象表の別名へ UPDATE する。"""
+    alias = cast(Alias, games.alias("unscoped_games"))
+    statement = (
+        update(alias)
+        .where(alias.c.id == bindparam("id"))
+        .values(game_number_label=bindparam("name"))
+    )
+    return (_Registration("CAP:games:update", statement),)
+
+
+def _same_table_cte_read(games: Table, _players: Table) -> tuple[_Registration, ...]:
+    """同じ表の CTE を FROM に追加する。"""
+    cte = select(games.c.id).cte("unscoped_games")
+    return (_Registration("CAP:games:read", select(games.c.id).select_from(cte)),)
+
+
+def _same_table_scalar_update(
+    games: Table, _players: Table
+) -> tuple[_Registration, ...]:
+    """同じ表のスカラー副問合せを SET に埋め込む。"""
+    statement = update(games).values(
+        game_number_label=select(games.c.game_number_label).scalar_subquery()
+    )
+    return (_Registration("CAP:games:update", statement),)
+
+
+def _same_table_alias_update_from(
+    games: Table, _players: Table
+) -> tuple[_Registration, ...]:
+    """同じ表の別名を UPDATE の追加 FROM に使う。"""
+    alias = games.alias("unscoped_games")
+    statement = (
+        update(games)
+        .where(alias.c.id == bindparam("other_id"))
+        .values(game_number_label=bindparam("name"))
+    )
+    return (_Registration("CAP:games:update", statement),)
+
+
 def _duplicate_id(games: Table, _players: Table) -> tuple[_Registration, ...]:
     registration = _Registration("CAP:games:read", _read_statement(games))
     return registration, registration
@@ -196,6 +244,11 @@ _BINDING_MUTATIONS = (
     pytest.param(_different_operation, id="different-operation"),
     pytest.param(_undeclared_join, id="undeclared-join"),
     pytest.param(_undeclared_subquery, id="undeclared-subquery"),
+    pytest.param(_same_table_alias_read, id="same-table-alias-read"),
+    pytest.param(_same_table_alias_update_target, id="same-table-alias-update-target"),
+    pytest.param(_same_table_cte_read, id="same-table-cte-read"),
+    pytest.param(_same_table_scalar_update, id="same-table-scalar-update"),
+    pytest.param(_same_table_alias_update_from, id="same-table-alias-update-from"),
     pytest.param(_duplicate_id, id="duplicate-id"),
 )
 
@@ -247,7 +300,17 @@ def test_catalog_binding_mutation_is_rejected(
     """未知・重複 ID と表・操作・再帰的な参照表の不一致を拒否する。"""
     games, players = tables
 
-    _assert_mutation_rejected(catalog, games, mutation(games, players))
+    error = _assert_mutation_rejected(catalog, games, mutation(games, players))
+    shape_errors: dict[Callable[[Table, Table], tuple[_Registration, ...]], str] = {
+        _same_table_alias_read: "別名・結合・入れ子のFROM",
+        _same_table_alias_update_target: "変更対象は実表",
+        _same_table_cte_read: "別名・結合・入れ子のFROM",
+        _same_table_scalar_update: "別名・結合・入れ子のFROM",
+        _same_table_alias_update_from: "実表以外の列",
+    }
+    expected_shape_error = shape_errors.get(mutation)
+    if expected_shape_error is not None:
+        assert any(expected_shape_error in item for item in error.violations)
 
 
 def _state_mutation_registration(
@@ -1019,9 +1082,64 @@ def test_unreferenced_dml_cte_is_rejected(
     assert any("DMLのCTE" in item for item in error.violations)
 
 
-def test_product_registries_remain_empty() -> None:
-    """本ステップでは製品の capability と operation を登録しない。"""
-    assert repository_contract.PRODUCT_CAPABILITY_IDS == ()
-    assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == ()
+def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> None:
+    """8 token の各文と 7 capability の対応を個別に検査する。"""
+    expected = {
+        "CAP:players:read",
+        "CAP:players:insert",
+        "CAP:players:update",
+        "CAP:team_records:read",
+        "CAP:team_records:insert",
+        "CAP:team_records:update",
+        "CAP:games:read",
+    }
+    assert set(repository_contract.PRODUCT_CAPABILITY_IDS) == expected
+    assert {
+        spec.capability_id for spec in repository_base._OPERATION_REGISTRY.values()
+    } == expected
+    assert len(repository_base._OPERATION_REGISTRY) == 8
+    for registration in repository_base._OPERATION_REGISTRY.values():
+        validate_capability_registrations(
+            catalog=catalog,
+            registrations=(registration,),
+        )
     assert repository_contract.CROSS_TENANT_FUNCTIONS == ()
-    assert repository_base._OPERATION_REGISTRY == {}
+
+
+def test_roster_catalog_mismatches_are_rejected(
+    catalog: dict[str, Any], tables: tuple[Table, Table]
+) -> None:
+    """未登録 ID、別表、別操作を製品文に混ぜると拒否する。"""
+    registrations = list(repository_base._OPERATION_REGISTRY.values())
+    players_read = registrations[0]
+    players_insert = registrations[1]
+    team_read = registrations[3]
+    unknown_table = Table("unlisted_roster_table", MetaData(), Column("id", Integer))
+    mutations = (
+        (_Registration("CAP:unknown:read", players_read.statement), "カタログにない"),
+        (_Registration("CAP:players:read", team_read.statement), "参照表"),
+        (
+            _Registration("CAP:players:read", select(unknown_table.c.id)),
+            "参照表",
+        ),
+        (_Registration("CAP:players:read", players_insert.statement), "操作種別"),
+        (
+            _Registration(
+                "CAP:players:update",
+                update(tables[1])
+                .where(tables[1].c.tenant_id == bindparam("tenant_id"))
+                .where(tables[1].c.id == bindparam("id"))
+                .where(tables[0].c.id == bindparam("other_id"))
+                .values(name=bindparam("name")),
+            ),
+            "参照表",
+        ),
+        (_Registration("CAP:players:read", delete(tables[1])), "最上位コマンド"),
+    )
+    for mutation, expected_error in mutations:
+        with pytest.raises(CapabilityRegistrationError) as error:
+            validate_capability_registrations(
+                catalog=catalog,
+                registrations=(mutation,),
+            )
+        assert any(expected_error in item for item in error.value.violations)

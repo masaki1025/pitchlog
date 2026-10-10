@@ -283,6 +283,49 @@
       "reason": "develop 取り込み後の認可 oracle 入力8資産を第1段コミットへ再封印するため",
       "approved_by": "未承認(PR #81 のレビュー待ち)",
       "approved_at": "2026-10-05"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#95",
+      "series": "oracle_input",
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "cc949c690a7da6d7e719561f9fa02153e1857610"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "1f32e12a8c0e8acc66df448a22fc166be4643a3f"
+          }
+        ]
+      },
+      "changes": [],
+      "placement_change": {
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "moved": false,
+      "reason": "U-M1(TSK-393)で record_and_aggregate 経路 6 本を #81 の認可 oracle 入力を含む base に重ねて route-registry.json と http-route-matrix.json に登録し、oracle 入力 blob が変わったため oracle_commit を更新する",
+      "approved_by": "山田正輝",
+      "approved_at": "2026-10-09"
     }
   ]
 }
