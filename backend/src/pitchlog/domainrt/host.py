@@ -7,6 +7,7 @@ import re
 import resource
 import selectors
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -52,11 +53,17 @@ def _reject_json_numbers(value: Any) -> None:
 def _verified_source(artifact: Path, declaration: Path) -> str:
     """宣言と artifact を検証してソースを返す。"""
     try:
-        manifest = json.loads(declaration.read_text(encoding="utf-8"))
+        declaration_text = declaration.read_text(encoding="utf-8")
         payload = artifact.read_bytes()
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError) as exc:
         raise DomainRuntimeError(
             "ARTIFACT_UNAVAILABLE", "artifact または宣言を読めない"
+        ) from exc
+    try:
+        manifest = json.loads(declaration_text)
+    except json.JSONDecodeError as exc:
+        raise DomainRuntimeError(
+            "INVALID_DECLARATION", "artifact の宣言が不正"
         ) from exc
     if (
         not isinstance(manifest, dict)
@@ -79,17 +86,37 @@ def _verified_source(artifact: Path, declaration: Path) -> str:
 
 
 def _product_root() -> Path:
-    """ソース配置とコンテナ配置から固定の配布ルートを選ぶ。"""
+    """ソース配置と実行環境の固定配置から配布ルートを選ぶ。"""
     installed = Path(__file__).resolve()
     if installed.is_relative_to(Path("/app/backend/.venv")):
         return Path("/app")
+    if installed.parents[2].name == "src" and installed.parents[3].name == "backend":
+        return installed.parents[4]
+    # 一時コピーを読み込む試験でも、実行中の backend 仮想環境を基準にする。
+    runtime = Path(sys.prefix).resolve()
+    if runtime.name == ".venv" and runtime.parent.name == "backend":
+        return runtime.parent.parent
     return installed.parents[4]
+
+
+def _product_artifact_paths() -> tuple[Path, Path]:
+    """製品の固定基準から artifact と宣言のパスを返す。"""
+    root = _product_root()
+    return root / _ARTIFACT_RELATIVE, root / _DECLARATION_RELATIVE
+
+
+def verify_domain_artifact() -> None:
+    """製品の artifact と宣言を照合し、不一致なら例外を出す。
+
+    Raises:
+        DomainRuntimeError: ファイル不在、宣言の不正、ハッシュ不一致。
+    """
+    _verified_source(*_product_artifact_paths())
 
 
 def open_domain_host() -> "NodeDomainHost":
     """製品の固定パスから検証して常駐ホストを起動する。"""
-    root = _product_root()
-    return NodeDomainHost(root / _ARTIFACT_RELATIVE, root / _DECLARATION_RELATIVE)
+    return NodeDomainHost(*_product_artifact_paths())
 
 
 class NodeDomainHost:
