@@ -21,7 +21,7 @@ date: 2026-10-08
 | `sync/ordering.py` | T5(O1 の直列化・O2 の局所再採番・O4 の同値停止) | SP 5-5・8-1、DM 5-4 の T5 |
 | `sync/rejection.py` | P5 / T9(B3a・B3b)と P4 / T8(B4・退避) | SP 8-1・9-2、DM 5-4 の M10 |
 | `sync/change_path.py` | P3(③-b 復旧世代、B8〜B14、T7・I5、I6 の `accepted_at`) | SP 6-2 の P3 表・6-3 の P3 独立境界結果 |
-| `sync/invalidation.py` | I5 の配信: 未配信の無効化意図を配信先ポートへ渡し、完了まで冪等に再試行する | SP 8-1 の T7・I5 |
+| `sync/invalidation.py` | **記録部**(第 1 改訂): 同期経路の無効化意図を改訂後 `B03` の意図 ID で範囲ごとに 1 行、イベントと同じトランザクションに書く(P3 の T7 と D1 付き経路の D3 前進)。範囲名の写像は #114 の表を共有する。**配信部**: I5 の配信 — 未配信の無効化意図を配信先ポートへ渡し、完了まで冪等に再試行し、完了を `delivered` で記録する | SP 8-1 の T7・I5 |
 | `sync/gate.py` | ③-a RG1 と ⑧ のコミット直前再検証(同期経路の範囲) | SP 6-2・6-3 の RG1 |
 | `sync/apply.py` | 公開入口。1 要求 = 単一の (試合, D4)。段階③〜⑧の順序、D1 昇順の外部結果の確定、ACK の合成 | SP 6-2・6-3・7-1 |
 | `sync/crash_points.py` | 名前付きのクラッシュ注入点(テストからだけ有効化) | SP 10-2・11-4 U-8、DM 5-4 の M20 |
@@ -61,6 +61,9 @@ date: 2026-10-08
 - **ACK は確定の後に組み立てる**(SP 8-1)。各イベントのトランザクションがコミットしてから、その A5 を確定扱いにする
 
 ## 4. リポジトリ基底の拡張(tenant-isolation のコア・スパイク S-3)
+
+> **第 1 改訂(2026-10-11)**: 「registry を複数モジュールから集める形」は #114 で導入済み(`backend/src/pitchlog/repositories/operation_registry.py:5-12`)なので本節の対象から外す。複合主キーの UPDATE・行ロック・JSONB の結果の実体化・適用中のスコープ検査は未導入のまま(`base.py:173-178`・`:280-290`)
+
 
 UM01 の登録形式(`repositories/operation_registration.py`・`base.py`)を前提にする。スパイクで、適用核の書き込みのうち次の 3 つが #95 の形では表せないと実測した(スパイク S-3)。
 
@@ -124,4 +127,4 @@ TSK-332 の射程(Notion カード。設計の蓄積は `docs/features/sync-serv
 | Q-7 | RG1 の所有者 | `RecordingRightsPort` に含める。U-S1 が保証するのは同期経路の停止まで。全変更経路の停止は復元の単位 |
 | Q-8 | (d) 資産の比較単位が正本 10-3 と食い違うか | **裁定済み(R-10)**: 食い違う。正本を v0.6 に改訂する(v0.5 は #81 の先約 — 2026-10-09 裁定) |
 | Q-9 | TSK-330 の繰り延べ 12 ID の送り先 | **裁定済み(R-11)**: 復元系 10 件は U-R1。`p3-invalidation-consumed-before-complete`・`o4-persisted-d2-equivalence` は U-S1 |
-| Q-10 | I5 の配信先 | `InvalidationSinkPort` で受け、配信と再試行は U-S1 が持つ。配信先の本物は未定 |
+| Q-10 | I5 の配信先 | `InvalidationSinkPort` で受け、配信と再試行は U-S1 が持つ。配信先の本物は未定。**第 1 改訂 R-13 で再確認**(data-model `B06` の「配信の所有」は同期を通らないトリガーに限ると明確にする) |
