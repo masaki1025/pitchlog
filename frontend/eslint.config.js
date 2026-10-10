@@ -34,6 +34,12 @@ export default [
         parser: tseslint.parser,
       },
     },
+    rules: {
+      'vue/multi-word-component-names': [
+        'error',
+        { ignores: ['Button', 'Sheet', 'Toast'] },
+      ],
+    },
   },
   {
     files: ['**/*.ts', '**/*.vue'],
