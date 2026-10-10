@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3e593b75e6878116ab33fc7eaadd64d9
 branch: feature/roster-status-invalidation
 created: 2026-10-10
 計画レビュー周回: 2        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 1          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 2          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -52,7 +52,7 @@ created: 2026-10-10
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
-| `docs/design/data-model.md` | 11-2 節: 発火条件の節の適用範囲を同期経路に狭め、`B06`(同期を通らないトリガー)を新設、④の対象テナント単位の鍵を `B06` の中に追加(`B02` の表は変えない)。版 v0.6 → v0.7・変更履歴 | **finalize-doc**(確定ゲート — 裁定 J2) |
+| `docs/design/data-model.md` | 11-2 節: 発火条件の節の適用範囲を同期経路に狭め、`B06`(同期を通らないトリガー)を新設、④の対象テナント単位の選択子を `B06` の中に追加し、`B02` に ④ の例外の境界を足す。版 v0.6 → v0.7・変更履歴 | **finalize-doc**(確定ゲート — 裁定 J2) |
 | `docs/README.md` | data-model 行の版・概要・最終更新日 / 台帳行の候補件数(クローズ処理) | PR レビュー |
 | `docs/development/harness-evaluation.md` | クローズ処理での候補・実測の追記(版は上げない) | PR レビュー(7.6-3 前段) |
 | `docs/design/sync-protocol.md` | **反映なし**(8-5 は同期側の責務に限ると明記しており、同期を通らないトリガーは 11-2 が持つ — 裁定 J1) | — |
@@ -71,7 +71,7 @@ created: 2026-10-10
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
 | 1 | **正本 11-2 節の改訂案を書く**(design.md 1 節)— `docs/design/data-model.md` の発火条件の節・`B06` 新設・`B02` の表・変更履歴(v0.7)と `docs/README.md` の data-model 行。**このあと /finalize-doc で確定ゲートを回す**(反映周のコミットはステップ記法を付けず `反映<r>周目`) | `uv run python scripts/check_plan_docs_sync.py` が exit 0・docs-lint が green・`backend/tests/test_authz_cache_invalidation.py` が green(正本の文言照合が既存の規則を失わない)。**確定ゲートの PO 承認**(frontmatter `確定ゲート周回`・worklog に記録) |
-| 2 | **契約と純粋な要求生成器を追随させる** — `cache-invalidation-contract.json` を revision 11 へ(`physical_key_adt` に `shared_aggregate_of_tenant`・`durable_intent` に同期経路の `applies_to_trigger_ids` と `non_sync_triggers`・`api.public_symbols` と `api.condition4_allowed_call_symbols` に新しい鍵・`source_digest`)、`repositories/cache_invalidation.py` に `SharedAggregateOfTenantCacheKey`、`test_authz_cache_invalidation.py` を改訂後の正本と契約に合わせる(物理キーの照合は `B02` の表と `B06` の対象テナント単位の鍵の表の両方を読む — design.md 1-3・2・3 節)。**テナント境界の受理記録をこの時点の比較元に対して 1 件置き、比較 corpus(`history-snapshots/`・manifest の `corpus_inputs.digest`)を同じコミットで再封印する**(acceptance_id 用の draft PR はこのステップの前に作る — design.md N1) | `backend/tests/test_authz_cache_invalidation.py` green(新しい鍵がトリガー 14 で通る・10〜13 では拒否・2 つの `trigger_ids` が互いに素で和が 14 件・純粋性の検査)/ `uv run python scripts/check_tenant_boundary_bypass.py --base-ref origin/develop` が ok / `tests/test_check_tenant_boundary_bypass.py`・`tests/test_frozen_history.py`・`tests/test_frozen_archive.py`・`tests/test_frozen_archive_case_runner.py`(現版の全ケース一致・corpus の digest 一致)green / ruff・ruff format・ty green |
+| 2 | **契約と純粋な要求生成器を追随させる** — `cache-invalidation-contract.json` を revision 11 へ(`durable_intent` に同期経路の `applies_to_trigger_ids` と `non_sync_triggers`〔`selectors` に対象テナント単位の選択子 — `physical_key_adt` には足さない〕・`api.public_symbols` と `api.condition4_allowed_call_symbols` に選択子の型・`source_digest`)、`repositories/cache_invalidation.py` に `SharedAggregateTargetSelector`、`test_authz_cache_invalidation.py` を改訂後の正本と契約に合わせる(`B02` の表と `physical_key_adt` の照合はそのまま、`B06` の選択子の表と `selectors` の照合を足す — design.md 1-3・2・3 節)。**テナント境界の受理記録をこの時点の比較元に対して 1 件置き、比較 corpus(`history-snapshots/`・manifest の `corpus_inputs.digest`)を同じコミットで再封印する**(acceptance_id 用の draft PR はこのステップの前に作る — design.md N1) | `backend/tests/test_authz_cache_invalidation.py` green(選択子がトリガー 14 で通る・10〜13 では拒否・2 つの `trigger_ids` が互いに素で和が 14 件・純粋性の検査)/ `uv run python scripts/check_tenant_boundary_bypass.py --base-ref origin/develop` が ok / `tests/test_check_tenant_boundary_bypass.py`・`tests/test_frozen_history.py`・`tests/test_frozen_archive.py`・`tests/test_frozen_archive_case_runner.py`(現版の全ケース一致・corpus の digest 一致)green / ruff・ruff format・ty green |
 | 3 | **意図の記録と在籍区分の token を足す** — 新規 `repositories/invalidation_intents.py`(`InvalidationIntentInsertToken`・範囲名の写像・意図 ID の組み立て)、`repositories/roster.py` に `PlayerRosterStatusUpdateToken`(`id = :where_id` の 1 行更新)、`PlayerUpdateToken` の許可列から在籍区分の 2 列を外す。`repository-contract.json`・生成モジュール・`_OPERATION_REGISTRY`・`base-allowlist.json` の `allowed_symbols` と正例 fixture。**固定値を持つ既存テスト**(`backend/tests/test_authz_repository_contract.py` の token 型の組・`backend/tests/test_authz_capability_registration.py` の登録数)を capability 1 件・token 2 件の追加に合わせる。**受理記録を 1 件のまま導出し直し、比較 corpus を再封印する** | `backend/tests/test_invalidation_intents_repository.py`(実 DB: 1 行の列の値・意図 ID の形・RLS で他テナントの行を書けない)green / 写像が契約の 5 範囲と DDL の CHECK の 5 値を全単射で覆うテスト green / `PlayerUpdateToken` に在籍区分の列を渡すと拒否される負例 green(`backend/tests/test_roster_repository.py`)/ `backend/tests/test_authz_repository_contract.py`・`backend/tests/test_authz_capability_registration.py`・ステップ 2 の検査一式 green |
 | 4 | **在籍区分の入口と発火点を開く** — `api/routers/players.py` に `status-preview`・`status-apply`。適用は 1 トランザクションで、指定 ID ごとに既存の `PlayerReadToken` で読み、区分の変わる行を `PlayerRosterStatusUpdateToken` で 1 件ずつ更新し、1 件以上なら意図を 1 行書く(design.md 5 節)。`backend/tests/test_api_app.py` の経路の固定を更新。**12-4 の判定**: 実スキーマ(`docs/ops/product-rls-real-schema.md` の手順)で `test_roster_status_boundary.py` を実行し、2 入口の `route_id`・method / path・実スキーマの識別・実行の記録を worklog に残す(PR 本文へは /pr で転記) | `backend/tests/test_roster_status_boundary.py`(実 DB・6 節の表)green / `backend/tests/test_roster_boundary.py`・`test_api_app.py` green / `check_tenant_boundary_bypass.py --base-ref origin/develop` が ok(TB004 は `CacheInvalidationTrigger.ROSTER_STATUS_CHANGE` の import と、`condition4_allowed_call_symbols` に載った呼び出しだけで通す)/ **実スキーマでの実行記録が worklog にある**(12-4 の記録項目を省かない) |
 | 5 | **受理記録を base に対して 1 件へ導出し直し、比較 corpus を再封印する** — #95 の内訳 10 の手順を準用(`../um1-player-roster-opponent/plan.md:610-620`)。センサス基準が動けば同じコミットで更新する | 権威履歴に本 PR の記録が 1 件だけ / ステップ 2 の検査一式と `tests/test_census_baseline_check.py` green / CI の backend ジョブ green(`source_digest` と配布モジュールの stale はここで初めて出る) |
@@ -80,7 +80,7 @@ created: 2026-10-10
 
 ### 正本と契約
 
-- [ ] `data-model.md` v0.7(11-2 節の `B06`・発火条件の節・対象テナント単位の鍵)が確定ゲートを通り、PO 承認を得た
+- [ ] `data-model.md` v0.7(11-2 節の `B06`・発火条件の節・対象テナント単位の選択子・`B02` の ④ の境界)が確定ゲートを通り、PO 承認を得た
 - [ ] `cache-invalidation-contract.json` が改訂後の正本と一致する(`test_authz_cache_invalidation.py` の照合)
 - [ ] テナント境界の受理記録が本 PR について 1 件だけで、PR の base に対して再導出・再検証済み
 

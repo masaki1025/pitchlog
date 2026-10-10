@@ -42,7 +42,7 @@ date: 2026-10-10
 | **帰属・行の数・鍵(8・10〜13)— 本改訂では定めない** | **8**(設定値・固定語彙の変更)は自テナントが無く全テナントへ波及し(`:2181-2187`)、**10〜13** は操作前後の実効参加の和集合へ波及する(`:2189-2196`)。意図をどのテナントに帰属させ何行書くかは、波及規則と RLS の書き手の両方に掛かるので、**所有単位が自分の発火点を作るときに本節へ足す**(8・12・13 = U-A2、10・11 = U-C1)。**発火条件・原子性の錨・意図 ID の共通の骨格はこれらにも掛かる**(計画レビュー 1 周目 P0) |
 | **配信(`B04` の補足)** | **その対象範囲のキャッシュ本体を初めて導入する単位が配信を作る**。それまで意図は未配信のまま残り、`(tenant_id, 配信状態)` の索引で引ける。**意図を書く単位は配信を持たない** |
 
-### 1-3. ④共有集計の対象テナント単位の鍵(`B06` の中に置く)
+### 1-3. ④共有集計の対象テナント単位の選択子(`B06` の中に置く — 確定ゲートで「鍵」から改称。条文は data-model.md `B06` が正)
 
 **`B02` の表には行を足さず、`B06` の中の別表に置く**(ステップ 1 で決めた — `backend/tests/test_authz_cache_invalidation.py:300-315` が `B02` の表の単位と契約の `physical_key_adt` の `source_unit` を集合の完全一致で照合しており、`B02` に足すと契約が追随するステップ 2 まで赤になる。ステップ 2 でテストを `B02` と `B06` の両方の表を読む形へ直す):
 
@@ -64,9 +64,10 @@ date: 2026-10-10
 
 凍結資産(`contracts/tenant_boundary/`)。7.7 の受理記録は本 PR で 1 件(計画書 4 節 ステップ 5)。
 
-- **`physical_key_adt.variants`** に 1 件追加:
-  - `kind: "shared_aggregate_of_tenant"`・`scope_id: "shared_aggregate"`・`python_type: pitchlog.repositories.cache_invalidation.SharedAggregateOfTenantCacheKey`・`fields: [["tenant_id","uuid.UUID"]]`・`source_unit: "(対象テナント)"`
-  - フィールド名を `tenant_id` にするのは `tenant_or_group_prefix_required: true` を満たすため
+- **対象テナント単位の選択子**(正本 `B06` — 確定ゲート 2 回目の指摘で「物理キー」から「選択子」へ改めた)を、**物理キーとは別の要素として**登録する:
+  - `physical_key_adt.variants` には足さない(`B02` の表の単位と exact-set で照合する既存テストの意味を保つ)
+  - `durable_intent.non_sync_triggers.selectors` に 1 件: `kind: "shared_aggregate_target_selector"`・`scope_id: "shared_aggregate"`・`python_type: pitchlog.repositories.cache_invalidation.SharedAggregateTargetSelector`・`fields: [["tenant_id","uuid.UUID"]]`・`source_unit: "(対象テナント)"`・`matches: "physical_key_adt.shared_aggregate.target_tenant_id"`
+  - テストは `B06` の選択子の表と `selectors` を照合する(`B02` の表と `physical_key_adt` の照合はそのまま)
 - **`durable_intent`** の中に、**同期側と同期を通らない側の規則の適用範囲を両方とも明示する**(**最上位キーは変えない** — 迂回検査器は最上位キーの完全一致を見る `scripts/check_tenant_boundary_bypass.py:1253-1272`。計画レビュー 1 周目 P1):
   - 既存の直下の規則(`same_transaction_with: "T7"`・`intent_id_derivation: [target_event_v10, target_confirmed_version]` ほか)に **`applies_to_trigger_ids`**(1・2・3・4・6 の 5 件)を足し、**同期経路の規則**であることを機械可読にする
   - 新しい入れ子 `non_sync_triggers`(下)を足す
@@ -80,7 +81,7 @@ date: 2026-10-10
     "same_transaction_with": "triggering_state_change",
     "intent_id_derivation": ["trigger_id", "operation_id", "row_discriminator"],
     "row_rules": {
-      "roster_status_change": {"rows_per_operation": 1, "key_kind": "shared_aggregate_of_tenant", "row_discriminator": "scope_id"}
+      "roster_status_change": {"rows_per_operation": 1, "selector_kind": "shared_aggregate_target_selector", "row_discriminator": "scope_id"}
     },
     "row_rules_for_other_triggers": "defined_by_owner_unit",
     "attribution": {
@@ -93,14 +94,14 @@ date: 2026-10-10
   }
   ```
   キーの綴りは実装時に原典で確定する(N2)
-- **`api.public_symbols`** と **`api.condition4_allowed_call_symbols`** の両方に `SharedAggregateOfTenantCacheKey` を足す(TB004 は呼び出しを後者で判定する — `scripts/check_tenant_boundary_bypass.py:5232`。計画レビュー 1 周目 P1)。発火点(ステップ 4)が呼ぶのは `build_cache_invalidation_request` と新しい鍵のコンストラクタだけで、どちらも後者に載る
+- **`api.public_symbols`** と **`api.condition4_allowed_call_symbols`** の両方に `SharedAggregateTargetSelector` を足す(TB004 は呼び出しを後者で判定する — `scripts/check_tenant_boundary_bypass.py:5232`。計画レビュー 1 周目 P1)。発火点(ステップ 4)が呼ぶのは `build_cache_invalidation_request` と新しい鍵のコンストラクタだけで、どちらも後者に載る
 - **`source_digest`** を再計算する
 - `trigger_emission`・`api` の 3 フラグ(`owns_trigger_emission` ほか)は**変えない** — 純粋な要求生成器の性格は保つ。発火は本 PR のリポジトリ層が持つ
 
 ## 3. 純粋な要求生成器(`repositories/cache_invalidation.py`)
 
-- `SharedAggregateOfTenantCacheKey(tenant_id: UUID)` を足し、`_KEY_SCOPES` で④へ写す
-- `build_cache_invalidation_request(ROSTER_STATUS_CHANGE, (SharedAggregateOfTenantCacheKey(T),))` が通ること。既存の `SharedAggregateCacheKey` も引き続き④として通る
+- `SharedAggregateTargetSelector(tenant_id: UUID)` を足し、`_KEY_SCOPES` で④へ写す(要求の `keys` に物理キーと並んで入れられる「選択子」— 型名で物理キーと区別する)
+- `build_cache_invalidation_request(ROSTER_STATUS_CHANGE, (SharedAggregateTargetSelector(T),))` が通ること。既存の `SharedAggregateCacheKey` も引き続き④として通る
 - 参加変更トリガー(10〜13)の和集合の検査は `SharedAggregateCacheKey` にだけ掛かる。**10〜13 に粗い鍵を渡したときの扱い**は、それらのトリガーの所有単位が決める。本 PR では**拒否する**(既存の検査を弱めない)
 - **DB・キャッシュを import しない**性質は保つ(`backend/tests/test_authz_cache_invalidation.py:415-430`)
 
