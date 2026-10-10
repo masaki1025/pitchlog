@@ -11,6 +11,13 @@ type StoredAuth = {
 }
 
 const piniaInstances: Pinia[] = []
+const otherTabSessionIds = {
+  sameTeam: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  teamB: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  teamC: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+  teamD: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  teamE: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+} as const
 
 function activatePinia(): void {
   const pinia = createPinia()
@@ -195,25 +202,87 @@ describe('authStore', () => {
     expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
   })
 
+  it('4096 文字を超える保存値は消して未認証で始める', () => {
+    const raw = JSON.stringify({
+      version: 1,
+      sessionId: otherTabSessionIds.teamB,
+      teamName: 'A'.repeat(4097),
+      teamId: null,
+    })
+    expect(raw.length).toBeGreaterThan(4096)
+    localStorage.setItem(AUTH_STORAGE_KEY, raw)
+
+    const store = useAuthStore()
+
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.hasHydrated).toBe(true)
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
+  })
+
+  it('UUID 形式でない sessionId は消して未認証で始める', () => {
+    localStorage.setItem(
+      AUTH_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        sessionId: 'session-a',
+        teamName: 'チーム A',
+        teamId: 'team-a',
+      }),
+    )
+
+    const store = useAuthStore()
+
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.hasHydrated).toBe(true)
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
+  })
+
   it.each([
-    ['版が違う', { version: 2, sessionId: 's', teamName: 'A', teamId: null }],
+    [
+      '版が違う',
+      {
+        version: 2,
+        sessionId: otherTabSessionIds.teamB,
+        teamName: 'A',
+        teamId: null,
+      },
+    ],
     [
       'sessionId が空',
       { version: 1, sessionId: '', teamName: 'A', teamId: null },
     ],
     [
       'teamName が空',
-      { version: 1, sessionId: 's', teamName: '', teamId: null },
+      {
+        version: 1,
+        sessionId: otherTabSessionIds.teamB,
+        teamName: '',
+        teamId: null,
+      },
     ],
     [
       'teamId が文字列でも null でもない',
-      { version: 1, sessionId: 's', teamName: 'A', teamId: 1 },
+      {
+        version: 1,
+        sessionId: otherTabSessionIds.teamB,
+        teamName: 'A',
+        teamId: 1,
+      },
     ],
     [
       '余分なキーがある',
-      { version: 1, sessionId: 's', teamName: 'A', teamId: null, extra: 1 },
+      {
+        version: 1,
+        sessionId: otherTabSessionIds.teamB,
+        teamName: 'A',
+        teamId: null,
+        extra: 1,
+      },
     ],
-    ['必須キーがない', { version: 1, sessionId: 's', teamName: 'A' }],
+    [
+      '必須キーがない',
+      { version: 1, sessionId: otherTabSessionIds.teamB, teamName: 'A' },
+    ],
   ])('形が違う保存値（%s）は消して未認証で始める', (_name, value) => {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(value))
 
@@ -335,7 +404,7 @@ describe('authStore タブ間同期', () => {
     queryClient.setQueryData(['x'], 1)
     const previousEpoch = store.authEpoch
 
-    writeOtherTabAuth('session-b', 'チーム B', 'team-b')
+    writeOtherTabAuth(otherTabSessionIds.teamB, 'チーム B', 'team-b')
     dispatchStorageEvent(AUTH_STORAGE_KEY, localStorage)
 
     expect(store.teamName).toBe('チーム B')
@@ -351,7 +420,7 @@ describe('authStore タブ間同期', () => {
     queryClient.setQueryData(['x'], 1)
     const previousEpoch = store.authEpoch
 
-    writeOtherTabAuth('new-session-a', 'チーム A', 'team-a')
+    writeOtherTabAuth(otherTabSessionIds.sameTeam, 'チーム A', 'team-a')
     dispatchStorageEvent()
 
     expect(store.teamName).toBe('チーム A')
@@ -425,7 +494,7 @@ describe('authStore タブ間同期', () => {
     queryClient.setQueryData(['x'], 1)
     const previousEpoch = store.authEpoch
 
-    writeOtherTabAuth('session-b', 'チーム B', 'team-b')
+    writeOtherTabAuth(otherTabSessionIds.teamB, 'チーム B', 'team-b')
     store.syncFromStorage()
 
     expect(store.teamName).toBe('チーム B')
@@ -434,9 +503,29 @@ describe('authStore タブ間同期', () => {
     expect(queryClient.getQueryCache().getAll()).toEqual([])
   })
 
-  it('syncFromStorage の getItem が失敗したらメモリとキャッシュを保つ', () => {
+  it('認証済みで syncFromStorage の getItem が失敗したら保存値を触らず失効する', () => {
     const store = useAuthStore()
     store.signIn({ teamName: 'チーム A' })
+    queryClient.setQueryData(['x'], 1)
+    const previousEpoch = store.authEpoch
+    const remove = vi.spyOn(Storage.prototype, 'removeItem')
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('read failed')
+    })
+
+    expect(() => store.syncFromStorage()).not.toThrow()
+
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.teamName).toBeNull()
+    expect(store.teamId).toBeNull()
+    expect(store.sessionExpired).toBe(true)
+    expect(store.authEpoch).toBe(previousEpoch + 1)
+    expect(queryClient.getQueryCache().getAll()).toEqual([])
+    expect(remove).not.toHaveBeenCalled()
+  })
+
+  it('未認証で syncFromStorage の getItem が失敗しても状態とキャッシュを保つ', () => {
+    const store = useAuthStore()
     queryClient.setQueryData(['x'], 1)
     const previousEpoch = store.authEpoch
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
@@ -445,7 +534,8 @@ describe('authStore タブ間同期', () => {
 
     expect(() => store.syncFromStorage()).not.toThrow()
 
-    expect(store.teamName).toBe('チーム A')
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.sessionExpired).toBe(false)
     expect(store.authEpoch).toBe(previousEpoch)
     expect(queryClient.getQueryData(['x'])).toBe(1)
   })
@@ -455,7 +545,7 @@ describe('authStore タブ間同期', () => {
     store.signIn({ teamName: 'チーム A' })
     queryClient.setQueryData(['x'], 1)
     const previousEpoch = store.authEpoch
-    writeOtherTabAuth('session-b', 'チーム B', 'team-b')
+    writeOtherTabAuth(otherTabSessionIds.teamB, 'チーム B', 'team-b')
 
     dispatchStorageEvent('bb.other')
     dispatchStorageEvent(AUTH_STORAGE_KEY, sessionStorage)
@@ -496,7 +586,7 @@ describe('authStore タブ間同期', () => {
     expect(queryClient.getQueryData(['x'])).toBe(1)
 
     setItem.mockRestore()
-    writeOtherTabAuth('session-c', 'チーム C', 'team-c')
+    writeOtherTabAuth(otherTabSessionIds.teamC, 'チーム C', 'team-c')
     const savedC = localStorage.getItem(AUTH_STORAGE_KEY)
     const remove = vi.spyOn(Storage.prototype, 'removeItem')
     store.syncFromStorage()
@@ -548,7 +638,7 @@ describe('authStore タブ間同期', () => {
     expect(store.authEpoch).toBe(previousEpoch)
     expect(queryClient.getQueryData(['x'])).toBe(1)
 
-    writeOtherTabAuth('session-c', 'チーム C', 'team-c')
+    writeOtherTabAuth(otherTabSessionIds.teamC, 'チーム C', 'team-c')
     const savedC = localStorage.getItem(AUTH_STORAGE_KEY)
     const removeAfterChange = vi.spyOn(Storage.prototype, 'removeItem')
     store.syncFromStorage()
@@ -560,6 +650,76 @@ describe('authStore タブ間同期', () => {
     expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedC)
     expect(removeAfterChange).not.toHaveBeenCalled()
   })
+
+  it.each([
+    ['削除成功', false],
+    ['削除失敗', true],
+  ] as const)(
+    '切り離し（%s）は自分の書き込み成功まで保存値を採らない',
+    (_case, failRemove) => {
+      const store = useAuthStore()
+      store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
+      const setItem = vi
+        .spyOn(Storage.prototype, 'setItem')
+        .mockImplementation(() => {
+          throw new Error('write failed')
+        })
+      const remove = failRemove
+        ? vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+            throw new Error('remove failed')
+          })
+        : null
+      vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      store.signIn({ teamName: 'チーム B', teamId: 'team-b' })
+      setItem.mockRestore()
+      remove?.mockRestore()
+
+      writeOtherTabAuth(otherTabSessionIds.teamC, 'チーム C', 'team-c')
+      const savedC = localStorage.getItem(AUTH_STORAGE_KEY)
+      queryClient.setQueryData(['x'], 1)
+      const beforeC = store.authEpoch
+      store.syncFromStorage()
+
+      expect(store.isAuthenticated).toBe(false)
+      expect(store.sessionExpired).toBe(true)
+      expect(store.authEpoch).toBe(beforeC + 1)
+      expect(queryClient.getQueryCache().getAll()).toEqual([])
+      expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedC)
+
+      queryClient.setQueryData(['x'], 2)
+      store.syncFromStorage()
+
+      expect(store.isAuthenticated).toBe(false)
+      expect(store.sessionExpired).toBe(true)
+      expect(store.authEpoch).toBe(beforeC + 1)
+      expect(queryClient.getQueryData(['x'])).toBe(2)
+
+      writeOtherTabAuth(otherTabSessionIds.teamD, 'チーム D', 'team-d')
+      const savedD = localStorage.getItem(AUTH_STORAGE_KEY)
+      store.syncFromStorage()
+
+      expect(store.isAuthenticated).toBe(false)
+      expect(store.sessionExpired).toBe(true)
+      expect(store.authEpoch).toBe(beforeC + 2)
+      expect(queryClient.getQueryCache().getAll()).toEqual([])
+      expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedD)
+
+      store.signIn({ teamName: 'チーム B', teamId: 'team-b' })
+      expect(store.isAuthenticated).toBe(true)
+      expect(store.sessionExpired).toBe(false)
+      queryClient.setQueryData(['x'], 3)
+      const beforeE = store.authEpoch
+      writeOtherTabAuth(otherTabSessionIds.teamE, 'チーム E', 'team-e')
+      store.syncFromStorage()
+
+      expect(store.teamName).toBe('チーム E')
+      expect(store.teamId).toBe('team-e')
+      expect(store.sessionExpired).toBe(false)
+      expect(store.authEpoch).toBe(beforeE + 1)
+      expect(queryClient.getQueryCache().getAll()).toEqual([])
+    },
+  )
 
   it('切り離し中に書き込みが成功すると通常の同期へ戻る', () => {
     const store = useAuthStore()
@@ -576,7 +736,7 @@ describe('authStore タブ間同期', () => {
     store.signIn({ teamName: 'チーム B' })
     queryClient.setQueryData(['x'], 1)
     const previousEpoch = store.authEpoch
-    writeOtherTabAuth('session-c', 'チーム C', 'team-c')
+    writeOtherTabAuth(otherTabSessionIds.teamC, 'チーム C', 'team-c')
 
     store.syncFromStorage()
 
@@ -602,7 +762,7 @@ describe('authStore タブ間同期', () => {
     store.signOut()
     queryClient.setQueryData(['x'], 1)
     const previousEpoch = store.authEpoch
-    writeOtherTabAuth('session-c', 'チーム C', 'team-c')
+    writeOtherTabAuth(otherTabSessionIds.teamC, 'チーム C', 'team-c')
 
     store.syncFromStorage()
 
@@ -646,7 +806,7 @@ describe('authStore タブ間同期', () => {
       expect(store.authEpoch).toBe(previousEpoch)
       expect(queryClient.getQueryData(['x'])).toBe(1)
 
-      writeOtherTabAuth('session-c', 'チーム C', 'team-c')
+      writeOtherTabAuth(otherTabSessionIds.teamC, 'チーム C', 'team-c')
       const savedC = localStorage.getItem(AUTH_STORAGE_KEY)
       const removeAfterChange = vi.spyOn(Storage.prototype, 'removeItem')
       store.syncFromStorage()
@@ -717,7 +877,7 @@ describe('authStore タブ間同期', () => {
     const previousEpoch = store.authEpoch
     store.$dispose()
 
-    writeOtherTabAuth('session-b', 'チーム B', 'team-b')
+    writeOtherTabAuth(otherTabSessionIds.teamB, 'チーム B', 'team-b')
     dispatchStorageEvent()
 
     expect(store.teamName).toBe('チーム A')

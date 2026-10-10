@@ -13,8 +13,14 @@ type StoredAuth = {
 
 const storageWarning = 'bb.auth の保存に失敗しました'
 const storedAuthKeys = ['version', 'sessionId', 'teamName', 'teamId']
+const sessionIdPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 function parseStoredAuth(raw: string): StoredAuth | null {
+  if (raw.length > 4096) {
+    return null
+  }
+
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
@@ -32,7 +38,7 @@ function parseStoredAuth(raw: string): StoredAuth | null {
     !storedAuthKeys.every((key) => Object.hasOwn(value, key)) ||
     value.version !== 1 ||
     typeof value.sessionId !== 'string' ||
-    value.sessionId.length === 0 ||
+    !sessionIdPattern.test(value.sessionId) ||
     typeof value.teamName !== 'string' ||
     value.teamName.length === 0 ||
     (typeof value.teamId !== 'string' && value.teamId !== null)
@@ -163,6 +169,11 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       raw = localStorage.getItem(AUTH_STORAGE_KEY)
     } catch {
+      if (!detached && isAuthenticated.value) {
+        // 認証済みで保存値を照合できないときは、保存値を触らず失効させる。
+        beginAuthChange()
+        setUnauthenticated(true)
+      }
       return
     }
 
@@ -173,7 +184,7 @@ export const useAuthStore = defineStore('auth', () => {
       // 別タブの新しい保存値は採らず、認証状態だけを失効させる。
       beginAuthChange()
       setUnauthenticated(true)
-      leaveDetachedState()
+      detachedRaw = raw
       return
     }
 
