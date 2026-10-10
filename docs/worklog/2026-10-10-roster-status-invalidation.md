@@ -127,6 +127,16 @@ branch: feature/roster-status-invalidation
   - 2 回目: 否決(P1 1)→ 採用。記録の `change.after.declaration` でセンサス基準の識別子が `contract_revision:10` のまま(実資産は 11)。**ローカルの迂回検査は PR 受理モード(`GITHUB_EVENT_NAME=pull_request`)ではないので通ってしまう** → 9 資産すべての `change.before`/`after` を比較元と作業ツリーから機械的に導出し直した。PR 受理モードの履歴検証関数を一時 event で直接実行して ok(Codex)。CLI での確認は二親マージの HEAD を要するので CI で確認する。**上限到達のため本反映は再レビューせず**
 - 合格条件: 凍結履歴・センサス・比較 corpus 185 passed / 迂回検査 ok(Codex)
 
+### 総合検証と是正(2026-10-10)
+
+- ステップ 5 の push 後の CI(`8d9b42f1`)で backend・harness・tenant-boundary-bypass・core-guard が赤、ルートの全件で 2 件失敗。原因は 3 系統:
+  1. **data-model v0.7 の改訂に追随していない digest と生成物**(ステップ 1 で取り直すべきだった): `contracts/db/schema-manifest.json` の sha256・`contracts/authz/shared-preconditions.json` の blob digest・ORM 受入シート(N1・N3)と固定行数 → `(ステップ 1 是正)` `303ca965`。受入シートは生成器で作り直し、番号のずれだけの行は旧版の同じ行の判定を持ち越し、内容が新しい 8 行は旧版の同種の行に倣って判定(初回は自作の持ち越しスクリプトがセル内の `\|` を区切りとして分割して行を壊した — 生成器の読み取り関数を使う形でやり直した)。どれも凍結基準・oracle 封印の入力ではない。review normal 可決
+  2. **API 規約違反**: API 層が `sqlalchemy.exc.IntegrityError` を import(ステップ 4 の 404 の写し)・経路の固定数 10 → 12 → `(ステップ 4 是正)` `913877ac`(リポジトリ層の `roster_status_transaction_scope` で外部キー違反をドメインの例外へ写す)。review normal 可決
+  3. **CI の偽の失敗**: PR の event の `base.sha` が `f79c14e0` のまま、二親マージの第 1 親が `8df9f3d1`(develop が #115 で進んだ)→ develop を取り込んだ(`1058f9ba`・文書だけ・競合なし)
+  - core-guard は逐行確認のチェックが空欄のため(想定どおり)
+- **取りこぼしの原因**: 各ステップで関係ファイルのテストしか回さず、backend の DB 不要の全件(約 1 分)をステップごとに回していなかった。data-model.md の digest を持つ資産を、正本を変えるステップの合格条件に入れていなかった(台帳候補 — クローズ処理で判断)
+- 是正後: backend の DB 不要の全件 1304 passed(終了コード 1 は DB 必須テスト 0 件のゲート)・実 DB を含む関係 5 ファイル 152 passed・ORM 受入シート 13 passed・shared-preconditions 9 passed・schema-manifest 14 passed・迂回検査 ok・authz カタログ ok・凍結基準の不変条件 ok
+
 ## 決定
 
 - J1 同期を通らない 9 トリガーの規則は `data-model.md` 11-2 に新設(実装はトリガー 14 だけ)/ J2 確定ゲート / J3 意図は対象テナント単位の粗い 1 行・展開は配信側 / J4 配信はその範囲のキャッシュ本体を初めて導入する単位(2026-10-10・山田正輝)
