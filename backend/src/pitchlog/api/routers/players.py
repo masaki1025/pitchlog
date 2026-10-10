@@ -6,7 +6,6 @@ from typing import Annotated
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.exc import IntegrityError
 
 from pitchlog.api.schemas.base import Page
 from pitchlog.api.schemas.roster import (
@@ -36,8 +35,8 @@ from pitchlog.repositories.roster import (
     PlayerRosterStatusUpdateToken,
     PlayerUpdateToken,
     RosterReferenceUnavailable,
-    _is_player_reference_unavailable,
     create_roster_player,
+    roster_status_transaction_scope,
 )
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 from pitchlog.repositories.transaction import tenant_transaction_scope
@@ -265,10 +264,8 @@ def apply_player_status(
     """区分の変更と無効化意図を 1 トランザクションで確定する。"""
     try:
         return _apply_player_status_in_transaction(body, context)
-    except IntegrityError as error:
-        if _is_player_reference_unavailable(error, include_team=False):
-            raise HTTPException(status_code=404) from None
-        raise
+    except RosterReferenceUnavailable:
+        raise HTTPException(status_code=404) from None
 
 
 def _apply_player_status_in_transaction(
@@ -279,7 +276,7 @@ def _apply_player_status_in_transaction(
     not_found_player_ids: list[UUID] = []
     status_updates = 0
     update_label = "roster_label_key" in body.model_fields_set
-    with tenant_transaction_scope(context) as scope:
+    with roster_status_transaction_scope(context) as scope:
         for player_id in body.player_ids:
             rows = scope.run(PlayerReadToken(limit=1, record_id=player_id)).rows
             if not rows:

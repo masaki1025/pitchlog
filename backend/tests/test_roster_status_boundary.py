@@ -31,6 +31,7 @@ from pitchlog.api.app import create_app
 from pitchlog.api.routers import players
 from pitchlog.api.schemas.roster import PlayerStatusBulkRequest
 from pitchlog.authz.token_presentation import TokenPresentation
+from pitchlog.repositories import transaction as transaction_module
 from pitchlog.repositories.cache_invalidation import (
     CacheInvalidationTrigger,
     CacheScope,
@@ -41,6 +42,8 @@ from pitchlog.repositories.roster import (
     PlayerReadToken,
     PlayerRosterLabelUpdateToken,
     PlayerRosterStatusUpdateToken,
+    RosterReferenceUnavailable,
+    roster_status_transaction_scope,
 )
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 
@@ -146,6 +149,7 @@ def test_status_entry_emits_only_for_changed_rows_without_db(
         yield Handle()
 
     monkeypatch.setattr(players, "tenant_transaction_scope", scope)
+    monkeypatch.setattr(players, "roster_status_transaction_scope", scope)
     context = cast(TenantContext, SimpleNamespace(tenant_id=tenant_id))
     before = players.preview_player_status(
         PlayerStatusBulkRequest.model_validate(_body([player_id], "other")), context
@@ -183,13 +187,13 @@ def test_status_entry_emits_only_for_changed_rows_without_db(
         ("fk_players_roster_status", "23505", None),
     ),
 )
-def test_status_entry_maps_only_status_and_label_reference_errors_without_db(
+def test_status_repository_maps_only_status_and_label_reference_errors_without_db(
     monkeypatch: pytest.MonkeyPatch,
     constraint_name: str,
     sqlstate: str,
     expected_status: int | None,
 ) -> None:
-    """区分・ラベルの外部キー違反だけを選手作成と同じ 404 に写す。"""
+    """区分・ラベルの外部キー違反だけを取消後にドメインの拒否へ写す。"""
 
     class OriginError(Exception):
         def __init__(self) -> None:
@@ -199,20 +203,46 @@ def test_status_entry_maps_only_status_and_label_reference_errors_without_db(
 
     error = IntegrityError("UPDATE players", {}, OriginError())
 
+    context = cast(TenantContext, SimpleNamespace(tenant_id=uuid4()))
+    rollback_finished = False
+
+    @contextmanager
+    def scope(_context: TenantContext) -> Iterator[object]:
+        """終了時に取消を模した状態を記録する。"""
+        nonlocal rollback_finished
+        try:
+            yield object()
+        finally:
+            rollback_finished = True
+
+    monkeypatch.setattr(transaction_module, "tenant_transaction_scope", scope)
+    if expected_status is None:
+        with pytest.raises(IntegrityError) as raised:
+            with roster_status_transaction_scope(context):
+                raise error
+        assert raised.value is error
+    else:
+        with pytest.raises(RosterReferenceUnavailable):
+            with roster_status_transaction_scope(context):
+                raise error
+    assert rollback_finished
+
+
+def test_status_entry_maps_reference_unavailable_to_not_found_without_db(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """入口はリポジトリが返す参照先不在だけを 404 に写す。"""
+
     def fail(*_args: object) -> None:
-        raise error
+        raise RosterReferenceUnavailable
 
     monkeypatch.setattr(players, "_apply_player_status_in_transaction", fail)
     body = PlayerStatusBulkRequest.model_validate(_body([uuid4()], "other"))
     context = cast(TenantContext, SimpleNamespace(tenant_id=uuid4()))
-    if expected_status is None:
-        with pytest.raises(IntegrityError) as raised:
-            players.apply_player_status(body, context)
-        assert raised.value is error
-    else:
-        with pytest.raises(HTTPException) as raised:
-            players.apply_player_status(body, context)
-        assert raised.value.status_code == expected_status
+    with pytest.raises(HTTPException) as raised:
+        players.apply_player_status(body, context)
+    assert raised.value.status_code == 404
+    assert raised.value.detail == "Not Found"
 
 
 @pytest.mark.requires_db
@@ -581,7 +611,7 @@ async def test_real_roster_status_stale_read_does_not_emit_intent(
     )
     app = create_app()
     signer: TokenPresentation = app.state.token_presentation
-    real_scope = players.tenant_transaction_scope
+    real_scope = players.roster_status_transaction_scope
     stale_read_count = 0
 
     class StaleReadHandle:
@@ -614,7 +644,7 @@ async def test_real_roster_status_stale_read_does_not_emit_intent(
     ) as client:
         client.cookies.set("__Host-pitchlog_token", signer.encode(token))
         with monkeypatch.context() as patcher:
-            patcher.setattr(players, "tenant_transaction_scope", stale_scope)
+            patcher.setattr(players, "roster_status_transaction_scope", stale_scope)
             response = await client.post(
                 "/players/status-apply",
                 json=_body([player_id], "other", "status-label"),

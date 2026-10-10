@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, fields
 from datetime import datetime
-from typing import Any, Union, cast
+from typing import TYPE_CHECKING, Any, Union, cast
 from uuid import UUID
 
 from sqlalchemy import (
@@ -44,9 +46,13 @@ from pitchlog.repositories.operation_registration import (
 )
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 
+if TYPE_CHECKING:
+    from pitchlog.repositories.transaction import _TenantTransaction
+
 __all__ = (
     "RosterReferenceUnavailable",
     "create_roster_player",
+    "roster_status_transaction_scope",
     "PlayerCreateToken",
     "PlayerReadToken",
     "PlayerUpdateToken",
@@ -93,6 +99,29 @@ def create_roster_player(
             return scope.run(operation)
     except IntegrityError as error:
         if _is_player_reference_unavailable(error):
+            raise RosterReferenceUnavailable from error
+        raise
+
+
+@contextmanager
+def roster_status_transaction_scope(
+    context: TenantContext,
+) -> Iterator[_TenantTransaction]:
+    """在籍区分の更新をまとめ、参照先違反を取消後に拒否へ写す。
+
+    Args:
+        context: 操作を行うテナント文脈。
+
+    Yields:
+        区分更新と無効化意図を同じトランザクションで実行するスコープ。
+    """
+    from pitchlog.repositories.transaction import tenant_transaction_scope
+
+    try:
+        with tenant_transaction_scope(context) as scope:
+            yield scope
+    except IntegrityError as error:
+        if _is_player_reference_unavailable(error, include_team=False):
             raise RosterReferenceUnavailable from error
         raise
 
