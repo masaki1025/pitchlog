@@ -1,6 +1,6 @@
 ---
 feature: ua1-auth-http-entry
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-09・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -81,6 +81,7 @@ U-A1 は α(正本)→ β(DB 層)→ γ(アプリ層)→ **δ(HTTP の入口)**�
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
 | `docs/design/data-model.md` | 12-4 の判定記録 + 12-8 節の本文 1 行の現行化 + 変更履歴表に 1 行(**版は上げない** — 7.6-3 前段) | PR レビュー |
+| `docs/development/harness-evaluation.md` | **【/pr クローズ処理】`H-92` を 1 件追記**(検査器の正例 fixture がモジュールあたり許可シンボル 2 本の構造上の上限を作る)+ 変更履歴表に 1 行(**版は上げない** — 7.6-3 前段) | PR レビュー |
 | `docs/README.md` | `data-model.md` の最終更新日の現行化 + **新設する運用文書 2 本の索引行を足す**(`docs/ops/` は索引の掲載対象) | PR レビュー |
 | `docs/ops/deployment.md` | **新設** — DB ログ設定の前提 / DB 接続の前提(ローカルか証明書検証付き TLS)/ レート制限の設定値の投入手順 | **/finalize-doc**(新設は敵対レビュー + 人間承認 — AGENTS.md 絶対規則 4) |
 | `docs/ops/key-rotation.md` | **新設** — 署名鍵の入れ替え手順と実地確認の記録 | **/finalize-doc**(同上) |
