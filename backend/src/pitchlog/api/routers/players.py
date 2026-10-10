@@ -6,6 +6,7 @@ from typing import Annotated
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.exc import IntegrityError
 
 from pitchlog.api.schemas.base import Page
 from pitchlog.api.schemas.roster import (
@@ -14,15 +15,28 @@ from pitchlog.api.schemas.roster import (
     PlayerCreated,
     PlayerListRequest,
     PlayerRead,
+    PlayerStatusApplied,
+    PlayerStatusBulkRequest,
+    PlayerStatusChange,
+    PlayerStatusPreview,
     PlayerUpdate,
 )
 from pitchlog.api.tenant_access import require_tenant_access
+from pitchlog.repositories.cache_invalidation import (
+    CacheInvalidationTrigger,
+    SharedAggregateTargetSelector,
+    build_cache_invalidation_request,
+)
 from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.invalidation_intents import record_invalidation_intent
 from pitchlog.repositories.roster import (
     PlayerCreateToken,
     PlayerReadToken,
+    PlayerRosterLabelUpdateToken,
+    PlayerRosterStatusUpdateToken,
     PlayerUpdateToken,
     RosterReferenceUnavailable,
+    _is_player_reference_unavailable,
     create_roster_player,
 )
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
@@ -199,3 +213,118 @@ def update_player(
     if result.rows != ((1,),):
         raise HTTPException(status_code=404)
     return _read_player(context, player_id)
+
+
+@router.post(
+    "/players/status-preview",
+    response_model=PlayerStatusPreview,
+    operation_id="roster_player_status_preview",
+)
+def preview_player_status(
+    body: PlayerStatusBulkRequest,
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+) -> PlayerStatusPreview:
+    """指定した選手の在籍区分の差分を読み取りだけで返す。"""
+    changes: list[PlayerStatusChange] = []
+    unchanged_player_ids: list[UUID] = []
+    not_found_player_ids: list[UUID] = []
+    with tenant_transaction_scope(context) as scope:
+        for player_id in body.player_ids:
+            rows = scope.run(PlayerReadToken(limit=1, record_id=player_id)).rows
+            if not rows:
+                not_found_player_ids.append(player_id)
+                continue
+            player = _player(rows[0])
+            if player.roster_status_key == body.roster_status_key:
+                unchanged_player_ids.append(player_id)
+            else:
+                changes.append(
+                    PlayerStatusChange(
+                        player_id=player_id,
+                        name=player.name,
+                        before_status_key=player.roster_status_key,
+                        after_status_key=body.roster_status_key,
+                    )
+                )
+    return PlayerStatusPreview(
+        changes=changes,
+        unchanged_player_ids=unchanged_player_ids,
+        not_found_player_ids=not_found_player_ids,
+    )
+
+
+@router.post(
+    "/players/status-apply",
+    response_model=PlayerStatusApplied,
+    operation_id="roster_player_status_apply",
+)
+def apply_player_status(
+    body: PlayerStatusBulkRequest,
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+) -> PlayerStatusApplied:
+    """区分の変更と無効化意図を 1 トランザクションで確定する。"""
+    try:
+        return _apply_player_status_in_transaction(body, context)
+    except IntegrityError as error:
+        if _is_player_reference_unavailable(error, include_team=False):
+            raise HTTPException(status_code=404) from None
+        raise
+
+
+def _apply_player_status_in_transaction(
+    body: PlayerStatusBulkRequest, context: TenantContext
+) -> PlayerStatusApplied:
+    """参照先違反時に全体を巻き戻せる単一の操作単位を実行する。"""
+    applied: list[PlayerRead] = []
+    not_found_player_ids: list[UUID] = []
+    status_updates = 0
+    update_label = "roster_label_key" in body.model_fields_set
+    with tenant_transaction_scope(context) as scope:
+        for player_id in body.player_ids:
+            rows = scope.run(PlayerReadToken(limit=1, record_id=player_id)).rows
+            if not rows:
+                not_found_player_ids.append(player_id)
+                continue
+            player = _player(rows[0])
+            if player.roster_status_key != body.roster_status_key:
+                result = scope.run(
+                    PlayerRosterStatusUpdateToken(
+                        id=player_id,
+                        roster_status_key=body.roster_status_key,
+                        roster_label_key=body.roster_label_key,
+                        update_label=update_label,
+                    )
+                )
+                if result.rows == ((1,),):
+                    status_updates += 1
+                elif result.rows == ((0,),):
+                    if update_label:
+                        scope.run(
+                            PlayerRosterLabelUpdateToken(
+                                player_id, body.roster_label_key
+                            )
+                        )
+                else:
+                    raise RuntimeError("在籍区分の更新件数が不正")
+            elif update_label and player.roster_label_key != body.roster_label_key:
+                scope.run(
+                    PlayerRosterLabelUpdateToken(player_id, body.roster_label_key)
+                )
+
+            updated_rows = scope.run(PlayerReadToken(limit=1, record_id=player_id)).rows
+            if updated_rows:
+                applied.append(_player(updated_rows[0]))
+            else:
+                not_found_player_ids.append(player_id)
+
+        if status_updates:
+            request = build_cache_invalidation_request(
+                CacheInvalidationTrigger.ROSTER_STATUS_CHANGE,
+                (SharedAggregateTargetSelector(context.tenant_id),),
+            )
+            record_invalidation_intent(scope, request, uuid4())
+
+    return PlayerStatusApplied(
+        applied=applied,
+        not_found_player_ids=not_found_player_ids,
+    )

@@ -108,6 +108,15 @@ branch: feature/roster-status-invalidation
   - 2 回目: **可決**
 - 合格条件: `check_tenant_boundary_bypass.py --base-ref origin/develop` ok / 凍結履歴 4 本 499 passed(Codex)/ backend の DB 不要 251 passed(Codex)/ 実 DB を含む `test_invalidation_intents_repository.py`・`test_roster_repository.py` 107 passed(Claude)/ ruff・ruff format・ty green
 
+### ステップ 4(在籍区分の入口と発火点)
+
+- Codex 委任: `players.py` に `POST /players/status-preview`(読み取りだけ)・`POST /players/status-apply`(1 トランザクションで ID ごとに読み → 区分の変わる行を `PlayerRosterStatusUpdateToken` で更新 → 更新件数 0 の行とラベルだけの行は `PlayerRosterLabelUpdateToken` → 区分の更新件数の合計が 1 以上なら `uuid4()` の操作 ID で意図を 1 行)/ `test_api_app.py` の経路の固定 / 新規 `test_roster_status_boundary.py` / `test_roster_boundary.py` から「未実装の入口は 404」の 2 行を削除
+- ラベルは DTO で必須(明示 null = 解除)。ラベルだけの変更は発火しない
+- 敵対レビュー:
+  - 1 回目: 否決(P1 3)→ 2 件採用・1 件は人間の裁定で申し送り。① 無効な区分キー・ラベルキーで 500 → #95 の作成入口と同じく外部キー違反を 404 に写す ② 読み取り後の UPDATE が 0 件になる競合分岐を入口で検証していない → 最初の読み取りだけ古い区分を返す差し替えのテスト ③ 12-4 の実スキーマ判定記録が無い → **本 PR では実施せず申し送る(2026-10-10・山田正輝の裁定)**。12-4 のゲート通過の記録は正本でも保留中(data-model 変更履歴 v0.6 2026-10-08 行)、#95 も記録なしでマージ、実スキーマの実行には `.env` の接続情報と専用インスタンスの作り直しが要る。計画書のステップ 4 合格条件と DoD を書き換え、#95 の分と合わせて master へ申し送った
+  - 2 回目: **可決**
+- 実 DB テスト(Claude): `test_roster_status_boundary.py`・`test_roster_boundary.py`・`test_api_app.py` 41 passed。差し戻し後の 1 件の失敗はテストの期待値の誤り(404 の本文を FastAPI 既定の `{"detail": "Not Found"}` と期待していた — 既存の約束 `{"error": {"message": "対象が見つかりません"}}` へ Claude が直した)
+
 ## 決定
 
 - J1 同期を通らない 9 トリガーの規則は `data-model.md` 11-2 に新設(実装はトリガー 14 だけ)/ J2 確定ゲート / J3 意図は対象テナント単位の粗い 1 行・展開は配信側 / J4 配信はその範囲のキャッシュ本体を初めて導入する単位(2026-10-10・山田正輝)

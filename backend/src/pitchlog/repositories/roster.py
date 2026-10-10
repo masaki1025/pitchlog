@@ -69,6 +69,19 @@ _PLAYER_REFERENCE_FKS = frozenset(
 )
 
 
+def _is_player_reference_unavailable(
+    error: IntegrityError, *, include_team: bool = True
+) -> bool:
+    """参照先を対象テナント内で利用できない外部キー違反か判定する。"""
+    diagnostic = getattr(error.orig, "diag", None)
+    constraint_name = getattr(diagnostic, "constraint_name", None)
+    return (
+        getattr(error.orig, "sqlstate", None) == "23503"
+        and constraint_name in _PLAYER_REFERENCE_FKS
+        and (include_team or constraint_name != "fk_players_team")
+    )
+
+
 def create_roster_player(
     context: TenantContext, operation: PlayerCreateToken
 ) -> TenantOperationResult:
@@ -79,11 +92,7 @@ def create_roster_player(
         with tenant_transaction_scope(context) as scope:
             return scope.run(operation)
     except IntegrityError as error:
-        diagnostic = getattr(error.orig, "diag", None)
-        if (
-            getattr(error.orig, "sqlstate", None) == "23503"
-            and getattr(diagnostic, "constraint_name", None) in _PLAYER_REFERENCE_FKS
-        ):
+        if _is_player_reference_unavailable(error):
             raise RosterReferenceUnavailable from error
         raise
 
