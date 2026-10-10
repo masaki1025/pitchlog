@@ -88,6 +88,16 @@ branch: feature/roster-status-invalidation
 - **PO 承認 2026-10-10・山田正輝**(最終反映 `a1b1a013` の差分 = `B02` の ④ の例外の境界 3 行を提示して承認)。data-model を approved・v0.7 に、変更履歴に通過行、README 索引を現行化
 - 要点: 2 回・反映 2 周・指摘 6 件(P1 5 / P2 1)全件採用。警告・エスカレーション・PO 裁定は発動なし。重要な是正は「対象テナント単位の鍵」を物理キーではない**選択子**へ改めたことで、計画ステップ 2(契約の登録先)まで波及した
 
+### ステップ 2(契約と純粋な要求生成器)
+
+- draft PR #114 を作成(受理記録の `acceptance_id` 用 — design.md N1)。Notion TSK-447 の URL 欄に記録
+- 受理記録の承認値: 山田正輝 / 2026-10-10(人間に確認 — AskUserQuestion)
+- Codex 委任: `SharedAggregateTargetSelector`(トリガー 14 専用)・契約 revision 11(`applies_to_trigger_ids` 5 件 / `non_sync_triggers` 9 件・`attribution`・`row_rules`・`selectors`、`physical_key_adt` には足さない)・テスト・受理記録 1 件(比較元 `f79c14e0`・影響資産はキャッシュ無効化契約 1 件)・snapshot・比較 corpus の再封印
+- 敵対レビュー(コア領域 — 回数上限 6.3):
+  - 1 回目(全差分): 否決(P0 1 / P1 1)→ 採用。P0 = トリガー 14 が物理キー単独・混在・複数選択子を受理 → 選択子ちょうど 1 件だけを受理 / P1 = `B06` の帰属・行規則と契約の照合が空洞 → 表を読み取り双方向に照合
+  - 2 回目(反映差分): 否決(P1 1)→ 採用。帰属・鍵のセルを前方一致・部分一致で比べていた → 正規化した全文の完全一致と、「指定した他テナントも可」を足す変異の負例。**上限到達のため本反映は再レビューせず、Claude が完全一致の実装を確認**
+- 合格条件: `check_tenant_boundary_bypass.py --base-ref origin/develop` ok / ルート `test_check_tenant_boundary_bypass.py`・`test_frozen_history.py`・`test_frozen_archive.py`・`test_frozen_archive_case_runner.py` 499 passed(Codex)/ `test_census_baseline_check.py` を含め 392 passed(Claude)/ backend `test_authz_cache_invalidation.py` 19 passed・`test_authz_repository_contract.py` green / ruff・ruff format・ty green
+
 ## 決定
 
 - J1 同期を通らない 9 トリガーの規則は `data-model.md` 11-2 に新設(実装はトリガー 14 だけ)/ J2 確定ゲート / J3 意図は対象テナント単位の粗い 1 行・展開は配信側 / J4 配信はその範囲のキャッシュ本体を初めて導入する単位(2026-10-10・山田正輝)
