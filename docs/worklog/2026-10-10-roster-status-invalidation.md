@@ -47,6 +47,19 @@ branch: feature/roster-status-invalidation
 - `docs/README.md`: data-model 行に v0.7 起案中を併記、版 0.7・最終更新 2026-10-10
 - 合格条件: `check_docs_status` 違反 0 / `check_design_propagation`・`check_doc_coverage` ok / `check_plan_docs_sync` は作業中の警告のみ / `test_authz_cache_invalidation.py` 14 passed
 
+### 確定ゲート(/finalize-doc — data-model v0.7)
+
+#### 適用版の記録(7.3-1)
+
+```
+適用版            ハーネス設計書 7.3 の v1.19(2026-10-07 確定ゲート通過・approved)
+条文コミット SHA  945384c5e70ce2ae471edec1d845660918eaee93
+```
+
+- 回数の枠(6.3): 基本 2 回(全文 1 + 差分 1)/ 2 回目に P0 が残り 1 件以上採用したときだけ 3 回目(P0 限定)/ 追加は PO 裁定 1 回につき 1 回
+- 手順 0: 射程宣言は v0.7 の変更履歴行(in-review)にある
+- 手順 1: frontmatter と索引を `in-review` に更新(本記録と同一コミット)
+
 ## 決定
 
 - J1 同期を通らない 9 トリガーの規則は `data-model.md` 11-2 に新設(実装はトリガー 14 だけ)/ J2 確定ゲート / J3 意図は対象テナント単位の粗い 1 行・展開は配信側 / J4 配信はその範囲のキャッシュ本体を初めて導入する単位(2026-10-10・山田正輝)
