@@ -50,6 +50,8 @@ __all__ = (
     "PlayerCreateToken",
     "PlayerReadToken",
     "PlayerUpdateToken",
+    "PlayerRosterStatusUpdateToken",
+    "PlayerRosterLabelUpdateToken",
     "TeamRecordCreateToken",
     "TeamRecordReadToken",
     "TeamRecordUpdateToken",
@@ -90,7 +92,10 @@ _PLAYERS = cast(Table, Player.__table__)
 _TEAM_RECORDS = cast(Table, TeamRecord.__table__)
 _GAMES = cast(Table, Game.__table__)
 
-_PLAYER_UPDATE_COLUMNS = frozenset(PlayerUpdateSchema.model_fields)
+_PLAYER_UPDATE_COLUMNS = frozenset(PlayerUpdateSchema.model_fields) - {
+    "roster_status_key",
+    "roster_label_key",
+}
 _TEAM_RECORD_UPDATE_COLUMNS = frozenset(TeamRecordUpdateSchema.model_fields)
 # migration 0028 と同じ Unicode White_Space 集合を、類似名の SQL 判定に渡す。
 _SIMILAR_NAME_WHITESPACE = (
@@ -220,11 +225,52 @@ class PlayerUpdateToken(TenantOperationToken):
                 raise ValueError("throws は right/left/NULL が必要")
             if name == "bats" and value not in {None, "right", "left", "both"}:
                 raise ValueError("bats は right/left/both/NULL が必要")
-        if any(
-            name in {"name", "roster_status_key"} and value is None
-            for name, value in self.changes
-        ):
+        if any(name == "name" and value is None for name, value in self.changes):
             raise ValueError("非 nullable 列を NULL にできない")
+
+    @property
+    def capability_id(self) -> str:
+        """選手の更新 capability を返す。"""
+        return "CAP:players:update"
+
+
+@dataclass(frozen=True, slots=True)
+class PlayerRosterStatusUpdateToken(TenantOperationToken):
+    """在籍区分が実際に違う選手 1 行だけを更新する。"""
+
+    id: UUID
+    roster_status_key: str
+    roster_label_key: str | None = None
+    update_label: bool = False
+
+    def __post_init__(self) -> None:
+        """区分と任意のラベル更新指定を検査する。"""
+        _require_uuid(self.id, "id")
+        _require_text(self.roster_status_key, "roster_status_key")
+        if type(self.update_label) is not bool:
+            raise ValueError("update_label は真偽値が必要")
+        if self.update_label:
+            _require_optional_text(self.roster_label_key, "roster_label_key")
+        elif self.roster_label_key is not None:
+            raise ValueError("ラベルを指定する場合は update_label が必要")
+
+    @property
+    def capability_id(self) -> str:
+        """選手の更新 capability を返す。"""
+        return "CAP:players:update"
+
+
+@dataclass(frozen=True, slots=True)
+class PlayerRosterLabelUpdateToken(TenantOperationToken):
+    """在籍区分を変えずにラベルだけを更新する。"""
+
+    id: UUID
+    roster_label_key: str | None
+
+    def __post_init__(self) -> None:
+        """対象 ID と任意ラベルを検査する。"""
+        _require_uuid(self.id, "id")
+        _require_optional_text(self.roster_label_key, "roster_label_key")
 
     @property
     def capability_id(self) -> str:
@@ -334,6 +380,8 @@ class GameTeamLinkReadToken(TenantOperationToken):
 type _RosterBuilderOperation = (
     PlayerReadToken
     | PlayerUpdateToken
+    | PlayerRosterStatusUpdateToken
+    | PlayerRosterLabelUpdateToken
     | TeamRecordReadToken
     | GameTeamLinkReadToken
     | TeamRecordUpdateToken
@@ -482,6 +530,34 @@ def _build_roster_statement(
             .where(_PLAYERS.c.tenant_id == bindparam("where_tenant_id"))
             .where(_PLAYERS.c.id == bindparam("where_id"))
             .values(**values)
+        )
+    if kind == "player_roster_status_update":
+        if operation is not None and not isinstance(
+            operation, PlayerRosterStatusUpdateToken
+        ):
+            raise ValueError("player_roster_status_update には在籍区分 token が必要")
+        values = {"roster_status_key": bindparam("roster_status_key")}
+        if operation is not None and operation.update_label:
+            values["roster_label_key"] = bindparam("roster_label_key")
+        return (
+            update(_PLAYERS)
+            .where(_PLAYERS.c.tenant_id == bindparam("where_tenant_id"))
+            .where(_PLAYERS.c.id == bindparam("where_id"))
+            .where(_PLAYERS.c.roster_status_key != bindparam("roster_status_key"))
+            .where(_PLAYERS.c.hidden_at.is_(None))
+            .values(**values)
+        )
+    if kind == "player_roster_label_update":
+        if operation is not None and not isinstance(
+            operation, PlayerRosterLabelUpdateToken
+        ):
+            raise ValueError("player_roster_label_update にはラベル token が必要")
+        return (
+            update(_PLAYERS)
+            .where(_PLAYERS.c.tenant_id == bindparam("where_tenant_id"))
+            .where(_PLAYERS.c.id == bindparam("where_id"))
+            .where(_PLAYERS.c.hidden_at.is_(None))
+            .values(roster_label_key=bindparam("roster_label_key"))
         )
     if kind == "team_read":
         if operation is not None and not isinstance(operation, TeamRecordReadToken):
@@ -656,6 +732,31 @@ def _prepare_player_update(operation: TenantOperationToken) -> PreparedOperation
     return player_update_statement(token), parameters
 
 
+def _prepare_player_roster_status_update(
+    operation: TenantOperationToken,
+) -> PreparedOperation:
+    """在籍区分の変更と指定されたラベルだけを束縛する。"""
+    token = cast(PlayerRosterStatusUpdateToken, operation)
+    parameters: dict[str, object] = {
+        "where_id": token.id,
+        "roster_status_key": token.roster_status_key,
+    }
+    if token.update_label:
+        parameters["roster_label_key"] = token.roster_label_key
+    return _build_roster_statement("player_roster_status_update", token), parameters
+
+
+def _prepare_player_roster_label_update(
+    operation: TenantOperationToken,
+) -> PreparedOperation:
+    """区分を変えずラベルだけを束縛する。"""
+    token = cast(PlayerRosterLabelUpdateToken, operation)
+    return _build_roster_statement("player_roster_label_update", token), {
+        "where_id": token.id,
+        "roster_label_key": token.roster_label_key,
+    }
+
+
 def _prepare_team_record_read(operation: TenantOperationToken) -> PreparedOperation:
     """対戦相手の読み取り条件と次ページ判定分を準備する。"""
     token = cast(TeamRecordReadToken, operation)
@@ -728,6 +829,22 @@ ROSTER_OPERATIONS: tuple[OperationRegistration, ...] = (
         _PLAYERS.c.tenant_id,
         _prepare_player_update,
         allowed_update_columns=_PLAYER_UPDATE_COLUMNS,
+    ),
+    OperationRegistration(
+        PlayerRosterStatusUpdateToken,
+        "CAP:players:update",
+        _build_roster_statement("player_roster_status_update", None),
+        _PLAYERS.c.tenant_id,
+        _prepare_player_roster_status_update,
+        allowed_update_columns=frozenset({"roster_status_key", "roster_label_key"}),
+    ),
+    OperationRegistration(
+        PlayerRosterLabelUpdateToken,
+        "CAP:players:update",
+        _build_roster_statement("player_roster_label_update", None),
+        _PLAYERS.c.tenant_id,
+        _prepare_player_roster_label_update,
+        allowed_update_columns=frozenset({"roster_label_key"}),
     ),
     OperationRegistration(
         TeamRecordReadToken,

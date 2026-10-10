@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 25,
+  "contract_revision": 26,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:25"
+        "contract_revision:26"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -12082,7 +12082,7 @@
         "acceptance_id": "masaki1025/pitchlog#114",
         "new_baseline_identifiers": {
           "contracts/tenant_boundary/base-allowlist.json": [
-            "contract_revision:25"
+            "contract_revision:26"
           ],
           "contracts/tenant_boundary/cache-invalidation-contract.json": [
             "contract_revision:11"
@@ -12100,7 +12100,7 @@
             "fixture_set_revision:14"
           ],
           "contracts/tenant_boundary/repository-contract.json": [
-            "contract_revision:13"
+            "contract_revision:14"
           ],
           "contracts/tenant_boundary/runtime-authz-contract.json": [
             "runtime_contract_revision:12"
@@ -12139,7 +12139,7 @@
           ]
         },
         "change": {
-          "subject": "TSK-447: キャッシュ無効化契約 revision 11 を正本 v0.7 B06 に追随させる",
+          "subject": "TSK-447: キャッシュ無効化契約 revision 11 と在籍区分変更の意図記録境界を正本 v0.7 B06 に追随させる",
           "aspect": [
             "asset_snapshots",
             "declaration"
@@ -12625,7 +12625,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:25"
+                    "contract_revision:26"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -12776,7 +12776,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:13"
+                    "contract_revision:14"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -13047,8 +13047,8 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "10f2fbfd64946493c720273711c887a466c859bf167aa2c7fb09612c22105ceb",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/10f2fbfd64946493c720273711c887a466c859bf167aa2c7fb09612c22105ceb"
+                "sha256": "c53eb8069405a2023fad32dbe40a1d2935e35fed9b3db9de687749777233e042",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c53eb8069405a2023fad32dbe40a1d2935e35fed9b3db9de687749777233e042"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
@@ -13077,8 +13077,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "0e8cbc0bcd813f3fb13b3d073232a1696d0ce62dc1fee1d459ea555bcc29ec57",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0e8cbc0bcd813f3fb13b3d073232a1696d0ce62dc1fee1d459ea555bcc29ec57"
+                "sha256": "9c318851f37cdf756d6da3b2a824ec3e74d377dce8fab7ff8cf8cabb17ace52c",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9c318851f37cdf756d6da3b2a824ec3e74d377dce8fab7ff8cf8cabb17ace52c"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
@@ -13093,8 +13093,8 @@
             ]
           }
         },
-        "movement_fact": "比較元は origin/develop の f79c14e0082f3d129992a244f740bcf5a139c997。実内容の movement は contracts/tenant_boundary/cache-invalidation-contract.json に及ぶ。変更前後の全資産射影と外部実装を内容アドレス snapshot で固定した。",
-        "reason": "正本 data-model.md v0.7 の B06 に従い、同期を通らないトリガーの発火・原子性・意図 ID と④共有集計の対象テナント選択子をキャッシュ無効化契約 revision 11 に登録したため、テナント境界の凍結基準を更新する。",
+        "movement_fact": "比較元は origin/develop の f79c14e0082f3d129992a244f740bcf5a139c997。実内容の movement は contracts/tenant_boundary/base-allowlist.json、contracts/tenant_boundary/cache-invalidation-contract.json、contracts/tenant_boundary/repository-contract.json に及ぶ。変更前後の全資産射影と外部実装を内容アドレス snapshot で固定した。",
+        "reason": "正本 data-model.md v0.7 B06 に従い、キャッシュ無効化契約 revision 11 の同期を通らないトリガーと選択子、ならびに在籍区分変更の意図記録 token と repository 契約 revision 14 を追加したため、テナント境界の凍結基準を更新する。",
         "approved_by": "山田正輝",
         "approved_on": "2026-10-10"
       }
@@ -13220,6 +13220,14 @@
         "SQLA_UPDATE"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/roster.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.invalidation_intents._build_invalidation_intent_statement",
+      "signature": "_build_invalidation_intent_statement() -> Insert",
+      "allowed_api_ids": [
+        "SQLA_INSERT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/invalidation_intents.py"
     }
   ],
   "conditions": [

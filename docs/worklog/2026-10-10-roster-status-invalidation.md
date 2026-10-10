@@ -98,6 +98,16 @@ branch: feature/roster-status-invalidation
   - 2 回目(反映差分): 否決(P1 1)→ 採用。帰属・鍵のセルを前方一致・部分一致で比べていた → 正規化した全文の完全一致と、「指定した他テナントも可」を足す変異の負例。**上限到達のため本反映は再レビューせず、Claude が完全一致の実装を確認**
 - 合格条件: `check_tenant_boundary_bypass.py --base-ref origin/develop` ok / ルート `test_check_tenant_boundary_bypass.py`・`test_frozen_history.py`・`test_frozen_archive.py`・`test_frozen_archive_case_runner.py` 499 passed(Codex)/ `test_census_baseline_check.py` を含め 392 passed(Claude)/ backend `test_authz_cache_invalidation.py` 19 passed・`test_authz_repository_contract.py` green / ruff・ruff format・ty green
 
+### ステップ 3(意図の記録と在籍区分の token)
+
+- Codex 委任: 新規 `repositories/invalidation_intents.py`(`InvalidationIntentInsertToken`・範囲名の写像・`record_invalidation_intent`)/ `roster.py` に `PlayerRosterStatusUpdateToken`(区分が実際に違う行だけを更新する述語・論理削除済みは対象外)と `PlayerRosterLabelUpdateToken` / `PlayerUpdateToken` の許可列から在籍区分の 2 列を外す / 登録・`allowed_symbols`・正例 fixture / 受理記録を PR #114 の 1 件のまま再導出・snapshot・比較 corpus
+- **計画からの変更**: 新規 token は計画の 2 件から **3 件**(在籍区分とラベルを許可列ごとに分けた)。plan・design の件数を追随
+- 実 DB テストは Codex の sandbox から docker に届かず未実行 → Claude が実行。INSERT の更新件数が -1(不明)で返るのを件数 1 と照合していたテストを直した(行は直後の SELECT で確認)
+- 敵対レビュー:
+  - 1 回目: 否決(P0 1 / P1 1)→ 採用。P0 = 任意の文字列の `intent_id` で token を作って書ける → token がトリガー・操作 ID・行の識別子を持ち意図 ID を内部で導出、トリガー 14・`shared_aggregate` 以外は構築時に拒否 / P1 = 範囲名の全単射テストが ORM しか見ない → migration 0015・schema-manifest・実 DB の `pg_constraint` と照合
+  - 2 回目: **可決**
+- 合格条件: `check_tenant_boundary_bypass.py --base-ref origin/develop` ok / 凍結履歴 4 本 499 passed(Codex)/ backend の DB 不要 251 passed(Codex)/ 実 DB を含む `test_invalidation_intents_repository.py`・`test_roster_repository.py` 107 passed(Claude)/ ruff・ruff format・ty green
+
 ## 決定
 
 - J1 同期を通らない 9 トリガーの規則は `data-model.md` 11-2 に新設(実装はトリガー 14 だけ)/ J2 確定ゲート / J3 意図は対象テナント単位の粗い 1 行・展開は配信側 / J4 配信はその範囲のキャッシュ本体を初めて導入する単位(2026-10-10・山田正輝)

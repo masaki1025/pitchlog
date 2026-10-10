@@ -156,12 +156,12 @@ date: 2026-10-10
 
 - 動く資産(すべて `contracts/tenant_boundary/` の権威履歴に載る):
   - `cache-invalidation-contract.json`(ステップ 2)
-  - `repository-contract.json`(`product_capability_ids` に `CAP:invalidation_intents:insert`、`product_operation_token_types` に 2 token — ステップ 3)
+  - `repository-contract.json`(`product_capability_ids` に `CAP:invalidation_intents:insert`、`product_operation_token_types` に 3 token(意図の記録・在籍区分の変更・ラベルだけの変更 — ステップ 3 で在籍区分とラベルを分けた) — ステップ 3)
   - `base-allowlist.json` の `allowed_symbols`(文の組み立て関数 — ステップ 3)
 - 生成モジュール `repositories/repository_contract.py` を同期する
 - **受理記録は本 PR で 1 件**(`intermediate_commits_are_records: false`)。資産を動かすコミット(ステップ 2・3)には毎回その時点の記録を置き、ステップ 5 で base に対して 1 件へ導出し直す(#95 の内訳 5・10 の手順を準用 — `../um1-player-roster-opponent/plan.md:536-620`)
 - **比較 corpus の再封印も資産を動かすコミットごとに行う**: `contracts/tenant_boundary` は比較 corpus の入力 tree で、`tests/test_frozen_archive_case_runner.py` が固定 digest を照合する(`tests/fixtures/frozen-archive-cases/manifest.json:16-18`)。ステップ 2・3 で `history-snapshots/` と manifest の `corpus_inputs.digest` を再 pin し、ステップ 5 で base に対して再度行う(計画レビュー 1 周目 P1)
-- **固定値を持つ既存テストの更新**(ステップ 3): `backend/tests/test_authz_repository_contract.py:481` 付近(token 型の組)・`backend/tests/test_authz_capability_registration.py:1100` 付近(登録数 8)を、追加する capability 1 件・token 2 件に合わせる(計画レビュー 1 周目 P1)
+- **固定値を持つ既存テストの更新**(ステップ 3): `backend/tests/test_authz_repository_contract.py:481` 付近(token 型の組)・`backend/tests/test_authz_capability_registration.py:1100` 付近(登録数 8)を、追加する capability 1 件・token 3 件に合わせる(計画レビュー 1 周目 P1)
 - **認可カタログ(`contracts/authz/`)は動かさない**: 新しい token に経路は要らない(先例: `CAP:games:read` の `GameTeamLinkReadToken` は経路なしで登録済み)。HTTP の 2 経路は既存の `players:read`/`players:update` に載る
 
 ## 未解決・検討メモ
