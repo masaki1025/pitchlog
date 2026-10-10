@@ -26,13 +26,12 @@ from sqlalchemy import (
     ScalarResult,
     String,
     Table,
+    Text,
     Uuid,
     bindparam,
-    column,
     create_engine,
     event,
     select,
-    table,
     text,
     update,
 )
@@ -44,12 +43,10 @@ from test_authz_tenant_context import make_tenant_context
 
 from pitchlog.authz.runtime_contract import APPLICATION_ROLE_NAME
 from pitchlog.repositories import base as repository_base
-from pitchlog.repositories.base import (
-    _TenantOperationError,
-    _TenantScopedOperation,
-)
+from pitchlog.repositories.base import _TenantOperationError
 from pitchlog.repositories.binding import TenantBindingError
 from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.operation_registration import OperationRegistration
 from pitchlog.repositories.tokens import (
     TenantOperationResult,
     TenantOperationToken,
@@ -61,10 +58,11 @@ pytestmark = pytest.mark.requires_db
 
 _TENANT_ID = UUID("00000000-0000-0000-0000-000000000444")
 _BINDING_STATEMENT = "SELECT set_config('app.tenant_id', :tenant_id, true)"
-_PROBE_TABLE = table(
+_PROBE_TABLE = Table(
     "tenant_transaction_probe",
-    column("tenant_id"),
-    column("marker"),
+    MetaData(),
+    Column("tenant_id", Uuid),
+    Column("marker", Text),
     schema="public",
 )
 _READ_STATEMENT = select(_PROBE_TABLE.c.marker).where(
@@ -79,7 +77,7 @@ _WRITE_PROBE_TABLE = Table(
 )
 _WRITE_STATEMENT = (
     update(_WRITE_PROBE_TABLE)
-    .where(_WRITE_PROBE_TABLE.c.tenant_scope == bindparam("tenant_id"))
+    .where(_WRITE_PROBE_TABLE.c.tenant_scope == bindparam("where_tenant_id"))
     .values(marker="changed")
     .returning(_WRITE_PROBE_TABLE.c.marker)
 )
@@ -107,7 +105,7 @@ _ORM_READ_STATEMENT = select(_ProbeOrmRow).where(
 class _ReadProbeToken(TenantOperationToken):
     """登録済み読み取り operation のテスト専用 token。"""
 
-    claimed_capability_id: str = "test.tenant-transaction.read"
+    claimed_capability_id: str = "CAP:tenant_transaction_probe:read"
 
     @property
     def capability_id(self) -> str:
@@ -122,7 +120,7 @@ class _WriteProbeToken(TenantOperationToken):
     @property
     def capability_id(self) -> str:
         """テスト専用 capability ID を返す。"""
-        return "test.tenant-transaction.write"
+        return "CAP:tenant_transaction_probe:update"
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,7 +130,7 @@ class _OrmReadProbeToken(TenantOperationToken):
     @property
     def capability_id(self) -> str:
         """テスト専用 capability ID を返す。"""
-        return "test.tenant-transaction.orm-read"
+        return "CAP:tenant_transaction_probe:read"
 
 
 @dataclass(frozen=True, slots=True)
@@ -292,36 +290,42 @@ def _configure_application_database(
     monkeypatch.setenv("PITCHLOG_DATABASE_POOLED", "false")
 
 
-def _read_operation() -> _TenantScopedOperation:
+def _read_operation() -> OperationRegistration:
     """テスト専用読み取り operation を返す。"""
     token = _ReadProbeToken()
-    return _TenantScopedOperation(
+    return OperationRegistration(
+        token_type=_ReadProbeToken,
         capability_id=token.capability_id,
         statement=cast(Select[tuple[object, ...]], _READ_STATEMENT),
         tenant_column=_PROBE_TABLE.c.tenant_id,
+        prepare=lambda _: (cast(Select[Any], _READ_STATEMENT), {}),
     )
 
 
-def _write_operation() -> _TenantScopedOperation:
+def _write_operation() -> OperationRegistration:
     """テスト専用更新 operation を返す。"""
     token = _WriteProbeToken()
-    return _TenantScopedOperation(
+    return OperationRegistration(
+        token_type=_WriteProbeToken,
         capability_id=token.capability_id,
-        statement=cast(Select[tuple[object, ...]], _WRITE_STATEMENT),
+        statement=_WRITE_STATEMENT,
         tenant_column=_WRITE_PROBE_TABLE.c.tenant_scope,
+        prepare=lambda _: (_WRITE_STATEMENT, {}),
     )
 
 
-def _orm_read_operation() -> _TenantScopedOperation:
+def _orm_read_operation() -> OperationRegistration:
     """ORM instance を生成するテスト専用読み取り operation を返す。"""
     token = _OrmReadProbeToken()
-    return _TenantScopedOperation(
+    return OperationRegistration(
+        token_type=_OrmReadProbeToken,
         capability_id=token.capability_id,
         statement=cast(Select[tuple[object, ...]], _ORM_READ_STATEMENT),
         tenant_column=cast(
             ColumnElement[object],
             _ProbeOrmRow.__table__.c.tenant_id,
         ),
+        prepare=lambda _: (cast(Select[Any], _ORM_READ_STATEMENT), {}),
     )
 
 
@@ -699,13 +703,13 @@ def test_unregistered_and_forged_tokens_use_existing_rejection_path(
             )
 
 
-def test_non_select_operation_is_rejected_before_execute(
+def test_unvalidated_update_is_rejected_before_execute(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
     ],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Select へ cast された Update を実行前に拒否して行を変更しない。"""
+    """RETURNING を持つ未許可 UPDATE を実行前に拒否する。"""
     transaction = _transaction_module()
     observed_statements: list[str] = []
 
@@ -721,7 +725,7 @@ def test_non_select_operation_is_rejected_before_execute(
         )
         event.listen(Session, "do_orm_execute", observe_orm_sql)
         try:
-            with pytest.raises(_TenantOperationError, match="Select だけ"):
+            with pytest.raises(_TenantOperationError, match="RETURNING"):
                 with transaction.tenant_transaction_scope(
                     make_tenant_context(_TENANT_ID)
                 ) as handle:
@@ -859,13 +863,13 @@ def test_run_never_returns_database_backed_or_lazy_values(
         )
 
 
-def test_run_rejects_attached_orm_value(
+def test_run_rejects_orm_select_before_materialization(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
     ],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """接続中の ORM instance を DTO に残さず rollback・close する。"""
+    """ORM entity を選ぶ SQL を実行前に拒否し rollback・close する。"""
     transaction = _transaction_module()
     created_sessions: list[_OrmResultObservedSession] = []
     lifecycle: list[str] = []
@@ -903,7 +907,7 @@ def test_run_rejects_attached_orm_value(
         try:
             with pytest.raises(
                 _TenantOperationError,
-                match="_ProbeOrmRow",
+                match="閉じた集合外のSQLAlchemyノード",
             ):
                 with transaction.tenant_transaction_scope(
                     make_tenant_context(_TENANT_ID)

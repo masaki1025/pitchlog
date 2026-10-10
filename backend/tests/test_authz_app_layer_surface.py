@@ -100,6 +100,10 @@ _PUBLIC_CALLERS = frozenset(
             "authz.verified_tenant.logout_token",
             "authz.token_presentation.TokenPresentation.decode",
         ),
+        (
+            "repositories.tenant_context_issuance.issue_tenant_context_from_presented_token",
+            "authz.verified_tenant.verify_tenant_id",
+        ),
     }
 )
 _AUTHN_REFERENCE = re.compile(r"\bauthn\.([a-z_]+)\b")

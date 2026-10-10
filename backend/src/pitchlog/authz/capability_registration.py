@@ -102,7 +102,7 @@ _ALLOWED_NODE_TYPES: frozenset[type[object]] = frozenset(
 )
 
 # 名前空間と名前の双方を閉じる。現在の仮登録が必要とする副作用のない最小集合。
-_ALLOWED_PG_CATALOG_FUNCTIONS = frozenset({"lower"})
+_ALLOWED_PG_CATALOG_FUNCTIONS = frozenset({"lower", "btrim", "normalize"})
 
 # この一覧はロック済み SQLAlchemy 2.0.52 の次の実装を読み合わせた結果である。
 # - sql/visitors.py の InternalTraversal と sql/traversals.py の
@@ -1166,12 +1166,20 @@ def _inspect_statement(
 
         _validate_node_state(cast(ClauseElement, node), node_type, label, violations)
 
-        if isinstance(node, Table):
-            if node.schema not in {None, "public"}:
+        referenced_table = (
+            node
+            if isinstance(node, Table)
+            else node.table
+            if isinstance(node, Column)
+            else None
+        )
+        if isinstance(referenced_table, Table):
+            if referenced_table.schema not in {None, "public"}:
                 violations.append(
-                    f"{label}がpublic以外の表を参照している: {node.schema}.{node.name}"
+                    f"{label}がpublic以外の表を参照している: "
+                    f"{referenced_table.schema}.{referenced_table.name}"
                 )
-            table_ids.add(node.name)
+            table_ids.add(referenced_table.name)
 
         if isinstance(node, Function):
             namespace = tuple(node.packagenames)
@@ -1190,6 +1198,43 @@ def _inspect_statement(
             violations.append(f"{label}にDMLのCTEが含まれている: {node.name}")
 
     return frozenset(table_ids)
+
+
+def _validate_single_target_table_shape(
+    statement: ClauseElement,
+    label: str,
+    violations: list[str],
+) -> None:
+    """実行文の FROM と参照列を単一の実表へ閉じる。"""
+    statement_type = type(statement)
+    if statement_type not in {Select, Insert, Update}:
+        return
+    if statement_type is Insert or statement_type is Update:
+        target_table = cast(Insert | Update, statement).table
+        if type(target_table) is not Table:
+            violations.append(f"{label}の変更対象は実表が必要")
+            return
+    else:
+        target_table = None
+
+    physical_tables: set[int] = set()
+    for node in visitors.iterate(statement):
+        if node is statement:
+            continue
+        if type(node) in {Alias, CTE, Join, ScalarSelect, Select, Subquery}:
+            violations.append(f"{label}に別名・結合・入れ子のFROMを使用できない")
+            return
+        if isinstance(node, Table):
+            physical_tables.add(id(node))
+        elif isinstance(node, Column):
+            if type(node.table) is not Table:
+                violations.append(f"{label}が実表以外の列を参照している")
+                return
+            physical_tables.add(id(node.table))
+    if len(physical_tables) != 1 or (
+        target_table is not None and id(target_table) not in physical_tables
+    ):
+        violations.append(f"{label}のFROMは対象の実表1つだけが必要")
 
 
 def validate_capability_registrations(
@@ -1250,6 +1295,7 @@ def validate_capability_registrations(
                 f"{label}.statementの最上位コマンドがSELECT/INSERT/UPDATEではない"
             )
         table_ids = _inspect_statement(statement, label, violations)
+        _validate_single_target_table_shape(statement, label, violations)
 
         if capability is None:
             continue
