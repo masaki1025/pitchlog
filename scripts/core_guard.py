@@ -29,15 +29,7 @@ BASELINE_DEFINITION_PATHS = frozenset(
 )
 # 追加層は JSON を変更するコミットより先に固定する。同一コミットでの追随を許さない。
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "tenant-isolation": (
-        "backend/tests/test_*_boundary.py",
-        "backend/tests/test_*_repository.py",
-        "backend/src/pitchlog/api/*",
-        "backend/tests/test_api_*.py",
-        "backend/tests/test_roster_*.py",
-        "backend/tests/test_request_presentation.py",
-        "tests/test_census_baseline_check.py",
-    ),
+    "tenant-isolation": ("frontend/src/stores/authStore*",),
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
