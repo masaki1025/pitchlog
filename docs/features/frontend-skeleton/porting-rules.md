@@ -196,7 +196,7 @@ gh api "repos/masaki1025/Baseball_Scoring-archive/contents/frontend/src/lib/<nam
 
 ### 作り方の方針(決定 K — PO 決定 2026-10-10)
 
-**U-F1 からは、旧コードを複製せず Vue / TypeScript で書き起こす**(ADR-002「旧システムの React UI コードは仕様・挙動の参照資料としてのみ扱い、コード再利用はしない」)。
+**U-F1 は、旧コードを複製せず Vue / TypeScript で書き起こした**(PO の選択)。**これは ADR-002 の要求ではない** — ADR-002 v1.1(2026-10-10)は「コード再利用はしない」が禁じるのを旧システムを依存として抱えることに限り、本リポジトリの資産として取り込み保守責任を負うものは逐語一致でも当たらないとした(`docs/adr/ADR-002-frontend-vue.md:36`)。後続の単位は、逐語取り込みと書き起こしのどちらも選べる(計画書で決める)。
 見た目と挙動が旧と同じであることは、Tailwind クラス文字列の一致と試験で確かめる。`.ts` も逐語で置かないため、7 節の Prettier 対象外には当たらない
 (`queryClient.ts`・`teamSearch.ts` は `.prettierignore` に入れていない)。8 節で逐語移植した `.ts` 4 件は変えていない。
 

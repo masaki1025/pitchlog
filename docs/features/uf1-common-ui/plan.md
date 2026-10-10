@@ -28,14 +28,14 @@ Notion: [TSK-516](https://app.notion.com/p/3f493b75e687810aafaaf6ba6d7a34a8)(優
 (分担行「FR-002 / U-X1 / U-F1 / 1 球入力に使う選択ボタンと操作通知の共通部品面」— 同 design.md `:429`)。
 
 **作り方(PO 決定 2026-10-10 — 計画レビュー 1 回目 P0-1 の採用)**: 旧 React 実装は**仕様・挙動の参照資料としてのみ扱い、コードは複製しない**
-(ADR-002「旧システムの React UI コードは仕様・挙動の参照資料としてのみ扱い、コード再利用はしない」— `docs/adr/ADR-002-frontend-vue.md:34`)。
+(計画時の典拠は ADR-002 v1.0「旧システムの React UI コードは仕様・挙動の参照資料としてのみ扱い、コード再利用はしない」。**ADR-002 v1.1(2026-10-10・PR #112)はこの条項を「旧システムを依存として抱えることを禁じる。本リポジトリの資産として取り込み保守責任を負うものは、逐語一致でも当たらない」と明確化した**(`docs/adr/ADR-002-frontend-vue.md:36`)。したがって書き起こしは ADR の要求ではなく **PO の選択**であり、v1.1 とも矛盾しない)。
 Vue 3 + TypeScript で書き起こし、**見た目と挙動が旧と同じであること**(PO 裁定 2026-08-16「完全に同じもの」の目標 — [frontend-skeleton/plan.md](../frontend-skeleton/plan.md) `:28`)を
 Tailwind クラスの一致と試験で確かめる。`.ts` も逐語で置かず、リポジトリの書式(Prettier・日本語コメント)で書く。
 要件書・改善台帳が改善を既決にした箇所は要件を優先する(I-28 — `docs/improvements-from-baseball-scoring.md:241-242`)。
 `.tsx` → `.vue` の変換の形は[移植規則](../frontend-skeleton/porting-rules.md)に従う。
 
 **既存の逐語 `.ts` との関係**: 骨格タスクで逐語移植した `.ts` 4 件(`frontend/.prettierignore:9-12`)は本タスクでは触らない。
-**ADR-002 の文言と 8/16 裁定の「機械的な逐語移植」の並存を正本上で整理する作業は未起票**(`docs/worklog/2026-10-09-frontend-impl-units.md:104-106`)で、本タスクの射程外とする。
+ADR-002 の文言と 8/16 裁定の「機械的な逐語移植」の並存は、**ADR-002 v1.1 で整理された**(上記 `:36` — 逐語の 4 件と `index.css` は「本項に当たらない」と明記)。
 
 調査: [research.md](research.md)(3 並列・2026-10-10)。
 
@@ -110,7 +110,7 @@ Tailwind クラスの一致と試験で確かめる。`.ts` も逐語で置か�
 | H | 1 語のコンポーネント名 | `eslint.config.js` で `vue/multi-word-component-names` の `ignores` に `Button`・`Sheet`・`Toast` を足す | 現行 eslint は `flat/recommended` を全 error に引き上げる(`eslint.config.js:11-19`)。2026-10-10 に `Button.vue` で実測し error を確認(research.md 4-7 節)。ファイル名を変えると 1:1 対応が崩れる |
 | I | `queryClient` | **`@tanstack/vue-query` の `QueryClient`** を、旧と同じ既定値 3 つ(`retry: 1`・`refetchOnWindowFocus: false`・`staleTime: 30_000` — 旧 `queryClient.ts:4-12`)で生成して export する | ライブラリ対応 `porting-rules.md:82` |
 | J | `teamSearch` の試験 | `node:test` の `.test.mjs` → **Vitest の `.spec.ts`**。4 ケースの入力と期待値は変えない。`assert.deepEqual`(strict)→ `toStrictEqual`、`equal` → `toBe`、undefined → `toBeUndefined` | NFR-019(要件書 `:969`)がフロントのランナーを Vitest に固定。旧の `.test.mjs` を残すと Vitest の既定 include に拾われ失敗する見込み(research.md 4-6 節)。移植規則に `.test.mjs` の定めが無い(`frontend-impl-units/design.md:13`)ため逸脱として記録する |
-| K | `.ts` の作り方 | `queryClient.ts`・`teamSearch.ts` は**逐語で置かず書き起こす**。`.prettierignore` に足さず、Prettier を全ファイルに適用する | PO 決定 2026-10-10(ADR-002:34)。`porting-rules.md` 7 節の Prettier 対象外は「受入条件が逐語比較であるファイル」に限るため、本タスクの `.ts` は当たらない |
+| K | `.ts` の作り方 | `queryClient.ts`・`teamSearch.ts` は**逐語で置かず書き起こす**。`.prettierignore` に足さず、Prettier を全ファイルに適用する | PO 決定 2026-10-10(ADR-002 v1.1 `:36` は逐語取り込みも許すが、本単位は書き起こしを選んだ)。`porting-rules.md` 7 節の Prettier 対象外は「受入条件が逐語比較であるファイル」に限るため、本タスクの `.ts` は当たらない |
 | L | `Button` の active の色 | **active のときは variant 側の競合する色クラス(背景・枠線色・文字色とそれぞれの `dark:` 版)を外し、`activeCls` を効かせる**。形・寸法・`hover:`・`active:`(押下)・`disabled:` のクラスは残す | 実装中の計画変更(PO 決定 2026-10-10)。ステップ 4 のビルド CSS の規則順序で、`sky` 系の active クラスは danger の背景以外すべて variant 側に負け、active の見た目が効かないと判明(tailwindcss 4.3.3 — ステップ 4 のコミット本文)。旧と同じクラス構成の欠陥(旧 4.3.2 でも同じと推論)を、旧の意図(選択中を示す)どおりに直す。I-28 の「改善既決」ではない旧挙動からの逸脱のため、PO 決定として記録する |
 | M | `Sheet` の重ね表示 | **開いている Sheet をモジュール全体の積み重ね(開いた順)で管理し、最前面の 1 枚だけが Escape と Tab を処理する。最前面でない Sheet を閉じるときはフォーカスを動かさず、その Sheet の「戻り先」(開く前にフォーカスがあった要素)をすぐ上の Sheet へ引き継ぐ**(PR #113 敵対レビュー 2 回目 P0 で拡張 — PO 決定 2026-10-10) | 実装中の計画変更(PO 決定 2026-10-10 — PR #113 敵対レビュー 1 回目 P0)。各 Sheet が `window` の capture 段階に keydown を登録し、`stopPropagation()` は同じ対象(window)の後続リスナーを止めないため、2 枚重ねて Escape を押すと両方が `close` を通知していた。旧 `Sheet.tsx:100-118` も同じ構造の欠陥。I-28 の「改善既決」ではない旧挙動からの逸脱のため、PO 決定として記録する |
 
@@ -143,7 +143,7 @@ Tailwind クラスの一致と試験で確かめる。`.ts` も逐語で置か�
 
 Notion TSK-516 の DoD と同期(括弧内は担当ステップ)。
 
-- [ ] 旧コードを複製せず Vue / TS で書き起こし(PO 2026-10-10 — ADR-002:34)、**見た目と挙動が旧と同じ**であることを Tailwind クラスの一致・競合するクラスの勝敗の記録(`Button` の active)・試験で示した。旧と変えた箇所は 4 節の決定表に全件ある(2〜6)
+- [ ] 旧コードを複製せず Vue / TS で書き起こし(PO 2026-10-10)、**見た目と挙動が旧と同じ**であることを Tailwind クラスの一致・競合するクラスの勝敗の記録(`Button` の active)・試験で示した。旧と変えた箇所は 4 節の決定表に全件ある(2〜6)
 - [ ] 移植規則に従った(4 分類の変換規則・ディレクトリ 1:1 対応)(2〜6)
 - [ ] `.vue` の旧との同等性を 4 点で判定し、照合項目を列挙してから合否を述べた(H-59)(4〜6)
 - [ ] 自分が担う面を 6.3 境界定義表の 5 領域すべてに当てた結果を計画書へ書いた(契約 4 — 4 節「意味上の判定」)
