@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { resolve } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import type { Readable } from 'node:stream'
+import type { LoadedHandoffCases } from './handoffLoader'
 
 export const DEFAULT_RESPONSE_TIMEOUT_MS = 10_000
 const MAX_RESPONSE_TIMEOUT_MS = 2 ** 31 - 1
@@ -324,7 +325,7 @@ function describeError(error: unknown): string {
 }
 
 export async function runVectors(
-  cases: unknown,
+  cases: unknown | LoadedHandoffCases,
   contract: VectorContract,
   normalizer: GeneratedNormalizer,
   calculation: CalculationAdapter,
@@ -349,9 +350,10 @@ export async function runVectors(
   if (!program) throw new VectorRunnerError('起動コマンドが空')
 
   // 子を起動する前に、開始メッセージで値が失われないことを確認する。
+  const sourceCases = isLoadedHandoffCases(cases) ? cases.cases : cases
   const start = encodeLine({
     type: 'start',
-    cases,
+    cases: sourceCases,
     contract,
     normalizer: {
       generatedId: normalizer.generatedId,
@@ -570,4 +572,14 @@ export async function runVectors(
       else if (!mainFailed) throw internal(detail)
     }
   }
+}
+
+function isLoadedHandoffCases(value: unknown): value is LoadedHandoffCases {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    'calculationId' in value &&
+    'cases' in value
+  )
 }

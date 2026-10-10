@@ -85,3 +85,9 @@ branch: feature/adr003-stage2-runtime
 - 改訂差分のレビューは 1 周で P0 なし。再承認へ上げる
 
 - **山田さんが改訂後の計画書を再承認**(2026-10-11)
+
+### 実装の進行(2026-10-11)
+
+- ステップ 1〜10 をコミット(`d39b2696`〜`d5867035`)。差し戻し: ステップ 2(pnpm 11 の allowBuilds — `esbuild: false` で足りる)・ステップ 7(`.mjs` の同梱を package-data へ / artifact・宣言・`.venv` を root 所有に)・ステップ 10(DB 試験を既存の DB fixture へ — 試験内で docker を起動しない)
+- **ステップ 15 への申し送り**: backend の DB 試験(`backend/tests/db/test_domain_sql_generation.py`)が Node を呼ぶ。**backend の CI ジョブにも Node 24.16.0(mise)を入れる**こと(計画のステップ 15 は frontend・harness だけを挙げている)
+- 既存の挙動: backend の `pytest -m "not requires_db"` は全件 passed でも終了コード 1(`tests/db/conftest.py` が DB 試験 0 件のセッションを失敗にする)。本タスクの変更ではない

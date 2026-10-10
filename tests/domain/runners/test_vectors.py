@@ -17,6 +17,7 @@ RUNNER_SOURCE = BACKEND_SRC / "pitchlog/domaincheck/runners/vectors.py"
 sys.path.insert(0, str(BACKEND_SRC))
 VECTORS = importlib.import_module("pitchlog.domaincheck.runners.vectors")
 PATH_MATCH = importlib.import_module("pitchlog.domaincheck.path_match")
+HANDOFF = importlib.import_module("pitchlog.domaincheck.runners.handoff")
 
 
 class SyntheticGeneratedNormalizer:
@@ -172,6 +173,18 @@ def _case(case_id: str, raw_value: str) -> dict[str, object]:
 def _valid_cases() -> list[dict[str, object]]:
     """順序付きの正しい合成 case 群を返す。"""
     return [_case("caseOne", "001"), _case("caseTwo", "002")]
+
+
+def test_runner_accepts_loaded_handoff_cases() -> None:
+    """読み込み層の case 群を既存 runner の同じ検証へ渡す。"""
+    loaded = HANDOFF.LoadedHandoffCases("state-transition", _valid_cases())
+    report = VECTORS.run_vectors(
+        loaded,
+        _contract(),
+        SyntheticGeneratedNormalizer(),
+        SyntheticCalculation({"caseOne", "caseTwo"}),
+    )
+    assert report.complete
 
 
 def test_passthrough_normalization_fails_before_calculation() -> None:

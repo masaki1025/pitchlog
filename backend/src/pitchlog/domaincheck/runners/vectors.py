@@ -24,6 +24,7 @@ from pitchlog.domaincheck.path_match import (
     PathSubmission,
     compare_path_set,
 )
+from pitchlog.domaincheck.runners.handoff import LoadedHandoffCases
 
 _HASH = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -211,7 +212,7 @@ def run_vectors(
     """合成 vector の全 case を正規化から計算まで順に実行する。
 
     Args:
-        cases: 合成契約が宣言する case の配列。
+        cases: 合成契約の case 配列、または検査済み引き渡し case 群。
         contract: Case schema と二つの lossless 比較面。
         normalizer: 宣言モデルから生成済みの正規化実装。
         calculation: 正規化済み入力だけを受ける計算 adapter。
@@ -223,7 +224,8 @@ def run_vectors(
         VectorRunError: Schema・ID・正規化・計算結果のいずれかが不適合な場合。
     """
     _validate_generated_normalizer(normalizer)
-    validated = _validate_cases(cases, contract.case_schema)
+    source_cases = cases.cases if isinstance(cases, LoadedHandoffCases) else cases
+    validated = _validate_cases(source_cases, contract.case_schema)
     declared = tuple(_string(case["caseId"], "caseId") for case in validated)
     consumed: list[str] = []
     executions: list[VectorCaseExecution] = []

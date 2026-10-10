@@ -56,6 +56,12 @@ function standardNormalizer(): GeneratedNormalizer {
 }
 const echo: CalculationAdapter = { execute: (_caseId, value) => value }
 
+it('読み込み層の case 群を既存 runner に渡せる', async () => {
+  const loaded = { calculationId: 'state-transition' as const, cases }
+  const report = await runVectors(loaded, contract, standardNormalizer(), echo)
+  expect(report.complete).toBe(true)
+})
+
 async function expectInternal(
   command: readonly [string, ...string[]],
   responseTimeoutMs?: number,
