@@ -533,7 +533,8 @@
         "backend/tests/test_api_*.py",
         "backend/tests/test_roster_*.py",
         "backend/tests/test_request_presentation.py",
-        "tests/test_census_baseline_check.py"
+        "tests/test_census_baseline_check.py",
+        "frontend/src/stores/authStore*"
       ]
     },
     {
