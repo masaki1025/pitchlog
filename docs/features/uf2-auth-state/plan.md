@@ -1,6 +1,6 @@
 ---
 feature: uf2-auth-state
-status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-10・山田正輝) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -60,6 +60,7 @@ created: 2026-10-10
 - `.claude/core-areas.json` の tenant-isolation の paths へ `frontend/src/stores/authStore*` を登録する(4 節「コア領域の判定」— 計画レビュー 1 回目 P0-3)。
 - 依存 2 件を完全一致の版で足す: `pinia` **4.0.3** と、その必須 peer `@vue/devtools-api` **8.2.1**。
 - Vitest の試験(6 節)を書く。
+- `frontend/.dependency-cruiser.cjs` の解決設定に `exportsFields: ['exports']`・`conditionNames` を足す(実装中の計画変更 — PO 決定 2026-10-10: pinia 4 は入口を `exports` でしか示さず、dependency-cruiser は既定で `exports` を読まないため、CI の `depcruise src --validate` が `no-unresolvable-dependency` で落ちた。Node・Vite では解決できる。値は dependency-cruiser の設定雛形と同じ。ADR-003 の動的機構の禁止の規則は変えない)。
 - 移植規則への追記(`porting-rules.md` 10 節の新設)と、単位定義(U-F2 行)への注記。
 - 下流の Notion カードと δ への申し送り。
 
