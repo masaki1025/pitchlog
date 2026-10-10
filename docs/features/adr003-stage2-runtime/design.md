@@ -155,7 +155,7 @@ Node の起動から初回応答までは 32.6345 ms。RSS の 2 値はそれぞ
 
 ## 7. コア領域の宣言(ステップ 17〜19)
 
-- 新しい paths: `frontend/src/domain/*`・`backend/src/pitchlog/domainrt/*`・artifact の public 配置・`frontend/index.html`・`frontend/eslint.config.js`・`frontend/.dependency-cruiser.cjs`・ビルドスクリプト・`frontend/src/testing/vectorRunner.ts` と spec(R-b)・契約を参照する新しい tests。**game-state と data-migration の両方**(`DOMAIN_CALC_GLOBS` — `tests/test_core_guard.py:407`・`:2331`)。契約を参照する tests は sync-protocol にも(`.claude/core-areas.json:13-16`)
+- 新しい paths: `frontend/src/domain/*`・`backend/src/pitchlog/domainrt/*`・artifact の public 配置・`frontend/index.html`・`frontend/eslint.config.js`・`frontend/.dependency-cruiser.cjs`・ビルドスクリプト・契約を参照する新しい tests。R-b の既存 glob 外の対象は `frontend/src/testing/vectorRunner.ts`・`frontend/src/testing/vectorRunner.spec.ts`・`frontend/src/testing/vectorConformance.spec.ts` と明示する。加えて同じ runner 経路の `frontend/src/testing/artifactAdapter.ts`・`frontend/src/testing/artifactAdapter.spec.ts`・`frontend/src/testing/handoffLoader.ts`・`frontend/src/testing/handoffLoader.spec.ts` も登録対象にする。**game-state と data-migration の両方**(`DOMAIN_CALC_GLOBS` — `tests/test_core_guard.py:407`・`:2331`)。契約を参照する tests は sync-protocol にも(`.claude/core-areas.json:13-16`)
 - 手順(`scripts/core_guard.py:30`・`:263-304`・`:378-389`、#116 の前例 `e0f06b4a` → `19bd74d9` → `2e8613a7`): 17 = `AREA_PATH_ADDITIONS` を**置き換え** + test_core_guard を登録前後の両状態受理に / 18 = core-areas.json(paths と S34 の deferred_to)・report:85・appendix-e design.md:1319 / 19 = テストを新状態だけに絞る
 - **#116 との順序**: #116 が `AREA_PATH_ADDITIONS` と test_core_guard の同じ帯を変えるので、**#116 のマージ後に develop を取り込んでから 17 に入る**(ゲート ③)。#116 の U-F2 専用の表明 2 件を壊さない
 
