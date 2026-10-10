@@ -1,7 +1,7 @@
 ---
 feature: us1-sync-apply-core
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 済(2026-10-08・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 済(2026-10-08・山田正輝 / 第 1 改訂 2026-10-11・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3da93b75e6878108a4c1e66253a25065
@@ -38,7 +38,7 @@ created: 2026-10-08
 | R-11 | **TSK-330 から引き継いだ繰り延べ 12 ID のうち、復元ライフサイクルの 10 件は U-R1(TSK-392)へ送る**。残り 2 件(`p3-invalidation-consumed-before-complete`・`o4-persisted-d2-equivalence`)は U-S1 で作る。R-1 の「吸収」から 10 件を除く |
 
 
-> ## 【第 1 改訂 2026-10-11・改訂承認: 未】develop の取り込み(574 コミット)後の測り直しと、#114(TSK-447)との接合
+> ## 【第 1 改訂 2026-10-11・改訂承認: 山田正輝 2026-10-11(7 節 A-1〜A-3 を含む)】develop の取り込み(574 コミット)後の測り直しと、#114(TSK-447)との接合
 >
 > **引き継ぎ**: TSK-391 を UM01(447)タブが引き継いだ(2026-10-11 — 盤面で所有者が空であることを master が確認)。開始条件の #95・#81 は着地済み。develop `8060b8d0`(#114 を含む)を取り込んだ(`607ed4cc`・競合なし)。測り直しの結果は worklog の 2026-10-11 の段。
 >
