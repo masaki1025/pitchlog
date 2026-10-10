@@ -458,3 +458,65 @@ check_authz_catalog.py: source blob digest が不一致:
 
 **完了条件の確認**: **`requirement-claims` 系・派生資産に関する指摘はすべて解消し、
 残る不一致は oracle seal 系に限られる。** 計画の完了条件どおり。
+
+## ステップ 9 — oracle の再封印(2026-10-11)— **人間の承認待ちで停止**
+
+**ここで止めた。** **oracle の再封印は「凍結の基準を動かす行為」であり、人間の承認を要する。**
+
+**根拠(2 つとも機械が要求している)**:
+
+- **`contracts/authz/oracle-seal.lock.json` の `reseal_policy`**: `{"normal_validation_reseals": false,
+  "dedicated_flag": "--reseal-oracle", "human_review_required": true}` — **`human_review_required: true`**
+- **同 `review_policy`**: `{"policy_id": "ORACLE_STEP5_REREVIEW",
+  "trigger": "oracle_change_in_revision_2_or_later", "required_action": "return_to_step_5_and_re_review",
+  "statement": "改訂 2 以降で oracle を変えるなら本ステップまで戻って再レビューする"}`
+
+**設計書 7.7-2 の記録要件も 4 項目目に「動かした事実・理由・承認者・承認日」を要求している。**
+
+### 7.7-2 の記録(案)— 1〜3 は埋めた。4 の承認者・承認日は人間が入れる
+
+**1. 新しい基準の識別値**(当該行為の直後に当該検査へ現に置かれる基準):
+
+- `oracle_commit` = **`0749afaa4b3c6f6ae007f38cbe951f6540330667`**(ステップ 8 のコミット)
+- `oracle_commit_semantics` = `last_committed_step_4_input_baseline`(**変えない**)
+
+**2. 直前の基準の識別値**(当該行為の直前に現に置かれていた基準):
+
+- `oracle_commit` = **`cc949c690a7da6d7e719561f9fa02153e1857610`**
+
+**3. 何を変えたか**(変えた事柄と、その変更前後の内容):
+
+**`oracle_commit` が指すコミットだけを変える。** **同一性の粒度・識別値の解釈は変えない**
+(`oracle_commit_semantics` は `last_committed_step_4_input_baseline` のまま)。
+
+**入力資産 8 件すべての blob digest が変わる**:
+
+| 資産 | 直前 | 直後 |
+| --- | --- | --- |
+| `requirement-claims.json` | `2d4edf5eb986` | `6b74d640aa7f` |
+| `requirement-claims.lock.json` | `95bac6bb3995` | `75f16167fae0` |
+| `route-registry.json` | `161091975b90` | `f8070dfb3623` |
+| `route-registry.lock.json` | `fc47f9985f3f` | `12bfbd2717ac` |
+| `auth-catalog.json` | `2e640e96beef` | `9c588a9cc43f` |
+| `auth-catalog.lock.json` | `ebf9a0cc86a0` | `bb6d66b28c76` |
+| `http-route-matrix.json` | `335390c33e04` | `3f5c0480a478` |
+| `http-route-matrix.lock.json` | `a8af783d35ce` | `40f6ef98b40f` |
+
+**変化の理由**: **要件書の追随(ステップ 7)で 8 件の claim の原文が変わり、
+新しい変更履歴の行 1 件が母集合に加わった**(ステップ 8)。**分類はどれも変えていない**
+(全件 `out_of_scope`)。**派生 3 資産は入力 digest の更新に伴って lock が変わった。**
+
+**oracle_commit を固定する側(`sealed_assets`)は 6 件**: `ddl-elements` / `rejected-configs` /
+`claim-mutant-map` / `attack-tree` / `boundary-proposal` / `verification-evidence`。
+
+**4. 動かした事実・理由・承認者・承認日**: **承認者と承認日は人間が入れる。**
+
+### 人間に判断してほしいこと
+
+1. **`--reseal-oracle` を実行してよいか**(`human_review_required: true` のため、実行前に承認が要る)
+2. **`review_policy` の再レビューが発火するか** — トリガーは「**改訂 2 以降で oracle を変える**」。
+   **本件が「改訂 2 以降」に当たるなら、`return_to_step_5_and_re_review`(authz 検証のステップ 5 まで戻って再レビュー)が必要になる。**
+   **本タスクの射程を大きく超えるため、当たる場合は別タスクへ送る判断が要る**
+3. **上の 7.7-2 記録の 1〜3 の内容が正しいか**
+
+**この 3 点が決まるまでステップ 9 は進めない。**
