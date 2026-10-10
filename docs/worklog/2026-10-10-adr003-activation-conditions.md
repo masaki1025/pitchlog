@@ -408,3 +408,53 @@ check_authz_catalog.py: source blob digest が不一致:
 ここで引き取っている**ことの裏づけになる。
 
 **実測**: `check_docs_status` 緑(18 文書・違反 0)/ `check_authz_catalog` **red(予定どおり)**。
+
+## ステップ 8 — `requirement-claims` 系と派生 3 資産の再封印(2026-10-11)
+
+**`--reseal` は 5 回止まった。** **自動再封印しない設計の意図どおり、止まるたびに中身を見た。**
+
+| # | 止まった箇所 | 原因 | 対処 |
+| --- | --- | --- | --- |
+| 1 | `source blob digest が不一致` | 要件書の blob が変わった | **`input_manifest.commit` をステップ 7 の実 SHA(`cb1771f5`)へ**、`source_blob_digest` を新しい blob digest へ |
+| 2 | `item_counts_by_kind が全数採取結果と一致しない` | **ステップ 1 で足した変更履歴の 1 行** | 実際の採取結果を取り出して差分を確認 — **`table_row` 323 → 324 の 1 件だけ**。更新 |
+| 3 | `全数採取行との exact-set 不一致: 母集合不足=['CHANGELOG/table_row-040']` | **新しい行が分類されていない** | **分類を判断して登録**(下記) |
+| 4 | `PREAMBLE/frontmatter-002: 構造属性または原文 digest が入力と一致しない` | **原文が変わった claim がある** | **8 件を洗い出し、分類を確認してから原文と digest を更新**(下記) |
+| 5 | `requirement_claims_blob_digestが入力資産と一致しない` | 派生 3 資産が旧 digest を持つ | **`--reseal-derived` では直らず、手で更新**(TSK-509 と同じ箇所) |
+
+### 分類の判断 1 — 新しい変更履歴の行
+
+**`CHANGELOG/table_row-040`**(v2.11 の起案行)を **`out_of_scope` / `OUT_DOCUMENT_METADATA`** とした。
+
+**根拠**: **既存の `CHANGELOG/table_row-001`〜`039` の 39 件すべてが同じ分類**である
+(`Counter` で実測)。**規則 `OUT_DOCUMENT_METADATA` は `allowed_heading_ids` に `CHANGELOG` を含む。**
+**変更履歴は認可要件を述べない。**
+
+### 分類の判断 2 — 原文が変わった 8 件
+
+**私の編集箇所と正確に一致した**(frontmatter + 追随 7 箇所)。
+
+| source_id | 分類 | 原文の変化 |
+| --- | --- | --- |
+| `PREAMBLE/frontmatter-002` | `out_of_scope` / `OUT_DOCUMENT_METADATA` | `status: approved` → `in-review` |
+| `NFR-018/list_item-016` | `out_of_scope` / `OUT_NON_AUTH_REQUIREMENT` | 丙(派生schema の追補) |
+| `NFR-018/list_item-023` | 同上 | 丁(3 層の 2 層目) |
+| `NFR-019/list_item-002` | 同上 | 乙2(NFR-019(a) の例外) |
+| `NFR-019/list_item-007` | 同上 | 戊(参照の付け替え) |
+| `SECTION-10/table_row-007` | 同上 | 甲1(10 章の現況記述) |
+| `APPENDIX-ITEM-A-1/list_item-007` | 同上 | 乙3(期間ラベル) |
+| `APPENDIX-ITEM-A-1/list_item-009` | 同上 | 甲2・甲3・乙1(表示書式の共通規定) |
+
+**8 件とも分類は変わらない。** **すべて `out_of_scope` であり、私の編集は
+ドメイン計算の方式に関する記述で、認可要件を述べるものではない。**
+**原文と `source_text_digest`・`decision_digest` だけを更新した。**
+
+**これが `--reseal` が自動で進まない理由である** — **原文が変われば分類を見直させる設計**であり、
+**今回は見直した結果「変わらない」と判断した。判断を飛ばしていない。**
+
+### 現在地
+
+**oracle 層に到達した**(`contracts/authz/requirement-claims.json: oracle input blob が不一致`)。
+**ここからがステップ 9 の範囲。**
+
+**完了条件の確認**: **`requirement-claims` 系・派生資産に関する指摘はすべて解消し、
+残る不一致は oracle seal 系に限られる。** 計画の完了条件どおり。

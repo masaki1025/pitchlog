@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "input_manifest": {
-    "commit": "c6d773c6efae36c9f4bba8b4c466ce6481011443",
+    "commit": "cb1771f5c8b1320a1e061b0b02f75f53ad388723",
     "source_path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
     "scan_start_heading_id": "DOC",
     "scan_end_heading_id": "APPENDIX-ITEM-F-2",
-    "source_blob_digest": "727309f7f78ed6c28a9838115ed47a0e088a5f7d",
+    "source_blob_digest": "8aaecf5a4163a68e1a3ffeb9535a872a3a4490e9",
     "heading_ids": [
       "DOC",
       "CHANGELOG",
@@ -143,7 +143,7 @@
       "paragraph": 99,
       "table_delimiter": 40,
       "table_header": 40,
-      "table_row": 323,
+      "table_row": 324,
       "thematic_break": 27
     }
   },
@@ -425,11 +425,11 @@
       "source_id": "PREAMBLE/frontmatter-002",
       "source_kind": "frontmatter",
       "source_heading_id": "PREAMBLE",
-      "source_text": "status: approved",
-      "source_text_digest": "953f5bbf395df91a91ad207a503f2b8b7f7224bc63a719400a06574a12f2209b",
+      "source_text": "status: in-review",
+      "source_text_digest": "7d46b6cd12d444739c0b4cfbc417b2d5852be7157a1eebcf500ae661108ed548",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
-      "decision_digest": "109147e98ad8021b85a4ffa3fab78192eb7630904627a4e581f766c10cc43e46"
+      "decision_digest": "e605038ccba953740dbc96324dd6f1d0a97d35e6a9d150e9b6aa78497a41e137"
     },
     {
       "source_id": "PREAMBLE/frontmatter-003",
@@ -870,6 +870,16 @@
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
       "decision_digest": "6256dcf44100d78eca9d97bcd1381dfb827763270791b120a168f1ff9230e726"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-040",
+      "source_kind": "table_row",
+      "source_heading_id": "CHANGELOG",
+      "source_text": "| 2.11 | 2026-10-11 | **ADR-003 の D-2 への切り替えに伴う規範の追随を起案(TSK-541・状態: in-review)** — **ADR-003 と同一の確定ゲートで一括検証する**(先例: v2.2 と ADR v0.1)。**追随する 7 箇所** = ① 10 章の「制約された宣言モデルから Python・TypeScript を生成」(現況の記述)② 付録A-1 の「**対象集合の正 = 宣言モデルの schema が定める…閉包**」③ 同所の「ADR-003 **D-1** の宣言的表示規則で実装され」④〜⑥ 生成 formatter・生成前検査を前提にした 3 箇所(**ADR-003 の発効条件 (iii) の結論に従う**)⑦ NFR-018 (b)② の「**派生schema**」(同 **(ii)** の結論に従う)。**3 層の 2 層目**(同 **(i)**)も同じゲートで決まる。**参照の付け替え 1 件** = NFR-019(a) 前処理の根拠 **D-1**。**版は暫定** — **`v2.5` は TSK-267 の先約**であり、**承認時に PO が裁定する**(先例 TSK-278)。**射程宣言(7.3-7)**: **本改訂で確定する範囲** = 上記 7 箇所と参照 1 件。**本改訂で触れない範囲** = **変更履歴表**(監査証跡)/ **NFR-018 (c) の例外表ほか射程外と宣言した範囲**(**基準版と SHA-256 同一であることを機械的に確認する**)。計画: `../features/adr003-activation-conditions/plan.md` | 山田 + Claude |",
+      "source_text_digest": "631244faf4ece02d93d79ac3ff94df210b24be8b83afde309dba40cf59ad2615",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "decision_digest": "955d91020f62c9febabad1718d7ac264b2dde5f2346f7d4df636f8dce5b983a7"
     },
     {
       "source_id": "CHANGELOG/blockquote-001",
@@ -11931,11 +11941,11 @@
       "source_id": "NFR-018/list_item-016",
       "source_kind": "list_item",
       "source_heading_id": "NFR-018",
-      "source_text": "        - **入力軸の唯一の正と「全列挙」の定義**: 対象計算ごとの入力軸、その分類、値集合または境界値・等価分割、および軸どうしの組合せ規則の唯一の正は、[ADR-003](../adr/ADR-003-domain-calc-method.md) D-11の**入力軸descriptor**とし、本書に具体的な軸名を重複列挙しない。descriptorは各軸に由来条文を持ち、有限列挙に分類した軸は宣言した値集合の全値を、有限にならない軸は要件・付録から導出した境界値・等価分割・範囲の端点を、同descriptorの組合せ規則に従ってcoverage義務へ展開する。**「全列挙」とは、このcoverage義務に未消費の値・分割・必須組合せがなく、descriptorと派生schema・正解ベクタの軸集合および値域がexact-setで一致すること**をいう。終了判定についても、その入力軸と組合せ規則を同じdescriptorの保証範囲へ含め、終了判定の軸群が未宣言または未消費なら不合格とする",
-      "source_text_digest": "672a2bc0fd1966a0147f4cf801c12d16d54d17436ca7d071a0c37516018c2910",
+      "source_text": "        - **入力軸の唯一の正と「全列挙」の定義**: 対象計算ごとの入力軸、その分類、値集合または境界値・等価分割、および軸どうしの組合せ規則の唯一の正は、[ADR-003](../adr/ADR-003-domain-calc-method.md) D-11の**入力軸descriptor**とし、本書に具体的な軸名を重複列挙しない。descriptorは各軸に由来条文を持ち、有限列挙に分類した軸は宣言した値集合の全値を、有限にならない軸は要件・付録から導出した境界値・等価分割・範囲の端点を、同descriptorの組合せ規則に従ってcoverage義務へ展開する。**「全列挙」とは、このcoverage義務に未消費の値・分割・必須組合せがなく、descriptorと派生schema・正解ベクタの軸集合および値域がexact-setで一致すること**をいう。終了判定についても、その入力軸と組合せ規則を同じdescriptorの保証範囲へ含め、終了判定の軸群が未宣言または未消費なら不合格とする**【v2.11 追補】発効後、ここでいう「派生schema」は **TS 正本が宣言する入力軸の宣言**を指す(ADR-003 D-14-g (ii) が突合対象を定める。**正が descriptor であること・射影の方法・不一致なら manifest 登録を拒否すること・判定不能なら fail は変わらない**)(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**)",
+      "source_text_digest": "d316eddf83a23fd8da5ee86adb543cac1695234887583dd83b2b22c2a212b421",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "b068f2c7dd8dcfbb15f10e065221a2ca5d39d635bcceadd796b5077d61303e4b"
+      "decision_digest": "e78232e755f3f4096b8aef62f2ec8ddae6af232be9eb659643bae34ee3597aa0"
     },
     {
       "source_id": "NFR-018/list_item-017",
@@ -12001,11 +12011,11 @@
       "source_id": "NFR-018/list_item-023",
       "source_kind": "list_item",
       "source_heading_id": "NFR-018",
-      "source_text": "        - **プロパティテスト**（不変条件と、**正本から生成した各実行体どうしの等価性**。区分ごとの対象は設計フェーズのADRが定める）",
-      "source_text_digest": "9e6a77520c8c07469ba6567d34ab5468bba1e6d60fc7f2fffba036a2c2710846",
+      "source_text": "        - **プロパティテスト**（不変条件と、**正本から生成した各実行体どうしの等価性**。区分ごとの対象は設計フェーズのADRが定める(**発効後の比較相手・実施主体・実行経路・判定根拠は ADR-003 D-14-g (i) が定める**(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**)。**(β) は実行体が DB 側の SQL 式だけになるため、同一 TS 正本から生成したテスト専用の参照実行体を比較相手に置く**)）",
+      "source_text_digest": "13d8c8ec5d50c9685131b92eed8e897eba3d3a831bd677f5eee42da310b40e26",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "b72250960a4acf8d22a248f7a6443028880de836ffa91756f0b8a8d0e4296796"
+      "decision_digest": "e360945d869a9fce34f84afc6dabfdc80eead5ef3db2dd14bbcf253e71b5f1fc"
     },
     {
       "source_id": "NFR-018/list_item-024",
@@ -12171,11 +12181,11 @@
       "source_id": "NFR-019/list_item-002",
       "source_kind": "list_item",
       "source_heading_id": "NFR-019",
-      "source_text": "- **要件**: テストランナーを標準化する（バックエンド=pytest・フロントエンド=Vitest・E2E=Playwright。v1.8で明確化 — バックエンドのテストは pytest 以外に分散させない）。PRごとにCIで自動実行、全グリーンでないとマージ不可とする。CIには (a) クライアント/サーバーの一致性テスト（**対象は NFR-018 の区分(α)**＝クライアント・サーバーの双方で実行するドメイン計算とし、**列挙は NFR-018 を正とする**〔本項では繰り返さない〕。**NFR-018 の区分(β)〔サーバーでのみ実行するもの〕は本テストの対象としない** — 担保は **NFR-018 の「対象」欄が区分ごとに定める**（①〜⑤=付録A固定ベクタ／⑦=打球方向導出の専用ベクタ／⑥=付録B-5変換ベクタとFR-038移行突合／⑧=FR-038導出規則の単体テストと移行突合。FR-042 補足の別建て方針を維持）。**対象ごとに〈入力・出力・比較単位〉を定義してテストを構成する**。**比較する出力は、当該計算の結果を利用者へ見せる条項が定める全項目**（受入基準に加え、**ユーザーストーリー等で定める表示項目を含む**）とし、**一部だけを比較面に採ることはできない**（項目を除外するには本書の改訂を要する。**例外(v2.6 改訂・PO 裁定 2026-09-03)**: **付録A-1 の表外既定の数値〔スコアボードの得点・カウント・打席番号等〕の表示値はベクタ比較面に載せない** — 状況判定の出力・比較面は構造化状態のままとし、表示は同一の生成 formatter の構成検査・変異検査で担保する〔付録A-1・ADR-003 D-8〕）。**NFR-018 の経過規定(e)が発効しているあいだ、本項の合格判定は同規定 `BOOT-NO-CLAIM` に従う** — **移行状態におけるCIの緑は本項の合格を意味しない**（v2.9追補）。現時点の対応:",
-      "source_text_digest": "4ab115eb4b0baf6193fffa569ba53b13353f7d9b3ab7014f710a1b763fbd3336",
+      "source_text": "- **要件**: テストランナーを標準化する（バックエンド=pytest・フロントエンド=Vitest・E2E=Playwright。v1.8で明確化 — バックエンドのテストは pytest 以外に分散させない）。PRごとにCIで自動実行、全グリーンでないとマージ不可とする。CIには (a) クライアント/サーバーの一致性テスト（**対象は NFR-018 の区分(α)**＝クライアント・サーバーの双方で実行するドメイン計算とし、**列挙は NFR-018 を正とする**〔本項では繰り返さない〕。**NFR-018 の区分(β)〔サーバーでのみ実行するもの〕は本テストの対象としない** — 担保は **NFR-018 の「対象」欄が区分ごとに定める**（①〜⑤=付録A固定ベクタ／⑦=打球方向導出の専用ベクタ／⑥=付録B-5変換ベクタとFR-038移行突合／⑧=FR-038導出規則の単体テストと移行突合。FR-042 補足の別建て方針を維持）。**対象ごとに〈入力・出力・比較単位〉を定義してテストを構成する**。**比較する出力は、当該計算の結果を利用者へ見せる条項が定める全項目**（受入基準に加え、**ユーザーストーリー等で定める表示項目を含む**）とし、**一部だけを比較面に採ることはできない**（項目を除外するには本書の改訂を要する。**例外(v2.6 改訂・PO 裁定 2026-09-03)**: **付録A-1 の表外既定の数値〔スコアボードの得点・カウント・打席番号等〕の表示値はベクタ比較面に載せない** — 状況判定の出力・比較面は構造化状態のままとし、表示は同一の生成 formatter の構成検査・変異検査で担保する〔付録A-1・ADR-003 D-8。**発効後は D-14-g (iii) により TS 正本から生成した formatter**(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**)〕）。**NFR-018 の経過規定(e)が発効しているあいだ、本項の合格判定は同規定 `BOOT-NO-CLAIM` に従う** — **移行状態におけるCIの緑は本項の合格を意味しない**（v2.9追補）。現時点の対応:",
+      "source_text_digest": "599de7d97c3fdf2cbb318806146f8b1e05a3debdb4dab287438193d6db82cc85",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "4175d53c1536ea1a1d67a64c949b17e1f47e3702e23145e8e9cd474a4e54d779"
+      "decision_digest": "2083cef7df17060721effcec48ab02a2c45a1e184b79b208218a1293ca2301b7"
     },
     {
       "source_id": "NFR-019/list_item-003",
@@ -12221,11 +12231,11 @@
       "source_id": "NFR-019/list_item-007",
       "source_kind": "list_item",
       "source_heading_id": "NFR-019",
-      "source_text": "  - **断中の成績集計の前処理**＝**プレイ入力列＋語彙スナップショット**（ID→表示名。FR-022の結果表示名と**FR-023の球種表示名**を完成した表示値として比較するため — [ADR-003](../adr/ADR-003-domain-calc-method.md) D-1）→**FR-021の当日成績の全指標**・**FR-022の当日打席結果の全列**（**列の定義はFR-022が正** — v2.2で確定済み。打席ごとの7列と、そこから導出する当日の集計）・**FR-023の球種の表示名(語彙スナップショット経由)・球種割合と併記する球数**",
-      "source_text_digest": "6e8e192039196f7fa08d30742c15daec4dbcc37c5ad7e0fb49bbf9ea99fa30a4",
+      "source_text": "  - **断中の成績集計の前処理**＝**プレイ入力列＋語彙スナップショット**（ID→表示名。FR-022の結果表示名と**FR-023の球種表示名**を完成した表示値として比較するため — [ADR-003](../adr/ADR-003-domain-calc-method.md) **の正本の射程**〔**発効前は D-1 / 発効後は D-14 が定める TS 正本**〕(**v2.11 — 参照の付け替え。D-1 は発効後に失効するため、節の名前ではなく「正本の射程」で引く**)）→**FR-021の当日成績の全指標**・**FR-022の当日打席結果の全列**（**列の定義はFR-022が正** — v2.2で確定済み。打席ごとの7列と、そこから導出する当日の集計）・**FR-023の球種の表示名(語彙スナップショット経由)・球種割合と併記する球数**",
+      "source_text_digest": "0d6dc4a0d80a95e63d78b0f8ed06bb0c39b347bf6eee6fbc38cff72a8e36f0b0",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "d51e2ecd094b5bf0bde6c3012d6ff7f6de470e7ba8e8a3525a57b7c7816e9a96"
+      "decision_digest": "678272498c6d0c838a05ea92e9722425f3b96e6c3322d90a9d2a3033feb0194d"
     },
     {
       "source_id": "NFR-019/paragraph-001",
@@ -13703,11 +13713,11 @@
       "source_id": "SECTION-10/table_row-007",
       "source_kind": "table_row",
       "source_heading_id": "SECTION-10",
-      "source_text": "| **NFR-018 の正解ベクタの整備**（付録A固定ベクタ・付録E全表・**終了判定ベクタ**・**付録B-3/B-4座標変換ベクタ**・付録B-6領域シードと**捕球選手推定ベクタ・打球方向導出ベクタ**・付録B-5変換ベクタ・**FR-038責任投手導出ベクタ**。**契約の全体像はADR-003の契約表が正**）— **①実現手段と②検査方式は [ADR-003](../adr/ADR-003-domain-calc-method.md) で確定済み**（①＝制約された宣言モデルからPython・TypeScriptを生成／②＝**差分の検出可能性**／③＝宣言された構成の完全性。**具体的な検査方式は ADR-003 の D-11 が確定**。**②は本書v2.1の定義では実現不能とADRが結論したため本書v2.2で再定義した**）。**FR-022の列定義もv2.2で確定済み** | 暫定＝**ベクタの形式・置き場・CI配線・後続担当はADR-003 D-6で確定済み**。中身の作成が残る。**未完成の間の扱いは区分で分かれる** — **(α)の対象は未完成の間NFR-019(a)を合格と判定しない**／**(α)(β)を問わずいずれかが未完成の間はNFR-018(b)②を満たしたと判定しない**（正解ベクタは完成をもって発効。NFR-019(a)は(α)のみを対象とする）。**この期間のマージ可否は NFR-018 の経過規定(e)が定める**（**充足判定は従来どおり不合格のまま、閉じた移行状態に限りマージ可否を別判定する** — v2.9新設） | 山田さん + Claude（ADR起案） | **本書v2.2の承認後、NFR-018対象のドメイン計算コードを新規に追加または変更する最初の変更の前**（v2.1の申し送りが定めた発火点を、v2.2の承認を基準に読み替える）（v2.2でADR-003の①②が確定したため、残るのはベクタの中身。既存の対象コード〔`courseInputView.ts` の座標変換〕は逐語移植の受入条件を解く時点で生成物へ移行する〔達成条件(c)の卒業〕） |",
-      "source_text_digest": "aed8fbe774f8bf5822d035999fb6e318a95dc72517ed8d76aa13987970071df1",
+      "source_text": "| **NFR-018 の正解ベクタの整備**（付録A固定ベクタ・付録E全表・**終了判定ベクタ**・**付録B-3/B-4座標変換ベクタ**・付録B-6領域シードと**捕球選手推定ベクタ・打球方向導出ベクタ**・付録B-5変換ベクタ・**FR-038責任投手導出ベクタ**。**契約の全体像はADR-003の契約表が正**）— **①実現手段と②検査方式は [ADR-003](../adr/ADR-003-domain-calc-method.md) で確定済み**（①＝**TS 正本から同一の JS artifact を生成し、クライアントとサーバーの埋め込みエンジンで実行する**(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**)。**発効までは「制約された宣言モデルから Python・TypeScript を生成」が現行**(ADR-003 D-14-f — **発効 = PO が ADR-003 の変更履歴へ発効日を記録した時点**)／②＝**差分の検出可能性**／③＝宣言された構成の完全性。**具体的な検査方式は ADR-003 の D-11 が確定**。**②は本書v2.1の定義では実現不能とADRが結論したため本書v2.2で再定義した**）。**FR-022の列定義もv2.2で確定済み** | 暫定＝**ベクタの形式・置き場・CI配線・後続担当はADR-003 D-6で確定済み**。中身の作成が残る。**未完成の間の扱いは区分で分かれる** — **(α)の対象は未完成の間NFR-019(a)を合格と判定しない**／**(α)(β)を問わずいずれかが未完成の間はNFR-018(b)②を満たしたと判定しない**（正解ベクタは完成をもって発効。NFR-019(a)は(α)のみを対象とする）。**この期間のマージ可否は NFR-018 の経過規定(e)が定める**（**充足判定は従来どおり不合格のまま、閉じた移行状態に限りマージ可否を別判定する** — v2.9新設） | 山田さん + Claude（ADR起案） | **本書v2.2の承認後、NFR-018対象のドメイン計算コードを新規に追加または変更する最初の変更の前**（v2.1の申し送りが定めた発火点を、v2.2の承認を基準に読み替える）（v2.2でADR-003の①②が確定したため、残るのはベクタの中身。既存の対象コード〔`courseInputView.ts` の座標変換〕は逐語移植の受入条件を解く時点で生成物へ移行する〔達成条件(c)の卒業〕） |",
+      "source_text_digest": "d47746eabb45520fa6dd5250e84973824f75287bc30a1e2209c9428eeb9de6e2",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "938a64dd0a637a9c6c9fd5f02b963dad2f52db0ccf402318e782a4e346ba4bec"
+      "decision_digest": "122353f3756c6cbf158e78d63dcbdc99e95e6d37098644a07a55e69b55e3d63a"
     },
     {
       "source_id": "SECTION-10/table_row-008",
@@ -13833,11 +13843,11 @@
       "source_id": "APPENDIX-ITEM-A-1/list_item-007",
       "source_kind": "list_item",
       "source_heading_id": "APPENDIX-ITEM-A-1",
-      "source_text": "- シーズン通算の既定 = 当該年度（4/1〜翌3/31、試合日をJSTで判定）・全試合区分。**期間ラベル(FR-021 の「2026年度通算」等)の正 = この JST 年度導出**とし、ラベルは「{年度}年度通算」の合成で作る(年度 = 試合日から導出する構造化値。**`{年度}` の表示は fixed-decimal〔scale=0・先頭 0 あり・負号は共通既定〕を通してテンプレートへ差し込む** — `NumericValue` の直接差し込みは生成前検査で fail するため binding をここで与える。管理者管理の語彙にはしない — v2.6 追補・PO 裁定 2026-09-03)",
-      "source_text_digest": "e28b159120bca52b508a90c68d6f4bcee25154493735598d633b4932cfe25ff8",
+      "source_text": "- シーズン通算の既定 = 当該年度（4/1〜翌3/31、試合日をJSTで判定）・全試合区分。**期間ラベル(FR-021 の「2026年度通算」等)の正 = この JST 年度導出**とし、ラベルは「{年度}年度通算」の合成で作る(年度 = 試合日から導出する構造化値。**`{年度}` の表示は fixed-decimal〔scale=0・先頭 0 あり・負号は共通既定〕を通してテンプレートへ差し込む** — `NumericValue` の直接差し込みは生成前検査で fail するため binding をここで与える(**発効後は TS 正本に対する生成前検査** — ADR-003 D-14-g (iii)(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**))。管理者管理の語彙にはしない — v2.6 追補・PO 裁定 2026-09-03)",
+      "source_text_digest": "48000692533c071307755af1dbd7c8dd8cc5018b39babfb3ba998df352d34333",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "194c5c6b27fb229b7584416691788292ee78c9e3a10d9c75753d967b65e5bb9f"
+      "decision_digest": "83951d7e448ff914560cdc15657dd2abca4431cadf5ec5264b692f8ee7d6ab8e"
     },
     {
       "source_id": "APPENDIX-ITEM-A-1/list_item-008",
@@ -13983,11 +13993,11 @@
       "source_id": "APPENDIX-ITEM-A-1/list_item-009",
       "source_kind": "list_item",
       "source_heading_id": "APPENDIX-ITEM-A-1",
-      "source_text": "- **表示書式の共通規定**(v2.6 追補 — 各指標表の「表示書式」列が対象出力ごとの binding の正): **丸めは全対象で四捨五入**(round half up。**負値のちょうど中間値は絶対値で丸めて符号を戻す** — 例 scale=0 の `-1.5` → `-2`〔away from zero・日本語の「四捨五入」の通例と Python decimal の `ROUND_HALF_UP` に一致 — v2.6 追補〕。別方式を使う場合は当該行に明記する — 現時点で該当なし)/ **数字・小数点・`%`・括弧は半角**、単位・助数詞(「回」「球」等)は日本語 / **負値の符号は全対象で半角 `-`・正値に符号を付けない(既定 binding — 個別行での再指定は不要。fixed-decimal の負値符号はこの既定を継承する)**。負値が計算上発生し得る表示対象は**得失点差と FIP**。加えて **FR-002 の範囲外確認確定を経た入力値(球速等)由来の負値も排除されない**(妥当範囲はシステム設定値 — 付録C)。**いずれの対象でも表示は本既定に従い分岐せず、負値の表示検証は fixed-decimal の全対象を軸に取る**(ADR-003 D-11 の同値分割軸「正・負・0」と一致 — 対象の列挙で負値の発生可能性を制限しない・v2.6 追補)/ **先頭 0 の既定 = あり**(表示書式列に「先頭0なし」等の明記がある行はそれに従う。scale=0 の整数・百分率表示では出力に現れないが、宣言は常に値を持つ — 必須パラメータを表内で欠落させない・v2.6 追補)/ 0 除算の「−」(MINUS SIGN U+2212)は上記のとおり / **本規定と書式列は ADR-003 D-1 の宣言的表示規則(数値表示 primitive)で実装され、ベクタ比較面に完成表示値が載るのは、書式列を持つ指標(本付録の各表)と FR-022/023 の表示列**(NFR-019(a)・NFR-018)。**表外既定の数値(下記)は、書式列を持つ指標と同一の生成 formatter(fixed-decimal scale=0)を通すことを**生成前検査(言語既定の文字列化の禁止)・構成検査(ADR-003 (b)③ の表示対応の突合 — 迂回・非経由経路の検出を担う)・変異検査(formatter 自体の実効性)の 3 機構の分担で担保**し、状況判定ベクタの比較面は構造化状態のまま**(表示値を加えない — v2.6 追補・PO 裁定 2026-09-03)/ **本付録の表に書式列を持たない利用者可視の数値のうち、NFR-018 の対象計算の出力に現れるもの**(スコアボードの得点・カウント・打席番号・イニング等 — 状況判定・断中の前処理の出力。**対象集合の正 = 宣言モデルの schema が定める両計算の出力のうち利用者可視の数値フィールドの閉包**であり、本括弧の「等」の開いた列挙を正としない — ADR-003 D-8)**は整数の既定表示(固定小数 scale=0・負値の符号は共通既定〔半角 `-`〕に従う)とする** — これも ADR-003 ③の fixed-decimal を通し、言語既定の文字列化は用いない。**対象計算の出力でない数値(管理コンソールの設定値表示等)は本規定と ADR-003 の射程外**(NFR-018 の対象列挙を広げない — v2.6 追補)",
-      "source_text_digest": "0fac3880e9e06b4a7e4794c9ccf2309dae84afe63cccf42d755fe1f65711be8e",
+      "source_text": "- **表示書式の共通規定**(v2.6 追補 — 各指標表の「表示書式」列が対象出力ごとの binding の正): **丸めは全対象で四捨五入**(round half up。**負値のちょうど中間値は絶対値で丸めて符号を戻す** — 例 scale=0 の `-1.5` → `-2`〔away from zero・日本語の「四捨五入」の通例と Python decimal の `ROUND_HALF_UP` に一致 — v2.6 追補〕。別方式を使う場合は当該行に明記する — 現時点で該当なし)/ **数字・小数点・`%`・括弧は半角**、単位・助数詞(「回」「球」等)は日本語 / **負値の符号は全対象で半角 `-`・正値に符号を付けない(既定 binding — 個別行での再指定は不要。fixed-decimal の負値符号はこの既定を継承する)**。負値が計算上発生し得る表示対象は**得失点差と FIP**。加えて **FR-002 の範囲外確認確定を経た入力値(球速等)由来の負値も排除されない**(妥当範囲はシステム設定値 — 付録C)。**いずれの対象でも表示は本既定に従い分岐せず、負値の表示検証は fixed-decimal の全対象を軸に取る**(ADR-003 D-11 の同値分割軸「正・負・0」と一致 — 対象の列挙で負値の発生可能性を制限しない・v2.6 追補)/ **先頭 0 の既定 = あり**(表示書式列に「先頭0なし」等の明記がある行はそれに従う。scale=0 の整数・百分率表示では出力に現れないが、宣言は常に値を持つ — 必須パラメータを表内で欠落させない・v2.6 追補)/ 0 除算の「−」(MINUS SIGN U+2212)は上記のとおり / **本規定と書式列は **ADR-003 が定める正本の宣言的表示規則**(数値表示 primitive)で実装され(**発効前は D-1 / 発効後は D-14-g (iii) が定める TS 正本からの生成**(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**))、ベクタ比較面に完成表示値が載るのは、書式列を持つ指標(本付録の各表)と FR-022/023 の表示列**(NFR-019(a)・NFR-018)。**表外既定の数値(下記)は、書式列を持つ指標と同一の生成 formatter(fixed-decimal scale=0)を通すことを(**発効後は TS 正本から生成した formatter**(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**))**生成前検査(言語既定の文字列化の禁止)・構成検査(ADR-003 (b)③ の表示対応の突合 — 迂回・非経由経路の検出を担う)・変異検査(formatter 自体の実効性)の 3 機構の分担で担保**し、状況判定ベクタの比較面は構造化状態のまま**(表示値を加えない — v2.6 追補・PO 裁定 2026-09-03)/ **本付録の表に書式列を持たない利用者可視の数値のうち、NFR-018 の対象計算の出力に現れるもの**(スコアボードの得点・カウント・打席番号・イニング等 — 状況判定・断中の前処理の出力。**対象集合の正 = **正本の schema** が定める両計算の出力のうち利用者可視の数値フィールドの閉包**であり、(**正本 = 発効前は宣言モデル / 発効後は TS 正本**(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**))本括弧の「等」の開いた列挙を正としない — ADR-003 D-8)**は整数の既定表示(固定小数 scale=0・負値の符号は共通既定〔半角 `-`〕に従う)とする** — これも ADR-003 ③の fixed-decimal を通し、言語既定の文字列化は用いない。**対象計算の出力でない数値(管理コンソールの設定値表示等)は本規定と ADR-003 の射程外**(NFR-018 の対象列挙を広げない — v2.6 追補)",
+      "source_text_digest": "8b2dc8015497e51fe06ed8f73ec0e0686263b58f337efc582b71082173ed1aac",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "ea4942a5c536775fd330021005742618758b12d54bda74aac02113aac28e3408"
+      "decision_digest": "653aff82b7877aaf4f37d0a5e64c3321d97a8a31c01854e434c6c27916865af0"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/heading-001",

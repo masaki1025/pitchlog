@@ -4,8 +4,8 @@
   "classification_rules_digest": "18082bd7f79416179c2cce3071bfebdb1e6eca5644b646d114b338f6545ce480",
   "basis_rules_digest": "4adf829b6fd001aa582e9bd94e7a0170d8b91460afee2557fa4f770c07c2aedc",
   "layer_ids_digest": "8d4eac464984bfc093e708840dfb5e30550792a7ad87119a2e313e53f5ff6e1e",
-  "decision_count": 1380,
-  "aggregate_decision_digest": "5067af92e51cf650f9ed724ea7d02db85b871174560ae14cedfd6e1994066ec5",
+  "decision_count": 1381,
+  "aggregate_decision_digest": "4b1ff92cf2e051cd0afe8419ae13294ede0a69a6c51ca4a1eebe777fd32dd047",
   "decisions": [
     {
       "source_id": "PREAMBLE/frontmatter-001",
@@ -18,8 +18,8 @@
       "source_id": "PREAMBLE/frontmatter-002",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
-      "source_text_digest": "953f5bbf395df91a91ad207a503f2b8b7f7224bc63a719400a06574a12f2209b",
-      "decision_digest": "109147e98ad8021b85a4ffa3fab78192eb7630904627a4e581f766c10cc43e46"
+      "source_text_digest": "7d46b6cd12d444739c0b4cfbc417b2d5852be7157a1eebcf500ae661108ed548",
+      "decision_digest": "e605038ccba953740dbc96324dd6f1d0a97d35e6a9d150e9b6aa78497a41e137"
     },
     {
       "source_id": "PREAMBLE/frontmatter-003",
@@ -328,6 +328,13 @@
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
       "source_text_digest": "49f3dd19a8c3954bcef8baf0d7af784f76297eaefc0cb5e234efa7ffd3e6f887",
       "decision_digest": "6256dcf44100d78eca9d97bcd1381dfb827763270791b120a168f1ff9230e726"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-040",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "source_text_digest": "631244faf4ece02d93d79ac3ff94df210b24be8b83afde309dba40cf59ad2615",
+      "decision_digest": "955d91020f62c9febabad1718d7ac264b2dde5f2346f7d4df636f8dce5b983a7"
     },
     {
       "source_id": "CHANGELOG/blockquote-001",
@@ -9148,8 +9155,8 @@
       "source_id": "NFR-018/list_item-016",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "672a2bc0fd1966a0147f4cf801c12d16d54d17436ca7d071a0c37516018c2910",
-      "decision_digest": "b068f2c7dd8dcfbb15f10e065221a2ca5d39d635bcceadd796b5077d61303e4b"
+      "source_text_digest": "d316eddf83a23fd8da5ee86adb543cac1695234887583dd83b2b22c2a212b421",
+      "decision_digest": "e78232e755f3f4096b8aef62f2ec8ddae6af232be9eb659643bae34ee3597aa0"
     },
     {
       "source_id": "NFR-018/list_item-017",
@@ -9197,8 +9204,8 @@
       "source_id": "NFR-018/list_item-023",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "9e6a77520c8c07469ba6567d34ab5468bba1e6d60fc7f2fffba036a2c2710846",
-      "decision_digest": "b72250960a4acf8d22a248f7a6443028880de836ffa91756f0b8a8d0e4296796"
+      "source_text_digest": "13d8c8ec5d50c9685131b92eed8e897eba3d3a831bd677f5eee42da310b40e26",
+      "decision_digest": "e360945d869a9fce34f84afc6dabfdc80eead5ef3db2dd14bbcf253e71b5f1fc"
     },
     {
       "source_id": "NFR-018/list_item-024",
@@ -9316,8 +9323,8 @@
       "source_id": "NFR-019/list_item-002",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "4ab115eb4b0baf6193fffa569ba53b13353f7d9b3ab7014f710a1b763fbd3336",
-      "decision_digest": "4175d53c1536ea1a1d67a64c949b17e1f47e3702e23145e8e9cd474a4e54d779"
+      "source_text_digest": "599de7d97c3fdf2cbb318806146f8b1e05a3debdb4dab287438193d6db82cc85",
+      "decision_digest": "2083cef7df17060721effcec48ab02a2c45a1e184b79b208218a1293ca2301b7"
     },
     {
       "source_id": "NFR-019/list_item-003",
@@ -9351,8 +9358,8 @@
       "source_id": "NFR-019/list_item-007",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "6e8e192039196f7fa08d30742c15daec4dbcc37c5ad7e0fb49bbf9ea99fa30a4",
-      "decision_digest": "d51e2ecd094b5bf0bde6c3012d6ff7f6de470e7ba8e8a3525a57b7c7816e9a96"
+      "source_text_digest": "0d6dc4a0d80a95e63d78b0f8ed06bb0c39b347bf6eee6fbc38cff72a8e36f0b0",
+      "decision_digest": "678272498c6d0c838a05ea92e9722425f3b96e6c3322d90a9d2a3033feb0194d"
     },
     {
       "source_id": "NFR-019/paragraph-001",
@@ -10455,8 +10462,8 @@
       "source_id": "SECTION-10/table_row-007",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "aed8fbe774f8bf5822d035999fb6e318a95dc72517ed8d76aa13987970071df1",
-      "decision_digest": "938a64dd0a637a9c6c9fd5f02b963dad2f52db0ccf402318e782a4e346ba4bec"
+      "source_text_digest": "d47746eabb45520fa6dd5250e84973824f75287bc30a1e2209c9428eeb9de6e2",
+      "decision_digest": "122353f3756c6cbf158e78d63dcbdc99e95e6d37098644a07a55e69b55e3d63a"
     },
     {
       "source_id": "SECTION-10/table_row-008",
@@ -10546,8 +10553,8 @@
       "source_id": "APPENDIX-ITEM-A-1/list_item-007",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "e28b159120bca52b508a90c68d6f4bcee25154493735598d633b4932cfe25ff8",
-      "decision_digest": "194c5c6b27fb229b7584416691788292ee78c9e3a10d9c75753d967b65e5bb9f"
+      "source_text_digest": "48000692533c071307755af1dbd7c8dd8cc5018b39babfb3ba998df352d34333",
+      "decision_digest": "83951d7e448ff914560cdc15657dd2abca4431cadf5ec5264b692f8ee7d6ab8e"
     },
     {
       "source_id": "APPENDIX-ITEM-A-1/list_item-008",
@@ -10651,8 +10658,8 @@
       "source_id": "APPENDIX-ITEM-A-1/list_item-009",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "0fac3880e9e06b4a7e4794c9ccf2309dae84afe63cccf42d755fe1f65711be8e",
-      "decision_digest": "ea4942a5c536775fd330021005742618758b12d54bda74aac02113aac28e3408"
+      "source_text_digest": "8b2dc8015497e51fe06ed8f73ec0e0686263b58f337efc582b71082173ed1aac",
+      "decision_digest": "653aff82b7877aaf4f37d0a5e64c3321d97a8a31c01854e434c6c27916865af0"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/heading-001",

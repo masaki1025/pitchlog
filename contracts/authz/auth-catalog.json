@@ -3,9 +3,9 @@
   "asset_kind": "authz_catalog",
   "input_manifest": {
     "requirement_claims_path": "contracts/authz/requirement-claims.json",
-    "requirement_claims_blob_digest": "2d4edf5eb98616d92dab0fa524f4477e27fccf29",
+    "requirement_claims_blob_digest": "6b74d640aa7f443a40dd6f914cdebb2fadd9b47e",
     "requirement_claims_lock_path": "contracts/authz/requirement-claims.lock.json",
-    "requirement_claims_lock_blob_digest": "95bac6bb3995db5d37487ec98ea74dc96bf58453"
+    "requirement_claims_lock_blob_digest": "75f16167fae0aa9240465eae1081f0300848d6eb"
   },
   "origins": [
     "requirement",
