@@ -20,7 +20,7 @@ const vueRecommended = pluginVue.configs['flat/recommended'].map((config) => ({
 
 export default [
   {
-    ignores: ['dist/**'],
+    ignores: ['dist/**', 'scripts/domain-checks/fixtures/**'],
   },
   ...vueRecommended,
   ...tseslint.configs.recommended.map((config) => ({
