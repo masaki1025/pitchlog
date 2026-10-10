@@ -27,7 +27,9 @@ _DATABASE_SETTINGS = (
     "PITCHLOG_DATABASE_POOLED",
     "PITCHLOG_MIGRATION_DATABASE_URL",
 )
-_DIRECT_DATABASE_URL = "postgresql://user:password@db.example/pitchlog"
+_DIRECT_DATABASE_URL = (
+    "postgresql://user:password@db.example/pitchlog?sslmode=verify-full"
+)
 
 
 class _ConnectionIntercepted(Exception):

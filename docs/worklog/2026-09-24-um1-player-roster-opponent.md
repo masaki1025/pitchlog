@@ -364,3 +364,148 @@ branch: feature/um1-player-roster-opponent
 - `check_frozen_baselines.py --ci`(`GITHUB_EVENT_NAME=push`)OK・迂回検査 ok・`ruff check .` 合格
 - ルートの `uv run pytest tests/`: **2930 passed・3 failed**(20 分 55 秒)。失敗は `tests/domain/mut/test_cost_record.py::test_actual_measurement_is_generated_and_passes_both_budgets`・`tests/domain/mut/test_lang_operators.py::test_each_language_mutants_are_actually_killed[sql]`・`::test_sql_mutation_with_unreachable_postgres_is_fail_closed`
 - **分類**: 3 件を単独で実行すると、develop(`1fdf1eec`)でも同じマージ状態でも 3 passed。全件実行の負荷の下でだけ落ちる(PostgreSQL と時間予算に依存するミューテーション検査)。本単位の変更(fixture・`core_guard.py`・`core-areas.json`・テスト)とは関係しない。**既知の取り込みトポロジーの偽陽性とは別の種類**として記録し、push する(CI の mutation ジョブで最終確認)
+
+## 2026-10-08 ステップ 8(`5899b9c2`)
+
+- **N6 の値**(design.md 7 節): Cookie `__Host-pitchlog_token`・パス `/`・期限は `Max-Age`(値は δ)/ CSRF の対象 = `GET`・`HEAD`・`OPTIONS` 以外のすべて / カスタムヘッダ `X-Pitchlog-Request: 1` / `Origin` の許可値 = 環境変数 `PITCHLOG_ALLOWED_ORIGINS`(閉じた文法で検証・RFC 6454 の形へ正規化・未設定なら状態を変える要求をすべて拒否)。**δ(TSK-470)への連絡は人間の確認の後**
+- **エラー規約**: 要求面の拒否は専用例外で区別し 401 / 403 で返す。認可の拒否の 403 → 404 は不変(資源の参照前・資源に依存しない拒否なので存在は漏れない — design.md 7 節。層 (B)・TSK-346 へ申し送り)
+- **敵対レビュー 4 周で可決**:
+
+| 周 | 判定 | 指摘と反映 |
+| --- | --- | --- |
+| 1 | 否決(P1 2 / P2 1) | `Origin: null` が許可値に入る → 設定値をオリジンとして検証 / import 禁止の構造テストが相対・動的 import を見ない → 解決して検査・合成負例 6 件 / 秘密性テストに `repr` が無い → 追加 |
+| 2 | 否決(P1 1) | 大文字・既定ポート付きの設定値がシリアライズ済みの `Origin` と一致しない → 設定値を RFC 6454 の形へ正規化(要求側は完全一致のまま) |
+| 3 | 否決(P1 1) | 括弧付きの IPvFuture が括弧を外した DNS 名として許可される → 汎用の URL 解析をやめ、閉じた文法に当たる値だけを許可 |
+| 4 | 可決(指摘なし) | — |
+
+- Codex の報告: backend の対象テスト 83 passed・ruff / format / ty 合格・ルートの `tests/test_core_guard.py` 215 passed
+- **N6 の値の確認と連絡**: 2026-10-08 山田正輝が「この値で連絡する」と確認。δ(Notion TSK-470「U-A1 δ 認証の HTTP の入口」)へコメントで連絡した(Cookie 名・パス・期限の表現・CSRF の対象メソッド・ヘッダ・`Origin` の許可値の出所と拒否の応答。ログイン等の Cookie が無い入口での CSRF 検査の掛け方は δ が決める旨を付記)
+- **push 前の全件実行**(CI と同じ `--no-ff` マージ — `5899b9c2` を `1fdf1eec` へ): `check_frozen_baselines.py --ci` OK・迂回検査 ok・ルート ruff 合格 / backend: format 247 files 合格・ruff・ty 合格・`pytest` **1503 passed・4 skipped** / ルート `pytest tests/` **2933 passed・失敗 0**(前回の負荷依存の 3 件も今回は合格)
+
+## 2026-10-08 ステップ 5 の是正 — UPDATE の実行時 CompileError(`67c4495b`)
+
+- **発見**: 391 タブ(U-S1 — #95 の上に積む)からの連絡。`base._prepare_operation` の UPDATE 文を `Session.execute(statement, parameters)` で実行すると、SQLAlchemy が実行パラメータのキーを column_keys としてコンパイルし、WHERE の `bindparam("tenant_id")`・`("id")`(チーム表は `("kind")` も)が対象表の列名と衝突して `CompileError` になる。**選手・対戦相手チームの更新(更新・在籍区分の適用・論理削除)がすべて実行できない状態だった**
+- **当方の確認**: PostgreSQL 方言のコンパイルと SQLite の実 Session の両方で再現(コンパイル段階なので方言に依らない)。INSERT・SELECT は問題なし。`Update.params()` による事前束縛は SQLAlchemy が UPDATE で受けない(NotImplementedError)ので不可
+- **見逃した理由**: UPDATE のテストを記録用の偽 session(`_RecordingSession`)で実行していて、実コンパイルを通っていなかった。実 DB の試験(`backend/tests/db/`)に UPDATE の token を実行するものが無い — 越境テスト・DB 試験はステップ 9 以降
+- **是正**: UPDATE の WHERE の bind 名を `where_tenant_id`・`where_id`・`where_kind` にし(ORM の全 23 表の列名と非衝突)、`base.py` の UPDATE の検査と束縛を追随。SELECT・INSERT の bind 名と検査は不変。テストは 6 token を Session と同じ column_keys でコンパイル・両 UPDATE を SQLite の実 Session で実行・旧 bind 名と条件欠落の負例。SQL 照合は UPDATE の 3 形状だけ更新(他 8 形状は不変)。契約資産・正例 fixture は不変(契約資産は capability と token 型を宣言し、fixture は組み立て API を検査するため)
+- **敵対レビュー 可決**(指摘なし)。旧 bind 名が同じコンパイル条件で `CompileError` になる(是正前なら落ちる)こともレビュー側で確認
+- **台帳の候補**: 偽の実行面(記録用 session)だけのテストは、SQL の組み立てが実コンパイルを通ることを保証しない。リポジトリの単体テストに「Session と同じ条件でのコンパイル」を必須にするか — /pr の台帳判断で扱う
+- 391 タブへ再現の確認と是正の方針を返信済み(bind 名が変わるので U-S1 は是正後の名前に合わせる)
+- **push 前の全件実行**(CI と同じ `--no-ff` マージ — `67c4495b`): 凍結値の走査 OK・迂回検査 ok・ruff / format / ty 合格・ルート **2933 passed**・backend **1518 passed・4 skipped・1 failed** — `tests/db/test_tenant_transaction_scope.py::test_unvalidated_update_is_rejected_before_execute`(実 DB)。探査 UPDATE が旧 bind 名 `tenant_id` のままで、RETURNING の拒否より先にテナント条件で拒否されていた。**是正の取りこぼし**(Codex は DB 必須の試験を実行できず、当方の全件実行で検出)。探査文を `where_tenant_id` へ(Claude の直接編集 — review normal 可決)。同ファイル 18 passed(実 DB)。変更はこの 1 ファイルだけなので、全件は再実行せず、同ファイルと凍結値の走査を清潔な HEAD で取り直した
+
+## 2026-10-09 依存の着地・マージ順・敵対レビューの事後補完
+
+- **依存の再測**: γ #100(03:10Z)・TSK-480 #104(10-08)・TSK-344 #97(10-07)・TSK-475 #94(10-05)がマージ済み。ステップ 9 の着手条件で残るのは TSK-457 #101 だけ。#100 の公開入口 `verify_tenant_id(value, presentation, engine) -> UUID | None` は計画の前提(提示値 → γ → 照合済み ID)と一致する。presentation と engine の供給経路(`app.state.token_presentation` / `create_database_engine()` を想定)は計画書に無く、ステップ 9 の着手時に詰める
+- **#95 の分割はしない**(2026-10-09・山田正輝): 469 master から「1〜8 を先にマージ」の提案があったが、計画どおりステップ 13 まで 1 PR とする
+- **マージ順と取り込み**(469 master と合意・山田正輝の確定待ち): `#106 → #101 → #81 → #95 → U-S1`。取り込みは #101 着地後(1 回目 — CONFLICTING のまま 5 ステップ進めると CI の run が作られないため、CI の回復が目的)と #81 着地後(2 回目 — 受理値を確定)の 2 回。`base-allowlist.json` の `contract_revision` は #81 の後で 25 の見込み(2 回目に実測)。`source_digest` と配布モジュール 3 本の追随は CI の backend ジョブでしか出ないので、完了判定は MERGEABLE + CI backend で行う
+- **敵対レビューの事後補完**: 469 master の指摘(core-guard は敵対レビューの実施を機械検査しない)を受けて証跡を棚卸しした。テナント分離に当たるのに敵対レビューの証跡が無いコミットが 5 本あった — `98ad97de`(ステップ 2)・`2e9fe0cf`(ステップ 4)・`482127c9`(ステップ 2 是正)・`2040ed8d`(ステップ 5 是正の追補)・`5719f664`(review normal のみ)。5 本をまとめて `codex_run.py review adversarial` にかけ、**可決(P0 0 / P1 0 / P2 0)**。観点は認可行列・検査器の弱化・凍結記録・fixture の整合・テストの空洞化。Codex は実 DB 試験を実行できないが、`5719f664` の対象ファイルは 10-08 に実 DB で 18 passed を確認済み
+- **台帳の候補**: コア領域の敵対レビューは設計書 6.3 で必須だが、core-guard は逐行確認のチェックしか見ない。ステップ単位で回す運用でも、計画外の是正コミットや Claude の直接編集で抜けが出る(本単位で 5 本)— /pr の台帳判断で扱う
+
+## 2026-10-09 ステップ 9
+
+- **着手時の原典確認**: γ の公開入口は `verify_tenant_id(value: str, presentation: TokenPresentation, engine: Engine) -> UUID | None`。署名器は `create_app()` の `app.state.token_presentation` と `_activate_presentation` により一意化される。TSK-457 の `TenantContext` は `_ISSUANCE_CAPABILITY` の identity を要求し、検査器の `_current_symbol()` は関数内 import の呼び出し元を完全修飾名で照合する。`allowed_product_modules` は発行入口の所属モジュール 1 件と exact-set で一致させる。
+- **N7(一次レビュー後)**: 発行専用モジュール `pitchlog.repositories.tenant_context_issuance`、公開関数 `issue_tenant_context_from_presented_token(value, presentation)`。提示値だけを受け取り、接続資源は `create_database_engine()` から得て内部で γ を呼ぶ。署名器は API 依存関数 `pitchlog.api.tenant_access.require_tenant_access` がアプリ状態から渡す。選手ルータは `api/routers/players.py` に置き、`routers/__init__.py` は元の状態へ戻した。
+- **名前の全行走査**: `git grep --untracked -n -w issue_tenant_context_from_presented_token`。定義・依存関数からの import と呼び出し・契約値・テスト・設計記録の正当な参照だけ。別定義および無関係な参照は **0 件**。
+- **新規ファイルの照合**: `scripts.core_guard.load_core_areas(Path.cwd())` と `matched_paths` で照合する。発行モジュールと境界テストは `tenant-isolation.paths` に一致する。一方、新しい `api/tenant_access.py`・`api/routers/players.py` は現行 paths に一致しない。`.claude/core-areas.json` は本ステップの元の制約では変更しないため、この点は人間へ確認中。
+- **未公開メソッド**: `DELETE /players/{id}` は、ステップ 12 で削除の入口を開くまで既存の API 規約どおり 405 を返す。未公開の別パスは 404。
+- **ステップ 10 へ残る期待失敗**: `check_tenant_boundary_bypass.py --base-ref origin/develop` は `base-allowlist.json.baseline_control.history: 7 資産の新識別値が不一致`。ルートの指定テストでは `test_every_frozen_baseline_asset_has_a_valid_chained_history[relative_path8]` が旧 `contract_revision:11` と新 `:12` の不一致、`test_repository_is_green` が同じ権威履歴の不一致で失敗。権威履歴と比較 corpus は本ステップでは変更しない。
+- **実 DB**(Claude が実行): `backend/tests/test_roster_boundary.py::test_real_player_http_boundary_enforces_tenant_and_request_gates` — 実 PostgreSQL の製品スキーマ上で `create_app()` を HTTP から叩き、発行・リポジトリを差し替えない。2 テナントで作成・一覧・取得・更新・他テナントの 404(本文が存在しない ID と同一)・Cookie 欠落/改ざん/失効の 401・CSRF 欠落の 403・PATCH の在籍区分の 422・同番号警告が他テナントを含まないことを確認。関係テスト 272 passed(実 DB を含む)。初回は失効の準備が `tenant_tokens` の CHECK(`expires_at >= last_used_at`)に反して落ちた(HTTP の表明はすべて合格)— 既存の `tests/db/test_authz_verified_tenant.py` と同じ作り方へ直した
+- **一次レビュー(Claude)の差し戻し 3 件**: ① 発行の名前と置き場が選手専用に読める — 製品で発行できるモジュールは 1 つだけなので、後続単位も使う汎用の名前へ(後で付け替えると tenant-context-allowlist の受理をもう一度通す)② ルータを `routers/__init__.py` から `routers/players.py` へ ③ 作成時の IntegrityError を一律 404 にしない — 参照先 3 FK の違反だけ 404 へ写す。あわせて越境テストが偽物(`_PlayerStore`)だけで、計画書 6 節「12-4 の判定」行の「実スキーマの上で green」を満たさないため、実 DB で HTTP を叩くテストを足させた
+- **敵対レビュー 1 周目 — 否決(P0 0 / P1 3)**: ① 発行入口の `getattr` 参照が TB007 にならない — **不採用**(TSK-457 の保証宣言 `docs/features/tenant-boundary-enforcement/design.md:520-532` と同計画書 4-3 節が人間の裁定で射程外とした線。design.md の N7 節に引き継ぎを明記)② PATCH で在籍区分・ラベルを先行して変更できる — **採用**(ステップ 11 で無効化とともに開くまで 422)③ 作成応答に同番号警告が無い — **採用**(`PlayerCreated.same_number_players`。同一テナント・同番号・現役・未削除・本人除く・DB 側の絞り込み・上限 200)
+- **敵対レビュー 2 周目 — 可決(P0 0 / P1 0 / P2 0)**。不採用 ① はレビュー側が取り下げ
+- **API の 2 ファイルのコア領域登録**: `api/tenant_access.py`・`api/routers/players.py` は現行のどの paths にも当たらない(API 層はもともとコア領域外)。第 7 改訂で登録すると決めた(下の節)
+
+### ステップ 9 の期待失敗(全件実行で確定 — CI と同じ形: develop `8164c87a` へ `c0aac005` を `--no-ff` でマージ)
+
+- ルート: **40 failed / 28343 passed**。すべてテナント境界の凍結履歴・比較 corpus・センサス基準の検査(受理記録が資産に追いついていないことに由来 — ステップ 10 で解消): `test_census_baseline_check.py` 5(`removed_tb007_matches_declared_relaxations` ほか — 発行モジュールの登録で消える TB007 の減分が宣言済みの緩和で説明できない)・`test_check_tenant_boundary_bypass.py` 2(`test_every_frozen_baseline_asset_has_a_valid_chained_history[relative_path8]`・`test_repository_is_green`)・`test_frozen_archive.py` 11・`test_frozen_archive_case_runner.py` 22。`check_frozen_baselines.py --ci` OK・迂回検査は「7 資産の新識別値が不一致」
+- backend: **1 failed / 1681 passed / 4 skipped**。`tests/test_api_app.py::test_routers_register_only_meta_routes` — **期待失敗ではない**(ルータが meta だけであることを固定するテストの追随漏れ。計画書は `test_api_conventions.py` の述語 4 だけを挙げていた)。`(ステップ 9 是正)` で直す
+
+## 2026-10-09 取り込み 2 回目(#81)と N4 (ii) の再導出
+
+- **#81(`f833154b`)の取り込み `b7e108f1`**: 21 ファイルが衝突。#81 は authz の封印入力(requirement-claims・route-registry・http-route-matrix)・oracle 資産・凍結基準・tenant_boundary の権威履歴・core_guard の宣言を動かした。衝突は develop 側に揃え、#95 の受理値はここで確定させなかった。**各親との差分**: 第 2 親(develop)に対して基線定義(`core_guard.py`・`test_core_guard.py`)は 0 行、`core-areas.json` は `tenant-isolation.paths` の末尾 2 行(#95 の glob)の追加だけ — 著者が解決したのは JSON の合成だけ
+- **`04058d29`(ステップ 6 再導出)**: 宣言を #95 の 2 glob だけへ張り替え(#81 の 5 領域の宣言は merge-base の JSON に入った)。`test_core_guard.py` 230 passed・`verify_area_path_baseline` は merge-base `f833154b` で合格。敵対レビュー 可決(指摘なし)。**469 master の連絡**: develop は #81 の宣言が残ったままで `test_core_guard.py` 2 件が赤(509 タブが fix/ PR で窓口を空へ戻す)。#95 は張り替え済みなので引き継がない。ただし `tests/test_state_transition_freeze.py::test_changed_pr_rejects_acceptance_id_from_another_pr` は develop から引き継いで #95 でも落ちる(391 タブの連絡・当方で再現)— 509 の fix の着地後に取り込んで解消する
+- **`cc949c69`(ステップ 2 再導出)**: route-registry・HTTP 行列の lock に #95 の 6 経路を再導出(#81 側の 37 行は不変・route ID は各 43 本で exact-set 一致)
+- **`64858d6a`(ステップ 3 再導出)**: oracle_commit 7 箇所を `1f32e12a`(#81)→ `cc949c69`。参照 digest 2 本を追随。N5: 6 経路で oracle の内容追随は不要(HTTP 行列の許可セル 12 のまま)。#81 の `oracle-meaning-change-approvals.json` に新しい行は不要。敵対レビュー 可決(指摘なし)・**人間の再確認 2026-10-09・山田正輝**
+- **`c8e53be0`(ステップ 4 再導出)**: frozen-baselines に #95 の oracle_input の記録を #81 の後ろへ 1 件(承認 山田正輝 / 2026-10-09)・`--reseal-oracle`。`check_authz_catalog.py` ok・`check_frozen_baselines.py --ci` OK
+
+## 2026-10-09 第 7 改訂(計画レビュー 5 周 — 1〜4 周目は否決、5 周目で可決)
+
+- **発端**: ステップ 10 で ① 比較 corpus の前版 `ec02a0d2` が #101 の契約拡張を読めず、前版の照合が実行できない(#101・#81 も前版の照合をしていない — develop 自身が条件を満たさない)② センサス基準がステップ 9 の登録で落ちる。Codex は manifest の `comparison_revision` を `c0aac005` へ付け替えていた(依頼外 — develop と同じ値へ戻させた。前版の期待値・`recorded_exit_codes` は develop と同一)
+- **裁定(2026-10-09・山田正輝)**: ① 現版だけで判定(前版の付け替えは共有の基準を動かすので不採用)④ API 層の 2 ファイルを `tenant-isolation` に登録する — **当初は当方の推奨で「登録しない」と裁定したが、計画レビュー 1 周目の P0(ハーネス設計書 6.3 の境界定義表はテナント分離に「API 直叩き」を含め、paths の落とし込み規則 ① は強制点を変え得るファイルを含める)を受けて改めた**。当方の推奨は正本を確かめないまま出したもので誤りだった
+- **1 周目 否決(P0 1 / P1 5 / P2 1)**: P0 API 2 ファイル — 採用 / P1 取り込みマージが同一コミット禁止を満たさない — 一部採用(マージで基線定義に著者の手を入れず、各親との差分を確かめて記録する手順を足す。履歴は作り直さない — 後続が SHA で参照し人間の再確認済み)→ 2 周目で取り下げ / P1 前版を外した後の保証の明記・内訳 5 の手順の矛盾・センサスのステップ表/内訳 10/6 節への反映・N4 本文への追記 — 採用 / P2 #101 の SHA の帰属 — 採用
+- **2 周目 否決(P1 4)**: ステップ 6・7 の合格条件(2 件)と DoD(4 件)の食い違い・計画改訂の承認を 6.3-⑤ の審査として扱った・センサスが 3 節に無い・TSK-485 への申し送りが 8 節に無い — すべて採用
+- **3 周目 否決(P1 1)**: 宣言先行の 2 コミットを各 SHA で green にする手順は成立しない(検査器は「merge-base のまま」か「merge-base ＋ 宣言の全件」だけを許す)— 採用。`(ステップ 6 是正)` の SHA は期待どおり赤とした
+- **4 周目 否決(P1 2)**: 是正 SHA に内訳 7 の確認は当てはまらない・`matched_paths()` は存在を確かめない — 採用。確認を ①〜④ に分けた
+- **5 周目 可決(指摘なし)**。**第 7 改訂の承認: 2026-10-09・山田正輝**。計画レビュー周回 14 → 18
+
+## 2026-10-09 第 7 改訂の是正 2 コミットの敵対レビューと第 8 改訂
+
+- **第 7 改訂に沿った是正**: `e22b141d`(ステップ 6 是正 — 宣言 4 件。期待失敗 2 件だけ: `test_actual_core_area_paths_follow_merge_base_layers`・`test_area_registration` — JSON 77 パス対宣言 79 パス)・`1e45c107`(ステップ 7 是正 — ①〜④ を清潔な HEAD で確認・`test_core_guard.py` 230 passed)。**敵対レビュー**: `e22b141d` 可決 / `1e45c107` 否決(P1 1)— 同じ PR で足し・変えた API 層の強制点 3 ファイル(`request_presentation.py`・`errors.py`・`app.py`)がどの領域にも当たらない。第 7 改訂で 2 ファイルに絞ったのは当方の見落とし
+- **裁定(2026-10-09・山田正輝)**: API 層全体を glob `backend/src/pitchlog/api/*` で登録する(3 ファイルを個別に足す案は不採用)。DTO・meta だけを触る PR もコア扱いになることを受け入れる
+- **第 8 改訂の計画レビュー**: 1 周目 否決(P1 1 — DoD の「各 SHA が green」が是正 1 本目の期待失敗と矛盾 / P2 2 — ①〜⑤ の参照・承認表の行順)— すべて採用。2 周目 可決(指摘なし)。**承認 2026-10-09・山田正輝**。計画レビュー周回 18 → 19
+- 未 push の `e22b141d`・`1e45c107` は捨て、3 件の値で作り直す
+- **セッションの中断**: 前のセッションが落ち、/tmp の一時ファイル(レビュー依頼文・CI 相当の一時 worktree)が消えた。作業ツリーとコミットは無事。走っていた push 前の全件実行と第 8 改訂のレビューは止まったので、レビューは依頼文から書き直して流し直した
+- **記録**: `64858d6a`(ステップ 3 再導出)の件名に 2 つのステップ記法(「(ステップ 2 再導出) のコミットへ…(ステップ 3 再導出)」)が入り、現在地導出が「1 件名に複数のステップ記法」で不整合を出す。直すには後続 4 コミットの積み直しと worklog の SHA の書き換えが要るので直さない(非ブロッキング — /pr で転記する)
+
+## 2026-10-09 第 8 改訂の是正 2 コミット・取り込み 3 回目・第 9 改訂
+
+- **第 8 改訂の是正**: `9300ff48`(ステップ 6 是正 — 宣言 3 件。期待失敗 2 件だけ: JSON 77 パス対宣言 78 パス)・`37b282fb`(ステップ 7 是正 — ①〜⑤ を清潔な HEAD で確認: paths 完全一致・api/* の追跡 11 件がすべて `matched_paths()` で返り API 層の外は 0 件・`verify_area_path_baseline` 合格・`test_core_guard.py` 230 passed)
+- **取り込み 3 回目 `b180f647`**(develop `59f4013c` — #108 core-guard の窓口の是正・#107 Vitest ベクタ runner): 衝突は `tests/test_core_guard.py` の 2 関数だけ(#108 がこのファイルで変えたのもこの 2 関数だけ)。N4 の規律どおりマージでは基線定義に著者の手を入れず本ブランチ側の版を採った。`tests/test_state_transition_freeze.py` は自動マージ(#81 から引き継いだ赤を #108 が解消)
+- **`7aa721cd`(ステップ 6 是正)**: #108 の「マージ後に宣言が比較元へ吸収された状態も受理する」考え方を #95 の版へ取り込んだ(吸収済みのときは現設定 = 比較元を求め、件数と #81 の登録の末尾は吸収分を除いて確かめる)。#95 のマージ後に develop の `test_core_guard.py` が赤にならない(#81 で develop が赤になった型)。比較元を現設定に差し替えた模擬で合格。Claude の直接編集 — 敵対レビュー 可決(偽の吸収・比較元の途中の宣言・現設定だけの余分な path を拒否することをレビュー側も確認)
+- **是正 2 コミットの敵対レビュー**: `9300ff48` 可決 / `37b282fb` 否決(P1 1 — API 層の契約を検証するテスト 4 本〔`test_request_presentation.py`・`test_api_conventions.py`・`test_api_app.py`・`test_roster_schemas.py`〕がどの領域にも当たらない)。登録が周ごとに外側へ広がったので、打ち切り(TSK-485 へ申し送る)とテスト全体の glob も選択肢として示した
+- **第 9 改訂**: 裁定(2026-10-09・山田正輝)= glob 2 本と 1 ファイルを足す。計画レビュー 1 周目で `origin/develop...HEAD` の 78 ファイルを全数照合し、`tests/test_census_baseline_check.py` も足して 7 件(feature 文書の登録の指摘は不採用 — 2 周目でレビュー側が取り下げ)。2 周目 否決(P1 1 / P2 1 — 件数の書き違い・`docs/ops` の列挙漏れ)・3 周目 可決。**承認 2026-10-09・山田正輝**。計画レビュー周回 19 → 21
+
+## 2026-10-10 取り込み 4・5 回目・CI・第 10 改訂
+
+- **第 9 改訂の是正**: `f48c8637`(ステップ 6 是正 — 宣言 7 件。期待失敗 2 件: JSON 78 パス対宣言 82 パス)・`2e2235d7`(ステップ 7 是正 — ①〜⑤ 合格・遡及 9 件)。敵対レビュー 両コミット可決
+- **push 前の全件**: ルート 29172 passed / backend 非 DB 1296 passed。backend の DB テスト 386 件は準備段階で ERROR — 共有 DB に被検査ロール `pitchlog_test_role` が前の実行から残っていた(他タブの実行と共有のため手を出さず、CI に任せた)。**CI(run 37944566156)で backend は DB テストを含め green**
+- **取り込み 4 回目 `9dd1969e`(#109)・5 回目 `0dff513d`(#110)**: どちらも文書だけで衝突なし。CI の実行中に develop へ #109・#110 が着地し、harness(「HEAD の第 1 親が base.sha と不一致: 期待 `59f4013c` / 実際 `ed4025bd`」・「期待 `ed4025bd` / 実際 `62fc5bfc`」)と tenant-boundary-bypass が 2 回続けて落ちた(コードの欠陥ではない — 509 タブへ実測を渡した)。`0dff513d` の CI(run 37949327295)は core-guard 以外 11 ジョブ green
+- **運用の見直し**(利用者の指摘「毎回 CI を通すのは効率が悪くないか」): CI の結果待ちで止まらない・文書だけの develop の進行は追いかけない・backend 全件は CI に任せる
+- **共有 DB**: 環境変数ファイルのキー不足で 09-01 以降 docker compose が動いていなかった(山田正輝が補完 — 469 master の連絡)。以後は手元で DB テストを回せる(5 タブで共有 — 長い DB テストは事前に一声)
+- **第 10 改訂**(承認 2026-10-10・山田正輝): ステップ 11(在籍区分)は TSK-447(Notion「未着手」・最終更新 09-24)と無効化の記録・配信の仕組み(未実装)を待つ。当初「発火点だけ切り離し入口を #95 で開く」と裁定したが、計画レビュー 1 周目の P0(要件書 6.2・`data-model.md` 11-2 節は在籍区分の変更に無効化を無条件で課し、キャッシュが無くても各操作の受け入れテストに含めると明記)で改め、**旧 11 を丸ごと #95 から外した**(当方の「切り離しても実害なし」は正本を確かめずに出した誤り)。2 周目の P1 でステップ 12(選手の削除 — FR-018)も TSK-459(Notion「着手可」・最終更新 09-26 — 判定後に紐づいた場合の失敗を保証する機構・同期適用経路側)を待つと分かり、**旧 12 も外した**。3 周目の P1(欠番で現在地導出が不整合)で**旧 13(対戦相手チーム)を新 11 に付け替えた**。4〜7 周目は依存表・8 節・各節の古い記述の追随で、5 周目の後に依存表 1〜12 と 8 節を 2026-10-10 の原典で一括現行化、7 周目で初版からの穴(UI 設計正本の工程・FR-039 のリネーム誘導)が出始めたため、冒頭に「現行の正」を明記して打ち切った(裁定 2026-10-10・山田正輝)。計画レビュー周回 21 → 28
+- **承認欄の誤記の訂正**: 「承認へ進む」の裁定を受けた時点で、明示の承認より前に承認欄を「済」へ書き換えた。気づいて「未」へ戻し、明示の承認(2026-10-10)を得てから改めて書いた
+- **TSK-447 の引き取り**: #95 のマージ後、本タブが TSK-447(意図 ID の規則・原子性の錨・在籍区分の入口と発火点)を 1 つの PR で行う。スパイク(実 DB の使い捨てブランチで一意制約と同一トランザクションを確かめる)から入る(利用者の示唆「必要であればスパイクを」)
+- **依存 8 の訂正**: TSK-444 / #82(10-03 マージ)が複数 operation の実行単位を足しており、依存表の「未着手」は古かった。対戦相手チーム(新 11)はこれで着手できる
+
+## 2026-10-10 ステップ 11(対戦相手チームレコード — FR-039)
+
+- **実装**(Codex): 入口 4 本(`POST`/`GET /team-records`・`PATCH`/`DELETE /team-records/{id}`)を `api/routers/team_records.py` に置き、`api/tenant_access.py` → 発行 → リポジトリの順に結線。作成応答に類似名(DB 側で NFKC → 前後の空白除去 → 小文字化して比較・同一テナント・公開中・上限 — 既存の `authn_normalize_team_name` はアプリ用ロールに実行権が無いので `pg_catalog` の関数)。削除は対象確認・試合と選手の紐づき確認(論理削除済みの試合・非表示の選手も紐づきとして数える)・論理削除を 1 つの `tenant_transaction_scope` で行い、紐づきがあれば理由別の固定文言で 409(リネーム誘導の材料)、他テナント・存在しない ID は同じ 404。試合の紐づきを読むため `CAP:games:read` の token を足し、`repository-contract.json` を繰り上げ、#95 の受理記録を `origin/develop`(`62fc5bfc`)から 1 件のまま導出し直した(承認 山田正輝 / 2026-10-10 — 第 10 改訂の承認)
+- **実 DB**(Claude が実行): `backend/tests/test_roster_boundary.py` 27 passed
+- **敵対レビュー 1 周目 — 否決(P0 1 / P1 3 / P2 1)**: P0 リポジトリ基底に足した操作別の更新列(`update_columns_for_operation`)が登録の `allowed_update_columns` を迂回できる — **採用**(基底の変更を取り消し、名前の更新〔`name` のみ〕と論理削除〔`hidden_at` のみ〕を別 token・別登録に)/ P1 紐づき確認と論理削除が競合挿入を防げない — **不採用**(FR-039 の受け入れ基準〔要件書 `:428`〕に「判定後に紐づいた場合の失敗」は無い — FR-018 `:407` にはある。紐づけを作る側の検査が要り TSK-459 と同型なので、TSK-459 の射程へチームレコードの紐づけを含めるよう申し送り、design.md に記録)/ P1 類似名が大文字小文字だけ — 採用 / P1 受理記録の比較元(`f833154b`)と承認日が古い — 採用 / P2 論理削除済みの紐づきのテスト — 採用
+- **敵対レビュー 2 周目 — 否決(P1 1)**: `@router.delete` が迂回検査の TB005 に当たる(検査器が FastAPI のルータの `delete` を `Session.delete` と取り違える)— **採用**。`@router.api_route(..., methods=["DELETE"])` に替えた(Claude の直接編集)。**Codex の「迂回検査 ok」は、未追跡の新規ファイルが検査の母集団に入らない状態での結果だった**(ステップ 5 で踏んだのと同じ型 — 検査器はコミット済みの差分しか見ない)。1 周目の不採用はレビュー側が取り下げ
+- **申し送り(TSK-459)**: 選手の削除だけでなく、対戦相手チームの削除と紐づけ(試合の相手チーム・選手の所属チーム)の競合も TSK-459 の射程に含める
+- **台帳の候補**: 迂回検査の取り違え(FastAPI の `router.delete` を DB の `Session.delete` と判定する)— /pr の台帳判断で扱う
+- **`@router.api_route` への書き換え**: review normal 可決。コミット後の迂回検査・凍結基準・authz の検査は ok。push 前のルート全件は 29 failed(既知のトポロジー由来の偽の赤 — `tests/test_check_authz_catalog.py` の「HEAD の履歴に staged 製品資産がありません」だけ)/ 29143 passed。`ba4dc67f` を push
+
+## 2026-10-10 第 11 改訂(UI 設計正本を #95 から外す)
+
+- **発端**: `/pr` のクローズ処理で正本反映を突合したところ、2 節「やること」は初版から「自 FR の UI 設計正本を書く」を挙げているのに 3 節に宣言が無かった。UI 設計書は実在せず(`docs/design/` は `data-model.md`・`sync-protocol.md` だけ)、TSK-508(#110)も新設を射程外として申し送っていた(送り先未確定)
+- **裁定(2026-10-10・山田正輝)**: #95 から外して申し送る(#95 で新設して確定ゲートを通す案は不採用)。UI 設計書を新設するタスクの起票を山田正輝へ提案する
+- **計画レビュー 3 周**: 1 周目 否決(P1 2 — FR-015・FR-017 の画面の判定先が一意でない / 第 10 改訂の「`/sync-docs` で書く」が残り優先関係が判別できない)・2 周目 否決(P1 1 — 書き下ろした画面の担当が `frontend-impl-units/design.md` の対応表と食い違った → 担当を書き下ろさず対応表を参照する形へ)・3 周目 可決(P2 1 を反映)。**承認 2026-10-10・山田正輝**。計画レビュー周回 28 → 30
+
+## 結果サマリ(/pr クローズ処理 — 2026-10-10)
+
+### 実装したもの(#95 — ステップ 1〜11)
+
+- **API**: 選手の作成・一覧・取得・更新(ステップ 9)と対戦相手チームの作成・一覧・更新・削除(ステップ 11)の HTTP 入口。要求面(Cookie からの提示値・CSRF — ステップ 8)→ `TenantContext` の発行(提示値 → γ の `verify_tenant_id` → 発行専用モジュール — ステップ 9)→ リポジトリ(ステップ 5)の順に結線。同番号の警告・類似名の警告(NFKC・空白・大文字小文字をそろえて DB 側で比較)・対戦相手チームの削除ガード(紐づく試合・選手があれば理由別の 409)
+- **契約・凍結資産**: 記録経路 6 本(route-registry・HTTP 行列 — ステップ 2)・oracle の追随と再封印(ステップ 3・4 と #81 取り込み後の再導出 — 人間の再確認 10-05・10-09)・テナント境界の受理記録 1 件(ステップ 5・9・11 を覆う — `origin/develop` `62fc5bfc` から導出・承認 10-10)・発行入口の登録と検査器の置き換え(ステップ 9)・センサス基準の緩和の判定(ステップ 10)
+- **コア領域の paths**: `tenant-isolation` に 7 件(越境テスト・リポジトリのテストの glob・API 層の glob・API 層のテストの glob 2 本と 1 ファイル・センサスのテスト)。宣言と JSON は別コミット
+- **越境テスト**: 実 PostgreSQL で HTTP を外から叩く(2 テナント・他テナントは 404・Cookie 401・CSRF 403・削除ガード)— `backend/tests/test_roster_boundary.py` 27 passed
+
+### 正本への反映
+
+- 要件書・`data-model.md`・ADR: **反映なし**(計画書 3 節)
+- `docs/development/harness-evaluation.md` / `docs/README.md`: 台帳の `## 候補` へ 3 件追記・既存候補 4 件へ実測を追記(版は上げない)・README の台帳行(候補 122 → 125 — 走査で実測。develop `7c8bfdbd`〔#112・#113〕の取り込みで develop 側の 1 件と合わせ 126、develop `24c023e4`〔#111〕の取り込みで develop 側の 3 件と合わせ 129)
+
+### 後続へ送ったもの
+
+- **在籍区分の入口(FR-017)と無効化の発火点** → #95 のマージ後に本タブが **TSK-447** と同じ PR で開く(スパイクから入る)
+- **選手の削除(FR-018)** → **TSK-459**(判定後に紐づいた場合の失敗を保証する機構)の後の PR。TSK-459 の射程に対戦相手チームの紐づきの競合も含める
+- **UI 設計正本** → UI 設計書を新設するタスク(未起票 — 起票を山田正輝へ提案)。画面の操作の判定は `frontend-impl-units/design.md` の対応表の単位
+- **TSK-346**: 401(認証情報なし)・403(CSRF)と認可の 403→404 の規則
+- **コア領域の窓口(`AREA_PATH_ADDITIONS`)**: #95 のマージ後も宣言 7 件が残る。`tests/test_core_guard.py` はマージ後の吸収状態を受理する形にした(`7aa721cd`)ので develop は赤にならないが、窓口を空へ戻す後続 PR が要る
+- **現在地導出の既知の不整合**: `64858d6a`・`086ef80a`・`638b796f` の件名(第 10 改訂ブロック 4)
+
+### 台帳への追記の判断
+
+**追記あり**(新規候補 3 件・既存候補 4 件への実測 — 上記)。CI の実行中に develop が動くと base.sha がずれる件は 509 タブが記録するので本 PR では足さない。

@@ -27,6 +27,7 @@ __all__ = (
     "PlayerCareerCacheKey",
     "PlayerChartSubject",
     "SharedAggregateCacheKey",
+    "SharedAggregateTargetSelector",
     "TeamAggregateCacheKey",
     "build_cache_invalidation_request",
 )
@@ -70,7 +71,7 @@ class CachePropagationMode(StrEnum):
 
 
 def _require_uuid(value: UUID, field_name: str) -> None:
-    """物理キーの識別子が UUID であることを検査する。"""
+    """鍵または選択子の識別子が UUID であることを検査する。"""
     if not isinstance(value, UUID):
         raise TypeError(f"{field_name} は UUID が必要")
 
@@ -186,6 +187,24 @@ class SharedAggregateCacheKey:
 
 @final
 @dataclass(frozen=True, slots=True)
+class SharedAggregateTargetSelector:
+    """物理キーではなく、④ の鍵のうち対象テナント成分が一致するものすべてを選ぶ選択子。
+
+    正本 11-2 節 `B06` に従う。
+
+    Attributes:
+        tenant_id: 状態を変えた対象テナントの ID。
+    """
+
+    tenant_id: UUID
+
+    def __post_init__(self) -> None:
+        """対象テナント ID を検査する。"""
+        _require_uuid(self.tenant_id, "tenant_id")
+
+
+@final
+@dataclass(frozen=True, slots=True)
 class AnalyticsChartCacheKey:
     """分析チャートの物理キー。"""
 
@@ -207,6 +226,7 @@ type CacheInvalidationKey = (
     | PlayerCareerCacheKey
     | TeamAggregateCacheKey
     | SharedAggregateCacheKey
+    | SharedAggregateTargetSelector
     | AnalyticsChartCacheKey
 )
 
@@ -216,6 +236,7 @@ _KEY_SCOPES: dict[type[object], CacheScope] = {
     PlayerCareerCacheKey: CacheScope.PLAYER_CAREER,
     TeamAggregateCacheKey: CacheScope.TEAM_AGGREGATE,
     SharedAggregateCacheKey: CacheScope.SHARED_AGGREGATE,
+    SharedAggregateTargetSelector: CacheScope.SHARED_AGGREGATE,
     AnalyticsChartCacheKey: CacheScope.ANALYTICS_CHART,
 }
 
@@ -324,8 +345,8 @@ def build_cache_invalidation_request(
 
     Args:
         trigger: 正本に列挙された変更トリガー。
-        keys: 5 種 ADT のいずれかで表した物理キー。トリガーが要求する
-            対象範囲を過不足なく含める。
+        keys: 5 種 ADT のいずれかで表した物理キー、またはトリガー 14 の
+            対象テナント選択子。トリガーが要求する対象範囲を過不足なく含める。
         effective_tenants_before: 参加変更前の実効参加テナント集合。
         effective_tenants_after: 参加変更後の実効参加テナント集合。
 
@@ -348,6 +369,14 @@ def build_cache_invalidation_request(
         scopes = frozenset(_KEY_SCOPES[type(key)] for key in keys)
     except KeyError as error:
         raise TypeError("keys に契約外の物理キー型が含まれる") from error
+    if trigger is not CacheInvalidationTrigger.ROSTER_STATUS_CHANGE and any(
+        isinstance(key, SharedAggregateTargetSelector) for key in keys
+    ):
+        raise ValueError("対象テナント選択子は在籍区分変更トリガー専用")
+    if trigger is CacheInvalidationTrigger.ROSTER_STATUS_CHANGE and (
+        len(keys) != 1 or type(keys[0]) is not SharedAggregateTargetSelector
+    ):
+        raise ValueError("在籍区分変更には対象テナント選択子がちょうど 1 件必要")
     expected_scopes = _TRIGGER_SCOPES[trigger]
     if scopes != expected_scopes:
         raise ValueError(

@@ -1,11 +1,11 @@
 {
-  "contract_revision": 7,
+  "contract_revision": 11,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:7"
+        "contract_revision:11"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -104,9 +104,15 @@
           "kind": "counterfactual_allowlist_substitution",
           "checker": "current",
           "substituted_field": "contracts/tenant_boundary/base-allowlist.json#/allowed_symbols",
-          "substituted_from": "anchor_materialized_tree",
+          "substituted_from": "anchor_symbol_set_plus_scoped_signature_rows",
           "co_substituted": "positive_fixtures_of_allowed_symbols_absent_from_anchor",
-          "relation": "subset_of_measured_suppression"
+          "relation": "subset_of_measured_suppression",
+          "condition4_substituted_fields": [
+            "contracts/tenant_boundary/cache-invalidation-contract.json#/api/public_symbols",
+            "contracts/tenant_boundary/cache-invalidation-contract.json#/api/condition4_allowed_call_symbols"
+          ],
+          "condition4_substituted_from": "anchor_symbol_set",
+          "condition4_code": "TB004"
         },
         "quantifier": "every"
       },
@@ -207,6 +213,9 @@
     "pass_fail_mapping.predicates[].derivation.substituted_from",
     "pass_fail_mapping.predicates[].derivation.co_substituted",
     "pass_fail_mapping.predicates[].derivation.relation",
+    "pass_fail_mapping.predicates[].derivation.condition4_code",
+    "pass_fail_mapping.predicates[].derivation.condition4_substituted_from",
+    "pass_fail_mapping.predicates[].derivation.condition4_substituted_fields",
     "pass_fail_mapping.predicates[].set",
     "pass_fail_mapping.predicates[].code",
     "pass_fail_mapping.predicates[].quantifier",

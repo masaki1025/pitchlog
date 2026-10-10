@@ -11,7 +11,7 @@ argument-hint: "[対象ディレクトリ(省略時はカレント)]"
 
 1. `uv run ruff check .`
 2. `uv run ty check`
-3. `uv run pytest tests/`(hooks・ラッパーの単体テスト)
+3. `PYTEST_XDIST_AUTO_NUM_WORKERS=8 uv run pytest tests/`(hooks・ラッパーの単体テスト)
 
 <!-- ルートには formatter を導入していない。`ruff format` は走らせないこと(別 PR の follow-up)。
      検査対象は pyproject.toml の extend-exclude と [tool.ty.src] include で scripts/ と tests/ に

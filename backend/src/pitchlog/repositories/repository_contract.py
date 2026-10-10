@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 10
+CONTRACT_REVISION = 14
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "3c12eee2d9a032749c1a7b47468ded915e86d6666d5c8a91926e8aa897b5fcd5"
+SOURCE_DIGEST = "3ea3ba37118735da1a662a9af9dd19e561317b1e6a42806bffd08233c856a669"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -62,13 +62,20 @@ PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:team_records:read",
     "CAP:team_records:insert",
     "CAP:team_records:update",
+    "CAP:games:read",
+    "CAP:invalidation_intents:insert",
 )
 PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.roster.PlayerReadToken",
     "pitchlog.repositories.roster.PlayerCreateToken",
     "pitchlog.repositories.roster.PlayerUpdateToken",
+    "pitchlog.repositories.roster.PlayerRosterStatusUpdateToken",
+    "pitchlog.repositories.roster.PlayerRosterLabelUpdateToken",
     "pitchlog.repositories.roster.TeamRecordReadToken",
     "pitchlog.repositories.roster.TeamRecordCreateToken",
     "pitchlog.repositories.roster.TeamRecordUpdateToken",
+    "pitchlog.repositories.roster.TeamRecordDeleteToken",
+    "pitchlog.repositories.roster.GameTeamLinkReadToken",
+    "pitchlog.repositories.invalidation_intents.InvalidationIntentInsertToken",
 )
 CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()

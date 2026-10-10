@@ -6,13 +6,17 @@ import hashlib
 import json
 from dataclasses import FrozenInstanceError
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
 
 from pitchlog.repositories import tenant_context_contract
-from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.context import (
+    _ISSUANCE_CAPABILITY,
+    TenantContext,
+    TenantContextIssuanceCapability,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _ALLOWLIST_PATH = Path("contracts/tenant_boundary/tenant-context-allowlist.json")
@@ -20,7 +24,7 @@ _ALLOWLIST_PATH = Path("contracts/tenant_boundary/tenant-context-allowlist.json"
 
 def make_tenant_context(tenant_id: UUID) -> TenantContext:
     """生成箇所 allowlist で許可されたテスト専用経路から文脈を構築する。"""
-    return TenantContext(tenant_id)
+    return TenantContext(tenant_id, _ISSUANCE_CAPABILITY)
 
 
 def _read_allowlist() -> dict[str, Any]:
@@ -66,6 +70,18 @@ def _generated_snapshot() -> dict[str, object]:
         "integrity_proof_factory_allowed_symbols": list(
             tenant_context_contract.INTEGRITY_PROOF_FACTORY_ALLOWED_SYMBOLS
         ),
+        "issuance_capability_symbol": (
+            tenant_context_contract.ISSUANCE_CAPABILITY_SYMBOL
+        ),
+        "issuance_capability_allowed_symbols": list(
+            tenant_context_contract.ISSUANCE_CAPABILITY_ALLOWED_SYMBOLS
+        ),
+        "issuance_entrypoint_symbol": (
+            tenant_context_contract.ISSUANCE_ENTRYPOINT_SYMBOL
+        ),
+        "issuance_entrypoint_allowed_symbols": list(
+            tenant_context_contract.ISSUANCE_ENTRYPOINT_ALLOWED_SYMBOLS
+        ),
         "allowed_test_modules": list(tenant_context_contract.ALLOWED_TEST_MODULES),
         "allowed_product_modules": list(
             tenant_context_contract.ALLOWED_PRODUCT_MODULES
@@ -92,6 +108,23 @@ def test_tenant_context_is_an_immutable_value_object() -> None:
         setattr(context, "tenant_id", uuid4())
 
 
+def test_tenant_context_requires_issuance_capability() -> None:
+    """発行能力を渡さない構築を拒否する。"""
+    with pytest.raises(TypeError):
+        cast(Any, TenantContext)(uuid4())
+
+
+def test_tenant_context_rejects_another_issuance_capability_instance() -> None:
+    """同型でも別実体の発行能力は拒否する。"""
+    with pytest.raises(TypeError):
+        TenantContext(uuid4(), TenantContextIssuanceCapability())
+
+
+def test_issuance_capability_is_final() -> None:
+    """発行能力の型を継承不可として宣言している。"""
+    assert getattr(TenantContextIssuanceCapability, "__final__", False) is True
+
+
 def test_tenant_context_documents_unverified_authenticity_boundary() -> None:
     """証跡の限界と真正性の責任所有者が説明に残ることを確認する。"""
     documentation = TenantContext.__doc__ or ""
@@ -101,6 +134,9 @@ def test_tenant_context_documents_unverified_authenticity_boundary() -> None:
     assert "静的検査が" in documentation
     assert "真正性を検査しない" in documentation
     assert "TSK-217 / U-A1" in documentation
+    assert "単一の発行能力を" in documentation
+    assert "導出経路へ到達する任意コードは保証外" in documentation
+    assert "名前が直接現れない転送も静的検査の保証外" in documentation
 
 
 def test_tenant_context_integrity_proof_detects_tenant_id_tampering() -> None:
@@ -121,10 +157,12 @@ def test_generated_allowlist_matches_asset() -> None:
     assert _generated_snapshot() == _asset_snapshot(asset)
 
 
-def test_product_construction_allowlist_is_empty() -> None:
-    """U-A1 / TSK-217 の導入前は製品側の生成入口を開けない。"""
+def test_product_construction_allowlist_names_roster_issuer_only() -> None:
+    """製品側の生成入口を選手の発行専用モジュールへ閉じる。"""
     assert __name__ in tenant_context_contract.ALLOWED_TEST_MODULES
-    assert tenant_context_contract.ALLOWED_PRODUCT_MODULES == ()
+    assert tenant_context_contract.ALLOWED_PRODUCT_MODULES == (
+        "pitchlog.repositories.tenant_context_issuance",
+    )
 
 
 @pytest.mark.parametrize(
@@ -139,6 +177,10 @@ def test_product_construction_allowlist_is_empty() -> None:
         "forbidden_construction_symbols",
         "integrity_secret_symbol",
         "integrity_secret_allowed_symbols",
+        "issuance_capability_symbol",
+        "issuance_capability_allowed_symbols",
+        "issuance_entrypoint_symbol",
+        "issuance_entrypoint_allowed_symbols",
         "allowed_test_modules",
         "allowed_product_modules",
     ),

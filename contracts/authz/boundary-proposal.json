@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_boundary_proposal",
   "oracle_context": {
-    "oracle_commit": "98ad97de2f796e1e9f12257d848b7c652e6e352a",
+    "oracle_commit": "cc949c690a7da6d7e719561f9fa02153e1857610",
     "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
   },
   "proposal_status": "tsk_235_confirmed",

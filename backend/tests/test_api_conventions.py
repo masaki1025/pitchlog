@@ -1,6 +1,8 @@
 """API 器が非コアの規約を守ることを検証する。"""
 
+import base64
 import json
+import secrets
 from pathlib import Path
 from typing import Final
 
@@ -41,6 +43,13 @@ _REQUEST_ACCESS_PATTERNS: Final[tuple[str, ...]] = (
     "request.query_params",
     "cookies",
 )
+
+
+@pytest.fixture(autouse=True)
+def _configure_signing_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """アプリ生成試験へ CSPRNG 由来の署名鍵を与える。"""
+    encoded_key = base64.b64encode(secrets.token_bytes(32)).decode("ascii")
+    monkeypatch.setenv("PITCHLOG_TOKEN_SIGNING_KEY_B64", encoded_key)
 
 
 def _api_source_files() -> tuple[Path, ...]:
@@ -132,12 +141,25 @@ async def test_forbidden_response_is_hidden_as_not_found() -> None:
     assert forbidden_response.content == not_found_response.content
 
 
-def test_router_routes_are_only_meta_routes() -> None:
-    """静的登録した API 経路がメタ情報の 2 本だけであることを確認する。"""
+def test_router_routes_are_static_roster_and_meta() -> None:
+    """静的登録した入口がメタ情報・選手・対戦相手の 12 本であることを確認する。"""
     routes = _router_routes()
 
-    assert len(routes) == 2
-    assert {route.path for route in routes} == {"/health", "/version"}
+    assert len(routes) == 12
+    assert {(route.path, frozenset(route.methods or ())) for route in routes} == {
+        ("/health", frozenset({"GET"})),
+        ("/version", frozenset({"GET"})),
+        ("/players", frozenset({"POST"})),
+        ("/players", frozenset({"GET"})),
+        ("/players/status-preview", frozenset({"POST"})),
+        ("/players/status-apply", frozenset({"POST"})),
+        ("/players/{player_id:uuid}", frozenset({"GET"})),
+        ("/players/{player_id:uuid}", frozenset({"PATCH"})),
+        ("/team-records", frozenset({"POST"})),
+        ("/team-records", frozenset({"GET"})),
+        ("/team-records/{team_record_id:uuid}", frozenset({"PATCH"})),
+        ("/team-records/{team_record_id:uuid}", frozenset({"DELETE"})),
+    }
     assert all(route.response_model is not None for route in routes)
 
 

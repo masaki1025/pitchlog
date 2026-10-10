@@ -102,7 +102,7 @@ _ALLOWED_NODE_TYPES: frozenset[type[object]] = frozenset(
 )
 
 # 名前空間と名前の双方を閉じる。現在の仮登録が必要とする副作用のない最小集合。
-_ALLOWED_PG_CATALOG_FUNCTIONS = frozenset({"lower"})
+_ALLOWED_PG_CATALOG_FUNCTIONS = frozenset({"lower", "btrim", "normalize"})
 
 # この一覧はロック済み SQLAlchemy 2.0.52 の次の実装を読み合わせた結果である。
 # - sql/visitors.py の InternalTraversal と sql/traversals.py の

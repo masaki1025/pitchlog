@@ -34,7 +34,7 @@ class TeamRecordCreate(BaseSchema):
 class TeamRecordUpdate(BaseSchema):
     """チームレコードの変更内容を表す。"""
 
-    name: str | None = None
+    name: str | None = Field(default=None, min_length=1)
 
     @field_validator("name")
     @classmethod
@@ -79,7 +79,7 @@ class PlayerCreate(BaseSchema):
     """選手の作成内容を表す。"""
 
     team_record_id: EntityId
-    name: str
+    name: str = Field(min_length=1)
     throws: Literal["right", "left"] | None = None
     bats: Literal["right", "left", "both"] | None = None
     uniform_number: UniformNumber | None = None
@@ -90,7 +90,7 @@ class PlayerCreate(BaseSchema):
 class PlayerUpdate(BaseSchema):
     """選手の変更内容を表す。"""
 
-    name: str | None = None
+    name: str | None = Field(default=None, min_length=1)
     throws: Literal["right", "left"] | None = None
     bats: Literal["right", "left", "both"] | None = None
     uniform_number: UniformNumber | None = None

@@ -80,13 +80,18 @@ class _TenantScopedOperation:
             valid_tenant = _has_required_bound_equality(
                 self.statement.whereclause,
                 self.tenant_column,
-                "tenant_id",
+                "where_tenant_id"
+                if isinstance(self.statement, Update)
+                else "tenant_id",
             )
         else:
             valid_tenant = False
         if not valid_tenant:
+            tenant_parameter = (
+                "where_tenant_id" if isinstance(self.statement, Update) else "tenant_id"
+            )
             raise _TenantOperationError(
-                "テナント所有操作には tenant_id = :tenant_id 条件が必要"
+                f"テナント所有操作には tenant_id = :{tenant_parameter} 条件が必要"
             )
 
 
@@ -168,9 +173,9 @@ def _validate_prepared_statement(
     if isinstance(statement, Update) and not _has_required_bound_equality(
         statement.whereclause,
         tenant_table.c.id,
-        "id",
+        "where_id",
     ):
-        raise _TenantOperationError("UPDATE には対象表の id = :id 条件が必要")
+        raise _TenantOperationError("UPDATE には対象表の id = :where_id 条件が必要")
     if isinstance(statement, Update):
         allowed_columns = spec.allowed_update_columns
         if not allowed_columns or not statement._values:
@@ -318,7 +323,10 @@ def _prepare_operation(
     spec = _operation_spec(operation)
     statement, prepared_parameters = spec.prepare(operation)
     parameters = dict(prepared_parameters)
-    parameters["tenant_id"] = tenant_id
+    tenant_parameter = (
+        "where_tenant_id" if isinstance(statement, Update) else "tenant_id"
+    )
+    parameters[tenant_parameter] = tenant_id
     _TenantScopedOperation(spec.capability_id, statement, spec.tenant_column)
     _validate_prepared_statement(spec, statement, parameters)
     return statement, parameters

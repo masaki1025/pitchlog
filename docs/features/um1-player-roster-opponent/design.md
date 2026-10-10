@@ -120,10 +120,30 @@ ORM は実装済み(`backend/src/pitchlog/db/tenant_isolation/models.py`)。**�
   `kind` は `protected_columns`(`models.py:135`)で不変、DB 側に既定値は無く(`models.py:123`)、
   **`UNIQUE (tenant_id) WHERE kind='self'`**(`models.py:113-118` — 述語は `:117`)があるため
   **API から作れるのは `opponent` だけ**である
-- `Update`: `name: str` のみ(`allowed_update_columns={"name","hidden_at"}` — `models.py:135` 付近)
+- `Update`: `name: str` のみ。名前変更 token の登録は `allowed_update_columns={"name"}`、論理削除は別 token・別登録で `allowed_update_columns={"hidden_at"}`。どちらも認可行列の `CAP:team_records:update` を使う
 - **`TeamRecordCreated`**: `TeamRecordRead` + `similar_names: list[str]`。
   **チーム名に一意制約は無い**(`data-model.md:1363-1364`)。**類似名は警告**であってエラーにしない(FR-039)ため、
   **登録は成功させたうえで応答に警告を載せる**
+
+**ステップ 11 の類似名**: 同一テナントの非表示でない対戦相手レコードのうち、
+新しい名前と大文字小文字を無視して一致する名前を類似名とする。新規行自身は除く。
+DB で双方の名前を NFKC 正規化し、Unicode White_Space の前後を除き、
+小文字化した等価条件で絞る。ID 順で最大 200 件を返す。
+`public.authn_normalize_team_name` はアプリ用ロールの EXECUTE が契約上取り消されているため、
+`pg_catalog.normalize`・`btrim`・`lower` を用いる。
+元の表記を `similar_names` に載せ、該当があっても登録は成功する。
+要件書 FR-039 は類似度の計算法を定めていないため、誤警告を抑えるこの判定を採る。
+
+**削除不可の応答**: `DELETE` で対象が無い・他テナントの対象・自チームなら共通の 404。
+試合への紐づきがあれば 409 と共通エラー封筒の固定文言
+「試合が紐づいているため削除できません。名前を変更してください」、
+選手への紐づきがあれば同じ 409 で
+「選手が紐づいているため削除できません。名前を変更してください」を返す。
+両方ある場合は試合を先に示す。非表示の選手も紐づきとして数える。
+論理削除済みの試合と非表示の選手も紐づきとして数える。
+判定と論理削除は同じテナントの 1 トランザクションで行う。
+削除ガードは同一トランザクションでの判定までとする。並行する紐づけ挿入は
+TSK-459 の射程に、試合の相手チームと選手の所属チームを含めて申し送る。
 
 ### `PlayerRead(ReadSchema)`
 
@@ -144,6 +164,7 @@ ORM は実装済み(`backend/src/pitchlog/db/tenant_isolation/models.py`)。**�
 - `Create`: `team_record_id` / `name` / `throws?` / `bats?` / `uniform_number?` / `roster_status_key` / `roster_label_key?`
 - `Update`: **`name` / `throws` / `bats` / `uniform_number` / `roster_status_key` / `roster_label_key` のみ**
   (`allowed_update_columns` の完全な集合は `models.py:206-215`。`hidden_at` は削除経路が扱う)
+- **ステップ 9 の PATCH では `roster_status_key` / `roster_label_key` を受けない**(指定された要求は 422)。在籍区分の変更はプレビュー・確認・適用を伴う在籍区分の入口で開く(計画書の第 10 改訂で #95 から外し、#95 のマージ後に TSK-447 と同じ後続 PR で開く — 旧ステップ 11)。これらを PATCH でも受けるかはその PR で決める
 - **`team_record_id` を `Update` に含めない**: immutability の `protected_columns` にも `allowed_update_columns` にも入らない
   **未分類列**で `unclassified_handoff="TSK-372"`。**所属チーム変更の可否がコードから読めない**(plan.md R3)
 
@@ -152,6 +173,7 @@ ORM は実装済み(`backend/src/pitchlog/db/tenant_isolation/models.py`)。**�
 `PlayerRead` + **`same_number_players: list[PlayerRead]`**。
 FR-015「同番号で登録 → **警告が表示される(意図的なら登録可)**」(要件書 `:361`)を満たすため、
 **登録は成功させたうえで同番号の現役選手を応答に載せる**。
+現役は seed の `roster_status_key = "active"` とし、同じテナント・同じ背番号・`hidden_at IS NULL` の選手から新規行自身を除く。DB 側で絞り込み、応答は DTO のページ上限と同じ最大 200 件とする。背番号が `None` なら空配列を返す。
 
 ### `PlayerListRequest(PageRequest)` / `TeamRecordListRequest(PageRequest)`
 
@@ -198,3 +220,34 @@ FR-015「同番号で登録 → **警告が表示される(意図的なら登録
 7. **警告を応答に載せる形**にした(`PlayerCreated.same_number_players` / `TeamRecordCreated.similar_names`)
 8. **`operation_id` を `roster_<資源>_<動作>` とした**(D6)
 9. ~~**入口 11 本の分割判定を保留した**(`route_id` 未定のため)~~ **【2026-10-05】経路 6 本に決め、閾値「経路 10 本超」に掛からないと判定した**(3 節)
+
+## 7. リクエストの認証の細部(plan.md N6 — ステップ 8・2026-10-08)
+
+**H-2 の決定(人間の決定 — 変えない)**: Cookie の属性 = `HttpOnly`・`Secure`・`SameSite=Strict` / CSRF 対策 = カスタムヘッダの必須化 + `Origin` の検査(`../ua1-team-auth/design.md:18`・`:195-197`)。以下は**決定に含まれない細部**で、U-M1 が先に決め、δ(TSK-470 — Cookie を発行する側)が後から合わせる(plan.md R7)。
+
+| 事項 | 値 | 理由 |
+| --- | --- | --- |
+| Cookie の名前 | **`__Host-pitchlog_token`** | `__Host-` 接頭辞はブラウザが `Secure`・`Path=/`・`Domain` なしを強制し、サブドメインからの上書きを防ぐ(H-2 の属性を補強する側にしか倒れない)。名前に `session` を含めない(API 層の禁止語 R5 は大文字始まりの `Session` だが、紛れを避ける) |
+| Cookie のパス | **`/`** | `__Host-` の要件 |
+| 有効期限の表現 | **`Max-Age` で表す(`Expires` は併記しない)**。値は δ がトークンの失効と揃えて決める | 失効の正はサーバー側のトークン(γ の検証)であり、Cookie の期限は補助。U-M1 は Cookie を読むだけで期限を発行しない |
+| CSRF の対象とする HTTP メソッド | **`GET`・`HEAD`・`OPTIONS` 以外のすべて**(`POST`・`PUT`・`PATCH`・`DELETE` ほか) | 安全なメソッドを除く全部を対象にする閉じた否定形。未知のメソッドも対象側に倒れる |
+| カスタムヘッダの名前と値 | **`X-Pitchlog-Request: 1`**(値は文字列 `1` と完全一致) | 単純要求(simple request)では付けられないヘッダで、クロスオリジンの送信には事前確認が要る。値を固定して空・別値を拒否する |
+| `Origin` の許可値の出所 | **環境変数 `PITCHLOG_ALLOWED_ORIGINS`**(カンマ区切りの完全一致のオリジン列。ワイルドカードなし)。**未設定・空なら、状態を変える要求をすべて拒否する**(fail closed)。各要素は**閉じた文法**で検証し、当たらない要素は捨てる — スキーム `http`/`https`、ホストは ASCII の LDH ラベルの DNS 名(末尾ドット不可・国際化ドメインは punycode)か、角括弧で囲んだ IPv6 アドレス(ゾーン ID・IPvFuture 不可)、ポートは省略か 1〜65535(先頭ゼロ不可)。パス・クエリ・フラグメント・ユーザー情報・末尾 `/`・`null`・ワイルドカードは不可(汎用の URL 解析の結果を正規化する形は、括弧付きホストの扱いで別のオリジンへ化けるため採らない — ステップ 8 の敵対レビュー 3 周目)。通った要素は RFC 6454 のシリアライズ形(スキームとホストは小文字・既定ポートは省く)へ正規化する。**要求側の `Origin` は正規化せず完全一致**で比べ、`null` は常に拒否する | 配備ごとに違う値なので設定で持つ。`.env.example` には名前と説明だけを足す(実値なし — NFR-014) |
+
+**拒否の応答**: 既存のエラー規約(`backend/src/pitchlog/api/errors.py`)の封筒で返す。Cookie の欠落・空 → 401、CSRF の欠落・不一致 → 403。**応答の文言は拒否の種類ごとに固定**し、提示値・`Origin` の値・テナントや認証主体の存在を含めない。
+
+**403 を 404 へ写す既存規約との関係(層 (B) — `TSK-346` が別の形を定めたらそちらが正)**: `errors.py` の HTTP 例外の 403 → 404 の写しは、**認可の拒否で資源の存在を漏らさない**ための規約(要件書の制御資源の「拒否の応答」— 403 は「そのグループが存在し、自分が権限を持たない操作がある」ことを漏らす)。要求面の拒否は**資源の参照より前に、資源に依存せず**決まるので、401 / 403 を返しても資源の存在は漏れない。**要求面の拒否は専用の例外で区別し、その例外だけを 401 / 403 で返す**(認可の拒否の 403 → 404 は変えない)。クライアントが「Cookie が無い」「CSRF のヘッダが無い」を区別して直せることを優先した。**`TSK-346` へ申し送る**(6 節と同じ扱い)
+
+## 8. テナント文脈の発行入口(plan.md N7 — ステップ 9・2026-10-09)
+
+製品全体で 1 つの発行専用モジュールを `backend/src/pitchlog/repositories/tenant_context_issuance.py` に置く。公開関数は `issue_tenant_context_from_presented_token(value: str, presentation: TokenPresentation) -> TenantContext | None` の 1 つとし、後続単位もこの関数を共用する。API 層の `api/tenant_access.py` の依存関数 `require_tenant_access` だけがこれを呼ぶ。`require_tenant_context` という名前は API 全ソースの禁止部分文字列 `text(` に当たるため採らない。
+
+依存関数は `request.app.state.token_presentation` の署名器を渡す。発行関数は `create_database_engine()` で接続資源を得て、内部で γ の公開入口 `verify_tenant_id(value, presentation, engine)` を呼ぶ。γ が UUID を返した場合に限り発行能力を使って `TenantContext` を作る。拒否時は `None` を返し、依存関数が提示値や ID を含まない固定の 401 応答へ写す。検証済みの ID は発行関数の外へ渡さない。
+
+接続資源を発行のたびに生成・破棄するのは、現時点の `repositories/transaction.py` が操作時に `create_database_engine()` から資源を得る形に揃えたため。供給方式の共通化は Session 供給を扱う TSK-424 PR C の範囲で決める。署名器はアプリ起動時に設定された唯一のものを使い、γ の私有状態を参照しない。
+
+選手作成時の PostgreSQL 外部キー違反のうち、ORM の `fk_players_team`・`fk_players_roster_status`・`fk_players_roster_label` は参照先を対象テナントで利用できない拒否として 404 に写す。ほかの FK、`roster_status_category = 'roster_status'` の CHECK 違反、`pk_players` の一意違反などは 404 に写さず、既存の共通エラー規約の固定 500 応答へ渡す。後者は対象資源の不在を意味せず、カテゴリ既定値やランダム生成 ID の不整合など実装・データ側の障害を含むため、404 に畳まない。応答に制約名や入力値は載せない。
+
+名前の衝突は `git grep --untracked -n -w issue_tenant_context_from_presented_token` で全行走査する。定義、依存関数からの import・呼び出し、契約資産・配布モジュール、テストの正当な参照以外の衝突は 0 件。
+
+TSK-457 の発行入口の保証範囲を本単位でも引き継ぐ。`getattr` による発行入口の取り出しや別名での再公開は TB007 の保証外とし、このステップで検査器の射程を広げない。

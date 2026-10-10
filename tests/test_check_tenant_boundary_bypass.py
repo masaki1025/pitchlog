@@ -11,6 +11,7 @@ import subprocess
 import sys
 from collections import deque
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -33,6 +34,7 @@ PRODUCT_APPLICATION_PATHS = (
     "pitchlog/repositories/cache_invalidation.py",
     "pitchlog/repositories/context.py",
     "pitchlog/repositories/repository_contract.py",
+    "pitchlog/repositories/tenant_context_issuance.py",
     "pitchlog/repositories/tenant_context_contract.py",
     "pitchlog/repositories/tokens.py",
 )
@@ -96,6 +98,8 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_ASYNC_SESSION",
         "C5_BASE_INTERNAL_MUTATIONS",
         "C5_CONTEXT_AFTER_TERMINATOR",
+        "C5_CONTEXT_CAPABILITY_GETATTR",
+        "C5_CONTEXT_CAPABILITY_IMPORT",
         "C5_CONTEXT_CONDITIONAL_ALIAS_CLASS_BASE",
         "C5_CONTEXT_CONDITIONAL_ALIAS_CLOSURE",
         "C5_CONTEXT_CONTAINER_SUBSCRIPT",
@@ -123,6 +127,7 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_CONTEXT_IN_SUBSCRIPT_TARGET",
         "C5_CONTEXT_PROOF_DIRECT_REFERENCE",
         "C5_CONTEXT_PROOF_INDIRECT_REFERENCE",
+        "C5_CONTEXT_REGISTRY_ISSUER",
         "C5_DYNAMIC_EVAL_EXECUTE",
         "C5_DYNAMIC_EXEC",
         "C5_DYNAMIC_GETATTR_EXECUTE",
@@ -2723,14 +2728,14 @@ def test_transition_passes_when_base_declares_only_universal_triggers(
     _append_current_repository_transition_record(
         repository,
         comparison_base,
-        acceptance_id="masaki1025/pitchlog#81",
+        acceptance_id="masaki1025/pitchlog#9081",
     )
     _seal_pull_request_worktree(
         repository,
         comparison_base,
         monkeypatch,
         tmp_path / "six-trigger-event.json",
-        number=81,
+        number=9081,
     )
 
     assert checker.check_repository(repository) == []
@@ -2923,7 +2928,7 @@ def test_census_implementation_movement_requires_record_and_identifier_bump(
     repository, base_ref = _initialize_pull_request_repository(
         tmp_path,
         monkeypatch,
-        number=81,
+        number=9081,
     )
     _mutate_census_frozen_surface(repository, "implementation-module")
     _seal_pull_request_worktree(
@@ -2931,7 +2936,7 @@ def test_census_implementation_movement_requires_record_and_identifier_bump(
         base_ref,
         monkeypatch,
         tmp_path / "census-implementation-movement-event.json",
-        number=81,
+        number=9081,
     )
     evaluation = _evaluate_test_repository_movement(repository, base_ref)
     assert evaluation.triggered_tokens == frozenset({"pass_fail_mapping"})
@@ -2942,14 +2947,14 @@ def test_census_implementation_movement_requires_record_and_identifier_bump(
     _append_current_repository_transition_record(
         repository,
         base_ref,
-        acceptance_id="masaki1025/pitchlog#81",
+        acceptance_id="masaki1025/pitchlog#9081",
     )
     _seal_pull_request_worktree(
         repository,
         base_ref,
         monkeypatch,
         tmp_path / "census-implementation-identifier-event.json",
-        number=81,
+        number=9081,
     )
     with pytest.raises(checker.ContractError, match="識別値の更新が必要"):
         checker.check_repository(repository)
@@ -2993,7 +2998,7 @@ def test_additional_trigger_declaration_changes_production_movement_decision(
         comparison_base,
         monkeypatch,
         tmp_path / f"additional-trigger-{additional_trigger}.json",
-        number=81,
+        number=9081,
     )
     if expects_record:
         with pytest.raises(checker.ContractError, match="movement.*record"):
@@ -3004,14 +3009,14 @@ def test_additional_trigger_declaration_changes_production_movement_decision(
         _append_current_repository_transition_record(
             repository,
             comparison_base,
-            acceptance_id="masaki1025/pitchlog#81",
+            acceptance_id="masaki1025/pitchlog#9081",
         )
         _seal_pull_request_worktree(
             repository,
             comparison_base,
             monkeypatch,
             tmp_path / "additional-trigger-recorded.json",
-            number=81,
+            number=9081,
         )
 
     assert checker.check_repository(repository) == []
@@ -3709,7 +3714,7 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
     tmp_path: Path,
     condition: int,
 ) -> None:
-    """契約済み負例 110 本を条件別の実コミット列で拒否する。"""
+    """契約済み負例を条件別の実コミット列で拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     assert {fixture.id for fixture in contract.negative_fixtures} == (
         EXPECTED_NEGATIVE_IDS
@@ -4588,6 +4593,273 @@ leaked = getattr(context_module, "_TENANT_CONTEXT_SECRET")
     )
 
     assert {violation.code for violation in violations} == {"TB007"}
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        "from pitchlog.repositories.context import _ISSUANCE_CAPABILITY\n",
+        "capability = _ISSUANCE_CAPABILITY\n",
+        "import pitchlog.repositories.context as context_module\n"
+        "capability = context_module._ISSUANCE_CAPABILITY\n",
+        "import pitchlog.repositories.context as context_module\n"
+        'capability = getattr(context_module, "_ISSUANCE_CAPABILITY")\n',
+    ),
+)
+def test_issuance_capability_reference_outside_allowlist_is_red(source: str) -> None:
+    """未許可モジュールからの import・裸名・属性・getattr を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/unapproved_issuer.py",
+        contract=contract,
+    )
+
+    assert violations
+    assert {violation.code for violation in violations} == {"TB007"}
+    assert {violation.symbol for violation in violations} == {
+        contract.tenant_context.issuance_capability_symbol
+    }
+
+
+def test_issuance_capability_reference_from_allowed_test_module_passes() -> None:
+    """許可テストモジュールの直接参照と getattr は通す。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = '''\
+from pitchlog.repositories.context import _ISSUANCE_CAPABILITY
+import pitchlog.repositories.context as context_module
+
+direct = _ISSUANCE_CAPABILITY
+dynamic = getattr(context_module, "_ISSUANCE_CAPABILITY")
+'''
+
+    assert checker.scan_source(
+        source,
+        path="test_authz_tenant_context.py",
+        contract=contract,
+    ) == []
+
+
+def test_issuance_capability_reference_from_allowed_symbol_passes() -> None:
+    """context.py 内の許可シンボルから発行能力を直接参照できる。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = '''\
+from uuid import UUID
+
+class TenantContext:
+    def __init__(
+        self, tenant_id: UUID, issuance_capability: TenantContextIssuanceCapability
+    ) -> None:
+        capability = _ISSUANCE_CAPABILITY
+'''
+
+    assert checker.scan_source(
+        source,
+        path="pitchlog/repositories/context.py",
+        contract=contract,
+    ) == []
+
+
+def test_synthetic_product_issuer_can_name_capability_and_entrypoint() -> None:
+    """合成契約に登録した製品モジュールだけが新しい2件を直接名指せる。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    tenant_context = replace(
+        contract.tenant_context,
+        allowed_product_modules=frozenset({"pitchlog.services.allowed_issuer"}),
+        issuance_entrypoint_symbol="pitchlog.repositories.issuer.issue_tenant_context",
+        issuance_entrypoint_allowed_symbols=frozenset(
+            {"pitchlog.repositories.issuer.issue_tenant_context"}
+        ),
+    )
+    synthetic_contract = replace(contract, tenant_context=tenant_context)
+    source = '''\
+from pitchlog.repositories.context import _ISSUANCE_CAPABILITY
+from pitchlog.repositories.issuer import issue_tenant_context
+import pitchlog.repositories.context as context_module
+
+registry = (_ISSUANCE_CAPABILITY, issue_tenant_context)
+dynamic = getattr(context_module, "_ISSUANCE_CAPABILITY")
+'''
+
+    for path in ("pitchlog/services/allowed_issuer.py", "test_authz_tenant_context.py"):
+        assert checker.scan_source(source, path=path, contract=synthetic_contract) == []
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/unapproved_issuer.py",
+        contract=synthetic_contract,
+    )
+    assert violations
+    assert {violation.code for violation in violations} == {"TB007"}
+    assert {violation.symbol for violation in violations} == {
+        tenant_context.issuance_capability_symbol,
+        tenant_context.issuance_entrypoint_symbol,
+    }
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_line"),
+    (
+        (
+            "from pitchlog.repositories.issuer import issue_tenant_context\n",
+            1,
+        ),
+        (
+            '''\
+from pitchlog.repositories.issuer import issue_tenant_context
+
+registry = {}
+registry["k"] = issue_tenant_context
+''',
+            4,
+        ),
+    ),
+    ids=("import", "registry"),
+)
+def test_issuance_entrypoint_import_or_registry_is_red(
+    source: str, expected_line: int
+) -> None:
+    """合成契約の発行入口を許可外から import・登録すると TB007 になる。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    entrypoint = "pitchlog.repositories.issuer.issue_tenant_context"
+    synthetic_contract = replace(
+        contract,
+        tenant_context=replace(
+            contract.tenant_context,
+            issuance_entrypoint_symbol=entrypoint,
+            issuance_entrypoint_allowed_symbols=frozenset({entrypoint}),
+        ),
+    )
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/unapproved_issuer.py",
+        contract=synthetic_contract,
+    )
+
+    assert any(
+        violation.code == "TB007"
+        and violation.symbol == entrypoint
+        and violation.line == expected_line
+        for violation in violations
+    )
+
+
+def test_reexported_entrypoint_alias_is_outside_direct_reference_rule() -> None:
+    """design.md 6-0 守らないもの 2 の射程であり、意図的に閉じていない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    entrypoint = "pitchlog.repositories.issuer.issue_tenant_context"
+    synthetic_contract = replace(
+        contract,
+        tenant_context=replace(
+            contract.tenant_context,
+            allowed_product_modules=frozenset({"pitchlog.repositories.issuer"}),
+            issuance_entrypoint_symbol=entrypoint,
+            issuance_entrypoint_allowed_symbols=frozenset({entrypoint}),
+        ),
+    )
+    issuer = "pitchlog/repositories/issuer.py"
+    consumer = "pitchlog/services/alias_consumer.py"
+    sources = {
+        issuer: '''\
+def issue_tenant_context(tenant_id):
+    return tenant_id
+
+exported = issue_tenant_context
+''',
+        consumer: '''\
+from pitchlog.repositories.issuer import exported
+
+registry = {"k": exported}
+''',
+    }
+    reexport_map = checker._build_reexport_map(sources)
+
+    assert checker.scan_source(
+        sources[issuer],
+        path=issuer,
+        contract=synthetic_contract,
+        reexport_map=reexport_map,
+    ) == []
+    assert checker.scan_source(
+        sources[consumer],
+        path=consumer,
+        contract=synthetic_contract,
+        reexport_map=reexport_map,
+    ) == []
+
+
+def test_empty_issuance_entrypoint_does_not_trigger_reference_rule() -> None:
+    """発行入口の契約値が空なら同名の直接参照を拒否しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    synthetic_contract = replace(
+        contract,
+        tenant_context=replace(
+            contract.tenant_context,
+            issuance_entrypoint_symbol="",
+            issuance_entrypoint_allowed_symbols=frozenset(),
+            allowed_product_modules=frozenset(),
+        ),
+    )
+    source = '''\
+from pitchlog.repositories.issuer import issue_tenant_context
+
+registry = issue_tenant_context
+'''
+
+    assert checker.scan_source(
+        source,
+        path="pitchlog/services/unapproved_issuer.py",
+        contract=synthetic_contract,
+    ) == []
+
+
+def test_issuance_entrypoint_getattr_remains_outside_reference_rule() -> None:
+    """発行入口の getattr は名前の直接比較規則の対象外に置く。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    synthetic_contract = replace(
+        contract,
+        tenant_context=replace(
+            contract.tenant_context,
+            issuance_entrypoint_symbol="pitchlog.repositories.issuer.issue_tenant_context",
+            issuance_entrypoint_allowed_symbols=frozenset(
+                {"pitchlog.repositories.issuer.issue_tenant_context"}
+            ),
+        ),
+    )
+    source = '''\
+import pitchlog.repositories.issuer as issuer
+
+entrypoint = getattr(issuer, "issue_tenant_context")
+'''
+
+    assert checker.scan_source(
+        source,
+        path="pitchlog/services/unapproved_issuer.py",
+        contract=synthetic_contract,
+    ) == []
+
+
+def test_existing_proof_references_remain_red_in_allowed_test_module() -> None:
+    """許可テストモジュール内の未許可関数には従来の2件を開かない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = '''\
+def inspect_proof():
+    return _TENANT_CONTEXT_SECRET, _tenant_context_proof
+'''
+
+    violations = checker.scan_source(
+        source,
+        path="test_authz_tenant_context.py",
+        contract=contract,
+    )
+    assert violations
+    assert {violation.code for violation in violations} == {"TB007"}
+    assert {violation.symbol for violation in violations} == {
+        contract.tenant_context.integrity_secret_symbol,
+        contract.tenant_context.integrity_proof_factory_symbol,
+    }
 
 
 def test_known_non_database_receivers_and_unrelated_replace_pass() -> None:
@@ -5825,19 +6097,166 @@ def test_proof_factory_aliases_and_lexical_callable_scope(
     assert ("TB007" in {violation.code for violation in violations}) is expected_tb007
 
 
-def test_product_module_cannot_be_added_before_authenticated_entry_exists() -> None:
-    """認証入口の導入前に製品モジュールを許可する変異を拒否する。"""
+@pytest.mark.parametrize(
+    ("symbol", "allowed_symbols"),
+    (
+        ("", ["pitchlog.repositories.context.TenantContext.__init__"]),
+        (
+            "external.context._ISSUANCE_CAPABILITY",
+            ["pitchlog.repositories.context.TenantContext.__init__"],
+        ),
+        ("pitchlog.repositories.context._ISSUANCE_CAPABILITY", []),
+    ),
+)
+def test_issuance_capability_requires_nonempty_closed_symbols(
+    symbol: str, allowed_symbols: list[str]
+) -> None:
+    """発行能力には製品名と非空の参照許可集合を要求する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_TENANT_CONTEXT_ALLOWLIST).read_text(
+            encoding="utf-8"
+        )
+    )
+    assert isinstance(asset, dict)
+    asset["issuance_capability_symbol"] = symbol
+    asset["issuance_capability_allowed_symbols"] = allowed_symbols
+    asset["source_digest"] = _contract_digest(asset)
+
+    with pytest.raises(checker.ContractError):
+        checker._load_tenant_context_allowlist(asset)
+
+
+def test_issuance_entrypoint_requires_complete_product_registration() -> None:
+    """発行入口と製品モジュールの一致した登録だけを受理する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_TENANT_CONTEXT_ALLOWLIST).read_text(
+            encoding="utf-8"
+        )
+    )
+    assert isinstance(asset, dict)
+
+    active = checker._load_tenant_context_allowlist(asset)
+    assert active.issuance_entrypoint_symbol == asset["issuance_entrypoint_symbol"]
+    assert active.issuance_entrypoint_allowed_symbols == frozenset(
+        asset["issuance_entrypoint_allowed_symbols"]
+    )
+    assert active.allowed_product_modules == frozenset(asset["allowed_product_modules"])
+
+
+@pytest.mark.parametrize(
+    ("symbol", "allowed_symbols"),
+    (
+        ("", ["pitchlog.repositories.issuer.issue_tenant_context"]),
+        ("pitchlog.repositories.issuer.issue_tenant_context", []),
+    ),
+)
+def test_issuance_entrypoint_rejects_one_sided_pair(
+    symbol: str, allowed_symbols: list[str]
+) -> None:
+    """発行入口の片方だけが空の契約を拒否する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_TENANT_CONTEXT_ALLOWLIST).read_text(
+            encoding="utf-8"
+        )
+    )
+    assert isinstance(asset, dict)
+    asset["issuance_entrypoint_symbol"] = symbol
+    asset["issuance_entrypoint_allowed_symbols"] = allowed_symbols
+    asset["source_digest"] = _contract_digest(asset)
+
+    with pytest.raises(checker.ContractError, match="両方とも空か非空"):
+        checker._load_tenant_context_allowlist(asset)
+
+
+def test_issuance_entrypoint_requires_fully_qualified_symbol() -> None:
+    """発行入口に値を入れた場合は完全修飾名を要求する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_TENANT_CONTEXT_ALLOWLIST).read_text(
+            encoding="utf-8"
+        )
+    )
+    assert isinstance(asset, dict)
+    asset["issuance_entrypoint_symbol"] = "issue_tenant_context"
+    asset["issuance_entrypoint_allowed_symbols"] = [
+        "pitchlog.repositories.issuer.issue_tenant_context"
+    ]
+    asset["source_digest"] = _contract_digest(asset)
+
+    with pytest.raises(checker.ContractError, match="完全修飾名"):
+        checker._load_tenant_context_allowlist(asset)
+
+
+@pytest.mark.parametrize(
+    "modules",
+    (
+        ["pitchlog.api.routers.example"],
+        ["pitchlog.repositories.tenant_context_issuance", "pitchlog.api.routers.example"],
+        [],
+    ),
+)
+def test_product_module_cannot_be_added_before_authenticated_entry_exists(
+    modules: list[str],
+) -> None:
+    """発行入口の所属先と異なる製品モジュール集合を拒否する。"""
     asset = json.loads(
         (
             REPOSITORY_ROOT / checker.DEFAULT_TENANT_CONTEXT_ALLOWLIST
         ).read_text(encoding="utf-8")
     )
     assert isinstance(asset, dict)
-    asset["allowed_product_modules"] = ["pitchlog.api.routers.example"]
+    asset["allowed_product_modules"] = modules
     asset["source_digest"] = _contract_digest(asset)
 
-    with pytest.raises(checker.ContractError, match="製品モジュールの生成経路は 0 件"):
+    with pytest.raises(checker.ContractError, match="発行入口が属するモジュール 1 件"):
         checker._load_tenant_context_allowlist(asset)
+
+
+def test_product_module_requires_nonempty_issuance_entrypoint_pair() -> None:
+    """製品登録だけを残して発行入口を空にする変異を拒否する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_TENANT_CONTEXT_ALLOWLIST).read_text(
+            encoding="utf-8"
+        )
+    )
+    asset["issuance_entrypoint_symbol"] = ""
+    asset["issuance_entrypoint_allowed_symbols"] = []
+    asset["source_digest"] = _contract_digest(asset)
+    with pytest.raises(checker.ContractError, match="発行入口は非空"):
+        checker._load_tenant_context_allowlist(asset)
+
+
+def test_issuer_module_name_is_derived_from_contract() -> None:
+    """検査器が特定の製品モジュール名を直書きしないことを確認する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_TENANT_CONTEXT_ALLOWLIST).read_text(
+            encoding="utf-8"
+        )
+    )
+    source = (REPOSITORY_ROOT / "scripts/check_tenant_boundary_bypass.py").read_text(
+        encoding="utf-8"
+    )
+    assert asset["allowed_product_modules"][0] not in source
+
+
+@pytest.mark.parametrize(
+    "symbol",
+    ("_ISSUANCE_CAPABILITY", "issue_tenant_context_from_presented_token"),
+)
+def test_registered_issuance_names_are_rejected_outside_allowlist(symbol: str) -> None:
+    """製品登録後も許可外モジュールの発行名参照を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source_module = (
+        "pitchlog.repositories.context"
+        if symbol == "_ISSUANCE_CAPABILITY"
+        else "pitchlog.repositories.tenant_context_issuance"
+    )
+    source = f"from {source_module} import {symbol}\nregistry = {{'issuer': {symbol}}}\n"
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/services/unauthorized_roster_issuer.py",
+        contract=contract,
+    )
+    assert "TB007" in {violation.code for violation in violations}
 
 
 @pytest.mark.parametrize("relative_path", PRODUCT_APPLICATION_PATHS)
@@ -5904,6 +6323,29 @@ def test_repository_base_symbol_has_only_execute_database_api() -> None:
         "operation: TenantOperationToken) -> TenantOperationResult"
     )
     assert matching_rows[0]["allowed_api_ids"] == ["SQLA_SESSION_EXECUTE"]
+
+
+def test_authn_entry_symbols_have_only_required_database_apis() -> None:
+    """検証とログアウトの許可 API を各 3 件に固定する。"""
+    allowlist = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text(encoding="utf-8")
+    )
+    rows = {
+        row["symbol"]: row
+        for row in allowlist["allowed_symbols"]
+        if row["symbol"].startswith("pitchlog.authz.verified_tenant.")
+    }
+    assert set(rows) == {
+        "pitchlog.authz.verified_tenant.verify_tenant_id",
+        "pitchlog.authz.verified_tenant.logout_token",
+    }
+    for row in rows.values():
+        assert row["allowed_api_ids"] == [
+            "SQLA_TEXT",
+            "SQLA_ENGINE_BEGIN",
+            "SQLA_CONNECTION_EXECUTE",
+        ]
+        assert (REPOSITORY_ROOT / row["fixture"]).is_file()
 
 
 def test_condition4_allows_only_the_declared_request_api_call() -> None:
@@ -6015,7 +6457,7 @@ def _assert_introduced_symbol_modules_have_changed_lines(
 
 
 def test_condition4_allowed_call_symbols_are_an_exact_set() -> None:
-    """条件 4 の許可呼び出しを物理キー構築と単一 factory に閉じる。"""
+    """条件 4 の許可呼び出しを鍵・選択子構築と単一 factory に閉じる。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
 
     assert contract.cache_invalidation.allowed_call_symbols == frozenset(
@@ -6027,6 +6469,7 @@ def test_condition4_allowed_call_symbols_are_an_exact_set() -> None:
             "pitchlog.repositories.cache_invalidation.PlayerCareerCacheKey",
             "pitchlog.repositories.cache_invalidation.PlayerChartSubject",
             "pitchlog.repositories.cache_invalidation.SharedAggregateCacheKey",
+            "pitchlog.repositories.cache_invalidation.SharedAggregateTargetSelector",
             "pitchlog.repositories.cache_invalidation.TeamAggregateCacheKey",
             "pitchlog.repositories.cache_invalidation.build_cache_invalidation_request",
         }

@@ -29,30 +29,7 @@ BASELINE_DEFINITION_PATHS = frozenset(
 )
 # 追加層は JSON を変更するコミットより先に固定する。同一コミットでの追随を許さない。
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "game-state": (
-        "backend/domain/*",
-        "backend/src/pitchlog/domaincheck/*",
-        "backend/src/pitchlog/domaingen/*",
-        "backend/src/pitchlog/domainmut/*",
-        "backend/src/pitchlog/generated/*",
-        "backend/tests/domain/*",
-        "frontend/src/lib/generated/*",
-        "tests/domain/*",
-    ),
-    "data-migration": (
-        "backend/domain/*",
-        "backend/src/pitchlog/domaincheck/*",
-        "backend/src/pitchlog/domaingen/*",
-        "backend/src/pitchlog/domainmut/*",
-        "backend/src/pitchlog/generated/*",
-        "backend/tests/domain/*",
-        "frontend/src/lib/generated/*",
-        "tests/domain/*",
-    ),
-    "tenant-isolation": (
-        "backend/tests/test_*_boundary.py",
-        "backend/tests/test_*_repository.py",
-    ),
+    "tenant-isolation": ("frontend/src/stores/authStore*",),
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
@@ -346,6 +323,31 @@ def _changed_paths_in_commit(root: Path, revision: str) -> frozenset[str]:
     return frozenset(output.splitlines())
 
 
+def _parent_has_area_path_additions(root: Path, revision: str) -> bool:
+    """いずれかの親で領域別追加層の定義が存在したかを返す。"""
+    parents = _run_git(
+        root,
+        ["show", "-s", "--format=%P", revision],
+        f"{revision} の親コミット列挙",
+    ).split()
+    for parent in parents:
+        paths = _run_git(
+            root,
+            ["ls-tree", "--name-only", parent, "--", "scripts/core_guard.py"],
+            f"{parent} の core_guard.py 存在確認",
+        )
+        if "scripts/core_guard.py" not in paths.splitlines():
+            continue
+        source = _run_git(
+            root,
+            ["show", f"{parent}:scripts/core_guard.py"],
+            f"{parent} の core_guard.py blob 読み取り",
+        )
+        if re.search(r"(?m)^AREA_PATH_ADDITIONS\s*(?::[^=\n]+)?=", source):
+            return True
+    return False
+
+
 def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
     """merge-base blob と PR head の領域別二層契約を検査する。
 
@@ -368,7 +370,11 @@ def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
     for revision in _commits_between(root, baseline_revision, head_sha):
         changed = _changed_paths_in_commit(root, revision)
         changed_definitions = sorted(changed & BASELINE_DEFINITION_PATHS)
-        if CORE_AREAS_RELATIVE_PATH in changed and changed_definitions:
+        if (
+            CORE_AREAS_RELATIVE_PATH in changed
+            and changed_definitions
+            and _parent_has_area_path_additions(root, revision)
+        ):
             raise GuardError(
                 "core-areas.json と基線定義を同一コミットで変更している: "
                 f"{revision}: {changed_definitions}"

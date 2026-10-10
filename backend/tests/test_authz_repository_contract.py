@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import importlib
 import inspect
@@ -12,7 +13,7 @@ from datetime import date, datetime, time
 from decimal import Decimal
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any, cast, get_args, get_origin, get_type_hints
+from typing import Any, cast, get_type_hints
 from uuid import UUID
 
 import pytest
@@ -169,56 +170,102 @@ def _resolve_symbol(symbol: str) -> object:
     raise AssertionError(f"実装シンボルを解決できない: {symbol}")
 
 
-def _annotation_name(annotation: object) -> str:
-    """実行時型注釈を契約資産の短い表記へ正規化する。"""
-    if annotation is None or annotation is type(None):
-        return "None"
-    if annotation is Any:
-        return "Any"
-    if annotation is Ellipsis:
-        return "..."
-    if isinstance(annotation, str):
-        return annotation
-    origin = get_origin(annotation)
-    if origin is not None:
-        arguments = ", ".join(_annotation_name(item) for item in get_args(annotation))
-        name = getattr(origin, "__name__", str(origin))
-        module = getattr(origin, "__module__", "")
-        if module == "psycopg":
-            name = f"{module}.{name}"
-        return f"{name}[{arguments}]"
-    name = getattr(annotation, "__name__", None)
-    if isinstance(name, str):
-        return name
-    raise AssertionError(f"契約署名へ変換できない型注釈: {annotation!r}")
+def _declared_function(signature: str) -> ast.FunctionDef:
+    """資産の署名を関数定義の構文木として読む。"""
+    tree = ast.parse(f"def {signature}:\n    pass\n")
+    assert len(tree.body) == 1
+    function = tree.body[0]
+    assert isinstance(function, ast.FunctionDef)
+    return function
 
 
-def _runtime_signature(value: object) -> str:
-    """解決済み callable の名前・引数・戻り値を契約表記へ変換する。"""
-    if not callable(value):
-        raise AssertionError(f"契約署名の対象が callable でない: {value!r}")
-    callable_value = cast(Callable[..., object], value)
-    signature = inspect.signature(callable_value)
-    hints = get_type_hints(callable_value)
-    parameters: list[str] = []
-    for parameter in signature.parameters.values():
-        rendered = parameter.name
-        annotation = hints.get(parameter.name, parameter.annotation)
-        if annotation is not inspect.Parameter.empty:
-            rendered += f": {_annotation_name(annotation)}"
-        if parameter.default is not inspect.Parameter.empty:
-            rendered += f" = {parameter.default!r}"
-        parameters.append(rendered)
-    return_annotation = hints.get("return", signature.return_annotation)
-    return_name = (
-        ""
-        if return_annotation is inspect.Signature.empty
-        else f" -> {_annotation_name(return_annotation)}"
+def _declared_parameter_shape(
+    function: ast.FunctionDef,
+) -> tuple[tuple[str, object, object], ...]:
+    """引数名・種類・既定値を実行時署名と同じ形へ落とす。"""
+
+    def row(
+        argument: ast.arg, kind: object, default: ast.expr | None = None
+    ) -> tuple[str, object, object]:
+        """1 引数の既定値をリテラルとして解釈する。"""
+        value = (
+            inspect.Parameter.empty if default is None else ast.literal_eval(default)
+        )
+        return argument.arg, kind, value
+
+    arguments = function.args
+    positional = [*arguments.posonlyargs, *arguments.args]
+    defaults: list[ast.expr | None] = [None] * (
+        len(positional) - len(arguments.defaults)
+    ) + list(arguments.defaults)
+    result = [
+        row(argument, inspect.Parameter.POSITIONAL_ONLY, default)
+        for argument, default in zip(
+            arguments.posonlyargs, defaults[: len(arguments.posonlyargs)], strict=True
+        )
+    ]
+    result.extend(
+        row(argument, inspect.Parameter.POSITIONAL_OR_KEYWORD, default)
+        for argument, default in zip(
+            arguments.args, defaults[len(arguments.posonlyargs) :], strict=True
+        )
     )
-    name = getattr(callable_value, "__name__", None)
-    if not isinstance(name, str):
-        raise AssertionError(f"callable 名を取得できない: {value!r}")
-    return f"{name}({', '.join(parameters)}){return_name}"
+    if arguments.vararg is not None:
+        result.append(row(arguments.vararg, inspect.Parameter.VAR_POSITIONAL))
+    result.extend(
+        row(argument, inspect.Parameter.KEYWORD_ONLY, default)
+        for argument, default in zip(
+            arguments.kwonlyargs, arguments.kw_defaults, strict=True
+        )
+    )
+    if arguments.kwarg is not None:
+        result.append(row(arguments.kwarg, inspect.Parameter.VAR_KEYWORD))
+    return tuple(result)
+
+
+def _declared_type_hints(
+    function: ast.FunctionDef, namespace: dict[str, Any]
+) -> dict[str, Any]:
+    """宣言の型名を対象モジュールの名前空間で実際の型へ解決する。"""
+    arguments = function.args
+    parameters = [
+        *arguments.posonlyargs,
+        *arguments.args,
+        *arguments.kwonlyargs,
+    ]
+    if arguments.vararg is not None:
+        parameters.append(arguments.vararg)
+    if arguments.kwarg is not None:
+        parameters.append(arguments.kwarg)
+    annotations = {
+        argument.arg: ast.unparse(argument.annotation)
+        for argument in parameters
+        if argument.annotation is not None
+    }
+    if function.returns is not None:
+        annotations["return"] = ast.unparse(function.returns)
+    probe = type("_DeclaredAnnotations", (), {"__annotations__": annotations})
+    return get_type_hints(
+        probe, globalns=namespace, localns=namespace, include_extras=True
+    )
+
+
+def _assert_declared_runtime_signature(symbol: str, signature: str) -> None:
+    """宣言と実装の関数形・解決済み型を過不足なく照合する。"""
+    value = _resolve_symbol(symbol)
+    assert callable(value)
+    callable_value = cast(Callable[..., object], value)
+    function = _declared_function(signature)
+    runtime = inspect.signature(callable_value)
+    assert function.name == getattr(callable_value, "__name__", None)
+    assert _declared_parameter_shape(function) == tuple(
+        (parameter.name, parameter.kind, parameter.default)
+        for parameter in runtime.parameters.values()
+    )
+    namespace = vars(importlib.import_module(callable_value.__module__))
+    assert _declared_type_hints(function, namespace) == get_type_hints(
+        callable_value, include_extras=True
+    ), f"型注釈が不一致: {symbol}"
 
 
 def _asset_digest(asset: dict[str, Any]) -> str:
@@ -324,18 +371,45 @@ def test_declared_repository_symbols_resolve() -> None:
 
 
 def test_allowed_repository_symbol_signatures_match_runtime() -> None:
-    """DB API 許可シンボルの実装署名を資産と exact 一致させる。"""
+    """別名を実際の型へ解決して DB API 許可署名を exact 一致させる。"""
     allowlist = _read_allowlist()
 
-    actual = {
-        item["symbol"]: _runtime_signature(_resolve_symbol(item["symbol"]))
-        for item in allowlist["allowed_symbols"]
-    }
-    expected = {
-        item["symbol"]: item["signature"] for item in allowlist["allowed_symbols"]
-    }
+    for item in allowlist["allowed_symbols"]:
+        _assert_declared_runtime_signature(item["symbol"], item["signature"])
 
-    assert actual == expected
+
+def test_allowed_symbol_wrong_aliased_type_is_red() -> None:
+    """別名を用いた宣言でも型を取り違えれば照合が落ちる。"""
+    for item in _read_allowlist()["allowed_symbols"]:
+        function = _declared_function(item["signature"])
+        value = _resolve_symbol(item["symbol"])
+        assert callable(value)
+        namespace = vars(importlib.import_module(value.__module__))
+        for argument in [*function.args.posonlyargs, *function.args.args]:
+            annotation = argument.annotation
+            if not (
+                isinstance(annotation, ast.Name)
+                and annotation.id.startswith("_")
+                and annotation.id in namespace
+            ):
+                continue
+            _assert_declared_runtime_signature(item["symbol"], item["signature"])
+            assert get_type_hints(value)[argument.arg] is not str
+            argument.annotation = ast.Name(id="str", ctx=ast.Load())
+            header = ast.unparse(function).splitlines()[0]
+            assert header.startswith("def ") and header.endswith(":")
+            mutated = header.removeprefix("def ").removesuffix(":")
+            parsed = _declared_function(mutated)
+            assert any(
+                parameter.arg == argument.arg
+                and isinstance(parameter.annotation, ast.Name)
+                and parameter.annotation.id == "str"
+                for parameter in [*parsed.args.posonlyargs, *parsed.args.args]
+            )
+            with pytest.raises(AssertionError, match="型注釈が不一致"):
+                _assert_declared_runtime_signature(item["symbol"], mutated)
+            return
+    pytest.fail("別名を使う許可署名が見つからない")
 
 
 def test_generated_repository_constant_surface_is_exact() -> None:
@@ -405,7 +479,7 @@ def test_public_repository_surface_and_signature_are_exact() -> None:
 
 
 def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
-    """選手と対戦相手の 6 操作だけを製品 registry に公開する。"""
+    """選手・対戦相手・無効化意図の登録を契約と一致させる。"""
     expected_capabilities = (
         "CAP:players:read",
         "CAP:players:insert",
@@ -413,14 +487,21 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "CAP:team_records:read",
         "CAP:team_records:insert",
         "CAP:team_records:update",
+        "CAP:games:read",
+        "CAP:invalidation_intents:insert",
     )
     expected_token_types = (
         "pitchlog.repositories.roster.PlayerReadToken",
         "pitchlog.repositories.roster.PlayerCreateToken",
         "pitchlog.repositories.roster.PlayerUpdateToken",
+        "pitchlog.repositories.roster.PlayerRosterStatusUpdateToken",
+        "pitchlog.repositories.roster.PlayerRosterLabelUpdateToken",
         "pitchlog.repositories.roster.TeamRecordReadToken",
         "pitchlog.repositories.roster.TeamRecordCreateToken",
         "pitchlog.repositories.roster.TeamRecordUpdateToken",
+        "pitchlog.repositories.roster.TeamRecordDeleteToken",
+        "pitchlog.repositories.roster.GameTeamLinkReadToken",
+        "pitchlog.repositories.invalidation_intents.InvalidationIntentInsertToken",
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
@@ -432,7 +513,21 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
     assert {
         f"{token_type.__module__}.{token_type.__qualname__}": spec.capability_id
         for token_type, spec in repository_base._OPERATION_REGISTRY.items()
-    } == dict(zip(expected_token_types, expected_capabilities, strict=True))
+    } == dict(
+        zip(
+            expected_token_types,
+            (
+                *expected_capabilities[:3],
+                "CAP:players:update",
+                "CAP:players:update",
+                *expected_capabilities[3:6],
+                "CAP:team_records:update",
+                expected_capabilities[6],
+                expected_capabilities[7],
+            ),
+            strict=True,
+        )
+    )
     assert CROSS_TENANT_FUNCTION_REGISTRY == frozenset()
 
 
