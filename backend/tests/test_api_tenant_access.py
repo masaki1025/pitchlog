@@ -21,6 +21,7 @@ from pitchlog.repositories import tenant_context_issuance
 @pytest.fixture(autouse=True)
 def _configure_signing_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """各アプリへ独立した署名鍵を設定する。"""
+
     async def inline_call(function: Any, *args: Any, **kwargs: Any) -> Any:
         """隔離環境で同期経路をインライン実行する。"""
         return function(*args, **kwargs)
