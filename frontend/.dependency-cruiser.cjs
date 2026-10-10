@@ -61,6 +61,9 @@ module.exports = {
     tsConfig: { fileName: 'tsconfig.app.json' },
     enhancedResolveOptions: {
       extensions: ['.ts', '.tsx', '.js', '.jsx', '.vue', '.json'],
+      // exports だけで入口を示すパッケージ（pinia 4 など）を解決する。
+      exportsFields: ['exports'],
+      conditionNames: ['import', 'require', 'node', 'default', 'types'],
     },
   },
 }

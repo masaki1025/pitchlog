@@ -944,8 +944,6 @@ async def test_player_entry_does_not_expose_other_tenant_rows(
 @pytest.mark.parametrize(
     ("method", "path", "expected"),
     [
-        ("POST", "/players/status-preview", 404),
-        ("POST", "/players/status-apply", 404),
         ("DELETE", f"/players/{_PLAYER_A}", 405),
     ],
 )

@@ -1083,7 +1083,7 @@ def test_unreferenced_dml_cte_is_rejected(
 
 
 def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> None:
-    """8 token の各文と 7 capability の対応を個別に検査する。"""
+    """11 token の各文と 8 capability の対応を個別に検査する。"""
     expected = {
         "CAP:players:read",
         "CAP:players:insert",
@@ -1092,12 +1092,13 @@ def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> Non
         "CAP:team_records:insert",
         "CAP:team_records:update",
         "CAP:games:read",
+        "CAP:invalidation_intents:insert",
     }
     assert set(repository_contract.PRODUCT_CAPABILITY_IDS) == expected
     assert {
         spec.capability_id for spec in repository_base._OPERATION_REGISTRY.values()
     } == expected
-    assert len(repository_base._OPERATION_REGISTRY) == 8
+    assert len(repository_base._OPERATION_REGISTRY) == 11
     for registration in repository_base._OPERATION_REGISTRY.values():
         validate_capability_registrations(
             catalog=catalog,
@@ -1113,7 +1114,7 @@ def test_roster_catalog_mismatches_are_rejected(
     registrations = list(repository_base._OPERATION_REGISTRY.values())
     players_read = registrations[0]
     players_insert = registrations[1]
-    team_read = registrations[3]
+    team_read = registrations[5]
     unknown_table = Table("unlisted_roster_table", MetaData(), Column("id", Integer))
     mutations = (
         (_Registration("CAP:unknown:read", players_read.statement), "カタログにない"),

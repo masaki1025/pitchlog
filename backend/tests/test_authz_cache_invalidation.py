@@ -6,6 +6,7 @@ import ast
 import hashlib
 import inspect
 import json
+import re
 from dataclasses import fields
 from datetime import date
 from pathlib import Path
@@ -29,6 +30,7 @@ from pitchlog.repositories.cache_invalidation import (
     PlayerCareerCacheKey,
     PlayerChartSubject,
     SharedAggregateCacheKey,
+    SharedAggregateTargetSelector,
     TeamAggregateCacheKey,
     build_cache_invalidation_request,
 )
@@ -93,6 +95,95 @@ def _table_rows_after(section: str, header: str) -> list[list[str]]:
     return rows
 
 
+def _source_ordinals(label: str) -> set[int]:
+    """正本表の先頭にある番号列と連続範囲を展開する。"""
+    match = re.match(r"[0-9]+(?:[・〜][0-9]+)*", _plain_markdown(label))
+    assert match is not None
+    ordinals: set[int] = set()
+    for part in match.group().split("・"):
+        if "〜" in part:
+            start, end = (int(value) for value in part.split("〜"))
+            assert start <= end
+            ordinals.update(range(start, end + 1))
+        else:
+            ordinals.add(int(part))
+    return ordinals
+
+
+def _assert_b06_source_matches_contract(section: str, asset: dict[str, Any]) -> None:
+    """B06 の適用範囲・帰属・行規則を契約と双方向に照合する。"""
+    b06 = section[section.index("#### 同期を通らないトリガーの発火・原子性・意図 ID") :]
+    non_sync = asset["durable_intent"]["non_sync_triggers"]
+    ordinal_by_id = {trigger["id"]: trigger["ordinal"] for trigger in asset["triggers"]}
+    contract_ordinals = {ordinal_by_id[item] for item in non_sync["trigger_ids"]}
+    scope_lines = [
+        line
+        for line in b06.splitlines()
+        if _plain_markdown(line).startswith("適用範囲:")
+    ]
+    assert len(scope_lines) == 1
+    source_scope = _plain_markdown(scope_lines[0]).split("上表のトリガー ", 1)[1]
+    assert _source_ordinals(source_scope) == contract_ordinals
+
+    attribution_rows = _table_rows_after(b06, "| トリガー | 帰属 |")
+    normalized_attribution = tuple(
+        tuple(_plain_markdown(cell) for cell in row) for row in attribution_rows
+    )
+    assert normalized_attribution == (
+        (
+            "5・7・9・14(自テナントの状態変更)",
+            "状態を変えたテナント(tenant_id = そのテナント)。波及先は上記"
+            "「無効化の波及先」の範囲ごとの規則に従う",
+        ),
+        (
+            "8・10〜13",
+            "本版では定めない。8 は自テナントが無く全テナントへ、10〜13 は操作前後の"
+            "実効参加の和集合へ波及するので、状態を変えたテナントの 1 行では表せない。"
+            "所有単位が発火点を作るときに本節へ足す(8・12・13 = U-A2、"
+            "10・11 = U-C1)。上の共通の 3 規則はこれらにも掛かる",
+        ),
+    )
+    source_attribution = {
+        "self_tenant": _source_ordinals(normalized_attribution[0][0]),
+        "defined_by_owner_unit": _source_ordinals(normalized_attribution[1][0]),
+    }
+    assert source_attribution["self_tenant"].isdisjoint(
+        source_attribution["defined_by_owner_unit"]
+    )
+    assert set().union(*source_attribution.values()) == contract_ordinals
+    assert set(non_sync["attribution"]) == set(source_attribution)
+    for kind, source_ordinals in source_attribution.items():
+        assert {ordinal_by_id[item] for item in non_sync["attribution"][kind]} == (
+            source_ordinals
+        )
+
+    row_rule_rows = _table_rows_after(b06, "| トリガー | 行の数 | 行の識別子 | 鍵 |")
+    normalized_row_rules = tuple(
+        tuple(_plain_markdown(cell) for cell in row) for row in row_rule_rows
+    )
+    assert normalized_row_rules == (
+        (
+            "14(選手の在籍区分の変更)",
+            "1 操作につき 1 件(一括変更でも 1 件)",
+            "④ 共有集計",
+            "④ の対象テナント単位の選択子(下)。対象テナント = 状態を変えたテナント",
+        ),
+        ("5・7〜13", "本版では定めない — 所有単位が足す", "同左", "同左"),
+    )
+    defined_ordinals = _source_ordinals(normalized_row_rules[0][0])
+    owner_ordinals = _source_ordinals(normalized_row_rules[1][0])
+    assert defined_ordinals.isdisjoint(owner_ordinals)
+    assert defined_ordinals | owner_ordinals == contract_ordinals
+    assert {ordinal_by_id[item] for item in non_sync["row_rules"]} == defined_ordinals
+    assert non_sync["row_rules_for_other_triggers"] == "defined_by_owner_unit"
+    assert owner_ordinals == contract_ordinals - defined_ordinals
+    for rule in non_sync["row_rules"].values():
+        assert rule["rows_per_operation"] == 1
+        assert rule["selector_kind"] == "shared_aggregate_target_selector"
+        assert rule["row_discriminator"] == "scope_id"
+        assert rule["row_discriminator_value"] == "shared_aggregate"
+
+
 def _source_matrix() -> tuple[tuple[str, ...], set[tuple[int, str, str]]]:
     """正本表から列見出しと ● セル集合を抽出する。"""
     section = _source_section()
@@ -153,7 +244,9 @@ def _key_by_scope() -> dict[CacheScope, CacheInvalidationKey]:
 def _keys_for(
     trigger: CacheInvalidationTrigger,
 ) -> tuple[CacheInvalidationKey, ...]:
-    """実装 matrix が要求する scope の物理キーを返す。"""
+    """実装 matrix が要求する scope の鍵を返す。"""
+    if trigger is CacheInvalidationTrigger.ROSTER_STATUS_CHANGE:
+        return (SharedAggregateTargetSelector(_TENANT_A),)
     key_by_scope = _key_by_scope()
     return tuple(
         key_by_scope[scope]
@@ -347,6 +440,71 @@ def test_durable_intent_persistence_and_retry_contract_is_exact() -> None:
             "delivery_may_be_deferred": True,
             "intent_persistence_may_be_deferred": False,
         },
+        "applies_to_trigger_ids": [
+            "restored_sync",
+            "play_correction",
+            "undo",
+            "substitution_record_or_correction",
+            "postgame_correction",
+        ],
+        "non_sync_triggers": {
+            "trigger_ids": [
+                "game_delete_restore_or_resume",
+                "player_merge_or_split",
+                "setting_change",
+                "grant_flag_change",
+                "group_departure",
+                "group_end",
+                "tenant_disable",
+                "tenant_reenable",
+                "roster_status_change",
+            ],
+            "firing": "committed_state_change_with_value_change",
+            "same_transaction_with": "triggering_state_change",
+            "intent_id_derivation": [
+                "trigger_id",
+                "operation_id",
+                "row_discriminator",
+            ],
+            "row_rules": {
+                "roster_status_change": {
+                    "rows_per_operation": 1,
+                    "selector_kind": "shared_aggregate_target_selector",
+                    "row_discriminator": "scope_id",
+                    "row_discriminator_value": "shared_aggregate",
+                }
+            },
+            "row_rules_for_other_triggers": "defined_by_owner_unit",
+            "attribution": {
+                "self_tenant": [
+                    "game_delete_restore_or_resume",
+                    "player_merge_or_split",
+                    "grant_flag_change",
+                    "roster_status_change",
+                ],
+                "defined_by_owner_unit": [
+                    "setting_change",
+                    "group_departure",
+                    "group_end",
+                    "tenant_disable",
+                    "tenant_reenable",
+                ],
+            },
+            "selectors": [
+                {
+                    "kind": "shared_aggregate_target_selector",
+                    "scope_id": "shared_aggregate",
+                    "python_type": (
+                        "pitchlog.repositories.cache_invalidation."
+                        "SharedAggregateTargetSelector"
+                    ),
+                    "fields": [["tenant_id", "uuid.UUID"]],
+                    "source_unit": "(対象テナント)",
+                    "matches": "physical_key_adt.shared_aggregate.target_tenant_id",
+                }
+            ],
+            "delivery_owner": "unit_that_introduces_the_scope_cache",
+        },
     }
     section = _plain_markdown(_source_section())
     for source_phrase in (
@@ -357,6 +515,79 @@ def test_durable_intent_persistence_and_retry_contract_is_exact() -> None:
         "物理削除しない",
     ):
         assert source_phrase in section
+
+
+def test_durable_intent_trigger_partition_and_b06_source_are_exact() -> None:
+    """同期と非同期の適用範囲を分割し、B06 の選択子と原子性を照合する。"""
+    asset = _read_asset()
+    durable = asset["durable_intent"]
+    non_sync = durable["non_sync_triggers"]
+    sync_ids = set(durable["applies_to_trigger_ids"])
+    non_sync_ids = set(non_sync["trigger_ids"])
+    trigger_ids = {trigger["id"] for trigger in asset["triggers"]}
+
+    assert len(sync_ids) == len(durable["applies_to_trigger_ids"]) == 5
+    assert len(non_sync_ids) == len(non_sync["trigger_ids"]) == 9
+    assert sync_ids.isdisjoint(non_sync_ids)
+    assert sync_ids | non_sync_ids == trigger_ids
+    _assert_b06_source_matches_contract(_source_section(), asset)
+
+    section = _plain_markdown(_source_section())
+    b06 = section[section.index("#### 同期を通らないトリガーの発火・原子性・意図 ID") :]
+    selector_rows = _table_rows_after(
+        _source_section(), "| 対象範囲 | 意図が選ぶ無効化先 | 選択子 |"
+    )
+    assert len(selector_rows) == 1
+    assert [selector["source_unit"] for selector in non_sync["selectors"]] == [
+        _plain_markdown(row[2]) for row in selector_rows
+    ]
+    for selector in non_sync["selectors"]:
+        assert selector["python_type"] == (
+            f"{SharedAggregateTargetSelector.__module__}."
+            f"{SharedAggregateTargetSelector.__qualname__}"
+        )
+        assert [field.name for field in fields(SharedAggregateTargetSelector)] == [
+            field_name for field_name, _ in selector["fields"]
+        ]
+    assert SharedAggregateTargetSelector.__dataclass_params__.frozen is True
+    for source_phrase in (
+        "5・7・8・9・10・11・12・13・14",
+        "値が実際に変わらない要求は発火しない",
+        "その状態変更と同一の DB トランザクションで意図を書く",
+        "<トリガー>:<操作 ID>:<行の識別子>",
+        "1 操作につき 1 件",
+        "④ の対象テナント単位の選択子",
+        "対象テナント成分が一致するものすべて",
+        "その対象範囲のキャッシュ本体を初めて導入する単位が配信を作る",
+    ):
+        assert source_phrase in b06
+
+
+def test_b06_attribution_table_movement_is_red() -> None:
+    """正本の帰属表を 1 行変えただけでも契約照合が失敗する。"""
+    section = _source_section()
+    for before, after in (
+        ("**5・7・9・14**", "**5・7・9**"),
+        ("**8・10〜13**", "**8・10〜14**"),
+    ):
+        mutant = section.replace(before, after, 1)
+        assert mutant != section
+        with pytest.raises(AssertionError):
+            _assert_b06_source_matches_contract(mutant, _read_asset())
+
+
+def test_b06_table_cell_addition_is_red() -> None:
+    """帰属と鍵のセルへ他テナント許可を足すと全文照合が失敗する。"""
+    section = _source_section()
+    for cell in (
+        "**状態を変えたテナント**(`tenant_id` = そのテナント)。波及先は上記"
+        "「無効化の波及先」の範囲ごとの規則に従う",
+        "**④ の対象テナント単位の選択子**(下)。対象テナント = 状態を変えたテナント",
+    ):
+        assert section.count(cell) == 1
+        mutant = section.replace(cell, cell + "。指定した他テナントも可", 1)
+        with pytest.raises(AssertionError):
+            _assert_b06_source_matches_contract(mutant, _read_asset())
 
 
 def test_public_symbols_and_factory_signature_are_exact() -> None:
@@ -376,6 +607,7 @@ def test_public_symbols_and_factory_signature_are_exact() -> None:
         "PlayerCareerCacheKey",
         "PlayerChartSubject",
         "SharedAggregateCacheKey",
+        "SharedAggregateTargetSelector",
         "TeamAggregateCacheKey",
         "build_cache_invalidation_request",
     )
@@ -387,6 +619,21 @@ def test_public_symbols_and_factory_signature_are_exact() -> None:
 
     assert cache_invalidation.__all__ == expected_names
     assert set(asset["api"]["public_symbols"]) == expected_symbols
+    assert set(asset["api"]["condition4_allowed_call_symbols"]) == {
+        f"{cache_invalidation.__name__}.{name}"
+        for name in (
+            "AnalyticsChartCacheKey",
+            "CachePeriod",
+            "MatchCacheKey",
+            "MatchChartSubject",
+            "PlayerCareerCacheKey",
+            "PlayerChartSubject",
+            "SharedAggregateCacheKey",
+            "SharedAggregateTargetSelector",
+            "TeamAggregateCacheKey",
+            "build_cache_invalidation_request",
+        )
+    }
     assert tuple(signature.parameters) == (
         "trigger",
         "keys",
@@ -507,6 +754,47 @@ def test_participation_change_uses_before_after_union() -> None:
             effective_tenants_before=frozenset({_TENANT_B}),
             effective_tenants_after=frozenset({_TENANT_B, _TENANT_C}),
         )
+
+
+def test_shared_aggregate_target_selector_is_only_accepted_for_roster_status() -> None:
+    """④ の選択子はトリガー 14 のみが受け、他の 13 件を拒否する。"""
+    selector = SharedAggregateTargetSelector(_TENANT_A)
+    with pytest.raises(TypeError, match="UUID"):
+        SharedAggregateTargetSelector(cast(UUID, "not-a-uuid"))
+
+    request = build_cache_invalidation_request(
+        CacheInvalidationTrigger.ROSTER_STATUS_CHANGE, (selector,)
+    )
+    assert request.keys == (selector,)
+    assert request.propagation_mode is CachePropagationMode.BY_SCOPE
+
+    for trigger in CacheInvalidationTrigger:
+        if trigger is CacheInvalidationTrigger.ROSTER_STATUS_CHANGE:
+            continue
+        keys = tuple(
+            selector if isinstance(key, SharedAggregateCacheKey) else key
+            for key in _keys_for(trigger)
+        )
+        if all(key is not selector for key in keys):
+            keys += (selector,)
+        with pytest.raises(ValueError, match="選択子"):
+            build_cache_invalidation_request(trigger, keys)
+
+
+def test_roster_status_requires_exactly_one_target_selector() -> None:
+    """在籍区分変更で物理キー・混在・複数の対象テナントを拒否する。"""
+    physical_key = _key_by_scope()[CacheScope.SHARED_AGGREGATE]
+    selector_a = SharedAggregateTargetSelector(_TENANT_A)
+    selector_b = SharedAggregateTargetSelector(_TENANT_B)
+    for keys in (
+        (physical_key,),
+        (selector_a, physical_key),
+        (selector_a, selector_b),
+    ):
+        with pytest.raises(ValueError, match="ちょうど 1 件"):
+            build_cache_invalidation_request(
+                CacheInvalidationTrigger.ROSTER_STATUS_CHANGE, keys
+            )
 
 
 def test_keys_and_requests_are_immutable_values() -> None:

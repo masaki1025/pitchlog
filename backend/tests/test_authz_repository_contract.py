@@ -479,7 +479,7 @@ def test_public_repository_surface_and_signature_are_exact() -> None:
 
 
 def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
-    """選手・対戦相手・削除ガードの 7 操作だけを公開する。"""
+    """選手・対戦相手・無効化意図の登録を契約と一致させる。"""
     expected_capabilities = (
         "CAP:players:read",
         "CAP:players:insert",
@@ -488,16 +488,20 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "CAP:team_records:insert",
         "CAP:team_records:update",
         "CAP:games:read",
+        "CAP:invalidation_intents:insert",
     )
     expected_token_types = (
         "pitchlog.repositories.roster.PlayerReadToken",
         "pitchlog.repositories.roster.PlayerCreateToken",
         "pitchlog.repositories.roster.PlayerUpdateToken",
+        "pitchlog.repositories.roster.PlayerRosterStatusUpdateToken",
+        "pitchlog.repositories.roster.PlayerRosterLabelUpdateToken",
         "pitchlog.repositories.roster.TeamRecordReadToken",
         "pitchlog.repositories.roster.TeamRecordCreateToken",
         "pitchlog.repositories.roster.TeamRecordUpdateToken",
         "pitchlog.repositories.roster.TeamRecordDeleteToken",
         "pitchlog.repositories.roster.GameTeamLinkReadToken",
+        "pitchlog.repositories.invalidation_intents.InvalidationIntentInsertToken",
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
@@ -513,9 +517,13 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         zip(
             expected_token_types,
             (
-                *expected_capabilities[:6],
+                *expected_capabilities[:3],
+                "CAP:players:update",
+                "CAP:players:update",
+                *expected_capabilities[3:6],
                 "CAP:team_records:update",
                 expected_capabilities[6],
+                expected_capabilities[7],
             ),
             strict=True,
         )

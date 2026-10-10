@@ -142,10 +142,10 @@ async def test_forbidden_response_is_hidden_as_not_found() -> None:
 
 
 def test_router_routes_are_static_login_roster_and_meta() -> None:
-    """静的登録したメタ情報・認証・選手・対戦相手の 13 本を照合する。"""
+    """静的登録したメタ情報・認証・選手・対戦相手の 15 本を照合する。"""
     routes = _router_routes()
 
-    assert len(routes) == 13
+    assert len(routes) == 15
     assert tuple((route.path, frozenset(route.methods or ())) for route in routes) == (
         ("/health", frozenset({"GET"})),
         ("/version", frozenset({"GET"})),
@@ -156,6 +156,8 @@ def test_router_routes_are_static_login_roster_and_meta() -> None:
         ("/players", frozenset({"GET"})),
         ("/players/{player_id:uuid}", frozenset({"GET"})),
         ("/players/{player_id:uuid}", frozenset({"PATCH"})),
+        ("/players/status-preview", frozenset({"POST"})),
+        ("/players/status-apply", frozenset({"POST"})),
         ("/team-records", frozenset({"POST"})),
         ("/team-records", frozenset({"GET"})),
         ("/team-records/{team_record_id:uuid}", frozenset({"PATCH"})),
