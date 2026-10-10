@@ -64,3 +64,8 @@ branch: feature/adr003-stage2-runtime
 - **山田さんが計画書(plan.md + design.md・34 ステップ)を承認**。3 周目の追加レビューは行わない判断
 - **ゲート ① を兼ねる**: 技術スタックの追加(QuickJS または常駐 Node・esbuild — 要件書 7.1 `:1059`)と、artifact の `frontend/public` 配置・配信を了承
 - 次: /implement でステップ 1(エンジン試験)→ ゲート ②(PO がエンジンを承認)
+
+### ステップ 1 とゲート ②(2026-10-11)
+
+- ステップ 1(`d39b2696`): quickjs-ng は条件 2 が不合格(`disable_eval` が無視され、`globalThis.eval` の削除後も `new Function` が通る)。常駐 Node は起動オプション `--disallow-code-generation-from-strings` と `vm` の `codeGeneration` 設定・動的 import ローダーなしで 3 経路を拒否。ネットワーク使用は山田さん了承(`PITCHLOG_NET_REASON` を記録)
+- **ゲート ②: 山田さんが常駐 Node を承認**(2026-10-11)。本番の CPU は x86_64・aarch64 の両方

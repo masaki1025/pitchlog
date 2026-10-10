@@ -99,6 +99,8 @@ Node の起動から初回応答までは 32.6345 ms。RSS の 2 値はそれぞ
 
 **判定案**: 条件 2 が quickjs-ng バインディングで不合格のため、§4 の決定則に従い**常駐 Node を推奨**する。Node は起動オプションに加えて `vm` の `codeGeneration` 設定と動的 import ローダーを与えない構成が必要である([Node 24.16.0 CLI](https://nodejs.org/download/release/v24.16.0/docs/api/cli.html)、[Node 24.16.0 vm](https://nodejs.org/download/release/v24.16.0/docs/api/vm.html))。この段階では採否を確定しない。
 
+**ゲート ② の決定(2026-10-11・山田正輝)**: **常駐 Node を採用する**。backend の実行環境に Node 24.16.0(`mise.toml` と同じ版)を同梱し、FastAPI から常駐プロセスとして使う。ステップ 2 は Node 選択時の合格条件(本番用の Node の版・配布・起動の固定)で進める。quickjs-ng の試験(`tests/domain/runtime/test_quickjs_engine.py`)は不採用の根拠として残す(quickjs-ng が無い環境では skip)
+
 ## 5. 契約 9 件の順序と依存
 
 | 順 | ID | 中身 | 依存 | 正本 |
