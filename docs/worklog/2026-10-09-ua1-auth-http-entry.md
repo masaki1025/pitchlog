@@ -469,3 +469,79 @@ AGENTS.md 絶対規則 4 により敵対レビュー + 人間承認(`/finalize-d
 **残余リスク(7.3-8)**: **最終反映 `d77b54c7` は Codex の再レビューを受けていない。**
 承認時の差分確認で受けた。
 
+## develop の取り込みと push(2026-10-10)
+
+**他セッションから優先度の引き上げと push の依頼があり、`origin/develop` 24c023e4 を取り込んで
+push した**(`feature/ua1-auth-http-entry`)。
+
+### 現在地表示の「不整合」の実体
+
+完了しているのは**ステップ 1〜7・11・12** で、**欠番は 8・9・10**。
+`feature_status.py` は `max(completed) = 12` に対する欠落を「不整合」と出すが、
+**実体は計画どおりの欠番**である(8・9 は #95 の `require_presented_token` 待ち、
+10 は #95 のマージ後へ回す判断)。**表示は正しく、直す対象は無い。**
+
+### 衝突 1 ファイル — 両側が同じ問題を別々に直していた
+
+`tests/test_core_guard.py` の 2 箇所。どちらも**「コア領域の宣言は回転式の窓口」**を
+どう受理するかで、develop 側と本ブランチ側が独立に直していた。
+
+| 対象 | 採った側 | 理由 |
+| --- | --- | --- |
+| `test_declared_additions_match_core_areas` | **develop 側** | 吸収済みと未取り込みの双方を受理する**機構の一般形**で、本ブランチの「基線 + 追加層」もそのまま通る |
+| `test_product_rls_paths_remain_in_develop_baseline` | **本ブランチ側** | develop 側は **PRODUCT_RLS の直後に宣言した追加層が来る前提**だが、本ブランチの `tenant-isolation` は PRODUCT_RLS(3)→ **ADR-001**(develop で基線へ吸収済み)→ 本ブランチの 2 本の順で、**develop 側の形では落ちる** |
+
+`tests/test_core_guard.py` 230 件 green。
+
+### ステップ 10 の前提が 1 つ動いた
+
+develop の `6a6869b8` が `requirement-claims` / `route-registry` / `http-route-matrix` /
+`auth-catalog` と各 lock を更新している(要件書 10 章の 1 行への追随)。
+**ステップ 10 が触る資産の入力が変わった。**
+
+ただし `oracle-seal.lock.json` は develop では未更新で `oracle_commit = 1f32e12a` のままである。
+#95 がこれを `cc949c69` へ動かすので、**ステップ 10 を #95 の後に置く判断は変わらない** —
+取り込み元が 1 つ増えた分、先行して封印しない理由はむしろ強くなった。
+
+## 承認後の改訂 12 — ステップ 1 の pin の取り残しがもう 1 件あった
+
+**ルート全件は 37 failed / 29123 passed**(取り込み前は 38)。
+内訳は `test_frozen_archive_case_runner` 22 / `test_frozen_archive` 11 /
+`test_check_tenant_boundary_bypass` 3 / **`test_check_shared_preconditions` 1**。
+
+**最後の 1 件は凍結の赤窓ではなかった。**
+`contracts/authz/shared-preconditions.json` が `source_documents` で
+**`docs/design/data-model.md` の git blob digest を pin している**(`:19`)。
+**ステップ 1 が同文書を 2 行変えたまま、この pin を取り直していなかった。**
+
+**これはステップ 1 の pin 債務の 2 件目である。** 1 件目(`contracts/db/schema-manifest.json`)は
+`c19649bd` で回収したが、**同じ型の追随先がもう 1 つあることに気づいていなかった**。
+原因は記録済みのものと同じ — **ステップ 1 の合格条件が「docs 系 3 検査が exit 0」だけで、
+その文書を pin している検査を母集団から外していた**。
+**1 件直したところで「この型は終わった」と見なしたのが、ここでの誤りである。**
+
+**取り直して `check_shared_preconditions` は exit 0**
+(`OK preconditions=6 equivalent_registry=3 independent=3`)。
+`tests/test_check_shared_preconditions.py` と `tests/test_check_authz_catalog.py` の
+25640 件 green。
+
+**この pin は「原文が変わったら対応付けを人が見直せ」という仕掛けなので、機械的に上げてよいかを
+確かめた。** ステップ 1 が触ったのは**変更履歴行 1 行と 12-8 節の他タスク参照 1 行**だけで、
+6 つの共有前提(`shared_group_active` ほか)の対応付けには掛からない。
+波及も無い — **本資産を pin している資産は無く、oracle seal の `input_assets` にも
+`sealed_assets` にも含まれない**。
+
+### 通常レビューの指摘(`codex_run.py review normal`)
+
+**直接書いたので CLAUDE.md の例外条項により必須。判定は否決(P0 0 / P1 1 / P2 0)。**
+
+**P1 — 計画書の更新対象一覧とステップ 1 の範囲に `shared-preconditions.json` が無く、
+AGENTS.md 絶対規則 5(計画にない変更範囲へ触れない)に抵触する。**
+**採用。** 本改訂 12 として計画書の 3 節へ 1 行、ステップ 1 の合格条件へ追随先 2 件と
+検査 2 本を明記した。
+
+**レビューが併せて確認したこと**(こちらの主張の裏取り): 変更された 2 行が 6 前提の
+対応付けに影響しないこと / digest が `git hash-object` と一致すること /
+oracle seal の両資産一覧に本ファイルが無いこと / **他に取り残された pin は無いこと** /
+`schema-manifest.json` は現行と一致すること。
+
