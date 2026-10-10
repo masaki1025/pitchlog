@@ -72,9 +72,19 @@ P0 ゼロのため P0 例外(3 回目)は発生しない。基本枠 2 回を使
 - **台帳**: H-69 へ再発の実測(pnpm の sandbox 制約 2 種)、候補 (13) へ再発 1 件と亜種 2 件(git_guard)を追記。新規の `H-*`・候補は無い(いずれも既存項目と同型のため)。計画書 3 節へ宣言を足してから追記した
 - **/check**: frontend 全件緑(45 files・784 tests)/ harness の ruff・ty 緑・pytest は 8 並列の全件で 3 件失敗 → `--lf` の単独再実行で 3 件通過(名前はキャッシュ消去で未記録 — CI で確認)/ backend の ruff・ty・非 DB pytest 緑
 
+### PR #113 敵対レビュー(コア領域)
+
+#### 1 回目(adversarial・PR 差分全体 — 判定: 否決 P0 1 / P1 1 / P2 1)
+
+| # | 重大度 | 要旨 | 採否 | 理由・反映 |
+| --- | --- | --- | --- | --- |
+| 1 | P0 | 2 枚重ねた Sheet で Escape が両方を閉じる(window の同じ対象の後続リスナーは stopPropagation で止まらない。旧も同じ) | 採用(PO 決定 2026-10-10 — 決定 M) | 開いている Sheet の積み重ねをモジュールで持ち、最前面だけがキー操作を処理。試験 4 件追加。計画書・porting-rules 9 節へ決定 M を記録。計画書を active へ戻し Notion を 進行中 へ |
+| 2 | P1 | アイコンの SVG 属性(xmlns・fill・stroke・linecap・linejoin)の検査漏れ | 採用 | Sheet.spec.ts に 5 属性の検査を追加 |
+| 3 | P2 | 計画書 4 節の「active 時に bg-white と bg-sky-100 が同時に付く」が決定 L 適用後と食い違う | 採用 | 旧実装の競合だったことと、現在の合格条件(競合クラスの除去)を明記 |
+
 ## 決定
 
-- 依存は U-F1 の PR に含める(コア領域)/ Service Worker は TSK-533 へ / 旧コードは複製せず書き起こす / `vue-demi` の postinstall は実行しない / `Button` の active は競合する色クラスを外す(いずれも PO 2026-10-10)
+- 依存は U-F1 の PR に含める(コア領域)/ Service Worker は TSK-533 へ / 旧コードは複製せず書き起こす / `vue-demi` の postinstall は実行しない / `Button` の active は競合する色クラスを外す / 重ねた `Sheet` は最前面だけがキー操作を処理する(いずれも PO 2026-10-10)
 
 ## 未決・次の一歩
 

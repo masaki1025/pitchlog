@@ -218,5 +218,6 @@ gh api "repos/masaki1025/Baseball_Scoring-archive/contents/frontend/src/lib/<nam
 | 決定 | 対象 | 内容 | 根拠 |
 | --- | --- | --- | --- |
 | L | `Button` の active | **active のときは variant 側の競合する色クラス(背景・枠線色・文字色とその `dark:` 版)を外し、`activeCls` を効かせる**。外す対象は variant ごとの表で明示する。active でないときのクラス文字列は旧と同一 | ビルド CSS(tailwindcss 4.3.3)では同じプロパティの規則が名前順に並び、active の `sky` 系クラスが danger の背景以外すべて variant 側に負けて、選択中の表示が効かなかった(旧と同じクラス構成の欠陥 — 旧の 4.3.2 でも同じと推論)。PO 決定 2026-10-10 |
+| M | `Sheet` の重ね表示のキー操作 | **開いている Sheet をモジュール全体の積み重ね(開いた順)で管理し、最前面の 1 枚だけが Escape と Tab を処理する** | 各 Sheet が `window` の capture 段階に keydown を登録し、`stopPropagation()` は同じ対象(window)の後続リスナーを止めないため、旧では 2 枚重ねて Escape を押すと両方が閉じていた(旧: `Sheet.tsx:100-118`)。PR #113 の敵対レビューで検出。PO 決定 2026-10-10 |
 
 **後続の単位への注意**: Tailwind では `cx` に渡す順序でなく生成 CSS の規則順序で勝敗が決まる。**同じプロパティのクラスを条件で重ねるときは、上書きされる側を外す**(決定 L と同じ形)。
