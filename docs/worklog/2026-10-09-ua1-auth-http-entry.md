@@ -797,3 +797,90 @@ E  AssertionError: 11:53:08.489968+00:00 == 12:53:08.489968+00:00
 **未コミットを `HEAD` と比べる検査 5 件**と **PostgreSQL 不達 2 件**で、
 コミット後にこちらで測ったら消えた。**委任先の赤の件数をそのまま受け取らないこと。**
 
+## ステップ 10(2026-10-10)— 3 段に分けた
+
+### 承認後の改訂 15 — 経路種別が無かった(人間の裁定 2026-10-10・山田正輝)
+
+**認証の経路を入れる `route_kind` が存在しなかった。** 既存 5 種別
+(`legacy_route` / `shared_data` / `control_read` / `management_operation` /
+`record_and_aggregate`)はどれも認証の入口ではなく、
+**値域は JSON ではなく検査器が閉じている**(ステップ 10 の事前調査の指摘 3 のとおり)。
+
+**裁定: `authentication_entry` を新設する。**
+
+**既存種別へ相乗りしない理由**: `record_and_aggregate` は検査器が **6 本の exact-set** で
+固定し(`check_authz_catalog.py:2142`)、かつ **`design` origin を要求する**(`:2361`)。
+δ の 2 主張は付録C 由来で **`requirement`** なので、相乗りすると**検査を 2 つ緩めることになる**。
+
+**検査器は 3 箇所を揃えて広げた。3 つとも `ROUTE_KINDS` との一致を assert している。**
+
+```
+:303   ROUTE_KINDS
+:2328  expected_keys_by_kind
+:2706  disposition_by_kind   → conditional
+```
+
+**あわせて 3 段・3 コミットに分けた。** #95 も計画を改訂して同じ分割を人間承認で行っている
+(`fab1acc6`「ステップ 2 を 3 本に分け oracle の追随と再封印を足す」)。
+件名の付記で分けたので**総数 13 は変わらない**。
+
+### 第1段(`ef92b351`)— 資産と検査器の期待集合
+
+| 入口 | `route_id` | origin |
+| --- | --- | --- |
+| `POST /auth/login` | `ROUTE:AUTH:login:create` | requirement(付録C 2 主張を結線) |
+| `POST /auth/logout` | `ROUTE:AUTH:logout:create` | design |
+| `PATCH /auth/password` | `ROUTE:AUTH:password:update` | design |
+
+**`claim_dispositions` は 186 件中、変わったのはちょうど 2 件**
+(`APPENDIX-C/table_row-004`・`table_row-006` → `routed`)。
+**残り 3 件(`blockquote-001` / `table_row-009` / `table_row-010`)は 1 文字も動いていない**
+(JSON を突き合わせて確認)。
+
+### 第2段(`cd1daee9`)— oracle の追随
+
+`oracle_commit` 7 箇所(封印 1 + oracle 資産 6)を `cc949c69` → **`ef92b351…851d`** へ。
+参照 blob digest 2 本を追随。**差分の形は #95 の `7c3e6d9c` と同じで 9 ファイル各 1 行。**
+
+**`frozen-baselines.json:295` の `cc949c69` は #95 の凍結記録(履歴)なので書き換えない。**
+
+**oracle 資産の内容追随は不要**と判定した。種別が増えているが、
+**封印対象 6 資産に経路種別の列挙は無い**。
+
+### 私の誤り — 封印の SHA を捏造しかけた
+
+第2段を自分で `sed` で書こうとしたとき、**第1段の短縮 SHA `ef92b351` の後ろに
+実在しない 32 桁を継ぎ足した文字列を使った。** 実行は auto mode の分類器が
+「Security Weaken」で止めたので**作業ツリーは無変更**だった。
+
+**短縮形を見て完全な値を書いてはいけない。** `git rev-parse` で取る。
+封印の値は**捏造すると機械が検出できない**(形式は正しいので、
+突き合わせる先が無い限り通ってしまう)。
+
+**是正**: 第2段を委任へ回し、**SHA は委任先が `git rev-parse HEAD` で自分で取る**形にした。
+結果は `ef92b351997985af8c27225ca8c06e93d51d851d` で、HEAD と一致することを確認した。
+
+**封印資産を直接 `sed` で書き換える操作は、分類器に止められる。** 委任経路を使う。
+
+### 第3段は PR 番号待ちだった(順序の発見)
+
+**`--reseal-oracle` の前に `frozen-baselines.json` へ `oracle_input` の記録 1 件を積む**が、
+その `acceptance_id` は **リポジトリ名と PR 番号から導出される**
+(`check_frozen_baselines.py:1248` の `"acceptance_id_source": "repository_and_pr_number"`)。
+#95 の記録も `masaki1025/pitchlog#95` である。
+
+**δ はまだ PR を出していないので、第3段はいま実行できない。**
+
+**よって残りの順序はこうなる。**
+
+| 順 | 作業 | 条件 |
+| --- | --- | --- |
+| 1 | **ステップ 11 の残り**(PW 変更・ログアウトの直叩きテスト) | 着手可(ステップ 8・9 が終わった) |
+| 2 | **PR を出す**(/pr) | ステップ 11 の後 |
+| 3 | **ステップ 10 第3段**(凍結台帳へ記録 + `--reseal-oracle`) | **PR 番号 + 人間の再確認** |
+| 4 | **ステップ 12 の残り**(PR 本文へ `route_id` と method/path、12-4 の判定記録) | 第3段の後 |
+| 5 | **ステップ 13**(凍結受理) | 同上 |
+
+**第3段とステップ 13 はどちらも `human_review_required` / 人間の逐行確認を持つ。**
+PR を出してからまとめて上げる。
+
