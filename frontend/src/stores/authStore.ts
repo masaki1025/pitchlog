@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, onScopeDispose, ref } from 'vue'
 import { queryClient } from '../lib/queryClient'
 
 export const AUTH_STORAGE_KEY = 'bb.auth'
@@ -43,11 +43,13 @@ function parseStoredAuth(raw: string): StoredAuth | null {
   return value as StoredAuth
 }
 
-function removeStoredAuth(): void {
+function removeStoredAuth(): boolean {
   try {
     localStorage.removeItem(AUTH_STORAGE_KEY)
+    return true
   } catch {
     console.warn(storageWarning)
+    return false
   }
 }
 
@@ -59,6 +61,8 @@ export const useAuthStore = defineStore('auth', () => {
   const authEpoch = ref(0)
   const isAuthenticated = computed(() => teamName.value !== null)
   let sessionId: string | null = null
+  let detached = false
+  let detachedRaw: string | null = null
 
   // 保存値は厳密に検査し、旧形式や壊れた値を認証状態へ取り込まない。
   try {
@@ -84,6 +88,20 @@ export const useAuthStore = defineStore('auth', () => {
     authEpoch.value += 1
   }
 
+  function enterDetachedState(): void {
+    detached = true
+    try {
+      detachedRaw = localStorage.getItem(AUTH_STORAGE_KEY)
+    } catch {
+      detachedRaw = null
+    }
+  }
+
+  function leaveDetachedState(): void {
+    detached = false
+    detachedRaw = null
+  }
+
   function signIn(team: { teamName: string; teamId?: string | null }): void {
     beginAuthChange()
     sessionId = crypto.randomUUID()
@@ -101,6 +119,7 @@ export const useAuthStore = defineStore('auth', () => {
           teamId: teamId.value,
         }),
       )
+      leaveDetachedState()
     } catch {
       // 前のチームの保存値が残ることを避ける。
       try {
@@ -109,15 +128,24 @@ export const useAuthStore = defineStore('auth', () => {
         // 警告は値や例外を含めず、まとめて一度だけ出す。
       }
       console.warn(storageWarning)
+      enterDetachedState()
     }
   }
 
-  function clearAuth(expired: boolean): void {
+  function setUnauthenticated(expired: boolean): void {
     teamName.value = null
     teamId.value = null
     sessionId = null
     sessionExpired.value = expired
-    removeStoredAuth()
+  }
+
+  function clearAuth(expired: boolean): void {
+    setUnauthenticated(expired)
+    if (removeStoredAuth()) {
+      leaveDetachedState()
+    } else {
+      enterDetachedState()
+    }
   }
 
   function signOut(): void {
@@ -130,6 +158,57 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuth(true)
   }
 
+  function syncFromStorage(): void {
+    let raw: string | null
+    try {
+      raw = localStorage.getItem(AUTH_STORAGE_KEY)
+    } catch {
+      return
+    }
+
+    if (detached) {
+      if (raw === detachedRaw) {
+        return
+      }
+      // 別タブの新しい保存値は採らず、認証状態だけを失効させる。
+      beginAuthChange()
+      setUnauthenticated(true)
+      leaveDetachedState()
+      return
+    }
+
+    const saved = raw === null ? null : parseStoredAuth(raw)
+    if (raw !== null && saved === null) {
+      removeStoredAuth()
+    }
+    if ((saved?.sessionId ?? null) === sessionId) {
+      return
+    }
+
+    beginAuthChange()
+    sessionId = saved?.sessionId ?? null
+    teamName.value = saved?.teamName ?? null
+    teamId.value = saved?.teamId ?? null
+    sessionExpired.value = false
+  }
+
+  function onStorage(event: StorageEvent): void {
+    if (event.key !== AUTH_STORAGE_KEY && event.key !== null) {
+      return
+    }
+    try {
+      if (event.storageArea !== null && event.storageArea !== localStorage) {
+        return
+      }
+    } catch {
+      return
+    }
+    syncFromStorage()
+  }
+
+  window.addEventListener('storage', onStorage)
+  onScopeDispose(() => window.removeEventListener('storage', onStorage))
+
   return {
     teamName,
     teamId,
@@ -140,5 +219,6 @@ export const useAuthStore = defineStore('auth', () => {
     signIn,
     signOut,
     expireSession,
+    syncFromStorage,
   }
 })
