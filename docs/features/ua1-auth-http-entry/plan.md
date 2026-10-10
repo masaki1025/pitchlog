@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3ee93b75e68781c99d5bd3a15f6e83b5
 branch: feature/ua1-auth-http-entry
 created: 2026-10-09
 計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
-確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
+確定ゲート周回: 1          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
 ---
@@ -179,7 +179,7 @@ U-A1 は α(正本)→ β(DB 層)→ γ(アプリ層)→ **δ(HTTP の入口)**�
 | 9 | **Cookie の期限をスライディング延長へ追随させる** — 延長が起きた要求で `Set-Cookie` を出し直す | DB 側の期限が延びた要求で Cookie の `Max-Age` も更新される / 延長が起きない要求では `Set-Cookie` を出さない |
 | 10 | **【承認後の改訂 11 — #95 の取り込み後へ移す】`route_id` の付与** — `route-registry.json` と `http-route-matrix.json` へ 3 経路。**`claim_dispositions` は `routed` へ**(`in_registry` という値は存在しない — `check_authz_catalog.py:313` の `CLAIM_DISPOSITIONS = {"out_of_registry","routed"}`)。**付録C 由来のうち δ のものは 2 件だけ**(`table_row-004` トークン有効期限 / `table_row-006` レート制限の閾値。`blockquote-001` は FR-037、`table_row-009/010` は FR-041 の単位)。**2 資産は oracle seal で既存 commit に固定**されており、#95 が実際に通した 3 段(入力と lock → oracle の差し替えと**人間の再確認** → 履歴と再封印)を踏む。**#95 がマージされると `oracle_commit` が `1f32e12a` → `cc949c69` へ動く**ので、**先に貼ると貼り直しが 2 回**になる。追随先に `route-registry.lock.json` / `http-route-matrix.lock.json` / `oracle-seal.lock.json` / **`tests/fixtures/authz_claims/route-registry{,.lock}.json`** を含む | `matrix_route_id = "HTTP:" + route_id` の規則を守る / `operation_id` 集合と交わらない / `check_authz_catalog` ほか契約検査が緑 |
 | 11 | **直叩きテストと越境テスト** — 12-4 の裁定 B。**失敗応答が、存在するチーム名と存在しない名前で同じ照会・同じカウンタ更新・同じ cost 12 の照合を通る**ことを確かめる | 3 経路すべてに直叩きテストがある / 本文・ステータスが一致し、**実行される照会と `crypt` の回数が一致する** / **行の有無による実行時間の差を、存在する名前と存在しない名前それぞれ 30 回の計測で突き合わせ、中央値の差が遅延の最小段(250ms)未満であることを示す** / NFR-019(b) の該当分 |
-| 12 | **運用文書・配備先の実測・12-4 の判定記録** — DB ログ設定の前提と**実際の出力の確認**(使い捨て Postgres を配備先に見立てる)/ 署名鍵の入れ替えの**実地確認 1 回** / 設定値の投入手順 / DB 接続の前提。判定記録は **PR 本文に「誰が・いつ・どの実スキーマで green を確認したか」と入口識別子**、`data-model.md` に `route_id` と method/path の組 | 束縛値が DB のログに出ないことを**使い捨て Postgres の実測で**示す / 鍵の入れ替えを 1 回実施した記録がある / 判定記録が 12-4 の要求 4 項目を満たす / **新設した運用文書 2 本が `docs/README.md` の索引に載っている** / **実配備先での確認は未実施として DoD に残り、その旨が運用文書に書かれている**(1 節の裁定 6) |
+| 12 | **運用文書・配備先の実測・12-4 の判定記録** — DB ログ設定の前提と**実際の出力の確認**(使い捨て Postgres を配備先に見立てる)/ 署名鍵の入れ替えの**実地確認 1 回** / 設定値の投入手順 / DB 接続の前提。判定記録は **PR 本文に「誰が・いつ・どの実スキーマで green を確認したか」と入口識別子**、**【確定ゲート 1 周目の指摘 9 で訂正】** `route_id` と method/path の組は **`data-model.md` 本体に書かない** — 経路識別子の正は `contracts/authz/http-route-matrix.json` の `route_id`(`data-model.md:2531`)で、**入口ごとの組は通過判定の記録として PR 本文へ書く**(同 `:2665`) | 束縛値が DB のログに出ないことを**使い捨て Postgres の実測で**示す / 鍵の入れ替えを 1 回実施した記録がある / 判定記録が 12-4 の要求 4 項目を満たす / **新設した運用文書 2 本が `docs/README.md` の索引に載っている** / **実配備先での確認は未実施として DoD に残り、その旨が運用文書に書かれている**(1 節の裁定 6) |
 | 13 | **凍結資産の受理記録**(動いた場合・PR 番号の確定後) | 検査器 `--base-ref origin/develop` が 0 件 / `tests/test_frozen_*` green / 予約 marker 不在 |
 
 **既知の赤窓**: ステップ 4 以降、凍結資産が動いた時点からステップ 13 まで `frozen_history` 系ゲートは赤。
