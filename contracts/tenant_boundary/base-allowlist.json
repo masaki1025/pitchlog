@@ -12193,6 +12193,16 @@
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/authz/team_login.py"
     },
     {
+      "symbol": "pitchlog.authz.password_change.change_password_token",
+      "signature": "change_password_token(value: str, current_password: str, new_password: str, presentation: _TokenPresentation, engine: _Engine) -> bool",
+      "allowed_api_ids": [
+        "SQLA_TEXT",
+        "SQLA_ENGINE_BEGIN",
+        "SQLA_CONNECTION_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/authz/password_change.py"
+    },
+    {
       "symbol": "pitchlog.repositories.transaction._TenantTransaction.run",
       "signature": "run(self, operation: TenantOperationToken) -> TenantOperationResult",
       "allowed_api_ids": [

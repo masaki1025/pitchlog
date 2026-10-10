@@ -7,8 +7,17 @@ import anyio
 from fastapi import APIRouter, HTTPException, Request, Response
 from starlette.concurrency import run_in_threadpool
 
-from pitchlog.api.schemas.auth import LoginRequest, LoginResponse
+from pitchlog.api.request_presentation import RequestGateError, require_presented_token
+from pitchlog.api.schemas.auth import (
+    LoginRequest,
+    LoginResponse,
+    LogoutResponse,
+    PasswordChangeRequest,
+    PasswordChangeResponse,
+)
+from pitchlog.authz.password_change import change_password_token
 from pitchlog.authz.team_login import get_login_connection, login_attempt
+from pitchlog.authz.verified_tenant import logout_token
 
 router = APIRouter(tags=["認証"])
 _COOKIE_NAME = "__Host-pitchlog_token"
@@ -66,3 +75,51 @@ async def login(
         samesite="strict",
     )
     return LoginResponse()
+
+
+@router.post(
+    "/auth/logout",
+    response_model=LogoutResponse,
+    operation_id="auth_logout_create",
+    summary="ログアウトする",
+)
+async def logout(request: Request, response: Response) -> LogoutResponse:
+    """提示値を失効させ、端末の Cookie を消す。"""
+    value = await require_presented_token(request)
+    await run_in_threadpool(
+        lambda: logout_token(
+            value, request.app.state.token_presentation, get_login_connection()
+        )
+    )
+    response.delete_cookie(
+        key=_COOKIE_NAME, path="/", secure=True, httponly=True, samesite="strict"
+    )
+    return LogoutResponse()
+
+
+@router.patch(
+    "/auth/password",
+    response_model=PasswordChangeResponse,
+    operation_id="auth_password_update",
+    summary="パスワードを変更する",
+)
+async def change_password(
+    payload: PasswordChangeRequest, request: Request, response: Response
+) -> PasswordChangeResponse:
+    """現行パスワードで変更し、実行端末も再ログインを要求する。"""
+    value = await require_presented_token(request)
+    changed = await run_in_threadpool(
+        lambda: change_password_token(
+            value,
+            payload.current_password,
+            payload.new_password,
+            request.app.state.token_presentation,
+            get_login_connection(),
+        )
+    )
+    if not changed:
+        raise RequestGateError("credential")
+    response.delete_cookie(
+        key=_COOKIE_NAME, path="/", secure=True, httponly=True, samesite="strict"
+    )
+    return PasswordChangeResponse()

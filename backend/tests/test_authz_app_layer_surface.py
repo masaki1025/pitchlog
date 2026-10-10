@@ -17,6 +17,7 @@ from pitchlog.authz.database_transport import (
     DatabaseTransportConfigurationError,
     require_database_transport,
 )
+from pitchlog.authz.password_change import change_password_token
 from pitchlog.authz.signing_key_config import (
     SigningKeyConfigurationError,
     require_signing_key_configuration,
@@ -35,6 +36,7 @@ _MODULES = frozenset(
         "authz.database_transport",
         "authz.verified_tenant",
         "authz.team_login",
+        "authz.password_change",
     }
 )
 _OTHER_AUTHZ_MODULES = frozenset(
@@ -73,14 +75,14 @@ _PUBLIC_OPERATIONS = frozenset(
         "authz.verified_tenant.logout_token",
         "authz.team_login.get_login_connection",
         "authz.team_login.login_attempt",
+        "authz.password_change.change_password_token",
     }
 )
 _DB_ENDPOINTS: dict[str, str | None] = {
     "authn.login_attempt": "authz.team_login.login_attempt",
     "authn.verify_token": "authz.verified_tenant.verify_tenant_id",
     "authn.logout": "authz.verified_tenant.logout_token",
-    # data-model.md 8-3 節②の列挙は検証・延長・ログアウトであり、PW 変更を含まない。
-    "authn.change_password": None,
+    "authn.change_password": "authz.password_change.change_password_token",
 }
 _DB_REACH = frozenset(
     (caller, endpoint)
@@ -107,11 +109,25 @@ _PUBLIC_CALLERS = frozenset(
             "authz.token_presentation.TokenPresentation.decode",
         ),
         (
+            "authz.password_change.change_password_token",
+            "authz.token_presentation.TokenPresentation.decode",
+        ),
+        (
             "authz.team_login.login_attempt",
             "authz.token_presentation.TokenPresentation.encode",
         ),
         ("api.routers.auth.login", "authz.team_login.login_attempt"),
         ("api.routers.auth.login", "authz.team_login.get_login_connection"),
+        ("api.routers.auth.logout", "authz.verified_tenant.logout_token"),
+        ("api.routers.auth.logout", "authz.team_login.get_login_connection"),
+        (
+            "api.routers.auth.change_password",
+            "authz.password_change.change_password_token",
+        ),
+        (
+            "api.routers.auth.change_password",
+            "authz.team_login.get_login_connection",
+        ),
         (
             "repositories.tenant_context_issuance.issue_tenant_context_from_presented_token",
             "authz.verified_tenant.verify_tenant_id",
@@ -350,7 +366,7 @@ def test_public_operations_and_callers_are_exact_sets() -> None:
 
 
 def test_db_reach_is_exact_set_and_absences_are_explicit() -> None:
-    """検証兼延長とログアウトの到達点、PW 変更の未接続を固定する。"""
+    """認証の各公開入口から DB 関数への到達点を固定する。"""
     assert set(_DB_ENDPOINTS) == {
         "authn.login_attempt",
         "authn.verify_token",
@@ -358,12 +374,14 @@ def test_db_reach_is_exact_set_and_absences_are_explicit() -> None:
         "authn.change_password",
     }
     assert _DB_ENDPOINTS["authn.logout"] == "authz.verified_tenant.logout_token"
-    assert _DB_ENDPOINTS["authn.change_password"] is None
+    assert _DB_ENDPOINTS["authn.change_password"] == (
+        "authz.password_change.change_password_token"
+    )
     _assert_exact(_DB_REACH, _db_reach(_SOURCE_ROOT))
 
 
 def test_beta_functions_and_current_absences_are_explicit() -> None:
-    """β の三関数と PW 変更だけの未接続を資産から確かめる。"""
+    """認証関数とアプリ層の到達点を資産から確かめる。"""
     functions = _REPOSITORY_ROOT / "contracts/authz/product/function-bodies/functions"
     verified = (functions / "FUNCTION:authn:verify_token(uuid).sql").read_text(
         encoding="utf-8"
@@ -388,7 +406,9 @@ def test_beta_functions_and_current_absences_are_explicit() -> None:
     assert _DB_ENDPOINTS["authn.verify_token"] == (
         "authz.verified_tenant.verify_tenant_id"
     )
-    assert _DB_ENDPOINTS["authn.change_password"] is None
+    assert _DB_ENDPOINTS["authn.change_password"] == (
+        "authz.password_change.change_password_token"
+    )
 
 
 def test_db_verification_and_extension_rejects_null(
@@ -612,6 +632,15 @@ def test_each_public_operation_has_a_negative_case(
         signer = create_app().state.token_presentation
         engine = MagicMock()
         assert logout_token(str(UUID(int=1)), signer, engine) is None
+        engine.begin.assert_not_called()
+    elif operation == "authz.password_change.change_password_token":
+        monkeypatch.setenv(
+            "PITCHLOG_TOKEN_SIGNING_KEY_B64",
+            base64.b64encode(secrets.token_bytes(32)).decode("ascii"),
+        )
+        signer = create_app().state.token_presentation
+        engine = MagicMock()
+        assert not change_password_token("invalid", "current", "new", signer, engine)
         engine.begin.assert_not_called()
     elif operation == "authz.team_login.get_login_connection":
         get_login_connection.cache_clear()

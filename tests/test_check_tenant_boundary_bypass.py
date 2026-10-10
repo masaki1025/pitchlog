@@ -6370,6 +6370,28 @@ def test_team_login_entry_has_only_required_database_apis() -> None:
     assert (REPOSITORY_ROOT / rows[0]["fixture"]).is_file()
 
 
+def test_password_change_entry_has_only_required_database_apis() -> None:
+    """PW 変更の DB 到達点と独立した正例 fixture を固定する。"""
+    allowlist = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text(encoding="utf-8")
+    )
+    rows = [
+        row
+        for row in allowlist["allowed_symbols"]
+        if row["symbol"] == "pitchlog.authz.password_change.change_password_token"
+    ]
+    assert len(rows) == 1
+    assert rows[0]["allowed_api_ids"] == [
+        "SQLA_TEXT",
+        "SQLA_ENGINE_BEGIN",
+        "SQLA_CONNECTION_EXECUTE",
+    ]
+    assert rows[0]["fixture"] == (
+        "tests/fixtures/tenant_boundary/positive/pitchlog/authz/password_change.py"
+    )
+    assert (REPOSITORY_ROOT / rows[0]["fixture"]).is_file()
+
+
 def test_condition4_allows_only_the_declared_request_api_call() -> None:
     """葉が provider の公開型と純粋要求生成器だけを利用できる。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
