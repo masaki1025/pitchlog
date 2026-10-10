@@ -635,3 +635,82 @@ oracle seal の両資産一覧に本ファイルが無いこと / **他に取り
 
 **U-F2 は待たなくてよい** — 楽観 + 初回 401 で戻す作り方は、後から足しても正しいまま。
 
+## ステップ 8(2026-10-10)— `d865265c`
+
+**入口 2 本。** `POST /auth/logout` と `PATCH /auth/password`。
+どちらも成功時に Cookie を消す。**PW 変更は新しいトークンを返さない**ので、
+実行端末も再ログインになる(FR-036)。
+
+**Cookie の取り出しと CSRF は #95 の `require_presented_token` に委譲した。**
+自前で書くと NFR-018 の二重実装になる(2026-10-07 の裁定どおり、δ は出す側だけ)。
+
+### 置き場 — 2 symbol の上限にまた当たった
+
+PW 変更の公開関数は**新モジュール `backend/src/pitchlog/authz/password_change.py`** に置いた。
+`verified_tenant.py`(`verify_tenant_id` / `logout_token`)も
+`team_login.py`(`get_login_connection` / `login_attempt`)も**既に 2 本**で、
+検査器の構造上それ以上足せない(fixture のパスからモジュール名を導き、
+同名を導けるパスが `X.py` と `X/__init__.py` の 2 通りしかない)。
+
+**ステップ 6 で `team_login.py` を作ったときと同じ型である。** 申し送りに書いたとおりになった。
+**公開関数を 1 本足すたびにモジュールが 1 本増える**ので、
+この先も入口を足すなら同じ費用がかかる。
+
+### 申し送り — PW 変更の失敗の理由が利用者に伝わらない
+
+`authn.change_password` は**真偽値しか返さない**。したがってアプリ層は
+
+- 現行 PW が違う
+- **新しい PW がポリシー違反**(8 文字以上・英字と数字)
+- トークンが無効・期限切れ
+- テナントが無効
+
+を**区別できない**。いまは全部まとめて 401 にしている。
+
+**FR-036 の受入基準は「ポリシーを満たさなければ受け付けない」であって、
+理由の開示を求めていない**ので基準は満たしている。
+**ただし、新しいパスワードが弱いだけの利用者にも 401 が返る。**
+
+**これは DB 関数の契約が決めていることで、ステップ 8 の射程では直せない。**
+直すなら (a) `authn.change_password` の戻り値を増やすか、
+(b) アプリ層から `authn.password_policy_ok(text)` を先に呼ぶ、のどちらか。
+**どちらも DB 層か設計の変更なので、別単位へ送る。**
+
+### 追随させた完全一致の固定箇所(7 件)
+
+洗い出しは `exact` / `完全一致` / `==` / `frozenset(` と公開名の全文検索で行った。
+
+1. `backend/tests/test_api_app.py` — 経路と `operation_id`(順序つき)
+2. `backend/tests/test_api_conventions.py` — 経路の完全一致を **11 本 → 13 本**。他の 4 表明は維持
+3. `backend/tests/test_authz_password_change.py` — `__all__` と公開名
+4. `backend/tests/test_authz_app_layer_surface.py` — 公開操作・呼び出し元・DB 到達点
+5. `contracts/tenant_boundary/base-allowlist.json` — TB005
+6. `tests/fixtures/tenant_boundary/positive/pitchlog/authz/password_change.py` — 正例 fixture 1 本を新設
+7. `tests/test_check_tenant_boundary_bypass.py` — 許可行と fixture
+
+**今回は停止が 1 回も起きなかった。** 委任文で「変える対象から追随先を引くな、
+いま固定されている形から引け」と先に渡したのが効いた。
+
+### 実測
+
+| 対象 | 結果 |
+| --- | --- |
+| backend 非 DB 全件 | **1324 passed / 4 skipped**(ステップ 8 前は 1295 — **+29**) |
+| backend DB | **4 passed**(実 PostgreSQL) |
+| ルート全件 | **34 failed / 29140 passed** — 赤は既知の赤窓だけ、**新しい赤 0** |
+| `ruff` / `ty` | ルート・backend とも green |
+| `api/` の禁止語 | **0 件**(`generation` を含む) |
+
+新設の `backend/tests/db/test_api_auth_exit_entry.py` が、実 DB で
+**ログアウト後に同じ提示値が拒否されること**・**変更日時が記録されること**・
+**旧 PW 由来のトークンが保護経路で失効すること**を確かめている。
+
+### 委任が 1 度落ちた — `/tmp` の満杯
+
+1 回目の委任は `/tmp`(7.7G の tmpfs)が 100% になって強制終了した。
+**`pytest-of-ymdms` が 5.8G を占めていた。** 40 分以上前の 4 つを消して 3.8G を回復し、
+**作業ツリーに残った途中成果を捨てずに続きをやらせた**(セッション ID は保存前に落ちていたので
+`--resume` は使えず、状況を書いた継続の依頼文で再委任した)。
+
+**テストを回すたびに溜まる。** 長い作業では `/tmp` の残量を見ておくこと。
+
