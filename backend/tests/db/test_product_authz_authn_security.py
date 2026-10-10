@@ -223,8 +223,13 @@ def test_temp_objects_and_caller_search_path_cannot_hijack_authn(
         assert row is not None
         token = row[0]
         assert token is not None
-        cursor.execute("SELECT authn.verify_token(%s)", (token,))
-        assert cursor.fetchone() == (identity.tenant_id,)
+        cursor.execute(
+            "SELECT tenant_id, expires_at FROM authn.verify_token(%s)", (token,)
+        )
+        verified = cursor.fetchone()
+        assert verified is not None
+        assert verified[0] == identity.tenant_id
+        assert verified[1] is not None
 
 
 def test_authn_is_outside_minimum_requirement_four(
@@ -259,6 +264,35 @@ def test_authn_is_outside_minimum_requirement_four(
             )
     finally:
         catalog.observer.rollback()
+
+
+def test_verify_signature_and_return_shape_are_exact(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """OUT 期限とレコード戻り値をカタログの完全一致で固定する。"""
+    catalog = provisioned_product_catalog
+    with catalog.observer.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT pg_catalog.pg_get_function_identity_arguments(procedure.oid),
+                   procedure.proargmodes,
+                   pg_catalog.format_type(procedure.prorettype, NULL)
+              FROM pg_catalog.pg_proc AS procedure
+              JOIN pg_catalog.pg_namespace AS namespace
+                ON namespace.oid = procedure.pronamespace
+             WHERE namespace.nspname = 'authn'
+               AND procedure.proname = 'verify_token'
+            """
+        )
+        assert cursor.fetchall() == [
+            (
+                "p_token_id uuid, OUT tenant_id uuid, "
+                "OUT expires_at timestamp with time zone",
+                ["i", "o", "o"],
+                "record",
+            )
+        ]
+    catalog.observer.rollback()
 
 
 def test_token_id_is_generated_inside_login(

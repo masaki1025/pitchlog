@@ -3,6 +3,7 @@
 import base64
 import secrets
 import traceback
+from datetime import UTC, datetime
 from typing import cast
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -17,6 +18,7 @@ from pitchlog.authz.verified_tenant import logout_token, verify_tenant_id
 
 _TOKEN_ID = UUID("a1b2c3d4-e5f6-47a8-9b0c-d1e2f3a4b5c6")
 _TENANT_ID = UUID("b1b2c3d4-e5f6-47a8-9b0c-d1e2f3a4b5c6")
+_EXPIRES_AT = datetime(2026, 10, 10, tzinfo=UTC)
 
 
 @pytest.fixture
@@ -43,14 +45,17 @@ def test_signed_value_reaches_db_as_decoded_uuid(
     presentation = configured_presentation
     engine = MagicMock()
     connection = engine.begin.return_value.__enter__.return_value
-    connection.execute.return_value.scalar_one.return_value = _TENANT_ID
+    connection.execute.return_value.one.return_value = (_TENANT_ID, _EXPIRES_AT)
 
     assert verify_tenant_id(presentation.encode(_TOKEN_ID), presentation, engine) == (
-        _TENANT_ID
+        _TENANT_ID,
+        _EXPIRES_AT,
     )
 
     statement, params = connection.execute.call_args.args
-    assert str(statement) == "SELECT authn.verify_token(:token_id)"
+    assert str(statement) == (
+        "SELECT tenant_id, expires_at FROM authn.verify_token(:token_id)"
+    )
     assert params == {"token_id": _TOKEN_ID}
     engine.begin.assert_called_once_with()
 
@@ -151,11 +156,34 @@ def test_db_null_is_same_public_result_for_invalid_records(
     presentation = configured_presentation
     engine = MagicMock()
     connection = engine.begin.return_value.__enter__.return_value
-    connection.execute.return_value.scalar_one.return_value = None
+    connection.execute.return_value.one.return_value = (None, None)
 
     assert (
         verify_tenant_id(presentation.encode(_TOKEN_ID), presentation, engine) is None
     )
+
+
+@pytest.mark.parametrize(
+    "invalid_row",
+    (
+        (_TENANT_ID, None),
+        (None, _EXPIRES_AT),
+        (_TENANT_ID, datetime(2026, 10, 10)),
+    ),
+)
+def test_incomplete_db_result_is_not_accepted(
+    configured_presentation: TokenPresentation,
+    invalid_row: tuple[UUID | None, datetime | None],
+) -> None:
+    """片方だけの値や時差のない期限は照合成功として扱わない。"""
+    engine = MagicMock()
+    connection = engine.begin.return_value.__enter__.return_value
+    connection.execute.return_value.one.return_value = invalid_row
+
+    with pytest.raises(RuntimeError, match="トークンの照合結果が不正です"):
+        verify_tenant_id(
+            configured_presentation.encode(_TOKEN_ID), configured_presentation, engine
+        )
 
 
 def test_db_error_message_omits_token_id(

@@ -12164,7 +12164,7 @@
     },
     {
       "symbol": "pitchlog.authz.verified_tenant.verify_tenant_id",
-      "signature": "verify_tenant_id(value: str, presentation: _TokenPresentation, engine: _Engine) -> _UUID | None",
+      "signature": "verify_tenant_id(value: str, presentation: _TokenPresentation, engine: _Engine) -> tuple[_UUID, _datetime] | None",
       "allowed_api_ids": [
         "SQLA_TEXT",
         "SQLA_ENGINE_BEGIN",

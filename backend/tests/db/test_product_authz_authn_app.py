@@ -158,7 +158,9 @@ def _scope(identity: _Identity) -> str:
 
 def _verify(identity: _Identity, token: UUID) -> UUID | None:
     """アプリ用ロールでトークンを検証する。"""
-    return _scalar(identity.app_dsn, "SELECT authn.verify_token(%s)", (token,))
+    return _scalar(
+        identity.app_dsn, "SELECT tenant_id FROM authn.verify_token(%s)", (token,)
+    )
 
 
 def _change(
@@ -240,13 +242,24 @@ def test_login_verify_logout_and_failure_count_commit(
     token = _login(identity)
     assert isinstance(token, UUID)
     before = _token(catalog, token)
-    assert _verify(identity, token) == identity.tenant_id
+    with psycopg.connect(identity.app_dsn) as connection, connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT tenant_id, expires_at FROM authn.verify_token(%s)", (token,)
+        )
+        verified = cursor.fetchone()
+    assert verified is not None
+    assert verified[0] == identity.tenant_id
     after = _token(catalog, token)
+    assert verified[1] == after[0]
     assert after[0] >= before[0]
     assert after[1] >= before[1]
     assert _scalar(identity.app_dsn, "SELECT authn.logout(%s)", (token,)) == ""
     logged_out = _token(catalog, token)
-    assert _verify(identity, token) is None
+    with psycopg.connect(identity.app_dsn) as connection, connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT tenant_id, expires_at FROM authn.verify_token(%s)", (token,)
+        )
+        assert cursor.fetchone() == (None, None)
     assert _token(catalog, token) == logged_out
     assert logged_out[0] >= logged_out[1]
 
@@ -986,7 +999,9 @@ def test_revocation_wins_after_verify_waits_on_row_lock(
                     assert row is not None
                     pid_holder.append(int(row[0]))
                     ready.set()
-                    cursor.execute("SELECT authn.verify_token(%s)", (token,))
+                    cursor.execute(
+                        "SELECT tenant_id FROM authn.verify_token(%s)", (token,)
+                    )
                     result = cursor.fetchone()
                     assert result is not None
                     return result[0]

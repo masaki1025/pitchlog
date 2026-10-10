@@ -60,11 +60,12 @@ def test_signed_invalid_token_returns_no_tenant(
     )
     try:
         valid_before = _token(catalog, token)
-        assert verify_tenant_id(signer.encode(token), signer, engine) == (
-            identity.tenant_id
-        )
+        verified = verify_tenant_id(signer.encode(token), signer, engine)
+        assert verified is not None
+        assert verified[0] == identity.tenant_id
         valid_after = _token(catalog, token)
         assert valid_after[0] >= valid_before[0]
+        assert valid_after[0] == verified[1]
         assert valid_after[1] >= valid_before[1]
         target = token
         if invalid == "wrong_tenant":

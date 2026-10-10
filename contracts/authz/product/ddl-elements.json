@@ -1933,7 +1933,7 @@
       "function_kind": "definer",
       "owner_role_id": "pitchlog_auth_fn_owner",
       "language": "plpgsql",
-      "returns": "uuid",
+      "returns": "record",
       "security_mode": "definer",
       "volatility": "volatile",
       "search_path": [

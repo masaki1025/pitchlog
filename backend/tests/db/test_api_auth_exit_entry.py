@@ -83,7 +83,8 @@ async def test_logout_entry_revokes_presented_token(
         tenant_context_issuance, "create_database_engine", lambda: engine
     )
     try:
-        assert verify_tenant_id(value, presentation, engine) == identity.tenant_id
+        verified = verify_tenant_id(value, presentation, engine)
+        assert verified is not None and verified[0] == identity.tenant_id
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="https://test"
         ) as client:

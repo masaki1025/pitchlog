@@ -393,9 +393,11 @@ def test_beta_functions_and_current_absences_are_explicit() -> None:
         functions / "FUNCTION:authn:change_password(uuid, text, text).sql"
     ).read_text(encoding="utf-8")
 
-    assert "CREATE OR REPLACE FUNCTION authn.verify_token(p_token_id uuid)" in verified
+    assert "p_token_id uuid, OUT tenant_id uuid, OUT expires_at timestamptz" in verified
     assert "SET last_used_at = checked_at," in verified
-    assert "expires_at = checked_at + token_ttl" in verified
+    assert "expires_at := checked_at + token_ttl" in verified
+    assert "expires_at = verify_token.expires_at" in verified
+    assert verified.count("RETURN;") == 4
     assert "CREATE OR REPLACE FUNCTION authn.logout(p_token_id uuid)" in logged_out
     assert (
         "SET expires_at = greatest(logged_out_at, previous_last_used_at)" in logged_out
@@ -422,11 +424,13 @@ def test_db_verification_and_extension_rejects_null(
     signer = create_app().state.token_presentation
     engine = MagicMock()
     connection = engine.begin.return_value.__enter__.return_value
-    connection.execute.return_value.scalar_one.return_value = None
+    connection.execute.return_value.one.return_value = (None, None)
 
     assert verify_tenant_id(signer.encode(UUID(int=1)), signer, engine) is None
     statement, parameters = connection.execute.call_args.args
-    assert str(statement) == "SELECT authn.verify_token(:token_id)"
+    assert str(statement) == (
+        "SELECT tenant_id, expires_at FROM authn.verify_token(:token_id)"
+    )
     assert parameters == {"token_id": UUID(int=1)}
 
 
