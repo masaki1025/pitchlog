@@ -2285,6 +2285,15 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
     )
 
 
+def test_uf2_auth_store_is_registered_in_actual_tenant_isolation() -> None:
+    """実設定の tenant-isolation に U-F2 の authStore を登録済みと示す。"""
+    configuration = load_actual_core_areas()
+    tenant_area = next(
+        area for area in configuration["areas"] if area["id"] == "tenant-isolation"
+    )
+    assert "frontend/src/stores/authStore*" in tenant_area["paths"]
+
+
 def test_area_registration() -> None:
     """旧追加層が基線にあり、U-F2 の登録前後を受理する。"""
     core_guard = load_core_guard_module()
