@@ -13,6 +13,7 @@ interface OverflowSnapshot {
 let openSheetCount = 0
 let overflowSnapshot: OverflowSnapshot | null = null
 let backgroundSnapshots: AttributeSnapshot[] = []
+const openSheetStack: symbol[] = []
 
 function restoreAttribute(
   element: HTMLElement,
@@ -92,6 +93,7 @@ const props = withDefaults(
   { side: 'right', wide: false },
 )
 const emit = defineEmits<{ close: [] }>()
+const sheetToken = Symbol('sheet')
 
 const panel = ref<HTMLDivElement | null>(null)
 const closeButton = ref<HTMLButtonElement | null>(null)
@@ -105,6 +107,9 @@ const panelClass = computed(() =>
 )
 
 function handleKeydown(event: KeyboardEvent): void {
+  // stopPropagation は同じ window の後続リスナーを止めないため、最前面だけが処理する（決定 M）。
+  if (openSheetStack[openSheetStack.length - 1] !== sheetToken) return
+
   if (event.key === 'Escape') {
     event.stopPropagation()
     emit('close')
@@ -139,9 +144,12 @@ function activate(): void {
       : null
   closeButton.value?.focus()
   const unlockBackground = lockBackground()
+  openSheetStack.push(sheetToken)
   window.addEventListener('keydown', handleKeydown, true)
   cleanup = () => {
     window.removeEventListener('keydown', handleKeydown, true)
+    const index = openSheetStack.indexOf(sheetToken)
+    if (index !== -1) openSheetStack.splice(index, 1)
     unlockBackground()
     previousFocus?.focus()
   }

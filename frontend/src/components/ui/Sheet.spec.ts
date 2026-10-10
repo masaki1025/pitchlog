@@ -219,6 +219,63 @@ describe('Sheet', () => {
     expect(document.body.style.getPropertyValue('overflow')).toBe('')
   })
 
+  it('重ねた Sheet では最前面だけが Escape を処理する', async () => {
+    const lower = mountSheet({ open: true, title: '下' })
+    const upper = mountSheet({ open: true, title: '上' })
+    await nextTick()
+
+    pressKey('Escape')
+    expect(upper.emitted('close')).toHaveLength(1)
+    expect(lower.emitted('close')).toBeUndefined()
+
+    await upper.setProps({ open: false })
+    expect(appRoot().hasAttribute('inert')).toBe(true)
+    expect(document.body.style.getPropertyValue('overflow')).toBe('hidden')
+
+    pressKey('Escape')
+    expect(lower.emitted('close')).toHaveLength(1)
+    expect(upper.emitted('close')).toHaveLength(1)
+  })
+
+  it('重ねた Sheet の Tab は上のパネル内だけで循環する', async () => {
+    mountSheet({ open: true, title: '下' }, () =>
+      h('button', { id: 'lower-last' }, '下の末尾'),
+    )
+    mountSheet({ open: true, title: '上' }, () =>
+      h('button', { id: 'upper-last' }, '上の末尾'),
+    )
+    await nextTick()
+
+    const upperPanel =
+      document.querySelectorAll<HTMLElement>('[role="dialog"]')[1]
+    const upperFirst = upperPanel?.querySelector<HTMLButtonElement>(
+      'button[aria-label="閉じる"]',
+    )
+    const upperLast = document.getElementById('upper-last')
+    expect(document.activeElement).toBe(upperFirst)
+
+    expect(pressKey('Tab', true).defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(upperLast)
+    expect(document.activeElement).not.toBe(
+      document.getElementById('lower-last'),
+    )
+
+    expect(pressKey('Tab').defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(upperFirst)
+  })
+
+  it('下の Sheet を先に閉じても上の Escape が効く', async () => {
+    const lower = mountSheet({ open: true, title: '下' })
+    const upper = mountSheet({ open: true, title: '上' })
+    await nextTick()
+
+    await lower.setProps({ open: false })
+    expect(appRoot().hasAttribute('inert')).toBe(true)
+    pressKey('Escape')
+    expect(upper.emitted('close')).toHaveLength(1)
+    expect(lower.emitted('close')).toBeUndefined()
+  })
+
   it('背景と閉じるボタンのクリックで close を通知する', async () => {
     const wrapper = mountSheet({ open: true, title: '記録' })
     await nextTick()
@@ -280,6 +337,11 @@ describe('Sheet', () => {
     expect(svg?.getAttribute('stroke-width')).toBe('2')
     expect(svg?.getAttribute('viewBox')).toBe('0 0 24 24')
     expect(svg?.getAttribute('aria-hidden')).toBe('true')
+    expect(svg?.getAttribute('xmlns')).toBe('http://www.w3.org/2000/svg')
+    expect(svg?.getAttribute('fill')).toBe('none')
+    expect(svg?.getAttribute('stroke')).toBe('currentColor')
+    expect(svg?.getAttribute('stroke-linecap')).toBe('round')
+    expect(svg?.getAttribute('stroke-linejoin')).toBe('round')
     expect(
       Array.from(svg?.querySelectorAll('path') ?? []).map((path) =>
         path.getAttribute('d'),
