@@ -264,6 +264,68 @@ describe('Sheet', () => {
     expect(document.activeElement).toBe(upperFirst)
   })
 
+  it('下のパネルにフォーカスがあっても最前面だけが Tab を処理する', async () => {
+    mountSheet({ open: true, title: '下' }, () =>
+      h('button', { id: 'lower-last' }, '下の末尾'),
+    )
+    mountSheet({ open: true, title: '上' }, () =>
+      h('button', { id: 'upper-last' }, '上の末尾'),
+    )
+    await nextTick()
+
+    const dialogs = document.querySelectorAll<HTMLElement>('[role="dialog"]')
+    const lowerFirst = dialogs[0]?.querySelector<HTMLButtonElement>(
+      'button[aria-label="閉じる"]',
+    )
+    const upperFirst = dialogs[1]?.querySelector<HTMLButtonElement>(
+      'button[aria-label="閉じる"]',
+    )
+    const lowerLast = document.getElementById('lower-last') as HTMLButtonElement
+    const upperLast = document.getElementById('upper-last')
+    if (!lowerFirst || !upperFirst)
+      throw new Error('テスト用ボタンがありません')
+
+    lowerLast.focus()
+    const lowerFirstFocus = vi.spyOn(lowerFirst, 'focus')
+    expect(pressKey('Tab').defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(upperFirst)
+    expect(lowerFirstFocus).not.toHaveBeenCalled()
+
+    lowerFirstFocus.mockRestore()
+    lowerFirst.focus()
+    const lowerLastFocus = vi.spyOn(lowerLast, 'focus')
+    expect(pressKey('Tab', true).defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(upperLast)
+    expect(lowerLastFocus).not.toHaveBeenCalled()
+  })
+
+  it('3 枚の真ん中を閉じても最前面に残り、戻り先を引き継ぐ', async () => {
+    mountSheet({ open: true, title: 'A' }, () =>
+      h('button', { id: 'a-origin' }, 'A 内の戻り先'),
+    )
+    await nextTick()
+    const aOrigin = document.getElementById('a-origin') as HTMLButtonElement
+    aOrigin.focus()
+
+    const middle = mountSheet({ open: true, title: 'B' })
+    const upper = mountSheet({ open: true, title: 'C' })
+    await nextTick()
+    const upperPanel =
+      document.querySelectorAll<HTMLElement>('[role="dialog"]')[2]
+    const upperClose = upperPanel?.querySelector<HTMLButtonElement>(
+      'button[aria-label="閉じる"]',
+    )
+    expect(document.activeElement).toBe(upperClose)
+
+    await middle.setProps({ open: false })
+    expect(document.activeElement).toBe(upperClose)
+    expect(document.activeElement).not.toBe(aOrigin)
+    expect(appRoot().hasAttribute('inert')).toBe(true)
+
+    await upper.setProps({ open: false })
+    expect(document.activeElement).toBe(aOrigin)
+  })
+
   it('下の Sheet を先に閉じても上の Escape が効く', async () => {
     const lower = mountSheet({ open: true, title: '下' })
     const upper = mountSheet({ open: true, title: '上' })

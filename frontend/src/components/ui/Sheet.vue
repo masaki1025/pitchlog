@@ -10,10 +10,15 @@ interface OverflowSnapshot {
   priority: string
 }
 
+interface SheetStackEntry {
+  token: symbol
+  previousFocus: HTMLElement | null
+}
+
 let openSheetCount = 0
 let overflowSnapshot: OverflowSnapshot | null = null
 let backgroundSnapshots: AttributeSnapshot[] = []
-const openSheetStack: symbol[] = []
+const openSheetStack: SheetStackEntry[] = []
 
 function restoreAttribute(
   element: HTMLElement,
@@ -108,7 +113,7 @@ const panelClass = computed(() =>
 
 function handleKeydown(event: KeyboardEvent): void {
   // stopPropagation は同じ window の後続リスナーを止めないため、最前面だけが処理する（決定 M）。
-  if (openSheetStack[openSheetStack.length - 1] !== sheetToken) return
+  if (openSheetStack[openSheetStack.length - 1]?.token !== sheetToken) return
 
   if (event.key === 'Escape') {
     event.stopPropagation()
@@ -124,6 +129,13 @@ function handleKeydown(event: KeyboardEvent): void {
   const first = focusable.item(0)
   const last = focusable.item(focusable.length - 1)
   if (!first || !last) return
+
+  if (!panel.value?.contains(document.activeElement)) {
+    event.preventDefault()
+    if (event.shiftKey) last.focus()
+    else first.focus()
+    return
+  }
 
   if (event.shiftKey && document.activeElement === first) {
     event.preventDefault()
@@ -142,16 +154,25 @@ function activate(): void {
     document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null
+  const stackEntry: SheetStackEntry = { token: sheetToken, previousFocus }
   closeButton.value?.focus()
   const unlockBackground = lockBackground()
-  openSheetStack.push(sheetToken)
+  openSheetStack.push(stackEntry)
   window.addEventListener('keydown', handleKeydown, true)
   cleanup = () => {
     window.removeEventListener('keydown', handleKeydown, true)
-    const index = openSheetStack.indexOf(sheetToken)
-    if (index !== -1) openSheetStack.splice(index, 1)
+    const index = openSheetStack.indexOf(stackEntry)
+    const wasTop = index !== -1 && index === openSheetStack.length - 1
+    if (index !== -1) {
+      openSheetStack.splice(index, 1)
+      if (!wasTop) {
+        // 中段を閉じても最前面のフォーカスは動かさず、戻り先を直上へ渡す（決定 M）。
+        const above = openSheetStack[index]
+        if (above) above.previousFocus = stackEntry.previousFocus
+      }
+    }
     unlockBackground()
-    previousFocus?.focus()
+    if (wasTop) stackEntry.previousFocus?.focus()
   }
 }
 
