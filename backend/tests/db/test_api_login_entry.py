@@ -127,3 +127,63 @@ def test_failed_login_known_missing_medians_stay_within_first_delay_step(
     assert abs(median(samples["known"]) - median(samples["missing"])) < (
         first_delay_step_ms
     )
+
+
+@pytest.mark.anyio
+async def test_login_entry_does_not_bind_another_tenants_password_to_named_team(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """単一チーム名へのログインで別テナントの PW を受け付けない。"""
+    catalog = provisioned_product_catalog
+    _seed_settings(catalog)
+    app_dsn = _app_dsn(catalog)
+    first = _seed_identity(catalog, app_dsn)
+    second = _seed_identity(catalog, app_dsn)
+    monkeypatch.setenv(
+        "PITCHLOG_TOKEN_SIGNING_KEY_B64",
+        base64.b64encode(secrets.token_bytes(32)).decode("ascii"),
+    )
+    app = create_app()
+    connection_options = conninfo_to_dict(app_dsn)
+    engine = create_engine(
+        URL.create(
+            "postgresql+psycopg",
+            username=str(connection_options["user"]),
+            password=str(connection_options["password"]),
+            host=str(connection_options["host"]),
+            port=int(str(connection_options["port"])),
+            database=str(connection_options["dbname"]),
+        ),
+        connect_args={"sslmode": "disable", "gssencmode": "disable"},
+    )
+    monkeypatch.setattr(auth, "get_login_connection", lambda: engine)
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="https://test"
+        ) as client:
+            crossed = await client.post(
+                "/auth/login",
+                json={"team_name": first.name, "password": second.password},
+            )
+            own = await client.post(
+                "/auth/login",
+                json={"team_name": second.name, "password": second.password},
+            )
+
+        assert crossed.status_code == 401
+        assert "set-cookie" not in crossed.headers
+        assert own.status_code == 200
+        token_id = app.state.token_presentation.decode(
+            own.cookies["__Host-pitchlog_token"]
+        )
+        with catalog.observer.cursor() as cursor:
+            cursor.execute(
+                "SELECT tenant_id FROM public.tenant_tokens WHERE id = %s", (token_id,)
+            )
+            row = cursor.fetchone()
+        catalog.observer.rollback()
+        assert row == (second.tenant_id,)
+        assert row != (first.tenant_id,)
+    finally:
+        engine.dispose()
