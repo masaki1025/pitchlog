@@ -40,6 +40,13 @@ branch: feature/roster-status-invalidation
 - **計画承認**: 2026-10-10・山田正輝(A1〜A5 を含む)
 - master の訂正(同日): `AREA_PATH_ADDITIONS` は「置き換え式」で、#95 の 7 件が残っていても次の単位は自分の分へ置き換えれば通る。「窓口を空に戻す後続」は不要(当方が TSK-393 の完了報告で残件に挙げたのは誤り)
 
+### ステップ 1(正本 11-2 節の改訂案)
+
+- `docs/design/data-model.md`: 変更履歴に v0.7(in-review・射程宣言つき)、`B01` の節を同期経路に限り経路の表に「同期を通らないトリガー → `B06`」、`B03` の表の直後に `I5` の規則である旨の注記、`B06` を新設(共通の 3 規則・帰属・トリガーごとの規則・④の対象テナント単位の鍵・配信の所有)、一意性の索引表の 11-2 行に `B06` を併記
+- **計画からの調整**: 対象テナント単位の鍵は `B02` の表に足さず `B06` の中の別表に置いた。`backend/tests/test_authz_cache_invalidation.py:300-315` が `B02` の表の単位と契約の `source_unit` を集合の完全一致で照合しており、足すとステップ 2 まで赤になるため。ステップ 2 でテストを両方の表を読む形へ直す(design.md 1-3・plan ステップ 2 に反映)
+- `docs/README.md`: data-model 行に v0.7 起案中を併記、版 0.7・最終更新 2026-10-10
+- 合格条件: `check_docs_status` 違反 0 / `check_design_propagation`・`check_doc_coverage` ok / `check_plan_docs_sync` は作業中の警告のみ / `test_authz_cache_invalidation.py` 14 passed
+
 ## 決定
 
 - J1 同期を通らない 9 トリガーの規則は `data-model.md` 11-2 に新設(実装はトリガー 14 だけ)/ J2 確定ゲート / J3 意図は対象テナント単位の粗い 1 行・展開は配信側 / J4 配信はその範囲のキャッシュ本体を初めて導入する単位(2026-10-10・山田正輝)
