@@ -138,3 +138,17 @@ branch: feature/us1-sync-apply-core
 - `test_authz_cache_invalidation.py` の正本の文言照合(「T7 と同一トランザクション」)を保つ語順にした
 - 合格条件: `check_docs_status`・`check_design_propagation`・`check_doc_coverage`・`check_shared_preconditions` ok / `check_authz_catalog` ok(`requirement-claims.json` の抜粋の digest には当たらず、oracle の再導出は要らない)/ backend の DB 不要の全件は既知の偽の赤 44 件(「HEAD の履歴に staged 製品資産がありません」— develop を第 2 親で取り込んだ形)以外 green / ORM 受入シート・shared-preconditions・doc profiles 30 passed
 
+### 確定ゲート(/finalize-doc — data-model v0.8 と sync-protocol v0.6 の単一の確定ゲート)
+
+#### 適用版の記録(7.3-1)
+
+```
+適用版            ハーネス設計書 7.3 の v1.19(2026-10-07 確定ゲート通過・approved)
+条文コミット SHA  945384c5e70ce2ae471edec1d845660918eaee93
+```
+
+- 回数の枠(6.3): 基本 2 回(全文 1 + 差分 1)/ 2 回目に P0 が残り 1 件以上採用したときだけ 3 回目(P0 限定)/ 追加は PO 裁定 1 回につき 1 回
+- 対象: 2 文書の一括検証(単一ゲート・記録は 1 件 — 7.3-1)
+- 手順 0: 射程宣言は両文書の変更履歴行(in-review)にある
+- 手順 1: 両文書の frontmatter と索引を `in-review` に更新(本記録と同一コミット)
+
