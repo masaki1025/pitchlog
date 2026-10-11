@@ -310,7 +310,7 @@ date: 2026-10-09
 | **U-F3 ログイン** | `screens/LoginScreen.tsx`。 | FR-033 のログイン入力・失敗表示面。 | `U-F1`・`U-F2`・`U-F6`、認証契約 `U-A1`。 |
 | **U-F4 利用ガイド** | `screens/HelpScreen.tsx`。 | FR-002 の入力操作と FR-012 の断中操作を利用者へ説明する補助面。要件書「8. 完了条件・リリース判定基準」の利用ガイドにも接する。 | `U-F1`・`U-F2`。記録・同期の実装には依存しない。 |
 | **U-F5 チーム・選手** | `screens/TeamScreen.tsx`、`api/teamManagement.ts`、`components/settings/TeamMembersContent.tsx`、`lib/playerProfile*`・`playerAnalysisProfile*`・`playerMeasurement*`。 | FR-015・017・018・039 の選手・チーム管理面、FR-034 のチーム管理画面越境防止面、FR-038 の旧データ名寄せに接し得る選手確認面。 | `U-F1`・`U-F2`・`U-F6`、選手・取込契約 `U-M1`・`U-X5`。`U-F8` とは `['players', teamId]` キャッシュ契約のみを共有する。 |
-| **U-F6 共通 API・形式契約** | `api/client.ts`・`endpoints.ts`・`types.ts`・`mock.ts`、`lib/mockRules.ts`・`mockTeamManagement*`・`format.ts`。領域別の API 3 ファイルは各利用候補へ置く。 | FR-012・013 の送信・世代情報、FR-003・007・040 のイベント・補正、FR-031・038 の 88 列入出力、FR-034・041 の認可・共有に共通する通信・型の面。 | `U-F2`、既存 `U-S1`・`U-R1`・`U-X1`・`U-D2`・`U-X5`・`U-C1` の契約。模擬計算は独立した正解実装にしない。 |
+| **U-F6 共通 API・形式契約** | `api/client.ts`・`endpoints.ts`・`types.ts`・`mock.ts`、`lib/mockRules.ts`・`mockTeamManagement*`・`format.ts`。領域別の API 3 ファイルは各利用候補へ置く。**(注 2026-10-11・TSK-521: PO 決定で、旧の `endpoints.ts`・`types.ts`・`mock.ts` は丸ごとは移さない。U-F6 は共通クライアント `api/client.ts`・`api/types.ts` と既存 8 経路の `api/roster.ts` だけを持ち、残りの経路は各画面単位が `api/<領域>.ts` として足す。モックは移植しない。`lib/format.ts` は骨格で移植済み。詳細は [porting-rules.md](../frontend-skeleton/porting-rules.md) 11 節)** | FR-012・013 の送信・世代情報、FR-003・007・040 のイベント・補正、FR-031・038 の 88 列入出力、FR-034・041 の認可・共有に共通する通信・型の面。 | `U-F2`、既存 `U-S1`・`U-R1`・`U-X1`・`U-D2`・`U-X5`・`U-C1` の契約。模擬計算は独立した正解実装にしない。 |
 | **U-F7 耐久キュー・記録権接続** | `stores/syncStore.ts`・`syncQueueMigration*`、`lib/indexedDbStorage*`・`syncPolicy.ts`・`gameInputLock*`・`captureMetadata.ts`。現行 `frontend/src/lib/sync/` との接続境界。 | FR-012 の耐久キュー・再送・単一書き手、FR-013 の世代・連番・引き継ぎをクライアントで扱う面。 | `U-F2`・`U-F6`、現行 `frontend/src/lib/sync/` と `U-S1`・`U-R1` のプロトコル。 |
 | **U-F8 試合記録・再開・修正** | `screens/{Start,GameList,Lineup,Game,Plays}Screen.tsx`、`components/{game,zone,field,diamond,pads,scoreboard}/**`、`components/settings/` の TeamMembersContent 以外、`stores/{pitchDraft,gameKindSettingsStore,inputSettingsStore,shortcutStore}*`、`api/liveInput.ts`、`lib/{count,courseInputView,displayGeometry,fielder,gameKindSettings,lineupEditor,liveInput,playRules,scoringReview,shortcuts,spatialInput,speedInput,useKeydown,vocab}*`、`assets/`。 | FR-001〜011・014・016・019・024・040 の開始、入力、交代、補正、再開、削除、事前取得の画面面。FR-012・013 の同期・記録権の操作面。FR-020〜023 の**記録中の表示面**、FR-031 の試合からの出力入口、FR-036 のパスワード変更フォーム面。 | `U-F1`・`U-F2`・`U-F5`（選手キャッシュ）・`U-F6`・`U-F7`・`U-F9`（入出力入口）。既存 `U-G1`・`U-G2`・`U-X1`・`U-S1`・`U-R1`・`U-D1`・`U-P1`・`U-D2`・`U-A1` の契約。 |
 | **U-F9 88 列データ受渡し** | `screens/CsvImportScreen.tsx`、`components/data-transfer/DataTransferSheet.tsx`。 | FR-031 の互換 CSV 出力入口、FR-038 の取込・検証結果・警告・確認の画面面。 | `U-F1`・`U-F2`・`U-F6`、既存 `U-D2`・`U-X5`・`U-T1` の入出力・越境防止契約。 |
@@ -331,7 +331,7 @@ date: 2026-10-09
 | U-F3 ログイン | 非該当 | 非該当 | 非該当 | 該当 | 非該当 |
 | U-F4 利用ガイド | 非該当 | 非該当 | 非該当 | 非該当 | 非該当 |
 | U-F5 チーム・選手 | 非該当 | 非該当 | 非該当 | 該当 | 該当 |
-| U-F6 共通 API・形式契約 | 該当 | 該当 | 該当 | 該当 | 該当 |
+| U-F6 共通 API・形式契約(注 2026-10-11・TSK-521: 持つ範囲が変わったので当て直した — `api/client.ts` は S・R・T、`api/roster.ts` は T、G・D は非該当。[uf6 計画書](../uf6-api-contract/plan.md) 4 節。右の値は当初の判定) | 該当 | 該当 | 該当 | 該当 | 該当 |
 | U-F7 耐久キュー・記録権接続 | 該当 | 該当 | 該当 | 該当 | 非該当 |
 | U-F8 試合記録・再開・修正 | 該当 | 該当 | 該当 | 該当 | 該当 |
 | U-F9 88 列データ受渡し | 非該当 | 非該当 | 非該当 | 該当 | 該当 |

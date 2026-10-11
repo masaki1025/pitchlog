@@ -250,3 +250,38 @@ gh api "repos/masaki1025/Baseball_Scoring-archive/contents/frontend/src/lib/<nam
 - `isTeamAdmin`(`role === 'admin'`)による出力・削除・編集の出し分けは、チームログインでは常に真だった。役割を持たないので、すべて「出す」側で移す。
 - 未同期キュー・端末設定の `bb.*` キーは、認証が変わっても消さない(要件書 `:329`)。
 - 別タブのログインで Cookie が先に変わる窓は、クライアントだけでは閉じない。応答のテナントを照合する契約が δ(TSK-470)と U-F6 に要る(計画書 決定 G)。
+
+## 11. U-F6 共通 API で追加した差分(TSK-521 — 2026-10-11)
+
+計画書: [`../uf6-api-contract/plan.md`](../uf6-api-contract/plan.md)(4 節の決定表が正)。調査: [`../uf6-api-contract/research.md`](../uf6-api-contract/research.md)。
+対象は旧 `api/client.ts`・`endpoints.ts`・`types.ts`・`mock.ts`、`lib/mockRules.ts`・`mockTeamManagement*`。旧コードは複製せず Vue / TypeScript で書き起こした。`lib/format.ts` は 8 節で移植済みで触れていない。
+
+### PO 決定(2026-10-10)— 旧の api 層を丸ごとは移さない
+
+| # | 決定 | 理由 |
+| --- | --- | --- |
+| Q1 | 型と呼び出しは**いまの backend** に合わせる。旧の契約(74 関数・147 型)は参照資料。U-F6 は共通クライアントと既存 8 経路(選手・対戦相手)だけを作り、残りは backend の単位の着地に合わせて各画面単位が足す | develop の backend は `/api` 接頭辞なし・カーソルページング・別のエラー封筒で、旧の契約とほぼ噛み合わない |
+| Q2 | **モックモードは移植しない**(`mock.ts`・`mockRules`・`mockTeamManagement`) | 旧 `mock.ts` はカウント・走者・得点・自責点・過去修正の再計算を自前で持ち、NFR-018 に反する。自責点は Won't |
+| Q3 | 同期の型・変換・送信・再送の分類は **TSK-506** が U-F6 のクライアントの上に作る | 同期の通信層は入口 PR の担当(`../sync-wire-schema/design.md:362,399`) |
+| Q4 | クライアントは **`/api` を付けて送り**、開発では vite の proxy が外す | 画面の経路と API の経路を同一オリジンで分けるため |
+
+### 規則から外れる決定
+
+| 決定 | 対象 | 規則 |
+| --- | --- | --- |
+| A | ファイル構成 | 旧の 1:1 対応(2 節)をやめ、`api/client.ts`・`api/types.ts`・`api/roster.ts` にする。後続は領域ごとに `api/<領域>.ts` を足す |
+| B・C | 送り方 | `fetch('/api' + path)`・`credentials: 'include'`。GET 以外に `X-Pitchlog-Request: 1`。`Authorization` は付けない(トークンは HttpOnly Cookie) |
+| D | 送信前 | `useAuthStore(getActivePinia()).syncFromStorage()`。**Pinia が無ければ fetch 前に例外**(U-F13 が install するまで製品から呼べない) |
+| F | エラー | 封筒を `ApiError{status, message, fields, retryAfterMs, body}` に写す。封筒でない本文(同期の 409 等)も `body` に損なわず保持する |
+| G | 通信の失敗 | `ApiNetworkError`。中断(AbortError)はそのまま |
+| H | 401 | 世代照合(N)の後に、`noAuthExpiry` でなければ `expireSession()`。旧の「ダウンロードとモックは 401 を素通り」を持ち込まない |
+| I | 403・404・409 | 区別せず、再試行も上書きもしない(FR-034・FR-007) |
+| J | ダウンロード | `apiDownload` が Blob とファイル名を返す。401・エラーは同じ経路 |
+| L | roster | backend の DTO に合わせて snake_case。一覧は `limit` 必須のカーソル。DELETE は論理削除として `hideTeamRecord` |
+| M | proxy | `stripApiPrefix`(`/api` の直後が区切り・query・末尾のときだけ外す) |
+| N | 認証世代の照合 | 往復の前後で `authEpoch` を比べ、変わっていれば状態コードの解釈より先に `ApiStaleAuthError`(結果未確認)で捨てる |
+
+**後続の単位への注意(利用の条件)**:
+- **δ(TSK-470)の照合契約による応答のテナント照合が U-F6 へ入るまで、テナント所有データを表示する画面を本番へ出さない。** 決定 N は「往復中に `bb.auth` が変わった」場合だけを閉じ、Cookie が `bb.auth` より先に変わる窓は残る(U-F2 の決定 G)。
+- `ApiStaleAuthError` は「サーバーで処理された可能性があり結果は未確認」。受けた側は利用者に示し、保存・同期なら完了扱いにしない(同期は同じべき等キーで再送して確かめる — NFR-015・FR-012)。
+- `frontend/src/api/*` は tenant-isolation、`frontend/src/api/client*` は sync-protocol・recording-rights の paths に入っている(コア領域の検知)。
