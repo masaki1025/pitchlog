@@ -2312,6 +2312,15 @@ def test_uf2_auth_store_is_registered_in_actual_tenant_isolation() -> None:
     assert "frontend/src/stores/authStore*" in tenant_area["paths"]
 
 
+def test_uf6_api_paths_are_registered_in_actual_core_areas() -> None:
+    """実設定の 3 領域に U-F6 の API パスを登録済みと示す。"""
+    configuration = load_actual_core_areas()
+    areas = {area["id"]: area for area in configuration["areas"]}
+    assert "frontend/src/api/client*" in areas["sync-protocol"]["paths"]
+    assert "frontend/src/api/client*" in areas["recording-rights"]["paths"]
+    assert "frontend/src/api/*" in areas["tenant-isolation"]["paths"]
+
+
 def test_area_registration() -> None:
     """U-F2 までが基線にあり、U-F6 の 3 領域の登録前後を受理する。"""
     core_guard = load_core_guard_module()
