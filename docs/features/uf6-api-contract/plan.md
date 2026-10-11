@@ -1,6 +1,6 @@
 ---
 feature: uf6-api-contract
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-11・山田正輝) # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -138,7 +138,7 @@ created: 2026-10-11
 | K | query | `query` は値が `undefined` の項目を省いて `URLSearchParams` に組む。配列は同じキーを繰り返す | backend の一覧の query(`roster.py:125-138`) |
 | L | roster の呼び出し | 8 経路の DTO を `roster.py` に合わせ、snake_case のまま型にする。一覧は `limit` を必須にし、`cursor` と `next_cursor` を素通しで扱う。DELETE は `hideTeamRecord` という名前にする(論理削除 — 応答に `hidden_at` が入る) | `backend/src/pitchlog/api/schemas/roster.py:19-122`・`routers/team_records.py:154-179`。NFR-005・4.0-2(物理削除しない) |
 | M | proxy | `vite.config.ts` の `/api` の proxy に `rewrite: (p) => p.replace(/^\/api(?=\/|\?|$)/, '') || '/'` を足す(`/api` の直後がパスの区切り・query・末尾のときだけ外す — 計画レビュー 2 回目 P1-3)。コメントは実在する根拠(本計画書)へ直す | Q4。現状は `/api` を残したまま転送し、backend の経路と合わない(`frontend/vite.config.ts:493,506-511`、`docs/features/onboarding-approval/plan.md:55`) |
-| N | 認証世代の照合 | 送信の直前(決定 D の `syncFromStorage()` の後)に `authEpoch` を記録し、応答を受けたら**もう一度 `syncFromStorage()` を呼んで** `authEpoch` を比べる。変わっていれば応答を捨て、`ApiStaleAuthError` を投げる(表示・キャッシュへ渡さない)。**この照合は状態コードの解釈(401 の失効を含む)より先に行う**。`ApiStaleAuthError` は method・path・応答の status を持ち、message で「サーバーで処理された可能性があり、結果は未確認」と示す。**受け取った側は結果未確認として利用者に示し、保存・同期の要求なら完了扱いにしない**(NFR-015 — 計画レビュー 2 回目 P0-2・申し送り)。ダウンロードも同じ | U-F2 の決定 G の窓(別タブの切り替え)のうち、**要求の往復中に `bb.auth` が変わった場合**を閉じる。Cookie が `bb.auth` より先に変わる残りの窓は、δ の照合契約を入れるまで閉じない(やらないことの表・5 節の条件)。計画レビュー 1 回目 P0-1 |
+| N | 認証世代の照合 | 送信の直前(決定 D の `syncFromStorage()` の後)に `authEpoch` を記録し、応答を受けたら**もう一度 `syncFromStorage()` を呼んで** `authEpoch` を比べる。変わっていれば応答を捨て、`ApiStaleAuthError` を投げる(表示・キャッシュへ渡さない)。**この照合は状態コードの解釈(401 の失効を含む)より先に行い、本文(`text()`・`blob()`)を読み終えた後にもう一度行う**(読み取り中の切り替え — PR #120 敵対レビュー 1 回目 P0)。本文の読み取りが失敗しても、同じ世代の 401 は失効させてから `ApiNetworkError` を投げる。`ApiStaleAuthError` は method・path・応答の status を持ち、message で「サーバーで処理された可能性があり、結果は未確認」と示す。**受け取った側は結果未確認として利用者に示し、保存・同期の要求なら完了扱いにしない**(NFR-015 — 計画レビュー 2 回目 P0-2・申し送り)。ダウンロードも同じ | U-F2 の決定 G の窓(別タブの切り替え)のうち、**要求の往復中に `bb.auth` が変わった場合**を閉じる。Cookie が `bb.auth` より先に変わる残りの窓は、δ の照合契約を入れるまで閉じない(やらないことの表・5 節の条件)。計画レビュー 1 回目 P0-1 |
 
 ### 実装ステップ(コミット単位 — 設計書 6.1 段階実装)
 
