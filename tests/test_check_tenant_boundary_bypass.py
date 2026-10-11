@@ -6457,7 +6457,7 @@ def _assert_introduced_symbol_modules_have_changed_lines(
 
 
 def test_condition4_allowed_call_symbols_are_an_exact_set() -> None:
-    """条件 4 の許可呼び出しを物理キー構築と単一 factory に閉じる。"""
+    """条件 4 の許可呼び出しを鍵・選択子構築と単一 factory に閉じる。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
 
     assert contract.cache_invalidation.allowed_call_symbols == frozenset(
@@ -6469,6 +6469,7 @@ def test_condition4_allowed_call_symbols_are_an_exact_set() -> None:
             "pitchlog.repositories.cache_invalidation.PlayerCareerCacheKey",
             "pitchlog.repositories.cache_invalidation.PlayerChartSubject",
             "pitchlog.repositories.cache_invalidation.SharedAggregateCacheKey",
+            "pitchlog.repositories.cache_invalidation.SharedAggregateTargetSelector",
             "pitchlog.repositories.cache_invalidation.TeamAggregateCacheKey",
             "pitchlog.repositories.cache_invalidation.build_cache_invalidation_request",
         }
