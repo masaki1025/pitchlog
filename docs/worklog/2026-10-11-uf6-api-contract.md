@@ -88,3 +88,23 @@ branch: feature/uf6-api-contract
 | U-F11 共同分析 | https://app.notion.com/p/3f493b75e6878136a929e72d9bdb77e0 |
 | U-F12 スコアカード | https://app.notion.com/p/3f493b75e687815293abd2b3ebd7d9d0 |
 | U-F14 システム管理 | https://app.notion.com/p/3f493b75e68781bf9711e6b93e7d3c58 |
+
+### 総合検証(/check)
+
+- frontend: CI と同じ 6 手順(eslint・prettier・vue-tsc・depcruise 違反 0・build・test 932 件)すべて成功
+- harness: ruff・ty 成功。pytest 全件(8 並列・`--basetemp` を `/tmp` の外へ)は 29,174 件中 5 件失敗
+  - `tests/domain/mut/` の 3 件: U-F1・U-F2 と同じ顔ぶれ。単独再実行で通過(本 PR は触れていない)
+  - `tests/test_check_tenant_boundary_bypass.py::test_repository_is_green`: 「`base-allowlist.json` の比較元の履歴 prefix は変更・削除できない」。**develop が #114(在籍区分の無効化)のマージで `base-allowlist` を進めており、本ブランチが古い基点のままだった**ため。develop を取り込んで(`e76beefe`)再実行し通過。本 PR は `contracts/` に触れていない
+- backend: 触れていないため CI に任せる
+
+### /sync-docs
+
+- 正本の反映なし(計画書 3 節どおり)。`check_plan_docs_sync.py` exit 0
+
+### /pr クローズ処理
+
+- 結果: 旧の api 層を丸ごとは移さず(PO 決定 Q1〜Q4)、共通クライアント(`apiRequest`・`apiDownload`・3 種の例外)と選手・対戦相手の 8 経路を作った。往復の前後で認証世代を照合し、古い応答と古い 401 を捨てる。`/api` 接頭辞は vite の proxy で外す。`api/*` を tenant-isolation、`api/client*` を sync-protocol・recording-rights の paths に登録
+- 正本への反映: なし。正本外で `porting-rules.md` 11 節・`frontend-impl-units/design.md` の U-F6 行と 5 領域判定の行を更新
+- 運用評価台帳: **追記あり**(H-69 の再発 — 別 worktree の `.venv` を借りる新しい形)。索引の台帳行の日付を 2026-10-11 へ
+- 残余(利用の条件): ① Pinia の install(U-F13)まで製品から呼べない ② δ の照合契約による応答のテナント照合が入るまで、テナント所有データを表示する画面を本番へ出さない。どちらも Notion で申し送り済み
+- develop の #114 で backend に在籍区分の一括変更の 2 経路(preview・apply)が増えた。U-F6 の 8 経路には含めていない(U-F5 が足す — 申し送り済み)
