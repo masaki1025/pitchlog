@@ -1,5 +1,6 @@
 """署名を照合した ID だけを DB の認証関数へ渡す境界を提供する。"""
 
+from datetime import datetime as _datetime
 from uuid import UUID as _UUID
 
 from sqlalchemy import Engine as _Engine
@@ -23,8 +24,8 @@ def _activate_presentation(presentation: _TokenPresentation) -> None:
 
 def verify_tenant_id(
     value: str, presentation: _TokenPresentation, engine: _Engine
-) -> _UUID | None:
-    """署名と DB の照合を通ったテナント ID だけを返す。
+) -> tuple[_UUID, _datetime] | None:
+    """署名と DB の照合を通ったテナント ID と延長後の期限を返す。
 
     DB 呼び出しはこの関数内だけに置き、署名を照合した ``decode`` の戻り値を
     そのまま引数にする。生の UUID を受け取る DB 呼び出し口は公開しない。
@@ -36,7 +37,7 @@ def verify_tenant_id(
         engine: アプリ用ロールで接続する SQLAlchemy engine。
 
     Returns:
-        両方の照合に成功したときだけテナント ID。それ以外は ``None``。
+        両方の照合に成功したときだけテナント ID と期限。それ以外は ``None``。
 
     Raises:
         TypeError: 署名器が設定済みの型と異なる場合。
@@ -60,12 +61,21 @@ def verify_tenant_id(
     try:
         with engine.begin() as connection:
             result = connection.execute(
-                _text("SELECT authn.verify_token(:token_id)"),
+                _text(
+                    "SELECT tenant_id, expires_at FROM authn.verify_token(:token_id)"
+                ),
                 {"token_id": verified_id},
             )
-            tenant_id = result.scalar_one()
-            if tenant_id is None or isinstance(tenant_id, _UUID):
-                return tenant_id
+            tenant_id, expires_at = result.one()
+            if tenant_id is None and expires_at is None:
+                return None
+            if (
+                isinstance(tenant_id, _UUID)
+                and isinstance(expires_at, _datetime)
+                and expires_at.tzinfo is not None
+                and expires_at.utcoffset() is not None
+            ):
+                return tenant_id, expires_at
             raise RuntimeError("トークンの照合結果が不正です")
     except _SQLAlchemyError:
         pass

@@ -7,7 +7,7 @@ RUNTIME_CONTRACT_REVISION = 12
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "78fca8062bd169b60a8c4dcd85190fdd74bb4f375446a16ba10166d895d59347"
+SOURCE_DIGEST = "93af92d6ea6dcab7512ef4c0f75361fe4043234100b324c27f7beff16e8c89cf"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -86,8 +86,9 @@ PROTECTED_TABLES = (
 PROTECTED_FUNCTIONS = (
     ("authn", "change_password", "uuid, text, text"),
     ("authn", "issue_initial_password", "uuid, text"),
-    ("authn", "login", "text, text"),
+    ("authn", "login_attempt", "text, text, text"),
     ("authn", "logout", "uuid"),
+    ("authn", "observe_rate_limit_counters", ""),
     ("authn", "password_policy_ok", "text"),
     ("authn", "record_admin_login_failure", "text"),
     ("authn", "record_failure", "text, bigint, bigint, bigint, boolean"),

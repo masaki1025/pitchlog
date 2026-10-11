@@ -17,7 +17,8 @@
       "shared_data",
       "control_read",
       "management_operation",
-      "record_and_aggregate"
+      "record_and_aggregate",
+      "authentication_entry"
     ],
     "route_classes": [
       "shared_screen",
@@ -286,6 +287,33 @@
         "PLAN-TSK446-RECORD-AND-AGGREGATE"
       ],
       "operation": "update"
+    },
+    {
+      "route_id": "ROUTE:AUTH:login:create",
+      "route_kind": "authentication_entry",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "provenance_ids": []
+    },
+    {
+      "route_id": "ROUTE:AUTH:logout:create",
+      "route_kind": "authentication_entry",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "provenance_ids": []
+    },
+    {
+      "route_id": "ROUTE:AUTH:password:update",
+      "route_kind": "authentication_entry",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "FR-900/list_item-001"
+      ],
+      "provenance_ids": []
     }
   ],
   "management_operations": [

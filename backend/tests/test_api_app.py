@@ -26,8 +26,8 @@ async def test_routers_is_module_level_tuple() -> None:
 
 
 @pytest.mark.anyio
-async def test_routers_register_meta_player_and_team_routes() -> None:
-    """静的ルータ登録の経路がメタ情報と選手・対戦相手の入口であることを確認する。"""
+async def test_routers_register_meta_login_player_and_team_routes() -> None:
+    """静的登録したメタ情報・ログイン・選手・対戦相手の入口を照合する。"""
     routes = tuple(
         route
         for router in api_app.ROUTERS
@@ -40,6 +40,9 @@ async def test_routers_register_meta_player_and_team_routes() -> None:
     ) == (
         (("GET",), "/health"),
         (("GET",), "/version"),
+        (("POST",), "/auth/login"),
+        (("POST",), "/auth/logout"),
+        (("PATCH",), "/auth/password"),
         (("POST",), "/players"),
         (("GET",), "/players"),
         (("GET",), "/players/{player_id:uuid}"),
@@ -54,6 +57,9 @@ async def test_routers_register_meta_player_and_team_routes() -> None:
     assert tuple(route.operation_id for route in routes) == (
         "meta_health_read",
         "meta_version_read",
+        "auth_login_create",
+        "auth_logout_create",
+        "auth_password_update",
         "roster_player_create",
         "roster_player_list",
         "roster_player_read",

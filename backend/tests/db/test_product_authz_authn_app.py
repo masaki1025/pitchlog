@@ -28,19 +28,21 @@ _ROOT = Path(__file__).resolve().parents[3]
 _LOGIN_BODY = (
     _ROOT
     / "contracts/authz/product/function-bodies/functions"
-    / "FUNCTION:authn:login(text, text).sql"
-)
-_COUNT_BODY = (
-    _ROOT
-    / "contracts/authz/product/function-bodies/functions"
-    / "FUNCTION:authn:record_failure(text, bigint, bigint, bigint, boolean).sql"
+    / "FUNCTION:authn:login_attempt(text, text, text).sql"
 )
 _SETTINGS = {
     "auth.token_ttl_seconds": 3600,
-    "auth.team_login.max_failures": 3,
     "auth.team_login.window_seconds": 3600,
-    "auth.team_login.lock_seconds": 3600,
+    "auth.team_login.throttle_threshold": 3,
+    "auth.team_login.throttle_step_ms": 25,
+    "auth.team_login.throttle_max_ms": 200,
 }
+_TEAM_LOGIN_SETTING_KEYS = (
+    "auth.team_login.window_seconds",
+    "auth.team_login.throttle_threshold",
+    "auth.team_login.throttle_step_ms",
+    "auth.team_login.throttle_max_ms",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,22 +133,34 @@ def _scalar(dsn: str, statement: LiteralString, params: tuple[object, ...]) -> A
 
 
 def _login(
-    identity: _Identity, *, name: str | None = None, password: str | None = None
+    identity: _Identity,
+    *,
+    name: str | None = None,
+    password: str | None = None,
+    source: str | None = None,
 ) -> UUID | None:
     """アプリ用ロールでログインする。"""
     return _scalar(
         identity.app_dsn,
-        "SELECT authn.login(%s, %s)",
+        "SELECT token_id FROM authn.login_attempt(%s, %s, %s)",
         (
             identity.name if name is None else name,
             identity.password if password is None else password,
+            identity.tenant_id.hex if source is None else source,
         ),
     )
 
 
+def _scope(identity: _Identity) -> str:
+    """認証試験で固定する試行元のカウンタ鍵を返す。"""
+    return f"src:{identity.tenant_id.hex}"
+
+
 def _verify(identity: _Identity, token: UUID) -> UUID | None:
     """アプリ用ロールでトークンを検証する。"""
-    return _scalar(identity.app_dsn, "SELECT authn.verify_token(%s)", (token,))
+    return _scalar(
+        identity.app_dsn, "SELECT tenant_id FROM authn.verify_token(%s)", (token,)
+    )
 
 
 def _change(
@@ -224,17 +238,28 @@ def test_login_verify_logout_and_failure_count_commit(
     identity = _seed_identity(catalog, _app_dsn(catalog))
     wrong = secrets.token_urlsafe(24)
     assert _login(identity, password=wrong) is None
-    assert _counter(catalog, f"team:{identity.name}")[0][1] == 1
+    assert _counter(catalog, _scope(identity))[0][1] == 1
     token = _login(identity)
     assert isinstance(token, UUID)
     before = _token(catalog, token)
-    assert _verify(identity, token) == identity.tenant_id
+    with psycopg.connect(identity.app_dsn) as connection, connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT tenant_id, expires_at FROM authn.verify_token(%s)", (token,)
+        )
+        verified = cursor.fetchone()
+    assert verified is not None
+    assert verified[0] == identity.tenant_id
     after = _token(catalog, token)
+    assert verified[1] == after[0]
     assert after[0] >= before[0]
     assert after[1] >= before[1]
     assert _scalar(identity.app_dsn, "SELECT authn.logout(%s)", (token,)) == ""
     logged_out = _token(catalog, token)
-    assert _verify(identity, token) is None
+    with psycopg.connect(identity.app_dsn) as connection, connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT tenant_id, expires_at FROM authn.verify_token(%s)", (token,)
+        )
+        assert cursor.fetchone() == (None, None)
     assert _token(catalog, token) == logged_out
     assert logged_out[0] >= logged_out[1]
 
@@ -349,16 +374,17 @@ def test_change_password_policy_and_subject_binding(
     assert _login(identity, password=long_password) is not None
 
 
-def test_missing_and_invalid_settings_fail_closed(
+def test_missing_and_invalid_token_ttl_fails_closed(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """有効期限・計数キーの欠落と文字列・0 以下・小数を拒否する。"""
+    """有効期限キーの欠落と文字列・0 以下・小数を拒否する。"""
     catalog = provisioned_product_catalog
     _seed_settings(catalog)
     identity = _seed_identity(catalog, _app_dsn(catalog))
     token = _login(identity)
     assert isinstance(token, UUID)
-    for key, good in _SETTINGS.items():
+    for key in ("auth.token_ttl_seconds",):
+        good = _SETTINGS[key]
         for bad in (None, "invalid", 0, -1, 1.5):
             with catalog.applicator.cursor() as cursor:
                 if bad is None:
@@ -391,15 +417,16 @@ def test_missing_and_invalid_settings_fail_closed(
             _setting(catalog, key, good)
 
 
-def test_setting_upper_bound_is_accepted_and_next_integer_fails_closed(
+def test_token_ttl_upper_bound_is_accepted_and_next_integer_fails_closed(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """全チーム用キーで上限を受け、上限 + 1 では発行・延長しない。"""
+    """トークン期限の上限を受け、上限 + 1 では発行・延長しない。"""
     catalog = provisioned_product_catalog
     _seed_settings(catalog)
     identity = _seed_identity(catalog, _app_dsn(catalog))
     upper = 2_147_483_647
-    for key, good in _SETTINGS.items():
+    for key in ("auth.token_ttl_seconds",):
+        good = _SETTINGS[key]
         _setting(catalog, key, upper)
         with catalog.observer.cursor() as cursor:
             cursor.execute("SELECT authn.setting_positive_integer(%s)", (key,))
@@ -423,6 +450,56 @@ def test_setting_upper_bound_is_accepted_and_next_integer_fails_closed(
         _setting(catalog, key, good)
 
 
+def test_team_login_settings_missing_or_invalid_reject_valid_credentials(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """新 4 キーの欠落・不正値で正しい資格情報の発行を拒否する。"""
+    catalog = provisioned_product_catalog
+    _seed_settings(catalog)
+    identity = _seed_identity(catalog, _app_dsn(catalog))
+    assert isinstance(_login(identity), UUID)
+    for key in _TEAM_LOGIN_SETTING_KEYS:
+        good = _SETTINGS[key]
+        for bad in (None, "invalid", 0, -1, 1.5):
+            if bad is None:
+                with catalog.applicator.cursor() as cursor:
+                    cursor.execute(
+                        "DELETE FROM public.system_settings WHERE key = %s", (key,)
+                    )
+                catalog.applicator.commit()
+            else:
+                _setting(catalog, key, bad)
+            assert _login(identity) is None
+            _setting(catalog, key, good)
+        assert isinstance(_login(identity), UUID)
+
+
+def test_team_login_settings_upper_bound_and_next_integer(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """新 4 キーの共通上限は受理し、上限超えでは発行しない。"""
+    catalog = provisioned_product_catalog
+    _seed_settings(catalog)
+    identity = _seed_identity(catalog, _app_dsn(catalog))
+    upper = 2_147_483_647
+    for key in _TEAM_LOGIN_SETTING_KEYS:
+        good = _SETTINGS[key]
+        _setting(catalog, key, upper)
+        with catalog.observer.cursor() as cursor:
+            cursor.execute("SELECT authn.setting_positive_integer(%s)", (key,))
+            assert cursor.fetchone() == (upper,)
+        catalog.observer.rollback()
+        assert isinstance(_login(identity), UUID)
+
+        _setting(catalog, key, upper + 1)
+        with catalog.observer.cursor() as cursor:
+            cursor.execute("SELECT authn.setting_positive_integer(%s)", (key,))
+            assert cursor.fetchone() == (None,)
+        catalog.observer.rollback()
+        assert _login(identity) is None
+        _setting(catalog, key, good)
+
+
 def test_normalization_boundary_and_failed_burst_does_not_lock(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
@@ -441,14 +518,14 @@ def test_normalization_boundary_and_failed_burst_does_not_lock(
     assert _verify(identity, token) == identity.tenant_id
 
 
-def test_old_window_is_independent_and_counter_query_uses_index(
+def test_previous_window_is_counted_and_counter_query_uses_index(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """過去窓を残し、実関数の範囲条件と索引を EXPLAIN で確かめる。"""
+    """直前窓を残し、実関数の二窓条件と索引を EXPLAIN で確かめる。"""
     catalog = provisioned_product_catalog
     _seed_settings(catalog)
     identity = _seed_identity(catalog, _app_dsn(catalog))
-    scope = f"team:{identity.name}"
+    scope = _scope(identity)
     with catalog.applicator.cursor() as cursor:
         cursor.execute(
             """
@@ -456,10 +533,16 @@ def test_old_window_is_independent_and_counter_query_uses_index(
                 (id, scope_key, window_start, attempt_count)
             VALUES (%s, %s,
                     pg_catalog.to_timestamp(pg_catalog.floor(
-                        extract(epoch FROM pg_catalog.clock_timestamp()) / 3600) * 3600)
-                    - interval '1 hour', 99)
+                        extract(epoch FROM pg_catalog.clock_timestamp()) / %s) * %s)
+                    - %s * interval '1 second', 99)
             """,
-            (uuid4(), scope),
+            (
+                uuid4(),
+                scope,
+                _SETTINGS["auth.team_login.window_seconds"],
+                _SETTINGS["auth.team_login.window_seconds"],
+                _SETTINGS["auth.team_login.window_seconds"],
+            ),
         )
     catalog.applicator.commit()
     assert _login(identity, password=secrets.token_urlsafe(24)) is None
@@ -472,24 +555,19 @@ def test_old_window_is_independent_and_counter_query_uses_index(
             JOIN pg_catalog.pg_namespace AS namespace
               ON namespace.oid = routine.pronamespace
             WHERE namespace.nspname = 'authn'
-              AND routine.proname = 'record_failure'
+              AND routine.proname = 'login_attempt'
             """
         )
         source = cursor.fetchone()
         assert source is not None
         assert source[0].count("window_begin :=") == 1
-        assert source[0].index("pg_advisory_xact_lock") < source[0].index(
-            "FROM public.rate_limit_counters"
+        assert source[0].index("pg_advisory_xact_lock") > source[0].index(
+            "authn_crypto.crypt"
         )
-        assert "pg_catalog.hashtext(p_scope_key || ':' ||" in source[0]
-        assert "extract(epoch FROM window_begin)::text" in source[0]
-        assert "counter.scope_key = p_scope_key" in source[0]
-        assert "counter.window_start >= window_begin" in source[0]
+        assert "pg_catalog.hashtext(source_key)" in source[0]
+        assert "counter.scope_key = source_key" in source[0]
+        assert "counter.window_start >= window_begin - window_seconds" in source[0]
         assert "counter.window_start <= window_begin" in source[0]
-        assert (
-            "VALUES (pg_catalog.gen_random_uuid(), p_scope_key, window_begin,"
-            in source[0]
-        )
         cursor.execute("SET LOCAL enable_seqscan = off")
         cursor.execute("SET LOCAL enable_indexscan = off")
         cursor.execute(
@@ -622,10 +700,11 @@ def test_failed_login_paths_have_equal_count_crypt_and_nested_queries(
         (active, long_name, active.password),
     )
     observations: list[tuple[int, dict[int, int]]] = []
-    for identity, name, password in cases:
+    for index, (identity, name, password) in enumerate(cases):
+        source = f"case-{index}-{uuid4().hex}"
         _reset_observation(catalog, maintenance_dsn)
-        assert _login(identity, name=name, password=password) is None
-        assert _counter(catalog, f"team:{name.lower()}")[0][1] == 1
+        assert _login(identity, name=name, password=password, source=source) is None
+        assert _counter(catalog, f"src:{source}")[0][1] == 1
         observations.append(_observation(catalog, maintenance_dsn))
     assert all(crypt_calls == 1 for crypt_calls, _ in observations)
     assert len(observations[0][1]) > 1  # top-level だけの統計では通さない。
@@ -690,7 +769,7 @@ def test_crypt_omission_and_cost_mutations_are_red(
         with catalog.observer.cursor() as cursor:
             cursor.execute(
                 "SELECT pg_catalog.pg_get_functiondef("
-                "'authn.login(text, text)'::pg_catalog.regprocedure)"
+                "'authn.login_attempt(text, text, text)'::pg_catalog.regprocedure)"
             )
             definition = cursor.fetchone()
         catalog.observer.rollback()
@@ -771,8 +850,11 @@ def test_first_window_concurrent_failures_are_serialized_by_advisory_lock(
             psycopg.connect(identity.app_dsn) as connection,
             connection.cursor() as cursor,
         ):
-            cursor.execute("SELECT authn.login(%s, %s)", (identity.name, wrong))
-            assert cursor.fetchone() == (None,)
+            cursor.execute(
+                "SELECT token_id, wait_ms FROM authn.login_attempt(%s, %s, %s)",
+                (identity.name, wrong, identity.tenant_id.hex),
+            )
+            assert cursor.fetchone() == (None, 0)
             ready.set()
             assert release.wait(15)
 
@@ -786,8 +868,13 @@ def test_first_window_concurrent_failures_are_serialized_by_advisory_lock(
             assert row is not None
             pid = int(row[0])
             pids.append(pid)
-            cursor.execute("SELECT authn.login(%s, %s)", (identity.name, wrong))
-            assert cursor.fetchone() == (None,)
+            cursor.execute(
+                "SELECT token_id, wait_ms FROM authn.login_attempt(%s, %s, %s)",
+                (identity.name, wrong, identity.tenant_id.hex),
+            )
+            result = cursor.fetchone()
+            assert result is not None and result[0] is None
+            assert isinstance(result[1], int)
             return pid
 
     pids: list[int] = []
@@ -809,7 +896,7 @@ def test_first_window_concurrent_failures_are_serialized_by_advisory_lock(
             release.set()
         first.result(timeout=15)
         assert all(isinstance(item.result(timeout=15), int) for item in followers)
-    assert [row[1] for row in _counter(catalog, f"team:{identity.name}")] == [5]
+    assert [row[1] for row in _counter(catalog, _scope(identity))] == [5]
 
 
 def test_removing_advisory_lock_creates_duplicate_first_window_rows(
@@ -821,7 +908,7 @@ def test_removing_advisory_lock_creates_duplicate_first_window_rows(
     _setting(catalog, "auth.team_login.window_seconds", 2_000_000_000)
     identity = _seed_identity(catalog, _app_dsn(catalog))
     wrong = secrets.token_urlsafe(24)
-    body = _COUNT_BODY.read_text(encoding="utf-8")
+    body = _LOGIN_BODY.read_text(encoding="utf-8")
     changed, replacements = re.subn(
         r"    PERFORM pg_catalog\.pg_advisory_xact_lock\([\s\S]*?\n    \);\n",
         "",
@@ -837,8 +924,11 @@ def test_removing_advisory_lock_creates_duplicate_first_window_rows(
             psycopg.connect(identity.app_dsn) as connection,
             connection.cursor() as cursor,
         ):
-            cursor.execute("SELECT authn.login(%s, %s)", (identity.name, wrong))
-            assert cursor.fetchone() == (None,)
+            cursor.execute(
+                "SELECT token_id, wait_ms FROM authn.login_attempt(%s, %s, %s)",
+                (identity.name, wrong, identity.tenant_id.hex),
+            )
+            assert cursor.fetchone() == (None, 0)
             ready.set()
             assert release.wait(15)
 
@@ -852,7 +942,7 @@ def test_removing_advisory_lock_creates_duplicate_first_window_rows(
             finally:
                 release.set()
             first.result(timeout=15)
-        rows = _counter(catalog, f"team:{identity.name}")
+        rows = _counter(catalog, _scope(identity))
         assert len(rows) == 2
         assert len({row[0] for row in rows}) == 1
         assert sum(int(row[1]) for row in rows) == 2
@@ -909,7 +999,9 @@ def test_revocation_wins_after_verify_waits_on_row_lock(
                     assert row is not None
                     pid_holder.append(int(row[0]))
                     ready.set()
-                    cursor.execute("SELECT authn.verify_token(%s)", (token,))
+                    cursor.execute(
+                        "SELECT tenant_id FROM authn.verify_token(%s)", (token,)
+                    )
                     result = cursor.fetchone()
                     assert result is not None
                     return result[0]

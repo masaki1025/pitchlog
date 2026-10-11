@@ -1154,6 +1154,7 @@ def test_invalid_privileged_role_oids_are_red_before_catalog_access(
     [
         ("missing_function", "署名"),
         ("wrong_grantee", "付与先"),
+        ("wrong_monitor_grantee", "付与先"),
         ("wrong_extension_schema", "拡張"),
         ("missing_table_grant", "表 ACL"),
     ],
@@ -1168,13 +1169,20 @@ def test_authn_asset_mutations_fail_independent_contract(
     validate_authn_asset(asset)
     if mutation == "missing_function":
         asset["functions"] = [
-            row for row in asset["functions"] if row["function_name"] != "login"
+            row for row in asset["functions"] if row["function_name"] != "login_attempt"
         ]
     elif mutation == "wrong_grantee":
         function = next(
-            row for row in asset["functions"] if row["function_name"] == "login"
+            row for row in asset["functions"] if row["function_name"] == "login_attempt"
         )
         function["acl_expectations"][0]["grantee"] = "pitchlog_management_fn_owner"
+    elif mutation == "wrong_monitor_grantee":
+        function = next(
+            row
+            for row in asset["functions"]
+            if row["function_name"] == "observe_rate_limit_counters"
+        )
+        function["acl_expectations"][0]["grantee"] = "pitchlog_app"
     elif mutation == "wrong_extension_schema":
         asset["extensions"][0]["schema_name"] = "public"
     else:
@@ -1233,7 +1241,7 @@ def test_authn_catalog_mutations_fail_independent_checks(
         rows[CatalogQueryId.FUNCTION_ACL] = [
             row
             for row in rows[CatalogQueryId.FUNCTION_ACL]
-            if row[:3] != ("authn", "login", "text, text")
+            if row[:3] != ("authn", "login_attempt", "text, text, text")
         ]
     else:
         rows[CatalogQueryId.FUNCTION_ACL] = [
@@ -1253,9 +1261,9 @@ def test_authn_catalog_mutations_fail_independent_checks(
 def test_authn_bcrypt_cost_is_twelve_in_all_hash_paths() -> None:
     """ダミーハッシュと実ハッシュ生成の bcrypt コストを同じ 12 に固定する。"""
     directory = _REPOSITORY_ROOT / "contracts/authz/product/function-bodies/functions"
-    login = (directory / "FUNCTION:authn:login(text, text).sql").read_text(
-        encoding="utf-8"
-    )
+    login = (
+        directory / "FUNCTION:authn:login_attempt(text, text, text).sql"
+    ).read_text(encoding="utf-8")
     assert "$2a$12$" in login
     for filename in (
         "FUNCTION:authn:change_password(uuid, text, text).sql",

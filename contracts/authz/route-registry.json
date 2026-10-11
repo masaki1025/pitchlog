@@ -17,7 +17,8 @@
       "shared_data",
       "control_read",
       "management_operation",
-      "record_and_aggregate"
+      "record_and_aggregate",
+      "authentication_entry"
     ],
     "route_classes": [
       "shared_screen",
@@ -86,6 +87,11 @@
       "provenance_id": "PLAN-TSK446-RECORD-AND-AGGREGATE",
       "path": "docs/features/route-kind-vocabulary/plan.md",
       "extracted_text": "既存 4 種と同じ「値域 + 種別別検査 + exact-set」の 3 点セットを持たせる。"
+    },
+    {
+      "provenance_id": "PLAN-UA1-AUTH-HTTP-ENTRY",
+      "path": "docs/features/ua1-auth-http-entry/plan.md",
+      "extracted_text": "PW 変更とログアウトの HTTP 経路"
     }
   ],
   "routes": [
@@ -627,6 +633,34 @@
         "PLAN-TSK446-RECORD-AND-AGGREGATE"
       ],
       "operation": "update"
+    },
+    {
+      "route_id": "ROUTE:AUTH:login:create",
+      "route_kind": "authentication_entry",
+      "origin": "requirement",
+      "source_claim_ids": [
+        "APPENDIX-C/table_row-004",
+        "APPENDIX-C/table_row-006"
+      ],
+      "provenance_ids": []
+    },
+    {
+      "route_id": "ROUTE:AUTH:logout:create",
+      "route_kind": "authentication_entry",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-UA1-AUTH-HTTP-ENTRY"
+      ]
+    },
+    {
+      "route_id": "ROUTE:AUTH:password:update",
+      "route_kind": "authentication_entry",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-UA1-AUTH-HTTP-ENTRY"
+      ]
     }
   ],
   "management_operations": [
@@ -817,14 +851,18 @@
     {
       "source_id": "APPENDIX-C/table_row-004",
       "location": "http",
-      "disposition": "out_of_registry",
-      "reason_code": "design_pending_task"
+      "disposition": "routed",
+      "route_ids": [
+        "ROUTE:AUTH:login:create"
+      ]
     },
     {
       "source_id": "APPENDIX-C/table_row-006",
       "location": "http",
-      "disposition": "out_of_registry",
-      "reason_code": "design_pending_task"
+      "disposition": "routed",
+      "route_ids": [
+        "ROUTE:AUTH:login:create"
+      ]
     },
     {
       "source_id": "APPENDIX-C/table_row-009",

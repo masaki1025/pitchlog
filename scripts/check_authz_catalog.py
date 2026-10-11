@@ -307,6 +307,7 @@ ROUTE_KINDS = frozenset(
         "control_read",
         "management_operation",
         "record_and_aggregate",
+        "authentication_entry",
     }
 )
 CLAIM_DISPOSITION_LOCATIONS = frozenset({"cache", "http"})
@@ -2103,6 +2104,12 @@ def _validate_claim_dispositions(
                     f"{label}.route_ids が route registry に存在しない: "
                     f"{unknown_route_ids}"
                 )
+            actual_route_ids = routed_route_ids_by_claim.get(source_id, set())
+            if set(route_ids) != actual_route_ids or len(route_ids) != len(actual_route_ids):
+                raise CatalogError(
+                    f"{label}.route_ids が source_claim_ids の結線と不一致: "
+                    f"期待={sorted(actual_route_ids)}, 実際={sorted(route_ids)}"
+                )
         else:
             reason_code = _expect_closed_value(
                 entry["reason_code"],
@@ -2122,10 +2129,14 @@ def _validate_claim_dispositions(
     double_registered: list[str] = []
     for source_id in sorted(http_claim_ids):
         routed = source_id in routed_http_claim_ids
-        disposed = (source_id, "http") in dispositions_by_key
-        if not routed and not disposed:
+        disposition_entry = dispositions_by_key.get((source_id, "http"))
+        if not routed and disposition_entry is None:
             missing.append(f"{source_id}@http")
-        elif routed and disposed:
+        elif (
+            routed
+            and disposition_entry is not None
+            and disposition_entry["disposition"] == "out_of_registry"
+        ):
             double_registered.append(f"{source_id}@http")
     for source_id in sorted(claims_by_location["cache"]):
         if (source_id, "cache") not in dispositions_by_key:
@@ -2163,6 +2174,31 @@ def _validate_record_and_aggregate_route_ids(
         unexpected = sorted(actual_route_ids - expected_route_ids)
         raise CatalogError(
             "record_and_aggregate route の exact-set 不一致: "
+            f"不足={missing}, 未登録={unexpected}"
+        )
+
+
+def _validate_authentication_entry_route_ids(
+    route_by_id: dict[str, dict[str, object]],
+) -> None:
+    """認証 HTTP 入口が承認済みの 3 経路と一致することを検査する。"""
+    actual_route_ids = frozenset(
+        route_id
+        for route_id, route in route_by_id.items()
+        if route["route_kind"] == "authentication_entry"
+    )
+    expected_route_ids = frozenset(
+        {
+            "ROUTE:AUTH:login:create",
+            "ROUTE:AUTH:logout:create",
+            "ROUTE:AUTH:password:update",
+        }
+    )
+    if actual_route_ids != expected_route_ids:
+        missing = sorted(expected_route_ids - actual_route_ids)
+        unexpected = sorted(actual_route_ids - expected_route_ids)
+        raise CatalogError(
+            "authentication_entry route の exact-set 不一致: "
             f"不足={missing}, 未登録={unexpected}"
         )
 
@@ -2331,6 +2367,7 @@ def validate_route_registry(
         "control_read": common_keys | {"control_read_id", "access_requirement"},
         "management_operation": common_keys | {"operation_id"},
         "record_and_aggregate": common_keys | {"provenance_ids", "operation"},
+        "authentication_entry": common_keys | {"provenance_ids"},
     }
     if frozenset(expected_keys_by_kind) != ROUTE_KINDS:
         raise CatalogError("ROUTE_KINDS と expected_keys_by_kind が不一致")
@@ -2477,6 +2514,7 @@ def validate_route_registry(
     ):
         raise CatalogError("operation_ids と管理 route が exact-set 不一致")
     _validate_record_and_aggregate_route_ids(route_by_id)
+    _validate_authentication_entry_route_ids(route_by_id)
     routed_route_ids_by_claim: dict[str, set[str]] = defaultdict(set)
     for route_id, route in route_by_id.items():
         source_claim_ids = route["source_claim_ids"]
@@ -2708,6 +2746,7 @@ def validate_http_route_matrix(
         "control_read": "conditional",
         "management_operation": "conditional",
         "record_and_aggregate": "conditional",
+        "authentication_entry": "conditional",
     }
     if frozenset(disposition_by_kind) != ROUTE_KINDS:
         raise CatalogError("ROUTE_KINDS と disposition_by_kind が不一致")

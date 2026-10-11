@@ -3,7 +3,7 @@
   "asset_kind": "authz_failure_injection_points",
   "source_asset": {
     "path": "contracts/authz/ddl-elements.json",
-    "git_blob_digest": "c1b9c8f700b4b930c73fb6c86fc0ffb883d2b8ee"
+    "git_blob_digest": "b252fa7cec63203c97eb1f9467f7e5f134f00ad8"
   },
   "injection_points": [
     {

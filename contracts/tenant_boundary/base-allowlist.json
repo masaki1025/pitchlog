@@ -13186,7 +13186,7 @@
     },
     {
       "symbol": "pitchlog.authz.verified_tenant.verify_tenant_id",
-      "signature": "verify_tenant_id(value: str, presentation: _TokenPresentation, engine: _Engine) -> _UUID | None",
+      "signature": "verify_tenant_id(value: str, presentation: _TokenPresentation, engine: _Engine) -> tuple[_UUID, _datetime] | None",
       "allowed_api_ids": [
         "SQLA_TEXT",
         "SQLA_ENGINE_BEGIN",
@@ -13203,6 +13203,26 @@
         "SQLA_CONNECTION_EXECUTE"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/authz/verified_tenant/__init__.py"
+    },
+    {
+      "symbol": "pitchlog.authz.team_login.login_attempt",
+      "signature": "login_attempt(team_name: str, password: str, source: str, presentation: _TokenPresentation, engine: _Engine) -> tuple[str, _datetime] | int",
+      "allowed_api_ids": [
+        "SQLA_TEXT",
+        "SQLA_ENGINE_BEGIN",
+        "SQLA_CONNECTION_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/authz/team_login.py"
+    },
+    {
+      "symbol": "pitchlog.authz.password_change.change_password_token",
+      "signature": "change_password_token(value: str, current_password: str, new_password: str, presentation: _TokenPresentation, engine: _Engine) -> bool",
+      "allowed_api_ids": [
+        "SQLA_TEXT",
+        "SQLA_ENGINE_BEGIN",
+        "SQLA_CONNECTION_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/authz/password_change.py"
     },
     {
       "symbol": "pitchlog.repositories.transaction._TenantTransaction.run",
