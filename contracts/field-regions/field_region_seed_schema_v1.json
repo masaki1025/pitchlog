@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/field-regions/field_region_seed_schema_v1.json",
+  "title": "Pitchlog field region seed schema v1",
+  "version": "field_region_seed_schema_v1",
+  "description": "付録B-6 の参照データ契約。regions 配列の順序そのものが規則の一部であり、境界線上では先に定義された領域が優先する。directionSectors も左翼線から右翼線へ定義順を保つ。座標は 0〜1・左下原点の固定小数点整数で記録する。",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "version",
+    "source",
+    "fieldImage",
+    "regions",
+    "directionOrigin",
+    "directionSectors",
+    "tieBreak"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "version": {
+      "type": "string",
+      "pattern": "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*$"
+    },
+    "source": {"$ref": "#/$defs/source"},
+    "fieldImage": {
+      "description": "画像の元寸法と、左上原点の画像座標から左下原点の保存座標への正規化の対応。",
+      "type": "object",
+      "required": ["originalWidth", "originalHeight", "normalization"],
+      "additionalProperties": false,
+      "properties": {
+        "originalWidth": {"type": "integer", "minimum": 1},
+        "originalHeight": {"type": "integer", "minimum": 1},
+        "normalization": {
+          "type": "object",
+          "required": ["sourceOrigin", "targetOrigin", "xMapping", "yMapping"],
+          "additionalProperties": false,
+          "properties": {
+            "sourceOrigin": {"const": "top-left"},
+            "targetOrigin": {"const": "bottom-left"},
+            "xMapping": {"const": "x / originalWidth"},
+            "yMapping": {"const": "1 - y / originalHeight"}
+          }
+        }
+      }
+    },
+    "regions": {
+      "description": "守備位置領域。配列の先頭ほど境界線上の帰属で優先されるため、並べ替えると判定結果が変わる。",
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {"$ref": "#/$defs/region"}
+    },
+    "directionOrigin": {"$ref": "#/$defs/point"},
+    "directionSectors": {
+      "description": "打球方向の区分角。配列は左翼線から右翼線への定義順を保つ。",
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {"$ref": "#/$defs/directionSector"}
+    },
+    "tieBreak": {"const": "first-defined-region-wins"}
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["repository", "tag", "path", "blobSha"],
+      "additionalProperties": false,
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "tag": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "blobSha": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"}
+      }
+    },
+    "fixedPoint": {
+      "description": "value / scale。scale は 10 の冪。scale の採用値は領域シードの定義時に決める。数値の字面は schema では判別できないため、tests/test_field_geometry_numeric_lexemes.py で字句検査する。",
+      "$comment": "JSON Schema は数値リテラルの綴りを保持しない。-0 や 1.0 の字面は契約ファイルの原文に対する検査で拒否する。",
+      "type": "object",
+      "required": ["value", "scale"],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "scale": {
+          "type": "integer",
+          "enum": [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000, 100000000000, 1000000000000, 10000000000000, 100000000000000, 1000000000000000]
+        }
+      }
+    },
+    "point": {
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": {"$ref": "#/$defs/fixedPoint"},
+        "y": {"$ref": "#/$defs/fixedPoint"}
+      }
+    },
+    "region": {
+      "type": "object",
+      "required": ["regionId", "position", "vertices"],
+      "additionalProperties": false,
+      "properties": {
+        "regionId": {"type": "string", "minLength": 1},
+        "position": {"type": "integer", "minimum": 1, "maximum": 9},
+        "vertices": {
+          "type": "array",
+          "minItems": 3,
+          "items": {"$ref": "#/$defs/point"}
+        }
+      }
+    },
+    "directionSector": {
+      "type": "object",
+      "required": ["directionId", "startAngle", "endAngle"],
+      "additionalProperties": false,
+      "properties": {
+        "directionId": {"type": "string", "minLength": 1},
+        "startAngle": {"$ref": "#/$defs/fixedPoint"},
+        "endAngle": {"$ref": "#/$defs/fixedPoint"}
+      }
+    }
+  }
+}

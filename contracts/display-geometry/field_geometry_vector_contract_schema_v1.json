@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/display-geometry/field_geometry_vector_contract_schema_v1.json",
+  "title": "Pitchlog field geometry vector contract schema v1",
+  "version": "field_geometry_vector_contract_schema_v1",
+  "description": "捕球選手推定と画面座標・保存座標の変換に共通する、1 ファイル = 1 対象計算のベクタ契約。画面座標は 263・左上原点、保存座標は 0〜1・左下原点。座標の各成分は value / scale の固定小数点整数で記録する。",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "version",
+    "calculation",
+    "independentVerifierId",
+    "cases"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "version": {
+      "type": "string",
+      "pattern": "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*$"
+    },
+    "calculation": {"type": "string", "minLength": 1},
+    "independentVerifierId": {"type": "string", "minLength": 1},
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/case"}
+    }
+  },
+  "$defs": {
+    "fixedPoint": {
+      "description": "value / scale。scale は 10 の冪で、整数のまま表現する。scale の採用値と丸め規則は対象計算の条文で決める。数値の字面は schema では判別できないため、tests/test_field_geometry_numeric_lexemes.py で字句検査する。",
+      "$comment": "JSON Schema は数値リテラルの綴りを保持しない。-0 や 1.0 の字面は契約ファイルの原文に対する検査で拒否する。",
+      "type": "object",
+      "required": ["value", "scale"],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "scale": {
+          "type": "integer",
+          "enum": [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000, 100000000000, 1000000000000, 10000000000000, 100000000000000, 1000000000000000]
+        }
+      }
+    },
+    "point": {
+      "description": "x は右向き。y の向きと原点は coordinateSystem で区別する。",
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": {"$ref": "#/$defs/fixedPoint"},
+        "y": {"$ref": "#/$defs/fixedPoint"}
+      }
+    },
+    "case": {
+      "type": "object",
+      "required": ["caseId", "provenance", "input", "expected"],
+      "additionalProperties": false,
+      "properties": {
+        "caseId": {"type": "string", "minLength": 1},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "input": {
+          "type": "object",
+          "required": ["coordinate", "coordinateSystem"],
+          "additionalProperties": false,
+          "properties": {
+            "coordinate": {"$ref": "#/$defs/point"},
+            "coordinateSystem": {
+              "enum": ["screen-263-top-left", "normalized-bottom-left"]
+            },
+            "batterSide": {"type": "string", "minLength": 1}
+          }
+        },
+        "expected": {
+          "description": "捕球選手推定は position、座標変換は coordinate と導出値を記録する。往復確認には roundTripCoordinate を使う。",
+          "type": "object",
+          "additionalProperties": false,
+          "anyOf": [
+            {"required": ["position"]},
+            {"required": ["coordinate", "coordinateSystem"]}
+          ],
+          "properties": {
+            "position": {
+              "oneOf": [
+                {"type": "integer", "minimum": 1, "maximum": 9},
+                {"type": "null"}
+              ]
+            },
+            "coordinate": {"$ref": "#/$defs/point"},
+            "coordinateSystem": {
+              "enum": ["screen-263-top-left", "normalized-bottom-left"]
+            },
+            "insideOutside": {"type": "string", "minLength": 1},
+            "roundTripCoordinate": {"$ref": "#/$defs/point"}
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["subjectKind", "sources"],
+      "additionalProperties": false,
+      "properties": {
+        "subjectKind": {
+          "enum": ["clause", "legacy-pinned", "geometry-contract"]
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/provenanceSource"}
+        }
+      }
+    },
+    "provenanceSource": {
+      "type": "object",
+      "required": ["path"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1},
+        "blobSha": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"}
+      }
+    }
+  }
+}
