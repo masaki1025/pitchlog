@@ -123,17 +123,19 @@ function envelopeFields(body: ApiErrorBody): { location: string }[] {
     : []
 }
 
-async function readResponseBody(res: Response): Promise<{
+function parseResponseBody(
+  res: Response,
+  raw: string,
+): {
   raw: string
   body: unknown
   isJson: boolean
   invalidJson: boolean
-}> {
-  const raw = await res.text()
+} {
   const isJson = (res.headers.get('content-type') ?? '')
     .toLowerCase()
     .includes('json')
-  let body: unknown = raw || undefined
+  let body: unknown = raw
   let invalidJson = false
   if (raw && isJson) {
     try {
@@ -145,11 +147,12 @@ async function readResponseBody(res: Response): Promise<{
   return { raw, body, isJson, invalidJson }
 }
 
-async function requestResponse(
+async function requestResponse<T>(
   method: HttpMethod,
   path: string,
-  options: RequestOptions = {},
-): Promise<Response> {
+  options: RequestOptions,
+  readSuccess: (res: Response) => Promise<T>,
+): Promise<{ res: Response; body: T }> {
   const pinia = getActivePinia()
   if (!pinia) {
     throw new Error('Pinia が未インストールのため API を呼べません')
@@ -196,14 +199,38 @@ async function requestResponse(
     throw new ApiStaleAuthError(method, path, res.status)
   }
 
-  if (res.ok) {
-    return res
+  let readResult:
+    | {
+        ok: true
+        value: { kind: 'success'; body: T } | { kind: 'error'; raw: string }
+      }
+    | { ok: false; cause: unknown }
+  try {
+    readResult = res.ok
+      ? { ok: true, value: { kind: 'success', body: await readSuccess(res) } }
+      : { ok: true, value: { kind: 'error', raw: await res.text() } }
+  } catch (cause) {
+    readResult = { ok: false, cause }
   }
 
-  const { body } = await readResponseBody(res)
+  // 本文の読み取り中にも認証が切り替わり得るため、結果を解釈する前に再照合する。
+  auth.syncFromStorage()
+  if (auth.authEpoch !== epoch) {
+    throw new ApiStaleAuthError(method, path, res.status)
+  }
+
   if (res.status === 401 && !options.noAuthExpiry) {
     auth.expireSession()
   }
+
+  if (!readResult.ok) {
+    throw new ApiNetworkError(readResult.cause)
+  }
+  if (readResult.value.kind === 'success') {
+    return { res, body: readResult.value.body }
+  }
+
+  const { body } = parseResponseBody(res, readResult.value.raw)
   const envelope = isErrorEnvelope(body) ? body : undefined
   throw new ApiError(
     res.status,
@@ -219,8 +246,13 @@ export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const res = await requestResponse(method, path, options)
-  const { raw, body, isJson, invalidJson } = await readResponseBody(res)
+  const { res, body: raw } = await requestResponse(
+    method,
+    path,
+    options,
+    (res) => res.text(),
+  )
+  const { body, isJson, invalidJson } = parseResponseBody(res, raw)
   if (res.status === 204 || !raw) {
     return undefined as T
   }
@@ -259,8 +291,12 @@ export async function apiDownload(
     noAuthExpiry?: boolean
   } = {},
 ): Promise<{ blob: Blob; filename: string | null }> {
-  const res = await requestResponse('GET', path, options)
-  const blob = await res.blob()
+  const { res, body: blob } = await requestResponse(
+    'GET',
+    path,
+    options,
+    (res) => res.blob(),
+  )
   return {
     blob,
     filename: downloadFilename(res.headers.get('content-disposition')),

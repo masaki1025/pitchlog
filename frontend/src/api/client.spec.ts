@@ -32,15 +32,19 @@ function writeOtherTabAuth(): string {
   return raw
 }
 
-function deferredResponse(): {
-  promise: Promise<Response>
-  resolve: (response: Response) => void
+function deferredValue<T>(): {
+  promise: Promise<T>
+  resolve: (value: T) => void
 } {
-  let resolve!: (response: Response) => void
-  const promise = new Promise<Response>((done) => {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((done) => {
     resolve = done
   })
   return { promise, resolve }
+}
+
+function deferredResponse(): ReturnType<typeof deferredValue<Response>> {
+  return deferredValue<Response>()
 }
 
 beforeEach(() => {
@@ -251,16 +255,29 @@ describe('apiRequest', () => {
     })
   })
 
-  it('送信前に syncFromStorage を呼ぶ', async () => {
+  it('送信前・fetch 後・本文後に syncFromStorage を呼ぶ', async () => {
     const auth = useAuthStore(pinia)
     const sync = vi.spyOn(auth, 'syncFromStorage')
-    respond('{}')
+    const response = new Response('{}', {
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const readBody = vi.spyOn(response, 'text')
+    vi.mocked(fetch).mockResolvedValue(response)
 
     await apiRequest('GET', '/players')
 
-    expect(sync).toHaveBeenCalledTimes(2)
+    expect(sync).toHaveBeenCalledTimes(3)
     expect(sync.mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(fetch).mock.invocationCallOrder[0]!,
+    )
+    expect(sync.mock.invocationCallOrder[1]).toBeGreaterThan(
+      vi.mocked(fetch).mock.invocationCallOrder[0]!,
+    )
+    expect(sync.mock.invocationCallOrder[1]).toBeLessThan(
+      readBody.mock.invocationCallOrder[0]!,
+    )
+    expect(sync.mock.invocationCallOrder[2]).toBeGreaterThan(
+      readBody.mock.invocationCallOrder[0]!,
     )
   })
 
@@ -294,7 +311,7 @@ describe('apiRequest', () => {
   })
 
   it.each([403, 404, 409])(
-    '%i は ApiError にし、再試行しない',
+    '%i は空本文を保つ ApiError にし、再試行しない',
     async (status) => {
       respond('', status)
 
@@ -302,6 +319,7 @@ describe('apiRequest', () => {
         name: 'ApiError',
         status,
         message: `HTTP ${status}`,
+        body: '',
       })
       expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
     },
@@ -409,6 +427,112 @@ describe('apiRequest', () => {
     expect(readBody).not.toHaveBeenCalled()
     expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
     expect(auth.teamName).toBe('B')
+    expect(auth.isAuthenticated).toBe(true)
+    expect(auth.sessionExpired).toBe(false)
+  })
+
+  it('200 の本文を読む途中で認証が変わると値を返さない', async () => {
+    const auth = useAuthStore(pinia)
+    auth.signIn({ teamName: 'A' })
+    const reading = deferredValue<void>()
+    const body = deferredValue<string>()
+    const response = new Response(null, {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const readBody = vi.spyOn(response, 'text').mockImplementation(() => {
+      reading.resolve(undefined)
+      return body.promise
+    })
+    vi.mocked(fetch).mockResolvedValue(response)
+
+    const request = apiRequest('GET', '/players')
+    await reading.promise
+    const savedB = writeOtherTabAuth()
+    body.resolve('{"items":["A"]}')
+
+    const error = await request.catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ApiStaleAuthError)
+    expect(error).toMatchObject({
+      name: 'ApiStaleAuthError',
+      method: 'GET',
+      path: '/players',
+      status: 200,
+    })
+    expect(readBody).toHaveBeenCalledOnce()
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
+    expect(auth.teamName).toBe('B')
+  })
+
+  it('401 の本文を読む途中で認証が変わると B を失効させない', async () => {
+    const auth = useAuthStore(pinia)
+    auth.signIn({ teamName: 'A' })
+    const expire = vi.spyOn(auth, 'expireSession')
+    const reading = deferredValue<void>()
+    const body = deferredValue<string>()
+    const response = new Response(null, {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const readBody = vi.spyOn(response, 'text').mockImplementation(() => {
+      reading.resolve(undefined)
+      return body.promise
+    })
+    vi.mocked(fetch).mockResolvedValue(response)
+
+    const request = apiRequest('GET', '/players')
+    await reading.promise
+    const savedB = writeOtherTabAuth()
+    body.resolve('{"error":{"message":"古い認証"}}')
+
+    const error = await request.catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ApiStaleAuthError)
+    expect(error).toMatchObject({
+      name: 'ApiStaleAuthError',
+      method: 'GET',
+      path: '/players',
+      status: 401,
+    })
+    expect(readBody).toHaveBeenCalledOnce()
+    expect(expire).not.toHaveBeenCalled()
+    expect(auth.isAuthenticated).toBe(true)
+    expect(auth.teamName).toBe('B')
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
+  })
+
+  it('401 の本文読み取り失敗でも失効して原因付き ApiNetworkError にする', async () => {
+    const auth = useAuthStore(pinia)
+    auth.signIn({ teamName: 'A' })
+    const expire = vi.spyOn(auth, 'expireSession')
+    const cause = new TypeError('read failed')
+    const response = new Response(null, { status: 401 })
+    vi.spyOn(response, 'text').mockRejectedValue(cause)
+    vi.mocked(fetch).mockResolvedValue(response)
+
+    const error = await apiRequest('GET', '/players').catch(
+      (caught: unknown) => caught,
+    )
+    expect(error).toBeInstanceOf(ApiNetworkError)
+    expect(error).toMatchObject({ cause })
+    expect(expire).toHaveBeenCalledOnce()
+    expect(auth.sessionExpired).toBe(true)
+  })
+
+  it('noAuthExpiry の 401 で本文読み取りが失敗しても失効しない', async () => {
+    const auth = useAuthStore(pinia)
+    auth.signIn({ teamName: 'A' })
+    const expire = vi.spyOn(auth, 'expireSession')
+    const cause = new TypeError('read failed')
+    const response = new Response(null, { status: 401 })
+    vi.spyOn(response, 'text').mockRejectedValue(cause)
+    vi.mocked(fetch).mockResolvedValue(response)
+
+    const error = await apiRequest('GET', '/players', {
+      noAuthExpiry: true,
+    }).catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ApiNetworkError)
+    expect(error).toMatchObject({ cause })
+    expect(expire).not.toHaveBeenCalled()
     expect(auth.isAuthenticated).toBe(true)
     expect(auth.sessionExpired).toBe(false)
   })
@@ -577,7 +701,9 @@ describe('apiDownload', () => {
     const readBlob = vi.spyOn(response, 'blob')
     pending.resolve(response)
 
-    await expect(request).rejects.toMatchObject({
+    const error = await request.catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ApiStaleAuthError)
+    expect(error).toMatchObject({
       name: 'ApiStaleAuthError',
       method: 'GET',
       path: '/reports/game.csv',
@@ -612,5 +738,35 @@ describe('apiDownload', () => {
     expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
     expect(auth.teamName).toBe('B')
     expect(auth.isAuthenticated).toBe(true)
+  })
+
+  it('Blob を読む途中で認証が変わるとファイルを返さない', async () => {
+    const auth = useAuthStore(pinia)
+    auth.signIn({ teamName: 'A' })
+    const reading = deferredValue<void>()
+    const body = deferredValue<Blob>()
+    const response = new Response(null, { status: 200 })
+    const readBlob = vi.spyOn(response, 'blob').mockImplementation(() => {
+      reading.resolve(undefined)
+      return body.promise
+    })
+    vi.mocked(fetch).mockResolvedValue(response)
+
+    const request = apiDownload('/reports/game.csv')
+    await reading.promise
+    const savedB = writeOtherTabAuth()
+    body.resolve(new Blob(['A のファイル']))
+
+    const error = await request.catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ApiStaleAuthError)
+    expect(error).toMatchObject({
+      name: 'ApiStaleAuthError',
+      method: 'GET',
+      path: '/reports/game.csv',
+      status: 200,
+    })
+    expect(readBlob).toHaveBeenCalledOnce()
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
+    expect(auth.teamName).toBe('B')
   })
 })
