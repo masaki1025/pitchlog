@@ -78,6 +78,8 @@ created: 2026-10-11
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
 | (なし) | **反映なし**。要件書・設計書・ADR・ハーネス設計書・ops の正本は変えない。API 契約の正本は TSK-346(未着手)の担当で、U-F6 の型は暫定の層 (B) に依拠する | — |
+| `docs/development/harness-evaluation.md` | `/pr` クローズ処理で追記(PR 作成時に宣言を追加): **H-69 へ再発の実測**(Codex の sandbox で閉域 spec の子プロセスが EPERM・検証のために**別の worktree の `.venv`** を `UV_PROJECT_ENVIRONMENT` に指して使い、`/tmp` に uv キャッシュを残した)。`H-*` は採番しない・版は上げない | PR レビュー(7.6-3 前段) |
+| `docs/README.md` | 台帳行の最終更新日を 2026-10-11 へ | PR レビュー(7.6-3 前段) |
 
 正本ではない文書で更新するもの(PR レビューで扱う):
 
