@@ -45,15 +45,19 @@ function writeOtherTabAuth(teamName: string): string {
   return raw
 }
 
-function deferredResponse(): {
-  promise: Promise<Response>
-  resolve: (response: Response) => void
+function deferredValue<T>(): {
+  promise: Promise<T>
+  resolve: (value: T) => void
 } {
-  let resolve!: (response: Response) => void
-  const promise = new Promise<Response>((done) => {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((done) => {
     resolve = done
   })
   return { promise, resolve }
+}
+
+function deferredResponse(): ReturnType<typeof deferredValue<Response>> {
+  return deferredValue<Response>()
 }
 
 function openTestDatabase(name: string): Promise<IDBDatabase> {
@@ -249,6 +253,35 @@ describe('apiRequest の認証越境', () => {
     expect(auth.teamName).toBe('B')
   })
 
+  it('本文の読み取り中に B へ切り替わると A の応答をキャッシュへ入れない', async () => {
+    const auth = useAuthStore(pinia)
+    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    const reading = deferredValue<void>()
+    const body = deferredValue<string>()
+    const response = jsonResponse({ id: 4 })
+    vi.spyOn(response, 'text').mockImplementation(() => {
+      reading.resolve(undefined)
+      return body.promise
+    })
+    vi.mocked(fetch).mockResolvedValue(response)
+    const setQueryData = vi.spyOn(queryClient, 'setQueryData')
+    const request = apiRequest<{ id: number }>('GET', '/games/4').then(
+      (data) => {
+        queryClient.setQueryData(['games', 4], data)
+        return data
+      },
+    )
+
+    await reading.promise
+    writeOtherTabAuth('B')
+    body.resolve('{"id":4}')
+
+    await expect(request).rejects.toBeInstanceOf(ApiStaleAuthError)
+    expect(setQueryData).not.toHaveBeenCalled()
+    expect(queryClient.getQueryData(['games', 4])).toBeUndefined()
+    expect(auth.teamName).toBe('B')
+  })
+
   it('往復中の切り替え後に古い 401 が届いても B の認証とキャッシュを保つ', async () => {
     const auth = useAuthStore(pinia)
     auth.signIn({ teamName: 'A', teamId: 'team-a' })
@@ -272,6 +305,41 @@ describe('apiRequest の認証越境', () => {
     })
 
     expect(readBody).not.toHaveBeenCalled()
+    expect(expireSession).not.toHaveBeenCalled()
+    expect(auth.isAuthenticated).toBe(true)
+    expect(auth.teamName).toBe('B')
+    expect(auth.sessionExpired).toBe(false)
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
+    expect(queryClient.getQueryData(['team', 'B'])).toBe('B のデータ')
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
+  })
+
+  it('401 の本文読み取り中に B へ切り替わっても B の認証とキャッシュを保つ', async () => {
+    const auth = useAuthStore(pinia)
+    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    const expireSession = vi.spyOn(auth, 'expireSession')
+    const reading = deferredValue<void>()
+    const body = deferredValue<string>()
+    const response = jsonResponse({ error: { message: '古い認証' } }, 401)
+    vi.spyOn(response, 'text').mockImplementation(() => {
+      reading.resolve(undefined)
+      return body.promise
+    })
+    vi.mocked(fetch).mockResolvedValue(response)
+    const request = apiRequest('GET', '/games/4')
+
+    await reading.promise
+    const savedB = writeOtherTabAuth('B')
+    window.dispatchEvent(new StorageEvent('storage', { key: AUTH_STORAGE_KEY }))
+    queryClient.setQueryData(['team', 'B'], 'B のデータ')
+    body.resolve('{"error":{"message":"古い認証"}}')
+
+    await expect(request).rejects.toMatchObject({
+      name: 'ApiStaleAuthError',
+      method: 'GET',
+      path: '/games/4',
+      status: 401,
+    })
     expect(expireSession).not.toHaveBeenCalled()
     expect(auth.isAuthenticated).toBe(true)
     expect(auth.teamName).toBe('B')
