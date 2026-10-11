@@ -28,8 +28,30 @@ BASELINE_DEFINITION_PATHS = frozenset(
     }
 )
 # 追加層は JSON を変更するコミットより先に固定する。同一コミットでの追随を許さない。
+DOMAIN_RUNTIME_PATH_ADDITIONS = (
+    "frontend/src/domain/*",
+    "backend/src/pitchlog/domainrt/*",
+    "frontend/public/domain/*",
+    "frontend/scripts/domain-checks/*",
+    "frontend/scripts/domain-build/*",
+    "frontend/scripts/domain-sql/*",
+    "frontend/index.html",
+    "frontend/eslint.config.js",
+    "frontend/.dependency-cruiser.cjs",
+    "frontend/src/testing/vectorRunner.ts",
+    "frontend/src/testing/vectorRunner.spec.ts",
+    "frontend/src/testing/vectorConformance.spec.ts",
+    "frontend/src/testing/handoffLoader.ts",
+    "frontend/src/testing/handoffLoader.spec.ts",
+    "frontend/src/testing/artifactAdapter.ts",
+    "frontend/src/testing/artifactAdapter.spec.ts",
+    "backend/tests/domainrt/*",
+    "backend/Dockerfile",
+)
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "tenant-isolation": ("frontend/src/stores/authStore*",),
+    "sync-protocol": ("tests/domain/runners/test_handoff_loader.py",),
+    "game-state": DOMAIN_RUNTIME_PATH_ADDITIONS,
+    "data-migration": DOMAIN_RUNTIME_PATH_ADDITIONS,
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"

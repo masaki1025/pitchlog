@@ -415,8 +415,40 @@ UM1_TENANT_AREA_PATH_ADDITIONS = (
     "tests/test_census_baseline_check.py",
 )
 UF2_AUTH_STORE_AREA_PATH_ADDITIONS = ("frontend/src/stores/authStore*",)
+D2_DOMAIN_CALC_PATH_ADDITIONS = (
+    "frontend/src/domain/*",
+    "backend/src/pitchlog/domainrt/*",
+    "frontend/public/domain/*",
+    "frontend/scripts/domain-checks/*",
+    "frontend/scripts/domain-build/*",
+    "frontend/scripts/domain-sql/*",
+    "frontend/index.html",
+    "frontend/eslint.config.js",
+    "frontend/.dependency-cruiser.cjs",
+    "frontend/src/testing/vectorRunner.ts",
+    "frontend/src/testing/vectorRunner.spec.ts",
+    "frontend/src/testing/vectorConformance.spec.ts",
+    "frontend/src/testing/handoffLoader.ts",
+    "frontend/src/testing/handoffLoader.spec.ts",
+    "frontend/src/testing/artifactAdapter.ts",
+    "frontend/src/testing/artifactAdapter.spec.ts",
+    "backend/tests/domainrt/*",
+    "backend/Dockerfile",
+)
+D2_DOMAIN_CALC_GLOBS = (
+    "frontend/src/domain/*",
+    "backend/src/pitchlog/domainrt/*",
+    "frontend/public/domain/*",
+    "frontend/scripts/domain-checks/*",
+    "frontend/scripts/domain-build/*",
+    "frontend/scripts/domain-sql/*",
+    "backend/tests/domainrt/*",
+)
+D2_SYNC_PROTOCOL_PATH_ADDITIONS = ("tests/domain/runners/test_handoff_loader.py",)
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
-    "tenant-isolation": UF2_AUTH_STORE_AREA_PATH_ADDITIONS,
+    "sync-protocol": D2_SYNC_PROTOCOL_PATH_ADDITIONS,
+    "game-state": D2_DOMAIN_CALC_PATH_ADDITIONS,
+    "data-migration": D2_DOMAIN_CALC_PATH_ADDITIONS,
 }
 DECLARED_ADDITION_AREA_IDS = tuple(EXPECTED_AREA_PATH_ADDITIONS)
 DOMAIN_CALC_GLOBS = (
@@ -428,6 +460,7 @@ DOMAIN_CALC_GLOBS = (
     "backend/tests/domain/*",
     "frontend/src/lib/generated/*",
     "tests/domain/*",
+    *D2_DOMAIN_CALC_GLOBS,
 )
 PRODUCT_RLS_AREA_PATH_ADDITIONS = (
     "docs/ops/product-rls-real-schema.md",
@@ -577,9 +610,9 @@ def make_repo(tmp_path: Path, core_paths: list[str] | None = None) -> Path:
 
 
 def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
-    """実設定を基に宣言の全件を登録した合成リポジトリを作る。
+    """実設定を基に新旧宣言の全件を登録した合成リポジトリを作る。
 
-    U-F2 の登録前なら、一時リポジトリだけに宣言済みの 1 件を補う。
+    未登録の宣言は一時リポジトリの設定だけに補う。
 
     Args:
         tmp_path: pytest が提供する一時ディレクトリ。
@@ -604,6 +637,7 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
             UM1_TENANT_AREA_PATH_ADDITIONS
         )
         tenant_paths.extend(UF2_AUTH_STORE_AREA_PATH_ADDITIONS)
+    configuration = _with_declared_paths(configuration)
     write_text(
         root,
         ".claude/core-areas.json",
@@ -896,6 +930,19 @@ def load_actual_core_areas() -> dict[str, Any]:
     return value
 
 
+def _with_declared_paths(configuration: dict[str, Any]) -> dict[str, Any]:
+    """未登録の追加層を一時コピーにだけ全件補う。"""
+    copied = json.loads(json.dumps(configuration))
+    areas = {area["id"]: area for area in copied["areas"]}
+    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
+        paths = areas[area_id]["paths"]
+        if tuple(paths[-len(additions) :]) == additions:
+            continue
+        assert not set(paths) & set(additions), f"{area_id} の追加層が部分登録"
+        paths.extend(additions)
+    return copied
+
+
 def _require_reference_discovery_policy(
     configuration: dict[str, Any],
 ) -> dict[str, Any]:
@@ -924,10 +971,10 @@ def _require_reference_discovery_policy(
     assert paths == sorted(set(paths)), "declared_exclusions.paths に重複または順序違反"
     reason = exclusions.get("reason")
     assert isinstance(reason, str) and reason
-    assert (
-        exclusions.get("deferred_to")
-        == "段階2送り（unresolved-report.md の S34・design.md 8-6）"
-    )
+    assert exclusions.get("deferred_to") in {
+        "段階2送り（unresolved-report.md の S34・design.md 8-6）",
+        "TSK-540 送り（unresolved-report.md の S34・design.md 8-6）",
+    }
     return policy
 
 
@@ -1878,13 +1925,8 @@ def test_actual_core_area_paths_follow_merge_base_layers():
 
     assert len(baseline_ids) == len(baseline["areas"]), "コア領域 ID が重複している"
     assert len(baseline_ids) == 5
-    assert declared_ids == {"tenant-isolation"}
-    assert stationary_ids == {
-        "sync-protocol",
-        "game-state",
-        "recording-rights",
-        "data-migration",
-    }
+    assert declared_ids == {"sync-protocol", "game-state", "data-migration"}
+    assert stationary_ids == {"recording-rights", "tenant-isolation"}
     core_guard.validate_area_path_layers(baseline, candidate)
 
 
@@ -1924,7 +1966,7 @@ def test_each_area_becomes_stationary_when_omitted_from_declaration(
     attempts = 0
 
     assert len(baseline_ids) == len(baseline["areas"]) == 5
-    assert declared_ids == {"tenant-isolation"}
+    assert declared_ids == {"sync-protocol", "game-state", "data-migration"}
     for area_id in sorted(baseline_ids - declared_ids):
         mutated = json.loads(json.dumps(candidate))
         area = next(item for item in mutated["areas"] if item["id"] == area_id)
@@ -1935,7 +1977,7 @@ def test_each_area_becomes_stationary_when_omitted_from_declaration(
             )
         attempts += 1
 
-    assert attempts == 4
+    assert attempts == 2
 
 
 def test_change_absent_from_declared_addition_layer_is_rejected(tmp_path: Path):
@@ -2181,7 +2223,6 @@ def test_tenant_additions_declared_for_other_area_are_rejected(tmp_path: Path) -
         root, {"tenant-isolation": UF2_AUTH_STORE_AREA_PATH_ADDITIONS}
     )
     declared = dict(EXPECTED_AREA_PATH_ADDITIONS)
-    declared.pop("tenant-isolation")
     declared["recording-rights"] = UF2_AUTH_STORE_AREA_PATH_ADDITIONS
 
     baseline = core_guard.load_core_areas_at_revision(root, base_sha)
@@ -2295,7 +2336,7 @@ def test_uf2_auth_store_is_registered_in_actual_tenant_isolation() -> None:
 
 
 def test_area_registration() -> None:
-    """旧追加層が基線にあり、U-F2 の登録前後を受理する。"""
+    """U-F2 の基線を保持し、D-2 の登録前後を受理する。"""
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     configuration = load_actual_core_areas()
@@ -2310,14 +2351,14 @@ def test_area_registration() -> None:
         "sync-protocol": 49,
         "game-state": 49,
         "recording-rights": 1,
-        "tenant-isolation": 8,
+        "tenant-isolation": 9,
         "data-migration": 6,
     }
     baseline_counts = {
         "sync-protocol": 147,
         "game-state": 110,
         "recording-rights": 68,
-        "tenant-isolation": 82,
+        "tenant-isolation": 83,
         "data-migration": 48,
     }
     appendix_e_additions = (
@@ -2336,7 +2377,11 @@ def test_area_registration() -> None:
         "sync-protocol": appendix_e_additions,
         "game-state": appendix_e_additions,
         "recording-rights": (ADR_001_PATH,),
-        "tenant-isolation": (ADR_001_PATH, *UM1_TENANT_AREA_PATH_ADDITIONS),
+        "tenant-isolation": (
+            ADR_001_PATH,
+            *UM1_TENANT_AREA_PATH_ADDITIONS,
+            *UF2_AUTH_STORE_AREA_PATH_ADDITIONS,
+        ),
         "data-migration": (
             ADR_001_PATH,
             ADR_003_PATH,
@@ -2345,18 +2390,16 @@ def test_area_registration() -> None:
     }
 
     assert len(areas) == len(configuration["areas"]) == 5
-    assert len(DOMAIN_CALC_GLOBS) == 8
+    assert len(DOMAIN_CALC_GLOBS) == 15
     assert declared_ids == set(DECLARED_ADDITION_AREA_IDS)
-    assert declared_ids == {"tenant-isolation"}
-    assert stationary_ids == set(areas) - {"tenant-isolation"}
+    assert declared_ids == {"sync-protocol", "game-state", "data-migration"}
+    assert stationary_ids == {"recording-rights", "tenant-isolation"}
     assert set(areas) == set(registered_counts) == set(baseline_counts)
     for area_id in DATA_MODEL_AREA_IDS:
         registered = registered_additions[area_id]
         current_paths = tuple(areas[area_id]["paths"])
         base_paths = tuple(baseline_areas[area_id]["paths"])
-        additions = (
-            UF2_AUTH_STORE_AREA_PATH_ADDITIONS if area_id == "tenant-isolation" else ()
-        )
+        additions = EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ())
         # 宣言は回転式の窓口であり、マージ後は宣言した追加層が比較元の末尾へ
         # 吸収される(#108 と同じ理由)。「未取り込み = 宣言」と「吸収済みで
         # 未取り込みなし」の双方を受理し、件数と末尾は吸収分を除いて確かめる。
@@ -2364,10 +2407,10 @@ def test_area_registration() -> None:
         pre_additions = base_paths[: -len(additions)] if absorbed else base_paths
         assert len(registered) == registered_counts[area_id]
         assert len(pre_additions) == baseline_counts[area_id]
-        if area_id == "tenant-isolation":
-            assert len(current_paths) in (82, 83)
-        else:
-            assert len(current_paths) == baseline_counts[area_id]
+        assert len(current_paths) in (
+            baseline_counts[area_id],
+            baseline_counts[area_id] + len(additions),
+        )
         assert pre_additions[-len(registered) :] == registered
         assert len(registered) == len(set(registered))
         assert all(
@@ -2389,6 +2432,58 @@ def test_area_registration() -> None:
     core_guard.validate_area_path_layers(baseline, configuration)
 
 
+@pytest.mark.parametrize("registered", [False, True])
+def test_d2_registration_accepts_both_temporary_json_states(
+    tmp_path: Path, registered: bool
+) -> None:
+    """実 JSON に触れず、D-2 登録前後の一時コピーを検証する。"""
+    core_guard = load_core_guard_module()
+    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
+    candidate = _with_declared_paths(baseline) if registered else baseline
+    copied_path = tmp_path / "core-areas.json"
+    copied_path.write_text(json.dumps(candidate, ensure_ascii=False), encoding="utf-8")
+    copied = json.loads(copied_path.read_text(encoding="utf-8"))
+
+    core_guard.validate_area_path_layers(baseline, copied)
+    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
+        paths = next(area["paths"] for area in copied["areas"] if area["id"] == area_id)
+        base_paths = next(
+            area["paths"] for area in baseline["areas"] if area["id"] == area_id
+        )
+        assert len(paths) == len(base_paths) + (len(additions) if registered else 0)
+        if registered:
+            assert tuple(paths[-len(additions) :]) == additions
+        else:
+            assert paths == base_paths
+
+
+def test_declared_d2_paths_are_new_and_match_tracked_files() -> None:
+    """追加 glob が基線と重複せず、各々実在ファイルに一致する。"""
+    core_guard = load_core_guard_module()
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    assert tuple(core_guard.DOMAIN_RUNTIME_PATH_ADDITIONS) == (
+        D2_DOMAIN_CALC_PATH_ADDITIONS
+    )
+    assert set(D2_DOMAIN_CALC_GLOBS) <= set(D2_DOMAIN_CALC_PATH_ADDITIONS)
+    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
+    areas = {area["id"]: area for area in baseline["areas"]}
+    tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
+    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
+        baseline_patterns = areas[area_id]["paths"]
+        assert not set(additions) & set(baseline_patterns)
+        for pattern in additions:
+            matched = [
+                path for path in tracked_files if fnmatch.fnmatchcase(path, pattern)
+            ]
+            assert matched, f"実在ファイルに一致しない: {area_id}: {pattern}"
+            assert all(
+                not any(fnmatch.fnmatchcase(path, old) for old in baseline_patterns)
+                for path in matched
+            ), f"既存 glob が被覆済み: {area_id}: {pattern}"
+
+
 @pytest.mark.parametrize(
     "pattern",
     DOMAIN_CALC_GLOBS,
@@ -2397,7 +2492,7 @@ def test_future_domain_calc_file_is_covered_by_each_registered_glob(
     pattern: str,
 ) -> None:
     """各 glob が将来追加される下位ファイルも自動的に覆うと示す。"""
-    configuration = load_actual_core_areas()
+    configuration = _with_declared_paths(load_actual_core_areas())
     areas = {area["id"]: area for area in configuration["areas"]}
     future_path = f"{pattern.removesuffix('*')}future/nested_probe.py"
 
@@ -2515,6 +2610,7 @@ def test_vocabulary_assets_are_owned_by_data_migration_area() -> None:
 def test_contract_reference_python_paths_are_discovered_deterministically() -> None:
     """契約参照の導出と資産で宣言した除外の完全一致を固定する。"""
     configuration = load_actual_core_areas()
+    prospective = _with_declared_paths(configuration)
     policy = _require_reference_discovery_policy(configuration)
     areas_by_id = {area["id"]: area for area in configuration["areas"]}
 
@@ -2525,6 +2621,12 @@ def test_contract_reference_python_paths_are_discovered_deterministically() -> N
     assert first == second
     assert first == tuple(sorted(set(first)))
     assert set(excluded) <= set(first)
+    pending = D2_SYNC_PROTOCOL_PATH_ADDITIONS[0]
+    sync_patterns = areas_by_id["sync-protocol"]["paths"]
+    pending_registration = not any(
+        fnmatch.fnmatchcase(pending, pattern) for pattern in sync_patterns
+    )
+    assert pending in first
     for area_id in policy["required_area_ids"]:
         patterns = areas_by_id[area_id]["paths"]
         assert "scripts/*" not in patterns
@@ -2534,11 +2636,20 @@ def test_contract_reference_python_paths_are_discovered_deterministically() -> N
             for path in first
             if not any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
         )
-        assert missing == excluded
+        expected_missing = set(excluded)
+        if area_id == "sync-protocol" and pending_registration:
+            expected_missing.add(pending)
+        assert set(missing) == expected_missing
 
-    assert (
-        assert_contract_reference_python_paths_are_registered(REPO, configuration)
-        == tuple(path for path in first if path not in excluded)
+    if pending_registration:
+        with pytest.raises(AssertionError, match="未登録"):
+            assert_contract_reference_python_paths_are_registered(REPO, configuration)
+    else:
+        assert_contract_reference_python_paths_are_registered(REPO, configuration) == (
+            tuple(path for path in first if path not in excluded)
+        )
+    assert assert_contract_reference_python_paths_are_registered(REPO, prospective) == (
+        tuple(path for path in first if path not in excluded)
     )
 
 
