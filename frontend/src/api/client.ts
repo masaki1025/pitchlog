@@ -123,11 +123,33 @@ function envelopeFields(body: ApiErrorBody): { location: string }[] {
     : []
 }
 
-export async function apiRequest<T>(
+async function readResponseBody(res: Response): Promise<{
+  raw: string
+  body: unknown
+  isJson: boolean
+  invalidJson: boolean
+}> {
+  const raw = await res.text()
+  const isJson = (res.headers.get('content-type') ?? '')
+    .toLowerCase()
+    .includes('json')
+  let body: unknown = raw || undefined
+  let invalidJson = false
+  if (raw && isJson) {
+    try {
+      body = JSON.parse(raw)
+    } catch {
+      invalidJson = true
+    }
+  }
+  return { raw, body, isJson, invalidJson }
+}
+
+async function requestResponse(
   method: HttpMethod,
   path: string,
   options: RequestOptions = {},
-): Promise<T> {
+): Promise<Response> {
   const pinia = getActivePinia()
   if (!pinia) {
     throw new Error('Pinia が未インストールのため API を呼べません')
@@ -174,30 +196,11 @@ export async function apiRequest<T>(
     throw new ApiStaleAuthError(method, path, res.status)
   }
 
-  const raw = await res.text()
-  const isJson = (res.headers.get('content-type') ?? '')
-    .toLowerCase()
-    .includes('json')
-  let body: unknown = raw || undefined
-  let invalidJson = false
-  if (raw && isJson) {
-    try {
-      body = JSON.parse(raw)
-    } catch {
-      invalidJson = true
-    }
-  }
-
   if (res.ok) {
-    if (res.status === 204 || !raw) {
-      return undefined as T
-    }
-    if (!isJson || invalidJson) {
-      throw new ApiError(res.status, '応答を解釈できません', [], undefined, raw)
-    }
-    return body as T
+    return res
   }
 
+  const { body } = await readResponseBody(res)
   if (res.status === 401 && !options.noAuthExpiry) {
     auth.expireSession()
   }
@@ -209,4 +212,57 @@ export async function apiRequest<T>(
     parseRetryAfterMs(res.headers.get('retry-after')),
     body,
   )
+}
+
+export async function apiRequest<T>(
+  method: HttpMethod,
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  const res = await requestResponse(method, path, options)
+  const { raw, body, isJson, invalidJson } = await readResponseBody(res)
+  if (res.status === 204 || !raw) {
+    return undefined as T
+  }
+  if (!isJson || invalidJson) {
+    throw new ApiError(res.status, '応答を解釈できません', [], undefined, raw)
+  }
+  return body as T
+}
+
+function downloadFilename(header: string | null): string | null {
+  if (!header) {
+    return null
+  }
+  const encoded = /(?:^|;)\s*filename\*\s*=\s*([^;]*)/i.exec(header)
+  if (encoded) {
+    const value = /^UTF-8''(.+)$/i.exec(encoded[1]?.trim() ?? '')
+    if (!value) {
+      return null
+    }
+    try {
+      return decodeURIComponent(value[1]!)
+    } catch {
+      return null
+    }
+  }
+  const plain = /(?:^|;)\s*filename\s*=\s*(?:"([^"]*)"|([^;]*))/i.exec(header)
+  const filename = plain?.[1] ?? plain?.[2]?.trim()
+  return filename || null
+}
+
+export async function apiDownload(
+  path: string,
+  options: {
+    query?: RequestOptions['query']
+    signal?: AbortSignal
+    noAuthExpiry?: boolean
+  } = {},
+): Promise<{ blob: Blob; filename: string | null }> {
+  const res = await requestResponse('GET', path, options)
+  const blob = await res.blob()
+  return {
+    blob,
+    filename: downloadFilename(res.headers.get('content-disposition')),
+  }
 }

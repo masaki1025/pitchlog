@@ -6,6 +6,7 @@ import {
   ApiError,
   ApiNetworkError,
   ApiStaleAuthError,
+  apiDownload,
   apiRequest,
   type HttpMethod,
 } from './client'
@@ -410,5 +411,206 @@ describe('apiRequest', () => {
     expect(auth.teamName).toBe('B')
     expect(auth.isAuthenticated).toBe(true)
     expect(auth.sessionExpired).toBe(false)
+  })
+})
+
+describe('apiDownload', () => {
+  it('Blob を返し、filename* の UTF-8 名を filename より優先する', async () => {
+    respond('csv-data', 200, {
+      'Content-Type': 'text/csv',
+      'Content-Disposition':
+        'attachment; filename="fallback.csv"; filename*=UTF-8\'\'%E6%8E%88%E7%90%83.csv',
+    })
+
+    const result = await apiDownload('/reports/game.csv')
+
+    expect(result.blob).toBeInstanceOf(Blob)
+    expect(await result.blob.text()).toBe('csv-data')
+    expect(result.filename).toBe('授球.csv')
+  })
+
+  it('filename の引用符付き名を返す', async () => {
+    respond('data', 200, {
+      'Content-Disposition': 'attachment; filename="report.csv"',
+    })
+
+    const result = await apiDownload('/reports/game.csv')
+
+    expect(result.filename).toBe('report.csv')
+  })
+
+  it('filename の引用符なし名を返す', async () => {
+    respond('data', 200, {
+      'Content-Disposition': 'attachment; filename=report.csv',
+    })
+
+    const result = await apiDownload('/reports/game.csv')
+
+    expect(result.filename).toBe('report.csv')
+  })
+
+  it('Content-Disposition が無ければ filename は null にする', async () => {
+    respond('data', 200, { 'Content-Type': 'text/csv' })
+
+    const result = await apiDownload('/reports/game.csv')
+
+    expect(result.filename).toBeNull()
+  })
+
+  it('filename* を解釈できなければ filename は null にする', async () => {
+    respond('data', 200, {
+      'Content-Disposition':
+        'attachment; filename="fallback.csv"; filename*=UTF-8\'\'%E0%A4%A',
+    })
+
+    const result = await apiDownload('/reports/game.csv')
+
+    expect(result.filename).toBeNull()
+  })
+
+  it('GET で /api の送り先と query、Cookie、signal を使い、追加ヘッダを付けない', async () => {
+    respond('data')
+    const controller = new AbortController()
+
+    await apiDownload('/reports/game.csv', {
+      query: { ids: [1, 2], skip: null },
+      signal: controller.signal,
+    })
+
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      '/api/reports/game.csv?ids=1&ids=2',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'include',
+        headers: {},
+        body: undefined,
+        signal: controller.signal,
+      }),
+    )
+  })
+
+  it('401 で expireSession を呼ぶ', async () => {
+    const auth = useAuthStore(pinia)
+    auth.signIn({ teamName: 'A' })
+    const expire = vi.spyOn(auth, 'expireSession')
+    respond('{"error":{"message":"期限切れ"}}', 401)
+
+    await expect(apiDownload('/reports/game.csv')).rejects.toBeInstanceOf(
+      ApiError,
+    )
+
+    expect(expire).toHaveBeenCalledOnce()
+    expect(auth.sessionExpired).toBe(true)
+  })
+
+  it('noAuthExpiry の 401 では expireSession を呼ばない', async () => {
+    const auth = useAuthStore(pinia)
+    auth.signIn({ teamName: 'A' })
+    const expire = vi.spyOn(auth, 'expireSession')
+    respond('{"error":{"message":"認証失敗"}}', 401)
+
+    await expect(
+      apiDownload('/reports/game.csv', { noAuthExpiry: true }),
+    ).rejects.toBeInstanceOf(ApiError)
+
+    expect(expire).not.toHaveBeenCalled()
+    expect(auth.isAuthenticated).toBe(true)
+    expect(auth.sessionExpired).toBe(false)
+  })
+
+  it('エラー封筒を ApiError に写し、本文と Retry-After を保つ', async () => {
+    const body = {
+      error: {
+        message: '再試行してください',
+        fields: [{ location: 'query.limit' }],
+      },
+    }
+    respond(JSON.stringify(body), 429, {
+      'Content-Type': 'application/json',
+      'Retry-After': '3',
+    })
+
+    await expect(apiDownload('/reports/game.csv')).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 429,
+      message: '再試行してください',
+      fields: [{ location: 'query.limit' }],
+      retryAfterMs: 3000,
+      body,
+    })
+  })
+
+  it('fetch の reject は原因付き ApiNetworkError にする', async () => {
+    const cause = new TypeError('offline')
+    vi.mocked(fetch).mockRejectedValue(cause)
+
+    await expect(apiDownload('/reports/game.csv')).rejects.toMatchObject({
+      name: 'ApiNetworkError',
+      cause,
+    })
+  })
+
+  it('AbortError はそのまま投げ直す', async () => {
+    const abort = new DOMException('aborted', 'AbortError')
+    vi.mocked(fetch).mockRejectedValue(abort)
+
+    await expect(apiDownload('/reports/game.csv')).rejects.toBe(abort)
+  })
+
+  it('active Pinia が無ければ fetch せずに例外になる', async () => {
+    setActivePinia(undefined)
+
+    await expect(apiDownload('/reports/game.csv')).rejects.toThrow(
+      'Pinia が未インストールのため API を呼べません',
+    )
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it('往復中に認証世代が変わると Blob を読まず ApiStaleAuthError にする', async () => {
+    const auth = useAuthStore(pinia)
+    auth.signIn({ teamName: 'A' })
+    const pending = deferredResponse()
+    vi.mocked(fetch).mockReturnValue(pending.promise)
+    const request = apiDownload('/reports/game.csv')
+    writeOtherTabAuth()
+    const response = new Response('old data', { status: 200 })
+    const readBlob = vi.spyOn(response, 'blob')
+    pending.resolve(response)
+
+    await expect(request).rejects.toMatchObject({
+      name: 'ApiStaleAuthError',
+      method: 'GET',
+      path: '/reports/game.csv',
+      status: 200,
+    })
+    expect(readBlob).not.toHaveBeenCalled()
+  })
+
+  it('往復中に世代が変わった 401 は新しい認証を失効させない', async () => {
+    const auth = useAuthStore(pinia)
+    auth.signIn({ teamName: 'A' })
+    const expire = vi.spyOn(auth, 'expireSession')
+    const pending = deferredResponse()
+    vi.mocked(fetch).mockReturnValue(pending.promise)
+    const request = apiDownload('/reports/game.csv')
+    const savedB = writeOtherTabAuth()
+    const response = new Response('{"error":{"message":"old session"}}', {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const readBody = vi.spyOn(response, 'text')
+    pending.resolve(response)
+
+    await expect(request).rejects.toMatchObject({
+      name: 'ApiStaleAuthError',
+      method: 'GET',
+      path: '/reports/game.csv',
+      status: 401,
+    })
+    expect(readBody).not.toHaveBeenCalled()
+    expect(expire).not.toHaveBeenCalled()
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
+    expect(auth.teamName).toBe('B')
+    expect(auth.isAuthenticated).toBe(true)
   })
 })
