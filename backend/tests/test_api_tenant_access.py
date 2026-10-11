@@ -118,6 +118,37 @@ async def test_requests_without_extension_do_not_set_cookie(
     )
 
 
+@pytest.mark.anyio
+async def test_not_found_after_verified_access_preserves_renewed_cookie(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """認証済みの 404 にも延長後の Cookie を渡し、401 には渡さない。"""
+    app = create_app()
+    value = app.state.token_presentation.encode(uuid4())
+    expiry = datetime.now(UTC) + timedelta(seconds=120)
+    issued = [(MagicMock(), expiry), None]
+    monkeypatch.setattr(
+        tenant_context_issuance,
+        "issue_tenant_context_from_presented_token",
+        lambda *_: issued.pop(0),
+    )
+    monkeypatch.setattr(players, "_run", lambda *_: SimpleNamespace(rows=()))
+    headers = {"Cookie": f"__Host-pitchlog_token={value}"}
+    path = f"/players/{uuid4()}"
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="https://test"
+    ) as client:
+        missing = await client.get(path, headers=headers)
+        rejected = await client.get(path, headers=headers)
+
+    assert missing.status_code == 404
+    assert missing.json() == {"error": {"message": "対象が見つかりません"}}
+    assert missing.headers["set-cookie"].startswith(f"__Host-pitchlog_token={value};")
+    assert "Max-Age=" in missing.headers["set-cookie"]
+    assert rejected.status_code == 401
+    assert "set-cookie" not in rejected.headers
+
+
 def test_issuer_preserves_verified_expiry(monkeypatch: pytest.MonkeyPatch) -> None:
     """文脈発行で DB の期限を落とさない。"""
     app = create_app()

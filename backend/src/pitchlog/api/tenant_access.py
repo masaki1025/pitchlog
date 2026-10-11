@@ -35,4 +35,5 @@ def require_tenant_access(
         httponly=True,
         samesite="strict",
     )
+    request.state.renewed_cookie = response.headers["set-cookie"]
     return context

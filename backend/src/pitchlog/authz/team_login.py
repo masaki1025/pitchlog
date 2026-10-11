@@ -58,6 +58,11 @@ def login_attempt(
     if not all(isinstance(value, str) for value in (team_name, password, source)):
         raise TypeError("ログイン入力の型が不正です")
 
+    # PostgreSQL の text は NUL を受け取れない。名前も NULL にして照合の成功を
+    # 不可能にし、既存の関数内で失敗の照合・計数・待ちを実行する。
+    has_nul = "\x00" in team_name or "\x00" in password
+    db_team_name = None if has_nul else team_name
+    db_password = None if has_nul else password
     try:
         with engine.begin() as connection:
             token_id, wait_ms, expires_at = connection.execute(
@@ -65,7 +70,7 @@ def login_attempt(
                     "SELECT token_id, wait_ms, expires_at "
                     "FROM authn.login_attempt(:team_name, :password, :source)"
                 ),
-                {"team_name": team_name, "password": password, "source": source},
+                {"team_name": db_team_name, "password": db_password, "source": source},
             ).one()
     except _SQLAlchemyError:
         pass

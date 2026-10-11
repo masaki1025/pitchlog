@@ -8,6 +8,7 @@ import threading
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -142,6 +143,54 @@ async def test_failure_is_identical_for_known_and_unknown_teams(
     assert "set-cookie" not in known.headers
     assert "set-cookie" not in missing.headers
     assert sleeps == [0.35, 0.35]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("client_address", "expected_source"),
+    (
+        (None, "unknown"),
+        (("2001:db8:abcd:1234::1", 50123), "2001:db8:abcd:1234::"),
+        (("2001:db8:abcd:1234::beef", 50124), "2001:db8:abcd:1234::"),
+    ),
+)
+async def test_login_entry_normalizes_source_when_missing_or_ipv6(
+    monkeypatch: pytest.MonkeyPatch,
+    client_address: tuple[str, int] | None,
+    expected_source: str,
+) -> None:
+    """試行元が取れない場合と IPv6 の /64 を HTTP 入口で固定する。"""
+    app = create_app()
+    sources: list[str] = []
+
+    def deny(
+        _team_name: str,
+        _password: str,
+        source: str,
+        _presentation: object,
+        _resource: object,
+    ) -> int:
+        """境界へ渡った正規化後の試行元を記録する。"""
+        sources.append(source)
+        return 0
+
+    monkeypatch.setattr(auth, "login_attempt", deny)
+    monkeypatch.setattr(auth, "get_login_connection", object)
+
+    async def inline_call(work: Callable[[], int]) -> int:
+        """試行元の試験では境界処理をインラインで実行する。"""
+        return work()
+
+    monkeypatch.setattr(auth, "run_in_threadpool", inline_call)
+    transport = ASGITransport(app=app, client=cast(tuple[str, int], client_address))
+    async with AsyncClient(transport=transport, base_url="https://test") as client:
+        response = await client.post(
+            "/auth/login", json={"team_name": "known", "password": "wrong"}
+        )
+
+    assert response.status_code == 401
+    assert "set-cookie" not in response.headers
+    assert sources == [expected_source]
 
 
 @pytest.mark.anyio
@@ -321,6 +370,29 @@ def test_boundary_failure_returns_only_wait_time() -> None:
         == 350
     )
     resource.begin.return_value.__exit__.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("team_name", "password"),
+    (("team", "a\x00b"), ("te\x00am", "password")),
+)
+def test_boundary_counts_nul_input_through_impossible_name(
+    team_name: str, password: str
+) -> None:
+    """NUL を DB に渡さず、成功不能な名前で失敗関数へ到達する。"""
+    presentation = create_app().state.token_presentation
+    resource = MagicMock()
+    connection = resource.begin.return_value.__enter__.return_value
+    connection.execute.return_value.one.return_value = (None, 0, None)
+
+    assert (
+        team_login.login_attempt(
+            team_name, password, "192.0.2.12", presentation, resource
+        )
+        == 0
+    )
+    _statement, params = connection.execute.call_args.args
+    assert params == {"team_name": None, "password": None, "source": "192.0.2.12"}
 
 
 def test_boundary_rejects_other_signer_and_hides_database_error() -> None:
