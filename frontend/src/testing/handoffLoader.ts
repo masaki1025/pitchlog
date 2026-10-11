@@ -68,14 +68,32 @@ const CONTRACTS = {
 const DEPENDENCIES = {
   // 宣言された commit OID の blob から得た SHA-256 を固定する。
   'backend/domain/history-depth.json': {
+    taskId: 'TSK-235',
+    commitOid: DEPENDENCY_OID,
     versionKey: 'version',
     digest:
       'sha256:933e41e9a717fe25f52575d7b34ca077904d4592f51173b56832c36963a31e97',
   },
   'backend/domain/check-sets.json': {
+    taskId: 'TSK-235',
+    commitOid: DEPENDENCY_OID,
     versionKey: 'schemaVersion',
     digest:
       'sha256:c6bf9beeb86325c759f56abb50af060bf62b48323e50f9c1c1cfe5704cc7c18b',
+  },
+  'backend/src/pitchlog/domaincheck/runners/vector_bridge.py': {
+    taskId: 'TSK-455',
+    commitOid: 'ee021d87e59f26d3afe4b01c7ea695866797f26f',
+    versionKey: null,
+    digest:
+      'sha256:bc0d20634381c3e650996c45333986fe4277e0480f71129656000420107404f1',
+  },
+  'frontend/src/testing/vectorRunner.ts': {
+    taskId: 'TSK-455',
+    commitOid: 'f8df3adabb2fe1c26b437149b0ec59c84c7f3d2e',
+    versionKey: null,
+    digest:
+      'sha256:9141ba7582db2138e9febeaaa12ce7fcaf120dafe078021f5a19ab40bad89479',
   },
 } as const
 const HANDOFF_KEYS = [
@@ -333,13 +351,18 @@ export function loadHandoff(
     readFileSync(resolve(root, path)),
 ): LoadedHandoff {
   // 読むパスはここで宣言した固定集合だけとし、契約中の path を読み込みに使わない。
-  function read(path: string): [Uint8Array, RecordValue] {
+  function readBytes(path: string): Uint8Array {
     let raw: Uint8Array
     try {
       raw = readAsset(path)
     } catch {
       throw new HandoffLoadError('HANDOFF_SHAPE', path)
     }
+    return raw
+  }
+
+  function read(path: string): [Uint8Array, RecordValue] {
+    const raw = readBytes(path)
     return [raw, record(parse(raw, path), path)]
   }
 
@@ -515,12 +538,18 @@ export function loadHandoff(
       throw new HandoffLoadError('DEPENDENCY_MISMATCH', 'dependency path')
     }
     seenDependencies.add(path)
-    same(dep.taskId, 'TSK-235', 'DEPENDENCY_MISMATCH', path)
-    same(dep.commitOid, DEPENDENCY_OID, 'DEPENDENCY_MISMATCH', path)
-    same(dep.version, 1, 'DEPENDENCY_MISMATCH', path)
-    const [raw, asset] = read(path)
     const pinned = DEPENDENCIES[path as keyof typeof DEPENDENCIES]
-    same(asset[pinned.versionKey], 1, 'DEPENDENCY_MISMATCH', path)
+    same(dep.taskId, pinned.taskId, 'DEPENDENCY_MISMATCH', path)
+    same(dep.commitOid, pinned.commitOid, 'DEPENDENCY_MISMATCH', path)
+    same(dep.version, 1, 'DEPENDENCY_MISMATCH', path)
+    let raw: Uint8Array
+    if (pinned.versionKey === null) {
+      raw = readBytes(path)
+    } else {
+      const [bytes, asset] = read(path)
+      raw = bytes
+      same(asset[pinned.versionKey], 1, 'DEPENDENCY_MISMATCH', path)
+    }
     same(sha(raw), pinned.digest, 'DEPENDENCY_MISMATCH', path)
   }
   return { byCalculation: loaded, descriptor }

@@ -6,6 +6,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -210,6 +211,51 @@ def test_repository_handoff_schema_and_all_case_pointers_resolve() -> None:
         "state-transition": 96,
         "game-end": 170,
     }
+
+
+def test_receiver_task_id_is_fixed_to_a_valid_task_id() -> None:
+    """受取タスクが文字列のTSK IDとして確定したことを検査する。"""
+    receiver_schema = _schema()["properties"]["receiverTaskId"]
+    assert receiver_schema["type"] == "string"
+    assert receiver_schema["pattern"] == "^TSK-[1-9][0-9]*$"
+    handoff = _handoff()
+    assert handoff["receiverTaskId"] == "TSK-538"
+    _validate_handoff(handoff)
+
+
+@pytest.mark.parametrize(
+    ("task_id", "message"),
+    [(None, "型不一致"), ("538", "pattern不一致"), ("TSK-0", "pattern不一致")],
+)
+def test_invalid_receiver_task_id_fails_schema(task_id: object, message: str) -> None:
+    """未定義または不正な受取タスクIDを拒否する。"""
+    handoff = copy.deepcopy(_handoff())
+    handoff["receiverTaskId"] = task_id
+    with pytest.raises(schema_checker.DescriptorCheckError, match=message):
+        _validate_handoff(handoff)
+
+
+def test_tsk455_dependencies_pin_current_runner_assets() -> None:
+    """TSK-455の両資産が宣言したcommitのblobと一致する。"""
+    dependencies = [
+        item for item in _handoff()["dependencies"] if item["taskId"] == "TSK-455"
+    ]
+    assert {item["artifactPath"] for item in dependencies} == {
+        "backend/src/pitchlog/domaincheck/runners/vector_bridge.py",
+        "frontend/src/testing/vectorRunner.ts",
+    }
+    for dependency in dependencies:
+        assert dependency["version"] == 1
+        path = dependency["artifactPath"]
+        oid = dependency["commitOid"]
+        blob = subprocess.run(
+            ["git", "show", f"{oid}:{path}"],
+            cwd=REPOSITORY_ROOT,
+            check=True,
+            capture_output=True,
+            timeout=10,
+        ).stdout
+        assert blob == (REPOSITORY_ROOT / path).read_bytes()
 
 
 def test_game_end_binding_uses_actual_normalization_points() -> None:

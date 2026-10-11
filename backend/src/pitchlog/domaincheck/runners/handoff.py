@@ -62,6 +62,26 @@ DEPENDENCIES = {
         "schemaVersion",
         "sha256:c6bf9beeb86325c759f56abb50af060bf62b48323e50f9c1c1cfe5704cc7c18b",
     ),
+    "backend/src/pitchlog/domaincheck/runners/vector_bridge.py": (
+        None,
+        "sha256:bc0d20634381c3e650996c45333986fe4277e0480f71129656000420107404f1",
+    ),
+    "frontend/src/testing/vectorRunner.ts": (
+        None,
+        "sha256:9141ba7582db2138e9febeaaa12ce7fcaf120dafe078021f5a19ab40bad89479",
+    ),
+}
+DEPENDENCY_ORIGINS = {
+    "backend/domain/history-depth.json": ("TSK-235", DEPENDENCY_OID),
+    "backend/domain/check-sets.json": ("TSK-235", DEPENDENCY_OID),
+    "backend/src/pitchlog/domaincheck/runners/vector_bridge.py": (
+        "TSK-455",
+        "ee021d87e59f26d3afe4b01c7ea695866797f26f",
+    ),
+    "frontend/src/testing/vectorRunner.ts": (
+        "TSK-455",
+        "f8df3adabb2fe1c26b437149b0ec59c84c7f3d2e",
+    ),
 }
 HANDOFF_KEYS = frozenset(
     {
@@ -311,11 +331,14 @@ def load_handoff(
     """
     reader = read_asset or (lambda path: (root / path).read_bytes())
 
-    def read(path: str) -> tuple[bytes, dict[str, object]]:
+    def read_bytes(path: str) -> bytes:
         try:
-            raw = reader(path)
+            return reader(path)
         except OSError as error:
             raise HandoffLoadError("HANDOFF_SHAPE", path) from error
+
+    def read(path: str) -> tuple[bytes, dict[str, object]]:
+        raw = read_bytes(path)
         return raw, _object(_parse(raw, path), path)
 
     handoff_raw, handoff = read(HANDOFF_PATH)
@@ -485,12 +508,16 @@ def load_handoff(
         ):
             raise HandoffLoadError("DEPENDENCY_MISMATCH", "dependency path")
         seen_dependencies.add(path)
-        _same(dep["taskId"], "TSK-235", "DEPENDENCY_MISMATCH", path)
-        _same(dep["commitOid"], DEPENDENCY_OID, "DEPENDENCY_MISMATCH", path)
-        _same(dep["version"], 1, "DEPENDENCY_MISMATCH", path)
-        raw, asset = read(path)
+        task_id, commit_oid = DEPENDENCY_ORIGINS[path]
         version_key, pinned_digest = DEPENDENCIES[path]
-        _same(asset.get(version_key), 1, "DEPENDENCY_MISMATCH", path)
+        _same(dep["taskId"], task_id, "DEPENDENCY_MISMATCH", path)
+        _same(dep["commitOid"], commit_oid, "DEPENDENCY_MISMATCH", path)
+        _same(dep["version"], 1, "DEPENDENCY_MISMATCH", path)
+        if version_key is None:
+            raw = read_bytes(path)
+        else:
+            raw, asset = read(path)
+            _same(asset.get(version_key), 1, "DEPENDENCY_MISMATCH", path)
         _same(_sha(raw), pinned_digest, "DEPENDENCY_MISMATCH", path)
     return LoadedHandoff(loaded, descriptor)
 

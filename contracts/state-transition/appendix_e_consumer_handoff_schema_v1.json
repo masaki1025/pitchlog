@@ -100,8 +100,9 @@
       "$ref": "#/$defs/stage2EntryGate"
     },
     "receiverTaskId": {
-      "type": "null",
-      "$comment": "受取タスクIDはローカル資料で実在を確認できず未起票。Notion起票とID確認後にstringへ改訂する。段階2の開始を許可する値ではない。"
+      "type": "string",
+      "pattern": "^TSK-[1-9][0-9]*$",
+      "$comment": "段階2の受取タスクはTSK-538として確定した。nullと不正なタスクIDは受理しない。"
     }
   },
   "$defs": {
@@ -202,7 +203,7 @@
           "maxContains": 1
         }
       ],
-      "$comment": "各bindingの実行経路はpytestとvitestのexact-set。段階1では識別子・runner revisionが未確定であり、消費可能性は保証しない。"
+      "$comment": "各bindingの実行経路はpytestとvitestのexact-set。runner実装は存在するが、3識別子とrunner revisionは契約上まだ未確定であり、全caseの消費は保証しない。"
     },
     "executionPath": {
       "type": "object",
@@ -238,7 +239,7 @@
           "const": "stage-2"
         }
       },
-      "$comment": "既存runnerの実体がこの作業ツリーに無いため識別子を捏造せずnullとする。段階2で実装に基づいて確定する。"
+      "$comment": "runner実装は存在するが、製品計算へのbindingの3識別子は未確定のためnullとする。段階2で実在値に解決する。"
     },
     "caseFieldMapping": {
       "$comment": "contractPointerは各cases[]要素を起点とし、runnerPointerは受取側caseを起点とする。両契約の/rawと/normalizedはそれぞれrunnerの同名フィールドへ写す。期待値は状況判定の/expectedと終了判定の/decisionをrunnerの/expectedへ写す。両契約のinputCoordinateは/normalizedと一致し、終了判定の非identity規則のケースでは/rawが表示名を保持する。この写像はrunner消費を証明しない。",

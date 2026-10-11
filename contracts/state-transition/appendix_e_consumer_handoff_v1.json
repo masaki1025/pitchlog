@@ -8,7 +8,7 @@
     "guaranteed": "状況判定caseの/expectedと終了判定caseの/decisionは、それぞれrunnerの/expectedへ写す。両契約の全caseで/inputCoordinateは正規形であり/normalizedと一致する。終了判定caseの/rawと/normalizedは実在する値を指し、表示名165件では/rawの結果名を安定IDへ正規化する",
     "notGuaranteed": [
       "runnerによるcase消費と出力同値の実証",
-      "この作業ツリーに既存のベクタrunner実装とvectors.pyは存在しない。normalizerId・entrypointId・directTargetIdはnullであり、runnerRevisionとともに段階2で確定する"
+      "pytest・Vitestのベクタrunner実装は存在するが、製品計算とのbindingは未確定。normalizerId・entrypointId・directTargetIdはnullであり、runnerRevisionとともに段階2で確定する"
     ]
   },
   "consumerBindings": [
@@ -144,14 +144,28 @@
       "artifactPath": "backend/domain/history-depth.json",
       "commitOid": "b8fd5fe73e85ae80b3aa82b28bef7f2911f29b12",
       "version": 1,
-      "establishmentCondition": "段階2でTSK-235を取り込み、履歴上限Dの実値を同資産から解決し、descriptorの履歴境界と一致させる。現時点では別ブランチのGit objectだけを確認済み。"
+      "establishmentCondition": "TSK-235の資産はdevelopに取込済み。段階2で履歴上限Dの実値を同資産から解決し、descriptorの履歴境界と一致させる。"
     },
     {
       "taskId": "TSK-235",
       "artifactPath": "backend/domain/check-sets.json",
       "commitOid": "b8fd5fe73e85ae80b3aa82b28bef7f2911f29b12",
       "version": 1,
-      "establishmentCondition": "段階2でTSK-235を取り込み、FR-040の採否宣言schemaと製品manifestの宣言を照合する。現時点では別ブランチのGit objectだけを確認済み。"
+      "establishmentCondition": "TSK-235の資産はdevelopに取込済み。段階2でFR-040の採否宣言schemaと製品manifestの宣言を照合する。"
+    },
+    {
+      "taskId": "TSK-455",
+      "artifactPath": "backend/src/pitchlog/domaincheck/runners/vector_bridge.py",
+      "commitOid": "ee021d87e59f26d3afe4b01c7ea695866797f26f",
+      "version": 1,
+      "establishmentCondition": "TSK-455のPythonブリッジはdevelopに取込済み。Vitest runnerから同ブリッジを通す経路と製品計算のbindingを検証し、全case消費を実証する。"
+    },
+    {
+      "taskId": "TSK-455",
+      "artifactPath": "frontend/src/testing/vectorRunner.ts",
+      "commitOid": "f8df3adabb2fe1c26b437149b0ec59c84c7f3d2e",
+      "version": 1,
+      "establishmentCondition": "TSK-455のVitest runnerはdevelopに取込済み。commit OIDは段階2の契約読み込み接続後の現行版を指す。製品計算のbindingと全case消費は別途実証する。"
     }
   ],
   "receiverDoD": [
@@ -185,5 +199,5 @@
     "allCasesConsumption": "両runnerで対象計算の全caseを消費する。D+1のundo liveness-only caseを含め、拒否・切り捨てがないことを検証する。D+1には出力同値を要求しない",
     "dPlusOnePrerequisite": "D+1のundo規範行・caseはステップ66のPO裁定で段階2へ送られ、現存しない。段階2で行とcaseを整備してから全case消費を判定する"
   },
-  "receiverTaskId": null
+  "receiverTaskId": "TSK-538"
 }

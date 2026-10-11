@@ -91,3 +91,5 @@ branch: feature/adr003-stage2-runtime
 - ステップ 1〜10 をコミット(`d39b2696`〜`d5867035`)。差し戻し: ステップ 2(pnpm 11 の allowBuilds — `esbuild: false` で足りる)・ステップ 7(`.mjs` の同梱を package-data へ / artifact・宣言・`.venv` を root 所有に)・ステップ 10(DB 試験を既存の DB fixture へ — 試験内で docker を起動しない)
 - **ステップ 15 への申し送り**: backend の DB 試験(`backend/tests/db/test_domain_sql_generation.py`)が Node を呼ぶ。**backend の CI ジョブにも Node 24.16.0(mise)を入れる**こと(計画のステップ 15 は frontend・harness だけを挙げている)
 - 既存の挙動: backend の `pytest -m "not requires_db"` は全件 passed でも終了コード 1(`tests/db/conftest.py` が DB 試験 0 件のセッションを失敗にする)。本タスクの変更ではない
+
+- **squash マージ禁止**: ステップ 20 で引き渡し契約の依存(`frontend/src/testing/vectorRunner.ts`)の commit OID を本ブランチのステップ 11 のコミット `f8df3ada` に向けた(段階 2 の読み込み接続後の現行版)。squash マージすると OID が develop に残らず参照が壊れるので、**PR はマージコミットで取り込む**(PR 本文にも書く)
