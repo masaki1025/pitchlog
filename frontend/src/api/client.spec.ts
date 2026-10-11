@@ -500,20 +500,31 @@ describe('apiRequest', () => {
     expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
   })
 
-  it('401 の本文読み取り失敗でも失効して原因付き ApiNetworkError にする', async () => {
+  it('401 の本文読み取り失敗でも失効して原因付き ApiError にする', async () => {
     const auth = useAuthStore(pinia)
     auth.signIn({ teamName: 'A' })
     const expire = vi.spyOn(auth, 'expireSession')
     const cause = new TypeError('read failed')
-    const response = new Response(null, { status: 401 })
+    const response = new Response(null, {
+      status: 401,
+      headers: { 'Retry-After': '2' },
+    })
     vi.spyOn(response, 'text').mockRejectedValue(cause)
     vi.mocked(fetch).mockResolvedValue(response)
 
     const error = await apiRequest('GET', '/players').catch(
       (caught: unknown) => caught,
     )
-    expect(error).toBeInstanceOf(ApiNetworkError)
-    expect(error).toMatchObject({ cause })
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({
+      status: 401,
+      message: 'HTTP 401',
+      fields: [],
+      retryAfterMs: 2000,
+      body: undefined,
+      cause,
+    })
+    expect((error as ApiError).cause).toBe(cause)
     expect(expire).toHaveBeenCalledOnce()
     expect(auth.sessionExpired).toBe(true)
   })
@@ -530,11 +541,111 @@ describe('apiRequest', () => {
     const error = await apiRequest('GET', '/players', {
       noAuthExpiry: true,
     }).catch((caught: unknown) => caught)
-    expect(error).toBeInstanceOf(ApiNetworkError)
-    expect(error).toMatchObject({ cause })
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({
+      status: 401,
+      message: 'HTTP 401',
+      fields: [],
+      retryAfterMs: undefined,
+      body: undefined,
+      cause,
+    })
+    expect((error as ApiError).cause).toBe(cause)
     expect(expire).not.toHaveBeenCalled()
     expect(auth.isAuthenticated).toBe(true)
     expect(auth.sessionExpired).toBe(false)
+  })
+
+  it('500 の本文読み取り失敗は原因付き ApiError にする', async () => {
+    const cause = new TypeError('read failed')
+    const response = new Response(null, {
+      status: 500,
+      headers: { 'Retry-After': '3' },
+    })
+    vi.spyOn(response, 'text').mockRejectedValue(cause)
+    vi.mocked(fetch).mockResolvedValue(response)
+
+    const error = await apiRequest('GET', '/players').catch(
+      (caught: unknown) => caught,
+    )
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({
+      status: 500,
+      message: 'HTTP 500',
+      fields: [],
+      retryAfterMs: 3000,
+      body: undefined,
+      cause,
+    })
+    expect((error as ApiError).cause).toBe(cause)
+  })
+
+  it('200 の本文読み取り失敗は原因付き ApiNetworkError にする', async () => {
+    const cause = new TypeError('read failed')
+    const response = new Response(null, { status: 200 })
+    vi.spyOn(response, 'text').mockRejectedValue(cause)
+    vi.mocked(fetch).mockResolvedValue(response)
+
+    const error = await apiRequest('GET', '/players').catch(
+      (caught: unknown) => caught,
+    )
+
+    expect(error).toBeInstanceOf(ApiNetworkError)
+    expect(error).toMatchObject({ cause })
+    expect((error as ApiNetworkError).cause).toBe(cause)
+  })
+
+  it('text() の AbortError は同じ例外を投げ直す', async () => {
+    const abort = new DOMException('aborted', 'AbortError')
+    const response = new Response(null, { status: 200 })
+    vi.spyOn(response, 'text').mockRejectedValue(abort)
+    vi.mocked(fetch).mockResolvedValue(response)
+
+    await expect(apiRequest('GET', '/players')).rejects.toBe(abort)
+  })
+
+  it('401 の text() が AbortError でも失効して同じ例外を投げる', async () => {
+    const auth = useAuthStore(pinia)
+    auth.signIn({ teamName: 'A' })
+    const expire = vi.spyOn(auth, 'expireSession')
+    const abort = new DOMException('aborted', 'AbortError')
+    const response = new Response(null, { status: 401 })
+    vi.spyOn(response, 'text').mockRejectedValue(abort)
+    vi.mocked(fetch).mockResolvedValue(response)
+
+    await expect(apiRequest('GET', '/players')).rejects.toBe(abort)
+    expect(expire).toHaveBeenCalledOnce()
+    expect(auth.sessionExpired).toBe(true)
+  })
+
+  it('読み取り中に認証が変わると AbortError より世代の不一致を優先する', async () => {
+    const auth = useAuthStore(pinia)
+    auth.signIn({ teamName: 'A' })
+    const expire = vi.spyOn(auth, 'expireSession')
+    const reading = deferredValue<void>()
+    let rejectBody!: (cause: unknown) => void
+    const response = new Response(null, { status: 401 })
+    vi.spyOn(response, 'text').mockImplementation(() => {
+      reading.resolve(undefined)
+      return new Promise<string>((_resolve, reject) => {
+        rejectBody = reject
+      })
+    })
+    vi.mocked(fetch).mockResolvedValue(response)
+
+    const request = apiRequest('GET', '/players')
+    await reading.promise
+    const savedB = writeOtherTabAuth()
+    rejectBody(new DOMException('aborted', 'AbortError'))
+
+    const error = await request.catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ApiStaleAuthError)
+    expect(error).toMatchObject({ status: 401 })
+    expect(expire).not.toHaveBeenCalled()
+    expect(auth.isAuthenticated).toBe(true)
+    expect(auth.teamName).toBe('B')
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
   })
 })
 
@@ -677,6 +788,15 @@ describe('apiDownload', () => {
   it('AbortError はそのまま投げ直す', async () => {
     const abort = new DOMException('aborted', 'AbortError')
     vi.mocked(fetch).mockRejectedValue(abort)
+
+    await expect(apiDownload('/reports/game.csv')).rejects.toBe(abort)
+  })
+
+  it('blob() の AbortError は同じ例外を投げ直す', async () => {
+    const abort = new DOMException('aborted', 'AbortError')
+    const response = new Response(null, { status: 200 })
+    vi.spyOn(response, 'blob').mockRejectedValue(abort)
+    vi.mocked(fetch).mockResolvedValue(response)
 
     await expect(apiDownload('/reports/game.csv')).rejects.toBe(abort)
   })

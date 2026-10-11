@@ -31,8 +31,9 @@ export class ApiError extends Error {
     fields: { location: string }[],
     retryAfterMs: number | undefined,
     body: unknown,
+    cause?: unknown,
   ) {
-    super(message)
+    super(message, cause === undefined ? undefined : { cause })
     this.name = 'ApiError'
     this.status = status
     this.fields = fields
@@ -65,6 +66,15 @@ export class ApiStaleAuthError extends Error {
     this.path = path
     this.status = status
   }
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    error.name === 'AbortError'
+  )
 }
 
 function queryString(query: RequestOptions['query']): string {
@@ -182,12 +192,7 @@ async function requestResponse<T>(
   try {
     res = await fetch(url, init)
   } catch (error) {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'name' in error &&
-      error.name === 'AbortError'
-    ) {
+    if (isAbortError(error)) {
       throw error
     }
     throw new ApiNetworkError(error)
@@ -224,7 +229,21 @@ async function requestResponse<T>(
   }
 
   if (!readResult.ok) {
-    throw new ApiNetworkError(readResult.cause)
+    const cause = readResult.cause
+    if (isAbortError(cause)) {
+      throw cause
+    }
+    if (!res.ok) {
+      throw new ApiError(
+        res.status,
+        `HTTP ${res.status}`,
+        [],
+        parseRetryAfterMs(res.headers.get('retry-after')),
+        undefined,
+        cause,
+      )
+    }
+    throw new ApiNetworkError(cause)
   }
   if (readResult.value.kind === 'success') {
     return { res, body: readResult.value.body }
