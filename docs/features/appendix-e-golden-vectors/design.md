@@ -1316,7 +1316,7 @@ descriptor、共有語彙 seed / manifest、状況判定契約、および `clau
 
 **閉包の辺を import だけに絞る案は採れない。** 実測すると未登録は 11 件から 4 件へ減るが、同時に **TSK-236 が意図して登録した 18 件が導出から落ちる**(`tests/test_input_axes_descriptor.py`・`tests/test_state_transition_freeze.py`・`scripts/check_frozen_baselines.py` ほか)。きれいな述語は段階 1 の範囲では見つからない。
 
-段階 1 では**除外を資産側の宣言に置く**(7.7-1)。`.claude/core-areas.json` の `reference_discovery.declared_exclusions` へ 11 件の exact-set と理由と送り先を宣言し、検査は資産から読む。宣言より増えても減っても赤になる。**導出規則そのものの設計やり直しは段階 2 へ送る**(S34)。
+段階 1 では**除外を資産側の宣言に置く**(7.7-1)。`.claude/core-areas.json` の `reference_discovery.declared_exclusions` へ 11 件の exact-set と理由と送り先を宣言し、検査は資産から読む。宣言より増えても減っても赤になる。**導出規則そのものの設計やり直しは TSK-540 へ送る**(S34)。
 
 ### 8-5. 台帳候補 (10)
 

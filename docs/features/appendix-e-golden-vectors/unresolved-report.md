@@ -82,7 +82,7 @@
 | S31 | FR-040 状態補正の operation/undo 行と製品 manifest への宣言 | 段階2受取タスクの状態補正担当 | FR-040 採用時に |
 | S32 | 走者イベントの `runnerEventPayload` と進塁上書き入力の内部制約・意味ある行束縛 | 段階2受取タスクの走者イベント入力担当 | `runnerEventPayload`と`officialScoringPayload`の典拠は未確定 |
 | S33 | 引き渡し契約の `executionPaths[]` の両経路で `normalizerId` / `entrypointId` / `directTargetId` が `null`。既存 runner 実装と `vectors.py` がリポジトリに存在せず（TSK-235 未マージ）、実在 ID を確定できないため、ステップ109は部分未達。`runnerRevision: "pending"` は設計書1-3が段階1で明示的に認める留保（S02）であり、この3 ID の `null` は別の未達として残す | 検査基盤 TSK-235、Vitest TSK-455、段階2受取タスクの runner binding 担当 | normalizerId / entrypointId / directTargetId |
-| S34 | 契約参照からコア領域登録を導く導出規則の過剰検出。逆依存閉包の「静的文字列に他ファイルのパスが現れる」辺がパスを列挙する機構を無差別に巻き込み、11 件が消費者でないまま登録要求に乗る。段階 1 は`core-areas.json` の `reference_discovery.declared_exclusions` へ exact-set で除外を宣言して凌いだ | 段階2受取タスクの検査基盤担当。閉包の辺の再設計 | きれいな述語は段階 1 の範囲では見つからない |
+| S34 | 契約参照からコア領域登録を導く導出規則の過剰検出。逆依存閉包の「静的文字列に他ファイルのパスが現れる」辺がパスを列挙する機構を無差別に巻き込み、11 件が消費者でないまま登録要求に乗る。段階 1 は`core-areas.json` の `reference_discovery.declared_exclusions` へ exact-set で除外を宣言して凌いだ | TSK-540（契約参照の導出規則・閉包の辺の再設計） | きれいな述語は段階 1 の範囲では見つからない |
 <!-- report:stage2:end -->
 
 ### 検査の射程
