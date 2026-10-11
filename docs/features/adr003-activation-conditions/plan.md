@@ -1,6 +1,6 @@
 ---
 feature: adr003-activation-conditions
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-11・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -74,7 +74,7 @@ Notion: [TSK-541](https://app.notion.com/p/3f593b75e68781f3a3a6cd98788120ea)(優
 | `docs/adr/ADR-003-domain-calc-method.md` | **版繰り上げ** — (i)〜(iv) の条文化 / (iv) の射程の是正 / 数え間違いの是正 / D-14-g 表の整合 | **finalize-doc**(同一ゲート) |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **版繰り上げ** — 要追随 7 箇所(甲1〜3・乙1〜3・丙・丁・戊) | **finalize-doc**(同一ゲート) |
 | `docs/README.md` | 索引の 3 列(両正本の状態・版・最終更新日)を現行化 | PR レビュー |
-| `docs/development/harness-evaluation.md` | **反映なし**(追記の判断は `/pr` のクローズ処理で行う。該当すれば本行を書き換えてから進む — 4 節) | — |
+| `docs/development/harness-evaluation.md` | **`## 候補` へ 2 件追記**(`/pr` のクローズ処理で該当と判断。**`H-*` は与えない** — 制御目的の典拠が未確定)+ 変更履歴へ 1 行 | PR レビュー |
 | `docs/design/sync-protocol.md` | **反映なし** | — |
 | `docs/design/data-model.md` | **反映なし** | — |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし** | — |
