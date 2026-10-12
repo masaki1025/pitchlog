@@ -26,3 +26,26 @@
 - 内部保存 operation が使う単一表は `team_records`（対象行のロック読み取り）、`lineup_memories`（read / insert / update）、`players`（対象 ID の読み取り）とした。`games`・`game_lineups` の保存は U-G1 の所有である。
 - 変更順は内部 operation とテナント境界資産をステップ 2、GET・route registry / matrix・派生 lock・独立 exact-set・入口テストをステップ 3 とした。設計書 7.7 の受理とコア領域 PR のレビューは別途必要。
 - ステップ 1 完了時点で製品コード・契約資産は未変更。Claude を使用できないため、利用者が Codex による代替作業を明示承認した。以降のステップ検証・コミットも Codex が担当し、1 ステップ 1 コミットを維持する。
+
+## 実装ステップ 2 の途中経過と凍結基準の受理
+
+- 専用ブランチ `feature/um2-lineup-memory` のステップ 1 は `afc629bb` でコミット済み。ステップ 2 は製品コード・テスト・凍結契約の差分を作成したが、**未コミット**。
+- `lineup_memory.py` に self チーム行ロック、対象 ID の現役選手確認、直近 1 件の初回挿入・更新、同一 scope での読取照合を追加。JSONB の入れ子を不変結果へ閉じ、通常 `FOR UPDATE` を対象 self チーム 1 行の登録形だけに限定した。
+- 検証: スタメン記憶の実 PostgreSQL テスト 4 件、U-M1 の既存 HTTP 境界テスト 34 件、関連の単体・契約テスト 156 件、Ruff・ty が成功。全体 pytest は未実施。`backend/tests/conftest.py` は無変更。
+- **7.7 受理**: `contracts/tenant_boundary/repository-contract.json` に revision 15 を用意した。受理履歴の authority は `contracts/tenant_boundary/base-allowlist.json`（`history_authority: true`）であり、PR #78〜#114 による repository 契約 revision 14 までの受理記録がある。repository 契約側の PR #72 `PENDING_ACCEPTANCE` は既存記録として無変更で残す。revision 15 候補を同じ資産の履歴へ重複追記した誤りは、新規分だけ除去した。正式台帳の末尾へ PR #121 の v2 記録を 1 件追記し、`scripts/check_tenant_boundary_bypass.py` は green。
+- U-G1 の先攻/後攻の保存表現と守備位置 DTO は、接続時に担当確認する未確定契約のまま。今回の内部 operation は守備位置の値域を独自定義せず、確定済み要素の値を JSON として保存する。
+
+## revision 15 凍結基準の受理内容
+
+- 開発規約 7.7 の受理単位は同一検査についての 1 回のレビュー受理。`scripts/frozen_history.py` は authority 台帳に新規 v2 record を 1 件だけ追記し、PR 受理時には `acceptance_id` を GitHub event の `masaki1025/pitchlog#<当該PR番号>` と照合する。非authorityの repository 契約には履歴を追記しない。既存履歴・snapshot は変更しない。
+- 直前の識別値は repository 契約 `contract_revision:14`、直後は `contract_revision:15`。他資産の識別値は据え置く。PR #114 の台帳末尾にある旧射影 SHA-256 は `9c318851f37cdf756d6da3b2a824ec3e74d377dce8fab7ff8cf8cabb17ace52c`。候補の新射影 SHA-256 は `cf9ad90b4a10340de0323e0a1664debfb10bfe728581054dbb92370b6d86dfda`。候補資産の `source_digest` は `1144a030711658449b7293eb919814a83a6af1fa4f9a6bdea75490287272e5ad`。
+- 契約差分は `CAP:lineup_memories:{read,insert,update}` の 3 件、`_SelfTeamLockToken`・`LineupMemoryReadToken`・`_LineupMemoryInsertToken`・`_LineupMemoryUpdateToken` の 4 型、結果の `mappingproxy[str, T]` 文法、および revision 番号。対象 self チーム行だけのロック規則と JSONB の深い不変化に対応する。残余リスクは、lock 受理条件・結果型の拡張が認可境界を広げないこと、および最終 PR 差分と snapshot が一致することのコア領域レビュー確認。
+- PR 番号・承認者・承認日が確定した後、authority 台帳へ `record_schema_version: 2` の 1 件を追加した。新旧全資産の識別値、宣言、movement policy、外部実装・資産の content-addressed snapshot、実差分の aspect、変更事実・理由を `frozen_history.py` の実遷移と一致させ、新規 snapshot のみを追記した。
+- 台帳記録なしに検査を green にすることは 7.7-2 の fail-closed と矛盾する。受理記録を追記して検査を通す正規経路を採り、PR 番号・承認者・承認日を仮置きしていない。
+
+## revision 15 の承認後の経過
+
+- 2026-10-13、本会話の利用者が上記 revision 15 の受理案を「shounin」と明示承認し、承認者名を「yamada」と回答した。既存の承認者表記に合わせ、正式台帳の `approved_by` を「山田正輝」、`approved_on` を同日とした。
+- 専用ブランチのステップ 1 コミットだけを push し、draft PR #121 を作成した。正式受理 ID は `masaki1025/pitchlog#121`。ステップ 2 の製品差分はローカルで未コミットのまま保持する。
+- revision 15 の凍結射影を内容アドレス `cf9ad90b4a10340de0323e0a1664debfb10bfe728581054dbb92370b6d86dfda` の新規 snapshot に保存し、正式台帳へ PR #121 の v2 記録を 1 件追記した。旧 snapshot・旧履歴は無変更。`scripts/check_tenant_boundary_bypass.py` は green。
+- `tests/fixtures/frozen-archive-cases/manifest.json` の比較 corpus digest は、契約資産の追加に追随して再計算した。比較ケースや検査器は変更していない。凍結 archive の該当11ケース、内部 operation と認可境界の156件、実 DB の4件、ルートと backend の Ruff・ty が green。`backend/tests/conftest.py` 差分は 0 行。

@@ -285,6 +285,20 @@ def _materialize_value(value: object) -> ImmutableValue:
         return tuple(_materialize_value(item) for item in value)
     if type(value) is frozenset:
         return frozenset(_materialize_value(item) for item in value)
+    if type(value) is list:
+        return tuple(_materialize_value(item) for item in value)
+    if type(value) is dict:
+        if any(type(key) is not str for key in value):
+            raise _TenantOperationError("JSON オブジェクトのキーは文字列が必要")
+        return MappingProxyType(
+            {cast(str, key): _materialize_value(item) for key, item in value.items()}
+        )
+    if type(value) is MappingProxyType:
+        if any(type(key) is not str for key in value):
+            raise _TenantOperationError("JSON オブジェクトのキーは文字列が必要")
+        return MappingProxyType(
+            {cast(str, key): _materialize_value(item) for key, item in value.items()}
+        )
     raise _TenantOperationError(
         f"実行結果に許可されていない可変または遅延型が含まれる: {type(value)!r}"
     )
