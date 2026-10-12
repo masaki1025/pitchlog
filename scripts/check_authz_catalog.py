@@ -172,6 +172,74 @@ PRODUCT_TABLE_CLASSIFICATION = Path(
 PRODUCT_EXPOSURE_FACTS = Path(PRODUCT_SPEC.asset_root / "exposure-facts.json")
 PRODUCT_SCHEMA_MANIFEST = Path("contracts/db/schema-manifest.json")
 PRODUCT_MIGRATION_VERSIONS = Path("backend/migrations/versions")
+GAME_TYPE_SEED_ROWS = (
+    ("game_official", "公式戦"),
+    ("game_semi_official", "準公式戦"),
+    ("game_open", "オープン戦"),
+    ("game_intrasquad", "紅白戦"),
+    ("game_other", "その他"),
+)
+
+
+def _owner_game_type_seed_policies() -> dict[str, dict[str, object]]:
+    """所有者にだけ許す試合区分5行のポリシー期待集合を作る。"""
+    keys = ", ".join(f"'{key}'" for key, _ in GAME_TYPE_SEED_ROWS)
+    pairs = " OR ".join(
+        f"(key = '{key}' AND display_name = '{display_name}')"
+        for key, display_name in GAME_TYPE_SEED_ROWS
+    )
+    selection = f"category = 'game_type' AND key = ANY (ARRAY[{keys}])"
+    insertion = (
+        "category = 'game_type' AND disabled IS FALSE "
+        f"AND ({pairs})"
+    )
+    result: dict[str, dict[str, object]] = {}
+    for suffix, command, using, with_check in (
+        ("select", "SELECT", selection, None),
+        ("insert", "INSERT", None, insertion),
+        ("delete", "DELETE", selection, None),
+    ):
+        profile = f"owner_game_type_seed_{suffix}"
+        policy_id = f"POLICY:system_vocabularies:{profile}"
+        result[policy_id] = {
+            "policy_id": policy_id,
+            "table_id": "system_vocabularies",
+            "profile": profile,
+            "policy_name": f"pitchlog_{profile}",
+            "command": command,
+            "policy_mode": "permissive",
+            "role_ids": ["pitchlog_owner"],
+            "using_predicate_id": None,
+            "using_column": None,
+            "using_expression": using,
+            "with_check_predicate_id": None,
+            "with_check_column": None,
+            "with_check_expression": with_check,
+        }
+    return result
+
+
+def _owner_game_type_seed_policy_sql(declaration: dict[str, object]) -> str:
+    """限定ポリシーのbodyを固定宣言から生成する。"""
+    policy_id = str(declaration["policy_id"])
+    name = str(declaration["policy_name"])
+    command = str(declaration["command"])
+    result = (
+        "-- ELEMENT-TYPE: policy\n"
+        f"-- ELEMENT-ID: {policy_id}\n\n"
+        f"CREATE POLICY {name}\n"
+        "    ON public.system_vocabularies\n"
+        "    AS PERMISSIVE\n"
+        f"    FOR {command}\n"
+        "    TO pitchlog_owner"
+    )
+    using = declaration["using_expression"]
+    if using is not None:
+        result += f"\n    USING (\n        {using}\n    )"
+    with_check = declaration["with_check_expression"]
+    if with_check is not None:
+        result += f"\n    WITH CHECK (\n        {with_check}\n    )"
+    return f"{result};\n"
 MIGRATION_FUNCTION_RE = re.compile(
     r"CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+"
     r"(?P<target>[A-Za-z_][A-Za-z0-9_.]*|\{_[A-Z0-9_]+\})"
@@ -3678,7 +3746,8 @@ def _validate_product_access_bodies(
 
     policy_paths = _product_body_paths(root, "policy")
     if set(policy_paths) != set(expected_policies):
-        raise CatalogError("ポリシーbodyが5プロファイルの期待集合と不一致")
+        raise CatalogError("ポリシーbodyが5プロファイルと所有者用3件の期待集合と不一致")
+    owner_policy_ids = set(_owner_game_type_seed_policies())
     for policy_id, declaration in expected_policies.items():
         table_id = str(declaration["table_id"])
         profile = str(declaration["profile"])
@@ -3688,11 +3757,12 @@ def _validate_product_access_bodies(
         if policy_paths[policy_id] != expected_path:
             raise CatalogError(f"{policy_id}のbody manifest対応が不正")
         body = _read_text(root / expected_path, f"ポリシーbody[{policy_id}]")
-        expected_body = (
-            generate_control_policy_sql(table_id)
-            if profile == CONTROL_PROFILE
-            else generate_product_policy_sql(table_id, profile)
-        )
+        if policy_id in owner_policy_ids:
+            expected_body = _owner_game_type_seed_policy_sql(declaration)
+        elif profile == CONTROL_PROFILE:
+            expected_body = generate_control_policy_sql(table_id)
+        else:
+            expected_body = generate_product_policy_sql(table_id, profile)
         if body != expected_body:
             raise CatalogError(f"{policy_id}の展開結果が生成器と不一致")
 
@@ -3780,13 +3850,16 @@ def _validate_product_table_access_expectations(
             acl = build_product_table_acl_declaration(table_id, profile)
             expected_acls[str(acl["acl_id"])] = acl
 
+    if state is RuntimeContractState.PRODUCT:
+        expected_policies.update(_owner_game_type_seed_policies())
+
     policies = _product_declarations_by_id(
         raw["policies"],
         "policy_id",
         "製品DDL manifest.policies",
     )
     if policies != expected_policies:
-        raise CatalogError("全5プロファイルのポリシー宣言が不正")
+        raise CatalogError("全5プロファイルと所有者用3件のポリシー宣言が不正")
     table_acls = _product_declarations_by_id(
         raw["acl_expectations"],
         "acl_id",

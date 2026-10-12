@@ -502,6 +502,36 @@ def test_pending_state_always_runs_only_pending_protected_validation(
     assert calls == ["pending"]
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("role_ids", ["pitchlog_app"]),
+        ("policy_mode", "restrictive"),
+        ("policy_name", "pitchlog_app_global_read_only"),
+        ("with_check_expression", "category = 'game_type'"),
+    ],
+)
+def test_product_owner_game_type_policy_mutation_is_rejected(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    """所有者限定の役割・合成・名称・5行条件を緩められない。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    asset_path = checker.PRODUCT_SPEC.ddl_elements_path
+    asset = _read_json_at(root, asset_path)
+    policies = asset["policies"]
+    assert isinstance(policies, list)
+    target = next(
+        row
+        for row in policies
+        if isinstance(row, dict)
+        and row.get("policy_id")
+        == "POLICY:system_vocabularies:owner_game_type_seed_insert"
+    )
+    target[field] = value
+    with pytest.raises(checker.CatalogError, match="所有者用3件のポリシー宣言"):
+        checker.validate_ddl_elements(asset, root, checker.PRODUCT_SPEC)
+
+
 def test_product_state_always_runs_only_final_protected_validation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
