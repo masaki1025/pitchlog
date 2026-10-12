@@ -1,6 +1,6 @@
 ---
 feature: game-type-seed
-status: active
+status: in-review
 承認: 済
 重さ分類: コア領域
 worktree: ../../..
