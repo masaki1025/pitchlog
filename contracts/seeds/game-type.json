@@ -1,0 +1,27 @@
+[
+  {
+    "key": "game_official",
+    "category": "game_type",
+    "display_name": "公式戦"
+  },
+  {
+    "key": "game_semi_official",
+    "category": "game_type",
+    "display_name": "準公式戦"
+  },
+  {
+    "key": "game_open",
+    "category": "game_type",
+    "display_name": "オープン戦"
+  },
+  {
+    "key": "game_intrasquad",
+    "category": "game_type",
+    "display_name": "紅白戦"
+  },
+  {
+    "key": "game_other",
+    "category": "game_type",
+    "display_name": "その他"
+  }
+]
