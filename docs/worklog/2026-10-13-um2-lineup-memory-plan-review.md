@@ -49,3 +49,11 @@
 - 専用ブランチのステップ 1 コミットだけを push し、draft PR #121 を作成した。正式受理 ID は `masaki1025/pitchlog#121`。ステップ 2 の製品差分はローカルで未コミットのまま保持する。
 - revision 15 の凍結射影を内容アドレス `cf9ad90b4a10340de0323e0a1664debfb10bfe728581054dbb92370b6d86dfda` の新規 snapshot に保存し、正式台帳へ PR #121 の v2 記録を 1 件追記した。旧 snapshot・旧履歴は無変更。`scripts/check_tenant_boundary_bypass.py` は green。
 - `tests/fixtures/frozen-archive-cases/manifest.json` の比較 corpus digest は、契約資産の追加に追随して再計算した。比較ケースや検査器は変更していない。凍結 archive の該当11ケース、内部 operation と認可境界の156件、実 DB の4件、ルートと backend の Ruff・ty が green。`backend/tests/conftest.py` 差分は 0 行。
+
+## PR #121 の CI で検出した追加の凍結基準移動
+
+- ステップ 2 コミット `83a3d50b` を draft PR へ push した後、PR の `tenant-boundary-bypass` が `lineup_memory.py` の `sqlalchemy.select` 2 件、`insert` 1 件、`update` 1 件を TB005 で拒否した。コミット前の検査は新規ファイルを Git の検査対象として読めず、green を誤認した。`core-guard` は人間逐行確認の必須チェックがまだないため red で、これはステップ 4 の確認待ち。
+- 最小の是正案は、4 つの SQL 構築関数を既存 roster と同じ方式の単一 `_build_lineup_memory_statement(kind: str)` にまとめ、`allowed_symbols` にこの 1 シンボルだけを登録すること。許可 API は `SQLA_SELECT`・`SQLA_INSERT`・`SQLA_UPDATE`、署名は `_build_lineup_memory_statement(kind: str) -> Union[Select, Insert, Update]`、正例 fixture は `tests/fixtures/tenant_boundary/positive/pitchlog/repositories/lineup_memory.py`。実行 API や他シンボルは許可しない。
+- この追加は `base-allowlist.json` の凍結射影を動かすため、同資産の `contract_revision:26→27` と PR #121 の**未マージ** v2 記録の after 側の識別値・宣言・snapshot を更新する必要がある。比較元の PR #114 記録、他の既存受理履歴、repository 契約側の PR #72 記録、PR #121 記録の before 側は変えない。base 資産の新射影 SHA-256 は `3fc6dd9696245f5279970a35c3dc9d0f5c1453dd808668aca1ba9ef2c48297e4`。正例 fixture が Git の corpus に入った後の比較 corpus digest は `1ac0f2d12ae701e8bd30956f8ed995ca367315da1e0818d86dc7021389969e57`。
+- 正式な受理単位は PR #121 の最終状態 1 件。2026-10-13、山田正輝氏は本会話で revision 26→27、単一シンボルの `SQLA_SELECT`・`SQLA_INSERT`・`SQLA_UPDATE`、PR #121 の未マージ記録の after 側、snapshot と movement_fact・reason の整合更新をプロダクトオーナーとして明示承認した。これを受けて正式台帳の同 PR の after 側を更新した。別の受理記録は追加せず、旧履歴・before 側・既存シンボルの許可は保持した。
+- 独立 Codex 敵対レビューは、単一シンボルの最小許可と凍結履歴の差分を確認した。追加許可の過大化を検知する負例、および未知 kind の拒否テストを追加した。一方、既存の内部 token を保存 helper を経由せず実行した場合に self チーム・現役選手検証を迂回できるという P0 を指摘した。これは今回の追加凍結契約改訂の承認範囲外の製品実装修正を要するため、別途報告して判断を待つ。レビューの「revision 27 の承認根拠なし」という指摘は、今回の PO 明示承認をレビューへ渡していなかったためであり、本記録で根拠を同期した。

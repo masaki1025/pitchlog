@@ -20,6 +20,7 @@ from pitchlog.authz.capability_registration import (
 )
 from pitchlog.db.tenant_isolation.models import Player, TeamRecord
 from pitchlog.repositories.base import _materialize_value, _TenantOperationError
+from pitchlog.repositories.lineup_memory import _build_lineup_memory_statement
 
 
 @dataclass(frozen=True)
@@ -67,6 +68,12 @@ def _validate(
 def test_self_team_single_row_lock_is_accepted() -> None:
     """対象チームへの通常の FOR UPDATE を許可する。"""
     _validate(_locked_team())
+
+
+def test_lineup_memory_builder_rejects_unknown_kind() -> None:
+    """登録外の操作種別では SQL 文を構築しない。"""
+    with pytest.raises(ValueError, match="未知のスタメン記憶操作"):
+        _build_lineup_memory_statement("delete")
 
 
 @pytest.mark.parametrize(

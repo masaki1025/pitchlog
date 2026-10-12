@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 26,
+  "contract_revision": 27,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:26"
+        "contract_revision:27"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -13104,7 +13104,7 @@
         "acceptance_id": "masaki1025/pitchlog#121",
         "new_baseline_identifiers": {
           "contracts/tenant_boundary/base-allowlist.json": [
-            "contract_revision:26"
+            "contract_revision:27"
           ],
           "contracts/tenant_boundary/cache-invalidation-contract.json": [
             "contract_revision:11"
@@ -13647,7 +13647,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:26"
+                    "contract_revision:27"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -14069,8 +14069,8 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "c53eb8069405a2023fad32dbe40a1d2935e35fed9b3db9de687749777233e042",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c53eb8069405a2023fad32dbe40a1d2935e35fed9b3db9de687749777233e042"
+                "sha256": "3fc6dd9696245f5279970a35c3dc9d0f5c1453dd808668aca1ba9ef2c48297e4",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3fc6dd9696245f5279970a35c3dc9d0f5c1453dd808668aca1ba9ef2c48297e4"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
@@ -14115,8 +14115,8 @@
             ]
           }
         },
-        "movement_fact": "比較元は origin/develop の 212379b5253914606c810980208a854a81f1f176。repository 契約を revision 14 から 15 に更新し、lineup_memories の read・insert・update、内部 operation 4 型、および mappingproxy の結果文法を加えた。",
-        "reason": "FR-016 の自チーム直近スタメンの保存・取得を、登録済みの単一表 operation と不変な JSONB 結果で実行するため。",
+        "movement_fact": "比較元 origin/develop の 212379b5253914606c810980208a854a81f1f176 から repository 契約 revision 15 と base-allowlist revision 27 へ移動する。スタメン記憶の単一表 SQL 構築シンボル 1 件を SELECT・INSERT・UPDATE に限定して登録する。",
+        "reason": "FR-016 のスタメン記憶を登録済み operation で実装し、TB005 による DB 到達拒否を許可シンボル 1 件へ限定して解消するため。",
         "approved_by": "山田正輝",
         "approved_on": "2026-10-13"
       }
@@ -14250,6 +14250,16 @@
         "SQLA_INSERT"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/invalidation_intents.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.lineup_memory._build_lineup_memory_statement",
+      "signature": "_build_lineup_memory_statement(kind: str) -> Union[Select, Insert, Update]",
+      "allowed_api_ids": [
+        "SQLA_SELECT",
+        "SQLA_INSERT",
+        "SQLA_UPDATE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/lineup_memory.py"
     }
   ],
   "conditions": [

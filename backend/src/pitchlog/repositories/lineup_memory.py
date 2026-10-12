@@ -6,7 +6,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Union, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import Table, Uuid, bindparam, insert, select, update
@@ -92,57 +92,54 @@ class _LineupMemoryUpdateToken(TenantOperationToken):
         return "CAP:lineup_memories:update"
 
 
-def _lock_statement() -> Select[Any]:
-    """テナント・ID・self 種別に束縛した 1 行のロック文を作る。"""
-    return (
-        select(_TEAMS.c.id)
-        .where(_TEAMS.c.tenant_id == bindparam("tenant_id"))
-        .where(_TEAMS.c.id == bindparam("team_record_id", type_=Uuid(as_uuid=True)))
-        .where(_TEAMS.c.kind == bindparam("kind"))
-        .where(_TEAMS.c.hidden_at.is_(None))
-        .with_for_update()
-    )
-
-
-def _read_statement() -> Select[Any]:
-    """チームキーと active 述語で直近 1 行だけを読む。"""
-    return (
-        select(_MEMORIES.c.id, _MEMORIES.c.lineup, _MEMORIES.c.migration_preserved_only)
-        .where(_MEMORIES.c.tenant_id == bindparam("tenant_id"))
-        .where(
-            _MEMORIES.c.team_record_id
-            == bindparam("team_record_id", type_=Uuid(as_uuid=True))
+def _build_lineup_memory_statement(kind: str) -> Union[Select, Insert, Update]:
+    """登録済みの4操作に限り、単一表の文を組み立てる。"""
+    if kind == "lock":
+        return (
+            select(_TEAMS.c.id)
+            .where(_TEAMS.c.tenant_id == bindparam("tenant_id"))
+            .where(_TEAMS.c.id == bindparam("team_record_id", type_=Uuid(as_uuid=True)))
+            .where(_TEAMS.c.kind == bindparam("kind"))
+            .where(_TEAMS.c.hidden_at.is_(None))
+            .with_for_update()
         )
-        .where(_MEMORIES.c.retired_at.is_(None))
-        .limit(1)
-    )
-
-
-def _insert_statement() -> Insert:
-    """初回記憶の tenant と JSON を明示的な bind で挿入する。"""
-    return insert(_MEMORIES).values(
-        tenant_id=bindparam("tenant_id"),
-        id=bindparam("id"),
-        team_record_id=bindparam("team_record_id"),
-        lineup=bindparam("lineup"),
-    )
-
-
-def _update_statement() -> Update:
-    """同じテナントの有効な記憶 1 行の JSON だけを更新する。"""
-    return (
-        update(_MEMORIES)
-        .where(_MEMORIES.c.tenant_id == bindparam("where_tenant_id"))
-        .where(_MEMORIES.c.id == bindparam("where_id", type_=Uuid(as_uuid=True)))
-        .where(_MEMORIES.c.retired_at.is_(None))
-        .values(lineup=bindparam("lineup"))
-    )
+    if kind == "read":
+        return (
+            select(
+                _MEMORIES.c.id,
+                _MEMORIES.c.lineup,
+                _MEMORIES.c.migration_preserved_only,
+            )
+            .where(_MEMORIES.c.tenant_id == bindparam("tenant_id"))
+            .where(
+                _MEMORIES.c.team_record_id
+                == bindparam("team_record_id", type_=Uuid(as_uuid=True))
+            )
+            .where(_MEMORIES.c.retired_at.is_(None))
+            .limit(1)
+        )
+    if kind == "insert":
+        return insert(_MEMORIES).values(
+            tenant_id=bindparam("tenant_id"),
+            id=bindparam("id"),
+            team_record_id=bindparam("team_record_id"),
+            lineup=bindparam("lineup"),
+        )
+    if kind == "update":
+        return (
+            update(_MEMORIES)
+            .where(_MEMORIES.c.tenant_id == bindparam("where_tenant_id"))
+            .where(_MEMORIES.c.id == bindparam("where_id", type_=Uuid(as_uuid=True)))
+            .where(_MEMORIES.c.retired_at.is_(None))
+            .values(lineup=bindparam("lineup"))
+        )
+    raise ValueError(f"未知のスタメン記憶操作: {kind}")
 
 
 def _prepare_lock(token: TenantOperationToken) -> PreparedOperation:
     """ロック対象と固定 self 種別を束縛する。"""
     operation = cast(_SelfTeamLockToken, token)
-    return _lock_statement(), {
+    return _build_lineup_memory_statement("lock"), {
         "team_record_id": operation.team_record_id,
         "kind": "self",
     }
@@ -151,13 +148,15 @@ def _prepare_lock(token: TenantOperationToken) -> PreparedOperation:
 def _prepare_read(token: TenantOperationToken) -> PreparedOperation:
     """読み取り対象チームだけを束縛する。"""
     operation = cast(LineupMemoryReadToken, token)
-    return _read_statement(), {"team_record_id": operation.team_record_id}
+    return _build_lineup_memory_statement("read"), {
+        "team_record_id": operation.team_record_id
+    }
 
 
 def _prepare_insert(token: TenantOperationToken) -> PreparedOperation:
     """不変 token の JSON 文字列を実行直前に新しい値へ復元する。"""
     operation = cast(_LineupMemoryInsertToken, token)
-    return _insert_statement(), {
+    return _build_lineup_memory_statement("insert"), {
         "id": operation.id,
         "team_record_id": operation.team_record_id,
         "lineup": json.loads(operation.lineup_json),
@@ -167,7 +166,7 @@ def _prepare_insert(token: TenantOperationToken) -> PreparedOperation:
 def _prepare_update(token: TenantOperationToken) -> PreparedOperation:
     """既存記憶 ID と新しい JSON を束縛する。"""
     operation = cast(_LineupMemoryUpdateToken, token)
-    return _update_statement(), {
+    return _build_lineup_memory_statement("update"), {
         "where_id": operation.id,
         "lineup": json.loads(operation.lineup_json),
     }
@@ -177,7 +176,7 @@ LINEUP_MEMORY_OPERATIONS: tuple[OperationRegistration, ...] = (
     OperationRegistration(
         _SelfTeamLockToken,
         "CAP:team_records:read",
-        _lock_statement(),
+        _build_lineup_memory_statement("lock"),
         _TEAMS.c.tenant_id,
         _prepare_lock,
         required_bindings=(RequiredBinding(_TEAMS.c.kind, "kind", "self"),),
@@ -185,21 +184,21 @@ LINEUP_MEMORY_OPERATIONS: tuple[OperationRegistration, ...] = (
     OperationRegistration(
         LineupMemoryReadToken,
         "CAP:lineup_memories:read",
-        _read_statement(),
+        _build_lineup_memory_statement("read"),
         _MEMORIES.c.tenant_id,
         _prepare_read,
     ),
     OperationRegistration(
         _LineupMemoryInsertToken,
         "CAP:lineup_memories:insert",
-        _insert_statement(),
+        _build_lineup_memory_statement("insert"),
         _MEMORIES.c.tenant_id,
         _prepare_insert,
     ),
     OperationRegistration(
         _LineupMemoryUpdateToken,
         "CAP:lineup_memories:update",
-        _update_statement(),
+        _build_lineup_memory_statement("update"),
         _MEMORIES.c.tenant_id,
         _prepare_update,
         allowed_update_columns=frozenset({"lineup"}),
