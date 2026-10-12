@@ -44,9 +44,11 @@ created: 2026-10-13
 | `docs/design/data-model.md` 10-3 | ステップ4で実装現況と変更履歴を追随 | PR レビュー |
 | `contracts/seeds/game-type.json` | 5 件の実装シード資産を新設 | PR レビュー |
 | `contracts/migrations/seed-allowlist.json` | 新しい seed revision の限定許可と受理履歴を追加 | 設計書 7.7 の凍結基準ゲート |
-| `contracts/authz/product/` | `pitchlog_owner` 専用の SELECT・INSERT・DELETE ポリシーを固定5行に限って追加 | コア領域レビュー＋人間承認 |
-| `backend/src/pitchlog/authz/{product_provisioning,product_catalog}.py`・`scripts/check_authz_catalog.py` と関連テスト | owner専用3ポリシーの生成名・適用・取り外し・exact-set 検査を限定拡張 | コア領域レビュー＋人間承認。既存アプリ用プロファイルの検査を緩めない |
+| `contracts/authz/product/` | `pitchlog_owner` 専用の SELECT・INSERT・DELETE ポリシーを固定5行に限って追加し、`probe-product-map.json` の製品側のみの原子要素へ3件を登録 | コア領域レビュー＋人間承認 |
+| `backend/src/pitchlog/authz/{product_provisioning,product_catalog}.py`・`scripts/check_authz_catalog.py` と関連テスト | owner専用3ポリシーの生成名・適用・取り外し・exact-set 検査を限定拡張。表アクセスの既存テストはアプリ用1表1ポリシーの範囲を保持し、owner専用3件を別集合で照合 | コア領域レビュー＋人間承認。既存アプリ用プロファイルの検査を緩めない |
 | `docs/design/data-model.md` 3-2・12-4 | ステップ3の認可資産変更前に所有者向け固定語彙ポリシーと既存 RLS DB への適用順を確定 | 7.3 の確定ゲート（版繰り上げ・敵対レビュー＋人間承認） |
+| `docs/README.md` | `data-model.md` v0.8 の確定状態を索引へ反映 | 正本の索引追随 |
+| `contracts/db/schema-manifest.json`・`contracts/authz/shared-preconditions.json` | 10-3 節の実装追随による `data-model.md` 全文digestの機械的な取り直し（各1値のみ） | 派生資産の PR レビュー。両資産に `baseline_control` はなく、7.7 の受理記録の追加は不要 |
 
 ## 4. 実装方針
 
@@ -65,12 +67,12 @@ created: 2026-10-13
 
 ## 5. DoD(受け入れ基準)
 
-- [ ] 試合区分 5 行がシード資産と DB で完全一致し、在籍区分 3 キーと衝突しない。
-- [ ] 0029 適用済みの DB で 0030 の投入と限定された downgrade が成立する。
-- [ ] migration の DML 許可はこの 5 行だけで、履歴を含めて検査できる。
-- [ ] 実 DB の参照正例・異区分負例・衝突時の原子性を検証する。
-- [ ] RLS と FORCE RLS を有効に保った製品 DB で `pitchlog_owner` による 0030 が成功し、アプリ用ロールと所有者の許可外書き込みが拒否される。
-- [ ] 進行中 5 タスクの作業ファイルと U-G1 の API に差分がない。
+- [x] 試合区分 5 行がシード資産と DB で完全一致し、在籍区分 3 キーと衝突しない。
+- [x] 0029 適用済みの DB で 0030 の投入と限定された downgrade が成立する。
+- [x] migration の DML 許可はこの 5 行だけで、履歴を含めて検査できる。
+- [x] 実 DB の参照正例・異区分負例・衝突時の原子性を検証する。
+- [x] RLS と FORCE RLS を有効に保った製品 DB で `pitchlog_owner` による 0030 が成功し、アプリ用ロールと所有者の許可外書き込みが拒否される。
+- [x] 進行中 5 タスクの作業ファイルと U-G1 の API に差分がない。
 
 ## 6. テスト計画
 

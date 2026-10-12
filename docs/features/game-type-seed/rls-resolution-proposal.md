@@ -1,4 +1,4 @@
-# TSK-479 ステップ3: 製品 RLS 下の seed 投入案（承認待ち）
+# TSK-479 ステップ3: 製品 RLS 下の seed 投入方式（承認済み）
 
 本案は実装担当の Codex が起案した。Claude CLI は 2026-10-13 の試行時に週次利用上限を返した。利用者の同日の明示的な代替許可に基づき、実装担当とは別の Codex セッションでコア領域の計画レビューを実施した。この例外はレビュアの指定だけに適用し、計画・正本改訂・認可資産変更への人間承認を兼ねない。
 
@@ -10,7 +10,7 @@ Alembic は `PITCHLOG_MIGRATION_DATABASE_URL` の direct connection で実行す
 
 | 方式 | 利点 | 採否と理由 |
 | --- | --- | --- |
-| **A. `pitchlog_owner` に固定5行だけの製品ポリシーを付ける** | 既存の migration 接続と DDL/DML 分離を維持する。RLS と FORCE RLS は継続する。アプリ権限を増やさない | **暫定第一候補**。INSERT は `(key, category, display_name, disabled)` の承認済み5組だけを `WITH CHECK` で許可。SELECT/DELETE はこの5キーだけを `USING` で許可。UPDATE ポリシーは置かない。既存の認可資産・適用器・静的検査・カタログ検査に変更が必要で、恒久的な所有者書き込み経路が残る |
+| **A. `pitchlog_owner` に固定5行だけの製品ポリシーを付ける** | 既存の migration 接続と DDL/DML 分離を維持する。RLS と FORCE RLS は継続する。アプリ権限を増やさない | **採用・承認済み**。INSERT は `(key, category, display_name, disabled)` の承認済み5組だけを `WITH CHECK` で許可。SELECT/DELETE はこの5キーだけを `USING` で許可。UPDATE ポリシーは置かない。既存の認可資産・適用器・静的検査・カタログ検査を変更し、恒久的な所有者書き込み経路が残る |
 | B. 0030 内で所有者向けポリシーを作成・削除 | コミット後に追加ポリシーが残らず、成功・失敗とも同じトランザクションで閉じる | 12-4 の DDL/DML 分離と seed revision の DML 検査に限定例外が必要。凍結 DML 許可台帳の変更を伴い、認可 DDL が Alembic に分散する。承認なしでは採れない |
 | C. 既存の移行バッチ用 BYPASSRLS ロールを使う | FORCE RLS 下でも投入できる | 同ロールの対象19表にシステム語彙はなく、DDL 不可で Alembic 用でもない。対象・ライフサイクル・カタログ契約の変更が大きいため不採用 |
 | D. 外部 superuser で Alembic を実行する | 使い捨てDBでは技術的に成功 | 承認済み製品認可計画の「migration は `pitchlog_owner`」と、データモデル 3-2 の一括投入に superuser を使わない判断に反するため不採用 |
