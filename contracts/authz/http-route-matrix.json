@@ -369,6 +369,15 @@
       }
     },
     {
+      "matrix_route_id": "HTTP:ROUTE:RECORD:lineup_memories:read",
+      "route_id": "ROUTE:RECORD:lineup_memories:read",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-394.http-route.HTTP:ROUTE:RECORD:lineup_memories:read",
+        "status": "planned"
+      }
+    },
+    {
       "matrix_route_id": "HTTP:ROUTE:RECORD:players:insert",
       "route_id": "ROUTE:RECORD:players:insert",
       "disposition": "conditional",
