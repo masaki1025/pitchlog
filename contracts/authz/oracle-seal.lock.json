@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "asset_kind": "authz_oracle_seal",
-  "oracle_commit": "0364f07c219545df416aed2250f2b23a4535c8df",
+  "oracle_commit": "388b7c746c80250685d9857fc0c27802d0ae057e",
   "oracle_commit_semantics": "last_committed_step_4_input_baseline",
   "input_assets": [
     {
