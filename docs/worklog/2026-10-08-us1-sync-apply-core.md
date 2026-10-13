@@ -224,3 +224,13 @@ branch: feature/us1-sync-apply-core
 - ハーネス全件: `tests/test_check_authz_catalog.py` に既知の偽の赤(「HEAD の履歴に staged 製品資産がありません」— develop を第 2 親にマージしたブランチだけで出る)。それを除いた全件で **`tests/test_check_design_propagation.py` の 1 件が赤** — ステップ 1 の sync-protocol v0.6(10-3 を「保存済み結果再掲後の**範囲ごとの**意図件数」へ)で旧文言の部分一致が外れた。ステップ 1 の時点では `check_design_propagation` スクリプトだけを回し、ルートのテストファイルを回していなかった(取りこぼし)
 - **ステップ 1 の是正**: 期待文字列を新しい本文へ合わせた。Claude の直接編集のため `review normal` → P2 1 件(「範囲ごと」の改訂を 8-1・10-2・10-3 で固定する表明が無く、単数の旧文言でも通る)を**採用**し、`対象範囲ごとに 1 件だけ永続化する`(8-1)・`範囲ごとの安定した意図 ID の全集合`(10-2)・`範囲ごとに安定した意図 ID で 1 件だけ永続化`/`安定した意図 ID の全集合・各行の永続状態`(10-3)の表明を足した。215 passed。反映後の再レビューは行っていない(P2 の表明追加のみ)
 - backend の DB 不要の全件: 34 failed + 10 errors = 既知の偽の赤 44 件だけ(全件が「staged 製品資産がありません」)。1291 passed
+
+## ステップ 4(2026-10-14)
+
+- 1 回目の委任は呼び出し側のセッションが落ちて中断。途中の差分を Codex に点検させて完遂した
+- **draft PR #132 を先に開いた**(山田正輝の判断 2026-10-14 — #114 と同じ運用)。凍結資産の受理記録に PR 番号が要るため。受理記録は PR #132 の 1 件(承認 山田正輝・2026-10-14)で、ステップ 22 で本 PR の全変更を覆う形へ導出し直す
+- 変更: `base-allowlist.json` の条件 2 に `owner_paths`(`backend/src/pitchlog/sync/*`・`backend/src/pitchlog/repositories/sync_apply.py`)。検査器は owner_paths と検査時点の `.claude/core-areas.json` の sync-protocol の paths の**両方**に一致するファイルだけ条件 2 を適用しない(core-areas.json が無ければ免除しない)。条件 1・3・4 は所有パス内でも効く。`backend/tests/...` は TB002 の走査対象外なので所有宣言に入れない
+- 検査器の変更で 8 資産(base-allowlist ほか、frozen_projection の external_files に検査器を持つ 7 資産)の凍結射影が動き、revision を上げた。backend の生成定数 3 ファイル(`runtime_contract.py` は生成器で再生成、`repository_contract.py`・`tenant_context_contract.py` は生成器が無いため資産から同期 — `docs/features/runtime-contract-switch/design.md:278`)を追随
+- **敵対レビュー**: 1 回目 P1 1 件(owner_paths だけを広げると core-areas に登録済みの `db/engine.py` まで免除される)→ **採用**: 検査器に承認済みの 2 件を定数 `APPROVED_CONDITION2_OWNER_PATHS` で固定し、集合が一致しなければ拒否。負例(追加・欠落・置換)。2 回目 **可決(0 件)**
+- 観察(ステップ 9 へ): 条件 4(TB004)は所有パス内でも効く。`sync/invalidation.py` の識別子が `invalidate*`・`cache_invalidation` に当たる場合は、既存の公開シンボル・許可 call の経路で通るかを確認する(`scripts/check_tenant_boundary_bypass.py:4207` 付近)
+- 検査: 迂回検査・凍結履歴・凍結 archive・センサス 571 passed / backend の DB 不要の全件は既知の偽の赤 44 件以外 green / root の ruff・ty green
