@@ -537,7 +537,10 @@
         "backend/tests/test_request_presentation.py",
         "tests/test_census_baseline_check.py",
         "frontend/src/stores/authStore*",
-        "frontend/src/api/*"
+        "frontend/src/api/*",
+        "frontend/src/components/settings/TeamMembersContent*",
+        "frontend/src/lib/rosterQueryKeys*",
+        "frontend/src/screens/TeamScreen*"
       ]
     },
     {
@@ -592,7 +595,10 @@
         "contracts/vocabulary/*",
         "scripts/check_vocabulary_manifest.py",
         "tests/test_vocabulary_manifest.py",
-        "tests/test_vocabulary_seed.py"
+        "tests/test_vocabulary_seed.py",
+        "frontend/src/components/settings/TeamMembersContent*",
+        "frontend/src/lib/rosterQueryKeys*",
+        "frontend/src/screens/TeamScreen*"
       ]
     }
   ]
