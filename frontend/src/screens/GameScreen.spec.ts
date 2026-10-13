@@ -276,3 +276,67 @@ describe('GameScreen の入力下書き', () => {
     expect(remounted.find('button[type="submit"]').exists()).toBe(false)
   })
 })
+
+describe('GameScreen の表示と操作のアクセシビリティ', () => {
+  it('入力欄に可視ラベルがあり、未取得と未保存の状態を文章で示す', () => {
+    const wrapper = mount(GameScreen)
+    const labels = [
+      ['pitch-type', '球種'],
+      ['pitch-speed', '球速'],
+      ['pitch-result', '結果'],
+    ] as const
+
+    for (const [id, name] of labels) {
+      expect(wrapper.get(`label[for="${id}"]`).text()).toBe(name)
+      const control = wrapper.get<HTMLInputElement | HTMLSelectElement>(
+        `#${id}`,
+      )
+      expect(control.element.labels?.item(0)?.textContent?.trim()).toBe(name)
+    }
+
+    expect(wrapper.get('[data-testid="game-name"]').text()).toBe('未取得')
+    for (const [testId, name] of [
+      ['away-score', '先攻'],
+      ['home-score', '後攻'],
+      ['outs', 'アウト'],
+      ['runners', '走者'],
+      ['count', 'カウント'],
+      ['batter', '打者'],
+      ['pitcher', '投手'],
+    ] as const) {
+      const value = wrapper.get(`[data-testid="${testId}"]`)
+      expect(value.element.tagName).toBe('DD')
+      expect(value.element.previousElementSibling?.tagName).toBe('DT')
+      expect(value.element.previousElementSibling?.textContent).toBe(name)
+      expect(value.text()).toBe('未取得')
+    }
+
+    const draft = wrapper.get('section[aria-label="投球入力の下書き"]')
+    expect(draft.text()).toContain('この入力は保存・送信されません')
+    expect(draft.text()).toContain('画面を離れると消えます')
+    expect(draft.find('button[type="submit"]').exists()).toBe(false)
+  })
+
+  it('コースをキーボードで選択・訂正でき、選択状態が表示に反映される', async () => {
+    const wrapper = mount(GameScreen, { props: { courseView } })
+    const zone = wrapper.getComponent(StrikeZone)
+    const svg = zone.get('svg')
+
+    expect(svg.attributes('tabindex')).toBe('0')
+    expect(svg.attributes('aria-label')).toContain('矢印キーでコース入力')
+    expect(svg.attributes('aria-label')).toContain('現在は未入力')
+
+    await svg.trigger('keydown', { key: 'ArrowRight' })
+    const first = zone.props('point') as { x: number; y: number }
+    expect(Number.isFinite(first.x)).toBe(true)
+    expect(Number.isFinite(first.y)).toBe(true)
+    expect(wrapper.get('[data-testid="course-status"]').text()).toContain(
+      '選択済み（未保存）',
+    )
+    expect(svg.attributes('aria-label')).toContain('現在位置')
+
+    await svg.trigger('keydown', { key: 'ArrowLeft', shiftKey: true })
+    const corrected = zone.props('point') as { x: number; y: number }
+    expect(corrected).not.toEqual(first)
+  })
+})
