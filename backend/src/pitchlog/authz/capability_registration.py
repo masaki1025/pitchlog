@@ -37,6 +37,7 @@ from sqlalchemy.sql.selectable import (
     CTE,
     Alias,
     Exists,
+    ForUpdateArg,
     Join,
     ScalarSelect,
     Select,
@@ -84,6 +85,7 @@ _ALLOWED_NODE_TYPES: frozenset[type[object]] = frozenset(
         CTE,
         Exists,
         False_,
+        ForUpdateArg,
         Function,
         Grouping,
         Insert,
@@ -171,6 +173,7 @@ _AUDITED_NON_CHILD_ATTRIBUTES: dict[type[object], tuple[str, ...]] = {
     CTE: ("name", "recursive", "nesting", "_prefixes", "_suffixes"),
     Exists: ("operator", "modifier"),
     False_: (),
+    ForUpdateArg: ("nowait", "read", "skip_locked", "key_share"),
     Function: (
         "_with_ordinality",
         "_table_value_type",
@@ -391,6 +394,7 @@ _ALLOWED_INSTANCE_STATE_KEYS: dict[type[object], frozenset[str]] = {
     ),
     Exists: frozenset({"_propagate_attrs", "element", "modifier", "operator", "type"}),
     False_: frozenset({"description", "proxy_set", "type"}),
+    ForUpdateArg: frozenset({"nowait", "read", "skip_locked", "key_share", "of"}),
     Function: frozenset(
         {
             "_has_args",
@@ -425,6 +429,7 @@ _ALLOWED_INSTANCE_STATE_KEYS: dict[type[object], frozenset[str]] = {
             "_fetch_clause",
             "_fetch_clause_options",
             "_from_obj",
+            "_for_update_arg",
             "_independent_ctes",
             "_independent_ctes_opts",
             "_label_style",
@@ -938,7 +943,9 @@ def _validate_select_state(
         _reject_node_state(label, "明示的な相関状態", violations)
     if node._fetch_clause is not None or node._fetch_clause_options is not None:
         _reject_node_state(label, "FETCH状態", violations)
-    if node._for_update_arg is not None:
+    if node._for_update_arg is not None and not (
+        _is_lineup_team_lock(node) or _is_lineup_active_player_lock(node)
+    ):
         _reject_node_state(label, "FOR UPDATE状態", violations)
     if node._distinct or node._distinct_on:
         _reject_node_state(label, "DISTINCT状態", violations)
@@ -955,6 +962,117 @@ def _validate_select_state(
     if node.dialect_options:
         _reject_node_state(label, "dialect_options", violations)
     _validate_cte_options(node._independent_ctes_opts, label, violations)
+
+
+def _is_lineup_team_lock(node: Select) -> bool:
+    """単一 self チーム行の通常ロックだけを許可する。"""
+    lock = node._for_update_arg
+    if type(lock) is not ForUpdateArg or (
+        lock.nowait
+        or lock.read
+        or lock.skip_locked
+        or lock.key_share
+        or lock.of is not None
+    ):
+        return False
+    froms = node.get_final_froms()
+    if len(froms) != 1 or type(froms[0]) is not Table:
+        return False
+    table = froms[0]
+    if table.name != "team_records" or table.schema not in {None, "public"}:
+        return False
+    selected = tuple(node.selected_columns)
+    if len(selected) != 1 or selected[0] is not table.c.id:
+        return False
+    predicate = node.whereclause
+    if (
+        type(predicate) is not BooleanClauseList
+        or predicate.operator is not operators.and_
+    ):
+        return False
+    expected = {
+        "tenant_id": "tenant_id",
+        "id": "team_record_id",
+        "kind": "kind",
+    }
+    matched: set[str] = set()
+    hidden_is_null = False
+    for clause in predicate.clauses:
+        if (
+            type(clause) is BinaryExpression
+            and clause.operator is operators.eq
+            and type(clause.left) is Column
+            and clause.left.table is table
+            and type(clause.right) is BindParameter
+            and expected.get(clause.left.key) == clause.right.key
+        ):
+            matched.add(clause.left.key)
+        elif (
+            type(clause) is BinaryExpression
+            and clause.operator is operators.is_
+            and clause.left is table.c.hidden_at
+            and type(clause.right) is Null
+        ):
+            hidden_is_null = True
+        else:
+            return False
+    return matched == set(expected) and hidden_is_null and len(predicate.clauses) == 4
+
+
+def _is_lineup_active_player_lock(node: Select) -> bool:
+    """自チームの現役選手 1 行だけをロックする形を認める。"""
+    lock = node._for_update_arg
+    if type(lock) is not ForUpdateArg or (
+        lock.nowait
+        or lock.read
+        or lock.skip_locked
+        or lock.key_share
+        or lock.of is not None
+    ):
+        return False
+    froms = node.get_final_froms()
+    if len(froms) != 1 or type(froms[0]) is not Table:
+        return False
+    table = froms[0]
+    if table.name != "players" or table.schema not in {None, "public"}:
+        return False
+    selected = tuple(node.selected_columns)
+    if len(selected) != 1 or selected[0] is not table.c.id:
+        return False
+    predicate = node.whereclause
+    if (
+        type(predicate) is not BooleanClauseList
+        or predicate.operator is not operators.and_
+    ):
+        return False
+    expected = {
+        "tenant_id": "tenant_id",
+        "id": "player_id",
+        "team_record_id": "team_record_id",
+        "roster_status_key": "roster_status_key",
+    }
+    matched: set[str] = set()
+    hidden_is_null = False
+    for clause in predicate.clauses:
+        if (
+            type(clause) is BinaryExpression
+            and clause.operator is operators.eq
+            and type(clause.left) is Column
+            and clause.left.table is table
+            and type(clause.right) is BindParameter
+            and expected.get(clause.left.key) == clause.right.key
+        ):
+            matched.add(clause.left.key)
+        elif (
+            type(clause) is BinaryExpression
+            and clause.operator is operators.is_
+            and clause.left is table.c.hidden_at
+            and type(clause.right) is Null
+        ):
+            hidden_is_null = True
+        else:
+            return False
+    return matched == set(expected) and hidden_is_null and len(predicate.clauses) == 5
 
 
 def _validate_dml_state(
@@ -1088,6 +1206,15 @@ def _validate_node_state(
             _reject_node_state(label, "function table value type", violations)
         if state_node._has_args is not True or not state_node.clauses.clauses:
             _reject_node_state(label, "function argument state", violations)
+    elif node_type is ForUpdateArg:
+        if (
+            state_node.nowait
+            or state_node.read
+            or state_node.skip_locked
+            or state_node.key_share
+            or state_node.of is not None
+        ):
+            _reject_node_state(label, "FOR UPDATE 変種", violations)
     elif node_type is Select:
         _validate_select_state(state_node, label, violations)
     elif node_type is Insert or node_type is Update:
@@ -1296,6 +1423,17 @@ def validate_capability_registrations(
             )
         table_ids = _inspect_statement(statement, label, violations)
         _validate_single_target_table_shape(statement, label, violations)
+        if (
+            type(statement) is Select
+            and statement._for_update_arg is not None
+            and not (
+                capability_id == "CAP:team_records:read"
+                and _is_lineup_team_lock(statement)
+                or capability_id == "CAP:players:read"
+                and _is_lineup_active_player_lock(statement)
+            )
+        ):
+            violations.append(f"{label}の FOR UPDATE は限定行の読み取り専用")
 
         if capability is None:
             continue
