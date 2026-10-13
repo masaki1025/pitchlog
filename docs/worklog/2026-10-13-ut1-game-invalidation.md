@@ -99,3 +99,38 @@ branch: feature/ut1-game-invalidation
 - 設計書11-2の規範改訂は7.3で確定済み。認可資産の分類・追随範囲は今回のPO代替受理済み。凍結資産の実差分7.7、oracle意味変更の再レビュー・人間確認、6.3コアレビューは別に必要。ステップ1は開始済み。
 - 期限保守更新の意図INSERT権限は追加しない。保守用認可のP0 3件は別に未解決。
 - 対象DBの既存行は測定不能。migrationの実DB適用条件はU-D1の調査・移行裁定後に確定する。
+
+**ステップ1の3件の個別承認と独立レビュー（2026-10-14・山田正輝）**: 本会話でPR #129を受理IDとするcache-invalidation-contract revision 11→12の7.7 v2履歴、旧`FR-019/list_item-009`→新`-010`の意味対応置換・`-005`と新`-009`の3主張とmutant・boundary参照のoracle意味変更、`oracle_commit`の`0364f07c219545df416aed2250f2b23a4535c8df`→`8eca7dcb2b71aa3b6dba0b787ff257dc8e7a973d`への再封印をそれぞれ明示承認された。前後の凍結射影は上記の完全SHAのとおり。独立Codexの読み取り専用1回目全文レビューは可決P0=0/P1=0/P2=0。入力8資産はローカル中間コミット`8eca7dcb`と一致し、既存#81承認、未受理runtimeのplanned、#124のGETと既存履歴を維持した。承認者・日付を7.7 authority履歴、oracle意味変更宣言に記録し、6封印資産とseal、mcdc参照を候補値どおり専用worktreeへ反映した。追加台帳の受理と全検査が済むまではステップ1コミット・pushを行わない。
+
+**追加7.7台帳の差分発見（2026-10-14・山田正輝による追加承認）**: 全体検査で、別の凍結台帳`contracts/authz/frozen-baselines.json`の`oracle_input`が旧コミットを保持しており、封印値だけを更新しても認可検査が旧基準との差異を拒否することが判明。提示済み最終候補にはこの台帳が含まれなかったため、既存5件を維持し#129の1件で完全SHAを旧`0364f07c219545df416aed2250f2b23a4535c8df`から新`8eca7dcb2b71aa3b6dba0b787ff257dc8e7a973d`へ移す候補を`/tmp/tsk543-frozen-baselines-addendum-candidate.json`に隔離した。配置・宣言・他基準は不変。隔離した不変条件検査と独立Codexの追加査読は可決P0=0/P1=0/P2=0。利用者はこの追加1件を別途明示承認した。実際の承認者・日付を記録して専用worktreeに追記した。最終検査・実HEADでの検査を経てステップ1完了とする。
+
+
+**archive比較corpusの入力追随（2026-10-14）**: 承認済み`cache-invalidation-contract.json`の変更で、既存の比較corpus入力集合に含まれる`contracts/tenant_boundary`の現況digestが`2be22e431ec525311ca872321d55f7688b085ccc447d4b1312e300646780111b`→`88c7258b07154a778014d1625e4e85fb07073fa8dd109e6a1749f25073618449`へ変わった。`tests/fixtures/frozen-archive-cases/manifest.json`の`corpus_inputs.digest`だけを再pinし、固定履歴prefix・snapshot名集合・比較ケース・期待結果・検査器を維持した。archive関連65件とtenant-boundary検査は成功。独立Codexの読み取り専用査読は可決P0=0/P1=0/P2=0。入力files/trees、固定authority履歴prefix=6、snapshot名集合、比較revision、11ケースと期待結果の不変を確認した。
+
+
+**実HEADでの検査と固定件数追随（2026-10-14）**: 最初のステップ1コミット`95a6c28e8626b6c7f79d80da7d9ae1bf4da2e6b6`でclone試験が実資産を読める状態にした。先行13失敗は旧凍結台帳とコミット前clone・要件分類件数に分かれ、台帳受理と実HEADで前二者を解消した。残る`tests/test_check_authz_catalog.py`の固定期待値を実際の追加3主張に合わせ、contract-only 166→169、authorization predicate 206→209、handoff 174→177、DB主張188→191、およびboundaryの旧`-009`参照→新`-010`へ追随した。検査規則は変更していない。全体試験・CIは最終差分で再確認する。
+
+
+**oracle第2階層digestの追随（2026-10-14）**: 再封印した`ddl-elements.json`のGit blobが`a8cd6365821acb8a88505593c2e80f0714ec9bf8`→`6ba219f77299aad7197e4cd8af1974dbbd016873`となり、`scripts/check_failure_injection_points.py`が既存の`failure-injection-points.json`の入力digest不一致を検出した。既存前例は`docs/features/route-kind-vocabulary/plan.md` 5bとハーネス評価H-85に明記される。利用者が承認した再封印の「必要な派生参照」に限り`source_asset.git_blob_digest`の1値を追随し、5注入点・検査器は維持した。検査器と関連11試験は成功。独立Codexの読み取り専用査読は可決P0=0/P1=0/P2=0。独立の凍結系列・宣言を動かさず、承認済み再封印から派生する参照blobのPRレビュー追随であり、7.7履歴追加は不要と判定した。全体再検査は完了前に確認する。
+
+
+**全体再検査と残る所有境界（2026-10-14）**: 認可台帳試験は25,817件成功。その他root試験は3,546件成功・4件失敗で、3件は`origin/develop`へ着地済みのU-F8コアパスを未着地とみなす古いテスト期待値2件、および承認済み選択子3記号を含まない厳密集合期待値1件だった。これらは検査器を緩めず期待値を現実の基線・契約へ追随し、個別再試験3件成功。残る1件はTSK-543で確定した`data-model.md` v0.9から生成されるORM受理シートの不一致である。既存N3人間判定103行は出現番号を除く正本記述・実装候補の組で全件一致するが、生成器の通常の安全な持ち越しでは93行が未判定となる。新規はv0.9変更履歴中の「変えない」1行のみ。隔離候補`/tmp/tsk543-orm-sheet-candidate`には103行を保全し、新規1行を未判定で残した。ORM受理シートは本計画の明示的なステップ1変更対象外なので、所有者の受理または本件への範囲追加裁定前に正式シートを更新しない。したがって全pytest・最終HEAD/CI確認・ステップ1完了コミット/pushは未了と記録する。
+
+
+### Claude向け申し送り — ORM受理シートの最小追随案（2026-10-14・未承認）
+
+- **提案する計画範囲追加**: ステップ1の派生資産追随に`docs/features/orm-schema-migration/acceptance-sheets/N3-immutability-completeness.md`と同階層`README.md`の**2ファイルだけ**を加える。N1・N4・N7は人間判定を保って再生成すると現行ファイルとバイト単位で同一であり、変更対象外。生成器・検査器・manifest・既存の人間判定は変更しない。`data-model.md` v0.9の確定行を入力にした再生成結果との一致を回復するための追随であり、ORM製品実装を先取りしない。正式計画・シートはPOの範囲追加確認まで変更しない。
+- **新規1行の全文（判定・理由は空欄）**: `| 出現 001: 変えない | data-model.md §変更履歴 — 版 0.9 の行（語: 変えない） | manifest immutability: 該当候補なし |  |  |`。正本のv0.9確定行にある「集計可視値を変えない期限保守遷移」から抽出された。`N3`は列の不変性候補を全数照合するシートであり、この語は期限保守時の集計値を述べる変更履歴中の記録である。**推奨判定は`対象外`**（列の不変性を述べず、manifestのimmutability候補を要求しない）だが、人間が確認するまで判定・理由を記入しない。候補理由は既存変更履歴行と同じ形式で「正本の変更履歴表（B06確定記録）中の集計可視値についての出現であり、列の不変性を述べた契約ではない `docs/design/data-model.md:10`」。
+- **既存判定の不変性**: 隔離候補`/tmp/tsk543-orm-sheet-candidate`で、出現番号だけを除いた`対象・正本側・実装側・判定・理由`の多重集合を比較した。N3の旧103行は新104行の中に**103/103行完全一致・欠落0・判定変更0**で残り、新規1行だけが空欄。他シートもN1 103/103、N4 54/54、N7 100/100の既存判定が一致し、未判定追加0。通常の生成器持ち越しはN3の93行を安全上リセットするため、その出力を無検査で正式反映しない。
+- **検査状態と次のゲート**: 修正した`test_core_guard.py`2件と`test_check_tenant_boundary_bypass.py`1件の**個別再試験3 passed**。これを全体成功と混同しない。直前の全体root試験は認可台帳25,817 passed、その他3,546 passed・4 failed（うち上記3件は修正済み、ORMシート1件は未解消）。全体の最終再検査、実HEADを使うclone試験、CIは未実施。POの範囲追加・新規行判定後に正式シートを更新し、意味差分と人間判定を逐行照合したうえでステップ1完了コミット、Draft PR #129 push、最終HEAD検査とCI確認へ進む。Draft解除・マージ、ステップ2、保守用認可、既存DB適用は禁止のまま。
+
+
+**Claude向け申し送り — PO承認と実行条件（2026-10-14・山田正輝）**: 利用者は上記未承認案の範囲追加（N3と同階層READMEの2ファイルだけ）と、新規1行の「対象外」判定を明示承認した。指定理由は「集計可視値が変わらない期限遷移を述べる変更履歴であり、列の不変性やmanifestのimmutability追加を要求する記述ではない」。この文言を新規行の理由へ反映する。既存103行の判定・理由は変えない。承認は[計画](../features/ut1-game-invalidation/plan.md)へ記録済み。正式シートを更新してORMシート試験・全体pytest・Ruff・ty・認可/oracle/凍結/snapshot/archiveを検証し、必要レビュー後にステップ1完了コミットとDraft PR #129へのpushを行う。**個別3 passedは全体最終再検査を代替しない**。最終実HEADのclone検査・CI確認が済むまでステップ1完了と報告しない。ステップ2、保守用認可、既存DB適用、Draft解除・マージは禁止。
+
+
+**Claude向け申し送り — 正式追随と全件試験再開（2026-10-14）**: N3の承認済み新規行を`対象外`・PO指定理由と`docs/design/data-model.md:10`の典拠で記入し、READMEを103→104行に更新した。固定行数を持つ既存ORM試験も103→104へ追随し、関連13試験は成功。旧HEADと正式シートの多重集合比較は既存103/103件保持、欠落0、追加1、全判定済み。N1・N4・N7は差分0。root/backend Ruff・ty、backend format、関連backend42試験、認可カタログ、凍結台帳、tenant boundary、shared preconditions、mcdc、failure injection、docs状態は成功。root全件試験の最初の実行は共用`/tmp`で`FileNotFoundError`・`No space left on device`により偽失敗が多数発生した。隔離`--basetemp`で再実行したが、99%到達時にツール実行環境が再起動して終了コード143で中断し、失敗要約は未取得。検査対象を漏らさず、認可台帳群とその他のroot群を別々の隔離一時領域で再実行する。**この時点で全件成功・ステップ1完了・CI成功とは扱わない**。コミット・push未実施。
+
+
+**Claude向け申し送り — 検査環境の切り分けとarchive再固定（2026-10-14）**: root試験の一時領域をリポジトリ内部`.pytest_cache/tsk543-*`へ置くと、Git外判定・入力アクセス・比較corpusが試験生成物を入力として拾うため、この方式は不適格と判明。私が作成した内部一時領域2個を削除し、以後はリポジトリ外`/home/ymdms/.cache/tsk543-*`を使う。開発PostgreSQLコンテナは作業環境の停止後に`Exited (255)`だったので既存`pitchlog-db-1`を起動した。migration・既存スキーマ変更はしていない。SQL変異の代表試験は実DBで成功。別途、承認済み選択子3記号を厳密集合テスト`tests/test_check_tenant_boundary_bypass.py`へ追加したため、同テストを入力に含むarchive corpusの現況digestが`88c7258b07154a778014d1625e4e85fb07073fa8dd109e6a1749f25073618449`→`14a66ceb831937bfaf49e17ddca0820a9f1650bb5b0b54b1aa907ac0bc3757cf`へ変化した。`tests/fixtures/frozen-archive-cases/manifest.json`の`corpus_inputs.digest`のみ再固定し、既存の履歴prefix・snapshot名・比較ケース・期待結果・検査器を維持。archive関連65試験成功。リポジトリ外一時領域でroot試験を再実行中であり、最終成功・コミット・push・CIは未了。
+
+**Claude向け申し送り — 分離した全件再検査と最新基線（2026-10-14）**: リポジトリ外の専用一時領域でroot pytestを二群に分けて完走させ、認可台帳以外は`3,550 passed`、`tests/test_check_authz_catalog.py`は`25,817 passed`、合計`29,367 passed`。これに先立つroot/backend Ruff・ty、backend format、関連backend42件、ORM13件、archive65件、認可・oracle・凍結・snapshot・文書状態の検査も成功した。全件成功後に`origin/develop`を取得すると`ef5c8711`から`c0ad63e0`へ進み、PR #126・#128の統合により要件正本と認可/oracle入力・凍結履歴に変更があることを確認した。現在の#129候補は、利用者が完全値で承認した`8eca7dcb2b71aa3b6dba0b787ff257dc8e7a973d`を保持する。新基線との機械的三者比較では認可資産に複数の競合があり、入力識別値を独断で置換しない。最終HEAD・PR CIでの扱いを確認し、必要なら変更後の完全差分を別途提示する。ステップ2、保守用認可、既存DB適用、Draft解除・マージは行わない。

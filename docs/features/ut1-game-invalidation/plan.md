@@ -23,6 +23,10 @@ created: 2026-10-13
 
 > **番号取得用Draft PRと中間コミットの限定例外（2026-10-14・本会話の利用者）**: TSK-543に限り、ステップ1の検査完了前に計画・作業ログなど確定済み文書だけの準備コミットをpushし、番号取得用Draft PRを作る。候補製品コード・凍結契約・未受理台帳は準備pushに含めず、PR本文にステップ1未完了と未通過検査を明記する。oracle入力8資産だけを固定するローカル中間コミットはステップ単位コミットの限定例外として許可し、まだpushしない。正式authority履歴、oracle意味変更承認宣言、再封印、その他の製品変更を混ぜない。PR番号と入力コミットSHA取得後に完全な前後値を人間へ提示し、7.7受理・oracle意味変更・再封印の明示承認までは正式反映しない。ステップ2・Draft解除・マージ・既存DB適用は保留する。
 
+> **ステップ1の個別承認・追加7.7受理（2026-10-14・山田正輝）**: 利用者はPR #129のcache-invalidation-contract revision 11→12の7.7 v2履歴、FR-019のoracle意味変更、入力コミット`8eca7dcb2b71aa3b6dba0b787ff257dc8e7a973d`への再封印を個別に承認した。独立Codexの全文レビューは可決P0/P1/P2各0件。検査で別台帳の追随漏れが見つかり、`contracts/authz/frozen-baselines.json`の`oracle_input`系列に既存5件を保った#129履歴1件を追加する差分を再提示し、利用者が別途明示承認した。追加査読も可決P0/P1/P2各0件。完全値・経緯・検査は作業ログに記録する。ステップ2、保守用認可、既存DB適用、Draft解除・マージは承認範囲外。
+
+> **ステップ1のORM受理シート最小追随承認（2026-10-14・山田正輝）**: 利用者はB06 v0.9確定履歴から派生したN3の新規1行について、`docs/features/orm-schema-migration/acceptance-sheets/N3-immutability-completeness.md`と同階層`README.md`の2ファイルだけをステップ1の追随対象に加え、当該行を「対象外」と判定することを明示承認した。理由は「集計可視値が変わらない期限遷移を述べる変更履歴であり、列の不変性やmanifestのimmutability追加を要求する記述ではない」。既存103行の判定・理由を保持する。生成器・検査器・他のORMシート・manifestは変更対象外。対応する既存テストの固定行数期待値だけは103→104へ追随する。正式更新後に全体再検査、最終実HEADの検査とCIを通す。ステップ2、保守用認可、既存DB適用、Draft解除・マージは対象外。
+
 ## 1. 背景・目的
 
 [TSK-543](https://app.notion.com/p/3f893b75e68781938d77d0c9087dd326) は完了済み [TSK-390](https://app.notion.com/p/3da93b75e68781fc87d7f04a12ff6ad8) の後続である。[TSK-397/U-D1](https://app.notion.com/p/3da93b75e68781c7a7b0ef8c32d221af) が所有する [FR-019](../../requirements/requirements-pitchlog-2026-07-22.md#FR-019) の試合削除・復元を、[設計書11-2](../../design/data-model.md) B02/B06 が求める5範囲のキャッシュ無効化契約に接続する。現行の純粋生成器は5範囲の具体キーを要求し、選択子は在籍区分変更の共有集計だけに許可される。保存器も同トリガーの1行だけに対応する。U-D1 の仮の物理キーとNULLワイルドカードを避け、テナントに限定した明示的な選択子を確定する。
@@ -54,6 +58,7 @@ created: 2026-10-13
 | `contracts/tenant_boundary/cache-invalidation-contract.json` と凍結基準 | 承認済み正本に従ってトリガー5の選択子・保存形・検査を更新。変更の直前/直後の実状態に基づく7.7受理記録を同時に作る | 7.7の凍結資産更新、6.3コアレビュー、人間逐行確認。PR最終baseで再導出 |
 | `contracts/authz/shared-preconditions.json`・`contracts/authz/product/` | B06改訂に伴う前者の正本Git blob digestはステップ1で追随。migrationで列・権限・RLSが増える場合は後者の所有者TSK-424と共同で差分を確定する | 認可所有者に追随範囲を確認し、コアレビュー。独断変更しない |
 | `contracts/authz/requirement-claims.json`・`.lock.json` と認可派生資産 | 要件書全文のblob digestと変更されたFR-019・付録Cの主張をステップ1で再抽出・分類する。lock、`route-registry.json`、`auth-catalog.json`、`http-route-matrix.json`と各lockを実差分に応じて追随する。旧-009の意味対応先の移動により、`claim-mutant-map.json`・`boundary-proposal.json`・`mcdc-map.json`とoracle意味変更承認宣言・検証器・負例テストも本件に必要な差分だけ追随する | TSK-424の分類・追随範囲は上記PO代替受理済み。凍結基準7.7の実差分・oracle意味変更の再レビュー/人間確認、6.3コアレビューは別に通す。要件正本の確定コミットにJSONを混ぜない |
+| ORM受理シート`N3-immutability-completeness.md`・同階層`README.md` | B06 v0.9の変更履歴から増えた「変えない」1行を、既存103行の判定・理由を保持して追加する。PO承認どおり新規行は「対象外」とし、READMEと既存テストのN3行数を103→104へ追随する | 上記2026-10-14の範囲追加・判定承認に限定する。N1・N4・N7、生成器・検査器・manifestは変更しない。生成一致性と既存判定全数保持を検証する |
 
 ## 4. 実装方針
 
@@ -65,7 +70,7 @@ created: 2026-10-13
 
 | # | ステップ | 合格条件 |
 | --- | --- | --- |
-| 1 | 7.3で確定したB06規則を純粋要求生成器・契約へ反映し、正本変更に伴うschema manifest・shared preconditionsの両digestと要件書由来の認可主張台帳・lock・派生入力digestをTSK-424所有者と追随する。変更対象の凍結基準について7.7の直前/直後の記録と検査資産を同時に揃える | U-D1受理済みの5行規則、5範囲・テナント一致・誤トリガー/欠落/重複/余分の単体・一致性テスト、既存トリガー14の回帰、`check_shared_preconditions.py`・`check_authz_catalog.py`・schema manifest検査と凍結記録が成功 |
+| 1 | 7.3で確定したB06規則を純粋要求生成器・契約へ反映し、正本変更に伴うschema manifest・shared preconditionsの両digestと要件書由来の認可主張台帳・lock・派生入力digestをTSK-424所有者と追随する。変更対象の凍結基準について7.7の直前/直後の記録と検査資産を同時に揃える。承認済みのORM受理シートN3・READMEだけを追随する | U-D1受理済みの5行規則、5範囲・テナント一致・誤トリガー/欠落/重複/余分の単体・一致性テスト、既存トリガー14の回帰、`check_shared_preconditions.py`・`check_authz_catalog.py`・schema manifest検査と凍結記録、ORM受理シートの生成一致性と既存103判定の保持が成功 |
 | 2 | 選択子判別と意図保存形式、必要な専用DB migration・RLS/ACL・保存器、ORM/schema manifest/不変性検査の追随を実装する | RLS適用済み専用DBで5行・一意ID・既知の旧行互換・越境拒否・保存失敗時ロールバックを確認。revision head/番号を進行中ブランチと再照合。実DB既存行の適用可否は未判定と記録 |
 | 3 | U-D1へ操作境界・配信側一致条件・期限遷移の裁定を引き渡し、最終契約検査と凍結基準のPR base再導出を完成させる | 設計正本・契約・生成器・保存器・索引の一致、Ruff/ty/pytest、コアレビューと逐行確認の証跡を確認。実際の状態変更・再送の統合受入試験はU-D1へ明示的に引き渡す |
 

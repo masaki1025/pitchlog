@@ -2225,7 +2225,7 @@ def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
 
 
 def test_product_rls_paths_remain_in_develop_baseline() -> None:
-    """着地済み RLS・ADR・U-M1・U-F2・U-F6 を U-F8 の前に保つ。"""
+    """着地済み RLS・ADR・U-M1・U-F2・U-F6・U-F8 を基線に保つ。"""
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
@@ -2245,12 +2245,10 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
         *UM1_TENANT_AREA_PATH_ADDITIONS,
         *UF2_AUTH_STORE_AREA_PATH_ADDITIONS,
         *UF6_TENANT_AREA_PATH_ADDITIONS,
+        *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS,
     )
     assert base_paths[-len(prior_tail) :] == prior_tail
-    assert current_paths in (
-        base_paths,
-        (*base_paths, *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS),
-    )
+    assert current_paths == base_paths
     for pattern, planned_paths in zip(
         PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PATTERN_EXAMPLES, strict=True
     ):
@@ -2298,7 +2296,7 @@ def test_uf6_api_paths_are_registered_in_actual_core_areas() -> None:
 
 
 def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
-    """U-F6 登録を保持し、画面と spec の宣言・登録を検査する。"""
+    """U-F8 の画面と spec が全コア領域の基線にあることを検査する。"""
     core_guard = load_core_guard_module()
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
@@ -2313,11 +2311,8 @@ def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
     registered = []
     for base_area, area in zip(baseline["areas"], candidate["areas"], strict=True):
         assert area["id"] == base_area["id"]
-        assert pattern not in base_area["paths"]
-        assert area["paths"] in (
-            base_area["paths"],
-            [*base_area["paths"], pattern],
-        )
+        assert pattern in base_area["paths"]
+        assert area["paths"] == base_area["paths"]
         registered.append(pattern in area["paths"])
         assert all(fnmatch.fnmatchcase(path, pattern) for path in screen_paths)
 
