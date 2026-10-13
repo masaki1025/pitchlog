@@ -144,7 +144,7 @@ PR #124 の最終 HEAD `7fe7ecf6` に対する [CI run 38410295986](https://gith
 | 接続先 | U-M2 が提供済みの契約 | 接続先の所有・確認待ち |
 | --- | --- | --- |
 | U-G1 試合スタメン確定 | `save_lineup_memory(scope, team_record_id, lineup)`。`lineup` は `tuple[Mapping[str, object], ...]` で選手 ID・打順・守備位置を保全する。確定と同じ `tenant_transaction_scope` 内で呼び、失敗時は試合スタメンと記憶を一緒にロールバックする。記憶は自チーム直近 1 件。書き込み側は self チーム行の後に選手 ID 昇順で現役行をロックする | U-G1 が先攻・後攻それぞれの `game_lineups` を確定してからコミット前に呼ぶ。紅白戦の記憶更新には後攻側を渡す。側識別の保存表現、守備位置の型・値域、要素 DTO と実際の呼び出し箇所は U-G1 担当が確定・検証する。U-M2 はここを実装済みと扱わない |
-| U-F8 試合準備・復元表示 | `GET /team-records/{team_record_id}/lineup-memory`。200 は保存順の `entries` を返し、各枠に `batting_order`、`fielding_position`、採用可能な現役選手の `player_id` / 現在の `name` / `uniform_number`、`replacement_required` を含む。非現役・削除済み・欠損・別チームは選手値を `null` とし差し替え必須。記憶なし・移行専用は 204、対象不在・他テナント・相手チームは 404。保存用 HTTP API はない | U-F8 の作業中計画は記録画面の独立部品に限り、API 接続・スタメン準備画面を含まない。後続の U-F8 担当が 204 と差し替え枠の表示、復元候補の採用操作を接続・検証する。U-M2 は画面を実装済みと扱わない |
+| U-F8 試合準備・復元表示 | `GET /team-records/{team_record_id}/lineup-memory`。200 は保存順の `entries` を返し、各枠に `batting_order`、`fielding_position`、採用可能な現役選手の `player_id` / 現在の `name` / `uniform_number`、`replacement_required` を含む。非現役・削除済み・欠損・別チームは選手値を `null` とし差し替え必須。記憶なし・移行専用は 204、対象不在・他テナント・相手チームは 404。保存用 HTTP API はない | U-F8 の PR #125 は記録画面の独立部品として統合済みだが、API 接続・スタメン準備画面を含まない。後続の U-F8 担当が 204 と差し替え枠の表示、復元候補の採用操作を接続・検証する。U-M2 は画面を実装済みと扱わない |
 
 U-G1 の確定 DTO が現れるまで、U-M2 側で守備位置の番号体系や 9 / DH 10 枠の判定を追加しない。U-F8 にも候補の採用を自動確定させず、`replacement_required=true` の枠は差し替えまで確定に使わないよう申し送る。この表は実装済み入口と担当側の未実装接続を区別する記録であり、未確認の担当合意を主張しない。
 
