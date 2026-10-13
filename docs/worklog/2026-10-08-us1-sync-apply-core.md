@@ -215,3 +215,12 @@ branch: feature/us1-sync-apply-core
 - **単独 PR のタスクを起票**: **TSK-547**「sync-protocol 9-5 の RG1 表で「試合作成」と「試合開始(初期記録権の付与)」を分ける(U-G1 のマージ前に確定)」https://app.notion.com/p/3f893b75e6878131bfcff40f4d1c2937 。重複は Notion 検索で確認(該当なし)。範囲は 9-5 の 1 行の分割・変更履歴・README だけ。sync-protocol の v0.6 を取り、本ブランチ内の v0.6 は取り込み時に v0.7 へ繰り下げる
 - develop の guard 試験 2 件(#125 由来)は別 fix の方針を維持(本ブランチでは `test_product_rls_paths_remain_in_develop_baseline` を develop の版のまま)
 
+
+## ステップ 3(2026-10-14)
+
+- **develop の取り込み**(`8607eec7`): #130(U-F8 統合後の guard 試験の修正 = 「develop の guard 試験 2 件は別 fix」の着地)がステップ 3 で触る `tests/test_core_guard.py` と重なるため先に取り込んだ。衝突は Claude が解消(関数名と U-F8 の包含検査は U-S1 側、隔離履歴の「未登録 → 宣言のみ → 登録済み」の段は #130 側を残し、宣言のない領域は空の追加として扱う)。直接編集のため `codex_run.py review normal` を通し、**可決(P0 0 / P1 0 / P2 0)**。取り込み後、develop で赤だった 2 件も含めて `tests/test_core_guard.py` は green
+- **ステップ 3 を 2 コミットに分けた**: `verify_area_path_baseline()` は `.claude/core-areas.json` と基線定義(`scripts/core_guard.py`・`tests/test_core_guard.py`)を同一コミットで変えると拒否する(Codex が一時リポジトリで実測)。U-F8 の前例(#125 の「検査準備」「登録」)に倣い、`ec4d0969`(JSON だけ — 既存 235 件 green)→ `b1f1e3f6`(登録後の検査を足す — 236 件 green)の順にした。計画書のステップ表の「1 ステップ = 1 コミット」からの逸脱は guard の制約による
+- 実履歴(origin/develop..HEAD)に `verify_area_path_baseline` を掛けて通過。`ruff check .`・`ty check` green
+- ハーネス全件: `tests/test_check_authz_catalog.py` に既知の偽の赤(「HEAD の履歴に staged 製品資産がありません」— develop を第 2 親にマージしたブランチだけで出る)。それを除いた全件で **`tests/test_check_design_propagation.py` の 1 件が赤** — ステップ 1 の sync-protocol v0.6(10-3 を「保存済み結果再掲後の**範囲ごとの**意図件数」へ)で旧文言の部分一致が外れた。ステップ 1 の時点では `check_design_propagation` スクリプトだけを回し、ルートのテストファイルを回していなかった(取りこぼし)
+- **ステップ 1 の是正**: 期待文字列を新しい本文へ合わせた。Claude の直接編集のため `review normal` → P2 1 件(「範囲ごと」の改訂を 8-1・10-2・10-3 で固定する表明が無く、単数の旧文言でも通る)を**採用**し、`対象範囲ごとに 1 件だけ永続化する`(8-1)・`範囲ごとの安定した意図 ID の全集合`(10-2)・`範囲ごとに安定した意図 ID で 1 件だけ永続化`/`安定した意図 ID の全集合・各行の永続状態`(10-3)の表明を足した。215 passed。反映後の再レビューは行っていない(P2 の表明追加のみ)
+- backend の DB 不要の全件: 34 failed + 10 errors = 既知の偽の赤 44 件だけ(全件が「staged 製品資産がありません」)。1291 passed
