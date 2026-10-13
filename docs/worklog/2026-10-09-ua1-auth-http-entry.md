@@ -1534,3 +1534,75 @@ develop(#120〜#124)の取り込みで、**マージの自動解消が `core-are
   **チェックボックスには機械検査があり実施記録には無い**という穴である
   (台帳の候補として master へ共有済み)
 
+
+## #128 マージ後の取り込み(2026-10-14)
+
+**#128(TSK-541)が `c0ad63e0` で develop へ入ったので、約束どおり取り込んだ。**
+取り込みは 3 コミット — 前回と同じ 3 段の形である。
+
+| 段 | コミット | 内容 |
+| --- | --- | --- |
+| 取り込み | `6776e458` | 衝突 12 件の解消 + `--reseal-derived` |
+| 第2段 | `e967b967` | `oracle_commit` 7 箇所を `6776e458` へ |
+| 第3段 | `40a5fdd1` | 台帳へ `#119` の記録を積み直し `--reseal-oracle`(**人間の承認: 山田正輝 / 2026-10-14**) |
+
+### 衝突 12 件はすべて導出値と追記位置の重なりだった
+
+**内容の対立は 1 件もない。**
+
+| 分類 | ファイル | 解消 |
+| --- | --- | --- |
+| `oracle_commit` | attack-tree / boundary-proposal / claim-mutant-map / ddl-elements / rejected-configs / verification-evidence / oracle-seal.lock | develop 側へ揃えてから第2段で前進 |
+| 入力 blob digest | failure-injection-points / mcdc-map | develop 側(δ は requirement-claims に触れていない) |
+| 派生 lock の見出し | route-registry.lock / http-route-matrix.lock | **δ の経路 3 本(241 件・59 件)を残し** `--reseal-derived` で `asset_digest` を再導出 |
+| 台帳の追記位置 | frozen-baselines | **両側が 6 件目を同じ位置へ足した**。develop の #128 の記録を残し、δ の記録は第3段で**作り直した** |
+
+**develop 側が contracts/authz でしたのは `requirement_claims_*_blob_digest` の更新だけ**で、
+経路の実体には触れていない(実測)。だから `entry_count` は δ 側が正しい。
+
+### 台帳の記録を「作り直した」理由
+
+**前回の記録は `0364f07c → 388b7c74` だった。**
+#128 が先に `0364f07c → eadc7764` を積んだので、δ の記録は
+**`eadc7764 → 6776e458`** でなければ鎖がつながらない。
+`changes` は空のまま(**分類は 1 件も変えていない**)。
+
+**承認済みの記録でも、取り込みを 1 回挟むと識別値が古くなる。**
+[[教訓: 凍結の識別値は「いま測る」]]がここでも効いた。
+
+### 引き受けた約束の消込
+
+**共有 17 ファイルの digest の取り直し → 動いていなかった。**
+
+`base-allowlist.json` の射影は
+`scripts/check_tenant_boundary_bypass.py` / `scripts/frozen_history.py` /
+`scripts/frozen_archive.py` / `.github/workflows/ci.yml` を `external_files` に持つ。
+**#125〜#128 はこの 4 本にも `contracts/tenant_boundary/` にも 1 行も触れていない**
+(`git diff 6efe39e6..origin/develop --stat` が空)。
+よって **rev 27→28 / runtime 12→13 はそのまま有効**で、ステップ 13 の受理記録は貼り直し不要。
+
+### 取り込み後の実測
+
+| 対象 | 結果 |
+| --- | --- |
+| `check_authz_catalog.py` | **ok** total=1382 routes=47 cells=12(1382 = #128 の 2 件増) |
+| `check_frozen_baselines.py --invariants-only` | **OK** |
+| `check_tenant_boundary_bypass.py --base-ref origin/develop` | **ok** |
+| ruff / ty(root・backend) | **All checks passed** |
+| **core-guard** | **赤のまま** |
+
+### core-guard は取り込みでは消えなかった(予告どおり)
+
+PR イベントを模して実測した結果:
+
+```
+core_guard: core-areas.json と基線定義を同一コミットで変更している:
+7b51a8c0590838a0d63bf2006da512e4c3413d9f: ['scripts/core_guard.py', 'tests/test_core_guard.py']
+```
+
+比較元は `merge_base_revision(base, head)` なので、**develop を取り込んでも
+`7b51a8c0` は範囲から外れない**。**master の裁定待ちは続く。**
+
+**なお規則の発火には第3の条件 `_parent_has_area_path_additions` がある**
+(`scripts/core_guard.py:374-383`)。
+論点を上げたときには読めていなかったので、ここに記録しておく。
