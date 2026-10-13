@@ -81,6 +81,7 @@ U-A1 は α(正本)→ β(DB 層)→ γ(アプリ層)→ **δ(HTTP の入口)**�
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
 | `docs/design/data-model.md` | 12-4 の判定記録 + 12-8 節の本文 1 行の現行化 + 変更履歴表に 1 行(**版は上げない** — 7.6-3 前段) | PR レビュー |
+| `docs/features/ua1-auth-http-entry/verification-sheet.md` | **新設** — コア領域の逐行確認を支援する突合シート(機械生成)。**確認の代わりではない** | 一時作業域(ゲート不要) |
 | `docs/development/harness-evaluation.md` | **【/pr クローズ処理】`H-92` を 1 件追記**(検査器の正例 fixture がモジュールあたり許可シンボル 2 本の構造上の上限を作る)+ 変更履歴表に 1 行(**版は上げない** — 7.6-3 前段) | PR レビュー |
 | `docs/README.md` | `data-model.md` の最終更新日の現行化 + **新設する運用文書 2 本の索引行を足す**(`docs/ops/` は索引の掲載対象) | PR レビュー |
 | `docs/ops/deployment.md` | **新設** — DB ログ設定の前提 / DB 接続の前提(ローカルか証明書検証付き TLS)/ レート制限の設定値の投入手順 | **/finalize-doc**(新設は敵対レビュー + 人間承認 — AGENTS.md 絶対規則 4) |
