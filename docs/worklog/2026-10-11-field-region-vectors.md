@@ -176,6 +176,63 @@ frontmatter を `in-review` に、索引を現行化。`check_docs_status.py` �
 
 **正準表現を「分母 263 の有理数」と定めると、ステップ 1 で作った schema(`{value, scale}`・`scale` は 10 の冪)では表現できない。** `1/263` は十進有限桁にならない。**条文が approved になった時点で schema を是正する**(分母を契約が持つ形へ)。ステップ 1 の時点では条文が無かったので、この不整合は避けられなかった。
 
+### ステップ 2 の再起案(2026-10-14)— **要件書 v2.12・確定ゲート開始**
+
+**#128(TSK-541)が `c0ad63e0` で develop へ着地した**(2026-10-13T19:26:56Z)。develop を取り込み(**54 コミット遅れ**・競合なし)、**v2.12 として再起案した**。
+
+**着手直前に最大版を実測した**(master の申し送り — 今日 1 日で版衝突が 2 件):
+
+| 走査先 | 要件書の最大版 |
+| --- | --- |
+| `origin/develop` | **2.11**(approved・2026-10-11) |
+| `refs/pull/119/head` | 2.10 |
+| `refs/pull/127/head` | 2.10 |
+| `refs/pull/129/head` | 2.11 |
+| `refs/pull/131/head` | 2.10 |
+| `refs/pull/132/head` | 2.10 |
+
+**次は v2.12 で衝突なし。**
+
+**確定ゲートの適用版(7.3-1)**: ハーネス設計書 **v1.19**・条文コミット **`945384c5e70ce2ae471edec1d845660918eaee93`**(2026-10-14 実測)。初回敵対レビュー実行時点で異なっていれば更新してから開始する。
+
+#### 前回の草案からの是正 2 件
+
+1. **丸めを定義しない。** 草案は `round-half-to-even` と書いていたが、**approved な ADR-003 D-14-e と正面衝突する誤り**だった(正は付録A-1 の四捨五入を剰余で書いたもの —— `2r >= |d|` で切り上げ・**除数の半分と比較してはならない**)。条文は**付録A-1 と ADR-003 D-14-e を参照するだけ**にした
+2. **正準表現を型領域の中から選んだ。** ADR-003 D-14-e の `NumericValue` は整数・decimal・**有理数〔分子/分母〕**を持つ。`1 / 263` は十進有限桁で表せないので **decimal では書けない** —— **有理数・分母 263** を正準表現とした
+
+#### 射程が 2 つ広がった(PO 判断 2026-10-14・山田正輝)
+
+**① 付録B-7 を独立項として新設する。** 計画書のステップ 2 は「付録B-3 の改訂案」としか書いていなかったが、**`NFR-018` の (α) が名指しする「画面座標⇄保存座標の相互変換」は要件書のどこにも定義が無かった**(付録B-5 は移行時の一括変換〔(β)⑥〕であって製品の入力・表示〔(α)〕ではない)。ステップ 5 の合格条件が「ステップ 2 の条文」で量子化と丸めを明示することを求めており、**計画書の中で矛盾していた**。
+
+B-3 の子項目に収めれば抽出 ID が増えず追随を避けられるが、**独立項を採った** —— (α) の契約が独立した番号で引けることを優先した。代償の追随 2 件はいずれも機械的:
+
+| 追随 | 内容 |
+| --- | --- |
+| `docs/design/sync-protocol.md` 11-3 | 帰属表へ `付録B/B-7` の「対象外」行を 1 行(同期プロトコルの中身は変えない) |
+| `scripts/design_relations/req-universe.json` | `appendix_items` へ `付録B/B-7`(23 → 24 件・`total` 212 → 213)。**`guard_paths` なので逐行確認の対象が増える** |
+
+**② authz の封印の連鎖は #119 の着地後に行う。** 要件書の本文が変わると、**条文の形によらず**次が連鎖で落ちる:
+
+```
+contracts/authz/requirement-claims.json    input_manifest(commit・source_blob_digest・heading_ids・item_counts_by_kind)
+contracts/authz/shared-preconditions.json  git_blob_digest
+contracts/authz/oracle-seal.lock.json      oracle_commit
+tests/test_check_authz_catalog.py          固定値(claim 件数)
+```
+
+**`contracts/authz/` の 15 ファイルを #119 と共有している。** 先に入れると後から入る側が取り直すことになるため、**#119 の着地を待つ**。手順は先例 `eadc7764` に倣い **2 段**(第 1 段で `input_manifest` を要件書の確定コミット SHA へ / 第 2 段で `oracle_commit` を第 1 段の SHA へ)。**digest を手で書き換えない** —— 2026-10-14 に実施して落ちる件数が **13 → 31** に増えた。
+
+#### 実測(再起案後・worktree)
+
+| 検査 | 結果 |
+| --- | --- |
+| `check_docs_status.py` | **18 文書・違反 0** |
+| `check_doc_coverage.py` | **green**(帰属表の 1 行を足した後。足す前は `unassigned: 付録B/B-7`) |
+| `check_shared_preconditions.py` | **red**(要件書の `git_blob_digest` 不一致 — 上記 ② で解消する) |
+| `check_authz_catalog.py` | **red**(`source blob digest` 不一致 — 同上) |
+
+**`--reseal` は効かない** —— `input_manifest` の digest 検査が再封印より先に走るため、フラグでは通らない。**要件書を先にコミットし、その SHA を `input_manifest.commit` へ入れる**必要がある。
+
 ## 決定
 
 - **前提 A**: 打者相対の区分は **3 値**(ADR に従う)・入力軸に打球種別を置く
