@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_catalog",
   "asset_path": "contracts/authz/auth-catalog.json",
-  "asset_digest": "77d97b748f7e400a83826092aec1cf92b4708501249f045ee6f4037d41702d02",
-  "entry_count": 188,
-  "aggregate_decision_digest": "255b28fc1631200ada6aa5db41bff826f1e8d173ec4815bbcea0ae061e26403d",
+  "asset_digest": "e563e0ba09601510416749b112ba73967412dfa2f268ae654bb2650e1d4e1c71",
+  "entry_count": 191,
+  "aggregate_decision_digest": "77dea494e9e4a5a35098587cbcb7500b038c2cde3cbe6ae7d1f529a483857c08",
   "entries": [
     {
       "entry_id": "catalog:CATALOG:SECTION-1.1/paragraph-002",
@@ -805,6 +805,27 @@
       "decision_digest": "380755111fb553c7140d4bdfa180511b7dce9d3743f81a7bc8d3bf6b366c767a"
     },
     {
+      "entry_id": "catalog:CATALOG:FR-019/list_item-005",
+      "decision": {
+        "catalog_entry_id": "CATALOG:FR-019/list_item-005",
+        "requirement_claim_id": "FR-019/list_item-005",
+        "origin": "requirement",
+        "layer": "operation_authorization",
+        "db_basis_rule_id": "DB_MUTATION_GUARD",
+        "source_text_digest": "7c01e19fc6f62a3a868a636774458fa6e6ca499fcfca84fbdbb832b49f27a12b",
+        "route_scope_id": "SCOPE:CONTROL",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-270.step4.FR-019/list_item-005.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "860156dd0b7002a6fcaa3ce520e61d655d341e5230dc94750c9fe1583e37c1ac"
+    },
+    {
       "entry_id": "catalog:CATALOG:FR-019/list_item-006",
       "decision": {
         "catalog_entry_id": "CATALOG:FR-019/list_item-006",
@@ -812,7 +833,7 @@
         "origin": "requirement",
         "layer": "operation_authorization",
         "db_basis_rule_id": "DB_MUTATION_GUARD",
-        "source_text_digest": "a861dd0a866b4389c4cca6db6fc38143fd6059fc6a91e5d69abda7f4c65e7125",
+        "source_text_digest": "0d69212caadf7f58dc2ab9245b7b5efa4f6b06c7ac3266d7711f4779c7d5a9a3",
         "route_scope_id": "SCOPE:CONTROL",
         "catalog_test_owner": {
           "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
@@ -823,13 +844,55 @@
           "status": "planned"
         }
       },
-      "decision_digest": "f6eb52ec0d62ee72cf63413e5e4e2b5eec7e37503fa0e764f2194066383bf3c7"
+      "decision_digest": "5c1d82bde2561cf47848ec59814b88ad5022fbee83fd07454d54fee6811b66e9"
     },
     {
-      "entry_id": "catalog:CATALOG:FR-019/list_item-009",
+      "entry_id": "catalog:CATALOG:FR-019/list_item-009#trash-visibility",
       "decision": {
-        "catalog_entry_id": "CATALOG:FR-019/list_item-009",
-        "requirement_claim_id": "FR-019/list_item-009",
+        "catalog_entry_id": "CATALOG:FR-019/list_item-009#trash-visibility",
+        "requirement_claim_id": "FR-019/list_item-009#trash-visibility",
+        "origin": "requirement",
+        "layer": "access_control",
+        "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+        "source_text_digest": "74e4421f0443453ff436004accda9caa351535ad58d6edf3fb3cdf22b1ea6be3",
+        "route_scope_id": "SCOPE:DATA_READ",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-270.step4.FR-019/list_item-009.trash-visibility.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "039c956fa8aafcfc66f25c4b8ac693f33e2e3c0419f42d2acc881b969f4e7aff"
+    },
+    {
+      "entry_id": "catalog:CATALOG:FR-019/list_item-009#restore-deadline",
+      "decision": {
+        "catalog_entry_id": "CATALOG:FR-019/list_item-009#restore-deadline",
+        "requirement_claim_id": "FR-019/list_item-009#restore-deadline",
+        "origin": "requirement",
+        "layer": "operation_authorization",
+        "db_basis_rule_id": "DB_MUTATION_GUARD",
+        "source_text_digest": "74e4421f0443453ff436004accda9caa351535ad58d6edf3fb3cdf22b1ea6be3",
+        "route_scope_id": "SCOPE:CONTROL",
+        "catalog_test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
+          "status": "implemented"
+        },
+        "enforcement_test_owner": {
+          "id": "TSK-270.step4.FR-019/list_item-009.restore-deadline.db",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "caf96263283167f6addee526068d409d5ef1df2b255ff2ec0a67d1e323115997"
+    },
+    {
+      "entry_id": "catalog:CATALOG:FR-019/list_item-010",
+      "decision": {
+        "catalog_entry_id": "CATALOG:FR-019/list_item-010",
+        "requirement_claim_id": "FR-019/list_item-010",
         "origin": "requirement",
         "layer": "authentication_boundary",
         "db_basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE",
@@ -840,11 +903,11 @@
           "status": "implemented"
         },
         "enforcement_test_owner": {
-          "id": "TSK-270.step4.FR-019/list_item-009.db",
+          "id": "TSK-270.step4.FR-019/list_item-010.db",
           "status": "planned"
         }
       },
-      "decision_digest": "4f283e1d6d79368339d596b220963218da1112cf97f80d821bbeffbab4b20c05"
+      "decision_digest": "c5e6728def4aef19a3d2da2ae0b264bfa5eda689fa7c8138075db0578bb1344d"
     },
     {
       "entry_id": "catalog:CATALOG:FR-039/list_item-004",
@@ -3857,7 +3920,7 @@
         "origin": "requirement",
         "layer": "operation_authorization",
         "db_basis_rule_id": "DB_MUTATION_GUARD",
-        "source_text_digest": "7601f831fee7b6c17b5ae53068e1c84ce5d13f3f268eedf18990e53ff034bb74",
+        "source_text_digest": "cee936dcd43a79e4c3aa1246a87eaf5849121f16c95c0342acf3cee4441110b9",
         "route_scope_id": "SCOPE:CONTROL",
         "catalog_test_owner": {
           "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
@@ -3868,7 +3931,7 @@
           "status": "planned"
         }
       },
-      "decision_digest": "7b3c0a03bdf3b56c80c8453bf365dbf531c88a4a1542e486c45f7a3db635d392"
+      "decision_digest": "10e84bee0fb48f3633fd49b01934e2847a777a9ecc6ce9318288d251fc09a646"
     },
     {
       "entry_id": "catalog:CATALOG:APPENDIX-C/table_row-004",
