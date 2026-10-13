@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import pytest
-
-from conftest import ARTIFACT, NodeHost
+from _runtime_support import ARTIFACT, NodeHost
 
 
 def test_same_artifact_outputs_identical_bytes(

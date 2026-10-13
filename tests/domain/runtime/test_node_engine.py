@@ -8,8 +8,7 @@ import select
 import subprocess
 
 import pytest
-
-from conftest import NODE, NodeHost
+from _runtime_support import NODE, NodeHost
 
 pytestmark = pytest.mark.skipif(NODE is None, reason="node が見つからない")
 
