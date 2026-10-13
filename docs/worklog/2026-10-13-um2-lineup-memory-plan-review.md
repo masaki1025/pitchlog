@@ -131,3 +131,9 @@
 - 承認後、候補コピー 10 資産を正式資産へ反映し、専用フラグ `--reseal-oracle` を実行した。反映後も候補とのバイト一致は 10/10。通常 `check_authz_catalog.py`、`check_frozen_baselines.py --invariants-only`、failure injection / MC/DC の参照検査が green。archive テスト 65 件、保存・GET・関連 API の実 DB/境界テスト 94 件、root と backend の Ruff・ty・format・docs-status が green。
 - 認可・履歴テスト群は 25,697 件通過、2 件失敗。atomic claim 用 fixture が新しい製品 route exact-set を持たない点は、当該 atomic 試験内に限って経路集合照合を外す修正で解消し、単独再実行 green。製品 7 経路の独立 exact-set は維持。もう 1 件は `test_normal_validation_never_reseals_a_semantically_valid_drift` がコミット済み HEAD を clone するため、中間コミット時点の旧 checker・旧 seal と新経路入力の不一致で失敗する。ステップ 3 コミット後に再実行する。
 - 2 回目の独立 Codex 敵対レビュー（1 回目の指摘反映差分と影響箇所）は **P0 0 / P1 1 / P2 0**。P1 は保存可能な JSON オブジェクト・配列の `fielding_position` が不変化されたまま DTO に渡され、GET が失敗する反例。**採用**: 既存の JSON 不変化境界を維持し、公開応答の直前に守備位置識別値の `Mapping` / `tuple` を再帰的に `dict` / `list` へ戻す。公開 HTTP 実 DB 試験にオブジェクトと配列を加え、GET 試験 1 件、backend Ruff・ty・format green。凍結候補値・受理記録・入力4資産は不変。6.3 の基本2回を使い切ったため追加周回は自動で行わず、最終修正差分の人間逐行確認を残す。
+
+## ステップ 3 統合とステップ 4 の品質・接続記録
+
+- PR #124 のステップ 3 コミットは `1acbac46c9519ce6ce7d6b806855c407311375ce`。作業中に進んだ `develop` を `7fe7ecf6f0e369b18aa2d2ca13081dee7df4ca7c` で merge したが、PR の変更 24 ファイルと oracle 入力・seal・7.7 受理値は不変。人間は製品 GET / DTO / 越境試験、認可経路・検査器・oracle seal・7.7 台帳、独立レビュー P1 修正差分を逐行確認した。PR 本文のチェック文言を `core_guard.py` の必須語へ合わせた後、core-guard は成功した。
+- [CI run 38410295986](https://github.com/masaki1025/pitchlog/actions/runs/38410295986) は最新 HEAD `7fe7ecf6` の 12 ジョブすべて green。harness の全 pytest 28,934 件、backend・frontend・認可境界・凍結履歴の各ジョブも成功。ローカルの実 DB / API / 境界 94 件、認可・凍結 25,838 件、archive 65 件も green。`backend/tests/conftest.py` の差分 0 行を確認。PR #124 は `2a4568285be8a3d412822f4a9e239d11321eb5da` として `develop` へマージ済み。
+- ステップ 4 はこの統合点を基点とする `feature/um2-lineup-memory-finalize` / `/tmp/pitchlog-um2-lineup-memory-step4` に限る。U-G1 への同一 scope 保存呼び出し、チーム行→選手 ID 昇順ロック、紅白戦後攻側の採用、および U-F8 への GET 応答・204・差し替え枠の表示契約を計画書の接続表へ記録した。U-G1 の側識別・守備位置 DTO と実際の呼び出し、U-F8 の画面接続は各担当の未実装・未確認事項であり、FR-016 全体は部分充足を維持する。
