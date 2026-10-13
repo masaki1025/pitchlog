@@ -186,3 +186,16 @@ branch: feature/us1-sync-apply-core
 - data-model の digest を取り直し、ORM 受入シートを develop の版から生成し直して判定を持ち越した(新しい 3 行は従来どおり判定)。固定行数 N3 104
 - **直列点**(2026-10-14 時点の open PR): #125(U-F8)・#127(U-F5)が `scripts/core_guard.py`・`.claude/core-areas.json` の窓口を動かしている / #119(δ)が `contracts/tenant_boundary/base-allowlist.json`・`docs/design/data-model.md` を動かしている。新ステップ 2・3(窓口)の前にマージ順を master と調整する
 
+### 新ステップ 2(コア領域の窓口の置き換え — 2026-10-14)
+
+- 1 回目の委任は U-F6 の窓口を前提にしたが、その間に develop が #125(U-F8)で窓口を回転させたため差分を捨て、develop `ef5c8711` を取り込んでから(`f1187438`・競合なし)やり直した。1 回目の Codex がテストの基線を merge-base へ変えた回避策も戻した(取り込み後は不要)
+- **develop 自身で `tests/test_core_guard.py` の 2 件が赤**(#125 が「自分のマージ後に必ず落ちる」表明を残した)。master が山田さんへ上げ、**U-S1 には抱き合わせない**判断(射程外)。窓口の置き換えに付いてくる `test_uf8_game_screen_paths_are_registered_in_all_areas` の書き換えは入れ、`test_product_rls_paths_remain_in_develop_baseline` は develop の版のまま(1 failed は develop と同じ)
+- Codex 委任: `AREA_PATH_ADDITIONS` を U-F8 の 5 件(基線へ取り込み済み)から U-S1 の宣言(sync-protocol・recording-rights × `backend/src/pitchlog/sync/*`・`backend/src/pitchlog/repositories/sync_apply.py`・`backend/tests/test_sync_apply_*.py`)へ置き換え、`tests/test_core_guard.py` の期待値を追随
+- 敵対レビュー(検査経路):
+  - 1 回目: 否決(P1 1)→ 採用。U-F8 のテストが U-F8 の glob を基線の「末尾」と表明 → U-S1 の登録が develop に入った後に必ず落ちる → 包含の検査へ
+  - 2 回目: 否決(P1 3)→ 1 件採用・2 件不採用(上限到達 — 反映は再レビューなし)
+    - 採用: U-F8 のテストが U-S1 の宣言内容を完全一致で表明 → 外した(U-S1 の宣言は既存の登録テストが検査する)
+    - 不採用: `test_product_rls_paths_remain_in_develop_baseline` の末尾固定 — develop 側の赤で射程外(master の判断)
+    - 不採用: 登録テスト(`:2440` 付近)と合成リポジトリの補助関数(`:604` 付近)の件数・末尾の固定 — 窓口を回す単位がそのたびに更新する設計で、U-S1 自身のマージ後には通る。**「宣言の窓口を使う PR がマージ後に必ず落ちる表明を残せる」型の台帳候補**(master の指摘 — 本日 3 件目)として、本 PR のクローズ処理で判断する
+- 合格条件: `tests/test_core_guard.py` 234 passed / 1 failed(develop と同じ赤)/ ruff・ty green / 差分は `scripts/core_guard.py`・`tests/test_core_guard.py` だけ
+
