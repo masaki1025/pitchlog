@@ -37,3 +37,26 @@
 - 初期分割完了後も TSK-520 を未完了として維持する。
 
 同日の再確認で PR #120 は open のままで、`origin/develop` は `928280e6` だった。製品コードには着手せず、PR #120 統合後に固定済み SHA ではなく最新 `origin/develop` を取り込み、前提差分を再確認してからステップ 1/2 を開始する。
+
+## ステップ 1/2
+
+PR #120 が `1160e5dd` で develop へ統合されたことを確認し、PR #121 統合済みの最新 `origin/develop` を専用ブランチへ取り込んだ。`frontend/src/api/{client,roster,types}.ts`、共有 Pinia、共有 QueryClient、U-M2 の変更を再照合した。
+
+- U-F6 の `listTeamRecords` / `listPlayers` と実在 DTO は計画どおりで、API や DTO の追加は不要だった。
+- U-F2 の `authEpoch` と query cache 全消去、U-F6 の送信前・応答後・本文読取後の世代照合を再利用した。
+- PR #121 は在籍変更とスタメン記憶の範囲であり、在籍変更を除外した本ステップの実装境界に影響しなかった。
+- `router.ts` と `App.vue` は変更せず、`/team` は未接続のまま維持した。
+
+`TeamScreen.vue` に self / opponent のチーム一覧と選択チームの選手一覧を追加した。どちらも `limit=25` と `next_cursor` を使うカーソルページングで、次 cursor がない場合は停止する。初回、空、初回失敗、追加取得失敗を区別し、追加取得失敗時は取得済み行を残して同じ cursor を再試行する。
+
+query key は `rosterQueryKeys.ts` へ集約し、選手は `['players', teamId]`、チームレコードは `['team-records', teamId]` を共有 prefix にした。`teamId=null` では query を送らない。`authEpoch` と tenant ID を key に含め、認証切替を同期監視して選択を消す。切替前の遅延応答は API client の世代照合に加えて画面 query でも世代を確認し、新認証の一覧へ混ぜない。
+
+自動試験には、ページングと cursor、選択切替、空一覧、初回・追加取得の再試行、認証切替直後の旧一覧・選択破棄、切替前の遅延応答、Vue 補間によるエスケープ、共有 query prefix を含めた。
+
+品質ゲート:
+
+- `pnpm exec prettier --check .`: 成功
+- `pnpm exec eslint .`: 成功
+- `pnpm exec vue-tsc --noEmit`: 成功
+- `pnpm test`: 最終全件 56 files / 958 tests 成功。対象試験は 2 files / 10 tests 成功。
+- `pnpm build`: 成功。build closure は conforming、違反 0。
