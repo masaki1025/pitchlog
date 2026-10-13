@@ -2144,7 +2144,7 @@ def test_addition_layer_requires_complete_declared_suffix(tmp_path: Path) -> Non
 
 
 def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> None:
-    """宣言だけを先にコミットしても据え置き JSON を受理する。"""
+    """隔離履歴で未登録、宣言のみ、登録済みの順に受理する。"""
     core_guard = load_core_guard_module()
     root, base_sha = make_layered_core_repo(tmp_path)
     write_text(root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8"))
@@ -2172,6 +2172,18 @@ def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> 
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     core_guard.validate_area_path_layers(baseline, candidate)
     assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
+
+    registered_sha = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    registered = core_guard.load_core_areas_at_revision(root, registered_sha)
+    for area in registered["areas"]:
+        area_id = area["id"]
+        assert area["paths"] == [
+            f"base/{area_id}.py",
+            *EXPECTED_AREA_PATH_ADDITIONS[area_id],
+        ]
+    assert core_guard.verify_area_path_baseline(root, base_sha, registered_sha) == (
+        base_sha
+    )
 
 
 def test_tenant_additions_declared_for_other_area_are_rejected(tmp_path: Path) -> None:
@@ -2225,7 +2237,7 @@ def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
 
 
 def test_product_rls_paths_remain_in_develop_baseline() -> None:
-    """着地済み RLS・ADR・U-M1・U-F2・U-F6 を U-F8 の前に保つ。"""
+    """着地済み RLS・ADR・U-M1・U-F2・U-F6 と U-F8 の順序を保つ。"""
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
@@ -2246,11 +2258,9 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
         *UF2_AUTH_STORE_AREA_PATH_ADDITIONS,
         *UF6_TENANT_AREA_PATH_ADDITIONS,
     )
-    assert base_paths[-len(prior_tail) :] == prior_tail
-    assert current_paths in (
-        base_paths,
-        (*base_paths, *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS),
-    )
+    expected_tail = (*prior_tail, *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS)
+    assert base_paths[-len(expected_tail) :] == expected_tail
+    assert current_paths == base_paths
     for pattern, planned_paths in zip(
         PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PATTERN_EXAMPLES, strict=True
     ):
@@ -2298,7 +2308,7 @@ def test_uf6_api_paths_are_registered_in_actual_core_areas() -> None:
 
 
 def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
-    """U-F6 登録を保持し、画面と spec の宣言・登録を検査する。"""
+    """統合済み基線の全領域で画面と spec の登録を確認する。"""
     core_guard = load_core_guard_module()
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
@@ -2310,22 +2320,15 @@ def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
     )
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     assert set(EXPECTED_AREA_PATH_ADDITIONS) == set(DATA_MODEL_AREA_IDS)
-    registered = []
     for base_area, area in zip(baseline["areas"], candidate["areas"], strict=True):
         assert area["id"] == base_area["id"]
-        assert pattern not in base_area["paths"]
-        assert area["paths"] in (
-            base_area["paths"],
-            [*base_area["paths"], pattern],
-        )
-        registered.append(pattern in area["paths"])
+        assert base_area["paths"][-1] == pattern
+        assert area["paths"] == base_area["paths"]
         assert all(fnmatch.fnmatchcase(path, pattern) for path in screen_paths)
 
-    assert len(set(registered)) == 1
-    if registered[0]:
-        assert core_guard.matched_paths(
-            screen_paths, core_guard.load_core_areas(REPO)
-        ) == list(screen_paths)
+    assert core_guard.matched_paths(
+        screen_paths, core_guard.load_core_areas(REPO)
+    ) == list(screen_paths)
     core_guard.validate_area_path_layers(baseline, candidate)
 
 
