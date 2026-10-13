@@ -1383,7 +1383,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1383 auth_claim=187 out_of_scope=1196" in result.stdout
+    assert "total=1382 auth_claim=185 out_of_scope=1197" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -1900,8 +1900,8 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 1196
-    assert attempts == 1196
+    assert len(out_claims) == 1197
+    assert attempts == 1197
     assert escaped == []
 
 
@@ -3010,7 +3010,7 @@ def test_claim_execution_support_fixture_is_valid() -> None:
         "contract_only_reason_code"
     ] == "route_universe_pending"
     assert result["execution_counts"] == Counter(
-        {"contract_only": 169, "probe_executable": 33}
+        {"contract_only": 166, "probe_executable": 33}
     )
 
 
@@ -3073,7 +3073,7 @@ def _implemented_owner_paths(value: object) -> list[tuple[str | int, ...]]:
 
 
 def test_repository_derived_assets_are_valid() -> None:
-    """DB主張・全route・12セルと実収集テストIDを統合検査する。"""
+    """177主張・全route・12セルと実収集テストIDを統合検査する。"""
     requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
     assets, locks, paths = _repository_derived_assets()
     implemented_test_ids = checker.collect_pytest_node_ids(REPOSITORY_ROOT)
@@ -3090,7 +3090,7 @@ def test_repository_derived_assets_are_valid() -> None:
     )
 
     assert IMPLEMENTED_CATALOG_TEST_ID in implemented_test_ids
-    assert result["catalog"]["db_claim_count"] == 191
+    assert result["catalog"]["db_claim_count"] == 188
     assert len(result["registry"]["route_by_id"]) == len(
         assets["route_registry"]["routes"]
     )
@@ -4463,10 +4463,10 @@ def test_repository_oracle_assets_are_valid() -> None:
     mutant_result = result["mutants"]
 
     assert mutant_result["execution_counts"] == Counter(
-        {"contract_only": 169, "probe_executable": 33}
+        {"contract_only": 166, "probe_executable": 33}
     )
     assert mutant_result["axis_counts"] == Counter(
-        {"authorization_predicate": 209, "configuration": 24, "r8_provisioning": 2}
+        {"authorization_predicate": 206, "configuration": 24, "r8_provisioning": 2}
     )
     assert mutant_result["positive_case_count"] == 6
     assert len(mutant_result["positive_kill_mutant_ids"]) == 2
@@ -4619,7 +4619,6 @@ def test_boundary_proposal_base_leaves_follow_the_approved_classification(
         ): "3d993b75-e687-818d-8cb8-ec57508e73e0",
         ("pending_human_reviews", 0, "status"): "human_decided",
         ("pending_human_reviews", 1, "status"): "human_decided",
-        ("pending_human_reviews", 1, "affected_claim_ids", 5): "FR-019/list_item-010",
     }
     base_paths = set(_iter_leaf_paths(base))
     current_paths = set(_iter_leaf_paths(current))
@@ -5232,18 +5231,6 @@ def test_oracle_reseal_preserves_inputs_and_expected_asset_digests() -> None:
                 "contracts/authz/http-route-matrix.lock.json",
             }
         ),
-        frozenset(
-            {
-                "contracts/authz/requirement-claims.json",
-                "contracts/authz/requirement-claims.lock.json",
-                "contracts/authz/route-registry.json",
-                "contracts/authz/route-registry.lock.json",
-                "contracts/authz/auth-catalog.json",
-                "contracts/authz/auth-catalog.lock.json",
-                "contracts/authz/http-route-matrix.json",
-                "contracts/authz/http-route-matrix.lock.json",
-            }
-        ),
     )
     assert worktree_drift in allowed_input_drifts
     assert commit_drift in allowed_input_drifts
@@ -5762,9 +5749,9 @@ def test_all_runtime_kill_waivers_have_a_closed_machine_checked_reason() -> None
     reasons = Counter(mutant["runtime_kill_waiver_reason"] for mutant in waived)
 
     assert reasons == Counter(
-        {
-            "contract_only_handoff": 177,
-            "covered_by_two_factor_cut_set": 3,
+            {
+                "contract_only_handoff": 174,
+                "covered_by_two_factor_cut_set": 3,
             "positive_case_kill_only": 2,
             "application_expected_to_fail": 1,
         }

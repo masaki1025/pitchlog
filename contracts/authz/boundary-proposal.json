@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_boundary_proposal",
   "oracle_context": {
-    "oracle_commit": "8eca7dcb2b71aa3b6dba0b787ff257dc8e7a973d",
+    "oracle_commit": "eadc7764b7a46988d1ee15af711e55e82b6ec02a",
     "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
   },
   "proposal_status": "tsk_235_confirmed",
@@ -75,7 +75,7 @@
         "APPENDIX-C/table_row-009",
         "APPENDIX-C/table_row-010",
         "FR-012/list_item-018",
-        "FR-019/list_item-010",
+        "FR-019/list_item-009",
         "FR-033/list_item-002",
         "FR-034/heading-004/list_item-001",
         "FR-034/heading-004/table_row-006",

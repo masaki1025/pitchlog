@@ -371,14 +371,14 @@
       "approved_at": "2026-10-13"
     },
     {
-      "acceptance_id": "masaki1025/pitchlog#129",
+      "acceptance_id": "masaki1025/pitchlog#128",
       "series": "oracle_input",
       "new_identity": {
         "present": true,
         "values": [
           {
             "kind": "literal_commit_string",
-            "value": "8eca7dcb2b71aa3b6dba0b787ff257dc8e7a973d"
+            "value": "eadc7764b7a46988d1ee15af711e55e82b6ec02a"
           }
         ]
       },
@@ -409,7 +409,7 @@
         ]
       },
       "moved": false,
-      "reason": "TSK-543の承認済み要件追随でoracle入力8資産のblobが変わるため、#129の再封印に合わせて入力コミットの凍結値を更新する。",
+      "reason": "TSK-541(ADR-003 v0.6 / 要件書 v2.11)で要件書の規範 7 箇所を D-2 の方式へ追随させたため、既存 claim の原文 7 件が変わり、変更履歴の行 2 件(v2.11 の起案行と確定ゲート通過行)が母集合に加わった。分類はいずれも変えていない(全件 out_of_scope)。これに伴い requirement-claims 系と派生 3 資産を再封印し、oracle 入力 blob 8 件すべてが変わった。同一性の粒度・識別値の解釈は変えず(oracle_commit_semantics は last_committed_step_4_input_baseline のまま)、oracle_commit が指すコミットだけを進める",
       "approved_by": "山田正輝",
       "approved_at": "2026-10-14"
     }

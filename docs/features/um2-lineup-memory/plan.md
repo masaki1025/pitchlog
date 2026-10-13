@@ -3,9 +3,9 @@ feature: um2-lineup-memory
 status: active
 承認: 済（2026-10-13・追加の競合 P0 計画も利用者承認）
 重さ分類: コア領域
-worktree: /tmp/pitchlog-um2-lineup-memory-step3
+worktree: /tmp/pitchlog-um2-lineup-memory-step4
 notion: https://app.notion.com/p/3da93b75e687813d95faef7fdc65722a
-branch: feature/um2-lineup-memory-get
+branch: feature/um2-lineup-memory-finalize
 created: 2026-10-13
 計画レビュー周回: 1
 確定ゲート周回: 0
@@ -20,6 +20,8 @@ created: 2026-10-13
 > **ステップ 3 の後続 PR 範囲（2026-10-13）**: PR #121 は `develop` にマージ済み（統合点 `edbef663c44b1585e325be859fd1f511951ea09c`）。本後続ブランチ `feature/um2-lineup-memory-get` はその時点の最新 `origin/develop` を基点とする専用 worktree で、上表のステップ 3 の GET・DTO・経路登録・派生資産・外部入口テストだけを扱う。U-G1 の試合作成・スタメン確定とステップ 4 は含めない。PR 作成・push は当初保留し、後述の入力固定に必要な Draft PR 番号取得だけを追加承認された。TSK-394 全体は部分充足のままとする。新しい凍結基準の改訂は PR #121 の承認を流用せず、7.7 の新しい受理単位で審査する。
 
 > **PR #124 の入力固定コミット例外（同日・利用者承認）**: 上記の PR 作成・push 停止は計画・作業ログだけの準備コミットと Draft PR 作成に限って解除され、番号 `masaki1025/pitchlog#124` を取得した。認可 oracle は経路入力 8 資産の作業ツリーと `oracle_commit` が指すコミットの blob を照合するため、ステップ 3 の単一コミット前に変更される registry・matrix と各派生 lock の **4 ファイルだけ**をローカル中間コミットへ固定することを規約 6.1 の本 PR 限定例外として承認された。このコミットは入力の識別点であり、ステップ 3 完了を意味しない。製品コード・検査器・oracle seal・正式受理履歴を混ぜず、単独では push しない。別途人間確認を受けた再封印・正式受理履歴とステップ 3 実装の検査・コミット後に、同じ Draft PR へまとめて push する。
+
+> **ステップ 4 の後続作業（2026-10-13）**: PR #124 は最新 HEAD `7fe7ecf6` で CI 12 件すべて通過し、人間逐行確認後に `2a4568285be8a3d412822f4a9e239d11321eb5da` として `develop` へ統合済み。本ステップはこの統合点を基点とする専用 worktree で、品質結果と U-G1 / U-F8 への接続記録だけを追随する。両単位の所有する試合作成・画面実装は含めず、FR-016 は実際の接続まで部分充足とする。
 
 > **計画レビュー 1 周目（2026-10-13、`codex_run.py review adversarial`）**: P0 2 件（`FOR UPDATE` を operation 検査が拒否 / JSONB の可変値を結果境界が拒否）、P1・P2 は 0 件。両方を 4 節のステップ 2 に反映した。
 >
@@ -134,6 +136,17 @@ U-M2 は U-G1 が確定したオーダーの構造をコピーして保全する
 | 2 | 自チーム記憶の読み取り・内部保存 operation と必要な認可・テナント契約を追加する。対象 self チーム 1 行だけの `FOR UPDATE` を capability 検査へ明示登録し、JSONB 読み取り値の深い不変化を結果境界へ追加する。P0 追補の承認後、直接 token も実行直前に同じ不変条件を満たすよう是正する | 実 DB でチーム別直近 1 件、初回の同時 insert と更新の直列化、ロールバック、別テナント拒否、物理削除なしが green。`FOR UPDATE` は self チーム行と追加承認後の現役選手行の完全一致形だけを許可し、他表・tenant/ID bind 欠落・他 lock 変種を拒否、JSONB の入れ子の可変値を外へ漏らさず未知型を拒否する負例 green。直接 token による相手チーム read / insert、非現役・削除済み・欠損・別チームの選手 insert / update を拒否。**有効な自チーム選手 payload でも、相手チーム記憶 ID と `migration_preserved_only=true` 行を直接 UPDATE して変更できない** DB 負例を置く。凍結資産の受理記録が規約どおり。追加承認後は、在籍 UPDATE / 論理削除が先に確定したときの保存拒否と、保存側が先に選手行ロックを得たときの変更待機を実 DB の同期テストで確認する。直接 INSERT / UPDATE と公開実行器を含め、相互取得順でデッドロックしない。frozen-archive manifest の corpus digest を追随し、比較ケース・既存 pin を維持する |
 | 3 | 取得・復元 GET と DTO を追加し、`ROUTE:RECORD:lineup_memories:read` を既存の登録・凍結受理手順でアプリへ登録する | 外部からの GET 直接テストで現役のみ自動採用。OB・その他・削除済み・欠損・別チームは差し替え。改名・背番号変更後も ID が保たれ、保存用 HTTP 経路は存在しない。route registry / matrix / 派生 lock / 独立 exact-set が一致し、7.7 の受理記録がある |
 | 4 | 関連テストと品質ゲート、U-G1/U-F8 への接続記録を完了する | backend の該当 pytest、DB テスト、Ruff、ty、越境・認可・契約検査が green。U-G1 が記憶を更新する契約と U-F8 の復元表示契約が追跡可能 |
+
+### ステップ 4 の品質結果と接続記録
+
+PR #124 の最終 HEAD `7fe7ecf6` に対する [CI run 38410295986](https://github.com/masaki1025/pitchlog/actions/runs/38410295986) は、backend・harness・core-guard・tenant-boundary-bypass を含む 12 ジョブすべて成功した。harness の全 pytest は 28,934 件通過。ステップ 3 のローカル実 DB 保存・GET・関連 API / 境界は 94 件、認可・凍結履歴は 25,838 件、archive は 65 件通過した。Ruff・ty・backend format・oracle・派生資産・凍結不変条件も通過し、`backend/tests/conftest.py` の差分は 0 行。ステップ 4 は製品コードと認可資産を変更しない。
+
+| 接続先 | U-M2 が提供済みの契約 | 接続先の所有・確認待ち |
+| --- | --- | --- |
+| U-G1 試合スタメン確定 | `save_lineup_memory(scope, team_record_id, lineup)`。`lineup` は `tuple[Mapping[str, object], ...]` で選手 ID・打順・守備位置を保全する。確定と同じ `tenant_transaction_scope` 内で呼び、失敗時は試合スタメンと記憶を一緒にロールバックする。記憶は自チーム直近 1 件。書き込み側は self チーム行の後に選手 ID 昇順で現役行をロックする | U-G1 が先攻・後攻それぞれの `game_lineups` を確定してからコミット前に呼ぶ。紅白戦の記憶更新には後攻側を渡す。側識別の保存表現、守備位置の型・値域、要素 DTO と実際の呼び出し箇所は U-G1 担当が確定・検証する。U-M2 はここを実装済みと扱わない |
+| U-F8 試合準備・復元表示 | `GET /team-records/{team_record_id}/lineup-memory`。200 は保存順の `entries` を返し、各枠に `batting_order`、`fielding_position`、採用可能な現役選手の `player_id` / 現在の `name` / `uniform_number`、`replacement_required` を含む。非現役・削除済み・欠損・別チームは選手値を `null` とし差し替え必須。記憶なし・移行専用は 204、対象不在・他テナント・相手チームは 404。保存用 HTTP API はない | U-F8 の PR #125 は記録画面の独立部品として統合済みだが、API 接続・スタメン準備画面を含まない。後続の U-F8 担当が 204 と差し替え枠の表示、復元候補の採用操作を接続・検証する。U-M2 は画面を実装済みと扱わない |
+
+U-G1 の確定 DTO が現れるまで、U-M2 側で守備位置の番号体系や 9 / DH 10 枠の判定を追加しない。U-F8 にも候補の採用を自動確定させず、`replacement_required=true` の枠は差し替えまで確定に使わないよう申し送る。この表は実装済み入口と担当側の未実装接続を区別する記録であり、未確認の担当合意を主張しない。
 
 ## 5. DoD（受け入れ基準）
 
