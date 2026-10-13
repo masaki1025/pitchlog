@@ -108,3 +108,16 @@
 ## ステップ 2 の公開と最新 develop 統合の許可
 
 - 2026-10-13、本会話の利用者がコミット前停止を限定解除し、レビュー済み最終差分と新規 snapshot のステップ 2 追補コミット、最新 `origin/develop` の **merge**、前後差分の確認、関連 DB・認可・凍結契約・archive・品質検査、Draft PR #121 への push と本文更新を明示許可した。rebase、先の GET 実装、Draft 解除、PR マージは許可されていない。PR の人間逐行確認欄は未チェックに保つ。
+
+## ステップ 2 統合とステップ 3 の後続範囲
+
+- PR #121 は `ba28cedc2fe1303a6639b690b4a573a2fccb438c` を head とし、CI 全 12 チェック通過後に `edbef663c44b1585e325be859fd1f511951ea09c` で `develop` へマージされた。TSK-394 全体はステップ 2 までの部分充足であり、GET とステップ 4 は未完了。
+- 本会話の利用者は、最新 `origin/develop` 起点の後続ブランチ・専用 worktree で**ステップ 3 のみ**を実装し、合格時に別コミットを作ることを指示した。PR 作成・push・マージ、ステップ 4、U-G1 の試合作成・スタメン確定は対象外。基点 `edbef663c44b1585e325be859fd1f511951ea09c`、後続ブランチ `feature/um2-lineup-memory-get`、worktree `/tmp/pitchlog-um2-lineup-memory-step3`。
+- 正式な Notion の TSK-394 カードを取得した。担当者プロパティは既存値を維持し、出所 TSK-363 の共通 DoD 以外の追加 DoD がないことを確認。Notion は `進行中` とし、ステップ 2 のマージ・CI・ステップ 3・4 の残余を記録済み。
+- GET の経路 1 本は `route-registry.json` / `http-route-matrix.json` と派生 lock・独立 exact-set を動かす。`oracle-seal.lock.json` の入力と `frozen-baselines.json` の `oracle_input` にも影響するため、PR #121 の承認は流用しない。後者の `acceptance` は `unit=pull_request`、`acceptance_id_source=repository_and_pr_number`、`posterior_state=checkout_head` と宣言している。今回は PR 作成が禁止されているため、受理済み履歴を架空の番号で確定しない。変更の人間承認と受理手順を別途確認中。
+- 凍結資産を変更しない範囲で、GET・DTO・静的ルータ登録と公開 HTTP の実 DB 試験を作成した。既存 `TeamRecordReadToken` は `kind='opponent'` 限定なので、GET の自チーム確認にはステップ 2 の `_SelfTeamLockToken` を再利用する。対象チームに記憶がなければ 204、他テナント・相手チーム・対象不在は 404。選手は記憶中の ID ごとに当該テナント・チーム・`active`・非表示でない行だけを読み、採用できない枠では元の打順・守備位置だけを残す。実 DB の保存・GET 試験 43 件、API・境界・在籍試験 51 件、Ruff・ty・format・docs-status が green。DB 制約 `uq_team_records_self` はテナントごと自チーム 1 件、`team_records_check` は自チームの非表示を禁止するため、その不可能な状態を試験で生成しない。
+- 凍結変更の候補範囲は、論理経路 `ROUTE:RECORD:lineup_memories:read` 1 行、HTTP matrix の対応 1 行、両派生 lock、検査器の独立 exact-set と負例、oracle 入力・seal・関連 digest・7.7 の `oracle_input` 受理履歴。既存 6 行と既存の判定・test owner は保持する。必要なゲートは 6.3 のコア敵対レビューと人間逐行確認、7.7 の新規人間承認・PR 単位の受理 ID・再封印・履歴検査。後続 PR 番号を取得するまでは正式受理記録を確定しない。
+
+## ステップ 3 の凍結改訂と Draft PR 番号の取得
+
+- 2026-10-13、利用者は PR #121 とは別に、GET 経路 1 本と必要最小限の認可凍結資産・派生 lock・oracle・7.7 受理履歴の改訂を承認した。受理 ID のため、計画・作業ログのみの準備コミットの push と Draft PR 作成も承認した。準備コミットは GET 製品コード・テスト・凍結資産を含めず、ステップ 3 完了とは扱わない。PR 番号取得後、実際の前後識別値と検査結果で受理記録を作る。oracle の `human_review_required` は別途人間確認の対象を提示してから進める。
