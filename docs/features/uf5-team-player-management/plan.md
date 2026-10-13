@@ -78,9 +78,19 @@ created: 2026-10-13
 
 コア領域として反対側の敵対レビューと人間逐行確認を行う。`guard_paths` / core areas の検出結果を PR 作成前に記録し、確認者本人以外がチェックを代記しない。
 
+PR 前検査では、新規の製品 6 ファイルが既存 paths に一致せず、逐行確認を要求できないことを確認した。設計書 6.3 の fail-closed 規則と、上表の T・D 重複帰属に従い、次の 3 パターンを `tenant-isolation` と `data-migration` の両方へ登録する。
+
+- `frontend/src/components/settings/TeamMembersContent*`
+- `frontend/src/lib/rosterQueryKeys*`
+- `frontend/src/screens/TeamScreen*`
+
+登録は回転式の追加層を先行コミットで宣言し、後続の別コミットで `.claude/core-areas.json` だけを変更する。U-F8 の未統合宣言は基線として扱わず、統合順序に応じて後から統合する側が最新 develop を取り込んで残る追加層を再宣言する。
+
 ### 4.2 正本
 
 `docs/requirements/**`、`docs/design/**`、`docs/adr/**`、`docs/development/**`、`docs/ops/**` は変更しない。承認済み要件、U-F5 の単位定義、U-M1 API、U-F2 / U-F6 の契約に従う実装である。変更する文書は本計画、調査記録、作業ログだけ。
+
+正本体系外だが同一 PR で更新するものは、上記 3 パターンの二段階登録に必要な `scripts/core_guard.py`、`tests/test_core_guard.py`、`.claude/core-areas.json` である。製品実装のステップ数は 2 のままとし、追補コミットはステップ 2 の登録追補として記録する。
 
 ## 5. 実装ステップ
 
@@ -160,3 +170,5 @@ created: 2026-10-13
 4. 初期分割完了後も TSK-520 を未完了として維持する。
 
 実装開始時は最新 `origin/develop` を取り込み、前提差分を確認してからステップ 1/2 だけを実施する。
+
+2026-10-13、山田正輝が PR 前の機械検出漏れを解消する追補を承認した。`TeamMembersContent*`、`rosterQueryKeys*`、`TeamScreen*` の 3 パターンを `tenant-isolation` と `data-migration` へ登録し、追加層宣言と JSON 登録を別コミットにする。登録差分も PR の敵対レビューと人間逐行確認へ含め、チェックは確認者本人が記入する。

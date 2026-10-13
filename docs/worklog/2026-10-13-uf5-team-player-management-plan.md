@@ -84,3 +84,17 @@ mutation は開始時の `authEpoch`、tenant ID、選手では team record ID �
 - `pnpm build`: 成功。build closure は conforming、違反 0
 
 `router.ts` / `App.vue` は変更しておらず、`/team` は未接続である。TSK-520 全体、U-F13 残部、在籍変更、論理削除、試合中登録、公開経路の越境受入、実 API のブラウザ受入は未完了として維持する。
+
+## PR 前のコア領域登録追補
+
+最新 `origin/develop` `1160e5dd` と HEAD `237add33` の差分を `core_guard.py` で検査した。未チェックの人間逐行確認欄を持つ PR イベントでも終了コード 0 となり、今回の新規製品 6 ファイルは現行 `core-areas.json` の paths に一致しなかった。意味判定では、認証切替時の旧一覧・フォーム破棄と tenant 別 cache invalidation を扱うためテナント分離に該当する。承認済み計画の U-F5 単位帰属を維持し、データ移行にも重複登録する。
+
+2026-10-13、山田正輝が次の追補を承認した。
+
+- `frontend/src/components/settings/TeamMembersContent*`
+- `frontend/src/lib/rosterQueryKeys*`
+- `frontend/src/screens/TeamScreen*`
+
+3 パターンを `tenant-isolation` と `data-migration` の追加層として宣言し、その親コミットを固定してから `.claude/core-areas.json` だけを別コミットで更新する。登録後は 6 ファイル全件の検出、逐行確認未チェック時の拒否、merge-base に対する二層契約を検査する。登録差分は製品差分とともに敵対レビューと人間逐行確認の対象とする。
+
+U-F8 の Draft PR #125 は `GameScreen*` の登録のため、同じ `scripts/core_guard.py`、`tests/test_core_guard.py`、`.claude/core-areas.json` を変更している。U-F8 の製品差分は `GameScreen.vue` と同 spec であり、U-F5 の製品 6 ファイルとの重複はない。両 PR は回転式の追加層を独立に置き換えるため、先に統合された側を develop の基線へ吸収し、後から統合する側が最新 develop を取り込んで自分の未統合パターンだけを再宣言する。U-F8 の worktree と branch は変更しない。

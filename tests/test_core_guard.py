@@ -417,10 +417,14 @@ UM1_TENANT_AREA_PATH_ADDITIONS = (
 UF2_AUTH_STORE_AREA_PATH_ADDITIONS = ("frontend/src/stores/authStore*",)
 UF6_CLIENT_AREA_PATH_ADDITIONS = ("frontend/src/api/client*",)
 UF6_TENANT_AREA_PATH_ADDITIONS = ("frontend/src/api/*",)
+UF5_TEAM_AREA_PATH_ADDITIONS = (
+    "frontend/src/components/settings/TeamMembersContent*",
+    "frontend/src/lib/rosterQueryKeys*",
+    "frontend/src/screens/TeamScreen*",
+)
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
-    "sync-protocol": UF6_CLIENT_AREA_PATH_ADDITIONS,
-    "recording-rights": UF6_CLIENT_AREA_PATH_ADDITIONS,
-    "tenant-isolation": UF6_TENANT_AREA_PATH_ADDITIONS,
+    "tenant-isolation": UF5_TEAM_AREA_PATH_ADDITIONS,
+    "data-migration": UF5_TEAM_AREA_PATH_ADDITIONS,
 }
 DECLARED_ADDITION_AREA_IDS = tuple(EXPECTED_AREA_PATH_ADDITIONS)
 DOMAIN_CALC_GLOBS = (
@@ -583,7 +587,7 @@ def make_repo(tmp_path: Path, core_paths: list[str] | None = None) -> Path:
 def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
     """実設定を基に宣言の全件を登録した合成リポジトリを作る。
 
-    U-F6 の登録前なら、一時リポジトリだけに宣言済みの 3 件を補う。
+    U-F6 登録済みの設定へ、一時リポジトリだけ U-F5 の追加層を補う。
 
     Args:
         tmp_path: pytest が提供する一時ディレクトリ。
@@ -597,14 +601,12 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
     pre_registration_counts = {
-        "sync-protocol": 147,
-        "recording-rights": 68,
-        "tenant-isolation": 83,
+        "tenant-isolation": 84,
+        "data-migration": 48,
     }
-    assert tuple(areas["tenant-isolation"]["paths"][-1:]) in (
-        UF2_AUTH_STORE_AREA_PATH_ADDITIONS,
-        UF6_TENANT_AREA_PATH_ADDITIONS,
-    )
+    assert UF6_CLIENT_AREA_PATH_ADDITIONS[0] in areas["sync-protocol"]["paths"]
+    assert UF6_CLIENT_AREA_PATH_ADDITIONS[0] in areas["recording-rights"]["paths"]
+    assert UF6_TENANT_AREA_PATH_ADDITIONS[0] in areas["tenant-isolation"]["paths"]
     for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
         paths = areas[area_id]["paths"]
         if tuple(paths[-len(additions) :]) == additions:
@@ -1886,15 +1888,8 @@ def test_actual_core_area_paths_follow_merge_base_layers():
 
     assert len(baseline_ids) == len(baseline["areas"]), "コア領域 ID が重複している"
     assert len(baseline_ids) == 5
-    assert declared_ids == {
-        "sync-protocol",
-        "recording-rights",
-        "tenant-isolation",
-    }
-    assert stationary_ids == {
-        "game-state",
-        "data-migration",
-    }
+    assert declared_ids == {"tenant-isolation", "data-migration"}
+    assert stationary_ids == {"sync-protocol", "game-state", "recording-rights"}
     core_guard.validate_area_path_layers(baseline, candidate)
 
 
@@ -1934,11 +1929,7 @@ def test_each_area_becomes_stationary_when_omitted_from_declaration(
     attempts = 0
 
     assert len(baseline_ids) == len(baseline["areas"]) == 5
-    assert declared_ids == {
-        "sync-protocol",
-        "recording-rights",
-        "tenant-isolation",
-    }
+    assert declared_ids == {"tenant-isolation", "data-migration"}
     for area_id in sorted(baseline_ids - declared_ids):
         mutated = json.loads(json.dumps(candidate))
         area = next(item for item in mutated["areas"] if item["id"] == area_id)
@@ -1949,7 +1940,7 @@ def test_each_area_becomes_stationary_when_omitted_from_declaration(
             )
         attempts += 1
 
-    assert attempts == 2
+    assert attempts == 3
 
 
 def test_change_absent_from_declared_addition_layer_is_rejected(tmp_path: Path):
@@ -1958,7 +1949,7 @@ def test_change_absent_from_declared_addition_layer_is_rejected(tmp_path: Path):
     root, base_sha = make_layered_core_repo(tmp_path)
     head_sha = commit_area_path_changes(
         root,
-        {"tenant-isolation": (*UF6_TENANT_AREA_PATH_ADDITIONS, "unregistered/probe.py")},
+        {"tenant-isolation": (*UF5_TEAM_AREA_PATH_ADDITIONS, "unregistered/probe.py")},
     )
 
     with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
@@ -1975,7 +1966,7 @@ def test_deleting_baseline_tenant_path_is_rejected(tmp_path: Path) -> None:
         area for area in candidate["areas"] if area["id"] == "tenant-isolation"
     )
     tenant_area["paths"].remove("base/tenant-isolation.py")
-    tenant_area["paths"].extend(UF6_TENANT_AREA_PATH_ADDITIONS)
+    tenant_area["paths"].extend(UF5_TEAM_AREA_PATH_ADDITIONS)
 
     with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
         core_guard.validate_area_path_layers(
@@ -2253,28 +2244,17 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
     )
     base_paths = tuple(base_area["paths"])
     current_paths = tuple(current_area["paths"])
-    # マージ後は U-F6 の宣言も比較元へ吸収される。登録前・登録後も受理する。
-    absorbed = base_paths[-len(UF6_TENANT_AREA_PATH_ADDITIONS) :] == (
-        UF6_TENANT_AREA_PATH_ADDITIONS
-    )
-    pre_additions = (
-        base_paths[: -len(UF6_TENANT_AREA_PATH_ADDITIONS)]
-        if absorbed
-        else base_paths
-    )
     prior_tail = (
         *registered_tail,
         *UM1_TENANT_AREA_PATH_ADDITIONS,
         *UF2_AUTH_STORE_AREA_PATH_ADDITIONS,
+        *UF6_TENANT_AREA_PATH_ADDITIONS,
     )
-    assert pre_additions[-len(prior_tail) :] == prior_tail
-    if absorbed:
-        assert current_paths == base_paths
-    else:
-        assert current_paths in (
-            base_paths,
-            (*base_paths, *UF6_TENANT_AREA_PATH_ADDITIONS),
-        )
+    assert base_paths[-len(prior_tail) :] == prior_tail
+    assert current_paths in (
+        base_paths,
+        (*base_paths, *UF5_TEAM_AREA_PATH_ADDITIONS),
+    )
     for pattern, planned_paths in zip(
         PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PATTERN_EXAMPLES, strict=True
     ):
@@ -2321,8 +2301,80 @@ def test_uf6_api_paths_are_registered_in_actual_core_areas() -> None:
     assert "frontend/src/api/*" in areas["tenant-isolation"]["paths"]
 
 
+def test_uf5_team_paths_are_declared_for_tenant_and_migration() -> None:
+    """U-F5 の製品 6 ファイルを T・D へ宣言・登録する。"""
+    core_guard = load_core_guard_module()
+    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
+    candidate = load_actual_core_areas()
+    expected_files = (
+        "frontend/src/components/settings/TeamMembersContent.spec.ts",
+        "frontend/src/components/settings/TeamMembersContent.vue",
+        "frontend/src/lib/rosterQueryKeys.spec.ts",
+        "frontend/src/lib/rosterQueryKeys.ts",
+        "frontend/src/screens/TeamScreen.spec.ts",
+        "frontend/src/screens/TeamScreen.vue",
+    )
+
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    assert set(EXPECTED_AREA_PATH_ADDITIONS) == {
+        "tenant-isolation",
+        "data-migration",
+    }
+    baseline_areas = {area["id"]: area for area in baseline["areas"]}
+    candidate_areas = {area["id"]: area for area in candidate["areas"]}
+    registered = []
+    for area_id in EXPECTED_AREA_PATH_ADDITIONS:
+        base_paths = baseline_areas[area_id]["paths"]
+        current_paths = candidate_areas[area_id]["paths"]
+        assert all(pattern not in base_paths for pattern in UF5_TEAM_AREA_PATH_ADDITIONS)
+        assert current_paths in (
+            base_paths,
+            [*base_paths, *UF5_TEAM_AREA_PATH_ADDITIONS],
+        )
+        registered.append(
+            all(pattern in current_paths for pattern in UF5_TEAM_AREA_PATH_ADDITIONS)
+        )
+
+    assert len(set(registered)) == 1
+    for pattern in UF5_TEAM_AREA_PATH_ADDITIONS:
+        matches = tuple(path for path in expected_files if fnmatch.fnmatchcase(path, pattern))
+        assert len(matches) == 2
+    if registered[0]:
+        assert core_guard.matched_paths(
+            expected_files, core_guard.load_core_areas(REPO)
+        ) == list(expected_files)
+    core_guard.validate_area_path_layers(baseline, candidate)
+
+
+@pytest.mark.parametrize(
+    "core_path",
+    (
+        "frontend/src/components/settings/TeamMembersContent.spec.ts",
+        "frontend/src/components/settings/TeamMembersContent.vue",
+        "frontend/src/lib/rosterQueryKeys.spec.ts",
+        "frontend/src/lib/rosterQueryKeys.ts",
+        "frontend/src/screens/TeamScreen.spec.ts",
+        "frontend/src/screens/TeamScreen.vue",
+    ),
+)
+def test_uf5_team_change_requires_human_check(
+    tmp_path: Path, core_path: str
+) -> None:
+    """実登録を使う合成 PR で製品 6 ファイルの未記入チェックを拒否する。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    base_sha, head_sha = commit_change(root, core_path)
+    event_path = write_event(tmp_path, base_sha, head_sha, f"- [ ] {REQUIRED_CHECK_TEXT}")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert core_path in result.stderr
+    assert f"- [x] {REQUIRED_CHECK_TEXT}" in result.stderr
+
+
 def test_area_registration() -> None:
-    """U-F2 までが基線にあり、U-F6 の 3 領域の登録前後を受理する。"""
+    """U-F6 登録済み基線に対する U-F5 の T・D 登録前後を受理する。"""
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     configuration = load_actual_core_areas()
@@ -2334,17 +2386,17 @@ def test_area_registration() -> None:
     declared_ids = set(EXPECTED_AREA_PATH_ADDITIONS)
     stationary_ids = set(areas) - declared_ids
     registered_counts = {
-        "sync-protocol": 49,
+        "sync-protocol": 50,
         "game-state": 49,
-        "recording-rights": 1,
-        "tenant-isolation": 9,
+        "recording-rights": 2,
+        "tenant-isolation": 10,
         "data-migration": 6,
     }
     baseline_counts = {
-        "sync-protocol": 147,
+        "sync-protocol": 148,
         "game-state": 110,
-        "recording-rights": 68,
-        "tenant-isolation": 83,
+        "recording-rights": 69,
+        "tenant-isolation": 84,
         "data-migration": 48,
     }
     appendix_e_additions = (
@@ -2360,13 +2412,14 @@ def test_area_registration() -> None:
         *CASE_GENERATION_AREA_PATH_ADDITIONS,
     )
     registered_additions = {
-        "sync-protocol": appendix_e_additions,
+        "sync-protocol": (*appendix_e_additions, *UF6_CLIENT_AREA_PATH_ADDITIONS),
         "game-state": appendix_e_additions,
-        "recording-rights": (ADR_001_PATH,),
+        "recording-rights": (ADR_001_PATH, *UF6_CLIENT_AREA_PATH_ADDITIONS),
         "tenant-isolation": (
             ADR_001_PATH,
             *UM1_TENANT_AREA_PATH_ADDITIONS,
             *UF2_AUTH_STORE_AREA_PATH_ADDITIONS,
+            *UF6_TENANT_AREA_PATH_ADDITIONS,
         ),
         "data-migration": (
             ADR_001_PATH,
@@ -2378,12 +2431,8 @@ def test_area_registration() -> None:
     assert len(areas) == len(configuration["areas"]) == 5
     assert len(DOMAIN_CALC_GLOBS) == 8
     assert declared_ids == set(DECLARED_ADDITION_AREA_IDS)
-    assert declared_ids == {
-        "sync-protocol",
-        "recording-rights",
-        "tenant-isolation",
-    }
-    assert stationary_ids == {"game-state", "data-migration"}
+    assert declared_ids == {"tenant-isolation", "data-migration"}
+    assert stationary_ids == {"sync-protocol", "game-state", "recording-rights"}
     assert set(areas) == set(registered_counts) == set(baseline_counts)
     for area_id in DATA_MODEL_AREA_IDS:
         registered = registered_additions[area_id]

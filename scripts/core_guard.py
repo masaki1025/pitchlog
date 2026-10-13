@@ -29,9 +29,16 @@ BASELINE_DEFINITION_PATHS = frozenset(
 )
 # 追加層は JSON を変更するコミットより先に固定する。同一コミットでの追随を許さない。
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "sync-protocol": ("frontend/src/api/client*",),
-    "recording-rights": ("frontend/src/api/client*",),
-    "tenant-isolation": ("frontend/src/api/*",),
+    "tenant-isolation": (
+        "frontend/src/components/settings/TeamMembersContent*",
+        "frontend/src/lib/rosterQueryKeys*",
+        "frontend/src/screens/TeamScreen*",
+    ),
+    "data-migration": (
+        "frontend/src/components/settings/TeamMembersContent*",
+        "frontend/src/lib/rosterQueryKeys*",
+        "frontend/src/screens/TeamScreen*",
+    ),
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
