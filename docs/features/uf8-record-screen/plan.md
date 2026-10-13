@@ -1,7 +1,7 @@
 ---
 feature: uf8-record-screen
 status: active
-承認: 済(2026-10-13・ユーザー、ステップ1のみ実施指示)
+承認: 済(2026-10-13・ユーザー、ステップ1・2と追補を承認)
 重さ分類: コア領域
 worktree: ../../..
 notion: https://app.notion.com/p/3f493b75e68781b49976fc6c5ed970d5
@@ -88,3 +88,12 @@ U-F8 の担当範囲は [実装単位の定義](../frontend-impl-units/design.md
 | 一致性・E2E | 本分割は状態計算・API・入口を持たないため対象なし。U-F8 残部で ADR-003 とサーバー契約を受けて追加する |
 
 検証は `frontend/` で `pnpm exec prettier --check .`、`pnpm exec eslint .`、`pnpm exec vue-tsc --noEmit`、`pnpm test`、`pnpm run build`。パス登録については root で `uv run pytest tests/test_core_guard.py` を実行する。backend の全試験は本分割の直接の合格条件にしない。
+
+## 7. 承認済み追補（2026-10-13）
+
+ユーザーはステップ 1・2 の追検証を受け、既存の表示・入力下書き範囲について次の 2 点を承認した。これをステップ 2 の追補として別コミットにし、ステップ表の総数・順序と DoD は変えない。
+
+1. 回・表裏を項目名付きで表示し、値が欠損したときの各「未取得」を区別可能にする。
+2. 下書きの球種・球速・結果の入力欄と既存 `StrikeZone` に、既存の「保存・送信されません」注意文を `aria-describedby` で関連付ける。
+
+対応する Vitest に項目名と未取得値の対応、注意文の参照を追加し、型検査・ESLint・Prettier・Vitest・build を再実行する。live region、狭幅 CSS、候補未供給時の説明、API・DTO・計算契約、ステップ 3・4、PR 作成は本追補の範囲外とする。実機の読み上げと狭幅表示は、この試験の合格をもって検証済みとはしない。

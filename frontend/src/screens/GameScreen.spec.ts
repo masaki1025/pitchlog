@@ -296,6 +296,8 @@ describe('GameScreen の表示と操作のアクセシビリティ', () => {
 
     expect(wrapper.get('[data-testid="game-name"]').text()).toBe('未取得')
     for (const [testId, name] of [
+      ['inning', '回'],
+      ['half', '表裏'],
       ['away-score', '先攻'],
       ['home-score', '後攻'],
       ['outs', 'アウト'],
@@ -312,8 +314,14 @@ describe('GameScreen の表示と操作のアクセシビリティ', () => {
     }
 
     const draft = wrapper.get('section[aria-label="投球入力の下書き"]')
-    expect(draft.text()).toContain('この入力は保存・送信されません')
-    expect(draft.text()).toContain('画面を離れると消えます')
+    const note = draft.get('#draft-unsaved-note')
+    expect(note.text()).toContain('この入力は保存・送信されません')
+    expect(note.text()).toContain('画面を離れると消えます')
+    for (const id of ['pitch-type', 'pitch-speed', 'pitch-result']) {
+      expect(draft.get(`#${id}`).attributes('aria-describedby')).toBe(
+        note.attributes('id'),
+      )
+    }
     expect(draft.find('button[type="submit"]').exists()).toBe(false)
   })
 
@@ -322,6 +330,7 @@ describe('GameScreen の表示と操作のアクセシビリティ', () => {
     const zone = wrapper.getComponent(StrikeZone)
     const svg = zone.get('svg')
 
+    expect(svg.attributes('aria-describedby')).toBe('draft-unsaved-note')
     expect(svg.attributes('tabindex')).toBe('0')
     expect(svg.attributes('aria-label')).toContain('矢印キーでコース入力')
     expect(svg.attributes('aria-label')).toContain('現在は未入力')

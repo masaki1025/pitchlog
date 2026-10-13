@@ -111,20 +111,20 @@ function clearDraft() {
       aria-label="試合状況"
       class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
     >
-      <div class="mb-5 flex flex-wrap items-center gap-2 text-sm font-bold">
-        <span
+      <dl class="mb-5 flex flex-wrap items-center gap-2 text-sm font-bold">
+        <div
           class="rounded-full bg-sky-100 px-3 py-1 text-sky-800 dark:bg-sky-950 dark:text-sky-200"
-          data-testid="inning"
         >
-          {{ display(props.state?.inning) }}
-        </span>
-        <span
+          <dt>回</dt>
+          <dd data-testid="inning">{{ display(props.state?.inning) }}</dd>
+        </div>
+        <div
           class="rounded-full bg-slate-100 px-3 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-          data-testid="half"
         >
-          {{ display(props.state?.half) }}
-        </span>
-      </div>
+          <dt>表裏</dt>
+          <dd data-testid="half">{{ display(props.state?.half) }}</dd>
+        </div>
+      </dl>
 
       <dl class="grid grid-cols-2 gap-3">
         <div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-800">
@@ -201,7 +201,10 @@ function clearDraft() {
       <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 class="text-lg font-extrabold">投球入力の下書き</h2>
-          <p class="mt-1 text-sm text-amber-900 dark:text-amber-200">
+          <p
+            id="draft-unsaved-note"
+            class="mt-1 text-sm text-amber-900 dark:text-amber-200"
+          >
             この入力は保存・送信されません。画面を離れると消えます。
           </p>
         </div>
@@ -224,6 +227,7 @@ function clearDraft() {
             <div class="flex gap-2">
               <select
                 id="pitch-type"
+                aria-describedby="draft-unsaved-note"
                 :value="pitchTypeId ?? ''"
                 class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                 data-testid="pitch-type"
@@ -258,6 +262,7 @@ function clearDraft() {
               <input
                 id="pitch-speed"
                 v-model="speed"
+                aria-describedby="draft-unsaved-note"
                 type="text"
                 inputmode="decimal"
                 autocomplete="off"
@@ -282,6 +287,7 @@ function clearDraft() {
             <div class="flex gap-2">
               <select
                 id="pitch-result"
+                aria-describedby="draft-unsaved-note"
                 :value="resultId ?? ''"
                 class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                 data-testid="pitch-result"
@@ -323,6 +329,7 @@ function clearDraft() {
           </div>
           <StrikeZone
             v-if="props.courseView"
+            aria-describedby="draft-unsaved-note"
             :plate-side="props.courseView.plateSide"
             :viewpoint="props.courseView.viewpoint"
             :point="course"
