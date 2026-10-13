@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "input_manifest": {
-    "commit": "cb1771f5c8b1320a1e061b0b02f75f53ad388723",
+    "commit": "9528d0887c048ee3895ed161c64ed566d2907248",
     "source_path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
     "scan_start_heading_id": "DOC",
     "scan_end_heading_id": "APPENDIX-ITEM-F-2",
-    "source_blob_digest": "8aaecf5a4163a68e1a3ffeb9535a872a3a4490e9",
+    "source_blob_digest": "8a978e209acf2ef5feec32265829e38ffdc78f07",
     "heading_ids": [
       "DOC",
       "CHANGELOG",
@@ -143,7 +143,7 @@
       "paragraph": 99,
       "table_delimiter": 40,
       "table_header": 40,
-      "table_row": 324,
+      "table_row": 325,
       "thematic_break": 27
     }
   },
@@ -425,11 +425,11 @@
       "source_id": "PREAMBLE/frontmatter-002",
       "source_kind": "frontmatter",
       "source_heading_id": "PREAMBLE",
-      "source_text": "status: in-review",
-      "source_text_digest": "7d46b6cd12d444739c0b4cfbc417b2d5852be7157a1eebcf500ae661108ed548",
+      "source_text": "status: approved",
+      "source_text_digest": "953f5bbf395df91a91ad207a503f2b8b7f7224bc63a719400a06574a12f2209b",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
-      "decision_digest": "e605038ccba953740dbc96324dd6f1d0a97d35e6a9d150e9b6aa78497a41e137"
+      "decision_digest": "109147e98ad8021b85a4ffa3fab78192eb7630904627a4e581f766c10cc43e46"
     },
     {
       "source_id": "PREAMBLE/frontmatter-003",
@@ -880,6 +880,16 @@
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
       "decision_digest": "955d91020f62c9febabad1718d7ac264b2dde5f2346f7d4df636f8dce5b983a7"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-041",
+      "source_kind": "table_row",
+      "source_heading_id": "CHANGELOG",
+      "source_text": "| **2.11** | 2026-10-11 | **確定ゲート通過(approved)**: 敵対レビュー **2 周**(sol xhigh — **基本枠 2 回を使い切った**。1 周目〔全文・2 正本一括〕P0 0 / P1 8 / P2 1、2 周目〔1 周目の反映差分と影響節〕P0 0 / P1 4 / P2 0)。**指摘 13 件を全件採用・不採用 0 件・P0 は 2 周ともゼロ・(B) の送り 0 件**(周別の採否記録は worklog `2026-10-10-adr003-activation-conditions.md` が正)。**P0 が 0 件のため P0 限定の 3 回目は自動追加されない。** **PO 裁定 4 件**(射程宣言の寄せ先 / J-6 の送り先 / 版番号 / **(iv) は案 A**)。**人間承認 2026-10-11・山田正輝。** **ADR-003 v0.6 と同一ゲートで一括検証した。** **確定内容**: **D-2 への切り替えに伴う規範の追随 7 箇所 + 参照の付け替え 1 件** — ① 10 章の「①＝制約された宣言モデルから Python・TypeScript を生成」を **TS 正本からの生成と実行**へ(**発効までは旧記述が現行**)② 付録A-1 の「対象集合の正 = **宣言モデルの** schema」を **「正本の schema」**へ(**発効後は TS 正本の出力フィールドの宣言**)③ 同所の **D-1 参照**を「ADR-003 が定める正本の宣言的表示規則」へ ④〜⑥ 生成 formatter・生成前検査を前提にした 3 箇所へ **発効後は TS 正本から**の注記 ⑦ NFR-018 (b)② の **「派生schema」**へ追補(**発効後は TS 正本が宣言する入力軸の宣言**)⑧ 3 層の 2 層目へ **D-14-g (i) が比較相手・実施主体・実行経路・判定根拠を定める**ことを明記 ⑨ NFR-019(a) 前処理の根拠を **D-1 から「正本の射程」へ付け替え**。**版番号は PO 裁定で 2.11 に確定**(`v2.5` は TSK-267 の先約のまま)。**「変更しない範囲」は基準版と SHA-256 同一であることを機械的に確認した**(4 ブロック)。計画: `../features/adr003-activation-conditions/plan.md` | 山田 + Claude |",
+      "source_text_digest": "183598847b64a1411b0c78d2c7565ba7a5ac78cbc9914368060cd35e65ee3762",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "decision_digest": "7c55536768758b6b3e7e3eb55788fad7286859533d65dc9bf414cb9620382d49"
     },
     {
       "source_id": "CHANGELOG/blockquote-001",
@@ -13993,11 +14003,11 @@
       "source_id": "APPENDIX-ITEM-A-1/list_item-009",
       "source_kind": "list_item",
       "source_heading_id": "APPENDIX-ITEM-A-1",
-      "source_text": "- **表示書式の共通規定**(v2.6 追補 — 各指標表の「表示書式」列が対象出力ごとの binding の正): **丸めは全対象で四捨五入**(round half up。**負値のちょうど中間値は絶対値で丸めて符号を戻す** — 例 scale=0 の `-1.5` → `-2`〔away from zero・日本語の「四捨五入」の通例と Python decimal の `ROUND_HALF_UP` に一致 — v2.6 追補〕。別方式を使う場合は当該行に明記する — 現時点で該当なし)/ **数字・小数点・`%`・括弧は半角**、単位・助数詞(「回」「球」等)は日本語 / **負値の符号は全対象で半角 `-`・正値に符号を付けない(既定 binding — 個別行での再指定は不要。fixed-decimal の負値符号はこの既定を継承する)**。負値が計算上発生し得る表示対象は**得失点差と FIP**。加えて **FR-002 の範囲外確認確定を経た入力値(球速等)由来の負値も排除されない**(妥当範囲はシステム設定値 — 付録C)。**いずれの対象でも表示は本既定に従い分岐せず、負値の表示検証は fixed-decimal の全対象を軸に取る**(ADR-003 D-11 の同値分割軸「正・負・0」と一致 — 対象の列挙で負値の発生可能性を制限しない・v2.6 追補)/ **先頭 0 の既定 = あり**(表示書式列に「先頭0なし」等の明記がある行はそれに従う。scale=0 の整数・百分率表示では出力に現れないが、宣言は常に値を持つ — 必須パラメータを表内で欠落させない・v2.6 追補)/ 0 除算の「−」(MINUS SIGN U+2212)は上記のとおり / **本規定と書式列は **ADR-003 が定める正本の宣言的表示規則**(数値表示 primitive)で実装され(**発効前は D-1 / 発効後は D-14-g (iii) が定める TS 正本からの生成**(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**))、ベクタ比較面に完成表示値が載るのは、書式列を持つ指標(本付録の各表)と FR-022/023 の表示列**(NFR-019(a)・NFR-018)。**表外既定の数値(下記)は、書式列を持つ指標と同一の生成 formatter(fixed-decimal scale=0)を通すことを(**発効後は TS 正本から生成した formatter**(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**))**生成前検査(言語既定の文字列化の禁止)・構成検査(ADR-003 (b)③ の表示対応の突合 — 迂回・非経由経路の検出を担う)・変異検査(formatter 自体の実効性)の 3 機構の分担で担保**し、状況判定ベクタの比較面は構造化状態のまま**(表示値を加えない — v2.6 追補・PO 裁定 2026-09-03)/ **本付録の表に書式列を持たない利用者可視の数値のうち、NFR-018 の対象計算の出力に現れるもの**(スコアボードの得点・カウント・打席番号・イニング等 — 状況判定・断中の前処理の出力。**対象集合の正 = **正本の schema** が定める両計算の出力のうち利用者可視の数値フィールドの閉包**であり、(**正本 = 発効前は宣言モデル / 発効後は TS 正本**(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**))本括弧の「等」の開いた列挙を正としない — ADR-003 D-8)**は整数の既定表示(固定小数 scale=0・負値の符号は共通既定〔半角 `-`〕に従う)とする** — これも ADR-003 ③の fixed-decimal を通し、言語既定の文字列化は用いない。**対象計算の出力でない数値(管理コンソールの設定値表示等)は本規定と ADR-003 の射程外**(NFR-018 の対象列挙を広げない — v2.6 追補)",
-      "source_text_digest": "8b2dc8015497e51fe06ed8f73ec0e0686263b58f337efc582b71082173ed1aac",
+      "source_text": "- **表示書式の共通規定**(v2.6 追補 — 各指標表の「表示書式」列が対象出力ごとの binding の正): **丸めは全対象で四捨五入**(round half up。**負値のちょうど中間値は絶対値で丸めて符号を戻す** — 例 scale=0 の `-1.5` → `-2`〔away from zero・日本語の「四捨五入」の通例と Python decimal の `ROUND_HALF_UP` に一致 — v2.6 追補〕。別方式を使う場合は当該行に明記する — 現時点で該当なし)/ **数字・小数点・`%`・括弧は半角**、単位・助数詞(「回」「球」等)は日本語 / **負値の符号は全対象で半角 `-`・正値に符号を付けない(既定 binding — 個別行での再指定は不要。fixed-decimal の負値符号はこの既定を継承する)**。負値が計算上発生し得る表示対象は**得失点差と FIP**。加えて **FR-002 の範囲外確認確定を経た入力値(球速等)由来の負値も排除されない**(妥当範囲はシステム設定値 — 付録C)。**いずれの対象でも表示は本既定に従い分岐せず、負値の表示検証は fixed-decimal の全対象を軸に取る**(ADR-003 D-11 の同値分割軸「正・負・0」と一致 — 対象の列挙で負値の発生可能性を制限しない・v2.6 追補)/ **先頭 0 の既定 = あり**(表示書式列に「先頭0なし」等の明記がある行はそれに従う。scale=0 の整数・百分率表示では出力に現れないが、宣言は常に値を持つ — 必須パラメータを表内で欠落させない・v2.6 追補)/ 0 除算の「−」(MINUS SIGN U+2212)は上記のとおり / **本規定と書式列は **ADR-003 が定める正本の宣言的表示規則**(数値表示 primitive)で実装され(**発効前は D-1 / 発効後は D-14-g (iii) が定める TS 正本からの生成**(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**))、ベクタ比較面に完成表示値が載るのは、書式列を持つ指標(本付録の各表)と FR-022/023 の表示列**(NFR-019(a)・NFR-018)。**表外既定の数値(下記)は、書式列を持つ指標と同一の生成 formatter(fixed-decimal scale=0)を通すことを(**発効後は TS 正本から生成した formatter**(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**))**生成前検査(言語既定の文字列化の禁止)・構成検査(ADR-003 (b)③ の表示対応の突合 — 迂回・非経由経路の検出を担う)・変異検査(formatter 自体の実効性)の 3 機構の分担で担保**し、状況判定ベクタの比較面は構造化状態のまま**(表示値を加えない — v2.6 追補・PO 裁定 2026-09-03)/ **本付録の表に書式列を持たない利用者可視の数値のうち、NFR-018 の対象計算の出力に現れるもの**(スコアボードの得点・カウント・打席番号・イニング等 — 状況判定・断中の前処理の出力。**対象集合の正 = **正本の schema** が定める両計算の出力のうち利用者可視の数値フィールドの閉包**であり、(**正本 = 発効前は宣言モデル / 発効後は TS 正本**。**発効後の「schema」は TS 正本が持つ出力フィールドの宣言を指す** — ADR-003 D-14-g (iii)(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**))本括弧の「等」の開いた列挙を正としない — ADR-003 D-8)**は整数の既定表示(固定小数 scale=0・負値の符号は共通既定〔半角 `-`〕に従う)とする** — これも ADR-003 ③の fixed-decimal を通し、言語既定の文字列化は用いない。**対象計算の出力でない数値(管理コンソールの設定値表示等)は本規定と ADR-003 の射程外**(NFR-018 の対象列挙を広げない — v2.6 追補)",
+      "source_text_digest": "ab5197de9f0cda9a3cc2f7cca90172f188549b1fc1a63e1efe8e5604911e826d",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "653aff82b7877aaf4f37d0a5e64c3321d97a8a31c01854e434c6c27916865af0"
+      "decision_digest": "850b887a39d2043be2e060430a4fbcad7cc873ede7590b543eee283c1b42b905"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/heading-001",

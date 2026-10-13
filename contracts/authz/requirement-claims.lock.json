@@ -4,8 +4,8 @@
   "classification_rules_digest": "18082bd7f79416179c2cce3071bfebdb1e6eca5644b646d114b338f6545ce480",
   "basis_rules_digest": "4adf829b6fd001aa582e9bd94e7a0170d8b91460afee2557fa4f770c07c2aedc",
   "layer_ids_digest": "8d4eac464984bfc093e708840dfb5e30550792a7ad87119a2e313e53f5ff6e1e",
-  "decision_count": 1381,
-  "aggregate_decision_digest": "4b1ff92cf2e051cd0afe8419ae13294ede0a69a6c51ca4a1eebe777fd32dd047",
+  "decision_count": 1382,
+  "aggregate_decision_digest": "447fdd29962813fba3b984bb0e2b04fd371bf5c02e0541ef5520f3dffd865930",
   "decisions": [
     {
       "source_id": "PREAMBLE/frontmatter-001",
@@ -18,8 +18,8 @@
       "source_id": "PREAMBLE/frontmatter-002",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
-      "source_text_digest": "7d46b6cd12d444739c0b4cfbc417b2d5852be7157a1eebcf500ae661108ed548",
-      "decision_digest": "e605038ccba953740dbc96324dd6f1d0a97d35e6a9d150e9b6aa78497a41e137"
+      "source_text_digest": "953f5bbf395df91a91ad207a503f2b8b7f7224bc63a719400a06574a12f2209b",
+      "decision_digest": "109147e98ad8021b85a4ffa3fab78192eb7630904627a4e581f766c10cc43e46"
     },
     {
       "source_id": "PREAMBLE/frontmatter-003",
@@ -335,6 +335,13 @@
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
       "source_text_digest": "631244faf4ece02d93d79ac3ff94df210b24be8b83afde309dba40cf59ad2615",
       "decision_digest": "955d91020f62c9febabad1718d7ac264b2dde5f2346f7d4df636f8dce5b983a7"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-041",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "source_text_digest": "183598847b64a1411b0c78d2c7565ba7a5ac78cbc9914368060cd35e65ee3762",
+      "decision_digest": "7c55536768758b6b3e7e3eb55788fad7286859533d65dc9bf414cb9620382d49"
     },
     {
       "source_id": "CHANGELOG/blockquote-001",
@@ -10658,8 +10665,8 @@
       "source_id": "APPENDIX-ITEM-A-1/list_item-009",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "8b2dc8015497e51fe06ed8f73ec0e0686263b58f337efc582b71082173ed1aac",
-      "decision_digest": "653aff82b7877aaf4f37d0a5e64c3321d97a8a31c01854e434c6c27916865af0"
+      "source_text_digest": "ab5197de9f0cda9a3cc2f7cca90172f188549b1fc1a63e1efe8e5604911e826d",
+      "decision_digest": "850b887a39d2043be2e060430a4fbcad7cc873ede7590b543eee283c1b42b905"
     },
     {
       "source_id": "APPENDIX-ITEM-A-2/heading-001",
