@@ -2234,7 +2234,7 @@ def _allow_record_and_aggregate_route_for_semantic_test(
 
 
 def test_record_and_aggregate_route_ids_match_approved_set() -> None:
-    """承認済み 6 経路と registry・HTTP 行列の集合が一致する。"""
+    """承認済み 7 経路と registry・HTTP 行列の集合が一致する。"""
     assets, _locks, _paths = _repository_derived_assets()
     registry_ids = {
         route["route_id"]
@@ -2245,6 +2245,7 @@ def test_record_and_aggregate_route_ids_match_approved_set() -> None:
     all_registry_ids = {route["route_id"] for route in assets["route_registry"]["routes"]}
 
     assert registry_ids == {
+        "ROUTE:RECORD:lineup_memories:read",
         "ROUTE:RECORD:players:insert",
         "ROUTE:RECORD:players:read",
         "ROUTE:RECORD:players:update",
@@ -2709,6 +2710,7 @@ def test_invalid_atomic_claims_are_red() -> None:
 
 def test_atomic_claim_fixture_is_valid_and_referenced_downstream(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """2 atomic の決定投影・lock・registry・catalog 参照を検証する。"""
     catalog = _atomic_claim_catalog()
@@ -2739,6 +2741,7 @@ def test_atomic_claim_fixture_is_valid_and_referenced_downstream(
     _write_catalog(root, catalog)
     _write_lock(root, lock)
     registry = _atomic_route_registry()
+    _allow_record_and_aggregate_route_for_semantic_test(monkeypatch)
     _point_derived_asset_at_catalog(registry, root)
     registry_result = checker.validate_route_registry(
         registry, catalog, root, frozenset()

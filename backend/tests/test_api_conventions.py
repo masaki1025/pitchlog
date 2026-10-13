@@ -142,10 +142,10 @@ async def test_forbidden_response_is_hidden_as_not_found() -> None:
 
 
 def test_router_routes_are_static_roster_and_meta() -> None:
-    """静的登録した入口がメタ情報・選手・対戦相手の 12 本であることを確認する。"""
+    """静的登録した入口が前回スタメン GET を含む 13 本であることを確認する。"""
     routes = _router_routes()
 
-    assert len(routes) == 12
+    assert len(routes) == 13
     assert {(route.path, frozenset(route.methods or ())) for route in routes} == {
         ("/health", frozenset({"GET"})),
         ("/version", frozenset({"GET"})),
@@ -159,6 +159,7 @@ def test_router_routes_are_static_roster_and_meta() -> None:
         ("/team-records", frozenset({"GET"})),
         ("/team-records/{team_record_id:uuid}", frozenset({"PATCH"})),
         ("/team-records/{team_record_id:uuid}", frozenset({"DELETE"})),
+        ("/team-records/{team_record_id:uuid}/lineup-memory", frozenset({"GET"})),
     }
     assert all(route.response_model is not None for route in routes)
 
