@@ -9,6 +9,7 @@ import {
   type PlayerRead,
   type TeamRecordRead,
 } from '../api/roster'
+import TeamMembersContent from '../components/settings/TeamMembersContent.vue'
 import Button from '../components/ui/Button.vue'
 import { rosterQueryKeys } from '../lib/rosterQueryKeys'
 import { useAuthStore } from '../stores/authStore'
@@ -364,5 +365,12 @@ function battingLabel(value: PlayerRead['bats']): string {
         </Button>
       </section>
     </div>
+
+    <TeamMembersContent
+      v-if="teamId !== null"
+      :players="players"
+      :selected-team="selectedTeamRecord"
+      :team-records="teamRecords"
+    />
   </div>
 </template>

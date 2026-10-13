@@ -60,3 +60,27 @@ query key は `rosterQueryKeys.ts` へ集約し、選手は `['players', teamId]
 - `pnpm exec vue-tsc --noEmit`: 成功
 - `pnpm test`: 最終全件 56 files / 958 tests 成功。対象試験は 2 files / 10 tests 成功。
 - `pnpm build`: 成功。build closure は conforming、違反 0。
+
+## ステップ 2/2
+
+`TeamMembersContent.vue` を追加し、ステップ 1 の `TeamScreen` へ経路未登録のまま接続した。U-F6 の `createPlayer` / `updatePlayer` / `createTeamRecord` / `updateTeamRecord` と既存 DTO だけを使用し、API・DTO・認証チーム作成・削除・在籍変更の経路は追加していない。
+
+- 選手登録は名前・投・打を必須、背番号を任意とし、`roster_status_key='active'` と `roster_label_key=null` を送る。
+- 選手編集は名前・投・打・背番号だけを PATCH し、在籍区分とラベルを送らない。
+- 対戦相手登録は tenant 内の `createTeamRecord()` だけを使い、`kind='opponent'` の行だけを名称編集候補へ出す。self チームは編集候補へ出さない。
+- 登録成功後に `same_number_players` と `similar_names` を表示する。登録成功を明示したまま警告し、類似名警告から作成した対戦相手の名称編集へ進める。
+- 選手 mutation 後は `['players', teamId]`、対戦相手 mutation 後は `['team-records', teamId]` の共有 prefix 全体を invalidate し、表示中の一覧を再取得する。
+
+mutation は開始時の `authEpoch`、tenant ID、選手では team record ID も保持する。完了時に境界が変わっていれば、成功・失敗とも新 tenant のフォーム、警告、cache、invalidation を更新しない。mutation retry は無効にした。`ApiStaleAuthError` を現在の境界で受けた場合は保存成功と表示せず、「結果未確認」「自動再送しない」「送信元チームへ戻って一覧を再読込」を案内する。network error も結果確認を促し、応答本文は画面へ表示しない。
+
+自動試験では、選手登録・通常編集の要求 DTO、任意背番号の `null`、在籍項目の PATCH 不在、同番号警告、対戦相手登録・名称編集、類似名警告と編集導線、self 編集候補の不在、共有 prefix の invalidation、一覧再取得を確認した。A の遅延 mutation は成功・失敗の両方で B の画面・cache・invalidation を変更しないこと、未確認 mutation を成功表示・自動再送しないことも確認した。
+
+品質ゲート:
+
+- `pnpm exec prettier --check .`: 成功
+- `pnpm exec eslint .`: 成功
+- `pnpm exec vue-tsc --noEmit`: 成功
+- `pnpm test`: 57 files / 963 tests 成功。U-F5 対象は 3 files / 15 tests 成功
+- `pnpm build`: 成功。build closure は conforming、違反 0
+
+`router.ts` / `App.vue` は変更しておらず、`/team` は未接続である。TSK-520 全体、U-F13 残部、在籍変更、論理削除、試合中登録、公開経路の越境受入、実 API のブラウザ受入は未完了として維持する。
