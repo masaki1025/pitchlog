@@ -253,6 +253,8 @@
         "scripts/expand_state_transition_cases.py",
         "scripts/representative_selection.py",
         "tests/test_branch_row_mapping.py",
+        "frontend/src/api/client*",
+        "frontend/src/screens/GameScreen*",
         "tests/domain/runners/test_handoff_loader.py"
       ]
     },
@@ -371,6 +373,7 @@
         "scripts/expand_state_transition_cases.py",
         "scripts/representative_selection.py",
         "tests/test_branch_row_mapping.py",
+        "frontend/src/screens/GameScreen*",
         "frontend/src/domain/*",
         "backend/src/pitchlog/domainrt/*",
         "frontend/public/domain/*",
@@ -463,7 +466,9 @@
         "scripts/generate_orm_acceptance_sheets.py",
         "tests/test_environment_template.py",
         "tests/test_orm_acceptance_sheets.py",
-        "docs/adr/ADR-001-codex-model-selection.md"
+        "docs/adr/ADR-001-codex-model-selection.md",
+        "frontend/src/api/client*",
+        "frontend/src/screens/GameScreen*"
       ]
     },
     {
@@ -553,7 +558,9 @@
         "backend/tests/test_roster_*.py",
         "backend/tests/test_request_presentation.py",
         "tests/test_census_baseline_check.py",
-        "frontend/src/stores/authStore*"
+        "frontend/src/stores/authStore*",
+        "frontend/src/api/*",
+        "frontend/src/screens/GameScreen*"
       ]
     },
     {
@@ -609,6 +616,7 @@
         "scripts/check_vocabulary_manifest.py",
         "tests/test_vocabulary_manifest.py",
         "tests/test_vocabulary_seed.py",
+        "frontend/src/screens/GameScreen*",
         "frontend/src/domain/*",
         "backend/src/pitchlog/domainrt/*",
         "frontend/public/domain/*",

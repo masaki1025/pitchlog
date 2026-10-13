@@ -398,6 +398,21 @@
         "element_type": "policy",
         "element_id": "POLICY:system_vocabularies:global_read_only"
       },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:system_vocabularies:owner_game_type_seed_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:system_vocabularies:owner_game_type_seed_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:system_vocabularies:owner_game_type_seed_insert.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:system_vocabularies:owner_game_type_seed_insert"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:system_vocabularies:owner_game_type_seed_delete.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:system_vocabularies:owner_game_type_seed_delete"
+    },
       {
         "path": "contracts/authz/product/function-bodies/policies/POLICY:admin_vocabularies:global_read_only.sql",
         "element_type": "policy",

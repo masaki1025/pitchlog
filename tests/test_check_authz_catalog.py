@@ -502,6 +502,36 @@ def test_pending_state_always_runs_only_pending_protected_validation(
     assert calls == ["pending"]
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("role_ids", ["pitchlog_app"]),
+        ("policy_mode", "restrictive"),
+        ("policy_name", "pitchlog_app_global_read_only"),
+        ("with_check_expression", "category = 'game_type'"),
+    ],
+)
+def test_product_owner_game_type_policy_mutation_is_rejected(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    """所有者限定の役割・合成・名称・5行条件を緩められない。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    asset_path = checker.PRODUCT_SPEC.ddl_elements_path
+    asset = _read_json_at(root, asset_path)
+    policies = asset["policies"]
+    assert isinstance(policies, list)
+    target = next(
+        row
+        for row in policies
+        if isinstance(row, dict)
+        and row.get("policy_id")
+        == "POLICY:system_vocabularies:owner_game_type_seed_insert"
+    )
+    target[field] = value
+    with pytest.raises(checker.CatalogError, match="所有者用3件のポリシー宣言"):
+        checker.validate_ddl_elements(asset, root, checker.PRODUCT_SPEC)
+
+
 def test_product_state_always_runs_only_final_protected_validation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -2204,7 +2234,7 @@ def _allow_record_and_aggregate_route_for_semantic_test(
 
 
 def test_record_and_aggregate_route_ids_match_approved_set() -> None:
-    """承認済み 6 経路と registry・HTTP 行列の集合が一致する。"""
+    """承認済み 7 経路と registry・HTTP 行列の集合が一致する。"""
     assets, _locks, _paths = _repository_derived_assets()
     registry_ids = {
         route["route_id"]
@@ -2215,6 +2245,7 @@ def test_record_and_aggregate_route_ids_match_approved_set() -> None:
     all_registry_ids = {route["route_id"] for route in assets["route_registry"]["routes"]}
 
     assert registry_ids == {
+        "ROUTE:RECORD:lineup_memories:read",
         "ROUTE:RECORD:players:insert",
         "ROUTE:RECORD:players:read",
         "ROUTE:RECORD:players:update",
@@ -2679,6 +2710,7 @@ def test_invalid_atomic_claims_are_red() -> None:
 
 def test_atomic_claim_fixture_is_valid_and_referenced_downstream(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """2 atomic の決定投影・lock・registry・catalog 参照を検証する。"""
     catalog = _atomic_claim_catalog()
@@ -2709,6 +2741,7 @@ def test_atomic_claim_fixture_is_valid_and_referenced_downstream(
     _write_catalog(root, catalog)
     _write_lock(root, lock)
     registry = _atomic_route_registry()
+    _allow_record_and_aggregate_route_for_semantic_test(monkeypatch)
     _point_derived_asset_at_catalog(registry, root)
     registry_result = checker.validate_route_registry(
         registry, catalog, root, frozenset()

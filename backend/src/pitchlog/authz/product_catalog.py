@@ -1152,7 +1152,11 @@ def _load_product_expectations() -> _ProductExpectations:
                     _text(row, "table_id", "policies"),
                 ),
                 _text(row, "table_id", "policies"),
-                f"pitchlog_app_{_text(row, 'profile', 'policies')}",
+                (
+                    _text(row, "policy_name", "policies")
+                    if "policy_name" in row
+                    else f"pitchlog_app_{_text(row, 'profile', 'policies')}"
+                ),
                 _text(row, "command", "policies").casefold(),
                 tuple(sorted(_strings(row, "role_ids", "policies"))),
                 _text(row, "policy_mode", "policies").casefold(),

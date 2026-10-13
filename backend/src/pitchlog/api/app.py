@@ -5,13 +5,18 @@ import os
 from fastapi import APIRouter, FastAPI
 
 from pitchlog.api.errors import register_exception_handlers
-from pitchlog.api.routers import meta, players, team_records
+from pitchlog.api.routers import lineup_memory, meta, players, team_records
 from pitchlog.authz.signing_key_config import require_signing_key_configuration
 from pitchlog.authz.token_presentation import TokenPresentation
 from pitchlog.authz.verified_tenant import _activate_presentation
 from pitchlog.domainrt import verify_domain_artifact
 
-ROUTERS: tuple[APIRouter, ...] = (meta.router, players.router, team_records.router)
+ROUTERS: tuple[APIRouter, ...] = (
+    meta.router,
+    players.router,
+    team_records.router,
+    lineup_memory.router,
+)
 _SIGNING_KEY_VARIABLE = "PITCHLOG_TOKEN_SIGNING_KEY_B64"
 
 
