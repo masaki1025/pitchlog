@@ -177,6 +177,65 @@ def test_status_entry_emits_only_for_changed_rows_without_db(
     assert len(intent_ids) == len(set(intent_ids)) == 2
 
 
+def test_bulk_status_locks_uuid_order_but_returns_input_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """スタメン保存と同じ行取得順でも API の応答順は保つ。"""
+    tenant_id, team_id = uuid4(), uuid4()
+    first = UUID("aaaaaaaa-0000-0000-0000-000000000001")
+    second = UUID("aaaaaaaa-0000-0000-0000-000000000002")
+    requested = [second, first]
+    statuses = {first: "active", second: "active"}
+    read_order: list[UUID] = []
+    update_order: list[UUID] = []
+
+    class Handle:
+        _bound_tenant_id = tenant_id
+
+        def run(self, operation: TenantOperationToken) -> TenantOperationResult:
+            """ID ごとの読み取りと更新の順を記録する。"""
+            if isinstance(operation, PlayerReadToken):
+                player_id = operation.record_id
+                assert player_id is not None
+                read_order.append(player_id)
+                return TenantOperationResult(
+                    (
+                        (
+                            player_id,
+                            team_id,
+                            str(player_id),
+                            None,
+                            None,
+                            None,
+                            statuses[player_id],
+                            None,
+                            None,
+                        ),
+                    )
+                )
+            if isinstance(operation, PlayerRosterStatusUpdateToken):
+                update_order.append(operation.id)
+                statuses[operation.id] = operation.roster_status_key
+                return TenantOperationResult(((1,),))
+            if isinstance(operation, InvalidationIntentInsertToken):
+                return TenantOperationResult(((1,),))
+            raise AssertionError("未登録の操作")
+
+    @contextmanager
+    def scope(_context: TenantContext) -> Iterator[Handle]:
+        """一括更新の実行順だけを監視する。"""
+        yield Handle()
+
+    monkeypatch.setattr(players, "roster_status_transaction_scope", scope)
+    context = cast(TenantContext, SimpleNamespace(tenant_id=tenant_id))
+    response = players.apply_player_status(
+        PlayerStatusBulkRequest.model_validate(_body(requested, "other")), context
+    )
+    assert read_order == [first, first, second, second]
+    assert update_order == [first, second]
+    assert [player.id for player in response.applied] == requested
+
+
 @pytest.mark.parametrize(
     ("constraint_name", "sqlstate", "expected_status"),
     (
