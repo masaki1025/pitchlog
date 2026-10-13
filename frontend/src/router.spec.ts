@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import type { Plugin } from 'vue'
-import { createMemoryHistory } from 'vue-router'
+import { createMemoryHistory, createWebHistory } from 'vue-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App.vue'
 import { installAppProviders, pinia } from './appProviders'
@@ -14,19 +14,20 @@ const sharedProviders: Plugin = {
 }
 
 afterEach(() => {
+  window.history.replaceState({}, '', '/')
   vi.unstubAllGlobals()
 })
 
 describe('公開ガイド経路', () => {
   it('未ログインでも /help へ直接到達できる', async () => {
     useAuthStore(pinia).signOut()
-    const router = createAppRouter(createMemoryHistory())
-    await router.push('/help')
-    await router.isReady()
-
+    window.history.replaceState({}, '', '/help')
+    const router = createAppRouter(createWebHistory())
     const wrapper = mount(App, {
       global: { plugins: [sharedProviders, router] },
     })
+    await router.isReady()
+    await flushPromises()
 
     expect(useAuthStore(pinia).isAuthenticated).toBe(false)
     expect(wrapper.get('h1').text()).toBe('使い方')

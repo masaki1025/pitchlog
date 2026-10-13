@@ -56,3 +56,4 @@ PR 段階の残ゲート: `vue-router` 追加を含むためコア領域とし�
 
 - Claude 一次レビューは weekly limit で実行不能。依頼者が 2026-10-13 に、この PR に限って Codex による代替レビューを明示承認した。
 - コア領域の敵対レビュー 1 回目（全文）: **否決（P0 0 / P1 1 / P2 0）**。P1 は、`/help` の直接到達テストがメモリ履歴へ事前に push しており、Web 履歴の初期 URL と HTTP 配信を実測していない点。採用し、計画を `active` へ戻して修正する。
+- P1 反映: テストを Web 履歴の初期 URL `/help` からの起動へ変更。対象 Vitest 3 ファイル・4 件、ESLint、`vue-tsc --noEmit`、Prettier check、`git diff --check` が成功。ビルド済み成果物を `vite preview` で配信し、実 HTTP `GET /help` が `200 OK` と PitchLog の SPA HTML を返すことを確認した。
