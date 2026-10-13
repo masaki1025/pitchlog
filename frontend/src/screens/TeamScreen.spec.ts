@@ -208,6 +208,8 @@ describe('TeamScreen', () => {
 
     const { wrapper } = mountScreen()
     await vi.waitFor(() => expect(wrapper.text()).toContain('選手 A'))
+    await wrapper.get('select[name="player-edit-target"]').setValue('player-a')
+    expect(wrapper.find('input[name="player-edit-name"]').exists()).toBe(true)
 
     void queryClient.invalidateQueries({
       queryKey: rosterQueryKeys.players.all('tenant-a'),
@@ -218,6 +220,7 @@ describe('TeamScreen', () => {
 
     expect(wrapper.text()).not.toContain('選手 A')
     expect(wrapper.find('[data-testid="player-list"]').exists()).toBe(false)
+    expect(wrapper.find('input[name="player-edit-name"]').exists()).toBe(false)
   })
 
   it('チームと選手を cursor 付きでページングし、選択チームを切り替える', async () => {

@@ -33,6 +33,11 @@ type PlayerMutationScope = TenantScope & {
   teamRecordId: string
 }
 
+type UnconfirmedMutationNotice = {
+  message: string
+  teamId: string
+}
+
 const auth = useAuthStore()
 const { authEpoch, teamId, teamName } = storeToRefs(auth)
 const queryClient = useQueryClient()
@@ -57,7 +62,13 @@ const editingPlayerName = ref('')
 const editingPlayerThrows = ref<PlayerRead['throws'] | ''>('')
 const editingPlayerBats = ref<PlayerRead['bats'] | ''>('')
 const editingPlayerUniformNumber = ref('')
-const unconfirmedMutationNotice = ref<string | null>(null)
+const unconfirmedMutationNotice = ref<UnconfirmedMutationNotice | null>(null)
+
+const visibleUnconfirmedMutationNotice = computed(() =>
+  unconfirmedMutationNotice.value?.teamId === teamId.value
+    ? unconfirmedMutationNotice.value.message
+    : null,
+)
 
 const opponents = computed(() =>
   props.teamRecords.filter((record) => record.kind === 'opponent'),
@@ -111,12 +122,24 @@ function preserveUnconfirmedResult(
   scope: TenantScope,
   target: string,
 ): boolean {
-  if (!(error instanceof ApiStaleAuthError) || isCurrentTenant(scope)) {
+  if (
+    (!(error instanceof ApiStaleAuthError) &&
+      !(error instanceof ApiNetworkError)) ||
+    isCurrentTenant(scope)
+  ) {
     return false
   }
   const source = scope.teamName ?? '送信元チーム'
-  unconfirmedMutationNotice.value = `${source}での${target}は結果未確認です。自動再送せず、送信元チームへ戻って一覧を再読込してください。`
+  unconfirmedMutationNotice.value = {
+    message: `${source}での${target}は結果未確認です。自動再送せず、送信元チームへ戻って一覧を再読込してください。`,
+    teamId: scope.teamId,
+  }
   return true
+}
+
+async function refreshQueryPrefix(queryKey: readonly unknown[]): Promise<void> {
+  await queryClient.cancelQueries({ queryKey })
+  await queryClient.invalidateQueries({ queryKey })
 }
 
 function resetPlayerCreateForm(): void {
@@ -167,6 +190,19 @@ watch(
   { flush: 'sync' },
 )
 
+watch(
+  () => props.players.map((player) => player.id),
+  (playerIds) => {
+    if (
+      editingPlayerId.value !== '' &&
+      !playerIds.includes(editingPlayerId.value)
+    ) {
+      clearPlayerEdit()
+    }
+  },
+  { flush: 'sync' },
+)
+
 const createOpponentMutation = useMutation({
   retry: false,
   mutationFn: async (variables: { name: string; scope: TenantScope }) => {
@@ -178,9 +214,9 @@ const createOpponentMutation = useMutation({
   },
   onSuccess: async (created, variables) => {
     if (!isCurrentTenant(variables.scope)) return
-    await queryClient.invalidateQueries({
-      queryKey: rosterQueryKeys.teamRecords.all(variables.scope.teamId),
-    })
+    await refreshQueryPrefix(
+      rosterQueryKeys.teamRecords.all(variables.scope.teamId),
+    )
     if (!isCurrentTenant(variables.scope)) return
     opponentName.value = ''
     opponentError.value = null
@@ -217,9 +253,9 @@ const updateOpponentMutation = useMutation({
   },
   onSuccess: async (updated, variables) => {
     if (!isCurrentTenant(variables.scope)) return
-    await queryClient.invalidateQueries({
-      queryKey: rosterQueryKeys.teamRecords.all(variables.scope.teamId),
-    })
+    await refreshQueryPrefix(
+      rosterQueryKeys.teamRecords.all(variables.scope.teamId),
+    )
     if (!isCurrentTenant(variables.scope)) return
     opponentError.value = null
     opponentSuccess.value = `対戦相手名を「${updated.name}」へ更新しました。`
@@ -251,9 +287,9 @@ const createPlayerMutation = useMutation({
   },
   onSuccess: async (created, variables) => {
     if (!isCurrentTenant(variables.scope)) return
-    await queryClient.invalidateQueries({
-      queryKey: rosterQueryKeys.players.all(variables.scope.teamId),
-    })
+    await refreshQueryPrefix(
+      rosterQueryKeys.players.all(variables.scope.teamId),
+    )
     if (!isCurrentPlayer(variables.scope)) return
     resetPlayerCreateForm()
     playerError.value = null
@@ -286,9 +322,9 @@ const updatePlayerMutation = useMutation({
   },
   onSuccess: async (updated, variables) => {
     if (!isCurrentTenant(variables.scope)) return
-    await queryClient.invalidateQueries({
-      queryKey: rosterQueryKeys.players.all(variables.scope.teamId),
-    })
+    await refreshQueryPrefix(
+      rosterQueryKeys.players.all(variables.scope.teamId),
+    )
     if (!isCurrentPlayer(variables.scope)) return
     playerError.value = null
     playerSuccess.value = `選手「${updated.name}」を更新しました。`
@@ -334,7 +370,7 @@ const isUpdatingPlayer = computed(
 )
 
 function submitOpponent(): void {
-  if (createOpponentMutation.isPending.value) return
+  if (isCreatingOpponent.value) return
   const scope = currentTenantScope()
   const name = opponentName.value.trim()
   opponentError.value = null
@@ -364,7 +400,7 @@ function editLastCreatedOpponent(): void {
 }
 
 function submitOpponentEdit(): void {
-  if (updateOpponentMutation.isPending.value) return
+  if (isUpdatingOpponent.value) return
   const scope = currentTenantScope()
   const name = editingOpponentName.value.trim()
   opponentError.value = null
@@ -391,7 +427,7 @@ function submitOpponentEdit(): void {
 }
 
 function submitPlayer(): void {
-  if (createPlayerMutation.isPending.value) return
+  if (isCreatingPlayer.value) return
   const scope = currentPlayerScope()
   const name = playerName.value.trim()
   playerError.value = null
@@ -427,7 +463,7 @@ function selectPlayerForEdit(id: string): void {
 }
 
 function submitPlayerEdit(): void {
-  if (updatePlayerMutation.isPending.value) return
+  if (isUpdatingPlayer.value) return
   const scope = currentPlayerScope()
   const name = editingPlayerName.value.trim()
   playerError.value = null
@@ -458,11 +494,11 @@ function submitPlayerEdit(): void {
 <template>
   <section class="mt-4 grid gap-4 xl:grid-cols-2" aria-label="登録と編集">
     <div
-      v-if="unconfirmedMutationNotice"
+      v-if="visibleUnconfirmedMutationNotice"
       class="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 xl:col-span-2"
       role="alert"
     >
-      <p>{{ unconfirmedMutationNotice }}</p>
+      <p>{{ visibleUnconfirmedMutationNotice }}</p>
       <Button
         class="mt-2"
         variant="ghost"

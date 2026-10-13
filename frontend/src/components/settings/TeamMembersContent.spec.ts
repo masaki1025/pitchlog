@@ -7,7 +7,7 @@ import {
 } from '@vue/test-utils'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiStaleAuthError } from '../../api/client'
+import { ApiNetworkError, ApiStaleAuthError } from '../../api/client'
 import {
   createPlayer,
   createTeamRecord,
@@ -359,6 +359,76 @@ describe('TeamMembersContent', () => {
     await flushPromises()
   })
 
+  it('旧 tenant の送信待ち中でも新 tenant の操作を送信できる', async () => {
+    const selfA = teamRecord('self-a', 'チーム A', 'self')
+    const selfB = teamRecord('self-b', 'チーム B', 'self')
+    const delayedA = deferred<TeamRecordCreated>()
+    let activeTenant: 'a' | 'b' = 'a'
+    listTeamRecordsMock.mockImplementation(async () =>
+      page([activeTenant === 'a' ? selfA : selfB]),
+    )
+    listPlayersMock.mockResolvedValue(page([]))
+    createTeamRecordMock
+      .mockImplementationOnce(() => delayedA.promise)
+      .mockResolvedValueOnce({
+        ...teamRecord('opponent-b', '対戦相手 B'),
+        similar_names: [],
+      })
+
+    const { auth, wrapper } = mountScreen()
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain('チーム Aの選手管理'),
+    )
+    await wrapper.get('input[name="opponent-name"]').setValue('対戦相手 A')
+    await buttonWithText(wrapper, '対戦相手を登録').trigger('click')
+
+    activeTenant = 'b'
+    auth.signIn({ teamId: 'tenant-b', teamName: 'チーム B' })
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain('チーム Bの選手管理'),
+    )
+    await wrapper.get('input[name="opponent-name"]').setValue('対戦相手 B')
+    await buttonWithText(wrapper, '対戦相手を登録').trigger('click')
+
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain('対戦相手「対戦相手 B」を登録しました'),
+    )
+    expect(createTeamRecordMock).toHaveBeenCalledTimes(2)
+
+    delayedA.resolve({
+      ...teamRecord('opponent-a', '対戦相手 A'),
+      similar_names: [],
+    })
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('対戦相手「対戦相手 A」を登録しました')
+  })
+
+  it('初回一覧取得中の登録後も新しい一覧を取得する', async () => {
+    const initialList = deferred<Page<TeamRecordRead>>()
+    const created: TeamRecordCreated = {
+      ...teamRecord('opponent-a', '対戦相手 A'),
+      similar_names: [],
+    }
+    listTeamRecordsMock
+      .mockImplementationOnce(() => initialList.promise)
+      .mockResolvedValueOnce(page([created]))
+    listPlayersMock.mockResolvedValue(page([]))
+    createTeamRecordMock.mockResolvedValue(created)
+
+    const { wrapper } = mountScreen()
+    await vi.waitFor(() => expect(listTeamRecordsMock).toHaveBeenCalledTimes(1))
+    await wrapper.get('input[name="opponent-name"]').setValue('対戦相手 A')
+    await buttonWithText(wrapper, '対戦相手を登録').trigger('click')
+
+    await vi.waitFor(() => expect(listTeamRecordsMock).toHaveBeenCalledTimes(2))
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain('対戦相手 A対戦相手'),
+    )
+    initialList.resolve(page([]))
+    await flushPromises()
+    expect(wrapper.text()).toContain('対戦相手 A対戦相手')
+  })
+
   it('同じ tenant で表示チームを切り替えても成功済み選手 cache を無効化する', async () => {
     const self = teamRecord('self-a', 'チーム A', 'self')
     const opponent = teamRecord('opponent-a', '対戦相手 A')
@@ -438,7 +508,7 @@ describe('TeamMembersContent', () => {
           same_number_players: [],
         })
       } else {
-        delayed.reject(new Error('A の失敗'))
+        delayed.reject(new ApiNetworkError(new Error('A の通信失敗')))
       }
       await flushPromises()
 
@@ -454,12 +524,18 @@ describe('TeamMembersContent', () => {
         queryClient.getQueryData(['players', 'tenant-b', 'sentinel']),
       ).toBe('keep-b-cache')
       expect(createPlayerMock).toHaveBeenCalledTimes(1)
-      if (outcome === 'success') {
+      expect(wrapper.text()).not.toContain(
+        'チーム Aでの選手の登録は結果未確認です',
+      )
+
+      activeTenant = 'a'
+      auth.signIn({ teamId: 'tenant-a', teamName: 'チーム A' })
+      await vi.waitFor(() =>
         expect(wrapper.text()).toContain(
           'チーム Aでの選手の登録は結果未確認です',
-        )
-        expect(wrapper.text()).toContain('送信元チームへ戻って一覧を再読込')
-      }
+        ),
+      )
+      expect(wrapper.text()).toContain('送信元チームへ戻って一覧を再読込')
     },
   )
 
