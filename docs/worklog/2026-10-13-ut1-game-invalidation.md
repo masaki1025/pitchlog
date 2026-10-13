@@ -88,8 +88,10 @@ branch: feature/ut1-game-invalidation
 
 **POが許可した独立Codex代替査読（2026-10-13）**: TSK-543追随範囲だけについて、候補生成・実装に関与していない別セッション`01a135bc-15de-7440-a4f3-7f4401b7bf26`へ読み取り専用で依頼。査読対象は`/tmp/tsk543-independent-classification-review-brief.md`、判定は**否決 P0=0/P1=3/P2=0**。①`FR-019/list_item-005`の復元期限述語をout_of_scopeに置く漏れ、②旧`-009`のロール主張を新`-010`へ移さず、新`-009`へ旧層・ownerを誤接続すること、③oracle意味変更承認資産と検証器が追加行のみを扱い今回の置換を表現できないこと、の3件を**すべて採用**した。修正後の9行分類、`claim-mutant-map`・`boundary-proposal`・`mcdc-map`・意味変更承認宣言/既存検証テストを含む追随候補、#124保持、7.7/oracleの別ゲートは`/tmp/tsk543-po-alternative-acceptance-brief.md`にまとめた。これらの追加範囲はPOの代替受理判断へ提示し、**査読完了だけで受理済みとはしない**。明示受理まで正式資産を更新しない。
 
+**TSK-424分類・追随範囲のPO代替受理とステップ1開始（2026-10-13・本会話の利用者）**: 利用者は独立査読のP1全採用後の方針を**今回のTSK-543に限り**TSK-424所有側の代替受理として明示承認した。対象は追加`CHANGELOG/table_row-040`・`-041`のout_of_scope、旧`FR-019/list_item-009`と同一本文・digestのロール主張を新`-010`へ意味対応参照・ownerごと移すこと、`FR-019/list_item-005`の復元期限操作許可主張化、新`-009`の読取可視性と復元可否の分離、FR-019の読取範囲規則への必要最小限の追加、`claim-mutant-map`・`boundary-proposal`・`mcdc-map`と今回のID移動・置換の承認宣言・検証器・負例テストである。残る変更行は`APPENDIX-C/blockquote-001`と`FR-019/list_item-006`がauth_claim継続、`APPENDIX-C/table_row-003`と`FR-019/list_item-008`がout_of_scope継続。原文・旧文・digestの根拠は隔離候補`/tmp/tsk543-step1-post124-source-delta.json`、現行分類規則・owner・派生参照の根拠は`contracts/authz/requirement-claims.json`・`auth-catalog.json`・`claim-mutant-map.json`・`boundary-proposal.json`、oracle追加行のみの制約は`contracts/authz/oracle-meaning-change-approvals.json`と`backend/tests/db/authz/mutation_composition.py`にある。一般的な検査緩和・無関係なハーネス改修は含まず、未受理のテスト受取先はplannedのまま維持する。PR #124のGETと既存7.7履歴を保持する。既存の条件付き開始承認によりステップ1へ進む。実差分の7.7逐行確認、oracle意味変更の再レビュー・再封印の人間確認、6.3コアレビューは別ゲート。ステップ2・保守用認可・既存DB適用は保留。`origin/develop`の#124統合コミット`2a4568285be8a3d412822f4a9e239d11321eb5da`を本featureブランチへマージ済み。
+
 ## 未了のゲート
 
-- 設計書11-2の規範改訂は7.3で確定済み。凍結資産更新は7.7、製品認可差分はTSK-424所有者または今回POが認めた独立査読後の**PO明示代替受理**が必要。ステップ1には前提成立を条件とした開始承認がある。
+- 設計書11-2の規範改訂は7.3で確定済み。認可資産の分類・追随範囲は今回のPO代替受理済み。凍結資産の実差分7.7、oracle意味変更の再レビュー・人間確認、6.3コアレビューは別に必要。ステップ1は開始済み。
 - 期限保守更新の意図INSERT権限は追加しない。保守用認可のP0 3件は別に未解決。
 - 対象DBの既存行は測定不能。migrationの実DB適用条件はU-D1の調査・移行裁定後に確定する。
