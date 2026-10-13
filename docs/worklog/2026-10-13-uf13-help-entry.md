@@ -43,3 +43,11 @@ Notion の U-F13 タスク URL は U-F2 の作業ログから得たが、現在�
 検証結果: フロントエンド Vitest 50 ファイル・865 件成功、ESLint 成功、`vue-tsc --noEmit` 成功、Prettier check 成功、`pnpm build` 成功、`git diff --check` 成功。ビルド時の依存閉域検査も `conforming`。共有 provider の instance 同一性テストは継続して成功し、往復テストでは同じ Pinia store instance が維持された。
 
 PR 段階の残ゲート: `vue-router` 追加を含むためコア領域として敵対レビューを実施し、人間の逐行確認と `core-guard` の確認記録を得る。これは TSK-528 全体の完了条件とは別であり、今回の部分実装をカード完了として扱わない。
+
+## 結果サマリ（Draft PR 準備）
+
+- U-F4 の静的ガイドを公開 `/help` へ接続し、トップからの導線と `back` emit によるトップ復帰を実装した。
+- 共有 Pinia と既存 QueryClient をアプリ起動へ接続し、instance の同一性、未ログインの直接到達、往復操作、暫定トップで通信が発生しないことを Vitest で確認した。
+- 正本の改訂はない。TSK-528 全体では 15 経路と catch-all、認証ガード、越境試験が未実装であり、本 PR はカードの部分充足として扱う。
+- ハーネス運用評価台帳への追記なし。本作業で発生した sandbox の子プロセス制限は既知の実行環境差であり、製品ハーネスの新たな傾向・欠陥を示す知見ではないため。
+- `vue-router` の依存追加がコア領域 paths に該当する。敵対レビュー、人間の逐行確認、`core-guard` の記録は Draft PR 上で完了させる。
