@@ -92,6 +92,10 @@ branch: feature/ut1-game-invalidation
 
 ## 未了のゲート
 
+**番号取得用Draft PRのPO限定例外（2026-10-14・本会話の利用者）**: TSK-543の7.7 v2履歴はPR番号由来の`acceptance_id`を、oracle再封印は入力8資産を含む実コミットSHAを必要とするため、現行計画の「検査が緑になる前にPRを作らない」と順序が循環した。利用者は本件に限り、確定済みの計画・作業ログ等だけを準備コミットとしてpushし、番号取得用Draft PRを検査未完了で作る例外を明示承認した。候補製品コード・凍結契約・未受理台帳は準備pushから除外し、Draft本文に未完了と未通過検査を明記する。oracle入力8資産だけのローカル中間コミットもステップ単位コミットの限定例外として承認したが、pushしない。正式authority履歴、意味変更承認宣言、再封印、その他製品変更を中間コミットに混ぜない。PR番号と入力コミットSHAを取得した後に完全な値を提示し、7.7逐行確認・oracle意味変更/再封印の人間承認を別に受ける。ステップ2・Draft解除・マージ・既存DB適用は保留する。
+
+**ステップ1の候補実装と未確定ゲート（2026-10-14）**: #124統合基線とPO代替受理の範囲で、純粋要求生成器へ試合具体鍵と4つの自テナント選択子を実装し、契約revision 12、要件主張台帳・lock・route/auth/matrix各派生資産、schema manifest、shared preconditionsを候補更新した。旧ロール主張のownerは新`FR-019/list_item-010`へ移し、`FR-019/list_item-005`と新`-009`の読取/操作主張はplannedの受取先を維持する。#124のGET・既存履歴は保持した。oracleの旧行置換と派生参照の厳密な前後照合を検査器と負例テストへ追加し、未承認宣言は正式資産へ書かず`/tmp/tsk543-oracle-meaning-approval-candidate.json`に隔離した。凍結履歴は`cache-invalidation-contract.json`内の旧形式へ追記せず、単一authorityのv2候補を`/tmp/tsk543-frozen-v2-candidate.json`とsnapshot候補に隔離した。**両候補とも人間未承認であり正式記録ではない。** 凍結射影は`5333c6085213f5eaa703e9fc86f50ea0324a338896630f3439acd9bf02b360d6`→`3c8b7bb5119b56557a87597bee51a7e4a795d39b5ff2adf32302b0863179e058`、対象識別値は`contract_revision:11`→`contract_revision:12`。oracleの8入力blobと再封印前の2封印本文digestの完全値は`/tmp/tsk543-oracle-digest-diff.json`、確認用の要約は`/tmp/tsk543-step1-human-review-brief.md`に置いた。再封印時は6資産のoracle_commitポインタを更新するため6封印digestとmcdc-map参照を再計算する。Ruff・ty、関連backendテスト38件、認可checkerのoracle以外、shared preconditionsは成功。7.7のauthority履歴とoracle sealは別途人間確認・PR受理情報が未確定のため本検査は未成功であり、ステップ1完了・コミットとは扱わない。最新`origin/develop`の#125統合`ef5c8711ac739d9189ca037c6e4feac630a7772e`は#124以降の関連契約/生成器には差分がない。保守用認可・ステップ2・既存DB適用は行っていない。
+
 - 設計書11-2の規範改訂は7.3で確定済み。認可資産の分類・追随範囲は今回のPO代替受理済み。凍結資産の実差分7.7、oracle意味変更の再レビュー・人間確認、6.3コアレビューは別に必要。ステップ1は開始済み。
 - 期限保守更新の意図INSERT権限は追加しない。保守用認可のP0 3件は別に未解決。
 - 対象DBの既存行は測定不能。migrationの実DB適用条件はU-D1の調査・移行裁定後に確定する。
