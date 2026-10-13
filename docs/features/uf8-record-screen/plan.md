@@ -1,6 +1,6 @@
 ---
 feature: uf8-record-screen
-status: active
+status: in-review
 承認: 済(2026-10-13・ユーザー、ステップ1・2と追補を承認)
 重さ分類: コア領域
 worktree: ../../..
