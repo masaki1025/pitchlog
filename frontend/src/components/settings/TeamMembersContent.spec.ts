@@ -298,6 +298,104 @@ describe('TeamMembersContent', () => {
     expect(editOptions).not.toContain('self-a')
   })
 
+  it('送信中の対戦相手登録をフォームから重複送信しない', async () => {
+    const self = teamRecord('self-a', 'チーム A', 'self')
+    const delayed = deferred<TeamRecordCreated>()
+    listTeamRecordsMock.mockResolvedValue(page([self]))
+    listPlayersMock.mockResolvedValue(page([]))
+    createTeamRecordMock.mockImplementationOnce(() => delayed.promise)
+
+    const { wrapper } = mountScreen()
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain('チーム Aの選手管理'),
+    )
+    await wrapper.get('input[name="opponent-name"]').setValue('対戦相手 A')
+    const form = wrapper
+      .findAll('form')
+      .find((candidate) =>
+        candidate.find('input[name="opponent-name"]').exists(),
+      )
+    expect(form).toBeDefined()
+
+    await form!.trigger('submit')
+    await form!.trigger('submit')
+
+    expect(createTeamRecordMock).toHaveBeenCalledTimes(1)
+    delayed.resolve({
+      ...teamRecord('opponent-a', '対戦相手 A'),
+      similar_names: [],
+    })
+    await flushPromises()
+  })
+
+  it('送信中の対戦相手編集をフォームから重複送信しない', async () => {
+    const self = teamRecord('self-a', 'チーム A', 'self')
+    const opponent = teamRecord('opponent-a', '対戦相手 A')
+    const delayed = deferred<TeamRecordRead>()
+    listTeamRecordsMock.mockResolvedValue(page([self, opponent]))
+    listPlayersMock.mockResolvedValue(page([]))
+    updateTeamRecordMock.mockImplementationOnce(() => delayed.promise)
+
+    const { wrapper } = mountScreen()
+    await vi.waitFor(() => expect(wrapper.text()).toContain('対戦相手 A'))
+    await wrapper
+      .get('select[name="opponent-edit-target"]')
+      .setValue('opponent-a')
+    await wrapper
+      .get('input[name="opponent-edit-name"]')
+      .setValue('対戦相手 A 更新')
+    const form = wrapper
+      .findAll('form')
+      .find((candidate) =>
+        candidate.find('input[name="opponent-edit-name"]').exists(),
+      )
+    expect(form).toBeDefined()
+
+    await form!.trigger('submit')
+    await form!.trigger('submit')
+
+    expect(updateTeamRecordMock).toHaveBeenCalledTimes(1)
+    delayed.resolve({ ...opponent, name: '対戦相手 A 更新' })
+    await flushPromises()
+  })
+
+  it('同じ tenant で表示チームを切り替えても成功済み選手 cache を無効化する', async () => {
+    const self = teamRecord('self-a', 'チーム A', 'self')
+    const opponent = teamRecord('opponent-a', '対戦相手 A')
+    const delayed = deferred<PlayerCreated>()
+    listTeamRecordsMock.mockResolvedValue(page([self, opponent]))
+    listPlayersMock.mockResolvedValue(page([]))
+    createPlayerMock.mockImplementationOnce(() => delayed.promise)
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+
+    const { wrapper } = mountScreen()
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain('チーム Aの選手管理'),
+    )
+    await wrapper.get('input[name="player-name"]').setValue('遅延選手')
+    await wrapper.get('select[name="player-throws"]').setValue('right')
+    await wrapper.get('select[name="player-bats"]').setValue('left')
+    await buttonWithText(wrapper, '選手を登録').trigger('click')
+
+    const opponentButton = wrapper
+      .findAll('[data-testid="team-record-list"] button')
+      .find((button) => button.text().includes('対戦相手 A'))
+    expect(opponentButton).toBeDefined()
+    await opponentButton!.trigger('click')
+    delayed.resolve({
+      ...player('player-delayed', self.id, '遅延選手'),
+      same_number_players: [],
+    })
+
+    await vi.waitFor(() =>
+      expect(invalidate).toHaveBeenCalledWith({
+        queryKey: rosterQueryKeys.players.all('tenant-a'),
+      }),
+    )
+    expect(wrapper.text()).toContain('対戦相手 Aの選手管理')
+    expect(wrapper.text()).not.toContain('選手「遅延選手」を登録しました')
+  })
+
   it.each(['success', 'failure'] as const)(
     '認証切替中の遅延 mutation %s が新 tenant の画面・cacheを変更しない',
     async (outcome) => {
@@ -356,6 +454,12 @@ describe('TeamMembersContent', () => {
         queryClient.getQueryData(['players', 'tenant-b', 'sentinel']),
       ).toBe('keep-b-cache')
       expect(createPlayerMock).toHaveBeenCalledTimes(1)
+      if (outcome === 'success') {
+        expect(wrapper.text()).toContain(
+          'チーム Aでの選手の登録は結果未確認です',
+        )
+        expect(wrapper.text()).toContain('送信元チームへ戻って一覧を再読込')
+      }
     },
   )
 

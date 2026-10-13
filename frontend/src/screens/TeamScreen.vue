@@ -2,7 +2,7 @@
 import { useInfiniteQuery } from '@tanstack/vue-query'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import { ApiNetworkError, ApiStaleAuthError } from '../api/client'
+import { ApiError, ApiNetworkError, ApiStaleAuthError } from '../api/client'
 import {
   listPlayers,
   listTeamRecords,
@@ -44,8 +44,19 @@ const teamRecordsQuery = useInfiniteQuery({
   getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
 })
 
-const teamRecords = computed<TeamRecordRead[]>(
-  () => teamRecordsQuery.data.value?.pages.flatMap((page) => page.items) ?? [],
+function isNotFound(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404
+}
+
+const teamRecords = computed<TeamRecordRead[]>(() => {
+  if (isNotFound(teamRecordsQuery.error.value)) return []
+  return teamRecordsQuery.data.value?.pages.flatMap((page) => page.items) ?? []
+})
+
+const showTeamRecordsRefetchWarning = computed(
+  () =>
+    teamRecordsQuery.isRefetchError.value &&
+    !isNotFound(teamRecordsQuery.error.value),
 )
 
 watch(
@@ -120,8 +131,14 @@ const playersQuery = useInfiniteQuery({
   getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
 })
 
-const players = computed<PlayerRead[]>(
-  () => playersQuery.data.value?.pages.flatMap((page) => page.items) ?? [],
+const players = computed<PlayerRead[]>(() => {
+  if (isNotFound(playersQuery.error.value)) return []
+  return playersQuery.data.value?.pages.flatMap((page) => page.items) ?? []
+})
+
+const showPlayersRefetchWarning = computed(
+  () =>
+    playersQuery.isRefetchError.value && !isNotFound(playersQuery.error.value),
 )
 
 function selectTeam(recordId: string): void {
@@ -158,6 +175,9 @@ function listErrorMessage(error: unknown, target: string): string {
   }
   if (error instanceof ApiNetworkError) {
     return `${target}を取得できませんでした。通信状態を確認してください。`
+  }
+  if (isNotFound(error)) {
+    return `${target}の対象が見つかりません。表示中だった情報を隠しました。`
   }
   return `${target}を取得できませんでした。時間をおいて再試行してください。`
 }
@@ -202,6 +222,18 @@ function battingLabel(value: PlayerRead['bats']): string {
         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
           自チームと登録済みの対戦相手
         </p>
+
+        <div
+          v-if="showTeamRecordsRefetchWarning"
+          class="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+          role="alert"
+        >
+          <p>
+            {{ listErrorMessage(teamRecordsQuery.error.value, 'チーム一覧') }}
+            表示中の情報は古い可能性があります。
+          </p>
+          <Button class="mt-3" @click="retryTeamRecords">再試行</Button>
+        </div>
 
         <p
           v-if="teamRecordsQuery.isPending.value"
@@ -283,6 +315,18 @@ function battingLabel(value: PlayerRead['bats']): string {
         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
           登録済み選手
         </p>
+
+        <div
+          v-if="showPlayersRefetchWarning"
+          class="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+          role="alert"
+        >
+          <p>
+            {{ listErrorMessage(playersQuery.error.value, '選手一覧') }}
+            表示中の情報は古い可能性があります。
+          </p>
+          <Button class="mt-3" @click="retryPlayers">再試行</Button>
+        </div>
 
         <p
           v-if="selectedTeamRecordId === null"

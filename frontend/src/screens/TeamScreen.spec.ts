@@ -2,6 +2,7 @@ import { VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError, ApiNetworkError } from '../api/client'
 import type { Page } from '../api/types'
 import {
   listPlayers,
@@ -10,6 +11,7 @@ import {
   type TeamRecordRead,
 } from '../api/roster'
 import { queryClient } from '../lib/queryClient'
+import { rosterQueryKeys } from '../lib/rosterQueryKeys'
 import { useAuthStore } from '../stores/authStore'
 import TeamScreen from './TeamScreen.vue'
 
@@ -160,6 +162,62 @@ describe('TeamScreen', () => {
     )
 
     expect(listTeamRecordsMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('一覧の再取得失敗時は旧データの鮮度を警告して再試行する', async () => {
+    listTeamRecordsMock
+      .mockResolvedValueOnce(page([teamRecord('self-a', 'チーム A', 'self')]))
+      .mockRejectedValueOnce(new ApiNetworkError(new Error('接続失敗')))
+      .mockResolvedValueOnce(
+        page([teamRecord('self-a', 'チーム A 更新', 'self')]),
+      )
+
+    const { wrapper } = mountScreen()
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-testid="team-record-list"]').exists()).toBe(
+        true,
+      ),
+    )
+
+    void queryClient.invalidateQueries({
+      queryKey: rosterQueryKeys.teamRecords.all('tenant-a'),
+    })
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain('表示中の情報は古い可能性があります'),
+    )
+    expect(wrapper.text()).toContain('チーム A')
+
+    const retry = wrapper
+      .findAll('[role="alert"] button')
+      .find((button) => button.text() === '再試行')
+    expect(retry).toBeDefined()
+    await retry!.trigger('click')
+    await vi.waitFor(() => expect(wrapper.text()).toContain('チーム A 更新'))
+    expect(wrapper.text()).not.toContain('表示中の情報は古い可能性があります')
+  })
+
+  it('選手一覧の再取得が404なら取得済み行を隠す', async () => {
+    listTeamRecordsMock.mockResolvedValue(
+      page([teamRecord('self-a', 'チーム A', 'self')]),
+    )
+    listPlayersMock
+      .mockResolvedValueOnce(page([player('player-a', 'self-a', '選手 A')]))
+      .mockRejectedValueOnce(
+        new ApiError(404, 'not found', [], undefined, null),
+      )
+
+    const { wrapper } = mountScreen()
+    await vi.waitFor(() => expect(wrapper.text()).toContain('選手 A'))
+
+    void queryClient.invalidateQueries({
+      queryKey: rosterQueryKeys.players.all('tenant-a'),
+    })
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain('表示中だった情報を隠しました'),
+    )
+
+    expect(wrapper.text()).not.toContain('選手 A')
+    expect(wrapper.find('[data-testid="player-list"]').exists()).toBe(false)
   })
 
   it('チームと選手を cursor 付きでページングし、選択チームを切り替える', async () => {

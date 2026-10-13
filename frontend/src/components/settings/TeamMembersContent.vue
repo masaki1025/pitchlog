@@ -26,6 +26,7 @@ const props = defineProps<{
 type TenantScope = {
   authEpoch: number
   teamId: string
+  teamName: string | null
 }
 
 type PlayerMutationScope = TenantScope & {
@@ -33,7 +34,7 @@ type PlayerMutationScope = TenantScope & {
 }
 
 const auth = useAuthStore()
-const { authEpoch, teamId } = storeToRefs(auth)
+const { authEpoch, teamId, teamName } = storeToRefs(auth)
 const queryClient = useQueryClient()
 
 const opponentName = ref('')
@@ -56,6 +57,7 @@ const editingPlayerName = ref('')
 const editingPlayerThrows = ref<PlayerRead['throws'] | ''>('')
 const editingPlayerBats = ref<PlayerRead['bats'] | ''>('')
 const editingPlayerUniformNumber = ref('')
+const unconfirmedMutationNotice = ref<string | null>(null)
 
 const opponents = computed(() =>
   props.teamRecords.filter((record) => record.kind === 'opponent'),
@@ -63,7 +65,11 @@ const opponents = computed(() =>
 
 function currentTenantScope(): TenantScope | null {
   if (teamId.value === null) return null
-  return { authEpoch: authEpoch.value, teamId: teamId.value }
+  return {
+    authEpoch: authEpoch.value,
+    teamId: teamId.value,
+    teamName: teamName.value,
+  }
 }
 
 function currentPlayerScope(): PlayerMutationScope | null {
@@ -98,6 +104,19 @@ function mutationErrorMessage(error: unknown, target: string): string {
     if (error.status === 422) return '入力内容を確認してください。'
   }
   return `${target}に失敗しました。時間をおいて再試行してください。`
+}
+
+function preserveUnconfirmedResult(
+  error: unknown,
+  scope: TenantScope,
+  target: string,
+): boolean {
+  if (!(error instanceof ApiStaleAuthError) || isCurrentTenant(scope)) {
+    return false
+  }
+  const source = scope.teamName ?? '送信元チーム'
+  unconfirmedMutationNotice.value = `${source}での${target}は結果未確認です。自動再送せず、送信元チームへ戻って一覧を再読込してください。`
+  return true
 }
 
 function resetPlayerCreateForm(): void {
@@ -170,6 +189,9 @@ const createOpponentMutation = useMutation({
     lastCreatedOpponent.value = created
   },
   onError: (error, variables) => {
+    if (preserveUnconfirmedResult(error, variables.scope, '対戦相手の登録')) {
+      return
+    }
     if (!isCurrentTenant(variables.scope)) return
     opponentSuccess.value = null
     similarNames.value = []
@@ -206,6 +228,9 @@ const updateOpponentMutation = useMutation({
     clearOpponentEdit()
   },
   onError: (error, variables) => {
+    if (preserveUnconfirmedResult(error, variables.scope, '対戦相手名の更新')) {
+      return
+    }
     if (!isCurrentTenant(variables.scope)) return
     opponentSuccess.value = null
     opponentError.value = mutationErrorMessage(error, '対戦相手名の更新')
@@ -219,7 +244,7 @@ const createPlayerMutation = useMutation({
     scope: PlayerMutationScope
   }) => {
     const created = await createPlayer(variables.body)
-    if (!isCurrentPlayer(variables.scope)) {
+    if (!isCurrentTenant(variables.scope)) {
       throw new ApiStaleAuthError('POST', '/players')
     }
     return created
@@ -236,6 +261,9 @@ const createPlayerMutation = useMutation({
     sameNumberPlayers.value = [...created.same_number_players]
   },
   onError: (error, variables) => {
+    if (preserveUnconfirmedResult(error, variables.scope, '選手の登録')) {
+      return
+    }
     if (!isCurrentPlayer(variables.scope)) return
     playerSuccess.value = null
     sameNumberPlayers.value = []
@@ -251,7 +279,7 @@ const updatePlayerMutation = useMutation({
     scope: PlayerMutationScope
   }) => {
     const updated = await updatePlayer(variables.id, variables.body)
-    if (!isCurrentPlayer(variables.scope)) {
+    if (!isCurrentTenant(variables.scope)) {
       throw new ApiStaleAuthError('PATCH', `/players/${variables.id}`)
     }
     return updated
@@ -268,6 +296,9 @@ const updatePlayerMutation = useMutation({
     clearPlayerEdit()
   },
   onError: (error, variables) => {
+    if (preserveUnconfirmedResult(error, variables.scope, '選手の更新')) {
+      return
+    }
     if (!isCurrentPlayer(variables.scope)) return
     playerSuccess.value = null
     playerError.value = mutationErrorMessage(error, '選手の更新')
@@ -303,6 +334,7 @@ const isUpdatingPlayer = computed(
 )
 
 function submitOpponent(): void {
+  if (createOpponentMutation.isPending.value) return
   const scope = currentTenantScope()
   const name = opponentName.value.trim()
   opponentError.value = null
@@ -332,6 +364,7 @@ function editLastCreatedOpponent(): void {
 }
 
 function submitOpponentEdit(): void {
+  if (updateOpponentMutation.isPending.value) return
   const scope = currentTenantScope()
   const name = editingOpponentName.value.trim()
   opponentError.value = null
@@ -358,6 +391,7 @@ function submitOpponentEdit(): void {
 }
 
 function submitPlayer(): void {
+  if (createPlayerMutation.isPending.value) return
   const scope = currentPlayerScope()
   const name = playerName.value.trim()
   playerError.value = null
@@ -393,6 +427,7 @@ function selectPlayerForEdit(id: string): void {
 }
 
 function submitPlayerEdit(): void {
+  if (updatePlayerMutation.isPending.value) return
   const scope = currentPlayerScope()
   const name = editingPlayerName.value.trim()
   playerError.value = null
@@ -422,6 +457,20 @@ function submitPlayerEdit(): void {
 
 <template>
   <section class="mt-4 grid gap-4 xl:grid-cols-2" aria-label="登録と編集">
+    <div
+      v-if="unconfirmedMutationNotice"
+      class="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 xl:col-span-2"
+      role="alert"
+    >
+      <p>{{ unconfirmedMutationNotice }}</p>
+      <Button
+        class="mt-2"
+        variant="ghost"
+        @click="unconfirmedMutationNotice = null"
+      >
+        案内を閉じる
+      </Button>
+    </div>
     <div
       class="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
     >
