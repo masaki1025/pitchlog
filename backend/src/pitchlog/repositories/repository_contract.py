@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 14
+CONTRACT_REVISION = 16
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "3ea3ba37118735da1a662a9af9dd19e561317b1e6a42806bffd08233c856a669"
+SOURCE_DIGEST = "aba7762367cbe7c8cc497a953c0923bc4d0b83443f2163772771bf1b9bc08834"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -38,7 +38,11 @@ IMMUTABLE_SCALAR_TYPES = (
     "datetime.datetime",
     "datetime.time",
 )
-IMMUTABLE_CONTAINER_GRAMMAR = ("tuple[T, ...]", "frozenset[T]")
+IMMUTABLE_CONTAINER_GRAMMAR = (
+    "tuple[T, ...]",
+    "frozenset[T]",
+    "mappingproxy[str, T]",
+)
 FORBIDDEN_TYPES = (
     "typing.Any",
     "builtins.object",
@@ -64,6 +68,9 @@ PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:team_records:update",
     "CAP:games:read",
     "CAP:invalidation_intents:insert",
+    "CAP:lineup_memories:read",
+    "CAP:lineup_memories:insert",
+    "CAP:lineup_memories:update",
 )
 PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -77,5 +84,10 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.roster.TeamRecordDeleteToken",
     "pitchlog.repositories.roster.GameTeamLinkReadToken",
     "pitchlog.repositories.invalidation_intents.InvalidationIntentInsertToken",
+    "pitchlog.repositories.lineup_memory._SelfTeamLockToken",
+    "pitchlog.repositories.lineup_memory._ActiveLineupPlayerLockToken",
+    "pitchlog.repositories.lineup_memory.LineupMemoryReadToken",
+    "pitchlog.repositories.lineup_memory._LineupMemoryInsertToken",
+    "pitchlog.repositories.lineup_memory._LineupMemoryUpdateToken",
 )
 CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
