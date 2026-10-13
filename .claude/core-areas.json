@@ -254,7 +254,10 @@
         "scripts/representative_selection.py",
         "tests/test_branch_row_mapping.py",
         "frontend/src/api/client*",
-        "frontend/src/screens/GameScreen*"
+        "frontend/src/screens/GameScreen*",
+        "backend/src/pitchlog/sync/*",
+        "backend/src/pitchlog/repositories/sync_apply.py",
+        "backend/tests/test_sync_apply_*.py"
       ]
     },
     {
@@ -449,7 +452,10 @@
         "tests/test_orm_acceptance_sheets.py",
         "docs/adr/ADR-001-codex-model-selection.md",
         "frontend/src/api/client*",
-        "frontend/src/screens/GameScreen*"
+        "frontend/src/screens/GameScreen*",
+        "backend/src/pitchlog/sync/*",
+        "backend/src/pitchlog/repositories/sync_apply.py",
+        "backend/tests/test_sync_apply_*.py"
       ]
     },
     {
