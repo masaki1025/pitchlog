@@ -3,7 +3,7 @@
   "$id": "https://pitchlog.local/contracts/display-geometry/field_geometry_vector_contract_schema_v1.json",
   "title": "Pitchlog field geometry vector contract schema v1",
   "version": "field_geometry_vector_contract_schema_v1",
-  "description": "捕球選手推定と画面座標・保存座標の変換に共通する、1 ファイル = 1 対象計算のベクタ契約。画面座標は 263・左上原点、保存座標は 0〜1・左下原点。座標の各成分は value / scale の固定小数点整数で記録する。",
+  "description": "捕球選手推定と画面座標・保存座標の変換に共通する、1 ファイル = 1 対象計算のベクタ契約。画面座標は 263・左上原点、保存座標は 0〜1・左下原点。座標の各成分は ADR-003 D-14-e の整数・decimal・有理数のいずれかで記録する。",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -28,21 +28,40 @@
     }
   },
   "$defs": {
-    "fixedPoint": {
-      "description": "value / scale。scale は 10 の冪で、整数のまま表現する。scale の採用値と丸め規則は対象計算の条文で決める。数値の字面は schema では判別できないため、tests/test_field_geometry_numeric_lexemes.py で字句検査する。",
+    "numericValue": {
+      "description": "ADR-003 D-14-e の整数・decimal・有理数。採用する形は各契約の条文による。丸め規則は要件書 付録A-1 と ADR-003 D-14-e を参照する。数値の字面は tests/test_field_geometry_numeric_lexemes.py で字句検査する。",
       "$comment": "JSON Schema は数値リテラルの綴りを保持しない。-0 や 1.0 の字面は契約ファイルの原文に対する検査で拒否する。",
+      "oneOf": [
+        {"type": "integer"},
+        {"$ref": "#/$defs/decimal"},
+        {"$ref": "#/$defs/rational"}
+      ]
+    },
+    "decimal": {
+      "description": "value / scale。scale は 10 の冪。",
       "type": "object",
       "required": ["value", "scale"],
       "additionalProperties": false,
       "properties": {
-        "value": {
-          "type": "integer",
-          "minimum": -9007199254740991,
-          "maximum": 9007199254740991
-        },
+        "value": {"type": "integer"},
         "scale": {
           "type": "integer",
           "enum": [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000, 100000000000, 1000000000000, 10000000000000, 100000000000000, 1000000000000000]
+        }
+      }
+    },
+    "rational": {
+      "description": "分子 / 分母。分母は 0 以外の整数。",
+      "type": "object",
+      "required": ["numerator", "denominator"],
+      "additionalProperties": false,
+      "properties": {
+        "numerator": {"type": "integer"},
+        "denominator": {
+          "oneOf": [
+            {"type": "integer", "maximum": -1},
+            {"type": "integer", "minimum": 1}
+          ]
         }
       }
     },
@@ -52,8 +71,8 @@
       "required": ["x", "y"],
       "additionalProperties": false,
       "properties": {
-        "x": {"$ref": "#/$defs/fixedPoint"},
-        "y": {"$ref": "#/$defs/fixedPoint"}
+        "x": {"$ref": "#/$defs/numericValue"},
+        "y": {"$ref": "#/$defs/numericValue"}
       }
     },
     "case": {

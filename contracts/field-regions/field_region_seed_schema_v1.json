@@ -3,7 +3,7 @@
   "$id": "https://pitchlog.local/contracts/field-regions/field_region_seed_schema_v1.json",
   "title": "Pitchlog field region seed schema v1",
   "version": "field_region_seed_schema_v1",
-  "description": "付録B-6 の参照データ契約。regions 配列の順序そのものが規則の一部であり、境界線上では先に定義された領域が優先する。directionSectors も左翼線から右翼線へ定義順を保つ。座標は 0〜1・左下原点の固定小数点整数で記録する。",
+  "description": "付録B-6 の参照データ契約。regions 配列の順序そのものが規則の一部であり、境界線上では先に定義された領域が優先する。directionSectors も左翼線から右翼線へ定義順を保つ。座標は 0〜1・左下原点で、各成分は ADR-003 D-14-e の整数・decimal・有理数のいずれかで記録する。",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -73,21 +73,40 @@
         "blobSha": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"}
       }
     },
-    "fixedPoint": {
-      "description": "value / scale。scale は 10 の冪。scale の採用値は領域シードの定義時に決める。数値の字面は schema では判別できないため、tests/test_field_geometry_numeric_lexemes.py で字句検査する。",
+    "numericValue": {
+      "description": "ADR-003 D-14-e の整数・decimal・有理数。採用する形は各契約の条文による。丸め規則は要件書 付録A-1 と ADR-003 D-14-e を参照する。数値の字面は tests/test_field_geometry_numeric_lexemes.py で字句検査する。",
       "$comment": "JSON Schema は数値リテラルの綴りを保持しない。-0 や 1.0 の字面は契約ファイルの原文に対する検査で拒否する。",
+      "oneOf": [
+        {"type": "integer"},
+        {"$ref": "#/$defs/decimal"},
+        {"$ref": "#/$defs/rational"}
+      ]
+    },
+    "decimal": {
+      "description": "value / scale。scale は 10 の冪。",
       "type": "object",
       "required": ["value", "scale"],
       "additionalProperties": false,
       "properties": {
-        "value": {
-          "type": "integer",
-          "minimum": -9007199254740991,
-          "maximum": 9007199254740991
-        },
+        "value": {"type": "integer"},
         "scale": {
           "type": "integer",
           "enum": [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000, 100000000000, 1000000000000, 10000000000000, 100000000000000, 1000000000000000]
+        }
+      }
+    },
+    "rational": {
+      "description": "分子 / 分母。分母は 0 以外の整数。",
+      "type": "object",
+      "required": ["numerator", "denominator"],
+      "additionalProperties": false,
+      "properties": {
+        "numerator": {"type": "integer"},
+        "denominator": {
+          "oneOf": [
+            {"type": "integer", "maximum": -1},
+            {"type": "integer", "minimum": 1}
+          ]
         }
       }
     },
@@ -96,8 +115,8 @@
       "required": ["x", "y"],
       "additionalProperties": false,
       "properties": {
-        "x": {"$ref": "#/$defs/fixedPoint"},
-        "y": {"$ref": "#/$defs/fixedPoint"}
+        "x": {"$ref": "#/$defs/numericValue"},
+        "y": {"$ref": "#/$defs/numericValue"}
       }
     },
     "region": {
@@ -120,8 +139,8 @@
       "additionalProperties": false,
       "properties": {
         "directionId": {"type": "string", "minLength": 1},
-        "startAngle": {"$ref": "#/$defs/fixedPoint"},
-        "endAngle": {"$ref": "#/$defs/fixedPoint"}
+        "startAngle": {"$ref": "#/$defs/numericValue"},
+        "endAngle": {"$ref": "#/$defs/numericValue"}
       }
     }
   }

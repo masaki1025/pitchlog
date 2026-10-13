@@ -2,15 +2,22 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
 import pytest
 
+from scripts import check_input_axes_descriptor as schema_checker
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_DIRECTORIES = (
     "contracts/field-regions",
     "contracts/display-geometry",
+)
+SCHEMA_PATHS = (
+    "contracts/field-regions/field_region_seed_schema_v1.json",
+    "contracts/display-geometry/field_geometry_vector_contract_schema_v1.json",
 )
 NUMBER_TOKEN = re.compile(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]*)?(?:[eE][+-]?[0-9]*)?")
 NONFINITE_TOKENS = ("-Infinity", "Infinity", "NaN")
@@ -108,3 +115,30 @@ def test_noncanonical_numeric_literal_is_rejected(tmp_path: Path, token: str) ->
 
     with pytest.raises(AssertionError, match=re.escape(token)):
         _check_numeric_lexemes(path)
+
+
+@pytest.mark.parametrize("schema_path", SCHEMA_PATHS)
+def test_numeric_value_accepts_three_distinct_forms(schema_path: str) -> None:
+    """両 schema が整数・decimal・有理数をそれぞれ受理する。"""
+    schema = json.loads((REPOSITORY_ROOT / schema_path).read_text(encoding="utf-8"))
+    for value in (10**30, {"value": 1, "scale": 10}, {"numerator": 1, "denominator": 263}):
+        schema_checker._validate_instance(value, schema["$defs"]["numericValue"], schema, "$")
+    point = {"x": {"numerator": 1, "denominator": 263}, "y": 0}
+    schema_checker._validate_instance(point, schema["$defs"]["point"], schema, "$")
+
+    mixed = {"value": 1, "scale": 10, "numerator": 1, "denominator": 263}
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker._validate_instance(mixed, schema["$defs"]["numericValue"], schema, "$")
+
+
+@pytest.mark.parametrize("schema_path", SCHEMA_PATHS)
+def test_zero_denominator_is_rejected(tmp_path: Path, schema_path: str) -> None:
+    """合成 JSON の分母 0 は字句検査を通っても schema で拒否される。"""
+    path = tmp_path / "zero_denominator.json"
+    path.write_text('{"x":{"numerator":1,"denominator":0},"y":0}', encoding="utf-8")
+    _check_numeric_lexemes(path)
+
+    schema = json.loads((REPOSITORY_ROOT / schema_path).read_text(encoding="utf-8"))
+    point = json.loads(path.read_text(encoding="utf-8"))
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker._validate_instance(point, schema["$defs"]["point"], schema, "$")
