@@ -417,6 +417,7 @@ UM1_TENANT_AREA_PATH_ADDITIONS = (
 UF2_AUTH_STORE_AREA_PATH_ADDITIONS = ("frontend/src/stores/authStore*",)
 UF6_CLIENT_AREA_PATH_ADDITIONS = ("frontend/src/api/client*",)
 UF6_TENANT_AREA_PATH_ADDITIONS = ("frontend/src/api/*",)
+UF8_GAME_SCREEN_AREA_PATH_ADDITIONS = ("frontend/src/screens/GameScreen*",)
 UF5_TEAM_AREA_PATH_ADDITIONS = (
     "frontend/src/components/settings/TeamMembersContent*",
     "frontend/src/lib/rosterQueryKeys*",
@@ -587,7 +588,7 @@ def make_repo(tmp_path: Path, core_paths: list[str] | None = None) -> Path:
 def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
     """実設定を基に宣言の全件を登録した合成リポジトリを作る。
 
-    U-F6 登録済みの設定へ、一時リポジトリだけ U-F5 の追加層を補う。
+    U-F8 までの登録を保持し、U-F5 登録前なら合成リポジトリだけに補う。
 
     Args:
         tmp_path: pytest が提供する一時ディレクトリ。
@@ -601,8 +602,8 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
     pre_registration_counts = {
-        "tenant-isolation": 84,
-        "data-migration": 48,
+        "tenant-isolation": 85,
+        "data-migration": 49,
     }
     assert UF6_CLIENT_AREA_PATH_ADDITIONS[0] in areas["sync-protocol"]["paths"]
     assert UF6_CLIENT_AREA_PATH_ADDITIONS[0] in areas["recording-rights"]["paths"]
@@ -2148,9 +2149,11 @@ def test_addition_layer_requires_complete_declared_suffix(tmp_path: Path) -> Non
 
 
 def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> None:
-    """宣言だけを先にコミットしても据え置き JSON を受理する。"""
+    """隔離履歴で未登録、宣言のみ、登録済みの順に受理する。"""
     core_guard = load_core_guard_module()
     root, base_sha = make_layered_core_repo(tmp_path)
+    assert core_guard.verify_area_path_baseline(root, base_sha, base_sha) == base_sha
+
     write_text(root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8"))
     run_git(root, "add", "scripts/core_guard.py")
     run_git(
@@ -2176,6 +2179,19 @@ def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> 
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     core_guard.validate_area_path_layers(baseline, candidate)
     assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
+
+    registered_sha = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    registered = core_guard.load_core_areas_at_revision(root, registered_sha)
+    for area in registered["areas"]:
+        area_id = area["id"]
+        expected_paths = [
+            f"base/{area_id}.py",
+            *EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ()),
+        ]
+        assert area["paths"] == expected_paths
+    assert core_guard.verify_area_path_baseline(root, base_sha, registered_sha) == (
+        base_sha
+    )
 
 
 def test_tenant_additions_declared_for_other_area_are_rejected(tmp_path: Path) -> None:
@@ -2229,7 +2245,7 @@ def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
 
 
 def test_product_rls_paths_remain_in_develop_baseline() -> None:
-    """着地済み RLS・ADR・U-M1・U-F2 のパスが追加層の前に残る。"""
+    """着地済み RLS・ADR・U-M1・U-F2・U-F6 と U-F8 の順序を保つ。"""
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
@@ -2250,7 +2266,8 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
         *UF2_AUTH_STORE_AREA_PATH_ADDITIONS,
         *UF6_TENANT_AREA_PATH_ADDITIONS,
     )
-    assert base_paths[-len(prior_tail) :] == prior_tail
+    expected_tail = (*prior_tail, *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS)
+    assert base_paths[-len(expected_tail) :] == expected_tail
     assert current_paths in (
         base_paths,
         (*base_paths, *UF5_TEAM_AREA_PATH_ADDITIONS),
@@ -2301,6 +2318,34 @@ def test_uf6_api_paths_are_registered_in_actual_core_areas() -> None:
     assert "frontend/src/api/*" in areas["tenant-isolation"]["paths"]
 
 
+def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
+    """統合済み基線の全領域で画面と spec の登録を確認する。"""
+    core_guard = load_core_guard_module()
+    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
+    candidate = load_actual_core_areas()
+    pattern = UF8_GAME_SCREEN_AREA_PATH_ADDITIONS[0]
+    screen_paths = (
+        "frontend/src/screens/GameScreen.vue",
+        "frontend/src/screens/GameScreen.spec.ts",
+    )
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    for base_area, area in zip(baseline["areas"], candidate["areas"], strict=True):
+        assert area["id"] == base_area["id"]
+        assert base_area["paths"][-1] == pattern
+        additions = EXPECTED_AREA_PATH_ADDITIONS.get(area["id"], ())
+        assert tuple(area["paths"]) in (
+            tuple(base_area["paths"]),
+            (*base_area["paths"], *additions),
+        )
+        assert all(fnmatch.fnmatchcase(path, pattern) for path in screen_paths)
+
+    assert core_guard.matched_paths(
+        screen_paths, core_guard.load_core_areas(REPO)
+    ) == list(screen_paths)
+    core_guard.validate_area_path_layers(baseline, candidate)
+
+
 def test_uf5_team_paths_are_declared_for_tenant_and_migration() -> None:
     """U-F5 の製品 6 ファイルを T・D へ宣言・登録する。"""
     core_guard = load_core_guard_module()
@@ -2323,28 +2368,40 @@ def test_uf5_team_paths_are_declared_for_tenant_and_migration() -> None:
     }
     baseline_areas = {area["id"]: area for area in baseline["areas"]}
     candidate_areas = {area["id"]: area for area in candidate["areas"]}
-    registered = []
     for area_id in EXPECTED_AREA_PATH_ADDITIONS:
         base_paths = baseline_areas[area_id]["paths"]
         current_paths = candidate_areas[area_id]["paths"]
         assert all(pattern not in base_paths for pattern in UF5_TEAM_AREA_PATH_ADDITIONS)
-        assert current_paths in (
-            base_paths,
-            [*base_paths, *UF5_TEAM_AREA_PATH_ADDITIONS],
-        )
-        registered.append(
-            all(pattern in current_paths for pattern in UF5_TEAM_AREA_PATH_ADDITIONS)
-        )
+        assert current_paths == [*base_paths, *UF5_TEAM_AREA_PATH_ADDITIONS]
 
-    assert len(set(registered)) == 1
     for pattern in UF5_TEAM_AREA_PATH_ADDITIONS:
-        matches = tuple(path for path in expected_files if fnmatch.fnmatchcase(path, pattern))
+        matches = tuple(
+            path for path in expected_files if fnmatch.fnmatchcase(path, pattern)
+        )
         assert len(matches) == 2
-    if registered[0]:
-        assert core_guard.matched_paths(
-            expected_files, core_guard.load_core_areas(REPO)
-        ) == list(expected_files)
+    assert core_guard.matched_paths(
+        expected_files, core_guard.load_core_areas(REPO)
+    ) == list(expected_files)
     core_guard.validate_area_path_layers(baseline, candidate)
+
+
+@pytest.mark.parametrize(
+    "core_path",
+    ("frontend/src/screens/GameScreen.vue", "frontend/src/screens/GameScreen.spec.ts"),
+)
+def test_uf8_game_screen_change_requires_human_check(
+    tmp_path: Path, core_path: str
+) -> None:
+    """実登録を使う合成 PR で未記入チェックを拒否する。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    base_sha, head_sha = commit_change(root, core_path)
+    event_path = write_event(tmp_path, base_sha, head_sha, f"- [ ] {REQUIRED_CHECK_TEXT}")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert core_path in result.stderr
+    assert f"- [x] {REQUIRED_CHECK_TEXT}" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -2374,7 +2431,7 @@ def test_uf5_team_change_requires_human_check(
 
 
 def test_area_registration() -> None:
-    """U-F6 登録済み基線に対する U-F5 の T・D 登録前後を受理する。"""
+    """U-F8 登録済み基線に対する U-F5 の T・D 登録を受理する。"""
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     configuration = load_actual_core_areas()
@@ -2386,18 +2443,18 @@ def test_area_registration() -> None:
     declared_ids = set(EXPECTED_AREA_PATH_ADDITIONS)
     stationary_ids = set(areas) - declared_ids
     registered_counts = {
-        "sync-protocol": 50,
-        "game-state": 49,
-        "recording-rights": 2,
-        "tenant-isolation": 10,
-        "data-migration": 6,
+        "sync-protocol": 51,
+        "game-state": 50,
+        "recording-rights": 3,
+        "tenant-isolation": 11,
+        "data-migration": 7,
     }
     baseline_counts = {
-        "sync-protocol": 148,
-        "game-state": 110,
-        "recording-rights": 69,
-        "tenant-isolation": 84,
-        "data-migration": 48,
+        "sync-protocol": 149,
+        "game-state": 111,
+        "recording-rights": 70,
+        "tenant-isolation": 85,
+        "data-migration": 49,
     }
     appendix_e_additions = (
         ADR_001_PATH,
@@ -2412,19 +2469,29 @@ def test_area_registration() -> None:
         *CASE_GENERATION_AREA_PATH_ADDITIONS,
     )
     registered_additions = {
-        "sync-protocol": (*appendix_e_additions, *UF6_CLIENT_AREA_PATH_ADDITIONS),
-        "game-state": appendix_e_additions,
-        "recording-rights": (ADR_001_PATH, *UF6_CLIENT_AREA_PATH_ADDITIONS),
+        "sync-protocol": (
+            *appendix_e_additions,
+            *UF6_CLIENT_AREA_PATH_ADDITIONS,
+            *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS,
+        ),
+        "game-state": (*appendix_e_additions, *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS),
+        "recording-rights": (
+            ADR_001_PATH,
+            *UF6_CLIENT_AREA_PATH_ADDITIONS,
+            *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS,
+        ),
         "tenant-isolation": (
             ADR_001_PATH,
             *UM1_TENANT_AREA_PATH_ADDITIONS,
             *UF2_AUTH_STORE_AREA_PATH_ADDITIONS,
             *UF6_TENANT_AREA_PATH_ADDITIONS,
+            *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS,
         ),
         "data-migration": (
             ADR_001_PATH,
             ADR_003_PATH,
             *VOCABULARY_DATA_MIGRATION_AREA_PATH_ADDITIONS,
+            *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS,
         ),
     }
 
