@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue'
+import StrikeZone from '../components/zone/StrikeZone.vue'
+import type { CourseInputView } from '../lib/courseInputView'
+
 interface GameDisplayState {
   gameName: string | null
   inning: string | null
@@ -12,13 +16,80 @@ interface GameDisplayState {
   pitcher: string | null
 }
 
+interface InputCandidate {
+  id: string
+  displayName: string
+  enabled: boolean
+}
+
+interface CourseView {
+  plateSide: string
+  viewpoint: CourseInputView
+}
+
 const props = defineProps<{
   state?: Partial<GameDisplayState> | null
+  pitchTypes?: readonly InputCandidate[]
+  results?: readonly InputCandidate[]
+  courseView?: CourseView | null
 }>()
+
+const pitchTypeId = ref<string | null>(null)
+const speed = ref('')
+const course = ref<{ x: number; y: number } | null>(null)
+const resultId = ref<string | null>(null)
 
 // 呼出元が表示用に整形した文字列だけを描画する。
 function display(value: unknown): string {
   return typeof value === 'string' && value.trim() ? value : '未取得'
+}
+
+function isEnabled(
+  candidates: readonly InputCandidate[] | undefined,
+  id: string,
+) {
+  return (
+    candidates?.some((candidate) => candidate.enabled && candidate.id === id) ??
+    false
+  )
+}
+
+function selectedId(
+  event: Event,
+  candidates: readonly InputCandidate[] | undefined,
+): string | null {
+  const id = (event.target as HTMLSelectElement).value
+  return isEnabled(candidates, id) ? id : null
+}
+
+watch(
+  () => props.pitchTypes,
+  (candidates) => {
+    if (
+      pitchTypeId.value !== null &&
+      !isEnabled(candidates, pitchTypeId.value)
+    ) {
+      pitchTypeId.value = null
+    }
+  },
+  { deep: true, flush: 'sync' },
+)
+
+watch(
+  () => props.results,
+  (candidates) => {
+    if (resultId.value !== null && !isEnabled(candidates, resultId.value)) {
+      resultId.value = null
+    }
+  },
+  { deep: true, flush: 'sync' },
+)
+
+function clearDraft() {
+  pitchTypeId.value = null
+  speed.value = ''
+  course.value = null
+  resultId.value = null
 }
 </script>
 
@@ -121,6 +192,154 @@ function display(value: unknown): string {
           {{ display(props.state?.pitcher) }}
         </dd>
       </dl>
+    </section>
+
+    <section
+      aria-label="投球入力の下書き"
+      class="rounded-2xl border border-amber-300 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30"
+    >
+      <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-extrabold">投球入力の下書き</h2>
+          <p class="mt-1 text-sm text-amber-900 dark:text-amber-200">
+            この入力は保存・送信されません。画面を離れると消えます。
+          </p>
+        </div>
+        <button
+          type="button"
+          class="rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-900 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900"
+          data-testid="clear-draft"
+          @click="clearDraft"
+        >
+          下書きをすべて消去
+        </button>
+      </div>
+
+      <div class="grid gap-5 lg:grid-cols-2">
+        <div class="space-y-4">
+          <div>
+            <label for="pitch-type" class="mb-1 block text-sm font-bold"
+              >球種</label
+            >
+            <div class="flex gap-2">
+              <select
+                id="pitch-type"
+                :value="pitchTypeId ?? ''"
+                class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                data-testid="pitch-type"
+                @change="pitchTypeId = selectedId($event, props.pitchTypes)"
+              >
+                <option value="">未選択</option>
+                <option
+                  v-for="candidate in props.pitchTypes?.filter(
+                    (item) => item.enabled,
+                  ) ?? []"
+                  :key="candidate.id"
+                  :value="candidate.id"
+                >
+                  {{ candidate.displayName }}
+                </option>
+              </select>
+              <button
+                type="button"
+                class="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
+                @click="pitchTypeId = null"
+              >
+                球種を消去
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label for="pitch-speed" class="mb-1 block text-sm font-bold"
+              >球速</label
+            >
+            <div class="flex gap-2">
+              <input
+                id="pitch-speed"
+                v-model="speed"
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                data-testid="pitch-speed"
+                placeholder="km/h"
+              />
+              <button
+                type="button"
+                class="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
+                @click="speed = ''"
+              >
+                球速を消去
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label for="pitch-result" class="mb-1 block text-sm font-bold"
+              >結果</label
+            >
+            <div class="flex gap-2">
+              <select
+                id="pitch-result"
+                :value="resultId ?? ''"
+                class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                data-testid="pitch-result"
+                @change="resultId = selectedId($event, props.results)"
+              >
+                <option value="">未選択</option>
+                <option
+                  v-for="candidate in props.results?.filter(
+                    (item) => item.enabled,
+                  ) ?? []"
+                  :key="candidate.id"
+                  :value="candidate.id"
+                >
+                  {{ candidate.displayName }}
+                </option>
+              </select>
+              <button
+                type="button"
+                class="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
+                @click="resultId = null"
+              >
+                結果を消去
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <h3 class="text-sm font-bold">コース</h3>
+            <button
+              type="button"
+              class="rounded-lg border border-slate-300 px-3 py-2 text-sm dark:border-slate-600"
+              data-testid="clear-course"
+              @click="course = null"
+            >
+              コースを消去
+            </button>
+          </div>
+          <StrikeZone
+            v-if="props.courseView"
+            :plate-side="props.courseView.plateSide"
+            :viewpoint="props.courseView.viewpoint"
+            :point="course"
+            class="max-w-80"
+            @tap="(x, y) => (course = { x, y })"
+          />
+          <p
+            v-else
+            class="rounded-lg border border-dashed border-slate-400 p-5 text-sm text-slate-600 dark:text-slate-300"
+          >
+            コース入力には打席と視点の設定が必要です。
+          </p>
+          <p class="mt-2 text-sm" data-testid="course-status">
+            {{ course ? 'コース選択済み（未保存）' : 'コース未選択' }}
+          </p>
+        </div>
+      </div>
     </section>
   </main>
 </template>

@@ -1,6 +1,23 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import StrikeZone from '../components/zone/StrikeZone.vue'
 import GameScreen from './GameScreen.vue'
+
+const pitchTypes = [
+  { id: 'fastball', displayName: '直球', enabled: true },
+  { id: 'slider', displayName: 'スライダー', enabled: true },
+  { id: 'hidden', displayName: '無効な球種', enabled: false },
+]
+
+const results = [
+  { id: 'ball', displayName: 'ボール', enabled: true },
+  { id: 'strike', displayName: '見逃し', enabled: true },
+  { id: 'hidden-result', displayName: '無効な結果', enabled: false },
+]
+
+const courseView = { plateSide: '右', viewpoint: 'pitcher' as const }
+
+afterEach(() => vi.restoreAllMocks())
 
 describe('GameScreen の試合状態表示', () => {
   it('呼出元の整形済み文字列を変更せず表示する', () => {
@@ -35,15 +52,27 @@ describe('GameScreen の試合状態表示', () => {
     )
     expect(wrapper.get('[data-testid="batter"]').text()).toBe('打者 山田')
     expect(wrapper.get('[data-testid="pitcher"]').text()).toBe('投手 佐藤')
-    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('保存しました')
   })
 
   it('未供給・欠損・空文字の値を未取得と表示する', async () => {
     const wrapper = mount(GameScreen)
 
-    expect(wrapper.findAll('[data-testid]').map((node) => node.text())).toEqual(
-      Array(10).fill('未取得'),
-    )
+    const fields = [
+      'game-name',
+      'inning',
+      'half',
+      'away-score',
+      'home-score',
+      'outs',
+      'runners',
+      'count',
+      'batter',
+      'pitcher',
+    ]
+    expect(
+      fields.map((field) => wrapper.get(`[data-testid="${field}"]`).text()),
+    ).toEqual(Array(10).fill('未取得'))
 
     await wrapper.setProps({ state: { gameName: '', awayScore: null } })
     expect(wrapper.get('[data-testid="game-name"]').text()).toBe('未取得')
@@ -74,5 +103,176 @@ describe('GameScreen の試合状態表示', () => {
     expect(wrapper.get('[data-testid="batter"]').text()).toBe(input)
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.html()).toContain('&lt;img')
+  })
+})
+
+describe('GameScreen の入力下書き', () => {
+  it('有効候補のIDだけを選び、球速と結果を訂正・個別消去できる', async () => {
+    const wrapper = mount(GameScreen, {
+      props: { pitchTypes, results, courseView },
+    })
+    const pitchType = wrapper.get<HTMLSelectElement>(
+      '[data-testid="pitch-type"]',
+    )
+    const result = wrapper.get<HTMLSelectElement>(
+      '[data-testid="pitch-result"]',
+    )
+    const speed = wrapper.get<HTMLInputElement>('[data-testid="pitch-speed"]')
+
+    expect(
+      pitchType.findAll('option').map((option) => option.attributes('value')),
+    ).toEqual(['', 'fastball', 'slider'])
+    expect(
+      result.findAll('option').map((option) => option.attributes('value')),
+    ).toEqual(['', 'ball', 'strike'])
+
+    await pitchType.setValue('slider')
+    await result.setValue('strike')
+    await speed.setValue('135')
+    expect(pitchType.element.value).toBe('slider')
+    expect(result.element.value).toBe('strike')
+    expect(speed.element.value).toBe('135')
+
+    await pitchType.setValue('fastball')
+    await result.setValue('ball')
+    await speed.setValue('128')
+    expect(pitchType.element.value).toBe('fastball')
+    expect(result.element.value).toBe('ball')
+    expect(speed.element.value).toBe('128')
+
+    await wrapper.get('[data-testid="clear-draft"]').trigger('click')
+    expect(pitchType.element.value).toBe('')
+    expect(result.element.value).toBe('')
+    expect(speed.element.value).toBe('')
+  })
+
+  it('候補の改名は選択IDを保ち、無効化・削除はIDを消して再追加でも復活しない', async () => {
+    const wrapper = mount(GameScreen, { props: { pitchTypes, results } })
+    const pitchType = wrapper.get<HTMLSelectElement>(
+      '[data-testid="pitch-type"]',
+    )
+    const result = wrapper.get<HTMLSelectElement>(
+      '[data-testid="pitch-result"]',
+    )
+
+    await pitchType.setValue('slider')
+    await result.setValue('strike')
+    await wrapper.setProps({
+      pitchTypes: pitchTypes.map((candidate) =>
+        candidate.id === 'slider'
+          ? { ...candidate, displayName: '新しい球種名' }
+          : candidate,
+      ),
+      results: results.map((candidate) =>
+        candidate.id === 'strike'
+          ? { ...candidate, displayName: '新しい結果名' }
+          : candidate,
+      ),
+    })
+    expect(pitchType.element.value).toBe('slider')
+    expect(result.element.value).toBe('strike')
+    expect(pitchType.text()).toContain('新しい球種名')
+    expect(result.text()).toContain('新しい結果名')
+
+    await wrapper.setProps({
+      pitchTypes: pitchTypes.map((candidate) =>
+        candidate.id === 'slider'
+          ? { ...candidate, enabled: false }
+          : candidate,
+      ),
+      results: results.filter((candidate) => candidate.id !== 'strike'),
+    })
+    expect(pitchType.element.value).toBe('')
+    expect(result.element.value).toBe('')
+
+    await wrapper.setProps({ pitchTypes, results })
+    expect(pitchType.element.value).toBe('')
+    expect(result.element.value).toBe('')
+
+    await pitchType.setValue('fastball')
+    await result.setValue('ball')
+    await wrapper.setProps({
+      pitchTypes: pitchTypes.filter((candidate) => candidate.id !== 'fastball'),
+      results: results.map((candidate) =>
+        candidate.id === 'ball' ? { ...candidate, enabled: false } : candidate,
+      ),
+    })
+    expect(pitchType.element.value).toBe('')
+    expect(result.element.value).toBe('')
+
+    await wrapper.setProps({ pitchTypes, results })
+    expect(pitchType.element.value).toBe('')
+    expect(result.element.value).toBe('')
+  })
+
+  it('StrikeZone の選択値を再変換せず保持し、訂正・消去できる', async () => {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 10,
+      top: 20,
+      width: 263,
+      height: 263,
+    } as DOMRect)
+    const wrapper = mount(GameScreen, { props: { courseView } })
+    const zone = wrapper.getComponent(StrikeZone)
+
+    zone.get('svg').element.dispatchEvent(
+      new MouseEvent('pointerdown', {
+        bubbles: true,
+        clientX: 90,
+        clientY: 88,
+      }),
+    )
+    await wrapper.vm.$nextTick()
+    expect(zone.props('point')).toEqual({ x: 183, y: 68 })
+    expect(wrapper.get('[data-testid="course-status"]').text()).toContain(
+      '選択済み',
+    )
+
+    zone.get('svg').element.dispatchEvent(
+      new MouseEvent('pointerdown', {
+        bubbles: true,
+        clientX: 100,
+        clientY: 98,
+      }),
+    )
+    await wrapper.vm.$nextTick()
+    expect(zone.props('point')).toEqual({ x: 173, y: 78 })
+
+    await wrapper.get('button[data-testid="clear-course"]').trigger('click')
+    expect(zone.props('point')).toBeNull()
+  })
+
+  it('再マウントで下書きが消え、保存成功と誤認させる操作・表示がない', async () => {
+    const props = { pitchTypes, results, courseView }
+    const wrapper = mount(GameScreen, { props })
+    await wrapper.get('[data-testid="pitch-type"]').setValue('fastball')
+    await wrapper.get('[data-testid="pitch-result"]').setValue('ball')
+    await wrapper.get('[data-testid="pitch-speed"]').setValue('140')
+    wrapper.getComponent(StrikeZone).vm.$emit('tap', 123, 78)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.getComponent(StrikeZone).props('point')).toEqual({
+      x: 123,
+      y: 78,
+    })
+
+    wrapper.unmount()
+    const remounted = mount(GameScreen, { props })
+    expect(
+      remounted.get<HTMLSelectElement>('[data-testid="pitch-type"]').element
+        .value,
+    ).toBe('')
+    expect(
+      remounted.get<HTMLSelectElement>('[data-testid="pitch-result"]').element
+        .value,
+    ).toBe('')
+    expect(
+      remounted.get<HTMLInputElement>('[data-testid="pitch-speed"]').element
+        .value,
+    ).toBe('')
+    expect(remounted.getComponent(StrikeZone).props('point')).toBeNull()
+    expect(remounted.text()).toContain('保存・送信されません')
+    expect(remounted.text()).not.toContain('保存しました')
+    expect(remounted.text()).not.toContain('記録を確定')
+    expect(remounted.find('button[type="submit"]').exists()).toBe(false)
   })
 })
