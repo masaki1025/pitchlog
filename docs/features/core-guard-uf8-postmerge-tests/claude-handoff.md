@@ -20,4 +20,5 @@
 - Ruff、ty、`check_docs_status.py`、`check_plan_docs_sync.py`、`git diff --check`: 通過。
 - Draft fix PRは [#130](https://github.com/masaki1025/pitchlog/pull/130)。PR #126 のファイルは変更していない。PR #127 担当への申し送りは [コメント](https://github.com/masaki1025/pitchlog/pull/127#issuecomment-6150461510) に記録した。
 - 独立コード敵対レビュー1回目は P0 0 / P1 1 / P2 0。未登録初期状態の受理 assertion を追加し、2回目の差分レビューは P0 0 / P1 0 / P2 0。修正後も `tests/test_core_guard.py` 235/235、`git diff --check` 成功。レビュー側は一時ファイル制限で試験未実行。
-- CIは修正コミットのpush後に最終結果を確認する。人間逐行確認の実施記録とマージ判断は確認者本人が行う。
+- PR #130 の修正HEAD `6416f567` の [CI run 38433781447](https://github.com/masaki1025/pitchlog/actions/runs/38433781447) は、harness を含む全必須ジョブが成功。harness の pytest は 28,937 件通過（失敗 0 件、1700.99 秒）。文書追記コミット後のCI結果は別途確認する。
+- 人間逐行確認の実施記録とマージ判断は確認者本人が行う。PR本文のチェックは付いているが、実施記録の対象・範囲・方法は未記入。
