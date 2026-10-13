@@ -582,7 +582,7 @@ def make_repo(tmp_path: Path, core_paths: list[str] | None = None) -> Path:
 def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
     """実設定を基に宣言の全件を登録した合成リポジトリを作る。
 
-    U-F6 の登録済み設定へ、一時リポジトリだけ U-F8 の 5 件を補う。
+    U-F6 登録を保持し、U-F8 登録前なら合成リポジトリだけに補う。
 
     Args:
         tmp_path: pytest が提供する一時ディレクトリ。
@@ -602,9 +602,9 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
         "tenant-isolation": 84,
         "data-migration": 48,
     }
-    assert tuple(areas["tenant-isolation"]["paths"][-1:]) == (
-        UF6_TENANT_AREA_PATH_ADDITIONS
-    )
+    assert UF6_CLIENT_AREA_PATH_ADDITIONS[0] in areas["sync-protocol"]["paths"]
+    assert UF6_CLIENT_AREA_PATH_ADDITIONS[0] in areas["recording-rights"]["paths"]
+    assert UF6_TENANT_AREA_PATH_ADDITIONS[0] in areas["tenant-isolation"]["paths"]
     for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
         paths = areas[area_id]["paths"]
         if tuple(paths[-len(additions) :]) == additions:
@@ -2225,7 +2225,7 @@ def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
 
 
 def test_product_rls_paths_remain_in_develop_baseline() -> None:
-    """着地済み RLS・ADR・U-M1・U-F2 のパスが追加層の前に残る。"""
+    """着地済み RLS・ADR・U-M1・U-F2・U-F6 を U-F8 の前に保つ。"""
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
@@ -2240,28 +2240,17 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
     )
     base_paths = tuple(base_area["paths"])
     current_paths = tuple(current_area["paths"])
-    # マージ後は U-F6 の宣言も比較元へ吸収される。登録前・登録後も受理する。
-    absorbed = base_paths[-len(UF6_TENANT_AREA_PATH_ADDITIONS) :] == (
-        UF6_TENANT_AREA_PATH_ADDITIONS
-    )
-    pre_additions = (
-        base_paths[: -len(UF6_TENANT_AREA_PATH_ADDITIONS)]
-        if absorbed
-        else base_paths
-    )
     prior_tail = (
         *registered_tail,
         *UM1_TENANT_AREA_PATH_ADDITIONS,
         *UF2_AUTH_STORE_AREA_PATH_ADDITIONS,
+        *UF6_TENANT_AREA_PATH_ADDITIONS,
     )
-    assert pre_additions[-len(prior_tail) :] == prior_tail
-    if absorbed:
-        assert current_paths == base_paths
-    else:
-        assert current_paths in (
-            base_paths,
-            (*base_paths, *UF6_TENANT_AREA_PATH_ADDITIONS),
-        )
+    assert base_paths[-len(prior_tail) :] == prior_tail
+    assert current_paths in (
+        base_paths,
+        (*base_paths, *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS),
+    )
     for pattern, planned_paths in zip(
         PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PATTERN_EXAMPLES, strict=True
     ):
@@ -2308,24 +2297,55 @@ def test_uf6_api_paths_are_registered_in_actual_core_areas() -> None:
     assert "frontend/src/api/*" in areas["tenant-isolation"]["paths"]
 
 
-def test_uf8_game_screen_paths_are_declared_for_all_areas() -> None:
-    """U-F6 登録を保持し、画面と spec の追加層を 5 領域へ宣言する。"""
+def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
+    """U-F6 登録を保持し、画面と spec の宣言・登録を検査する。"""
     core_guard = load_core_guard_module()
-    baseline = load_actual_core_areas()
-    candidate = json.loads(json.dumps(baseline))
+    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
+    candidate = load_actual_core_areas()
     pattern = UF8_GAME_SCREEN_AREA_PATH_ADDITIONS[0]
+    screen_paths = (
+        "frontend/src/screens/GameScreen.vue",
+        "frontend/src/screens/GameScreen.spec.ts",
+    )
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     assert set(EXPECTED_AREA_PATH_ADDITIONS) == set(DATA_MODEL_AREA_IDS)
-    for area in candidate["areas"]:
-        assert pattern not in area["paths"]
-        area["paths"].append(pattern)
-        for path in (
-            "frontend/src/screens/GameScreen.vue",
-            "frontend/src/screens/GameScreen.spec.ts",
-        ):
-            assert fnmatch.fnmatchcase(path, pattern)
+    registered = []
+    for base_area, area in zip(baseline["areas"], candidate["areas"], strict=True):
+        assert area["id"] == base_area["id"]
+        assert pattern not in base_area["paths"]
+        assert area["paths"] in (
+            base_area["paths"],
+            [*base_area["paths"], pattern],
+        )
+        registered.append(pattern in area["paths"])
+        assert all(fnmatch.fnmatchcase(path, pattern) for path in screen_paths)
 
+    assert len(set(registered)) == 1
+    if registered[0]:
+        assert core_guard.matched_paths(
+            screen_paths, core_guard.load_core_areas(REPO)
+        ) == list(screen_paths)
     core_guard.validate_area_path_layers(baseline, candidate)
+
+
+@pytest.mark.parametrize(
+    "core_path",
+    ("frontend/src/screens/GameScreen.vue", "frontend/src/screens/GameScreen.spec.ts"),
+)
+def test_uf8_game_screen_change_requires_human_check(
+    tmp_path: Path, core_path: str
+) -> None:
+    """実登録を使う合成 PR で未記入チェックを拒否する。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    base_sha, head_sha = commit_change(root, core_path)
+    event_path = write_event(tmp_path, base_sha, head_sha, f"- [ ] {REQUIRED_CHECK_TEXT}")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert core_path in result.stderr
+    assert f"- [x] {REQUIRED_CHECK_TEXT}" in result.stderr
 
 
 def test_area_registration() -> None:
