@@ -109,15 +109,19 @@ def _expand_from_declared_inputs(
     values_by_axis = representative_selection.axis_values(
         descriptor, ("gameEndAxes", "stateTransitionAxes")
     )
-    used_axes = set().union(
-        *(representative_selection.predicate_axes(row["precondition"]) for row in rows)
+    # 先行5行の代表入力を保ち、追加行だけが使うイベント軸はその行へ限定する。
+    baseline_axes = set().union(
+        *(representative_selection.predicate_axes(row["precondition"]) for row in rows[:5])
     )
-    axis_order = [axis_id for axis_id in values_by_axis if axis_id in used_axes]
-    if len(axis_order) != len(used_axes):
-        raise CaseExpansionError("終了判定行に未宣言の軸がある")
 
     cases: list[dict[str, Any]] = []
     for row in rows[:limit]:
+        used_axes = baseline_axes | representative_selection.predicate_axes(
+            row["precondition"]
+        )
+        axis_order = [axis_id for axis_id in values_by_axis if axis_id in used_axes]
+        if len(axis_order) != len(used_axes):
+            raise CaseExpansionError("終了判定行に未宣言の軸がある")
         branch_id = row["branchId"]
         branch = branch_by_id.get(branch_id)
         if branch is None or row["sourceClauseIds"] != branch.get("sourceClauseIds"):
@@ -164,7 +168,7 @@ def expand_traced(
 def _expand_coverage_from_declared_inputs(
     root: Path, rule: dependency_checker.ExpanderRule
 ) -> list[dict[str, Any]]:
-    """既存4分岐を保持し、コールド行の状態・イベント代表を追加する。"""
+    """既存4分岐を保持し、後続行の状態・イベント代表を追加する。"""
     documents = [(path, _read_document(root, path)) for path in rule.allowed_read_paths]
     descriptor = _document_by_key(documents, "gameEndAxes")
     contract = _document_by_key(documents, "decisionRows")
@@ -175,7 +179,7 @@ def _expand_coverage_from_declared_inputs(
     base_cases = _expand_from_declared_inputs(root, rule, len(contract["decisionRows"]))
     result = list(base_cases[:4])
     for row_index, row in enumerate(contract["decisionRows"]):
-        if row["branchId"] == "COLD-08":
+        if row_index >= 4:
             result.append(base_cases[row_index])
         predicate = row["precondition"]
         used = representative_selection.predicate_axes(predicate)

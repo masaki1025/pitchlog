@@ -154,9 +154,9 @@ def _validate_manual_fixtures(
     assert set(policy["comparisonProjection"]) == set(
         schema["$defs"]["completeCase"]["required"]
     )
-    assert set(schema["$defs"]["inputCoordinate"]["required"]) == set(
-        contract_schema["x-pitchlog-decision-row-references"]["allowedAxisIds"]
-    )
+    allowed_axes = set(contract_schema["x-pitchlog-decision-row-references"]["allowedAxisIds"])
+    assert set(schema["$defs"]["inputCoordinate"]["required"]) <= allowed_axes
+    assert set(schema["$defs"]["inputCoordinate"]["properties"]) == allowed_axes
     assert set(schema["$defs"]["decision"]["required"]) == set(
         contract_schema["$defs"]["gameEndDecision"]["required"]
     )
@@ -187,7 +187,7 @@ def _validate_manual_fixtures(
 
 
 def test_repository_game_end_manual_fixtures() -> None:
-    """5件の完全な入力・出力ケースと未作成分岐の宣言を検査する。"""
+    """6件の完全な入力・出力ケースと未作成分岐の宣言を検査する。"""
     document, schema = _manual_fixture_assets()
     _validate_manual_fixtures(document, schema)
     policy = schema["x-pitchlog-manual-fixture-policy"]
@@ -231,6 +231,24 @@ def test_game_end_manual_fixture_reference_negatives(change: str) -> None:
         )
     else:
         document["fixtures"][0]["case"]["decision"]["lockFurtherPlayInput"] = False
+    with pytest.raises(AssertionError):
+        _validate_manual_fixtures(document, schema)
+
+
+@pytest.mark.parametrize("change", ["missing-walk-off", "wrong-result", "wrong-lock"])
+def test_walk_off_manual_fixture_drift_is_rejected(change: str) -> None:
+    """独立fixtureの欠落、プレイ種別、入力ロックのずれを拒否する。"""
+    document, schema = _manual_fixture_assets()
+    fixture = next(
+        item for item in document["fixtures"]
+        if item["case"]["branchId"] == "GAME-END-WALK-OFF"
+    )
+    if change == "missing-walk-off":
+        document["fixtures"].remove(fixture)
+    elif change == "wrong-result":
+        fixture["case"]["inputCoordinate"]["event.perPitch.resultId"] = "三振"
+    else:
+        fixture["case"]["decision"]["lockFurtherPlayInput"] = False
     with pytest.raises(AssertionError):
         _validate_manual_fixtures(document, schema)
 
@@ -546,6 +564,44 @@ def test_cold_row_mutations_are_red(mutation: str) -> None:
         _validate_decision_references(contract)
 
 
+def test_walk_off_row_is_bound_to_fifth_role_and_fr005() -> None:
+    """サヨナラの終了検知と表示種別を独立した台帳役割へ結ぶ。"""
+    contract = _repository_contract()
+    register = _load_object(
+        REPOSITORY_ROOT / "contracts/state-transition/clause_branch_register_v1.json"
+    )
+    row = next(
+        row for row in contract["decisionRows"]
+        if row["branchId"] == "GAME-END-WALK-OFF"
+    )
+    assert register["gameEndOutcomeBranches"]["walkOff"] == row["branchId"]
+    assert row["sourceClauseIds"] == ["req:FR-005", "req:FR-020"]
+    assert {leaf["axisId"]: leaf["value"] for leaf in _decision_leaves(row["precondition"])} == {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:0",
+        "gameEnd.extensionLimit": "finite:R+1",
+        "gameEnd.tiebreak": "none",
+        "state.inning": "R",
+        "state.half": "bottom",
+        "state.score": "home-lead:M",
+        "state.gameEnded": False,
+        "event.operationKind": "per-pitch",
+        "event.perPitch.kind": "batting-result",
+        "event.perPitch.resultId": "本塁打",
+    }
+    assert row["decision"] == {
+        "outcome": "walk-off",
+        "endConditionDetected": True,
+        "lockFurtherPlayInput": True,
+        "promptEndDeclaration": True,
+        "automaticallyEndsGame": False,
+        "xMark": "recorded-score",
+    }
+    assert "score" not in row["decision"]
+    assert len([case for case in contract["cases"] if case["branchId"] == row["branchId"]]) == 10
+    _validate_decision_references(contract)
+
+
 def test_decision_outcome_swapped_between_existing_branches_is_red() -> None:
     """実在する別の結果への取り違えもschema宣言との突合で拒否する。"""
     contract = deepcopy(_repository_contract())
@@ -559,7 +615,7 @@ def test_decision_outcome_swapped_between_existing_branches_is_red() -> None:
     [
         ("gameEnd.extensionLimit", "finite:R-1"),
         ("gameEnd.regulationInnings", 0),
-        ("event.operationKind", "per-pitch"),
+        ("state.runners", "empty"),
     ],
 )
 def test_decision_precondition_outside_declared_axes_is_red(

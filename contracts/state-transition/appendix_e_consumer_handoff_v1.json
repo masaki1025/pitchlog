@@ -130,7 +130,7 @@
     {
       "path": "contracts/state-transition/game_end_contract_v1.json",
       "version": "game_end_contract_v1",
-      "digest": "sha256:72bc9fa1071a6b7eb36b06d67181912ac7850936e181f511326d69d0011a6a89"
+      "digest": "sha256:feb2d5923bba995e813ef7a3aa1e52bf856f29c24cdd2dcc1d4c902c51cf0d04"
     },
     {
       "path": "contracts/state-transition/input_axes_descriptor_v1.json",

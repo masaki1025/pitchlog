@@ -102,7 +102,10 @@
         "state.half": {"type": "string"},
         "state.score": {"type": "string"},
         "state.gameEnded": {"type": "boolean"},
-        "state.tiebreakActive": {"type": "boolean"}
+        "state.tiebreakActive": {"type": "boolean"},
+        "event.operationKind": {"type": "string"},
+        "event.perPitch.kind": {"type": "string"},
+        "event.perPitch.resultId": {"type": "string"}
       }
     },
     "decision": {

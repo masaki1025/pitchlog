@@ -158,13 +158,55 @@
         "authorId": "codex",
         "sources": [{"sourceKind": "requirements", "sourceId": "req:F-1"}]
       }
+    },
+    {
+      "case": {
+        "caseId": "GE-GAME-END-WALK-OFF",
+        "branchId": "GAME-END-WALK-OFF",
+        "inputCoordinate": {
+          "gameEnd.regulationInnings": 9,
+          "gameEnd.coldConditions": "tier-count:0",
+          "gameEnd.extensionLimit": "finite:R+1",
+          "gameEnd.tiebreak": "none",
+          "state.inning": "R",
+          "state.half": "bottom",
+          "state.score": "home-lead:M",
+          "state.gameEnded": false,
+          "state.tiebreakActive": false,
+          "event.operationKind": "per-pitch",
+          "event.perPitch.kind": "batting-result",
+          "event.perPitch.resultId": "本塁打"
+        },
+        "decision": {
+          "outcome": "walk-off",
+          "endConditionDetected": true,
+          "lockFurtherPlayInput": true,
+          "promptEndDeclaration": true,
+          "automaticallyEndsGame": false,
+          "xMark": "recorded-score"
+        }
+      },
+      "sourceExample": "FR-005・付録F-1。規定第R回裏に本塁打プレイを確定して後攻がリードし、サヨナラの終了条件を検知する。FR-010の宣言前に自動終了せず、FR-020 XMARK-01により開始済みの裏は得点表示とする。得点値はステップ32の状況判定で検証する。",
+      "provenance": {
+        "authorId": "codex",
+        "sources": [
+          {
+            "sourceKind": "requirements",
+            "sourceId": "req:FR-005"
+          },
+          {
+            "sourceKind": "requirements",
+            "sourceId": "req:FR-020"
+          }
+        ]
+      }
     }
   ],
   "baseline_control": {
     "identity": {
       "scheme": "sha256_frozen_projection",
       "identifier_prefix": "fixture-sha256:",
-      "current_identifiers": ["fixture-sha256:84627209763512e7dc507ecbc4b9691ec79e1e6c1d5dcf39a77862c6a70e2b65"],
+      "current_identifiers": ["fixture-sha256:5ff79cb7fc31cdc6ee64f9399b71701542a7dc3f54bb2821ed9cb9654db66662"],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
         "algorithm": "sha256-canonical-json-and-external-files-v1",
@@ -201,21 +243,21 @@
     "history": [
       {
         "source_commit": "PENDING_ACCEPTANCE",
-        "new_baseline_identifiers": ["fixture-sha256:84627209763512e7dc507ecbc4b9691ec79e1e6c1d5dcf39a77862c6a70e2b65"],
+        "new_baseline_identifiers": ["fixture-sha256:5ff79cb7fc31cdc6ee64f9399b71701542a7dc3f54bb2821ed9cb9654db66662"],
         "previous_baseline_identifiers": ["NO_BASELINE"],
         "change": {
-          "subject": "終了判定の手作業fixture 5件の暫定基準（DRAW-05の操作行への結び付け）",
+          "subject": "終了判定の手作業fixture 6件の暫定基準（walk-off終了検知）",
           "before": {
             "state": "NO_BASELINE",
             "frozen_projection_sha256": "NO_BASELINE"
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "84627209763512e7dc507ecbc4b9691ec79e1e6c1d5dcf39a77862c6a70e2b65"
+            "frozen_projection_sha256": "5ff79cb7fc31cdc6ee64f9399b71701542a7dc3f54bb2821ed9cb9654db66662"
           }
         },
-        "movement_fact": "DRAW-05の状況判定操作行への結び付けにより、手作業fixtureの暫定基準を5件へ更新する。",
-        "reason": "付録F-1の途中終了宣言を付録A-5の最終スコア比較へ結び付け、未収容分岐と凍結射影の整合を維持するため。",
+        "movement_fact": "FR-005のサヨナラ終了検知を6件目の独立した手作業fixtureへ追加する。",
+        "reason": "終了判定のwalk-off行・FR-020 XMARK-01の数値表示・未承認の凍結射影を整合させ、得点値の検証をステップ32へ明示して送るため。",
         "approved_by": "未承認(PR のレビュー待ち)",
         "approved_on": "未承認(PR のレビュー待ち)"
       }

@@ -99,3 +99,5 @@ branch: feature/adr003-stage2-runtime
 - 山田さんの判断で Notion に 3 枚起票: **TSK-544** U-X1 T1 状況判定の対象計算(ブロック中)/ **TSK-545** U-X1 T2 終了判定の対象計算(ブロック中)/ **TSK-546** 付録E 契約の PO 裁定 3 件(S11・S13・S22)
 - (b) 27 件の送り先(山田さん): TSK-538 = S15〜S21・S27・S28(9 件)/ TSK-544 = S05〜S10・S12・S14・S23〜S26・S30〜S32(15 件)/ TSK-546 = S11・S13・S22(3 件)
 - ステップ 11 の見落とし: 契約参照の試験ファイル(`tests/domain/runners/test_handoff_loader.py`)が sync-protocol に未登録のまま `test_core_guard` が赤だった(ステップ 11 の検証で `test_core_guard` を回していなかった)。ステップ 17〜19 の登録で解消
+
+- ステップ 25 の委任でラッパーが終了コード 1 を返した(Codex の最終報告は出ており、出力は 9MB で途中が切れていた)。原因は特定できず。作業ツリーを自分で検証して緑(関連 pytest 673 passed・ルートの ty 0・ローカルで回せる check_* 全件 OK)だったのでコミットした。`--acceptance` の受理遷移検査は PR の CI で確認する

@@ -852,9 +852,10 @@ def _classify_game_end_unreachable(
         for cause, identities in groups.items()
     }
     future = policy["nextSteps"]
+    # ステップ23の開始時2817件は履歴値として固定し、現在件数は再測定する。
     if (
         policy["countsByCause"] != measured
-        or policy["beforeUnreachableCount"] != len(excluded)
+        or policy["beforeUnreachableCount"] != 2817
         or policy["remainingUnreachableCount"] != len(
             groups["noApplicableRow"] | groups["unfixedAxisValue"]
         )
@@ -1401,18 +1402,25 @@ def _check_game_end_documents(
     ):
         raise RequiredSetCoverageError("終了判定の除外宣言が不正")
     rows = contract.get("decisionRows", [])
-    if any(row["decision"]["outcome"] == "walk-off" for row in rows):
-        raise RequiredSetCoverageError("ステップ94の前提に反するwalk-off行がある")
+    walk_off_rows = [row for row in rows if row["decision"]["outcome"] == "walk-off"]
+    if len(walk_off_rows) != 1 or walk_off_rows[0]["branchId"] != "GAME-END-WALK-OFF":
+        raise RequiredSetCoverageError("walk-off行が台帳の5つ目の役割と一致しない")
     if {row["branchId"] for row in rows if row["branchId"].startswith("COLD-")} != {
         "COLD-08"
     }:
         raise RequiredSetCoverageError("ステップ94のCOLD行集合が不正")
     branch_register = _document(root, "clause_branch_register_v1.json")
-    if branch_register.get("branchCount") != 68 or any(
-        "walk-off" in branch["branchId"].lower()
-        for branch in branch_register["branches"]
+    if (
+        branch_register.get("branchCount") != 69
+        or branch_register.get("gameEndOutcomeBranches", {}).get("walkOff")
+        != walk_off_rows[0]["branchId"]
+        or not any(
+            branch["branchId"] == walk_off_rows[0]["branchId"]
+            and branch["sourceClauseIds"] == walk_off_rows[0]["sourceClauseIds"]
+            for branch in branch_register["branches"]
+        )
     ):
-        raise RequiredSetCoverageError("ステップ94のサヨナラ分岐不在の前提が変わった")
+        raise RequiredSetCoverageError("walk-off行の台帳役割が不正")
     descriptor = _document(root, "input_axes_descriptor_v1.json")
     axes = {axis["axisId"] for axis in descriptor["gameEndAxes"]}
     values = representative_selection.axis_values(descriptor, ("gameEndAxes",))
@@ -1426,7 +1434,7 @@ def _check_game_end_documents(
     }
     current_fixed = {
         (axis, value)
-        for row in rows
+        for row in rows[:5]
         for axis, value in _fixed_game_end_values(row, axes).items()
     }
     before_unfixed = all_values - first_four_fixed
@@ -1434,7 +1442,7 @@ def _check_game_end_documents(
     removed = before_unfixed - after_unfixed
     if declaration.get("step94Contraction") != {
         "beforeRowCount": 4,
-        "afterRowCount": len(rows),
+        "afterRowCount": 5,
         "beforeUnfixedCount": len(before_unfixed),
         "afterUnfixedCount": len(after_unfixed),
         "removedAxisValues": [
@@ -1448,9 +1456,9 @@ def _check_game_end_documents(
     }:
         raise RequiredSetCoverageError("ステップ94の未達記録がない")
     for key, status in (
-        ("walkOff", "unmet-no-decision-row"),
+        ("walkOff", "resolved-decision-row"),
         ("cold09", "unmet-no-decision-row"),
-        ("walkOffScoring", "unverified-no-walk-off-row"),
+        ("walkOffScoring", "deferred-to-step32"),
     ):
         item = unmet[key]
         if (
@@ -1472,7 +1480,12 @@ def _check_game_end_documents(
         for field in ("planReference", "currentLocation", "rule", "ordering")
     ):
         raise RequiredSetCoverageError("ステップ94の未達理由または得点規則が欠落")
-    if unmet["walkOff"].get("ownerStep") != 46 or unmet["cold09"].get(
+    if (
+        unmet["walkOff"].get("ownerStep") != 46
+        or unmet["walkOff"].get("resolutionStep") != 25
+        or unmet["walkOff"].get("resolvedBranchId") != walk_off_rows[0]["branchId"]
+        or not any(case["branchId"] == walk_off_rows[0]["branchId"] for case in contract["cases"])
+    ) or unmet["cold09"].get(
         "ownerStage"
     ) != 2 or unmet["walkOffScoring"].get("sourceClauseId") != "req:A-1":
         raise RequiredSetCoverageError("ステップ94の未達事項の典拠・送り先が不正")
@@ -1497,13 +1510,23 @@ def _check_game_end_documents(
             raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
     counts, _, reachable, observed = _game_end_measure(root, contract, declaration)
     baseline = {**contract, "cases": contract["cases"][:4]}
-    before, _, _, before_observed = _game_end_measure(root, baseline, declaration)
+    before, _, _, before_observed = _game_end_measure(
+        root, baseline, declaration, classify=False
+    )
     previous_cases = [
         case for case in contract["cases"]
         if case["branchId"] in {row["branchId"] for row in rows[:4]}
     ]
     previous, _, _, previous_observed = _game_end_measure(
-        root, {**contract, "cases": previous_cases}, declaration
+        root, {**contract, "cases": previous_cases}, declaration, classify=False
+    )
+    cold_cases = [
+        case for case in contract["cases"]
+        if case["branchId"] in {row["branchId"] for row in rows[:5]}
+    ]
+    cold, _, _, cold_observed = _game_end_measure(
+        root, {**contract, "decisionRows": rows[:5], "cases": cold_cases},
+        declaration, classify=False,
     )
 
     def snapshot(case_count: int, identities: set[tuple[str, ...]]) -> dict[str, Any]:
@@ -1515,7 +1538,7 @@ def _check_game_end_documents(
 
     if record != {
         "schemaVersion": 1, "version": "game_end_input_coverage_v1",
-        "currentStep": 94,
+        "currentStep": 95,
         "basis": "game_end_contract_v1.cases and independently derived gameEnd.requiredSet",
         "history": [
             {
@@ -1528,13 +1551,19 @@ def _check_game_end_documents(
                 "step": 94,
                 "baselineCaseIds": [case["caseId"] for case in previous_cases],
                 "before": snapshot(previous["cases"], previous_observed),
+                "after": snapshot(cold["cases"], cold_observed),
+            },
+            {
+                "step": 95,
+                "baselineCaseIds": [case["caseId"] for case in cold_cases],
+                "before": snapshot(cold["cases"], cold_observed),
                 "after": snapshot(counts["cases"], observed),
             },
         ],
     }:
         raise RequiredSetCoverageError("終了判定の独立被覆記録が実測と不一致")
     if observed != reachable:
-        raise RequiredSetCoverageError("ステップ94の到達可能要求が未充足")
+        raise RequiredSetCoverageError("ステップ95の到達可能要求が未充足")
     return counts
 
 

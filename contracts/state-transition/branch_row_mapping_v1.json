@@ -4,13 +4,13 @@
   "stateContractPath": "contracts/state-transition/state_transition_contract_v1.json",
   "gameEndContractPath": "contracts/state-transition/game_end_contract_v1.json",
   "fixtureCoveragePath": "contracts/state-transition/manual_fixture_branch_coverage_v1.json",
-  "expectedPositiveMatches": 21,
+  "expectedPositiveMatches": 22,
   "expectedNegativeMatches": 11,
-  "expectedRegisterBranches": 68,
+  "expectedRegisterBranches": 69,
   "expectedExcludedBranches": 36,
   "claimBoundary": {
     "machineVerified": [
-      "分岐IDの台帳実在、fixture 31 分岐との exact-set および免除 37 分岐との整合",
+      "分岐IDの台帳実在、fixture 33 分岐との exact-set および免除 36 分岐との整合",
       "自然キーによる規範行の一意な実在と、状況判定契約の既存行参照との一致",
       "通常fixtureの入力述語・期待値と規範行の一致、交差制約負例の変異の存在",
       "終了判定行自身のbranchIdを正とした対応表との一致、入力述語および期待decisionとの一致",
@@ -1184,6 +1184,16 @@
         "layer": "decisionRows",
         "coordinate": {
           "branchId": "COLD-08"
+        }
+      },
+      "fixtureRelation": "decision-output"
+    },
+    {
+      "branchId": "GAME-END-WALK-OFF",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "GAME-END-WALK-OFF"
         }
       },
       "fixtureRelation": "decision-output"

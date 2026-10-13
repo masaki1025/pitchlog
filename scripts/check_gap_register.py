@@ -1178,7 +1178,7 @@ def validate_clause_branch_register_document(
     if not _values_equal(
         frozenset(outcomes), frozenset(policy.game_end_outcome_roles)
     ):
-        raise GapRegisterError("終了判定4役割の集合がschema宣言と一致しない")
+        raise GapRegisterError("終了判定5役割の集合がschema宣言と一致しない")
     outcome_ids = _validate_string_id_list(
         list(outcomes.values()), "gameEndOutcomeBranches"
     )
@@ -1188,9 +1188,9 @@ def validate_clause_branch_register_document(
         if _values_equal(branch["branchKind"], policy.game_end_outcome_kind)
     )
     if not _values_equal(frozenset(outcome_ids), declared_outcome_ids):
-        raise GapRegisterError("終了判定4役割とgame-end-outcome entryがexact-set不一致")
+        raise GapRegisterError("終了判定5役割とgame-end-outcome entryがexact-set不一致")
     if not _is_subset(declared_outcome_ids, actual_ids):
-        raise GapRegisterError("終了判定4役割に解決できないbranchIdがある")
+        raise GapRegisterError("終了判定5役割に解決できないbranchIdがある")
 
     for branch in validated:
         related_ids = frozenset(branch["relatedClauseBranchIds"])

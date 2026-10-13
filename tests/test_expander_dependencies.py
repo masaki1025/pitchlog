@@ -287,8 +287,8 @@ def test_step93_first_stage_game_end_cases_match_manual_fixtures() -> None:
 
 
 def test_game_end_expander_can_process_all_current_decision_rows() -> None:
-    """メモリ上では現行5行すべてを行自身の分岐IDから展開できる。"""
-    cases, trace = game_end_expander.expand_traced(REPOSITORY_ROOT, limit=5)
+    """メモリ上では現行6行すべてを行自身の分岐IDから展開できる。"""
+    cases, trace = game_end_expander.expand_traced(REPOSITORY_ROOT, limit=6)
     contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
     assert len(cases) == len(contract["decisionRows"])
     assert [case["branchId"] for case in cases] == [
@@ -420,11 +420,10 @@ def test_positive_manual_fixture_inputs_follow_representative_policy() -> None:
         descriptor, ("gameEndAxes", "stateTransitionAxes")
     )
     game_contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
-    game_used = set().union(
+    baseline_game_used = set().union(
         *(representative_selection.predicate_axes(row["precondition"])
-          for row in game_contract["decisionRows"])
+          for row in game_contract["decisionRows"][:5])
     )
-    game_axes = [axis_id for axis_id in game_values if axis_id in game_used]
     checked = 0
     for mapping in mappings:
         branch_id = mapping["branchId"]
@@ -454,12 +453,16 @@ def test_positive_manual_fixture_inputs_follow_representative_policy() -> None:
             row = next(
                 row for row in game_contract["decisionRows"] if row["branchId"] == branch_id
             )
+            game_used = baseline_game_used | representative_selection.predicate_axes(
+                row["precondition"]
+            )
+            game_axes = [axis_id for axis_id in game_values if axis_id in game_used]
             expected = representative_selection.select_coordinate(
                 row["precondition"], game_values, game_axes, policy
             )
             assert game_fixtures[branch_id] == expected
             checked += 1
-    assert checked == 21
+    assert checked == 22
 
 
 @pytest.mark.parametrize(
