@@ -78,6 +78,8 @@ branch: feature/ut1-game-invalidation
 
 **ステップ1の資産差分・受理状況（2026-10-13時点、未着手）**: `schema-manifest.json`は設計書全文SHA、`shared-preconditions.json`は要件書・設計書のGit blob digestを追随する。要件書由来の認可資産は①`requirement-claims.json`の入力commit/blobとFR-019・付録Cの抽出結果および`.lock.json`、②それらを入力に持つ`route-registry.json`・`auth-catalog.json`・`http-route-matrix.json`と各lock、③8入力を固定する`oracle-seal.lock.json`とsealed assetsの要否判定、の順に実差分を確認する。主張の分類・件数、oracle 6資産、固定件数テストは変動がある場合だけ追随し、既存意味を機械的に再封印しない。TSK-424の専用worktree内に**今回のTSK-543差分を受理した記録は確認できない**ため、担当受理は未確認とする。所有者への引き渡しと7.7・6.3の経路確定はステップ1開始前に必要。現在は凍結JSONを変更しない。
 
+**隔離候補・担当連絡（2026-10-13、ステップ1開始前）**: 正本確定`f8b907ea`のdetached worktree `/tmp/pitchlog-tsk543-step1-candidate`で、既存抽出器による差分を`/tmp/tsk543-step1-source-delta.json`と`/tmp/tsk543-step1-candidate-report.md`へ保存。要件主張は1380→1383行（追加3・既存本文変更6）、要件書blob `727309f7`→`38438449`、設計書blob `7670324c`→`25f8786e`、設計書SHA-256 `87851f5f`→`74d45608`。新規`FR-019/list_item-010`の分類と認可主張の意味差分はTSK-424査読待ち。PR #124はGET `ROUTE:RECORD:lineup_memories:read`、HTTP行、両lock、oracle seal、既存7.7履歴を含むhead `1acbac46`へ進み、旧基線からの再生成はGETを消す。TSK-424カードへ[受理依頼](https://app.notion.com/p/3de93b75e6878172a4b4d2f6edd663fc?d=3e493b75e6878161af84001cae339d69)、PR #124へ[順序確認](https://github.com/masaki1025/pitchlog/pull/124#issuecomment-6145344614)を送信し、TSK-394担当Codexセッションにも同じ順序案を伝えた。推奨は#124のGETと7.7受理を先に統合し、実統合コミットをTSK-543入力基線にすること。**両担当の回答と受理はまだ得ていない**。正式凍結JSON・台帳・製品コードは未変更で、ステップ1は未開始。
+
 ## 未了のゲート
 
 - 設計書11-2の規範改訂は7.3、凍結資産更新は7.7、製品認可差分はTSK-424所有者の受理が必要。実装ステップ1の開始指示も未了。
