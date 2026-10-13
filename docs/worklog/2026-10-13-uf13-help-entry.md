@@ -29,3 +29,17 @@ Notion の U-F13 タスク URL は U-F2 の作業ログから得たが、現在�
 `vue-router` 4.6.4 を既存の移植規則に合わせて追加した。`main.ts` から共有 Pinia、既存の QueryClient、router を起動時に install する。既存トップを `/`、完成済みガイドを `/help` に登録し、`/help` への直接到達と provider の instance 同一性を Vitest で確認した。既存の App テストも router を使う起動構成に合わせた。認証ガード、未完成画面、API・DTO、トップからの導線、ガイドの戻る遷移はこのステップに含めていない。
 
 検証結果: フロントエンド Vitest 50 ファイル・864 件成功、ESLint 成功、`vue-tsc --noEmit` 成功、Prettier check 成功、`pnpm build` 成功、`git diff --check` 成功。最初の sandbox 実行では子プロセスを使う既存テストが `EPERM` になったため、権限付きで同じ全件テストを再実行して成功した。
+
+## 正式カードとの差分と後続への申し送り
+
+依頼者が別接続で正式カードを取得し、U-F13 は [TSK-528](https://app.notion.com/p/3f493b75e68781628422c331bfebc350) と確認した。今回の `/help` 公開入口は TSK-528 の部分実装であり、カード全体を完了にしない。
+
+後続には、移植規則に定めた **15 経路と catch-all の path・認可条件の一致**、U-F2 の hydration・`isAuthenticated`・`authEpoch` を使う**認証ガード**、テナント境界を確認する**越境試験**が残る。今回追加した `vue-router` はコア領域として扱い、PR では敵対レビューと人間の逐行確認、`core-guard` の記録を維持する。
+
+## 実装ステップ 2/2
+
+トップへ公開ガイドの導線を追加し、`HelpScreen` の `back` emit を名前付き `home` route への遷移へ接続した。共有 Pinia・既存 QueryClient を install した状態で、未ログインの `/help` 直接到達とトップ→ガイド→トップの往復を Vitest で検証する。往復中に `fetch` が呼ばれないことも確認し、暫定トップがテナントデータを取得しない条件を固定する。
+
+検証結果: フロントエンド Vitest 50 ファイル・865 件成功、ESLint 成功、`vue-tsc --noEmit` 成功、Prettier check 成功、`pnpm build` 成功、`git diff --check` 成功。ビルド時の依存閉域検査も `conforming`。共有 provider の instance 同一性テストは継続して成功し、往復テストでは同じ Pinia store instance が維持された。
+
+PR 段階の残ゲート: `vue-router` 追加を含むためコア領域として敵対レビューを実施し、人間の逐行確認と `core-guard` の確認記録を得る。これは TSK-528 全体の完了条件とは別であり、今回の部分実装をカード完了として扱わない。
