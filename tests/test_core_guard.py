@@ -2176,9 +2176,11 @@ def test_addition_layer_requires_complete_declared_suffix(tmp_path: Path) -> Non
 
 
 def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> None:
-    """宣言だけを先にコミットしても据え置き JSON を受理する。"""
+    """隔離履歴で未登録、宣言のみ、登録済みの順に受理する。"""
     core_guard = load_core_guard_module()
     root, base_sha = make_layered_core_repo(tmp_path)
+    assert core_guard.verify_area_path_baseline(root, base_sha, base_sha) == base_sha
+
     write_text(root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8"))
     run_git(root, "add", "scripts/core_guard.py")
     run_git(
@@ -2204,6 +2206,18 @@ def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> 
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     core_guard.validate_area_path_layers(baseline, candidate)
     assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
+
+    registered_sha = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    registered = core_guard.load_core_areas_at_revision(root, registered_sha)
+    for area in registered["areas"]:
+        area_id = area["id"]
+        assert area["paths"] == [
+            f"base/{area_id}.py",
+            *EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ()),
+        ]
+    assert core_guard.verify_area_path_baseline(root, base_sha, registered_sha) == (
+        base_sha
+    )
 
 
 def test_tenant_additions_declared_for_other_area_are_rejected(tmp_path: Path) -> None:
