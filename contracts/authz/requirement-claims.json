@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "input_manifest": {
-    "commit": "9528d0887c048ee3895ed161c64ed566d2907248",
+    "commit": "796b5dd8d1ba85aa24cc80ea5314185b84022d17",
     "source_path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
     "scan_start_heading_id": "DOC",
     "scan_end_heading_id": "APPENDIX-ITEM-F-2",
-    "source_blob_digest": "8a978e209acf2ef5feec32265829e38ffdc78f07",
+    "source_blob_digest": "c2f22bc4a86f9d6912cced84969c1c1b1444f375",
     "heading_ids": [
       "DOC",
       "CHANGELOG",
@@ -12021,11 +12021,11 @@
       "source_id": "NFR-018/list_item-023",
       "source_kind": "list_item",
       "source_heading_id": "NFR-018",
-      "source_text": "        - **プロパティテスト**（不変条件と、**正本から生成した各実行体どうしの等価性**。区分ごとの対象は設計フェーズのADRが定める(**発効後の比較相手・実施主体・実行経路・判定根拠は ADR-003 D-14-g (i) が定める**(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**)。**(β) は実行体が DB 側の SQL 式だけになるため、同一 TS 正本から生成したテスト専用の参照実行体を比較相手に置く**)）",
-      "source_text_digest": "13d8c8ec5d50c9685131b92eed8e897eba3d3a831bd677f5eee42da310b40e26",
+      "source_text": "        - **プロパティテスト**（不変条件と、**正本から生成した各実行体どうしの等価性**。区分ごとの対象は設計フェーズのADRが定める(**発効後の比較相手・実施主体・実行経路・判定根拠は ADR-003 D-14-g (i) が定める**(**v2.11 — ADR-003 の D-2 への切り替えに追随。発効後に効く**)。**(β) は発効後クライアント側の実行体を持たないため、同一 TS 正本から生成したテスト専用の参照実行体を比較相手に置く**。**比較面は SQL 式の出力に狭めない** — **①〜⑤ は複合 target〔SQL 式 → 型付き受け口 → 生成 formatter〕が返す最終表示文字列、⑦ は写像①適用後の区分表示名、⑥⑧ は生成物**が比較対象である〔ADR-003 D-14-g (i) の表 (a)〕)）",
+      "source_text_digest": "0091591188e498cace9242baba5a4a5db3e84a221931fec04e8c4ab501841036",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "e360945d869a9fce34f84afc6dabfdc80eead5ef3db2dd14bbcf253e71b5f1fc"
+      "decision_digest": "05f3d28192f13759c6b06039c506c6cca2d37c1a2251fe498be6db9d47aabfac"
     },
     {
       "source_id": "NFR-018/list_item-024",
