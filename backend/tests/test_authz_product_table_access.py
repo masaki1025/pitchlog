@@ -137,7 +137,7 @@ def _rows_by_table(asset: dict[str, Any], section: str) -> dict[str, dict[str, A
     rows = asset[section]
     assert isinstance(rows, list)
     relevant = (
-        rows
+        [row for row in rows if row["role_ids"] == ["pitchlog_app"]]
         if section == "policies"
         else [row for row in rows if row["grantee_role_id"] == "pitchlog_app"]
     )
@@ -328,10 +328,21 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
         expected_sql[("policy", f"POLICY:{table_id}:{CONTROL_PROFILE}")] = (
             generate_control_policy_sql(table_id)
         )
+    owner_policy_ids = set(_catalog_checker._owner_game_type_seed_policies())
+    assert {
+        element_id
+        for element_type, element_id in actual_sql
+        if element_type == "policy"
+    } == {
+        element_id
+        for element_type, element_id in expected_sql
+        if element_type == "policy"
+    } | owner_policy_ids
     assert {
         key: sql
         for key, sql in actual_sql.items()
         if key[0] != "acl_expectation" or key[1].endswith(":pitchlog_app")
+        if key[0] != "policy" or key[1] not in owner_policy_ids
     } == expected_sql
     owner_acls = [
         row
@@ -348,6 +359,11 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
 def test_function_owner_table_acl_is_derived_from_declaration() -> None:
     """直接アクセスの ACL に関数所有者の宣言を追加できる。"""
     asset = _product_asset()
+    asset["policies"] = [
+        policy
+        for policy in asset["policies"]
+        if policy["role_ids"] != ["pitchlog_owner"]
+    ]
     function = copy.deepcopy(asset["functions"][-1])
     function.update(
         function_id="FUNCTION:authz_private:step4_definer()",

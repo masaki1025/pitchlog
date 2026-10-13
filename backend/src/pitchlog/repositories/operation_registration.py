@@ -10,9 +10,17 @@ from sqlalchemy.sql.dml import Insert, Update
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.selectable import Select
 
-from pitchlog.repositories.tokens import TenantOperationToken
+from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 
 type PreparedOperation = tuple[Select[Any] | Insert | Update, dict[str, object]]
+
+
+@dataclass(frozen=True, slots=True)
+class OperationPreflight:
+    """同じトランザクション内で対象操作より先に実行する検証を表す。"""
+
+    operations: tuple[TenantOperationToken, ...]
+    validate: Callable[[tuple[TenantOperationResult, ...]], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,3 +45,6 @@ class OperationRegistration:
     required_limit_parameter: str | None = None
     required_limit_max: int | None = None
     allowed_update_columns: frozenset[str] | None = None
+    preflight: (
+        Callable[[TenantOperationToken, dict[str, object]], OperationPreflight] | None
+    ) = None

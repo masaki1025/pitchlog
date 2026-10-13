@@ -164,6 +164,13 @@ def _element_string(element: _ProductElement, field_name: str) -> str:
     return value
 
 
+def _policy_name(element: _ProductElement) -> str:
+    """検査済み資産からポリシー名を取得する。"""
+    if "policy_name" in element.fields:
+        return _element_text(element, "policy_name")
+    return f"pitchlog_app_{_element_text(element, 'profile')}"
+
+
 def _quote_identifier(identifier: str) -> str:
     """PostgreSQL の識別子を常に二重引用符で安全に引用する。"""
     if not identifier or "\x00" in identifier:
@@ -308,9 +315,7 @@ def _application_statements(
                 _element_text(table, "schema_name"),
                 _element_text(table, "table_id"),
             )
-            policy_name = _quote_identifier(
-                f"pitchlog_app_{_element_text(element, 'profile')}"
-            )
+            policy_name = _quote_identifier(_policy_name(element))
             sql_text = (
                 f"DROP POLICY IF EXISTS {policy_name} ON {qualified_table};\n{sql_text}"
             )
@@ -423,9 +428,7 @@ ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;
         return None
     if statement.element_type == "policy":
         table = _table_element(elements, _element_text(element, "table_id"))
-        policy_name = _quote_identifier(
-            f"pitchlog_app_{_element_text(element, 'profile')}"
-        )
+        policy_name = _quote_identifier(_policy_name(element))
         qualified_table = _qualified_identifier(
             _element_text(table, "schema_name"),
             _element_text(table, "table_id"),
