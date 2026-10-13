@@ -1,3 +1,10 @@
+<script lang="ts">
+import { reactive as createReactiveState } from 'vue'
+
+// 認証切替で画面が再生成されても、送信済み要求が終わるまで同じ操作を再送させない。
+const pendingOperationKeys = createReactiveState(new Set<string>())
+</script>
+
 <script setup lang="ts">
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { storeToRefs } from 'pinia'
@@ -95,6 +102,32 @@ function isCurrentTenant(scope: TenantScope): boolean {
 
 function isCurrentPlayer(scope: PlayerMutationScope): boolean {
   return isCurrentTenant(scope) && props.selectedTeam?.id === scope.teamRecordId
+}
+
+function opponentCreateKey(scope: TenantScope): string {
+  return `opponent:create:${scope.teamId}`
+}
+
+function opponentUpdateKey(scope: TenantScope, id: string): string {
+  return `opponent:update:${scope.teamId}:${id}`
+}
+
+function playerCreateKey(scope: PlayerMutationScope): string {
+  return `player:create:${scope.teamId}:${scope.teamRecordId}`
+}
+
+function playerUpdateKey(scope: PlayerMutationScope, id: string): string {
+  return `player:update:${scope.teamId}:${scope.teamRecordId}:${id}`
+}
+
+function beginOperation(key: string): boolean {
+  if (pendingOperationKeys.has(key)) return false
+  pendingOperationKeys.add(key)
+  return true
+}
+
+function finishOperation(key: string): void {
+  pendingOperationKeys.delete(key)
 }
 
 function normalizeUniformNumber(value: string): string | null {
@@ -205,7 +238,11 @@ watch(
 
 const createOpponentMutation = useMutation({
   retry: false,
-  mutationFn: async (variables: { name: string; scope: TenantScope }) => {
+  mutationFn: async (variables: {
+    name: string
+    operationKey: string
+    scope: TenantScope
+  }) => {
     const created = await createTeamRecord({ name: variables.name })
     if (!isCurrentTenant(variables.scope)) {
       throw new ApiStaleAuthError('POST', '/team-records')
@@ -234,6 +271,9 @@ const createOpponentMutation = useMutation({
     lastCreatedOpponent.value = null
     opponentError.value = mutationErrorMessage(error, '対戦相手の登録')
   },
+  onSettled: (_data, _error, variables) => {
+    finishOperation(variables.operationKey)
+  },
 })
 
 const updateOpponentMutation = useMutation({
@@ -241,6 +281,7 @@ const updateOpponentMutation = useMutation({
   mutationFn: async (variables: {
     id: string
     name: string
+    operationKey: string
     scope: TenantScope
   }) => {
     const updated = await updateTeamRecord(variables.id, {
@@ -271,12 +312,16 @@ const updateOpponentMutation = useMutation({
     opponentSuccess.value = null
     opponentError.value = mutationErrorMessage(error, '対戦相手名の更新')
   },
+  onSettled: (_data, _error, variables) => {
+    finishOperation(variables.operationKey)
+  },
 })
 
 const createPlayerMutation = useMutation({
   retry: false,
   mutationFn: async (variables: {
     body: PlayerCreate
+    operationKey: string
     scope: PlayerMutationScope
   }) => {
     const created = await createPlayer(variables.body)
@@ -305,6 +350,9 @@ const createPlayerMutation = useMutation({
     sameNumberPlayers.value = []
     playerError.value = mutationErrorMessage(error, '選手の登録')
   },
+  onSettled: (_data, _error, variables) => {
+    finishOperation(variables.operationKey)
+  },
 })
 
 const updatePlayerMutation = useMutation({
@@ -312,6 +360,7 @@ const updatePlayerMutation = useMutation({
   mutationFn: async (variables: {
     body: PlayerUpdate
     id: string
+    operationKey: string
     scope: PlayerMutationScope
   }) => {
     const updated = await updatePlayer(variables.id, variables.body)
@@ -339,38 +388,46 @@ const updatePlayerMutation = useMutation({
     playerSuccess.value = null
     playerError.value = mutationErrorMessage(error, '選手の更新')
   },
+  onSettled: (_data, _error, variables) => {
+    finishOperation(variables.operationKey)
+  },
 })
 
 const isCreatingOpponent = computed(
   () =>
-    createOpponentMutation.isPending.value &&
-    createOpponentMutation.variables.value !== undefined &&
-    isCurrentTenant(createOpponentMutation.variables.value.scope),
+    teamId.value !== null &&
+    pendingOperationKeys.has(`opponent:create:${teamId.value}`),
 )
 
 const isUpdatingOpponent = computed(
   () =>
-    updateOpponentMutation.isPending.value &&
-    updateOpponentMutation.variables.value !== undefined &&
-    isCurrentTenant(updateOpponentMutation.variables.value.scope),
+    teamId.value !== null &&
+    editingOpponentId.value !== '' &&
+    pendingOperationKeys.has(
+      `opponent:update:${teamId.value}:${editingOpponentId.value}`,
+    ),
 )
 
 const isCreatingPlayer = computed(
   () =>
-    createPlayerMutation.isPending.value &&
-    createPlayerMutation.variables.value !== undefined &&
-    isCurrentPlayer(createPlayerMutation.variables.value.scope),
+    teamId.value !== null &&
+    props.selectedTeam !== null &&
+    pendingOperationKeys.has(
+      `player:create:${teamId.value}:${props.selectedTeam.id}`,
+    ),
 )
 
 const isUpdatingPlayer = computed(
   () =>
-    updatePlayerMutation.isPending.value &&
-    updatePlayerMutation.variables.value !== undefined &&
-    isCurrentPlayer(updatePlayerMutation.variables.value.scope),
+    teamId.value !== null &&
+    props.selectedTeam !== null &&
+    editingPlayerId.value !== '' &&
+    pendingOperationKeys.has(
+      `player:update:${teamId.value}:${props.selectedTeam.id}:${editingPlayerId.value}`,
+    ),
 )
 
 function submitOpponent(): void {
-  if (isCreatingOpponent.value) return
   const scope = currentTenantScope()
   const name = opponentName.value.trim()
   opponentError.value = null
@@ -382,7 +439,9 @@ function submitOpponent(): void {
     opponentError.value = '対戦相手名を入力してください。'
     return
   }
-  createOpponentMutation.mutate({ name, scope })
+  const operationKey = opponentCreateKey(scope)
+  if (!beginOperation(operationKey)) return
+  createOpponentMutation.mutate({ name, operationKey, scope })
 }
 
 function selectOpponentForEdit(id: string): void {
@@ -400,7 +459,6 @@ function editLastCreatedOpponent(): void {
 }
 
 function submitOpponentEdit(): void {
-  if (isUpdatingOpponent.value) return
   const scope = currentTenantScope()
   const name = editingOpponentName.value.trim()
   opponentError.value = null
@@ -419,15 +477,17 @@ function submitOpponentEdit(): void {
     opponentError.value = '対戦相手名を入力してください。'
     return
   }
+  const operationKey = opponentUpdateKey(scope, editingOpponentId.value)
+  if (!beginOperation(operationKey)) return
   updateOpponentMutation.mutate({
     id: editingOpponentId.value,
     name,
+    operationKey,
     scope,
   })
 }
 
 function submitPlayer(): void {
-  if (isCreatingPlayer.value) return
   const scope = currentPlayerScope()
   const name = playerName.value.trim()
   playerError.value = null
@@ -438,6 +498,8 @@ function submitPlayer(): void {
     playerError.value = '選手名、投、打を入力してください。'
     return
   }
+  const operationKey = playerCreateKey(scope)
+  if (!beginOperation(operationKey)) return
   createPlayerMutation.mutate({
     body: {
       bats: playerBats.value,
@@ -448,6 +510,7 @@ function submitPlayer(): void {
       throws: playerThrows.value,
       uniform_number: normalizeUniformNumber(playerUniformNumber.value),
     },
+    operationKey,
     scope,
   })
 }
@@ -463,7 +526,6 @@ function selectPlayerForEdit(id: string): void {
 }
 
 function submitPlayerEdit(): void {
-  if (isUpdatingPlayer.value) return
   const scope = currentPlayerScope()
   const name = editingPlayerName.value.trim()
   playerError.value = null
@@ -478,6 +540,8 @@ function submitPlayerEdit(): void {
     playerError.value = '編集する選手と、選手名、投、打を確認してください。'
     return
   }
+  const operationKey = playerUpdateKey(scope, editingPlayerId.value)
+  if (!beginOperation(operationKey)) return
   updatePlayerMutation.mutate({
     body: {
       bats: editingPlayerBats.value,
@@ -486,6 +550,7 @@ function submitPlayerEdit(): void {
       uniform_number: normalizeUniformNumber(editingPlayerUniformNumber.value),
     },
     id: editingPlayerId.value,
+    operationKey,
     scope,
   })
 }

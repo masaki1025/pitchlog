@@ -359,7 +359,7 @@ describe('TeamMembersContent', () => {
     await flushPromises()
   })
 
-  it('旧 tenant の送信待ち中でも新 tenant の操作を送信できる', async () => {
+  it('旧 tenant の送信待ち中は新 tenant を許可し、戻った旧 tenant の再送を止める', async () => {
     const selfA = teamRecord('self-a', 'チーム A', 'self')
     const selfB = teamRecord('self-b', 'チーム B', 'self')
     const delayedA = deferred<TeamRecordCreated>()
@@ -374,8 +374,14 @@ describe('TeamMembersContent', () => {
         ...teamRecord('opponent-b', '対戦相手 B'),
         similar_names: [],
       })
+      .mockResolvedValueOnce({
+        ...teamRecord('opponent-a-retry', '対戦相手 A 再送'),
+        similar_names: [],
+      })
 
-    const { auth, wrapper } = mountScreen()
+    const mounted = mountScreen()
+    const { auth } = mounted
+    let { wrapper } = mounted
     await vi.waitFor(() =>
       expect(wrapper.text()).toContain('チーム Aの選手管理'),
     )
@@ -395,11 +401,38 @@ describe('TeamMembersContent', () => {
     )
     expect(createTeamRecordMock).toHaveBeenCalledTimes(2)
 
+    wrapper.unmount()
+    activeTenant = 'a'
+    wrapper = mountScreen().wrapper
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain('チーム Aの選手管理'),
+    )
+    await wrapper.get('input[name="opponent-name"]').setValue('対戦相手 A 再送')
+    expect(buttonWithText(wrapper, '登録中').attributes()).toHaveProperty(
+      'disabled',
+    )
+    const createForm = wrapper
+      .findAll('form')
+      .find((candidate) =>
+        candidate.find('input[name="opponent-name"]').exists(),
+      )
+    expect(createForm).toBeDefined()
+    await createForm!.trigger('submit')
+    expect(createTeamRecordMock).toHaveBeenCalledTimes(2)
+
     delayedA.resolve({
       ...teamRecord('opponent-a', '対戦相手 A'),
       similar_names: [],
     })
-    await flushPromises()
+    await vi.waitFor(() =>
+      expect(
+        buttonWithText(wrapper, '対戦相手を登録').attributes(),
+      ).not.toHaveProperty('disabled'),
+    )
+    await createForm!.trigger('submit')
+    await vi.waitFor(() =>
+      expect(createTeamRecordMock).toHaveBeenCalledTimes(3),
+    )
     expect(wrapper.text()).not.toContain('対戦相手「対戦相手 A」を登録しました')
   })
 
