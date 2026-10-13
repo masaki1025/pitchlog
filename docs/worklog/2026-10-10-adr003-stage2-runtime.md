@@ -93,3 +93,9 @@ branch: feature/adr003-stage2-runtime
 - 既存の挙動: backend の `pytest -m "not requires_db"` は全件 passed でも終了コード 1(`tests/db/conftest.py` が DB 試験 0 件のセッションを失敗にする)。本タスクの変更ではない
 
 - **squash マージ禁止**: ステップ 20 で引き渡し契約の依存(`frontend/src/testing/vectorRunner.ts`)の commit OID を本ブランチのステップ 11 のコミット `f8df3ada` に向けた(段階 2 の読み込み接続後の現行版)。squash マージすると OID が develop に残らず参照が壊れるので、**PR はマージコミットで取り込む**(PR 本文にも書く)
+
+### ゲート ④(2026-10-14)— 送り先の起票
+
+- 山田さんの判断で Notion に 3 枚起票: **TSK-544** U-X1 T1 状況判定の対象計算(ブロック中)/ **TSK-545** U-X1 T2 終了判定の対象計算(ブロック中)/ **TSK-546** 付録E 契約の PO 裁定 3 件(S11・S13・S22)
+- (b) 27 件の送り先(山田さん): TSK-538 = S15〜S21・S27・S28(9 件)/ TSK-544 = S05〜S10・S12・S14・S23〜S26・S30〜S32(15 件)/ TSK-546 = S11・S13・S22(3 件)
+- ステップ 11 の見落とし: 契約参照の試験ファイル(`tests/domain/runners/test_handoff_loader.py`)が sync-protocol に未登録のまま `test_core_guard` が赤だった(ステップ 11 の検証で `test_core_guard` を回していなかった)。ステップ 17〜19 の登録で解消
