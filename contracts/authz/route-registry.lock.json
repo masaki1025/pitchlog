@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "contracts/authz/route-registry.json",
-  "asset_digest": "adaded16e959dbe1af7ff78033888717961c688b585f9edcf13d811191711df5",
-  "entry_count": 238,
-  "aggregate_decision_digest": "52b25aa406c0576b37c8e7202a64b1fcc5a5e986c57b90ece8c48f2781c526ee",
+  "asset_digest": "a90fa41e5036824bcd57c5117fb5d55eb6f2c02fc3058e320be9e1cc15fcb8ea",
+  "entry_count": 241,
+  "aggregate_decision_digest": "97315b4d757a23a6aba30d18c9698194cffe217763e8f643df8c1512c138b01c",
   "entries": [
     {
       "entry_id": "route:ROUTE:FR-020",
@@ -1200,14 +1200,44 @@
       "decision_digest": "67711d924dbdc1518be15b5a316a7c4a3b78770f642c205450e272a29417895f"
     },
     {
-      "entry_id": "claim_disposition:FR-019/list_item-009:http",
+      "entry_id": "claim_disposition:FR-019/list_item-005:http",
       "decision": {
-        "source_id": "FR-019/list_item-009",
+        "source_id": "FR-019/list_item-005",
         "location": "http",
         "disposition": "out_of_registry",
         "reason_code": "design_pending_task"
       },
-      "decision_digest": "be40db15a8d73d22dd5ca6b2294cae4b3cdf34e054a48088633d02c7b28d3ea5"
+      "decision_digest": "79373c6854a1270ef8efc78186e62938c22fed734d5b71325636c85055f96943"
+    },
+    {
+      "entry_id": "claim_disposition:FR-019/list_item-009#trash-visibility:http",
+      "decision": {
+        "source_id": "FR-019/list_item-009#trash-visibility",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "c39ed6964f9c7fe7d16a88d962e6f0f4863d8251b0b345c2736dd9685bf56a08"
+    },
+    {
+      "entry_id": "claim_disposition:FR-019/list_item-009#restore-deadline:http",
+      "decision": {
+        "source_id": "FR-019/list_item-009#restore-deadline",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "adf779b9666af7ac89978a689bbf2f7e64d984ef4026ee7ee1c000f654a1c292"
+    },
+    {
+      "entry_id": "claim_disposition:FR-019/list_item-010:http",
+      "decision": {
+        "source_id": "FR-019/list_item-010",
+        "location": "http",
+        "disposition": "out_of_registry",
+        "reason_code": "design_pending_task"
+      },
+      "decision_digest": "e82ea7693ce73111096ea1d266804e790edc7496ebc2942b3b0c7227bb348b33"
     },
     {
       "entry_id": "claim_disposition:FR-033/list_item-002:http",
