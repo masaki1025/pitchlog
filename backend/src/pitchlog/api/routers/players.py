@@ -276,8 +276,12 @@ def _apply_player_status_in_transaction(
     not_found_player_ids: list[UUID] = []
     status_updates = 0
     update_label = "roster_label_key" in body.model_fields_set
+    response_order = {
+        player_id: index for index, player_id in enumerate(body.player_ids)
+    }
     with roster_status_transaction_scope(context) as scope:
-        for player_id in body.player_ids:
+        # スタメン保存と同じ UUID 順で選手行を取得し、相互待機を防ぐ。
+        for player_id in sorted(body.player_ids):
             rows = scope.run(PlayerReadToken(limit=1, record_id=player_id)).rows
             if not rows:
                 not_found_player_ids.append(player_id)
@@ -321,6 +325,8 @@ def _apply_player_status_in_transaction(
             )
             record_invalidation_intent(scope, request, uuid4())
 
+    applied.sort(key=lambda player: response_order[player.id])
+    not_found_player_ids.sort(key=response_order.__getitem__)
     return PlayerStatusApplied(
         applied=applied,
         not_found_player_ids=not_found_player_ids,
