@@ -49,7 +49,7 @@ created: 2026-10-08
 > | ID | 内容 |
 > | --- | --- |
 > | R-13 | **I5 の配信と再試行は U-S1 が持つ**(承認済みの Q-10 のとおり)。配信先は `InvalidationSinkPort`(本物は未登録)。data-model `B06` の「配信の所有」の行(#114 で新設・「`B04` の補足」と書かれ I5 にも掛かるように読める)を、**同期を通らないトリガーに限る**と明確にする |
-> | R-14 | **同期経路の無効化意図は範囲ごとに 1 行書く**。意図 ID は「対象イベントの識別 + 範囲」(P3 = `V10` + 対象の確定版 + 範囲)。DDL は変えない。**data-model `B03` を改訂する**(v0.8・確定ゲート)。同期経路のトリガー 1・3・4(記録側)は `V10` か `V11` を欠いて現行 `B03` に当てはまらない(#114 の申し送り — `docs/features/roster-status-invalidation/design.md:59-60`)ので、**D1 付き経路の意図 ID の導出も同じ改訂で定める**(作成者の案: イベントの D5 + 範囲 — 保存済み結果の再掲で同じ ID になる。8 節で承認を受ける) |
+> | R-14 | **同期経路の無効化意図は範囲ごとに 1 行書く**。意図 ID は「対象イベントの識別 + 範囲」(P3 = `V10` + 対象の確定版 + 範囲)。DDL は変えない。**data-model `B03` を改訂する**(v0.9・確定ゲート)。同期経路のトリガー 1・3・4(記録側)は `V10` か `V11` を欠いて現行 `B03` に当てはまらない(#114 の申し送り — `docs/features/roster-status-invalidation/design.md:59-60`)ので、**D1 付き経路の意図 ID の導出も同じ改訂で定める**(作成者の案: イベントの D5 + 範囲 — 保存済み結果の再掲で同じ ID になる。8 節で承認を受ける) |
 > | R-15 | **契約の語彙を DB に合わせる**: `cache-invalidation-contract.json` の配信状態を `pending`/`delivered`、未配信の検索列を `delivery_status` へ改める(凍結資産・revision を上げ受理記録)。範囲名は名前を変えず、#114 の写像(`repositories/invalidation_intents.py` の私有の表)を公開して共有する(写像を 2 つ持たない) |
 >
 > **計画の変更**(ステップ表は本改訂で番号を振り直した — まだステップのコミットは無い):
@@ -104,14 +104,14 @@ created: 2026-10-08
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
-| `docs/design/sync-protocol.md` | **第 1 改訂で 2 回の改訂に分けた**: ① **v0.6(新ステップ 1・data-model v0.8 と単一の確定ゲート)** — 8-1 の `T7`・10-2 の P3・10-3 の `T7` の必須観測の「1 件」を範囲ごとの 1 件へ追随(R-14)② **v0.7(新ステップ 16 の前)** — **10-3 の (d) 資産契約を改訂する(R-10)**: 比較単位に `caseId` と注入対象を加える、単一の `faultInjection`・`expected` を `cases` 構造にする、`tElementCommitment` の T の内部単位と `no-write` / `no-change`。意味規則(6〜9 章)は変えない。v0.2 は TSK-267、v0.5 は #81(TSK-236・2026-09-28 approved)の先約。当初は v0.6 を使う裁定(2026-10-09 山田正輝)だったが、第 1 改訂で ① を v0.6・② を v0.7 とした(版を予約しているのは U-S1 だけ — TSK-331 は改訂しない)。確定ゲートは #81 のマージ後に通す。変更履歴に追記し、`docs/README.md` の索引を現行化する | **finalize-doc**(敵対レビュー + 人間承認)。Claude が行い、Codex のステップにしない。**新ステップ 16 の前に確定させる**(第 1 改訂で番号を振り直した) |
+| `docs/design/sync-protocol.md` | **第 1 改訂で 2 回の改訂に分けた**: ① **v0.6(新ステップ 1・data-model v0.9 と単一の確定ゲート)** — 8-1 の `T7`・10-2 の P3・10-3 の `T7` の必須観測の「1 件」を範囲ごとの 1 件へ追随(R-14)② **v0.7(新ステップ 16 の前)** — **10-3 の (d) 資産契約を改訂する(R-10)**: 比較単位に `caseId` と注入対象を加える、単一の `faultInjection`・`expected` を `cases` 構造にする、`tElementCommitment` の T の内部単位と `no-write` / `no-change`。意味規則(6〜9 章)は変えない。v0.2 は TSK-267、v0.5 は #81(TSK-236・2026-09-28 approved)の先約。当初は v0.6 を使う裁定(2026-10-09 山田正輝)だったが、第 1 改訂で ① を v0.6・② を v0.7 とした(版を予約しているのは U-S1 だけ — TSK-331 は改訂しない)。確定ゲートは #81 のマージ後に通す。変更履歴に追記し、`docs/README.md` の索引を現行化する | **finalize-doc**(敵対レビュー + 人間承認)。Claude が行い、Codex のステップにしない。**新ステップ 16 の前に確定させる**(第 1 改訂で番号を振り直した) |
 | `contracts/tenant_boundary/base-allowlist.json`(凍結資産) | 条件 2 に同期核の所有パスを足す。凍結基準の履歴追記を伴う | PR レビュー + 敵対レビュー + 人間承認(コア) |
 | `contracts/tenant_boundary/repository-contract.json`(凍結資産) | 複合主キー UPDATE・行ロック・JSONB 結果・同期の capability と token を足す | 同上 |
 | `.claude/core-areas.json` | `backend/src/pitchlog/sync/*`・`backend/src/pitchlog/repositories/sync_apply.py`・`backend/tests/test_sync_apply_*.py` を sync-protocol と recording-rights の両方に登録する | 敵対レビュー + 人間承認(6.3 規則⑤) |
-| `docs/design/data-model.md` | **第 1 改訂で追加(R-13・R-14)**: 11-2 節 `B03` を改訂し、同期経路の無効化意図を範囲ごとに 1 行とし、意図 ID の導出を「対象イベントの識別 + 範囲」へ(P3 = `V10` + 確定版 + 範囲、D1 付き経路 = 8 節の承認による)。`B06` の「配信の所有」を同期を通らないトリガーに限る。版 v0.7 → v0.8・変更履歴 | **finalize-doc**(新ステップ 1 の直後) |
+| `docs/design/data-model.md` | **第 1 改訂で追加(R-13・R-14)**: 11-2 節 `B03` を改訂し、同期経路の無効化意図を範囲ごとに 1 行とし、意図 ID の導出を「対象イベントの識別 + 範囲」へ(P3 = `V10` + 確定版 + 範囲、D1 付き経路 = 8 節の承認による)。`B06` の「配信の所有」を同期を通らないトリガーに限る。版 v0.9 → v0.9・変更履歴 | **finalize-doc**(新ステップ 1 の直後) |
 | `contracts/tenant_boundary/cache-invalidation-contract.json`(凍結資産) | **第 1 改訂で追加(R-15)**: 配信状態を `pending`/`delivered`、未配信の検索列を `delivery_status` へ。`durable_intent` の同期経路の規則を改訂後 `B03` に追随 | PR レビュー + 敵対レビュー + 人間承認(コア) |
 | `contracts/db/schema-manifest.json`・`contracts/authz/shared-preconditions.json`・ORM 受入シート(`docs/features/orm-schema-migration/acceptance-sheets/`) | **第 1 改訂で追加**: data-model.md の digest と生成物の追随(#114 の教訓) | PR レビュー |
-| `docs/README.md` | sync-protocol.md の版の表示を v0.6(新ステップ 1)・v0.7(新ステップ 16 の前)にする。**data-model 行を v0.8 にする(第 1 改訂)** | finalize-doc と同じ |
+| `docs/README.md` | sync-protocol.md の版の表示を v0.6(新ステップ 1)・v0.7(新ステップ 16 の前)にする。**data-model 行を v0.9 にする(第 1 改訂)** | finalize-doc と同じ |
 | 要件書・ADR | **反映なし** | — |
 
 ## 4. 実装方針
@@ -131,7 +131,7 @@ created: 2026-10-08
 - 旧ステップ 1・2(新 2・3 — core-areas)は、**#95 → #81 → U-S1 の順**で窓口を使う(469 master の実測 2026-10-08: #81 は sync-protocol と recording-rights を宣言済みで、U-S1 と同じ領域で当たる)。#81 のマージ後に develop を取り込んでから始める
 - **第 1 改訂**: #95・#81 は着地済み(条件は満たされた)。窓口は #116 の `authStore*` の 1 件を消して置き換える。**新ステップ 1(data-model の改訂)の確定ゲートの PO 承認の後に新ステップ 2 以降へ進む**
 
-**正本の改訂の順序**(第 1 改訂で番号を振り直した): **新ステップ 1 の直後に data-model v0.8 と sync-protocol v0.6(R-14)を単一の確定ゲートで確定させる**。新ステップ 15 の後、新ステップ 16 の前に、sync-protocol.md 10-3 の資産構造の改訂(v0.7・R-10)を /finalize-doc で確定させる。資産契約(新ステップ 16〜19)は改訂後の正本に従う。
+**正本の改訂の順序**(第 1 改訂で番号を振り直した): **新ステップ 1 の直後に data-model v0.9 と sync-protocol v0.6(R-14)を単一の確定ゲートで確定させる**。新ステップ 15 の後、新ステップ 16 の前に、sync-protocol.md 10-3 の資産構造の改訂(v0.7・R-10)を /finalize-doc で確定させる。資産契約(新ステップ 16〜19)は改訂後の正本に従う。
 
 **計画レビューで確認する論点**(design.md 8 節): Q-2(NFR-018 — 1 周目で「当たらない」)/ Q-3(O1 の直列化)/ Q-4(内容同一性)/ Q-5(改訂版の区別・TSK-373)/ Q-6(D3 の列)/ Q-7(RG1 の範囲)/ Q-10(I5 の配信先)。Q-8 は R-10、Q-9 は R-11 で裁定済み
 
@@ -141,7 +141,7 @@ created: 2026-10-08
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **正本の改訂案 — data-model v0.8 と sync-protocol v0.6 を単一の確定ゲートで**(第 1 改訂・R-13・R-14): **data-model**: 11-2 節 `B03` を改訂し、同期経路の無効化意図を範囲ごとに 1 行とし、意図 ID を「対象イベントの識別 + 範囲」(P3 = `V10` + 確定版 + 範囲 / D1 付き経路 = 8 節の承認による)へ。`B06` の「配信の所有」を同期を通らないトリガーに限る。一意性の索引表の 11-2 行(`:414` 付近 — 旧導出「`V10` + 対象の確定版」)を追随させる。変更履歴 v0.8(射程宣言つき)。**sync-protocol**: 8-1 の `T7`(「安定した意図 ID で 1 件だけ永続化」— `:1229`)・10-2 の P3 の行(`:1669`)・10-3 の P3 の期待結果の「安定した意図 ID」(`:1715` 付近 — 単数)と `T7` の必須観測(`:1724`)の「1 件」を、改訂後 `B03` の「範囲ごとに 1 件」へ追随させ、**範囲ごとの全意図 ID・永続状態・再掲後の件数を観測対象と明記する**(意味規則は「1 回の論理無効化を重複なく永続化し配信完了まで冪等に再試行する」のまま)。変更履歴 v0.6(射程宣言つき)。`docs/README.md` の両行。**data-model.md の digest を持つ資産(`contracts/db/schema-manifest.json`・`contracts/authz/shared-preconditions.json`)と ORM 受入シートを同じステップで追随させる**。このあと /finalize-doc(反映周のコミットはステップ記法を付けず `反映<r>周目`) | `check_docs_status`・`check_design_propagation`・`check_doc_coverage`・`check_plan_docs_sync`・`check_shared_preconditions` が ok / backend の DB 不要の全件(`test_schema_manifest.py`・`test_authz_cache_invalidation.py` を含む)と `tests/test_orm_acceptance_sheets.py` が green / **確定ゲート(2 文書の一括検証 — 7.3-1)の PO 承認** |
+| 1 | **正本の改訂案 — data-model v0.9 と sync-protocol v0.6 を単一の確定ゲートで**(第 1 改訂・R-13・R-14): **data-model**: 11-2 節 `B03` を改訂し、同期経路の無効化意図を範囲ごとに 1 行とし、意図 ID を「対象イベントの識別 + 範囲」(P3 = `V10` + 確定版 + 範囲 / D1 付き経路 = 8 節の承認による)へ。`B06` の「配信の所有」を同期を通らないトリガーに限る。一意性の索引表の 11-2 行(`:414` 付近 — 旧導出「`V10` + 対象の確定版」)を追随させる。変更履歴 v0.9(射程宣言つき)。**sync-protocol**: 8-1 の `T7`(「安定した意図 ID で 1 件だけ永続化」— `:1229`)・10-2 の P3 の行(`:1669`)・10-3 の P3 の期待結果の「安定した意図 ID」(`:1715` 付近 — 単数)と `T7` の必須観測(`:1724`)の「1 件」を、改訂後 `B03` の「範囲ごとに 1 件」へ追随させ、**範囲ごとの全意図 ID・永続状態・再掲後の件数を観測対象と明記する**(意味規則は「1 回の論理無効化を重複なく永続化し配信完了まで冪等に再試行する」のまま)。変更履歴 v0.6(射程宣言つき)。`docs/README.md` の両行。**data-model.md の digest を持つ資産(`contracts/db/schema-manifest.json`・`contracts/authz/shared-preconditions.json`)と ORM 受入シートを同じステップで追随させる**。このあと /finalize-doc(反映周のコミットはステップ記法を付けず `反映<r>周目`) | `check_docs_status`・`check_design_propagation`・`check_doc_coverage`・`check_plan_docs_sync`・`check_shared_preconditions` が ok / backend の DB 不要の全件(`test_schema_manifest.py`・`test_authz_cache_invalidation.py` を含む)と `tests/test_orm_acceptance_sheets.py` が green / **確定ゲート(2 文書の一括検証 — 7.3-1)の PO 承認** |
 | 2 | **core-areas の宣言**: `scripts/core_guard.py` の `AREA_PATH_ADDITIONS` を、**現在の `tenant-isolation` の `authStore*` の 1 件を消して(第 1 改訂)**sync-protocol と recording-rights への追加分(`backend/src/pitchlog/sync/*`・`backend/src/pitchlog/repositories/sync_apply.py`・`backend/tests/test_sync_apply_*.py`)だけに置き換える。`tests/test_core_guard.py` の期待値(`EXPECTED_AREA_PATH_ADDITIONS` ほか)も置き換える | `tests/test_core_guard.py` が green。宣言と JSON を同じコミットで変えていない。**他の単位の宣言(#95・#81 ほか、基線の core-areas.json に取り込み済みのもの)を累積していない** |
 | 3 | **core-areas の登録**: `.claude/core-areas.json` に登録し、`test_core_guard.py` の期待集合を追随させる | core-guard の CI 相当が green。新しいパスが sync-protocol と recording-rights の両方に一致する(重複帰属の明示) |
 | 4 | **TB002 の所有パス**: 条件 2 に同期核の所有パスを足す。所有パスは、検査時点で core-areas.json の sync-protocol の paths に一致するパスに限って発効する。凍結基準の履歴を追記する | 所有パス内の同期語彙が TB002 にならない(正例)。所有パス外(例: `repositories/roster.py`)は TB002 になる(負例)。core-areas.json から外したパスは免除されない(負例)。条件 1・3・4・5 は所有パス内でも効く(負例 3 件)。迂回検査のテストが green |
@@ -178,7 +178,7 @@ Notion カードの DoD と対応づける。カードの文言と食い違う 1
 - [ ] 緑を「FR-012 充足」と報告しない。FR-012 は、ポートの本物(U-R1・U-X1)が入るまで部分充足
 - [ ] TSK-330・TSK-332 を Notion で U-S1 に統合した(取り下げ + 相互リンク)。復元系 10 件を TSK-392(U-R1)へ送ったことを、同カードに記録した
 - [ ] sync-protocol.md 10-3 の資産構造の改訂(v0.7 — 第 1 改訂で v0.6 から繰り下げ)が /finalize-doc で確定している(R-10)
-- [ ] **第 1 改訂**: data-model.md 11-2 の改訂(v0.8 — `B03` の範囲ごとの行と同期経路の意図 ID・`B06` の配信の行の限定)と sync-protocol.md の改訂(v0.6 — `T7` の「1 件」の追随)が単一の確定ゲートで確定している(R-13・R-14)。data-model.md の digest を持つ資産と ORM 受入シートが追随している
+- [ ] **第 1 改訂**: data-model.md 11-2 の改訂(v0.9 — `B03` の範囲ごとの行と同期経路の意図 ID・`B06` の配信の行の限定)と sync-protocol.md の改訂(v0.6 — `T7` の「1 件」の追随)が単一の確定ゲートで確定している(R-13・R-14)。data-model.md の digest を持つ資産と ORM 受入シートが追随している
 - [ ] **第 1 改訂**: 同期経路の無効化意図が範囲ごとに 1 行、イベントと同じトランザクションで書かれる(P3 と D1 付き経路)。保存済み結果の再掲で重複しない。I5 の配信と再試行が `InvalidationSinkPort` 経由で動き、完了が `delivered` で記録される
 - [ ] **第 1 改訂**: `cache-invalidation-contract.json` の配信状態の語彙が DB と一致し(R-15)、範囲名の写像が 1 か所にある
 - [ ] **第 1 改訂**: テナント境界の受理記録が本 PR について 1 件だけで、PR の base に対して導出・検証済み(新ステップ 22)

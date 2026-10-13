@@ -50,6 +50,7 @@ async def test_routers_register_meta_player_and_team_routes() -> None:
         (("GET",), "/team-records"),
         (("PATCH",), "/team-records/{team_record_id:uuid}"),
         (("DELETE",), "/team-records/{team_record_id:uuid}"),
+        (("GET",), "/team-records/{team_record_id:uuid}/lineup-memory"),
     )
     assert tuple(route.operation_id for route in routes) == (
         "meta_health_read",
@@ -64,6 +65,7 @@ async def test_routers_register_meta_player_and_team_routes() -> None:
         "roster_team_list",
         "roster_team_update",
         "roster_team_delete",
+        "lineup_memory_read",
     )
 
 

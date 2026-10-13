@@ -179,3 +179,10 @@ branch: feature/us1-sync-apply-core
 - **PO 承認 2026-10-14・山田正輝**(最終反映 `c1f0387e` の差分 = `B03` の「各行が選ぶ無効化先」の ②③⑤ を当該テナントの当該範囲の鍵すべてへ、を提示して承認)。両文書を approved・data-model v0.8・sync-protocol v0.6 に、変更履歴に通過行、README 索引を現行化。data-model の digest と ORM 受入シートを追随
 - 要点: 2 回・反映 2 周・指摘 5 件(P1 5)全件採用。警告・エスカレーション・PO 裁定は発動なし。重要な是正は「範囲ごとの 1 行が選ぶ鍵」を定めたことで、新ステップ 9 の記録部の列の埋め方(① = `game_id`・②③⑤ = テナントだけ・④ = `target_tenant_id`)が決まった
 
+### develop の取り込み(2026-10-14)と data-model の版の繰り下げ
+
+- develop `2a456828`(57 コミット)を取り込み、4 件の競合を解いた: `docs/design/data-model.md`(変更履歴の先頭)・`docs/README.md`(data-model と sync-protocol の行)・`contracts/db/schema-manifest.json` と `contracts/authz/shared-preconditions.json`(data-model の digest)
+- **develop で TSK-479 が data-model の v0.8 を先に確定させていた(2026-10-13 — 10-3 節の試合区分の seed)。本 PR の改訂を v0.9 へ繰り下げた**(変更履歴の 2 行・11-2 節と 5-4 節と索引表の版の表記・README・sync-protocol の変更履歴の参照・計画書)。**内容は承認されたものから変えていない**(確定ゲートの承認は 2026-10-14 の版の番号だけが変わる)
+- data-model の digest を取り直し、ORM 受入シートを develop の版から生成し直して判定を持ち越した(新しい 3 行は従来どおり判定)。固定行数 N3 104
+- **直列点**(2026-10-14 時点の open PR): #125(U-F8)・#127(U-F5)が `scripts/core_guard.py`・`.claude/core-areas.json` の窓口を動かしている / #119(δ)が `contracts/tenant_boundary/base-allowlist.json`・`docs/design/data-model.md` を動かしている。新ステップ 2・3(窓口)の前にマージ順を master と調整する
+

@@ -26,7 +26,7 @@
 
 | 対象 | 正本側 | 実装側 | 判定 | 理由と典拠 |
 | --- | --- | --- | --- | --- |
-| 出現 001: 変えない | data-model.md §変更履歴 — 版 0.8 の行（語: 変えない） | manifest immutability: 該当候補なし | 対象外 | 正本の変更履歴表(確定ゲートの記録)の中の出現であり、列の不変性を述べた契約ではない docs/features/orm-schema-migration/design.md:10 |
+| 出現 001: 変えない | data-model.md §変更履歴 — 版 0.9 の行（語: 変えない） | manifest immutability: 該当候補なし | 対象外 | 正本の変更履歴表(確定ゲートの記録)の中の出現であり、列の不変性を述べた契約ではない docs/features/orm-schema-migration/design.md:10 |
 | 出現 002: 変えない | data-model.md §変更履歴 — 版 0.7 の行（語: 変えない） | manifest immutability: 該当候補なし | 対象外 | 正本の変更履歴表(確定ゲートの記録)の中の出現であり、列の不変性を述べた契約ではない docs/features/orm-schema-migration/design.md:10 |
 | 出現 003: 変えない | data-model.md §変更履歴 — 版 0.6 の行（語: 変えない） | manifest immutability: 該当候補なし | 対象外 | 正本の変更履歴表(実装追随の記録)の中の出現であり、列の不変性を述べた契約ではない docs/features/orm-schema-migration/design.md:10 |
 | 出現 004: 不変 | data-model.md §変更履歴 — 版 0.6 の行（語: 不変） | manifest immutability: 該当候補なし | 対象外 | 正本の変更履歴表(確定ゲートの記録)の中の出現であり、列の不変性を述べた契約ではない docs/features/orm-schema-migration/design.md:10 |

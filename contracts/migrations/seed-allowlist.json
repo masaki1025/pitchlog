@@ -34,6 +34,43 @@
           ]
         }
       }
+    },
+    "game_type_seed": {
+      "frozen_targets": [
+        "migrations/versions/0030_seed_game_type.py"
+      ],
+      "identity": "sha256_canonical_json",
+      "granularity": "declaration_series",
+      "allowed": {
+        "upgrade_calls": [
+          "bulk_insert"
+        ],
+        "target_tables": [
+          "system_vocabularies"
+        ],
+        "upgrade_rows": {
+          "count": 5,
+          "category": "game_type",
+          "keys": [
+            "game_official",
+            "game_semi_official",
+            "game_open",
+            "game_intrasquad",
+            "game_other"
+          ]
+        },
+        "downgrade_delete_scope": {
+          "table": "system_vocabularies",
+          "category": "game_type",
+          "keys": [
+            "game_official",
+            "game_semi_official",
+            "game_open",
+            "game_intrasquad",
+            "game_other"
+          ]
+        }
+      }
     }
   },
   "history": [
@@ -97,6 +134,71 @@
       "reason": "小さな初期データの bulk_insert を正本に従って許し、他の revision の禁止を維持するため",
       "approved_by": "山田正輝",
       "approved_at": "2026-10-04"
+    },
+    {
+      "series": "game_type_seed",
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "sha256_canonical_json",
+            "value": "527f5239847580cee9292881c0e14485927e141699dc81f9ec610b87d0b754f1"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": false,
+        "values": []
+      },
+      "changes": [
+        {
+          "aspect": "declaration",
+          "before": {
+            "absent": true
+          },
+          "after": {
+            "frozen_targets": [
+              "migrations/versions/0030_seed_game_type.py"
+            ],
+            "identity": "sha256_canonical_json",
+            "granularity": "declaration_series",
+            "allowed": {
+              "upgrade_calls": [
+                "bulk_insert"
+              ],
+              "target_tables": [
+                "system_vocabularies"
+              ],
+              "upgrade_rows": {
+                "count": 5,
+                "category": "game_type",
+                "keys": [
+                  "game_official",
+                  "game_semi_official",
+                  "game_open",
+                  "game_intrasquad",
+                  "game_other"
+                ]
+              },
+              "downgrade_delete_scope": {
+                "table": "system_vocabularies",
+                "category": "game_type",
+                "keys": [
+                  "game_official",
+                  "game_semi_official",
+                  "game_open",
+                  "game_intrasquad",
+                  "game_other"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "fact": "試合区分 5 件の seed 専用 migration に限定した DML 許可を追加した",
+      "reason": "試合作成に必要な固定語彙を投入し、他の migration の DML 禁止を維持するため",
+      "approved_by": "山田正輝",
+      "approved_at": "2026-10-13"
     }
   ]
 }

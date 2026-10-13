@@ -965,6 +965,57 @@
       "with_check_expression": null
     },
     {
+      "policy_id": "POLICY:system_vocabularies:owner_game_type_seed_select",
+      "table_id": "system_vocabularies",
+      "profile": "owner_game_type_seed_select",
+      "policy_name": "pitchlog_owner_game_type_seed_select",
+      "command": "SELECT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "category = 'game_type' AND key = ANY (ARRAY['game_official', 'game_semi_official', 'game_open', 'game_intrasquad', 'game_other'])",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:system_vocabularies:owner_game_type_seed_insert",
+      "table_id": "system_vocabularies",
+      "profile": "owner_game_type_seed_insert",
+      "policy_name": "pitchlog_owner_game_type_seed_insert",
+      "command": "INSERT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": null,
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "category = 'game_type' AND disabled IS FALSE AND ((key = 'game_official' AND display_name = '公式戦') OR (key = 'game_semi_official' AND display_name = '準公式戦') OR (key = 'game_open' AND display_name = 'オープン戦') OR (key = 'game_intrasquad' AND display_name = '紅白戦') OR (key = 'game_other' AND display_name = 'その他'))"
+    },
+    {
+      "policy_id": "POLICY:system_vocabularies:owner_game_type_seed_delete",
+      "table_id": "system_vocabularies",
+      "profile": "owner_game_type_seed_delete",
+      "policy_name": "pitchlog_owner_game_type_seed_delete",
+      "command": "DELETE",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "category = 'game_type' AND key = ANY (ARRAY['game_official', 'game_semi_official', 'game_open', 'game_intrasquad', 'game_other'])",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": null
+    },
+    {
       "policy_id": "POLICY:admin_vocabularies:global_read_only",
       "table_id": "admin_vocabularies",
       "profile": "global_read_only",
