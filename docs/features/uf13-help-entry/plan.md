@@ -45,6 +45,16 @@ U-F13 のうち、完成済みの U-F4 利用ガイドを製品の `/help` か�
 
 `frontend/src/api/**`、`backend/**`、`contracts/**`、他の画面・ストア、既存担当者の worktree は触れない。認証ガード、ログイン画面、保護経路、仮の API・DTO は作らない。
 
+### 3.1 影響する正本
+
+| 正本 | 変更内容 | ゲート |
+| --- | --- | --- |
+| `docs/requirements/**` | **反映なし**。承認済み要件を変更せず、完成済み U-F4 の公開入口だけを先行接続する | — |
+| `docs/design/**`・`docs/adr/**` | **反映なし**。新しいAPI・DTO・画面契約・設計判断を追加しない | — |
+| `docs/development/**`・`docs/ops/**`・`docs/README.md` | **反映なし**。既存の開発・運用手順に従う側で、規約や索引を変更しない | — |
+
+**正本体系外だが同一 PR で更新するもの**: `frontend/package.json`、`frontend/pnpm-lock.yaml`、`frontend/src/{App.vue,App.spec.ts,main.ts,appProviders.ts,appProviders.spec.ts,router.ts,router.spec.ts}`、本計画書、`docs/worklog/2026-10-13-uf13-help-entry.md`。
+
 ## 4. 実装ステップと合格条件
 
 | ステップ | 作業 | 合格条件 |
