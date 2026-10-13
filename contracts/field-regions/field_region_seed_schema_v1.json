@@ -3,7 +3,7 @@
   "$id": "https://pitchlog.local/contracts/field-regions/field_region_seed_schema_v1.json",
   "title": "Pitchlog field region seed schema v1",
   "version": "field_region_seed_schema_v1",
-  "description": "付録B-6 の参照データ契約。regions 配列の順序そのものが規則の一部であり、境界線上では先に定義された領域が優先する。directionSectors も左翼線から右翼線へ定義順を保つ。座標は 0〜1・左下原点で、各成分は ADR-003 D-14-e の整数・decimal・有理数のいずれかで記録する。",
+  "description": "付録B-6 の参照データ契約。regions 配列の順序そのものが規則の一部であり、複数の領域に含まれる点では先に定義された領域が優先する。1 つの守備位置は複数の領域を持てる。座標は 0〜1・左下原点で、各成分は ADR-003 D-14-e の整数・decimal・有理数のいずれかで記録する。",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -11,8 +11,6 @@
     "source",
     "fieldImage",
     "regions",
-    "directionOrigin",
-    "directionSectors",
     "tieBreak"
   ],
   "additionalProperties": false,
@@ -23,6 +21,7 @@
       "pattern": "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*$"
     },
     "source": {"$ref": "#/$defs/source"},
+    "description": {"type": "string", "minLength": 1},
     "fieldImage": {
       "description": "画像の元寸法と、左上原点の画像座標から左下原点の保存座標への正規化の対応。",
       "type": "object",
@@ -45,18 +44,16 @@
       }
     },
     "regions": {
-      "description": "守備位置領域。配列の先頭ほど境界線上の帰属で優先されるため、並べ替えると判定結果が変わる。",
+      "description": "守備位置領域。複数の領域に含まれる点は配列の先頭側に帰属するため、並べ替えると判定結果が変わる。",
       "type": "array",
-      "minItems": 9,
-      "maxItems": 9,
+      "minItems": 1,
       "items": {"$ref": "#/$defs/region"}
     },
     "directionOrigin": {"$ref": "#/$defs/point"},
     "directionSectors": {
       "description": "打球方向の区分角。配列は左翼線から右翼線への定義順を保つ。",
       "type": "array",
-      "minItems": 5,
-      "maxItems": 5,
+      "minItems": 1,
       "items": {"$ref": "#/$defs/directionSector"}
     },
     "tieBreak": {"const": "first-defined-region-wins"}
@@ -64,13 +61,18 @@
   "$defs": {
     "source": {
       "type": "object",
-      "required": ["repository", "tag", "path", "blobSha"],
+      "required": ["repository", "tag", "path"],
       "additionalProperties": false,
+      "oneOf": [
+        {"required": ["blobSha"]},
+        {"required": ["blobShaStatus"]}
+      ],
       "properties": {
         "repository": {"type": "string", "minLength": 1},
         "tag": {"type": "string", "minLength": 1},
         "path": {"type": "string", "minLength": 1},
-        "blobSha": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"}
+        "blobSha": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"},
+        "blobShaStatus": {"const": "取得は委任元が行う"}
       }
     },
     "numericValue": {
@@ -120,6 +122,7 @@
       }
     },
     "region": {
+      "description": "頂点は多角形の辺に沿って並べる。openEdges を省略した辺は閉じる。開いた辺に乗る点は、同じ点が別の閉じた辺の端点でもこの領域に含めない。",
       "type": "object",
       "required": ["regionId", "position", "vertices"],
       "additionalProperties": false,
@@ -130,6 +133,12 @@
           "type": "array",
           "minItems": 3,
           "items": {"$ref": "#/$defs/point"}
+        },
+        "openEdges": {
+          "description": "開いた辺の 0 始まりの番号。辺 i は vertices[i] から vertices[(i+1) mod 頂点数] まで。列挙しない辺は閉じる。",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 0}
         }
       }
     },
