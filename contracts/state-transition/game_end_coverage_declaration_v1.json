@@ -42,6 +42,30 @@
       "stage2Acceptance": "本塁打以外で決勝点より後の有効な本塁到達を計上しないケースと、本塁打で打者・全走者を計上するケースを照合する"
     }
   },
+  "step23Unreachability": {
+    "classificationOrder": ["requirements-impossible", "unfixed-axis-value", "no-applicable-row"],
+    "requirementsImpossible": [
+      {"identity": ["rule-field-pairwise", "gameEnd.regulationInnings", "99", "gameEnd.extensionLimit", "\"finite:R+1\""], "clauseIds": ["req:F-1"], "basis": "R=99ではL=R+1が100となり、descriptorの延長上限99と不正境界finite:100に反する"},
+      {"identity": ["rule-field-pairwise", "gameEnd.regulationInnings", "99", "gameEnd.tiebreak", "\"start:R+1\""], "clauseIds": ["req:DRAW-03"], "basis": "R=99なら発動回R+1は100となり、descriptorの発動回上限99を超える"},
+      {"identity": ["rule-field-pairwise", "gameEnd.regulationInnings", "99", "gameEnd.tiebreak", "\"start:L\""], "clauseIds": ["req:DRAW-03"], "basis": "R=99でLは最大99なので、発動回LがRより大きくなることはない"},
+      {"identity": ["rule-field-pairwise", "gameEnd.regulationInnings", "99", "gameEnd.tiebreak", "\"start:99\""], "clauseIds": ["req:DRAW-03"], "basis": "発動回99はR=99以下となりDRAW-03が保存を拒否する"},
+      {"identity": ["rule-field-pairwise", "gameEnd.extensionLimit", "\"finite:R\"", "gameEnd.tiebreak", "\"start:R+1\""], "clauseIds": ["req:DRAW-03"], "basis": "発動回R+1は有限上限L=Rより大きく、DRAW-03が保存を拒否する"},
+      {"identity": ["rule-field-pairwise", "gameEnd.extensionLimit", "\"finite:R\"", "gameEnd.tiebreak", "\"start:L\""], "clauseIds": ["req:DRAW-03"], "basis": "L=Rなら発動回LはR以下となり、DRAW-03が保存を拒否する"},
+      {"identity": ["rule-field-pairwise", "gameEnd.extensionLimit", "\"finite:R\"", "gameEnd.tiebreak", "\"start:99\""], "clauseIds": ["req:DRAW-03"], "basis": "L=Rで発動回99を許すにはRが99以上必要だが、その場合発動回はR以下となる"},
+      {"identity": ["rule-field-pairwise", "gameEnd.extensionLimit", "\"none\"", "gameEnd.tiebreak", "\"start:L\""], "clauseIds": ["req:F-1"], "basis": "延長上限なしでは整数Lが定義されず、発動回をLで指定できない"}
+    ],
+    "countsByCause": {
+      "noApplicableRow": {"pairwise": 7, "boundaryCoordinate": 106, "clauseBranch": 18, "total": 131},
+      "unfixedAxisValue": {"pairwise": 194, "boundaryCoordinate": 2484, "clauseBranch": 0, "total": 2678},
+      "requirementsImpossible": {"pairwise": 8, "boundaryCoordinate": 0, "clauseBranch": 0, "total": 8}
+    },
+    "beforeUnreachableCount": 2817,
+    "remainingUnreachableCount": 2809,
+    "nextSteps": {
+      "noApplicableRow": "ステップ24のDRAW-05、26のCOLD-09の規範行で対応する分岐・組合せを縮める。walk-offは現行requiredSetの分岐IDにまだ無く131件には含まれないため、ステップ25で台帳と行を同時に追加して再測定する。COLD-01〜07は中間判定なのでdecisionRowsへ置かない。",
+      "unfixedAxisValue": "ステップ24〜26で追加する行の前提条件が終了規則軸値を固定するたびに縮める。残存値は後続の対象計算で行の要否を確認する。"
+    }
+  },
   "unfixedGameEndAxisValues": [
     {
       "axisId": "gameEnd.coldConditions",

@@ -261,11 +261,29 @@ def _assert_no_tiebreak_start_row(contract: dict[str, Any]) -> None:
 def test_step94_game_end_declaration_and_direct_coverage() -> None:
     """終了判定の除外集合とステップ93・94の被覆記録を実測で照合する。"""
     assert checker.check_game_end_coverage(ROOT) == {
-        "total": 3844, "reachable": 1015, "unreachable": 2817,
+        "total": 3844, "reachable": 1015, "unreachable": 2809,
+        "requirementsImpossible": 8,
         "invalid": 12, "covered": 1015, "cases": 170,
     }
     contract = _asset("game_end_contract_v1.json")
     declaration = _asset("game_end_coverage_declaration_v1.json")
+    classified = declaration["step23Unreachability"]
+    assert classified["beforeUnreachableCount"] == 2817
+    assert classified["remainingUnreachableCount"] == 2809
+    assert classified["countsByCause"] == {
+        "noApplicableRow": {
+            "pairwise": 7, "boundaryCoordinate": 106,
+            "clauseBranch": 18, "total": 131,
+        },
+        "unfixedAxisValue": {
+            "pairwise": 194, "boundaryCoordinate": 2484,
+            "clauseBranch": 0, "total": 2678,
+        },
+        "requirementsImpossible": {
+            "pairwise": 8, "boundaryCoordinate": 0,
+            "clauseBranch": 0, "total": 8,
+        },
+    }
     before, _, _, _ = checker._game_end_measure(
         ROOT, {**contract, "cases": contract["cases"][:4]}, declaration
     )
@@ -275,6 +293,23 @@ def test_step94_game_end_declaration_and_direct_coverage() -> None:
     assert record["history"][0]["after"] == record["history"][1]["before"]
     assert record["history"][0]["after"]["coveredCount"] == 763
     assert record["history"][1]["after"]["coveredCount"] == 1015
+
+
+@pytest.mark.parametrize("mutation", ["remove", "unknown", "source", "count"])
+def test_step23_impossible_requirement_declaration_drift_is_red(mutation: str) -> None:
+    """要件上の到達不可8件の欠落・混入・典拠・件数ずれを拒否する。"""
+    declaration = _asset("game_end_coverage_declaration_v1.json")
+    policy = declaration["step23Unreachability"]
+    if mutation == "remove":
+        policy["requirementsImpossible"].pop()
+    elif mutation == "unknown":
+        policy["requirementsImpossible"][0]["identity"][-1] = '"finite:R"'
+    elif mutation == "source":
+        policy["requirementsImpossible"][0]["clauseIds"] = ["req:DRAW-03"]
+    else:
+        policy["countsByCause"]["requirementsImpossible"]["total"] += 1
+    with pytest.raises(checker.RequiredSetCoverageError, match="S28の"):
+        checker.check_game_end_coverage(ROOT, declaration=declaration)
 
 
 def test_step95_decision_properties_hold_for_all_cases() -> None:
@@ -512,7 +547,8 @@ def test_step93_two_new_branches_cover_every_reachable_requirement() -> None:
         {"branchId": "COLD-08", "gapId": "GAP-03"}
     )
     counts, _, reachable, observed = checker._game_end_measure(
-        ROOT, {**contract, "decisionRows": rows, "cases": cases}, scoped_declaration
+        ROOT, {**contract, "decisionRows": rows, "cases": cases}, scoped_declaration,
+        classify=False,
     )
     assert counts["reachable"] == counts["covered"] == 737
     assert reachable == observed
@@ -536,7 +572,8 @@ def test_step93_two_new_branches_cover_every_reachable_requirement() -> None:
         if case["branchId"] in {row["branchId"] for row in four_rows}
     ]
     four_counts, _, four_reachable, four_observed = checker._game_end_measure(
-        ROOT, {**contract, "decisionRows": four_rows, "cases": four_cases}, four_declaration
+        ROOT, {**contract, "decisionRows": four_rows, "cases": four_cases},
+        four_declaration, classify=False,
     )
     assert four_counts["reachable"] == four_counts["covered"] == 763
     assert four_counts["unreachable"] == 3069
@@ -683,7 +720,9 @@ def test_game_end_exclusion_shrinks_when_row_fixes_a_declared_value() -> None:
         if term.get("axisId") == "gameEnd.regulationInnings"
     )["value"] = 7
     expanded = {**contract, "decisionRows": [*contract["decisionRows"], extra]}
-    counts, _, _, _ = checker._game_end_measure(ROOT, expanded, declaration)
+    counts, _, _, _ = checker._game_end_measure(
+        ROOT, expanded, declaration, classify=False
+    )
     assert counts["reachable"] > 1015
     assert counts["unreachable"] < 2817
 

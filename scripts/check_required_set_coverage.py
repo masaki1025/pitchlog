@@ -759,10 +759,128 @@ def _fixed_game_end_values(
     return fixed
 
 
+def _game_end_requirement_impossible_pairs() -> dict[tuple[str, ...], tuple[str, ...]]:
+    """F-1の保存条件とdescriptorの上限から不成立の軸値ペアを列挙する。"""
+    regulation = "gameEnd.regulationInnings"
+    extension = "gameEnd.extensionLimit"
+    tiebreak = "gameEnd.tiebreak"
+    rules = (
+        (regulation, 99, extension, "finite:R+1", ("req:F-1",)),
+        (regulation, 99, tiebreak, "start:R+1", ("req:DRAW-03",)),
+        (regulation, 99, tiebreak, "start:L", ("req:DRAW-03",)),
+        (regulation, 99, tiebreak, "start:99", ("req:DRAW-03",)),
+        (extension, "finite:R", tiebreak, "start:R+1", ("req:DRAW-03",)),
+        (extension, "finite:R", tiebreak, "start:L", ("req:DRAW-03",)),
+        (extension, "finite:R", tiebreak, "start:99", ("req:DRAW-03",)),
+        (extension, "none", tiebreak, "start:L", ("req:F-1",)),
+    )
+    return {
+        (
+            "rule-field-pairwise", left_axis, _game_end_identity(left_value),
+            right_axis, _game_end_identity(right_value),
+        ): clauses
+        for left_axis, left_value, right_axis, right_value, clauses in rules
+    }
+
+
+def _classify_game_end_unreachable(
+    declaration: dict[str, Any],
+    excluded: set[tuple[str, ...]],
+    unfixed_values: set[tuple[str, str]],
+    descriptor: dict[str, Any],
+) -> dict[str, int]:
+    """到達不可要求を典拠付き不成立・未固定値・適用行不在へ分割する。"""
+    policy = declaration.get("step23Unreachability")
+    if not isinstance(policy, dict) or set(policy) != {
+        "classificationOrder", "requirementsImpossible", "countsByCause",
+        "beforeUnreachableCount", "remainingUnreachableCount", "nextSteps",
+    } or policy["classificationOrder"] != [
+        "requirements-impossible", "unfixed-axis-value", "no-applicable-row"
+    ]:
+        raise RequiredSetCoverageError("S28の分類宣言が不正")
+    axes = {item["axisId"]: item for item in descriptor["gameEndAxes"]}
+    if (
+        axes["gameEnd.regulationInnings"]["coverageBounds"][0]["maximum"] != 99
+        or axes["gameEnd.extensionLimit"]["coverageBounds"][0]["maximum"] != 99
+        or axes["gameEnd.tiebreak"]["coverageBounds"][0]["maximum"] != 99
+        or "finite:100" not in axes["gameEnd.extensionLimit"]["invalidBoundaryValues"]
+    ):
+        raise RequiredSetCoverageError("S28の99回上限の典拠がdescriptorと不一致")
+    expected = _game_end_requirement_impossible_pairs()
+    records = policy["requirementsImpossible"]
+    if not isinstance(records, list) or not all(
+        isinstance(item, dict) and set(item) == {"identity", "clauseIds", "basis"}
+        and isinstance(item["identity"], list)
+        and all(isinstance(part, str) for part in item["identity"])
+        and isinstance(item["clauseIds"], list)
+        and isinstance(item["basis"], str) and item["basis"]
+        for item in records
+    ):
+        raise RequiredSetCoverageError("S28の要件上の到達不可宣言が不正")
+    declared = {tuple(item["identity"]): tuple(item["clauseIds"]) for item in records}
+    if len(declared) != len(records) or declared != expected or not set(expected) <= excluded:
+        raise RequiredSetCoverageError("S28の要件上の到達不可が典拠・実測と不一致")
+    groups: dict[str, set[tuple[str, ...]]] = {
+        "noApplicableRow": set(),
+        "unfixedAxisValue": set(),
+        "requirementsImpossible": set(expected),
+    }
+    for identity in excluded - set(expected):
+        targets = (
+            ((identity[1], identity[2]), (identity[3], identity[4]))
+            if identity[0] == "rule-field-pairwise"
+            else ((identity[1], identity[2]),)
+            if identity[0] == "boundary-with-state-or-event-axis-value"
+            else ()
+        )
+        cause = "unfixedAxisValue" if any(
+            target in unfixed_values for target in targets
+        ) else "noApplicableRow"
+        groups[cause].add(identity)
+
+    kind_names = {
+        "rule-field-pairwise": "pairwise",
+        "boundary-with-state-or-event-axis-value": "boundaryCoordinate",
+        "clause-branch": "clauseBranch",
+    }
+    measured = {
+        cause: {
+            **{label: sum(item[0] == kind for item in identities)
+               for kind, label in kind_names.items()},
+            "total": len(identities),
+        }
+        for cause, identities in groups.items()
+    }
+    future = policy["nextSteps"]
+    if (
+        policy["countsByCause"] != measured
+        or policy["beforeUnreachableCount"] != len(excluded)
+        or policy["remainingUnreachableCount"] != len(
+            groups["noApplicableRow"] | groups["unfixedAxisValue"]
+        )
+        or not isinstance(future, dict)
+        or set(future) != {"noApplicableRow", "unfixedAxisValue"}
+        or not all(isinstance(note, str) and note for note in future.values())
+    ):
+        raise RequiredSetCoverageError("S28の原因別件数・後続ステップ宣言が実測と不一致")
+    return {
+        "unreachable": policy["remainingUnreachableCount"],
+        "requirementsImpossible": len(expected),
+    }
+
+
 def _game_end_measure(
-    root: Path, contract: dict[str, Any], declaration: dict[str, Any]
+    root: Path, contract: dict[str, Any], declaration: dict[str, Any],
+    *, classify: bool = True,
 ) -> tuple[dict[str, int], set[tuple[str, ...]], set[tuple[str, ...]], set[tuple[str, ...]]]:
-    """終了判定行の到達性と実ケースからの直接充足を独立導出する。"""
+    """終了判定行の到達性と実ケースからの直接充足を独立導出する。
+
+    Args:
+        root: リポジトリルート。
+        contract: 検査する終了判定契約。
+        declaration: 現行の被覆宣言。
+        classify: 偽なら過去の行集合を試す際にS28の現行件数を適用しない。
+    """
     required, _ = deriver.derive_repository_game_end_required_set(root)
     descriptor = _document(root, "input_axes_descriptor_v1.json")
     values = representative_selection.axis_values(
@@ -936,6 +1054,13 @@ def _game_end_measure(
         "onNewRow": "intersect-declared-values-with-currently-unfixed-values",
     }:
         raise RequiredSetCoverageError("規則による到達不可集合がexact-set不一致")
+    classified = (
+        _classify_game_end_unreachable(
+            declaration, actual_unreachable, effective_missing, descriptor
+        ) if classify else {
+            "unreachable": len(actual_unreachable), "requirementsImpossible": 0
+        }
+    )
 
     observed: set[tuple[str, ...]] = set()
     for case in cases:
@@ -980,7 +1105,7 @@ def _game_end_measure(
         raise RequiredSetCoverageError("終了判定ケースが到達不可要求を充足した")
     counts = {
         "total": len(required_ids), "reachable": len(reachable),
-        "unreachable": len(actual_unreachable), "invalid": len(invalid_ids),
+        **classified, "invalid": len(invalid_ids),
         "covered": len(observed), "cases": len(cases),
     }
     return counts, actual_unreachable, reachable, observed
@@ -1239,7 +1364,7 @@ def _check_game_end_documents(
             "schemaVersion", "version", "exclusionRule", "unfixedGameEndAxisValues",
             "uncoveredClauseBranches", "deferredValidationErrors", "checkerAllowedReadPaths",
             "step94Contraction", "step94UnmetCriteria", "step95DecisionProperties",
-            "normalCaseCounts", "stateTransitionCaseAliases",
+            "normalCaseCounts", "stateTransitionCaseAliases", "step23Unreachability",
         }
         or declaration.get("schemaVersion") != 1
         or declaration.get("version") != "game_end_coverage_declaration_v1"
