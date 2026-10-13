@@ -369,6 +369,49 @@
       "reason": "U-M2(TSK-394)の前回スタメン取得GET 1経路を route-registry.jsonとhttp-route-matrix.jsonへ追加し、派生lockとoracle入力blobが変わったため、oracle_inputのcommit識別値を更新する",
       "approved_by": "山田正輝",
       "approved_at": "2026-10-13"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#128",
+      "series": "oracle_input",
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "eadc7764b7a46988d1ee15af711e55e82b6ec02a"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "0364f07c219545df416aed2250f2b23a4535c8df"
+          }
+        ]
+      },
+      "changes": [],
+      "placement_change": {
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "moved": false,
+      "reason": "TSK-541(ADR-003 v0.6 / 要件書 v2.11)で要件書の規範 7 箇所を D-2 の方式へ追随させたため、既存 claim の原文 7 件が変わり、変更履歴の行 2 件(v2.11 の起案行と確定ゲート通過行)が母集合に加わった。分類はいずれも変えていない(全件 out_of_scope)。これに伴い requirement-claims 系と派生 3 資産を再封印し、oracle 入力 blob 8 件すべてが変わった。同一性の粒度・識別値の解釈は変えず(oracle_commit_semantics は last_committed_step_4_input_baseline のまま)、oracle_commit が指すコミットだけを進める",
+      "approved_by": "山田正輝",
+      "approved_at": "2026-10-14"
     }
   ]
 }
