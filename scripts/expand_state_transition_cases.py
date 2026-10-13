@@ -400,6 +400,25 @@ def _expand_from_declared_inputs(
             for reference in mapping.get("rowRefs", [])
             if isinstance(reference, dict) and reference.get("layer") == "operationRows"
         ]
+        if any(not isinstance(reference.get("coordinate"), dict) for reference in operation_refs):
+            raise CaseExpansionError("操作行の入力座標が不正")
+        # 既存の操作被覆履歴の先頭6行を保ち、追加したDRAW-05行を末尾で展開する。
+        draw_precondition = {
+            "op": "and",
+            "args": [
+                {"op": "eq", "axisId": "state.gameEnded", "value": False},
+                {"op": "eq", "axisId": "state.score", "value": "tie"},
+            ],
+        }
+        draw_refs = [
+            reference for reference in operation_refs
+            if reference.get("coordinate", {}).get("precondition") == draw_precondition
+        ]
+        if len(draw_refs) != 1:
+            raise CaseExpansionError("DRAW-05の終了宣言行を一意に参照できない")
+        operation_refs = [
+            reference for reference in operation_refs if reference not in draw_refs
+        ] + draw_refs
         if operation_limit < 0 or operation_limit > len(operation_refs):
             raise CaseExpansionError("操作行の出力件数が参照の範囲外")
         payload_axis = next(

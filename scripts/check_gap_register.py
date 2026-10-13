@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -626,6 +627,16 @@ def clause_reference_index(policy: GapPredicatePolicy) -> StageReferenceIndex:
 
 def _row_key_value(row: Mapping[str, Any], key_path: str) -> str:
     """規範行の自然キーを宣言済みのpathから取得する。"""
+    if key_path.startswith("precondition."):
+        predicate = row.get("precondition")
+        if isinstance(predicate, dict) and isinstance(predicate.get("args"), list):
+            # 単純等値行の旧IDを保ち、複合述語だけ正規形のdigestで一意にする。
+            encoded = json.dumps(predicate, sort_keys=True, separators=(",", ":"))
+            return (
+                "compound"
+                if key_path.endswith("axisId")
+                else hashlib.sha256(encoded.encode()).hexdigest()[:16]
+            )
     value: Any = row
     for part in key_path.split("."):
         if not isinstance(value, dict) or part not in value:
@@ -1253,6 +1264,7 @@ def generated_case_reference_index(
     criteria: GapCriteria,
     row_index: StageReferenceIndex,
     documents: Mapping[str, Mapping[str, Any]],
+    gaps: Sequence[Mapping[str, Any]],
 ) -> tuple[StageReferenceIndex, dict[str, frozenset[str]]]:
     """caseのrowRefを規範行へ結び、GAPごとの生成case集合を逆引きする。"""
     layers = {layer["layer"]: layer for layer in criteria.row_layers}
@@ -1260,6 +1272,11 @@ def generated_case_reference_index(
     selected_by_group: dict[tuple[str, str], set[str]] = {}
     selected: dict[str, frozenset[str]] = {}
     seen_case_ids: set[str] = set()
+    selector_sources = {
+        gap["gapId"]: selector.get("sourcePath")
+        for gap in gaps
+        if isinstance(selector := gap.get("generatedCaseSelector"), dict)
+    }
     for source_path, document in documents.items():
         cases = document.get("cases")
         if not isinstance(cases, list):
@@ -1286,6 +1303,9 @@ def generated_case_reference_index(
                 raise GapRegisterError(f"生成caseIdが不正または重複: {case_id}")
             seen_case_ids.add(case_id)
             for gap_id in row_index.gap_ids_by_reference[row_id]:
+                # セレクタは宣言された単一資産を対象とし、別資産のcaseは対応表で照合する。
+                if not _values_equal(selector_sources.get(gap_id), source_path):
+                    continue
                 selected_by_group.setdefault((source_path, gap_id), set()).add(case_id)
     for (source_path, gap_id), case_ids in selected_by_group.items():
         selector = generated_case_selector(source_path, gap_id, len(case_ids))
@@ -1389,7 +1409,7 @@ def check_repository(root: Path) -> None:
         for source_path in {layer["sourcePath"] for layer in criteria.row_layers}
     }
     generated_index, _ = generated_case_reference_index(
-        criteria, row_index, generated_documents
+        criteria, row_index, generated_documents, document["gaps"]
     )
     validate_gap_register_document(
         document,

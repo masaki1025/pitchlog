@@ -208,7 +208,7 @@ def _validate_handoff(handoff: dict[str, Any]) -> dict[str, int]:
 def test_repository_handoff_schema_and_all_case_pointers_resolve() -> None:
     """2契約の全caseとcase schemaへの参照が解決できる。"""
     assert _validate_handoff(_handoff()) == {
-        "state-transition": 96,
+        "state-transition": 97,
         "game-end": 170,
     }
 

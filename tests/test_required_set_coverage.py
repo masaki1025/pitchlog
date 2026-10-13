@@ -190,14 +190,14 @@ def _assert_all_normative_rows_referenced(
 
 
 def test_step98_all_normative_rows_are_referenced_by_cases() -> None:
-    """実資産の4層54行すべてにcaseからの参照があることを確認する。"""
+    """実資産の4層55行すべてにcaseからの参照があることを確認する。"""
     state = _asset("state_transition_contract_v1.json")
     game_end = _asset("game_end_contract_v1.json")
     assert [len(state[layer]) for layer in ("matrixRows", "operationRows", "undoRows")] == [
-        42, 6, 1,
+        42, 7, 1,
     ]
     assert len(game_end["decisionRows"]) == 5
-    assert len(state["cases"]) == 96
+    assert len(state["cases"]) == 97
     assert len(game_end["cases"]) == 170
     for contract, schema_name in (
         (state, "state_transition_contract_schema_v1.json"),
@@ -378,7 +378,7 @@ def test_step96_validation_errors_are_exact_and_separate_from_cases() -> None:
     assert actual == expected
     assert declaration["deferredValidationErrors"]["status"] == "materialized"
     assert declaration["deferredValidationErrors"]["count"] == len(expected)
-    assert len(state["cases"]) == 96
+    assert len(state["cases"]) == 97
     assert len(contract["cases"]) == 170
     assert all("caseId" not in item and "inputCoordinate" not in item for item in entries)
     assert all("保証範囲外" in item["claimBoundary"]["notGuaranteed"] for item in entries)
@@ -1119,7 +1119,7 @@ def test_step86_game_end_declaration_cases_and_input_coverage() -> None:
         row for row in contract["operationRows"]
         if row["operationKind"] == "game-end-declaration"
     ]
-    assert len(target_rows) == 2
+    assert len(target_rows) == 3
     assert all(row["clauseId"] == "FR-010" and "FR-010" in row["remarks"]
                for row in target_rows)
 
@@ -1184,7 +1184,7 @@ def test_step87_adhoc_registration_cases_and_input_coverage() -> None:
         row for row in contract["operationRows"]
         if row["operationKind"] == "adhoc-registration"
     ]
-    assert len(contract["operationRows"]) == 6
+    assert len(contract["operationRows"]) == 7
     assert len(target_rows) == 2
     assert all(row["clauseId"] == "FR-015" and "FR-015" in row["remarks"]
                for row in target_rows)
@@ -1245,7 +1245,7 @@ def test_step87_adhoc_registration_cases_and_input_coverage() -> None:
     assert current["after"]["digest"] == checker._digest(after)
     assert after == _observed_coverage(cases, contract)
     assert checker.check_input_coverage(ROOT) == (
-        111, record["history"][-1]["after"]["digest"], 1
+        111, record["history"][-1]["after"]["digest"], 0
     )
     assert checker.check_row_requirements(ROOT) == (47, 42, 0)
     policy = expander.dependency_checker.load_policy(ROOT)
@@ -1353,7 +1353,7 @@ def test_step88_empty_history_undo_case_and_coverage() -> None:
     previous_cases, _ = expander.expand_traced(
         ROOT, limit=42, mode="coverage", operation_limit=6
     )
-    assert contract["cases"] == cases
+    assert contract["cases"][:95] + contract["cases"][-1:] == cases
     assert cases[:-1] == previous_cases
     assert len(cases) == 96
     assert [case["rowRef"]["layer"] for case in cases].count("matrixRows") == 89
@@ -1367,10 +1367,10 @@ def test_step88_empty_history_undo_case_and_coverage() -> None:
     assert undo_case["expected"]["operationResult"] == "nothing-to-undo"
     assert undo_case["expected"]["guaranteeMode"] == "full-equality"
 
-    assert record["currentStep"] == 88
-    assert [item["step"] for item in record["history"]] == list(range(79, 89))
-    current = record["history"][-1]
-    assert current["before"] == record["history"][-2]["after"]
+    assert record["currentStep"] == 89
+    assert [item["step"] for item in record["history"]] == list(range(79, 90))
+    current = record["history"][-2]
+    assert current["before"] == record["history"][-3]["after"]
     before = {tuple(item) for item in current["before"]["coverageSet"]}
     after = {tuple(item) for item in current["after"]["coverageSet"]}
     assert after - before == {("event.operationKind", '"undo"')}
@@ -1382,12 +1382,43 @@ def test_step88_empty_history_undo_case_and_coverage() -> None:
     assert "XC-09" in current["reason"]
     assert "history.scenarioLength" in current["reason"]
     assert "D+1" in current["fact"] and "未達" in current["fact"]
-    assert checker.check_input_coverage(ROOT) == (111, current["after"]["digest"], 1)
+    assert checker.check_input_coverage(ROOT) == (111, current["after"]["digest"], 0)
     assert checker.check_row_requirements(ROOT) == (47, 42, 0)
     policy = expander.dependency_checker.load_policy(ROOT)
     assert trace.observed_read_paths == policy.expanders[
         "state-transition-cases"
     ].allowed_read_paths
+
+
+def test_step24_draw05_operation_case_preserves_input_coverage() -> None:
+    """DRAW-05の同点終了宣言行を派生caseと被覆履歴へ結び付ける。"""
+    contract = _asset("state_transition_contract_v1.json")
+    record = _asset("required_set_input_coverage_v1.json")
+    cases, _ = expander.expand_traced(
+        ROOT, limit=42, mode="coverage", operation_limit=7, undo_limit=1
+    )
+    assert contract["cases"] == cases
+    assert len(cases) == 97
+    draw_case = cases[-2]
+    assert draw_case["inputCoordinate"]["state.score"] == "tie"
+    assert draw_case["expected"]["operationResult"] == "applied"
+    effects = draw_case["expected"]["stateEffect"]["stateFields"]
+    assert effects["state.gameEnded"] == {"kind": "set", "value": True}
+    assert effects["state.score"] == {"kind": "unchanged"}
+    assert record["history"][-1]["before"] == record["history"][-1]["after"]
+    assert checker.check_input_coverage(ROOT)[2] == 0
+
+
+def test_step24_draw05_cross_layer_binding_fails_closed_on_case_drift() -> None:
+    """DRAW-05の状況判定case参照をずらすと被覆検査が拒否する。"""
+    declaration = _asset("game_end_coverage_declaration_v1.json")
+    draw = next(
+        item for item in declaration["uncoveredClauseBranches"]
+        if item["branchId"] == "DRAW-05"
+    )
+    draw["crossLayerResolution"]["caseId"] = "ST-UNKNOWN"
+    with pytest.raises(checker.RequiredSetCoverageError, match="DRAW-05の状況判定の行参照"):
+        checker.check_game_end_coverage(ROOT, declaration=declaration)
 
 
 def test_step88_rejects_new_liveness_only_row() -> None:
@@ -1492,7 +1523,7 @@ def test_expander_rejects_invalid_undo_inputs(
         expander.expand_traced(ROOT, limit=42, operation_limit=6, undo_limit=1)
 
 
-@pytest.mark.parametrize("operation_limit", [-1, 7])
+@pytest.mark.parametrize("operation_limit", [-1, 8])
 def test_expander_rejects_operation_limit_outside_references(operation_limit: int) -> None:
     """操作行の参照件数を越える指定と負数を拒否する。"""
     with pytest.raises(expander.CaseExpansionError, match="操作行の出力件数"):

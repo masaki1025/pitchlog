@@ -66,10 +66,10 @@
             "layer": {"const": "operationRows"},
             "coordinate": {
               "type": "object",
-              "required": ["operationKind", "clauseId", "precondition"],
+              "required": ["operationKind", "payloadShape", "precondition"],
               "properties": {
                 "operationKind": {"type": "string", "minLength": 1},
-                "clauseId": {"type": "string", "minLength": 1},
+                "payloadShape": {"type": "object"},
                 "precondition": {"type": "object"}
               },
               "additionalProperties": false

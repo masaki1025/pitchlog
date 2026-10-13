@@ -62,7 +62,7 @@
     "beforeUnreachableCount": 2817,
     "remainingUnreachableCount": 2809,
     "nextSteps": {
-      "noApplicableRow": "ステップ24のDRAW-05、26のCOLD-09の規範行で対応する分岐・組合せを縮める。walk-offは現行requiredSetの分岐IDにまだ無く131件には含まれないため、ステップ25で台帳と行を同時に追加して再測定する。COLD-01〜07は中間判定なのでdecisionRowsへ置かない。",
+      "noApplicableRow": "DRAW-05はステップ24で状況判定のoperationRowsへ結んだが、この集合はdecisionRows層だけを数えるため131件の内訳には残る。COLD-09はステップ26の規範行で縮める。walk-offは現行requiredSetの分岐IDにまだ無く131件には含まれないため、ステップ25で台帳と行を同時に追加して再測定する。COLD-01〜07は中間判定なのでdecisionRowsへ置かない。",
       "unfixedAxisValue": "ステップ24〜26で追加する行の前提条件が終了規則軸値を固定するたびに縮める。残存値は後続の対象計算で行の要否を確認する。"
     }
   },
@@ -191,7 +191,12 @@
     },
     {
       "branchId": "DRAW-05",
-      "gapId": "GAP-04"
+      "gapId": "GAP-04",
+      "crossLayerResolution": {
+        "layer": "operationRows",
+        "caseId": "ST-OPERATION-e6c67c06707d5759",
+        "mappingVersion": "branch_row_mapping_v1"
+      }
     },
     {
       "branchId": "DRAW-06",
@@ -223,7 +228,7 @@
     "verification": "derived-exact-set"
   },
   "normalCaseCounts": {
-    "stateTransition": 96,
+    "stateTransition": 97,
     "gameEnd": 170
   },
   "stateTransitionCaseAliases": ["eventKind", "operationKind", "resultId"],
@@ -296,6 +301,7 @@
     "contracts/state-transition/expander_dependency_policy_schema_v1.json",
     "contracts/state-transition/input_axes_descriptor_v1.json",
     "contracts/state-transition/clause_branch_register_v1.json",
+    "contracts/state-transition/branch_row_mapping_v1.json",
     "contracts/state-transition/representative_selection_policy_v1.json",
     "contracts/state-transition/deriver_dependency_policy_v1.json",
     "contracts/state-transition/deriver_dependency_policy_schema_v1.json",

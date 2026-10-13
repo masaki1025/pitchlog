@@ -164,7 +164,7 @@
     "identity": {
       "scheme": "sha256_frozen_projection",
       "identifier_prefix": "fixture-sha256:",
-      "current_identifiers": ["fixture-sha256:322b46861db3a552ef5f4f8b2d0293051c190ec81b4b49a382dd9ff6d4d43421"],
+      "current_identifiers": ["fixture-sha256:84627209763512e7dc507ecbc4b9691ec79e1e6c1d5dcf39a77862c6a70e2b65"],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
         "algorithm": "sha256-canonical-json-and-external-files-v1",
@@ -201,21 +201,21 @@
     "history": [
       {
         "source_commit": "PENDING_ACCEPTANCE",
-        "new_baseline_identifiers": ["fixture-sha256:322b46861db3a552ef5f4f8b2d0293051c190ec81b4b49a382dd9ff6d4d43421"],
+        "new_baseline_identifiers": ["fixture-sha256:84627209763512e7dc507ecbc4b9691ec79e1e6c1d5dcf39a77862c6a70e2b65"],
         "previous_baseline_identifiers": ["NO_BASELINE"],
         "change": {
-          "subject": "終了判定の手作業fixture 5件にX表記の構造化出力を加えた暫定基準",
+          "subject": "終了判定の手作業fixture 5件の暫定基準（DRAW-05の操作行への結び付け）",
           "before": {
             "state": "NO_BASELINE",
             "frozen_projection_sha256": "NO_BASELINE"
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "322b46861db3a552ef5f4f8b2d0293051c190ec81b4b49a382dd9ff6d4d43421"
+            "frozen_projection_sha256": "84627209763512e7dc507ecbc4b9691ec79e1e6c1d5dcf39a77862c6a70e2b65"
           }
         },
-        "movement_fact": "直前の資産には凍結基準がなく、5件の完全な期待ケースを初回基準として設置する。",
-        "reason": "展開器との完全一致を独立した手作業fixtureへ固定し、fixture・被覆宣言・検査規則の黙った変更を検出するため。",
+        "movement_fact": "DRAW-05の状況判定操作行への結び付けにより、手作業fixtureの暫定基準を5件へ更新する。",
+        "reason": "付録F-1の途中終了宣言を付録A-5の最終スコア比較へ結び付け、未収容分岐と凍結射影の整合を維持するため。",
         "approved_by": "未承認(PR のレビュー待ち)",
         "approved_on": "未承認(PR のレビュー待ち)"
       }

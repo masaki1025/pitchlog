@@ -995,7 +995,9 @@ def _game_end_measure(
         raise RequiredSetCoverageError("条文分岐の未充足宣言がない")
     if not all(
         isinstance(item, dict)
-        and set(item) == {"branchId", "gapId"}
+        and set(item) in ({"branchId", "gapId"}, {
+            "branchId", "gapId", "crossLayerResolution"
+        })
         and isinstance(item["branchId"], str)
         and isinstance(item["gapId"], str)
         for item in raw_branches
@@ -1007,6 +1009,34 @@ def _game_end_measure(
     }
     if len(branch_gap) != len(raw_branches):
         raise RequiredSetCoverageError("条文分岐の未充足宣言が重複または不正")
+    cross_layer = [
+        item for item in raw_branches if "crossLayerResolution" in item
+    ]
+    if len(cross_layer) != 1 or cross_layer[0]["branchId"] != "DRAW-05":
+        raise RequiredSetCoverageError("DRAW-05の状況判定への結び付けが不正")
+    resolution = cross_layer[0]["crossLayerResolution"]
+    if resolution != {
+        "layer": "operationRows",
+        "caseId": "ST-OPERATION-e6c67c06707d5759",
+        "mappingVersion": "branch_row_mapping_v1",
+    }:
+        raise RequiredSetCoverageError("DRAW-05の状況判定の行参照が不正")
+    state_contract = _document(root, "state_transition_contract_v1.json")
+    mapping = _document(root, "branch_row_mapping_v1.json")
+    state_cases = [
+        case for case in state_contract["cases"]
+        if case["caseId"] == resolution["caseId"]
+    ]
+    mapped = [
+        item for item in mapping["mappings"] if item["branchId"] == "DRAW-05"
+    ]
+    if (
+        len(state_cases) != 1 or len(mapped) != 1
+        or state_cases[0]["rowRef"] != mapped[0]["rowRef"]
+        or state_cases[0]["inputCoordinate"].get("state.score") != "tie"
+        or state_cases[0]["expected"].get("operationResult") != "applied"
+    ):
+        raise RequiredSetCoverageError("DRAW-05の状況判定ケースが不正")
     missing_branches = {
         item.branch_id for item in required.clause_branch_requirements
         if item.identity not in reachable

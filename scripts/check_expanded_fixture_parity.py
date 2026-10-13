@@ -195,12 +195,17 @@ def check_repository(root: Path = ROOT) -> tuple[int, dict[str, list[str]]]:
     state = mapping_checker._read_object(root, mapping["stateContractPath"])
     game_end = mapping_checker._read_object(root, mapping["gameEndContractPath"])
     expanded_state, _ = expand_state_transition_cases.expand_traced(
-        root, limit=len(state["matrixRows"])
+        root,
+        limit=len(state["matrixRows"]),
+        operation_limit=len(state["operationRows"]),
+        undo_limit=len(state["undoRows"]),
     )
     expanded_game_end, _ = expand_game_end_cases.expand_traced(
         root, limit=len(game_end["decisionRows"])
     )
-    if len(expanded_state) != len(state["matrixRows"]):
+    if len(expanded_state) != sum(
+        len(state[layer]) for layer in ("matrixRows", "operationRows", "undoRows")
+    ):
         raise FixtureParityError("状況判定の全規範行を展開できていない")
     if len(expanded_game_end) != len(game_end["decisionRows"]):
         raise FixtureParityError("終了判定の全規範行を展開できていない")

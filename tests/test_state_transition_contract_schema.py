@@ -3455,7 +3455,7 @@ def test_repository_step65_empty_history_row_and_mapping() -> None:
     _validate_references(contract, vocabulary_checker.validate_manifest(REPOSITORY_ROOT))
 
     assert len(contract["matrixRows"]) == 42
-    assert len(contract["operationRows"]) == 6
+    assert len(contract["operationRows"]) == 7
     assert len(contract["undoRows"]) == 1
     row = contract["undoRows"][0]
     assert set(row) == set(UNDO_ROW_COLUMNS)
@@ -4746,14 +4746,29 @@ def test_repository_contract_step63_game_end_rows_and_mapping() -> None:
     _validate_references(contract, vocabulary_checker.validate_manifest(REPOSITORY_ROOT))
 
     rows = _step63_rows(contract)
-    assert len(rows) == 2
+    assert len(rows) == 3
     assert {row["operationResult"] for row in rows} == {
         "applied", "rejected-precondition",
     }
-    assert {
-        (row["precondition"]["axisId"], row["precondition"]["value"])
-        for row in rows
-    } == {("state.gameEnded", False), ("state.gameEnded", True)}
+    assert [row["precondition"] for row in rows] == [
+        {
+            "op": "and",
+            "args": [
+                {"op": "eq", "axisId": "state.gameEnded", "value": False},
+                {"op": "not", "args": [
+                    {"op": "eq", "axisId": "state.score", "value": "tie"}
+                ]},
+            ],
+        },
+        {"op": "eq", "axisId": "state.gameEnded", "value": True},
+        {
+            "op": "and",
+            "args": [
+                {"op": "eq", "axisId": "state.gameEnded", "value": False},
+                {"op": "eq", "axisId": "state.score", "value": "tie"},
+            ],
+        },
+    ]
     assert all(row["clauseId"] == "FR-010" for row in rows)
     assert all(row["historyEffect"] == {"pushes": False, "kind": None} for row in rows)
 
@@ -4960,7 +4975,7 @@ def test_repository_contract_step64_registration_rows_and_mapping() -> None:
     ]
     assert "tiebreak-start" not in mappings
     assert len(contract["matrixRows"]) == 42
-    assert len(contract["operationRows"]) == 6
+    assert len(contract["operationRows"]) == 7
     sources = {source["sourceId"] for source in contract["provenance"]["sources"]}
     assert "req:FR-015" in sources
     assert not any(source.startswith("adr:") for source in sources)
@@ -5149,11 +5164,17 @@ def _validate_manual_fixtures(
     known_sources = {f"req:{clause_id}" for clause_id in known_clause_ids}
     branches = {branch["branchId"]: branch for branch in register["branches"]}
     game_end_sources = set(policy["sourceClausePartition"]["gameEndSourceClauseIds"])
+    situation_overrides = set(policy["sourceClausePartition"]["situationBranchOverrides"])
+    assert situation_overrides == {"DRAW-05"}
+    assert all(
+        set(branches[branch_id]["sourceClauseIds"]) & game_end_sources
+        for branch_id in situation_overrides
+    )
     situation_ids = {
         branch_id
         for branch_id, branch in branches.items()
         if not set(branch["sourceClauseIds"]) & game_end_sources
-    }
+    } | situation_overrides
     deferred = policy["deferredBranches"]
     assert all(isinstance(reason, str) and reason for reason in deferred.values())
     fixtures = document["fixtures"]
@@ -5182,6 +5203,32 @@ def _validate_manual_fixtures(
                 assert source["sourceId"] in known_sources
                 assert source["sourceId"] in branch["sourceClauseIds"]
         coordinate = case["inputCoordinate"]
+        if case["branchId"] == "DRAW-05":
+            rows = [
+                row for row in contract["operationRows"]
+                if row["operationKind"] == "game-end-declaration"
+                and row["precondition"] == {
+                    "op": "and",
+                    "args": [
+                        {"op": "eq", "axisId": "state.gameEnded", "value": False},
+                        {"op": "eq", "axisId": "state.score", "value": "tie"},
+                    ],
+                }
+            ]
+            assert len(rows) == 1
+            row = rows[0]
+            assert coordinate == {
+                "operationKind": "game-end-declaration",
+                "event.operationPayload": "game-end-declaration",
+                "state.gameEnded": False,
+                "state.score": "tie",
+            }
+            assert case["expected"] == {
+                field: value for field, value in row.items()
+                if field not in {"operationKind", "payloadShape", "precondition", "remarks"}
+            }
+            assert "付録A-5" in row["remarks"] and "DRAW-05" in row["remarks"]
+            continue
         rows = [
             row
             for row in contract["matrixRows"]
@@ -5657,7 +5704,7 @@ def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> 
     assert declaration["inputCoordinateMapping"]["semanticOrigin"] == (
         "step-90-task-implementation-convention"
     )
-    assert len(cases) == 96
+    assert len(cases) == 97
     changed = []
     for case in cases:
         assert {"raw", "normalizationRuleId", "normalized"} <= set(case)

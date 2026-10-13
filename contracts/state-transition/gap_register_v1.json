@@ -86,13 +86,15 @@
         "decisionRows:GAME-END-EXTRA-CONTINUE",
         "decisionRows:GAME-END-LIMIT-DRAW",
         "decisionRows:GAME-END-NORMAL",
-        "decisionRows:GAME-END-TIEBREAK-CONTINUE"
+        "decisionRows:GAME-END-TIEBREAK-CONTINUE",
+        "operationRows:game-end-declaration:compound:b1003c9526ad839d"
       ],
       "fixtureCaseIds": [
         "GE-GAME-END-NORMAL",
         "GE-GAME-END-EXTRA-CONTINUE",
         "GE-GAME-END-LIMIT-DRAW",
-        "GE-GAME-END-TIEBREAK-CONTINUE"
+        "GE-GAME-END-TIEBREAK-CONTINUE",
+        "ST-DRAW-05"
       ],
       "generatedCaseSelector": {
         "sourcePath": "contracts/state-transition/game_end_contract_v1.json",

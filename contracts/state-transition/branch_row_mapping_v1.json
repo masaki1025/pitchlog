@@ -4,10 +4,10 @@
   "stateContractPath": "contracts/state-transition/state_transition_contract_v1.json",
   "gameEndContractPath": "contracts/state-transition/game_end_contract_v1.json",
   "fixtureCoveragePath": "contracts/state-transition/manual_fixture_branch_coverage_v1.json",
-  "expectedPositiveMatches": 20,
+  "expectedPositiveMatches": 21,
   "expectedNegativeMatches": 11,
   "expectedRegisterBranches": 68,
-  "expectedExcludedBranches": 37,
+  "expectedExcludedBranches": 36,
   "claimBoundary": {
     "machineVerified": [
       "分岐IDの台帳実在、fixture 31 分岐との exact-set および免除 37 分岐との整合",
@@ -693,7 +693,9 @@
         }
       },
       "fixtureRelation": "cross-constraint-negative",
-      "expectedViolationIds": ["XC-01"]
+      "expectedViolationIds": [
+        "XC-01"
+      ]
     },
     {
       "branchId": "XC-02",
@@ -735,7 +737,9 @@
         }
       },
       "fixtureRelation": "cross-constraint-negative",
-      "expectedViolationIds": ["XC-02"]
+      "expectedViolationIds": [
+        "XC-02"
+      ]
     },
     {
       "branchId": "XC-03",
@@ -777,7 +781,9 @@
         }
       },
       "fixtureRelation": "cross-constraint-negative",
-      "expectedViolationIds": ["XC-03"]
+      "expectedViolationIds": [
+        "XC-03"
+      ]
     },
     {
       "branchId": "XC-04",
@@ -819,7 +825,9 @@
         }
       },
       "fixtureRelation": "cross-constraint-negative",
-      "expectedViolationIds": ["XC-04"]
+      "expectedViolationIds": [
+        "XC-04"
+      ]
     },
     {
       "branchId": "XC-05",
@@ -861,7 +869,9 @@
         }
       },
       "fixtureRelation": "cross-constraint-negative",
-      "expectedViolationIds": ["XC-05"]
+      "expectedViolationIds": [
+        "XC-05"
+      ]
     },
     {
       "branchId": "XC-06",
@@ -903,7 +913,9 @@
         }
       },
       "fixtureRelation": "cross-constraint-negative",
-      "expectedViolationIds": ["XC-06"]
+      "expectedViolationIds": [
+        "XC-06"
+      ]
     },
     {
       "branchId": "XC-07",
@@ -945,7 +957,9 @@
         }
       },
       "fixtureRelation": "cross-constraint-negative",
-      "expectedViolationIds": ["XC-07"]
+      "expectedViolationIds": [
+        "XC-07"
+      ]
     },
     {
       "branchId": "XC-08",
@@ -987,7 +1001,9 @@
         }
       },
       "fixtureRelation": "cross-constraint-negative",
-      "expectedViolationIds": ["XC-08"]
+      "expectedViolationIds": [
+        "XC-08"
+      ]
     },
     {
       "branchId": "XC-10",
@@ -1029,7 +1045,10 @@
         }
       },
       "fixtureRelation": "cross-constraint-negative",
-      "expectedViolationIds": ["XC-04", "XC-10"]
+      "expectedViolationIds": [
+        "XC-04",
+        "XC-10"
+      ]
     },
     {
       "branchId": "XC-11",
@@ -1071,7 +1090,9 @@
         }
       },
       "fixtureRelation": "cross-constraint-negative",
-      "expectedViolationIds": ["XC-11"]
+      "expectedViolationIds": [
+        "XC-11"
+      ]
     },
     {
       "branchId": "XC-12",
@@ -1113,7 +1134,9 @@
         }
       },
       "fixtureRelation": "cross-constraint-negative",
-      "expectedViolationIds": ["XC-12"]
+      "expectedViolationIds": [
+        "XC-12"
+      ]
     },
     {
       "branchId": "GAME-END-NORMAL",
@@ -1164,6 +1187,37 @@
         }
       },
       "fixtureRelation": "decision-output"
+    },
+    {
+      "branchId": "DRAW-05",
+      "rowRef": {
+        "layer": "operationRows",
+        "coordinate": {
+          "operationKind": "game-end-declaration",
+          "payloadShape": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          },
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.gameEnded",
+                "value": false
+              },
+              {
+                "op": "eq",
+                "axisId": "state.score",
+                "value": "tie"
+              }
+            ]
+          }
+        }
+      },
+      "fixtureRelation": "row-output"
     }
   ]
 }

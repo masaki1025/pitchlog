@@ -263,6 +263,8 @@ def check_documents(
             raise BranchRowMappingError(f"既存の行参照にない座標: {branch_id}")
         fixture_input = fixture["inputCoordinate"]
         for field in coordinate:
+            if field in ("precondition", "payloadShape") and layer == "operationRows":
+                continue
             if field != "precondition" and fixture_input.get(field) != coordinate[field]:
                 raise BranchRowMappingError(f"fixtureと規範行の入力種別が異なる: {branch_id}")
         row_output = {

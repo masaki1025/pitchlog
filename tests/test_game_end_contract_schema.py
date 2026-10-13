@@ -131,11 +131,16 @@ def _validate_manual_fixtures(
         partition_schema["x-pitchlog-manual-fixture-policy"]
         ["sourceClausePartition"]["gameEndSourceClauseIds"]
     )
+    situation_overrides = set(
+        partition_schema["x-pitchlog-manual-fixture-policy"]
+        ["sourceClausePartition"]["situationBranchOverrides"]
+    )
     branches = {branch["branchId"]: branch for branch in register["branches"]}
     game_end_ids = {
         branch_id
         for branch_id, branch in branches.items()
         if set(branch["sourceClauseIds"]) & game_end_sources
+        and branch_id not in situation_overrides
     }
     deferred = policy["deferredBranches"]
     assert all(isinstance(reason, str) and reason for reason in deferred.values())

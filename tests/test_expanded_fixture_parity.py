@@ -60,7 +60,10 @@ def _inputs() -> tuple[
     state = _read("state_transition_contract_v1.json")
     game_end = _read("game_end_contract_v1.json")
     expanded_state, _ = checker.expand_state_transition_cases.expand_traced(
-        ROOT, limit=len(state["matrixRows"])
+        ROOT,
+        limit=len(state["matrixRows"]),
+        operation_limit=len(state["operationRows"]),
+        undo_limit=len(state["undoRows"]),
     )
     expanded_game_end, _ = checker.expand_game_end_cases.expand_traced(
         ROOT, limit=len(game_end["decisionRows"])
@@ -74,7 +77,7 @@ def _entry(mapping: dict[str, Any], branch_id: str) -> dict[str, Any]:
 
 
 def test_repository_matches_all_twenty_positive_and_eleven_negative_branches() -> None:
-    """20件の完全一致と11件の違反集合を確認する。"""
+    """21件の完全一致と11件の違反集合を確認する。"""
     mapping = _read("branch_row_mapping_v1.json")
     matched, violations = checker.check_repository(ROOT)
     assert matched == mapping["expectedPositiveMatches"]

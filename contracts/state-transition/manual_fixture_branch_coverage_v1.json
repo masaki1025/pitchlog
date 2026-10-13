@@ -29,7 +29,6 @@
     {"branchId": "DRAW-02", "reasonType": "rule-setting-branch-outside-decision-rows", "reason": "点差設定の不正を拒否する分岐で、validationErrors[]は規範行の代替にならない"},
     {"branchId": "DRAW-03", "reasonType": "rule-setting-branch-outside-decision-rows", "reason": "タイブレーク設定の不正を拒否する分岐で、validationErrors[]は規範行の代替にならない"},
     {"branchId": "DRAW-04", "reasonType": "rule-setting-branch-outside-decision-rows", "reason": "有効な規則設定の宣言であり、対応する終了判定結果行が無い"},
-    {"branchId": "DRAW-05", "reasonType": "runtime-decision-row-absent", "reason": "途中終了宣言による引き分けをlimit-drawへ読み替えられず、対応する規範行とoutcomeが無い"},
     {"branchId": "DRAW-06", "reasonType": "runtime-decision-row-absent", "reason": "途中終了宣言による勝敗確定の独立した規範行が無い"},
     {"branchId": "DRAW-07", "reasonType": "runtime-decision-row-absent", "reason": "延長上限なしの継続を固有に表す規範行が無い"},
     {"branchId": "DRAW-08", "reasonType": "runtime-decision-row-absent", "reason": "延長上限前の継続を固有に表す規範行が無い"},

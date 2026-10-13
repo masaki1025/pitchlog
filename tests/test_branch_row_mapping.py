@@ -56,8 +56,21 @@ def _entry(mapping: dict[str, Any], branch_id: str) -> dict[str, Any]:
 
 
 def test_repository_branch_row_mapping_is_consistent() -> None:
-    """31件のfixture分岐を台帳と実在規範行へ突合する。"""
+    """32件のfixture分岐を台帳と実在規範行へ突合する。"""
     checker.check_repository(ROOT, MAPPING_RELATIVE)
+
+
+def test_draw05_maps_to_tied_game_end_declaration() -> None:
+    """DRAW-05の分岐が同点専用の状況判定操作行を指す。"""
+    mapping = _mapping()
+    entry = _entry(mapping, "DRAW-05")
+    assert entry["rowRef"]["layer"] == "operationRows"
+    assert entry["rowRef"]["coordinate"]["precondition"]["args"][-1] == {
+        "op": "eq", "axisId": "state.score", "value": "tie",
+    }
+    entry["rowRef"]["coordinate"]["precondition"]["args"][-1]["value"] = "away-lead:M+1"
+    with pytest.raises(checker.BranchRowMappingError, match="規範行の座標が一意に実在しない"):
+        checker.check_repository(ROOT, MAPPING_RELATIVE, mapping)
 
 
 @pytest.mark.parametrize(

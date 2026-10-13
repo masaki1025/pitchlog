@@ -436,10 +436,18 @@ def test_positive_manual_fixture_inputs_follow_representative_policy() -> None:
             selected = representative_selection.select_coordinate(
                 predicate, state_values, axes, policy
             )
-            expected = {
-                "eventKind": reference["eventKind"], "resultId": reference["resultId"],
-                **selected,
-            }
+            expected = (
+                {
+                    "operationKind": reference["operationKind"],
+                    "event.operationPayload": reference["operationKind"],
+                    **selected,
+                }
+                if mapping["rowRef"]["layer"] == "operationRows"
+                else {
+                    "eventKind": reference["eventKind"], "resultId": reference["resultId"],
+                    **selected,
+                }
+            )
             assert state_fixtures[branch_id] == expected
             checked += 1
         elif mapping["fixtureRelation"] == "decision-output":
@@ -451,7 +459,7 @@ def test_positive_manual_fixture_inputs_follow_representative_policy() -> None:
             )
             assert game_fixtures[branch_id] == expected
             checked += 1
-    assert checked == 20
+    assert checked == 21
 
 
 @pytest.mark.parametrize(
