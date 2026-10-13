@@ -490,7 +490,16 @@ function frontendBuildClosure(): Plugin {
   }
 }
 
-// /api は FastAPI (port 8800) へプロキシ（docs/api_contract_v1.md 共通事項）
+export function stripApiPrefix(path: string): string {
+  const rewritten = path.replace(/^\/api(?=\/|\?|$)/, '')
+  if (rewritten.startsWith('?')) {
+    return `/${rewritten}`
+  }
+  return rewritten || '/'
+}
+
+// /api は開発用 backend (port 8800) へ転送し、接頭辞を外して渡す。
+// 根拠: docs/features/uf6-api-contract/plan.md の決定 M。
 export default defineConfig({
   plugins: [vue(), tailwindcss(), frontendBuildClosure()],
   resolve: {
@@ -507,6 +516,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8800',
         changeOrigin: true,
+        rewrite: stripApiPrefix,
       },
     },
   },

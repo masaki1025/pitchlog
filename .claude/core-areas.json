@@ -252,7 +252,8 @@
         "scripts/expand_game_end_cases.py",
         "scripts/expand_state_transition_cases.py",
         "scripts/representative_selection.py",
-        "tests/test_branch_row_mapping.py"
+        "tests/test_branch_row_mapping.py",
+        "frontend/src/api/client*"
       ]
     },
     {
@@ -444,7 +445,8 @@
         "scripts/generate_orm_acceptance_sheets.py",
         "tests/test_environment_template.py",
         "tests/test_orm_acceptance_sheets.py",
-        "docs/adr/ADR-001-codex-model-selection.md"
+        "docs/adr/ADR-001-codex-model-selection.md",
+        "frontend/src/api/client*"
       ]
     },
     {
@@ -534,7 +536,8 @@
         "backend/tests/test_roster_*.py",
         "backend/tests/test_request_presentation.py",
         "tests/test_census_baseline_check.py",
-        "frontend/src/stores/authStore*"
+        "frontend/src/stores/authStore*",
+        "frontend/src/api/*"
       ]
     },
     {
