@@ -425,10 +425,16 @@ describe('TeamMembersContent', () => {
       similar_names: [],
     })
     await vi.waitFor(() =>
+      expect(wrapper.text()).toContain(
+        'チーム Aでの対戦相手の登録は結果未確認です',
+      ),
+    )
+    await vi.waitFor(() =>
       expect(
         buttonWithText(wrapper, '対戦相手を登録').attributes(),
       ).not.toHaveProperty('disabled'),
     )
+    await buttonWithText(wrapper, '案内を閉じる').trigger('click')
     await createForm!.trigger('submit')
     await vi.waitFor(() =>
       expect(createTeamRecordMock).toHaveBeenCalledTimes(3),
@@ -569,6 +575,7 @@ describe('TeamMembersContent', () => {
         ),
       )
       expect(wrapper.text()).toContain('送信元チームへ戻って一覧を再読込')
+      await buttonWithText(wrapper, '案内を閉じる').trigger('click')
     },
   )
 

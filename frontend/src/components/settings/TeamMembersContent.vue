@@ -3,6 +3,9 @@ import { reactive as createReactiveState } from 'vue'
 
 // 認証切替で画面が再生成されても、送信済み要求が終わるまで同じ操作を再送させない。
 const pendingOperationKeys = createReactiveState(new Set<string>())
+const unconfirmedMutationNotices = createReactiveState(
+  new Map<string, string>(),
+)
 </script>
 
 <script setup lang="ts">
@@ -40,11 +43,6 @@ type PlayerMutationScope = TenantScope & {
   teamRecordId: string
 }
 
-type UnconfirmedMutationNotice = {
-  message: string
-  teamId: string
-}
-
 const auth = useAuthStore()
 const { authEpoch, teamId, teamName } = storeToRefs(auth)
 const queryClient = useQueryClient()
@@ -69,13 +67,10 @@ const editingPlayerName = ref('')
 const editingPlayerThrows = ref<PlayerRead['throws'] | ''>('')
 const editingPlayerBats = ref<PlayerRead['bats'] | ''>('')
 const editingPlayerUniformNumber = ref('')
-const unconfirmedMutationNotice = ref<UnconfirmedMutationNotice | null>(null)
-
-const visibleUnconfirmedMutationNotice = computed(() =>
-  unconfirmedMutationNotice.value?.teamId === teamId.value
-    ? unconfirmedMutationNotice.value.message
-    : null,
-)
+const visibleUnconfirmedMutationNotice = computed(() => {
+  if (teamId.value === null) return null
+  return unconfirmedMutationNotices.get(teamId.value) ?? null
+})
 
 const opponents = computed(() =>
   props.teamRecords.filter((record) => record.kind === 'opponent'),
@@ -163,11 +158,17 @@ function preserveUnconfirmedResult(
     return false
   }
   const source = scope.teamName ?? '送信元チーム'
-  unconfirmedMutationNotice.value = {
-    message: `${source}での${target}は結果未確認です。自動再送せず、送信元チームへ戻って一覧を再読込してください。`,
-    teamId: scope.teamId,
-  }
+  unconfirmedMutationNotices.set(
+    scope.teamId,
+    `${source}での${target}は結果未確認です。自動再送せず、送信元チームへ戻って一覧を再読込してください。`,
+  )
   return true
+}
+
+function dismissUnconfirmedMutationNotice(): void {
+  if (teamId.value !== null) {
+    unconfirmedMutationNotices.delete(teamId.value)
+  }
 }
 
 async function refreshQueryPrefix(queryKey: readonly unknown[]): Promise<void> {
@@ -219,6 +220,26 @@ watch(
     playerSuccess.value = null
     sameNumberPlayers.value = []
     clearPlayerEdit()
+  },
+  { flush: 'sync' },
+)
+
+watch(
+  () => props.teamRecords.map((record) => record.id),
+  (recordIds) => {
+    if (
+      editingOpponentId.value !== '' &&
+      !recordIds.includes(editingOpponentId.value)
+    ) {
+      clearOpponentEdit()
+    }
+    if (
+      lastCreatedOpponent.value !== null &&
+      !recordIds.includes(lastCreatedOpponent.value.id)
+    ) {
+      lastCreatedOpponent.value = null
+      similarNames.value = []
+    }
   },
   { flush: 'sync' },
 )
@@ -567,7 +588,7 @@ function submitPlayerEdit(): void {
       <Button
         class="mt-2"
         variant="ghost"
-        @click="unconfirmedMutationNotice = null"
+        @click="dismissUnconfirmedMutationNotice"
       >
         案内を閉じる
       </Button>

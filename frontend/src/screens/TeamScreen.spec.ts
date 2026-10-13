@@ -223,6 +223,41 @@ describe('TeamScreen', () => {
     expect(wrapper.find('input[name="player-edit-name"]').exists()).toBe(false)
   })
 
+  it('チーム一覧の再取得が404なら旧対戦相手の編集状態を消す', async () => {
+    listTeamRecordsMock
+      .mockResolvedValueOnce(
+        page([
+          teamRecord('self-a', 'チーム A', 'self'),
+          teamRecord('opponent-a', '対戦相手 A'),
+        ]),
+      )
+      .mockRejectedValueOnce(
+        new ApiError(404, 'not found', [], undefined, null),
+      )
+
+    const { wrapper } = mountScreen()
+    await vi.waitFor(() => expect(wrapper.text()).toContain('対戦相手 A'))
+    await wrapper
+      .get('select[name="opponent-edit-target"]')
+      .setValue('opponent-a')
+    expect(wrapper.find('input[name="opponent-edit-name"]').exists()).toBe(true)
+
+    void queryClient.invalidateQueries({
+      queryKey: rosterQueryKeys.teamRecords.all('tenant-a'),
+    })
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain('表示中だった情報を隠しました'),
+    )
+
+    expect(wrapper.text()).not.toContain('対戦相手 A')
+    expect(wrapper.find('[data-testid="team-record-list"]').exists()).toBe(
+      false,
+    )
+    expect(wrapper.find('input[name="opponent-edit-name"]').exists()).toBe(
+      false,
+    )
+  })
+
   it('チームと選手を cursor 付きでページングし、選択チームを切り替える', async () => {
     listTeamRecordsMock
       .mockResolvedValueOnce(
