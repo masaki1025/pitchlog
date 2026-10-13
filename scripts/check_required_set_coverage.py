@@ -1014,18 +1014,18 @@ def _check_game_end_decision_properties(
         raise RequiredSetCoverageError("終了判定decision schemaが不正")
     x_mark = policy["xMark"]
     if not isinstance(x_mark, dict) or set(x_mark) != {
-        "status", "decisionField", "clauseIds", "searchedScope",
-        "observedDecisionFields", "reason"
-    } or x_mark["status"] != "not-represented-in-decision" or x_mark[
+        "status", "decisionField", "targetCell", "clauseIds", "enumValues",
+        "observedDecisionFields", "expectedByBranch", "remainingGap"
+    } or x_mark["status"] != "represented-in-decision" or x_mark[
         "decisionField"
-    ] is not None or set(x_mark["observedDecisionFields"]) != set(
-        schema_fields
-    ) or not isinstance(x_mark["reason"], str) or not x_mark["reason"]:
-        raise RequiredSetCoverageError("X表記の出力不在宣言が実測と不一致")
-    if not isinstance(x_mark["searchedScope"], list) or not x_mark[
-        "searchedScope"
-    ] or not all(isinstance(item, str) and item for item in x_mark["searchedScope"]):
-        raise RequiredSetCoverageError("X表記の調査範囲が不正")
+    ] != "xMark" or x_mark["targetCell"] != "直近に完了した表に対応する裏の得点セル" or set(
+        x_mark["observedDecisionFields"]
+    ) != set(schema_fields) or x_mark["enumValues"] != [
+        "recorded-score", "x-mark", "blank"
+    ] or schema_fields.get("xMark", {}).get("enum") != x_mark[
+        "enumValues"
+    ] or not isinstance(x_mark["remainingGap"], str) or not x_mark["remainingGap"]:
+        raise RequiredSetCoverageError("X表記の出力宣言がschemaと不一致")
     requirements = (root / "docs/requirements/requirements-pitchlog-2026-07-22.md").read_text(
         encoding="utf-8"
     )
@@ -1040,7 +1040,19 @@ def _check_game_end_decision_properties(
         row["branchId"] for row in rows
     }:
         raise RequiredSetCoverageError("分岐別の出力宣言がexact-set不一致")
-    for item in [automatic, x_mark, *branches]:
+    x_expectations = x_mark["expectedByBranch"]
+    if not isinstance(x_expectations, list) or not all(
+        isinstance(item, dict) and set(item) == {
+            "branchId", "value", "clauseIds", "basis"
+        } and isinstance(item["basis"], str) and item["basis"]
+        and item["value"] in x_mark["enumValues"]
+        for item in x_expectations
+    ):
+        raise RequiredSetCoverageError("X表記の分岐別期待値が不正")
+    x_by_branch = {item["branchId"]: item for item in x_expectations}
+    if len(x_by_branch) != len(x_expectations) or set(x_by_branch) != set(by_branch):
+        raise RequiredSetCoverageError("X表記の分岐別期待値がexact-set不一致")
+    for item in [automatic, x_mark, *branches, *x_expectations]:
         clause_ids = item.get("clauseIds")
         if not isinstance(clause_ids, list) or not clause_ids or not all(
             isinstance(source, str) and source.startswith("req:")
@@ -1049,6 +1061,11 @@ def _check_game_end_decision_properties(
             raise RequiredSetCoverageError("ステップ95の条文典拠が不正")
     for row in rows:
         branch = by_branch[row["branchId"]]
+        x_expected = x_by_branch[row["branchId"]]
+        if row["decision"]["xMark"] != x_expected["value"]:
+            raise RequiredSetCoverageError(
+                f"規範行のX表記が典拠別期待値と不一致: {row['branchId']}"
+            )
         if not set(row["sourceClauseIds"]) <= set(branch["clauseIds"]):
             raise RequiredSetCoverageError("分岐別の出力宣言の典拠が規範行と不一致")
         for field in ("lockFurtherPlayInput", "promptEndDeclaration"):
@@ -1065,6 +1082,8 @@ def _check_game_end_decision_properties(
             )
         if decision[automatic["field"]] is not automatic["expected"]:
             raise RequiredSetCoverageError(f"試合状態が自動遷移する: {case.get('caseId')}")
+        if decision["xMark"] != x_by_branch[case["branchId"]]["value"]:
+            raise RequiredSetCoverageError(f"X表記が分岐別期待値と不一致: {case.get('caseId')}")
         for field in ("lockFurtherPlayInput", "promptEndDeclaration"):
             if decision[field] is not branch[field]:
                 raise RequiredSetCoverageError(

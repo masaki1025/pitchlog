@@ -278,7 +278,7 @@ def test_step94_game_end_declaration_and_direct_coverage() -> None:
 
 
 def test_step95_decision_properties_hold_for_all_cases() -> None:
-    """全170ケースの自動遷移なし・分岐別出力・X表記の不在を宣言と照合する。"""
+    """全170ケースの自動遷移なし・分岐別出力・X表記を宣言と照合する。"""
     contract = _asset("game_end_contract_v1.json")
     declaration = _asset("game_end_coverage_declaration_v1.json")
     properties = declaration["step95DecisionProperties"]
@@ -291,11 +291,24 @@ def test_step95_decision_properties_hold_for_all_cases() -> None:
     assert automatic["field"] == "automaticallyEndsGame"
     assert automatic["expected"] is False
     assert set(branches) == {row["branchId"] for row in contract["decisionRows"]}
-    assert x_mark["status"] == "not-represented-in-decision"
-    assert x_mark["decisionField"] is None
+    assert x_mark["status"] == "represented-in-decision"
+    assert x_mark["decisionField"] == "xMark"
+    assert x_mark["enumValues"] == ["recorded-score", "x-mark", "blank"]
+    x_by_branch = {item["branchId"]: item for item in x_mark["expectedByBranch"]}
+    assert set(x_by_branch) == set(branches)
+    assert {branch: item["value"] for branch, item in x_by_branch.items()} == {
+        "GAME-END-NORMAL": "recorded-score",
+        "GAME-END-EXTRA-CONTINUE": "recorded-score",
+        "GAME-END-LIMIT-DRAW": "recorded-score",
+        "GAME-END-TIEBREAK-CONTINUE": "recorded-score",
+        "COLD-08": "x-mark",
+    }
+    for branch, item in x_by_branch.items():
+        expected_rule = "req:XMARK-02" if branch == "COLD-08" else "req:XMARK-01"
+        assert expected_rule in item["clauseIds"]
     assert set(x_mark["observedDecisionFields"]) == {
         "outcome", "endConditionDetected", "lockFurtherPlayInput",
-        "promptEndDeclaration", "automaticallyEndsGame",
+        "promptEndDeclaration", "automaticallyEndsGame", "xMark",
     }
     for case in contract["cases"]:
         decision = case["decision"]
@@ -303,6 +316,7 @@ def test_step95_decision_properties_hold_for_all_cases() -> None:
         assert decision[automatic["field"]] is automatic["expected"]
         assert decision["lockFurtherPlayInput"] is expected["lockFurtherPlayInput"]
         assert decision["promptEndDeclaration"] is expected["promptEndDeclaration"]
+        assert decision["xMark"] == x_by_branch[case["branchId"]]["value"]
         assert set(decision) == set(x_mark["observedDecisionFields"])
     counts, _, reachable, observed = checker._game_end_measure(
         ROOT, contract, declaration
@@ -434,22 +448,31 @@ def test_step95_branch_expectation_mutations_are_rejected(
         checker.check_game_end_coverage(ROOT, contract=contract, declaration=declaration)
 
 
-def test_step95_x_mark_field_in_case_is_rejected() -> None:
-    """decisionへX表記の値を足すと不在宣言との不一致を検出する。"""
+def test_step95_x_mark_case_drift_is_rejected() -> None:
+    """caseだけのX表記の変異を分岐別期待値との照合で検出する。"""
     contract = _asset("game_end_contract_v1.json")
-    contract["cases"][0]["decision"]["xMark"] = "X"
-    with pytest.raises(checker.RequiredSetCoverageError, match="decisionのフィールドが不正"):
+    contract["cases"][0]["decision"]["xMark"] = "x-mark"
+    with pytest.raises(checker.RequiredSetCoverageError, match="X表記が分岐別期待値と不一致"):
         checker.check_game_end_coverage(ROOT, contract=contract)
 
 
-def test_step95_x_mark_schema_addition_is_rejected(
+def test_step95_x_mark_normative_row_drift_is_rejected() -> None:
+    """規範行だけのX表記の変異を典拠別期待値との照合で検出する。"""
+    contract = _asset("game_end_contract_v1.json")
+    contract["decisionRows"][0]["decision"]["xMark"] = "x-mark"
+    with pytest.raises(
+        checker.RequiredSetCoverageError, match="規範行のX表記が典拠別期待値と不一致"
+    ):
+        checker.check_game_end_coverage(ROOT, contract=contract)
+
+
+def test_step95_x_mark_schema_enum_drift_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """将来schemaとcaseへX表記を足した場合も古い不在宣言を拒否する。"""
+    """schemaのenumと被覆宣言の不一致を拒否する。"""
     schema = _asset("game_end_contract_schema_v1.json")
     decision_schema = schema["$defs"]["gameEndDecision"]
-    decision_schema["properties"]["xMark"] = {"type": "string"}
-    decision_schema["required"].append("xMark")
+    decision_schema["properties"]["xMark"]["enum"] = ["recorded-score", "x-mark"]
     original_document = checker._document
 
     def changed_document(root: Path, name: str) -> dict[str, Any]:
@@ -458,10 +481,8 @@ def test_step95_x_mark_schema_addition_is_rejected(
         return original_document(root, name)
 
     monkeypatch.setattr(checker, "_document", changed_document)
-    contract = _asset("game_end_contract_v1.json")
-    contract["cases"][0]["decision"]["xMark"] = "X"
-    with pytest.raises(checker.RequiredSetCoverageError, match="X表記の出力不在宣言が実測と不一致"):
-        checker.check_game_end_coverage(ROOT, contract=contract)
+    with pytest.raises(checker.RequiredSetCoverageError, match="X表記の出力宣言がschemaと不一致"):
+        checker.check_game_end_coverage(ROOT)
 
 
 def test_step93_two_new_branches_cover_every_reachable_requirement() -> None:

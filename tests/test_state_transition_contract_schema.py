@@ -5384,6 +5384,15 @@ def test_repository_manual_fixture_branch_coverage_is_bidirectional() -> None:
     """実資産の31件と未作成37件を台帳の68件へ双方向で一致させる。"""
     document, schema = _manual_fixture_branch_coverage_assets()
     _validate_manual_fixture_branch_coverage(document, schema)
+    xmark = {
+        item["branchId"]: item
+        for item in document["missingFixtureBranches"]
+        if item["branchId"].startswith("XMARK-")
+    }
+    assert set(xmark) == {"XMARK-01", "XMARK-02", "XMARK-03"}
+    assert {item["reasonType"] for item in xmark.values()} == {
+        "xmark-branch-row-absent"
+    }
 
 
 @pytest.mark.parametrize(

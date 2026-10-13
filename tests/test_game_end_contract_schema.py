@@ -429,6 +429,32 @@ def test_repository_decision_rows_are_closed_and_references_resolve() -> None:
     _validate_decision_references(_repository_contract())
 
 
+@pytest.mark.parametrize("mutation", ["missing", "display-string", "unknown"])
+def test_x_mark_is_required_structured_enum(mutation: str) -> None:
+    """X表記は表示文字列ではなく閉じた種別として全判定行に必要。"""
+    schema = _schema()
+    decision = schema["$defs"]["gameEndDecision"]
+    assert decision["properties"]["xMark"]["enum"] == [
+        "recorded-score", "x-mark", "blank"
+    ]
+    contract = deepcopy(_repository_contract())
+    if mutation == "missing":
+        del contract["decisionRows"][0]["decision"]["xMark"]
+    else:
+        contract["decisionRows"][0]["decision"]["xMark"] = (
+            "X" if mutation == "display-string" else "unknown"
+        )
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        _validate_contract(contract)
+
+
+def test_x_mark_blank_is_a_valid_structured_kind() -> None:
+    """XMARK-03の空欄種別もschemaの値域に含める。"""
+    contract = deepcopy(_repository_contract())
+    contract["decisionRows"][0]["decision"]["xMark"] = "blank"
+    _validate_contract(contract)
+
+
 @pytest.mark.parametrize("missing", ["raw", "normalizationRuleId", "normalized"])
 def test_game_end_case_schema_requires_normalization_triple(missing: str) -> None:
     """終了判定caseの正規化3点がどれか欠けたらschemaで拒否する。"""
@@ -489,6 +515,7 @@ def test_cold_outcome_and_single_tier_row_are_clause_bound() -> None:
         "lockFurtherPlayInput": True,
         "promptEndDeclaration": True,
         "automaticallyEndsGame": False,
+        "xMark": "x-mark",
     }
     assert {leaf["axisId"]: leaf["value"] for leaf in _decision_leaves(cold_row["precondition"])}[
         "gameEnd.coldConditions"

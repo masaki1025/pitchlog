@@ -23,7 +23,8 @@
           "endConditionDetected": true,
           "lockFurtherPlayInput": true,
           "promptEndDeclaration": true,
-          "automaticallyEndsGame": false
+          "automaticallyEndsGame": false,
+          "xMark": "recorded-score"
         }
       },
       "sourceExample": "有限上限の最終回裏を完了し非同点。終了条件を検知するが宣言前に自動終了しない",
@@ -55,7 +56,8 @@
           "endConditionDetected": false,
           "lockFurtherPlayInput": false,
           "promptEndDeclaration": false,
-          "automaticallyEndsGame": false
+          "automaticallyEndsGame": false,
+          "xMark": "recorded-score"
         }
       },
       "sourceExample": "規定最終回裏を同点で完了し、有限上限前の延長回へ進む",
@@ -84,7 +86,8 @@
           "endConditionDetected": true,
           "lockFurtherPlayInput": true,
           "promptEndDeclaration": true,
-          "automaticallyEndsGame": false
+          "automaticallyEndsGame": false,
+          "xMark": "recorded-score"
         }
       },
       "sourceExample": "有限上限の最終回裏を同点で完了。引き分け条件を検知し終了宣言を促す",
@@ -113,7 +116,8 @@
           "endConditionDetected": false,
           "lockFurtherPlayInput": false,
           "promptEndDeclaration": false,
-          "automaticallyEndsGame": false
+          "automaticallyEndsGame": false,
+          "xMark": "recorded-score"
         }
       },
       "sourceExample": "延長開始回でタイブレーク発動済み・同点・上限前なのでプレイを継続する",
@@ -145,7 +149,8 @@
           "endConditionDetected": true,
           "lockFurtherPlayInput": true,
           "promptEndDeclaration": true,
-          "automaticallyEndsGame": false
+          "automaticallyEndsGame": false,
+          "xMark": "x-mark"
         }
       },
       "sourceExample": "コールド段が1件だけ設定され、第N回表の完了時に後攻がM点リードする",
@@ -159,7 +164,7 @@
     "identity": {
       "scheme": "sha256_frozen_projection",
       "identifier_prefix": "fixture-sha256:",
-      "current_identifiers": ["fixture-sha256:cc4f3768d2268e9eb0456edc93d134da2bf210f9ee2c5cf746aba4abc17accf8"],
+      "current_identifiers": ["fixture-sha256:322b46861db3a552ef5f4f8b2d0293051c190ec81b4b49a382dd9ff6d4d43421"],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
         "algorithm": "sha256-canonical-json-and-external-files-v1",
@@ -196,17 +201,17 @@
     "history": [
       {
         "source_commit": "PENDING_ACCEPTANCE",
-        "new_baseline_identifiers": ["fixture-sha256:cc4f3768d2268e9eb0456edc93d134da2bf210f9ee2c5cf746aba4abc17accf8"],
+        "new_baseline_identifiers": ["fixture-sha256:322b46861db3a552ef5f4f8b2d0293051c190ec81b4b49a382dd9ff6d4d43421"],
         "previous_baseline_identifiers": ["NO_BASELINE"],
         "change": {
-          "subject": "終了判定の手作業fixture 5件の初回凍結",
+          "subject": "終了判定の手作業fixture 5件にX表記の構造化出力を加えた暫定基準",
           "before": {
             "state": "NO_BASELINE",
             "frozen_projection_sha256": "NO_BASELINE"
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "cc4f3768d2268e9eb0456edc93d134da2bf210f9ee2c5cf746aba4abc17accf8"
+            "frozen_projection_sha256": "322b46861db3a552ef5f4f8b2d0293051c190ec81b4b49a382dd9ff6d4d43421"
           }
         },
         "movement_fact": "直前の資産には凍結基準がなく、5件の完全な期待ケースを初回基準として設置する。",

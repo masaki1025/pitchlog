@@ -242,7 +242,8 @@
         "endConditionDetected",
         "lockFurtherPlayInput",
         "promptEndDeclaration",
-        "automaticallyEndsGame"
+        "automaticallyEndsGame",
+        "xMark"
       ],
       "additionalProperties": false,
       "properties": {
@@ -250,7 +251,11 @@
         "endConditionDetected": {"type": "boolean"},
         "lockFurtherPlayInput": {"type": "boolean"},
         "promptEndDeclaration": {"type": "boolean"},
-        "automaticallyEndsGame": {"type": "boolean"}
+        "automaticallyEndsGame": {"type": "boolean"},
+        "xMark": {
+          "description": "直近に完了した表と対になる裏の得点セルの表示種別。recorded-scoreは別途集計した非負整数、x-markは未開始の裏に適用するX、blankはそれ以外の未開始セルを写像①で表示する。表示文字列や得点値はこの欄に含めない。FR-020 XMARK-01〜03。",
+          "enum": ["recorded-score", "x-mark", "blank"]
+        }
       }
     },
     "inputAxesDescriptorBinding": {
