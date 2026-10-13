@@ -2147,6 +2147,8 @@ def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> 
     """隔離履歴で未登録、宣言のみ、登録済みの順に受理する。"""
     core_guard = load_core_guard_module()
     root, base_sha = make_layered_core_repo(tmp_path)
+    assert core_guard.verify_area_path_baseline(root, base_sha, base_sha) == base_sha
+
     write_text(root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8"))
     run_git(root, "add", "scripts/core_guard.py")
     run_git(

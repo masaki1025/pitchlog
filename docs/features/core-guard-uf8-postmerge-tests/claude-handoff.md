@@ -18,4 +18,6 @@
 
 - `tests/test_core_guard.py`: 235件通過。
 - Ruff、ty、`check_docs_status.py`、`check_plan_docs_sync.py`、`git diff --check`: 通過。
-- fix PRのCIと独立コードレビューはPR作成後に確認する。人間逐行確認欄は確認者が実施するまで未チェックにする。
+- Draft fix PRは [#130](https://github.com/masaki1025/pitchlog/pull/130)。PR #126 のファイルは変更していない。PR #127 担当への申し送りは [コメント](https://github.com/masaki1025/pitchlog/pull/127#issuecomment-6150461510) に記録した。
+- 独立コード敵対レビュー1回目は P0 0 / P1 1 / P2 0。未登録初期状態の受理 assertion を追加し、2回目の差分レビューは P0 0 / P1 0 / P2 0。修正後も `tests/test_core_guard.py` 235/235、`git diff --check` 成功。レビュー側は一時ファイル制限で試験未実行。
+- CIは修正コミットのpush後に最終結果を確認する。人間逐行確認の実施記録とマージ判断は確認者本人が行う。

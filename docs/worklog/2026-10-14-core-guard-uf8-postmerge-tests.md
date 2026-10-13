@@ -27,3 +27,10 @@
 このfix PRの統合後、最新 `origin/develop` 上で `tests/test_core_guard.py` 全件と harness CI を実測し、登録済みU-F8の5領域・段階登録試験・不正変更拒否が通ることを確認する。次に文書のみの PR #126 が最新developを取り込み、CIを再実行する。PR #127はU-F5担当が最新developを先に取り込み、U-F8とU-F5双方の宣言・登録・試験を保つ。詳細コマンドと判定基準は同featureの `claude-handoff.md` に記録する。
 
 ハーネス運用評価台帳への追記は行わない。本件はPR #125統合後の試験前提1件の追随で、検査器・CI構成・運用規範の変更や反復傾向の確定を含まないため。
+
+## PR #130 のコードレビューと修正
+
+- Draft PR: https://github.com/masaki1025/pitchlog/pull/130。PR #126 のファイルは変更していない。PR #127 担当には https://github.com/masaki1025/pitchlog/pull/127#issuecomment-6150461510 で、fix統合後の最新develop取り込みとU-F8・U-F5双方の登録・段階登録試験の維持を申し送った。
+- 独立コード敵対レビュー1回目は P0 0 / P1 1 / P2 0。P1「隔離履歴の未登録段階を明示検査していない」を採用し、初期コミットの `verify_area_path_baseline` 受理を同一試験の冒頭に追加した。
+- 差分と影響箇所の2回目レビューは P0 0 / P1 0 / P2 0。レビュー担当の試験環境では一時ファイル作成制限により実行できなかったが、実装側で `tests/test_core_guard.py` 235/235 と `git diff --check` を再実行して成功した。
+- 人間逐行確認とマージ判断は別ゲート。PR本文の実施記録は確認者本人の対象・範囲・方法の記入を要する。
