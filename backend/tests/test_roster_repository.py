@@ -46,6 +46,8 @@ from pitchlog.repositories.roster import (
     GameTeamLinkReadToken,
     PlayerCreateToken,
     PlayerReadToken,
+    PlayerRosterLabelUpdateToken,
+    PlayerRosterStatusUpdateToken,
     PlayerUpdateToken,
     RosterReferenceUnavailable,
     TeamRecordCreateToken,
@@ -459,6 +461,69 @@ def test_sqlite_session_executes_both_prepared_updates() -> None:
         engine.dispose()
 
 
+def test_status_update_counts_changes_and_label_preserves_status() -> None:
+    """区分の差分だけを更新件数とし、ラベル専用操作は区分を保つ。"""
+    other_tenant = UUID("00000000-0000-0000-0000-000000000104")
+    metadata = MetaData()
+    players = Table(
+        "players",
+        metadata,
+        Column("tenant_id", Uuid(as_uuid=True), primary_key=True),
+        Column("id", Uuid(as_uuid=True), primary_key=True),
+        Column("roster_status_key", Text),
+        Column("roster_label_key", Text),
+        Column("hidden_at", Text),
+    )
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    try:
+        metadata.create_all(engine)
+        with Session(engine) as session:
+            session.execute(
+                insert(players),
+                (
+                    {
+                        "tenant_id": _TENANT_ID,
+                        "id": _PLAYER_ID,
+                        "roster_status_key": "active",
+                        "roster_label_key": None,
+                    },
+                    {
+                        "tenant_id": other_tenant,
+                        "id": _PLAYER_ID,
+                        "roster_status_key": "active",
+                        "roster_label_key": None,
+                    },
+                ),
+            )
+            changed = PlayerRosterStatusUpdateToken(
+                _PLAYER_ID, "other", "OB", update_label=True
+            )
+            statement, parameters = repository_base._prepare_operation(
+                changed, _TENANT_ID
+            )
+            assert getattr(session.execute(statement, parameters), "rowcount") == 1
+            assert getattr(session.execute(statement, parameters), "rowcount") == 0
+
+            label_only = PlayerRosterLabelUpdateToken(_PLAYER_ID, "その他")
+            statement, parameters = repository_base._prepare_operation(
+                label_only, _TENANT_ID
+            )
+            assert getattr(session.execute(statement, parameters), "rowcount") == 1
+            rows = session.execute(
+                select(
+                    players.c.tenant_id,
+                    players.c.roster_status_key,
+                    players.c.roster_label_key,
+                ).where(players.c.id == _PLAYER_ID)
+            ).all()
+            assert set(rows) == {
+                (_TENANT_ID, "other", "その他"),
+                (other_tenant, "active", None),
+            }
+    finally:
+        engine.dispose()
+
+
 def test_registered_statement_variants_match_catalog() -> None:
     """フィルタと PATCH の組み合わせも単一表の許可済み操作に閉じる。"""
     catalog: dict[str, Any] = json.loads(
@@ -502,11 +567,7 @@ def test_registered_statement_variants_match_catalog() -> None:
             player_update_statement(
                 PlayerUpdateToken(
                     _PLAYER_ID,
-                    (
-                        ("name", "更新"),
-                        ("throws", None),
-                        ("roster_status_key", "active"),
-                    ),
+                    (("name", "更新"), ("throws", None)),
                 )
             ),
         ),
@@ -585,7 +646,7 @@ def test_builder_preserves_registered_and_prepared_sql_shapes() -> None:
         player_update_dynamic=player_update_statement(
             PlayerUpdateToken(
                 _PLAYER_ID,
-                (("name", "更新"), ("throws", None), ("roster_status_key", "active")),
+                (("name", "更新"), ("throws", None)),
             )
         ),
     )
@@ -679,9 +740,8 @@ def test_builder_preserves_registered_and_prepared_sql_shapes() -> None:
             " LIMIT :limit"
         ),
         "player_update_dynamic": (
-            "UPDATE players SET name=:value_name, throws=:value_throws, "
-            "roster_status_key=:value_roster_status_key WHERE players.tenant_id "
-            "= :where_tenant_id AND players.id = :where_id"
+            "UPDATE players SET name=:value_name, throws=:value_throws WHERE "
+            "players.tenant_id = :where_tenant_id AND players.id = :where_id"
         ),
     }
 
@@ -694,6 +754,8 @@ def test_player_patch_rejects_unclassified_and_invalid_columns() -> None:
         (("name", "甲"), ("name", "乙")),
         (("name", None),),
         (("roster_status_key", None),),
+        (("roster_status_key", "other"),),
+        (("roster_label_key", "label"),),
         (("throws", "switch"),),
         (("bats", "switch"),),
     ):
@@ -1306,10 +1368,14 @@ def test_update_column_declarations_match_dto_fields() -> None:
             "throws",
             "bats",
             "uniform_number",
-            "roster_status_key",
-            "roster_label_key",
         }
     )
+    assert repository_base._OPERATION_REGISTRY[
+        PlayerRosterStatusUpdateToken
+    ].allowed_update_columns == frozenset({"roster_status_key", "roster_label_key"})
+    assert repository_base._OPERATION_REGISTRY[
+        PlayerRosterLabelUpdateToken
+    ].allowed_update_columns == frozenset({"roster_label_key"})
     assert repository_base._OPERATION_REGISTRY[
         TeamRecordUpdateToken
     ].allowed_update_columns == frozenset({"name"})

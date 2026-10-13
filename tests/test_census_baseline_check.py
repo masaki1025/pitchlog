@@ -1659,6 +1659,82 @@ def _measured_allowlist_suppression(
     )
 
 
+def _measured_condition4_suppression(
+    *,
+    substituted_fields: tuple[str, ...],
+    substituted_from: str,
+    code: str,
+    reference_repository_root: Path,
+    source_root: Path,
+    current_census: frozenset[CensusIdentity],
+    current_contract: Any,
+) -> frozenset[CensusIdentity]:
+    """契約で増えた許可呼び出しの TB004 抑止だけを反実仮想で測る。"""
+    assert substituted_fields == (
+        "contracts/tenant_boundary/cache-invalidation-contract.json#/api/public_symbols",
+        "contracts/tenant_boundary/cache-invalidation-contract.json#/api/condition4_allowed_call_symbols",
+    )
+    assert substituted_from == "anchor_symbol_set"
+    assert code == "TB004"
+    current_public = frozenset(
+        _string_array(_load_json_pointer(substituted_fields[0]), substituted_fields[0])
+    )
+    anchor_public = frozenset(
+        _string_array(
+            _load_json_pointer(
+                substituted_fields[0], repository_root=reference_repository_root
+            ),
+            f"anchor.{substituted_fields[0]}",
+        )
+    )
+    current_calls = frozenset(
+        _string_array(_load_json_pointer(substituted_fields[1]), substituted_fields[1])
+    )
+    anchor_calls = frozenset(
+        _string_array(
+            _load_json_pointer(
+                substituted_fields[1], repository_root=reference_repository_root
+            ),
+            f"anchor.{substituted_fields[1]}",
+        )
+    )
+    assert anchor_public <= current_public
+    assert anchor_calls <= current_calls
+    added_calls = current_calls - anchor_calls
+    boundary = current_contract.cache_invalidation
+    assert boundary.public_symbols == current_public
+    assert boundary.allowed_call_symbols == current_calls
+    counterfactual_contract = replace(
+        current_contract,
+        cache_invalidation=replace(
+            boundary,
+            public_symbols=anchor_public,
+            allowed_call_symbols=anchor_calls,
+        ),
+    )
+    counterfactual_census = frozenset(
+        (
+            violation.path,
+            violation.line,
+            violation.end_line,
+            violation.scope,
+            violation.code,
+            violation.symbol,
+            violation.message,
+        )
+        for violation in checker.scan_directory(
+            source_root, contract=counterfactual_contract
+        )
+    )
+    assert not current_census - counterfactual_census
+    suppression = counterfactual_census - current_census
+    assert all(
+        identity[4] == code and identity[5] in added_calls
+        for identity in suppression
+    ), "宣言した許可呼び出し以外の違反が抑止された"
+    return suppression
+
+
 def _assert_removed_equals_measured_allowlist_suppression(
     predicate: dict[str, Any],
     *,
@@ -1666,6 +1742,7 @@ def _assert_removed_equals_measured_allowlist_suppression(
     identity_indexes: dict[str, int],
     source_root: Path,
     reference_repository_root: Path | None,
+    current_contract: Any,
     **_: Any,
 ) -> None:
     """removed の対象外 code が実測した許可記号の抑止集合に含まれることを検証する。"""
@@ -1693,6 +1770,9 @@ def _assert_removed_equals_measured_allowlist_suppression(
             "substituted_from",
             "co_substituted",
             "relation",
+            "condition4_substituted_fields",
+            "condition4_substituted_from",
+            "condition4_code",
         },
         f"{predicate['id']}.derivation",
     )
@@ -1721,7 +1801,21 @@ def _assert_removed_equals_measured_allowlist_suppression(
         reference_repository_root=reference_repository_root,
         source_root=source_root,
         current_census=data_sets["current_census"],
-    )[0]
+    )[0] | _measured_condition4_suppression(
+        substituted_fields=_string_array(
+            derivation.get("condition4_substituted_fields"),
+            "derivation.condition4_substituted_fields",
+        ),
+        substituted_from=_string(
+            derivation.get("condition4_substituted_from"),
+            "derivation.condition4_substituted_from",
+        ),
+        code=_string(derivation.get("condition4_code"), "derivation.condition4_code"),
+        reference_repository_root=reference_repository_root,
+        source_root=source_root,
+        current_census=data_sets["current_census"],
+        current_contract=current_contract,
+    )
     code_index = identity_indexes["code"]
     for identity in data_sets[set_name]:
         code = identity[code_index]
@@ -2366,16 +2460,159 @@ def test_measured_suppression_predicate_accepts_actual_a2_census(
         "substituted_from": "anchor_symbol_set_plus_scoped_signature_rows",
         "co_substituted": "positive_fixtures_of_allowed_symbols_absent_from_anchor",
         "relation": "subset_of_measured_suppression",
+        "condition4_substituted_fields": [
+            "contracts/tenant_boundary/cache-invalidation-contract.json#/api/public_symbols",
+            "contracts/tenant_boundary/cache-invalidation-contract.json#/api/condition4_allowed_call_symbols",
+        ],
+        "condition4_substituted_from": "anchor_symbol_set",
+        "condition4_code": "TB004",
     }
-    indexes = {
-        field: index
-        for index, field in enumerate(_identity_fields(arguments["declaration"]))
-    }
-    assert any(
-        identity[indexes["code"]] not in predicate["applies_to_codes_outside"]
-        for identity in data_sets["removed"]
-    )
     _assert_declared_predicate(predicate, data_sets=data_sets, **arguments)
+
+
+def test_condition4_suppression_is_measured_only_for_declared_call_symbol(
+    census_predicate_context: dict[str, Any],
+) -> None:
+    """契約の新しい許可呼び出しが抑止する TB004 の 4 箇所を測る。"""
+    predicate, arguments, data_sets = _suppression_arguments(census_predicate_context)
+    derivation = predicate["derivation"]
+    suppression = _measured_condition4_suppression(
+        substituted_fields=tuple(derivation["condition4_substituted_fields"]),
+        substituted_from=derivation["condition4_substituted_from"],
+        code=derivation["condition4_code"],
+        reference_repository_root=arguments["reference_repository_root"],
+        source_root=arguments["source_root"],
+        current_census=data_sets["current_census"],
+        current_contract=arguments["current_contract"],
+    )
+    symbol = "pitchlog.repositories.cache_invalidation.SharedAggregateTargetSelector"
+    assert suppression <= data_sets["removed"]
+    anchor_calls = frozenset(
+        _string_array(
+            _load_json_pointer(
+                derivation["condition4_substituted_fields"][1],
+                repository_root=arguments["reference_repository_root"],
+            ),
+            "anchor.condition4_allowed_call_symbols",
+        )
+    )
+    current_calls = arguments["current_contract"].cache_invalidation.allowed_call_symbols
+    if symbol not in current_calls - anchor_calls:
+        assert all(identity[5] != symbol for identity in suppression)
+        return
+    assert {(identity[0], identity[3], identity[4], identity[5]) for identity in suppression} == {
+        (
+            "pitchlog/api/routers/players.py",
+            "pitchlog.api.routers.players.<module>",
+            "TB004",
+            symbol,
+        ),
+        (
+            "pitchlog/api/routers/players.py",
+            "pitchlog.api.routers.players._apply_player_status_in_transaction",
+            "TB004",
+            symbol,
+        ),
+        (
+            "pitchlog/repositories/invalidation_intents.py",
+            "pitchlog.repositories.invalidation_intents.<module>",
+            "TB004",
+            symbol,
+        ),
+        (
+            "pitchlog/repositories/invalidation_intents.py",
+            "pitchlog.repositories.invalidation_intents.record_invalidation_intent",
+            "TB004",
+            symbol,
+        ),
+    }
+
+
+@pytest.mark.parametrize("public_only", (False, True), ids=("no_addition", "public_only"))
+def test_condition4_suppression_accepts_empty_measured_difference(
+    public_only: bool,
+    census_predicate_context: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """許可呼び出しの追加が無ければ抑止 0 件を受理する。"""
+    predicate, arguments, _ = _suppression_arguments(census_predicate_context)
+    derivation = predicate["derivation"]
+    public_field, calls_field = derivation["condition4_substituted_fields"]
+    reference_root = arguments["reference_repository_root"]
+    anchor_public = frozenset(
+        _string_array(
+            _load_json_pointer(public_field, repository_root=reference_root),
+            "anchor.public_symbols",
+        )
+    )
+    anchor_calls = frozenset(
+        _string_array(
+            _load_json_pointer(calls_field, repository_root=reference_root),
+            "anchor.condition4_allowed_call_symbols",
+        )
+    )
+    current_public = anchor_public
+    if public_only:
+        current_public |= {
+            "pitchlog.repositories.cache_invalidation.SharedAggregateTargetSelector"
+        }
+    boundary = replace(
+        arguments["current_contract"].cache_invalidation,
+        public_symbols=current_public,
+        allowed_call_symbols=anchor_calls,
+    )
+    contract = replace(arguments["current_contract"], cache_invalidation=boundary)
+    original_loader = _load_json_pointer
+
+    def substituted_rows(
+        locator: str, *, repository_root: Path | None = None
+    ) -> object:
+        if repository_root is None and locator == public_field:
+            return sorted(current_public)
+        if repository_root is None and locator == calls_field:
+            return sorted(anchor_calls)
+        return original_loader(locator, repository_root=repository_root)
+
+    source_root = tmp_path / "backend/src/pitchlog"
+    source_root.mkdir(parents=True)
+    (source_root / "safe.py").write_text("def safe():\n    pass\n", encoding="utf-8")
+    with monkeypatch.context() as mutation:
+        mutation.setattr(sys.modules[__name__], "_load_json_pointer", substituted_rows)
+        suppression = _measured_condition4_suppression(
+            substituted_fields=(public_field, calls_field),
+            substituted_from=derivation["condition4_substituted_from"],
+            code=derivation["condition4_code"],
+            reference_repository_root=reference_root,
+            source_root=source_root.parent,
+            current_census=frozenset(),
+            current_contract=contract,
+        )
+    assert suppression == frozenset()
+
+
+def test_condition4_suppression_rejects_unrelated_removed_tb004(
+    census_predicate_context: dict[str, Any],
+) -> None:
+    """別シンボルの TB004 減分は許可呼び出しの緩和に帰属しない。"""
+    predicate, arguments, data_sets = _suppression_arguments(census_predicate_context)
+    unrelated: CensusIdentity = (
+        "pitchlog/api/routers/players.py",
+        1,
+        1,
+        "pitchlog.api.routers.players.<module>",
+        "TB004",
+        "pitchlog.repositories.cache_invalidation.UnrelatedSelector",
+        "条件 4 の禁止シンボルを検出",
+    )
+    with pytest.raises(
+        AssertionError, match="removed_outside_allowed_codes_equals_measured"
+    ):
+        _assert_declared_predicate(
+            predicate,
+            data_sets={**data_sets, "removed": data_sets["removed"] | {unrelated}},
+            **arguments,
+        )
 
 
 @pytest.mark.parametrize("field", ("missing", "signature", "allowed_api_ids"))

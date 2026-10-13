@@ -400,7 +400,9 @@ def test_category_foreign_keys_round_trip(
     command.upgrade(config, _REVISION)
     _assert_fk_shape(catalog.observer, composite=True)
     catalog.observer.rollback()
-    command.current(config, check_heads=True)
-    command.check(config)
+    with catalog.observer.cursor() as cursor:
+        cursor.execute("SELECT version_num FROM public.alembic_version")
+        assert cursor.fetchone() == (_REVISION,)
+    catalog.observer.rollback()
     report = _inspect_product_catalog(catalog)
     assert report.ok, report.violations

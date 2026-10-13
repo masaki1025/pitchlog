@@ -68,11 +68,11 @@ stores/
 
 | 対象 | Vue での移植規則 | 旧実装の典拠 |
 | --- | --- | --- |
-| 認証リダイレクト | `RequireAuth` と `RequireTeamAdmin` は route meta（`requiresAuth` / `requiresTeamAdmin`）と global navigation guard に集約する。token がなければ `/login`、admin 以外なら `/` へ redirect する。 | 旧: `frontend/src/App.tsx:25-35` |
+| 認証リダイレクト | `RequireAuth` と `RequireTeamAdmin` は route meta（`requiresAuth` / `requiresTeamAdmin`）と global navigation guard に集約する。token がなければ `/login`、admin 以外なら `/` へ redirect する。 **U-F2 で改めた: 役割を持たないので `requiresTeamAdmin` は作らない。判定は token の有無でなく `isAuthenticated` と `hasHydrated`(10 節 決定 A・F)。** | 旧: `frontend/src/App.tsx:25-35` |
 | 全 route | vue-router 4 に `/login`、`/help`、`/`、`/analysis`、`/analysis/pitchers/:playerId`、`/analysis/batters/:playerId`、`/team`、`/comparison-workspaces`、`/scorecards`、`/imports`、`/lineup`、`/games`、`/games/:gameId`、`/games/:gameId/lineup`、`/games/:gameId/plays`、catch-all を同じ path・認可条件で登録する。 | 旧: `frontend/src/App.tsx:55-164` |
 | Provider の置き場 | `QueryClientProvider` は `@tanstack/vue-query` の plugin、`BrowserRouter` は vue-router、`ToastProvider` は `provide` に対応させる。router・Pinia・Vue Query は bootstrap 時に app へ install し、Toast は App root に置く。 | 旧: `frontend/src/App.tsx:1-7,49-54` |
-| 永続化と hydration | auth state は Pinia へ移し、保存キーを **`bb.auth`** のまま維持する。旧 auth store は `persist` のみで明示的な hydration hook を置いていないため、Vue 側では hydration 完了状態を明示し、route guard と API 開始前に復元を待つ。旧 sync store の `onRehydrateStorage` / `hasHydrated` はこの待機を実装する際の既存パターンである。 | 旧: `frontend/src/stores/authStore.ts:23-49`; `frontend/src/stores/syncStore.ts:245-251` |
-| `getState()` の命令的参照 | component 外の API client は Zustand の `useAuthStore.getState()` を使わない。export 済み Pinia instance を渡して `useAuthStore(pinia)` を関数内で取得するか、auth header / 401 logout を注入可能な HTTP client へ寄せる。 | 旧: `frontend/src/api/client.ts:46-66` |
+| 永続化と hydration | auth state は Pinia へ移し、保存キーを **`bb.auth`** のまま維持する。旧 auth store は `persist` のみで明示的な hydration hook を置いていないため、Vue 側では hydration 完了状態を明示し、route guard と API 開始前に復元を待つ。旧 sync store の `onRehydrateStorage` / `hasHydrated` はこの待機を実装する際の既存パターンである。 **U-F2 で改めた: トークンは保存しない(HttpOnly Cookie)。`bb.auth` には秘密でない 4 キーだけを書き、hydration は生成時に同期で完了する(10 節 決定 A・D・F)。** | 旧: `frontend/src/stores/authStore.ts:23-49`; `frontend/src/stores/syncStore.ts:245-251` |
+| `getState()` の命令的参照 | component 外の API client は Zustand の `useAuthStore.getState()` を使わない。export 済み Pinia instance を渡して `useAuthStore(pinia)` を関数内で取得するか、auth header / 401 logout を注入可能な HTTP client へ寄せる。 **U-F2 で前者を採った: `useAuthStore(pinia)`。auth header は付けない(Cookie)。401 では `expireSession()` を呼ぶ(10 節 決定 B・H)。** | 旧: `frontend/src/api/client.ts:46-66` |
 
 ### ライブラリ対応と将来導入版
 
@@ -221,3 +221,67 @@ gh api "repos/masaki1025/Baseball_Scoring-archive/contents/frontend/src/lib/<nam
 | M | `Sheet` の重ね表示 | **開いている Sheet をモジュール全体の積み重ね(開いた順)で管理し、最前面の 1 枚だけが Escape と Tab を処理する(フォーカスがパネルの外なら中へ引き戻す)。最前面でない Sheet を閉じるときはフォーカスを動かさず、戻り先をすぐ上の Sheet へ引き継ぐ** | 各 Sheet が `window` の capture 段階に keydown を登録し、`stopPropagation()` は同じ対象(window)の後続リスナーを止めないため、旧では 2 枚重ねて Escape を押すと両方が閉じ、中段を閉じると最前面からフォーカスが外れていた(旧: `Sheet.tsx:95-124`)。PR #113 の敵対レビュー 1・2 回目で検出。PO 決定 2026-10-10 |
 
 **後続の単位への注意**: Tailwind では `cx` に渡す順序でなく生成 CSS の規則順序で勝敗が決まる。**同じプロパティのクラスを条件で重ねるときは、上書きされる側を外す**(決定 L と同じ形)。
+
+
+## 10. U-F2 認証状態で追加した差分(TSK-517 — 2026-10-10)
+
+計画書: [`../uf2-auth-state/plan.md`](../uf2-auth-state/plan.md)(4 節の決定表が正)。調査: [`../uf2-auth-state/research.md`](../uf2-auth-state/research.md)。
+対象は旧 `stores/authStore.ts`。旧コードは複製せず Vue / TypeScript で書き起こした(9 節の決定 K と同じ扱い)。
+
+### 旧の形を移せない理由(要件・正本が既決にした改善 — I-28)
+
+- **トークン**: 新方式では `HttpOnly` Cookie で運ばれ、JavaScript から読めない(H-2 — `../ua1-team-auth/design.md:18`)。正本は提示値を応答本文に出さない(`docs/design/data-model.md:1678`)。
+- **`authKind`・`username`**: 個人アカウントは Won't(要件書 `:99`、PO 裁定 B-1)。
+- **`role`**: チーム管理者ロールは導入しない(要件書 `:1127`)。旧のチームログインは常に `role:'admin'` だったので(旧 `api/mock.ts:2872-2879`)、役割を落としてもチームアカウントの見え方は変わらない。
+
+### 規則から外れる決定
+
+| 決定 | 対象 | 規則 | 6 節の該当行 |
+| --- | --- | --- | --- |
+| A | 状態 | `teamName`・`teamId`(null 可)・`sessionExpired`・`hasHydrated`・`authEpoch` と computed `isAuthenticated` だけを持つ。トークン・`authKind`・`username`・`role` は持たない | 認証リダイレクト・永続化と hydration |
+| B | 操作 | `signIn({ teamName, teamId? })`・`signOut()`・`expireSession()`。3 つとも先に `queryClient.clear()` と `authEpoch` の加算を行う。`expireSession()` は失効を `sessionExpired` で示す(旧は 401 で黙ってログアウトしていた) | `getState()` の命令的参照 |
+| D | 永続化 | キー `bb.auth` を維持し、`{version:1, sessionId, teamName, teamId}` だけを書く。`sessionId` はログインごとの乱数で認証情報ではない。保存に失敗したタブは**切り離し状態**に入り、古い保存値へ戻らない | 永続化と hydration |
+| E | 読めない値 | JSON でない・形が違う(旧 zustand 形式を含む)値は消して未認証で始める。旧形式は移行しない | 永続化と hydration |
+| G | タブ間の同期 | `syncFromStorage()` を公開し、`storage` イベントと U-F6 の送信前に呼ぶ。保存値の `sessionId` が変わったときだけキャッシュを消して差し替える。**旧からの意図的な逸脱**(旧はタブ間同期を持たない — PO 決定 2026-10-10) | — |
+| H | 命令的な参照 | component の外からは `useAuthStore(pinia)` で取る。Pinia の instance は U-F13 が作る | `getState()` の命令的参照 |
+| J | 購読中の画面 | `authEpoch` を鍵にして、認証が変わったら購読中の画面を作り直す(`RouterView` の `:key` — U-F13)。`queryClient.clear()` は購読中の observer の直前結果を消さないため。**旧からの意図的な逸脱**(旧も同じ欠陥を持つ) | — |
+
+**後続の単位への注意**:
+- `isTeamAdmin`(`role === 'admin'`)による出力・削除・編集の出し分けは、チームログインでは常に真だった。役割を持たないので、すべて「出す」側で移す。
+- 未同期キュー・端末設定の `bb.*` キーは、認証が変わっても消さない(要件書 `:329`)。
+- 別タブのログインで Cookie が先に変わる窓は、クライアントだけでは閉じない。応答のテナントを照合する契約が δ(TSK-470)と U-F6 に要る(計画書 決定 G)。
+
+## 11. U-F6 共通 API で追加した差分(TSK-521 — 2026-10-11)
+
+計画書: [`../uf6-api-contract/plan.md`](../uf6-api-contract/plan.md)(4 節の決定表が正)。調査: [`../uf6-api-contract/research.md`](../uf6-api-contract/research.md)。
+対象は旧 `api/client.ts`・`endpoints.ts`・`types.ts`・`mock.ts`、`lib/mockRules.ts`・`mockTeamManagement*`。旧コードは複製せず Vue / TypeScript で書き起こした。`lib/format.ts` は 8 節で移植済みで触れていない。
+
+### PO 決定(2026-10-10)— 旧の api 層を丸ごとは移さない
+
+| # | 決定 | 理由 |
+| --- | --- | --- |
+| Q1 | 型と呼び出しは**いまの backend** に合わせる。旧の契約(74 関数・147 型)は参照資料。U-F6 は共通クライアントと既存 8 経路(選手・対戦相手)だけを作り、残りは backend の単位の着地に合わせて各画面単位が足す | develop の backend は `/api` 接頭辞なし・カーソルページング・別のエラー封筒で、旧の契約とほぼ噛み合わない |
+| Q2 | **モックモードは移植しない**(`mock.ts`・`mockRules`・`mockTeamManagement`) | 旧 `mock.ts` はカウント・走者・得点・自責点・過去修正の再計算を自前で持ち、NFR-018 に反する。自責点は Won't |
+| Q3 | 同期の型・変換・送信・再送の分類は **TSK-506** が U-F6 のクライアントの上に作る | 同期の通信層は入口 PR の担当(`../sync-wire-schema/design.md:362,399`) |
+| Q4 | クライアントは **`/api` を付けて送り**、開発では vite の proxy が外す | 画面の経路と API の経路を同一オリジンで分けるため |
+
+### 規則から外れる決定
+
+| 決定 | 対象 | 規則 |
+| --- | --- | --- |
+| A | ファイル構成 | 旧の 1:1 対応(2 節)をやめ、`api/client.ts`・`api/types.ts`・`api/roster.ts` にする。後続は領域ごとに `api/<領域>.ts` を足す |
+| B・C | 送り方 | `fetch('/api' + path)`・`credentials: 'include'`。GET 以外に `X-Pitchlog-Request: 1`。`Authorization` は付けない(トークンは HttpOnly Cookie) |
+| D | 送信前 | `useAuthStore(getActivePinia()).syncFromStorage()`。**Pinia が無ければ fetch 前に例外**(U-F13 が install するまで製品から呼べない) |
+| F | エラー | 封筒を `ApiError{status, message, fields, retryAfterMs, body}` に写す。封筒でない本文(同期の 409 等)も `body` に損なわず保持する |
+| G | 通信の失敗 | `ApiNetworkError`。中断(AbortError)はそのまま |
+| H | 401 | 世代照合(N)の後に、`noAuthExpiry` でなければ `expireSession()`。旧の「ダウンロードとモックは 401 を素通り」を持ち込まない |
+| I | 403・404・409 | 区別せず、再試行も上書きもしない(FR-034・FR-007) |
+| J | ダウンロード | `apiDownload` が Blob とファイル名を返す。401・エラーは同じ経路 |
+| L | roster | backend の DTO に合わせて snake_case。一覧は `limit` 必須のカーソル。DELETE は論理削除として `hideTeamRecord` |
+| M | proxy | `stripApiPrefix`(`/api` の直後が区切り・query・末尾のときだけ外す) |
+| N | 認証世代の照合 | 往復の前後で `authEpoch` を比べ、変わっていれば状態コードの解釈より先に `ApiStaleAuthError`(結果未確認)で捨てる |
+
+**後続の単位への注意(利用の条件)**:
+- **δ(TSK-470)の照合契約による応答のテナント照合が U-F6 へ入るまで、テナント所有データを表示する画面を本番へ出さない。** 決定 N は「往復中に `bb.auth` が変わった」場合だけを閉じ、Cookie が `bb.auth` より先に変わる窓は残る(U-F2 の決定 G)。
+- `ApiStaleAuthError` は「サーバーで処理された可能性があり結果は未確認」。受けた側は利用者に示し、保存・同期なら完了扱いにしない(同期は同じべき等キーで再送して確かめる — NFR-015・FR-012)。
+- `frontend/src/api/*` は tenant-isolation、`frontend/src/api/client*` は sync-protocol・recording-rights の paths に入っている(コア領域の検知)。
