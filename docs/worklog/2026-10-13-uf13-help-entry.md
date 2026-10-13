@@ -57,3 +57,5 @@ PR 段階の残ゲート: `vue-router` 追加を含むためコア領域とし�
 - Claude 一次レビューは weekly limit で実行不能。依頼者が 2026-10-13 に、この PR に限って Codex による代替レビューを明示承認した。
 - コア領域の敵対レビュー 1 回目（全文）: **否決（P0 0 / P1 1 / P2 0）**。P1 は、`/help` の直接到達テストがメモリ履歴へ事前に push しており、Web 履歴の初期 URL と HTTP 配信を実測していない点。採用し、計画を `active` へ戻して修正する。
 - P1 反映: テストを Web 履歴の初期 URL `/help` からの起動へ変更。対象 Vitest 3 ファイル・4 件、ESLint、`vue-tsc --noEmit`、Prettier check、`git diff --check` が成功。ビルド済み成果物を `vite preview` で配信し、実 HTTP `GET /help` が `200 OK` と PitchLog の SPA HTML を返すことを確認した。
+- コア領域の敵対レビュー 2 回目（指摘反映差分と影響箇所）: **可決（P0 0 / P1 0 / P2 0）**。第 1 回の P1 解消を確認し、計画を `in-review` へ戻した。レビュー側でも Vitest 50 ファイル・865 件、ESLint、Prettier check、`vue-tsc --noEmit`、`git diff --check` が成功した。HTTP 応答はレビュー環境のソケット制限で再実測できず、上記の実測記録を確認した。
+- 反対側レビューの代替: Claude の weekly limit により正式経路を実行できなかったため、依頼者の本 PR に限る明示承認に基づき Codex が独立観点で最終差分を確認した。承認済み計画との一致、AGENTS.md、変更範囲、NFR-018・NFR-019、未ログイン直接到達、往復導線、共有 provider、暫定トップの通信不発生、TSK-528 の残余申し送りを確認し、**指摘なし**。Claude レビュー実施済みとは扱わない。

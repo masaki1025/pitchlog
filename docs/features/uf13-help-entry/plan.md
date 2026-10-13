@@ -1,6 +1,6 @@
 ---
 feature: uf13-help-entry
-status: active
+status: in-review
 承認: 済(2026-10-13・依頼者)
 重さ分類: コア領域
 worktree: ../../..
