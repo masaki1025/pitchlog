@@ -57,3 +57,54 @@
 - この追加は `base-allowlist.json` の凍結射影を動かすため、同資産の `contract_revision:26→27` と PR #121 の**未マージ** v2 記録の after 側の識別値・宣言・snapshot を更新する必要がある。比較元の PR #114 記録、他の既存受理履歴、repository 契約側の PR #72 記録、PR #121 記録の before 側は変えない。base 資産の新射影 SHA-256 は `3fc6dd9696245f5279970a35c3dc9d0f5c1453dd808668aca1ba9ef2c48297e4`。正例 fixture が Git の corpus に入った後の比較 corpus digest は `1ac0f2d12ae701e8bd30956f8ed995ca367315da1e0818d86dc7021389969e57`。
 - 正式な受理単位は PR #121 の最終状態 1 件。2026-10-13、山田正輝氏は本会話で revision 26→27、単一シンボルの `SQLA_SELECT`・`SQLA_INSERT`・`SQLA_UPDATE`、PR #121 の未マージ記録の after 側、snapshot と movement_fact・reason の整合更新をプロダクトオーナーとして明示承認した。これを受けて正式台帳の同 PR の after 側を更新した。別の受理記録は追加せず、旧履歴・before 側・既存シンボルの許可は保持した。
 - 独立 Codex 敵対レビューは、単一シンボルの最小許可と凍結履歴の差分を確認した。追加許可の過大化を検知する負例、および未知 kind の拒否テストを追加した。一方、既存の内部 token を保存 helper を経由せず実行した場合に self チーム・現役選手検証を迂回できるという P0 を指摘した。これは今回の追加凍結契約改訂の承認範囲外の製品実装修正を要するため、別途報告して判断を待つ。レビューの「revision 27 の承認根拠なし」という指摘は、今回の PO 明示承認をレビューへ渡していなかったためであり、本記録で根拠を同期した。
+
+## ステップ 2 の直接 token P0 追補
+
+- 利用者は P0 修正を指示し、追加の認可契約・計画範囲が必要なら人間承認を求めた。現行 GET API はまだ存在せず、外部入口はステップ 3 の所有。現在の `save_lineup_memory()` は self ロックと `PlayerReadToken` による現役確認を行うが、`tenant_transaction_scope.run()` と `TenantRepositoryBase.execute()` は登録済み token を直接受け、`_prepare_read/insert/update()` はそれらの条件を検査しない。
+- 実 DB の再現テストを `backend/tests/db/test_lineup_memory.py` に未コミットで追加した。`scope.run()` の直接 INSERT による同一テナントの opponent チームへの保存、直接 UPDATE による非現役選手への差し替え、直接 READ による opponent 記憶の取得、および `TenantRepositoryBase.execute()` の直接 INSERT による欠損選手の保存の 4 経路が、現行製品コードで期待どおり red。テストは製品コード変更前の証跡として保持する。
+- 最小修正案は、登録済み U-M2 token の実行前検証を同一トランザクション内で両実行器から呼ぶこと。既存の self チームロックと選手 ID 限定 read を使い、UPDATE 文の対象 team ID と移行由来行の条件も固定する。`OperationRegistration` と `transaction.py` が承認済み計画の明示 path に無かったため、計画を `in-review` に戻し、追補の敵対レビュー・人間承認まで製品コードは変更しない。既存の凍結台帳は変更しない。
+- 追補計画の独立敵対レビュー 1 回目は P0=0、P1=1。P1 は有効な自チーム選手の payload で相手チーム記憶 ID または移行由来行を直接 UPDATE する負例がステップ 2 の合格条件・テスト計画に無いこと。両箇所を明記し、実 DB の再現テストを追加した。現行実装では相手チーム記憶・移行由来行への UPDATE がそれぞれ 1 行成功するため、両負例は red。凍結契約は token 型集合・公開署名・SQLA 許可 API を維持すれば追加改訂不要との暫定判断で、実装後の検査結果を最終判定に用いる。
+- 追補計画の独立敵対レビュー 2 回目は P0/P1/P2 すべて 0 件で可決。UPDATE 対象行の合格条件と DB 負例が対応し、両実行器の同一トランザクション内 preflight は実装可能と確認された。レビュー担当はファイルを編集していない。追補は計画書の明示 path と認可実行境界を広げるため、人間の追補承認まで製品コードは変更しない。
+
+- 利用者が 2026-10-13 に P0 追補計画を明示承認した。直接 token と両実行器の検証、対象 UPDATE の team・移行由来条件に限定して製品修正を開始した。
+- 製品差分の独立敵対レビュー 1 回目は P0=2、P1=1。JSON 数値の UUID が照合後に数値のまま保存される経路と、選手行をロックしないため在籍変更が照合と保存の間へ割り込める経路が P0。直接 UPDATE の欠損・別チーム、公開実行器の相手 READ/UPDATE 負例不足が P1。JSON 正規化と負例は承認済み範囲で修正し、該当 DB テスト 12 件・Ruff・ty が green。競合 P0 は選手行の厳密な `FOR UPDATE` 許可と凍結 token 型集合の改訂が必要なため、計画へ追加案を記し、認可資産と台帳は人間承認まで変更しない。
+- 競合 P0 の追加計画レビュー 1 回目は P0=2、P1=2。選手 ID 順ロックと U-M1 一括在籍変更の入力順 UPDATE のデッドロック、凍結 archive の corpus digest 追随漏れが P0。固定 active bind と拒否形の明文化、二方向の実 DB 同期テストが P1。U-M1 のロック取得順だけを同じ UUID 昇順へ揃え、応答順は維持する限定差分、frozen-archive manifest の digest 1 値、認可形と競合試験を計画へ反映した。U-M1 の専用 worktree は現行 worktree 一覧にない。これらの追加変更はまだ人間未承認。
+- 競合 P0 の追加計画レビュー 2 回目は差分可決、P0/P1/P2 すべて 0 件。初回 4 指摘の反映を確認した。製品・認可資産・正式台帳への追加差分は、人間が追加計画と凍結契約の改訂を承認するまで着手しない。
+- 2026-10-13、利用者が競合 P0 追加計画を明示承認した。U-M1 専用 worktree は存在せず、GitHub の open PR は #121・#120・#119 のみで U-M1 担当の作業中 PR は無い。別担当の worktree には触れず、本 U-M2 worktree で一括在籍変更の選手行取得順だけを UUID 昇順へ固定し、応答配列は入力順に保った。
+- 追加の現役選手行ロック token は tenant・選手 ID・チーム ID・固定 active・非表示でない行の `SELECT id FOR UPDATE` だけ。ロック変種・条件欠落を認可で拒否する。直接 token の実 DB 競合テストは、在籍変更／論理削除が先行する 2 件と保存が先行する 2 件、複数選手の ID 順 1 件を追加し、スタメン DB テスト計 17 件が green。U-M1 境界テスト 30 件、認可契約 145 件、凍結台帳 339 件、archive 29 件、Ruff・ty も green。
+- 凍結契約は repository revision 15→16・新 token 型 1 件、生成済み契約定数の追随、PR #121 の単一未マージ記録の after 側・新識別値・subject・movement_fact・reason の更新のみ。before 側と比較元の受理済み prefix は保持した。base-allowlist revision 27・既存許可シンボルは不変。未マージ revision 15 の旧 snapshot は最終受理状態から参照されなくなるため除去し、revision 16 の内容アドレス snapshot だけを追加した。frozen-archive manifest は corpus digest 1 値だけを追随した。`check_tenant_boundary_bypass.py` と archive case runner が green。
+
+## 製品コードの独立レビューと最終 P0 反映
+
+- 製品コードの独立レビュー 2 回目（初回の反映差分＋影響箇所）は P0 1 件・P1 2 件。`bytearray` を直接 token に渡すと事前照合後に値を変更できる問題を、保存 token の JSON を exact `str` に限定して修正した。公開実行器と複数選手の競合試験も増やした。
+- 6.3 の自動 P0 例外である 3 回目は P0 限定差分レビューとし、P0 1 件を検出した。`frozen` token でも `object.__setattr__` により照合後に `lineup_json` を別の `str` に差し替えられる。両実行器が同じ元 token から保存 SQL を後で組み立てるため、欠損選手を保存できた。指摘を採用した。
+- 最終反映では、両実行器が保存 SQL の束縛値を事前に確定し、事前照合もその同じ束縛値から選手 ID とチーム ID を読む。照合後に元 token を改変しても保存値は変わらない。汎用 token 複製は既存 TB007 検査に抵触するため採用しなかった。直接 INSERT / UPDATE × scope / 公開実行器の 4 経路で照合後の元 token 改変を再現し、保存値が照合済み選手のままであることを実 DB で確認した。
+- 競合試験の保存先行側は、SQL 事前準備の順序変更に合わせ、選手行の取得結果が実体化した直後に停止するよう同期点を変更した。在籍変更先行・保存先行の両方向、INSERT / UPDATE、scope / 公開実行器、在籍区分変更 / 論理削除を対象にした実 DB テストは通しで 36 件すべて成功。凍結境界検査、archive 比較 11 件、境界検査 339 件、U-M1 在籍変更境界 10 件、Ruff・ty・format 検査も green。`backend/tests/conftest.py` 差分 0 行。
+- **レビュー上限**: 自動枠 3 回は使用済みで、3 回目にも P0 が残った。上記の最終反映は独立レビュー未実施。6.3 に従い、追加 1 回の範囲を「元 token 差し替え P0 の修正差分と両実行器・保存 preflight の影響箇所、P0/P1 判定」として PO 裁定待ち。追加レビューの承認を推定せず、PR #121 は Draft、ステップ 2 は未コミット・未完了、人間逐行確認も未実施とする。
+
+## 6.3 の PO 追加レビュー裁定
+
+- 2026-10-13、本会話の利用者が PO 裁定として**独立レビュー 1 回の追加**を明示承認した。対象は token 差し替え P0 の最終修正差分と、両実行器・保存前照合・SQL 束縛値確定の影響箇所。P0/P1 を判定し、照合値と実保存値の一致、直接 token 実行、照合後の変更による迂回を重点確認する。追加周回は自動で続けない。最終差分・検査結果はステップ 2 コミット・push 前に提示し、PR #121 は Draft、人間逐行確認は未実施のままとする。
+- PO 裁定の追加レビュー 1 回を読み取り専用の独立 Codex セッションで実施し、**否決・P0 1 件 / P1 0 件**。元 token の `lineup_json` 文字列を照合後に差し替える前回 P0 は解消した。一方、SQL 束縛値は呼び出し元が保持する UUID と同一参照であり、`object.__setattr__(team_uuid, "int", ...)` により照合後に相手チーム ID へ変更できる。read / insert / update の準備値で再現された。指摘を**採用**し、U-M2 の対象 token 準備時に team ID と行 ID を独立した UUID 値へ固定する修正と、両実行器の read / insert / update について元 UUID の内部変更を再現する実 DB テスト 6 件を追加した。新しい認可契約シンボルや凍結履歴の変更はない。
+- この PO 裁定で許可された追加レビューは実施済み。上記採用反映の再レビューを自動で開始しない。レビュー結果を P0 解消認定として扱わず、関連検査後の最終差分をステップ 2 コミット・push 前に人間へ提示する。
+- 採用反映後、スタメン記憶の実 PostgreSQL テストは通しで **42 件すべて成功**。当該 6 件は read / insert / update × scope / 公開実行器で元 UUID の内部値をロック後に変更する。backend Ruff・ty・format check、tenant-boundary bypass check は green。認可資産と凍結台帳はこの最終反映では変更していない。独立レビュー応答の原本は `/tmp/um2-p0-code-review-po-extra-output.txt`。
+
+## 6.3 の PO 追加 P0 限定差分レビュー裁定
+
+- 2026-10-13、本会話の利用者が **P0 限定の独立差分レビュー 1 回**を新たに明示承認した。対象は UUID 独立化修正、両実行器の read / insert / update への影響、元 UUID の内部値変更を扱う実 DB 回帰テスト 6 経路。照合・ロック・SQL 実行が同じ確定値を使い、元 token / UUID への共有参照が残らず、新たな P0 を生んでいないことを判定する。確認済み全文は再レビューしない。自動の次周は行わない。
+- レビュー前の差分固定値: `git diff --binary -- backend/src/pitchlog/repositories/{lineup_memory,base,transaction,operation_registration}.py backend/tests/db/test_lineup_memory.py | sha256sum` = `0291537b18884165afd94480355ccc06aff3861e82c7713385be4050655e474a`。この対象差分と追加6経路をレビューへ渡す。レビュー中に対象ファイルは変更しない。PR #121 は Draft、ステップ 2 は未コミット・未push、人間逐行確認は未実施。
+- 裁定に基づく独立 Codex の P0 限定差分レビューは**可決・P0 0 件**。レビュー担当は指定 5 ファイルの差分 SHA-256 が固定値と一致することを確認した。READ / INSERT / UPDATE の準備時に作る UUID は元 token の UUID と別オブジェクトで、preflight は確定済みの同じ SQL 束縛値からチーム・選手ロックを構成し、両実行器はその値で SQL を実行する、と読み取り専用の再現で確認した。6 経路の DB テストはレビュー担当がコードを確認し、実行は担当者側の 42 件成功を根拠とする。指摘 0 件のため採否・追加反映は無し。レビュー原本は `/tmp/um2-p0-uuid-final-review-output.txt`。自動の次周は行わない。
+
+## 人間逐行確認の連絡
+
+- 2026-10-13、本会話の利用者から、提示済みのステップ 2 最終差分について「逐次チェックしたよ」との連絡を受けた。提示対象は `/tmp/tsk394-step2-final.diff`（追跡済みファイルの差分）と、新規内容アドレス snapshot `a8ab5536a83debe0f383811a0eb0a8441f4728d217b4b358275289abf1e16dae`。確認者自身の対象・範囲・方法を伴う PR 本文の実施記録行は現時点で空欄であり、規約 6.3 の証跡完了として代理記入しない。公開 PR HEAD はローカル最終差分より古く、ステップ 2 コミット・push は利用者の直前の明示指示に従って保留する。
+
+## 最新 develop との照合
+
+- 利用者の指摘を受け、2026-10-13 に `git fetch origin develop` と `git ls-remote origin refs/heads/develop` で最新リモート先端 `9114a5a6` を確認した。U-M2 ブランチ HEAD は `5d5ab477`、共通祖先は `212379b5` で、origin/develop に TSK-479 / PR #122 の 8 コミットが先行する。U-M2 側の既存 4 コミットと未コミット差分の変更パスには、develop 側 27 ファイルとの同一パス重複が無い。新規 migration 0030 と試合区分の認可・seed は U-M2 の所有範囲外。
+- `scripts/check_tenant_boundary_bypass.py --base-ref origin/develop` は最新先端を基準に green。develop の repository-contract は revision 14、base-allowlist は revision 26 のままで、PR #121 の既存 before 識別値と一致する。GitHub は PR #121 を `mergeable=true` / `mergeable_state=behind` / Draft と報告した。ローカル最終差分を最新 develop 上で再適用した実 DB・CI 検査は未実施であり、ブランチを rebase / merge していない。コミット・push 保留と、確認済み最終差分の固定を維持する。
+- 利用者の再確認依頼後、`origin/develop` は PR #123（U-F13 公開ガイド入口）のマージで `928280e6` へ進んだ。前回先端 `9114a5a6` から 8 コミット・10 ファイル追加だが、全て U-F13 の docs / frontend に限定され、U-M2 の既存コミット・未コミット変更と同一パスの重なりは無い。リモート先端は `git ls-remote` でも `928280e6`、repository-contract は revision 14、base-allowlist は revision 26 のまま。最新 `origin/develop` 基準の tenant-boundary bypass check は green。GitHub の PR #121 は再計算後 `mergeable=true` / `behind` / Draft。ブランチの共通祖先は `212379b5` のままで、最新 develop 上の統合テスト・rebase / merge / commit / push は未実施。
+
+## ステップ 2 の公開と最新 develop 統合の許可
+
+- 2026-10-13、本会話の利用者がコミット前停止を限定解除し、レビュー済み最終差分と新規 snapshot のステップ 2 追補コミット、最新 `origin/develop` の **merge**、前後差分の確認、関連 DB・認可・凍結契約・archive・品質検査、Draft PR #121 への push と本文更新を明示許可した。rebase、先の GET 実装、Draft 解除、PR マージは許可されていない。PR の人間逐行確認欄は未チェックに保つ。

@@ -409,7 +409,24 @@ class TenantRepositoryBase(ABC):
     ) -> TenantOperationResult:
         """登録済み SQL を束縛済みトランザクション内だけで実行する。"""
         with _tenant_transaction(self._session, context):
+            spec = _operation_spec(operation)
             statement, parameters = _prepare_operation(operation, context.tenant_id)
+            if spec.preflight is not None:
+                preflight = spec.preflight(operation, parameters)
+                checked_results: list[TenantOperationResult] = []
+                for check in preflight.operations:
+                    if _operation_spec(check).preflight is not None:
+                        raise _TenantOperationError("実行前検証の再帰は許可されない")
+                    check_statement, check_parameters = _prepare_operation(
+                        check, context.tenant_id
+                    )
+                    check_execution = self._session.execute(
+                        check_statement, check_parameters
+                    )
+                    checked_results.append(
+                        _materialize_execution_result(check_statement, check_execution)
+                    )
+                preflight.validate(tuple(checked_results))
             execution_result = self._session.execute(
                 statement,
                 parameters,

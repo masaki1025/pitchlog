@@ -943,7 +943,9 @@ def _validate_select_state(
         _reject_node_state(label, "明示的な相関状態", violations)
     if node._fetch_clause is not None or node._fetch_clause_options is not None:
         _reject_node_state(label, "FETCH状態", violations)
-    if node._for_update_arg is not None and not _is_lineup_team_lock(node):
+    if node._for_update_arg is not None and not (
+        _is_lineup_team_lock(node) or _is_lineup_active_player_lock(node)
+    ):
         _reject_node_state(label, "FOR UPDATE状態", violations)
     if node._distinct or node._distinct_on:
         _reject_node_state(label, "DISTINCT状態", violations)
@@ -1015,6 +1017,62 @@ def _is_lineup_team_lock(node: Select) -> bool:
         else:
             return False
     return matched == set(expected) and hidden_is_null and len(predicate.clauses) == 4
+
+
+def _is_lineup_active_player_lock(node: Select) -> bool:
+    """自チームの現役選手 1 行だけをロックする形を認める。"""
+    lock = node._for_update_arg
+    if type(lock) is not ForUpdateArg or (
+        lock.nowait
+        or lock.read
+        or lock.skip_locked
+        or lock.key_share
+        or lock.of is not None
+    ):
+        return False
+    froms = node.get_final_froms()
+    if len(froms) != 1 or type(froms[0]) is not Table:
+        return False
+    table = froms[0]
+    if table.name != "players" or table.schema not in {None, "public"}:
+        return False
+    selected = tuple(node.selected_columns)
+    if len(selected) != 1 or selected[0] is not table.c.id:
+        return False
+    predicate = node.whereclause
+    if (
+        type(predicate) is not BooleanClauseList
+        or predicate.operator is not operators.and_
+    ):
+        return False
+    expected = {
+        "tenant_id": "tenant_id",
+        "id": "player_id",
+        "team_record_id": "team_record_id",
+        "roster_status_key": "roster_status_key",
+    }
+    matched: set[str] = set()
+    hidden_is_null = False
+    for clause in predicate.clauses:
+        if (
+            type(clause) is BinaryExpression
+            and clause.operator is operators.eq
+            and type(clause.left) is Column
+            and clause.left.table is table
+            and type(clause.right) is BindParameter
+            and expected.get(clause.left.key) == clause.right.key
+        ):
+            matched.add(clause.left.key)
+        elif (
+            type(clause) is BinaryExpression
+            and clause.operator is operators.is_
+            and clause.left is table.c.hidden_at
+            and type(clause.right) is Null
+        ):
+            hidden_is_null = True
+        else:
+            return False
+    return matched == set(expected) and hidden_is_null and len(predicate.clauses) == 5
 
 
 def _validate_dml_state(
@@ -1368,9 +1426,14 @@ def validate_capability_registrations(
         if (
             type(statement) is Select
             and statement._for_update_arg is not None
-            and capability_id != "CAP:team_records:read"
+            and not (
+                capability_id == "CAP:team_records:read"
+                and _is_lineup_team_lock(statement)
+                or capability_id == "CAP:players:read"
+                and _is_lineup_active_player_lock(statement)
+            )
         ):
-            violations.append(f"{label}の FOR UPDATE はチーム読み取り専用")
+            violations.append(f"{label}の FOR UPDATE は限定行の読み取り専用")
 
         if capability is None:
             continue

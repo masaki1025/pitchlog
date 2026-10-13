@@ -1,7 +1,7 @@
 ---
 feature: um2-lineup-memory
 status: active
-承認: 済(2026-10-13・利用者)
+承認: 済（2026-10-13・追加の競合 P0 計画も利用者承認）
 重さ分類: コア領域
 worktree: /tmp/pitchlog-um2-lineup-memory
 notion: 未取得（TSK-394。現在の Notion 接続先ではカードを取得できない）
@@ -22,6 +22,12 @@ created: 2026-10-13
 > **計画レビュー 2 周目（同日、差分・影響節）**: 可決、P0/P1/P2 すべて 0 件。`計画レビュー周回` は指摘反映を伴う周のみ数えるため 1 のまま。その後の PO 対話で紅白戦の記憶規則は了承された（本計画の「DH と紅白戦」）。TSK-394 固有カードの照合は未了。
 >
 > **2 周目後の差分（2026-10-13）**: 利用者から伝えられた PO 了承を反映し、U-G1 への接続案・確認事項を明記した。既存の独立レビューはこの差分を再審査していないため、人間の計画承認時に本差分を確認する（設計書 6.3 のレビュー回数上限）。
+
+> **P0 追補承認済み（2026-10-13・本会話の利用者）**: ステップ 2 の登録済み token から self・現役検証を迂回できることが実 DB で再現した。追補計画の独立敵対レビューは 2 回実施し、最終 P0/P1/P2 は 0 件。認可実行境界を含む追補範囲の人間承認を得た。
+
+> **P0 追補の実装レビューで見つかった追加契約（承認済み）**: 独立レビューは P0 2 件・P1 1 件。保存 JSON の識別値と照合値の不一致、および不足した直接 UPDATE / 公開実行器の負例は承認済み追補内で是正した。選手照合後の在籍変更競合には、次段落の追加計画と人間承認に従って対処した。
+
+> **競合 P0 追加計画承認済み（2026-10-13・本会話の利用者）**: 追加計画の独立レビュー 2 回目は P0/P1/P2 すべて 0 件。利用者は選手 1 行の限定ロック、U-M1 一括更新の取得順、repository revision 15→16、PR #121 の単一未マージ受理記録と archive digest の追随を承認した。人間の逐行確認・マージ承認とは別である。
 
 ## 1. 背景・目的
 
@@ -50,7 +56,7 @@ created: 2026-10-13
 
 - 試合作成と試合ライフサイクル本体（U-G1）。U-M2 の内部保存 operation を呼ぶのは U-G1 の試合開始処理だけとする。
 - 外部公開の保存・更新 API。FR-016 はチーム選択時の自動復元を求め、任意の保存操作を求めない。保存の唯一の契機は FR-001 のスタメン確定である。
-- 試合準備画面（U-F8）、選手・在籍変更（U-M1）、同期・記録権・移行、複数パターン記憶。
+- 試合準備画面（U-F8）、選手・在籍変更（U-M1）の機能追加、同期・記録権・移行、複数パターン記憶。競合 P0 を閉じるための既存 U-M1 一括在籍変更における行取得順の固定だけは、下記の追加承認後に限定して行う。
 - TSK-541・538・470・238・391・479 が所有するファイルや経路の変更。重複が判明したら当該ステップを止め、計画の射程を再審査する。
 
 ## 3. 影響する正本
@@ -60,6 +66,9 @@ created: 2026-10-13
 | `docs/requirements/requirements-pitchlog-2026-07-22.md`、`docs/design/data-model.md`、ADR | 反映なし。FR-016 と 7-4 の既決事項に従う | — |
 | `contracts/authz/route-registry.json`、`http-route-matrix.json` と派生 lock / oracle、`contracts/tenant_boundary/*` | 取得 GET 1 本の route ID と、内部 read / insert / update operation を既定の登録・凍結受理手順で追加する。保存用の HTTP 行は増やさない | コア領域 PR レビュー、凍結資産は 7.7 |
 | `backend/src/pitchlog/authz/capability_registration.py` / `backend/src/pitchlog/repositories/{base,tokens}.py` と該当テスト | **レビュー P0 2 件の実行可能性是正**。単一表・テナント束縛・対象 ID 限定のロック読み取りだけを許可し、JSONB 結果を深い不変値として閉じる。一般の任意 SQL や可変結果は引き続き拒否 | コア領域 PR レビュー |
+| `backend/src/pitchlog/repositories/{operation_registration,transaction,base,lineup_memory}.py` と該当テスト | **P0 追補（承認済み）**。登録済み U-M2 read / insert / update token の実行直前に、同一トランザクションで self チームと書き込み payload の選手所属・現役性を検証する。UPDATE は対象記憶の team ID と移行由来不可も SQL で限定する | 計画追補の敵対レビュー 2 回・人間承認済み。コア領域 PR レビュー |
+| `backend/src/pitchlog/authz/capability_registration.py`、`backend/src/pitchlog/repositories/lineup_memory.py`、`backend/src/pitchlog/api/routers/players.py` と該当テスト | **競合 P0 修正（承認済み）**。厳密な現役選手 1 行 `FOR UPDATE` と、在籍一括更新の行取得順を選手 ID 順へ統一する。レスポンス順序は入力順を維持する。U-G1 にチーム行→選手 ID 順の取得順を申し送る | 追加計画の敵対レビュー 2 回・人間承認済み。コア領域 PR レビュー |
+| `contracts/tenant_boundary/repository-contract.json`、`contracts/tenant_boundary/base-allowlist.json`、対応 snapshot、`backend/src/pitchlog/repositories/repository_contract.py` と該当契約テスト、`tests/fixtures/frozen-archive-cases/manifest.json` | **競合 P0 修正（承認済み）**。repository revision 15→16 で U-M2 専用 token 型 1 件を追加し、生成済み契約定数と完全一致させる。PR #121 の単一未マージ受理記録の最終状態を更新。base-allowlist revision 27・既存シンボル許可・既存受理済み履歴は維持。比較 corpus の digest 1 値だけを再算出する | 7.7 の受理単位・snapshot・digest・manifest 検査後、コア領域 PR レビュー |
 | `.claude/core-areas.json` | 既存の登録 path に収まるかをステップ 1 で検査。新 path が必要なら 6.3-⑤ のレビュー対象として同 PR に含める | コア領域 PR レビュー |
 
 ## 4. 実装方針
@@ -90,6 +99,10 @@ FR-001 はスタメン確定と試合開始を一つの操作として扱い、`
 
 **同時確定の順序。** U-G1 は記憶の読み書きより先に対象の self チームレコード行を `SELECT FOR UPDATE` でロックする。同一チームの確定はこの行で直列化し、後にロックを得て**正常にコミットした確定**のオーダーが直近 1 件となる。失敗・ロールバック・取得 GET は記憶を変えない。物理削除や履歴行の追加はしない。既存の部分一意索引 `uq_lineup_memories_active` が active 1 件を補強する。**現行の capability 検査は `FOR UPDATE` を明示拒否する**(`backend/src/pitchlog/authz/capability_registration.py:941`)ため、U-M2 のステップ 2 で対象表 1 つ・テナントと ID の必須 bind・`FOR UPDATE` 以外の lock 変種を拒否する狭い登録規則と負例を加える。これは本 operation の実行に必要な製品認可境界の変更であり、一般的なハーネス拡張はしない。
 
+**P0 追補（承認済み）。** `save_lineup_memory()` だけが self チーム・現役選手を検証する実装では、同じ registry の `LineupMemoryReadToken` と非公開 insert / update token を `scope.run()` へ直接渡すと検証を迂回できる。`TenantRepositoryBase.execute()` も同じ登録 token を受け付ける。`OperationRegistration` に U-M2 用の実行前検証を追加し、両実行器が**同一テナント・同一トランザクション内、対象 SQL の実行前**に呼ぶ。検証は `_SelfTeamLockToken` と、次段落で承認された現役選手 1 行ロックを使う。保存 SQL の束縛値を先に確定し、その同じ値から選手 ID・チーム ID を照合する。束縛する UUID は元 token の参照から独立した値へ固定し、照合後に元 token の内部値を変えても未照合の ID へ SQL を向けられないようにする。UPDATE token に対象 `team_record_id` を含め、UPDATE 文もその ID と `migration_preserved_only=false` に限定する。未知・不正 JSON、重複選手 ID は拒否し、helper と直接 token が同じ検証関数を使う。GET 側で直接 read token を使う場合も self 検証を通す。既存の capability ID、SQLA 許可 API、テナント束縛、受理済み履歴は広げない。新 token 型に対応する凍結改訂は次段落の承認範囲に従う。
+
+**追加の競合 P0 修正（承認済み）。** 書き込み preflight の通常 `PlayerReadToken` は他トランザクションによる在籍変更を待たせない。U-M2 専用の非公開 `_ActiveLineupPlayerLockToken` を 1 種追加し、既存の `_build_lineup_memory_statement` 内で `players` の tenant ID・選手 ID・チーム ID・固定 bind `roster_status_key='active'`・`hidden_at IS NULL` をすべて条件にした 1 行 `SELECT id FOR UPDATE` を作る。書き込み preflight は self チーム行の後、各選手行を UUID の昇順でロックし、同じトランザクションの INSERT / UPDATE 完了まで保持する。ロック中の在籍変更・論理削除はコミットまで待機し、先に変更が確定していれば行が返らず保存を拒否する。読み取り preflight は従来どおり self チーム確認のみ。`capability_registration.py` はこの完全一致形の `CAP:players:read` ロックだけを許可し、任意の表・条件不足・ロック変種を拒否する。`SELECT id`・通常の `FOR UPDATE` のみ許可し、条件欠落・別表・`NOWAIT` / `SKIP LOCKED` / `FOR SHARE` 等の変種は拒否する。U-M1 の一括在籍変更は同じ UUID 昇順で行ロックを取り、返却配列は入力順のまま保つ。U-G1 はチーム行→選手 UUID 昇順の順で取得し、先に選手行をロックしない。新しい SQLA 構築シンボルと外部 API は増やさない。追加 token 型のため `repository-contract.json` の revision 15→16 と `base-allowlist.json` の受理履歴への PR #121 未マージ記録更新が必要。既存受理済み履歴は変更せず、base-allowlist 本体の revision 27 と既存シンボル許可は維持する。`contracts/tenant_boundary` ツリーを入力とする frozen-archive manifest の `corpus_inputs.digest` 1 値だけを再算出し、他の pin・ケースは変更しない。7.7 の具体的な snapshot / digest / movement_fact は変更後に検査器の指示どおり算出し、正式台帳反映前に差分を確認する。
+
 ### 復元 GET と DTO
 
 `GET /team-records/{team_record_id}/lineup-memory` だけを U-M2 の外部入口とし、既存の認証・テナント文脈を通す。対象は当該テナントの `kind='self'` かつ非表示でないチームレコードのみ。対象不在・他テナント・相手チームレコードは 404。記憶がなければ 204。移行由来で `migration_preserved_only=true` の記憶を入力補助へ出さない。
@@ -114,7 +127,7 @@ U-M2 は U-G1 が確定したオーダーの構造をコピーして保全する
 | # | ステップ | 合格条件 |
 | --- | --- | --- |
 | 1 | TSK-363 の共通 DoD・既決の紅白戦規則・U-G1 への申し送りを実装項目へ反映し、取得 GET の route ID と単一表 operation / 凍結資産の変更順を固定する。TSK-394 固有の追加条件が提示された場合は着手前に照合する | FR-016 と確認済み DoD から DTO・保存契機・テストへの対応が追える。保存 HTTP 入口が 0 本で、U-G1 担当の確認項目が未確定の契約と区別して列挙されている |
-| 2 | 自チーム記憶の読み取り・内部保存 operation と必要な認可・テナント契約を追加する。対象 self チーム 1 行だけの `FOR UPDATE` を capability 検査へ明示登録し、JSONB 読み取り値の深い不変化を結果境界へ追加する | 実 DB でチーム別直近 1 件、初回の同時 insert と更新の直列化、ロールバック、別テナント拒否、物理削除なしが green。`FOR UPDATE` の他表・tenant/ID bind 欠落・他 lock 変種を拒否、JSONB の入れ子の可変値を外へ漏らさず未知型を拒否する負例 green。凍結資産の受理記録が規約どおり |
+| 2 | 自チーム記憶の読み取り・内部保存 operation と必要な認可・テナント契約を追加する。対象 self チーム 1 行だけの `FOR UPDATE` を capability 検査へ明示登録し、JSONB 読み取り値の深い不変化を結果境界へ追加する。P0 追補の承認後、直接 token も実行直前に同じ不変条件を満たすよう是正する | 実 DB でチーム別直近 1 件、初回の同時 insert と更新の直列化、ロールバック、別テナント拒否、物理削除なしが green。`FOR UPDATE` は self チーム行と追加承認後の現役選手行の完全一致形だけを許可し、他表・tenant/ID bind 欠落・他 lock 変種を拒否、JSONB の入れ子の可変値を外へ漏らさず未知型を拒否する負例 green。直接 token による相手チーム read / insert、非現役・削除済み・欠損・別チームの選手 insert / update を拒否。**有効な自チーム選手 payload でも、相手チーム記憶 ID と `migration_preserved_only=true` 行を直接 UPDATE して変更できない** DB 負例を置く。凍結資産の受理記録が規約どおり。追加承認後は、在籍 UPDATE / 論理削除が先に確定したときの保存拒否と、保存側が先に選手行ロックを得たときの変更待機を実 DB の同期テストで確認する。直接 INSERT / UPDATE と公開実行器を含め、相互取得順でデッドロックしない。frozen-archive manifest の corpus digest を追随し、比較ケース・既存 pin を維持する |
 | 3 | 取得・復元 GET と DTO を追加し、`ROUTE:RECORD:lineup_memories:read` を既存の登録・凍結受理手順でアプリへ登録する | 外部からの GET 直接テストで現役のみ自動採用。OB・その他・削除済み・欠損・別チームは差し替え。改名・背番号変更後も ID が保たれ、保存用 HTTP 経路は存在しない。route registry / matrix / 派生 lock / 独立 exact-set が一致し、7.7 の受理記録がある |
 | 4 | 関連テストと品質ゲート、U-G1/U-F8 への接続記録を完了する | backend の該当 pytest、DB テスト、Ruff、ty、越境・認可・契約検査が green。U-G1 が記憶を更新する契約と U-F8 の復元表示契約が追跡可能 |
 
@@ -141,8 +154,8 @@ U-M2 は U-G1 が確定したオーダーの構造をコピーして保全する
 | 種別 | 対象 | 検証内容 |
 | --- | --- | --- |
 | 単体・契約 | DTO と U-G1 から受ける先発オーダー | 通常 9 枠 / DH 10 枠の順序・打順・守備位置・選手 ID が保存と復元で欠落・変換されないこと。構造の妥当性判定は U-G1 の契約テストへ委ね、U-M2 に同じ判定を複製しない |
-| DB | 記憶 repository | 保存・再保存・最新 1 件・同時実行・ロールバック・テナント分離。紅白戦の両側保存と後攻側による記憶更新は U-G1 接続テストで検証 |
-| 認可・結果境界 | 単一表ロック token / JSONB 結果 | 対象 self 行だけの lock を許可し、他表・bind 欠落・他 lock 変種を拒否。入れ子の JSON 配列・オブジェクトは深い不変値になり、未知可変型は拒否 |
+| DB | 記憶 repository | 保存・再保存・最新 1 件・同時実行・ロールバック・テナント分離。直接 read / insert / update token と `TenantRepositoryBase.execute()` の迂回負例を置き、非現役・削除済み・欠損・別チーム選手を拒否する。**UPDATE は有効な自チーム選手 payload でも相手チーム記憶 ID と `migration_preserved_only=true` 行を変更しない**。在籍変更・論理削除との順序を Event 同期の実 DB テストで両方向検証し、直接 token と公開実行器にも適用する。紅白戦の両側保存と後攻側による記憶更新は U-G1 接続テストで検証 |
+| 認可・結果境界 | 単一表ロック token / JSONB 結果 | 厳密な self チーム行と追加承認後の現役選手行だけの lock を許可し、他表・条件欠落・bind 欠落・他 lock 変種を拒否。入れ子の JSON 配列・オブジェクトは深い不変値になり、未知可変型は拒否 |
 | API / 越境 | 取得・復元 GET | NFR-019 に従い、同一 PR のテストから製品外の GET 入口を直接叩く。実 DB 経由、認証/認可、別テナント、欠損、論理削除、在籍 3 区分、改名・背番号変更。保存用 HTTP 経路が無いこと |
 | 回帰 | U-M1 と関連契約 | 選手の更新・在籍変更、authz route、tenant boundary、既存 DB テスト |
 

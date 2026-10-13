@@ -13122,7 +13122,7 @@
             "fixture_set_revision:14"
           ],
           "contracts/tenant_boundary/repository-contract.json": [
-            "contract_revision:15"
+            "contract_revision:16"
           ],
           "contracts/tenant_boundary/runtime-authz-contract.json": [
             "runtime_contract_revision:12"
@@ -13161,7 +13161,7 @@
           ]
         },
         "change": {
-          "subject": "TSK-394: 前回スタメン記憶の内部 operation と不変 JSONB 結果を契約へ追加する",
+          "subject": "TSK-394: 前回スタメン記憶の内部 operation・不変 JSONB 結果・現役選手行の限定ロックを契約へ追加する",
           "aspect": [
             "asset_snapshots",
             "declaration"
@@ -13798,7 +13798,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:15"
+                    "contract_revision:16"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -14099,8 +14099,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "cf9ad90b4a10340de0323e0a1664debfb10bfe728581054dbb92370b6d86dfda",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/cf9ad90b4a10340de0323e0a1664debfb10bfe728581054dbb92370b6d86dfda"
+                "sha256": "a8ab5536a83debe0f383811a0eb0a8441f4728d217b4b358275289abf1e16dae",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a8ab5536a83debe0f383811a0eb0a8441f4728d217b4b358275289abf1e16dae"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
@@ -14115,8 +14115,8 @@
             ]
           }
         },
-        "movement_fact": "比較元 origin/develop の 212379b5253914606c810980208a854a81f1f176 から repository 契約 revision 15 と base-allowlist revision 27 へ移動する。スタメン記憶の単一表 SQL 構築シンボル 1 件を SELECT・INSERT・UPDATE に限定して登録する。",
-        "reason": "FR-016 のスタメン記憶を登録済み operation で実装し、TB005 による DB 到達拒否を許可シンボル 1 件へ限定して解消するため。",
+        "movement_fact": "比較元 origin/develop の repository 契約 revision 14・base-allowlist revision 26 から、PR #121 の単一受理後の repository 契約 revision 16・base-allowlist revision 27 へ移動する。直近スタメンの単一表 SQL 構築シンボル 1 件を SELECT・INSERT・UPDATE に限定して登録し、現役選手 1 行のロック token 型 1 件を追加する。",
+        "reason": "FR-016 の内部保存で現役選手の照合と保存の間に在籍変更が割り込む競合を閉じ、既存の単一表・テナント限定 SQL 構築許可の範囲で行ロックを適用するため。",
         "approved_by": "山田正輝",
         "approved_on": "2026-10-13"
       }
