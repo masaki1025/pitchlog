@@ -78,6 +78,7 @@ async def test_success_sets_cookie_without_exposing_presentation(
     ]
     cookie = response.headers["set-cookie"]
     assert cookie.startswith(f"__Host-pitchlog_token={value};")
+    assert response.headers["cache-control"] == "no-store"
     assert "httponly" in cookie.lower()
     assert "secure" in cookie.lower()
     assert "samesite=strict" in cookie.lower()
@@ -142,6 +143,8 @@ async def test_failure_is_identical_for_known_and_unknown_teams(
     assert known.content == missing.content
     assert "set-cookie" not in known.headers
     assert "set-cookie" not in missing.headers
+    assert "cache-control" not in known.headers
+    assert "cache-control" not in missing.headers
     assert sleeps == [0.35, 0.35]
 
 

@@ -22,29 +22,33 @@ _SIGNING_KEY_VARIABLE = "PITCHLOG_TOKEN_SIGNING_KEY_B64"
 
 
 class _RenewedCookieMiddleware:
-    """認証後の例外応答へ Cookie 更新ヘッダを引き継ぐ。"""
+    """Cookie 更新を引き継ぎ、Cookie 付き応答の保存を禁止する。"""
 
     def __init__(self, app: ASGIApp) -> None:
         """内側の ASGI アプリケーションを保持する。"""
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        """応答開始時に認証依存関数のヘッダを補う。"""
+        """応答開始時に Cookie とキャッシュ指示のヘッダを補う。"""
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
         async def send_with_cookie(message: Message) -> None:
-            if message["type"] == "http.response.start" and message["status"] != 401:
-                cookie = scope.get("state", {}).get("renewed_cookie")
-                headers = message.get("headers", [])
-                if isinstance(cookie, str) and not any(
-                    name.lower() == b"set-cookie" for name, _ in headers
-                ):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                if message["status"] != 401:
+                    cookie = scope.get("state", {}).get("renewed_cookie")
+                    if isinstance(cookie, str) and not any(
+                        name.lower() == b"set-cookie" for name, _ in headers
+                    ):
+                        headers.append((b"set-cookie", cookie.encode("latin-1")))
+                if any(name.lower() == b"set-cookie" for name, _ in headers):
                     message["headers"] = [
-                        *headers,
-                        (b"set-cookie", cookie.encode("latin-1")),
-                    ]
+                        (name, value)
+                        for name, value in headers
+                        if name.lower() != b"cache-control"
+                    ] + [(b"cache-control", b"no-store")]
             await send(message)
 
         await self.app(scope, receive, send_with_cookie)

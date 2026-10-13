@@ -56,6 +56,7 @@ async def test_logout_calls_boundary_and_clears_cookie(
     assert "presented" not in result.text
     assert "Max-Age=0" in result.headers["set-cookie"]
     assert '__Host-pitchlog_token=""' in result.headers["set-cookie"]
+    assert result.headers["cache-control"] == "no-store"
     assert "Secure" in result.headers["set-cookie"]
     assert "HttpOnly" in result.headers["set-cookie"]
     called.assert_called_once_with("presented", app.state.token_presentation, resource)
@@ -88,6 +89,7 @@ async def test_password_change_requires_current_password_and_clears_cookie(
     assert "new" not in result.text
     assert "Max-Age=0" in result.headers["set-cookie"]
     assert '__Host-pitchlog_token=""' in result.headers["set-cookie"]
+    assert result.headers["cache-control"] == "no-store"
     called.assert_called_once_with(
         "presented", "current", "new", app.state.token_presentation, resource
     )
