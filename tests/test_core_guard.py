@@ -2346,6 +2346,52 @@ def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
     core_guard.validate_area_path_layers(baseline, candidate)
 
 
+def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
+    """U-S1 の追加層が両領域の末尾にあり、代表パスが両方に当たる。"""
+    core_guard = load_core_guard_module()
+    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
+    configuration = load_actual_core_areas()
+    base_areas = {area["id"]: area for area in baseline["areas"]}
+    current_areas = {area["id"]: area for area in configuration["areas"]}
+    representatives = (
+        ("backend/src/pitchlog/sync/apply.py", US1_SYNC_APPLY_AREA_PATH_ADDITIONS[0]),
+        (
+            "backend/src/pitchlog/repositories/sync_apply.py",
+            US1_SYNC_APPLY_AREA_PATH_ADDITIONS[1],
+        ),
+        ("backend/tests/test_sync_apply_entry.py", US1_SYNC_APPLY_AREA_PATH_ADDITIONS[2]),
+        (
+            "backend/tests/test_sync_apply_tenant_boundary.py",
+            US1_SYNC_APPLY_AREA_PATH_ADDITIONS[2],
+        ),
+    )
+
+    assert set(base_areas) == set(current_areas) == set(DATA_MODEL_AREA_IDS)
+    for area_id in ("sync-protocol", "recording-rights"):
+        paths = tuple(current_areas[area_id]["paths"])
+        base_paths = tuple(base_areas[area_id]["paths"])
+        absorbed = base_paths[-len(US1_SYNC_APPLY_AREA_PATH_ADDITIONS) :] == (
+            US1_SYNC_APPLY_AREA_PATH_ADDITIONS
+        )
+        expected_paths = (
+            base_paths
+            if absorbed
+            else (*base_paths, *US1_SYNC_APPLY_AREA_PATH_ADDITIONS)
+        )
+        assert paths == expected_paths
+        assert paths[-len(US1_SYNC_APPLY_AREA_PATH_ADDITIONS) :] == (
+            US1_SYNC_APPLY_AREA_PATH_ADDITIONS
+        )
+        for path, pattern in representatives:
+            assert pattern in paths
+            assert fnmatch.fnmatchcase(path, pattern)
+    for area_id in ("game-state", "tenant-isolation", "data-migration"):
+        assert current_areas[area_id]["paths"] == base_areas[area_id]["paths"]
+
+    core_guard.validate_area_path_layers(baseline, configuration)
+
+
 @pytest.mark.parametrize(
     "core_path",
     ("frontend/src/screens/GameScreen.vue", "frontend/src/screens/GameScreen.spec.ts"),
