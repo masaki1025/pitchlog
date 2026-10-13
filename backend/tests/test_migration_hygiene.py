@@ -1155,7 +1155,13 @@ def test_seed_allowlist_unchanged_declaration_with_record_is_red() -> None:
     base_ledger = copy.deepcopy(_load_seed_allowlist())
     head_ledger = copy.deepcopy(base_ledger)
     series, declaration = next(iter(head_ledger["declarations"].items()))
-    extra = copy.deepcopy(head_ledger["history"][-1])
+    extra = copy.deepcopy(
+        next(
+            record
+            for record in reversed(head_ledger["history"])
+            if record["series"] == series
+        )
+    )
     extra["prior_identity"] = copy.deepcopy(extra["new_identity"])
     extra["changes"] = [
         {
@@ -1872,10 +1878,10 @@ def test_declared_seed_rejects_concatenated_sql(tmp_path: Path) -> None:
     )
 
 
-def _real_seed_revision() -> tuple[dict[str, Any], str, str]:
-    """系列宣言が指す実 revision の表示パスとソースを返す。"""
+def _real_seed_revision(series: str) -> tuple[dict[str, Any], str, str]:
+    """指定した系列宣言が指す実 revision の表示パスとソースを返す。"""
     ledger = _load_seed_allowlist()
-    declaration = next(iter(ledger["declarations"].values()))
+    declaration = ledger["declarations"][series]
     path = declaration["frozen_targets"][0]
     revision_file = (_BACKEND_ROOT / path).resolve()
     assert revision_file.is_relative_to(_VERSIONS_ROOT.resolve())
@@ -2001,9 +2007,10 @@ def _mutate_real_seed_revision(
     return _replace_ast_expression(source, literal, repr(expanded_sql))
 
 
-def test_real_seed_revision_is_green() -> None:
+@pytest.mark.parametrize("series", sorted(_load_seed_allowlist()["declarations"]))
+def test_real_seed_revision_is_green(series: str) -> None:
     """変異前の実 revision が DML 境界検査を通ることを確認する。"""
-    ledger, path, source = _real_seed_revision()
+    ledger, path, source = _real_seed_revision(series)
     assert _migration_source_violations({path: source}, ledger=ledger) == []
 
 
@@ -2015,12 +2022,13 @@ def test_real_seed_revision_is_green() -> None:
         ("broader_downgrade", "禁止 SQL DELETE FROM"),
     ),
 )
+@pytest.mark.parametrize("series", sorted(_load_seed_allowlist()["declarations"]))
 def test_real_seed_revision_mutations_are_red(
-    case: str, expected_violation: str
+    series: str, case: str, expected_violation: str
 ) -> None:
     """実 revision の別表・追加行・削除拡大がそれぞれ拒否される。"""
-    ledger, path, source = _real_seed_revision()
-    declaration = next(iter(ledger["declarations"].values()))
+    ledger, path, source = _real_seed_revision(series)
+    declaration = ledger["declarations"][series]
     mutated = _mutate_real_seed_revision(source, case, declaration["allowed"])
 
     violations = _migration_source_violations({path: mutated}, ledger=ledger)

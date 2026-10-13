@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from pitchlog.db.engine import create_database_engine
 from pitchlog.repositories.base import (
     _materialize_execution_result,
+    _operation_spec,
     _prepare_operation,
 )
 from pitchlog.repositories.binding import TenantBindingError, _tenant_transaction
@@ -105,7 +106,16 @@ class _TenantTransaction:
             )
 
         session, _ = runtime
+        spec = _operation_spec(operation)
         statement, parameters = _prepare_operation(operation, self._bound_tenant_id)
+        if spec.preflight is not None:
+            preflight = spec.preflight(operation, parameters)
+            if any(
+                _operation_spec(check).preflight is not None
+                for check in preflight.operations
+            ):
+                raise RuntimeError("実行前検証の再帰は許可されない")
+            preflight.validate(tuple(self.run(check) for check in preflight.operations))
         execution_result = session.execute(statement, parameters)
         return _materialize_execution_result(statement, execution_result)
 

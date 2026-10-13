@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from decimal import Decimal
+from types import MappingProxyType
 from uuid import UUID
 
 __all__ = ("TenantOperationResult", "TenantOperationToken")
@@ -14,7 +15,10 @@ type ImmutableScalar = (
     None | bool | int | float | str | bytes | UUID | Decimal | date | datetime | time
 )
 type ImmutableValue = (
-    ImmutableScalar | tuple[ImmutableValue, ...] | frozenset[ImmutableValue]
+    ImmutableScalar
+    | tuple[ImmutableValue, ...]
+    | frozenset[ImmutableValue]
+    | MappingProxyType[str, ImmutableValue]
 )
 
 

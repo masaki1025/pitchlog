@@ -6,7 +6,7 @@ from fastapi import APIRouter, FastAPI
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from pitchlog.api.errors import register_exception_handlers
-from pitchlog.api.routers import auth, meta, players, team_records
+from pitchlog.api.routers import auth, lineup_memory, meta, players, team_records
 from pitchlog.authz.signing_key_config import require_signing_key_configuration
 from pitchlog.authz.token_presentation import TokenPresentation
 from pitchlog.authz.verified_tenant import _activate_presentation
@@ -16,6 +16,7 @@ ROUTERS: tuple[APIRouter, ...] = (
     auth.router,
     players.router,
     team_records.router,
+    lineup_memory.router,
 )
 _SIGNING_KEY_VARIABLE = "PITCHLOG_TOKEN_SIGNING_KEY_B64"
 

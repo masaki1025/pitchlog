@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_http_route_matrix",
   "asset_path": "contracts/authz/http-route-matrix.json",
-  "asset_digest": "ffc4def7c1d3767347a5bf04bf81d62deae9adf5c519b3d81ffd27fc1ac64015",
-  "entry_count": 58,
-  "aggregate_decision_digest": "aab9f43e43ddd67ce2ff934f564046977670bad475a0be12dcdd1e97a5874eef",
+  "asset_digest": "7e3638ff59aae472422255c97892564b7d32bec103d05bf7c9bf80eefcdba3bf",
+  "entry_count": 59,
+  "aggregate_decision_digest": "5414f72f3ea03b9e305c32089f758442537a519f67d14bdc10082a3f323b2c36",
   "entries": [
     {
       "entry_id": "route:HTTP:ROUTE:FR-020",
@@ -486,6 +486,19 @@
         }
       },
       "decision_digest": "d64d0b37645c1689881a1c8ea4787c28653e5d9f728b1bba6d2ef0f3429d1e57"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:RECORD:lineup_memories:read",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:RECORD:lineup_memories:read",
+        "route_id": "ROUTE:RECORD:lineup_memories:read",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-394.http-route.HTTP:ROUTE:RECORD:lineup_memories:read",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "aa7f723ca835ba6efb561600bc905b4b680f131bf3e2e3dffa53f8c9f4f26c1d"
     },
     {
       "entry_id": "route:HTTP:ROUTE:RECORD:players:insert",

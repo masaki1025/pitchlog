@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "contracts/authz/route-registry.json",
-  "asset_digest": "4c9f90aebf41755813576380452cec0aafc3ca6ebf0b45590bbb55422297c7ec",
-  "entry_count": 240,
-  "aggregate_decision_digest": "11df94bf08a502faf682fc8a4e5c9e9412bc5fc90ce001ed09bc2d74b600f30b",
+  "asset_digest": "1d35d56e5b94ffd71d8d6c6bd86f1f16cb9b9d03751bb722d7f4a581e60c2fd0",
+  "entry_count": 241,
+  "aggregate_decision_digest": "16415500628ffa04b319e2ab3062d4fa17c95913bc3a5dbbfa668845aa662241",
   "entries": [
     {
       "entry_id": "route:ROUTE:FR-020",
@@ -632,6 +632,20 @@
         "operation_id": "close_group"
       },
       "decision_digest": "869c3fe5d6769422199da8bc7cd23b0f77da65997f52b37738d07752d410e3e9"
+    },
+    {
+      "entry_id": "route:ROUTE:RECORD:lineup_memories:read",
+      "decision": {
+        "route_id": "ROUTE:RECORD:lineup_memories:read",
+        "route_kind": "record_and_aggregate",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-TSK446-RECORD-AND-AGGREGATE"
+        ],
+        "operation": "read"
+      },
+      "decision_digest": "0de1268d77d3afa11cdc8a20d9d0ac0199f4f0a3b39d6f181df87b6fc1e4fcd7"
     },
     {
       "entry_id": "route:ROUTE:RECORD:players:insert",

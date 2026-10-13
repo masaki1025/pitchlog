@@ -489,6 +489,9 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "CAP:team_records:update",
         "CAP:games:read",
         "CAP:invalidation_intents:insert",
+        "CAP:lineup_memories:read",
+        "CAP:lineup_memories:insert",
+        "CAP:lineup_memories:update",
     )
     expected_token_types = (
         "pitchlog.repositories.roster.PlayerReadToken",
@@ -502,6 +505,11 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.roster.TeamRecordDeleteToken",
         "pitchlog.repositories.roster.GameTeamLinkReadToken",
         "pitchlog.repositories.invalidation_intents.InvalidationIntentInsertToken",
+        "pitchlog.repositories.lineup_memory._SelfTeamLockToken",
+        "pitchlog.repositories.lineup_memory._ActiveLineupPlayerLockToken",
+        "pitchlog.repositories.lineup_memory.LineupMemoryReadToken",
+        "pitchlog.repositories.lineup_memory._LineupMemoryInsertToken",
+        "pitchlog.repositories.lineup_memory._LineupMemoryUpdateToken",
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
@@ -524,6 +532,9 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 "CAP:team_records:update",
                 expected_capabilities[6],
                 expected_capabilities[7],
+                expected_capabilities[3],
+                expected_capabilities[0],
+                *expected_capabilities[8:],
             ),
             strict=True,
         )
@@ -564,6 +575,7 @@ def test_runtime_immutable_types_match_the_asset_exactly() -> None:
     assert repository_contract.IMMUTABLE_CONTAINER_GRAMMAR == (
         "tuple[T, ...]",
         "frozenset[T]",
+        "mappingproxy[str, T]",
     )
     assert repository_contract.FORBIDDEN_TYPES == (
         "typing.Any",

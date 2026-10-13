@@ -575,6 +575,16 @@
       "operation_id": "close_group"
     },
     {
+      "route_id": "ROUTE:RECORD:lineup_memories:read",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE"
+      ],
+      "operation": "read"
+    },
+    {
       "route_id": "ROUTE:RECORD:players:insert",
       "route_kind": "record_and_aggregate",
       "origin": "design",

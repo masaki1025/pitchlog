@@ -6766,6 +6766,49 @@ def test_roster_builder_uses_only_registered_construction_apis() -> None:
     assert checker.scan_source(source, path=relative, contract=contract) == []
 
 
+def test_lineup_memory_builder_has_only_three_construction_apis() -> None:
+    """スタメン記憶の新規許可を文の構築 API 3 種だけに固定する。"""
+    allowlist = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text(encoding="utf-8")
+    )
+    rows = [
+        row
+        for row in allowlist["allowed_symbols"]
+        if row["symbol"]
+        == "pitchlog.repositories.lineup_memory._build_lineup_memory_statement"
+    ]
+    assert len(rows) == 1
+    assert set(rows[0]["allowed_api_ids"]) == {
+        "SQLA_SELECT",
+        "SQLA_INSERT",
+        "SQLA_UPDATE",
+    }
+
+
+def test_lineup_memory_builder_rejects_execution_api_mutation() -> None:
+    """文の構築を許しても、その関数内での実行を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/lineup_memory.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        '    if kind == "lock":',
+        '    session.execute(select(1))\n    if kind == "lock":',
+        1,
+    )
+
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, "session.execute(select(1))"),
+        contract=contract,
+    )
+
+    assert {(item.code, item.symbol) for item in violations} == {
+        ("TB005", "sqlalchemy.orm.Session.execute")
+    }
+
+
 def test_roster_builder_rejects_execution_api_mutation() -> None:
     """組み立てを許した関数でも文の実行は拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)

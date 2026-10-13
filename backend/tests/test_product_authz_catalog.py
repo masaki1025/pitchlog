@@ -344,7 +344,10 @@ def _asset_policy_expressions() -> dict[tuple[str, str], tuple[object, object]]:
     assert isinstance(policies, list)
     assert all(isinstance(row, dict) for row in policies)
     return {
-        (str(row["table_id"]), f"pitchlog_app_{row['profile']}"): (
+        (
+            str(row["table_id"]),
+            str(row.get("policy_name", f"pitchlog_app_{row['profile']}")),
+        ): (
             row.get("using_expression"),
             row.get("with_check_expression"),
         )
@@ -450,7 +453,16 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
     assert len(expectations.roles) == len(asset_roles)
     assert expectations.roles == expectations.semantic_roles
     assert len(expectations.tables) == 45
-    assert len(expectations.policies) == 32
+    assert len(expectations.policies) == 35
+    assert {
+        row[2]
+        for row in expectations.policies
+        if row[1] == "system_vocabularies" and row[4] == ("pitchlog_owner",)
+    } == {
+        "pitchlog_owner_game_type_seed_select",
+        "pitchlog_owner_game_type_seed_insert",
+        "pitchlog_owner_game_type_seed_delete",
+    }
     assert len(expectations.functions) == len(asset_functions)
     assert len(expectations.trigger_function_keys) == sum(
         row["function_kind"] == "migration_trigger" for row in asset_functions

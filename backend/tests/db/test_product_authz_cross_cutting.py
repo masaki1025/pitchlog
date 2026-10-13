@@ -336,7 +336,7 @@ def test_all_trigger_functions_fire_without_app_execute_privilege(
 def test_force_rls_applies_to_owner_with_unbound_context(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """全 RLS 表の所有者にも FORCE が効き、未束縛なら 0 行になる。"""
+    """所有者にも FORCE が効き、試合区分5行だけ例外で見える。"""
     catalog = provisioned_product_catalog
     _seed_all_tables(catalog)
     with psycopg.connect(catalog.owner_dsn) as owner:
@@ -349,7 +349,16 @@ def test_force_rls_applies_to_owner_with_unbound_context(
                         sql.Identifier("public", table)
                     )
                 )
-                assert cursor.fetchone() == (0,), table
+                expected_count = 5 if table == "system_vocabularies" else 0
+                assert cursor.fetchone() == (expected_count,), table
+            cursor.execute("SELECT key FROM public.system_vocabularies ORDER BY key")
+            assert cursor.fetchall() == [
+                ("game_intrasquad",),
+                ("game_official",),
+                ("game_open",),
+                ("game_other",),
+                ("game_semi_official",),
+            ]
         owner.rollback()
 
 
