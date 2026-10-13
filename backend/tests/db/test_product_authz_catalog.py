@@ -185,7 +185,7 @@ def test_applied_product_catalog_is_green(
     finally:
         catalog.observer.rollback()
 
-    assert report.ok
+    assert report.ok, report.violations
     assert report.violations == ()
     assert before == ("public, pg_catalog",)
     assert after == before
