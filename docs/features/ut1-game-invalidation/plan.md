@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3f893b75e68781938d77d0c9087dd326
 branch: feature/ut1-game-invalidation
 created: 2026-10-13
 計画レビュー周回: 3
-確定ゲート周回: 0
+確定ゲート周回: 1
 実行方式: 通常
 反映周コミット: 適用
 ---
