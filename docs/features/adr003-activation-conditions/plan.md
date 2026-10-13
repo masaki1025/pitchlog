@@ -87,6 +87,9 @@ Notion: [TSK-541](https://app.notion.com/p/3f593b75e68781f3a3a6cd98788120ea)(優
 
 - `contracts/authz/**`(**凍結資産の連鎖の再封印** — 要件書 `:1129` に触ることで必ず動く。4 節)
 - `docs/features/adr003-activation-conditions/`(plan・research)/ `docs/worklog/2026-10-10-adr003-activation-conditions.md`
+- `tests/test_check_authz_catalog.py`(**母集合の件数を固定した検査の追随** — 要件書へ行が増えると必ず動く。
+  先例: 新設 `d797daff` + 追随 7 件 `e10f2b13` / `dfd523ac` / `dd2cb92c` / `96d0f86e` / `5d2a9c04` / `0e51c31b` / `4d231225`。
+  `.claude/core-areas.json` の `guard_paths` に該当するが、本 PR はすでにコア領域 5 領域該当のため判定は変わらない)
 
 **宣言が変わる場合の手順**: `/pr` のクローズ処理で台帳への追記を**しない**と判断した場合は、
 **上表の台帳の行を「反映なし」のまま据え置く**。**追記する場合は本節の行を書き換えてから** `status: in-review` 化へ進む。

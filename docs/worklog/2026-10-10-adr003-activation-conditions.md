@@ -882,3 +882,42 @@ P0 が 0 件のため P0 限定の 3 回目は自動追加されない(設計書
 | 3 | **コア領域判定**(base 側の `core-areas.json` で再突合) | **5 領域すべて該当のまま変わらず**(テナント分離 20 / 状況計算 2 / 同期プロトコル 2 / 記録権 1 / データ移行 1) |
 
 **`check_docs_status` も 18 文書・違反 0。**
+
+## develop の 3 度目の取り込み(#130)と母集合件数の追随(2026-10-14)
+
+- **#130(`fix/core-guard-uf8-postmerge-tests`)が develop へ入った**(`6efe39e6`)。`feature/adr003-activation-conditions` へ取り込み、**競合 0 件**。
+- **取り込みで無効になりうる 3 点を測り直した結果、いずれも develop 側で動いていなかった**(`ef5c8711..origin/develop` の差分は `docs/features/**` 3 件と `tests/test_core_guard.py` のみ): `.claude/core-areas.json` 不変 / 台帳・`docs/README.md` 不変 / `contracts/authz/**`・要件書・ADR 不変。**再測不要。**
+- `tests/test_core_guard.py` は **235 passed**。develop 自身の red を継承していた `prior_tail` の assert が解消した。
+
+### CI で顕在化した 2 件(本 PR 起因)
+
+- `tests/test_check_authz_catalog.py` の **母集合の件数を固定した assert 3 本**が、本改訂で増えた claim 2 件(`CHANGELOG/table_row-040`・`041`)と食い違っていた。`total=1380 auth_claim=185 out_of_scope=1195` → **`total=1382 auth_claim=185 out_of_scope=1197`**、`len(out_claims)` と `attempts` を **1195 → 1197** へ追随させた。`auth_claim` は 185 のまま。**ただし件数の一致だけでは分類の入れ替わりを否定できない**ため、旧版(`origin/develop`)と突合して **auth_claim 185 件の ID と内容がすべて同一**であること、および派生 3 資産(auth-catalog / route-registry / http-route-matrix)の `input_manifest` を除く実質部分が同一であることを実測した(下記レビューの検証)。**認可帰属の変更なし。**
+- **これは要件書へ行が増えるたびに同一 PR で払う追随であり、先例が 7 件ある**(`e10f2b13` / `dfd523ac` / `dd2cb92c` / `96d0f86e` / `5d2a9c04` / `0e51c31b` / `4d231225`。新設は `d797daff`)。計画書 3 節の「正本体系外だが同一 PR で更新するもの」へ**宣言が漏れていた**ので追記した。
+- **検出が遅れた理由**: **2 度目の develop 取り込みで認可連鎖を最初からやり直した後、全件試験を回し直していなかった**。`check_authz_catalog.py` 自体は exit 0 を返すため、**件数を固定している「検査器のテスト」の側だけが落ちる**形になり、スクリプト単体の実行では見えなかった。
+- **型**: 「取り込みで無効になりうる 3 点」に**全件試験の再実行**が入っていなかった。3 点はいずれも*宣言や資産*の再測で、*その資産の件数を固定した検査*は射程の外だった。
+
+### 実測
+
+```
+tests/test_core_guard.py                   235 passed
+tests/ 全件                                29185 passed / 2 failed
+  失敗 2 件は tests/domain/mut/ の DB 接続失敗(CI は --ignore=tests/domain/mut)
+check_authz_catalog                        ok total=1382 auth_claim=185 out_of_scope=1197
+check_shared_preconditions                 OK preconditions=6
+check_mcdc_map                             OK (47 decisions)
+check_failure_injection_points             OK injection_points=5
+check_docs_status                          18 documents scanned, 0 violations
+check_plan_docs_sync                       exit 0
+```
+
+### `review normal` の採否(Claude 直実装分)
+
+**判定: 可決(P0 0 / P1 0 / P2 1)。**
+
+- **採用**: 「`auth_claim=185` という件数だけでは分類の入れ替わりを否定できない」— 根拠が不足していた。
+  旧版との ID・内容の全件突合と派生 3 資産の実質部分の同一性に**根拠を置き直した**(上記)。
+- **(B) 後続へ送る(P2・非起因)**: `tests/test_check_authz_catalog.py:1863` の docstring が
+  「878行すべての AUTH への逆方向変異を守る」のままで、**母集合が 1197 件になった現況と合わない**。
+  件数に依存しない表現へ直すべき。**本 PR の射程外**(本改訂が生んだものではなく、`d797daff` の新設時から
+  追随していない)。**残件として起票する。**
+- レビュー環境は読取専用のため pytest を起動できず、**変異テスト本体の直接実行とカタログ検査**で確認している。
