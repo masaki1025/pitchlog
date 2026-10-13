@@ -897,6 +897,32 @@ def _game_end_measure(
     row_by_branch = {row["branchId"]: row for row in rows}
     if len(row_by_branch) != len(rows):
         raise RequiredSetCoverageError("終了判定の行分岐が重複")
+    historical_without_walk_off = not classify and "GAME-END-WALK-OFF" not in row_by_branch
+    clause_requirements = tuple(
+        item for item in required.clause_branch_requirements
+        if not historical_without_walk_off or item.branch_id != "XMARK-01"
+    )
+    branch_register = _document(root, "clause_branch_register_v1.json")
+    related_by_branch = {
+        branch["branchId"]: set(branch["relatedClauseBranchIds"])
+        for branch in branch_register["branches"]
+    }
+    x_mark_expectations = {
+        item["branchId"]: item
+        for item in declaration["step95DecisionProperties"]["xMark"]["expectedByBranch"]
+    }
+
+    def represented_related_branches(row: dict[str, Any]) -> set[str]:
+        """台帳の下位分岐を規範行のX表記と典拠で照合する。"""
+        branch_id = row["branchId"]
+        expected = x_mark_expectations.get(branch_id)
+        if expected is None or row["decision"]["xMark"] != expected["value"]:
+            return set()
+        return {
+            related for related in related_by_branch.get(branch_id, set())
+            if related.startswith("XMARK-")
+            and f"req:{related}" in expected["clauseIds"]
+        }
     fixed_by_row = [_fixed_game_end_values(row, game_axes) for row in rows]
     fixed_values = {
         (axis, value) for fixed in fixed_by_row for axis, value in fixed.items()
@@ -962,6 +988,8 @@ def _game_end_measure(
     required_ids: set[tuple[str, ...]] = {
         tuple(item.identity) for item in required.requirements
     }
+    if historical_without_walk_off:
+        required_ids.discard(("clause-branch", "XMARK-01"))
     reachable: set[tuple[str, ...]] = set()
     for item in required.pairwise_requirements:
         if rows_for(((item.left_axis_id, item.left_value_identity),
@@ -972,8 +1000,10 @@ def _game_end_measure(
         if any(reachable_coordinate(row, item.coordinate_axis_id,
                                     item.coordinate_value_identity) for row in candidates):
             reachable.add(item.identity)
-    for item in required.clause_branch_requirements:
-        if item.branch_id in row_by_branch:
+    for item in clause_requirements:
+        if item.branch_id in row_by_branch or any(
+            item.branch_id in represented_related_branches(row) for row in rows
+        ):
             reachable.add(item.identity)
     invalid_ids: set[tuple[str, ...]] = {
         tuple(item.identity) for item in required.invalid_boundary_requirements
@@ -1039,7 +1069,7 @@ def _game_end_measure(
     ):
         raise RequiredSetCoverageError("DRAW-05の状況判定ケースが不正")
     missing_branches = {
-        item.branch_id for item in required.clause_branch_requirements
+        item.branch_id for item in clause_requirements
         if item.identity not in reachable
     }
     if set(branch_gap) != missing_branches:
@@ -1049,7 +1079,7 @@ def _game_end_measure(
     if len(gaps) != len(register["gaps"]):
         raise RequiredSetCoverageError("GAP IDが重複")
     requirement_by_branch = {
-        item.branch_id: item for item in required.clause_branch_requirements
+        item.branch_id: item for item in clause_requirements
     }
     for branch, gap_id in branch_gap.items():
         gap = gaps.get(gap_id)
@@ -1132,6 +1162,9 @@ def _game_end_measure(
                 observed.add(item.identity)
         if ("clause-branch", row["branchId"]) in required_ids:
             observed.add(("clause-branch", row["branchId"]))
+        for related in represented_related_branches(row):
+            if ("clause-branch", related) in required_ids:
+                observed.add(("clause-branch", related))
     if not observed <= reachable:
         raise RequiredSetCoverageError("終了判定ケースが到達不可要求を充足した")
     counts = {
@@ -1536,9 +1569,11 @@ def _check_game_end_documents(
             "coveredDigest": "sha256:" + hashlib.sha256(encoded.encode()).hexdigest(),
         }
 
+    # 既存3件の履歴は導出規則を拡張しても書き換えず、新しい被覆を追記する。
+    previous_observed_set = observed - {("clause-branch", "XMARK-01")}
     if record != {
         "schemaVersion": 1, "version": "game_end_input_coverage_v1",
-        "currentStep": 95,
+        "currentStep": 96,
         "basis": "game_end_contract_v1.cases and independently derived gameEnd.requiredSet",
         "history": [
             {
@@ -1557,6 +1592,12 @@ def _check_game_end_documents(
                 "step": 95,
                 "baselineCaseIds": [case["caseId"] for case in cold_cases],
                 "before": snapshot(cold["cases"], cold_observed),
+                "after": snapshot(counts["cases"], previous_observed_set),
+            },
+            {
+                "step": 96,
+                "baselineCaseIds": [case["caseId"] for case in contract["cases"]],
+                "before": snapshot(counts["cases"], previous_observed_set),
                 "after": snapshot(counts["cases"], observed),
             },
         ],

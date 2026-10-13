@@ -259,11 +259,11 @@ def _assert_no_tiebreak_start_row(contract: dict[str, Any]) -> None:
 
 
 def test_step25_game_end_declaration_and_direct_coverage() -> None:
-    """walk-off後の除外集合とステップ93〜95の被覆記録を実測で照合する。"""
+    """walk-off後の除外集合とXMARK-01追記済み被覆記録を照合する。"""
     assert checker.check_game_end_coverage(ROOT) == {
-        "total": 3844, "reachable": 1021, "unreachable": 2803,
+        "total": 3845, "reachable": 1022, "unreachable": 2803,
         "requirementsImpossible": 8,
-        "invalid": 12, "covered": 1021, "cases": 180,
+        "invalid": 12, "covered": 1022, "cases": 180,
     }
     contract = _asset("game_end_contract_v1.json")
     declaration = _asset("game_end_coverage_declaration_v1.json")
@@ -289,12 +289,15 @@ def test_step25_game_end_declaration_and_direct_coverage() -> None:
     )
     assert before["covered"] == 51
     record = _asset("game_end_input_coverage_v1.json")
-    assert [item["step"] for item in record["history"]] == [93, 94, 95]
+    assert [item["step"] for item in record["history"]] == [93, 94, 95, 96]
     assert record["history"][0]["after"] == record["history"][1]["before"]
     assert record["history"][1]["after"] == record["history"][2]["before"]
     assert record["history"][0]["after"]["coveredCount"] == 763
     assert record["history"][1]["after"]["coveredCount"] == 1015
     assert record["history"][2]["after"]["coveredCount"] == 1021
+    assert record["history"][2]["after"] == record["history"][3]["before"]
+    assert record["history"][3]["after"]["coveredCount"] == 1022
+    assert record["history"][3]["after"]["caseCount"] == 180
 
 
 @pytest.mark.parametrize("mutation", ["remove", "unknown", "source", "count"])
@@ -360,7 +363,7 @@ def test_step95_decision_properties_hold_for_all_cases() -> None:
         ROOT, contract, declaration
     )
     assert counts["cases"] == 180
-    assert counts["covered"] == counts["reachable"] == 1021
+    assert counts["covered"] == counts["reachable"] == 1022
     assert observed == reachable
     assert checker.check_game_end_coverage(ROOT) == counts
 

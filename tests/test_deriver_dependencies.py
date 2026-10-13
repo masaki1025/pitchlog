@@ -435,8 +435,13 @@ def test_default_nine_inning_setting_alone_does_not_cover_game_end_requirements(
 
 
 def test_game_end_required_set_covers_all_declared_game_outcome_branches() -> None:
-    """独立導出後にGAME-*の4役割をregisterと双方向に突合する。"""
+    """独立導出後にGAME-*の5役割とXMARK-01を台帳へ突合する。"""
     required_set = _game_end_required_set()
+    xmark = next(
+        item for item in required_set.clause_branch_requirements
+        if item.branch_id == "XMARK-01"
+    )
+    assert xmark.source_clause_ids == ("req:FR-020", "req:XMARK-01")
     register = _json(CLAUSE_BRANCH_REGISTER_PATH)
     outcome_ids = checker.validate_game_end_outcome_branch_coverage(
         required_set, register
@@ -444,6 +449,21 @@ def test_game_end_required_set_covers_all_declared_game_outcome_branches() -> No
 
     assert set(outcome_ids) == set(register["gameEndOutcomeBranches"].values())
     assert len(outcome_ids) == len(register["gameEndOutcomeBranches"])
+
+
+def test_missing_fr020_xmark_row_fails_required_set_derivation() -> None:
+    """FR-020の規範行が消えた場合はXMARK-01を導出済みと扱わない。"""
+    requirements = REQUIREMENTS_PATH.read_text(encoding="utf-8")
+    assert "| `XMARK-01` |" in requirements
+    mutated = requirements.replace("| `XMARK-01` |", "| `XMARK-99` |", 1)
+    clause_ids = checker.descriptor_checker.load_clause_ids_from_paths(
+        REPOSITORY_ROOT,
+        (PurePosixPath(REQUIREMENTS_PATH.relative_to(REPOSITORY_ROOT).as_posix()),),
+    )
+    with pytest.raises(checker.DeriverDependencyError, match="FR-020のXMARK-01"):
+        checker._extract_game_end_clause_branch_requirements(
+            mutated, frozenset(f"req:{item}" for item in clause_ids)
+        )
 
 
 def test_game_end_outcome_with_uncovered_clause_branch_fails() -> None:
