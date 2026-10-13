@@ -1397,3 +1397,76 @@ HTTP 経路はこれを 401 にする。**失敗応答を返しているのに�
 **シートは確認の代わりではない。** 記入するのは PR 本文の
 `- 実施記録: 対象= 範囲= 方法=` で、**この行は機械検証されない**(設計書 6.3)。
 
+## 全 13 ステップ完了(2026-10-14)
+
+**人間の承認 2 件**(ステップ 10 第3段の再封印・ステップ 13 の受理記録)**を得て、
+最後の 2 段を実行した。**
+
+### ステップ 10 第3段(`ba8171cf`)
+
+`frozen-baselines.json` へ `oracle_input` の記録 1 件(6 件目)。
+`changes` は空 — **分類は 1 件も変えていない**。
+`--reseal-oracle` で再封印し、`check_authz_catalog.py` が
+`total=1380 routes=47 cells=12` で ok(**47 = 元の 43 + δ の 3 + #124 の 1**)。
+
+### ステップ 13(`0c925611`)
+
+**射影が動いたのは 9 資産中 2 件。**
+
+| 資産 | 識別値 |
+| --- | --- |
+| `base-allowlist.json` | `contract_revision` **27 → 28** |
+| `runtime-authz-contract.json` | `runtime_contract_revision` **12 → 13** |
+
+**測り直させたのが効いた。** 以前の敵対レビューが挙げた値は **rev26 / rev12** だったが、
+実際は **rev27 → 28** だった — **#120〜#124 の取り込みで develop 側が先に 1 つ進めていた**。
+**あの時点の実測をそのまま使っていたら、間違った旧識別値を受理記録に書いていた。**
+
+**教訓**: **凍結の識別値は「いま測る」。** 取り込みを 1 回挟むだけで古くなる。
+**レビューが挙げた値も、採用の時点で測り直す。**
+
+### 最終の実測
+
+| 対象 | 結果 |
+| --- | --- |
+| ルート全件 | **29190 passed / 2 failed** |
+| 検査器 `--base-ref origin/develop` | **ok(0 件)** |
+| backend 非 DB | 1384 passed / 4 skipped(第3段の前の測定。以後 oracle 系は解消) |
+| backend DB(影響範囲) | 実 PostgreSQL で green |
+
+**残る 2 件は `tests/test_core_guard.py` で、develop 自身の自己不整合である。**
+
+```
+test_product_rls_paths_remain_in_develop_baseline
+test_uf8_game_screen_paths_are_registered_in_all_areas
+```
+
+**δ の `.claude/core-areas.json` / `scripts/core_guard.py` / `tests/test_core_guard.py` は
+develop とバイト単位で同一**であり、両テストは `load_actual_core_areas()` を
+`origin/develop` と突き合わせる。**同じバイト列どうしなので、失敗は baseline 単独の性質**から出る。
+
+実際、develop の `core-areas.json` は `frontend/src/screens/GameScreen*` を **5 領域に含む**一方、
+develop の `core_guard.py` は**同じパターンを未取り込みの追加層として宣言したまま**で、
+テストは「baseline に含まれないこと」を要求している。
+**回転式の窓口を吸収後に戻していない**型(本ログで δ 自身が改訂 13 で回避した型と同じ)。
+
+**δ の射程外なので直さない。** master へ共有済み。
+
+## 現在地
+
+**全 13 ステップ完了。PR #119 は人間のマージ判断待ち。**
+
+| 済んだもの | |
+| --- | --- |
+| 実装 | 入口 3 本・Cookie の発行と延長・レート制限・監視・経路識別子の登録 |
+| 正本 | 運用文書 2 本を新設し確定ゲート通過(approved v1.0)/ `data-model.md` ほかの実装追随 |
+| レビュー | 敵対レビュー 3 周(**指摘 8 件を全件採用・不採用ゼロ**) |
+| 封印 | oracle の再封印・凍結資産の受理記録(**いずれも人間の承認つき**) |
+| 台帳 | `H-92` を 1 件 |
+
+| 残るもの | |
+| --- | --- |
+| **人間の逐行確認** | 突合シートあり。PR 本文の実施記録行は空欄 |
+| **マージ判断** | 人間 |
+| develop 側の赤 2 件 | δ の射程外 |
+
