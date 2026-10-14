@@ -990,7 +990,26 @@ def test_game_end_combination_rules_are_pairwise_and_full_cross_product() -> Non
     }
     assert rules["derivedAxisIds"] == ["gameEnd.satisfiedColdTierCount"]
     assert len(rules["derivedUnreachablePairs"]) == 6
+    assert rules["unreachablePairs"] == [{
+        "leftAxisId": "gameEnd.tiebreak",
+        "leftValue": "none",
+        "rightAxisId": "state.tiebreakActive",
+        "rightValue": True,
+        "clauseIds": ["req:FR-009", "req:F-1"],
+        "basis": rules["unreachablePairs"][0]["basis"],
+    }]
     assert "adr:D-11" in SOURCE_CLAUSE_IDS
+
+
+def test_unreachable_tiebreak_pair_must_use_declared_axis_values() -> None:
+    """規則なしと実行中の到達不可宣言に未知の値を認めない。"""
+    descriptor = _descriptor()
+    descriptor["gameEndCombinationRules"]["unreachablePairs"][0]["leftValue"] = (
+        "start:unknown"
+    )
+    criteria = checker.load_descriptor_criteria(_descriptor())
+    with pytest.raises(checker.DescriptorCheckError, match="UNREACHABLE_PAIR"):
+        checker._validate_derived_axes(descriptor, criteria)
 
 
 def test_draw03_valid_and_invalid_tiebreak_boundaries_are_explicit() -> None:

@@ -730,6 +730,11 @@ def _validate_source_clause_ids(
             for pair in pairs:
                 if isinstance(pair, dict) and isinstance(pair.get("clauseIds"), list):
                     cited_ids.extend(pair["clauseIds"])
+        pairs = combination_rules.get("unreachablePairs", [])
+        if isinstance(pairs, list):
+            for pair in pairs:
+                if isinstance(pair, dict) and isinstance(pair.get("clauseIds"), list):
+                    cited_ids.extend(pair["clauseIds"])
         for clause_id in cited_ids:
             if isinstance(clause_id, str) and clause_id not in source_clause_ids:
                 raise DescriptorCheckError(
@@ -1337,6 +1342,31 @@ def _validate_derived_axes(
         if identity in seen:
             raise DescriptorCheckError("DERIVED_UNREACHABLE: 組合せが重複する")
         seen.add(identity)
+
+    declared_pairs: set[tuple[str, str, str, str]] = set()
+    for pair in game_rules["unreachablePairs"]:
+        left_id = pair["leftAxisId"]
+        right_id = pair["rightAxisId"]
+        if left_id == right_id or left_id not in axes or right_id not in axes:
+            raise DescriptorCheckError("UNREACHABLE_PAIR: 軸の対応が不正")
+        left_values = axes[left_id].get("boundaryValues", axes[left_id].get("values", []))
+        right_values = axes[right_id].get("boundaryValues", axes[right_id].get("values", []))
+        if (
+            _canonical_json_text(pair["leftValue"])
+            not in {_canonical_json_text(value) for value in left_values}
+            or _canonical_json_text(pair["rightValue"])
+            not in {_canonical_json_text(value) for value in right_values}
+        ):
+            raise DescriptorCheckError("UNREACHABLE_PAIR: 宣言値が軸値域にない")
+        identity = (
+            left_id,
+            _canonical_json_text(pair["leftValue"]),
+            right_id,
+            _canonical_json_text(pair["rightValue"]),
+        )
+        if identity in declared_pairs:
+            raise DescriptorCheckError("UNREACHABLE_PAIR: 組合せが重複する")
+        declared_pairs.add(identity)
 
 
 def _validate_projection_contract(

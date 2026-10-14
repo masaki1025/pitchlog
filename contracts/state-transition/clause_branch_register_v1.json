@@ -40,7 +40,7 @@
     {"branchId": "DRAW-09", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:F-1"], "relatedClauseBranchIds": [], "gapIds": ["GAP-04"]},
     {"branchId": "DRAW-10", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:F-1"], "relatedClauseBranchIds": [], "gapIds": ["GAP-04"]},
     {"branchId": "XMARK-01", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:FR-020"], "relatedClauseBranchIds": [], "gapIds": ["GAP-01", "GAP-05"]},
-    {"branchId": "XMARK-02", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:FR-020"], "relatedClauseBranchIds": [], "gapIds": ["GAP-05"]},
+    {"branchId": "XMARK-02", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:FR-005", "req:FR-020"], "relatedClauseBranchIds": [], "gapIds": ["GAP-05"]},
     {"branchId": "XMARK-03", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:FR-020"], "relatedClauseBranchIds": [], "gapIds": ["GAP-05"]},
     {"branchId": "OUT3-01", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:A-1"], "relatedClauseBranchIds": [], "gapIds": ["GAP-06"]},
     {"branchId": "OUT3-02", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:A-1"], "relatedClauseBranchIds": [], "gapIds": ["GAP-06"]},

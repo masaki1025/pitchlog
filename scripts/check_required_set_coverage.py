@@ -894,6 +894,15 @@ def _game_end_requirement_impossible_pairs(
         if identity in expected:
             raise RequiredSetCoverageError("DERIVED_UNREACHABLE: 宣言が重複")
         expected[identity] = tuple(pair["clauseIds"])
+    for pair in descriptor["gameEndCombinationRules"]["unreachablePairs"]:
+        identity = (
+            "boundary-with-state-or-event-axis-value",
+            pair["leftAxisId"], _game_end_identity(pair["leftValue"]),
+            pair["rightAxisId"], _game_end_identity(pair["rightValue"]),
+        )
+        if identity in expected:
+            raise RequiredSetCoverageError("UNREACHABLE_PAIR: 宣言が重複")
+        expected[identity] = tuple(pair["clauseIds"])
     return expected
 
 
@@ -1097,14 +1106,14 @@ def _game_end_measure(
         )
         if target is None or game_target is None:
             return False
-        predicate = {
+        predicate = representative_selection.reachable_predicate({
             "op": "and",
             "args": [
                 row["precondition"],
                 {"op": "eq", "axisId": game_axis, "value": game_target},
                 {"op": "eq", "axisId": axis, "value": target},
             ],
-        }
+        }, descriptor["gameEndCombinationRules"]["unreachablePairs"])
         axes = [
             candidate for candidate in values
             if candidate in representative_selection.predicate_axes(predicate)
@@ -1588,6 +1597,13 @@ def check_derived_axis_cases(
                 for tier in cold
             ):
                 raise RequiredSetCoverageError("DERIVED_INPUT: 段の具体入力が不正")
+            regulation = raw.get("gameEnd.regulationInnings")
+            if type(regulation) is not int or any(
+                tier["startInning"] > regulation for tier in cold
+            ):
+                raise RequiredSetCoverageError(
+                    "COLD_RULE_SAVE: 規定回を超えるコールド適用回は保存できない"
+                )
             score = source_input.get("state.score")
             if (
                 type(source_input.get("state.inning")) is not int
@@ -1620,6 +1636,14 @@ def check_derived_axis_cases(
                 raise RequiredSetCoverageError(
                     f"DERIVED_UNREACHABLE: 到達不可の組合せがcaseにある: {case['caseId']}"
                 )
+        for pair in rules["unreachablePairs"]:
+            if (
+                raw.get(pair["leftAxisId"]) == pair["leftValue"]
+                and raw.get(pair["rightAxisId"]) == pair["rightValue"]
+            ):
+                raise RequiredSetCoverageError(
+                    f"UNREACHABLE_PAIR: 到達不可の組合せがcaseにある: {case['caseId']}"
+                )
 
 
 def check_game_end_concrete_case_consistency(contract: dict[str, Any]) -> None:
@@ -1648,6 +1672,10 @@ def check_game_end_concrete_case_consistency(contract: dict[str, Any]) -> None:
             "state.score"
         ) not in {"away-lead:M+1", "away-lead:M", "away-lead:M-1"}:
             raise RequiredSetCoverageError("NORMAL_SCORE: 先攻リードでない通常終了")
+        if case.get("branchId") == "XMARK-02" and coordinate.get(
+            "gameEnd.extensionLimit"
+        ) == "finite:R+1":
+            raise RequiredSetCoverageError("XMARK_EXTENSION: 延長回の表で後攻はリードしない")
         if case.get("branchId") == "GAME-END-WALK-OFF" and any(
             coordinate.get(axis) != value
             for axis, value in (
@@ -1745,11 +1773,41 @@ def _check_game_end_documents(
             "uncoveredClauseBranches", "deferredValidationErrors", "checkerAllowedReadPaths",
             "step94Contraction", "step94UnmetCriteria", "step95DecisionProperties",
             "normalCaseCounts", "stateTransitionCaseAliases", "step23Unreachability",
+            "unreachableRowSituations", "removedUnreachableCaseIds",
         }
         or declaration.get("schemaVersion") != 1
         or declaration.get("version") != "game_end_coverage_declaration_v1"
     ):
         raise RequiredSetCoverageError("終了判定の除外宣言が不正")
+    row_situations = declaration["unreachableRowSituations"]
+    expected_situation = {
+        "branchId": "XMARK-02",
+        "coordinate": {
+            "gameEnd.extensionLimit": "finite:R+1",
+            "state.inning": "L",
+            "state.half": "bottom",
+            "state.score": "home-lead:M+1",
+        },
+        "clauseIds": ["req:FR-005", "req:DRAW-08", "req:F-1"],
+    }
+    if (
+        not isinstance(row_situations, list)
+        or len(row_situations) != 1
+        or not isinstance(row_situations[0], dict)
+        or {key: row_situations[0].get(key) for key in expected_situation}
+        != expected_situation
+        or not isinstance(row_situations[0].get("basis"), str)
+        or not row_situations[0]["basis"]
+        or set(row_situations[0]) != {*expected_situation, "basis"}
+    ):
+        raise RequiredSetCoverageError("XMARK_EXTENSION: 到達不可局面の宣言が不正")
+    if any(
+        case.get("branchId") == "XMARK-02"
+        and all(case.get("normalized", {}).get(axis) == value
+                for axis, value in expected_situation["coordinate"].items())
+        for case in contract["cases"]
+    ):
+        raise RequiredSetCoverageError("XMARK_EXTENSION: 到達不可局面がcaseにある")
     rows = contract.get("decisionRows", [])
     walk_off_rows = [row for row in rows if row["decision"]["outcome"] == "walk-off"]
     if len(walk_off_rows) != 1 or walk_off_rows[0]["branchId"] != "GAME-END-WALK-OFF":
@@ -1867,15 +1925,15 @@ def _check_game_end_documents(
         if set(case) != (set(expanded) | normalization_fields) or projection != expanded:
             raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
     counts, _, reachable, observed = _game_end_measure(root, contract, declaration)
-    # 過去6件は受理済みの記録として保持し、この変更の測定だけを1件追記する。
+    # 過去7件は受理済みの記録として保持し、この変更の測定だけを1件追記する。
     # 新軸の追加後に旧descriptorでの要求集合を現行軸へ再解釈しない。
     history = record.get("history") if isinstance(record, dict) else None
     if (
         not isinstance(history, list)
-        or len(history) != 7
+        or len(history) != 8
         or [entry.get("step") for entry in history if isinstance(entry, dict)]
-        != [93, 94, 95, 96, 97, 98, 99]
-        or record.get("currentStep") != 99
+        != [93, 94, 95, 96, 97, 98, 99, 100]
+        or record.get("currentStep") != 100
     ):
         raise RequiredSetCoverageError("終了判定の独立被覆履歴の件数・順序が不正")
     prior = history[-2]
@@ -1889,7 +1947,12 @@ def _check_game_end_documents(
     if (
         not isinstance(baseline_ids, list)
         or len(baseline_ids) != prior.get("after", {}).get("caseCount")
-        or not set(baseline_ids) <= {case["caseId"] for case in contract["cases"]}
+        or not isinstance(declaration["removedUnreachableCaseIds"], list)
+        or declaration["removedUnreachableCaseIds"] != [
+            f"GE-XMARK-02-COVERAGE-{index:03d}" for index in range(34, 67)
+        ]
+        or set(baseline_ids) - {case["caseId"] for case in contract["cases"]}
+        != set(declaration["removedUnreachableCaseIds"])
         or current.get("before") != prior.get("after")
     ):
         raise RequiredSetCoverageError("終了判定の独立被覆履歴が直前記録と連鎖しない")

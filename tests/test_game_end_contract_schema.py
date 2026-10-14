@@ -575,6 +575,25 @@ def test_cold_outcome_and_single_tier_row_are_clause_bound() -> None:
     _validate_decision_references(_repository_contract())
 
 
+def test_xmark02_row_cites_fr005_and_uses_saved_rule_values() -> None:
+    """規定最終回のX行はFR-005を典拠にし、保存可能な規則だけを使う。"""
+    contract = _repository_contract()
+    register = _load_object(
+        REPOSITORY_ROOT / "contracts/state-transition/clause_branch_register_v1.json"
+    )
+    row = next(item for item in contract["decisionRows"] if item["branchId"] == "XMARK-02")
+    branch = next(item for item in register["branches"] if item["branchId"] == "XMARK-02")
+    assert row["sourceClauseIds"] == branch["sourceClauseIds"] == [
+        "req:FR-005", "req:FR-020",
+    ]
+    leaves = {leaf["axisId"]: leaf["value"] for leaf in _decision_leaves(row["precondition"])}
+    assert leaves["gameEnd.coldConditions"] == "tier-count:0"
+    assert leaves["gameEnd.extensionLimit"] == "finite:R"
+    assert leaves["state.inning"] == "R"
+    assert len([case for case in contract["cases"] if case["branchId"] == "XMARK-02"]) == 34
+    _validate_decision_references(contract)
+
+
 @pytest.mark.parametrize("mutation", ["wrong-outcome", "unknown-tier"])
 def test_cold_row_mutations_are_red(mutation: str) -> None:
     """コールド行の結果取り違えとdescriptor外の段数を拒否する。"""

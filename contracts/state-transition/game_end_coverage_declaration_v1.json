@@ -247,14 +247,28 @@
           "req:F-1"
         ],
         "basis": "F-1 COLD-07〜09: 設定段数2件より成立段数16件は多くなれない"
+      },
+      {
+        "identity": [
+          "boundary-with-state-or-event-axis-value",
+          "gameEnd.tiebreak",
+          "\"none\"",
+          "state.tiebreakActive",
+          "true"
+        ],
+        "clauseIds": [
+          "req:FR-009",
+          "req:F-1"
+        ],
+        "basis": "FR-009・F-1: タイブレーク規則なしでは発動条件が成立せず、state.tiebreakActive=trueへ遷移しない"
       }
     ],
     "countsByCause": {
       "noApplicableRow": {
-        "pairwise": 22,
-        "boundaryCoordinate": 259,
+        "pairwise": 24,
+        "boundaryCoordinate": 273,
         "clauseBranch": 17,
-        "total": 298
+        "total": 314
       },
       "unfixedAxisValue": {
         "pairwise": 271,
@@ -264,13 +278,13 @@
       },
       "requirementsImpossible": {
         "pairwise": 14,
-        "boundaryCoordinate": 0,
+        "boundaryCoordinate": 1,
         "clauseBranch": 0,
-        "total": 14
+        "total": 15
       }
     },
     "beforeUnreachableCount": 2817,
-    "remainingUnreachableCount": 3053,
+    "remainingUnreachableCount": 3069,
     "nextSteps": {
       "noApplicableRow": "COLD-09はステップ26でdecisionRowsに結んだ。DRAW-05は状況判定operationRowsに結んだが本集合はdecisionRows層だけを数える。COLD-01〜07は中間判定なのでdecisionRowsへ置かない。",
       "unfixedAxisValue": "成立段数の新軸により要求直積が拡大した。未固定値は後続の対象計算で行の要否を確認する。"
@@ -435,7 +449,7 @@
   },
   "normalCaseCounts": {
     "stateTransition": 109,
-    "gameEnd": 281
+    "gameEnd": 248
   },
   "stateTransitionCaseAliases": [
     "eventKind",
@@ -631,10 +645,10 @@
             "req:FR-020",
             "req:XMARK-02"
           ],
-          "basis": "規定最終回または延長上限回の表完了で後攻がリードし、同回の裏は未開始。要件書254・462・465・467行。"
+          "basis": "L=Rの規定最終回の表完了で後攻がリードし、同回の裏は未開始。延長回の表完了時の後攻リードは到達不可。要件書254・462・465行。"
         }
       ],
-      "remainingGap": "XMARK-02の通常最終回・延長上限回は独立行に追加。XMARK-03の対象セルを指定する入力がないため空欄行は未収容。GAP-01/05の5段は未充足。"
+      "remainingGap": "XMARK-02のL=Rの規定最終回は独立行で表す。延長上限回の表完了時の後攻リードは到達不可として除外。XMARK-03の対象セルを指定する入力がないため空欄行は未収容。GAP-01/05の5段は未充足。"
     }
   },
   "checkerAllowedReadPaths": [
@@ -654,5 +668,57 @@
     "contracts/state-transition/deriver_dependency_policy_schema_v1.json",
     "contracts/state-transition/gap_register_v1.json",
     "docs/requirements/requirements-pitchlog-2026-07-22.md"
+  ],
+  "unreachableRowSituations": [
+    {
+      "branchId": "XMARK-02",
+      "coordinate": {
+        "gameEnd.extensionLimit": "finite:R+1",
+        "state.inning": "L",
+        "state.half": "bottom",
+        "state.score": "home-lead:M+1"
+      },
+      "clauseIds": [
+        "req:FR-005",
+        "req:DRAW-08",
+        "req:F-1"
+      ],
+      "basis": "REQ:1649・1681-1682・1686: 延長開始はR回裏完了後の同点に限る。延長回の表完了時に後攻リードは生じず、裏の勝ち越しはサヨナラ。"
+    }
+  ],
+  "removedUnreachableCaseIds": [
+    "GE-XMARK-02-COVERAGE-034",
+    "GE-XMARK-02-COVERAGE-035",
+    "GE-XMARK-02-COVERAGE-036",
+    "GE-XMARK-02-COVERAGE-037",
+    "GE-XMARK-02-COVERAGE-038",
+    "GE-XMARK-02-COVERAGE-039",
+    "GE-XMARK-02-COVERAGE-040",
+    "GE-XMARK-02-COVERAGE-041",
+    "GE-XMARK-02-COVERAGE-042",
+    "GE-XMARK-02-COVERAGE-043",
+    "GE-XMARK-02-COVERAGE-044",
+    "GE-XMARK-02-COVERAGE-045",
+    "GE-XMARK-02-COVERAGE-046",
+    "GE-XMARK-02-COVERAGE-047",
+    "GE-XMARK-02-COVERAGE-048",
+    "GE-XMARK-02-COVERAGE-049",
+    "GE-XMARK-02-COVERAGE-050",
+    "GE-XMARK-02-COVERAGE-051",
+    "GE-XMARK-02-COVERAGE-052",
+    "GE-XMARK-02-COVERAGE-053",
+    "GE-XMARK-02-COVERAGE-054",
+    "GE-XMARK-02-COVERAGE-055",
+    "GE-XMARK-02-COVERAGE-056",
+    "GE-XMARK-02-COVERAGE-057",
+    "GE-XMARK-02-COVERAGE-058",
+    "GE-XMARK-02-COVERAGE-059",
+    "GE-XMARK-02-COVERAGE-060",
+    "GE-XMARK-02-COVERAGE-061",
+    "GE-XMARK-02-COVERAGE-062",
+    "GE-XMARK-02-COVERAGE-063",
+    "GE-XMARK-02-COVERAGE-064",
+    "GE-XMARK-02-COVERAGE-065",
+    "GE-XMARK-02-COVERAGE-066"
   ]
 }

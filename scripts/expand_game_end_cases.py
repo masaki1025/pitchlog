@@ -109,6 +109,7 @@ def _expand_from_declared_inputs(
     values_by_axis = representative_selection.axis_values(
         descriptor, ("gameEndAxes", "stateTransitionAxes")
     )
+    unreachable_pairs = descriptor["gameEndCombinationRules"]["unreachablePairs"]
     # 先行5行の代表入力を保ち、追加行だけが使うイベント軸はその行へ限定する。
     baseline_axes = set().union(
         *(representative_selection.predicate_axes(row["precondition"]) for row in rows[:5])
@@ -116,9 +117,10 @@ def _expand_from_declared_inputs(
 
     cases: list[dict[str, Any]] = []
     for row in rows[:limit]:
-        used_axes = baseline_axes | representative_selection.predicate_axes(
-            row["precondition"]
+        reachable = representative_selection.reachable_predicate(
+            row["precondition"], unreachable_pairs
         )
+        used_axes = baseline_axes | representative_selection.predicate_axes(reachable)
         axis_order = [axis_id for axis_id in values_by_axis if axis_id in used_axes]
         if len(axis_order) != len(used_axes):
             raise CaseExpansionError("終了判定行に未宣言の軸がある")
@@ -127,7 +129,7 @@ def _expand_from_declared_inputs(
         if branch is None or row["sourceClauseIds"] != branch.get("sourceClauseIds"):
             raise CaseExpansionError(f"行と条文分岐台帳の対応が不正: {branch_id}")
         input_coordinate = representative_selection.select_coordinate(
-            row["precondition"], values_by_axis, axis_order, selection_policy
+            reachable, values_by_axis, axis_order, selection_policy
         )
         cases.append(
             {
@@ -176,6 +178,7 @@ def _expand_coverage_from_declared_inputs(
     values_by_axis = representative_selection.axis_values(
         descriptor, ("gameEndAxes", "stateTransitionAxes")
     )
+    unreachable_pairs = descriptor["gameEndCombinationRules"]["unreachablePairs"]
     play_input_axes = {
         axis_id
         for binding in descriptor["inputCoordinateCoverage"]["axisBindings"]
@@ -211,9 +214,11 @@ def _expand_coverage_from_declared_inputs(
             raise CaseExpansionError("行が延長上限の軸に到達できない")
         coverage_index = 0
         for extension_limit in extension_limits:
-            bounded = {"op": "and", "args": [predicate, {
+            bounded = representative_selection.reachable_predicate({
+                "op": "and", "args": [predicate, {
                 "op": "eq", "axisId": "gameEnd.extensionLimit", "value": extension_limit,
-            }]}
+                }],
+            }, unreachable_pairs)
             choices: dict[str, list[Any]] = {}
             for axis in axes:
                 if not axis.startswith(("state.", "event.")):

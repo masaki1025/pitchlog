@@ -1264,6 +1264,7 @@ def derive_game_end_required_set_from_documents(
             "boundaryValueCombination",
             "derivedAxisIds",
             "derivedUnreachablePairs",
+            "unreachablePairs",
         },
         "gameEndCombinationRules",
     )

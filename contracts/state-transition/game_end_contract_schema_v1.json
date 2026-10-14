@@ -342,7 +342,7 @@
           "const": "input_axes_descriptor_v1"
         },
         "digest": {
-          "const": "sha256:293d79ec22059f0a60ba1c176ca2df0709929a573e86e046ad901fd1c7949a83"
+          "const": "sha256:5107f929d35ae48e01e25e0410a95235521b778ce53bae945ca5d7e2e956dd57"
         }
       }
     },

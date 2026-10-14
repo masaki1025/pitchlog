@@ -808,7 +808,8 @@
         "ruleFieldCombination",
         "boundaryValueCombination",
         "derivedAxisIds",
-        "derivedUnreachablePairs"
+        "derivedUnreachablePairs",
+        "unreachablePairs"
       ],
       "additionalProperties": false,
       "properties": {
@@ -834,7 +835,31 @@
           "minItems": 1,
           "uniqueItems": true,
           "items": {"$ref": "#/$defs/derivedUnreachablePair"}
+        },
+        "unreachablePairs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/unreachablePair"}
         }
+      }
+    },
+    "unreachablePair": {
+      "type": "object",
+      "required": ["leftAxisId", "leftValue", "rightAxisId", "rightValue", "clauseIds", "basis"],
+      "additionalProperties": false,
+      "properties": {
+        "leftAxisId": {"$ref": "#/$defs/axisId"},
+        "leftValue": {"$ref": "#/$defs/descriptorValue"},
+        "rightAxisId": {"$ref": "#/$defs/axisId"},
+        "rightValue": {"$ref": "#/$defs/descriptorValue"},
+        "clauseIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/sourceClauseId"}
+        },
+        "basis": {"type": "string", "minLength": 1}
       }
     },
     "derivedUnreachablePair": {
