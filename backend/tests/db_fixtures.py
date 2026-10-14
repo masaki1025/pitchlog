@@ -42,6 +42,9 @@ _SESSION_RESOURCE_REGISTRY = pytest.StashKey["_SessionResourceRegistry"]()
 _ADMIN_CONNECTION_RESOURCE = object()
 _TESTED_ROLE_CONNECTION_RESOURCE = object()
 _ResourceT = TypeVar("_ResourceT")
+_PRODUCT_REFERENCE_COLUMN_TYPES = frozenset(
+    {"boolean", "jsonb", "text", "timestamp with time zone", "uuid"}
+)
 
 
 @dataclass
@@ -556,6 +559,62 @@ def _product_reference_tables(data_tables: tuple[str, ...]) -> tuple[str, ...]:
     return names
 
 
+def _assert_product_reference_rls(
+    cursor: psycopg.Cursor[Any], tables: tuple[str, ...]
+) -> None:
+    """参照表すべてで RLS と FORCE が有効なことを確かめる。
+
+    Args:
+        cursor: 対象 DB のカタログを読むカーソル。
+        tables: 保護状態を確認する 4 表。
+    """
+    cursor.execute(
+        "SELECT relation.relname, relation.relrowsecurity, "
+        "relation.relforcerowsecurity FROM pg_catalog.pg_class AS relation "
+        "JOIN pg_catalog.pg_namespace AS namespace "
+        "ON namespace.oid = relation.relnamespace "
+        "WHERE namespace.nspname = 'public' AND relation.relname = ANY(%s)",
+        (list(tables),),
+    )
+    states = {row[0]: (row[1], row[2]) for row in cursor.fetchall()}
+    if len(tables) != 4 or set(states) != set(tables) or any(
+        state != (True, True) for state in states.values()
+    ):
+        raise AssertionError("参照表 4 表の RLS と FORCE がすべて有効ではない")
+
+
+def _assert_product_reference_columns(
+    cursor: psycopg.Cursor[Any], tables: tuple[str, ...]
+) -> None:
+    """参照表の列が控えと復元に対応する形であることを確かめる。
+
+    Args:
+        cursor: 対象 DB のカタログを読むカーソル。
+        tables: 列を確認する 4 表。
+    """
+    cursor.execute(
+        "SELECT relation.relname, attribute.attgenerated, "
+        "attribute.attidentity, "
+        "pg_catalog.format_type(attribute.atttypid, NULL) "
+        "FROM pg_catalog.pg_attribute AS attribute "
+        "JOIN pg_catalog.pg_class AS relation "
+        "ON relation.oid = attribute.attrelid "
+        "JOIN pg_catalog.pg_namespace AS namespace "
+        "ON namespace.oid = relation.relnamespace "
+        "WHERE namespace.nspname = 'public' AND relation.relname = ANY(%s) "
+        "AND attribute.attnum > 0 AND NOT attribute.attisdropped",
+        (list(tables),),
+    )
+    columns = cursor.fetchall()
+    if {row[0] for row in columns} != set(tables) or any(
+        generated != ""
+        or identity != ""
+        or column_type not in _PRODUCT_REFERENCE_COLUMN_TYPES
+        for _, generated, identity, column_type in columns
+    ):
+        raise AssertionError("参照表に生成列・識別列・復元非対応型がある")
+
+
 def _read_product_reference_rows(
     owner_dsn: str, tables: tuple[str, ...]
 ) -> tuple[_ProductReferenceRows, ...]:
@@ -564,6 +623,8 @@ def _read_product_reference_rows(
     with psycopg.connect(owner_dsn) as owner:
         jsonb_oid = owner.adapters.types["jsonb"].oid
         with owner.cursor() as cursor:
+            _assert_product_reference_rls(cursor, tables)
+            _assert_product_reference_columns(cursor, tables)
             for table in tables:
                 cursor.execute(
                     sql.SQL("SELECT * FROM {}").format(sql.Identifier("public", table))
@@ -589,37 +650,98 @@ def _read_product_reference_rows(
     return tuple(snapshots)
 
 
+def _ordered_product_reference_rows(
+    cursor: psycopg.Cursor[Any], reference_rows: tuple[_ProductReferenceRows, ...]
+) -> tuple[_ProductReferenceRows, ...]:
+    """実際の外部キーから参照先を先にした復元順を決める。
+
+    Args:
+        cursor: 対象 DB の制約を読むカーソル。
+        reference_rows: 復元対象の参照行。
+
+    Returns:
+        外部キーの参照先が先になる参照行。
+    """
+    snapshots = {snapshot.table: snapshot for snapshot in reference_rows}
+    if len(snapshots) != 4 or len(snapshots) != len(reference_rows):
+        raise AssertionError("復元対象の参照表が 4 表の一意な集合ではない")
+    cursor.execute(
+        "SELECT child.relname, parent_namespace.nspname, parent.relname, "
+        "ARRAY(SELECT attribute.attname FROM pg_catalog.pg_attribute AS attribute "
+        "WHERE attribute.attrelid = constraint_row.conrelid "
+        "AND attribute.attnum = ANY(constraint_row.conkey) "
+        "ORDER BY array_position(constraint_row.conkey, attribute.attnum)) "
+        "FROM pg_catalog.pg_constraint AS constraint_row "
+        "JOIN pg_catalog.pg_class AS child "
+        "ON child.oid = constraint_row.conrelid "
+        "JOIN pg_catalog.pg_namespace AS child_namespace "
+        "ON child_namespace.oid = child.relnamespace "
+        "JOIN pg_catalog.pg_class AS parent "
+        "ON parent.oid = constraint_row.confrelid "
+        "JOIN pg_catalog.pg_namespace AS parent_namespace "
+        "ON parent_namespace.oid = parent.relnamespace "
+        "WHERE constraint_row.contype = 'f' "
+        "AND child_namespace.nspname = 'public' "
+        "AND child.relname = ANY(%s)",
+        (list(snapshots),),
+    )
+    dependencies: dict[str, set[str]] = {table: set() for table in snapshots}
+    for child, parent_schema, parent, columns in cursor.fetchall():
+        if parent_schema == "public" and parent in snapshots:
+            dependencies[child].add(parent)
+            continue
+        snapshot = snapshots[child]
+        column_positions = {name: index for index, name in enumerate(snapshot.columns)}
+        if any(column not in column_positions for column in columns):
+            raise AssertionError(f"参照表の外部キー列を控えていない: {child}")
+        if any(
+            row[column_positions[column]] is not None
+            for row in snapshot.rows
+            for column in columns
+        ):
+            raise AssertionError(f"復元集合の外を参照する外部キーに値がある: {child}")
+
+    ordered: list[_ProductReferenceRows] = []
+    while dependencies:
+        ready = sorted(table for table, parents in dependencies.items() if not parents)
+        if not ready:
+            raise AssertionError("参照表の外部キー依存に循環がある")
+        for table in ready:
+            ordered.append(snapshots[table])
+            del dependencies[table]
+        for parents in dependencies.values():
+            parents.difference_update(ready)
+    return tuple(ordered)
+
+
 def _clear_product_data(
     owner_dsn: str,
+    applicator_dsn: str,
     tables: tuple[str, ...],
     reference_rows: tuple[_ProductReferenceRows, ...],
 ) -> None:
-    """所有者権限で製品表の行と採番を初期化し、参照行を復元する。"""
+    """所有者権限で行と採番を初期化し、superuser 接続で参照行を復元する。
+
+    Args:
+        owner_dsn: TRUNCATE に使う所有者接続。
+        applicator_dsn: 行の復元に使う superuser 接続。
+        tables: 行と採番を初期化する製品表。
+        reference_rows: 控えておいた参照表の行。
+    """
     table_list = sql.SQL(", ").join(sql.Identifier("public", name) for name in tables)
     with psycopg.connect(owner_dsn) as owner:
         with owner.cursor() as cursor:
-            cursor.execute(
-                "SELECT relation.relname FROM pg_catalog.pg_class AS relation "
-                "JOIN pg_catalog.pg_namespace AS namespace "
-                "ON namespace.oid = relation.relnamespace "
-                "WHERE namespace.nspname = 'public' "
-                "AND relation.relname = ANY(%s) "
-                "AND relation.relforcerowsecurity",
-                ([snapshot.table for snapshot in reference_rows],),
+            _assert_product_reference_rls(
+                cursor, tuple(snapshot.table for snapshot in reference_rows)
             )
-            forced_tables = {row[0] for row in cursor.fetchall()}
+            ordered_rows = _ordered_product_reference_rows(cursor, reference_rows)
             cursor.execute(
                 sql.SQL("TRUNCATE TABLE {} RESTART IDENTITY").format(table_list)
             )
-            # 分類資産では参照元が参照先より先に並ぶため、逆順で戻す。
-            for snapshot in reversed(reference_rows):
+    with psycopg.connect(applicator_dsn) as applicator:
+        with applicator.cursor() as cursor:
+            for snapshot in ordered_rows:
                 table_name = sql.Identifier("public", snapshot.table)
-                if snapshot.table in forced_tables:
-                    cursor.execute(
-                        sql.SQL("ALTER TABLE {} NO FORCE ROW LEVEL SECURITY").format(
-                            table_name
-                        )
-                    )
                 cursor.executemany(
                     sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
                         table_name,
@@ -632,12 +754,9 @@ def _clear_product_data(
                     ),
                     snapshot.rows,
                 )
-                if snapshot.table in forced_tables:
-                    cursor.execute(
-                        sql.SQL("ALTER TABLE {} FORCE ROW LEVEL SECURITY").format(
-                            table_name
-                        )
-                    )
+            _assert_product_reference_rls(
+                cursor, tuple(snapshot.table for snapshot in reference_rows)
+            )
 
 
 def _observe_product_connection(
@@ -1173,7 +1292,12 @@ def provisioned_product_catalog(
         asset = _load_ddl_asset(spec)
         statements = generate_authz_ddl(_REPOSITORY_ROOT, spec)
         application_steps = load_product_application_steps(_REPOSITORY_ROOT, spec)
-        _clear_product_data(supply.owner_dsn, supply.data_tables, supply.reference_rows)
+        _clear_product_data(
+            supply.owner_dsn,
+            supply.applicator_dsn,
+            supply.data_tables,
+            supply.reference_rows,
+        )
         try:
             with (
                 psycopg.connect(supply.applicator_dsn) as applicator,
@@ -1193,7 +1317,10 @@ def provisioned_product_catalog(
                 )
         finally:
             _clear_product_data(
-                supply.owner_dsn, supply.data_tables, supply.reference_rows
+                supply.owner_dsn,
+                supply.applicator_dsn,
+                supply.data_tables,
+                supply.reference_rows,
             )
         return
 
