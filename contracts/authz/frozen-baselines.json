@@ -455,6 +455,49 @@
       "reason": "TSK-543の承認済み要件追随を#128の既存6件の後に直列化したため、PR #129のoracle入力8資産を中間コミットec902d9d98949243cbf55e9a4aed43dec1da3115で固定する。既存履歴・配置・宣言を維持し、意味変更は今回追加しない。",
       "approved_by": "山田正輝",
       "approved_at": "2026-10-14"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#119",
+      "series": "oracle_input",
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "c6bf54a2b79d021a877df248ce7e23315469321b"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "ec902d9d98949243cbf55e9a4aed43dec1da3115"
+          }
+        ]
+      },
+      "changes": [],
+      "placement_change": {
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "moved": false,
+      "reason": "U-A1 δ(TSK-470)で認証の HTTP 経路 3 本と新しい経路種別 authentication_entry を route-registry.json と http-route-matrix.json に登録し、付録C の table_row-004・table_row-006 を routed へ移した。あわせて origin/develop(#129・#133 と #127 の core-guard 修正)の取り込みで oracle 入力が合流したため、oracle_commit を取り込みの マージコミットへ更新する。同一性の粒度・識別値の解釈は変えていない(oracle_commit_semantics は last_committed_step_4_input_baseline のまま)",
+      "approved_by": "山田正輝",
+      "approved_at": "2026-10-14"
     }
   ]
 }
