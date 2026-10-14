@@ -105,8 +105,19 @@ def _event(
         d1,
         d4,
         v5=kind,
-        v6=d1 * 10 if not tombstone and kind == "game_end_declaration" else ABSENT,
+        v6=(
+            d1 * 10
+            if not tombstone
+            and kind
+            in {"play_input", "substitution", "tiebreak_start", "game_end_declaration"}
+            else ABSENT
+        ),
         v7={} if payload is None else payload,
+        v8=(
+            {}
+            if not tombstone and kind in {"play_input", "state_correction"}
+            else ABSENT
+        ),
         v9=(
             {"tombstone": True, "rejected_d5": str(rejected_d5)}
             if tombstone
@@ -413,6 +424,7 @@ def test_revision_keeps_rejected_original_logical_position(
         v6=999,
         v7={},
         v9={"revision": True, "rejected_d5": rejected.d5},
+        v10={"game": str(db.game_a), "d4": "epoch", "d1": 1},
     )
     with pytest.raises(P1PreconditionError, match="D2 を継承"):
         _apply(db, revision)
@@ -544,6 +556,37 @@ def test_undo_persists_resolved_target_slot(prefix_database: _SyncDatabase) -> N
             (db.tenant_a, UUID(undo.d5)),
         )
         assert cursor.fetchall() == [(1, 1)]
+    db.catalog.applicator.rollback()
+
+
+def test_p1_required_v8_is_persisted_through_entry(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """毎球入力を入口から適用し、DB の状態差分を直接読む。"""
+    db = prefix_database
+    state_diff = {"before": {"outs": 0}, "after": {"outs": 1}}
+    event = SyncEvent(
+        str(uuid4()),
+        str(db.game_a),
+        1,
+        "epoch",
+        v5="play_input",
+        v6=10,
+        v7={},
+        v8=state_diff,
+    )
+    result, projection = _apply(db, event)
+    assert result.accepted and result.d3 == 1
+    assert isinstance(projection, PrefixProjection)
+    assert len(projection.events) == 1
+    assert projection.events[0].v8 == state_diff
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT event_kind, state_diff FROM operation_events "
+            "WHERE tenant_id = %s AND game_id = %s AND d5 = %s",
+            (db.tenant_a, db.game_a, UUID(event.d5)),
+        )
+        assert cursor.fetchall() == [("play_input", state_diff)]
     db.catalog.applicator.rollback()
 
 

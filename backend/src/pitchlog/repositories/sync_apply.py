@@ -6,7 +6,7 @@ import json
 from collections.abc import Callable, Mapping
 from typing import Any, cast
 
-from sqlalchemy import Table, bindparam, insert, select, update
+from sqlalchemy import Table, bindparam, insert, null, select, update
 from sqlalchemy.sql.dml import Insert, Update
 from sqlalchemy.sql.selectable import Select
 
@@ -132,6 +132,7 @@ def _register(
     parameters: Mapping[str, str],
     *,
     json_parameters: frozenset[str] = frozenset(),
+    sql_null_json_parameter: str | None = None,
     constants: Mapping[str, object] | None = None,
     locked: bool = False,
     update_columns: frozenset[str] | None = None,
@@ -141,6 +142,15 @@ def _register(
 ) -> OperationRegistration:
     """登録時に固定した文と token の値の対応だけを準備する。"""
     fixed = dict(constants or {})
+    if sql_null_json_parameter is not None:
+        if (
+            not isinstance(statement, Insert)
+            or sql_null_json_parameter not in json_parameters
+        ):
+            raise ValueError("SQL NULL へ切り替える JSON 列の宣言が不正")
+        null_statement = statement.values({sql_null_json_parameter: null()})
+    else:
+        null_statement = None
 
     def prepare(token: TenantOperationToken) -> PreparedOperation:
         """Token にない列や文を実行時に追加しない。"""
@@ -151,11 +161,18 @@ def _register(
         values: dict[str, object] = {
             bind: getattr(token, attribute) for bind, attribute in parameters.items()
         }
+        prepared_statement = statement
         for name in json_parameters:
             raw = values[name]
-            values[name] = None if raw is None else _json_object(cast(str, raw))
+            if raw is None and name == sql_null_json_parameter:
+                if null_statement is None:
+                    raise RuntimeError("SQL NULL の登録文がない")
+                prepared_statement = null_statement
+                del values[name]
+            else:
+                values[name] = None if raw is None else _json_object(cast(str, raw))
         values.update(fixed)
-        return statement, values
+        return prepared_statement, values
 
     return OperationRegistration(
         token_type,
@@ -340,6 +357,7 @@ SYNC_APPLY_OPERATIONS: tuple[OperationRegistration, ...] = (
             "change_order": "change_order",
         },
         json_parameters=frozenset({"payload", "state_diff"}),
+        sql_null_json_parameter="state_diff",
     ),
     _register(
         sync_tokens.OperationEventOrderUpdateToken,

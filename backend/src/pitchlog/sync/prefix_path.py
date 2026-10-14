@@ -13,6 +13,13 @@ from typing import Literal
 from uuid import UUID, uuid4
 
 from pitchlog.db.recording_rights.models import RecordingGeneration
+from pitchlog.db.sync_protocol.event_kinds import (
+    C12_REQUIREMENT_MATRIX,
+    EVENT_KIND_LITERALS,
+    OPERATION_EVENT_PARTICIPATIONS,
+    C12Requirement,
+    C12Value,
+)
 from pitchlog.db.sync_protocol.models import (
     IdempotencyLedger,
     RejectedEventOriginal,
@@ -67,6 +74,11 @@ _GENERATION_COLUMNS = tuple(RecordingGeneration.__table__.c.keys())
 _MAPPING_COLUMNS = tuple(TemporaryPlayerIdMapping.__table__.c.keys())
 _REJECTION_COLUMNS = tuple(RejectedEventOriginal.__table__.c.keys())
 _LEDGER_COLUMNS = tuple(IdempotencyLedger.__table__.c.keys())
+_C12_KIND_NUMBERS = {
+    participation.event_kind_literal: participation.participation_number
+    for participation in OPERATION_EVENT_PARTICIPATIONS
+    if participation.event_kind_literal is not None
+}
 
 # V7 の選手参照名は種別ごとに列挙する。未知の選手参照名は保存前に拒否する。
 _PLAYER_REFERENCE_FIELDS: dict[str, frozenset[str]] = {
@@ -194,7 +206,11 @@ def _replacement_state(event: SyncEvent) -> tuple[ReplacementKind, UUID | None]:
 
 def _event_kind(event: SyncEvent) -> str:
     """V5 を DB の D1 付き参加区分へ結び付ける。"""
-    if type(event.v5) is not str or event.v5 not in _PLAYER_REFERENCE_FIELDS:
+    if (
+        type(event.v5) is not str
+        or event.v5 not in _PLAYER_REFERENCE_FIELDS
+        or event.v5 not in EVENT_KIND_LITERALS
+    ):
         raise P1PreconditionError("P1 の V5 は D1 付きイベント種別が必要")
     return event.v5
 
@@ -272,6 +288,13 @@ def _d2(event: SyncEvent, replacement: ReplacementKind) -> int | None:
         if event.v6 is not ABSENT:
             raise P1PreconditionError("墓標は D2 を持たない")
         return None
+    requirement = C12_REQUIREMENT_MATRIX[
+        (_C12_KIND_NUMBERS[_event_kind(event)], C12Value.V6)
+    ].requirement
+    if requirement is C12Requirement.REQUIRED and event.v6 is ABSENT:
+        raise P1PreconditionError("このイベント種別には D2 が必要")
+    if requirement is C12Requirement.FORBIDDEN and event.v6 is not ABSENT:
+        raise P1PreconditionError("このイベント種別は D2 を持たない")
     if event.v6 is ABSENT:
         return None
     if type(event.v6) is not int or event.v6 < 0:
@@ -281,11 +304,85 @@ def _d2(event: SyncEvent, replacement: ReplacementKind) -> int | None:
 
 def _state_diff(event: SyncEvent, replacement: ReplacementKind) -> str | None:
     """墓標では差分を持たず、他では V8 の object を保存する。"""
+    if replacement == "tombstone":
+        if event.v8 is not ABSENT:
+            raise P1PreconditionError("墓標は V8 を持たない")
+        return None
+    requirement = C12_REQUIREMENT_MATRIX[
+        (_C12_KIND_NUMBERS[_event_kind(event)], C12Value.V8)
+    ].requirement
+    if requirement is C12Requirement.REQUIRED and event.v8 is ABSENT:
+        raise P1PreconditionError("このイベント種別には V8 の状態差分が必要")
+    if requirement is C12Requirement.FORBIDDEN and event.v8 is not ABSENT:
+        raise P1PreconditionError("このイベント種別は V8 の状態差分を持たない")
     if event.v8 is ABSENT:
         return None
-    if replacement == "tombstone":
-        raise P1PreconditionError("墓標は V8 を持たない")
     return _json_object(event.v8)
+
+
+def _validate_v11(event: SyncEvent) -> None:
+    """P1 の種別表で禁止された V11 を捨てずに拒否する。"""
+    requirement = C12_REQUIREMENT_MATRIX[
+        (_C12_KIND_NUMBERS[_event_kind(event)], C12Value.V11)
+    ].requirement
+    if requirement is not C12Requirement.FORBIDDEN:
+        raise RuntimeError("P1 の V11 種別条件が未対応")
+    if event.v11 is not ABSENT:
+        raise P1PreconditionError("P1 のイベント種別は V11 を持たない")
+
+
+def _validate_v10(
+    event: SyncEvent, replacement: ReplacementKind, target: P1Target | None
+) -> None:
+    """P1 の対象参照を置換または undo の保存先へ結び付ける。"""
+    if replacement != "none":
+        if target is not None:
+            raise P1PreconditionError("墓標・改訂には undo の対象を指定できない")
+        _replacement_target(event)
+        return
+    if _event_kind(event) != "undo":
+        if event.v10 is not ABSENT or target is not None:
+            raise P1PreconditionError("このイベント種別は V10 の対象を持たない")
+        return
+    reference = event.v10
+    if (
+        not isinstance(reference, Mapping)
+        or set(reference) != {"game", "d4", "d1"}
+        or target is None
+        or target.game_id != UUID(event.game_id)
+        or target.generation <= 0
+        or target.d1 <= 0
+        or (reference["game"], reference["d4"], reference["d1"])
+        != (event.game_id, event.d4, target.d1)
+    ):
+        raise P1PreconditionError("undo の V10 と照合済み対象が一致しない")
+
+
+def _event_insert_token(
+    event: SyncEvent,
+    game_id: UUID,
+    generation: int,
+    replacement: ReplacementKind,
+    payload_json: str,
+    target: P1Target | None,
+) -> OperationEventInsertToken:
+    """C12 の種別条件に合わせて確定イベント行の列を組み立てる。"""
+    _validate_v11(event)
+    _validate_v10(event, replacement, target)
+    return OperationEventInsertToken(
+        uuid4(),
+        game_id,
+        UUID(event.d5),
+        _event_kind(event),
+        payload_json,
+        generation,
+        event.d1,
+        _d2(event, replacement),
+        _state_diff(event, replacement),
+        replacement == "tombstone",
+        None if target is None else target.generation,
+        None if target is None else target.d1,
+    )
 
 
 def _stored_result(candidate: D5Candidate) -> P1Result:
@@ -468,9 +565,11 @@ def _apply_locked(
     if event.d1 is None:
         raise P1PreconditionError("P1 には D1 が必要")
     kind = _event_kind(event)
-    d2 = _d2(event, replacement)
+    _d2(event, replacement)
     payload_json = _json_object(event.v7)
-    state_diff_json = _state_diff(event, replacement)
+    _state_diff(event, replacement)
+    _validate_v11(event)
+    _validate_v10(event, replacement, target)
     if replacement == "tombstone" and payload_json != "{}":
         raise P1PreconditionError("墓標の payload は空 object が必要")
     if kind == "player_registration" and registration is None:
@@ -481,18 +580,6 @@ def _apply_locked(
         event.v7, str(registration.temporary_id)
     ):
         raise P1PreconditionError("その場登録の V7 に一時選手 ID がない")
-    if kind == "undo":
-        if (
-            event.v10 is ABSENT
-            or target is None
-            or target.game_id != game_id
-            or target.generation <= 0
-            or target.d1 <= 0
-        ):
-            raise P1PreconditionError("undo には照合済みの V10 対象が必要")
-    elif target is not None:
-        raise P1PreconditionError("V10 対象は undo だけに指定できる")
-
     # 登録表の検査は三つのポートのいずれを呼ぶよりも前に完了する。
     for port in (rights, projection, validator):
         port_guard.require_registered_port(port)
@@ -548,7 +635,6 @@ def _apply_locked(
             )
         projected_event = _projection_event(scope, event, new_mapping)
         payload_json = _json_object(projected_event.v7)
-        state_diff_json = _state_diff(projected_event, replacement)
         result_json = json.dumps(
             {
                 "state": "受理",
@@ -570,19 +656,8 @@ def _apply_locked(
             scope.run(player_token)
         scope.run(EventSlotInsertToken(game_id, generation, event.d1))
         scope.run(
-            OperationEventInsertToken(
-                uuid4(),
-                game_id,
-                d5,
-                kind,
-                payload_json,
-                generation,
-                event.d1,
-                d2,
-                state_diff_json,
-                replacement == "tombstone",
-                None if target is None else target.generation,
-                None if target is None else target.d1,
+            _event_insert_token(
+                projected_event, game_id, generation, replacement, payload_json, target
             )
         )
         if new_d3 > d3:
