@@ -20,6 +20,7 @@ from alembic.config import Config
 from db.environment_contract import load_expectations
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
+from psycopg.types.json import Jsonb
 from sqlalchemy.engine import URL
 
 from pitchlog.authz.asset_spec import (
@@ -499,6 +500,15 @@ class _ExternalProductCatalogObservations:
 
 
 @dataclass(frozen=True)
+class _ProductReferenceRows:
+    """移行後の参照表から読み取った列と行を保持する。"""
+
+    table: str
+    columns: tuple[str, ...]
+    rows: tuple[tuple[object, ...], ...]
+
+
+@dataclass(frozen=True)
 class _ExternalProductCatalogSupply:
     """外部で準備した製品カタログの接続情報と適用前記録。"""
 
@@ -507,6 +517,7 @@ class _ExternalProductCatalogSupply:
     owner_dsn: str
     pre_application_catalog: ProductCatalogSnapshot
     data_tables: tuple[str, ...]
+    reference_rows: tuple[_ProductReferenceRows, ...]
     observations: _ExternalProductCatalogObservations
 
 
@@ -532,14 +543,101 @@ def _product_data_tables() -> tuple[str, ...]:
     return cast(tuple[str, ...], names)
 
 
-def _clear_product_data(owner_dsn: str, tables: tuple[str, ...]) -> None:
-    """所有者権限で製品表の行と採番だけを初期化する。"""
+def _product_reference_tables(data_tables: tuple[str, ...]) -> tuple[str, ...]:
+    """分類資産から外部供給で復元する参照表を読む。"""
+    path = _REPOSITORY_ROOT / "contracts/authz/product/table-classification.json"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    rows = raw["tables"]
+    names = tuple(
+        row["table"] for row in rows if row["profile"] == "global_read_only"
+    )
+    if len(names) != 4 or any(name not in data_tables for name in names):
+        raise AssertionError("製品表の分類資産に参照表が 4 表ない")
+    return names
+
+
+def _read_product_reference_rows(
+    owner_dsn: str, tables: tuple[str, ...]
+) -> tuple[_ProductReferenceRows, ...]:
+    """外部供給の開始時に移行済み参照表の内容を一度だけ控える。"""
+    snapshots: list[_ProductReferenceRows] = []
+    with psycopg.connect(owner_dsn) as owner:
+        jsonb_oid = owner.adapters.types["jsonb"].oid
+        with owner.cursor() as cursor:
+            for table in tables:
+                cursor.execute(
+                    sql.SQL("SELECT * FROM {}").format(sql.Identifier("public", table))
+                )
+                description = cursor.description
+                if description is None:
+                    raise AssertionError(f"参照表の列を読めない: {table}")
+                snapshots.append(
+                    _ProductReferenceRows(
+                        table=table,
+                        columns=tuple(column.name for column in description),
+                        rows=tuple(
+                            tuple(
+                                Jsonb(value)
+                                if value is not None and column.type_code == jsonb_oid
+                                else value
+                                for column, value in zip(description, row, strict=True)
+                            )
+                            for row in cursor.fetchall()
+                        ),
+                    )
+                )
+    return tuple(snapshots)
+
+
+def _clear_product_data(
+    owner_dsn: str,
+    tables: tuple[str, ...],
+    reference_rows: tuple[_ProductReferenceRows, ...],
+) -> None:
+    """所有者権限で製品表の行と採番を初期化し、参照行を復元する。"""
     table_list = sql.SQL(", ").join(sql.Identifier("public", name) for name in tables)
     with psycopg.connect(owner_dsn) as owner:
         with owner.cursor() as cursor:
             cursor.execute(
+                "SELECT relation.relname FROM pg_catalog.pg_class AS relation "
+                "JOIN pg_catalog.pg_namespace AS namespace "
+                "ON namespace.oid = relation.relnamespace "
+                "WHERE namespace.nspname = 'public' "
+                "AND relation.relname = ANY(%s) "
+                "AND relation.relforcerowsecurity",
+                ([snapshot.table for snapshot in reference_rows],),
+            )
+            forced_tables = {row[0] for row in cursor.fetchall()}
+            cursor.execute(
                 sql.SQL("TRUNCATE TABLE {} RESTART IDENTITY").format(table_list)
             )
+            # 分類資産では参照元が参照先より先に並ぶため、逆順で戻す。
+            for snapshot in reversed(reference_rows):
+                table_name = sql.Identifier("public", snapshot.table)
+                if snapshot.table in forced_tables:
+                    cursor.execute(
+                        sql.SQL("ALTER TABLE {} NO FORCE ROW LEVEL SECURITY").format(
+                            table_name
+                        )
+                    )
+                cursor.executemany(
+                    sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+                        table_name,
+                        sql.SQL(", ").join(
+                            sql.Identifier(column) for column in snapshot.columns
+                        ),
+                        sql.SQL(", ").join(
+                            sql.Placeholder() for _ in snapshot.columns
+                        ),
+                    ),
+                    snapshot.rows,
+                )
+                if snapshot.table in forced_tables:
+                    cursor.execute(
+                        sql.SQL("ALTER TABLE {} FORCE ROW LEVEL SECURITY").format(
+                            table_name
+                        )
+                    )
 
 
 def _observe_product_connection(
@@ -580,13 +678,18 @@ def supply_external_product_catalog(
     with psycopg.connect(applicator_dsn) as observer:
         snapshot = _snapshot_product_catalog(observer, _product_role_ids(asset))
         observer.rollback()
+    data_tables = _product_data_tables()
+    reference_rows = _read_product_reference_rows(
+        owner_dsn, _product_reference_tables(data_tables)
+    )
     observations = _ExternalProductCatalogObservations(connections=[])
     _external_product_catalog = _ExternalProductCatalogSupply(
         cluster=cluster,
         applicator_dsn=applicator_dsn,
         owner_dsn=owner_dsn,
         pre_application_catalog=snapshot,
-        data_tables=_product_data_tables(),
+        data_tables=data_tables,
+        reference_rows=reference_rows,
         observations=observations,
     )
     try:
@@ -1070,7 +1173,7 @@ def provisioned_product_catalog(
         asset = _load_ddl_asset(spec)
         statements = generate_authz_ddl(_REPOSITORY_ROOT, spec)
         application_steps = load_product_application_steps(_REPOSITORY_ROOT, spec)
-        _clear_product_data(supply.owner_dsn, supply.data_tables)
+        _clear_product_data(supply.owner_dsn, supply.data_tables, supply.reference_rows)
         try:
             with (
                 psycopg.connect(supply.applicator_dsn) as applicator,
@@ -1089,7 +1192,9 @@ def provisioned_product_catalog(
                     pre_application_catalog=supply.pre_application_catalog,
                 )
         finally:
-            _clear_product_data(supply.owner_dsn, supply.data_tables)
+            _clear_product_data(
+                supply.owner_dsn, supply.data_tables, supply.reference_rows
+            )
         return
 
     spec = PRODUCT_SPEC
