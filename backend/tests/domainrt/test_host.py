@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from pitchlog.domainrt import DomainRuntimeError, NodeDomainHost, open_domain_host
+from pitchlog.domainrt.host import _NODE_SCRIPT
 
 _FIXTURE = Path(__file__).parent / "fixtures/synthetic_artifact.js"
 
@@ -63,6 +64,22 @@ def test_invalid_declaration_fails_closed(tmp_path: Path) -> None:
     with pytest.raises(DomainRuntimeError) as caught:
         NodeDomainHost(artifact, declaration)
     assert caught.value.code == "INVALID_DECLARATION"
+
+
+def test_inline_node_host_is_one_safe_argument(tmp_path: Path) -> None:
+    """固定ソースを単一の短い引数で渡し、引用符も往復させる。"""
+    assert len(_NODE_SCRIPT.encode("utf-8")) < 64 * 1024
+    assert "\x00" not in _NODE_SCRIPT
+    value = '"` ${process.exit(99)} \\ \n 日本語'
+    with NodeDomainHost(*_fixture_files(tmp_path)) as host:
+        process = host._process
+        assert process is not None
+        arguments = process.args
+        assert isinstance(arguments, list)
+        assert arguments[-2:] == ["--eval", _NODE_SCRIPT]
+        assert "--input-type=module" in arguments
+        result = json.loads(host.call("probe", _request("echo", value)))
+    assert result == {"ok": True, "value": value}
 
 
 def test_time_limit_restarts_process(tmp_path: Path) -> None:

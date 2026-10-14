@@ -222,7 +222,7 @@ def test_normative_assets_are_read_from_repository_root(
     assert isinstance(tool, dict)
     setuptools = tool["setuptools"]
     assert isinstance(setuptools, dict)
-    assert setuptools["package-data"] == {"pitchlog.domainrt": ["*.mjs"]}
+    assert "package-data" not in setuptools
     assert "data-files" not in setuptools
     assert not (BACKEND_ROOT / "MANIFEST.in").exists()
 
@@ -269,7 +269,7 @@ def test_normative_assets_are_read_from_repository_root(
 def test_built_wheel_contains_packages_but_not_normative_json(
     tmp_path: Path,
 ) -> None:
-    """実wheelに Node ホストを含め、規範JSONを含めないことを固定する。"""
+    """実wheelに Python の Node ホストを含め、規範JSONを含めない。"""
     build_root = tmp_path / "backend"
     build_root.mkdir()
     shutil.copy2(BACKEND_PROJECT, build_root / "pyproject.toml")
@@ -299,10 +299,8 @@ def test_built_wheel_contains_packages_but_not_normative_json(
         prefix = f"pitchlog/{package}/"
         assert any(member.startswith(prefix) and member.endswith(".py") for member in members)
 
-    assert {member for member in members if member.endswith("node_host.mjs")} == {
-        "pitchlog/domainrt/node_host.mjs"
-    }
-    assert not any(".data/data/" in member and member.endswith(".mjs") for member in members)
+    assert "pitchlog/domainrt/host.py" in members
+    assert not any(member.endswith(".mjs") for member in members)
 
     asset_names = {path.name for path in DOMAIN_ASSETS.glob("*.json")}
     packaged_json = {Path(member).name for member in members if member.endswith(".json")}
