@@ -1656,3 +1656,74 @@ PR #97 が作った専用インスタンス・48 node。
 **④ は「対象なし」**(δ の 3 入口は認証の成否しか返さず、認可行列の対象データを
 返し得る経路へ到達しない。(i) 越境関数 0 件・`shared_read` の表 0 件)。
 **測定経路(裁定 B)は充足** — 3 入口すべてに直叩きテストがある。
+
+## #127 の取り込みと、develop の赤の原因(2026-10-14)
+
+### #127 の取り込みでは封印が 1 つも動かなかった
+
+**衝突 0 件。** #127 が触ったのは core-guard の 3 本(`.claude/core-areas.json`・
+`scripts/core_guard.py`・`tests/test_core_guard.py`)と frontend・docs だけで、
+**`contracts/` は 1 ファイルも動いていない**(実測)。
+
+**δ はその 3 本に 1 行も触れていない**ので、git は develop 版を verbatim に取った
+(3 本とも develop とバイト単位で同一を確認)。
+
+**前回 `7b51a8c0` を踏んだ型は再現しない** — **解消する余地が無い**ためである。
+あの事故は **δ 側にも差分があって自動解消が並びを崩した**ときに起きた。
+
+### develop の赤 3 件は「回転式の窓口」の構造的な型だった
+
+**#127 固有の不具合ではない。**
+
+コア領域の paths は回転式の窓口で、機能 PR は自分の paths を
+**「まだ基線に無い追加層」**として宣言し、テストが
+
+> 基線(`origin/develop`)にはまだ私の paths が無い。
+> 手元の設定は「基線」か「基線 + 私の分」のどちらかである
+
+と表明する。**この表明はマージされた瞬間に必ず偽になる** —
+基線が自分の paths を含むようになるからである。
+だから**着地のたびに「登録済みの形」へ書き直す後続 PR が要る**。
+U-F8 でそれをやったのが #130。
+
+develop の `tenant-isolation` の末尾:
+
+```
+frontend/src/screens/GameScreen*                        ← U-F8
+frontend/src/components/settings/TeamMembersContent*    ← U-F5(#127)
+frontend/src/lib/rosterQueryKeys*                       ← U-F5
+frontend/src/screens/TeamScreen*                        ← U-F5
+```
+
+| テスト | 表明 | 実際 |
+| --- | --- | --- |
+| `test_uf5_team_paths_are_declared_for_tenant_and_migration` | 基線に U-F5 の paths は**無い** | **ある**(自分が入れた) |
+| `test_uf8_game_screen_paths_are_registered_in_all_areas` | 基線の `paths[-1]` は `GameScreen*` | **`TeamScreen*`** |
+| `test_product_rls_paths_remain_in_develop_baseline` | 基線の末尾は …U-F6, U-F8 で終わる | 後ろに U-F5 の 3 本が続く |
+
+**後ろ 2 件は U-F8 の検査。** #127 は `43461285` で #130 の修正を取り込んでおり
+**その時点では正しかった**(当時の develop の末尾は `GameScreen*`)。
+**U-F5 自身が後ろへ 3 本足したことで壊れた。**
+
+**未変更の develop clone(`b81ae1ac`)で同じ 3 件が落ちる**ことを実測した。
+develop head の CI harness も failure。**δ は引き継いだだけである。**
+
+**δ は直さない。** 直すと `tests/test_core_guard.py` に触ることになり、
+まさに裁定待ちの 3 ファイルの組に入る。**所有は #127(TSK-520)の担当。**
+**人間が担当へ回すと決めた**(2026-10-14)。
+
+### 12-4 の実スキーマ — δ は実行できない
+
+**接続情報が環境変数ファイルにあり、読むことも書くことも禁じられている**
+(AGENTS.md 絶対規則 2 / NFR-014)。専用インスタンス `pitchlog-product-rls-db-1` は
+存在するが、起動に 4 変数が要る。
+
+**形式ではなく実体のある再実行になる** — δ は製品 DDL 資産を動かしている
+(`ddl-elements.json`・`authn.login` の削除・`login_attempt` と
+`observe_rate_limit_counters` の新設・`verify_token` の `OUT expires_at`)。
+**runner が出す `ddl_asset_digest` は #97 の実行時と異なる。**
+**期待 node は 48 のまま**(`expected-nodes-27ff94eb.txt` は δ の差分に無い)。
+
+**人間がそのまま走らせられる形を PR 本文へ書いた** — 前提 2 つ・実行コマンド・
+JSON のどのキーを判定記録のどの項目へ転記するか。
+**転記は人の確認である**(runner は判定記録を読まない — #97 の gate-record 149 行)。
