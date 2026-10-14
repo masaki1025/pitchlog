@@ -712,6 +712,39 @@ def _ordered_product_reference_rows(
     return tuple(ordered)
 
 
+def _assert_product_reference_rows(
+    cursor: psycopg.Cursor[Any], reference_rows: tuple[_ProductReferenceRows, ...]
+) -> None:
+    """復元後の参照行が控えた行と順序に依存せず一致することを確かめる。
+
+    Args:
+        cursor: 復元に使った接続のカーソル。
+        reference_rows: 控えておいた参照表の列と行。
+    """
+    for snapshot in reference_rows:
+        cursor.execute(
+            sql.SQL("SELECT {} FROM {}").format(
+                sql.SQL(", ").join(
+                    sql.Identifier(column) for column in snapshot.columns
+                ),
+                sql.Identifier("public", snapshot.table),
+            )
+        )
+        remaining_rows = list(cursor.fetchall())
+        for row in snapshot.rows:
+            expected_row = tuple(
+                value.obj if isinstance(value, Jsonb) else value for value in row
+            )
+            try:
+                remaining_rows.remove(expected_row)
+            except ValueError as error:
+                raise AssertionError(
+                    f"参照表の復元行が控えと一致しない: {snapshot.table}"
+                ) from error
+        if remaining_rows:
+            raise AssertionError(f"参照表の復元行が控えと一致しない: {snapshot.table}")
+
+
 def _clear_product_data(
     owner_dsn: str,
     applicator_dsn: str,
@@ -752,6 +785,7 @@ def _clear_product_data(
                     ),
                     snapshot.rows,
                 )
+            _assert_product_reference_rows(cursor, reference_rows)
             _assert_product_reference_rls(
                 cursor, tuple(snapshot.table for snapshot in reference_rows)
             )
