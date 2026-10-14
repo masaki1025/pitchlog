@@ -90,7 +90,8 @@ def test_real_driver_and_engine_logs_omit_auth_material(
             with engine.connect():
                 pass
             caplog.clear()
-            assert verify_tenant_id(value, presentation, engine) == identity.tenant_id
+            verified = verify_tenant_id(value, presentation, engine)
+            assert verified is not None and verified[0] == identity.tenant_id
             assert logout_token(value, presentation, engine) is None
             assert verify_tenant_id(value, presentation, engine) is None
         finally:
