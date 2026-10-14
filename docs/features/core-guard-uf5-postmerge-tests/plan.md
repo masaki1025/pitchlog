@@ -1,6 +1,6 @@
 ---
 feature: core-guard-uf5-postmerge-tests
-status: active
+status: in-review
 承認: 済(2026-10-14・利用者、計画コミット30a1b2deとステップ1を承認)
 重さ分類: コア領域
 worktree: /home/ymdms/projects/pitchlog-worktrees/fix-core-guard-uf5-postmerge-tests
