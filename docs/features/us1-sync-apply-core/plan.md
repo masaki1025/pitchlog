@@ -228,3 +228,16 @@ Notion カードの DoD と対応づける。カードの文言と食い違う 1
 | A-2 | **D1 付き経路の行の量** | 受け入れる(1 イベント = 1 トランザクションで、D3 を前進させた各イベントが 5 範囲 × 1 行) | 正本の発火条件(SP 8-5「D3 が前進したこと」)と 6.2 の対応表(トリガー 1 は 5 範囲すべて)の帰結。未配信の行は `(tenant_id, delivery_status)` の索引で引ける。配信の実体が入るまで行は溜まる(キャッシュ本体を入れる単位の申し送り) |
 | A-3 | **スパイクのブランチと worktree の削除** | 本改訂の承認の後に削除する | スパイク自身の承認済み計画が「転記の後に削除」と定め、research.md に転記済み。origin に無いので削除は戻せない |
 
+
+## 8. 他単位との接続契約の記録(2026-10-15 — 範囲の変更ではない)
+
+U-S1 の承認済みの範囲(2 節)は変えない。他単位からの照会に対する U-S1 の回答を、実装の拠り所として記録する。実装はステップ表のとおり(RG1 = ステップ 14・公開入口 = ステップ 15)。
+
+| 相手 | 項目 | 判定 | 具体契約 | 残る条件 |
+| --- | --- | --- | --- | --- |
+| U-R1(TSK-392) | ③-a・⑧ の Port 署名 | **採用** | `read_rg1_before_d5(writer: PortWriter) -> bool`(③-a・非ロック読取)/ `check_rg1_before_commit(writer: PortWriter) -> bool`(⑧・RG1 の singleton を FOR SHARE で取り commit/rollback まで保持)。`game_id` は渡さない(RG1 は全域 singleton — U-R1 の決定)。`True` = 通過 / `False` = 復元調整中 → P1・P2・P4・P5 は B7、P3(進行中・終了後とも)は B10。**Port の例外もスコープ全体を取り消して B7/B10(再試行可能)**。仮置き `is_restoration_active(game_id, writer)` を置き換える | ロックの実体(RG1 行・FOR SHARE ちょうど)と状態の欠損・不明の扱いは U-R1。FOR SHARE を宣言できる基底の拡張は **U-R1 の PR が持つ**(山田正輝の裁定 2026-10-14) |
+| U-R1 | 呼び出し位置・PortWriter の発行時点 | **採用** | 1 イベント = 1 トランザクション。認可の後にスコープを開き適用中の印を立てた**直後(どのロックよりも前)に PortWriter を発行** → **③-a**(試合行のロック・D5 の照合〔④〕より前。False なら何も書かずに戻す — D5 を消費しない・ロックを取らない)→ 試合行 → 記録権世代行の `FOR UPDATE`(R-16)→ ④ → 各経路の書き込み → **⑧**(commit の直前。False・例外ならスコープ全体を取り消す — D5 を消費しない)。**P1・P2・P4・P5・P3 の全経路で両方**。保存済み結果の再掲も RG1 中は B7/B10(③-a は ④ より前 — SP 6-2)。**内部配信**は配信 1 回ごとに ③-a だけを呼び、閉鎖中は延期(⑧ は呼ばない) | 実入口からの結合試験は U-R1 の新ステップ 6(U-S1 は合成ポートで単体・DB 試験) |
+| U-R1 | 同一トランザクションで固定関数を呼ぶ口(TSK-550 の `run_function`) | **条件付き採用** | U-S1 所有の `PortWriter` に `run_function(token)` を足す。(a) **TSK-550 の固定関数の exact token 型だけ**を受ける(関数名・SQL・Session を受けない)(b) 委譲先は**同じスコープ**の `_TenantTransaction.run_function` | TSK-550 の `run_function` が develop にあること / token 型のモジュールがポートの token 型の契約(sqlalchemy・登録処理を import しない — ステップ 6)と `sync/port_guard.py` を満たすこと / `sync/ports.py` の変更はコア領域の変更(敵対レビュー + 人間の逐行確認)— U-R1 の新ステップ 6 で行う |
+| U-R1 | 失効条件 | **採用** | PortWriter は適用核だけが発行し(内部の発行用の印)、**発行元のスコープの終了(commit・rollback とも)で失効**し、失効後の `run`・`run_function` を拒否する(実装済み — `sync/ports.py` の `_close`) | なし |
+| U-G1(TSK-395) | 作成側の RG1 契約 | **維持** | `79e3da4a` で受理済み。U-S1 は同期経路(③-a・⑧)だけを答えた | なし |
+| C1(TSK-528 追補) | `CAP:tenants:read` の `TenantProfileReadToken` / `TENANT_PROFILE_OPERATIONS` の 1 件 | **採用** | `OperationRegistration(token_type, "CAP:tenants:read", select(tenants の列).where(tenants.c.id == bindparam("tenant_id")), tenants.c.id, prepare)`。`:tenant_id` は基底が文脈から注入する(`repositories/base.py:432`)。戻り型は `TenantOperationResult`(不変のタプルのタプル)。#132 の head で、テナント条件の検査と登録文の検査を通ることを実測(2026-10-15)。変更箇所は #114(`124f4b46`)と同じ範囲: registry に 1 行・repository-contract と生成モジュール・迂回検査の allowed_symbols と正例 fixture・exact-set の既存試験・C1 の受理記録。C1 の「非共有部分を先行し、共有 registry と凍結資産は #131 → #132 の統合後」も採用 | `tenants` の RLS ポリシーとアプリのロールへの SELECT の付与で自テナントの 1 行を読めるかは未確認(C1 の DB 試験で確かめる)/ 統合までは registry に未登録なので、実エンドポイントを通す試験は統合後 |
