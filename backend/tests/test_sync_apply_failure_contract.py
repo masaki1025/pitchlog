@@ -739,6 +739,9 @@ def validate_failure_scenario_result(
     asset: Mapping[str, Any],
     result: object,
     routes: Mapping[ApplicationPath, Sequence[str]],
+    *,
+    case_ids: Sequence[str] | None = None,
+    excluded_field_ids: frozenset[str] = frozenset(),
 ) -> None:
     """Runner の実行結果を、検査済みの資産の期待結果と比べる。
 
@@ -749,6 +752,9 @@ def validate_failure_scenario_result(
         asset: ``validate_failure_scenario_contract`` を通った資産。
         result: runner が返した実行結果。
         routes: ``R-TXN-ROUTE`` 由来の経路表。
+        case_ids: この runner が担う case(省略時は全 case)。資産の順で比べる。
+        excluded_field_ids: 別の runner が観測する実値のフィールド。結果に
+            現れてはならない(担当の和が全フィールドになることは呼び出し側が照合する)。
 
     Raises:
         FailureScenarioContractError: 欠落・未知・順序違い・値の不一致がある場合。
@@ -760,11 +766,19 @@ def validate_failure_scenario_result(
         asset["input"]["applicationPath"], "input.applicationPath"
     )
     path = cast(ApplicationPath | None, path_value if present else None)
+    all_case_ids = [case["caseId"] for case in asset["cases"]]
+    if case_ids is not None and not set(case_ids) <= set(all_case_ids):
+        _fail(f"資産に無い caseId です: {sorted(set(case_ids) - set(all_case_ids))}")
+    expected_cases = [
+        case
+        for case in asset["cases"]
+        if case_ids is None or case["caseId"] in case_ids
+    ]
     result_cases = record["cases"]
-    if not isinstance(result_cases, list) or len(result_cases) != len(asset["cases"]):
+    if not isinstance(result_cases, list) or len(result_cases) != len(expected_cases):
         _fail("result.cases の件数が契約と一致しません")
     for case_index, (expected_case, raw_case) in enumerate(
-        zip(asset["cases"], result_cases, strict=True)
+        zip(expected_cases, result_cases, strict=True)
     ):
         location = f"result.cases[{case_index}]"
         case = _exact_keys(raw_case, RESULT_CASE_FIELD_IDS, location)
@@ -800,7 +814,7 @@ def validate_failure_scenario_result(
             real_field_ids = tuple(
                 field_id
                 for field_id, value in expected["fields"].items()
-                if not _is_omitted(value)
+                if not _is_omitted(value) and field_id not in excluded_field_ids
             )
             fields = _exact_keys(
                 observation["fields"], real_field_ids, f"{observation_location}.fields"
@@ -815,7 +829,14 @@ def validate_failure_scenario_result(
                 )
             for field_id in real_field_ids:
                 if fields[field_id] != expected["fields"][field_id]:
-                    _fail(f"{observation_location}.fields.{field_id} が一致しません")
+                    actual_json = json.dumps(fields[field_id], ensure_ascii=False)
+                    expected_json = json.dumps(
+                        expected["fields"][field_id], ensure_ascii=False
+                    )
+                    _fail(
+                        f"{observation_location}.fields.{field_id} が一致しません: "
+                        f"実際 {actual_json} / 期待 {expected_json}"
+                    )
 
 
 def validate_population(
@@ -1756,6 +1777,41 @@ def test_frontend_contract_shares_the_expected_field_tables() -> None:
     )
     assert re.search(
         rf"export const FAILURE_SCENARIO_SCHEMA_VERSION = {SCHEMA_VERSION}\b", source
+    )
+
+
+def test_result_check_can_restrict_cases_and_fields(
+    routes: dict[ApplicationPath, tuple[str, ...]],
+) -> None:
+    """Runner ごとの担当 case・担当フィールドだけを比べ、担当外の混入を拒否する。"""
+    asset = _p3_asset(routes)
+    full = _result_from(asset)
+    second = {"scenarioId": asset["scenarioId"], "cases": [full["cases"][1]]}
+    validate_failure_scenario_result(
+        asset, second, routes, case_ids=["after-t7-before-delivery"]
+    )
+    with pytest.raises(FailureScenarioContractError, match="件数"):
+        validate_failure_scenario_result(
+            asset, full, routes, case_ids=["after-t7-before-delivery"]
+        )
+    with pytest.raises(FailureScenarioContractError, match="caseId"):
+        validate_failure_scenario_result(asset, second, routes, case_ids=["unknown"])
+    excluded = frozenset({"recoveryGenerationCheck"})
+    with pytest.raises(FailureScenarioContractError, match="キー"):
+        validate_failure_scenario_result(
+            asset,
+            second,
+            routes,
+            case_ids=["after-t7-before-delivery"],
+            excluded_field_ids=excluded,
+        )
+    del second["cases"][0]["observations"][0]["fields"]["recoveryGenerationCheck"]
+    validate_failure_scenario_result(
+        asset,
+        second,
+        routes,
+        case_ids=["after-t7-before-delivery"],
+        excluded_field_ids=excluded,
     )
 
 

@@ -99,3 +99,25 @@ class ChangeSink:
         if self.complete:
             self.effects.add(intent.intent_id)
         return self.complete
+
+
+class InjectedDeliveryCrash(RuntimeError):
+    """消費側反映後・配信完了記録前に起こす電源断。"""
+
+
+class ConsumedThenCrashSink(ChangeSink):
+    """最初の意図を消費側へ反映した直後、配信完了記録の前に一度だけ落ちる。"""
+
+    def __init__(self, base: ChangeSink) -> None:
+        """観測を共有する元の配信先を受け取る。"""
+        super().__init__()
+        self.base = base
+        self.crashed = False
+
+    def deliver(self, intent: DeliveryIntent) -> bool:
+        """元の配信先へ反映してから、一度だけ電源断を起こす。"""
+        delivered = self.base.deliver(intent)
+        if not self.crashed:
+            self.crashed = True
+            raise InjectedDeliveryCrash("消費側反映後・配信完了記録前の電源断")
+        return delivered
