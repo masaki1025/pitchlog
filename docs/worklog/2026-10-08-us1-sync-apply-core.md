@@ -336,3 +336,17 @@ branch: feature/us1-sync-apply-core
 - **送り(直していない)**: ACK の D3 を要求の D4 の世代の値にすること — ⑥ の判定は直したが、ACK に載せる D3 は現世代のまま。D4 の物理形式・世代の読み取り operation は U-R1 の決定事項なので、U-R1 の接続時(U-R1 新ステップ 6)に揃える / 記録権の前処理と取引内の判定の競合で素の例外になる件 — HTTP 入口(TSK-331)の例外の写像で扱う
 - **Claude サブエージェントのレビューについて**: 別タブ(238)が「Claude サブエージェントのレビューは Codex の敵対レビューの指摘を取りこぼす」と記録している。本件は 2 回で P1 5 件を拾ったが、取りこぼしの可能性は残るので、PR 段階で Codex の敵対レビュー(10-21 以降)を必ず通す
 - 検査: DB 不要の全件 1583 passed(既知の偽の赤 44 件以外)/ U-S1 の DB 試験 + トランザクション試験 128 passed / backend と root の ruff・ty green / 迂回検査 ok(merge-base 比較)
+
+## ステップ 16 — (d) 資産契約の検査器(2026-10-15 — Claude が直接実装・Codex 停止中)
+
+- 置き場: `backend/tests/test_sync_apply_failure_contract.py`(既存の glob `backend/tests/test_sync_apply_*.py` に収まり、core-areas の窓口を使わない)。契約検査 `validate_failure_scenario_contract` と結果検査 `validate_failure_scenario_result` を別関数にし、母集合 `validate_population`・注入被覆 `validate_injection_coverage` を exact-set で持つ。ステップ 19 の runner はこのモジュールを読み込む
+- 資産の形(`schemaVersion: 2`): 根 = `schemaVersion`・`scenarioId`・`version`・`input`・`cases`・`comparisonUnit`。`input` に `p5Branch` を足して 12 件(P5 以外は省略理由)。case = `caseId`・`faultInjection`(`target`・`injectionPoint`・`stopOperation`・`restartOperation`・`expectedReachability`)・`observations`。注入対象は `transaction`(経路 × T 要素)/ `outOfTransaction`(P3 の 3 点)/ `client`(操作)。比較単位 = `scenarioId × caseId × injectionTarget × observationPoint × expectedField`
+- 結果の形: `{scenarioId, cases: [{caseId, hookCalls, observations}]}`。到達しない注入点は `hookCalls == 0`、到達する注入点は 1 回以上。契約が省略理由を書いたフィールドは結果に現れてはならない
+- **Claude の判断(逐行確認・PR 段階のレビューで見てほしい点)**:
+  - **省略できるフィールドの表**(`OMITTABLE_FIELD_IDS`): クライアント側 = 後半 5 件 / P1・P2 = 端末側 4 件(`queue`・`lock`・`acceptanceDisplay`・`reinputAvailability`)/ P3 = 端末側 4 件 + `d1`・`prefix`・`temporaryIdMapping`・I6 の 6 件 / P4・P5 = 端末側 4 件 + `temporaryIdMapping`。**sync-server-apply design 3-2 の「P1/P2/P4/P5 は 10 件すべて実値必須」から外れる**: サーバー側 runner は端末を観測しないため。正本 v0.8 草案の「経路によって意味を持たないフィールドは省略理由を明示して省略してよい」の範囲に入るかは確定ゲートで問う。`tElementCommitment`・`idempotentResult`・`recordingRight` と P1・P2・P3 の無効化意図のフィールドはサーバー経路で省けない
+  - **P1・P2 に加わる期待フィールド 4 件**(正本 10-3「契約」v0.6 の無効化意図): `invalidationIntentIds`・`invalidationIntentRows`・`intentCountsAfterReplay`・`intentCountsAfterFullDuplicate`。**P3 の 13 件**: 復旧世代照合・意図 ID・各行・配信状態・消費側反映・配信完了記録・再掲後の件数・I6 の 6 件(4 項目 + 保持期限 + 退避状態)
+  - **T 要素の内部単位**(`T_ELEMENT_UNITS`): 実装の書き込み単位に合わせ、P1・P2 の T2 = slot・event、T6 = result・mapping、P3 の T7 = targetVersion・intents、P4 の T8・P5 の T9 = ledger・original。P3 の T2・T6 は単一値
+  - **到達性**: 到達しない注入 case は、注入対象の T 要素の全単位が `no-write` / `no-change`。到達する注入 case は確定・非確定の観測を少なくとも 1 つ持つ。B3b は到達するトランザクション内 case を宣言せず、T9 の到達しない case を必須にする。B3a は T9 の到達する case を必須にする
+- 合格条件の確認: 正例 5 種(クライアント側・P1・P3・P5 の B3a / B3b)と結果検査の正例、負例(部分確定・T 集合の食い違い・孤立した観測点・重複注入・B3b の値関係 3 種・判別共用体・到達性・P3 / P1・P2 の固有フィールドの欠落・語彙の外・誤字・schemaVersion と構造の組・母集合と注入被覆の 1 件変異)の 56 件 green。**検査器の分岐を 8 か所無効化する変異でそれぞれ赤**を確認(均一性・B3b の同一内容・重複注入・呼び出し 0 回・省略可否・18 組の被覆・到達しない対象の状態・B3b の到達 case)
+- 実在する資産の照合(ディレクトリの走査・宣言した被覆と資産の case の一致)はステップ 17・18 で足す(この時点の資産は旧構造の 4 件だけ)
+- 検査: backend の ruff・ty green / DB 不要の範囲は既知の偽の赤 44 件だけ(共有 DB に他タブの被検査ロールが残り、DB 試験は setup で ERROR — 本変更は DB 試験に触れない)
