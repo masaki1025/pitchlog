@@ -3,6 +3,18 @@ export const FAILURE_SCENARIO_IDS = [
   'leader-freeze-reelection',
   'waiting-input-not-accepted',
   'durable-append-failure',
+  'tombstone-application',
+  'revision-application',
+  'p1-crash-boundaries',
+  'p2-crash-boundaries',
+  'p3-crash-boundaries',
+  'p4-crash-boundaries',
+  'p5-b3a-crash-boundaries',
+  'p5-b3b-unreached-t9',
+  'd1-mixed-batch',
+  'b3b-after-gap',
+  'p3-invalidation-consumed-before-complete',
+  'o4-persisted-d2-equivalence',
 ] as const
 
 export type FailureScenarioId = (typeof FAILURE_SCENARIO_IDS)[number]

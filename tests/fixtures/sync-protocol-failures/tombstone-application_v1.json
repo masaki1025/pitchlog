@@ -1,0 +1,772 @@
+{
+  "schemaVersion": 2,
+  "scenarioId": "tombstone-application",
+  "version": 1,
+  "input": {
+    "initialPersistence": {
+      "value": {
+        "generation": 1,
+        "d3": 4,
+        "seed": [
+          {
+            "accept": [
+              {
+                "d5": "e1",
+                "d1": 1,
+                "kind": "play_input",
+                "payload": {
+                  "pitch": "e1"
+                }
+              },
+              {
+                "d5": "e2",
+                "d1": 2,
+                "kind": "play_input",
+                "payload": {
+                  "pitch": "e2"
+                }
+              },
+              {
+                "d5": "e3",
+                "d1": 3,
+                "kind": "play_input",
+                "payload": {
+                  "pitch": "e3"
+                }
+              },
+              {
+                "d5": "e4",
+                "d1": 4,
+                "kind": "play_input",
+                "payload": {
+                  "pitch": "e4"
+                }
+              }
+            ]
+          },
+          {
+            "rejectContent": [
+              {
+                "d5": "e5",
+                "d1": 5,
+                "kind": "play_input",
+                "payload": {
+                  "pitch": "invalid"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "queue": {
+      "value": {
+        "unsent": [
+          {
+            "d5": "x5",
+            "d1": 5,
+            "kind": "play_input",
+            "payload": {},
+            "tombstoneOf": "e5"
+          },
+          {
+            "d5": "e6",
+            "d1": 6,
+            "kind": "play_input",
+            "payload": {
+              "pitch": "e6"
+            }
+          },
+          {
+            "d5": "e7",
+            "d1": 7,
+            "kind": "play_input",
+            "payload": {
+              "pitch": "e7"
+            }
+          }
+        ],
+        "subject": "x5"
+      }
+    },
+    "d1": {
+      "value": {
+        "sent": [
+          5,
+          6,
+          7
+        ]
+      }
+    },
+    "d3": {
+      "value": {
+        "initial": 4
+      }
+    },
+    "d4": {
+      "value": {
+        "request": 1
+      }
+    },
+    "d5": {
+      "value": {
+        "persisted": [
+          "e1",
+          "e2",
+          "e3",
+          "e4",
+          "e5"
+        ],
+        "requested": [
+          "x5",
+          "e6",
+          "e7"
+        ]
+      }
+    },
+    "currentRecoveryGeneration": {
+      "omittedBecause": "復旧世代を照合しない D1 付き経路のため"
+    },
+    "requestRecoveryGeneration": {
+      "omittedBecause": "復旧世代を照合しない D1 付き経路のため"
+    },
+    "applicationPath": {
+      "value": "P1"
+    },
+    "tabs": {
+      "omittedBecause": "サーバー側 runner は端末のタブを扱わない"
+    },
+    "lock": {
+      "omittedBecause": "サーバー側 runner は端末のロックを扱わない"
+    },
+    "p5Branch": {
+      "omittedBecause": "適用経路が P5 の資産ではないため"
+    }
+  },
+  "cases": [
+    {
+      "caseId": "ack-loss",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "client",
+            "operation": "ACK の受信"
+          }
+        },
+        "injectionPoint": {
+          "value": "応答を端末へ返す前(ACK 消失)"
+        },
+        "stopOperation": {
+          "omittedBecause": "停止を伴わない注入のため"
+        },
+        "restartOperation": {
+          "value": "同じ要求を再送する"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+            },
+            "d1": {
+              "ack": [
+                [
+                  5,
+                  "受理"
+                ],
+                [
+                  6,
+                  "受理"
+                ],
+                [
+                  7,
+                  "受理"
+                ]
+              ]
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "d3": 7
+            },
+            "idempotentResult": {
+              "boundary": "B1",
+              "b3Branch": null,
+              "ledger": {
+                "x5": "accepted",
+                "e6": "accepted",
+                "e7": "accepted"
+              },
+              "originals": {
+                "x5": 0,
+                "e6": 0,
+                "e7": 0
+              }
+            },
+            "temporaryIdMapping": {
+              "persisted": [],
+              "acknowledged": [],
+              "players": 0,
+              "sameAsPreviousResponse": null
+            },
+            "recordingRight": {
+              "held": true
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": {
+                "slot": "committed",
+                "event": "committed"
+              },
+              "T3": "committed",
+              "T4": "committed",
+              "T6": {
+                "result": "committed",
+                "mapping": "no-write"
+              }
+            },
+            "invalidationIntentIds": {
+              "scopes": [
+                "chart",
+                "game",
+                "player_total",
+                "shared_total",
+                "team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "pending",
+              "game": "pending",
+              "player_total": "pending",
+              "shared_total": "pending",
+              "team_total": "pending"
+            },
+            "intentCountsAfterReplay": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            },
+            "intentCountsAfterFullDuplicate": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            }
+          }
+        },
+        {
+          "observationPoint": "再送後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+            },
+            "d1": {
+              "ack": [
+                [
+                  5,
+                  "重複"
+                ],
+                [
+                  6,
+                  "重複"
+                ],
+                [
+                  7,
+                  "重複"
+                ]
+              ]
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "d3": 7
+            },
+            "idempotentResult": {
+              "boundary": "B1",
+              "b3Branch": null,
+              "ledger": {
+                "x5": "accepted",
+                "e6": "accepted",
+                "e7": "accepted"
+              },
+              "originals": {
+                "x5": 0,
+                "e6": 0,
+                "e7": 0
+              }
+            },
+            "temporaryIdMapping": {
+              "persisted": [],
+              "acknowledged": [],
+              "players": 0,
+              "sameAsPreviousResponse": null
+            },
+            "recordingRight": {
+              "held": null
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": {
+                "slot": "committed",
+                "event": "committed"
+              },
+              "T3": "committed",
+              "T4": "committed",
+              "T6": {
+                "result": "committed",
+                "mapping": "no-write"
+              }
+            },
+            "invalidationIntentIds": {
+              "scopes": [
+                "chart",
+                "game",
+                "player_total",
+                "shared_total",
+                "team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "pending",
+              "game": "pending",
+              "player_total": "pending",
+              "shared_total": "pending",
+              "team_total": "pending"
+            },
+            "intentCountsAfterReplay": {
+              "chart": 1,
+              "game": 1,
+              "player_total": 1,
+              "shared_total": 1,
+              "team_total": 1
+            },
+            "intentCountsAfterFullDuplicate": {
+              "chart": 1,
+              "game": 1,
+              "player_total": 1,
+              "shared_total": 1,
+              "team_total": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "right-moved-after-confirmation",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "client",
+            "operation": "墓標の送信"
+          }
+        },
+        "injectionPoint": {
+          "value": "V12 確認後・送信前に記録権を移す"
+        },
+        "stopOperation": {
+          "omittedBecause": "停止を伴わない注入のため"
+        },
+        "restartOperation": {
+          "omittedBecause": "再開を伴わない注入のため"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "応答後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+            },
+            "d1": {
+              "ack": [
+                [
+                  5,
+                  "退避"
+                ],
+                [
+                  6,
+                  "退避"
+                ],
+                [
+                  7,
+                  "退避"
+                ]
+              ]
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "d3": 4
+            },
+            "idempotentResult": {
+              "boundary": "B4",
+              "b3Branch": null,
+              "ledger": {
+                "x5": "evacuated",
+                "e6": "evacuated",
+                "e7": "evacuated"
+              },
+              "originals": {
+                "x5": 1,
+                "e6": 1,
+                "e7": 1
+              }
+            },
+            "temporaryIdMapping": {
+              "persisted": [],
+              "acknowledged": [],
+              "players": 0,
+              "sameAsPreviousResponse": null
+            },
+            "recordingRight": {
+              "held": false
+            },
+            "tElementCommitment": {
+              "T1": "no-write",
+              "T2": {
+                "slot": "no-write",
+                "event": "no-write"
+              },
+              "T3": "no-write",
+              "T4": "no-write",
+              "T6": {
+                "result": "no-write",
+                "mapping": "no-write"
+              }
+            },
+            "invalidationIntentIds": {
+              "scopes": []
+            },
+            "invalidationIntentRows": {},
+            "intentCountsAfterReplay": {
+              "omittedBecause": "この case は再送しないため(この資産の別の case で実値を比べる)"
+            },
+            "intentCountsAfterFullDuplicate": {
+              "omittedBecause": "この case は再送しないため(この資産の別の case で実値を比べる)"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "comparisonUnit": [
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterFullDuplicate"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "ack-loss",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "再送後",
+      "expectedField": "intentCountsAfterFullDuplicate"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "tombstone-application",
+      "caseId": "right-moved-after-confirmation",
+      "injectionTarget": "client:墓標の送信",
+      "observationPoint": "応答後",
+      "expectedField": "intentCountsAfterFullDuplicate"
+    }
+  ]
+}

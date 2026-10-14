@@ -115,6 +115,16 @@ _EXTRA_FIELD_IDS: Mapping[ApplicationPath | None, tuple[str, ...]] = {
     "P4": (),
     "P5": (),
 }
+_REPLAY_COUNT_FIELD_IDS = ("intentCountsAfterReplay", "intentCountsAfterFullDuplicate")
+# 再掲の前の観測点では省けるが、資産のどこかの観測点で実値を持たなければならない。
+REQUIRED_SOMEWHERE_FIELD_IDS: Mapping[ApplicationPath | None, tuple[str, ...]] = {
+    None: (),
+    "P1": _REPLAY_COUNT_FIELD_IDS,
+    "P2": _REPLAY_COUNT_FIELD_IDS,
+    "P3": ("intentCountsAfterReplay",),
+    "P4": (),
+    "P5": (),
+}
 _CLIENT_SIDE_FIELD_IDS = ("queue", "lock", "acceptanceDisplay", "reinputAvailability")
 # 省略理由を書ける期待フィールド(省略可否だけを経路で条件付きにする — SP 10-3)。
 # サーバー経路の資産で端末側の 4 項目を省けるのは、サーバー側 runner が端末を
@@ -130,10 +140,17 @@ OMITTABLE_FIELD_IDS: Mapping[ApplicationPath | None, frozenset[str]] = {
             "tElementCommitment",
         )
     ),
-    "P1": frozenset(_CLIENT_SIDE_FIELD_IDS),
-    "P2": frozenset(_CLIENT_SIDE_FIELD_IDS),
+    "P1": frozenset((*_CLIENT_SIDE_FIELD_IDS, *_REPLAY_COUNT_FIELD_IDS)),
+    "P2": frozenset((*_CLIENT_SIDE_FIELD_IDS, *_REPLAY_COUNT_FIELD_IDS)),
     "P3": frozenset(
-        (*_CLIENT_SIDE_FIELD_IDS, "d1", "prefix", "temporaryIdMapping", *_I6_FIELD_IDS)
+        (
+            *_CLIENT_SIDE_FIELD_IDS,
+            "d1",
+            "prefix",
+            "temporaryIdMapping",
+            "intentCountsAfterReplay",
+            *_I6_FIELD_IDS,
+        )
     ),
     "P4": frozenset((*_CLIENT_SIDE_FIELD_IDS, "temporaryIdMapping")),
     "P5": frozenset((*_CLIENT_SIDE_FIELD_IDS, "temporaryIdMapping")),
@@ -658,6 +675,16 @@ def validate_failure_scenario_contract(
             else:
                 unreached_transaction += 1
 
+    for field_id in REQUIRED_SOMEWHERE_FIELD_IDS[path]:
+        if all(
+            _is_omitted(observation["fields"][field_id])
+            for case in cases
+            for observation in case["observations"]
+        ):
+            _fail(
+                f"{field_id} はこの資産のどこかの観測点で実値を持たなければなりません"
+            )
+
     if p5_branch == "B3b":
         if reached_transaction:
             _fail("B3b の資産はトランザクション内の到達する case を宣言しません")
@@ -903,7 +930,11 @@ def _fields(
             fields[field_id] = (
                 _omit() if path is None else _commitment(path, routes, state)
             )
-        elif field_id in OMITTABLE_FIELD_IDS[path] and path is not None:
+        elif (
+            path is not None
+            and field_id in OMITTABLE_FIELD_IDS[path]
+            and field_id not in REQUIRED_SOMEWHERE_FIELD_IDS[path]
+        ):
             fields[field_id] = _omit("サーバー側 runner は端末を観測しないため")
         else:
             fields[field_id] = {"observed": field_id}
@@ -1360,7 +1391,10 @@ def test_contract_rejects_a_missing_p3_field(
 def test_contract_rejects_a_missing_d1_path_field(
     field_id: str, routes: dict[ApplicationPath, tuple[str, ...]]
 ) -> None:
-    """負例: P1・P2 に加わる無効化意図の期待フィールドの欠落と省略。"""
+    """負例: P1・P2 に加わる無効化意図の期待フィールドの欠落と省略。
+
+    再掲後の意図件数は再掲の前の観測点で省けるが、資産の全観測点では省けない。
+    """
     asset = _p1_asset(routes)
     del asset["cases"][0]["observations"][0]["fields"][field_id]
     with pytest.raises(FailureScenarioContractError, match="fields"):
@@ -1368,8 +1402,16 @@ def test_contract_rejects_a_missing_d1_path_field(
 
     asset = _p1_asset(routes)
     _mutate_fields(asset, field_id, _omit())
-    with pytest.raises(FailureScenarioContractError, match="省略できません"):
+    if field_id in REQUIRED_SOMEWHERE_FIELD_IDS["P1"]:
         _validate(asset, routes)
+        for case in asset["cases"]:
+            for observation in case["observations"]:
+                observation["fields"][field_id] = _omit()
+        with pytest.raises(FailureScenarioContractError, match="どこかの観測点"):
+            _validate(asset, routes)
+    else:
+        with pytest.raises(FailureScenarioContractError, match="省略できません"):
+            _validate(asset, routes)
 
 
 def test_contract_limits_omission_by_path(
@@ -1670,7 +1712,7 @@ def _fixture_assets() -> list[tuple[str, Any]]:
 def test_every_fixture_passes_the_contract_check(
     routes: dict[ApplicationPath, tuple[str, ...]],
 ) -> None:
-    """実在する資産すべてが契約検査を通り、scenarioId ごとに現行版が 1 件だけある。"""
+    """実在する資産すべてが契約検査を通り、本単位の 16 件と過不足なく一致する。"""
     assets = _fixture_assets()
     assert assets
     scenario_ids = [
@@ -1678,7 +1720,7 @@ def test_every_fixture_passes_the_contract_check(
         for name, asset in assets
     ]
     assert len(scenario_ids) == len(set(scenario_ids))
-    assert set(scenario_ids) <= OWNED_SCENARIO_IDS
+    assert set(scenario_ids) == OWNED_SCENARIO_IDS
     client_ids = {
         asset["scenarioId"]
         for _, asset in assets
@@ -1715,3 +1757,20 @@ def test_frontend_contract_shares_the_expected_field_tables() -> None:
     assert re.search(
         rf"export const FAILURE_SCENARIO_SCHEMA_VERSION = {SCHEMA_VERSION}\b", source
     )
+
+
+def test_declared_coverage_equals_the_fixtures_cases(
+    routes: dict[ApplicationPath, tuple[str, ...]],
+) -> None:
+    """宣言した注入被覆が、実在する資産の case から読んだ被覆と一致する。"""
+    transaction: dict[str, frozenset[tuple[str, str]]] = {}
+    out_of_transaction: dict[str, frozenset[str]] = {}
+    for name, asset in _fixture_assets():
+        validate_failure_scenario_contract(name, asset, routes)
+        if pairs := reached_transaction_pairs(asset):
+            transaction[asset["scenarioId"]] = pairs
+        if points := out_of_transaction_points(asset):
+            out_of_transaction[asset["scenarioId"]] = points
+    assert transaction == dict(TRANSACTION_INJECTION_COVERAGE)
+    assert out_of_transaction == dict(OUT_OF_TRANSACTION_INJECTION_COVERAGE)
+    validate_injection_coverage(routes, transaction, {}, out_of_transaction, {})

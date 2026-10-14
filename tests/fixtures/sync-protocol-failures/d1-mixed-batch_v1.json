@@ -1,0 +1,501 @@
+{
+  "schemaVersion": 2,
+  "scenarioId": "d1-mixed-batch",
+  "version": 1,
+  "input": {
+    "initialPersistence": {
+      "value": {
+        "generation": 1,
+        "d3": 2,
+        "seed": [
+          {
+            "accept": [
+              {
+                "d5": "e1",
+                "d1": 1,
+                "kind": "play_input",
+                "payload": {
+                  "pitch": "ball"
+                }
+              },
+              {
+                "d5": "e2",
+                "d1": 2,
+                "kind": "play_input",
+                "payload": {
+                  "pitch": "ball"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "queue": {
+      "value": {
+        "unsent": [
+          {
+            "d5": "e1",
+            "d1": 1,
+            "kind": "play_input",
+            "payload": {
+              "pitch": "ball"
+            }
+          },
+          {
+            "d5": "e2",
+            "d1": 2,
+            "kind": "play_input",
+            "payload": {
+              "pitch": "strike"
+            }
+          },
+          {
+            "d5": "e3",
+            "d1": 3,
+            "kind": "play_input",
+            "payload": {
+              "pitch": "e3"
+            }
+          }
+        ],
+        "subject": "e3"
+      }
+    },
+    "d1": {
+      "value": {
+        "sent": [
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    "d3": {
+      "value": {
+        "initial": 2
+      }
+    },
+    "d4": {
+      "value": {
+        "request": 1
+      }
+    },
+    "d5": {
+      "value": {
+        "persisted": [
+          "e1",
+          "e2"
+        ],
+        "requested": [
+          "e1",
+          "e2",
+          "e3"
+        ]
+      }
+    },
+    "currentRecoveryGeneration": {
+      "omittedBecause": "復旧世代を照合しない D1 付き経路のため"
+    },
+    "requestRecoveryGeneration": {
+      "omittedBecause": "復旧世代を照合しない D1 付き経路のため"
+    },
+    "applicationPath": {
+      "value": "P1"
+    },
+    "tabs": {
+      "omittedBecause": "サーバー側 runner は端末のタブを扱わない"
+    },
+    "lock": {
+      "omittedBecause": "サーバー側 runner は端末のロックを扱わない"
+    },
+    "p5Branch": {
+      "omittedBecause": "適用経路が P5 の資産ではないため"
+    }
+  },
+  "cases": [
+    {
+      "caseId": "ack-loss-handover",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "client",
+            "operation": "ACK の受信"
+          }
+        },
+        "injectionPoint": {
+          "value": "応答を端末へ返す前(ACK 消失)"
+        },
+        "stopOperation": {
+          "omittedBecause": "停止を伴わない注入のため"
+        },
+        "restartOperation": {
+          "value": "記録権を引き継ぎ、同じ要求を再送する"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+            },
+            "d1": {
+              "ack": [
+                [
+                  1,
+                  "重複"
+                ],
+                [
+                  2,
+                  "拒否"
+                ],
+                [
+                  3,
+                  "未処理"
+                ]
+              ]
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "d3": 2
+            },
+            "idempotentResult": {
+              "boundary": "B3",
+              "b3Branch": "B3b",
+              "ledger": {
+                "e1": "accepted",
+                "e2": "accepted",
+                "e3": null
+              },
+              "originals": {
+                "e1": 0,
+                "e2": 0,
+                "e3": 0
+              }
+            },
+            "temporaryIdMapping": {
+              "persisted": [],
+              "acknowledged": [],
+              "players": 0,
+              "sameAsPreviousResponse": null
+            },
+            "recordingRight": {
+              "held": true
+            },
+            "tElementCommitment": {
+              "T1": "no-write",
+              "T2": {
+                "slot": "no-write",
+                "event": "no-write"
+              },
+              "T3": "no-write",
+              "T4": "no-write",
+              "T6": {
+                "result": "no-write",
+                "mapping": "no-write"
+              }
+            },
+            "invalidationIntentIds": {
+              "scopes": []
+            },
+            "invalidationIntentRows": {},
+            "intentCountsAfterReplay": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            },
+            "intentCountsAfterFullDuplicate": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            }
+          }
+        },
+        {
+          "observationPoint": "引き継ぎ後の再送後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+            },
+            "d1": {
+              "ack": [
+                [
+                  1,
+                  "重複"
+                ],
+                [
+                  2,
+                  "拒否"
+                ],
+                [
+                  3,
+                  "未処理"
+                ]
+              ]
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "d3": 2
+            },
+            "idempotentResult": {
+              "boundary": "B3",
+              "b3Branch": "B3b",
+              "ledger": {
+                "e1": "accepted",
+                "e2": "accepted",
+                "e3": null
+              },
+              "originals": {
+                "e1": 0,
+                "e2": 0,
+                "e3": 0
+              }
+            },
+            "temporaryIdMapping": {
+              "persisted": [],
+              "acknowledged": [],
+              "players": 0,
+              "sameAsPreviousResponse": null
+            },
+            "recordingRight": {
+              "held": true
+            },
+            "tElementCommitment": {
+              "T1": "no-write",
+              "T2": {
+                "slot": "no-write",
+                "event": "no-write"
+              },
+              "T3": "no-write",
+              "T4": "no-write",
+              "T6": {
+                "result": "no-write",
+                "mapping": "no-write"
+              }
+            },
+            "invalidationIntentIds": {
+              "scopes": []
+            },
+            "invalidationIntentRows": {},
+            "intentCountsAfterReplay": {},
+            "intentCountsAfterFullDuplicate": {}
+          }
+        }
+      ]
+    }
+  ],
+  "comparisonUnit": [
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterFullDuplicate"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "d1-mixed-batch",
+      "caseId": "ack-loss-handover",
+      "injectionTarget": "client:ACK の受信",
+      "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "intentCountsAfterFullDuplicate"
+    }
+  ]
+}

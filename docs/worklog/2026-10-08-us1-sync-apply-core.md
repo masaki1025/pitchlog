@@ -359,3 +359,18 @@ branch: feature/us1-sync-apply-core
 - `failureScenarioAdapter.ts`: runner は case 1 件の結果(`caseId`・`hookCalls`・観測点)を返す。`hookCalls` は注入を実行した回数を配列の長さで数える(期待値のリテラルを adapter に書かない規則を保つ)
 - spec: `_v1` の決め打ちを現行版の宣言表 `CURRENT_VERSIONS` に置き換えた(sync-server-apply design 3-7)。`prohibitions.spec.ts` の export 表を追随(値 9・型 10)
 - 検査: frontend 全件 984 passed・vue-tsc・eslint・prettier green / Python の契約検査 58 passed(実在する 4 資産が契約検査を通る)
+
+## ステップ 18 — 新規資産 12 件(2026-10-15 — Claude が直接実装)
+
+- 12 件(墓標・改訂・P1〜P4・`p5-b3a`・`p5-b3b`・`d1-mixed-batch`・`b3b-after-gap`・`p3-invalidation-consumed-before-complete`・`o4-persisted-d2-equivalence`)を `_v1.json` で足した。期待値は正本 10-2 の各行から手で書いた(リポジトリ外の作成スクリプトで JSON を組み、比較単位だけを機械的に並べた — 製品の実行結果からは作っていない)
+- 入力の語彙(サーバー側): `initialPersistence.seed` = 公開入口で作る初期状態(`accept` / `rejectContent` / `equalD2`〔O4 の壊れた永続状態〕/ `deliverPending`〔初期状態の outbox を配信済みにする〕/ `gameStatus`)、`queue.unsent` = 送る要求、`queue.subject` = T 要素を観測する対象イベント、`queue.restartUnsent` = 再開時の要求(gap 解消)
+- 観測の語彙: `d1` = 応答の A5(`[D1, A5]` の並び。応答が無ければ null)/ `prefix` = 世代 1 の D3 / `idempotentResult` = 境界・B3 の分岐・要求 D5 ごとの台帳の種別・原本の件数 / `temporaryIdMapping` = 写像行・応答の写像・選手行・直前の応答との一致 / `recordingRight.held` = ⑤ の判定(**評価しなかった送信は null**)/ P1・P2・P3 の意図 = 範囲・配信状態・件数 / P3 の配信 = 配信先の呼び出し・論理効果・再配送・完了記録
+- 被覆: 到達する注入 case から読んだトランザクション内の組 = 18 組、トランザクション外 = 3 点(宣言と一致することを試験で照合)。実在する資産 = 本単位の 16 件(exact-set)
+- frontend: `FAILURE_SCENARIO_IDS` の末尾に 12 件を足した(adapter の分割代入が位置依存のため)。adapter に `CLIENT_RUNNER_SCENARIO_IDS`(実行する 4 件)と `SERVER_RUNNER_SCENARIO_IDS`(サーバー runner へ回す 12 件 — 明示の表)を置き、和 = 全件・交差 = 空・「適用経路を持つ資産 ⇔ サーバー側」を spec で照合する
+- **runner(ステップ 19)を回して見つけた資産側の読み違い 2 点を直した**(どちらも正本で裏を取ってから直した — 実装の挙動に合わせただけではない): ① 既存 D5 だけの要求では ⑤(V12)を評価しない(正本 10-2 の P4「引き継ぎ後の再送は現在の V12 を保存済み結果の再掲には用いず」・6-2 の ⑤ は未使用 D5 の要求単位の判定)→ 再掲だけの送信の `recordingRight.held` は null ② 非保持端末が退避済みの D5 だけを再送すると、⑤ を評価しないので境界は B4 でなく B1(退避の再掲は境界を決めない — U-14)
+- **Claude の判断・送り(逐行確認・確定ゲートで見てほしい点)**:
+  - **T4 の証拠は独立でない**: 投影の永続化は U-X1 の持ち物で U-S1 の DB に跡が残らない。runner は「投影ポートが対象を受け取り、同じトランザクションが確定した(T1 の台帳行)」から導く。T1 と T6 の結果も同じ台帳行を証拠にする(スパイク S-4 と同じ限界)
+  - **正本 v0.8 草案の例示が実装・10-2 と食い違う**: 「no-write(例: 墓標の T4)」— 実装は墓標も投影ポートへ渡す(T4 は確定)/「no-change(例: 改訂の T3)」— 10-2 の改訂は D3 を 4 → 7 へ進める(T3 は確定)。今回の資産は no-change を使っていない。草案の例示を直す(別コミット)。確定ゲートで問う
+  - **P3 の B8〜B14 は資産の case にしていない**: case は入力を共有するので、入力の違う境界結果を 1 資産の case にできない。既存の DB 試験(`test_sync_apply_change_boundary.py`)で観測している。資産化するなら資産を分ける
+  - **墓標の「旧保持端末では墓標操作を提供しない」・「現保持端末はオンラインで V12 を確認してから生成」はクライアント側**で、サーバー runner の射程外。P4 の「旧 D4 の端末」と「現 D4 の非保持端末」は合成の記録権ポートでは区別できないので、非保持の 1 通りで表した
+  - **P3 の「サーバー確定後・I6 端末永続化前」は、サーバー側のフィールドをサーバー runner、I6 の 6 フィールドをクライアント runner(ステップ 20)が観測する**(分担は runner の表で照合)

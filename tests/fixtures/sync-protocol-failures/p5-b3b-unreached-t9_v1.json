@@ -1,0 +1,417 @@
+{
+  "schemaVersion": 2,
+  "scenarioId": "p5-b3b-unreached-t9",
+  "version": 1,
+  "input": {
+    "initialPersistence": {
+      "value": {
+        "generation": 1,
+        "d3": 1,
+        "seed": [
+          {
+            "accept": [
+              {
+                "d5": "e1",
+                "d1": 1,
+                "kind": "play_input",
+                "payload": {
+                  "pitch": "ball"
+                }
+              }
+            ]
+          }
+        ],
+        "originals": [
+          {
+            "d5": "e1",
+            "content": {
+              "d1": 1,
+              "kind": "play_input",
+              "payload": {
+                "pitch": "ball"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "queue": {
+      "value": {
+        "unsent": [
+          {
+            "d5": "e1",
+            "d1": 1,
+            "kind": "play_input",
+            "payload": {
+              "pitch": "strike"
+            }
+          }
+        ],
+        "subject": "e1"
+      }
+    },
+    "d1": {
+      "value": {
+        "sent": [
+          1
+        ]
+      }
+    },
+    "d3": {
+      "value": {
+        "initial": 1
+      }
+    },
+    "d4": {
+      "value": {
+        "request": 1
+      }
+    },
+    "d5": {
+      "value": {
+        "persisted": [
+          "e1"
+        ],
+        "requested": [
+          "e1"
+        ]
+      }
+    },
+    "currentRecoveryGeneration": {
+      "omittedBecause": "復旧世代を照合しない D1 付き経路のため"
+    },
+    "requestRecoveryGeneration": {
+      "omittedBecause": "復旧世代を照合しない D1 付き経路のため"
+    },
+    "applicationPath": {
+      "value": "P5"
+    },
+    "tabs": {
+      "omittedBecause": "サーバー側 runner は端末のタブを扱わない"
+    },
+    "lock": {
+      "omittedBecause": "サーバー側 runner は端末のロックを扱わない"
+    },
+    "p5Branch": {
+      "value": {
+        "kind": "B3b",
+        "firstOriginal": {
+          "d5": "e1",
+          "content": {
+            "d1": 1,
+            "kind": "play_input",
+            "payload": {
+              "pitch": "ball"
+            }
+          }
+        },
+        "laterInput": {
+          "d5": "e1",
+          "content": {
+            "d1": 1,
+            "kind": "play_input",
+            "payload": {
+              "pitch": "strike"
+            }
+          }
+        }
+      }
+    }
+  },
+  "cases": [
+    {
+      "caseId": "t9-ledger-unreached",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "transaction",
+            "path": "P5",
+            "tElement": "T9"
+          }
+        },
+        "injectionPoint": {
+          "value": "T9 の台帳の保存後"
+        },
+        "stopOperation": {
+          "omittedBecause": "停止を伴わない注入のため"
+        },
+        "restartOperation": {
+          "omittedBecause": "再開を伴わない注入のため"
+        },
+        "expectedReachability": {
+          "value": "unreached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "応答後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+            },
+            "d1": {
+              "ack": [
+                [
+                  1,
+                  "拒否"
+                ]
+              ]
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "d3": 1
+            },
+            "idempotentResult": {
+              "boundary": "B3",
+              "b3Branch": "B3b",
+              "ledger": {
+                "e1": "accepted"
+              },
+              "originals": {
+                "e1": 0
+              }
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
+            },
+            "recordingRight": {
+              "held": null
+            },
+            "tElementCommitment": {
+              "T9": {
+                "ledger": "no-write",
+                "original": "no-write"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "t9-original-unreached",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "transaction",
+            "path": "P5",
+            "tElement": "T9"
+          }
+        },
+        "injectionPoint": {
+          "value": "T9 の原本の保存後"
+        },
+        "stopOperation": {
+          "omittedBecause": "停止を伴わない注入のため"
+        },
+        "restartOperation": {
+          "omittedBecause": "再開を伴わない注入のため"
+        },
+        "expectedReachability": {
+          "value": "unreached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "応答後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+            },
+            "d1": {
+              "ack": [
+                [
+                  1,
+                  "拒否"
+                ]
+              ]
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "d3": 1
+            },
+            "idempotentResult": {
+              "boundary": "B3",
+              "b3Branch": "B3b",
+              "ledger": {
+                "e1": "accepted"
+              },
+              "originals": {
+                "e1": 0
+              }
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
+            },
+            "recordingRight": {
+              "held": null
+            },
+            "tElementCommitment": {
+              "T9": {
+                "ledger": "no-write",
+                "original": "no-write"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "comparisonUnit": [
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-ledger-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-ledger-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-ledger-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-ledger-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-ledger-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-ledger-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-ledger-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-ledger-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-ledger-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-ledger-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-original-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-original-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-original-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-original-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-original-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-original-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-original-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-original-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-original-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p5-b3b-unreached-t9",
+      "caseId": "t9-original-unreached",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "応答後",
+      "expectedField": "tElementCommitment"
+    }
+  ]
+}

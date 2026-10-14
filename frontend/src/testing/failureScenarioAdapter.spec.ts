@@ -8,6 +8,8 @@ import {
 } from '../lib/sync/failureScenarioContract'
 import failureScenarioAdapterSource from './failureScenarioAdapter.ts?raw'
 import {
+  CLIENT_RUNNER_SCENARIO_IDS,
+  SERVER_RUNNER_SCENARIO_IDS,
   executeFailureScenario,
   readFailureScenarioAssets,
 } from './failureScenarioAdapter'
@@ -27,6 +29,9 @@ type MutableResult = {
 type ScalarLiteral = string | number | boolean
 
 const contracts = readFailureScenarioAssets()
+const clientContracts = contracts.filter((contract) =>
+  CLIENT_RUNNER_SCENARIO_IDS.includes(contract.scenarioId),
+)
 
 function contractById(
   scenarioId: FailureScenarioContract['scenarioId'],
@@ -108,7 +113,7 @@ function scalarKey(value: ScalarLiteral): string {
 }
 
 describe('failureScenarioAdapter', () => {
-  it.each(contracts)(
+  it.each(clientContracts)(
     '$scenarioId の資産入力で製品コードを実行し、全比較単位を満たす',
     async (contract) => {
       const result = await executeFailureScenario(contract)
@@ -119,9 +124,28 @@ describe('failureScenarioAdapter', () => {
     },
   )
 
-  it('4 資産を過不足なく読み、期待値をアダプタへ複製しない', () => {
-    const expectedLiterals: ScalarLiteral[] = []
+  it('クライアント runner とサーバー runner の分担を exact-set に閉じる', () => {
+    const client = new Set<string>(CLIENT_RUNNER_SCENARIO_IDS)
+    const server = new Set<string>(SERVER_RUNNER_SCENARIO_IDS)
+
+    expect([...client].filter((scenarioId) => server.has(scenarioId))).toEqual(
+      [],
+    )
+    expect([...client, ...server].sort()).toEqual(
+      [...FAILURE_SCENARIO_IDS].sort(),
+    )
     for (const contract of contracts) {
+      const hasApplicationPath = Object.hasOwn(
+        contract.input.applicationPath ?? {},
+        'value',
+      )
+      expect(server.has(contract.scenarioId)).toBe(hasApplicationPath)
+    }
+  })
+
+  it('全資産を過不足なく読み、期待値をアダプタへ複製しない', () => {
+    const expectedLiterals: ScalarLiteral[] = []
+    for (const contract of clientContracts) {
       for (const testCase of contract.cases) {
         for (const observation of testCase.observations) {
           collectScalarLiterals(observation.fields, expectedLiterals)

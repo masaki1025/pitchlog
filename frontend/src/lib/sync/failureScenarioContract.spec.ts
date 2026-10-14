@@ -25,6 +25,18 @@ const CURRENT_VERSIONS = {
   'leader-freeze-reelection': 2,
   'waiting-input-not-accepted': 2,
   'durable-append-failure': 2,
+  'tombstone-application': 1,
+  'revision-application': 1,
+  'p1-crash-boundaries': 1,
+  'p2-crash-boundaries': 1,
+  'p3-crash-boundaries': 1,
+  'p4-crash-boundaries': 1,
+  'p5-b3a-crash-boundaries': 1,
+  'p5-b3b-unreached-t9': 1,
+  'd1-mixed-batch': 1,
+  'b3b-after-gap': 1,
+  'p3-invalidation-consumed-before-complete': 1,
+  'o4-persisted-d2-equivalence': 1,
 } as const satisfies Record<FailureScenarioId, number>
 
 function currentFileName(scenarioId: FailureScenarioId): string {
@@ -39,6 +51,16 @@ const FIXTURES = FAILURE_SCENARIO_IDS.map((scenarioId) => ({
   fileName: currentFileName(scenarioId),
   source: readFixture(currentFileName(scenarioId)),
 }))
+
+/** 適用経路を持たない(サーバーへ到達する前の)クライアント側の資産。 */
+const CLIENT_SCENARIO_IDS = FAILURE_SCENARIO_IDS.filter((scenarioId) => {
+  const applicationPath = (
+    JSON.parse(readFixture(currentFileName(scenarioId))) as {
+      input: { applicationPath: Record<string, unknown> }
+    }
+  ).input.applicationPath
+  return !Object.hasOwn(applicationPath, 'value')
+})
 
 type MutableObservation = {
   observationPoint: string
@@ -194,7 +216,8 @@ describe('failureScenarioContract', () => {
   it.each(CLIENT_REQUIRED_FIELD_IDS)(
     'クライアント側の資産では 10-2 の期待値 %s に省略理由を書けない',
     (fieldId) => {
-      for (const scenarioId of FAILURE_SCENARIO_IDS) {
+      expect(CLIENT_SCENARIO_IDS).toHaveLength(4)
+      for (const scenarioId of CLIENT_SCENARIO_IDS) {
         const source = mutableFixture(scenarioId)
         firstObservation(source).fields[fieldId] = { omittedBecause: '理由' }
 

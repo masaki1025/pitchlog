@@ -610,6 +610,29 @@ const SCENARIO_RUNNERS = new Map<
   [DURABLE_APPEND_FAILURE, runDurableAppendFailure],
 ])
 
+/** このアダプタが実行する scenarioId。 */
+export const CLIENT_RUNNER_SCENARIO_IDS: readonly FailureScenarioContract['scenarioId'][] =
+  [...SCENARIO_RUNNERS.keys()]
+
+/**
+ * サーバー側の runner(`backend/tests/db/test_sync_apply_failure_runner.py`)が
+ * 公開入口と DB で実行する scenarioId。このアダプタでは実行しない。
+ */
+export const SERVER_RUNNER_SCENARIO_IDS = [
+  'tombstone-application',
+  'revision-application',
+  'p1-crash-boundaries',
+  'p2-crash-boundaries',
+  'p3-crash-boundaries',
+  'p4-crash-boundaries',
+  'p5-b3a-crash-boundaries',
+  'p5-b3b-unreached-t9',
+  'd1-mixed-batch',
+  'b3b-after-gap',
+  'p3-invalidation-consumed-before-complete',
+  'o4-persisted-d2-equivalence',
+] as const satisfies readonly FailureScenarioContract['scenarioId'][]
+
 function deleteDatabase(databaseName: string): Promise<void> {
   return new Promise((resolveDeletion, rejectDeletion) => {
     const request = indexedDB.deleteDatabase(databaseName)
