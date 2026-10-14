@@ -318,3 +318,13 @@ branch: feature/us1-sync-apply-core
 - **気づき(判断待ち)**: 計画書 7 節 **A-1(承認済み)は D1 付き経路の意図 ID を `<トリガー>:<イベントの D5>:<範囲>`** と定めるが、**ステップ 7 の実装は `sync:<イベント識別>:<範囲>`**(固定の接頭辞 `sync` — 裁定「アプリ側で絞る」で同期経路の意図を判定するため)。D5 と範囲から決定的に導く点は同じ。人間の判断を仰ぐ
 - **以前の「Claude 向け申し送り」の別ファイル**(`/tmp/pitchlog-claude-handoff` の未追跡ファイル `docs/worklog/2026-10-13-claude-mvp-handoff.md`)は、worktree ごと消えていてディスク上に無い(2026-10-15 確認・Claude は消していない)。以後の申し送りは本作業ログの「Claude向け申し送り」段落に書く(他単位の作業ログと同じ形)
 - **裁定(山田正輝 2026-10-15)**: A-1 の意図 ID の文字列形式は **`sync:` を採る**(実装どおり)。計画書 8 節の末尾に記録
+
+## Codex の停止とステップ 15・sync-protocol v0.8 の起案(2026-10-15)
+
+- **Codex が使用量の上限に到達**(ステップ 15 の最終検証中 — 「try again at Oct 21st, 2026 2:37 PM」)。ステップ 15 の実装は完了しており、Claude がローカルの専用 DB で DB 試験を回して、注入点 `after_transaction` の試験の意図の数え方(①以外の範囲は `game_id` を持たないのに試合で絞っていた)を直接直した(43 passed)
+- **裁定(山田正輝 2026-10-15)「Claude が実装を続ける」**: 2026-10-21 14:37 までは、U-S1 の残り(ステップ 16〜21)を Claude が直接実装し、Codex の review normal の代わりに Claude サブエージェントの敵対レビューを通す。**ADR-001 のモデル対応表からの逸脱**として PR 本文にも明記する。PR 段階の敵対レビューと正本の確定ゲートは 10-21 以降に Codex で行う
+- **ステップ 12〜15 のまとめた敵対レビュー**: Claude サブエージェントで実施中
+- **裁定(山田正輝 2026-10-15)「改訂案だけ先に作る」**: 計画書 4 節(154 行)は「ステップ 15 の後・16 の前に sync-protocol 10-3 の資産構造の改訂(v0.8・R-10)を /finalize-doc で確定させる」と定めるが、確定ゲートの敵対レビューは Codex で 10-21 まで使えない。**改訂案を in-review で起案し、その案に従ってステップ 16〜21 を進め、確定ゲートは 10-21 以降に Codex で通す**(指摘が出たら資産側も直す)。**計画の順序(確定 → 16)を入れ替えた**
+- **起案の内容**: 10-3 の資産契約に case 構造・共通の期待フィールド(`prefix`・`idempotentResult`・`temporaryIdMapping`・`recordingRight`・`tElementCommitment`)・`tElementCommitment`(T の内部単位・`no-write`/`no-change`)・P5 の判別共用体・到達性(`expectedReachability: "unreached"`)・注入点の組の導出元(8-1 の経路表 = `R-TXN-ROUTE`)とトランザクション外の 3 注入点の exact-set・契約検査と結果検査の分離・母集合の組の exact-set を足し、比較単位を `scenarioId × caseId × 注入対象 × 観測点 × expected の全フィールド` へ。意味規則は変えない。変更履歴 v0.8(射程宣言つき・in-review)・frontmatter `in-review`・README の索引を更新。出典は design.md 7 節(承認済みの計画の詳細設計)
+- **適用版の暫定記録(設計書 7.3-1)**: ハーネス設計書 **v1.19**(条文コミット `945384c5` — 2026-10-08 時点の最新)。初回の敵対レビュー(10-21 以降)の時点で異なっていれば更新してから開始する
+- 検査: `check_docs_status`・`check_design_propagation`・`check_shared_preconditions`・`check_authz_catalog` ok、設計伝播・文書状態・文書被覆の試験 333 passed
