@@ -9,7 +9,7 @@ from collections.abc import Callable, Generator, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from types import MappingProxyType, ModuleType, TracebackType
+from types import MappingProxyType, ModuleType, SimpleNamespace, TracebackType
 from typing import Any, cast, get_type_hints
 from uuid import UUID
 
@@ -99,6 +99,23 @@ class _ProbeOrmRow(_ProbeOrmBase):
 _ORM_READ_STATEMENT = select(_ProbeOrmRow).where(
     _ProbeOrmRow.tenant_id == bindparam("tenant_id")
 )
+
+
+def _install_test_canonical_table(
+    monkeypatch: pytest.MonkeyPatch,
+    table: Table,
+) -> None:
+    """合成表をこの試験の検査器だけで正本表として扱う。"""
+    test_base = SimpleNamespace(
+        metadata=SimpleNamespace(tables=MappingProxyType({table.key: table}))
+    )
+    monkeypatch.setattr(repository_base, "Base", test_base)
+
+
+@pytest.fixture(autouse=True)
+def canonical_probe_table(monkeypatch: pytest.MonkeyPatch) -> None:
+    """製品 metadata を変えず、基底の振る舞い試験に合成表を渡す。"""
+    _install_test_canonical_table(monkeypatch, _PROBE_TABLE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -718,6 +735,7 @@ def test_unvalidated_update_is_rejected_before_execute(
 
     with _transaction_database(disposable_postgres_cluster) as database:
         _configure_application_database(monkeypatch, database)
+        _install_test_canonical_table(monkeypatch, _WRITE_PROBE_TABLE)
         monkeypatch.setattr(
             repository_base,
             "_OPERATION_REGISTRY",
@@ -897,6 +915,7 @@ def test_run_rejects_orm_select_before_materialization(
 
     with _transaction_database(disposable_postgres_cluster) as database:
         _configure_application_database(monkeypatch, database)
+        _install_test_canonical_table(monkeypatch, cast(Table, _ProbeOrmRow.__table__))
         monkeypatch.setattr(transaction, "Session", _OrmResultObservedSession)
         monkeypatch.setattr(
             repository_base,

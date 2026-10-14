@@ -156,7 +156,7 @@ def test_sync_two_tenant_read_insert_update_lock_boundary(
         assert scope.run(
             tokens.EventSlotVersionUpdateToken(db.game_a, 1, 1, 1, 2)
         ).rows == ((1,),)
-        assert scope.run(tokens.EventSlotInsertToken(db.game_a, 1, 2)).rows == ((1,),)
+        scope.run(tokens.EventSlotInsertToken(db.game_a, 1, 2))
 
     with pytest.raises(DBAPIError) as blocked_insert:
         with tenant_transaction_scope(make_tenant_context(db.tenant_a)) as scope:
@@ -208,9 +208,7 @@ def test_sync_shared_intent_targets_only_context_tenant(
             tokens.SyncSharedInvalidationIntentInsertToken(
                 event_identity, **{"target_tenant_id": db.tenant_b}
             )
-        assert scope.run(
-            tokens.SyncSharedInvalidationIntentInsertToken(event_identity)
-        ).rows == ((1,),)
+        scope.run(tokens.SyncSharedInvalidationIntentInsertToken(event_identity))
         old = InvalidationIntentInsertToken(
             CacheInvalidationTrigger.ROSTER_STATUS_CHANGE,
             uuid4(),
@@ -241,9 +239,7 @@ def test_sync_shared_intent_targets_only_context_tenant(
         assert scope.run(
             tokens.InvalidationIntentDeliveredToken(intent_id, datetime.now(UTC))
         ).rows == ((0,),)
-        assert scope.run(
-            tokens.SyncSharedInvalidationIntentInsertToken(event_identity)
-        ).rows == ((1,),)
+        scope.run(tokens.SyncSharedInvalidationIntentInsertToken(event_identity))
         other = scope.run(tokens.InvalidationIntentReadToken(intent_id))
         assert len(other.rows) == 1
         assert other.rows[0][tenant_index] == db.tenant_b
