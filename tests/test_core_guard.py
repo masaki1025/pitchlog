@@ -10,6 +10,7 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -460,6 +461,25 @@ PRODUCT_RLS_PATTERN_EXAMPLES = (
     ),
     ("scripts/product-rls-real-schema-targets.json",),
 )
+
+
+def assert_registered_block(paths: Sequence[str], block: tuple[str, ...]) -> int:
+    """登録ブロックが一意かつ宣言順の連続列として残ることを確認する。
+
+    Args:
+        paths: 領域へ登録されたパス列。
+        block: 登録時の宣言順を保持するパス群。
+
+    Returns:
+        ブロック先頭の位置。
+    """
+    assert block
+    assert all(paths.count(pattern) == 1 for pattern in block)
+    start = paths.index(block[0])
+    assert tuple(paths[start : start + len(block)]) == block
+    return start
+
+
 EXISTING_REAL_GUARD_PATHS = (
     ".claude/core-areas.json",
     ".github/workflows/ci.yml",
@@ -589,6 +609,7 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
     """実設定を基に宣言の全件を登録した合成リポジトリを作る。
 
     U-F8 までの登録を保持し、U-F5 登録前なら合成リポジトリだけに補う。
+    U-F5 より後の登録があっても既存ブロックの位置から判定する。
 
     Args:
         tmp_path: pytest が提供する一時ディレクトリ。
@@ -601,19 +622,16 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
     run_git(root, "init", "-q", "-b", "feature/test")
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
-    pre_registration_counts = {
-        "tenant-isolation": 85,
-        "data-migration": 49,
-    }
     assert UF6_CLIENT_AREA_PATH_ADDITIONS[0] in areas["sync-protocol"]["paths"]
     assert UF6_CLIENT_AREA_PATH_ADDITIONS[0] in areas["recording-rights"]["paths"]
     assert UF6_TENANT_AREA_PATH_ADDITIONS[0] in areas["tenant-isolation"]["paths"]
     for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
         paths = areas[area_id]["paths"]
-        if tuple(paths[-len(additions) :]) == additions:
-            assert len(paths) == pre_registration_counts[area_id] + len(additions)
+        present = tuple(pattern in paths for pattern in additions)
+        assert len(set(present)) == 1, f"{area_id} に U-F5 の部分登録がある"
+        if all(present):
+            assert_registered_block(paths, additions)
         else:
-            assert len(paths) == pre_registration_counts[area_id]
             paths.extend(additions)
     write_text(
         root,
@@ -2149,7 +2167,7 @@ def test_addition_layer_requires_complete_declared_suffix(tmp_path: Path) -> Non
 
 
 def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> None:
-    """隔離履歴で未登録、宣言のみ、登録済みの順に受理する。"""
+    """隔離履歴で未登録、宣言、登録、後続登録の順に受理する。"""
     core_guard = load_core_guard_module()
     root, base_sha = make_layered_core_repo(tmp_path)
     assert core_guard.verify_area_path_baseline(root, base_sha, base_sha) == base_sha
@@ -2192,6 +2210,30 @@ def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> 
     assert core_guard.verify_area_path_baseline(root, base_sha, registered_sha) == (
         base_sha
     )
+
+    future_additions: dict[str, tuple[str, ...]] = {
+        "tenant-isolation": ("future/tenant-entry*",),
+        "data-migration": ("future/migration-entry*",),
+    }
+    future_sha = commit_area_path_changes(root, future_additions)
+    future = core_guard.load_core_areas_at_revision(root, future_sha)
+    core_guard.validate_area_path_layers(registered, future, future_additions)
+    for area in future["areas"]:
+        area_id = area["id"]
+        paths = area["paths"]
+        additions = EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ())
+        if additions:
+            assert_registered_block(paths, additions)
+            assert tuple(paths[-len(future_additions[area_id]) :]) == future_additions[
+                area_id
+            ]
+
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(
+            registered,
+            future,
+            EXPECTED_AREA_PATH_ADDITIONS,
+        )
 
 
 def test_tenant_additions_declared_for_other_area_are_rejected(tmp_path: Path) -> None:
@@ -2245,7 +2287,7 @@ def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
 
 
 def test_product_rls_paths_remain_in_develop_baseline() -> None:
-    """着地済み RLS・ADR・U-M1・U-F2・U-F6 と U-F8 の順序を保つ。"""
+    """着地済み RLS から U-F5 までの登録順を末尾に依存せず保つ。"""
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
@@ -2260,18 +2302,21 @@ def test_product_rls_paths_remain_in_develop_baseline() -> None:
     )
     base_paths = tuple(base_area["paths"])
     current_paths = tuple(current_area["paths"])
-    prior_tail = (
-        *registered_tail,
-        *UM1_TENANT_AREA_PATH_ADDITIONS,
-        *UF2_AUTH_STORE_AREA_PATH_ADDITIONS,
-        *UF6_TENANT_AREA_PATH_ADDITIONS,
+    registered_blocks = (
+        registered_tail,
+        UM1_TENANT_AREA_PATH_ADDITIONS,
+        UF2_AUTH_STORE_AREA_PATH_ADDITIONS,
+        UF6_TENANT_AREA_PATH_ADDITIONS,
+        UF8_GAME_SCREEN_AREA_PATH_ADDITIONS,
+        UF5_TEAM_AREA_PATH_ADDITIONS,
     )
-    expected_tail = (*prior_tail, *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS)
-    assert base_paths[-len(expected_tail) :] == expected_tail
-    assert current_paths in (
-        base_paths,
-        (*base_paths, *UF5_TEAM_AREA_PATH_ADDITIONS),
+    block_starts = tuple(
+        assert_registered_block(current_paths, block) for block in registered_blocks
     )
+    assert block_starts == tuple(sorted(block_starts))
+    for block in registered_blocks:
+        assert_registered_block(base_paths, block)
+    core_guard.validate_area_path_layers(baseline, configuration)
     for pattern, planned_paths in zip(
         PRODUCT_RLS_AREA_PATH_ADDITIONS, PRODUCT_RLS_PATTERN_EXAMPLES, strict=True
     ):
@@ -2310,12 +2355,22 @@ def test_uf2_auth_store_is_registered_in_actual_tenant_isolation() -> None:
 
 
 def test_uf6_api_paths_are_registered_in_actual_core_areas() -> None:
-    """実設定の 3 領域に U-F6 の API パスを登録済みと示す。"""
+    """U-F6 の2パターンを正しい3領域だけに一意に登録済みと示す。"""
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
-    assert "frontend/src/api/client*" in areas["sync-protocol"]["paths"]
-    assert "frontend/src/api/client*" in areas["recording-rights"]["paths"]
-    assert "frontend/src/api/*" in areas["tenant-isolation"]["paths"]
+    expected_areas = {
+        UF6_CLIENT_AREA_PATH_ADDITIONS[0]: {
+            "sync-protocol",
+            "recording-rights",
+        },
+        UF6_TENANT_AREA_PATH_ADDITIONS[0]: {"tenant-isolation"},
+    }
+    for pattern, owners in expected_areas.items():
+        actual_owners = {
+            area_id for area_id, area in areas.items() if pattern in area["paths"]
+        }
+        assert actual_owners == owners
+        assert all(areas[area_id]["paths"].count(pattern) == 1 for area_id in owners)
 
 
 def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
@@ -2332,12 +2387,8 @@ def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     for base_area, area in zip(baseline["areas"], candidate["areas"], strict=True):
         assert area["id"] == base_area["id"]
-        assert base_area["paths"][-1] == pattern
-        additions = EXPECTED_AREA_PATH_ADDITIONS.get(area["id"], ())
-        assert tuple(area["paths"]) in (
-            tuple(base_area["paths"]),
-            (*base_area["paths"], *additions),
-        )
+        assert_registered_block(base_area["paths"], UF8_GAME_SCREEN_AREA_PATH_ADDITIONS)
+        assert_registered_block(area["paths"], UF8_GAME_SCREEN_AREA_PATH_ADDITIONS)
         assert all(fnmatch.fnmatchcase(path, pattern) for path in screen_paths)
 
     assert core_guard.matched_paths(
@@ -2346,8 +2397,8 @@ def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
     core_guard.validate_area_path_layers(baseline, candidate)
 
 
-def test_uf5_team_paths_are_declared_for_tenant_and_migration() -> None:
-    """U-F5 の製品 6 ファイルを T・D へ宣言・登録する。"""
+def test_uf5_team_paths_are_registered_for_tenant_and_migration() -> None:
+    """U-F5 の製品6ファイルをT・Dだけへ宣言順で登録済みと示す。"""
     core_guard = load_core_guard_module()
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
@@ -2368,11 +2419,19 @@ def test_uf5_team_paths_are_declared_for_tenant_and_migration() -> None:
     }
     baseline_areas = {area["id"]: area for area in baseline["areas"]}
     candidate_areas = {area["id"]: area for area in candidate["areas"]}
-    for area_id in EXPECTED_AREA_PATH_ADDITIONS:
-        base_paths = baseline_areas[area_id]["paths"]
-        current_paths = candidate_areas[area_id]["paths"]
-        assert all(pattern not in base_paths for pattern in UF5_TEAM_AREA_PATH_ADDITIONS)
-        assert current_paths == [*base_paths, *UF5_TEAM_AREA_PATH_ADDITIONS]
+    expected_area_ids = set(EXPECTED_AREA_PATH_ADDITIONS)
+    for area_id, area in candidate_areas.items():
+        contains = tuple(
+            pattern in area["paths"] for pattern in UF5_TEAM_AREA_PATH_ADDITIONS
+        )
+        if area_id in expected_area_ids:
+            assert all(contains)
+            assert_registered_block(area["paths"], UF5_TEAM_AREA_PATH_ADDITIONS)
+            assert_registered_block(
+                baseline_areas[area_id]["paths"], UF5_TEAM_AREA_PATH_ADDITIONS
+            )
+        else:
+            assert not any(contains)
 
     for pattern in UF5_TEAM_AREA_PATH_ADDITIONS:
         matches = tuple(
@@ -2431,7 +2490,7 @@ def test_uf5_team_change_requires_human_check(
 
 
 def test_area_registration() -> None:
-    """U-F8 登録済み基線に対する U-F5 の T・D 登録を受理する。"""
+    """U-F6・U-F8・U-F5までの登録履歴を後続追加に依存せず保つ。"""
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     configuration = load_actual_core_areas()
@@ -2442,20 +2501,6 @@ def test_area_registration() -> None:
     tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
     declared_ids = set(EXPECTED_AREA_PATH_ADDITIONS)
     stationary_ids = set(areas) - declared_ids
-    registered_counts = {
-        "sync-protocol": 51,
-        "game-state": 50,
-        "recording-rights": 3,
-        "tenant-isolation": 11,
-        "data-migration": 7,
-    }
-    baseline_counts = {
-        "sync-protocol": 149,
-        "game-state": 111,
-        "recording-rights": 70,
-        "tenant-isolation": 85,
-        "data-migration": 49,
-    }
     appendix_e_additions = (
         ADR_001_PATH,
         ADR_003_PATH,
@@ -2486,12 +2531,14 @@ def test_area_registration() -> None:
             *UF2_AUTH_STORE_AREA_PATH_ADDITIONS,
             *UF6_TENANT_AREA_PATH_ADDITIONS,
             *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS,
+            *UF5_TEAM_AREA_PATH_ADDITIONS,
         ),
         "data-migration": (
             ADR_001_PATH,
             ADR_003_PATH,
             *VOCABULARY_DATA_MIGRATION_AREA_PATH_ADDITIONS,
             *UF8_GAME_SCREEN_AREA_PATH_ADDITIONS,
+            *UF5_TEAM_AREA_PATH_ADDITIONS,
         ),
     }
 
@@ -2500,33 +2547,18 @@ def test_area_registration() -> None:
     assert declared_ids == set(DECLARED_ADDITION_AREA_IDS)
     assert declared_ids == {"tenant-isolation", "data-migration"}
     assert stationary_ids == {"sync-protocol", "game-state", "recording-rights"}
-    assert set(areas) == set(registered_counts) == set(baseline_counts)
+    assert set(areas) == set(registered_additions) == set(baseline_areas)
     for area_id in DATA_MODEL_AREA_IDS:
         registered = registered_additions[area_id]
         current_paths = tuple(areas[area_id]["paths"])
         base_paths = tuple(baseline_areas[area_id]["paths"])
-        additions = EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ())
-        # 宣言は回転式の窓口であり、マージ後は宣言した追加層が比較元の末尾へ
-        # 吸収される(#108 と同じ理由)。「未取り込み = 宣言」と「吸収済みで
-        # 未取り込みなし」の双方を受理し、件数と末尾は吸収分を除いて確かめる。
-        absorbed = bool(additions) and base_paths[-len(additions) :] == additions
-        pre_additions = base_paths[: -len(additions)] if absorbed else base_paths
-        assert len(registered) == registered_counts[area_id]
-        assert len(pre_additions) == baseline_counts[area_id]
-        assert len(current_paths) in (
-            baseline_counts[area_id],
-            baseline_counts[area_id] + len(additions),
-        )
-        assert pre_additions[-len(registered) :] == registered
+        assert_registered_block(base_paths, registered)
+        assert_registered_block(current_paths, registered)
         assert len(registered) == len(set(registered))
         assert all(
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in registered
         )
-        if absorbed:
-            assert current_paths == base_paths
-        else:
-            assert current_paths in (base_paths, (*base_paths, *additions))
     assert all(
         any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
         for pattern in UM1_TENANT_AREA_PATH_ADDITIONS
