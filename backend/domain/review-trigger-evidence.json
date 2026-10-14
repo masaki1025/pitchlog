@@ -125,7 +125,17 @@
       "decisionDate": "2026-09-18",
       "fired": false,
       "evidenceLocation": "backend/domain/manifest.schema.json",
-      "evidenceDigest": "sha256:141f2ba4477fcf073663c0ab69404037519deb894ee932d9cfae2c3f9711db98"
+      "evidenceDigest": "sha256:f5234120ed3cfd8a076160bb9028d90b4157fa932599e4669844bd2e71930640",
+      "reconfirmations": [
+        {
+          "judge": "山田正輝",
+          "decisionDate": "2026-10-14",
+          "fired": false,
+          "previousEvidenceDigest": "sha256:141f2ba4477fcf073663c0ab69404037519deb894ee932d9cfae2c3f9711db98",
+          "evidenceDigest": "sha256:f5234120ed3cfd8a076160bb9028d90b4157fa932599e4669844bd2e71930640",
+          "reason": "TSK-538 ステップ 16 の js-artifact 追加後の manifest.schema.json を再確認した。トリガー 11(vectors[] の 1 対 1 登録など manifest の登録要件)は発火しないとの判定を維持する。"
+        }
+      ]
     },
     {
       "triggerId": 12,

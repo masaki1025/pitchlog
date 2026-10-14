@@ -110,3 +110,5 @@ branch: feature/adr003-stage2-runtime
 - **Ready 前の取り込みで必ずやること**(master の申し送り 2026-10-14): ① #119(δ)が `contracts/tenant_boundary/base-allowlist.json` を rev27→28・`runtime-authz-contract.json` を rev12→13 へ動かす。#119 が先に着地したら、本 PR の base-allowlist の受理記録(#131)の rev を**実測し直して作り直す**(digest・識別値は導出値 — 選ばず取り直す)② `.claude/core-areas.json` と `docs/README.md` が #128(TSK-541)と重なる
 - **ステップ 27 は #128 の着地を待つ**: #128 が ADR-003 v0.6・要件書 v2.11 を approved で持つ(未マージ)。D-8 の改訂は v0.6 の上に積む。着手直前に ADR-003 の最大版を `refs/pull/128/head` を含めて実測する
 - master の指摘: core_guard の同一コミット規則は `git diff-tree`(`-m`/`-c` なし)なのでマージコミットを検査しない — 本 PR は規則どおり 2 段に分けているが、機構の保証ではない(台帳候補として master が起票先を探す)
+- **山田さんの承認(2026-10-14)④**: トリガー 11(manifest の登録要件)も `manifest.schema.json` を証拠にしており、判定「発火しない」(2026-09-18)は不変として再確認を追記・証拠の digest を更新
+- ステップ 7 の設計の見落とし: `backend/src/pitchlog/domainrt/node_host.mjs` が tenant boundary の検査器(backend/src の非 Python を fail-closed で拒否 — TB000)に当たった。ホストスクリプトを `.py` の定数にして `node --eval` で起動する形へ是正
