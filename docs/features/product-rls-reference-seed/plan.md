@@ -1,6 +1,6 @@
 ---
 feature: product-rls-reference-seed
-status: active
+status: in-review
 承認: 済(2026-10-14・利用者、採る案と射程を承認)
 重さ分類: コア領域
 worktree: /home/ymdms/projects/pitchlog-worktrees/fix-product-rls-reference-seed
@@ -8,6 +8,7 @@ branch: fix/product-rls-reference-seed
 created: 2026-10-14
 計画レビュー周回: 0
 確定ゲート周回: 0
+敵対レビュー周回: 3
 実行方式: 通常
 反映周コミット: 適用
 ---
@@ -75,6 +76,25 @@ tests/db/test_product_authz_cross_cutting.py::test_force_rls_applies_to_owner_wi
 | テスト側で 5 行を前提にしない | **#122 が入れた往復検証の意図を失う。** 「所有者限定 RLS で試合区分 seed を往復検証する」という表明そのものを弱める |
 | seed の内容を fixture へ書き写す | **移行と二重定義**になる(NFR-018)。移行が増えるたびに追随が要る |
 
+## 影響する正本
+
+| 正本 | 反映 | ゲート |
+| --- | --- | --- |
+| `backend/tests/db_fixtures.py` | 外部供給経路の参照行の控えと復元 | PR レビュー |
+
+**反映なし(明示)**
+
+| 正本 | 理由 |
+| --- | --- |
+| `backend/migrations/` | 移行は正しい。seed は入っている |
+| `backend/tests/db/test_product_authz_*.py` | #122 の表明は正しい |
+| `contracts/authz/product/table-classification.json` | 45 表の分類は正しい(凍結資産) |
+| `scripts/product_rls_real_schema/` | runner の手順は正しい。#97 以降 1 行も動いていない |
+| `.claude/core-areas.json` / `scripts/core_guard.py` | 触る全ファイルが既存 glob に該当済み |
+
+**設計正本には触れない。** 12-4 のゲートの定義(`data-model.md`)は変えない —
+本 fix は**ゲートを通す側**であり、ゲートそのものを動かさない。
+
 ## 4. スコープ
 
 **変更するのは `backend/tests/db_fixtures.py` だけ。**
@@ -121,3 +141,23 @@ tests/db/test_product_authz_cross_cutting.py::test_force_rls_applies_to_owner_wi
 2. **`pg_isready` は認証の成否を見ない。** 専用インスタンスが `healthy` でも使えないことがある
 3. **`POSTGRES_USER` / `POSTGRES_PASSWORD` は initdb の 1 回きり。** 変数を変えてもボリュームは変わらない
 4. **runner は `-p pitchlog` が要る。** worktree から既定で叩くと別プロジェクトが立つ
+
+## 9. 到達点(2026-10-14)
+
+**実スキーマで 48 node 全件 passed。** 本計画 6 節の検証 3(DoD)を満たした。
+
+```
+generation_id    20261014T094359Z-a4e342bbc17b10e2
+target_digest    200beaf585064556aefe6f9b19e38aff98b93d34c55613b67b74d0eac7e7399e
+migration_head   0030_seed_game_type
+ddl_asset_digest bafdec1b184d953403903a174b98a3b47c76773e3aec0813fd24f642c9e8680c
+test_tree_commit a3d077130b2c456f42b3d23faceabb25bd16b2bd
+catalog_violations 0
+```
+
+**敵対レビュー 3 周**(基本枠 2 + P0 例外 1)。**指摘 10 件採用・1 件不採用。**
+不採用は「移行 seed がそもそも欠けていた場合に落ちる条件」で、
+**移行側の試験の責務**であり、ここで表明すると二重定義になる(NFR-018)。
+**TSK-479(PR #122)へ申し送る。**
+
+採否と経緯の全文は [worklog](../../worklog/2026-10-14-product-rls-reference-seed.md)。
