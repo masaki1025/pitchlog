@@ -36,11 +36,11 @@
 
 **必要な型・関数**:
 
-- server response: `LoginResponse` に、認証関数が確定した tenant を表す `tenant_id: UUID` と表示用 `team_name: str` を持たせる、または同値の認証済み session DTO / endpoint を用意する。
-- frontend: 正規 U-F6 client 上の `login(...) -> AuthenticatedTenant` と U-F3 が `auth.signIn({teamId, teamName})` を呼ぶ一経路。
+- PR #119 の `LoginResponse={status}` は維持する。#119 統合後の追補として `GET /auth/session -> AuthenticatedTenant{tenant_id: UUID}` を用意し、既存 `require_tenant_access` が発行した `TenantContext.tenant_id` だけを返す。client 入力の tenant ID は受けない。
+- frontend: 正規 U-F6 client 上で `POST /auth/login` 成功後に `GET /auth/session` を呼び、両方が成功した場合だけ U-F3 が `auth.signIn({teamId, teamName})` を呼ぶ。`teamName` は成功したログイン入力の表示値で、認可・tenant 照合には使用しない。
 - 証跡: 不正資格情報では ID を返さない、入力名を ID として採らない、別 tenant の token へすり替えられない backend test と、login 成功値を store へ渡す frontend test。
 
-**担当**: PR #119 / δ TSK-470（backend HTTP 契約）と U-F3（ログイン画面・frontend 接続）。本作業は所有 PR を変更せず、契約が develop に着地してから再利用する。
+**担当状況**: #119 は既存担当が所有するが C1 は現行 scope に含まれない。C1 の担当は不在。#119 統合後、本セッション（Codex D）が新規追補として担当する案を人間承認へ出す。#119 担当には実装ではなく契約整合レビューを依頼する。
 
 ### C2: 保護 API の応答 tenant を独立に照合する
 
@@ -51,13 +51,15 @@
 - 上の比較を通った 2xx にだけ `tenantMatchAck` の exact literal を付け、U-F6 client が本文の解釈・cache 更新より前に ack、認証世代、teamId の不変性を検証する処理。
 - 一覧、登録、編集の全 2xx 応答で同じ規則を適用する契約。401 は tenant 文脈がないため現行の session 失効を優先し、404 / 422 は tenant 所有本文を画面へ渡さず cache / success notice を更新しない。
 
-U-M1 の承認済み設計は roster DTO に `tenant_id` を出さない。上の二段方式では、ID の exact match は server が行い、client は「比較済み」を示す ack literal と要求開始時からの認証世代・teamId不変性を検証する。client が ack と tenant ID を比較するわけではない。team 名で代用する案、個別 roster DTO へ `tenant_id` を足す案は採らない。形式は δ TSK-470 / U-F6 の契約担当と PO が決める。本計画の承認だけで新しい header・DTO を正式化しない。
+U-M1 の承認済み設計は roster DTO に `tenant_id` を出さない。上の二段方式では、ID の exact match は server が行い、client は「比較済み」を示す ack literal と要求開始時からの認証世代・teamId不変性を検証する。client が ack と tenant ID を比較するわけではない。team 名で代用する案、個別 roster DTO へ `tenant_id` を足す案は採らない。metadata は request `X-Pitchlog-Expected-Tenant: <canonical UUID>`、response `X-Pitchlog-Tenant-Match: 1` を候補とする。対象は U-F5 が使う team-record / player の一覧・登録・取得・通常編集で、login / session / health は対象外とする。形式は追補計画のコアレビューと人間承認で正式化し、本計画の承認だけで製品コードへ追加しない。
 
 **証跡**: A の expected ID と B の Cookie を組み合わせると operation 前に固定 404 となる server test、2xx の ack 欠落・不正を fault injection して本文・cache・success notice を更新しない client test、同 tenant + 正規 ack が通る試験、401 が session を失効させる試験、404 / 422 が成功扱いされない試験、機微値をログへ出さない試験。
 
+**担当状況**: U-F6 計画は必要性だけを下流条件として残し、PR #120 は具体形式を実装せず統合済み。現在の担当は不在。本セッションが #119 統合後の U-F6 / backend 追補として担当する案を人間承認へ出す。#119 が `tenant_access.py` を変更するため、契約レビューは先行できるが製品コードは #119 統合後に開始する。
+
 ### C3: `/login` の実在
 
-未認証 `/team` の遷移先は既決の `/login`。空画面、仮画面、`/` への暫定退避は移植契約を弱めるため採らない。本計画は U-F3 の別担当・先行 PR を待つ。U-F3 を本縦断へ含める場合は計画を改訂し、再レビューと人間承認を受ける。
+未認証 `/team` の遷移先は既決の `/login`。空画面、仮画面、`/` への暫定退避は移植契約を弱めるため採らない。U-F3 の open PR、worktree、正式カードの担当記録は見つからず、担当不在である。本セッションが別の U-F3 先行分割で `api/auth.ts`、`LoginScreen.vue` と試験を担当する案を人間承認へ出す。router の競合を避けるため U-F3 は経路未登録で統合し、U-F13 ステップ 3 が `/login` と `/team` を登録する。正式カードを取得できた場合は担当と固有 DoD を再照合する。
 
 ## 5. 実 API 受入で使う既存経路
 

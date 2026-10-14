@@ -21,8 +21,15 @@
 1. PR #119 は head `bf43ef93f8a9a2244b2bd5e06d1906ffbcda11de`、open / behind で、`core-guard` と `harness` が失敗し、人間逐行確認も未実施。別 worktree が所有するため変更しない。
 2. PR #119 の `LoginResponse` は status のみ。検証済み tenant ID を frontend へ供給できない。
 3. roster の `Page` / `TeamRecordRead` / `PlayerRead` と response header に応答 tenant 証跡がない。
-4. develop に LoginScreen / `/login` がない。既決 guard は未認証を `/login` へ送るため、U-F3 の別担当・先行統合までは本計画を開始しない。
+4. develop に LoginScreen / `/login` がない。U-F3 の正規 auth client、LoginScreen、login → auth store 接続を別 PR で先行統合し、本計画ステップ 3 が `/login` と `/team` の route を登録する。
 5. `router.ts` と `App.vue` は tenant-isolation の意味範囲だが現行 core paths にない。`frontend/src/router*` と `frontend/src/App*` を宣言 → JSON 登録の別ステップで必ず追加する。
+
+## 依存解消の担当候補
+
+- **C1**: #119 の `LoginResponse` は変更せず、#119 統合後に `GET /auth/session -> {tenant_id}` を追加する追補。担当候補は Codex D。#119 担当は契約整合レビューだけ。
+- **C2**: `X-Pitchlog-Expected-Tenant` と `X-Pitchlog-Tenant-Match: 1` の server / U-F6 追補。担当候補は Codex D。#119 の `tenant_access.py` 変更との競合を避け、製品実装は #119 統合後。
+- **C3**: U-F3 の担当、open PR、worktree、正式カードの担当記録は見つからない。Codex D が別 PR で `api/auth.ts` と `LoginScreen.vue` を経路未登録で作る案。`/login` と `/team` の route 登録は U-F13 ステップ 3 が所有する。
+- core path の先行登録は行わない。外部統合前に進めるのは契約調整・追補計画・レビューまで。
 
 具体的な C1 / C2 / C3 と担当は [research.md](research.md) 4 節、承認判断は [plan.md](plan.md) 8 節を参照する。
 
@@ -48,4 +55,4 @@
 
 ## 次の操作
 
-人間承認後も C1 / C2 / C3 と PR #119 の develop 統合を再確認し、最新 develop を取り込んでからステップ 1/4 だけを実装する。2 周目の最終 C2 反映は Codex の再レビューを受けていないため、人間承認時に採否記録と差分を確認する。PR #133 は core-guard 回帰試験と記録だけで、計画の製品前提に影響しないことを再照合済み。
+plan 8 節の 5 判断と 9 節の最終差分について人間承認を得る。承認後も #119 統合前は C1 / C2 / U-F3 の追補計画とレビューだけを進め、製品コードへ進まない。#119、C1、C2、U-F3 が develop に着地したら最新 develop を取り込み、本計画ステップ 1/4 だけを実装する。PR #133 は core-guard 回帰試験と記録だけで、計画の製品前提に影響しないことを再照合済み。
