@@ -1,7 +1,7 @@
 ---
 feature: adr003-stage2-runtime
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 済(2026-10-11・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 未  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3f593b75e687817085ddefcaeff3687b
@@ -31,7 +31,7 @@ created: 2026-10-10
 - **引き渡し契約の受け手**: schema v1 の改訂(D3)・`receiverTaskId` を TSK-538 に・runner の revision の確定・古い記述の是正
 - **S34 の送り先を TSK-540 へ**(記録 4 箇所)
 - **未解消レポートの段階 2 項目の割り当て**((b) 27 件 — `receiverDoD` 6)
-- **契約 9 件の解決**(S15・S16・S17・S18・S19・S20・S21・S27・S28)— うち S15〜S18 は ADR-003 D-8 と descriptor の改訂(/finalize-doc)、S19 は descriptor の軸追加
+- **契約 9 件の解決**(S15・S16・S17・S18・S19・S20・S21・S27・S28)— うち S15〜S18 は ADR-003 D-8・D-11 と要件書 E-1(`HistoryEffect`)の改訂(/finalize-doc)、S19 は descriptor の軸追加。**S20 は終了判定側だけを解決し、状況判定側(サヨナラ時の得点上限)は TSK-544 へ送る**(ゲート ⑤ の PO 裁定 2026-10-14)
 - 新しい置き場のコア領域への宣言(D4)
 
 ### やらないこと
@@ -52,7 +52,7 @@ created: 2026-10-10
 | `contracts/state-transition/` の入力軸 descriptor | **分割**(payload と履歴軸 — S15・S16)・**成立段数の軸の追加**(S19)・凍結基準 `gameEndAxisFields` の受理記録 | **確定ゲート**(/finalize-doc — ステップ 26・27) |
 | `docs/development/github-setup.md` | CI ジョブの 3 分類の追随(ステップ 15) | PR レビュー |
 | `docs/README.md`(索引) | ADR-003 の版の現行化 | PR レビュー |
-| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映なし**(D6・D7 で要件書の改訂を回避) | — |
+| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **付録E-1 の `StateEffect` の履歴文脈の型を `HistoryEffect` へ**(v2.13・暫定 — ゲート ⑤ の PO 裁定 2026-10-14。undo が履歴を pop する行を `FieldEffect` で書けないことが確定ゲート 2 回目で判明したため。D6・D7 で避けた E-1 の列の追加とは別) | **/finalize-doc**(ADR-003 v0.7 と一括検証 — ゲート ⑤) |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし** | — |
 
 **正本体系外だが同一 PR で更新するもの**: `backend/Dockerfile`・`.dockerignore`(新設 — 本番の配布定義。ゲート ② の後に山田さんが追加を指示 2026-10-11)・`contracts/state-transition/`(handoff と schema・状態遷移契約・終了判定契約・被覆宣言・台帳 schema・gap register・fixture)・`.claude/core-areas.json`・`scripts/core_guard.py`・`docs/features/appendix-e-golden-vectors/{unresolved-report,design}.md`・`backend/`・`frontend/`・`tests/`・`.github/workflows/ci.yml`・root `pyproject.toml` と `uv.lock`。
@@ -105,15 +105,15 @@ created: 2026-10-10
 | 22 | **S27**: 終了判定 schema の `decision` に X 表記の欄を足し、展開器を改修して 170 case を再生成 | 契約・被覆宣言・check 系スクリプト・関連テストが緑。handoff の artifacts digest を同じコミットで更新 |
 | 23 | **S28**: 到達不可 2817 件の縮小(行の無い分岐・固定されない軸値の扱い) | 同上。縮小幅の固定値(`check_required_set_coverage.py`)を追随 |
 | 24 | **S21**: DRAW-05 を operationRows `game-end-declaration` に結ぶ(D8) | 同上 |
-| 25 | **S20(終了判定側)**: 台帳 schema の終了判定の役割を 5 つに(D7)、walk-off の行と case(終了の検知) | 同上。`check_gap_register.py` が緑。**サヨナラ時の得点値(状況判定側)はステップ 32** |
+| 25 | **S20(終了判定側)**: 台帳 schema の終了判定の役割を 5 つに(D7)、walk-off の行と case(終了の検知) | 同上。`check_gap_register.py` が緑。**サヨナラ時の得点値(状況判定側)は TSK-544 へ送った**(ゲート ⑤ の PO 裁定 2026-10-14 — 既存の列では有効得点の確定後に上限をかける順序を表せないため) |
 | 26 | **S19**: descriptor に成立段数の軸・凍結基準 `gameEndAxisFields` の受理記録・COLD-09 の行と case | 同上。三点突合(`check_input_axes_three_way_parity.py`)が緑 |
 | 27 | **正本改訂のゲート投入**: ADR-003 D-8 の改訂(targetKind に「対象なし」・XC-09 を「シナリオ長」へ・undoRows の stateEffect と guaranteeMode)と descriptor の分割(payload と履歴軸)に加え、**状況判定の規範行でサヨナラ時の得点上限を表す方法**(サヨナラ文脈の前提条件の軸と、得点上限の列 — 現行の `matrixRows` には得点値もサヨナラ文脈も表す列が無い `state_transition_contract_schema_v1.json:1151`)を in-review で起案(変更履歴に起案行) | docs-lint と文書の検査が緑。**この後ゲート ⑤** |
-| 28 | **S18**: D+1 の liveness-only の行と case(ゲート ⑤ で approved になった D-8 に従う) | 契約系の検査・テストが緑。digest を更新 |
-| 29 | **S16**: undo の 3 ケース(取り消す対象の差分 — 分割した履歴軸で) | 同上 |
-| 30 | **S17**: targetKind「対象なし」の行 | 同上 |
-| 31 | **S15**: tiebreak-start の操作行(6 種目の被覆・発動回の述語) | 同上。`required_set_input_coverage_declaration_v1.json` の除外宣言を外す |
-| 32 | **S20(状況判定側)**: ゲート ⑤ で approved になった表現に従い、サヨナラ時の得点上限の規範行を足し、展開器と被覆検査を改修して case を派生させる(本塁打 = 打者・全走者 / それ以外 = 決勝点まで — 要件書 `:249`。規範行が正で case は派生物 — `ADR-003:293-301`) | 契約系の検査・テストが緑。case は展開器の出力と一致。digest を更新 |
-| 33 | **逐行確認シートの生成**(ステップ 22〜32 で追加・変更した規範行すべてと、**それらから派生した case の入力と期待値**。サヨナラ時の得点値の case は、要件書 `:249` から独立に導いた値との照合結果を含む) | シートが全行と派生 case を覆い、digest を記録。ゲート ⑥ の承認対象はこの digest のシート。**この後ゲート ⑥** |
+| 28 | **ゲート ⑤ の追随の土台**: 状況判定 schema に要件書 v2.13 の `HistoryEffect` と `operationResult` の `set` を入れ、既存の操作行 7・undo 行 1 の `historyAndResult` を書き換える(2 列と 2 面の一対一対応の検査を含む)/ 確定プレイの push の差分(適用前後の比較面から作る)を展開器に入れる / descriptor schema に派生軸の属性(導出元・条文 ID)と、関数性・宣言された到達不可の除外の検査を入れる / ステップ 26 で `gameEnd.satisfiedColdTierCount` に置いた範囲外 2 件(`validationErrors[]`)を保証範囲外へ移す | 契約系の検査・テストが緑。2 列と 2 面の不一致・派生軸の関数性違反の負例が赤。digest を更新 |
+| 29 | **S18**: `D`+1 の liveness-only の行と case(ADR-003 v0.7 の `XC-09` — シナリオ長 `D`+1・undo 時点の深さ `D` 超・対象あり。比較は `applied` と要素数の減少) | 契約系の検査・テストが緑。digest を更新 |
+| 30 | **S16**: undo の 3 ケース(先頭の差分をスカラー軸で分割 — 変化した面の組合せと変化量の境界値) | 同上。凍結基準の受理記録 |
+| 31 | **S17**: targetKind「対象なし」の行(`"none"` ⇔ `nothing-to-undo` ⇔ 深さ 0) | 同上 |
+| 32 | **S15**: tiebreak-start の操作行(payload の中身をスカラー軸で分割・指定値ごとに 2 つ以上の代表値・発動回は派生軸。6 種目の被覆) | 同上。凍結基準の受理記録。`required_set_input_coverage_declaration_v1.json` の除外宣言を外す |
+| 33 | **逐行確認シートの生成**(ステップ 22〜32 で追加・変更した規範行すべてと、**それらから派生した case の入力と期待値**) | シートが全行と派生 case を覆い、digest を記録。ゲート ⑥ の承認対象はこの digest のシート。**この後ゲート ⑥** |
 | 34 | **独立検証と revision の確定**: `independentReview` と署名記録、`runnerRevision` の確定(schema を 40 桁 OID の pattern に・`tests/test_consumer_handoff.py` の負例を書き換え) | 署名記録の検査が緑。各 OID が HEAD の祖先で、その時点の runner の blob が HEAD と一致 |
 
 ## 5. DoD(受け入れ基準)
