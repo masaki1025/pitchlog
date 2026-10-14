@@ -23,6 +23,8 @@ _VALUE_KEYS: Final = frozenset(
     {"regulationInnings", "coldConditions", "extensionLimit", "tiebreak", "dh"}
 )
 _PAYLOAD_KEYS: Final = _VALUE_KEYS | {"ruleSetId"}
+_RUNNER_PLACEMENT: Final = "no_out_first_second"
+_LEADOFF_RULE: Final = "continue_lineup"
 
 
 class RuleSnapshotFailure(StrEnum):
@@ -126,20 +128,39 @@ def _validator() -> Validator:
 def _validate_values(values: dict[str, object]) -> None:
     """既存schemaへ5値だけを投影して形と単独値域を検査する。"""
     error = next(iter(_validator().iter_errors(values)), None)
-    if error is None:
-        return
-    kind = _schema_failure(error)
-    raise RuleSnapshotInvalid(kind) from error
+    if error is not None:
+        raise RuleSnapshotInvalid(_schema_failure(error)) from None
+    tiebreak = values["tiebreak"]
+    if tiebreak is not None:
+        if type(tiebreak) is not dict:
+            raise AssertionError("schema検証後のタイブレーク型が不正です")
+        typed_tiebreak = cast(dict[str, object], tiebreak)
+        if (
+            typed_tiebreak["runnerPlacement"] != _RUNNER_PLACEMENT
+            or typed_tiebreak["leadoffRule"] != _LEADOFF_RULE
+        ):
+            raise RuleSnapshotInvalid(RuleSnapshotFailure.VALUE)
 
 
 def _schema_failure(error: ValidationError) -> RuleSnapshotFailure:
     """schema違反を固定の公開分類へ写す。"""
-    if error.validator in {"type", "required", "additionalProperties", "maxItems"}:
+    shape_validators = {
+        "type",
+        "required",
+        "additionalProperties",
+        "maxItems",
+        "minItems",
+    }
+    if error.validator in shape_validators:
         return RuleSnapshotFailure.SHAPE
-    if error.validator == "oneOf" and any(
-        child.validator == "type" for child in error.context
-    ):
-        return RuleSnapshotFailure.SHAPE
+    if error.validator == "oneOf":
+        matching_type_errors = [
+            child for child in error.context if child.validator != "type"
+        ]
+        if not matching_type_errors:
+            return RuleSnapshotFailure.SHAPE
+        if any(child.validator in shape_validators for child in matching_type_errors):
+            return RuleSnapshotFailure.SHAPE
     return RuleSnapshotFailure.VALUE
 
 
@@ -184,8 +205,8 @@ def _decode_uuid(value: object) -> UUID:
         raise RuleSnapshotInvalid(RuleSnapshotFailure.VALUE)
     try:
         parsed = UUID(value)
-    except ValueError as exc:
-        raise RuleSnapshotInvalid(RuleSnapshotFailure.VALUE) from exc
+    except ValueError:
+        raise RuleSnapshotInvalid(RuleSnapshotFailure.VALUE) from None
     if str(parsed) != value:
         raise RuleSnapshotInvalid(RuleSnapshotFailure.VALUE)
     return parsed

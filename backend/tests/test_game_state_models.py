@@ -677,31 +677,87 @@ def test_rule_snapshot_rejects_legacy_and_incomplete_shapes(mutate) -> None:
     raw = _valid_applied_rules()
     mutate(raw)
 
-    with pytest.raises(RuleSnapshotInvalid):
+    with pytest.raises(RuleSnapshotInvalid) as caught:
         decode_structure(raw)
+    assert caught.value.kind is RuleSnapshotFailure.SHAPE
+    assert caught.value.__cause__ is None
 
 
 @pytest.mark.parametrize(
-    ("key", "value"),
+    ("key", "value", "expected_kind"),
     [
-        ("ruleSetId", "0A000000-0000-4000-8000-000000000001"),
-        ("ruleSetId", "not-a-uuid"),
-        ("regulationInnings", True),
-        ("regulationInnings", 100),
-        ("extensionLimit", 100),
-        ("coldConditions", [{"pointDifference": 0, "startInning": 5}]),
-        ("dh", 1),
+        (
+            "ruleSetId",
+            "0A000000-0000-4000-8000-000000000001",
+            RuleSnapshotFailure.VALUE,
+        ),
+        ("ruleSetId", "not-a-uuid", RuleSnapshotFailure.VALUE),
+        (
+            "ruleSetId",
+            "{0a000000-0000-4000-8000-000000000001}",
+            RuleSnapshotFailure.VALUE,
+        ),
+        ("ruleSetId", UUID(_RULE_SET_ID), RuleSnapshotFailure.VALUE),
+        ("regulationInnings", True, RuleSnapshotFailure.SHAPE),
+        ("regulationInnings", 0, RuleSnapshotFailure.VALUE),
+        ("regulationInnings", 100, RuleSnapshotFailure.VALUE),
+        ("extensionLimit", 100, RuleSnapshotFailure.VALUE),
+        (
+            "coldConditions",
+            [{"pointDifference": 0, "startInning": 5}],
+            RuleSnapshotFailure.VALUE,
+        ),
+        (
+            "coldConditions",
+            [{"pointDifference": 1, "startInning": 1}] * 17,
+            RuleSnapshotFailure.SHAPE,
+        ),
+        ("dh", 1, RuleSnapshotFailure.SHAPE),
     ],
 )
 def test_rule_snapshot_rejects_invalid_uuid_types_and_ranges(
-    key: str, value: object
+    key: str, value: object, expected_kind: RuleSnapshotFailure
 ) -> None:
     """ID正規形・型・値域の違反を既存schemaで拒否する。"""
     raw = _valid_applied_rules()
     raw[key] = value
 
-    with pytest.raises(RuleSnapshotInvalid):
+    with pytest.raises(RuleSnapshotInvalid) as caught:
         decode_structure(raw)
+    assert caught.value.kind is expected_kind
+    assert _RULE_SET_ID not in str(caught.value)
+    assert caught.value.__cause__ is None
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("runnerPlacement", "no_out_second"),
+        ("leadoffRule", "restart_lineup"),
+    ],
+)
+def test_rule_snapshot_rejects_unapproved_tiebreak_literals(
+    key: str, value: str
+) -> None:
+    """採用済みのタイブレーク機械文字列以外を受理しない。"""
+    raw = _valid_applied_rules()
+    raw["tiebreak"][key] = value
+
+    with pytest.raises(RuleSnapshotInvalid) as caught:
+        decode_structure(raw)
+    assert caught.value.kind is RuleSnapshotFailure.VALUE
+    assert caught.value.__cause__ is None
+
+
+def test_rule_snapshot_error_does_not_chain_untrusted_uuid() -> None:
+    """不正UUIDを公開例外文や例外連鎖へ残さない。"""
+    raw = _valid_applied_rules()
+    raw["ruleSetId"] = "private-invalid-rule-id"
+
+    with pytest.raises(RuleSnapshotInvalid) as caught:
+        decode_structure(raw)
+    assert "private-invalid-rule-id" not in str(caught.value)
+    assert caught.value.__cause__ is None
 
 
 def test_rule_snapshot_structure_cannot_be_encoded_as_validated() -> None:
@@ -722,6 +778,16 @@ def test_rule_snapshot_direct_validated_construction_checks_structure() -> None:
 
     with pytest.raises(RuleSnapshotInvalid):
         DomainValidatedRuleSnapshot(structural)
+
+
+def test_rule_snapshot_direct_validated_construction_checks_correlation() -> None:
+    """公開型の直接生成でも相関違反を検証済みへ昇格しない。"""
+    structural = decode_structure(_valid_applied_rules())
+    object.__setattr__(structural, "extension_limit", 8)
+
+    with pytest.raises(RuleSnapshotInvalid) as caught:
+        DomainValidatedRuleSnapshot(structural)
+    assert caught.value.kind is RuleSnapshotFailure.CORRELATION
 
 
 @pytest.mark.parametrize(
@@ -786,3 +852,13 @@ def test_rule_snapshot_accepts_cold_tiers_within_regulation() -> None:
     changed["coldConditions"][0]["pointDifference"] = 0
     with pytest.raises(RuleSnapshotInvalid):
         decode_applied_rules(changed)
+
+
+def test_rule_snapshot_encoded_value_does_not_mutate_validated_snapshot() -> None:
+    """encode結果の入れ子を変更しても検証済み値を変更しない。"""
+    validated = decode_applied_rules(_valid_applied_rules())
+    encoded = encode_applied_rules(validated)
+    cast(dict[str, object], encoded["tiebreak"])["startInning"] = 11
+
+    assert validated.structural.tiebreak is not None
+    assert validated.structural.tiebreak.start_inning == 10

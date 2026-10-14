@@ -85,3 +85,10 @@
 - `jsonschema==4.26.0`を本体featureの`backend/pyproject.toml`/`uv.lock`へ独立して追加。既存凍結schemaを製品実行時に評価するための直接依存であり、別worktreeの未コミット変更は移動/破棄していない。変更者本人への照会はTSK-550 Notionコメント`3f993b75-e687-8170-8380-001d56be1a38`で送付、回答はまだ確認できず、著者の断定はしない。
 - 検証: `uv run ruff format`、`uv run ruff check .`、`uv run ty check`通過。`uv run pytest tests/test_game_state_models.py -q`は**33 passed**。`uv lock --check`通過。rootの`uv run pytest tests/test_core_guard.py -q`は**242 passed**。`python scripts/check_docs_status.py`は20文書/違反0、`git diff --check`通過。
 - 広めの`uv run pytest tests/ --ignore=tests/db -q`は**1410 passed、4 skipped、1 failed**。失敗`test_manifest_is_bound_to_the_canonical_data_model`は、承認済みdata-model v1.0の実SHAと`contracts/db/schema-manifest.json`の既存`canonical_source.sha256`の不一致。codec試験の失敗ではない。manifestの正本digest更新は個別7.7ゲート/後続ステップの対象で、ステップ2の承認範囲外のため変更しない。全件緑とは報告しない。
+
+## ステップ2重複実装の統一
+
+- TSK-550本体の唯一の編集先を`feature/ux1-fr014-rule-resolution`とし、採用コミット`8f2d60a4`の`backend/src/pitchlog/db/game_state/rule_snapshot.py`を残す。別worktreeの`636b4c2a`は比較元で、`backend/src/pitchlog/rule_snapshot.py`と`AppliedRulesPayload`を本体featureへ持ち込まない。最終feature上の製品codecと検証経路は1つ。別worktreeは編集・破棄しない。
+- 本体採用理由は、`StructuralRuleSnapshot`と`DomainValidatedRuleSnapshot`を別型にし、値間相関が未検証の値をencodeで拒否できるため。`636b4c2a`の公開型は形・相関を一段で検証するため、この区別を表せない。別案の有用な差分として、承認済みタイブレーク機械文字列2種の厳密照合、入力値を例外連鎖へ載せない処理、canonical UUID/値域/直接構築/深い不変性の追加試験を本体に取り込む。相関検査は本体moduleの1経路、規則行の出所証明・DB保存成功は未実装。
+- 最新developの文書台帳を`e1d9c9b4`で、本体の承認済みdata-model v1.0から派生するmanifest/digestを`61e1e256`で追随済み。先のmanifest試験失敗はこの追随前の結果。統一後の検査結果と、候補作成に関与していない担当の差分確認を別途追記する。ステップ3・公開・マージは行わない。
+- 統一後のbackend対象試験は**42 passed**、Ruff format/check・ty・lock確認、root core-guardは**242 passed**、docs-statusは20文書/違反0。非DB全体の第1試行は共有`/tmp`の容量枯渇でGit複製等に失敗したため無効な環境結果として保持し、他担当の一時領域は削除せず専用`TMPDIR`で再実行した結果は**1420 passed、4 skipped**。最終HEADでの独立差分確認は別途記録する。
