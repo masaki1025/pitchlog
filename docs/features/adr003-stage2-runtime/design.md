@@ -113,11 +113,13 @@ Node の起動から初回応答までは 32.6345 ms。RSS の 2 値はそれぞ
 | 25 | S20(終了判定側) | 台帳 schema の終了判定の役割を 5 つに(D7)・walk-off の行と case(終了の検知) | — | 不要 |
 | 26 | S19 | descriptor に成立段数の軸・凍結基準 `gameEndAxisFields` の受理記録・COLD-09 の行と case | — | **descriptor の確定ゲート** |
 | 27 | — | 正本改訂のゲート投入: ADR-003 D-8(targetKind に「対象なし」・XC-09 を「シナリオ長」へ・stateEffect・guaranteeMode)・descriptor の分割(payload と履歴軸 — D6)・**サヨナラ時の得点上限の表現**(32 のため) | — | **/finalize-doc**(ゲート ⑤) |
-| 28 | S18 | D+1 の liveness-only の行と case | 27 の承認・S03 の `D` 実値(13) | D-8 |
-| 29 | S16 | undo の 3 ケース(取り消す対象の差分) | 27 | descriptor |
-| 30 | S17 | targetKind「対象なし」の行 | 27 | D-8 |
-| 31 | S15 | tiebreak-start の操作行(6 種目の被覆・発動回の述語) | 27 | descriptor |
-| 32 | S15 と派生軸の仕組み | (旧 32「S20 状況判定側」は TSK-544 へ送った — 計画書の改訂 2026-10-14。S15 は旧 31 から移動)派生軸の属性と関数性・到達不可の検査、ステップ 26 の成立段数の是正、tiebreak-start の操作行 | 27 | ADR-003 v0.7 D-11 |
+| 28 | S19 の是正・派生軸の仕組み | 派生軸の属性(導出元・条文 ID)と関数性・到達不可の検査。成立段数の不正境界値と `validationErrors[]` 2 件を保証範囲外へ | 27 の承認 | ADR-003 v0.7 D-11・descriptor |
+| 29 | 履歴と結果の面の移行・S17 | `HistoryEffect`・`operationResult` の `set`・2 列と 2 面の対応と交差制約・確定プレイの push の差分。既存の空履歴 undo 行を `targetKind = "none"` へ | 27 の承認 | ADR-003 v0.7 D-8・要件書 v2.14 |
+| 30 | S18 | `D`+1 件積んでから undo する構成の liveness-only の行と case | 29・S03 の `D` 実値(13) | ADR-003 v0.7 `XC-09` |
+| 31 | S16 | undo の 3 つの基礎シナリオから先頭の差分のスカラー軸で展開した行と case | 29 | ADR-003 v0.7 D-11・descriptor |
+| 32 | S15 | tiebreak-start の操作行(payload のスカラー軸・発動回の派生軸・6 種目の被覆) | 28 | ADR-003 v0.7 D-11・descriptor |
+
+**計画書の改訂(2026-10-14)**: 旧 28〜32(S18・S16・S17・S15・S20 状況判定側)を、ゲート ⑤ の結果に合わせて上の 28〜32 へ組み替えた。S20 の状況判定側は TSK-544 へ送った。
 
 - **1 件 1 コミット**: 被覆履歴(`required_set_input_coverage_v1.json`)は 1 コミットで 1 件しか追加できない
 - 各コミットで**連動して変わるもの**: `check_required_set_coverage.py` の固定値・`game_end_coverage_declaration_v1.json` の件数・`gap_register_v1.json`・fixture・**handoff の artifacts digest**(同じコミットで更新)・関連テスト(`tests/test_required_set_coverage.py`・`tests/test_gap_register.py`・`tests/test_consumer_handoff.py` の件数固定)
