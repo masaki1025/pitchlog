@@ -118,5 +118,14 @@ P0 0 件、P1 1 件、P2 0 件で否決。P1 を採用した。
 - #131/#132には、新規`tenant_profile.py`、`operation_registry.py`、repository契約・試験、必要なtenant-boundary履歴をC1が一時所有する案を提示した。既存`CAP:tenants:read`を使い、自tenant 1行の`id`/`name`だけを返す。書込・一覧・cross-tenant・汎用実行入口は追加しない。
 - #137には、route registry / HTTP matrixの本体とlock、exact-set検査、必要なauthz凍結履歴とseal追随をC1が一時所有する案を提示した。追加は`ROUTE:AUTH:session:read` 1件とconditional matrix 1件に限定する。
 - 2026-10-14 23:55 JST時点で受理返信はない。各既存branch/worktreeは変更していない。共有ファイルの編集は未開始で、C1ステップ1の製品コミットも未作成。
-- 不受理時の最小順序はrepository系とroute系を分離する。前者は#131/#132統合後、後者は#137統合後にC1をrebaseして該当差分だけを適用する。全3PRを一括待機条件にはしない。
+- 既存PR先行時の最小順序はrepository系とroute系を分離する。前者は#131/#132統合後、後者は#137統合後に、C1が既存方針どおり最新developをmergeして該当差分だけを適用する。rebaseを自動前提にせず、全3PRを一括待機条件にはしない。
 - 7.7-1の宣言、7.7-2の一行為一記録、7.7-3のfail-closedを維持する。tenant-boundary snapshotとauthz oracle封印は別の受理単位として導出し、checkerの直書き基準追加では代用しない。
+
+## 2026-10-15 Claude調整役への判断依頼と契約具体化
+
+- 各担当から一時所有案への返信がないため、未回答を不受理・所有移管とせず、Claude調整役へ二択の決定を依頼した。
+- Repository側は#131コメント`6171537559`と#132コメント`6171538188`。R1=C1先行、R2=#131/#132既定順先行として、担当・対象ファイル・統合順の確定を求めた。
+- 認証経路側は#137コメント`6171538865`。A1=C1先行、A2=#137先行として、担当・対象ファイル・統合順の確定を求めた。
+- 追随は各branchの既存方針で最新developを取り込む意味とし、rebaseを必須化しない。C1はこれまでどおりorigin/developのmergeを使用する。
+- 回答待ちに`auth-session-verification-contract/research.md`を更新した。引数なし`TenantProfileReadToken`、既存`CAP:tenants:read`、`tenants.id = :tenant_id`の固定2列SELECT、`GET /auth/session`の入力なし・Cookieだけの認証、exact DTO、401/500の非漏洩境界、repository/API/7.7試験項目を具体化した。
+- 共有資産、backend製品コード、既存PRのbranch/worktreeは変更していない。C1先行判断を受理した側からステップ1の依存が閉じる実装へ進み、ステップ1完了コミットは全合格条件が揃った時点で作成する。

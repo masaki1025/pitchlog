@@ -91,5 +91,13 @@
 - #132へ[一時所有案](https://github.com/masaki1025/pitchlog/pull/132#issuecomment-6171264327)を提示した。C1が`operation_registry.py`、repository契約、repository契約試験と必要な履歴追随を先に更新し、C1統合後に#132が最新developへ追随する案である。
 - #137へ[一時所有案](https://github.com/masaki1025/pitchlog/pull/137#issuecomment-6171264803)を提示した。C1がauth route / HTTP matrix各本体・lock、authentication-entry exact-set検査、7.7のoracle封印追随を先に更新し、C1統合後に#137が最新developへ追随する案である。
 - 3件とも既存branch/worktreeは変更していない。2026-10-14 23:55 JST時点では各担当の返信がなく、共有ファイルの一時所有は未受理である。新規C1専有ファイル以外の製品実装は開始していない。
-- repository系とauth route系は別の所有判断とする。#131/#132が不受理なら同2PRを既定順で統合後にC1がrebaseしてtenant read operationを追加する。#137が不受理なら#137統合後にC1がrebaseしてsession routeだけを追加する。片方の未回答を他方の一律待機理由にはしない。
+- repository系とauth route系は別の所有判断とする。#131/#132が先行なら同2PRを既定順で統合後、C1は既存方針どおり最新developをmergeしてtenant read operationを追加する。#137が先行なら#137統合後、C1は最新developをmergeしてsession routeだけを追加する。rebaseを自動前提にせず、片方の未回答を他方の一律待機理由にはしない。
 - 7.7確認では、tenant-boundaryのcontract revision・凍結射影・append-only snapshotと、authzのroute/matrix lock・`frozen-baselines.json`のoracle_input履歴・seal連鎖を別々に扱う。基準値をcheckerへ直書きせず、比較不能時のfail-closedを維持し、実際の受理単位とPR番号が確定した時点で履歴の承認記録を確定する。
+
+## 2026-10-15 Claude調整役への判断依頼
+
+- 各担当の未回答は未回答のままとし、不受理・所有移管とは記録していない。
+- Repository側は#131・#132へ、[共通の二択判断](https://github.com/masaki1025/pitchlog/pull/131#issuecomment-6171537559)を依頼した。R1はC1がtenant profile / operation registry / repository契約・試験・7.7追随を先行し、両PRがC1統合後のdevelopへ各branchの既存方式で追随する。R2は#131/#132を既定順で先行し、C1が統合後developをmergeしてtenant readだけを追加する。#132側の同文記録は[こちら](https://github.com/masaki1025/pitchlog/pull/132#issuecomment-6171538188)。
+- 認証経路側は#137へ[独立した二択判断](https://github.com/masaki1025/pitchlog/pull/137#issuecomment-6171538865)を依頼した。A1はC1がsession routeのregistry / matrix / exact-set / 7.7追随を先行し、#137が統合後developへ既存方式で追随する。A2は#137を先行し、C1が統合後developをmergeしてsession routeだけを追加する。
+- 回答待ちの間に、[C1調査記録](../auth-session-verification-contract/research.md)へtenant read token、固定SQL、session endpointの入出力、401/500境界、repository/API/7.7試験表を具体化した。共有資産と製品コードは変更していない。
+- C1先行の受理が得られた側は、もう一方の未回答を一律待機理由にせず、承認済みステップ1のうち依存が閉じる作業を開始する。ただしステップ1完了コミットは両系統と凍結検査が揃ってから作成する。
