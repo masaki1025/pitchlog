@@ -71,3 +71,9 @@
 - **人間承認対象**: `docs/design/data-model.md` v1.0の変更履歴1行と§6-5追加2段落、および索引の状態/版追随。所有側が未対応のため、本文に限る独立査読結果を示したうえでPOの代替受理と7.3人間承認を求める。承認前に`approved`化・ステップ2製品コード着手はしない。
 
 - **並行所有差分の照合**: TSK-250専用worktreeは`d3bf60da`・cleanで当方からの変更0。ただし公開中PR #132（U-S1）は`docs/design/data-model.md`の変更履歴v0.10・§5/§11の同期意図規則と`docs/README.md`を変更する。§6-5本文への意味差分は0だが、正本と索引はファイル単位で重なる。PR #132統合後に履歴の版順・索引を最新developへ統合し、§6-5への実質影響が無いことを照合する。現候補の全文レビューは`7b73989e`の基線での結果であり、後から取り込むPR #132の全文を審査済みと扱わない。競合を無確認で上書きしない。
+
+## 承認済み保存本文の本体featureへの取り込み
+
+- 利用者の指定で、`ca0a51ef`の正式審査済み本文を`48e8a562`でapprovedにした版を唯一の採用正本とする。以前このfeatureで起案した`7b73989e`のin-review候補は不採用であり、別案・再審査を行わない。最新`origin/develop`=`8294a1b6`を本体featureへmergeし、data-modelの変更履歴と§6-5、および索引の当該行だけを承認済み版へ置換。developの他節は保持した。`scripts/check_docs_status.py`は20文書・違反0、`git diff --check`も通過。正式ゲートの実績は承認済み経路の敵対レビュー2回・反映1周を採り、planの`確定ゲート周回`を1へ合わせた。
+- ステップ2のcodecは構造検証済み値と相関検証済み値を型で分離する。既存の凍結schemaは5値の形・値域、付録F-1の相関は単一の追加検証経路。規則行の出所と保存成功はresolver/U-G1の後続境界であり、未検証値を保存成功へ渡さない。コールド条件のFR-014とDRAW-04の矛盾は裁定済みではない。
+- 別worktree`feature/tsk550-step1-gate-materials`には`backend/pyproject.toml`/`uv.lock`の未コミット`jsonschema==4.26.0`追加と、未追跡の`rule_snapshot.py`/同試験がある。Gitに著者記録は無く、変更者本人の確認は未了。コードから用途は既存JSON Schemaによる製品時検証と推定でき、既存のbackend依存一覧には`jsonschema`が無いため直接importする実装には依存追加が必要。当該worktreeを編集・移動・破棄しない。本体featureの変更は独立の差分として扱う。agmsgは本repoに登録済みidentity/teamがなく連絡不可。
