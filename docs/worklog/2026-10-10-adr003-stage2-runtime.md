@@ -299,3 +299,13 @@ branch: feature/adr003-stage2-runtime
 - **ステップ 30 の不備を同梱で是正**: ① `tests/test_consumer_handoff.py` に TSK-455 の元の版の runner の SHA-256 を直書きしていた(凍結基準の走査の allow-list 未登録 1 → 3 件)。直書きをやめ、commit OID を読み込み層の出自宣言と照合して blob を読む形へ ② runner の比較試験(Vitest・Python)が case を末尾位置で拾っていて、行の追加で別の case になり 2 件赤 → `guaranteeMode`・対象種別・差分の面で選ぶ形へ
 - **見逃しの原因**: ① の走査の試験は以前から既知の失敗だったため、ステップ 30 で試験 ID の差分だけを見て「新規 0」とした。以後、エラーメッセージと `check_*` の出力も前回と比べる
 - ハーネス全件: 70 failed・新規 0(ID とエラー行の両方で比較)。Vitest 全件 1135 件が緑
+
+### ステップ 32(2026-10-14)— S15 tiebreak-start
+
+- 軸: `rules.tiebreakStartInning`(8・10・none)/ `event.tiebreakStart.runnerPlacement`(first-second・second-third)/ `event.tiebreakStart.leadoffBatter`(1・9)/ `event.tiebreakStart.inning`(8・10)/ 派生軸 `event.tiebreakStart.activationRelation`(ready・not-ready — 導出元 = 指定回・規則の開始回・現在回。規則が none で ready の組を到達不可として宣言)
+- tiebreak-start の操作行 7 → 10(適用 2 = 指定値が異なる 2 組・拒否 1)。case 106 → 109。**Must 操作の写像 5 → 6 種**(除外宣言を削除)。requiredSet の入力座標 173 → 184、被覆 133 → 146、規則上の除外 40 → 38。終了判定の到達不可 3097 は不変
+- 凍結基準の受理記録を追記(#131・山田正輝・2026-10-14)
+- 既存の逐行確認シート `matrix_rows_line_review.md` を機械生成し直した(由来条文に FR-009 が加わった 1 行だけ。チェック欄の変更なし)
+- 負例: `TIEBREAK_PAYLOAD_SET`・`TIEBREAK_ACTIVATION`・`HISTORY_PUSH_KIND`・`DERIVED_FUNCTION`・`DERIVED_UNREACHABLE`・`DERIVED_INPUT`
+- **条文が決めていない点(ゲート ⑥ と TSK-544 へ)**: FR-009 は「指定走者が配置され打順が正しく巻き戻り」と書くが、**指定走者の個人 ID と打順の巻き戻りの詳細な対応**を定めていない。今回の行は走者配置と打順の枠の比較面までを固定した
+- ハーネス全件: 70 failed・新規 0(ID・エラー行とも)。Vitest 全件 1135・backend 関連 47 が緑

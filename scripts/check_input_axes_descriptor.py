@@ -718,8 +718,12 @@ def _validate_source_clause_ids(
                         f"nonCoverageFields[{index}]: {clause_id}"
                     )
 
-    combination_rules = descriptor.get("gameEndCombinationRules")
-    if isinstance(combination_rules, dict):
+    for combination_rules in (
+        descriptor.get("gameEndCombinationRules"),
+        descriptor.get("inputCoordinateCoverage"),
+    ):
+        if not isinstance(combination_rules, dict):
+            continue
         cited_ids = [combination_rules.get("sourceClauseId")]
         pairs = combination_rules.get("derivedUnreachablePairs", [])
         if isinstance(pairs, list):
@@ -1274,10 +1278,23 @@ def _validate_derived_axes(
     actual_ids = {
         axis_id for axis_id, axis in axes.items() if "derivedFrom" in axis
     }
-    rules = descriptor["gameEndCombinationRules"]
-    declared_ids = rules["derivedAxisIds"]
-    if actual_ids != set(expected) or set(declared_ids) != actual_ids:
+    game_rules = descriptor["gameEndCombinationRules"]
+    state_rules = descriptor["inputCoordinateCoverage"]
+    declared_ids = game_rules["derivedAxisIds"] + state_rules.get("derivedAxisIds", [])
+    if (
+        actual_ids != set(expected)
+        or set(declared_ids) != actual_ids
+        or len(declared_ids) != len(actual_ids)
+    ):
         raise DescriptorCheckError("DERIVED_DECLARATION: 派生軸の宣言集合が不一致")
+    state_ids = {
+        axis["axisId"] for axis in descriptor["stateTransitionAxes"]
+        if "derivedFrom" in axis
+    }
+    if set(state_rules.get("derivedAxisIds", [])) != state_ids:
+        raise DescriptorCheckError("DERIVED_DECLARATION: 状況判定の派生軸集合が不一致")
+    if set(game_rules["derivedAxisIds"]) != actual_ids - state_ids:
+        raise DescriptorCheckError("DERIVED_DECLARATION: 終了判定の派生軸集合が不一致")
     for axis_id, definition in expected.items():
         axis = axes.get(axis_id)
         if axis is None or axis.get("derivedFrom") != definition:
@@ -1289,7 +1306,10 @@ def _validate_derived_axes(
             raise DescriptorCheckError(f"DERIVED_SOURCE: 導出元の軸が実在しない: {axis_id}")
 
     seen: set[tuple[str, str, str, str]] = set()
-    for pair in rules["derivedUnreachablePairs"]:
+    for pair in (
+        game_rules["derivedUnreachablePairs"]
+        + state_rules.get("derivedUnreachablePairs", [])
+    ):
         source_id = pair["sourceAxisId"]
         derived_id = pair["derivedAxisId"]
         if (

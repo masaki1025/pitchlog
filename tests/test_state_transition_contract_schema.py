@@ -2980,8 +2980,8 @@ def test_per_pitch_subtypes_must_be_an_exact_set() -> None:
         _validate_must_operation_coverage(contract, frozenset(), None)
 
 
-def test_repository_must_operation_coverage_reports_deferred_tiebreak_gap() -> None:
-    """段階2送りの1種だけが未写像であり、検査器が不足を拒否する。"""
+def test_repository_must_operation_coverage_includes_tiebreak_start() -> None:
+    """tiebreak-start を含む Must 6 種の写像を検査する。"""
     contract = _repository_contract()
     required = {
         item["operationType"]
@@ -2992,18 +2992,22 @@ def test_repository_must_operation_coverage_reports_deferred_tiebreak_gap() -> N
         for item in contract["mustOperationCoverage"]["mappings"]
     }
     assert len(required) == 6
-    assert len(mapped) == 5
-    assert required - mapped == {"tiebreak-start"}
-    assert not any(
-        row["operationKind"] == "tiebreak-start" for row in contract["operationRows"]
+    assert mapped == required
+    assert len(_coverage_mapping(contract, "tiebreak-start")["rowRefs"]) == 3
+    assert "req:FR-009" in {
+        source["sourceId"] for source in contract["provenance"]["sources"]
+    }
+    _validate_must_operation_coverage(
+        contract, frozenset(), _resolved_vector_manifest(frozenset())
     )
-    design = (
-        REPOSITORY_ROOT / "docs/features/appendix-e-golden-vectors/design.md"
-    ).read_text(encoding="utf-8")
-    assert "「`mustOperationCoverage`が6種を覆う」は未達" in design
-
+    contract["mustOperationCoverage"]["mappings"] = [
+        item for item in contract["mustOperationCoverage"]["mappings"]
+        if item["operationType"] != "tiebreak-start"
+    ]
     with pytest.raises(MustOperationCoverageError, match="写像がexact-set不一致"):
-        _validate_must_operation_coverage(contract, frozenset(), None)
+        _validate_must_operation_coverage(
+            contract, frozenset(), _resolved_vector_manifest(frozenset())
+        )
 
 
 def test_unadopted_fr040_requires_an_explicit_vector_exclusion() -> None:
@@ -3467,7 +3471,7 @@ def test_repository_step65_empty_history_row_and_mapping() -> None:
     _validate_references(contract, vocabulary_checker.validate_manifest(REPOSITORY_ROOT))
 
     assert len(contract["matrixRows"]) == 42
-    assert len(contract["operationRows"]) == 7
+    assert len(contract["operationRows"]) == 10
     assert len(contract["undoRows"]) == 10
     row = contract["undoRows"][0]
     assert set(row) == set(UNDO_ROW_COLUMNS)
@@ -3497,7 +3501,7 @@ def test_repository_step65_empty_history_row_and_mapping() -> None:
             for item in contract["operationRows"]
             if item["operationKind"] == operation_kind
         ]
-    assert "tiebreak-start" not in mappings
+    assert len(mappings["tiebreak-start"]) == 3
     sources = {item["sourceId"] for item in contract["provenance"]["sources"]}
     assert "req:FR-006" in sources
     assert not any(source.startswith("adr:") for source in sources)
@@ -4834,7 +4838,7 @@ def test_repository_contract_step63_game_end_rows_and_mapping() -> None:
     assert mappings["per-pitch-input"] == [
         _row_reference("matrixRows", row) for row in contract["matrixRows"]
     ]
-    assert "tiebreak-start" not in mappings
+    assert len(mappings["tiebreak-start"]) == 3
     assert len(contract["matrixRows"]) == 42
     sources = {source["sourceId"] for source in contract["provenance"]["sources"]}
     assert {"req:FR-010", "req:FR-005", "req:FR-006", "req:4.0-1"} <= sources
@@ -4994,9 +4998,9 @@ def test_repository_contract_step64_registration_rows_and_mapping() -> None:
     assert mappings["per-pitch-input"] == [
         _row_reference("matrixRows", row) for row in contract["matrixRows"]
     ]
-    assert "tiebreak-start" not in mappings
+    assert len(mappings["tiebreak-start"]) == 3
     assert len(contract["matrixRows"]) == 42
-    assert len(contract["operationRows"]) == 7
+    assert len(contract["operationRows"]) == 10
     sources = {source["sourceId"] for source in contract["provenance"]["sources"]}
     assert "req:FR-015" in sources
     assert not any(source.startswith("adr:") for source in sources)
@@ -5725,7 +5729,7 @@ def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> 
     assert declaration["inputCoordinateMapping"]["semanticOrigin"] == (
         "step-90-task-implementation-convention"
     )
-    assert len(cases) == 106
+    assert len(cases) == 109
     changed = []
     for case in cases:
         assert {"raw", "normalizationRuleId", "normalized"} <= set(case)
@@ -5764,13 +5768,13 @@ def test_step90_contract_schema_rejects_case_without_normalization_point(
 def test_repository_rows_have_matching_history_and_result_faces() -> None:
     """現行の 7 操作行と 10 undo 行が D-8 の同値を満たす。"""
     contract = _repository_contract()
-    assert (len(contract["operationRows"]), len(contract["undoRows"])) == (7, 10)
+    assert (len(contract["operationRows"]), len(contract["undoRows"])) == (10, 10)
     history_checker.validate_rows(contract, _descriptor())
     assert contract["undoRows"][0]["targetKind"] == "none"
 
 
 def test_all_committed_cases_match_history_expansion() -> None:
-    """全 106 case の履歴入力と期待値が追跡済み展開に完全一致する。"""
+    """全 109 case の履歴入力と期待値が追跡済み展開に完全一致する。"""
     result = subprocess.run(
         [
             sys.executable,
@@ -5778,7 +5782,7 @@ def test_all_committed_cases_match_history_expansion() -> None:
             "--root", str(REPOSITORY_ROOT),
             "--limit", "42",
             "--mode", "coverage",
-            "--operation-limit", "7",
+            "--operation-limit", "10",
             "--undo-limit", "10",
         ],
         check=True,
@@ -5911,14 +5915,22 @@ def test_step31_undo_mutants_are_red(mutation: str, rule_id: str) -> None:
         with pytest.raises(history_checker.HistoryEffectError, match=rule_id):
             history_checker.validate_rows(contract, _descriptor())
         return
-    case = contract["cases"][101]
+    case = next(
+        item for item in contract["cases"]
+        if item["inputCoordinate"].get("history.topDifference.state.score.home.delta") == 2
+        and item["inputCoordinate"].get("history.scenarioLength") == 2
+    )
     assert case["inputCoordinate"]["history.topDifference.state.score.home.delta"] == 2
     if mutation == "one-point-only":
         case["expected"]["stateEffect"]["stateFields"]["state.score"] = {
             "kind": "set", "value": {"home": 2, "away": 0},
         }
     elif mutation == "drop-second-difference":
-        second = contract["cases"][100]
+        second = next(
+            item for item in contract["cases"]
+            if item is not case
+            and item.get("historyInput", {}).get("stack") == case["expected"]["historyContext"]
+        )
         assert second["historyInput"]["stack"] == case["expected"]["historyContext"]
         del second["historyInput"]["stack"][0]["difference"]["stateFields"]["state.score"]
     else:
@@ -5939,6 +5951,41 @@ def test_confirmed_play_pushes_one_entry_on_existing_stack() -> None:
     assert result[0]["kind"] == "confirmed-play"
     assert result[1:] == stack
     assert result[0]["difference"]["statFlags"] == case["expected"]["statFlags"]
+
+
+@pytest.mark.parametrize(
+    ("mutation", "rule_id"),
+    [
+        ("fixed-payload", "TIEBREAK_PAYLOAD_SET"),
+        ("unmet-activation", "TIEBREAK_ACTIVATION"),
+        ("push", "HISTORY_PUSH_KIND"),
+    ],
+)
+def test_tiebreak_start_invalid_rows_are_red(mutation: str, rule_id: str) -> None:
+    """指定値の無視・発動条件外の適用・履歴pushを拒否する。"""
+    contract = _repository_contract()
+    rows = [row for row in contract["operationRows"] if row["operationKind"] == "tiebreak-start"]
+    assert len(rows) == 3
+    first, second, rejected = rows
+    assert first["stateEffect"]["stateFields"]["state.runners"] != (
+        second["stateEffect"]["stateFields"]["state.runners"]
+    )
+    if mutation == "fixed-payload":
+        second["stateEffect"]["stateFields"]["state.runners"] = copy.deepcopy(
+            first["stateEffect"]["stateFields"]["state.runners"]
+        )
+    elif mutation == "unmet-activation":
+        next(
+            item for item in second["precondition"]["args"]
+            if item["axisId"] == "event.tiebreakStart.activationRelation"
+        )["value"] = "not-ready"
+    else:
+        first["historyEffect"] = {"pushes": True, "kind": "confirmed-play"}
+        first["stateEffect"]["historyAndResult"]["history"] = {
+            "kind": "push", "entryKind": "confirmed-play",
+        }
+    with pytest.raises(history_checker.HistoryEffectError, match=rule_id):
+        history_checker.validate_rows(contract, _descriptor())
 
 
 @pytest.mark.parametrize(

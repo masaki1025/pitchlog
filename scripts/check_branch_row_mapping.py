@@ -172,6 +172,8 @@ def validate_rows(contract: dict[str, Any], descriptor: dict[str, Any]) -> None:
             or column["kind"] != "state-correction"
         ):
             _fail("HISTORY_PUSH_KIND", label)
+        if row["operationKind"] == "tiebreak-start":
+            _validate_tiebreak_row(row, label)
 
     for index, row in enumerate(contract["undoRows"]):
         label = f"undoRows[{index}]"
@@ -215,6 +217,55 @@ def validate_rows(contract: dict[str, Any], descriptor: dict[str, Any]) -> None:
             or not _all_unchanged(row["stateEffect"]["scoreboard"])
         ):
             _fail("HISTORY_NONE_EFFECT", label)
+
+
+def _validate_tiebreak_row(row: dict[str, Any], label: str) -> None:
+    """FR-009 の指定値と操作行の比較面の一致を検査する。"""
+    predicate = row["precondition"]
+    args = predicate.get("args") if predicate.get("op") == "and" else None
+    if not isinstance(args, list) or any(
+        not isinstance(item, dict) or item.get("op") != "eq" for item in args
+    ):
+        _fail("TIEBREAK_PRECONDITION", label)
+    fixed = {item["axisId"]: item["value"] for item in args}
+    if len(fixed) != len(args) or any(
+        axis not in fixed for axis in (
+            "event.tiebreakStart.runnerPlacement",
+            "event.tiebreakStart.leadoffBatter",
+            "event.tiebreakStart.inning",
+            "event.tiebreakStart.activationRelation",
+            "rules.tiebreakStartInning",
+        )
+    ):
+        _fail("TIEBREAK_PRECONDITION", label)
+    effect = row["stateEffect"]
+    if row["operationResult"] == "applied":
+        if (fixed["event.tiebreakStart.activationRelation"] != "ready"
+            or fixed["rules.tiebreakStartInning"] == "none"):
+            _fail("TIEBREAK_ACTIVATION", label)
+        pairs = (
+            ("state.runners", "event.tiebreakStart.runnerPlacement"),
+            ("state.battingOrder", "event.tiebreakStart.leadoffBatter"),
+            ("state.inning", "event.tiebreakStart.inning"),
+        )
+        for output, source in pairs:
+            if effect["stateFields"][output] != {"kind": "set", "value": fixed[source]}:
+                _fail("TIEBREAK_PAYLOAD_SET", label)
+        if effect["stateFields"]["state.tiebreakActive"] != {
+            "kind": "set", "value": True,
+        }:
+            _fail("TIEBREAK_ACTIVATION", label)
+    elif row["operationResult"] == "rejected-precondition":
+        if fixed["event.tiebreakStart.activationRelation"] != "not-ready":
+            _fail("TIEBREAK_ACTIVATION", label)
+        if any(
+            item != {"kind": "unchanged"}
+            for face in ("stateFields", "scoreboard", "statFlags")
+            for item in effect[face].values()
+        ):
+            _fail("TIEBREAK_REJECTED_EFFECT", label)
+    else:
+        _fail("TIEBREAK_RESULT", label)
 
 
 def validate_undo_case_differences(contract: dict[str, Any], depth: int) -> None:

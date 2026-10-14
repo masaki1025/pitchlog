@@ -1353,12 +1353,21 @@ def derive_game_end_required_set_from_documents(
             )
         )
 
+    bindings = descriptor["inputCoordinateCoverage"]["axisBindings"]
+    play_input_axes = {
+        axis_id
+        for binding in bindings
+        for row_binding in binding["rowBindings"]
+        if "matrixRows" in row_binding["rowLayers"]
+        for axis_id in binding["axisIds"]
+    }
     state_event_coordinates = tuple(
         requirement
         for requirement in derive_input_coordinate_requirements_from_descriptor(
             descriptor
         )
         if requirement.axis_id.split(".", 1)[0] in {"state", "event"}
+        and requirement.axis_id in play_input_axes
     )
     if not state_event_coordinates:
         raise DeriverDependencyError("状態・イベント軸の入力座標要求が空である")
@@ -1371,7 +1380,7 @@ def derive_game_end_required_set_from_documents(
         axis_id = _nonempty_string(
             axis.get("axisId"), f"stateTransitionAxes[{index}].axisId"
         )
-        if axis_id.split(".", 1)[0] not in {"state", "event"}:
+        if axis_id.split(".", 1)[0] not in {"state", "event"} or axis_id not in play_input_axes:
             continue
         state_event_sources[axis_id] = _descriptor_clause_ids(
             axis,

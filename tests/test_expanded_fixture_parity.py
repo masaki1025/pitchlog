@@ -34,9 +34,9 @@ _load_module("check_deriver_dependencies", SCRIPTS / "check_deriver_dependencies
 _load_module("check_expander_dependencies", SCRIPTS / "check_expander_dependencies.py")
 _load_module("representative_selection", SCRIPTS / "representative_selection.py")
 _load_module("state_transition_normalization", SCRIPTS / "state_transition_normalization.py")
+_load_module("check_branch_row_mapping", SCRIPTS / "check_branch_row_mapping.py")
 _load_module("expand_state_transition_cases", SCRIPTS / "expand_state_transition_cases.py")
 _load_module("expand_game_end_cases", SCRIPTS / "expand_game_end_cases.py")
-_load_module("check_branch_row_mapping", SCRIPTS / "check_branch_row_mapping.py")
 checker = _load_module(
     "check_expanded_fixture_parity", SCRIPTS / "check_expanded_fixture_parity.py"
 )

@@ -439,6 +439,11 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         "history.topDifference.scoreboard.hits.before": ("adr:D-11", "boundary-partition"),
         "history.topDifference.scoreboard.hits.delta": ("adr:D-11", "boundary-partition"),
         "history.topDifference.statFlags.contribution": ("adr:D-11", "boundary-partition"),
+        "rules.tiebreakStartInning": ("req:F-1", "boundary-partition"),
+        "event.tiebreakStart.runnerPlacement": ("req:FR-009", "boundary-partition"),
+        "event.tiebreakStart.leadoffBatter": ("req:FR-009", "boundary-partition"),
+        "event.tiebreakStart.inning": ("req:FR-009", "boundary-partition"),
+        "event.tiebreakStart.activationRelation": ("req:FR-009", "finite-enumerable"),
     }
 
     assert {
@@ -537,6 +542,9 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
             "event.perPitch.officialScoringPayload",
             "event.perPitch.rbi.runnerContinuityByRunner",
             "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+                "event.tiebreakStart.runnerPlacement",
+                "event.tiebreakStart.leadoffBatter",
+                "event.tiebreakStart.inning",
         }
     )
 

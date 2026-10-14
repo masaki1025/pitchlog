@@ -695,6 +695,7 @@ def check_input_coverage_exact(
     cases = contract.get("cases")
     if not isinstance(cases, list):
         raise RequiredSetCoverageError("②のケース集合が不正")
+    check_state_derived_axis_cases(contract, descriptor)
     observed = observed_input_coverage(cases, active, contract, display_names)
     required_ids = {item.identity for item in active}
     if not observed <= required_ids:
@@ -1559,6 +1560,57 @@ def check_derived_axis_cases(
             if (
                 raw.get(pair["sourceAxisId"]) == pair["sourceValue"]
                 and raw.get(pair["derivedAxisId"]) == pair["derivedValue"]
+            ):
+                raise RequiredSetCoverageError(
+                    f"DERIVED_UNREACHABLE: 到達不可の組合せがcaseにある: {case['caseId']}"
+                )
+
+
+def check_state_derived_axis_cases(
+    contract: dict[str, Any], descriptor: dict[str, Any]
+) -> None:
+    """状況判定の派生軸を具体入力の関数性と到達不可宣言で照合する。"""
+    coverage = descriptor["inputCoordinateCoverage"]
+    axes = {axis["axisId"]: axis for axis in descriptor["stateTransitionAxes"]}
+    observations: dict[tuple[str, str], str] = {}
+    for case in contract["cases"]:
+        coordinate = case.get("inputCoordinate")
+        if not isinstance(coordinate, dict):
+            raise RequiredSetCoverageError("DERIVED_INPUT: 入力座標がない")
+        for axis_id in coverage["derivedAxisIds"]:
+            if axis_id not in coordinate:
+                continue
+            source_ids = axes[axis_id]["derivedFrom"]["sourceAxisIds"]
+            history_input = case.get("historyInput")
+            before = history_input.get("before") if isinstance(history_input, dict) else None
+            state_fields = before.get("stateFields") if isinstance(before, dict) else None
+            source_input = {}
+            for source_id in source_ids:
+                if source_id.startswith("state."):
+                    if not isinstance(state_fields, dict) or source_id not in state_fields:
+                        raise RequiredSetCoverageError("DERIVED_INPUT: 導出元の状態の実値がない")
+                    source_input[source_id] = state_fields[source_id]
+                elif source_id in coordinate:
+                    source_input[source_id] = coordinate[source_id]
+                else:
+                    raise RequiredSetCoverageError("DERIVED_INPUT: 導出元の完全な入力がない")
+            if set(source_input) != set(source_ids):
+                raise RequiredSetCoverageError("DERIVED_INPUT: 導出元の完全な入力がない")
+            if axis_id not in case.get("raw", {}):
+                raise RequiredSetCoverageError("DERIVED_INPUT: 派生値がrawにない")
+            key = (axis_id, json.dumps(
+                source_input, ensure_ascii=True, sort_keys=True, separators=(",", ":")
+            ))
+            value = _game_end_identity(coordinate[axis_id])
+            previous = observations.setdefault(key, value)
+            if previous != value:
+                raise RequiredSetCoverageError(
+                    f"DERIVED_FUNCTION: 同じ完全入力から異なる派生値: {axis_id}"
+                )
+        for pair in coverage["derivedUnreachablePairs"]:
+            if (
+                coordinate.get(pair["sourceAxisId"]) == pair["sourceValue"]
+                and coordinate.get(pair["derivedAxisId"]) == pair["derivedValue"]
             ):
                 raise RequiredSetCoverageError(
                     f"DERIVED_UNREACHABLE: 到達不可の組合せがcaseにある: {case['caseId']}"

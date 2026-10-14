@@ -191,14 +191,14 @@ def _assert_all_normative_rows_referenced(
 
 
 def test_step98_all_normative_rows_are_referenced_by_cases() -> None:
-    """実資産の4層66行すべてにcaseからの参照があることを確認する。"""
+    """実資産の4層69行すべてにcaseからの参照があることを確認する。"""
     state = _asset("state_transition_contract_v1.json")
     game_end = _asset("game_end_contract_v1.json")
     assert [len(state[layer]) for layer in ("matrixRows", "operationRows", "undoRows")] == [
-        42, 7, 10,
+        42, 10, 10,
     ]
     assert len(game_end["decisionRows"]) == 7
-    assert len(state["cases"]) == 106
+    assert len(state["cases"]) == 109
     assert len(game_end["cases"]) == 214
     for contract, schema_name in (
         (state, "state_transition_contract_schema_v1.json"),
@@ -338,6 +338,51 @@ def test_derived_unreachable_pair_is_absent_from_cases() -> None:
         checker.check_derived_axis_cases(contract, descriptor)
 
 
+def test_tiebreak_derived_axis_uses_complete_input_for_functionality() -> None:
+    """同じ指定回・規則開始回・現在回に異なる派生値を認めない。"""
+    contract = _asset("state_transition_contract_v1.json")
+    descriptor = _asset("input_axes_descriptor_v1.json")
+    first = next(
+        case for case in contract["cases"]
+        if case["inputCoordinate"].get("event.tiebreakStart.activationRelation") == "ready"
+    )
+    duplicate = copy.deepcopy(first)
+    duplicate["inputCoordinate"]["event.tiebreakStart.activationRelation"] = "not-ready"
+    duplicate["raw"]["event.tiebreakStart.activationRelation"] = "not-ready"
+    contract["cases"] = [first, duplicate]
+    with pytest.raises(checker.RequiredSetCoverageError, match="DERIVED_FUNCTION"):
+        checker.check_state_derived_axis_cases(contract, descriptor)
+
+
+def test_tiebreak_derived_axis_requires_current_inning_value() -> None:
+    """派生軸の現在回の実値を欠くcaseを拒否する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    descriptor = _asset("input_axes_descriptor_v1.json")
+    case = next(
+        item for item in contract["cases"]
+        if item["inputCoordinate"].get("event.tiebreakStart.activationRelation") == "ready"
+    )
+    case["historyInput"]["before"]["stateFields"].pop("state.inning")
+    contract["cases"] = [case]
+    with pytest.raises(checker.RequiredSetCoverageError, match="DERIVED_INPUT"):
+        checker.check_state_derived_axis_cases(contract, descriptor)
+
+
+def test_tiebreak_rule_none_and_ready_is_unreachable() -> None:
+    """規則に指定がないときの ready を宣言済み到達不可として拒否する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    descriptor = _asset("input_axes_descriptor_v1.json")
+    case = next(
+        item for item in contract["cases"]
+        if item["inputCoordinate"].get("event.tiebreakStart.activationRelation") == "not-ready"
+    )
+    case["inputCoordinate"]["event.tiebreakStart.activationRelation"] = "ready"
+    case["raw"]["event.tiebreakStart.activationRelation"] = "ready"
+    contract["cases"] = [case]
+    with pytest.raises(checker.RequiredSetCoverageError, match="DERIVED_UNREACHABLE"):
+        checker.check_state_derived_axis_cases(contract, descriptor)
+
+
 @pytest.mark.parametrize("mutation", ["remove", "unknown", "source", "count"])
 def test_step23_impossible_requirement_declaration_drift_is_red(mutation: str) -> None:
     """要件上の到達不可14件の欠落・混入・典拠・件数ずれを拒否する。"""
@@ -423,7 +468,7 @@ def test_step96_validation_errors_are_exact_and_separate_from_cases() -> None:
     assert actual == expected
     assert declaration["deferredValidationErrors"]["status"] == "materialized"
     assert declaration["deferredValidationErrors"]["count"] == len(expected)
-    assert len(state["cases"]) == 106
+    assert len(state["cases"]) == 109
     assert len(contract["cases"]) == 214
     assert all("caseId" not in item and "inputCoordinate" not in item for item in entries)
     assert all("保証範囲外" in item["claimBoundary"]["notGuaranteed"] for item in entries)
@@ -1130,20 +1175,9 @@ def test_step84_substitution_cases_and_input_coverage() -> None:
 
 
 def test_step85_tiebreak_start_has_no_row_case_or_coverage_change() -> None:
-    """FR-009の規範行がない裁定を守り、②の被覆をステップ84から据え置く。"""
+    """ステップ85時点の被覆履歴が据え置きだったことを確かめる。"""
     contract = _asset("state_transition_contract_v1.json")
     record = _asset("required_set_input_coverage_v1.json")
-    _assert_no_tiebreak_start_row(contract)
-    assert not any(
-        case["rowRef"].get("coordinate", {}).get("operationKind") == "tiebreak-start"
-        or case["inputCoordinate"].get("operationKind") == "tiebreak-start"
-        or case["inputCoordinate"].get("event.operationPayload") == "tiebreak-start"
-        for case in contract["cases"]
-    )
-    assert not any(
-        mapping["operationType"] == "tiebreak-start"
-        for mapping in contract["mustOperationCoverage"]["mappings"]
-    )
 
     assert [entry["step"] for entry in record["history"][:7]] == list(range(79, 86))
     previous = record["history"][5]["after"]
@@ -1235,7 +1269,7 @@ def test_step87_adhoc_registration_cases_and_input_coverage() -> None:
         row for row in contract["operationRows"]
         if row["operationKind"] == "adhoc-registration"
     ]
-    assert len(contract["operationRows"]) == 7
+    assert len(contract["operationRows"]) == 10
     assert len(target_rows) == 2
     assert all(row["clauseId"] == "FR-015" and "FR-015" in row["remarks"]
                for row in target_rows)
@@ -1296,7 +1330,7 @@ def test_step87_adhoc_registration_cases_and_input_coverage() -> None:
     assert current["after"]["digest"] == checker._digest(after)
     assert after == _observed_coverage(cases, contract)
     assert checker.check_input_coverage(ROOT) == (
-        133, record["history"][-1]["after"]["digest"], 22
+        146, record["history"][-1]["after"]["digest"], 13
     )
     assert checker.check_row_requirements(ROOT) == (47, 42, 0)
     policy = expander.dependency_checker.load_policy(ROOT)
@@ -1306,14 +1340,19 @@ def test_step87_adhoc_registration_cases_and_input_coverage() -> None:
 
 
 def test_step85_rejects_a_new_tiebreak_start_row() -> None:
-    """段階2で操作行が追加された場合、この周の前提を赤にする。"""
+    """FR-009 の操作行を欠いた現行契約を拒否する。"""
     contract = _asset("state_transition_contract_v1.json")
-    changed = copy.deepcopy(contract)
-    changed["operationRows"].append(
-        {**copy.deepcopy(contract["operationRows"][0]), "operationKind": "tiebreak-start"}
-    )
-    with pytest.raises(AssertionError, match="tiebreak-startの規範行が現れた"):
-        _assert_no_tiebreak_start_row(changed)
+    contract["operationRows"] = [
+        row for row in contract["operationRows"]
+        if row["operationKind"] != "tiebreak-start"
+    ]
+    contract["cases"] = [
+        case for case in contract["cases"]
+        if case["inputCoordinate"].get("operationKind") != "tiebreak-start"
+    ]
+    _assert_no_tiebreak_start_row(contract)
+    with pytest.raises(checker.RequiredSetCoverageError, match="操作欠落の典拠宣言が不足"):
+        checker.check_input_coverage_exact(ROOT, contract)
 
 
 @pytest.mark.parametrize(
@@ -1402,7 +1441,11 @@ def test_step88_empty_history_undo_case_and_coverage() -> None:
     previous_cases, _ = expander.expand_traced(
         ROOT, limit=42, mode="coverage", operation_limit=6
     )
-    assert contract["cases"][:95] + [contract["cases"][96]] == cases
+    historical = [
+        case for case in contract["cases"]
+        if case["inputCoordinate"].get("operationKind") != "tiebreak-start"
+    ]
+    assert historical[:95] + [historical[96]] == cases
     assert cases[:-1] == previous_cases
     assert len(cases) == 96
     assert [case["rowRef"]["layer"] for case in cases].count("matrixRows") == 89
@@ -1416,8 +1459,8 @@ def test_step88_empty_history_undo_case_and_coverage() -> None:
     assert undo_case["expected"]["operationResult"] == "nothing-to-undo"
     assert undo_case["expected"]["guaranteeMode"] == "full-equality"
 
-    assert record["currentStep"] == 91
-    assert [item["step"] for item in record["history"]] == list(range(79, 92))
+    assert record["currentStep"] == 92
+    assert [item["step"] for item in record["history"]] == list(range(79, 93))
     current = next(item for item in record["history"] if item["step"] == 88)
     previous = next(item for item in record["history"] if item["step"] == 87)
     assert current["before"] == previous["after"]
@@ -1432,7 +1475,7 @@ def test_step88_empty_history_undo_case_and_coverage() -> None:
     assert "XC-09" in current["reason"]
     assert "history.scenarioLength" in current["reason"]
     assert "D+1" in current["fact"] and "未達" in current["fact"]
-    assert checker.check_input_coverage(ROOT) == (133, record["history"][-1]["after"]["digest"], 22)
+    assert checker.check_input_coverage(ROOT) == (146, record["history"][-1]["after"]["digest"], 13)
     assert checker.check_row_requirements(ROOT) == (47, 42, 0)
     policy = expander.dependency_checker.load_policy(ROOT)
     assert trace.observed_read_paths == policy.expanders[
@@ -1447,7 +1490,11 @@ def test_step24_draw05_operation_case_preserves_input_coverage() -> None:
     cases, _ = expander.expand_traced(
         ROOT, limit=42, mode="coverage", operation_limit=7, undo_limit=1
     )
-    assert contract["cases"][:97] == cases
+    historical = [
+        case for case in contract["cases"]
+        if case["inputCoordinate"].get("operationKind") != "tiebreak-start"
+    ]
+    assert historical[:97] == cases
     assert len(cases) == 97
     draw_case = cases[-2]
     assert draw_case["inputCoordinate"]["state.score"] == "tie"
@@ -1457,7 +1504,7 @@ def test_step24_draw05_operation_case_preserves_input_coverage() -> None:
     assert effects["state.score"] == {"kind": "unchanged"}
     step90 = next(item for item in record["history"] if item["step"] == 90)
     assert step90["before"] == step90["after"]
-    assert checker.check_input_coverage(ROOT)[2] == 22
+    assert checker.check_input_coverage(ROOT)[2] == 13
 
 
 def test_step24_draw05_cross_layer_binding_fails_closed_on_case_drift() -> None:
@@ -1590,7 +1637,7 @@ def test_expander_rejects_invalid_undo_inputs(
         expander.expand_traced(ROOT, limit=42, operation_limit=6, undo_limit=1)
 
 
-@pytest.mark.parametrize("operation_limit", [-1, 8])
+@pytest.mark.parametrize("operation_limit", [-1, 11])
 def test_expander_rejects_operation_limit_outside_references(operation_limit: int) -> None:
     """操作行の参照件数を越える指定と負数を拒否する。"""
     with pytest.raises(expander.CaseExpansionError, match="操作行の出力件数"):
@@ -1732,7 +1779,7 @@ def test_step103_coverage_count_changed_by_one_is_red() -> None:
 def test_step102_both_required_set_differences_are_empty() -> None:
     """①の宣言除外と②の規則除外を実資産で共に検査する。"""
     assert checker.check_row_requirements(ROOT) == (47, 42, 0)
-    assert checker.check_input_coverage_exact(ROOT) == (173, 40, 0)
+    assert checker.check_input_coverage_exact(ROOT) == (184, 38, 0)
 
 
 def test_step102_row_requirement_difference_is_red() -> None:
@@ -1743,7 +1790,7 @@ def test_step102_row_requirement_difference_is_red() -> None:
         checker.check_row_requirements(
             ROOT, _asset("state_transition_contract_v1.json"), declaration
         )
-    assert checker.check_input_coverage_exact(ROOT) == (173, 40, 0)
+    assert checker.check_input_coverage_exact(ROOT) == (184, 38, 0)
 
 
 def test_step102_input_coordinate_difference_is_red_when_row_is_added() -> None:

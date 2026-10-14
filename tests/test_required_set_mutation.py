@@ -54,8 +54,8 @@ def test_all_declared_mutants_change_applicable_required_sets() -> None:
     """両 requiredSet の全対象軸で生存変異体がない。"""
     before = (ASSETS / "input_axes_descriptor_v1.json").read_bytes()
     assert checker.check_repository(ROOT) == {
-        "axis-deletion": 41,
-        "boundary-value-replacement": 123,
+        "axis-deletion": 46,
+        "boundary-value-replacement": 132,
     }
     assert (ASSETS / "input_axes_descriptor_v1.json").read_bytes() == before
 
@@ -89,7 +89,7 @@ def test_declared_mutant_count_mismatch_is_red() -> None:
     policy, descriptor, requirements_text, clause_ids = _inputs()
     changed = deepcopy(policy)
     changed["operators"][0]["expectedMutantCount"] += 1
-    with pytest.raises(checker.RequiredSetMutationError, match="declared=42; generated=41"):
+    with pytest.raises(checker.RequiredSetMutationError, match="declared=47; generated=46"):
         checker.check_documents(changed, descriptor, requirements_text, clause_ids)
 
 

@@ -258,7 +258,9 @@
         "coverageValueFieldsByClassification",
         "axisCombinationBoundary",
         "conditionalValuePolicy",
-        "axisBindings"
+        "axisBindings",
+        "derivedAxisIds",
+        "derivedUnreachablePairs"
       ],
       "additionalProperties": false,
       "properties": {
@@ -354,6 +356,22 @@
           "uniqueItems": true,
           "items": {
             "$ref": "#/$defs/inputCoordinateAxisBinding"
+          }
+        },
+        "derivedAxisIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/axisId"
+          }
+        },
+        "derivedUnreachablePairs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/derivedUnreachablePair"
           }
         }
       }

@@ -176,6 +176,13 @@ def _expand_coverage_from_declared_inputs(
     values_by_axis = representative_selection.axis_values(
         descriptor, ("gameEndAxes", "stateTransitionAxes")
     )
+    play_input_axes = {
+        axis_id
+        for binding in descriptor["inputCoordinateCoverage"]["axisBindings"]
+        for row_binding in binding["rowBindings"]
+        if "matrixRows" in row_binding["rowLayers"]
+        for axis_id in binding["axisIds"]
+    }
     base_cases = _expand_from_declared_inputs(root, rule, len(contract["decisionRows"]))
     result = list(base_cases[:4])
     for row_index, row in enumerate(contract["decisionRows"]):
@@ -185,7 +192,9 @@ def _expand_coverage_from_declared_inputs(
         used = representative_selection.predicate_axes(predicate)
         axes = [
             axis for axis in values_by_axis
-            if axis in used or axis.startswith(("state.", "event."))
+            if axis in used or (
+                axis.startswith(("state.", "event.")) and axis in play_input_axes
+            )
         ]
         choices: dict[str, list[Any]] = {}
         for axis in axes:

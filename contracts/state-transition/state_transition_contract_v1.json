@@ -5,7 +5,7 @@
   "inputAxesDescriptor": {
     "descriptorId": "pitchlog.input-axes",
     "version": "input_axes_descriptor_v1",
-    "digest": "sha256:e2f7e6a19ff8399c003e4c7c303a5662683be624a030b713879937fdba6acdfa"
+    "digest": "sha256:87d238ccb087f2c8a39e99f381f0e833bb74951814abc7ed1c0bed57e09fa5e1"
   },
   "provenance": {
     "subjectKind": "normative-branch-or-state-effect",
@@ -213,6 +213,10 @@
       {
         "sourceKind": "requirements",
         "sourceId": "req:F-1"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:FR-009"
       }
     ],
     "authorId": "codex",
@@ -5285,6 +5289,683 @@
       },
       "operationResult": "applied",
       "remarks": "FR-010・FR-005・4.0-1・ADR-003 D-8。FR-010の受け入れ基準は終了宣言payloadの具体的な要素を名指ししないため、段階1のpayloadShapeは空の閉じたobjectとし、終了理由・スコア・同期状態を推測でフィールドにしない。FR-005の終了条件検知と正式な終了宣言を分け、比較面ではstate.gameEndedだけを真にする。その時点のスコアで確定するためstate.scoreとscoreboardの値は変えず、回・表裏・カウント・アウト・走者・打順・タイブレーク・成績フラグも変えない。未同期プレイの同期・失敗通知および断中キュー・未送信表示はFR-010の別要件であり、このStateEffectの比較面に含めない。FR-006の取消可能な履歴は確定プレイと採用時の状態補正のみなのでpushしない。段階1はフィールド一意性・他資産への参照整合・相反指定の排除・D-8の文字列型制約とFR-015の任意選手名との整合を保証しない。これらは段階2のclosed-payload-schemasで確定する。4.0-1の進行中から終了への遷移を表すgameEnded=falseで適用する。 DRAW-05（要件書付録F-1）では、自動成立前のFR-010終了宣言時に最終スコアが同点なら途中打ち切りの引き分けとして正式終了する。勝敗の分は付録A-5の最終スコア比較から導出し、この操作行で勝敗計算を重ねない。"
+    },
+    {
+      "operationKind": "tiebreak-start",
+      "clauseId": "FR-009",
+      "payloadShape": {
+        "type": "object",
+        "properties": {
+          "runnerPlacement": {
+            "type": "string",
+            "enum": [
+              "first-second",
+              "second-third"
+            ]
+          },
+          "leadoffBatter": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9
+          },
+          "inning": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "runnerPlacement",
+          "leadoffBatter",
+          "inning"
+        ],
+        "additionalProperties": false
+      },
+      "precondition": {
+        "op": "and",
+        "args": [
+          {
+            "op": "eq",
+            "axisId": "state.gameEnded",
+            "value": false
+          },
+          {
+            "op": "eq",
+            "axisId": "state.tiebreakActive",
+            "value": false
+          },
+          {
+            "op": "eq",
+            "axisId": "state.runners",
+            "value": "empty"
+          },
+          {
+            "op": "eq",
+            "axisId": "state.battingOrder",
+            "value": 2
+          },
+          {
+            "op": "eq",
+            "axisId": "state.inning",
+            "value": "R+1"
+          },
+          {
+            "op": "eq",
+            "axisId": "rules.tiebreakStartInning",
+            "value": 8
+          },
+          {
+            "op": "eq",
+            "axisId": "event.tiebreakStart.runnerPlacement",
+            "value": "first-second"
+          },
+          {
+            "op": "eq",
+            "axisId": "event.tiebreakStart.leadoffBatter",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "event.tiebreakStart.inning",
+            "value": 8
+          },
+          {
+            "op": "eq",
+            "axisId": "event.tiebreakStart.activationRelation",
+            "value": "ready"
+          }
+        ]
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "unchanged"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "unchanged"
+          },
+          "state.runners": {
+            "kind": "set",
+            "value": "first-second"
+          },
+          "state.battingOrder": {
+            "kind": "set",
+            "value": 1
+          },
+          "state.tiebreakActive": {
+            "kind": "set",
+            "value": true
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "set",
+            "value": 8
+          },
+          "state.score": {
+            "kind": "unchanged"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "unchanged"
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "unchanged"
+          },
+          "operationResult": {
+            "kind": "set",
+            "value": "applied"
+          }
+        }
+      },
+      "historyEffect": {
+        "pushes": false,
+        "kind": null
+      },
+      "operationResult": "applied",
+      "remarks": "FR-009・付録F-1・ADR-003 D-8/D-11。規則の発動回と現在回の関係がreadyで、指定された走者配置・先頭打者・回を各面へsetする。指定値は入力のスカラー軸で個別に固定する。FR-006で取消可能な履歴は確定プレイと採用時の状態補正のみなのでpushしない。走者の個人IDと打順巻き戻りの詳細な対応はFR-009の文言からは確定できず、ここでは比較面の配置と打順枠を主張する。"
+    },
+    {
+      "operationKind": "tiebreak-start",
+      "clauseId": "FR-009",
+      "payloadShape": {
+        "type": "object",
+        "properties": {
+          "runnerPlacement": {
+            "type": "string",
+            "enum": [
+              "first-second",
+              "second-third"
+            ]
+          },
+          "leadoffBatter": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9
+          },
+          "inning": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "runnerPlacement",
+          "leadoffBatter",
+          "inning"
+        ],
+        "additionalProperties": false
+      },
+      "precondition": {
+        "op": "and",
+        "args": [
+          {
+            "op": "eq",
+            "axisId": "state.gameEnded",
+            "value": false
+          },
+          {
+            "op": "eq",
+            "axisId": "state.tiebreakActive",
+            "value": false
+          },
+          {
+            "op": "eq",
+            "axisId": "state.runners",
+            "value": "empty"
+          },
+          {
+            "op": "eq",
+            "axisId": "state.battingOrder",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "state.inning",
+            "value": "R+1"
+          },
+          {
+            "op": "eq",
+            "axisId": "rules.tiebreakStartInning",
+            "value": 10
+          },
+          {
+            "op": "eq",
+            "axisId": "event.tiebreakStart.runnerPlacement",
+            "value": "second-third"
+          },
+          {
+            "op": "eq",
+            "axisId": "event.tiebreakStart.leadoffBatter",
+            "value": 9
+          },
+          {
+            "op": "eq",
+            "axisId": "event.tiebreakStart.inning",
+            "value": 10
+          },
+          {
+            "op": "eq",
+            "axisId": "event.tiebreakStart.activationRelation",
+            "value": "ready"
+          }
+        ]
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "unchanged"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "unchanged"
+          },
+          "state.runners": {
+            "kind": "set",
+            "value": "second-third"
+          },
+          "state.battingOrder": {
+            "kind": "set",
+            "value": 9
+          },
+          "state.tiebreakActive": {
+            "kind": "set",
+            "value": true
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "set",
+            "value": 10
+          },
+          "state.score": {
+            "kind": "unchanged"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "unchanged"
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "unchanged"
+          },
+          "operationResult": {
+            "kind": "set",
+            "value": "applied"
+          }
+        }
+      },
+      "historyEffect": {
+        "pushes": false,
+        "kind": null
+      },
+      "operationResult": "applied",
+      "remarks": "FR-009・付録F-1・ADR-003 D-8/D-11。規則の発動回と現在回の関係がreadyで、指定された走者配置・先頭打者・回を各面へsetする。指定値は入力のスカラー軸で個別に固定する。FR-006で取消可能な履歴は確定プレイと採用時の状態補正のみなのでpushしない。走者の個人IDと打順巻き戻りの詳細な対応はFR-009の文言からは確定できず、ここでは比較面の配置と打順枠を主張する。"
+    },
+    {
+      "operationKind": "tiebreak-start",
+      "clauseId": "FR-009",
+      "payloadShape": {
+        "type": "object",
+        "properties": {
+          "runnerPlacement": {
+            "type": "string",
+            "enum": [
+              "first-second",
+              "second-third"
+            ]
+          },
+          "leadoffBatter": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9
+          },
+          "inning": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "runnerPlacement",
+          "leadoffBatter",
+          "inning"
+        ],
+        "additionalProperties": false
+      },
+      "precondition": {
+        "op": "and",
+        "args": [
+          {
+            "op": "eq",
+            "axisId": "state.gameEnded",
+            "value": false
+          },
+          {
+            "op": "eq",
+            "axisId": "state.tiebreakActive",
+            "value": false
+          },
+          {
+            "op": "eq",
+            "axisId": "state.runners",
+            "value": "empty"
+          },
+          {
+            "op": "eq",
+            "axisId": "state.battingOrder",
+            "value": 2
+          },
+          {
+            "op": "eq",
+            "axisId": "state.inning",
+            "value": "R+1"
+          },
+          {
+            "op": "eq",
+            "axisId": "rules.tiebreakStartInning",
+            "value": "none"
+          },
+          {
+            "op": "eq",
+            "axisId": "event.tiebreakStart.runnerPlacement",
+            "value": "first-second"
+          },
+          {
+            "op": "eq",
+            "axisId": "event.tiebreakStart.leadoffBatter",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "event.tiebreakStart.inning",
+            "value": 8
+          },
+          {
+            "op": "eq",
+            "axisId": "event.tiebreakStart.activationRelation",
+            "value": "not-ready"
+          }
+        ]
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "unchanged"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "unchanged"
+          },
+          "state.runners": {
+            "kind": "unchanged"
+          },
+          "state.battingOrder": {
+            "kind": "unchanged"
+          },
+          "state.tiebreakActive": {
+            "kind": "unchanged"
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "unchanged"
+          },
+          "state.score": {
+            "kind": "unchanged"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "unchanged"
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "unchanged"
+          },
+          "operationResult": {
+            "kind": "set",
+            "value": "rejected-precondition"
+          }
+        }
+      },
+      "historyEffect": {
+        "pushes": false,
+        "kind": null
+      },
+      "operationResult": "rejected-precondition",
+      "remarks": "FR-009・付録F-1・ADR-003 D-8/D-11。適用規則のタイブレーク指定が「なし」のときは発動条件が成立しないため拒否し、比較面をすべてunchangedとする。pushしない。"
     }
   ],
   "undoRows": [
@@ -9362,6 +10043,275 @@
                 "op": "eq",
                 "axisId": "state.gameEnded",
                 "value": true
+              }
+            }
+          }
+        ]
+      },
+      {
+        "operationType": "tiebreak-start",
+        "rowRefs": [
+          {
+            "layer": "operationRows",
+            "coordinate": {
+              "operationKind": "tiebreak-start",
+              "payloadShape": {
+                "type": "object",
+                "properties": {
+                  "runnerPlacement": {
+                    "type": "string",
+                    "enum": [
+                      "first-second",
+                      "second-third"
+                    ]
+                  },
+                  "leadoffBatter": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9
+                  },
+                  "inning": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "runnerPlacement",
+                  "leadoffBatter",
+                  "inning"
+                ],
+                "additionalProperties": false
+              },
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.tiebreakActive",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.battingOrder",
+                    "value": 2
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.inning",
+                    "value": "R+1"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "rules.tiebreakStartInning",
+                    "value": 8
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.tiebreakStart.runnerPlacement",
+                    "value": "first-second"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.tiebreakStart.leadoffBatter",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.tiebreakStart.inning",
+                    "value": 8
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.tiebreakStart.activationRelation",
+                    "value": "ready"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "layer": "operationRows",
+            "coordinate": {
+              "operationKind": "tiebreak-start",
+              "payloadShape": {
+                "type": "object",
+                "properties": {
+                  "runnerPlacement": {
+                    "type": "string",
+                    "enum": [
+                      "first-second",
+                      "second-third"
+                    ]
+                  },
+                  "leadoffBatter": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9
+                  },
+                  "inning": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "runnerPlacement",
+                  "leadoffBatter",
+                  "inning"
+                ],
+                "additionalProperties": false
+              },
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.tiebreakActive",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.battingOrder",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.inning",
+                    "value": "R+1"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "rules.tiebreakStartInning",
+                    "value": 10
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.tiebreakStart.runnerPlacement",
+                    "value": "second-third"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.tiebreakStart.leadoffBatter",
+                    "value": 9
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.tiebreakStart.inning",
+                    "value": 10
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.tiebreakStart.activationRelation",
+                    "value": "ready"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "layer": "operationRows",
+            "coordinate": {
+              "operationKind": "tiebreak-start",
+              "payloadShape": {
+                "type": "object",
+                "properties": {
+                  "runnerPlacement": {
+                    "type": "string",
+                    "enum": [
+                      "first-second",
+                      "second-third"
+                    ]
+                  },
+                  "leadoffBatter": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9
+                  },
+                  "inning": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "runnerPlacement",
+                  "leadoffBatter",
+                  "inning"
+                ],
+                "additionalProperties": false
+              },
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.tiebreakActive",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.battingOrder",
+                    "value": 2
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.inning",
+                    "value": "R+1"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "rules.tiebreakStartInning",
+                    "value": "none"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.tiebreakStart.runnerPlacement",
+                    "value": "first-second"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.tiebreakStart.leadoffBatter",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.tiebreakStart.inning",
+                    "value": 8
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.tiebreakStart.activationRelation",
+                    "value": "not-ready"
+                  }
+                ]
               }
             }
           }
@@ -32315,6 +33265,860 @@
         "event.operationPayload": "game-end-declaration",
         "state.gameEnded": false,
         "state.score": "tie"
+      }
+    },
+    {
+      "caseId": "ST-OPERATION-93799cd3c928a723",
+      "rowRef": {
+        "layer": "operationRows",
+        "coordinate": {
+          "operationKind": "tiebreak-start",
+          "payloadShape": {
+            "type": "object",
+            "properties": {
+              "runnerPlacement": {
+                "type": "string",
+                "enum": [
+                  "first-second",
+                  "second-third"
+                ]
+              },
+              "leadoffBatter": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9
+              },
+              "inning": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "runnerPlacement",
+              "leadoffBatter",
+              "inning"
+            ],
+            "additionalProperties": false
+          },
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.gameEnded",
+                "value": false
+              },
+              {
+                "op": "eq",
+                "axisId": "state.tiebreakActive",
+                "value": false
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "empty"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.battingOrder",
+                "value": 2
+              },
+              {
+                "op": "eq",
+                "axisId": "state.inning",
+                "value": "R+1"
+              },
+              {
+                "op": "eq",
+                "axisId": "rules.tiebreakStartInning",
+                "value": 8
+              },
+              {
+                "op": "eq",
+                "axisId": "event.tiebreakStart.runnerPlacement",
+                "value": "first-second"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.tiebreakStart.leadoffBatter",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "event.tiebreakStart.inning",
+                "value": 8
+              },
+              {
+                "op": "eq",
+                "axisId": "event.tiebreakStart.activationRelation",
+                "value": "ready"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "tiebreak-start",
+        "event.operationPayload": "tiebreak-start",
+        "state.runners": "empty",
+        "state.battingOrder": 2,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "R+1",
+        "rules.tiebreakStartInning": 8,
+        "event.tiebreakStart.runnerPlacement": "first-second",
+        "event.tiebreakStart.leadoffBatter": 1,
+        "event.tiebreakStart.inning": 8,
+        "event.tiebreakStart.activationRelation": "ready"
+      },
+      "expected": {
+        "clauseId": "FR-009",
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "unchanged"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "unchanged"
+            },
+            "state.runners": {
+              "kind": "set",
+              "value": "first-second"
+            },
+            "state.battingOrder": {
+              "kind": "set",
+              "value": 1
+            },
+            "state.tiebreakActive": {
+              "kind": "set",
+              "value": true
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "set",
+              "value": 8
+            },
+            "state.score": {
+              "kind": "unchanged"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "unchanged"
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "unchanged"
+            },
+            "operationResult": {
+              "kind": "set",
+              "value": "applied"
+            }
+          }
+        },
+        "historyEffect": {
+          "pushes": false,
+          "kind": null
+        },
+        "operationResult": "applied",
+        "historyContext": []
+      },
+      "historyInput": {
+        "stack": [],
+        "before": {
+          "stateFields": {
+            "state.inning": 8
+          }
+        }
+      },
+      "raw": {
+        "operationKind": "tiebreak-start",
+        "event.operationPayload": "tiebreak-start",
+        "state.runners": "empty",
+        "state.battingOrder": 2,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "R+1",
+        "rules.tiebreakStartInning": 8,
+        "event.tiebreakStart.runnerPlacement": "first-second",
+        "event.tiebreakStart.leadoffBatter": 1,
+        "event.tiebreakStart.inning": 8,
+        "event.tiebreakStart.activationRelation": "ready"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "tiebreak-start",
+        "event.operationPayload": "tiebreak-start",
+        "state.runners": "empty",
+        "state.battingOrder": 2,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "R+1",
+        "rules.tiebreakStartInning": 8,
+        "event.tiebreakStart.runnerPlacement": "first-second",
+        "event.tiebreakStart.leadoffBatter": 1,
+        "event.tiebreakStart.inning": 8,
+        "event.tiebreakStart.activationRelation": "ready"
+      }
+    },
+    {
+      "caseId": "ST-OPERATION-6e73a96c10ecd75c",
+      "rowRef": {
+        "layer": "operationRows",
+        "coordinate": {
+          "operationKind": "tiebreak-start",
+          "payloadShape": {
+            "type": "object",
+            "properties": {
+              "runnerPlacement": {
+                "type": "string",
+                "enum": [
+                  "first-second",
+                  "second-third"
+                ]
+              },
+              "leadoffBatter": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9
+              },
+              "inning": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "runnerPlacement",
+              "leadoffBatter",
+              "inning"
+            ],
+            "additionalProperties": false
+          },
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.gameEnded",
+                "value": false
+              },
+              {
+                "op": "eq",
+                "axisId": "state.tiebreakActive",
+                "value": false
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "empty"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.battingOrder",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "state.inning",
+                "value": "R+1"
+              },
+              {
+                "op": "eq",
+                "axisId": "rules.tiebreakStartInning",
+                "value": 10
+              },
+              {
+                "op": "eq",
+                "axisId": "event.tiebreakStart.runnerPlacement",
+                "value": "second-third"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.tiebreakStart.leadoffBatter",
+                "value": 9
+              },
+              {
+                "op": "eq",
+                "axisId": "event.tiebreakStart.inning",
+                "value": 10
+              },
+              {
+                "op": "eq",
+                "axisId": "event.tiebreakStart.activationRelation",
+                "value": "ready"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "tiebreak-start",
+        "event.operationPayload": "tiebreak-start",
+        "state.runners": "empty",
+        "state.battingOrder": 1,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "R+1",
+        "rules.tiebreakStartInning": 10,
+        "event.tiebreakStart.runnerPlacement": "second-third",
+        "event.tiebreakStart.leadoffBatter": 9,
+        "event.tiebreakStart.inning": 10,
+        "event.tiebreakStart.activationRelation": "ready"
+      },
+      "expected": {
+        "clauseId": "FR-009",
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "unchanged"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "unchanged"
+            },
+            "state.runners": {
+              "kind": "set",
+              "value": "second-third"
+            },
+            "state.battingOrder": {
+              "kind": "set",
+              "value": 9
+            },
+            "state.tiebreakActive": {
+              "kind": "set",
+              "value": true
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "set",
+              "value": 10
+            },
+            "state.score": {
+              "kind": "unchanged"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "unchanged"
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "unchanged"
+            },
+            "operationResult": {
+              "kind": "set",
+              "value": "applied"
+            }
+          }
+        },
+        "historyEffect": {
+          "pushes": false,
+          "kind": null
+        },
+        "operationResult": "applied",
+        "historyContext": []
+      },
+      "historyInput": {
+        "stack": [],
+        "before": {
+          "stateFields": {
+            "state.inning": 10
+          }
+        }
+      },
+      "raw": {
+        "operationKind": "tiebreak-start",
+        "event.operationPayload": "tiebreak-start",
+        "state.runners": "empty",
+        "state.battingOrder": 1,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "R+1",
+        "rules.tiebreakStartInning": 10,
+        "event.tiebreakStart.runnerPlacement": "second-third",
+        "event.tiebreakStart.leadoffBatter": 9,
+        "event.tiebreakStart.inning": 10,
+        "event.tiebreakStart.activationRelation": "ready"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "tiebreak-start",
+        "event.operationPayload": "tiebreak-start",
+        "state.runners": "empty",
+        "state.battingOrder": 1,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "R+1",
+        "rules.tiebreakStartInning": 10,
+        "event.tiebreakStart.runnerPlacement": "second-third",
+        "event.tiebreakStart.leadoffBatter": 9,
+        "event.tiebreakStart.inning": 10,
+        "event.tiebreakStart.activationRelation": "ready"
+      }
+    },
+    {
+      "caseId": "ST-OPERATION-2133d452dd1be1f3",
+      "rowRef": {
+        "layer": "operationRows",
+        "coordinate": {
+          "operationKind": "tiebreak-start",
+          "payloadShape": {
+            "type": "object",
+            "properties": {
+              "runnerPlacement": {
+                "type": "string",
+                "enum": [
+                  "first-second",
+                  "second-third"
+                ]
+              },
+              "leadoffBatter": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9
+              },
+              "inning": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "runnerPlacement",
+              "leadoffBatter",
+              "inning"
+            ],
+            "additionalProperties": false
+          },
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.gameEnded",
+                "value": false
+              },
+              {
+                "op": "eq",
+                "axisId": "state.tiebreakActive",
+                "value": false
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "empty"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.battingOrder",
+                "value": 2
+              },
+              {
+                "op": "eq",
+                "axisId": "state.inning",
+                "value": "R+1"
+              },
+              {
+                "op": "eq",
+                "axisId": "rules.tiebreakStartInning",
+                "value": "none"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.tiebreakStart.runnerPlacement",
+                "value": "first-second"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.tiebreakStart.leadoffBatter",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "event.tiebreakStart.inning",
+                "value": 8
+              },
+              {
+                "op": "eq",
+                "axisId": "event.tiebreakStart.activationRelation",
+                "value": "not-ready"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "tiebreak-start",
+        "event.operationPayload": "tiebreak-start",
+        "state.runners": "empty",
+        "state.battingOrder": 2,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "R+1",
+        "rules.tiebreakStartInning": "none",
+        "event.tiebreakStart.runnerPlacement": "first-second",
+        "event.tiebreakStart.leadoffBatter": 1,
+        "event.tiebreakStart.inning": 8,
+        "event.tiebreakStart.activationRelation": "not-ready"
+      },
+      "expected": {
+        "clauseId": "FR-009",
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "unchanged"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "unchanged"
+            },
+            "state.runners": {
+              "kind": "unchanged"
+            },
+            "state.battingOrder": {
+              "kind": "unchanged"
+            },
+            "state.tiebreakActive": {
+              "kind": "unchanged"
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "unchanged"
+            },
+            "state.score": {
+              "kind": "unchanged"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "unchanged"
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "unchanged"
+            },
+            "operationResult": {
+              "kind": "set",
+              "value": "rejected-precondition"
+            }
+          }
+        },
+        "historyEffect": {
+          "pushes": false,
+          "kind": null
+        },
+        "operationResult": "rejected-precondition",
+        "historyContext": []
+      },
+      "historyInput": {
+        "stack": [],
+        "before": {
+          "stateFields": {
+            "state.inning": 8
+          }
+        }
+      },
+      "raw": {
+        "operationKind": "tiebreak-start",
+        "event.operationPayload": "tiebreak-start",
+        "state.runners": "empty",
+        "state.battingOrder": 2,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "R+1",
+        "rules.tiebreakStartInning": "none",
+        "event.tiebreakStart.runnerPlacement": "first-second",
+        "event.tiebreakStart.leadoffBatter": 1,
+        "event.tiebreakStart.inning": 8,
+        "event.tiebreakStart.activationRelation": "not-ready"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "tiebreak-start",
+        "event.operationPayload": "tiebreak-start",
+        "state.runners": "empty",
+        "state.battingOrder": 2,
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "R+1",
+        "rules.tiebreakStartInning": "none",
+        "event.tiebreakStart.runnerPlacement": "first-second",
+        "event.tiebreakStart.leadoffBatter": 1,
+        "event.tiebreakStart.inning": 8,
+        "event.tiebreakStart.activationRelation": "not-ready"
       }
     },
     {

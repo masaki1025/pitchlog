@@ -426,9 +426,14 @@ def _expand_from_declared_inputs(
         ]
         if len(draw_refs) != 1:
             raise CaseExpansionError("DRAW-05の終了宣言行を一意に参照できない")
+        tiebreak_refs = [
+            reference for reference in operation_refs
+            if reference.get("coordinate", {}).get("operationKind") == "tiebreak-start"
+        ]
         operation_refs = [
-            reference for reference in operation_refs if reference not in draw_refs
-        ] + draw_refs
+            reference for reference in operation_refs
+            if reference not in draw_refs and reference not in tiebreak_refs
+        ] + draw_refs + tiebreak_refs
         if operation_limit < 0 or operation_limit > len(operation_refs):
             raise CaseExpansionError("操作行の出力件数が参照の範囲外")
         payload_axis = next(

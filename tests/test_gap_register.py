@@ -589,8 +589,8 @@ def test_normative_row_natural_keys_are_unique_in_all_four_layers() -> None:
     document = _register()
     index = _real_indexes(document)["rowIds"]
 
-    assert len(index.existing_references) == 66
-    assert len([row for row in index.existing_references if row.startswith("operationRows:")]) == 7
+    assert len(index.existing_references) == 69
+    assert len([row for row in index.existing_references if row.startswith("operationRows:")]) == 10
     assert "operationRows:substitution:state.gameEnded:false" in index.existing_references
     assert "operationRows:substitution:state.gameEnded:true" in index.existing_references
 
@@ -623,10 +623,10 @@ def test_step99_orphan_row_is_red_without_case_coverage_check() -> None:
 
 
 def test_step99_all_row_ids_resolve() -> None:
-    """gapのrowIdsと312件のcase参照が一意な規範行へ解決する。"""
+    """gapのrowIdsと323件のcase参照が一意な規範行へ解決する。"""
     rows = _row_documents()
     index = checker.row_reference_index(_criteria(), _register()["gaps"], rows)
-    assert len(index.existing_references) == 66
+    assert len(index.existing_references) == 69
     assert checker.unresolved_row_references(
         _criteria(), _register()["gaps"], rows, index
     ) == []
