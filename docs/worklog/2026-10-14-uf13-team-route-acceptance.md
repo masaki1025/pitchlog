@@ -156,3 +156,12 @@ P0 0 件、P1 1 件、P2 0 件で否決。P1 を採用した。
 - 同期経路の判別は`sync:`と既知の末尾5範囲を同時に検査する。同期を通らないtokenは`sync`で始まるtrigger値を拒否し、同期・非同期意図の混在ページから同期行だけを選ぶDB試験がある。接頭辞の維持で再送時の同一性、一意性、同期経路判別は変わらない。
 - よって差分はA-1の抽象表記`<トリガー>`を実装で確定した固定literalへ合わせるものに限る。最小追補候補は、A-1の形式を**`sync:<イベントのD5>:<範囲>`**へ変更し、`sync`はトリガー1/3/4の個別種別ではなく同期所有行の固定接頭辞であると注記すること。理由欄のD5一意性・再送・5範囲の説明は変更不要。data-model v0.10は導出材料をD5+範囲と定め、文字列形式を実装時確定へ残しているため、この追補だけでは正本7.3の再審査を発火させない。
 - TSK-391計画は別担当・別branchの所有物なので、このbranchから変更しない。上記候補をTSK-391担当の計画追補・受理記録へ提示し、必要な計画/契約ゲートを維持する。
+- TSK-391担当への提示先: PR #132コメント`6172127718`。A-1の最小追補候補、再送・一意性・同期経路判別への影響なし、正本7.3を再発火しない判定を記録した。
+
+### C1ステップ1の非共有実装開始
+
+- TSK-391回答により開始条件3の直接回答待ちが解消したため、承認済み内部順の(1)だけを開始した。`tenant_profile.py`、auth schema/router、C1固有のrepository/API試験を実装した。共有`operation_registry.py`、repository契約、route matrix、seal履歴、既存exact-set試験は変更していない。
+- `GET /auth/session`は`require_tenant_access`が発行した`TenantContext`だけを受け、引数なし`TenantProfileReadToken`で`tenants.id`と`name`を読む。0行は固定401、複数行・列数/型不正・contextとのID不一致・空表示名は固定500。query/headerのtenant指定は入力面に持たない。
+- 検証: 変更5ファイルのruff green、backend `ty check` green、新規13件green、既存login/logout/passwordを含む対象32件green。
+- 共有exact-setを意図どおり未更新のため、`tests/test_api_app.py`は8件中1件だけ、`/auth/session`追加を未反映のroute exact-setで失敗する。#137統合後の共有route資産追随で更新する対象であり、検出を弱めない。
+- 製品差分はステップ1完了前なので未コミット。#131→#132と#137の統合後にlatest developをmergeし、共有凍結資産・7.7・隔離DB試験・全品質gateを完了してから単一の`(ステップ 1/2)`コミットにする。
