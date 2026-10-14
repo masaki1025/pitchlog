@@ -4,6 +4,8 @@
 
 **同日の追加判断**: POは[最小追補](step1-gate-addendum-proposal.md)のAを**範囲として選択**した。ステップ1は実装前の契約受理、実関数の2接続/故障注入はTSK-550ステップ3〜6、U-G1実HTTP・RG1・全取消はTSK-395ステップ2。最終計画承認と個別資産変更の承認はまだない。`plan.md` の承認欄は追補承認待ちへ戻したが、旧計画HEADの承認履歴は有効な記録として維持する。
 
+**その後の最終計画承認**: POはHEAD `a2b8a5b5f7e1c1869164770a38044361c7ab03b6` のA追補を承認し、ステップ1のみ指示した。上段は承認前の経緯。付録F-2配置migration案が最終レビュー後の追加差分だったことを人間確認対象として維持する。具体的な配置データ/migration/認可/凍結資産は未承認。下表の条件付き・未受理項目はこの計画承認によって受理済みには変わらない。
+
 | Aの契約項目 | 受理状況 | 未成立なら起こること・次の受理先 |
 | --- | --- | --- |
 | JSONB内 `ruleSetId` + 凍結5値 | Codex D `24566d72` で**条件付き採用**。snake_case案は撤回 | exact-set codecと利用側U-G1の受理が必要。旧 `{}` を解決済みにしない |
@@ -13,6 +15,20 @@
 | 実測 | `24566d72` 時点では未実施 | TSK-550ステップ3〜6で実関数/2接続/故障注入、TSK-395ステップ2で実HTTP/RG1/全取消。実装前条件にはしない |
 
 **次の具体差分**: `plan.md` のステップ2をstrict codecへ、3〜6を段階Aの実関数→固定operation→resolver→実測へ訂正した。正本の具体本文、関数DDL/ACL、repository-contract/7.7差分は各担当の契約受理と個別ゲートを経て起案・実施する。段階B、帰属列と曖昧な旧行の移行は今回確定しない。RG1①〜⑤のU-G1受理 `79e3da4a` は維持し、D4外部台帳はpreparingの条件に入れない。
+
+## 最終差分への受理依頼（A追補承認後・実装前）
+
+以下は`24566d72`で未受理/条件付きだった項目に絞る。Codex Dの先の採用項目（割当あり拒否と同一transaction全確定/全取消の意味）やRG1①〜⑤を再審査対象へ戻さない。回答は項目ごとに「受理／条件付き／不足」と、その条件・担当・必要な正本/資産ゲートを記録する。**実関数の2接続/故障注入を本回答の前提にしない。**
+
+| 対象・回答先 | 実装前に確定する提案 | 未受理なら止まる境界 |
+| --- | --- | --- |
+| 公開関数・型・失敗：U-X1独立担当Codex D、消費側U-G1 | 束縛済み`tenant_transaction_scope`を受ける`resolve_stage_a_rule(request)`相当。入力は試合区分キー・必須大会キー・上書き有無で、任意tenant ID/rule IDなし。成功は不変`AppliedRuleSnapshot(UUID+付録F5値)`。公開失敗候補は`stage_a_unsupported`、`rule_not_available`、`invalid_rule`、`outcome_unconfirmed`。候補なし/越境は利用者向け外形を同じにし、非成功ではgame INSERTへ進めずscopeを全取消 | 関数名・具体型・literal/HTTP写像の担当受理までステップ1未完了。HTTP実測はTSK-395ステップ2 |
+| 保存形式：Codex D、U-G1、data-model所有者 | 既存`games.applied_rules` JSONBに`ruleSetId`と凍結`ruleSnapshot`のcamelCase5値をexact-setで保存。旧`{}`、未知key、無効相関、出所不明行は拒否。ID専用列/帰属列は段階Aの前提にしない | 保存形の正本差分と利用側受理が必要。codec実装/単体試験はステップ2 |
+| 帰属・書込・ロック：Codex D、U-A2/認可面、tenant境界、U-G1/U-R1 | 段階A成功は付録F-2由来の出所が証明された区分既定行だけ。app直接権限は`game_type_rule_defaults` SELECTのみ、他2表SELECT/書込なし、3表の直接書込なし。大会親`(tenant_id,key)`の`FOR UPDATE`→割当有無→既定行`FOR SHARE`→規則行`FOR SHARE`→game/RG1→commitを候補とし、ロックはcommit/rollbackまで保持。割当書込を有効化する場合は同じ親行を先に取り、管理書込も既定→規則の順に固定。現時点で製品管理/割当書込関数は未実装と明示 | 全入口のcaller・owner・EXECUTE・ACL・監査、親不在/無効化/解除、線形化点と全ロック順の受理が必要。安全な入口がない操作は無効のまま。実装済み入口の2接続実測はステップ3〜6 |
+| 実規則データ：Codex D、data-model/認可面所有者 | 確定済み付録F-2の5区分を、出所・ID・5値を検証可能な**個別審査後の配置migration**で供給。既存行衝突・出所不明時は停止。migrationを製品runtimeの管理書込入口と混同せず、配置と製品作成の同時運用を認めるなら保守停止または同じロック規律を個別ゲートで決める | 具体的データ・migration・運用順は未承認。配置が未着地なら`rule_not_available`等で全取消、U-G1本番作成成功は未達。配置migrationの実装はステップ3の個別ゲート後 |
+| 固定operation：Codex D、tenant境界/認可面所有者 | `OperationRegistration`の表DML許可を緩めず、固定関数ID・exact引数/戻りdecoderを持つsealed function operationをscopeへ限定追加。任意SQL/Session/偽造token/任意tenant注入を拒否 | `repository-contract.json`、runtime authz、capability/DDL、`base-allowlist.json`/履歴の具体差分と7.7受理手順をステップ1で確定。実装・負例試験はステップ4 |
+
+**正式ゲートの順序**: ①`docs/features/product-impl-unit-split/{plan,design}.md`とU-X1文書の先行切り出し/凍結文言を7.6で規範変更か実装追随か判定し、規範変更なら7.3で確定。②`docs/design/data-model.md` §6-5/10-5の6-key保存形・既存行拒否・F-2配置/出所の意味、必要なschema変更の有無を具体本文で審査し、構造変更なら7.3で確定。③`docs/features/product-authz-surface/design.md` §1-6の関数owner/EXECUTE/表ACL・管理書込境界と、tenant境界の固定operation契約を各所有者が受理し、規範変更なら7.3へ。④具体DDL/migration、認可資産、`repository-contract.json`等の凍結資産は**各差分を提示後**に7.7の対象・担当・手順を固定し、変更後の基準受理をステップ3・4で実施。今回の計画承認を①〜④の個別承認に代えない。TSK-550の実関数2接続/故障注入はステップ3〜6、TSK-395の実HTTP・RG1・保存全取消はステップ2で測定する。
 
 ## 段階 A と段階 B
 
