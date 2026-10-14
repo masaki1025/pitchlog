@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 17
+CONTRACT_REVISION = 20
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "670b435ae06b75284eeba6cffc0241abd3e6c8ba9a8971e0afea965d3d9f5746"
+SOURCE_DIGEST = "7107695162edb95e9fda99400f7a0b70347988908df85e987b18751d21f4952c"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -43,6 +43,15 @@ IMMUTABLE_CONTAINER_GRAMMAR = (
     "frozenset[T]",
     "mappingproxy[str, T]",
 )
+CANONICAL_TABLE = "orm_metadata_table_identity_for_registration_and_statement"
+UPDATE_IDENTITY = "actual_complete_primary_key_equalities_for_all_updates"
+UPDATE_BIND_NAMES = "primary_key_disjoint_from_target_columns_and_set_bindings"
+TENANT_PRIMARY_KEY_BIND = "injected_context_bind_only"
+ROW_LOCK = (
+    "declared_plain_for_update_with_complete_primary_key_and_explicit_specialized_shape"
+)
+UNLOCKED_READ = "for_update_absent_when_undeclared"
+SYNC_APPLY_SCOPE = "contextvar_rejects_new_tenant_transaction_scope"
 FORBIDDEN_TYPES = (
     "typing.Any",
     "builtins.object",

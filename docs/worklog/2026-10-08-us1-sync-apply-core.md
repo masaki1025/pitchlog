@@ -234,3 +234,10 @@ branch: feature/us1-sync-apply-core
 - **敵対レビュー**: 1 回目 P1 1 件(owner_paths だけを広げると core-areas に登録済みの `db/engine.py` まで免除される)→ **採用**: 検査器に承認済みの 2 件を定数 `APPROVED_CONDITION2_OWNER_PATHS` で固定し、集合が一致しなければ拒否。負例(追加・欠落・置換)。2 回目 **可決(0 件)**
 - 観察(ステップ 9 へ): 条件 4(TB004)は所有パス内でも効く。`sync/invalidation.py` の識別子が `invalidate*`・`cache_invalidation` に当たる場合は、既存の公開シンボル・許可 call の経路で通るかを確認する(`scripts/check_tenant_boundary_bypass.py:4207` 付近)
 - 検査: 迂回検査・凍結履歴・凍結 archive・センサス 571 passed / backend の DB 不要の全件は既知の偽の赤 44 件以外 green / root の ruff・ty green
+
+## ステップ 5(2026-10-14)
+
+- design.md 4 節は 10-11 時点の実測。委任前に Codex に現状を実測させた: **JSONB の不変表現への実体化は既存**(`base.py` の `_materialize_value`)・**FOR UPDATE は U-M2 の限定形だけ既存**(`lineup_memory.py`)・**複合主キー UPDATE と適用中の印は未導入**
+- 変更: `OperationRegistration` に `primary_key_bindings`・`for_update`・`use_capability_lock_shape`。UPDATE と行ロックは**正本の ORM の `Table`(`is` で照合)の主キー全列の等値**で行を識別する(宣言の有無を問わない)。主キー bind と SET bind は互いに素、テナント列の主キー束縛は文脈から注入する bind 名だけ。FOR UPDATE は宣言と文の一致・通常ロックのみ。U-M2 の 2 登録は限定形を明示宣言。`transaction.py` に適用中の印(ContextVar)と、印があるときの新スコープの拒否(`_sync_apply_active`)。repository-contract を改訂し、PR #132 の受理記録 1 件・snapshot・比較 corpus・生成定数を取り直した
+- **敵対レビュー**: 1 回目 否決(P1 2・P2 1 — 宣言なし UPDATE の主キー部分省略 / 主キー bind と SET bind の共用・テナント主キーの bind 矛盾 / U-M2 の表名の直書き)→ すべて採用。2 回目 否決(P1 1 — 登録側で作った同名の別 `Table` で主キー全列検査をすり抜けられる)→ **採用**(正本の `Table` と同一性照合)。**この最終反映は上限到達のため再レビューを受けていない** — PR の人間の逐行確認で受ける
+- 検査: 関係テスト 304 passed / 凍結資産一式 571 passed / backend の DB 不要の全件 1318 passed(失敗は既知の偽の赤 44 件だけ)/ backend と root の ruff・ty green / `backend/tests/conftest.py` 差分 0 行。**DB 必須の試験はローカル未実行**(CI に任せる)

@@ -14143,7 +14143,7 @@
             "fixture_set_revision:15"
           ],
           "contracts/tenant_boundary/repository-contract.json": [
-            "contract_revision:17"
+            "contract_revision:20"
           ],
           "contracts/tenant_boundary/runtime-authz-contract.json": [
             "runtime_contract_revision:13"
@@ -14182,7 +14182,7 @@
           ]
         },
         "change": {
-          "subject": "TSK-391: U-S1 同期核の TB002 所有パスを条件 2 に追加する",
+          "subject": "TSK-391: U-S1 同期核の TB002 所有パスとリポジトリ基底契約を改訂する",
           "aspect": [
             "asset_snapshots",
             "declaration",
@@ -14820,7 +14820,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:17"
+                    "contract_revision:20"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -15121,8 +15121,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "aa6c716e7015e530a912b696a0a5e927d5417c806ca867a991d565565f598948",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/aa6c716e7015e530a912b696a0a5e927d5417c806ca867a991d565565f598948"
+                "sha256": "2e50b26366ecec8e42f251fb45310010d34f524a0a99c942870f3bf5aeee0838",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2e50b26366ecec8e42f251fb45310010d34f524a0a99c942870f3bf5aeee0838"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
@@ -15137,8 +15137,8 @@
             ]
           }
         },
-        "movement_fact": "比較元は origin/develop の c0ad63e0079a2bc7124f1074b720c7df1d6c9189（本ブランチとの merge-base は 6efe39e605b68836031ecd2f6aed46e915e047fe）。条件 2 の所有パスと承認済み集合の固定、検査器の合否写像、および影響を受ける 8 資産の識別値を更新した。変更前後の全 9 資産の凍結射影と外部実装を内容アドレス snapshot で固定した。",
-        "reason": "同期表の ORM 語彙が TB002 に当たるため、同期核の backend/src 配下の 2 パスに限定し、検査器で承認済み集合を固定し、検査時点の sync-protocol 登録との交差で条件 2 を免除する。条件 1・3・4・5 の検査は従来どおり維持する。",
+        "movement_fact": "比較元は origin/develop の b81ae1ac3c957870e0c7a4722a921785a239ab82（本ブランチとの merge-base は 6efe39e605b68836031ecd2f6aed46e915e047fe）。条件 2 の所有パスと承認済み集合の固定、検査器の合否写像、リポジトリ基底の複合主キー全列による UPDATE・bind の独立性・明示的な行ロック・適用中スコープに加え、正本 ORM Table との同一性検査を契約化した。変更前後の全 9 資産の凍結射影と外部実装を内容アドレス snapshot で固定した。",
+        "reason": "同期表の ORM 語彙が TB002 に当たるため、同期核の backend/src 配下の 2 パスに限定し、検査器で承認済み集合を固定し、検査時点の sync-protocol 登録との交差で条件 2 を免除する。条件 1・3・4・5 の検査は従来どおり維持する。同期核に必要な複合主キー UPDATE、明示的な通常行ロック、適用中の別スコープ禁止を repository 契約に追加した。敵対レビューの是正で全 UPDATE の主キー全列・主キーと SET の bind 分離・文脈のテナント bind・限定ロック形の明示と、登録対象表および登録文が正本 ORM Table と同一であることを固定した。",
         "approved_by": "山田正輝",
         "approved_on": "2026-10-14"
       }

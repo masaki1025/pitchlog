@@ -19,6 +19,7 @@ from pitchlog.repositories.operation_registration import (
     OperationPreflight,
     OperationRegistration,
     PreparedOperation,
+    PrimaryKeyBinding,
     RequiredBinding,
 )
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
@@ -312,6 +313,12 @@ LINEUP_MEMORY_OPERATIONS: tuple[OperationRegistration, ...] = (
         _TEAMS.c.tenant_id,
         _prepare_lock,
         required_bindings=(RequiredBinding(_TEAMS.c.kind, "kind", "self"),),
+        primary_key_bindings=(
+            PrimaryKeyBinding(_TEAMS.c.tenant_id, "tenant_id"),
+            PrimaryKeyBinding(_TEAMS.c.id, "team_record_id"),
+        ),
+        for_update=True,
+        use_capability_lock_shape=True,
     ),
     OperationRegistration(
         _ActiveLineupPlayerLockToken,
@@ -324,6 +331,12 @@ LINEUP_MEMORY_OPERATIONS: tuple[OperationRegistration, ...] = (
                 _PLAYERS.c.roster_status_key, "roster_status_key", "active"
             ),
         ),
+        primary_key_bindings=(
+            PrimaryKeyBinding(_PLAYERS.c.tenant_id, "tenant_id"),
+            PrimaryKeyBinding(_PLAYERS.c.id, "player_id"),
+        ),
+        for_update=True,
+        use_capability_lock_shape=True,
     ),
     OperationRegistration(
         LineupMemoryReadToken,

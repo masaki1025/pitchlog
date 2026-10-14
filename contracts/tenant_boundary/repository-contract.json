@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 17,
+  "contract_revision": 20,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:17"
+        "contract_revision:20"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -71,7 +71,7 @@
   },
   "asset_kind": "tenant_repository_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "670b435ae06b75284eeba6cffc0241abd3e6c8ba9a8971e0afea965d3d9f5746",
+  "source_digest": "7107695162edb95e9fda99400f7a0b70347988908df85e987b18751d21f4952c",
   "public_surface": {
     "repository_type": "pitchlog.repositories.base.TenantRepositoryBase",
     "context_binding_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
@@ -124,6 +124,15 @@
       "sqlalchemy.sql.schema.Table",
       "non_frozen_dataclass"
     ]
+  },
+  "operation_guards": {
+    "canonical_table": "orm_metadata_table_identity_for_registration_and_statement",
+    "update_identity": "actual_complete_primary_key_equalities_for_all_updates",
+    "update_bind_names": "primary_key_disjoint_from_target_columns_and_set_bindings",
+    "tenant_primary_key_bind": "injected_context_bind_only",
+    "row_lock": "declared_plain_for_update_with_complete_primary_key_and_explicit_specialized_shape",
+    "unlocked_read": "for_update_absent_when_undeclared",
+    "sync_apply_scope": "contextvar_rejects_new_tenant_transaction_scope"
   },
   "product_capability_ids": [
     "CAP:players:read",

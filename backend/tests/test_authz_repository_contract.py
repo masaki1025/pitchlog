@@ -316,6 +316,15 @@ def _generated_snapshot() -> dict[str, object]:
             ),
             "forbidden_types": list(repository_contract.FORBIDDEN_TYPES),
         },
+        "operation_guards": {
+            "canonical_table": repository_contract.CANONICAL_TABLE,
+            "update_identity": repository_contract.UPDATE_IDENTITY,
+            "update_bind_names": repository_contract.UPDATE_BIND_NAMES,
+            "tenant_primary_key_bind": repository_contract.TENANT_PRIMARY_KEY_BIND,
+            "row_lock": repository_contract.ROW_LOCK,
+            "unlocked_read": repository_contract.UNLOCKED_READ,
+            "sync_apply_scope": repository_contract.SYNC_APPLY_SCOPE,
+        },
         "product_capability_ids": list(repository_contract.PRODUCT_CAPABILITY_IDS),
         "product_operation_token_types": list(
             repository_contract.PRODUCT_OPERATION_TOKEN_TYPES
@@ -421,6 +430,7 @@ def test_generated_repository_constant_surface_is_exact() -> None:
         "CONTAINER_TYPE_MATCH",
         "CONTEXT_BINDING_ENTRY",
         "CONTRACT_REVISION",
+        "CANONICAL_TABLE",
         "CROSS_TENANT_FUNCTIONS",
         "CROSS_TENANT_FUNCTION_ENTRY",
         "CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL",
@@ -434,11 +444,17 @@ def test_generated_repository_constant_surface_is_exact() -> None:
         "PRODUCT_CAPABILITY_IDS",
         "PRODUCT_OPERATION_TOKEN_TYPES",
         "REPOSITORY_TYPE",
+        "ROW_LOCK",
         "SCALAR_TYPE_MATCH",
         "SCHEMA_VERSION",
         "SOURCE_ASSET",
         "SOURCE_DIGEST",
+        "TENANT_PRIMARY_KEY_BIND",
+        "SYNC_APPLY_SCOPE",
         "TRANSACTION_SCOPE_ENTRY",
+        "UNLOCKED_READ",
+        "UPDATE_BIND_NAMES",
+        "UPDATE_IDENTITY",
     }
     actual = {
         name
@@ -864,6 +880,7 @@ def test_immutable_subclasses_cannot_leak_database_handles(
         "public_surface",
         "executor",
         "return_contract",
+        "operation_guards",
         "product_capability_ids",
         "product_operation_token_types",
         "cross_tenant_functions",

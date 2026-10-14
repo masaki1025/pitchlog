@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from contextlib import AbstractContextManager, ExitStack
+from collections.abc import Iterator
+from contextlib import AbstractContextManager, ExitStack, contextmanager
+from contextvars import ContextVar
 from types import TracebackType
 from typing import final
 from uuid import UUID
@@ -27,6 +29,19 @@ __all__ = ("tenant_transaction_scope",)
 _HANDLE_CREATION_TOKEN = object()
 _TransactionRuntime = tuple[Session, ExitStack]
 _TRANSACTION_RUNTIMES: dict[object, _TransactionRuntime] = {}
+_SYNC_APPLY_ACTIVE: ContextVar[bool] = ContextVar("sync_apply_active", default=False)
+
+
+@contextmanager
+def _sync_apply_active() -> Iterator[None]:
+    """既存の適用トランザクション内で、別スコープの開始を禁止する。"""
+    if _SYNC_APPLY_ACTIVE.get():
+        raise RuntimeError("同期適用中の印へ再入できない")
+    token = _SYNC_APPLY_ACTIVE.set(True)
+    try:
+        yield
+    finally:
+        _SYNC_APPLY_ACTIVE.reset(token)
 
 
 @final
@@ -142,6 +157,8 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         """
         if self._handle is not None:
             raise RuntimeError("同じトランザクションスコープへ再入できない")
+        if _SYNC_APPLY_ACTIVE.get():
+            raise RuntimeError("同期適用中に新しいテナントスコープを開けない")
         if type(self._context) is not TenantContext:
             raise TenantBindingError("TenantContext が無いため業務 SQL を開始できない")
         if not self._context._has_valid_integrity_proof():
