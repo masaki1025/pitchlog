@@ -135,6 +135,11 @@ def test_delivery_pages_past_b06_and_retries_pending(
         "sync:two:chart": "pending",
     }
     columns = invalidation._INTENT_COLUMNS
+    game_id = uuid4()
+    selectors: dict[str, dict[str, ImmutableValue]] = {
+        "sync:one:game": {"game_id": game_id},
+        "sync:two:chart": {"chart_kind": "spray"},
+    }
 
     def run(token: object) -> TenantOperationResult:
         if isinstance(token, InvalidationIntentPendingToken):
@@ -149,7 +154,7 @@ def test_delivery_pages_past_b06_and_retries_pending(
                     if name == "intent_id"
                     else key.split(":")[-1]
                     if name == "scope_kind"
-                    else None
+                    else selectors.get(key, {}).get(name)
                     for name in columns
                 )
                 for key in page
@@ -176,7 +181,8 @@ def test_delivery_pages_past_b06_and_retries_pending(
         yield cast(_TenantTransaction, SimpleNamespace(run=run))
 
     monkeypatch.setattr(invalidation, "tenant_transaction_scope", fake_scope)
-    context = cast(TenantContext, object())
+    tenant_id = uuid4()
+    context = cast(TenantContext, SimpleNamespace(tenant_id=tenant_id))
     sink = ChangeSink(complete=False)
     rights = ChangeRights()
     assert invalidation.deliver_pending_sync_intents(
@@ -194,3 +200,16 @@ def test_delivery_pages_past_b06_and_retries_pending(
         "sync:two:chart": "delivered",
     }
     assert len(sink.effects) == 2
+    # 配信先の冪等キーは (tenant_id, intent_id)。テナントと範囲を値で渡す。
+    by_id = {intent.intent_id: intent for intent in sink.intents}
+    assert by_id["sync:one:game"].game_id == game_id
+    assert by_id["sync:one:game"].target_tenant_id is None
+    assert by_id["sync:two:chart"].chart_kind == "spray"
+    assert by_id["sync:two:chart"].game_id is None
+    assert {
+        (intent.tenant_id, intent.intent_id, intent.scope_kind)
+        for intent in sink.intents
+    } == {
+        (tenant_id, "sync:one:game", "game"),
+        (tenant_id, "sync:two:chart", "chart"),
+    }

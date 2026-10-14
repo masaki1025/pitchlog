@@ -799,7 +799,8 @@ def _apply_event(
                         order_resolver=order_resolver,
                         writer=gated.writer,
                     )
-                    if result.accepted:
+                    # ⑧ は書き込みを確定する分岐だけ。保存済み結果の再掲は書かない。
+                    if result.accepted and not result.replayed:
                         gated.mark_written()
                     return result
     except RG1Blocked:

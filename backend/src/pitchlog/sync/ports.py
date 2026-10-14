@@ -10,7 +10,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Protocol, final
+from uuid import UUID
 
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 from pitchlog.sync.model import StageValue, SyncEvent
@@ -100,10 +102,30 @@ class ContentValidationPort(Protocol):
         ...
 
 
+@dataclass(frozen=True, slots=True)
+class DeliveryIntent:
+    """配信先へ渡す同期意図の 1 行(テナントと範囲ごとの選択子)。
+
+    意図 ID はテナント内でしか一意でないので、配信先の冪等キーは
+    `(tenant_id, intent_id)` とする。選択子は data-model `B03` の「各行が選ぶ
+    無効化先」に従い、範囲に関係しない成分は None。
+    """
+
+    tenant_id: UUID
+    intent_id: str
+    scope_kind: str
+    game_id: UUID | None
+    player_id: UUID | None
+    group_id: UUID | None
+    target_tenant_id: UUID | None
+    period: object
+    chart_kind: str | None
+
+
 class InvalidationSinkPort(Protocol):
     """I5 で永続化された意図の配信先。"""
 
-    def deliver(self, intent_id: str, scope_kind: str) -> bool:
+    def deliver(self, intent: DeliveryIntent) -> bool:
         """配信完了を返し、未完了なら再試行を許す。"""
         ...
 

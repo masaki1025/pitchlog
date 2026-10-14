@@ -1,7 +1,7 @@
 """P3 と意図配信の試験でだけ登録する合成ポート。"""
 
 from pitchlog.sync.model import SyncEvent
-from pitchlog.sync.ports import PortWriter
+from pitchlog.sync.ports import DeliveryIntent, PortWriter
 
 
 class ChangeRights:
@@ -89,11 +89,13 @@ class ChangeSink:
         """配信状態を初期化する。"""
         self.complete = complete
         self.calls: list[str] = []
+        self.intents: list[DeliveryIntent] = []
         self.effects: set[str] = set()
 
-    def deliver(self, intent_id: str, scope_kind: str) -> bool:
+    def deliver(self, intent: DeliveryIntent) -> bool:
         """同じ ID の再配送でも論理効果は一件に保つ。"""
-        self.calls.append(intent_id)
+        self.calls.append(intent.intent_id)
+        self.intents.append(intent)
         if self.complete:
-            self.effects.add(intent_id)
+            self.effects.add(intent.intent_id)
         return self.complete

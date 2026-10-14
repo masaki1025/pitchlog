@@ -69,6 +69,7 @@ class _BatchPreflight:
     d3: int
     candidates: tuple[D5Candidate, ...]
     has_recording_right: bool
+    current_generation: int
 
 
 def _preflight_d1(
@@ -96,13 +97,16 @@ def _preflight_d1(
                 d3 = _cell(rows[0], _GENERATION_COLUMNS, "confirmed_watermark")
                 if type(d3) is not int:
                     raise RuntimeError("D3 の型が不正")
+                generation = _cell(rows[0], _GENERATION_COLUMNS, "generation")
+                if type(generation) is not int:
+                    raise RuntimeError("記録権世代の型が不正")
                 has_right = True
                 if any(candidate.kind == "unused" for candidate in candidates):
                     port_guard.require_registered_port(rights)
                     has_right = rights.holds_recording_right(
                         request.game_id, request.d4, request.v12, gated.writer
                     )
-                return _BatchPreflight(d3, candidates, has_right)
+                return _BatchPreflight(d3, candidates, has_right, generation)
 
 
 def _run_d1_event(
@@ -206,6 +210,57 @@ def _escrow_without_right(
     return result
 
 
+def _replay_existing(
+    context: TenantContext,
+    request: SyncRequest,
+    event: SyncEvent,
+    rights: RecordingRightsPort,
+    projection: ProjectionPort,
+    validator: ContentValidationPort,
+    registration: PlayerRegistration | None,
+    target: P1Target | None,
+) -> D1Result:
+    """⑤ 不成立の要求で、既存 D5 の保存済み結果(または B3b)を再掲する。
+
+    P1・P2 の局所経路は ④ の D5 分類で再掲・B3b を決め、⑤ には進まない。
+    P4 の要求は、退避を書いた P4 の経路(P4 の指紋)で照合して再掲する。
+    """
+    reach("before_transaction")
+    if request.path == "P4":
+        # P4 の退避は P4 の指紋で保存されているので、同じ経路で照合・再掲する。
+        outcome: D1Result = apply_rejection_or_escrow(
+            context,
+            event,
+            rights,
+            request.v12,
+            path="P4",
+            reason=None,
+            registration=registration,
+        )
+    elif request.path == "P2":
+        outcome = apply_p2_event(
+            context, event, rights, projection, validator, request.v12
+        )
+    else:
+        outcome = apply_p1_event(
+            context,
+            event,
+            rights,
+            projection,
+            validator,
+            request.v12,
+            registration=registration,
+            target=target,
+        )
+    reach("after_transaction")
+    return outcome
+
+
+def _is_replay(result: D1Result) -> bool:
+    """保存済み結果の再掲かを返す。"""
+    return result.replayed
+
+
 def apply_sync_request(
     context: TenantContext,
     request: SyncRequest,
@@ -255,6 +310,18 @@ def apply_sync_request(
     b3_branch: Literal["B3a", "B3b", "O4"] | None = None
     reason: str | None = None
     stopped = False
+    # ⑥ の走査位置。D3 + 1 から始め、要求の中で処理した D1 の次へ進める
+    # (欠落 = 要求の中で番号が欠けていること。D3 を進めない再掲の次を欠落にしない)。
+    next_d1 = d3 + 1
+    # D3 は (試合, D4) ごと(SP R1)。要求の D4 が現世代でなければ、現世代の D3 を
+    # 起点にした ⑥ を既存 D5 の再掲へ掛けない(引き継ぎ後の旧世代の再送 — SP の
+    # ACK 消失後の再掲)。D4 の整数表現は退避の世代番号と同じ規則で照合する。
+    request_is_current = request.d4 == str(preflight.current_generation)
+
+    if not preflight.has_recording_right:
+        # ⑤ は要求単位の判定で、⑥ の停止規則(DI5)の射程外(SP 6-2・B4)。
+        # 既存 D5 は保存済み結果を再掲し、未使用 D5 は全件を T8 へ送る。
+        boundary = "B4"
 
     for event in events:
         assert event.d1 is not None and event.d4 is not None
@@ -264,16 +331,35 @@ def apply_sync_request(
         registration = registrations[event.d5] if event.d5 in registrations else None
         target = targets[event.d5] if event.d5 in targets else None
         if not preflight.has_recording_right:
-            if candidates[event.d5].kind != "unused":
-                a5.append(A5Result(event.d4, event.d1, event.d5, "未処理"))
-                continue
-            result: D1Result = _escrow_without_right(
-                context,
-                request,
-                event,
-                rights,
-                registration,
-            )
+            if candidates[event.d5].kind == "unused":
+                result: D1Result = _escrow_without_right(
+                    context,
+                    request,
+                    event,
+                    rights,
+                    registration,
+                )
+            else:
+                result = _replay_existing(
+                    context,
+                    request,
+                    event,
+                    rights,
+                    projection,
+                    validator,
+                    registration,
+                    target,
+                )
+        elif event.d1 > next_d1 and (
+            request_is_current or candidates[event.d5].kind == "unused"
+        ):
+            # ⑥: D3 + 1 から D1 昇順に走査し、欠落があればその位置で B2。
+            # ④ の候補の種類(既存 D5・B3b・保存済みの退避)によらず、欠落より
+            # 後ろは外部結果として確定しない(SP 6-2 の ⑥・6-3)。
+            a5.append(A5Result(event.d4, event.d1, event.d5, "未処理"))
+            boundary = "B2"
+            stopped = True
+            continue
         else:
             result = _run_d1_event(
                 context,
@@ -287,6 +373,7 @@ def apply_sync_request(
             )
         if result.boundary in ("B6", "B7"):
             return result.boundary
+        next_d1 = max(next_d1, event.d1 + 1)
         state = _event_state(result)
         event_reason = result.reason or (
             "同じ D5 の内容が異なる" if result.boundary == "B3b" else None
@@ -300,6 +387,13 @@ def apply_sync_request(
             if temporary in mappings and mappings[temporary] != permanent:
                 raise RuntimeError("同じ一時 ID に異なる確定選手 ID がある")
             mappings[temporary] = permanent
+        if not preflight.has_recording_right:
+            # B4 の要求では境界は ⑤ で決まっている。各件は A5 にだけ写す。
+            continue
+        if _is_replay(result) and state == "退避":
+            # 退避の再掲は境界結果を決めない(SP 変更履歴 U-14)。B4 専用の文面を
+            # V12 が一致する要求へ流用しない(SP 6-3 の B4)。
+            continue
         if result.boundary == "B2":
             boundary = "B2"
             stopped = True

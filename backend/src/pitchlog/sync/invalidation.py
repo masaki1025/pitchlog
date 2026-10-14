@@ -19,7 +19,11 @@ from pitchlog.repositories.transaction import (
 from pitchlog.sync import port_guard
 from pitchlog.sync.gate import RG1Blocked, delivery_writer
 from pitchlog.sync.intent_ids import derive_sync_intent_id, is_sync_intent_id
-from pitchlog.sync.ports import InvalidationSinkPort, RecordingRightsPort
+from pitchlog.sync.ports import (
+    DeliveryIntent,
+    InvalidationSinkPort,
+    RecordingRightsPort,
+)
 from pitchlog.sync.tokens import (
     InvalidationIntentDeliveredToken,
     InvalidationIntentPendingToken,
@@ -134,6 +138,39 @@ def record_d1_intents(
     return _record_intents(scope, str(d5), game_id)
 
 
+def _optional_uuid(value: object, column: str) -> UUID | None:
+    """意図行の UUID 列を検査して返す。"""
+    if value is None or type(value) is UUID:
+        return value
+    raise RuntimeError(f"意図行の {column} の型が不正")
+
+
+def _delivery_intent(context: TenantContext, row: tuple[object, ...]) -> DeliveryIntent:
+    """意図行を、テナントと選択子を持つ配信の値へ写す。"""
+
+    def cell(column: str) -> object:
+        return row[_INTENT_COLUMNS.index(column)]
+
+    intent_id = cell("intent_id")
+    scope_kind = cell("scope_kind")
+    chart_kind = cell("chart_kind")
+    if type(intent_id) is not str or type(scope_kind) is not str:
+        raise RuntimeError("意図 ID または範囲の型が不正")
+    if chart_kind is not None and type(chart_kind) is not str:
+        raise RuntimeError("意図行の chart_kind の型が不正")
+    return DeliveryIntent(
+        tenant_id=context.tenant_id,
+        intent_id=intent_id,
+        scope_kind=scope_kind,
+        game_id=_optional_uuid(cell("game_id"), "game_id"),
+        player_id=_optional_uuid(cell("player_id"), "player_id"),
+        group_id=_optional_uuid(cell("group_id"), "group_id"),
+        target_tenant_id=_optional_uuid(cell("target_tenant_id"), "target_tenant_id"),
+        period=cell("period"),
+        chart_kind=chart_kind,
+    )
+
+
 def deliver_pending_sync_intents(
     context: TenantContext,
     sink: InvalidationSinkPort,
@@ -181,7 +218,7 @@ def deliver_pending_sync_intents(
             except RG1Blocked:
                 return DeliveryProgress(attempted, delivered)
             attempted += 1
-            if not sink.deliver(intent_id, scope_kind):
+            if not sink.deliver(_delivery_intent(context, row)):
                 continue
             try:
                 with tenant_transaction_scope(context) as scope:

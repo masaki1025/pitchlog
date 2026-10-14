@@ -53,14 +53,13 @@ def test_gap_overrides_preclassified_later_b3b(monkeypatch: pytest.MonkeyPatch) 
     def preflight(*_args: object) -> apply._BatchPreflight:
         calls.append("classify-all")
         return apply._BatchPreflight(
-            4, (D5Candidate("conflict", "B3b"), D5Candidate("unused")), True
+            4, (D5Candidate("conflict", "B3b"), D5Candidate("unused")), True, 1
         )
 
     def one_event(*args: object) -> P1Result:
         event = cast(SyncEvent, args[2])
         calls.append(f"apply-{event.d1}")
-        assert event.d1 == 6
-        return P1Result("B2", 4, False)
+        return P1Result(None, 5, True)
 
     monkeypatch.setattr(apply, "_preflight_d1", preflight)
     monkeypatch.setattr(apply, "_run_d1_event", one_event)
@@ -71,7 +70,33 @@ def test_gap_overrides_preclassified_later_b3b(monkeypatch: pytest.MonkeyPatch) 
         (6, "未処理"),
         (7, "未処理"),
     ]
-    assert calls == ["classify-all", "apply-6"]
+    # ⑥ の欠落は入口が判定し、欠落より後ろは経路へ渡さない(SP 6-2 の ⑥)。
+    assert calls == ["classify-all"]
+
+
+def test_gap_overrides_later_existing_candidate_without_unused_before(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """D3=4 で既存異内容の 7 だけなら、5 の欠落で B2・7 は未処理(B3b にしない)。"""
+    request = _request(7)
+    calls: list[str] = []
+    monkeypatch.setattr(apply, "game_accessible", lambda *_: True)
+    monkeypatch.setattr(
+        apply,
+        "_preflight_d1",
+        lambda *_: apply._BatchPreflight(4, (D5Candidate("conflict", "B3b"),), True, 1),
+    )
+
+    def one_event(*args: object) -> P1Result:
+        calls.append("apply")
+        return P1Result("B3b", 4, False)
+
+    monkeypatch.setattr(apply, "_run_d1_event", one_event)
+    result = apply.apply_sync_request(cast(TenantContext, object()), request, *_ports())
+    assert isinstance(result, AckResult)
+    assert (result.boundary, result.d3, result.b3_branch) == ("B2", 4, None)
+    assert [(row.d1, row.state) for row in result.a5] == [(7, "未処理")]
+    assert calls == []
 
 
 def test_reversing_d1_walk_fails_gap_oracle(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -82,20 +107,20 @@ def test_reversing_d1_walk_fails_gap_oracle(monkeypatch: pytest.MonkeyPatch) -> 
         apply,
         "_preflight_d1",
         lambda *_: apply._BatchPreflight(
-            4, (D5Candidate("conflict", "B3b"), D5Candidate("unused")), True
+            4, (D5Candidate("conflict", "B3b"), D5Candidate("unused")), True, 1
         ),
     )
 
     def first_event(*args: object) -> P1Result:
-        event = cast(SyncEvent, args[2])
-        assert event.d1 == 6, "D1 昇順より前に後続の B3b を返した"
-        return P1Result("B2", 4, False)
+        return P1Result(None, 5, True)
 
     monkeypatch.setattr(apply, "_run_d1_event", first_event)
-    # sorted を送信順のまま返す変異。元のテストと同じオラクルが赤になる。
+    # sorted を送信順のまま返す変異。D1 昇順の A5 のオラクルが赤になる。
     monkeypatch.setattr(apply, "sorted", lambda items, key: list(items), raising=False)
-    with pytest.raises(AssertionError, match="D1 昇順"):
-        apply.apply_sync_request(cast(TenantContext, object()), request, *_ports())
+    result = apply.apply_sync_request(cast(TenantContext, object()), request, *_ports())
+    assert isinstance(result, AckResult)
+    with pytest.raises(AssertionError):
+        assert [row.d1 for row in result.a5] == [6, 7], "D1 昇順"
 
 
 def test_first_b3b_stops_before_later_unused(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -106,7 +131,7 @@ def test_first_b3b_stops_before_later_unused(monkeypatch: pytest.MonkeyPatch) ->
         apply,
         "_preflight_d1",
         lambda *_: apply._BatchPreflight(
-            0, (D5Candidate("unused"), D5Candidate("conflict", "B3b")), True
+            0, (D5Candidate("unused"), D5Candidate("conflict", "B3b")), True, 1
         ),
     )
     calls: list[int] = []

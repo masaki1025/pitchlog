@@ -2,15 +2,23 @@
 
 from __future__ import annotations
 
+from typing import Literal
 from uuid import UUID, uuid4
 
 import pytest
 from test_authz_tenant_context import make_tenant_context
 from test_sync_apply_port_change import ChangeProjection, ChangeRights, ChangeValidator
-from test_sync_apply_port_prefix import PrefixProjection, PrefixRights, PrefixValidator
+from test_sync_apply_port_prefix import (
+    DenyPrefixRights,
+    PrefixProjection,
+    PrefixRights,
+    PrefixValidator,
+    RejectPrefixValidator,
+)
 
 from pitchlog.sync import ports
-from pitchlog.sync.model import SyncEvent
+from pitchlog.sync.apply import apply_sync_request
+from pitchlog.sync.model import AckResult, SyncEvent, SyncRequest
 from pitchlog.sync.prefix_path import apply_p1_event
 
 from .test_sync_apply_operations_boundary import _SyncDatabase, sync_database
@@ -163,3 +171,97 @@ def test_p1_other_tenant_and_missing_game_stop_before_rg1(
     assert results[0] == results[1]
     assert results[0].boundary == "B6"
     assert _remaining(db, d5) == (0, 0, 0, 0)
+
+
+def _path_remaining(db: _SyncDatabase, d5: UUID) -> tuple[int, ...]:
+    """公開入口の各経路が書く行と D3 を独立に数える。"""
+    counts: list[int] = []
+    with db.catalog.applicator.cursor() as cursor:
+        for table in (
+            "idempotency_ledger",
+            "operation_events",
+            "rejected_event_originals",
+            "evacuated_event_originals",
+        ):
+            cursor.execute(
+                f"SELECT count(*) FROM {table} WHERE tenant_id = %s AND d5 = %s",  # noqa: S608
+                (db.tenant_a, d5),
+            )
+            row = cursor.fetchone()
+            assert row is not None
+            counts.append(row[0])
+        cursor.execute(
+            "SELECT confirmed_watermark FROM recording_generations "
+            "WHERE tenant_id = %s AND game_id = %s AND retired_at IS NULL",
+            (db.tenant_a, db.game_a),
+        )
+        watermark = cursor.fetchone()
+    db.catalog.applicator.rollback()
+    assert watermark is not None
+    return (*counts, watermark[0])
+
+
+@pytest.mark.parametrize("path", ["P2", "P4", "P5"])
+def test_public_entry_rg1_commit_failure_rolls_back_each_path(
+    prefix_database: _SyncDatabase,
+    path: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """⑧ の失敗は P2・P4・P5 でも台帳・原本・イベント・D3 を一緒に戻す。"""
+    monkeypatch.setattr(
+        ports,
+        "PORT_IMPLEMENTATIONS",
+        ports.PORT_IMPLEMENTATIONS
+        | frozenset(
+            (cls.__module__, cls.__name__)
+            for cls in (DenyPrefixRights, RejectPrefixValidator)
+        ),
+    )
+    db = prefix_database
+    d5 = uuid4()
+    event = SyncEvent(
+        str(d5),
+        str(db.game_a),
+        1,
+        "1",
+        v5="game_end_declaration",
+        v6=10,
+        v7={},
+    )
+    # P5 は P1 の要求が ⑦ で内容拒否になる経路(T9)。P2・P4 は要求の経路そのもの。
+    request_path: Literal["P1", "P2", "P4"] = (
+        "P2" if path == "P2" else "P4" if path == "P4" else "P1"
+    )
+    request = SyncRequest(request_path, str(db.game_a), (event,), d4="1", v12="proof")
+
+    def run(commit_open: bool) -> object:
+        rights: PrefixRights = (
+            DenyPrefixRights(commit_open=commit_open)
+            if path == "P4"
+            else PrefixRights(commit_open=commit_open)
+        )
+        validator = RejectPrefixValidator() if path == "P5" else PrefixValidator()
+        result = apply_sync_request(
+            make_tenant_context(db.tenant_a),
+            request,
+            rights,
+            PrefixProjection(),
+            validator,
+        )
+        assert "commit" in rights.rg1_calls
+        return result
+
+    before = _path_remaining(db, d5)
+    assert run(commit_open=False) == "B7"
+    assert _path_remaining(db, d5) == before == (0, 0, 0, 0, before[-1])
+
+    # 陽性対照: 同じ要求で ⑧ が開いていれば、その経路の書き込みが確定する。
+    positive = run(commit_open=True)
+    assert isinstance(positive, AckResult)
+    expected_state, expected_rows = {
+        "P2": ("受理", (1, 1, 0, 0, before[-1] + 1)),
+        "P4": ("退避", (1, 0, 0, 1, before[-1])),
+        "P5": ("拒否", (1, 0, 1, 0, before[-1])),
+    }[path]
+    assert positive.a5[0].state == expected_state
+    assert _path_remaining(db, d5) == expected_rows

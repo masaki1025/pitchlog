@@ -183,6 +183,195 @@ def test_gap_example_preclassified_b3b_is_unprocessed(
     assert _count(db, "idempotency_ledger", later.d5) == 1
 
 
+def test_gap_before_only_existing_conflict_is_b2_not_b3b(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """D3=4 で既存異内容の 7 だけを送ると、5 の欠落で B2・7 は未処理。"""
+    db = prefix_database
+    first_events = tuple(_event(db.game_a, d1=d1, d4="1") for d1 in range(1, 5))
+    accepted = _invoke(
+        db, SyncRequest("P1", str(db.game_a), first_events, d4="1", v12="proof")
+    )
+    assert isinstance(accepted, AckResult) and accepted.d3 == 4
+    later = _event(db.game_a, d1=7, d4="1")
+    with tenant_transaction_scope(make_tenant_context(db.tenant_a)) as scope:
+        scope.run(
+            IdempotencyLedgerInsertToken(
+                UUID(later.d5),
+                "accepted",
+                "a" * 64,
+                '{"state":"受理","d3":7,"temporary_id_mapping":{}}',
+            )
+        )
+    result = _invoke(
+        db, SyncRequest("P1", str(db.game_a), (later,), d4="1", v12="proof")
+    )
+    assert isinstance(result, AckResult)
+    assert (result.boundary, result.d3, result.b3_branch) == ("B2", 4, None)
+    assert [(item.d1, item.state) for item in result.a5] == [(7, "未処理")]
+    assert _count(db, "idempotency_ledger", later.d5) == 1
+
+
+def test_b4_request_replays_existing_and_escrows_every_unused(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """⑤ 不成立の要求: 受理済みは再掲(重複)、未使用は全件退避し、B4 で止めない。"""
+    db = prefix_database
+    first_events = tuple(_event(db.game_a, d1=d1, d4="1") for d1 in range(1, 4))
+    accepted = _invoke(
+        db, SyncRequest("P1", str(db.game_a), first_events, d4="1", v12="proof")
+    )
+    assert isinstance(accepted, AckResult) and accepted.d3 == 3
+    unused = tuple(_event(db.game_a, d1=d1, d4="1") for d1 in (4, 5))
+    resend = SyncRequest(
+        "P1", str(db.game_a), (*first_events, *unused), d4="1", v12="old-proof"
+    )
+    result = _invoke(db, resend, rights=DenyPrefixRights())
+    assert isinstance(result, AckResult)
+    assert result.boundary == "B4"
+    assert [(item.d1, item.state) for item in result.a5] == [
+        (1, "重複"),
+        (2, "重複"),
+        (3, "重複"),
+        (4, "退避"),
+        (5, "退避"),
+    ]
+    for event in unused:
+        assert _count(db, "evacuated_event_originals", event.d5) == 1
+        assert _count(db, "operation_events", event.d5) == 0
+    for event in first_events:
+        assert _count(db, "evacuated_event_originals", event.d5) == 0
+    assert _game_state(db)[0] == 3
+
+
+def test_valid_request_resending_escrowed_d5_does_not_report_b4(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """V12 が一致する要求で退避済み D5 を再送しても、境界を B4 にしない(U-14)。"""
+    db = prefix_database
+    escrowed = _event(db.game_a, d1=1, d4="1")
+    first = _invoke(
+        db,
+        SyncRequest("P1", str(db.game_a), (escrowed,), d4="1", v12="old-proof"),
+        rights=DenyPrefixRights(),
+    )
+    assert isinstance(first, AckResult)
+    assert (first.boundary, first.a5[0].state) == ("B4", "退避")
+    resend = _invoke(
+        db, SyncRequest("P1", str(db.game_a), (escrowed,), d4="1", v12="proof")
+    )
+    assert isinstance(resend, AckResult)
+    assert (resend.boundary, resend.d3) == ("B1", 0)
+    assert [(item.d1, item.state) for item in resend.a5] == [(1, "退避")]
+    assert _count(db, "evacuated_event_originals", escrowed.d5) == 1
+
+
+def _hand_over_generation(db: _SyncDatabase) -> None:
+    """記録権の引き継ぎを模す: 世代 1 を失効・退役させ、D3 = 0 の世代 2 を作る。"""
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "UPDATE recording_generations SET revoked_at = now(), retired_at = now() "
+            "WHERE tenant_id = %s AND game_id = %s AND generation = 1",
+            (db.tenant_a, db.game_a),
+        )
+        cursor.execute(
+            "INSERT INTO recording_generations (tenant_id, game_id, generation, "
+            "kind, issuance_order, holder_device) "
+            "VALUES (%s, %s, 2, 'normal', 2, 'new-device')",
+            (db.tenant_a, db.game_a),
+        )
+    db.catalog.applicator.commit()
+
+
+def test_old_generation_resend_replays_without_current_gap(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """引き継ぎ後に旧 D4 の受理済みを再送すると、現世代の D3 で B2 にせず再掲する。"""
+    db = prefix_database
+    events = tuple(_event(db.game_a, d1=d1, d4="1") for d1 in range(1, 4))
+    accepted = _invoke(
+        db, SyncRequest("P1", str(db.game_a), events, d4="1", v12="proof")
+    )
+    assert isinstance(accepted, AckResult) and accepted.d3 == 3
+    _hand_over_generation(db)
+    resend = _invoke(
+        db, SyncRequest("P1", str(db.game_a), events[2:], d4="1", v12="proof")
+    )
+    assert isinstance(resend, AckResult)
+    assert resend.boundary != "B2"
+    assert [(item.d1, item.state) for item in resend.a5] == [(3, "重複")]
+
+
+def test_p4_resend_replays_escrow_with_p4_fingerprint(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """P4 の再送は P4 の指紋で照合し、保存済みの退避を異内容(B3b)にしない。"""
+    db = prefix_database
+    first = _event(db.game_a, d1=1, d4="1")
+    escrow = _invoke(
+        db,
+        SyncRequest("P4", str(db.game_a), (first,), d4="1", v12="old-proof"),
+        rights=DenyPrefixRights(),
+    )
+    assert isinstance(escrow, AckResult)
+    assert (escrow.boundary, escrow.a5[0].state) == ("B4", "退避")
+    second = _event(db.game_a, d1=2, d4="1")
+    resend = _invoke(
+        db,
+        SyncRequest("P4", str(db.game_a), (first, second), d4="1", v12="old-proof"),
+        rights=DenyPrefixRights(),
+    )
+    assert isinstance(resend, AckResult)
+    assert resend.boundary == "B4"
+    assert [(item.d1, item.state, item.reason) for item in resend.a5] == [
+        (1, "退避", None),
+        (2, "退避", None),
+    ]
+    for event in (first, second):
+        assert _count(db, "evacuated_event_originals", event.d5) == 1
+
+
+def test_b4_request_maps_saved_escrow_and_conflict_into_a5(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """B4 の要求: 保存済みの退避は退避を再掲、既存異内容は拒否(理由つき)。境界は B4。"""
+    db = prefix_database
+    escrowed = _event(db.game_a, d1=1, d4="1")
+    first = _invoke(
+        db,
+        SyncRequest("P1", str(db.game_a), (escrowed,), d4="1", v12="old-proof"),
+        rights=DenyPrefixRights(),
+    )
+    assert isinstance(first, AckResult) and first.boundary == "B4"
+    conflict = _event(db.game_a, d1=2, d4="1")
+    with tenant_transaction_scope(make_tenant_context(db.tenant_a)) as scope:
+        scope.run(
+            IdempotencyLedgerInsertToken(
+                UUID(conflict.d5),
+                "accepted",
+                "b" * 64,
+                '{"state":"受理","d3":2,"temporary_id_mapping":{}}',
+            )
+        )
+    unused = _event(db.game_a, d1=3, d4="1")
+    result = _invoke(
+        db,
+        SyncRequest(
+            "P1", str(db.game_a), (escrowed, conflict, unused), d4="1", v12="x"
+        ),
+        rights=DenyPrefixRights(),
+    )
+    assert isinstance(result, AckResult)
+    assert (result.boundary, result.b3_branch) == ("B4", None)
+    assert [(item.d1, item.state) for item in result.a5] == [
+        (1, "退避"),
+        (2, "拒否"),
+        (3, "退避"),
+    ]
+    assert result.a5[1].reason is not None
+    assert _count(db, "evacuated_event_originals", unused.d5) == 1
+
+
 def test_contiguous_invalid_content_commits_b3a_original(
     prefix_database: _SyncDatabase,
 ) -> None:
@@ -488,5 +677,12 @@ def test_named_crash_points_leave_whole_event_or_no_event(
                 (db.tenant_a, registration.temporary_id),
             )
             mapped = cursor.fetchone()
+            cursor.execute(
+                "SELECT count(*) FROM players WHERE tenant_id = %s AND name = %s",
+                (db.tenant_a, registration.name),
+            )
+            players = cursor.fetchone()
         db.catalog.applicator.rollback()
         assert mapped == (expected,)
+        # 写像の保存前に落ちても、選手行だけが残ることはない(全部確定か全部未確定)。
+        assert players == (expected,)
