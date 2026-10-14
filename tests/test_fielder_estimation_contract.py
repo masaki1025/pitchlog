@@ -432,3 +432,118 @@ def test_comparison_only_case_id_is_rejected(tmp_path: Path) -> None:
         AssertionError, match="6-2 節: .*design.md にのみある caseId=\\['case-b'\\]"
     ):
         _verify_assets(contract_path, design_path, "5-1", "6-2")
+
+
+# --- 期待値そのものの検算(PR #137 の敵対レビュー 1 周目 P0) ---------------
+#
+# 上の _verify_assets は独立確認の「記録」を照合するだけで、expected の値を
+# 検算していない。そのため expected.position を 2 から 9 へ書き換えても緑のまま
+# 通ってしまう。以下はその穴を塞ぐ。
+#
+# 典拠の置き方は契約ごとに変える:
+#   座標変換 … 条文(付録B-7・B-3・A-1)から算術を書き直す
+#   捕球選手 … 旧の幾何規則(design.md 2-1 が固定コミットから転記したもの)から導く
+#   領域シード … 同じ旧の幾何規則と全格子で突合する
+#
+# 捕球選手の期待値をシードから導かないのは、シードと契約を同時に壊したときに
+# 検出できなくなるためである(provenance にシードを禁じているのとは別の理由)。
+
+SCALE = 263
+
+# design.md 2-1「旧システムは多角形を持っていない」が
+# `dd03160:frontend/src/lib/fielder.ts`(全 37 行)から転記した規則。
+# 座標は旧 263 系(左上原点)。上から順に評価し、当たればそこで決まる。
+LEGACY_RECTANGLE_RULES = (
+    (2, lambda x, y: y >= 205),
+    (3, lambda x, y: x >= 155 and y >= 165),
+    (5, lambda x, y: x <= 75 and y >= 165),
+    (1, lambda x, y: 105 <= x < 145 and 140 <= y <= 190),
+)
+# 残りは 9 アンカーへの最近傍(ユークリッド距離の二乗)。
+# 比較が厳密 `<` なので、距離が同じなら上から先に並ぶほうが勝つ。
+LEGACY_ANCHORS = (
+    (8, 116, 66),
+    (7, 56, 101),
+    (9, 174, 101),
+    (6, 88, 144),
+    (4, 152, 144),
+    (5, 66, 174),
+    (3, 166, 174),
+    (1, 123, 164),
+    (2, 123, 232),
+)
+# 旧実装は多角形の判定に入る前に x <= 0 || y <= 0 を null(未入力)で弾く。
+# 本契約はこれを適用しない —— 付録B-7(v2.13)が「保存座標では 0 が有効な値である」
+# と定めたため(design.md 6-3)。差が出るのは次の 2 件だけである。
+LEGACY_SENTINEL_EXCEPTIONS = frozenset(
+    {"range-edge-left-x0-valid", "range-edge-top-y0-valid"}
+)
+
+
+def _legacy_position(x_old: int, y_old: int) -> int:
+    """旧 263 系の整数座標から守備位置を返す(センチネル判定は含まない)。
+
+    Args:
+        x_old: 旧 263 系の x(左上原点)。
+        y_old: 旧 263 系の y(下向き)。
+
+    Returns:
+        守備位置 1〜9。
+    """
+    for position, rule in LEGACY_RECTANGLE_RULES:
+        if rule(x_old, y_old):
+            return position
+    best_position = 0
+    best_distance = None
+    for position, ax, ay in LEGACY_ANCHORS:
+        distance = (x_old - ax) ** 2 + (y_old - ay) ** 2
+        if best_distance is None or distance < best_distance:
+            best_distance, best_position = distance, position
+    return best_position
+
+
+def _units_to_legacy(x_units: int, y_units: int) -> tuple[int, int]:
+    """保存座標(単位 1/263・左下原点)を旧 263 系(左上原点)へ写す。"""
+    return (x_units, SCALE - y_units)
+
+
+def _expect_units_integer(node: object, label: str) -> int:
+    """契約の座標値を整数として取り出す。有理数・十進小数は拒否する。"""
+    if isinstance(node, bool) or not isinstance(node, int):
+        raise AssertionError(f"{label}: 単位 1/263 の整数でない: {node!r}")
+    return node
+
+
+def test_fielder_expected_positions_are_derived_from_the_legacy_geometry() -> None:
+    """捕球選手推定の 31 件を旧の幾何規則から導き直して全件突合する。"""
+    contract = json.loads(FIELDER_CONTRACT_PATH.read_text(encoding="utf-8"))
+    cases = contract["cases"]
+    assert len(cases) == 31
+
+    mismatches: list[str] = []
+    exceptions_seen: set[str] = set()
+    for case in cases:
+        case_id = case["caseId"]
+        source = case["input"]
+        assert source["coordinateSystem"] == "normalized-bottom-left-units-1-263"
+        x_units = _expect_units_integer(source["coordinate"]["x"], f"{case_id}.x")
+        y_units = _expect_units_integer(source["coordinate"]["y"], f"{case_id}.y")
+        x_old, y_old = _units_to_legacy(x_units, y_units)
+        if x_old <= 0 or y_old <= 0:
+            # 旧実装ならセンチネルで null になる点。意図的な差として許す。
+            assert case_id in LEGACY_SENTINEL_EXCEPTIONS, (
+                f"{case_id}: 旧センチネルに当たるが design.md 6-3 の例外に無い"
+            )
+            exceptions_seen.add(case_id)
+        expected = case["expected"]["position"]
+        derived = _legacy_position(x_old, y_old)
+        if expected != derived:
+            mismatches.append(
+                f"{case_id}: 期待 {expected} / 旧規則から {derived} "
+                f"(保存 ({x_units},{y_units}) → 旧 ({x_old},{y_old}))"
+            )
+
+    assert not mismatches, "\n".join(mismatches)
+    assert exceptions_seen == LEGACY_SENTINEL_EXCEPTIONS, (
+        f"センチネルの例外が記録と一致しない: {sorted(exceptions_seen)}"
+    )
