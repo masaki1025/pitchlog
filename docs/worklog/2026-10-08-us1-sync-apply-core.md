@@ -241,3 +241,14 @@ branch: feature/us1-sync-apply-core
 - 変更: `OperationRegistration` に `primary_key_bindings`・`for_update`・`use_capability_lock_shape`。UPDATE と行ロックは**正本の ORM の `Table`(`is` で照合)の主キー全列の等値**で行を識別する(宣言の有無を問わない)。主キー bind と SET bind は互いに素、テナント列の主キー束縛は文脈から注入する bind 名だけ。FOR UPDATE は宣言と文の一致・通常ロックのみ。U-M2 の 2 登録は限定形を明示宣言。`transaction.py` に適用中の印(ContextVar)と、印があるときの新スコープの拒否(`_sync_apply_active`)。repository-contract を改訂し、PR #132 の受理記録 1 件・snapshot・比較 corpus・生成定数を取り直した
 - **敵対レビュー**: 1 回目 否決(P1 2・P2 1 — 宣言なし UPDATE の主キー部分省略 / 主キー bind と SET bind の共用・テナント主キーの bind 矛盾 / U-M2 の表名の直書き)→ すべて採用。2 回目 否決(P1 1 — 登録側で作った同名の別 `Table` で主キー全列検査をすり抜けられる)→ **採用**(正本の `Table` と同一性照合)。**この最終反映は上限到達のため再レビューを受けていない** — PR の人間の逐行確認で受ける
 - 検査: 関係テスト 304 passed / 凍結資産一式 571 passed / backend の DB 不要の全件 1318 passed(失敗は既知の偽の赤 44 件だけ)/ backend と root の ruff・ty green / `backend/tests/conftest.py` 差分 0 行。**DB 必須の試験はローカル未実行**(CI に任せる)
+
+## ステップ 6(2026-10-14)
+
+- 変更: `sync/model.py`(要求・A5・B1〜B14・ACK・P3 結果の不変型。**S-1 の外形だけを型の生成境界で検査**し、V12・V5〜V11 と D4・復旧世代の値の照合は処理段階へ — TSK-331 の決定。欠落 `ABSENT` と JSON の `null` を区別。P3 の結果は受理型と拒否型に分け、受理型で I6 の全項目を必須)/ `sync/ports.py`(ポート 4 種・`PortWriter` — 内部の発行用の印と閉鎖後の拒否・登録表 `PORT_IMPLEMENTATIONS` は空)/ `sync/port_guard.py`(登録表の照合と import 閉包の静的検査)。製品にポートの既定実装なし
+- **ポートが使う token 型の契約を U-S1 で確定**(敵対レビュー 1 回目 P1): ポートが使う token 型は sqlalchemy・登録処理を import しないモジュールに置き、登録は repositories 側に置く。**ステップ 7 の同期表の token はこれに従う**。U-R1・U-X1 へ引き渡す(TSK-392 への追記が要る)
+- **敵対レビュー 3 回 + 人間の裁定**:
+  - 1 回目 否決(P0 2・P1 4): `__module__` 詐称 / 動的 import での迂回 / `PortWriter` の発行と期限 / token 配置と import 禁止の衝突 / S-1 の外形 / P3 受理型の I6 → すべて採用(登録表を「モジュールとクラス」の同一性照合に、標準ライブラリを allowlist に、など)
+  - 2 回目 否決(P0 1): 許可した `typing.get_type_hints` が注釈文字列を評価して `pitchlog.db.engine` を import できる → 採用(許可を「モジュールと名前の組」へ)
+  - 3 回目(P0 例外)否決(P0 1): `import pitchlog` の属性連鎖で `create_database_engine` に届く → **山田正輝の裁定(2026-10-14)「直して打ち切る」**: pitchlog のモジュールをオブジェクトとして扱うことを全面禁止(モジュールでない名前の import だけ許可)し、**静的検査は補助であって安全の境界ではない**と位置づける。境界は (a) 登録表を持つ `sync/ports.py` が core-areas の sync-protocol に属し、ポートの登録はコア領域の変更として敵対レビューと人間の逐行確認を経ること (b) U-X1 が本物の投影ポートを作るときに入れる DB 側の遮断(適用核の印を要求するトリガ)。**追加レビューなし**(最終反映は再レビューを受けていない)
+- **残る穴(逐行確認と PR 本文への申し送り)**: 実行時の monkeypatch / 許可名や callable の組み合わせ / Python の反射・descriptor・decorator・metaclass / 別の実行単位への処理委譲(R-12)。静的検査ではこれらを遮断できない
+- 検査: 型・ポートの試験 118 passed / backend の DB 不要の全件 1436 passed(失敗は既知の偽の赤 44 件だけ)/ 迂回検査 ok / backend と root の ruff・ty green / 凍結資産・`conftest.py` 差分なし
