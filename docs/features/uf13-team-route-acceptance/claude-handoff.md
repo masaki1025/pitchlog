@@ -4,10 +4,10 @@
 
 ## 現在地
 
-- branch: `feature/uf13-team-route-acceptance`
-- worktree: `/tmp/pitchlog-uf13-team-route-acceptance`
-- base: `origin/develop` `fd7445cb7e5bd1d5a75137f48c2237c9126dbea5`（PR #133 まで取り込み済み）
-- 状態: 計画HEAD `e42a2ddbd2db58dd1fca642959ff4a2870299f63` のC1・C2・C3/U-F3とU-F13の3ステップ再編は2026-10-14に一括承認済み。外部依存待ちで製品コード未変更。
+- C1 branch: `feature/auth-session-verification-contract`
+- C1 worktree: `/tmp/pitchlog-auth-session-verification-contract`
+- base: `origin/develop` `e6e1a867f88bbdac90f2be9bed20dff900eec866`（PR #119・#129・#136 まで取り込み済み）
+- 状態: 計画HEAD `e42a2ddbd2db58dd1fca642959ff4a2870299f63` のC1・C2・C3/U-F3とU-F13の3ステップ再編は2026-10-14に一括承認済み。C1は#119統合後の再照合を完了したが、共有資産の所有・統合順待ちで製品コード未変更。
 - cards: U-F13 TSK-528、U-F5 TSK-520、U-F3 TSK-518。
 
 ## 再利用する統合済み資産
@@ -18,11 +18,11 @@
 
 ## 外部依存とブロッカー
 
-1. PR #119 は head `bf43ef93f8a9a2244b2bd5e06d1906ffbcda11de`、open / behind で、`core-guard` と `harness` が失敗している。別 worktree が所有するため変更しない。
-2. PR #119 の `LoginResponse` は status のみ。検証済み tenant ID を frontend へ供給できない。
+1. PR #119 は `8294a1b6` で統合済み。`LoginResponse` は status のみで、検証済み tenant ID を frontend へ供給しないため、承認済みC1のsession APIが必要である。
+2. #119の`TenantContext`はtenant IDだけを保持する。C1の正規`team_name`取得に必要な閉じたtenant read operationは未実装で、#131/#132が所有中のrepository凍結資産と重なる。
 3. roster の `Page` / `TeamRecordRead` / `PlayerRead` と response header に応答 tenant 証跡がない。
 4. developにLoginScreen/`/login`がない。C1が正規auth client、U-F3がLoginScreenと失敗表示を先行統合し、本計画ステップ2/3が`/login`と`/team`のrouteを登録する。
-5. `router.ts`と`App.vue`はtenant-isolationの意味範囲だが現行core pathsにない。ステップ1/3で宣言し、ステップ2/3でJSON登録と製品変更を同時に行う。
+5. C1の新規session routeは認証入口exact-setとroute / HTTP matrixの追随が必要で、#137の所有差分と重なる。`router.ts`と`App.vue`はtenant-isolationの意味範囲だが現行core pathsにないため、U-F13ステップ1/3で宣言し、ステップ2/3でJSON登録と製品変更を同時に行う。
 
 ## 依存解消の担当と追補計画
 
@@ -39,10 +39,11 @@
 
 ## PR #129・#131・#132との統合順
 
-- #129はopenで、authz catalog、route registry、HTTP route matrix、base allowlist等を所有中。
-- #132はopenで、core-areas/core-guardとtenant boundaryの複数凍結資産を所有中。
-- open PR全体のpath照合で、#131も`.claude/core-areas.json`とtenant boundary凍結資産を所有中と判明した。U-F2 `authStore`とU-F6共通clientの直接変更を持つopen PRはなかった。
-- C1/C2は#129・#131・#132の未統合差分をdevelop基線にしない。契約レビューは進めるが、製品実装と共有凍結資産の変更は#119統合後かつ各PRの所有状態確定後に行う。
+- #129は`93e1482a`で統合済み。未統合差分を基線にしない条件は解消した。
+- #132はopen Draft / conflictingで、core-areas/core-guardとtenant boundaryの複数凍結資産を所有中。
+- open PR全体のpath照合で、#131もopen Draft / conflictingのまま`.claude/core-areas.json`とtenant boundary凍結資産を所有中と判明した。U-F2 `authStore`とU-F6共通clientの直接変更を持つopen PRはなかった。
+- #137はopen Draft / conflictingで、4つのauth route / HTTP matrix資産とchecker試験を変更中のため、C1 session route登録と重なる。
+- C1/C2は#131・#132・#137の未統合差分をdevelop基線にしない。契約レビューは完了しており、製品実装と共有凍結資産の変更は各PRの所有・統合順確定後に行う。
 - 所有・統合順の照会をPRコメントへ記録済み: [#119](https://github.com/masaki1025/pitchlog/pull/119#issuecomment-6163651661)、[#129](https://github.com/masaki1025/pitchlog/pull/129#issuecomment-6163651993)、[#131](https://github.com/masaki1025/pitchlog/pull/131#issuecomment-6163652301)、[#132](https://github.com/masaki1025/pitchlog/pull/132#issuecomment-6163652601)。返答または統合後に所有境界を再確認する。
 
 具体的な C1 / C2 / C3 と担当は [research.md](research.md) 4 節、承認判断は [plan.md](plan.md) 8 節を参照する。
@@ -70,3 +71,15 @@
 ## 次の操作
 
 横断reviewは第1周P0 2/P1 6、第2周P0 2/P1 2を全採用し、P0限定追加周はP0 0で可決。第2周P1追随は未再レビューとして人間逐行確認へ残す。C1はsession 2xxかつDTO検証成功時だけ認証済みとし、DTO不正は結果未確認、`team_name`はサーバーの認可済み表示データとしてだけ使う。#119統合後にC1専用worktreeを最新developから作り、所有・正本・凍結資産を再照合してステップ1/2だけを実装する。C2とC3は各開始条件まで待機し、U-F13はC1・C2・C3統合後にステップ1/3だけを進める。ステップ1は宣言・試験、別のステップ2コミットでJSON登録と製品変更を同時に行い、core pathだけを先行登録しない。
+
+## 2026-10-14 C1 ステップ1開始条件の再照合
+
+- `origin/develop` は `e6e1a867f88bbdac90f2be9bed20dff900eec866`。PR #119 は `8294a1b6`、PR #129 は `93e1482a` で統合済みである。C1専用branch / worktreeを作成し、承認済み計画へ最新developをmergeした。
+- 計画承認と#119実コードの再照合は完了した。`GET /auth/session`、`AuthSessionResponse {tenant_id, team_name}`、Cookie由来の`TenantContext`だけを認可入口にする方式は承認済みのまま維持する。
+- #119の実装は`TenantContext.tenant_id`だけを供給する。正規表示名`public.tenants.name`を閉じたrepository経路で読む製品operationはdevelopにない。routerからの直接SQL、login入力の再利用、未承認の`authn.verify_token`戻り型変更は採用しない。
+- 推奨する最小経路は、既存`CAP:tenants:read`を用いるtenant表示情報read operationを追加し、`TenantContext`で束縛した結果から`tenant_id`と`name`を厳密に検査する方式である。候補差分は新規`backend/src/pitchlog/repositories/tenant_profile.py`、`backend/src/pitchlog/repositories/operation_registry.py`、`backend/tests/test_authz_repository_contract.py`、`contracts/tenant_boundary/repository-contract.json`と同契約の履歴・digest追随である。
+- この候補は#132が変更中の`operation_registry.py`とrepository contract、#131が変更中のrepository contractに重なる。必要な回答は、#131/#132を先に統合してC1が最新develop上でoperationを追加するか、両担当が当該tenant read operationを供給してC1が利用側だけを所有するか、どちらかの統合順である。
+- 新しい認証入口は既存のauthentication-entry exact-setを3件から4件へ更新する必要がある。候補差分は`contracts/authz/route-registry.json`、同lock、`contracts/authz/http-route-matrix.json`、同lock、`scripts/check_authz_catalog.py`、`tests/test_check_authz_catalog.py`、`backend/tests/test_api_app.py`である。#137が4つのroute / matrix資産とchecker試験を変更中のため、#137先行統合後にC1が追随するか、#137担当から当該ファイルの所有移管を受ける必要がある。
+- auth router / schemaとsession endpoint固有試験には、現時点で重複する未統合差分を確認していない。ただし上記共有資産を変更せずにステップ1の凍結資産検査をgreenにできないため、製品コードだけを先行実装・コミットしない。
+- よってC1ステップ1は未着手。停止理由は#119ではなく、正規`team_name` read operationの実装経路と#131/#132/#137とのファイル所有・統合順が未確定であること。計画全体の再承認は不要で、上記2点の狭い回答だけを残す。
+- U-F13本体はC1・C2・C3の接続条件が揃うまで待機を維持する。

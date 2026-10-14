@@ -99,3 +99,14 @@ P0 0 件、P1 1 件、P2 0 件で否決。P1 を採用した。
 - #129・#131・#132の未統合差分をdevelop基線にしない。個別の正本、schema、凍結資産の受理と所有確認を省略しない。
 - 第2周P1追随の未再レビュー範囲は、各製品PRの人間逐行確認対象として維持する。
 - #119へC1のauth router/schema/tenant access境界の契約整合レビュー、#129・#131・#132へauthz/tenant boundary/core資産の統合順と継続所有をPRコメントで照会した。各worktreeと製品差分は変更していない。
+
+## 2026-10-14 C1 ステップ1開始条件の再照合
+
+- C1専用branch `feature/auth-session-verification-contract` とworktree `/tmp/pitchlog-auth-session-verification-contract`を承認済み計画HEADから作成し、`origin/develop` `e6e1a867f88bbdac90f2be9bed20dff900eec866`をmergeした。
+- PR #119は`8294a1b6`、PR #129は`93e1482a`で統合済み。login / logout / password、Cookie検証、`require_tenant_access`、`TenantContext`の実コードを再照合した。
+- #119の発行境界は検証済み`TenantContext.tenant_id`だけを返し、C1 DTOに必要な正規`team_name`を返さない。`public.tenants.name`には既存`CAP:tenants:read`があるが、製品repository operationと`repository-contract.json`への登録は存在しない。
+- routerからの直接SQLは閉じたrepository境界を迂回する。login入力のteam名は正規表示値でも認可値でもない。`authn.verify_token`の戻り型拡張は別の凍結関数契約を変更する。この3案は承認済み計画から自動選択しない。
+- 最小候補をtenant表示情報read operationとした。新規repository module、`operation_registry.py`、repository契約・履歴とrepository contract試験が必要で、open Draft / conflictingの#131/#132差分と重なる。両担当から「先行統合後にC1が追加」または「担当側がoperationを供給」の統合順回答が必要である。
+- `GET /auth/session`の追加にはauthentication-entry exact-setとroute / HTTP matrixの追随が必須である。`scripts/check_authz_catalog.py`、checker試験、4つのroute / matrix資産とAPI route exact-set試験が必要で、open Draft / conflictingの#137差分と重なる。#137先行統合または所有移管の回答が必要である。
+- 開始条件1（計画承認）と2（#119統合・実コード再照合）は成立。開始条件3（共有凍結資産の所有確定）は未成立。開始条件4のendpoint / DTO / 認可方式は承認済みだが、正規表示名read operationという不足実装経路は個別の所有・統合順確定が必要である。
+- 凍結資産検査までを一つのステップ合格条件としているため、backend製品コードだけの先行コミットは作成していない。C1ステップ1は未着手、U-F13本体もC1・C2・C3接続待ちを維持する。
