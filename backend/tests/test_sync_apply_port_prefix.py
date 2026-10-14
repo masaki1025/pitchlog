@@ -9,9 +9,20 @@ from pitchlog.sync.ports import PortWriter
 class PrefixRights:
     """記録権判定の呼び出しを記録する。"""
 
-    def __init__(self) -> None:
-        """空の呼び出し列を持つ。"""
+    def __init__(
+        self,
+        *,
+        read_open: bool = True,
+        commit_open: bool = True,
+        fail_at: str | None = None,
+    ) -> None:
+        """ゲートの判定値と空の呼び出し列を持つ。"""
         self.calls: list[str] = []
+        self.rg1_calls: list[str] = []
+        self.read_open = read_open
+        self.commit_open = commit_open
+        self.fail_at = fail_at
+        self.writer: PortWriter | None = None
 
     def holds_recording_right(
         self, game_id: str, d4: object, v12: object, writer: PortWriter
@@ -20,9 +31,21 @@ class PrefixRights:
         self.calls.append(game_id)
         return True
 
-    def is_restoration_active(self, game_id: str, writer: PortWriter) -> bool:
-        """合成試験では復元調整中でない。"""
-        return False
+    def read_rg1_before_d5(self, writer: PortWriter) -> bool:
+        """合成試験では事前ゲートを通す。"""
+        self.writer = writer
+        self.rg1_calls.append("read")
+        if self.fail_at == "read":
+            raise RuntimeError("RG1 事前読取失敗")
+        return self.read_open
+
+    def check_rg1_before_commit(self, writer: PortWriter) -> bool:
+        """合成試験ではコミット前ゲートを通す。"""
+        assert writer is self.writer
+        self.rg1_calls.append("commit")
+        if self.fail_at == "commit":
+            raise RuntimeError("RG1 コミット前読取失敗")
+        return self.commit_open
 
     def is_recovery_generation_current(
         self, game_id: str, supplied: str, writer: PortWriter

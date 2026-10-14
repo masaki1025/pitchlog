@@ -17,6 +17,7 @@ from pitchlog.repositories.transaction import (
     tenant_transaction_scope,
 )
 from pitchlog.sync import port_guard
+from pitchlog.sync.gate import RG1Blocked, game_accessible, gated_writer
 from pitchlog.sync.idempotency import (
     D5Candidate,
     _json_value,
@@ -35,6 +36,7 @@ from pitchlog.sync.model import (
 )
 from pitchlog.sync.ports import (
     ContentValidationPort,
+    PortWriter,
     ProjectionPort,
     RecordingRightsPort,
     _issue_port_writer,
@@ -119,23 +121,24 @@ def _apply_locked(
     rights: RecordingRightsPort,
     projection: ProjectionPort,
     validator: ContentValidationPort,
+    writer: PortWriter | None = None,
 ) -> ChangeResult:
     """③〜⑨を順に判定し、未使用 D5 だけを一取引で確定する。"""
     event = request.events[0]
     game_id = UUID(request.game_id)
     locked = _lock_game_generation(scope, game_id)
     if locked is None:
-        return RejectedChangeResult("B12", event.d5)
+        raise RuntimeError("認可後に試合行が消失した")
     generation, _ = locked
     game_row = _one_row(scope.run(GameReadToken(game_id)), "games")
     status = _cell(game_row, _GAME_COLUMNS, "status")
 
     for port in (rights, projection, validator):
         port_guard.require_registered_port(port)
-    writer = _issue_port_writer(scope.run)
+    own_writer = writer is None
+    if writer is None:
+        writer = _issue_port_writer(scope.run)
     try:
-        if rights.is_restoration_active(event.game_id, writer):
-            raise _NoWriteResult(RejectedChangeResult("B10", event.d5, "復元調整中"))
         supplied = request.recovery_generation
         if type(supplied) is not str or not rights.is_recovery_generation_current(
             event.game_id, supplied, writer
@@ -263,15 +266,10 @@ def _apply_locked(
         )
         projection.apply(event, writer)
         record_p3_intents(scope, game_id, target[1], target[2], event.v11 + 1)
-        if rights.is_restoration_active(event.game_id, writer):
-            raise _RestorationStarted()
         return result
     finally:
-        writer._close()
-
-
-class _RestorationStarted(RuntimeError):
-    """コミット前の RG1 再検証に失敗し、全書き込みを戻す。"""
+        if own_writer:
+            writer._close()
 
 
 def apply_p3_change(
@@ -284,13 +282,21 @@ def apply_p3_change(
     """P3 一件を適用する。認証は公開入口が所有する。"""
     if request.path != "P3" or len(request.events) != 1:
         raise ValueError("P3 の要求 1 件が必要")
+    if not game_accessible(context, UUID(request.game_id), tenant_transaction_scope):
+        return RejectedChangeResult("B12", request.events[0].d5)
     try:
         with tenant_transaction_scope(context) as scope:
             with _sync_apply_active():
-                return _apply_locked(scope, request, rights, projection, validator)
+                with gated_writer(scope, rights) as gated:
+                    result = _apply_locked(
+                        scope, request, rights, projection, validator, gated.writer
+                    )
+                    if isinstance(result, AcceptedChangeResult):
+                        gated.mark_written()
+                    return result
     except _D5Race as race:
         return race.result
     except _NoWriteResult as rejected:
         return rejected.result
-    except _RestorationStarted:
+    except RG1Blocked:
         return RejectedChangeResult("B10", request.events[0].d5, "復元調整中")

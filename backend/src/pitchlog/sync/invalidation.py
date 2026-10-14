@@ -17,8 +17,9 @@ from pitchlog.repositories.transaction import (
     tenant_transaction_scope,
 )
 from pitchlog.sync import port_guard
+from pitchlog.sync.gate import RG1Blocked, delivery_writer
 from pitchlog.sync.intent_ids import derive_sync_intent_id, is_sync_intent_id
-from pitchlog.sync.ports import InvalidationSinkPort
+from pitchlog.sync.ports import InvalidationSinkPort, RecordingRightsPort
 from pitchlog.sync.tokens import (
     InvalidationIntentDeliveredToken,
     InvalidationIntentPendingToken,
@@ -136,6 +137,7 @@ def record_d1_intents(
 def deliver_pending_sync_intents(
     context: TenantContext,
     sink: InvalidationSinkPort,
+    rights: RecordingRightsPort,
     *,
     page_size: int = 100,
 ) -> DeliveryProgress:
@@ -150,8 +152,14 @@ def deliver_pending_sync_intents(
     cursor = ""
     attempted = delivered = 0
     while True:
-        with tenant_transaction_scope(context) as scope:
-            rows = scope.run(InvalidationIntentPendingToken(page_size, cursor)).rows
+        try:
+            with tenant_transaction_scope(context) as scope:
+                with delivery_writer(scope, rights):
+                    rows = scope.run(
+                        InvalidationIntentPendingToken(page_size, cursor)
+                    ).rows
+        except RG1Blocked:
+            return DeliveryProgress(attempted, delivered)
         if not rows:
             break
         for row in rows:
@@ -166,14 +174,28 @@ def deliver_pending_sync_intents(
                 continue
             if not intent_id.endswith(f":{scope_kind}"):
                 raise RuntimeError("同期意図 ID と範囲が一致しない")
+            try:
+                with tenant_transaction_scope(context) as scope:
+                    with delivery_writer(scope, rights):
+                        pass
+            except RG1Blocked:
+                return DeliveryProgress(attempted, delivered)
             attempted += 1
             if not sink.deliver(intent_id, scope_kind):
                 continue
-            with tenant_transaction_scope(context) as scope:
-                scope.run(
-                    InvalidationIntentDeliveredToken(intent_id, datetime.now(UTC))
-                )
-                persisted = scope.run(InvalidationIntentReadToken(intent_id)).rows
+            try:
+                with tenant_transaction_scope(context) as scope:
+                    with delivery_writer(scope, rights):
+                        scope.run(
+                            InvalidationIntentDeliveredToken(
+                                intent_id, datetime.now(UTC)
+                            )
+                        )
+                        persisted = scope.run(
+                            InvalidationIntentReadToken(intent_id)
+                        ).rows
+            except RG1Blocked:
+                return DeliveryProgress(attempted, delivered)
             if len(persisted) != 1 or len(persisted[0]) != len(_INTENT_COLUMNS):
                 raise RuntimeError("配信完了を記録した意図行を再読できない")
             if persisted[0][_INTENT_COLUMNS.index("delivery_status")] == "delivered":

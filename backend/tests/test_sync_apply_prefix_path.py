@@ -56,6 +56,7 @@ from pitchlog.sync.tokens import (
     EventSlotInsertToken,
     EventSlotReadToken,
     GameLockToken,
+    GameReadToken,
     IdempotencyLedgerInsertToken,
     IdempotencyLedgerReadToken,
     InvalidationIntentReadToken,
@@ -274,7 +275,7 @@ class _LockObservation:
     def run(self, token: TenantOperationToken) -> TenantOperationResult:
         """必要最小限の行を返して B2 まで進める。"""
         self.tokens.append(type(token))
-        if type(token) is GameLockToken:
+        if type(token) in (GameReadToken, GameLockToken):
             return TenantOperationResult(((UUID(GAME),),))
         if type(token) in {
             RecordingGenerationReadToken,
@@ -306,6 +307,7 @@ class _AcceptedObservation(_LockObservation):
         """空スロット・未使用 D5 を返し、書き込み token を捕捉する。"""
         if type(token) in {
             GameLockToken,
+            GameReadToken,
             RecordingGenerationReadToken,
             RecordingGenerationLockToken,
             IdempotencyLedgerReadToken,

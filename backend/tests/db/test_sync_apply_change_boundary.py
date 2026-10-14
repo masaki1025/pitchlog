@@ -207,6 +207,33 @@ def test_p3_rejected_branches_do_not_write(
     assert _counts(db, UUID(request.events[0].d5)) == before
     if branch == "B12":
         assert rights.calls == []
+    elif branch not in ("B10",):
+        assert "rg1_commit" not in rights.calls
+
+
+@pytest.mark.parametrize("closed", [False, True])
+def test_p3_other_tenant_and_missing_game_have_same_b12_before_rg1(
+    sync_database: _SyncDatabase, closed: bool
+) -> None:
+    """他テナントと不存在は RG1 状態に依存せず同じ B12 を返す。"""
+    db = sync_database
+    d5 = uuid4()
+    context = make_tenant_context(db.tenant_a)
+    results = []
+    for game_id in (db.game_b, uuid4()):
+        rights = ChangeRights(restoration=closed, fail_at="read" if closed else None)
+        result = apply_p3_change(
+            context,
+            _request(game_id, d5=d5),
+            rights,
+            ChangeProjection(),
+            ChangeValidator(),
+        )
+        results.append(result)
+        assert rights.calls == []
+    assert results[0] == results[1]
+    assert results[0].boundary == "B12"
+    assert _counts(db, d5) == (0, 0, 0, 1)
 
 
 def test_finished_p3_ignores_v12(sync_database: _SyncDatabase) -> None:
@@ -219,17 +246,62 @@ def test_finished_p3_ignores_v12(sync_database: _SyncDatabase) -> None:
     assert "holds" not in rights.calls
 
 
+@pytest.mark.parametrize("failure", ["closed", "error"])
 def test_restoration_started_before_commit_rolls_back_all_t_elements(
     sync_database: _SyncDatabase,
+    failure: str,
 ) -> None:
     """RG1 のコミット前再照合で T1・T2・T7 と対象版をまとめて戻す。"""
     db = sync_database
     _set_status(db, "in_progress")
     request = _request(db.game_a)
-    rights = ChangeRights(restoration_after_first=True)
+    rights = ChangeRights(
+        restoration_after_first=failure == "closed",
+        fail_at="commit" if failure == "error" else None,
+    )
     assert _apply(db, request, rights=rights).boundary == "B10"
-    assert rights.calls.count("restoration") == 2
+    assert rights.calls.count("rg1_read") == 1
+    assert rights.calls.count("rg1_commit") == 1
     assert _counts(db, UUID(request.events[0].d5)) == (0, 0, 0, 1)
+
+
+def test_p3_saved_result_is_blocked_by_rg1(
+    sync_database: _SyncDatabase,
+) -> None:
+    """保存済みの P3 も③-a が閉じていれば B10 で止める。"""
+    db = sync_database
+    _set_status(db, "in_progress")
+    request = _request(db.game_a)
+    assert _apply(db, request).boundary == "変更受理"
+    rights = ChangeRights(restoration=True)
+    assert _apply(db, request, rights=rights).boundary == "B10"
+    assert rights.calls == ["rg1_read"]
+    assert _counts(db, UUID(request.events[0].d5)) == (1, 1, 5, 2)
+
+
+def test_internal_delivery_waits_while_rg1_is_closed(
+    sync_database: _SyncDatabase,
+) -> None:
+    """内部配信は③-a で延期し、配信先も完了列も変更しない。"""
+    db = sync_database
+    _set_status(db, "in_progress")
+    assert _apply(db, _request(db.game_a)).boundary == "変更受理"
+    sink = ChangeSink()
+    rights = ChangeRights(restoration=True)
+    progress = invalidation.deliver_pending_sync_intents(
+        make_tenant_context(db.tenant_a), sink, rights
+    )
+    assert progress == invalidation.DeliveryProgress(0, 0)
+    assert rights.calls == ["rg1_read"]
+    assert sink.calls == []
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT count(*) FROM invalidation_intents "
+            "WHERE tenant_id = %s AND delivery_status = 'pending'",
+            (db.tenant_a,),
+        )
+        pending = cursor.fetchone()
+    assert pending is not None and pending[0] == 5
 
 
 def test_delivery_retries_same_id_after_crash_and_skips_b06(
@@ -260,7 +332,7 @@ def test_delivery_retries_same_id_after_crash_and_skips_b06(
     ) -> Iterator[_TenantTransaction]:
         nonlocal calls
         calls += 1
-        if calls == 2:
+        if calls == 3:
             raise RuntimeError("配信先の消費後・完了記録前にクラッシュ")
         with real_scope(tenant) as scope:
             yield scope
@@ -270,9 +342,13 @@ def test_delivery_retries_same_id_after_crash_and_skips_b06(
             invalidation, "tenant_transaction_scope", crash_before_completion
         )
         with pytest.raises(RuntimeError, match="完了記録前"):
-            invalidation.deliver_pending_sync_intents(context, sink, page_size=2)
+            invalidation.deliver_pending_sync_intents(
+                context, sink, ChangeRights(), page_size=2
+            )
     assert len(sink.effects) == 1
-    progress = invalidation.deliver_pending_sync_intents(context, sink, page_size=2)
+    progress = invalidation.deliver_pending_sync_intents(
+        context, sink, ChangeRights(), page_size=2
+    )
     assert progress.delivered == 5
     assert len(sink.effects) == 5
     assert len(sink.calls) == 6
@@ -298,7 +374,7 @@ def test_delivery_retries_same_id_after_crash_and_skips_b06(
     )
     calls_before = len(sink.calls)
     assert invalidation.deliver_pending_sync_intents(
-        context, sink, page_size=2
+        context, sink, ChangeRights(), page_size=2
     ) == invalidation.DeliveryProgress(0, 0)
     assert len(sink.calls) == calls_before
     with db.catalog.applicator.cursor() as cursor:

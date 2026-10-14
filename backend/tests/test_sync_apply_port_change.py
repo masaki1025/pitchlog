@@ -14,20 +14,32 @@ class ChangeRights:
         restoration_after_first: bool = False,
         current: bool = True,
         holds: bool = True,
+        fail_at: str | None = None,
     ) -> None:
         """試験の判定値を固定する。"""
         self.restoration = restoration
         self.restoration_after_first = restoration_after_first
         self.current = current
         self.holds = holds
+        self.fail_at = fail_at
         self.calls: list[str] = []
+        self.writer: PortWriter | None = None
 
-    def is_restoration_active(self, game_id: str, writer: PortWriter) -> bool:
-        """復元調整状態を返す。"""
-        self.calls.append("restoration")
-        return self.restoration or (
-            self.restoration_after_first and self.calls.count("restoration") > 1
-        )
+    def read_rg1_before_d5(self, writer: PortWriter) -> bool:
+        """事前の開放状態を返す。"""
+        self.writer = writer
+        self.calls.append("rg1_read")
+        if self.fail_at == "read":
+            raise RuntimeError("RG1 事前読取失敗")
+        return not self.restoration
+
+    def check_rg1_before_commit(self, writer: PortWriter) -> bool:
+        """コミット直前の開放状態を返す。"""
+        assert writer is self.writer
+        self.calls.append("rg1_commit")
+        if self.fail_at == "commit":
+            raise RuntimeError("RG1 コミット前読取失敗")
+        return not (self.restoration or self.restoration_after_first)
 
     def is_recovery_generation_current(
         self, game_id: str, supplied: str, writer: PortWriter

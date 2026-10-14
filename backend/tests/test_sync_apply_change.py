@@ -121,7 +121,12 @@ def test_delivery_pages_past_b06_and_retries_pending(
     monkeypatch.setattr(
         ports,
         "PORT_IMPLEMENTATIONS",
-        frozenset({(ChangeSink.__module__, ChangeSink.__name__)}),
+        frozenset(
+            {
+                (ChangeSink.__module__, ChangeSink.__name__),
+                (ChangeRights.__module__, ChangeRights.__name__),
+            }
+        ),
     )
     states = {
         "14:first:game": "pending",
@@ -173,13 +178,14 @@ def test_delivery_pages_past_b06_and_retries_pending(
     monkeypatch.setattr(invalidation, "tenant_transaction_scope", fake_scope)
     context = cast(TenantContext, object())
     sink = ChangeSink(complete=False)
+    rights = ChangeRights()
     assert invalidation.deliver_pending_sync_intents(
-        context, sink, page_size=2
+        context, sink, rights, page_size=2
     ) == invalidation.DeliveryProgress(2, 0)
     assert all(state == "pending" for state in states.values())
     sink.complete = True
     assert invalidation.deliver_pending_sync_intents(
-        context, sink, page_size=2
+        context, sink, rights, page_size=2
     ) == invalidation.DeliveryProgress(2, 2)
     assert states == {
         "14:first:game": "pending",

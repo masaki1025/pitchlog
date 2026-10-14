@@ -63,8 +63,12 @@ def _issue_port_writer(
 class RecordingRightsPort(Protocol):
     """記録権証明・復旧世代・復元調整ゲートの所有者。"""
 
-    def is_restoration_active(self, game_id: str, writer: PortWriter) -> bool:
-        """RG1 の復元調整中かを返す。"""
+    def read_rg1_before_d5(self, writer: PortWriter) -> bool:
+        """③-a の非ロック読取で、書き込み可能なら True を返す。"""
+        ...
+
+    def check_rg1_before_commit(self, writer: PortWriter) -> bool:
+        """⑧ の FOR SHARE を取引終了まで保持し、開いていれば True を返す。"""
         ...
 
     def is_recovery_generation_current(

@@ -36,6 +36,7 @@ from pitchlog.repositories.transaction import (
     tenant_transaction_scope,
 )
 from pitchlog.sync import port_guard
+from pitchlog.sync.gate import RG1Blocked, game_accessible, gated_writer
 from pitchlog.sync.idempotency import (
     D5Candidate,
     _json_value,
@@ -48,6 +49,7 @@ from pitchlog.sync.invalidation import record_d1_intents
 from pitchlog.sync.model import ABSENT, SyncEvent
 from pitchlog.sync.ports import (
     ContentValidationPort,
+    PortWriter,
     ProjectionPort,
     RecordingRightsPort,
     _issue_port_writer,
@@ -69,7 +71,7 @@ from pitchlog.sync.tokens import (
 )
 
 type ReplacementKind = Literal["none", "tombstone", "revision"]
-type P1Boundary = Literal["B2", "B3", "B3a", "B3b", "B4", "B6"] | None
+type P1Boundary = Literal["B2", "B3", "B3a", "B3b", "B4", "B6", "B7"] | None
 type P1PreconditionCategory = Literal["w2_violation", "recording_rights", "other"]
 
 _GENERATION_COLUMNS = tuple(RecordingGeneration.__table__.c.keys())
@@ -537,12 +539,13 @@ def _apply_locked(
     *,
     path: Literal["P1", "P2"] = "P1",
     order_resolver: Callable[[_TenantTransaction, UUID, int], int | None] | None = None,
+    writer: PortWriter | None = None,
 ) -> P1Result:
     """試合行の後に世代行をロックし、D1 付き経路の T 要素を束ねる。"""
     game_id, d5 = UUID(event.game_id), UUID(event.d5)
     locked_state = _lock_game_generation(scope, game_id)
     if locked_state is None:
-        return P1Result("B6", 0, False)
+        raise RuntimeError("認可後に試合行が消失した")
     generation, d3 = locked_state
     # R-16: 試合行の存在を先に確認してロックする。
     # 自テナントに存在しなければ B6 で止める。
@@ -612,7 +615,9 @@ def _apply_locked(
     # 登録表の検査は三つのポートのいずれを呼ぶよりも前に完了する。
     for port in (rights, projection, validator):
         port_guard.require_registered_port(port)
-    writer = _issue_port_writer(scope.run)
+    own_writer = writer is None
+    if writer is None:
+        writer = _issue_port_writer(scope.run)
     try:
         if not rights.holds_recording_right(event.game_id, event.d4, v12, writer):
             raise P1PreconditionError(
@@ -724,7 +729,8 @@ def _apply_locked(
             record_d1_intents(scope, game_id, d5)
         return P1Result(None, new_d3, True, False, tuple(new_mapping.items()))
     finally:
-        writer._close()
+        if own_writer:
+            writer._close()
 
 
 def _apply_event(
@@ -759,21 +765,30 @@ def _apply_event(
 
     例外時はスコープ全体をロールバックし、ポート書き手も失効させる。
     """
+    if not game_accessible(context, UUID(event.game_id), tenant_transaction_scope):
+        return P1Result("B6", 0, False)
     try:
         with tenant_transaction_scope(context) as scope:
             with _sync_apply_active():
-                return _apply_locked(
-                    scope,
-                    event,
-                    rights,
-                    projection,
-                    validator,
-                    v12,
-                    registration,
-                    target,
-                    path=path,
-                    order_resolver=order_resolver,
-                )
+                with gated_writer(scope, rights) as gated:
+                    result = _apply_locked(
+                        scope,
+                        event,
+                        rights,
+                        projection,
+                        validator,
+                        v12,
+                        registration,
+                        target,
+                        path=path,
+                        order_resolver=order_resolver,
+                        writer=gated.writer,
+                    )
+                    if result.accepted:
+                        gated.mark_written()
+                    return result
+    except RG1Blocked:
+        return P1Result("B7", 0, False)
     except _D5Race as race:
         return race.result
     except _NoWriteStop as stop:
