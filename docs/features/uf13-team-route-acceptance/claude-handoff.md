@@ -6,7 +6,7 @@
 
 - branch: `feature/uf13-team-route-acceptance`
 - worktree: `/tmp/pitchlog-uf13-team-route-acceptance`
-- base: `origin/develop` `b81ae1ac3c957870e0c7a4722a921785a239ab82`
+- base: `origin/develop` `fd7445cb7e5bd1d5a75137f48c2237c9126dbea5`（PR #133 まで取り込み済み）
 - 状態: 調査・計画作成中。製品コード未変更。計画承認前。
 - cards: U-F13 TSK-528、U-F5 TSK-520。
 
@@ -18,7 +18,7 @@
 
 ## 外部依存とブロッカー
 
-1. PR #119 は open / behind で、別 worktree が所有する。変更しない。
+1. PR #119 は head `bf43ef93f8a9a2244b2bd5e06d1906ffbcda11de`、open / behind で、`core-guard` と `harness` が失敗し、人間逐行確認も未実施。別 worktree が所有するため変更しない。
 2. PR #119 の `LoginResponse` は status のみ。検証済み tenant ID を frontend へ供給できない。
 3. roster の `Page` / `TeamRecordRead` / `PlayerRead` と response header に応答 tenant 証跡がない。
 4. develop に LoginScreen / `/login` がない。既決 guard は未認証を `/login` へ送るため、U-F3 の別担当・先行統合までは本計画を開始しない。
@@ -48,4 +48,4 @@
 
 ## 次の操作
 
-人間承認後も C1 / C2 / C3 と PR #119 の develop 統合を再確認し、最新 develop を取り込んでからステップ 1/4 だけを実装する。2 周目の最終 C2 反映は Codex の再レビューを受けていないため、人間承認時に採否記録と差分を確認する。
+人間承認後も C1 / C2 / C3 と PR #119 の develop 統合を再確認し、最新 develop を取り込んでからステップ 1/4 だけを実装する。2 周目の最終 C2 反映は Codex の再レビューを受けていないため、人間承認時に採否記録と差分を確認する。PR #133 は core-guard 回帰試験と記録だけで、計画の製品前提に影響しないことを再照合済み。

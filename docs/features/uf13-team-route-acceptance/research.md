@@ -4,9 +4,9 @@
 
 ## 1. 起点と担当重複
 
-- `git fetch origin` 後の `origin/develop` は `b81ae1ac3c957870e0c7a4722a921785a239ab82`（PR #127、U-F5 初期分割の統合）。専用 worktree `/tmp/pitchlog-uf13-team-route-acceptance`、branch `feature/uf13-team-route-acceptance` をこの commit から作成した。
-- PR #119 は [認証 HTTP API](https://github.com/masaki1025/pitchlog/pull/119)で、2026-10-14 の確認時点では open、head `b35e33df1fa5ec49b46de90c9fa096267c12892e`、`BEHIND`。所有 worktree `/home/ymdms/projects/pitchlog-worktrees/feature-ua1-auth-http-entry` がある。本作業から変更しない。
-- open PR は #119 のほか #129（U-T1）、#131（ADR-003）、#132（U-S1）であり、U-F13 または U-F5 の同じ製品ファイルを所有する open PR は見つからなかった。
+- 専用 worktree `/tmp/pitchlog-uf13-team-route-acceptance`、branch `feature/uf13-team-route-acceptance` は PR #127 統合時点から作成した。2026-10-14 の再開時に `origin/develop` `fd7445cb7e5bd1d5a75137f48c2237c9126dbea5`（PR #133 統合済み）を取り込んだ。#133 は `tests/test_core_guard.py` と計画・記録だけの変更で、U-F13 の製品契約と実装範囲に影響しない。
+- PR #119 は [認証 HTTP API](https://github.com/masaki1025/pitchlog/pull/119)で、再確認時点でも open、head `bf43ef93f8a9a2244b2bd5e06d1906ffbcda11de`、`BEHIND`。`core-guard` と `harness` が失敗し、人間逐行確認も未実施である。所有 worktree `/home/ymdms/projects/pitchlog-worktrees/feature-ua1-auth-http-entry` がある。本作業から変更しない。
+- open PR は #119 のほか #129（U-T1）、#131（ADR-003）、#132（U-S1）であり、U-F13 または U-F5 の同じ製品ファイルを所有する open PR は見つからなかった。再確認時の worktree 一覧にも U-F13 / U-F5 の重複所有はない。
 - U-F5 初期分割は PR #127 で develop に統合済み。`TeamScreen.vue`、`TeamMembersContent.vue`、既存 API 呼び出しとテストを再利用する。
 - develop に `LoginScreen` はなく、U-F3 の open PR / worktree も確認できなかった。未認証の保護 route は承認済み移植規則上 `/login` へ送るため、U-F3 は実利用可能な `/team` の外部依存である。
 

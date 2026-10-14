@@ -23,7 +23,7 @@ created: 2026-10-14
 
 ## 2. 起点、所有、開始ゲート
 
-- 起点は `origin/develop` `b81ae1ac3c957870e0c7a4722a921785a239ab82`。PR #127 の U-F5 初期分割を含む。
+- 起点は `origin/develop` `fd7445cb7e5bd1d5a75137f48c2237c9126dbea5`。PR #127 の U-F5 初期分割と、PR #133 の core-guard 回帰試験修正を含む。2026-10-14 の再開時に専用ブランチへ取り込み済みで、製品契約への影響はない。
 - 専用 worktree `/tmp/pitchlog-uf13-team-route-acceptance`、branch `feature/uf13-team-route-acceptance` を作成済み。製品コードは未変更。
 - PR #119 は別担当の worktree と PR を持ち、open / behind。変更しない。
 - U-F13 / U-F5 の同範囲を持つ open PR / worktree は見つからなかった。U-F3 の実装も見つからなかった。
@@ -149,4 +149,4 @@ C2 が専用例外を追加する場合、既存 `TeamMembersContent` の結果�
 4. **core paths**: `frontend/src/router*` と `frontend/src/App*` を tenant-isolation へ、ステップ 1/4 と 2/4 の別コミットで登録し、登録差分も adversarial review と人間逐行確認へ含める。
 5. **開始順**: 上記契約、U-F3、PR #119 が develop に着地してからステップ 1/4 を開始し、各後続ステップへは別の逐行指示を待つ。
 
-これらの判断と計画承認が得られるまでは製品コードを変更しない。
+これら 5 項目の判断と計画承認が得られるまでは製品コードを変更しない。
