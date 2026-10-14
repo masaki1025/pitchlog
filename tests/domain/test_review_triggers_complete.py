@@ -358,3 +358,51 @@ def test_po_evidence_content_change_is_rejected(tmp_path: Path) -> None:
             as_of_step=60,
             evaluation_evidence_path=_write_evidence(tmp_path, evidence),
         )
+
+
+def test_trigger_ten_reconfirmation_preserves_original_decision(
+    registry: dict[str, Any],
+) -> None:
+    """トリガー10の元判定と新しい証拠の再確認を両方保持する。"""
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    decision = next(
+        row for row in evidence["manualDecisions"] if row["triggerId"] == 10
+    )
+    reconfirmation = decision["reconfirmations"][-1]
+
+    assert (decision["judge"], decision["decisionDate"], decision["fired"]) == (
+        "山田正輝",
+        "2026-09-18",
+        False,
+    )
+    assert reconfirmation["previousEvidenceDigest"] == (
+        "sha256:141f2ba4477fcf073663c0ab69404037519deb894ee932d9cfae2c3f9711db98"
+    )
+    assert reconfirmation["evidenceDigest"] == decision["evidenceDigest"]
+    COMPLETION.trigger_evaluation.validate_recorded_evaluations(
+        registry,
+        ROOT,
+        trigger_ids={10},
+    )
+
+
+def test_trigger_ten_reconfirmation_must_match_current_digest(
+    registry: dict[str, Any], tmp_path: Path
+) -> None:
+    """再確認列と現在の証拠 digest の食い違いを拒否する。"""
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    decision = next(
+        row for row in evidence["manualDecisions"] if row["triggerId"] == 10
+    )
+    decision["reconfirmations"][-1]["evidenceDigest"] = "sha256:" + "0" * 64
+
+    with pytest.raises(
+        COMPLETION.trigger_evaluation.TriggerEvaluationError,
+        match="最新の再確認 digest",
+    ):
+        COMPLETION.trigger_evaluation.validate_recorded_evaluations(
+            registry,
+            ROOT,
+            evidence_path=_write_evidence(tmp_path, evidence),
+            trigger_ids={10},
+        )

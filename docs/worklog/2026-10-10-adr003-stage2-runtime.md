@@ -101,3 +101,12 @@ branch: feature/adr003-stage2-runtime
 - ステップ 11 の見落とし: 契約参照の試験ファイル(`tests/domain/runners/test_handoff_loader.py`)が sync-protocol に未登録のまま `test_core_guard` が赤だった(ステップ 11 の検証で `test_core_guard` を回していなかった)。ステップ 17〜19 の登録で解消
 
 - ステップ 25 の委任でラッパーが終了コード 1 を返した(Codex の最終報告は出ており、出力は 9MB で途中が切れていた)。原因は特定できず。作業ツリーを自分で検証して緑(関連 pytest 673 passed・ルートの ty 0・ローカルで回せる check_* 全件 OK)だったのでコミットした。`--acceptance` の受理遷移検査は PR の CI で確認する
+
+### ドラフト PR #131 と受理記録の承認(2026-10-14)
+
+- 凍結基準の受理単位が PR 番号のため、**ドラフト PR #131** を開いた(山田さん了承)。受理 ID = `masaki1025/pitchlog#131`
+- **山田さんの承認(2026-10-14)**: ① `gameEndAxisFields` に成立段数の軸を足す(ステップ 26・S19)② `ci.yml` の変更(ステップ 15)に伴う `contracts/tenant_boundary/base-allowlist.json` の凍結基準の更新 ③ トリガー 10(propertyCatalog のトップレベル分離)の判定「発火しない」(2026-09-18)は `manifest.schema.json` への `js-artifact` 追加(ステップ 16)後も不変 — 証拠の digest を更新
+- develop の取り込み 2 回(`4daa4155`・`7b71c38b`)。ステップ 22〜25 の検証でハーネスの全件を回していなかったため、10 件の失敗をまとめて是正(`72d2a487`)。以後、PR 前にハーネスの全件を回す
+- **Ready 前の取り込みで必ずやること**(master の申し送り 2026-10-14): ① #119(δ)が `contracts/tenant_boundary/base-allowlist.json` を rev27→28・`runtime-authz-contract.json` を rev12→13 へ動かす。#119 が先に着地したら、本 PR の base-allowlist の受理記録(#131)の rev を**実測し直して作り直す**(digest・識別値は導出値 — 選ばず取り直す)② `.claude/core-areas.json` と `docs/README.md` が #128(TSK-541)と重なる
+- **ステップ 27 は #128 の着地を待つ**: #128 が ADR-003 v0.6・要件書 v2.11 を approved で持つ(未マージ)。D-8 の改訂は v0.6 の上に積む。着手直前に ADR-003 の最大版を `refs/pull/128/head` を含めて実測する
+- master の指摘: core_guard の同一コミット規則は `git diff-tree`(`-m`/`-c` なし)なのでマージコミットを検査しない — 本 PR は規則どおり 2 段に分けているが、機構の保証ではない(台帳候補として master が起票先を探す)
