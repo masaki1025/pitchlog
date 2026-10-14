@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3f993b75e687810fa2b0e0b6edc228bc
 branch: feature/ux1-fr014-rule-resolution
 created: 2026-10-14
 計画レビュー周回: 4
-確定ゲート周回: 1
+確定ゲート周回: 2
 実行方式: 通常
 反映周コミット: 適用
 ---
