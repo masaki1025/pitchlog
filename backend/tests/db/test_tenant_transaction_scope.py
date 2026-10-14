@@ -611,7 +611,15 @@ def test_run_signature_has_no_second_tenant_context() -> None:
         "operation": TenantOperationToken,
         "return": TenantOperationResult,
     }
-    assert declared_methods == {"__init__", "_expire", "run"}
+    # U-S1 ステップ 8 の SAVEPOINT 入口も operation だけを受ける。
+    savepoint_signature = inspect.signature(handle_type.run_in_savepoint)
+    assert tuple(savepoint_signature.parameters) == ("self", "operation")
+    for method_signature in (signature, savepoint_signature):
+        operation_parameter = method_signature.parameters["operation"]
+        assert operation_parameter.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+        assert operation_parameter.default is inspect.Parameter.empty
+    assert get_type_hints(handle_type.run_in_savepoint) == hints
+    assert declared_methods == {"__init__", "_expire", "run", "run_in_savepoint"}
     assert handle_type.__slots__ == (
         "_state_key",
         "_context",
@@ -704,20 +712,23 @@ def test_unregistered_and_forged_tokens_use_existing_rejection_path(
             (_ReadProbeToken("forged"), "capability ID が不一致"),
         )
 
-        for operation, expected_message in cases:
-            with transaction.tenant_transaction_scope(
-                make_tenant_context(_TENANT_ID)
-            ) as tenant_transaction:
-                with pytest.raises(
-                    _TenantOperationError,
-                    match=expected_message,
-                ) as caught:
-                    tenant_transaction.run(operation)
+        # U-S1 ステップ 8 の SAVEPOINT 入口も同じ拒否を経る。
+        for method_name in ("run", "run_in_savepoint"):
+            for operation, expected_message in cases:
+                with transaction.tenant_transaction_scope(
+                    make_tenant_context(_TENANT_ID)
+                ) as tenant_transaction:
+                    with pytest.raises(
+                        _TenantOperationError,
+                        match=expected_message,
+                    ) as caught:
+                        getattr(tenant_transaction, method_name)(operation)
 
-            assert any(
-                entry.name == "_operation_spec" and Path(entry.path).name == "base.py"
-                for entry in caught.traceback
-            )
+                assert any(
+                    entry.name == "_operation_spec"
+                    and Path(entry.path).name == "base.py"
+                    for entry in caught.traceback
+                )
 
 
 def test_unvalidated_update_is_rejected_before_execute(
@@ -1140,6 +1151,8 @@ def test_handle_cannot_run_after_scope_exit(
             statements_after_exit = len(observed_statements)
             with pytest.raises(RuntimeError, match="失効"):
                 handle.run(_ReadProbeToken())
+            with pytest.raises(RuntimeError, match="失効"):
+                handle.run_in_savepoint(_ReadProbeToken())
         finally:
             event.remove(Session, "do_orm_execute", observe_orm_sql)
 
