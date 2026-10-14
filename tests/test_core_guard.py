@@ -19,6 +19,11 @@ import pytest
 REPO = Path(__file__).parent.parent
 SCRIPT = REPO / "scripts" / "core_guard.py"
 CORE_AREAS_PATH = REPO / ".claude" / "core-areas.json"
+BASELINE_GUARD_PATHS = (
+    ".claude/core-areas.json",
+    "scripts/core_guard.py",
+    "tests/test_core_guard.py",
+)
 REQUIRED_CHECK_TEXT = "コア領域/検査経路の変更: 人間による逐行確認を実施した"
 GUARD_PATHS = [
     ".claude/core-areas.json",
@@ -844,6 +849,33 @@ def commit_changes(root: Path, relative_paths: tuple[str, ...]) -> tuple[str, st
     )
     head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
     return base_sha, head_sha
+
+
+def commit_guard_contents(root: Path, contents: dict[str, str]) -> str:
+    """合成履歴の指定ファイルを指定内容でコミットする。
+
+    Args:
+        root: 一時リポジトリのルート。
+        contents: 変更する相対パスと生成内容。
+
+    Returns:
+        作成したコミットの OID。
+    """
+    for path, content in contents.items():
+        write_text(root, path, content)
+    run_git(root, "add", *contents)
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "guard contents change",
+    )
+    return run_git(root, "rev-parse", "HEAD").stdout.strip()
 
 
 def commit_rename(root: Path, old_path: str, new_path: str) -> tuple[str, str]:
@@ -2066,6 +2098,156 @@ def test_json_expected_and_anchor_cochange_is_rejected(tmp_path: Path):
     )
 
     with pytest.raises(core_guard.GuardError, match="同一コミット"):
+        core_guard.verify_area_path_baseline(root, base_sha, head_sha)
+
+
+def test_complete_baseline_restore_cochange_is_accepted(tmp_path: Path) -> None:
+    """宣言と定義の 3 blob を比較元へ完全復元する同一コミットを受理する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    baseline_contents = {
+        path: run_git(root, "show", f"{base_sha}:{path}").stdout
+        for path in BASELINE_GUARD_PATHS
+    }
+    commit_area_path_changes(root, dict(core_guard.AREA_PATH_ADDITIONS))
+    commit_guard_contents(
+        root,
+        {
+            "scripts/core_guard.py": "ANCHOR = 'changed'\nAREA_PATH_ADDITIONS = {}\n",
+            "tests/test_core_guard.py": "EXPECTED = 'changed'\n",
+        },
+    )
+    restore_sha = commit_guard_contents(root, baseline_contents)
+
+    assert core_guard._changed_paths_in_commit(root, restore_sha) == frozenset(
+        BASELINE_GUARD_PATHS
+    )
+    assert core_guard.verify_area_path_baseline(root, base_sha, restore_sha) == base_sha
+
+
+@pytest.mark.parametrize("restore_after", [False, True])
+def test_nonbaseline_cochange_is_rejected_even_after_full_restore(
+    tmp_path: Path, restore_after: bool
+) -> None:
+    """比較元と異なる共変更は後続コミットが完全復元しても拒否する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    offending_sha = commit_area_path_changes(
+        root,
+        dict(core_guard.AREA_PATH_ADDITIONS),
+        cochanged_paths=("scripts/core_guard.py", "tests/test_core_guard.py"),
+    )
+    head_sha = offending_sha
+    if restore_after:
+        baseline_contents = {
+            path: run_git(root, "show", f"{base_sha}:{path}").stdout
+            for path in BASELINE_GUARD_PATHS
+        }
+        head_sha = commit_guard_contents(root, baseline_contents)
+        assert (
+            run_git(root, "diff", "--name-only", base_sha, head_sha, "--", *BASELINE_GUARD_PATHS)
+            .stdout.strip()
+            == ""
+        )
+
+    with pytest.raises(core_guard.GuardError, match=offending_sha):
+        core_guard.verify_area_path_baseline(root, base_sha, head_sha)
+
+
+def test_partial_baseline_restore_cochange_is_rejected(tmp_path: Path) -> None:
+    """3 blob のうち 2 本だけを比較元へ復元しても拒否する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    commit_area_path_changes(root, dict(core_guard.AREA_PATH_ADDITIONS))
+    commit_guard_contents(
+        root,
+        {
+            "scripts/core_guard.py": "ANCHOR = 'changed'\nAREA_PATH_ADDITIONS = {}\n",
+            "tests/test_core_guard.py": "EXPECTED = 'changed'\n",
+        },
+    )
+    restore_sha = commit_guard_contents(
+        root,
+        {
+            path: run_git(root, "show", f"{base_sha}:{path}").stdout
+            for path in BASELINE_GUARD_PATHS[:2]
+        },
+    )
+
+    assert all(
+        run_git(root, "rev-parse", f"{base_sha}:{path}").stdout
+        == run_git(root, "rev-parse", f"{restore_sha}:{path}").stdout
+        for path in BASELINE_GUARD_PATHS[:2]
+    )
+    assert (
+        run_git(root, "rev-parse", f"{base_sha}:{BASELINE_GUARD_PATHS[2]}").stdout
+        != run_git(root, "rev-parse", f"{restore_sha}:{BASELINE_GUARD_PATHS[2]}").stdout
+    )
+    with pytest.raises(core_guard.GuardError, match=restore_sha):
+        core_guard.verify_area_path_baseline(root, base_sha, restore_sha)
+
+
+def test_restore_to_other_historical_commit_is_rejected(tmp_path: Path) -> None:
+    """3 blob が過去コミットと一致しても比較元と違えば拒否する。"""
+    core_guard = load_core_guard_module()
+    root, old_sha = make_layered_core_repo(tmp_path)
+    old_contents = {
+        path: run_git(root, "show", f"{old_sha}:{path}").stdout
+        for path in BASELINE_GUARD_PATHS
+    }
+    base_sha = commit_guard_contents(
+        root,
+        {
+            ".claude/core-areas.json": json.dumps(
+                json.loads(old_contents[".claude/core-areas.json"]),
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
+            "scripts/core_guard.py": "ANCHOR = 'baseline'\nAREA_PATH_ADDITIONS = {}\n",
+            "tests/test_core_guard.py": "EXPECTED = 'baseline'\n",
+        },
+    )
+    restore_sha = commit_guard_contents(root, old_contents)
+
+    assert all(
+        run_git(root, "rev-parse", f"{old_sha}:{path}").stdout
+        == run_git(root, "rev-parse", f"{restore_sha}:{path}").stdout
+        != run_git(root, "rev-parse", f"{base_sha}:{path}").stdout
+        for path in BASELINE_GUARD_PATHS
+    )
+    with pytest.raises(core_guard.GuardError, match=restore_sha):
+        core_guard.verify_area_path_baseline(root, base_sha, restore_sha)
+
+
+def test_missing_baseline_definition_cannot_exempt_cochange(tmp_path: Path) -> None:
+    """比較元に定義ファイルが欠けると同一コミットの共変更を免除しない。"""
+    core_guard = load_core_guard_module()
+    root, _ = make_layered_core_repo(tmp_path)
+    run_git(root, "rm", "tests/test_core_guard.py")
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "baseline without test definition",
+    )
+    base_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    baseline_json = run_git(root, "show", f"{base_sha}:.claude/core-areas.json").stdout
+    commit_area_path_changes(root, dict(core_guard.AREA_PATH_ADDITIONS))
+    head_sha = commit_guard_contents(
+        root,
+        {
+            ".claude/core-areas.json": baseline_json,
+            "tests/test_core_guard.py": "EXPECTED = 'restored'\n",
+        },
+    )
+
+    with pytest.raises(core_guard.GuardError, match=head_sha):
         core_guard.verify_area_path_baseline(root, base_sha, head_sha)
 
 

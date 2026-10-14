@@ -357,6 +357,40 @@ def _parent_has_area_path_additions(root: Path, revision: str) -> bool:
     return False
 
 
+def _matches_baseline_guard_blobs(
+    root: Path, baseline_revision: str, revision: str
+) -> bool:
+    """比較元と当該コミットの宣言・基線定義 3 本の blob が全て一致するか調べる。
+
+    生成内容が比較元と同一なら、守る範囲も守り方も変更できないため安全である。
+
+    Args:
+        root: Git リポジトリのルート。
+        baseline_revision: 比較元の commit OID。
+        revision: 判定対象の commit OID。
+
+    Returns:
+        3 本とも比較元に存在し、全ての blob OID が一致する場合だけ真。
+    """
+    for path in (CORE_AREAS_RELATIVE_PATH, *sorted(BASELINE_DEFINITION_PATHS)):
+        try:
+            baseline_oid = _run_git(
+                root,
+                ["rev-parse", f"{baseline_revision}:{path}"],
+                f"{baseline_revision} の {path} blob OID 取得",
+            ).strip()
+            revision_oid = _run_git(
+                root,
+                ["rev-parse", f"{revision}:{path}"],
+                f"{revision} の {path} blob OID 取得",
+            ).strip()
+        except GuardError:
+            return False
+        if not baseline_oid or baseline_oid != revision_oid:
+            return False
+    return True
+
+
 def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
     """merge-base blob と PR head の領域別二層契約を検査する。
 
@@ -383,6 +417,7 @@ def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
             CORE_AREAS_RELATIVE_PATH in changed
             and changed_definitions
             and _parent_has_area_path_additions(root, revision)
+            and not _matches_baseline_guard_blobs(root, baseline_revision, revision)
         ):
             raise GuardError(
                 "core-areas.json と基線定義を同一コミットで変更している: "
