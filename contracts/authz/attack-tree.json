@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_attack_tree",
   "oracle_context": {
-    "oracle_commit": "eadc7764b7a46988d1ee15af711e55e82b6ec02a",
+    "oracle_commit": "ec902d9d98949243cbf55e9a4aed43dec1da3115",
     "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
   },
   "attack_goals": [
