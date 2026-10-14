@@ -49,6 +49,33 @@ Codex D の独立ブランチ `feature/tsk550-contract-evidence-split` の `df0d
 
 **真に未回答の受理先**: Codex Dには上記の閉鎖モデルと公開型/4 literalの最終採否、U-G1には必須大会キー・snapshot保存/HTTP/非成功境界、data-model所有者には6-key/出所/既存行の正本文、認可面/tenant境界所有者には閉鎖ACL・固定operation・7.7差分の採否が残る。U-X1独立受理担当Codex Dは指名済み。tenant境界の固定operationについて具体的な受理担当が確認できなければ、**その項目だけ**TSK-390/U-T1側の担当調整または独立代替受理を依頼する。他項目を一括の担当不在扱いにしない。
 
+## 固定function operationの最終契約案（独立査読対象・未受理）
+
+POは**この項目に限り**、候補作成に関与しない独立担当の査読後にPOが代替受理する経路を認めた。査読・代替受理は具体的な凍結資産変更の承認ではない。現行の`operation_registration.py`/`operation_registry.py`は表DMLの`Select/Insert/Update`と`tenant_column`を要求し、`_TenantTransaction.run`は生成済みregistryのexact token型、frozen dataclass、capability ID、束縛済み`TenantContext`を検証する。`TenantRepositoryBase.execute`の別scope関数面を試合作成の同一transactionへ流用しない。以下の候補を独立査読に固定する。
+
+| 査読軸 | 最終案と拒否条件 |
+| --- | --- |
+| 登録型・公開入口 | 既存`OperationRegistration`/`PRODUCT_OPERATIONS`/`_TenantTransaction.run`の表DML分岐は変更しない。別のfrozen登録型`FunctionOperationRegistration`をexactな`StageAResolveRuleToken`へ1対1で登録し、`_TenantTransaction.run_function(token)`だけがこれを実行する。registryは起動時に**既存DML集合と横断して**重複ID/型と契約不一致を拒否。最初の登録対象は段階A解決関数1件だけで、管理/大会割当書込関数や任意の関数登録APIは含めない |
+| token不変性・引数 | `StageAResolveRuleToken`は`TenantOperationToken`に従うfrozen/slots dataclassとし、業務入力は`game_type_key: str`、**必須**`tournament_key: str`、`rule_override_present: bool`だけ。tokenには関数名、SQL、capability IDの可変値、tenant ID、規則ID、decoder、Sessionを持たせない。exact型と登録時固定のcapability/function ID・全業務値を**実行直前**に再検証し、未知/派生型、不正値、不一致ID、空/不正keyを拒否する。**同じ型のtokenは呼出側が生成・強制変更できるため、token自体を権限証明とは扱わない**。権限境界は発行済みtenant context、固定registryとDB ACLに置く。`df0db54b`のnullable大会キーはDB署名上の候補であり、U-G1作成入口で`None`成功を許す契約にはしない |
+| tenant束縛とSQL | 既存`tenant_transaction_scope`の同じhandle・Session・transactionだけを使い、`run`と同じ`_state_key`失効検査、`TenantContext` exact型・tenant ID・発行証跡の再検証を**実行直前**に行う。関数専用検査で、**schema修飾した1つの固定関数呼出しだけ**を含むSQLAlchemy `select()`、関数identity、exact bind集合/型、戻り列を**起動時**に照合する。表DML専用`_validate_prepared_statement`を関数へ流用しない。実行時は固定文を再利用して検証済みbind値だけを渡し、汎用`prepare`やcaller提供のSQL引数を設けない。tenant IDを関数引数やtokenから取らず、DBのtenant GUCは既存`_tenant_transaction`だけが設定。callerが`text()`、SQL断片、関数名、戻り型、直接Sessionを渡す経路はない |
+| 戻りdecoder | 実行結果を同一transaction内で全件実体化し、登録時固定decoderが**1行・固定列順/型・許容statusと成功/失敗のnull配置**を検査して既存のexact `TenantOperationResult`へ閉じる。遅延`Result`/ORM/可変dictを返さない。付録Fの値域・相関と`ruleSetId`+5値の唯一の業務codecはステップ2/5の単一実装を再利用し、登録decoderに複製しない。decoder違反/DB例外はscopeを例外終了し、成功扱いしない |
+| 既存DMLと凍結契約 | 既存の表DML registry、`_validate_prepared_statement`、`TenantRepositoryBase.execute`、`TenantOperationResult`の既存許可集合を緩めない。新しい`run_function`/token型と固定登録IDのみを`repository-contract.json`、runtime authz/capability、生成契約、allowlist/履歴の**具体差分**として7.7個別ゲートへ提示する。関数ownerの必要列権限/RLS突破条件、PUBLIC EXECUTE剥奪、appの固定関数EXECUTE、固定`search_path`、関数内のGUC欠損/不正と親大会不整合の拒否は認可面の個別ゲートへ渡す。`run_function`の実装・bypass負例・変更後基線受理はステップ4で行う |
+
+**査読で特に判定する点**: 固定SQLAlchemy文の構造検査を登録時にどの方法で保証するか、`TenantOperationToken`基底の`capability_id`がtoken入力で偽装されないか、関数の`SECURITY DEFINER`/固定`search_path`/EXECUTE対象とscopeのtenant GUCが一致するか、結果の構造decoderと業務codecの責任分界、DML側の既存拒否試験が無変更でgreenか。関数の実名/schema/ownerと凍結JSONのexact差分は認可面・個別7.7ゲートで確定するため、この査読のみで採用しない。
+
+**独立査読結果（候補作成に不関与のCodex、2026-10-14）**: 契約案の現行リポジトリ実装との照合でP0=0、P1=3。P1①同型tokenは生成・強制変更できるためtoken自体を権限証明と呼べない、②表DML用検査では関数SQLの固定性を証明できず、起動時の関数専用構造検査とDML横断重複拒否が必要、③関数owner/RLS/列権限/PUBLIC EXECUTE/GUC拒否は認可面の個別ゲートが未確定、という指摘。①②は上表の最終案へ採用・補正した。③は必要な個別ゲートとして具体化し、承認済み資産とはしない。戻りdecoderと既存DML非緩和の方針は適合との判定。**本査読はPO代替受理の判断材料であり、契約受理・凍結変更承認の代記ではない。**
+
+| ステップ1項目 | 現在の採否 | 完了に残る条件・判断先 |
+| --- | --- | --- |
+| 段階Aの範囲、割当あり拒否、同一transaction全取消、契約/実測分離 | **成立済み**。`24566d72`、`df0db54b`、POのA計画承認 | 実測は後続ステップ。ここを再受理待ちへ戻さない |
+| 割当書込入口 | **追加見送り・閉鎖モデルを採用**（PO）。製品書込関数とapp直接ACLは現行で未確認 | Codex Dと認可面/U-A2が現存する特権/管理入口と配置時排他を最終照合。製品割当書込の実装/試験は要求しない |
+| 規則ID+5値の保存案 | Codex Dが条件付き採用、`df0db54b`で形状を具体化 | data-model正本の6-key/旧行/出所の個別ゲート、U-G1保存mappingの採否 |
+| 公開型・4 failure | `df0db54b`で具体回答。最終literal/外形は未受理 | Codex DとU-G1が必須大会キー、型、非成功時の停止、HTTP写像を最終採否。実HTTP試験はTSK-395ステップ2 |
+| 固定function operation/repository境界 | 上記の**修正後最終案は独立査読済み**（P0=0、P1 3件のうち契約文2件補正、1件を認可ゲートへ分離） | 担当不明のこの項目だけ**POの代替受理判断待ち**。受理後も関数owner/EXECUTE等とrepository-contract/allowlistの具体差分は個別7.7ゲート、実装/負例はステップ4 |
+| F-2配置・正本/認可/凍結ゲート | F-2の5値は確定済み。配置案と7.6/7.3/7.7の対象は整理済み | data-model・認可面/移行所有者による具体差分/運用順の受理と必要な正式正本承認。migration、認可、凍結資産の実変更は未承認 |
+
+**照会先と到着状況**: Codex Dへ閉鎖モデル・型/4 literalの差分をTSK-550コメント`3f993b75-e687-81fc-8035-001d18acc98b`、U-G1へ必須大会キー・保存/HTTPをTSK-395コメント`3f993b75-e687-818c-bfb3-001d79b28346`、認可面へ閉鎖ACL・関数権限・配置時排他をTSK-424コメント`3f993b75-e687-811f-9eea-001d3d158499`、data-modelへ6-key/出所/正式ゲートをTSK-250コメント`3f993b75-e687-817a-aa1f-001d30743b07`、U-A2へ現存管理入口をコメント`3f993b75-e687-8103-b64a-001d867c382c`で照会した。固定operationの担当調整はTSK-390コメント`3f993b75-e687-8121-bcf5-001d36309e9b`。**これらの項目別最終回答はまだ確認できていない**。回答済みの行は再照会していない。
+
 ## 段階 A と段階 B
 
 | 段階 | 成功と拒否の境界 | 現時点 |
