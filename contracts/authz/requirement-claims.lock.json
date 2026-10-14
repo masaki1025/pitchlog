@@ -4,8 +4,8 @@
   "classification_rules_digest": "9e2353f37cd996436a26b32487a7d51421c52484791993c56e9da6c557a30a0e",
   "basis_rules_digest": "4adf829b6fd001aa582e9bd94e7a0170d8b91460afee2557fa4f770c07c2aedc",
   "layer_ids_digest": "8d4eac464984bfc093e708840dfb5e30550792a7ad87119a2e313e53f5ff6e1e",
-  "decision_count": 1406,
-  "aggregate_decision_digest": "65610107273a0ef2476aca9ab50ab52915d20c98c18b7f3f172df20fa1b55511",
+  "decision_count": 1407,
+  "aggregate_decision_digest": "2977fbdd523764a1b65c68b693314ab82fbc548b4c9b350f7053328b9dc18576",
   "decisions": [
     {
       "source_id": "PREAMBLE/frontmatter-001",
@@ -361,15 +361,22 @@
       "source_id": "CHANGELOG/table_row-044",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
-      "source_text_digest": "bea0b5f4a941821403e7882c3fc9fcaaea20141da593be236e4002cc0ab15157",
-      "decision_digest": "0c01299b16f017fb02eed1cbc98d93e0209c88c585c47c60a2512ec91f8d7630"
+      "source_text_digest": "d5098931a48093a5a4f5bd1db1cf014f7adfac33a72f04d59e517837fe9bae9d",
+      "decision_digest": "6690031ff61eb8f882ef5bc652abb2bcf070b08c833f2450f230a94bb6be1a85"
     },
     {
       "source_id": "CHANGELOG/table_row-045",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
-      "source_text_digest": "70f16186c8fa8afb8ee62cd06f4cf675b150d17c8c502c6b9c0730a3e84eb793",
-      "decision_digest": "bbd73ed8ea549c26f4532901da27b5d2de7fffdfc3d8c95a07a43675b313397c"
+      "source_text_digest": "a5b6a9104802ebcd0a7bc89edef7e20593d76b5d0c89918a0838a1b62f5e7385",
+      "decision_digest": "06cf9c789c8a99c1cd8766a856de988aaabf79f4d1499b5eff1c0bf2fdb16cec"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-046",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "source_text_digest": "b68b9dda9f4ae5e64cbb8b8ecbf28123ae40a62dbd8c19a226378ae57367d026",
+      "decision_digest": "ce3164df95c26f5e4e6eb317e6931894ea941bdbb1a950e5fa12c1cd4f9bde0c"
     },
     {
       "source_id": "CHANGELOG/blockquote-001",
@@ -11582,8 +11589,8 @@
       "source_id": "APPENDIX-B/list_item-009",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "0040bcf1e2be03150619606ebf0b06e0006422f86f1b81070a4addab5d03ef4b",
-      "decision_digest": "250960182e9551085a4a76e0e27981afce5a94f583a02b82fcfdbe67b3ff69b5"
+      "source_text_digest": "a557d9e5a6e632d00979dca4b15e654ec31539f9fca1f7bbd7de38ca2aa62521",
+      "decision_digest": "d42b27d9d52e7519c01f1f4069e8c641d242ebfc4c54d346816b3db96a7ceef0"
     },
     {
       "source_id": "APPENDIX-B/list_item-010",
@@ -11603,8 +11610,8 @@
       "source_id": "APPENDIX-B/list_item-012",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "cce53db203b316d190fb999cdc86f881488d5c58313fb7b45868dee17983f4a1",
-      "decision_digest": "48bbc932fc31917dcaaec3f22b0e2db29c12b3fc1f61f22c185a152d07aca8a5"
+      "source_text_digest": "9432a7fa66c214361e0b0d3556e666da487fbd8bdbbfa878ae78f026e934fa39",
+      "decision_digest": "601a0923e592f5a5eabfcfa25ca367d7e7efd16be4916ae6b9adb87140a24c9d"
     },
     {
       "source_id": "APPENDIX-B/list_item-013",
@@ -11617,8 +11624,8 @@
       "source_id": "APPENDIX-B/list_item-014",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "990af6451a9b56f7a027d4f89c7f0ff3efa7f7963e2cad7c2a8cec42b90bb8ac",
-      "decision_digest": "c7d836e049f59a7ce29db0bb127c9359d18f0dbae1c9cca7e7825f7d37c56721"
+      "source_text_digest": "e9bb74857144a4d45d1a53ca5f10dd090fbffd9c95144db564335f360160844a",
+      "decision_digest": "2f81be59a4244921ef262f8b6bfe74b744e14a3e326c198730d28432881e9b51"
     },
     {
       "source_id": "APPENDIX-B/list_item-015",
