@@ -71,7 +71,7 @@
   },
   "asset_kind": "cache_invalidation_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "4a849cd0670d583c6d5a5589fa8e22e94ce9ce86ec6fae2c8c7734eff5a240de",
+  "source_digest": "beaa9f27907dec7bcec2dcb398045ecd8dfb4041dba50dfe5f910b3719dc8a22",
   "source": {
     "document": "docs/design/data-model.md",
     "section": "11-2",
@@ -84,6 +84,7 @@
     "public_symbols": [
       "pitchlog.repositories.cache_invalidation.AnalyticsChartCacheKey",
       "pitchlog.repositories.cache_invalidation.AnalyticsChartSubject",
+      "pitchlog.repositories.cache_invalidation.AnalyticsChartTargetSelector",
       "pitchlog.repositories.cache_invalidation.CacheInvalidationKey",
       "pitchlog.repositories.cache_invalidation.CacheInvalidationRequest",
       "pitchlog.repositories.cache_invalidation.CacheInvalidationTrigger",
@@ -93,22 +94,27 @@
       "pitchlog.repositories.cache_invalidation.MatchCacheKey",
       "pitchlog.repositories.cache_invalidation.MatchChartSubject",
       "pitchlog.repositories.cache_invalidation.PlayerCareerCacheKey",
+      "pitchlog.repositories.cache_invalidation.PlayerCareerTargetSelector",
       "pitchlog.repositories.cache_invalidation.PlayerChartSubject",
       "pitchlog.repositories.cache_invalidation.SharedAggregateCacheKey",
       "pitchlog.repositories.cache_invalidation.SharedAggregateTargetSelector",
       "pitchlog.repositories.cache_invalidation.TeamAggregateCacheKey",
+      "pitchlog.repositories.cache_invalidation.TeamAggregateTargetSelector",
       "pitchlog.repositories.cache_invalidation.build_cache_invalidation_request"
     ],
     "condition4_allowed_call_symbols": [
       "pitchlog.repositories.cache_invalidation.AnalyticsChartCacheKey",
+      "pitchlog.repositories.cache_invalidation.AnalyticsChartTargetSelector",
       "pitchlog.repositories.cache_invalidation.CachePeriod",
       "pitchlog.repositories.cache_invalidation.MatchCacheKey",
       "pitchlog.repositories.cache_invalidation.MatchChartSubject",
       "pitchlog.repositories.cache_invalidation.PlayerCareerCacheKey",
+      "pitchlog.repositories.cache_invalidation.PlayerCareerTargetSelector",
       "pitchlog.repositories.cache_invalidation.PlayerChartSubject",
       "pitchlog.repositories.cache_invalidation.SharedAggregateCacheKey",
       "pitchlog.repositories.cache_invalidation.SharedAggregateTargetSelector",
       "pitchlog.repositories.cache_invalidation.TeamAggregateCacheKey",
+      "pitchlog.repositories.cache_invalidation.TeamAggregateTargetSelector",
       "pitchlog.repositories.cache_invalidation.build_cache_invalidation_request"
     ],
     "owns_trigger_emission": false,
@@ -513,6 +519,26 @@
         "row_discriminator"
       ],
       "row_rules": {
+        "game_delete_restore_or_resume": {
+          "rows_per_changed_game": 5,
+          "scope_ids": [
+            "match",
+            "player_career",
+            "team_aggregate",
+            "shared_aggregate",
+            "analytics_chart"
+          ],
+          "row_discriminator": "game_id:scope_id",
+          "operation_id_per_request": 1,
+          "zero_state_updates_zero_rows": true,
+          "match_key_kind": "match",
+          "selector_scope_ids": [
+            "player_career",
+            "team_aggregate",
+            "shared_aggregate",
+            "analytics_chart"
+          ]
+        },
         "roster_status_change": {
           "rows_per_operation": 1,
           "selector_kind": "shared_aggregate_target_selector",
@@ -538,6 +564,38 @@
       },
       "selectors": [
         {
+          "kind": "player_career_target_selector",
+          "scope_id": "player_career",
+          "python_type": "pitchlog.repositories.cache_invalidation.PlayerCareerTargetSelector",
+          "fields": [
+            [
+              "tenant_id",
+              "uuid.UUID"
+            ]
+          ],
+          "source_unit": "状態を変えたテナントを明示する選択子",
+          "matches": "physical_key_adt.player_career.tenant_id",
+          "applies_to_trigger_ids": [
+            "game_delete_restore_or_resume"
+          ]
+        },
+        {
+          "kind": "team_aggregate_target_selector",
+          "scope_id": "team_aggregate",
+          "python_type": "pitchlog.repositories.cache_invalidation.TeamAggregateTargetSelector",
+          "fields": [
+            [
+              "tenant_id",
+              "uuid.UUID"
+            ]
+          ],
+          "source_unit": "状態を変えたテナントを明示する選択子",
+          "matches": "physical_key_adt.team_aggregate.tenant_id",
+          "applies_to_trigger_ids": [
+            "game_delete_restore_or_resume"
+          ]
+        },
+        {
           "kind": "shared_aggregate_target_selector",
           "scope_id": "shared_aggregate",
           "python_type": "pitchlog.repositories.cache_invalidation.SharedAggregateTargetSelector",
@@ -548,7 +606,27 @@
             ]
           ],
           "source_unit": "(対象テナント)",
-          "matches": "physical_key_adt.shared_aggregate.target_tenant_id"
+          "matches": "physical_key_adt.shared_aggregate.target_tenant_id",
+          "applies_to_trigger_ids": [
+            "game_delete_restore_or_resume",
+            "roster_status_change"
+          ]
+        },
+        {
+          "kind": "analytics_chart_target_selector",
+          "scope_id": "analytics_chart",
+          "python_type": "pitchlog.repositories.cache_invalidation.AnalyticsChartTargetSelector",
+          "fields": [
+            [
+              "tenant_id",
+              "uuid.UUID"
+            ]
+          ],
+          "source_unit": "状態を変えたテナントを明示する選択子",
+          "matches": "physical_key_adt.analytics_chart.tenant_id",
+          "applies_to_trigger_ids": [
+            "game_delete_restore_or_resume"
+          ]
         }
       ],
       "delivery_owner": "unit_that_introduces_the_scope_cache"

@@ -72,7 +72,7 @@
   "asset_kind": "tenant_boundary_runtime_authz_contract",
   "provisional": false,
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "0cafc8beeebe9945872f14172e32b0314101c8287646420f5b840664e7ceff3a",
+  "source_digest": "d3782fa328b79db3fc04f27b783dfbcc0dcd78b72a68f46f16f8fd9f68b18908",
   "application_role": {
     "rolname": "pitchlog_app",
     "attributes": {
@@ -287,13 +287,18 @@
       ],
       [
         "authn",
-        "login",
-        "text, text"
+        "login_attempt",
+        "text, text, text"
       ],
       [
         "authn",
         "logout",
         "uuid"
+      ],
+      [
+        "authn",
+        "observe_rate_limit_counters",
+        ""
       ],
       [
         "authn",

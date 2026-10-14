@@ -8,6 +8,7 @@ import secrets
 import unicodedata
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from importlib.util import resolve_name
 from pathlib import Path
 from typing import Any, cast
@@ -179,10 +180,14 @@ def _client_app(monkeypatch: pytest.MonkeyPatch, store: _PlayerStore) -> FastAPI
     monkeypatch.setattr(
         tenant_context_issuance,
         "verify_tenant_id",
-        lambda value, presentation, engine: {
-            "token-a": _TENANT_A,
-            "token-b": _TENANT_B,
-        }.get(value),
+        lambda value, presentation, engine: (
+            (
+                {"token-a": _TENANT_A, "token-b": _TENANT_B}[value],
+                datetime.now(UTC) + timedelta(hours=1),
+            )
+            if value in ("token-a", "token-b")
+            else None
+        ),
     )
 
     @contextmanager

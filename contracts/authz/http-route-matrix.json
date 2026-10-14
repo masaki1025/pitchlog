@@ -3,9 +3,9 @@
   "asset_kind": "authz_http_route_matrix",
   "input_manifest": {
     "requirement_claims_path": "contracts/authz/requirement-claims.json",
-    "requirement_claims_blob_digest": "dcfb12d0512a7b545a54b0e9f93afe58f1b8667f",
+    "requirement_claims_blob_digest": "75a33a4cc8e0b6d21fceed94d6f333a7f42308cc",
     "requirement_claims_lock_path": "contracts/authz/requirement-claims.lock.json",
-    "requirement_claims_lock_blob_digest": "570a8e43b7be67d8a590e04d446d74d59307c7bc"
+    "requirement_claims_lock_blob_digest": "6f7dbafd7248c9dd8d5da2ee2ac47f0733f57d31"
   },
   "route_classes": [
     "shared_screen",
@@ -428,6 +428,33 @@
       "disposition": "conditional",
       "test_owner": {
         "id": "TSK-217.http-route.HTTP:ROUTE:RECORD:team_records:update",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:AUTH:login:create",
+      "route_id": "ROUTE:AUTH:login:create",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:AUTH:login:create",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:AUTH:logout:create",
+      "route_id": "ROUTE:AUTH:logout:create",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:AUTH:logout:create",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:AUTH:password:update",
+      "route_id": "ROUTE:AUTH:password:update",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "TSK-217.http-route.HTTP:ROUTE:AUTH:password:update",
         "status": "planned"
       }
     }
