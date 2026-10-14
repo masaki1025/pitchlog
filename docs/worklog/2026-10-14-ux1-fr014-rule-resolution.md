@@ -93,3 +93,8 @@
 - 最新developの文書台帳を`e1d9c9b4`で、本体の承認済みdata-model v1.0から派生するmanifest/digestを`61e1e256`で追随済み。先のmanifest試験失敗はこの追随前の結果。統一後の検査結果と、候補作成に関与していない担当の差分確認を別途追記する。ステップ3・公開・マージは行わない。
 - 統一後のbackend対象試験は**42 passed**、Ruff format/check・ty・lock確認、root core-guardは**242 passed**、docs-statusは20文書/違反0。非DB全体の第1試行は共有`/tmp`の容量枯渇でGit複製等に失敗したため無効な環境結果として保持し、他担当の一時領域は削除せず専用`TMPDIR`で再実行した結果は**1420 passed、4 skipped**。最終HEADでの独立差分確認は別途記録する。
 - 候補作成に関与していない独立Codex担当が統一HEAD`b0ea2c13`を読取専用で差分確認。P0/P1/P2なし。採用モジュール1件、`StructuralRuleSnapshot`→単一相関検査→`DomainValidatedRuleSnapshot`→encode、旧行拒否、未裁定cold拒否、出所未証明と保存操作なしを照合。別案からの必要な改善・試験を反映済みと判定。レビュアの変更ファイルは0、計画全体の再審査なし。
+
+## ステップ2完了確認とステップ3着手前ゲート
+
+- POがcodec一本化・`7b82c89e`の検査/独立レビューを確認し、ステップ2完了として記録するよう指示。`plan.md`とClaude向け申し送りへ反映した。ステップ1全体/TSK-550全体は未完了で、出所証明・DB保存・U-G1試合作成成功は未達。codecの再設計・全計画の再審査を行わない。
+- ステップ3の判断資料は既存`step1-canonical-gate-packets.md`と`step1-preflight-dispositions.md`。data-model §3-2/§10-5、認可面の正本ファイル・専用owner/列grant/関数ACLとREAD COMMITTED読取、5 UUIDのF-2配置migration・4一時RLS・保守停止/衝突全取消、A=Alembic/B=既存認可適用器の唯一適用元、変更対象ごとの7.7を個別ゲートへ分ける。§6-5とUUID/機械文字列は既承認のまま。FR-014対DRAW-04のコールド条件は未裁定。計画ステップ3の「関数migration」表現とB適用元の差分は、実装前の最小計画追補として審査する。正式本文・ACL/配置・凍結基準の個別承認前にステップ3製品コードへ進まない。

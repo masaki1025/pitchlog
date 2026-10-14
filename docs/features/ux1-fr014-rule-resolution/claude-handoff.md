@@ -61,3 +61,14 @@ data-model正本所有側/TSK-250にもコメント`3f993b75-e687-81a4-b326-001d
 **統一後検証（同日）**: backendの対象試験42件、Ruff format/check、ty、`uv lock --check`、root core-guard242件、docs-status20文書/違反0が通過。非DB全体の最初の試行は共有`/tmp`枯渇で多数失敗し、製品差分の判定に使わない。別担当の一時ファイルを消さず、専用`TMPDIR`で同じ非DB試験を再実行して**1420 passed、4 skipped**。これを統一後の検査結果とする。独立差分確認はまだ未実施。
 
 **統一差分の独立確認（同日）**: 候補作成に関与していないCodex担当が本体HEAD`b0ea2c13`を読み取り専用で確認し、P0/P1/P2の指摘なし。単一モジュール・公開2段階型、旧行拒否、相関の単一経路、出所未証明/保存成功なし、別案からの必要な試験取り込みを確認した。ファイル変更なし。上段の「未実施」は確認前の時点記録であり、本項を現在地とする。ステップ3・公開・マージは未着手。
+
+**ステップ2完了とステップ3個別ゲート（2026-10-14、PO確認）**: `plan.md`にステップ2だけの完了を記録。最終レビュー対象`7b82c89e`、採用元`8f2d60a4`、統一`b0ea2c13`。以下は[既存の判断用本文・資産差分](step1-canonical-gate-packets.md)と[予備レビュー採否](step1-preflight-dispositions.md)を一本の判断対象として整理した現在地で、**提案を承認済み資産へ読み替えない**。§6-5保存形と5 UUID・2機械文字列は承認済みのまま維持する。
+
+| ステップ3前の個別ゲート | 最終差分・未承認事項 | 採否担当 |
+| --- | --- | --- |
+| data-model正本 | §3-2に専用`pitchlog_rule_resolution_fn_owner`を加えるなら6→7ロールの見出し・表・総数を一致させる。§10-5へF-2出所付き全体既定と大会割当あり拒否を追加。§6-5はapprovedで再審査しない。FR-014とDRAW-04のコールド条件不整合は保存成功前に裁定する | TSK-250所有側、要件裁定はPO。必要な版改訂は7.6判定後の独立7.3・人間承認 |
+| 認可面正本・関数 | feature設計ではなく`docs/design/`の正本（新設`product-authz-surface.md`案）を一意に指定。読取専用`public.resolve_stage_a_rule(text,text,boolean)`1件、専用NOLOGIN/BYPASSRLS owner、固定search_path、PUBLIC EXECUTE剥奪/app限定EXECUTE、READ COMMITTED・VOLATILE・親ロック後の別SQL割当照会、GUC偽装の残余脅威を本文へ。ownerと列grantは未承認 | TSK-424認可面・tenant境界所有側、PO。独立7.3・人間承認と具体ACLゲート |
+| F-2配置A | 既承認5 UUID/5値を既存5区分へ固定し、Alembicで出所付き配置。`pitchlog_owner`限定4一時RLSポリシーを同一transactionで作成/撤去し、既存候補1件でも衝突停止、全失敗rollback、事後RLS/ACL exact照合。保守停止、物理DELETE downgradeなし。migration本文・一時RLS・適用運用は未承認 | data-model/移行所有側、TSK-424認可面、運用判断はPO。個別配置・RLSゲート |
+| 認可適用B・凍結 | 関数DDL/owner/EXECUTE/最小列ACLはAlembicと二重管理せず既存`application-steps.json`の単一transaction適用器を唯一の候補とする。ownerの親`UPDATE(disabled)`だけが行ロック用候補、他3表は列SELECT/通常SELECT。A成功/B失敗では作成を公開しない。`ddl-elements.json`/capability/function body/露出資産、runtime authz、必要なallowlist/履歴を差分と7.7で個別受理する。`repository-contract.json`等の固定実行器はステップ4ゲートへ残す | 認可面・tenant境界/移行所有側とPO。現行planの「関数migration」はBの唯一適用元に合わせる最小追補の審査が必要 |
+
+ステップ3の正本7.3・配置/ACL個別承認・7.7の変更後基準は未成立。規則行の出所証明・DB保存・U-G1試合作成成功は未完了。実関数2接続/故障注入は実装後のステップ3〜6、U-G1実HTTP/RG1/全取消はTSK-395ステップ2で確認する。
