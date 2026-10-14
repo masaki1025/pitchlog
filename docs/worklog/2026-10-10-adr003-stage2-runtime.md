@@ -121,3 +121,16 @@ branch: feature/adr003-stage2-runtime
 - **ステップ 27 へ**: ADR-003 D-11 の本文が `gameEndAxes[]` を規則の 4 項目として列挙している → 派生軸(成立段数)の位置づけを D-8 の改訂と一緒に起案する
 - **ゲート ⑥(逐行確認)で問う**: 成立段数の範囲外(−1・17)の期待値に、規則設定の検証エラー `reject-invalid-rule-setting` を流用している。成立段数は利用者が入れる設定ではなく派生値なので、この名前で正しいか。設定段数を上回る成立段数の扱いもあわせて確かめる
 - 委任中に /tmp(tmpfs)が満杯になり(他タブの残骸)、Codex が全件試験の途中で止まった。TMPDIR をディスクに向けて全件を回し直した: **72 failed** で、すべて既知(凍結 corpus・authz の再封印・core_guard の基準ずれ)。前回の 75 件からの新規は 0
+
+### develop の取り込みとステップ 27(2026-10-14)
+
+- develop(`b81ae1ac` — #128 ADR-003 v0.6・#127 U-F5)を取り込んだ(`d38fbd28`)。衝突は core-areas.json・core_guard.py・test_core_guard.py の 3 つ。宣言は本ブランチの D-2 分を採り、U-F5 の登録は develop の基準として扱った(test_core_guard 257 passed)。凍結 corpus・authz の連鎖は #119 の着地後にまとめて直す(取り込み回数を増やさない)
+- ADR-003 を改訂する未マージ PR は本 PR のほかに無い(実測)。版は v0.7(暫定)
+- **ステップ 27 の起案の要点**(ADR-003 v0.7・in-review):
+  - **派生軸**を D-11 に定義した。他の入力から条文で一意に定まる値を、前提条件で参照するための軸。導出元と矛盾する組合せは到達不可として宣言する。範囲外の値は不正入力の期待拒否にしない → ステップ 26 の `gameEnd.satisfiedColdTierCount` の範囲外 2 件(`reject-invalid-rule-setting`)は**承認後に直す**(ゲート ⑥ で問う予定だった点を、先に条文で決めた)
+  - S16: 履歴文脈の**先頭の差分**を入力軸にする(D-6 は要素が種別と差分を持つと既に定めている。descriptor が差分の次元を欠いていた)。`undoRows[].stateEffect` は差分の逆適用(`delta` は符号反転、`set` は変化前の値)
+  - S15: タイブレーク開始の payload の中身を代表値へ分割し、発動回の条件は派生軸で表す。委任した制約クラス 8 ID は変えない
+  - S17: `targetKind` に `"none"`。`"none"` ⇔ `nothing-to-undo` ⇔ 深さ 0 の 3 つが同値。あわせて `operationResult` 列と `stateEffect` の操作結果の一致を定めた(付録E design のステップ 65 が残した穴)
+  - S18: `XC-09` の「深さ」を「シナリオ長」へ。`liveness-only` の行は `operationResult = applied` と `pops = 1` だけを比較し、`stateEffect` は比較しない(全面 `unchanged` に固定し、主張でないことを `remarks` に書く)
+  - S20(状況判定側): `matrixRows` に列を足さない。派生軸「サヨナラ文脈」を前提条件に置き、E-1 の既存列(到達塁・打者の行き先・成績計上フラグ)で決勝点までの計上を書く。**計画書の「得点上限の列」は、列を足さない形に変えた**(E-1 は要件書の正で、改訂しない方針 D6・D7 と両立させるため)
+- 要件書・sync-protocol.md は触らない(規範行の 3 層は不変)。三点突合・文書の検査は緑
