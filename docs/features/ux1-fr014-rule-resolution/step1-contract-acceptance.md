@@ -25,20 +25,20 @@
 
 ### 規則 ID と値の保存
 
-`games.applied_rules` は非 NULL JSONB で、ORM 型は `dict[str, object]`。現行の製品コードにはこの列の decoder や確定済み JSON schema がなく、試験 seed は `{}` も挿入する。データモデル 6-5 は値の保存と非遡及を要求し、JSONB を適切な候補としている。したがって**列追加を推奨しない**。段階 A で新規作成する行について、既存 `rule_sets` の列名に合わせた次のオブジェクトを `applied_rules` に一体保存する案を U-X1 と U-G1 に提示する。これは受理候補であり、既存 `{}` 行を有効な解決済み規則とみなす意味ではない。
+`games.applied_rules` は非 NULL JSONB で、ORM 型は `dict[str, object]`。製品 decoder はまだ無く、試験 seed は `{}` も挿入する。データモデル 6-5 は値の保存と非遡及を要求し、JSONB を候補とする。`a1c11248` の snake_case 案は、Codex D が `24566d72` で指摘した既存の凍結5値 schema（`contracts/state-transition/game_end_contract_schema_v1.json` の `$defs.ruleSnapshot`）との不一致により**取り下げる**。段階 A の新規作成行には、同 schema の camelCase 5値へ規則 ID を1つ加えた次の形を推奨する。専用ゲーム列は追加しない。`{}` を解決済み規則へ補完しない。
 
 ```json
 {
-  "rule_set_id": "UUID文字列",
-  "regulation_innings": 9,
-  "called_game_conditions": [],
-  "extra_innings_limit": null,
-  "tiebreak_rule": null,
-  "uses_dh": false
+  "ruleSetId": "UUID文字列",
+  "regulationInnings": 9,
+  "coldConditions": [],
+  "extensionLimit": null,
+  "tiebreak": null,
+  "dh": false
 }
 ```
 
-例示値の `9` 等は規則の既定値ではない。実際は読んだ規則の ID と付録 F で検証済みの**全5値**を同一読取時点から格納する。`rule_override` は入力上書き用の別列であり、段階 A は上書き指定を拒否する。新規行の読み手は ID と5値の存在・型を検証してから使い、旧 `{}` 行は別途判定する。現状、製品の既存 decoder との衝突は見つからないが、U-G1 保存・後続 U-X1 計算側の受理と JSON 形状の正本明記は必要。列索引を使う検索要件や既存利用側の固定形が新たに示されない限り、専用 ID 列は追加しない。採用時には計画ステップ 2 の「帰属列」だけを残し、`games` 列追加ではなく JSON 形状と検証試験へ追補する。計画変更の規約判定・レビューはステップ 2 着手前に行う。
+例示値の `9` 等は規則の既定値ではない。実際は読んだ規則の ID と付録 F で検証済みの**全5値**を同一読取時点から格納する。上位6 keyを exact-set とし、ID は canonical UUID 文字列、残る5 keyだけを既存 `$defs.ruleSnapshot` で検証する。`ruleSetId` を未知 key のまま既存 schema に流して拒否を回避しない。Python の `bool` を整数として受理しないこと、schema 後の付録 F 相関検証、encode/decode round-trip、旧 `{}` の拒否を契約試験にする。`rule_override` は入力上書き用の別列であり段階 A は指定を拒否する。U-G1 保存・後続 U-X1 計算側の受理と JSON 形状の正本明記は必要。列検索要件や既存利用側の固定形が新たに示されない限り、専用 ID 列は追加しない。帰属列も段階 A で不要と受理された場合は、計画ステップ 2 の migration 前提を追補する。
 
 ### 全体既定の帰属・変更権限
 
@@ -71,6 +71,38 @@
 3. U-G1/TSK-395: ID+5値の保存、対象外・失敗の HTTP 外形、同一 scope での作成/全取消を消費側として受理。実経路試験は別途実施。
 
 上記は**提案**。独立担当の指名は済んだが、契約の最終受理、既存行判断、必要な正本/認可/凍結ゲートが済むまでステップ 1 は未達。`feature_status` の「不明」は作業ログに残し、本件のためのハーネス改修は行わない。
+
+## `24566d72` の差分受理への回答と次の差分
+
+Codex D の差分受理原本 `docs/features/ux1-fr014-rule-resolution/delta-acceptance-a1c11248.md` は別 branch の `24566d72` にある。現 branch の本節は原本を代記せず、担当案への採否と次の作業を記す。
+
+| 指摘 | 当担当の採否・訂正 | 次の具体差分 |
+| --- | --- | --- |
+| 既存 `$defs.ruleSnapshot` と snake_case 案が不一致 | **採用**。上記を `ruleSetId` + 既存 camelCase 5値へ訂正。JSONB 内保存は維持。凍結5値 schema 自体を変更しない | `data-model.md` §6-5 に保存 shape/旧行拒否を具体本文として起案。codec の exact-set/UUID/型/相関/round-trip は計画ステップ2の候補。独立受理と正本ゲートの後に実装 |
+| 共通ロック順の全書込入口、親不在・無効化・解除が未定 | **採用**。親行がない/無効/大会以外なら成功しない。親作成は INSERT 自体の順序、親無効化は先に同じ行の更新ロック。割当の物理 DELETE は禁止し、現 schema では論理解除不能なので段階Aで解除操作を設けない | 段階A解決、全体既定/RuleSetの管理、割当 INSERT/UPDATE の閉じた入口一覧と、親→割当→既定→規則→game/RG1 の順を認可面・U-G1/U-R1と受理。現在は3規則表の製品書込関数が無い。実装する入口の範囲は下のPO選択で決める |
+| 固定 function operation は条件付き採用 | **採用**。現行 `OperationRegistration` へ任意SQLを混ぜない。scope内で function ID、引数 schema、不変 decoder を固定する専用登録種別を候補とする | `operation_registration.py` / `operation_registry.py` / `transaction.py` と `repository-contract.json` の exact 差分を起案し、tenant境界所有者・認可面所有者の受理、7.7受理単位を確定。実装・bypass負例はステップ4 |
+| 成功型・失敗 literal・全取消が未確定 | **採用**。`resolve_stage_a_rule(bound_transaction, request)` と frozen `AppliedRuleSnapshot(rule_set_id: UUID, regulation_innings: int, cold_conditions: tuple, extension_limit: int | None, tiebreak, uses_dh: bool)` を候補とする。request は `game_type_key`・必須の `tournament_key`・上書き有無で、任意 tenant ID を取らない。U-G1 の `games.tournament_key` は非NULLなので「大会キーなし成功」は作成経路にない | 公開失敗 literal 候補を `stage_a_unsupported` / `rule_not_available` / `invalid_rule` / `outcome_unconfirmed` の4つに固定して U-X1/U-G1 へ提示。前二者の内部原因は外部へ漏らさず、失敗時は scope 例外退出で全取消。HTTP status/本文は U-G1 が別受理 |
+| 2接続・故障注入の実測が無い | **採用。ただし時点を分離**。実関数・実scope・実ゲーム INSERT が未実装のステップ1で実経路証跡を合格条件にすると循環する | ステップ1で試験の操作・期待結果・DB役割・所有者を受理。関数/ACLの実DB検査はステップ3、登録/bypassは4、解決の2接続は6、U-G1 HTTP/RG1/保存全取消は TSK-395 ステップ2で実測。生SQL probe は設計根拠に限り製品証跡としない |
+
+**現行の書込面**: `pitchlog_app` は `game_type_rule_defaults` の SELECT のみを持ち、`rule_sets` と `tournament_rule_assignments` の直接 ACL はない。3表の製品書込関数・規則初期値の製品 seed も見当たらない。`pitchlog_management_fn_owner` は存在するが、規則関数の所有・EXECUTE は未登録。従って「既存の管理書込関数がロック順を満たす」とは記録できない。既存の規則行が存在する環境では、参照関係だけで作成主体を推定せず、承認された出所の証跡が無ければ段階A成功へ使わない。実データの既定値も推定で作らない。管理経路で規則を設定可能にするか、承認済みの実規則を配置する仕組みが着地するまで、U-G1 は候補なしを保存成功へ変換しない。
+
+**全書込経路の契約候補（製品関数は現時点で不存在）**:
+
+| 経路 | callerと取得順 | 段階Aでの扱い |
+| --- | --- | --- |
+| 規則セット作成・5値更新 | 認証済み管理経路のみ。作成は検証後INSERT、既存行更新は既定対応に結ばれていれば既定対応行→規則行、単独更新は規則行 `FOR UPDATE` のみ。単独更新後に親/既定対応を後取りしない | 既存行の出所が不明なら成功へ用いない。関数/ACL/監査と値検証は個別ゲート |
+| 区分既定の設定・差替え | 認証済み管理経路のみ。対象既定行 `FOR UPDATE`→旧/新規則行をUUID昇順でロック。対応行が未作成なら候補なしの作成側失敗を許し、管理側だけが保護されたINSERTを行う | チーム経路に表書込/管理関数EXECUTEを付与しない。全体既定へ結ぶ規則の出所を管理作成/承認済み配置の証跡で確かめる |
+| 大会割当 INSERT/UPDATE | 認証済み自テナント経路のみ。大会親行 `FOR UPDATE`→割当行→参照規則行。親不在/disabled/別categoryは拒否し、他テナント/任意規則IDの結付けを拒否 | 段階Aのresolverは割当行があれば拒否。書込関数を段階Aへ含めるかはPO選択。物理DELETE・解除は実装しない |
+| 大会親行作成・無効化 | 自テナント語彙経路。作成は同じ transaction で親INSERTが先、後続の割当入口はその後。無効化は対象親行の更新ロックを取り、後から規則資源へ触れるなら同じ全順序 | 親不在/無効をresolverは `rule_not_available`。親作成の未コミット行を見えない場合も作成成功にしない |
+| 段階A解決とU-G1作成 | scope束縛→大会親行 `FOR UPDATE`→割当存在判定→区分既定行 `FOR SHARE`→規則行 `FOR SHARE`→検証済みsnapshot→game INSERT→RG1直前ゲート→commit | 規則資源のロックはcommit/rollbackまで保持。U-G1/U-R1の他資源を含む順序は消費側受理で一本化 |
+
+新規の管理/割当関数を実装する場合は、上表に対応する固定 signature、owner、EXECUTE role、失敗結果、監査境界を認可面側と受理してから製品へ入れる。既存 migration/特権接続は通常の製品書込入口ではなく、運用変更として別の権限・データ出所確認を要する。
+
+**実装前に確定する契約**: (1) JSON shape、旧行の拒否、単一 codec と検証の境界、(2) 公開関数/入力/成功型/4 failure literal、例外退出と U-G1 の応答外形、(3) 閉じた書込入口・caller/owner/ACL、親不在/作成/無効化/解除の意味、全ロック順とロック保持期間、(4) function operation の固定登録と tenant context 注入・任意SQL拒否、(5) schema/正本/7.7の変更対象と担当受理。ここで求めるのは**契約とゲートの受理**であり、未実装のDB挙動が合格したという主張ではない。
+
+**実装後に提出する証跡**: 2接続 PostgreSQLで割当 INSERT/UPDATE の先行・後行と rollback、親作成/無効化、既定/RuleSet並行更新、別tenant、lock timeout/deadlock/serialization failure、解決後とgame INSERT後の故障注入を、実関数・登録済み scope と U-G1 作成経路で検証する。IDと5値の同一読取、全取消、無条件再送0回、直接表/任意関数/偽造token拒否を確認する。試験コード・DBログ・実行HEADを保存し、ステップ1の受理記録へ後から遡及して「当時実施済み」と書かない。
+
+**現在地**: 独立担当の指名と `24566d72` の差分判定は確認済み。上記4 literal・全入口・登録境界は**受理候補**であり、最終受理と個別正本ゲートはまだない。計画ステップ1は未合格、ステップ2以降の製品コードは未着手。[最小追補案](step1-gate-addendum-proposal.md)で循環とステップ2の帰属列前提を扱う。RG1①〜⑤は U-G1 `79e3da4a` で受理済み。U-R1 の RG1/D4 分割追補は承認済みだが、資源の個別承認と U-S1 受理は別。D4台帳は未承認で `preparing` 作成条件に含めない。
 
 ## 受理状態とゲート
 
