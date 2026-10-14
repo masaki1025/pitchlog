@@ -1,7 +1,7 @@
 ---
 feature: core-guard-uf5-postmerge-tests
 status: active
-承認: 未
+承認: 済(2026-10-14・利用者、計画コミット30a1b2deとステップ1を承認)
 重さ分類: コア領域
 worktree: /home/ymdms/projects/pitchlog-worktrees/fix-core-guard-uf5-postmerge-tests
 branch: fix/core-guard-uf5-postmerge-tests
@@ -76,4 +76,4 @@ PR #127 は `b81ae1ac` で `develop` に統合済みである。最新 `origin/d
 
 第1周は P0 0 / P1 3 / P2 1で否決。全件採用し、固定件数を持つ補助関数・登録試験、後続の宣言済み登録と未宣言拒否の分離、既存RLS・ADR-001・U-M1・U-F2の保持、U-F6の領域と全領域の相対順、正本の「反映なし」宣言を追記した。
 
-第2周は第1周の反映差分と影響節を確認し、可決 P0 0 / P1 0 / P2 0。利用者による実装計画承認は未実施であり、承認前に試験コードへ進まない。
+第2周は第1周の反映差分と影響節を確認し、可決 P0 0 / P1 0 / P2 0。利用者は2026-10-14に計画コミット`30a1b2de`とステップ1を承認した。
