@@ -49,7 +49,7 @@ CONTRACTS = {
 DESCRIPTOR_ID = "pitchlog.input-axes"
 DESCRIPTOR_VERSION = "input_axes_descriptor_v1"
 DESCRIPTOR_DIGEST = (
-    "sha256:ca421500e9eabf1ad6891884178d309c1d3dfae4f6c03628a4d6c7fe996b84da"
+    "sha256:db3e1bce1876f2d36b873ad3d706819ae9e6cacfa8734ffb165fb7ea4068ff5c"
 )
 DEPENDENCY_OID = "b8fd5fe73e85ae80b3aa82b28bef7f2911f29b12"
 DEPENDENCIES = {

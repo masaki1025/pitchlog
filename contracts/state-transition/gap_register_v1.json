@@ -48,6 +48,7 @@
       ],
       "rowIds": [
         "decisionRows:COLD-08",
+        "decisionRows:COLD-09",
         "decisionRows:GAME-END-NORMAL"
       ],
       "fixtureCaseIds": [
@@ -57,7 +58,7 @@
       "generatedCaseSelector": {
         "sourcePath": "contracts/state-transition/game_end_contract_v1.json",
         "rowOwnerGapId": "GAP-03",
-        "caseCount": 68
+        "caseCount": 102
       }
     },
     {

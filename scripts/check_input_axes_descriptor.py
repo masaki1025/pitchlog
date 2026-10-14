@@ -1111,7 +1111,7 @@ def _validate_game_end_contract(
     }
     if axis_fields != criteria.game_end_axis_fields:
         raise DescriptorCheckError(
-            "gameEndAxesの4軸またはF-1フィールド帰属がexact-set不一致"
+            "gameEndAxesの軸またはF-1フィールド帰属がexact-set不一致"
         )
     required_supporting_clause = _expected_string(
         criteria, "gameEndAxisSupportingClauseId"

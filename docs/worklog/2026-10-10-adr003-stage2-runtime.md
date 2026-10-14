@@ -112,3 +112,12 @@ branch: feature/adr003-stage2-runtime
 - master の指摘: core_guard の同一コミット規則は `git diff-tree`(`-m`/`-c` なし)なのでマージコミットを検査しない — 本 PR は規則どおり 2 段に分けているが、機構の保証ではない(台帳候補として master が起票先を探す)
 - **山田さんの承認(2026-10-14)④**: トリガー 11(manifest の登録要件)も `manifest.schema.json` を証拠にしており、判定「発火しない」(2026-09-18)は不変として再確認を追記・証拠の digest を更新
 - ステップ 7 の設計の見落とし: `backend/src/pitchlog/domainrt/node_host.mjs` が tenant boundary の検査器(backend/src の非 Python を fail-closed で拒否 — TB000)に当たった。ホストスクリプトを `.py` の定数にして `node --eval` で起動する形へ是正
+
+### ステップ 26(2026-10-14)— S19 成立段数の軸
+
+- 新しい軸 `gameEnd.satisfiedColdTierCount`(成立した段の数 0〜16。典拠は要件書 F-1 の COLD-07〜09)。`gameEndAxisFields` の受理記録を `freezeBaseline.history[]` に 1 件追記(#131・山田正輝・2026-10-14)
+- COLD-09 の行: 設定 2 段・成立 2 段 → `cold-end`。検知・入力ロック・終了宣言の促しは真、自動終了は偽(要件書 1652・1654 行と照合)。終了判定の case は 180 → 214
+- 到達不可(A+B)は 2,803 → 3,097 に**増えた**: 軸の追加で requiredSet の直積が広がったため(行の追加で減った分を上回った)。S28 の縮小(ステップ 23)の後退ではない
+- **ステップ 27 へ**: ADR-003 D-11 の本文が `gameEndAxes[]` を規則の 4 項目として列挙している → 派生軸(成立段数)の位置づけを D-8 の改訂と一緒に起案する
+- **ゲート ⑥(逐行確認)で問う**: 成立段数の範囲外(−1・17)の期待値に、規則設定の検証エラー `reject-invalid-rule-setting` を流用している。成立段数は利用者が入れる設定ではなく派生値なので、この名前で正しいか。設定段数を上回る成立段数の扱いもあわせて確かめる
+- 委任中に /tmp(tmpfs)が満杯になり(他タブの残骸)、Codex が全件試験の途中で止まった。TMPDIR をディスクに向けて全件を回し直した: **72 failed** で、すべて既知(凍結 corpus・authz の再封印・core_guard の基準ずれ)。前回の 75 件からの新規は 0

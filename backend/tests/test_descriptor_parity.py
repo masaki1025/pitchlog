@@ -67,6 +67,16 @@ def _game_axis(schema: dict[str, object], name: str) -> dict[str, object]:
     return cast(dict[str, object], properties[name])
 
 
+def _satisfied_tier_axis(schema: dict[str, object]) -> dict[str, object]:
+    """派生入力座標へ射影した成立段数軸を取得する。"""
+    defs = cast(dict[str, object], schema["$defs"])
+    normalized = cast(dict[str, object], defs["normalizedCase"])
+    properties = cast(dict[str, object], normalized["properties"])
+    coordinate = cast(dict[str, object], properties["inputCoordinate"])
+    axes = cast(dict[str, object], coordinate["properties"])
+    return cast(dict[str, object], axes["gameEnd.satisfiedColdTierCount"])
+
+
 def _reject(
     tmp_path: Path,
     loaded: LoadedHandoff,
@@ -160,6 +170,17 @@ def test_value_range_drift_is_rejected(
     mutate: Callable[[dict[str, object]], None],
 ) -> None:
     """境界集合と JSON Schema の実制約のずれを拒否する。"""
+    _reject(tmp_path, loaded, GAME_SCHEMA, mutate, "VALUE_RANGE")
+
+
+def test_satisfied_tier_count_range_drift_is_rejected(
+    tmp_path: Path, loaded: LoadedHandoff
+) -> None:
+    """成立段数の実制約がdescriptorの0〜16からずれると拒否する。"""
+
+    def mutate(schema: dict[str, object]) -> None:
+        _satisfied_tier_axis(schema)["maximum"] = 15
+
     _reject(tmp_path, loaded, GAME_SCHEMA, mutate, "VALUE_RANGE")
 
 

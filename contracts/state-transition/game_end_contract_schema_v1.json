@@ -18,10 +18,15 @@
       "GAME-END-LIMIT-DRAW",
       "GAME-END-TIEBREAK-CONTINUE",
       "COLD-08",
+      "COLD-09",
       "GAME-END-WALK-OFF"
     ],
     "branchClassificationOverrides": {
       "COLD-08": {
+        "branchKind": "requirement-branch-row",
+        "coverageKind": "normative-case"
+      },
+      "COLD-09": {
         "branchKind": "requirement-branch-row",
         "coverageKind": "normative-case"
       }
@@ -32,6 +37,7 @@
       "GAME-END-LIMIT-DRAW": "limit-draw",
       "GAME-END-TIEBREAK-CONTINUE": "tiebreak-continue",
       "COLD-08": "cold-end",
+      "COLD-09": "cold-end",
       "GAME-END-WALK-OFF": "walk-off"
     },
     "outcomeSourceClauseIds": {
@@ -47,6 +53,7 @@
     "allowedAxisIds": [
       "gameEnd.regulationInnings",
       "gameEnd.coldConditions",
+      "gameEnd.satisfiedColdTierCount",
       "gameEnd.extensionLimit",
       "gameEnd.tiebreak",
       "state.inning",
@@ -133,7 +140,23 @@
         "caseId": {"type": "string", "minLength": 1},
         "branchId": {"type": "string", "minLength": 1},
         "rowRef": {"type": "object"},
-        "inputCoordinate": {"type": "object"},
+        "inputCoordinate": {
+          "type": "object",
+          "required": ["gameEnd.satisfiedColdTierCount"],
+          "properties": {
+            "gameEnd.satisfiedColdTierCount": {
+              "description": "F-1 COLD-07〜09。確定プレイ後に成立したコールド段の件数。規則設定の段数と区別する。",
+              "x-pitchlog-axis-id": "gameEnd.satisfiedColdTierCount",
+              "x-pitchlog-axis-classification": "boundary-partition",
+              "x-pitchlog-coverage-bounds": [{"dimension": "satisfiedTierCount", "minimum": 0, "maximum": 16}],
+              "x-pitchlog-boundary-values": [0, 1, 2, 16],
+              "x-pitchlog-invalid-boundary-values": [-1, 17],
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16
+            }
+          }
+        },
         "decision": {"$ref": "#/$defs/gameEndDecision"},
         "raw": {"type": "object"},
         "normalizationRuleId": {"enum": ["identity", "game-end-result-display-name-to-id"]},
@@ -279,7 +302,7 @@
           "const": "input_axes_descriptor_v1"
         },
         "digest": {
-          "const": "sha256:ca421500e9eabf1ad6891884178d309c1d3dfae4f6c03628a4d6c7fe996b84da"
+          "const": "sha256:db3e1bce1876f2d36b873ad3d706819ae9e6cacfa8734ffb165fb7ea4068ff5c"
         }
       }
     },
@@ -342,6 +365,7 @@
           "x-pitchlog-boundary-values": [
             "tier-count:0",
             "tier-count:1",
+            "tier-count:2",
             "tier-count:16",
             "point-difference:1",
             "point-difference:M-1",

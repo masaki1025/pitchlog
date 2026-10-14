@@ -96,6 +96,9 @@ def _fixture_predicate_holds(
     """
     operator = predicate["op"]
     if operator == "eq":
+        # 既存の手作業fixtureは凍結中の4軸射影であり、新軸は生成caseで照合する。
+        if predicate["axisId"] == "gameEnd.satisfiedColdTierCount":
+            return True
         actual = coordinate[predicate["axisId"]]
         expected = predicate["value"]
         return type(actual) is type(expected) and actual == expected
@@ -156,7 +159,9 @@ def _validate_manual_fixtures(
     )
     allowed_axes = set(contract_schema["x-pitchlog-decision-row-references"]["allowedAxisIds"])
     assert set(schema["$defs"]["inputCoordinate"]["required"]) <= allowed_axes
-    assert set(schema["$defs"]["inputCoordinate"]["properties"]) == allowed_axes
+    assert set(schema["$defs"]["inputCoordinate"]["properties"]) == (
+        allowed_axes - {"gameEnd.satisfiedColdTierCount"}
+    )
     assert set(schema["$defs"]["decision"]["required"]) == set(
         contract_schema["$defs"]["gameEndDecision"]["required"]
     )
@@ -559,7 +564,7 @@ def test_cold_row_mutations_are_red(mutation: str) -> None:
             for leaf in _decision_leaves(cold_row["precondition"])
             if leaf["axisId"] == "gameEnd.coldConditions"
         )
-        leaf["value"] = "tier-count:2"
+        leaf["value"] = "tier-count:3"
     with pytest.raises(AssertionError):
         _validate_decision_references(contract)
 
@@ -579,6 +584,7 @@ def test_walk_off_row_is_bound_to_fifth_role_and_fr005() -> None:
     assert {leaf["axisId"]: leaf["value"] for leaf in _decision_leaves(row["precondition"])} == {
         "gameEnd.regulationInnings": 9,
         "gameEnd.coldConditions": "tier-count:0",
+        "gameEnd.satisfiedColdTierCount": 0,
         "gameEnd.extensionLimit": "finite:R+1",
         "gameEnd.tiebreak": "none",
         "state.inning": "R",
@@ -657,11 +663,10 @@ def test_rule_snapshot_allows_explicit_none_and_empty_cold_conditions() -> None:
 
 
 def test_all_descriptor_game_end_targets_are_projected_exactly_once() -> None:
-    """gameEndAxes4件を境界注釈とともにexact-set射影する。"""
+    """終了規則と成立段数の5軸を境界注釈とともにexact-set射影する。"""
     schema = _schema()
     descriptor = _descriptor()
-    rule_snapshot = schema["$defs"]["ruleSnapshot"]
-    projected = _projection_annotations(rule_snapshot, "x-pitchlog-axis-id")
+    projected = _projection_annotations(schema, "x-pitchlog-axis-id")
     expected = {axis["axisId"]: axis for axis in descriptor["gameEndAxes"]}
 
     assert set(projected) == set(expected)

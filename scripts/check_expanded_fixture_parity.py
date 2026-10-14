@@ -15,6 +15,7 @@ import expand_state_transition_cases
 
 ROOT = Path(__file__).resolve().parents[1]
 MAPPING_PATH = Path("contracts/state-transition/branch_row_mapping_v1.json")
+SATISFIED_COLD_AXIS = "gameEnd.satisfiedColdTierCount"
 
 
 class FixtureParityError(ValueError):
@@ -44,6 +45,17 @@ def _assert_equal(branch_id: str, field: str, fixture: Any, expanded: Any) -> No
         raise FixtureParityError(
             f"{branch_id}: {field} 不一致: fixture={fixture!r}; expanded={expanded!r}"
         )
+
+
+def _legacy_game_end_coordinate(
+    fixture: dict[str, Any], expanded: dict[str, Any]
+) -> dict[str, Any]:
+    """凍結済み手作業fixtureに無い成立段数軸だけを比較から除く。"""
+    if SATISFIED_COLD_AXIS in fixture:
+        return expanded
+    if set(expanded) - set(fixture) != {SATISFIED_COLD_AXIS}:
+        return expanded
+    return {key: value for key, value in expanded.items() if key != SATISFIED_COLD_AXIS}
 
 
 def check_documents(
@@ -115,9 +127,10 @@ def check_documents(
         expanded = expanded_by_branch.get(branch_id)
         if expanded is None:
             raise FixtureParityError(f"対応する展開結果がない: {branch_id}")
-        _assert_equal(
-            branch_id, "inputCoordinate", case["inputCoordinate"], expanded["inputCoordinate"]
-        )
+        coordinate = expanded["inputCoordinate"]
+        if entry["fixtureRelation"] == "decision-output":
+            coordinate = _legacy_game_end_coordinate(case["inputCoordinate"], coordinate)
+        _assert_equal(branch_id, "inputCoordinate", case["inputCoordinate"], coordinate)
         output_field = "decision" if entry["fixtureRelation"] == "decision-output" else "expected"
         _assert_equal(branch_id, output_field, case[output_field], expanded[output_field])
         matched += 1

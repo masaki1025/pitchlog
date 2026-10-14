@@ -755,7 +755,7 @@ def _fixed_game_end_values(
 
     visit(row["precondition"])
     if set(fixed) != axis_ids:
-        raise RequiredSetCoverageError("decisionRowsが終了規則4軸を固定しない")
+        raise RequiredSetCoverageError("decisionRowsが終了規則軸を固定しない")
     return fixed
 
 
@@ -764,6 +764,8 @@ def _game_end_requirement_impossible_pairs() -> dict[tuple[str, ...], tuple[str,
     regulation = "gameEnd.regulationInnings"
     extension = "gameEnd.extensionLimit"
     tiebreak = "gameEnd.tiebreak"
+    configured = "gameEnd.coldConditions"
+    satisfied = "gameEnd.satisfiedColdTierCount"
     rules = (
         (regulation, 99, extension, "finite:R+1", ("req:F-1",)),
         (regulation, 99, tiebreak, "start:R+1", ("req:DRAW-03",)),
@@ -773,6 +775,13 @@ def _game_end_requirement_impossible_pairs() -> dict[tuple[str, ...], tuple[str,
         (extension, "finite:R", tiebreak, "start:L", ("req:DRAW-03",)),
         (extension, "finite:R", tiebreak, "start:99", ("req:DRAW-03",)),
         (extension, "none", tiebreak, "start:L", ("req:F-1",)),
+        # F-1 COLD-07〜09: 成立段数は設定した段数を超えられない。
+        (configured, "tier-count:0", satisfied, 1, ("req:F-1",)),
+        (configured, "tier-count:0", satisfied, 2, ("req:F-1",)),
+        (configured, "tier-count:0", satisfied, 16, ("req:F-1",)),
+        (configured, "tier-count:1", satisfied, 2, ("req:F-1",)),
+        (configured, "tier-count:1", satisfied, 16, ("req:F-1",)),
+        (configured, "tier-count:2", satisfied, 16, ("req:F-1",)),
     )
     return {
         (
@@ -950,8 +959,8 @@ def _game_end_measure(
     if len(declared_values) != len(raw_missing) or not declared_values <= all_values:
         raise RequiredSetCoverageError("終了規則軸値宣言が重複または値域外")
     # 行が増えて固定した軸値は宣言から自動的に消える。新しい未固定値は赤にする。
-    effective_missing = declared_values & missing_values
-    if effective_missing != missing_values:
+    effective_missing = declared_values & missing_values if classify else missing_values
+    if classify and effective_missing != missing_values:
         raise RequiredSetCoverageError("未固定の終了規則軸値がexact-set不一致")
 
     def rows_for(targets: tuple[tuple[str, str], ...]) -> list[dict[str, Any]]:
@@ -1439,7 +1448,7 @@ def _check_game_end_documents(
     if len(walk_off_rows) != 1 or walk_off_rows[0]["branchId"] != "GAME-END-WALK-OFF":
         raise RequiredSetCoverageError("walk-off行が台帳の5つ目の役割と一致しない")
     if {row["branchId"] for row in rows if row["branchId"].startswith("COLD-")} != {
-        "COLD-08"
+        "COLD-08", "COLD-09"
     }:
         raise RequiredSetCoverageError("ステップ94のCOLD行集合が不正")
     branch_register = _document(root, "clause_branch_register_v1.json")
@@ -1460,18 +1469,23 @@ def _check_game_end_documents(
     all_values = {
         (axis, _game_end_identity(value)) for axis in axes for value in values[axis]
     }
+    historical_axes = axes - {"gameEnd.satisfiedColdTierCount"}
+    historical_values = all_values - {
+        ("gameEnd.satisfiedColdTierCount", _game_end_identity(value))
+        for value in values["gameEnd.satisfiedColdTierCount"]
+    } - {("gameEnd.coldConditions", _game_end_identity("tier-count:2"))}
     first_four_fixed = {
         (axis, value)
         for row in rows[:4]
-        for axis, value in _fixed_game_end_values(row, axes).items()
+        for axis, value in _fixed_game_end_values(row, historical_axes).items()
     }
     current_fixed = {
         (axis, value)
         for row in rows[:5]
-        for axis, value in _fixed_game_end_values(row, axes).items()
+        for axis, value in _fixed_game_end_values(row, historical_axes).items()
     }
-    before_unfixed = all_values - first_four_fixed
-    after_unfixed = all_values - current_fixed
+    before_unfixed = historical_values - first_four_fixed
+    after_unfixed = historical_values - current_fixed
     removed = before_unfixed - after_unfixed
     if declaration.get("step94Contraction") != {
         "beforeRowCount": 4,
@@ -1490,7 +1504,7 @@ def _check_game_end_documents(
         raise RequiredSetCoverageError("ステップ94の未達記録がない")
     for key, status in (
         ("walkOff", "resolved-decision-row"),
-        ("cold09", "unmet-no-decision-row"),
+        ("cold09", "resolved-decision-row"),
         ("walkOffScoring", "deferred-to-step32"),
     ):
         item = unmet[key]
@@ -1542,65 +1556,41 @@ def _check_game_end_documents(
         if set(case) != (set(expanded) | normalization_fields) or projection != expanded:
             raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
     counts, _, reachable, observed = _game_end_measure(root, contract, declaration)
-    baseline = {**contract, "cases": contract["cases"][:4]}
-    before, _, _, before_observed = _game_end_measure(
-        root, baseline, declaration, classify=False
-    )
-    previous_cases = [
-        case for case in contract["cases"]
-        if case["branchId"] in {row["branchId"] for row in rows[:4]}
-    ]
-    previous, _, _, previous_observed = _game_end_measure(
-        root, {**contract, "cases": previous_cases}, declaration, classify=False
-    )
-    cold_cases = [
-        case for case in contract["cases"]
-        if case["branchId"] in {row["branchId"] for row in rows[:5]}
-    ]
-    cold, _, _, cold_observed = _game_end_measure(
-        root, {**contract, "decisionRows": rows[:5], "cases": cold_cases},
-        declaration, classify=False,
-    )
-
-    def snapshot(case_count: int, identities: set[tuple[str, ...]]) -> dict[str, Any]:
-        encoded = json.dumps(sorted(identities), ensure_ascii=False, separators=(",", ":"))
-        return {
-            "caseCount": case_count, "coveredCount": len(identities),
-            "coveredDigest": "sha256:" + hashlib.sha256(encoded.encode()).hexdigest(),
-        }
-
-    # 既存3件の履歴は導出規則を拡張しても書き換えず、新しい被覆を追記する。
-    previous_observed_set = observed - {("clause-branch", "XMARK-01")}
-    if record != {
-        "schemaVersion": 1, "version": "game_end_input_coverage_v1",
-        "currentStep": 96,
-        "basis": "game_end_contract_v1.cases and independently derived gameEnd.requiredSet",
-        "history": [
-            {
-                "step": 93,
-                "baselineCaseIds": [case["caseId"] for case in baseline["cases"]],
-                "before": snapshot(before["cases"], before_observed),
-                "after": snapshot(previous["cases"], previous_observed),
-            },
-            {
-                "step": 94,
-                "baselineCaseIds": [case["caseId"] for case in previous_cases],
-                "before": snapshot(previous["cases"], previous_observed),
-                "after": snapshot(cold["cases"], cold_observed),
-            },
-            {
-                "step": 95,
-                "baselineCaseIds": [case["caseId"] for case in cold_cases],
-                "before": snapshot(cold["cases"], cold_observed),
-                "after": snapshot(counts["cases"], previous_observed_set),
-            },
-            {
-                "step": 96,
-                "baselineCaseIds": [case["caseId"] for case in contract["cases"]],
-                "before": snapshot(counts["cases"], previous_observed_set),
-                "after": snapshot(counts["cases"], observed),
-            },
-        ],
+    # 過去4件は受理済みの記録として保持し、この変更の測定だけを1件追記する。
+    # 新軸の追加後に旧descriptorでの要求集合を現行軸へ再解釈しない。
+    history = record.get("history") if isinstance(record, dict) else None
+    if (
+        not isinstance(history, list)
+        or len(history) != 5
+        or [entry.get("step") for entry in history if isinstance(entry, dict)]
+        != [93, 94, 95, 96, 97]
+        or record.get("currentStep") != 97
+    ):
+        raise RequiredSetCoverageError("終了判定の独立被覆履歴の件数・順序が不正")
+    prior = history[-2]
+    current = history[-1]
+    if any(
+        earlier.get("after") != later.get("before")
+        for earlier, later in zip(history, history[1:])
+    ):
+        raise RequiredSetCoverageError("終了判定の独立被覆記録が連鎖しない")
+    baseline_ids = prior.get("baselineCaseIds")
+    if (
+        not isinstance(baseline_ids, list)
+        or len(baseline_ids) != prior.get("after", {}).get("caseCount")
+        or not set(baseline_ids) <= {case["caseId"] for case in contract["cases"]}
+        or current.get("baselineCaseIds") != baseline_ids
+        or current.get("before") != prior.get("after")
+    ):
+        raise RequiredSetCoverageError("終了判定の独立被覆履歴が直前記録と連鎖しない")
+    encoded = json.dumps(sorted(observed), ensure_ascii=False, separators=(",", ":"))
+    expected_after = {
+        "caseCount": counts["cases"],
+        "coveredCount": len(observed),
+        "coveredDigest": "sha256:" + hashlib.sha256(encoded.encode()).hexdigest(),
+    }
+    if current.get("after") != expected_after or set(current) != {
+        "step", "baselineCaseIds", "before", "after"
     }:
         raise RequiredSetCoverageError("終了判定の独立被覆記録が実測と不一致")
     if observed != reachable:

@@ -95,28 +95,25 @@ def _rewrite_descriptor(
 
 
 def _synchronize_unaccepted_freeze_record(descriptor: dict[str, Any]) -> None:
-    """同一PR内の未受理基準変更を既存の単一履歴レコードへ反映する。"""
+    """同一PR内の未受理基準変更を最新の履歴レコードへ反映する。"""
     declaration = descriptor[checker.freeze_checker.FREEZE_FIELD]
     criteria = declaration["criteria"]
     history = declaration["history"]
-    assert len(history) == 1
-    record = history[0]
+    assert len(history) == 2
+    record = history[-1]
     record["newIdentity"] = {
         "present": True,
         "values": checker.freeze_checker.current_identities(declaration),
     }
     changes = {change["criterionId"]: change for change in record["changes"]}
     definition_id = declaration["scope"]["identityCriterionId"]
-    assert set(changes) == {definition_id, *criteria}
-    changes[definition_id]["after"] = {
-        "present": True,
-        "value": copy.deepcopy(declaration["scope"]),
-    }
+    assert definition_id not in changes
     for criterion_id, value in criteria.items():
-        changes[criterion_id]["after"] = {
-            "present": True,
-            "value": copy.deepcopy(value),
-        }
+        if criterion_id in changes:
+            changes[criterion_id]["after"] = {
+                "present": True,
+                "value": copy.deepcopy(value),
+            }
 
 
 def _remove_normative_branch_row(text: str, branch_id: str) -> str:
@@ -198,7 +195,7 @@ def test_repository_acceptance_uses_github_pull_request_base_sha(
         json.dumps(
             {
                 "pull_request": {
-                    "number": 81,
+                    "number": 131,
                     "base": {"sha": base_sha},
                     "head": {"sha": head_sha},
                 },
@@ -422,7 +419,7 @@ def test_d12_freeze_baseline_id_removal_from_adr_is_red_after_digest_recalculati
 def test_d12_freeze_baseline_id_removal_from_descriptor_is_red_after_reseal(
     tmp_path: Path, literal: str
 ) -> None:
-    """資産側だけからIDを消し単一履歴とdigestを追随させても拒否する。"""
+    """資産側だけからIDを消し最新履歴とdigestを追随させても拒否する。"""
     root = _copy_fixture_root(tmp_path)
 
     def mutate(descriptor: dict[str, Any]) -> None:

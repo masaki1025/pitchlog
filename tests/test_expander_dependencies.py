@@ -282,14 +282,20 @@ def test_step93_first_stage_game_end_cases_match_manual_fixtures() -> None:
     for case in cases:
         fixture = fixture_by_branch[case["branchId"]]
         assert case["caseId"] == fixture["caseId"]
-        assert case["inputCoordinate"] == fixture["inputCoordinate"]
+        # 手作業fixtureの凍結時点には成立段数軸が無いため、この軸だけ除いて照合する。
+        assert {
+            key: value for key, value in case["inputCoordinate"].items()
+            if key != "gameEnd.satisfiedColdTierCount"
+        } == fixture["inputCoordinate"]
         assert case["decision"] == fixture["decision"]
 
 
 def test_game_end_expander_can_process_all_current_decision_rows() -> None:
-    """メモリ上では現行6行すべてを行自身の分岐IDから展開できる。"""
-    cases, trace = game_end_expander.expand_traced(REPOSITORY_ROOT, limit=6)
+    """メモリ上で現行の判定行すべてを分岐IDから展開できる。"""
     contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
+    cases, trace = game_end_expander.expand_traced(
+        REPOSITORY_ROOT, limit=len(contract["decisionRows"])
+    )
     assert len(cases) == len(contract["decisionRows"])
     assert [case["branchId"] for case in cases] == [
         row["branchId"] for row in contract["decisionRows"]
@@ -460,6 +466,8 @@ def test_positive_manual_fixture_inputs_follow_representative_policy() -> None:
             expected = representative_selection.select_coordinate(
                 row["precondition"], game_values, game_axes, policy
             )
+            # 既存の手作業fixtureは旧4軸の凍結資産である。
+            expected.pop("gameEnd.satisfiedColdTierCount", None)
             assert game_fixtures[branch_id] == expected
             checked += 1
     assert checked == 22

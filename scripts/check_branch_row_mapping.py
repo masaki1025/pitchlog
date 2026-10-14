@@ -138,6 +138,24 @@ def _predicate_holds(predicate: dict[str, Any], coordinate: dict[str, Any]) -> b
     raise BranchRowMappingError(f"未対応の述語演算子: {operation}")
 
 
+def _legacy_game_end_predicate(predicate: dict[str, Any]) -> dict[str, Any]:
+    """凍結済み手作業fixtureの4軸射影で旧行との対応を照合する。"""
+    if predicate.get("op") != "and" or not isinstance(predicate.get("args"), list):
+        raise BranchRowMappingError("終了判定行の旧fixture射影を判定できない")
+    args = predicate["args"]
+    projected = [
+        arg for arg in args
+        if not (
+            isinstance(arg, dict)
+            and arg.get("op") == "eq"
+            and arg.get("axisId") == "gameEnd.satisfiedColdTierCount"
+        )
+    ]
+    if len(args) - len(projected) != 1:
+        raise BranchRowMappingError("終了判定行の成立段数軸が一意でない")
+    return {"op": "and", "args": projected}
+
+
 def _unique_rows(rows: list[dict[str, Any]], coordinate: dict[str, Any]) -> dict[str, Any]:
     """自然キーが指す規範行を一意に得る。
 
@@ -252,7 +270,10 @@ def check_documents(
                 raise BranchRowMappingError(f"終了判定行自身の分岐IDが不一致: {branch_id}")
             if relation != "decision-output":
                 raise BranchRowMappingError(f"終了判定のfixture関係が不正: {branch_id}")
-            if not _predicate_holds(row["precondition"], fixture["inputCoordinate"]):
+            if not _predicate_holds(
+                _legacy_game_end_predicate(row["precondition"]),
+                fixture["inputCoordinate"],
+            ):
                 raise BranchRowMappingError(f"fixtureが終了判定の前提を満たさない: {branch_id}")
             if fixture["decision"] != row["decision"]:
                 raise BranchRowMappingError(f"fixtureと終了判定の出力が異なる: {branch_id}")

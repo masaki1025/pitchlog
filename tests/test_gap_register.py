@@ -390,7 +390,7 @@ def test_five_resolved_four_open_gaps_have_real_bidirectional_references() -> No
         "GAP-01", "GAP-02", "GAP-05", "GAP-06"
     }
     assert {gap["gapId"]: len(gap["rowIds"]) for gap in document["gaps"]} == {
-        "GAP-01": 0, "GAP-02": 0, "GAP-03": 2,
+        "GAP-01": 0, "GAP-02": 0, "GAP-03": 3,
         "GAP-04": 5, "GAP-05": 0, "GAP-06": 0,
         "GAP-07": 20, "GAP-08": 5, "GAP-09": 3,
     }
@@ -418,7 +418,7 @@ def test_generated_selector_selects_cases_by_normative_row_ownership() -> None:
     _, selected = checker.generated_case_reference_index(
         _criteria(), row_index, rows, document["gaps"]
     )
-    expected = {"GAP-03": 68, "GAP-04": 136, "GAP-07": 39,
+    expected = {"GAP-03": 102, "GAP-04": 136, "GAP-07": 39,
                 "GAP-08": 12, "GAP-09": 6}
 
     assert {
@@ -585,18 +585,18 @@ def test_open_skipping_fixture_stage_for_generated_selector_is_red() -> None:
 
 
 def test_normative_row_natural_keys_are_unique_in_all_four_layers() -> None:
-    """操作種別の重複も前提軸と値で分離し全56行を識別する。"""
+    """操作種別の重複も前提軸と値で分離し全57行を識別する。"""
     document = _register()
     index = _real_indexes(document)["rowIds"]
 
-    assert len(index.existing_references) == 56
+    assert len(index.existing_references) == 57
     assert len([row for row in index.existing_references if row.startswith("operationRows:")]) == 7
     assert "operationRows:substitution:state.gameEnded:false" in index.existing_references
     assert "operationRows:substitution:state.gameEnded:true" in index.existing_references
 
 
 def test_step99_no_orphan_normative_rows() -> None:
-    """4層56行すべてが分岐または要件条文に辿れることを確認する。"""
+    """4層57行すべてが分岐または要件条文に辿れることを確認する。"""
     orphans = checker.orphan_normative_row_ids(
         _criteria(), _row_documents(), _clause_branch_register(),
         checker.load_requirement_clause_ids(REPOSITORY_ROOT), _row_rules(),
@@ -623,10 +623,10 @@ def test_step99_orphan_row_is_red_without_case_coverage_check() -> None:
 
 
 def test_step99_all_row_ids_resolve() -> None:
-    """gapのrowIdsと277件のcase参照が一意な規範行へ解決する。"""
+    """gapのrowIdsと311件のcase参照が一意な規範行へ解決する。"""
     rows = _row_documents()
     index = checker.row_reference_index(_criteria(), _register()["gaps"], rows)
-    assert len(index.existing_references) == 56
+    assert len(index.existing_references) == 57
     assert checker.unresolved_row_references(
         _criteria(), _register()["gaps"], rows, index
     ) == []

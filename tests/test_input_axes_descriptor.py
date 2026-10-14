@@ -753,7 +753,7 @@ def test_missing_source_clause_id_is_red() -> None:
 
 
 def test_game_end_axes_match_d11_inventory_boundaries_and_sources() -> None:
-    """D-11の終了判定4軸を安全範囲・正負の境界値とともに収容する。"""
+    """D-11の終了判定5軸を安全範囲・正負の境界値とともに収容する。"""
     descriptor = _descriptor()
     axes = {axis["axisId"]: axis for axis in descriptor["gameEndAxes"]}
 
@@ -771,6 +771,11 @@ def test_game_end_axes_match_d11_inventory_boundaries_and_sources() -> None:
             "boundary-partition",
         ),
         "gameEnd.coldConditions": (
+            "req:F-1",
+            "coldConditions",
+            "boundary-partition",
+        ),
+        "gameEnd.satisfiedColdTierCount": (
             "req:F-1",
             "coldConditions",
             "boundary-partition",
@@ -803,6 +808,7 @@ def test_game_end_axes_match_d11_inventory_boundaries_and_sources() -> None:
     assert axes["gameEnd.coldConditions"]["boundaryValues"] == [
         "tier-count:0",
         "tier-count:1",
+        "tier-count:2",
         "tier-count:16",
         "point-difference:1",
         "point-difference:M-1",
@@ -822,6 +828,11 @@ def test_game_end_axes_match_d11_inventory_boundaries_and_sources() -> None:
         "start-inning:0",
         "start-inning:100",
     ]
+    assert axes["gameEnd.satisfiedColdTierCount"]["coverageBounds"] == [
+        {"dimension": "satisfiedTierCount", "minimum": 0, "maximum": 16}
+    ]
+    assert axes["gameEnd.satisfiedColdTierCount"]["boundaryValues"] == [0, 1, 2, 16]
+    assert axes["gameEnd.satisfiedColdTierCount"]["invalidBoundaryValues"] == [-1, 17]
     assert axes["gameEnd.extensionLimit"]["boundaryValues"] == [
         "none",
         "finite:R",
@@ -864,7 +875,7 @@ def test_cold_start_inning_r_plus_one_is_not_an_invalid_boundary() -> None:
 
 
 def test_f1_rule_fields_have_exactly_one_top_level_coverage_owner() -> None:
-    """F-1の5フィールドをcoverage4軸または非coverage1件へ一意に帰属させる。"""
+    """F-1の5フィールドをcoverage5軸または非coverage1件へ帰属させる。"""
     descriptor = _descriptor()
     coverage_fields = {
         axis["ruleFieldId"] for axis in descriptor["gameEndAxes"]
@@ -898,7 +909,7 @@ def test_f1_rule_fields_have_exactly_one_top_level_coverage_owner() -> None:
     _with_digest(duplicate_owner)
     with pytest.raises(
         checker.DescriptorCheckError,
-        match="4軸またはF-1フィールド帰属がexact-set不一致",
+        match="軸またはF-1フィールド帰属がexact-set不一致",
     ):
         _validate(duplicate_owner)
 
@@ -1051,7 +1062,7 @@ def test_stage1_descriptor_declares_stage2_parity_without_external_dependency() 
     raw_text = DESCRIPTOR_PATH.read_text(encoding="utf-8")
 
     assert descriptor["stateTransitionAxes"]
-    assert len(descriptor["gameEndAxes"]) == 4
+    assert len(descriptor["gameEndAxes"]) == 5
     assert len(descriptor["nonCoverageFields"]) == 3
     assert descriptor["gameEndCombinationRules"]
     assert len(descriptor["projectionRules"]) == 8

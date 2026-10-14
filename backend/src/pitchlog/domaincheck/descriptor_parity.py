@@ -591,6 +591,23 @@ def _game_ranges(schema: dict[str, object], axes: dict[str, dict[str, object]]) 
                     _obj(tier.get("properties"), "tier properties").get(dimension),
                     dimension,
                 )
+            elif (
+                axis.get("axisId") == "gameEnd.satisfiedColdTierCount"
+                and dimension == "satisfiedTierCount"
+            ):
+                normalized = _obj(defs.get("normalizedCase"), "normalizedCase")
+                coordinate = _obj(
+                    _obj(normalized.get("properties"), "normalizedCase properties").get(
+                        "inputCoordinate"
+                    ),
+                    "inputCoordinate",
+                )
+                actual = _obj(
+                    _obj(
+                        coordinate.get("properties"), "inputCoordinate properties"
+                    ).get("gameEnd.satisfiedColdTierCount"),
+                    "satisfiedColdTierCount",
+                )
             elif field == "extensionLimit" and dimension == "innings":
                 options = _items(node.get("oneOf"), "extensionLimit.oneOf")
                 if len(options) != 2:

@@ -64,7 +64,7 @@
     "gameEndAxes": {
       "type": "array",
       "minItems": 4,
-      "maxItems": 4,
+      "maxItems": 5,
       "uniqueItems": true,
       "items": {
         "$ref": "#/$defs/axis"
