@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "input_manifest": {
-    "commit": "430e24fab7cb610972f6f0c9f95473e79465b43f",
+    "commit": "95cb86e9cce858379da6d39b0922476c44c5ab2b",
     "source_path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
     "scan_start_heading_id": "DOC",
     "scan_end_heading_id": "APPENDIX-ITEM-F-2",
-    "source_blob_digest": "070babfe1fb2e945d90545f17922e20bd9ff955c",
+    "source_blob_digest": "15f8ab1d92b13fe921628711e2f19aee9e31a901",
     "heading_ids": [
       "DOC",
       "CHANGELOG",
@@ -139,11 +139,11 @@
       "code_line": 43,
       "frontmatter": 3,
       "heading": 125,
-      "list_item": 647,
-      "paragraph": 99,
-      "table_delimiter": 40,
-      "table_header": 40,
-      "table_row": 327,
+      "list_item": 659,
+      "paragraph": 100,
+      "table_delimiter": 41,
+      "table_header": 41,
+      "table_row": 333,
       "thematic_break": 27
     }
   },
@@ -911,6 +911,26 @@
       "source_text": "| **2.12** | 2026-10-13 | **一括7.3確定ゲート通過（approved）**: FR-019・付録Cの削除時期限固定（`trashed_at`＋削除時実効値、既定30日・1日24時間）、保持期間1〜36500整数日と日時型で表現不能な場合の状態変更前拒否、設定変更の非遡及、期限ちょうどからのチーム表示・自己復元拒否を、`../design/data-model.md` v0.9/B06と単一ゲートで確定。敵対レビュー2回（初回P0 1/P1 2、2回目P0 0/P1 2）・採用反映2周、全5件採用・不採用0。初回P0に対するPOの7.3-6射程裁定で要件を追加し、周回数は継続。最終反映 `0b2fe712` と保持期間上限を含め**2026-10-13 本会話の利用者が明示承認**。保守用認可P0 3件、既存行移行例外、無関係なU-D1仕様は本ゲート外。保存列・認可・キャッシュの実装と凍結資産追随は指示された実装ステップへ残す。計画: `../features/ut1-game-invalidation/plan.md`、記録: `../worklog/2026-10-13-ut1-game-invalidation.md` | 本会話の利用者 + Codex |",
       "source_text_digest": "9dc88c03089062167ea4ba4e5470ade4e13e8067a65672b0831d31cd3308b077",
       "decision_digest": "c19f632eae7087c9b01676be6513e834d13caefb454dcd3ceaeec65249f18534"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-044",
+      "source_kind": "table_row",
+      "source_heading_id": "CHANGELOG",
+      "source_text": "| 2.13 | 2026-10-14 | **投球コースの内外角の導出規則の明文化と、画面座標⇄保存座標の相互変換の新設を起案(TSK-238・状態: in-review)**。**起票元**は `NFR-018` の (α) が名指しする 2 つの計算に、要件書側の定義が無かったこと — ① 付録B-3 は「内角/外角は保存座標と打席左右の組み合わせから導出する」とだけ書き、**分かれ目・値数・境界線上の帰属を定めていなかった**(正解ベクタを作ると実装が先に決める形になる) ② **「画面座標⇄保存座標の相互変換」は本書のどこにも定義が無かった**(付録B-5 は移行時の一括変換〔(β)⑥〕であって製品の入力・表示〔(α)〕ではない)。**射程宣言(7.3-7)** — **本改訂で確定する範囲** = (i) 付録B-3 への内外角の導出規則の追記(2 値・分かれ目はゾーン枠の水平中心・境界の帰属・打席左右の作用・決定表) (ii) 付録B-7 の新設 —— 画面座標の定義 / **保存座標の正準表現**〔`263` 分の 1 を単位とする整数倍。**契約上の表現形は単位 `1/263` の固定小数点整数**で、ADR-003 D-11 に従い**発効を待たずに成立する**。**射程は本項が生成する値**で、**移行由来の保存座標は対象外**〕 / 両方向の式 / **往復の恒等性**〔**入力範囲は整数の画面座標と正準表現の保存座標に限る**。**非正準の保存座標は往復の対象外**で、画面へ写すときに最近傍の正準表現へ**量子化**されるが、**保存値を書き換えない**〕 / **丸めは定義せず付録A-1 を正とし、D-2 発効後は ADR-003 D-14-e の書き方を用いる** / 範囲外のクランプ / B-5 との別契約性。**実装時に確定する範囲** = 正解ベクタの個々のケースと入力範囲(TSK-238 のステップ 4〜6)。**別タスクへ送る範囲** = ① **高低の区分**(本改訂は内外角のみ。加えるには別の改訂を要する) ② **打球方向の導出**((β)⑦ の射程) ③ **未入力(センチネル)の保存座標での表し方**(旧 `x<=0` は保存座標では有効な値になるため移せない — PO 判断へ送る)。**要求しないこと(5 項)**: (1) `c` の数値を本書で固定すること(枠はデータ — B-4) (2) 丸め規則を本項で定義し直すこと(**付録A-1 と ADR-003 D-14-e を参照するだけにする** — 二重管理を避ける) (3) 保存座標の十進表現を定めること(`1/263` は十進有限桁で表せない) (4) 画面スケール 263 を本書に焼き込むこと(正は `display_geometry_263_v1.json` の `size`) (5) B-5 の算術を変えること(同一の式だが別契約として残す)。**確定ゲートの適用版は worklog `2026-10-11-field-region-vectors.md` に記録する**(7.3-1) | 山田 + Claude |",
+      "source_text_digest": "bea0b5f4a941821403e7882c3fc9fcaaea20141da593be236e4002cc0ab15157",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "decision_digest": "0c01299b16f017fb02eed1cbc98d93e0209c88c585c47c60a2512ec91f8d7630"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-045",
+      "source_kind": "table_row",
+      "source_heading_id": "CHANGELOG",
+      "source_text": "| **2.13** | 2026-10-14 | **確定ゲート通過(approved)**: 敵対レビュー **2 周**(sol xhigh — **基本枠 2 回を使い切った**。1 周目〔全文〕P0 0 / P1 5 / P2 0、2 周目〔1 周目の反映差分と影響節〕P0 0 / P1 2 / P2 1)。**指摘 8 件を全件採用・不採用 0 件・P0 は 2 周ともゼロ・(B) の送り 0 件**(周別の採否記録は worklog `2026-10-11-field-region-vectors.md` が正)。**P0 が 0 件のため P0 限定の 3 回目は自動追加されない。** **PO 裁定 2 件**(付録B-7 を独立項として新設する / authz の封印の連鎖は #119 の着地後に行う)。**人間承認 2026-10-14・山田正輝。** **版番号は当初 v2.12 で確定したが、#129(TSK-543)が同じ番号を同日に確定させていたため、**PO 裁定(2026-10-14・山田正輝)で繰り下げた**(**内容は不変**。裁定時点では #131〔TSK-538〕が v2.13 を保持していたため v2.14 を採ったが、**その後 #131 が v2.14 へ退いた**ため **v2.13** に落ち着いた。**両者とも未 push のローカルブランチ上で版を確定しており、実測では互いを検出できなかった** — `refs/pull/<N>/head` まで含めて測っても防げない形である)。** **確定内容**: ① **付録B-3 の内外角の導出規則** —— 内角・外角の 2 値 / 分かれ目 `c` は B-4 の枠の水平中心で**保存座標系の値**(枠が画面座標なら B-7 で写してから中点を取る) / 右打席は `c` より小さい側が内角・**中心ちょうどは打席左右によらず外角** / **区間が隙間なく連続し重なりの無い決定表** / 高低と両打ちは対象外。② **付録B-7 の相互変換** —— 正準表現は `263` 分の 1 を単位とする整数倍で、**契約上の表現形は単位 `1/263` の固定小数点整数**(ADR-003 D-11 に従い**未発効の D-14-e を待たずに成立する**。**射程は本項が生成する値**で、移行由来の保存座標と B-6 の領域シードの頂点は対象外) / **丸めは定義せず付録A-1 を正とし、D-2 発効後は D-14-e 3 の剰余の書き方を用いる** / **往復の入力範囲は整数の画面座標と正準表現の保存座標に限り**、非正準の保存座標は往復の対象外で**最近傍の正準表現へ量子化されるが保存値を書き換えない** / 範囲外はクランプ / B-5 とは別契約。**別タスクへ送った 3 件**: 高低の区分 / 打球方向の導出((β)⑦) / 未入力(センチネル)の保存座標での表し方。計画: `../features/field-region-vectors/plan.md` | 山田 + Claude |",
+      "source_text_digest": "70f16186c8fa8afb8ee62cd06f4cf675b150d17c8c502c6b9c0730a3e84eb793",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "decision_digest": "bbd73ed8ea549c26f4532901da27b5d2de7fffdfc3d8c95a07a43675b313397c"
     },
     {
       "source_id": "CHANGELOG/blockquote-001",
@@ -15120,31 +15140,221 @@
       "source_id": "APPENDIX-B/list_item-004",
       "source_kind": "list_item",
       "source_heading_id": "APPENDIX-B",
+      "source_text": "   - **内外角の導出規則（v2.13 で明文化）**: 区分は**内角・外角の 2 値**とする（真ん中の区分を置かない）。**分かれ目 `c` は B-4 がデータとして持つストライクゾーン枠の水平中心**＝枠の x 左端と x 右端の中点である。**`c` は保存座標系の値である** —— 枠データが画面座標で持たれている場合は、**B-7 の「画面 → 保存」で写してから中点を取る**（当該変換は丸めを伴わない線形写像なので、写す順序と中点を取る順序は結果を変えない）。**`c` を画面座標のまま `x` と比べてはならない**（例: 枠が画面座標で左端 80・右端 183 のとき、画面のままの中点 `131.5` を保存座標の `x` と比べると全区間の判定が狂う。正しい `c` は `131.5 / 263`）。**入力は当該打席の打席左右と保存座標の x のみ**（y・高低は本項の対象外 —— NFR-018 の (α) が対象とするのは内外角の導出に限られ、別の導出を加えるには本書の改訂を要する）。**両打ちは本項の入力ではない** —— 入力は当該打席で実際に立った側である。出力は次の表で一意に決まる（**区間は隙間なく連続し、重なりが無い**）:",
+      "source_text_digest": "6a8c2c5f0b4d0960a24d3cf83fd594d44c6c8c0b0a6b65835023cd89750bfb7b",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "7644df21cb34fe23ed19de76214ffcb4b127784482992f2ffbbe2892ca66ff87"
+    },
+    {
+      "source_id": "APPENDIX-B/table_header-001",
+      "source_kind": "table_header",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "     | 打席左右 | 保存座標の x の区間 | 内外角 |",
+      "source_text_digest": "84453cd199756a0821af3db0730ce1809e96f8c326d006ab51ff37529b777f9d",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "decision_digest": "3f1411d1a5817d92b11942f248b2053e60fc47e2dd116d30e375d448fa44e8c9"
+    },
+    {
+      "source_id": "APPENDIX-B/table_delimiter-001",
+      "source_kind": "table_delimiter",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "     | --- | --- | --- |",
+      "source_text_digest": "4f9cb9f5b8e8783edfc27044053d9d12f126d8bc91e71cdf58492a3a35707ea4",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_STRUCTURAL",
+      "decision_digest": "c631bb4fd12bb3d7e381e4ebeb996a085e4a7a0c3240bc88354a475470ab34a6"
+    },
+    {
+      "source_id": "APPENDIX-B/table_row-001",
+      "source_kind": "table_row",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "     | 右打席 | `0 <= x < c` | **内角** |",
+      "source_text_digest": "096860ff9f4bc4e3786539b9cf1dfb0ffacd1ad662f301cd03c2603a3b7e982b",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "dcb0a46d70a1129daedcf0c7305d7455ce898b09389009107acd6997aa426aab"
+    },
+    {
+      "source_id": "APPENDIX-B/table_row-002",
+      "source_kind": "table_row",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "     | 右打席 | `c <= x <= 1` | **外角** |",
+      "source_text_digest": "485997e9c20f49ff1e17073d36255c7e8a01cf5c1d810af8b2253f5a8895ad25",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "3353ce37f60bdee1c43be150cd74d6133ca4009cbc552d0a6fa6548d45011b30"
+    },
+    {
+      "source_id": "APPENDIX-B/table_row-003",
+      "source_kind": "table_row",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "     | 左打席 | `0 <= x <= c` | **外角** |",
+      "source_text_digest": "adab9fbf1768662fea66927eecbb55e9f7c6e16dbdd86de204a1817b914b87e4",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "3be652e9200ddb118d4d42902a148cfdde0ef27a8672fbb15722925a225aea7e"
+    },
+    {
+      "source_id": "APPENDIX-B/table_row-004",
+      "source_kind": "table_row",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "     | 左打席 | `c < x <= 1` | **内角** |",
+      "source_text_digest": "f277d7b4d00097df5f7dcefe8864ece8655b905a688cc75091ca8d5f948dd4b4",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "4227fe1e1e0831bff83cc823c9f6fc45c1bc7df8dac2c5db83161a417735476c"
+    },
+    {
+      "source_id": "APPENDIX-B/paragraph-001",
+      "source_kind": "paragraph",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "     **右打者は中心より x が小さい側が内角**である（B-2 の捕手視点では右打者が三塁側＝ x の小さい側に立つため）。**中心ちょうど（`x = c`）は打席左右によらず外角**とする —— 一意に決めること自体が要求であり、どちらへ倒すかは任意である（B-6 のタイブレーク規則と同じ趣旨）。**`c` の値は本書で固定しない** —— 枠はデータであり（B-4）、値の正は枠のデータである",
+      "source_text_digest": "8c860cbf654ef9c0bac148be5b4d51f280d54ce02352fce708d7dfd780fa09de",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "d55e662a24c06b57bfa4729082a44009a0584505fb9a7a375f631e301d6b85aa"
+    },
+    {
+      "source_id": "APPENDIX-B/list_item-005",
+      "source_kind": "list_item",
+      "source_heading_id": "APPENDIX-B",
       "source_text": "4. **ゾーン枠はデータ**: ストライクゾーンの枠（内側判定の境界）は座標値としてデータ保持し、コードにマジックナンバーを散らさない",
       "source_text_digest": "966703b98b0946846be92e403823cbc9ddbd57dfd3f38c9e5bccdf5fd0f715df",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "6d8eca421636b8dcb997ef65d2fe723d8a9ac918f53b1d9c5db48ec8c5c97b0b"
+      "decision_digest": "bc968e77afc9cc148412ee609381f077f43dbed8b2e86b7d3228b0bb41196005"
     },
     {
-      "source_id": "APPENDIX-B/list_item-005",
+      "source_id": "APPENDIX-B/list_item-006",
       "source_kind": "list_item",
       "source_heading_id": "APPENDIX-B",
       "source_text": "5. **移行の変換式（確定）**: 旧263pxスケール座標からの変換は `x_norm = x_old / 263`、`y_norm = (263 − y_old) / 263`（旧Y軸は下向きのため反転）。端点は両端を含み、範囲外の値は [0,1] にクランプして警告レポートに記録する。**変換前のセンチネル判定を必ず先に行う**——旧値が `0`（または空・`\"0\"`）の座標は未入力を意味するため**NULLへ写し、変換対象から除外する**（`0` は範囲内のためクランプ警告に掛からず、変換すると (0.0, 1.0) という有効な隅の座標に化ける。旧集計側も `x<=0` を除外していた → `research/data-layer.md`）。**テストベクタ**（変換前後の具体値の組）をゴールデンフィクスチャとして収載し、変換後のコース分布チャートが**右打者のみ/左打者のみに分けて**新旧一致することを移行検証（FR-038）に含める",
       "source_text_digest": "1aecf0cb53346b435c11af1891311c9e26974090dab8b55c60f62673e4440d7a",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "4cf9c5c77a6475d3225090c43cbca2a0d35b534667299122dd320565d8329324"
+      "decision_digest": "5b43ad24b24b62b45549d8ba24895d4de6f56c4e5f4dc0d7188b0b506b699ea7"
     },
     {
-      "source_id": "APPENDIX-B/list_item-006",
+      "source_id": "APPENDIX-B/list_item-007",
       "source_kind": "list_item",
       "source_heading_id": "APPENDIX-B",
       "source_text": "6. **フィールド領域のシード**: 捕球選手の自動推定（FR-004）と打球方向バケット（A-3）に使う守備位置領域・方向区分は、**座標多角形のシードデータ**としてリポジトリに収載する（境界線上の点の帰属は「先に定義された領域が優先」のタイブレーク規則を含めて定義する）。フィールド画像の元寸法と正規化の対応も同ファイルに記録する",
       "source_text_digest": "5a3e73782b82443cb1a31490fd1aa4c8f77cdc5a32343856f4b47b642e987de5",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "c7bd1e8f3e2ab7190f471cf31570d5b103dfc8ddac0ea11114231f8caec5801c"
+      "decision_digest": "f951ed189b72224f2c136eb899a70870b3260a9ba6b2319b98f955cb402fbff5"
+    },
+    {
+      "source_id": "APPENDIX-B/list_item-008",
+      "source_kind": "list_item",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "7. **画面座標と保存座標の相互変換（v2.13 で新設）**: 入力・表示に用いる**画面座標**は、**原点左上・x 正方向は右・y 正方向は下**の整数座標 `0`〜`263` とする（スケールの正は `contracts/display_geometry_263_v1.json` の `size`）。**NFR-018 の (α) が名指しする「画面座標⇄保存座標の相互変換」は本項が定義する。**",
+      "source_text_digest": "7d32412737aec1fc82160dea65756abef421e868750abb4d0ff34e35a538df27",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "9b2c9a3e673b5afa2293d45bd573bf692dad1563c1498b01fea4aa8381761a69"
+    },
+    {
+      "source_id": "APPENDIX-B/list_item-009",
+      "source_kind": "list_item",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "   - **保存座標の正準表現**: **本項の変換が生成する保存座標**は、**`263` 分の 1 を単位とする整数倍 `k / 263`**（`k` は整数 `0`〜`263`）であり、これを**正準表現**と呼ぶ。値は**厳密に持ち、実数・十進小数で書かない**（`1 / 263` は十進有限桁で表せないため、十進で書くと丸めが暗黙に入る）。**契約上の表現形は「単位 `1/263` の固定小数点整数 `k`」とする** —— 値を整数 `k` で持ち、**単位 `1/263` をフィールド名または schema に持たせる**。[ADR-003](../adr/ADR-003-domain-calc-method.md) **D-11 の「数値の扱い」**（座標は固定小数点整数・単位と scale をフィールド名か schema に持たせる）に従う形であり、**現行方式（D-1）の下でそのまま成立する**。**分子と分母の整数対では書かない**（有理数は D-14-e の型領域にあるが、同条は D-2 固有の条件であり未発効のため、**発効を待たずに成立する表現を採る**。整数 `k` は D-14-e の型領域にも含まれるので、**D-2 の発効後も表現を変える必要がない**）。**正解ベクタはこの表現で値を持つ。** **移行由来の保存座標（B-5）はこの形に限らない** —— 旧座標は整数とは限らず（旧列は実数型）、`x_old / 263` が `k / 263` にならない値を取り得る。**正準表現は本項が生成する値についての規定であり、保存済みの値を遡って量子化することを要求しない**。**B-6 の領域シードが持つ多角形の頂点も本項の射程外である** —— 当該頂点は変換ではなく領域の幾何から定まり、`k / 263` の形を取らない値を含む",
+      "source_text_digest": "0040bcf1e2be03150619606ebf0b06e0006422f86f1b81070a4addab5d03ef4b",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "250960182e9551085a4a76e0e27981afce5a94f583a02b82fcfdbe67b3ff69b5"
+    },
+    {
+      "source_id": "APPENDIX-B/list_item-010",
+      "source_kind": "list_item",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "   - **画面 → 保存**: `x_norm = x_screen / 263`、`y_norm = (263 − y_screen) / 263`（B-2 の向きに合わせ y を反転する）。**正準表現のまま厳密に表せるので、この向きでは丸めを行わない**",
+      "source_text_digest": "d41c22e63ab6827db65a3787c5811ef3756d0ea814f59e0b733e37b81dc517b9",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "b1862d1b9b72bf907c4bd4832523501654544281f4b72f51bda8b21fa86db620"
+    },
+    {
+      "source_id": "APPENDIX-B/list_item-011",
+      "source_kind": "list_item",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "   - **保存 → 画面**: `x_screen = round(x_norm × 263)`、`y_screen = 263 − round(y_norm × 263)`。**丸めは付録A-1 の共通規定（四捨五入・負値のちょうど中間値は絶対値で丸めて符号を戻す）に従い、本項では別に定義しない。** **付録A-1 が本項の丸めの正である**（現行方式の下で参照先が一意に定まる）。**ADR-003 の D-2 が発効した後は、同書 D-14-e 3 が定める整数対の剰余による書き方**（`2r >= |d|` のとき切り上げ・**除数の半分と比較しない**）**を実装上の書き方として用いる** —— **これは付録A-1 と同じ丸めを別の形で書いたものであり、結果を変えない**（D-14-e 自身が「要件書 付録A-1 が定める四捨五入を…剰余の比較として書く」と述べている）。**本項以外の場所で丸めを行わない**",
+      "source_text_digest": "e515f0eca637e1154e37baac99436a708351213fd5bd35e482c4c02709711dea",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "10176b98bf35d80f7b34f69693a935faa0da92ca4971e567f40c79d348509102"
+    },
+    {
+      "source_id": "APPENDIX-B/list_item-012",
+      "source_kind": "list_item",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "   - **往復の恒等性（両方向を区別して定める）**: ADR-003 D-6 の契約表は本計算の入力に**画面座標と保存座標の双方**を挙げ、比較単位に「往復して元の値に戻ること」を置いている。**向きで扱いが分かれる**:",
+      "source_text_digest": "cce53db203b316d190fb999cdc86f881488d5c58313fb7b45868dee17983f4a1",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "48bbc932fc31917dcaaec3f22b0e2db29c12b3fc1f61f22c185a152d07aca8a5"
+    },
+    {
+      "source_id": "APPENDIX-B/list_item-013",
+      "source_kind": "list_item",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "     - **画面 → 保存 → 画面は恒等である**（`k / 263` に 263 を掛けると整数 `k` に戻り、丸めが作用しない）",
+      "source_text_digest": "a62bf10a5f6fa53ea52fb91d0550940cb232246131f48d866970ffaa69e865f6",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "d50acbeb8f06be8101332fcb12033b64cf9b50d8a896207fc88401a3666868cf"
+    },
+    {
+      "source_id": "APPENDIX-B/list_item-014",
+      "source_kind": "list_item",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "     - **保存 → 画面 → 保存も恒等である。ただし入力となる保存座標は正準表現に限る** —— **往復の契約の入力範囲は「整数の画面座標」と「正準表現の保存座標」である**（入力範囲を定めるのは本項であり、ADR-003 D-6 の契約表が挙げる「保存座標」はこの範囲を指す）",
+      "source_text_digest": "990af6451a9b56f7a027d4f89c7f0ff3efa7f7963e2cad7c2a8cec42b90bb8ac",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "c7d836e049f59a7ce29db0bb127c9359d18f0dbae1c9cca7e7825f7d37c56721"
+    },
+    {
+      "source_id": "APPENDIX-B/list_item-015",
+      "source_kind": "list_item",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "     - **正準表現でない保存座標（移行由来）は往復の対象外とする。** 画面へ写すときは最近傍の正準表現へ量子化されるが（例: `0.5` は画面 `132` を経て `132 / 263` へ写る）、**この写像に往復の恒等性を要求しない** —— 要求すると「元の値へ戻る」と「量子化後の値になる」が衝突し、期待値が一意に決まらないため。**当該写像は表示のためのものであり、保存値を書き換えない** —— **保存済みの座標を量子化して上書きしてはならない**。**冪等である**（2 度通しても同じ値になる）",
+      "source_text_digest": "e87d1b90e8fd983d6938ec208834fa5d7ed0c69fb85f1356004548c9ca7cb658",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "7e21c580f9e2c41ca233acf0ecd04b83bc622ce457b7bd872742390aa489b7eb"
+    },
+    {
+      "source_id": "APPENDIX-B/list_item-016",
+      "source_kind": "list_item",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "     - **一致性テスト（NFR-019(a)）は両方向の往復を比較面に含める** —— 順方向と逆方向を別々のケースで持つだけでは往復の一致を検査できない。**非正準の保存座標については、往復ではなく「量子化の結果」と「保存値が変わらないこと」を固定する**",
+      "source_text_digest": "49f85de0b313a6405d86642400ccd74b886dbfe6895f10849fbb1a80e099ce78",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "983eece2e6e0224846f6739e4ab907edd67a91c7295515b8b89586f257865ebd"
+    },
+    {
+      "source_id": "APPENDIX-B/list_item-017",
+      "source_kind": "list_item",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "   - **範囲外**: 画面座標が `0`〜`263` の外にある入力は `[0, 263]` へクランプしてから変換する。**本項のクランプは入力・表示の整形であり、B-5 の移行時クランプ（警告レポートへの記録を伴う）とは別である**",
+      "source_text_digest": "d6db46d646760ce67f93989ecaacfb56569fca0aa5d47783544830d2a44fb131",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "a389e4c95005845d7c3d87c681077ac97ef380a34b17b0c7d5c1855669dd6d9a"
+    },
+    {
+      "source_id": "APPENDIX-B/list_item-018",
+      "source_kind": "list_item",
+      "source_heading_id": "APPENDIX-B",
+      "source_text": "   - **B-5 との関係**: 画面 → 保存の算術は B-5 と同一だが**別の契約**である —— B-5 は旧データの一括変換（移行実行時にのみ動作・NFR-018 の (β)⑥）、本項は製品の入力・表示（クライアントとサーバーの双方で実行・(α)）。**本項はセンチネル（未入力）の規則を持たない** —— B-5 の `0` センチネルは旧データ固有の約束であり、保存座標では `0` が有効な値である（未入力の表し方は本書の射程外）",
+      "source_text_digest": "5e6674c84a7f8718dd0dfd3b3e02c284ad1e8f76bac125a12c76e2eb3acc5b52",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "decision_digest": "8d76c16cee7f84ac4e240dd20030f7a1e106cb14721229fa6272f2ee09e088a9"
     },
     {
       "source_id": "APPENDIX-B/thematic_break-001",
