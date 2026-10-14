@@ -262,9 +262,9 @@ def _assert_no_tiebreak_start_row(contract: dict[str, Any]) -> None:
 def test_step26_game_end_declaration_and_direct_coverage() -> None:
     """成立段数の軸とCOLD-09追加後の到達性と被覆履歴を照合する。"""
     assert checker.check_game_end_coverage(ROOT) == {
-        "total": 4658, "reachable": 1533, "unreachable": 3097,
+        "total": 4656, "reachable": 1533, "unreachable": 3097,
         "requirementsImpossible": 14,
-        "invalid": 14, "covered": 1533, "cases": 214,
+        "invalid": 12, "covered": 1533, "cases": 214,
     }
     contract = _asset("game_end_contract_v1.json")
     declaration = _asset("game_end_coverage_declaration_v1.json")
@@ -300,6 +300,42 @@ def test_step26_game_end_declaration_and_direct_coverage() -> None:
     assert record["history"][3]["after"] == record["history"][4]["before"]
     assert record["history"][4]["after"]["coveredCount"] == 1533
     assert record["history"][4]["after"]["caseCount"] == 214
+
+
+def test_derived_axis_function_uses_complete_concrete_input() -> None:
+    """導出元の具体入力が同じcaseだけで派生値の関数性を比べる。"""
+    contract = _asset("game_end_contract_v1.json")
+    descriptor = _asset("input_axes_descriptor_v1.json")
+    checker.check_derived_axis_cases(contract, descriptor)
+    cold_cases = [
+        case for case in contract["cases"] if case["branchId"] == "COLD-09"
+    ]
+    assert len(cold_cases) >= 2
+    source = cold_cases[0]["derivedSourceInput"]
+    assert source["gameEnd.coldConditions"] == [
+        {"pointDifference": 10, "startInning": 5},
+        {"pointDifference": 7, "startInning": 7},
+    ]
+    cold_cases[1]["raw"]["gameEnd.satisfiedColdTierCount"] = 1
+    with pytest.raises(checker.RequiredSetCoverageError, match="DERIVED_FUNCTION"):
+        checker.check_derived_axis_cases(contract, descriptor)
+    cold_cases[1]["derivedSourceInput"]["gameEnd.coldConditions"][1][
+        "startInning"
+    ] = 8
+    checker.check_derived_axis_cases(contract, descriptor)
+
+
+def test_derived_unreachable_pair_is_absent_from_cases() -> None:
+    """設定段数を上回る派生値を持つcaseを宣言規則で拒否する。"""
+    contract = _asset("game_end_contract_v1.json")
+    descriptor = _asset("input_axes_descriptor_v1.json")
+    cold_case = next(
+        case for case in contract["cases"] if case["branchId"] == "COLD-08"
+    )
+    contract["cases"] = [cold_case]
+    cold_case["raw"]["gameEnd.satisfiedColdTierCount"] = 2
+    with pytest.raises(checker.RequiredSetCoverageError, match="DERIVED_UNREACHABLE"):
+        checker.check_derived_axis_cases(contract, descriptor)
 
 
 @pytest.mark.parametrize("mutation", ["remove", "unknown", "source", "count"])
@@ -372,7 +408,7 @@ def test_step95_decision_properties_hold_for_all_cases() -> None:
 
 
 def test_step96_validation_errors_are_exact_and_separate_from_cases() -> None:
-    """導出器の不正値要求14件を別集合で引き受け、正常ケースに算入しない。"""
+    """導出器の不正値要求12件を別集合で引き受け、正常ケースに算入しない。"""
     contract = _asset("game_end_contract_v1.json")
     declaration = _asset("game_end_coverage_declaration_v1.json")
     state = _asset("state_transition_contract_v1.json")
@@ -383,7 +419,7 @@ def test_step96_validation_errors_are_exact_and_separate_from_cases() -> None:
         ("invalid-boundary", item["axisId"], item["valueIdentity"])
         for item in entries
     }
-    assert len(entries) == len(actual) == len(expected) == 14
+    assert len(entries) == len(actual) == len(expected) == 12
     assert actual == expected
     assert declaration["deferredValidationErrors"]["status"] == "materialized"
     assert declaration["deferredValidationErrors"]["count"] == len(expected)
@@ -394,7 +430,7 @@ def test_step96_validation_errors_are_exact_and_separate_from_cases() -> None:
     checker._check_game_end_validation_errors(ROOT, contract, declaration, state)
     counts, _, _, _ = checker._game_end_measure(ROOT, contract, declaration)
     assert counts["cases"] == 214
-    assert counts["invalid"] == len(entries) == 14
+    assert counts["invalid"] == len(entries) == 12
 
 
 @pytest.mark.parametrize("mutation", ["missing", "extra", "replaced"])
@@ -697,7 +733,14 @@ def test_game_end_coverage_history_is_one_append_from_prior_step() -> None:
     """直前ステップの被覆履歴を保持し、ステップ26を1件だけ追記する。"""
     relative = "contracts/state-transition/game_end_input_coverage_v1.json"
     previous: dict[str, Any] | None = None
-    for revision in ("HEAD", "HEAD^"):
+    revisions = subprocess.run(
+        ["git", "log", "--format=%H", "--", relative],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    for revision in revisions:
         result = subprocess.run(
             ["git", "show", f"{revision}:{relative}"],
             cwd=ROOT,

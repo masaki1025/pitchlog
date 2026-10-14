@@ -134,7 +134,7 @@
   "$defs": {
     "normalizedCase": {
       "type": "object",
-      "required": ["caseId", "branchId", "rowRef", "inputCoordinate", "decision", "raw", "normalizationRuleId", "normalized"],
+      "required": ["caseId", "branchId", "rowRef", "inputCoordinate", "decision", "raw", "normalizationRuleId", "normalized", "derivedSourceInput"],
       "additionalProperties": true,
       "properties": {
         "caseId": {"type": "string", "minLength": 1},
@@ -150,7 +150,6 @@
               "x-pitchlog-axis-classification": "boundary-partition",
               "x-pitchlog-coverage-bounds": [{"dimension": "satisfiedTierCount", "minimum": 0, "maximum": 16}],
               "x-pitchlog-boundary-values": [0, 1, 2, 16],
-              "x-pitchlog-invalid-boundary-values": [-1, 17],
               "type": "integer",
               "minimum": 0,
               "maximum": 16
@@ -160,7 +159,28 @@
         "decision": {"$ref": "#/$defs/gameEndDecision"},
         "raw": {"type": "object"},
         "normalizationRuleId": {"enum": ["identity", "game-end-result-display-name-to-id"]},
-        "normalized": {"type": "object"}
+        "normalized": {"type": "object"},
+        "derivedSourceInput": {
+          "description": "派生値の関数性を比較する具体入力。代表ラベルではなく各段の点差・開始回と状態の実値を持つ。",
+          "type": "object",
+          "required": ["gameEnd.coldConditions", "state.inning", "state.half", "state.score"],
+          "additionalProperties": false,
+          "properties": {
+            "gameEnd.coldConditions": {
+              "type": "array", "maxItems": 16,
+              "items": {"$ref": "#/$defs/coldConditionTier"}
+            },
+            "state.inning": {"type": "integer", "minimum": 1, "maximum": 99},
+            "state.half": {"enum": ["top", "bottom"]},
+            "state.score": {
+              "type": "object", "required": ["home", "away"], "additionalProperties": false,
+              "properties": {
+                "home": {"type": "integer", "minimum": 0},
+                "away": {"type": "integer", "minimum": 0}
+              }
+            }
+          }
+        }
       }
     },
     "validationError": {
@@ -302,7 +322,7 @@
           "const": "input_axes_descriptor_v1"
         },
         "digest": {
-          "const": "sha256:db3e1bce1876f2d36b873ad3d706819ae9e6cacfa8734ffb165fb7ea4068ff5c"
+          "const": "sha256:071907fcc2138fdcdb134142c98982a80e888be8d2c75ab8c3a3854939577493"
         }
       }
     },

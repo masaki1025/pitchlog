@@ -675,9 +675,12 @@ def test_all_descriptor_game_end_targets_are_projected_exactly_once() -> None:
         assert target["x-pitchlog-axis-classification"] == axis["classification"]
         assert target["x-pitchlog-coverage-bounds"] == axis["coverageBounds"]
         assert target["x-pitchlog-boundary-values"] == axis["boundaryValues"]
-        assert target["x-pitchlog-invalid-boundary-values"] == axis[
-            "invalidBoundaryValues"
-        ]
+        if "invalidBoundaryValues" in axis:
+            assert target["x-pitchlog-invalid-boundary-values"] == axis[
+                "invalidBoundaryValues"
+            ]
+        else:
+            assert "x-pitchlog-invalid-boundary-values" not in target
 
 
 def test_all_non_coverage_fields_remain_required_by_projection() -> None:

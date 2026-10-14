@@ -533,6 +533,10 @@ def _game_projection(descriptor: dict[str, object], schema: dict[str, object]) -
             ("boundaryValues", "x-pitchlog-boundary-values"),
             ("invalidBoundaryValues", "x-pitchlog-invalid-boundary-values"),
         ):
+            if source == "invalidBoundaryValues" and source not in axis:
+                if target in node:
+                    _fail("VALUE_RANGE", f"{axis_id}.{source}")
+                continue
             _exact_values(
                 node.get(target), axis.get(source), "VALUE_RANGE", f"{axis_id}.{source}"
             )

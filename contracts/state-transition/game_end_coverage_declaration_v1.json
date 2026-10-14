@@ -431,7 +431,7 @@
   ],
   "deferredValidationErrors": {
     "requirementKind": "invalid-boundary",
-    "count": 14,
+    "count": 12,
     "ownerStep": 96,
     "targetCollection": "validationErrors",
     "status": "materialized",

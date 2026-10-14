@@ -71,8 +71,8 @@ def _repository_acceptance_context() -> Any:
     )
 
 
-def test_repository_history_is_one_append_from_origin_develop() -> None:
-    """PR比較元で基準が無かった状態から受理記録1件だけを追記している。"""
+def test_repository_history_is_append_only_from_origin_develop() -> None:
+    """PR比較元から同じPRの受理記録を順に追記している。"""
     freeze_checker.validate_repository_history(
         REPOSITORY_ROOT,
         descriptor_checker.DESCRIPTOR_PATH,
@@ -200,7 +200,7 @@ def test_asset_cannot_self_report_comparison_source_across_two_commits(
     tmp_path: Path,
 ) -> None:
     """2コミットで比較元を自己申告しても外部PR baseとの差を隠せない。"""
-    root = _copy_audited_sources(tmp_path)
+    root = _copy_audited_sources(tmp_path, revision="origin/develop")
     descriptor_path = root / descriptor_checker.DESCRIPTOR_PATH
     descriptor_path.parent.mkdir(parents=True, exist_ok=True)
     descriptor_path.write_text(
@@ -347,7 +347,7 @@ def test_criterion_set_removal_from_declaration_is_red() -> None:
         freeze_checker.validate_declaration(declaration)
 
 
-def _copy_audited_sources(tmp_path: Path) -> Path:
+def _copy_audited_sources(tmp_path: Path, revision: str | None = None) -> Path:
     """宣言が監査する検査器sourceを一時リポジトリへ複製する。"""
     root = tmp_path / "repository"
     scope = _declaration()["scope"]
@@ -358,7 +358,17 @@ def _copy_audited_sources(tmp_path: Path) -> Path:
     for relative_path in paths:
         destination = root / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
+        if revision is None:
+            shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
+        else:
+            source = subprocess.run(
+                ["git", "show", f"{revision}:{relative_path}"],
+                cwd=REPOSITORY_ROOT,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout
+            destination.write_text(source, encoding="utf-8")
     return root
 
 
@@ -504,7 +514,7 @@ def test_unchanged_pr_rejects_spurious_acceptance_record() -> None:
 
     with pytest.raises(
         freeze_checker.FreezeBaselineError,
-        match="基準遷移1回につき受理記録はちょうど1件",
+        match="受理記録のchangesが比較元から導出した変更前後と一致しない",
     ):
         freeze_checker.validate_append_only_transition(current, base)
 

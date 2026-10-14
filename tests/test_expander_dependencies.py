@@ -239,7 +239,7 @@ def test_game_end_expander_output_is_traced_and_schema_valid() -> None:
     schema = json.loads(GAME_END_SCHEMA_PATH.read_text(encoding="utf-8"))
     assert [
         {key: value for key, value in case.items()
-         if key not in {"raw", "normalizationRuleId", "normalized"}}
+         if key not in {"raw", "normalizationRuleId", "normalized", "derivedSourceInput"}}
         for case in contract["cases"][:2]
     ] == cases
     assert [case["branchId"] for case in cases] == [
@@ -267,7 +267,7 @@ def test_step93_first_stage_game_end_cases_match_manual_fixtures() -> None:
     assert [
         {
             **{key: value for key, value in case.items()
-               if key not in {"raw", "normalizationRuleId", "normalized"}},
+               if key not in {"raw", "normalizationRuleId", "normalized", "derivedSourceInput"}},
             "inputCoordinate": case["raw"],
         }
         for case in contract["cases"][:4]

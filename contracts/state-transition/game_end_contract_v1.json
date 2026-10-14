@@ -5,7 +5,7 @@
   "inputAxesDescriptor": {
     "descriptorId": "pitchlog.input-axes",
     "version": "input_axes_descriptor_v1",
-    "digest": "sha256:db3e1bce1876f2d36b873ad3d706819ae9e6cacfa8734ffb165fb7ea4068ff5c"
+    "digest": "sha256:071907fcc2138fdcdb134142c98982a80e888be8d2c75ab8c3a3854939577493"
   },
   "decisionRows": [
     {
@@ -550,6 +550,15 @@
         "state.gameEnded": false,
         "state.inning": "L+1",
         "state.score": "away-lead:M+1"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 11
+        }
       }
     },
     {
@@ -605,6 +614,15 @@
         "state.gameEnded": false,
         "state.inning": "R+1",
         "state.score": "tie"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -660,6 +678,15 @@
         "state.gameEnded": false,
         "state.inning": "L+1",
         "state.score": "tie"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -715,6 +742,15 @@
         "state.gameEnded": false,
         "state.inning": "R+1",
         "state.score": "tie"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -824,6 +860,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 11
+        }
       }
     },
     {
@@ -933,6 +978,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 10
+        }
       }
     },
     {
@@ -1042,6 +1096,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 9
+        }
       }
     },
     {
@@ -1151,6 +1214,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 9,
+          "away": 0
+        }
       }
     },
     {
@@ -1260,6 +1332,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -1369,6 +1450,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 11,
+          "away": 0
+        }
       }
     },
     {
@@ -1478,6 +1568,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 11
+        }
       }
     },
     {
@@ -1587,6 +1686,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 10
+        }
       }
     },
     {
@@ -1696,6 +1804,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 9
+        }
       }
     },
     {
@@ -1805,6 +1922,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 9,
+          "away": 0
+        }
       }
     },
     {
@@ -1914,6 +2040,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -2023,6 +2158,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 11,
+          "away": 0
+        }
       }
     },
     {
@@ -2132,6 +2276,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 11
+        }
       }
     },
     {
@@ -2241,6 +2394,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 10
+        }
       }
     },
     {
@@ -2350,6 +2512,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 9
+        }
       }
     },
     {
@@ -2459,6 +2630,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 9,
+          "away": 0
+        }
       }
     },
     {
@@ -2568,6 +2748,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -2677,6 +2866,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 11,
+          "away": 0
+        }
       }
     },
     {
@@ -2786,6 +2984,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 11
+        }
       }
     },
     {
@@ -2895,6 +3102,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 10
+        }
       }
     },
     {
@@ -3004,6 +3220,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 9
+        }
       }
     },
     {
@@ -3113,6 +3338,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 9,
+          "away": 0
+        }
       }
     },
     {
@@ -3222,6 +3456,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -3331,6 +3574,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 11,
+          "away": 0
+        }
       }
     },
     {
@@ -3440,6 +3692,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 11
+        }
       }
     },
     {
@@ -3549,6 +3810,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 10
+        }
       }
     },
     {
@@ -3658,6 +3928,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 9
+        }
       }
     },
     {
@@ -3767,6 +4046,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 9,
+          "away": 0
+        }
       }
     },
     {
@@ -3876,6 +4164,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -3985,6 +4282,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 11,
+          "away": 0
+        }
       }
     },
     {
@@ -4094,6 +4400,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 11
+        }
       }
     },
     {
@@ -4203,6 +4518,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 10
+        }
       }
     },
     {
@@ -4312,6 +4636,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 9
+        }
       }
     },
     {
@@ -4421,6 +4754,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -4530,6 +4872,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -4639,6 +4990,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -4748,6 +5108,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -4857,6 +5226,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -4966,6 +5344,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -5075,6 +5462,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -5184,6 +5580,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -5293,6 +5698,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -5402,6 +5816,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -5511,6 +5934,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -5620,6 +6052,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -5729,6 +6170,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -5838,6 +6288,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -5947,6 +6406,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -6056,6 +6524,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -6165,6 +6642,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -6274,6 +6760,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -6383,6 +6878,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -6492,6 +6996,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -6601,6 +7114,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -6710,6 +7232,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -6819,6 +7350,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -6928,6 +7468,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -7037,6 +7586,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -7146,6 +7704,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -7255,6 +7822,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -7364,6 +7940,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -7473,6 +8058,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -7582,6 +8176,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -7691,6 +8294,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -7800,6 +8412,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -7909,6 +8530,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -8018,6 +8648,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -8127,6 +8766,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -8236,6 +8884,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -8345,6 +9002,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -8454,6 +9120,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -8563,6 +9238,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -8672,6 +9356,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -8781,6 +9474,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -8890,6 +9592,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -8999,6 +9710,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -9108,6 +9828,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -9217,6 +9946,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -9326,6 +10064,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -9435,6 +10182,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -9544,6 +10300,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -9653,6 +10418,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -9762,6 +10536,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -9871,6 +10654,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -9980,6 +10772,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -10089,6 +10890,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -10198,6 +11008,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -10307,6 +11126,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -10416,6 +11244,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -10525,6 +11362,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -10634,6 +11480,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -10743,6 +11598,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -10852,6 +11716,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -10961,6 +11834,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -11070,6 +11952,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -11179,6 +12070,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -11288,6 +12188,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -11397,6 +12306,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -11506,6 +12424,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -11615,6 +12542,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -11724,6 +12660,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -11833,6 +12778,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -11942,6 +12896,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -12051,6 +13014,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -12160,6 +13132,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -12269,6 +13250,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -12378,6 +13368,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -12487,6 +13486,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -12596,6 +13604,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -12705,6 +13722,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -12814,6 +13840,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -12923,6 +13958,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -13032,6 +14076,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -13141,6 +14194,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -13250,6 +14312,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -13359,6 +14430,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -13468,6 +14548,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -13577,6 +14666,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -13686,6 +14784,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -13795,6 +14902,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -13904,6 +15020,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -14013,6 +15138,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -14122,6 +15256,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -14231,6 +15374,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -14340,6 +15492,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -14449,6 +15610,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -14558,6 +15728,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -14667,6 +15846,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -14776,6 +15964,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -14885,6 +16082,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -14994,6 +16200,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -15103,6 +16318,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
       }
     },
     {
@@ -15158,6 +16382,20 @@
         "state.gameEnded": false,
         "state.inning": "N",
         "state.score": "home-lead:M"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -15267,6 +16505,20 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -15376,6 +16628,20 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -15485,6 +16751,20 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -15594,6 +16874,20 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -15703,6 +16997,20 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -15812,6 +17120,20 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -15921,6 +17243,20 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -16030,6 +17366,20 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -16139,6 +17489,20 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -16248,6 +17612,20 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -16357,6 +17735,20 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -16466,6 +17858,20 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -16575,6 +17981,20 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -16684,6 +18104,20 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -16793,6 +18227,20 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -16902,6 +18350,20 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -17011,6 +18473,20 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -17120,6 +18596,20 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -17229,6 +18719,20 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -17338,6 +18842,20 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -17447,6 +18965,20 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -17556,6 +19088,20 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -17665,6 +19211,20 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -17774,6 +19334,20 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -17883,6 +19457,20 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -17992,6 +19580,20 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -18101,6 +19703,20 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -18210,6 +19826,20 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -18319,6 +19949,20 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -18428,6 +20072,20 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -18537,6 +20195,20 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -18646,6 +20318,20 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -18755,6 +20441,20 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
       }
     },
     {
@@ -18810,6 +20510,24 @@
         "state.gameEnded": false,
         "state.inning": "N",
         "state.score": "home-lead:M"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -18919,6 +20637,24 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -19028,6 +20764,24 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -19137,6 +20891,24 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -19246,6 +21018,24 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -19355,6 +21145,24 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -19464,6 +21272,24 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -19573,6 +21399,24 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -19682,6 +21526,24 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -19791,6 +21653,24 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -19900,6 +21780,24 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -20009,6 +21907,24 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -20118,6 +22034,24 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -20227,6 +22161,24 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -20336,6 +22288,24 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -20445,6 +22415,24 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -20554,6 +22542,24 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -20663,6 +22669,24 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -20772,6 +22796,24 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -20881,6 +22923,24 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -20990,6 +23050,24 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -21099,6 +23177,24 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -21208,6 +23304,24 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -21317,6 +23431,24 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -21426,6 +23558,24 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -21535,6 +23685,24 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -21644,6 +23812,24 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -21753,6 +23939,24 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -21862,6 +24066,24 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -21971,6 +24193,24 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -22080,6 +24320,24 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -22189,6 +24447,24 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -22298,6 +24574,24 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -22407,6 +24701,24 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -22471,6 +24783,15 @@
         "event.operationKind": "per-pitch",
         "event.perPitch.kind": "batting-result",
         "event.perPitch.resultId": "batting-result.home-run"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 9,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -22580,6 +24901,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 9,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -22689,6 +25019,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 9,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -22798,6 +25137,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 9,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -22907,6 +25255,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 9,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -23016,6 +25373,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 9,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -23125,6 +25491,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 9,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -23234,6 +25609,15 @@
         "event.perPitch.rbi.doublePlayRelayError": "not-required",
         "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 9,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -23343,6 +25727,15 @@
         "event.perPitch.rbi.doublePlayRelayError": false,
         "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 9,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     },
     {
@@ -23452,6 +25845,15 @@
         "event.perPitch.rbi.doublePlayRelayError": true,
         "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
         "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [],
+        "state.inning": 9,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
       }
     }
   ],
@@ -23701,40 +26103,6 @@
       "claimBoundary": {
         "guaranteed": "gameEnd.tiebreak の不正値 start:100 を拒否すべきことを宣言し、導出器の不正値要求と照合する",
         "notGuaranteed": "保証範囲外: gameEnd.tiebreak の不正値 start:100 に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
-      }
-    },
-    {
-      "axisId": "gameEnd.satisfiedColdTierCount",
-      "invalidValue": -1,
-      "valueIdentity": "-1",
-      "sourceClauseIds": [
-        "req:F-1",
-        "req:COLD-07",
-        "req:COLD-08",
-        "req:COLD-09",
-        "adr:D-11"
-      ],
-      "expected": "reject-invalid-rule-setting",
-      "claimBoundary": {
-        "guaranteed": "gameEnd.satisfiedColdTierCount の不正値 -1 を拒否すべきことを宣言し、導出器の不正値要求と照合する",
-        "notGuaranteed": "保証範囲外: gameEnd.satisfiedColdTierCount の不正値 -1 に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
-      }
-    },
-    {
-      "axisId": "gameEnd.satisfiedColdTierCount",
-      "invalidValue": 17,
-      "valueIdentity": "17",
-      "sourceClauseIds": [
-        "req:F-1",
-        "req:COLD-07",
-        "req:COLD-08",
-        "req:COLD-09",
-        "adr:D-11"
-      ],
-      "expected": "reject-invalid-rule-setting",
-      "claimBoundary": {
-        "guaranteed": "gameEnd.satisfiedColdTierCount の不正値 17 を拒否すべきことを宣言し、導出器の不正値要求と照合する",
-        "notGuaranteed": "保証範囲外: gameEnd.satisfiedColdTierCount の不正値 17 に対する製品経路の拒否実装・拒否実行とその成否。段階1は拒否すべきことの宣言まで"
       }
     }
   ]

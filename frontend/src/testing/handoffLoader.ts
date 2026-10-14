@@ -9,7 +9,7 @@ const DESCRIPTOR_PATH =
 const DESCRIPTOR_ID = 'pitchlog.input-axes'
 const DESCRIPTOR_VERSION = 'input_axes_descriptor_v1'
 const DESCRIPTOR_DIGEST =
-  'sha256:db3e1bce1876f2d36b873ad3d706819ae9e6cacfa8734ffb165fb7ea4068ff5c'
+  'sha256:071907fcc2138fdcdb134142c98982a80e888be8d2c75ab8c3a3854939577493'
 const DEPENDENCY_OID = 'b8fd5fe73e85ae80b3aa82b28bef7f2911f29b12'
 const CONTRACTS = {
   'state-transition': {
@@ -52,6 +52,7 @@ const CONTRACTS = {
       'normalized',
       'raw',
       'rowRef',
+      'derivedSourceInput',
     ],
     contractKeys: [
       'schemaVersion',

@@ -1249,6 +1249,7 @@ def derive_game_end_required_set_from_documents(
     try:
         criteria = descriptor_checker.load_descriptor_criteria(descriptor)
         descriptor_checker._validate_game_end_contract(descriptor, criteria)
+        descriptor_checker._validate_derived_axes(descriptor, criteria)
     except descriptor_checker.DescriptorCheckError as error:
         raise DeriverDependencyError(str(error)) from error
 
@@ -1261,6 +1262,8 @@ def derive_game_end_required_set_from_documents(
             "sourceClauseId",
             "ruleFieldCombination",
             "boundaryValueCombination",
+            "derivedAxisIds",
+            "derivedUnreachablePairs",
         },
         "gameEndCombinationRules",
     )
@@ -1301,7 +1304,9 @@ def derive_game_end_required_set_from_documents(
         invalid_values = axis.get("invalidBoundaryValues")
         if not isinstance(valid_values, list) or not valid_values:
             raise DeriverDependencyError(f"{axis_id}.boundaryValuesが空である")
-        if not isinstance(invalid_values, list) or not invalid_values:
+        if axis_id in raw_combination["derivedAxisIds"] and invalid_values is None:
+            invalid_values = []
+        elif not isinstance(invalid_values, list) or not invalid_values:
             raise DeriverDependencyError(
                 f"{axis_id}.invalidBoundaryValuesが空である"
             )

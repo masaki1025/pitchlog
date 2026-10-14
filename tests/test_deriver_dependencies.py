@@ -350,7 +350,7 @@ def test_repository_game_end_required_set_follows_descriptor_combinations() -> N
         len(axis["boundaryValues"]) for axis in descriptor["gameEndAxes"]
     ]
     invalid_value_count = sum(
-        len(axis["invalidBoundaryValues"])
+        len(axis.get("invalidBoundaryValues", []))
         for axis in descriptor["gameEndAxes"]
     )
     state_event_coordinates = tuple(

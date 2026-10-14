@@ -155,6 +155,32 @@ def test_repository_descriptor_passes_schema_and_digest_validation() -> None:
     assert result.stderr == ""
 
 
+@pytest.mark.parametrize(
+    ("mutation", "rule_id"),
+    [
+        ("missing", "DERIVED_DECLARATION"),
+        ("unknown-source", "DERIVED_SOURCE"),
+        ("invalid-boundary", "DERIVED_INVALID_BOUNDARY"),
+    ],
+)
+def test_derived_axis_declaration_fail_closed(mutation: str, rule_id: str) -> None:
+    """派生元の欠落・未登録軸・不正境界の混入を拒否する。"""
+    descriptor = _descriptor()
+    axis = next(
+        item for item in descriptor["gameEndAxes"]
+        if item["axisId"] == "gameEnd.satisfiedColdTierCount"
+    )
+    if mutation == "missing":
+        axis.pop("derivedFrom")
+    elif mutation == "unknown-source":
+        axis["derivedFrom"]["sourceAxisIds"][0] = "gameEnd.unknown"
+    else:
+        axis["invalidBoundaryValues"] = [-1, 17]
+    _with_digest(descriptor)
+    with pytest.raises(checker.DescriptorCheckError, match=rule_id):
+        _validate(descriptor)
+
+
 def test_step103_descriptor_digest_bindings_are_exact() -> None:
     """実内容のdigestを契約2件とschema2件の固定値へ照合する。"""
     documents = _binding_documents()
@@ -832,7 +858,13 @@ def test_game_end_axes_match_d11_inventory_boundaries_and_sources() -> None:
         {"dimension": "satisfiedTierCount", "minimum": 0, "maximum": 16}
     ]
     assert axes["gameEnd.satisfiedColdTierCount"]["boundaryValues"] == [0, 1, 2, 16]
-    assert axes["gameEnd.satisfiedColdTierCount"]["invalidBoundaryValues"] == [-1, 17]
+    assert "invalidBoundaryValues" not in axes["gameEnd.satisfiedColdTierCount"]
+    assert axes["gameEnd.satisfiedColdTierCount"]["derivedFrom"] == {
+        "sourceAxisIds": [
+            "gameEnd.coldConditions", "state.inning", "state.half", "state.score"
+        ],
+        "clauseIds": ["req:F-1", "req:COLD-07", "req:COLD-08", "req:COLD-09"],
+    }
     assert axes["gameEnd.extensionLimit"]["boundaryValues"] == [
         "none",
         "finite:R",
@@ -918,13 +950,18 @@ def test_game_end_combination_rules_are_pairwise_and_full_cross_product() -> Non
     """規則フィールド間をペアワイズ、各境界と全状態・イベントを直積する。"""
     descriptor = _descriptor()
 
-    assert descriptor["gameEndCombinationRules"] == {
+    rules = descriptor["gameEndCombinationRules"]
+    assert {key: rules[key] for key in (
+        "sourceClauseId", "ruleFieldCombination", "boundaryValueCombination"
+    )} == {
         "sourceClauseId": "adr:D-11",
         "ruleFieldCombination": "pairwise-all-game-end-axes",
         "boundaryValueCombination": (
             "full-cross-product-with-all-state-and-event-axes"
         ),
     }
+    assert rules["derivedAxisIds"] == ["gameEnd.satisfiedColdTierCount"]
+    assert len(rules["derivedUnreachablePairs"]) == 6
     assert "adr:D-11" in SOURCE_CLAUSE_IDS
 
 

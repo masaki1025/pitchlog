@@ -99,15 +99,13 @@ def _synchronize_unaccepted_freeze_record(descriptor: dict[str, Any]) -> None:
     declaration = descriptor[checker.freeze_checker.FREEZE_FIELD]
     criteria = declaration["criteria"]
     history = declaration["history"]
-    assert len(history) == 2
+    assert len(history) >= 2
     record = history[-1]
     record["newIdentity"] = {
         "present": True,
         "values": checker.freeze_checker.current_identities(declaration),
     }
     changes = {change["criterionId"]: change for change in record["changes"]}
-    definition_id = declaration["scope"]["identityCriterionId"]
-    assert definition_id not in changes
     for criterion_id, value in criteria.items():
         if criterion_id in changes:
             changes[criterion_id]["after"] = {

@@ -263,3 +263,13 @@ branch: feature/adr003-stage2-runtime
 - 組み替え後: 28 = 派生軸の仕組みと S19 の是正 / 29 = 履歴と結果の面の移行と S17(既存の空履歴 undo 行を `"none"` へ書き換えることが S17 そのもの)/ 30 = S18 / 31 = S16 / 32 = S15。総数は 34 のまま
 - P0 は 0 件。人間の明示の承認へ上げる
 - **山田さんが改訂後の計画書を再承認**(2026-10-14・最終版 `88943146`)
+
+### ステップ 28(2026-10-14)— 派生軸の仕組みと S19 の是正
+
+- descriptor schema に `derivedFrom: {sourceAxisIds, clauseIds}`。`gameEnd.satisfiedColdTierCount` の導出元 = コールド条件・回・表裏・得点、条文 = F-1・COLD-07〜09
+- 関数性の検査(`check_derived_axis_cases`)は case の `derivedSourceInput`(各段の点差と開始回・回・表裏・得点の具体値)で比べる。**派生値は計算しない**(NFR-018)。到達不可 6 件は `gameEndCombinationRules.derivedUnreachablePairs` に宣言
+- S19 の是正: 不正境界値(−1・17)と `validationErrors[]` 2 件を除いた(14 → 12)。requiredSet 4658 → 4656、到達不可 3097(不変)
+- 凍結基準の受理記録を追記(#131・山田正輝・2026-10-14 — ゲート ⑤ でまとめて了承)
+- 負例: `DERIVED_DECLARATION`・`DERIVED_SOURCE`・`DERIVED_FUNCTION`・`DERIVED_INVALID_BOUNDARY`・`DERIVED_UNREACHABLE`
+- ハーネス全件(1 回目)で本ステップ由来の失敗 4 件(展開器の照合 2・変異試験 2)→ 是正: 展開器の出力との比較射影から `derivedSourceInput` を除く / 変異の実験中だけ派生元の参照整合の検査を外す(変異体はわざと軸を消すため。原本の検査と生存変異体の検出は不変)
+- 是正後のハーネス全件: **69 failed**、本ステップ由来は 0。新しく出た既知の失敗 1 件 = `test_check_shared_preconditions`(要件書 v2.14 の blob digest — authz の再封印〔#119 の後〕でまとめて取り直す)。core_guard の 4 件は develop の取り込みで消えた

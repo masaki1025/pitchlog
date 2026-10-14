@@ -759,13 +759,13 @@ def _fixed_game_end_values(
     return fixed
 
 
-def _game_end_requirement_impossible_pairs() -> dict[tuple[str, ...], tuple[str, ...]]:
+def _game_end_requirement_impossible_pairs(
+    descriptor: dict[str, Any],
+) -> dict[tuple[str, ...], tuple[str, ...]]:
     """F-1の保存条件とdescriptorの上限から不成立の軸値ペアを列挙する。"""
     regulation = "gameEnd.regulationInnings"
     extension = "gameEnd.extensionLimit"
     tiebreak = "gameEnd.tiebreak"
-    configured = "gameEnd.coldConditions"
-    satisfied = "gameEnd.satisfiedColdTierCount"
     rules = (
         (regulation, 99, extension, "finite:R+1", ("req:F-1",)),
         (regulation, 99, tiebreak, "start:R+1", ("req:DRAW-03",)),
@@ -775,21 +775,24 @@ def _game_end_requirement_impossible_pairs() -> dict[tuple[str, ...], tuple[str,
         (extension, "finite:R", tiebreak, "start:L", ("req:DRAW-03",)),
         (extension, "finite:R", tiebreak, "start:99", ("req:DRAW-03",)),
         (extension, "none", tiebreak, "start:L", ("req:F-1",)),
-        # F-1 COLD-07〜09: 成立段数は設定した段数を超えられない。
-        (configured, "tier-count:0", satisfied, 1, ("req:F-1",)),
-        (configured, "tier-count:0", satisfied, 2, ("req:F-1",)),
-        (configured, "tier-count:0", satisfied, 16, ("req:F-1",)),
-        (configured, "tier-count:1", satisfied, 2, ("req:F-1",)),
-        (configured, "tier-count:1", satisfied, 16, ("req:F-1",)),
-        (configured, "tier-count:2", satisfied, 16, ("req:F-1",)),
     )
-    return {
+    expected: dict[tuple[str, ...], tuple[str, ...]] = {
         (
             "rule-field-pairwise", left_axis, _game_end_identity(left_value),
             right_axis, _game_end_identity(right_value),
         ): clauses
         for left_axis, left_value, right_axis, right_value, clauses in rules
     }
+    for pair in descriptor["gameEndCombinationRules"]["derivedUnreachablePairs"]:
+        identity = (
+            "rule-field-pairwise",
+            pair["sourceAxisId"], _game_end_identity(pair["sourceValue"]),
+            pair["derivedAxisId"], _game_end_identity(pair["derivedValue"]),
+        )
+        if identity in expected:
+            raise RequiredSetCoverageError("DERIVED_UNREACHABLE: 宣言が重複")
+        expected[identity] = tuple(pair["clauseIds"])
+    return expected
 
 
 def _classify_game_end_unreachable(
@@ -815,7 +818,7 @@ def _classify_game_end_unreachable(
         or "finite:100" not in axes["gameEnd.extensionLimit"]["invalidBoundaryValues"]
     ):
         raise RequiredSetCoverageError("S28の99回上限の典拠がdescriptorと不一致")
-    expected = _game_end_requirement_impossible_pairs()
+    expected = _game_end_requirement_impossible_pairs(descriptor)
     records = policy["requirementsImpossible"]
     if not isinstance(records, list) or not all(
         isinstance(item, dict) and set(item) == {"identity", "clauseIds", "basis"}
@@ -1427,6 +1430,74 @@ def _check_game_end_validation_errors(
         raise RequiredSetCoverageError("validationErrorsが導出要求とexact-set不一致")
 
 
+def check_derived_axis_cases(
+    contract: dict[str, Any], descriptor: dict[str, Any]
+) -> None:
+    """具体入力の同値性と宣言済み到達不可だけを照合する。"""
+    rules = descriptor["gameEndCombinationRules"]
+    axes = {
+        axis["axisId"]: axis
+        for collection in ("stateTransitionAxes", "gameEndAxes")
+        for axis in descriptor[collection]
+    }
+    observations: dict[tuple[str, str], str] = {}
+    for case in contract["cases"]:
+        raw = case.get("raw")
+        source_input = case.get("derivedSourceInput")
+        if not isinstance(raw, dict) or not isinstance(source_input, dict):
+            raise RequiredSetCoverageError("DERIVED_INPUT: 具体入力がない")
+        for axis_id in rules["derivedAxisIds"]:
+            derived = axes[axis_id]
+            source_ids = derived["derivedFrom"]["sourceAxisIds"]
+            if set(source_input) != set(source_ids):
+                raise RequiredSetCoverageError("DERIVED_INPUT: 導出元の完全な入力がない")
+            if raw.get("state.half") != source_input.get("state.half"):
+                raise RequiredSetCoverageError("DERIVED_INPUT: 表裏の入力が不一致")
+            cold = source_input.get("gameEnd.coldConditions")
+            label = raw.get("gameEnd.coldConditions")
+            if not isinstance(cold, list) or label != f"tier-count:{len(cold)}":
+                raise RequiredSetCoverageError("DERIVED_INPUT: コールド段の入力が不一致")
+            if any(
+                not isinstance(tier, dict)
+                or set(tier) != {"pointDifference", "startInning"}
+                or any(type(value) is not int or value < 1 for value in tier.values())
+                for tier in cold
+            ):
+                raise RequiredSetCoverageError("DERIVED_INPUT: 段の具体入力が不正")
+            score = source_input.get("state.score")
+            if (
+                type(source_input.get("state.inning")) is not int
+                or not isinstance(score, dict)
+                or set(score) != {"home", "away"}
+                or any(type(value) is not int or value < 0 for value in score.values())
+            ):
+                raise RequiredSetCoverageError("DERIVED_INPUT: 状態の具体入力が不正")
+            if axis_id not in raw:
+                raise RequiredSetCoverageError("DERIVED_INPUT: 派生値がない")
+            full_input = {
+                source_id: source_input[source_id] for source_id in source_ids
+            }
+            # 具体入力のキーはASCIIの固定フィールドと整数だけで構成される。
+            key = (
+                axis_id,
+                json.dumps(full_input, ensure_ascii=True, sort_keys=True, separators=(",", ":")),
+            )
+            value = _game_end_identity(raw[axis_id])
+            previous = observations.setdefault(key, value)
+            if previous != value:
+                raise RequiredSetCoverageError(
+                    f"DERIVED_FUNCTION: 同じ完全入力から異なる派生値: {axis_id}"
+                )
+        for pair in rules["derivedUnreachablePairs"]:
+            if (
+                raw.get(pair["sourceAxisId"]) == pair["sourceValue"]
+                and raw.get(pair["derivedAxisId"]) == pair["derivedValue"]
+            ):
+                raise RequiredSetCoverageError(
+                    f"DERIVED_UNREACHABLE: 到達不可の組合せがcaseにある: {case['caseId']}"
+                )
+
+
 def _check_game_end_documents(
     root: Path, contract: dict[str, Any], declaration: dict[str, Any],
     record: dict[str, Any],
@@ -1542,9 +1613,12 @@ def _check_game_end_documents(
     expander_policy = expand_game_end_cases.dependency_checker.load_policy(root)
     if trace.observed_read_paths != expander_policy.expanders["game-end-cases"].allowed_read_paths:
         raise RequiredSetCoverageError("終了判定展開器のallowedReadPathsが実測と不一致")
-    normalization_fields = {"raw", "normalizationRuleId", "normalized"}
+    normalization_fields = {
+        "raw", "normalizationRuleId", "normalized", "derivedSourceInput"
+    }
     if not isinstance(contract.get("cases"), list) or len(contract["cases"]) != len(generated):
         raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
+    check_derived_axis_cases(contract, descriptor)
     for case, expanded in zip(contract["cases"], generated, strict=True):
         if case["inputCoordinate"] != case["normalized"]:
             raise RequiredSetCoverageError("終了判定ケースが代表値展開の正規形と不一致")
