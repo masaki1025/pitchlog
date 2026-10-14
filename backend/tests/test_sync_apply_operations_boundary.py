@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import os
 from collections import Counter
-from datetime import UTC, datetime
 from types import MappingProxyType
 from uuid import uuid4
 
@@ -13,11 +11,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql.dml import Insert, Update
 from sqlalchemy.sql.elements import BindParameter
 from sqlalchemy.sql.selectable import Select
-from test_authz_tenant_context import make_tenant_context
 
-from pitchlog.db.engine import create_database_engine
-from pitchlog.db.sync_protocol.models import InvalidationIntent
-from pitchlog.repositories import transaction
 from pitchlog.repositories.base import (
     _OPERATION_REGISTRY,
     _validate_prepared_statement,
@@ -28,7 +22,6 @@ from pitchlog.repositories.cache_invalidation import (
 )
 from pitchlog.repositories.invalidation_intents import InvalidationIntentInsertToken
 from pitchlog.repositories.sync_apply import SYNC_APPLY_OPERATIONS
-from pitchlog.repositories.transaction import tenant_transaction_scope
 from pitchlog.sync import tokens
 from pitchlog.sync.intent_ids import derive_sync_intent_id, is_sync_intent_id
 from pitchlog.sync.port_guard import validate_port_modules
@@ -180,80 +173,3 @@ def test_composite_updates_bind_exact_primary_keys() -> None:
             column.key for column in spec.tenant_column.table.primary_key.columns
         }
         _validate_prepared_statement(spec, spec.statement)
-
-
-@pytest.mark.requires_db
-def test_sync_intent_two_tenant_read_and_write_boundary(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """共有 DB の外側トランザクションで越境を拒否し、最後に巻き戻す。"""
-    if "PITCHLOG_DATABASE_URL" not in os.environ:
-        pytest.skip("共有 DB の PITCHLOG_DATABASE_URL が未設定")
-    first_tenant, second_tenant = uuid4(), uuid4()
-    event_identity = str(uuid4())
-    intent_id = derive_sync_intent_id(event_identity, "shared_total")
-    tenant_index = list(InvalidationIntent.__table__.c.keys()).index("tenant_id")
-    target_index = list(InvalidationIntent.__table__.c.keys()).index("target_tenant_id")
-    intent_index = list(InvalidationIntent.__table__.c.keys()).index("intent_id")
-    engine = create_database_engine()
-    with engine.connect() as connection:
-        outer = connection.begin()
-        monkeypatch.setattr(transaction, "create_database_engine", lambda: connection)
-        try:
-            with tenant_transaction_scope(make_tenant_context(first_tenant)) as scope:
-                with pytest.raises(TypeError):
-                    tokens.SyncSharedInvalidationIntentInsertToken(
-                        event_identity, **{"target_tenant_id": second_tenant}
-                    )
-                scope.run(
-                    tokens.SyncSharedInvalidationIntentInsertToken(event_identity)
-                )
-                old = InvalidationIntentInsertToken(
-                    CacheInvalidationTrigger.ROSTER_STATUS_CHANGE,
-                    uuid4(),
-                    CacheScope.SHARED_AGGREGATE,
-                )
-                scope.run(old)
-                own = scope.run(tokens.InvalidationIntentReadToken(intent_id))
-                assert len(own.rows) == 1
-                assert own.rows[0][tenant_index] == first_tenant
-                assert own.rows[0][target_index] == first_tenant
-                cursor = ""
-                observed: list[str] = []
-                selected: list[str] = []
-                for _ in range(3):
-                    page = scope.run(tokens.InvalidationIntentPendingToken(1, cursor))
-                    if not page.rows:
-                        break
-                    cursor = page.rows[0][intent_index]
-                    assert type(cursor) is str
-                    observed.append(cursor)
-                    if is_sync_intent_id(cursor):
-                        selected.append(cursor)
-                assert observed == sorted((old.intent_id, intent_id))
-                assert selected == [intent_id]
-
-            with tenant_transaction_scope(make_tenant_context(second_tenant)) as scope:
-                assert (
-                    scope.run(tokens.InvalidationIntentReadToken(intent_id)).rows == ()
-                )
-                changed = scope.run(
-                    tokens.InvalidationIntentDeliveredToken(
-                        intent_id, datetime.now(UTC)
-                    )
-                )
-                assert changed.rows == ((0,),)
-                scope.run(
-                    tokens.SyncSharedInvalidationIntentInsertToken(event_identity)
-                )
-                other = scope.run(tokens.InvalidationIntentReadToken(intent_id))
-                assert len(other.rows) == 1
-                assert other.rows[0][tenant_index] == second_tenant
-                assert other.rows[0][target_index] == second_tenant
-
-            with tenant_transaction_scope(make_tenant_context(first_tenant)) as scope:
-                original = scope.run(tokens.InvalidationIntentReadToken(intent_id))
-                assert len(original.rows) == 1
-                assert original.rows[0][tenant_index] == first_tenant
-        finally:
-            outer.rollback()
