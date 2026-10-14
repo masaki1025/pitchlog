@@ -5,7 +5,10 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter
+from fractions import Fraction
+from math import lcm
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -547,3 +550,146 @@ def test_fielder_expected_positions_are_derived_from_the_legacy_geometry() -> No
     assert exceptions_seen == LEGACY_SENTINEL_EXCEPTIONS, (
         f"センチネルの例外が記録と一致しない: {sorted(exceptions_seen)}"
     )
+
+
+# --- 領域シードを旧の幾何規則と全格子で突合する -----------------------------
+#
+# 3 段目。捕球選手契約をシードから検算すると、シードと契約を一緒に壊したときに
+# 通ってしまう。そこでシードのほうは同じ旧の幾何規則と、旧 263 格子の全点で突き合わせる。
+#
+# 保存座標を 263 倍すると格子点は整数になるが、頂点は垂直二等分線の交点なので
+# 分母が大きい。そこで辺ごとに判定式 f(p) = A*px + B*py + C を
+# 整数係数へ払う(正の数を掛けるので符号は保たれる)。浮動小数は経由しない。
+
+SEED_PATH = REPOSITORY_ROOT / "contracts/field-regions/field_region_seed_v1.json"
+LATTICE_POINT_COUNT = (SCALE + 1) ** 2  # 264 × 264。両端を含む。
+SENTINEL_POINT_COUNT = (SCALE + 1) * 2 - 1  # x = 0 の列と y = 0 の行(交点は 1 度だけ)。
+COMPARED_POINT_COUNT = LATTICE_POINT_COUNT - SENTINEL_POINT_COUNT  # = 263 × 263。
+
+
+def _seed_region_edges(region: dict[str, Any]) -> list[tuple[int, int, int, bool]]:
+    """1 領域の辺を、整数係数の判定式 (A, B, C, 開いているか) の列へ変換する。"""
+    vertices = [
+        (
+            Fraction(int(v["x"]["numerator"]), int(v["x"]["denominator"])) * SCALE,
+            Fraction(int(v["y"]["numerator"]), int(v["y"]["denominator"])) * SCALE,
+        )
+        for v in region["vertices"]
+    ]
+    count = len(vertices)
+    doubled_area = sum(
+        vertices[i][0] * vertices[(i + 1) % count][1]
+        - vertices[(i + 1) % count][0] * vertices[i][1]
+        for i in range(count)
+    )
+    counterclockwise = doubled_area > 0
+    opened = set(region.get("openEdges", []))
+    edges: list[tuple[int, int, int, bool]] = []
+    for i in range(count):
+        ax, ay = vertices[i]
+        bx, by = vertices[(i + 1) % count]
+        dx, dy = bx - ax, by - ay
+        a, b, c = -dy, dx, dy * ax - dx * ay
+        if not counterclockwise:
+            a, b, c = -a, -b, -c
+        scale = lcm(a.denominator, b.denominator, c.denominator)
+        edges.append((int(a * scale), int(b * scale), int(c * scale), i in opened))
+    return edges
+
+
+def _prepare_seed_regions() -> list[tuple[str, int, list[tuple[int, int, int, bool]]]]:
+    """領域シードを評価順のまま、整数係数の辺の列へ前処理する。"""
+    seed = json.loads(SEED_PATH.read_text(encoding="utf-8"))
+    assert seed["tieBreak"] == "first-defined-region-wins", seed["tieBreak"]
+    return [
+        (region["regionId"], region["position"], _seed_region_edges(region))
+        for region in seed["regions"]
+    ]
+
+
+def _seed_position(
+    regions: list[tuple[str, int, list[tuple[int, int, int, bool]]]],
+    x_units: int,
+    y_units: int,
+) -> int | None:
+    """保存座標の格子点が属する領域の守備位置を返す。属さなければ None。
+
+    tieBreak が first-defined-region-wins なので、先に定義された領域が勝つ。
+    開いた辺の上に乗る点はその領域に含めない。
+    """
+    for _region_id, position, edges in regions:
+        for a, b, c, is_open in edges:
+            value = a * x_units + b * y_units + c
+            if value < 0 or (value == 0 and is_open):
+                break
+        else:
+            return position
+    return None
+
+
+def test_region_seed_matches_the_legacy_geometry_on_every_lattice_point() -> None:
+    """領域シードを旧の幾何規則と旧 263 格子の全点で突合する。
+
+    センチネル(x <= 0 または y <= 0)は旧実装が未入力として弾く範囲であり、
+    本契約は付録B-7(v2.13)によりこれを適用しない(design.md 6-3)。
+    多角形は未入力の概念を持てないため、その 527 点は比較対象から外す。
+    """
+    regions = _prepare_seed_regions()
+    differences: list[str] = []
+    sentinel_count = 0
+    compared_count = 0
+
+    for y_old in range(SCALE + 1):
+        for x_old in range(SCALE + 1):
+            if x_old <= 0 or y_old <= 0:
+                sentinel_count += 1
+                continue
+            compared_count += 1
+            actual = _seed_position(regions, x_old, SCALE - y_old)
+            expected = _legacy_position(x_old, y_old)
+            if actual != expected:
+                if len(differences) < 20:
+                    differences.append(
+                        f"旧(x={x_old}, y={y_old}): 旧規則 {expected} / シード {actual}"
+                    )
+
+    assert sentinel_count == SENTINEL_POINT_COUNT, sentinel_count
+    assert compared_count == COMPARED_POINT_COUNT, compared_count
+    assert not differences, (
+        f"旧の幾何規則と一致しない点がある(先頭 {len(differences)} 件):\n"
+        + "\n".join(differences)
+    )
+
+
+def test_region_seed_covers_every_non_sentinel_lattice_point() -> None:
+    """センチネルを除く全格子点が、いずれかの領域に属する(穴がない)。"""
+    regions = _prepare_seed_regions()
+    uncovered = [
+        (x_old, y_old)
+        for y_old in range(1, SCALE + 1)
+        for x_old in range(1, SCALE + 1)
+        if _seed_position(regions, x_old, SCALE - y_old) is None
+    ]
+    assert not uncovered, f"どの領域にも属さない点が {len(uncovered)} 件: {uncovered[:10]}"
+
+
+def test_region_seed_open_edge_is_honoured() -> None:
+    """投手の矩形の開いた右辺が効いている(旧 x < 145 の再現)。
+
+    design.md 2-1 の旧条件は `105 <= x < 145` であり、右辺だけが開く。
+    開辺を無視して多角形を閉じると、x = 145 の縦線上で旧規則と食い違う。
+    """
+    regions = _prepare_seed_regions()
+    closed = [
+        (region_id, position, [(a, b, c, False) for a, b, c, _ in edges])
+        for region_id, position, edges in regions
+    ]
+    divergences = [
+        y_old
+        for y_old in range(140, 191)
+        if _seed_position(closed, 145, SCALE - y_old)
+        != _seed_position(regions, 145, SCALE - y_old)
+    ]
+    assert divergences, "開辺を閉じても結果が変わらない(開辺が効いていない)"
+    for y_old in divergences:
+        assert _seed_position(regions, 145, SCALE - y_old) == _legacy_position(145, y_old)
