@@ -219,9 +219,17 @@ def _prepare_invalidation_intent_insert(
     """トリガーごとに許可した列だけを実行文へ渡す。"""
     token = cast(InvalidationIntentInsertToken, operation)
     if token.trigger is CacheInvalidationTrigger.GAME_DELETE_RESTORE_OR_RESUME:
-        return _build_game_invalidation_intent_statement(
-            shared_target=token.row_discriminator is CacheScope.SHARED_AGGREGATE
-        ), {
+        statement = _build_invalidation_intent_statement().values(
+            scope_kind=bindparam("scope_kind", type_=Text),
+            target_selector_kind=bindparam("target_selector_kind", type_=Text),
+            game_id=bindparam("game_id", type_=Uuid(as_uuid=True)),
+            target_tenant_id=(
+                bindparam("tenant_id")
+                if token.row_discriminator is CacheScope.SHARED_AGGREGATE
+                else null()
+            ),
+        )
+        return statement, {
             "intent_id": token.intent_id,
             "scope_kind": _SCOPE_KIND_BY_SCOPE[token.row_discriminator],
             "target_selector_kind": _SELECTOR_KIND_BY_SCOPE[token.row_discriminator],
@@ -230,18 +238,6 @@ def _prepare_invalidation_intent_insert(
             ),
         }
     return _build_invalidation_intent_statement(), {"intent_id": token.intent_id}
-
-
-def _build_game_invalidation_intent_statement(*, shared_target: bool = False) -> Insert:
-    """5範囲を同じ既存表に、テナントを束縛して保存する。"""
-    return insert(_INTENTS).values(
-        tenant_id=bindparam("tenant_id"),
-        intent_id=bindparam("intent_id", type_=Text),
-        scope_kind=bindparam("scope_kind", type_=Text),
-        target_selector_kind=bindparam("target_selector_kind", type_=Text),
-        game_id=bindparam("game_id", type_=Uuid(as_uuid=True)),
-        target_tenant_id=bindparam("tenant_id") if shared_target else null(),
-    )
 
 
 INVALIDATION_INTENT_OPERATIONS: tuple[OperationRegistration, ...] = (
