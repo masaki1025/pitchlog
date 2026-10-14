@@ -399,3 +399,9 @@ branch: feature/us1-sync-apply-core
 - 期待値をアダプタへ複製しない検査の対象に、端末を観測する case の I6 の値も足した
 - `src/testing/` に .ts を足していないので `EXPECTED_TESTING_SOURCE_FILE_NAMES` は変えていない(計画の第 1 改訂で予定した追随は不要になった)
 - 検査: frontend 全件 989 passed・vue-tsc・eslint・prettier green / 専用 DB で runner の分担の試験 green
+
+## ステップ 21 — TSK-330・TSK-332 の参照の追随(2026-10-15 — Claude が直接実装)
+
+- frontend のオラクルで射程外に残す 4 ID(B3a・DI5・I5・I6)の受け取り先を TSK-330 から TSK-391 へ移した(`canonOracle.ts`・`canonOracle.spec.ts`・`idempotencyCollision.ts`)。4 ID は frontend のオラクルの「実装済み」には入れない: 実装はサーバーの適用核(`backend/src/pitchlog/sync/`)で、計画の「やらないこと」は「クライアント側の実装」を外している — 射程外のまま受け取り先だけを直すのが計画と一致する。I6 の端末永続化は既存の `durableQueue.ts` が持ち、(d) の観測はステップ 20 が持つので、理由を「(d) の観測を TSK-391 が受け取る」にした
+- frontend の .ts に TSK-330・TSK-332 の参照は残っていない
+- 検査: frontend 全件 989 passed・vue-tsc・eslint green / root の `test_check_processing_stages`・`test_core_guard` green
