@@ -259,3 +259,16 @@ branch: feature/us1-sync-apply-core
 - **敵対レビュー**: 1 回目 否決(P0 1・P1 2 — 他テナントの共有集計の意図を作れる / 未配信一覧に同期経路以外の意図が混ざる / 次ページを取れない)→ すべて採用。うち P1-2 は Codex が「DDL に発生経路の列がなく、`LIKE` は認可の登録検査器が拒否」で停止 → **山田正輝の裁定(2026-10-14)「アプリ側で絞る」**: DDL と認可検査器は変えず、同期の意図 ID に接頭辞 `sync:` を付け、受け取る側の純関数で判定。2 回目 否決(P1 1 — 将来の B06 トリガー値 `sync…` との衝突)→ 採用(#114 の token の構築時検査で `sync` で始まるトリガー値を拒否)。**この最終反映は上限到達のため再レビューを受けていない**
 - **今後の課題**: 未配信の意図の SQL 側の絞り込み(DDL の発生経路列、または認可検査器の限定 `LIKE`)。現方式では同期を通らない未配信の意図が溜まるほど、同期側の配信が読み飛ばすページが増える
 - 検査: 関係テスト 194 passed / 凍結資産一式 571 passed / backend の DB 不要の全件 1447 passed(失敗は既知の偽の赤 44 件だけ)/ 迂回検査 ok / backend と root の ruff・ty green。**DB の越境テストはローカル未実行**(接続設定なし・Docker 権限なし)— push 後の CI で確かめる
+
+## ステップ 7 の是正・develop の取り込み・CI の是正(2026-10-14)
+
+- **DB の越境テストが空洞だった**(Claude が push 後に検出): ステップ 7 の DB テストは `PITCHLOG_DATABASE_URL` が無いと skip する形で、CI はこの変数を設定しないため**CI でも常に skip されていた**。`backend/tests/db/` の使い捨て DB の fixture(`provisioned_product_catalog`)へ移した(`(ステップ 7/22 是正)`)。**以後の DB テストは最初から `tests/db/` の流儀で書かせる**。ローカルの DB テストは `PITCHLOG_TEST_ADMIN_DSN`(秘密設定 — Claude は読めない)が要るので Claude は実行できない — CI で確かめる
+- **develop の取り込み**(#126・#128・#127 U-F5・#133): PR が DIRTY だと CI が走らず、ステップ 5〜7 の DB 動作を確かめられないため、凍結資産の取り込み費用を払って取り込んだ。窓口は U-S1 の宣言を採り、core-areas.json は自動合成(U-F5 は基線)。`tests/test_core_guard.py` の衝突 13 箇所は Codex が解消(245 passed)。tenant_boundary の入力は develop 側で変わっておらず、受理記録はそのまま
+- **CI の DB テストで 12 件の失敗**(run 38528642526): ステップ 5 の「正本 ORM の Table との同一性照合」が、合成表で基底を試す既存試験を拒否(10 件)/ ステップ 7 の越境試験の INSERT の rowcount の仮定(2 件)。製品の検査は弱めず試験側を追随(`(ステップ 5/22 是正)`)。**ステップ 5 の敵対レビューでも、ローカルの DB 不要の全件でも見えなかった** — DB を伴うステップは CI を回すまで完了と言えない
+
+## ステップ 8(2026-10-14)
+
+- 変更: `sync/idempotency.py`(入力イベントの正規化 JSON の指紋・D5 の 3 分類〔保存済み結果候補・B3b/B13 候補・未使用〕・要求内の先行分類。導出した拒否理由は指紋に含めない)/ `repositories/transaction.py` に登録済み operation を SAVEPOINT 内で実行する入口(台帳 INSERT が D5 を含む主キー・一意制約に衝突したときだけ戻して再照合、他の DB エラーは伝播)/ TB005 の SAVEPOINT 許可で base-allowlist を改訂し PR #132 の受理記録 1 件・snapshot・比較 corpus を取り直し
+- DB テスト(`tests/db/test_sync_apply_idempotency_boundary.py`): 3 分類・順序固定の並行試験 2 種(テスト側の Event で固定、別の試合の同じ D5)・他テナントの同じ D5。**ローカル未実行 — CI で確かめる**
+- 敵対レビュー 1 回目 **可決(0 件)**
+- 検査: DB 不要の全件 1443 passed(既知の偽の赤 44 件以外)/ 迂回検査・凍結一式 green / backend と root の ruff・ty green

@@ -134,6 +134,24 @@ class _TenantTransaction:
         execution_result = session.execute(statement, parameters)
         return _materialize_execution_result(statement, execution_result)
 
+    def run_in_savepoint(
+        self, operation: TenantOperationToken
+    ) -> TenantOperationResult:
+        """単一 operation の失敗だけを取り消せるように実行する。
+
+        Args:
+            operation: 既存の登録済み operation token。
+
+        Returns:
+            SAVEPOINT 内で実体化した結果。
+        """
+        state_key = self._state_key
+        if state_key is None or state_key not in _TRANSACTION_RUNTIMES:
+            raise RuntimeError("トランザクションハンドルは失効している")
+        session, _ = _TRANSACTION_RUNTIMES[state_key]
+        with session.begin_nested():
+            return self.run(operation)
+
 
 class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
     """Session の生成から close までを所有する内部 context manager。"""
