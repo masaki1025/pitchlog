@@ -139,3 +139,20 @@ P0 0 件、P1 1 件、P2 0 件で否決。P1 を採用した。
 - 「残る待ちは#132だけ」は非共有製品コード・固有試験の開始条件として成立する。ステップ1完了条件では、#131→#132後のtenant-boundary資産と#137後のauthz資産への追随を残す。
 - 計画追補候補は2点だけ: 開始条件3を所有・順序確定と共有資産編集禁止へ分解し、ステップ1内部順を非共有実装→develop merge→凍結/7.7→全検査→単一コミットと明記する。TSK-391回答後に確定し、ステップ数・DoD・正式コミット単位は変えない。
 - 山田正輝がこの2点の最小追補を承認したため、C1計画へ反映した。TSK-391の公開面回答は未着のため、repository製品実装はまだ開始しない。未回答を承認・所有移管とは扱わず、予定期限超過時はClaude調整役へ中継を依頼する。
+
+## 2026-10-15 TSK-391接続回答の受理記録
+
+- 回答証跡はTSK-391 branchのコミット`43f8ad0114015bc415d7e7d9b58081ecfc8c4f6c`。未統合branchはC1の基線へ取り込まず、接続契約の回答だけを参照した。
+- **C1**: `CAP:tenants:read`の`TenantProfileReadToken` / `TENANT_PROFILE_OPERATIONS` 1件は公開面へ登録する形で**採用**。`tenants.c.id = :tenant_id`の`:tenant_id`はrepository基底が検証済み`TenantContext`から注入する。戻り値は`TenantOperationResult`。非共有実装・固有試験を先行し、共有registry・凍結資産は#131→#132統合後に追随する。`tenants`のRLSとapplication roleのSELECT可否はC1の隔離DB試験に残す。
+- **U-R1**: `read_rg1_before_d5(writer) -> bool`と`check_rg1_before_commit(writer) -> bool`、`game_id`なし、False/例外時のB7（P3はB10）と全取消を**採用**。PortWriterはどのロックよりも前に発行し、③-aを試合行ロック・D5照合前、⑧を全書込後・commit直前に呼ぶ。P1/P2/P4/P5/P3は両方、内部配信は③-aだけ。scopeのcommit/rollbackで失効し、以後の`run`/`run_function`を拒否する。
+- **U-R1の条件付き項目**: `PortWriter.run_function(token)`はTSK-550のexact token型だけを同一scopeの`_TenantTransaction.run_function`へ渡す形で条件付き採用。TSK-550実行器のdevelop統合、port token契約・`port_guard.py`適合、コアレビューと人間逐行確認はU-R1新ステップ6の開始条件として維持する。
+- Claude向け申し送りは今後、このコミット済み作業ログへ集約する。既存の`claude-handoff.md`は過去記録として残すが、消失した別worktreeの申し送りファイルを復元済みとは扱わない。
+
+### A-1意図IDと実装の照合
+
+- A-1の「イベントのD5」と実装の`event_identity`はD1付き経路では同一。`prefix_path.py`は正規UUIDの`event.d5`を`UUID`化して`record_d1_intents(scope, game_id, d5)`へ渡し、同関数は再採番・hash化せず`str(d5)`を`derive_sync_intent_id`へ渡す。
+- 実装形式は`sync:<D5>:<scope_kind>`。固定`sync`は同期所有の配信行を判別する接頭辞であり、イベント識別本体はD5のまま。P3は`sync:<game_id>:<generation>:<target_d1>:<confirmed_version>:<scope_kind>`なので、D1のUUID 1成分とは構造上区別できる。
+- 再送は同じD5から同じ5 IDを導出し、既存行を再読して追加しない。競合時も`pk_invalidation_intents`だけをsavepoint後に再読する。D5自体は`idempotency_ledger`の`(tenant_id, d5)`主キー、意図は`(tenant_id, intent_id)`主キーで一意である。
+- 同期経路の判別は`sync:`と既知の末尾5範囲を同時に検査する。同期を通らないtokenは`sync`で始まるtrigger値を拒否し、同期・非同期意図の混在ページから同期行だけを選ぶDB試験がある。接頭辞の維持で再送時の同一性、一意性、同期経路判別は変わらない。
+- よって差分はA-1の抽象表記`<トリガー>`を実装で確定した固定literalへ合わせるものに限る。最小追補候補は、A-1の形式を**`sync:<イベントのD5>:<範囲>`**へ変更し、`sync`はトリガー1/3/4の個別種別ではなく同期所有行の固定接頭辞であると注記すること。理由欄のD5一意性・再送・5範囲の説明は変更不要。data-model v0.10は導出材料をD5+範囲と定め、文字列形式を実装時確定へ残しているため、この追補だけでは正本7.3の再審査を発火させない。
+- TSK-391計画は別担当・別branchの所有物なので、このbranchから変更しない。上記候補をTSK-391担当の計画追補・受理記録へ提示し、必要な計画/契約ゲートを維持する。
