@@ -551,9 +551,7 @@ def _product_reference_tables(data_tables: tuple[str, ...]) -> tuple[str, ...]:
     path = _REPOSITORY_ROOT / "contracts/authz/product/table-classification.json"
     raw = json.loads(path.read_text(encoding="utf-8"))
     rows = raw["tables"]
-    names = tuple(
-        row["table"] for row in rows if row["profile"] == "global_read_only"
-    )
+    names = tuple(row["table"] for row in rows if row["profile"] == "global_read_only")
     if len(names) != 4 or any(name not in data_tables for name in names):
         raise AssertionError("製品表の分類資産に参照表が 4 表ない")
     return names
@@ -577,8 +575,10 @@ def _assert_product_reference_rls(
         (list(tables),),
     )
     states = {row[0]: (row[1], row[2]) for row in cursor.fetchall()}
-    if len(tables) != 4 or set(states) != set(tables) or any(
-        state != (True, True) for state in states.values()
+    if (
+        len(tables) != 4
+        or set(states) != set(tables)
+        or any(rls is not True or force is not True for rls, force in states.values())
     ):
         raise AssertionError("参照表 4 表の RLS と FORCE がすべて有効ではない")
 
@@ -616,14 +616,13 @@ def _assert_product_reference_columns(
 
 
 def _read_product_reference_rows(
-    owner_dsn: str, tables: tuple[str, ...]
+    applicator_dsn: str, tables: tuple[str, ...]
 ) -> tuple[_ProductReferenceRows, ...]:
     """外部供給の開始時に移行済み参照表の内容を一度だけ控える。"""
     snapshots: list[_ProductReferenceRows] = []
-    with psycopg.connect(owner_dsn) as owner:
-        jsonb_oid = owner.adapters.types["jsonb"].oid
-        with owner.cursor() as cursor:
-            _assert_product_reference_rls(cursor, tables)
+    with psycopg.connect(applicator_dsn) as applicator:
+        jsonb_oid = applicator.adapters.types["jsonb"].oid
+        with applicator.cursor() as cursor:
             _assert_product_reference_columns(cursor, tables)
             for table in tables:
                 cursor.execute(
@@ -695,9 +694,8 @@ def _ordered_product_reference_rows(
         if any(column not in column_positions for column in columns):
             raise AssertionError(f"参照表の外部キー列を控えていない: {child}")
         if any(
-            row[column_positions[column]] is not None
+            all(row[column_positions[column]] is not None for column in columns)
             for row in snapshot.rows
-            for column in columns
         ):
             raise AssertionError(f"復元集合の外を参照する外部キーに値がある: {child}")
 
@@ -720,7 +718,9 @@ def _clear_product_data(
     tables: tuple[str, ...],
     reference_rows: tuple[_ProductReferenceRows, ...],
 ) -> None:
-    """所有者権限で行と採番を初期化し、superuser 接続で参照行を復元する。
+    """所有者権限で行と採番を初期化し、管理権限で参照行を復元する。
+
+    TRUNCATE と復元は別トランザクションであり、その間は参照行が無い状態が見える。
 
     Args:
         owner_dsn: TRUNCATE に使う所有者接続。
@@ -748,9 +748,7 @@ def _clear_product_data(
                         sql.SQL(", ").join(
                             sql.Identifier(column) for column in snapshot.columns
                         ),
-                        sql.SQL(", ").join(
-                            sql.Placeholder() for _ in snapshot.columns
-                        ),
+                        sql.SQL(", ").join(sql.Placeholder() for _ in snapshot.columns),
                     ),
                     snapshot.rows,
                 )
@@ -799,7 +797,7 @@ def supply_external_product_catalog(
         observer.rollback()
     data_tables = _product_data_tables()
     reference_rows = _read_product_reference_rows(
-        owner_dsn, _product_reference_tables(data_tables)
+        applicator_dsn, _product_reference_tables(data_tables)
     )
     observations = _ExternalProductCatalogObservations(connections=[])
     _external_product_catalog = _ExternalProductCatalogSupply(
@@ -815,6 +813,11 @@ def supply_external_product_catalog(
         yield observations
     finally:
         _external_product_catalog = None
+        with psycopg.connect(applicator_dsn) as applicator:
+            with applicator.cursor() as cursor:
+                _assert_product_reference_rls(
+                    cursor, tuple(snapshot.table for snapshot in reference_rows)
+                )
 
 
 def _run_docker(
