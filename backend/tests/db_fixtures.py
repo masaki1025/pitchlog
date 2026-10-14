@@ -20,6 +20,7 @@ from alembic.config import Config
 from db.environment_contract import load_expectations
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
+from psycopg.types.json import Jsonb
 from sqlalchemy.engine import URL
 
 from pitchlog.authz.asset_spec import (
@@ -41,6 +42,9 @@ _SESSION_RESOURCE_REGISTRY = pytest.StashKey["_SessionResourceRegistry"]()
 _ADMIN_CONNECTION_RESOURCE = object()
 _TESTED_ROLE_CONNECTION_RESOURCE = object()
 _ResourceT = TypeVar("_ResourceT")
+_PRODUCT_REFERENCE_COLUMN_TYPES = frozenset(
+    {"boolean", "jsonb", "text", "timestamp with time zone", "uuid"}
+)
 
 
 @dataclass
@@ -499,6 +503,15 @@ class _ExternalProductCatalogObservations:
 
 
 @dataclass(frozen=True)
+class _ProductReferenceRows:
+    """移行後の参照表から読み取った列と行を保持する。"""
+
+    table: str
+    columns: tuple[str, ...]
+    rows: tuple[tuple[object, ...], ...]
+
+
+@dataclass(frozen=True)
 class _ExternalProductCatalogSupply:
     """外部で準備した製品カタログの接続情報と適用前記録。"""
 
@@ -507,6 +520,7 @@ class _ExternalProductCatalogSupply:
     owner_dsn: str
     pre_application_catalog: ProductCatalogSnapshot
     data_tables: tuple[str, ...]
+    reference_rows: tuple[_ProductReferenceRows, ...]
     observations: _ExternalProductCatalogObservations
 
 
@@ -532,13 +546,248 @@ def _product_data_tables() -> tuple[str, ...]:
     return cast(tuple[str, ...], names)
 
 
-def _clear_product_data(owner_dsn: str, tables: tuple[str, ...]) -> None:
-    """所有者権限で製品表の行と採番だけを初期化する。"""
+def _product_reference_tables(data_tables: tuple[str, ...]) -> tuple[str, ...]:
+    """分類資産から外部供給で復元する参照表を読む。"""
+    path = _REPOSITORY_ROOT / "contracts/authz/product/table-classification.json"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    rows = raw["tables"]
+    names = tuple(row["table"] for row in rows if row["profile"] == "global_read_only")
+    if len(names) != 4 or any(name not in data_tables for name in names):
+        raise AssertionError("製品表の分類資産に参照表が 4 表ない")
+    return names
+
+
+def _assert_product_reference_rls(
+    cursor: psycopg.Cursor[Any], tables: tuple[str, ...]
+) -> None:
+    """参照表すべてで RLS と FORCE が有効なことを確かめる。
+
+    Args:
+        cursor: 対象 DB のカタログを読むカーソル。
+        tables: 保護状態を確認する 4 表。
+    """
+    cursor.execute(
+        "SELECT relation.relname, relation.relrowsecurity, "
+        "relation.relforcerowsecurity FROM pg_catalog.pg_class AS relation "
+        "JOIN pg_catalog.pg_namespace AS namespace "
+        "ON namespace.oid = relation.relnamespace "
+        "WHERE namespace.nspname = 'public' AND relation.relname = ANY(%s)",
+        (list(tables),),
+    )
+    states = {row[0]: (row[1], row[2]) for row in cursor.fetchall()}
+    if (
+        len(tables) != 4
+        or set(states) != set(tables)
+        or any(rls is not True or force is not True for rls, force in states.values())
+    ):
+        raise AssertionError("参照表 4 表の RLS と FORCE がすべて有効ではない")
+
+
+def _assert_product_reference_columns(
+    cursor: psycopg.Cursor[Any], tables: tuple[str, ...]
+) -> None:
+    """参照表の列が控えと復元に対応する形であることを確かめる。
+
+    Args:
+        cursor: 対象 DB のカタログを読むカーソル。
+        tables: 列を確認する 4 表。
+    """
+    cursor.execute(
+        "SELECT relation.relname, attribute.attgenerated, "
+        "attribute.attidentity, "
+        "pg_catalog.format_type(attribute.atttypid, NULL) "
+        "FROM pg_catalog.pg_attribute AS attribute "
+        "JOIN pg_catalog.pg_class AS relation "
+        "ON relation.oid = attribute.attrelid "
+        "JOIN pg_catalog.pg_namespace AS namespace "
+        "ON namespace.oid = relation.relnamespace "
+        "WHERE namespace.nspname = 'public' AND relation.relname = ANY(%s) "
+        "AND attribute.attnum > 0 AND NOT attribute.attisdropped",
+        (list(tables),),
+    )
+    columns = cursor.fetchall()
+    if {row[0] for row in columns} != set(tables) or any(
+        generated != ""
+        or identity != ""
+        or column_type not in _PRODUCT_REFERENCE_COLUMN_TYPES
+        for _, generated, identity, column_type in columns
+    ):
+        raise AssertionError("参照表に生成列・識別列・復元非対応型がある")
+
+
+def _read_product_reference_rows(
+    applicator_dsn: str, tables: tuple[str, ...]
+) -> tuple[_ProductReferenceRows, ...]:
+    """外部供給の開始時に移行済み参照表の内容を一度だけ控える。"""
+    snapshots: list[_ProductReferenceRows] = []
+    with psycopg.connect(applicator_dsn) as applicator:
+        jsonb_oid = applicator.adapters.types["jsonb"].oid
+        with applicator.cursor() as cursor:
+            _assert_product_reference_columns(cursor, tables)
+            for table in tables:
+                cursor.execute(
+                    sql.SQL("SELECT * FROM {}").format(sql.Identifier("public", table))
+                )
+                description = cursor.description
+                if description is None:
+                    raise AssertionError(f"参照表の列を読めない: {table}")
+                snapshots.append(
+                    _ProductReferenceRows(
+                        table=table,
+                        columns=tuple(column.name for column in description),
+                        rows=tuple(
+                            tuple(
+                                Jsonb(value)
+                                if value is not None and column.type_code == jsonb_oid
+                                else value
+                                for column, value in zip(description, row, strict=True)
+                            )
+                            for row in cursor.fetchall()
+                        ),
+                    )
+                )
+    return tuple(snapshots)
+
+
+def _ordered_product_reference_rows(
+    cursor: psycopg.Cursor[Any], reference_rows: tuple[_ProductReferenceRows, ...]
+) -> tuple[_ProductReferenceRows, ...]:
+    """実際の外部キーから参照先を先にした復元順を決める。
+
+    Args:
+        cursor: 対象 DB の制約を読むカーソル。
+        reference_rows: 復元対象の参照行。
+
+    Returns:
+        外部キーの参照先が先になる参照行。
+    """
+    snapshots = {snapshot.table: snapshot for snapshot in reference_rows}
+    if len(snapshots) != 4 or len(snapshots) != len(reference_rows):
+        raise AssertionError("復元対象の参照表が 4 表の一意な集合ではない")
+    cursor.execute(
+        "SELECT child.relname, parent_namespace.nspname, parent.relname, "
+        "ARRAY(SELECT attribute.attname FROM pg_catalog.pg_attribute AS attribute "
+        "WHERE attribute.attrelid = constraint_row.conrelid "
+        "AND attribute.attnum = ANY(constraint_row.conkey) "
+        "ORDER BY array_position(constraint_row.conkey, attribute.attnum)) "
+        "FROM pg_catalog.pg_constraint AS constraint_row "
+        "JOIN pg_catalog.pg_class AS child "
+        "ON child.oid = constraint_row.conrelid "
+        "JOIN pg_catalog.pg_namespace AS child_namespace "
+        "ON child_namespace.oid = child.relnamespace "
+        "JOIN pg_catalog.pg_class AS parent "
+        "ON parent.oid = constraint_row.confrelid "
+        "JOIN pg_catalog.pg_namespace AS parent_namespace "
+        "ON parent_namespace.oid = parent.relnamespace "
+        "WHERE constraint_row.contype = 'f' "
+        "AND child_namespace.nspname = 'public' "
+        "AND child.relname = ANY(%s)",
+        (list(snapshots),),
+    )
+    dependencies: dict[str, set[str]] = {table: set() for table in snapshots}
+    for child, parent_schema, parent, columns in cursor.fetchall():
+        if parent_schema == "public" and parent in snapshots:
+            dependencies[child].add(parent)
+            continue
+        snapshot = snapshots[child]
+        column_positions = {name: index for index, name in enumerate(snapshot.columns)}
+        if any(column not in column_positions for column in columns):
+            raise AssertionError(f"参照表の外部キー列を控えていない: {child}")
+        if any(
+            all(row[column_positions[column]] is not None for column in columns)
+            for row in snapshot.rows
+        ):
+            raise AssertionError(f"復元集合の外を参照する外部キーに値がある: {child}")
+
+    ordered: list[_ProductReferenceRows] = []
+    while dependencies:
+        ready = sorted(table for table, parents in dependencies.items() if not parents)
+        if not ready:
+            raise AssertionError("参照表の外部キー依存に循環がある")
+        for table in ready:
+            ordered.append(snapshots[table])
+            del dependencies[table]
+        for parents in dependencies.values():
+            parents.difference_update(ready)
+    return tuple(ordered)
+
+
+def _assert_product_reference_rows(
+    cursor: psycopg.Cursor[Any], reference_rows: tuple[_ProductReferenceRows, ...]
+) -> None:
+    """復元後の参照行が控えた行と順序に依存せず一致することを確かめる。
+
+    Args:
+        cursor: 復元に使った接続のカーソル。
+        reference_rows: 控えておいた参照表の列と行。
+    """
+    for snapshot in reference_rows:
+        cursor.execute(
+            sql.SQL("SELECT {} FROM {}").format(
+                sql.SQL(", ").join(
+                    sql.Identifier(column) for column in snapshot.columns
+                ),
+                sql.Identifier("public", snapshot.table),
+            )
+        )
+        remaining_rows = list(cursor.fetchall())
+        for row in snapshot.rows:
+            expected_row = tuple(
+                value.obj if isinstance(value, Jsonb) else value for value in row
+            )
+            try:
+                remaining_rows.remove(expected_row)
+            except ValueError as error:
+                raise AssertionError(
+                    f"参照表の復元行が控えと一致しない: {snapshot.table}"
+                ) from error
+        if remaining_rows:
+            raise AssertionError(f"参照表の復元行が控えと一致しない: {snapshot.table}")
+
+
+def _clear_product_data(
+    owner_dsn: str,
+    applicator_dsn: str,
+    tables: tuple[str, ...],
+    reference_rows: tuple[_ProductReferenceRows, ...],
+) -> None:
+    """所有者権限で行と採番を初期化し、管理権限で参照行を復元する。
+
+    TRUNCATE と復元は別トランザクションであり、その間は参照行が無い状態が見える。
+
+    Args:
+        owner_dsn: TRUNCATE に使う所有者接続。
+        applicator_dsn: 行の復元に使う superuser 接続。
+        tables: 行と採番を初期化する製品表。
+        reference_rows: 控えておいた参照表の行。
+    """
     table_list = sql.SQL(", ").join(sql.Identifier("public", name) for name in tables)
     with psycopg.connect(owner_dsn) as owner:
         with owner.cursor() as cursor:
+            _assert_product_reference_rls(
+                cursor, tuple(snapshot.table for snapshot in reference_rows)
+            )
+            ordered_rows = _ordered_product_reference_rows(cursor, reference_rows)
             cursor.execute(
                 sql.SQL("TRUNCATE TABLE {} RESTART IDENTITY").format(table_list)
+            )
+    with psycopg.connect(applicator_dsn) as applicator:
+        with applicator.cursor() as cursor:
+            for snapshot in ordered_rows:
+                table_name = sql.Identifier("public", snapshot.table)
+                cursor.executemany(
+                    sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+                        table_name,
+                        sql.SQL(", ").join(
+                            sql.Identifier(column) for column in snapshot.columns
+                        ),
+                        sql.SQL(", ").join(sql.Placeholder() for _ in snapshot.columns),
+                    ),
+                    snapshot.rows,
+                )
+            _assert_product_reference_rows(cursor, reference_rows)
+            _assert_product_reference_rls(
+                cursor, tuple(snapshot.table for snapshot in reference_rows)
             )
 
 
@@ -580,19 +829,29 @@ def supply_external_product_catalog(
     with psycopg.connect(applicator_dsn) as observer:
         snapshot = _snapshot_product_catalog(observer, _product_role_ids(asset))
         observer.rollback()
+    data_tables = _product_data_tables()
+    reference_rows = _read_product_reference_rows(
+        applicator_dsn, _product_reference_tables(data_tables)
+    )
     observations = _ExternalProductCatalogObservations(connections=[])
     _external_product_catalog = _ExternalProductCatalogSupply(
         cluster=cluster,
         applicator_dsn=applicator_dsn,
         owner_dsn=owner_dsn,
         pre_application_catalog=snapshot,
-        data_tables=_product_data_tables(),
+        data_tables=data_tables,
+        reference_rows=reference_rows,
         observations=observations,
     )
     try:
         yield observations
     finally:
         _external_product_catalog = None
+        with psycopg.connect(applicator_dsn) as applicator:
+            with applicator.cursor() as cursor:
+                _assert_product_reference_rls(
+                    cursor, tuple(snapshot.table for snapshot in reference_rows)
+                )
 
 
 def _run_docker(
@@ -1070,7 +1329,12 @@ def provisioned_product_catalog(
         asset = _load_ddl_asset(spec)
         statements = generate_authz_ddl(_REPOSITORY_ROOT, spec)
         application_steps = load_product_application_steps(_REPOSITORY_ROOT, spec)
-        _clear_product_data(supply.owner_dsn, supply.data_tables)
+        _clear_product_data(
+            supply.owner_dsn,
+            supply.applicator_dsn,
+            supply.data_tables,
+            supply.reference_rows,
+        )
         try:
             with (
                 psycopg.connect(supply.applicator_dsn) as applicator,
@@ -1089,7 +1353,12 @@ def provisioned_product_catalog(
                     pre_application_catalog=supply.pre_application_catalog,
                 )
         finally:
-            _clear_product_data(supply.owner_dsn, supply.data_tables)
+            _clear_product_data(
+                supply.owner_dsn,
+                supply.applicator_dsn,
+                supply.data_tables,
+                supply.reference_rows,
+            )
         return
 
     spec = PRODUCT_SPEC
