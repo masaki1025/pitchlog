@@ -363,3 +363,16 @@ branch: feature/adr003-stage2-runtime
 - 署名記録 2 件: `docs/features/adr003-stage2-runtime/signatures/gate6-game-end.json`(終了判定の契約・8 行 248 case)・`gate6-state-transition.json`(状況判定の契約・操作行 10 と undo 行 10・20 case — matrixRows は範囲外と明記)。作成者 codex・確認者 山田正輝・2026-10-15・`direct-clause-comparison`・宣誓 真。`tests/test_human_review_signature.py` に、リポジトリの記録が現行の両契約と一致することの試験を足した(契約が変われば赤 — 署名のやり直しが要る)
 - runnerRevision: `pending` → pytest・Vitest とも `e6c3a59cd89d8f3fb55f1be987c9b19765dab494`(両 runner 資産〔`vector_bridge.py`・`vectorRunner.ts`〕の最終変更 = ステップ 30)。schema を 40 桁 OID の pattern に。試験: HEAD の祖先・その時点の runner の blob が HEAD と同一 / 負例: `pending`・存在しない commit・祖先でない commit(一時リポジトリで作る — `.git` に書かない)・runner が HEAD と異なる時点の commit
 - ハーネス全件 70 failed・新規 0(ID・エラー行とも)、Vitest 1135 緑
+
+### Ready 前の取り込み(2026-10-15)
+
+- **M**: develop `e6e1a867`(#129・#134・#119・#136)を取り込んだ(`22f87557`)。238(#137)は未着地のため含まない。衝突 7 ファイル: tenant boundary の 3 資産と corpus の manifest は develop 版 / 要件書の変更履歴は v2.12 → v2.14 / 索引は v2.14 の要約の後ろに v2.12 の記述 / test_core_guard は本ブランチの版(develop 側の変更は #133 の後始末で、U-F5 を登録済みとする内容が本ブランチの版と同じ)
+- **T(tenant boundary)**:
+  - 識別値: base-allowlist 28 → 29・runtime-authz 13 → 14・cache-invalidation 12 → 13(残り 6 資産はマージで本ブランチの値のまま)。runtime-authz・cache-invalidation の `source_digest` を取り直し、`runtime_contract_generator render`(`check` rc=0)
+  - **base-allowlist の `inventory.sha256`**(DB API の一覧のバイト列の封印値)を取り直した — 本ブランチで一覧の識別値を 13 に上げていたのに、develop 版を採ったことで古い値に戻っていた(検査器が検出)
+  - 受理記録を作り直した(雛形 CLI `runtime_contract_acceptance --base origin/develop`)。理由・移動の事実・件名は元の #131 の記録から引き継ぎ、承認は元の承認(山田正輝・2026-10-14 — ci.yml の変更に伴う凍結基準の更新)のまま。**識別値はマージで変わる導出値で、作り直しは 10-14 の時点で予定していた**(本 worklog の「Ready 前の取り込みで必ずやること」)。PR の承認の場で再確認を求める
+  - スナップショット: 新しい記録が参照するものを書き出し、develop にも新しい記録にも無いものを消した
+  - corpus の入力 digest を取り直した(`a81bc2f6…` → `d7eeb76b…`。1 ファイル 1 行)
+  - `check_tenant_boundary_bypass.py --base-ref origin/develop` ok
+- **見逃していた本ブランチの不備**: 「既知の失敗」として扱っていた凍結基準の走査の allow-list 未登録(`tests/domain/test_review_triggers_complete.py` の SHA-256)は、**ステップ 16 の是正(`5d7a35f7`)で私が試験に直書きした値**だった(develop には無い)。ステップ 30 と同じ型。git の履歴(証拠ファイルに `reconfirmations` を足したコミットの親)から導く形に直し、`check_frozen_baselines.py --invariants-only` が初めて OK に。これに連鎖していた凍結基準台帳の試験 15 件も緑
+- 凍結系・domain の試験 1157 件が緑

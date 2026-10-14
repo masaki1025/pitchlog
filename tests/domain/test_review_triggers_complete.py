@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import importlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -360,6 +361,30 @@ def test_po_evidence_content_change_is_rejected(tmp_path: Path) -> None:
         )
 
 
+def _trigger_ten_digest_before(marker: str) -> str:
+    """証拠ファイルに marker を最初に足したコミットの親でのトリガー10の digest を返す。"""
+    relative = EVIDENCE_PATH.relative_to(ROOT).as_posix()
+    commits = subprocess.run(
+        ["git", "log", "--format=%H", "-S", marker, "--", relative],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    ).stdout.split()
+    assert commits, marker
+    before = subprocess.run(
+        ["git", "show", f"{commits[-1]}^:{relative}"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    ).stdout
+    rows = json.loads(before)["manualDecisions"]
+    return next(row for row in rows if row["triggerId"] == 10)["evidenceDigest"]
+
+
 def test_trigger_ten_reconfirmation_preserves_original_decision(
     registry: dict[str, Any],
 ) -> None:
@@ -375,8 +400,8 @@ def test_trigger_ten_reconfirmation_preserves_original_decision(
         "2026-09-18",
         False,
     )
-    assert reconfirmation["previousEvidenceDigest"] == (
-        "sha256:141f2ba4477fcf073663c0ab69404037519deb894ee932d9cfae2c3f9711db98"
+    assert reconfirmation["previousEvidenceDigest"] == _trigger_ten_digest_before(
+        "reconfirmations"
     )
     assert reconfirmation["evidenceDigest"] == decision["evidenceDigest"]
     COMPLETION.trigger_evaluation.validate_recorded_evaluations(
