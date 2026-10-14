@@ -98,3 +98,10 @@
 
 - POがcodec一本化・`7b82c89e`の検査/独立レビューを確認し、ステップ2完了として記録するよう指示。`plan.md`とClaude向け申し送りへ反映した。ステップ1全体/TSK-550全体は未完了で、出所証明・DB保存・U-G1試合作成成功は未達。codecの再設計・全計画の再審査を行わない。
 - ステップ3の判断資料は既存`step1-canonical-gate-packets.md`と`step1-preflight-dispositions.md`。data-model §3-2/§10-5、認可面の正本ファイル・専用owner/列grant/関数ACLとREAD COMMITTED読取、5 UUIDのF-2配置migration・4一時RLS・保守停止/衝突全取消、A=Alembic/B=既存認可適用器の唯一適用元、変更対象ごとの7.7を個別ゲートへ分ける。§6-5とUUID/機械文字列は既承認のまま。FR-014対DRAW-04のコールド条件は未裁定。計画ステップ3の「関数migration」表現とB適用元の差分は、実装前の最小計画追補として審査する。正式本文・ACL/配置・凍結基準の個別承認前にステップ3製品コードへ進まない。
+
+## ステップ3の正式ゲート提出準備（2026-10-15）
+
+- [4ゲートの提出本文](../features/ux1-fr014-rule-resolution/step3-formal-gate-submission.md)を作成。正本対象を`data-model.md` §3-2/§10-5・同書参照追随と、新設候補`docs/design/product-authz-surface.md`の段階A節に固定。§6-5、codec、5 UUID、機械文字列、F-2値は再審査対象外。移行AはAlembicの5+5行・一時RLS4件、認可Bは既存適用器7手順。A失敗/成功後B失敗/B後検査失敗の公開不可状態、FR-014対DRAW-04の反例・推奨裁定、現行plan「関数migration」の最小追補を明文化した。`0029_system_vocab_category_fk`が`game_type_category`を追加することを確認し、DDLの前提へ入れた。
+- 所有側提出前の**予備**敵対レビューを既定の`codex_run.py review adversarial`で実施。判定は**否決 P0=1/P1=4/P2=0**。P0=列`UPDATE(disabled)`の取り外し漏れでowner削除に失敗。P1=正本変更後のschema-manifest SHA追随、独立ロール意味契約、runtime契約の生成Python、RLSで不可視な非対象規則行の余剰判定。全5件を採用し、提出本文へ適用/取り外し対称性・固定role契約・生成先・正本SHA・対象5組に限るexact検査と別ID行の非採用を反映した。**これは正本自身を`in-review`にした7.3正式周回ではない**。後続の正式審査回数に算入しない。
+- 所有側worktreeはTSK-250・TSK-424とも清浄だが、それだけで担当者の不在/受理は証明できない。現段階で正本ファイル自身、認可凍結資産、製品コード、DBは変更していない。所有者から採否が得られない場合の代替受理は**今回の§3-2/§10-5・新認可正本の段階A節それぞれに限って**PO判断を求める。§6-5だけの過去承認を拡張しない。FR-014/DRAW-04の要件裁定、一時RLS・列UPDATE・GUC脅威モデル、計画追補も人間判断待ち。正式7.3、人間承認、7.7変更後受理、ステップ3実装は未了。
+- **正式7.3の起案へ進行**: 上項の「正本ファイル自身は変更していない」は予備レビュー時点の記録。`data-model.md` v1.1の§3-2/§10-5と参照追随、新設`docs/design/product-authz-surface.md` v0.1を`in-review`候補として本featureへ起案し、索引も同期した。**7.3適用版はapproved v1.19、条文コミット`945384c5e70ce2ae471edec1d845660918eaee93`**。これは初回正式敵対レビュー前の暫定記録で、実行時にapproved版が変われば更新する。所有側の採否・人間承認・正式7.3の結果はまだない。今回の正本候補は§6-5とF-2値を変更しない。manifestの正本SHAは承認後の実本文で追随し、候補のSHAを製品基準として受理しない。

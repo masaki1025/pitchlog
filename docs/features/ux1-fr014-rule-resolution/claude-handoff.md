@@ -72,3 +72,7 @@ data-model正本所有側/TSK-250にもコメント`3f993b75-e687-81a4-b326-001d
 | 認可適用B・凍結 | 関数DDL/owner/EXECUTE/最小列ACLはAlembicと二重管理せず既存`application-steps.json`の単一transaction適用器を唯一の候補とする。ownerの親`UPDATE(disabled)`だけが行ロック用候補、他3表は列SELECT/通常SELECT。A成功/B失敗では作成を公開しない。`ddl-elements.json`/capability/function body/露出資産、runtime authz、必要なallowlist/履歴を差分と7.7で個別受理する。`repository-contract.json`等の固定実行器はステップ4ゲートへ残す | 認可面・tenant境界/移行所有側とPO。現行planの「関数migration」はBの唯一適用元に合わせる最小追補の審査が必要 |
 
 ステップ3の正本7.3・配置/ACL個別承認・7.7の変更後基準は未成立。規則行の出所証明・DB保存・U-G1試合作成成功は未完了。実関数2接続/故障注入は実装後のステップ3〜6、U-G1実HTTP/RG1/全取消はTSK-395ステップ2で確認する。
+
+**2026-10-15・正式ゲートへの提出準備**: [4ゲート提出本文](step3-formal-gate-submission.md)に、正本対象（data-model §3-2/§10-5と新設`docs/design/product-authz-surface.md`段階A節）、F-2 5+5行の審査用DDL、専用owner/列grant/EXECUTE、A=Alembic→B=既存認可適用器の順序と失敗状態、FR-014/DRAW-04の`R=9,L=9,N=10`反例・FR-014拒否優先の推奨裁定、plan「関数migration」の最小追補を収めた。予備敵対レビューはP0=1/P1=4/P2=0で否決し、5件全採用で修正。特に列`UPDATE(disabled)`の取り外し、独立ロール意味契約、runtime生成Python、data-model正本SHA、RLS外の別ID行を不存在と誤認しない条件を足した。このレビューは正式7.3に算入しない。所有側受理または**今回の節だけ**のPO代替受理と正式7.3・人間承認、要件裁定、一時RLS/列UPDATE/GUC・資産ゲート、最小計画追補が未了。§6-5・codec・UUID/文字列は確定維持。ステップ3製品実装・既存DB適用は開始していない。
+
+**正式7.3の候補起案**: `data-model.md` v1.1の§3-2/§10-5と関連参照、新設`docs/design/product-authz-surface.md` v0.1を`in-review`で本featureに作成した。索引同期済み。適用予定はハーネス7.3 approved v1.19・条文SHA`945384c5e70ce2ae471edec1d845660918eaee93`。所有側worktreeは触っていない。正式レビューの開始コミット・結果、人間承認は後続記録とし、予備レビューを正式周回へ算入しない。正本候補のままステップ3実装へ進まない。
