@@ -272,3 +272,10 @@ branch: feature/us1-sync-apply-core
 - DB テスト(`tests/db/test_sync_apply_idempotency_boundary.py`): 3 分類・順序固定の並行試験 2 種(テスト側の Event で固定、別の試合の同じ D5)・他テナントの同じ D5。**ローカル未実行 — CI で確かめる**
 - 敵対レビュー 1 回目 **可決(0 件)**
 - 検査: DB 不要の全件 1443 passed(既知の偽の赤 44 件以外)/ 迂回検査・凍結一式 green / backend と root の ruff・ty green
+
+## ステップ 8 の CI 是正とステップ 9(2026-10-14)
+
+- **CI(run 38534439094)**: 前回の DB テスト 12 件の失敗はすべて解消し、ステップ 8 の DB テスト(並行試験を含む)も green。新たに 1 件 — ハンドルの公開メソッドを固定する既存試験が、ステップ 8 で足した `run_in_savepoint` で落ちた。Claude が試験を直接修正(`(ステップ 8/22 是正)`)し、`review normal` の P2 2 件(引数の種類の固定・`run_in_savepoint` での未登録 token と失効済みハンドルの拒否)を採用
+- **ステップ 9**: `sync/invalidation.py` に P3 と D1 付き経路の記録部(範囲ごとに 1 行を呼び出し元のトランザクションへ。INSERT は SAVEPOINT で保護し、SQLSTATE 23505 かつ `pk_invalidation_intents` のときだけ先着行を再読)。#114 の範囲名の写像を公開して共有。`cache-invalidation-contract.json` の配信状態を `pending`/`delivered`・検索列を `delivery_status` へ、`durable_intent` の同期経路の規則を `B03` に追随。PR #132 の受理記録 1 件・snapshot・比較 corpus を取り直し。TB004 は検査器を変えず既存の許可経路で通す。発火条件とロック順は記録部に持たせず、後続の呼び出し元(ステップ 10・13)が決める
+- **敵対レビュー**: 1 回目 否決(P1 2 — 同じ意図 ID の並行挿入でトランザクション全体が失敗し得る / DB テストが期待 ID を実装と同じ関数で作っていた)→ すべて採用(SAVEPOINT 保護と並行 DB テスト / 期待 ID を材料から文字列で組み立て)。2 回目 **可決(0 件)**
+- 検査: DB 不要の全件 1457 passed(既知の偽の赤 44 件以外)/ backend と root の ruff・ty green / 凍結一式は 570 passed・1 件未達 — **develop に #129 の凍結履歴が入り、`test_repository_is_green` の履歴 prefix の比較が origin/develop とずれた**(merge-base を比較元にすると通る)。次の develop の取り込みで解消する。**DB テストはローカル未実行 — CI で確かめる**

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 30,
+  "contract_revision": 31,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:30"
+        "contract_revision:31"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -14125,10 +14125,10 @@
         "acceptance_id": "masaki1025/pitchlog#132",
         "new_baseline_identifiers": {
           "contracts/tenant_boundary/base-allowlist.json": [
-            "contract_revision:30"
+            "contract_revision:31"
           ],
           "contracts/tenant_boundary/cache-invalidation-contract.json": [
-            "contract_revision:12"
+            "contract_revision:13"
           ],
           "contracts/tenant_boundary/census-baseline.json": [
             "contract_revision:14"
@@ -14182,7 +14182,7 @@
           ]
         },
         "change": {
-          "subject": "TSK-391: U-S1 同期核の TB002 所有パス、登録済み operation と D5 SAVEPOINT を受理する",
+          "subject": "TSK-391: U-S1 同期核の TB002 所有パス、登録済み operation、D5 SAVEPOINT と範囲別無効化意図を受理する",
           "aspect": [
             "asset_snapshots",
             "declaration",
@@ -14669,7 +14669,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:30"
+                    "contract_revision:31"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -14694,7 +14694,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:12"
+                    "contract_revision:13"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -15091,13 +15091,13 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "8a0ca2575c8ea275e3f6b5367dbd97a49413ceb96d17c3191c216e17c5c0e30c",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8a0ca2575c8ea275e3f6b5367dbd97a49413ceb96d17c3191c216e17c5c0e30c"
+                "sha256": "a2b3ac317647117c67824120bce826bfcd0f6efb88a17eb498622abda1c1b500",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a2b3ac317647117c67824120bce826bfcd0f6efb88a17eb498622abda1c1b500"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "0874fa3df46cef02f50735d98cc133b6151849949e2d483f7f49ae73db27a9b7",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0874fa3df46cef02f50735d98cc133b6151849949e2d483f7f49ae73db27a9b7"
+                "sha256": "59c38a830b27f0b1334d95a37dc2043af888096af497537dd566570908ea3004",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/59c38a830b27f0b1334d95a37dc2043af888096af497537dd566570908ea3004"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
@@ -15137,8 +15137,8 @@
             ]
           }
         },
-        "movement_fact": "比較元 origin/develop と本ブランチの merge-base の実資産・実装から、本 PR の受理後の実資産・実装へ移動する。同期表 9 表の operation と無効化意図の同期専用 token・キーセット取得を追加し、base-allowlist・repository-contract・センサス基準の識別値を更新した。ステップ 8 で台帳 INSERT の SAVEPOINT 許可を追加し、凍結射影と実装を再導出した。",
-        "reason": "同期適用を登録済みのテナント限定 operation だけで行い、共有集計意図の対象を文脈テナントへ固定する。同期意図を B06 の意図と分けて配信し、混在する未配信行の後続ページも取得するため。D5 一意競合をトランザクション全体の中断なしに再照合するため、登録済み operation の SAVEPOINT 実行を許す。",
+        "movement_fact": "比較元 origin/develop と本ブランチの merge-base の実資産・実装から、本 PR の受理後の実資産・実装へ移動する。同期表の operation と D5 SAVEPOINT に加え、B03 の同期意図を範囲ごとに記録し、キャッシュ無効化契約を DDL の配信状態へ追随させた。",
+        "reason": "同期適用をテナント限定 operation に閉じ、D5 一意競合を再照合する。P3 と D1 付き経路の五範囲の意図を同一トランザクションに記録し、契約の配信語彙を DB と一致させるため。",
         "approved_by": "山田正輝",
         "approved_on": "2026-10-14"
       }

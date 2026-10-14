@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import TYPE_CHECKING, cast
 from uuid import UUID
 
@@ -25,16 +26,22 @@ from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationT
 if TYPE_CHECKING:
     from pitchlog.repositories.transaction import _TenantTransaction
 
-__all__ = ("InvalidationIntentInsertToken", "record_invalidation_intent")
+__all__ = (
+    "InvalidationIntentInsertToken",
+    "SCOPE_KIND_BY_SCOPE",
+    "record_invalidation_intent",
+)
 
 _INTENTS = cast(Table, InvalidationIntent.__table__)
-_SCOPE_KIND_BY_SCOPE: dict[CacheScope, str] = {
-    CacheScope.MATCH: "game",
-    CacheScope.PLAYER_CAREER: "player_total",
-    CacheScope.TEAM_AGGREGATE: "team_total",
-    CacheScope.SHARED_AGGREGATE: "shared_total",
-    CacheScope.ANALYTICS_CHART: "chart",
-}
+SCOPE_KIND_BY_SCOPE = MappingProxyType(
+    {
+        CacheScope.MATCH: "game",
+        CacheScope.PLAYER_CAREER: "player_total",
+        CacheScope.TEAM_AGGREGATE: "team_total",
+        CacheScope.SHARED_AGGREGATE: "shared_total",
+        CacheScope.ANALYTICS_CHART: "chart",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,7 +84,7 @@ def _build_invalidation_intent_statement() -> Insert:
         tenant_id=bindparam("tenant_id"),
         intent_id=bindparam("intent_id", type_=Text),
         scope_kind=bindparam(
-            "scope_kind", _SCOPE_KIND_BY_SCOPE[CacheScope.SHARED_AGGREGATE], type_=Text
+            "scope_kind", SCOPE_KIND_BY_SCOPE[CacheScope.SHARED_AGGREGATE], type_=Text
         ),
         target_tenant_id=bindparam("tenant_id"),
     )

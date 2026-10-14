@@ -424,17 +424,27 @@ def test_durable_intent_persistence_and_retry_contract_is_exact() -> None:
     assert asset["durable_intent"] == {
         "required": True,
         "storage_kind": "cache_invalidation_intent_table",
-        "rows_per_trigger": 1,
-        "same_transaction_with": "T7",
+        "rows_per_trigger": "one_per_affected_scope",
+        "same_transaction_with": {
+            "P3": "T7",
+            "D1": "event_application_advancing_D3",
+        },
         "uniqueness_fields": ["tenant_id", "intent_id"],
-        "intent_id_derivation": [
-            "target_event_v10",
-            "target_confirmed_version",
-        ],
-        "delivery_states": ["pending", "completed"],
-        "retry": "idempotent_until_completed",
+        "intent_id_derivation": {
+            "P3": ["target_event_v10", "target_confirmed_version", "scope_id"],
+            "D1": ["event_d5", "scope_id"],
+        },
+        "sync_scope_selectors": {
+            "match": "tenant_and_game",
+            "player_career": "all_tenant_player_career_keys",
+            "team_aggregate": "all_tenant_team_aggregate_keys",
+            "shared_aggregate": "target_tenant_selector",
+            "analytics_chart": "all_tenant_analytics_chart_keys",
+        },
+        "delivery_states": ["pending", "delivered"],
+        "retry": "idempotent_until_delivered",
         "saved_result_replay_creates_duplicate": False,
-        "pending_lookup_fields": ["tenant_id", "delivery_state"],
+        "pending_lookup_fields": ["tenant_id", "delivery_status"],
         "physical_delete": False,
         "restoration_coordination": {
             "delivery_may_be_deferred": True,
