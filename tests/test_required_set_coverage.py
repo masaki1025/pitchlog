@@ -262,19 +262,19 @@ def _assert_no_tiebreak_start_row(contract: dict[str, Any]) -> None:
 def test_step26_game_end_declaration_and_direct_coverage() -> None:
     """成立段数の軸とCOLD-09追加後の到達性と被覆履歴を照合する。"""
     assert checker.check_game_end_coverage(ROOT) == {
-        "total": 4656, "reachable": 1560, "unreachable": 3069,
+        "total": 4656, "reachable": 1542, "unreachable": 3087,
         "requirementsImpossible": 15,
-        "invalid": 12, "covered": 1560, "cases": 248,
+        "invalid": 12, "covered": 1542, "cases": 248,
     }
     contract = _asset("game_end_contract_v1.json")
     declaration = _asset("game_end_coverage_declaration_v1.json")
     classified = declaration["step23Unreachability"]
     assert classified["beforeUnreachableCount"] == 2817
-    assert classified["remainingUnreachableCount"] == 3069
+    assert classified["remainingUnreachableCount"] == 3087
     assert classified["countsByCause"] == {
         "noApplicableRow": {
-            "pairwise": 24, "boundaryCoordinate": 273,
-            "clauseBranch": 17, "total": 314,
+            "pairwise": 24, "boundaryCoordinate": 291,
+            "clauseBranch": 17, "total": 332,
         },
         "unfixedAxisValue": {
             "pairwise": 271, "boundaryCoordinate": 2484,
@@ -287,7 +287,7 @@ def test_step26_game_end_declaration_and_direct_coverage() -> None:
     }
     assert len(contract["cases"]) == 248
     record = _asset("game_end_input_coverage_v1.json")
-    assert [item["step"] for item in record["history"]] == [93, 94, 95, 96, 97, 98, 99, 100]
+    assert [item["step"] for item in record["history"]] == [93, 94, 95, 96, 97, 98, 99, 100, 101]
     assert record["history"][0]["before"]["coveredCount"] == 51
     assert record["history"][0]["after"] == record["history"][1]["before"]
     assert record["history"][1]["after"] == record["history"][2]["before"]
@@ -349,6 +349,40 @@ def test_l_plus_one_and_x_mark_cases_require_concrete_boundary() -> None:
     cold = next(case for case in contract["cases"] if case["branchId"] == "COLD-08")
     cold["normalized"]["state.outs"] = 1
     with pytest.raises(checker.RequiredSetCoverageError, match="XMARK_STARTED"):
+        checker.check_game_end_concrete_case_consistency(contract)
+
+
+def test_all_post_turn_rows_require_fresh_half_inning_state() -> None:
+    """攻守交代直後の全行は次の表が進行する前の状態だけを持つ。"""
+    contract = _asset("game_end_contract_v1.json")
+    post_turn_rows = {
+        row["branchId"] for row in contract["decisionRows"]
+        if "攻守交代" in row["remarks"]
+    }
+    assert post_turn_rows == {
+        "GAME-END-NORMAL", "GAME-END-EXTRA-CONTINUE", "GAME-END-LIMIT-DRAW",
+        "COLD-08",
+    }
+    initial_rows = post_turn_rows | {"COLD-09", "XMARK-02"}
+    cases = [case for case in contract["cases"] if case["branchId"] in initial_rows]
+    assert len(cases) == 204
+    for case in cases:
+        coordinate = case["normalized"]
+        assert coordinate["state.half"] == (
+            "top" if case["branchId"].startswith("GAME-END-") else "bottom"
+        )
+        assert coordinate["state.outs"] == 0
+        assert coordinate["state.runners"] == "empty"
+        assert coordinate["state.count.strikes"] == 0
+        assert coordinate["state.count.balls"] == 0
+
+
+def test_post_turn_row_rejects_in_progress_top_half() -> None:
+    """L+1回表でプレイが始まった後の終了期待値を拒否する。"""
+    contract = _asset("game_end_contract_v1.json")
+    case = next(case for case in contract["cases"] if case["branchId"] == "GAME-END-NORMAL")
+    case["normalized"]["state.outs"] = 1
+    with pytest.raises(checker.RequiredSetCoverageError, match="POST_TURN_STATE"):
         checker.check_game_end_concrete_case_consistency(contract)
 
 
@@ -561,7 +595,7 @@ def test_step95_decision_properties_hold_for_all_cases() -> None:
         ROOT, contract, declaration
     )
     assert counts["cases"] == 248
-    assert counts["covered"] == counts["reachable"] == 1560
+    assert counts["covered"] == counts["reachable"] == 1542
     assert observed == reachable
     assert checker.check_game_end_coverage(ROOT) == counts
 
@@ -911,7 +945,7 @@ def test_game_end_coverage_history_is_one_append_from_prior_step() -> None:
         )
         if result.returncode == 0:
             candidate = json.loads(result.stdout)
-            if candidate["currentStep"] == 99:
+            if candidate["currentStep"] == 100:
                 previous = candidate
                 break
     assert previous is not None

@@ -266,9 +266,9 @@
     "countsByCause": {
       "noApplicableRow": {
         "pairwise": 24,
-        "boundaryCoordinate": 273,
+        "boundaryCoordinate": 291,
         "clauseBranch": 17,
-        "total": 314
+        "total": 332
       },
       "unfixedAxisValue": {
         "pairwise": 271,
@@ -284,7 +284,7 @@
       }
     },
     "beforeUnreachableCount": 2817,
-    "remainingUnreachableCount": 3069,
+    "remainingUnreachableCount": 3087,
     "nextSteps": {
       "noApplicableRow": "COLD-09はステップ26でdecisionRowsに結んだ。DRAW-05は状況判定operationRowsに結んだが本集合はdecisionRows層だけを数える。COLD-01〜07は中間判定なのでdecisionRowsへ置かない。",
       "unfixedAxisValue": "成立段数の新軸により要求直積が拡大した。未固定値は後続の対象計算で行の要否を確認する。"
@@ -527,7 +527,8 @@
         "promptEndDeclaration": true,
         "clauseIds": [
           "req:FR-005",
-          "req:FR-020"
+          "req:FR-020",
+          "req:F-1"
         ]
       },
       {
@@ -633,7 +634,8 @@
           "clauseIds": [
             "req:FR-005",
             "req:FR-020",
-            "req:XMARK-01"
+            "req:XMARK-01",
+            "req:F-1"
           ],
           "basis": "第R回裏は開始済みで、サヨナラで途中終了してもFR-005・FR-020 XMARK-01により得点を表示する。"
         },

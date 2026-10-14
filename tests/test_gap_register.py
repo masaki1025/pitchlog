@@ -284,7 +284,7 @@ def test_clause_branch_register_has_64_rows_and_five_game_end_outcomes() -> None
         ]["relatedClauseBranchIds"]
     ) == {"DRAW-07", "DRAW-08"}
     walk_off = entries_by_id[document["gameEndOutcomeBranches"]["walkOff"]]
-    assert walk_off["sourceClauseIds"] == ["req:FR-005", "req:FR-020"]
+    assert walk_off["sourceClauseIds"] == ["req:FR-005", "req:FR-020", "req:F-1"]
     assert walk_off["relatedClauseBranchIds"] == ["XMARK-01"]
     assert walk_off["gapIds"] == []
     _validate_clause_branches(document)

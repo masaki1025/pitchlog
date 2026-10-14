@@ -1672,6 +1672,20 @@ def check_game_end_concrete_case_consistency(contract: dict[str, Any]) -> None:
             "state.score"
         ) not in {"away-lead:M+1", "away-lead:M", "away-lead:M-1"}:
             raise RequiredSetCoverageError("NORMAL_SCORE: 先攻リードでない通常終了")
+        if case.get("branchId") in {
+            "GAME-END-NORMAL", "GAME-END-EXTRA-CONTINUE", "GAME-END-LIMIT-DRAW"
+        } and any(
+            coordinate.get(axis) != value
+            for axis, value in (
+                ("state.outs", 0),
+                ("state.runners", "empty"),
+                ("state.count.strikes", 0),
+                ("state.count.balls", 0),
+            )
+        ):
+            raise RequiredSetCoverageError(
+                "POST_TURN_STATE: 攻守交代直後の状態で判定しないcaseがある"
+            )
         if case.get("branchId") == "XMARK-02" and coordinate.get(
             "gameEnd.extensionLimit"
         ) == "finite:R+1":
@@ -1925,15 +1939,15 @@ def _check_game_end_documents(
         if set(case) != (set(expanded) | normalization_fields) or projection != expanded:
             raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
     counts, _, reachable, observed = _game_end_measure(root, contract, declaration)
-    # 過去7件は受理済みの記録として保持し、この変更の測定だけを1件追記する。
+    # 過去8件は受理済みの記録として保持し、この変更の測定だけを1件追記する。
     # 新軸の追加後に旧descriptorでの要求集合を現行軸へ再解釈しない。
     history = record.get("history") if isinstance(record, dict) else None
     if (
         not isinstance(history, list)
-        or len(history) != 8
+        or len(history) != 9
         or [entry.get("step") for entry in history if isinstance(entry, dict)]
-        != [93, 94, 95, 96, 97, 98, 99, 100]
-        or record.get("currentStep") != 100
+        != [93, 94, 95, 96, 97, 98, 99, 100, 101]
+        or record.get("currentStep") != 101
     ):
         raise RequiredSetCoverageError("終了判定の独立被覆履歴の件数・順序が不正")
     prior = history[-2]
@@ -1944,14 +1958,19 @@ def _check_game_end_documents(
     ):
         raise RequiredSetCoverageError("終了判定の独立被覆記録が連鎖しない")
     baseline_ids = current.get("baselineCaseIds")
+    previous_baseline_ids = prior.get("baselineCaseIds")
+    current_case_ids = {case["caseId"] for case in contract["cases"]}
     if (
         not isinstance(baseline_ids, list)
         or len(baseline_ids) != prior.get("after", {}).get("caseCount")
+        or set(baseline_ids) != current_case_ids
+        or not isinstance(previous_baseline_ids, list)
+        or len(previous_baseline_ids) != history[-3].get("after", {}).get("caseCount")
         or not isinstance(declaration["removedUnreachableCaseIds"], list)
         or declaration["removedUnreachableCaseIds"] != [
             f"GE-XMARK-02-COVERAGE-{index:03d}" for index in range(34, 67)
         ]
-        or set(baseline_ids) - {case["caseId"] for case in contract["cases"]}
+        or set(previous_baseline_ids) - current_case_ids
         != set(declaration["removedUnreachableCaseIds"])
         or current.get("before") != prior.get("after")
     ):

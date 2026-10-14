@@ -623,7 +623,7 @@ def test_walk_off_row_is_bound_to_fifth_role_and_fr005() -> None:
         if row["branchId"] == "GAME-END-WALK-OFF"
     )
     assert register["gameEndOutcomeBranches"]["walkOff"] == row["branchId"]
-    assert row["sourceClauseIds"] == ["req:FR-005", "req:FR-020"]
+    assert row["sourceClauseIds"] == ["req:FR-005", "req:FR-020", "req:F-1"]
     assert {leaf["axisId"]: leaf["value"] for leaf in _decision_leaves(row["precondition"])} == {
         "gameEnd.regulationInnings": 9,
         "gameEnd.coldConditions": "tier-count:0",
