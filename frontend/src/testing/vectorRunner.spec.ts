@@ -657,9 +657,13 @@ it('判定の語を runner のソースに持たない', () => {
 
 type Step30Case = {
   caseId: string
+  rowRef: { layer: string; coordinate: { targetKind: string } }
+  inputCoordinate: Record<string, unknown>
+  historyInput: { stack: unknown[] }
   raw?: unknown
   normalized?: unknown
   expected: {
+    guaranteeMode: string
     stateEffect: {
       stateFields: Record<string, unknown>
       scoreboard: Record<string, unknown>
@@ -704,24 +708,43 @@ function step30Scenario(
   normalizer: GeneratedNormalizer
   calculation: CalculationAdapter
 } {
-  // 実契約の二つの undo case と schema の比較宣言を両経路へ渡す。
-  const source = step30Contract.cases.at(mode === 'liveness-only' ? -1 : -2)
-  const fullCase = step30Contract.cases.at(-2)
-  if (!source || !fullCase) throw new Error('undo case がない')
+  // 配列順に依存せず、保証モードと差分の面から対象行を選ぶ。
+  const undoCases = step30Contract.cases.filter(
+    (item) => item.rowRef.layer === 'undoRows',
+  )
+  const fullCase = undoCases.find(
+    (item) =>
+      item.expected.guaranteeMode === 'full-equality' &&
+      item.rowRef.coordinate.targetKind === 'confirmed-play' &&
+      item.inputCoordinate['history.topDifference.changedFaces'] ===
+        'state-and-scoreboard' &&
+      item.inputCoordinate['history.scenarioLength'] === 1,
+  )
+  const source =
+    mode === 'liveness-only'
+      ? undoCases.find(
+          (item) =>
+            item.expected.guaranteeMode === 'liveness-only' &&
+            item.rowRef.coordinate.targetKind === 'confirmed-play' &&
+            item.inputCoordinate['history.scenarioLength'] === 'D+1',
+        )
+      : fullCase
+  if (!source || !fullCase) throw new Error('条件に合う undo case がない')
   const caseValue = structuredClone(source)
   const normalized = [{ value: { kind: 'integer', value: 1 } }]
   caseValue.raw = normalized
   caseValue.normalized = normalized
+  const remainingLength = caseValue.historyInput.stack.length - 1
   const output: Record<string, unknown> =
     mode === 'liveness-only'
       ? {
           operationResult: 'applied',
-          historyContext: Array(4).fill('比較対象外'),
+          historyContext: Array(remainingLength).fill('比較対象外'),
           stateEffect: { 別の状態欄: '比較対象外' },
         }
       : structuredClone(caseValue.expected)
   if (mutation === 'two-lost')
-    output.historyContext = Array(3).fill('比較対象外')
+    output.historyContext = Array(remainingLength - 1).fill('比較対象外')
   if (mutation === 'rejected') output.operationResult = 'nothing-to-undo'
   if (mutation === 'state-mismatch') {
     const effect = output.stateEffect as Step30Case['expected']['stateEffect']

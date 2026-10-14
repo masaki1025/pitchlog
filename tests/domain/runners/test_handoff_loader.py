@@ -112,20 +112,42 @@ def _step30_scenario(mode: str, mutation: str) -> dict[str, Any]:
             encoding="utf-8"
         )
     )
-    source = contract_asset["cases"][-1 if mode == "liveness-only" else -2]
+    undo_cases = [
+        item for item in contract_asset["cases"]
+        if item["rowRef"]["layer"] == "undoRows"
+    ]
+    full_case = next(
+        item for item in undo_cases
+        if item["expected"]["guaranteeMode"] == "full-equality"
+        and item["rowRef"]["coordinate"]["targetKind"] == "confirmed-play"
+        and item["inputCoordinate"]["history.topDifference.changedFaces"]
+        == "state-and-scoreboard"
+        and item["inputCoordinate"]["history.scenarioLength"] == 1
+    )
+    source = (
+        next(
+            item for item in undo_cases
+            if item["expected"]["guaranteeMode"] == "liveness-only"
+            and item["rowRef"]["coordinate"]["targetKind"] == "confirmed-play"
+            and item["inputCoordinate"]["history.scenarioLength"] == "D+1"
+        )
+        if mode == "liveness-only"
+        else full_case
+    )
     case = copy.deepcopy(source)
     normalized = [{"value": {"kind": "integer", "value": 1}}]
     case["raw"] = normalized
     case["normalized"] = normalized
     expected = case["expected"]
+    remaining_length = len(case["historyInput"]["stack"]) - 1
     if mode == "liveness-only":
         output: dict[str, Any] = {
             "operationResult": "applied",
-            "historyContext": ["比較対象外"] * 4,
+            "historyContext": ["比較対象外"] * remaining_length,
             "stateEffect": {"別の状態欄": "比較対象外"},
         }
         if mutation == "two-lost":
-            output["historyContext"] = ["比較対象外"] * 3
+            output["historyContext"] = ["比較対象外"] * (remaining_length - 1)
         elif mutation == "rejected":
             output["operationResult"] = "nothing-to-undo"
     else:
@@ -150,7 +172,7 @@ def _step30_scenario(mode: str, mutation: str) -> dict[str, Any]:
             "nullable": False,
             "scale": None,
         }
-        for field in contract_asset["cases"][-2]["expected"]
+        for field in full_case["expected"]
     ]
     return {
         "cases": [case],

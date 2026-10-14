@@ -3468,7 +3468,7 @@ def test_repository_step65_empty_history_row_and_mapping() -> None:
 
     assert len(contract["matrixRows"]) == 42
     assert len(contract["operationRows"]) == 7
-    assert len(contract["undoRows"]) == 2
+    assert len(contract["undoRows"]) == 10
     row = contract["undoRows"][0]
     assert set(row) == set(UNDO_ROW_COLUMNS)
     assert row["targetKind"] == "none"
@@ -5725,7 +5725,7 @@ def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> 
     assert declaration["inputCoordinateMapping"]["semanticOrigin"] == (
         "step-90-task-implementation-convention"
     )
-    assert len(cases) == 98
+    assert len(cases) == 106
     changed = []
     for case in cases:
         assert {"raw", "normalizationRuleId", "normalized"} <= set(case)
@@ -5762,15 +5762,15 @@ def test_step90_contract_schema_rejects_case_without_normalization_point(
 
 
 def test_repository_rows_have_matching_history_and_result_faces() -> None:
-    """現行の 7 操作行と 2 undo 行が D-8 の同値を満たす。"""
+    """現行の 7 操作行と 10 undo 行が D-8 の同値を満たす。"""
     contract = _repository_contract()
-    assert (len(contract["operationRows"]), len(contract["undoRows"])) == (7, 2)
+    assert (len(contract["operationRows"]), len(contract["undoRows"])) == (7, 10)
     history_checker.validate_rows(contract, _descriptor())
     assert contract["undoRows"][0]["targetKind"] == "none"
 
 
 def test_all_committed_cases_match_history_expansion() -> None:
-    """全 98 case の履歴入力と期待値が追跡済み展開に完全一致する。"""
+    """全 106 case の履歴入力と期待値が追跡済み展開に完全一致する。"""
     result = subprocess.run(
         [
             sys.executable,
@@ -5779,7 +5779,7 @@ def test_all_committed_cases_match_history_expansion() -> None:
             "--limit", "42",
             "--mode", "coverage",
             "--operation-limit", "7",
-            "--undo-limit", "2",
+            "--undo-limit", "10",
         ],
         check=True,
         capture_output=True,
@@ -5792,7 +5792,10 @@ def test_step30_liveness_row_and_five_play_case() -> None:
     """D=4 の直後に確定プレイを5件積む行とcaseだけを受理する。"""
     contract = _repository_contract()
     row = contract["undoRows"][1]
-    case = contract["cases"][-1]
+    case = next(
+        item for item in contract["cases"]
+        if item["expected"].get("guaranteeMode") == "liveness-only"
+    )
     depth = _load_object(REPOSITORY_ROOT / "backend/domain/history-depth.json")
     derivation = depth["derivation"]
     d = max(
@@ -5852,7 +5855,10 @@ def test_step30_invalid_liveness_row_is_red(mutation: str) -> None:
 
 def test_step30_liveness_comparison_checks_only_result_and_one_pop() -> None:
     """残余の中身を問わず、拒否と2件以上の切り捨てを拒否する。"""
-    case = _repository_contract()["cases"][-1]
+    case = next(
+        item for item in _repository_contract()["cases"]
+        if item["expected"].get("guaranteeMode") == "liveness-only"
+    )
     stack = case["historyInput"]["stack"]
     expected = case["expected"]
     assert history_checker.compare_liveness_undo(
@@ -5864,6 +5870,61 @@ def test_step30_liveness_comparison_checks_only_result_and_one_pop() -> None:
     assert not history_checker.compare_liveness_undo(
         stack, expected, {"operationResult": "nothing-to-undo", "historyContext": [None] * 4},
     )
+
+
+def test_step31_undo_scalar_cases_reverse_head_and_preserve_tail() -> None:
+    """先頭差分の代表値と、連続 undo・深さ D の残余を照合する。"""
+    contract = _repository_contract()
+    cases = [
+        case for case in contract["cases"]
+        if case["rowRef"]["layer"] == "undoRows"
+        and "history.topDifference.changedFaces" in case["inputCoordinate"]
+    ]
+    assert len(cases) == 8
+    assert [len(case["historyInput"]["stack"]) for case in cases] == [
+        1, 1, 1, 2, 4, 1, 1, 1,
+    ]
+    assert {case["inputCoordinate"]["history.topDifference.state.score.home.delta"]
+            for case in cases if "history.topDifference.state.score.home.delta"
+            in case["inputCoordinate"]} == {1, 2, 4}
+    assert cases[3]["expected"]["historyContext"] == cases[2]["historyInput"]["stack"]
+    assert cases[4]["expected"]["historyContext"] == cases[4]["historyInput"]["stack"][1:]
+    history_checker.validate_undo_case_differences(contract, 4)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "rule_id"),
+    [
+        ("one-point-only", "UNDO_INVERSE_DIFF"),
+        ("drop-second-difference", "UNDO_INVERSE_DIFF"),
+        ("drop-tail-output", "UNDO_TAIL_PRESERVATION"),
+        ("flags-effect", "HISTORY_UNDO_FLAGS"),
+    ],
+)
+def test_step31_undo_mutants_are_red(mutation: str, rule_id: str) -> None:
+    """2点の逆差分、残余の差分、フラグ非変更を欠く契約を拒否する。"""
+    contract = _repository_contract()
+    if mutation == "flags-effect":
+        contract["undoRows"][2]["stateEffect"]["statFlags"]["投球数"] = {
+            "kind": "set", "value": True,
+        }
+        with pytest.raises(history_checker.HistoryEffectError, match=rule_id):
+            history_checker.validate_rows(contract, _descriptor())
+        return
+    case = contract["cases"][101]
+    assert case["inputCoordinate"]["history.topDifference.state.score.home.delta"] == 2
+    if mutation == "one-point-only":
+        case["expected"]["stateEffect"]["stateFields"]["state.score"] = {
+            "kind": "set", "value": {"home": 2, "away": 0},
+        }
+    elif mutation == "drop-second-difference":
+        second = contract["cases"][100]
+        assert second["historyInput"]["stack"] == case["expected"]["historyContext"]
+        del second["historyInput"]["stack"][0]["difference"]["stateFields"]["state.score"]
+    else:
+        del case["expected"]["historyContext"][0]["difference"]
+    with pytest.raises(history_checker.HistoryEffectError, match=rule_id):
+        history_checker.validate_undo_case_differences(contract, 4)
 
 
 def test_confirmed_play_pushes_one_entry_on_existing_stack() -> None:

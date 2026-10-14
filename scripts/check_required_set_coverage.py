@@ -433,6 +433,17 @@ def check_input_coverage(
     if not isinstance(cases, list) or not cases:
         raise RequiredSetCoverageError("ケース集合が空または不正")
     _check_liveness_case_depth(root, cases)
+    try:
+        history = json.loads(
+            (root / "backend/domain/history-depth.json").read_text(encoding="utf-8")
+        )
+        depth = expand_state_transition_cases.history_checker.resolve_history_depth(history)
+        expand_state_transition_cases.history_checker.validate_undo_case_differences(
+            contract, depth
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError,
+            expand_state_transition_cases.history_checker.HistoryEffectError) as error:
+        raise RequiredSetCoverageError(f"undo差分の契約が不正: {error}") from error
     actual = observed_input_coverage(cases, active, contract, display_names)
     declared = _identity_set(record.get("coverageSet"))
     required_ids = {item.identity for item in active}
@@ -709,6 +720,14 @@ def check_input_coverage_exact(
                 actual = {"event.operationKind": "undo",
                           "event.operationPayload": "not-applicable"}.get(axis_id)
             return type(actual) is type(value) and actual == value
+        if axis_id.startswith("history.topDifference.") and (
+            layer != "undoRows"
+            or row.get("targetKind") == "none"
+            or row.get("guaranteeMode") != "full-equality"
+            or not _row_fixed_input_values(row["precondition"], axis_id)
+        ):
+            # 先頭差分は保証範囲内の適用行が値を固定したときだけ到達する。
+            return False
         identity = item.identity[1]
         if axis_id in fixed_state_values and identity not in fixed_state_values[axis_id]:
             return False

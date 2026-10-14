@@ -289,3 +289,13 @@ branch: feature/adr003-stage2-runtime
 - `XC-09` と比較関数は `scripts/check_branch_row_mapping.py`(登録済み)。**runner(Python・TS)にも `guaranteeMode` の切り替えを入れた**(Codex の初回報告では未着手 — 入れないと U-X1 で `D`+1 の case が全面一致で比較されるため、このステップで閉じた)。両経路で負例(2 件失う / 拒否 / full-equality での 3 面の不一致の見逃し)を確認
 - ハーネス全件: 71 failed。新規 2 件 — ① core_guard(`tests/domain/runners/test_vector_bridge.py` が契約パスを参照して sync-protocol 未登録)→ 契約を参照する試験を `tests/domain/runners/test_handoff_loader.py`(両領域に登録済み)へ移して解消 ② **`test_check_tenant_boundary_bypass.py::test_repository_is_green`** — **#129 が develop にマージされ base-allowlist の履歴に #129 の受理記録が入り、本ブランチの受理記録(`e925fbe1`)と比較元の prefix がずれた**。Ready 前の取り込み(#119 の着地後)で受理記録を作り直す。Vitest 全件 1135 件が緑
 - **取り込み時の追加事項**: 要件書の変更履歴は #129 の v2.12 の 2 行の後ろへ v2.14 の 2 行を並べる(238 の v2.13 が先に着地すればその後ろ)
+
+### ステップ 31(2026-10-14)— S16 undo の差分の代表値
+
+- descriptor に先頭の差分のスカラー軸 10 本(`history.topDifference.*` — 変化した面の組合せ・アウトと得点と安打の変化前の値と変化量・表裏と回の変化前・成績計上フラグの寄与)。`state-correction` は FR-040 採用時だけの条件付き値として宣言のみ
+- 3 つの基礎シナリオから展開: 先頭の種別の代表 5・連続 undo 2・深さ `D` 1。undo 行 2 → 10、状況判定 case 98 → 106。連続 undo の 1 回目の期待履歴 = 2 回目の入力スタック
+- 凍結基準の受理記録を追記(#131・山田正輝・2026-10-14)。入力座標要求 150 → 173、case 被覆 111 → 133、規則上の到達不可 39 → 40
+- 負例: `UNDO_INVERSE_DIFF`(変化量の取り違え・連続 undo の 2 回目で差分を落とす)・`UNDO_TAIL_PRESERVATION`・`HISTORY_UNDO_FLAGS`
+- **ステップ 30 の不備を同梱で是正**: ① `tests/test_consumer_handoff.py` に TSK-455 の元の版の runner の SHA-256 を直書きしていた(凍結基準の走査の allow-list 未登録 1 → 3 件)。直書きをやめ、commit OID を読み込み層の出自宣言と照合して blob を読む形へ ② runner の比較試験(Vitest・Python)が case を末尾位置で拾っていて、行の追加で別の case になり 2 件赤 → `guaranteeMode`・対象種別・差分の面で選ぶ形へ
+- **見逃しの原因**: ① の走査の試験は以前から既知の失敗だったため、ステップ 30 で試験 ID の差分だけを見て「新規 0」とした。以後、エラーメッセージと `check_*` の出力も前回と比べる
+- ハーネス全件: 70 failed・新規 0(ID とエラー行の両方で比較)。Vitest 全件 1135 件が緑

@@ -41,6 +41,10 @@ schema_checker = _load_module(
     "check_input_axes_descriptor",
     REPOSITORY_ROOT / "scripts/check_input_axes_descriptor.py",
 )
+runner_handoff = _load_module(
+    "runner_handoff",
+    REPOSITORY_ROOT / "backend/src/pitchlog/domaincheck/runners/handoff.py",
+)
 
 
 class HandoffReferenceError(ValueError):
@@ -208,7 +212,7 @@ def _validate_handoff(handoff: dict[str, Any]) -> dict[str, int]:
 def test_repository_handoff_schema_and_all_case_pointers_resolve() -> None:
     """2契約の全caseとcase schemaへの参照が解決できる。"""
     assert _validate_handoff(_handoff()) == {
-        "state-transition": 98,
+        "state-transition": 106,
         "game-end": 214,
     }
 
@@ -237,22 +241,19 @@ def test_invalid_receiver_task_id_fails_schema(task_id: object, message: str) ->
 
 def test_tsk455_dependencies_pin_original_runner_assets() -> None:
     """TSK-455のcommit OIDは初期版を指し、現行版の照合は読み込み層に委ねる。"""
-    original_digests = {
-        "backend/src/pitchlog/domaincheck/runners/vector_bridge.py": (
-            "bc0d20634381c3e650996c45333986fe4277e0480f71129656000420107404f1"
-        ),
-        "frontend/src/testing/vectorRunner.ts": (
-            "9141ba7582db2138e9febeaaa12ce7fcaf120dafe078021f5a19ab40bad89479"
-        ),
+    original_paths = {
+        "backend/src/pitchlog/domaincheck/runners/vector_bridge.py",
+        "frontend/src/testing/vectorRunner.ts",
     }
     dependencies = [
         item for item in _handoff()["dependencies"] if item["taskId"] == "TSK-455"
     ]
-    assert {item["artifactPath"] for item in dependencies} == set(original_digests)
+    assert {item["artifactPath"] for item in dependencies} == original_paths
     for dependency in dependencies:
         assert dependency["version"] == 1
         path = dependency["artifactPath"]
         oid = dependency["commitOid"]
+        assert (dependency["taskId"], oid) == runner_handoff.DEPENDENCY_ORIGINS[path]
         blob = subprocess.run(
             ["git", "show", f"{oid}:{path}"],
             cwd=REPOSITORY_ROOT,
@@ -260,7 +261,7 @@ def test_tsk455_dependencies_pin_original_runner_assets() -> None:
             capture_output=True,
             timeout=10,
         ).stdout
-        assert hashlib.sha256(blob).hexdigest() == original_digests[path]
+        assert blob
 
 
 def test_game_end_binding_uses_actual_normalization_points() -> None:

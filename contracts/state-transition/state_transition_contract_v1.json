@@ -5,7 +5,7 @@
   "inputAxesDescriptor": {
     "descriptorId": "pitchlog.input-axes",
     "version": "input_axes_descriptor_v1",
-    "digest": "sha256:071907fcc2138fdcdb134142c98982a80e888be8d2c75ab8c3a3854939577493"
+    "digest": "sha256:e2f7e6a19ff8399c003e4c7c303a5662683be624a030b713879937fdba6acdfa"
   },
   "provenance": {
     "subjectKind": "normative-branch-or-state-effect",
@@ -5578,6 +5578,1512 @@
       "operationResult": "applied",
       "guaranteeMode": "liveness-only",
       "remarks": "FR-006・ADR-003 D-6/D-8 XC-09。取消可能な確定プレイをD+1件積んだ直後にundoする。状態欄・スコアボード・成績計上フラグの3面は比較対象外(保証範囲外の行)。操作結果appliedと履歴要素数がちょうど1件減ることだけを比較する。"
+    },
+    {
+      "targetKind": "confirmed-play",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {
+            "op": "eq",
+            "axisId": "history.depth",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.scenarioLength",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.composition",
+            "value": "top-confirmed-play"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.changedFaces",
+            "value": "state-only"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.statFlags.contribution",
+            "value": "out-and-pitch"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.outs.before",
+            "value": 0
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.outs.delta",
+            "value": 1
+          }
+        ]
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "unchanged"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "delta",
+            "value": -1
+          },
+          "state.runners": {
+            "kind": "unchanged"
+          },
+          "state.battingOrder": {
+            "kind": "unchanged"
+          },
+          "state.tiebreakActive": {
+            "kind": "unchanged"
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "unchanged"
+          },
+          "state.score": {
+            "kind": "unchanged"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "unchanged"
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "pop",
+            "count": 1
+          },
+          "operationResult": {
+            "kind": "set",
+            "value": "applied"
+          }
+        }
+      },
+      "historyEffect": {
+        "pops": 1
+      },
+      "operationResult": "applied",
+      "guaranteeMode": "full-equality",
+      "remarks": "FR-006・ADR-003 D-8/D-11。先頭種別・1アウト。先頭の差分を逆適用し、残る履歴要素の種別と差分を保持する。"
+    },
+    {
+      "targetKind": "confirmed-play",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {
+            "op": "eq",
+            "axisId": "history.depth",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.scenarioLength",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.composition",
+            "value": "top-confirmed-play"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.changedFaces",
+            "value": "state-only"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.statFlags.contribution",
+            "value": "out-and-pitch"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.outs.before",
+            "value": 0
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.outs.delta",
+            "value": 2
+          }
+        ]
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "unchanged"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "delta",
+            "value": -2
+          },
+          "state.runners": {
+            "kind": "unchanged"
+          },
+          "state.battingOrder": {
+            "kind": "unchanged"
+          },
+          "state.tiebreakActive": {
+            "kind": "unchanged"
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "unchanged"
+          },
+          "state.score": {
+            "kind": "unchanged"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "unchanged"
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "pop",
+            "count": 1
+          },
+          "operationResult": {
+            "kind": "set",
+            "value": "applied"
+          }
+        }
+      },
+      "historyEffect": {
+        "pops": 1
+      },
+      "operationResult": "applied",
+      "guaranteeMode": "full-equality",
+      "remarks": "FR-006・ADR-003 D-8/D-11。先頭種別・2アウト。先頭の差分を逆適用し、残る履歴要素の種別と差分を保持する。"
+    },
+    {
+      "targetKind": "confirmed-play",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {
+            "op": "eq",
+            "axisId": "history.depth",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.scenarioLength",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.composition",
+            "value": "top-confirmed-play"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.changedFaces",
+            "value": "state-and-scoreboard"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.statFlags.contribution",
+            "value": "run-hit-and-pitch"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.score.home.before",
+            "value": 0
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.score.home.delta",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.hits.before",
+            "value": 0
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.hits.delta",
+            "value": 1
+          }
+        ]
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "unchanged"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "unchanged"
+          },
+          "state.runners": {
+            "kind": "unchanged"
+          },
+          "state.battingOrder": {
+            "kind": "unchanged"
+          },
+          "state.tiebreakActive": {
+            "kind": "unchanged"
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "unchanged"
+          },
+          "state.score": {
+            "kind": "set",
+            "value": {
+              "home": 0,
+              "away": 0
+            }
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "delta",
+            "value": -1
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "pop",
+            "count": 1
+          },
+          "operationResult": {
+            "kind": "set",
+            "value": "applied"
+          }
+        }
+      },
+      "historyEffect": {
+        "pops": 1
+      },
+      "operationResult": "applied",
+      "guaranteeMode": "full-equality",
+      "remarks": "FR-006・ADR-003 D-8/D-11。連続undoの2回目・1点。先頭の差分を逆適用し、残る履歴要素の種別と差分を保持する。"
+    },
+    {
+      "targetKind": "confirmed-play",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {
+            "op": "eq",
+            "axisId": "history.depth",
+            "value": 2
+          },
+          {
+            "op": "eq",
+            "axisId": "history.scenarioLength",
+            "value": 2
+          },
+          {
+            "op": "eq",
+            "axisId": "history.composition",
+            "value": "top-confirmed-play"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.changedFaces",
+            "value": "state-and-scoreboard"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.statFlags.contribution",
+            "value": "run-hit-and-pitch"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.score.home.before",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.score.home.delta",
+            "value": 2
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.hits.before",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.hits.delta",
+            "value": 1
+          }
+        ]
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "unchanged"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "unchanged"
+          },
+          "state.runners": {
+            "kind": "unchanged"
+          },
+          "state.battingOrder": {
+            "kind": "unchanged"
+          },
+          "state.tiebreakActive": {
+            "kind": "unchanged"
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "unchanged"
+          },
+          "state.score": {
+            "kind": "set",
+            "value": {
+              "home": 1,
+              "away": 0
+            }
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "delta",
+            "value": -1
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "pop",
+            "count": 1
+          },
+          "operationResult": {
+            "kind": "set",
+            "value": "applied"
+          }
+        }
+      },
+      "historyEffect": {
+        "pops": 1
+      },
+      "operationResult": "applied",
+      "guaranteeMode": "full-equality",
+      "remarks": "FR-006・ADR-003 D-8/D-11。連続undoの1回目・2点。先頭の差分を逆適用し、残る履歴要素の種別と差分を保持する。"
+    },
+    {
+      "targetKind": "confirmed-play",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {
+            "op": "eq",
+            "axisId": "history.depth",
+            "value": "D"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.scenarioLength",
+            "value": "D"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.composition",
+            "value": "top-confirmed-play"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.changedFaces",
+            "value": "state-and-scoreboard"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.statFlags.contribution",
+            "value": "run-hit-and-pitch"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.score.home.before",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.score.home.delta",
+            "value": 4
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.hits.before",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.hits.delta",
+            "value": 1
+          }
+        ]
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "unchanged"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "unchanged"
+          },
+          "state.runners": {
+            "kind": "unchanged"
+          },
+          "state.battingOrder": {
+            "kind": "unchanged"
+          },
+          "state.tiebreakActive": {
+            "kind": "unchanged"
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "unchanged"
+          },
+          "state.score": {
+            "kind": "set",
+            "value": {
+              "home": 1,
+              "away": 0
+            }
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "delta",
+            "value": -1
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "pop",
+            "count": 1
+          },
+          "operationResult": {
+            "kind": "set",
+            "value": "applied"
+          }
+        }
+      },
+      "historyEffect": {
+        "pops": 1
+      },
+      "operationResult": "applied",
+      "guaranteeMode": "full-equality",
+      "remarks": "FR-006・ADR-003 D-8/D-11。深さD・4点。先頭の差分を逆適用し、残る履歴要素の種別と差分を保持する。"
+    },
+    {
+      "targetKind": "confirmed-play",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {
+            "op": "eq",
+            "axisId": "history.depth",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.scenarioLength",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.composition",
+            "value": "top-confirmed-play"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.changedFaces",
+            "value": "scoreboard-only"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.statFlags.contribution",
+            "value": "hit-and-pitch"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.hits.before",
+            "value": 0
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.hits.delta",
+            "value": 1
+          }
+        ]
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "unchanged"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "unchanged"
+          },
+          "state.runners": {
+            "kind": "unchanged"
+          },
+          "state.battingOrder": {
+            "kind": "unchanged"
+          },
+          "state.tiebreakActive": {
+            "kind": "unchanged"
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "unchanged"
+          },
+          "state.score": {
+            "kind": "unchanged"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "delta",
+            "value": -1
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "pop",
+            "count": 1
+          },
+          "operationResult": {
+            "kind": "set",
+            "value": "applied"
+          }
+        }
+      },
+      "historyEffect": {
+        "pops": 1
+      },
+      "operationResult": "applied",
+      "guaranteeMode": "full-equality",
+      "remarks": "FR-006・ADR-003 D-8/D-11。スコアボードだけの安打。先頭の差分を逆適用し、残る履歴要素の種別と差分を保持する。"
+    },
+    {
+      "targetKind": "confirmed-play",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {
+            "op": "eq",
+            "axisId": "history.depth",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.scenarioLength",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.composition",
+            "value": "top-confirmed-play"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.changedFaces",
+            "value": "half-inning-boundary"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.statFlags.contribution",
+            "value": "out-and-pitch"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.half.before",
+            "value": "top"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.outs.before",
+            "value": 2
+          }
+        ]
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "set",
+            "value": "top"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "set",
+            "value": 2
+          },
+          "state.runners": {
+            "kind": "unchanged"
+          },
+          "state.battingOrder": {
+            "kind": "unchanged"
+          },
+          "state.tiebreakActive": {
+            "kind": "unchanged"
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "unchanged"
+          },
+          "state.score": {
+            "kind": "unchanged"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "unchanged"
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "pop",
+            "count": 1
+          },
+          "operationResult": {
+            "kind": "set",
+            "value": "applied"
+          }
+        }
+      },
+      "historyEffect": {
+        "pops": 1
+      },
+      "operationResult": "applied",
+      "guaranteeMode": "full-equality",
+      "remarks": "FR-006・ADR-003 D-8/D-11。表から裏への半イニング境界。先頭の差分を逆適用し、残る履歴要素の種別と差分を保持する。"
+    },
+    {
+      "targetKind": "confirmed-play",
+      "precondition": {
+        "op": "and",
+        "args": [
+          {
+            "op": "eq",
+            "axisId": "history.depth",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.scenarioLength",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.composition",
+            "value": "top-confirmed-play"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.changedFaces",
+            "value": "half-inning-boundary"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.statFlags.contribution",
+            "value": "out-and-pitch"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.half.before",
+            "value": "bottom"
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.outs.before",
+            "value": 2
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.inning.before",
+            "value": 9
+          }
+        ]
+      },
+      "stateEffect": {
+        "stateFields": {
+          "state.half": {
+            "kind": "set",
+            "value": "bottom"
+          },
+          "state.count.strikes": {
+            "kind": "unchanged"
+          },
+          "state.count.balls": {
+            "kind": "unchanged"
+          },
+          "state.outs": {
+            "kind": "set",
+            "value": 2
+          },
+          "state.runners": {
+            "kind": "unchanged"
+          },
+          "state.battingOrder": {
+            "kind": "unchanged"
+          },
+          "state.tiebreakActive": {
+            "kind": "unchanged"
+          },
+          "state.gameEnded": {
+            "kind": "unchanged"
+          },
+          "state.inning": {
+            "kind": "set",
+            "value": 9
+          },
+          "state.score": {
+            "kind": "unchanged"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "kind": "unchanged"
+          },
+          "hits": {
+            "kind": "unchanged"
+          },
+          "errors": {
+            "kind": "unchanged"
+          },
+          "strikeouts": {
+            "kind": "unchanged"
+          },
+          "walks": {
+            "kind": "unchanged"
+          }
+        },
+        "statFlags": {
+          "投球回算入アウト": {
+            "kind": "unchanged"
+          },
+          "投球数": {
+            "kind": "unchanged"
+          },
+          "奪三振": {
+            "kind": "unchanged"
+          },
+          "与四球": {
+            "kind": "unchanged"
+          },
+          "与死球": {
+            "kind": "unchanged"
+          },
+          "被安打": {
+            "kind": "unchanged"
+          },
+          "被本塁打": {
+            "kind": "unchanged"
+          },
+          "失点": {
+            "kind": "unchanged"
+          },
+          "失策": {
+            "kind": "unchanged"
+          },
+          "打席": {
+            "kind": "unchanged"
+          },
+          "打数": {
+            "kind": "unchanged"
+          },
+          "安打": {
+            "kind": "unchanged"
+          },
+          "本塁打": {
+            "kind": "unchanged"
+          },
+          "塁打": {
+            "kind": "unchanged"
+          },
+          "犠打": {
+            "kind": "unchanged"
+          },
+          "犠飛": {
+            "kind": "unchanged"
+          },
+          "四球": {
+            "kind": "unchanged"
+          },
+          "死球": {
+            "kind": "unchanged"
+          },
+          "三振": {
+            "kind": "unchanged"
+          },
+          "打撃妨害出塁": {
+            "kind": "unchanged"
+          },
+          "走塁妨害出塁": {
+            "kind": "unchanged"
+          },
+          "得点": {
+            "kind": "unchanged"
+          },
+          "打点": {
+            "kind": "unchanged"
+          }
+        },
+        "historyAndResult": {
+          "history": {
+            "kind": "pop",
+            "count": 1
+          },
+          "operationResult": {
+            "kind": "set",
+            "value": "applied"
+          }
+        }
+      },
+      "historyEffect": {
+        "pops": 1
+      },
+      "operationResult": "applied",
+      "guaranteeMode": "full-equality",
+      "remarks": "FR-006・ADR-003 D-8/D-11。裏から表への半イニング境界。先頭の差分を逆適用し、残る履歴要素の種別と差分を保持する。"
     }
   ],
   "mustOperationCoverage": {
@@ -7178,6 +8684,409 @@
                 "op": "eq",
                 "axisId": "history.scenarioLength",
                 "value": "D+1"
+              }
+            }
+          },
+          {
+            "layer": "undoRows",
+            "coordinate": {
+              "targetKind": "confirmed-play",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "history.depth",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.scenarioLength",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.composition",
+                    "value": "top-confirmed-play"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.changedFaces",
+                    "value": "state-only"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.statFlags.contribution",
+                    "value": "out-and-pitch"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.outs.before",
+                    "value": 0
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.outs.delta",
+                    "value": 1
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "layer": "undoRows",
+            "coordinate": {
+              "targetKind": "confirmed-play",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "history.depth",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.scenarioLength",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.composition",
+                    "value": "top-confirmed-play"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.changedFaces",
+                    "value": "state-only"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.statFlags.contribution",
+                    "value": "out-and-pitch"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.outs.before",
+                    "value": 0
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.outs.delta",
+                    "value": 2
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "layer": "undoRows",
+            "coordinate": {
+              "targetKind": "confirmed-play",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "history.depth",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.scenarioLength",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.composition",
+                    "value": "top-confirmed-play"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.changedFaces",
+                    "value": "state-and-scoreboard"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.statFlags.contribution",
+                    "value": "run-hit-and-pitch"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.score.home.before",
+                    "value": 0
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.score.home.delta",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.hits.before",
+                    "value": 0
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.hits.delta",
+                    "value": 1
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "layer": "undoRows",
+            "coordinate": {
+              "targetKind": "confirmed-play",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "history.depth",
+                    "value": 2
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.scenarioLength",
+                    "value": 2
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.composition",
+                    "value": "top-confirmed-play"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.changedFaces",
+                    "value": "state-and-scoreboard"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.statFlags.contribution",
+                    "value": "run-hit-and-pitch"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.score.home.before",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.score.home.delta",
+                    "value": 2
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.hits.before",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.hits.delta",
+                    "value": 1
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "layer": "undoRows",
+            "coordinate": {
+              "targetKind": "confirmed-play",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "history.depth",
+                    "value": "D"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.scenarioLength",
+                    "value": "D"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.composition",
+                    "value": "top-confirmed-play"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.changedFaces",
+                    "value": "state-and-scoreboard"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.statFlags.contribution",
+                    "value": "run-hit-and-pitch"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.score.home.before",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.score.home.delta",
+                    "value": 4
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.hits.before",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.hits.delta",
+                    "value": 1
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "layer": "undoRows",
+            "coordinate": {
+              "targetKind": "confirmed-play",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "history.depth",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.scenarioLength",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.composition",
+                    "value": "top-confirmed-play"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.changedFaces",
+                    "value": "scoreboard-only"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.statFlags.contribution",
+                    "value": "hit-and-pitch"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.hits.before",
+                    "value": 0
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.hits.delta",
+                    "value": 1
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "layer": "undoRows",
+            "coordinate": {
+              "targetKind": "confirmed-play",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "history.depth",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.scenarioLength",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.composition",
+                    "value": "top-confirmed-play"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.changedFaces",
+                    "value": "half-inning-boundary"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.statFlags.contribution",
+                    "value": "out-and-pitch"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.half.before",
+                    "value": "top"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.outs.before",
+                    "value": 2
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "layer": "undoRows",
+            "coordinate": {
+              "targetKind": "confirmed-play",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "history.depth",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.scenarioLength",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.composition",
+                    "value": "top-confirmed-play"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.changedFaces",
+                    "value": "half-inning-boundary"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.statFlags.contribution",
+                    "value": "out-and-pitch"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.half.before",
+                    "value": "bottom"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.outs.before",
+                    "value": 2
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.inning.before",
+                    "value": 9
+                  }
+                ]
               }
             }
           }
@@ -30930,6 +32839,2560 @@
       "normalized": {
         "operationKind": "undo",
         "history.scenarioLength": "D+1"
+      }
+    },
+    {
+      "caseId": "ST-UNDO-14aaae76b32b897d",
+      "rowRef": {
+        "layer": "undoRows",
+        "coordinate": {
+          "targetKind": "confirmed-play",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "history.depth",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.scenarioLength",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.composition",
+                "value": "top-confirmed-play"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.changedFaces",
+                "value": "state-only"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.statFlags.contribution",
+                "value": "out-and-pitch"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.outs.before",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.outs.delta",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "state-only",
+        "history.topDifference.state.outs.before": 0,
+        "history.topDifference.state.outs.delta": 1,
+        "history.topDifference.statFlags.contribution": "out-and-pitch"
+      },
+      "expected": {
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "unchanged"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "delta",
+              "value": -1
+            },
+            "state.runners": {
+              "kind": "unchanged"
+            },
+            "state.battingOrder": {
+              "kind": "unchanged"
+            },
+            "state.tiebreakActive": {
+              "kind": "unchanged"
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "unchanged"
+            },
+            "state.score": {
+              "kind": "unchanged"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "unchanged"
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "pop",
+              "count": 1
+            },
+            "operationResult": {
+              "kind": "set",
+              "value": "applied"
+            }
+          }
+        },
+        "historyEffect": {
+          "pops": 1
+        },
+        "operationResult": "applied",
+        "guaranteeMode": "full-equality",
+        "historyContext": []
+      },
+      "historyInput": {
+        "stack": [
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.outs": {
+                  "before": 0,
+                  "after": 1
+                }
+              },
+              "scoreboard": {},
+              "statFlags": {
+                "投球回算入アウト": true,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              }
+            }
+          }
+        ]
+      },
+      "raw": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "state-only",
+        "history.topDifference.state.outs.before": 0,
+        "history.topDifference.state.outs.delta": 1,
+        "history.topDifference.statFlags.contribution": "out-and-pitch"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "state-only",
+        "history.topDifference.state.outs.before": 0,
+        "history.topDifference.state.outs.delta": 1,
+        "history.topDifference.statFlags.contribution": "out-and-pitch"
+      }
+    },
+    {
+      "caseId": "ST-UNDO-0097b0deff19b9a3",
+      "rowRef": {
+        "layer": "undoRows",
+        "coordinate": {
+          "targetKind": "confirmed-play",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "history.depth",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.scenarioLength",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.composition",
+                "value": "top-confirmed-play"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.changedFaces",
+                "value": "state-only"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.statFlags.contribution",
+                "value": "out-and-pitch"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.outs.before",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.outs.delta",
+                "value": 2
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "state-only",
+        "history.topDifference.state.outs.before": 0,
+        "history.topDifference.state.outs.delta": 2,
+        "history.topDifference.statFlags.contribution": "out-and-pitch"
+      },
+      "expected": {
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "unchanged"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "delta",
+              "value": -2
+            },
+            "state.runners": {
+              "kind": "unchanged"
+            },
+            "state.battingOrder": {
+              "kind": "unchanged"
+            },
+            "state.tiebreakActive": {
+              "kind": "unchanged"
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "unchanged"
+            },
+            "state.score": {
+              "kind": "unchanged"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "unchanged"
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "pop",
+              "count": 1
+            },
+            "operationResult": {
+              "kind": "set",
+              "value": "applied"
+            }
+          }
+        },
+        "historyEffect": {
+          "pops": 1
+        },
+        "operationResult": "applied",
+        "guaranteeMode": "full-equality",
+        "historyContext": []
+      },
+      "historyInput": {
+        "stack": [
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.outs": {
+                  "before": 0,
+                  "after": 2
+                }
+              },
+              "scoreboard": {},
+              "statFlags": {
+                "投球回算入アウト": true,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              }
+            }
+          }
+        ]
+      },
+      "raw": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "state-only",
+        "history.topDifference.state.outs.before": 0,
+        "history.topDifference.state.outs.delta": 2,
+        "history.topDifference.statFlags.contribution": "out-and-pitch"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "state-only",
+        "history.topDifference.state.outs.before": 0,
+        "history.topDifference.state.outs.delta": 2,
+        "history.topDifference.statFlags.contribution": "out-and-pitch"
+      }
+    },
+    {
+      "caseId": "ST-UNDO-c400e8fe66722fd1",
+      "rowRef": {
+        "layer": "undoRows",
+        "coordinate": {
+          "targetKind": "confirmed-play",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "history.depth",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.scenarioLength",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.composition",
+                "value": "top-confirmed-play"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.changedFaces",
+                "value": "state-and-scoreboard"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.statFlags.contribution",
+                "value": "run-hit-and-pitch"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.score.home.before",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.score.home.delta",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.hits.before",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.hits.delta",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "state-and-scoreboard",
+        "history.topDifference.state.score.home.before": 0,
+        "history.topDifference.state.score.home.delta": 1,
+        "history.topDifference.scoreboard.hits.before": 0,
+        "history.topDifference.scoreboard.hits.delta": 1,
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+      },
+      "expected": {
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "unchanged"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "unchanged"
+            },
+            "state.runners": {
+              "kind": "unchanged"
+            },
+            "state.battingOrder": {
+              "kind": "unchanged"
+            },
+            "state.tiebreakActive": {
+              "kind": "unchanged"
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "unchanged"
+            },
+            "state.score": {
+              "kind": "set",
+              "value": {
+                "home": 0,
+                "away": 0
+              }
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "delta",
+              "value": -1
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "pop",
+              "count": 1
+            },
+            "operationResult": {
+              "kind": "set",
+              "value": "applied"
+            }
+          }
+        },
+        "historyEffect": {
+          "pops": 1
+        },
+        "operationResult": "applied",
+        "guaranteeMode": "full-equality",
+        "historyContext": []
+      },
+      "historyInput": {
+        "stack": [
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.score": {
+                  "before": {
+                    "home": 0,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 1,
+                    "away": 0
+                  }
+                }
+              },
+              "scoreboard": {
+                "hits": {
+                  "before": 0,
+                  "after": 1
+                }
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": true,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": true,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": true,
+                "打点": true
+              }
+            }
+          }
+        ]
+      },
+      "raw": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "state-and-scoreboard",
+        "history.topDifference.state.score.home.before": 0,
+        "history.topDifference.state.score.home.delta": 1,
+        "history.topDifference.scoreboard.hits.before": 0,
+        "history.topDifference.scoreboard.hits.delta": 1,
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "state-and-scoreboard",
+        "history.topDifference.state.score.home.before": 0,
+        "history.topDifference.state.score.home.delta": 1,
+        "history.topDifference.scoreboard.hits.before": 0,
+        "history.topDifference.scoreboard.hits.delta": 1,
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+      }
+    },
+    {
+      "caseId": "ST-UNDO-5e3ea87e0027662e",
+      "rowRef": {
+        "layer": "undoRows",
+        "coordinate": {
+          "targetKind": "confirmed-play",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "history.depth",
+                "value": 2
+              },
+              {
+                "op": "eq",
+                "axisId": "history.scenarioLength",
+                "value": 2
+              },
+              {
+                "op": "eq",
+                "axisId": "history.composition",
+                "value": "top-confirmed-play"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.changedFaces",
+                "value": "state-and-scoreboard"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.statFlags.contribution",
+                "value": "run-hit-and-pitch"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.score.home.before",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.score.home.delta",
+                "value": 2
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.hits.before",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.hits.delta",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "undo",
+        "history.depth": 2,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 2,
+        "history.topDifference.changedFaces": "state-and-scoreboard",
+        "history.topDifference.state.score.home.before": 1,
+        "history.topDifference.state.score.home.delta": 2,
+        "history.topDifference.scoreboard.hits.before": 1,
+        "history.topDifference.scoreboard.hits.delta": 1,
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+      },
+      "expected": {
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "unchanged"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "unchanged"
+            },
+            "state.runners": {
+              "kind": "unchanged"
+            },
+            "state.battingOrder": {
+              "kind": "unchanged"
+            },
+            "state.tiebreakActive": {
+              "kind": "unchanged"
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "unchanged"
+            },
+            "state.score": {
+              "kind": "set",
+              "value": {
+                "home": 1,
+                "away": 0
+              }
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "delta",
+              "value": -1
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "pop",
+              "count": 1
+            },
+            "operationResult": {
+              "kind": "set",
+              "value": "applied"
+            }
+          }
+        },
+        "historyEffect": {
+          "pops": 1
+        },
+        "operationResult": "applied",
+        "guaranteeMode": "full-equality",
+        "historyContext": [
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.score": {
+                  "before": {
+                    "home": 0,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 1,
+                    "away": 0
+                  }
+                }
+              },
+              "scoreboard": {
+                "hits": {
+                  "before": 0,
+                  "after": 1
+                }
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": true,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": true,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": true,
+                "打点": true
+              }
+            }
+          }
+        ]
+      },
+      "historyInput": {
+        "stack": [
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.score": {
+                  "before": {
+                    "home": 1,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 3,
+                    "away": 0
+                  }
+                }
+              },
+              "scoreboard": {
+                "hits": {
+                  "before": 1,
+                  "after": 2
+                }
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": true,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": true,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": true,
+                "打点": true
+              }
+            }
+          },
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.score": {
+                  "before": {
+                    "home": 0,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 1,
+                    "away": 0
+                  }
+                }
+              },
+              "scoreboard": {
+                "hits": {
+                  "before": 0,
+                  "after": 1
+                }
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": true,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": true,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": true,
+                "打点": true
+              }
+            }
+          }
+        ]
+      },
+      "raw": {
+        "operationKind": "undo",
+        "history.depth": 2,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 2,
+        "history.topDifference.changedFaces": "state-and-scoreboard",
+        "history.topDifference.state.score.home.before": 1,
+        "history.topDifference.state.score.home.delta": 2,
+        "history.topDifference.scoreboard.hits.before": 1,
+        "history.topDifference.scoreboard.hits.delta": 1,
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "undo",
+        "history.depth": 2,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 2,
+        "history.topDifference.changedFaces": "state-and-scoreboard",
+        "history.topDifference.state.score.home.before": 1,
+        "history.topDifference.state.score.home.delta": 2,
+        "history.topDifference.scoreboard.hits.before": 1,
+        "history.topDifference.scoreboard.hits.delta": 1,
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+      }
+    },
+    {
+      "caseId": "ST-UNDO-bb4731e5dcbb1a70",
+      "rowRef": {
+        "layer": "undoRows",
+        "coordinate": {
+          "targetKind": "confirmed-play",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "history.depth",
+                "value": "D"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.scenarioLength",
+                "value": "D"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.composition",
+                "value": "top-confirmed-play"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.changedFaces",
+                "value": "state-and-scoreboard"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.statFlags.contribution",
+                "value": "run-hit-and-pitch"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.score.home.before",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.score.home.delta",
+                "value": 4
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.hits.before",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.hits.delta",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "undo",
+        "history.depth": "D",
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": "D",
+        "history.topDifference.changedFaces": "state-and-scoreboard",
+        "history.topDifference.state.score.home.before": 1,
+        "history.topDifference.state.score.home.delta": 4,
+        "history.topDifference.scoreboard.hits.before": 1,
+        "history.topDifference.scoreboard.hits.delta": 1,
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+      },
+      "expected": {
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "unchanged"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "unchanged"
+            },
+            "state.runners": {
+              "kind": "unchanged"
+            },
+            "state.battingOrder": {
+              "kind": "unchanged"
+            },
+            "state.tiebreakActive": {
+              "kind": "unchanged"
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "unchanged"
+            },
+            "state.score": {
+              "kind": "set",
+              "value": {
+                "home": 1,
+                "away": 0
+              }
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "delta",
+              "value": -1
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "pop",
+              "count": 1
+            },
+            "operationResult": {
+              "kind": "set",
+              "value": "applied"
+            }
+          }
+        },
+        "historyEffect": {
+          "pops": 1
+        },
+        "operationResult": "applied",
+        "guaranteeMode": "full-equality",
+        "historyContext": [
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.score": {
+                  "before": {
+                    "home": 0,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 1,
+                    "away": 0
+                  }
+                }
+              },
+              "scoreboard": {
+                "hits": {
+                  "before": 0,
+                  "after": 1
+                }
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": true,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": true,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": true,
+                "打点": true
+              }
+            }
+          },
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.count.strikes": {
+                  "before": 1,
+                  "after": 2
+                }
+              },
+              "scoreboard": {},
+              "statFlags": {
+                "投球回算入アウト": true,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              }
+            }
+          },
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.count.strikes": {
+                  "before": 0,
+                  "after": 1
+                }
+              },
+              "scoreboard": {},
+              "statFlags": {
+                "投球回算入アウト": true,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              }
+            }
+          }
+        ]
+      },
+      "historyInput": {
+        "stack": [
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.score": {
+                  "before": {
+                    "home": 1,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 5,
+                    "away": 0
+                  }
+                }
+              },
+              "scoreboard": {
+                "hits": {
+                  "before": 1,
+                  "after": 2
+                }
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": true,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": true,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": true,
+                "打点": true
+              }
+            }
+          },
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.score": {
+                  "before": {
+                    "home": 0,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 1,
+                    "away": 0
+                  }
+                }
+              },
+              "scoreboard": {
+                "hits": {
+                  "before": 0,
+                  "after": 1
+                }
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": true,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": true,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": true,
+                "打点": true
+              }
+            }
+          },
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.count.strikes": {
+                  "before": 1,
+                  "after": 2
+                }
+              },
+              "scoreboard": {},
+              "statFlags": {
+                "投球回算入アウト": true,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              }
+            }
+          },
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.count.strikes": {
+                  "before": 0,
+                  "after": 1
+                }
+              },
+              "scoreboard": {},
+              "statFlags": {
+                "投球回算入アウト": true,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              }
+            }
+          }
+        ]
+      },
+      "raw": {
+        "operationKind": "undo",
+        "history.depth": "D",
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": "D",
+        "history.topDifference.changedFaces": "state-and-scoreboard",
+        "history.topDifference.state.score.home.before": 1,
+        "history.topDifference.state.score.home.delta": 4,
+        "history.topDifference.scoreboard.hits.before": 1,
+        "history.topDifference.scoreboard.hits.delta": 1,
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "undo",
+        "history.depth": "D",
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": "D",
+        "history.topDifference.changedFaces": "state-and-scoreboard",
+        "history.topDifference.state.score.home.before": 1,
+        "history.topDifference.state.score.home.delta": 4,
+        "history.topDifference.scoreboard.hits.before": 1,
+        "history.topDifference.scoreboard.hits.delta": 1,
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+      }
+    },
+    {
+      "caseId": "ST-UNDO-b76d1a2fcda64c97",
+      "rowRef": {
+        "layer": "undoRows",
+        "coordinate": {
+          "targetKind": "confirmed-play",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "history.depth",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.scenarioLength",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.composition",
+                "value": "top-confirmed-play"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.changedFaces",
+                "value": "scoreboard-only"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.statFlags.contribution",
+                "value": "hit-and-pitch"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.hits.before",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.hits.delta",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "scoreboard-only",
+        "history.topDifference.scoreboard.hits.before": 0,
+        "history.topDifference.scoreboard.hits.delta": 1,
+        "history.topDifference.statFlags.contribution": "hit-and-pitch"
+      },
+      "expected": {
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "unchanged"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "unchanged"
+            },
+            "state.runners": {
+              "kind": "unchanged"
+            },
+            "state.battingOrder": {
+              "kind": "unchanged"
+            },
+            "state.tiebreakActive": {
+              "kind": "unchanged"
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "unchanged"
+            },
+            "state.score": {
+              "kind": "unchanged"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "delta",
+              "value": -1
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "pop",
+              "count": 1
+            },
+            "operationResult": {
+              "kind": "set",
+              "value": "applied"
+            }
+          }
+        },
+        "historyEffect": {
+          "pops": 1
+        },
+        "operationResult": "applied",
+        "guaranteeMode": "full-equality",
+        "historyContext": []
+      },
+      "historyInput": {
+        "stack": [
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {},
+              "scoreboard": {
+                "hits": {
+                  "before": 0,
+                  "after": 1
+                }
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": true,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": true,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              }
+            }
+          }
+        ]
+      },
+      "raw": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "scoreboard-only",
+        "history.topDifference.scoreboard.hits.before": 0,
+        "history.topDifference.scoreboard.hits.delta": 1,
+        "history.topDifference.statFlags.contribution": "hit-and-pitch"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "scoreboard-only",
+        "history.topDifference.scoreboard.hits.before": 0,
+        "history.topDifference.scoreboard.hits.delta": 1,
+        "history.topDifference.statFlags.contribution": "hit-and-pitch"
+      }
+    },
+    {
+      "caseId": "ST-UNDO-2b2d0c0e5747c41c",
+      "rowRef": {
+        "layer": "undoRows",
+        "coordinate": {
+          "targetKind": "confirmed-play",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "history.depth",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.scenarioLength",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.composition",
+                "value": "top-confirmed-play"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.changedFaces",
+                "value": "half-inning-boundary"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.statFlags.contribution",
+                "value": "out-and-pitch"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.half.before",
+                "value": "top"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.outs.before",
+                "value": 2
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "half-inning-boundary",
+        "history.topDifference.state.outs.before": 2,
+        "history.topDifference.state.half.before": "top",
+        "history.topDifference.statFlags.contribution": "out-and-pitch"
+      },
+      "expected": {
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "set",
+              "value": "top"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "set",
+              "value": 2
+            },
+            "state.runners": {
+              "kind": "unchanged"
+            },
+            "state.battingOrder": {
+              "kind": "unchanged"
+            },
+            "state.tiebreakActive": {
+              "kind": "unchanged"
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "unchanged"
+            },
+            "state.score": {
+              "kind": "unchanged"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "unchanged"
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "pop",
+              "count": 1
+            },
+            "operationResult": {
+              "kind": "set",
+              "value": "applied"
+            }
+          }
+        },
+        "historyEffect": {
+          "pops": 1
+        },
+        "operationResult": "applied",
+        "guaranteeMode": "full-equality",
+        "historyContext": []
+      },
+      "historyInput": {
+        "stack": [
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.half": {
+                  "before": "top",
+                  "after": "bottom"
+                },
+                "state.outs": {
+                  "before": 2,
+                  "after": 0
+                }
+              },
+              "scoreboard": {},
+              "statFlags": {
+                "投球回算入アウト": true,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              }
+            }
+          }
+        ]
+      },
+      "raw": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "half-inning-boundary",
+        "history.topDifference.state.outs.before": 2,
+        "history.topDifference.state.half.before": "top",
+        "history.topDifference.statFlags.contribution": "out-and-pitch"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "half-inning-boundary",
+        "history.topDifference.state.outs.before": 2,
+        "history.topDifference.state.half.before": "top",
+        "history.topDifference.statFlags.contribution": "out-and-pitch"
+      }
+    },
+    {
+      "caseId": "ST-UNDO-1f88841418ec222f",
+      "rowRef": {
+        "layer": "undoRows",
+        "coordinate": {
+          "targetKind": "confirmed-play",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "history.depth",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.scenarioLength",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.composition",
+                "value": "top-confirmed-play"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.changedFaces",
+                "value": "half-inning-boundary"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.statFlags.contribution",
+                "value": "out-and-pitch"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.half.before",
+                "value": "bottom"
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.outs.before",
+                "value": 2
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.inning.before",
+                "value": 9
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "half-inning-boundary",
+        "history.topDifference.state.outs.before": 2,
+        "history.topDifference.state.half.before": "bottom",
+        "history.topDifference.state.inning.before": 9,
+        "history.topDifference.statFlags.contribution": "out-and-pitch"
+      },
+      "expected": {
+        "stateEffect": {
+          "stateFields": {
+            "state.half": {
+              "kind": "set",
+              "value": "bottom"
+            },
+            "state.count.strikes": {
+              "kind": "unchanged"
+            },
+            "state.count.balls": {
+              "kind": "unchanged"
+            },
+            "state.outs": {
+              "kind": "set",
+              "value": 2
+            },
+            "state.runners": {
+              "kind": "unchanged"
+            },
+            "state.battingOrder": {
+              "kind": "unchanged"
+            },
+            "state.tiebreakActive": {
+              "kind": "unchanged"
+            },
+            "state.gameEnded": {
+              "kind": "unchanged"
+            },
+            "state.inning": {
+              "kind": "set",
+              "value": 9
+            },
+            "state.score": {
+              "kind": "unchanged"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "kind": "unchanged"
+            },
+            "hits": {
+              "kind": "unchanged"
+            },
+            "errors": {
+              "kind": "unchanged"
+            },
+            "strikeouts": {
+              "kind": "unchanged"
+            },
+            "walks": {
+              "kind": "unchanged"
+            }
+          },
+          "statFlags": {
+            "投球回算入アウト": {
+              "kind": "unchanged"
+            },
+            "投球数": {
+              "kind": "unchanged"
+            },
+            "奪三振": {
+              "kind": "unchanged"
+            },
+            "与四球": {
+              "kind": "unchanged"
+            },
+            "与死球": {
+              "kind": "unchanged"
+            },
+            "被安打": {
+              "kind": "unchanged"
+            },
+            "被本塁打": {
+              "kind": "unchanged"
+            },
+            "失点": {
+              "kind": "unchanged"
+            },
+            "失策": {
+              "kind": "unchanged"
+            },
+            "打席": {
+              "kind": "unchanged"
+            },
+            "打数": {
+              "kind": "unchanged"
+            },
+            "安打": {
+              "kind": "unchanged"
+            },
+            "本塁打": {
+              "kind": "unchanged"
+            },
+            "塁打": {
+              "kind": "unchanged"
+            },
+            "犠打": {
+              "kind": "unchanged"
+            },
+            "犠飛": {
+              "kind": "unchanged"
+            },
+            "四球": {
+              "kind": "unchanged"
+            },
+            "死球": {
+              "kind": "unchanged"
+            },
+            "三振": {
+              "kind": "unchanged"
+            },
+            "打撃妨害出塁": {
+              "kind": "unchanged"
+            },
+            "走塁妨害出塁": {
+              "kind": "unchanged"
+            },
+            "得点": {
+              "kind": "unchanged"
+            },
+            "打点": {
+              "kind": "unchanged"
+            }
+          },
+          "historyAndResult": {
+            "history": {
+              "kind": "pop",
+              "count": 1
+            },
+            "operationResult": {
+              "kind": "set",
+              "value": "applied"
+            }
+          }
+        },
+        "historyEffect": {
+          "pops": 1
+        },
+        "operationResult": "applied",
+        "guaranteeMode": "full-equality",
+        "historyContext": []
+      },
+      "historyInput": {
+        "stack": [
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.half": {
+                  "before": "bottom",
+                  "after": "top"
+                },
+                "state.outs": {
+                  "before": 2,
+                  "after": 0
+                },
+                "state.inning": {
+                  "before": 9,
+                  "after": 10
+                }
+              },
+              "scoreboard": {},
+              "statFlags": {
+                "投球回算入アウト": true,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              }
+            }
+          }
+        ]
+      },
+      "raw": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "half-inning-boundary",
+        "history.topDifference.state.outs.before": 2,
+        "history.topDifference.state.half.before": "bottom",
+        "history.topDifference.state.inning.before": 9,
+        "history.topDifference.statFlags.contribution": "out-and-pitch"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "operationKind": "undo",
+        "history.depth": 1,
+        "history.composition": "top-confirmed-play",
+        "history.scenarioLength": 1,
+        "history.topDifference.changedFaces": "half-inning-boundary",
+        "history.topDifference.state.outs.before": 2,
+        "history.topDifference.state.half.before": "bottom",
+        "history.topDifference.state.inning.before": 9,
+        "history.topDifference.statFlags.contribution": "out-and-pitch"
       }
     }
   ]

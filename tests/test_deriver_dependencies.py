@@ -234,7 +234,7 @@ def test_partition_rule_without_source_clause_fails() -> None:
 
 
 def test_repository_input_coordinate_requirements_are_per_axis_values() -> None:
-    """26軸から軸ごとの150要求を導出し、軸間直積を主張しない。"""
+    """36軸から軸ごとの173要求を導出し、軸間直積を主張しない。"""
     policy = _policy()
     requirements, trace = checker.derive_repository_input_coordinate_requirements(
         REPOSITORY_ROOT, policy
@@ -242,8 +242,8 @@ def test_repository_input_coordinate_requirements_are_per_axis_values() -> None:
     descriptor = _input_axes_descriptor()
     boundary = descriptor["inputCoordinateCoverage"]["axisCombinationBoundary"]
 
-    assert len(requirements) == 150
-    assert len({item.identity for item in requirements}) == 150
+    assert len(requirements) == 173
+    assert len({item.identity for item in requirements}) == 173
     assert {item.axis_id for item in requirements} == {
         axis["axisId"] for axis in descriptor["stateTransitionAxes"]
     }
@@ -286,7 +286,7 @@ def test_input_coordinate_bindings_use_normative_row_natural_keys() -> None:
 
 
 def test_conditional_coordinate_values_follow_declared_adoption_state() -> None:
-    """FR-040の採用状態で条件付き4値を採用または除外する。"""
+    """FR-040の採用状態で条件付き5値を採用または除外する。"""
     requirements = checker.derive_input_coordinate_requirements_from_descriptor(
         _input_axes_descriptor()
     )
@@ -297,8 +297,8 @@ def test_conditional_coordinate_values_follow_declared_adoption_state() -> None:
         requirements, {"req:FR-040": "adopted"}
     )
 
-    assert len(not_adopted) == 146
-    assert len(adopted) == 150
+    assert len(not_adopted) == 168
+    assert len(adopted) == 173
     assert not any(
         item.when_clause_id is not None for item in not_adopted
     )

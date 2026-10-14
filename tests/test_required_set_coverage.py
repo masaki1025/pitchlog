@@ -191,14 +191,14 @@ def _assert_all_normative_rows_referenced(
 
 
 def test_step98_all_normative_rows_are_referenced_by_cases() -> None:
-    """実資産の4層58行すべてにcaseからの参照があることを確認する。"""
+    """実資産の4層66行すべてにcaseからの参照があることを確認する。"""
     state = _asset("state_transition_contract_v1.json")
     game_end = _asset("game_end_contract_v1.json")
     assert [len(state[layer]) for layer in ("matrixRows", "operationRows", "undoRows")] == [
-        42, 7, 2,
+        42, 7, 10,
     ]
     assert len(game_end["decisionRows"]) == 7
-    assert len(state["cases"]) == 98
+    assert len(state["cases"]) == 106
     assert len(game_end["cases"]) == 214
     for contract, schema_name in (
         (state, "state_transition_contract_schema_v1.json"),
@@ -423,7 +423,7 @@ def test_step96_validation_errors_are_exact_and_separate_from_cases() -> None:
     assert actual == expected
     assert declaration["deferredValidationErrors"]["status"] == "materialized"
     assert declaration["deferredValidationErrors"]["count"] == len(expected)
-    assert len(state["cases"]) == 98
+    assert len(state["cases"]) == 106
     assert len(contract["cases"]) == 214
     assert all("caseId" not in item and "inputCoordinate" not in item for item in entries)
     assert all("保証範囲外" in item["claimBoundary"]["notGuaranteed"] for item in entries)
@@ -1296,7 +1296,7 @@ def test_step87_adhoc_registration_cases_and_input_coverage() -> None:
     assert current["after"]["digest"] == checker._digest(after)
     assert after == _observed_coverage(cases, contract)
     assert checker.check_input_coverage(ROOT) == (
-        111, record["history"][-1]["after"]["digest"], 0
+        133, record["history"][-1]["after"]["digest"], 22
     )
     assert checker.check_row_requirements(ROOT) == (47, 42, 0)
     policy = expander.dependency_checker.load_policy(ROOT)
@@ -1402,7 +1402,7 @@ def test_step88_empty_history_undo_case_and_coverage() -> None:
     previous_cases, _ = expander.expand_traced(
         ROOT, limit=42, mode="coverage", operation_limit=6
     )
-    assert contract["cases"][:95] + contract["cases"][-2:-1] == cases
+    assert contract["cases"][:95] + [contract["cases"][96]] == cases
     assert cases[:-1] == previous_cases
     assert len(cases) == 96
     assert [case["rowRef"]["layer"] for case in cases].count("matrixRows") == 89
@@ -1416,10 +1416,11 @@ def test_step88_empty_history_undo_case_and_coverage() -> None:
     assert undo_case["expected"]["operationResult"] == "nothing-to-undo"
     assert undo_case["expected"]["guaranteeMode"] == "full-equality"
 
-    assert record["currentStep"] == 90
-    assert [item["step"] for item in record["history"]] == list(range(79, 91))
-    current = record["history"][-3]
-    assert current["before"] == record["history"][-4]["after"]
+    assert record["currentStep"] == 91
+    assert [item["step"] for item in record["history"]] == list(range(79, 92))
+    current = next(item for item in record["history"] if item["step"] == 88)
+    previous = next(item for item in record["history"] if item["step"] == 87)
+    assert current["before"] == previous["after"]
     before = {tuple(item) for item in current["before"]["coverageSet"]}
     after = {tuple(item) for item in current["after"]["coverageSet"]}
     assert after - before == {("event.operationKind", '"undo"')}
@@ -1431,7 +1432,7 @@ def test_step88_empty_history_undo_case_and_coverage() -> None:
     assert "XC-09" in current["reason"]
     assert "history.scenarioLength" in current["reason"]
     assert "D+1" in current["fact"] and "未達" in current["fact"]
-    assert checker.check_input_coverage(ROOT) == (111, current["after"]["digest"], 0)
+    assert checker.check_input_coverage(ROOT) == (133, record["history"][-1]["after"]["digest"], 22)
     assert checker.check_row_requirements(ROOT) == (47, 42, 0)
     policy = expander.dependency_checker.load_policy(ROOT)
     assert trace.observed_read_paths == policy.expanders[
@@ -1446,7 +1447,7 @@ def test_step24_draw05_operation_case_preserves_input_coverage() -> None:
     cases, _ = expander.expand_traced(
         ROOT, limit=42, mode="coverage", operation_limit=7, undo_limit=1
     )
-    assert contract["cases"][:-1] == cases
+    assert contract["cases"][:97] == cases
     assert len(cases) == 97
     draw_case = cases[-2]
     assert draw_case["inputCoordinate"]["state.score"] == "tie"
@@ -1454,8 +1455,9 @@ def test_step24_draw05_operation_case_preserves_input_coverage() -> None:
     effects = draw_case["expected"]["stateEffect"]["stateFields"]
     assert effects["state.gameEnded"] == {"kind": "set", "value": True}
     assert effects["state.score"] == {"kind": "unchanged"}
-    assert record["history"][-1]["before"] == record["history"][-1]["after"]
-    assert checker.check_input_coverage(ROOT)[2] == 0
+    step90 = next(item for item in record["history"] if item["step"] == 90)
+    assert step90["before"] == step90["after"]
+    assert checker.check_input_coverage(ROOT)[2] == 22
 
 
 def test_step24_draw05_cross_layer_binding_fails_closed_on_case_drift() -> None:
@@ -1484,7 +1486,11 @@ def test_step30_rejects_liveness_only_on_empty_history_row() -> None:
 def test_step30_liveness_case_with_only_d_plays_is_red() -> None:
     """シナリオ長D+1を宣言して4件しか積まないcaseを拒否する。"""
     contract = _asset("state_transition_contract_v1.json")
-    contract["cases"][-1]["historyInput"]["stack"].pop()
+    liveness = next(
+        item for item in contract["cases"]
+        if item["expected"].get("guaranteeMode") == "liveness-only"
+    )
+    liveness["historyInput"]["stack"].pop()
     with pytest.raises(checker.RequiredSetCoverageError, match="XC-09"):
         checker.check_input_coverage(ROOT, contract=contract)
 
@@ -1500,7 +1506,11 @@ def test_step30_liveness_case_with_only_d_plays_is_red() -> None:
 )
 def test_checker_rejects_invalid_undo_case(mutation: str, message: str) -> None:
     """undoRowsの分岐で種別・参照・前提・期待値の破損を拒否する。"""
-    case = copy.deepcopy(_asset("state_transition_contract_v1.json")["cases"][-2])
+    case = copy.deepcopy(next(
+        item for item in _asset("state_transition_contract_v1.json")["cases"]
+        if item["rowRef"]["layer"] == "undoRows"
+        and item["rowRef"]["coordinate"]["targetKind"] == "none"
+    ))
     if mutation == "kind":
         case["inputCoordinate"]["operationKind"] = "substitution"
     elif mutation == "ambiguous-reference":
@@ -1532,7 +1542,7 @@ def test_existing_layers_reject_swapped_undo_assignment() -> None:
     assert ("event.operationKind", '"undo"') not in operation_baseline
 
 
-@pytest.mark.parametrize("undo_limit", [-1, 3])
+@pytest.mark.parametrize("undo_limit", [-1, 11])
 def test_expander_rejects_undo_limit_outside_references(undo_limit: int) -> None:
     """undo行参照の範囲を越える展開指定を拒否する。"""
     with pytest.raises(expander.CaseExpansionError, match="undo行の出力件数"):
@@ -1722,7 +1732,7 @@ def test_step103_coverage_count_changed_by_one_is_red() -> None:
 def test_step102_both_required_set_differences_are_empty() -> None:
     """①の宣言除外と②の規則除外を実資産で共に検査する。"""
     assert checker.check_row_requirements(ROOT) == (47, 42, 0)
-    assert checker.check_input_coverage_exact(ROOT) == (150, 39, 0)
+    assert checker.check_input_coverage_exact(ROOT) == (173, 40, 0)
 
 
 def test_step102_row_requirement_difference_is_red() -> None:
@@ -1733,7 +1743,7 @@ def test_step102_row_requirement_difference_is_red() -> None:
         checker.check_row_requirements(
             ROOT, _asset("state_transition_contract_v1.json"), declaration
         )
-    assert checker.check_input_coverage_exact(ROOT) == (150, 39, 0)
+    assert checker.check_input_coverage_exact(ROOT) == (173, 40, 0)
 
 
 def test_step102_input_coordinate_difference_is_red_when_row_is_added() -> None:

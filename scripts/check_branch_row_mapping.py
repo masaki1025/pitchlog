@@ -217,6 +217,154 @@ def validate_rows(contract: dict[str, Any], descriptor: dict[str, Any]) -> None:
             _fail("HISTORY_NONE_EFFECT", label)
 
 
+def validate_undo_case_differences(contract: dict[str, Any], depth: int) -> None:
+    """undo の先頭差分と逆適用、残る履歴要素を照合する。
+
+    Args:
+        contract: 規範行と派生 case を持つ状況判定契約。
+        depth: history-depth から解決した D の実値。
+    """
+    consecutive: list[dict[str, Any]] = []
+    single: list[dict[str, Any]] = []
+    for case in contract["cases"]:
+        reference = case.get("rowRef", {})
+        if reference.get("layer") != "undoRows":
+            continue
+        coordinate = case.get("inputCoordinate", {})
+        if "history.topDifference.changedFaces" not in coordinate:
+            continue
+        label = case.get("caseId", "undo")
+        expected = case.get("expected", {})
+        stack = case.get("historyInput", {}).get("stack")
+        if (
+            not isinstance(stack, list)
+            or not stack
+            or expected.get("guaranteeMode") != "full-equality"
+            or expected.get("operationResult") != "applied"
+        ):
+            _fail("UNDO_DIFFERENCE_INPUT", label)
+        declared_depth = coordinate.get("history.depth")
+        if (depth if declared_depth == "D" else declared_depth) != len(stack):
+            _fail("UNDO_DIFFERENCE_INPUT", label)
+        if coordinate.get("history.scenarioLength") != declared_depth:
+            _fail("UNDO_DIFFERENCE_INPUT", label)
+        top = stack[0]
+        if top.get("kind") != "confirmed-play":
+            _fail("UNDO_DIFFERENCE_INPUT", label)
+        difference = top.get("difference", {})
+        face = expected.get("stateEffect", {})
+        for surface in ("stateFields", "scoreboard"):
+            changed = difference.get(surface)
+            effects = face.get(surface)
+            if not isinstance(changed, dict) or not isinstance(effects, dict):
+                _fail("UNDO_DIFFERENCE_INPUT", label)
+            for field, effect in effects.items():
+                if field not in changed:
+                    inverse = {"kind": "unchanged"}
+                else:
+                    pair = changed[field]
+                    if not isinstance(pair, dict) or set(pair) != {"before", "after"}:
+                        _fail("UNDO_DIFFERENCE_INPUT", label)
+                    before, after = pair["before"], pair["after"]
+                    if before == after:
+                        _fail("UNDO_DIFFERENCE_INPUT", label)
+                    inverse = (
+                        {"kind": "delta", "value": before - after}
+                        if type(before) is int and type(after) is int
+                        and "state.half" not in difference["stateFields"]
+                        else {"kind": "set", "value": before}
+                    )
+                if effect != inverse:
+                    _fail("UNDO_INVERSE_DIFF", f"{label}: {surface}.{field}")
+        changed_state = bool(difference["stateFields"])
+        changed_board = bool(difference["scoreboard"])
+        changed_faces = (
+            "half-inning-boundary" if "state.half" in difference["stateFields"]
+            else "state-and-scoreboard" if changed_state and changed_board
+            else "state-only" if changed_state
+            else "scoreboard-only" if changed_board
+            else None
+        )
+        if coordinate["history.topDifference.changedFaces"] != changed_faces:
+            _fail("UNDO_SCALAR_BINDING", label)
+        scalar_fields = {
+            "state.outs.before": ("stateFields", "state.outs", None, "before"),
+            "state.outs.delta": ("stateFields", "state.outs", None, "delta"),
+            "state.score.home.before": ("stateFields", "state.score", "home", "before"),
+            "state.score.home.delta": ("stateFields", "state.score", "home", "delta"),
+            "state.half.before": ("stateFields", "state.half", None, "before"),
+            "state.inning.before": ("stateFields", "state.inning", None, "before"),
+            "scoreboard.hits.before": ("scoreboard", "hits", None, "before"),
+            "scoreboard.hits.delta": ("scoreboard", "hits", None, "delta"),
+        }
+        required_by_field = {
+            ("stateFields", "state.outs"): ("state.outs.before",),
+            ("stateFields", "state.score"): (
+                "state.score.home.before", "state.score.home.delta",
+            ),
+            ("stateFields", "state.half"): ("state.half.before",),
+            ("stateFields", "state.inning"): ("state.inning.before",),
+            ("scoreboard", "hits"): ("scoreboard.hits.before", "scoreboard.hits.delta"),
+        }
+        for surface in ("stateFields", "scoreboard"):
+            for field in difference[surface]:
+                suffixes = required_by_field.get((surface, field))
+                if suffixes is None or any(
+                    f"history.topDifference.{suffix}" not in coordinate
+                    for suffix in suffixes
+                ):
+                    _fail("UNDO_SCALAR_BINDING", f"{label}: {surface}.{field}")
+                if field == "state.outs" and "state.half" not in difference["stateFields"]:
+                    if "history.topDifference.state.outs.delta" not in coordinate:
+                        _fail("UNDO_SCALAR_BINDING", f"{label}: {surface}.{field}")
+                if field == "state.score" and (
+                    difference[surface][field]["before"].get("away")
+                    != difference[surface][field]["after"].get("away")
+                ):
+                    _fail("UNDO_SCALAR_BINDING", f"{label}: {surface}.{field}")
+        contribution = coordinate.get("history.topDifference.statFlags.contribution")
+        contribution_flags = {
+            "out-and-pitch": {"投球数", "投球回算入アウト"},
+            "run-hit-and-pitch": {"投球数", "被安打", "安打", "得点", "打点"},
+            "hit-and-pitch": {"投球数", "被安打", "安打"},
+        }
+        flags = difference.get("statFlags")
+        if (
+            not isinstance(flags, dict)
+            or set(flags) != set(face["statFlags"])
+            or any(type(value) is not bool for value in flags.values())
+            or {name for name, value in flags.items() if value}
+            != contribution_flags.get(contribution)
+        ):
+            _fail("UNDO_SCALAR_BINDING", f"{label}: statFlags.contribution")
+        for suffix, (surface, field, member, measure) in scalar_fields.items():
+            axis_id = f"history.topDifference.{suffix}"
+            if axis_id not in coordinate:
+                continue
+            pair = difference[surface].get(field)
+            if not isinstance(pair, dict):
+                _fail("UNDO_SCALAR_BINDING", f"{label}: {axis_id}")
+            before, after = pair["before"], pair["after"]
+            if member is not None:
+                if not isinstance(before, dict) or not isinstance(after, dict):
+                    _fail("UNDO_SCALAR_BINDING", f"{label}: {axis_id}")
+                before, after = before.get(member), after.get(member)
+            value = after - before if measure == "delta" else before
+            if coordinate[axis_id] != value:
+                _fail("UNDO_SCALAR_BINDING", f"{label}: {axis_id}")
+        if expected.get("historyContext") != stack[1:]:
+            _fail("UNDO_TAIL_PRESERVATION", label)
+        if len(stack) == 2:
+            consecutive.append(case)
+        elif len(stack) == 1:
+            single.append(case)
+    if not any(
+        first["expected"]["historyContext"] == second["historyInput"]["stack"]
+        for first in consecutive for second in single
+    ):
+        _fail("UNDO_CONTINUITY", "連続undoの2回目へ差分が渡らない")
+
+
 def push_entry(
     entry_kind: str,
     before: dict[str, dict[str, Any]],

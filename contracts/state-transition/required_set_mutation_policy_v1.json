@@ -9,7 +9,7 @@
       "operatorId": "axis-deletion",
       "kind": "delete-one-axis",
       "axisCollections": ["stateTransitionAxes", "gameEndAxes"],
-      "expectedMutantCount": 31
+      "expectedMutantCount": 41
     },
     {
       "operatorId": "boundary-value-replacement",
@@ -19,7 +19,7 @@
       "replacementTemplate": "__required_set_mutation__:{axisId}:{valueIndex}",
       "collisionDomain": "axis-values-and-invalid-boundary-values",
       "collisionResolution": "append-colon-and-smallest-nonnegative-integer-until-unique",
-      "expectedMutantCount": 100
+      "expectedMutantCount": 123
     }
   ],
   "affectedOutputsByAxisPrefix": {

@@ -429,6 +429,16 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         "history.depth": ("adr:D-11", "boundary-partition"),
         "history.composition": ("adr:D-11", "boundary-partition"),
         "history.scenarioLength": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.changedFaces": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.state.outs.before": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.state.outs.delta": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.state.score.home.before": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.state.score.home.delta": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.state.half.before": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.state.inning.before": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.scoreboard.hits.before": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.scoreboard.hits.delta": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.statFlags.contribution": ("adr:D-11", "boundary-partition"),
     }
 
     assert {
