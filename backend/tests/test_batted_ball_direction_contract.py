@@ -111,9 +111,7 @@ def _relative_direction(physical: str, batter_side: str) -> str:
     return "batter-relative.opposite"
 
 
-def _sector_matches(
-    vector: dict[str, int], sectors: list[dict[str, Any]]
-) -> list[str]:
+def _sector_matches(vector: dict[str, int], sectors: list[dict[str, Any]]) -> list[str]:
     """左翼線側の区分が共有境界を取る規則で該当区分を求める。
 
     Args:
@@ -301,9 +299,10 @@ def _validate_assets(
         assert expected["batterRelative"] == relative, (
             f"{case_id}: 打者相対の畳み込みが不一致"
         )
-        assert expected["batterRelativeDisplayName"] == RELATIVE_NAMES[
-            relative.removeprefix("batter-relative.")
-        ]
+        assert (
+            expected["batterRelativeDisplayName"]
+            == RELATIVE_NAMES[relative.removeprefix("batter-relative.")]
+        )
         provenance = case["provenance"]
         assert any(
             source["path"] == "contracts/field-regions/field_region_seed_v1.json"
@@ -424,9 +423,7 @@ def test_invalid_synthetic_assets_are_rejected(
     if mutation == "unknown-type":
         contract["cases"][0]["input"]["battedBallType"] = "batted-ball-type.unknown"
     elif mutation == "wrong-relative":
-        contract["cases"][0]["expected"]["batterRelative"] = (
-            "batter-relative.opposite"
-        )
+        contract["cases"][0]["expected"]["batterRelative"] = "batter-relative.opposite"
     else:
         seed["directionSectors"][1]["startRay"]["x"] += 2
     paths = _write_assets(tmp_path, contract, seed, vocabulary)
