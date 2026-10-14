@@ -170,13 +170,52 @@ y_norm = (263 - y_old) / 263      # 旧 Y 軸は下向きのため反転
 - **不一致が出たら理由を書く**(例: 矩形ルールの角が多角形では別領域に入る)
 - **照合は oracle ではない** — 旧の規則を期待値の出所にはしない(2-1 の座標系も違う)。**「大きく外れていないこと」の確認**である
 
-### 2-4. 打球方向の区分角
+### 2-4. 打球方向の区分角 —— **レイで持つ**(PO 判断 2026-10-14・山田正輝)
 
-付録A-3(`:1208`)は「左翼線〜右翼線を**等角 5 分割**(レフト / 左中間 / センター / 右中間 / ライト)」とし、「**区分角はB-6の領域シードで定義**」とする。
+付録A-3(`:1212`)は「左翼線〜右翼線を**等角 5 分割**(レフト / 左中間 / センター / 右中間 / ライト)」とし、「**区分角はB-6の領域シードで定義**」とする。
 
-- **守備位置領域とは別の群**として同じファイルに置く(要件書 `:1291` が「同ファイルに記録する」とするのは元寸法だが、`:1208` が区分角を B-6 へ送っているため)
-- **角度の頂点(本塁の位置)は要件に記載が無い** — `contracts/display_geometry_263_v1.json` の `field.home` が (123, 224)(旧 263 系)である。**保存座標へ変換した値を使い、その出所を `source` に記録する**
-- **旧には等角 5 分割が存在しない**(旧は x だけの 3 分割)。**新規設計**
+#### 等角 5 分割は有理数で厳密に書けない
+
+本塁 `(123, 39)`・一塁 `(170, 92)`・三塁 `(76, 92)`(いずれも保存座標の単位 `1/263` の整数)から、**右翼線 = `(47, 53)`・左翼線 = `(−47, 53)`**。挟角は `2·atan(53/47)` ≒ **83.132739 度**で、**5 等分した角の正接は無理数になる**。
+
+角度で持つと分類に `atan2` が要り、**浮動小数が入って ADR-003 の「暗黙の丸めを置かない」に反する**。
+
+#### 採った方式 —— 境界を整数の方向ベクトル(レイ)で持つ
+
+**要件書 `:1212` が「区分角は B-6 の領域シードで定義」と委ねているので、シードの値が定義になる。****等角 5 分割は導出の由来**として `source` に記録し、**実角との誤差は検査で上限を押さえる**。
+
+| 区分 | `startRay` | `endRay` |
+| --- | --- | --- |
+| `batted-ball-direction.left` | (-47, 53) | (-93, 200) |
+| `batted-ball-direction.left-center` | (-93, 200) | (-32, 219) |
+| `batted-ball-direction.center` | (-32, 219) | (32, 219) |
+| `batted-ball-direction.right-center` | (32, 219) | (93, 200) |
+| `batted-ball-direction.right` | (93, 200) | (47, 53) |
+
+**分類は外積の符号だけで行う** —— 点 `P` の本塁からの向き `v = P − home` について、`cross(startRay, v)` と `cross(endRay, v)` の符号で決める。**整数演算で厳密。**
+
+**境界レイ上の点は「先に定義された側」が取る**(シードの `tieBreak` と同じ規律)。すなわち各区分は**自分の `endRay` を含み、`startRay` を含まない**。**左翼線そのものだけは最初の区分が含む。**
+
+**等角との誤差(実測)**:
+
+| 境界 | レイ | 実角(度) | 理想(度) | 誤差(度) |
+| --- | --- | ---: | ---: | ---: |
+| 1 | (−93, 200) | 114.938428 | 114.939822 | **0.00139413** |
+| 2 | (−32, 219) | 98.313155 | 98.313274 | **0.00011859** |
+| 3 | (32, 219) | 81.686845 | 81.686726 | **0.00011859** |
+| 4 | (93, 200) | 65.061572 | 65.060178 | **0.00139413** |
+
+**上限 `0.01` 度を `backend/tests/` の検査が押さえる。** **この検査でだけ浮動小数を使う** —— 契約の値ではなく、契約の値の妥当性を測る検査だからである。
+
+**探索の制約**: 理想角に最も近い整数レイを `|p|, |q| <= 20000` で探すと、**約分後のレイが保存座標の格子内へ届かず、境界上のケースを置けない**。**本塁から進んで格子内に点が取れる範囲**で最小誤差のレイを選んだ。
+
+#### ファウル域の扱い(本タスクで定めた)
+
+**左翼線より外・右翼線より外の点**は、物理方向・打者相対とも **`foul-territory`**(表示名 **`ファウル地域`**)とする。**打者相対への畳み込みの対象外。**
+
+**要件書に記載が無い。** 要件書 `:1212` は「**インプレー打球の**付録B座標から」と限っており、ファウル域の座標は入力として想定されていない。一方 `ADR-003:231` は入力範囲に**範囲外**を要求するので、**値を置かないとベクタが作れない**。**本契約の決定**として該当ケースの `provenance` に記録した。
+
+**旧には等角 5 分割が存在しない**(旧は x だけの 3 分割)。**新規設計**である。
 
 ## 3. ケースの選び方(入力範囲)
 
@@ -369,9 +408,82 @@ D-12(`ADR-003:343`)が定めるのは**契約の実体**の置き場であって
 
 ### 5-3. 打球方向導出ベクタ
 
+**契約**: `backend/domain/batted_ball_direction_contract_v1.json`(**66 ケース** — 内点 30 / 境界 24 / 範囲外 12)。
+
+**確認者は期待値を書いた主体とは別である** —— 期待値は委任先(Codex)が条文から導出し、**委任元(Claude)が要件書 `:1212` と `ADR-003:327` だけを根拠に、等角 5 分割の判定と打者相対の畳み込みを自前で書き直して**全件を突合した。**分類は整数の外積だけで行い、浮動小数を経由していない。**
+
+**打者相対は ID の綴りではなく表示名で突合した**(表示名の正は要件書 `:1212` の「引っ張り / 流し」と `ADR-003:327` の「センター返し」)。
+
 | caseId | 確認者 | 方法 | 結果 |
 | --- | --- | --- | --- |
-| (ステップ 6 で埋める) | | | |
+| `interior-left-ground-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.left → batter-relative.pull / レフト → 引っ張り) |
+| `interior-left-ground-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.left → batter-relative.opposite / レフト → 流し) |
+| `interior-left-line-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.left → batter-relative.pull / レフト → 引っ張り) |
+| `interior-left-line-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.left → batter-relative.opposite / レフト → 流し) |
+| `interior-left-fly-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.left → batter-relative.pull / レフト → 引っ張り) |
+| `interior-left-fly-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.left → batter-relative.opposite / レフト → 流し) |
+| `interior-left-center-ground-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.left-center → batter-relative.pull / 左中間 → 引っ張り) |
+| `interior-left-center-ground-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.left-center → batter-relative.opposite / 左中間 → 流し) |
+| `interior-left-center-line-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.left-center → batter-relative.pull / 左中間 → 引っ張り) |
+| `interior-left-center-line-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.left-center → batter-relative.opposite / 左中間 → 流し) |
+| `interior-left-center-fly-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.left-center → batter-relative.pull / 左中間 → 引っ張り) |
+| `interior-left-center-fly-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.left-center → batter-relative.opposite / 左中間 → 流し) |
+| `interior-center-ground-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.center → batter-relative.center-return / センター → センター返し) |
+| `interior-center-ground-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.center → batter-relative.center-return / センター → センター返し) |
+| `interior-center-line-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.center → batter-relative.center-return / センター → センター返し) |
+| `interior-center-line-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.center → batter-relative.center-return / センター → センター返し) |
+| `interior-center-fly-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.center → batter-relative.center-return / センター → センター返し) |
+| `interior-center-fly-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.center → batter-relative.center-return / センター → センター返し) |
+| `interior-right-center-ground-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.right-center → batter-relative.opposite / 右中間 → 流し) |
+| `interior-right-center-ground-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.right-center → batter-relative.pull / 右中間 → 引っ張り) |
+| `interior-right-center-line-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.right-center → batter-relative.opposite / 右中間 → 流し) |
+| `interior-right-center-line-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.right-center → batter-relative.pull / 右中間 → 引っ張り) |
+| `interior-right-center-fly-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.right-center → batter-relative.opposite / 右中間 → 流し) |
+| `interior-right-center-fly-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.right-center → batter-relative.pull / 右中間 → 引っ張り) |
+| `interior-right-ground-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.right → batter-relative.opposite / ライト → 流し) |
+| `interior-right-ground-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.right → batter-relative.pull / ライト → 引っ張り) |
+| `interior-right-line-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.right → batter-relative.opposite / ライト → 流し) |
+| `interior-right-line-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.right → batter-relative.pull / ライト → 引っ張り) |
+| `interior-right-fly-right` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.right → batter-relative.opposite / ライト → 流し) |
+| `interior-right-fly-left` | 委任元(Claude) | 条文(要件書 :1212)から等角 5 分割を書き直し、**整数の外積だけで**区分を判定 | **一致**(batted-ball-direction.right → batter-relative.pull / ライト → 引っ張り) |
+| `boundary-left-left-center-ground-right` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.left → batter-relative.pull / レフト → 引っ張り) |
+| `boundary-left-left-center-ground-left` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.left → batter-relative.opposite / レフト → 流し) |
+| `boundary-left-left-center-line-right` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.left → batter-relative.pull / レフト → 引っ張り) |
+| `boundary-left-left-center-line-left` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.left → batter-relative.opposite / レフト → 流し) |
+| `boundary-left-left-center-fly-right` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.left → batter-relative.pull / レフト → 引っ張り) |
+| `boundary-left-left-center-fly-left` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.left → batter-relative.opposite / レフト → 流し) |
+| `boundary-left-center-center-ground-right` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.left-center → batter-relative.pull / 左中間 → 引っ張り) |
+| `boundary-left-center-center-ground-left` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.left-center → batter-relative.opposite / 左中間 → 流し) |
+| `boundary-left-center-center-line-right` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.left-center → batter-relative.pull / 左中間 → 引っ張り) |
+| `boundary-left-center-center-line-left` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.left-center → batter-relative.opposite / 左中間 → 流し) |
+| `boundary-left-center-center-fly-right` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.left-center → batter-relative.pull / 左中間 → 引っ張り) |
+| `boundary-left-center-center-fly-left` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.left-center → batter-relative.opposite / 左中間 → 流し) |
+| `boundary-center-right-center-ground-right` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.center → batter-relative.center-return / センター → センター返し) |
+| `boundary-center-right-center-ground-left` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.center → batter-relative.center-return / センター → センター返し) |
+| `boundary-center-right-center-line-right` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.center → batter-relative.center-return / センター → センター返し) |
+| `boundary-center-right-center-line-left` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.center → batter-relative.center-return / センター → センター返し) |
+| `boundary-center-right-center-fly-right` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.center → batter-relative.center-return / センター → センター返し) |
+| `boundary-center-right-center-fly-left` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.center → batter-relative.center-return / センター → センター返し) |
+| `boundary-right-center-right-ground-right` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.right-center → batter-relative.opposite / 右中間 → 流し) |
+| `boundary-right-center-right-ground-left` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.right-center → batter-relative.pull / 右中間 → 引っ張り) |
+| `boundary-right-center-right-line-right` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.right-center → batter-relative.opposite / 右中間 → 流し) |
+| `boundary-right-center-right-line-left` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.right-center → batter-relative.pull / 右中間 → 引っ張り) |
+| `boundary-right-center-right-fly-right` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.right-center → batter-relative.opposite / 右中間 → 流し) |
+| `boundary-right-center-right-fly-left` | 委任元(Claude) | 同上。**境界レイ上の点が「先に定義された側」へ帰属する**ことまで確認 | **一致**(batted-ball-direction.right-center → batter-relative.pull / 右中間 → 引っ張り) |
+| `outside-left-ground-right` | 委任元(Claude) | 同上。**左翼線より外・右翼線より外がファウル域になる**ことまで確認 | **一致**(batted-ball-direction.foul-territory → batter-relative.foul-territory / ファウル地域 → ファウル地域) |
+| `outside-left-ground-left` | 委任元(Claude) | 同上。**左翼線より外・右翼線より外がファウル域になる**ことまで確認 | **一致**(batted-ball-direction.foul-territory → batter-relative.foul-territory / ファウル地域 → ファウル地域) |
+| `outside-left-line-right` | 委任元(Claude) | 同上。**左翼線より外・右翼線より外がファウル域になる**ことまで確認 | **一致**(batted-ball-direction.foul-territory → batter-relative.foul-territory / ファウル地域 → ファウル地域) |
+| `outside-left-line-left` | 委任元(Claude) | 同上。**左翼線より外・右翼線より外がファウル域になる**ことまで確認 | **一致**(batted-ball-direction.foul-territory → batter-relative.foul-territory / ファウル地域 → ファウル地域) |
+| `outside-left-fly-right` | 委任元(Claude) | 同上。**左翼線より外・右翼線より外がファウル域になる**ことまで確認 | **一致**(batted-ball-direction.foul-territory → batter-relative.foul-territory / ファウル地域 → ファウル地域) |
+| `outside-left-fly-left` | 委任元(Claude) | 同上。**左翼線より外・右翼線より外がファウル域になる**ことまで確認 | **一致**(batted-ball-direction.foul-territory → batter-relative.foul-territory / ファウル地域 → ファウル地域) |
+| `outside-right-ground-right` | 委任元(Claude) | 同上。**左翼線より外・右翼線より外がファウル域になる**ことまで確認 | **一致**(batted-ball-direction.foul-territory → batter-relative.foul-territory / ファウル地域 → ファウル地域) |
+| `outside-right-ground-left` | 委任元(Claude) | 同上。**左翼線より外・右翼線より外がファウル域になる**ことまで確認 | **一致**(batted-ball-direction.foul-territory → batter-relative.foul-territory / ファウル地域 → ファウル地域) |
+| `outside-right-line-right` | 委任元(Claude) | 同上。**左翼線より外・右翼線より外がファウル域になる**ことまで確認 | **一致**(batted-ball-direction.foul-territory → batter-relative.foul-territory / ファウル地域 → ファウル地域) |
+| `outside-right-line-left` | 委任元(Claude) | 同上。**左翼線より外・右翼線より外がファウル域になる**ことまで確認 | **一致**(batted-ball-direction.foul-territory → batter-relative.foul-territory / ファウル地域 → ファウル地域) |
+| `outside-right-fly-right` | 委任元(Claude) | 同上。**左翼線より外・右翼線より外がファウル域になる**ことまで確認 | **一致**(batted-ball-direction.foul-territory → batter-relative.foul-territory / ファウル地域 → ファウル地域) |
+| `outside-right-fly-left` | 委任元(Claude) | 同上。**左翼線より外・右翼線より外がファウル域になる**ことまで確認 | **一致**(batted-ball-direction.foul-territory → batter-relative.foul-territory / ファウル地域 → ファウル地域) |
+
+**66 件すべて一致・不一致 0。**
 
 ## 6. 旧実装との照合結果(ステップ 4)
 

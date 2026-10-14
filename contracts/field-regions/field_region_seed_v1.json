@@ -5,7 +5,18 @@
     "repository": "masaki1025/Baseball_Scoring-archive",
     "tag": "dd03160044aa5932d3b5a025870c9a5a56d979ef",
     "path": "frontend/src/lib/fielder.ts",
-    "blobShaStatus": "取得は委任元が行う"
+    "blobShaStatus": "取得は委任元が行う",
+    "directionSource": {
+      "geometryPath": "contracts/display_geometry_263_v1.json",
+      "geometryFields": [
+        "field.home",
+        "field.first",
+        "field.third"
+      ],
+      "requirementPath": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "requirementClause": "付録A-3 打球方向",
+      "derivation": "equal-angle-five-way-approximated-by-integer-rays"
+    }
   },
   "description": "旧 fielder.ts の矩形 4 条件を評価順に置き、続く 9 アンカーの最近傍領域を二乗距離の垂直二等分線で得た半平面の共通部分として構成した。各領域を旧 263 系の単位正方形 [0,263] × [0,263] でクリップし、全交点を Python 標準ライブラリ fractions.Fraction で厳密に計算した後、x/263・(263-y)/263 で保存座標へ移した。旧投手条件の x<145 は右辺だけを開いて保持する。",
   "fieldImage": {
@@ -719,6 +730,37 @@
           }
         }
       ]
+    }
+  ],
+  "directionOrigin": {
+    "x": 123,
+    "y": 39
+  },
+  "directionSectors": [
+    {
+      "directionId": "batted-ball-direction.left",
+      "startRay": {"x": -47, "y": 53},
+      "endRay": {"x": -93, "y": 200}
+    },
+    {
+      "directionId": "batted-ball-direction.left-center",
+      "startRay": {"x": -93, "y": 200},
+      "endRay": {"x": -32, "y": 219}
+    },
+    {
+      "directionId": "batted-ball-direction.center",
+      "startRay": {"x": -32, "y": 219},
+      "endRay": {"x": 32, "y": 219}
+    },
+    {
+      "directionId": "batted-ball-direction.right-center",
+      "startRay": {"x": 32, "y": 219},
+      "endRay": {"x": 93, "y": 200}
+    },
+    {
+      "directionId": "batted-ball-direction.right",
+      "startRay": {"x": 93, "y": 200},
+      "endRay": {"x": 47, "y": 53}
     }
   ],
   "tieBreak": "first-defined-region-wins"

@@ -1,4 +1,4 @@
-"""領域・座標変換契約と独立確認の記録を照合する。"""
+"""領域・座標変換・打球方向契約と独立確認の記録を照合する。"""
 
 from __future__ import annotations
 
@@ -16,7 +16,11 @@ FIELDER_CONTRACT_PATH = (
 COORDINATE_CONTRACT_PATH = (
     REPOSITORY_ROOT / "contracts/display-geometry/coordinate_transform_contract_v1.json"
 )
+DIRECTION_CONTRACT_PATH = (
+    REPOSITORY_ROOT / "backend/domain/batted_ball_direction_contract_v1.json"
+)
 DESIGN_PATH = REPOSITORY_ROOT / "docs/features/field-region-vectors/design.md"
+VERIFICATION_CASES = [("5-1", True), ("5-2", True), ("5-3", False)]
 HEADING = re.compile(r"^#{1,6}[ \t]+")
 CASE_ID_CELL = re.compile(r"`([^`]+)`")
 TABLE_SEPARATOR = re.compile(r":?-{3,}:?")
@@ -129,6 +133,8 @@ def _verify_assets(
     design_path: Path,
     verification_section: str,
     comparison_section: str | None = None,
+    *,
+    forbid_seed_provenance: bool = True,
 ) -> None:
     """契約の独立確認者・典拠と design.md の記録表を検査する。
 
@@ -137,6 +143,7 @@ def _verify_assets(
         design_path: 独立確認表を含む Markdown ファイル。
         verification_section: 独立確認記録の節番号。
         comparison_section: 三者突合表の節番号。対象外なら None。
+        forbid_seed_provenance: 領域シードを期待値の典拠として禁止するか。
 
     Raises:
         AssertionError: 独立確認の記録または典拠に不整合がある場合。
@@ -152,9 +159,12 @@ def _verify_assets(
     for case in contract["cases"]:
         case_id = case["caseId"]
         contract_ids.append(case_id)
-        for source in case["provenance"]["sources"]:
-            if "field_region_seed" in json.dumps(source, ensure_ascii=False).casefold():
-                raise AssertionError(f"{case_id} の provenance に field_region_seed を含む")
+        # 捕球選手推定・座標変換ではシードを期待値の典拠にできない。
+        # 打球方向では directionSectors が定義そのものなので許す。
+        if forbid_seed_provenance:
+            for source in case["provenance"]["sources"]:
+                if "field_region_seed" in json.dumps(source, ensure_ascii=False).casefold():
+                    raise AssertionError(f"{case_id} の provenance に field_region_seed を含む")
 
     markdown = design_path.read_text(encoding="utf-8")
     sections = [(verification_section, True)]
@@ -179,7 +189,7 @@ def _write_synthetic_assets(
 
     Args:
         tmp_path: 合成ファイルの作成先。
-        verification_rows: 5-1・5-2 節の記録行。
+        verification_rows: 5-1〜5-3 節の記録行。
         comparison_rows: 6-2 節の突合行。
         verifier_id: 契約の独立確認者 ID。
         source_path: 合成ケースの典拠パス。
@@ -212,6 +222,10 @@ def _write_synthetic_assets(
                 "| caseId | 確認者 | 方法 | 結果 |",
                 "| --- | --- | --- | --- |",
                 *verification_rows,
+                "### 5-3. 打球方向の確認記録",
+                "| caseId | 確認者 | 方法 | 結果 |",
+                "| --- | --- | --- | --- |",
+                *verification_rows,
                 "### 6-2. 三者突合",
                 "| caseId | 入力 | シード | 旧規則 | 一致 | 備考 |",
                 "| --- | --- | --- | --- | --- | --- |",
@@ -226,15 +240,24 @@ def _write_synthetic_assets(
 
 
 @pytest.mark.parametrize(
-    ("contract_path", "verification_section", "comparison_section"),
+    (
+        "contract_path",
+        "verification_section",
+        "comparison_section",
+        "forbid_seed_provenance",
+    ),
     [
-        (FIELDER_CONTRACT_PATH, "5-1", "6-2"),
-        (COORDINATE_CONTRACT_PATH, "5-2", None),
+        (FIELDER_CONTRACT_PATH, "5-1", "6-2", True),
+        (COORDINATE_CONTRACT_PATH, "5-2", None, True),
+        (DIRECTION_CONTRACT_PATH, "5-3", None, False),
     ],
-    ids=["fielder-estimation", "coordinate-transform"],
+    ids=["fielder-estimation", "coordinate-transform", "batted-ball-direction"],
 )
 def test_repository_verification_record(
-    contract_path: Path, verification_section: str, comparison_section: str | None
+    contract_path: Path,
+    verification_section: str,
+    comparison_section: str | None,
+    forbid_seed_provenance: bool,
 ) -> None:
     """各実契約と design.md の確認記録が全件対応する。
 
@@ -242,37 +265,55 @@ def test_repository_verification_record(
         contract_path: 検査する実契約のパス。
         verification_section: 独立確認記録の節番号。
         comparison_section: 三者突合表の節番号。対象外なら None。
+        forbid_seed_provenance: 領域シードを典拠に含められない対象か。
     """
-    _verify_assets(contract_path, DESIGN_PATH, verification_section, comparison_section)
+    _verify_assets(
+        contract_path,
+        DESIGN_PATH,
+        verification_section,
+        comparison_section,
+        forbid_seed_provenance=forbid_seed_provenance,
+    )
 
 
-@pytest.mark.parametrize("verification_section", ["5-1", "5-2"])
+@pytest.mark.parametrize(
+    ("verification_section", "forbid_seed_provenance"), VERIFICATION_CASES
+)
 def test_contract_only_case_id_is_rejected(
-    tmp_path: Path, verification_section: str
+    tmp_path: Path, verification_section: str, forbid_seed_provenance: bool
 ) -> None:
     """契約にしかない caseId を拒否する。
 
     Args:
         tmp_path: 合成ファイルの作成先。
         verification_section: 検査する独立確認記録の節番号。
+        forbid_seed_provenance: 領域シードを典拠に含められない対象か。
     """
     contract_path, design_path = _write_synthetic_assets(tmp_path, verification_rows=[])
     with pytest.raises(
         AssertionError,
         match=rf"{verification_section} 節: 契約にのみある caseId=\['case-a'\]",
     ):
-        _verify_assets(contract_path, design_path, verification_section, None)
+        _verify_assets(
+            contract_path,
+            design_path,
+            verification_section,
+            forbid_seed_provenance=forbid_seed_provenance,
+        )
 
 
-@pytest.mark.parametrize("verification_section", ["5-1", "5-2"])
+@pytest.mark.parametrize(
+    ("verification_section", "forbid_seed_provenance"), VERIFICATION_CASES
+)
 def test_record_only_case_id_is_rejected(
-    tmp_path: Path, verification_section: str
+    tmp_path: Path, verification_section: str, forbid_seed_provenance: bool
 ) -> None:
     """記録表にしかない caseId を拒否する。
 
     Args:
         tmp_path: 合成ファイルの作成先。
         verification_section: 検査する独立確認記録の節番号。
+        forbid_seed_provenance: 領域シードを典拠に含められない対象か。
     """
     contract_path, design_path = _write_synthetic_assets(
         tmp_path,
@@ -285,7 +326,12 @@ def test_record_only_case_id_is_rejected(
         AssertionError,
         match=rf"{verification_section} 節: .*design.md にのみある caseId=\['case-b'\]",
     ):
-        _verify_assets(contract_path, design_path, verification_section, None)
+        _verify_assets(
+            contract_path,
+            design_path,
+            verification_section,
+            forbid_seed_provenance=forbid_seed_provenance,
+        )
 
 
 @pytest.mark.parametrize(
@@ -296,12 +342,15 @@ def test_record_only_case_id_is_rejected(
         ("| `case-a` | Claude | 独立計算 |  |", "結果"),
     ],
 )
-@pytest.mark.parametrize("verification_section", ["5-1", "5-2"])
+@pytest.mark.parametrize(
+    ("verification_section", "forbid_seed_provenance"), VERIFICATION_CASES
+)
 def test_empty_verification_column_is_rejected(
     tmp_path: Path,
     verification_row: str,
     empty_column: str,
     verification_section: str,
+    forbid_seed_provenance: bool,
 ) -> None:
     """確認者・方法・結果の空欄を拒否する。
 
@@ -310,6 +359,7 @@ def test_empty_verification_column_is_rejected(
         verification_row: 空欄を含む独立確認記録の行。
         empty_column: 空欄の列名。
         verification_section: 検査する独立確認記録の節番号。
+        forbid_seed_provenance: 領域シードを典拠に含められない対象か。
     """
     contract_path, design_path = _write_synthetic_assets(
         tmp_path, verification_rows=[verification_row]
@@ -317,24 +367,37 @@ def test_empty_verification_column_is_rejected(
     with pytest.raises(
         AssertionError, match=f"{verification_section} 節: case-a の {empty_column} が空"
     ):
-        _verify_assets(contract_path, design_path, verification_section, None)
+        _verify_assets(
+            contract_path,
+            design_path,
+            verification_section,
+            forbid_seed_provenance=forbid_seed_provenance,
+        )
 
 
-@pytest.mark.parametrize("verification_section", ["5-1", "5-2"])
+@pytest.mark.parametrize(
+    ("verification_section", "forbid_seed_provenance"), VERIFICATION_CASES
+)
 def test_not_performed_verifier_is_rejected(
-    tmp_path: Path, verification_section: str
+    tmp_path: Path, verification_section: str, forbid_seed_provenance: bool
 ) -> None:
     """独立確認が未実施の契約を拒否する。
 
     Args:
         tmp_path: 合成ファイルの作成先。
         verification_section: 検査する独立確認記録の節番号。
+        forbid_seed_provenance: 領域シードを典拠に含められない対象か。
     """
     contract_path, design_path = _write_synthetic_assets(
         tmp_path, verifier_id="not-performed"
     )
     with pytest.raises(AssertionError, match="independentVerifierId が not-performed のまま"):
-        _verify_assets(contract_path, design_path, verification_section, None)
+        _verify_assets(
+            contract_path,
+            design_path,
+            verification_section,
+            forbid_seed_provenance=forbid_seed_provenance,
+        )
 
 
 @pytest.mark.parametrize("verification_section", ["5-1", "5-2"])

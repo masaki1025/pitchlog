@@ -3,7 +3,7 @@
   "$id": "https://pitchlog.local/contracts/field-regions/field_region_seed_schema_v1.json",
   "title": "Pitchlog field region seed schema v1",
   "version": "field_region_seed_schema_v1",
-  "description": "付録B-6 の参照データ契約。regions 配列の順序そのものが規則の一部であり、複数の領域に含まれる点では先に定義された領域が優先する。1 つの守備位置は複数の領域を持てる。座標は 0〜1・左下原点で、各成分は ADR-003 D-14-e の整数・decimal・有理数のいずれかで記録する。",
+  "description": "付録B-6 の参照データ契約。regions 配列の順序そのものが規則の一部であり、複数の領域に含まれる点では先に定義された領域が優先する。1 つの守備位置は複数の領域を持てる。領域の頂点は 0〜1・左下原点、方向の原点は単位 1/263 の整数で記録する。方向区分のレイは長さに意味のない整数方向ベクトルで、左翼線から右翼線の順に並び、分類は外積の符号で行う。",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -49,9 +49,9 @@
       "minItems": 1,
       "items": {"$ref": "#/$defs/region"}
     },
-    "directionOrigin": {"$ref": "#/$defs/point"},
+    "directionOrigin": {"$ref": "#/$defs/pointUnits263"},
     "directionSectors": {
-      "description": "打球方向の区分角。配列は左翼線から右翼線への定義順を保つ。",
+      "description": "打球方向の区分。配列は左翼線から右翼線への順で、共有境界レイを隣接区分で同じ値にする。各レイは向きだけを表し長さに意味はない。点の分類は原点からのベクトルと境界レイの外積の符号で行う。",
       "type": "array",
       "minItems": 1,
       "items": {"$ref": "#/$defs/directionSector"}
@@ -72,7 +72,27 @@
         "tag": {"type": "string", "minLength": 1},
         "path": {"type": "string", "minLength": 1},
         "blobSha": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"},
-        "blobShaStatus": {"const": "取得は委任元が行う"}
+        "blobShaStatus": {"const": "取得は委任元が行う"},
+        "directionSource": {"$ref": "#/$defs/directionSource"}
+      }
+    },
+    "directionSource": {
+      "description": "方向区分の幾何の出所と、等角 5 分割から整数レイを選んだ由来。",
+      "type": "object",
+      "required": ["geometryPath", "geometryFields", "requirementPath", "requirementClause", "derivation"],
+      "additionalProperties": false,
+      "properties": {
+        "geometryPath": {"const": "contracts/display_geometry_263_v1.json"},
+        "geometryFields": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {"enum": ["field.home", "field.first", "field.third"]}
+        },
+        "requirementPath": {"const": "docs/requirements/requirements-pitchlog-2026-07-22.md"},
+        "requirementClause": {"const": "付録A-3 打球方向"},
+        "derivation": {"const": "equal-angle-five-way-approximated-by-integer-rays"}
       }
     },
     "numericValue": {
@@ -121,6 +141,27 @@
         "y": {"$ref": "#/$defs/numericValue"}
       }
     },
+    "pointUnits263": {
+      "description": "保存座標の原点を単位 1/263 の固定小数点整数 0〜263 で表す。",
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": {"type": "integer", "minimum": 0, "maximum": 263},
+        "y": {"type": "integer", "minimum": 0, "maximum": 263}
+      }
+    },
+    "ray": {
+      "description": "原点からの向きだけを表す、零ベクトルではない整数対。長さに意味はない。",
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "not": {"const": {"x": 0, "y": 0}},
+      "properties": {
+        "x": {"type": "integer"},
+        "y": {"type": "integer"}
+      }
+    },
     "region": {
       "description": "頂点は多角形の辺に沿って並べる。openEdges を省略した辺は閉じる。開いた辺に乗る点は、同じ点が別の閉じた辺の端点でもこの領域に含めない。",
       "type": "object",
@@ -143,13 +184,14 @@
       }
     },
     "directionSector": {
+      "description": "左翼線から右翼線へ並ぶ区分の 2 本の境界レイ。外積の符号で向きを分類する。レイの長さに意味はない。",
       "type": "object",
-      "required": ["directionId", "startAngle", "endAngle"],
+      "required": ["directionId", "startRay", "endRay"],
       "additionalProperties": false,
       "properties": {
         "directionId": {"type": "string", "minLength": 1},
-        "startAngle": {"$ref": "#/$defs/numericValue"},
-        "endAngle": {"$ref": "#/$defs/numericValue"}
+        "startRay": {"$ref": "#/$defs/ray"},
+        "endRay": {"$ref": "#/$defs/ray"}
       }
     }
   }
