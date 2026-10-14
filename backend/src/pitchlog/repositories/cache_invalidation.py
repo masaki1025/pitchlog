@@ -16,6 +16,7 @@ from uuid import UUID
 __all__ = (
     "AnalyticsChartCacheKey",
     "AnalyticsChartSubject",
+    "AnalyticsChartTargetSelector",
     "CacheInvalidationKey",
     "CacheInvalidationRequest",
     "CacheInvalidationTrigger",
@@ -25,10 +26,12 @@ __all__ = (
     "MatchCacheKey",
     "MatchChartSubject",
     "PlayerCareerCacheKey",
+    "PlayerCareerTargetSelector",
     "PlayerChartSubject",
     "SharedAggregateCacheKey",
     "SharedAggregateTargetSelector",
     "TeamAggregateCacheKey",
+    "TeamAggregateTargetSelector",
     "build_cache_invalidation_request",
 )
 
@@ -205,6 +208,42 @@ class SharedAggregateTargetSelector:
 
 @final
 @dataclass(frozen=True, slots=True)
+class PlayerCareerTargetSelector:
+    """②の物理鍵を自テナントの成分で選ぶ。"""
+
+    tenant_id: UUID
+
+    def __post_init__(self) -> None:
+        """対象テナントIDを検査する。"""
+        _require_uuid(self.tenant_id, "tenant_id")
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class TeamAggregateTargetSelector:
+    """③の物理鍵を自テナントの成分で選ぶ。"""
+
+    tenant_id: UUID
+
+    def __post_init__(self) -> None:
+        """対象テナントIDを検査する。"""
+        _require_uuid(self.tenant_id, "tenant_id")
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class AnalyticsChartTargetSelector:
+    """⑤の物理鍵を自テナントの成分で選ぶ。"""
+
+    tenant_id: UUID
+
+    def __post_init__(self) -> None:
+        """対象テナントIDを検査する。"""
+        _require_uuid(self.tenant_id, "tenant_id")
+
+
+@final
+@dataclass(frozen=True, slots=True)
 class AnalyticsChartCacheKey:
     """分析チャートの物理キー。"""
 
@@ -227,6 +266,9 @@ type CacheInvalidationKey = (
     | TeamAggregateCacheKey
     | SharedAggregateCacheKey
     | SharedAggregateTargetSelector
+    | PlayerCareerTargetSelector
+    | TeamAggregateTargetSelector
+    | AnalyticsChartTargetSelector
     | AnalyticsChartCacheKey
 )
 
@@ -237,6 +279,9 @@ _KEY_SCOPES: dict[type[object], CacheScope] = {
     TeamAggregateCacheKey: CacheScope.TEAM_AGGREGATE,
     SharedAggregateCacheKey: CacheScope.SHARED_AGGREGATE,
     SharedAggregateTargetSelector: CacheScope.SHARED_AGGREGATE,
+    PlayerCareerTargetSelector: CacheScope.PLAYER_CAREER,
+    TeamAggregateTargetSelector: CacheScope.TEAM_AGGREGATE,
+    AnalyticsChartTargetSelector: CacheScope.ANALYTICS_CHART,
     AnalyticsChartCacheKey: CacheScope.ANALYTICS_CHART,
 }
 
@@ -345,8 +390,8 @@ def build_cache_invalidation_request(
 
     Args:
         trigger: 正本に列挙された変更トリガー。
-        keys: 5 種 ADT のいずれかで表した物理キー、またはトリガー 14 の
-            対象テナント選択子。トリガーが要求する対象範囲を過不足なく含める。
+        keys: 5 種 ADT のいずれかで表した物理キー、またはトリガー 5・14 の
+            明示的な対象テナント選択子。トリガーが要求する対象範囲を過不足なく含める。
         effective_tenants_before: 参加変更前の実効参加テナント集合。
         effective_tenants_after: 参加変更後の実効参加テナント集合。
 
@@ -369,10 +414,30 @@ def build_cache_invalidation_request(
         scopes = frozenset(_KEY_SCOPES[type(key)] for key in keys)
     except KeyError as error:
         raise TypeError("keys に契約外の物理キー型が含まれる") from error
-    if trigger is not CacheInvalidationTrigger.ROSTER_STATUS_CHANGE and any(
-        isinstance(key, SharedAggregateTargetSelector) for key in keys
+    selector_types = (
+        PlayerCareerTargetSelector,
+        TeamAggregateTargetSelector,
+        SharedAggregateTargetSelector,
+        AnalyticsChartTargetSelector,
+    )
+    if trigger is CacheInvalidationTrigger.GAME_DELETE_RESTORE_OR_RESUME:
+        if len(keys) != 5 or {type(key) for key in keys} != {
+            MatchCacheKey,
+            *selector_types,
+        }:
+            raise ValueError("試合状態変更には具体鍵1件と4範囲の選択子が必要")
+        match_key = next(key for key in keys if type(key) is MatchCacheKey)
+        assert isinstance(match_key, MatchCacheKey)
+        if any(
+            key.tenant_id != match_key.tenant_id
+            for key in keys
+            if isinstance(key, (MatchCacheKey, *selector_types))
+        ):
+            raise ValueError("試合状態変更の対象テナントが一致しない")
+    elif trigger is not CacheInvalidationTrigger.ROSTER_STATUS_CHANGE and any(
+        type(key) in selector_types for key in keys
     ):
-        raise ValueError("対象テナント選択子は在籍区分変更トリガー専用")
+        raise ValueError("対象テナント選択子は試合状態変更・在籍区分変更専用")
     if trigger is CacheInvalidationTrigger.ROSTER_STATUS_CHANGE and (
         len(keys) != 1 or type(keys[0]) is not SharedAggregateTargetSelector
     ):

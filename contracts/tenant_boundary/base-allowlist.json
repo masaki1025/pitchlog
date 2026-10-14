@@ -14122,13 +14122,13 @@
       },
       {
         "record_schema_version": 2,
-        "acceptance_id": "masaki1025/pitchlog#119",
+        "acceptance_id": "masaki1025/pitchlog#129",
         "new_baseline_identifiers": {
           "contracts/tenant_boundary/base-allowlist.json": [
-            "contract_revision:28"
+            "contract_revision:27"
           ],
           "contracts/tenant_boundary/cache-invalidation-contract.json": [
-            "contract_revision:11"
+            "contract_revision:12"
           ],
           "contracts/tenant_boundary/census-baseline.json": [
             "contract_revision:11"
@@ -14146,7 +14146,7 @@
             "contract_revision:16"
           ],
           "contracts/tenant_boundary/runtime-authz-contract.json": [
-            "runtime_contract_revision:13"
+            "runtime_contract_revision:12"
           ],
           "contracts/tenant_boundary/tenant-context-allowlist.json": [
             "contract_revision:13"
@@ -14182,7 +14182,7 @@
           ]
         },
         "change": {
-          "subject": "U-A1 δ(TSK-470): 認証 HTTP 入口の公開境界と保護対象を受理する",
+          "subject": "TSK-543 ステップ1: B06 v0.9の試合状態変更5範囲を追加",
           "aspect": [
             "asset_snapshots",
             "declaration"
@@ -14668,7 +14668,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:28"
+                    "contract_revision:27"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -14693,7 +14693,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:11"
+                    "contract_revision:12"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -14844,7 +14844,7 @@
                   "scheme": "integer_revision_field",
                   "field": "runtime_contract_revision",
                   "current_identifiers": [
-                    "runtime_contract_revision:13"
+                    "runtime_contract_revision:12"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -15090,13 +15090,13 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "fe7a713807169e66df1a8f783175fcc828388653b9719ed40962f1eb6b3dbe54",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/fe7a713807169e66df1a8f783175fcc828388653b9719ed40962f1eb6b3dbe54"
+                "sha256": "3fc6dd9696245f5279970a35c3dc9d0f5c1453dd808668aca1ba9ef2c48297e4",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3fc6dd9696245f5279970a35c3dc9d0f5c1453dd808668aca1ba9ef2c48297e4"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "5333c6085213f5eaa703e9fc86f50ea0324a338896630f3439acd9bf02b360d6",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/5333c6085213f5eaa703e9fc86f50ea0324a338896630f3439acd9bf02b360d6"
+                "sha256": "3c8b7bb5119b56557a87597bee51a7e4a795d39b5ff2adf32302b0863179e058",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3c8b7bb5119b56557a87597bee51a7e4a795d39b5ff2adf32302b0863179e058"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
@@ -15125,8 +15125,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
-                "sha256": "be5a9e6bf85dc1e87c2a3a54c54c505ed8e436f7ac402f7a925ec182866a0f24",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/be5a9e6bf85dc1e87c2a3a54c54c505ed8e436f7ac402f7a925ec182866a0f24"
+                "sha256": "c3564a4d930265d051bdf97e3a7a00cdabc93406cff905da068687deaf70d8aa",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c3564a4d930265d051bdf97e3a7a00cdabc93406cff905da068687deaf70d8aa"
               },
               {
                 "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
@@ -15136,8 +15136,8 @@
             ]
           }
         },
-        "movement_fact": "比較元 origin/develop の base-allowlist revision 27・runtime-authz revision 12 から、PR #119 の受理後の revision 28・13 へ移動する。authz/team_login.py と authz/password_change.py を公開境界へ追加し、authn.login_attempt への置き換えと authn.verify_token の OUT 引数追加を保護対象へ反映した。",
-        "reason": "U-A1 δ(TSK-470)で認証の HTTP 入口 3 本を開き、公開境界に authz/team_login.py と authz/password_change.py を追加した。authn.login_attempt への置き換えと authn.verify_token の OUT 引数追加により保護対象の集合が動いたため。",
+        "movement_fact": "cache-invalidation-contractの凍結射影とrevisionが11から12へ変わる。",
+        "reason": "削除・復元・再開の対象を5範囲に固定し、テナント内の選択子を明示する。",
         "approved_by": "山田正輝",
         "approved_on": "2026-10-14"
       }

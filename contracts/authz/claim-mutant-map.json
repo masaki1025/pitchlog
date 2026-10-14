@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_claim_mutant_map",
   "oracle_context": {
-    "oracle_commit": "6776e458520809a3ecff2bb9e11304763847fcaf",
+    "oracle_commit": "ec902d9d98949243cbf55e9a4aed43dec1da3115",
     "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
   },
   "execution_classes": [
@@ -873,12 +873,33 @@
       "contract_only_reason_code": "route_universe_pending"
     },
     {
-      "claim_id": "FR-019/list_item-009",
+      "claim_id": "FR-019/list_item-005",
       "claim_origin": "requirement",
       "execution_class": "contract_only",
       "classification_rule_id": "CONTRACT_ONLY_RUNTIME_TARGET_PENDING",
       "mutant_ids": [
-        "MUT:AUTH:FR-019/list_item-009:NEGATE-DECISION"
+        "MUT:AUTH:FR-019/list_item-005:NEGATE-DECISION"
+      ],
+      "schema_drift_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid",
+        "status": "implemented"
+      },
+      "runtime_test_owner": {
+        "id": "TSK-270.group2.runtime.FR-019/list_item-005",
+        "status": "planned"
+      },
+      "runtime_kill_required": false,
+      "runtime_evidence_kind": "handoff_runtime_test",
+      "receiving_task_id": "PENDING:FR-019",
+      "contract_only_reason_code": "route_universe_pending"
+    },
+    {
+      "claim_id": "FR-019/list_item-009#trash-visibility",
+      "claim_origin": "requirement",
+      "execution_class": "contract_only",
+      "classification_rule_id": "CONTRACT_ONLY_RUNTIME_TARGET_PENDING",
+      "mutant_ids": [
+        "MUT:AUTH:FR-019/list_item-009#trash-visibility:NEGATE-DECISION"
       ],
       "schema_drift_test_owner": {
         "id": "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid",
@@ -886,6 +907,48 @@
       },
       "runtime_test_owner": {
         "id": "TSK-270.group2.runtime.FR-019/list_item-009",
+        "status": "planned"
+      },
+      "runtime_kill_required": false,
+      "runtime_evidence_kind": "handoff_runtime_test",
+      "receiving_task_id": "PENDING:FR-019",
+      "contract_only_reason_code": "route_universe_pending"
+    },
+    {
+      "claim_id": "FR-019/list_item-009#restore-deadline",
+      "claim_origin": "requirement",
+      "execution_class": "contract_only",
+      "classification_rule_id": "CONTRACT_ONLY_RUNTIME_TARGET_PENDING",
+      "mutant_ids": [
+        "MUT:AUTH:FR-019/list_item-009#restore-deadline:NEGATE-DECISION"
+      ],
+      "schema_drift_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid",
+        "status": "implemented"
+      },
+      "runtime_test_owner": {
+        "id": "TSK-270.group2.runtime.FR-019/list_item-009",
+        "status": "planned"
+      },
+      "runtime_kill_required": false,
+      "runtime_evidence_kind": "handoff_runtime_test",
+      "receiving_task_id": "PENDING:FR-019",
+      "contract_only_reason_code": "route_universe_pending"
+    },
+    {
+      "claim_id": "FR-019/list_item-010",
+      "claim_origin": "requirement",
+      "execution_class": "contract_only",
+      "classification_rule_id": "CONTRACT_ONLY_RUNTIME_TARGET_PENDING",
+      "mutant_ids": [
+        "MUT:AUTH:FR-019/list_item-010:NEGATE-DECISION"
+      ],
+      "schema_drift_test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid",
+        "status": "implemented"
+      },
+      "runtime_test_owner": {
+        "id": "TSK-270.group2.runtime.FR-019/list_item-010",
         "status": "planned"
       },
       "runtime_kill_required": false,
@@ -5398,15 +5461,38 @@
       "positive_case_scope_id": null
     },
     {
-      "mutant_id": "MUT:AUTH:FR-019/list_item-009:NEGATE-DECISION",
+      "mutant_id": "MUT:AUTH:FR-019/list_item-005:NEGATE-DECISION",
       "axis": "authorization_predicate",
       "operator_id": "NEGATE_CLAIM_DECISION_UNIT",
       "decision_form": "CLAIM_DECISION",
       "claim_ids": [
-        "FR-019/list_item-009"
+        "FR-019/list_item-005"
       ],
       "target_element_ids": [
-        "FR-019/list_item-009"
+        "FR-019/list_item-005"
+      ],
+      "expected_application_outcome": "applies",
+      "expected_drift_outcome": "red",
+      "expected_runtime_outcome": "handoff",
+      "runtime_kill_required": false,
+      "requires_disposable_cluster": false,
+      "schema_drift_test_id": "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid",
+      "runtime_test_id": "TSK-270.group2.runtime.FR-019/list_item-005",
+      "runtime_kill_waiver_reason": "contract_only_handoff",
+      "expected_positive_outcome": "handoff",
+      "positive_kill_required": false,
+      "positive_case_scope_id": null
+    },
+    {
+      "mutant_id": "MUT:AUTH:FR-019/list_item-009#trash-visibility:NEGATE-DECISION",
+      "axis": "authorization_predicate",
+      "operator_id": "NEGATE_CLAIM_DECISION_UNIT",
+      "decision_form": "CLAIM_DECISION",
+      "claim_ids": [
+        "FR-019/list_item-009#trash-visibility"
+      ],
+      "target_element_ids": [
+        "FR-019/list_item-009#trash-visibility"
       ],
       "expected_application_outcome": "applies",
       "expected_drift_outcome": "red",
@@ -5415,6 +5501,52 @@
       "requires_disposable_cluster": false,
       "schema_drift_test_id": "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid",
       "runtime_test_id": "TSK-270.group2.runtime.FR-019/list_item-009",
+      "runtime_kill_waiver_reason": "contract_only_handoff",
+      "expected_positive_outcome": "handoff",
+      "positive_kill_required": false,
+      "positive_case_scope_id": null
+    },
+    {
+      "mutant_id": "MUT:AUTH:FR-019/list_item-009#restore-deadline:NEGATE-DECISION",
+      "axis": "authorization_predicate",
+      "operator_id": "NEGATE_CLAIM_DECISION_UNIT",
+      "decision_form": "CLAIM_DECISION",
+      "claim_ids": [
+        "FR-019/list_item-009#restore-deadline"
+      ],
+      "target_element_ids": [
+        "FR-019/list_item-009#restore-deadline"
+      ],
+      "expected_application_outcome": "applies",
+      "expected_drift_outcome": "red",
+      "expected_runtime_outcome": "handoff",
+      "runtime_kill_required": false,
+      "requires_disposable_cluster": false,
+      "schema_drift_test_id": "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid",
+      "runtime_test_id": "TSK-270.group2.runtime.FR-019/list_item-009",
+      "runtime_kill_waiver_reason": "contract_only_handoff",
+      "expected_positive_outcome": "handoff",
+      "positive_kill_required": false,
+      "positive_case_scope_id": null
+    },
+    {
+      "mutant_id": "MUT:AUTH:FR-019/list_item-010:NEGATE-DECISION",
+      "axis": "authorization_predicate",
+      "operator_id": "NEGATE_CLAIM_DECISION_UNIT",
+      "decision_form": "CLAIM_DECISION",
+      "claim_ids": [
+        "FR-019/list_item-010"
+      ],
+      "target_element_ids": [
+        "FR-019/list_item-010"
+      ],
+      "expected_application_outcome": "applies",
+      "expected_drift_outcome": "red",
+      "expected_runtime_outcome": "handoff",
+      "runtime_kill_required": false,
+      "requires_disposable_cluster": false,
+      "schema_drift_test_id": "tests/test_check_authz_catalog.py::test_repository_oracle_assets_are_valid",
+      "runtime_test_id": "TSK-270.group2.runtime.FR-019/list_item-010",
       "runtime_kill_waiver_reason": "contract_only_handoff",
       "expected_positive_outcome": "handoff",
       "positive_kill_required": false,
