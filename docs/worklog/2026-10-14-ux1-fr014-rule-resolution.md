@@ -88,7 +88,7 @@
 
 ## ステップ2重複実装の統一
 
-- TSK-550本体の唯一の編集先を`feature/ux1-fr014-rule-resolution`とし、採用コミット`8f2d60a4`の`backend/src/pitchlog/db/game_state/rule_snapshot.py`を残す。別worktreeの`636b4c2a`は比較元で、`backend/src/pitchlog/rule_snapshot.py`と`AppliedRulesPayload`を本体featureへ持ち込まない。最終feature上の製品codecと検証経路は1つ。別worktreeは編集・破棄しない。
+- TSK-550本体の唯一の編集担当を**Codex D（本セッション）**、編集先を`feature/ux1-fr014-rule-resolution`とする。採用コミット`8f2d60a4`の`backend/src/pitchlog/db/game_state/rule_snapshot.py`を残し、統合コミット`b0ea2c13`で改善と試験を集約した。別worktreeの`636b4c2a`は比較元で、`backend/src/pitchlog/rule_snapshot.py`と`AppliedRulesPayload`を本体featureへ持ち込まない。最終feature上の製品codecと検証経路は1つ。別worktreeは編集・破棄しない。
 - 本体採用理由は、`StructuralRuleSnapshot`と`DomainValidatedRuleSnapshot`を別型にし、値間相関が未検証の値をencodeで拒否できるため。`636b4c2a`の公開型は形・相関を一段で検証するため、この区別を表せない。別案の有用な差分として、承認済みタイブレーク機械文字列2種の厳密照合、入力値を例外連鎖へ載せない処理、canonical UUID/値域/直接構築/深い不変性の追加試験を本体に取り込む。相関検査は本体moduleの1経路、規則行の出所証明・DB保存成功は未実装。
 - 最新developの文書台帳を`e1d9c9b4`で、本体の承認済みdata-model v1.0から派生するmanifest/digestを`61e1e256`で追随済み。先のmanifest試験失敗はこの追随前の結果。統一後の検査結果と、候補作成に関与していない担当の差分確認を別途追記する。ステップ3・公開・マージは行わない。
 - 統一後のbackend対象試験は**42 passed**、Ruff format/check・ty・lock確認、root core-guardは**242 passed**、docs-statusは20文書/違反0。非DB全体の第1試行は共有`/tmp`の容量枯渇でGit複製等に失敗したため無効な環境結果として保持し、他担当の一時領域は削除せず専用`TMPDIR`で再実行した結果は**1420 passed、4 skipped**。最終HEADでの独立差分確認は別途記録する。
