@@ -38,3 +38,10 @@
 - U-F5/U-F8変更の人間逐行確認未記入拒否を含む対象15件は15件成功。`tests/test_core_guard.py`全体は242件成功。
 - root Ruff、共有Python環境を明示したty、docs-status、plan-doc同期、`git diff --check`は成功。最初のtyは共有バイナリがworktreeの仮想環境を自動検出せず108件のimportエラーとなり、`--python /home/ymdms/projects/pitchlog/.venv`で正規環境を指定した再実行は成功した。
 - `.claude/core-areas.json`と`scripts/core_guard.py`の差分は0行。試験削除・skip・検出条件・必須チェック文言の変更はない。
+
+## 反対側レビューと是正
+
+- Claude利用制限時の承認済みCodex代替による反対側レビュー第1回は P0 0 / P1 2 / P2 0。2件とも採用した。
+- P1「現在の追加層をU-F5へ固定して正当な次回宣言を拒む」への是正として、U-F5の履歴登録定数と`core_guard.AREA_PATH_ADDITIONS`の現在値を分離した。実developのU-F5/U-F6/U-F8保持試験は現在宣言の内容・領域数を固定しない。
+- P1「後続登録が宣言先行の実履歴を通っていない」への是正として、隔離リポジトリ内の実`core_guard.py`へU-F5宣言を先行コミットしてU-F5を登録し、次の宣言を別コミットしてから後続パスを登録した。各段階をそのhead側検査器の`verify_area_path_baseline`で検証し、旧U-F5検査器では後続登録を拒否することも確認した。
+- 是正対象9件は9件成功、`tests/test_core_guard.py`全体は242件成功。Ruff・変更ファイルtyも成功した。
