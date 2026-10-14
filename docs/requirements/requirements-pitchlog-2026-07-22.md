@@ -1521,7 +1521,7 @@ HistoryEffect =
   | {kind: "pop", count: 1}
 ```
 
-`HistoryEffect`は履歴文脈(取消可能な操作のスタック)への影響を表す。`FieldEffect`の固定値の`set`は可変長のスタックの残りを表せず、`delta`は整数に限るため、履歴文脈には`FieldEffect`を使わない。`push`は当該操作を先頭へ積むことを表し、積む要素の差分は同じ行の`stateFields`・`scoreboard`・`statFlags`が表す差分とする。`pop`は先頭の1件だけを取り除くことを表す。`unchanged`は履歴文脈を変えないことを表す。`entryKind`の値の集合と、`push`・`pop`を置ける行の条件はADR-003 D-8が定める。`historyAndResult.operationResult`は当該操作の操作結果を`{kind: "set", value: <操作結果の値>}`で表し、`unchanged`を置かない。
+`HistoryEffect`は履歴文脈(取消可能な操作のスタック)への影響を表す。`FieldEffect`の固定値の`set`は可変長のスタックの残りを表せず、`delta`は整数に限るため、履歴文脈には`FieldEffect`を使わない。`push`は当該操作を先頭へ積むことを表す。積む要素は種別と差分を持ち、**差分は、操作の適用前の状態と適用後の状態を比べて、変化したフィールドごとに変化前の値と変化後の値を持つ**(`set`は変化後の値しか持たないため、行の`FieldEffect`からは作らない)。確定プレイ(付録E-1の10列の行の適用)を積むときも同じ規則で差分を作る。`pop`は先頭の1件だけを取り除くことを表す。`unchanged`は履歴文脈を変えないことを表す。`entryKind`の値の集合と、`push`・`pop`を置ける行の条件はADR-003 D-8が定める。`historyAndResult.operationResult`は当該操作の操作結果を`{kind: "set", value: <操作結果の値>}`で表し、`unchanged`を置かない。
 
 `StateEffect`の4キー、`stateFields`の比較面全フィールド、`scoreboard`の全欄、`statFlags`の23キー、`historyAndResult`の`history`と`operationResult`は全てrequiredとする。各オブジェクトと`FieldEffect`・`HistoryEffect`の各variantは`additionalProperties: false`とする。影響しない面も省略せず、当該フィールドへ`{kind: "unchanged"}`を必ず設定する。
 
