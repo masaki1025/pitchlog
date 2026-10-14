@@ -52,7 +52,7 @@ created: 2026-10-10
 | `contracts/state-transition/` の入力軸 descriptor | **分割**(payload と履歴軸 — S15・S16)・**成立段数の軸の追加**(S19)・凍結基準 `gameEndAxisFields` の受理記録 | **確定ゲート**(/finalize-doc — ステップ 26・27) |
 | `docs/development/github-setup.md` | CI ジョブの 3 分類の追随(ステップ 15) | PR レビュー |
 | `docs/README.md`(索引) | ADR-003 の版の現行化 | PR レビュー |
-| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **付録E-1 の `StateEffect` の履歴文脈の型を `HistoryEffect` へ**(v2.13・暫定 — ゲート ⑤ の PO 裁定 2026-10-14。undo が履歴を pop する行を `FieldEffect` で書けないことが確定ゲート 2 回目で判明したため。D6・D7 で避けた E-1 の列の追加とは別) | **/finalize-doc**(ADR-003 v0.7 と一括検証 — ゲート ⑤) |
+| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **付録E-1 の `StateEffect` の履歴文脈の型を `HistoryEffect` へ**(v2.14・暫定 — ゲート ⑤ の PO 裁定 2026-10-14。undo が履歴を pop する行を `FieldEffect` で書けないことが確定ゲート 2 回目で判明したため。D6・D7 で避けた E-1 の列の追加とは別) | **/finalize-doc**(ADR-003 v0.7 と一括検証 — ゲート ⑤) |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし** | — |
 
 **正本体系外だが同一 PR で更新するもの**: `backend/Dockerfile`・`.dockerignore`(新設 — 本番の配布定義。ゲート ② の後に山田さんが追加を指示 2026-10-11)・`contracts/state-transition/`(handoff と schema・状態遷移契約・終了判定契約・被覆宣言・台帳 schema・gap register・fixture)・`.claude/core-areas.json`・`scripts/core_guard.py`・`docs/features/appendix-e-golden-vectors/{unresolved-report,design}.md`・`backend/`・`frontend/`・`tests/`・`.github/workflows/ci.yml`・root `pyproject.toml` と `uv.lock`。
@@ -108,7 +108,7 @@ created: 2026-10-10
 | 25 | **S20(終了判定側)**: 台帳 schema の終了判定の役割を 5 つに(D7)、walk-off の行と case(終了の検知) | 同上。`check_gap_register.py` が緑。**サヨナラ時の得点値(状況判定側)は TSK-544 へ送った**(ゲート ⑤ の PO 裁定 2026-10-14 — 既存の列では有効得点の確定後に上限をかける順序を表せないため) |
 | 26 | **S19**: descriptor に成立段数の軸・凍結基準 `gameEndAxisFields` の受理記録・COLD-09 の行と case | 同上。三点突合(`check_input_axes_three_way_parity.py`)が緑 |
 | 27 | **正本改訂のゲート投入**: ADR-003 D-8 の改訂(targetKind に「対象なし」・XC-09 を「シナリオ長」へ・undoRows の stateEffect と guaranteeMode)と descriptor の分割(payload と履歴軸)に加え、**状況判定の規範行でサヨナラ時の得点上限を表す方法**(サヨナラ文脈の前提条件の軸と、得点上限の列 — 現行の `matrixRows` には得点値もサヨナラ文脈も表す列が無い `state_transition_contract_schema_v1.json:1151`)を in-review で起案(変更履歴に起案行) | docs-lint と文書の検査が緑。**この後ゲート ⑤** |
-| 28 | **ゲート ⑤ の追随の土台**: 状況判定 schema に要件書 v2.13 の `HistoryEffect` と `operationResult` の `set` を入れ、既存の操作行 7・undo 行 1 の `historyAndResult` を書き換える(2 列と 2 面の一対一対応の検査を含む)/ 確定プレイの push の差分(適用前後の比較面から作る)を展開器に入れる / descriptor schema に派生軸の属性(導出元・条文 ID)と、関数性・宣言された到達不可の除外の検査を入れる / ステップ 26 で `gameEnd.satisfiedColdTierCount` に置いた範囲外 2 件(`validationErrors[]`)を保証範囲外へ移す | 契約系の検査・テストが緑。2 列と 2 面の不一致・派生軸の関数性違反の負例が赤。digest を更新 |
+| 28 | **ゲート ⑤ の追随の土台**: 状況判定 schema に要件書 v2.14 の `HistoryEffect` と `operationResult` の `set` を入れ、既存の操作行 7・undo 行 1 の `historyAndResult` を書き換える(2 列と 2 面の一対一対応の検査を含む)/ 確定プレイの push の差分(適用前後の比較面から作る)を展開器に入れる / descriptor schema に派生軸の属性(導出元・条文 ID)と、関数性・宣言された到達不可の除外の検査を入れる / ステップ 26 で `gameEnd.satisfiedColdTierCount` に置いた範囲外 2 件(`validationErrors[]`)を保証範囲外へ移す | 契約系の検査・テストが緑。2 列と 2 面の不一致・派生軸の関数性違反の負例が赤。digest を更新 |
 | 29 | **S18**: `D`+1 の liveness-only の行と case(ADR-003 v0.7 の `XC-09` — シナリオ長 `D`+1・undo 時点の深さ `D` 超・対象あり。比較は `applied` と要素数の減少) | 契約系の検査・テストが緑。digest を更新 |
 | 30 | **S16**: undo の 3 ケース(先頭の差分をスカラー軸で分割 — 変化した面の組合せと変化量の境界値) | 同上。凍結基準の受理記録 |
 | 31 | **S17**: targetKind「対象なし」の行(`"none"` ⇔ `nothing-to-undo` ⇔ 深さ 0) | 同上 |
