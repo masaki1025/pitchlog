@@ -47,6 +47,10 @@ class InvalidationIntentInsertToken(TenantOperationToken):
 
     def __post_init__(self) -> None:
         """本 PR が行規則を持つトリガーと識別子だけを許す。"""
+        if isinstance(
+            self.trigger, CacheInvalidationTrigger
+        ) and self.trigger.value.startswith("sync"):
+            raise ValueError("同期意図 ID と衝突するトリガー値は使えない")
         if self.trigger is not CacheInvalidationTrigger.ROSTER_STATUS_CHANGE:
             raise ValueError("在籍区分変更トリガーだけを記録できる")
         if type(self.operation_id) is not UUID:

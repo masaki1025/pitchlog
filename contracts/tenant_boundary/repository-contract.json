@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 20,
+  "contract_revision": 22,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:20"
+        "contract_revision:22"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -71,7 +71,7 @@
   },
   "asset_kind": "tenant_repository_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "7107695162edb95e9fda99400f7a0b70347988908df85e987b18751d21f4952c",
+  "source_digest": "26569aaec0c493992cdcef0f1baeaa1322f25029a16f9625136b977a4c87df47",
   "public_surface": {
     "repository_type": "pitchlog.repositories.base.TenantRepositoryBase",
     "context_binding_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
@@ -145,7 +145,25 @@
     "CAP:invalidation_intents:insert",
     "CAP:lineup_memories:read",
     "CAP:lineup_memories:insert",
-    "CAP:lineup_memories:update"
+    "CAP:lineup_memories:update",
+    "CAP:recording_generations:read",
+    "CAP:recording_generations:update",
+    "CAP:event_slots:read",
+    "CAP:event_slots:insert",
+    "CAP:event_slots:update",
+    "CAP:operation_events:read",
+    "CAP:operation_events:insert",
+    "CAP:operation_events:update",
+    "CAP:temporary_player_id_mappings:read",
+    "CAP:temporary_player_id_mappings:insert",
+    "CAP:idempotency_ledger:read",
+    "CAP:idempotency_ledger:insert",
+    "CAP:rejected_event_originals:read",
+    "CAP:rejected_event_originals:insert",
+    "CAP:invalidation_intents:read",
+    "CAP:invalidation_intents:update",
+    "CAP:evacuated_event_originals:read",
+    "CAP:evacuated_event_originals:insert"
   ],
   "product_operation_token_types": [
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -163,7 +181,33 @@
     "pitchlog.repositories.lineup_memory._ActiveLineupPlayerLockToken",
     "pitchlog.repositories.lineup_memory.LineupMemoryReadToken",
     "pitchlog.repositories.lineup_memory._LineupMemoryInsertToken",
-    "pitchlog.repositories.lineup_memory._LineupMemoryUpdateToken"
+    "pitchlog.repositories.lineup_memory._LineupMemoryUpdateToken",
+    "pitchlog.sync.tokens.GameReadToken",
+    "pitchlog.sync.tokens.GameLockToken",
+    "pitchlog.sync.tokens.RecordingGenerationReadToken",
+    "pitchlog.sync.tokens.RecordingGenerationLockToken",
+    "pitchlog.sync.tokens.RecordingPrefixUpdateToken",
+    "pitchlog.sync.tokens.EventSlotReadToken",
+    "pitchlog.sync.tokens.EventSlotInsertToken",
+    "pitchlog.sync.tokens.EventSlotVersionUpdateToken",
+    "pitchlog.sync.tokens.OperationEventReadToken",
+    "pitchlog.sync.tokens.OperationEventOrderReadToken",
+    "pitchlog.sync.tokens.OperationEventInsertToken",
+    "pitchlog.sync.tokens.OperationEventOrderUpdateToken",
+    "pitchlog.sync.tokens.OperationEventReplaceToken",
+    "pitchlog.sync.tokens.TemporaryPlayerMappingReadToken",
+    "pitchlog.sync.tokens.TemporaryPlayerMappingInsertToken",
+    "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+    "pitchlog.sync.tokens.IdempotencyLedgerInsertToken",
+    "pitchlog.sync.tokens.RejectedOriginalReadToken",
+    "pitchlog.sync.tokens.RejectedOriginalInsertToken",
+    "pitchlog.sync.tokens.InvalidationIntentReadToken",
+    "pitchlog.sync.tokens.InvalidationIntentPendingToken",
+    "pitchlog.sync.tokens.SyncInvalidationIntentInsertToken",
+    "pitchlog.sync.tokens.SyncSharedInvalidationIntentInsertToken",
+    "pitchlog.sync.tokens.InvalidationIntentDeliveredToken",
+    "pitchlog.sync.tokens.EvacuatedOriginalReadToken",
+    "pitchlog.sync.tokens.EvacuatedOriginalInsertToken"
   ],
   "cross_tenant_functions": []
 }

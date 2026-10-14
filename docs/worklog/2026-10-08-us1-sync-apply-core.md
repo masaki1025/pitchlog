@@ -252,3 +252,10 @@ branch: feature/us1-sync-apply-core
   - 3 回目(P0 例外)否決(P0 1): `import pitchlog` の属性連鎖で `create_database_engine` に届く → **山田正輝の裁定(2026-10-14)「直して打ち切る」**: pitchlog のモジュールをオブジェクトとして扱うことを全面禁止(モジュールでない名前の import だけ許可)し、**静的検査は補助であって安全の境界ではない**と位置づける。境界は (a) 登録表を持つ `sync/ports.py` が core-areas の sync-protocol に属し、ポートの登録はコア領域の変更として敵対レビューと人間の逐行確認を経ること (b) U-X1 が本物の投影ポートを作るときに入れる DB 側の遮断(適用核の印を要求するトリガ)。**追加レビューなし**(最終反映は再レビューを受けていない)
 - **残る穴(逐行確認と PR 本文への申し送り)**: 実行時の monkeypatch / 許可名や callable の組み合わせ / Python の反射・descriptor・decorator・metaclass / 別の実行単位への処理委譲(R-12)。静的検査ではこれらを遮断できない
 - 検査: 型・ポートの試験 118 passed / backend の DB 不要の全件 1436 passed(失敗は既知の偽の赤 44 件だけ)/ 迂回検査 ok / backend と root の ruff・ty green / 凍結資産・`conftest.py` 差分なし
+
+## ステップ 7(2026-10-14)
+
+- 変更: `repositories/sync_apply.py` に同期表 9 表の operation(read・insert・update・共通ロック順の 2 つの行ロック — 試合行と記録権世代行)を登録し registry に接続。token 型は sqlalchemy を import しない `sync/tokens.py`(ステップ 6 の契約)。同期経路の意図 insert は #114 の token と別型で同じ capability。④共有集計は専用 token で対象テナントを文脈の `tenant_id` に固定。意図 ID は `sync:<イベント識別>:<範囲>`(`sync/intent_ids.py`)。未配信一覧は `pending` とキーセット(`intent_id > :after`)・上限。T4 は投影ポートの責務として SQL operation を作らない。`contracts/authz/` は変更なし。repository-contract・census を改訂し PR #132 の受理記録 1 件・snapshot・比較 corpus・生成定数を取り直した
+- **敵対レビュー**: 1 回目 否決(P0 1・P1 2 — 他テナントの共有集計の意図を作れる / 未配信一覧に同期経路以外の意図が混ざる / 次ページを取れない)→ すべて採用。うち P1-2 は Codex が「DDL に発生経路の列がなく、`LIKE` は認可の登録検査器が拒否」で停止 → **山田正輝の裁定(2026-10-14)「アプリ側で絞る」**: DDL と認可検査器は変えず、同期の意図 ID に接頭辞 `sync:` を付け、受け取る側の純関数で判定。2 回目 否決(P1 1 — 将来の B06 トリガー値 `sync…` との衝突)→ 採用(#114 の token の構築時検査で `sync` で始まるトリガー値を拒否)。**この最終反映は上限到達のため再レビューを受けていない**
+- **今後の課題**: 未配信の意図の SQL 側の絞り込み(DDL の発生経路列、または認可検査器の限定 `LIKE`)。現方式では同期を通らない未配信の意図が溜まるほど、同期側の配信が読み飛ばすページが増える
+- 検査: 関係テスト 194 passed / 凍結資産一式 571 passed / backend の DB 不要の全件 1447 passed(失敗は既知の偽の赤 44 件だけ)/ 迂回検査 ok / backend と root の ruff・ty green。**DB の越境テストはローカル未実行**(接続設定なし・Docker 権限なし)— push 後の CI で確かめる

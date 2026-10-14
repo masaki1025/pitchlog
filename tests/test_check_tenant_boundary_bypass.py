@@ -1141,6 +1141,9 @@ def _initialize_test_repository(
         REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary",
         repository / "tests" / "fixtures" / "tenant_boundary",
     )
+    core_areas = repository / ".claude" / "core-areas.json"
+    core_areas.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(REPOSITORY_ROOT / ".claude" / "core-areas.json", core_areas)
     _synchronize_synthetic_authority_identifiers(repository)
     for relative_path in _declared_external_files(repository):
         destination = repository / relative_path

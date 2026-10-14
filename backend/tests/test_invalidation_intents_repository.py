@@ -143,6 +143,17 @@ def test_intent_token_derives_only_defined_identity() -> None:
         )
 
 
+@pytest.mark.parametrize("future_value", ["sync", "sync:rebuild", "syncX"])
+def test_intent_token_rejects_future_sync_prefixed_trigger(
+    monkeypatch: pytest.MonkeyPatch, future_value: str
+) -> None:
+    """将来の B06 トリガー値が同期意図 ID の接頭辞を奪えない。"""
+    trigger = CacheInvalidationTrigger.ROSTER_STATUS_CHANGE
+    monkeypatch.setattr(trigger, "_value_", future_value)
+    with pytest.raises(ValueError, match="同期意図 ID と衝突"):
+        InvalidationIntentInsertToken(trigger, uuid4(), CacheScope.SHARED_AGGREGATE)
+
+
 def test_intent_recording_rejects_other_tenant_trigger_and_key_shape() -> None:
     """未定義の行規則と実行テナントに帰属しない選択子を拒否する。"""
     tenant_id, other_tenant_id = uuid4(), uuid4()

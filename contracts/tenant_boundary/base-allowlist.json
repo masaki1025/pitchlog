@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 28,
+  "contract_revision": 29,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:28"
+        "contract_revision:29"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -14125,13 +14125,13 @@
         "acceptance_id": "masaki1025/pitchlog#132",
         "new_baseline_identifiers": {
           "contracts/tenant_boundary/base-allowlist.json": [
-            "contract_revision:28"
+            "contract_revision:29"
           ],
           "contracts/tenant_boundary/cache-invalidation-contract.json": [
             "contract_revision:12"
           ],
           "contracts/tenant_boundary/census-baseline.json": [
-            "contract_revision:12"
+            "contract_revision:14"
           ],
           "contracts/tenant_boundary/db-api-inventory.json": [
             "inventory_revision:13"
@@ -14143,7 +14143,7 @@
             "fixture_set_revision:15"
           ],
           "contracts/tenant_boundary/repository-contract.json": [
-            "contract_revision:20"
+            "contract_revision:22"
           ],
           "contracts/tenant_boundary/runtime-authz-contract.json": [
             "runtime_contract_revision:13"
@@ -14182,7 +14182,7 @@
           ]
         },
         "change": {
-          "subject": "TSK-391: U-S1 同期核の TB002 所有パスとリポジトリ基底契約を改訂する",
+          "subject": "TSK-391: U-S1 同期核の TB002 所有パス・リポジトリ基底・同期表 operation を登録する",
           "aspect": [
             "asset_snapshots",
             "declaration",
@@ -14669,7 +14669,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:28"
+                    "contract_revision:29"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -14719,7 +14719,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:12"
+                    "contract_revision:14"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -14820,7 +14820,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:20"
+                    "contract_revision:22"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -15074,8 +15074,8 @@
               },
               {
                 "path": "tests/test_census_baseline_check.py",
-                "sha256": "9bb59e6adc254996bc8e4bfb933cd4bc1fd45419cb8243b5f8c58fae0564e5ed",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9bb59e6adc254996bc8e4bfb933cd4bc1fd45419cb8243b5f8c58fae0564e5ed"
+                "sha256": "4dcb0ee5450a0d8bbd03a3249397943766528b6b338ac3a99cb674150cdbf4bf",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/4dcb0ee5450a0d8bbd03a3249397943766528b6b338ac3a99cb674150cdbf4bf"
               },
               {
                 "path": "tests/test_ci_wiring.py",
@@ -15091,8 +15091,8 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "1d6f8aeea7a4d112c45ca5a3861448c141436eb595cc2dd459a795ab26ae93d2",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/1d6f8aeea7a4d112c45ca5a3861448c141436eb595cc2dd459a795ab26ae93d2"
+                "sha256": "5f7d37d7b394064221044f240a819bdfb8630c43f67f0da7690a3f1e2528910d",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/5f7d37d7b394064221044f240a819bdfb8630c43f67f0da7690a3f1e2528910d"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
@@ -15101,8 +15101,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "6b6dbf9bfc55d7edbcf31165b9a57fd99d928f1c9e6958e2293c59d8143f2ade",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6b6dbf9bfc55d7edbcf31165b9a57fd99d928f1c9e6958e2293c59d8143f2ade"
+                "sha256": "dc249cc26661e2504f54a4c487986844b24f0066d07e2b99bd8acb30eaf6a46a",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/dc249cc26661e2504f54a4c487986844b24f0066d07e2b99bd8acb30eaf6a46a"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
@@ -15121,8 +15121,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "2e50b26366ecec8e42f251fb45310010d34f524a0a99c942870f3bf5aeee0838",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2e50b26366ecec8e42f251fb45310010d34f524a0a99c942870f3bf5aeee0838"
+                "sha256": "d75a9393abd362d39895eebf141e9f25f871766f3c6670ed94d42001355b8363",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d75a9393abd362d39895eebf141e9f25f871766f3c6670ed94d42001355b8363"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
@@ -15137,8 +15137,8 @@
             ]
           }
         },
-        "movement_fact": "比較元は origin/develop の b81ae1ac3c957870e0c7a4722a921785a239ab82（本ブランチとの merge-base は 6efe39e605b68836031ecd2f6aed46e915e047fe）。条件 2 の所有パスと承認済み集合の固定、検査器の合否写像、リポジトリ基底の複合主キー全列による UPDATE・bind の独立性・明示的な行ロック・適用中スコープに加え、正本 ORM Table との同一性検査を契約化した。変更前後の全 9 資産の凍結射影と外部実装を内容アドレス snapshot で固定した。",
-        "reason": "同期表の ORM 語彙が TB002 に当たるため、同期核の backend/src 配下の 2 パスに限定し、検査器で承認済み集合を固定し、検査時点の sync-protocol 登録との交差で条件 2 を免除する。条件 1・3・4・5 の検査は従来どおり維持する。同期核に必要な複合主キー UPDATE、明示的な通常行ロック、適用中の別スコープ禁止を repository 契約に追加した。敵対レビューの是正で全 UPDATE の主キー全列・主キーと SET の bind 分離・文脈のテナント bind・限定ロック形の明示と、登録対象表および登録文が正本 ORM Table と同一であることを固定した。",
+        "movement_fact": "比較元 origin/develop と本ブランチの merge-base の実資産・実装から、本 PR の受理後の実資産・実装へ移動する。同期表 9 表の operation と無効化意図の同期専用 token・キーセット取得を追加し、base-allowlist・repository-contract・センサス基準の識別値を更新した。",
+        "reason": "同期適用を登録済みのテナント限定 operation だけで行い、共有集計意図の対象を文脈テナントへ固定する。同期意図を B06 の意図と分けて配信し、混在する未配信行の後続ページも取得するため。",
         "approved_by": "山田正輝",
         "approved_on": "2026-10-14"
       }
@@ -15282,6 +15282,16 @@
         "SQLA_UPDATE"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/lineup_memory.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.sync_apply._build_sync_statement",
+      "signature": "_build_sync_statement(kind: str, table: Table, columns: tuple[str, ...]=(), keys: tuple[str, ...]=(), values: tuple[str, ...]=()) -> Select[Any] | Insert | Update",
+      "allowed_api_ids": [
+        "SQLA_SELECT",
+        "SQLA_INSERT",
+        "SQLA_UPDATE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/sync_apply.py"
     }
   ],
   "conditions": [

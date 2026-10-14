@@ -195,7 +195,10 @@ def test_shadow_table_with_reduced_primary_key_is_rejected() -> None:
 def test_existing_product_updates_bind_every_actual_primary_key_column() -> None:
     """Roster と lineup の旧登録も実表の主キー全列を束縛する。"""
     updates = [
-        spec for spec in PRODUCT_OPERATIONS if isinstance(spec.statement, Update)
+        spec
+        for spec in PRODUCT_OPERATIONS
+        if isinstance(spec.statement, Update)
+        and spec.token_type.__module__.startswith("pitchlog.repositories.")
     ]
     assert {spec.capability_id for spec in updates} == {
         "CAP:players:update",
@@ -205,8 +208,7 @@ def test_existing_product_updates_bind_every_actual_primary_key_column() -> None
     for spec in updates:
         _validate_prepared_statement(spec, spec.statement)
     assert not any(
-        spec.capability_id == "CAP:invalidation_intents:update"
-        for spec in PRODUCT_OPERATIONS
+        spec.capability_id == "CAP:invalidation_intents:update" for spec in updates
     )
 
 
