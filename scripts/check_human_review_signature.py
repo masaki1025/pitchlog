@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import re
 import sys
 from collections.abc import Mapping, Sequence
 from datetime import date
@@ -38,6 +39,12 @@ STATE_TRANSITION_SCHEMA_PATH = PurePosixPath(
 )
 STATE_TRANSITION_CONTRACT_PATH = PurePosixPath(
     "contracts/state-transition/state_transition_contract_v1.json"
+)
+GAME_END_SCHEMA_PATH = PurePosixPath(
+    "contracts/state-transition/game_end_contract_schema_v1.json"
+)
+GAME_END_CONTRACT_PATH = PurePosixPath(
+    "contracts/state-transition/game_end_contract_v1.json"
 )
 VOCABULARY_MANIFEST_PATH = PurePosixPath(
     "contracts/vocabulary/vocabulary_manifest_v1.json"
@@ -868,6 +875,243 @@ def generate_matrix_rows_review_sheet(
     )
 
 
+def _review_json_block(label: str, value: object) -> list[str]:
+    """契約の値を省略せず日本語見出し付きで描画する。
+
+    Args:
+        label: 値の見出し。
+        value: 契約の値。
+
+    Returns:
+        Markdownの行。
+    """
+    return [
+        f"**{label}**",
+        "",
+        "```json",
+        json.dumps(value, ensure_ascii=False, indent=2),
+        "```",
+        "",
+    ]
+
+
+def _stage2_rows_and_cases(
+    contract: Mapping[str, Any], layer: str
+) -> list[tuple[dict[str, Any], list[dict[str, Any]]]]:
+    """規範行と、それを参照する全caseを対応付ける。
+
+    Args:
+        contract: 契約全体。
+        layer: 対象の規範行層。
+
+    Returns:
+        規範行と派生caseの組。
+
+    Raises:
+        HumanReviewSignatureRecordError: 規範行とcaseが対応しない場合。
+    """
+    raw_rows = contract.get(layer)
+    raw_cases = contract.get("cases")
+    if not isinstance(raw_rows, list) or not raw_rows or not isinstance(raw_cases, list):
+        raise HumanReviewSignatureRecordError(f"{layer}またはcasesが配列でない")
+    rows = [_object(value, f"{layer}[{i}]") for i, value in enumerate(raw_rows)]
+    cases = [_object(value, f"cases[{i}]") for i, value in enumerate(raw_cases)]
+    grouped: list[tuple[dict[str, Any], list[dict[str, Any]]]] = []
+    used_case_ids: set[str] = set()
+    for row in rows:
+        if layer == "decisionRows":
+            coordinate = {"branchId": row["branchId"]}
+        elif layer == "operationRows":
+            coordinate = {
+                key: row[key] for key in ("operationKind", "payloadShape", "precondition")
+            }
+        else:
+            coordinate = {key: row[key] for key in ("targetKind", "precondition")}
+        matched: list[dict[str, Any]] = []
+        for case in cases:
+            row_ref = _object(case.get("rowRef"), "case.rowRef")
+            if row_ref.get("layer") == layer and row_ref.get("coordinate") == coordinate:
+                case_id = _string(case.get("caseId"), "case.caseId")
+                if case_id in used_case_ids:
+                    raise HumanReviewSignatureRecordError(f"caseの重複: {case_id}")
+                used_case_ids.add(case_id)
+                matched.append(case)
+        if not matched:
+            raise HumanReviewSignatureRecordError(f"caseのない規範行: {layer} {coordinate!r}")
+        grouped.append((row, matched))
+    layer_case_ids = {
+        _string(case.get("caseId"), "case.caseId")
+        for case in cases
+        if _object(case.get("rowRef"), "case.rowRef").get("layer") == layer
+    }
+    if used_case_ids != layer_case_ids:
+        raise HumanReviewSignatureRecordError(
+            f"規範行に対応しないcase: {sorted(layer_case_ids - used_case_ids)!r}"
+        )
+    return grouped
+
+
+def _stage2_source_ids(row: Mapping[str, Any]) -> str:
+    """規範行が宣言する条文IDを表示する。
+
+    Args:
+        row: 規範行。
+
+    Returns:
+        条文IDの表示。
+    """
+    if "sourceClauseIds" in row:
+        return " / ".join(_string_list(row["sourceClauseIds"], "sourceClauseIds"))
+    if "clauseId" in row:
+        return _string(row["clauseId"], "clauseId")
+    remarks = _string(row.get("remarks"), "remarks")
+    ids = list(dict.fromkeys(re.findall(r"FR-\d+|D-\d+|XC-\d+", remarks)))
+    if not ids:
+        raise HumanReviewSignatureRecordError("undo行に条文IDが見つからない")
+    return " / ".join(ids) + "（remarksから抽出）"
+
+
+def render_stage2_line_review_sheet(
+    root: Path,
+    game_end: Mapping[str, Any],
+    state_transition: Mapping[str, Any],
+) -> str:
+    """ステップ22〜32の規範行と派生caseを未確認のレビュー入力にする。
+
+    Args:
+        root: リポジトリルート。
+        game_end: 終了判定契約。
+        state_transition: 状況判定契約。
+
+    Returns:
+        機械生成したMarkdown。
+
+    Raises:
+        HumanReviewSignatureRecordError: 契約が不正か行とcaseが対応しない場合。
+    """
+    for label, contract, schema_path in (
+        ("終了判定", game_end, GAME_END_SCHEMA_PATH),
+        ("状況判定", state_transition, STATE_TRANSITION_SCHEMA_PATH),
+    ):
+        try:
+            schema = _object(
+                descriptor_checker.load_json(root / schema_path, f"{label}schema"),
+                f"{label}schema",
+            )
+            descriptor_checker._validate_instance(
+                dict(contract), schema, schema, f"{label}契約"
+            )
+        except descriptor_checker.DescriptorCheckError as error:
+            raise HumanReviewSignatureRecordError(str(error)) from error
+
+    lines = [
+        "# TSK-538 ステップ22〜32 逐行確認シート",
+        "",
+        "> この文書は契約から機械生成したレビュー入力であり、",
+        "レビューの実施や判断の正しさを証明する記録ではない。",
+        "",
+        "- 作成者: codex",
+        "- 独立確認: **未実施**",
+        "- 確認観点: 各前提と期待値を由来条文から独立に導出し、契約の値と照合する。",
+        "- case の入力には入力座標・正規化前後・導出元の実入力・履歴文脈を載せる。",
+        "  期待値には契約の出力を省略せず載せる。",
+        "- 対象: 終了判定の全 decisionRows（S27 の X 表記を含む）と全 case、",
+        "  状況判定の全 operationRows・undoRows とその全 case。",
+        "  matrixRows は今回の規範行変更の対象外。",
+        "",
+    ]
+    for title, contract, layers, path in (
+        (
+            "終了判定",
+            game_end,
+            ("decisionRows",),
+            GAME_END_CONTRACT_PATH,
+        ),
+        (
+            "状況判定",
+            state_transition,
+            ("operationRows", "undoRows"),
+            STATE_TRANSITION_CONTRACT_PATH,
+        ),
+    ):
+        lines.extend([f"## {title}", "", f"契約: `{path}`", ""])
+        for layer in layers:
+            groups = _stage2_rows_and_cases(contract, layer)
+            lines.extend(
+                [
+                    f"### `{layer}` — {len(groups)} 行・{sum(len(c) for _, c in groups)} case",
+                    "",
+                ]
+            )
+            for index, (row, cases) in enumerate(groups, start=1):
+                identity = row.get("branchId", row.get("operationKind", row.get("targetKind")))
+                lines.extend(
+                    [
+                        f"#### `{layer}[{index - 1}]` — `{identity}`",
+                        "",
+                        f"由来条文 ID: {_stage2_source_ids(row)}",
+                        "",
+                    ]
+                )
+                lines.extend(_review_json_block("規範行（識別・前提・各列の期待値・remarks）", row))
+                for case in cases:
+                    case_id = _string(case.get("caseId"), "case.caseId")
+                    lines.extend([f"##### case `{case_id}`", ""])
+                    for key, label in (
+                        ("inputCoordinate", "入力座標"),
+                        ("raw", "入力（正規化前）"),
+                        ("normalizationRuleId", "正規化規則"),
+                        ("normalized", "入力（正規化後）"),
+                        ("derivedSourceInput", "派生軸の導出元の実入力"),
+                        ("historyInput", "履歴の入力と前後の状態"),
+                        ("expected", "期待値（履歴の各要素の種別と差分を含む）"),
+                        ("decision", "期待する終了判定"),
+                    ):
+                        if key in case:
+                            lines.extend(_review_json_block(label, case[key]))
+    lines.extend(
+        [
+            "## 条文が決めていない点・機械検査の限界",
+            "",
+            "- FR-009 は指定走者の個人 ID と打順の巻き戻りの詳細な対応を決めていない。",
+            "  契約は走者配置と打順枠の比較面を示す。",
+            "- 成立段数の値が条文に照らして正しいことは、ADR-003 v0.7 D-11 の",
+            "  派生軸の関数性検査だけでは証明できない。ステップ26〜28の各値は独立確認を要する。",
+            "- このシートは契約の転記と網羅性だけを機械的に保証する。",
+            "  期待値の意味の確認は未実施である。",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def generate_stage2_line_review_sheet(root: Path, output_path: Path) -> None:
+    """既存の契約2件からステップ33の逐行確認シートを生成する。
+
+    Args:
+        root: リポジトリルート。
+        output_path: 出力先のMarkdownファイル。
+    """
+    try:
+        game_end = descriptor_checker.load_json(
+            root / GAME_END_CONTRACT_PATH, "終了判定契約"
+        )
+        state_transition = descriptor_checker.load_json(
+            root / STATE_TRANSITION_CONTRACT_PATH, "状況判定契約"
+        )
+    except descriptor_checker.DescriptorCheckError as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        render_stage2_line_review_sheet(
+            root,
+            _object(game_end, "終了判定契約"),
+            _object(state_transition, "状況判定契約"),
+        ),
+        encoding="utf-8",
+    )
+
+
 def validate_signature_record(
     root: Path,
     record: Mapping[str, Any],
@@ -985,7 +1229,7 @@ def validate_signature_record(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """署名記録を検証するか、状況判定契約から逐行確認シートを生成する。"""
+    """署名記録を検証するか、契約から逐行確認シートを生成する。"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("record", type=Path, nargs="?", help="検証する署名記録JSON")
     parser.add_argument("--root", type=Path, default=Path.cwd())
@@ -995,12 +1239,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="逐行確認シートの入力となる状況判定契約JSON",
     )
     parser.add_argument(
+        "--stage2-review",
+        action="store_true",
+        help="ステップ22〜32の規範行と派生caseの未確認シートを生成する",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         help="逐行確認シートの出力先",
     )
     args = parser.parse_args(argv)
     try:
+        if args.stage2_review:
+            if args.record is not None or args.output is None or args.matrix_review_contract:
+                parser.error("--stage2-reviewはrecordなし・--outputありで指定する")
+            generate_stage2_line_review_sheet(args.root, args.output)
+            print(f"stage2 review sheet: GENERATED: {args.output}")
+            return 0
         if args.matrix_review_contract is not None:
             if args.record is not None or args.output is None:
                 parser.error(

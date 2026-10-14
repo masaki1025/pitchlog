@@ -309,3 +309,11 @@ branch: feature/adr003-stage2-runtime
 - 負例: `TIEBREAK_PAYLOAD_SET`・`TIEBREAK_ACTIVATION`・`HISTORY_PUSH_KIND`・`DERIVED_FUNCTION`・`DERIVED_UNREACHABLE`・`DERIVED_INPUT`
 - **条文が決めていない点(ゲート ⑥ と TSK-544 へ)**: FR-009 は「指定走者が配置され打順が正しく巻き戻り」と書くが、**指定走者の個人 ID と打順の巻き戻りの詳細な対応**を定めていない。今回の行は走者配置と打順の枠の比較面までを固定した
 - ハーネス全件: 70 failed・新規 0(ID・エラー行とも)。Vitest 全件 1135・backend 関連 47 が緑
+
+### ステップ 33(2026-10-14)— 逐行確認シート
+
+- シート: `docs/features/adr003-stage2-runtime/step33_line_review.md`(契約から機械生成・作成者 codex・独立確認は未実施・チェック欄は持たない)
+- **SHA-256 = `fbd7bc3d1dbeee9c3e5910ae58963e0e1a6f40fc406d516beee4657f6ff495f9`**(ゲート ⑥ の承認対象はこの digest のシート)
+- 生成コマンド: `python3 scripts/check_human_review_signature.py --root . --stage2-review --output docs/features/adr003-stage2-runtime/step33_line_review.md`(2 回の生成でバイト一致・契約の期待値を変えるとずれを検出)
+- 覆った範囲: 終了判定 7 行・派生 case 214 / 状況判定の操作・undo 20 行(移した既存の操作行 7・tiebreak-start 3・undo 10)・派生 case 20
+- 末尾の「条文が決めていない点」: FR-009 の指定走者の個人 ID と打順の巻き戻りの対応 / 成立段数の値の正しさは関数性の検査では証明しない(独立確認が要る)
