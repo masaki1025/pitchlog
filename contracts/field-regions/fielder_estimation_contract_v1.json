@@ -1,0 +1,1155 @@
+{
+  "schemaVersion": 1,
+  "version": "fielder_estimation_contract_v1",
+  "calculation": "fielder-estimation",
+  "independentVerifierId": "claude-delegator",
+  "cases": [
+    {
+      "caseId": "interior-catcher-rectangle",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 33
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 2
+      }
+    },
+    {
+      "caseId": "interior-first-base-rectangle",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 180,
+          "y": 83
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 3
+      }
+    },
+    {
+      "caseId": "interior-third-base-rectangle",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 50,
+          "y": 78
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 5
+      }
+    },
+    {
+      "caseId": "interior-pitcher-rectangle",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 125,
+          "y": 98
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 1
+      }
+    },
+    {
+      "caseId": "interior-anchor-8",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 116,
+          "y": 197
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 8
+      }
+    },
+    {
+      "caseId": "interior-anchor-7",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 56,
+          "y": 162
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 7
+      }
+    },
+    {
+      "caseId": "interior-anchor-9",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 174,
+          "y": 162
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 9
+      }
+    },
+    {
+      "caseId": "interior-anchor-6",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 88,
+          "y": 119
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 6
+      }
+    },
+    {
+      "caseId": "interior-anchor-4",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 152,
+          "y": 119
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 4
+      }
+    },
+    {
+      "caseId": "interior-anchor-5",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 77,
+          "y": 89
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 5
+      }
+    },
+    {
+      "caseId": "interior-anchor-3",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 153,
+          "y": 89
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 3
+      }
+    },
+    {
+      "caseId": "interior-anchor-1",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 70
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 1
+      }
+    },
+    {
+      "caseId": "interior-anchor-2",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 61
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 2
+      }
+    },
+    {
+      "caseId": "rect-boundary-catcher-closed-y205",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 58
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 2
+      }
+    },
+    {
+      "caseId": "rect-boundary-first-closed-corner-155-165",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 155,
+          "y": 98
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 3
+      }
+    },
+    {
+      "caseId": "rect-boundary-third-closed-corner-75-165",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 75,
+          "y": 98
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 5
+      }
+    },
+    {
+      "caseId": "rect-boundary-pitcher-closed-left-x105",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 105,
+          "y": 113
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 1
+      }
+    },
+    {
+      "caseId": "rect-boundary-pitcher-closed-top-y140",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 125,
+          "y": 123
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 1
+      }
+    },
+    {
+      "caseId": "rect-boundary-pitcher-closed-bottom-y190",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 125,
+          "y": 73
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 1
+      }
+    },
+    {
+      "caseId": "rect-boundary-pitcher-inside-right-x144",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 144,
+          "y": 113
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 1
+      }
+    },
+    {
+      "caseId": "rect-boundary-pitcher-open-right-x145",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 145,
+          "y": 113
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 4
+      }
+    },
+    {
+      "caseId": "equal-distance-anchor-8-vs-6-first-8",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 102,
+          "y": 158
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 8
+      }
+    },
+    {
+      "caseId": "equal-distance-anchor-8-vs-4-first-8",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 121,
+          "y": 152
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 8
+      }
+    },
+    {
+      "caseId": "equal-distance-anchor-6-vs-4-first-6",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 120,
+          "y": 143
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 6
+      }
+    },
+    {
+      "caseId": "equal-distance-anchor-6-vs-5-first-6",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 77,
+          "y": 104
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 6
+      }
+    },
+    {
+      "caseId": "equal-distance-anchor-4-vs-3-first-4",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 159,
+          "y": 104
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 4
+      }
+    },
+    {
+      "caseId": "equal-distance-anchor-1-vs-2-first-1",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 65
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 1
+      }
+    },
+    {
+      "caseId": "range-edge-left-x0-valid",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          },
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 0,
+          "y": 163
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 7
+      }
+    },
+    {
+      "caseId": "range-edge-top-y0-valid",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          },
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 263
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 8
+      }
+    },
+    {
+      "caseId": "range-edge-right-x263-valid",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 263,
+          "y": 163
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 9
+      }
+    },
+    {
+      "caseId": "range-edge-bottom-y263-valid",
+      "provenance": {
+        "subjectKind": "legacy-pinned",
+        "sources": [
+          {
+            "path": "masaki1025/Baseball_Scoring-archive@dd03160044aa5932d3b5a025870c9a5a56d979ef:frontend/src/lib/fielder.ts"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 238
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1305
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 0
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "position": 2
+      }
+    }
+  ]
+}

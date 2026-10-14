@@ -3,7 +3,7 @@
   "$id": "https://pitchlog.local/contracts/display-geometry/field_geometry_vector_contract_schema_v1.json",
   "title": "Pitchlog field geometry vector contract schema v1",
   "version": "field_geometry_vector_contract_schema_v1",
-  "description": "捕球選手推定と画面座標・保存座標の変換に共通する、1 ファイル = 1 対象計算のベクタ契約。画面座標は 263・左上原点、保存座標は 0〜1・左下原点。座標の各成分は ADR-003 D-14-e の整数・decimal・有理数のいずれかで記録する。",
+  "description": "捕球選手推定と画面座標・保存座標の変換に共通する、1 ファイル = 1 対象計算のベクタ契約。画面座標は 263・左上原点、保存座標は 0〜1・左下原点。通常の座標成分は ADR-003 D-14-e の整数・decimal・有理数のいずれかで記録する。normalized-bottom-left-units-1-263 は保存座標を単位 1/263 の固定小数点整数 0〜263 で表す。",
   "type": "object",
   "required": [
     "schemaVersion",
@@ -75,6 +75,20 @@
         "y": {"$ref": "#/$defs/numericValue"}
       }
     },
+    "pointUnits263": {
+      "description": "保存座標の x と y を単位 1/263 の固定小数点整数 0〜263 で表す。",
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": {"type": "integer", "minimum": 0, "maximum": 263},
+        "y": {"type": "integer", "minimum": 0, "maximum": 263}
+      }
+    },
+    "coordinateSystem": {
+      "description": "screen-263-top-left は画面の 263 系・左上原点、normalized-bottom-left は通常の 0〜1 保存座標・左下原点、normalized-bottom-left-units-1-263 は単位 1/263 の固定小数点整数 0〜263 による保存座標・左下原点。",
+      "enum": ["screen-263-top-left", "normalized-bottom-left", "normalized-bottom-left-units-1-263"]
+    },
     "case": {
       "type": "object",
       "required": ["caseId", "provenance", "input", "expected"],
@@ -86,11 +100,14 @@
           "type": "object",
           "required": ["coordinate", "coordinateSystem"],
           "additionalProperties": false,
+          "if": {
+            "properties": {"coordinateSystem": {"const": "normalized-bottom-left-units-1-263"}},
+            "required": ["coordinateSystem"]
+          },
+          "then": {"properties": {"coordinate": {"$ref": "#/$defs/pointUnits263"}}},
           "properties": {
             "coordinate": {"$ref": "#/$defs/point"},
-            "coordinateSystem": {
-              "enum": ["screen-263-top-left", "normalized-bottom-left"]
-            },
+            "coordinateSystem": {"$ref": "#/$defs/coordinateSystem"},
             "batterSide": {"type": "string", "minLength": 1}
           }
         },
@@ -98,6 +115,11 @@
           "description": "捕球選手推定は position、座標変換は coordinate と導出値を記録する。往復確認には roundTripCoordinate を使う。",
           "type": "object",
           "additionalProperties": false,
+          "if": {
+            "properties": {"coordinateSystem": {"const": "normalized-bottom-left-units-1-263"}},
+            "required": ["coordinateSystem"]
+          },
+          "then": {"properties": {"coordinate": {"$ref": "#/$defs/pointUnits263"}}},
           "anyOf": [
             {"required": ["position"]},
             {"required": ["coordinate", "coordinateSystem"]}
@@ -110,9 +132,7 @@
               ]
             },
             "coordinate": {"$ref": "#/$defs/point"},
-            "coordinateSystem": {
-              "enum": ["screen-263-top-left", "normalized-bottom-left"]
-            },
+            "coordinateSystem": {"$ref": "#/$defs/coordinateSystem"},
             "insideOutside": {"type": "string", "minLength": 1},
             "roundTripCoordinate": {"$ref": "#/$defs/point"}
           }
