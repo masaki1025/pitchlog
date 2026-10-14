@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -489,3 +490,221 @@ def test_zero_denominator_is_rejected(tmp_path: Path, schema_path: str) -> None:
     point = json.loads(path.read_text(encoding="utf-8"))
     with pytest.raises(schema_checker.DescriptorCheckError):
         schema_checker._validate_instance(point, schema["$defs"]["point"], schema, "$")
+
+
+# --- 座標変換契約の期待値を条文から検算する ---------------------------------
+#
+# 既存の検査は independentVerifierId・provenance・caseId しか見ないため、
+# 期待値そのものを壊しても気づかない(敵対レビュー P0)。
+# ここでは契約の expected を根拠に使わず、要件書の条文だけから導き直して突合する。
+#
+# 典拠:
+#   要件書 付録B-1/B-2        保存座標は 0〜1・左下原点
+#   要件書 付録B-3            内外角の決定表(c = 枠の水平中心を保存座標へ写した値)
+#   要件書 付録B-7            画面 → 保存 / 保存 → 画面 / 往復 / 量子化 / クランプ
+#   要件書 付録A-1            丸めは四捨五入(負値は絶対値で丸めて符号を戻す)
+#   ADR-003 D-6 の CI 規則 4  座標は単位 1/263 の固定小数点整数
+#
+# 分数は Fraction で厳密に扱い、浮動小数を一切経由しない。
+
+COORDINATE_TRANSFORM_CONTRACT = (
+    "contracts/display-geometry/coordinate_transform_contract_v1.json"
+)
+DISPLAY_GEOMETRY = "contracts/display_geometry_263_v1.json"
+TRANSFORM_SCALE = 263
+SCREEN_SYSTEM = "screen-263-top-left"
+UNITS_SYSTEM = "normalized-bottom-left-units-1-263"
+NORMALIZED_SYSTEM = "normalized-bottom-left"
+
+
+def _round_half_up(value: Fraction) -> int:
+    """付録A-1 の丸め。負値は絶対値で丸めて符号を戻す。"""
+    sign = -1 if value < 0 else 1
+    magnitude = abs(value)
+    floor = magnitude.numerator // magnitude.denominator
+    if magnitude - floor >= Fraction(1, 2):
+        floor += 1
+    return sign * floor
+
+
+def _clamp_screen(value: int) -> int:
+    """付録B-7 の範囲外クランプ。画面座標を [0, 263] へ収める。"""
+    return max(0, min(TRANSFORM_SCALE, value))
+
+
+def _as_fraction(node: object) -> Fraction:
+    """契約の数値表現を厳密な分数へ写す。十進小数は受け付けない。"""
+    if isinstance(node, int) and not isinstance(node, bool):
+        return Fraction(node)
+    if isinstance(node, dict) and set(node) == {"numerator", "denominator"}:
+        return Fraction(int(node["numerator"]), int(node["denominator"]))
+    raise AssertionError(f"想定外の数値表現: {node!r}")
+
+
+def _screen_to_units(x: int, y: int) -> tuple[int, int]:
+    """画面 → 保存。付録B-7 の x_norm = x/263・y_norm = (263-y)/263。"""
+    return (x, TRANSFORM_SCALE - y)
+
+
+def _units_to_screen(kx: Fraction, ky: Fraction) -> tuple[int, int]:
+    """保存 → 画面。付録B-7 の x_screen = round(x_norm*263)・y_screen = 263 - round(y_norm*263)。"""
+    return (_round_half_up(kx), TRANSFORM_SCALE - _round_half_up(ky))
+
+
+def _inside_outside(kx: Fraction, side: str, center: Fraction) -> str:
+    """付録B-3 の決定表。中心ちょうどは打席左右によらず外角。"""
+    x_norm = kx / TRANSFORM_SCALE
+    if side == "right":
+        return "inside" if x_norm < center else "outside"
+    if side == "left":
+        return "outside" if x_norm <= center else "inside"
+    raise AssertionError(f"想定外の打席左右: {side!r}")
+
+
+def _strike_zone_center() -> Fraction:
+    """付録B-3 の c。付録B-4 の枠の水平中心を付録B-7 で保存座標へ写した値。"""
+    geometry = json.loads(
+        (REPOSITORY_ROOT / DISPLAY_GEOMETRY).read_text(encoding="utf-8")
+    )
+    zone = geometry["course"]["strike_zone"]
+    return Fraction(int(zone["left"]) + int(zone["right"]), 2) / TRANSFORM_SCALE
+
+
+def _derive_coordinate_transform(case: dict[str, Any], center: Fraction) -> dict[str, Any]:
+    """1 ケースの期待値を条文から導く。契約の expected は一切参照しない。"""
+    source = case["input"]
+    system = source["coordinateSystem"]
+    x_in = _as_fraction(source["coordinate"]["x"])
+    y_in = _as_fraction(source["coordinate"]["y"])
+
+    # 向きは入力の座標系が決める(付録B-7 は両方向を別に定める)。
+    if system == SCREEN_SYSTEM:
+        screen_x, screen_y = _clamp_screen(int(x_in)), _clamp_screen(int(y_in))
+        clamped = (screen_x, screen_y) != (int(x_in), int(y_in))
+        coordinate = _screen_to_units(screen_x, screen_y)
+        return {
+            "coordinate": coordinate,
+            "coordinateSystem": UNITS_SYSTEM,
+            "roundTripCoordinate": _units_to_screen(
+                Fraction(coordinate[0]), Fraction(coordinate[1])
+            ),
+            "intermediateScreenCoordinate": None,
+            "insideOutside": _inside_outside(Fraction(coordinate[0]), source["batterSide"], center),
+            "clamped": clamped,
+        }
+    if system == UNITS_SYSTEM:
+        # 正準表現の保存座標。保存 → 画面 → 保存は恒等。
+        screen = _units_to_screen(x_in, y_in)
+        return {
+            "coordinate": screen,
+            "coordinateSystem": SCREEN_SYSTEM,
+            "roundTripCoordinate": _screen_to_units(*screen),
+            "intermediateScreenCoordinate": None,
+            "insideOutside": _inside_outside(x_in, source["batterSide"], center),
+            "clamped": False,
+        }
+    if system == NORMALIZED_SYSTEM:
+        # 非正準(移行由来)。往復の対象外で、最近傍の正準表現へ量子化される。
+        screen = _units_to_screen(x_in * TRANSFORM_SCALE, y_in * TRANSFORM_SCALE)
+        return {
+            "coordinate": _screen_to_units(*screen),
+            "coordinateSystem": UNITS_SYSTEM,
+            "roundTripCoordinate": None,
+            "intermediateScreenCoordinate": screen,
+            # 内外角は量子化前の保存値から導く(付録B-7 は保存値を書き換えない)。
+            "insideOutside": _inside_outside(
+                x_in * TRANSFORM_SCALE, source["batterSide"], center
+            ),
+            "clamped": False,
+        }
+    raise AssertionError(f"想定外の座標系: {system!r}")
+
+
+def _compare_coordinate_transform(
+    case: dict[str, Any], derived: dict[str, Any]
+) -> list[str]:
+    """1 ケースの契約の期待値と条文からの導出を突き合わせ、差を列挙する。"""
+    case_id = case["caseId"]
+    expected = case["expected"]
+    differences: list[str] = []
+
+    if expected.get("coordinateSystem") != derived["coordinateSystem"]:
+        differences.append(
+            f"{case_id}: 出力座標系 契約 {expected.get('coordinateSystem')!r}"
+            f" / 条文 {derived['coordinateSystem']!r}"
+        )
+    actual = (
+        _as_fraction(expected["coordinate"]["x"]),
+        _as_fraction(expected["coordinate"]["y"]),
+    )
+    if actual != tuple(Fraction(value) for value in derived["coordinate"]):
+        differences.append(
+            f"{case_id}: 変換後座標 契約 {actual} / 条文 {tuple(derived['coordinate'])}"
+        )
+    if expected.get("insideOutside") != derived["insideOutside"]:
+        differences.append(
+            f"{case_id}: 内外角 契約 {expected.get('insideOutside')!r}"
+            f" / 条文 {derived['insideOutside']!r}"
+        )
+
+    middle = expected.get("intermediateScreenCoordinate")
+    if derived["intermediateScreenCoordinate"] is not None:
+        actual_middle = None if middle is None else (int(middle["x"]), int(middle["y"]))
+        if actual_middle != derived["intermediateScreenCoordinate"]:
+            differences.append(
+                f"{case_id}: 経由する画面座標 契約 {actual_middle}"
+                f" / 条文 {derived['intermediateScreenCoordinate']}"
+            )
+    elif middle is not None:
+        differences.append(f"{case_id}: 往復の対象なのに経由する画面座標を持つ")
+
+    # 往復は任意。持つなら条文どおりでなければならず、
+    # クランプしたケースは往復が恒等にならないので持たないのが正しい。
+    round_trip = expected.get("roundTripCoordinate")
+    if derived["roundTripCoordinate"] is None:
+        if round_trip is not None:
+            differences.append(f"{case_id}: 非正準の入力なのに往復を持つ")
+    elif round_trip is not None:
+        actual_round_trip = (
+            int(_as_fraction(round_trip["x"])),
+            int(_as_fraction(round_trip["y"])),
+        )
+        if actual_round_trip != tuple(derived["roundTripCoordinate"]):
+            differences.append(
+                f"{case_id}: 往復 契約 {actual_round_trip}"
+                f" / 条文 {tuple(derived['roundTripCoordinate'])}"
+            )
+        elif derived["clamped"]:
+            differences.append(f"{case_id}: クランプしたのに往復を持つ")
+    return differences
+
+
+def test_coordinate_transform_expectations_are_derived_from_the_requirements() -> None:
+    """座標変換契約の全ケースの期待値を、条文だけを根拠に導き直して突合する。"""
+    contract = json.loads(
+        (REPOSITORY_ROOT / COORDINATE_TRANSFORM_CONTRACT).read_text(encoding="utf-8")
+    )
+    center = _strike_zone_center()
+    cases = contract["cases"]
+    assert cases, "座標変換契約のケースが 0 件(走査の空振りを失敗として扱う)"
+
+    differences: list[str] = []
+    for case in cases:
+        derived = _derive_coordinate_transform(case, center)
+        differences.extend(_compare_coordinate_transform(case, derived))
+    assert not differences, "条文からの導出と一致しない:\n" + "\n".join(differences)
+
+
+def test_coordinate_transform_inputs_are_unique() -> None:
+    """同一入力に 2 つの期待値を持たせない(矛盾した期待値の同居を禁じる)。"""
+    contract = json.loads(
+        (REPOSITORY_ROOT / COORDINATE_TRANSFORM_CONTRACT).read_text(encoding="utf-8")
+    )
+    seen: dict[str, str] = {}
+    duplicates: list[str] = []
+    for case in contract["cases"]:
+        key = json.dumps(case["input"], ensure_ascii=False, sort_keys=True)
+        if key in seen:
+            duplicates.append(f"{case['caseId']} は {seen[key]} と入力が重複")
+        seen[key] = case["caseId"]
+    assert not duplicates, "入力の重複:\n" + "\n".join(duplicates)
