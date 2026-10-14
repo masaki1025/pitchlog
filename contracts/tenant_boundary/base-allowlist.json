@@ -15642,8 +15642,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "5333c6085213f5eaa703e9fc86f50ea0324a338896630f3439acd9bf02b360d6",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/5333c6085213f5eaa703e9fc86f50ea0324a338896630f3439acd9bf02b360d6"
+                "sha256": "3c8b7bb5119b56557a87597bee51a7e4a795d39b5ff2adf32302b0863179e058",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3c8b7bb5119b56557a87597bee51a7e4a795d39b5ff2adf32302b0863179e058"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
@@ -16116,8 +16116,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "5333c6085213f5eaa703e9fc86f50ea0324a338896630f3439acd9bf02b360d6",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/5333c6085213f5eaa703e9fc86f50ea0324a338896630f3439acd9bf02b360d6"
+                "sha256": "3c8b7bb5119b56557a87597bee51a7e4a795d39b5ff2adf32302b0863179e058",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3c8b7bb5119b56557a87597bee51a7e4a795d39b5ff2adf32302b0863179e058"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
