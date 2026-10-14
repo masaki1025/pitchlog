@@ -1,5 +1,7 @@
 # TSK-550 ステップ1・残る4件の判断用差分
 
+**後続の射程訂正**: [最小追補](step-gates-minimal-addendum-proposal.md)では§6-5保存形/旧行拒否だけをステップ2前の正式ゲートへ分け、owner/§3-2、§10-5出所、認可/配置をステップ3前へ置く。下記の管理owner・3表行ロック/列UPDATEは先行案の記録であり、[予備レビュー採否](step1-preflight-dispositions.md)の専用owner・親行のみロック案を統合候補とする。いずれも個別資産未承認。
+
 2026-10-14。これは**正本と個別資産の変更案**であり、migration・認可・凍結基準の承認または実装ではない。A追補計画`a2b8a5b5`、Codex Dの`06f7834f`、固定function operationのPO代替受理を維持する。段階B、大会割当/管理書込関数、ゲームHTTP実装を含めない。関係担当の採否と正本ゲートで本文を確定する。
 
 **POの追加判断（2026-10-14）**: 下表の固定UUID5件と公式戦`tiebreak`の機械文字列`no_out_first_second`/`continue_lineup`を採用。付録F-2の規則値・意味は変更しない。この採用はデータ配置migration、一時RLS、関数owner/列UPDATE、GUC脅威モデル、正本文の承認へ拡張しない。
