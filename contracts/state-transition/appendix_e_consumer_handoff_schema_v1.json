@@ -203,7 +203,7 @@
           "maxContains": 1
         }
       ],
-      "$comment": "各bindingの実行経路はpytestとvitestのexact-set。runner実装は存在するが、3識別子とrunner revisionは契約上まだ未確定であり、全caseの消費は保証しない。"
+      "$comment": "各bindingの実行経路はpytestとvitestのexact-set。runner実装は存在し、runnerRevisionはrunner入口資産(pytest = backend/src/pitchlog/domaincheck/runners/vector_bridge.py、vitest = frontend/src/testing/vectorRunner.ts)の最終変更のcommit OIDで固定する。入口が依存する読み込み層・比較層はrunnerRevisionの固定範囲に含めない(契約のdigestを固定する読み込み層まで含めると契約の変更ごとに版が動くため)。3識別子は契約上まだ未確定であり、全caseの消費は保証しない。"
     },
     "executionPath": {
       "type": "object",

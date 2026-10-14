@@ -361,28 +361,31 @@ def test_po_evidence_content_change_is_rejected(tmp_path: Path) -> None:
         )
 
 
-def _trigger_ten_digest_before(marker: str) -> str:
-    """証拠ファイルに marker を最初に足したコミットの親でのトリガー10の digest を返す。"""
+def _trigger_ten_digest_before() -> str:
+    """トリガー10の行に再確認が初めて現れたコミットの親での証拠 digest を返す。"""
     relative = EVIDENCE_PATH.relative_to(ROOT).as_posix()
-    commits = subprocess.run(
-        ["git", "log", "--format=%H", "-S", marker, "--", relative],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=10,
-    ).stdout.split()
-    assert commits, marker
-    before = subprocess.run(
-        ["git", "show", f"{commits[-1]}^:{relative}"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=10,
-    ).stdout
-    rows = json.loads(before)["manualDecisions"]
-    return next(row for row in rows if row["triggerId"] == 10)["evidenceDigest"]
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout
+
+    def trigger_ten(revision: str) -> dict[str, Any]:
+        rows = json.loads(git("show", f"{revision}:{relative}"))["manualDecisions"]
+        return next(row for row in rows if row["triggerId"] == 10)
+
+    first = None
+    for commit in git("log", "--first-parent", "--format=%H", "--", relative).split():
+        if not trigger_ten(commit).get("reconfirmations"):
+            break
+        first = commit
+    assert first is not None
+    return trigger_ten(f"{first}^")["evidenceDigest"]
 
 
 def test_trigger_ten_reconfirmation_preserves_original_decision(
@@ -400,9 +403,7 @@ def test_trigger_ten_reconfirmation_preserves_original_decision(
         "2026-09-18",
         False,
     )
-    assert reconfirmation["previousEvidenceDigest"] == _trigger_ten_digest_before(
-        "reconfirmations"
-    )
+    assert reconfirmation["previousEvidenceDigest"] == _trigger_ten_digest_before()
     assert reconfirmation["evidenceDigest"] == decision["evidenceDigest"]
     COMPLETION.trigger_evaluation.validate_recorded_evaluations(
         registry,

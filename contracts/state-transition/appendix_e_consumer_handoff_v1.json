@@ -8,7 +8,7 @@
     "guaranteed": "状況判定caseの/expectedと終了判定caseの/decisionは、それぞれrunnerの/expectedへ写す。両契約の全caseで/inputCoordinateは正規形であり/normalizedと一致する。終了判定caseの/rawと/normalizedは実在する値を指し、表示名165件では/rawの結果名を安定IDへ正規化する",
     "notGuaranteed": [
       "runnerによるcase消費と出力同値の実証",
-      "pytest・Vitestのベクタrunner実装は存在するが、製品計算とのbindingは未確定。normalizerId・entrypointId・directTargetIdはnullであり、runnerRevisionとともに段階2で確定する"
+      "pytest・Vitestのベクタrunner実装は存在するが、製品計算とのbindingは未確定。normalizerId・entrypointId・directTargetIdはnullであり、対象計算のPR(U-X1 T1・T2)で確定する。runnerRevisionはTSK-538ステップ34で確定済み(runner入口資産の最終変更のcommit OID)"
     ]
   },
   "consumerBindings": [

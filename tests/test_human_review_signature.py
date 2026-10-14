@@ -143,6 +143,9 @@ def test_matching_subject_digest_and_recorded_attestation_are_accepted() -> None
 GATE6_SIGNATURE_DIRECTORY = (
     REPOSITORY_ROOT / "docs/features/adr003-stage2-runtime/signatures"
 )
+GATE6_REVIEW_SHEET = (
+    REPOSITORY_ROOT / "docs/features/adr003-stage2-runtime/step33_line_review.md"
+)
 
 
 def test_repository_gate6_signature_records_match_current_contracts() -> None:
@@ -160,6 +163,8 @@ def test_repository_gate6_signature_records_match_current_contracts() -> None:
         assert record["artifactAuthorId"] == "codex"
         assert record["recordedReviewerId"] == "山田正輝"
         assert "step33_line_review.md" in record["reviewScope"]
+        sheet_digest = hashlib.sha256(GATE6_REVIEW_SHEET.read_bytes()).hexdigest()
+        assert sheet_digest in record["reviewScope"], "署名後に逐行確認シートが変わった"
     assert subjects == {
         "contracts/state-transition/game_end_contract_v1.json",
         "contracts/state-transition/state_transition_contract_v1.json",

@@ -376,3 +376,27 @@ branch: feature/adr003-stage2-runtime
   - `check_tenant_boundary_bypass.py --base-ref origin/develop` ok
 - **見逃していた本ブランチの不備**: 「既知の失敗」として扱っていた凍結基準の走査の allow-list 未登録(`tests/domain/test_review_triggers_complete.py` の SHA-256)は、**ステップ 16 の是正(`5d7a35f7`)で私が試験に直書きした値**だった(develop には無い)。ステップ 30 と同じ型。git の履歴(証拠ファイルに `reconfirmations` を足したコミットの親)から導く形に直し、`check_frozen_baselines.py --invariants-only` が初めて OK に。これに連鎖していた凍結基準台帳の試験 15 件も緑
 - 凍結系・domain の試験 1157 件が緑
+
+### authz の再封印(2026-10-15)と PO の承認
+
+- **S1(第 1 段・`d68df723`)**: `requirement-claims.json` の `input_manifest` を取り込みのマージ(`22f87557`)と要件書の blob(`5ff4ed06`)へ。増えた・変わった 9 行の分類は**山田さんの判断(2026-10-15)**: 変更履歴の 2 行 = `OUT_DOCUMENT_METADATA` / 付録E-1 の 7 行(`HistoryEffect` の定義 5 行・段落 2)= `OUT_NON_AUTH_REQUIREMENT`(既存の `FieldEffect` の定義行・付録E-1 の段落と同じ扱い)。auth_claim は 187 のまま。`--reseal`・派生 3 資産の参照・`--reseal-derived`・shared-preconditions・試験の固定件数(1392)
+- **S2(第 2 段・`0a580d44`)**: **山田さんの承認(2026-10-15)**で oracle を再封印(`oracle-seal.lock.json` の `reseal_policy.human_review_required`)。oracle_commit 7 か所を `d68df723` へ・台帳に oracle_input の記録(#131・山田正輝・2026-10-15)・mcdc-map と failure-injection-points の参照
+- **tenant boundary の受理記録の承認の流用**: 山田さんが「元の承認(2026-10-14)のままでよい」と確認(2026-10-15)
+- 再封印後のハーネス全件: **29,536 passed・失敗 0**(このブランチで初めての全件緑)。Vitest 1135 緑
+
+### Codex の停止と、直接実装分の敵対レビュー(2026-10-15)
+
+- **Codex は使用量の上限で 10/21 まで使えない**(山田さんの指示 —「codex リミットきたから claude で実装を」)。ステップ 34 以降は Claude が直接実装した
+- **山田さんの裁定(2026-10-15)— 391(U-S1)と同じ扱い**: ① Claude が直接書いたコードの `codex_run.py review normal` は、**Claude サブエージェントの敵対レビューで代える**(ADR-001 からの逸脱として本 worklog と PR 本文に明記)② **コア領域の PR 段階の敵対レビューは 10/21 以降に Codex で行う**(#131 は Ready にして人間の逐行確認までは進め、マージはその後)
+- 敵対レビュー(Claude サブエージェント・対象 5 コミット `22cf696f`・`22f87557`・`886adbee`・`d68df723`・`0a580d44`)— 判定: 否決 P0 0 / P1 1 / P2 5。PR 受理モードは scratchpad の clone で模擬(2 親の synthetic merge・`GITHUB_EVENT_NAME=pull_request`)し、tenant boundary・`check_frozen_baselines.py --ci` とも ok、PR 番号を変えた対照は落ちることを確認
+
+| # | 重大度 | 要旨 | 採否 | 反映 |
+| --- | --- | --- | --- | --- |
+| 1 | P1 | 取り込みで `tests/test_core_guard.py` を本ブランチの版で解消し、develop #133 の表明(`assert_registered_block`・後続登録の負例・U-F6 の過不足・部分登録の検出)を落とした。固定の末尾・件数の形も戻っていた | **採用** | develop 版を土台に 3 方向マージで作り直し、D-2 の宣言の表明だけを重ねた(D-2 の追加も `assert_registered_block` で確かめる)。**worklog の「develop 側の変更は本ブランチの版と同じ」は誤りだった**(関数名だけで突き合わせ、中身を見ていなかった)。develop 版から消えた行は本ブランチが意図して変えた 10 行だけ(S34 の送り先・D-2 の glob の件数・契約参照の表明・docstring) |
+| 2 | P2 | handoff の記述が runnerRevision を「未確定」のまま | 採用 | notGuaranteed と schema の `$comment` を直した |
+| 3 | P2 | runner の版の固定が入口ファイル 1 本だけ | 採用(範囲を明記) | schema の `$comment` に固定範囲(入口資産のみ・読み込み層と比較層は含めない理由)を明記 |
+| 4 | P2 | 署名の試験がシートの SHA-256 を見ていない | 採用 | シートの SHA-256 が reviewScope に含まれることを表明 |
+| 5 | P2 | 旧 digest を導く目印がトリガー 10 に固有でない | 採用 | トリガー 10 の行に再確認が初めて現れたコミットを中身で特定し、`--first-parent` に絞った(ブランチ上でもマージ後の develop 上でも同じ値を導く) |
+| 6 | P2 | S1・S2 の作業記録と承認の典拠が worklog に無い | 採用 | 本節 |
+
+- **レビュー外で見つけた本ブランチの不備**: backend の非 DB 全件で 2 件 — `backend/src/pitchlog/repositories/tenant_context_contract.py` と `repository_contract.py` の生成値(`CONTRACT_REVISION`・`SOURCE_DIGEST`)が、ステップ 15 の是正で資産の識別値を上げたときに追随していなかった。backend の全件は CI に任せていたが、#131 は DIRTY で CI が一度も走っていなかったため表に出なかった。資産の値へ合わせ、backend の非 DB 全件 1428 件が緑
