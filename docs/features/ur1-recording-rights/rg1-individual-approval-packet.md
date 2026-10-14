@@ -5,11 +5,22 @@
 ## 1. 確定した範囲とTSK-550の実際の承認状態
 
 - POが承認したRG1物理方式は、単一状態行、通常テナントによる更新の禁止、制限関数境界、起動時既定閉鎖。新2に製品の`open`・解除を含めない。U-S1の③-a/⑧ Port署名・位置・同一scopeの固定関数口は担当のコミット済み計画8節で回答済み。Port実接合と実経路結合試験はU-R1新6、D4発行源・復旧世代は別ゲート。
-- TSK-550本体の承認済み計画は`feature/ux1-fr014-rule-resolution`の`plan.md`（HEAD `ae380801`で確認）。承認記録は2026-10-14の`a2b8a5b5`追補と`e19f8651`開始条件追補などで、**最初の製品登録は段階A resolver 1件**。共有実行器だけを登録0件で先行する計画はまだ承認されていない。
-- TSK-550担当は`shared-function-executor-split-proposal.md`と作業ログ（同HEAD `ae380801`）で、A＝共有実行器・製品登録0件、B＝段階A resolver 1件、C＝U-R1のRG1 2件を**条件付き提案**した。独立レビューは第1回P0=0/P1=5（全採用）、第2回P0/P1/P2=0。レビュー通過は正式追補・PO承認・資産受理を代替しない。
-- U-R1の旧[追補案](shared-function-executor-addendum-proposal.md)は「Aにresolverまで含む」案で、TSK-550の後発A＝0件案と異なる。**U-R1はA＝0件を接続可能な候補として採用**する。ただしAの計画追補がPO承認され、必要なコアレビュー・個別資産ゲートを通りdevelopへ統合されるまで依存成立とはしない。現行の初回登録順を保つなら統合順はA→B→C。A→C→Bを許すには、初回登録順の明示的なPO改訂と両担当の計画・受理記録への反映が必要で、今は認めない。Bの全機能完成をCの実行時依存とはしない。
+- TSK-550側`feature/ux1-fr014-rule-resolution`のコミット`8a270c2a`を確認。同コミットの`plan.md`、`step1-contract-acceptance.md`、作業ログは、POがレビュー済み`ae380801`の分割案を**2026-10-15に正式追補承認**したと記録する。A＝共有実行器・製品登録0件を別PRで先行統合し、A後のB＝段階A resolver 1件とC＝U-R1 RG1専用2件は相互の登録完了を待たない。旧「初回製品登録はresolver 1件」という**順序制約だけ**を本分割に限って変更し、固定登録・同一scope・DML非緩和と各拒否条件を維持する。独立レビューは第1回P0=0/P1=5（全採用）、第2回P0/P1/P2=0。
+- U-R1の旧[追補案](shared-function-executor-addendum-proposal.md)は「Aにresolverまで含む」案で、正式承認されたA＝0件と異なるため履歴扱い。U-R1は承認された**A→（B/Cは互いに順序依存なし）**へ接続契約を同期する。Aの具体的な凍結資産変更・7.7とdevelop統合、Cの関数owner/RLS/EXECUTE・個別資産承認は**この分割承認に含まれない**。B全体の完成はCの着手条件にしない。
 
-## 2. 新ステップ2で増やす集合（承認候補）
+## 2. 残る判断の承認一覧
+
+既受理のPort契約・A-1照合・A/B/C分割はここで再審査しない。以下の5行だけをU-R1新2の個別判断対象とする。
+
+| 判断 | 推奨案と具体差分 | 採用時の影響・確認先 |
+| --- | --- | --- |
+| 関数owner | `pitchlog_rg1_fn_owner`を専用`NOLOGIN/NOBYPASSRLS`ロールとして追加。`rg1_api`の2読取関数だけを所有し、既存の管理関数ownerや他表権限を継承しない。`data-model.md`§3-2のロール数・目的を追補 | `FORCE RLS`が関数内でも有効。新ロールと正本7.6/必要な7.3・実カタログexact-setが増える。認可・データモデル所有側の採否が必要 |
+| 状態行RLS | `public.rg1_restore_gate`1行を`FORCE RLS`とし、専用ownerに`SELECT(singleton_id,state)`＋`UPDATE(singleton_id)`だけ付与。`SELECT USING(id=1)`と`UPDATE USING/WITH CHECK(id=1)`の2 policyに限定し、INSERT/DELETE policy・app表ACLは作らない | `FOR SHARE`に必要なUPDATE権/policyを満たし、stateの直接更新権は増やさない。既存分類の非テナント`function_only`例外を表1件だけ正本化し、余剰policy合成・表直アクセスを拒否する実DB試験が必要 |
+| 関数EXECUTE | `rg1_api`を追加し、appにはschema`USAGE`と固定読取2関数の`EXECUTE`だけ。作成transaction内で`PUBLIC EXECUTE`を剥奪し、既存`authz_private`は不変。関数は固定search_path・完全修飾表名・GUC形式検査を持ち、新2では古いopen行でも常にfalse | appのDB直接EXECUTEは可能だが、開放成功にはならない。実効ACL、GUC偽装、未知関数、直接呼出し時のロック保持を検査する。復元開始関数・app表UPDATEは新2に含めない |
+| 待機上限 | 新2のコミット直前読取は`FOR SHARE NOWAIT`を推奨。行ロック競合は即時エラー→B7/P3 B10・scope全取消、隠れた自動再試行なし。復元開始側の`lock_timeout`と再試行上限は製品復元開始を実装する新5の個別ゲートで数値を決める | 新2の通常側は復元が先に行ロックした際に待ち続けない。一方、先に共有ロックを取ったappの直接EXECUTEがtransactionを保持すると復元側は待ち得る。`NOWAIT`だけでその待機上限を保証したとは扱わず、新5の公開前に復元側上限を承認・実DB検証する。`FOR SHARE`の種類は変えない |
+| 「隔離正常系」の最小追補 | 新2は開状態fixtureの**行ロック正常取得と復元UPDATEとの競合**を隔離DBで検査する。製品関数の`true`成功は検査対象から外し、新5の安全な解除後へ送る。試験用fixtureは特権接続で隔離DBの行を`open`にし、試験後破棄する。製品関数本体・registry・公開経路にtest-onlyの開放分岐を入れない | fixtureだけで製品関数の正常開放は検証**できない**（新2は常にfalse）。ロック機構の正常動作は同じ表・同じ行の直接`FOR SHARE`で検証できるが、製品の成功経路の代替証拠とは呼ばない。現行新2ステップ表の「隔離状態で正常系」をこの意味へ限定する6.1/6.3計画差分レビューと人間承認が必要。運用解除は新5の別承認 |
+
+## 3. 新ステップ2で増やす集合（承認候補）
 
 | 所有・対象 | 現在 → 候補の差分 | 限界・拒否条件 |
 | --- | --- | --- |
@@ -18,7 +29,7 @@
 | 永続表 | なし → `public.rg1_restore_gate(singleton_id smallint PRIMARY KEY CHECK(singleton_id=1), state text NOT NULL CHECK(state IN ('closed','open')))`。AlembicはDDLと1行`(1,'closed')`のseedを担当。policy/ACL/`ENABLE`＋`FORCE ROW LEVEL SECURITY`は既存の製品認可適用器を唯一の適用元とする候補 | appの表`SELECT/INSERT/UPDATE/DELETE/TRUNCATE`を全拒否。通常経路は物理削除しない。行欠損・不正状態・行数異常はfail-closed。seedの再実行は既存状態を自動openにしない。migration後・認可適用前や適用失敗時も公開ゲートを閉じ、実カタログ合致まで通常書込みを許さない |
 | 関数schemaとowner | `authz_private`はappのUSAGE拒否を維持。新候補`rg1_api`を`pitchlog_owner`所有で追加し、appに`USAGE`だけを付与。RG1専用`pitchlog_rg1_fn_owner`（`NOLOGIN`・`NOSUPERUSER`・`NOBYPASSRLS`・`NOCREATEDB`・`NOCREATEROLE`・`NOREPLICATION`・`NOINHERIT`）を追加し、既存管理ownerを流用しない | appにschema`CREATE`なし、PUBLICのUSAGE/CREATEなし。関数ownerには他の製品表/関数権限・ロール所属を与えない。role総数・分類の正本3-2改訂が必要 |
 | 表ACL/RLS | 表ownerは既存`pitchlog_owner`。`pitchlog_rg1_fn_owner`へ表schemaのUSAGE、表の`SELECT(singleton_id,state)`と**`UPDATE(singleton_id)`だけ**付与。owner向けに`SELECT USING(singleton_id=1)`と`UPDATE USING(singleton_id=1) WITH CHECK(singleton_id=1)`の2 policyを置く | PostgreSQLの`SELECT ... FOR SHARE`は1列以上のUPDATE権とUPDATE policyも使う。`state`のUPDATE権は与えない。関数ownerはNOLOGIN、appはこのroleを継承しない。INSERT/DELETE policyなし、PUBLIC/app/他ownerのpolicyなし。`FORCE RLS`を維持し、実DBの実効ACL・policy集合をexact照合 |
-| 読取関数 | `rg1_api.rg1_read_open()`は非ロック読取、`rg1_api.rg1_assert_open_before_commit()`は同じ1行を厳密な`FOR SHARE`でロックしscope終端まで保持。両方`SECURITY DEFINER`、固定search_path、完全修飾表名。作成と同一transactionで`PUBLIC EXECUTE`を剥奪しappへこの2件だけ`EXECUTE` | 関数内でもtenant GUCの欠損/不正を拒否。ただしappが直接SQLでGUCを設定できるなら認証済みの根拠とは扱わない。appの直接EXECUTEも想定し、任意行・任意関数へ到達しないこととlock待機の上限を実DBで検査。復元開始UPDATE関数は**新2では作らない** |
+| 読取関数 | `rg1_api.rg1_read_open()`は非ロック読取、`rg1_api.rg1_assert_open_before_commit()`は同じ1行を厳密な`FOR SHARE NOWAIT`でロックしscope終端まで保持する候補。両方`SECURITY DEFINER`、固定search_path、完全修飾表名。作成と同一transactionで`PUBLIC EXECUTE`を剥奪しappへこの2件だけ`EXECUTE` | 関数内でもtenant GUCの欠損/不正を拒否。ただしappが直接SQLでGUCを設定できるなら認証済みの根拠とは扱わない。appの直接EXECUTEも想定し、任意行・任意関数へ到達しないことと通常側の行ロック待機拒否を実DBで検査。復元開始UPDATE関数は**新2では作らない** |
 | 起動・再接続閉鎖 | 新2の製品用2関数は状態行を照合・必要なロックを取得した後も、**常に`false`を返す**候補とする。`open`状態の古いsnapshotを直接EXECUTEしても成功にしない。通常書込みはB7、P3はB10へ写して全取消 | 新2には安全なopen証明源・解除機能がないため、DBの`state='open'`だけで通過させない。正常open時のロック競合は隔離DBの試験用fixtureで再現し、製品の成功経路としない。新5でD4・復旧世代と不可分な解除契約を別承認する |
 
 **ロックとRLSの根拠**: PostgreSQL 17の[SELECT](https://www.postgresql.org/docs/17/sql-select.html)は`FOR SHARE`にUPDATE権を要求し、[CREATE POLICY](https://www.postgresql.org/docs/17/sql-createpolicy.html)はUPDATE policyが`SELECT FOR SHARE`にも適用されると定める。[行ロック表](https://www.postgresql.org/docs/17/explicit-locking.html)では`FOR SHARE`が復元側のキー不変UPDATE（`FOR NO KEY UPDATE`）と衝突する。`FOR KEY SHARE`へ弱めない。`BYPASSRLS`ロールは`FORCE RLS`も迂回するため、専用ownerには付与しない（[RLS](https://www.postgresql.org/docs/17/ddl-rowsecurity.html)）。
@@ -37,7 +48,7 @@ GRANT SELECT (singleton_id, state), UPDATE (singleton_id)
 
 `SELECT FOR SHARE`がこの列ACLと2 policyで通るか、`UPDATE state`・INSERT・DELETEが拒否されるかをPostgreSQL 17実DBで確認する。実測に反すればDDLを独断で広げず、修正差分を認可担当とPOへ戻す。
 
-## 3. 変更資産の境界と検査
+## 4. 変更資産の境界と検査
 
 | 資産群 | 新2の候補差分 | 先行条件・検査 |
 | --- | --- | --- |
@@ -47,11 +58,11 @@ GRANT SELECT (singleton_id, state), UPDATE (singleton_id)
 
 **DB/認可の検査表**: (1) 通常appの表4操作と`SET ROLE`/直接schema CREATE拒否、2関数以外のEXECUTE拒否、PUBLIC実効EXECUTEなし。(2) `FORCE RLS`/owner属性/列ACL/SELECT+UPDATE policyの実カタログexact-set、余剰policyの合成拒否。(3) 関数内の欠損・不正tenant GUC、行欠損・`open`古行、直接EXECUTEで`true`にならないこと。(4) 復元先行と通常側先行の2接続、`FOR KEY SHARE`負例、直接EXECUTEを含む3接続の待機・timeoutと全取消。(5) A固定実行器の2登録・unknown kind/偽造token/失効scope/SQL束縛値、既存DML非緩和。新6の実Port/HTTP結合試験はこの表に含めない。
 
-**承認済み新2ステップ表との整合確認**: 現行計画の新2は「隔離状態で正常系を検証」と記す。一方、本候補の製品関数は安全な開放源がない間は常にfalseで、製品operationの`true`成功試験を新2へ置けない。新2の隔離試験は**同じRG1行への`FOR SHARE`取得・復元UPDATE待機・全取消と、欠損/古いopenの拒否**に限定する。復元開始側UPDATEは隔離試験の特権接続だけで発行し、製品の復元開始関数は新5。製品の正常open成功も新5の安全な解除実装後へ移す最小計画追補が必要。承認済みステップの合格条件を本資料だけで変更しない。6.1/6.3のコア計画差分レビューと人間承認を新2着手前のゲートとする。
+**承認済み新2ステップ表との整合確認**: 現行計画の新2は「隔離状態で正常系を検証」と記す。一方、本候補の製品関数は安全な開放源がない間は常にfalseで、開状態fixtureだけでは製品operationの`true`成功試験を新2へ置けない。新2の隔離試験は**同じRG1行への直接`FOR SHARE`正常取得・復元UPDATE待機・全取消と、製品関数による欠損/古いopenの拒否**を分けて検査する。復元開始側UPDATEは隔離試験の特権接続だけで発行し、製品の復元開始関数は新5。製品の正常open成功も新5の安全な解除実装後へ移す最小計画追補が必要。承認済みステップの合格条件を本資料だけで変更しない。6.1/6.3のコア計画差分レビューと人間承認を新2着手前のゲートとする。
 
-## 4. 個別承認の順序
+## 5. 個別承認の順序
 
-1. TSK-550担当がA＝0件案を正式計画追補へ反映し、6.1/6.3のコア計画レビューとPO承認、共有実行器A自体の正本・認可・凍結個別ゲートを通す。現行受理文を維持する場合はA→B→C。順序を変える場合はPOの明示改訂を先に記録する。
+1. TSK-550の分割計画追補・PO承認は`8a270c2a`で記録済み。共有実行器A自体の正本・認可・凍結個別ゲートとdevelop統合は別に完了させる。A後はB/Cの登録順を固定しない。
 2. U-R1/認可面/データモデル所有側が本資料の1表・2関数・専用owner・RLS/ACL・常閉を項目別に審査し、必要な7.6/7.3と人間の個別承認を得る。特に`UPDATE(singleton_id)`＋UPDATE policyの最小性、app直接EXECUTE、通常側・復元側の待機上限は承認対象。
 3. A統合後の実基線で完全なSQL/JSON、revision/digest、7.7のbefore/after、PR番号と未マージ記録を提示する。**実値の受理まで正式台帳を変更しない**。承認範囲が変われば差分を再審査する。
 

@@ -58,3 +58,10 @@
 - **残条件**: TSK-550 Aの正式追補・レビュー・PO承認とdevelop統合、TSK-550 B/C統合順の正式記録、RG1表分類/role総数を含む正本7.6/必要な7.3、認可面・データモデル所有側の項目別採否、RG1個別DDL/認可/凍結資産の人間承認、A統合後の実revision/digest・7.7前後値。関数ownerの`UPDATE(singleton_id)`が`FOR SHARE`に足りること、direct EXECUTE待機上限、製品常閉と隔離open競合試験の境界は実DB試験・個別承認で確定する。新2製品コード/正式台帳は未変更。U-R1新6の実Port経路試験とD4方式は別。
 - **担当への絞った照会**: TSK-550には後発A＝0件案を接続候補として採用した事実と、正式追補/PO承認/先行PRの共有資産7.7単位の記録所在だけをNotion`3f993b75-e687-8179-8ae7-001d84b8132f`で照会。TSK-424認可面には専用owner、列ACL＋SELECT/UPDATE policy、app直接EXECUTE、非テナント分類、起動/再接続閉鎖・待機上限の項目別採否を`3f993b75-e687-817d-b1c5-001d96fcfaa1`で依頼。既受理Port/A-1や固定function契約は再照会しない。
 - **計画差分の追加発見**: 現行新2ステップ表は隔離openの「正常系」検査を要求するが、本候補の製品関数は古いopen行を含め常にfalseを返す。製品の正常open成功を新2と同一視すると起動時fail-closedを破る。新2では同じ行への共有ロック・復元UPDATE待機・rollbackと閉鎖拒否を隔離実DBで検証し、製品の正常open成功は新5の安全な解除後へ送る**最小計画追補候補**を個別資料へ明記。承認済みステップ表を本資料だけで変更せず、6.1/6.3レビューと人間承認を新2着手前に求める。
+
+## TSK-550正式承認の追随と5件の承認一覧（2026-10-15）
+
+- **出所**: TSK-550所有worktree`feature/ux1-fr014-rule-resolution`のコミット`8a270c2a4bcb41d067341b02cdd8171299a2e2a4`を読取照合。同コミットは`plan.md`、`step1-contract-acceptance.md`、作業ログへPOの2026-10-15分割追補承認を記録し、レビュー対象`ae380801`を明示する。A＝登録0件の共有実行器を別PRで先行、A後はB resolver1件/C RG1専用2件が相互に登録完了を待たない。旧初回resolver順序だけ本分割で変更。共有実行器の具体凍結資産・7.7とCの関数権限は別ゲート。この承認事実をU-R1計画・[個別資料](../features/ur1-recording-rights/rg1-individual-approval-packet.md)・旧追補案へ同期し、前節の「追補未承認」「A→B→Cのみ」は照合前の時点記録とする。
+- **判断一覧**: 個別資料2節へ、(1)専用NOLOGIN/NOBYPASSRLS owner、(2)FORCE RLS・SELECT/UPDATE singleton policyと最小列ACL、(3)appの2関数限定EXECUTE/PUBLIC剥奪、(4)新2の`FOR SHARE NOWAIT`/全取消と新5の復元側待機上限、(5)隔離open fixtureでの行ロック正常試験と製品正常openを新5へ分離する最小計画追補、の各推奨案・具体差分・採用時の影響を一表に整理。owner/RLS/EXECUTE/待機上限/追補以外の既受理契約は再審査しない。
+- **fixtureの判定**: 特権試験接続が隔離DBのRG1行を`open`にし、同じ行への直接`FOR SHARE`取得と復元UPDATE競合を検査することは可能。新2の製品用関数は古いopen行でも常にfalseを返す候補なので、開状態fixtureだけで製品operationの`true`成功を証明することは**できない**。試験用開状態を運用解除の承認・実装へ読み替えず、製品関数にtest-onlyバイパスを足さない。
+- **残条件**: Aのdevelop統合、RG1個別判断の担当採否・必要な正本/計画レビューと人間承認、A統合後の実revision/digest・7.7 before/after。D4方式は別ゲート、U-R1実経路結合試験は新6。製品コード・正式凍結資産は未変更。

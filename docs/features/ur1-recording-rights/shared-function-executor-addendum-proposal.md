@@ -4,6 +4,8 @@
 
 **後発の担当案との照合（2026-10-15、本書のA/B/C表に優先）**: TSK-550担当の`feature/ux1-fr014-rule-resolution` HEAD `ae380801`にある`shared-function-executor-split-proposal.md`と作業ログは、A＝共有実行器・製品登録0件、B＝段階A resolver 1件、C＝U-R1 RG1 2件を**未承認の条件付き案**として提示し、独立レビュー第2回はP0/P1/P2=0。本書の「Aにresolverを含む」案とは一致しないため、U-R1は後発のA＝0件へ接続候補を更新した。ただしTSK-550承認済み計画は「初回の製品登録はresolver 1件」のままで、A＝0件の正式追補・PO承認は未確認。現行順序を保てばA→B→Cであり、A→C→Bは初回登録順の明示改訂が必要。実際の承認状態・RG1個別資産候補は[新資料](rg1-individual-approval-packet.md)を正とする。以下は変更前の提案履歴であり、承認済み統合順として使用しない。
 
+**正式承認記録の追随（2026-10-15、直上の未承認時点記録に優先）**: TSK-550側コミット`8a270c2a`の計画・受理シート・作業ログは、POが`ae380801`分割案を承認したと記録する。Aは0件の共有実行器、A後はBとCの順序依存なし。旧「最初の登録はresolver」制約はこの分割だけ変更済み。具体凍結資産・7.7やU-R1のRG1個別認可まで承認された意味ではない。[個別承認資料](rg1-individual-approval-packet.md)を現行の判断一覧とする。
+
 ## 先行範囲と統合順
 
 TSK-550の承認済み計画はステップ3で段階A制限関数・認可・配置、ステップ4で固定関数operationの登録経路を実装し、ステップ5以降で公開resolver等を扱う。受理済み契約は既存DMLの`OperationRegistration` / `_TenantTransaction.run`を緩めず、別の`FunctionOperationRegistration` / 同一scopeの`run_function`を設け、**最初の製品登録を段階Aの1件**とする。U-R1はこの共有実行器を複製しない。
