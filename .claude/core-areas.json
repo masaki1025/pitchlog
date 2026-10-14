@@ -547,7 +547,10 @@
         "tests/test_census_baseline_check.py",
         "frontend/src/stores/authStore*",
         "frontend/src/api/*",
-        "frontend/src/screens/GameScreen*"
+        "frontend/src/screens/GameScreen*",
+        "frontend/src/components/settings/TeamMembersContent*",
+        "frontend/src/lib/rosterQueryKeys*",
+        "frontend/src/screens/TeamScreen*"
       ]
     },
     {
@@ -603,7 +606,10 @@
         "scripts/check_vocabulary_manifest.py",
         "tests/test_vocabulary_manifest.py",
         "tests/test_vocabulary_seed.py",
-        "frontend/src/screens/GameScreen*"
+        "frontend/src/screens/GameScreen*",
+        "frontend/src/components/settings/TeamMembersContent*",
+        "frontend/src/lib/rosterQueryKeys*",
+        "frontend/src/screens/TeamScreen*"
       ]
     }
   ]
