@@ -140,6 +140,32 @@ def test_matching_subject_digest_and_recorded_attestation_are_accepted() -> None
     _validate(_signature_record())
 
 
+GATE6_SIGNATURE_DIRECTORY = (
+    REPOSITORY_ROOT / "docs/features/adr003-stage2-runtime/signatures"
+)
+
+
+def test_repository_gate6_signature_records_match_current_contracts() -> None:
+    """TSK-538ゲート⑥の署名記録が現行の両契約と宣言どおりに一致する。"""
+    records = {
+        path.name: _load_object(path)
+        for path in sorted(GATE6_SIGNATURE_DIRECTORY.glob("*.json"))
+    }
+
+    assert set(records) == {"gate6-game-end.json", "gate6-state-transition.json"}
+    subjects = set()
+    for record in records.values():
+        _validate(record)
+        subjects.add(record["subject"]["path"])
+        assert record["artifactAuthorId"] == "codex"
+        assert record["recordedReviewerId"] == "山田正輝"
+        assert "step33_line_review.md" in record["reviewScope"]
+    assert subjects == {
+        "contracts/state-transition/game_end_contract_v1.json",
+        "contracts/state-transition/state_transition_contract_v1.json",
+    }
+
+
 def test_subject_digest_mismatch_is_red() -> None:
     """署名対象の現物と一致しない記録digestを拒否する。"""
     record = _signature_record()

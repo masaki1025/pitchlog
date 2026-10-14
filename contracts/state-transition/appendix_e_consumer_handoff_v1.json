@@ -50,7 +50,7 @@
       "executionPaths": [
         {
           "runner": "pytest",
-          "runnerRevision": "pending",
+          "runnerRevision": "e6c3a59cd89d8f3fb55f1be987c9b19765dab494",
           "normalizerId": null,
           "entrypointId": null,
           "directTargetId": null,
@@ -58,7 +58,7 @@
         },
         {
           "runner": "vitest",
-          "runnerRevision": "pending",
+          "runnerRevision": "e6c3a59cd89d8f3fb55f1be987c9b19765dab494",
           "normalizerId": null,
           "entrypointId": null,
           "directTargetId": null,
@@ -104,7 +104,7 @@
       "executionPaths": [
         {
           "runner": "pytest",
-          "runnerRevision": "pending",
+          "runnerRevision": "e6c3a59cd89d8f3fb55f1be987c9b19765dab494",
           "normalizerId": null,
           "entrypointId": null,
           "directTargetId": null,
@@ -112,7 +112,7 @@
         },
         {
           "runner": "vitest",
-          "runnerRevision": "pending",
+          "runnerRevision": "e6c3a59cd89d8f3fb55f1be987c9b19765dab494",
           "normalizerId": null,
           "entrypointId": null,
           "directTargetId": null,

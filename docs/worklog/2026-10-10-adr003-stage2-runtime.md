@@ -353,3 +353,13 @@ branch: feature/adr003-stage2-runtime
 - WALK-OFF の典拠に F-1。未決の一覧: G6-E03 を S22 と同じ送り先へ・E01/E02/E04 の行番号を訂正・E13(FR-040 採用時の延長最終回の X)と E14(event 列の操作種別と payload の食い違い)を追加
 - 終了判定 248 case(不変 — 除いた分を前提に合う局面で展開し直した)・到達可能・充足 1560 → 1542・到達不可 3069 → 3087
 - ハーネス全件 70 failed・新規 0、Vitest 1135 緑。**シート digest `9041f14c4b2a7d06440bb1278e31e8fe48e03f1ebedaa352a5b25685b62b1325`(ゲート ⑥ の承認対象)**
+
+### ゲート ⑥ の承認とステップ 34(2026-10-15)
+
+- **山田さんがゲート ⑥ を承認**(2026-10-15)。対象はシート `step33_line_review.md`(SHA-256 `9041f14c4b2a7d06440bb1278e31e8fe48e03f1ebedaa352a5b25685b62b1325`)と突合表 `gate6-crosscheck.md`
+- 署名の宣誓について確認(山田さんの回答): **条文を直接照合した**(作成者の作業結果と Claude の突合表を見た後に、要件書の条文を照合 — `seen-before-source-review` の順序)
+- **provenance は not-performed のまま**(山田さんの裁定): provenance は契約全体に 1 つで、状況判定の契約には今回の対象外の既存の `matrixRows` も入っているため。今回の確認は範囲を限れる署名記録だけに残す。計画書のステップ 34 の「`independentReview`」はこの形に読み替えた
+- **Codex の残量が少ないため、山田さんの指示でステップ 34 から Claude が直接実装**(Codex の委任は読み込みの段階で止めた — 変更なし)。CLAUDE.md の「直接書いた場合は `codex_run.py review normal` を通す」は、Ready の前に Claude が書いた分(ステップ 34・取り込み・再封印)をまとめて 1 回通す
+- 署名記録 2 件: `docs/features/adr003-stage2-runtime/signatures/gate6-game-end.json`(終了判定の契約・8 行 248 case)・`gate6-state-transition.json`(状況判定の契約・操作行 10 と undo 行 10・20 case — matrixRows は範囲外と明記)。作成者 codex・確認者 山田正輝・2026-10-15・`direct-clause-comparison`・宣誓 真。`tests/test_human_review_signature.py` に、リポジトリの記録が現行の両契約と一致することの試験を足した(契約が変われば赤 — 署名のやり直しが要る)
+- runnerRevision: `pending` → pytest・Vitest とも `e6c3a59cd89d8f3fb55f1be987c9b19765dab494`(両 runner 資産〔`vector_bridge.py`・`vectorRunner.ts`〕の最終変更 = ステップ 30)。schema を 40 桁 OID の pattern に。試験: HEAD の祖先・その時点の runner の blob が HEAD と同一 / 負例: `pending`・存在しない commit・祖先でない commit(一時リポジトリで作る — `.git` に書かない)・runner が HEAD と異なる時点の commit
+- ハーネス全件 70 failed・新規 0(ID・エラー行とも)、Vitest 1135 緑

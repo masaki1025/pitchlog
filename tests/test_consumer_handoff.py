@@ -330,12 +330,93 @@ def test_duplicate_runner_fails_exact_set() -> None:
         _validate_handoff(handoff)
 
 
-def test_runner_revision_cannot_claim_resolved() -> None:
-    """段階1でrunnerのcommit OIDを確定済みと宣言できない。"""
+RUNNER_ASSETS = {
+    "pytest": "backend/src/pitchlog/domaincheck/runners/vector_bridge.py",
+    "vitest": "frontend/src/testing/vectorRunner.ts",
+}
+
+
+def _git(*args: str, root: Path = REPOSITORY_ROOT) -> subprocess.CompletedProcess[bytes]:
+    """gitを実行し、終了コードの判定は呼び出し側に委ねる。"""
+    return subprocess.run(
+        ["git", *args],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        timeout=10,
+    )
+
+
+def _runner_revision_error(
+    runner: str, revision: str, root: Path = REPOSITORY_ROOT
+) -> str | None:
+    """runnerRevisionがHEADの祖先で、その時点のrunner資産がHEADと同一かを返す。"""
+    if _git("cat-file", "-e", f"{revision}^{{commit}}", root=root).returncode != 0:
+        return "commitが存在しない"
+    if _git("merge-base", "--is-ancestor", revision, "HEAD", root=root).returncode != 0:
+        return "HEADの祖先でない"
+    path = RUNNER_ASSETS[runner]
+    pinned = _git("rev-parse", f"{revision}:{path}", root=root)
+    current = _git("rev-parse", f"HEAD:{path}", root=root)
+    if pinned.returncode != 0 or pinned.stdout != current.stdout:
+        return "runner資産のblobがHEADと一致しない"
+    return None
+
+
+def test_runner_revision_rejects_pending() -> None:
+    """段階2ではrunnerRevisionを未確定のpendingのままにできない。"""
     handoff = copy.deepcopy(_handoff())
-    handoff["consumerBindings"][0]["executionPaths"][0]["runnerRevision"] = "a" * 40
-    with pytest.raises(schema_checker.DescriptorCheckError, match="const不一致"):
+    handoff["consumerBindings"][0]["executionPaths"][0]["runnerRevision"] = "pending"
+    with pytest.raises(schema_checker.DescriptorCheckError, match="pattern"):
         _validate_handoff(handoff)
+
+
+def test_runner_revisions_pin_head_runner_assets() -> None:
+    """各runnerRevisionはHEADの祖先で、その時点のrunner資産がHEADと同一である。"""
+    paths = [
+        path
+        for binding in _handoff()["consumerBindings"]
+        for path in binding["executionPaths"]
+    ]
+    assert {path["runner"] for path in paths} == set(RUNNER_ASSETS)
+    for path in paths:
+        assert _runner_revision_error(path["runner"], path["runnerRevision"]) is None
+
+
+def test_runner_revision_rejects_unknown_commit() -> None:
+    """存在しないcommit OIDはrunnerの版として受け付けない。"""
+    revision = _handoff()["consumerBindings"][0]["executionPaths"][0]["runnerRevision"]
+    unknown = "0" * 40 if revision != "0" * 40 else "1" * 40
+    assert _runner_revision_error("pytest", unknown) == "commitが存在しない"
+
+
+def test_runner_revision_rejects_non_ancestor(tmp_path: Path) -> None:
+    """runner資産が同一でも、HEADの祖先でないcommitは版として受け付けない。"""
+    path = RUNNER_ASSETS["pytest"]
+    identity = ("-c", "user.name=test", "-c", "user.email=test@example.invalid")
+    assert _git("init", "-q", "-b", "main", root=tmp_path).returncode == 0
+    asset = tmp_path / path
+    asset.parent.mkdir(parents=True)
+    asset.write_bytes((REPOSITORY_ROOT / path).read_bytes())
+    assert _git("add", path, root=tmp_path).returncode == 0
+    assert _git(*identity, "commit", "-q", "-m", "base", root=tmp_path).returncode == 0
+    assert _git("switch", "-q", "-c", "side", root=tmp_path).returncode == 0
+    assert _git(
+        *identity, "commit", "-q", "--allow-empty", "-m", "side", root=tmp_path
+    ).returncode == 0
+    side = _git("rev-parse", "HEAD", root=tmp_path).stdout.decode().strip()
+    assert _git("switch", "-q", "main", root=tmp_path).returncode == 0
+    assert _runner_revision_error("pytest", side, root=tmp_path) == "HEADの祖先でない"
+
+
+def test_runner_revision_rejects_stale_runner_asset() -> None:
+    """runner資産がHEADと異なる時点のcommitは版として受け付けない。"""
+    for runner, path in RUNNER_ASSETS.items():
+        history = _git("log", "--format=%H", "-2", "--", path).stdout.decode().split()
+        assert len(history) == 2, path
+        assert _runner_revision_error(runner, history[1]) == (
+            "runner資産のblobがHEADと一致しない"
+        )
 
 
 def test_artifact_digest_mismatch_is_red() -> None:
