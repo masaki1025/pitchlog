@@ -390,3 +390,12 @@ branch: feature/us1-sync-apply-core
 
 - 10-3「T 要素の確定状態」の例示を直した: `no-write` の例「墓標の T4」→「選手登録を伴わないイベントの T6 の一時 ID 写像、B3b の T9、停止境界より後ろで未処理になったイベントの T 要素」/ `no-change` の例「改訂の T3」を削除(10-2 の改訂は D3 を 4 → 7 へ進めるので T3 は確定 — 例として誤り)/ 「故障の注入で中断した書き込みは非確定とし、no-write と区別する」を足した(runner の判定規則と同じ)
 - 草案は in-review のままで、版は v0.8 のまま(確定前の草案の訂正)。U-S1 の資産は `no-change` を使っていない。**確定ゲートで「`no-change` を語彙に残すか」を問う**(スパイク S-4 の「改訂の T3」は実装前の形に基づく — `docs/features/us1-sync-apply-core/research.md:241`・`design.md:109` の記述はスパイクの記録として残す)
+
+## ステップ 20 — クライアント側の (d) runner の I6(2026-10-15 — Claude が直接実装)
+
+- `failureScenarioAdapter.ts` に `executeClientObservedCase` と `CLIENT_OBSERVED_CASES` を足した。`p3-crash-boundaries` の `server-confirmed-before-i6` で、サーバーの確定応答(accepted_at)を受けて `prepareI6Acceptance` で永続化を準備した後、`persistI6Acceptance` の前にキューを閉じる(ブラウザ終了)。開き直して `readI6`・`prepareI6Evacuation` から I6 の 6 フィールド(4 項目の永続・保持期限の起点・退避)を観測する
+- 結果検査(TS)に `scope`(`caseIds`・`observedFieldIds`)を足した。I6 の case はサーバー runner がサーバー側のフィールドを、このアダプタが I6 の 6 フィールドを観測する。**分担 = その case の I6 の実値フィールドちょうど**であることを、frontend の spec と Python の runner の試験がそれぞれ資産から照合する
+- 負例: 注入の前に I6 を端末へ永続化する変異(`persistI6BeforeInjection`)が赤になる / 担当外のフィールド・資産に無い caseId を混ぜると赤になる
+- 期待値をアダプタへ複製しない検査の対象に、端末を観測する case の I6 の値も足した
+- `src/testing/` に .ts を足していないので `EXPECTED_TESTING_SOURCE_FILE_NAMES` は変えていない(計画の第 1 改訂で予定した追随は不要になった)
+- 検査: frontend 全件 989 passed・vue-tsc・eslint・prettier green / 専用 DB で runner の分担の試験 green

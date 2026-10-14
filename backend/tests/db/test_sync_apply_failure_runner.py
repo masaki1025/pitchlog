@@ -935,7 +935,9 @@ def test_runner_split_covers_every_case_and_field() -> None:
                 for key, value in observation["fields"].items()
                 if not (isinstance(value, dict) and "omittedBecause" in value)
             }
-            assert fields <= real
+            # 端末を観測するのは I6 の実値フィールドちょうど(frontend の
+            # CLIENT_OBSERVED_CASES も同じ資産から同じ集合を照合する)。
+            assert fields == {key for key in real if key.startswith("i6")}
     server_cases = {
         (asset["scenarioId"], case["caseId"]) for asset, case in _SERVER_CASE_PAIRS
     }

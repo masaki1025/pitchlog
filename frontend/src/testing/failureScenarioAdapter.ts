@@ -11,6 +11,8 @@ import {
   type DurableQueueScope,
 } from '../lib/sync/durableQueue'
 import { EVENT_SLOT_IDS } from '../lib/sync/eventFieldRules'
+import { queueStateId, type I6Acceptance } from '../lib/sync/queueState'
+import { TARGET_EVENT_REFERENCE_ELEMENTS } from '../lib/sync/syncEvent'
 import {
   FAILURE_SCENARIO_IDS,
   parseFailureScenarioContract,
@@ -37,6 +39,7 @@ export const FAILURE_FIXTURE_DIRECTORY = resolve(
 
 export type FailureScenarioExecutionOptions = Readonly<{
   extraPersistence?: boolean
+  persistI6BeforeInjection?: boolean
 }>
 
 type JsonRecord = Record<string, unknown>
@@ -747,5 +750,168 @@ export async function executeFailureScenario(
   } finally {
     queue.close()
     await deleteDatabase(databaseName)
+  }
+}
+
+/**
+ * サーバー側の資産のうち、端末の状態をこのアダプタが観測する case とフィールド。
+ *
+ * サーバー側の runner(`backend/tests/db/test_sync_apply_failure_runner.py` の
+ * `CLIENT_OBSERVED_FIELDS`)は同じ case の残りのフィールドを観測する。
+ */
+export const CLIENT_OBSERVED_CASES = [
+  {
+    scenarioId: 'p3-crash-boundaries',
+    caseId: 'server-confirmed-before-i6',
+    fieldIds: [
+      'i6TargetReference',
+      'i6Version',
+      'i6D5',
+      'i6ConfirmedContent',
+      'i6RetentionDeadline',
+      'i6EscrowState',
+    ],
+  },
+] as const satisfies readonly Readonly<{
+  scenarioId: FailureScenarioContract['scenarioId']
+  caseId: string
+  fieldIds: readonly string[]
+}>[]
+
+async function observeI6(
+  databaseName: string,
+  observationPoint: string,
+  d5: unknown,
+): Promise<FailureScenarioObservation> {
+  const queue = await openDurableQueue({
+    databaseName,
+    requestStoragePersistence: async () => Boolean(databaseName),
+  })
+  try {
+    const slot = await queue.readI6(d5)
+    const evacuation = await queue.prepareI6Evacuation(d5, {
+      confirmI6EvacuationSaved: () => Boolean(slot),
+    })
+    const has = (key: string) => Boolean(slot) && Object.hasOwn(slot ?? {}, key)
+    return observation(observationPoint, {
+      i6TargetReference: { persisted: has('targetReference') },
+      i6Version: { persisted: has('expectedVersion') },
+      i6D5: { persisted: has('d5') },
+      i6ConfirmedContent: { persisted: has('confirmedContent') },
+      i6RetentionDeadline: { set: has('acceptedAt') },
+      i6EscrowState: {
+        evacuated: slot?.state === queueStateId('退避済み'),
+        collectible: Boolean(evacuation),
+      },
+    })
+  } finally {
+    queue.close()
+  }
+}
+
+/**
+ * P3 の受理結果をサーバーの確定応答(accepted_at)まで受け、端末へ永続化する前に
+ * ブラウザが終了する注入を、製品の永続キューで起こす。
+ */
+async function runServerConfirmedBeforeI6(
+  contract: FailureScenarioContract,
+  testCase: FailureScenarioCase,
+  options: FailureScenarioExecutionOptions,
+): Promise<FailureScenarioCaseResult> {
+  const queueInput = recordFieldValue(contract.input, 'queue')
+  const unsent = queueInput.unsent
+  if (!Array.isArray(unsent) || unsent.length !== [contract].length) {
+    throw new Error('P3 の資産には送る変更イベントが一つ必要です')
+  }
+  const [firstChange] = unsent
+  const change = requireRecord(firstChange, 'queue.unsent[0]')
+  const target = requireRecord(change.target, 'queue.unsent[0].target')
+  const [targetGame, targetD4, targetD1] = TARGET_EVENT_REFERENCE_ELEMENTS
+  if (!targetGame || !targetD4 || !targetD1) {
+    throw new Error('対象参照の要素が正本と一致しません')
+  }
+  const targetReference = {
+    [targetGame]: contract.scenarioId,
+    [targetD4]: recordFieldValue(contract.input, 'd4').request,
+    [targetD1]: target.d1,
+  }
+  const acceptance: I6Acceptance = {
+    targetReference,
+    expectedVersion: change.expectedVersion,
+    d5: change.d5,
+    confirmedContent: change.payload,
+  }
+  const [injectionPoint, restartPoint, ...extra] = observationPoints(testCase)
+  if (!injectionPoint || !restartPoint || extra.length) {
+    throw new Error('I6 の注入には二つの観測点が必要です')
+  }
+
+  const allocation = allocatedDatabaseNames.push(contract.scenarioId)
+  const databaseName = `failure-scenario-i6-${contract.scenarioId}-${allocation}`
+  const injections: unknown[] = []
+  const queue = await openDurableQueue({
+    databaseName,
+    requestStoragePersistence: async () => Boolean(contract.schemaVersion),
+  })
+  try {
+    // サーバーの確定応答を受け、I6 の永続化を準備した時点。
+    const preparation = queue.prepareI6Acceptance(acceptance, {
+      resolveAcceptedAt: () => ({
+        known: Boolean(targetReference),
+        targetReference,
+        acceptedAt: String(contract.version),
+      }),
+    })
+    if (!preparation) {
+      throw new Error('I6 の永続化を準備できませんでした')
+    }
+    if (options.persistI6BeforeInjection) {
+      await queue.persistI6Acceptance(preparation)
+    }
+    // 端末永続化の前にブラウザが終了する。
+    injections.push(preparation)
+  } finally {
+    queue.close()
+  }
+  try {
+    return caseResult(testCase, injections, [
+      await observeI6(databaseName, injectionPoint, acceptance.d5),
+      await observeI6(databaseName, restartPoint, acceptance.d5),
+    ])
+  } finally {
+    await deleteDatabase(databaseName)
+  }
+}
+
+/**
+ * サーバー側の資産の case のうち、端末の状態だけをこのアダプタで観測する。
+ *
+ * Args:
+ *   contract: 検査済みの故障シナリオ資産。
+ *   caseId: `CLIENT_OBSERVED_CASES` の case。
+ *   options: 変異試験専用の故障注入。
+ *
+ * Returns:
+ *   担当フィールドだけを持つ、その case の観測結果。
+ */
+export async function executeClientObservedCase(
+  contract: FailureScenarioContract,
+  caseId: string,
+  options: FailureScenarioExecutionOptions = {},
+): Promise<FailureScenarioResult> {
+  const assigned = CLIENT_OBSERVED_CASES.find(
+    (candidate) =>
+      candidate.scenarioId === contract.scenarioId &&
+      candidate.caseId === caseId,
+  )
+  const testCase = contract.cases.find(
+    (candidate) => candidate.caseId === caseId,
+  )
+  if (!assigned || !testCase) {
+    throw new Error(`端末を観測する case がありません: ${caseId}`)
+  }
+  return {
+    scenarioId: contract.scenarioId,
+    cases: [await runServerConfirmedBeforeI6(contract, testCase, options)],
   }
 }

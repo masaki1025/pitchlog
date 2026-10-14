@@ -609,6 +609,8 @@ export function validateFailureScenarioContract(
  * Args:
  *   contract: 検査済みの故障シナリオ資産契約。
  *   value: シナリオ実行側が返した観測結果。
+ *   scope: この runner が担う case と、観測するフィールド(省略時は全部)。
+ *     担当外のフィールドは結果に現れてはならない。
  *
  * Raises:
  *   FailureScenarioContractError: 欠落・未知・順序違い・値の不一致がある場合。
@@ -616,21 +618,37 @@ export function validateFailureScenarioContract(
 export function validateFailureScenarioResult(
   contract: FailureScenarioContract,
   value: unknown,
+  scope: Readonly<{
+    caseIds?: readonly string[]
+    observedFieldIds?: readonly string[]
+  }> = {},
 ): asserts value is FailureScenarioResult {
   const result = requireExactKeys(value, RESULT_FIELD_IDS, 'result')
   if (result.scenarioId !== contract.scenarioId) {
     fail('result.scenarioId が契約と一致しません')
   }
+  const { caseIds, observedFieldIds } = scope
+  if (
+    caseIds?.some(
+      (caseId) =>
+        !contract.cases.some((testCase) => testCase.caseId === caseId),
+    )
+  ) {
+    fail('資産に無い caseId を担当に指定しています')
+  }
+  const expectedCases = contract.cases.filter(
+    (testCase) => !caseIds || caseIds.includes(testCase.caseId),
+  )
   if (
     !Array.isArray(result.cases) ||
-    result.cases.length !== contract.cases.length
+    result.cases.length !== expectedCases.length
   ) {
     fail('result.cases の件数が契約と一致しません')
   }
 
   result.cases.forEach((candidate: unknown, caseIndex: number) => {
     const location = `result.cases[${caseIndex}]`
-    const expectedCase = contract.cases[caseIndex]
+    const expectedCase = expectedCases[caseIndex]
     const actualCase = requireExactKeys(
       candidate,
       RESULT_CASE_FIELD_IDS,
@@ -677,7 +695,9 @@ export function validateFailureScenarioResult(
           fail(`${observationLocation} の順序が一致しません`)
         }
         const realFieldIds = Object.keys(expected.fields).filter(
-          (fieldId) => !isOmitted(expected.fields[fieldId]),
+          (fieldId) =>
+            !isOmitted(expected.fields[fieldId]) &&
+            (!observedFieldIds || observedFieldIds.includes(fieldId)),
         )
         const fields = requireExactKeys(
           observation.fields,

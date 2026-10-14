@@ -8,8 +8,10 @@ import {
 } from '../lib/sync/failureScenarioContract'
 import failureScenarioAdapterSource from './failureScenarioAdapter.ts?raw'
 import {
+  CLIENT_OBSERVED_CASES,
   CLIENT_RUNNER_SCENARIO_IDS,
   SERVER_RUNNER_SCENARIO_IDS,
+  executeClientObservedCase,
   executeFailureScenario,
   readFailureScenarioAssets,
 } from './failureScenarioAdapter'
@@ -152,6 +154,16 @@ describe('failureScenarioAdapter', () => {
         }
       }
     }
+    for (const assigned of CLIENT_OBSERVED_CASES) {
+      const testCase = contractById(assigned.scenarioId).cases.find(
+        (candidate) => candidate.caseId === assigned.caseId,
+      )
+      for (const observation of testCase?.observations ?? []) {
+        for (const fieldId of assigned.fieldIds) {
+          collectScalarLiterals(observation.fields[fieldId], expectedLiterals)
+        }
+      }
+    }
     const sourceLiterals = sourceScalarLiterals(failureScenarioAdapterSource)
     const duplicatedLiterals = expectedLiterals.filter((expectedLiteral) =>
       sourceLiterals.some((sourceLiteral) =>
@@ -212,5 +224,86 @@ describe('failureScenarioAdapter', () => {
     })
 
     expect(() => validateFailureScenarioResult(contract, result)).toThrow()
+  })
+
+  it.each(CLIENT_OBSERVED_CASES)(
+    '$scenarioId の $caseId で端末の状態を製品の永続キューから観測し、担当フィールドを満たす',
+    async ({ scenarioId, caseId, fieldIds }) => {
+      const contract = contractById(scenarioId)
+      const result = await executeClientObservedCase(contract, caseId)
+
+      expect(() =>
+        validateFailureScenarioResult(contract, result, {
+          caseIds: [caseId],
+          observedFieldIds: fieldIds,
+        }),
+      ).not.toThrow()
+    },
+  )
+
+  it('端末を観測するフィールドは case の I6 の実値フィールドと一致する', () => {
+    for (const { scenarioId, caseId, fieldIds } of CLIENT_OBSERVED_CASES) {
+      expect(SERVER_RUNNER_SCENARIO_IDS).toContain(scenarioId)
+      const testCase = contractById(scenarioId).cases.find(
+        (candidate) => candidate.caseId === caseId,
+      )
+      expect(testCase).toBeDefined()
+      for (const observation of testCase?.observations ?? []) {
+        const i6Fields = Object.entries(observation.fields)
+          .filter(
+            ([fieldId, value]) =>
+              fieldId.startsWith('i6') &&
+              !(
+                typeof value === 'object' &&
+                value !== null &&
+                Object.hasOwn(value, 'omittedBecause')
+              ),
+          )
+          .map(([fieldId]) => fieldId)
+        expect([...fieldIds].sort()).toEqual(i6Fields.sort())
+      }
+    }
+  })
+
+  it('負例: 注入の前に I6 を端末へ永続化する変異を red にする', async () => {
+    const [{ scenarioId, caseId, fieldIds }] = CLIENT_OBSERVED_CASES
+    const contract = contractById(scenarioId)
+    const result = await executeClientObservedCase(contract, caseId, {
+      persistI6BeforeInjection: true,
+    })
+
+    expect(() =>
+      validateFailureScenarioResult(contract, result, {
+        caseIds: [caseId],
+        observedFieldIds: fieldIds,
+      }),
+    ).toThrow()
+  })
+
+  it('担当外の case・フィールドを結果に混ぜると red にする', async () => {
+    const [{ scenarioId, caseId, fieldIds }] = CLIENT_OBSERVED_CASES
+    const contract = contractById(scenarioId)
+    const result = mutableResult(
+      await executeClientObservedCase(contract, caseId),
+    )
+    const [firstCase] = result.cases
+    const [firstObservation] = firstCase?.observations ?? []
+    if (!firstObservation) {
+      throw new Error('変異対象の観測結果がありません')
+    }
+    firstObservation.fields.recordingRight = { held: true }
+
+    expect(() =>
+      validateFailureScenarioResult(contract, result, {
+        caseIds: [caseId],
+        observedFieldIds: fieldIds,
+      }),
+    ).toThrow()
+    expect(() =>
+      validateFailureScenarioResult(contract, result, {
+        caseIds: ['unknown-case'],
+        observedFieldIds: fieldIds,
+      }),
+    ).toThrow()
   })
 })
