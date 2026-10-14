@@ -1472,10 +1472,28 @@
       "additionalProperties": false,
       "properties": {
         "history": {
-          "$ref": "#/$defs/fieldEffect"
+          "$ref": "#/$defs/historyEffect"
         },
         "operationResult": {
-          "$ref": "#/$defs/fieldEffect"
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "set"
+            },
+            "value": {
+              "enum": [
+                "applied",
+                "rejected-precondition",
+                "rejected-invalid-payload",
+                "nothing-to-undo"
+              ]
+            }
+          }
         }
       }
     },
@@ -1597,6 +1615,7 @@
     "undoTargetKind": {
       "enum": [
         "confirmed-play",
+        "none",
         "state-correction"
       ],
       "x-pitchlog-conditional-values": [
@@ -1959,9 +1978,87 @@
         "normalizationRuleId": {
           "$ref": "#/$defs/normalizationRuleId"
         },
-        "normalized": {}
+        "normalized": {},
+        "historyInput": {
+          "$ref": "#/$defs/historyInput"
+        }
       },
       "additionalProperties": true
+    },
+    "historyEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unchanged"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "entryKind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "push"
+            },
+            "entryKind": {
+              "enum": [
+                "confirmed-play",
+                "state-correction"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "count"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "pop"
+            },
+            "count": {
+              "const": 1
+            }
+          }
+        }
+      ]
+    },
+    "historyInput": {
+      "type": "object",
+      "required": [
+        "stack"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "stack": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "before": {
+          "type": "object"
+        },
+        "after": {
+          "type": "object"
+        },
+        "statFlags": {
+          "type": "object"
+        }
+      }
     },
     "normalizationRuleId": {
       "enum": [

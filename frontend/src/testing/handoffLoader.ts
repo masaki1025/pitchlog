@@ -20,6 +20,7 @@ const CONTRACTS = {
       'caseId',
       'rowRef',
       'inputCoordinate',
+      'historyInput',
       'expected',
       'raw',
       'normalizationRuleId',

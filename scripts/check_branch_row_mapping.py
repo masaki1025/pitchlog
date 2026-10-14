@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import sys
+from itertools import product
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
+
+import representative_selection
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_NAME = "branch_row_mapping_schema_v1.json"
@@ -15,6 +19,246 @@ SCHEMA_NAME = "branch_row_mapping_schema_v1.json"
 class BranchRowMappingError(ValueError):
     """対応表の宣言または参照整合が不正である。"""
 
+
+class HistoryEffectError(ValueError):
+    """履歴面の規範行または入力スナップショットが不正な場合を表す。"""
+
+
+def _fail(rule_id: str, detail: str) -> NoReturn:
+    """規則 ID を含む違反を返す。"""
+    raise HistoryEffectError(f"{rule_id}: {detail}")
+
+
+def _depth_zero_only(predicate: dict[str, Any], descriptor: dict[str, Any]) -> bool:
+    """述語が許す履歴深さの集合が 0 だけかを列挙して調べる。"""
+    axes = sorted(representative_selection.predicate_axes(predicate))
+    if "history.depth" not in axes:
+        return False
+    values_by_axis = representative_selection.axis_values(
+        descriptor, ("stateTransitionAxes",)
+    )
+    if any(axis not in values_by_axis for axis in axes):
+        _fail("HISTORY_UNDECIDABLE", "述語に未登録の軸がある")
+    size = 1
+    for axis in axes:
+        size *= len(values_by_axis[axis])
+        if size > 100_000:
+            _fail("HISTORY_UNDECIDABLE", "述語の入力直積が上限を超える")
+    possible = {
+        coordinate["history.depth"]
+        for values in product(*(values_by_axis[axis] for axis in axes))
+        if representative_selection.predicate_holds(
+            predicate, coordinate := dict(zip(axes, values, strict=True))
+        )
+    }
+    return possible == {0}
+
+
+def _all_unchanged(fields: object) -> bool:
+    """比較面の全フィールドが非変更であることを返す。"""
+    return isinstance(fields, dict) and all(
+        value == {"kind": "unchanged"} for value in fields.values()
+    )
+
+
+def validate_rows(contract: dict[str, Any], descriptor: dict[str, Any]) -> None:
+    """操作・undo の列と StateEffect の面の同値を検査する。
+
+    Args:
+        contract: 状況判定契約。
+        descriptor: 履歴深さの値域を持つ入力軸 descriptor。
+
+    Raises:
+        HistoryEffectError: D-8 の列・面・交差制約に違反する場合。
+    """
+    for index, row in enumerate(contract["operationRows"]):
+        label = f"operationRows[{index}]"
+        column = row["historyEffect"]
+        face = row["stateEffect"]["historyAndResult"]
+        expected_history = (
+            {"kind": "push", "entryKind": column["kind"]}
+            if column["pushes"] else {"kind": "unchanged"}
+        )
+        if face["history"].get("kind") == "pop":
+            _fail("HISTORY_OPERATION_POP", label)
+        if face["history"] != expected_history:
+            _fail("HISTORY_COLUMN_FACE", label)
+        if face["operationResult"] != {"kind": "set", "value": row["operationResult"]}:
+            _fail("RESULT_COLUMN_FACE", label)
+        if row["operationResult"] != "applied" and column["pushes"]:
+            _fail("HISTORY_REJECTED_PUSH", label)
+        if column["pushes"] and (
+            row["operationKind"] != "state-correction"
+            or column["kind"] != "state-correction"
+        ):
+            _fail("HISTORY_PUSH_KIND", label)
+
+    for index, row in enumerate(contract["undoRows"]):
+        label = f"undoRows[{index}]"
+        pops = row["historyEffect"]["pops"]
+        face = row["stateEffect"]["historyAndResult"]
+        expected_history = {"kind": "pop", "count": 1} if pops == 1 else {"kind": "unchanged"}
+        if face["history"].get("kind") == "push":
+            _fail("HISTORY_UNDO_PUSH", label)
+        if face["history"] != expected_history:
+            _fail("HISTORY_COLUMN_FACE", label)
+        if face["operationResult"] != {"kind": "set", "value": row["operationResult"]}:
+            _fail("RESULT_COLUMN_FACE", label)
+        if (row["operationResult"] == "applied") != (pops == 1):
+            _fail("HISTORY_UNDO_RESULT", label)
+        depth_zero = _depth_zero_only(row["precondition"], descriptor)
+        if not (
+            (row["targetKind"] == "none")
+            == (row["operationResult"] == "nothing-to-undo")
+            == depth_zero
+            == (pops == 0)
+        ):
+            _fail("HISTORY_NONE_EQUIVALENCE", label)
+        if not _all_unchanged(row["stateEffect"]["statFlags"]):
+            _fail("HISTORY_UNDO_FLAGS", label)
+        if row["targetKind"] == "none" and (
+            row["guaranteeMode"] != "full-equality"
+            or not _all_unchanged(row["stateEffect"]["stateFields"])
+            or not _all_unchanged(row["stateEffect"]["scoreboard"])
+        ):
+            _fail("HISTORY_NONE_EFFECT", label)
+
+
+def push_entry(
+    entry_kind: str,
+    before: dict[str, dict[str, Any]],
+    after: dict[str, dict[str, Any]],
+    stat_flags: dict[str, bool],
+    state_fields: set[str],
+    scoreboard_fields: set[str],
+    flag_fields: set[str],
+) -> dict[str, Any]:
+    """比較面の前後と操作が出力したフラグから積む要素を作る。
+
+    Args:
+        entry_kind: 取消可能な操作の種別。
+        before: 状態欄とスコアボードの適用前の値。
+        after: 状態欄とスコアボードの適用後の値。
+        stat_flags: 当該操作が出力した 23 フラグ。
+        state_fields: 状態欄の全フィールド名。
+        scoreboard_fields: スコアボードの全フィールド名。
+        flag_fields: 成績計上フラグの全フィールド名。
+
+    Returns:
+        種別と差分を持つ履歴要素。
+
+    Raises:
+        HistoryEffectError: 前後の比較面またはフラグが不足する場合。
+    """
+    expected_faces = {"stateFields": state_fields, "scoreboard": scoreboard_fields}
+    for face, fields in expected_faces.items():
+        if (
+            set(before.get(face, {})) != fields
+            or set(after.get(face, {})) != fields
+        ):
+            _fail("HISTORY_SNAPSHOT", f"{face} の前後フィールドが不足する")
+    if set(stat_flags) != flag_fields or any(
+        type(value) is not bool for value in stat_flags.values()
+    ):
+        _fail("HISTORY_FLAGS", "当該操作が出力した23フラグが不足する")
+    return {
+        "kind": entry_kind,
+        "difference": {
+            face: {
+                field: {
+                    "before": copy.deepcopy(before[face][field]),
+                    "after": copy.deepcopy(after[face][field]),
+                }
+                for field in sorted(fields)
+                if before[face][field] != after[face][field]
+            }
+            for face, fields in expected_faces.items()
+        } | {"statFlags": copy.deepcopy(stat_flags)},
+    }
+
+
+def apply_history(
+    stack: list[dict[str, Any]], effect: dict[str, Any], entry: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
+    """履歴面を入力スタックへ適用し、遷移後のスタックを返す。
+
+    Args:
+        stack: 適用前の履歴スタック。
+        effect: unchanged・push・pop の履歴面。
+        entry: push で積む履歴要素。
+
+    Returns:
+        面を適用した履歴スタック。
+
+    Raises:
+        HistoryEffectError: 面とスタックを適用できない場合。
+    """
+    result = copy.deepcopy(stack)
+    kind = effect.get("kind")
+    if kind == "unchanged":
+        return result
+    if kind == "pop" and effect.get("count") == 1 and result:
+        return result[1:]
+    if kind == "push" and entry is not None and entry.get("kind") == effect.get("entryKind"):
+        return [copy.deepcopy(entry), *result]
+    _fail("HISTORY_APPLY", "履歴面と入力スタックを適用できない")
+
+
+def validate_push_entry(
+    entry: dict[str, Any],
+    entry_kind: str,
+    before: dict[str, dict[str, Any]],
+    after: dict[str, dict[str, Any]],
+    stat_flags: dict[str, bool],
+    state_fields: set[str],
+    scoreboard_fields: set[str],
+    flag_fields: set[str],
+) -> None:
+    """履歴要素が前後差分と操作出力の 23 値に完全一致するか調べる。
+
+    Args:
+        entry: 照合する履歴要素。
+        entry_kind: 取消可能な操作の種別。
+        before: 状態欄とスコアボードの適用前の値。
+        after: 状態欄とスコアボードの適用後の値。
+        stat_flags: 当該操作が出力した 23 フラグ。
+        state_fields: 状態欄の全フィールド名。
+        scoreboard_fields: スコアボードの全フィールド名。
+        flag_fields: 成績計上フラグの全フィールド名。
+
+    Raises:
+        HistoryEffectError: 差分または出力フラグと一致しない場合。
+    """
+    canonical = push_entry(
+        entry_kind, before, after, stat_flags,
+        state_fields, scoreboard_fields, flag_fields,
+    )
+    if entry != canonical:
+        _fail("HISTORY_ENTRY_DIFFERENCE", "push 要素が前後差分または出力フラグと不一致")
+
+
+def project_legacy_operation_fixture(expected: dict[str, Any]) -> dict[str, Any]:
+    """凍結済みの旧操作 fixture を D-8 の結果面へ射影する。
+
+    Args:
+        expected: 凍結済みの操作結果。
+
+    Returns:
+        結果面だけを現行の set へ移した操作結果。
+
+    Raises:
+        HistoryEffectError: 旧 fixture の形が想定と異なる場合。
+    """
+    projected = copy.deepcopy(expected)
+    face = projected.get("stateEffect", {}).get("historyAndResult", {})
+    if (
+        face.get("history") != {"kind": "unchanged"}
+        or face.get("operationResult") != {"kind": "unchanged"}
+        or projected.get("operationResult") != "applied"
+    ):
+        _fail("HISTORY_LEGACY_FIXTURE", "旧操作 fixture の比較面が想定外")
+    face["operationResult"] = {"kind": "set", "value": "applied"}
+    return projected
 
 def _validate_instance(
     value: Any, schema: dict[str, Any], root_schema: dict[str, Any], path: str
@@ -295,7 +539,12 @@ def check_documents(
         if relation == "row-output":
             if not _predicate_holds(row["precondition"], fixture_input):
                 raise BranchRowMappingError(f"fixtureが規範行の前提を満たさない: {branch_id}")
-            if fixture["expected"] != row_output:
+            fixture_output = fixture["expected"]
+            if branch_id == "DRAW-05":
+                fixture_output = project_legacy_operation_fixture(
+                    fixture_output
+                )
+            if fixture_output != row_output:
                 raise BranchRowMappingError(f"fixtureと規範行の出力が異なる: {branch_id}")
         elif relation == "cross-constraint-negative" and layer == "matrixRows":
             candidate = fixture_input.get("candidateEffects")

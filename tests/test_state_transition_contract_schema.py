@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import subprocess
 import sys
 from collections import Counter
 from collections.abc import Mapping, Set
@@ -87,6 +88,10 @@ vocabulary_checker = _load_module(
     "check_vocabulary_manifest", VOCABULARY_CHECKER_PATH
 )
 provenance_checker = _load_module("check_provenance", PROVENANCE_CHECKER_PATH)
+_load_module("representative_selection", REPOSITORY_ROOT / "scripts/representative_selection.py")
+history_checker = _load_module(
+    "check_branch_row_mapping", REPOSITORY_ROOT / "scripts/check_branch_row_mapping.py"
+)
 
 
 def _load_object(path: Path) -> dict[str, Any]:
@@ -132,13 +137,16 @@ def _unchanged_effects(definition_name: str) -> dict[str, dict[str, str]]:
     return {field: {"kind": "unchanged"} for field in definition["required"]}
 
 
-def _unchanged_state_effect() -> dict[str, Any]:
-    """比較面4面をすべて保持する非変更StateEffectを返す。"""
+def _unchanged_state_effect(result: str = "applied") -> dict[str, Any]:
+    """状態・履歴を保持し、操作結果だけを設定するStateEffectを返す。"""
     return {
         "stateFields": _unchanged_effects("stateFieldEffects"),
         "scoreboard": _unchanged_effects("scoreboardFieldEffects"),
         "statFlags": _unchanged_effects("statFlagEffects"),
-        "historyAndResult": _unchanged_effects("historyAndResultEffects"),
+        "historyAndResult": {
+            "history": {"kind": "unchanged"},
+            "operationResult": {"kind": "set", "value": result},
+        },
     }
 
 
@@ -227,7 +235,7 @@ def _minimal_contract() -> dict[str, Any]:
         },
         "precondition": operation_precondition,
         "stateEffect": _unchanged_state_effect(),
-        "historyEffect": {"pushes": True, "kind": "confirmed-play"},
+        "historyEffect": {"pushes": False, "kind": None},
         "operationResult": "applied",
         "remarks": "選手交代の基準行",
     }
@@ -240,6 +248,9 @@ def _minimal_contract() -> dict[str, Any]:
         "operationResult": "applied",
         "guaranteeMode": "full-equality",
         "remarks": "確定プレイを取り消す基準行",
+    }
+    undo_row["stateEffect"]["historyAndResult"]["history"] = {
+        "kind": "pop", "count": 1,
     }
     secondary_row = copy.deepcopy(matrix_row)
     secondary_row["eventKind"] = "secondary-result"
@@ -3459,11 +3470,11 @@ def test_repository_step65_empty_history_row_and_mapping() -> None:
     assert len(contract["undoRows"]) == 1
     row = contract["undoRows"][0]
     assert set(row) == set(UNDO_ROW_COLUMNS)
-    assert row["targetKind"] == "confirmed-play"
+    assert row["targetKind"] == "none"
     assert row["precondition"] == {
         "op": "eq", "axisId": "history.depth", "value": 0,
     }
-    assert row["stateEffect"] == _unchanged_state_effect()
+    assert row["stateEffect"] == _unchanged_state_effect("nothing-to-undo")
     assert row["historyEffect"] == {"pops": 0}
     assert row["operationResult"] == "nothing-to-undo"
     assert row["guaranteeMode"] == "full-equality"
@@ -4556,7 +4567,6 @@ def test_repository_contract_step61_substitution_rows_and_mapping() -> None:
             ("stateFields", "stateFieldEffects"),
             ("scoreboard", "scoreboardFieldEffects"),
             ("statFlags", "statFlagEffects"),
-            ("historyAndResult", "historyAndResultEffects"),
         ):
             assert set(row["stateEffect"][face]) == set(
                 effect_definitions[definition_name]["required"]
@@ -4565,6 +4575,10 @@ def test_repository_contract_step61_substitution_rows_and_mapping() -> None:
                 effect == {"kind": "unchanged"}
                 for effect in row["stateEffect"][face].values()
             )
+        assert row["stateEffect"]["historyAndResult"] == {
+            "history": {"kind": "unchanged"},
+            "operationResult": {"kind": "set", "value": row["operationResult"]},
+        }
         assert all(
             phrase in row["remarks"]
             for phrase in (
@@ -4779,7 +4793,6 @@ def test_repository_contract_step63_game_end_rows_and_mapping() -> None:
             ("stateFields", "stateFieldEffects"),
             ("scoreboard", "scoreboardFieldEffects"),
             ("statFlags", "statFlagEffects"),
-            ("historyAndResult", "historyAndResultEffects"),
         ):
             assert set(effects[face]) == set(definitions[definition_name]["required"])
             assert all(
@@ -4793,6 +4806,10 @@ def test_repository_contract_step63_game_end_rows_and_mapping() -> None:
             else {"kind": "unchanged"}
         )
         assert effects["stateFields"]["state.gameEnded"] == expected_game_ended
+        assert effects["historyAndResult"] == {
+            "history": {"kind": "unchanged"},
+            "operationResult": {"kind": "set", "value": row["operationResult"]},
+        }
         assert all(
             phrase in row["remarks"]
             for phrase in (
@@ -4938,11 +4955,14 @@ def test_repository_contract_step64_registration_rows_and_mapping() -> None:
             ("stateFields", "stateFieldEffects"),
             ("scoreboard", "scoreboardFieldEffects"),
             ("statFlags", "statFlagEffects"),
-            ("historyAndResult", "historyAndResultEffects"),
         ):
             effects = row["stateEffect"][face]
             assert set(effects) == set(definitions[definition_name]["required"])
             assert all(effect == {"kind": "unchanged"} for effect in effects.values())
+        assert row["stateEffect"]["historyAndResult"] == {
+            "history": {"kind": "unchanged"},
+            "operationResult": {"kind": "set", "value": row["operationResult"]},
+        }
         assert all(
             phrase in row["remarks"]
             for phrase in (
@@ -5223,7 +5243,7 @@ def _validate_manual_fixtures(
                 "state.gameEnded": False,
                 "state.score": "tie",
             }
-            assert case["expected"] == {
+            assert history_checker.project_legacy_operation_fixture(case["expected"]) == {
                 field: value for field, value in row.items()
                 if field not in {"operationKind", "payloadShape", "precondition", "remarks"}
             }
@@ -5738,3 +5758,178 @@ def test_step90_contract_schema_rejects_case_without_normalization_point(
     del contract["cases"][0][missing]
     with pytest.raises(schema_checker.DescriptorCheckError, match="必須キー不足"):
         _validate_schema(contract)
+
+
+def test_repository_rows_have_matching_history_and_result_faces() -> None:
+    """現行の 7 操作行と 1 undo 行が D-8 の同値を満たす。"""
+    contract = _repository_contract()
+    assert (len(contract["operationRows"]), len(contract["undoRows"])) == (7, 1)
+    history_checker.validate_rows(contract, _descriptor())
+    assert contract["undoRows"][0]["targetKind"] == "none"
+
+
+def test_all_committed_cases_match_history_expansion() -> None:
+    """全 97 case の履歴入力と期待値が追跡済み展開に完全一致する。"""
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPOSITORY_ROOT / "scripts/expand_state_transition_cases.py"),
+            "--root", str(REPOSITORY_ROOT),
+            "--limit", "42",
+            "--mode", "coverage",
+            "--operation-limit", "7",
+            "--undo-limit", "1",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert json.loads(result.stdout) == _repository_contract()["cases"]
+
+
+def test_confirmed_play_pushes_one_entry_on_existing_stack() -> None:
+    """確定プレイは入力の履歴を保ち、先頭に差分を 1 件積む。"""
+    case = next(
+        item for item in _repository_contract()["cases"]
+        if item["rowRef"]["layer"] == "matrixRows" and item["historyInput"]["stack"]
+    )
+    stack = case["historyInput"]["stack"]
+    result = case["expected"]["historyContext"]
+    assert len(result) == len(stack) + 1
+    assert result[0]["kind"] == "confirmed-play"
+    assert result[1:] == stack
+    assert result[0]["difference"]["statFlags"] == case["expected"]["statFlags"]
+
+
+@pytest.mark.parametrize(
+    ("mutation", "rule_id"),
+    [
+        ("column-face", "HISTORY_COLUMN_FACE"),
+        ("result-face", "RESULT_COLUMN_FACE"),
+        ("operation-pop", "HISTORY_OPERATION_POP"),
+        ("undo-push", "HISTORY_UNDO_PUSH"),
+        ("undo-applied-without-pop", "HISTORY_UNDO_RESULT"),
+        ("rejected-operation-push", "HISTORY_REJECTED_PUSH"),
+        ("none-only-one-side", "HISTORY_NONE_EQUIVALENCE"),
+        ("other-operation-push", "HISTORY_PUSH_KIND"),
+    ],
+)
+def test_inconsistent_rows_are_red(mutation: str, rule_id: str) -> None:
+    """列と面、操作種別、対象なしの交差制約違反を拒否する。"""
+    contract = _repository_contract()
+    operation = contract["operationRows"][0]
+    undo = contract["undoRows"][0]
+    if mutation == "column-face":
+        operation["stateEffect"]["historyAndResult"]["history"] = {
+            "kind": "push", "entryKind": "state-correction",
+        }
+    elif mutation == "result-face":
+        operation["stateEffect"]["historyAndResult"]["operationResult"]["value"] = (
+            "nothing-to-undo"
+        )
+    elif mutation == "operation-pop":
+        operation["stateEffect"]["historyAndResult"]["history"] = {
+            "kind": "pop", "count": 1,
+        }
+    elif mutation == "undo-push":
+        undo["stateEffect"]["historyAndResult"]["history"] = {
+            "kind": "push", "entryKind": "confirmed-play",
+        }
+    elif mutation == "undo-applied-without-pop":
+        undo["operationResult"] = "applied"
+        undo["stateEffect"]["historyAndResult"]["operationResult"]["value"] = (
+            "applied"
+        )
+    elif mutation == "rejected-operation-push":
+        operation = next(
+            row for row in contract["operationRows"]
+            if row["operationResult"] != "applied"
+        )
+        operation["historyEffect"] = {"pushes": True, "kind": "state-correction"}
+        operation["stateEffect"]["historyAndResult"]["history"] = {
+            "kind": "push", "entryKind": "state-correction",
+        }
+    elif mutation == "none-only-one-side":
+        undo["targetKind"] = "confirmed-play"
+    elif mutation == "other-operation-push":
+        operation["historyEffect"] = {"pushes": True, "kind": "state-correction"}
+        operation["stateEffect"]["historyAndResult"]["history"] = {
+            "kind": "push", "entryKind": "state-correction",
+        }
+    with pytest.raises(history_checker.HistoryEffectError, match=rule_id):
+        history_checker.validate_rows(contract, _descriptor())
+
+
+@pytest.mark.parametrize(
+    "invalid_history",
+    [
+        {"kind": "unchanged", "count": 1},
+        {"kind": "pop", "count": 2},
+        {"kind": "push", "entryKind": "confirmed-play", "extra": True},
+    ],
+)
+def test_history_variants_are_closed(invalid_history: dict[str, Any]) -> None:
+    """履歴 variant の余分なキーと count の範囲外値を schema で拒否する。"""
+    contract = _repository_contract()
+    schema = _schema()
+    contract["operationRows"][0]["stateEffect"]["historyAndResult"][
+        "history"
+    ] = invalid_history
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker._validate_instance(contract, schema, schema, "$")
+
+
+@pytest.mark.parametrize(
+    "invalid_result",
+    [
+        {"kind": "unchanged"},
+        {"kind": "set", "value": "unknown"},
+        {"kind": "set", "value": "applied", "extra": True},
+    ],
+)
+def test_operation_result_face_is_closed_set(invalid_result: dict[str, Any]) -> None:
+    """結果面では set の規定値と 2 キーだけを受理する。"""
+    contract = _repository_contract()
+    schema = _schema()
+    contract["operationRows"][0]["stateEffect"]["historyAndResult"][
+        "operationResult"
+    ] = invalid_result
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker._validate_instance(contract, schema, schema, "$")
+
+
+def test_push_difference_uses_output_flags_instead_of_before_after() -> None:
+    """状態とスコアは前後差分、23 フラグは操作出力の値を使う。"""
+    schema = _schema()
+    state_fields = set(schema["$defs"]["stateFieldEffects"]["required"])
+    scoreboard_fields = set(schema["$defs"]["scoreboardFieldEffects"]["required"])
+    flag_fields = set(schema["$defs"]["statFlagEffects"]["required"])
+    before = {
+        "stateFields": dict.fromkeys(state_fields, 0),
+        "scoreboard": dict.fromkeys(scoreboard_fields, 0),
+    }
+    after = copy.deepcopy(before)
+    after["stateFields"]["state.outs"] = 1
+    flags = dict.fromkeys(flag_fields, False)
+    flags["安打"] = True
+    entry = history_checker.push_entry(
+        "confirmed-play", before, after, flags,
+        state_fields, scoreboard_fields, flag_fields,
+    )
+    assert entry["difference"]["stateFields"] == {
+        "state.outs": {"before": 0, "after": 1},
+    }
+    assert entry["difference"]["scoreboard"] == {}
+    assert entry["difference"]["statFlags"] == flags
+    history_checker.validate_push_entry(
+        entry, "confirmed-play", before, after, flags,
+        state_fields, scoreboard_fields, flag_fields,
+    )
+
+    wrong = copy.deepcopy(entry)
+    wrong["difference"]["statFlags"] = dict.fromkeys(flag_fields, False)
+    with pytest.raises(history_checker.HistoryEffectError, match="HISTORY_ENTRY_DIFFERENCE"):
+        history_checker.validate_push_entry(
+            wrong, "confirmed-play", before, after, flags,
+            state_fields, scoreboard_fields, flag_fields,
+        )

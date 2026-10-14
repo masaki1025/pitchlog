@@ -132,7 +132,16 @@ def check_documents(
             coordinate = _legacy_game_end_coordinate(case["inputCoordinate"], coordinate)
         _assert_equal(branch_id, "inputCoordinate", case["inputCoordinate"], coordinate)
         output_field = "decision" if entry["fixtureRelation"] == "decision-output" else "expected"
-        _assert_equal(branch_id, output_field, case[output_field], expanded[output_field])
+        fixture_output = case[output_field]
+        expanded_output = expanded[output_field]
+        if isinstance(expanded_output, dict) and "historyContext" in expanded_output:
+            expanded_output = {key: value for key, value in expanded_output.items()
+                               if key != "historyContext"}
+        if branch_id == "DRAW-05":
+            fixture_output = mapping_checker.project_legacy_operation_fixture(
+                fixture_output
+            )
+        _assert_equal(branch_id, output_field, fixture_output, expanded_output)
         matched += 1
     if matched != mapping["expectedPositiveMatches"]:
         raise FixtureParityError(

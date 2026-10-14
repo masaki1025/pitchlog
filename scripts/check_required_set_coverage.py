@@ -300,7 +300,11 @@ def observed_input_coverage(
             key: value for key, value in row.items()
             if key not in (*row_coordinate, "remarks")
         }
-        if case.get("expected") != expected:
+        case_expected = case.get("expected")
+        if isinstance(case_expected, dict) and "historyInput" in case:
+            case_expected = {key: value for key, value in case_expected.items()
+                             if key != "historyContext"}
+        if case_expected != expected:
             raise RequiredSetCoverageError("ケースの期待値が規範行と不一致")
         for requirement in requirements:
             if layer not in requirement.row_layers:

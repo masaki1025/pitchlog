@@ -10,6 +10,7 @@ import sys
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+import check_branch_row_mapping as history_checker
 import check_expander_dependencies as dependency_checker
 import representative_selection
 from state_transition_normalization import NormalizationError, NormalizationRules
@@ -197,6 +198,13 @@ def _expand_from_declared_inputs(
     binding = contract.get("inputAxesDescriptor")
     if not isinstance(binding, dict) or binding.get("digest") != descriptor.get("digest"):
         raise CaseExpansionError("契約と入力軸descriptorの識別値が一致しない")
+    if (
+        isinstance(contract.get("operationRows"), list)
+        and isinstance(contract.get("undoRows"), list)
+        and all(isinstance(row.get("precondition"), dict)
+                for row in contract["undoRows"] if isinstance(row, dict))
+    ):
+        history_checker.validate_rows(contract, descriptor)
     normalizer = NormalizationRules(contract_schema, vocabulary, manifest, seed_path)
     axes = descriptor.get("stateTransitionAxes")
     if not isinstance(axes, list):
@@ -521,7 +529,46 @@ def _expand_from_declared_inputs(
                     },
                 }
             )
+    committed_cases = contract.get("cases")
+    if not isinstance(committed_cases, list):
+        raise CaseExpansionError("履歴入力を持つcase集合がない")
+    inputs_by_id = {
+        item["caseId"]: item.get("historyInput")
+        for item in committed_cases
+        if isinstance(item, dict) and isinstance(item.get("caseId"), str)
+    }
+    state_fields = set(contract_schema["$defs"]["stateFieldEffects"]["required"])
+    scoreboard_fields = set(contract_schema["$defs"]["scoreboardFieldEffects"]["required"])
+    flag_fields = set(contract_schema["$defs"]["statFlagEffects"]["required"])
     for case in cases:
+        history_input = inputs_by_id.get(case["caseId"])
+        if case["caseId"] in inputs_by_id:
+            if not isinstance(history_input, dict) or not isinstance(
+                history_input.get("stack"), list
+            ):
+                raise CaseExpansionError(f"履歴入力がない: {case['caseId']}")
+            layer = case["rowRef"]["layer"]
+            expected = case["expected"]
+            if layer == "matrixRows":
+                entry = history_checker.push_entry(
+                    "confirmed-play", history_input.get("before", {}),
+                    history_input.get("after", {}), expected["statFlags"],
+                    state_fields, scoreboard_fields, flag_fields,
+                )
+                effect = {"kind": "push", "entryKind": "confirmed-play"}
+            else:
+                effect = expected["stateEffect"]["historyAndResult"]["history"]
+                entry = None
+                if effect["kind"] == "push":
+                    entry = history_checker.push_entry(
+                        effect["entryKind"], history_input.get("before", {}),
+                        history_input.get("after", {}), history_input.get("statFlags", {}),
+                        state_fields, scoreboard_fields, flag_fields,
+                    )
+            expected["historyContext"] = history_checker.apply_history(
+                history_input["stack"], effect, entry
+            )
+            case["historyInput"] = copy.deepcopy(history_input)
         normalized = copy.deepcopy(case["inputCoordinate"])
         raw, rule_id = normalizer.raw_for_normalized(normalized)
         case["raw"] = raw

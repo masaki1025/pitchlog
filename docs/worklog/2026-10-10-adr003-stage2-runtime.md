@@ -273,3 +273,12 @@ branch: feature/adr003-stage2-runtime
 - 負例: `DERIVED_DECLARATION`・`DERIVED_SOURCE`・`DERIVED_FUNCTION`・`DERIVED_INVALID_BOUNDARY`・`DERIVED_UNREACHABLE`
 - ハーネス全件(1 回目)で本ステップ由来の失敗 4 件(展開器の照合 2・変異試験 2)→ 是正: 展開器の出力との比較射影から `derivedSourceInput` を除く / 変異の実験中だけ派生元の参照整合の検査を外す(変異体はわざと軸を消すため。原本の検査と生存変異体の検出は不変)
 - 是正後のハーネス全件: **69 failed**、本ステップ由来は 0。新しく出た既知の失敗 1 件 = `test_check_shared_preconditions`(要件書 v2.14 の blob digest — authz の再封印〔#119 の後〕でまとめて取り直す)。core_guard の 4 件は develop の取り込みで消えた
+
+### ステップ 29(2026-10-14)— 履歴と結果の面の移行と S17
+
+- schema: `historyAndResult.history` を `HistoryEffect`(unchanged / push / pop)、`operationResult` は `set` だけ、`undoRows[].targetKind` に `"none"`
+- 既存の操作行 7 は結果の面を列と同じ値の `set` へ(履歴の面は全行 `unchanged`)。空履歴の undo 行は `targetKind` を `"none"`・結果の面を `set(nothing-to-undo)` へ(S17)
+- case は 97 のまま。全 case に履歴の入力と遷移後の履歴文脈を足した。確定プレイの 89 case は `confirmed-play` を 1 件 push(差分 = 状態欄・スコアボードの前後値 / フラグは行の出力 23 値)
+- 負例 9 種(列と面の不一致・操作行の pop・undo 行の push・applied で pops=0・拒否で push・対象なしの片側成立・state-correction 以外の push・閉じた schema の違反・フラグを前後比較で作った差分)
+- ハーネス全件 1 回目で core_guard の 1 件(新設の `tests/test_state_transition_history.py` がコア領域に未登録)。**窓口を使わずに済むよう、検査器を `scripts/check_branch_row_mapping.py`・試験を `tests/test_state_transition_contract_schema.py`(どちらも sync-protocol・game-state に登録済み)へ移した**。新設の検査器も未登録だった(契約パスを文字列で持たないため検出されないが、状況判定の検査器なので登録済みの場所へ)
+- 是正後のハーネス全件: 69 failed・本ステップ由来 0。backend の関連 47 件・Vitest 全件 1128 件が緑

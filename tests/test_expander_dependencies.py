@@ -70,6 +70,10 @@ _load_module(
     "state_transition_normalization",
     REPOSITORY_ROOT / "scripts/state_transition_normalization.py",
 )
+_load_module(
+    "check_branch_row_mapping",
+    REPOSITORY_ROOT / "scripts/check_branch_row_mapping.py",
+)
 state_transition_expander = _load_module(
     "expand_state_transition_cases",
     REPOSITORY_ROOT / "scripts/expand_state_transition_cases.py",

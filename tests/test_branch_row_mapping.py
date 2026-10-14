@@ -34,6 +34,7 @@ def _load_module(name: str, path: Path) -> Any:
     return module
 
 
+_load_module("representative_selection", ROOT / "scripts/representative_selection.py")
 checker = _load_module("check_branch_row_mapping", ROOT / "scripts/check_branch_row_mapping.py")
 
 
