@@ -110,3 +110,13 @@ P0 0 件、P1 1 件、P2 0 件で否決。P1 を採用した。
 - `GET /auth/session`の追加にはauthentication-entry exact-setとroute / HTTP matrixの追随が必須である。`scripts/check_authz_catalog.py`、checker試験、4つのroute / matrix資産とAPI route exact-set試験が必要で、open Draft / conflictingの#137差分と重なる。#137先行統合または所有移管の回答が必要である。
 - 開始条件1（計画承認）と2（#119統合・実コード再照合）は成立。開始条件3（共有凍結資産の所有確定）は未成立。開始条件4のendpoint / DTO / 認可方式は承認済みだが、正規表示名read operationという不足実装経路は個別の所有・統合順確定が必要である。
 - 凍結資産検査までを一つのステップ合格条件としているため、backend製品コードだけの先行コミットは作成していない。C1ステップ1は未着手、U-F13本体もC1・C2・C3接続待ちを維持する。
+
+## 2026-10-14 C1先行変更の所有調整
+
+- 利用者がC1を小さな先行変更として進め、tenant profile / tenant read operationをC1が担当する方針を確定した。
+- #131コメント`6171263924`、#132コメント`6171264327`、#137コメント`6171264803`で、対象ファイル、read-onlyの変更境界、C1先行統合後に各PRがdevelopへ追随する順序を提示した。
+- #131/#132には、新規`tenant_profile.py`、`operation_registry.py`、repository契約・試験、必要なtenant-boundary履歴をC1が一時所有する案を提示した。既存`CAP:tenants:read`を使い、自tenant 1行の`id`/`name`だけを返す。書込・一覧・cross-tenant・汎用実行入口は追加しない。
+- #137には、route registry / HTTP matrixの本体とlock、exact-set検査、必要なauthz凍結履歴とseal追随をC1が一時所有する案を提示した。追加は`ROUTE:AUTH:session:read` 1件とconditional matrix 1件に限定する。
+- 2026-10-14 23:55 JST時点で受理返信はない。各既存branch/worktreeは変更していない。共有ファイルの編集は未開始で、C1ステップ1の製品コミットも未作成。
+- 不受理時の最小順序はrepository系とroute系を分離する。前者は#131/#132統合後、後者は#137統合後にC1をrebaseして該当差分だけを適用する。全3PRを一括待機条件にはしない。
+- 7.7-1の宣言、7.7-2の一行為一記録、7.7-3のfail-closedを維持する。tenant-boundary snapshotとauthz oracle封印は別の受理単位として導出し、checkerの直書き基準追加では代用しない。

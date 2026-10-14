@@ -83,3 +83,13 @@
 - auth router / schemaとsession endpoint固有試験には、現時点で重複する未統合差分を確認していない。ただし上記共有資産を変更せずにステップ1の凍結資産検査をgreenにできないため、製品コードだけを先行実装・コミットしない。
 - よってC1ステップ1は未着手。停止理由は#119ではなく、正規`team_name` read operationの実装経路と#131/#132/#137とのファイル所有・統合順が未確定であること。計画全体の再承認は不要で、上記2点の狭い回答だけを残す。
 - U-F13本体はC1・C2・C3の接続条件が揃うまで待機を維持する。
+
+## 2026-10-14 C1先行変更の所有調整
+
+- 山田正輝の指示により、tenant profileとtenant read operationはC1が担当する。新規`tenant_profile.py`はC1の専有範囲とする。
+- #131へ[一時所有案](https://github.com/masaki1025/pitchlog/pull/131#issuecomment-6171263924)を提示した。C1が`repository-contract.json`と必要な履歴追随を先に更新し、C1統合後に#131が最新developへ追随する案である。
+- #132へ[一時所有案](https://github.com/masaki1025/pitchlog/pull/132#issuecomment-6171264327)を提示した。C1が`operation_registry.py`、repository契約、repository契約試験と必要な履歴追随を先に更新し、C1統合後に#132が最新developへ追随する案である。
+- #137へ[一時所有案](https://github.com/masaki1025/pitchlog/pull/137#issuecomment-6171264803)を提示した。C1がauth route / HTTP matrix各本体・lock、authentication-entry exact-set検査、7.7のoracle封印追随を先に更新し、C1統合後に#137が最新developへ追随する案である。
+- 3件とも既存branch/worktreeは変更していない。2026-10-14 23:55 JST時点では各担当の返信がなく、共有ファイルの一時所有は未受理である。新規C1専有ファイル以外の製品実装は開始していない。
+- repository系とauth route系は別の所有判断とする。#131/#132が不受理なら同2PRを既定順で統合後にC1がrebaseしてtenant read operationを追加する。#137が不受理なら#137統合後にC1がrebaseしてsession routeだけを追加する。片方の未回答を他方の一律待機理由にはしない。
+- 7.7確認では、tenant-boundaryのcontract revision・凍結射影・append-only snapshotと、authzのroute/matrix lock・`frozen-baselines.json`のoracle_input履歴・seal連鎖を別々に扱う。基準値をcheckerへ直書きせず、比較不能時のfail-closedを維持し、実際の受理単位とPR番号が確定した時点で履歴の承認記録を確定する。
