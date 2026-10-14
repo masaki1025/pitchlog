@@ -428,6 +428,16 @@ UF5_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     "tenant-isolation": UF5_TEAM_AREA_PATH_ADDITIONS,
     "data-migration": UF5_TEAM_AREA_PATH_ADDITIONS,
 }
+FIELD_REGION_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+    "game-state": (
+        "contracts/field-regions/*",
+        "contracts/display-geometry/*",
+        "tests/test_field_geometry_numeric_lexemes.py",
+        "tests/test_fielder_estimation_contract.py",
+        "tests/test_field_geometry_ci_wiring.py",
+    ),
+    "sync-protocol": ("tests/test_field_geometry_numeric_lexemes.py",),
+}
 DOMAIN_CALC_GLOBS = (
     "backend/domain/*",
     "backend/src/pitchlog/domaincheck/*",
@@ -2566,7 +2576,7 @@ def test_uf5_team_change_requires_human_check(
 
 
 def test_area_registration() -> None:
-    """U-F6・U-F8・U-F5までの登録履歴を後続追加に依存せず保つ。"""
+    """既存の登録履歴と領域契約の先行追加層を固定する。"""
     core_guard = load_core_guard_module()
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
@@ -2619,8 +2629,9 @@ def test_area_registration() -> None:
 
     assert len(areas) == len(configuration["areas"]) == 5
     assert len(DOMAIN_CALC_GLOBS) == 8
-    assert declared_ids <= set(areas)
-    assert stationary_ids | declared_ids == set(areas)
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == FIELD_REGION_AREA_PATH_ADDITIONS
+    assert declared_ids == {"game-state", "sync-protocol"}
+    assert stationary_ids == {"recording-rights", "tenant-isolation", "data-migration"}
     assert set(areas) == set(registered_additions) == set(baseline_areas)
     for area_id in DATA_MODEL_AREA_IDS:
         registered = registered_additions[area_id]
@@ -2632,6 +2643,15 @@ def test_area_registration() -> None:
         assert all(
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in registered
+        )
+    for area_id, additions in FIELD_REGION_AREA_PATH_ADDITIONS.items():
+        base_paths = tuple(baseline_areas[area_id]["paths"])
+        current_paths = tuple(areas[area_id]["paths"])
+        # ステップ 8 の未登録状態と、ステップ 9 の宣言順での末尾追加を受理する。
+        assert current_paths in (base_paths, (*base_paths, *additions))
+        assert all(
+            any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
+            for pattern in additions
         )
     assert all(
         any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)

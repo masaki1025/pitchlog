@@ -29,15 +29,15 @@ BASELINE_DEFINITION_PATHS = frozenset(
 )
 # 追加層は JSON を変更するコミットより先に固定する。同一コミットでの追随を許さない。
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "tenant-isolation": (
-        "frontend/src/components/settings/TeamMembersContent*",
-        "frontend/src/lib/rosterQueryKeys*",
-        "frontend/src/screens/TeamScreen*",
+    "game-state": (
+        "contracts/field-regions/*",
+        "contracts/display-geometry/*",
+        "tests/test_field_geometry_numeric_lexemes.py",
+        "tests/test_fielder_estimation_contract.py",
+        "tests/test_field_geometry_ci_wiring.py",
     ),
-    "data-migration": (
-        "frontend/src/components/settings/TeamMembersContent*",
-        "frontend/src/lib/rosterQueryKeys*",
-        "frontend/src/screens/TeamScreen*",
+    "sync-protocol": (
+        "tests/test_field_geometry_numeric_lexemes.py",
     ),
 }
 REQUIRED_CHECK_RE = re.compile(
