@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "input_manifest": {
-    "commit": "796b5dd8d1ba85aa24cc80ea5314185b84022d17",
+    "commit": "430e24fab7cb610972f6f0c9f95473e79465b43f",
     "source_path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
     "scan_start_heading_id": "DOC",
     "scan_end_heading_id": "APPENDIX-ITEM-F-2",
-    "source_blob_digest": "c2f22bc4a86f9d6912cced84969c1c1b1444f375",
+    "source_blob_digest": "070babfe1fb2e945d90545f17922e20bd9ff955c",
     "heading_ids": [
       "DOC",
       "CHANGELOG",
@@ -139,11 +139,11 @@
       "code_line": 43,
       "frontmatter": 3,
       "heading": 125,
-      "list_item": 646,
+      "list_item": 647,
       "paragraph": 99,
       "table_delimiter": 40,
       "table_header": 40,
-      "table_row": 325,
+      "table_row": 327,
       "thematic_break": 27
     }
   },
@@ -153,6 +153,7 @@
       "allowed_source_kinds": [],
       "allowed_heading_ids": [
         "APPENDIX-ITEM-A-5",
+        "FR-019",
         "FR-033",
         "FR-034",
         "FR-034/heading-001",
@@ -890,6 +891,26 @@
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
       "decision_digest": "7c55536768758b6b3e7e3eb55788fad7286859533d65dc9bf414cb9620382d49"
+    },
+    {
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "source_id": "CHANGELOG/table_row-042",
+      "source_kind": "table_row",
+      "source_heading_id": "CHANGELOG",
+      "source_text": "| **2.12** | 2026-10-13 | **TSK-397/U-D1のFR-019・付録C改訂案（TSK-543/B06 v0.9と単一7.3ゲート）**: 削除時のDB記録時刻と実効保持期間から自己復元期限を固定し、設定変更の非遡及を付録Cの明示例外とする。期限ちょうどからチームのゴミ箱表示・復元を拒否し、サーバーの復元判定は一覧キャッシュと5分周期保守処理に依存しない。**本書で確定する範囲** = FR-019の削除時期限固定・24時間単位・期限境界・読取/復元判定と、付録Cの非遡及例外。**実装時に確定する範囲** = 保存列・ロック/時刻関数・キャッシュの実装手段とテスト、既存行の読取調査・移行例外。保守用認可のP0 3件、その他のU-D1仕様は射程外。POの7.3-6射程裁定（2026-10-13）により`../design/data-model.md` v0.9と単一ゲートで扱う。U-D1起案: `feature/ud1-game-trash` の `c23a33d6`。本ゲートの受取記録: `../worklog/2026-10-13-ut1-game-invalidation.md` | Codex（U-D1案）／起案 |",
+      "source_text_digest": "ef36db1eb568cab4595bf5ea003a8e5fc8b8895c1bb4c2386123431216cb1bab",
+      "decision_digest": "f5670c3bcd703aa06f039f48a1f71202874c6e554aa8c53a89a510c3002d82b1"
+    },
+    {
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "source_id": "CHANGELOG/table_row-043",
+      "source_kind": "table_row",
+      "source_heading_id": "CHANGELOG",
+      "source_text": "| **2.12** | 2026-10-13 | **一括7.3確定ゲート通過（approved）**: FR-019・付録Cの削除時期限固定（`trashed_at`＋削除時実効値、既定30日・1日24時間）、保持期間1〜36500整数日と日時型で表現不能な場合の状態変更前拒否、設定変更の非遡及、期限ちょうどからのチーム表示・自己復元拒否を、`../design/data-model.md` v0.9/B06と単一ゲートで確定。敵対レビュー2回（初回P0 1/P1 2、2回目P0 0/P1 2）・採用反映2周、全5件採用・不採用0。初回P0に対するPOの7.3-6射程裁定で要件を追加し、周回数は継続。最終反映 `0b2fe712` と保持期間上限を含め**2026-10-13 本会話の利用者が明示承認**。保守用認可P0 3件、既存行移行例外、無関係なU-D1仕様は本ゲート外。保存列・認可・キャッシュの実装と凍結資産追随は指示された実装ステップへ残す。計画: `../features/ut1-game-invalidation/plan.md`、記録: `../worklog/2026-10-13-ut1-game-invalidation.md` | 本会話の利用者 + Codex |",
+      "source_text_digest": "9dc88c03089062167ea4ba4e5470ade4e13e8067a65672b0831d31cd3308b077",
+      "decision_digest": "c19f632eae7087c9b01676be6513e834d13caefb454dcd3ceaeec65249f18534"
     },
     {
       "source_id": "CHANGELOG/blockquote-001",
@@ -4765,18 +4786,37 @@
       "source_id": "FR-019/list_item-005",
       "source_kind": "list_item",
       "source_heading_id": "FR-019",
-      "source_text": "  - Given ゴミ箱内の試合 / When 自己復元期限（既定30日・システム設定値 → 付録C）以内に復元 / Then 完全に元に戻る",
-      "source_text_digest": "e3c8cdc9319222697d13b98ac942634fc2ce9e6dd96dc895e9d82d383aac1362",
-      "classification": "out_of_scope",
-      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "f465e7626fa20e3139514e4ab2248e5d442627d0f9901d205f9cff63548c2639"
+      "source_text": "  - Given ゴミ箱内の試合 / When サーバーの判定時刻が削除時に確定した自己復元期限より前に復元 / Then 完全に元に戻る。復元時は試合行のロック取得後にDB時刻で期限を再判定し、期限ちょうどから拒否する",
+      "source_text_digest": "7c01e19fc6f62a3a868a636774458fa6e6ca499fcfca84fbdbb832b49f27a12b",
+      "classification": "auth_claim",
+      "classification_rule_id": "AUTH_OPERATION_PERMISSION",
+      "layer": "operation_authorization",
+      "decidable_at": [
+        {
+          "location": "db",
+          "test_owner": {
+            "id": "TSK-270.step4.FR-019/list_item-005.db",
+            "status": "planned"
+          },
+          "basis_rule_id": "DB_MUTATION_GUARD"
+        },
+        {
+          "location": "http",
+          "test_owner": {
+            "id": "TSK-270.step4.FR-019/list_item-005.http",
+            "status": "planned"
+          },
+          "basis_rule_id": "HTTP_OPERATION_GATE"
+        }
+      ],
+      "decision_digest": "cc8dafe9243d9549c8ad20a3a09cf7839446f4f8243124e6c4d50ef6a27ccbca"
     },
     {
       "source_id": "FR-019/list_item-006",
       "source_kind": "list_item",
       "source_heading_id": "FR-019",
-      "source_text": "  - Given ゴミ箱で自己復元期限が経過 / When 期限到来 / Then チームのゴミ箱UIから消える（**DB上は残存**し、システム管理者がフラグ復旧できる。物理削除は管理者のDB保守のみ）",
-      "source_text_digest": "a861dd0a866b4389c4cca6db6fc38143fd6059fc6a91e5d69abda7f4c65e7125",
+      "source_text": "  - Given ゴミ箱で自己復元期限が経過 / When 期限ちょうど以降に読取・復元 / Then チームのゴミ箱UIから消え、サーバーは自己復元を拒否する（**DB上は残存**し、システム管理者がフラグ復旧できる。物理削除は管理者のDB保守のみ）。拒否は一覧キャッシュや5分周期の保守処理の実行有無に依存しない",
+      "source_text_digest": "0d69212caadf7f58dc2ab9245b7b5efa4f6b06c7ac3266d7711f4779c7d5a9a3",
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_OPERATION_PERMISSION",
       "layer": "operation_authorization",
@@ -4798,7 +4838,7 @@
           "basis_rule_id": "HTTP_OPERATION_GATE"
         }
       ],
-      "decision_digest": "b8538f224479b4b1ee2fff56933eb1b6126a8874c7e43619a09050050078b803"
+      "decision_digest": "d9fc45ee51d5500482a893dd183c6dd6960fc2110c17356ac1c6d83552456e40"
     },
     {
       "source_id": "FR-019/list_item-007",
@@ -4814,18 +4854,73 @@
       "source_id": "FR-019/list_item-008",
       "source_kind": "list_item",
       "source_heading_id": "FR-019",
-      "source_text": "  - Given ゴミ箱UI / When 表示 / Then 「自己復元期限（実効設定値）を過ぎると自分では復元できなくなる」旨が、実際の期限日付とともに明示されている",
-      "source_text_digest": "33adf7c77c57e8c3ee143061be5dcdcac1fdf4796051f7961502448d965f4894",
+      "source_text": "  - Given ゴミ箱UI / When 表示 / Then 「削除時の実効設定値から確定した自己復元期限を過ぎると自分では復元できなくなる」旨が、保存済みの実際の期限日付とともに明示されている。期限ちょうどから一覧にも出さない",
+      "source_text_digest": "1879b361500cbf6f13779680a182365f99300f4538c862ed4c26e0c5fcdaeadb",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "d46d8d88f9a9b36ca785b7d142ae53e40a9fd3619acc631b6f52e81865a51f20"
+      "decision_digest": "5b45ea64db4994850f5317afda46b8d2aaecedaf800499fbb2172d02de071619"
     },
     {
       "source_id": "FR-019/list_item-009",
       "source_kind": "list_item",
       "source_heading_id": "FR-019",
-      "source_text": "- **補足**: チーム管理者ロールは導入しない（10章の未決事項。導入時は削除系の担い手を再配置）",
-      "source_text_digest": "2ec0833e858fcecdc7c51e0c03542114000c840a70214da921fe7957bbd9b4bc",
+      "source_text": "- **期限の起算と固定**: ゴミ箱へ移したトランザクションでDBが記録する`trashed_at`を起算点とし、削除時点の実効保持期間（既定30日、1日=24時間）を加えた`trash_expires_at`を保存する。保持期間は1〜36500の整数日とし、設定保存時・削除時とも期限日時がDBの日時型に収まらない値を状態変更前に拒否する。設定変更を既存のゴミ箱行へ遡及適用せず、短縮・延長の後も保存済み期限日付と自己復元可否を変えない。期限到来後に非表示となった行も設定延長で自動再表示しない。チームの表示はサーバーで評価した時刻が`trash_expires_at`未満の行だけに限る",
+      "source_text_digest": "74e4421f0443453ff436004accda9caa351535ad58d6edf3fb3cdf22b1ea6be3",
+      "classification": "auth_claim",
+      "classification_rule_id": "AUTH_ACCESS_SCOPE",
+      "atomic_claims": [
+        {
+          "atomic_id": "FR-019/list_item-009#trash-visibility",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_ACCESS_SCOPE",
+          "layer": "access_control",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
+              "test_owner": {
+                "id": "TSK-270.step4.FR-019/list_item-009.trash-visibility.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_RESPONSE_VISIBILITY",
+              "test_owner": {
+                "id": "TSK-270.step4.FR-019/list_item-009.trash-visibility.http",
+                "status": "planned"
+              }
+            }
+          ]
+        },
+        {
+          "atomic_id": "FR-019/list_item-009#restore-deadline",
+          "classification": "auth_claim",
+          "classification_rule_id": "AUTH_OPERATION_PERMISSION",
+          "layer": "operation_authorization",
+          "decidable_at": [
+            {
+              "location": "db",
+              "basis_rule_id": "DB_MUTATION_GUARD",
+              "test_owner": {
+                "id": "TSK-270.step4.FR-019/list_item-009.restore-deadline.db",
+                "status": "planned"
+              }
+            },
+            {
+              "location": "http",
+              "basis_rule_id": "HTTP_OPERATION_GATE",
+              "test_owner": {
+                "id": "TSK-270.step4.FR-019/list_item-009.restore-deadline.http",
+                "status": "planned"
+              }
+            }
+          ]
+        }
+      ],
+      "decision_digest": "b025018936bf789ce7cdc5a09c9938b502a989726d289ff6c0b5fe8f2a3113d3"
+    },
+    {
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_PRINCIPAL_STATE",
       "layer": "authentication_boundary",
@@ -4833,7 +4928,7 @@
         {
           "location": "db",
           "test_owner": {
-            "id": "TSK-270.step4.FR-019/list_item-009.db",
+            "id": "TSK-270.step4.FR-019/list_item-010.db",
             "status": "planned"
           },
           "basis_rule_id": "DB_PRINCIPAL_STATE_PERSISTENCE"
@@ -4841,13 +4936,18 @@
         {
           "location": "http",
           "test_owner": {
-            "id": "TSK-270.step4.FR-019/list_item-009.http",
+            "id": "TSK-270.step4.FR-019/list_item-010.http",
             "status": "planned"
           },
           "basis_rule_id": "HTTP_PRINCIPAL_STATE_GATE"
         }
       ],
-      "decision_digest": "479ab1f438ebdb4abdbab4d73a932985d03530d65eae54cc248bb55948fe9c7a"
+      "source_id": "FR-019/list_item-010",
+      "source_kind": "list_item",
+      "source_heading_id": "FR-019",
+      "source_text": "- **補足**: チーム管理者ロールは導入しない（10章の未決事項。導入時は削除系の担い手を再配置）",
+      "source_text_digest": "2ec0833e858fcecdc7c51e0c03542114000c840a70214da921fe7957bbd9b4bc",
+      "decision_digest": "94d424256640b3a6281e6b2f8d540511854c7d14e4afc68bf239de426d324c57"
     },
     {
       "source_id": "FR-039/heading-001",
@@ -15070,8 +15170,8 @@
       "source_id": "APPENDIX-C/blockquote-001",
       "source_kind": "blockquote",
       "source_heading_id": "APPENDIX-C",
-      "source_text": "> システム管理者が管理コンソール（FR-037）で変更できる値。変更は以後の表示に反映され、関連キャッシュ・事前集計は無効化→再計算される。**本表に掲載された値に限り**、本文中の数値は「既定値」であり実効値は本表の設定に従う（本表に載っていない数値——性能目標・キュー保持の仕組み上の定数・88列などの契約値——は設定可能ではなく、要件の固定値である）。",
-      "source_text_digest": "7601f831fee7b6c17b5ae53068e1c84ce5d13f3f268eedf18990e53ff034bb74",
+      "source_text": "> システム管理者が管理コンソール（FR-037）で変更できる値。変更は以後の表示に反映され、関連キャッシュ・事前集計は無効化→再計算される。**ただしゴミ箱の自己復元期限は明示的な例外**: 削除時に確定して保存した期限へ設定変更を遡及適用せず、新しい設定値は以後ゴミ箱へ移す試合にだけ使う。期限到来後に非表示となった行も設定延長で自動再表示しない。**本表に掲載された値に限り**、本文中の数値は「既定値」であり実効値は本表の設定に従う（本表に載っていない数値——性能目標・キュー保持の仕組み上の定数・88列などの契約値——は設定可能ではなく、要件の固定値である）。",
+      "source_text_digest": "cee936dcd43a79e4c3aa1246a87eaf5849121f16c95c0342acf3cee4441110b9",
       "classification": "auth_claim",
       "classification_rule_id": "AUTH_OPERATION_PERMISSION",
       "layer": "operation_authorization",
@@ -15093,7 +15193,7 @@
           "basis_rule_id": "HTTP_OPERATION_GATE"
         }
       ],
-      "decision_digest": "caa62cef13fa2e4d68f4a7c517459d02c8ce853e17e7e10c627383fc7225b051"
+      "decision_digest": "c2dd88b585b03731534a5c9e62afacc51771ef0087ee63ce7c84f129a3641cf2"
     },
     {
       "source_id": "APPENDIX-C/table_header-001",
@@ -15139,11 +15239,11 @@
       "source_id": "APPENDIX-C/table_row-003",
       "source_kind": "table_row",
       "source_heading_id": "APPENDIX-C",
-      "source_text": "| ゴミ箱の自己復元期限 | 30日 | 短縮はチームの復元機会を狭める | FR-019 |",
-      "source_text_digest": "e588bc48c1919e476b5197f17b49082893b432894c4a2287e2867483da3a6c88",
+      "source_text": "| ゴミ箱の自己復元期限 | 30日 | 1〜36500の整数日、1日=24時間。期限日時をDBで表現できない設定・削除は拒否。削除時点で固定し、設定の短縮・延長を既存行へ遡及しない。短縮は以後に削除する試合の復元機会を狭める | FR-019 |",
+      "source_text_digest": "399d46875eba04b19564ef767c2f27df71804b0197e83d80dbc70eafdfe92bf6",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "decision_digest": "ebebf127528901967ac79bc8c106aa81bf0e20fa90e613fc0d80ddaa1e00a724"
+      "decision_digest": "8cba7a9455ac2b56e4845948814720aa877a0f1a5e98d76725af5fef01cb31b4"
     },
     {
       "source_id": "APPENDIX-C/table_row-004",

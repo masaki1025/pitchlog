@@ -3,9 +3,9 @@
   "asset_kind": "authz_route_registry",
   "input_manifest": {
     "requirement_claims_path": "contracts/authz/requirement-claims.json",
-    "requirement_claims_blob_digest": "dcfb12d0512a7b545a54b0e9f93afe58f1b8667f",
+    "requirement_claims_blob_digest": "75a33a4cc8e0b6d21fceed94d6f333a7f42308cc",
     "requirement_claims_lock_path": "contracts/authz/requirement-claims.lock.json",
-    "requirement_claims_lock_blob_digest": "570a8e43b7be67d8a590e04d446d74d59307c7bc"
+    "requirement_claims_lock_blob_digest": "6f7dbafd7248c9dd8d5da2ee2ac47f0733f57d31"
   },
   "enums": {
     "origins": [
@@ -975,7 +975,25 @@
       "reason_code": "design_pending_task"
     },
     {
-      "source_id": "FR-019/list_item-009",
+      "source_id": "FR-019/list_item-005",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-019/list_item-009#trash-visibility",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-019/list_item-009#restore-deadline",
+      "location": "http",
+      "disposition": "out_of_registry",
+      "reason_code": "design_pending_task"
+    },
+    {
+      "source_id": "FR-019/list_item-010",
       "location": "http",
       "disposition": "out_of_registry",
       "reason_code": "design_pending_task"
