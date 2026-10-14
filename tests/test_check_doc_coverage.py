@@ -176,7 +176,8 @@ def test_extractor_matches_all_oracle_categories() -> None:
         "requirements": 65,
         "sections": 28,
         "blocks": 8,
-        "appendix_items": 23,
+        # 要件書 v2.12 で付録B-7 を新設したため、付録項目は 23 件から 24 件へ増えた。
+        "appendix_items": 24,
         "identified_table_rows": 16,
         "keyed_table_rows": 40,
         "release_dod": 8,
@@ -194,7 +195,7 @@ def test_valid_assignment_table_covers_universe_once() -> None:
     assignments = checker.parse_assignments(DOCUMENT.read_text(encoding="utf-8"))
 
     assert checker.check_coverage(extracted, universe, assignments) == ()
-    assert len(assignments) == 212
+    assert len(assignments) == 213
     assert Counter(assignment.kind for assignment in assignments) == {
         "同期側で決める": 37,
         # P1-7(確定ゲート 1 周目)で、4-3 の V5・5-5 が直接入力する `3` と、
@@ -209,18 +210,19 @@ def test_valid_assignment_table_covers_universe_once() -> None:
         # 完走条件として「境界として参照」から「同期側で決める」へ移した。
         # ステップ41で6.1のP3受理結果保持を母集合と同期側の帰属へ1件追加した。
         "境界として参照": 83,
-        "対象外": 92,
+        # 要件書 v2.12 の付録B-7 を帰属表へ「対象外」として追加したため 92 件から 93 件へ増えた。
+        "対象外": 93,
     }
 
 
-def test_assignment_destination_grammar_parses_all_212_rows() -> None:
-    """現行帰属212行と代表的な節式・理由文の展開を固定する。"""
+def test_assignment_destination_grammar_parses_all_213_rows() -> None:
+    """現行帰属213行と代表的な節式・理由文の展開を固定する。"""
     assignments = {
         assignment.id: assignment
         for assignment in checker.parse_assignments(DOCUMENT.read_text(encoding="utf-8"))
     }
 
-    assert len(assignments) == 212
+    assert len(assignments) == 213
     assert assignments["FR-012"].sections == (
         "2-1",
         "4",
@@ -569,7 +571,7 @@ def test_universe_is_not_derived_from_extractor() -> None:
     raw = json.loads(UNIVERSE.read_text(encoding="utf-8"))
 
     assert "抽出器より先に固定した期待値" in raw["_note"]
-    assert raw["total"] == 212
+    assert raw["total"] == 213
 
 
 def test_appendix_c_is_stable_id_in_link_label_and_fragment(tmp_path: Path) -> None:

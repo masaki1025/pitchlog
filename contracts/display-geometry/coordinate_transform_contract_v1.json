@@ -1,0 +1,1095 @@
+{
+  "schemaVersion": 1,
+  "version": "coordinate_transform_contract_v1",
+  "calculation": "coordinate-transform",
+  "independentVerifierId": "claude-delegator",
+  "cases": [
+    {
+      "caseId": "screen-roundtrip-origin",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 0,
+          "y": 0
+        },
+        "coordinateSystem": "screen-263-top-left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 0,
+          "y": 263
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-max-corner",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 263,
+          "y": 263
+        },
+        "coordinateSystem": "screen-263-top-left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 263,
+          "y": 0
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 263,
+          "y": 263
+        }
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-zone-top-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 80,
+          "y": 68
+        },
+        "coordinateSystem": "screen-263-top-left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 80,
+          "y": 195
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 80,
+          "y": 68
+        }
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-zone-top-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 183,
+          "y": 68
+        },
+        "coordinateSystem": "screen-263-top-left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 183,
+          "y": 195
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 183,
+          "y": 68
+        }
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-zone-bottom-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 80,
+          "y": 180
+        },
+        "coordinateSystem": "screen-263-top-left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 80,
+          "y": 83
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 80,
+          "y": 180
+        }
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-zone-bottom-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 183,
+          "y": 180
+        },
+        "coordinateSystem": "screen-263-top-left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 183,
+          "y": 83
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 183,
+          "y": 180
+        }
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-interior-upper",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 100
+        },
+        "coordinateSystem": "screen-263-top-left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 123,
+          "y": 163
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 123,
+          "y": 100
+        }
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-interior-lower",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 130,
+          "y": 140
+        },
+        "coordinateSystem": "screen-263-top-left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 130,
+          "y": 123
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 130,
+          "y": 140
+        }
+      }
+    },
+    {
+      "caseId": "canonical-roundtrip-origin",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 0,
+          "y": 0
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 0,
+          "y": 263
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "caseId": "canonical-roundtrip-max-corner",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 263,
+          "y": 263
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 263,
+          "y": 0
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 263,
+          "y": 263
+        }
+      }
+    },
+    {
+      "caseId": "canonical-roundtrip-quantized-half",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 132,
+          "y": 132
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 132,
+          "y": 131
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 132,
+          "y": 132
+        }
+      }
+    },
+    {
+      "caseId": "canonical-roundtrip-zone-bottom-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 80,
+          "y": 83
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 80,
+          "y": 180
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 80,
+          "y": 83
+        }
+      }
+    },
+    {
+      "caseId": "quantization-half-to-132-units",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1173
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1314
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": {
+            "numerator": 1,
+            "denominator": 2
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 2
+          }
+        },
+        "coordinateSystem": "normalized-bottom-left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 132,
+          "y": 132
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      }
+    },
+    {
+      "caseId": "quantization-thirds-one-two",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1173
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1314
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": {
+            "numerator": 1,
+            "denominator": 3
+          },
+          "y": {
+            "numerator": 2,
+            "denominator": 3
+          }
+        },
+        "coordinateSystem": "normalized-bottom-left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 88,
+          "y": 175
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      }
+    },
+    {
+      "caseId": "quantization-thirds-two-one",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1173
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1309
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1314
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": {
+            "numerator": 2,
+            "denominator": 3
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 3
+          }
+        },
+        "coordinateSystem": "normalized-bottom-left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 175,
+          "y": 88
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      }
+    },
+    {
+      "caseId": "clamp-negative-x-above-max-y",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": -1,
+          "y": 264
+        },
+        "coordinateSystem": "screen-263-top-left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 0,
+          "y": 0
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      }
+    },
+    {
+      "caseId": "clamp-above-max-x-negative-y",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1308
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 264,
+          "y": -1
+        },
+        "coordinateSystem": "screen-263-top-left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 263,
+          "y": 263
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263"
+      }
+    },
+    {
+      "caseId": "inside-outside-grid-131-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1293
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 131,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "right"
+      },
+      "expected": {
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "inside-outside-grid-132-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1293
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1298
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 132,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "right"
+      },
+      "expected": {
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "inside-outside-grid-131-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1293
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1299
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 131,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "left"
+      },
+      "expected": {
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "inside-outside-grid-132-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1293
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1300
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 132,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "left"
+      },
+      "expected": {
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "inside-outside-exact-center-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1293
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": {
+            "numerator": 1,
+            "denominator": 2
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 2
+          }
+        },
+        "coordinateSystem": "normalized-bottom-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "inside-outside-exact-center-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1293
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": {
+            "numerator": 1,
+            "denominator": 2
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 2
+          }
+        },
+        "coordinateSystem": "normalized-bottom-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "inside-outside-end-0-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1293
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 0,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "right"
+      },
+      "expected": {
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "inside-outside-end-263-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1293
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1298
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 263,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "right"
+      },
+      "expected": {
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "inside-outside-end-0-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1293
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1299
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 0,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "left"
+      },
+      "expected": {
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "inside-outside-end-263-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1293
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1300
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1307
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 263,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "left"
+      },
+      "expected": {
+        "insideOutside": "inside"
+      }
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-"""捕球選手推定契約と独立確認の記録を照合する。"""
+"""領域・座標変換契約と独立確認の記録を照合する。"""
 
 from __future__ import annotations
 
@@ -10,7 +10,12 @@ from pathlib import Path
 import pytest
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_PATH = REPOSITORY_ROOT / "contracts/field-regions/fielder_estimation_contract_v1.json"
+FIELDER_CONTRACT_PATH = (
+    REPOSITORY_ROOT / "contracts/field-regions/fielder_estimation_contract_v1.json"
+)
+COORDINATE_CONTRACT_PATH = (
+    REPOSITORY_ROOT / "contracts/display-geometry/coordinate_transform_contract_v1.json"
+)
 DESIGN_PATH = REPOSITORY_ROOT / "docs/features/field-region-vectors/design.md"
 HEADING = re.compile(r"^#{1,6}[ \t]+")
 CASE_ID_CELL = re.compile(r"`([^`]+)`")
@@ -53,7 +58,7 @@ def _recorded_case_ids(
     Args:
         markdown: design.md の本文。
         section_number: 表を読む節番号。
-        require_four_columns: 5-1 の記録行に 4 列の値を要求するか。
+        require_four_columns: 独立確認の記録行に 4 列の値を要求するか。
 
     Returns:
         表に記録された caseId の列。
@@ -119,12 +124,19 @@ def _assert_case_id_match(
         )
 
 
-def _verify_assets(contract_path: Path, design_path: Path) -> None:
+def _verify_assets(
+    contract_path: Path,
+    design_path: Path,
+    verification_section: str,
+    comparison_section: str | None = None,
+) -> None:
     """契約の独立確認者・典拠と design.md の記録表を検査する。
 
     Args:
-        contract_path: 捕球選手推定契約の JSON ファイル。
+        contract_path: 対象計算契約の JSON ファイル。
         design_path: 独立確認表を含む Markdown ファイル。
+        verification_section: 独立確認記録の節番号。
+        comparison_section: 三者突合表の節番号。対象外なら None。
 
     Raises:
         AssertionError: 独立確認の記録または典拠に不整合がある場合。
@@ -145,7 +157,10 @@ def _verify_assets(contract_path: Path, design_path: Path) -> None:
                 raise AssertionError(f"{case_id} の provenance に field_region_seed を含む")
 
     markdown = design_path.read_text(encoding="utf-8")
-    for section_number, require_four_columns in (("5-1", True), ("6-2", False)):
+    sections = [(verification_section, True)]
+    if comparison_section is not None:
+        sections.append((comparison_section, False))
+    for section_number, require_four_columns in sections:
         recorded_ids = _recorded_case_ids(
             markdown, section_number, require_four_columns=require_four_columns
         )
@@ -164,7 +179,7 @@ def _write_synthetic_assets(
 
     Args:
         tmp_path: 合成ファイルの作成先。
-        verification_rows: 5-1 節の記録行。
+        verification_rows: 5-1・5-2 節の記録行。
         comparison_rows: 6-2 節の突合行。
         verifier_id: 契約の独立確認者 ID。
         source_path: 合成ケースの典拠パス。
@@ -193,7 +208,10 @@ def _write_synthetic_assets(
                 "| caseId | 確認者 | 方法 | 結果 |",
                 "| --- | --- | --- | --- |",
                 *verification_rows,
-                "### 5-2. 次の記録",
+                "### 5-2. 座標変換の確認記録",
+                "| caseId | 確認者 | 方法 | 結果 |",
+                "| --- | --- | --- | --- |",
+                *verification_rows,
                 "### 6-2. 三者突合",
                 "| caseId | 入力 | シード | 旧規則 | 一致 | 備考 |",
                 "| --- | --- | --- | --- | --- | --- |",
@@ -207,27 +225,54 @@ def _write_synthetic_assets(
     return contract_path, design_path
 
 
-def test_repository_fielder_estimation_verification_record() -> None:
-    """実契約と design.md の確認記録 2 表が全件対応する。"""
-    _verify_assets(CONTRACT_PATH, DESIGN_PATH)
+@pytest.mark.parametrize(
+    ("contract_path", "verification_section", "comparison_section"),
+    [
+        (FIELDER_CONTRACT_PATH, "5-1", "6-2"),
+        (COORDINATE_CONTRACT_PATH, "5-2", None),
+    ],
+    ids=["fielder-estimation", "coordinate-transform"],
+)
+def test_repository_verification_record(
+    contract_path: Path, verification_section: str, comparison_section: str | None
+) -> None:
+    """各実契約と design.md の確認記録が全件対応する。
+
+    Args:
+        contract_path: 検査する実契約のパス。
+        verification_section: 独立確認記録の節番号。
+        comparison_section: 三者突合表の節番号。対象外なら None。
+    """
+    _verify_assets(contract_path, DESIGN_PATH, verification_section, comparison_section)
 
 
-def test_contract_only_case_id_is_rejected(tmp_path: Path) -> None:
+@pytest.mark.parametrize("verification_section", ["5-1", "5-2"])
+def test_contract_only_case_id_is_rejected(
+    tmp_path: Path, verification_section: str
+) -> None:
     """契約にしかない caseId を拒否する。
 
     Args:
         tmp_path: 合成ファイルの作成先。
+        verification_section: 検査する独立確認記録の節番号。
     """
     contract_path, design_path = _write_synthetic_assets(tmp_path, verification_rows=[])
-    with pytest.raises(AssertionError, match="5-1 節: 契約にのみある caseId=\\['case-a'\\]"):
-        _verify_assets(contract_path, design_path)
+    with pytest.raises(
+        AssertionError,
+        match=rf"{verification_section} 節: 契約にのみある caseId=\['case-a'\]",
+    ):
+        _verify_assets(contract_path, design_path, verification_section, None)
 
 
-def test_record_only_case_id_is_rejected(tmp_path: Path) -> None:
-    """5-1 節にしかない caseId を拒否する。
+@pytest.mark.parametrize("verification_section", ["5-1", "5-2"])
+def test_record_only_case_id_is_rejected(
+    tmp_path: Path, verification_section: str
+) -> None:
+    """記録表にしかない caseId を拒否する。
 
     Args:
         tmp_path: 合成ファイルの作成先。
+        verification_section: 検査する独立確認記録の節番号。
     """
     contract_path, design_path = _write_synthetic_assets(
         tmp_path,
@@ -237,9 +282,10 @@ def test_record_only_case_id_is_rejected(tmp_path: Path) -> None:
         ],
     )
     with pytest.raises(
-        AssertionError, match="5-1 節: .*design.md にのみある caseId=\\['case-b'\\]"
+        AssertionError,
+        match=rf"{verification_section} 節: .*design.md にのみある caseId=\['case-b'\]",
     ):
-        _verify_assets(contract_path, design_path)
+        _verify_assets(contract_path, design_path, verification_section, None)
 
 
 @pytest.mark.parametrize(
@@ -250,47 +296,60 @@ def test_record_only_case_id_is_rejected(tmp_path: Path) -> None:
         ("| `case-a` | Claude | 独立計算 |  |", "結果"),
     ],
 )
+@pytest.mark.parametrize("verification_section", ["5-1", "5-2"])
 def test_empty_verification_column_is_rejected(
-    tmp_path: Path, verification_row: str, empty_column: str
+    tmp_path: Path,
+    verification_row: str,
+    empty_column: str,
+    verification_section: str,
 ) -> None:
     """確認者・方法・結果の空欄を拒否する。
 
     Args:
         tmp_path: 合成ファイルの作成先。
-        verification_row: 空欄を含む 5-1 節の行。
+        verification_row: 空欄を含む独立確認記録の行。
         empty_column: 空欄の列名。
+        verification_section: 検査する独立確認記録の節番号。
     """
     contract_path, design_path = _write_synthetic_assets(
         tmp_path, verification_rows=[verification_row]
     )
-    with pytest.raises(AssertionError, match=f"5-1 節: case-a の {empty_column} が空"):
-        _verify_assets(contract_path, design_path)
+    with pytest.raises(
+        AssertionError, match=f"{verification_section} 節: case-a の {empty_column} が空"
+    ):
+        _verify_assets(contract_path, design_path, verification_section, None)
 
 
-def test_not_performed_verifier_is_rejected(tmp_path: Path) -> None:
+@pytest.mark.parametrize("verification_section", ["5-1", "5-2"])
+def test_not_performed_verifier_is_rejected(
+    tmp_path: Path, verification_section: str
+) -> None:
     """独立確認が未実施の契約を拒否する。
 
     Args:
         tmp_path: 合成ファイルの作成先。
+        verification_section: 検査する独立確認記録の節番号。
     """
     contract_path, design_path = _write_synthetic_assets(
         tmp_path, verifier_id="not-performed"
     )
     with pytest.raises(AssertionError, match="independentVerifierId が not-performed のまま"):
-        _verify_assets(contract_path, design_path)
+        _verify_assets(contract_path, design_path, verification_section, None)
 
 
-def test_seed_provenance_is_rejected(tmp_path: Path) -> None:
+@pytest.mark.parametrize("verification_section", ["5-1", "5-2"])
+def test_seed_provenance_is_rejected(tmp_path: Path, verification_section: str) -> None:
     """期待値の典拠に領域シードを含む契約を拒否する。
 
     Args:
         tmp_path: 合成ファイルの作成先。
+        verification_section: 検査する独立確認記録の節番号。
     """
     contract_path, design_path = _write_synthetic_assets(
         tmp_path, source_path="contracts/field-regions/field_region_seed_v1.json"
     )
     with pytest.raises(AssertionError, match="case-a の provenance に field_region_seed を含む"):
-        _verify_assets(contract_path, design_path)
+        _verify_assets(contract_path, design_path, verification_section, None)
 
 
 def test_comparison_only_case_id_is_rejected(tmp_path: Path) -> None:
@@ -309,4 +368,4 @@ def test_comparison_only_case_id_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(
         AssertionError, match="6-2 節: .*design.md にのみある caseId=\\['case-b'\\]"
     ):
-        _verify_assets(contract_path, design_path)
+        _verify_assets(contract_path, design_path, "5-1", "6-2")

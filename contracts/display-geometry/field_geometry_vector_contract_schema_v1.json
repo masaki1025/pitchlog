@@ -112,7 +112,7 @@
           }
         },
         "expected": {
-          "description": "捕球選手推定は position、座標変換は coordinate と導出値を記録する。往復確認には roundTripCoordinate を使う。",
+          "description": "捕球選手推定の出力は position、座標変換の出力は coordinate と coordinateSystem、内外角の導出結果は insideOutside。往復確認には roundTripCoordinate を使う。",
           "type": "object",
           "additionalProperties": false,
           "if": {
@@ -122,7 +122,8 @@
           "then": {"properties": {"coordinate": {"$ref": "#/$defs/pointUnits263"}}},
           "anyOf": [
             {"required": ["position"]},
-            {"required": ["coordinate", "coordinateSystem"]}
+            {"required": ["coordinate", "coordinateSystem"]},
+            {"required": ["insideOutside"]}
           ],
           "properties": {
             "position": {
@@ -133,7 +134,7 @@
             },
             "coordinate": {"$ref": "#/$defs/point"},
             "coordinateSystem": {"$ref": "#/$defs/coordinateSystem"},
-            "insideOutside": {"type": "string", "minLength": 1},
+            "insideOutside": {"enum": ["inside", "outside"]},
             "roundTripCoordinate": {"$ref": "#/$defs/point"}
           }
         }
