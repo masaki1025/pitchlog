@@ -88,6 +88,81 @@ def _write_json(path: Path, value: object) -> None:
     )
 
 
+def test_oracle_meaning_replacement_requires_exact_old_row() -> None:
+    """ID移動は旧行・位置が一致する場合にだけ承認候補を適用する。"""
+    old: dict[str, object] = {"claim_id": "FR-019/list_item-009", "owner": "planned"}
+    new: dict[str, object] = {"claim_id": "FR-019/list_item-010", "owner": "planned"}
+    assert mutation_composition._rows_with_approved_replacement(
+        (old,), 0, old, new, "claim"
+    ) == [new]
+
+    with pytest.raises(MutationCompositionError, match="置換前の行または位置"):
+        mutation_composition._rows_with_approved_replacement(
+            (old,), 0, {**old, "owner": "implemented"}, new, "claim"
+        )
+    with pytest.raises(MutationCompositionError, match="置換前の行または位置"):
+        mutation_composition._rows_with_approved_replacement(
+            (old,), 1, old, new, "claim"
+        )
+
+
+def test_oracle_meaning_value_replacement_requires_exact_before() -> None:
+    """派生参照の更新は既存の位置と旧値が一致する場合だけ受理する。"""
+    body: dict[str, object] = {"sources": {"claim_mutant_map": {"blob_digest": "old"}}}
+    change: dict[str, object] = {
+        "pointer": "/sources/claim_mutant_map/blob_digest",
+        "before": "old",
+        "after": "new",
+    }
+    mutation_composition._apply_approved_value(body, change, "source")
+    assert body == {"sources": {"claim_mutant_map": {"blob_digest": "new"}}}
+    with pytest.raises(MutationCompositionError, match="変更前の値"):
+        mutation_composition._apply_approved_value(body, change, "source")
+    with pytest.raises(MutationCompositionError, match="JSON Pointer"):
+        mutation_composition._apply_approved_value(
+            body, {**change, "pointer": "/sources/unknown/blob_digest"}, "source"
+        )
+
+
+def test_oracle_meaning_replacement_declaration_rejects_incomplete_rows(
+    tmp_path: Path,
+) -> None:
+    """承認宣言の欠落した前後行を拒否する。"""
+    path = tmp_path / mutation_composition.APPROVALS_RELATIVE_PATH
+    path.parent.mkdir(parents=True)
+    source = (
+        mutation_composition.REPOSITORY_ROOT
+        / mutation_composition.APPROVALS_RELATIVE_PATH
+    )
+    original = json.loads(source.read_text(encoding="utf-8"))
+    original["approvals"].append(
+        {
+            "approval_id": "masaki1025/pitchlog#999999",
+            "path": "contracts/authz/claim-mutant-map.json",
+            "approved_by": "山田正輝",
+            "approved_on": "2026-10-14",
+            "reason": "負例検査用",
+            "insertions": [],
+            "replacements": [
+                {
+                    "collection": "claims",
+                    "index": 0,
+                    "before": {},
+                    "after": {"claim_id": "new"},
+                }
+            ],
+        }
+    )
+    _write_json(path, original)
+    with pytest.raises(MutationCompositionError, match="異なる完全な前後行"):
+        mutation_composition._approved_meaning_changes(tmp_path)
+
+    original["approvals"][-1]["approved_by"] = "未承認"
+    _write_json(path, original)
+    with pytest.raises(MutationCompositionError, match="人間承認の記録が未確定"):
+        mutation_composition._approved_meaning_changes(tmp_path)
+
+
 def test_frozen_oracle_rejects_meaning_tampering_after_reseal(
     tmp_path: Path,
 ) -> None:

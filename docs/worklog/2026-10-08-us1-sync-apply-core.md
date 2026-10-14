@@ -279,3 +279,10 @@ branch: feature/us1-sync-apply-core
 - **ステップ 9**: `sync/invalidation.py` に P3 と D1 付き経路の記録部(範囲ごとに 1 行を呼び出し元のトランザクションへ。INSERT は SAVEPOINT で保護し、SQLSTATE 23505 かつ `pk_invalidation_intents` のときだけ先着行を再読)。#114 の範囲名の写像を公開して共有。`cache-invalidation-contract.json` の配信状態を `pending`/`delivered`・検索列を `delivery_status` へ、`durable_intent` の同期経路の規則を `B03` に追随。PR #132 の受理記録 1 件・snapshot・比較 corpus を取り直し。TB004 は検査器を変えず既存の許可経路で通す。発火条件とロック順は記録部に持たせず、後続の呼び出し元(ステップ 10・13)が決める
 - **敵対レビュー**: 1 回目 否決(P1 2 — 同じ意図 ID の並行挿入でトランザクション全体が失敗し得る / DB テストが期待 ID を実装と同じ関数で作っていた)→ すべて採用(SAVEPOINT 保護と並行 DB テスト / 期待 ID を材料から文字列で組み立て)。2 回目 **可決(0 件)**
 - 検査: DB 不要の全件 1457 passed(既知の偽の赤 44 件以外)/ backend と root の ruff・ty green / 凍結一式は 570 passed・1 件未達 — **develop に #129 の凍結履歴が入り、`test_repository_is_green` の履歴 prefix の比較が origin/develop とずれた**(merge-base を比較元にすると通る)。次の develop の取り込みで解消する。**DB テストはローカル未実行 — CI で確かめる**
+
+## develop の取り込み 2 回目 — #129 と data-model の版の繰り下げ(2026-10-14)
+
+- ステップ 9 の push 後、develop に #129(U-T1 / TSK-543)が入り PR が再び DIRTY。CI を走らせるため取り込んだ
+- **data-model の版の衝突(2 度目)**: #129 が data-model **v0.9** を 2026-10-13 に先に確定させていた。本ブランチの TSK-391 の改訂(v0.9 で 2026-10-14 承認)を **v0.10 へ繰り下げた**(内容は承認時のまま・版番号だけ)。変更履歴に繰り下げの注記、本文の版の参照(8 箇所)・README・sync-protocol の変更履歴の参照・計画書・設計伝播の試験のコメントを追随。**教訓は既存の memory「起案前に未マージ分も含めた最大版を実測」と同型** — 承認後に別の PR が同じ版を先にマージすると、取り込みのたびに繰り下げが要る
+- 凍結資産: `cache-invalidation-contract.json` は #129 の B06 トリガー 5 とステップ 9 の B03 同期経路の規則・配信状態の語彙を合成 / `base-allowlist.json` は #129 の受理記録を保持し、PR #132 の 1 件を比較元 `93e1482a` で導出し直し / schema-manifest・shared-preconditions の digest を取り直し / N3 受入シートは判定を引き継いで再生成(本ブランチ 104 件 + develop 1 件)
+- 衝突解消の敵対レビュー 1 回 **可決(0 件)**。関係テスト 1044 passed、backend の DB 不要の全件は既知の偽の赤 44 件以外 green

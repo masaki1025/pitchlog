@@ -6600,14 +6600,17 @@ def test_condition4_allowed_call_symbols_are_an_exact_set() -> None:
     assert contract.cache_invalidation.allowed_call_symbols == frozenset(
         {
             "pitchlog.repositories.cache_invalidation.AnalyticsChartCacheKey",
+            "pitchlog.repositories.cache_invalidation.AnalyticsChartTargetSelector",
             "pitchlog.repositories.cache_invalidation.CachePeriod",
             "pitchlog.repositories.cache_invalidation.MatchCacheKey",
             "pitchlog.repositories.cache_invalidation.MatchChartSubject",
             "pitchlog.repositories.cache_invalidation.PlayerCareerCacheKey",
+            "pitchlog.repositories.cache_invalidation.PlayerCareerTargetSelector",
             "pitchlog.repositories.cache_invalidation.PlayerChartSubject",
             "pitchlog.repositories.cache_invalidation.SharedAggregateCacheKey",
             "pitchlog.repositories.cache_invalidation.SharedAggregateTargetSelector",
             "pitchlog.repositories.cache_invalidation.TeamAggregateCacheKey",
+            "pitchlog.repositories.cache_invalidation.TeamAggregateTargetSelector",
             "pitchlog.repositories.cache_invalidation.build_cache_invalidation_request",
         }
     )

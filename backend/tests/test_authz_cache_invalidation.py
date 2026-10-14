@@ -19,6 +19,7 @@ from pitchlog.repositories import cache_invalidation
 from pitchlog.repositories.cache_invalidation import (
     AnalyticsChartCacheKey,
     AnalyticsChartSubject,
+    AnalyticsChartTargetSelector,
     CacheInvalidationKey,
     CacheInvalidationRequest,
     CacheInvalidationTrigger,
@@ -28,10 +29,12 @@ from pitchlog.repositories.cache_invalidation import (
     MatchCacheKey,
     MatchChartSubject,
     PlayerCareerCacheKey,
+    PlayerCareerTargetSelector,
     PlayerChartSubject,
     SharedAggregateCacheKey,
     SharedAggregateTargetSelector,
     TeamAggregateCacheKey,
+    TeamAggregateTargetSelector,
     build_cache_invalidation_request,
 )
 
@@ -163,25 +166,48 @@ def _assert_b06_source_matches_contract(section: str, asset: dict[str, Any]) -> 
     )
     assert normalized_row_rules == (
         (
+            "5(試合の削除・復元・再開)",
+            "実際に状態を変えた試合1件につき5件(①〜⑤を各1件。一括要求でも試合ごとに5件)",
+            "(game_id, scope_id)。scope_id は①〜⑤の対象範囲。"
+            "1要求の操作IDは1つとし、試合と範囲の組で各行を区別する",
+            "① 試合の具体鍵、②③⑤ 自テナント限定選択子、"
+            "④ 対象テナントが自テナントである共有集計選択子(下)。"
+            "欠落・重複・余分、他テナント、具体鍵と選択子の不正な混在を拒否",
+        ),
+        (
             "14(選手の在籍区分の変更)",
             "1 操作につき 1 件(一括変更でも 1 件)",
             "④ 共有集計",
             "④ の対象テナント単位の選択子(下)。対象テナント = 状態を変えたテナント",
         ),
-        ("5・7〜13", "本版では定めない — 所有単位が足す", "同左", "同左"),
+        ("7〜13", "本版では定めない — 所有単位が足す", "同左", "同左"),
     )
-    defined_ordinals = _source_ordinals(normalized_row_rules[0][0])
-    owner_ordinals = _source_ordinals(normalized_row_rules[1][0])
+    defined_ordinals = set().union(
+        *(_source_ordinals(row[0]) for row in normalized_row_rules[:2])
+    )
+    owner_ordinals = _source_ordinals(normalized_row_rules[2][0])
     assert defined_ordinals.isdisjoint(owner_ordinals)
     assert defined_ordinals | owner_ordinals == contract_ordinals
     assert {ordinal_by_id[item] for item in non_sync["row_rules"]} == defined_ordinals
     assert non_sync["row_rules_for_other_triggers"] == "defined_by_owner_unit"
     assert owner_ordinals == contract_ordinals - defined_ordinals
-    for rule in non_sync["row_rules"].values():
-        assert rule["rows_per_operation"] == 1
-        assert rule["selector_kind"] == "shared_aggregate_target_selector"
-        assert rule["row_discriminator"] == "scope_id"
-        assert rule["row_discriminator_value"] == "shared_aggregate"
+    assert non_sync["row_rules"]["game_delete_restore_or_resume"] == {
+        "rows_per_changed_game": 5,
+        "scope_ids": [scope.value for scope in CacheScope],
+        "row_discriminator": "game_id:scope_id",
+        "operation_id_per_request": 1,
+        "zero_state_updates_zero_rows": True,
+        "match_key_kind": "match",
+        "selector_scope_ids": [
+            scope.value for scope in CacheScope if scope is not CacheScope.MATCH
+        ],
+    }
+    assert non_sync["row_rules"]["roster_status_change"] == {
+        "rows_per_operation": 1,
+        "selector_kind": "shared_aggregate_target_selector",
+        "row_discriminator": "scope_id",
+        "row_discriminator_value": "shared_aggregate",
+    }
 
 
 def _source_matrix() -> tuple[tuple[str, ...], set[tuple[int, str, str]]]:
@@ -247,6 +273,14 @@ def _keys_for(
     """実装 matrix が要求する scope の鍵を返す。"""
     if trigger is CacheInvalidationTrigger.ROSTER_STATUS_CHANGE:
         return (SharedAggregateTargetSelector(_TENANT_A),)
+    if trigger is CacheInvalidationTrigger.GAME_DELETE_RESTORE_OR_RESUME:
+        return (
+            MatchCacheKey(_TENANT_A, _MATCH_ID),
+            PlayerCareerTargetSelector(_TENANT_A),
+            TeamAggregateTargetSelector(_TENANT_A),
+            SharedAggregateTargetSelector(_TENANT_A),
+            AnalyticsChartTargetSelector(_TENANT_A),
+        )
     key_by_scope = _key_by_scope()
     return tuple(
         key_by_scope[scope]
@@ -477,12 +511,25 @@ def test_durable_intent_persistence_and_retry_contract_is_exact() -> None:
                 "row_discriminator",
             ],
             "row_rules": {
+                "game_delete_restore_or_resume": {
+                    "rows_per_changed_game": 5,
+                    "scope_ids": [scope.value for scope in CacheScope],
+                    "row_discriminator": "game_id:scope_id",
+                    "operation_id_per_request": 1,
+                    "zero_state_updates_zero_rows": True,
+                    "match_key_kind": "match",
+                    "selector_scope_ids": [
+                        scope.value
+                        for scope in CacheScope
+                        if scope is not CacheScope.MATCH
+                    ],
+                },
                 "roster_status_change": {
                     "rows_per_operation": 1,
                     "selector_kind": "shared_aggregate_target_selector",
                     "row_discriminator": "scope_id",
                     "row_discriminator_value": "shared_aggregate",
-                }
+                },
             },
             "row_rules_for_other_triggers": "defined_by_owner_unit",
             "attribution": {
@@ -502,6 +549,30 @@ def test_durable_intent_persistence_and_retry_contract_is_exact() -> None:
             },
             "selectors": [
                 {
+                    "kind": "player_career_target_selector",
+                    "scope_id": "player_career",
+                    "python_type": (
+                        "pitchlog.repositories.cache_invalidation."
+                        "PlayerCareerTargetSelector"
+                    ),
+                    "fields": [["tenant_id", "uuid.UUID"]],
+                    "source_unit": "状態を変えたテナントを明示する選択子",
+                    "matches": "physical_key_adt.player_career.tenant_id",
+                    "applies_to_trigger_ids": ["game_delete_restore_or_resume"],
+                },
+                {
+                    "kind": "team_aggregate_target_selector",
+                    "scope_id": "team_aggregate",
+                    "python_type": (
+                        "pitchlog.repositories.cache_invalidation."
+                        "TeamAggregateTargetSelector"
+                    ),
+                    "fields": [["tenant_id", "uuid.UUID"]],
+                    "source_unit": "状態を変えたテナントを明示する選択子",
+                    "matches": "physical_key_adt.team_aggregate.tenant_id",
+                    "applies_to_trigger_ids": ["game_delete_restore_or_resume"],
+                },
+                {
                     "kind": "shared_aggregate_target_selector",
                     "scope_id": "shared_aggregate",
                     "python_type": (
@@ -511,7 +582,23 @@ def test_durable_intent_persistence_and_retry_contract_is_exact() -> None:
                     "fields": [["tenant_id", "uuid.UUID"]],
                     "source_unit": "(対象テナント)",
                     "matches": "physical_key_adt.shared_aggregate.target_tenant_id",
-                }
+                    "applies_to_trigger_ids": [
+                        "game_delete_restore_or_resume",
+                        "roster_status_change",
+                    ],
+                },
+                {
+                    "kind": "analytics_chart_target_selector",
+                    "scope_id": "analytics_chart",
+                    "python_type": (
+                        "pitchlog.repositories.cache_invalidation."
+                        "AnalyticsChartTargetSelector"
+                    ),
+                    "fields": [["tenant_id", "uuid.UUID"]],
+                    "source_unit": "状態を変えたテナントを明示する選択子",
+                    "matches": "physical_key_adt.analytics_chart.tenant_id",
+                    "applies_to_trigger_ids": ["game_delete_restore_or_resume"],
+                },
             ],
             "delivery_owner": "unit_that_introduces_the_scope_cache",
         },
@@ -548,18 +635,30 @@ def test_durable_intent_trigger_partition_and_b06_source_are_exact() -> None:
         _source_section(), "| 対象範囲 | 意図が選ぶ無効化先 | 選択子 |"
     )
     assert len(selector_rows) == 1
-    assert [selector["source_unit"] for selector in non_sync["selectors"]] == [
-        _plain_markdown(row[2]) for row in selector_rows
-    ]
+    assert [
+        selector["source_unit"]
+        for selector in non_sync["selectors"]
+        if "roster_status_change" in selector["applies_to_trigger_ids"]
+    ] == [_plain_markdown(row[2]) for row in selector_rows]
+    selector_types = {
+        "player_career": PlayerCareerTargetSelector,
+        "team_aggregate": TeamAggregateTargetSelector,
+        "shared_aggregate": SharedAggregateTargetSelector,
+        "analytics_chart": AnalyticsChartTargetSelector,
+    }
+    assert {selector["scope_id"] for selector in non_sync["selectors"]} == set(
+        selector_types
+    )
     for selector in non_sync["selectors"]:
-        assert selector["python_type"] == (
-            f"{SharedAggregateTargetSelector.__module__}."
-            f"{SharedAggregateTargetSelector.__qualname__}"
+        runtime_type = selector_types[selector["scope_id"]]
+        assert (
+            selector["python_type"]
+            == f"{runtime_type.__module__}.{runtime_type.__qualname__}"
         )
-        assert [field.name for field in fields(SharedAggregateTargetSelector)] == [
+        assert [field.name for field in fields(runtime_type)] == [
             field_name for field_name, _ in selector["fields"]
         ]
-    assert SharedAggregateTargetSelector.__dataclass_params__.frozen is True
+        assert runtime_type.__dataclass_params__.frozen is True
     for source_phrase in (
         "5・7・8・9・10・11・12・13・14",
         "値が実際に変わらない要求は発火しない",
@@ -606,6 +705,7 @@ def test_public_symbols_and_factory_signature_are_exact() -> None:
     expected_names = (
         "AnalyticsChartCacheKey",
         "AnalyticsChartSubject",
+        "AnalyticsChartTargetSelector",
         "CacheInvalidationKey",
         "CacheInvalidationRequest",
         "CacheInvalidationTrigger",
@@ -615,10 +715,12 @@ def test_public_symbols_and_factory_signature_are_exact() -> None:
         "MatchCacheKey",
         "MatchChartSubject",
         "PlayerCareerCacheKey",
+        "PlayerCareerTargetSelector",
         "PlayerChartSubject",
         "SharedAggregateCacheKey",
         "SharedAggregateTargetSelector",
         "TeamAggregateCacheKey",
+        "TeamAggregateTargetSelector",
         "build_cache_invalidation_request",
     )
     expected_symbols = {
@@ -633,14 +735,17 @@ def test_public_symbols_and_factory_signature_are_exact() -> None:
         f"{cache_invalidation.__name__}.{name}"
         for name in (
             "AnalyticsChartCacheKey",
+            "AnalyticsChartTargetSelector",
             "CachePeriod",
             "MatchCacheKey",
             "MatchChartSubject",
             "PlayerCareerCacheKey",
+            "PlayerCareerTargetSelector",
             "PlayerChartSubject",
             "SharedAggregateCacheKey",
             "SharedAggregateTargetSelector",
             "TeamAggregateCacheKey",
+            "TeamAggregateTargetSelector",
             "build_cache_invalidation_request",
         )
     }
@@ -717,7 +822,7 @@ def test_runtime_matrix_matches_asset_and_each_missing_scope_is_red() -> None:
             cache_invalidation._KEY_SCOPES[type(key)] for key in request.keys
         } == expected_scopes
 
-        with pytest.raises(ValueError, match="matrix と不一致"):
+        with pytest.raises(ValueError):
             if trigger in cache_invalidation._PARTICIPATION_CHANGE_TRIGGERS:
                 build_cache_invalidation_request(
                     trigger,
@@ -767,7 +872,7 @@ def test_participation_change_uses_before_after_union() -> None:
 
 
 def test_shared_aggregate_target_selector_is_only_accepted_for_roster_status() -> None:
-    """④ の選択子はトリガー 14 のみが受け、他の 13 件を拒否する。"""
+    """④ の選択子はトリガー 5・14 だけが受ける。"""
     selector = SharedAggregateTargetSelector(_TENANT_A)
     with pytest.raises(TypeError, match="UUID"):
         SharedAggregateTargetSelector(cast(UUID, "not-a-uuid"))
@@ -779,7 +884,10 @@ def test_shared_aggregate_target_selector_is_only_accepted_for_roster_status() -
     assert request.propagation_mode is CachePropagationMode.BY_SCOPE
 
     for trigger in CacheInvalidationTrigger:
-        if trigger is CacheInvalidationTrigger.ROSTER_STATUS_CHANGE:
+        if trigger in {
+            CacheInvalidationTrigger.ROSTER_STATUS_CHANGE,
+            CacheInvalidationTrigger.GAME_DELETE_RESTORE_OR_RESUME,
+        }:
             continue
         keys = tuple(
             selector if isinstance(key, SharedAggregateCacheKey) else key
@@ -789,6 +897,36 @@ def test_shared_aggregate_target_selector_is_only_accepted_for_roster_status() -
             keys += (selector,)
         with pytest.raises(ValueError, match="選択子"):
             build_cache_invalidation_request(trigger, keys)
+
+
+def test_game_state_change_requires_exactly_one_tenant_scoped_key_per_scope() -> None:
+    """試合状態変更では具体鍵と4選択子を同一テナントへ閉じる。"""
+    trigger = CacheInvalidationTrigger.GAME_DELETE_RESTORE_OR_RESUME
+    keys = _keys_for(trigger)
+    request = build_cache_invalidation_request(trigger, keys)
+    assert request.keys == keys
+    assert request.propagation_mode is CachePropagationMode.BY_SCOPE
+    for selector_type in (
+        PlayerCareerTargetSelector,
+        TeamAggregateTargetSelector,
+        SharedAggregateTargetSelector,
+        AnalyticsChartTargetSelector,
+    ):
+        with pytest.raises(TypeError, match="UUID"):
+            selector_type(cast(UUID, "not-a-uuid"))
+    for invalid in (
+        keys[:-1],
+        keys + (keys[-1],),
+        keys[:1] + (PlayerCareerTargetSelector(_TENANT_B),) + keys[2:],
+        keys[:2]
+        + (TeamAggregateCacheKey(_TENANT_A, CachePeriod(None, None)),)
+        + keys[3:],
+        keys[:3] + (_key_by_scope()[CacheScope.SHARED_AGGREGATE],) + keys[4:],
+    ):
+        with pytest.raises(ValueError):
+            build_cache_invalidation_request(trigger, invalid)
+    with pytest.raises(ValueError, match="選択子"):
+        build_cache_invalidation_request(CacheInvalidationTrigger.PLAY_CORRECTION, keys)
 
 
 def test_roster_status_requires_exactly_one_target_selector() -> None:
