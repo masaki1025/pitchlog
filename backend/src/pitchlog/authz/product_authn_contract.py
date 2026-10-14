@@ -7,7 +7,7 @@ from typing import Any
 AUTHN_OWNER = "pitchlog_auth_fn_owner"
 AUTHN_EXTENSION = ("pgcrypto", "authn_crypto")
 AUTHN_FUNCTION_GRANTEES = {
-    ("login", "text, text"): "pitchlog_app",
+    ("login_attempt", "text, text, text"): "pitchlog_app",
     ("verify_token", "uuid"): "pitchlog_app",
     ("logout", "uuid"): "pitchlog_app",
     ("change_password", "uuid, text, text"): "pitchlog_app",
@@ -15,6 +15,7 @@ AUTHN_FUNCTION_GRANTEES = {
     ("reset_password", "uuid, text"): "pitchlog_management_fn_owner",
     ("revoke_tenant_tokens", "uuid"): "pitchlog_management_fn_owner",
     ("record_admin_login_failure", "text"): "pitchlog_management_fn_owner",
+    ("observe_rate_limit_counters", ""): "pitchlog_management_fn_owner",
     ("password_policy_ok", "text"): None,
     ("setting_positive_integer", "text"): None,
     ("record_failure", "text, bigint, bigint, bigint, boolean"): None,

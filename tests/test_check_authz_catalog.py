@@ -1383,7 +1383,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1382 auth_claim=185 out_of_scope=1197" in result.stdout
+    assert "total=1385 auth_claim=187 out_of_scope=1198" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -1900,8 +1900,8 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 1197
-    assert attempts == 1197
+    assert len(out_claims) == 1198
+    assert attempts == 1198
     assert escaped == []
 
 
@@ -2273,6 +2273,90 @@ def test_record_and_aggregate_rejects_route_outside_approved_set() -> None:
 
     assert "record_and_aggregate route の exact-set 不一致" in str(error_info.value)
     assert "ROUTE:RECORD:unlisted:insert" in str(error_info.value)
+
+
+def test_authentication_entry_routes_and_claims_match_approved_set() -> None:
+    """認証 3 経路と付録 C の担当 2 主張だけを固定する。"""
+    assets, _locks, _paths = _repository_derived_assets()
+    registry = assets["route_registry"]
+    matrix = assets["http_matrix"]
+    authentication_ids = {
+        route["route_id"]
+        for route in registry["routes"]
+        if route["route_kind"] == "authentication_entry"
+    }
+    assert authentication_ids == {
+        "ROUTE:AUTH:login:create",
+        "ROUTE:AUTH:logout:create",
+        "ROUTE:AUTH:password:update",
+    }
+    assert authentication_ids.isdisjoint(registry["enums"]["operation_ids"])
+    matrix_rows = {
+        row["route_id"]: row for row in matrix["routes"]
+        if row["route_id"] in authentication_ids
+    }
+    assert set(matrix_rows) == authentication_ids
+    assert all(
+        row["matrix_route_id"] == f"HTTP:{route_id}"
+        and row["disposition"] == "conditional"
+        for route_id, row in matrix_rows.items()
+    )
+    appendix = {
+        row["source_id"]: row
+        for row in registry["claim_dispositions"]
+        if row["source_id"].startswith("APPENDIX-C/")
+    }
+    for claim_id in ("APPENDIX-C/table_row-004", "APPENDIX-C/table_row-006"):
+        assert appendix[claim_id] == {
+            "source_id": claim_id,
+            "location": "http",
+            "disposition": "routed",
+            "route_ids": ["ROUTE:AUTH:login:create"],
+        }
+    for claim_id in (
+        "APPENDIX-C/blockquote-001",
+        "APPENDIX-C/table_row-009",
+        "APPENDIX-C/table_row-010",
+    ):
+        assert appendix[claim_id] == {
+            "source_id": claim_id,
+            "location": "http",
+            "disposition": "out_of_registry",
+            "reason_code": "design_pending_task",
+        }
+
+
+def test_authentication_entry_rejects_route_outside_approved_set() -> None:
+    """認証の入口を増減しても exact-set が拒否する。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    registry = copy.deepcopy(assets["route_registry"])
+    route = next(
+        row for row in registry["routes"]
+        if row["route_id"] == "ROUTE:AUTH:logout:create"
+    )
+    route["route_id"] = "ROUTE:AUTH:logout:delete"
+
+    with pytest.raises(
+        checker.CatalogError,
+        match="authentication_entry route の exact-set 不一致",
+    ):
+        _validate_record_and_aggregate_registry(registry, requirement_catalog)
+
+
+def test_routed_claim_disposition_rejects_unlinked_route() -> None:
+    """routed の route_ids は実際の source_claim_ids と一致させる。"""
+    requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
+    assets, _locks, _paths = _repository_derived_assets()
+    registry = copy.deepcopy(assets["route_registry"])
+    row = next(
+        entry for entry in registry["claim_dispositions"]
+        if entry["source_id"] == "APPENDIX-C/table_row-004"
+    )
+    row["route_ids"] = ["ROUTE:AUTH:logout:create"]
+
+    with pytest.raises(checker.CatalogError, match="source_claim_ids の結線と不一致"):
+        _validate_record_and_aggregate_registry(registry, requirement_catalog)
 
 
 def test_record_and_aggregate_route_requires_operation_key() -> None:
@@ -3010,7 +3094,7 @@ def test_claim_execution_support_fixture_is_valid() -> None:
         "contract_only_reason_code"
     ] == "route_universe_pending"
     assert result["execution_counts"] == Counter(
-        {"contract_only": 166, "probe_executable": 33}
+        {"contract_only": 169, "probe_executable": 33}
     )
 
 
@@ -3073,7 +3157,7 @@ def _implemented_owner_paths(value: object) -> list[tuple[str | int, ...]]:
 
 
 def test_repository_derived_assets_are_valid() -> None:
-    """177主張・全route・12セルと実収集テストIDを統合検査する。"""
+    """DB主張・全route・12セルと実収集テストIDを統合検査する。"""
     requirement_catalog, _requirement_lock = _repository_catalog_and_lock()
     assets, locks, paths = _repository_derived_assets()
     implemented_test_ids = checker.collect_pytest_node_ids(REPOSITORY_ROOT)
@@ -3090,7 +3174,7 @@ def test_repository_derived_assets_are_valid() -> None:
     )
 
     assert IMPLEMENTED_CATALOG_TEST_ID in implemented_test_ids
-    assert result["catalog"]["db_claim_count"] == 188
+    assert result["catalog"]["db_claim_count"] == 191
     assert len(result["registry"]["route_by_id"]) == len(
         assets["route_registry"]["routes"]
     )
@@ -4463,10 +4547,10 @@ def test_repository_oracle_assets_are_valid() -> None:
     mutant_result = result["mutants"]
 
     assert mutant_result["execution_counts"] == Counter(
-        {"contract_only": 166, "probe_executable": 33}
+        {"contract_only": 169, "probe_executable": 33}
     )
     assert mutant_result["axis_counts"] == Counter(
-        {"authorization_predicate": 206, "configuration": 24, "r8_provisioning": 2}
+        {"authorization_predicate": 209, "configuration": 24, "r8_provisioning": 2}
     )
     assert mutant_result["positive_case_count"] == 6
     assert len(mutant_result["positive_kill_mutant_ids"]) == 2
@@ -4619,6 +4703,7 @@ def test_boundary_proposal_base_leaves_follow_the_approved_classification(
         ): "3d993b75-e687-818d-8cb8-ec57508e73e0",
         ("pending_human_reviews", 0, "status"): "human_decided",
         ("pending_human_reviews", 1, "status"): "human_decided",
+        ("pending_human_reviews", 1, "affected_claim_ids", 5): "FR-019/list_item-010",
     }
     base_paths = set(_iter_leaf_paths(base))
     current_paths = set(_iter_leaf_paths(current))
@@ -5231,6 +5316,18 @@ def test_oracle_reseal_preserves_inputs_and_expected_asset_digests() -> None:
                 "contracts/authz/http-route-matrix.lock.json",
             }
         ),
+        frozenset(
+            {
+                "contracts/authz/requirement-claims.json",
+                "contracts/authz/requirement-claims.lock.json",
+                "contracts/authz/route-registry.json",
+                "contracts/authz/route-registry.lock.json",
+                "contracts/authz/auth-catalog.json",
+                "contracts/authz/auth-catalog.lock.json",
+                "contracts/authz/http-route-matrix.json",
+                "contracts/authz/http-route-matrix.lock.json",
+            }
+        ),
     )
     assert worktree_drift in allowed_input_drifts
     assert commit_drift in allowed_input_drifts
@@ -5749,9 +5846,9 @@ def test_all_runtime_kill_waivers_have_a_closed_machine_checked_reason() -> None
     reasons = Counter(mutant["runtime_kill_waiver_reason"] for mutant in waived)
 
     assert reasons == Counter(
-            {
-                "contract_only_handoff": 174,
-                "covered_by_two_factor_cut_set": 3,
+        {
+            "contract_only_handoff": 177,
+            "covered_by_two_factor_cut_set": 3,
             "positive_case_kill_only": 2,
             "application_expected_to_fail": 1,
         }
