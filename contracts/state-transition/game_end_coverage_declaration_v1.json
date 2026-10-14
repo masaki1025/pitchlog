@@ -252,9 +252,9 @@
     "countsByCause": {
       "noApplicableRow": {
         "pairwise": 20,
-        "boundaryCoordinate": 159,
+        "boundaryCoordinate": 239,
         "clauseBranch": 17,
-        "total": 196
+        "total": 276
       },
       "unfixedAxisValue": {
         "pairwise": 279,
@@ -270,7 +270,7 @@
       }
     },
     "beforeUnreachableCount": 2817,
-    "remainingUnreachableCount": 3097,
+    "remainingUnreachableCount": 3177,
     "nextSteps": {
       "noApplicableRow": "COLD-09はステップ26でdecisionRowsに結んだ。DRAW-05は状況判定operationRowsに結んだが本集合はdecisionRows層だけを数える。COLD-01〜07は中間判定なのでdecisionRowsへ置かない。",
       "unfixedAxisValue": "成立段数の新軸により要求直積が拡大した。未固定値は後続の対象計算で行の要否を確認する。"

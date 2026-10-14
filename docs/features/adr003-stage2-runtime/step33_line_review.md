@@ -75,12 +75,22 @@
         "value": false
       },
       {
-        "op": "not",
+        "op": "or",
         "args": [
           {
             "op": "eq",
             "axisId": "state.score",
-            "value": "tie"
+            "value": "away-lead:M+1"
+          },
+          {
+            "op": "eq",
+            "axisId": "state.score",
+            "value": "away-lead:M"
+          },
+          {
+            "op": "eq",
+            "axisId": "state.score",
+            "value": "away-lead:M-1"
           }
         ]
       }
@@ -94,7 +104,7 @@
     "automaticallyEndsGame": false,
     "xMark": "recorded-score"
   },
-  "remarks": "FR-005・F-1。第L回裏の第3アウト確定後、攻守交代後の第L+1回表の状態で判定する代表行。非同点なので勝敗の終了条件を検知するが、FR-010の宣言前に試合状態を自動終了しない。コールド条件は空、タイブレークはなし。FR-020 XMARK-01・F-1: 直近に完了した表に対応する裏は開始・完了済みなので recorded-score。"
+  "remarks": "FR-005・F-1。第L回裏の第3アウト確定後、攻守交代後の第L+1回表の状態で判定する代表行。先攻リードなので勝敗の終了条件を検知するが、FR-010の宣言前に試合状態を自動終了しない。コールド条件は空、タイブレークはなし。FR-020 XMARK-01・F-1: 直近に完了した表に対応する裏は開始・完了済みなので recorded-score。"
 }
 ```
 
@@ -110,6 +120,10 @@
   "gameEnd.extensionLimit": "finite:R+1",
   "gameEnd.tiebreak": "none",
   "state.half": "top",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
@@ -127,6 +141,10 @@
   "gameEnd.extensionLimit": "finite:R+1",
   "gameEnd.tiebreak": "none",
   "state.half": "top",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
@@ -150,6 +168,10 @@
   "gameEnd.extensionLimit": "finite:R+1",
   "gameEnd.tiebreak": "none",
   "state.half": "top",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
@@ -162,7 +184,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -302,7 +324,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -442,7 +464,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -582,7 +604,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -624,7 +646,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "game-end-declaration",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -659,7 +681,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "game-end-declaration",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -700,7 +722,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "game-end-declaration",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -722,11 +744,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 9,
-    "away": 0
+    "home": 0,
+    "away": 11
   }
 }
 ```
@@ -764,7 +786,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "adhoc-registration",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -799,7 +821,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "adhoc-registration",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -840,7 +862,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "adhoc-registration",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -862,11 +884,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 10,
-    "away": 0
+    "home": 0,
+    "away": 10
   }
 }
 ```
@@ -904,7 +926,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "state-correction",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -939,7 +961,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "state-correction",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -980,7 +1002,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "state-correction",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -1002,11 +1024,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 11,
-    "away": 0
+    "home": 0,
+    "away": 9
   }
 }
 ```
@@ -1142,7 +1164,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -1282,7 +1304,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -1422,7 +1444,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -1464,7 +1486,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "tiebreak-start",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -1499,7 +1521,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "tiebreak-start",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -1540,7 +1562,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "tiebreak-start",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -1562,11 +1584,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 9,
-    "away": 0
+    "home": 0,
+    "away": 11
   }
 }
 ```
@@ -1604,7 +1626,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "game-end-declaration",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -1639,7 +1661,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "game-end-declaration",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -1680,7 +1702,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "game-end-declaration",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -1702,11 +1724,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 10,
-    "away": 0
+    "home": 0,
+    "away": 10
   }
 }
 ```
@@ -1744,7 +1766,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "adhoc-registration",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -1779,7 +1801,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "adhoc-registration",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -1820,7 +1842,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "adhoc-registration",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -1842,11 +1864,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 11,
-    "away": 0
+    "home": 0,
+    "away": 9
   }
 }
 ```
@@ -1982,7 +2004,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -2122,7 +2144,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -2262,7 +2284,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -2304,7 +2326,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "substitution",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -2339,7 +2361,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "substitution",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -2380,7 +2402,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "substitution",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -2402,11 +2424,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 9,
-    "away": 0
+    "home": 0,
+    "away": 11
   }
 }
 ```
@@ -2444,7 +2466,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "tiebreak-start",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -2479,7 +2501,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "tiebreak-start",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -2520,7 +2542,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "tiebreak-start",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -2542,11 +2564,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 10,
-    "away": 0
+    "home": 0,
+    "away": 10
   }
 }
 ```
@@ -2584,7 +2606,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "game-end-declaration",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -2619,7 +2641,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "game-end-declaration",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -2660,7 +2682,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "game-end-declaration",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -2682,11 +2704,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 11,
-    "away": 0
+    "home": 0,
+    "away": 9
   }
 }
 ```
@@ -2822,7 +2844,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -2962,7 +2984,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -3102,7 +3124,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -3144,7 +3166,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "per-pitch",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -3179,7 +3201,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "per-pitch",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -3220,7 +3242,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "per-pitch",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -3242,11 +3264,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 9,
-    "away": 0
+    "home": 0,
+    "away": 11
   }
 }
 ```
@@ -3284,7 +3306,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "substitution",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -3319,7 +3341,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "substitution",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -3360,7 +3382,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "substitution",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -3382,11 +3404,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 10,
-    "away": 0
+    "home": 0,
+    "away": 10
   }
 }
 ```
@@ -3424,7 +3446,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "tiebreak-start",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -3459,7 +3481,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "tiebreak-start",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -3500,7 +3522,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "tiebreak-start",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -3522,11 +3544,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 11,
-    "away": 0
+    "home": 0,
+    "away": 9
   }
 }
 ```
@@ -3662,7 +3684,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -3802,7 +3824,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -3942,7 +3964,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -3984,7 +4006,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "undo",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -4019,7 +4041,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "undo",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -4060,7 +4082,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M-1",
+  "state.score": "away-lead:M+1",
   "event.operationKind": "undo",
   "event.operationPayload": "game-end-declaration",
   "event.perPitch.kind": "batting-result",
@@ -4082,11 +4104,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 9,
-    "away": 0
+    "home": 0,
+    "away": 11
   }
 }
 ```
@@ -4124,7 +4146,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "per-pitch",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -4159,7 +4181,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "per-pitch",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -4200,7 +4222,7 @@
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M",
+  "state.score": "away-lead:M",
   "event.operationKind": "per-pitch",
   "event.operationPayload": "adhoc-registration",
   "event.perPitch.kind": "secondary-result",
@@ -4222,11 +4244,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 10,
-    "away": 0
+    "home": 0,
+    "away": 10
   }
 }
 ```
@@ -4264,7 +4286,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "substitution",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -4299,7 +4321,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "substitution",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -4340,7 +4362,7 @@
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "L+1",
-  "state.score": "home-lead:M+1",
+  "state.score": "away-lead:M-1",
   "event.operationKind": "substitution",
   "event.operationPayload": "state-correction",
   "event.perPitch.kind": "runner-event",
@@ -4362,11 +4384,11 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
-    "home": 11,
-    "away": 0
+    "home": 0,
+    "away": 9
   }
 }
 ```
@@ -4502,7 +4524,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -4642,7 +4664,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -4782,7 +4804,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -4891,6 +4913,10 @@
   "gameEnd.extensionLimit": "finite:R+1",
   "gameEnd.tiebreak": "none",
   "state.half": "top",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "R+1",
@@ -4908,6 +4934,10 @@
   "gameEnd.extensionLimit": "finite:R+1",
   "gameEnd.tiebreak": "none",
   "state.half": "top",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "R+1",
@@ -4931,6 +4961,10 @@
   "gameEnd.extensionLimit": "finite:R+1",
   "gameEnd.tiebreak": "none",
   "state.half": "top",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "R+1",
@@ -9672,6 +9706,10 @@
   "gameEnd.extensionLimit": "finite:R+1",
   "gameEnd.tiebreak": "none",
   "state.half": "top",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
@@ -9689,6 +9727,10 @@
   "gameEnd.extensionLimit": "finite:R+1",
   "gameEnd.tiebreak": "none",
   "state.half": "top",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
@@ -9712,6 +9754,10 @@
   "gameEnd.extensionLimit": "finite:R+1",
   "gameEnd.tiebreak": "none",
   "state.half": "top",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "L+1",
@@ -9724,7 +9770,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -9864,7 +9910,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -10004,7 +10050,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -10144,7 +10190,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -10284,7 +10330,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -10424,7 +10470,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -10564,7 +10610,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -10704,7 +10750,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -10844,7 +10890,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -10984,7 +11030,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -11124,7 +11170,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -11264,7 +11310,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -11404,7 +11450,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -11544,7 +11590,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -11684,7 +11730,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -11824,7 +11870,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -11964,7 +12010,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -12104,7 +12150,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -12244,7 +12290,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -12384,7 +12430,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -12524,7 +12570,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -12664,7 +12710,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -12804,7 +12850,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -12944,7 +12990,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -13084,7 +13130,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -13224,7 +13270,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -13364,7 +13410,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -13504,7 +13550,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -13644,7 +13690,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -13784,7 +13830,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -13924,7 +13970,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -14064,7 +14110,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -14204,7 +14250,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -14344,7 +14390,7 @@
 ```json
 {
   "gameEnd.coldConditions": [],
-  "state.inning": 10,
+  "state.inning": 11,
   "state.half": "top",
   "state.score": {
     "home": 0,
@@ -14459,6 +14505,10 @@
   "gameEnd.extensionLimit": "finite:99",
   "gameEnd.tiebreak": "start:R+1",
   "state.half": "top",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R+1",
@@ -14476,6 +14526,10 @@
   "gameEnd.extensionLimit": "finite:99",
   "gameEnd.tiebreak": "start:R+1",
   "state.half": "top",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R+1",
@@ -14499,6 +14553,10 @@
   "gameEnd.extensionLimit": "finite:99",
   "gameEnd.tiebreak": "start:R+1",
   "state.half": "top",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R+1",
@@ -19212,6 +19270,26 @@
         "op": "eq",
         "axisId": "state.gameEnded",
         "value": false
+      },
+      {
+        "op": "eq",
+        "axisId": "state.outs",
+        "value": 0
+      },
+      {
+        "op": "eq",
+        "axisId": "state.runners",
+        "value": "empty"
+      },
+      {
+        "op": "eq",
+        "axisId": "state.count.strikes",
+        "value": 0
+      },
+      {
+        "op": "eq",
+        "axisId": "state.count.balls",
+        "value": 0
       }
     ]
   },
@@ -19223,7 +19301,7 @@
     "automaticallyEndsGame": false,
     "xMark": "x-mark"
   },
-  "remarks": "F-1のCOLD-02・COLD-08。コールド段を1件だけ設定し、第N回表完了後の攻守交代時に後攻がM点リードする代表行。成立段は必ずその1件だけなので、コールド終了条件を1件検知し入力をロックしてFR-010の宣言を促す。コールド検知だけでは自動終了しない。段数を複数設定して成立段が1件となる場合やCOLD-09の複数段同時成立は、この行では主張しない。FR-005・FR-020 XMARK-02・F-1 COLD-02: 第N回表完了時に終了条件が成立し、対になる第N回裏は未開始なので x-mark。"
+  "remarks": "F-1のCOLD-02・COLD-08。コールド段を1件だけ設定し、第N回表完了後の攻守交代時に後攻がM点リードする代表行。成立段は必ずその1件だけなので、コールド終了条件を1件検知し入力をロックしてFR-010の宣言を促す。コールド検知だけでは自動終了しない。段数を複数設定して成立段が1件となる場合やCOLD-09の複数段同時成立は、この行では主張しない。FR-005・FR-020 XMARK-02・F-1 COLD-02: 第N回表完了時に終了条件が成立し、対になる第N回裏は未開始なので x-mark。 第N回裏が未開始であることを0死・走者なし・0-0で固定する。"
 }
 ```
 
@@ -19239,6 +19317,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "N",
@@ -19256,6 +19338,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "N",
@@ -19279,6 +19365,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "N",
@@ -19475,10 +19565,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -19510,10 +19600,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -19551,10 +19641,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -19620,10 +19710,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -19655,10 +19745,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -19696,10 +19786,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -19766,9 +19856,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -19801,9 +19891,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -19842,9 +19932,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -19910,10 +20000,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -19945,10 +20035,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -19986,10 +20076,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -20055,10 +20145,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -20090,10 +20180,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -20131,10 +20221,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -20201,9 +20291,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -20236,9 +20326,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -20277,9 +20367,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -20345,10 +20435,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -20380,10 +20470,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -20421,10 +20511,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -20490,9 +20580,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
@@ -20525,9 +20615,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
@@ -20566,9 +20656,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
@@ -20636,9 +20726,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 1,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -20671,9 +20761,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 1,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -20712,9 +20802,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 1,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -20780,10 +20870,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 2,
-  "state.outs": 1,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -20815,10 +20905,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 2,
-  "state.outs": 1,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -20856,10 +20946,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 2,
-  "state.outs": 1,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -20925,10 +21015,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 3,
-  "state.outs": 2,
-  "state.runners": "third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -20960,10 +21050,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 3,
-  "state.outs": 2,
-  "state.runners": "third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -21001,10 +21091,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 3,
-  "state.outs": 2,
-  "state.runners": "third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -21073,7 +21163,7 @@
   "state.count.strikes": 0,
   "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first-second",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -21108,7 +21198,7 @@
   "state.count.strikes": 0,
   "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first-second",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -21149,7 +21239,7 @@
   "state.count.strikes": 0,
   "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first-second",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -21215,10 +21305,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -21250,10 +21340,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -21291,10 +21381,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -21360,10 +21450,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -21395,10 +21485,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -21436,10 +21526,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -21506,9 +21596,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "loaded",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -21541,9 +21631,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "loaded",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -21582,9 +21672,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "loaded",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -21650,9 +21740,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": false,
@@ -21685,9 +21775,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": false,
@@ -21726,9 +21816,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": false,
@@ -21795,10 +21885,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -21830,10 +21920,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -21871,10 +21961,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -21941,9 +22031,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -21976,9 +22066,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -22017,9 +22107,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -22085,10 +22175,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -22120,10 +22210,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -22161,10 +22251,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -22230,10 +22320,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -22265,10 +22355,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -22306,10 +22396,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -22376,9 +22466,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 1,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first-third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -22411,9 +22501,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 1,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first-third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -22452,9 +22542,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 1,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first-third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -22520,10 +22610,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 2,
-  "state.outs": 1,
-  "state.runners": "second-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -22555,10 +22645,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 2,
-  "state.outs": 1,
-  "state.runners": "second-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -22596,10 +22686,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 2,
-  "state.outs": 1,
-  "state.runners": "second-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -22665,10 +22755,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 3,
-  "state.outs": 2,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -22700,10 +22790,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 3,
-  "state.outs": 2,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -22741,10 +22831,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 3,
-  "state.outs": 2,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -22955,10 +23045,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -22990,10 +23080,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -23031,10 +23121,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -23100,10 +23190,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -23135,10 +23225,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -23176,10 +23266,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -23246,9 +23336,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -23281,9 +23371,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -23322,9 +23412,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -23390,10 +23480,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -23425,10 +23515,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -23466,10 +23556,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -23535,10 +23625,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -23570,10 +23660,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -23611,10 +23701,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -23681,9 +23771,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -23716,9 +23806,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -23757,9 +23847,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -23825,10 +23915,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -23860,10 +23950,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -23901,10 +23991,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -23970,9 +24060,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": false,
@@ -24005,9 +24095,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": false,
@@ -24046,9 +24136,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": false,
@@ -24162,6 +24252,26 @@
         "op": "eq",
         "axisId": "state.gameEnded",
         "value": false
+      },
+      {
+        "op": "eq",
+        "axisId": "state.outs",
+        "value": 0
+      },
+      {
+        "op": "eq",
+        "axisId": "state.runners",
+        "value": "empty"
+      },
+      {
+        "op": "eq",
+        "axisId": "state.count.strikes",
+        "value": 0
+      },
+      {
+        "op": "eq",
+        "axisId": "state.count.balls",
+        "value": 0
       }
     ]
   },
@@ -24173,7 +24283,7 @@
     "automaticallyEndsGame": false,
     "xMark": "x-mark"
   },
-  "remarks": "F-1 COLD-02・COLD-09。{10点, 5回} と {7点, 7回} を設定し、第7回表完了後に後攻が10点リードする代表行。設定段数2件の両段が同時に成立することを成立段数2の軸で固定し、配列順や最初の一致に依存せず両段を根拠にコールド終了条件を1件だけ検知する。FR-005により入力を1回ロックし、FR-010の終了宣言を1回促すが、自動終了はしない。FR-020 XMARK-02: 第7回裏は未開始なので x-mark。"
+  "remarks": "F-1 COLD-02・COLD-09。{10点, 5回} と {7点, 7回} を設定し、第7回表完了後に後攻が10点リードする代表行。設定段数2件の両段が同時に成立することを成立段数2の軸で固定し、配列順や最初の一致に依存せず両段を根拠にコールド終了条件を1件だけ検知する。FR-005により入力を1回ロックし、FR-010の終了宣言を1回促すが、自動終了はしない。FR-020 XMARK-02: 第7回裏は未開始なので x-mark。 第N回裏が未開始であることを0死・走者なし・0-0で固定する。"
 }
 ```
 
@@ -24189,6 +24299,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "N",
@@ -24206,6 +24320,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "N",
@@ -24229,6 +24347,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "N",
@@ -24433,10 +24555,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -24468,10 +24590,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -24509,10 +24631,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -24582,10 +24704,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -24617,10 +24739,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -24658,10 +24780,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -24732,9 +24854,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -24767,9 +24889,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -24808,9 +24930,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -24880,10 +25002,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -24915,10 +25037,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -24956,10 +25078,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -25029,10 +25151,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -25064,10 +25186,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -25105,10 +25227,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -25179,9 +25301,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -25214,9 +25336,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -25255,9 +25377,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -25327,10 +25449,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -25362,10 +25484,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -25403,10 +25525,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -25476,9 +25598,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
@@ -25511,9 +25633,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
@@ -25552,9 +25674,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
@@ -25626,9 +25748,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 1,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -25661,9 +25783,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 1,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -25702,9 +25824,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 1,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -25774,10 +25896,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 2,
-  "state.outs": 1,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -25809,10 +25931,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 2,
-  "state.outs": 1,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -25850,10 +25972,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 2,
-  "state.outs": 1,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -25923,10 +26045,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 3,
-  "state.outs": 2,
-  "state.runners": "third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -25958,10 +26080,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 3,
-  "state.outs": 2,
-  "state.runners": "third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -25999,10 +26121,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 3,
-  "state.outs": 2,
-  "state.runners": "third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -26075,7 +26197,7 @@
   "state.count.strikes": 0,
   "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first-second",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -26110,7 +26232,7 @@
   "state.count.strikes": 0,
   "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first-second",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -26151,7 +26273,7 @@
   "state.count.strikes": 0,
   "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first-second",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -26221,10 +26343,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -26256,10 +26378,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -26297,10 +26419,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -26370,10 +26492,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -26405,10 +26527,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -26446,10 +26568,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -26520,9 +26642,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "loaded",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -26555,9 +26677,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "loaded",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -26596,9 +26718,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "loaded",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -26668,9 +26790,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": false,
@@ -26703,9 +26825,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": false,
@@ -26744,9 +26866,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": false,
@@ -26817,10 +26939,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -26852,10 +26974,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -26893,10 +27015,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -26967,9 +27089,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -27002,9 +27124,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -27043,9 +27165,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -27115,10 +27237,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -27150,10 +27272,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -27191,10 +27313,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -27264,10 +27386,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -27299,10 +27421,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -27340,10 +27462,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -27414,9 +27536,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 1,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first-third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -27449,9 +27571,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 1,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first-third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -27490,9 +27612,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 1,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "first-third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -27562,10 +27684,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 2,
-  "state.outs": 1,
-  "state.runners": "second-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -27597,10 +27719,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 2,
-  "state.outs": 1,
-  "state.runners": "second-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -27638,10 +27760,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 2,
-  "state.outs": 1,
-  "state.runners": "second-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -27711,10 +27833,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 3,
-  "state.outs": 2,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -27746,10 +27868,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 3,
-  "state.outs": 2,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -27787,10 +27909,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 3,
-  "state.outs": 2,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -28009,10 +28131,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -28044,10 +28166,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -28085,10 +28207,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -28158,10 +28280,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -28193,10 +28315,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -28234,10 +28356,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -28308,9 +28430,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -28343,9 +28465,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -28384,9 +28506,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 3,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 1,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -28456,10 +28578,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -28491,10 +28613,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -28532,10 +28654,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -28605,10 +28727,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -28640,10 +28762,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -28681,10 +28803,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
-  "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -28755,9 +28877,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -28790,9 +28912,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -28831,9 +28953,9 @@
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
   "state.count.strikes": 0,
-  "state.count.balls": 2,
+  "state.count.balls": 0,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -28903,10 +29025,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -28938,10 +29060,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -28979,10 +29101,10 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 1,
-  "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
@@ -29052,9 +29174,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": false,
@@ -29087,9 +29209,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": false,
@@ -29128,9 +29250,9 @@
   "gameEnd.extensionLimit": "none",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
-  "state.count.strikes": 2,
+  "state.count.strikes": 0,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": false,
@@ -29264,6 +29386,66 @@
         "op": "eq",
         "axisId": "event.perPitch.resultId",
         "value": "本塁打"
+      },
+      {
+        "op": "eq",
+        "axisId": "state.outs",
+        "value": 0
+      },
+      {
+        "op": "eq",
+        "axisId": "state.runners",
+        "value": "empty"
+      },
+      {
+        "op": "eq",
+        "axisId": "event.operationPayload",
+        "value": "not-applicable"
+      },
+      {
+        "op": "eq",
+        "axisId": "event.perPitch.pitchEventKind",
+        "value": "pitch-event"
+      },
+      {
+        "op": "eq",
+        "axisId": "event.perPitch.runnerEventPayload",
+        "value": "not-required"
+      },
+      {
+        "op": "eq",
+        "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
+        "value": "not-applied"
+      },
+      {
+        "op": "eq",
+        "axisId": "event.perPitch.thirdOutTimingByRunner",
+        "value": "not-required"
+      },
+      {
+        "op": "eq",
+        "axisId": "event.perPitch.interferenceRuling",
+        "value": "not-required"
+      },
+      {
+        "op": "eq",
+        "axisId": "event.perPitch.officialScoringPayload",
+        "value": "no-error"
+      },
+      {
+        "op": "eq",
+        "axisId": "event.perPitch.rbi.doublePlayRelayError",
+        "value": "not-required"
+      },
+      {
+        "op": "eq",
+        "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+        "value": "not-required"
+      },
+      {
+        "op": "eq",
+        "axisId": "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+        "value": "not-required"
       }
     ]
   },
@@ -29275,7 +29457,7 @@
     "automaticallyEndsGame": false,
     "xMark": "recorded-score"
   },
-  "remarks": "FR-005・付録F-1・FR-020 XMARK-01。R=9、L=R+1、コールドなし・タイブレークなし。第R回裏の本塁打プレイが有効に確定し、後攻のリードが確定した代表入力でサヨナラの終了条件を検知し、以降のプレイをロックしてFR-010の終了宣言を促す。正式な終了への自動遷移は行わない。裏は開始済みなのでXではなくその回の得点を表示する。本塁打の得点値と有効得点の確定は付録A-1の規則に従い、状況判定側のステップ32で検証する。"
+  "remarks": "FR-005・付録F-1・FR-020 XMARK-01。R=9、L=R+1、コールドなし・タイブレークなし。第R回裏の本塁打プレイが有効に確定し、後攻のリードが確定した代表入力でサヨナラの終了条件を検知し、以降のプレイをロックしてFR-010の終了宣言を促す。正式な終了への自動遷移は行わない。裏は開始済みなのでXではなくその回の得点を表示する。本塁打の得点値と有効得点の確定は付録A-1の規則に従い、サヨナラ時の得点上限は TSK-544 へ送った。 代表の本塁打入力は0死・走者なし・他の走者イベントや第3アウト指定なしに固定し、OUT3-* の有効得点が変わる混在入力をこの行から除く。"
 }
 ```
 
@@ -29291,13 +29473,27 @@
   "gameEnd.extensionLimit": "finite:R+1",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.resultId": "batting-result.home-run"
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.home-run",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -29311,13 +29507,27 @@
   "gameEnd.extensionLimit": "finite:R+1",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.resultId": "本塁打"
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "本塁打",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -29337,13 +29547,27 @@
   "gameEnd.extensionLimit": "finite:R+1",
   "gameEnd.tiebreak": "none",
   "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.resultId": "batting-result.home-run"
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.home-run",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -29528,26 +29752,26 @@
   "state.half": "bottom",
   "state.count.strikes": 1,
   "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "substitution",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
-  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
-  "event.perPitch.interferenceRuling": "batting:penalty-award",
-  "event.perPitch.officialScoringPayload": "single-error",
-  "event.perPitch.rbi.doublePlayRelayError": false,
-  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -29563,26 +29787,26 @@
   "state.half": "bottom",
   "state.count.strikes": 1,
   "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "substitution",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "本塁打",
-  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
-  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
-  "event.perPitch.interferenceRuling": "batting:penalty-award",
-  "event.perPitch.officialScoringPayload": "single-error",
-  "event.perPitch.rbi.doublePlayRelayError": false,
-  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -29604,26 +29828,26 @@
   "state.half": "bottom",
   "state.count.strikes": 1,
   "state.count.balls": 1,
-  "state.outs": 1,
-  "state.runners": "first",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 2,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "substitution",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
-  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
-  "event.perPitch.interferenceRuling": "batting:penalty-award",
-  "event.perPitch.officialScoringPayload": "single-error",
-  "event.perPitch.rbi.doublePlayRelayError": false,
-  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -29668,26 +29892,26 @@
   "state.half": "bottom",
   "state.count.strikes": 2,
   "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "tiebreak-start",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
   "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
-  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
-  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
-  "event.perPitch.officialScoringPayload": "multiple-errors",
-  "event.perPitch.rbi.doublePlayRelayError": true,
-  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -29703,26 +29927,26 @@
   "state.half": "bottom",
   "state.count.strikes": 2,
   "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "tiebreak-start",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
   "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "本塁打",
-  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
-  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
-  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
-  "event.perPitch.officialScoringPayload": "multiple-errors",
-  "event.perPitch.rbi.doublePlayRelayError": true,
-  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -29744,26 +29968,26 @@
   "state.half": "bottom",
   "state.count.strikes": 2,
   "state.count.balls": 2,
-  "state.outs": 2,
-  "state.runners": "second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 3,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "tiebreak-start",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
   "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
-  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
-  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
-  "event.perPitch.officialScoringPayload": "multiple-errors",
-  "event.perPitch.rbi.doublePlayRelayError": true,
-  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -29809,25 +30033,25 @@
   "state.count.strikes": 0,
   "state.count.balls": 3,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "game-end-declaration",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
-  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
-  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
   "event.perPitch.officialScoringPayload": "no-error",
   "event.perPitch.rbi.doublePlayRelayError": "not-required",
-  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -29844,25 +30068,25 @@
   "state.count.strikes": 0,
   "state.count.balls": 3,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "game-end-declaration",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "本塁打",
-  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
-  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
-  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
   "event.perPitch.officialScoringPayload": "no-error",
   "event.perPitch.rbi.doublePlayRelayError": "not-required",
-  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -29885,25 +30109,25 @@
   "state.count.strikes": 0,
   "state.count.balls": 3,
   "state.outs": 0,
-  "state.runners": "third",
+  "state.runners": "empty",
   "state.battingOrder": 4,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "game-end-declaration",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
-  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
-  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
   "event.perPitch.officialScoringPayload": "no-error",
   "event.perPitch.rbi.doublePlayRelayError": "not-required",
-  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -29948,24 +30172,24 @@
   "state.half": "bottom",
   "state.count.strikes": 1,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "adhoc-registration",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
   "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "single-runner-hold",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
   "event.perPitch.thirdOutTimingByRunner": "not-required",
-  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
-  "event.perPitch.officialScoringPayload": "single-error",
-  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
   "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
   "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
@@ -29983,24 +30207,24 @@
   "state.half": "bottom",
   "state.count.strikes": 1,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "adhoc-registration",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
   "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "本塁打",
-  "event.perPitch.runnerEventPayload": "single-runner-hold",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
   "event.perPitch.thirdOutTimingByRunner": "not-required",
-  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
-  "event.perPitch.officialScoringPayload": "single-error",
-  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
   "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
   "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
@@ -30024,24 +30248,24 @@
   "state.half": "bottom",
   "state.count.strikes": 1,
   "state.count.balls": 0,
-  "state.outs": 1,
-  "state.runners": "first-second",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 5,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "adhoc-registration",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
   "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "single-runner-hold",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
   "event.perPitch.thirdOutTimingByRunner": "not-required",
-  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
-  "event.perPitch.officialScoringPayload": "single-error",
-  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
   "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
   "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
@@ -30088,26 +30312,26 @@
   "state.half": "bottom",
   "state.count.strikes": 2,
   "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "state-correction",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
-  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
-  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
-  "event.perPitch.officialScoringPayload": "multiple-errors",
-  "event.perPitch.rbi.doublePlayRelayError": true,
-  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -30123,26 +30347,26 @@
   "state.half": "bottom",
   "state.count.strikes": 2,
   "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "state-correction",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "本塁打",
-  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
-  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
-  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
-  "event.perPitch.officialScoringPayload": "multiple-errors",
-  "event.perPitch.rbi.doublePlayRelayError": true,
-  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -30164,26 +30388,26 @@
   "state.half": "bottom",
   "state.count.strikes": 2,
   "state.count.balls": 1,
-  "state.outs": 2,
-  "state.runners": "first-third",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 6,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "state-correction",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
-  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
-  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
-  "event.perPitch.officialScoringPayload": "multiple-errors",
-  "event.perPitch.rbi.doublePlayRelayError": true,
-  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -30229,7 +30453,7 @@
   "state.count.strikes": 0,
   "state.count.balls": 2,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -30242,12 +30466,12 @@
   "event.perPitch.resultId": "batting-result.home-run",
   "event.perPitch.runnerEventPayload": "not-required",
   "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
-  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
-  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
   "event.perPitch.officialScoringPayload": "no-error",
   "event.perPitch.rbi.doublePlayRelayError": "not-required",
-  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -30264,7 +30488,7 @@
   "state.count.strikes": 0,
   "state.count.balls": 2,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -30277,12 +30501,12 @@
   "event.perPitch.resultId": "本塁打",
   "event.perPitch.runnerEventPayload": "not-required",
   "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
-  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
-  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
   "event.perPitch.officialScoringPayload": "no-error",
   "event.perPitch.rbi.doublePlayRelayError": "not-required",
-  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -30305,7 +30529,7 @@
   "state.count.strikes": 0,
   "state.count.balls": 2,
   "state.outs": 0,
-  "state.runners": "second-third",
+  "state.runners": "empty",
   "state.battingOrder": 7,
   "state.tiebreakActive": false,
   "state.gameEnded": false,
@@ -30318,12 +30542,12 @@
   "event.perPitch.resultId": "batting-result.home-run",
   "event.perPitch.runnerEventPayload": "not-required",
   "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
-  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
-  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
   "event.perPitch.officialScoringPayload": "no-error",
   "event.perPitch.rbi.doublePlayRelayError": "not-required",
-  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -30368,26 +30592,26 @@
   "state.half": "bottom",
   "state.count.strikes": 1,
   "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "substitution",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
-  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
   "event.perPitch.interferenceRuling": "not-required",
-  "event.perPitch.officialScoringPayload": "single-error",
-  "event.perPitch.rbi.doublePlayRelayError": false,
-  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -30403,26 +30627,26 @@
   "state.half": "bottom",
   "state.count.strikes": 1,
   "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "substitution",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "本塁打",
-  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
-  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
   "event.perPitch.interferenceRuling": "not-required",
-  "event.perPitch.officialScoringPayload": "single-error",
-  "event.perPitch.rbi.doublePlayRelayError": false,
-  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -30444,26 +30668,26 @@
   "state.half": "bottom",
   "state.count.strikes": 1,
   "state.count.balls": 3,
-  "state.outs": 1,
-  "state.runners": "loaded",
+  "state.outs": 0,
+  "state.runners": "empty",
   "state.battingOrder": 8,
   "state.tiebreakActive": true,
   "state.gameEnded": false,
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "substitution",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
-  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
-  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
   "event.perPitch.interferenceRuling": "not-required",
-  "event.perPitch.officialScoringPayload": "single-error",
-  "event.perPitch.rbi.doublePlayRelayError": false,
-  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
-  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
 ```
 
@@ -30508,7 +30732,7 @@
   "state.half": "bottom",
   "state.count.strikes": 2,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
@@ -30516,16 +30740,16 @@
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "tiebreak-start",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
   "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
   "event.perPitch.thirdOutTimingByRunner": "not-required",
-  "event.perPitch.interferenceRuling": "batting:penalty-award",
-  "event.perPitch.officialScoringPayload": "multiple-errors",
-  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
   "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
   "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
@@ -30543,7 +30767,7 @@
   "state.half": "bottom",
   "state.count.strikes": 2,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
@@ -30551,16 +30775,16 @@
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "tiebreak-start",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
   "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "本塁打",
-  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
   "event.perPitch.thirdOutTimingByRunner": "not-required",
-  "event.perPitch.interferenceRuling": "batting:penalty-award",
-  "event.perPitch.officialScoringPayload": "multiple-errors",
-  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
   "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
   "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
@@ -30584,7 +30808,7 @@
   "state.half": "bottom",
   "state.count.strikes": 2,
   "state.count.balls": 0,
-  "state.outs": 2,
+  "state.outs": 0,
   "state.runners": "empty",
   "state.battingOrder": 9,
   "state.tiebreakActive": false,
@@ -30592,16 +30816,16 @@
   "state.inning": "R",
   "state.score": "home-lead:M",
   "event.operationKind": "per-pitch",
-  "event.operationPayload": "tiebreak-start",
+  "event.operationPayload": "not-applicable",
   "event.perPitch.kind": "batting-result",
   "event.perPitch.pitchEventKind": "pitch-event",
   "event.perPitch.resultId": "batting-result.home-run",
-  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
-  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
   "event.perPitch.thirdOutTimingByRunner": "not-required",
-  "event.perPitch.interferenceRuling": "batting:penalty-award",
-  "event.perPitch.officialScoringPayload": "multiple-errors",
-  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
   "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
   "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
 }
@@ -36435,6 +36659,26 @@
         "op": "eq",
         "axisId": "history.topDifference.scoreboard.hits.delta",
         "value": 1
+      },
+      {
+        "op": "eq",
+        "axisId": "history.topDifference.state.score.away.before",
+        "value": 0
+      },
+      {
+        "op": "eq",
+        "axisId": "history.topDifference.scoreboard.inningScores.home.before",
+        "value": 0
+      },
+      {
+        "op": "eq",
+        "axisId": "history.topDifference.scoreboard.inningScores.home.delta",
+        "value": 1
+      },
+      {
+        "op": "eq",
+        "axisId": "history.topDifference.scoreboard.inningScores.away.before",
+        "value": 0
       }
     ]
   },
@@ -36477,7 +36721,11 @@
     },
     "scoreboard": {
       "inningScores": {
-        "kind": "unchanged"
+        "kind": "set",
+        "value": {
+          "home": 0,
+          "away": 0
+        }
       },
       "hits": {
         "kind": "delta",
@@ -36584,7 +36832,7 @@
 }
 ```
 
-##### case `ST-UNDO-c400e8fe66722fd1`
+##### case `ST-UNDO-80ff461f46b47e22`
 
 **入力座標**
 
@@ -36599,7 +36847,11 @@
   "history.topDifference.state.score.home.delta": 1,
   "history.topDifference.scoreboard.hits.before": 0,
   "history.topDifference.scoreboard.hits.delta": 1,
-  "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+  "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+  "history.topDifference.state.score.away.before": 0,
+  "history.topDifference.scoreboard.inningScores.home.before": 0,
+  "history.topDifference.scoreboard.inningScores.home.delta": 1,
+  "history.topDifference.scoreboard.inningScores.away.before": 0
 }
 ```
 
@@ -36616,7 +36868,11 @@
   "history.topDifference.state.score.home.delta": 1,
   "history.topDifference.scoreboard.hits.before": 0,
   "history.topDifference.scoreboard.hits.delta": 1,
-  "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+  "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+  "history.topDifference.state.score.away.before": 0,
+  "history.topDifference.scoreboard.inningScores.home.before": 0,
+  "history.topDifference.scoreboard.inningScores.home.delta": 1,
+  "history.topDifference.scoreboard.inningScores.away.before": 0
 }
 ```
 
@@ -36639,7 +36895,11 @@
   "history.topDifference.state.score.home.delta": 1,
   "history.topDifference.scoreboard.hits.before": 0,
   "history.topDifference.scoreboard.hits.delta": 1,
-  "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+  "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+  "history.topDifference.state.score.away.before": 0,
+  "history.topDifference.scoreboard.inningScores.home.before": 0,
+  "history.topDifference.scoreboard.inningScores.home.delta": 1,
+  "history.topDifference.scoreboard.inningScores.away.before": 0
 }
 ```
 
@@ -36667,6 +36927,16 @@
           "hits": {
             "before": 0,
             "after": 1
+          },
+          "inningScores": {
+            "before": {
+              "home": 0,
+              "away": 0
+            },
+            "after": {
+              "home": 1,
+              "away": 0
+            }
           }
         },
         "statFlags": {
@@ -36743,7 +37013,11 @@
     },
     "scoreboard": {
       "inningScores": {
-        "kind": "unchanged"
+        "kind": "set",
+        "value": {
+          "home": 0,
+          "away": 0
+        }
       },
       "hits": {
         "kind": "delta",
@@ -36906,6 +37180,26 @@
         "op": "eq",
         "axisId": "history.topDifference.scoreboard.hits.delta",
         "value": 1
+      },
+      {
+        "op": "eq",
+        "axisId": "history.topDifference.state.score.away.before",
+        "value": 0
+      },
+      {
+        "op": "eq",
+        "axisId": "history.topDifference.scoreboard.inningScores.home.before",
+        "value": 1
+      },
+      {
+        "op": "eq",
+        "axisId": "history.topDifference.scoreboard.inningScores.home.delta",
+        "value": 2
+      },
+      {
+        "op": "eq",
+        "axisId": "history.topDifference.scoreboard.inningScores.away.before",
+        "value": 0
       }
     ]
   },
@@ -36948,7 +37242,11 @@
     },
     "scoreboard": {
       "inningScores": {
-        "kind": "unchanged"
+        "kind": "set",
+        "value": {
+          "home": 1,
+          "away": 0
+        }
       },
       "hits": {
         "kind": "delta",
@@ -37055,7 +37353,7 @@
 }
 ```
 
-##### case `ST-UNDO-5e3ea87e0027662e`
+##### case `ST-UNDO-fe044f398d161921`
 
 **入力座標**
 
@@ -37070,7 +37368,11 @@
   "history.topDifference.state.score.home.delta": 2,
   "history.topDifference.scoreboard.hits.before": 1,
   "history.topDifference.scoreboard.hits.delta": 1,
-  "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+  "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+  "history.topDifference.state.score.away.before": 0,
+  "history.topDifference.scoreboard.inningScores.home.before": 1,
+  "history.topDifference.scoreboard.inningScores.home.delta": 2,
+  "history.topDifference.scoreboard.inningScores.away.before": 0
 }
 ```
 
@@ -37087,7 +37389,11 @@
   "history.topDifference.state.score.home.delta": 2,
   "history.topDifference.scoreboard.hits.before": 1,
   "history.topDifference.scoreboard.hits.delta": 1,
-  "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+  "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+  "history.topDifference.state.score.away.before": 0,
+  "history.topDifference.scoreboard.inningScores.home.before": 1,
+  "history.topDifference.scoreboard.inningScores.home.delta": 2,
+  "history.topDifference.scoreboard.inningScores.away.before": 0
 }
 ```
 
@@ -37110,7 +37416,11 @@
   "history.topDifference.state.score.home.delta": 2,
   "history.topDifference.scoreboard.hits.before": 1,
   "history.topDifference.scoreboard.hits.delta": 1,
-  "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+  "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+  "history.topDifference.state.score.away.before": 0,
+  "history.topDifference.scoreboard.inningScores.home.before": 1,
+  "history.topDifference.scoreboard.inningScores.home.delta": 2,
+  "history.topDifference.scoreboard.inningScores.away.before": 0
 }
 ```
 
@@ -37138,6 +37448,16 @@
           "hits": {
             "before": 1,
             "after": 2
+          },
+          "inningScores": {
+            "before": {
+              "home": 1,
+              "away": 0
+            },
+            "after": {
+              "home": 3,
+              "away": 0
+            }
           }
         },
         "statFlags": {
@@ -37186,6 +37506,16 @@
           "hits": {
             "before": 0,
             "after": 1
+          },
+          "inningScores": {
+            "before": {
+              "home": 0,
+              "away": 0
+            },
+            "after": {
+              "home": 1,
+              "away": 0
+            }
           }
         },
         "statFlags": {
@@ -37262,7 +37592,11 @@
     },
     "scoreboard": {
       "inningScores": {
-        "kind": "unchanged"
+        "kind": "set",
+        "value": {
+          "home": 1,
+          "away": 0
+        }
       },
       "hits": {
         "kind": "delta",
@@ -37385,6 +37719,16 @@
           "hits": {
             "before": 0,
             "after": 1
+          },
+          "inningScores": {
+            "before": {
+              "home": 0,
+              "away": 0
+            },
+            "after": {
+              "home": 1,
+              "away": 0
+            }
           }
         },
         "statFlags": {
@@ -37474,6 +37818,26 @@
         "op": "eq",
         "axisId": "history.topDifference.scoreboard.hits.delta",
         "value": 1
+      },
+      {
+        "op": "eq",
+        "axisId": "history.topDifference.state.score.away.before",
+        "value": 0
+      },
+      {
+        "op": "eq",
+        "axisId": "history.topDifference.scoreboard.inningScores.home.before",
+        "value": 1
+      },
+      {
+        "op": "eq",
+        "axisId": "history.topDifference.scoreboard.inningScores.home.delta",
+        "value": 4
+      },
+      {
+        "op": "eq",
+        "axisId": "history.topDifference.scoreboard.inningScores.away.before",
+        "value": 0
       }
     ]
   },
@@ -37516,7 +37880,11 @@
     },
     "scoreboard": {
       "inningScores": {
-        "kind": "unchanged"
+        "kind": "set",
+        "value": {
+          "home": 1,
+          "away": 0
+        }
       },
       "hits": {
         "kind": "delta",
@@ -37623,7 +37991,7 @@
 }
 ```
 
-##### case `ST-UNDO-bb4731e5dcbb1a70`
+##### case `ST-UNDO-697a8e0de202ff20`
 
 **入力座標**
 
@@ -37638,7 +38006,11 @@
   "history.topDifference.state.score.home.delta": 4,
   "history.topDifference.scoreboard.hits.before": 1,
   "history.topDifference.scoreboard.hits.delta": 1,
-  "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+  "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+  "history.topDifference.state.score.away.before": 0,
+  "history.topDifference.scoreboard.inningScores.home.before": 1,
+  "history.topDifference.scoreboard.inningScores.home.delta": 4,
+  "history.topDifference.scoreboard.inningScores.away.before": 0
 }
 ```
 
@@ -37655,7 +38027,11 @@
   "history.topDifference.state.score.home.delta": 4,
   "history.topDifference.scoreboard.hits.before": 1,
   "history.topDifference.scoreboard.hits.delta": 1,
-  "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+  "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+  "history.topDifference.state.score.away.before": 0,
+  "history.topDifference.scoreboard.inningScores.home.before": 1,
+  "history.topDifference.scoreboard.inningScores.home.delta": 4,
+  "history.topDifference.scoreboard.inningScores.away.before": 0
 }
 ```
 
@@ -37678,7 +38054,11 @@
   "history.topDifference.state.score.home.delta": 4,
   "history.topDifference.scoreboard.hits.before": 1,
   "history.topDifference.scoreboard.hits.delta": 1,
-  "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+  "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+  "history.topDifference.state.score.away.before": 0,
+  "history.topDifference.scoreboard.inningScores.home.before": 1,
+  "history.topDifference.scoreboard.inningScores.home.delta": 4,
+  "history.topDifference.scoreboard.inningScores.away.before": 0
 }
 ```
 
@@ -37706,6 +38086,16 @@
           "hits": {
             "before": 1,
             "after": 2
+          },
+          "inningScores": {
+            "before": {
+              "home": 1,
+              "away": 0
+            },
+            "after": {
+              "home": 5,
+              "away": 0
+            }
           }
         },
         "statFlags": {
@@ -37754,6 +38144,16 @@
           "hits": {
             "before": 0,
             "after": 1
+          },
+          "inningScores": {
+            "before": {
+              "home": 0,
+              "away": 0
+            },
+            "after": {
+              "home": 1,
+              "away": 0
+            }
           }
         },
         "statFlags": {
@@ -37904,7 +38304,11 @@
     },
     "scoreboard": {
       "inningScores": {
-        "kind": "unchanged"
+        "kind": "set",
+        "value": {
+          "home": 1,
+          "away": 0
+        }
       },
       "hits": {
         "kind": "delta",
@@ -38027,6 +38431,16 @@
           "hits": {
             "before": 0,
             "after": 1
+          },
+          "inningScores": {
+            "before": {
+              "home": 0,
+              "away": 0
+            },
+            "after": {
+              "home": 1,
+              "away": 0
+            }
           }
         },
         "statFlags": {

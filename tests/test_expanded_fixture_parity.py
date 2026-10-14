@@ -85,6 +85,19 @@ def test_repository_matches_all_twenty_positive_and_eleven_negative_branches() -
     assert violations["XC-10"] == _entry(mapping, "XC-10")["expectedViolationIds"]
 
 
+def test_legacy_game_end_projection_keeps_existing_coordinates_exact() -> None:
+    """旧fixtureの既存座標は照合し、未知の追加座標も隠さない。"""
+    fixture = {"state.score": "away-lead:M+1"}
+    expanded = {**fixture, "state.outs": 0}
+    assert checker._legacy_game_end_coordinate(fixture, expanded) == fixture
+
+    wrong_score = {**expanded, "state.score": "home-lead:M+1"}
+    assert checker._legacy_game_end_coordinate(fixture, wrong_score) != fixture
+
+    unexpected_axis = {**expanded, "unexpected.axis": "value"}
+    assert checker._legacy_game_end_coordinate(fixture, unexpected_axis) != fixture
+
+
 @pytest.mark.parametrize(
     "name",
     [

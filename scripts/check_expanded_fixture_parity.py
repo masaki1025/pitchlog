@@ -15,7 +15,23 @@ import expand_state_transition_cases
 
 ROOT = Path(__file__).resolve().parents[1]
 MAPPING_PATH = Path("contracts/state-transition/branch_row_mapping_v1.json")
-SATISFIED_COLD_AXIS = "gameEnd.satisfiedColdTierCount"
+LEGACY_GAME_END_OMITTED_AXES = {
+    "gameEnd.satisfiedColdTierCount",
+    "state.count.balls",
+    "state.count.strikes",
+    "state.outs",
+    "state.runners",
+    "event.operationPayload",
+    "event.perPitch.pitchEventKind",
+    "event.perPitch.runnerEventPayload",
+    "event.perPitch.runnerAdvanceOverridesByRunner",
+    "event.perPitch.thirdOutTimingByRunner",
+    "event.perPitch.interferenceRuling",
+    "event.perPitch.officialScoringPayload",
+    "event.perPitch.rbi.doublePlayRelayError",
+    "event.perPitch.rbi.runnerContinuityByRunner",
+    "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+}
 
 
 class FixtureParityError(ValueError):
@@ -50,12 +66,10 @@ def _assert_equal(branch_id: str, field: str, fixture: Any, expanded: Any) -> No
 def _legacy_game_end_coordinate(
     fixture: dict[str, Any], expanded: dict[str, Any]
 ) -> dict[str, Any]:
-    """凍結済み手作業fixtureに無い成立段数軸だけを比較から除く。"""
-    if SATISFIED_COLD_AXIS in fixture:
+    """凍結済みfixtureに無い追加軸だけを除き、既存軸は照合する。"""
+    if not set(expanded) - set(fixture) <= LEGACY_GAME_END_OMITTED_AXES:
         return expanded
-    if set(expanded) - set(fixture) != {SATISFIED_COLD_AXIS}:
-        return expanded
-    return {key: value for key, value in expanded.items() if key != SATISFIED_COLD_AXIS}
+    return {key: expanded[key] for key in fixture if key in expanded}
 
 
 def check_documents(

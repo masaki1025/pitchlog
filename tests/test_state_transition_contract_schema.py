@@ -5896,6 +5896,35 @@ def test_step31_undo_scalar_cases_reverse_head_and_preserve_tail() -> None:
     history_checker.validate_undo_case_differences(contract, 4)
 
 
+def test_step33_undo_away_must_be_fixed_by_precondition() -> None:
+    """得点の set は away の変化前を前提に固定しなければならない。"""
+    contract = _repository_contract()
+    row = contract["undoRows"][4]
+    row["precondition"]["args"] = [
+        term for term in row["precondition"]["args"]
+        if term.get("axisId") != "history.topDifference.state.score.away.before"
+    ]
+    with pytest.raises(history_checker.HistoryEffectError, match="HISTORY_UNDO_SET_BOUNDARY"):
+        history_checker.validate_rows(contract, _descriptor())
+
+
+def test_step33_undo_inning_scores_diff_and_restore() -> None:
+    """得点の履歴差分はイニング別得点を持ち、undo が元の値へ戻す。"""
+    contract = _repository_contract()
+    case = next(
+        item for item in contract["cases"]
+        if item["inputCoordinate"].get("history.topDifference.state.score.home.delta") == 2
+    )
+    pair = case["historyInput"]["stack"][0]["difference"]["scoreboard"]["inningScores"]
+    assert pair == {"before": {"home": 1, "away": 0}, "after": {"home": 3, "away": 0}}
+    assert case["expected"]["stateEffect"]["scoreboard"]["inningScores"] == {
+        "kind": "set", "value": pair["before"],
+    }
+    del case["historyInput"]["stack"][0]["difference"]["scoreboard"]["inningScores"]
+    with pytest.raises(history_checker.HistoryEffectError, match="UNDO_INNING_SCORE_DIFF"):
+        history_checker.validate_undo_case_differences(contract, 4)
+
+
 @pytest.mark.parametrize(
     ("mutation", "rule_id"),
     [

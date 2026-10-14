@@ -434,6 +434,16 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         "history.topDifference.state.outs.delta": ("adr:D-11", "boundary-partition"),
         "history.topDifference.state.score.home.before": ("adr:D-11", "boundary-partition"),
         "history.topDifference.state.score.home.delta": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.state.score.away.before": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.scoreboard.inningScores.home.before": (
+            "adr:D-11", "boundary-partition",
+        ),
+        "history.topDifference.scoreboard.inningScores.home.delta": (
+            "adr:D-11", "boundary-partition",
+        ),
+        "history.topDifference.scoreboard.inningScores.away.before": (
+            "adr:D-11", "boundary-partition",
+        ),
         "history.topDifference.state.half.before": ("adr:D-11", "boundary-partition"),
         "history.topDifference.state.inning.before": ("adr:D-11", "boundary-partition"),
         "history.topDifference.scoreboard.hits.before": ("adr:D-11", "boundary-partition"),

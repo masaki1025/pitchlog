@@ -5,7 +5,7 @@
   "inputAxesDescriptor": {
     "descriptorId": "pitchlog.input-axes",
     "version": "input_axes_descriptor_v1",
-    "digest": "sha256:87d238ccb087f2c8a39e99f381f0e833bb74951814abc7ed1c0bed57e09fa5e1"
+    "digest": "sha256:293d79ec22059f0a60ba1c176ca2df0709929a573e86e046ad901fd1c7949a83"
   },
   "provenance": {
     "subjectKind": "normative-branch-or-state-effect",
@@ -6673,6 +6673,26 @@
             "op": "eq",
             "axisId": "history.topDifference.scoreboard.hits.delta",
             "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.score.away.before",
+            "value": 0
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.inningScores.home.before",
+            "value": 0
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.inningScores.home.delta",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.inningScores.away.before",
+            "value": 0
           }
         ]
       },
@@ -6715,7 +6735,11 @@
         },
         "scoreboard": {
           "inningScores": {
-            "kind": "unchanged"
+            "kind": "set",
+            "value": {
+              "home": 0,
+              "away": 0
+            }
           },
           "hits": {
             "kind": "delta",
@@ -6869,6 +6893,26 @@
             "op": "eq",
             "axisId": "history.topDifference.scoreboard.hits.delta",
             "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.score.away.before",
+            "value": 0
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.inningScores.home.before",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.inningScores.home.delta",
+            "value": 2
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.inningScores.away.before",
+            "value": 0
           }
         ]
       },
@@ -6911,7 +6955,11 @@
         },
         "scoreboard": {
           "inningScores": {
-            "kind": "unchanged"
+            "kind": "set",
+            "value": {
+              "home": 1,
+              "away": 0
+            }
           },
           "hits": {
             "kind": "delta",
@@ -7065,6 +7113,26 @@
             "op": "eq",
             "axisId": "history.topDifference.scoreboard.hits.delta",
             "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.state.score.away.before",
+            "value": 0
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.inningScores.home.before",
+            "value": 1
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.inningScores.home.delta",
+            "value": 4
+          },
+          {
+            "op": "eq",
+            "axisId": "history.topDifference.scoreboard.inningScores.away.before",
+            "value": 0
           }
         ]
       },
@@ -7107,7 +7175,11 @@
         },
         "scoreboard": {
           "inningScores": {
-            "kind": "unchanged"
+            "kind": "set",
+            "value": {
+              "home": 1,
+              "away": 0
+            }
           },
           "hits": {
             "kind": "delta",
@@ -9511,6 +9583,26 @@
                     "op": "eq",
                     "axisId": "history.topDifference.scoreboard.hits.delta",
                     "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.score.away.before",
+                    "value": 0
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.inningScores.home.before",
+                    "value": 0
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.inningScores.home.delta",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.inningScores.away.before",
+                    "value": 0
                   }
                 ]
               }
@@ -9567,6 +9659,26 @@
                     "op": "eq",
                     "axisId": "history.topDifference.scoreboard.hits.delta",
                     "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.score.away.before",
+                    "value": 0
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.inningScores.home.before",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.inningScores.home.delta",
+                    "value": 2
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.inningScores.away.before",
+                    "value": 0
                   }
                 ]
               }
@@ -9623,6 +9735,26 @@
                     "op": "eq",
                     "axisId": "history.topDifference.scoreboard.hits.delta",
                     "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.state.score.away.before",
+                    "value": 0
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.inningScores.home.before",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.inningScores.home.delta",
+                    "value": 4
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "history.topDifference.scoreboard.inningScores.away.before",
+                    "value": 0
                   }
                 ]
               }
@@ -35170,7 +35302,7 @@
       }
     },
     {
-      "caseId": "ST-UNDO-c400e8fe66722fd1",
+      "caseId": "ST-UNDO-80ff461f46b47e22",
       "rowRef": {
         "layer": "undoRows",
         "coordinate": {
@@ -35222,6 +35354,26 @@
                 "op": "eq",
                 "axisId": "history.topDifference.scoreboard.hits.delta",
                 "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.score.away.before",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.inningScores.home.before",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.inningScores.home.delta",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.inningScores.away.before",
+                "value": 0
               }
             ]
           }
@@ -35237,7 +35389,11 @@
         "history.topDifference.state.score.home.delta": 1,
         "history.topDifference.scoreboard.hits.before": 0,
         "history.topDifference.scoreboard.hits.delta": 1,
-        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+        "history.topDifference.state.score.away.before": 0,
+        "history.topDifference.scoreboard.inningScores.home.before": 0,
+        "history.topDifference.scoreboard.inningScores.home.delta": 1,
+        "history.topDifference.scoreboard.inningScores.away.before": 0
       },
       "expected": {
         "stateEffect": {
@@ -35279,7 +35435,11 @@
           },
           "scoreboard": {
             "inningScores": {
-              "kind": "unchanged"
+              "kind": "set",
+              "value": {
+                "home": 0,
+                "away": 0
+              }
             },
             "hits": {
               "kind": "delta",
@@ -35405,6 +35565,16 @@
                 "hits": {
                   "before": 0,
                   "after": 1
+                },
+                "inningScores": {
+                  "before": {
+                    "home": 0,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 1,
+                    "away": 0
+                  }
                 }
               },
               "statFlags": {
@@ -35446,7 +35616,11 @@
         "history.topDifference.state.score.home.delta": 1,
         "history.topDifference.scoreboard.hits.before": 0,
         "history.topDifference.scoreboard.hits.delta": 1,
-        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+        "history.topDifference.state.score.away.before": 0,
+        "history.topDifference.scoreboard.inningScores.home.before": 0,
+        "history.topDifference.scoreboard.inningScores.home.delta": 1,
+        "history.topDifference.scoreboard.inningScores.away.before": 0
       },
       "normalizationRuleId": "identity",
       "normalized": {
@@ -35459,11 +35633,15 @@
         "history.topDifference.state.score.home.delta": 1,
         "history.topDifference.scoreboard.hits.before": 0,
         "history.topDifference.scoreboard.hits.delta": 1,
-        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+        "history.topDifference.state.score.away.before": 0,
+        "history.topDifference.scoreboard.inningScores.home.before": 0,
+        "history.topDifference.scoreboard.inningScores.home.delta": 1,
+        "history.topDifference.scoreboard.inningScores.away.before": 0
       }
     },
     {
-      "caseId": "ST-UNDO-5e3ea87e0027662e",
+      "caseId": "ST-UNDO-fe044f398d161921",
       "rowRef": {
         "layer": "undoRows",
         "coordinate": {
@@ -35515,6 +35693,26 @@
                 "op": "eq",
                 "axisId": "history.topDifference.scoreboard.hits.delta",
                 "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.score.away.before",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.inningScores.home.before",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.inningScores.home.delta",
+                "value": 2
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.inningScores.away.before",
+                "value": 0
               }
             ]
           }
@@ -35530,7 +35728,11 @@
         "history.topDifference.state.score.home.delta": 2,
         "history.topDifference.scoreboard.hits.before": 1,
         "history.topDifference.scoreboard.hits.delta": 1,
-        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+        "history.topDifference.state.score.away.before": 0,
+        "history.topDifference.scoreboard.inningScores.home.before": 1,
+        "history.topDifference.scoreboard.inningScores.home.delta": 2,
+        "history.topDifference.scoreboard.inningScores.away.before": 0
       },
       "expected": {
         "stateEffect": {
@@ -35572,7 +35774,11 @@
           },
           "scoreboard": {
             "inningScores": {
-              "kind": "unchanged"
+              "kind": "set",
+              "value": {
+                "home": 1,
+                "away": 0
+              }
             },
             "hits": {
               "kind": "delta",
@@ -35695,6 +35901,16 @@
                 "hits": {
                   "before": 0,
                   "after": 1
+                },
+                "inningScores": {
+                  "before": {
+                    "home": 0,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 1,
+                    "away": 0
+                  }
                 }
               },
               "statFlags": {
@@ -35747,6 +35963,16 @@
                 "hits": {
                   "before": 1,
                   "after": 2
+                },
+                "inningScores": {
+                  "before": {
+                    "home": 1,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 3,
+                    "away": 0
+                  }
                 }
               },
               "statFlags": {
@@ -35795,6 +36021,16 @@
                 "hits": {
                   "before": 0,
                   "after": 1
+                },
+                "inningScores": {
+                  "before": {
+                    "home": 0,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 1,
+                    "away": 0
+                  }
                 }
               },
               "statFlags": {
@@ -35836,7 +36072,11 @@
         "history.topDifference.state.score.home.delta": 2,
         "history.topDifference.scoreboard.hits.before": 1,
         "history.topDifference.scoreboard.hits.delta": 1,
-        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+        "history.topDifference.state.score.away.before": 0,
+        "history.topDifference.scoreboard.inningScores.home.before": 1,
+        "history.topDifference.scoreboard.inningScores.home.delta": 2,
+        "history.topDifference.scoreboard.inningScores.away.before": 0
       },
       "normalizationRuleId": "identity",
       "normalized": {
@@ -35849,11 +36089,15 @@
         "history.topDifference.state.score.home.delta": 2,
         "history.topDifference.scoreboard.hits.before": 1,
         "history.topDifference.scoreboard.hits.delta": 1,
-        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+        "history.topDifference.state.score.away.before": 0,
+        "history.topDifference.scoreboard.inningScores.home.before": 1,
+        "history.topDifference.scoreboard.inningScores.home.delta": 2,
+        "history.topDifference.scoreboard.inningScores.away.before": 0
       }
     },
     {
-      "caseId": "ST-UNDO-bb4731e5dcbb1a70",
+      "caseId": "ST-UNDO-697a8e0de202ff20",
       "rowRef": {
         "layer": "undoRows",
         "coordinate": {
@@ -35905,6 +36149,26 @@
                 "op": "eq",
                 "axisId": "history.topDifference.scoreboard.hits.delta",
                 "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.state.score.away.before",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.inningScores.home.before",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.inningScores.home.delta",
+                "value": 4
+              },
+              {
+                "op": "eq",
+                "axisId": "history.topDifference.scoreboard.inningScores.away.before",
+                "value": 0
               }
             ]
           }
@@ -35920,7 +36184,11 @@
         "history.topDifference.state.score.home.delta": 4,
         "history.topDifference.scoreboard.hits.before": 1,
         "history.topDifference.scoreboard.hits.delta": 1,
-        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+        "history.topDifference.state.score.away.before": 0,
+        "history.topDifference.scoreboard.inningScores.home.before": 1,
+        "history.topDifference.scoreboard.inningScores.home.delta": 4,
+        "history.topDifference.scoreboard.inningScores.away.before": 0
       },
       "expected": {
         "stateEffect": {
@@ -35962,7 +36230,11 @@
           },
           "scoreboard": {
             "inningScores": {
-              "kind": "unchanged"
+              "kind": "set",
+              "value": {
+                "home": 1,
+                "away": 0
+              }
             },
             "hits": {
               "kind": "delta",
@@ -36085,6 +36357,16 @@
                 "hits": {
                   "before": 0,
                   "after": 1
+                },
+                "inningScores": {
+                  "before": {
+                    "home": 0,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 1,
+                    "away": 0
+                  }
                 }
               },
               "statFlags": {
@@ -36211,6 +36493,16 @@
                 "hits": {
                   "before": 1,
                   "after": 2
+                },
+                "inningScores": {
+                  "before": {
+                    "home": 1,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 5,
+                    "away": 0
+                  }
                 }
               },
               "statFlags": {
@@ -36259,6 +36551,16 @@
                 "hits": {
                   "before": 0,
                   "after": 1
+                },
+                "inningScores": {
+                  "before": {
+                    "home": 0,
+                    "away": 0
+                  },
+                  "after": {
+                    "home": 1,
+                    "away": 0
+                  }
                 }
               },
               "statFlags": {
@@ -36374,7 +36676,11 @@
         "history.topDifference.state.score.home.delta": 4,
         "history.topDifference.scoreboard.hits.before": 1,
         "history.topDifference.scoreboard.hits.delta": 1,
-        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+        "history.topDifference.state.score.away.before": 0,
+        "history.topDifference.scoreboard.inningScores.home.before": 1,
+        "history.topDifference.scoreboard.inningScores.home.delta": 4,
+        "history.topDifference.scoreboard.inningScores.away.before": 0
       },
       "normalizationRuleId": "identity",
       "normalized": {
@@ -36387,7 +36693,11 @@
         "history.topDifference.state.score.home.delta": 4,
         "history.topDifference.scoreboard.hits.before": 1,
         "history.topDifference.scoreboard.hits.delta": 1,
-        "history.topDifference.statFlags.contribution": "run-hit-and-pitch"
+        "history.topDifference.statFlags.contribution": "run-hit-and-pitch",
+        "history.topDifference.state.score.away.before": 0,
+        "history.topDifference.scoreboard.inningScores.home.before": 1,
+        "history.topDifference.scoreboard.inningScores.home.delta": 4,
+        "history.topDifference.scoreboard.inningScores.away.before": 0
       }
     },
     {

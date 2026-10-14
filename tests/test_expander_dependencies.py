@@ -286,10 +286,13 @@ def test_step93_first_stage_game_end_cases_match_manual_fixtures() -> None:
     for case in cases:
         fixture = fixture_by_branch[case["branchId"]]
         assert case["caseId"] == fixture["caseId"]
-        # 手作業fixtureの凍結時点には成立段数軸が無いため、この軸だけ除いて照合する。
+        # 凍結済みfixtureには後から追加した成立段数と裏未開始の軸がない。
         assert {
             key: value for key, value in case["inputCoordinate"].items()
-            if key != "gameEnd.satisfiedColdTierCount"
+            if key not in {
+                "gameEnd.satisfiedColdTierCount", "state.outs", "state.runners",
+                "state.count.strikes", "state.count.balls",
+            }
         } == fixture["inputCoordinate"]
         assert case["decision"] == fixture["decision"]
 
@@ -376,7 +379,7 @@ def test_game_end_expander_rejects_nonrepresentative_coordinate() -> None:
     )
     axes = [axis_id for axis_id in values if axis_id in used]
     wrong = dict(contract["cases"][0]["inputCoordinate"])
-    wrong["state.score"] = "home-lead:M"
+    wrong["state.score"] = "away-lead:M-1"
     assert game_end_expander._predicate_holds(contract["decisionRows"][0]["precondition"], wrong)
     with pytest.raises(
         representative_selection.RepresentativeSelectionError,
@@ -402,7 +405,7 @@ def test_game_end_expander_uses_declared_selection_rule(
 
     monkeypatch.setattr(game_end_expander, "_read_document", read_with_last_choice)
     cases, trace = game_end_expander.expand_traced(REPOSITORY_ROOT, limit=1)
-    assert cases[0]["inputCoordinate"]["state.score"] == "home-lead:M+1"
+    assert cases[0]["inputCoordinate"]["state.score"] == "away-lead:M-1"
     assert trace.observed_read_paths == _policy().expanders["game-end-cases"].allowed_read_paths
 
 
@@ -470,8 +473,21 @@ def test_positive_manual_fixture_inputs_follow_representative_policy() -> None:
             expected = representative_selection.select_coordinate(
                 row["precondition"], game_values, game_axes, policy
             )
-            # 既存の手作業fixtureは旧4軸の凍結資産である。
+            # 凍結済みfixtureに無い派生軸と裏未開始の固定軸を射影で除く。
             expected.pop("gameEnd.satisfiedColdTierCount", None)
+            for axis_id in (
+                "state.outs", "state.runners", "state.count.strikes", "state.count.balls",
+                "event.operationPayload", "event.perPitch.pitchEventKind",
+                "event.perPitch.runnerEventPayload",
+                "event.perPitch.runnerAdvanceOverridesByRunner",
+                "event.perPitch.thirdOutTimingByRunner",
+                "event.perPitch.interferenceRuling",
+                "event.perPitch.officialScoringPayload",
+                "event.perPitch.rbi.doublePlayRelayError",
+                "event.perPitch.rbi.runnerContinuityByRunner",
+                "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+            ):
+                expected.pop(axis_id, None)
             assert game_fixtures[branch_id] == expected
             checked += 1
     assert checked == 22

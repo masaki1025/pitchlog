@@ -733,7 +733,7 @@
           "const": "input_axes_descriptor_v1"
         },
         "digest": {
-          "const": "sha256:87d238ccb087f2c8a39e99f381f0e833bb74951814abc7ed1c0bed57e09fa5e1"
+          "const": "sha256:293d79ec22059f0a60ba1c176ca2df0709929a573e86e046ad901fd1c7949a83"
         }
       }
     },

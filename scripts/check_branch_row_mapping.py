@@ -75,6 +75,27 @@ def _depth_zero_only(predicate: dict[str, Any], descriptor: dict[str, Any]) -> b
     )
     if any(axis not in values_by_axis for axis in axes):
         _fail("HISTORY_UNDECIDABLE", "述語に未登録の軸がある")
+    if predicate.get("op") == "and" and all(
+        isinstance(arg, dict) and arg.get("op") == "eq"
+        for arg in predicate.get("args", [])
+    ):
+        equalities = predicate["args"]
+        if any(
+            arg.get("axisId") not in values_by_axis
+            or arg.get("value") not in values_by_axis[arg["axisId"]]
+            for arg in equalities
+        ):
+            _fail("HISTORY_UNDECIDABLE", "述語の固定値が軸の値域外")
+        fixed: dict[str, Any] = {}
+        for arg in equalities:
+            axis_id = arg["axisId"]
+            if axis_id in fixed and fixed[axis_id] != arg["value"]:
+                _fail("HISTORY_UNDECIDABLE", "述語の同一軸に矛盾する固定値がある")
+            fixed[axis_id] = arg["value"]
+        depth_values = {
+            arg["value"] for arg in equalities if arg["axisId"] == "history.depth"
+        }
+        return depth_values == {0}
     size = 1
     for axis in axes:
         size *= len(values_by_axis[axis])
@@ -211,6 +232,24 @@ def validate_rows(contract: dict[str, Any], descriptor: dict[str, Any]) -> None:
             _fail("HISTORY_NONE_EQUIVALENCE", label)
         if not _all_unchanged(row["stateEffect"]["statFlags"]):
             _fail("HISTORY_UNDO_FLAGS", label)
+        if row["stateEffect"]["stateFields"]["state.score"].get("kind") == "set":
+            predicate = row["precondition"]
+            terms = predicate.get("args") if predicate.get("op") == "and" else None
+            fixed = {
+                term["axisId"]: term["value"]
+                for term in terms or []
+                if isinstance(term, dict) and term.get("op") == "eq"
+            }
+            for axis_id, face, member in (
+                ("history.topDifference.state.score.away.before", "stateFields", "away"),
+                ("history.topDifference.scoreboard.inningScores.home.before", "scoreboard", "home"),
+                ("history.topDifference.scoreboard.inningScores.away.before", "scoreboard", "away"),
+            ):
+                value = row["stateEffect"][face][
+                    "state.score" if face == "stateFields" else "inningScores"
+                ]
+                if value.get("kind") != "set" or fixed.get(axis_id) != value["value"][member]:
+                    _fail("HISTORY_UNDO_SET_BOUNDARY", label)
         if row["targetKind"] == "none" and (
             row["guaranteeMode"] != "full-equality"
             or not _all_unchanged(row["stateEffect"]["stateFields"])
@@ -304,6 +343,12 @@ def validate_undo_case_differences(contract: dict[str, Any], depth: int) -> None
             _fail("UNDO_DIFFERENCE_INPUT", label)
         difference = top.get("difference", {})
         face = expected.get("stateEffect", {})
+        if (
+            "state.score" in difference.get("stateFields", {})
+            and difference.get("statFlags", {}).get("得点") is True
+            and "inningScores" not in difference.get("scoreboard", {})
+        ):
+            _fail("UNDO_INNING_SCORE_DIFF", label)
         for surface in ("stateFields", "scoreboard"):
             changed = difference.get(surface)
             effects = face.get(surface)
@@ -343,19 +388,35 @@ def validate_undo_case_differences(contract: dict[str, Any], depth: int) -> None
             "state.outs.delta": ("stateFields", "state.outs", None, "delta"),
             "state.score.home.before": ("stateFields", "state.score", "home", "before"),
             "state.score.home.delta": ("stateFields", "state.score", "home", "delta"),
+            "state.score.away.before": ("stateFields", "state.score", "away", "before"),
             "state.half.before": ("stateFields", "state.half", None, "before"),
             "state.inning.before": ("stateFields", "state.inning", None, "before"),
             "scoreboard.hits.before": ("scoreboard", "hits", None, "before"),
             "scoreboard.hits.delta": ("scoreboard", "hits", None, "delta"),
+            "scoreboard.inningScores.home.before": (
+                "scoreboard", "inningScores", "home", "before"
+            ),
+            "scoreboard.inningScores.home.delta": (
+                "scoreboard", "inningScores", "home", "delta"
+            ),
+            "scoreboard.inningScores.away.before": (
+                "scoreboard", "inningScores", "away", "before"
+            ),
         }
         required_by_field = {
             ("stateFields", "state.outs"): ("state.outs.before",),
             ("stateFields", "state.score"): (
                 "state.score.home.before", "state.score.home.delta",
+                "state.score.away.before",
             ),
             ("stateFields", "state.half"): ("state.half.before",),
             ("stateFields", "state.inning"): ("state.inning.before",),
             ("scoreboard", "hits"): ("scoreboard.hits.before", "scoreboard.hits.delta"),
+            ("scoreboard", "inningScores"): (
+                "scoreboard.inningScores.home.before",
+                "scoreboard.inningScores.home.delta",
+                "scoreboard.inningScores.away.before",
+            ),
         }
         for surface in ("stateFields", "scoreboard"):
             for field in difference[surface]:
@@ -679,16 +740,53 @@ def _legacy_game_end_predicate(predicate: dict[str, Any]) -> dict[str, Any]:
     if predicate.get("op") != "and" or not isinstance(predicate.get("args"), list):
         raise BranchRowMappingError("終了判定行の旧fixture射影を判定できない")
     args = predicate["args"]
+    omitted_axes = {
+        "gameEnd.satisfiedColdTierCount",
+        "state.outs",
+        "state.runners",
+        "state.count.strikes",
+        "state.count.balls",
+        "event.operationPayload",
+        "event.perPitch.pitchEventKind",
+        "event.perPitch.runnerEventPayload",
+        "event.perPitch.runnerAdvanceOverridesByRunner",
+        "event.perPitch.thirdOutTimingByRunner",
+        "event.perPitch.interferenceRuling",
+        "event.perPitch.officialScoringPayload",
+        "event.perPitch.rbi.doublePlayRelayError",
+        "event.perPitch.rbi.runnerContinuityByRunner",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+    }
     projected = [
         arg for arg in args
         if not (
             isinstance(arg, dict)
             and arg.get("op") == "eq"
-            and arg.get("axisId") == "gameEnd.satisfiedColdTierCount"
+            and arg.get("axisId") in omitted_axes
         )
     ]
-    if len(args) - len(projected) != 1:
-        raise BranchRowMappingError("終了判定行の成立段数軸が一意でない")
+    removed = [arg.get("axisId") for arg in args if arg not in projected]
+    if removed not in [
+        ["gameEnd.satisfiedColdTierCount"],
+        [
+            "gameEnd.satisfiedColdTierCount",
+            "state.outs", "state.runners", "state.count.strikes", "state.count.balls",
+        ],
+        [
+            "gameEnd.satisfiedColdTierCount",
+            "state.outs", "state.runners",
+            "event.operationPayload", "event.perPitch.pitchEventKind",
+            "event.perPitch.runnerEventPayload",
+            "event.perPitch.runnerAdvanceOverridesByRunner",
+            "event.perPitch.thirdOutTimingByRunner",
+            "event.perPitch.interferenceRuling",
+            "event.perPitch.officialScoringPayload",
+            "event.perPitch.rbi.doublePlayRelayError",
+            "event.perPitch.rbi.runnerContinuityByRunner",
+            "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+        ],
+    ]:
+        raise BranchRowMappingError("終了判定行の旧fixture射影の除外軸が不正")
     return {"op": "and", "args": projected}
 
 

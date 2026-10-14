@@ -96,8 +96,20 @@ def _fixture_predicate_holds(
     """
     operator = predicate["op"]
     if operator == "eq":
-        # 既存の手作業fixtureは凍結中の4軸射影であり、新軸は生成caseで照合する。
-        if predicate["axisId"] == "gameEnd.satisfiedColdTierCount":
+        # 手作業fixtureは凍結時の軸射影で、後から固定した未開始の裏は派生caseで照合する。
+        if predicate["axisId"] in {
+            "gameEnd.satisfiedColdTierCount", "state.outs", "state.runners",
+            "state.count.strikes", "state.count.balls",
+            "event.operationPayload", "event.perPitch.pitchEventKind",
+            "event.perPitch.runnerEventPayload",
+            "event.perPitch.runnerAdvanceOverridesByRunner",
+            "event.perPitch.thirdOutTimingByRunner",
+            "event.perPitch.interferenceRuling",
+            "event.perPitch.officialScoringPayload",
+            "event.perPitch.rbi.doublePlayRelayError",
+            "event.perPitch.rbi.runnerContinuityByRunner",
+            "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+        }:
             return True
         actual = coordinate[predicate["axisId"]]
         expected = predicate["value"]
@@ -160,7 +172,19 @@ def _validate_manual_fixtures(
     allowed_axes = set(contract_schema["x-pitchlog-decision-row-references"]["allowedAxisIds"])
     assert set(schema["$defs"]["inputCoordinate"]["required"]) <= allowed_axes
     assert set(schema["$defs"]["inputCoordinate"]["properties"]) == (
-        allowed_axes - {"gameEnd.satisfiedColdTierCount"}
+        allowed_axes - {
+            "gameEnd.satisfiedColdTierCount", "state.outs", "state.runners",
+            "state.count.strikes", "state.count.balls",
+            "event.operationPayload", "event.perPitch.pitchEventKind",
+            "event.perPitch.runnerEventPayload",
+            "event.perPitch.runnerAdvanceOverridesByRunner",
+            "event.perPitch.thirdOutTimingByRunner",
+            "event.perPitch.interferenceRuling",
+            "event.perPitch.officialScoringPayload",
+            "event.perPitch.rbi.doublePlayRelayError",
+            "event.perPitch.rbi.runnerContinuityByRunner",
+            "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+        }
     )
     assert set(schema["$defs"]["decision"]["required"]) == set(
         contract_schema["$defs"]["gameEndDecision"]["required"]
@@ -594,6 +618,18 @@ def test_walk_off_row_is_bound_to_fifth_role_and_fr005() -> None:
         "event.operationKind": "per-pitch",
         "event.perPitch.kind": "batting-result",
         "event.perPitch.resultId": "本塁打",
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.operationPayload": "not-applicable",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.runnerEventPayload": "not-required",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+        "event.perPitch.thirdOutTimingByRunner": "not-required",
+        "event.perPitch.interferenceRuling": "not-required",
+        "event.perPitch.officialScoringPayload": "no-error",
+        "event.perPitch.rbi.doublePlayRelayError": "not-required",
+        "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required",
     }
     assert row["decision"] == {
         "outcome": "walk-off",
@@ -621,7 +657,7 @@ def test_decision_outcome_swapped_between_existing_branches_is_red() -> None:
     [
         ("gameEnd.extensionLimit", "finite:R-1"),
         ("gameEnd.regulationInnings", 0),
-        ("state.runners", "empty"),
+        ("history.depth", 0),
     ],
 )
 def test_decision_precondition_outside_declared_axes_is_red(

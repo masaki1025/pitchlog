@@ -1566,6 +1566,67 @@ def check_derived_axis_cases(
                 )
 
 
+def check_game_end_concrete_case_consistency(contract: dict[str, Any]) -> None:
+    """具体入力が同じcaseの期待値と、終了局面の境界を照合する。
+
+    Args:
+        contract: 終了判定契約。
+
+    Raises:
+        RequiredSetCoverageError: ラベルの実値や期待値が矛盾する場合。
+    """
+    observations: dict[str, dict[str, Any]] = {}
+    for case in contract["cases"]:
+        coordinate = case.get("normalized")
+        source = case.get("derivedSourceInput")
+        decision = case.get("decision")
+        if not isinstance(coordinate, dict) or not isinstance(source, dict):
+            raise RequiredSetCoverageError("CONCRETE_INPUT: caseの具体入力がない")
+        if coordinate.get("state.inning") == "L+1" and coordinate.get(
+            "gameEnd.extensionLimit"
+        ) == "finite:R+1":
+            regulation = coordinate.get("gameEnd.regulationInnings")
+            if type(regulation) is not int or source.get("state.inning") != regulation + 2:
+                raise RequiredSetCoverageError("CONCRETE_INNING: L+1の実入力が不一致")
+        if case.get("branchId") == "GAME-END-NORMAL" and coordinate.get(
+            "state.score"
+        ) not in {"away-lead:M+1", "away-lead:M", "away-lead:M-1"}:
+            raise RequiredSetCoverageError("NORMAL_SCORE: 先攻リードでない通常終了")
+        if case.get("branchId") == "GAME-END-WALK-OFF" and any(
+            coordinate.get(axis) != value
+            for axis, value in (
+                ("state.outs", 0),
+                ("state.runners", "empty"),
+                ("event.operationPayload", "not-applicable"),
+                ("event.perPitch.pitchEventKind", "pitch-event"),
+                ("event.perPitch.runnerEventPayload", "not-required"),
+                ("event.perPitch.runnerAdvanceOverridesByRunner", "not-applied"),
+                ("event.perPitch.thirdOutTimingByRunner", "not-required"),
+                ("event.perPitch.interferenceRuling", "not-required"),
+                ("event.perPitch.officialScoringPayload", "no-error"),
+                ("event.perPitch.rbi.doublePlayRelayError", "not-required"),
+                ("event.perPitch.rbi.runnerContinuityByRunner", "not-required"),
+                ("event.perPitch.rbi.wouldScoreWithoutErrorByRunner", "not-required"),
+            )
+        ):
+            raise RequiredSetCoverageError("WALKOFF_MODIFIERS: 得点が変わる修飾子を持つ")
+        if isinstance(decision, dict) and decision.get("xMark") == "x-mark" and any(
+            coordinate.get(axis) != value
+            for axis, value in (
+                ("state.outs", 0),
+                ("state.runners", "empty"),
+                ("state.count.strikes", 0),
+                ("state.count.balls", 0),
+            )
+        ):
+            raise RequiredSetCoverageError("XMARK_STARTED: 開始済みの裏にX表記")
+        concrete = {**coordinate, **source}
+        key = json.dumps(concrete, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+        previous = observations.setdefault(key, decision)
+        if previous != decision:
+            raise RequiredSetCoverageError("CASE_FUNCTION: 同じ具体入力の期待値が不一致")
+
+
 def check_state_derived_axis_cases(
     contract: dict[str, Any], descriptor: dict[str, Any]
 ) -> None:
@@ -1738,6 +1799,7 @@ def _check_game_end_documents(
     if not isinstance(contract.get("cases"), list) or len(contract["cases"]) != len(generated):
         raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
     check_derived_axis_cases(contract, descriptor)
+    check_game_end_concrete_case_consistency(contract)
     for case, expanded in zip(contract["cases"], generated, strict=True):
         if case["inputCoordinate"] != case["normalized"]:
             raise RequiredSetCoverageError("終了判定ケースが代表値展開の正規形と不一致")
@@ -1749,15 +1811,15 @@ def _check_game_end_documents(
         if set(case) != (set(expanded) | normalization_fields) or projection != expanded:
             raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
     counts, _, reachable, observed = _game_end_measure(root, contract, declaration)
-    # 過去4件は受理済みの記録として保持し、この変更の測定だけを1件追記する。
+    # 過去5件は受理済みの記録として保持し、この変更の測定だけを1件追記する。
     # 新軸の追加後に旧descriptorでの要求集合を現行軸へ再解釈しない。
     history = record.get("history") if isinstance(record, dict) else None
     if (
         not isinstance(history, list)
-        or len(history) != 5
+        or len(history) != 6
         or [entry.get("step") for entry in history if isinstance(entry, dict)]
-        != [93, 94, 95, 96, 97]
-        or record.get("currentStep") != 97
+        != [93, 94, 95, 96, 97, 98]
+        or record.get("currentStep") != 98
     ):
         raise RequiredSetCoverageError("終了判定の独立被覆履歴の件数・順序が不正")
     prior = history[-2]
@@ -1767,12 +1829,11 @@ def _check_game_end_documents(
         for earlier, later in zip(history, history[1:])
     ):
         raise RequiredSetCoverageError("終了判定の独立被覆記録が連鎖しない")
-    baseline_ids = prior.get("baselineCaseIds")
+    baseline_ids = current.get("baselineCaseIds")
     if (
         not isinstance(baseline_ids, list)
         or len(baseline_ids) != prior.get("after", {}).get("caseCount")
         or not set(baseline_ids) <= {case["caseId"] for case in contract["cases"]}
-        or current.get("baselineCaseIds") != baseline_ids
         or current.get("before") != prior.get("after")
     ):
         raise RequiredSetCoverageError("終了判定の独立被覆履歴が直前記録と連鎖しない")
