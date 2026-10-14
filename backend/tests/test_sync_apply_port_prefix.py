@@ -78,6 +78,15 @@ class PrefixValidator:
         return True, None
 
 
+class RejectPrefixValidator(PrefixValidator):
+    """P5/T9 を実経路から起動する合成の内容拒否。"""
+
+    def validate(self, event: SyncEvent, writer: PortWriter) -> tuple[bool, str | None]:
+        """拒否原本に残す決定的な理由を返す。"""
+        self.calls.append(event.d5)
+        return False, "内容不正"
+
+
 class PrefixProjection:
     """投影へ渡されたイベントを記録する。"""
 

@@ -146,21 +146,27 @@ def classify_d5(
 
 
 def classify_request_d5(
-    handle: _TenantTransaction, request: SyncRequest
+    handle: _TenantTransaction,
+    request: SyncRequest,
+    fingerprints: tuple[str, ...] | None = None,
 ) -> tuple[D5Candidate, ...]:
     """要求内の全 D5 を、後段の結果確定より前に内部候補へ分類する。
 
     呼び出し側は認可・RG1、P3 では復旧世代照合を先に終える。
     戻り値は要求のイベント列と同じ順で、外部 A5 の確定順ではない。
     """
+    if fingerprints is not None and len(fingerprints) != len(request.events):
+        raise ValueError("D5 指紋の件数がイベント列と異なる")
     return tuple(
         classify_d5(
             handle,
             UUID(event.d5),
-            event_source_fingerprint(event),
+            event_source_fingerprint(event)
+            if fingerprints is None
+            else fingerprints[index],
             request.path,
         )
-        for event in request.events
+        for index, event in enumerate(request.events)
     )
 
 

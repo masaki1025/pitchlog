@@ -17,6 +17,7 @@ from pitchlog.repositories.transaction import (
     tenant_transaction_scope,
 )
 from pitchlog.sync import port_guard
+from pitchlog.sync.crash_points import reach
 from pitchlog.sync.gate import RG1Blocked, game_accessible, gated_writer
 from pitchlog.sync.idempotency import (
     D5Candidate,
@@ -243,6 +244,8 @@ def _apply_locked(
             if outcome is None:
                 raise RuntimeError("D5 再照合が未使用に戻った")
             raise _D5Race(outcome)
+        reach("after_t1_ledger")
+        reach("after_t6_result")
 
         updated = scope.run(
             EventSlotVersionUpdateToken(*target, event.v11, event.v11 + 1)
@@ -264,8 +267,11 @@ def _apply_locked(
                 expected_version=event.v11,
             )
         )
+        reach("after_t2_event")
         projection.apply(event, writer)
+        reach("after_t4_projection")
         record_p3_intents(scope, game_id, target[1], target[2], event.v11 + 1)
+        reach("after_t7_intents")
         return result
     finally:
         if own_writer:

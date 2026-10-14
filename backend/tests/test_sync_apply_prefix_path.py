@@ -41,6 +41,7 @@ from pitchlog.sync.idempotency import D5Candidate, StoredResult
 from pitchlog.sync.model import ABSENT, SyncEvent
 from pitchlog.sync.ports import RecordingRightsPort
 from pitchlog.sync.prefix_path import (
+    P1ContentRejection,
     P1PreconditionError,
     P1Target,
     _apply_locked,
@@ -525,6 +526,46 @@ def test_p1_checks_rights_before_gap(monkeypatch: pytest.MonkeyPatch) -> None:
         )
     assert rights.calls == [GAME]
     assert error.value.category == "recording_rights"
+
+
+def test_p1_gap_stops_before_invalid_content(monkeypatch: pytest.MonkeyPatch) -> None:
+    """⑥で欠番なら、未使用 D5 の不正な V5 を⑦として先に返さない。"""
+    _register_ports(monkeypatch)
+    observation = _LockObservation()
+    event = SyncEvent(D5, GAME, d1=3, d4="epoch", v5="unknown", v7={})
+    result = _apply_locked(
+        cast(_TenantTransaction, observation),
+        event,
+        PrefixRights(),
+        PrefixProjection(),
+        PrefixValidator(),
+        None,
+        None,
+        None,
+    )
+    assert result.boundary == "B2"
+    assert IdempotencyLedgerInsertToken not in observation.tokens
+
+
+def test_p1_contiguous_invalid_content_reaches_p5_category(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """⑥を通過した不正 V5 は T9 へ渡せる内容拒否として区別する。"""
+    _register_ports(monkeypatch)
+    observation = _LockObservation()
+    event = SyncEvent(D5, GAME, d1=1, d4="epoch", v5="unknown", v7={})
+    with pytest.raises(P1ContentRejection, match="V5"):
+        _apply_locked(
+            cast(_TenantTransaction, observation),
+            event,
+            PrefixRights(),
+            PrefixProjection(),
+            PrefixValidator(),
+            None,
+            None,
+            None,
+        )
+    assert IdempotencyLedgerInsertToken not in observation.tokens
 
 
 @pytest.mark.parametrize("path", ["P1", "P2"])

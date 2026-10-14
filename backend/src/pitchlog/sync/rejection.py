@@ -18,6 +18,7 @@ from pitchlog.repositories.transaction import (
     tenant_transaction_scope,
 )
 from pitchlog.sync import port_guard
+from pitchlog.sync.crash_points import reach
 from pitchlog.sync.gate import RG1Blocked, game_accessible, gated_writer
 from pitchlog.sync.idempotency import (
     D5Candidate,
@@ -128,10 +129,12 @@ def _commit_result(
         if result is None:
             raise RuntimeError("D5 再照合が未使用に戻った")
         raise _RaceReplay(result)
+    reach("after_t9_ledger" if kind == "rejected" else "after_t8_ledger")
     if kind == "rejected":
         scope.run(
             RejectedOriginalInsertToken(uuid4(), d5, _original(event, fingerprint))
         )
+        reach("after_t9_original")
     else:
         if old_generation is None or event.d1 is None:
             raise RuntimeError("退避原本の世代または D1 がない")
@@ -145,6 +148,7 @@ def _commit_result(
                 _original(event, fingerprint),
             )
         )
+        reach("after_t8_original")
     return RejectionResult("B3a" if kind == "rejected" else "B4", d3, state, reason)
 
 

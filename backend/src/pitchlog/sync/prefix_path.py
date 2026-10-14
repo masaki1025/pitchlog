@@ -36,6 +36,7 @@ from pitchlog.repositories.transaction import (
     tenant_transaction_scope,
 )
 from pitchlog.sync import port_guard
+from pitchlog.sync.crash_points import reach
 from pitchlog.sync.gate import RG1Blocked, game_accessible, gated_writer
 from pitchlog.sync.idempotency import (
     D5Candidate,
@@ -589,29 +590,6 @@ def _apply_locked(
         or not event.d4
     ):
         raise P1PreconditionError("D1 付き経路には D1 と D4 が必要")
-    replacement, original_d5 = _replacement_state(event)
-    if path == "P2" and (
-        type(event.v5) is not str or event.v5 not in _P2_LOGICAL_KINDS
-    ):
-        raise P1PreconditionError("P2 は論理位置を持つイベント種別だけを受ける")
-    kind = _event_kind(event)
-    d2 = _d2(event, replacement)
-    if path == "P2" and (d2 is None or order_resolver is None):
-        raise P1PreconditionError("P2 には論理位置 V6 が必要")
-    payload_json = _json_object(event.v7)
-    _state_diff(event, replacement)
-    _validate_v11(event)
-    _validate_v10(event, replacement, target)
-    if replacement == "tombstone" and payload_json != "{}":
-        raise P1PreconditionError("墓標の payload は空 object が必要")
-    if kind == "player_registration" and registration is None:
-        raise P1PreconditionError("その場登録には選手作成値が必要")
-    if kind != "player_registration" and registration is not None:
-        raise P1PreconditionError("選手作成値はその場登録だけに使える")
-    if registration is not None and not _contains_reference(
-        event.v7, str(registration.temporary_id)
-    ):
-        raise P1PreconditionError("その場登録の V7 に一時選手 ID がない")
     # 登録表の検査は三つのポートのいずれを呼ぶよりも前に完了する。
     for port in (rights, projection, validator):
         port_guard.require_registered_port(port)
@@ -628,8 +606,37 @@ def _apply_locked(
         if event.d1 <= d3:
             raise P1PreconditionError(
                 "確定済み D1 は墓標・改訂で置換できない",
-                "w2_violation" if original_d5 is not None else "other",
+                "w2_violation" if event.v9 is not ABSENT else "other",
             )
+        # ⑦の V 値と内容は、⑤の記録権・⑥の連番を通った後で判定する。
+        try:
+            replacement, original_d5 = _replacement_state(event)
+            if path == "P2" and (
+                type(event.v5) is not str or event.v5 not in _P2_LOGICAL_KINDS
+            ):
+                raise P1PreconditionError("P2 は論理位置を持つイベント種別だけを受ける")
+            kind = _event_kind(event)
+            d2 = _d2(event, replacement)
+            if path == "P2" and (d2 is None or order_resolver is None):
+                raise P1PreconditionError("P2 には論理位置 V6 が必要")
+            payload_json = _json_object(event.v7)
+            _state_diff(event, replacement)
+            _validate_v11(event)
+            _validate_v10(event, replacement, target)
+            if replacement == "tombstone" and payload_json != "{}":
+                raise P1PreconditionError("墓標の payload は空 object が必要")
+            if kind == "player_registration" and registration is None:
+                raise P1PreconditionError("その場登録には選手作成値が必要")
+            if kind != "player_registration" and registration is not None:
+                raise P1PreconditionError("選手作成値はその場登録だけに使える")
+            if registration is not None and not _contains_reference(
+                event.v7, str(registration.temporary_id)
+            ):
+                raise P1PreconditionError("その場登録の V7 に一時選手 ID がない")
+        except P1PreconditionError as error:
+            if error.category == "other":
+                raise P1ContentRejection(str(error)) from error
+            raise
         if original_d5 is not None:
             _require_rejected_original(scope, event, original_d5)
         valid, reason = validator.validate(event, writer)
@@ -660,6 +667,7 @@ def _apply_locked(
                     )
                 )
             d2 = assigned
+            reach("after_t5_order")
 
         new_d3 = max(d3, event.d1)
         new_mapping: dict[str, str] = {}
@@ -701,6 +709,8 @@ def _apply_locked(
             if outcome is None:
                 raise RuntimeError("D5 再照合が未使用に戻った")
             raise _D5Race(outcome)
+        reach("after_t1_ledger")
+        reach("after_t6_result")
 
         if player_token is not None:
             scope.run(player_token)
@@ -710,14 +720,18 @@ def _apply_locked(
                 projected_event, game_id, generation, replacement, payload_json, target
             )
         )
+        reach("after_t2_event")
         if new_d3 > d3:
             updated = scope.run(
                 RecordingPrefixUpdateToken(game_id, generation, new_d3, new_d3)
             )
             if updated.rows != ((1,),):
                 raise RuntimeError("D3 の前進に失敗")
+            reach("after_t3_prefix")
         projection.apply(projected_event, writer)
+        reach("after_t4_projection")
         if registration is not None:
+            reach("before_t6_mapping")
             scope.run(
                 TemporaryPlayerMappingInsertToken(
                     uuid4(),
@@ -725,6 +739,7 @@ def _apply_locked(
                     UUID(new_mapping[str(registration.temporary_id)]),
                 )
             )
+            reach("after_t6_mapping")
         if new_d3 > d3:
             record_d1_intents(scope, game_id, d5)
         return P1Result(None, new_d3, True, False, tuple(new_mapping.items()))

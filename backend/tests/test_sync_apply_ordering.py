@@ -298,19 +298,25 @@ def test_p2_classifies_reused_d5_before_invalid_v5(
     [
         (ABSENT, {}, ABSENT, ABSENT, "D2"),
         (10, ABSENT, ABSENT, ABSENT, "V8"),
-        (10, {}, {"game": str(GAME), "d4": "epoch", "d1": 3}, ABSENT, "V10"),
+        (10, {}, {"game": str(GAME), "d4": "epoch", "d1": 1}, ABSENT, "V10"),
         (10, {}, ABSENT, 7, "V11"),
     ],
 )
 def test_p2_inherits_c12_checks_before_write(
-    v6: object, v8: object, v10: object, v11: object, message: str
+    monkeypatch: pytest.MonkeyPatch,
+    v6: object,
+    v8: object,
+    v10: object,
+    v11: object,
+    message: str,
 ) -> None:
     """P2 も P1 の共通経路で種別表の V 条件を保存前に検査する。"""
+    _register_ports(monkeypatch)
     scope = _LockObservation()
     event = SyncEvent(
         str(uuid4()),
         str(GAME),
-        3,
+        1,
         "epoch",
         v5="play_input",
         v6=v6,
