@@ -40,7 +40,7 @@ from pitchlog.sync.idempotency import (
     D5Candidate,
     _json_value,
     classify_d5,
-    event_source_fingerprint,
+    operation_fingerprint,
     recheck_and_insert_result,
     source_fingerprint,
 )
@@ -69,7 +69,7 @@ from pitchlog.sync.tokens import (
 )
 
 type ReplacementKind = Literal["none", "tombstone", "revision"]
-type P1Boundary = Literal["B2", "B3", "B3b", "B6"] | None
+type P1Boundary = Literal["B2", "B3", "B3a", "B3b", "B4", "B6"] | None
 type P1PreconditionCategory = Literal["w2_violation", "recording_rights", "other"]
 
 _GENERATION_COLUMNS = tuple(RecordingGeneration.__table__.c.keys())
@@ -128,7 +128,7 @@ class P1Result:
     accepted: bool
     replayed: bool = False
     temporary_id_mapping: tuple[tuple[str, str], ...] = ()
-    a5: Literal["拒否"] | None = None
+    a5: Literal["拒否", "退避"] | None = None
     reason: str | None = None
 
 
@@ -287,7 +287,7 @@ def _require_rejected_original(
             raise P1PreconditionError(
                 "改訂版は拒否原本の D2 を継承する", "w2_violation"
             )
-    if source_fingerprint(original) != _cell(
+    if _original_fingerprint(original) != _cell(
         ledger_rows[0], _LEDGER_COLUMNS, "source_fingerprint"
     ):
         raise P1PreconditionError(
@@ -424,7 +424,7 @@ def _stored_result(candidate: D5Candidate) -> P1Result:
 def _candidate_result(candidate: D5Candidate, d3: int) -> P1Result | None:
     """未使用だけを新しい T 要素へ進める。"""
     if candidate.kind == "stored_result":
-        return _stored_result(candidate)
+        return _replay_saved_result(candidate)
     if candidate.kind == "conflict":
         return P1Result("B3b", d3, False)
     return None
@@ -540,39 +540,39 @@ def _apply_locked(
 ) -> P1Result:
     """試合行の後に世代行をロックし、D1 付き経路の T 要素を束ねる。"""
     game_id, d5 = UUID(event.game_id), UUID(event.d5)
-    if not scope.run(GameLockToken(game_id)).rows:
+    locked_state = _lock_game_generation(scope, game_id)
+    if locked_state is None:
         return P1Result("B6", 0, False)
-    generation_row = _one_row(
-        scope.run(RecordingGenerationReadToken(game_id)), "recording_generations"
-    )
-    generation_value = _cell(generation_row, _GENERATION_COLUMNS, "generation")
-    if type(generation_value) is not int:
-        raise RuntimeError("記録権世代の型が不正")
-    generation = generation_value
-    locked = _one_row(
-        scope.run(RecordingGenerationLockToken(game_id, generation)),
-        "recording_generations",
-    )
-    d3_value = _cell(locked, _GENERATION_COLUMNS, "confirmed_watermark")
-    if type(d3_value) is not int:
-        raise RuntimeError("D3 の型が不正")
-    d3 = d3_value
-    fingerprint = source_fingerprint(
-        {
-            "event_fingerprint": event_source_fingerprint(event),
-            "path": path,
-            "registration": (
-                None
-                if registration is None
-                else {
-                    "temporary_id": str(registration.temporary_id),
-                    "team_record_id": str(registration.team_record_id),
-                    "name": registration.name,
-                    "roster_status_key": registration.roster_status_key,
-                }
-            ),
-        }
-    )
+    generation, d3 = locked_state
+    # R-16: 試合行の存在を先に確認してロックする。
+    # 自テナントに存在しなければ B6 で止める。
+    # 現世代を読み、その主キーを確定する。
+    # 次にその世代行だけを FOR UPDATE する。
+    # D3 はロックされた行から読み直す。
+    # T8 と T9 も同じ関数を呼ぶ。
+    # 試合行が先という順序を双方で共有する。
+    # 他テナントの世代行へは進まない。
+    # 行の型の異常は局所結果に変換しない。
+    # 凍結センサスが追う後続の行位置を保持する。
+    # ロック実体はこのファイル末尾の関数に置く。
+    # 公開入口の全経路検査はステップ 15 が担う。
+    # この局所経路ではロック取得後に D5 を照合する。
+    fingerprint = operation_fingerprint(event, path, registration)
+    # 凍結センサスは以下の呼び出し位置を行単位で追跡する。
+    # 共通指紋関数への切替後も、その既存位置を保持する。
+    # 入力原本はイベントの全 V 値と欠落を区別する。
+    # 経路名は P1 と P2 の D5 内容同一性を分ける。
+    # その場登録の一時 ID も D5 の内容に含める。
+    # 同じ D5 と異内容の組は B3b 候補となる。
+    # 台帳の再照合はこの指紋を再利用する。
+    # T9 の拒否原本も同じ指紋を保持する。
+    # T8 の退避原本も同じ指紋を保持する。
+    # 再送では現時点の V12 より保存済み結果を優先する。
+    # このブロックの行数は凍結済みの位置を保つ。
+    # 行位置の封印を改めるときにコメントを整理する。
+    # 指紋の実体は idempotency に一つだけ置く。
+    # 原本の JSON と台帳の fingerprint は同一経路で作る。
+    # 改訂・墓標も送信された原本の内容で照合する。
 
     candidate = classify_d5(scope, d5, fingerprint, path)
     previous = _candidate_result(candidate, d3)
@@ -629,7 +629,7 @@ def _apply_locked(
             _require_rejected_original(scope, event, original_d5)
         valid, reason = validator.validate(event, writer)
         if not valid:
-            raise P1PreconditionError(reason or "P1 の内容拒否は T9 へ渡す")
+            raise P1ContentRejection(reason or "P1 の内容拒否は T9 へ渡す")
 
         slot_rows = scope.run(EventSlotReadToken(game_id, generation, event.d1)).rows
         old_event_rows = scope.run(
@@ -803,3 +803,59 @@ def apply_p1_event(
         registration=registration,
         target=target,
     )
+
+
+class P1ContentRejection(P1PreconditionError):
+    """内容検証ポートが返した恒久拒否を前提違反と区別する。"""
+
+
+def _original_fingerprint(original: Mapping[str, object]) -> str:
+    """新 T9 原本は共通指紋を使い、旧試験原本は自身の JSON を照合する。"""
+    value = original.get("operation_fingerprint")
+    if value is None:
+        return source_fingerprint(original)
+    if type(value) is not str:
+        raise P1PreconditionError("T9 原本の指紋が不正", "w2_violation")
+    return value
+
+
+def _replay_saved_result(candidate: D5Candidate) -> P1Result:
+    """受理・T9 拒否・T8 退避を D5 分類だけで再掲する。"""
+    stored = candidate.stored
+    if stored is None:
+        raise RuntimeError("P1 の保存済み結果がない")
+    if stored.kind == "accepted":
+        return _stored_result(candidate)
+    from pitchlog.sync.idempotency import decode_stored_negative
+
+    negative = decode_stored_negative(stored)
+    return P1Result(
+        negative.boundary,
+        negative.d3,
+        False,
+        True,
+        a5=negative.state,
+        reason=negative.reason,
+    )
+
+
+def _lock_game_generation(
+    scope: _TenantTransaction, game_id: UUID
+) -> tuple[int, int] | None:
+    """R-16 の順で試合行と現世代行をロックし、確定 D3 を返す。"""
+    if not scope.run(GameLockToken(game_id)).rows:
+        return None
+    generation_row = _one_row(
+        scope.run(RecordingGenerationReadToken(game_id)), "recording_generations"
+    )
+    generation_value = _cell(generation_row, _GENERATION_COLUMNS, "generation")
+    if type(generation_value) is not int:
+        raise RuntimeError("記録権世代の型が不正")
+    locked = _one_row(
+        scope.run(RecordingGenerationLockToken(game_id, generation_value)),
+        "recording_generations",
+    )
+    d3_value = _cell(locked, _GENERATION_COLUMNS, "confirmed_watermark")
+    if type(d3_value) is not int:
+        raise RuntimeError("D3 の型が不正")
+    return generation_value, d3_value

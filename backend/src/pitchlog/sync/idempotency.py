@@ -6,7 +6,7 @@ import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Literal, cast
+from typing import Literal, Protocol, cast
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -74,8 +74,8 @@ def source_fingerprint(source: Mapping[str, object]) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
-def event_source_fingerprint(event: SyncEvent) -> str:
-    """S-1 で保持したイベント原本を欠落と null を区別して指紋化する。"""
+def event_source(event: SyncEvent) -> dict[str, object]:
+    """欠落と null を区別したイベント原本を返す。"""
     source: dict[str, object] = {
         "d5": event.d5,
         "game_id": event.game_id,
@@ -84,19 +84,19 @@ def event_source_fingerprint(event: SyncEvent) -> str:
         source["d1"] = event.d1
     if event.d4 is not None:
         source["d4"] = event.d4
-    for attribute, wire_name in (
-        ("v5", "event_kind"),
-        ("v6", "d2"),
-        ("v7", "payload"),
-        ("v8", "state_diff"),
-        ("v9", "replacement_state"),
-        ("v10", "target_reference"),
-        ("v11", "expected_version"),
-    ):
+    # 要求からの欠落を省き、JSON null は値として残す。
+    # 種別ごとの V 条件は D5 分類の後段で判定する。
+    # 拒否・退避の原本も同じフィールド列挙を使う。
+    for attribute, wire_name in _EVENT_SOURCE_FIELDS:
         value = getattr(event, attribute)
         if value is not ABSENT:
             source[wire_name] = value
-    return source_fingerprint(source)
+    return source
+
+
+def event_source_fingerprint(event: SyncEvent) -> str:
+    """S-1 で保持したイベント原本を指紋化する。"""
+    return source_fingerprint(event_source(event))
 
 
 def _stored_result(row: tuple[ImmutableValue, ...]) -> StoredResult:
@@ -202,3 +202,93 @@ def recheck_and_insert_result(
     if candidate.kind != "unused":
         return candidate
     return insert_result_or_recheck(handle, token, path)
+
+
+class RegistrationSource(Protocol):
+    """その場登録を D5 原本に含めるための不変な値の形。"""
+
+    @property
+    def temporary_id(self) -> UUID:
+        """端末の一時 ID。"""
+        ...
+
+    @property
+    def team_record_id(self) -> UUID:
+        """作成先のチーム記録。"""
+        ...
+
+    @property
+    def name(self) -> str:
+        """選手名。"""
+        ...
+
+    @property
+    def roster_status_key(self) -> str:
+        """在籍区分。"""
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class StoredNegativeResult:
+    """拒否・退避の保存済み結果を経路に依存しない形で保持する。"""
+
+    boundary: Literal["B3a", "B4"]
+    d3: int
+    state: Literal["拒否", "退避"]
+    reason: str | None
+
+
+def decode_stored_negative(stored: StoredResult) -> StoredNegativeResult:
+    """台帳の T8・T9 結果を一か所で検証して再掲用に実体化する。"""
+    if stored.kind not in {"rejected", "evacuated"}:
+        raise RuntimeError("拒否・退避以外の保存済み結果")
+    result = stored.result
+    state: Literal["拒否", "退避"] = "拒否" if stored.kind == "rejected" else "退避"
+    d3 = result.get("d3")
+    if (
+        result.get("state") != state
+        or type(d3) is not int
+        or d3 < 0
+        or (stored.kind == "rejected" and not stored.reason)
+        or (stored.kind == "evacuated" and stored.reason is not None)
+    ):
+        raise RuntimeError("拒否・退避の保存済み結果の形が不正")
+    return StoredNegativeResult(
+        "B3a" if stored.kind == "rejected" else "B4",
+        d3,
+        state,
+        stored.reason,
+    )
+
+
+def operation_fingerprint(
+    event: SyncEvent, path: D5Path, registration: RegistrationSource | None
+) -> str:
+    """受理・拒否・退避に共通する D5 内容同一性を一度だけ定義する。"""
+    return source_fingerprint(
+        {
+            "event_fingerprint": event_source_fingerprint(event),
+            "path": path,
+            "registration": (
+                None
+                if registration is None
+                else {
+                    "temporary_id": str(registration.temporary_id),
+                    "team_record_id": str(registration.team_record_id),
+                    "name": registration.name,
+                    "roster_status_key": registration.roster_status_key,
+                }
+            ),
+        }
+    )
+
+
+_EVENT_SOURCE_FIELDS = (
+    ("v5", "event_kind"),
+    ("v6", "d2"),
+    ("v7", "payload"),
+    ("v8", "state_diff"),
+    ("v9", "replacement_state"),
+    ("v10", "target_reference"),
+    ("v11", "expected_version"),
+)
