@@ -165,3 +165,13 @@ P0 0 件、P1 1 件、P2 0 件で否決。P1 を採用した。
 - 検証: 変更5ファイルのruff green、backend `ty check` green、新規13件green、既存login/logout/passwordを含む対象32件green。
 - 共有exact-setを意図どおり未更新のため、`tests/test_api_app.py`は8件中1件だけ、`/auth/session`追加を未反映のroute exact-setで失敗する。#137統合後の共有route資産追随で更新する対象であり、検出を弱めない。
 - 製品差分はステップ1完了前なので未コミット。#131→#132と#137の統合後にlatest developをmergeし、共有凍結資産・7.7・隔離DB試験・全品質gateを完了してから単一の`(ステップ 1/2)`コミットにする。
+
+### C1非共有製品差分の保全と共有PR待ち（2026-10-15）
+
+- A-1の表記追補はTSK-391側へ引き渡し済みとし、C1からの追加調査を終了した。以後の作業対象はC1ステップ1の完了条件だけとする。
+- 未コミットの製品差分5ファイルは、受理記録のコミットと混ぜず、専用worktree`/tmp/pitchlog-auth-session-verification-contract`の作業treeに保持した。さらに同一内容を名前付きstash`C1 step1 nonshared product diff backup 2026-10-15`（object `4dce8a0e9e90990433229bfee11119c19be0306d`）へ退避してから再適用し、作業treeとstashの二経路で保全した。
+- 保全対象は`backend/src/pitchlog/api/routers/auth.py`、`backend/src/pitchlog/api/schemas/auth.py`、`backend/src/pitchlog/repositories/tenant_profile.py`、`backend/tests/test_api_auth_session.py`、`backend/tests/test_tenant_profile_repository.py`。共有registry・凍結契約・route matrix・seal履歴・既存exact-set試験は含めていない。
+- `git fetch origin develop`後の最新`origin/develop`は`e6e1a867f88bbdac90f2be9bed20dff900eec866`（PR #136統合）。このcommitはC1の現HEADの祖先で、追加mergeは不要だった。
+- GitHub上でPR #131・#132・#137はいずれも未統合。#131と#132はtenant-boundary共有資産、#137はauthzのroute registry / HTTP matrix / seal資産を変更するため、既定の先行順を維持し、C1から共有資産を更新しない。
+- route exact-setの1件失敗は未完了検出として維持する。共有PR統合後に正式な登録差分で解消し、期待集合の緩和・除外・skipは行わない。
+- 次の再開点は、#131→#132および#137の統合確認、latest `origin/develop`のmerge、共有登録・凍結資産・7.7履歴、`tenants` RLS / application role SELECTを含む隔離DB試験、全品質gate、単一の`(ステップ 1/2)`コミットの順とする。ステップ2と公開は開始しない。
