@@ -293,6 +293,52 @@ tests/test_check_authz_catalog.py          固定値(claim 件数)
 
 **ステップ 1 の schema への影響**: 座標変換ベクタ(ステップ 5)は**単位 `1/263` の固定小数点整数**で値を持つ。`contracts/display-geometry/field_geometry_vector_contract_schema_v1.json` の `numericValue` は整数形を含むのでそのまま使えるが、**単位をフィールド名または schema に持たせる**必要がある(ステップ 5 で確認する)。**領域シード(ステップ 3)は本項の射程外**なので有理数のままでよい。
 
+### ステップ 4(2026-10-14・`63d67f09`)— 捕球選手推定ベクタ 31 ケース
+
+**条文(付録B-7)が approved になったので着手できた。** 座標は**単位 `1/263` の固定小数点整数**。
+
+#### 委任先が止まって判断を求めた(2 件)— **1 件はこちらの指示の誤り**
+
+1. **契約内に照合記録を書かせようとしたのは誤りだった。** 計画書の合格条件は「**照合結果が design.md にある**」であり、置き場は design.md(委任元の担当)。schema のトップレベルは `additionalProperties: false` のままでよい。**指示を取り下げた**
+2. **schema が単位を表せなかった** —— `coordinateSystem` の enum が `screen-263-top-left` と `normalized-bottom-left` の 2 値しかなく、後者は「0〜1 の正規化座標」としか言っていない。**3 つ目の値 `normalized-bottom-left-units-1-263` を足し、その値のときだけ `x`・`y` を整数 `0`〜`263` に縛った**
+
+**委任先が黙って schema を書き換えずに止まったので表に出た。** ステップ 1 の「件数を焼き込んだ」件に続いて **2 回目**。
+
+#### 独立確認 — **三者突合で全件一致**
+
+| 経路 | 誰が | 何を |
+| --- | --- | --- |
+| 期待値 | 委任先 | 旧ルールの記述から独立に導出(**領域シードを使わない**) |
+| 確認① | **委任元** | **旧ルールを自前で書き直して**全 31 件を突合 |
+| 確認② | **委任元** | **領域シードの解釈**(`openEdges` と「先に定義された領域が優先」)**も自前で実装**して突合 |
+
+**31 件すべて三者一致・不一致 0。** 内点 13 件は **8 近傍の格子点まで同じ守備位置**であることを確かめた(本当に内点)。等距離 6 件は**二乗距離が厳密に並び、アンカー順の先頭側が勝つ**ことまで確かめた。
+
+**等距離点の探索**(旧 263 格子の全点を走査): 等距離の格子点が**ある**アンカー対 16 組 / **ない**対 20 組 / **実際にタイブレークが効く**対 6 組(`8–6`・`8–4`・`6–4`・`6–5`・`4–3`・`1–2`)。
+
+#### 機械検査と変異
+
+`tests/test_fielder_estimation_contract.py`(9 件)が、契約の `caseId` 集合と design.md 5-1・6-2 の記録の**完全一致**・記録の各列が空でないこと・`independentVerifierId` が `"not-performed"` でないこと・`provenance` に領域シードが無いことを検査する。負例 5 つは `tmp_path` の合成ファイル。
+
+**変異で有効性を確認した** —— design.md 5-1 から 1 行落とすと**ちょうど 1 件赤**(「契約にのみある caseId」として検出)。戻すと緑。
+
+#### 旧実装との差 — **センチネル 1 件だけ**
+
+旧は `x <= 0 || y <= 0` で `null` を返すが、**付録B-7 が「本項はセンチネルの規則を持たない。保存座標では `0` が有効な値である」と定めた**ので適用しない。差が現れるのは `range-edge-left-x0-valid`(旧 `(0,100)`)と `range-edge-top-y0-valid`(旧 `(123,0)`)の 2 件。**未入力の表し方は付録B-7 の射程宣言が別タスクへ送っている。**
+
+**`independentVerifierId` は委任先に `"not-performed"` のまま書かせ、確認を終えてから委任元が差し替えた。** 実施していない確認を実施したと書かせない。
+
+#### 封印の連鎖に第 3 系統があると分かった(#119 担当の実測)
+
+**`oracle_commit` を前進させると、それ自体を典拠にしている blob digest が切れる。**
+
+```
+claim-mutant-map.json の oracle_commit → mcdc-map.json の sources.claim_mutant_map.blob_digest
+ddl-elements.json   の oracle_commit → failure-injection-points.json の source_asset.git_blob_digest
+```
+
+**`--reseal` 系のどのフラグでも直らない**(`_build_oracle_seal` は seal の中しか触らず、`oracle_commit` 自体も書き換えない)。**`check_authz_catalog.py` は緑のまま通る**ので、`tests/test_check_mcdc_map.py` と `tests/test_check_failure_injection_points.py` を回すまで気づけない。計画書 3 節へ記録した。
+
 ## 決定
 
 - **前提 A**: 打者相対の区分は **3 値**(ADR に従う)・入力軸に打球種別を置く
