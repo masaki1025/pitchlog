@@ -37,3 +37,10 @@
 - 最新`origin/develop`は`b81ae1ac`のままで競合なし。`.claude/core-areas.json`と`scripts/core_guard.py`は差分0行。
 - PRは人間逐行確認のチェックと実施記録を未記入で作成する。対象は`tests/test_core_guard.py`の`origin/develop...HEAD`全差分、範囲は追加・変更行と周辺契約、方法は目視または突合シートを確認者本人が記録する。
 - U-F5全体、U-F13残部、TSK-520は未完了。`/team`接続は本fix統合後の後続作業。
+
+## Draft PR・CI
+
+- Draft PRは[#133](https://github.com/masaki1025/pitchlog/pull/133)。コード・レビュー記録までのHEADは`57e2ef87`。
+- CI run `38518294052`は`harness`を含む全対象ジョブが成功し、backend/frontendは変更なしのためskip。
+- PR本文の人間逐行確認チェックは外部更新後にcore-guard成功となったが、実施記録の`対象・範囲・方法`は空欄のまま。Codexはチェック・記録を代記していないため、確認者本人が記入してからDraft解除・マージ判断を行う。
+- この節の追記は申し送り文書だけの最終コミットであり、製品・検査コードに追加差分はない。
