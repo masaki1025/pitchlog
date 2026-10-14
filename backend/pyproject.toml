@@ -5,6 +5,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "alembic==1.19.2",
     "fastapi[standard]==0.141.1",
+    "jsonschema==4.26.0",
     "psycopg[binary]==3.3.4",
     "sqlalchemy==2.0.52",
 ]

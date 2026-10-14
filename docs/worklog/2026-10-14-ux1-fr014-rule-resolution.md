@@ -77,3 +77,11 @@
 - 利用者の指定で、`ca0a51ef`の正式審査済み本文を`48e8a562`でapprovedにした版を唯一の採用正本とする。以前このfeatureで起案した`7b73989e`のin-review候補は不採用であり、別案・再審査を行わない。最新`origin/develop`=`8294a1b6`を本体featureへmergeし、data-modelの変更履歴と§6-5、および索引の当該行だけを承認済み版へ置換。developの他節は保持した。`scripts/check_docs_status.py`は20文書・違反0、`git diff --check`も通過。正式ゲートの実績は承認済み経路の敵対レビュー2回・反映1周を採り、planの`確定ゲート周回`を1へ合わせた。
 - ステップ2のcodecは構造検証済み値と相関検証済み値を型で分離する。既存の凍結schemaは5値の形・値域、付録F-1の相関は単一の追加検証経路。規則行の出所と保存成功はresolver/U-G1の後続境界であり、未検証値を保存成功へ渡さない。コールド条件のFR-014とDRAW-04の矛盾は裁定済みではない。
 - 別worktree`feature/tsk550-step1-gate-materials`には`backend/pyproject.toml`/`uv.lock`の未コミット`jsonschema==4.26.0`追加と、未追跡の`rule_snapshot.py`/同試験がある。Gitに著者記録は無く、変更者本人の確認は未了。コードから用途は既存JSON Schemaによる製品時検証と推定でき、既存のbackend依存一覧には`jsonschema`が無いため直接importする実装には依存追加が必要。当該worktreeを編集・移動・破棄しない。本体featureの変更は独立の差分として扱う。agmsgは本repoに登録済みidentity/teamがなく連絡不可。
+
+## ステップ2 codecと単体試験（本体feature）
+
+- `backend/src/pitchlog/db/game_state/rule_snapshot.py`に既存凍結`ruleSnapshot`へ5値だけ投影するstrict codecを追加。6-key exact-set、canonical UUID、入れ子の形・値域を検証した`StructuralRuleSnapshot`と、付録F-1の相関検査を単一経路で通した`DomainValidatedRuleSnapshot`を別型にした。前者をencodeへ渡すと拒否し、後者も規則行の出所・DB保存成功を証明した型とは扱わない。読取・encodeの双方で相関違反を拒否。FR-014対DRAW-04の未裁定コールド開始回は専用失敗でfail closed。旧`{}`/5-key/未知key・不正UUID/型/値域を補完しない。直接構築や凍結schema読取失敗も失敗へ閉じる。規則値の仮置き、DB/API/保存実装、後続関数・実行器は追加していない。
+- `backend/tests/test_game_state_models.py`へcodec試験を追加。製品codecは既存`backend/src/pitchlog/db/game_state/*`、試験は既存`backend/tests/test_game_state_models.py`のコア登録範囲に入ることを`matched_paths`で確認。新パス登録やguardファイル変更をステップ2へ先取りしていない。
+- `jsonschema==4.26.0`を本体featureの`backend/pyproject.toml`/`uv.lock`へ独立して追加。既存凍結schemaを製品実行時に評価するための直接依存であり、別worktreeの未コミット変更は移動/破棄していない。変更者本人への照会はTSK-550 Notionコメント`3f993b75-e687-8170-8380-001d56be1a38`で送付、回答はまだ確認できず、著者の断定はしない。
+- 検証: `uv run ruff format`、`uv run ruff check .`、`uv run ty check`通過。`uv run pytest tests/test_game_state_models.py -q`は**33 passed**。`uv lock --check`通過。rootの`uv run pytest tests/test_core_guard.py -q`は**242 passed**。`python scripts/check_docs_status.py`は20文書/違反0、`git diff --check`通過。
+- 広めの`uv run pytest tests/ --ignore=tests/db -q`は**1410 passed、4 skipped、1 failed**。失敗`test_manifest_is_bound_to_the_canonical_data_model`は、承認済みdata-model v1.0の実SHAと`contracts/db/schema-manifest.json`の既存`canonical_source.sha256`の不一致。codec試験の失敗ではない。manifestの正本digest更新は個別7.7ゲート/後続ステップの対象で、ステップ2の承認範囲外のため変更しない。全件緑とは報告しない。
