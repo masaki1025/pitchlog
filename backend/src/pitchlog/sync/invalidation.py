@@ -2,19 +2,40 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 
+from pitchlog.db.sync_protocol.models import InvalidationIntent
 from pitchlog.repositories.cache_invalidation import CacheScope
+from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.invalidation_intents import SCOPE_KIND_BY_SCOPE
-from pitchlog.repositories.transaction import _TenantTransaction
-from pitchlog.sync.intent_ids import derive_sync_intent_id
+from pitchlog.repositories.transaction import (
+    _TenantTransaction,
+    tenant_transaction_scope,
+)
+from pitchlog.sync import port_guard
+from pitchlog.sync.intent_ids import derive_sync_intent_id, is_sync_intent_id
+from pitchlog.sync.ports import InvalidationSinkPort
 from pitchlog.sync.tokens import (
+    InvalidationIntentDeliveredToken,
+    InvalidationIntentPendingToken,
     InvalidationIntentReadToken,
     SyncInvalidationIntentInsertToken,
     SyncSharedInvalidationIntentInsertToken,
 )
+
+_INTENT_COLUMNS = tuple(InvalidationIntent.__table__.c.keys())
+
+
+@dataclass(frozen=True, slots=True)
+class DeliveryProgress:
+    """一回の走査で試みた同期意図と完了した行の数。"""
+
+    attempted: int
+    delivered: int
 
 
 def _record_intents(
@@ -110,3 +131,55 @@ def record_d1_intents(
     if type(game_id) is not UUID or type(d5) is not UUID:
         raise ValueError("D1 付き経路には試合 ID と D5 が必要")
     return _record_intents(scope, str(d5), game_id)
+
+
+def deliver_pending_sync_intents(
+    context: TenantContext,
+    sink: InvalidationSinkPort,
+    *,
+    page_size: int = 100,
+) -> DeliveryProgress:
+    """B04 の未配信行をページングし、同期所有の意図だけを冪等配送する。
+
+    配信先は意図 ID を冪等キーとして扱う。配信後の完了記録が失敗しても、
+    次回は同じ ID を渡す。外部呼び出し中は DB トランザクションを保持しない。
+    """
+    if type(page_size) is not int or not 1 <= page_size <= 100:
+        raise ValueError("配信ページの上限は 1〜100")
+    port_guard.require_registered_port(sink)
+    cursor = ""
+    attempted = delivered = 0
+    while True:
+        with tenant_transaction_scope(context) as scope:
+            rows = scope.run(InvalidationIntentPendingToken(page_size, cursor)).rows
+        if not rows:
+            break
+        for row in rows:
+            if len(row) != len(_INTENT_COLUMNS):
+                raise RuntimeError("意図行の列数が正本と異なる")
+            intent_id = row[_INTENT_COLUMNS.index("intent_id")]
+            scope_kind = row[_INTENT_COLUMNS.index("scope_kind")]
+            if type(intent_id) is not str or type(scope_kind) is not str:
+                raise RuntimeError("意図 ID または範囲の型が不正")
+            cursor = intent_id
+            if not is_sync_intent_id(intent_id):
+                continue
+            if not intent_id.endswith(f":{scope_kind}"):
+                raise RuntimeError("同期意図 ID と範囲が一致しない")
+            attempted += 1
+            if not sink.deliver(intent_id, scope_kind):
+                continue
+            with tenant_transaction_scope(context) as scope:
+                scope.run(
+                    InvalidationIntentDeliveredToken(intent_id, datetime.now(UTC))
+                )
+                persisted = scope.run(InvalidationIntentReadToken(intent_id)).rows
+            if len(persisted) != 1 or len(persisted[0]) != len(_INTENT_COLUMNS):
+                raise RuntimeError("配信完了を記録した意図行を再読できない")
+            if persisted[0][_INTENT_COLUMNS.index("delivery_status")] == "delivered":
+                delivered += 1
+            else:
+                raise RuntimeError("配信完了の状態が永続化されていない")
+        if len(rows) < page_size:
+            break
+    return DeliveryProgress(attempted, delivered)
