@@ -88,3 +88,22 @@ queryや任意headerにtenant IDを付けても入力として解釈せず、Coo
 2. route registry / HTTP matrix本体とlockを再導出し、session 1件以外の意味差分がないことを検査する。
 3. authz oracle入力の変更は`frozen-baselines.json`へ一行為一記録で追記し、seal連鎖を正規コマンドで再導出する。
 4. 基準値をcheckerへ直書きせず、snapshot欠落、digest不一致、履歴欠落、未登録route、人間逐行確認未記入の拒否を弱めない。
+
+## 2026-10-15 統合待ちの分解
+
+Claude調整役から、共有凍結資産は既存PR先行を維持し、#137とは意味衝突がないとの中継を受けた。実差分との照合結果は次のとおり。
+
+| PR | C1と重なる実差分 | C1への影響 | 待ちの種類 |
+| --- | --- | --- | --- |
+| #131 / TSK-538 | `repository-contract.json`はrevision 16→17とsource digestだけ。product capability/token集合、executor、return contractは不変 | C1のtoken形を変えない。#131のtenant-boundary封印を先に着地させる | #132がこの先行資産へ追随するための間接順序。C1製品コードの直接開始条件ではない |
+| #132 / TSK-391 | `PRODUCT_OPERATIONS`へsync operationを追加し、repository contractに`operation_guards`とcapability/token exact-setを追加 | C1 token/operation tupleを公開集合へ含める場所と検査方法を決める | **唯一の直接回答待ち**。公開面判定後、非共有の製品コード・単体試験を開始できる |
+| #137 / TSK-238 | route / matrixのrequirement digest、lock、oracle封印を更新。AUTH 3行とdispositionはdevelopと同一 | session routeの意味と衝突しない。C1のroute 1件追加は#137統合後の資産へ積む | authz凍結差分と7.7履歴を作る前の順序。endpointコード・固有試験の直接開始条件ではない |
+
+したがって「残る待ちは#132だけ」は、**非共有のC1製品コードと固有試験を開始する条件**として成立する。ステップ1全体の完了・単一コミットには、#131→#132後のtenant-boundary資産と#137後のauthz資産へ追随し、両方の7.7検査を通すことが必要である。
+
+TSK-391へ、`TenantProfileReadToken`と`TENANT_PROFILE_OPERATIONS`が公開面・exact-setへ乗るか、`operation_guards`と意味衝突しないかを[確認中](https://github.com/masaki1025/pitchlog/pull/132#issuecomment-6171748012)。2026-10-15 00:20 JST時点では回答未着であり、未回答を不受理とは扱わない。
+
+必要な計画追補は、TSK-391回答後に次の2点だけとする。
+
+1. 開始条件3を「共有資産の所有と先行順が確定済みなら、未統合資産を変更せず非共有コード・試験を開始できる。公開面の意味を決める#132回答まではrepository実装を開始しない」へ明確化する。
+2. ステップ1の内部順を「非共有コード・固有試験 → 既存PR統合後のlatest developをmerge → tenant-boundary/authz凍結差分と7.7履歴 → 全検査 → 単一の`(ステップ 1/2)`コミット」と追記する。ステップ数、DoD、endpoint/DTO/認可、正式コミット単位は変えない。

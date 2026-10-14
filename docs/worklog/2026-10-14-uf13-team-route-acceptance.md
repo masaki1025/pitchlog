@@ -129,3 +129,12 @@ P0 0 件、P1 1 件、P2 0 件で否決。P1 を採用した。
 - 追随は各branchの既存方針で最新developを取り込む意味とし、rebaseを必須化しない。C1はこれまでどおりorigin/developのmergeを使用する。
 - 回答待ちに`auth-session-verification-contract/research.md`を更新した。引数なし`TenantProfileReadToken`、既存`CAP:tenants:read`、`tenants.id = :tenant_id`の固定2列SELECT、`GET /auth/session`の入力なし・Cookieだけの認証、exact DTO、401/500の非漏洩境界、repository/API/7.7試験項目を具体化した。
 - 共有資産、backend製品コード、既存PRのbranch/worktreeは変更していない。C1先行判断を受理した側からステップ1の依存が閉じる実装へ進み、ステップ1完了コミットは全合格条件が揃った時点で作成する。
+
+## 2026-10-15 調整役中継後の統合待ち再分類
+
+- Claude調整役から「共有凍結資産は既存PR先行」「#137との意味衝突なし」と中継された。C1先行の一時所有案は採用せず、各担当の未回答を不受理・所有移管とは扱わない。
+- #131実差分のrepository contractはrevision 16→17とsource digestだけで、product capability/token集合に意味差分なし。C1の実装形は決めず、#132が追随する封印順の前段である。
+- #132は`operation_registry.py`、repository契約schemaの`operation_guards`、capability/token exact-set、生成契約試験を実際に変更する。C1 token/operation tupleの公開面判定を決める唯一の直接回答待ちとして、コメント`6171748012`で10/15回答を確認中。
+- #137のAUTH route 3件とHTTP matrixの意味はdevelopと同一。差分はrequirement digest、lock、oracle封印なので、session endpointの製品コードと固有試験を開始する意味依存ではない。正式route登録・lock・7.7履歴は#137統合後へ置く。
+- 「残る待ちは#132だけ」は非共有製品コード・固有試験の開始条件として成立する。ステップ1完了条件では、#131→#132後のtenant-boundary資産と#137後のauthz資産への追随を残す。
+- 計画追補候補は2点だけ: 開始条件3を所有・順序確定と共有資産編集禁止へ分解し、ステップ1内部順を非共有実装→develop merge→凍結/7.7→全検査→単一コミットと明記する。TSK-391回答後に確定し、ステップ数・DoD・正式コミット単位は変えない。

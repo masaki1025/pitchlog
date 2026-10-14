@@ -100,4 +100,13 @@
 - Repository側は#131・#132へ、[共通の二択判断](https://github.com/masaki1025/pitchlog/pull/131#issuecomment-6171537559)を依頼した。R1はC1がtenant profile / operation registry / repository契約・試験・7.7追随を先行し、両PRがC1統合後のdevelopへ各branchの既存方式で追随する。R2は#131/#132を既定順で先行し、C1が統合後developをmergeしてtenant readだけを追加する。#132側の同文記録は[こちら](https://github.com/masaki1025/pitchlog/pull/132#issuecomment-6171538188)。
 - 認証経路側は#137へ[独立した二択判断](https://github.com/masaki1025/pitchlog/pull/137#issuecomment-6171538865)を依頼した。A1はC1がsession routeのregistry / matrix / exact-set / 7.7追随を先行し、#137が統合後developへ既存方式で追随する。A2は#137を先行し、C1が統合後developをmergeしてsession routeだけを追加する。
 - 回答待ちの間に、[C1調査記録](../auth-session-verification-contract/research.md)へtenant read token、固定SQL、session endpointの入出力、401/500境界、repository/API/7.7試験表を具体化した。共有資産と製品コードは変更していない。
-- C1先行の受理が得られた側は、もう一方の未回答を一律待機理由にせず、承認済みステップ1のうち依存が閉じる作業を開始する。ただしステップ1完了コミットは両系統と凍結検査が揃ってから作成する。
+- その後、Claude調整役から「共有凍結資産は既存PR先行」「#137との意味衝突なし」と中継された。先のC1先行案は採用せず、未回答を所有移管とも扱わない。
+
+## 2026-10-15 統合待ちの再分類
+
+- #131の`repository-contract.json`差分はrevisionとsource digestだけで、product capability/token集合は不変。C1成果物の意味を決めず、#132が追随するtenant-boundary封印の先行順として扱う。
+- #132は`PRODUCT_OPERATIONS`、repository contractの`operation_guards`、capability/token exact-set、生成契約試験を変更する。`TenantProfileReadToken`と`TENANT_PROFILE_OPERATIONS`がこの公開面へ乗るかがC1実装形を決める唯一の直接回答待ちである。[TSK-391へ照会済み](https://github.com/masaki1025/pitchlog/pull/132#issuecomment-6171748012)。
+- #137のAUTH 3 routeとmatrix dispositionはdevelopと完全一致する。差分はrequirement digest・lock・oracle封印であり、session routeとの意味衝突はない。endpointコードと固有試験を止めず、authz共有資産の正式変更だけを#137統合後へ置く。
+- よって「残る待ちは#132だけ」は**非共有製品コード・固有試験の開始条件**として計画と両立する。ステップ1完了には#131→#132後のtenant-boundary資産と#137後のauthz資産へ7.7どおり追随する必要がある。
+- 必要な計画追補は開始条件3の明確化と、ステップ1内部順の追記だけ。ステップ数と単一`(ステップ 1/2)`コミット、endpoint/DTO/認可、DoDは変更しない。TSK-391回答後に文言を確定する。
+- 2026-10-15 00:20 JST時点でTSK-391回答は未着。共有資産・製品コードはまだ変更していない。
