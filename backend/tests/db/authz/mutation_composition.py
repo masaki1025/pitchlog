@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -1008,22 +1009,24 @@ _APPROVAL_ENTRY_KEYS = frozenset(
     }
 )
 _APPROVAL_INSERTION_KEYS = frozenset({"collection", "index", "row"})
+_APPROVAL_REPLACEMENT_KEYS = frozenset({"collection", "index", "before", "after"})
+_APPROVAL_VALUE_KEYS = frozenset({"pointer", "before", "after"})
 
 
 def _approved_meaning_changes(
     root: Path = REPOSITORY_ROOT,
 ) -> dict[str, tuple[dict[str, object], ...]]:
-    """承認済みの意味変更を資産から読み、path ごとの差し込み宣言へ畳む。
+    """承認済みの意味変更を資産から読み、path ごとの操作へ畳む。
 
     設計書 7.7-1 により、動かした凍結基準の値は検査器のソースへ直書きしない。
-    承認した行本文・差し込み位置・対象 path はすべて資産側の宣言が正本で、
+    承認した行本文・位置・置換前後値・対象 path は資産側の宣言が正本で、
     本関数はそれを読むだけで、既定値も代替値も持たない。
 
     Args:
         root: リポジトリのルート。
 
     Returns:
-        対象 path から差し込み宣言の並びへの写像。
+        対象 path から挿入・置換操作の並びへの写像。
 
     Raises:
         MutationCompositionError: 宣言が読めない、または固定基準と食い違う場合。
@@ -1056,20 +1059,74 @@ def _approved_meaning_changes(
         raise MutationCompositionError(f"{APPROVALS_RELATIVE_PATH}: approvals が空")
     for position, entry in enumerate(entries):
         label = f"{APPROVALS_RELATIVE_PATH}.approvals[{position}]"
-        if set(entry) != _APPROVAL_ENTRY_KEYS:
+        if not _APPROVAL_ENTRY_KEYS <= set(entry) or not set(entry) <= (
+            _APPROVAL_ENTRY_KEYS | {"replacements", "values"}
+        ):
             raise MutationCompositionError(f"{label}: キー集合が宣言と不一致")
         path = _text(entry.get("path"), f"{label}.path")
         approval_id = _text(entry.get("approval_id"), f"{label}.approval_id")
         if approval_id in seen_approval_ids:
             raise MutationCompositionError(f"{label}: approval_id が重複している")
         seen_approval_ids.add(approval_id)
-        _text(entry.get("approved_by"), f"{label}.approved_by")
-        _text(entry.get("approved_on"), f"{label}.approved_on")
+        if approval_id.startswith("PENDING"):
+            raise MutationCompositionError(f"{label}: 未承認のIDを受理できない")
+        approved_by = _text(entry.get("approved_by"), f"{label}.approved_by")
+        approved_on = _text(entry.get("approved_on"), f"{label}.approved_on")
+        if (
+            "未承認" in approved_by
+            or re.fullmatch(r"\d{4}-\d{2}-\d{2}", approved_on) is None
+        ):
+            raise MutationCompositionError(f"{label}: 人間承認の記録が未確定")
         _text(entry.get("reason"), f"{label}.reason")
         insertions = _expect_rows(entry.get("insertions"), f"{label}.insertions")
-        if not insertions:
-            raise MutationCompositionError(f"{label}: insertions が空")
+        replacements = _expect_rows(
+            entry.get("replacements", []), f"{label}.replacements"
+        )
+        values = _expect_rows(entry.get("values", []), f"{label}.values")
+        if not insertions and not replacements and not values:
+            raise MutationCompositionError(f"{label}: 意味変更の操作が空")
         rows = changes.setdefault(path, [])
+        for order, replacement in enumerate(replacements):
+            inner = f"{label}.replacements[{order}]"
+            if set(replacement) != _APPROVAL_REPLACEMENT_KEYS:
+                raise MutationCompositionError(f"{inner}: キー集合が宣言と不一致")
+            index = replacement.get("index")
+            if not isinstance(index, int) or isinstance(index, bool) or index < 0:
+                raise MutationCompositionError(f"{inner}.index が非負整数ではない")
+            before = _expect_object(replacement.get("before"), f"{inner}.before")
+            after = _expect_object(replacement.get("after"), f"{inner}.after")
+            if not before or not after or before == after:
+                raise MutationCompositionError(f"{inner}: 異なる完全な前後行が必要")
+            rows.append(
+                {
+                    "operation": "replace",
+                    "collection": _text(
+                        replacement.get("collection"), f"{inner}.collection"
+                    ),
+                    "index": index,
+                    "before": before,
+                    "after": after,
+                }
+            )
+        for order, value in enumerate(values):
+            inner = f"{label}.values[{order}]"
+            if set(value) != _APPROVAL_VALUE_KEYS:
+                raise MutationCompositionError(f"{inner}: キー集合が宣言と不一致")
+            pointer = _text(value.get("pointer"), f"{inner}.pointer")
+            if not pointer.startswith("/") or pointer == "/":
+                raise MutationCompositionError(
+                    f"{inner}.pointer がJSON Pointerではない"
+                )
+            if value["before"] == value["after"]:
+                raise MutationCompositionError(f"{inner}: 異なる前後値が必要")
+            rows.append(
+                {
+                    "operation": "value",
+                    "pointer": pointer,
+                    "before": value["before"],
+                    "after": value["after"],
+                }
+            )
         for order, insertion in enumerate(insertions):
             inner = f"{label}.insertions[{order}]"
             if set(insertion) != _APPROVAL_INSERTION_KEYS:
@@ -1082,6 +1139,7 @@ def _approved_meaning_changes(
                 raise MutationCompositionError(f"{inner}.row が空")
             rows.append(
                 {
+                    "operation": "insert",
                     "collection": _text(
                         insertion.get("collection"), f"{inner}.collection"
                     ),
@@ -1116,6 +1174,56 @@ def _rows_with_approved_insertion(
     return result
 
 
+def _rows_with_approved_replacement(
+    rows: tuple[dict[str, object], ...],
+    index: int,
+    before: dict[str, object],
+    after: dict[str, object],
+    label: str,
+) -> list[dict[str, object]]:
+    """宣言された完全な旧行だけを同じ位置で置換する。"""
+    if not 0 <= index < len(rows) or rows[index] != before:
+        raise MutationCompositionError(f"{label}: 置換前の行または位置が基準と不一致")
+    result = [dict(row) for row in rows]
+    result[index] = _json_copy(after, label)
+    return result
+
+
+def _apply_approved_value(
+    expected: dict[str, object], change: dict[str, object], label: str
+) -> None:
+    """既存のJSON Pointerが完全な旧値を指す場合だけ変更する。"""
+    pointer = change["pointer"]
+    assert isinstance(pointer, str)
+    tokens = [
+        part.replace("~1", "/").replace("~0", "~") for part in pointer[1:].split("/")
+    ]
+    parent: object = expected
+    for token in tokens[:-1]:
+        if isinstance(parent, dict) and token in parent:
+            parent = parent[token]
+        elif (
+            isinstance(parent, list) and token.isdecimal() and int(token) < len(parent)
+        ):
+            parent = parent[int(token)]
+        else:
+            raise MutationCompositionError(f"{label}: JSON Pointer が存在しない")
+    leaf = tokens[-1]
+    if isinstance(parent, dict) and leaf in parent:
+        old = parent[leaf]
+    elif isinstance(parent, list) and leaf.isdecimal() and int(leaf) < len(parent):
+        old = parent[int(leaf)]
+    else:
+        raise MutationCompositionError(f"{label}: JSON Pointer が存在しない")
+    if old != change["before"]:
+        raise MutationCompositionError(f"{label}: 変更前の値が基準と不一致")
+    replacement = json.loads(json.dumps(change["after"]))
+    if isinstance(parent, dict):
+        parent[leaf] = replacement
+    else:
+        parent[int(leaf)] = replacement
+
+
 def _expected_step2_meaning_body(
     relative_path: str,
     base: dict[str, object],
@@ -1123,10 +1231,9 @@ def _expected_step2_meaning_body(
 ) -> dict[str, object]:
     """承認済み資産の意味変更を期待本文へ適用する。
 
-    boundary-proposalとddl-elementsの分岐は099a8faへ畳み込み済みのため現基準では
-    no-opであり、分岐の削除はTSK-421で扱う。claim-mutant-mapの分岐はTSK-236で
-    要件書FR-037の1行が母集合へ入ったことによる追加であり、人間が承認している
-    (2026-10-09 山田正輝 — oracle-seal.lock.jsonのreseal_policyが求める再レビュー)。
+    boundary-proposalとddl-elementsの固定分岐は099a8faへ畳み込み済みで現基準では
+    no-opである。TSK-236のFR-037追加は既存の人間承認宣言を適用する。
+    今回のID移動・派生参照は完全な旧値を伴う宣言がある場合だけ適用する。
     """
     expected = _oracle_meaning_body(base, f"base asset {relative_path}")
     if relative_path == _BOUNDARY_PROPOSAL_RELATIVE_PATH:
@@ -1151,19 +1258,29 @@ def _expected_step2_meaning_body(
         scope = _expect_object(expected.get("scope"), "base DDL scope")
         scope["status"] = "verified_probe_configuration"
         scope["second_group_approval_required"] = False
-    for insertion in approved.get(relative_path, ()):
-        collection = insertion["collection"]
+    for change in approved.get(relative_path, ()):
+        if change["operation"] == "value":
+            _apply_approved_value(expected, change, relative_path)
+            continue
+        collection = change["collection"]
         assert isinstance(collection, str)
-        index = insertion["index"]
+        index = change["index"]
         assert isinstance(index, int)
-        row = insertion["row"]
-        assert isinstance(row, dict)
-        expected[collection] = _rows_with_approved_insertion(
-            _expect_rows(expected.get(collection), f"base {collection}"),
-            index,
-            row,
-            f"{relative_path}:{collection}[{index}] の承認済み行",
-        )
+        label = f"{relative_path}:{collection}[{index}] の承認済み行"
+        rows = _expect_rows(expected.get(collection), f"base {collection}")
+        if change["operation"] == "replace":
+            before = change["before"]
+            after = change["after"]
+            assert isinstance(before, dict) and isinstance(after, dict)
+            expected[collection] = _rows_with_approved_replacement(
+                rows, index, before, after, label
+            )
+        else:
+            row = change["row"]
+            assert isinstance(row, dict)
+            expected[collection] = _rows_with_approved_insertion(
+                rows, index, row, label
+            )
     return expected
 
 
