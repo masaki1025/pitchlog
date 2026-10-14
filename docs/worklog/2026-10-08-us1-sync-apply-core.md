@@ -350,3 +350,12 @@ branch: feature/us1-sync-apply-core
 - 合格条件の確認: 正例 5 種(クライアント側・P1・P3・P5 の B3a / B3b)と結果検査の正例、負例(部分確定・T 集合の食い違い・孤立した観測点・重複注入・B3b の値関係 3 種・判別共用体・到達性・P3 / P1・P2 の固有フィールドの欠落・語彙の外・誤字・schemaVersion と構造の組・母集合と注入被覆の 1 件変異)の 56 件 green。**検査器の分岐を 8 か所無効化する変異でそれぞれ赤**を確認(均一性・B3b の同一内容・重複注入・呼び出し 0 回・省略可否・18 組の被覆・到達しない対象の状態・B3b の到達 case)
 - 実在する資産の照合(ディレクトリの走査・宣言した被覆と資産の case の一致)はステップ 17・18 で足す(この時点の資産は旧構造の 4 件だけ)
 - 検査: backend の ruff・ty green / DB 不要の範囲は既知の偽の赤 44 件だけ(共有 DB に他タブの被検査ロールが残り、DB 試験は setup で ERROR — 本変更は DB 試験に触れない)
+
+## ステップ 17 — 既存 4 資産の版移行と frontend の追随(2026-10-15 — Claude が直接実装)
+
+- 4 資産を `_v2.json`(`version: 2`・`schemaVersion: 2`)へ一度だけ移した。旧 `faultInjection` は 1 件の case(`caseId` = `concurrent-confirm`・`freeze-then-terminate`・`input-while-waiting`・`append-failure`、注入対象 `{kind: client, operation: <旧 target>}`、`expectedReachability: reached`)へ、旧 `expected.observations` はその case の観測点へ移した。期待値の中身は変えていない。後半 5 件(`prefix`・`idempotentResult`・`temporaryIdMapping`・`recordingRight`・`tElementCommitment`)は省略理由つきで足し、入力に `p5Branch`(省略理由)を足した
+- 同じコミットの中で「v2 を足す → 参照を移す → v1 を消す」の順にした(正本 10-3 の版付け — 旧版を参照するテストが残る間は消さない)
+- frontend: `failureScenarioContract.ts` を case 構造へ。**深い意味検査(経路と T 要素・内部単位・P5 の値関係・母集合と注入被覆)は Python 側を正とし、TS は消費側として構造を検査する**(二重定義を避けるため)。共通の期待フィールド 10 件と、クライアント側で省けない 5 件だけを TS にも持ち、**Python 側の試験が TS の表を読んで一致を検査する**。結果検査は Python と同じ規則(省略したフィールドの不在・呼び出し回数と到達性)
+- `failureScenarioAdapter.ts`: runner は case 1 件の結果(`caseId`・`hookCalls`・観測点)を返す。`hookCalls` は注入を実行した回数を配列の長さで数える(期待値のリテラルを adapter に書かない規則を保つ)
+- spec: `_v1` の決め打ちを現行版の宣言表 `CURRENT_VERSIONS` に置き換えた(sync-server-apply design 3-7)。`prohibitions.spec.ts` の export 表を追随(値 9・型 10)
+- 検査: frontend 全件 984 passed・vue-tsc・eslint・prettier green / Python の契約検査 58 passed(実在する 4 資産が契約検査を通る)

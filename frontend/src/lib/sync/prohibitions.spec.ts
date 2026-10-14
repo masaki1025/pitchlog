@@ -220,9 +220,12 @@ const EXPECTED_VALUE_EXPORTS = {
     'buildSyncEventKindSet',
   ],
   'failureScenarioContract.ts': [
+    'CLIENT_REQUIRED_FIELD_IDS',
     'FAILURE_EXPECTED_FIELD_IDS',
     'FAILURE_SCENARIO_IDS',
+    'FAILURE_SCENARIO_SCHEMA_VERSION',
     'FailureScenarioContractError',
+    'injectionTargetKey',
     'parseFailureScenarioContract',
     'validateFailureScenarioContract',
     'validateFailureScenarioResult',
@@ -415,6 +418,9 @@ const EXPECTED_TYPE_EXPORTS = {
   ],
   'failureScenarioContract.ts': [
     'FailureExpectedFieldId',
+    'FailureInjectionTarget',
+    'FailureScenarioCase',
+    'FailureScenarioCaseResult',
     'FailureScenarioComparisonUnit',
     'FailureScenarioContract',
     'FailureScenarioField',

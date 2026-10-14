@@ -18,7 +18,11 @@ type MutableObservation = {
 }
 type MutableResult = {
   scenarioId: string
-  observations: MutableObservation[]
+  cases: {
+    caseId: string
+    hookCalls: number
+    observations: MutableObservation[]
+  }[]
 }
 type ScalarLiteral = string | number | boolean
 
@@ -38,6 +42,14 @@ function contractById(
 
 function mutableResult(result: FailureScenarioResult): MutableResult {
   return structuredClone(result) as unknown as MutableResult
+}
+
+function observationsOf(result: MutableResult): MutableObservation[] {
+  const [testCase] = result.cases
+  if (!testCase) {
+    throw new Error('変異対象の case がありません')
+  }
+  return testCase.observations
 }
 
 function collectScalarLiterals(
@@ -110,7 +122,11 @@ describe('failureScenarioAdapter', () => {
   it('4 資産を過不足なく読み、期待値をアダプタへ複製しない', () => {
     const expectedLiterals: ScalarLiteral[] = []
     for (const contract of contracts) {
-      collectScalarLiterals(contract.expected, expectedLiterals)
+      for (const testCase of contract.cases) {
+        for (const observation of testCase.observations) {
+          collectScalarLiterals(observation.fields, expectedLiterals)
+        }
+      }
     }
     const sourceLiterals = sourceScalarLiterals(failureScenarioAdapterSource)
     const duplicatedLiterals = expectedLiterals.filter((expectedLiteral) =>
@@ -133,7 +149,7 @@ describe('failureScenarioAdapter', () => {
     const [, scenarioId] = FAILURE_SCENARIO_IDS
     const contract = contractById(scenarioId)
     const result = mutableResult(await executeFailureScenario(contract))
-    const [firstObservation] = result.observations
+    const [firstObservation] = observationsOf(result)
     if (!firstObservation) {
       throw new Error('変異対象の観測結果がありません')
     }
@@ -146,7 +162,7 @@ describe('failureScenarioAdapter', () => {
     const [, scenarioId] = FAILURE_SCENARIO_IDS
     const contract = contractById(scenarioId)
     const result = mutableResult(await executeFailureScenario(contract))
-    const [firstObservation] = result.observations
+    const [firstObservation] = observationsOf(result)
     if (!firstObservation) {
       throw new Error('変異対象の観測結果がありません')
     }
@@ -159,7 +175,7 @@ describe('failureScenarioAdapter', () => {
     const [, scenarioId] = FAILURE_SCENARIO_IDS
     const contract = contractById(scenarioId)
     const result = mutableResult(await executeFailureScenario(contract))
-    result.observations.reverse()
+    observationsOf(result).reverse()
 
     expect(() => validateFailureScenarioResult(contract, result)).toThrow()
   })

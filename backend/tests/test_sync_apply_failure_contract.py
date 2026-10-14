@@ -1438,18 +1438,14 @@ def test_contract_pairs_schema_version_with_structure(
     with pytest.raises(FailureScenarioContractError, match="schemaVersion"):
         _validate(asset, routes)
 
-    legacy_path = (
-        _REPOSITORY_ROOT
-        / "tests"
-        / "fixtures"
-        / "sync-protocol-failures"
-        / "durable-append-failure_v1.json"
-    )
-    if legacy_path.exists():
-        legacy = json.loads(legacy_path.read_text(encoding="utf-8"))
-        legacy["schemaVersion"] = SCHEMA_VERSION
-        with pytest.raises(FailureScenarioContractError, match="キー"):
-            validate_failure_scenario_contract(legacy_path.name, legacy, routes)
+    legacy = _p1_asset(routes)
+    first_case = legacy.pop("cases")[0]
+    legacy.pop("comparisonUnit")
+    legacy["faultInjection"] = first_case["faultInjection"]
+    legacy["expected"] = {"observations": first_case["observations"]}
+    legacy["comparisonUnit"] = []
+    with pytest.raises(FailureScenarioContractError, match="キー"):
+        _validate(legacy, routes)
 
 
 def test_contract_checks_file_name_and_population(
@@ -1650,4 +1646,72 @@ def test_declared_coverage_matches_the_assets_cases(
     )
     assert out_of_transaction_points(_p3_asset(routes)) == frozenset(
         {"T7 確定後・無効化配信前"}
+    )
+
+
+_FIXTURE_DIRECTORY = _REPOSITORY_ROOT / "tests" / "fixtures" / "sync-protocol-failures"
+_FRONTEND_CONTRACT = (
+    _REPOSITORY_ROOT
+    / "frontend"
+    / "src"
+    / "lib"
+    / "sync"
+    / "failureScenarioContract.ts"
+)
+
+
+def _fixture_assets() -> list[tuple[str, Any]]:
+    return [
+        (path.name, json.loads(path.read_text(encoding="utf-8")))
+        for path in sorted(_FIXTURE_DIRECTORY.glob("*.json"))
+    ]
+
+
+def test_every_fixture_passes_the_contract_check(
+    routes: dict[ApplicationPath, tuple[str, ...]],
+) -> None:
+    """実在する資産すべてが契約検査を通り、scenarioId ごとに現行版が 1 件だけある。"""
+    assets = _fixture_assets()
+    assert assets
+    scenario_ids = [
+        validate_failure_scenario_contract(name, asset, routes)["scenarioId"]
+        for name, asset in assets
+    ]
+    assert len(scenario_ids) == len(set(scenario_ids))
+    assert set(scenario_ids) <= OWNED_SCENARIO_IDS
+    client_ids = {
+        asset["scenarioId"]
+        for _, asset in assets
+        if _is_omitted(asset["input"]["applicationPath"])
+    }
+    assert client_ids == {
+        "multi-tab-single-writer",
+        "leader-freeze-reelection",
+        "waiting-input-not-accepted",
+        "durable-append-failure",
+    }
+
+
+def _typescript_string_array(source: str, name: str) -> tuple[str, ...]:
+    match = re.search(
+        rf"export const {name} = \[(?P<body>[^\]]*)\]", source, flags=re.S
+    )
+    assert match is not None, name
+    return tuple(re.findall(r"'([^']+)'", match.group("body")))
+
+
+def test_frontend_contract_shares_the_expected_field_tables() -> None:
+    """消費側の frontend と期待フィールドの表を二重に持つので、食い違いを検出する。"""
+    source = _FRONTEND_CONTRACT.read_text(encoding="utf-8")
+    assert (
+        _typescript_string_array(source, "FAILURE_EXPECTED_FIELD_IDS")
+        == COMMON_EXPECTED_FIELD_IDS
+    )
+    client_required = _typescript_string_array(source, "CLIENT_REQUIRED_FIELD_IDS")
+    assert (
+        set(client_required)
+        == set(COMMON_EXPECTED_FIELD_IDS) - (OMITTABLE_FIELD_IDS[None])
+    )
+    assert re.search(
+        rf"export const FAILURE_SCENARIO_SCHEMA_VERSION = {SCHEMA_VERSION}\b", source
     )

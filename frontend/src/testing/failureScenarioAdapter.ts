@@ -14,6 +14,8 @@ import { EVENT_SLOT_IDS } from '../lib/sync/eventFieldRules'
 import {
   FAILURE_SCENARIO_IDS,
   parseFailureScenarioContract,
+  type FailureScenarioCase,
+  type FailureScenarioCaseResult,
   type FailureScenarioContract,
   type FailureScenarioField,
   type FailureScenarioObservation,
@@ -48,6 +50,7 @@ type QueueSnapshot = Readonly<{
 }>
 type ScenarioContext = Readonly<{
   contract: FailureScenarioContract
+  testCase: FailureScenarioCase
   queue: DurableQueue
   scope: DurableQueueScope
   initial: QueueSnapshot
@@ -56,7 +59,7 @@ type ScenarioContext = Readonly<{
 }>
 type ScenarioRunner = (
   context: ScenarioContext,
-) => Promise<FailureScenarioResult>
+) => Promise<FailureScenarioCaseResult>
 
 const CONFIRMED_PRECONDITIONS = Object.fromEntries(
   SINGLE_WRITER_PRECONDITION_IDS.map((id) => [id, Boolean(id)]),
@@ -153,18 +156,14 @@ function scenarioContexts(
   return [primary, secondary]
 }
 
-function observationPoints(
-  contract: FailureScenarioContract,
-): readonly string[] {
-  return [
-    ...new Set(
-      contract.comparisonUnit.map((comparison) => comparison.observationPoint),
-    ),
-  ]
+function observationPoints(testCase: FailureScenarioCase): readonly string[] {
+  return testCase.observations.map(
+    (expectedObservation) => expectedObservation.observationPoint,
+  )
 }
 
-function singleObservationPoint(contract: FailureScenarioContract): string {
-  const [point, ...extra] = observationPoints(contract)
+function singleObservationPoint(testCase: FailureScenarioCase): string {
+  const [point, ...extra] = observationPoints(testCase)
   if (!point || extra.length) {
     throw new Error('シナリオの観測点は一つでなければなりません')
   }
@@ -172,9 +171,9 @@ function singleObservationPoint(contract: FailureScenarioContract): string {
 }
 
 function pairedObservationPoints(
-  contract: FailureScenarioContract,
+  testCase: FailureScenarioCase,
 ): readonly [string, string] {
-  const [before, after, ...extra] = observationPoints(contract)
+  const [before, after, ...extra] = observationPoints(testCase)
   if (!before || !after || extra.length) {
     throw new Error('シナリオの観測点は二つでなければなりません')
   }
@@ -209,6 +208,18 @@ function observation(
   fields: FailureScenarioObservation['fields'],
 ): FailureScenarioObservation {
   return { observationPoint, fields }
+}
+
+function caseResult(
+  testCase: FailureScenarioCase,
+  injections: readonly unknown[],
+  observations: readonly FailureScenarioObservation[],
+): FailureScenarioCaseResult {
+  return {
+    caseId: testCase.caseId,
+    hookCalls: injections.length,
+    observations,
+  }
 }
 
 function confirmedInjections(
@@ -274,10 +285,11 @@ class MockWebLocks {
 
 async function runMultiTabSingleWriter(
   context: ScenarioContext,
-): Promise<FailureScenarioResult> {
-  const { contract, queue, scope, initial, locks } = context
+): Promise<FailureScenarioCaseResult> {
+  const { contract, testCase, queue, scope, initial, locks } = context
   const [primary, secondary] = scenarioContexts(contract)
-  const point = singleObservationPoint(contract)
+  const point = singleObservationPoint(testCase)
+  const injections: unknown[] = []
   const lockName = singleWriterLockName(String(scope.game))
   const primaryStarted = deferred()
   const releasePrimary = deferred()
@@ -308,6 +320,7 @@ async function runMultiTabSingleWriter(
     ),
   )
   await secondaryRequested.promise
+  injections.push(secondary)
   const rejection = rejectNonOwnerInput()
   const ownerCount = locks.ownerCount(lockName)
 
@@ -322,37 +335,35 @@ async function runMultiTabSingleWriter(
     rejection.accepted,
   ].filter(Boolean).length
 
-  return {
-    scenarioId: contract.scenarioId,
-    observations: [
-      observation(point, {
-        queue: { appendCount: final.count - initial.count },
-        d1: {
-          duplicateCount: appendedD1s.length - new Set(appendedD1s).size,
-        },
-        lock: {
-          ownerCount,
-          nonOwnerReadOnly: !rejection.accepted,
-        },
-        acceptanceDisplay: {
-          acceptedTabCount,
-          nonOwnerNoticeId: rejection.notice.noticeId,
-        },
-        reinputAvailability: {
-          nonOwnerInputAccepted: rejection.accepted,
-          retryAfterLockAcquisition: secondaryResult.recordingStarted,
-        },
-      }),
-    ],
-  }
+  return caseResult(testCase, injections, [
+    observation(point, {
+      queue: { appendCount: final.count - initial.count },
+      d1: {
+        duplicateCount: appendedD1s.length - new Set(appendedD1s).size,
+      },
+      lock: {
+        ownerCount,
+        nonOwnerReadOnly: !rejection.accepted,
+      },
+      acceptanceDisplay: {
+        acceptedTabCount,
+        nonOwnerNoticeId: rejection.notice.noticeId,
+      },
+      reinputAvailability: {
+        nonOwnerInputAccepted: rejection.accepted,
+        retryAfterLockAcquisition: secondaryResult.recordingStarted,
+      },
+    }),
+  ])
 }
 
 async function runLeaderFreezeReelection(
   context: ScenarioContext,
-): Promise<FailureScenarioResult> {
-  const { contract, queue, scope, initial, locks } = context
+): Promise<FailureScenarioCaseResult> {
+  const { contract, testCase, queue, scope, initial, locks } = context
   const [primary, waiting] = scenarioContexts(contract)
-  const [beforePoint, afterPoint] = pairedObservationPoints(contract)
+  const [beforePoint, afterPoint] = pairedObservationPoints(testCase)
+  const injections: unknown[] = []
   const tabs = recordFieldValue(contract.input, 'tabs')
   const terminationPathUsed = booleanProperty(
     tabs,
@@ -390,6 +401,7 @@ async function runLeaderFreezeReelection(
     ),
   )
   await waitingRequested.promise
+  injections.push(primary)
 
   const before = await queueSnapshot(queue, scope)
   const ownerBeforeTermination = locks.owner(lockName)
@@ -411,55 +423,53 @@ async function runLeaderFreezeReelection(
     ownerAfterReelection === waiting &&
     waitingResult.recordingStarted
 
-  return {
-    scenarioId: contract.scenarioId,
-    observations: [
-      observation(beforePoint, {
-        queue: {
-          unchanged: before.count === initial.count,
-          count: before.count,
-        },
-        d1: {
-          unchanged: before.nextD1 === initial.nextD1,
-          next: before.nextD1,
-        },
-        lock: {
-          owner: ownerBeforeTermination,
-          forciblyAcquired: ownerBeforeTermination === waiting,
-        },
-        acceptanceDisplay: {
-          waitingInputShownAsAccepted: waitingShownBeforeTermination,
-        },
-        reinputAvailability: { required: !terminationPathUsed },
-      }),
-      observation(afterPoint, {
-        queue: {
-          unchanged: after.count === initial.count,
-          count: after.count,
-        },
-        d1: {
-          unchanged: after.nextD1 === initial.nextD1,
-          next: after.nextD1,
-        },
-        lock: {
-          owner: ownerAfterReelection,
-          singleWriterRevalidated: revalidatedBeforeResume,
-        },
-        acceptanceDisplay: {
-          recordingResumedAfterRevalidation: recordingResumed,
-        },
-        reinputAvailability: { required: !terminationPathUsed },
-      }),
-    ],
-  }
+  return caseResult(testCase, injections, [
+    observation(beforePoint, {
+      queue: {
+        unchanged: before.count === initial.count,
+        count: before.count,
+      },
+      d1: {
+        unchanged: before.nextD1 === initial.nextD1,
+        next: before.nextD1,
+      },
+      lock: {
+        owner: ownerBeforeTermination,
+        forciblyAcquired: ownerBeforeTermination === waiting,
+      },
+      acceptanceDisplay: {
+        waitingInputShownAsAccepted: waitingShownBeforeTermination,
+      },
+      reinputAvailability: { required: !terminationPathUsed },
+    }),
+    observation(afterPoint, {
+      queue: {
+        unchanged: after.count === initial.count,
+        count: after.count,
+      },
+      d1: {
+        unchanged: after.nextD1 === initial.nextD1,
+        next: after.nextD1,
+      },
+      lock: {
+        owner: ownerAfterReelection,
+        singleWriterRevalidated: revalidatedBeforeResume,
+      },
+      acceptanceDisplay: {
+        recordingResumedAfterRevalidation: recordingResumed,
+      },
+      reinputAvailability: { required: !terminationPathUsed },
+    }),
+  ])
 }
 
 async function runWaitingInputNotAccepted(
   context: ScenarioContext,
-): Promise<FailureScenarioResult> {
-  const { contract, queue, scope, initial, locks } = context
+): Promise<FailureScenarioCaseResult> {
+  const { contract, testCase, queue, scope, initial, locks } = context
   const [primary, waiting] = scenarioContexts(contract)
-  const point = singleObservationPoint(contract)
+  const point = singleObservationPoint(testCase)
+  const injections: unknown[] = []
   const lockName = singleWriterLockName(String(scope.game))
   const primaryStarted = deferred()
   const releasePrimary = deferred()
@@ -481,6 +491,7 @@ async function runWaitingInputNotAccepted(
     confirmedInjections(locks.managerFor(waiting, waitingRequested.resolve)),
   )
   await waitingRequested.promise
+  injections.push(waiting)
   const rejection = rejectNonOwnerInput()
   const duringWait = await queueSnapshot(queue, scope)
   const ownerDuringWait = locks.owner(lockName)
@@ -491,42 +502,40 @@ async function runWaitingInputNotAccepted(
     waitingOperation,
   ])
 
-  return {
-    scenarioId: contract.scenarioId,
-    observations: [
-      observation(point, {
-        queue: {
-          appendCount: duringWait.count - initial.count,
-          unchanged: duringWait.count === initial.count,
-        },
-        d1: {
-          consumed: duringWait.nextD1 !== initial.nextD1,
-          next: duringWait.nextD1,
-        },
-        lock: { owner: ownerDuringWait },
-        acceptanceDisplay: {
-          shownAsAccepted: rejection.accepted,
-          noticeId: rejection.notice.noticeId,
-        },
-        reinputAvailability: {
-          afterLockAcquisition: waitingResult.recordingStarted,
-        },
-      }),
-    ],
-  }
+  return caseResult(testCase, injections, [
+    observation(point, {
+      queue: {
+        appendCount: duringWait.count - initial.count,
+        unchanged: duringWait.count === initial.count,
+      },
+      d1: {
+        consumed: duringWait.nextD1 !== initial.nextD1,
+        next: duringWait.nextD1,
+      },
+      lock: { owner: ownerDuringWait },
+      acceptanceDisplay: {
+        shownAsAccepted: rejection.accepted,
+        noticeId: rejection.notice.noticeId,
+      },
+      reinputAvailability: {
+        afterLockAcquisition: waitingResult.recordingStarted,
+      },
+    }),
+  ])
 }
 
 async function runDurableAppendFailure(
   context: ScenarioContext,
-): Promise<FailureScenarioResult> {
-  const { contract, queue, scope, initial, locks, options } = context
+): Promise<FailureScenarioCaseResult> {
+  const { contract, testCase, queue, scope, initial, locks, options } = context
   const tabs = recordFieldValue(contract.input, 'tabs')
   const [primary, ...extraContexts] = stringArrayProperty(tabs, 'contexts')
   if (!primary || extraContexts.length) {
     throw new Error('シナリオには一つのタブ文脈が必要です')
   }
-  const point = singleObservationPoint(contract)
+  const point = singleObservationPoint(testCase)
   const lockName = singleWriterLockName(String(scope.game))
+  const injections: unknown[] = []
   const [uncloneableSlotId] = EVENT_SLOT_IDS
   if (!uncloneableSlotId) {
     throw new Error('故障注入に使うイベントスロットがありません')
@@ -545,6 +554,7 @@ async function runDurableAppendFailure(
         })
       } catch (error) {
         appendFailure = error
+        injections.push(error)
       }
       if (!appendFailure) {
         throw new Error('永続追記の故障注入が失敗しませんでした')
@@ -587,10 +597,7 @@ async function runDurableAppendFailure(
     throw new Error('所有文脈が単一書き手として開始されませんでした')
   }
 
-  return {
-    scenarioId: contract.scenarioId,
-    observations: [result.value],
-  }
+  return caseResult(testCase, injections, [result.value])
 }
 
 const SCENARIO_RUNNERS = new Map<
@@ -696,18 +703,24 @@ export async function executeFailureScenario(
   if (!runner) {
     throw new Error(`シナリオ実行器がありません: ${contract.scenarioId}`)
   }
+  const [testCase, ...extraCases] = contract.cases
+  if (!testCase || extraCases.length) {
+    throw new Error('クライアント側シナリオの case は一つでなければなりません')
+  }
 
   const { queue, scope, initial, databaseName } =
     await openScenarioQueue(contract)
   try {
-    return await runner({
+    const executed = await runner({
       contract,
+      testCase,
       queue,
       scope,
       initial,
       locks: new MockWebLocks(),
       options,
     })
+    return { scenarioId: contract.scenarioId, cases: [executed] }
   } finally {
     queue.close()
     await deleteDatabase(databaseName)
