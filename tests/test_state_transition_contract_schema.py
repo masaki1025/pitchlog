@@ -1153,6 +1153,17 @@ def _validate_undo_rows(
                 "XC-09: liveness-onlyはD+1の行だけに許す: "
                 f"undoRows[{row_index}]; possible={possible_lengths!r}"
             )
+        if (
+            target_kind == "none"
+            or row["historyEffect"] != {"pops": 1}
+            or row["operationResult"] != "applied"
+            or any(
+                any(value != {"kind": "unchanged"} for value in row["stateEffect"][face].values())
+                for face in ("stateFields", "scoreboard", "statFlags")
+            )
+            or "比較対象外" not in row["remarks"]
+        ):
+            raise UndoRowConstraintError(f"XC-09: 対象・履歴・比較面が不正: undoRows[{row_index}]")
 
 
 def _must_operation_coverage_configuration() -> dict[str, Any]:
@@ -3414,18 +3425,8 @@ def test_xc09_liveness_only_is_red_at_history_depth_d() -> None:
 
 
 def test_xc09_liveness_only_is_accepted_only_at_d_plus_one() -> None:
-    """XC-09: descriptorのD+1座標だけでliveness-onlyを受理する。"""
-    contract = _minimal_contract()
-    row = contract["undoRows"][0]
-    row["precondition"] = {
-        "op": "eq",
-        "axisId": "history.scenarioLength",
-        "value": "D+1",
-    }
-    row["guaranteeMode"] = "liveness-only"
-    _sync_case_coordinate(contract, "undoRows")
-
-    _validate(contract)
+    """XC-09: 対象あり・1件popの実際のD+1行を受理する。"""
+    _validate_undo_rows(_repository_contract(), frozenset())
 
 
 def test_xc09_rejects_a_precondition_that_also_allows_d_or_below() -> None:
@@ -3467,7 +3468,7 @@ def test_repository_step65_empty_history_row_and_mapping() -> None:
 
     assert len(contract["matrixRows"]) == 42
     assert len(contract["operationRows"]) == 7
-    assert len(contract["undoRows"]) == 1
+    assert len(contract["undoRows"]) == 2
     row = contract["undoRows"][0]
     assert set(row) == set(UNDO_ROW_COLUMNS)
     assert row["targetKind"] == "none"
@@ -3484,7 +3485,7 @@ def test_repository_step65_empty_history_row_and_mapping() -> None:
         mapping["operationType"]: mapping["rowRefs"]
         for mapping in contract["mustOperationCoverage"]["mappings"]
     }
-    assert mappings["undo"] == [_row_reference("undoRows", row)]
+    assert mappings["undo"][0] == _row_reference("undoRows", row)
     assert mappings["per-pitch-input"] == [
         _row_reference("matrixRows", item) for item in contract["matrixRows"]
     ]
@@ -5724,7 +5725,7 @@ def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> 
     assert declaration["inputCoordinateMapping"]["semanticOrigin"] == (
         "step-90-task-implementation-convention"
     )
-    assert len(cases) == 97
+    assert len(cases) == 98
     changed = []
     for case in cases:
         assert {"raw", "normalizationRuleId", "normalized"} <= set(case)
@@ -5761,15 +5762,15 @@ def test_step90_contract_schema_rejects_case_without_normalization_point(
 
 
 def test_repository_rows_have_matching_history_and_result_faces() -> None:
-    """現行の 7 操作行と 1 undo 行が D-8 の同値を満たす。"""
+    """現行の 7 操作行と 2 undo 行が D-8 の同値を満たす。"""
     contract = _repository_contract()
-    assert (len(contract["operationRows"]), len(contract["undoRows"])) == (7, 1)
+    assert (len(contract["operationRows"]), len(contract["undoRows"])) == (7, 2)
     history_checker.validate_rows(contract, _descriptor())
     assert contract["undoRows"][0]["targetKind"] == "none"
 
 
 def test_all_committed_cases_match_history_expansion() -> None:
-    """全 97 case の履歴入力と期待値が追跡済み展開に完全一致する。"""
+    """全 98 case の履歴入力と期待値が追跡済み展開に完全一致する。"""
     result = subprocess.run(
         [
             sys.executable,
@@ -5778,13 +5779,91 @@ def test_all_committed_cases_match_history_expansion() -> None:
             "--limit", "42",
             "--mode", "coverage",
             "--operation-limit", "7",
-            "--undo-limit", "1",
+            "--undo-limit", "2",
         ],
         check=True,
         capture_output=True,
         text=True,
     )
     assert json.loads(result.stdout) == _repository_contract()["cases"]
+
+
+def test_step30_liveness_row_and_five_play_case() -> None:
+    """D=4 の直後に確定プレイを5件積む行とcaseだけを受理する。"""
+    contract = _repository_contract()
+    row = contract["undoRows"][1]
+    case = contract["cases"][-1]
+    depth = _load_object(REPOSITORY_ROOT / "backend/domain/history-depth.json")
+    derivation = depth["derivation"]
+    d = max(
+        *(len(item["events"]) for item in derivation["requiredScenarioCases"]),
+        *(len(item["stackKinds"]) for item in derivation["stackCompositionCases"]),
+    )
+    assert d == 4
+    assert row["precondition"] == {
+        "op": "eq", "axisId": "history.scenarioLength", "value": "D+1",
+    }
+    assert row["targetKind"] == "confirmed-play"
+    assert row["historyEffect"] == {"pops": 1}
+    assert row["operationResult"] == "applied"
+    assert row["guaranteeMode"] == "liveness-only"
+    assert row["stateEffect"]["historyAndResult"] == {
+        "history": {"kind": "pop", "count": 1},
+        "operationResult": {"kind": "set", "value": "applied"},
+    }
+    assert all(
+        value == {"kind": "unchanged"}
+        for face in ("stateFields", "scoreboard", "statFlags")
+        for value in row["stateEffect"][face].values()
+    )
+    assert "比較対象外" in row["remarks"]
+    assert case["rowRef"] == _row_reference("undoRows", row)
+    assert len(case["historyInput"]["stack"]) == d + 1
+    assert all(item["kind"] == "confirmed-play" for item in case["historyInput"]["stack"])
+    assert "historyContext" not in case["expected"]
+    assert _schema()["x-pitchlog-undo-liveness-comparison"] == {
+        "sourceDecisionId": "adr:D-8",
+        "constraintId": "XC-09",
+        "mode": "liveness-only",
+        "requiredOperationResult": "applied",
+        "historyLengthDelta": -1,
+        "ignoredOutputPaths": [
+            "stateEffect.stateFields", "stateEffect.scoreboard",
+            "stateEffect.statFlags", "historyContext[*]",
+        ],
+    }
+
+
+@pytest.mark.parametrize("mutation", ["at-d", "target-none", "no-pop"])
+def test_step30_invalid_liveness_row_is_red(mutation: str) -> None:
+    """D以下・対象なし・popなしの行は保証範囲外扱いにできない。"""
+    contract = _repository_contract()
+    row = contract["undoRows"][1]
+    if mutation == "at-d":
+        row["precondition"]["value"] = "D"
+    elif mutation == "target-none":
+        row["targetKind"] = "none"
+    else:
+        row["historyEffect"]["pops"] = 0
+        row["stateEffect"]["historyAndResult"]["history"] = {"kind": "unchanged"}
+    with pytest.raises(history_checker.HistoryEffectError):
+        history_checker.validate_rows(contract, _descriptor())
+
+
+def test_step30_liveness_comparison_checks_only_result_and_one_pop() -> None:
+    """残余の中身を問わず、拒否と2件以上の切り捨てを拒否する。"""
+    case = _repository_contract()["cases"][-1]
+    stack = case["historyInput"]["stack"]
+    expected = case["expected"]
+    assert history_checker.compare_liveness_undo(
+        stack, expected, {"operationResult": "applied", "historyContext": [None] * 4},
+    )
+    assert not history_checker.compare_liveness_undo(
+        stack, expected, {"operationResult": "applied", "historyContext": [None] * 3},
+    )
+    assert not history_checker.compare_liveness_undo(
+        stack, expected, {"operationResult": "nothing-to-undo", "historyContext": [None] * 4},
+    )
 
 
 def test_confirmed_play_pushes_one_entry_on_existing_stack() -> None:

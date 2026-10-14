@@ -191,14 +191,14 @@ def _assert_all_normative_rows_referenced(
 
 
 def test_step98_all_normative_rows_are_referenced_by_cases() -> None:
-    """実資産の4層57行すべてにcaseからの参照があることを確認する。"""
+    """実資産の4層58行すべてにcaseからの参照があることを確認する。"""
     state = _asset("state_transition_contract_v1.json")
     game_end = _asset("game_end_contract_v1.json")
     assert [len(state[layer]) for layer in ("matrixRows", "operationRows", "undoRows")] == [
-        42, 7, 1,
+        42, 7, 2,
     ]
     assert len(game_end["decisionRows"]) == 7
-    assert len(state["cases"]) == 97
+    assert len(state["cases"]) == 98
     assert len(game_end["cases"]) == 214
     for contract, schema_name in (
         (state, "state_transition_contract_schema_v1.json"),
@@ -423,7 +423,7 @@ def test_step96_validation_errors_are_exact_and_separate_from_cases() -> None:
     assert actual == expected
     assert declaration["deferredValidationErrors"]["status"] == "materialized"
     assert declaration["deferredValidationErrors"]["count"] == len(expected)
-    assert len(state["cases"]) == 97
+    assert len(state["cases"]) == 98
     assert len(contract["cases"]) == 214
     assert all("caseId" not in item and "inputCoordinate" not in item for item in entries)
     assert all("保証範囲外" in item["claimBoundary"]["notGuaranteed"] for item in entries)
@@ -1378,11 +1378,9 @@ def test_checker_rejects_operation_row_without_payload_shape() -> None:
 
 
 def _assert_step88_undo_rows(contract: dict[str, Any]) -> None:
-    """本周の空履歴1行だけという規範行前提を固定する。"""
-    assert not any(
-        row.get("guaranteeMode") == "liveness-only" for row in contract["undoRows"]
-    ), "liveness-onlyの規範行が現れた"
-    assert len(contract["undoRows"]) == 1, "undoRowsの行数が変わった"
+    """空履歴の規範行が先頭に保持されていることを固定する。"""
+    assert contract["undoRows"][0]["guaranteeMode"] == "full-equality"
+    assert contract["undoRows"][0]["targetKind"] == "none"
 
 
 def test_step88_empty_history_undo_case_and_coverage() -> None:
@@ -1404,7 +1402,7 @@ def test_step88_empty_history_undo_case_and_coverage() -> None:
     previous_cases, _ = expander.expand_traced(
         ROOT, limit=42, mode="coverage", operation_limit=6
     )
-    assert contract["cases"][:95] + contract["cases"][-1:] == cases
+    assert contract["cases"][:95] + contract["cases"][-2:-1] == cases
     assert cases[:-1] == previous_cases
     assert len(cases) == 96
     assert [case["rowRef"]["layer"] for case in cases].count("matrixRows") == 89
@@ -1418,10 +1416,10 @@ def test_step88_empty_history_undo_case_and_coverage() -> None:
     assert undo_case["expected"]["operationResult"] == "nothing-to-undo"
     assert undo_case["expected"]["guaranteeMode"] == "full-equality"
 
-    assert record["currentStep"] == 89
-    assert [item["step"] for item in record["history"]] == list(range(79, 90))
-    current = record["history"][-2]
-    assert current["before"] == record["history"][-3]["after"]
+    assert record["currentStep"] == 90
+    assert [item["step"] for item in record["history"]] == list(range(79, 91))
+    current = record["history"][-3]
+    assert current["before"] == record["history"][-4]["after"]
     before = {tuple(item) for item in current["before"]["coverageSet"]}
     after = {tuple(item) for item in current["after"]["coverageSet"]}
     assert after - before == {("event.operationKind", '"undo"')}
@@ -1448,7 +1446,7 @@ def test_step24_draw05_operation_case_preserves_input_coverage() -> None:
     cases, _ = expander.expand_traced(
         ROOT, limit=42, mode="coverage", operation_limit=7, undo_limit=1
     )
-    assert contract["cases"] == cases
+    assert contract["cases"][:-1] == cases
     assert len(cases) == 97
     draw_case = cases[-2]
     assert draw_case["inputCoordinate"]["state.score"] == "tie"
@@ -1472,15 +1470,23 @@ def test_step24_draw05_cross_layer_binding_fails_closed_on_case_drift() -> None:
         checker.check_game_end_coverage(ROOT, declaration=declaration)
 
 
-def test_step88_rejects_new_liveness_only_row() -> None:
-    """段階2でliveness-only行が入れば本周の前提を赤にする。"""
+def test_step30_rejects_liveness_only_on_empty_history_row() -> None:
+    """空履歴行をliveness-onlyへ変えるとXC-09で拒否する。"""
     contract = _asset("state_transition_contract_v1.json")
     changed = copy.deepcopy(contract)
-    changed["undoRows"].append({
-        **copy.deepcopy(contract["undoRows"][0]), "guaranteeMode": "liveness-only"
-    })
-    with pytest.raises(AssertionError, match="liveness-onlyの規範行が現れた"):
-        _assert_step88_undo_rows(changed)
+    changed["undoRows"][0]["guaranteeMode"] = "liveness-only"
+    with pytest.raises(expander.history_checker.HistoryEffectError, match="XC-09"):
+        expander.history_checker.validate_rows(
+            changed, _asset("input_axes_descriptor_v1.json")
+        )
+
+
+def test_step30_liveness_case_with_only_d_plays_is_red() -> None:
+    """シナリオ長D+1を宣言して4件しか積まないcaseを拒否する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    contract["cases"][-1]["historyInput"]["stack"].pop()
+    with pytest.raises(checker.RequiredSetCoverageError, match="XC-09"):
+        checker.check_input_coverage(ROOT, contract=contract)
 
 
 @pytest.mark.parametrize(
@@ -1494,7 +1500,7 @@ def test_step88_rejects_new_liveness_only_row() -> None:
 )
 def test_checker_rejects_invalid_undo_case(mutation: str, message: str) -> None:
     """undoRowsの分岐で種別・参照・前提・期待値の破損を拒否する。"""
-    case = copy.deepcopy(_asset("state_transition_contract_v1.json")["cases"][-1])
+    case = copy.deepcopy(_asset("state_transition_contract_v1.json")["cases"][-2])
     if mutation == "kind":
         case["inputCoordinate"]["operationKind"] = "substitution"
     elif mutation == "ambiguous-reference":
@@ -1526,7 +1532,7 @@ def test_existing_layers_reject_swapped_undo_assignment() -> None:
     assert ("event.operationKind", '"undo"') not in operation_baseline
 
 
-@pytest.mark.parametrize("undo_limit", [-1, 2])
+@pytest.mark.parametrize("undo_limit", [-1, 3])
 def test_expander_rejects_undo_limit_outside_references(undo_limit: int) -> None:
     """undo行参照の範囲を越える展開指定を拒否する。"""
     with pytest.raises(expander.CaseExpansionError, match="undo行の出力件数"):

@@ -585,18 +585,18 @@ def test_open_skipping_fixture_stage_for_generated_selector_is_red() -> None:
 
 
 def test_normative_row_natural_keys_are_unique_in_all_four_layers() -> None:
-    """操作種別の重複も前提軸と値で分離し全57行を識別する。"""
+    """操作種別の重複も前提軸と値で分離し全58行を識別する。"""
     document = _register()
     index = _real_indexes(document)["rowIds"]
 
-    assert len(index.existing_references) == 57
+    assert len(index.existing_references) == 58
     assert len([row for row in index.existing_references if row.startswith("operationRows:")]) == 7
     assert "operationRows:substitution:state.gameEnded:false" in index.existing_references
     assert "operationRows:substitution:state.gameEnded:true" in index.existing_references
 
 
 def test_step99_no_orphan_normative_rows() -> None:
-    """4層57行すべてが分岐または要件条文に辿れることを確認する。"""
+    """4層58行すべてが分岐または要件条文に辿れることを確認する。"""
     orphans = checker.orphan_normative_row_ids(
         _criteria(), _row_documents(), _clause_branch_register(),
         checker.load_requirement_clause_ids(REPOSITORY_ROOT), _row_rules(),
@@ -623,10 +623,10 @@ def test_step99_orphan_row_is_red_without_case_coverage_check() -> None:
 
 
 def test_step99_all_row_ids_resolve() -> None:
-    """gapのrowIdsと311件のcase参照が一意な規範行へ解決する。"""
+    """gapのrowIdsと312件のcase参照が一意な規範行へ解決する。"""
     rows = _row_documents()
     index = checker.row_reference_index(_criteria(), _register()["gaps"], rows)
-    assert len(index.existing_references) == 57
+    assert len(index.existing_references) == 58
     assert checker.unresolved_row_references(
         _criteria(), _register()["gaps"], rows, index
     ) == []

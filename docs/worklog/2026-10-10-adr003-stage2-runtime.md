@@ -282,3 +282,10 @@ branch: feature/adr003-stage2-runtime
 - 負例 9 種(列と面の不一致・操作行の pop・undo 行の push・applied で pops=0・拒否で push・対象なしの片側成立・state-correction 以外の push・閉じた schema の違反・フラグを前後比較で作った差分)
 - ハーネス全件 1 回目で core_guard の 1 件(新設の `tests/test_state_transition_history.py` がコア領域に未登録)。**窓口を使わずに済むよう、検査器を `scripts/check_branch_row_mapping.py`・試験を `tests/test_state_transition_contract_schema.py`(どちらも sync-protocol・game-state に登録済み)へ移した**。新設の検査器も未登録だった(契約パスを文字列で持たないため検出されないが、状況判定の検査器なので登録済みの場所へ)
 - 是正後のハーネス全件: 69 failed・本ステップ由来 0。backend の関連 47 件・Vitest 全件 1128 件が緑
+
+### ステップ 30(2026-10-14)— S18 `D`+1 の liveness-only
+
+- `D = 4`(`history-depth.json` の導出式)。`history.scenarioLength = "D+1"` の undo 行(`confirmed-play`・`pops = 1`・`applied`・`liveness-only`・3 面は `unchanged` で比較対象外と remarks に明記)。展開器は確定プレイを 5 件積んだ入力を作る。状況判定の case 97 → 98
+- `XC-09` と比較関数は `scripts/check_branch_row_mapping.py`(登録済み)。**runner(Python・TS)にも `guaranteeMode` の切り替えを入れた**(Codex の初回報告では未着手 — 入れないと U-X1 で `D`+1 の case が全面一致で比較されるため、このステップで閉じた)。両経路で負例(2 件失う / 拒否 / full-equality での 3 面の不一致の見逃し)を確認
+- ハーネス全件: 71 failed。新規 2 件 — ① core_guard(`tests/domain/runners/test_vector_bridge.py` が契約パスを参照して sync-protocol 未登録)→ 契約を参照する試験を `tests/domain/runners/test_handoff_loader.py`(両領域に登録済み)へ移して解消 ② **`test_check_tenant_boundary_bypass.py::test_repository_is_green`** — **#129 が develop にマージされ base-allowlist の履歴に #129 の受理記録が入り、本ブランチの受理記録(`e925fbe1`)と比較元の prefix がずれた**。Ready 前の取り込み(#119 の着地後)で受理記録を作り直す。Vitest 全件 1135 件が緑
+- **取り込み時の追加事項**: 要件書の変更履歴は #129 の v2.12 の 2 行の後ろへ v2.14 の 2 行を並べる(238 の v2.13 が先に着地すればその後ろ)

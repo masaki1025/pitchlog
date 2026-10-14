@@ -29,6 +29,42 @@ def _fail(rule_id: str, detail: str) -> NoReturn:
     raise HistoryEffectError(f"{rule_id}: {detail}")
 
 
+def resolve_history_depth(history: dict[str, Any]) -> int:
+    """history-depth の宣言済み max 式から D の実値を得る。"""
+    try:
+        derivation = history["derivation"]
+        if history["version"] != 1 or derivation["formula"] != {
+            "operator": "max",
+            "operands": [
+                {"cases": "requiredScenarioCases", "measure": "events.length", "aggregate": "max"},
+                {
+                    "cases": "stackCompositionCases",
+                    "measure": "stackKinds.length",
+                    "aggregate": "max",
+                },
+            ],
+        }:
+            _fail("HISTORY_DEPTH", "D の導出式が不明")
+        sizes: list[int] = []
+        for collection, field, declared in (
+            ("requiredScenarioCases", "events", "length"),
+            ("stackCompositionCases", "stackKinds", "minimumDepth"),
+        ):
+            records = derivation[collection]
+            if not isinstance(records, list) or not records:
+                _fail("HISTORY_DEPTH", f"{collection} が空")
+            for item in records:
+                size = len(item[field])
+                if size < 1 or item[declared] != size:
+                    _fail("HISTORY_DEPTH", f"{collection}.{declared} が不一致")
+                sizes.append(size)
+        if derivation["result"]["historyDepthFrom"] != "formula":
+            _fail("HISTORY_DEPTH", "結果の参照先が不明")
+        return max(sizes)
+    except (KeyError, TypeError, ValueError) as error:
+        raise HistoryEffectError("HISTORY_DEPTH: D を解決できない") from error
+
+
 def _depth_zero_only(predicate: dict[str, Any], descriptor: dict[str, Any]) -> bool:
     """述語が許す履歴深さの集合が 0 だけかを列挙して調べる。"""
     axes = sorted(representative_selection.predicate_axes(predicate))
@@ -58,6 +94,50 @@ def _all_unchanged(fields: object) -> bool:
     """比較面の全フィールドが非変更であることを返す。"""
     return isinstance(fields, dict) and all(
         value == {"kind": "unchanged"} for value in fields.values()
+    )
+
+
+def _scenario_d_plus_one_only(predicate: dict[str, Any], descriptor: dict[str, Any]) -> bool:
+    """述語が許すシナリオ長が D+1 だけかを値域から判定する。"""
+    axes = sorted(representative_selection.predicate_axes(predicate))
+    if "history.scenarioLength" not in axes:
+        return False
+    values_by_axis = representative_selection.axis_values(
+        descriptor, ("stateTransitionAxes",)
+    )
+    if any(axis not in values_by_axis for axis in axes):
+        _fail("XC-09", "述語に未登録の軸がある")
+    size = 1
+    for axis in axes:
+        size *= len(values_by_axis[axis])
+        if size > 100_000:
+            _fail("XC-09", "述語の入力直積が上限を超える")
+    possible = {
+        coordinate["history.scenarioLength"]
+        for values in product(*(values_by_axis[axis] for axis in axes))
+        if representative_selection.predicate_holds(
+            predicate, coordinate := dict(zip(axes, values, strict=True))
+        )
+    }
+    return possible == {"D+1"}
+
+
+def compare_liveness_undo(
+    input_stack: object, expected: object, actual: object,
+) -> bool:
+    """保証範囲外の undo で結果と履歴要素数だけを比較する。"""
+    if (
+        not isinstance(input_stack, list)
+        or not isinstance(expected, dict)
+        or expected.get("guaranteeMode") != "liveness-only"
+        or expected.get("operationResult") != "applied"
+        or not isinstance(actual, dict)
+        or not isinstance(actual.get("historyContext"), list)
+    ):
+        return False
+    return (
+        actual.get("operationResult") == "applied"
+        and len(actual["historyContext"]) == len(input_stack) - 1
     )
 
 
@@ -106,6 +186,19 @@ def validate_rows(contract: dict[str, Any], descriptor: dict[str, Any]) -> None:
             _fail("RESULT_COLUMN_FACE", label)
         if (row["operationResult"] == "applied") != (pops == 1):
             _fail("HISTORY_UNDO_RESULT", label)
+        liveness = row["guaranteeMode"] == "liveness-only"
+        if liveness and not (
+            _scenario_d_plus_one_only(row["precondition"], descriptor)
+            and row["targetKind"] != "none"
+            and pops == 1
+            and row["operationResult"] == "applied"
+            and all(
+                _all_unchanged(row["stateEffect"][face])
+                for face in ("stateFields", "scoreboard", "statFlags")
+            )
+            and "比較対象外" in row["remarks"]
+        ):
+            _fail("XC-09", label)
         depth_zero = _depth_zero_only(row["precondition"], descriptor)
         if not (
             (row["targetKind"] == "none")

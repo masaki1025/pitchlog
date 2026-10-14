@@ -223,6 +223,19 @@
       }
     ]
   },
+  "x-pitchlog-undo-liveness-comparison": {
+    "sourceDecisionId": "adr:D-8",
+    "constraintId": "XC-09",
+    "mode": "liveness-only",
+    "requiredOperationResult": "applied",
+    "historyLengthDelta": -1,
+    "ignoredOutputPaths": [
+      "stateEffect.stateFields",
+      "stateEffect.scoreboard",
+      "stateEffect.statFlags",
+      "historyContext[*]"
+    ]
+  },
   "x-pitchlog-must-operation-coverage": {
     "sourceDecisionId": "adr:D-6",
     "sourceClauseId": "req:4.0-4",

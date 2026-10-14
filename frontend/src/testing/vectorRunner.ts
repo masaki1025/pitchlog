@@ -17,6 +17,14 @@ export type VectorContract = Readonly<{
   caseSchema: unknown
   normalizationComparison: ComparisonContract
   outputComparison: ComparisonContract
+  livenessComparison?: Readonly<{
+    sourceDecisionId: 'adr:D-8'
+    constraintId: 'XC-09'
+    mode: 'liveness-only'
+    requiredOperationResult: 'applied'
+    historyLengthDelta: -1
+    ignoredOutputPaths: readonly string[]
+  }>
 }>
 
 export type ComparisonContract = Readonly<{

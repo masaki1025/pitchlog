@@ -125,7 +125,7 @@
     {
       "path": "contracts/state-transition/state_transition_contract_v1.json",
       "version": "state_transition_contract_v1",
-      "digest": "sha256:a555ed16bce7690139a5ab561782b777363f3eda81b81ef683e718ca819a0940"
+      "digest": "sha256:2d6935bf9f2e2f24dda2a51b6b4cd3fe9d5b7219f6d93ad1cb86211505b305ab"
     },
     {
       "path": "contracts/state-transition/game_end_contract_v1.json",
@@ -197,7 +197,7 @@
     "versionCheck": "handoffVersion、契約version/schemaVersion、descriptorId/version/digest、依存版とcommit OIDを検査する",
     "bindingConstruction": "各consumerBindingからpytestとVitestのVectorContractを構築し、未確定runner識別子・revisionを実在値へ解決する",
     "allCasesConsumption": "両runnerで対象計算の全caseを消費する。D+1のundo liveness-only caseを含め、拒否・切り捨てがないことを検証する。D+1には出力同値を要求しない",
-    "dPlusOnePrerequisite": "D+1のundo規範行・caseはステップ66のPO裁定で段階2へ送られ、現存しない。段階2で行とcaseを整備してから全case消費を判定する"
+    "dPlusOnePrerequisite": "D+1のundo規範行・caseはTSK-538ステップ30で整備済み。全caseの対象計算消費はU-X1で検証する"
   },
   "receiverTaskId": "TSK-538"
 }

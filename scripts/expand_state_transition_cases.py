@@ -193,6 +193,8 @@ def _expand_from_declared_inputs(
     _, register = _document_by_key(documents, "branches")
     _, selection_policy = _document_by_key(documents, "predicateEvaluation")
     _, row_binding_policy = _document_by_key(documents, "rowBoundAxes")
+    _, history_depth_asset = _document_by_key(documents, "derivation")
+    depth = history_checker.resolve_history_depth(history_depth_asset)
     representative_selection.validate_policy(selection_policy)
 
     binding = contract.get("inputAxesDescriptor")
@@ -540,15 +542,22 @@ def _expand_from_declared_inputs(
     state_fields = set(contract_schema["$defs"]["stateFieldEffects"]["required"])
     scoreboard_fields = set(contract_schema["$defs"]["scoreboardFieldEffects"]["required"])
     flag_fields = set(contract_schema["$defs"]["statFlagEffects"]["required"])
+    confirmed_play_entry: dict[str, Any] | None = None
     for case in cases:
-        history_input = inputs_by_id.get(case["caseId"])
-        if case["caseId"] in inputs_by_id:
+        history_input: dict[str, Any] | None = inputs_by_id.get(case["caseId"])
+        expected = case["expected"]
+        if expected.get("guaranteeMode") == "liveness-only":
+            if confirmed_play_entry is None:
+                raise CaseExpansionError("XC-09: 確定プレイの履歴要素がない")
+            history_input = {
+                "stack": [copy.deepcopy(confirmed_play_entry) for _ in range(depth + 1)]
+            }
+        if case["caseId"] in inputs_by_id or expected.get("guaranteeMode") == "liveness-only":
             if not isinstance(history_input, dict) or not isinstance(
                 history_input.get("stack"), list
             ):
                 raise CaseExpansionError(f"履歴入力がない: {case['caseId']}")
             layer = case["rowRef"]["layer"]
-            expected = case["expected"]
             if layer == "matrixRows":
                 entry = history_checker.push_entry(
                     "confirmed-play", history_input.get("before", {}),
@@ -565,9 +574,24 @@ def _expand_from_declared_inputs(
                         history_input.get("after", {}), history_input.get("statFlags", {}),
                         state_fields, scoreboard_fields, flag_fields,
                     )
-            expected["historyContext"] = history_checker.apply_history(
+            after_stack = history_checker.apply_history(
                 history_input["stack"], effect, entry
             )
+            if (
+                layer == "matrixRows"
+                and not history_input["stack"]
+                and confirmed_play_entry is None
+            ):
+                confirmed_play_entry = copy.deepcopy(after_stack[0])
+            if expected.get("guaranteeMode") == "liveness-only":
+                if (
+                    layer != "undoRows"
+                    or len(after_stack) != len(history_input["stack"]) - 1
+                    or expected.get("operationResult") != "applied"
+                ):
+                    raise CaseExpansionError("XC-09: 保証範囲外undoの履歴件数が不正")
+            else:
+                expected["historyContext"] = after_stack
             case["historyInput"] = copy.deepcopy(history_input)
         normalized = copy.deepcopy(case["inputCoordinate"])
         raw, rule_id = normalizer.raw_for_normalized(normalized)

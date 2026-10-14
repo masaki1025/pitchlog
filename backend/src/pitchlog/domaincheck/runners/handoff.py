@@ -55,7 +55,7 @@ DESCRIPTOR_DIGEST = (
 )
 DEPENDENCY_OID = "b8fd5fe73e85ae80b3aa82b28bef7f2911f29b12"
 DEPENDENCIES = {
-    # 宣言された commit OID の blob から得た SHA-256 を固定する。
+    # 依存元の commit OID は出自として固定し、SHA-256 は現行の実資産を照合する。
     "backend/domain/history-depth.json": (
         "version",
         "sha256:933e41e9a717fe25f52575d7b34ca077904d4592f51173b56832c36963a31e97",
@@ -66,11 +66,11 @@ DEPENDENCIES = {
     ),
     "backend/src/pitchlog/domaincheck/runners/vector_bridge.py": (
         None,
-        "sha256:bc0d20634381c3e650996c45333986fe4277e0480f71129656000420107404f1",
+        "sha256:ba9263cdfb39118e95ec7b9df3ab2656db2ace990206c5bf3967fa0067fbbfff",
     ),
     "frontend/src/testing/vectorRunner.ts": (
         None,
-        "sha256:9141ba7582db2138e9febeaaa12ce7fcaf120dafe078021f5a19ab40bad89479",
+        "sha256:b17eb6c8bc75f1677e038769e2d94b1280ee408fe16a93aa12dcaeb9abef6d06",
     ),
 }
 DEPENDENCY_ORIGINS = {

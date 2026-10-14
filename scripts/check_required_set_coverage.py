@@ -432,6 +432,7 @@ def check_input_coverage(
     cases = contract.get("cases")
     if not isinstance(cases, list) or not cases:
         raise RequiredSetCoverageError("ケース集合が空または不正")
+    _check_liveness_case_depth(root, cases)
     actual = observed_input_coverage(cases, active, contract, display_names)
     declared = _identity_set(record.get("coverageSet"))
     required_ids = {item.identity for item in active}
@@ -479,6 +480,49 @@ def check_input_coverage(
     _check_repository_history(root, record)
     previous = _identity_set(history[-1]["before"]["coverageSet"])
     return len(actual), _digest(actual), len(actual - previous)
+
+
+def _check_liveness_case_depth(root: Path, cases: list[dict[str, Any]]) -> None:
+    """D+1 case の入力が取消可能な確定プレイを D+1 件持つことを検査する。"""
+    if not any(
+        isinstance(case.get("expected"), dict)
+        and case["expected"].get("guaranteeMode") == "liveness-only"
+        for case in cases
+    ):
+        return
+    try:
+        history = json.loads(
+            (root / "backend/domain/history-depth.json").read_text(encoding="utf-8")
+        )
+        depth = expand_state_transition_cases.history_checker.resolve_history_depth(history)
+    except (
+        OSError, UnicodeError, json.JSONDecodeError,
+        expand_state_transition_cases.history_checker.HistoryEffectError,
+    ) as error:
+        raise RequiredSetCoverageError("XC-09: 履歴深さDを解決できない") from error
+    for case in cases:
+        expected = case.get("expected")
+        if not isinstance(expected, dict) or expected.get("guaranteeMode") != "liveness-only":
+            continue
+        coordinate = case.get("inputCoordinate")
+        history_input = case.get("historyInput")
+        stack = history_input.get("stack") if isinstance(history_input, dict) else None
+        row_ref = case.get("rowRef")
+        if (
+            not isinstance(row_ref, dict)
+            or row_ref.get("layer") != "undoRows"
+            or not isinstance(coordinate, dict)
+            or coordinate.get("history.scenarioLength") != "D+1"
+            or not isinstance(stack, list)
+            or len(stack) != depth + 1
+            or any(
+                not isinstance(item, dict) or item.get("kind") != "confirmed-play"
+                for item in stack
+            )
+            or "historyContext" in expected
+            or expected.get("operationResult") != "applied"
+        ):
+            raise RequiredSetCoverageError("XC-09: D+1 case の履歴入力または比較面が不正")
 
 
 def _row_fixed_input_values(predicate: dict[str, Any], axis_id: str) -> set[str]:

@@ -163,7 +163,7 @@
         },
         "dPlusOnePolicy": {
           "const": "liveness-only",
-          "$comment": "保証境界: D+1 のundo liveness-only行には拒否しない・切り捨てないことだけを要求し、出力同値は要求しない。ステップ66のPO裁定でこのundo行は段階2へ送られ、現行の該当行・caseは存在しない。matrixRowsにはD+1入力のcaseがあるが、この方針の実証には数えない。この宣言は行の消費やlivenessの実証ではない。"
+          "$comment": "保証境界: D+1 のundo liveness-only行には拒否しない・切り捨てないことだけを要求し、出力同値は要求しない。TSK-538ステップ30でundo行・caseを置いたが、対象計算による全case消費とlivenessの実証はU-X1で行う。この宣言だけでは消費やlivenessの実証にならない。"
         },
         "executionPaths": {
           "$ref": "#/$defs/executionPaths"

@@ -55,8 +55,8 @@ def _rules_for_schema(schema: dict[str, Any]) -> Any:
 
 
 def test_all_cases_match_declared_normalization_rules() -> None:
-    """状況判定97件と終了判定214件で宣言規則の適用結果が一致する。"""
-    assert checker.check_repository(ROOT) == 311
+    """状況判定98件と終了判定214件で宣言規則の適用結果が一致する。"""
+    assert checker.check_repository(ROOT) == 312
 
 
 def test_game_end_cases_have_triples_and_display_names_are_resolved() -> None:
@@ -152,14 +152,14 @@ def test_noncanonical_raw_fails_when_rule_is_mutated_to_identity(
 
 
 def test_canonical_raw_with_identity_is_accepted() -> None:
-    """正規形rawのidentityケース26件を拒否せず全件通す。"""
+    """正規形rawのidentityケース27件を拒否せず全件通す。"""
     cases, rules = checker.load_inputs(ROOT)
     identity_cases = [
         case for case in cases if case["normalizationRuleId"] == "identity"
     ]
-    assert len(identity_cases) == 26
+    assert len(identity_cases) == 27
     assert all(case["raw"] == case["normalized"] for case in identity_cases)
-    assert checker.check_cases(identity_cases, rules) == 26
+    assert checker.check_cases(identity_cases, rules) == 27
 
 
 def test_new_rule_id_with_existing_transform_is_followed() -> None:

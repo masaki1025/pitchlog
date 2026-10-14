@@ -68,7 +68,7 @@ const CONTRACTS = {
   },
 } as const
 const DEPENDENCIES = {
-  // 宣言された commit OID の blob から得た SHA-256 を固定する。
+  // 依存元の commit OID は出自として固定し、SHA-256 は現行の実資産を照合する。
   'backend/domain/history-depth.json': {
     taskId: 'TSK-235',
     commitOid: DEPENDENCY_OID,
@@ -88,14 +88,14 @@ const DEPENDENCIES = {
     commitOid: 'ee021d87e59f26d3afe4b01c7ea695866797f26f',
     versionKey: null,
     digest:
-      'sha256:bc0d20634381c3e650996c45333986fe4277e0480f71129656000420107404f1',
+      'sha256:ba9263cdfb39118e95ec7b9df3ab2656db2ace990206c5bf3967fa0067fbbfff',
   },
   'frontend/src/testing/vectorRunner.ts': {
     taskId: 'TSK-455',
     commitOid: 'f8df3adabb2fe1c26b437149b0ec59c84c7f3d2e',
     versionKey: null,
     digest:
-      'sha256:9141ba7582db2138e9febeaaa12ce7fcaf120dafe078021f5a19ab40bad89479',
+      'sha256:b17eb6c8bc75f1677e038769e2d94b1280ee408fe16a93aa12dcaeb9abef6d06',
   },
 } as const
 const HANDOFF_KEYS = [

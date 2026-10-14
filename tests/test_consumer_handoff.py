@@ -208,7 +208,7 @@ def _validate_handoff(handoff: dict[str, Any]) -> dict[str, int]:
 def test_repository_handoff_schema_and_all_case_pointers_resolve() -> None:
     """2契約の全caseとcase schemaへの参照が解決できる。"""
     assert _validate_handoff(_handoff()) == {
-        "state-transition": 97,
+        "state-transition": 98,
         "game-end": 214,
     }
 
@@ -235,15 +235,20 @@ def test_invalid_receiver_task_id_fails_schema(task_id: object, message: str) ->
         _validate_handoff(handoff)
 
 
-def test_tsk455_dependencies_pin_current_runner_assets() -> None:
-    """TSK-455の両資産が宣言したcommitのblobと一致する。"""
+def test_tsk455_dependencies_pin_original_runner_assets() -> None:
+    """TSK-455のcommit OIDは初期版を指し、現行版の照合は読み込み層に委ねる。"""
+    original_digests = {
+        "backend/src/pitchlog/domaincheck/runners/vector_bridge.py": (
+            "bc0d20634381c3e650996c45333986fe4277e0480f71129656000420107404f1"
+        ),
+        "frontend/src/testing/vectorRunner.ts": (
+            "9141ba7582db2138e9febeaaa12ce7fcaf120dafe078021f5a19ab40bad89479"
+        ),
+    }
     dependencies = [
         item for item in _handoff()["dependencies"] if item["taskId"] == "TSK-455"
     ]
-    assert {item["artifactPath"] for item in dependencies} == {
-        "backend/src/pitchlog/domaincheck/runners/vector_bridge.py",
-        "frontend/src/testing/vectorRunner.ts",
-    }
+    assert {item["artifactPath"] for item in dependencies} == set(original_digests)
     for dependency in dependencies:
         assert dependency["version"] == 1
         path = dependency["artifactPath"]
@@ -255,7 +260,7 @@ def test_tsk455_dependencies_pin_current_runner_assets() -> None:
             capture_output=True,
             timeout=10,
         ).stdout
-        assert blob == (REPOSITORY_ROOT / path).read_bytes()
+        assert hashlib.sha256(blob).hexdigest() == original_digests[path]
 
 
 def test_game_end_binding_uses_actual_normalization_points() -> None:
