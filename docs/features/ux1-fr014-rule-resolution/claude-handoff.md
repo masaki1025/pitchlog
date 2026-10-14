@@ -59,3 +59,5 @@ data-model正本所有側/TSK-250にもコメント`3f993b75-e687-81a4-b326-001d
 **ステップ2の重複実装統一（2026-10-14）**: TSK-550本体編集担当は`feature/ux1-fr014-rule-resolution`のみを編集する。`8f2d60a4`の`backend/src/pitchlog/db/game_state/rule_snapshot.py`を唯一の採用モジュール、`StructuralRuleSnapshot`→`validate_correlations`→`DomainValidatedRuleSnapshot`→`encode_applied_rules`を唯一の公開検証経路とする。`636b4c2a`の`backend/src/pitchlog/rule_snapshot.py`と`AppliedRulesPayload`は採用せず、本体featureに取り込まない。同別worktreeは変更しない。別案の有用差分である採用済み機械文字列2種の厳密照合、入力値を例外連鎖へ載せない処理、UUID/値域/不変性/直接構築の境界試験だけを本体側へ取り込んだ。両codecを製品上で併存させない。規則行出所と保存成功は未証明のまま。最新develop取り込みとdata-model派生digest追随は`e1d9c9b4`/`61e1e256`で保持。統一後の独立差分確認、ステップ3以降、公開・マージは未実施。
 
 **統一後検証（同日）**: backendの対象試験42件、Ruff format/check、ty、`uv lock --check`、root core-guard242件、docs-status20文書/違反0が通過。非DB全体の最初の試行は共有`/tmp`枯渇で多数失敗し、製品差分の判定に使わない。別担当の一時ファイルを消さず、専用`TMPDIR`で同じ非DB試験を再実行して**1420 passed、4 skipped**。これを統一後の検査結果とする。独立差分確認はまだ未実施。
+
+**統一差分の独立確認（同日）**: 候補作成に関与していないCodex担当が本体HEAD`b0ea2c13`を読み取り専用で確認し、P0/P1/P2の指摘なし。単一モジュール・公開2段階型、旧行拒否、相関の単一経路、出所未証明/保存成功なし、別案からの必要な試験取り込みを確認した。ファイル変更なし。上段の「未実施」は確認前の時点記録であり、本項を現在地とする。ステップ3・公開・マージは未着手。
