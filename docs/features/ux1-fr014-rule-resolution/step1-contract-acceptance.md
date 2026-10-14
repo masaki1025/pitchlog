@@ -62,6 +62,10 @@
 
 ### 受理を求める項目
 
+**公開接続の解決候補**: `resolve_rule_set(transaction, game_type_key, tournament_key, rule_override=None)` のように、テナント ID を任意値として受け取らず、既存 `tenant_transaction_scope` に束縛済みの handle と入力キーだけを渡す。成功値は凍結した `AppliedRuleSnapshot` 相当（規則 UUID と付録 F の5値）とし、JSON 化は U-G1 の `games.applied_rules` 保存時に一度だけ行う。失敗は内部では少なくとも候補なし・越境/無効 scope・無効規則・読取失敗を区別し、段階 A 対象外（大会割当・上書き指定）と再試行可能な DB 競合も明示的に分類する。**名称・literal・公開 exception/result 型と HTTP 外形は未受理**。越境と候補なしを利用者向けに識別可能にしない。競合を隠れた自動再試行や保存成功へ写さない。
+
+現行 `OperationRegistration` は `Select/Insert/Update` と実表の `tenant_column` を必須とし、`_TenantTransaction.run` はその token だけを実行する。既存の cross-tenant 関数登録は `TenantRepositoryBase.execute` 側で、同一作成 scope の公開関数呼出しにはそのまま使えない。したがって制限関数は、**固定の関数 ID・引数・戻り値を検証する tenant-bound function operation** を既存 scope/registry に限定追加する案を優先する。任意 SQL や Session 公開はしない。`repository-contract.json` と認可 capability/ACL/凍結基線の具体差分、7.7 受理、bypass 試験は別の個別ゲートを要する。これは計画ステップ 4 の実装対象であり、ステップ 1 では方式の担当受理までに限定する。
+
 1. U-X1 独立担当 Codex D: 条件付き採用項目の成立条件、親行ロック案と管理書込の全経路、公開関数/入力/結果/4失敗 literal を採否付きで回答。条件付き採用を完了受理と読み替えない。
 2. U-A2・認可面/テナント境界所有者: 管理書込の主体と制限関数/ACL/operation 登録、割当書込とのロック規律について、現行で証明可能な範囲と必要な最小差分を回答。
 3. U-G1/TSK-395: ID+5値の保存、対象外・失敗の HTTP 外形、同一 scope での作成/全取消を消費側として受理。実経路試験は別途実施。
