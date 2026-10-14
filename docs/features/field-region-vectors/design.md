@@ -351,60 +351,62 @@ D-12(`ADR-003:343`)が定めるのは**契約の実体**の置き場であって
 
 ### 5-2. 座標変換ベクタ
 
-**契約**: `contracts/display-geometry/coordinate_transform_contract_v1.json`(**27 ケース** — 画面往復 8 / 正準往復 4 / 量子化 3 / クランプ 2 / 内外角 10)。
+**契約**: `contracts/display-geometry/coordinate_transform_contract_v1.json`(**42 ケース** — screen-roundtrip 16 / canonical-roundtrip 8 / quantization 6 / clamp 4 / inside-outside 8。**右打席 21 / 左打席 21**)。
 
-**確認者は期待値を書いた主体とは別である** —— 期待値は委任先(Codex)が条文から導出し、**委任元(Claude)が付録B-7 と付録B-3 だけを根拠に変換・丸め・クランプ・往復・決定表を自前で書き直して**全件を突合した。**どちらも浮動小数を経由していない**(丸めは剰余で `2r >= |d|`、内外角は `2k` と `263` の整数比較、`c` ちょうどは `Fraction` で厳密比較)。
+**全ケースが `batterSide` を持ち、`expected` が変換後座標と `insideOutside` の双方を持つ** —— `ADR-003` D-6 の契約表と D-8 の比較面が定める形(**PR #137 の敵対レビュー 1 周目 P1 で是正**。当初の 27 件は「座標のみ 17 / 内外角のみ 10」で、両方を持つケースが 0 件だった)。
+
+**確認者は期待値を書いた主体とは別である** —— 期待値は委任先(Codex)が条文から導出し、**委任元(Claude)が付録B-7・付録B-3・付録A-1 だけを根拠に変換・丸め・内外角を自前で書き直して**全件を突合した。**分数は厳密な有理数で扱い、浮動小数を一切経由していない。**
+
+**是正の過程で、同じ入力に 2 つの期待値を持つ矛盾が 1 件見つかった** —— `inside-outside-exact-center-*` と `quantization-half-to-132-units*` が**同一の入力 `{x: 1/2, y: 1/2}`** に対して違う形の期待値を持っていた。付録B-7 の「`0.5` は画面 `132` を経て `132/263` へ写る」に合う後者を残し、前者を削除した。
+
+**入力の重複が 0 組であることを機械で確かめた。**
 
 | caseId | 確認者 | 方法 | 結果 |
 | --- | --- | --- | --- |
-| `screen-roundtrip-origin` | 委任元(Claude) | 条文(付録B-7)から変換と往復を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認 | **一致**(画面 (0, 0)・— → (0, 263) / 戻り (0, 0)) |
-| `screen-roundtrip-max-corner` | 委任元(Claude) | 条文(付録B-7)から変換と往復を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認 | **一致**(画面 (263, 263)・— → (263, 0) / 戻り (263, 263)) |
-| `screen-roundtrip-zone-top-left` | 委任元(Claude) | 条文(付録B-7)から変換と往復を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認 | **一致**(画面 (80, 68)・— → (80, 195) / 戻り (80, 68)) |
-| `screen-roundtrip-zone-top-right` | 委任元(Claude) | 条文(付録B-7)から変換と往復を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認 | **一致**(画面 (183, 68)・— → (183, 195) / 戻り (183, 68)) |
-| `screen-roundtrip-zone-bottom-left` | 委任元(Claude) | 条文(付録B-7)から変換と往復を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認 | **一致**(画面 (80, 180)・— → (80, 83) / 戻り (80, 180)) |
-| `screen-roundtrip-zone-bottom-right` | 委任元(Claude) | 条文(付録B-7)から変換と往復を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認 | **一致**(画面 (183, 180)・— → (183, 83) / 戻り (183, 180)) |
-| `screen-roundtrip-interior-upper` | 委任元(Claude) | 条文(付録B-7)から変換と往復を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認 | **一致**(画面 (123, 100)・— → (123, 163) / 戻り (123, 100)) |
-| `screen-roundtrip-interior-lower` | 委任元(Claude) | 条文(付録B-7)から変換と往復を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認 | **一致**(画面 (130, 140)・— → (130, 123) / 戻り (130, 140)) |
-| `canonical-roundtrip-origin` | 委任元(Claude) | 条文から書き直し、**正準表現の入力について保存 → 画面 → 保存が恒等**であることまで確認 | **一致**(保存(正準) (0, 0)・— → (0, 263) / 戻り (0, 0)) |
-| `canonical-roundtrip-max-corner` | 委任元(Claude) | 条文から書き直し、**正準表現の入力について保存 → 画面 → 保存が恒等**であることまで確認 | **一致**(保存(正準) (263, 263)・— → (263, 0) / 戻り (263, 263)) |
-| `canonical-roundtrip-quantized-half` | 委任元(Claude) | 条文から書き直し、**正準表現の入力について保存 → 画面 → 保存が恒等**であることまで確認 | **一致**(保存(正準) (132, 132)・— → (132, 131) / 戻り (132, 132)) |
-| `canonical-roundtrip-zone-bottom-left` | 委任元(Claude) | 条文から書き直し、**正準表現の入力について保存 → 画面 → 保存が恒等**であることまで確認 | **一致**(保存(正準) (80, 83)・— → (80, 180) / 戻り (80, 83)) |
-| `quantization-half-to-132-units` | 委任元(Claude) | 条文から書き直し、**最近傍の正準表現へ量子化されること**と**冪等であること**まで確認 | **一致**(保存(非正準) (1/2, 1/2)・— → (132, 132)) |
-| `quantization-thirds-one-two` | 委任元(Claude) | 条文から書き直し、**最近傍の正準表現へ量子化されること**と**冪等であること**まで確認 | **一致**(保存(非正準) (1/3, 2/3)・— → (88, 175)) |
-| `quantization-thirds-two-one` | 委任元(Claude) | 条文から書き直し、**最近傍の正準表現へ量子化されること**と**冪等であること**まで確認 | **一致**(保存(非正準) (2/3, 1/3)・— → (175, 88)) |
-| `clamp-negative-x-above-max-y` | 委任元(Claude) | 条文から書き直し、**クランプを変換より先に行う**ことまで確認 | **一致**(画面 (-1, 264)・— → (0, 0)) |
-| `clamp-above-max-x-negative-y` | 委任元(Claude) | 条文から書き直し、**クランプを変換より先に行う**ことまで確認 | **一致**(画面 (264, -1)・— → (263, 263)) |
-| `inside-outside-grid-131-right` | 委任元(Claude) | 条文(付録B-3 の決定表)から書き直し、**`c` をゾーン枠から保存座標系で導いて厳密比較** | **一致**(保存(正準) (131, 131)・右打席 → `inside`) |
-| `inside-outside-grid-132-right` | 委任元(Claude) | 条文(付録B-3 の決定表)から書き直し、**`c` をゾーン枠から保存座標系で導いて厳密比較** | **一致**(保存(正準) (132, 131)・右打席 → `outside`) |
-| `inside-outside-grid-131-left` | 委任元(Claude) | 条文(付録B-3 の決定表)から書き直し、**`c` をゾーン枠から保存座標系で導いて厳密比較** | **一致**(保存(正準) (131, 131)・左打席 → `outside`) |
-| `inside-outside-grid-132-left` | 委任元(Claude) | 条文(付録B-3 の決定表)から書き直し、**`c` をゾーン枠から保存座標系で導いて厳密比較** | **一致**(保存(正準) (132, 131)・左打席 → `inside`) |
-| `inside-outside-exact-center-right` | 委任元(Claude) | 条文(付録B-3 の決定表)から書き直し、**`c` をゾーン枠から保存座標系で導いて厳密比較** | **一致**(保存(非正準) (1/2, 1/2)・右打席 → `outside`) |
-| `inside-outside-exact-center-left` | 委任元(Claude) | 条文(付録B-3 の決定表)から書き直し、**`c` をゾーン枠から保存座標系で導いて厳密比較** | **一致**(保存(非正準) (1/2, 1/2)・左打席 → `outside`) |
-| `inside-outside-end-0-right` | 委任元(Claude) | 条文(付録B-3 の決定表)から書き直し、**`c` をゾーン枠から保存座標系で導いて厳密比較** | **一致**(保存(正準) (0, 131)・右打席 → `inside`) |
-| `inside-outside-end-263-right` | 委任元(Claude) | 条文(付録B-3 の決定表)から書き直し、**`c` をゾーン枠から保存座標系で導いて厳密比較** | **一致**(保存(正準) (263, 131)・右打席 → `outside`) |
-| `inside-outside-end-0-left` | 委任元(Claude) | 条文(付録B-3 の決定表)から書き直し、**`c` をゾーン枠から保存座標系で導いて厳密比較** | **一致**(保存(正準) (0, 131)・左打席 → `outside`) |
-| `inside-outside-end-263-left` | 委任元(Claude) | 条文(付録B-3 の決定表)から書き直し、**`c` をゾーン枠から保存座標系で導いて厳密比較** | **一致**(保存(正準) (263, 131)・左打席 → `inside`) |
+| `screen-roundtrip-origin` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((0, 263) normalized-bottom-left-units-1-263 / 往復 (0, 0) / inside) |
+| `screen-roundtrip-origin-batter-left` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((0, 263) normalized-bottom-left-units-1-263 / 往復 (0, 0) / outside) |
+| `screen-roundtrip-max-corner` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((263, 0) normalized-bottom-left-units-1-263 / 往復 (263, 263) / outside) |
+| `screen-roundtrip-max-corner-batter-left` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((263, 0) normalized-bottom-left-units-1-263 / 往復 (263, 263) / inside) |
+| `screen-roundtrip-zone-top-left` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((80, 195) normalized-bottom-left-units-1-263 / 往復 (80, 68) / inside) |
+| `screen-roundtrip-zone-top-left-batter-left` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((80, 195) normalized-bottom-left-units-1-263 / 往復 (80, 68) / outside) |
+| `screen-roundtrip-zone-top-right` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((183, 195) normalized-bottom-left-units-1-263 / 往復 (183, 68) / outside) |
+| `screen-roundtrip-zone-top-right-batter-left` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((183, 195) normalized-bottom-left-units-1-263 / 往復 (183, 68) / inside) |
+| `screen-roundtrip-zone-bottom-left` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((80, 83) normalized-bottom-left-units-1-263 / 往復 (80, 180) / inside) |
+| `screen-roundtrip-zone-bottom-left-batter-left` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((80, 83) normalized-bottom-left-units-1-263 / 往復 (80, 180) / outside) |
+| `screen-roundtrip-zone-bottom-right` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((183, 83) normalized-bottom-left-units-1-263 / 往復 (183, 180) / outside) |
+| `screen-roundtrip-zone-bottom-right-batter-left` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((183, 83) normalized-bottom-left-units-1-263 / 往復 (183, 180) / inside) |
+| `screen-roundtrip-interior-upper` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((123, 163) normalized-bottom-left-units-1-263 / 往復 (123, 100) / inside) |
+| `screen-roundtrip-interior-upper-batter-left` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((123, 163) normalized-bottom-left-units-1-263 / 往復 (123, 100) / outside) |
+| `screen-roundtrip-interior-lower` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((130, 123) normalized-bottom-left-units-1-263 / 往復 (130, 140) / inside) |
+| `screen-roundtrip-interior-lower-batter-left` | 委任元(Claude) | 条文(付録B-7)から両方向の式を書き直し、**画面 → 保存 → 画面が恒等**であることまで確認。内外角は付録B-3 の決定表から独立に導出 | **一致**((130, 123) normalized-bottom-left-units-1-263 / 往復 (130, 140) / outside) |
+| `canonical-roundtrip-origin` | 委任元(Claude) | 同上。**保存 → 画面 → 保存が恒等**(入力は正準表現に限る)であることまで確認 | **一致**((0, 263) screen-263-top-left / 往復 (0, 0) / inside) |
+| `canonical-roundtrip-origin-batter-left` | 委任元(Claude) | 同上。**保存 → 画面 → 保存が恒等**(入力は正準表現に限る)であることまで確認 | **一致**((0, 263) screen-263-top-left / 往復 (0, 0) / outside) |
+| `canonical-roundtrip-max-corner` | 委任元(Claude) | 同上。**保存 → 画面 → 保存が恒等**(入力は正準表現に限る)であることまで確認 | **一致**((263, 0) screen-263-top-left / 往復 (263, 263) / outside) |
+| `canonical-roundtrip-max-corner-batter-left` | 委任元(Claude) | 同上。**保存 → 画面 → 保存が恒等**(入力は正準表現に限る)であることまで確認 | **一致**((263, 0) screen-263-top-left / 往復 (263, 263) / inside) |
+| `canonical-roundtrip-quantized-half` | 委任元(Claude) | 同上。**保存 → 画面 → 保存が恒等**(入力は正準表現に限る)であることまで確認 | **一致**((132, 131) screen-263-top-left / 往復 (132, 132) / outside) |
+| `canonical-roundtrip-quantized-half-batter-left` | 委任元(Claude) | 同上。**保存 → 画面 → 保存が恒等**(入力は正準表現に限る)であることまで確認 | **一致**((132, 131) screen-263-top-left / 往復 (132, 132) / inside) |
+| `canonical-roundtrip-zone-bottom-left` | 委任元(Claude) | 同上。**保存 → 画面 → 保存が恒等**(入力は正準表現に限る)であることまで確認 | **一致**((80, 180) screen-263-top-left / 往復 (80, 83) / inside) |
+| `canonical-roundtrip-zone-bottom-left-batter-left` | 委任元(Claude) | 同上。**保存 → 画面 → 保存が恒等**(入力は正準表現に限る)であることまで確認 | **一致**((80, 180) screen-263-top-left / 往復 (80, 83) / outside) |
+| `quantization-half-to-132-units` | 委任元(Claude) | 同上。**非正準は往復の対象外**で、**最近傍の正準表現へ量子化**されること(表示座標を経由すること)まで確認 | **一致**((132, 132) normalized-bottom-left-units-1-263 / 表示 (132, 131) / outside) |
+| `quantization-half-to-132-units-batter-left` | 委任元(Claude) | 同上。**非正準は往復の対象外**で、**最近傍の正準表現へ量子化**されること(表示座標を経由すること)まで確認 | **一致**((132, 132) normalized-bottom-left-units-1-263 / 表示 (132, 131) / outside) |
+| `quantization-thirds-one-two` | 委任元(Claude) | 同上。**非正準は往復の対象外**で、**最近傍の正準表現へ量子化**されること(表示座標を経由すること)まで確認 | **一致**((88, 175) normalized-bottom-left-units-1-263 / 表示 (88, 88) / inside) |
+| `quantization-thirds-one-two-batter-left` | 委任元(Claude) | 同上。**非正準は往復の対象外**で、**最近傍の正準表現へ量子化**されること(表示座標を経由すること)まで確認 | **一致**((88, 175) normalized-bottom-left-units-1-263 / 表示 (88, 88) / outside) |
+| `quantization-thirds-two-one` | 委任元(Claude) | 同上。**非正準は往復の対象外**で、**最近傍の正準表現へ量子化**されること(表示座標を経由すること)まで確認 | **一致**((175, 88) normalized-bottom-left-units-1-263 / 表示 (175, 175) / outside) |
+| `quantization-thirds-two-one-batter-left` | 委任元(Claude) | 同上。**非正準は往復の対象外**で、**最近傍の正準表現へ量子化**されること(表示座標を経由すること)まで確認 | **一致**((175, 88) normalized-bottom-left-units-1-263 / 表示 (175, 175) / inside) |
+| `clamp-negative-x-above-max-y` | 委任元(Claude) | 同上。**範囲外を [0, 263] へクランプしてから変換**すること、**クランプしたケースは往復が恒等にならないので持たない**ことまで確認 | **一致**((0, 0) normalized-bottom-left-units-1-263 / inside) |
+| `clamp-negative-x-above-max-y-batter-left` | 委任元(Claude) | 同上。**範囲外を [0, 263] へクランプしてから変換**すること、**クランプしたケースは往復が恒等にならないので持たない**ことまで確認 | **一致**((0, 0) normalized-bottom-left-units-1-263 / outside) |
+| `clamp-above-max-x-negative-y` | 委任元(Claude) | 同上。**範囲外を [0, 263] へクランプしてから変換**すること、**クランプしたケースは往復が恒等にならないので持たない**ことまで確認 | **一致**((263, 263) normalized-bottom-left-units-1-263 / outside) |
+| `clamp-above-max-x-negative-y-batter-left` | 委任元(Claude) | 同上。**範囲外を [0, 263] へクランプしてから変換**すること、**クランプしたケースは往復が恒等にならないので持たない**ことまで確認 | **一致**((263, 263) normalized-bottom-left-units-1-263 / inside) |
+| `inside-outside-grid-131-right` | 委任元(Claude) | 条文(付録B-3 の決定表)から内外角を書き直し、**分かれ目 `c = 1/2` が保存座標系の値**であること・**中心ちょうどは打席左右によらず外角**であることまで確認 | **一致**((131, 132) screen-263-top-left / inside) |
+| `inside-outside-grid-132-right` | 委任元(Claude) | 条文(付録B-3 の決定表)から内外角を書き直し、**分かれ目 `c = 1/2` が保存座標系の値**であること・**中心ちょうどは打席左右によらず外角**であることまで確認 | **一致**((132, 132) screen-263-top-left / outside) |
+| `inside-outside-grid-131-left` | 委任元(Claude) | 条文(付録B-3 の決定表)から内外角を書き直し、**分かれ目 `c = 1/2` が保存座標系の値**であること・**中心ちょうどは打席左右によらず外角**であることまで確認 | **一致**((131, 132) screen-263-top-left / outside) |
+| `inside-outside-grid-132-left` | 委任元(Claude) | 条文(付録B-3 の決定表)から内外角を書き直し、**分かれ目 `c = 1/2` が保存座標系の値**であること・**中心ちょうどは打席左右によらず外角**であることまで確認 | **一致**((132, 132) screen-263-top-left / inside) |
+| `inside-outside-end-0-right` | 委任元(Claude) | 条文(付録B-3 の決定表)から内外角を書き直し、**分かれ目 `c = 1/2` が保存座標系の値**であること・**中心ちょうどは打席左右によらず外角**であることまで確認 | **一致**((0, 132) screen-263-top-left / inside) |
+| `inside-outside-end-263-right` | 委任元(Claude) | 条文(付録B-3 の決定表)から内外角を書き直し、**分かれ目 `c = 1/2` が保存座標系の値**であること・**中心ちょうどは打席左右によらず外角**であることまで確認 | **一致**((263, 132) screen-263-top-left / outside) |
+| `inside-outside-end-0-left` | 委任元(Claude) | 条文(付録B-3 の決定表)から内外角を書き直し、**分かれ目 `c = 1/2` が保存座標系の値**であること・**中心ちょうどは打席左右によらず外角**であることまで確認 | **一致**((0, 132) screen-263-top-left / outside) |
+| `inside-outside-end-263-left` | 委任元(Claude) | 条文(付録B-3 の決定表)から内外角を書き直し、**分かれ目 `c = 1/2` が保存座標系の値**であること・**中心ちょうどは打席左右によらず外角**であることまで確認 | **一致**((263, 132) screen-263-top-left / inside) |
 
-**27 件すべて一致・不一致 0。**
-
-#### `c` ちょうどの点は正準表現の格子上に存在しない
-
-ゾーン枠は画面座標で `left = 80`・`right = 183` なので、**`c = (80 + 183) / 2 / 263 = 1/2`**。正準表現 `k/263` で `1/2` を表すには `k = 131.5` が要り、**整数ではない**。
-
-したがって「**中心ちょうどは打席左右によらず外角**」(付録B-3)は、**正準表現の入力だけでは到達できない**。ケースを 2 つに分けた:
-
-| 何を示すか | 座標系 | 入力 |
-| --- | --- | --- |
-| **境界が効いていること** | 正準表現 | `k = 131`(`2k = 262 < 263`)と `k = 132`(`2k = 264 > 263`)× 打席左右 |
-| **中心ちょうどの帰属** | 非正準(有理数) | `1/2` × 打席左右 |
-
-**付録B-3 の入力は保存座標の `x` であって、付録B-7 の正準表現に限られない**(移行由来の値も内外角の導出の入力になり得る)ので、非正準の `1/2` を入力に置くのは条文と整合する。
-
-#### ベクタで検査できないこと(申し送り)
-
-**「量子化は保存値を書き換えない」は、計算結果のベクタでは検査できない。**ベクタが固定できるのは**写像の出力**であって、**副作用が無いこと**ではない。
-
-本契約は量子化の**結果**(`1/2` → `132/263`)と**冪等性**を固定しているが、**保存列が書き換わらないこと**は製品側の検査が担う。**ステップ 7(CI 配線)の射程外**であり、**実装単位(U-F2 系の入力画面)の DoD へ送る申し送り**とする。
+**42 件すべて一致・不一致 0。**
 
 ### 5-3. 打球方向導出ベクタ
 

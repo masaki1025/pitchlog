@@ -21,6 +21,10 @@
     },
     "calculation": {"type": "string", "minLength": 1},
     "independentVerifierId": {"type": "string", "minLength": 1},
+    "batterSideCoverageRule": {
+      "description": "座標変換ベクタでは、各入力座標を右打席・左打席の両方で固定する。",
+      "const": "all-input-coordinates-both-batter-sides"
+    },
     "cases": {
       "type": "array",
       "minItems": 1,
@@ -85,6 +89,16 @@
         "y": {"type": "integer", "minimum": 0, "maximum": 263}
       }
     },
+    "pointScreen263": {
+      "description": "表示へ写す途中の画面座標。原点左上・y 下向きの 263 系整数 0〜263。",
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": {"type": "integer", "minimum": 0, "maximum": 263},
+        "y": {"type": "integer", "minimum": 0, "maximum": 263}
+      }
+    },
     "coordinateSystem": {
       "description": "screen-263-top-left は画面の 263 系・左上原点、normalized-bottom-left は通常の 0〜1 保存座標・左下原点、normalized-bottom-left-units-1-263 は単位 1/263 の固定小数点整数 0〜263 による保存座標・左下原点。",
       "enum": ["screen-263-top-left", "normalized-bottom-left", "normalized-bottom-left-units-1-263"]
@@ -112,7 +126,7 @@
           }
         },
         "expected": {
-          "description": "捕球選手推定の出力は position、座標変換の出力は coordinate と coordinateSystem、内外角の導出結果は insideOutside。往復確認には roundTripCoordinate を使う。",
+          "description": "捕球選手推定の出力は position、座標変換の出力は coordinate と coordinateSystem と insideOutside。往復確認には roundTripCoordinate、非正準保存座標の量子化で経由する画面座標には intermediateScreenCoordinate を使う。",
           "type": "object",
           "additionalProperties": false,
           "if": {
@@ -135,7 +149,8 @@
             "coordinate": {"$ref": "#/$defs/point"},
             "coordinateSystem": {"$ref": "#/$defs/coordinateSystem"},
             "insideOutside": {"enum": ["inside", "outside"]},
-            "roundTripCoordinate": {"$ref": "#/$defs/point"}
+            "roundTripCoordinate": {"$ref": "#/$defs/point"},
+            "intermediateScreenCoordinate": {"$ref": "#/$defs/pointScreen263"}
           }
         }
       }
@@ -162,6 +177,7 @@
       "properties": {
         "path": {"type": "string", "minLength": 1},
         "line": {"type": "integer", "minimum": 1},
+        "clause": {"type": "string", "minLength": 1},
         "blobSha": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"}
       }
     }
