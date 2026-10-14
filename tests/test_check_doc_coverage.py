@@ -176,7 +176,7 @@ def test_extractor_matches_all_oracle_categories() -> None:
         "requirements": 65,
         "sections": 28,
         "blocks": 8,
-        # 要件書 v2.12 で付録B-7 を新設したため、付録項目は 23 件から 24 件へ増えた。
+        # 要件書 v2.13 で付録B-7 を新設したため、付録項目は 23 件から 24 件へ増えた。
         "appendix_items": 24,
         "identified_table_rows": 16,
         "keyed_table_rows": 40,
@@ -210,7 +210,7 @@ def test_valid_assignment_table_covers_universe_once() -> None:
         # 完走条件として「境界として参照」から「同期側で決める」へ移した。
         # ステップ41で6.1のP3受理結果保持を母集合と同期側の帰属へ1件追加した。
         "境界として参照": 83,
-        # 要件書 v2.12 の付録B-7 を帰属表へ「対象外」として追加したため 92 件から 93 件へ増えた。
+        # 要件書 v2.13 の付録B-7 を帰属表へ「対象外」として追加したため 92 件から 93 件へ増えた。
         "対象外": 93,
     }
 
