@@ -7,7 +7,7 @@ worktree: ../../..
 notion: https://app.notion.com/p/3f493b75e68781628422c331bfebc350
 branch: feature/uf13-team-route-acceptance
 created: 2026-10-14
-計画レビュー周回: 2
+計画レビュー周回: 4
 確定ゲート周回: 0
 実行方式: 通常
 反映周コミット: 適用
@@ -30,11 +30,11 @@ created: 2026-10-14
 
 **製品実装の開始条件**:
 
-1. adversarial review 2 周の採否記録と最終 C2 反映差分を人間が確認し、本計画を承認する。
+1. adversarial review 2 周の採否記録と最終 C2 反映差分を人間が確認し、本計画を承認する。**2026-10-14 承認済み**。
 2. PR #119 が develop へ統合される。
 3. C1（認証成功から検証済み tenant ID を供給）が承認済み契約として develop に着地する。
 4. C2（応答 tenant の独立証跡と U-F6 client の exact match）が承認済み契約として develop に着地する。
-5. C3（U-F3 の正規 auth client、`LoginScreen`、login → auth store 接続）が develop に着地する。`/login` の route 登録自体は本計画のステップ 3 が `/team` と同時に行う。
+5. C3（U-F3の`LoginScreen`、失敗表示、C1 auth clientへの接続）がdevelopに着地する。`api/auth.ts`はC1、`/login`と`/team`のroute登録は本計画ステップ2/3が所有する。
 
 上の条件が欠けた状態で仮 tenant、手入力 localStorage、仮 response header、空の login 画面、guard の迂回を使って公開しない。
 
@@ -44,7 +44,7 @@ created: 2026-10-14
 
 - `.claude/core-areas.json`、`scripts/core_guard.py`、`tests/test_core_guard.py`
   - `frontend/src/router*` と `frontend/src/App*` を tenant-isolation へ登録する。
-  - 既存の回転式追加層に宣言し、別コミットで JSON へ登録する。登録前、宣言のみ、登録後、各パターンを外した負例、未記入の人間逐行確認での拒否を検証する。
+  - 既存の回転式追加層へ先に宣言し、次の製品変更コミットでJSON登録とrouter/Appを同時に着地させる。登録前、宣言のみ、登録後、各パターンを外した負例、未記入の人間逐行確認での拒否を検証する。
 - `frontend/src/router.ts`
   - 公開 `/login` に統合済み U-F3 `LoginScreen` を登録する。
   - `/team` を `meta.requiresAuth` の保護 route として登録する。
@@ -65,7 +65,7 @@ created: 2026-10-14
 ### 3.2 スコープ外
 
 - 15 経路 + catch-all の一括登録。
-- U-F3 の画面・auth client 実装。U-F3 の `LoginScreen` と login → auth store 接続は別所有の先行依存とし、本縦断は route 登録だけを持つ。統合されない場合は本計画を開始せず、範囲を変える新しい計画レビューと人間承認へ戻る。
+- U-F3 の画面実装とC1のauth client実装。U-F3 の `LoginScreen` と login → auth store 接続は別所有の先行依存とし、本縦断は route 登録だけを持つ。統合されない場合は本計画を開始せず、範囲を変える新しい計画レビューと人間承認へ戻る。
 - 新しい認証、tenant、roster API / DTO の独自定義。C1 / C2 はそれぞれの所有担当が着地させた契約を使う。
 - 在籍変更、一括変更、論理削除、試合中登録、試合作成、前回スタメン、移行。
 - 新しい browser/E2E harness。
@@ -83,7 +83,7 @@ created: 2026-10-14
 | T テナント分離 | **該当** | 認証入口、tenant 確定、応答 tenant 照合、越境拒否、認証切替時の破棄を変更・検証する |
 | D データ移行 | **該当（U-F5 既存画面の意味範囲）** | `TeamScreen*` と `TeamMembersContent*` は既存の U-F5 登録で T / D に属する。今回の route / App 自体は T のみ |
 
-`frontend/src/router.ts` と `App.vue` は T の意味範囲だが、現行 `.claude/core-areas.json` の path に一致しない。`frontend/src/router*` と `frontend/src/App*` の登録を必須とし、既存回転式追加層への宣言と JSON 登録をステップ 1/4、2/4 の別コミットで行う。登録差分を adversarial review と人間逐行確認に含める。検出を迂回しない。
+`frontend/src/router.ts` と `App.vue` は T の意味範囲だが、現行 `.claude/core-areas.json` の path に一致しない。`frontend/src/router*` と `frontend/src/App*` の登録を必須とする。既存回転式追加層への宣言はステップ1/3、JSON登録はrouter/App製品変更と同じステップ2/3で行い、core path登録だけを先行させない。登録差分をadversarial reviewと人間逐行確認に含め、検出を迂回しない。
 
 ### 4.2 正本影響
 
@@ -95,26 +95,25 @@ created: 2026-10-14
 
 | # | ステップ（何を作るか） | 合格条件（このステップの検証方法） |
 | --- | --- | --- |
-| 1 | core path の追加層を宣言する。`scripts/core_guard.py` と `tests/test_core_guard.py` に `frontend/src/router*`、`frontend/src/App*` の tenant-isolation 登録予定を固定する | JSON 未変更の宣言のみ状態と、合成した登録後状態が受理される。未宣言追加、部分追加、順序変更、各パターン欠落、未記入の人間逐行確認を拒否する。既存 U-F8 / U-F5 の登録を維持する。guard の pytest / ruff / ty が green |
-| 2 | `.claude/core-areas.json` の tenant-isolation に宣言済み 2 パターンだけを登録する | step 1 とは別コミット。最新 develop 基線に対する `core_guard.py`、`test_core_guard.py`、baseline 検査が green。router / App と spec の変更がコア領域として検出され、人間逐行確認未記入なら拒否される |
-| 3 | 公開 `/login` と保護 `/team` の route、global auth guard、`RouterView` の `authEpoch` key を接続する。既存の共有 Pinia / QueryClient、統合済み U-F3 `LoginScreen`、TeamScreen を登録する | hydration 完了前に保護画面を描画しない。未認証または tenant 未確定では `/login?redirect=/team`、認証済みかつ検証済み tenant ID ありでは TeamScreen を描画する。`/help` は未認証で維持。A→B で component が再生成され旧状態が消える。API は条件成立前に 0 件。Vitest、型検査、lint、format、build が green |
-| 4 | C2 の正規 U-F6 client 契約を TeamScreen の一覧・mutation と接合し、実 API browser 受入と越境受入を実施する | 実ログイン → `/team` → paging → 登録・編集 → query refetch → reload が成功。2xx は tenant 一致済み証跡を確認してから表示/cacheを更新する。不一致・欠落、遅延応答、遅延 mutation は旧本文・success notice・cache を更新せず自動再送しない。選手と対戦相手の越境拒否を不存在応答と比較する。品質 gate と受入証跡が揃う |
+| 1 | core pathの追加層を宣言する。`scripts/core_guard.py`と`tests/test_core_guard.py`に`frontend/src/router*`、`frontend/src/App*`のtenant-isolation登録予定を固定する | JSON未変更の宣言のみ状態と、合成した「登録+製品変更」状態が受理される。未宣言追加、部分追加、順序変更、各パターン欠落、未記入の人間逐行確認を拒否する。既存U-F8/U-F5登録を維持する。guardのpytest/ruff/tyがgreen |
+| 2 | `.claude/core-areas.json`へ宣言済み2パターンを登録する同じコミットで、公開`/login`、保護`/team`、global auth guard、`RouterView`の`authEpoch` keyを実装する | step1とは別コミット。保存済み`bb.auth`だけでは通過せず、C1のsession検証2xxまで保護画面/APIを開始しない。未認証またはtenant未確定は`/login?redirect=/team`。認証済みはTeamScreen。`/help`公開維持。A→Bで再生成。router/Appとspecがコア検出され、逐行確認未記入なら拒否。frontendとguard gate green |
+| 3 | C2の正規U-F6 client契約をTeamScreenの一覧・mutationと接合し、実API browser受入と越境受入を実施する | 実login→`/team`→paging→登録・編集→query refetch→reload成功。reloadはsession再確認完了まで画面/API 0件。2xxはtenant照合済み証跡後だけ更新。不一致・欠落、遅延応答/mutationは旧本文・notice・cacheを更新せず自動再送しない。越境拒否を不存在応答と比較。品質gateと受入証跡が揃う |
 
-コミット件名には `(ステップ 1/4)` から `(ステップ 4/4)` を各 1 個だけ含める。人間が承認したステップだけを実装して止まる。
+コミット件名には`(ステップ 1/3)`から`(ステップ 3/3)`を各1個だけ含める。人間が再承認したステップだけを実装して止まる。
 
 ### 5.1 C2 の応答処理順
 
 C2 の具体形式は契約担当の承認物を使う。計画上は照合を二段に分ける。
 
 1. **server の ID 照合**: U-F6 client は認証成功で得た `teamId` を `expectedTenantId` として共通 request metadata に渡す。server の共通境界 `require_expected_tenant(context, expectedTenantId)`（名称は契約で確定）が、これを `TenantContext.tenant_id` と exact match する。不一致・欠落なら業務 operation の前に固定 404 で拒否し、2xx を返さない。
-2. **client の証跡検証**: server は上の比較を通った 2xx にだけ、契約で固定した `tenantMatchAck` の exact literal を response metadata へ付ける。client は認証世代と `teamId` が要求開始時から不変であること、および ack が exact literal であることを本文返却前に検証する。ack は tenant ID ではなく「server で expected ID と Context を比較済み」の証跡である。
+2. **client の証跡検証**: serverは比較を通った2xxにだけ固定ackと要求ごとのchallenge exact echoを付ける。clientは認証世代と`teamId`の不変性、ack literal、challenge exact matchを本文返却前に検証する。ackはtenant IDではなくserver比較済みの証跡、challengeは応答を今回の要求へ結び付ける値である。
 
 これにより U-M1 の「roster DTO に `tenant_id` を出さない」契約を維持する。request / response header 名、ack literal、適用 route は C2 の承認契約で固定する。
 
 | 応答 | client の処理 |
 | --- | --- |
-| 2xx + 認証世代・teamId 不変 + ack exact match | 本文を返し、画面 / cache / success notice の更新を許す |
-| 2xx + ack 欠落 / 不正、または要求後の認証世代・teamId 変更 | 本文を画面 / cache へ渡さない。mutation は結果未確認、一覧は破棄。mutation は自動再送せず、query の retry predicate もこの境界エラーを再送対象から外す |
+| 2xx + 認証世代・teamId不変 + ack/challenge exact match | 本文を返し、画面/cache/success notice更新を許す |
+| 2xx + ack/challenge欠落・不正・別要求値、または要求後の認証世代・teamId変更 | 本文を画面/cacheへ渡さない。mutationは結果未確認、一覧は破棄。自動再送せず、query retryからも除外する |
 | expected tenant の欠落 / server Context との不一致 | server が operation 前に固定 404。client は成功扱いせず本文・cache・notice を更新しない |
 | 401 | tenant 証跡を要求せず、現行どおり `expireSession()`。本文を画面へ出さない。古い認証世代の 401 は現行 `ApiStaleAuthError` で新 session を失効させない |
 | 404 | tenant 所有本文として扱わず固定エラーのみ。cache / success notice を更新しない。越境と不存在の status・本文同一性を確認する |
@@ -126,9 +125,9 @@ C2 が専用例外を追加する場合、既存 `TeamMembersContent` の結果�
 ## 6. DoD
 
 - [ ] 未認証で `/team` へ直接到達すると、hydration 後に実在する `/login?redirect=/team` へ遷移し、TeamScreen と roster API を開始しない。
-- [ ] `POST /auth/login` と `GET /auth/session` の両方が成功したときだけ、server が検証した tenant ID と、成功したログイン入力の表示用 team name が auth store へ入り、`/team` へ戻れる。team name を認可・tenant 照合に使わない。
+- [ ] `POST /auth/login` と C1 の session 確認の両方が成功したときだけ、server が検証した tenant ID と表示用 team name が auth store へ入り、`/team` へ戻れる。具体 DTO は C1 追補のレビューと人間承認で正式化し、team name を認可・tenant 照合に使わない。
 - [ ] 認証後の実 API で team / player 一覧を paging し、対戦相手と選手を登録・通常編集し、query refetch と browser reload 後に結果を確認できる。
-- [ ] server が要求開始時の検証済み expected tenant ID と `TenantContext.tenant_id` を exact match し、不一致・欠落を operation 前の固定 404 で拒否する。client は一致済み ack の exact literal、認証世代、teamId の不変性を検証し、ack 欠落・不正の 2xx を fail closed で破棄する。
+- [ ] serverがexpected tenant IDと`TenantContext.tenant_id`をexact matchし、不一致・欠落をoperation前の固定404で拒否する。clientは固定ack、要求ごとのchallenge echo、認証世代、teamIdを検証し、欠落・不正・別要求値の2xxをfail closedで破棄する。
 - [ ] A→B 認証切替で旧一覧、選択、form、notice、query cache、遅延 response / mutation の結果を B へ持ち越さない。
 - [ ] B の session で A の player ID を GET / PATCH、A の opponent team-record ID を PATCH、A の team-record ID を player create に指定した各経路が 404 となる。各応答は同種のランダムな不存在 ID の status・本文と一致し、A の存在・内容を表示・ログ出力しない。B の一覧には A の行が混ざらない。
 - [ ] `/help` の公開経路と共有 provider の instance 同一性を維持する。
@@ -144,22 +143,22 @@ C2 が専用例外を追加する場合、既存 `TeamMembersContent` の結果�
 
 ## 8. 計画承認で必要な判断
 
-1. **C1（検証済み tenant 情報）の形と所有**: PR #119 の `LoginResponse={status}` と所有範囲は変更しない。#119 統合後の追補 PR で `GET /auth/session -> {tenant_id: UUID}` を追加し、既存 `require_tenant_access` が Cookie から発行した `TenantContext.tenant_id` だけを返す。client が tenant ID を入力する経路は作らない。U-F3 は `POST /auth/login` 成功後にこの endpoint を 1 回呼び、両方が成功した場合だけ `auth.signIn({teamId, teamName})` を呼ぶ。`teamName` は成功したログイン入力の表示値としてのみ使い、認可・tenant 照合には使わない。session 確認失敗をログイン成功と表示せず、資格情報を自動再送しない。担当候補は本セッション（Codex D）の新規追補単位、#119 担当は契約整合のレビューだけとする。#119 の branch / worktree は変更しない。
-2. **C2（応答 tenant 照合）の形と所有**: request metadata を `X-Pitchlog-Expected-Tenant: <canonical UUID>`、比較通過 2xx の response metadata を `X-Pitchlog-Tenant-Match: 1` とする案を承認対象にする。server の `require_expected_tenant` は `require_tenant_access` が発行した `TenantContext.tenant_id` と header の UUID を業務 operation 前に exact match し、欠落・不正・不一致を固定 404 にする。U-F6 client は tenant-bound request だけに header を付け、2xx の ack exact match、要求開始時からの `authEpoch`・`teamId` 不変性を本文返却前に検査する。対象は U-F5 が使う `GET/POST /team-records`、`PATCH /team-records/{id}`、`GET/POST /players`、`GET/PATCH /players/{id}`。login、session、health には適用しない。U-M1 DTO に tenant ID を追加しない。担当候補は本セッションの U-F6 / backend 追補単位、#119 と U-M1 の担当は既存契約との整合レビューだけとする。header 名・literal・対象経路は追補計画のコアレビューと人間承認で正式化する。
-3. **C3（`/login` と `LoginScreen`）の形と所有**: U-F3 の open PR、worktree、正式カードの担当記録は見つからず、現状は担当不在と扱う。#119 統合後、本セッションが別の U-F3 先行分割で `frontend/src/api/auth.ts`、`LoginScreen.vue` と Vitest を実装する。画面はチーム名・パスワード、固定の失敗表示、送信中の二重送信防止、C1 成功後の store 更新だけを持つ。token / Cookie を JavaScript へ露出せず、仮 tenant、localStorage 手入力、空画面を使わない。router の所有競合を避けるため U-F3 PR は経路未登録とし、本計画のステップ 3/4 が公開 `/login` と保護 `/team` を同時に登録する。U-F3 の正式カードを取得できた場合は担当・固有 DoD と差分を再照合する。
-4. **core paths とレビュー**: `frontend/src/router*` と `frontend/src/App*` を tenant-isolation へ、ステップ 1/4 と 2/4 の別コミットで登録する。登録差分、router / App、C1 / C2 の追補はコア領域として反対側レビュー、adversarial review、人間逐行確認の対象にする。未実施の人間確認を代記しない。
-5. **開始順と停止点**: core path 登録だけの先行は行わない。契約調整と追補計画レビューは外部統合前に進められるが、製品コードの順序は (a) PR #119 統合、(b) C1 と C2 の追補統合、(c) U-F3 先行分割統合、(d) 最新 develop を本 branch へ取り込み、(e) 本計画ステップ 1/4、の順とする。各追補と本計画はそれぞれ人間が承認した最初のステップだけを実装して止まり、本計画の後続ステップへ自動で進まない。
+1. **C1（検証済み tenant 情報）の形と所有**: PR #119 の `LoginResponse={status}` と所有範囲は変更しない。#119 統合後の追補で session 確認を追加し、Cookie から検証した tenant 情報だけを返す。client が tenant ID を入力する経路は作らない。session 確認失敗を一律にサーバー未認証とせず、資格情報を自動再送しない。担当は Codex D。具体 endpoint / DTO / 認可 / 凍結資産は [C1追補計画](../auth-session-verification-contract/plan.md) のレビューと人間承認で正式化する。#119 の branch / worktreeは変更しない。
+2. **C2（応答 tenant 照合）の形と所有**: request metadata と比較通過2xxのackを用い、serverで`TenantContext.tenant_id`と業務operation前にexact matchし、clientで本文前にack・`authEpoch`・`teamId`を検査する。U-M1 DTOにtenant IDを追加しない。担当はCodex D。header名・literal・固定error・対象routeは [C2追補計画](../tenant-match-metadata-contract/plan.md) のレビューと人間承認で正式化する。
+3. **C3（`/login` と `LoginScreen`）の形と所有**: 正式カードは [TSK-518](https://app.notion.com/p/3f493b75e687814ca3c7fead50df2a14)。会話上の担当はCodex D。U-F3先行分割でC1の正規auth clientを利用する`LoginScreen.vue`とVitestを実装し、U-F13が公開`/login`と保護`/team`のroute/redirectを所有する。具体状態遷移と正式DoDは [U-F3計画](../uf3-login-screen/plan.md) のレビューと人間承認で確定する。
+4. **core paths とレビュー**: `frontend/src/router*`と`frontend/src/App*`をtenant-isolationへ登録する。ステップ1/3で追加層を宣言し、ステップ2/3でJSON登録とrouter/App製品変更を同時に着地させる。登録差分、router/App、C1/C2追補は反対側レビュー、adversarial review、人間逐行確認の対象にする。
+5. **開始順と停止点**: core path登録だけの先行は行わない。契約調整と追補計画レビューは外部統合前に進めるが、製品コードの順序は(a) PR #119統合、(b) C1とC2追補統合、(c) U-F3先行分割統合、(d) 最新develop取込、(e) 本計画ステップ1/3の順とする。各追補と本計画は人間が承認した最初のステップだけを実装して止まる。
 
-これら 5 項目の判断と計画承認が得られるまでは製品コードを変更しない。
+これら5項目と、外部依存成立後に当時のステップ1/4だけへ進む方針は2026-10-14に山田正輝が承認した。その後のadversarial review P0により、core pathだけの先行登録を除く3ステップへ再編したため、総数と開始ステップは再承認対象とする。C1・C2・C3も別承認単位である。
 
 ### 8.1 C1・C2・C3 の成果物、担当、状態、統合条件
 
 | 契約 | 具体的な成果物 | 担当 | 2026-10-14 時点 | 統合条件 |
 | --- | --- | --- | --- | --- |
 | 前提 PR #119 | `POST /auth/login`、`POST /auth/logout`、`PATCH /auth/password`、HttpOnly Cookie | 既存 #119 担当（別 worktree） | open / behind。`core-guard`・`harness` が失敗し、人間逐行確認待ち | #119 所有者による CI 解消、逐行確認、レビュー、マージ。Codex D は変更しない |
-| C1 | `GET /auth/session`、`AuthenticatedTenant{tenant_id}`、backend test、U-F3 の login→session→`signIn` 接続 | **担当候補: Codex D の新規追補**。#119 担当は契約整合レビュー | 未着手、計画未作成、PR なし | #119 統合後の develop 起点。追補計画承認、tenant-isolation のレビュー、backend / frontend 品質 gate、人間逐行確認 |
-| C2 | expected-tenant header、server exact match、2xx ack、U-F6 client の fail-closed 検証、server / client fault injection | **担当候補: Codex D の新規追補**。U-M1 / #119 担当は整合レビュー | 要求は U-F2 / U-F6 計画に存在。具体 metadata と製品コードは未着手 | #119 が変更する `tenant_access.py` との競合を避けて #119 統合後に実装。追補計画承認、コアレビュー、人間逐行確認、越境試験、CI green |
-| C3 | `frontend/src/api/auth.ts`、`LoginScreen.vue`、spec。route 登録は U-F13 ステップ 3 | **担当候補: Codex D の U-F3 先行分割** | open PR / worktree / 担当記録なし。正式カード未確認 | #119 と C1 の統合後。U-F3 計画・正式 DoD の承認、frontend gate、コアレビュー、人間逐行確認 |
+| C1 | session endpoint / DTO、backend test、U-F2の検証待ち境界 | **Codex D**。#119担当は契約整合レビュー | [追補計画](../auth-session-verification-contract/plan.md)レビュー済み、未承認、製品未着手 | #119統合後のdevelop起点。追補計画承認、tenant-isolationレビュー、品質gate、人間逐行確認 |
+| C2 | expected-tenant metadata、request challenge、server exact match、2xx ack/echo、U-F6 client検証 | **Codex D**。U-M1 / #119担当は整合レビュー | [追補計画](../tenant-match-metadata-contract/plan.md)レビュー済み、未承認、製品未着手 | #119とC1統合後。追補計画承認、コアレビュー、人間逐行確認、越境試験、CI green |
+| C3 | `LoginScreen.vue`とspec。auth clientはC1、route登録はU-F13ステップ2/3 | **Codex D** | 正式カードTSK-518を照合し、[U-F3計画](../uf3-login-screen/plan.md)作成済み。未承認 | #119とC1統合後。U-F3計画承認、frontend gate、コアレビュー、人間逐行確認 |
 
 ### 8.2 外部統合前に進められるものと製品実装条件
 
@@ -168,7 +167,7 @@ C2 が専用例外を追加する場合、既存 `TeamMembersContent` の結果�
 | C1 endpoint / DTO / 失敗境界の追補計画、#119 差分との競合表、backend test matrix のレビュー | #119 のファイル変更、仮 session endpoint の実装、LoginScreen から未統合 API を正式経路として利用 |
 | C2 header / ack / 固定 404 / 適用経路 / retry 禁止の契約レビュー、core path と逐行確認対象の確定 | `tenant_access.py`、U-F6 client、roster route の変更、tenant 所有データの公開 |
 | U-F3 の正式カード・担当確認、LoginScreen の入力・失敗・redirect 契約と試験計画 | LoginScreen、`/login`、`/team` の製品コード、仮 tenant / 仮認証による受入 |
-| U-F13 の 5 判断と C1〜C3 の統合順の人間承認 | core path 登録、本計画ステップ 1〜4 |
+| U-F13の5判断とC1〜C3の統合順の人間承認 | core path登録、本計画ステップ1〜3 |
 
 ## 9. 計画レビュー結果と最終反映差分
 
@@ -177,3 +176,8 @@ C2 が専用例外を追加する場合、既存 `TeamMembersContent` の結果�
 - 基本枠 2 周を使い切り、2 周目に P0 がないため自動 3 周目は実施していない。
 - **2 周目後の最終差分**: C2 の照合主体を server に一本化、ack と tenant ID の直接比較を削除、2xx / 401 / 404 / 422 / network の処理表、query retry 除外、4 越境経路と不存在応答比較を DoD・試験・申し送りへ反映した。
 - **今回の承認前明確化差分**: #119 へ C1 を同梱する案を取り下げ、#119 統合後の `GET /auth/session` 追補へ分離した。C2 metadata の候補名と対象経路、U-F3 担当不在、本セッションによる C1 / C2 / U-F3 の別 PR 候補、`/login` route は U-F13 が所有する境界を追加した。この明確化差分は追加の自動レビューを行わず、5 判断とともに人間承認の対象にする。
+- **人間承認（2026-10-14）**: 山田正輝が5判断、外部依存成立後にステップ1/4だけへ進む方針、C1・C2・C3のCodex D担当を承認した。
+- **承認後の追補差分**: C1・C2・U-F3を別計画へ分離し、U-F3正式カードTSK-518と固有DoDを照合した。C1のsession失敗3分類、C2のmetadata/error/ack、C3の状態遷移と経路所有を具体化した。最終P1反映とこれら後追加契約案は未再レビューであり、各追補のレビュー・人間承認を製品実装の開始条件として維持する。
+- **3周目（追補4計画横断）**: P0 2、P1 6、P2 0。全件採用。U-F13対象のP0はcore JSON登録だけの先行ステップ。JSON登録をrouter/App製品変更と同じステップへ移し、4ステップから3ステップへ再編した。もう1件のP0である起動時session未検証もステップ2/3のguard/API待機へ反映した。総ステップ数変更は人間再承認対象とする。
+- **4周目（3周目反映差分）**: P0 2、P1 2、P2 0。全件採用。C2に要求ごとのchallengeを追加し、C1の実`/team` reload受入を本計画ステップ2/3へ移した。route stepとauth client所有の残存参照、researchの表示名出所を同期した。P0反映は規約どおりP0限定の追加周へ掛け、P1反映は未再レビューとして人間確認へ出す。
+- **P0限定追加周**: 第2周P0反映だけを対象にP0 0で可決。C2 challengeとC1/U-F13試験分担が実行可能と確認された。第2周P1の参照同期は対象外で、未再レビューの残余として人間確認へ出す。

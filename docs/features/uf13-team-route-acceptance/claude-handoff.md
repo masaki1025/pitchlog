@@ -7,8 +7,8 @@
 - branch: `feature/uf13-team-route-acceptance`
 - worktree: `/tmp/pitchlog-uf13-team-route-acceptance`
 - base: `origin/develop` `fd7445cb7e5bd1d5a75137f48c2237c9126dbea5`（PR #133 まで取り込み済み）
-- 状態: 調査・計画作成中。製品コード未変更。計画承認前。
-- cards: U-F13 TSK-528、U-F5 TSK-520。
+- 状態: U-F13の5判断は承認済み。横断レビューP0で4→3ステップへ再編したため開始ステップは再承認待ち。製品コード未変更。C1・C2・C3追補も人間承認待ち。
+- cards: U-F13 TSK-528、U-F5 TSK-520、U-F3 TSK-518。
 
 ## 再利用する統合済み資産
 
@@ -21,15 +21,27 @@
 1. PR #119 は head `bf43ef93f8a9a2244b2bd5e06d1906ffbcda11de`、open / behind で、`core-guard` と `harness` が失敗し、人間逐行確認も未実施。別 worktree が所有するため変更しない。
 2. PR #119 の `LoginResponse` は status のみ。検証済み tenant ID を frontend へ供給できない。
 3. roster の `Page` / `TeamRecordRead` / `PlayerRead` と response header に応答 tenant 証跡がない。
-4. develop に LoginScreen / `/login` がない。U-F3 の正規 auth client、LoginScreen、login → auth store 接続を別 PR で先行統合し、本計画ステップ 3 が `/login` と `/team` の route を登録する。
-5. `router.ts` と `App.vue` は tenant-isolation の意味範囲だが現行 core paths にない。`frontend/src/router*` と `frontend/src/App*` を宣言 → JSON 登録の別ステップで必ず追加する。
+4. developにLoginScreen/`/login`がない。C1が正規auth client、U-F3がLoginScreenと失敗表示を先行統合し、本計画ステップ2/3が`/login`と`/team`のrouteを登録する。
+5. `router.ts`と`App.vue`はtenant-isolationの意味範囲だが現行core pathsにない。ステップ1/3で宣言し、ステップ2/3でJSON登録と製品変更を同時に行う。
 
-## 依存解消の担当候補
+## 依存解消の担当と追補計画
 
-- **C1**: #119 の `LoginResponse` は変更せず、#119 統合後に `GET /auth/session -> {tenant_id}` を追加する追補。担当候補は Codex D。#119 担当は契約整合レビューだけ。
-- **C2**: `X-Pitchlog-Expected-Tenant` と `X-Pitchlog-Tenant-Match: 1` の server / U-F6 追補。担当候補は Codex D。#119 の `tenant_access.py` 変更との競合を避け、製品実装は #119 統合後。
-- **C3**: U-F3 の担当、open PR、worktree、正式カードの担当記録は見つからない。Codex D が別 PR で `api/auth.ts` と `LoginScreen.vue` を経路未登録で作る案。`/login` と `/team` の route 登録は U-F13 ステップ 3 が所有する。
+- **C1 / Codex D**: [追補計画](../auth-session-verification-contract/plan.md)。login後のsession確認を、認証済み・server未認証（401だけ）・結果未確認へ分ける。Cookieが変わり得る時点で旧store/cacheを破棄し、資格情報を自動再送しない。
+- **C2 / Codex D**: [追補計画](../tenant-match-metadata-contract/plan.md)。expected-tenant request metadata、serverのoperation前exact match、成功2xx限定ack、U-F6の本文前fail-closed検証を定義する。
+- **C3 / Codex D**: 正式カードは[TSK-518](https://app.notion.com/p/3f493b75e687814ca3c7fead50df2a14)。[U-F3計画](../uf3-login-screen/plan.md)で`LoginScreen.vue`を経路未登録で所有する。auth clientはC1、route/redirectはU-F13が所有する。
 - core path の先行登録は行わない。外部統合前に進めるのは契約調整・追補計画・レビューまで。
+
+## U-F3正式カードとの差分
+
+- 従来の「正式カード未確認・担当不在」は更新する。TSK-518は未着手、優先度高、Tコアで、U-F1/U-F2/U-F6/U-A1に依存する。
+- Notionの担当者プロパティには識別子があるが表示名を確定できない。会話上は山田正輝がCodex Dを担当に指名した。製品着手前にopen PR/worktreeと再照合する。
+- 固有DoDは失敗理由の秘匿、移植規則と逐語性4点、NFR-023、5領域判定、横断要件、adversarial reviewと人間逐行確認、Vitest。
+
+## PR #129・#132との統合順
+
+- #129はDraft/open・merge state `BLOCKED`で、authz catalog、route registry、HTTP route matrix、base allowlist等を所有中。
+- #132はDraft/open・merge state `BLOCKED`で、core-areas/core-guardとtenant boundaryの複数凍結資産を所有中。
+- C1/C2は未統合差分をdevelop基線にしない。契約レビューは進めるが、製品実装と共有凍結資産の変更は#119統合後かつ#129/#132の所有状態確定後に行う。
 
 具体的な C1 / C2 / C3 と担当は [research.md](research.md) 4 節、承認判断は [plan.md](plan.md) 8 節を参照する。
 
@@ -55,4 +67,4 @@
 
 ## 次の操作
 
-plan 8 節の 5 判断と 9 節の最終差分について人間承認を得る。承認後も #119 統合前は C1 / C2 / U-F3 の追補計画とレビューだけを進め、製品コードへ進まない。#119、C1、C2、U-F3 が develop に着地したら最新 develop を取り込み、本計画ステップ 1/4 だけを実装する。PR #133 は core-guard 回帰試験と記録だけで、計画の製品前提に影響しないことを再照合済み。
+横断reviewは第1周P0 2/P1 6、第2周P0 2/P1 2を全採用し、P0限定追加周はP0 0で可決。C2は要求ごとのchallenge、C1はstore/client単体、実reloadはU-F13へ分担した。第2周P1追随は未再レビューとして人間確認へ残す。次はC1・C2・C3の各承認対象とU-F13の4→3ステップ再編を提示する。#119、C1、C2、U-F3がdevelopに着地するまで製品コードへ進まない。

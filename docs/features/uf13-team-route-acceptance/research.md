@@ -36,11 +36,11 @@
 
 **必要な型・関数**:
 
-- PR #119 の `LoginResponse={status}` は維持する。#119 統合後の追補として `GET /auth/session -> AuthenticatedTenant{tenant_id: UUID}` を用意し、既存 `require_tenant_access` が発行した `TenantContext.tenant_id` だけを返す。client 入力の tenant ID は受けない。
-- frontend: 正規 U-F6 client 上で `POST /auth/login` 成功後に `GET /auth/session` を呼び、両方が成功した場合だけ U-F3 が `auth.signIn({teamId, teamName})` を呼ぶ。`teamName` は成功したログイン入力の表示値で、認可・tenant 照合には使用しない。
-- 証跡: 不正資格情報では ID を返さない、入力名を ID として採らない、別 tenant の token へすり替えられない backend test と、login 成功値を store へ渡す frontend test。
+- PR #119の`LoginResponse={status}`は維持する。#119統合後のC1追補でsession確認を追加し、Cookieから検証したtenant情報だけを返す。候補endpoint/DTOは`../auth-session-verification-contract/plan.md`のレビューと人間承認で正式化し、client入力のtenant IDは受けない。起動時の保存値はsession 2xxまで認証済みとして使わない。
+- frontend: C1の正規auth clientがlogin成功後にsessionを確認し、両方が成功した場合だけserver応答のtenant IDと正規表示名をstoreへ渡す。login入力は認可、tenant照合、永続復元の正にしない。
+- 証跡: 不正資格情報ではtenant情報を返さない、入力名をID/表示名の復元元にしない、別tenant tokenへすり替えられないbackend testと、session成功値だけをstoreへ渡すfrontend test。
 
-**担当状況**: #119 は既存担当が所有するが C1 は現行 scope に含まれない。C1 の担当は不在。#119 統合後、本セッション（Codex D）が新規追補として担当する案を人間承認へ出す。#119 担当には実装ではなく契約整合レビューを依頼する。
+**担当状況**: #119は既存担当が所有し、C1はCodex Dが担当する。#119担当には契約整合レビューを依頼し、同担当のbranch/worktreeは変更しない。
 
 ### C2: 保護 API の応答 tenant を独立に照合する
 
@@ -59,7 +59,7 @@ U-M1 の承認済み設計は roster DTO に `tenant_id` を出さない。上�
 
 ### C3: `/login` の実在
 
-未認証 `/team` の遷移先は既決の `/login`。空画面、仮画面、`/` への暫定退避は移植契約を弱めるため採らない。U-F3 の open PR、worktree、正式カードの担当記録は見つからず、担当不在である。本セッションが別の U-F3 先行分割で `api/auth.ts`、`LoginScreen.vue` と試験を担当する案を人間承認へ出す。router の競合を避けるため U-F3 は経路未登録で統合し、U-F13 ステップ 3 が `/login` と `/team` を登録する。正式カードを取得できた場合は担当と固有 DoD を再照合する。
+未認証`/team`の遷移先は既決の`/login`。正式カードはTSK-518で、未着手、優先度高、Tコア、依存U-F1/U-F2/U-F6/U-A1。会話上の担当はCodex D。C1が`api/auth.ts`、U-F3が`LoginScreen.vue`と試験を所有し、経路未登録で統合する。U-F13ステップ2/3が`/login`と`/team`を登録する。
 
 ## 5. 実 API 受入で使う既存経路
 
