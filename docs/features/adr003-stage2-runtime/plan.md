@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3f593b75e687817085ddefcaeff3687b
 branch: feature/adr003-stage2-runtime
 created: 2026-10-10
-計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 4        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 4          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -41,7 +41,9 @@ created: 2026-10-10
 - `receiverDoD` 1〜5 の残り・(a) S01・S04・S29・S33 の残り・(b) S08・S09(D1・D9 — U-X1 T1・T2 の PR へ。送り先の表は design.md §6)
 - (b) の残り 16 件の**解決**(割り当てだけ)
 - S34 の**中身の是正**(TSK-540)
-- 要件書の改訂(D6・D7 で回避)
+- 要件書の改訂(D6・D7 で回避)— **ただし付録E-1 の `HistoryEffect` の新設(v2.14)を除く**(ゲート ⑤ の PO 裁定)
+- **FR-040 採用時の状態補正の補正先の分割**(ADR-003 v0.7 D-11)— FR-040 は未採用(Should)のため本タスクでは行わない。採用時は FR-040 の採否を扱うタスクが、条件付きメンバーとして分割と受理記録を同時に加える(未解消レポート S31 の送り先 TSK-544 へ申し送る)
+- **S20 の状況判定側(サヨナラ時の得点上限)**— TSK-544 へ送った(ゲート ⑤ の PO 裁定)
 - ガード是正(D-14-j・`ADR-003:837`)— 所有者不明として PO へ上げる
 
 ## 3. 影響する正本
@@ -52,7 +54,7 @@ created: 2026-10-10
 | `contracts/state-transition/` の入力軸 descriptor | **分割**(payload と履歴軸 — S15・S16)・**成立段数の軸の追加**(S19)・凍結基準 `gameEndAxisFields` の受理記録 | **確定ゲート**(/finalize-doc — ステップ 26・27) |
 | `docs/development/github-setup.md` | CI ジョブの 3 分類の追随(ステップ 15) | PR レビュー |
 | `docs/README.md`(索引) | ADR-003 の版の現行化 | PR レビュー |
-| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **付録E-1 の `StateEffect` の履歴文脈の型を `HistoryEffect` へ**(v2.14・暫定 — ゲート ⑤ の PO 裁定 2026-10-14。undo が履歴を pop する行を `FieldEffect` で書けないことが確定ゲート 2 回目で判明したため。D6・D7 で避けた E-1 の列の追加とは別) | **/finalize-doc**(ADR-003 v0.7 と一括検証 — ゲート ⑤) |
+| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **付録E-1 の `StateEffect` の履歴文脈の型を `HistoryEffect` へ**(v2.14 — ゲート ⑤ で approved・PO 裁定 2026-10-14。undo が履歴を pop する行を `FieldEffect` で書けないことが確定ゲート 2 回目で判明したため。D6・D7 で避けた E-1 の列の追加とは別) | **/finalize-doc**(ADR-003 v0.7 と一括検証 — ゲート ⑤) |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし** | — |
 
 **正本体系外だが同一 PR で更新するもの**: `backend/Dockerfile`・`.dockerignore`(新設 — 本番の配布定義。ゲート ② の後に山田さんが追加を指示 2026-10-11)・`contracts/state-transition/`(handoff と schema・状態遷移契約・終了判定契約・被覆宣言・台帳 schema・gap register・fixture)・`.claude/core-areas.json`・`scripts/core_guard.py`・`docs/features/appendix-e-golden-vectors/{unresolved-report,design}.md`・`backend/`・`frontend/`・`tests/`・`.github/workflows/ci.yml`・root `pyproject.toml` と `uv.lock`。
@@ -108,11 +110,11 @@ created: 2026-10-10
 | 25 | **S20(終了判定側)**: 台帳 schema の終了判定の役割を 5 つに(D7)、walk-off の行と case(終了の検知) | 同上。`check_gap_register.py` が緑。**サヨナラ時の得点値(状況判定側)は TSK-544 へ送った**(ゲート ⑤ の PO 裁定 2026-10-14 — 既存の列では有効得点の確定後に上限をかける順序を表せないため) |
 | 26 | **S19**: descriptor に成立段数の軸・凍結基準 `gameEndAxisFields` の受理記録・COLD-09 の行と case | 同上。三点突合(`check_input_axes_three_way_parity.py`)が緑 |
 | 27 | **正本改訂のゲート投入**: ADR-003 D-8 の改訂(targetKind に「対象なし」・XC-09 を「シナリオ長」へ・undoRows の stateEffect と guaranteeMode)と descriptor の分割(payload と履歴軸)に加え、**状況判定の規範行でサヨナラ時の得点上限を表す方法**(サヨナラ文脈の前提条件の軸と、得点上限の列 — 現行の `matrixRows` には得点値もサヨナラ文脈も表す列が無い `state_transition_contract_schema_v1.json:1151`)を in-review で起案(変更履歴に起案行) | docs-lint と文書の検査が緑。**この後ゲート ⑤** |
-| 28 | **ゲート ⑤ の追随の土台**: 状況判定 schema に要件書 v2.14 の `HistoryEffect` と `operationResult` の `set` を入れ、既存の操作行 7・undo 行 1 の `historyAndResult` を書き換える(2 列と 2 面の一対一対応の検査を含む)/ 確定プレイの push の差分(適用前後の比較面から作る)を展開器に入れる / descriptor schema に派生軸の属性(導出元・条文 ID)と、関数性・宣言された到達不可の除外の検査を入れる / ステップ 26 で `gameEnd.satisfiedColdTierCount` に置いた範囲外 2 件(`validationErrors[]`)を保証範囲外へ移す | 契約系の検査・テストが緑。2 列と 2 面の不一致・派生軸の関数性違反の負例が赤。digest を更新 |
-| 29 | **S18**: `D`+1 の liveness-only の行と case(ADR-003 v0.7 の `XC-09` — シナリオ長 `D`+1・undo 時点の深さ `D` 超・対象あり。比較は `applied` と要素数の減少) | 契約系の検査・テストが緑。digest を更新 |
-| 30 | **S16**: undo の 3 ケース(先頭の差分をスカラー軸で分割 — 変化した面の組合せと変化量の境界値) | 同上。凍結基準の受理記録 |
-| 31 | **S17**: targetKind「対象なし」の行(`"none"` ⇔ `nothing-to-undo` ⇔ 深さ 0) | 同上 |
-| 32 | **S15**: tiebreak-start の操作行(payload の中身をスカラー軸で分割・指定値ごとに 2 つ以上の代表値・発動回は派生軸。6 種目の被覆) | 同上。凍結基準の受理記録。`required_set_input_coverage_declaration_v1.json` の除外宣言を外す |
+| 28 | **履歴と結果の面の移行**(ADR-003 v0.7 D-8・要件書 v2.14): 状況判定 schema に `HistoryEffect` と `operationResult` の `set` を入れ、既存の操作行 7・undo 行 1 の `historyAndResult` を書き換える / 2 列(`historyEffect`・`operationResult`)と 2 面の一対一対応(操作行は `pop` 禁止・undo 行は `push` 禁止)と**交差制約**(undo は `applied` ⇔ `pops = 1`・拒否された操作は `pushes = false`)の検査 / 展開器の **push の差分**: 状態欄・スコアボードは適用前後の比較面の変化前・変化後の値、**成績計上フラグは当該操作が出力した 23 値(前後の比較では作らない)**。確定プレイも同じ規則 | 契約系の検査・テストが緑。**負例が赤**: 列と面の不一致 / 操作行の `pop` / `applied` なのに `pops = 0` の undo / 拒否なのに `pushes = true` の操作行 / フラグを前後比較で作った差分。digest を更新 |
+| 29 | **S18**: `D`+1 の liveness-only の行と case(`XC-09` — シナリオ長 `D`+1 = **取消可能な操作を `D`+1 件積んでから undo する構成**・対象あり)。比較は `applied` と**遷移後の履歴がちょうど 1 件少ない**こと | 契約系の検査・テストが緑。**負例が赤**: 2 件以上を失う undo / 拒否する実装 / シナリオ長 `D` 以下の行の `liveness-only`。digest を更新 |
+| 30 | **S16**: undo の 3 つの基礎シナリオ(履歴の先頭の種別・連続 undo・深さ `D`)から、先頭の差分のスカラー軸(変化した面の組合せ・変化量の境界値・**成績計上フラグの寄与の組**・**半イニングを跨ぐ差分**)で代表値を展開した行と case。**2 件目以降の要素は case の入力と期待出力で差分を保持**し、**undo 行の成績計上フラグの面は `unchanged`** | 同上。凍結基準の受理記録(D-12)。**負例が赤**: 変化量を取り違える undo(常に 1 点だけ戻す)/ 2 件目以降の差分を落とす undo |
+| 31 | **S17**: targetKind「対象なし」の行(`"none"` ⇔ `nothing-to-undo` ⇔ 深さ 0 ⇔ `pops = 0`) | 同上。片方だけ成り立つ行の負例が赤 |
+| 32 | **S15 と派生軸の仕組み**: descriptor schema に派生軸の属性(導出元の軸 ID・条文 ID)を入れ、**関数性**(導出元の**完全な入力値**が同じ case で派生値が異ならない — 軸のラベルでは判定しない)と**宣言された到達不可の除外**を検査する / ステップ 26 の `gameEnd.satisfiedColdTierCount` に属性を付け、範囲外 2 件(`validationErrors[]`)を保証範囲外へ移す / tiebreak-start の操作行(payload の中身をフィールドごとのスカラー軸で分割・**指定値ごとに 2 つ以上の代表値**・発動回は派生軸。6 種目の被覆) | 同上。凍結基準の受理記録(D-12)。`required_set_input_coverage_declaration_v1.json` の除外宣言を外す。**負例が赤**: 導出元の属性の欠落 / 完全な入力値が同じで派生値だけ異なる case / payload を無視して固定値を置く実装 |
 | 33 | **逐行確認シートの生成**(ステップ 22〜32 で追加・変更した規範行すべてと、**それらから派生した case の入力と期待値**) | シートが全行と派生 case を覆い、digest を記録。ゲート ⑥ の承認対象はこの digest のシート。**この後ゲート ⑥** |
 | 34 | **独立検証と revision の確定**: `independentReview` と署名記録、`runnerRevision` の確定(schema を 40 桁 OID の pattern に・`tests/test_consumer_handoff.py` の負例を書き換え) | 署名記録の検査が緑。各 OID が HEAD の祖先で、その時点の runner の blob が HEAD と一致 |
 
@@ -124,11 +126,11 @@ Notion カードの DoD(2026-10-10 に PO 裁定で改訂)と対応づける。
 - [ ] **変換可能な部分集合を宣言で閉じ、その外を書けない構造になっている**。変換不能・判定不能は fail-closed(ステップ 4・5・10)
 - [ ] **`receiverDoD` のうち発効前に閉じられる分を満たした** — 6 の全部(21)と、1〜3 の発効前に可能な部分(11〜13・34)。残りは U-X1 T1・T2 の PR へ(design.md §6)
 - [ ] **(a) のうち発効前に解決できる分を解決した** — S02 の版(34)・S03(13)
-- [ ] **(b) 27 件に検証先を割り当てた**(21)。**引き取った 11 件のうち 9 件を解決した**(22〜32)。S08・S09 は U-X1 T1 へ送り直した
+- [ ] **(b) 27 件に検証先を割り当てた**(21)。**引き取った 11 件のうち 9 件を解決した**(22〜32 — **S20 は終了判定側だけ**。状況判定側のサヨナラ時の得点上限は TSK-544 へ送った)。S08・S09 は U-X1 T1 へ送り直した
 - [ ] **`receiverTaskId` を TSK-538 に更新した**(20)— TSK-236 のステップ 110 が事後充足
 - [ ] **S34 の送り先を TSK-540 へ更新した**(記録 4 箇所 — 17〜19)
 - [ ] **対象計算を追加していない**(発効前は実行基盤まで — PO 裁定)
-- [ ] ADR-003 D-8 と descriptor の改訂が確定ゲートで approved(ゲート ⑤)
+- [x] ADR-003 v0.7(D-8・D-11)と要件書 v2.14(E-1 の `HistoryEffect`)が確定ゲートで approved(ゲート ⑤ — 2026-10-14)
 - [ ] 追加した規範行の期待値が独立に確認され、署名記録がある(33・34・ゲート ⑥)
 - [ ] 各ステップの敵対レビューの採否が worklog にあり、**人間の逐行確認**を PR で行った
 - [ ] PR の CI 全ジョブが green
@@ -142,4 +144,4 @@ Notion カードの DoD(2026-10-10 に PO 裁定で改訂)と対応づける。
 | **越境** | **追加なし**。ホストと artifact は純関数を実行するだけで、テナントの入力を持たない |
 | **E2E** | **追加なし**。表示面は U-F8 の持ち物 |
 | **故障系** | artifact の不在・hash 不一致・timeout・メモリ超過・ゲストの eval(7・8) |
-| **契約** | 契約 9 件ごとに規範行・case・被覆宣言の検査(22〜32)・handoff(20・34)・core-guard(17〜19) |
+| **契約** | 契約 9 件ごとに規範行・case・被覆宣言の検査(22〜32 — S20 は終了判定側のみ)・**履歴と結果の面の移行と交差制約の負例**(28)・**派生軸の関数性の負例**(32)・handoff(20・34)・core-guard(17〜19) |

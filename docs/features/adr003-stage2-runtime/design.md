@@ -23,7 +23,7 @@ date: 2026-10-11
 | D8 | S21 は**状況判定の operationRows `game-end-declaration`** に結ぶ | DRAW-05 は FR-010 の終了宣言による正式終了(`req:1679`)。付録E の中で閉じる |
 | D9 | S08・S09 は **U-X1 の状況判定 PR へ送り直す**(TSK-538 は割り当てだけ) | 「実機とともに確定」(`ADR3:217`・`req:1433`・`:1554`)— 発効前・対象計算なしでは閉じられない |
 
-**TSK-538 が解決する契約は 9 件**(S15・S16・S17・S18・S19・S20・S21・S27・S28)。S20 は終了判定側(25)と状況判定側(32)の 2 コミット。
+**TSK-538 が解決する契約は 9 件**(S15・S16・S17・S18・S19・S20・S21・S27・S28)。S20 は終了判定側(25)だけを解決する — 状況判定側(サヨナラ時の得点上限)は**ゲート ⑤ の PO 裁定(2026-10-14)で TSK-544 へ送った**(既存の列では、手動上書きと `OUT3-*` で有効得点を確定した後に上限をかける順序を表せないため)。
 
 ## 2. 実行基盤の構成
 
@@ -117,7 +117,7 @@ Node の起動から初回応答までは 32.6345 ms。RSS の 2 値はそれぞ
 | 29 | S16 | undo の 3 ケース(取り消す対象の差分) | 27 | descriptor |
 | 30 | S17 | targetKind「対象なし」の行 | 27 | D-8 |
 | 31 | S15 | tiebreak-start の操作行(6 種目の被覆・発動回の述語) | 27 | descriptor |
-| 32 | S20(状況判定側) | サヨナラ時の得点上限の規範行と、そこから派生する case(余剰得点の検証まで閉じる)。現行の `matrixRows` には得点値もサヨナラ文脈も表す列が無いので、**表現は 27 の改訂に含める** | 27 | D-8・descriptor |
+| 32 | S15 と派生軸の仕組み | (旧 32「S20 状況判定側」は TSK-544 へ送った — 計画書の改訂 2026-10-14。S15 は旧 31 から移動)派生軸の属性と関数性・到達不可の検査、ステップ 26 の成立段数の是正、tiebreak-start の操作行 | 27 | ADR-003 v0.7 D-11 |
 
 - **1 件 1 コミット**: 被覆履歴(`required_set_input_coverage_v1.json`)は 1 コミットで 1 件しか追加できない
 - 各コミットで**連動して変わるもの**: `check_required_set_coverage.py` の固定値・`game_end_coverage_declaration_v1.json` の件数・`gap_register_v1.json`・fixture・**handoff の artifacts digest**(同じコミットで更新)・関連テスト(`tests/test_required_set_coverage.py`・`tests/test_gap_register.py`・`tests/test_consumer_handoff.py` の件数固定)
