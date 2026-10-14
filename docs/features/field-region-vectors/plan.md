@@ -1,6 +1,6 @@
 ---
 feature: field-region-vectors
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-11・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -131,14 +131,16 @@ master からは「射程を切れるなら切ってください」という示�
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **改訂する** — **付録B-3 へ内外角の導出の境界規則を追加**(前提 B)。**版を繰り上げる**(条文の新設 — 設計書 `:531-3`)。**同一 PR で運ぶ**(同 `:530-2`) | **finalize-doc**(7.3 の確定ゲート) |
 | `docs/adr/ADR-003-domain-calc-method.md` | **反映なし**(D-6 の契約表どおりに作るだけ。方式も契約の形も変えない) | — |
 | `docs/design/sync-protocol.md` | **追随する** — 11-3 の帰属表へ **`付録B/B-7` の「対象外」行を 1 行**追加する。要件書に付録項を新設すると `check_doc_coverage.py` が「帰属表にない ID」で落ちるため(抽出 ID は帰属表で 1 回だけ覆われることを要求する)。**同期プロトコルの中身は変えない** | PR レビュー(7.6 — 版繰り上げを伴わない追随) |
-| `docs/design/data-model.md` | **反映なし** | — |
+| `docs/design/data-model.md` | **追随する** — 1-1 節の参照規約が引く母集合の件数を **212 → 213 件**へ直す(付録B-7 の新設で `req-universe.json` が再固定されたため)。**参照規約そのものは変えない**。版は `0.9` のまま(7.6-3 前段) | PR レビュー(7.6 — 版繰り上げを伴わない追随) |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし** | — |
 | `docs/improvements-from-baseball-scoring.md` | **反映なし** | — |
 | `docs/development/harness-evaluation.md` | **`/pr` のクローズ処理で判断**(候補あり — 4 節) | PR レビュー |
 | `docs/README.md` | **現行化する** — 要件書の版繰り上げ(ステップ 2)に伴い索引の版と最終更新日を更新(`check_docs_status.py` が「索引の版 = 変更履歴表の最大版」を検査)。台帳へ追記した場合はその行も | PR レビュー |
 | `.claude/core-areas.json` | **変更する** — `contracts/field-regions/*`・`contracts/display-geometry/*` を **game-state の `paths` へ登録**(4 節で根拠)。**追加は敵対レビュー + 人間承認の対象**(設計書 `:404-⑤`)で、本 PR がその両方を通す | PR レビュー(コア領域の敵対レビュー + 逐行確認) |
 
-**正本体系外だが同一 PR で更新するもの**: `contracts/field-regions/*` / `contracts/display-geometry/*` / `backend/` 配下の (β)⑦ ベクタと試験 / `contracts/README.md`(新ディレクトリの説明)/ CI 配線 / `docs/features/field-region-vectors/{plan,design,research}.md` / `docs/worklog/2026-10-11-field-region-vectors.md`
+**正本体系外だが同一 PR で更新するもの**: `contracts/field-regions/*` / `contracts/display-geometry/*` / `backend/domain/batted_ball_direction_contract_v1.json` と `backend/tests/` の (β)⑦ 試験 / `tests/` の新設検査 3 本(`test_field_geometry_numeric_lexemes.py`・`test_fielder_estimation_contract.py`・`test_field_geometry_ci_wiring.py`)/ `scripts/core_guard.py` と `tests/test_core_guard.py`(コア領域の窓口)/ `scripts/design_relations/req-universe.json` と `tests/test_check_doc_coverage.py`・`tests/test_check_design_propagation.py`(母集合の再固定)/ **`contracts/authz/` 15 ファイルと `tests/test_check_authz_catalog.py`**(要件書の改訂に伴う封印の積み直し)/ `docs/features/field-region-vectors/{plan,design,research}.md` / `docs/worklog/2026-10-11-field-region-vectors.md`
+
+**`contracts/README.md` と CI の `paths` フィルタは触らない** —— ステップ 7 の実測で、`tests/` と `backend/tests/` は既に CI で回っており、`.github/workflows/ci.yml` の変更は不要と分かった(`guard_paths` にあるため、不要な変更は人間の逐行確認の対象を増やす)
 
 **ステップ 2 に伴う機械検査の追随**(実測で判明 — 2026-10-14): **① `scripts/design_relations/req-universe.json`** の `appendix_items` へ `付録B/B-7` を登録する(**`guard_paths` に入っているので人間の逐行確認の対象が増える**)。**② `contracts/authz/` の封印の連鎖** —— 要件書の本文が変わると `requirement-claims.json` の `input_manifest`(`commit`・`source_blob_digest`・`heading_ids`・`item_counts_by_kind`)、`shared-preconditions.json` の `git_blob_digest`、`oracle-seal.lock.json`、および `tests/test_check_authz_catalog.py` の固定値(claim 件数)が連鎖で落ちる。**digest を手で書き換えてはならない**(2026-10-14 に実施して落ちる件数が 13 → 31 に増えた)—— **第 1 段で `input_manifest` を要件書の確定コミット SHA へ、第 2 段で `oracle_commit` を第 1 段の SHA へ**進める(先例 `eadc7764`)。**#119 と `contracts/authz/` 15 ファイルを共有するため、#119 の着地後に行う**(PO 判断 2026-10-14)。**第 3 の連鎖がある**(#119 担当の実測・2026-10-14) —— **`oracle_commit` を前進させると、それ自体を典拠にしている blob digest が切れる**: `claim-mutant-map.json` の `oracle_commit` → `mcdc-map.json` の `sources.claim_mutant_map.blob_digest` / `ddl-elements.json` の `oracle_commit` → `failure-injection-points.json` の `source_asset.git_blob_digest`。**`--reseal` / `--reseal-derived` / `--reseal-oracle` のどれでも直らない**(`_build_oracle_seal` は seal の中しか触らず、`oracle_commit` 自体も書き換えない)。**`check_authz_catalog.py` は緑のまま通るので、`tests/test_check_mcdc_map.py` と `tests/test_check_failure_injection_points.py` を回すまで気づけない**。基準版は `frozen-baselines.json` の `oracle_input` 系列の末尾(`_load_oracle_input_baseline_commit`)なので、台帳へ記録を積むまで赤窓が残る
 

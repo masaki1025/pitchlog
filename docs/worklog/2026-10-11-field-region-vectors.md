@@ -357,3 +357,105 @@ ddl-elements.json   の oracle_commit → failure-injection-points.json の sour
 4. **コア領域判定** — 成果物は `contracts/` と `backend/` だが、座標変換は `frontend/src/lib/{displayGeometry,courseInputView,spatialInput}.ts`(**いずれも game-state の `paths`**)の正解を定める。**意味範囲(設計書 6.3 の境界定義表)で判定する**。コア領域なら敵対レビュー + 人間の逐行確認が必須
 
 **下流**: `COURSE_COORDINATE_SIZE` の逐語移植例外の卒業(TSK-233 系)が本タスクを前提に挙げている(未確認 — /investigate で当たる)。
+
+---
+
+## 結果(2026-10-14 — `/pr` クローズ処理)
+
+### 作ったもの
+
+| 契約 | 件数 | 置き場 |
+| --- | --- | --- |
+| 領域シード(13 領域 + 方向区分 5) | — | `contracts/field-regions/field_region_seed_v1.json`(+ schema) |
+| 捕球選手推定 | **31** | `contracts/field-regions/fielder_estimation_contract_v1.json` |
+| 座標変換 | **27** | `contracts/display-geometry/coordinate_transform_contract_v1.json`(+ schema) |
+| 打球方向導出((β)⑦) | **66** | `backend/domain/batted_ball_direction_contract_v1.json` |
+
+検査は `tests/` に 3 本・`backend/tests/` に 1 本。CI の配線はステップ 7 の実測で
+**既に回っていることが分かったため `.github/workflows/ci.yml` は触っていない**。
+
+### 正本への反映
+
+- **要件書 v2.13** — 付録B-3 へ内外角の導出規則(2 値・分かれ目は B-4 の枠の水平中心・
+  境界は外角・決定表)、**付録B-7「画面座標と保存座標の相互変換」を新設**。
+  確定ゲート 2 周・指摘 8 件全件採用・不採用 0・P0 ゼロ・PO 承認 2026-10-14
+- **`docs/design/sync-protocol.md`** — 11-3 の帰属表へ `付録B/B-7` の「対象外」行 1 行と、
+  同節の集計表(対象外 92 → 93・合計 212 → 213)・12-1 節を追随(版は 0.5 のまま)
+- **`docs/design/data-model.md`** — 1-1 節の母集合の件数を 212 → 213 件へ追随(版は 0.9 のまま)
+- **`.claude/core-areas.json`** — `contracts/field-regions/*`・`contracts/display-geometry/*`・
+  新設検査 3 本を `game-state` と `sync-protocol` へ登録
+- **`docs/README.md`** — 索引の現行化
+
+### 独立確認
+
+期待値は委任先(Codex)が条文から導出し、**委任元(Claude)が条文だけを根拠に自前で書き直して
+全件突合した**。**31 + 27 + 66 = 124 件すべて一致・不一致 0。**
+領域シードは捕球選手推定・座標変換の導出にも確認にも使っていない
+(打球方向だけはシードが定義そのものなので典拠に挙げてよい —— この非対称は検査内にコメントで記録)。
+
+### 版番号の衝突
+
+要件書の版は**当初 v2.12 で確定した**が、#129(TSK-543)が同じ番号を同日に確定させていた。
+**PO 裁定(2026-10-14・山田正輝)で #129 が 2.12 を保持し、238 が動いた。**
+裁定時点では #131 が v2.13 を持っていたため v2.14 を採ったが、直後に #131 が v2.14 へ退いたため
+**v2.13 に落ち着いた**(裁定の中身は不変)。
+**原因は「起案前に未マージ分も含めた最大版を実測する」規則では防げない** ——
+両方とも**未 push のローカルブランチ上**で版が確定しており、互いに観測できなかった。
+
+### 封印の積み直し(#119 着地後に 1 回で実施)
+
+`develop = 8294a1b6`(#129・#134・#119)を取り込み、**9 段階**で払った。
+
+1. 第 1 段 — `requirement-claims.json` の `input_manifest` を測り直し、**母集合へ 21 件を追加**
+   (付録B-3 の決定表 4 行 + 見出し 2 行 / 付録B-7 の 12 項目と段落 / 変更履歴 2 行)。
+   付録B-3 へ 1 項挿入した分だけ位置 ID が繰り下がった既存 3 件も追随。
+   **追加分はすべて `out_of_scope`** で、`auth_claim` は **187 のまま不変**
+2. 第 2 段 — `shared-preconditions.json` の **2 件**(要件書と `data-model.md`)、
+   `oracle_commit` を `c6bf54a2` → **`35cd887d`**(第 1 段のコミット)、
+   `frozen-baselines.json` へ #137 の受理記録を 1 件
+3. **第 3 系統** — `mcdc-map.json` と `failure-injection-points.json` の blob digest。
+   **`check_authz_catalog.py` が `ok total=1406` を出した後に 3 件赤**になった
+
+**digest は 1 つも手で書いていない** —— すべて `git hash-object` と検査器の
+`git_blob_digest` / `extract_source` で測って入れた
+(2026-10-14 に手で書いて赤が 13 → 31 に増えた前例があるため)。
+
+### 受理モードの再現(push 前)
+
+`frozen_history` の受理検査は **`GITHUB_EVENT_NAME=pull_request` のときだけ走る**(TSK-470 の実測)。
+ローカル既定の不変量モードでは受理記録の `change` を実遷移と突き合わせないため、
+**2 親のマージコミットを `commit-tree` で作り、detached worktree と event JSON で再現**した。
+`check_frozen_baselines.py --ci` / `check_tenant_boundary_bypass.py` / `check_authz_catalog.py`
+の **3 本とも ok**。
+
+### 試験
+
+- ハーネス非 DB 全件 **29,428 件 green**(赤は母集合の件数を固定した表明 3 箇所で、追随済み)
+- `tests/test_core_guard.py` **242 件 green**
+- `uv run ruff check .` / `uv run ty check` green
+
+### 台帳への追記
+
+**既存候補 1 件へ実測を追記した。新規候補は立てず、`H-*` も採番していない。**
+「`H-85` の連鎖を実行する手順が、正本にもツールのヘルプにも無い」へ ——
+**記録済みの手順 7 段階では足りず、実測は 9 段階**だったこと、
+**同型の再発 3 件がいずれも本項の昇格条件が名指しする TSK-213/214/215 の外で起きている**ことを記録し、
+**昇格条件を「要件書を改訂する任意のタスク」へ広げる提案**を添えた。
+**採番しない理由(制御目的の典拠が正本に無く優先度を決められない)は変わらない。**
+
+TSK-470 の実測 2 件(#128 取り込みで見落として 3 件赤 / #129 取り込みで回避)は
+`docs/worklog/2026-10-09-ua1-auth-http-entry.md` が典拠。
+**core-guard の同一コミット規則は TSK-470 が PR #136 で別候補として挙げており、重ねない**
+(根が違うため — 本人と調整済み)。
+
+### 申し送り(Notion へ起票済み・7 件)
+
+最も重いのは **(α) 3 計算の製品実装**(`3f993b75e6878154aec6fddaecbf5293`)。
+**座標変換・内外角導出・捕球選手推定はフロントにもバックにも存在しない**ことを
+ステップ 7 で実測した(`courseInputView.ts` は捕手/投手視点の X 反転だけ)。
+要件書 `:966` が「正解ベクタの完成をもって発効する」と定めており、**ベクタ先行・実装後行が正しい順序**。
+**全件消費テストは実装と同じ PR で入れる。**
+
+**着地直後に必ず要るもの**: `tests/test_core_guard.py` の表明は
+**本 PR がマージされた瞬間に必ず偽になる**(`3f993b75e68781d78504db43332e01d3`)。
+#127 がこれを払わず develop を 3 件赤にした型の 5 回目。
