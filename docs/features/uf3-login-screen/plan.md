@@ -1,7 +1,7 @@
 ---
 feature: uf3-login-screen
 status: active
-承認: 未
+承認: 済(2026-10-14・山田正輝)
 重さ分類: コア領域
 worktree: /tmp/pitchlog-uf3-login-screen
 notion: https://app.notion.com/p/3f493b75e687814ca3c7fead50df2a14
@@ -107,3 +107,7 @@ C1の正規auth clientを使い、チーム名・パスワードの入力、認�
 第2周はP0 2 / P1 2 / P2 0。C3固有の新規指摘はなく、C1/U-F13との境界追随としてreload試験をLoginScreen直接mountへ限定した。P1追随差分は回数上限により未再レビューのまま人間確認へ出す。
 
 第3周はC1/C2のP0反映限定でP0 0。C3は対象外であり、第2周P1追随差分が未再レビューである残余を維持する。
+
+## 10. 人間承認記録
+
+2026-10-14、山田正輝が計画HEAD `e42a2ddbd2db58dd1fca642959ff4a2870299f63` の本計画とCodex D担当を承認した。#119とC1がdevelopへ統合され、所有重複を再確認した後も最初のステップだけを実装して停止する。第2周P1追随の未再レビュー範囲は人間逐行確認対象として維持する。

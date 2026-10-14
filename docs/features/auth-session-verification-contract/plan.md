@@ -1,7 +1,7 @@
 ---
 feature: auth-session-verification-contract
 status: active
-承認: 未
+承認: 済(2026-10-14・山田正輝)
 重さ分類: コア領域
 worktree: /tmp/pitchlog-auth-session-verification-contract
 notion: "U-F13（TSK-528）追補 C1"
@@ -21,14 +21,14 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 
 - 担当: Codex D。本追補の製品実装は PR #119 統合後、専用 worktree で行う。
 - PR #119 の branch / worktree は変更しない。`LoginResponse={status:"authenticated"}` を本追補で拡張しない。
-- 共有凍結資産は PR #129・#132 の所有範囲を先に統合し、未統合 branch を develop 基線にしない。
+- 共有凍結資産はPR #129・#131・#132の所有範囲を先に確認し、未統合branchをdevelop基線にしない。
 - 本計画の調査根拠は [research.md](research.md) とする。
 
 ## 2. 開始条件
 
 1. 本計画の adversarial review と人間承認が完了している。
 2. PR #119 が develop に統合され、最新 `origin/develop` で login / logout / tenant context の実コードを再照合している。
-3. PR #129・#132 のうち、本追補が触れる凍結資産・検査コードの所有状態が確定している。未統合なら該当共有資産を変更せず停止する。
+3. PR #129・#131・#132のうち、本追補が触れる凍結資産・検査コードの所有状態が確定している。未統合なら該当共有資産を変更せず停止する。
 4. 具体的 endpoint、DTO、認可、凍結資産の変更が本計画の承認対象として人間承認されている。
 
 ## 3. 認証状態と失敗時の契約
@@ -55,9 +55,9 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 | login の 401 / 429 / 確定した非 2xx | `noAuthExpiry`相当の正規optionで共通clientの401自動失効を抑止する。Cookieが発行されていない契約を#119統合後に確認し、既存認証がある場合はそのstore/cacheを変更しない。存在を推測できない固定表示にする |
 | login の 2xx | Cookie が切り替わったものとして直ちに旧 store / cache を破棄し、session を 1 回確認する |
 | login の network / abort / 応答解釈失敗 | Cookie 発行の有無が不明なので旧 store / cache を破棄し `verification-unknown`。login を自動再送しない |
-| session の 2xx + DTO妥当 | `authenticated`。tenant ID はサーバー応答だけを正とし、入力値・localStorage・route query から作らない |
+| session の 2xx + DTO妥当 | `authenticated`。DTOの全項目と形式を検証した場合だけ遷移する。tenant IDはサーバー応答だけを正とし、入力値・localStorage・route queryから作らない。`team_name`はサーバーの認可済みデータから取得し、認可・tenant照合のキーに使わない |
 | session の 401 | `server-unauthenticated`。この場合だけサーバー未認証と扱う |
-| session の 404 / 422 / 5xx / network / abort / DTO不正 | `verification-unknown`。401 と同一扱いにせず、login 成功・失敗のどちらも断定しない |
+| session の 404 / 422 / 5xx / network / abort / DTO不正 | `verification-unknown`。2xxでもDTO検証に失敗した場合を含む。401と同一扱いにせず、login成功・失敗のどちらも断定しない |
 
 ### 3.3 再確認と logout
 
@@ -85,7 +85,7 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 | --- | --- | --- |
 | backend | auth router / schema、session endpoint、backend tests | #119 統合後の実パスから確定する。#119 の変更をコピーしない |
 | frontend | `api/auth.ts`、`authStore.ts` と各 spec | U-F3 と同じ branch に混ぜず、C1 の先行追補として統合する |
-| authz / 凍結 | route registry、HTTP route matrix、runtime authz contract、tenant boundary allowlist / history | #129・#132 の所有差分を先に確定する。必要資産だけ最新 develop から宣言・受理する |
+| authz / 凍結 | route registry、HTTP route matrix、runtime authz contract、tenant boundary allowlist / history | #129・#131・#132の所有差分を先に確定する。必要資産だけ最新developから宣言・受理する |
 | core paths | auth router/schema/client/store の既存登録と不足分 | 製品差分と同じ追補で扱う。core pathだけを先行登録しない |
 
 ## 6. 実装ステップ
@@ -93,7 +93,7 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 | # | ステップ | 合格条件 |
 | --- | --- | --- |
 | 1 | #119 統合後の server に session endpoint / DTO / authz を追加する | 2xx は Cookie 由来の tenant ID と正規表示名だけを返す。401、失効、無効 tenant、存在秘匿、request tenant 注入拒否、凍結資産検査、backend 品質 gate が green |
-| 2 | U-F2 store と正規auth clientに起動時/session verification境界を追加する | store/client単体で、保存値だけでは認証済みにせずtenant-bound requestを開始できない。login 2xxと結果未確認で旧store/cacheを破棄。login 401は既存認証を失効させない。session 2xxだけ認証済み。401とnetwork/5xx/DTO不正が別状態。資格情報の自動再送なし。保存値A + Cookie Bの候補、遅延session、並行確認を試験。実`/team`直接reloadのguard/画面/API受入はU-F13ステップ2/3で行う。frontend品質gate green |
+| 2 | U-F2 store と正規auth clientに起動時/session verification境界を追加する | store/client単体で、保存値だけでは認証済みにせずtenant-bound requestを開始できない。login 2xxと結果未確認で旧store/cacheを破棄。login 401は既存認証を失効させない。session 2xxかつDTO検証成功時だけ認証済み。401とnetwork/5xx/DTO不正が別状態。資格情報の自動再送なし。保存値A + Cookie Bの候補、遅延session、並行確認を試験。実`/team`直接reloadのguard/画面/API受入はU-F13ステップ2/3で行う。frontend品質gate green |
 
 各ステップは別コミットとし、人間が承認したステップだけを実装して停止する。
 
@@ -112,7 +112,7 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 1. 4節の endpoint、DTO、認可、成功境界を正式契約にすること。
 2. 3節の状態遷移、旧 store/cache の破棄時点、明示再確認、logout 未確認時の扱いを採用すること。
 3. U-F2 に検証待ち開始操作を追加し、C1 のステップ2で所有すること。
-4. #129・#132 の統合前には共有凍結資産を変更せず、統合後の develop から必要差分を作ること。
+4. #129・#131・#132の統合前には共有凍結資産を変更せず、統合後のdevelopから必要差分を作ること。
 5. 承認後の開始は、#119 統合後の **ステップ 1/2 のみ**とすること。
 
 ## 9. レビュー状態
@@ -122,3 +122,7 @@ U-F13計画の最終P1反映と、その後に具体化した本契約案は未�
 第2周はP0 2 / P1 2 / P2 0（うちC1はP0 1）。採用し、C1の合格条件をstore/client単体へ閉じ、実`/team` reload受入をU-F13ステップ2/3へ移した。P0反映だけを自動第3周で再レビューする。
 
 第3周は第2周P0反映だけを対象とし、P0 0で可決。第2周P1の追随差分は回数上限により未再レビューであり、人間承認時の確認対象とする。
+
+## 10. 人間承認記録
+
+2026-10-14、山田正輝が計画HEAD `e42a2ddbd2db58dd1fca642959ff4a2870299f63` の本計画を承認した。sessionは2xxかつDTO検証成功時だけ認証済みとし、2xxのDTO不正は結果未確認とする。`team_name`はサーバーの認可済みデータから取得し、認可・tenant照合のキーに使わない。開始条件成立後も最初のステップだけを実装して停止する。第2周P1追随の未再レビュー範囲は人間逐行確認対象として維持する。

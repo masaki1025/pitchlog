@@ -1,7 +1,7 @@
 ---
 feature: tenant-match-metadata-contract
 status: active
-承認: 未
+承認: 済(2026-10-14・山田正輝)
 重さ分類: コア領域
 worktree: /tmp/pitchlog-tenant-match-metadata-contract
 notion: "U-F13（TSK-528）追補 C2"
@@ -29,7 +29,7 @@ U-F5 が使う tenant-bound APIで、clientが保持する検証済みtenant ID�
 1. 本計画の adversarial review と人間承認が完了している。
 2. PR #119 が develop に統合され、`require_tenant_access` の最終実装を再照合している。
 3. C1 が検証済み tenant ID を U-F2 store に供給する契約として統合済みである。
-4. PR #129・#132 の共有凍結資産の所有と統合順が確定している。
+4. PR #129・#131・#132の共有凍結資産の所有と統合順が確定している。
 5. header、literal、適用route、error/ackの意味を本計画の承認対象として人間が承認している。
 
 ## 3. 承認対象となる metadata 契約
@@ -100,7 +100,7 @@ U-F5 が使う tenant-bound APIで、clientが保持する検証済みtenant ID�
 | --- | --- | --- |
 | server | `tenant_access.py`、players/team-records routers、tests | #119統合後に実パス確定。operation前拒否を各routeで検証 |
 | client | `api/client.ts`、`api/roster.ts`、spec、U-F5のretry/error境界の最小追随 | U-F6の単一clientを拡張しコピーしない |
-| authz / 凍結 | route registry、HTTP route matrix、runtime authz contract、tenant boundary allowlist/history | #129・#132の統合済み状態だけを基線にする。必要な受理単位を計画へ追記してから変更 |
+| authz / 凍結 | route registry、HTTP route matrix、runtime authz contract、tenant boundary allowlist/history | #129・#131・#132の統合済み状態だけを基線にする。必要な受理単位を計画へ追記してから変更 |
 | core paths | 上記product pathの既存登録と不足分 | 製品差分と同じ追補で扱い、core pathだけを先行登録しない |
 
 ## 8. 実装ステップ
@@ -130,7 +130,7 @@ U-F5 が使う tenant-bound APIで、clientが保持する検証済みtenant ID�
 2. 7routeだけへ適用し、login/session/logout/healthと他業務routeは後続に残すこと。
 3. header欠落・不正・不一致をbody/query validationより先にoperation前の固定404、ackを成功2xx限定、対象応答を`Cache-Control: no-store`とすること。
 4. 2xx ack欠落・不正を結果未確認として本文前に拒否し、自動retryしないこと。
-5. #129・#132の統合前には共有凍結資産を変更しないこと。
+5. #129・#131・#132の統合前には共有凍結資産を変更しないこと。
 6. 承認後の開始は、#119とC1統合後の **ステップ 1/2 のみ**とすること。
 
 ## 11. レビュー状態
@@ -140,3 +140,7 @@ U-F13計画の最終P1反映と、その後に具体化したheader/ack案は未
 第2周はP0 2 / P1 2 / P2 0（うちC2はP0 1）。固定ackとno-storeだけでは過去応答注入を判別できない指摘を採用し、要求ごとのchallenge UUIDと成功2xxでのexact echoを候補契約へ追加した。P0反映だけを自動第3周で再レビューする。
 
 第3周は第2周P0反映だけを対象とし、P0 0で可決。要求ごとのchallengeが過去応答注入を識別できることを確認した。第2周P1の追随差分は回数上限により未再レビューであり、人間承認時の確認対象とする。
+
+## 12. 人間承認記録
+
+2026-10-14、山田正輝が計画HEAD `e42a2ddbd2db58dd1fca642959ff4a2870299f63` の本計画を承認した。開始条件成立後も最初のステップだけを実装して停止する。U-F2・U-F6共通client、認可正本、スキーマ、凍結資産は着手前に実所有を再照合し、#129・#131・#132その他open PRの未統合差分を基線にしない。第2周P1追随の未再レビュー範囲は人間逐行確認対象として維持する。

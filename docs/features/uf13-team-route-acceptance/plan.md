@@ -1,7 +1,7 @@
 ---
 feature: uf13-team-route-acceptance
 status: active
-承認: 未
+承認: 済(2026-10-14・山田正輝、3ステップ再編を含む)
 重さ分類: コア領域
 worktree: ../../..
 notion: https://app.notion.com/p/3f493b75e68781628422c331bfebc350
@@ -149,16 +149,16 @@ C2 が専用例外を追加する場合、既存 `TeamMembersContent` の結果�
 4. **core paths とレビュー**: `frontend/src/router*`と`frontend/src/App*`をtenant-isolationへ登録する。ステップ1/3で追加層を宣言し、ステップ2/3でJSON登録とrouter/App製品変更を同時に着地させる。登録差分、router/App、C1/C2追補は反対側レビュー、adversarial review、人間逐行確認の対象にする。
 5. **開始順と停止点**: core path登録だけの先行は行わない。契約調整と追補計画レビューは外部統合前に進めるが、製品コードの順序は(a) PR #119統合、(b) C1とC2追補統合、(c) U-F3先行分割統合、(d) 最新develop取込、(e) 本計画ステップ1/3の順とする。各追補と本計画は人間が承認した最初のステップだけを実装して止まる。
 
-これら5項目と、外部依存成立後に当時のステップ1/4だけへ進む方針は2026-10-14に山田正輝が承認した。その後のadversarial review P0により、core pathだけの先行登録を除く3ステップへ再編したため、総数と開始ステップは再承認対象とする。C1・C2・C3も別承認単位である。
+これら5項目と、外部依存成立後に当時のステップ1/4だけへ進む方針は2026-10-14に山田正輝が承認した。その後のadversarial review P0により、core pathだけの先行登録を除く3ステップへ再編し、同日に計画HEAD `e42a2ddbd2db58dd1fca642959ff4a2870299f63` のC1・C2・C3計画とあわせて一括再承認された。開始条件成立後もステップ1/3だけを実装して停止する。
 
 ### 8.1 C1・C2・C3 の成果物、担当、状態、統合条件
 
 | 契約 | 具体的な成果物 | 担当 | 2026-10-14 時点 | 統合条件 |
 | --- | --- | --- | --- | --- |
 | 前提 PR #119 | `POST /auth/login`、`POST /auth/logout`、`PATCH /auth/password`、HttpOnly Cookie | 既存 #119 担当（別 worktree） | open / behind。`core-guard`・`harness` が失敗し、人間逐行確認待ち | #119 所有者による CI 解消、逐行確認、レビュー、マージ。Codex D は変更しない |
-| C1 | session endpoint / DTO、backend test、U-F2の検証待ち境界 | **Codex D**。#119担当は契約整合レビュー | [追補計画](../auth-session-verification-contract/plan.md)レビュー済み、未承認、製品未着手 | #119統合後のdevelop起点。追補計画承認、tenant-isolationレビュー、品質gate、人間逐行確認 |
-| C2 | expected-tenant metadata、request challenge、server exact match、2xx ack/echo、U-F6 client検証 | **Codex D**。U-M1 / #119担当は整合レビュー | [追補計画](../tenant-match-metadata-contract/plan.md)レビュー済み、未承認、製品未着手 | #119とC1統合後。追補計画承認、コアレビュー、人間逐行確認、越境試験、CI green |
-| C3 | `LoginScreen.vue`とspec。auth clientはC1、route登録はU-F13ステップ2/3 | **Codex D** | 正式カードTSK-518を照合し、[U-F3計画](../uf3-login-screen/plan.md)作成済み。未承認 | #119とC1統合後。U-F3計画承認、frontend gate、コアレビュー、人間逐行確認 |
+| C1 | session endpoint / DTO、backend test、U-F2の検証待ち境界 | **Codex D**。#119担当は契約整合レビュー | [追補計画](../auth-session-verification-contract/plan.md)承認済み、製品未着手 | #119統合後のdevelop起点。所有再照合、tenant-isolationレビュー、品質gate、人間逐行確認 |
+| C2 | expected-tenant metadata、request challenge、server exact match、2xx ack/echo、U-F6 client検証 | **Codex D**。U-M1 / #119担当は整合レビュー | [追補計画](../tenant-match-metadata-contract/plan.md)承認済み、製品未着手 | #119とC1統合後。所有再照合、コアレビュー、人間逐行確認、越境試験、CI green |
+| C3 | `LoginScreen.vue`とspec。auth clientはC1、route登録はU-F13ステップ2/3 | **Codex D** | 正式カードTSK-518を照合し、[U-F3計画](../uf3-login-screen/plan.md)承認済み。製品未着手 | #119とC1統合後。所有再照合、frontend gate、コアレビュー、人間逐行確認 |
 
 ### 8.2 外部統合前に進められるものと製品実装条件
 
@@ -181,3 +181,4 @@ C2 が専用例外を追加する場合、既存 `TeamMembersContent` の結果�
 - **3周目（追補4計画横断）**: P0 2、P1 6、P2 0。全件採用。U-F13対象のP0はcore JSON登録だけの先行ステップ。JSON登録をrouter/App製品変更と同じステップへ移し、4ステップから3ステップへ再編した。もう1件のP0である起動時session未検証もステップ2/3のguard/API待機へ反映した。総ステップ数変更は人間再承認対象とする。
 - **4周目（3周目反映差分）**: P0 2、P1 2、P2 0。全件採用。C2に要求ごとのchallengeを追加し、C1の実`/team` reload受入を本計画ステップ2/3へ移した。route stepとauth client所有の残存参照、researchの表示名出所を同期した。P0反映は規約どおりP0限定の追加周へ掛け、P1反映は未再レビューとして人間確認へ出す。
 - **P0限定追加周**: 第2周P0反映だけを対象にP0 0で可決。C2 challengeとC1/U-F13試験分担が実行可能と確認された。第2周P1の参照同期は対象外で、未再レビューの残余として人間確認へ出す。
+- **一括再承認（2026-10-14）**: 山田正輝が計画HEAD `e42a2ddbd2db58dd1fca642959ff4a2870299f63` のC1・C2・C3/U-F3計画と本計画の3ステップ再編を承認した。ステップ1/3は宣言・試験だけ、ステップ2/3は別コミットでJSON登録とrouter/App製品変更を同時に行う。core pathだけの先行登録は行わない。第2周P1追随の未再レビュー範囲は人間逐行確認対象として残す。

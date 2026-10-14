@@ -16,6 +16,7 @@
 ## 共有資産
 
 - PR #119 は `backend/src/pitchlog/api/tenant_access.py` を所有中。
-- PR #129 はDraft/open・merge state `BLOCKED`で、authz catalog、route registry、HTTP route matrix、base allowlist等を変更中。
-- PR #132 はDraft/open・merge state `BLOCKED`で、core-areas/core-guardとtenant boundaryの複数凍結資産を変更中。
-- C2はこれらの未統合差分をdevelop基線として扱わない。#119統合後、#129/#132の所有が確定してから必要な凍結差分を導出する。
+- PR #129 はopenで、authz catalog、route registry、HTTP route matrix、base allowlist等を変更中。
+- PR #131 はopenで、`.claude/core-areas.json`とtenant boundaryの複数凍結資産を変更中。
+- PR #132 はopenで、core-areas/core-guardとtenant boundaryの複数凍結資産を変更中。
+- C2はこれらの未統合差分をdevelop基線として扱わない。#119統合後、#129/#131/#132の所有が確定してから必要な凍結差分を導出する。

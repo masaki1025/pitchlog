@@ -7,7 +7,7 @@
 - branch: `feature/uf13-team-route-acceptance`
 - worktree: `/tmp/pitchlog-uf13-team-route-acceptance`
 - base: `origin/develop` `fd7445cb7e5bd1d5a75137f48c2237c9126dbea5`（PR #133 まで取り込み済み）
-- 状態: U-F13の5判断は承認済み。横断レビューP0で4→3ステップへ再編したため開始ステップは再承認待ち。製品コード未変更。C1・C2・C3追補も人間承認待ち。
+- 状態: 計画HEAD `e42a2ddbd2db58dd1fca642959ff4a2870299f63` のC1・C2・C3/U-F3とU-F13の3ステップ再編は2026-10-14に一括承認済み。外部依存待ちで製品コード未変更。
 - cards: U-F13 TSK-528、U-F5 TSK-520、U-F3 TSK-518。
 
 ## 再利用する統合済み資産
@@ -18,7 +18,7 @@
 
 ## 外部依存とブロッカー
 
-1. PR #119 は head `bf43ef93f8a9a2244b2bd5e06d1906ffbcda11de`、open / behind で、`core-guard` と `harness` が失敗し、人間逐行確認も未実施。別 worktree が所有するため変更しない。
+1. PR #119 は head `bf43ef93f8a9a2244b2bd5e06d1906ffbcda11de`、open / behind で、`core-guard` と `harness` が失敗している。別 worktree が所有するため変更しない。
 2. PR #119 の `LoginResponse` は status のみ。検証済み tenant ID を frontend へ供給できない。
 3. roster の `Page` / `TeamRecordRead` / `PlayerRead` と response header に応答 tenant 証跡がない。
 4. developにLoginScreen/`/login`がない。C1が正規auth client、U-F3がLoginScreenと失敗表示を先行統合し、本計画ステップ2/3が`/login`と`/team`のrouteを登録する。
@@ -37,11 +37,13 @@
 - Notionの担当者プロパティには識別子があるが表示名を確定できない。会話上は山田正輝がCodex Dを担当に指名した。製品着手前にopen PR/worktreeと再照合する。
 - 固有DoDは失敗理由の秘匿、移植規則と逐語性4点、NFR-023、5領域判定、横断要件、adversarial reviewと人間逐行確認、Vitest。
 
-## PR #129・#132との統合順
+## PR #129・#131・#132との統合順
 
-- #129はDraft/open・merge state `BLOCKED`で、authz catalog、route registry、HTTP route matrix、base allowlist等を所有中。
-- #132はDraft/open・merge state `BLOCKED`で、core-areas/core-guardとtenant boundaryの複数凍結資産を所有中。
-- C1/C2は未統合差分をdevelop基線にしない。契約レビューは進めるが、製品実装と共有凍結資産の変更は#119統合後かつ#129/#132の所有状態確定後に行う。
+- #129はopenで、authz catalog、route registry、HTTP route matrix、base allowlist等を所有中。
+- #132はopenで、core-areas/core-guardとtenant boundaryの複数凍結資産を所有中。
+- open PR全体のpath照合で、#131も`.claude/core-areas.json`とtenant boundary凍結資産を所有中と判明した。U-F2 `authStore`とU-F6共通clientの直接変更を持つopen PRはなかった。
+- C1/C2は#129・#131・#132の未統合差分をdevelop基線にしない。契約レビューは進めるが、製品実装と共有凍結資産の変更は#119統合後かつ各PRの所有状態確定後に行う。
+- 所有・統合順の照会をPRコメントへ記録済み: [#119](https://github.com/masaki1025/pitchlog/pull/119#issuecomment-6163651661)、[#129](https://github.com/masaki1025/pitchlog/pull/129#issuecomment-6163651993)、[#131](https://github.com/masaki1025/pitchlog/pull/131#issuecomment-6163652301)、[#132](https://github.com/masaki1025/pitchlog/pull/132#issuecomment-6163652601)。返答または統合後に所有境界を再確認する。
 
 具体的な C1 / C2 / C3 と担当は [research.md](research.md) 4 節、承認判断は [plan.md](plan.md) 8 節を参照する。
 
@@ -67,4 +69,4 @@
 
 ## 次の操作
 
-横断reviewは第1周P0 2/P1 6、第2周P0 2/P1 2を全採用し、P0限定追加周はP0 0で可決。C2は要求ごとのchallenge、C1はstore/client単体、実reloadはU-F13へ分担した。第2周P1追随は未再レビューとして人間確認へ残す。次はC1・C2・C3の各承認対象とU-F13の4→3ステップ再編を提示する。#119、C1、C2、U-F3がdevelopに着地するまで製品コードへ進まない。
+横断reviewは第1周P0 2/P1 6、第2周P0 2/P1 2を全採用し、P0限定追加周はP0 0で可決。第2周P1追随は未再レビューとして人間逐行確認へ残す。C1はsession 2xxかつDTO検証成功時だけ認証済みとし、DTO不正は結果未確認、`team_name`はサーバーの認可済み表示データとしてだけ使う。#119統合後にC1専用worktreeを最新developから作り、所有・正本・凍結資産を再照合してステップ1/2だけを実装する。C2とC3は各開始条件まで待機し、U-F13はC1・C2・C3統合後にステップ1/3だけを進める。ステップ1は宣言・試験、別のステップ2コミットでJSON登録と製品変更を同時に行い、core pathだけを先行登録しない。

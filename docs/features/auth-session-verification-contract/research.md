@@ -15,6 +15,7 @@ login 2xx の後に session がnetwork / 5xx / DTO不正で失敗した場合、
 
 ## 共有資産
 
-- PR #129 はDraft/open・merge state `BLOCKED`で、`contracts/authz/**`、route registry、HTTP route matrix、`contracts/tenant_boundary/base-allowlist.json` 等を変更中。
-- PR #132 はDraft/open・merge state `BLOCKED`で、`.claude/core-areas.json`、core guard、tenant boundary の複数凍結資産を変更中。
-- どちらも未統合であり、C1 のdevelop基線ではない。C1製品実装時に所有状態を再取得し、未統合の共有資産を変更しない。
+- PR #129 はopenで、`contracts/authz/**`、route registry、HTTP route matrix、`contracts/tenant_boundary/base-allowlist.json` 等を変更中。
+- PR #131 はopenで、`.claude/core-areas.json`とtenant boundaryの複数凍結資産を変更中。
+- PR #132 はopenで、`.claude/core-areas.json`、core guard、tenant boundary の複数凍結資産を変更中。
+- いずれも未統合であり、C1のdevelop基線ではない。C1製品実装時に所有状態を再取得し、未統合の共有資産を変更しない。

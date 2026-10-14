@@ -88,3 +88,14 @@ P0 0 件、P1 1 件、P2 0 件で否決。P1 を採用した。
 - C2は要求ごとのchallenge UUIDを成功2xxだけでexact echoし、clientが本文前に照合するため、過去応答注入を識別できる。
 - C1ステップ2はstore/client単体でgreenにでき、実`/team` guard/reload受入はU-F13ステップ2/3へ割り当て済み。
 - 第2周P1の参照同期は回数上限により未再レビューであり、人間承認時の確認対象として残す。
+
+## 2026-10-14 追補計画と3ステップ再編の一括承認
+
+- 山田正輝が計画HEAD `e42a2ddbd2db58dd1fca642959ff4a2870299f63` のC1・C2・C3/U-F3計画とU-F13の3ステップ再編を一括承認した。各開始条件成立後も最初のステップだけを実装して停止する。
+- C1はsession 2xxかつDTO検証成功時だけ認証済みとする。2xxでもDTO不正は結果未確認。`team_name`はサーバーの認可済みデータから取得し、認可・tenant照合には使わない。
+- U-F13ステップ1/3はcore pathの宣言・試験だけを別コミットにする。ステップ2/3の別コミットでJSON登録とrouter/App製品変更を同時に行い、core pathだけの先行登録は行わない。
+- open PR全体のpathを再照合した。#119がauth router/schema/tenant access、#129がauthz catalog/route registry等、#131と#132がcore-areasとtenant boundary凍結資産を所有中。U-F2 `authStore`とU-F6共通clientを直接変更するopen PRはなかった。
+- #119はopen/behindでcore-guardとharness失敗、#129・#131・#132もopenで未統合。開始条件は未成立のため製品実装と専用worktree作成はまだ行わない。draft/merge stateは照合中にも変化したため、着手直前に再取得する。
+- #129・#131・#132の未統合差分をdevelop基線にしない。個別の正本、schema、凍結資産の受理と所有確認を省略しない。
+- 第2周P1追随の未再レビュー範囲は、各製品PRの人間逐行確認対象として維持する。
+- #119へC1のauth router/schema/tenant access境界の契約整合レビュー、#129・#131・#132へauthz/tenant boundary/core資産の統合順と継続所有をPRコメントで照会した。各worktreeと製品差分は変更していない。
