@@ -67,6 +67,15 @@ class PrefixProjection:
         self.events.append(event)
 
 
+class FailingPrefixProjection(PrefixProjection):
+    """再採番後の投影失敗でトランザクションを戻す合成ポート。"""
+
+    def apply(self, event: SyncEvent, writer: PortWriter) -> None:
+        """呼び出しを記録した後、確定を失敗させる。"""
+        super().apply(event, writer)
+        raise RuntimeError("合成投影失敗")
+
+
 class ScopeOpeningProjection:
     """テストから注入した別スコープ開始処理を投影中に呼ぶ。"""
 

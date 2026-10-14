@@ -7,16 +7,18 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID, uuid4
 
 from pitchlog.db.recording_rights.models import RecordingGeneration
 from pitchlog.db.sync_protocol.event_kinds import (
+    _LOGICAL_POSITION_EVENT_KINDS,
     C12_REQUIREMENT_MATRIX,
     EVENT_KIND_LITERALS,
     OPERATION_EVENT_PARTICIPATIONS,
+    STATE_CORRECTION_EVENT_KIND,
     C12Requirement,
     C12Value,
 )
@@ -67,7 +69,7 @@ from pitchlog.sync.tokens import (
 )
 
 type ReplacementKind = Literal["none", "tombstone", "revision"]
-type P1Boundary = Literal["B2", "B3b", "B6"] | None
+type P1Boundary = Literal["B2", "B3", "B3b", "B6"] | None
 type P1PreconditionCategory = Literal["w2_violation", "recording_rights", "other"]
 
 _GENERATION_COLUMNS = tuple(RecordingGeneration.__table__.c.keys())
@@ -79,6 +81,7 @@ _C12_KIND_NUMBERS = {
     for participation in OPERATION_EVENT_PARTICIPATIONS
     if participation.event_kind_literal is not None
 }
+_P2_LOGICAL_KINDS = _LOGICAL_POSITION_EVENT_KINDS | {STATE_CORRECTION_EVENT_KIND}
 
 # V7 の選手参照名は種別ごとに列挙する。未知の選手参照名は保存前に拒否する。
 _PLAYER_REFERENCE_FIELDS: dict[str, frozenset[str]] = {
@@ -125,6 +128,8 @@ class P1Result:
     accepted: bool
     replayed: bool = False
     temporary_id_mapping: tuple[tuple[str, str], ...] = ()
+    a5: Literal["拒否"] | None = None
+    reason: str | None = None
 
 
 class P1PreconditionError(ValueError):
@@ -143,6 +148,14 @@ class _D5Race(RuntimeError):
 
     def __init__(self, result: P1Result) -> None:
         """再照合済みの局所結果をロールバック後へ運ぶ。"""
+        self.result = result
+
+
+class _NoWriteStop(RuntimeError):
+    """O4 を応答へ運ぶ前に、ポートを含む全書き込みを戻す印。"""
+
+    def __init__(self, result: P1Result) -> None:
+        """ロールバック後に返す局所結果を保持する。"""
         self.result = result
 
 
@@ -492,8 +505,9 @@ def _projection_event(
     scope: _TenantTransaction,
     event: SyncEvent,
     own_mapping: Mapping[str, str],
+    assigned_d2: int | None = None,
 ) -> SyncEvent:
-    """投影へ渡す参照を C2 の確定済み写像で解決する。"""
+    """C2 の参照と、P2 で確定した D2 を投影・保存へ渡す。"""
     cache: dict[str, str | None] = {}
     kind = _event_kind(event)
     return SyncEvent(
@@ -502,7 +516,7 @@ def _projection_event(
         event.d1,
         event.d4,
         event.v5,
-        event.v6,
+        event.v6 if assigned_d2 is None else assigned_d2,
         _resolve_payload(scope, event.v7, kind, own_mapping, cache),
         _resolve_payload(scope, event.v8, kind, own_mapping, cache),
         event.v9,
@@ -520,8 +534,11 @@ def _apply_locked(
     v12: object,
     registration: PlayerRegistration | None,
     target: P1Target | None,
+    *,
+    path: Literal["P1", "P2"] = "P1",
+    order_resolver: Callable[[_TenantTransaction, UUID, int], int | None] | None = None,
 ) -> P1Result:
-    """試合行の後に世代行をロックし、P1 の T 要素を一境界に束ねる。"""
+    """試合行の後に世代行をロックし、D1 付き経路の T 要素を束ねる。"""
     game_id, d5 = UUID(event.game_id), UUID(event.d5)
     if not scope.run(GameLockToken(game_id)).rows:
         return P1Result("B6", 0, False)
@@ -540,11 +557,10 @@ def _apply_locked(
     if type(d3_value) is not int:
         raise RuntimeError("D3 の型が不正")
     d3 = d3_value
-    replacement, original_d5 = _replacement_state(event)
     fingerprint = source_fingerprint(
         {
             "event_fingerprint": event_source_fingerprint(event),
-            "path": "P1",
+            "path": path,
             "registration": (
                 None
                 if registration is None
@@ -558,14 +574,27 @@ def _apply_locked(
         }
     )
 
-    candidate = classify_d5(scope, d5, fingerprint, "P1")
+    candidate = classify_d5(scope, d5, fingerprint, path)
     previous = _candidate_result(candidate, d3)
     if previous is not None:
         return previous
-    if event.d1 is None:
-        raise P1PreconditionError("P1 には D1 が必要")
+    # S-1 の要求外形より内側にある内容検査は、D5 の候補分類より後に行う。
+    if (
+        type(event.d1) is not int
+        or event.d1 <= 0
+        or type(event.d4) is not str
+        or not event.d4
+    ):
+        raise P1PreconditionError("D1 付き経路には D1 と D4 が必要")
+    replacement, original_d5 = _replacement_state(event)
+    if path == "P2" and (
+        type(event.v5) is not str or event.v5 not in _P2_LOGICAL_KINDS
+    ):
+        raise P1PreconditionError("P2 は論理位置を持つイベント種別だけを受ける")
     kind = _event_kind(event)
-    _d2(event, replacement)
+    d2 = _d2(event, replacement)
+    if path == "P2" and (d2 is None or order_resolver is None):
+        raise P1PreconditionError("P2 には論理位置 V6 が必要")
     payload_json = _json_object(event.v7)
     _state_diff(event, replacement)
     _validate_v11(event)
@@ -616,6 +645,17 @@ def _apply_locked(
                 "w2_violation" if original_d5 is not None else "other",
             )
 
+        if order_resolver is not None:
+            assert d2 is not None
+            assigned = order_resolver(scope, game_id, d2)
+            if assigned is None:
+                raise _NoWriteStop(
+                    P1Result(
+                        "B3", d3, False, a5="拒否", reason="O4: 永続化済み D2 の同値"
+                    )
+                )
+            d2 = assigned
+
         new_d3 = max(d3, event.d1)
         new_mapping: dict[str, str] = {}
         player_token: PlayerCreateToken | None = None
@@ -633,7 +673,12 @@ def _apply_locked(
                 registration.name,
                 registration.roster_status_key,
             )
-        projected_event = _projection_event(scope, event, new_mapping)
+        projected_event = _projection_event(
+            scope,
+            event,
+            new_mapping,
+            d2 if order_resolver is not None else None,
+        )
         payload_json = _json_object(projected_event.v7)
         result_json = json.dumps(
             {
@@ -645,7 +690,7 @@ def _apply_locked(
             sort_keys=True,
         )
         token = IdempotencyLedgerInsertToken(d5, "accepted", fingerprint, result_json)
-        raced = recheck_and_insert_result(scope, token, "P1")
+        raced = recheck_and_insert_result(scope, token, path)
         if raced is not None:
             outcome = _candidate_result(raced, d3)
             if outcome is None:
@@ -682,7 +727,7 @@ def _apply_locked(
         writer._close()
 
 
-def apply_p1_event(
+def _apply_event(
     context: TenantContext,
     event: SyncEvent,
     rights: RecordingRightsPort,
@@ -690,10 +735,12 @@ def apply_p1_event(
     validator: ContentValidationPort,
     v12: object,
     *,
+    path: Literal["P1", "P2"],
+    order_resolver: Callable[[_TenantTransaction, UUID, int], int | None] | None = None,
     registration: PlayerRegistration | None = None,
     target: P1Target | None = None,
 ) -> P1Result:
-    """P1 の一イベントを一トランザクションとして適用する。
+    """P1・P2 の共通 T 要素を一トランザクションとして適用する。
 
     Args:
         context: API 層で発行済みのテナント文脈。
@@ -702,6 +749,8 @@ def apply_p1_event(
         projection: T4 の投影ポート。
         validator: ⑦ の内容検証ポート。
         v12: 要求レベルの記録権証明。
+        path: D1 付き経路の種別。
+        order_resolver: P2 の T5 を試合行ロック後に実行する関数。
         registration: その場登録で U-M1 の選手行に渡す値。
         target: undo の V10 を世代・D1 に解決した対象。
 
@@ -710,13 +759,6 @@ def apply_p1_event(
 
     例外時はスコープ全体をロールバックし、ポート書き手も失効させる。
     """
-    if (
-        type(event.d1) is not int
-        or event.d1 <= 0
-        or type(event.d4) is not str
-        or not event.d4
-    ):
-        raise P1PreconditionError("P1 には D1 と D4 が必要")
     try:
         with tenant_transaction_scope(context) as scope:
             with _sync_apply_active():
@@ -729,6 +771,35 @@ def apply_p1_event(
                     v12,
                     registration,
                     target,
+                    path=path,
+                    order_resolver=order_resolver,
                 )
     except _D5Race as race:
         return race.result
+    except _NoWriteStop as stop:
+        return stop.result
+
+
+def apply_p1_event(
+    context: TenantContext,
+    event: SyncEvent,
+    rights: RecordingRightsPort,
+    projection: ProjectionPort,
+    validator: ContentValidationPort,
+    v12: object,
+    *,
+    registration: PlayerRegistration | None = None,
+    target: P1Target | None = None,
+) -> P1Result:
+    """P1 の一イベントを適用し、局所結果を返す。"""
+    return _apply_event(
+        context,
+        event,
+        rights,
+        projection,
+        validator,
+        v12,
+        path="P1",
+        registration=registration,
+        target=target,
+    )

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from typing import cast
+from typing import Literal, cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -523,6 +523,81 @@ def test_p1_checks_rights_before_gap(monkeypatch: pytest.MonkeyPatch) -> None:
         )
     assert rights.calls == [GAME]
     assert error.value.category == "recording_rights"
+
+
+@pytest.mark.parametrize("path", ["P1", "P2"])
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("d1", None),
+        ("d4", None),
+        ("v5", "unknown_kind"),
+        ("v6", "invalid"),
+        ("v7", []),
+        ("v8", []),
+        ("v9", {"tombstone": False}),
+        ("v10", {"unexpected": 1}),
+        ("v11", 7),
+    ],
+)
+def test_reused_d5_is_classified_before_event_content(
+    monkeypatch: pytest.MonkeyPatch, path: str, field: str, value: object
+) -> None:
+    """同じ D5 の異内容は各 V と D1・D4 の検査より先に B3b へ進む。"""
+    fields: dict[str, object] = {
+        "d1": 1,
+        "d4": "epoch",
+        "v5": "play_input",
+        "v6": 10,
+        "v7": {},
+        "v8": {},
+        "v9": ABSENT,
+        "v10": ABSENT,
+        "v11": ABSENT,
+    }
+    fields[field] = value
+    event = SyncEvent(
+        D5,
+        GAME,
+        cast(int | None, fields["d1"]),
+        cast(str | None, fields["d4"]),
+        fields["v5"],
+        fields["v6"],
+        fields["v7"],
+        fields["v8"],
+        fields["v9"],
+        fields["v10"],
+        fields["v11"],
+    )
+    observation = _LockObservation()
+    classified: list[str] = []
+
+    def conflict(
+        _scope: _TenantTransaction, _d5: UUID, _fingerprint: str, selected: str
+    ) -> D5Candidate:
+        """異内容の D5 台帳候補を返す。"""
+        classified.append(selected)
+        return D5Candidate("conflict", boundary="B3b")
+
+    monkeypatch.setattr(prefix_path, "classify_d5", conflict)
+    result = _apply_locked(
+        cast(_TenantTransaction, observation),
+        event,
+        PrefixRights(),
+        PrefixProjection(),
+        PrefixValidator(),
+        None,
+        None,
+        None,
+        path=cast(Literal["P1", "P2"], path),
+    )
+    assert result.boundary == "B3b"
+    assert classified == [path]
+    assert observation.tokens == [
+        GameLockToken,
+        RecordingGenerationReadToken,
+        RecordingGenerationLockToken,
+    ]
 
 
 @pytest.mark.parametrize(
