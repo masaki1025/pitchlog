@@ -1,5 +1,5 @@
 ---
-status: approved
+status: in-review
 ---
 
 # pitchlog 要件定義書
@@ -48,6 +48,7 @@ status: approved
 | **2.10** | 2026-09-28 | **確定ゲート通過(approved)**: 敵対レビュー **12 周**(sol xhigh — 1周目 P0×4/P1×6/P2×1・2周目 P0×3/P1×2・3周目 P0×1/P1×1・4周目 P0×4・5周目 P0×2/P1×1・7周目 P1×1・8周目 P1×1・9周目 P1×1・10周目 P1×1・11周目 P1×1・12周目 P1×1 を採用、**13 周目は P0/P1 ゼロ・P2×1 を不採用(索引は手順 6 で現行化)して収束**。**作成者判断のみの不採用 0 件**。反映周コミット {1..12} 一致) → **PO 承認(2026-09-28・山田正輝)**。**PO 裁定 6 回**(射程縮小 2 回 / 7.7 準拠で是正 / 線を宣言してから是正 / 目的を変えて条文化 / CI 配線を計画の射程へ)。 **確定内容の要点**: ① **定義の穴 9 件を閉じた分岐 ID の集合**(`COLD-01`〜`09` / `DRAW-01`〜`10` / `XMARK-01`〜`03` / `OUT3-01`〜`05` / `ADV-01`〜`04` / `INT-01`〜`07` / `SO-01`〜`05` / `RBI-01`〜`09`。**各分岐に正例と負例を置き、閉じた集合であることを機械検査する**) ② **付録E-1 の全 10 列の exact 型**・**`eventKind` 別 allowlist**・**交差制約 `XC-01`〜`XC-13`**(**`XC-09` は付録E-1 の制約ではなく `undoRows[]` の制約として ADR-003 D-8 が定める**ことを帰属 ID で明示) ③ **`statFlags` の 23 件の閉じた外延**と **`XC-13` の原則**(**行の他の列と `precondition` が参照する入力から導出し、独立した手入力または規範上の任意値としてはならない**) ④ **4.0-3 の管理者語彙の二段階ゲート** ⑤ **NFR-018(b)② の保証する入力の範囲**を descriptor の 26 軸へ結びつけた。 **実装時に確定する範囲(PO 射程縮小 2 回)**: payload 内部のフィールド制約・軸間組合せ規則・D-8 の文字列規定と FR-015 の整合(1 回目)/ `XC-13` の 23 キーごとの導出表・第3アウト種別の観測入力・記録員判断の入力契約(2 回目)。**`contracts/state-transition/input_axes_descriptor_v1.json` の `stage2ExternalConstraints` 8 クラスが宣言し、ADR-003 D-11 と exact-set で突合する**。 計画: `../features/appendix-e-golden-vectors/plan.md`(計画レビュー 9 周 → 承認 2026-09-25・山田正輝) | 山田 + Claude |
 | 2.11 | 2026-10-11 | **ADR-003 の D-2 への切り替えに伴う規範の追随を起案(TSK-541・状態: in-review)** — **ADR-003 と同一の確定ゲートで一括検証する**(先例: v2.2 と ADR v0.1)。**追随する 7 箇所** = ① 10 章の「制約された宣言モデルから Python・TypeScript を生成」(現況の記述)② 付録A-1 の「**対象集合の正 = 宣言モデルの schema が定める…閉包**」③ 同所の「ADR-003 **D-1** の宣言的表示規則で実装され」④〜⑥ 生成 formatter・生成前検査を前提にした 3 箇所(**ADR-003 の発効条件 (iii) の結論に従う**)⑦ NFR-018 (b)② の「**派生schema**」(同 **(ii)** の結論に従う)。**3 層の 2 層目**(同 **(i)**)も同じゲートで決まる。**参照の付け替え 1 件** = NFR-019(a) 前処理の根拠 **D-1**。**版は暫定** — **`v2.5` は TSK-267 の先約**であり、**承認時に PO が裁定する**(先例 TSK-278)。**射程宣言(7.3-7)**: **本改訂で確定する範囲** = 上記 7 箇所と参照 1 件。**本改訂で触れない範囲** = **変更履歴表**(監査証跡)/ **NFR-018 (c) の例外表ほか射程外と宣言した範囲**(**基準版と SHA-256 同一であることを機械的に確認する**)。計画: `../features/adr003-activation-conditions/plan.md` | 山田 + Claude |
 | **2.11** | 2026-10-11 | **確定ゲート通過(approved)**: 敵対レビュー **2 周**(sol xhigh — **基本枠 2 回を使い切った**。1 周目〔全文・2 正本一括〕P0 0 / P1 8 / P2 1、2 周目〔1 周目の反映差分と影響節〕P0 0 / P1 4 / P2 0)。**指摘 13 件を全件採用・不採用 0 件・P0 は 2 周ともゼロ・(B) の送り 0 件**(周別の採否記録は worklog `2026-10-10-adr003-activation-conditions.md` が正)。**P0 が 0 件のため P0 限定の 3 回目は自動追加されない。** **PO 裁定 4 件**(射程宣言の寄せ先 / J-6 の送り先 / 版番号 / **(iv) は案 A**)。**人間承認 2026-10-11・山田正輝。** **ADR-003 v0.6 と同一ゲートで一括検証した。** **確定内容**: **D-2 への切り替えに伴う規範の追随 7 箇所 + 参照の付け替え 1 件** — ① 10 章の「①＝制約された宣言モデルから Python・TypeScript を生成」を **TS 正本からの生成と実行**へ(**発効までは旧記述が現行**)② 付録A-1 の「対象集合の正 = **宣言モデルの** schema」を **「正本の schema」**へ(**発効後は TS 正本の出力フィールドの宣言**)③ 同所の **D-1 参照**を「ADR-003 が定める正本の宣言的表示規則」へ ④〜⑥ 生成 formatter・生成前検査を前提にした 3 箇所へ **発効後は TS 正本から**の注記 ⑦ NFR-018 (b)② の **「派生schema」**へ追補(**発効後は TS 正本が宣言する入力軸の宣言**)⑧ 3 層の 2 層目へ **D-14-g (i) が比較相手・実施主体・実行経路・判定根拠を定める**ことを明記 ⑨ NFR-019(a) 前処理の根拠を **D-1 から「正本の射程」へ付け替え**。**版番号は PO 裁定で 2.11 に確定**(`v2.5` は TSK-267 の先約のまま)。**「変更しない範囲」は基準版と SHA-256 同一であることを機械的に確認した**(4 ブロック)。計画: `../features/adr003-activation-conditions/plan.md` | 山田 + Claude |
+| 2.13 | 2026-10-14 | **付録E-1 の `StateEffect` の履歴文脈の型を改訂する起案(TSK-538・状態: in-review)** — **ADR-003 v0.7 と同一の確定ゲートで一括検証する**(PO 裁定 2026-10-14・山田正輝 — ADR-003 v0.7 の確定ゲート 2 回目で、undo が履歴を pop する行を `FieldEffect` で書けないことが判明したため。先例: v2.2 と ADR v0.1、v2.11 と ADR v0.6)。**改訂する 1 箇所** = 付録E-1 の `StateEffect` — `historyAndResult.history` の型を `FieldEffect` から新設の **`HistoryEffect`**(`unchanged` / `push` / `pop`)へ改め、`historyAndResult.operationResult` は `set` で操作結果を置くと定める。**版は暫定** — 未マージの PR #129(TSK-543)が v2.12 を approved で持つため、その次の版とし、**承認時に PO が裁定する**(先例 TSK-278)。**射程宣言(7.3-7)**: **本改訂で確定する範囲** = 上記 1 箇所。**実装時に確定する範囲** = 状況判定契約の schema(`contracts/state-transition/state_transition_contract_schema_v1.json`)の追随と、既存の操作行・undo 行の `historyAndResult` の書き換え(TSK-538)/ authz の要件書 digest の再封印。**本改訂で触れない範囲** = `FieldEffect` の 3 種と他の 3 面 / `Predicate` / 付録E-1 の 10 列 / 変更履歴表(監査証跡)。計画: `../features/adr003-stage2-runtime/plan.md` | 山田 + Claude |
 
 > **本書の位置づけ**: 既存システム Baseball_Scoring（Tsukuba PSS）をもとに、製品版 pitchlog をゼロから再構築するための要件正本。
 > 現行システムからの改善点とその理由は別文書 [`docs/improvements-from-baseball-scoring.md`](../improvements-from-baseball-scoring.md)（改善台帳）に記録し、本書とセットで維持する。
@@ -1506,16 +1507,23 @@ StateEffect = {
   stateFields:      {<比較面の各フィールド>: FieldEffect},
   scoreboard:       {<全欄>: FieldEffect},
   statFlags:        {<23フラグ>: FieldEffect},
-  historyAndResult: {history: FieldEffect, operationResult: FieldEffect}
+  historyAndResult: {history: HistoryEffect, operationResult: FieldEffect}
 }
 
 FieldEffect =
   | {kind: "unchanged"}
   | {kind: "set", value: <当該フィールドの型>}
   | {kind: "delta", value: integer}
+
+HistoryEffect =
+  | {kind: "unchanged"}
+  | {kind: "push", entryKind: <取消可能な操作の種別ID>}
+  | {kind: "pop", count: 1}
 ```
 
-`StateEffect`の4キー、`stateFields`の比較面全フィールド、`scoreboard`の全欄、`statFlags`の23キー、`historyAndResult`の`history`と`operationResult`は全てrequiredとする。各オブジェクトと`FieldEffect`の各variantは`additionalProperties: false`とする。影響しない面も省略せず、当該フィールドへ`{kind: "unchanged"}`を必ず設定する。
+`HistoryEffect`は履歴文脈(取消可能な操作のスタック)への影響を表す。`FieldEffect`の固定値の`set`は可変長のスタックの残りを表せず、`delta`は整数に限るため、履歴文脈には`FieldEffect`を使わない。`push`は当該操作を先頭へ積むことを表し、積む要素の差分は同じ行の`stateFields`・`scoreboard`・`statFlags`が表す差分とする。`pop`は先頭の1件だけを取り除くことを表す。`unchanged`は履歴文脈を変えないことを表す。`entryKind`の値の集合と、`push`・`pop`を置ける行の条件はADR-003 D-8が定める。`historyAndResult.operationResult`は当該操作の操作結果を`{kind: "set", value: <操作結果の値>}`で表し、`unchanged`を置かない。
+
+`StateEffect`の4キー、`stateFields`の比較面全フィールド、`scoreboard`の全欄、`statFlags`の23キー、`historyAndResult`の`history`と`operationResult`は全てrequiredとする。各オブジェクトと`FieldEffect`・`HistoryEffect`の各variantは`additionalProperties: false`とする。影響しない面も省略せず、当該フィールドへ`{kind: "unchanged"}`を必ず設定する。
 
 **成績計上フラグの閉じた外延**:
 
