@@ -391,7 +391,7 @@ def test_five_resolved_four_open_gaps_have_real_bidirectional_references() -> No
     }
     assert {gap["gapId"]: len(gap["rowIds"]) for gap in document["gaps"]} == {
         "GAP-01": 0, "GAP-02": 0, "GAP-03": 3,
-        "GAP-04": 5, "GAP-05": 0, "GAP-06": 0,
+        "GAP-04": 5, "GAP-05": 1, "GAP-06": 0,
         "GAP-07": 20, "GAP-08": 5, "GAP-09": 3,
     }
     assert {gap["gapId"]: len(gap["fixtureCaseIds"]) for gap in document["gaps"]} == {
@@ -404,7 +404,9 @@ def test_five_resolved_four_open_gaps_have_real_bidirectional_references() -> No
         for gap in document["gaps"] if gap["state"] == "resolved"
     )
     assert all(
-        checker._filled_stage_flags(gap, _criteria()) == (True, True, False, False, False)
+        checker._filled_stage_flags(gap, _criteria())
+        == ((True, True, True, False, False) if gap["gapId"] == "GAP-05"
+            else (True, True, False, False, False))
         for gap in document["gaps"] if gap["state"] == "open"
     )
     _validate(document, _real_indexes(document))
@@ -589,7 +591,7 @@ def test_normative_row_natural_keys_are_unique_in_all_four_layers() -> None:
     document = _register()
     index = _real_indexes(document)["rowIds"]
 
-    assert len(index.existing_references) == 69
+    assert len(index.existing_references) == 70
     assert len([row for row in index.existing_references if row.startswith("operationRows:")]) == 10
     assert "operationRows:substitution:state.gameEnded:false" in index.existing_references
     assert "operationRows:substitution:state.gameEnded:true" in index.existing_references
@@ -626,7 +628,7 @@ def test_step99_all_row_ids_resolve() -> None:
     """gapのrowIdsと323件のcase参照が一意な規範行へ解決する。"""
     rows = _row_documents()
     index = checker.row_reference_index(_criteria(), _register()["gaps"], rows)
-    assert len(index.existing_references) == 69
+    assert len(index.existing_references) == 70
     assert checker.unresolved_row_references(
         _criteria(), _register()["gaps"], rows, index
     ) == []

@@ -19,7 +19,8 @@
       "GAME-END-TIEBREAK-CONTINUE",
       "COLD-08",
       "COLD-09",
-      "GAME-END-WALK-OFF"
+      "GAME-END-WALK-OFF",
+      "XMARK-02"
     ],
     "branchClassificationOverrides": {
       "COLD-08": {
@@ -27,6 +28,10 @@
         "coverageKind": "normative-case"
       },
       "COLD-09": {
+        "branchKind": "requirement-branch-row",
+        "coverageKind": "normative-case"
+      },
+      "XMARK-02": {
         "branchKind": "requirement-branch-row",
         "coverageKind": "normative-case"
       }
@@ -38,7 +43,8 @@
       "GAME-END-TIEBREAK-CONTINUE": "tiebreak-continue",
       "COLD-08": "cold-end",
       "COLD-09": "cold-end",
-      "GAME-END-WALK-OFF": "walk-off"
+      "GAME-END-WALK-OFF": "walk-off",
+      "XMARK-02": "normal-end"
     },
     "outcomeSourceClauseIds": {
       "normal-end": ["req:FR-005", "req:F-1"],

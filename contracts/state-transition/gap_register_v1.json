@@ -115,7 +115,9 @@
         "XMARK-02",
         "XMARK-03"
       ],
-      "rowIds": [],
+      "rowIds": [
+        "decisionRows:XMARK-02"
+      ],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
     },

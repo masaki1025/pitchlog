@@ -55,21 +55,21 @@ def _rules_for_schema(schema: dict[str, Any]) -> Any:
 
 
 def test_all_cases_match_declared_normalization_rules() -> None:
-    """状況判定98件と終了判定214件で宣言規則の適用結果が一致する。"""
-    assert checker.check_repository(ROOT) == 323
+    """状況判定109件と終了判定281件で宣言規則の適用結果が一致する。"""
+    assert checker.check_repository(ROOT) == 390
 
 
 def test_game_end_cases_have_triples_and_display_names_are_resolved() -> None:
-    """終了判定214件の3点と表示名208件の安定ID化を確認する。"""
+    """終了判定281件の3点と表示名274件の安定ID化を確認する。"""
     cases, rules = checker.load_game_end_inputs(ROOT)
-    assert len(cases) == 214
+    assert len(cases) == 281
     assert all({"raw", "normalizationRuleId", "normalized"} <= set(case) for case in cases)
-    assert checker.check_cases(cases, rules) == 214
+    assert checker.check_cases(cases, rules) == 281
     display_cases = [
         case for case in cases
         if case["normalizationRuleId"] == "game-end-result-display-name-to-id"
     ]
-    assert len(display_cases) == 208
+    assert len(display_cases) == 274
     assert all(case["normalized"] == case["inputCoordinate"] for case in cases)
     assert all(
         case["raw"]["event.perPitch.resultId"]

@@ -191,15 +191,15 @@ def _assert_all_normative_rows_referenced(
 
 
 def test_step98_all_normative_rows_are_referenced_by_cases() -> None:
-    """実資産の4層69行すべてにcaseからの参照があることを確認する。"""
+    """実資産の4層70行すべてにcaseからの参照があることを確認する。"""
     state = _asset("state_transition_contract_v1.json")
     game_end = _asset("game_end_contract_v1.json")
     assert [len(state[layer]) for layer in ("matrixRows", "operationRows", "undoRows")] == [
         42, 10, 10,
     ]
-    assert len(game_end["decisionRows"]) == 7
+    assert len(game_end["decisionRows"]) == 8
     assert len(state["cases"]) == 109
-    assert len(game_end["cases"]) == 214
+    assert len(game_end["cases"]) == 281
     for contract, schema_name in (
         (state, "state_transition_contract_schema_v1.json"),
         (game_end, "game_end_contract_schema_v1.json"),
@@ -262,32 +262,32 @@ def _assert_no_tiebreak_start_row(contract: dict[str, Any]) -> None:
 def test_step26_game_end_declaration_and_direct_coverage() -> None:
     """成立段数の軸とCOLD-09追加後の到達性と被覆履歴を照合する。"""
     assert checker.check_game_end_coverage(ROOT) == {
-        "total": 4656, "reachable": 1453, "unreachable": 3177,
+        "total": 4656, "reachable": 1577, "unreachable": 3053,
         "requirementsImpossible": 14,
-        "invalid": 12, "covered": 1453, "cases": 214,
+        "invalid": 12, "covered": 1577, "cases": 281,
     }
     contract = _asset("game_end_contract_v1.json")
     declaration = _asset("game_end_coverage_declaration_v1.json")
     classified = declaration["step23Unreachability"]
     assert classified["beforeUnreachableCount"] == 2817
-    assert classified["remainingUnreachableCount"] == 3177
+    assert classified["remainingUnreachableCount"] == 3053
     assert classified["countsByCause"] == {
         "noApplicableRow": {
-            "pairwise": 20, "boundaryCoordinate": 239,
-            "clauseBranch": 17, "total": 276,
+            "pairwise": 22, "boundaryCoordinate": 259,
+            "clauseBranch": 17, "total": 298,
         },
         "unfixedAxisValue": {
-            "pairwise": 279, "boundaryCoordinate": 2622,
-            "clauseBranch": 0, "total": 2901,
+            "pairwise": 271, "boundaryCoordinate": 2484,
+            "clauseBranch": 0, "total": 2755,
         },
         "requirementsImpossible": {
             "pairwise": 14, "boundaryCoordinate": 0,
             "clauseBranch": 0, "total": 14,
         },
     }
-    assert len(contract["cases"]) == 214
+    assert len(contract["cases"]) == 281
     record = _asset("game_end_input_coverage_v1.json")
-    assert [item["step"] for item in record["history"]] == [93, 94, 95, 96, 97, 98]
+    assert [item["step"] for item in record["history"]] == [93, 94, 95, 96, 97, 98, 99]
     assert record["history"][0]["before"]["coveredCount"] == 51
     assert record["history"][0]["after"] == record["history"][1]["before"]
     assert record["history"][1]["after"] == record["history"][2]["before"]
@@ -348,6 +348,30 @@ def test_l_plus_one_and_x_mark_cases_require_concrete_boundary() -> None:
     normal["derivedSourceInput"]["state.inning"] = 11
     cold = next(case for case in contract["cases"] if case["branchId"] == "COLD-08")
     cold["normalized"]["state.outs"] = 1
+    with pytest.raises(checker.RequiredSetCoverageError, match="XMARK_STARTED"):
+        checker.check_game_end_concrete_case_consistency(contract)
+
+
+def test_xmark02_regulation_and_extension_final_cases_are_derived() -> None:
+    """規定最終回と延長上限回の未開始の裏を同じ行から展開する。"""
+    contract = _asset("game_end_contract_v1.json")
+    cases = [case for case in contract["cases"] if case["branchId"] == "XMARK-02"]
+    assert len(cases) == 67
+    assert {case["normalized"]["gameEnd.extensionLimit"] for case in cases} == {
+        "finite:R", "finite:R+1",
+    }
+    assert {case["derivedSourceInput"]["state.inning"] for case in cases} == {9, 10}
+    for case in cases:
+        assert case["normalized"]["state.half"] == "bottom"
+        assert case["decision"] == {
+            "outcome": "normal-end",
+            "endConditionDetected": True,
+            "lockFurtherPlayInput": True,
+            "promptEndDeclaration": True,
+            "automaticallyEndsGame": False,
+            "xMark": "x-mark",
+        }
+    cases[0]["normalized"]["state.outs"] = 1
     with pytest.raises(checker.RequiredSetCoverageError, match="XMARK_STARTED"):
         checker.check_game_end_concrete_case_consistency(contract)
 
@@ -450,7 +474,7 @@ def test_step23_impossible_requirement_declaration_drift_is_red(mutation: str) -
 
 
 def test_step95_decision_properties_hold_for_all_cases() -> None:
-    """全214ケースの自動遷移なし・分岐別出力・X表記を宣言と照合する。"""
+    """全281ケースの自動遷移なし・分岐別出力・X表記を宣言と照合する。"""
     contract = _asset("game_end_contract_v1.json")
     declaration = _asset("game_end_coverage_declaration_v1.json")
     properties = declaration["step95DecisionProperties"]
@@ -459,7 +483,7 @@ def test_step95_decision_properties_hold_for_all_cases() -> None:
         branch["branchId"]: branch for branch in properties["branchExpectations"]
     }
     x_mark = properties["xMark"]
-    assert len(contract["cases"]) == 214
+    assert len(contract["cases"]) == 281
     assert automatic["field"] == "automaticallyEndsGame"
     assert automatic["expected"] is False
     assert set(branches) == {row["branchId"] for row in contract["decisionRows"]}
@@ -476,9 +500,14 @@ def test_step95_decision_properties_hold_for_all_cases() -> None:
         "COLD-08": "x-mark",
         "COLD-09": "x-mark",
         "GAME-END-WALK-OFF": "recorded-score",
+        "XMARK-02": "x-mark",
     }
     for branch, item in x_by_branch.items():
-        expected_rule = "req:XMARK-02" if branch in {"COLD-08", "COLD-09"} else "req:XMARK-01"
+        expected_rule = (
+            "req:XMARK-02"
+            if branch in {"COLD-08", "COLD-09", "XMARK-02"}
+            else "req:XMARK-01"
+        )
         assert expected_rule in item["clauseIds"]
     assert set(x_mark["observedDecisionFields"]) == {
         "outcome", "endConditionDetected", "lockFurtherPlayInput",
@@ -495,8 +524,8 @@ def test_step95_decision_properties_hold_for_all_cases() -> None:
     counts, _, reachable, observed = checker._game_end_measure(
         ROOT, contract, declaration
     )
-    assert counts["cases"] == 214
-    assert counts["covered"] == counts["reachable"] == 1453
+    assert counts["cases"] == 281
+    assert counts["covered"] == counts["reachable"] == 1577
     assert observed == reachable
     assert checker.check_game_end_coverage(ROOT) == counts
 
@@ -518,12 +547,12 @@ def test_step96_validation_errors_are_exact_and_separate_from_cases() -> None:
     assert declaration["deferredValidationErrors"]["status"] == "materialized"
     assert declaration["deferredValidationErrors"]["count"] == len(expected)
     assert len(state["cases"]) == 109
-    assert len(contract["cases"]) == 214
+    assert len(contract["cases"]) == 281
     assert all("caseId" not in item and "inputCoordinate" not in item for item in entries)
     assert all("保証範囲外" in item["claimBoundary"]["notGuaranteed"] for item in entries)
     checker._check_game_end_validation_errors(ROOT, contract, declaration, state)
     counts, _, _, _ = checker._game_end_measure(ROOT, contract, declaration)
-    assert counts["cases"] == 214
+    assert counts["cases"] == 281
     assert counts["invalid"] == len(entries) == 12
 
 
@@ -743,7 +772,7 @@ def test_step94_unmet_reason_and_scoring_rule_are_recorded() -> None:
 
 
 def test_step94_unfixed_axis_values_contract_by_exact_set() -> None:
-    """旧軸の縮小履歴20→18件と、現行5軸の未固定19件を照合する。"""
+    """旧軸の縮小履歴20→18件と、現行5軸の未固定18件を照合する。"""
     contract = _asset("game_end_contract_v1.json")
     descriptor = _asset("input_axes_descriptor_v1.json")
     declaration = _asset("game_end_coverage_declaration_v1.json")
@@ -758,7 +787,8 @@ def test_step94_unfixed_axis_values_contract_by_exact_set() -> None:
         fixed = {
             (axis, value)
             for row in rows
-            for axis, value in checker._fixed_game_end_values(row, game_axes).items()
+            for alternative in checker._fixed_game_end_alternatives(row, game_axes)
+            for axis, value in alternative.items()
         }
         return all_values - fixed
 
@@ -769,7 +799,7 @@ def test_step94_unfixed_axis_values_contract_by_exact_set() -> None:
         for item in declaration["unfixedGameEndAxisValues"]
     }
     assert len(before) == 24
-    assert len(after) == 19
+    assert len(after) == 18
     assert after == declared
     assert before - after == {
         ("gameEnd.coldConditions", '"tier-count:1"'),
@@ -777,6 +807,7 @@ def test_step94_unfixed_axis_values_contract_by_exact_set() -> None:
         ("gameEnd.satisfiedColdTierCount", "1"),
         ("gameEnd.satisfiedColdTierCount", "2"),
         ("gameEnd.extensionLimit", '"none"'),
+        ("gameEnd.extensionLimit", '"finite:R"'),
     }
     assert {
         (item["axisId"], item["valueIdentity"])
@@ -824,7 +855,7 @@ def test_game_end_record_and_representative_drift_are_red() -> None:
 
 
 def test_game_end_coverage_history_is_one_append_from_prior_step() -> None:
-    """直前ステップの被覆履歴を保持し、ステップ26を1件だけ追記する。"""
+    """直前の被覆履歴を保持し、この変更を1件だけ追記する。"""
     relative = "contracts/state-transition/game_end_input_coverage_v1.json"
     previous: dict[str, Any] | None = None
     revisions = subprocess.run(
@@ -844,7 +875,7 @@ def test_game_end_coverage_history_is_one_append_from_prior_step() -> None:
         )
         if result.returncode == 0:
             candidate = json.loads(result.stdout)
-            if candidate["currentStep"] == 97:
+            if candidate["currentStep"] == 98:
                 previous = candidate
                 break
     assert previous is not None

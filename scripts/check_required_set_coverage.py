@@ -827,6 +827,40 @@ def _fixed_game_end_values(
     return fixed
 
 
+def _fixed_game_end_alternatives(
+    row: dict[str, Any], axis_ids: set[str]
+) -> list[dict[str, str]]:
+    """選言を含む行について、各分岐が固定する終了規則軸を列挙する。"""
+
+    def visit(node: dict[str, Any]) -> list[dict[str, str]]:
+        operation = node.get("op")
+        if operation == "eq":
+            axis = node.get("axisId")
+            return [{axis: _game_end_identity(node["value"])}] if axis in axis_ids else [{}]
+        if operation == "or":
+            return [part for child in node["args"] for part in visit(child)]
+        if operation != "and":
+            return [{}]
+        combined: list[dict[str, str]] = [{}]
+        for child in node["args"]:
+            next_values: list[dict[str, str]] = []
+            for left in combined:
+                for right in visit(child):
+                    if any(axis in left and left[axis] != value for axis, value in right.items()):
+                        continue
+                    next_values.append({**left, **right})
+            combined = next_values
+        return combined
+
+    alternatives = visit(row["precondition"])
+    if not alternatives or any(set(item) != axis_ids for item in alternatives):
+        raise RequiredSetCoverageError("decisionRowsの各選言が終了規則軸を固定しない")
+    distinct = list({tuple(sorted(item.items())): item for item in alternatives}.values())
+    if len(distinct) > 16:
+        raise RequiredSetCoverageError("終了規則軸の選言が16件を超える")
+    return distinct
+
+
 def _game_end_requirement_impossible_pairs(
     descriptor: dict[str, Any],
 ) -> dict[tuple[str, ...], tuple[str, ...]]:
@@ -1003,9 +1037,12 @@ def _game_end_measure(
             if related.startswith("XMARK-")
             and f"req:{related}" in expected["clauseIds"]
         }
-    fixed_by_row = [_fixed_game_end_values(row, game_axes) for row in rows]
+    fixed_by_row = [_fixed_game_end_alternatives(row, game_axes) for row in rows]
     fixed_values = {
-        (axis, value) for fixed in fixed_by_row for axis, value in fixed.items()
+        (axis, value)
+        for alternatives in fixed_by_row
+        for fixed in alternatives
+        for axis, value in fixed.items()
     }
     all_values = {
         (axis, _game_end_identity(value))
@@ -1036,22 +1073,37 @@ def _game_end_measure(
 
     def rows_for(targets: tuple[tuple[str, str], ...]) -> list[dict[str, Any]]:
         return [
-            row for row, fixed in zip(rows, fixed_by_row, strict=True)
-            if all(fixed.get(axis) == value for axis, value in targets if axis in game_axes)
+            row for row, alternatives in zip(rows, fixed_by_row, strict=True)
+            if any(
+                all(fixed.get(axis) == value for axis, value in targets if axis in game_axes)
+                for fixed in alternatives
+            )
         ]
 
-    def reachable_coordinate(row: dict[str, Any], axis: str, identity: str) -> bool:
-        if axis not in values:
+    def reachable_coordinate(
+        row: dict[str, Any], game_axis: str, game_identity: str,
+        axis: str, identity: str,
+    ) -> bool:
+        if axis not in values or game_axis not in values:
             return False
         target = next(
             (value for value in values[axis] if _game_end_identity(value) == identity),
             None,
         )
-        if target is None:
+        game_target = next(
+            (value for value in values[game_axis]
+             if _game_end_identity(value) == game_identity),
+            None,
+        )
+        if target is None or game_target is None:
             return False
         predicate = {
             "op": "and",
-            "args": [row["precondition"], {"op": "eq", "axisId": axis, "value": target}],
+            "args": [
+                row["precondition"],
+                {"op": "eq", "axisId": game_axis, "value": game_target},
+                {"op": "eq", "axisId": axis, "value": target},
+            ],
         }
         axes = [
             candidate for candidate in values
@@ -1077,8 +1129,10 @@ def _game_end_measure(
             reachable.add(item.identity)
     for item in required.boundary_coordinate_requirements:
         candidates = rows_for(((item.game_end_axis_id, item.game_end_value_identity),))
-        if any(reachable_coordinate(row, item.coordinate_axis_id,
-                                    item.coordinate_value_identity) for row in candidates):
+        if any(reachable_coordinate(
+            row, item.game_end_axis_id, item.game_end_value_identity,
+            item.coordinate_axis_id, item.coordinate_value_identity,
+        ) for row in candidates):
             reachable.add(item.identity)
     for item in clause_requirements:
         if item.branch_id in row_by_branch or any(
@@ -1183,8 +1237,10 @@ def _game_end_measure(
         target = (item.game_end_axis_id, item.game_end_value_identity)
         candidates = rows_for((target,))
         if target in effective_missing or not candidates or not any(
-            reachable_coordinate(row, item.coordinate_axis_id,
-                                 item.coordinate_value_identity) for row in candidates
+            reachable_coordinate(
+                row, item.game_end_axis_id, item.game_end_value_identity,
+                item.coordinate_axis_id, item.coordinate_value_identity,
+            ) for row in candidates
         ):
             rule_excluded.add(item.identity)
     rule_excluded.update(("clause-branch", branch) for branch in branch_gap)
@@ -1811,15 +1867,15 @@ def _check_game_end_documents(
         if set(case) != (set(expanded) | normalization_fields) or projection != expanded:
             raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
     counts, _, reachable, observed = _game_end_measure(root, contract, declaration)
-    # 過去5件は受理済みの記録として保持し、この変更の測定だけを1件追記する。
+    # 過去6件は受理済みの記録として保持し、この変更の測定だけを1件追記する。
     # 新軸の追加後に旧descriptorでの要求集合を現行軸へ再解釈しない。
     history = record.get("history") if isinstance(record, dict) else None
     if (
         not isinstance(history, list)
-        or len(history) != 6
+        or len(history) != 7
         or [entry.get("step") for entry in history if isinstance(entry, dict)]
-        != [93, 94, 95, 96, 97, 98]
-        or record.get("currentStep") != 98
+        != [93, 94, 95, 96, 97, 98, 99]
+        or record.get("currentStep") != 99
     ):
         raise RequiredSetCoverageError("終了判定の独立被覆履歴の件数・順序が不正")
     prior = history[-2]

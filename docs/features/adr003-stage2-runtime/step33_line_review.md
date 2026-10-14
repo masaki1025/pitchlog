@@ -16,7 +16,7 @@
 
 契約: `contracts/state-transition/game_end_contract_v1.json`
 
-### `decisionRows` — 7 行・214 case
+### `decisionRows` — 8 行・281 case
 
 #### `decisionRows[0]` — `GAME-END-NORMAL`
 
@@ -30858,6 +30858,9798 @@
 }
 ```
 
+#### `decisionRows[7]` — `XMARK-02`
+
+由来条文 ID: req:FR-020
+
+**規範行（識別・前提・各列の期待値・remarks）**
+
+```json
+{
+  "branchId": "XMARK-02",
+  "sourceClauseIds": [
+    "req:FR-020"
+  ],
+  "precondition": {
+    "op": "and",
+    "args": [
+      {
+        "op": "eq",
+        "axisId": "gameEnd.regulationInnings",
+        "value": 9
+      },
+      {
+        "op": "eq",
+        "axisId": "gameEnd.coldConditions",
+        "value": "tier-count:1"
+      },
+      {
+        "op": "eq",
+        "axisId": "gameEnd.satisfiedColdTierCount",
+        "value": 0
+      },
+      {
+        "op": "eq",
+        "axisId": "gameEnd.tiebreak",
+        "value": "none"
+      },
+      {
+        "op": "or",
+        "args": [
+          {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "gameEnd.extensionLimit",
+                "value": "finite:R"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.inning",
+                "value": "R"
+              }
+            ]
+          },
+          {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "gameEnd.extensionLimit",
+                "value": "finite:R+1"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.inning",
+                "value": "L"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "op": "eq",
+        "axisId": "state.half",
+        "value": "bottom"
+      },
+      {
+        "op": "eq",
+        "axisId": "state.score",
+        "value": "home-lead:M+1"
+      },
+      {
+        "op": "eq",
+        "axisId": "state.gameEnded",
+        "value": false
+      },
+      {
+        "op": "eq",
+        "axisId": "state.outs",
+        "value": 0
+      },
+      {
+        "op": "eq",
+        "axisId": "state.runners",
+        "value": "empty"
+      },
+      {
+        "op": "eq",
+        "axisId": "state.count.strikes",
+        "value": 0
+      },
+      {
+        "op": "eq",
+        "axisId": "state.count.balls",
+        "value": 0
+      }
+    ]
+  },
+  "decision": {
+    "outcome": "normal-end",
+    "endConditionDetected": true,
+    "lockFurtherPlayInput": true,
+    "promptEndDeclaration": true,
+    "automaticallyEndsGame": false,
+    "xMark": "x-mark"
+  },
+  "remarks": "FR-005・FR-020 XMARK-02（要件書254・462・465・467行）。コールド段{10点,11回}を設定するが両局面では未成立とする。規定最終回（L=R）または延長上限の最終回（L=R+1）の表完了直後に後攻がリードし、対になる裏が未開始の代表行。0死・走者なし・0-0を未開始の比較面に固定する。終了条件を検知して入力をロックし、FR-010の宣言を促すが、自動終了しない。未開始の裏のセルだけをXとする。"
+}
+```
+
+##### case `GE-XMARK-02`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1"
+}
+```
+
+**正規化規則**
+
+```json
+"identity"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-001`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.called-pitch",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "見逃し",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.called-pitch",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-002`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.swinging-strike",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "空振り",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.swinging-strike",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-003`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.foul",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "ファール",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.foul",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-004`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.ball",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "ボール",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.ball",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-005`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.single",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "単打",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.single",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-006`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.double",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "二塁打",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.double",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-007`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.triple",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "三塁打",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.triple",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-008`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.home-run",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "本塁打",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.home-run",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-009`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.batted-out",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "凡打死",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.batted-out",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-010`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.double-play",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "併殺打",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.double-play",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-011`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.line-double-play",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "ライナー併殺",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.line-double-play",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-012`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.batted-reach",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "凡打出塁",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.batted-reach",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-013`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.foul-fly",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "ファールフライ",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.foul-fly",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-014`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.error",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "エラー",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.error",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-015`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.fielders-choice",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "野手選択",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.fielders-choice",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-016`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.sacrifice-bunt",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "犠打",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.sacrifice-bunt",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-017`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.sacrifice-fly",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "犠飛",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.sacrifice-fly",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-018`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.sacrifice-bunt-error",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "犠打失策",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.sacrifice-bunt-error",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-019`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.called-strikeout",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "見逃し三振",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.called-strikeout",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-020`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.swinging-strikeout",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "空振り三振",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.swinging-strikeout",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-021`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.dropped-third-strike",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "振り逃げ",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.dropped-third-strike",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-022`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.k3",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "K3",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.k3",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-023`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.strikeout-double-play",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "三振ゲッツー",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.strikeout-double-play",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-024`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.walk",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "四球",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.walk",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-025`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.hit-by-pitch",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "死球",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.hit-by-pitch",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-026`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.intentional-walk",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "申告敬遠",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.intentional-walk",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-027`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.passed-ball",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "PB",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.passed-ball",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-028`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "secondary-result.wild-pitch",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "WP",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "secondary-result.wild-pitch",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-029`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.offensive-interference",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "守備妨害",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.offensive-interference",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-030`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "secondary-result.batting-interference",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "打撃妨害",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "secondary-result.batting-interference",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-031`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.obstruction",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "走塁妨害",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.obstruction",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-032`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "secondary-result.balk",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "ボーク",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "secondary-result.balk",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-033`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.pitch-clock-violation",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "ピッチクロック違反",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "R",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.pitch-clock-violation",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 9,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-034`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.called-pitch",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "見逃し",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.called-pitch",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-035`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.swinging-strike",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "空振り",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.swinging-strike",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-036`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.foul",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "ファール",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.foul",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-037`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.ball",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "ボール",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.ball",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-038`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.single",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "単打",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.single",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-039`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.double",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "二塁打",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.double",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-040`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.triple",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "三塁打",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.triple",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-041`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.home-run",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "本塁打",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.home-run",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-042`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.batted-out",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "凡打死",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.batted-out",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-043`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.double-play",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "併殺打",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.double-play",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-044`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.line-double-play",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "ライナー併殺",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.line-double-play",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-045`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.batted-reach",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "凡打出塁",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.batted-reach",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-046`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.foul-fly",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "ファールフライ",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.foul-fly",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-047`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.error",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "エラー",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.error",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-048`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.fielders-choice",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "野手選択",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.fielders-choice",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-049`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.sacrifice-bunt",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "犠打",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.sacrifice-bunt",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-050`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.sacrifice-fly",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "犠飛",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.sacrifice-fly",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-051`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.sacrifice-bunt-error",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "犠打失策",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.sacrifice-bunt-error",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-052`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.called-strikeout",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "見逃し三振",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.called-strikeout",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-053`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.swinging-strikeout",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "空振り三振",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.swinging-strikeout",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-054`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.dropped-third-strike",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "振り逃げ",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.dropped-third-strike",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-055`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.k3",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "K3",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.k3",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-056`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.strikeout-double-play",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "三振ゲッツー",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.strikeout-double-play",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-057`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.walk",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "四球",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.walk",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-058`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.hit-by-pitch",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "死球",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 7,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "batting-result.hit-by-pitch",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-059`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.intentional-walk",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "申告敬遠",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 8,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "batting-result.intentional-walk",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-060`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.passed-ball",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "PB",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 9,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "state-correction",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.passed-ball",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "offensive-interference:batter-included-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-061`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "secondary-result.wild-pitch",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "WP",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 1,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "undo",
+  "event.operationPayload": "game-end-declaration",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "secondary-result.wild-pitch",
+  "event.perPitch.runnerEventPayload": "single-runner-pickoff-out",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-base",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "offensive-interference:runner-only-with-out-targets-and-return-bases",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-062`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.offensive-interference",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "守備妨害",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 2,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "per-pitch",
+  "event.operationPayload": "adhoc-registration",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.offensive-interference",
+  "event.perPitch.runnerEventPayload": "single-runner-hold",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-destination-home",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "not-required",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-063`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "secondary-result.batting-interference",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "打撃妨害",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 3,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "substitution",
+  "event.operationPayload": "state-correction",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "secondary-result.batting-interference",
+  "event.perPitch.runnerEventPayload": "multiple-runner-mixed-outcomes",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:penalty-award",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-kept-running",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-064`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.obstruction",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "走塁妨害",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 4,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "tiebreak-start",
+  "event.operationPayload": "not-applicable",
+  "event.perPitch.kind": "batting-result",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.obstruction",
+  "event.perPitch.runnerEventPayload": "not-required",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+  "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out",
+  "event.perPitch.interferenceRuling": "batting:play-result-with-resultId",
+  "event.perPitch.officialScoringPayload": "no-error",
+  "event.perPitch.rbi.doublePlayRelayError": "not-required",
+  "event.perPitch.rbi.runnerContinuityByRunner": "single-runner-stopped-and-restarted",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "single-runner-would-not-score"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-065`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "secondary-result.balk",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "ボーク",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 5,
+  "state.tiebreakActive": true,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "game-end-declaration",
+  "event.operationPayload": "substitution",
+  "event.perPitch.kind": "secondary-result",
+  "event.perPitch.pitchEventKind": "non-pitch-event",
+  "event.perPitch.resultId": "secondary-result.balk",
+  "event.perPitch.runnerEventPayload": "single-runner-safe-advance",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-stop",
+  "event.perPitch.thirdOutTimingByRunner": "multiple-runners-mixed-timing",
+  "event.perPitch.interferenceRuling": "obstruction:play-on-obstructed-runner-with-awarded-destinations",
+  "event.perPitch.officialScoringPayload": "single-error",
+  "event.perPitch.rbi.doublePlayRelayError": false,
+  "event.perPitch.rbi.runnerContinuityByRunner": "multiple-runners-mixed-continuity",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "multiple-runners-mixed-ruling"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
+##### case `GE-XMARK-02-COVERAGE-066`
+
+**入力座標**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.pitch-clock-violation",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**入力（正規化前）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "ピッチクロック違反",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**正規化規則**
+
+```json
+"game-end-result-display-name-to-id"
+```
+
+**入力（正規化後）**
+
+```json
+{
+  "gameEnd.regulationInnings": 9,
+  "gameEnd.coldConditions": "tier-count:1",
+  "gameEnd.satisfiedColdTierCount": 0,
+  "gameEnd.extensionLimit": "finite:R+1",
+  "gameEnd.tiebreak": "none",
+  "state.half": "bottom",
+  "state.count.strikes": 0,
+  "state.count.balls": 0,
+  "state.outs": 0,
+  "state.runners": "empty",
+  "state.battingOrder": 6,
+  "state.tiebreakActive": false,
+  "state.gameEnded": false,
+  "state.inning": "L",
+  "state.score": "home-lead:M+1",
+  "event.operationKind": "adhoc-registration",
+  "event.operationPayload": "tiebreak-start",
+  "event.perPitch.kind": "runner-event",
+  "event.perPitch.pitchEventKind": "pitch-event",
+  "event.perPitch.resultId": "secondary-result.pitch-clock-violation",
+  "event.perPitch.runnerEventPayload": "single-runner-caught-stealing",
+  "event.perPitch.runnerAdvanceOverridesByRunner": "single-runner-out",
+  "event.perPitch.thirdOutTimingByRunner": "not-required",
+  "event.perPitch.interferenceRuling": "obstruction:no-play-on-obstructed-runner-with-awarded-destinations-and-out-targets",
+  "event.perPitch.officialScoringPayload": "multiple-errors",
+  "event.perPitch.rbi.doublePlayRelayError": true,
+  "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+  "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required"
+}
+```
+
+**派生軸の導出元の実入力**
+
+```json
+{
+  "gameEnd.coldConditions": [
+    {
+      "pointDifference": 10,
+      "startInning": 11
+    }
+  ],
+  "state.inning": 10,
+  "state.half": "bottom",
+  "state.score": {
+    "home": 11,
+    "away": 0
+  }
+}
+```
+
+**期待する終了判定**
+
+```json
+{
+  "outcome": "normal-end",
+  "endConditionDetected": true,
+  "lockFurtherPlayInput": true,
+  "promptEndDeclaration": true,
+  "automaticallyEndsGame": false,
+  "xMark": "x-mark"
+}
+```
+
 ## 状況判定
 
 契約: `contracts/state-transition/state_transition_contract_v1.json`
@@ -39884,8 +49676,7 @@
 
 ## 条文が決めていない点・機械検査の限界
 
-- FR-009 は指定走者の個人 ID と打順の巻き戻りの詳細な対応を決めていない。
-  契約は走者配置と打順枠の比較面を示す。
+- 条文未確定事項は [未解消レポート §5](../appendix-e-golden-vectors/unresolved-report.md#5-ゲート⑥で確認した条文未確定事項2026-10-14) の G6-E01〜E07（TSK-545）と G6-S01〜S11（TSK-544）を参照する。
 - 成立段数の値が条文に照らして正しいことは、ADR-003 v0.7 D-11 の
   派生軸の関数性検査だけでは証明できない。ステップ26〜28の各値は独立確認を要する。
 - このシートは契約の転記と網羅性だけを機械的に保証する。

@@ -196,45 +196,64 @@ def _expand_coverage_from_declared_inputs(
                 axis.startswith(("state.", "event.")) and axis in play_input_axes
             )
         ]
-        choices: dict[str, list[Any]] = {}
-        for axis in axes:
-            if not axis.startswith(("state.", "event.")):
+        extension_limits = []
+        for value in values_by_axis["gameEnd.extensionLimit"]:
+            constraint = {"op": "eq", "axisId": "gameEnd.extensionLimit", "value": value}
+            try:
+                representative_selection.select_coordinate(
+                    {"op": "and", "args": [predicate, constraint]},
+                    values_by_axis, axes, policy,
+                )
+            except representative_selection.RepresentativeSelectionError:
                 continue
-            allowed = []
-            for value in values_by_axis[axis]:
-                constraint = {"op": "eq", "axisId": axis, "value": value}
-                try:
-                    representative_selection.select_coordinate(
-                        {"op": "and", "args": [predicate, constraint]},
-                        values_by_axis, axes, policy,
-                    )
-                except representative_selection.RepresentativeSelectionError:
+            extension_limits.append(value)
+        if not extension_limits:
+            raise CaseExpansionError("行が延長上限の軸に到達できない")
+        coverage_index = 0
+        for extension_limit in extension_limits:
+            bounded = {"op": "and", "args": [predicate, {
+                "op": "eq", "axisId": "gameEnd.extensionLimit", "value": extension_limit,
+            }]}
+            choices: dict[str, list[Any]] = {}
+            for axis in axes:
+                if not axis.startswith(("state.", "event.")):
                     continue
-                allowed.append(value)
-            if not allowed:
-                raise CaseExpansionError(f"行が状態・イベント軸に到達できない: {axis}")
-            choices[axis] = allowed
-        for index in range(max(map(len, choices.values()))):
-            constraints = [
-                {"op": "eq", "axisId": axis, "value": values[index % len(values)]}
-                for axis, values in choices.items()
-            ]
-            coordinate = representative_selection.select_coordinate(
-                {"op": "and", "args": [predicate, *constraints]},
-                values_by_axis, axes, policy,
-            )
-            result.append(
-                {
-                    "caseId": f"GE-{row['branchId']}-COVERAGE-{index + 1:03d}",
-                    "branchId": row["branchId"],
-                    "rowRef": {
-                        "layer": "decisionRows",
-                        "coordinate": {"branchId": row["branchId"]},
-                    },
-                    "inputCoordinate": coordinate,
-                    "decision": copy.deepcopy(row["decision"]),
-                }
-            )
+                allowed = []
+                for value in values_by_axis[axis]:
+                    constraint = {"op": "eq", "axisId": axis, "value": value}
+                    try:
+                        representative_selection.select_coordinate(
+                            {"op": "and", "args": [bounded, constraint]},
+                            values_by_axis, axes, policy,
+                        )
+                    except representative_selection.RepresentativeSelectionError:
+                        continue
+                    allowed.append(value)
+                if not allowed:
+                    raise CaseExpansionError(f"行が状態・イベント軸に到達できない: {axis}")
+                choices[axis] = allowed
+            for index in range(max(map(len, choices.values()))):
+                constraints = [
+                    {"op": "eq", "axisId": axis, "value": values[index % len(values)]}
+                    for axis, values in choices.items()
+                ]
+                coordinate = representative_selection.select_coordinate(
+                    {"op": "and", "args": [bounded, *constraints]},
+                    values_by_axis, axes, policy,
+                )
+                coverage_index += 1
+                result.append(
+                    {
+                        "caseId": f"GE-{row['branchId']}-COVERAGE-{coverage_index:03d}",
+                        "branchId": row["branchId"],
+                        "rowRef": {
+                            "layer": "decisionRows",
+                            "coordinate": {"branchId": row["branchId"]},
+                        },
+                        "inputCoordinate": coordinate,
+                        "decision": copy.deepcopy(row["decision"]),
+                    }
+                )
     return result
 
 

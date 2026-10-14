@@ -251,16 +251,16 @@
     ],
     "countsByCause": {
       "noApplicableRow": {
-        "pairwise": 20,
-        "boundaryCoordinate": 239,
+        "pairwise": 22,
+        "boundaryCoordinate": 259,
         "clauseBranch": 17,
-        "total": 276
+        "total": 298
       },
       "unfixedAxisValue": {
-        "pairwise": 279,
-        "boundaryCoordinate": 2622,
+        "pairwise": 271,
+        "boundaryCoordinate": 2484,
         "clauseBranch": 0,
-        "total": 2901
+        "total": 2755
       },
       "requirementsImpossible": {
         "pairwise": 14,
@@ -270,7 +270,7 @@
       }
     },
     "beforeUnreachableCount": 2817,
-    "remainingUnreachableCount": 3177,
+    "remainingUnreachableCount": 3053,
     "nextSteps": {
       "noApplicableRow": "COLD-09はステップ26でdecisionRowsに結んだ。DRAW-05は状況判定operationRowsに結んだが本集合はdecisionRows層だけを数える。COLD-01〜07は中間判定なのでdecisionRowsへ置かない。",
       "unfixedAxisValue": "成立段数の新軸により要求直積が拡大した。未固定値は後続の対象計算で行の要否を確認する。"
@@ -320,10 +320,6 @@
     {
       "axisId": "gameEnd.coldConditions",
       "valueIdentity": "\"tier-count:16\""
-    },
-    {
-      "axisId": "gameEnd.extensionLimit",
-      "valueIdentity": "\"finite:R\""
     },
     {
       "axisId": "gameEnd.regulationInnings",
@@ -439,7 +435,7 @@
   },
   "normalCaseCounts": {
     "stateTransition": 109,
-    "gameEnd": 214
+    "gameEnd": 281
   },
   "stateTransitionCaseAliases": [
     "eventKind",
@@ -513,6 +509,15 @@
       },
       {
         "branchId": "GAME-END-WALK-OFF",
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "clauseIds": [
+          "req:FR-005",
+          "req:FR-020"
+        ]
+      },
+      {
+        "branchId": "XMARK-02",
         "lockFurtherPlayInput": true,
         "promptEndDeclaration": true,
         "clauseIds": [
@@ -617,9 +622,19 @@
             "req:XMARK-01"
           ],
           "basis": "第R回裏は開始済みで、サヨナラで途中終了してもFR-005・FR-020 XMARK-01により得点を表示する。"
+        },
+        {
+          "branchId": "XMARK-02",
+          "value": "x-mark",
+          "clauseIds": [
+            "req:FR-005",
+            "req:FR-020",
+            "req:XMARK-02"
+          ],
+          "basis": "規定最終回または延長上限回の表完了で後攻がリードし、同回の裏は未開始。要件書254・462・465・467行。"
         }
       ],
-      "remainingGap": "XMARK-03の空欄を主張する独立した終了判定行はまだ無い。GAP-01/05の5段は未充足。"
+      "remainingGap": "XMARK-02の通常最終回・延長上限回は独立行に追加。XMARK-03の対象セルを指定する入力がないため空欄行は未収容。GAP-01/05の5段は未充足。"
     }
   },
   "checkerAllowedReadPaths": [
