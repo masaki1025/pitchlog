@@ -1,6 +1,8 @@
 # TSK-550 ステップ1・残る4件の判断用差分
 
-2026-10-14。これは**正本と個別資産の変更案**であり、製品契約・migration・認可・凍結基準の承認または実装ではない。A追補計画`a2b8a5b5`、Codex Dの`06f7834f`、固定function operationのPO代替受理を維持する。段階B、大会割当/管理書込関数、ゲームHTTP実装を含めない。関係担当の採否と正本ゲートで本文を確定する。
+2026-10-14。これは**正本と個別資産の変更案**であり、migration・認可・凍結基準の承認または実装ではない。A追補計画`a2b8a5b5`、Codex Dの`06f7834f`、固定function operationのPO代替受理を維持する。段階B、大会割当/管理書込関数、ゲームHTTP実装を含めない。関係担当の採否と正本ゲートで本文を確定する。
+
+**POの追加判断（2026-10-14）**: 下表の固定UUID5件と公式戦`tiebreak`の機械文字列`no_out_first_second`/`continue_lineup`を採用。付録F-2の規則値・意味は変更しない。この採用はデータ配置migration、一時RLS、関数owner/列UPDATE、GUC脅威モデル、正本文の承認へ拡張しない。
 
 ## 1. 6-key保存とU-G1接続
 
@@ -34,7 +36,7 @@ U-G1への接続案: 認証済み`TenantContext`から開いた**同一**`tenant
 
 ## 3. 付録F-2の配置差分と停止規律
 
-`contracts/seeds/game-type.json`とmigration `0030_seed_game_type`で確定した5キーに対し、次の**配置ID候補**を提示する。UUIDは`uuid5(NAMESPACE_URL, "pitchlog:FR-014:F-2:2026-07-22:" + game_type_key)`で再現可能。IDの採用とタイブレークの機械表現は**未承認**であり、migrationをまだ書かない。
+`contracts/seeds/game-type.json`とmigration `0030_seed_game_type`で確定した5キーに対し、次の**PO採用済み配置ID**を固定する。UUIDは`uuid5(NAMESPACE_URL, "pitchlog:FR-014:F-2:2026-07-22:" + game_type_key)`で再現可能。migrationは個別ゲート待ちであり、まだ書かない。
 
 | 試合区分キー | 規則UUID候補 | 規定 | コールド段（点差,開始回） | 上限 | タイブレーク | DH |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -44,7 +46,7 @@ U-G1への接続案: 認証済み`TenantContext`から開いた**同一**`tenant
 | `game_intrasquad` | `45677369-9e25-5220-9a30-1d89b338174c` | 9 | `[(10,5),(7,7)]` | 9 | null | true |
 | `game_other` | `6ff51660-bee2-552a-9075-1f3f3d1e0dd7` | 9 | `[]` | 9 | null | true |
 
-DB行は`rule_sets`の5列へ値を写し、`game_type_rule_defaults`を5キー→5UUIDへ結ぶ。`coldConditions`は段配列の`{pointDifference,startInning}`へ変換する。公式戦`tiebreak`は既存schemaの`{startInning,runnerPlacement,leadoffRule}`に対応し、`startInning=10`まではF-2に明記済み。`runnerPlacement`と`leadoffRule`には機械enumが未定義のため、候補を`"no_out_first_second"`/`"continue_lineup"`とし、**この2文字列だけはPO・U-X1/U-G1が採否を判断する**。承認なしに新しい意味値を製品へ入れない。既存schemaは非空文字列しか検査しないため、意味の妥当性は後続の単一codecと正式契約で閉じる。`tieBreak`というキーは作らず、既存schemaの`tiebreak`を使う。
+DB行は`rule_sets`の5列へ値を写し、`game_type_rule_defaults`を5キー→5UUIDへ結ぶ。`coldConditions`は段配列の`{pointDifference,startInning}`へ変換する。公式戦`tiebreak`は既存schemaの`{startInning,runnerPlacement,leadoffRule}`に対応し、`startInning=10`・`runnerPlacement="no_out_first_second"`・`leadoffRule="continue_lineup"`とする。後二者はPOが機械文字列として採用済みで、F-2の意味は変えない。既存schemaは非空文字列しか検査しないため、値域の検査は後続の単一codecで行う。`tieBreak`というキーは作らず、既存schemaの`tiebreak`を使う。
 
 **migration順序候補**: 現行`0030_seed_game_type`以降の最新統合headを基点に、(A)出所付きF-2規則データの配置revision→(B)制限読取関数・必要ACLのrevisionの順にする。revision番号は着手時のAlembic headで採番し、A→Bの`down_revision`を固定。Bより前の環境で製品作成を公開しない。既存DBでは`pitchlog_owner`もFORCE RLSに従うため、Aの**同一transaction内で最初に**`rule_sets`の候補5 IDと`game_type_rule_defaults`の候補5キーだけをownerがSELECT/INSERTできる一時ポリシーを作る。必要な表DDL lock/保守停止下で既存候補の有無を調べ、5規則行と5既定対応を検査・配置し、**commit前に一時ポリシーを除去してRLS/ACLの事後状態をexact照合**する。ポリシー作成/削除・データ配置・事後確認のどこかが失敗したら全rollbackする。ownerが候補外の行を読む必要が生じる検査はこの権限では通らないため、隠れた既存行を安全と推定せず停止する。これは既存`system_vocabularies`の所有者専用seed経路を参考にした新しい**個別認可ゲート候補**であり、正式承認前に適用しない。Aは候補IDまたは既定キーの既存行が1件でもあれば由来不明として停止し、値一致だけの冪等採用もしない。部分配置、別IDでの既定行、他用途の既存参照、出所を確認できない既存行があれば**全rollback**。物理DELETEのdowngradeは設けず、後戻しは別の訂正migrationとする。
 
@@ -69,8 +71,8 @@ DB行は`rule_sets`の5列へ値を写し、`game_type_rule_defaults`を5キー�
 | 判断対象 | 推奨案 | 採否担当・ゲート |
 | --- | --- | --- |
 | 6-key保存/旧行とU-G1同一scope | §1案。既存JSONB、旧行不補完、1回のencodeとgame INSERT、例外全取消 | U-G1消費側、data-model所有者。§6-5/10-5の7.3本文承認 |
-| F-2固定IDとタイブレーク文字列 | §3のUUIDv5と`no_out_first_second`/`continue_lineup`。値はF-2から変更しない | PO・U-X1/U-G1、data-model所有者。新しい文字列意味が要件の規範になるなら要件書の別7.3 |
+| F-2固定IDとタイブレーク文字列 | §3のUUIDv5と`no_out_first_second`/`continue_lineup`。値・意味はF-2から変更しない | **PO採用済み**。実配置と正本/認可ゲートは別 |
 | 配置の順序/排他 | データA→読取関数B、保守停止、衝突全取消 | data-model/移行所有者、運用・認可面所有者。migrationの個別審査と7.7 |
 | 関数公開面・owner・GUC | `public`の読取専用1関数、ownerのschema USAGE/列SELECT/行ロックに必要な列UPDATEを個別審査、PUBLIC revoke/app EXECUTE、GUC検証 | 認可面/tenant境界所有者。認可面§1-6の7.3、具体DDL/資産の7.7 |
 
-人間が判断するのは**具体的なID/機械表現、2つの正本7.3本文、配置/認可資産の個別差分、GUC脅威モデル**である。計画Aや既受理の閉鎖モデル・4失敗・固定operation契約を再承認待ちへ戻さない。実装後証跡が必要な箇所は承認済み計画ステップ3〜6とTSK-395ステップ2へ残す。
+残る人間判断は**2つの正本7.3本文、配置/認可資産の個別差分、GUC脅威モデル**である。計画Aや既受理の閉鎖モデル・4失敗・固定operation契約を再承認待ちへ戻さない。実装後証跡が必要な箇所は承認済み計画ステップ3〜6とTSK-395ステップ2へ残す。
