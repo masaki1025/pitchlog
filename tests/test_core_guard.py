@@ -454,16 +454,10 @@ D2_DOMAIN_CALC_GLOBS = (
     "backend/tests/domainrt/*",
 )
 D2_SYNC_PROTOCOL_PATH_ADDITIONS = ("tests/domain/runners/test_handoff_loader.py",)
+# 先行追加層の窓口は回転式で、着地済みの宣言は JSON 側へ移る。
+# D-2(#131)の分は develop の core-areas.json へ着地済みのため、
+# 現在宣言されているのは TSK-238 の領域契約の分である。
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
-    "sync-protocol": D2_SYNC_PROTOCOL_PATH_ADDITIONS,
-    "game-state": D2_DOMAIN_CALC_PATH_ADDITIONS,
-    "data-migration": D2_DOMAIN_CALC_PATH_ADDITIONS,
-}
-UF5_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
-    "tenant-isolation": UF5_TEAM_AREA_PATH_ADDITIONS,
-    "data-migration": UF5_TEAM_AREA_PATH_ADDITIONS,
-}
-FIELD_REGION_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     "game-state": (
         "contracts/field-regions/*",
         "contracts/display-geometry/*",
@@ -472,6 +466,10 @@ FIELD_REGION_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
         "tests/test_field_geometry_ci_wiring.py",
     ),
     "sync-protocol": ("tests/test_field_geometry_numeric_lexemes.py",),
+}
+UF5_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+    "tenant-isolation": UF5_TEAM_AREA_PATH_ADDITIONS,
+    "data-migration": UF5_TEAM_AREA_PATH_ADDITIONS,
 }
 DOMAIN_CALC_GLOBS = (
     "backend/domain/*",
@@ -2669,8 +2667,7 @@ def test_area_registration() -> None:
 
     assert len(areas) == len(configuration["areas"]) == 5
     assert len(DOMAIN_CALC_GLOBS) == 15
-    assert dict(core_guard.AREA_PATH_ADDITIONS) == FIELD_REGION_AREA_PATH_ADDITIONS
-    assert declared_ids == {"game-state", "sync-protocol"}
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     assert declared_ids <= set(areas)
     assert stationary_ids | declared_ids == set(areas)
     assert set(areas) == set(registered_additions) == set(baseline_areas)
@@ -2689,7 +2686,7 @@ def test_area_registration() -> None:
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in registered
         )
-    for area_id, additions in FIELD_REGION_AREA_PATH_ADDITIONS.items():
+    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
         base_paths = tuple(baseline_areas[area_id]["paths"])
         current_paths = tuple(areas[area_id]["paths"])
         # ステップ 8 の未登録状態と、ステップ 9 の宣言順での末尾追加を受理する。
