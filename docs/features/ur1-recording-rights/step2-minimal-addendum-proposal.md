@@ -20,21 +20,26 @@
 | 待機競合 | `FOR SHARE NOWAIT`候補が拒否する競合と、共有ロック先行時の復元側待機を二接続以上で再現する | 新2通常側の即時拒否・全取消を確認。復元側の具体的`lock_timeout`/再試行上限は新5の別判断。無制限待機を安全と宣言しない |
 | 認可境界 | app直表操作、関数直呼出し、PUBLIC/余剰policy、role属性を実カタログで照合する | 専用owner・FORCE RLS・2関数限定EXECUTEの承認済み差分だけを許す |
 
+## 6.3追加レビューのPO裁定候補
+
+現行計画は既に4周レビュー済み。**追加1回、全文ではなく追補差分と直接の影響箇所**を推奨する。対象を本書の「変更する条件」「検査準備」「個別承認一覧」「着手判定と7.7」、[現行ステップ表](plan.md)の新2・新5・新6行、[個別承認資料](rg1-individual-approval-packet.md)の2〜4節に限定する。正本のRG1停止・起動時閉鎖・解除と新D4の不可分性、U-S1の③-a/⑧の受理済み契約との整合を照合する。計画レビューの受理範囲は6.1の**正本違反／ステップが緑にできない／DoDと成果物の不対応**、重大度はP0/P1/P2とする。既レビュー済みの計画全文やA/B/C分割の再審査は対象外。指摘は作業ログで採否を固定し、採用反映の最終差分は人間が確認する。追加周回を自動延長しない。POの範囲・1回の裁定を記録するまでレビューは開始しない。
+
 ## 新2の個別承認一覧
 
 具体的なSQL・権限・影響は[RG1個別承認資料](rg1-individual-approval-packet.md)2〜4節を正とする。以下は判断単位であり、A/B/Cの方式承認を流用しない。
 
-| 項目 | 推奨案 | 必要な承認・未確定の確認 |
-| --- | --- | --- |
-| owner | RG1の2読取関数だけを所有する専用`NOLOGIN/NOBYPASSRLS` role | データモデルのrole数・目的の7.6/必要な7.3、認可担当の採否、POの個別資産承認 |
-| RLS | 単一行`FORCE RLS`、専用ownerのSELECT/UPDATE policyと最小列ACL。INSERT/DELETE policy、app表ACLなし | 非テナント`function_only`分類、policy合成と列ACLを実DBで確認後、正本/認可/凍結の個別承認 |
-| EXECUTE | appには固定読取2関数だけ、PUBLICを同一transactionで剥奪。復元開始関数は新2で作らない | 関数identity、app直接EXECUTE、schema/関数ACLのexact-setを審査し個別承認 |
-| 待機上限 | 通常側の直前照合は`FOR SHARE NOWAIT`候補、競合時は全取消。復元側上限は新5で数値を決める | NOWAIT採否と失敗結果のPO/担当確認。復元側を無期限待機で公開しないことを新5開始条件へ固定 |
-| 隔離正常系 | 開状態fixtureでは行ロック機構だけを試験し、常閉製品関数は閉鎖・拒否を試験する | 本追補の6.1/6.3コア計画差分レビューと人間承認。製品open成功は新5へ移す |
+| 項目 | 推奨案 | 変更対象資産（承認後） | 残る判断・確認 |
+| --- | --- | --- | --- |
+| owner | RG1の2読取関数だけを所有する専用`NOLOGIN/NOBYPASSRLS` role。管理関数ownerを流用しない | `data-model.md`§3-2、role/関数ownerの認可宣言・適用器・実カタログ検査 | role数・目的の7.6/必要な7.3、認可・データモデル担当の採否、POの個別資産承認 |
+| FORCE RLSと最小権限 | `rg1_restore_gate`単一行に`FORCE RLS`。専用ownerへ`SELECT(singleton_id,state)`とロック用`UPDATE(singleton_id)`、SELECT/UPDATEの単一行policyだけ。app表ACLとINSERT/DELETE policyなし | RG1状態表migration、`table-classification.json`、認可DDL/ACL/policy宣言・適用器・catalog exact-set試験 | 非テナント`function_only`分類の正本化、`FOR SHARE`に列ACLと2 policyが足りるかの実DB確認、余剰policy合成と直接表操作の拒否、正本/認可/凍結の個別承認 |
+| EXECUTE | appには`rg1_api`の`USAGE`と固定読取2関数の`EXECUTE`だけ。作成transactionでPUBLIC権を剥奪し、復元開始関数は新2で作らない | 関数DDL/owner/ACLと認可宣言、固定関数2登録・repository契約と試験 | 関数identity、app直接EXECUTE・GUC偽装・未知関数拒否、schema/関数ACL exact-set、個別承認 |
+| `FOR SHARE NOWAIT` | 通常側の直前照合は同一行の`FOR SHARE NOWAIT`候補。競合は即時拒否・scope全取消、自動再試行なし | RG1コミット直前読取関数、固定SQL登録、DB競合試験、失敗結果の契約 | NOWAIT採否とB7/P3 B10写像。共有ロック先行時の復元側`lock_timeout`と再試行上限の具体値は新5の別判断で、公開前に実DB検証 |
+| 隔離正常系 | 特権の開状態fixtureは**直接SQLの行ロック・競合**だけを検証。製品2関数は古いopenでも閉を返すことを別検証し、製品open成功は新5へ送る | 本計画の新2合格条件（承認後のみ）、隔離DBの試験fixture/DB競合試験、製品関数の閉鎖試験 | 6.1/6.3差分レビューと人間の計画承認。fixtureのopenを運用解除や製品正常系の証拠にしない |
 
 ## 着手判定と7.7
 
 - Aの共有実行器は2026-10-15時点の最新`origin/develop` `9b8f9bc6`に未統合。TSK-550側のA専用worktreeは`04988b82`でステップ1の資産差分固定中。U-R1新2の実revision/digestと7.7 before/afterは、A統合後の最新developを基点に算出する。旧試算値は承認値にしない。
+- A統合後は、(1) Aを含む最新developとAの受理済み最終headを照合し、Cのbeforeとして凍結資産の実revision・canonical digest・参照blob/snapshotを採取、(2) 承認済みC候補のSQL/JSON・固定登録2件だけを差分化してafterを計算、(3) 正式PR番号を得て、`history_authority: true`の`base-allowlist.json`に置く**当該PRの単一未マージ受理記録**のbefore固定・after候補、movement_fact・reason・実承認者/日付・archive参照を提示、(4) 独立レビューと人間の個別受理後にだけ台帳・派生資産を反映し、凍結履歴/archive/契約検査を通す。中間コミットは受理単位にしない。既存受理履歴、before側、PR #72のPENDING_ACCEPTANCEを変更しない。最終headとの再照合は新9で行う。
 - 新2の開始には、本追補のコア計画レビュー・人間承認、owner/RLS/EXECUTE/待機上限の項目別採否、具体的DDL/認可/凍結資産と正本の別承認、A統合後の7.7実値提示・受理が必要。承認済みU-S1 Port契約を再照会しない。
 - 上記が揃うまで製品コード・凍結資産・正式受理履歴は変更しない。U-R1新6の実経路結合試験とD4方式の裁定は別ゲート。
 - 現行計画のレビュー周回は4。6.3の追加周回を本書作成だけで許可済みと扱わない。追補差分と影響箇所の独立レビュー範囲・回数はPO裁定を記録してから実施する。
