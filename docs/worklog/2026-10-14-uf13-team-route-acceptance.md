@@ -273,3 +273,14 @@ authzの`frozen-baselines.json`は`acceptance_id_source=repository_and_pr_number
 5. **コアPRのレビューと逐行確認**: 第3段後の最終差分に対する反対側一次レビュー、敵対レビュー、人間逐行確認が必要。Claude経路が利用できない場合、過去PRへの代替許可を流用せず、C1 PRに限定した代替レビュア承認を得る。未実施チェックは代記しない。
 
 PR #132と#137は本記録時点でも未統合であり、追補承認後も共有資産の実装再開条件は未成立である。新規ACL・migration、凍結対象・比較述語・検査器の緩和は追補範囲に含めない。
+
+### PR #137統合後の認証経路側追随（2026-10-15）
+
+- TSK-238の対応PR #137は2026-10-15 11:32:45 UTCに統合された。PR headは`dffe108cec6b916c938e63cc4d1fd4e3b4399f5a`、developへの実統合SHAは`f36d0fee81479d75861ecbbfc8c2218adaaf8227`である。`git fetch origin develop`後、C1差分をstash`C1 step1 seven-file diff before TSK-238 merge 2026-10-15`（object `e2cb7e9753ad663b36a495ae5e5f46815dbe39ef`）へ保全し、`origin/develop`をmerge commit`db3eb598b48c6ba2fdd2d2e41db351c8db62e145`で競合なく取り込んだ。
+- 再適用後のC1製品・固有試験7ファイルはstash内容とファイル単位SHA-256がすべて一致した。#137はこれら7ファイルを変更せず、影響はauthz route registry / HTTP matrix、その派生lock、oracle入力・sealと関連要件資産に限られる。
+- #137の正式受理後を比較元として、`ROUTE:AUTH:session:read`を`authentication_entry` / `design` originで、`HTTP:ROUTE:AUTH:session:read`を`conditional` / TSK-528.C1試験所有で候補登録した。派生lockは`--reseal-derived`で再導出し、route registryは244→245件、HTTP matrixは59→60件となった。既存3認証経路その他の行は変更していない。
+- 実コード照合により、`scripts/check_authz_catalog.py`が認証入口を3経路のexact-setとして固定していることが判明した。C1経路を加えた4経路exact-setへ追随し、対応する正例・未宣言追加拒否試験とfixtureだけを更新した。部分集合化、除外、skip、route kind / dispositionの許容拡大は行っていない。事前準備記録の「検査器の列挙変更は不要」はこの実コード差分で訂正する。
+- fixtureの設計出所を既存の要件入力へ偽装せず、`auth-session-plan.md`へ分離して逐語一致を検証し、fixtureのroute registry派生lockも再導出した。個別検証は、新しい4経路集合と未宣言経路拒否の2件green、変更checker/testのruff green、`git diff --check` green、frozen baseline invariants green。oracle sealを直接検証する既知2件だけを分離したauthz catalogは25,818件greenである。直接検証2件はどちらも`route-registry.json: oracle input blob が不一致`でfail-closedとなることを確認した。正式な`oracle_commit`、`frozen-baselines.json`、`oracle-seal.lock.json`は未変更であり、7.7人間受理前の期待状態である。
+- 認証経路側で現時点まで進められるのは、route / matrix候補、派生lock、strict checkerと試験の追随までである。製品7ファイルと検証済み認証経路候補をまとめた名前付きstash`C1 step1 product and validated auth route candidate after TSK-238 merge 2026-10-15`（object `27b0081773c955cb33cd29ec3ce3bca64f82415f`）を作成してから作業treeへ再適用した。oracle commit・受理履歴・sealの正式更新、製品コミット、push、Draft PRは未承認の3段追補と7.7確認に残す。
+- repository側はPR #132が引き続きDraft・`DIRTY`（head `0297a8dacce2135834a54c995d0a4167c5ac5c98`）であり、`TENANT_PROFILE_OPERATIONS`登録、repository contract、tenant-boundary履歴・snapshot、隔離DBの実製品operation試験は統合待ちのまま分離する。#137統合を理由に#132の未統合差分を基線へ採らない。
+- 既済みのC1計画承認・担当受理は維持する。今回新たに必要と判明した人間確認対象は、4経路exact-setへ追随するchecker/test差分を、route / matrix 1件とともにコア敵対レビュー・逐行確認へ含めることだけである。新規ACL・migration、ステップ2、公開経路には進んでいない。
