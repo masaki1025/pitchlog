@@ -127,3 +127,8 @@
 - **旧新ステップ・コミット・PR対応**: [一括判断資料](../features/ur1-recording-rights/step2-decision-brief.md)の推奨案は新2=パス宣言コミット、新3=JSON登録コミット、新4=旧新2のRG1製品・受理記録コミットを同じ先行PRに置く。旧新3/4/5/6は新5/6/7/8へ移し、旧新7/8は先行PR対象部分を新2/3へ移す。新9は全体の最終照合。旧名称のD4と実経路結合のゲートは移動先へ引き継ぐ。現行表は未変更、最終差分は未再レビューで人間確認対象。
 - **guard根拠と検査**: `scripts/core_guard.py::validate_area_path_layers()`はmerge-base pathsと宣言済み追加層を照合し、製品ファイルの存在を要求しない。`verify_area_path_baseline()`はコミット列を走査し、JSONと基線定義の同一コミット変更を拒否。既存の合成repo試験`test_tenant_declaration_accepts_json_before_registration`は宣言→登録を製品ファイルなしで受理し、`test_addition_layer_requires_complete_declared_suffix`は部分/並べ替えを拒否する。`uv run pytest tests/test_core_guard.py -k 'tenant_declaration_accepts_json_before_registration or addition_layer_requires_complete_declared_suffix' -q -n 0`は**2 passed**。RG1の実パターンでの新2/3コミット検査とPR本文の逐行確認は後続ゲート。
 - **正確な認可資産範囲の追加発見**: `ddl-elements.json`には列ACL群があるが、`product_control_access.py::generate_function_owner_column_acl_sql`と`check_authz_catalog.py`は追加definer列ACLを`["SELECT"]`に限定。RG1の最小権限`UPDATE(singleton_id)`はそのままでは不合格となる。表UPDATEへ広げず、RG1表/列/owner/commit-check関数のexact tupleだけ`UPDATE`を許す生成器・catalog・負例と宣言JSONを個別資産承認対象に加えた。正本3-2/特別露出の改訂と実DB権限検証も必要。A未統合のためrevision/digest/snapshot実値は記入しない。
+
+## d5db8576のPO承認・最新develop再照合（2026-10-15）
+
+- 依頼者は`d5db8576`の最終計画追補、判断資料の具体資産・RG1 exact tupleに限定した列`UPDATE(singleton_id)`検査器差分、ローカル候補作成、隔離DB試験・レビュー・修正・記録コミットを承認。追加レビュー後の未再レビュー差分も人間確認対象とした。既承認5項目は維持。新2宣言→新3 JSON登録→新4製品・受理記録を同じ先行PRに置き、新2/3のコミットを分離する。D4、運用open解除、7.7実値・正式受理、push/PR作成/mergeは承認範囲外。
+- `git fetch origin develop`で`origin/develop=3f6a935a`を確認。U-R1専用worktreeに`git merge --no-edit origin/develop`を実施し、衝突なしで`7bf4a2a5`へ取り込んだ。他担当worktreeは変更していない。Aの共有実行器はdevelop未統合。U-R1の凍結7資産の実after/revision/digest/snapshotはA統合後まで確定しない。現存の未追跡`claude-handoff.md`は本作業の変更へ含めない。
