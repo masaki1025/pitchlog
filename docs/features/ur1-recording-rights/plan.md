@@ -7,7 +7,7 @@ worktree: ../../..
 notion: https://app.notion.com/p/3da93b75e6878176a132ee9f25e9430a
 branch: feature/ur1-recording-rights
 created: 2026-10-14
-計画レビュー周回: 4
+計画レビュー周回: 5
 確定ゲート周回: 0
 実行方式: 通常
 反映周コミット: 適用
