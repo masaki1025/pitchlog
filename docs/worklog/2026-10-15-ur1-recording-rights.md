@@ -121,3 +121,9 @@
 - **追加独立レビューの実施**: 固定候補`191427621d99f462c776b75b60a62a2c6078a94d`を起案に関与しないread-only Codexセッション`01a13f94-c8fc-7730-b5c0-60b595eeb750`が`.claude/scripts/codex_run.py review adversarial -`で修正差分と直接影響節だけ確認。**否決 P0=1/P1=2/P2=0**。前回の受理単位P0と未受理検査P1は修正を確認した。
 - **新規P0・採用**: 新2PRだけを切り出すと、現行新7のコアパス宣言と新8のJSON登録が後続PRへ残り、同じPRで重複帰属を登録するDoDを満たせない。[判断資料](../features/ur1-recording-rights/step2-decision-brief.md)に、新2PR内の宣言→JSON登録→製品を独立コミットとする番号対応候補を示した。実順序・guard緑・後続PRの追加パスの扱いは最終人間確認事項。既存ステップ表は未変更。
 - **新規P1・採用**: 承認済み最小追補の「製品実装前7.7正式受理」を置換する対象条件として明記し、試験境界は維持。作業ツリー検査と、Git HEADを読む契約/履歴検査・PR CIを分けて、コミット前の検査だけを全件greenとしない。前回候補からの追加反映により計画レビュー周回6→7。**P0/P1反映後の最終差分は未再レビュー**。今回のPO許可1回は消費済みで自動再実施しない。A未統合、具体資産/候補作成/7.7正式受理未承認、製品・凍結資産変更なし。
+
+## 最終承認資料のguard/認可基線の実測（2026-10-15）
+
+- **旧新ステップ・コミット・PR対応**: [一括判断資料](../features/ur1-recording-rights/step2-decision-brief.md)の推奨案は新2=パス宣言コミット、新3=JSON登録コミット、新4=旧新2のRG1製品・受理記録コミットを同じ先行PRに置く。旧新3/4/5/6は新5/6/7/8へ移し、旧新7/8は先行PR対象部分を新2/3へ移す。新9は全体の最終照合。旧名称のD4と実経路結合のゲートは移動先へ引き継ぐ。現行表は未変更、最終差分は未再レビューで人間確認対象。
+- **guard根拠と検査**: `scripts/core_guard.py::validate_area_path_layers()`はmerge-base pathsと宣言済み追加層を照合し、製品ファイルの存在を要求しない。`verify_area_path_baseline()`はコミット列を走査し、JSONと基線定義の同一コミット変更を拒否。既存の合成repo試験`test_tenant_declaration_accepts_json_before_registration`は宣言→登録を製品ファイルなしで受理し、`test_addition_layer_requires_complete_declared_suffix`は部分/並べ替えを拒否する。`uv run pytest tests/test_core_guard.py -k 'tenant_declaration_accepts_json_before_registration or addition_layer_requires_complete_declared_suffix' -q -n 0`は**2 passed**。RG1の実パターンでの新2/3コミット検査とPR本文の逐行確認は後続ゲート。
+- **正確な認可資産範囲の追加発見**: `ddl-elements.json`には列ACL群があるが、`product_control_access.py::generate_function_owner_column_acl_sql`と`check_authz_catalog.py`は追加definer列ACLを`["SELECT"]`に限定。RG1の最小権限`UPDATE(singleton_id)`はそのままでは不合格となる。表UPDATEへ広げず、RG1表/列/owner/commit-check関数のexact tupleだけ`UPDATE`を許す生成器・catalog・負例と宣言JSONを個別資産承認対象に加えた。正本3-2/特別露出の改訂と実DB権限検証も必要。A未統合のためrevision/digest/snapshot実値は記入しない。
