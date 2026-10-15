@@ -6428,7 +6428,7 @@ def test_invalidation_intent_scopes_delivery_and_migration_round_trip(
             _sqlalchemy_url(cluster.admin_dsn),
         )
         config = _alembic_config()
-        command.upgrade(config, "head")
+        command.upgrade(config, "0015_invalidation_intents")
 
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             trigger = _sync_trigger_catalog_contract(

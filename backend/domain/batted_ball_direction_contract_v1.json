@@ -1,0 +1,2200 @@
+{
+  "schemaVersion": 1,
+  "version": "batted_ball_direction_contract_v1",
+  "calculation": "batted-ball-direction",
+  "independentVerifierId": "claude-delegator",
+  "boundaryTieBreak": "first-defined-direction-sector-wins",
+  "boundaryRule": "共有レイ上の点は配列で先に定義された左翼線側の区分へ帰属する。左翼線・右翼線そのものは内側区分に含める。",
+  "cases": [
+    {
+      "caseId": "interior-left-ground-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 44,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left",
+        "physicalDirectionDisplayName": "レフト",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "interior-left-ground-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 44,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left",
+        "physicalDirectionDisplayName": "レフト",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "interior-left-line-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 44,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left",
+        "physicalDirectionDisplayName": "レフト",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "interior-left-line-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 44,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left",
+        "physicalDirectionDisplayName": "レフト",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "interior-left-fly-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 44,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left",
+        "physicalDirectionDisplayName": "レフト",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "interior-left-fly-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 44,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left",
+        "physicalDirectionDisplayName": "レフト",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "interior-left-center-ground-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 87,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left-center",
+        "physicalDirectionDisplayName": "左中間",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "interior-left-center-ground-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 87,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left-center",
+        "physicalDirectionDisplayName": "左中間",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "interior-left-center-line-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 87,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left-center",
+        "physicalDirectionDisplayName": "左中間",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "interior-left-center-line-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 87,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left-center",
+        "physicalDirectionDisplayName": "左中間",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "interior-left-center-fly-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 87,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left-center",
+        "physicalDirectionDisplayName": "左中間",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "interior-left-center-fly-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 87,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left-center",
+        "physicalDirectionDisplayName": "左中間",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "interior-center-ground-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.center",
+        "physicalDirectionDisplayName": "センター",
+        "batterRelative": "batter-relative.center-return",
+        "batterRelativeDisplayName": "センター返し"
+      }
+    },
+    {
+      "caseId": "interior-center-ground-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.center",
+        "physicalDirectionDisplayName": "センター",
+        "batterRelative": "batter-relative.center-return",
+        "batterRelativeDisplayName": "センター返し"
+      }
+    },
+    {
+      "caseId": "interior-center-line-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.center",
+        "physicalDirectionDisplayName": "センター",
+        "batterRelative": "batter-relative.center-return",
+        "batterRelativeDisplayName": "センター返し"
+      }
+    },
+    {
+      "caseId": "interior-center-line-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.center",
+        "physicalDirectionDisplayName": "センター",
+        "batterRelative": "batter-relative.center-return",
+        "batterRelativeDisplayName": "センター返し"
+      }
+    },
+    {
+      "caseId": "interior-center-fly-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.center",
+        "physicalDirectionDisplayName": "センター",
+        "batterRelative": "batter-relative.center-return",
+        "batterRelativeDisplayName": "センター返し"
+      }
+    },
+    {
+      "caseId": "interior-center-fly-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.center",
+        "physicalDirectionDisplayName": "センター",
+        "batterRelative": "batter-relative.center-return",
+        "batterRelativeDisplayName": "センター返し"
+      }
+    },
+    {
+      "caseId": "interior-right-center-ground-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 159,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right-center",
+        "physicalDirectionDisplayName": "右中間",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "interior-right-center-ground-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 159,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right-center",
+        "physicalDirectionDisplayName": "右中間",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "interior-right-center-line-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 159,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right-center",
+        "physicalDirectionDisplayName": "右中間",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "interior-right-center-line-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 159,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right-center",
+        "physicalDirectionDisplayName": "右中間",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "interior-right-center-fly-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 159,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right-center",
+        "physicalDirectionDisplayName": "右中間",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "interior-right-center-fly-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 159,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right-center",
+        "physicalDirectionDisplayName": "右中間",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "interior-right-ground-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 202,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right",
+        "physicalDirectionDisplayName": "ライト",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "interior-right-ground-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 202,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right",
+        "physicalDirectionDisplayName": "ライト",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "interior-right-line-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 202,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right",
+        "physicalDirectionDisplayName": "ライト",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "interior-right-line-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 202,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right",
+        "physicalDirectionDisplayName": "ライト",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "interior-right-fly-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 202,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right",
+        "physicalDirectionDisplayName": "ライト",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "interior-right-fly-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 202,
+          "y": 159,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right",
+        "physicalDirectionDisplayName": "ライト",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "boundary-left-left-center-ground-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 30,
+          "y": 239,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left",
+        "physicalDirectionDisplayName": "レフト",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "boundary-left-left-center-ground-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 30,
+          "y": 239,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left",
+        "physicalDirectionDisplayName": "レフト",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "boundary-left-left-center-line-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 30,
+          "y": 239,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left",
+        "physicalDirectionDisplayName": "レフト",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "boundary-left-left-center-line-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 30,
+          "y": 239,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left",
+        "physicalDirectionDisplayName": "レフト",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "boundary-left-left-center-fly-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 30,
+          "y": 239,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left",
+        "physicalDirectionDisplayName": "レフト",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "boundary-left-left-center-fly-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 30,
+          "y": 239,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left",
+        "physicalDirectionDisplayName": "レフト",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "boundary-left-center-center-ground-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 91,
+          "y": 258,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left-center",
+        "physicalDirectionDisplayName": "左中間",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "boundary-left-center-center-ground-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 91,
+          "y": 258,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left-center",
+        "physicalDirectionDisplayName": "左中間",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "boundary-left-center-center-line-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 91,
+          "y": 258,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left-center",
+        "physicalDirectionDisplayName": "左中間",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "boundary-left-center-center-line-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 91,
+          "y": 258,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left-center",
+        "physicalDirectionDisplayName": "左中間",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "boundary-left-center-center-fly-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 91,
+          "y": 258,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left-center",
+        "physicalDirectionDisplayName": "左中間",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "boundary-left-center-center-fly-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 91,
+          "y": 258,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.left-center",
+        "physicalDirectionDisplayName": "左中間",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "boundary-center-right-center-ground-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 155,
+          "y": 258,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.center",
+        "physicalDirectionDisplayName": "センター",
+        "batterRelative": "batter-relative.center-return",
+        "batterRelativeDisplayName": "センター返し"
+      }
+    },
+    {
+      "caseId": "boundary-center-right-center-ground-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 155,
+          "y": 258,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.center",
+        "physicalDirectionDisplayName": "センター",
+        "batterRelative": "batter-relative.center-return",
+        "batterRelativeDisplayName": "センター返し"
+      }
+    },
+    {
+      "caseId": "boundary-center-right-center-line-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 155,
+          "y": 258,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.center",
+        "physicalDirectionDisplayName": "センター",
+        "batterRelative": "batter-relative.center-return",
+        "batterRelativeDisplayName": "センター返し"
+      }
+    },
+    {
+      "caseId": "boundary-center-right-center-line-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 155,
+          "y": 258,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.center",
+        "physicalDirectionDisplayName": "センター",
+        "batterRelative": "batter-relative.center-return",
+        "batterRelativeDisplayName": "センター返し"
+      }
+    },
+    {
+      "caseId": "boundary-center-right-center-fly-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 155,
+          "y": 258,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.center",
+        "physicalDirectionDisplayName": "センター",
+        "batterRelative": "batter-relative.center-return",
+        "batterRelativeDisplayName": "センター返し"
+      }
+    },
+    {
+      "caseId": "boundary-center-right-center-fly-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 155,
+          "y": 258,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.center",
+        "physicalDirectionDisplayName": "センター",
+        "batterRelative": "batter-relative.center-return",
+        "batterRelativeDisplayName": "センター返し"
+      }
+    },
+    {
+      "caseId": "boundary-right-center-right-ground-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 216,
+          "y": 239,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right-center",
+        "physicalDirectionDisplayName": "右中間",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "boundary-right-center-right-ground-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 216,
+          "y": 239,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right-center",
+        "physicalDirectionDisplayName": "右中間",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "boundary-right-center-right-line-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 216,
+          "y": 239,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right-center",
+        "physicalDirectionDisplayName": "右中間",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "boundary-right-center-right-line-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 216,
+          "y": 239,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right-center",
+        "physicalDirectionDisplayName": "右中間",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "boundary-right-center-right-fly-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 216,
+          "y": 239,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right-center",
+        "physicalDirectionDisplayName": "右中間",
+        "batterRelative": "batter-relative.opposite",
+        "batterRelativeDisplayName": "流し"
+      }
+    },
+    {
+      "caseId": "boundary-right-center-right-fly-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 216,
+          "y": 239,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.right-center",
+        "physicalDirectionDisplayName": "右中間",
+        "batterRelative": "batter-relative.pull",
+        "batterRelativeDisplayName": "引っ張り"
+      }
+    },
+    {
+      "caseId": "outside-left-ground-right",
+      "provenance": {
+        "subjectKind": "contract-defined",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ],
+        "decision": "要件書に指定がない左翼線・右翼線の外は、本契約でファウル地域と定義する。"
+      },
+      "input": {
+        "coordinate": {
+          "x": 20,
+          "y": 100,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.foul-territory",
+        "physicalDirectionDisplayName": "ファウル地域",
+        "batterRelative": "batter-relative.foul-territory",
+        "batterRelativeDisplayName": "ファウル地域"
+      }
+    },
+    {
+      "caseId": "outside-left-ground-left",
+      "provenance": {
+        "subjectKind": "contract-defined",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ],
+        "decision": "要件書に指定がない左翼線・右翼線の外は、本契約でファウル地域と定義する。"
+      },
+      "input": {
+        "coordinate": {
+          "x": 20,
+          "y": 100,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.foul-territory",
+        "physicalDirectionDisplayName": "ファウル地域",
+        "batterRelative": "batter-relative.foul-territory",
+        "batterRelativeDisplayName": "ファウル地域"
+      }
+    },
+    {
+      "caseId": "outside-left-line-right",
+      "provenance": {
+        "subjectKind": "contract-defined",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ],
+        "decision": "要件書に指定がない左翼線・右翼線の外は、本契約でファウル地域と定義する。"
+      },
+      "input": {
+        "coordinate": {
+          "x": 20,
+          "y": 100,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.foul-territory",
+        "physicalDirectionDisplayName": "ファウル地域",
+        "batterRelative": "batter-relative.foul-territory",
+        "batterRelativeDisplayName": "ファウル地域"
+      }
+    },
+    {
+      "caseId": "outside-left-line-left",
+      "provenance": {
+        "subjectKind": "contract-defined",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ],
+        "decision": "要件書に指定がない左翼線・右翼線の外は、本契約でファウル地域と定義する。"
+      },
+      "input": {
+        "coordinate": {
+          "x": 20,
+          "y": 100,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.foul-territory",
+        "physicalDirectionDisplayName": "ファウル地域",
+        "batterRelative": "batter-relative.foul-territory",
+        "batterRelativeDisplayName": "ファウル地域"
+      }
+    },
+    {
+      "caseId": "outside-left-fly-right",
+      "provenance": {
+        "subjectKind": "contract-defined",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ],
+        "decision": "要件書に指定がない左翼線・右翼線の外は、本契約でファウル地域と定義する。"
+      },
+      "input": {
+        "coordinate": {
+          "x": 20,
+          "y": 100,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.foul-territory",
+        "physicalDirectionDisplayName": "ファウル地域",
+        "batterRelative": "batter-relative.foul-territory",
+        "batterRelativeDisplayName": "ファウル地域"
+      }
+    },
+    {
+      "caseId": "outside-left-fly-left",
+      "provenance": {
+        "subjectKind": "contract-defined",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ],
+        "decision": "要件書に指定がない左翼線・右翼線の外は、本契約でファウル地域と定義する。"
+      },
+      "input": {
+        "coordinate": {
+          "x": 20,
+          "y": 100,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.foul-territory",
+        "physicalDirectionDisplayName": "ファウル地域",
+        "batterRelative": "batter-relative.foul-territory",
+        "batterRelativeDisplayName": "ファウル地域"
+      }
+    },
+    {
+      "caseId": "outside-right-ground-right",
+      "provenance": {
+        "subjectKind": "contract-defined",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ],
+        "decision": "要件書に指定がない左翼線・右翼線の外は、本契約でファウル地域と定義する。"
+      },
+      "input": {
+        "coordinate": {
+          "x": 226,
+          "y": 100,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.foul-territory",
+        "physicalDirectionDisplayName": "ファウル地域",
+        "batterRelative": "batter-relative.foul-territory",
+        "batterRelativeDisplayName": "ファウル地域"
+      }
+    },
+    {
+      "caseId": "outside-right-ground-left",
+      "provenance": {
+        "subjectKind": "contract-defined",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ],
+        "decision": "要件書に指定がない左翼線・右翼線の外は、本契約でファウル地域と定義する。"
+      },
+      "input": {
+        "coordinate": {
+          "x": 226,
+          "y": 100,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.ground",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.foul-territory",
+        "physicalDirectionDisplayName": "ファウル地域",
+        "batterRelative": "batter-relative.foul-territory",
+        "batterRelativeDisplayName": "ファウル地域"
+      }
+    },
+    {
+      "caseId": "outside-right-line-right",
+      "provenance": {
+        "subjectKind": "contract-defined",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ],
+        "decision": "要件書に指定がない左翼線・右翼線の外は、本契約でファウル地域と定義する。"
+      },
+      "input": {
+        "coordinate": {
+          "x": 226,
+          "y": 100,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.foul-territory",
+        "physicalDirectionDisplayName": "ファウル地域",
+        "batterRelative": "batter-relative.foul-territory",
+        "batterRelativeDisplayName": "ファウル地域"
+      }
+    },
+    {
+      "caseId": "outside-right-line-left",
+      "provenance": {
+        "subjectKind": "contract-defined",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ],
+        "decision": "要件書に指定がない左翼線・右翼線の外は、本契約でファウル地域と定義する。"
+      },
+      "input": {
+        "coordinate": {
+          "x": 226,
+          "y": 100,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.line",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.foul-territory",
+        "physicalDirectionDisplayName": "ファウル地域",
+        "batterRelative": "batter-relative.foul-territory",
+        "batterRelativeDisplayName": "ファウル地域"
+      }
+    },
+    {
+      "caseId": "outside-right-fly-right",
+      "provenance": {
+        "subjectKind": "contract-defined",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ],
+        "decision": "要件書に指定がない左翼線・右翼線の外は、本契約でファウル地域と定義する。"
+      },
+      "input": {
+        "coordinate": {
+          "x": 226,
+          "y": 100,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "right"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.foul-territory",
+        "physicalDirectionDisplayName": "ファウル地域",
+        "batterRelative": "batter-relative.foul-territory",
+        "batterRelativeDisplayName": "ファウル地域"
+      }
+    },
+    {
+      "caseId": "outside-right-fly-left",
+      "provenance": {
+        "subjectKind": "contract-defined",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "clause": "付録A-3 打球方向"
+          },
+          {
+            "path": "contracts/field-regions/field_region_seed_v1.json"
+          },
+          {
+            "path": "contracts/vocabulary/input_vocabulary_v1.json"
+          }
+        ],
+        "decision": "要件書に指定がない左翼線・右翼線の外は、本契約でファウル地域と定義する。"
+      },
+      "input": {
+        "coordinate": {
+          "x": 226,
+          "y": 100,
+          "coordinateSystem": "normalized-bottom-left-units-1-263"
+        },
+        "battedBallType": "batted-ball-type.fly",
+        "batterSide": "left"
+      },
+      "expected": {
+        "physicalDirection": "batted-ball-direction.foul-territory",
+        "physicalDirectionDisplayName": "ファウル地域",
+        "batterRelative": "batter-relative.foul-territory",
+        "batterRelativeDisplayName": "ファウル地域"
+      }
+    }
+  ]
+}

@@ -28,16 +28,36 @@ BASELINE_DEFINITION_PATHS = frozenset(
     }
 )
 # 追加層は JSON を変更するコミットより先に固定する。同一コミットでの追随を許さない。
+DOMAIN_RUNTIME_PATH_ADDITIONS = (
+    "frontend/src/domain/*",
+    "backend/src/pitchlog/domainrt/*",
+    "frontend/public/domain/*",
+    "frontend/scripts/domain-checks/*",
+    "frontend/scripts/domain-build/*",
+    "frontend/scripts/domain-sql/*",
+    "frontend/index.html",
+    "frontend/eslint.config.js",
+    "frontend/.dependency-cruiser.cjs",
+    "frontend/src/testing/vectorRunner.ts",
+    "frontend/src/testing/vectorRunner.spec.ts",
+    "frontend/src/testing/vectorConformance.spec.ts",
+    "frontend/src/testing/handoffLoader.ts",
+    "frontend/src/testing/handoffLoader.spec.ts",
+    "frontend/src/testing/artifactAdapter.ts",
+    "frontend/src/testing/artifactAdapter.spec.ts",
+    "backend/tests/domainrt/*",
+    "backend/Dockerfile",
+)
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "tenant-isolation": (
-        "frontend/src/components/settings/TeamMembersContent*",
-        "frontend/src/lib/rosterQueryKeys*",
-        "frontend/src/screens/TeamScreen*",
+    "game-state": (
+        "contracts/field-regions/*",
+        "contracts/display-geometry/*",
+        "tests/test_field_geometry_numeric_lexemes.py",
+        "tests/test_fielder_estimation_contract.py",
+        "tests/test_field_geometry_ci_wiring.py",
     ),
-    "data-migration": (
-        "frontend/src/components/settings/TeamMembersContent*",
-        "frontend/src/lib/rosterQueryKeys*",
-        "frontend/src/screens/TeamScreen*",
+    "sync-protocol": (
+        "tests/test_field_geometry_numeric_lexemes.py",
     ),
 }
 REQUIRED_CHECK_RE = re.compile(

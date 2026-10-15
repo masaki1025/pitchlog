@@ -424,6 +424,49 @@ UF5_TEAM_AREA_PATH_ADDITIONS = (
     "frontend/src/lib/rosterQueryKeys*",
     "frontend/src/screens/TeamScreen*",
 )
+D2_DOMAIN_CALC_PATH_ADDITIONS = (
+    "frontend/src/domain/*",
+    "backend/src/pitchlog/domainrt/*",
+    "frontend/public/domain/*",
+    "frontend/scripts/domain-checks/*",
+    "frontend/scripts/domain-build/*",
+    "frontend/scripts/domain-sql/*",
+    "frontend/index.html",
+    "frontend/eslint.config.js",
+    "frontend/.dependency-cruiser.cjs",
+    "frontend/src/testing/vectorRunner.ts",
+    "frontend/src/testing/vectorRunner.spec.ts",
+    "frontend/src/testing/vectorConformance.spec.ts",
+    "frontend/src/testing/handoffLoader.ts",
+    "frontend/src/testing/handoffLoader.spec.ts",
+    "frontend/src/testing/artifactAdapter.ts",
+    "frontend/src/testing/artifactAdapter.spec.ts",
+    "backend/tests/domainrt/*",
+    "backend/Dockerfile",
+)
+D2_DOMAIN_CALC_GLOBS = (
+    "frontend/src/domain/*",
+    "backend/src/pitchlog/domainrt/*",
+    "frontend/public/domain/*",
+    "frontend/scripts/domain-checks/*",
+    "frontend/scripts/domain-build/*",
+    "frontend/scripts/domain-sql/*",
+    "backend/tests/domainrt/*",
+)
+D2_SYNC_PROTOCOL_PATH_ADDITIONS = ("tests/domain/runners/test_handoff_loader.py",)
+# 先行追加層の窓口は回転式で、着地済みの宣言は JSON 側へ移る。
+# D-2(#131)の分は develop の core-areas.json へ着地済みのため、
+# 現在宣言されているのは TSK-238 の領域契約の分である。
+EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+    "game-state": (
+        "contracts/field-regions/*",
+        "contracts/display-geometry/*",
+        "tests/test_field_geometry_numeric_lexemes.py",
+        "tests/test_fielder_estimation_contract.py",
+        "tests/test_field_geometry_ci_wiring.py",
+    ),
+    "sync-protocol": ("tests/test_field_geometry_numeric_lexemes.py",),
+}
 UF5_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     "tenant-isolation": UF5_TEAM_AREA_PATH_ADDITIONS,
     "data-migration": UF5_TEAM_AREA_PATH_ADDITIONS,
@@ -437,6 +480,7 @@ DOMAIN_CALC_GLOBS = (
     "backend/tests/domain/*",
     "frontend/src/lib/generated/*",
     "tests/domain/*",
+    *D2_DOMAIN_CALC_GLOBS,
 )
 PRODUCT_RLS_AREA_PATH_ADDITIONS = (
     "docs/ops/product-rls-real-schema.md",
@@ -646,6 +690,7 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
 
     U-F8 までの登録を保持し、U-F5 登録前なら合成リポジトリだけに補う。
     U-F5 より後の登録があっても既存ブロックの位置から判定する。
+    D-2 の登録も実設定の登録済みブロックとして確かめる。
 
     Args:
         tmp_path: pytest が提供する一時ディレクトリ。
@@ -669,6 +714,8 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
             assert_registered_block(paths, additions)
         else:
             paths.extend(additions)
+    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
+        assert_registered_block(areas[area_id]["paths"], additions)
     write_text(
         root,
         ".claude/core-areas.json",
@@ -989,9 +1036,8 @@ def _require_reference_discovery_policy(
     assert paths == sorted(set(paths)), "declared_exclusions.paths に重複または順序違反"
     reason = exclusions.get("reason")
     assert isinstance(reason, str) and reason
-    assert (
-        exclusions.get("deferred_to")
-        == "段階2送り（unresolved-report.md の S34・design.md 8-6）"
+    assert exclusions.get("deferred_to") == (
+        "TSK-540 送り（unresolved-report.md の S34・design.md 8-6）"
     )
     return policy
 
@@ -1952,6 +1998,7 @@ def test_actual_core_area_paths_follow_merge_base_layers():
     assert len(baseline_ids) == 5
     assert declared_ids <= baseline_ids
     assert stationary_ids | declared_ids == baseline_ids
+    assert declared_ids == set(EXPECTED_AREA_PATH_ADDITIONS)
     core_guard.validate_area_path_layers(baseline, candidate)
 
 
@@ -1986,6 +2033,7 @@ def test_each_area_becomes_stationary_when_omitted_from_declaration(
     baseline = core_guard.load_core_areas_at_revision(root, base_sha)
     candidate = json.loads(json.dumps(baseline))
     baseline_ids = {area["id"] for area in baseline["areas"]}
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     declared = dict(core_guard.AREA_PATH_ADDITIONS)
     declared_ids = set(declared)
     attempts = 0
@@ -2452,7 +2500,7 @@ def test_uf6_api_paths_are_registered_in_actual_core_areas() -> None:
 
 
 def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
-    """統合済み基線の全領域で画面と spec の登録を確認する。"""
+    """比較元に登録済みの画面と spec を全領域で保持する。"""
     core_guard = load_core_guard_module()
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
@@ -2566,7 +2614,7 @@ def test_uf5_team_change_requires_human_check(
 
 
 def test_area_registration() -> None:
-    """U-F6・U-F8・U-F5までの登録履歴を後続追加に依存せず保つ。"""
+    """既存の登録履歴を後続追加に依存せず保ち、領域契約の先行追加層を固定する。"""
     core_guard = load_core_guard_module()
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
@@ -2618,20 +2666,34 @@ def test_area_registration() -> None:
     }
 
     assert len(areas) == len(configuration["areas"]) == 5
-    assert len(DOMAIN_CALC_GLOBS) == 8
+    assert len(DOMAIN_CALC_GLOBS) == 15
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     assert declared_ids <= set(areas)
     assert stationary_ids | declared_ids == set(areas)
     assert set(areas) == set(registered_additions) == set(baseline_areas)
+    assert declared_ids == set(EXPECTED_AREA_PATH_ADDITIONS)
     for area_id in DATA_MODEL_AREA_IDS:
         registered = registered_additions[area_id]
         current_paths = tuple(areas[area_id]["paths"])
         base_paths = tuple(baseline_areas[area_id]["paths"])
         assert_registered_block(base_paths, registered)
         assert_registered_block(current_paths, registered)
+        additions = EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ())
+        if additions:
+            assert_registered_block(current_paths, additions)
         assert len(registered) == len(set(registered))
         assert all(
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in registered
+        )
+    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
+        base_paths = tuple(baseline_areas[area_id]["paths"])
+        current_paths = tuple(areas[area_id]["paths"])
+        # ステップ 8 の未登録状態と、ステップ 9 の宣言順での末尾追加を受理する。
+        assert current_paths in (base_paths, (*base_paths, *additions))
+        assert all(
+            any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
+            for pattern in additions
         )
     assert all(
         any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
@@ -2642,6 +2704,41 @@ def test_area_registration() -> None:
         for path in tracked_files
     )
     core_guard.validate_area_path_layers(baseline, configuration)
+
+
+def test_registered_d2_paths_match_tracked_files_without_overlap() -> None:
+    """登録済みの各 glob が実在ファイルに一致し、旧層と重複しない。
+
+    名前は D-2 の登録を由来とするが、先行追加層の窓口は回転式なので、
+    本体が見ているのは「現在宣言されている追加層」である。
+    D-2 の分は core-areas.json へ着地済みで、宣言としての役目を終えている
+    (DOMAIN_RUNTIME_PATH_ADDITIONS の中身は下の assert が直接固定する)。
+    着地済みの paths が JSON から消えることは、CI の
+    validate_area_path_layers が merge-base との比較で止める。
+    """
+    core_guard = load_core_guard_module()
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    assert tuple(core_guard.DOMAIN_RUNTIME_PATH_ADDITIONS) == (
+        D2_DOMAIN_CALC_PATH_ADDITIONS
+    )
+    assert set(D2_DOMAIN_CALC_GLOBS) <= set(D2_DOMAIN_CALC_PATH_ADDITIONS)
+    configuration = load_actual_core_areas()
+    areas = {area["id"]: area for area in configuration["areas"]}
+    tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
+    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
+        patterns = areas[area_id]["paths"]
+        assert tuple(patterns[-len(additions) :]) == additions
+        earlier_patterns = patterns[: -len(additions)]
+        assert not set(additions) & set(earlier_patterns)
+        for pattern in additions:
+            matched = [
+                path for path in tracked_files if fnmatch.fnmatchcase(path, pattern)
+            ]
+            assert matched, f"実在ファイルに一致しない: {area_id}: {pattern}"
+            assert all(
+                not any(fnmatch.fnmatchcase(path, old) for old in earlier_patterns)
+                for path in matched
+            ), f"既存 glob が被覆済み: {area_id}: {pattern}"
 
 
 @pytest.mark.parametrize(
@@ -2780,6 +2877,10 @@ def test_contract_reference_python_paths_are_discovered_deterministically() -> N
     assert first == second
     assert first == tuple(sorted(set(first)))
     assert set(excluded) <= set(first)
+    registered = D2_SYNC_PROTOCOL_PATH_ADDITIONS[0]
+    sync_patterns = areas_by_id["sync-protocol"]["paths"]
+    assert registered in first
+    assert any(fnmatch.fnmatchcase(registered, pattern) for pattern in sync_patterns)
     for area_id in policy["required_area_ids"]:
         patterns = areas_by_id[area_id]["paths"]
         assert "scripts/*" not in patterns
@@ -2789,11 +2890,12 @@ def test_contract_reference_python_paths_are_discovered_deterministically() -> N
             for path in first
             if not any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
         )
-        assert missing == excluded
+        assert set(missing) == set(excluded)
 
-    assert (
-        assert_contract_reference_python_paths_are_registered(REPO, configuration)
-        == tuple(path for path in first if path not in excluded)
+    assert assert_contract_reference_python_paths_are_registered(
+        REPO, configuration
+    ) == (
+        tuple(path for path in first if path not in excluded)
     )
 
 

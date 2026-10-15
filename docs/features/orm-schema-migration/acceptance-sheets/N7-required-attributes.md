@@ -301,7 +301,7 @@
 
 **列契約（manifest: `system_settings`）**: key:text/NOT NULL/default=なし, value:jsonb/NOT NULL/default=なし, updated_at:timestamptz/NOT NULL/default=CURRENT_TIMESTAMP
 
-**列契約（manifest: `invalidation_intents`）**: tenant_id:uuid/NOT NULL/default=なし, intent_id:text/NOT NULL/default=なし, scope_kind:text/NOT NULL/default=なし, game_id:uuid/NULL/default=なし, player_id:uuid/NULL/default=なし, group_id:uuid/NULL/default=なし, requesting_tenant_id:uuid/NULL/default=なし, target_tenant_id:uuid/NULL/default=なし, period:jsonb/NULL/default=なし, chart_kind:text/NULL/default=なし, delivery_status:text/NOT NULL/default='pending', delivered_at:timestamptz/NULL/default=なし
+**列契約（manifest: `invalidation_intents`）**: tenant_id:uuid/NOT NULL/default=なし, intent_id:text/NOT NULL/default=なし, scope_kind:text/NOT NULL/default=なし, game_id:uuid/NULL/default=なし, player_id:uuid/NULL/default=なし, group_id:uuid/NULL/default=なし, requesting_tenant_id:uuid/NULL/default=なし, target_tenant_id:uuid/NULL/default=なし, period:jsonb/NULL/default=なし, chart_kind:text/NULL/default=なし, target_selector_kind:text/NULL/default=なし, delivery_status:text/NOT NULL/default='pending', delivered_at:timestamptz/NULL/default=なし
 
 | 対象 | 正本側 | 実装側 | 判定 | 理由と典拠 |
 | --- | --- | --- | --- | --- |

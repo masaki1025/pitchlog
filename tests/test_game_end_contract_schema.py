@@ -96,6 +96,21 @@ def _fixture_predicate_holds(
     """
     operator = predicate["op"]
     if operator == "eq":
+        # 手作業fixtureは凍結時の軸射影で、後から固定した未開始の裏は派生caseで照合する。
+        if predicate["axisId"] in {
+            "gameEnd.satisfiedColdTierCount", "state.outs", "state.runners",
+            "state.count.strikes", "state.count.balls",
+            "event.operationPayload", "event.perPitch.pitchEventKind",
+            "event.perPitch.runnerEventPayload",
+            "event.perPitch.runnerAdvanceOverridesByRunner",
+            "event.perPitch.thirdOutTimingByRunner",
+            "event.perPitch.interferenceRuling",
+            "event.perPitch.officialScoringPayload",
+            "event.perPitch.rbi.doublePlayRelayError",
+            "event.perPitch.rbi.runnerContinuityByRunner",
+            "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+        }:
+            return True
         actual = coordinate[predicate["axisId"]]
         expected = predicate["value"]
         return type(actual) is type(expected) and actual == expected
@@ -131,11 +146,16 @@ def _validate_manual_fixtures(
         partition_schema["x-pitchlog-manual-fixture-policy"]
         ["sourceClausePartition"]["gameEndSourceClauseIds"]
     )
+    situation_overrides = set(
+        partition_schema["x-pitchlog-manual-fixture-policy"]
+        ["sourceClausePartition"]["situationBranchOverrides"]
+    )
     branches = {branch["branchId"]: branch for branch in register["branches"]}
     game_end_ids = {
         branch_id
         for branch_id, branch in branches.items()
         if set(branch["sourceClauseIds"]) & game_end_sources
+        and branch_id not in situation_overrides
     }
     deferred = policy["deferredBranches"]
     assert all(isinstance(reason, str) and reason for reason in deferred.values())
@@ -149,8 +169,22 @@ def _validate_manual_fixtures(
     assert set(policy["comparisonProjection"]) == set(
         schema["$defs"]["completeCase"]["required"]
     )
-    assert set(schema["$defs"]["inputCoordinate"]["required"]) == set(
-        contract_schema["x-pitchlog-decision-row-references"]["allowedAxisIds"]
+    allowed_axes = set(contract_schema["x-pitchlog-decision-row-references"]["allowedAxisIds"])
+    assert set(schema["$defs"]["inputCoordinate"]["required"]) <= allowed_axes
+    assert set(schema["$defs"]["inputCoordinate"]["properties"]) == (
+        allowed_axes - {
+            "gameEnd.satisfiedColdTierCount", "state.outs", "state.runners",
+            "state.count.strikes", "state.count.balls",
+            "event.operationPayload", "event.perPitch.pitchEventKind",
+            "event.perPitch.runnerEventPayload",
+            "event.perPitch.runnerAdvanceOverridesByRunner",
+            "event.perPitch.thirdOutTimingByRunner",
+            "event.perPitch.interferenceRuling",
+            "event.perPitch.officialScoringPayload",
+            "event.perPitch.rbi.doublePlayRelayError",
+            "event.perPitch.rbi.runnerContinuityByRunner",
+            "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+        }
     )
     assert set(schema["$defs"]["decision"]["required"]) == set(
         contract_schema["$defs"]["gameEndDecision"]["required"]
@@ -182,7 +216,7 @@ def _validate_manual_fixtures(
 
 
 def test_repository_game_end_manual_fixtures() -> None:
-    """5件の完全な入力・出力ケースと未作成分岐の宣言を検査する。"""
+    """6件の完全な入力・出力ケースと未作成分岐の宣言を検査する。"""
     document, schema = _manual_fixture_assets()
     _validate_manual_fixtures(document, schema)
     policy = schema["x-pitchlog-manual-fixture-policy"]
@@ -226,6 +260,24 @@ def test_game_end_manual_fixture_reference_negatives(change: str) -> None:
         )
     else:
         document["fixtures"][0]["case"]["decision"]["lockFurtherPlayInput"] = False
+    with pytest.raises(AssertionError):
+        _validate_manual_fixtures(document, schema)
+
+
+@pytest.mark.parametrize("change", ["missing-walk-off", "wrong-result", "wrong-lock"])
+def test_walk_off_manual_fixture_drift_is_rejected(change: str) -> None:
+    """独立fixtureの欠落、プレイ種別、入力ロックのずれを拒否する。"""
+    document, schema = _manual_fixture_assets()
+    fixture = next(
+        item for item in document["fixtures"]
+        if item["case"]["branchId"] == "GAME-END-WALK-OFF"
+    )
+    if change == "missing-walk-off":
+        document["fixtures"].remove(fixture)
+    elif change == "wrong-result":
+        fixture["case"]["inputCoordinate"]["event.perPitch.resultId"] = "三振"
+    else:
+        fixture["case"]["decision"]["lockFurtherPlayInput"] = False
     with pytest.raises(AssertionError):
         _validate_manual_fixtures(document, schema)
 
@@ -429,6 +481,32 @@ def test_repository_decision_rows_are_closed_and_references_resolve() -> None:
     _validate_decision_references(_repository_contract())
 
 
+@pytest.mark.parametrize("mutation", ["missing", "display-string", "unknown"])
+def test_x_mark_is_required_structured_enum(mutation: str) -> None:
+    """X表記は表示文字列ではなく閉じた種別として全判定行に必要。"""
+    schema = _schema()
+    decision = schema["$defs"]["gameEndDecision"]
+    assert decision["properties"]["xMark"]["enum"] == [
+        "recorded-score", "x-mark", "blank"
+    ]
+    contract = deepcopy(_repository_contract())
+    if mutation == "missing":
+        del contract["decisionRows"][0]["decision"]["xMark"]
+    else:
+        contract["decisionRows"][0]["decision"]["xMark"] = (
+            "X" if mutation == "display-string" else "unknown"
+        )
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        _validate_contract(contract)
+
+
+def test_x_mark_blank_is_a_valid_structured_kind() -> None:
+    """XMARK-03の空欄種別もschemaの値域に含める。"""
+    contract = deepcopy(_repository_contract())
+    contract["decisionRows"][0]["decision"]["xMark"] = "blank"
+    _validate_contract(contract)
+
+
 @pytest.mark.parametrize("missing", ["raw", "normalizationRuleId", "normalized"])
 def test_game_end_case_schema_requires_normalization_triple(missing: str) -> None:
     """終了判定caseの正規化3点がどれか欠けたらschemaで拒否する。"""
@@ -489,11 +567,31 @@ def test_cold_outcome_and_single_tier_row_are_clause_bound() -> None:
         "lockFurtherPlayInput": True,
         "promptEndDeclaration": True,
         "automaticallyEndsGame": False,
+        "xMark": "x-mark",
     }
     assert {leaf["axisId"]: leaf["value"] for leaf in _decision_leaves(cold_row["precondition"])}[
         "gameEnd.coldConditions"
     ] == "tier-count:1"
     _validate_decision_references(_repository_contract())
+
+
+def test_xmark02_row_cites_fr005_and_uses_saved_rule_values() -> None:
+    """規定最終回のX行はFR-005を典拠にし、保存可能な規則だけを使う。"""
+    contract = _repository_contract()
+    register = _load_object(
+        REPOSITORY_ROOT / "contracts/state-transition/clause_branch_register_v1.json"
+    )
+    row = next(item for item in contract["decisionRows"] if item["branchId"] == "XMARK-02")
+    branch = next(item for item in register["branches"] if item["branchId"] == "XMARK-02")
+    assert row["sourceClauseIds"] == branch["sourceClauseIds"] == [
+        "req:FR-005", "req:FR-020",
+    ]
+    leaves = {leaf["axisId"]: leaf["value"] for leaf in _decision_leaves(row["precondition"])}
+    assert leaves["gameEnd.coldConditions"] == "tier-count:0"
+    assert leaves["gameEnd.extensionLimit"] == "finite:R"
+    assert leaves["state.inning"] == "R"
+    assert len([case for case in contract["cases"] if case["branchId"] == "XMARK-02"]) == 34
+    _validate_decision_references(contract)
 
 
 @pytest.mark.parametrize("mutation", ["wrong-outcome", "unknown-tier"])
@@ -509,9 +607,60 @@ def test_cold_row_mutations_are_red(mutation: str) -> None:
             for leaf in _decision_leaves(cold_row["precondition"])
             if leaf["axisId"] == "gameEnd.coldConditions"
         )
-        leaf["value"] = "tier-count:2"
+        leaf["value"] = "tier-count:3"
     with pytest.raises(AssertionError):
         _validate_decision_references(contract)
+
+
+def test_walk_off_row_is_bound_to_fifth_role_and_fr005() -> None:
+    """サヨナラの終了検知と表示種別を独立した台帳役割へ結ぶ。"""
+    contract = _repository_contract()
+    register = _load_object(
+        REPOSITORY_ROOT / "contracts/state-transition/clause_branch_register_v1.json"
+    )
+    row = next(
+        row for row in contract["decisionRows"]
+        if row["branchId"] == "GAME-END-WALK-OFF"
+    )
+    assert register["gameEndOutcomeBranches"]["walkOff"] == row["branchId"]
+    assert row["sourceClauseIds"] == ["req:FR-005", "req:FR-020", "req:F-1"]
+    assert {leaf["axisId"]: leaf["value"] for leaf in _decision_leaves(row["precondition"])} == {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:0",
+        "gameEnd.satisfiedColdTierCount": 0,
+        "gameEnd.extensionLimit": "finite:R+1",
+        "gameEnd.tiebreak": "none",
+        "state.inning": "R",
+        "state.half": "bottom",
+        "state.score": "home-lead:M",
+        "state.gameEnded": False,
+        "event.operationKind": "per-pitch",
+        "event.perPitch.kind": "batting-result",
+        "event.perPitch.resultId": "本塁打",
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.operationPayload": "not-applicable",
+        "event.perPitch.pitchEventKind": "pitch-event",
+        "event.perPitch.runnerEventPayload": "not-required",
+        "event.perPitch.runnerAdvanceOverridesByRunner": "not-applied",
+        "event.perPitch.thirdOutTimingByRunner": "not-required",
+        "event.perPitch.interferenceRuling": "not-required",
+        "event.perPitch.officialScoringPayload": "no-error",
+        "event.perPitch.rbi.doublePlayRelayError": "not-required",
+        "event.perPitch.rbi.runnerContinuityByRunner": "not-required",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner": "not-required",
+    }
+    assert row["decision"] == {
+        "outcome": "walk-off",
+        "endConditionDetected": True,
+        "lockFurtherPlayInput": True,
+        "promptEndDeclaration": True,
+        "automaticallyEndsGame": False,
+        "xMark": "recorded-score",
+    }
+    assert "score" not in row["decision"]
+    assert len([case for case in contract["cases"] if case["branchId"] == row["branchId"]]) == 10
+    _validate_decision_references(contract)
 
 
 def test_decision_outcome_swapped_between_existing_branches_is_red() -> None:
@@ -527,7 +676,7 @@ def test_decision_outcome_swapped_between_existing_branches_is_red() -> None:
     [
         ("gameEnd.extensionLimit", "finite:R-1"),
         ("gameEnd.regulationInnings", 0),
-        ("event.operationKind", "per-pitch"),
+        ("history.depth", 0),
     ],
 )
 def test_decision_precondition_outside_declared_axes_is_red(
@@ -569,11 +718,10 @@ def test_rule_snapshot_allows_explicit_none_and_empty_cold_conditions() -> None:
 
 
 def test_all_descriptor_game_end_targets_are_projected_exactly_once() -> None:
-    """gameEndAxes4件を境界注釈とともにexact-set射影する。"""
+    """終了規則と成立段数の5軸を境界注釈とともにexact-set射影する。"""
     schema = _schema()
     descriptor = _descriptor()
-    rule_snapshot = schema["$defs"]["ruleSnapshot"]
-    projected = _projection_annotations(rule_snapshot, "x-pitchlog-axis-id")
+    projected = _projection_annotations(schema, "x-pitchlog-axis-id")
     expected = {axis["axisId"]: axis for axis in descriptor["gameEndAxes"]}
 
     assert set(projected) == set(expected)
@@ -582,9 +730,12 @@ def test_all_descriptor_game_end_targets_are_projected_exactly_once() -> None:
         assert target["x-pitchlog-axis-classification"] == axis["classification"]
         assert target["x-pitchlog-coverage-bounds"] == axis["coverageBounds"]
         assert target["x-pitchlog-boundary-values"] == axis["boundaryValues"]
-        assert target["x-pitchlog-invalid-boundary-values"] == axis[
-            "invalidBoundaryValues"
-        ]
+        if "invalidBoundaryValues" in axis:
+            assert target["x-pitchlog-invalid-boundary-values"] == axis[
+                "invalidBoundaryValues"
+            ]
+        else:
+            assert "x-pitchlog-invalid-boundary-values" not in target
 
 
 def test_all_non_coverage_fields_remain_required_by_projection() -> None:
