@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import sys
+from itertools import product
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
+
+import representative_selection
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_NAME = "branch_row_mapping_schema_v1.json"
@@ -15,6 +19,599 @@ SCHEMA_NAME = "branch_row_mapping_schema_v1.json"
 class BranchRowMappingError(ValueError):
     """対応表の宣言または参照整合が不正である。"""
 
+
+class HistoryEffectError(ValueError):
+    """履歴面の規範行または入力スナップショットが不正な場合を表す。"""
+
+
+def _fail(rule_id: str, detail: str) -> NoReturn:
+    """規則 ID を含む違反を返す。"""
+    raise HistoryEffectError(f"{rule_id}: {detail}")
+
+
+def resolve_history_depth(history: dict[str, Any]) -> int:
+    """history-depth の宣言済み max 式から D の実値を得る。"""
+    try:
+        derivation = history["derivation"]
+        if history["version"] != 1 or derivation["formula"] != {
+            "operator": "max",
+            "operands": [
+                {"cases": "requiredScenarioCases", "measure": "events.length", "aggregate": "max"},
+                {
+                    "cases": "stackCompositionCases",
+                    "measure": "stackKinds.length",
+                    "aggregate": "max",
+                },
+            ],
+        }:
+            _fail("HISTORY_DEPTH", "D の導出式が不明")
+        sizes: list[int] = []
+        for collection, field, declared in (
+            ("requiredScenarioCases", "events", "length"),
+            ("stackCompositionCases", "stackKinds", "minimumDepth"),
+        ):
+            records = derivation[collection]
+            if not isinstance(records, list) or not records:
+                _fail("HISTORY_DEPTH", f"{collection} が空")
+            for item in records:
+                size = len(item[field])
+                if size < 1 or item[declared] != size:
+                    _fail("HISTORY_DEPTH", f"{collection}.{declared} が不一致")
+                sizes.append(size)
+        if derivation["result"]["historyDepthFrom"] != "formula":
+            _fail("HISTORY_DEPTH", "結果の参照先が不明")
+        return max(sizes)
+    except (KeyError, TypeError, ValueError) as error:
+        raise HistoryEffectError("HISTORY_DEPTH: D を解決できない") from error
+
+
+def _depth_zero_only(predicate: dict[str, Any], descriptor: dict[str, Any]) -> bool:
+    """述語が許す履歴深さの集合が 0 だけかを列挙して調べる。"""
+    axes = sorted(representative_selection.predicate_axes(predicate))
+    if "history.depth" not in axes:
+        return False
+    values_by_axis = representative_selection.axis_values(
+        descriptor, ("stateTransitionAxes",)
+    )
+    if any(axis not in values_by_axis for axis in axes):
+        _fail("HISTORY_UNDECIDABLE", "述語に未登録の軸がある")
+    if predicate.get("op") == "and" and all(
+        isinstance(arg, dict) and arg.get("op") == "eq"
+        for arg in predicate.get("args", [])
+    ):
+        equalities = predicate["args"]
+        if any(
+            arg.get("axisId") not in values_by_axis
+            or arg.get("value") not in values_by_axis[arg["axisId"]]
+            for arg in equalities
+        ):
+            _fail("HISTORY_UNDECIDABLE", "述語の固定値が軸の値域外")
+        fixed: dict[str, Any] = {}
+        for arg in equalities:
+            axis_id = arg["axisId"]
+            if axis_id in fixed and fixed[axis_id] != arg["value"]:
+                _fail("HISTORY_UNDECIDABLE", "述語の同一軸に矛盾する固定値がある")
+            fixed[axis_id] = arg["value"]
+        depth_values = {
+            arg["value"] for arg in equalities if arg["axisId"] == "history.depth"
+        }
+        return depth_values == {0}
+    size = 1
+    for axis in axes:
+        size *= len(values_by_axis[axis])
+        if size > 100_000:
+            _fail("HISTORY_UNDECIDABLE", "述語の入力直積が上限を超える")
+    possible = {
+        coordinate["history.depth"]
+        for values in product(*(values_by_axis[axis] for axis in axes))
+        if representative_selection.predicate_holds(
+            predicate, coordinate := dict(zip(axes, values, strict=True))
+        )
+    }
+    return possible == {0}
+
+
+def _all_unchanged(fields: object) -> bool:
+    """比較面の全フィールドが非変更であることを返す。"""
+    return isinstance(fields, dict) and all(
+        value == {"kind": "unchanged"} for value in fields.values()
+    )
+
+
+def _scenario_d_plus_one_only(predicate: dict[str, Any], descriptor: dict[str, Any]) -> bool:
+    """述語が許すシナリオ長が D+1 だけかを値域から判定する。"""
+    axes = sorted(representative_selection.predicate_axes(predicate))
+    if "history.scenarioLength" not in axes:
+        return False
+    values_by_axis = representative_selection.axis_values(
+        descriptor, ("stateTransitionAxes",)
+    )
+    if any(axis not in values_by_axis for axis in axes):
+        _fail("XC-09", "述語に未登録の軸がある")
+    size = 1
+    for axis in axes:
+        size *= len(values_by_axis[axis])
+        if size > 100_000:
+            _fail("XC-09", "述語の入力直積が上限を超える")
+    possible = {
+        coordinate["history.scenarioLength"]
+        for values in product(*(values_by_axis[axis] for axis in axes))
+        if representative_selection.predicate_holds(
+            predicate, coordinate := dict(zip(axes, values, strict=True))
+        )
+    }
+    return possible == {"D+1"}
+
+
+def compare_liveness_undo(
+    input_stack: object, expected: object, actual: object,
+) -> bool:
+    """保証範囲外の undo で結果と履歴要素数だけを比較する。"""
+    if (
+        not isinstance(input_stack, list)
+        or not isinstance(expected, dict)
+        or expected.get("guaranteeMode") != "liveness-only"
+        or expected.get("operationResult") != "applied"
+        or not isinstance(actual, dict)
+        or not isinstance(actual.get("historyContext"), list)
+    ):
+        return False
+    return (
+        actual.get("operationResult") == "applied"
+        and len(actual["historyContext"]) == len(input_stack) - 1
+    )
+
+
+def validate_rows(contract: dict[str, Any], descriptor: dict[str, Any]) -> None:
+    """操作・undo の列と StateEffect の面の同値を検査する。
+
+    Args:
+        contract: 状況判定契約。
+        descriptor: 履歴深さの値域を持つ入力軸 descriptor。
+
+    Raises:
+        HistoryEffectError: D-8 の列・面・交差制約に違反する場合。
+    """
+    for index, row in enumerate(contract["operationRows"]):
+        label = f"operationRows[{index}]"
+        column = row["historyEffect"]
+        face = row["stateEffect"]["historyAndResult"]
+        expected_history = (
+            {"kind": "push", "entryKind": column["kind"]}
+            if column["pushes"] else {"kind": "unchanged"}
+        )
+        if face["history"].get("kind") == "pop":
+            _fail("HISTORY_OPERATION_POP", label)
+        if face["history"] != expected_history:
+            _fail("HISTORY_COLUMN_FACE", label)
+        if face["operationResult"] != {"kind": "set", "value": row["operationResult"]}:
+            _fail("RESULT_COLUMN_FACE", label)
+        if row["operationResult"] != "applied" and column["pushes"]:
+            _fail("HISTORY_REJECTED_PUSH", label)
+        if column["pushes"] and (
+            row["operationKind"] != "state-correction"
+            or column["kind"] != "state-correction"
+        ):
+            _fail("HISTORY_PUSH_KIND", label)
+        if row["operationKind"] == "tiebreak-start":
+            _validate_tiebreak_row(row, label)
+
+    for index, row in enumerate(contract["undoRows"]):
+        label = f"undoRows[{index}]"
+        pops = row["historyEffect"]["pops"]
+        face = row["stateEffect"]["historyAndResult"]
+        expected_history = {"kind": "pop", "count": 1} if pops == 1 else {"kind": "unchanged"}
+        if face["history"].get("kind") == "push":
+            _fail("HISTORY_UNDO_PUSH", label)
+        if face["history"] != expected_history:
+            _fail("HISTORY_COLUMN_FACE", label)
+        if face["operationResult"] != {"kind": "set", "value": row["operationResult"]}:
+            _fail("RESULT_COLUMN_FACE", label)
+        if (row["operationResult"] == "applied") != (pops == 1):
+            _fail("HISTORY_UNDO_RESULT", label)
+        liveness = row["guaranteeMode"] == "liveness-only"
+        if liveness and not (
+            _scenario_d_plus_one_only(row["precondition"], descriptor)
+            and row["targetKind"] != "none"
+            and pops == 1
+            and row["operationResult"] == "applied"
+            and all(
+                _all_unchanged(row["stateEffect"][face])
+                for face in ("stateFields", "scoreboard", "statFlags")
+            )
+            and "比較対象外" in row["remarks"]
+        ):
+            _fail("XC-09", label)
+        depth_zero = _depth_zero_only(row["precondition"], descriptor)
+        if not (
+            (row["targetKind"] == "none")
+            == (row["operationResult"] == "nothing-to-undo")
+            == depth_zero
+            == (pops == 0)
+        ):
+            _fail("HISTORY_NONE_EQUIVALENCE", label)
+        if not _all_unchanged(row["stateEffect"]["statFlags"]):
+            _fail("HISTORY_UNDO_FLAGS", label)
+        if row["stateEffect"]["stateFields"]["state.score"].get("kind") == "set":
+            predicate = row["precondition"]
+            terms = predicate.get("args") if predicate.get("op") == "and" else None
+            fixed = {
+                term["axisId"]: term["value"]
+                for term in terms or []
+                if isinstance(term, dict) and term.get("op") == "eq"
+            }
+            for axis_id, face, member in (
+                ("history.topDifference.state.score.away.before", "stateFields", "away"),
+                ("history.topDifference.scoreboard.inningScores.home.before", "scoreboard", "home"),
+                ("history.topDifference.scoreboard.inningScores.away.before", "scoreboard", "away"),
+            ):
+                value = row["stateEffect"][face][
+                    "state.score" if face == "stateFields" else "inningScores"
+                ]
+                if value.get("kind") != "set" or fixed.get(axis_id) != value["value"][member]:
+                    _fail("HISTORY_UNDO_SET_BOUNDARY", label)
+        if row["targetKind"] == "none" and (
+            row["guaranteeMode"] != "full-equality"
+            or not _all_unchanged(row["stateEffect"]["stateFields"])
+            or not _all_unchanged(row["stateEffect"]["scoreboard"])
+        ):
+            _fail("HISTORY_NONE_EFFECT", label)
+
+
+def _validate_tiebreak_row(row: dict[str, Any], label: str) -> None:
+    """FR-009 の指定値と操作行の比較面の一致を検査する。"""
+    predicate = row["precondition"]
+    args = predicate.get("args") if predicate.get("op") == "and" else None
+    if not isinstance(args, list) or any(
+        not isinstance(item, dict) or item.get("op") != "eq" for item in args
+    ):
+        _fail("TIEBREAK_PRECONDITION", label)
+    fixed = {item["axisId"]: item["value"] for item in args}
+    if len(fixed) != len(args) or any(
+        axis not in fixed for axis in (
+            "event.tiebreakStart.runnerPlacement",
+            "event.tiebreakStart.leadoffBatter",
+            "event.tiebreakStart.inning",
+            "event.tiebreakStart.activationRelation",
+            "rules.tiebreakStartInning",
+        )
+    ):
+        _fail("TIEBREAK_PRECONDITION", label)
+    effect = row["stateEffect"]
+    if row["operationResult"] == "applied":
+        if (fixed["event.tiebreakStart.activationRelation"] != "ready"
+            or fixed["rules.tiebreakStartInning"] == "none"):
+            _fail("TIEBREAK_ACTIVATION", label)
+        pairs = (
+            ("state.runners", "event.tiebreakStart.runnerPlacement"),
+            ("state.battingOrder", "event.tiebreakStart.leadoffBatter"),
+            ("state.inning", "event.tiebreakStart.inning"),
+        )
+        for output, source in pairs:
+            if effect["stateFields"][output] != {"kind": "set", "value": fixed[source]}:
+                _fail("TIEBREAK_PAYLOAD_SET", label)
+        if effect["stateFields"]["state.tiebreakActive"] != {
+            "kind": "set", "value": True,
+        }:
+            _fail("TIEBREAK_ACTIVATION", label)
+    elif row["operationResult"] == "rejected-precondition":
+        if fixed["event.tiebreakStart.activationRelation"] != "not-ready":
+            _fail("TIEBREAK_ACTIVATION", label)
+        if any(
+            item != {"kind": "unchanged"}
+            for face in ("stateFields", "scoreboard", "statFlags")
+            for item in effect[face].values()
+        ):
+            _fail("TIEBREAK_REJECTED_EFFECT", label)
+    else:
+        _fail("TIEBREAK_RESULT", label)
+
+
+def validate_undo_case_differences(contract: dict[str, Any], depth: int) -> None:
+    """undo の先頭差分と逆適用、残る履歴要素を照合する。
+
+    Args:
+        contract: 規範行と派生 case を持つ状況判定契約。
+        depth: history-depth から解決した D の実値。
+    """
+    consecutive: list[dict[str, Any]] = []
+    single: list[dict[str, Any]] = []
+    for case in contract["cases"]:
+        reference = case.get("rowRef", {})
+        if reference.get("layer") != "undoRows":
+            continue
+        coordinate = case.get("inputCoordinate", {})
+        if "history.topDifference.changedFaces" not in coordinate:
+            continue
+        label = case.get("caseId", "undo")
+        expected = case.get("expected", {})
+        stack = case.get("historyInput", {}).get("stack")
+        if (
+            not isinstance(stack, list)
+            or not stack
+            or expected.get("guaranteeMode") != "full-equality"
+            or expected.get("operationResult") != "applied"
+        ):
+            _fail("UNDO_DIFFERENCE_INPUT", label)
+        declared_depth = coordinate.get("history.depth")
+        if (depth if declared_depth == "D" else declared_depth) != len(stack):
+            _fail("UNDO_DIFFERENCE_INPUT", label)
+        if coordinate.get("history.scenarioLength") != declared_depth:
+            _fail("UNDO_DIFFERENCE_INPUT", label)
+        top = stack[0]
+        if top.get("kind") != "confirmed-play":
+            _fail("UNDO_DIFFERENCE_INPUT", label)
+        difference = top.get("difference", {})
+        face = expected.get("stateEffect", {})
+        if (
+            "state.score" in difference.get("stateFields", {})
+            and difference.get("statFlags", {}).get("得点") is True
+            and "inningScores" not in difference.get("scoreboard", {})
+        ):
+            _fail("UNDO_INNING_SCORE_DIFF", label)
+        for surface in ("stateFields", "scoreboard"):
+            changed = difference.get(surface)
+            effects = face.get(surface)
+            if not isinstance(changed, dict) or not isinstance(effects, dict):
+                _fail("UNDO_DIFFERENCE_INPUT", label)
+            for field, effect in effects.items():
+                if field not in changed:
+                    inverse = {"kind": "unchanged"}
+                else:
+                    pair = changed[field]
+                    if not isinstance(pair, dict) or set(pair) != {"before", "after"}:
+                        _fail("UNDO_DIFFERENCE_INPUT", label)
+                    before, after = pair["before"], pair["after"]
+                    if before == after:
+                        _fail("UNDO_DIFFERENCE_INPUT", label)
+                    inverse = (
+                        {"kind": "delta", "value": before - after}
+                        if type(before) is int and type(after) is int
+                        and "state.half" not in difference["stateFields"]
+                        else {"kind": "set", "value": before}
+                    )
+                if effect != inverse:
+                    _fail("UNDO_INVERSE_DIFF", f"{label}: {surface}.{field}")
+        changed_state = bool(difference["stateFields"])
+        changed_board = bool(difference["scoreboard"])
+        changed_faces = (
+            "half-inning-boundary" if "state.half" in difference["stateFields"]
+            else "state-and-scoreboard" if changed_state and changed_board
+            else "state-only" if changed_state
+            else "scoreboard-only" if changed_board
+            else None
+        )
+        if coordinate["history.topDifference.changedFaces"] != changed_faces:
+            _fail("UNDO_SCALAR_BINDING", label)
+        scalar_fields = {
+            "state.outs.before": ("stateFields", "state.outs", None, "before"),
+            "state.outs.delta": ("stateFields", "state.outs", None, "delta"),
+            "state.score.home.before": ("stateFields", "state.score", "home", "before"),
+            "state.score.home.delta": ("stateFields", "state.score", "home", "delta"),
+            "state.score.away.before": ("stateFields", "state.score", "away", "before"),
+            "state.half.before": ("stateFields", "state.half", None, "before"),
+            "state.inning.before": ("stateFields", "state.inning", None, "before"),
+            "scoreboard.hits.before": ("scoreboard", "hits", None, "before"),
+            "scoreboard.hits.delta": ("scoreboard", "hits", None, "delta"),
+            "scoreboard.inningScores.home.before": (
+                "scoreboard", "inningScores", "home", "before"
+            ),
+            "scoreboard.inningScores.home.delta": (
+                "scoreboard", "inningScores", "home", "delta"
+            ),
+            "scoreboard.inningScores.away.before": (
+                "scoreboard", "inningScores", "away", "before"
+            ),
+        }
+        required_by_field = {
+            ("stateFields", "state.outs"): ("state.outs.before",),
+            ("stateFields", "state.score"): (
+                "state.score.home.before", "state.score.home.delta",
+                "state.score.away.before",
+            ),
+            ("stateFields", "state.half"): ("state.half.before",),
+            ("stateFields", "state.inning"): ("state.inning.before",),
+            ("scoreboard", "hits"): ("scoreboard.hits.before", "scoreboard.hits.delta"),
+            ("scoreboard", "inningScores"): (
+                "scoreboard.inningScores.home.before",
+                "scoreboard.inningScores.home.delta",
+                "scoreboard.inningScores.away.before",
+            ),
+        }
+        for surface in ("stateFields", "scoreboard"):
+            for field in difference[surface]:
+                suffixes = required_by_field.get((surface, field))
+                if suffixes is None or any(
+                    f"history.topDifference.{suffix}" not in coordinate
+                    for suffix in suffixes
+                ):
+                    _fail("UNDO_SCALAR_BINDING", f"{label}: {surface}.{field}")
+                if field == "state.outs" and "state.half" not in difference["stateFields"]:
+                    if "history.topDifference.state.outs.delta" not in coordinate:
+                        _fail("UNDO_SCALAR_BINDING", f"{label}: {surface}.{field}")
+                if field == "state.score" and (
+                    difference[surface][field]["before"].get("away")
+                    != difference[surface][field]["after"].get("away")
+                ):
+                    _fail("UNDO_SCALAR_BINDING", f"{label}: {surface}.{field}")
+        contribution = coordinate.get("history.topDifference.statFlags.contribution")
+        contribution_flags = {
+            "out-and-pitch": {"投球数", "投球回算入アウト"},
+            "run-hit-and-pitch": {"投球数", "被安打", "安打", "得点", "打点"},
+            "hit-and-pitch": {"投球数", "被安打", "安打"},
+        }
+        flags = difference.get("statFlags")
+        if (
+            not isinstance(flags, dict)
+            or set(flags) != set(face["statFlags"])
+            or any(type(value) is not bool for value in flags.values())
+            or {name for name, value in flags.items() if value}
+            != contribution_flags.get(contribution)
+        ):
+            _fail("UNDO_SCALAR_BINDING", f"{label}: statFlags.contribution")
+        for suffix, (surface, field, member, measure) in scalar_fields.items():
+            axis_id = f"history.topDifference.{suffix}"
+            if axis_id not in coordinate:
+                continue
+            pair = difference[surface].get(field)
+            if not isinstance(pair, dict):
+                _fail("UNDO_SCALAR_BINDING", f"{label}: {axis_id}")
+            before, after = pair["before"], pair["after"]
+            if member is not None:
+                if not isinstance(before, dict) or not isinstance(after, dict):
+                    _fail("UNDO_SCALAR_BINDING", f"{label}: {axis_id}")
+                before, after = before.get(member), after.get(member)
+            value = after - before if measure == "delta" else before
+            if coordinate[axis_id] != value:
+                _fail("UNDO_SCALAR_BINDING", f"{label}: {axis_id}")
+        if expected.get("historyContext") != stack[1:]:
+            _fail("UNDO_TAIL_PRESERVATION", label)
+        if len(stack) == 2:
+            consecutive.append(case)
+        elif len(stack) == 1:
+            single.append(case)
+    if not any(
+        first["expected"]["historyContext"] == second["historyInput"]["stack"]
+        for first in consecutive for second in single
+    ):
+        _fail("UNDO_CONTINUITY", "連続undoの2回目へ差分が渡らない")
+
+
+def push_entry(
+    entry_kind: str,
+    before: dict[str, dict[str, Any]],
+    after: dict[str, dict[str, Any]],
+    stat_flags: dict[str, bool],
+    state_fields: set[str],
+    scoreboard_fields: set[str],
+    flag_fields: set[str],
+) -> dict[str, Any]:
+    """比較面の前後と操作が出力したフラグから積む要素を作る。
+
+    Args:
+        entry_kind: 取消可能な操作の種別。
+        before: 状態欄とスコアボードの適用前の値。
+        after: 状態欄とスコアボードの適用後の値。
+        stat_flags: 当該操作が出力した 23 フラグ。
+        state_fields: 状態欄の全フィールド名。
+        scoreboard_fields: スコアボードの全フィールド名。
+        flag_fields: 成績計上フラグの全フィールド名。
+
+    Returns:
+        種別と差分を持つ履歴要素。
+
+    Raises:
+        HistoryEffectError: 前後の比較面またはフラグが不足する場合。
+    """
+    expected_faces = {"stateFields": state_fields, "scoreboard": scoreboard_fields}
+    for face, fields in expected_faces.items():
+        if (
+            set(before.get(face, {})) != fields
+            or set(after.get(face, {})) != fields
+        ):
+            _fail("HISTORY_SNAPSHOT", f"{face} の前後フィールドが不足する")
+    if set(stat_flags) != flag_fields or any(
+        type(value) is not bool for value in stat_flags.values()
+    ):
+        _fail("HISTORY_FLAGS", "当該操作が出力した23フラグが不足する")
+    return {
+        "kind": entry_kind,
+        "difference": {
+            face: {
+                field: {
+                    "before": copy.deepcopy(before[face][field]),
+                    "after": copy.deepcopy(after[face][field]),
+                }
+                for field in sorted(fields)
+                if before[face][field] != after[face][field]
+            }
+            for face, fields in expected_faces.items()
+        } | {"statFlags": copy.deepcopy(stat_flags)},
+    }
+
+
+def apply_history(
+    stack: list[dict[str, Any]], effect: dict[str, Any], entry: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
+    """履歴面を入力スタックへ適用し、遷移後のスタックを返す。
+
+    Args:
+        stack: 適用前の履歴スタック。
+        effect: unchanged・push・pop の履歴面。
+        entry: push で積む履歴要素。
+
+    Returns:
+        面を適用した履歴スタック。
+
+    Raises:
+        HistoryEffectError: 面とスタックを適用できない場合。
+    """
+    result = copy.deepcopy(stack)
+    kind = effect.get("kind")
+    if kind == "unchanged":
+        return result
+    if kind == "pop" and effect.get("count") == 1 and result:
+        return result[1:]
+    if kind == "push" and entry is not None and entry.get("kind") == effect.get("entryKind"):
+        return [copy.deepcopy(entry), *result]
+    _fail("HISTORY_APPLY", "履歴面と入力スタックを適用できない")
+
+
+def validate_push_entry(
+    entry: dict[str, Any],
+    entry_kind: str,
+    before: dict[str, dict[str, Any]],
+    after: dict[str, dict[str, Any]],
+    stat_flags: dict[str, bool],
+    state_fields: set[str],
+    scoreboard_fields: set[str],
+    flag_fields: set[str],
+) -> None:
+    """履歴要素が前後差分と操作出力の 23 値に完全一致するか調べる。
+
+    Args:
+        entry: 照合する履歴要素。
+        entry_kind: 取消可能な操作の種別。
+        before: 状態欄とスコアボードの適用前の値。
+        after: 状態欄とスコアボードの適用後の値。
+        stat_flags: 当該操作が出力した 23 フラグ。
+        state_fields: 状態欄の全フィールド名。
+        scoreboard_fields: スコアボードの全フィールド名。
+        flag_fields: 成績計上フラグの全フィールド名。
+
+    Raises:
+        HistoryEffectError: 差分または出力フラグと一致しない場合。
+    """
+    canonical = push_entry(
+        entry_kind, before, after, stat_flags,
+        state_fields, scoreboard_fields, flag_fields,
+    )
+    if entry != canonical:
+        _fail("HISTORY_ENTRY_DIFFERENCE", "push 要素が前後差分または出力フラグと不一致")
+
+
+def project_legacy_operation_fixture(expected: dict[str, Any]) -> dict[str, Any]:
+    """凍結済みの旧操作 fixture を D-8 の結果面へ射影する。
+
+    Args:
+        expected: 凍結済みの操作結果。
+
+    Returns:
+        結果面だけを現行の set へ移した操作結果。
+
+    Raises:
+        HistoryEffectError: 旧 fixture の形が想定と異なる場合。
+    """
+    projected = copy.deepcopy(expected)
+    face = projected.get("stateEffect", {}).get("historyAndResult", {})
+    if (
+        face.get("history") != {"kind": "unchanged"}
+        or face.get("operationResult") != {"kind": "unchanged"}
+        or projected.get("operationResult") != "applied"
+    ):
+        _fail("HISTORY_LEGACY_FIXTURE", "旧操作 fixture の比較面が想定外")
+    face["operationResult"] = {"kind": "set", "value": "applied"}
+    return projected
 
 def _validate_instance(
     value: Any, schema: dict[str, Any], root_schema: dict[str, Any], path: str
@@ -138,6 +735,61 @@ def _predicate_holds(predicate: dict[str, Any], coordinate: dict[str, Any]) -> b
     raise BranchRowMappingError(f"未対応の述語演算子: {operation}")
 
 
+def _legacy_game_end_predicate(predicate: dict[str, Any]) -> dict[str, Any]:
+    """凍結済み手作業fixtureの4軸射影で旧行との対応を照合する。"""
+    if predicate.get("op") != "and" or not isinstance(predicate.get("args"), list):
+        raise BranchRowMappingError("終了判定行の旧fixture射影を判定できない")
+    args = predicate["args"]
+    omitted_axes = {
+        "gameEnd.satisfiedColdTierCount",
+        "state.outs",
+        "state.runners",
+        "state.count.strikes",
+        "state.count.balls",
+        "event.operationPayload",
+        "event.perPitch.pitchEventKind",
+        "event.perPitch.runnerEventPayload",
+        "event.perPitch.runnerAdvanceOverridesByRunner",
+        "event.perPitch.thirdOutTimingByRunner",
+        "event.perPitch.interferenceRuling",
+        "event.perPitch.officialScoringPayload",
+        "event.perPitch.rbi.doublePlayRelayError",
+        "event.perPitch.rbi.runnerContinuityByRunner",
+        "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+    }
+    projected = [
+        arg for arg in args
+        if not (
+            isinstance(arg, dict)
+            and arg.get("op") == "eq"
+            and arg.get("axisId") in omitted_axes
+        )
+    ]
+    removed = [arg.get("axisId") for arg in args if arg not in projected]
+    if removed not in [
+        ["gameEnd.satisfiedColdTierCount"],
+        [
+            "gameEnd.satisfiedColdTierCount",
+            "state.outs", "state.runners", "state.count.strikes", "state.count.balls",
+        ],
+        [
+            "gameEnd.satisfiedColdTierCount",
+            "state.outs", "state.runners",
+            "event.operationPayload", "event.perPitch.pitchEventKind",
+            "event.perPitch.runnerEventPayload",
+            "event.perPitch.runnerAdvanceOverridesByRunner",
+            "event.perPitch.thirdOutTimingByRunner",
+            "event.perPitch.interferenceRuling",
+            "event.perPitch.officialScoringPayload",
+            "event.perPitch.rbi.doublePlayRelayError",
+            "event.perPitch.rbi.runnerContinuityByRunner",
+            "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+        ],
+    ]:
+        raise BranchRowMappingError("終了判定行の旧fixture射影の除外軸が不正")
+    return {"op": "and", "args": projected}
+
+
 def _unique_rows(rows: list[dict[str, Any]], coordinate: dict[str, Any]) -> dict[str, Any]:
     """自然キーが指す規範行を一意に得る。
 
@@ -252,7 +904,10 @@ def check_documents(
                 raise BranchRowMappingError(f"終了判定行自身の分岐IDが不一致: {branch_id}")
             if relation != "decision-output":
                 raise BranchRowMappingError(f"終了判定のfixture関係が不正: {branch_id}")
-            if not _predicate_holds(row["precondition"], fixture["inputCoordinate"]):
+            if not _predicate_holds(
+                _legacy_game_end_predicate(row["precondition"]),
+                fixture["inputCoordinate"],
+            ):
                 raise BranchRowMappingError(f"fixtureが終了判定の前提を満たさない: {branch_id}")
             if fixture["decision"] != row["decision"]:
                 raise BranchRowMappingError(f"fixtureと終了判定の出力が異なる: {branch_id}")
@@ -263,6 +918,8 @@ def check_documents(
             raise BranchRowMappingError(f"既存の行参照にない座標: {branch_id}")
         fixture_input = fixture["inputCoordinate"]
         for field in coordinate:
+            if field in ("precondition", "payloadShape") and layer == "operationRows":
+                continue
             if field != "precondition" and fixture_input.get(field) != coordinate[field]:
                 raise BranchRowMappingError(f"fixtureと規範行の入力種別が異なる: {branch_id}")
         row_output = {
@@ -272,7 +929,12 @@ def check_documents(
         if relation == "row-output":
             if not _predicate_holds(row["precondition"], fixture_input):
                 raise BranchRowMappingError(f"fixtureが規範行の前提を満たさない: {branch_id}")
-            if fixture["expected"] != row_output:
+            fixture_output = fixture["expected"]
+            if branch_id == "DRAW-05":
+                fixture_output = project_legacy_operation_fixture(
+                    fixture_output
+                )
+            if fixture_output != row_output:
                 raise BranchRowMappingError(f"fixtureと規範行の出力が異なる: {branch_id}")
         elif relation == "cross-constraint-negative" and layer == "matrixRows":
             candidate = fixture_input.get("candidateEffects")

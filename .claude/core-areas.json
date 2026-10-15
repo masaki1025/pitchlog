@@ -40,7 +40,7 @@
         "tests/test_verify_nfr021_evidence.py"
       ],
       "reason": "scripts/core_guard.py の直接参照1件はTSK-236自身が宣言へ contracts/state-transition/* と書いたことによる自己参照。残り10件は逆依存閉包で文字列中に他ファイルのパスが現れる辺から巻き込まれた。いずれも状況判定契約の消費者ではない",
-      "deferred_to": "段階2送り（unresolved-report.md の S34・design.md 8-6）"
+      "deferred_to": "TSK-540 送り（unresolved-report.md の S34・design.md 8-6）"
     },
     "claim": "静的に導出したPythonファイルからdeclared_exclusions.pathsを除いた全件がrequired_area_idsのpathsに登録されていなければfailする。除外は導出結果との差分の完全一致で固定する。検査はpathsを自動更新せず、not_detectedの経路を検出するとは主張しない"
   },
@@ -254,7 +254,8 @@
         "scripts/representative_selection.py",
         "tests/test_branch_row_mapping.py",
         "frontend/src/api/client*",
-        "frontend/src/screens/GameScreen*"
+        "frontend/src/screens/GameScreen*",
+        "tests/domain/runners/test_handoff_loader.py"
       ]
     },
     {
@@ -372,7 +373,25 @@
         "scripts/expand_state_transition_cases.py",
         "scripts/representative_selection.py",
         "tests/test_branch_row_mapping.py",
-        "frontend/src/screens/GameScreen*"
+        "frontend/src/screens/GameScreen*",
+        "frontend/src/domain/*",
+        "backend/src/pitchlog/domainrt/*",
+        "frontend/public/domain/*",
+        "frontend/scripts/domain-checks/*",
+        "frontend/scripts/domain-build/*",
+        "frontend/scripts/domain-sql/*",
+        "frontend/index.html",
+        "frontend/eslint.config.js",
+        "frontend/.dependency-cruiser.cjs",
+        "frontend/src/testing/vectorRunner.ts",
+        "frontend/src/testing/vectorRunner.spec.ts",
+        "frontend/src/testing/vectorConformance.spec.ts",
+        "frontend/src/testing/handoffLoader.ts",
+        "frontend/src/testing/handoffLoader.spec.ts",
+        "frontend/src/testing/artifactAdapter.ts",
+        "frontend/src/testing/artifactAdapter.spec.ts",
+        "backend/tests/domainrt/*",
+        "backend/Dockerfile"
       ]
     },
     {
@@ -603,7 +622,25 @@
         "frontend/src/screens/GameScreen*",
         "frontend/src/components/settings/TeamMembersContent*",
         "frontend/src/lib/rosterQueryKeys*",
-        "frontend/src/screens/TeamScreen*"
+        "frontend/src/screens/TeamScreen*",
+        "frontend/src/domain/*",
+        "backend/src/pitchlog/domainrt/*",
+        "frontend/public/domain/*",
+        "frontend/scripts/domain-checks/*",
+        "frontend/scripts/domain-build/*",
+        "frontend/scripts/domain-sql/*",
+        "frontend/index.html",
+        "frontend/eslint.config.js",
+        "frontend/.dependency-cruiser.cjs",
+        "frontend/src/testing/vectorRunner.ts",
+        "frontend/src/testing/vectorRunner.spec.ts",
+        "frontend/src/testing/vectorConformance.spec.ts",
+        "frontend/src/testing/handoffLoader.ts",
+        "frontend/src/testing/handoffLoader.spec.ts",
+        "frontend/src/testing/artifactAdapter.ts",
+        "frontend/src/testing/artifactAdapter.spec.ts",
+        "backend/tests/domainrt/*",
+        "backend/Dockerfile"
       ]
     }
   ]

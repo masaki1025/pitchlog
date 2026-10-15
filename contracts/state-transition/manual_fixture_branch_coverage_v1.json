@@ -21,7 +21,7 @@
     {"id": "rbi-input-or-row-unresolved", "description": "打点の適用条件を固定する入力または対応する規範行が未整備"},
     {"id": "third-out-input-deferred", "description": "第3アウト種別の観測入力が段階2待ち"},
     {"id": "interference-representative-row-absent", "description": "代表に選ばれなかった妨害分岐の規範行が無い"},
-    {"id": "xmark-comparison-surface-absent", "description": "X表記と空欄・数値の区別を現行の終了判定出力で表せない"},
+    {"id": "xmark-branch-row-absent", "description": "X表記の出力欄はあるがXMARK専用の規範行とfixtureが無い"},
     {"id": "stat-flag-derivation-deferred", "description": "23成績フラグの結果別導出表が段階2待ち"}
   ],
   "missingFixtureBranches": [
@@ -29,7 +29,6 @@
     {"branchId": "DRAW-02", "reasonType": "rule-setting-branch-outside-decision-rows", "reason": "点差設定の不正を拒否する分岐で、validationErrors[]は規範行の代替にならない"},
     {"branchId": "DRAW-03", "reasonType": "rule-setting-branch-outside-decision-rows", "reason": "タイブレーク設定の不正を拒否する分岐で、validationErrors[]は規範行の代替にならない"},
     {"branchId": "DRAW-04", "reasonType": "rule-setting-branch-outside-decision-rows", "reason": "有効な規則設定の宣言であり、対応する終了判定結果行が無い"},
-    {"branchId": "DRAW-05", "reasonType": "runtime-decision-row-absent", "reason": "途中終了宣言による引き分けをlimit-drawへ読み替えられず、対応する規範行とoutcomeが無い"},
     {"branchId": "DRAW-06", "reasonType": "runtime-decision-row-absent", "reason": "途中終了宣言による勝敗確定の独立した規範行が無い"},
     {"branchId": "DRAW-07", "reasonType": "runtime-decision-row-absent", "reason": "延長上限なしの継続を固有に表す規範行が無い"},
     {"branchId": "DRAW-08", "reasonType": "runtime-decision-row-absent", "reason": "延長上限前の継続を固有に表す規範行が無い"},
@@ -58,9 +57,9 @@
     {"branchId": "INT-03", "reasonType": "interference-representative-row-absent", "reason": "打撃妨害の実プレイ選択側は代表INT-02と別であり規範行が無い"},
     {"branchId": "INT-05", "reasonType": "interference-representative-row-absent", "reason": "走塁妨害のプレイなし側は代表INT-04と別であり規範行が無い"},
     {"branchId": "INT-07", "reasonType": "interference-representative-row-absent", "reason": "守備妨害の走者アウトだけの側は代表INT-06と別であり規範行が無い"},
-    {"branchId": "XMARK-01", "reasonType": "xmark-comparison-surface-absent", "reason": "現行decisionの比較面にX表記がなく規範行も無い"},
-    {"branchId": "XMARK-02", "reasonType": "xmark-comparison-surface-absent", "reason": "現行decisionの比較面に空欄と数値の区別がなく規範行も無い"},
-    {"branchId": "XMARK-03", "reasonType": "xmark-comparison-surface-absent", "reason": "現行decisionの比較面にX表記がなく規範行も無い"},
+    {"branchId": "XMARK-01", "reasonType": "xmark-branch-row-absent", "reason": "decision.xMarkで数値表示を比較できるがXMARK-01専用の規範行とfixtureは無い"},
+    {"branchId": "XMARK-02", "reasonType": "xmark-branch-row-absent", "reason": "COLD-08でX表示を比較できるがXMARK-02専用の規範行とfixtureは無い"},
+    {"branchId": "XMARK-03", "reasonType": "xmark-branch-row-absent", "reason": "schemaに空欄の値域はあるがXMARK-03を主張する規範行とfixtureは無い"},
     {"branchId": "XC-13", "reasonType": "stat-flag-derivation-deferred", "reason": "23成績フラグの結果別導出表が段階2待ち"}
   ]
 }

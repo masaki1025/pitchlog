@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
 import json
 import shutil
@@ -30,6 +31,12 @@ CONTRACT_PATH = (
 REVIEW_SHEET_PATH = (
     REPOSITORY_ROOT
     / "docs/features/appendix-e-golden-vectors/matrix_rows_line_review.md"
+)
+STAGE2_REVIEW_SHEET_PATH = (
+    REPOSITORY_ROOT / "docs/features/adr003-stage2-runtime/step33_line_review.md"
+)
+GAME_END_CONTRACT_PATH = (
+    REPOSITORY_ROOT / "contracts/state-transition/game_end_contract_v1.json"
 )
 DESIGN_PATH = REPOSITORY_ROOT / "docs/features/appendix-e-golden-vectors/design.md"
 
@@ -133,6 +140,37 @@ def test_matching_subject_digest_and_recorded_attestation_are_accepted() -> None
     _validate(_signature_record())
 
 
+GATE6_SIGNATURE_DIRECTORY = (
+    REPOSITORY_ROOT / "docs/features/adr003-stage2-runtime/signatures"
+)
+GATE6_REVIEW_SHEET = (
+    REPOSITORY_ROOT / "docs/features/adr003-stage2-runtime/step33_line_review.md"
+)
+
+
+def test_repository_gate6_signature_records_match_current_contracts() -> None:
+    """TSK-538ゲート⑥の署名記録が現行の両契約と宣言どおりに一致する。"""
+    records = {
+        path.name: _load_object(path)
+        for path in sorted(GATE6_SIGNATURE_DIRECTORY.glob("*.json"))
+    }
+
+    assert set(records) == {"gate6-game-end.json", "gate6-state-transition.json"}
+    subjects = set()
+    for record in records.values():
+        _validate(record)
+        subjects.add(record["subject"]["path"])
+        assert record["artifactAuthorId"] == "codex"
+        assert record["recordedReviewerId"] == "山田正輝"
+        assert "step33_line_review.md" in record["reviewScope"]
+        sheet_digest = hashlib.sha256(GATE6_REVIEW_SHEET.read_bytes()).hexdigest()
+        assert sheet_digest in record["reviewScope"], "署名後に逐行確認シートが変わった"
+    assert subjects == {
+        "contracts/state-transition/game_end_contract_v1.json",
+        "contracts/state-transition/state_transition_contract_v1.json",
+    }
+
+
 def test_subject_digest_mismatch_is_red() -> None:
     """署名対象の現物と一致しない記録digestを拒否する。"""
     record = _signature_record()
@@ -223,6 +261,7 @@ def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> N
     assert "確認済み" not in sheet
     assert "本表の全行に共通する前提:** なし" in sheet
     assert "state_transition_contract_v1.json` の `matrixRows[]`" in sheet
+
     assert "{\"" not in sheet
     assert '"投球数": false' not in sheet
     table_rows = [
@@ -359,6 +398,57 @@ def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> N
     assert "## 人間が判断すること" in sheet
     assert "段階2" in sheet
 
+
+def test_stage2_line_review_sheet_is_complete_and_reproducible(tmp_path: Path) -> None:
+    """規範行と派生caseを全件載せ、2回の生成をバイト一致させる。"""
+    generated_paths = [tmp_path / "first.md", tmp_path / "second.md"]
+    for path in generated_paths:
+        assert (
+            checker.main(
+                [
+                    "--root",
+                    str(REPOSITORY_ROOT),
+                    "--stage2-review",
+                    "--output",
+                    str(path),
+                ]
+            )
+            == 0
+        )
+    sheet = STAGE2_REVIEW_SHEET_PATH.read_bytes()
+    assert generated_paths[0].read_bytes() == generated_paths[1].read_bytes() == sheet
+    assert hashlib.sha256(generated_paths[0].read_bytes()).digest() == hashlib.sha256(
+        generated_paths[1].read_bytes()
+    ).digest()
+
+    game_end = _load_object(GAME_END_CONTRACT_PATH)
+    state = _load_object(CONTRACT_PATH)
+    text = sheet.decode("utf-8")
+    assert text.count("#### `decisionRows[") == len(game_end["decisionRows"])
+    assert text.count("#### `operationRows[") == len(state["operationRows"])
+    assert text.count("#### `undoRows[") == len(state["undoRows"])
+    selected_cases = game_end["cases"] + [
+        case
+        for case in state["cases"]
+        if case["rowRef"]["layer"] in {"operationRows", "undoRows"}
+    ]
+    assert text.count("##### case `") == len(selected_cases)
+    for case in selected_cases:
+        assert text.count(f"##### case `{case['caseId']}`") == 1
+    assert "独立確認: **未実施**" in text
+    assert "作成者: codex" in text
+    assert "[x]" not in text
+
+
+def test_stage2_line_review_sheet_detects_contract_drift() -> None:
+    """契約の期待値が変わると保存済みシートとの一致が崩れる。"""
+    game_end = _load_object(GAME_END_CONTRACT_PATH)
+    state = _load_object(CONTRACT_PATH)
+    game_end["cases"][0]["decision"]["xMark"] = "blank"
+    changed = checker.render_stage2_line_review_sheet(
+        REPOSITORY_ROOT, game_end, state
+    )
+    assert changed != STAGE2_REVIEW_SHEET_PATH.read_text(encoding="utf-8")
 
 def test_matrix_rows_line_review_renderer_accepts_later_rows() -> None:
     """同じ描画器を後続ステップで行追加後も再利用できる。"""

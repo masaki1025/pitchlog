@@ -2,6 +2,20 @@
 module.exports = {
   forbidden: [
     {
+      name: 'no-domain-external-import',
+      comment: 'TS 正本は src/domain 内の依存だけを持つ。',
+      severity: 'error',
+      from: { path: '(^|/)src/domain/' },
+      to: { pathNot: '(^|/)src/domain/' },
+    },
+    {
+      name: 'no-direct-domain-import',
+      comment: 'アプリコードは同一 artifact の公開口を通してドメインを使う。',
+      severity: 'error',
+      from: { path: '(^|/)src/', pathNot: '(^|/)src/domain/' },
+      to: { path: '(^|/)src/domain/' },
+    },
+    {
       name: 'no-direct-generated-artifact-import',
       comment:
         '生成物は generated/wrappers 配下の生成ラッパーを経由して利用する。',

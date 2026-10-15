@@ -11,12 +11,13 @@
     "recordedOn": "2026-09-28",
     "statement": "enumerated-directly-from-approved-requirements"
   },
-  "branchCount": 68,
+  "branchCount": 69,
   "gameEndOutcomeBranches": {
     "normalEnd": "GAME-END-NORMAL",
     "extraInningContinue": "GAME-END-EXTRA-CONTINUE",
     "limitDraw": "GAME-END-LIMIT-DRAW",
-    "tiebreakContinue": "GAME-END-TIEBREAK-CONTINUE"
+    "tiebreakContinue": "GAME-END-TIEBREAK-CONTINUE",
+    "walkOff": "GAME-END-WALK-OFF"
   },
   "branches": [
     {"branchId": "COLD-01", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:F-1"], "relatedClauseBranchIds": [], "gapIds": ["GAP-03"]},
@@ -39,7 +40,7 @@
     {"branchId": "DRAW-09", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:F-1"], "relatedClauseBranchIds": [], "gapIds": ["GAP-04"]},
     {"branchId": "DRAW-10", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:F-1"], "relatedClauseBranchIds": [], "gapIds": ["GAP-04"]},
     {"branchId": "XMARK-01", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:FR-020"], "relatedClauseBranchIds": [], "gapIds": ["GAP-01", "GAP-05"]},
-    {"branchId": "XMARK-02", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:FR-020"], "relatedClauseBranchIds": [], "gapIds": ["GAP-05"]},
+    {"branchId": "XMARK-02", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:FR-005", "req:FR-020"], "relatedClauseBranchIds": [], "gapIds": ["GAP-05"]},
     {"branchId": "XMARK-03", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:FR-020"], "relatedClauseBranchIds": [], "gapIds": ["GAP-05"]},
     {"branchId": "OUT3-01", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:A-1"], "relatedClauseBranchIds": [], "gapIds": ["GAP-06"]},
     {"branchId": "OUT3-02", "branchKind": "requirement-branch-row", "coverageKind": "normative-case", "sourceClauseIds": ["req:A-1"], "relatedClauseBranchIds": [], "gapIds": ["GAP-06"]},
@@ -86,6 +87,7 @@
     {"branchId": "GAME-END-NORMAL", "branchKind": "game-end-outcome", "coverageKind": "decision-row", "sourceClauseIds": ["req:FR-005", "req:F-1"], "relatedClauseBranchIds": ["COLD-08", "COLD-09", "DRAW-06", "DRAW-10"], "gapIds": ["GAP-03", "GAP-04"]},
     {"branchId": "GAME-END-EXTRA-CONTINUE", "branchKind": "game-end-outcome", "coverageKind": "decision-row", "sourceClauseIds": ["req:FR-005", "req:F-1"], "relatedClauseBranchIds": ["DRAW-07", "DRAW-08"], "gapIds": ["GAP-04"]},
     {"branchId": "GAME-END-LIMIT-DRAW", "branchKind": "game-end-outcome", "coverageKind": "decision-row", "sourceClauseIds": ["req:FR-005", "req:F-1"], "relatedClauseBranchIds": ["DRAW-09"], "gapIds": ["GAP-04"]},
-    {"branchId": "GAME-END-TIEBREAK-CONTINUE", "branchKind": "game-end-outcome", "coverageKind": "decision-row", "sourceClauseIds": ["req:FR-005", "req:FR-009", "req:F-1"], "relatedClauseBranchIds": ["DRAW-07", "DRAW-08"], "gapIds": ["GAP-04"]}
+    {"branchId": "GAME-END-TIEBREAK-CONTINUE", "branchKind": "game-end-outcome", "coverageKind": "decision-row", "sourceClauseIds": ["req:FR-005", "req:FR-009", "req:F-1"], "relatedClauseBranchIds": ["DRAW-07", "DRAW-08"], "gapIds": ["GAP-04"]},
+    {"branchId": "GAME-END-WALK-OFF", "branchKind": "game-end-outcome", "coverageKind": "decision-row", "sourceClauseIds": ["req:FR-005", "req:FR-020", "req:F-1"], "relatedClauseBranchIds": ["XMARK-01"], "gapIds": []}
   ]
 }
