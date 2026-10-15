@@ -159,3 +159,12 @@
 - **独立2回目の結果: 可決 P0=0/P1=0/P2=0（候補差分限定）**。同一独立レビュアが上記tracked差分・未追跡SQL/試験のSHA一致を確認し、P0のRG1表/owner表ACL拒否とP1のcatalog直接変異/単一transaction故障rollbackの反映を全件確認。新たな指摘なし。レビューはA接続・正式認可資産・seed系列・7.7受理の完了判定ではなく、その後の差分は別途レビュー影響を評価する。
 - 追加の`product_table_access.py`を記録権パスへ登録するため、ローカルで宣言`40e5f310`（新2追加）とJSON登録`3dcb437b`（新3追加）を別コミットに固定。最初の登録候補はJSONと`tests/test_core_guard.py`の基線テストを同時にコミットし、`verify_area_path_baseline`が正しく拒否した。**その未pushの新規コミットだけ**を組み直してJSON単独にし、既存の確認済み履歴を維持した。現在の`verify_area_path_baseline(3f6a935a, HEAD)`は成功、core guard 259件成功。実パス集合テストは新4候補の未コミット差分に保全。pushなし。
 - 検査: backend Ruff・ty成功、関連認可/製品関数55件成功、migration衛生102件成功、root Ruff・ty成功、core guard259件成功。これらは限定範囲であり、正式RG1資産・A接続・凍結/archiveを含む全件検査ではない。
+
+## RG1初期seedの追加範囲承認とレビュー対象固定（2026-10-16）
+
+- **承認出所・範囲**: 依頼者（PO）が本会話でRG1専用seed系列、限定検査器、完全一致`(1,'closed')`の初期行、範囲外の負例、隔離検証・独立レビュー・指摘対応を承認。既存語彙seed/受理履歴は維持。7.7正式受理・運用open・push/PR/mergeは含まない。
+- **候補**: migration `0032_rg1_restore_gate.py`は表作成と1行投入だけを同一upgradeで行う。`singleton_id`は`autoincrement=False`で`smallint`に固定。候補台帳fixtureは`pending_7_7`。検査器は旧語彙形を維持し、RG1専用形の単一表/単一行/型を完全一致で判定する。製品/正式凍結台帳・受理済み履歴は未変更。
+- **レビュー対象識別値**: `backend/tests/test_migration_hygiene.py`=`1fd4a6e5`、`backend/migrations/versions/0032_rg1_restore_gate.py`=`8ba7f695`、`backend/tests/test_rg1_seed_migration.py`=`5eb4dc30`、`backend/tests/fixtures/rg1/seed-allowlist-candidate.json`=`59dc5159`（各SHA-256先頭8桁）。候補と直接影響だけを独立レビューする。候補fixtureと正式台帳は受理前後の両状態を区別し、受理後の全件検査でも試験を残す。
+- **検査現在地**: 隔離DBの実Alembic適用2件（同ID追加拒否、試験用open既存行の再投入上書き拒否を含む）、候補検査器の正常1件・拒否11件、Ruff・tyが成功。正式台帳未受理のためmigration衛生全件114件中113件成功・新`bulk_insert`拒否1件で、これは設計通りの未完ゲート。Aは`origin/develop=3f6a935a`へ未統合。正式revision/digest/snapshotは未確定。
+- **独立レビュー・採否**: 候補作成に関与しない`/root/rg1_review`が上記固定SHAの4ファイルと直接影響だけをread-onlyで確認。結果は**可決 P0=0/P1=0/P2=0**。途中の候補fixtureが7.7受理後に失敗するというP1指摘は、固定SHAでは既に受理前後両状態を扱うためレビュアが再読して撤回した。採用すべき残指摘なし。既存の製品/認可候補2回レビュー結果と混同せず、今回の判定はseed候補差分限定とする。
+- **追加検査**: backend migration衛生の受理済み範囲113件、seed隔離DB/負例14件、root core guard259件、root/backend Ruff・ty成功。全migration衛生の1赤は正式台帳未受理の新`bulk_insert`拒否であり、正式受理前に検査器を緩和しない。試験用open既存行は隔離DBの上書き拒否を測るfixtureで、運用解除ではない。

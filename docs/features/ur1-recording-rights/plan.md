@@ -152,7 +152,7 @@ D4 非再利用は業務 DB の復元範囲外の耐久的な原子予約台帳�
 
 **2026-10-15 A接続と列ACLの最小契約修正承認**: 依頼者は[判断資料末尾](step2-decision-brief.md)の衝突2点を承認。新4の読取2関数は各`(uuid)`を引数とし、Aの固定実行器が検証済みscopeから注入する`tenant_id`だけを使用する。呼出側に任意tenant指定入口を設けず、DB関数でも引数と`app.tenant_id`の一致・妥当性をfail-closedで検査する。`singleton_id`の列ACLは同一IDの1行に`["SELECT", "UPDATE"]`を置き、`state`の`SELECT`は別行とする。UPDATEはRG1表・列・owner・commit-check関数のexact tuple以外に許可しない。これらは候補実装と独立レビューまでの承認であり、A統合後の7.7実値・正式受理、push/PR作成/mergeの承認ではない。
 
-**2026-10-15 初期行seedの追加ゲート**: 新4の常閉状態行`(singleton_id=1,state='closed')`はmigrationで投入する必要があるが、現行の[seed許可台帳と衛生検査](rg1-seed-allowlist-assessment.md)は語彙用`category/key`行だけを受理する。RG1用の1行完全一致系列と限定検査器差分は未承認の追加凍結変更として扱い、正式台帳・履歴へ先行入力しない。A統合後の実revision/path・digestとともに具体差分を提示する。製品2関数の常閉隔離試験と、A経由の実scope/全取消試験を分ける。独立レビュー2回目は現候補差分に対してP0/P1各0件だが、正式資産全体の完了認定ではない。
+**2026-10-16 初期行seedの追加ゲート**: 新4の常閉状態行`(singleton_id=1,state='closed')`はmigrationで投入する。現行の[seed許可台帳と衛生検査](rg1-seed-allowlist-assessment.md)は語彙用`category/key`行だけを受理するため、POはRG1専用の1行完全一致系列と限定検査器、隔離検証・レビューの候補作成を追加承認した。別ID・open/不明状態・追加行・既存行上書きは許可しない。既存系列・受理履歴を維持し、正式台帳・履歴へ先行入力しない。A統合後の実revision/path・digestとともに最終候補を提示し、7.7正式受理を別に受ける。製品2関数の常閉隔離試験と、A経由の実scope/全取消試験を分ける。既存の独立レビュー2回目は前候補差分に対してP0/P1各0件であり、新seed候補と正式資産全体の完了認定ではない。
 
 **RG1 の 9-5 全数経路表**（担当を越える接続は所有者受理と実経路の着地を前提とする）:
 

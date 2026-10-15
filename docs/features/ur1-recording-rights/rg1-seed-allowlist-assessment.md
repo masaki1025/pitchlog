@@ -1,5 +1,11 @@
 # RG1 初期状態行と seed 許可台帳の整合調査
 
+## 追加範囲の承認と候補（2026-10-16）
+
+依頼者（PO）はRG1専用seed系列と限定検査器変更を追加範囲として承認した。初期投入の許可は`(singleton_id=1, state='closed')`の完全一致のみで、別ID・open/不明状態・追加行・既存行上書きは禁止。既存語彙seed系列と受理履歴は維持する。これは候補作成・隔離検証・レビューの許可であり、7.7正式受理、運用open、push/PR/mergeの許可ではない。
+
+ローカル候補は`backend/migrations/versions/0032_rg1_restore_gate.py`、`backend/tests/fixtures/rg1/seed-allowlist-candidate.json`、`backend/tests/test_migration_hygiene.py`、`backend/tests/test_rg1_seed_migration.py`。候補JSONは`pending_7_7`の試験fixtureであり、正式台帳`contracts/migrations/seed-allowlist.json`は未変更。A統合前の暫定revision/parentで、正式なrevision・digest・snapshotはA統合後に再算出する。未受理期間はmigration衛生全件検査が新候補を拒否する状態を維持し、正式受理前に全件greenとは扱わない。
+
 2026-10-15。新4のローカル候補を対象とする。正式な資産差分・7.7受理記録ではない。
 
 ## 結論と根拠
@@ -20,7 +26,7 @@ RG1 の物理表は承認済みの `public.rg1_restore_gate(singleton_id, state)
 
 ## 残る判断
 
-上表のseed系列・migration衛生検査器の限定拡張は、既承認のRG1列ACL exact tupleとは別の凍結基準・検査器変更になる。**追加の具体資産承認と7.7正式受理が必要**。新4の候補実装・隔離試験は先行できるが、正式資産・履歴を受理済みとして扱わない。Aのdevelop統合後にrevision、digest、snapshotと全差分を提示する。
+上表のseed系列・migration衛生検査器の限定拡張は、2026-10-16に候補範囲として追加承認された。**正式台帳の実revision・digest・snapshotと7.7正式受理は別判断**。新4の候補実装・隔離試験は先行できるが、正式資産・履歴を受理済みとして扱わない。Aのdevelop統合後に実値と全差分を提示する。
 
 ## 常閉試験の現在地
 
