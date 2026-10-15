@@ -189,6 +189,7 @@
                   "未処理"
                 ]
               ],
+              "ackD3": 4,
               "slots": [
                 [
                   1,
@@ -271,7 +272,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 0,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -282,11 +284,12 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "holds"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "no-write",
@@ -334,6 +337,7 @@
                   "拒否"
                 ]
               ],
+              "ackD3": 6,
               "slots": [
                 [
                   1,
@@ -434,7 +438,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 10,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": "同じ D5 の内容が異なる"
             },
@@ -445,12 +450,13 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "holds",
                 "rg1_commit"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -482,18 +488,24 @@
               "team_total": "pending"
             },
             "intentCountsAfterReplay": {
-              "chart": 1,
-              "game": 1,
-              "player_total": 1,
-              "shared_total": 1,
-              "team_total": 1
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
             },
             "intentCountsAfterFullDuplicate": {
-              "chart": 1,
-              "game": 1,
-              "player_total": 1,
-              "shared_total": 1,
-              "team_total": 1
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
             }
           }
         }

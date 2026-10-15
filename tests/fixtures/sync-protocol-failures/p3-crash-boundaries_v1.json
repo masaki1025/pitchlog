@@ -162,7 +162,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 0,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -170,12 +171,13 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "notCommitted",
@@ -188,7 +190,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": []
@@ -271,7 +273,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 5,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -279,13 +282,14 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds",
                 "rg1_commit"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -298,7 +302,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": [
@@ -327,11 +331,14 @@
               "delivered": 0
             },
             "intentCountsAfterReplay": {
-              "chart": 1,
-              "game": 1,
-              "player_total": 1,
-              "shared_total": 1,
-              "team_total": 1
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
             },
             "i6TargetReference": {
               "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
@@ -423,7 +430,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 0,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -431,12 +439,13 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "notCommitted",
@@ -449,7 +458,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": []
@@ -532,7 +541,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 5,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -540,13 +550,14 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds",
                 "rg1_commit"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -559,7 +570,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": [
@@ -588,11 +599,14 @@
               "delivered": 0
             },
             "intentCountsAfterReplay": {
-              "chart": 1,
-              "game": 1,
-              "player_total": 1,
-              "shared_total": 1,
-              "team_total": 1
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
             },
             "i6TargetReference": {
               "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
@@ -684,7 +698,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 0,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -692,12 +707,13 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "notCommitted",
@@ -710,7 +726,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": []
@@ -793,7 +809,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 5,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -801,13 +818,14 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds",
                 "rg1_commit"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -820,7 +838,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": [
@@ -849,11 +867,14 @@
               "delivered": 0
             },
             "intentCountsAfterReplay": {
-              "chart": 1,
-              "game": 1,
-              "player_total": 1,
-              "shared_total": 1,
-              "team_total": 1
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
             },
             "i6TargetReference": {
               "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
@@ -945,7 +966,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 0,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -953,12 +975,13 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "notCommitted",
@@ -971,7 +994,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": []
@@ -1054,7 +1077,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 5,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -1062,13 +1086,14 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds",
                 "rg1_commit"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -1081,7 +1106,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": [
@@ -1110,11 +1135,14 @@
               "delivered": 0
             },
             "intentCountsAfterReplay": {
-              "chart": 1,
-              "game": 1,
-              "player_total": 1,
-              "shared_total": 1,
-              "team_total": 1
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
             },
             "i6TargetReference": {
               "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
@@ -1206,7 +1234,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 0,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -1214,12 +1243,13 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "notCommitted",
@@ -1232,7 +1262,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": []
@@ -1315,7 +1345,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 5,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -1323,13 +1354,14 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds",
                 "rg1_commit"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -1342,7 +1374,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": [
@@ -1371,11 +1403,14 @@
               "delivered": 0
             },
             "intentCountsAfterReplay": {
-              "chart": 1,
-              "game": 1,
-              "player_total": 1,
-              "shared_total": 1,
-              "team_total": 1
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
             },
             "i6TargetReference": {
               "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
@@ -1466,7 +1501,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 5,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -1474,13 +1510,14 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds",
                 "rg1_commit"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -1493,7 +1530,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": [
@@ -1588,7 +1625,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 5,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -1596,13 +1634,14 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds",
                 "rg1_commit"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -1615,7 +1654,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": [
@@ -1644,11 +1683,14 @@
               "delivered": 5
             },
             "intentCountsAfterReplay": {
-              "chart": 1,
-              "game": 1,
-              "player_total": 1,
-              "shared_total": 1,
-              "team_total": 1
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
             },
             "i6TargetReference": {
               "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
@@ -1739,7 +1781,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 5,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -1747,13 +1790,14 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds",
                 "rg1_commit"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -1766,7 +1810,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": [
@@ -1867,7 +1911,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 5,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -1875,13 +1920,14 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds",
                 "rg1_commit"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -1894,7 +1940,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": [
@@ -2020,7 +2066,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 5,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -2028,13 +2075,14 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds",
                 "rg1_commit"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -2047,7 +2095,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": [
@@ -2148,7 +2196,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 5,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -2156,13 +2205,14 @@
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "recovery",
                 "holds",
                 "rg1_commit"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -2175,7 +2225,7 @@
               }
             },
             "recoveryGenerationCheck": {
-              "current": true
+              "evaluated": true
             },
             "invalidationIntentIds": {
               "ids": [

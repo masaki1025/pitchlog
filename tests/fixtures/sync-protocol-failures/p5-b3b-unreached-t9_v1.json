@@ -156,6 +156,7 @@
                   "拒否"
                 ]
               ],
+              "ackD3": 1,
               "slots": [
                 [
                   1,
@@ -203,7 +204,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 0,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": "同じ D5 の内容が異なる"
             },
@@ -211,10 +213,11 @@
               "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
             },
             "recordingRight": {
-              "held": null,
+              "evaluated": false,
               "order": [
                 "rg1_read"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T9": {
@@ -263,6 +266,7 @@
                   "拒否"
                 ]
               ],
+              "ackD3": 1,
               "slots": [
                 [
                   1,
@@ -310,7 +314,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 0,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": "同じ D5 の内容が異なる"
             },
@@ -318,10 +323,11 @@
               "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
             },
             "recordingRight": {
-              "held": null,
+              "evaluated": false,
               "order": [
                 "rg1_read"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T9": {

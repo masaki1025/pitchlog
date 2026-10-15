@@ -158,6 +158,7 @@
                   "未処理"
                 ]
               ],
+              "ackD3": 2,
               "slots": [
                 [
                   1,
@@ -222,7 +223,8 @@
                 "evacuated_event_originals": 0,
                 "invalidation_intents": 0,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": "同じ D5 の内容が異なる"
             },
@@ -233,11 +235,12 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "holds"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "no-write",
@@ -285,6 +288,7 @@
                   "退避"
                 ]
               ],
+              "ackD3": 2,
               "slots": [
                 [
                   1,
@@ -349,7 +353,8 @@
                 "evacuated_event_originals": 1,
                 "invalidation_intents": 0,
                 "temporary_player_id_mappings": 0,
-                "players": 0
+                "players": 0,
+                "otherTenants": 0
               },
               "responseReason": null
             },
@@ -360,12 +365,13 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": false,
+              "evaluated": true,
               "order": [
                 "rg1_read",
                 "holds",
                 "rg1_commit"
-              ]
+              ],
+              "commitCheckPerWrite": true
             },
             "tElementCommitment": {
               "T1": "no-write",
@@ -384,8 +390,14 @@
               "ids": []
             },
             "invalidationIntentRows": {},
-            "intentCountsAfterReplay": {},
-            "intentCountsAfterFullDuplicate": {}
+            "intentCountsAfterReplay": {
+              "intents": {},
+              "applications": 0
+            },
+            "intentCountsAfterFullDuplicate": {
+              "intents": {},
+              "applications": 0
+            }
           }
         }
       ]

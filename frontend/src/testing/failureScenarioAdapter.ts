@@ -902,7 +902,8 @@ async function runI6BrowserClose(
       d5: change.d5,
       confirmedContent: change.payload,
     },
-    acceptedAt: String(contract.version),
+    // サーバーの確定応答が返す時刻(accepted_at)。
+    acceptedAt: new Date(Date.UTC(2026, 9, 15)).toISOString(),
   }
   const injectionTarget = requireRecord(
     fieldValue(testCase.faultInjection, 'target'),

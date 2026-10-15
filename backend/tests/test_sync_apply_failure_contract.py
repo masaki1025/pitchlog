@@ -365,6 +365,13 @@ ASPECT_DEFERRALS: tuple[tuple[str, str, str, tuple[str, str] | None], ...] = (
         None,
     ),
     (
+        "p3-crash-boundaries",
+        "I6 の 24 時間保持(同期済みと同じ期限での自動破棄)",
+        "クライアントの期限清掃(RG1 中の停止は U-R1 の復元中清掃 — "
+        "資産は起点が accepted_at で再掲で動かないことまでを観測する)",
+        None,
+    ),
+    (
         "tombstone-application",
         "旧保持端末では墓標操作を提供しない",
         "クライアントの単体試験",
@@ -503,11 +510,27 @@ def _required_value(section: Mapping[str, Any], key: str, location: str) -> Any:
     return value
 
 
+def _subject_registered(input_section: Mapping[str, Any]) -> bool:
+    """観測対象のイベント(``queue.subject``)が選手登録を伴うか。"""
+    present, queue = _wrapped(input_section["queue"], "input.queue")
+    if not present or not isinstance(queue, dict):
+        return False
+    events = [*queue.get("unsent", []), *queue.get("restartUnsent", [])]
+    return any(
+        isinstance(event, dict)
+        and event.get("d5") == queue.get("subject")
+        and "registration" in event
+        for event in events
+    )
+
+
 def _commitment_leaves(
     value: object,
     path: ApplicationPath,
     routes: Mapping[ApplicationPath, Sequence[str]],
     location: str,
+    *,
+    registered: bool = False,
 ) -> dict[str, tuple[str, ...]]:
     """TElementCommitment を検査し、T 要素 → 内部単位の状態の並びを返す。"""
     record = _exact_keys(value, routes[path], location)
@@ -532,9 +555,8 @@ def _commitment_leaves(
         for element, states in leaves.items():
             units = T_ELEMENT_UNITS.get((path, element)) or (None,)
             for unit, leaf in zip(units, states, strict=True):
-                if (
-                    leaf in _NO_EFFECT_STATES
-                    and (path, element, unit) not in PARTIAL_NO_EFFECT_UNITS
+                if leaf in _NO_EFFECT_STATES and (
+                    (path, element, unit) not in PARTIAL_NO_EFFECT_UNITS or registered
                 ):
                     _fail(
                         f"{location}.{element} は確定・非確定と並べて "
@@ -736,6 +758,8 @@ def validate_failure_scenario_contract(
                 _fail(f"{location} のトランザクション外注入は P3 だけです")
             if target["point"] not in OUT_OF_TRANSACTION_POINTS:
                 _fail(f"{location} の P3 外注入点が未知です: {target['point']}")
+            if point != target["point"]:
+                _fail(f"{location} の注入時点が target.point と違います")
         elif kind == "client":
             _exact_keys(target, ("kind", "operation"), f"{location}.target")
             _non_empty_string(target["operation"], f"{location}.target.operation")
@@ -792,6 +816,7 @@ def validate_failure_scenario_contract(
                     path,
                     routes,
                     f"{observation_location}.fields.tElementCommitment",
+                    registered=_subject_registered(input_section),
                 )
                 if any(
                     leaf in _COMMIT_STATES
@@ -817,6 +842,12 @@ def validate_failure_scenario_contract(
                 unreached_transaction += 1
 
     for field_id in REQUIRED_SOMEWHERE_FIELD_IDS[path]:
+        # 再掲・全件重複を実際に送るので、後の観測点を汚さないよう case の最後の
+        # 観測点だけに置ける。
+        for case in cases:
+            for observation in case["observations"][:-1]:
+                if not _is_omitted(observation["fields"][field_id]):
+                    _fail(f"{field_id} は case の最後の観測点だけに置けます")
         if all(
             _is_omitted(observation["fields"][field_id])
             for case in cases
@@ -967,6 +998,7 @@ def validate_failure_scenario_result(
                     path,
                     routes,
                     f"{observation_location}.fields.tElementCommitment",
+                    registered=_subject_registered(asset["input"]),
                 )
             for field_id in real_field_ids:
                 if fields[field_id] != expected["fields"][field_id]:
@@ -2079,3 +2111,24 @@ def test_contract_rejects_no_write_beside_commit_states(
     _mutate_fields(asset, "tElementCommitment", _commitment("P1", routes, "no-write"))
     asset["cases"][0]["faultInjection"]["expectedReachability"] = _wrap("unreached")
     _validate(asset, routes)
+
+
+def test_contract_rejects_second_round_loopholes(
+    routes: dict[ApplicationPath, tuple[str, ...]],
+) -> None:
+    """負例: 注入時点と target.point の不一致、最終でない観測点の再掲件数。"""
+    asset = _p3_asset(routes)
+    asset["cases"][1]["faultInjection"]["injectionPoint"] = _wrap(
+        "消費側反映後・配信完了記録前"
+    )
+    with pytest.raises(FailureScenarioContractError, match="target.point"):
+        _validate(asset, routes)
+
+    asset = _p1_asset(routes)
+    observations = asset["cases"][0]["observations"]
+    observations.append(copy.deepcopy(observations[0]))
+    observations[1]["observationPoint"] = "再送後"
+    observations[1]["fields"]["intentCountsAfterReplay"] = _omit()
+    asset["comparisonUnit"] = _units(asset)
+    with pytest.raises(FailureScenarioContractError, match="最後の観測点"):
+        _validate(asset, routes)
