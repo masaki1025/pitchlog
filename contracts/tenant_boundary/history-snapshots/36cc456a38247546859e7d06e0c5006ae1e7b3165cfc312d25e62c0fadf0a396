@@ -1384,7 +1384,7 @@ def _ci_wiring_errors(
 
     commands = _backend_commands(backend)
     required_backend_commands = [
-        "uv python install",
+        "corepack enable", "pnpm install --frozen-lockfile", "uv python install",
         "uv sync --locked --dev",
         "uv run ruff check .",
         "uv run ruff format --check .",
@@ -1396,7 +1396,7 @@ def _ci_wiring_errors(
         commands[: len(required_backend_commands)] != required_backend_commands
         or len(commands) != len(required_backend_commands) + 1
     ):
-        errors.append("backend の既存 6 件 + Alembic 3 段が順序どおりでない")
+        errors.append("backend の frontend 依存 2 件 + 既存 6 件 + Alembic 3 段が順序どおりでない")
     expected_alembic_locations = [
         ("backend", command) for command in ALEMBIC_CI_COMMANDS
     ]

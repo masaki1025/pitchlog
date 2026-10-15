@@ -17091,8 +17091,8 @@
             "external_snapshots": [
               {
                 "path": ".github/workflows/ci.yml",
-                "sha256": "270fe1c10d76281a7d78f72f4784f5c6a7c24f85fc895b2f9848cf4a626f892e",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/270fe1c10d76281a7d78f72f4784f5c6a7c24f85fc895b2f9848cf4a626f892e"
+                "sha256": "f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8"
               },
               {
                 "path": "scripts/check_tenant_boundary_bypass.py",
@@ -17121,8 +17121,8 @@
               },
               {
                 "path": "tests/test_ci_wiring.py",
-                "sha256": "e0e5274057435530e691f842c511fefe4d2a2be1133c98044abe7bb94a406d41",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/e0e5274057435530e691f842c511fefe4d2a2be1133c98044abe7bb94a406d41"
+                "sha256": "36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396"
               },
               {
                 "path": "tests/test_plan_generation.py",
@@ -17133,53 +17133,53 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "ebb342ceb109658ded4fbfe32ba7359da820e13aba7826940ede31e57bdfb1c7",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/ebb342ceb109658ded4fbfe32ba7359da820e13aba7826940ede31e57bdfb1c7"
+                "sha256": "5ff5b7b73ed103d96e8365bc9e16f583cca0a24f593ee02c1e581dfae9abc425",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/5ff5b7b73ed103d96e8365bc9e16f583cca0a24f593ee02c1e581dfae9abc425"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "a8af8e9bdd195cee2df6c96074787fe67f779981f74bd4d3e1b2b1e8e49cd35f",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a8af8e9bdd195cee2df6c96074787fe67f779981f74bd4d3e1b2b1e8e49cd35f"
+                "sha256": "db99ba6d35b80fadd35e7aa700736eab347a2ae26765ddf4c59c89bb2f5e2e59",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/db99ba6d35b80fadd35e7aa700736eab347a2ae26765ddf4c59c89bb2f5e2e59"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "f3a90e5c06eacc859b75023cabe53243feaae4e1a19c567874c71e9e181cc87d",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f3a90e5c06eacc859b75023cabe53243feaae4e1a19c567874c71e9e181cc87d"
+                "sha256": "fa0923c2234fe718af71f25509fc75b4b93a5fd6b7ccd5e4edd30050f7819dea",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/fa0923c2234fe718af71f25509fc75b4b93a5fd6b7ccd5e4edd30050f7819dea"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
-                "sha256": "f129bf12d2e25e68930bab1ecebb52da2d0050475c83ea6ab973aaaddf9de84d",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f129bf12d2e25e68930bab1ecebb52da2d0050475c83ea6ab973aaaddf9de84d"
+                "sha256": "9ae9104b70d11b5ee95cd3a636b2e7b0973bb8cca54d887ffd6270e486edf8c8",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9ae9104b70d11b5ee95cd3a636b2e7b0973bb8cca54d887ffd6270e486edf8c8"
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "ea2358b02a048d27fb78153caf3eb7ef1eda3f4f7c2c665148272155547b118b",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/ea2358b02a048d27fb78153caf3eb7ef1eda3f4f7c2c665148272155547b118b"
+                "sha256": "c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
-                "sha256": "8d0d11c9f27ad3b69f0cfaf9576b5fc5b10c053b919450f1da388c8bfe185e60",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8d0d11c9f27ad3b69f0cfaf9576b5fc5b10c053b919450f1da388c8bfe185e60"
+                "sha256": "22505fb06701f6da3d39edfbe78743611d4769e1c02a2c41af88d2f2e914a5c2",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/22505fb06701f6da3d39edfbe78743611d4769e1c02a2c41af88d2f2e914a5c2"
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "2c4998e63f442a7c93176f8e241348a7a84bca09d22ee967161acc5a77d6e7ff",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2c4998e63f442a7c93176f8e241348a7a84bca09d22ee967161acc5a77d6e7ff"
+                "sha256": "bb2ac29eb7c07dde485cce8a1e69c52813f01b403c229c133e3a4ea02366893c",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/bb2ac29eb7c07dde485cce8a1e69c52813f01b403c229c133e3a4ea02366893c"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
-                "sha256": "d932a233bc6b170b866c18dcfc88a9062a53a059259a07c1904f51414b708d06",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d932a233bc6b170b866c18dcfc88a9062a53a059259a07c1904f51414b708d06"
+                "sha256": "be46dc4746104d3ad7b0aa0bed534030fe8dffb941b9f521048f6c3b5a7ef970",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/be46dc4746104d3ad7b0aa0bed534030fe8dffb941b9f521048f6c3b5a7ef970"
               },
               {
                 "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
-                "sha256": "c9133f93a5ba0d9e7060f19b9628b9cded5aafaefab6cc83ca7111d835f1af20",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c9133f93a5ba0d9e7060f19b9628b9cded5aafaefab6cc83ca7111d835f1af20"
+                "sha256": "092f134dd39d134c6b275e48b70928915f1c1c4ed801f326dd4b8418cb8c428c",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/092f134dd39d134c6b275e48b70928915f1c1c4ed801f326dd4b8418cb8c428c"
               }
             ]
           }
         },
-        "movement_fact": "比較元 origin/develop から .github/workflows/ci.yml に frontend の再現ビルド、Python 系ジョブの Node 24.16.0、x86_64 配布イメージの起動と ping 確認を追加し、tests/test_ci_wiring.py を追随させた。9 資産の凍結射影の外部入力が変化したため、各識別値を 1 つ繰り上げた。テナント境界検査の判定内容は変更していない。",
+        "movement_fact": "比較元 origin/develop から .github/workflows/ci.yml に frontend の再現ビルド、Python 系ジョブの Node 24.16.0、backend ジョブの frontend 依存の導入(SQL 生成試験の typescript)、x86_64 配布イメージの起動と ping 確認を追加し、tests/test_ci_wiring.py を追随させた。9 資産の凍結射影の外部入力が変化したため、各識別値を 1 つ繰り上げた。テナント境界検査の判定内容は変更していない。",
         "reason": "TSK-538 ステップ 15 で D-2 実行基盤を CI に配線したため。テナント境界の検査内容は不変で、入力射影の移動を承認済みの識別値と履歴で明示する。",
         "approved_by": "山田正輝",
         "approved_on": "2026-10-14"

@@ -357,6 +357,10 @@ jobs:
           version: "2026.8.6"
           install: true
           cache: false
+      # SQL 生成試験の生成器は frontend の typescript を読むため、frontend の依存を入れる。
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           version: "0.8.13"

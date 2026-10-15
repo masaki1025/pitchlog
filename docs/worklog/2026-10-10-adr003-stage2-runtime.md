@@ -400,3 +400,10 @@ branch: feature/adr003-stage2-runtime
 | 6 | P2 | S1・S2 の作業記録と承認の典拠が worklog に無い | 採用 | 本節 |
 
 - **レビュー外で見つけた本ブランチの不備**: backend の非 DB 全件で 2 件 — `backend/src/pitchlog/repositories/tenant_context_contract.py` と `repository_contract.py` の生成値(`CONTRACT_REVISION`・`SOURCE_DIGEST`)が、ステップ 15 の是正で資産の識別値を上げたときに追随していなかった。backend の全件は CI に任せていたが、#131 は DIRTY で CI が一度も走っていなかったため表に出なかった。資産の値へ合わせ、backend の非 DB 全件 1428 件が緑
+
+### CI の backend で SQL 生成試験が落ちた件(2026-10-15)
+
+- **事象**: Ready 後の CI(head `12126cec`)で backend が 4 failed / 1907 passed。`tests/db/test_domain_sql_generation.py` の 4 件で、生成器 `frontend/scripts/domain-sql/generate.mjs` が `typescript` を読めず `ERR_MODULE_NOT_FOUND`(node_modules の無い場所で再現)。backend ジョブには Node(mise)しか入れておらず、frontend の依存が無かった。**ステップ 10 の申し送り(backend の CI に Node を入れる)を Node だけで閉じた、私の見落とし**。過去の CI の backend は pytest より手前(ty)で落ちていたので、この試験が CI で走ったのは今回が初めて
+- **是正**: backend ジョブに `corepack enable` と `pnpm install --frozen-lockfile`(working-directory: frontend)を足し、`tests/test_ci_wiring.py` のコマンド列を追随させた(行は増やさない — frozen-inputs の行参照を保つ)
+- **山田さんの判断(2026-10-15)**: ci.yml を直して再封印する。ci.yml と test_ci_wiring.py は tenant boundary の凍結射影の外部入力なので、#131 の受理記録を作り直し(承認は 2026-10-14 の流用・移動の事実に「backend ジョブの frontend 依存の導入」を追記)、snapshot を入れ替え、corpus の入力 digest を取り直した(`d7eeb76b…` → `759482ed…`)
+- **確認(ローカル)**: tenant boundary の迂回検査 ok / `check_frozen_baselines.py --invariants-only` OK / PR 受理モード(2 親の synthetic merge・`GITHUB_EVENT_NAME=pull_request`)で `--ci` OK・凍結系と CI 配線の試験 643 件が緑 / 専用 Postgres で SQL 生成試験 4 件と alembic 3 段が通過 / 配布イメージのビルド・Node v24.16.0・FastAPI 起動と ping が通過(この段も CI では未到達だった)/ backend の非 DB 全件 1428 件が緑
