@@ -69,6 +69,7 @@ AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
         "backend/src/pitchlog/repositories/operation_registry.py",
         "backend/src/pitchlog/authz/classification.py",
         "backend/src/pitchlog/authz/product_control_access.py",
+        "backend/src/pitchlog/authz/product_table_access.py",
         "backend/src/pitchlog/authz/product_catalog.py",
         "backend/src/pitchlog/authz/product_provisioning.py",
         "backend/src/pitchlog/authz/product_function_acl.py",
