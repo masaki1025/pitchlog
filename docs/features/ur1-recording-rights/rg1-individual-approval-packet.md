@@ -18,7 +18,7 @@
 | 状態行RLS | `public.rg1_restore_gate`1行を`FORCE RLS`とし、専用ownerに`SELECT(singleton_id,state)`＋`UPDATE(singleton_id)`だけ付与。`SELECT USING(id=1)`と`UPDATE USING/WITH CHECK(id=1)`の2 policyに限定し、INSERT/DELETE policy・app表ACLは作らない | `FOR SHARE`に必要なUPDATE権/policyを満たし、stateの直接更新権は増やさない。既存分類の非テナント`function_only`例外を表1件だけ正本化し、余剰policy合成・表直アクセスを拒否する実DB試験が必要 |
 | 関数EXECUTE | `rg1_api`を追加し、appにはschema`USAGE`と固定読取2関数の`EXECUTE`だけ。作成transaction内で`PUBLIC EXECUTE`を剥奪し、既存`authz_private`は不変。関数は固定search_path・完全修飾表名・GUC形式検査を持ち、新2では古いopen行でも常にfalse | appのDB直接EXECUTEは可能だが、開放成功にはならない。実効ACL、GUC偽装、未知関数、直接呼出し時のロック保持を検査する。復元開始関数・app表UPDATEは新2に含めない |
 | 待機上限 | 新2のコミット直前読取は`FOR SHARE NOWAIT`を推奨。行ロック競合は即時エラー→B7/P3 B10・scope全取消、隠れた自動再試行なし。復元開始側の`lock_timeout`と再試行上限は製品復元開始を実装する新5の個別ゲートで数値を決める | 新2の通常側は復元が先に行ロックした際に待ち続けない。一方、先に共有ロックを取ったappの直接EXECUTEがtransactionを保持すると復元側は待ち得る。`NOWAIT`だけでその待機上限を保証したとは扱わず、新5の公開前に復元側上限を承認・実DB検証する。`FOR SHARE`の種類は変えない |
-| 「隔離正常系」の最小追補 | 新2は開状態fixtureの**行ロック正常取得と復元UPDATEとの競合**を隔離DBで検査する。製品関数の`true`成功は検査対象から外し、新5の安全な解除後へ送る。試験用fixtureは特権接続で隔離DBの行を`open`にし、試験後破棄する。製品関数本体・registry・公開経路にtest-onlyの開放分岐を入れない | fixtureだけで製品関数の正常開放は検証**できない**（新2は常にfalse）。ロック機構の正常動作は同じ表・同じ行の直接`FOR SHARE`で検証できるが、製品の成功経路の代替証拠とは呼ばない。現行新2ステップ表の「隔離状態で正常系」をこの意味へ限定する6.1/6.3計画差分レビューと人間承認が必要。運用解除は新5の別承認 |
+| 「隔離正常系」の最小追補 | 新2は開状態fixtureの**行ロック正常取得と復元UPDATEとの競合**を隔離DBで検査する。製品関数の`true`成功は検査対象から外し、新5の安全な解除後へ送る。試験用fixtureは特権接続で隔離DBの行を`open`にし、試験後破棄する。製品関数本体・registry・公開経路にtest-onlyの開放分岐を入れない | fixtureだけで製品関数の正常開放は検証**できない**（新2は常にfalse）。同じ行の直接`FOR SHARE`はロック機構の証拠であり、製品の成功経路の代替証拠ではない。[最小計画追補](step2-minimal-addendum-proposal.md)は6.1/6.3レビューと人間確認を経て承認済み。fixture・製品関数の個別資産、運用解除は別承認 |
 
 ## 3. 新ステップ2で増やす集合（承認候補）
 
@@ -58,7 +58,7 @@ GRANT SELECT (singleton_id, state), UPDATE (singleton_id)
 
 **DB/認可の検査表**: (1) 通常appの表4操作と`SET ROLE`/直接schema CREATE拒否、2関数以外のEXECUTE拒否、PUBLIC実効EXECUTEなし。(2) `FORCE RLS`/owner属性/列ACL/SELECT+UPDATE policyの実カタログexact-set、余剰policyの合成拒否。(3) 関数内の欠損・不正tenant GUC、行欠損・`open`古行、直接EXECUTEで`true`にならないこと。(4) 復元先行と通常側先行の2接続、`FOR KEY SHARE`負例、直接EXECUTEを含む3接続の待機・timeoutと全取消。(5) A固定実行器の2登録・unknown kind/偽造token/失効scope/SQL束縛値、既存DML非緩和。新6の実Port/HTTP結合試験はこの表に含めない。
 
-**承認済み新2ステップ表との整合確認**: 現行計画の新2は「隔離状態で正常系を検証」と記す。一方、本候補の製品関数は安全な開放源がない間は常にfalseで、開状態fixtureだけでは製品operationの`true`成功試験を新2へ置けない。新2の隔離試験は**同じRG1行への直接`FOR SHARE`正常取得・復元UPDATE待機・全取消と、製品関数による欠損/古いopenの拒否**を分けて検査する。復元開始側UPDATEは隔離試験の特権接続だけで発行し、製品の復元開始関数は新5。製品の正常open成功も新5の安全な解除実装後へ移す最小計画追補が必要。承認済みステップの合格条件を本資料だけで変更しない。6.1/6.3のコア計画差分レビューと人間承認を新2着手前のゲートとする。
+**承認済み新2ステップ表との整合確認**: 現行計画の新2は「隔離状態で正常系を検証」と記す。一方、本候補の製品関数は安全な開放源がない間は常にfalseで、開状態fixtureだけでは製品operationの`true`成功試験を新2へ置けない。新2の隔離試験は**同じRG1行への直接`FOR SHARE`正常取得・復元UPDATE待機・全取消と、製品関数による欠損/古いopenの拒否**を分けて検査する。復元開始側UPDATEは隔離試験の特権接続だけで発行し、製品の復元開始関数は新5。製品の正常open成功も新5の安全な解除実装後へ移す[最小計画追補](step2-minimal-addendum-proposal.md)は承認済み。現行ステップ表の文言を本資料で変更せず、合格条件は追補と合わせて読む。個別資産の承認とA統合後の7.7実値受理は新2着手前の別ゲートとする。
 
 ## 5. 個別承認の順序
 
