@@ -218,7 +218,7 @@ def test_roster_status_intent_is_one_tenant_scoped_pending_row(
             "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
             "WHERE conrelid = 'public.invalidation_intents'::regclass "
             "AND contype = 'c' "
-            "AND pg_get_constraintdef(oid) LIKE '%scope_kind%'"
+            "AND conname = 'invalidation_intents_scope_kind_check'"
         )
         scope_checks = [row[0] for row in cursor.fetchall()]
     assert len(scope_checks) == 1
