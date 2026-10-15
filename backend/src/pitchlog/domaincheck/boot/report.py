@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
+import subprocess
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -11,6 +14,7 @@ from typing import cast
 
 from pitchlog.domaincheck.boot import phase2, stall
 from pitchlog.domaincheck.boot.phase2 import Phase2Decision
+from pitchlog.domaincheck.boot.snapshot import collect_semantic_snapshot
 from pitchlog.domaincheck.cli import (
     CheckerExecutionError,
     CheckerViolation,
@@ -24,6 +28,8 @@ from pitchlog.domaincheck.seal import _run_git
 BOOT_SEAL_ASSET = Path("backend/domain/boot-seal.json")
 BOOT_REPORT_SCHEMA = Path("backend/domain/boot-report.schema.json")
 MANIFEST_ASSET = Path("backend/domain/manifest.json")
+MANIFEST_SCHEMA = Path("backend/domain/manifest.schema.json")
+BOOT_SEAL_RECORD = Path("backend/domain/boot-seal.sealed.json")
 _SYNTHETIC_COMMIT_OID = "0" * 40
 
 
@@ -46,7 +52,7 @@ class SealedElement:
 
 @dataclass(slots=True)
 class InputAssetCollector:
-    """実行中に読んだ JSON 資産を path と内容 digest へ収集する。"""
+    """意味判定で読んだ資産を path と内容 digest へ収集する。"""
 
     root: Path
     _records: dict[str, str] = field(default_factory=dict)
@@ -62,6 +68,104 @@ class InputAssetCollector:
         value = read_json(resolved)
         self._records[relative] = canonical_hash(value)
         return value
+
+    def read_commit_json(self, commit_oid: str, path: Path) -> object | None:
+        """Git 比較元の JSON を読み、OID 付き path と digest を記録する。"""
+        relative = path.as_posix()
+        if not self.exists_at_commit(commit_oid, relative):
+            return None
+        result = _run_git(self.root, "show", f"{commit_oid}:{relative}")
+        if result.returncode != 0:
+            raise CheckerExecutionError(f"比較元の JSON を読めない: {relative}")
+        try:
+            value = json.loads(result.stdout)
+        except json.JSONDecodeError as error:
+            raise CheckerExecutionError(f"比較元の JSON が不正: {relative}") from error
+        self._records[f"git:{commit_oid}:{relative}"] = canonical_hash(value)
+        return value
+
+    def exists_at_commit(self, commit_oid: str, relative: str) -> bool:
+        """固定 commit の tree に参照先が存在するか調べる。"""
+        result = _run_git(self.root, "cat-file", "-e", f"{commit_oid}:{relative}")
+        return result.returncode == 0
+
+    def observe_path(self, relative: str) -> bool:
+        """現在木の参照先を読み、ファイルまたはディレクトリの digest を記録する。"""
+        resolved_root = self.root.resolve()
+        path = (resolved_root / relative).resolve()
+        try:
+            path.relative_to(resolved_root)
+        except ValueError as error:
+            raise CheckerExecutionError(f"参照先がリポジトリ外: {relative}") from error
+        if not path.exists():
+            return False
+        try:
+            if path.is_file():
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                self._records[relative] = f"sha256:{digest}"
+            elif path.is_dir():
+                children = []
+                for child in sorted(path.rglob("*")):
+                    if child.is_file():
+                        resolved = child.resolve()
+                        resolved.relative_to(resolved_root)
+                        children.append(
+                            {
+                                "path": child.relative_to(path).as_posix(),
+                                "digest": "sha256:"
+                                + hashlib.sha256(resolved.read_bytes()).hexdigest(),
+                            }
+                        )
+                self._records[f"{relative}/"] = canonical_hash(children)
+            else:
+                raise CheckerExecutionError(f"参照先の種類を判定できない: {relative}")
+        except (OSError, ValueError) as error:
+            raise CheckerExecutionError(f"参照先を読めない: {relative}") from error
+        return True
+
+    def _git_blob(self, commit_oid: str, relative: str) -> bytes:
+        """比較元の blob をバイト列として読む。"""
+        try:
+            result = subprocess.run(
+                ["git", "show", f"{commit_oid}:{relative}"],
+                cwd=self.root,
+                capture_output=True,
+                check=False,
+            )
+        except OSError as error:
+            raise CheckerExecutionError("比較元の Git blob を読めない") from error
+        if result.returncode != 0:
+            raise CheckerExecutionError(f"比較元の Git blob を読めない: {relative}")
+        return result.stdout
+
+    def observe_at_commit(self, commit_oid: str, relative: str) -> bool:
+        """比較元の参照先を読み、OID 付き digest を記録する。"""
+        if not self.exists_at_commit(commit_oid, relative):
+            return False
+        kind = _run_git(self.root, "cat-file", "-t", f"{commit_oid}:{relative}")
+        if kind.returncode != 0:
+            raise CheckerExecutionError(f"比較元の参照先を判定できない: {relative}")
+        if kind.stdout.strip() == "blob":
+            digest = hashlib.sha256(self._git_blob(commit_oid, relative)).hexdigest()
+            self._records[f"git:{commit_oid}:{relative}"] = f"sha256:{digest}"
+        elif kind.stdout.strip() == "tree":
+            listing = _run_git(
+                self.root, "ls-tree", "-r", "--name-only", commit_oid, "--", relative
+            )
+            if listing.returncode != 0:
+                raise CheckerExecutionError(f"比較元の tree を読めない: {relative}")
+            children = [
+                {
+                    "path": path.removeprefix(f"{relative}/"),
+                    "digest": "sha256:"
+                    + hashlib.sha256(self._git_blob(commit_oid, path)).hexdigest(),
+                }
+                for path in listing.stdout.splitlines()
+            ]
+            self._records[f"git:{commit_oid}:{relative}/"] = canonical_hash(children)
+        else:
+            raise CheckerExecutionError(f"比較元の参照先の種類が不明: {relative}")
+        return True
 
     def records(self) -> tuple[dict[str, str], ...]:
         """読取順に依存しない入力資産レコードを返す。"""
@@ -179,6 +283,51 @@ def _head_or_synthetic_oid(root: Path) -> str:
     return oid
 
 
+def _base_commit_oid(root: Path, collector: InputAssetCollector) -> str:
+    """PR 比較元、直前 commit、または BOOT-SEAL-BASE を解決する。"""
+    base_ref = os.environ.get("GITHUB_BASE_REF")
+    if base_ref:
+        if base_ref not in {"develop", "main"}:
+            raise CheckerExecutionError("PR 比較元の branch が対象外")
+        result = _run_git(root, "merge-base", "HEAD", f"refs/remotes/origin/{base_ref}")
+        if result.returncode != 0:
+            raise CheckerExecutionError("PR 比較元の merge-base を解決できない")
+        candidate = result.stdout.strip()
+    else:
+        previous = _run_git(root, "rev-parse", "--verify", "HEAD^1")
+        if previous.returncode == 0:
+            candidate = previous.stdout.strip()
+        else:
+            record = _object(
+                collector.read_json(root / BOOT_SEAL_RECORD),
+                "boot-seal.sealed",
+            )
+            candidate = _string(record.get("baseCommitOid"), "baseCommitOid")
+    verified = _run_git(root, "rev-parse", "--verify", f"{candidate}^{{commit}}")
+    if (
+        verified.returncode != 0
+        or verified.stdout.strip() != candidate
+        or len(candidate) != 40
+    ):
+        raise CheckerExecutionError("BOOT-SEAL-BASE の比較元 commit を確認できない")
+    return candidate
+
+
+def _snapshot_evidence(snapshot: phase2.SemanticSnapshot) -> dict[str, object]:
+    """六集合を順序に依存しない証跡へ変換する。"""
+    return {
+        component: None if values is None else sorted(values)
+        for component, values in (
+            ("declarations", snapshot.declarations),
+            ("generated", snapshot.generated),
+            ("product_calls", snapshot.product_calls),
+            ("vector_checks", snapshot.vector_checks),
+            ("property_checks", snapshot.property_checks),
+            ("mutation_checks", snapshot.mutation_checks),
+        )
+    }
+
+
 def _resolution_evidence(
     resolved_element_ids: Collection[str],
     *,
@@ -207,9 +356,8 @@ def measure_resolved_element_ids(
 ) -> tuple[frozenset[str], dict[str, object]]:
     """実在資産をステップ18の判定経路へ渡して解消済み集合を実測する。
 
-    現時点では製品マニフェストが未作成なので、実在確認から空の意味
-    スナップショットを作り、段階2判定器が 0 件と測る。マニフェストが
-    存在する段階で収集器が未接続なら、空へ倒さず判定不能にする。
+    マニフェストが無い移行状態では従来どおり空を渡す。存在する場合は
+    現在木と Git 比較元の意味スナップショットを収集する。
 
     Args:
         root: リポジトリルート。
@@ -225,9 +373,60 @@ def measure_resolved_element_ids(
     """
     manifest_path = root / MANIFEST_ASSET
     if manifest_path.exists():
-        raise CheckerExecutionError(
-            "製品マニフェストは実在するが BOOT 解消判定の意味証跡を収集できない"
+        allowed_targets = frozenset(
+            element.target_id
+            for element in _sealed_elements(sealed_asset)
+            if element.target_id is not None
         )
+        manifest_schema = input_collector.read_json(root / MANIFEST_SCHEMA)
+        manifest = input_collector.read_json(manifest_path)
+        validate_asset(manifest, manifest_schema)
+        base_oid = _base_commit_oid(root, input_collector)
+        base_manifest = input_collector.read_commit_json(base_oid, MANIFEST_ASSET)
+        if base_manifest is None:
+            before = phase2.SemanticSnapshot.missing()
+        else:
+            base_schema = input_collector.read_commit_json(base_oid, MANIFEST_SCHEMA)
+            if base_schema is None:
+                before = phase2.SemanticSnapshot.missing()
+            else:
+                validate_asset(base_manifest, base_schema)
+                before = collect_semantic_snapshot(
+                    base_manifest,
+                    allowed_target_ids=allowed_targets,
+                    path_exists=lambda path: input_collector.observe_at_commit(
+                        base_oid, path
+                    ),
+                )
+        after = collect_semantic_snapshot(
+            manifest,
+            allowed_target_ids=allowed_targets,
+            path_exists=input_collector.observe_path,
+        )
+        state = stall.activate(
+            stall.defined_state(len(_sealed_elements(sealed_asset))),
+            commit_oid,
+        )
+        decision = phase2.evaluate_phase2(
+            root,
+            state,
+            before,
+            after,
+            read_asset=input_collector.read_json,
+        )
+        resolved = resolved_element_ids_from_phase2(sealed_asset, decision)
+        evidence = _resolution_evidence(
+            resolved,
+            source="phase2.evaluate_phase2",
+            manifest_present=True,
+            phase2_status=decision.status.value,
+            resolution_target_ids=decision.resolution_target_ids,
+        )
+        evidence["baseCommitOid"] = base_oid
+        evidence["beforeSnapshot"] = _snapshot_evidence(before)
+        evidence["afterSnapshot"] = _snapshot_evidence(after)
+        evidence["indeterminateComponents"] = list(decision.indeterminate_components)
+        return resolved, evidence
     state = stall.activate(
         stall.defined_state(len(_sealed_elements(sealed_asset))),
         commit_oid,

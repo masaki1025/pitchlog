@@ -43,6 +43,7 @@ EXISTING_TEST_SCENARIOS = {
 EXCLUDED_EXISTING_TESTS = {
     "test_runner_uses_existing_schema_checker_and_lossless_comparator",
 }
+ADDITIONAL_RUNNER_TESTS = {"test_runner_accepts_loaded_handoff_cases"}
 
 
 def _load_scenarios() -> list[dict[str, Any]]:
@@ -155,7 +156,11 @@ def test_existing_runner_tests_have_scenarios() -> None:
 
     assert len(EXISTING_TEST_SCENARIOS) == 6
     assert set(EXISTING_TEST_SCENARIOS) & EXCLUDED_EXISTING_TESTS == set()
-    assert existing_tests == set(EXISTING_TEST_SCENARIOS) | EXCLUDED_EXISTING_TESTS
+    assert existing_tests == (
+        set(EXISTING_TEST_SCENARIOS)
+        | EXCLUDED_EXISTING_TESTS
+        | ADDITIONAL_RUNNER_TESTS
+    )
     assert set(EXISTING_TEST_SCENARIOS.values()) <= scenario_ids
 
 
