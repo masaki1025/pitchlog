@@ -323,3 +323,17 @@ POは本会話で、最終候補差分SHA-256 `21aaa523d5c4ef3a9dd80e007cd7d1788
 最新`origin/develop=966d7a38aa8dab2113c1d8ec6d30e5d32088ede5`は取込み済み基線と一致。#132までのコミット済み20件の受理履歴は保持した。同じ`acceptance_id=masaki1025/pitchlog#141`の二重行は7.7検査が拒否するため、未コミットだった旧#141ローカル行を今回受理された行に置換し、developとの差分として#132の後へv2履歴1件を直列化した。旧ローカル行と旧snapshot 9件は専用領域`/var/tmp/pitchlog-tsk550-pr141-20261016/`に保全し、履歴から参照されない新snapshotを正式archiveへ残さない。新after snapshotをcontent-addressed名で配置し、比較corpusを受理値に再pinした。反映後の候補案SHAとcorpus入力digestは上記受理値と一致し、凍結不変条件と迂回検査は合格した。製品登録0件を維持する。
 
 本節記入時点ではステップ2コミット、root/backend全件、push、新HEAD CI、PR本文更新、本人逐行確認は未了。完走結果を後続行に追記する。Draft解除・マージはしない。
+
+## コミット済みHEADの品質ゲートで検出したcorpus差分（2026-10-16）
+
+7.7受理値を反映して`48874400342c54e453006d0673e83a35e7a80a73`へ`(ステップ 2/2)`を1件コミットし、最終HEAD検査を開始した。backend Ruff format/check/ty、root凍結不変条件、core-guardは合格。root `uv run ruff check .`は新規正例fixture `tests/fixtures/tenant_boundary/positive/pitchlog/repositories/function_operations.py`のSQLAlchemy import順序1件(I001)で失敗した。
+
+同fixtureの`sqlalchemy.sql.selectable`と`sqlalchemy.sql.sqltypes`の2行を並べ替える最小是正候補を作成し、root Ruff/ty、正例fixture試験1件、候補corpus入力照合は合格。製品コード、9資産射影、外部8ファイルSHA、7.7受理記録案SHA-256 `494e1a6bd74c8b68acc426cd87fa885f309c10cf36430f90559f2ba055b76b85`は不変。ただし比較corpus入力digestは受理済み`0f719807eb1f971e01849ceab0d1c5b0f4abeabf2d7977c495aec09944792c93`から是正候補`96b217bd1c40a4f98277858618e246c759253e7b11d6a99dfb90cdc524c7a4b7`へ変わる。manifest自身の変更はまだ行っていない。
+
+受理値変更の停止条件に従い、是正は未コミットで保持し、7.7のこのdigestだけの再受理までステップ2コミットのamend、root/backend全件、push、新HEAD CI、PR本文更新は進めない。本人逐行確認・Draft解除・マージも未実施。
+
+## 正例fixtureのimport順序とcorpus入力digestの再受理（2026-10-16）
+
+POは本会話で、正例fixtureのSQLAlchemy import順序1件の是正に伴う比較corpus入力digest `96b217bd1c40a4f98277858618e246c759253e7b11d6a99dfb90cdc524c7a4b7` を7.7として再受理した。旧受理値は `0f719807eb1f971e01849ceab0d1c5b0f4abeabf2d7977c495aec09944792c93`。承認実日はJST 2026-10-16。今回の受理対象はこのdigestの差し替えのみで、9資産・外部8ファイルの前後値と7.7受理記録案SHA-256 `494e1a6bd74c8b68acc426cd87fa885f309c10cf36430f90559f2ba055b76b85` は不変。#132と#141の受理済み履歴21件を維持する。今回の判断はPR全体の本人逐行確認ではない。
+
+manifestのcorpus入力digestを受理値へ更新し、正例fixtureのimport順序と合わせて別コミットにする。コミット済みHEADでroot/backend全件と関連ゲートを再実行し、通過後に通常push・新HEADのCI確認・PR本文更新を行う。本人逐行確認、Draft解除、マージは別判断とする。

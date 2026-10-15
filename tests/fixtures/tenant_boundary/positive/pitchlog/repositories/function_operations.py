@@ -7,8 +7,8 @@ from uuid import UUID
 
 from sqlalchemy import bindparam, select  # ty: ignore[unresolved-import]
 from sqlalchemy.sql.functions import Function  # ty: ignore[unresolved-import]
-from sqlalchemy.sql.sqltypes import Boolean, Integer, String, Uuid  # ty: ignore[unresolved-import]
 from sqlalchemy.sql.selectable import Select  # ty: ignore[unresolved-import]
+from sqlalchemy.sql.sqltypes import Boolean, Integer, String, Uuid  # ty: ignore[unresolved-import]
 
 
 def _build_fixed_function_statement(
