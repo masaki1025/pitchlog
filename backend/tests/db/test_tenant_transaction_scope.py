@@ -619,7 +619,13 @@ def test_run_signature_has_no_second_tenant_context() -> None:
         assert operation_parameter.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
         assert operation_parameter.default is inspect.Parameter.empty
     assert get_type_hints(handle_type.run_in_savepoint) == hints
-    assert declared_methods == {"__init__", "_expire", "run", "run_in_savepoint"}
+    assert declared_methods == {
+        "__init__",
+        "_expire",
+        "run",
+        "run_function",
+        "run_in_savepoint",
+    }
     assert handle_type.__slots__ == (
         "_state_key",
         "_context",
