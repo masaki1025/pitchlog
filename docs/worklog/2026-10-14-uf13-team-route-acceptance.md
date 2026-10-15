@@ -239,3 +239,37 @@ authzの`frozen-baselines.json`は`acceptance_id_source=repository_and_pr_number
 6. PR作成後にGitHub CIのsecrets、docs-lint、core-guard、harness、consistency、mutation、tenant-boundary-bypass、backend各jobを確認する。人間逐行確認は第2周P1未再レビュー範囲、tenant profile readのRLS/ACL実測、route/matrix 1件、tenant-boundary履歴、oracle入力・sealを対象とし、未実施のチェックを代記しない。
 
 以上は再開手順の固定であり、共有資産、ステップ2、公開経路を実装した記録ではない。#132・#137の統合確認まではC1ステップ1を未完了のまま保持する。
+
+### Draft PR先行に必要なC1最小追補案（2026-10-15・未承認）
+
+#### 正本との照合
+
+- 6.1の通常サイクルは、ステップの実装・検証・正本追随が完了した後にPRを作り、1ステップごとに1コミットを作る。通常の`/pr`はworklogを締め、planを`in-review`へ移す。
+- 6.3により、C1はテナント分離のコア領域であり、最終PR差分に反対側一次レビュー、敵対レビュー、人間逐行確認が必要である。Draft作成はこれらの完了や代替にならない。
+- 7.7自体は受理単位を固定しないが、authzの`frozen-baselines.json`はGitHubのrepository/PR番号、tenant-boundaryの受理CLIも`owner/repository#number`を受理IDに要求する。さらにauthz oracleは入力資産を確定した先行コミットSHAを識別値として持つ。この資産固有契約により、C1ステップ1を単一コミットのまま正式受理することはできない。
+- したがって正本6.1/6.3/7.7の本文改訂や7.3確定ゲートは不要で、C1計画6節・7節・10節だけに限定した例外追補が必要である。既存のendpoint、DTO、認可、DoD、ステップ数、ステップ2の未着手、公開禁止は変更しない。
+
+#### 計画へ反映する最小差分
+
+1. ステップ1を、凍結資産の自己参照を閉じるための3段・3コミットへ限定分割する。件名はそれぞれ`(ステップ 1/2 第1段)`、`(ステップ 1/2 第2段)`、`(ステップ 1/2 第3段)`を1個だけ含める。`feature_status.py`は異なるコミットの同一ステップ番号を再委任として扱えるが、6.1の1ステップ1コミットに対するC1固有例外であることを計画本文へ明記する。
+2. **第1段**: #132/#137統合後のlatest develop、保全済みC1製品差分、`TENANT_PROFILE_OPERATIONS`登録、repository契約、route registry / HTTP matrix、derived lock、隔離DB試験と実行可能な品質検査をまとめる。未受理履歴を仮値で埋めず、PR番号依存・oracle commit依存の検査はfail-closedの未完了として記録する。
+3. **第2段**: 第1段の実コミットSHAをauthzの`oracle_commit` 7箇所へ反映し、入力blob digestを追随する。履歴・sealはまだ正式受理せず、旧履歴を書き換えない。
+4. 第2段までをpushしてDraft PRを作り、実PR番号を取得する。このpush/PRは別途明示承認後にだけ行う。Draft本文へ「C1ステップ1未完了」「7.7第3段待ち」「CI/レビュー/人間逐行確認未完了」を明記する。通常の`/pr`完了処理ではないため、planは`active`、worklogは進行中、TSK-528は未完了のまま維持し、Draft解除・マージを禁止する。
+5. **第3段**: 実PR番号を用い、tenant-boundaryのv2受理記録・不足snapshotとauthzの`oracle_input`記録を候補化する。人間が実差分のprevious/new identifiers、変更理由、承認者・承認日、oracle入力・sealを逐行確認して正式受理した後だけ、`--reseal-oracle`を実行して第3段コミットを作る。仮番号、`PENDING_ACCEPTANCE`、他PR番号、事前の包括承認は使わない。
+6. 第3段後に全品質gate、CI、反対側レビュー、コア敵対レビュー、人間逐行確認を行う。全条件成立後に通常の`/pr`完了処理としてplanを`in-review`へ移し、PR本文を最終化する。Draft解除とマージは別の人間判断に残す。
+
+#### 品質gateの分割
+
+- Draft前にgreenを要求するもの: C1対象ruff/format/ty、固有/API/repository試験、実製品operationを通す隔離DBのA/B RLS試験、route/matrixとrepository exact-set、`git diff --check`、実行可能なroot/backend品質gate。
+- Draft前に未完了を明示してよいもの: PR eventの実番号を要求するtenant-boundary正式受理、`check_frozen_baselines.py --ci`、人間受理後の`--reseal-oracle`、最終core-guard、PR CI。検査をskip・除外・期待値緩和でgreenにしない。
+- 第3段後にgreenを要求するもの: tenant-boundary bypass/history/archive、authz catalog、frozen baseline invariantsとPR event検査、root/backend全件、core-guard、GitHub CI。DB試験が収集・実行された件数も記録する。
+
+#### 必要な承認
+
+1. **計画レビュー追加枠のPO裁定**: C1計画は基本2回+P0例外の3回を使用済みなので、6.3に従い、上記追補差分と影響節（計画6・7・10節）に限定した敵対レビュー1回を追加する裁定が必要。
+2. **追補の人間承認**: 追加レビューの採否と最終差分を確認し、3段コミット、Draft先行、Draft中の`active`維持、品質gate分割をC1だけの例外として承認する必要がある。
+3. **push / Draft PR作成承認**: 第1・第2段とDraft本文を提示した後、実際のpushとDraft作成を別途承認する必要がある。現時点では未許可。
+4. **7.7正式受理**: PR番号取得後の実際の受理記録・snapshot・oracle差分に対し、承認者・承認日を含む人間逐行確認が必要。計画追補の承認では代替しない。
+5. **コアPRのレビューと逐行確認**: 第3段後の最終差分に対する反対側一次レビュー、敵対レビュー、人間逐行確認が必要。Claude経路が利用できない場合、過去PRへの代替許可を流用せず、C1 PRに限定した代替レビュア承認を得る。未実施チェックは代記しない。
+
+PR #132と#137は本記録時点でも未統合であり、追補承認後も共有資産の実装再開条件は未成立である。新規ACL・migration、凍結対象・比較述語・検査器の緩和は追補範囲に含めない。
