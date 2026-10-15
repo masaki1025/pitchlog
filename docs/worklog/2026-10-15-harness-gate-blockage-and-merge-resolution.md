@@ -91,6 +91,7 @@ branch: feature/harness-gate-blockage-and-merge-resolution
 
 - 設計書の frontmatter を `in-review`、変更履歴に v1.20 の起案行(射程宣言 7.3-7 を含む)、7.3-6・7.7-4・10.2 から 6.5・6.6 への参照、`docs/README.md` の設計書の行(状態・版・最終更新のみ。台帳の行は触れない)
 - **適用版の暫定記録(7.3-1)**: ハーネス設計書 **v1.19**(条文コミット `945384c5` — develop 上で同書を最後に変えたコミット・2026-10-08)。**初回の敵対レビューの実行時点(10/21 14:37 以降)で異なっていれば更新してから開始する**
+- 確認: `check_docs_status.py` 0 violations / `check_plan_docs_sync.py` rc=0 / 設計書・索引を読む試験 375 件 / **ハーネス全件 29,605 passed・失敗 0**(初回の `tests/domain/mut/` 3 件は新しい worktree に `backend/.venv` が無い環境由来 — `uv sync` 後に 3 件とも passed。in-review 化で approved 前提の試験が赤になる型〔台帳 H-84〕は出なかった)
 - 確定ゲートは `/finalize-doc`(敵対レビュー → 人間承認)。**停止中の裁定 3-2 (c) により approved 遷移は 10/21 14:37 以降**。それまで push・PR はしない(PO の指示)
 
 ## 決定
