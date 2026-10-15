@@ -1,0 +1,1097 @@
+{
+  "schemaVersion": 2,
+  "scenarioId": "p5-b3a-crash-boundaries",
+  "version": 1,
+  "input": {
+    "initialPersistence": {
+      "value": {
+        "generation": 1,
+        "d3": 0,
+        "seed": []
+      }
+    },
+    "queue": {
+      "value": {
+        "unsent": [
+          {
+            "d5": "e1",
+            "d1": 1,
+            "kind": "play_input",
+            "payload": {
+              "pitch": "invalid"
+            }
+          }
+        ],
+        "subject": "e1"
+      }
+    },
+    "d1": {
+      "value": {
+        "sent": [
+          1
+        ]
+      }
+    },
+    "d3": {
+      "value": {
+        "initial": 0
+      }
+    },
+    "d4": {
+      "value": {
+        "request": 1
+      }
+    },
+    "d5": {
+      "value": {
+        "persisted": [],
+        "requested": [
+          "e1"
+        ]
+      }
+    },
+    "currentRecoveryGeneration": {
+      "omittedBecause": "復旧世代を照合しない D1 付き経路のため"
+    },
+    "requestRecoveryGeneration": {
+      "omittedBecause": "復旧世代を照合しない D1 付き経路のため"
+    },
+    "applicationPath": {
+      "value": "P5"
+    },
+    "tabs": {
+      "value": {
+        "contexts": [
+          "主タブ",
+          "待機タブ"
+        ]
+      }
+    },
+    "lock": {
+      "value": {
+        "owner": "主タブ"
+      }
+    },
+    "p5Branch": {
+      "value": {
+        "kind": "B3a",
+        "d5": "e1",
+        "rejectedOriginal": {
+          "d1": 1,
+          "kind": "play_input",
+          "payload": {
+            "pitch": "invalid"
+          }
+        }
+      }
+    }
+  },
+  "cases": [
+    {
+      "caseId": "crash-t9-ledger",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "transaction",
+            "path": "P5",
+            "tElement": "T9"
+          }
+        },
+        "injectionPoint": {
+          "value": "T9 の台帳の保存後"
+        },
+        "stopOperation": {
+          "value": "プロセスを落とす"
+        },
+        "restartOperation": {
+          "value": "同じ要求を再送する"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "states": [
+                [
+                  1,
+                  "未送信",
+                  null
+                ]
+              ]
+            },
+            "d1": {
+              "ack": null,
+              "ackD3": null,
+              "slots": []
+            },
+            "lock": {
+              "owner": "主タブ"
+            },
+            "acceptanceDisplay": {
+              "serverAcceptedD1s": []
+            },
+            "reinputAvailability": {
+              "reinputRequired": false,
+              "automaticResendD1s": [
+                1
+              ],
+              "correctionRequiredD1s": []
+            },
+            "prefix": {
+              "d3": 0
+            },
+            "idempotentResult": {
+              "boundary": null,
+              "b3Branch": null,
+              "ledger": {
+                "e1": null
+              },
+              "reasons": {
+                "e1": null
+              },
+              "originals": {
+                "e1": 0
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "holds"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T9": {
+                "ledger": "notCommitted",
+                "original": "notCommitted"
+              }
+            }
+          }
+        },
+        {
+          "observationPoint": "再送後",
+          "fields": {
+            "queue": {
+              "states": [
+                [
+                  1,
+                  "要操作",
+                  null
+                ]
+              ]
+            },
+            "d1": {
+              "ack": [
+                [
+                  1,
+                  "拒否"
+                ]
+              ],
+              "ackD3": 0,
+              "slots": []
+            },
+            "lock": {
+              "owner": "主タブ"
+            },
+            "acceptanceDisplay": {
+              "serverAcceptedD1s": []
+            },
+            "reinputAvailability": {
+              "reinputRequired": false,
+              "automaticResendD1s": [],
+              "correctionRequiredD1s": [
+                1
+              ]
+            },
+            "prefix": {
+              "d3": 0
+            },
+            "idempotentResult": {
+              "boundary": "B3",
+              "b3Branch": "B3a",
+              "ledger": {
+                "e1": "rejected"
+              },
+              "reasons": {
+                "e1": "内容不正"
+              },
+              "originals": {
+                "e1": 1
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 1,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": {
+                "present": true,
+                "matchesSaved": true
+              }
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T9": {
+                "ledger": "committed",
+                "original": "committed"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "crash-t9-original",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "transaction",
+            "path": "P5",
+            "tElement": "T9"
+          }
+        },
+        "injectionPoint": {
+          "value": "T9 の原本の保存後"
+        },
+        "stopOperation": {
+          "value": "プロセスを落とす"
+        },
+        "restartOperation": {
+          "value": "同じ要求を再送する"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "states": [
+                [
+                  1,
+                  "未送信",
+                  null
+                ]
+              ]
+            },
+            "d1": {
+              "ack": null,
+              "ackD3": null,
+              "slots": []
+            },
+            "lock": {
+              "owner": "主タブ"
+            },
+            "acceptanceDisplay": {
+              "serverAcceptedD1s": []
+            },
+            "reinputAvailability": {
+              "reinputRequired": false,
+              "automaticResendD1s": [
+                1
+              ],
+              "correctionRequiredD1s": []
+            },
+            "prefix": {
+              "d3": 0
+            },
+            "idempotentResult": {
+              "boundary": null,
+              "b3Branch": null,
+              "ledger": {
+                "e1": null
+              },
+              "reasons": {
+                "e1": null
+              },
+              "originals": {
+                "e1": 0
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "holds"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T9": {
+                "ledger": "notCommitted",
+                "original": "notCommitted"
+              }
+            }
+          }
+        },
+        {
+          "observationPoint": "再送後",
+          "fields": {
+            "queue": {
+              "states": [
+                [
+                  1,
+                  "要操作",
+                  null
+                ]
+              ]
+            },
+            "d1": {
+              "ack": [
+                [
+                  1,
+                  "拒否"
+                ]
+              ],
+              "ackD3": 0,
+              "slots": []
+            },
+            "lock": {
+              "owner": "主タブ"
+            },
+            "acceptanceDisplay": {
+              "serverAcceptedD1s": []
+            },
+            "reinputAvailability": {
+              "reinputRequired": false,
+              "automaticResendD1s": [],
+              "correctionRequiredD1s": [
+                1
+              ]
+            },
+            "prefix": {
+              "d3": 0
+            },
+            "idempotentResult": {
+              "boundary": "B3",
+              "b3Branch": "B3a",
+              "ledger": {
+                "e1": "rejected"
+              },
+              "reasons": {
+                "e1": "内容不正"
+              },
+              "originals": {
+                "e1": 1
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 1,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": {
+                "present": true,
+                "matchesSaved": true
+              }
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T9": {
+                "ledger": "committed",
+                "original": "committed"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "crash-after-commit",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "transaction",
+            "path": "P5",
+            "tElement": "T9"
+          }
+        },
+        "injectionPoint": {
+          "value": "T9 の確定後・応答の前"
+        },
+        "stopOperation": {
+          "value": "プロセスを落とす"
+        },
+        "restartOperation": {
+          "value": "同じ要求を再送する"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "states": [
+                [
+                  1,
+                  "未送信",
+                  null
+                ]
+              ]
+            },
+            "d1": {
+              "ack": null,
+              "ackD3": null,
+              "slots": []
+            },
+            "lock": {
+              "owner": "主タブ"
+            },
+            "acceptanceDisplay": {
+              "serverAcceptedD1s": []
+            },
+            "reinputAvailability": {
+              "reinputRequired": false,
+              "automaticResendD1s": [
+                1
+              ],
+              "correctionRequiredD1s": []
+            },
+            "prefix": {
+              "d3": 0
+            },
+            "idempotentResult": {
+              "boundary": null,
+              "b3Branch": null,
+              "ledger": {
+                "e1": "rejected"
+              },
+              "reasons": {
+                "e1": "内容不正"
+              },
+              "originals": {
+                "e1": 1
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 1,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T9": {
+                "ledger": "committed",
+                "original": "committed"
+              }
+            }
+          }
+        },
+        {
+          "observationPoint": "再送後",
+          "fields": {
+            "queue": {
+              "states": [
+                [
+                  1,
+                  "要操作",
+                  null
+                ]
+              ]
+            },
+            "d1": {
+              "ack": [
+                [
+                  1,
+                  "拒否"
+                ]
+              ],
+              "ackD3": 0,
+              "slots": []
+            },
+            "lock": {
+              "owner": "主タブ"
+            },
+            "acceptanceDisplay": {
+              "serverAcceptedD1s": []
+            },
+            "reinputAvailability": {
+              "reinputRequired": false,
+              "automaticResendD1s": [],
+              "correctionRequiredD1s": [
+                1
+              ]
+            },
+            "prefix": {
+              "d3": 0
+            },
+            "idempotentResult": {
+              "boundary": "B3",
+              "b3Branch": "B3a",
+              "ledger": {
+                "e1": "rejected"
+              },
+              "reasons": {
+                "e1": "内容不正"
+              },
+              "originals": {
+                "e1": 1
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 1,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": {
+                "present": true,
+                "matchesSaved": true
+              }
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
+            },
+            "recordingRight": {
+              "evaluated": false,
+              "order": [
+                "rg1_read"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T9": {
+                "ledger": "committed",
+                "original": "committed"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "comparisonUnit": [
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-ledger",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-t9-original",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "caseId": "crash-after-commit",
+      "injectionTarget": "P5:T9",
+      "observationPoint": "再送後",
+      "expectedField": "tElementCommitment"
+    }
+  ]
+}

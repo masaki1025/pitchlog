@@ -9,7 +9,7 @@ from collections.abc import Callable, Generator, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from types import MappingProxyType, ModuleType, TracebackType
+from types import MappingProxyType, ModuleType, SimpleNamespace, TracebackType
 from typing import Any, cast, get_type_hints
 from uuid import UUID
 
@@ -99,6 +99,23 @@ class _ProbeOrmRow(_ProbeOrmBase):
 _ORM_READ_STATEMENT = select(_ProbeOrmRow).where(
     _ProbeOrmRow.tenant_id == bindparam("tenant_id")
 )
+
+
+def _install_test_canonical_table(
+    monkeypatch: pytest.MonkeyPatch,
+    table: Table,
+) -> None:
+    """合成表をこの試験の検査器だけで正本表として扱う。"""
+    test_base = SimpleNamespace(
+        metadata=SimpleNamespace(tables=MappingProxyType({table.key: table}))
+    )
+    monkeypatch.setattr(repository_base, "Base", test_base)
+
+
+@pytest.fixture(autouse=True)
+def canonical_probe_table(monkeypatch: pytest.MonkeyPatch) -> None:
+    """製品 metadata を変えず、基底の振る舞い試験に合成表を渡す。"""
+    _install_test_canonical_table(monkeypatch, _PROBE_TABLE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -594,7 +611,21 @@ def test_run_signature_has_no_second_tenant_context() -> None:
         "operation": TenantOperationToken,
         "return": TenantOperationResult,
     }
-    assert declared_methods == {"__init__", "_expire", "run", "run_function"}
+    # U-S1 ステップ 8 の SAVEPOINT 入口も operation だけを受ける。
+    savepoint_signature = inspect.signature(handle_type.run_in_savepoint)
+    assert tuple(savepoint_signature.parameters) == ("self", "operation")
+    for method_signature in (signature, savepoint_signature):
+        operation_parameter = method_signature.parameters["operation"]
+        assert operation_parameter.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+        assert operation_parameter.default is inspect.Parameter.empty
+    assert get_type_hints(handle_type.run_in_savepoint) == hints
+    assert declared_methods == {
+        "__init__",
+        "_expire",
+        "run",
+        "run_function",
+        "run_in_savepoint",
+    }
     assert handle_type.__slots__ == (
         "_state_key",
         "_context",
@@ -687,20 +718,23 @@ def test_unregistered_and_forged_tokens_use_existing_rejection_path(
             (_ReadProbeToken("forged"), "capability ID が不一致"),
         )
 
-        for operation, expected_message in cases:
-            with transaction.tenant_transaction_scope(
-                make_tenant_context(_TENANT_ID)
-            ) as tenant_transaction:
-                with pytest.raises(
-                    _TenantOperationError,
-                    match=expected_message,
-                ) as caught:
-                    tenant_transaction.run(operation)
+        # U-S1 ステップ 8 の SAVEPOINT 入口も同じ拒否を経る。
+        for method_name in ("run", "run_in_savepoint"):
+            for operation, expected_message in cases:
+                with transaction.tenant_transaction_scope(
+                    make_tenant_context(_TENANT_ID)
+                ) as tenant_transaction:
+                    with pytest.raises(
+                        _TenantOperationError,
+                        match=expected_message,
+                    ) as caught:
+                        getattr(tenant_transaction, method_name)(operation)
 
-            assert any(
-                entry.name == "_operation_spec" and Path(entry.path).name == "base.py"
-                for entry in caught.traceback
-            )
+                assert any(
+                    entry.name == "_operation_spec"
+                    and Path(entry.path).name == "base.py"
+                    for entry in caught.traceback
+                )
 
 
 def test_unvalidated_update_is_rejected_before_execute(
@@ -718,6 +752,7 @@ def test_unvalidated_update_is_rejected_before_execute(
 
     with _transaction_database(disposable_postgres_cluster) as database:
         _configure_application_database(monkeypatch, database)
+        _install_test_canonical_table(monkeypatch, _WRITE_PROBE_TABLE)
         monkeypatch.setattr(
             repository_base,
             "_OPERATION_REGISTRY",
@@ -897,6 +932,7 @@ def test_run_rejects_orm_select_before_materialization(
 
     with _transaction_database(disposable_postgres_cluster) as database:
         _configure_application_database(monkeypatch, database)
+        _install_test_canonical_table(monkeypatch, cast(Table, _ProbeOrmRow.__table__))
         monkeypatch.setattr(transaction, "Session", _OrmResultObservedSession)
         monkeypatch.setattr(
             repository_base,
@@ -1121,6 +1157,8 @@ def test_handle_cannot_run_after_scope_exit(
             statements_after_exit = len(observed_statements)
             with pytest.raises(RuntimeError, match="失効"):
                 handle.run(_ReadProbeToken())
+            with pytest.raises(RuntimeError, match="失効"):
+                handle.run_in_savepoint(_ReadProbeToken())
         finally:
             event.remove(Session, "do_orm_execute", observe_orm_sql)
 

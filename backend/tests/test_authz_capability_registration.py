@@ -1083,7 +1083,7 @@ def test_unreferenced_dml_cte_is_rejected(
 
 
 def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> None:
-    """16 token の各文と 11 capability の対応を個別に検査する。"""
+    """42 token の各文と 29 capability の対応を個別に検査する。"""
     expected = {
         "CAP:players:read",
         "CAP:players:insert",
@@ -1096,16 +1096,39 @@ def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> Non
         "CAP:lineup_memories:read",
         "CAP:lineup_memories:insert",
         "CAP:lineup_memories:update",
+        "CAP:recording_generations:read",
+        "CAP:recording_generations:update",
+        "CAP:event_slots:read",
+        "CAP:event_slots:insert",
+        "CAP:event_slots:update",
+        "CAP:operation_events:read",
+        "CAP:operation_events:insert",
+        "CAP:operation_events:update",
+        "CAP:temporary_player_id_mappings:read",
+        "CAP:temporary_player_id_mappings:insert",
+        "CAP:idempotency_ledger:read",
+        "CAP:idempotency_ledger:insert",
+        "CAP:rejected_event_originals:read",
+        "CAP:rejected_event_originals:insert",
+        "CAP:invalidation_intents:read",
+        "CAP:invalidation_intents:update",
+        "CAP:evacuated_event_originals:read",
+        "CAP:evacuated_event_originals:insert",
     }
     assert set(repository_contract.PRODUCT_CAPABILITY_IDS) == expected
     assert {
         spec.capability_id for spec in repository_base._OPERATION_REGISTRY.values()
     } == expected
-    assert len(repository_base._OPERATION_REGISTRY) == 16
+    assert len(repository_base._OPERATION_REGISTRY) == 43
     for registration in repository_base._OPERATION_REGISTRY.values():
+        statement = registration.statement
+        if isinstance(statement, Select) and statement._for_update_arg is not None:
+            repository_base._validate_prepared_statement(registration, statement)
+            statement = statement._generate()
+            statement._for_update_arg = None
         validate_capability_registrations(
             catalog=catalog,
-            registrations=(registration,),
+            registrations=(_Registration(registration.capability_id, statement),),
         )
     assert repository_contract.CROSS_TENANT_FUNCTIONS == ()
 

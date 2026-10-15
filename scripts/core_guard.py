@@ -49,15 +49,15 @@ DOMAIN_RUNTIME_PATH_ADDITIONS = (
     "backend/Dockerfile",
 )
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "game-state": (
-        "contracts/field-regions/*",
-        "contracts/display-geometry/*",
-        "tests/test_field_geometry_numeric_lexemes.py",
-        "tests/test_fielder_estimation_contract.py",
-        "tests/test_field_geometry_ci_wiring.py",
-    ),
     "sync-protocol": (
-        "tests/test_field_geometry_numeric_lexemes.py",
+        "backend/src/pitchlog/sync/*",
+        "backend/src/pitchlog/repositories/sync_apply.py",
+        "backend/tests/test_sync_apply_*.py",
+    ),
+    "recording-rights": (
+        "backend/src/pitchlog/sync/*",
+        "backend/src/pitchlog/repositories/sync_apply.py",
+        "backend/tests/test_sync_apply_*.py",
     ),
 }
 REQUIRED_CHECK_RE = re.compile(

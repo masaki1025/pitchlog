@@ -29,6 +29,7 @@ import builtins
 import copy
 import difflib
 import dis
+import fnmatch
 import hashlib
 import json
 import re
@@ -53,6 +54,14 @@ import frozen_history  # noqa: E402
 
 DEFAULT_INVENTORY = Path("contracts/tenant_boundary/db-api-inventory.json")
 DEFAULT_ALLOWLIST = Path("contracts/tenant_boundary/base-allowlist.json")
+DEFAULT_CORE_AREAS = Path(".claude/core-areas.json")
+# 条件 2 の所有パスを変えるには、凍結資産の受理と検査器の改訂の両方が必要。
+APPROVED_CONDITION2_OWNER_PATHS = frozenset(
+    {
+        "backend/src/pitchlog/sync/*",
+        "backend/src/pitchlog/repositories/sync_apply.py",
+    }
+)
 DEFAULT_NEGATIVE_FIXTURES = Path(
     "contracts/tenant_boundary/negative-fixtures.json"
 )
@@ -205,6 +214,8 @@ class Contract:
     allowed_symbols: tuple[AllowedSymbol, ...]
     rules: tuple[ConditionRule, ...]
     condition2_adjudications: tuple[Condition2Adjudication, ...]
+    condition2_owner_paths: tuple[str, ...]
+    sync_protocol_paths: tuple[str, ...]
     negative_fixtures: tuple[NegativeFixture, ...]
     tenant_context: TenantContextConstructionContract
     cache_invalidation: CacheInvalidationBypassContract
@@ -783,6 +794,7 @@ def _load_allowlist(
     tuple[ConditionRule, ...],
     tuple[Condition2Adjudication, ...],
     tuple[str, ...],
+    tuple[str, ...],
 ]:
     """基底 allowlist と禁止識別子規則を検証して読む。"""
     _strict_keys(
@@ -928,12 +940,15 @@ def _load_allowlist(
         )
 
     rules: list[ConditionRule] = []
+    condition2_owner_paths: tuple[str, ...] = ()
     conditions = _array(value["conditions"], "allowlist.conditions")
     for index, raw in enumerate(conditions):
         item = _object(raw, f"allowlist.conditions[{index}]")
         _strict_keys(
             item,
-            {"condition", "error", "patterns"},
+            {"condition", "error", "patterns", "owner_paths"}
+            if item.get("condition") == 2
+            else {"condition", "error", "patterns"},
             f"allowlist.conditions[{index}]",
         )
         condition = _integer(
@@ -941,6 +956,23 @@ def _load_allowlist(
         )
         if condition not in {1, 2, 3, 4}:
             raise ContractError("conditions には条件 1〜4 だけを置く")
+        if condition == 2:
+            condition2_owner_paths = _string_array(
+                item["owner_paths"], f"allowlist.conditions[{index}].owner_paths"
+            )
+            if not condition2_owner_paths or len(condition2_owner_paths) != len(
+                set(condition2_owner_paths)
+            ):
+                raise ContractError("条件 2 の owner_paths は空・重複を許さない")
+            for owner_path in condition2_owner_paths:
+                if not owner_path.startswith("backend/src/") or any(
+                    part in {"", ".", ".."} for part in owner_path.split("/")
+                ):
+                    raise ContractError(
+                        f"条件 2 の owner_paths は backend/src 配下が必要: {owner_path}"
+                    )
+            if set(condition2_owner_paths) != APPROVED_CONDITION2_OWNER_PATHS:
+                raise ContractError("条件 2 の owner_paths は承認済みの集合と不一致")
         compiled: list[re.Pattern[str]] = []
         for pattern in _string_array(
             item["patterns"], f"allowlist.conditions[{index}].patterns"
@@ -984,8 +1016,30 @@ def _load_allowlist(
         tuple(allowed_symbols),
         tuple(rules),
         tuple(condition2_adjudications),
+        condition2_owner_paths,
         command,
     )
+
+
+def _load_sync_protocol_paths(repository_root: Path) -> tuple[str, ...]:
+    """検査時点の同期領域の glob を取得する。設定が無ければ免除しない。"""
+    path = repository_root / DEFAULT_CORE_AREAS
+    if not path.is_file():
+        return ()
+    configuration, _ = _read_json(path)
+    areas = _array(configuration.get("areas"), "core-areas.areas")
+    matches = [
+        area
+        for index, raw in enumerate(areas)
+        if (area := _object(raw, f"core-areas.areas[{index}]")).get("id")
+        == "sync-protocol"
+    ]
+    if len(matches) != 1:
+        raise ContractError("core-areas の sync-protocol は 1 領域が必要")
+    paths = _string_array(matches[0].get("paths"), "core-areas.sync-protocol.paths")
+    if not paths or len(paths) != len(set(paths)):
+        raise ContractError("core-areas の sync-protocol.paths は空・重複を許さない")
+    return paths
 
 
 def _load_negative_fixtures(value: dict[str, Any]) -> tuple[NegativeFixture, ...]:
@@ -1508,9 +1562,13 @@ def load_contract(repository_root: Path) -> Contract:
         symbol_aliases,
         conservative_member_names,
     ) = _load_inventory(inventory_value)
-    allowed_symbols, rules, condition2_adjudications, diff_command = _load_allowlist(
-        allowlist_value, inventory_bytes, apis
-    )
+    (
+        allowed_symbols,
+        rules,
+        condition2_adjudications,
+        condition2_owner_paths,
+        diff_command,
+    ) = _load_allowlist(allowlist_value, inventory_bytes, apis)
     negative_fixtures = _load_negative_fixtures(negative_value)
     tenant_context = _load_tenant_context_allowlist(tenant_context_value)
     cache_invalidation = _load_cache_invalidation_bypass_contract(
@@ -1550,6 +1608,8 @@ def load_contract(repository_root: Path) -> Contract:
         allowed_symbols=allowed_symbols,
         rules=rules,
         condition2_adjudications=condition2_adjudications,
+        condition2_owner_paths=condition2_owner_paths,
+        sync_protocol_paths=_load_sync_protocol_paths(repository_root),
         negative_fixtures=negative_fixtures,
         tenant_context=tenant_context,
         cache_invalidation=cache_invalidation,
@@ -4165,6 +4225,19 @@ class _SourceScanner(ast.NodeVisitor):
         self.condition2_patterns = next(
             rule.patterns for rule in contract.rules if rule.condition == 2
         )
+        source_path = f"backend/src/{path}"
+        self.condition2_owned = (
+            not Path(path).is_absolute()
+            and ".." not in Path(path).parts
+            and any(
+                fnmatch.fnmatchcase(source_path, pattern)
+                for pattern in contract.condition2_owner_paths
+            )
+            and any(
+                fnmatch.fnmatchcase(source_path, pattern)
+                for pattern in contract.sync_protocol_paths
+            )
+        )
 
     def _validate_call_coverage(self, tree: ast.Module) -> None:
         """AST・flow・scanner の Call 集合が同一であることを検証する。"""
@@ -4283,6 +4356,8 @@ class _SourceScanner(ast.NodeVisitor):
             return
         for rule in self.contract.rules:
             if condition2_only and rule.condition != 2:
+                continue
+            if rule.condition == 2 and self.condition2_owned:
                 continue
             candidate_text = (
                 condition2_candidate

@@ -10,11 +10,13 @@ from pitchlog.repositories.invalidation_intents import INVALIDATION_INTENT_OPERA
 from pitchlog.repositories.lineup_memory import LINEUP_MEMORY_OPERATIONS
 from pitchlog.repositories.operation_registration import OperationRegistration
 from pitchlog.repositories.roster import ROSTER_OPERATIONS
+from pitchlog.repositories.sync_apply import SYNC_APPLY_OPERATIONS
 
 PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *ROSTER_OPERATIONS,
     *INVALIDATION_INTENT_OPERATIONS,
     *LINEUP_MEMORY_OPERATIONS,
+    *SYNC_APPLY_OPERATIONS,
 )
 
 # Aでは製品関数を登録しない。B/Cは各個別ゲートで追加する。

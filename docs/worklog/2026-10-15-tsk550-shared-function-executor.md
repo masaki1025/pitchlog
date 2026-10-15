@@ -130,3 +130,11 @@ POは本ログの9資産の識別値・完全なbefore/after射影SHA-256、共�
 公開したステップ2 HEAD `196f1e3d`のPR #141 CIでは、harness・frontend・凍結/迂回等は合格した。backend全pytestは`tests/db/test_tenant_transaction_scope.py::test_run_signature_has_no_second_tenant_context`の公開メソッドexact集合が新設`run_function`を含まないため1件失敗した。core-guardの失敗はPR本文の本人逐行確認チェックが未記入であることだけで、基線・path不整合ではない。人間チェック・実施記録は空欄を維持する。
 
 二段階追補のpush後是正ゲートに従って差分を提示し、POは**既公開履歴を維持する別の試験是正コミット**で`run_function`を期待集合へ追加し、push・新HEAD CIを再実行することを承認した。force pushは禁止。是正差分は当該assertionの1行だけで、製品コード・9資産・7.7受理値は変更しない。使い捨てPostgreSQLで該当試験1件が合格、対象試験のRuff format/checkとbackend tyも合格した。9資産のafter完全射影は受理履歴と全件一致。新HEAD CI結果と人間逐行確認対象はPR本文・最終報告で確定する。
+
+## PR #132 統合後の再基線候補（未受理）
+
+TSK-391 / PR #132 の統合点は `origin/develop` `966d7a38`。#141 の `0b203dcd` を未コミットのマージ候補として取り込み、7ファイルの競合を解消した。製品側は `run_function` と U-S1 の `run_in_savepoint` を併存させ、公開メソッド試験も両方を保持する。製品関数登録は0件のまま。資産側は #132 の既受理履歴20件目を保持し、その直後に #141 を21件目として直列化する候補を `/tmp/tsk550-a-132-record-candidate.json` に作成した。候補に `approved_by` / `approved_on` はなく、正本履歴の末尾は #132 のまま。新しい人間受理前に #141 の承認情報や受理済み履歴を代記しない。
+
+9資産のbefore識別値は #132 の `new_baseline_identifiers` と一致する。候補afterは base-allowlist 30→31、cache-invalidation 14→15、census 13→14、db-api inventory 14→15、negative-fixtures 16→17、repository 18→19、runtime-authz 15→16、tenant-context 15→16。`frozen-inputs` は4のまま。旧#141受理after射影から候補after射影は8資産すべて変わり、外部検査器snapshotは `b02434c82…`→`c6fbf8c9…`、比較corpus入力digestは #132 基線 `7237caf5…`→候補 `e73ef274…` となる。完全なSHA-256、前後宣言、9資産識別値、外部・資産snapshot参照は上記候補ファイルへ保全した。候補の8資産射影bytesは `/tmp/tsk550-a-132-merge-snapshots/` にある。意味差分はAの固定関数入口・空の製品登録・拒否fixtureとU-S1の既受理契約の併存であり、B/C登録・権限拡張はない。新しいafter実値と履歴順序には**7.7再受理が必要**で、現時点の凍結・履歴検査は未受理候補として不合格のまま扱う。
+
+Claude一次レビューは旧基線の36ファイル全差分に対する静的確認で、可決 P0=0/P1=0/P2=5。独立Codexの候補査読とは別記録である。P2①実行後例外を呼出元が握りつぶした場合の副作用確定、②関数間のcapability/function ID重複とカタログ裏付け、③型なしbind、④未走行の拒否分岐・実DB関数試験は、Aの製品登録0件を踏まえて今回の製品コード変更に含めず、B/Cの実登録前ゲートとして採用する。⑤7.7人間受理発言の固定リンク不足は残余として採用し、PR本文に原文を記録した上で本人逐行確認で出所を照合する。これらを敵対レビューや逐行確認の実施済みへ読み替えない。新基線のコア敵対レビューと本人逐行確認は未実施。
