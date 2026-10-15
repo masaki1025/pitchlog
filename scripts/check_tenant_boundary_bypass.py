@@ -39,7 +39,7 @@ import sys
 import tempfile
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence, Set
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +61,9 @@ DEFAULT_TENANT_CONTEXT_ALLOWLIST = Path(
 )
 DEFAULT_CACHE_INVALIDATION_CONTRACT = Path(
     "contracts/tenant_boundary/cache-invalidation-contract.json"
+)
+DEFAULT_REPOSITORY_CONTRACT = Path(
+    "contracts/tenant_boundary/repository-contract.json"
 )
 # 比較元は基準の値ではなく検査の手続きに属するため、検査対象の資産には置かない。
 # 本検査器は base-allowlist.json の外部凍結対象なので、既定値を動かす変更にも
@@ -1362,6 +1365,109 @@ def _load_cache_invalidation_bypass_contract(
         public_symbols=public_symbols,
         allowed_call_symbols=allowed_calls,
     )
+
+
+def _validate_function_operation_surface(
+    repository_root: Path,
+    asset: Mapping[str, object],
+) -> None:
+    """固定関数の公開面・製品ID集合と実コードを突き合わせる。"""
+    surface = _object(asset.get("public_surface"), "repository.public_surface")
+    registration_symbol = _string(
+        surface.get("function_registration_type"),
+        "repository.public_surface.function_registration_type",
+    )
+    transaction_symbol = _string(
+        surface.get("function_transaction_entry"),
+        "repository.public_surface.function_transaction_entry",
+    )
+    registry_symbol = _string(
+        surface.get("function_operation_registry"),
+        "repository.public_surface.function_operation_registry",
+    )
+
+    def split_repository_symbol(symbol: str, member_count: int) -> tuple[str, ...]:
+        """資産の公開シンボルをrepository moduleとメンバーへ分解する。"""
+        parts = tuple(symbol.split("."))
+        if (
+            len(parts) != 3 + member_count
+            or parts[:2] != ("pitchlog", "repositories")
+            or any(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", part) is None for part in parts)
+        ):
+            raise ContractError(f"固定関数の公開シンボルが不正: {symbol}")
+        return parts
+
+    registration_parts = split_repository_symbol(registration_symbol, 1)
+    transaction_parts = split_repository_symbol(transaction_symbol, 2)
+    registry_parts = split_repository_symbol(registry_symbol, 1)
+    executor = _object(asset.get("function_executor"), "repository.function_executor")
+    if executor.get("symbol") != transaction_symbol:
+        raise ContractError("固定関数実行器と公開入口が不一致")
+    declared_signature = _string(
+        executor.get("signature"), "repository.function_executor.signature"
+    )
+    declared_ids = _string_array(
+        asset.get("product_function_operation_ids"),
+        "repository.product_function_operation_ids",
+    )
+    if len(declared_ids) != len(set(declared_ids)):
+        raise ContractError("固定関数operation IDが重複")
+    module_root = repository_root / "backend/src/pitchlog/repositories"
+    try:
+        registration_tree = ast.parse(
+            (module_root / f"{registration_parts[2]}.py").read_text(
+                encoding="utf-8"
+            )
+        )
+        registry_tree = ast.parse(
+            (module_root / f"{registry_parts[2]}.py").read_text(encoding="utf-8")
+        )
+        transaction_tree = ast.parse(
+            (module_root / f"{transaction_parts[2]}.py").read_text(
+                encoding="utf-8"
+            )
+        )
+    except (OSError, SyntaxError) as error:
+        raise ContractError(f"固定関数の実装を読めない: {error}") from error
+    if not any(
+        isinstance(node, ast.ClassDef) and node.name == registration_parts[3]
+        for node in registration_tree.body
+    ):
+        raise ContractError("固定関数登録型が存在しない")
+    registry_values = [
+        node.value
+        for node in registry_tree.body
+        if isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == registry_parts[3]
+    ]
+    if len(registry_values) != 1 or not isinstance(registry_values[0], ast.Tuple):
+        raise ContractError("固定関数製品registryは静的tupleが必要")
+    actual_ids: list[str] = []
+    for entry in registry_values[0].elts:
+        if not isinstance(entry, ast.Call):
+            raise ContractError("固定関数製品registryの登録形式が不正")
+        matches = [
+            keyword.value.value
+            for keyword in entry.keywords
+            if keyword.arg == "operation_id"
+            and isinstance(keyword.value, ast.Constant)
+            and type(keyword.value.value) is str
+        ]
+        if len(matches) != 1:
+            raise ContractError("固定関数製品IDを静的に解決できない")
+        actual_ids.append(matches[0])
+    if actual_ids != list(declared_ids):
+        raise ContractError("固定関数製品ID集合が資産と不一致")
+    methods = [
+        node
+        for parent in transaction_tree.body
+        if isinstance(parent, ast.ClassDef) and parent.name == transaction_parts[3]
+        for node in parent.body
+        if isinstance(node, ast.FunctionDef) and node.name == transaction_parts[4]
+    ]
+    if len(methods) != 1 or _function_signature(methods[0]) != declared_signature:
+        raise ContractError("固定関数実行器の実装署名が不一致")
 
 
 def load_contract(repository_root: Path) -> Contract:
@@ -5513,11 +5619,35 @@ def scan_directory(
     violations: list[Violation] = []
     for path in sorted(source_root.rglob("*.py")):
         relative = path.relative_to(source_root).as_posix()
+        scanned_contract = contract
+        declared_fixture_path = (
+            Path("tests/fixtures/tenant_boundary/positive") / relative
+        ).as_posix()
+        fixture_entries = tuple(
+            item
+            for item in contract.allowed_symbols
+            if item.fixture == declared_fixture_path
+        )
+        if fixture_entries:
+            module = _module_name(relative)
+            aliased = tuple(
+                replace(
+                    item,
+                    symbol=(
+                        f"{module}." + ".".join(item.symbol.split(".")[-2:])
+                    ),
+                )
+                for item in fixture_entries
+            )
+            scanned_contract = replace(
+                contract,
+                allowed_symbols=(*contract.allowed_symbols, *aliased),
+            )
         violations.extend(
             scan_source(
                 path.read_text(encoding="utf-8"),
                 path=relative,
-                contract=contract,
+                contract=scanned_contract,
                 reject_all_db_calls=reject_all_db_calls,
             )
         )
@@ -6308,6 +6438,14 @@ def check_repository(
         effective_base_ref,
         evaluation_context,
     )
+    function_registration_path = Path(
+        "backend/src/pitchlog/repositories/function_operations.py"
+    )
+    if (repository_root / function_registration_path).exists() or (
+        function_registration_path.as_posix() in changed_files
+    ):
+        repository_asset, _ = _read_json(repository_root / DEFAULT_REPOSITORY_CONTRACT)
+        _validate_function_operation_surface(repository_root, repository_asset)
     baseline_sources = _git_snapshot(repository_root, merge_base)
     head_sources = _git_snapshot(repository_root, "HEAD")
     population = _inspection_population(

@@ -26,6 +26,21 @@ from test_census_baseline_check import (
 
 POSITIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "positive"
 NEGATIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "negative"
+
+
+def test_fixed_function_surface_matches_empty_product_registry() -> None:
+    """Aの登録0件と公開署名を実コード・資産で照合する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / "contracts/tenant_boundary/repository-contract.json")
+        .read_text(encoding="utf-8")
+    )
+    checker._validate_function_operation_surface(REPOSITORY_ROOT, asset)
+    forged = copy.deepcopy(asset)
+    forged["product_function_operation_ids"] = ["forged.operation"]
+    with pytest.raises(checker.ContractError, match="ID集合"):
+        checker._validate_function_operation_surface(REPOSITORY_ROOT, forged)
+
+
 PRODUCT_APPLICATION_PATHS = (
     "pitchlog/authz/runtime_contract.py",
     "pitchlog/db/engine.py",
@@ -132,6 +147,7 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_DYNAMIC_EXEC",
         "C5_DYNAMIC_GETATTR_EXECUTE",
         "C5_DYNAMIC_IMPORT_PSYCOPG",
+        "C5_FUNCTION_DIRECT_SESSION",
         "C5_DYNAMIC_IMPORTLIB",
         "C5_ENGINE_RETURN_ALIAS",
         "C5_ENGINE_RAW_CONNECTION",

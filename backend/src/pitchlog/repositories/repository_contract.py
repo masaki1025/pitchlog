@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 17
+CONTRACT_REVISION = 18
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "670b435ae06b75284eeba6cffc0241abd3e6c8ba9a8971e0afea965d3d9f5746"
+SOURCE_DIGEST = "a62ebc5af7ba6397965f39f0dbbb1bdd55ad932a2d9f6cab2d686b441b866249"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -16,6 +16,19 @@ CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL = (
     "pitchlog.repositories.base.CROSS_TENANT_FUNCTION_REGISTRY"
 )
 TRANSACTION_SCOPE_ENTRY = "pitchlog.repositories.transaction.tenant_transaction_scope"
+FUNCTION_REGISTRATION_TYPE = (
+    "pitchlog.repositories.function_operations.FunctionOperationRegistration"
+)
+FUNCTION_TRANSACTION_ENTRY = (
+    "pitchlog.repositories.transaction._TenantTransaction.run_function"
+)
+FUNCTION_OPERATION_REGISTRY = (
+    "pitchlog.repositories.operation_registry.PRODUCT_FUNCTION_OPERATIONS"
+)
+FUNCTION_EXECUTOR_SYMBOL = FUNCTION_TRANSACTION_ENTRY
+FUNCTION_EXECUTOR_SIGNATURE = (
+    "run_function(self, operation: TenantOperationToken) -> TenantOperationResult"
+)
 EXECUTOR_SYMBOL = "pitchlog.repositories.base.TenantRepositoryBase._execute_operation"
 EXECUTOR_SIGNATURE = (
     "_execute_operation(self, context: TenantContext, "
@@ -91,3 +104,4 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.lineup_memory._LineupMemoryUpdateToken",
 )
 CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
+PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = ()

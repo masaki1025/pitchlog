@@ -301,10 +301,23 @@ def _generated_snapshot() -> dict[str, object]:
                 repository_contract.CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL
             ),
             "transaction_scope_entry": repository_contract.TRANSACTION_SCOPE_ENTRY,
+            "function_registration_type": (
+                repository_contract.FUNCTION_REGISTRATION_TYPE
+            ),
+            "function_transaction_entry": (
+                repository_contract.FUNCTION_TRANSACTION_ENTRY
+            ),
+            "function_operation_registry": (
+                repository_contract.FUNCTION_OPERATION_REGISTRY
+            ),
         },
         "executor": {
             "symbol": repository_contract.EXECUTOR_SYMBOL,
             "signature": repository_contract.EXECUTOR_SIGNATURE,
+        },
+        "function_executor": {
+            "symbol": repository_contract.FUNCTION_EXECUTOR_SYMBOL,
+            "signature": repository_contract.FUNCTION_EXECUTOR_SIGNATURE,
         },
         "return_contract": {
             "allowed_dtos": list(repository_contract.ALLOWED_DTOS),
@@ -319,6 +332,9 @@ def _generated_snapshot() -> dict[str, object]:
         "product_capability_ids": list(repository_contract.PRODUCT_CAPABILITY_IDS),
         "product_operation_token_types": list(
             repository_contract.PRODUCT_OPERATION_TOKEN_TYPES
+        ),
+        "product_function_operation_ids": list(
+            repository_contract.PRODUCT_FUNCTION_OPERATION_IDS
         ),
         "cross_tenant_functions": list(repository_contract.CROSS_TENANT_FUNCTIONS),
     }
@@ -426,6 +442,11 @@ def test_generated_repository_constant_surface_is_exact() -> None:
         "CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL",
         "EXECUTOR_SIGNATURE",
         "EXECUTOR_SYMBOL",
+        "FUNCTION_REGISTRATION_TYPE",
+        "FUNCTION_TRANSACTION_ENTRY",
+        "FUNCTION_OPERATION_REGISTRY",
+        "FUNCTION_EXECUTOR_SYMBOL",
+        "FUNCTION_EXECUTOR_SIGNATURE",
         "FORBIDDEN_TYPES",
         "IMMUTABLE_CONTAINER_GRAMMAR",
         "IMMUTABLE_SCALAR_TYPES",
@@ -433,6 +454,7 @@ def test_generated_repository_constant_surface_is_exact() -> None:
         "OPERATION_TOKEN_TYPE",
         "PRODUCT_CAPABILITY_IDS",
         "PRODUCT_OPERATION_TOKEN_TYPES",
+        "PRODUCT_FUNCTION_OPERATION_IDS",
         "REPOSITORY_TYPE",
         "SCALAR_TYPE_MATCH",
         "SCHEMA_VERSION",
