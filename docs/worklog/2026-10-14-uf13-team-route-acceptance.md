@@ -327,3 +327,14 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - 資産固有契約が「authz入力を確定した先行コミットSHA」と「GitHubの実repository/PR番号」を要求するため、通常の1ステップ1コミット・ステップ完了後PR作成では自己参照を閉じられない。2026-10-15のC1最小追補案どおり、ステップ1だけを第1段（製品・共有契約・derived lock・DB試験）、第2段（第1段SHAを7つの`oracle_commit`へ反映）、第3段（実PR番号によるtenant/authz受理履歴・snapshot・seal・archive再封印）の3コミットへ分ける必要がある。
 - 一度に必要な人間判断は、(1) 既存3周を越えてこの追補差分だけを対象に敵対レビュー1回を追加するPO裁定、(2) C1限定の3段コミット、Draft先行、Draft中のplan `active`維持、品質gate分割の承認、(3) 第1・第2段のコミットとpush、実番号取得だけを目的とするDraft PR作成の許可、の3点である。
 - 上記が承認された後も、実PR番号入り第3段候補に対する7.7逐行受理、最終差分の反対側レビュー・コア敵対レビュー・人間逐行確認は省略しない。Draft解除、C2、U-F3、U-F13公開、マージはこの例外に含めない。
+
+### C1限定3段追補の承認・追加独立レビュー（2026-10-16）
+
+- 山田正輝が、追補差分と計画6・7・10節に限定した追加独立レビュー1回、C1ステップ1限定の3段コミット、Draft中のplan `active`維持、第1・第2段のコミット・push・実番号取得用Draft PRまでを一括承認した。第3段の正式7.7受理、人間逐行確認、Draft解除、マージは未承認のまま維持する。正式な承認者・承認日は第3段の正式受理前に入力しない。
+- 追加独立レビューはP0 0 / P1 2 / P2 0。P1-1は共有実行器A→C1の順と再導出条件が計画へ未反映、P1-2は`test_api_conventions.py`が禁止DB語彙の部分一致をword boundaryへ弱めたこと。追加仕様・権限・承認範囲の変更を要する指摘はなかった。
+- P1-2は、従来の部分一致拒否を復元し、承認済みDTO識別子`AuthSessionResponse`だけを単語境界で除外する形へ修正した。`AsyncSession`、`DatabaseSession`、`sqlalchemy_session`、`db_engine`、`sqlalchemy2`、DTO後続の`Session.execute`を拒否する回帰試験を追加した。対象21件、Ruff check、format checkはすべて成功した。
+- 同じ独立レビュアが修正差分を再確認し、P1-1/P1-2とも収束、新たなP1なしと判定した。第1段の開始条件がPR #141の再基線化・正式統合後の再導出であることも確認した。
+- 共有実行器AのPR #141はhead `0b203dcdd5831c881943657ec915dc96fc3724a4`、Draft、`CONFLICTING/DIRTY`で、PR #132統合後のdevelopへ未追随である。C1と`operation_registry.py`、生成repository契約、repository exact-set試験、base allowlist、repository契約、tenant-boundary履歴・snapshot・archive corpusが重なる。
+- PR #141コメント`6197437468`でA→C1の順を担当へ提示した。Aが#132統合後のlatest developへ追随し、必要な再受理・検査を終えて先に統合された後、その実merge SHAを含む`origin/develop`をC1へmergeする。#141側の受理記録への反映を依頼し、意味衝突や別順序が必要な場合は重複ファイルと最小差分の返信を求めた。
+- 前節に記録したC1のrepository 18→19、base allowlist 30→31、2件のsnapshot hashは、#132直後基線に対する導出確認値であり、第3段の正式候補値ではない。A統合後の確定revision・履歴をbeforeとしてC1のrevision、source digest、snapshot、previous/new identifiersを再導出するまで第1段コミットを作らない。異なるbranchの同じrevision番号を同一内容として扱わない。
+- 3段追補、A→C1順、追加独立レビューとP1採用を計画へ反映した。P1修正後のC1製品候補は作業treeとstash `0100de2077257aafd8b5e11c14957894687f6cd2`に保全されている。現時点の残る開始条件はPR #141の再基線化・正式統合だけで、C2、U-F3、公開には進んでいない。

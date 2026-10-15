@@ -85,7 +85,7 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 | --- | --- | --- |
 | backend | auth router / schema、session endpoint、backend tests | #119 統合後の実パスから確定する。#119 の変更をコピーしない |
 | frontend | `api/auth.ts`、`authStore.ts` と各 spec | U-F3 と同じ branch に混ぜず、C1 の先行追補として統合する |
-| authz / 凍結 | route registry、HTTP route matrix、runtime authz contract、tenant boundary allowlist / history | #129・#131・#132の所有差分を先に確定する。必要資産だけ最新developから宣言・受理する |
+| authz / 凍結 | route registry、HTTP route matrix、runtime authz contract、tenant boundary allowlist / history | #129・#131・#132の所有差分を先に確定する。共有実行器A（PR #141）と重なるrepository契約・base allowlistはA→C1の順に統合し、Aの実統合SHAを含む最新developからC1の識別値・履歴・snapshotを再導出する |
 | core paths | auth router/schema/client/store の既存登録と不足分 | 製品差分と同じ追補で扱う。core pathだけを先行登録しない |
 
 ## 6. 実装ステップ
@@ -95,9 +95,13 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 | 1 | #119 統合後の server に session endpoint / DTO / authz を追加する | 2xx は Cookie 由来の tenant ID と正規表示名だけを返す。401、失効、無効 tenant、存在秘匿、request tenant 注入拒否、凍結資産検査、backend 品質 gate が green |
 | 2 | U-F2 store と正規auth clientに起動時/session verification境界を追加する | store/client単体で、保存値だけでは認証済みにせずtenant-bound requestを開始できない。login 2xxと結果未確認で旧store/cacheを破棄。login 401は既存認証を失効させない。session 2xxかつDTO検証成功時だけ認証済み。401とnetwork/5xx/DTO不正が別状態。資格情報の自動再送なし。保存値A + Cookie Bの候補、遅延session、並行確認を試験。実`/team`直接reloadのguard/画面/API受入はU-F13ステップ2/3で行う。frontend品質gate green |
 
-各ステップは別コミットとし、人間が承認したステップだけを実装して停止する。
+各ステップは別コミットとし、人間が承認したステップだけを実装して停止する。ステップ1だけは、authz入力commitと実PR番号の自己参照を閉じるため、次の3段・3コミットをC1限定例外として用いる。planは第3段と全合格条件が完了するまで`active`に保つ。
 
-ステップ1の内部順は、(1) 非共有コード・固有試験、(2) 既存PR統合後のlatest `origin/develop`を既存方針どおりmerge、(3) tenant-boundary / authz凍結差分と7.7履歴、(4) 全検査、(5) 単一の`(ステップ 1/2)`コミットとする。rebaseを自動前提にせず、未統合branchを基線にしない。ステップ数、DoD、endpoint / DTO / 認可、正式コミット単位は変更しない。
+1. **第1段**: 非共有コード・固有試験を保全し、共有実行器A（PR #141）の実統合後にそのSHAを含む最新`origin/develop`をmergeする。Aが確定したrevision・履歴をbeforeとして、C1のrepository契約、base allowlist、source digest、snapshot、7.7 previous/newを再導出する。異なるbranchの同じrevision番号や旧snapshotを同一内容として流用しない。製品・共有契約・route/matrix・derived lock・隔離DB試験と、正式受理前に実行可能な検査を`(ステップ 1/2 第1段)`へまとめる。PR番号・oracle commitに依存する検査は緩和せずfail-closedの未完了として記録する。
+2. **第2段**: 第1段の実コミットSHAをauthzの`oracle_commit` 7箇所へ反映し、対応する入力digestだけを追随する。履歴・seal・tenant-boundary snapshotを仮値で受理せず、`(ステップ 1/2 第2段)`とする。
+3. 第2段までをpushし、実PR番号取得用のDraft PRを作る。PR本文に3段の内容、C1ステップ1未完了、7.7第3段待ち、レビュー・人間逐行確認未完了を明記する。Draft解除・マージを行わない。
+4. **第3段**: 実PR番号を用いたtenant-boundary v2受理記録・snapshotとauthz `oracle_input`追記の完全な前後差分を提示する。正式な7.7人間受理後だけ履歴、seal、archive corpusを再封印し、`(ステップ 1/2 第3段)`とする。正式な承認者・承認日を先行入力しない。
+5. 第3段後に全品質gate、反対側レビュー、コア敵対レビュー、人間逐行確認を完了して初めてステップ1合格とする。rebaseを自動前提にせず、未統合branchを基線にしない。ステップ数、DoD、endpoint / DTO / 認可は変更しない。
 
 ## 7. DoD とレビュー
 
@@ -107,6 +111,8 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 - [ ] logout の結果未確認を成功表示しない。
 - [ ] delayed login / session / logout が新しい `authEpoch` の store / cache を変更しない。
 - [ ] tenant ID と正規表示名を利用者入力から生成しない。
+- [ ] 共有実行器Aの実統合後のdevelopからC1のrepository契約・base allowlist・7.7前後値を再導出し、異なるbranchの同じrevisionを流用していない。
+- [ ] 第1・第2段では未受理履歴・sealをfail-closedのまま維持し、第3段の正式受理前に承認者・承認日を入力していない。
 - [ ] コア adversarial review、反対側レビュー、人間逐行確認、backend / frontend 品質 gate、凍結資産検査を通す。
 
 ## 8. 人間承認が必要な判断
@@ -125,8 +131,12 @@ U-F13計画の最終P1反映と、その後に具体化した本契約案は未�
 
 第3周は第2周P0反映だけを対象とし、P0 0で可決。第2周P1の追随差分は回数上限により未再レビューであり、人間承認時の確認対象とする。
 
+2026-10-16、POが追補差分と影響節に限定した追加独立レビュー1回を許可した。追加独立レビューはP0 0 / P1 2 / P2 0。P1は、A→C1順を計画へ固定してA統合後に受理値を再導出することと、API規約試験で従来の禁止DB語彙の部分一致検出を維持し`AuthSessionResponse`だけを厳密に除外すること。いずれも承認済み範囲内で採用した。追加仕様・権限・承認範囲の変更はない。
+
 ## 10. 人間承認記録
 
 2026-10-14、山田正輝が計画HEAD `e42a2ddbd2db58dd1fca642959ff4a2870299f63` の本計画を承認した。sessionは2xxかつDTO検証成功時だけ認証済みとし、2xxのDTO不正は結果未確認とする。`team_name`はサーバーの認可済みデータから取得し、認可・tenant照合のキーに使わない。開始条件成立後も最初のステップだけを実装して停止する。第2周P1追随の未再レビュー範囲は人間逐行確認対象として維持する。
 
 2026-10-15、山田正輝が開始条件3の分解とステップ1内部順の最小追補を承認した。共有凍結資産は既存PR先行を維持し、#132の公開面回答後は未統合共有資産を変更せず非共有実装・固有試験を開始できる。ステップ1完了は、既存PR統合後の凍結資産追随、7.7確認、全検査を終えた後とする。
+
+2026-10-16、山田正輝がC1ステップ1限定の3段・3コミット、Draft中のplan `active`維持、品質gate分割を承認した。追加独立レビューが承認範囲内の修正で収束した場合、第1・第2段のコミット、push、実番号取得用Draft PR作成まで再確認なく進める。共有実行器Aと重なる資産はA→C1を基本順とし、Aの実統合後の基線から受理値・履歴を再導出する。第3段の正式7.7受理、人間逐行確認、Draft解除、マージは承認範囲外である。
