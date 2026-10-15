@@ -168,3 +168,10 @@
 - **検査現在地**: 隔離DBの実Alembic適用2件（同ID追加拒否、試験用open既存行の再投入上書き拒否を含む）、候補検査器の正常1件・拒否11件、Ruff・tyが成功。正式台帳未受理のためmigration衛生全件114件中113件成功・新`bulk_insert`拒否1件で、これは設計通りの未完ゲート。Aは`origin/develop=3f6a935a`へ未統合。正式revision/digest/snapshotは未確定。
 - **独立レビュー・採否**: 候補作成に関与しない`/root/rg1_review`が上記固定SHAの4ファイルと直接影響だけをread-onlyで確認。結果は**可決 P0=0/P1=0/P2=0**。途中の候補fixtureが7.7受理後に失敗するというP1指摘は、固定SHAでは既に受理前後両状態を扱うためレビュアが再読して撤回した。採用すべき残指摘なし。既存の製品/認可候補2回レビュー結果と混同せず、今回の判定はseed候補差分限定とする。
 - **追加検査**: backend migration衛生の受理済み範囲113件、seed隔離DB/負例14件、root core guard259件、root/backend Ruff・ty成功。全migration衛生の1赤は正式台帳未受理の新`bulk_insert`拒否であり、正式受理前に検査器を緩和しない。試験用open既存行は隔離DBの上書き拒否を測るfixtureで、運用解除ではない。
+
+## TSK-506へのguard編集所有引き渡し（2026-10-16）
+
+- **比較元**: 最新`origin/develop=966d7a38aa8dab2113c1d8ec6d30e5d32088ede5`（#132統合済み）。TSK-506専用worktreeは読取確認で同SHAをmerge-baseとし、guard3ファイルに未コミット変更なし。U-R1未統合ブランチをTSK-506のdevelop基線として使わない。
+- **U-R1確定差分**: `5480e350`/`40e5f310`で`AREA_PATH_ADDITIONS`と試験のRG1層を宣言、`76f993f1`/`3dcb437b`で`.claude/core-areas.json`へ別コミット登録、`60202cf2`でRG1実経路帰属試験を固定。`19167e97`で最新developをmergeし、U-S1の登録済み層の後にRG1層を置いて3ファイルの競合を解消。現HEAD=`19167e97`、比較元との差分3ファイルのbinary diff SHA-256=`f8d898e5d5e4ec6ce7aa81fdea58b9148d6168432651d00ac2e3d26d00ec6821`。guard3ファイルの未コミット差分は**0**。
+- **保持すべき境界**: `sync-protocol`のRG1追加6パターン、`recording-rights`のRG1追加17パターンを、U-S1の既登録3パターンの後の完全な末尾層として維持する。`scripts/core_guard.py`の宣言と`.claude/core-areas.json`の登録はコミット分離を維持し、`tests/test_core_guard.py`の段階登録・不完全末尾拒否・RG1実経路の二領域帰属・U-S1登録済み基線検査を残す。`verify_area_path_baseline(origin/develop, HEAD)`は`966d7a38`を返し、core guard262件、root Ruff・tyが成功。
+- **所有判断**: U-R1からguard3ファイルの編集所有を**解除**する。TSK-506は自己の最新develop基線で着手できる。U-R1新4の現在判明している追加パスは登録済みで、これら3ファイルの予定編集はない。A統合後に新たなRG1パスが必要と判明した場合は、TSK-506と同時編集せず、同担当の変更確定後に差分と計画ゲートを再照合する。guard独立PRの分割は待ち短縮に不要で、現行の先行PR計画を維持する。製品/認可/seed候補は別の未コミット差分として保全し、今回の所有解除に混ぜない。
