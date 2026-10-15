@@ -3897,7 +3897,8 @@ def test_step39_attribution_follows_restore_contracts() -> None:
 
     assert "| 同期側で決める | 37 |" in attribution
     assert "| 境界として参照 | 83 |" in attribution
-    assert "| 対象外 | 92 |" in attribution
+    # 要件書 v2.13 の付録B-7 を帰属表へ「対象外」として追加したため 93 件になった。
+    assert "| 対象外 | 93 |" in attribution
     assert "| FR-035 | 境界として参照 | 4-4・9-4・9-5 |" in attribution
     assert (
         "| NFR-015 | 同期側で決める | 6-3・7-1・7-4・8-3・9-2・9-5 |"

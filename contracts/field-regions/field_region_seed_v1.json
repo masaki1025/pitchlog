@@ -1,0 +1,767 @@
+{
+  "schemaVersion": 1,
+  "version": "field_region_seed_v1",
+  "source": {
+    "repository": "masaki1025/Baseball_Scoring-archive",
+    "tag": "dd03160044aa5932d3b5a025870c9a5a56d979ef",
+    "path": "frontend/src/lib/fielder.ts",
+    "blobShaStatus": "取得は委任元が行う",
+    "directionSource": {
+      "geometryPath": "contracts/display_geometry_263_v1.json",
+      "geometryFields": [
+        "field.home",
+        "field.first",
+        "field.third"
+      ],
+      "requirementPath": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "requirementClause": "付録A-3 打球方向",
+      "derivation": "equal-angle-five-way-approximated-by-integer-rays"
+    }
+  },
+  "description": "旧 fielder.ts の矩形 4 条件を評価順に置き、続く 9 アンカーの最近傍領域を二乗距離の垂直二等分線で得た半平面の共通部分として構成した。各領域を旧 263 系の単位正方形 [0,263] × [0,263] でクリップし、全交点を Python 標準ライブラリ fractions.Fraction で厳密に計算した後、x/263・(263-y)/263 で保存座標へ移した。旧投手条件の x<145 は右辺だけを開いて保持する。",
+  "fieldImage": {
+    "originalWidth": 263,
+    "originalHeight": 263,
+    "normalization": {
+      "sourceOrigin": "top-left",
+      "targetOrigin": "bottom-left",
+      "xMapping": "x / originalWidth",
+      "yMapping": "1 - y / originalHeight"
+    }
+  },
+  "regions": [
+    {
+      "regionId": "catcher-rectangle",
+      "position": 2,
+      "vertices": [
+        {
+          "x": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 58,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 58,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 0,
+            "denominator": 1
+          }
+        },
+        {
+          "x": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 0,
+            "denominator": 1
+          }
+        }
+      ]
+    },
+    {
+      "regionId": "first-base-rectangle",
+      "position": 3,
+      "vertices": [
+        {
+          "x": {
+            "numerator": 155,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 98,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 98,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 0,
+            "denominator": 1
+          }
+        },
+        {
+          "x": {
+            "numerator": 155,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 0,
+            "denominator": 1
+          }
+        }
+      ]
+    },
+    {
+      "regionId": "third-base-rectangle",
+      "position": 5,
+      "vertices": [
+        {
+          "x": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 98,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 75,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 98,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 75,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 0,
+            "denominator": 1
+          }
+        },
+        {
+          "x": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 0,
+            "denominator": 1
+          }
+        }
+      ]
+    },
+    {
+      "regionId": "pitcher-rectangle",
+      "position": 1,
+      "vertices": [
+        {
+          "x": {
+            "numerator": 105,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 73,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 105,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 123,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 145,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 123,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 145,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 73,
+            "denominator": 263
+          }
+        }
+      ],
+      "openEdges": [
+        2
+      ]
+    },
+    {
+      "regionId": "anchor-1-position-8",
+      "position": 8,
+      "vertices": [
+        {
+          "x": {
+            "numerator": 142815,
+            "denominator": 286144
+          },
+          "y": {
+            "numerator": 85265,
+            "denominator": 143072
+          }
+        },
+        {
+          "x": {
+            "numerator": 120,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 1970,
+            "denominator": 3419
+          }
+        },
+        {
+          "x": {
+            "numerator": 72243,
+            "denominator": 194620
+          },
+          "y": {
+            "numerator": 59041,
+            "denominator": 97310
+          }
+        },
+        {
+          "x": {
+            "numerator": 895,
+            "denominator": 6312
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 1
+          }
+        },
+        {
+          "x": {
+            "numerator": 22665,
+            "denominator": 30508
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 1
+          }
+        }
+      ]
+    },
+    {
+      "regionId": "anchor-2-position-7",
+      "position": 7,
+      "vertices": [
+        {
+          "x": {
+            "numerator": 94877,
+            "denominator": 501278
+          },
+          "y": {
+            "numerator": 236273,
+            "denominator": 501278
+          }
+        },
+        {
+          "x": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 17103,
+            "denominator": 38398
+          }
+        },
+        {
+          "x": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 1
+          }
+        },
+        {
+          "x": {
+            "numerator": 895,
+            "denominator": 6312
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 1
+          }
+        },
+        {
+          "x": {
+            "numerator": 72243,
+            "denominator": 194620
+          },
+          "y": {
+            "numerator": 59041,
+            "denominator": 97310
+          }
+        }
+      ]
+    },
+    {
+      "regionId": "anchor-3-position-9",
+      "position": 9,
+      "vertices": [
+        {
+          "x": {
+            "numerator": 250383,
+            "denominator": 331906
+          },
+          "y": {
+            "numerator": 154453,
+            "denominator": 331906
+          }
+        },
+        {
+          "x": {
+            "numerator": 142815,
+            "denominator": 286144
+          },
+          "y": {
+            "numerator": 85265,
+            "denominator": 143072
+          }
+        },
+        {
+          "x": {
+            "numerator": 22665,
+            "denominator": 30508
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 1
+          }
+        },
+        {
+          "x": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 1
+          }
+        },
+        {
+          "x": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 16835,
+            "denominator": 38398
+          }
+        }
+      ]
+    },
+    {
+      "regionId": "anchor-4-position-6",
+      "position": 6,
+      "vertices": [
+        {
+          "x": {
+            "numerator": 28331,
+            "denominator": 78374
+          },
+          "y": {
+            "numerator": 27043,
+            "denominator": 78374
+          }
+        },
+        {
+          "x": {
+            "numerator": 94877,
+            "denominator": 501278
+          },
+          "y": {
+            "numerator": 236273,
+            "denominator": 501278
+          }
+        },
+        {
+          "x": {
+            "numerator": 72243,
+            "denominator": 194620
+          },
+          "y": {
+            "numerator": 59041,
+            "denominator": 97310
+          }
+        },
+        {
+          "x": {
+            "numerator": 120,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 1970,
+            "denominator": 3419
+          }
+        },
+        {
+          "x": {
+            "numerator": 120,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 1075,
+            "denominator": 2104
+          }
+        }
+      ]
+    },
+    {
+      "regionId": "anchor-5-position-4",
+      "position": 4,
+      "vertices": [
+        {
+          "x": {
+            "numerator": 33429,
+            "denominator": 60490
+          },
+          "y": {
+            "numerator": 112271,
+            "denominator": 302450
+          }
+        },
+        {
+          "x": {
+            "numerator": 120,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 1075,
+            "denominator": 2104
+          }
+        },
+        {
+          "x": {
+            "numerator": 120,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 1970,
+            "denominator": 3419
+          }
+        },
+        {
+          "x": {
+            "numerator": 142815,
+            "denominator": 286144
+          },
+          "y": {
+            "numerator": 85265,
+            "denominator": 143072
+          }
+        },
+        {
+          "x": {
+            "numerator": 250383,
+            "denominator": 331906
+          },
+          "y": {
+            "numerator": 154453,
+            "denominator": 331906
+          }
+        }
+      ]
+    },
+    {
+      "regionId": "anchor-6-position-5",
+      "position": 5,
+      "vertices": [
+        {
+          "x": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 17103,
+            "denominator": 38398
+          }
+        },
+        {
+          "x": {
+            "numerator": 94877,
+            "denominator": 501278
+          },
+          "y": {
+            "numerator": 236273,
+            "denominator": 501278
+          }
+        },
+        {
+          "x": {
+            "numerator": 28331,
+            "denominator": 78374
+          },
+          "y": {
+            "numerator": 27043,
+            "denominator": 78374
+          }
+        },
+        {
+          "x": {
+            "numerator": 11353,
+            "denominator": 29982
+          },
+          "y": {
+            "numerator": 65,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 1271,
+            "denominator": 9994
+          },
+          "y": {
+            "numerator": 0,
+            "denominator": 1
+          }
+        },
+        {
+          "x": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 0,
+            "denominator": 1
+          }
+        }
+      ]
+    },
+    {
+      "regionId": "anchor-7-position-3",
+      "position": 3,
+      "vertices": [
+        {
+          "x": {
+            "numerator": 11847,
+            "denominator": 22618
+          },
+          "y": {
+            "numerator": 65,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 33429,
+            "denominator": 60490
+          },
+          "y": {
+            "numerator": 112271,
+            "denominator": 302450
+          }
+        },
+        {
+          "x": {
+            "numerator": 250383,
+            "denominator": 331906
+          },
+          "y": {
+            "numerator": 154453,
+            "denominator": 331906
+          }
+        },
+        {
+          "x": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 16835,
+            "denominator": 38398
+          }
+        },
+        {
+          "x": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "y": {
+            "numerator": 0,
+            "denominator": 1
+          }
+        },
+        {
+          "x": {
+            "numerator": 19387,
+            "denominator": 22618
+          },
+          "y": {
+            "numerator": 0,
+            "denominator": 1
+          }
+        }
+      ]
+    },
+    {
+      "regionId": "anchor-8-position-1",
+      "position": 1,
+      "vertices": [
+        {
+          "x": {
+            "numerator": 11353,
+            "denominator": 29982
+          },
+          "y": {
+            "numerator": 65,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 28331,
+            "denominator": 78374
+          },
+          "y": {
+            "numerator": 27043,
+            "denominator": 78374
+          }
+        },
+        {
+          "x": {
+            "numerator": 120,
+            "denominator": 263
+          },
+          "y": {
+            "numerator": 1075,
+            "denominator": 2104
+          }
+        },
+        {
+          "x": {
+            "numerator": 33429,
+            "denominator": 60490
+          },
+          "y": {
+            "numerator": 112271,
+            "denominator": 302450
+          }
+        },
+        {
+          "x": {
+            "numerator": 11847,
+            "denominator": 22618
+          },
+          "y": {
+            "numerator": 65,
+            "denominator": 263
+          }
+        }
+      ]
+    },
+    {
+      "regionId": "anchor-9-position-2",
+      "position": 2,
+      "vertices": [
+        {
+          "x": {
+            "numerator": 11353,
+            "denominator": 29982
+          },
+          "y": {
+            "numerator": 65,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 11847,
+            "denominator": 22618
+          },
+          "y": {
+            "numerator": 65,
+            "denominator": 263
+          }
+        },
+        {
+          "x": {
+            "numerator": 19387,
+            "denominator": 22618
+          },
+          "y": {
+            "numerator": 0,
+            "denominator": 1
+          }
+        },
+        {
+          "x": {
+            "numerator": 1271,
+            "denominator": 9994
+          },
+          "y": {
+            "numerator": 0,
+            "denominator": 1
+          }
+        }
+      ]
+    }
+  ],
+  "directionOrigin": {
+    "x": 123,
+    "y": 39
+  },
+  "directionSectors": [
+    {
+      "directionId": "batted-ball-direction.left",
+      "startRay": {"x": -47, "y": 53},
+      "endRay": {"x": -93, "y": 200}
+    },
+    {
+      "directionId": "batted-ball-direction.left-center",
+      "startRay": {"x": -93, "y": 200},
+      "endRay": {"x": -32, "y": 219}
+    },
+    {
+      "directionId": "batted-ball-direction.center",
+      "startRay": {"x": -32, "y": 219},
+      "endRay": {"x": 32, "y": 219}
+    },
+    {
+      "directionId": "batted-ball-direction.right-center",
+      "startRay": {"x": 32, "y": 219},
+      "endRay": {"x": 93, "y": 200}
+    },
+    {
+      "directionId": "batted-ball-direction.right",
+      "startRay": {"x": 93, "y": 200},
+      "endRay": {"x": 47, "y": 53}
+    }
+  ],
+  "tieBreak": "first-defined-region-wins"
+}
