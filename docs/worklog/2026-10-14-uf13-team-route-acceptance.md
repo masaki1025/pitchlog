@@ -185,3 +185,11 @@ P0 0 件、P1 1 件、P2 0 件で否決。P1 を採用した。
 - PR #132はDraft・`CONFLICTING/DIRTY`で、head`d5c2f5953fb84470f8a537957dc2dbc6587b75df`はTSK-538統合SHAを含まない。C1が必要とする`operation_registry.py`、repository contractとtenant-boundary 7.7再封印を所有するため、統合と最新基線追随を待つ。
 - PR #137もDraft・`CONFLICTING/DIRTY`で、head`1eac40d70caa6bf5edb69312aedbe8b61279edbe`はTSK-538統合SHAを含まない。route registry、HTTP matrix、lock / seal資産を所有するため、C1の`GET /auth/session`登録と7.7確認は同PR統合後に行う。
 - 現時点で進められた作業は、TSK-538取込、製品差分の再適用、意味差分照合、非共有のlint・型・固有回帰試験まで。operation登録に依存する隔離DB試験、共有凍結資産、route exact-set解消、全検査、ステップ1製品コミットは#132・#137統合後に続ける。既済みの計画承認・担当受理に変更はなく、新たな人間判断は発生していない。
+
+### C1固有route exact-setの所有確定と検証完了（2026-10-15）
+
+- `/auth/session`の製品実装は承認済みC1計画のbackend範囲。`backend/tests/test_api_app.py`と`backend/tests/test_api_conventions.py`の静的route exact-setは、#132・#137のいずれも変更しておらず、C1経路追加に直接追随する試験としてC1が所有する。`GET /auth/session`と`auth_session_read`を期待集合へ追加し、経路数を16→17へ厳密に更新した。除外・skip・部分集合比較への変更は行っていない。
+- `AuthSessionResponse`の`Session`をDB接続型の禁止語と誤認した既存規約試験は、禁止識別子を単語境界で判定するよう修正した。禁止語7件それぞれの負例を追加し、実際の`Session`・`sqlalchemy`・`engine`・`session.execute`等を拒否する能力を維持した。
+- C1固有差分7ファイルに対し、ruff green、backend `ty check` green、auth exit / login / session / tenant profile repository / app / API conventionsの59件green、`git diff --check` green。従来のroute exact-set失敗は正式なC1期待値追随により解消した。
+- 現在の7ファイルはworktreeへ未コミットで保持し、名前付きstash`C1 step1 specific implementation with route exact set 2026-10-15`（object `d4be5f1f6e252cc490baa18b7e5686d4c92fb099`）にも同一内容を保全した。
+- C1固有実装とDB不要の固有検証は完了。残る依存は、#132統合後の`TENANT_PROFILE_OPERATIONS`共有registry登録・tenant-boundary 7.7再封印・隔離DBでのRLS/application role SELECT確認と、#137統合後のauthz route registry / HTTP matrix / lock / seal追随。その後に全品質gateと単一の`(ステップ 1/2)`コミットを行う。現時点ではステップ1未完了のためPR作成不可。
