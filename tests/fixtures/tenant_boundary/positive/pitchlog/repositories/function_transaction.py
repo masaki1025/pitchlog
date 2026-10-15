@@ -1,6 +1,6 @@
 """固定関数ハンドルだけのSession.execute許可を表す正例。"""
 
-from pitchlog.repositories.function_operations import (  # ty: ignore[unresolved-import]
+from pitchlog.repositories.function_operations import (
     decode_function_result,
     prepare_function_operation,
 )

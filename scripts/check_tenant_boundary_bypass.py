@@ -2032,6 +2032,157 @@ def _constant_string(node: ast.AST) -> str | None:
     return None
 
 
+def _is_fixed_registration_statement_init(
+    node: ast.Call, scope: str | None
+) -> bool:
+    """固定関数登録型の検証済みstatement初期化だけを識別する。"""
+    if (
+        scope
+        != "pitchlog.repositories.function_operations."
+        "FunctionOperationRegistration.__post_init__"
+        or len(node.args) != 3
+        or node.keywords
+        or not isinstance(node.args[0], ast.Name)
+        or node.args[0].id != "self"
+        or _constant_string(node.args[1]) != "statement"
+    ):
+        return False
+    expected = ast.parse(
+        "_build_fixed_function_statement("
+        "parts[0], parts[1], self.input_fields, result_names, bool(froms))",
+        mode="eval",
+    ).body
+    return ast.dump(node.args[2], include_attributes=False) == ast.dump(
+        expected, include_attributes=False
+    )
+
+
+def _fixed_builder_binding_nodes(tree: ast.Module) -> list[ast.AST]:
+    """固定文生成関数を別の値へ再束縛する構文を列挙する。"""
+    if not any(
+        (isinstance(node, ast.Name) and node.id == "_build_fixed_function_statement")
+        or (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_build_fixed_function_statement"
+        )
+        for node in ast.walk(tree)
+    ):
+        return []
+    protected = frozenset(
+        {"_build_fixed_function_statement", "_canonical_bind", "Function", "select", "bindparam"}
+    )
+    definitions = {
+        name: [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == name
+        ]
+        for name in ("_build_fixed_function_statement", "_canonical_bind")
+    }
+    violations: list[ast.AST] = []
+    for nodes in definitions.values():
+        violations.extend(nodes[1:])
+        if len(nodes) != 1 or nodes[0] not in tree.body:
+            violations.append(tree)
+    registration_classes = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef)
+        and node.name == "FunctionOperationRegistration"
+    ]
+    violations.extend(registration_classes[1:])
+    for registration in registration_classes:
+        for method in registration.body:
+            if not isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if method.name != "__post_init__":
+                continue
+            violations.extend(
+                node
+                for node in ast.walk(method)
+                if isinstance(node, ast.Name)
+                and node.id == "self"
+                and isinstance(node.ctx, (ast.Store, ast.Del))
+            )
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id in protected and isinstance(
+            node.ctx, (ast.Store, ast.Del)
+        ):
+            violations.append(node)
+        elif isinstance(node, ast.arg) and node.arg in protected:
+            violations.append(node)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                bound = alias.asname or alias.name.rsplit(".", 1)[-1]
+                if bound not in protected:
+                    continue
+                if not isinstance(node, ast.ImportFrom) or (
+                    node.module,
+                    alias.name,
+                    alias.asname,
+                ) not in {
+                    ("sqlalchemy", "select", None),
+                    ("sqlalchemy", "bindparam", None),
+                    ("sqlalchemy.sql.functions", "Function", None),
+                }:
+                    violations.append(node)
+        elif isinstance(node, ast.ExceptHandler) and node.name in protected:
+            violations.append(node)
+    return violations
+
+
+def _expected_function_body(source: str) -> list[ast.stmt]:
+    """固定SQL本文の期待構文を関数本文として取得する。"""
+    function = ast.parse(source).body[0]
+    assert isinstance(function, ast.FunctionDef)
+    return function.body
+
+
+_FIXED_BUILDER_BODY = _expected_function_body(
+    "def expected():\n"
+    "    safe_arguments = (\n"
+    '        _canonical_bind("tenant_id", UUID),\n'
+    "        *(_canonical_bind(name, field_type) for name, field_type in input_fields),\n"
+    "    )\n"
+    "    safe_function = Function(function_name, *safe_arguments, packagenames=(schema,))\n"
+    "    if not table_valued:\n"
+    "        return select(safe_function.label(result_names[0]))\n"
+    "    safe_table = safe_function.table_valued(*result_names)\n"
+    "    return select(*(safe_table.c[name] for name in result_names))\n"
+)
+
+_FIXED_BIND_BODY = _expected_function_body(
+    "def expected():\n"
+    "    if expected_type is UUID:\n"
+    "        return bindparam(name, type_=Uuid())\n"
+    "    if expected_type is str:\n"
+    "        return bindparam(name, type_=String())\n"
+    "    if expected_type is int:\n"
+    "        return bindparam(name, type_=Integer())\n"
+    "    if expected_type is bool:\n"
+    "        return bindparam(name, type_=Boolean())\n"
+    '    raise FunctionOperationError("固定関数入力に未対応の型")\n'
+)
+
+
+def _is_fixed_builder_body(
+    node: ast.FunctionDef | ast.AsyncFunctionDef, expected: list[ast.stmt]
+) -> bool:
+    """許可対象のSQL生成本文が検証済みの形と一致することを照合する。"""
+    body = node.body
+    if body and isinstance(body[0], ast.Expr) and isinstance(
+        body[0].value, ast.Constant
+    ) and isinstance(body[0].value.value, str):
+        body = body[1:]
+    return not node.decorator_list and ast.dump(
+        ast.Module(body=body, type_ignores=[]), include_attributes=False
+    ) == ast.dump(
+        ast.Module(body=expected, type_ignores=[]),
+        include_attributes=False,
+    )
+
+
 class _AliasCollector(ast.NodeVisitor):
     """import・型注釈・単純代入からシンボルと receiver の由来を収集する。"""
 
@@ -4160,6 +4311,11 @@ class _SourceScanner(ast.NodeVisitor):
         self.reexport_map = reexport_map
         binding_source = source if source is not None else ast.unparse(tree)
         self.module_bindings = _module_bindings(binding_source, path)
+        self.fixed_builder_binding_nodes = (
+            _fixed_builder_binding_nodes(tree)
+            if module == "pitchlog.repositories.function_operations"
+            else []
+        )
         self.lexically_bound_name_ids = _lexically_bound_name_ids(
             tree,
             binding_source,
@@ -4755,6 +4911,11 @@ class _SourceScanner(ast.NodeVisitor):
         ):
             target = node.args[0]
             target_name = target.id if isinstance(target, ast.Name) else None
+            if (
+                not self.fixed_builder_binding_nodes
+                and _is_fixed_registration_statement_init(node, self._current_symbol())
+            ):
+                return
             canonical_init = (
                 f"{self.contract.tenant_context.constructor_symbol}.__init__"
             )
@@ -5291,6 +5452,18 @@ class _SourceScanner(ast.NodeVisitor):
             self.visit(statement)
         self.class_stack.pop()
 
+    def visit_Module(self, node: ast.Module) -> None:  # noqa: N802
+        """固定文生成関数の束縛を検査してから各文を走査する。"""
+        for binding in self.fixed_builder_binding_nodes:
+            self._add(
+                binding,
+                condition=5,
+                code="TB007",
+                symbol="_build_fixed_function_statement",
+                message="固定関数SELECT生成の呼び出し先は再束縛できない",
+            )
+        self.generic_visit(node)
+
     def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         self._check_identifier(node.name, node)
         prefix = ".".join([self.module, *self.class_stack]).strip(".")
@@ -5307,6 +5480,21 @@ class _SourceScanner(ast.NodeVisitor):
                     "基底シンボルの署名が契約と不一致: "
                     f"expected={expected.signature}, actual={signature}"
                 ),
+            )
+        fixed_bodies = {
+            "pitchlog.repositories.function_operations."
+            "_build_fixed_function_statement": _FIXED_BUILDER_BODY,
+            "pitchlog.repositories.function_operations._canonical_bind": _FIXED_BIND_BODY,
+        }
+        if symbol in fixed_bodies and not _is_fixed_builder_body(
+            node, fixed_bodies[symbol]
+        ):
+            self._add(
+                node,
+                condition=5,
+                code="TB005",
+                symbol=symbol,
+                message="固定関数SELECT生成の本文が承認済み形と不一致",
             )
         for decorator in node.decorator_list:
             resolved = self.aliases.resolve(decorator)

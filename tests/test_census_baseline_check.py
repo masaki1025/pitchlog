@@ -1310,6 +1310,8 @@ def _assert_removed_tb007_matches_declared_relaxations(
             resolved = scanner.aliases.resolve(
                 node.func
             ) or scanner._raw_expression(node.func)
+            if resolved == "object.__setattr__":
+                resolved = "builtins.object.__setattr__"
             if symbol == "<unresolved-callable>" or symbol == resolved:
                 matching_calls.append(node)
 
@@ -1319,6 +1321,13 @@ def _assert_removed_tb007_matches_declared_relaxations(
             resolved = scanner.aliases.resolve(
                 node.func
             ) or scanner._raw_expression(node.func)
+            if symbol == "builtins.object.__setattr__":
+                if (
+                    not scanner.fixed_builder_binding_nodes
+                    and checker._is_fixed_registration_statement_init(node, scope)
+                ):
+                    explanations.append(node)
+                continue
             if (
                 isinstance(node.func, ast.Name)
                 and id(node.func) in scanner.lexically_bound_name_ids
@@ -1404,6 +1413,29 @@ def test_issuance_constructor_relaxation_rejects_another_scope(
         and identity[4] == "TB007"
     )
     changed = _replace_identity_field(original, index=3, value=f"{entrypoint}.other")
+    with pytest.raises(AssertionError):
+        _assert_removed_tb007_matches_declared_relaxations(
+            frozenset({changed}), expected_code="TB007"
+        )
+
+
+def test_fixed_registration_relaxation_rejects_another_scope(
+    census_predicate_context: dict[str, Any],
+) -> None:
+    """固定関数登録のTB007許可を別の初期化scopeへ流用しない。"""
+    data_sets = cast(
+        dict[str, frozenset[CensusIdentity]], census_predicate_context["data_sets"]
+    )
+    original = next(
+        identity
+        for identity in data_sets["removed"]
+        if identity[0] == "pitchlog/repositories/function_operations.py"
+        and identity[4] == "TB007"
+        and identity[5] == "builtins.object.__setattr__"
+    )
+    changed = _replace_identity_field(
+        original, index=3, value=f"{original[3]}.another"
+    )
     with pytest.raises(AssertionError):
         _assert_removed_tb007_matches_declared_relaxations(
             frozenset({changed}), expected_code="TB007"

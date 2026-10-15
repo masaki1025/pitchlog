@@ -9,14 +9,49 @@ from types import MappingProxyType
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import bindparam, select
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql.elements import BindParameter, Label
 from sqlalchemy.sql.functions import Function
 from sqlalchemy.sql.selectable import Select, TableValuedAlias
-from sqlalchemy.sql.sqltypes import NullType
+from sqlalchemy.sql.sqltypes import (
+    UUID as SqlUUID,
+)
+from sqlalchemy.sql.sqltypes import (
+    Boolean,
+    Integer,
+    NullType,
+    String,
+    Uuid,
+)
 
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 
 _IDENTIFIER = re.compile(r"[a-z_][a-z0-9_]*\Z")
+_PG_DIALECT = postgresql.dialect()
+_MAX_IDENTIFIER_BYTES = _PG_DIALECT.max_identifier_length
+_IDENTIFIER_PREPARER = _PG_DIALECT.identifier_preparer
+_SAFE_BIND_TYPES = frozenset((Boolean, Integer, String, SqlUUID, Uuid))
+
+
+def _valid_db_identifier(name: object) -> bool:
+    """再構築したSQLでも同じDB識別子になる名前だけを許す。"""
+    return (
+        type(name) is str
+        and _IDENTIFIER.fullmatch(name) is not None
+        and len(name.encode("ascii")) <= _MAX_IDENTIFIER_BYTES
+        and _IDENTIFIER_PREPARER.quote(name) == name
+    )
+
+
+def _valid_function_schema(name: object) -> bool:
+    """接続ごとに指す先が変わる一時schemaとシステムschemaを拒否する。"""
+    return (
+        _valid_db_identifier(name)
+        and isinstance(name, str)
+        and not name.startswith("pg_")
+        and name != "information_schema"
+    )
 
 
 class FunctionOperationError(RuntimeError):
@@ -61,8 +96,7 @@ class FunctionOperationRegistration:
             or len(set(result_names)) != len(result_names)
             or "tenant_id" in input_names
             or any(
-                _IDENTIFIER.fullmatch(name) is None
-                for name in (*input_names, *result_names)
+                not _valid_db_identifier(name) for name in (*input_names, *result_names)
             )
             or any(
                 type(field_type) is not type
@@ -77,17 +111,28 @@ class FunctionOperationRegistration:
         if not set(input_names) <= token_fields:
             raise FunctionOperationError("固定関数入力がtokenに存在しない")
         parts = self.function_id.split(".")
-        if len(parts) != 2 or any(
-            _IDENTIFIER.fullmatch(part) is None for part in parts
+        if (
+            len(parts) != 2
+            or not _valid_function_schema(parts[0])
+            or not _valid_db_identifier(parts[1])
         ):
             raise FunctionOperationError("DB関数identityにはschema修飾が必要")
+        compiler = postgresql.dialect().statement_compiler
+        if getattr(compiler, f"visit_{parts[1]}_func", None) is not None:
+            raise FunctionOperationError(
+                "DB関数identityにSQLAlchemy特殊関数名を許可しない"
+            )
 
         selected = tuple(self.statement.selected_columns)
         froms = self.statement.get_final_froms()
         function: Function[Any]
         if len(froms) == 0 and len(selected) == 1 and type(selected[0]) is Label:
             label = selected[0]
-            if label.name != result_names[0] or type(label.element) is not Function:
+            if (
+                len(result_names) != 1
+                or label.name != result_names[0]
+                or type(label.element) is not Function
+            ):
                 raise FunctionOperationError("関数戻り列が宣言と不一致")
             function = label.element
         elif len(froms) == 1 and type(froms[0]) is TableValuedAlias:
@@ -132,8 +177,14 @@ class FunctionOperationRegistration:
             (UUID, *(field_type for _, field_type in self.input_fields)),
             strict=True,
         ):
+            if argument.type._variant_mapping:
+                raise FunctionOperationError(
+                    "固定関数bindにdialect別のSQL型を許可しない"
+                )
             if type(argument.type) is NullType:
                 continue
+            if type(argument.type) not in _SAFE_BIND_TYPES:
+                raise FunctionOperationError("固定関数bindに未許可のSQL型")
             try:
                 bound_type = argument.type.python_type
             except NotImplementedError as error:
@@ -142,6 +193,46 @@ class FunctionOperationRegistration:
                 ) from error
             if bound_type is not expected_type:
                 raise FunctionOperationError("固定関数bindの型が入力宣言と不一致")
+
+        object.__setattr__(
+            self,
+            "statement",
+            _build_fixed_function_statement(
+                parts[0], parts[1], self.input_fields, result_names, bool(froms)
+            ),
+        )
+
+
+def _build_fixed_function_statement(
+    schema: str,
+    function_name: str,
+    input_fields: tuple[tuple[str, type], ...],
+    result_names: tuple[str, ...],
+    table_valued: bool,
+) -> Select[Any]:
+    """検証済み宣言から固定関数のSelectだけを組み立てる。"""
+    safe_arguments = (
+        _canonical_bind("tenant_id", UUID),
+        *(_canonical_bind(name, field_type) for name, field_type in input_fields),
+    )
+    safe_function = Function(function_name, *safe_arguments, packagenames=(schema,))
+    if not table_valued:
+        return select(safe_function.label(result_names[0]))
+    safe_table = safe_function.table_valued(*result_names)
+    return select(*(safe_table.c[name] for name in result_names))
+
+
+def _canonical_bind(name: str, expected_type: type) -> BindParameter[Any]:
+    """検証済み入力から組み込み型の新規bindだけを作る。"""
+    if expected_type is UUID:
+        return bindparam(name, type_=Uuid())
+    if expected_type is str:
+        return bindparam(name, type_=String())
+    if expected_type is int:
+        return bindparam(name, type_=Integer())
+    if expected_type is bool:
+        return bindparam(name, type_=Boolean())
+    raise FunctionOperationError("固定関数入力に未対応の型")
 
 
 def build_function_registry(

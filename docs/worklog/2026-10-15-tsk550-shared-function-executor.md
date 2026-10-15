@@ -138,3 +138,188 @@ TSK-391 / PR #132 の統合点は `origin/develop` `966d7a38`。#141 の `0b203d
 9資産のbefore識別値は #132 の `new_baseline_identifiers` と一致する。候補afterは base-allowlist 30→31、cache-invalidation 14→15、census 13→14、db-api inventory 14→15、negative-fixtures 16→17、repository 18→19、runtime-authz 15→16、tenant-context 15→16。`frozen-inputs` は4のまま。旧#141受理after射影から候補after射影は8資産すべて変わり、外部検査器snapshotは `b02434c82…`→`c6fbf8c9…`、比較corpus入力digestは #132 基線 `7237caf5…`→候補 `e73ef274…` となる。完全なSHA-256、前後宣言、9資産識別値、外部・資産snapshot参照は上記候補ファイルへ保全した。候補の8資産射影bytesは `/tmp/tsk550-a-132-merge-snapshots/` にある。意味差分はAの固定関数入口・空の製品登録・拒否fixtureとU-S1の既受理契約の併存であり、B/C登録・権限拡張はない。新しいafter実値と履歴順序には**7.7再受理が必要**で、現時点の凍結・履歴検査は未受理候補として不合格のまま扱う。
 
 Claude一次レビューは旧基線の36ファイル全差分に対する静的確認で、可決 P0=0/P1=0/P2=5。独立Codexの候補査読とは別記録である。P2①実行後例外を呼出元が握りつぶした場合の副作用確定、②関数間のcapability/function ID重複とカタログ裏付け、③型なしbind、④未走行の拒否分岐・実DB関数試験は、Aの製品登録0件を踏まえて今回の製品コード変更に含めず、B/Cの実登録前ゲートとして採用する。⑤7.7人間受理発言の固定リンク不足は残余として採用し、PR本文に原文を記録した上で本人逐行確認で出所を照合する。これらを敵対レビューや逐行確認の実施済みへ読み替えない。新基線のコア敵対レビューと本人逐行確認は未実施。
+
+## #132後の7.7再受理実値と敵対レビュー是正（2026-10-16）
+
+`origin/develop=966d7a38`を基線に、旧#141の20件目は候補から外し、#132の受理済み20件目の**後**に#141を21件目として追記する案を維持する。新受理記録案は`/tmp/tsk550-a-132-record-candidate.json`、新射影bytesは`/tmp/tsk550-a-132-merge-snapshots/`へ保全した。案に承認者・承認日は入れていない。以下の値は新しい人間受理前の**候補値**。
+
+| 資産 | #132既受理after / #141候補after識別値 | 旧#141受理after SHA-256 | #132既受理after SHA-256（今回before） | 新#141候補after SHA-256 |
+| --- | --- | --- | --- | --- |
+| `base-allowlist.json` | `contract_revision:30` → `contract_revision:31` | `b5e23732b01ee288b9fc1d2de6e57dc466d7612ff624eabe22cfcd5ca6fbb089` | `32bfa4312fb40b0fafe966b7e8b846ba45696e5d94ce9a567d983f8963a111c5` | `a7e75d1a2bb68c6b9e922dcf2d28c6425ac1d2514db478aea5951279b42b2074` |
+| `cache-invalidation-contract.json` | `contract_revision:14` → `contract_revision:15` | `ffef0a5a70c85d963fae91ef22128f79e865055c29a799f5efc05fe522428e5d` | `22ed1510c74f331deb566154a8516d68936e34f77ef3e6237d40f7c90d319b55` | `e9eb7eeddfdbaf353505911a8a50c772d2c005b09b16d628b1584d2f4df508e3` |
+| `census-baseline.json` | `contract_revision:13` → `contract_revision:14` | `446bd37d21369a65607e61742b15d11b48b5e20e10d5117ee40905349b2e72f3` | `939d79fdd71a3f600e1d645d9fc83c1d54701c22d66dda548bdf65b121f5a365` | `89ef72d277f2ceed0c6f8fe57ec2614e8737bc8d630e781a5e750c6e736e3c17` |
+| `db-api-inventory.json` | `inventory_revision:14` → `inventory_revision:15` | `bbd5af757bd763c6288dbe817b86a84e5d44faa90dcd7e06fb56c7cead254666` | `73e6337328e374bfef4ee95eb67f3d474bac1a6b96a0b87391877b365871fbdb` | `a33b21815d133b9e655c3e7ff08ee4ec532c96cf04dd6735adaec38499082a5d` |
+| `frozen-inputs.json` | `contract_revision:4` → `contract_revision:4` | `c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63` | `c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63` | `c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63` |
+| `negative-fixtures.json` | `fixture_set_revision:16` → `fixture_set_revision:17` | `6dd5cd4dd92c96f58557ca3fe4b15d1f35d4d0b296a8f8d7f03abd3be6137608` | `4d0a03dfb02ba8c4e38c274793b9c8498c787620be5f01bf1fb951db8fe9005f` | `48fdca7da6f0f322968a897271100458c24cac32fcf0bf5db3ef783f75768920` |
+| `repository-contract.json` | `contract_revision:18` → `contract_revision:19` | `a087dd84b5bcab7b8b7df25876cd213f6c16910dd1a0cb30daf9c951e20b5359` | `d325131cff7b904937af6763b78da61a46a200d3247644e583536e77d0c3ceb3` | `50137016e7c8affbe7e196290067545edf8e47abeb5f272ca8f10a57955804e3` |
+| `runtime-authz-contract.json` | `runtime_contract_revision:15` → `runtime_contract_revision:16` | `655653f2728a517b464abb813c79effe5ac029e03214771e49d21ce1b585ba35` | `cebcc315d9b171b226a438fe9c2e4b9c092d8cb7b682dc84428753726216e05e` | `d9de0ca6eb483398f2de602ca91fb469fb01cf178075d7d4d9480c0183aabba7` |
+| `tenant-context-allowlist.json` | `contract_revision:15` → `contract_revision:16` | `b1036cbf01195a1849c911c276f005a112a1f0e0a8c0cafbfa5fa2a6104e74dd` | `7d50b29909a7a17223806c24f6d9c302284bce2981dd82170dad0d7fc6d5db61` | `1fb12e41e45ba544f05bc7afb9659b183474a711227435bdcceacaf2d4456b67` |
+
+外部検査器`scripts/check_tenant_boundary_bypass.py`のsnapshotは、#132既受理before `c3e52f7d9366f5453527481f18b8085e7f976e366da584495a267dafd5b1e9fd` → #141候補after `c6fbf8c9cb62a2c1bab2a3cf520eb5d9bddd512786762bf5639e33b60125f65d`。比較corpus入力digestは #132 `7237caf566a8ca34699552f2aeab1f787ae45cd3bb902c08c55d40d4e788f5d0` → 候補 `e73ef2743d03d97630516b4f51db0f8ee648fe069ab4c3bd51c83febff84986e`。候補9資産と外部参照の実内容を再計算し、案のSHA-256と全件一致した。製品登録は0件、U-S1の既受理実装と履歴を保持し、B/C登録・権限拡張はない。
+
+コア領域敵対レビュー第1回は **否決 P0=1/P1=1/P2=0**。P0はTypeDecoratorによるtenant bindのSQL差替え、P1はスカラーSELECTに対する複数戻り列宣言であり、両方採用した。第2回の最初の呼出しは実行環境の安全フィルタで回答がなく、6.3(6)により回数へ算入しない。同一回の静的再依頼は **否決 P0=2/P1=0/P2=0**。P0は戻り列型と組み込み型インスタンスからのSQL変更。両方を採用し、登録元のSQLAlchemyオブジェクトを実行用に再利用せず、検証済み関数ID・入力宣言・戻り列名から安全なSQLを新規組立てするよう変更した。直接TypeDecorator、dialect別variant、戻り列型、単一列の余剰宣言を負例で確認した。第3回は6.3のP0例外で、この是正差分に限定して依頼中。追加のP0が残れば規約どおりPO裁定へ進む。
+
+検査: backend Ruff format/check・tyと関連非DB423件、隔離PostgreSQLの関連35件、root Ruff/ty・core-guard/凍結アーカイブ296件、履歴検証を除いた迂回試験343件が合格。固定関数試験は再組立て修正後23件合格。`check_frozen_baselines.py --invariants-only`は合格。完全な迂回検査は履歴末尾が#132で今回の8資産afterへ未追随のため不合格、corpus runnerは同じ未受理履歴に依存する2件が不合格（27件合格）。これらを緩和せず、7.7再受理・履歴追記後の最終検査へ残す。#141の旧HEAD `0b203dcd`のCIは新候補のCIではない。人間逐行確認欄は未記入のまま。
+
+第3回は**否決 P0=1/P1=0/P2=0**。SQL再生成に使った`func`属性アクセスが関数名末尾の`_`を落とし、検証したidentityと実行identityが異なる点を採用した。検証済みschema・関数名を`Function`へ直接渡す修正と、末尾`_`の回帰試験を加えた。現修正後、固定関数試験24件、backend関連非DB425件、隔離PostgreSQLの関連35件、root core-guard/凍結アーカイブ296件、履歴依存2件を除いた迂回試験343件、backend/root Ruff・ty、凍結不変条件、`git diff --check`が合格。9資産と宣言済み外部snapshotの候補digestは全件不変。第3回でP0が残ったため、**第4回のP0限定差分レビューには6.3のPO裁定が必要**。裁定前に追加レビューを実施せず、現候補を敵対レビュー完了・ステップ2最終完了・7.7再受理済み・新基線CI成功とは扱わない。PR #141はDraft、リモートHEADは旧`0b203dcd`、ローカルmergeは未コミット・未push、本人逐行確認は空欄のまま。
+
+PR #141本文の旧基線資料に逐行確認のチェック7件が入っていたが、実施記録は空欄だった。新基線の本人確認証跡として誤用しないよう、本文のチェック7件をすべて空欄へ戻し、#132後の候補が未push・7.7再受理と敵対レビュー未了である旨を追記した。本人の実施記録は代記していない。これはPR本文のみの更新で、製品差分・受理値・リモートHEADは変えていない。
+
+POは第3回P0の関数名是正と影響箇所だけを対象に**第4回の独立敵対レビュー1回**を許可した。実施直前に`origin/develop=966d7a38aa8dab2113c1d8ec6d30e5d32088ede5`、ローカルHEAD=`0b203dcdd5831c881943657ec915dc96fc3724a4`、候補全差分SHA-256=`9693f3888e05a05f4455c1608637694cbca8c5f018c7455ffb6b7d1898d9f956`、対象2ファイル修正差分SHA-256=`719f7e0251fad6303eae9a2fe15565839d5f8992134e0736f864b3955f9d2570`、7.7記録案SHA-256=`561eaa7e3e90da68135c7f28f301bfc5a0887086cffc6b9f0efa080505e713c7`を固定した。査読後に両差分SHAが不変であることを再確認した。
+
+第4回は**否決 P0=1/P1=0/P2=0**。第3回の末尾`_`落ちP0は解消と判定した。一方、`public.next_value`のようにSQLAlchemy PostgreSQLコンパイラの特殊関数名へ一致すると、構造検証を通った通常の`Function`が実行前コンパイルで失敗するP0を指摘した。採用して、同コンパイラが特殊扱いする関数名を登録時に拒否し、`next_value`と`substring`の負例を追加した。固定関数試験26件、対象2ファイルRuff format/check・backend tyは合格。第4回の許可は1回のみで使い切った。新たな第5回レビューは実施せず、必要ならこの是正差分限定のPO裁定を別途求める。これまでの全文査読・旧基線のClaude一次レビューは維持するが、現在候補の敵対レビュー収束とは扱わない。
+
+POは第4回P0の特殊関数名是正と、identity・引数・戻り契約への影響を対象に**第5回の独立P0限定レビュー1回**を許可した。実施前に`origin/develop=966d7a38aa8dab2113c1d8ec6d30e5d32088ede5`、ローカルHEAD=`0b203dcdd5831c881943657ec915dc96fc3724a4`、候補全差分SHA-256=`ed3db572d2ce35b39c1ee327f8a8f0dfc3da9d71a8ccc29613808bdbb090b932`、対象2ファイル修正差分SHA-256=`feb7778ba97339985054d7202715e8aedfdd09c552c5a75a0cb9ce7a4f07a1fa`、7.7記録案SHA-256=`561eaa7e3e90da68135c7f28f301bfc5a0887086cffc6b9f0efa080505e713c7`を固定した。第5回査読後にも3値が不変だった。
+
+第5回は**否決 P0=1/P1=0/P2=0**。`next_value`のP0は登録拒否と26件の固定関数試験で解消と判定したが、PostgreSQLの識別子長を超えるschema・関数・戻り列名がDB側で切り詰められ、固定identity・列名契約から外れるP0を指摘した。採用して、許可する小文字ASCII識別子をSQLAlchemy PostgreSQL dialectの`max_identifier_length`以下へ制限した。戻り列名の切り詰め後衝突は長い列名自体を拒否して防ぐ。schema・関数名超過、戻り列衝突、上限ちょうどの4試験を追加。使い捨てPostgreSQL 17.11の`SHOW max_identifier_length`は63、dialect値も63。修正後は固定関数30件、backend関連非DB431件、隔離PostgreSQL関連35件、root core-guard/凍結アーカイブ296件、履歴依存2件を除いた迂回試験343件、backend/root Ruff・ty、凍結不変条件、`git diff --check`が合格。9資産と外部snapshot、corpus候補値は全件不変で、受理記録案にも承認者・承認日はない。第五回の許可は使い切ったため、この追加是正の独立再レビューは未実施。第六回が必要なら、6.3に従いこの差分限定のPO裁定を得る。7.7再受理、ステップ2最終完了、マージコミット、push、新基線CI、逐行確認、Draft解除・マージはいずれも未了。
+
+前回チャット報告の「#132受理値＝今回before」の表では、base-allowlist、cache-invalidation、census、db-api、repository、tenant-contextの6行に転記ミスがあった。正しい完全値は本ログの「#132後の7.7再受理実値」表と、受理記録案`change.before.asset_snapshots`を正とする。旧#141受理afterと新#141候補after、受理記録案・資産本体はこの転記ミスでは変更していない。
+
+
+## 第6回P0限定レビューと#132 before値の機械照合（2026-10-16）
+
+POは第5回の識別子長是正だけを対象に第6回独立レビュー1回を許可した。実施前の`origin/develop=966d7a38aa8dab2113c1d8ec6d30e5d32088ede5`、ローカルHEAD=`0b203dcdd5831c881943657ec915dc96fc3724a4`、全候補差分SHA-256=`ce741f6b2e905c558892f5357bb6aa3a9cd5f191bbfb33534a581733f7dffdc3`、対象2ファイル差分SHA-256=`7797d4a794f50a70c9c7e630b07c5d6e5c95a7a186c6f5bbd67f8d2b1e05ef45`、受理記録案SHA-256=`561eaa7e3e90da68135c7f28f301bfc5a0887086cffc6b9f0efa080505e713c7`を固定した。レビュー後も3 SHAは不変。
+
+#132の受理済み最終履歴`change.after`と#141記録案`change.before`はオブジェクト単位で一致した。`previous_baseline_identifiers`も一致する。`origin/develop`の9基線実ファイルと8外部実ファイルから凍結射影を再計算し、9/9・8/8がbefore案と一致。候補の9基線実ファイルと8外部実ファイルも9/9・8/8がafter案と一致した。9資産の射影bytesは既存または候補snapshotと一致する。外部検査器afterのcontent-addressed snapshotは7.7再受理後に履歴へ反映する未配置候補であり、現時点では現行実ファイルのSHA一致を確認した。比較corpusは旧#141/既受理#132/候補manifestを実ファイルから読み、候補入力を再計算して`455349e70538fb51ccacea52d06277c5c9bca0afb4647c5551b7c4d0f7c3ae52` / `7237caf566a8ca34699552f2aeab1f787ae45cd3bb902c08c55d40d4e788f5d0` / `e73ef2743d03d97630516b4f51db0f8ee648fe069ab4c3bd51c83febff84986e`と確認した。前回報告だけが6行を誤記し、元のJSON案は最初から正しく、バイト変更がないため案SHAは不変。実資産・snapshot・受理履歴の意味差分はない。
+
+|資産|旧報告値（誤）|実値|
+|---|---|---|
+|`contracts/tenant_boundary/base-allowlist.json`|`93b9d612d6889b8184d25f72e27c362746b48ff331892159664c484f13cb5ba5`|`32bfa4312fb40b0fafe966b7e8b846ba45696e5d94ce9a567d983f8963a111c5`|
+|`contracts/tenant_boundary/cache-invalidation-contract.json`|`e24443a1ab637858e59beb87d00e1367e4ebc717d5c9fedcdad93f6a025d4e2d`|`22ed1510c74f331deb566154a8516d68936e34f77ef3e6237d40f7c90d319b55`|
+|`contracts/tenant_boundary/census-baseline.json`|`dc67859810105643caeb459758bcaa95ce9bab074911d6750fd9e07802187314`|`939d79fdd71a3f600e1d645d9fc83c1d54701c22d66dda548bdf65b121f5a365`|
+|`contracts/tenant_boundary/db-api-inventory.json`|`6d7937e1a9e381813d2a65ce94492b4625007386ec3410951e8d02cf75b4655d`|`73e6337328e374bfef4ee95eb67f3d474bac1a6b96a0b87391877b365871fbdb`|
+|`contracts/tenant_boundary/repository-contract.json`|`c85e15c7f0b8fc6a88ce6500d15bf6f3dcb07dca2464b7a85f91c3b641752cbf`|`d325131cff7b904937af6763b78da61a46a200d3247644e583536e77d0c3ceb3`|
+|`contracts/tenant_boundary/tenant-context-allowlist.json`|`d325131cff7b904937af6763b78da61a46a200d3247644e583536e77d0c3ceb3`|`7d50b29909a7a17223806c24f6d9c302284bce2981dd82170dad0d7fc6d5db61`|
+
+第6回独立レビューの判定は**否決 P0=1/P1=0/P2=0**。第5回の63バイト超・切詰め衝突P0は解消。新P0は`select.fixed_probe`のような予約語schemaを登録できるが、SQLAlchemyの正規化済み`Function`が`SELECT select.fixed_probe(...)`と未引用でコンパイルされ、実PostgreSQLでは構文エラーになること。使い捨てPostgreSQL 17.11で`"select".fixed_probe(...)`の成功と未引用の構文エラーを確認した（独立レビュアは隔離DB利用不可で実DB試験未実施、その不足を担当側で補った）。同レビュアは候補のbefore/after各9資産・8外部の実SHA照合も再実施し、訂正に疑義なしとした。
+
+**採否**: P0を採用。現在の登録境界は未収束で、製品差分の追加修正と第7回レビューはまだ実施しない。修正案は、schema・関数・入力・戻り列を一つのDB識別子ポリシーで検証し、ASCII小文字・63バイト以下に加えて、SQLAlchemy PostgreSQLの識別子preparerが引用を要する名前を登録時に一律拒否すること。個別予約語の羅列ではなく、生成する未引用SQLと登録宣言の同一性を条件にする。正規化後のscalar/table-valued文のコンパイルを負例と併せて確認し、B/Cの実登録前には隔離PostgreSQLでschema修飾関数のOID/引数型と戻り列名・型の解決先を宣言と照合する。影響はAの登録検証と負例試験、B/Cの将来登録契約と実DB結合試験で、Aの製品登録0件、9資産の意味・digest、#132の既受理履歴には影響しない見込み。次の是正・独立レビューには6.3の追加PO裁定を要する。7.7再受理も未了。マージコミット、push、本人逐行確認、Draft解除・マージは進めない。
+
+## 第6回P0の一括是正候補と横断試験表（2026-10-16）
+
+POは予約語schemaのP0に対し、4種類の名前へ共通規則を適用する実装・負例・隔離DB検証と、その候補に対するP0/P1限定の追加独立レビュー1回を承認した。この裁定は7.7再受理、本人逐行確認、Draft解除・マージを含まない。`_valid_db_identifier`は小文字ASCII・PostgreSQL dialectの識別子長上限に加え、同dialectの`identifier_preparer.quote(name) == name`を要求する。個別予約語表は追加せず、未引用で再生成するSQLで同じ名前として表せない場合を一律拒否する。schema・関数・入力・戻り列はすべてこの1関数を通る。製品関数登録は0件のまま。
+
+|問題群|Aが登録時に保証する境界|自動試験と実測|
+|---|---|---|
+|引用・大小文字・予約語|4種類すべて同じ未引用識別子ポリシー。不一致なら拒否|`test_registration_rejects_noncanonical_identifiers_across_boundary`の12例（3値×4種）、`test_identifier_policy_matches_postgresql_unquoted_compilation`。隔離DBでは`"select"`は解決し、未引用`select`は構文エラー、修正後の登録は拒否|
+|63バイト上限・切詰め衝突|4種類の64バイト名を拒否し、63バイト名を保つ|同パラメータ試験の4例、既存の関数/戻り列衝突試験。隔離DBの63バイトschema・関数・戻り列を`pg_proc`と実カーソル名で照合|
+|SQLAlchemy特殊扱い|`visit_<function>_func`に一致する名前を拒否し、再生成した`Function`を実行する|`next_value`/`substring`の負例、末尾`_`の完全一致試験、PostgreSQL dialectコンパイル|
+|bind方式と任意SQL|exact順序・型、`literal_execute`/`expanding`/TypeDecorator/variant/追加SQLを拒否|既存の固定登録負例、改変bindと結果型の試験|
+|宣言と実関数|Aはschema・関数・bind・戻り列の宣言と生成SQLの綴り・形を固定。DB関数の存在/ACLはA製品登録0件では検証対象がない|隔離DBの試験専用関数でOID所在・引数`uuid,text`・戻り列・実行結果を照合。B/Cの実登録時には各実関数のOID・引数型・戻り列名/型、owner/EXECUTE/RLS/GUCと直呼出し拒否を個別ゲートで照合|
+
+検査: backendのRuff format/check・tyは合格、関連非DB **235 passed / 18 deselected**、固定登録試験 **47 passed**。使い捨てPostgreSQL 17.11では63バイトのschema・関数・戻り列が実`pg_proc`とカーソル列に一致し、予約語・大小文字・長さ超過の登録を拒否。root Ruff/ty、core-guard **260 passed**、凍結不変条件は合格。rootの広い任意試験では、7.7未受理で履歴末尾が#132のままという既知の9失敗に加え、2回目の並列再実行中に`/tmp`容量不足で67失敗が発生した。自分の2実行が作った一時ディレクトリのみ削除して容量を回復し、core-guardを単独・非並列で再検証した。広い失敗を製品検査合格へ読み替えない。7.7履歴・snapshot確定後の完全再実行は別ゲートに残す。
+
+## 追加独立レビュー1回の採否と最終反映候補（2026-10-16）
+
+PO許可の追加レビュー1回は、全候補差分SHA-256=`732f81a2d4fb193913284b5e4cb6a09914499517801e827a2e2d966a2d5a710f`、対象2ファイル差分SHA-256=`ecef4f9b6421690eb6d9bfa29c8fb95c5f4fcef669903af2ce86f5b091aeb103`で固定して実施した。判定は**否決 P0=1/P1=0/P2=0**。予約語・引用・長さの是正自体に新指摘はない。P0は`pg_temp.fixed_probe`が文字規則を通ってしまう点。`pg_temp`は接続ごとの一時schemaへの別名で、固定関数identityとして受理すると接続ごとに解決先が変わる。指摘を採用した。独立レビュアはread-only環境で実DB試験を実施できず、担当側が使い捨てPostgreSQL 17.11の同時2接続で`pg_temp_0`と`pg_temp_1`へ分かれる事実を確認した。
+
+最終反映候補は共通のDB識別子規則を維持したうえで、schemaだけに追加で必要な**固定アプリケーションschema境界**を設ける。`pg_`で始まるPostgreSQLシステム/一時schema群と`information_schema`を登録時に一律拒否する。個別の予約語や`pg_temp`だけの例外追加ではない。`pg_temp`、物理一時schema名、toast一時schema名、`pg_catalog`、`information_schema`の5負例を追加。既存の`public`、`public_`、63バイトの通常schemaは許可を維持。製品登録0件、B/Cの個別DB関数登録・権限は変更しない。
+
+最終反映後の検査はbackend Ruff format/check・ty、固定関数**52 passed**、関連非DB**240 passed / 18 deselected**、root Ruff/ty・core-guard**260 passed**・凍結不変条件・`git diff --check`が合格。隔離DBの同時2接続は別々の一時schemaへ解決され、修正後の登録は拒否した。前節の63バイト実関数/列照合も合格。rootの履歴依存の赤は7.7未受理のまま緩和しない。9資産のbefore/afterと8外部実ファイルの候補SHA、比較corpus、7.7記録案SHAは不変。候補記録に承認者・承認日はない。
+
+この`pg_`/`information_schema`反映は**追加レビュー後の差分**であり、独立レビュー済みとは表示しない。許可された1回を使い切ったため、再レビューを自動追加しない。6.3の最終反映規律に従い、承認者がP0採否と最終反映差分を確認する。追加の独立レビューを要するとPOが判断する場合は別裁定。7.7再受理、本人逐行確認、Draft解除・マージは別ゲートのまま。ローカルマージ候補は未コミット・未push。
+
+## #132後の7.7再受理と最終検査での停止（2026-10-16）
+
+POは今回の会話で、#132→#141の9資産の識別値・完全なbefore/after射影、外部snapshot、比較corpus入力値と受理記録案SHA-256 `561eaa7e3e90da68135c7f28f301bfc5a0887086cffc6b9f0efa080505e713c7`を7.7として再受理した。承認者は明示指定の**山田正輝**、承認日は実際の今回の承認日（JST **2026-10-16**）とする。2026-10-15の旧#141受理日を再利用しない。前後値の完全表は本ログの「#132後の7.7再受理実値」、6行の誤記訂正と機械照合は「第6回P0限定レビューと#132 before値の機械照合」のとおり。
+
+今回の記録は`base-allowlist.json`の#132受理済み20件目を保持し、その後へ実PR ID `masaki1025/pitchlog#141`の21件目として1件追記した。記録の本文は上記SHAの候補JSONと同一で、追加欄は`approved_by`/`approved_on`のみ。after射影8件と外部検査器1件のcontent-addressed snapshotを配置し、既存before参照を変更しない。候補の比較corpus入力digest `e73ef2743d03d97630516b4f51db0f8ee648fe069ab4c3bd51c83febff84986e`は現行manifestと実入力で一致。8資産のafter値、9資産の識別値、外部snapshotの実バイトを再計算して受理値と一致した。A製品関数登録は0件、B/C登録・権限拡張はない。
+
+ローカル`origin/develop=966d7a38`の取込みと7件の競合解消はマージコミット`c18e6613`で確定した。今回の7.7反映と第6回P0後の最終修正は、承認済みAのステップ2コミットへまとめる予定だった。最終反映の独立再レビューは未実施であり、POはこの残余を認識して修正の採用を承認した。本人逐行確認は未実施のまま。
+
+履歴とsnapshotを作業ツリーへ配置した後、専用一時領域`/var/tmp/pitchlog-tsk550-pr141-20261016`を使って`check_tenant_boundary_bypass.py --base-ref origin/develop`を実行したところ、`function_operations.py:206,209`の`sqlalchemy.select`がTB005、`:210`の`builtins.object.__setattr__`がTB007となり不合格だった。前段の履歴未受理エラーが解消して初めて到達した検査である。`check_frozen_baselines.py --invariants-only`と`git diff --check`は合格したが、全件検査・ステップ2完了・新HEADのCI合格には読み替えない。追加の許可シンボルまたはTB007例外を導入すると、受理済み9資産のafter射影の一部、および外部検査器snapshot・corpus入力が変わる可能性があるため、今回の7.7受理値をそのまま最終化できない。対象は固定関数SQL生成の正規許可境界と、`TenantContext`を含まない凍結登録オブジェクトへの初期化操作である。条件5の緩和を隠す回避は行わず、差分・再導出値・必要なレビューと再受理をまとめて人間判断へ戻す。受理履歴とsnapshotは未コミット候補として保持し、製品差分のpush、Draft解除、マージは停止する。
+
+## TB005/TB007限定是正の候補と7.7再導出（2026-10-16）
+
+POは既存の固定関数実行器に必要なTB005/TB007の最小候補作成・試験・digest再導出を許可した。既存境界ではSQLA_SELECTはallowed_symbolsの専用関数で表現できるため、`_build_fixed_function_statement`へ固定文生成を切り出し、この完全修飾シンボルにSQLA_SELECTだけを宣言した。`object.__setattr__`は既存の許可宣言では扱えないため、検査器で`FunctionOperationRegistration.__post_init__`の`self.statement`に、5引数を固定した専用生成関数の戻り値を設定するAST形だけを許した。ファイル全体・汎用SQL・任意objectの除外は追加していない。未登録関数のSELECT、text、INSERT/UPDATE、別属性・別対象・別クラス・別値の負例はTB005/TB007を維持した。製品関数登録は0件。
+
+root全件試験では**29589 passed / 38 failed / 2 skipped**。失敗のうち32件は旧corpus digestのまま検査したこと、6件は新TB007緩和が既存censusの帰属テストから漏れていたことによる。censusは検査器の同じ厳密AST条件を使う帰属照合に追随し、別scopeの負例を追加した。root全件の再実行は正式値未受理のためcorpus依存の赤が残る。是正後のroot迂回・census関連は**422 passed**、CI用`python tests/test_census_baseline_check.py`は`census-baseline: OK`。backend全件はDB反復が長く、7分22秒・78 passedで中断した。関連非DBは**130 passed**（固定関数境界52件を含む）。root/backendのRuffとty、backend Ruff format、単独迂回検査、凍結不変条件、git diff --checkは合格。
+
+第6回後に許可された独立レビュー1回は既に使用済みで、今回の検査器・census追随変更には既存の未使用枠がない。追加レビューが必要なら6.3に従い、このTB005/TB007反映差分と影響箇所に限定したPO裁定を求める。レビュー未実施を実施済みへ読み替えない。受理済み#141履歴21件目と9件のsnapshotは作業ツリーに保持し、新しい値へ書き換えていない。候補記録は作業ツリー外の`/var/tmp/pitchlog-tsk550-pr141-20261016/candidate-7.7-record.json`に承認者・承認日なしで保存し、SHA-256は`e8cea97bb179ba67727fd1b855dc3ab0dafc82b9a6606d6d84defcaefb807281`。新afterのcontent-addressed snapshotも同じ専用一時領域だけに保全した。
+
+新7.7記録案 SHA-256: e8cea97bb179ba67727fd1b855dc3ab0dafc82b9a6606d6d84defcaefb807281
+
+|資産|#132 after / #141 before|今回受理済み#141 after|是正候補 after|
+|---|---|---|---|
+|`contracts/tenant_boundary/base-allowlist.json`|`32bfa4312fb40b0fafe966b7e8b846ba45696e5d94ce9a567d983f8963a111c5`|`a7e75d1a2bb68c6b9e922dcf2d28c6425ac1d2514db478aea5951279b42b2074`|`4fe17fd51990fc969de873ef4f22487061c2d17dab94892867c7846b4536bd37`|
+|`contracts/tenant_boundary/cache-invalidation-contract.json`|`22ed1510c74f331deb566154a8516d68936e34f77ef3e6237d40f7c90d319b55`|`e9eb7eeddfdbaf353505911a8a50c772d2c005b09b16d628b1584d2f4df508e3`|`5c3b41eeff96f89b141ef351ff6f8032af334d65c7ada77185b1c5d3f733db97`|
+|`contracts/tenant_boundary/census-baseline.json`|`939d79fdd71a3f600e1d645d9fc83c1d54701c22d66dda548bdf65b121f5a365`|`89ef72d277f2ceed0c6f8fe57ec2614e8737bc8d630e781a5e750c6e736e3c17`|`65d7a62b8030f1ab388a1b40511639c9b52d33917ec615c7addc9245dbc8f4cd`|
+|`contracts/tenant_boundary/db-api-inventory.json`|`73e6337328e374bfef4ee95eb67f3d474bac1a6b96a0b87391877b365871fbdb`|`a33b21815d133b9e655c3e7ff08ee4ec532c96cf04dd6735adaec38499082a5d`|`b41f41daa7f33dae4abc8dc832775607dea5844cbe2d6c195e7851d44e6207ba`|
+|`contracts/tenant_boundary/frozen-inputs.json`|`c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63`|`c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63`|`c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63`|
+|`contracts/tenant_boundary/negative-fixtures.json`|`4d0a03dfb02ba8c4e38c274793b9c8498c787620be5f01bf1fb951db8fe9005f`|`48fdca7da6f0f322968a897271100458c24cac32fcf0bf5db3ef783f75768920`|`79b6a0b2d62629c3381fa9fcd25fcf686f07b06c335189542b663ea42869d68a`|
+|`contracts/tenant_boundary/repository-contract.json`|`d325131cff7b904937af6763b78da61a46a200d3247644e583536e77d0c3ceb3`|`50137016e7c8affbe7e196290067545edf8e47abeb5f272ca8f10a57955804e3`|`3243fab16988d892755f1c3f25590663c7f72ed8bd9444c916c6df81c55b3ae2`|
+|`contracts/tenant_boundary/runtime-authz-contract.json`|`cebcc315d9b171b226a438fe9c2e4b9c092d8cb7b682dc84428753726216e05e`|`d9de0ca6eb483398f2de602ca91fb469fb01cf178075d7d4d9480c0183aabba7`|`ddd374b5c9ec51ec93a85b3a7e46dabc47023e7c1e4b64bb7bcb1128e93a51b8`|
+|`contracts/tenant_boundary/tenant-context-allowlist.json`|`7d50b29909a7a17223806c24f6d9c302284bce2981dd82170dad0d7fc6d5db61`|`1fb12e41e45ba544f05bc7afb9659b183474a711227435bdcceacaf2d4456b67`|`69044390b66610ebbf43297ed6ef261806ff746489ae4858ad3b52adc7362058`|
+
+|外部ファイル|#132 after / #141 before|今回受理済み#141 after|是正候補 after|
+|---|---|---|---|
+|`.github/workflows/ci.yml`|`f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8`|`f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8`|`f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8`|
+|`scripts/check_tenant_boundary_bypass.py`|`c3e52f7d9366f5453527481f18b8085e7f976e366da584495a267dafd5b1e9fd`|`c6fbf8c9cb62a2c1bab2a3cf520eb5d9bddd512786762bf5639e33b60125f65d`|`59e8125880ab7447aa37482e59cc68f6e9eb27ae21173755794127f2c7d198b4`|
+|`scripts/frozen_archive.py`|`66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6`|`66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6`|`66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6`|
+|`scripts/frozen_history.py`|`0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8`|`0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8`|`0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8`|
+|`tests/domain/test_boot_seal.py`|`bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2`|`bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2`|`bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2`|
+|`tests/test_census_baseline_check.py`|`4dcb0ee5450a0d8bbd03a3249397943766528b6b338ac3a99cb674150cdbf4bf`|`4dcb0ee5450a0d8bbd03a3249397943766528b6b338ac3a99cb674150cdbf4bf`|`f36af6c1b4ee52658a54e2811b276e409143ec83cb0d39cf9035ab1ee3d6a830`|
+|`tests/test_ci_wiring.py`|`36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396`|`36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396`|`36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396`|
+|`tests/test_plan_generation.py`|`9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe`|`9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe`|`9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe`|
+
+- corpus 入力digest: 受理済み `e73ef2743d03d97630516b4f51db0f8ee648fe069ab4c3bd51c83febff84986e` → 是正候補 `aacc5f04c0fe5605bf30efbf371fbf3c069031e5447d84d864005394423cedd8`
+- 9資産の識別値は現行#141候補の宣言どおり。
+- 受理済み履歴21件目は未変更。是正候補の履歴行は未作成。
+
+## TB005/TB007 追加独立レビューと最終候補（2026-10-16）
+
+POが許可した追加独立レビュー1回は、レビュー前候補の`git diff --binary` SHA-256 `6ee1d3e2907342138f6a77f35c4175c49f2a1095766c8a24684d4c0b9eaaee5b`と7.7案SHA-256 `e8cea97bb179ba67727fd1b855dc3ab0dafc82b9a6606d6d84defcaefb807281`を固定して実施した。対象は固定SQL許可シンボル、TB007初期化条件、census帰属、関連負例と影響箇所だけであり、既済み全文レビューは繰り返していない。独立レビュアの結果は**否決 P0=0 P1=2 P2=0**。
+
+|指摘|採否と反映|
+|---|---|
+|P1: `object.__setattr__`の許可はAST形のみで、固定builderを同名lambdaへ再束縛してもTB007が0件になる。censusも同じ述語を使用。|採用。固定builderと引数生成関数の一意なモジュール定義、保護したSQL生成シンボルの正規import、局所・モジュール再束縛、`self`再束縛を検査し、条件を満たさない場合はTB007を維持。censusも同じ束縛条件に追随。|
+|P1: 許可builder内の`select`を`literal_column`または宣言外`Function`に差し替えてもTB005が0件になる。|採用。固定builderと引数生成関数の本文を承認済みのSQL構築ASTと照合し、別関数、任意SQL式、別importの負例を追加。|
+
+関連する既存の別シンボル、別クラス、別属性、別対象、text、INSERT/UPDATEの拒否も維持した。**追加レビュー枠は使用済みで、今回の採用反映差分自体は独立再レビューを受けていない。**6.3の上限到達時の終端に従い、採否一覧とこの最終差分を人間確認へ上げる。7.7再受理、本人逐行確認、Draft解除、マージは別条件であり、受理済み#141の履歴とsnapshotは旧値のまま保持する。新案に`approved_by`/`approved_on`は未記入。
+
+# #141 TB005/TB007 是正候補の機械算出値
+
+新7.7記録案 SHA-256: 494e1a6bd74c8b68acc426cd87fa885f309c10cf36430f90559f2ba055b76b85
+
+|資産|#132 after / #141 before|今回受理済み#141 after|是正候補 after|
+|---|---|---|---|
+|`contracts/tenant_boundary/base-allowlist.json`|`32bfa4312fb40b0fafe966b7e8b846ba45696e5d94ce9a567d983f8963a111c5`|`a7e75d1a2bb68c6b9e922dcf2d28c6425ac1d2514db478aea5951279b42b2074`|`0642f1ce39b037248e2fcc32ecc44950887d379d563a564bdcd9d97b31d4b515`|
+|`contracts/tenant_boundary/cache-invalidation-contract.json`|`22ed1510c74f331deb566154a8516d68936e34f77ef3e6237d40f7c90d319b55`|`e9eb7eeddfdbaf353505911a8a50c772d2c005b09b16d628b1584d2f4df508e3`|`161d2815a06778fbac0bb679b5a5aa1d1295db2e7e0ed971d2b343a654daf32f`|
+|`contracts/tenant_boundary/census-baseline.json`|`939d79fdd71a3f600e1d645d9fc83c1d54701c22d66dda548bdf65b121f5a365`|`89ef72d277f2ceed0c6f8fe57ec2614e8737bc8d630e781a5e750c6e736e3c17`|`c717da79aee3504ab5176f88cd502ad40170389df7ad1aa60d4fb5c86e5f241f`|
+|`contracts/tenant_boundary/db-api-inventory.json`|`73e6337328e374bfef4ee95eb67f3d474bac1a6b96a0b87391877b365871fbdb`|`a33b21815d133b9e655c3e7ff08ee4ec532c96cf04dd6735adaec38499082a5d`|`66ec5e8410adeab61f78bcb4ce72ec4ea55b32588d96e95d172013b2a8658999`|
+|`contracts/tenant_boundary/frozen-inputs.json`|`c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63`|`c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63`|`c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63`|
+|`contracts/tenant_boundary/negative-fixtures.json`|`4d0a03dfb02ba8c4e38c274793b9c8498c787620be5f01bf1fb951db8fe9005f`|`48fdca7da6f0f322968a897271100458c24cac32fcf0bf5db3ef783f75768920`|`3513677e5ea3dff4db6471ef2b4ade93c91095ef5a3f43e085a5b8ee59c43d82`|
+|`contracts/tenant_boundary/repository-contract.json`|`d325131cff7b904937af6763b78da61a46a200d3247644e583536e77d0c3ceb3`|`50137016e7c8affbe7e196290067545edf8e47abeb5f272ca8f10a57955804e3`|`15c416e962e559312bc26502895d2718e508299459bbb6df3258758edf5c1004`|
+|`contracts/tenant_boundary/runtime-authz-contract.json`|`cebcc315d9b171b226a438fe9c2e4b9c092d8cb7b682dc84428753726216e05e`|`d9de0ca6eb483398f2de602ca91fb469fb01cf178075d7d4d9480c0183aabba7`|`a335d85ba04eb9d7f002009ecaf2f7229f410c2a5335929b8d2ddf960af0a53a`|
+|`contracts/tenant_boundary/tenant-context-allowlist.json`|`7d50b29909a7a17223806c24f6d9c302284bce2981dd82170dad0d7fc6d5db61`|`1fb12e41e45ba544f05bc7afb9659b183474a711227435bdcceacaf2d4456b67`|`16e7a9a6a263f00381a327d8f05bce597dd036d67333ebfc55e035f1e8f9e2c2`|
+
+|外部ファイル|#132 after / #141 before|今回受理済み#141 after|是正候補 after|
+|---|---|---|---|
+|`.github/workflows/ci.yml`|`f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8`|`f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8`|`f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8`|
+|`scripts/check_tenant_boundary_bypass.py`|`c3e52f7d9366f5453527481f18b8085e7f976e366da584495a267dafd5b1e9fd`|`c6fbf8c9cb62a2c1bab2a3cf520eb5d9bddd512786762bf5639e33b60125f65d`|`3e2cec0a25096b010973f3734c2746bd4386e413ebf44519ad8db0851846b883`|
+|`scripts/frozen_archive.py`|`66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6`|`66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6`|`66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6`|
+|`scripts/frozen_history.py`|`0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8`|`0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8`|`0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8`|
+|`tests/domain/test_boot_seal.py`|`bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2`|`bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2`|`bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2`|
+|`tests/test_census_baseline_check.py`|`4dcb0ee5450a0d8bbd03a3249397943766528b6b338ac3a99cb674150cdbf4bf`|`4dcb0ee5450a0d8bbd03a3249397943766528b6b338ac3a99cb674150cdbf4bf`|`163cb41e19e9d24ee2b30037f5f6614800ed193c21d1c31cc325371f25e9edfd`|
+|`tests/test_ci_wiring.py`|`36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396`|`36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396`|`36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396`|
+|`tests/test_plan_generation.py`|`9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe`|`9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe`|`9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe`|
+
+- corpus 入力digest: 受理済み `e73ef2743d03d97630516b4f51db0f8ee648fe069ab4c3bd51c83febff84986e` → 是正候補 `0f719807eb1f971e01849ceab0d1c5b0f4abeabf2d7977c495aec09944792c93`
+- 9資産の識別値は現行#141候補の宣言どおり。
+- 受理済み履歴21件目は未変更。是正候補の履歴行は未作成。
+
+### 最終候補の検査内訳
+
+- `TMPDIR=/var/tmp/pitchlog-tsk550-pr141-20261016 uv run pytest -q -n 8 tests/test_check_tenant_boundary_bypass.py tests/test_census_baseline_check.py --basetemp=/var/tmp/pitchlog-tsk550-pr141-20261016/pytest-root-focused-final --tb=short`: **430 passed**。`tests/test_census_baseline_check.py`単独CI検査も`census-baseline: OK`。
+- backend固定関数境界試験: **52 passed**。root Ruff/ty、backend Ruff format/check/ty、`check_tenant_boundary_bypass.py --base-ref origin/develop`、凍結不変条件、`git diff --check`は合格。候補manifestで比較corpus入力digestを再計算・照合。9/9の射影・snapshotと8/8の外部実ファイルSHAを実ファイルから照合。
+- 前回のroot全件 **29589 passed / 38 failed / 2 skipped** は旧corpus固定値32件と、当時未追随だったcensus帰属6件による。census帰属は是正し関連430件を再実行したが、root全件の最終候補再実行は未完。backend全件も前回78 passedで中断したまま。旧履歴・corpus値が正式受理されるまで、固定値検査の不合格を緑へ読み替えない。
+- 今回の単独逐次実行は旧HEADだけで作る合成リポジトリにも新builderを必須にした検査器の誤りで1件失敗した。旧HEADに新builderの参照がない場合は本限定検査を適用しないよう修正し、該当1件と最終430件で合格。最初の並列実行とcensus単独実行は共有`/tmp`の容量不足で不完走となったため、共有ファイル・共有ロールを操作せず、専用`/var/tmp`に切り替えて再実行した。容量不足は製品不具合ではない。
+- ローカル`check_frozen_baselines.py --ci`/`--acceptance`はGitHubイベント情報が無く実行条件を満たさない。7.7正式受理後の新履歴・snapshot・corpus反映、全件検査、push後の新HEAD CIは未実施。今回の受理値差し替え・pushは行わない。
+
+## TB005/TB007最終候補の7.7再受理（2026-10-16）
+
+POは本会話で、最終候補差分SHA-256 `21aaa523d5c4ef3a9dd80e007cd7d17886aaf6c1844321e1b58e3cb3c376c8aa` のP1 2件と未再レビュー最終反映を採用し、直前表の9資産・8外部ファイル・比較corpusの完全な前後値、および承認者・日付欄のない7.7案SHA-256 `494e1a6bd74c8b68acc426cd87fa885f309c10cf36430f90559f2ba055b76b85` を正式再受理した。実承認者は**山田正輝**、承認実日はJST **2026-10-16**。この判断はPR全体の本人逐行確認ではない。
+
+最新`origin/develop=966d7a38aa8dab2113c1d8ec6d30e5d32088ede5`は取込み済み基線と一致。#132までのコミット済み20件の受理履歴は保持した。同じ`acceptance_id=masaki1025/pitchlog#141`の二重行は7.7検査が拒否するため、未コミットだった旧#141ローカル行を今回受理された行に置換し、developとの差分として#132の後へv2履歴1件を直列化した。旧ローカル行と旧snapshot 9件は専用領域`/var/tmp/pitchlog-tsk550-pr141-20261016/`に保全し、履歴から参照されない新snapshotを正式archiveへ残さない。新after snapshotをcontent-addressed名で配置し、比較corpusを受理値に再pinした。反映後の候補案SHAとcorpus入力digestは上記受理値と一致し、凍結不変条件と迂回検査は合格した。製品登録0件を維持する。
+
+本節記入時点ではステップ2コミット、root/backend全件、push、新HEAD CI、PR本文更新、本人逐行確認は未了。完走結果を後続行に追記する。Draft解除・マージはしない。

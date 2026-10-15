@@ -2507,6 +2507,335 @@ def test_positive_fixtures_pass() -> None:
     assert violations == []
 
 
+def test_fixed_function_builder_has_only_select_permission() -> None:
+    """固定関数の文生成許可は専用シンボルのSELECTだけに限る。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    rows = [
+        item
+        for item in contract.allowed_symbols
+        if item.symbol
+        == "pitchlog.repositories.function_operations._build_fixed_function_statement"
+    ]
+    assert len(rows) == 1
+    assert rows[0].allowed_api_ids == frozenset({"SQLA_SELECT"})
+
+
+def test_fixed_function_unlisted_sql_builder_is_red() -> None:
+    """同じファイルでも未登録シンボルによるSQL生成を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = (
+        f"{source.rstrip()}\n\ndef _unlisted_statement() -> Select[Any]:\n"
+        "    return select(1)\n"
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, "return select(1)"),
+        contract=contract,
+    )
+    assert ("TB005", "sqlalchemy.select") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+def test_fixed_function_builder_rejects_arbitrary_sql() -> None:
+    """SELECT生成を許しても任意SQL文字列の組立ては拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        "    return select(*(safe_table.c[name] for name in result_names))",
+        '    return select(text("SELECT 1"))',
+        1,
+    ).replace(
+        "from sqlalchemy import bindparam, select",
+        "from sqlalchemy import bindparam, select, text",
+        1,
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, 'text("SELECT 1")'),
+        contract=contract,
+    )
+    assert ("TB005", "sqlalchemy.text") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+@pytest.mark.parametrize(
+    "replacement, extra_import",
+    (
+        (
+            'select(literal_column("(SELECT secret FROM other_tenant)").label(result_names[0]))',
+            ", literal_column",
+        ),
+        (
+            'select(Function("unapproved", *safe_arguments, '
+            'packagenames=(schema,)).label(result_names[0]))',
+            "",
+        ),
+    ),
+)
+def test_fixed_function_builder_rejects_other_sql_generation(
+    replacement: str, extra_import: str
+) -> None:
+    """許可関数内でも任意SQL式と宣言外関数への差し替えを拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        "select(safe_function.label(result_names[0]))", replacement, 1
+    )
+    if extra_import:
+        mutated = mutated.replace(
+            "from sqlalchemy import bindparam, select",
+            f"from sqlalchemy import bindparam, select{extra_import}",
+            1,
+        )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, replacement),
+        contract=contract,
+    )
+    symbol = (
+        "pitchlog.repositories.function_operations."
+        "_build_fixed_function_statement"
+    )
+    assert ("TB005", symbol) in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+def test_fixed_function_bind_rejects_literal_sql() -> None:
+    """固定関数の引数生成経路にも任意SQL式を混入させない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    replacement = 'return literal_column("(SELECT secret FROM other_tenant)")'
+    mutated = source.replace(
+        "return bindparam(name, type_=Uuid())", replacement, 1
+    ).replace(
+        "from sqlalchemy import bindparam, select",
+        "from sqlalchemy import bindparam, select, literal_column",
+        1,
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, replacement),
+        contract=contract,
+    )
+    assert ("TB005", "pitchlog.repositories.function_operations._canonical_bind") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+@pytest.mark.parametrize(
+    "old_import, replacement",
+    (
+        (
+            "from sqlalchemy import bindparam, select",
+            "from untrusted_sql import bindparam, select",
+        ),
+        (
+            "from sqlalchemy.sql.functions import Function",
+            "from untrusted_sql import Function",
+        ),
+    ),
+)
+def test_fixed_function_generation_rejects_import_imitation(
+    old_import: str, replacement: str
+) -> None:
+    """同名の別SQL生成関数・型を固定構築経路へ差し込めない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(old_import, replacement, 1)
+    assert mutated != source
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, replacement),
+        contract=contract,
+    )
+    assert ("TB007", "_build_fixed_function_statement") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+@pytest.mark.parametrize("location", ("local", "module"))
+def test_fixed_function_initialization_rejects_builder_rebinding(
+    location: str,
+) -> None:
+    """AST形が同じでも生成関数の束縛元が変わる場合は拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    rebinding = "_build_fixed_function_statement = lambda *args: self.statement"
+    if location == "local":
+        mutated = source.replace(
+            "        object.__setattr__(\n            self,\n            \"statement\",",
+            f"        {rebinding}\n"
+            '        object.__setattr__(\n            self,\n            "statement",',
+            1,
+        )
+    else:
+        rebinding = "_build_fixed_function_statement = lambda *args: None"
+        mutated = f"{source.rstrip()}\n\n{rebinding}\n"
+    assert mutated != source
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, rebinding),
+        contract=contract,
+    )
+    assert ("TB007", "_build_fixed_function_statement") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+def test_fixed_function_initialization_rejects_self_rebinding() -> None:
+    """selfという字面だけの別オブジェクトへTB007許可を移さない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    inserted = "        self = self.decoder"
+    mutated = source.replace(
+        '        object.__setattr__(\n            self,\n            "statement",',
+        f"{inserted}\n"
+        '        object.__setattr__(\n            self,\n            "statement",',
+        1,
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, inserted),
+        contract=contract,
+    )
+    assert ("TB007", "_build_fixed_function_statement") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+@pytest.mark.parametrize("api", ("insert", "update"))
+def test_fixed_function_builder_rejects_dml_construction(api: str) -> None:
+    """固定関数のSELECT許可をINSERTやUPDATEへ広げない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        "    return select(*(safe_table.c[name] for name in result_names))",
+        f"    return {api}(None)",
+        1,
+    ).replace(
+        "from sqlalchemy import bindparam, select",
+        f"from sqlalchemy import bindparam, select, {api}",
+        1,
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, f"return {api}(None)"),
+        contract=contract,
+    )
+    assert ("TB005", f"sqlalchemy.{api}") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+@pytest.mark.parametrize(
+    "target, attribute",
+    (("self", "capability_id"), ("other", "statement")),
+)
+def test_fixed_function_initialization_rejects_other_targets(
+    target: str, attribute: str
+) -> None:
+    """凍結登録型でも対象objectと列の拡張を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        '            "statement",\n            _build_fixed_function_statement(',
+        f'            "{attribute}",\n            _build_fixed_function_statement(',
+        1,
+    )
+    if target != "self":
+        mutated = mutated.replace(
+            '        object.__setattr__(\n            self,\n            "statement",',
+            '        object.__setattr__(\n            other,\n            "statement",',
+            1,
+        )
+    assert mutated != source
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(
+            mutated,
+            f'            "{attribute}",' if target == "self" else "            other,",
+        ),
+        contract=contract,
+    )
+    assert "TB007" in {item.code for item in violations}
+
+
+def test_fixed_function_initialization_rejects_other_value() -> None:
+    """同じstatement列でも固定生成関数以外の値を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        "\n\ndef _build_fixed_function_statement(",
+        '\n        object.__setattr__(self, "statement", select(1))'
+        "\n\n\ndef _build_fixed_function_statement(",
+        1,
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(
+            mutated, 'object.__setattr__(self, "statement", select(1))'
+        ),
+        contract=contract,
+    )
+    assert "TB007" in {item.code for item in violations}
+
+
+def test_fixed_function_initialization_rejects_other_class() -> None:
+    """同じ列名でも別オブジェクトの初期化へ許可を広げない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = (
+        f"{source.rstrip()}\n\nclass OtherRegistration:\n"
+        "    def __post_init__(self) -> None:\n"
+        '        object.__setattr__(self, "statement", select(1))\n'
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(
+            mutated, 'object.__setattr__(self, "statement", select(1))'
+        ),
+        contract=contract,
+    )
+    assert "TB007" in {item.code for item in violations}
+
+
 def test_frozen_baseline_asset_paths_are_an_exact_set() -> None:
     """tenant_boundary 配下の全資産を履歴検査から漏らさない。"""
     asset_root = REPOSITORY_ROOT / "contracts" / "tenant_boundary"
