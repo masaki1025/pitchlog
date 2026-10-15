@@ -26,11 +26,16 @@ def _object(value: object, label: str) -> dict[str, object]:
     return cast(dict[str, object], value)
 
 
-def _keys(value: object, label: str, required: set[str]) -> dict[str, object]:
+def _keys(
+    value: object,
+    label: str,
+    required: set[str],
+    optional: frozenset[str] = frozenset(),
+) -> dict[str, object]:
     """メッセージに必要なキーだけがあることを確認する。"""
     item = _object(value, label)
     missing = required - item.keys()
-    unexpected = item.keys() - required
+    unexpected = item.keys() - required - optional
     if missing or unexpected:
         detail = f"不足={sorted(missing)!r}, 未知={sorted(unexpected)!r}"
         raise ProtocolError(f"{label} のキーが不正: {detail}")
@@ -112,7 +117,9 @@ def _contract(value: object) -> vectors.VectorContract:
             "normalizationComparison",
             "outputComparison",
         },
+        frozenset({"livenessComparison"}),
     )
+    liveness = config.get("livenessComparison")
     return vectors.VectorContract(
         calculation=_string(config["calculation"], "contract.calculation"),
         vector=_string(config["vector"], "contract.vector"),
@@ -125,6 +132,11 @@ def _contract(value: object) -> vectors.VectorContract:
         ),
         output_comparison=_comparison(
             config["outputComparison"], "contract.outputComparison"
+        ),
+        liveness_comparison=(
+            _object(liveness, "contract.livenessComparison")
+            if liveness is not None
+            else None
         ),
     )
 

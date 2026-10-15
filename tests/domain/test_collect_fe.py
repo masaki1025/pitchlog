@@ -229,3 +229,23 @@ def test_real_course_input_view_is_reachable_from_production_html() -> None:
     assert path is not None
     assert path[0] == "frontend/index.html"
     assert path[-1] == "frontend/src/lib/courseInputView.ts"
+
+
+def test_real_domain_artifact_is_decidable_static_public_entry() -> None:
+    """実配布物を HTML から到達する static-public 入口として列挙する。"""
+    result_process = _run_collector(ROOT)
+    result = _result(result_process)
+    artifact = "frontend/public/domain/pitchlog-domain.js"
+
+    assert result_process.returncode == 0, result_process.stderr
+    assert result["unresolved"] == []
+    assert "static-public" in _entries_by_path(result)[artifact]["kinds"]
+    assert {
+        "from": "frontend/index.html",
+        "kind": "html-script",
+        "to": artifact,
+    } in result["importGraph"]
+    assert _shortest_path(result, "frontend/index.html", artifact) == [
+        "frontend/index.html",
+        artifact,
+    ]

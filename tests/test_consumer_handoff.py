@@ -6,6 +6,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,10 @@ _load_module(
 schema_checker = _load_module(
     "check_input_axes_descriptor",
     REPOSITORY_ROOT / "scripts/check_input_axes_descriptor.py",
+)
+runner_handoff = _load_module(
+    "runner_handoff",
+    REPOSITORY_ROOT / "backend/src/pitchlog/domaincheck/runners/handoff.py",
 )
 
 
@@ -207,9 +212,56 @@ def _validate_handoff(handoff: dict[str, Any]) -> dict[str, int]:
 def test_repository_handoff_schema_and_all_case_pointers_resolve() -> None:
     """2契約の全caseとcase schemaへの参照が解決できる。"""
     assert _validate_handoff(_handoff()) == {
-        "state-transition": 96,
-        "game-end": 170,
+        "state-transition": 109,
+        "game-end": 248,
     }
+
+
+def test_receiver_task_id_is_fixed_to_a_valid_task_id() -> None:
+    """受取タスクが文字列のTSK IDとして確定したことを検査する。"""
+    receiver_schema = _schema()["properties"]["receiverTaskId"]
+    assert receiver_schema["type"] == "string"
+    assert receiver_schema["pattern"] == "^TSK-[1-9][0-9]*$"
+    handoff = _handoff()
+    assert handoff["receiverTaskId"] == "TSK-538"
+    _validate_handoff(handoff)
+
+
+@pytest.mark.parametrize(
+    ("task_id", "message"),
+    [(None, "型不一致"), ("538", "pattern不一致"), ("TSK-0", "pattern不一致")],
+)
+def test_invalid_receiver_task_id_fails_schema(task_id: object, message: str) -> None:
+    """未定義または不正な受取タスクIDを拒否する。"""
+    handoff = copy.deepcopy(_handoff())
+    handoff["receiverTaskId"] = task_id
+    with pytest.raises(schema_checker.DescriptorCheckError, match=message):
+        _validate_handoff(handoff)
+
+
+def test_tsk455_dependencies_pin_original_runner_assets() -> None:
+    """TSK-455のcommit OIDは初期版を指し、現行版の照合は読み込み層に委ねる。"""
+    original_paths = {
+        "backend/src/pitchlog/domaincheck/runners/vector_bridge.py",
+        "frontend/src/testing/vectorRunner.ts",
+    }
+    dependencies = [
+        item for item in _handoff()["dependencies"] if item["taskId"] == "TSK-455"
+    ]
+    assert {item["artifactPath"] for item in dependencies} == original_paths
+    for dependency in dependencies:
+        assert dependency["version"] == 1
+        path = dependency["artifactPath"]
+        oid = dependency["commitOid"]
+        assert (dependency["taskId"], oid) == runner_handoff.DEPENDENCY_ORIGINS[path]
+        blob = subprocess.run(
+            ["git", "show", f"{oid}:{path}"],
+            cwd=REPOSITORY_ROOT,
+            check=True,
+            capture_output=True,
+            timeout=10,
+        ).stdout
+        assert blob
 
 
 def test_game_end_binding_uses_actual_normalization_points() -> None:
@@ -278,12 +330,93 @@ def test_duplicate_runner_fails_exact_set() -> None:
         _validate_handoff(handoff)
 
 
-def test_runner_revision_cannot_claim_resolved() -> None:
-    """段階1でrunnerのcommit OIDを確定済みと宣言できない。"""
+RUNNER_ASSETS = {
+    "pytest": "backend/src/pitchlog/domaincheck/runners/vector_bridge.py",
+    "vitest": "frontend/src/testing/vectorRunner.ts",
+}
+
+
+def _git(*args: str, root: Path = REPOSITORY_ROOT) -> subprocess.CompletedProcess[bytes]:
+    """gitを実行し、終了コードの判定は呼び出し側に委ねる。"""
+    return subprocess.run(
+        ["git", *args],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        timeout=10,
+    )
+
+
+def _runner_revision_error(
+    runner: str, revision: str, root: Path = REPOSITORY_ROOT
+) -> str | None:
+    """runnerRevisionがHEADの祖先で、その時点のrunner資産がHEADと同一かを返す。"""
+    if _git("cat-file", "-e", f"{revision}^{{commit}}", root=root).returncode != 0:
+        return "commitが存在しない"
+    if _git("merge-base", "--is-ancestor", revision, "HEAD", root=root).returncode != 0:
+        return "HEADの祖先でない"
+    path = RUNNER_ASSETS[runner]
+    pinned = _git("rev-parse", f"{revision}:{path}", root=root)
+    current = _git("rev-parse", f"HEAD:{path}", root=root)
+    if pinned.returncode != 0 or pinned.stdout != current.stdout:
+        return "runner資産のblobがHEADと一致しない"
+    return None
+
+
+def test_runner_revision_rejects_pending() -> None:
+    """段階2ではrunnerRevisionを未確定のpendingのままにできない。"""
     handoff = copy.deepcopy(_handoff())
-    handoff["consumerBindings"][0]["executionPaths"][0]["runnerRevision"] = "a" * 40
-    with pytest.raises(schema_checker.DescriptorCheckError, match="const不一致"):
+    handoff["consumerBindings"][0]["executionPaths"][0]["runnerRevision"] = "pending"
+    with pytest.raises(schema_checker.DescriptorCheckError, match="pattern"):
         _validate_handoff(handoff)
+
+
+def test_runner_revisions_pin_head_runner_assets() -> None:
+    """各runnerRevisionはHEADの祖先で、その時点のrunner資産がHEADと同一である。"""
+    paths = [
+        path
+        for binding in _handoff()["consumerBindings"]
+        for path in binding["executionPaths"]
+    ]
+    assert {path["runner"] for path in paths} == set(RUNNER_ASSETS)
+    for path in paths:
+        assert _runner_revision_error(path["runner"], path["runnerRevision"]) is None
+
+
+def test_runner_revision_rejects_unknown_commit() -> None:
+    """存在しないcommit OIDはrunnerの版として受け付けない。"""
+    revision = _handoff()["consumerBindings"][0]["executionPaths"][0]["runnerRevision"]
+    unknown = "0" * 40 if revision != "0" * 40 else "1" * 40
+    assert _runner_revision_error("pytest", unknown) == "commitが存在しない"
+
+
+def test_runner_revision_rejects_non_ancestor(tmp_path: Path) -> None:
+    """runner資産が同一でも、HEADの祖先でないcommitは版として受け付けない。"""
+    path = RUNNER_ASSETS["pytest"]
+    identity = ("-c", "user.name=test", "-c", "user.email=test@example.invalid")
+    assert _git("init", "-q", "-b", "main", root=tmp_path).returncode == 0
+    asset = tmp_path / path
+    asset.parent.mkdir(parents=True)
+    asset.write_bytes((REPOSITORY_ROOT / path).read_bytes())
+    assert _git("add", path, root=tmp_path).returncode == 0
+    assert _git(*identity, "commit", "-q", "-m", "base", root=tmp_path).returncode == 0
+    assert _git("switch", "-q", "-c", "side", root=tmp_path).returncode == 0
+    assert _git(
+        *identity, "commit", "-q", "--allow-empty", "-m", "side", root=tmp_path
+    ).returncode == 0
+    side = _git("rev-parse", "HEAD", root=tmp_path).stdout.decode().strip()
+    assert _git("switch", "-q", "main", root=tmp_path).returncode == 0
+    assert _runner_revision_error("pytest", side, root=tmp_path) == "HEADの祖先でない"
+
+
+def test_runner_revision_rejects_stale_runner_asset() -> None:
+    """runner資産がHEADと異なる時点のcommitは版として受け付けない。"""
+    for runner, path in RUNNER_ASSETS.items():
+        history = _git("log", "--format=%H", "-2", "--", path).stdout.decode().split()
+        assert len(history) == 2, path
+        assert _runner_revision_error(runner, history[1]) == (
+            "runner資産のblobがHEADと一致しない"
+        )
 
 
 def test_artifact_digest_mismatch_is_red() -> None:

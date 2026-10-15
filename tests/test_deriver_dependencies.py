@@ -234,7 +234,7 @@ def test_partition_rule_without_source_clause_fails() -> None:
 
 
 def test_repository_input_coordinate_requirements_are_per_axis_values() -> None:
-    """26軸から軸ごとの150要求を導出し、軸間直積を主張しない。"""
+    """45軸から軸ごとの193要求を導出し、軸間直積を主張しない。"""
     policy = _policy()
     requirements, trace = checker.derive_repository_input_coordinate_requirements(
         REPOSITORY_ROOT, policy
@@ -242,8 +242,8 @@ def test_repository_input_coordinate_requirements_are_per_axis_values() -> None:
     descriptor = _input_axes_descriptor()
     boundary = descriptor["inputCoordinateCoverage"]["axisCombinationBoundary"]
 
-    assert len(requirements) == 150
-    assert len({item.identity for item in requirements}) == 150
+    assert len(requirements) == 193
+    assert len({item.identity for item in requirements}) == 193
     assert {item.axis_id for item in requirements} == {
         axis["axisId"] for axis in descriptor["stateTransitionAxes"]
     }
@@ -286,7 +286,7 @@ def test_input_coordinate_bindings_use_normative_row_natural_keys() -> None:
 
 
 def test_conditional_coordinate_values_follow_declared_adoption_state() -> None:
-    """FR-040の採用状態で条件付き4値を採用または除外する。"""
+    """FR-040の採用状態で条件付き5値を採用または除外する。"""
     requirements = checker.derive_input_coordinate_requirements_from_descriptor(
         _input_axes_descriptor()
     )
@@ -297,8 +297,8 @@ def test_conditional_coordinate_values_follow_declared_adoption_state() -> None:
         requirements, {"req:FR-040": "adopted"}
     )
 
-    assert len(not_adopted) == 146
-    assert len(adopted) == 150
+    assert len(not_adopted) == 188
+    assert len(adopted) == 193
     assert not any(
         item.when_clause_id is not None for item in not_adopted
     )
@@ -350,15 +350,23 @@ def test_repository_game_end_required_set_follows_descriptor_combinations() -> N
         len(axis["boundaryValues"]) for axis in descriptor["gameEndAxes"]
     ]
     invalid_value_count = sum(
-        len(axis["invalidBoundaryValues"])
+        len(axis.get("invalidBoundaryValues", []))
         for axis in descriptor["gameEndAxes"]
     )
+    play_input_axes = {
+        axis_id
+        for binding in descriptor["inputCoordinateCoverage"]["axisBindings"]
+        for row_binding in binding["rowBindings"]
+        if "matrixRows" in row_binding["rowLayers"]
+        for axis_id in binding["axisIds"]
+    }
     state_event_coordinates = tuple(
         item
         for item in checker.derive_input_coordinate_requirements_from_descriptor(
             descriptor
         )
         if item.axis_id.split(".", 1)[0] in {"state", "event"}
+        and item.axis_id in play_input_axes
     )
     pairwise_count = sum(
         left_count * right_count
@@ -435,8 +443,13 @@ def test_default_nine_inning_setting_alone_does_not_cover_game_end_requirements(
 
 
 def test_game_end_required_set_covers_all_declared_game_outcome_branches() -> None:
-    """独立導出後にGAME-*の4役割をregisterと双方向に突合する。"""
+    """独立導出後にGAME-*の5役割とXMARK-01を台帳へ突合する。"""
     required_set = _game_end_required_set()
+    xmark = next(
+        item for item in required_set.clause_branch_requirements
+        if item.branch_id == "XMARK-01"
+    )
+    assert xmark.source_clause_ids == ("req:FR-020", "req:XMARK-01")
     register = _json(CLAUSE_BRANCH_REGISTER_PATH)
     outcome_ids = checker.validate_game_end_outcome_branch_coverage(
         required_set, register
@@ -444,6 +457,21 @@ def test_game_end_required_set_covers_all_declared_game_outcome_branches() -> No
 
     assert set(outcome_ids) == set(register["gameEndOutcomeBranches"].values())
     assert len(outcome_ids) == len(register["gameEndOutcomeBranches"])
+
+
+def test_missing_fr020_xmark_row_fails_required_set_derivation() -> None:
+    """FR-020の規範行が消えた場合はXMARK-01を導出済みと扱わない。"""
+    requirements = REQUIREMENTS_PATH.read_text(encoding="utf-8")
+    assert "| `XMARK-01` |" in requirements
+    mutated = requirements.replace("| `XMARK-01` |", "| `XMARK-99` |", 1)
+    clause_ids = checker.descriptor_checker.load_clause_ids_from_paths(
+        REPOSITORY_ROOT,
+        (PurePosixPath(REQUIREMENTS_PATH.relative_to(REPOSITORY_ROOT).as_posix()),),
+    )
+    with pytest.raises(checker.DeriverDependencyError, match="FR-020のXMARK-01"):
+        checker._extract_game_end_clause_branch_requirements(
+            mutated, frozenset(f"req:{item}" for item in clause_ids)
+        )
 
 
 def test_game_end_outcome_with_uncovered_clause_branch_fails() -> None:

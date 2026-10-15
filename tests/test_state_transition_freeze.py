@@ -67,12 +67,12 @@ def _repository_acceptance_context() -> Any:
         base_sha=_git_sha(REPOSITORY_ROOT, "origin/develop"),
         head_sha=_git_sha(REPOSITORY_ROOT, "HEAD"),
         repository="masaki1025/pitchlog",
-        number=81,
+        number=131,
     )
 
 
-def test_repository_history_is_one_append_from_origin_develop() -> None:
-    """PR比較元で基準が無かった状態から受理記録1件だけを追記している。"""
+def test_repository_history_is_append_only_from_origin_develop() -> None:
+    """PR比較元から同じPRの受理記録を順に追記している。"""
     freeze_checker.validate_repository_history(
         REPOSITORY_ROOT,
         descriptor_checker.DESCRIPTOR_PATH,
@@ -94,7 +94,7 @@ def test_current_identities_are_derived_from_scope_and_asset_side_criteria() -> 
 def test_provisional_approval_fields_stay_consistent() -> None:
     """PR #81の暫定記録でapprovedByだけを人名へ変える偽装を拒否する。"""
     current = copy.deepcopy(_declaration())
-    record = current["history"][-1]
+    record = current["history"][0]
     assert record["approvedBy"] == "未承認(PR #81 のレビュー待ち)"
     assert record["approvedBy"] in record["fact"]
 
@@ -200,10 +200,19 @@ def test_asset_cannot_self_report_comparison_source_across_two_commits(
     tmp_path: Path,
 ) -> None:
     """2コミットで比較元を自己申告しても外部PR baseとの差を隠せない。"""
-    root = _copy_audited_sources(tmp_path)
+    root = _copy_audited_sources(tmp_path, revision="origin/develop")
     descriptor_path = root / descriptor_checker.DESCRIPTOR_PATH
     descriptor_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(REPOSITORY_ROOT / descriptor_checker.DESCRIPTOR_PATH, descriptor_path)
+    descriptor_path.write_text(
+        subprocess.run(
+            ["git", "show", f"origin/develop:{descriptor_checker.DESCRIPTOR_PATH}"],
+            cwd=REPOSITORY_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout,
+        encoding="utf-8",
+    )
     subprocess.run(["git", "init", "-q"], cwd=root, check=True)
     subprocess.run(
         ["git", "config", "user.email", "freeze-test@example.invalid"],
@@ -338,7 +347,7 @@ def test_criterion_set_removal_from_declaration_is_red() -> None:
         freeze_checker.validate_declaration(declaration)
 
 
-def _copy_audited_sources(tmp_path: Path) -> Path:
+def _copy_audited_sources(tmp_path: Path, revision: str | None = None) -> Path:
     """宣言が監査する検査器sourceを一時リポジトリへ複製する。"""
     root = tmp_path / "repository"
     scope = _declaration()["scope"]
@@ -349,7 +358,17 @@ def _copy_audited_sources(tmp_path: Path) -> Path:
     for relative_path in paths:
         destination = root / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
+        if revision is None:
+            shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
+        else:
+            source = subprocess.run(
+                ["git", "show", f"{revision}:{relative_path}"],
+                cwd=REPOSITORY_ROOT,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout
+            destination.write_text(source, encoding="utf-8")
     return root
 
 
@@ -387,7 +406,7 @@ def test_unchanged_followup_pr_keeps_prior_acceptance_id_green(
         (root / descriptor_checker.DESCRIPTOR_PATH).read_text(encoding="utf-8")
     )
     declaration = descriptor[freeze_checker.FREEZE_FIELD]
-    assert declaration["history"][-1]["acceptanceId"] == "masaki1025/pitchlog#81"
+    assert declaration["history"][-1]["acceptanceId"] == "masaki1025/pitchlog#131"
 
     freeze_checker.validate_repository_history(
         root,
@@ -403,13 +422,25 @@ def test_unchanged_followup_pr_keeps_prior_acceptance_id_green(
 
 
 def _create_changed_baseline_repository(tmp_path: Path) -> tuple[Path, str, str]:
-    """基準を新たに置いたPR相当(比較元にdescriptorが無い)を作る。
+    """既存の凍結基準へ受理記録を1件追記したPR相当を作る。
 
     実リポジトリの `origin/develop..HEAD` を比較元に使うと、取り込み後は
     比較元と HEAD が同じ宣言になり追記が 0 件になるため、照合の枝へ入らない。
     前提(このPRが基準を動かした)を合成側で必ず成立させる。
     """
     root = _copy_audited_sources(tmp_path)
+    descriptor_path = root / descriptor_checker.DESCRIPTOR_PATH
+    descriptor_path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor_path.write_text(
+        subprocess.run(
+            ["git", "show", f"origin/develop:{descriptor_checker.DESCRIPTOR_PATH}"],
+            cwd=REPOSITORY_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout,
+        encoding="utf-8",
+    )
     subprocess.run(["git", "init", "-q"], cwd=root, check=True)
     subprocess.run(
         ["git", "config", "user.email", "freeze-test@example.invalid"],
@@ -419,17 +450,15 @@ def _create_changed_baseline_repository(tmp_path: Path) -> tuple[Path, str, str]
     subprocess.run(["git", "config", "user.name", "freeze test"], cwd=root, check=True)
     subprocess.run(["git", "add", "."], cwd=root, check=True)
     subprocess.run(
-        ["git", "commit", "-qm", "baseline before freeze declaration"],
+        ["git", "commit", "-qm", "accepted prior baseline"],
         cwd=root,
         check=True,
     )
     base_sha = _git_sha(root, "HEAD")
-    descriptor_path = root / descriptor_checker.DESCRIPTOR_PATH
-    descriptor_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(REPOSITORY_ROOT / descriptor_checker.DESCRIPTOR_PATH, descriptor_path)
     subprocess.run(["git", "add", "."], cwd=root, check=True)
     subprocess.run(
-        ["git", "commit", "-qm", "freeze declaration accepted"], cwd=root, check=True
+        ["git", "commit", "-qm", "new baseline accepted"], cwd=root, check=True
     )
     return root, base_sha, _git_sha(root, "HEAD")
 
@@ -445,7 +474,7 @@ def test_changed_pr_accepts_matching_acceptance_id(tmp_path: Path) -> None:
             base_sha=base_sha,
             head_sha=head_sha,
             repository="masaki1025/pitchlog",
-            number=81,
+            number=131,
         ),
     )
 
@@ -485,7 +514,7 @@ def test_unchanged_pr_rejects_spurious_acceptance_record() -> None:
 
     with pytest.raises(
         freeze_checker.FreezeBaselineError,
-        match="基準遷移1回につき受理記録はちょうど1件",
+        match="受理記録のchangesが比較元から導出した変更前後と一致しない",
     ):
         freeze_checker.validate_append_only_transition(current, base)
 

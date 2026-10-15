@@ -11,7 +11,8 @@
       "normalEnd",
       "extraInningContinue",
       "limitDraw",
-      "tiebreakContinue"
+      "tiebreakContinue",
+      "walkOff"
     ],
     "sourceClauseNamespace": "req",
     "gapOwnership": "filled-bidirectionally-at-step-47",
@@ -19,9 +20,10 @@
       "XC-01",
       "XC-05",
       "XC-06",
-      "XC-07"
+      "XC-07",
+      "GAME-END-WALK-OFF"
     ],
-    "intentionalUnassignedReason": "general-event-and-count-cross-constraints-outside-nine-definition-gap-closures",
+    "intentionalUnassignedReason": "general-event-and-count-cross-constraints-and-walk-off-outside-nine-definition-gap-closures",
     "assuranceBoundary": {
       "mechanicallyGuaranteed": [
         "requirement-normative-branch-id-exact-set",
@@ -109,7 +111,8 @@
         "normalEnd",
         "extraInningContinue",
         "limitDraw",
-        "tiebreakContinue"
+        "tiebreakContinue",
+        "walkOff"
       ],
       "additionalProperties": false,
       "properties": {
@@ -124,6 +127,10 @@
         },
         "tiebreakContinue": {
           "$ref": "#/$defs/branchId"
+        },
+        "walkOff": {
+          "$ref": "#/$defs/branchId",
+          "description": "FR-005のサヨナラ終了条件をプレイ確定時に検知する役割。付録F-1の途中勝ち越しとFR-020 XMARK-01に従い、開始済みの裏は得点表示とする。得点値の導出は含まない。"
         }
       }
     },

@@ -471,6 +471,35 @@ def test_valid_model_generates_language_independent_intermediate(
     assert all("code" not in stage for stage in stages)
 
 
+def test_single_js_artifact_becomes_one_intermediate_stage(schemas: Any) -> None:
+    """単一ターゲットでは JS 生成物種別を一段の名前として扱う。"""
+    manifest = _manifest()
+    calculation = manifest["calculations"][0]
+    artifact = _generated("synthetic-js-artifact", "js-artifact")
+    artifact["path"] = "frontend/public/domain/pitchlog-domain.js"
+    calculation["generated"] = [artifact]
+    calculation["directTargets"] = [
+        {
+            "directTargetId": "synthetic-direct",
+            "targetClass": "alpha",
+            "kind": "single",
+            "generated": artifact["generatedId"],
+            "hash": HASH,
+            "invocation": {"adapter": "synthetic/adapter.py", "operation": "execute"},
+        }
+    ]
+    calculation["mutation"][0]["target"] = artifact["path"]
+
+    intermediate = CORE.generate_intermediate_representation(
+        _model(), manifest, schemas, ROOT
+    )
+    stages = intermediate["calculations"][0]["targets"][0]["stages"]
+    assert len(stages) == 1
+    assert stages[0]["stage"] == "js-artifact"
+    assert stages[0]["generatedId"] == artifact["generatedId"]
+    assert re.fullmatch(r"sha256:[0-9a-f]{64}", stages[0]["sourceHash"])
+
+
 def test_declaration_change_updates_each_stage_hash(schemas: Any) -> None:
     original = _generate(schemas)
     changed_model = _model()

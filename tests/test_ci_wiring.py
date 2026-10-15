@@ -1376,12 +1376,15 @@ def _ci_wiring_errors(
             "backend/**",
             "contracts/**",
             ".github/workflows/ci.yml",
+            "frontend/public/domain/**",
+            ".dockerignore",
+            "mise.toml",
         ]:
-            errors.append("backend-changes の既存 paths-filter が変わっている")
+            errors.append("backend-changes の paths-filter が期待値と異なる")
 
     commands = _backend_commands(backend)
     required_backend_commands = [
-        "uv python install",
+        "corepack enable", "pnpm install --frozen-lockfile", "uv python install",
         "uv sync --locked --dev",
         "uv run ruff check .",
         "uv run ruff format --check .",
@@ -1389,8 +1392,11 @@ def _ci_wiring_errors(
         execution["single_command"]["expected"],
         *ALEMBIC_CI_COMMANDS,
     ]
-    if commands != required_backend_commands:
-        errors.append("backend の既存 6 件 + Alembic 3 段が順序どおりでない")
+    if (
+        commands[: len(required_backend_commands)] != required_backend_commands
+        or len(commands) != len(required_backend_commands) + 1
+    ):
+        errors.append("backend の frontend 依存 2 件 + 既存 6 件 + Alembic 3 段が順序どおりでない")
     expected_alembic_locations = [
         ("backend", command) for command in ALEMBIC_CI_COMMANDS
     ]
@@ -1481,10 +1487,15 @@ def _expected_new_job_steps(
     harness_steps = _harness_job(workflow).get("steps")
     assert isinstance(harness_steps, list)
     assert len(harness_steps) >= 4
-    expected = [
-        *copy.deepcopy(harness_steps[:4]),
-        *copy.deepcopy(list(extra_steps)),
+    # harness 固有の mise step は Node を使わないジョブへ伝播させない。
+    common_steps = [
+        step
+        for step in harness_steps
+        if str(step.get("uses", "")).startswith(("actions/checkout@", "astral-sh/setup-uv@"))
+        or step.get("run") in {"uv python install", "uv sync --locked --dev"}
     ]
+    assert len(common_steps) == 4
+    expected = [*copy.deepcopy(common_steps), *copy.deepcopy(list(extra_steps))]
     if direct_pytest:
         expected.append({"run": pytest_command})
     return expected
@@ -2306,6 +2317,90 @@ def test_frontend_paths_filter_includes_sync_protocol_oracle() -> None:
     frontend_paths = parsed_filter.get("frontend")
     assert isinstance(frontend_paths, list), "frontend filter は配列が必要"
     assert "scripts/design_relations/sync-protocol.json" in frontend_paths
+
+
+def test_domain_runtime_ci_paths_and_artifact_build_are_wired() -> None:
+    """適合ベクタから frontend を起動し、配布 artifact の再現性を確かめる。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    frontend_changes = _named_job(workflow, "frontend-changes")
+    filter_step = next(
+        step
+        for step in frontend_changes["steps"]
+        if isinstance(step, dict) and step.get("id") == "filter"
+    )
+    frontend_paths = yaml.safe_load(filter_step["with"]["filters"])["frontend"]
+    assert {
+        "frontend/**",
+        "frontend/public/domain/**",
+        "frontend/scripts/domain-*/**",
+        "tests/domain/runners/**",
+        "backend/src/pitchlog/domaincheck/runners/**",
+        "contracts/**",
+    } <= set(frontend_paths)
+
+    frontend = _named_job(workflow, "frontend")
+    commands = [step["run"] for step in frontend["steps"] if "run" in step]
+    build_index = commands.index("pnpm run build:domain")
+    assert commands[build_index + 1] == (
+        "git diff --exit-code -- public/domain/pitchlog-domain.js "
+        "public/domain/pitchlog-domain.json"
+    )
+    assert build_index < commands.index("pnpm run build")
+    assert commands.index("pnpm run build") < commands.index("pnpm test -- --run")
+
+
+def test_domain_runtime_ci_uses_mise_and_checks_distribution_image() -> None:
+    """Python 系ジョブの Node と x86_64 配布物の起動検査を固定する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    node_version = tomllib.loads((REPOSITORY_ROOT / "mise.toml").read_text())[
+        "tools"
+    ]["node"]
+    assert node_version == "24.16.0"
+    for job_name in ("harness", "backend"):
+        job = _named_job(workflow, job_name)
+        mise_steps = [
+            step
+            for step in job["steps"]
+            if isinstance(step, dict)
+            and str(step.get("uses", "")).startswith("jdx/mise-action@")
+        ]
+        assert len(mise_steps) == 1
+        assert mise_steps[0]["with"] == {
+            "version": "2026.8.6",
+            "install": True,
+            "cache": False,
+        }
+
+    backend_changes = _named_job(workflow, "backend-changes")
+    filter_step = next(
+        step
+        for step in backend_changes["steps"]
+        if isinstance(step, dict) and step.get("id") == "filter"
+    )
+    backend_paths = yaml.safe_load(filter_step["with"]["filters"])["backend"]
+    assert {"backend/**", "frontend/public/domain/**", ".dockerignore", "mise.toml"} <= set(
+        backend_paths
+    )
+
+    backend = _named_job(workflow, "backend")
+    smoke_steps = [
+        step for step in backend["steps"] if step.get("name") == "D-2 配布イメージの疎通"
+    ]
+    assert len(smoke_steps) == 1
+    smoke = smoke_steps[0]
+    assert smoke["working-directory"] == "${{ github.workspace }}"
+    script = smoke["run"]
+    for expected in (
+        "docker build -f backend/Dockerfile",
+        "--entrypoint node",
+        f'"v{node_version}"',
+        "--entrypoint python",
+        "create_app()",
+        "open_domain_host()",
+        "host.call('ping'",
+        "18446744073709551621",
+    ):
+        assert expected in script
 
 
 def test_tenant_boundary_bypass_job_matches_declared_contract() -> None:

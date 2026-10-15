@@ -421,6 +421,29 @@ def test_kind_and_stage_counts_are_frozen(schema: dict[str, Any]) -> None:
     assert "generated" in single and "components" not in single
 
 
+def test_single_alpha_target_accepts_js_artifact(
+    tmp_path: Path, schema: dict[str, Any]
+) -> None:
+    """(α) の単一ターゲットが JS 配布物を生成 ID で参照できる。"""
+    manifest = _manifest("alpha")
+    calculation = manifest["calculations"][0]
+    artifact = calculation["generated"][0]
+    artifact["artifactKind"] = "js-artifact"
+    artifact["path"] = "frontend/public/domain/pitchlog-domain.js"
+
+    assert calculation["directTargets"][0]["generated"] == artifact["generatedId"]
+    _write_and_validate(tmp_path, manifest, schema)
+
+
+def test_unknown_artifact_kind_is_rejected(schema: dict[str, Any]) -> None:
+    """宣言外の生成物種別は fail-closed で拒否する。"""
+    manifest = _manifest("alpha")
+    manifest["calculations"][0]["generated"][0]["artifactKind"] = "unknown-js"
+
+    with pytest.raises(SchemaValidationError, match="artifactKind: enum"):
+        _validate_manifest(manifest, schema)
+
+
 def test_nonempty_fields_and_composite_minimum_are_frozen(
     schema: dict[str, Any],
 ) -> None:

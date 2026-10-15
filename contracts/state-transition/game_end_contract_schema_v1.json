@@ -17,10 +17,21 @@
       "GAME-END-EXTRA-CONTINUE",
       "GAME-END-LIMIT-DRAW",
       "GAME-END-TIEBREAK-CONTINUE",
-      "COLD-08"
+      "COLD-08",
+      "COLD-09",
+      "GAME-END-WALK-OFF",
+      "XMARK-02"
     ],
     "branchClassificationOverrides": {
       "COLD-08": {
+        "branchKind": "requirement-branch-row",
+        "coverageKind": "normative-case"
+      },
+      "COLD-09": {
+        "branchKind": "requirement-branch-row",
+        "coverageKind": "normative-case"
+      },
+      "XMARK-02": {
         "branchKind": "requirement-branch-row",
         "coverageKind": "normative-case"
       }
@@ -30,7 +41,10 @@
       "GAME-END-EXTRA-CONTINUE": "extra-continue",
       "GAME-END-LIMIT-DRAW": "limit-draw",
       "GAME-END-TIEBREAK-CONTINUE": "tiebreak-continue",
-      "COLD-08": "cold-end"
+      "COLD-08": "cold-end",
+      "COLD-09": "cold-end",
+      "GAME-END-WALK-OFF": "walk-off",
+      "XMARK-02": "normal-end"
     },
     "outcomeSourceClauseIds": {
       "normal-end": ["req:FR-005", "req:F-1"],
@@ -38,20 +52,38 @@
       "limit-draw": ["req:F-1"],
       "tiebreak-continue": ["req:FR-009", "req:F-1"],
       "cold-end": ["req:FR-005", "req:F-1"],
-      "walk-off": ["req:FR-005", "req:F-1"]
+      "walk-off": ["req:FR-005", "req:FR-020"]
     },
     "axisDescriptorPath": "contracts/state-transition/input_axes_descriptor_v1.json",
     "evaluationPoint": "post-confirmed-play-and-after-switch-if-third-out",
     "allowedAxisIds": [
       "gameEnd.regulationInnings",
       "gameEnd.coldConditions",
+      "gameEnd.satisfiedColdTierCount",
       "gameEnd.extensionLimit",
       "gameEnd.tiebreak",
       "state.inning",
       "state.half",
       "state.score",
+      "state.outs",
+      "state.runners",
+      "state.count.strikes",
+      "state.count.balls",
       "state.gameEnded",
-      "state.tiebreakActive"
+      "state.tiebreakActive",
+      "event.operationKind",
+      "event.operationPayload",
+      "event.perPitch.kind",
+      "event.perPitch.resultId",
+      "event.perPitch.pitchEventKind",
+      "event.perPitch.runnerEventPayload",
+      "event.perPitch.runnerAdvanceOverridesByRunner",
+      "event.perPitch.thirdOutTimingByRunner",
+      "event.perPitch.interferenceRuling",
+      "event.perPitch.officialScoringPayload",
+      "event.perPitch.rbi.doublePlayRelayError",
+      "event.perPitch.rbi.runnerContinuityByRunner",
+      "event.perPitch.rbi.wouldScoreWithoutErrorByRunner"
     ],
     "valueFieldsByClassification": {
       "finite-enumerable": "values",
@@ -122,17 +154,53 @@
   "$defs": {
     "normalizedCase": {
       "type": "object",
-      "required": ["caseId", "branchId", "rowRef", "inputCoordinate", "decision", "raw", "normalizationRuleId", "normalized"],
+      "required": ["caseId", "branchId", "rowRef", "inputCoordinate", "decision", "raw", "normalizationRuleId", "normalized", "derivedSourceInput"],
       "additionalProperties": true,
       "properties": {
         "caseId": {"type": "string", "minLength": 1},
         "branchId": {"type": "string", "minLength": 1},
         "rowRef": {"type": "object"},
-        "inputCoordinate": {"type": "object"},
+        "inputCoordinate": {
+          "type": "object",
+          "required": ["gameEnd.satisfiedColdTierCount"],
+          "properties": {
+            "gameEnd.satisfiedColdTierCount": {
+              "description": "F-1 COLD-07〜09。確定プレイ後に成立したコールド段の件数。規則設定の段数と区別する。",
+              "x-pitchlog-axis-id": "gameEnd.satisfiedColdTierCount",
+              "x-pitchlog-axis-classification": "boundary-partition",
+              "x-pitchlog-coverage-bounds": [{"dimension": "satisfiedTierCount", "minimum": 0, "maximum": 16}],
+              "x-pitchlog-boundary-values": [0, 1, 2, 16],
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16
+            }
+          }
+        },
         "decision": {"$ref": "#/$defs/gameEndDecision"},
         "raw": {"type": "object"},
         "normalizationRuleId": {"enum": ["identity", "game-end-result-display-name-to-id"]},
-        "normalized": {"type": "object"}
+        "normalized": {"type": "object"},
+        "derivedSourceInput": {
+          "description": "派生値の関数性を比較する具体入力。代表ラベルではなく各段の点差・開始回と状態の実値を持つ。",
+          "type": "object",
+          "required": ["gameEnd.coldConditions", "state.inning", "state.half", "state.score"],
+          "additionalProperties": false,
+          "properties": {
+            "gameEnd.coldConditions": {
+              "type": "array", "maxItems": 16,
+              "items": {"$ref": "#/$defs/coldConditionTier"}
+            },
+            "state.inning": {"type": "integer", "minimum": 1, "maximum": 99},
+            "state.half": {"enum": ["top", "bottom"]},
+            "state.score": {
+              "type": "object", "required": ["home", "away"], "additionalProperties": false,
+              "properties": {
+                "home": {"type": "integer", "minimum": 0},
+                "away": {"type": "integer", "minimum": 0}
+              }
+            }
+          }
+        }
       }
     },
     "validationError": {
@@ -242,7 +310,8 @@
         "endConditionDetected",
         "lockFurtherPlayInput",
         "promptEndDeclaration",
-        "automaticallyEndsGame"
+        "automaticallyEndsGame",
+        "xMark"
       ],
       "additionalProperties": false,
       "properties": {
@@ -250,7 +319,11 @@
         "endConditionDetected": {"type": "boolean"},
         "lockFurtherPlayInput": {"type": "boolean"},
         "promptEndDeclaration": {"type": "boolean"},
-        "automaticallyEndsGame": {"type": "boolean"}
+        "automaticallyEndsGame": {"type": "boolean"},
+        "xMark": {
+          "description": "直近に完了した表と対になる裏の得点セルの表示種別。recorded-scoreは別途集計した非負整数、x-markは未開始の裏に適用するX、blankはそれ以外の未開始セルを写像①で表示する。表示文字列や得点値はこの欄に含めない。FR-020 XMARK-01〜03。",
+          "enum": ["recorded-score", "x-mark", "blank"]
+        }
       }
     },
     "inputAxesDescriptorBinding": {
@@ -269,7 +342,7 @@
           "const": "input_axes_descriptor_v1"
         },
         "digest": {
-          "const": "sha256:ca421500e9eabf1ad6891884178d309c1d3dfae4f6c03628a4d6c7fe996b84da"
+          "const": "sha256:5107f929d35ae48e01e25e0410a95235521b778ce53bae945ca5d7e2e956dd57"
         }
       }
     },
@@ -332,6 +405,7 @@
           "x-pitchlog-boundary-values": [
             "tier-count:0",
             "tier-count:1",
+            "tier-count:2",
             "tier-count:16",
             "point-difference:1",
             "point-difference:M-1",
