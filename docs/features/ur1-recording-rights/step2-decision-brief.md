@@ -239,3 +239,10 @@ D4方式・製品open/復元開始は新5側、新6実経路結合は別ゲー�
 **列ACL資産のID衝突**: 現行`column_acl_expectations`のIDは`COLUMN-ACL:<schema>:<table>:<column>:<owner>`で一意。承認資料にある`SELECT(singleton_id)`行と`UPDATE(singleton_id)`行を別行で入れると同じIDが2件になる。隔離PostgreSQL 17では、承認済みの実効権限`SELECT(singleton_id,state), UPDATE(singleton_id)`とsingleton限定のSELECT/UPDATE policyで`FOR SHARE NOWAIT`が成功し、`UPDATE(state)`/INSERT/DELETEは拒否された（`backend/tests/test_rg1_lock_contract.py`、2件成功）。推奨する資産表現は`singleton_id`の**1行だけ**に`privilege_ids: ["SELECT", "UPDATE"]`を宣言し、生成SQLを同じ列への`GRANT SELECT (singleton_id), UPDATE (singleton_id)`にすること。`state`は既存形式の`["SELECT"]`行にする。RG1表・列・専用owner・commit-check関数のexact tuple以外で`UPDATE`を拒否し、表UPDATEや`UPDATE(state)`は許可しない。このJSON表現と生成器・検査器の差分は資料の3行案と異なるため、人間に具体差分を再提示する。承認前に正式資産へ書かない。
 
 上記2件の差分承認までは、新4のA接続と正式認可/凍結資産を固定しない。隔離DBの開状態fixtureによる行ロック正常系は製品open承認ではない。D4方式、新8の実経路結合、7.7正式受理、push/PR作成/mergeは別ゲートを維持する。
+
+| 人間確認が必要な契約行 | 承認資料の値 | 最小修正候補 | 変化しない境界 |
+| --- | --- | --- | --- |
+| RG1読取2関数のidentity | `rg1_read_open()` / `rg1_assert_open_before_commit()` | 各`(uuid)`。Aが束縛する`tenant_id`を第1引数で受け、`app.tenant_id`と不一致・欠損・不正なら成功させない。関数ID・固定SQL・DDL/JSON参照を同じidentityへ同期 | Aの固定実行器、2関数限定EXECUTE、常閉戻り値、NOWAIT、任意SQL非公開 |
+| `singleton_id`列ACL宣言 | 同じ`COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_fn_owner`に`["SELECT"]`と`["UPDATE"]`の2行 | 同IDの1行`["SELECT", "UPDATE"]`をcommit-check関数へ結び、`state`には別IDの`["SELECT"]`1行。生成SQLは列単位の`GRANT SELECT (singleton_id), UPDATE (singleton_id)` | 表UPDATEなし、`UPDATE(state)`なし、他表・他列・他owner・他関数のUPDATEなし |
+
+この2行は実効権限を広げない表現・接続修正だが、承認済み資料の**関数identityとJSON行数**を変える。承認されるまでは上表を正式資産へ反映せず、候補・検査の追加に留める。
