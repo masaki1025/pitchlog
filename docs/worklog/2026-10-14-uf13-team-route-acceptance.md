@@ -193,3 +193,49 @@ P0 0 件、P1 1 件、P2 0 件で否決。P1 を採用した。
 - C1固有差分7ファイルに対し、ruff green、backend `ty check` green、auth exit / login / session / tenant profile repository / app / API conventionsの59件green、`git diff --check` green。従来のroute exact-set失敗は正式なC1期待値追随により解消した。
 - 現在の7ファイルはworktreeへ未コミットで保持し、名前付きstash`C1 step1 specific implementation with route exact set 2026-10-15`（object `d4be5f1f6e252cc490baa18b7e5686d4c92fb099`）にも同一内容を保全した。
 - C1固有実装とDB不要の固有検証は完了。残る依存は、#132統合後の`TENANT_PROFILE_OPERATIONS`共有registry登録・tenant-boundary 7.7再封印・隔離DBでのRLS/application role SELECT確認と、#137統合後のauthz route registry / HTTP matrix / lock / seal追随。その後に全品質gateと単一の`(ステップ 1/2)`コミットを行う。現時点ではステップ1未完了のためPR作成不可。
+
+### C1共有資産追随の事前準備（2026-10-15）
+
+- 再確認時点でPR #132はDraft・`CONFLICTING/DIRTY`（head `0297a8dacce2135834a54c995d0a4167c5ac5c98`）、PR #137はDraft・`MERGEABLE/BLOCKED`（head `dffe108cec6b916c938e63cc4d1fd4e3b4399f5a`）で、いずれも未統合。共有資産の編集再開条件は成立していない。PR headのrevisionやdigestは候補値としても転記せず、統合後の`origin/develop`を唯一の比較元にする。
+- `git fetch origin develop`後の先端は`9b8f9bc689fb70dc9d084fbad9758bf4b3c353fb`（PR #139統合）で、C1 branchは5コミット遅れている。#132/#137をどちらも含まないため今回はmergeせず、両PR統合確認後にその時点のlatest developを一度取り込む。
+- C1固有差分7ファイルはworktreeに保持され、stash `d4be5f1f6e252cc490baa18b7e5686d4c92fb099`にも保全済み。共有資産の準備調査ではこれらを変更していない。
+
+#### #132統合後のrepository / tenant-boundary追随
+
+1. `git fetch origin develop`後、PR #132のmerge SHAが`origin/develop`の祖先であることを確認し、C1 branchへ既存方針どおりmergeする。競合時は`operation_registry.py`、`repository_contract.py`、repository契約試験、tenant-boundary資産を意味単位で照合し、PR headのrevisionをそのまま採用しない。
+2. `backend/src/pitchlog/repositories/operation_registry.py`へ`TENANT_PROFILE_OPERATIONS`をimportし、`PRODUCT_OPERATIONS`へ1組だけ追加する。`TenantProfileReadToken`は既存`CAP:tenants:read`を再利用し、caller指定tenant、任意SQL、一覧・書込operationを増やさない。
+3. 統合後の生成契約の現在値から、`backend/src/pitchlog/repositories/repository_contract.py`、`contracts/tenant_boundary/repository-contract.json`、`backend/tests/test_authz_repository_contract.py`のcapability/token/registry exact-setを同時に追随する。capabilityは既存値なので重複追加せず、token型`pitchlog.repositories.tenant_profile.TenantProfileReadToken`だけを対応するregistry位置へ追加する。#132で導入される`operation_guards`を保持する。
+4. 変更したtenant-boundary資産のrevisionと`source_digest`を統合後の値から1受理分だけ進める。`runtime-authz-contract.json`等は実差分が生成された場合だけ対象にし、無関係な全資産を機械的に版上げしない。
+5. `base-allowlist.json`を唯一の`history_authority`として、`runtime_contract_acceptance`が出す実差分由来のv2記録と不足snapshotをappend-onlyで追加する。旧履歴・旧snapshotは変更しない。比較元、previous/new identifiers、外部資産digestは統合後に再計測する。
+6. `uv run python scripts/check_tenant_boundary_bypass.py --base-ref origin/develop`、凍結履歴・archive・repository契約の負例を含む試験で、未登録token、digest不一致、履歴欠落、snapshot欠落が引き続き拒否されることを確認する。
+
+`.claude/core-areas.json`のtenant-isolationには`backend/src/pitchlog/repositories/*`、`backend/src/pitchlog/api/*`、`backend/tests/test_api_*.py`、`backend/tests/test_*_repository.py`、`contracts/tenant_boundary/*`が既に含まれる。C1の既知パスを検出するための登録追加は不要で、#132/#137の同ファイル差分へC1から触れない。
+
+#### #137統合後のauthz route / HTTP matrix / seal追随
+
+1. PR #137のmerge SHAと`origin/develop`包含を確認し、latest developをmergeした後の認可資産を比較元にする。#137のrequirement digest、route/matrix lock、oracle sealを先に着地した既存値として保持する。
+2. `contracts/authz/route-registry.json`へ`ROUTE:AUTH:session:read`を`authentication_entry`、`design` origin、C1計画由来として1件登録する。既存login/logout/password 3件と他経路を変更しない。
+3. `contracts/authz/http-route-matrix.json`へ`HTTP:ROUTE:AUTH:session:read`、対応route ID、`conditional` disposition、TSK-528/C1の試験所有を1件登録する。method/path/operation IDの実API exact-setは既にC1試験で`GET /auth/session` / `auth_session_read`として固定済み。
+4. `scripts/check_authz_catalog.py --reseal-derived`で`route-registry.lock.json`と`http-route-matrix.lock.json`を再導出し、session 1件以外の意味差分がないことを確認する。検査器の列挙、route kind、dispositionを広げる変更は不要である。
+5. route registry変更はoracle入力を動かすため、第1段の実コミットSHAを`oracle_commit` 7箇所へ反映し、入力blob digestを追随する。人間逐行確認後に`frozen-baselines.json`の`oracle_input`へ1受理記録をappendし、`--reseal-oracle`で再封印する。履歴上の旧commit識別値は書き換えない。
+6. `uv run python scripts/check_authz_catalog.py`、`uv run python scripts/check_frozen_baselines.py --invariants-only`、関連checker試験で、未登録route、derived lock不一致、oracle digest不一致、受理履歴欠落、人間確認なしの再封印を引き続き拒否する。
+
+authzの`frozen-baselines.json`は`acceptance_id_source=repository_and_pr_number`、tenant-boundaryの受理CLIも`owner/repository#number`を要求する。現行計画はステップ1を単一コミットとし、利用者指示は全条件成立前のPR作成を禁止しているため、最終受理記録にはPR番号を先に得られない循環がある。共有差分の準備と`--reseal-derived`前までを進めた後、完了コミット/PR前に、既存の3段再封印手順に沿うDraft PR先行を今回だけ許可するかを人間判断対象として提示する。仮番号、`PENDING_ACCEPTANCE`、他PR番号の流用は行わない。
+
+#### 隔離PostgreSQLのRLS / application role試験条件
+
+- 正本には`CAP:tenants:read`、`POLICY:tenants:self_tenant_row`、`pitchlog_app`への`tenants`表SELECT、RLS enabled/forcedが既にある。C1はACLやmigrationを追加せず、その既存契約が`name`列を含む実行経路で成立することを証明する。
+- `ProvisionedProductCatalog`の隔離DBへ異なる名称のtenant A/Bを外部適用主体で投入する。実際の`pitchlog_app`接続、または同roleへ切り替えたSQLAlchemy sessionで、検証済み`TenantContext(A)`と登録済み`TenantProfileReadToken()`を`tenant_transaction_scope`から実行し、exact `(A, nameA)` 1行だけを得る。Bでも対称に確認する。
+- A文脈でBのID・名称が返らないこと、tokenにtenantを指定する入力面がないこと、文脈未設定/不正時に読み取れないことを確認する。`current_user`、RLS enabled/forced、SELECT privilegeも同じ隔離DBで実測し、管理者接続だけの成功を証跡にしない。
+- endpoint側では0行を固定401、複数行・shape/type不正・文脈ID不一致を非漏洩の固定500とする既存固有試験を維持する。DB試験はregistry登録後に実製品operationを通し、手書きSELECTだけで代用しない。
+
+#### latest develop統合後の全品質gate
+
+1. 差分検査: `git diff --check`、変更対象と計画scopeの照合、7ファイル保全stashとの内容照合。
+2. backend: `cd backend && uv run ruff format --check . && uv run ruff check . && uv run ty check && uv run pytest -c pyproject.toml --cov`。隔離DBの新規C1試験が収集・実行された件数を別記する。Alembic差分は作らないがCIと同じ`uv run alembic upgrade head`、`uv run alembic current --check-heads`、`uv run alembic check`も実行する。
+3. repository / tenant-boundary: repository契約・登録・C1 DB試験の対象pytest、`uv run python scripts/check_tenant_boundary_bypass.py --base-ref origin/develop`、`uv run pytest tests/test_check_tenant_boundary_bypass.py tests/test_frozen_history.py tests/test_frozen_archive.py tests/test_frozen_archive_case_runner.py tests/test_census_baseline_check.py`。
+4. authz / 7.7: `uv run python scripts/check_authz_catalog.py`、`uv run pytest tests/test_check_authz_catalog.py`、`uv run python scripts/check_frozen_baselines.py --invariants-only`。PR番号と人間逐行確認後はCI相当の`--ci`でイベント由来acceptance IDも確認する。
+5. root harness: `uv run ruff check .`、`uv run ty check`、CIと同じ除外条件のroot pytest、design/doc checker、`scripts/core_guard.py`。core-guardはtenant-isolationとしてC1製品・契約・DB試験を検出し、人間逐行確認欄が未記入なら拒否する状態を維持する。
+6. PR作成後にGitHub CIのsecrets、docs-lint、core-guard、harness、consistency、mutation、tenant-boundary-bypass、backend各jobを確認する。人間逐行確認は第2周P1未再レビュー範囲、tenant profile readのRLS/ACL実測、route/matrix 1件、tenant-boundary履歴、oracle入力・sealを対象とし、未実施のチェックを代記しない。
+
+以上は再開手順の固定であり、共有資産、ステップ2、公開経路を実装した記録ではない。#132・#137の統合確認まではC1ステップ1を未完了のまま保持する。
