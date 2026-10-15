@@ -284,3 +284,46 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - 認証経路側で現時点まで進められるのは、route / matrix候補、派生lock、strict checkerと試験の追随までである。製品7ファイルと検証済み認証経路候補をまとめた名前付きstash`C1 step1 product and validated auth route candidate after TSK-238 merge 2026-10-15`（object `27b0081773c955cb33cd29ec3ce3bca64f82415f`）を作成してから作業treeへ再適用した。oracle commit・受理履歴・sealの正式更新、製品コミット、push、Draft PRは未承認の3段追補と7.7確認に残す。
 - repository側はPR #132が引き続きDraft・`DIRTY`（head `0297a8dacce2135834a54c995d0a4167c5ac5c98`）であり、`TENANT_PROFILE_OPERATIONS`登録、repository contract、tenant-boundary履歴・snapshot、隔離DBの実製品operation試験は統合待ちのまま分離する。#137統合を理由に#132の未統合差分を基線へ採らない。
 - 既済みのC1計画承認・担当受理は維持する。今回新たに必要と判明した人間確認対象は、4経路exact-setへ追随するchecker/test差分を、route / matrix 1件とともにコア敵対レビュー・逐行確認へ含めることだけである。新規ACL・migration、ステップ2、公開経路には進んでいない。
+
+### PR #132統合後のC1ステップ1再開（2026-10-16）
+
+#### 統合基線と差分保全
+
+- TSK-391の対応PR #132は2026-10-15 15:51:20 UTCに統合された。PR headは`afb8b08f2d89107603d848eae8c98dcd0c2e59a6`、developへの実統合SHAは`966d7a38aa8dab2113c1d8ec6d30e5d32088ede5`である。
+- `git fetch origin develop`後、C1候補をstash`C1 step1 validated candidate before TSK-391 merge 2026-10-16`（object `229fcd0921a45b776d329fffc4af0ccee4f8aa33`）へ保全し、`origin/develop`をmerge commit`02f08626faba6683932d4eb11562e3c89e3b3db0`で競合なく取り込んだ。再適用後もC1製品・認証経路候補は維持された。
+- #132統合後の共有追随とDB証跡を加えた現候補もstash`C1 step1 shared contracts and DB evidence after TSK-391 merge 2026-10-16`（object `be185a5e28d6df57d9e766d558c9eba8e0599bd2`）へ保全し、同じ内容を作業treeへ再適用した。既存PRのbranch/worktreeは変更していない。
+
+#### 共有operation・repository契約・tenant-boundary追随
+
+- `TenantProfileReadToken` / `TENANT_PROFILE_OPERATIONS`を製品registryへ1件登録した。既存`CAP:tenants:read`だけを使用し、呼出元がtenant ID、SQL、列、並び順を指定する入力面はない。固定SELECTは検証済み`TenantContext`から基底が注入する`:tenant_id`で`tenants.id`と`tenants.name`だけを読む。
+- repository契約をrevision 18→19へ進め、公開capabilityに`CAP:tenants:read`、公開token型に`pitchlog.repositories.tenant_profile.TenantProfileReadToken`を各1件追記した。生成Python契約を同じ集合へ追随し、source digestは`4248511d1135ff0082b2276a199f7829f3cd8ebc91e11e48efc29a916eb9a8ea`で一致する。
+- base allowlistをrevision 30→31へ進め、`pitchlog.repositories.tenant_profile._tenant_profile_statement() -> Select[Any]`の`SQLA_SELECT`だけを正例fixture付きで登録した。既存条件・禁止API・検査器の許容範囲は広げていない。
+- 新規ACL・migrationは追加していない。#132が供給した既存repository基底、operation guard、`tenants`のRLS/ACLをそのまま再利用した。
+
+#### 隔離DB証跡
+
+- `backend/tests/db/test_tenant_profile_repository_boundary.py`にDB必須試験2件を追加した。隔離PostgreSQLへ異なる名称のtenant A/Bを作り、実`pitchlog_app`資格情報の同時2接続で、`current_user=pitchlog_app`、`tenants`へのSELECT可、RLS enabled/forced、A/B各接続で自tenant 1行だけ、tenant文脈なしで0行を確認した。
+- 同じ隔離DBで`tenant_transaction_scope(make_tenant_context(...))`と登録済み`TenantProfileReadToken()`を通し、A/BのID・名称が各1行だけ返り、存在しない検証済みtenantは0行になることを確認した。手書きSELECTだけを製品operationの証跡にはしていない。
+- 対象DB試験は2件収集・2件成功。使い捨てcluster外のACL、role、migrationは変更していない。
+
+#### 検査結果とfail-closedの残り
+
+- C1固有/API/repository/共有契約の対象試験は186件成功。共有契約群の先行実行は149件成功。backendのRuff、format check、ty、rootのRuff、ty、`git diff --check`は成功した。
+- backend全件は`2458 passed, 4 skipped, 5 failed`。4件はworktreeの`node_modules`にtypescriptが無かった環境要因で、`pnpm install --frozen-lockfile`後に同4件を再実行して成功した。残る1件は未受理のroute registry blobを既存authz oracle sealが拒否する`test_frozen_oracle_paths_have_no_branch_diff`であり、7.7第3段前の期待どおりのfail-closedである。
+- root全件は`29579 passed, 2 skipped, 40 failed`。失敗は、authz oracle入力/seal未受理、tenant-boundary履歴末尾がbase 31 / repository 19へ未追随、正式snapshot未配置、archive corpus未再封印という正式受理前の4系統に限られる。試験除外、期待値緩和、skip追加は行っていない。
+- `alembic upgrade/current/check`の直接CLIは`PITCHLOG_MIGRATION_DATABASE_URL`未設定のため開始前に拒否された。`.env`は参照せず、新規migrationもない。GitHub CIまたは明示した使い捨てmigration URLで最終確認する。`core_guard.py`はPRイベント不在を検出してskipしたため、Draft PR取得後に実イベントで人間逐行確認未記入の拒否を確認する。
+
+#### 7.7正式受理へ出す実値
+
+- tenant-boundaryのprevious/new識別値で変わるのは、`base-allowlist.json`の`contract_revision:30`→`contract_revision:31`と`repository-contract.json`の`contract_revision:18`→`contract_revision:19`だけである。cache 14、census 13、DB inventory 14、frozen inputs 4、negative fixtures 16、runtime authz 15、tenant context 15は不変である。
+- 受理aspectは`asset_snapshots`と`declaration`。不足snapshotは、repository契約projection `2b5e271498149e09e4d885faab9b58c8cee5cfc7ef2c434eaef7d25bd1592cb5`（7000 bytes）とbase allowlist projection `667c1103b6202dc5f9ce282860d70d6ab2a6aa1af64b8d3cb8dfc82650798840`（10860 bytes）の2件である。
+- tenant-boundaryの正式record理由案は「C1で検証済みtenantの表示情報を既存CAP:tenants:readの固定operationとして登録し、repository契約とDB API許可境界を追随する。」、movement fact案は「base-allowlist.jsonはcontract_revision 30から31、repository-contract.jsonは18から19へ移動した。他のtenant-boundary識別値は不変。」とする。
+- authzの現行`oracle_commit`は7資産すべて`62fdfe81de7029d49b2b5d80683f49b2dce3e327`。C1候補のGit blobはroute registry `2cd82db822df203d9608b6d72e4bbfb518dab2ad`、そのlock `e110a75541cca22d349fe6f765e7b8c7ba741e64`、HTTP matrix `c2d03ad51a9d1961e1fdf5c5730e4705acf6907e`、そのlock `5882c2b918ed8d06feb12fa905434d916b685c7f`である。routeは244→245、matrixは59→60で、追加は`GET /auth/session` 1件だけである。
+- authz受理recordのprior identityは上記`62fdfe81...`、new identityは第1段の実コミットSHA、acceptance IDは実C1 PR番号とする。placementと同一性の解釈は不変、履歴はappend only、受理後に`--reseal-oracle`でsealを導出する。tenant-boundary recordの`acceptance_id`、`approved_by`、`approved_on`も同じ実PRと実確認値にする。
+- `/tmp/c1-tenant-boundary-acceptance-preview.json`は候補導出だけに使用し、仮番号`#999999`、`DRYRUN`、`1970-01-01`を含むため正式資産へ取り込まない。archive corpus digestは実record metadataを含む第3段で再導出し、暫定値をpinしない。
+
+#### 一括判断が必要な最小例外
+
+- 資産固有契約が「authz入力を確定した先行コミットSHA」と「GitHubの実repository/PR番号」を要求するため、通常の1ステップ1コミット・ステップ完了後PR作成では自己参照を閉じられない。2026-10-15のC1最小追補案どおり、ステップ1だけを第1段（製品・共有契約・derived lock・DB試験）、第2段（第1段SHAを7つの`oracle_commit`へ反映）、第3段（実PR番号によるtenant/authz受理履歴・snapshot・seal・archive再封印）の3コミットへ分ける必要がある。
+- 一度に必要な人間判断は、(1) 既存3周を越えてこの追補差分だけを対象に敵対レビュー1回を追加するPO裁定、(2) C1限定の3段コミット、Draft先行、Draft中のplan `active`維持、品質gate分割の承認、(3) 第1・第2段のコミットとpush、実番号取得だけを目的とするDraft PR作成の許可、の3点である。
+- 上記が承認された後も、実PR番号入り第3段候補に対する7.7逐行受理、最終差分の反対側レビュー・コア敵対レビュー・人間逐行確認は省略しない。Draft解除、C2、U-F3、U-F13公開、マージはこの例外に含めない。
