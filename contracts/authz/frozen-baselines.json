@@ -500,14 +500,14 @@
       "approved_at": "2026-10-14"
     },
     {
-      "acceptance_id": "masaki1025/pitchlog#137",
+      "acceptance_id": "masaki1025/pitchlog#131",
       "series": "oracle_input",
       "new_identity": {
         "present": true,
         "values": [
           {
             "kind": "literal_commit_string",
-            "value": "35cd887d7857932980da7aba69d7d3548892717c"
+            "value": "d68df723b7d362a993aea56b7d8949f8ff1d83a1"
           }
         ]
       },
@@ -538,9 +538,9 @@
         ]
       },
       "moved": false,
-      "reason": "TSK-238 で要件書 v2.13(付録B-3 の内外角の導出規則と付録B-7 の画面座標⇄保存座標の相互変換)を確定し、#119・#129 の着地した origin/develop を取り込んだため、母集合 requirement-claims.json の input_manifest と claims が動いた。追加した 21 件はいずれも座標の幾何または文書メタデータで out_of_scope であり、認可の主張は 1 件も増えていない(auth_claim の件数は不変)。oracle 入力 8 資産を積み直したコミット 35cd887d7857932980da7aba69d7d3548892717c へ oracle_commit を更新する。同一性の粒度・識別値の解釈は変えていない(oracle_commit_semantics は last_committed_step_4_input_baseline のまま)",
+      "reason": "TSK-538(ADR-003 v0.7 / 要件書 v2.14)で付録E-1 の StateEffect の履歴文脈の型を HistoryEffect へ改め、要件書の母集団に 9 行(変更履歴 2 行は OUT_DOCUMENT_METADATA、付録E-1 の 7 行は OUT_NON_AUTH_REQUIREMENT — PO 判断)を登録した。あわせて origin/develop(#129・#134・#119・#136)の取り込みで oracle 入力が合流したため、oracle_commit を第 1 段のコミットへ更新する。認可の主張(auth_claim 187 件)と同一性の粒度・識別値の解釈は変えていない(oracle_commit_semantics は last_committed_step_4_input_baseline のまま)",
       "approved_by": "山田正輝",
-      "approved_at": "2026-10-14"
+      "approved_at": "2026-10-15"
     }
   ]
 }

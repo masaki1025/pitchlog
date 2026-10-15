@@ -38,6 +38,32 @@ function write(root: string, relative: string, content: string): void {
   writeFileSync(path, content, 'utf8')
 }
 
+function lintInput(
+  relative: string,
+  source: string,
+): Readonly<{
+  status: number | null
+  ruleIds: readonly (string | null)[]
+}> {
+  const result = spawnSync(
+    ESLINT,
+    ['--stdin', '--stdin-filename', relative, '--format', 'json'],
+    { cwd: FRONTEND_ROOT, encoding: 'utf8', input: source },
+  )
+  if (result.error !== undefined) {
+    throw result.error
+  }
+  const rows = JSON.parse(result.stdout) as readonly Readonly<{
+    messages: readonly Readonly<{ ruleId: string | null }>[]
+  }>[]
+  return {
+    status: result.status,
+    ruleIds: rows.flatMap((row) =>
+      row.messages.map((message) => message.ruleId),
+    ),
+  }
+}
+
 function runCruiser(root: string): Readonly<{
   exitCode: number
   result: CruiseResult
@@ -118,6 +144,54 @@ describe('frontend の依存閉域', { timeout: 30_000 }, () => {
     ).toContain('no-direct-generated-artifact-import')
   })
 
+  it('TS 正本から外部を import すると依存規則違反になる', () => {
+    const root = fixtureRoot()
+    write(root, 'src/outside.ts', "export const value = 'outside'\n")
+    write(
+      root,
+      'src/domain/entry.ts',
+      "import { value } from '../outside'\nvoid value\n",
+    )
+
+    const cruised = runCruiser(root)
+
+    expect(cruised.exitCode, JSON.stringify(cruised.result)).not.toBe(0)
+    expect(
+      cruised.result.summary.violations.map((violation) => violation.rule.name),
+    ).toContain('no-domain-external-import')
+  })
+
+  it('アプリコードから TS 正本を import すると依存規則違反になる', () => {
+    const root = fixtureRoot()
+    write(root, 'src/domain/publicApi.ts', "export const value = 'domain'\n")
+    write(
+      root,
+      'src/feature.ts',
+      "import { value } from './domain/publicApi'\nvoid value\n",
+    )
+
+    const cruised = runCruiser(root)
+
+    expect(cruised.exitCode, JSON.stringify(cruised.result)).not.toBe(0)
+    expect(
+      cruised.result.summary.violations.map((violation) => violation.rule.name),
+    ).toContain('no-direct-domain-import')
+  })
+
+  it('TS 正本内だけの import は依存規則で受理する', () => {
+    const root = fixtureRoot()
+    write(root, 'src/domain/codec.ts', "export const value = 'domain'\n")
+    write(
+      root,
+      'src/domain/entry.ts',
+      "import { value } from './codec'\nvoid value\n",
+    )
+
+    const cruised = runCruiser(root)
+
+    expect(cruised.exitCode, JSON.stringify(cruised.result)).toBe(0)
+  })
+
   it('解決不能な依存を合格にしない', () => {
     const root = fixtureRoot()
     write(root, 'src/feature.js', "import './missing.js'\n")
@@ -153,6 +227,46 @@ describe('frontend の依存閉域', { timeout: 30_000 }, () => {
     expect(messages).toContain('no-restricted-syntax')
     expect(messages).toContain('no-eval')
     expect(messages).toContain('no-new-func')
+  })
+
+  it('TS 正本で eval・Function・動的 import・require を拒否する', () => {
+    const linted = lintInput(
+      'src/domain/negative.ts',
+      "eval('x')\nnew Function('return 1')\nvoid import('./other')\nrequire('./other')\nglobalThis.setInterval('x', 1)\n",
+    )
+
+    expect(linted.status).toBe(1)
+    expect(linted.ruleIds).toContain('no-eval')
+    expect(linted.ruleIds).toContain('no-new-func')
+    expect(linted.ruleIds).toContain('no-restricted-syntax')
+    expect(linted.ruleIds).toContain('@typescript-eslint/no-require-imports')
+    expect(linted.ruleIds).toContain('no-implied-eval')
+  })
+
+  it('アプリからの公開口直接参照を拒否し、指定の読み込み口だけ受理する', () => {
+    const source =
+      'void globalThis.PitchlogDomain\n' +
+      'void window.PitchlogDomain\n' +
+      'void self.PitchlogDomain\n' +
+      "void globalThis['PitchlogDomain']\n" +
+      'const runtimeGlobal = globalThis\n' +
+      'void runtimeGlobal.PitchlogDomain\n' +
+      'const { PitchlogDomain } = globalThis\n' +
+      'void PitchlogDomain\n'
+    const direct = lintInput('src/lib/direct.ts', source)
+    const wrapper = lintInput(
+      'src/lib/generated/wrappers/domainArtifact.ts',
+      source,
+    )
+    const bare = lintInput('src/lib/direct.ts', 'void PitchlogDomain\n')
+
+    expect(direct.status).toBe(1)
+    expect(
+      direct.ruleIds.filter((ruleId) => ruleId === 'no-restricted-properties'),
+    ).toHaveLength(6)
+    expect(bare.status).toBe(1)
+    expect(bare.ruleIds).toContain('no-restricted-globals')
+    expect(wrapper.status, wrapper.ruleIds.join(', ')).toBe(0)
   })
 
   it('package と lock が同じ dependency-cruiser 版を宣言する', () => {

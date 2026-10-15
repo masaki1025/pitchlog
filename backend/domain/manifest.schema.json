@@ -182,6 +182,7 @@
           "enum": [
             "python",
             "typescript",
+            "js-artifact",
             "sql",
             "typed-receiver",
             "formatter"

@@ -115,6 +115,7 @@ def _direct_report(scenario: dict[str, Any]) -> dict[str, object]:
             config["normalizationComparison"]
         ),
         output_comparison=_direct_comparison(config["outputComparison"]),
+        liveness_comparison=config.get("livenessComparison"),
     )
     report = VECTORS.run_vectors(
         scenario["cases"],

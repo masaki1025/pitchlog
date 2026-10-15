@@ -675,6 +675,11 @@ def _validate_source_clause_ids(
             supporting = axis_value.get("supportingClauseIds", [])
             if isinstance(supporting, list):
                 cited_ids.extend(supporting)
+            derived_from = axis_value.get("derivedFrom")
+            if isinstance(derived_from, dict):
+                derived_clauses = derived_from.get("clauseIds", [])
+                if isinstance(derived_clauses, list):
+                    cited_ids.extend(derived_clauses)
             conditional_values = axis_value.get("conditionalValues", [])
             if isinstance(conditional_values, list):
                 cited_ids.extend(
@@ -713,14 +718,29 @@ def _validate_source_clause_ids(
                         f"nonCoverageFields[{index}]: {clause_id}"
                     )
 
-    combination_rules = descriptor.get("gameEndCombinationRules")
-    if isinstance(combination_rules, dict):
-        clause_id = combination_rules.get("sourceClauseId")
-        if isinstance(clause_id, str) and clause_id not in source_clause_ids:
-            raise DescriptorCheckError(
-                "由来条文IDが正本に実在しない: "
-                f"gameEndCombinationRules: {clause_id}"
-            )
+    for combination_rules in (
+        descriptor.get("gameEndCombinationRules"),
+        descriptor.get("inputCoordinateCoverage"),
+    ):
+        if not isinstance(combination_rules, dict):
+            continue
+        cited_ids = [combination_rules.get("sourceClauseId")]
+        pairs = combination_rules.get("derivedUnreachablePairs", [])
+        if isinstance(pairs, list):
+            for pair in pairs:
+                if isinstance(pair, dict) and isinstance(pair.get("clauseIds"), list):
+                    cited_ids.extend(pair["clauseIds"])
+        pairs = combination_rules.get("unreachablePairs", [])
+        if isinstance(pairs, list):
+            for pair in pairs:
+                if isinstance(pair, dict) and isinstance(pair.get("clauseIds"), list):
+                    cited_ids.extend(pair["clauseIds"])
+        for clause_id in cited_ids:
+            if isinstance(clause_id, str) and clause_id not in source_clause_ids:
+                raise DescriptorCheckError(
+                    "由来条文IDが正本に実在しない: "
+                    f"gameEndCombinationRules: {clause_id}"
+                )
 
     stage2_constraints = descriptor.get("stage2ExternalConstraints")
     if isinstance(stage2_constraints, dict):
@@ -1111,7 +1131,7 @@ def _validate_game_end_contract(
     }
     if axis_fields != criteria.game_end_axis_fields:
         raise DescriptorCheckError(
-            "gameEndAxesの4軸またはF-1フィールド帰属がexact-set不一致"
+            "gameEndAxesの軸またはF-1フィールド帰属がexact-set不一致"
         )
     required_supporting_clause = _expected_string(
         criteria, "gameEndAxisSupportingClauseId"
@@ -1248,6 +1268,105 @@ def _validate_game_end_contract(
             raise DescriptorCheckError(
                 f"条文根拠のない不正境界値がある: {axis_id}: {forbidden!r}"
             )
+
+
+def _validate_derived_axes(
+    descriptor: Mapping[str, Any], criteria: DescriptorCriteria
+) -> None:
+    """派生軸の導出元と到達不可宣言を導出せずに検証する。"""
+    expected = _expected_object(criteria, "derivedAxes")
+    axes = {
+        axis["axisId"]: axis
+        for collection in ("stateTransitionAxes", "gameEndAxes")
+        for axis in descriptor[collection]
+    }
+    actual_ids = {
+        axis_id for axis_id, axis in axes.items() if "derivedFrom" in axis
+    }
+    game_rules = descriptor["gameEndCombinationRules"]
+    state_rules = descriptor["inputCoordinateCoverage"]
+    declared_ids = game_rules["derivedAxisIds"] + state_rules.get("derivedAxisIds", [])
+    if (
+        actual_ids != set(expected)
+        or set(declared_ids) != actual_ids
+        or len(declared_ids) != len(actual_ids)
+    ):
+        raise DescriptorCheckError("DERIVED_DECLARATION: 派生軸の宣言集合が不一致")
+    state_ids = {
+        axis["axisId"] for axis in descriptor["stateTransitionAxes"]
+        if "derivedFrom" in axis
+    }
+    if set(state_rules.get("derivedAxisIds", [])) != state_ids:
+        raise DescriptorCheckError("DERIVED_DECLARATION: 状況判定の派生軸集合が不一致")
+    if set(game_rules["derivedAxisIds"]) != actual_ids - state_ids:
+        raise DescriptorCheckError("DERIVED_DECLARATION: 終了判定の派生軸集合が不一致")
+    for axis_id, definition in expected.items():
+        axis = axes.get(axis_id)
+        if axis is None or axis.get("derivedFrom") != definition:
+            raise DescriptorCheckError(f"DERIVED_SOURCE: 導出元の宣言が不一致: {axis_id}")
+        if "invalidBoundaryValues" in axis:
+            raise DescriptorCheckError(f"DERIVED_INVALID_BOUNDARY: {axis_id}")
+        source_ids = definition["sourceAxisIds"]
+        if axis_id in source_ids or not set(source_ids) <= set(axes):
+            raise DescriptorCheckError(f"DERIVED_SOURCE: 導出元の軸が実在しない: {axis_id}")
+
+    seen: set[tuple[str, str, str, str]] = set()
+    for pair in (
+        game_rules["derivedUnreachablePairs"]
+        + state_rules.get("derivedUnreachablePairs", [])
+    ):
+        source_id = pair["sourceAxisId"]
+        derived_id = pair["derivedAxisId"]
+        if (
+            derived_id not in expected
+            or source_id not in expected[derived_id]["sourceAxisIds"]
+        ):
+            raise DescriptorCheckError("DERIVED_UNREACHABLE: 軸の対応が不正")
+        source = axes[source_id]
+        derived = axes[derived_id]
+        source_values = source.get("boundaryValues", source.get("values", []))
+        derived_values = derived.get("boundaryValues", derived.get("values", []))
+        if (
+            _canonical_json_text(pair["sourceValue"])
+            not in {_canonical_json_text(value) for value in source_values}
+            or _canonical_json_text(pair["derivedValue"])
+            not in {_canonical_json_text(value) for value in derived_values}
+        ):
+            raise DescriptorCheckError("DERIVED_UNREACHABLE: 宣言値が軸値域にない")
+        identity = (
+            source_id,
+            _canonical_json_text(pair["sourceValue"]),
+            derived_id,
+            _canonical_json_text(pair["derivedValue"]),
+        )
+        if identity in seen:
+            raise DescriptorCheckError("DERIVED_UNREACHABLE: 組合せが重複する")
+        seen.add(identity)
+
+    declared_pairs: set[tuple[str, str, str, str]] = set()
+    for pair in game_rules["unreachablePairs"]:
+        left_id = pair["leftAxisId"]
+        right_id = pair["rightAxisId"]
+        if left_id == right_id or left_id not in axes or right_id not in axes:
+            raise DescriptorCheckError("UNREACHABLE_PAIR: 軸の対応が不正")
+        left_values = axes[left_id].get("boundaryValues", axes[left_id].get("values", []))
+        right_values = axes[right_id].get("boundaryValues", axes[right_id].get("values", []))
+        if (
+            _canonical_json_text(pair["leftValue"])
+            not in {_canonical_json_text(value) for value in left_values}
+            or _canonical_json_text(pair["rightValue"])
+            not in {_canonical_json_text(value) for value in right_values}
+        ):
+            raise DescriptorCheckError("UNREACHABLE_PAIR: 宣言値が軸値域にない")
+        identity = (
+            left_id,
+            _canonical_json_text(pair["leftValue"]),
+            right_id,
+            _canonical_json_text(pair["rightValue"]),
+        )
+        if identity in declared_pairs:
+            raise DescriptorCheckError("UNREACHABLE_PAIR: 組合せが重複する")
+        declared_pairs.add(identity)
 
 
 def _validate_projection_contract(
@@ -1447,6 +1566,7 @@ def validate_descriptor_document(
     _validate_coverage_obligations(descriptor, criteria)
     _validate_input_coordinate_coverage(descriptor, criteria)
     _validate_game_end_contract(descriptor, criteria)
+    _validate_derived_axes(descriptor, criteria)
     _validate_projection_contract(descriptor, criteria)
     forbidden_token_parts = criteria.checker_expected_values.get(
         "forbiddenDocumentTokenParts"

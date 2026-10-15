@@ -146,6 +146,36 @@ def predicate_holds(predicate: dict[str, Any], coordinate: dict[str, Any]) -> bo
     raise RepresentativeSelectionError(f"未対応の述語演算子: {operation}")
 
 
+def reachable_predicate(
+    predicate: dict[str, Any], unreachable_pairs: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """宣言された到達不可の軸値対を述語から除外する。
+
+    Args:
+        predicate: 規範行の元の述語。
+        unreachable_pairs: descriptor が宣言する到達不可の軸値対。
+
+    Returns:
+        元の述語と到達可能性を合わせた述語。
+    """
+    exclusions = [
+        {
+            "op": "not",
+            "args": [{
+                "op": "and",
+                "args": [
+                    {"op": "eq", "axisId": pair["leftAxisId"],
+                     "value": pair["leftValue"]},
+                    {"op": "eq", "axisId": pair["rightAxisId"],
+                     "value": pair["rightValue"]},
+                ],
+            }],
+        }
+        for pair in unreachable_pairs
+    ]
+    return {"op": "and", "args": [predicate, *exclusions]} if exclusions else predicate
+
+
 def _positive_equalities(predicate: dict[str, Any]) -> dict[str, Any]:
     """連言に含まれる正の等値条件を固定候補として取り出す。"""
     operation = predicate.get("op")
