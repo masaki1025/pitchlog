@@ -65,3 +65,9 @@
 - **判断一覧**: 個別資料2節へ、(1)専用NOLOGIN/NOBYPASSRLS owner、(2)FORCE RLS・SELECT/UPDATE singleton policyと最小列ACL、(3)appの2関数限定EXECUTE/PUBLIC剥奪、(4)新2の`FOR SHARE NOWAIT`/全取消と新5の復元側待機上限、(5)隔離open fixtureでの行ロック正常試験と製品正常openを新5へ分離する最小計画追補、の各推奨案・具体差分・採用時の影響を一表に整理。owner/RLS/EXECUTE/待機上限/追補以外の既受理契約は再審査しない。
 - **fixtureの判定**: 特権試験接続が隔離DBのRG1行を`open`にし、同じ行への直接`FOR SHARE`取得と復元UPDATE競合を検査することは可能。新2の製品用関数は古いopen行でも常にfalseを返す候補なので、開状態fixtureだけで製品operationの`true`成功を証明することは**できない**。試験用開状態を運用解除の承認・実装へ読み替えず、製品関数にtest-onlyバイパスを足さない。
 - **残条件**: Aのdevelop統合、RG1個別判断の担当採否・必要な正本/計画レビューと人間承認、A統合後の実revision/digest・7.7 before/after。D4方式は別ゲート、U-R1実経路結合試験は新6。製品コード・正式凍結資産は未変更。
+
+## 新ステップ2の最小追補候補とA統合確認（2026-10-15）
+
+- 最新`origin/develop`は`9b8f9bc689fb70dc9d084fbad9758bf4b3c353fb`。TSK-550のA専用worktreeは`04988b82`でステップ1の文書・資産差分を固定中。祖先照合でAはdevelop未統合と確認したため、U-R1側の7.7実revision/digest・before/afterを旧試算から流用しない。別のU-R1 A/B/C文書同期worktree`7aea7b44`も読取照合し、現行ブランチ`19f28ba2`にある正式承認同期と重複編集しない。
+- [新2最小追補案](../features/ur1-recording-rights/step2-minimal-addendum-proposal.md)を文書のみで用意した。現行ステップ表の隔離正常系は、開状態fixtureによる**行ロックの正常取得と復元UPDATEとの直列化**、製品2関数の**常閉拒否**に分離する候補。製品の正常open成功は新5へ移す。復元UPDATEは新2では隔離試験の特権接続だけで、製品の復元開始関数は新5に残す。試験用openを運用解除と扱わない。
+- owner・RLS・EXECUTE・待機上限・隔離正常系の5判断を同案の承認一覧へ整理した。現行計画レビューは4周で、6.3上の追加独立レビューを自動で実施しない。追補差分と影響箇所についてPOの範囲・1回の裁定、独立レビュー、人間の計画承認、認可/データモデル担当の採否、具体的資産と7.7実値の別承認を要する。現行ステップ表・製品コード・凍結資産・正式受理履歴は変更していない。U-R1新6の実経路結合試験、D4方式は別ゲート。
