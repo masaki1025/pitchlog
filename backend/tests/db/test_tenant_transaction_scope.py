@@ -594,7 +594,7 @@ def test_run_signature_has_no_second_tenant_context() -> None:
         "operation": TenantOperationToken,
         "return": TenantOperationResult,
     }
-    assert declared_methods == {"__init__", "_expire", "run"}
+    assert declared_methods == {"__init__", "_expire", "run", "run_function"}
     assert handle_type.__slots__ == (
         "_state_key",
         "_context",

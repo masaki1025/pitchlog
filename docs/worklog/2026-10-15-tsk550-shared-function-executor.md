@@ -124,3 +124,9 @@ POは本ログの9資産の識別値・完全なbefore/after射影SHA-256、共�
 独立レビュアから追加P1として、`BindParameter.literal_execute=True`と`expanding=True`が登録時に拒否されないことを指摘された。保全した2A候補パッチとステップ2コミット`f6b15e87`の両方に拒否条件・負例試験がないことを照合した。A担当は全bind引数の両flagを登録時に拒否し、tenant_id・追加入力それぞれの両flagに対する負例4件を追加した。関連試験は20件合格、backend Ruff format/check・ty合格。9資産のafter完全射影を現作業ツリーで再計算し、受理履歴の9件と全件一致した。独立レビュアによる修正差分・関連試験・9資産digestの再確認が終わるまで、製品差分のpushは停止する。
 
 独立レビュアは追加P1を**採用・解消**と判定した。`f6b15e87`と先行候補に欠落があったこと、現差分の全引数拒否と4負例を確認した。固定関数試験20件、対象2ファイルRuff format/check、backend ty、`git diff --check`は合格。製品登録0件を維持し、9資産のafter射影を独立再計算して受理履歴の値・同名snapshotのbytesに全件一致した。今回の修正差分に追加P0/P1/P2はない。受理対象の実値は変わらないため、二段階追補に従い未pushステップ2コミットへ修正をamendし、最終HEAD検査から再実行する。これはClaude一次レビューや人間逐行確認の代行ではない。
+
+## 公開後CIの試験是正（2026-10-15）
+
+公開したステップ2 HEAD `196f1e3d`のPR #141 CIでは、harness・frontend・凍結/迂回等は合格した。backend全pytestは`tests/db/test_tenant_transaction_scope.py::test_run_signature_has_no_second_tenant_context`の公開メソッドexact集合が新設`run_function`を含まないため1件失敗した。core-guardの失敗はPR本文の本人逐行確認チェックが未記入であることだけで、基線・path不整合ではない。人間チェック・実施記録は空欄を維持する。
+
+二段階追補のpush後是正ゲートに従って差分を提示し、POは**既公開履歴を維持する別の試験是正コミット**で`run_function`を期待集合へ追加し、push・新HEAD CIを再実行することを承認した。force pushは禁止。是正差分は当該assertionの1行だけで、製品コード・9資産・7.7受理値は変更しない。使い捨てPostgreSQLで該当試験1件が合格、対象試験のRuff format/checkとbackend tyも合格した。9資産のafter完全射影は受理履歴と全件一致。新HEAD CI結果と人間逐行確認対象はPR本文・最終報告で確定する。
