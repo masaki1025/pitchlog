@@ -465,6 +465,35 @@ EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
         "tests/test_fielder_estimation_contract.py",
         "tests/test_field_geometry_ci_wiring.py",
     ),
+    "sync-protocol": (
+        "backend/src/pitchlog/repositories/rg1.py",
+        "backend/src/pitchlog/repositories/operation_registry.py",
+        "backend/tests/test_rg1_*",
+        "contracts/tenant_boundary/repository-contract.json",
+        "contracts/tenant_boundary/base-allowlist.json",
+        "contracts/authz/product/function-bodies/*rg1*",
+    ),
+    "recording-rights": (
+        "backend/src/pitchlog/repositories/rg1.py",
+        "backend/src/pitchlog/repositories/operation_registry.py",
+        "backend/src/pitchlog/authz/classification.py",
+        "backend/src/pitchlog/authz/product_control_access.py",
+        "backend/src/pitchlog/authz/product_catalog.py",
+        "backend/src/pitchlog/authz/product_provisioning.py",
+        "backend/src/pitchlog/authz/product_function_acl.py",
+        "backend/tests/test_rg1_*",
+        "contracts/authz/product/ddl-elements.json",
+        "contracts/authz/product/table-classification.json",
+        "contracts/authz/product/exposure-facts.json",
+        "contracts/authz/product/function-bodies/*rg1*",
+        "contracts/tenant_boundary/repository-contract.json",
+        "contracts/tenant_boundary/base-allowlist.json",
+        "scripts/check_authz_catalog.py",
+        "tests/test_check_authz_catalog.py",
+    ),
+}
+REGISTERED_BEFORE_UR1: dict[str, tuple[str, ...]] = {
+    "game-state": EXPECTED_AREA_PATH_ADDITIONS["game-state"],
     "sync-protocol": ("tests/test_field_geometry_numeric_lexemes.py",),
 }
 UF5_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
@@ -714,7 +743,7 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
             assert_registered_block(paths, additions)
         else:
             paths.extend(additions)
-    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
+    for area_id, additions in REGISTERED_BEFORE_UR1.items():
         assert_registered_block(areas[area_id]["paths"], additions)
     write_text(
         root,
@@ -2678,7 +2707,7 @@ def test_area_registration() -> None:
         base_paths = tuple(baseline_areas[area_id]["paths"])
         assert_registered_block(base_paths, registered)
         assert_registered_block(current_paths, registered)
-        additions = EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ())
+        additions = REGISTERED_BEFORE_UR1.get(area_id, ())
         if additions:
             assert_registered_block(current_paths, additions)
         assert len(registered) == len(set(registered))
@@ -2686,11 +2715,15 @@ def test_area_registration() -> None:
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in registered
         )
-    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
+    for area_id, additions in REGISTERED_BEFORE_UR1.items():
         base_paths = tuple(baseline_areas[area_id]["paths"])
         current_paths = tuple(areas[area_id]["paths"])
-        # ステップ 8 の未登録状態と、ステップ 9 の宣言順での末尾追加を受理する。
-        assert current_paths in (base_paths, (*base_paths, *additions))
+        ur1_suffix = (
+            EXPECTED_AREA_PATH_ADDITIONS["sync-protocol"]
+            if area_id == "sync-protocol"
+            else ()
+        )
+        assert current_paths in (base_paths, (*base_paths, *ur1_suffix))
         assert all(
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in additions
@@ -2725,10 +2758,10 @@ def test_registered_d2_paths_match_tracked_files_without_overlap() -> None:
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
     tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
-    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
+    for area_id, additions in REGISTERED_BEFORE_UR1.items():
         patterns = areas[area_id]["paths"]
-        assert tuple(patterns[-len(additions) :]) == additions
-        earlier_patterns = patterns[: -len(additions)]
+        assert_registered_block(tuple(patterns), additions)
+        earlier_patterns = patterns[: patterns.index(additions[0])]
         assert not set(additions) & set(earlier_patterns)
         for pattern in additions:
             matched = [
@@ -2739,6 +2772,34 @@ def test_registered_d2_paths_match_tracked_files_without_overlap() -> None:
                 not any(fnmatch.fnmatchcase(path, old) for old in earlier_patterns)
                 for path in matched
             ), f"既存 glob が被覆済み: {area_id}: {pattern}"
+
+
+def test_ur1_declaration_allows_only_unregistered_or_complete_suffix() -> None:
+    """RG1追加層は宣言後・登録前と完全登録後の二状態だけを受ける。"""
+    core_guard = load_core_guard_module()
+    configuration = load_actual_core_areas()
+    baseline = core_guard.load_core_areas_at_revision(
+        REPO, run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    )
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    core_guard.validate_area_path_layers(baseline, configuration)
+
+    completed = json.loads(json.dumps(configuration))
+    for area in completed["areas"]:
+        additions = EXPECTED_AREA_PATH_ADDITIONS.get(area["id"], ())
+        if area["id"] not in {"sync-protocol", "recording-rights"}:
+            continue
+        if tuple(area["paths"][-len(additions) :]) != additions:
+            assert not set(additions) & set(area["paths"])
+            area["paths"].extend(additions)
+    core_guard.validate_area_path_layers(baseline, completed)
+
+    partial = json.loads(json.dumps(completed))
+    for area in partial["areas"]:
+        if area["id"] == "recording-rights":
+            area["paths"].pop()
+    with pytest.raises(core_guard.GuardError, match="recording-rights.paths"):
+        core_guard.validate_area_path_layers(baseline, partial)
 
 
 @pytest.mark.parametrize(
