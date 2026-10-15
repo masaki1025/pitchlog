@@ -175,3 +175,13 @@ P0 0 件、P1 1 件、P2 0 件で否決。P1 を採用した。
 - GitHub上でPR #131・#132・#137はいずれも未統合。#131と#132はtenant-boundary共有資産、#137はauthzのroute registry / HTTP matrix / seal資産を変更するため、既定の先行順を維持し、C1から共有資産を更新しない。
 - route exact-setの1件失敗は未完了検出として維持する。共有PR統合後に正式な登録差分で解消し、期待集合の緩和・除外・skipは行わない。
 - 次の再開点は、#131→#132および#137の統合確認、latest `origin/develop`のmerge、共有登録・凍結資産・7.7履歴、`tenants` RLS / application role SELECTを含む隔離DB試験、全品質gate、単一の`(ステップ 1/2)`コミットの順とする。ステップ2と公開は開始しない。
+
+### TSK-538統合後のC1依存再照合（2026-10-15）
+
+- TSK-538の対応PRは#131、developへの実統合SHAは`e2e78cfbcd8ae7bba0c1ad71263e48765c9aa860`（2026-10-15 07:02:54 UTC）。`git fetch origin develop`後、保全済み製品差分を名前付きstashへ退避し、`origin/develop`をmerge commit`418062ca92e9389597ef090c51480c0d05e3b529`で競合なく取り込み、同じ5ファイルを再適用した。
+- merge直前の製品差分もstash`C1 step1 nonshared product diff before TSK-538 merge 2026-10-15`（object `0c640526c56ab854411dcc5788dbf4dfc5f46916`）として追加保全した。従来のstash`4dce8a0e9e90990433229bfee11119c19be0306d`も残している。
+- TSK-538はC1の5製品ファイルを変更していない。repository contractはrevision 16→17とdigest、tenant context / runtime authzもrevision・digestが進んだが、`TenantProfileReadToken`の公開面・引数・戻り値に関わる意味契約は変わっていない。`create_app()`にdomain artifact検証が加わった影響は、C1 API試験を含む実行で問題なしと確認した。
+- 取込後検証は変更5ファイルのruff green、backend `ty check` green、auth/session・login/logout・repository・app対象45件中44件green。残る1件は`/auth/session`を未登録として検出する既存route exact-setで、意図した未完了状態を維持している。
+- PR #132はDraft・`CONFLICTING/DIRTY`で、head`d5c2f5953fb84470f8a537957dc2dbc6587b75df`はTSK-538統合SHAを含まない。C1が必要とする`operation_registry.py`、repository contractとtenant-boundary 7.7再封印を所有するため、統合と最新基線追随を待つ。
+- PR #137もDraft・`CONFLICTING/DIRTY`で、head`1eac40d70caa6bf5edb69312aedbe8b61279edbe`はTSK-538統合SHAを含まない。route registry、HTTP matrix、lock / seal資産を所有するため、C1の`GET /auth/session`登録と7.7確認は同PR統合後に行う。
+- 現時点で進められた作業は、TSK-538取込、製品差分の再適用、意味差分照合、非共有のlint・型・固有回帰試験まで。operation登録に依存する隔離DB試験、共有凍結資産、route exact-set解消、全検査、ステップ1製品コミットは#132・#137統合後に続ける。既済みの計画承認・担当受理に変更はなく、新たな人間判断は発生していない。
