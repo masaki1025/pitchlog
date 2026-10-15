@@ -1,4 +1,14 @@
-"""フィールド領域と表示座標の契約 JSON の数値リテラルを検査する。"""
+"""フィールド領域と表示座標の契約資産を検査する。
+
+数値リテラルの字句検査から始まったが、現在は 3 つを見る:
+  1. 数値リテラルの字句(schema では閉じられない — 4-4 節)
+  2. 実資産が宣言元 schema のルートに適合すること(全文検証)
+  3. 座標変換契約の期待値が要件書の条文から導けること
+
+新しいファイルを作らないのは、`.claude/core-areas.json` への paths 追加が
+ハーネス設計書 6.3 の paths 規則⑤により敵対レビュー + 人間承認の対象であり、
+検査を 1 本足すたびにその窓口を使うことになるためである。
+"""
 
 from __future__ import annotations
 
@@ -658,13 +668,21 @@ def _compare_coordinate_transform(
     elif middle is not None:
         differences.append(f"{case_id}: 往復の対象なのに経由する画面座標を持つ")
 
-    # 往復は任意。持つなら条文どおりでなければならず、
-    # クランプしたケースは往復が恒等にならないので持たないのが正しい。
+    # 往復は任意ではない。付録B-7 の「往復の恒等性」は
+    # 「一致性テストは両方向の往復を比較面に含める —— 順方向と逆方向を
+    # 別々のケースで持つだけでは往復の一致を検査できない」と定める(要件書 :1319)。
+    # 往復の入力範囲は「整数の画面座標」と「正準表現の保存座標」であり(同 :1317)、
+    # 非正準の保存座標と、範囲外からクランプした入力はその外にある。
     round_trip = expected.get("roundTripCoordinate")
     if derived["roundTripCoordinate"] is None:
         if round_trip is not None:
             differences.append(f"{case_id}: 非正準の入力なのに往復を持つ")
-    elif round_trip is not None:
+    elif derived["clamped"]:
+        if round_trip is not None:
+            differences.append(f"{case_id}: クランプしたのに往復を持つ")
+    elif round_trip is None:
+        differences.append(f"{case_id}: 往復の対象なのに roundTripCoordinate が無い")
+    else:
         actual_round_trip = (
             int(_as_fraction(round_trip["x"])),
             int(_as_fraction(round_trip["y"])),
@@ -674,8 +692,6 @@ def _compare_coordinate_transform(
                 f"{case_id}: 往復 契約 {actual_round_trip}"
                 f" / 条文 {tuple(derived['roundTripCoordinate'])}"
             )
-        elif derived["clamped"]:
-            differences.append(f"{case_id}: クランプしたのに往復を持つ")
     return differences
 
 

@@ -2707,7 +2707,15 @@ def test_area_registration() -> None:
 
 
 def test_registered_d2_paths_match_tracked_files_without_overlap() -> None:
-    """登録済みの各 glob が実在ファイルに一致し、旧層と重複しない。"""
+    """登録済みの各 glob が実在ファイルに一致し、旧層と重複しない。
+
+    名前は D-2 の登録を由来とするが、先行追加層の窓口は回転式なので、
+    本体が見ているのは「現在宣言されている追加層」である。
+    D-2 の分は core-areas.json へ着地済みで、宣言としての役目を終えている
+    (DOMAIN_RUNTIME_PATH_ADDITIONS の中身は下の assert が直接固定する)。
+    着地済みの paths が JSON から消えることは、CI の
+    validate_area_path_layers が merge-base との比較で止める。
+    """
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     assert tuple(core_guard.DOMAIN_RUNTIME_PATH_ADDITIONS) == (

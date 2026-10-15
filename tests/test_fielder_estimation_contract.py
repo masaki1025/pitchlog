@@ -456,11 +456,13 @@ SCALE = 263
 # design.md 2-1「旧システムは多角形を持っていない」が
 # `dd03160:frontend/src/lib/fielder.ts`(全 37 行)から転記した規則。
 # 座標は旧 263 系(左上原点)。上から順に評価し、当たればそこで決まる。
+# 閾値に倍率を掛けて受けるのは、半単位の格子点を整数のまま厳密に扱うため。
+# 倍率 1 なら旧 263 系の整数座標そのもので、旧実装の条件と同じ式になる。
 LEGACY_RECTANGLE_RULES = (
-    (2, lambda x, y: y >= 205),
-    (3, lambda x, y: x >= 155 and y >= 165),
-    (5, lambda x, y: x <= 75 and y >= 165),
-    (1, lambda x, y: 105 <= x < 145 and 140 <= y <= 190),
+    (2, lambda x, y, s: y >= 205 * s),
+    (3, lambda x, y, s: x >= 155 * s and y >= 165 * s),
+    (5, lambda x, y, s: x <= 75 * s and y >= 165 * s),
+    (1, lambda x, y, s: 105 * s <= x < 145 * s and 140 * s <= y <= 190 * s),
 )
 # 残りは 9 アンカーへの最近傍(ユークリッド距離の二乗)。
 # 比較が厳密 `<` なので、距離が同じなら上から先に並ぶほうが勝つ。
@@ -483,23 +485,24 @@ LEGACY_SENTINEL_EXCEPTIONS = frozenset(
 )
 
 
-def _legacy_position(x_old: int, y_old: int) -> int:
-    """旧 263 系の整数座標から守備位置を返す(センチネル判定は含まない)。
+def _legacy_position(x_old: int, y_old: int, scale: int = 1) -> int:
+    """旧 263 系の座標から守備位置を返す(センチネル判定は含まない)。
 
     Args:
-        x_old: 旧 263 系の x(左上原点)。
-        y_old: 旧 263 系の y(下向き)。
+        x_old: 旧 263 系の x(左上原点)を scale 倍した整数。
+        y_old: 旧 263 系の y(下向き)を scale 倍した整数。
+        scale: 座標に掛かっている倍率。2 なら半単位の格子点を表す。
 
     Returns:
         守備位置 1〜9。
     """
     for position, rule in LEGACY_RECTANGLE_RULES:
-        if rule(x_old, y_old):
+        if rule(x_old, y_old, scale):
             return position
     best_position = 0
     best_distance = None
     for position, ax, ay in LEGACY_ANCHORS:
-        distance = (x_old - ax) ** 2 + (y_old - ay) ** 2
+        distance = (x_old - ax * scale) ** 2 + (y_old - ay * scale) ** 2
         if best_distance is None or distance < best_distance:
             best_distance, best_position = distance, position
     return best_position
@@ -611,15 +614,23 @@ def _seed_position(
     regions: list[tuple[str, int, list[tuple[int, int, int, bool]]]],
     x_units: int,
     y_units: int,
+    scale: int = 1,
 ) -> int | None:
     """保存座標の格子点が属する領域の守備位置を返す。属さなければ None。
 
     tieBreak が first-defined-region-wins なので、先に定義された領域が勝つ。
     開いた辺の上に乗る点はその領域に含めない。
+
+    Args:
+        regions: 評価順の領域。
+        x_units: 保存座標の x を 263 倍し、さらに scale 倍した整数。
+        y_units: 同じく y。
+        scale: 座標に掛かっている倍率。判定式 A·x + B·y + C のうち
+            定数項だけが倍率に比例するので、C を scale 倍して釣り合わせる。
     """
     for _region_id, position, edges in regions:
         for a, b, c, is_open in edges:
-            value = a * x_units + b * y_units + c
+            value = a * x_units + b * y_units + c * scale
             if value < 0 or (value == 0 and is_open):
                 break
         else:
@@ -693,3 +704,46 @@ def test_region_seed_open_edge_is_honoured() -> None:
     assert divergences, "開辺を閉じても結果が変わらない(開辺が効いていない)"
     for y_old in divergences:
         assert _seed_position(regions, 145, SCALE - y_old) == _legacy_position(145, y_old)
+
+
+# 全格子の突合は 263 格子上の一致しか立証しない。シードの入力域は正準表現に
+# 限らず(要件書 付録B-7 ——「移行由来の保存座標はこの形に限らない / 旧列は実数型」)、
+# 領域の辺は格子の外を通る。半単位の格子まで広げると、辺を 1 単位ずらす変異のうち
+# 新たに覆う格子点がセンチネル列にしか無いものも検出できる。
+HALF_UNIT_SCALE = 2
+HALF_UNIT_POINT_COUNT = (HALF_UNIT_SCALE * SCALE + 1) ** 2
+HALF_UNIT_SENTINEL_COUNT = (HALF_UNIT_SCALE * SCALE + 1) * 2 - 1
+HALF_UNIT_COMPARED_COUNT = HALF_UNIT_POINT_COUNT - HALF_UNIT_SENTINEL_COUNT
+
+
+def test_region_seed_matches_the_legacy_geometry_on_the_half_unit_lattice() -> None:
+    """領域シードを旧の幾何規則と半単位の格子で突合する。
+
+    整数の格子点だけでは、領域の辺を動かしても新たに覆う点が
+    センチネル列にしか現れない変異を見逃す(design.md 6-4)。
+    """
+    regions = _prepare_seed_regions()
+    span = HALF_UNIT_SCALE * SCALE
+    differences: list[str] = []
+    compared_count = 0
+
+    for y_doubled in range(span + 1):
+        for x_doubled in range(span + 1):
+            if x_doubled <= 0 or y_doubled <= 0:
+                continue
+            compared_count += 1
+            actual = _seed_position(
+                regions, x_doubled, span - y_doubled, scale=HALF_UNIT_SCALE
+            )
+            expected = _legacy_position(x_doubled, y_doubled, scale=HALF_UNIT_SCALE)
+            if actual != expected and len(differences) < 20:
+                differences.append(
+                    f"旧(x={x_doubled / 2}, y={y_doubled / 2}): "
+                    f"旧規則 {expected} / シード {actual}"
+                )
+
+    assert compared_count == HALF_UNIT_COMPARED_COUNT, compared_count
+    assert not differences, (
+        f"半単位の格子で旧の幾何規則と一致しない点がある(先頭 {len(differences)} 件):\n"
+        + "\n".join(differences)
+    )
