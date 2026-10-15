@@ -7,12 +7,14 @@ import {
   createAckAdapterInjections,
   type D1AckAdapterInput,
 } from '../lib/sync/ackAdapter'
+import { parseD1AckEnvelope, type D1AckEnvelope } from '../lib/sync/ackEnvelope'
 import { appendUnderQueueDiscipline } from '../lib/sync/clientDiscipline'
 import {
   openDurableQueue,
   type DurableQueue,
   type DurableQueueAppend,
   type DurableQueueScope,
+  type DurableQueueSlot,
 } from '../lib/sync/durableQueue'
 import { EVENT_KIND_SLOT_ID, EVENT_SLOT_IDS } from '../lib/sync/eventFieldRules'
 import { EVENT_KIND_RULES } from '../lib/sync/eventKinds'
@@ -21,6 +23,11 @@ import {
   B3_REJECTION_KIND,
 } from '../lib/sync/rejectionReason'
 import { queueStateId, type I6Acceptance } from '../lib/sync/queueState'
+import {
+  determineResendRange,
+  type D1AfterD3Resolver,
+  type ResendD3Checkpoint,
+} from '../lib/sync/resendRange'
 import { TARGET_EVENT_REFERENCE_ELEMENTS } from '../lib/sync/syncEvent'
 import {
   FAILURE_SCENARIO_IDS,
@@ -52,6 +59,7 @@ export type FailureScenarioExecutionOptions = Readonly<{
   skipI6Persistence?: boolean
   skipAckDelivery?: boolean
   i6AcceptedAtOverride?: string
+  resendD1AfterD3Override?: D1AfterD3Resolver
 }>
 
 const I6_FIELD_IDS = [
@@ -1088,6 +1096,12 @@ function requestEvents(contract: FailureScenarioContract): QueueEventSpec[] {
   return [...byD1.values()].sort((left, right) => left.d1 - right.d1)
 }
 
+function isD1AfterD3(d1: number, d3: unknown): boolean | undefined {
+  return typeof d3 === 'number' && Number.isSafeInteger(d3)
+    ? d1 > d3
+    : undefined
+}
+
 /**
  * サーバー側の runner で確かめた ACK を、端末が受け取ったものとして製品の ACK
  * アダプタとキュー遷移へ通し、端末のキューの状態を観測する。
@@ -1158,6 +1172,11 @@ async function runQueueObservation(
     }
 
     const results: FailureScenarioObservation[] = []
+    // ACK 消失前に端末が確実に知る下限。サーバー側の初期 D3 は流用しない。
+    let lastKnownSynced: ResendD3Checkpoint = {
+      d4: scope.d4,
+      d3: [].length,
+    }
     for (const [index, assetObservation] of testCase.observations.entries()) {
       const observed = await runAsSingleWriter(
         { gameIdentifier: String(scope.game) },
@@ -1167,25 +1186,51 @@ async function runQueueObservation(
             injectionTarget.operation === 'ACK の受信' &&
             !index
           const d1Field = requireRecord(assetObservation.fields.d1, 'fields.d1')
+          let deliveredAck: D1AckEnvelope | undefined
           if (
             !ackLost &&
             !options.skipAckDelivery &&
             Array.isArray(d1Field.ack)
           ) {
-            await deliverAck(queue, scope, events, assetObservation, d1Field)
+            deliveredAck = await deliverAck(
+              queue,
+              scope,
+              events,
+              assetObservation,
+              d1Field,
+            )
           }
           const states: [number, string | null, string | null][] = []
+          const orderedSlots: DurableQueueSlot[] = []
           for (const spec of events) {
             const slot = await queue.readSlot(scope, spec.d1)
+            if (slot) {
+              orderedSlots.push(slot)
+            }
             states.push([
               spec.d1,
               slot?.state ?? null,
               slot?.actionRequiredLabel ?? null,
             ])
           }
+          const resendRange = determineResendRange({
+            d4: scope.d4,
+            orderedSlots,
+            lastKnownSynced,
+            ...(deliveredAck ? { ack: deliveredAck } : {}),
+            isD1AfterD3: options.resendD1AfterD3Override ?? isD1AfterD3,
+          })
+          if (deliveredAck) {
+            lastKnownSynced = {
+              d4: scope.d4,
+              d3: deliveredAck.advancedD3,
+            }
+          }
           return {
             queue: { states },
             lock: { owner: locks.owner(lockName) },
+            // 製品に受理表示の判定はまだ無い。製品の ACK アダプタとキュー遷移を
+            // 通った後のキュー状態から読む。
             acceptanceDisplay: {
               serverAcceptedD1s: states
                 .filter(([, state]) => state === '同期済み')
@@ -1193,9 +1238,10 @@ async function runQueueObservation(
             },
             reinputAvailability: {
               reinputRequired: states.some(([, state]) => state === null),
-              automaticResendD1s: states
-                .filter(([, state]) => state === '未送信')
-                .map(([d1]) => d1),
+              automaticResendD1s:
+                resendRange.status === 'ready'
+                  ? resendRange.slots.map((slot) => slot.d1)
+                  : [],
               correctionRequiredD1s: states
                 .filter(([, state]) => state === '要操作')
                 .map(([d1]) => d1),
@@ -1224,7 +1270,7 @@ async function deliverAck(
   events: readonly QueueEventSpec[],
   assetObservation: FailureScenarioObservation,
   d1Field: Record<string, unknown>,
-): Promise<void> {
+): Promise<D1AckEnvelope> {
   const idempotent = requireRecord(
     assetObservation.fields.idempotentResult,
     'fields.idempotentResult',
@@ -1247,25 +1293,27 @@ async function deliverAck(
     reasonEvidence.present
       ? 'サーバー応答に理由あり'
       : undefined
+  const envelope = {
+    advancedD3: d1Field.ackD3,
+    eventResults: ack.map(([d1, a5Result]) => ({
+      d4: scope.d4,
+      d1,
+      d5: specByD1.get(d1)?.d5,
+      a5Result,
+    })),
+    ...(acknowledged.length
+      ? {
+          playerIdMappings: acknowledged.map((temporaryId) => ({
+            temporaryId,
+            officialId: `${temporaryId}-official`,
+          })),
+        }
+      : {}),
+  }
+  const parsedEnvelope = parseD1AckEnvelope(envelope)
   const injections = createAckAdapterInjections({
     d1: {
-      envelope: {
-        advancedD3: d1Field.ackD3,
-        eventResults: ack.map(([d1, a5Result]) => ({
-          d4: scope.d4,
-          d1,
-          d5: specByD1.get(d1)?.d5,
-          a5Result,
-        })),
-        ...(acknowledged.length
-          ? {
-              playerIdMappings: acknowledged.map((temporaryId) => ({
-                temporaryId,
-                officialId: `${temporaryId}-official`,
-              })),
-            }
-          : {}),
-      },
+      envelope,
       boundaryResult: boundary,
       ...(branch
         ? {
@@ -1309,6 +1357,7 @@ async function deliverAck(
       await queue.persistA5Transition(preparation)
     }
   }
+  return parsedEnvelope
 }
 
 export async function executeClientObservedCase(

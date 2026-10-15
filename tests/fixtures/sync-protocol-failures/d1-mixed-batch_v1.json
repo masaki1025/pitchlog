@@ -368,9 +368,7 @@
             },
             "reinputAvailability": {
               "reinputRequired": false,
-              "automaticResendD1s": [
-                2
-              ],
+              "automaticResendD1s": [],
               "correctionRequiredD1s": []
             },
             "prefix": {

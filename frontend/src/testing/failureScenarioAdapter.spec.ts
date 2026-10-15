@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import * as ts from 'typescript'
@@ -336,6 +336,30 @@ describe('failureScenarioAdapter', () => {
       ).not.toThrow()
     },
   )
+
+  it('負例: 再送選択器の D3 比較を >= に変えると混在バッチの期待値に反する', async () => {
+    const contract = contractById('d1-mixed-batch')
+    const caseId = 'ack-loss-handover'
+    const isD1AfterD3 = vi.fn((d1: number, d3: unknown) => d1 >= Number(d3))
+    const result = await executeClientObservedCase(contract, caseId, {
+      resendD1AfterD3Override: isD1AfterD3,
+    })
+
+    expect(isD1AfterD3).toHaveBeenCalledWith(2, 2)
+    expect(
+      result.cases[0]?.observations[1]?.fields.reinputAvailability,
+    ).toEqual({
+      reinputRequired: false,
+      automaticResendD1s: [2],
+      correctionRequiredD1s: [],
+    })
+    expect(() =>
+      validateFailureScenarioResult(contract, result, {
+        caseIds: [caseId],
+        observedFieldIds: clientObservedFieldIds(contract, caseId),
+      }),
+    ).toThrow()
+  })
 
   it('端末を観測するフィールドは case の I6・キュー・ロック・表示の実値と一致する', () => {
     expect(clientObservedCases.length).toBeGreaterThan(
