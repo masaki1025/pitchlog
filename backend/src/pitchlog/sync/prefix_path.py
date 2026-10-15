@@ -742,6 +742,8 @@ def _apply_locked(
             reach("after_t6_mapping")
         if new_d3 > d3:
             record_d1_intents(scope, game_id, d5)
+            # D3 を前進させたイベントの無効化意図も同じ原子境界に入ることを観測する。
+            reach("after_d1_intents")
         return P1Result(None, new_d3, True, False, tuple(new_mapping.items()))
     finally:
         if own_writer:

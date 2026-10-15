@@ -280,6 +280,26 @@ describe('failureScenarioAdapter', () => {
     ).toThrow()
   })
 
+  it('負例: 永続化の確定後に終了する case で I6 を永続化しない変異を red にする', async () => {
+    const assigned = CLIENT_OBSERVED_CASES.find(
+      (candidate) => candidate.caseId === 'i6-persisted-then-closed',
+    )
+    if (!assigned) {
+      throw new Error('永続化が成立する I6 の case がありません')
+    }
+    const contract = contractById(assigned.scenarioId)
+    const result = await executeClientObservedCase(contract, assigned.caseId, {
+      skipI6Persistence: true,
+    })
+
+    expect(() =>
+      validateFailureScenarioResult(contract, result, {
+        caseIds: [assigned.caseId],
+        observedFieldIds: assigned.fieldIds,
+      }),
+    ).toThrow()
+  })
+
   it('担当外の case・フィールドを結果に混ぜると red にする', async () => {
     const [{ scenarioId, caseId, fieldIds }] = CLIENT_OBSERVED_CASES
     const contract = contractById(scenarioId)

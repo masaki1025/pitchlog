@@ -40,7 +40,17 @@ export const FAILURE_FIXTURE_DIRECTORY = resolve(
 export type FailureScenarioExecutionOptions = Readonly<{
   extraPersistence?: boolean
   persistI6BeforeInjection?: boolean
+  skipI6Persistence?: boolean
 }>
+
+const I6_FIELD_IDS = [
+  'i6TargetReference',
+  'i6Version',
+  'i6D5',
+  'i6ConfirmedContent',
+  'i6RetentionDeadline',
+  'i6EscrowState',
+] as const
 
 type JsonRecord = Record<string, unknown>
 type Deferred = Readonly<{
@@ -763,14 +773,12 @@ export const CLIENT_OBSERVED_CASES = [
   {
     scenarioId: 'p3-crash-boundaries',
     caseId: 'server-confirmed-before-i6',
-    fieldIds: [
-      'i6TargetReference',
-      'i6Version',
-      'i6D5',
-      'i6ConfirmedContent',
-      'i6RetentionDeadline',
-      'i6EscrowState',
-    ],
+    fieldIds: I6_FIELD_IDS,
+  },
+  {
+    scenarioId: 'p3-crash-boundaries',
+    caseId: 'i6-persisted-then-closed',
+    fieldIds: I6_FIELD_IDS,
   },
 ] as const satisfies readonly Readonly<{
   scenarioId: FailureScenarioContract['scenarioId']
@@ -778,27 +786,77 @@ export const CLIENT_OBSERVED_CASES = [
   fieldIds: readonly string[]
 }>[]
 
+function sameJson(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
+type I6Expectation = Readonly<{
+  acceptance: I6Acceptance
+  acceptedAt: string
+}>
+
 async function observeI6(
   databaseName: string,
   observationPoint: string,
-  d5: unknown,
+  { acceptance, acceptedAt }: I6Expectation,
 ): Promise<FailureScenarioObservation> {
   const queue = await openDurableQueue({
     databaseName,
     requestStoragePersistence: async () => Boolean(databaseName),
   })
   try {
-    const slot = await queue.readI6(d5)
-    const evacuation = await queue.prepareI6Evacuation(d5, {
+    const slot = await queue.readI6(acceptance.d5)
+    const evacuation = await queue.prepareI6Evacuation(acceptance.d5, {
       confirmI6EvacuationSaved: () => Boolean(slot),
     })
-    const has = (key: string) => Boolean(slot) && Object.hasOwn(slot ?? {}, key)
+    let keptOnReplay: boolean | null = null
+    if (slot) {
+      // 保存済み結果の再掲(別の accepted_at)で accepted_at の起点を動かさないこと。
+      const replay = queue.prepareI6Acceptance(acceptance, {
+        resolveAcceptedAt: () => ({
+          known: Boolean(slot),
+          targetReference: acceptance.targetReference,
+          acceptedAt: `${acceptedAt}-replayed`,
+        }),
+      })
+      if (replay) {
+        await queue.persistI6Acceptance(replay)
+      }
+      const after = await queue.readI6(acceptance.d5)
+      keptOnReplay = after?.acceptedAt === acceptedAt
+    }
+    const matches = (stored: unknown, accepted: unknown) =>
+      slot ? sameJson(stored, accepted) : null
     return observation(observationPoint, {
-      i6TargetReference: { persisted: has('targetReference') },
-      i6Version: { persisted: has('expectedVersion') },
-      i6D5: { persisted: has('d5') },
-      i6ConfirmedContent: { persisted: has('confirmedContent') },
-      i6RetentionDeadline: { set: has('acceptedAt') },
+      i6TargetReference: {
+        persisted: Boolean(slot),
+        matchesAcceptance: matches(
+          slot?.targetReference,
+          acceptance.targetReference,
+        ),
+      },
+      i6Version: {
+        persisted: Boolean(slot),
+        matchesAcceptance: matches(
+          slot?.expectedVersion,
+          acceptance.expectedVersion,
+        ),
+      },
+      i6D5: {
+        persisted: Boolean(slot),
+        matchesAcceptance: matches(slot?.d5, acceptance.d5),
+      },
+      i6ConfirmedContent: {
+        persisted: Boolean(slot),
+        matchesAcceptance: matches(
+          slot?.confirmedContent,
+          acceptance.confirmedContent,
+        ),
+      },
+      i6RetentionDeadline: {
+        fromServerAcceptedAt: slot ? slot.acceptedAt === acceptedAt : null,
+        keptOnReplay,
+      },
       i6EscrowState: {
         evacuated: slot?.state === queueStateId('退避済み'),
         collectible: Boolean(evacuation),
@@ -810,10 +868,12 @@ async function observeI6(
 }
 
 /**
- * P3 の受理結果をサーバーの確定応答(accepted_at)まで受け、端末へ永続化する前に
- * ブラウザが終了する注入を、製品の永続キューで起こす。
+ * P3 の受理結果をサーバーの確定応答(accepted_at)まで受けた後にブラウザが終了する
+ * 注入を、製品の永続キューで起こす。トランザクション外の注入点(サーバー確定後・
+ * I6 端末永続化前)では永続化の前に、クライアント操作の注入(I6 の端末永続化)では
+ * 永続化の確定後に終了する。
  */
-async function runServerConfirmedBeforeI6(
+async function runI6BrowserClose(
   contract: FailureScenarioContract,
   testCase: FailureScenarioCase,
   options: FailureScenarioExecutionOptions,
@@ -835,12 +895,23 @@ async function runServerConfirmedBeforeI6(
     [targetD4]: recordFieldValue(contract.input, 'd4').request,
     [targetD1]: target.d1,
   }
-  const acceptance: I6Acceptance = {
-    targetReference,
-    expectedVersion: change.expectedVersion,
-    d5: change.d5,
-    confirmedContent: change.payload,
+  const expectation: I6Expectation = {
+    acceptance: {
+      targetReference,
+      expectedVersion: change.expectedVersion,
+      d5: change.d5,
+      confirmedContent: change.payload,
+    },
+    acceptedAt: String(contract.version),
   }
+  const injectionTarget = requireRecord(
+    fieldValue(testCase.faultInjection, 'target'),
+    'faultInjection.target',
+  )
+  const persistsBeforeClose =
+    injectionTarget.kind === 'client'
+      ? !options.skipI6Persistence
+      : Boolean(options.persistI6BeforeInjection)
   const [injectionPoint, restartPoint, ...extra] = observationPoints(testCase)
   if (!injectionPoint || !restartPoint || extra.length) {
     throw new Error('I6 の注入には二つの観測点が必要です')
@@ -855,28 +926,28 @@ async function runServerConfirmedBeforeI6(
   })
   try {
     // サーバーの確定応答を受け、I6 の永続化を準備した時点。
-    const preparation = queue.prepareI6Acceptance(acceptance, {
+    const preparation = queue.prepareI6Acceptance(expectation.acceptance, {
       resolveAcceptedAt: () => ({
         known: Boolean(targetReference),
         targetReference,
-        acceptedAt: String(contract.version),
+        acceptedAt: expectation.acceptedAt,
       }),
     })
     if (!preparation) {
       throw new Error('I6 の永続化を準備できませんでした')
     }
-    if (options.persistI6BeforeInjection) {
+    if (persistsBeforeClose) {
       await queue.persistI6Acceptance(preparation)
     }
-    // 端末永続化の前にブラウザが終了する。
+    // ブラウザが終了する。
     injections.push(preparation)
   } finally {
     queue.close()
   }
   try {
     return caseResult(testCase, injections, [
-      await observeI6(databaseName, injectionPoint, acceptance.d5),
-      await observeI6(databaseName, restartPoint, acceptance.d5),
+      await observeI6(databaseName, injectionPoint, expectation),
+      await observeI6(databaseName, restartPoint, expectation),
     ])
   } finally {
     await deleteDatabase(databaseName)
@@ -912,6 +983,6 @@ export async function executeClientObservedCase(
   }
   return {
     scenarioId: contract.scenarioId,
-    cases: [await runServerConfirmedBeforeI6(contract, testCase, options)],
+    cases: [await runI6BrowserClose(contract, testCase, options)],
   }
 }

@@ -167,6 +167,34 @@ T_ELEMENT_UNITS: Mapping[tuple[ApplicationPath, str], tuple[str, ...]] = {
     ("P5", "T9"): ("ledger", "original"),
 }
 T_ELEMENT_STATES = frozenset(("committed", "notCommitted", "no-write", "no-change"))
+# 確定・非確定と並べて no-write / no-change を書ける位置(経路, T 要素, 内部単位)。
+# それ以外で書かないことを正とできるのは、観測点の全 T 要素が書かない場合だけ
+# (停止境界より後ろの未処理・退避・B3b など)。
+PARTIAL_NO_EFFECT_UNITS = frozenset({("P1", "T6", "mapping"), ("P2", "T6", "mapping")})
+_D1_PATH_POINTS: Mapping[str, frozenset[str]] = {
+    "T1": frozenset({"T1 の保存後・コミット前"}),
+    "T2": frozenset({"T2 の保存後・コミット前"}),
+    "T3": frozenset({"T3 の保存後・コミット前", "T3 の意図の保存後・コミット前"}),
+    "T4": frozenset({"T4 の保存後・コミット前"}),
+    "T5": frozenset({"T5 の保存後・コミット前"}),
+    "T6": frozenset({"T6 の保存後・コミット前", "T6 の写像の保存後・コミット前"}),
+}
+# 注入対象の (経路, T 要素) ごとに許す注入時点(閉じた語彙)。runner はこの語彙を
+# 名前付きの注入点へ写す。T1 と T6 の結果は同じ台帳行の書き込みなので、注入点は同じ。
+TRANSACTION_INJECTION_POINTS: Mapping[tuple[str, str], frozenset[str]] = {
+    **{("P1", t): points for t, points in _D1_PATH_POINTS.items() if t != "T5"},
+    **{("P2", t): points for t, points in _D1_PATH_POINTS.items()},
+    **{
+        ("P3", t): frozenset({f"{t} の保存後・コミット前"})
+        for t in ("T1", "T2", "T4", "T6", "T7")
+    },
+    ("P4", "T8"): frozenset(
+        {"T8 の台帳の保存後", "T8 の原本の保存後", "T8 の確定後・B4 応答の前"}
+    ),
+    ("P5", "T9"): frozenset(
+        {"T9 の台帳の保存後", "T9 の原本の保存後", "T9 の確定後・応答の前"}
+    ),
+}
 _COMMIT_STATES = frozenset(("committed", "notCommitted"))
 _NO_EFFECT_STATES = frozenset(("no-write", "no-change"))
 
@@ -291,6 +319,76 @@ OUT_OF_TRANSACTION_INJECTION_COVERAGE: Mapping[str, frozenset[str]] = {
     ),
 }
 OUT_OF_TRANSACTION_INJECTION_DEFERRED: Mapping[str, str] = {}
+
+# 資産の case にしていない観点の一部と、その受け取り先(SP 10-3「繰り延べは繰り延べ
+# 先とともに母集合に記録し、黙って欠落させない」)。証拠に試験を名指す場合は
+# (リポジトリ相対のファイル, 試験名) を持ち、存在を試験で照合する。
+ASPECT_DEFERRALS: tuple[tuple[str, str, str, tuple[str, str] | None], ...] = (
+    *(
+        (
+            "p3-crash-boundaries",
+            boundary,
+            "U-S1 の DB 試験(case は入力を共有するので、入力の違う境界結果は"
+            "資産を分ける)",
+            (
+                "backend/tests/db/test_sync_apply_change_boundary.py",
+                "test_p3_rejected_branches_do_not_write",
+            ),
+        )
+        for boundary in ("B8", "B9", "B10", "B13", "B14")
+    ),
+    (
+        "p3-crash-boundaries",
+        "B12",
+        "U-S1 の DB 試験(別テナントと不存在の同じ外形)",
+        (
+            "backend/tests/db/test_sync_apply_change_boundary.py",
+            "test_p3_other_tenant_and_missing_game_have_same_b12_before_rg1",
+        ),
+    ),
+    (
+        "p3-crash-boundaries",
+        "B11",
+        "HTTP 入口(TSK-331 — 認証失効は入口が判定する)",
+        None,
+    ),
+    (
+        "p3-crash-boundaries",
+        "終了後に旧復旧世代のまま RG1 解除後に再送",
+        "U-R1(TSK-392 — 復元ライフサイクル)",
+        None,
+    ),
+    (
+        "p3-crash-boundaries",
+        "保存失敗と未保護窓の NFR-015 の通知/ログ",
+        "TSK-441(通知の文面と契約 — 製品コードに I6 の通知の発行点がまだない)",
+        None,
+    ),
+    (
+        "tombstone-application",
+        "旧保持端末では墓標操作を提供しない",
+        "クライアントの単体試験",
+        (
+            "frontend/src/lib/sync/k5Tombstone.spec.ts",
+            "旧保持端末では墓標操作を提供しない",
+        ),
+    ),
+    (
+        "tombstone-application",
+        "現保持端末はオンラインで V12 を確認してから墓標を生成する",
+        "クライアントの単体試験",
+        (
+            "frontend/src/lib/sync/k5Tombstone.spec.ts",
+            "requestBoundary の verifier を通して現保持端末を照合する",
+        ),
+    ),
+    (
+        "tombstone-application",
+        "投影の長さ・並びは変わらない",
+        "U-X1(投影の持ち主 — U-S1 は投影ポートへ同じトランザクションで渡すまで)",
+        None,
+    ),
+)
 
 _FILE_NAME_PATTERN = re.compile(r"^([a-z0-9]+(?:-[a-z0-9]+)*)_v([1-9]\d*)\.json$")
 _ID_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -430,7 +528,36 @@ def _commitment_leaves(
     }
     if len(commit_states) > 1:
         _fail(f"{location} が部分確定です(確定と非確定が混在)")
+    if commit_states:
+        for element, states in leaves.items():
+            units = T_ELEMENT_UNITS.get((path, element)) or (None,)
+            for unit, leaf in zip(units, states, strict=True):
+                if (
+                    leaf in _NO_EFFECT_STATES
+                    and (path, element, unit) not in PARTIAL_NO_EFFECT_UNITS
+                ):
+                    _fail(
+                        f"{location}.{element} は確定・非確定と並べて "
+                        f"{leaf} にできません(部分確定の言い換えを拒否する)"
+                    )
     return leaves
+
+
+def _request_contents(input_section: Mapping[str, Any], d5: object) -> list[Any]:
+    """送る要求(``queue.unsent``)のうち、その D5 のイベントの内容を返す。"""
+    queue = _record(_required_value(input_section, "queue", "input"), "input.queue")
+    unsent = queue.get("unsent")
+    if not isinstance(unsent, list):
+        return _fail("P5 の資産は input.queue.value.unsent に送る要求を持ちます")
+    return [
+        {
+            "d1": event.get("d1"),
+            "kind": event.get("kind"),
+            "payload": event.get("payload"),
+        }
+        for event in unsent
+        if isinstance(event, dict) and event.get("d5") == d5
+    ]
 
 
 def _validate_p5_branch(
@@ -461,6 +588,10 @@ def _validate_p5_branch(
             _fail("B3a の D5 が要求に含まれていません")
         if not _record(branch_record["rejectedOriginal"], "rejectedOriginal"):
             _fail("B3a の拒否原本が空です")
+        if branch_record["rejectedOriginal"] not in _request_contents(
+            input_section, branch_record["d5"]
+        ):
+            _fail("B3a の拒否原本が送る要求の内容と一致しません")
         return "B3a"
     if kind == "B3b":
         branch_record = _exact_keys(
@@ -487,6 +618,8 @@ def _validate_p5_branch(
         originals = initial.get("originals")
         if not isinstance(originals, list) or first not in originals:
             _fail("B3b の先着原本が初期永続状態に一致しません")
+        if later["content"] not in _request_contents(input_section, later["d5"]):
+            _fail("B3b の後着入力が送る要求の内容と一致しません")
         return "B3b"
     return _fail(f"input.p5Branch.value.kind は B3a か B3b です: {kind}")
 
@@ -588,6 +721,14 @@ def validate_failure_scenario_contract(
                 _fail(
                     f"{location} の (経路, T 要素) が R-TXN-ROUTE にありません: "
                     f"{target['path']}:{target['tElement']}"
+                )
+            allowed = TRANSACTION_INJECTION_POINTS.get(
+                (target["path"], target["tElement"]), frozenset()
+            )
+            if point not in allowed:
+                _fail(
+                    f"{location} の注入時点が注入対象の T 要素と結び付きません: "
+                    f"{target['path']}:{target['tElement']} / {point}"
                 )
         elif kind == "outOfTransaction":
             _exact_keys(target, ("kind", "point"), f"{location}.target")
@@ -970,6 +1111,7 @@ def _asset(
     p5_branch: object | None = None,
     d5: object | None = None,
     initial: object | None = None,
+    unsent: object | None = None,
 ) -> dict[str, Any]:
     input_section: dict[str, object] = {
         key: _omit("この資産の入力でないため") for key in INPUT_FIELD_IDS
@@ -980,6 +1122,8 @@ def _asset(
         input_section["p5Branch"] = _wrap(p5_branch)
     if d5 is not None:
         input_section["d5"] = _wrap(d5)
+    if unsent is not None:
+        input_section["queue"] = _wrap({"unsent": unsent})
     asset: dict[str, Any] = {
         "schemaVersion": SCHEMA_VERSION,
         "scenarioId": scenario_id,
@@ -1016,8 +1160,14 @@ def _case(
     fields: Mapping[str, object],
     *,
     reachability: str = "reached",
-    point: str = "保存の直後・コミット前",
+    point: str | None = None,
 ) -> dict[str, object]:
+    if point is None:
+        point = (
+            f"{target['tElement']} の保存後・コミット前"
+            if target["kind"] == "transaction"
+            else "保存の直後・コミット前"
+        )
     return {
         "caseId": case_id,
         "faultInjection": {
@@ -1085,7 +1235,16 @@ def _p3_asset(routes: Mapping[ApplicationPath, Sequence[str]]) -> dict[str, Any]
     )
 
 
-_FIRST = {"d5": "d5-a", "content": {"pitch": "ball"}}
+_FIRST: dict[str, Any] = {
+    "d5": "d5-a",
+    "content": {"d1": 1, "kind": "play_input", "payload": {"pitch": "ball"}},
+}
+_LATER: dict[str, Any] = {
+    "d5": "d5-a",
+    "content": {"d1": 1, "kind": "play_input", "payload": {"pitch": "strike"}},
+}
+_T9_POINTS = {"ledger": "T9 の台帳の保存後", "original": "T9 の原本の保存後"}
+_REJECTED = {"d1": 1, "kind": "play_input", "payload": {"pitch": "?"}}
 
 
 def _b3b_asset(routes: Mapping[ApplicationPath, Sequence[str]]) -> dict[str, Any]:
@@ -1104,17 +1263,18 @@ def _b3b_asset(routes: Mapping[ApplicationPath, Sequence[str]]) -> dict[str, Any
                     ),
                 },
                 reachability="unreached",
-                point=f"T9 の {unit} の保存後",
+                point=_T9_POINTS[unit],
             )
             for unit in ("ledger", "original")
         ],
         p5_branch={
             "kind": "B3b",
             "firstOriginal": _FIRST,
-            "laterInput": {"d5": "d5-a", "content": {"pitch": "strike"}},
+            "laterInput": _LATER,
         },
         d5={"persisted": ["d5-a"], "requested": ["d5-a"]},
         initial={"originals": [_FIRST]},
+        unsent=[{"d5": "d5-a", **_LATER["content"]}],
     )
 
 
@@ -1130,8 +1290,9 @@ def _b3a_asset(routes: Mapping[ApplicationPath, Sequence[str]]) -> dict[str, Any
                 point="T9 の原本の保存後",
             )
         ],
-        p5_branch={"kind": "B3a", "d5": "d5-new", "rejectedOriginal": {"pitch": "?"}},
+        p5_branch={"kind": "B3a", "d5": "d5-new", "rejectedOriginal": _REJECTED},
         d5={"persisted": ["d5-a"], "requested": ["d5-new"]},
+        unsent=[{"d5": "d5-new", **_REJECTED}],
     )
 
 
@@ -1317,9 +1478,26 @@ def test_contract_rejects_duplicate_injection(
 @pytest.mark.parametrize(
     ("mutation", "message"),
     [
-        ({"firstOriginal": {"d5": "d5-b", "content": {"pitch": "ball"}}}, "D5"),
-        ({"laterInput": {"d5": "d5-a", "content": {"pitch": "ball"}}}, "同一"),
-        ({"firstOriginal": {"d5": "d5-a", "content": {"pitch": "foul"}}}, "初期永続"),
+        ({"firstOriginal": {"d5": "d5-b", "content": _FIRST["content"]}}, "D5"),
+        ({"laterInput": {"d5": "d5-a", "content": _FIRST["content"]}}, "同一"),
+        (
+            {
+                "firstOriginal": {
+                    "d5": "d5-a",
+                    "content": {**_FIRST["content"], "payload": {"pitch": "foul"}},
+                }
+            },
+            "初期永続",
+        ),
+        (
+            {
+                "laterInput": {
+                    "d5": "d5-a",
+                    "content": {**_LATER["content"], "payload": {"pitch": "out"}},
+                }
+            },
+            "送る要求",
+        ),
     ],
 )
 def test_contract_checks_b3b_value_relations(
@@ -1830,3 +2008,74 @@ def test_declared_coverage_equals_the_fixtures_cases(
     assert transaction == dict(TRANSACTION_INJECTION_COVERAGE)
     assert out_of_transaction == dict(OUT_OF_TRANSACTION_INJECTION_COVERAGE)
     validate_injection_coverage(routes, transaction, {}, out_of_transaction, {})
+
+
+def test_aspect_deferrals_name_existing_evidence() -> None:
+    """繰り延べた観点の証拠の試験が実在し、P3 の境界結果を過不足なく記録する。"""
+    for scenario_id, aspect, receiver, evidence in ASPECT_DEFERRALS:
+        assert scenario_id in OWNED_SCENARIO_IDS
+        assert aspect.strip() and receiver.strip()
+        if evidence is not None:
+            path, test_name = evidence
+            source = (_REPOSITORY_ROOT / path).read_text(encoding="utf-8")
+            assert f"def {test_name}(" in source or f"'{test_name}'" in source, evidence
+    relation = json.loads(_RELATIONS_PATH.read_text(encoding="utf-8"))
+    p3_boundaries = {
+        element.split(":", 1)[0]
+        for element in relation["R-P3-BOUNDARY"]["source_elements"]
+        if re.match(r"^B\d+:", element)
+    }
+    deferred = {
+        aspect
+        for scenario_id, aspect, _, _ in ASPECT_DEFERRALS
+        if scenario_id == "p3-crash-boundaries" and re.match(r"^B\d+$", aspect)
+    }
+    assert deferred == p3_boundaries
+
+
+def test_observation_keys_match_the_canon_table() -> None:
+    """観点 key の数が正本 10-2 の (d) の観点表の行数と一致する(表に行が増えたら赤)。"""
+    lines = (
+        (_REPOSITORY_ROOT / "docs" / "design" / "sync-protocol.md")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    )
+    start = lines.index("#### (d) の故障系観点 — 実行可能なシナリオ")
+    header = lines.index("| 観点 | シナリオ | 期待する不変条件 |", start)
+    rows = []
+    for line in lines[header + 2 :]:
+        if not line.startswith("|"):
+            break
+        rows.append(line)
+    assert len(rows) == len(OBSERVATION_KEYS)
+
+
+def test_contract_binds_injection_point_to_the_t_element(
+    routes: dict[ApplicationPath, tuple[str, ...]],
+) -> None:
+    """負例: 注入対象の T 要素と結び付かない注入時点(T3 に T1 の時点など)。"""
+    asset = _p1_asset(routes)
+    asset["cases"][2]["faultInjection"]["injectionPoint"] = _wrap(
+        "T1 の保存後・コミット前"
+    )
+    with pytest.raises(FailureScenarioContractError, match="結び付きません"):
+        _validate(asset, routes)
+    assert set(TRANSACTION_INJECTION_POINTS) == transaction_pairs(routes)
+
+
+def test_contract_rejects_no_write_beside_commit_states(
+    routes: dict[ApplicationPath, tuple[str, ...]],
+) -> None:
+    """負例: 確定と並べて no-write を書き、部分確定を言い換える(T6 の写像だけ許す)。"""
+    asset = _p1_asset(routes)
+    _mutate_fields(
+        asset,
+        "tElementCommitment",
+        _commitment("P1", routes, "notCommitted", {"T3": "no-write"}),
+    )
+    with pytest.raises(FailureScenarioContractError, match="言い換え"):
+        _validate(asset, routes)
+    asset = _p1_asset(routes)
+    _mutate_fields(asset, "tElementCommitment", _commitment("P1", routes, "no-write"))
+    asset["cases"][0]["faultInjection"]["expectedReachability"] = _wrap("unreached")
+    _validate(asset, routes)

@@ -99,10 +99,11 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
-              "ack": null
+              "ack": null,
+              "slots": []
             },
             "lock": {
               "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
@@ -122,9 +123,26 @@
               "ledger": {
                 "e1": null
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "persisted": [],
@@ -133,7 +151,11 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds"
+              ]
             },
             "tElementCommitment": {
               "T1": "notCommitted",
@@ -149,7 +171,7 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": []
+              "ids": []
             },
             "invalidationIntentRows": {},
             "intentCountsAfterReplay": {
@@ -164,13 +186,24 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
                 [
                   1,
                   "受理"
+                ]
+              ],
+              "slots": [
+                [
+                  1,
+                  "e1",
+                  null,
+                  false,
+                  {
+                    "player_id": "<uuid>"
+                  }
                 ]
               ]
             },
@@ -192,9 +225,26 @@
               "ledger": {
                 "e1": "accepted"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 1,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 1,
+                "players": 1
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "persisted": [
@@ -207,7 +257,12 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ]
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -223,12 +278,12 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": [
-                "chart",
-                "game",
-                "player_total",
-                "shared_total",
-                "team_total"
+              "ids": [
+                "sync:e1:chart",
+                "sync:e1:game",
+                "sync:e1:player_total",
+                "sync:e1:shared_total",
+                "sync:e1:team_total"
               ]
             },
             "invalidationIntentRows": {
@@ -284,10 +339,11 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
-              "ack": null
+              "ack": null,
+              "slots": []
             },
             "lock": {
               "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
@@ -307,9 +363,26 @@
               "ledger": {
                 "e1": null
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "persisted": [],
@@ -318,7 +391,11 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds"
+              ]
             },
             "tElementCommitment": {
               "T1": "notCommitted",
@@ -334,7 +411,7 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": []
+              "ids": []
             },
             "invalidationIntentRows": {},
             "intentCountsAfterReplay": {
@@ -349,13 +426,24 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
                 [
                   1,
                   "受理"
+                ]
+              ],
+              "slots": [
+                [
+                  1,
+                  "e1",
+                  null,
+                  false,
+                  {
+                    "player_id": "<uuid>"
+                  }
                 ]
               ]
             },
@@ -377,9 +465,26 @@
               "ledger": {
                 "e1": "accepted"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 1,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 1,
+                "players": 1
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "persisted": [
@@ -392,7 +497,12 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ]
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -408,12 +518,12 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": [
-                "chart",
-                "game",
-                "player_total",
-                "shared_total",
-                "team_total"
+              "ids": [
+                "sync:e1:chart",
+                "sync:e1:game",
+                "sync:e1:player_total",
+                "sync:e1:shared_total",
+                "sync:e1:team_total"
               ]
             },
             "invalidationIntentRows": {
@@ -469,10 +579,11 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
-              "ack": null
+              "ack": null,
+              "slots": []
             },
             "lock": {
               "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
@@ -492,9 +603,26 @@
               "ledger": {
                 "e1": null
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "persisted": [],
@@ -503,7 +631,11 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds"
+              ]
             },
             "tElementCommitment": {
               "T1": "notCommitted",
@@ -519,7 +651,7 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": []
+              "ids": []
             },
             "invalidationIntentRows": {},
             "intentCountsAfterReplay": {
@@ -534,13 +666,24 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
                 [
                   1,
                   "受理"
+                ]
+              ],
+              "slots": [
+                [
+                  1,
+                  "e1",
+                  null,
+                  false,
+                  {
+                    "player_id": "<uuid>"
+                  }
                 ]
               ]
             },
@@ -562,9 +705,26 @@
               "ledger": {
                 "e1": "accepted"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 1,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 1,
+                "players": 1
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "persisted": [
@@ -577,7 +737,12 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ]
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -593,12 +758,252 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": [
-                "chart",
-                "game",
-                "player_total",
-                "shared_total",
-                "team_total"
+              "ids": [
+                "sync:e1:chart",
+                "sync:e1:game",
+                "sync:e1:player_total",
+                "sync:e1:shared_total",
+                "sync:e1:team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "pending",
+              "game": "pending",
+              "player_total": "pending",
+              "shared_total": "pending",
+              "team_total": "pending"
+            },
+            "intentCountsAfterReplay": {
+              "chart": 1,
+              "game": 1,
+              "player_total": 1,
+              "shared_total": 1,
+              "team_total": 1
+            },
+            "intentCountsAfterFullDuplicate": {
+              "chart": 1,
+              "game": 1,
+              "player_total": 1,
+              "shared_total": 1,
+              "team_total": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "crash-t3-intents",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "transaction",
+            "path": "P1",
+            "tElement": "T3"
+          }
+        },
+        "injectionPoint": {
+          "value": "T3 の意図の保存後・コミット前"
+        },
+        "stopOperation": {
+          "value": "プロセスを落とす"
+        },
+        "restartOperation": {
+          "value": "同じ要求を再送する"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "ack": null,
+              "slots": []
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "d3": 0
+            },
+            "idempotentResult": {
+              "boundary": null,
+              "b3Branch": null,
+              "ledger": {
+                "e1": null
+              },
+              "reasons": {
+                "e1": null
+              },
+              "originals": {
+                "e1": 0
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "persisted": [],
+              "acknowledged": [],
+              "players": 0,
+              "sameAsPreviousResponse": null
+            },
+            "recordingRight": {
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds"
+              ]
+            },
+            "tElementCommitment": {
+              "T1": "notCommitted",
+              "T2": {
+                "slot": "notCommitted",
+                "event": "notCommitted"
+              },
+              "T3": "notCommitted",
+              "T4": "notCommitted",
+              "T6": {
+                "result": "notCommitted",
+                "mapping": "notCommitted"
+              }
+            },
+            "invalidationIntentIds": {
+              "ids": []
+            },
+            "invalidationIntentRows": {},
+            "intentCountsAfterReplay": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            },
+            "intentCountsAfterFullDuplicate": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            }
+          }
+        },
+        {
+          "observationPoint": "再送後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "ack": [
+                [
+                  1,
+                  "受理"
+                ]
+              ],
+              "slots": [
+                [
+                  1,
+                  "e1",
+                  null,
+                  false,
+                  {
+                    "player_id": "<uuid>"
+                  }
+                ]
+              ]
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "d3": 1
+            },
+            "idempotentResult": {
+              "boundary": "B1",
+              "b3Branch": null,
+              "ledger": {
+                "e1": "accepted"
+              },
+              "reasons": {
+                "e1": null
+              },
+              "originals": {
+                "e1": 0
+              },
+              "applications": {
+                "e1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 1,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 1,
+                "players": 1
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "persisted": [
+                "tmp-1"
+              ],
+              "acknowledged": [
+                "tmp-1"
+              ],
+              "players": 1,
+              "sameAsPreviousResponse": null
+            },
+            "recordingRight": {
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ]
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": {
+                "slot": "committed",
+                "event": "committed"
+              },
+              "T3": "committed",
+              "T4": "committed",
+              "T6": {
+                "result": "committed",
+                "mapping": "committed"
+              }
+            },
+            "invalidationIntentIds": {
+              "ids": [
+                "sync:e1:chart",
+                "sync:e1:game",
+                "sync:e1:player_total",
+                "sync:e1:shared_total",
+                "sync:e1:team_total"
               ]
             },
             "invalidationIntentRows": {
@@ -654,10 +1059,11 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
-              "ack": null
+              "ack": null,
+              "slots": []
             },
             "lock": {
               "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
@@ -677,9 +1083,26 @@
               "ledger": {
                 "e1": null
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "persisted": [],
@@ -688,7 +1111,11 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds"
+              ]
             },
             "tElementCommitment": {
               "T1": "notCommitted",
@@ -704,7 +1131,7 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": []
+              "ids": []
             },
             "invalidationIntentRows": {},
             "intentCountsAfterReplay": {
@@ -719,13 +1146,24 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
                 [
                   1,
                   "受理"
+                ]
+              ],
+              "slots": [
+                [
+                  1,
+                  "e1",
+                  null,
+                  false,
+                  {
+                    "player_id": "<uuid>"
+                  }
                 ]
               ]
             },
@@ -747,9 +1185,26 @@
               "ledger": {
                 "e1": "accepted"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 1,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 1,
+                "players": 1
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "persisted": [
@@ -762,7 +1217,12 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ]
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -778,12 +1238,12 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": [
-                "chart",
-                "game",
-                "player_total",
-                "shared_total",
-                "team_total"
+              "ids": [
+                "sync:e1:chart",
+                "sync:e1:game",
+                "sync:e1:player_total",
+                "sync:e1:shared_total",
+                "sync:e1:team_total"
               ]
             },
             "invalidationIntentRows": {
@@ -812,7 +1272,7 @@
       ]
     },
     {
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "faultInjection": {
         "target": {
           "value": {
@@ -839,10 +1299,11 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
-              "ack": null
+              "ack": null,
+              "slots": []
             },
             "lock": {
               "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
@@ -862,9 +1323,26 @@
               "ledger": {
                 "e1": null
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "persisted": [],
@@ -873,7 +1351,11 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds"
+              ]
             },
             "tElementCommitment": {
               "T1": "notCommitted",
@@ -889,7 +1371,7 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": []
+              "ids": []
             },
             "invalidationIntentRows": {},
             "intentCountsAfterReplay": {
@@ -904,13 +1386,24 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
                 [
                   1,
                   "受理"
+                ]
+              ],
+              "slots": [
+                [
+                  1,
+                  "e1",
+                  null,
+                  false,
+                  {
+                    "player_id": "<uuid>"
+                  }
                 ]
               ]
             },
@@ -932,9 +1425,26 @@
               "ledger": {
                 "e1": "accepted"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 1,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 1,
+                "players": 1
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "persisted": [
@@ -947,7 +1457,12 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ]
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -963,12 +1478,12 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": [
-                "chart",
-                "game",
-                "player_total",
-                "shared_total",
-                "team_total"
+              "ids": [
+                "sync:e1:chart",
+                "sync:e1:game",
+                "sync:e1:player_total",
+                "sync:e1:shared_total",
+                "sync:e1:team_total"
               ]
             },
             "invalidationIntentRows": {
@@ -1023,13 +1538,24 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
                 [
                   1,
                   "受理"
+                ]
+              ],
+              "slots": [
+                [
+                  1,
+                  "e1",
+                  null,
+                  false,
+                  {
+                    "player_id": "<uuid>"
+                  }
                 ]
               ]
             },
@@ -1051,9 +1577,26 @@
               "ledger": {
                 "e1": "accepted"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 1,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 1,
+                "players": 1
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "persisted": [
@@ -1066,7 +1609,12 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ]
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -1082,12 +1630,12 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": [
-                "chart",
-                "game",
-                "player_total",
-                "shared_total",
-                "team_total"
+              "ids": [
+                "sync:e1:chart",
+                "sync:e1:game",
+                "sync:e1:player_total",
+                "sync:e1:shared_total",
+                "sync:e1:team_total"
               ]
             },
             "invalidationIntentRows": {
@@ -1109,13 +1657,24 @@
           "observationPoint": "引き継ぎ後の再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
                 [
                   1,
                   "重複"
+                ]
+              ],
+              "slots": [
+                [
+                  1,
+                  "e1",
+                  null,
+                  false,
+                  {
+                    "player_id": "<uuid>"
+                  }
                 ]
               ]
             },
@@ -1137,9 +1696,26 @@
               "ledger": {
                 "e1": "accepted"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 1,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 1,
+                "players": 1
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "persisted": [
@@ -1152,7 +1728,10 @@
               "sameAsPreviousResponse": true
             },
             "recordingRight": {
-              "held": null
+              "held": null,
+              "order": [
+                "rg1_read"
+              ]
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -1168,12 +1747,12 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": [
-                "chart",
-                "game",
-                "player_total",
-                "shared_total",
-                "team_total"
+              "ids": [
+                "sync:e1:chart",
+                "sync:e1:game",
+                "sync:e1:player_total",
+                "sync:e1:shared_total",
+                "sync:e1:team_total"
               ]
             },
             "invalidationIntentRows": {
@@ -1793,6 +2372,202 @@
     },
     {
       "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterFullDuplicate"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
+      "caseId": "crash-t3-intents",
+      "injectionTarget": "P1:T3",
+      "observationPoint": "再送後",
+      "expectedField": "intentCountsAfterFullDuplicate"
+    },
+    {
+      "scenarioId": "p1-crash-boundaries",
       "caseId": "crash-t4",
       "injectionTarget": "P1:T4",
       "observationPoint": "注入直後",
@@ -1989,196 +2764,196 @@
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "queue"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "d1"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "lock"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "acceptanceDisplay"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "reinputAvailability"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "prefix"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "idempotentResult"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "temporaryIdMapping"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "recordingRight"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "tElementCommitment"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "invalidationIntentIds"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "invalidationIntentRows"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "intentCountsAfterReplay"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "注入直後",
       "expectedField": "intentCountsAfterFullDuplicate"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "queue"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "d1"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "lock"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "acceptanceDisplay"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "reinputAvailability"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "prefix"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "idempotentResult"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "temporaryIdMapping"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "recordingRight"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "tElementCommitment"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "invalidationIntentIds"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "invalidationIntentRows"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "intentCountsAfterReplay"
     },
     {
       "scenarioId": "p1-crash-boundaries",
-      "caseId": "crash-t6m",
+      "caseId": "crash-t6-mapping",
       "injectionTarget": "P1:T6",
       "observationPoint": "再送後",
       "expectedField": "intentCountsAfterFullDuplicate"

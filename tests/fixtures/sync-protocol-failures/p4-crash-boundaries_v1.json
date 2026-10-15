@@ -98,10 +98,11 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
-              "ack": null
+              "ack": null,
+              "slots": []
             },
             "lock": {
               "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
@@ -121,15 +122,36 @@
               "ledger": {
                 "e1": null
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
             },
             "recordingRight": {
-              "held": false
+              "held": false,
+              "order": [
+                "rg1_read",
+                "holds"
+              ]
             },
             "tElementCommitment": {
               "T8": {
@@ -143,7 +165,7 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
@@ -151,7 +173,8 @@
                   1,
                   "退避"
                 ]
-              ]
+              ],
+              "slots": []
             },
             "lock": {
               "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
@@ -171,15 +194,37 @@
               "ledger": {
                 "e1": "evacuated"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 1
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 1,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
             },
             "recordingRight": {
-              "held": false
+              "held": false,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ]
             },
             "tElementCommitment": {
               "T8": {
@@ -219,10 +264,11 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
-              "ack": null
+              "ack": null,
+              "slots": []
             },
             "lock": {
               "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
@@ -242,15 +288,36 @@
               "ledger": {
                 "e1": null
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
             },
             "recordingRight": {
-              "held": false
+              "held": false,
+              "order": [
+                "rg1_read",
+                "holds"
+              ]
             },
             "tElementCommitment": {
               "T8": {
@@ -264,7 +331,7 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
@@ -272,7 +339,8 @@
                   1,
                   "退避"
                 ]
-              ]
+              ],
+              "slots": []
             },
             "lock": {
               "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
@@ -292,15 +360,37 @@
               "ledger": {
                 "e1": "evacuated"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 1
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 1,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
             },
             "recordingRight": {
-              "held": false
+              "held": false,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ]
             },
             "tElementCommitment": {
               "T8": {
@@ -340,10 +430,11 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
-              "ack": null
+              "ack": null,
+              "slots": []
             },
             "lock": {
               "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
@@ -363,15 +454,37 @@
               "ledger": {
                 "e1": "evacuated"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 1
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 1,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
             },
             "recordingRight": {
-              "held": false
+              "held": false,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ]
             },
             "tElementCommitment": {
               "T8": {
@@ -385,7 +498,7 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
@@ -393,7 +506,8 @@
                   1,
                   "退避"
                 ]
-              ]
+              ],
+              "slots": []
             },
             "lock": {
               "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
@@ -413,15 +527,35 @@
               "ledger": {
                 "e1": "evacuated"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 1
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 1,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
             },
             "recordingRight": {
-              "held": null
+              "held": null,
+              "order": [
+                "rg1_read"
+              ]
             },
             "tElementCommitment": {
               "T8": {
@@ -460,7 +594,7 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
@@ -468,7 +602,8 @@
                   1,
                   "退避"
                 ]
-              ]
+              ],
+              "slots": []
             },
             "lock": {
               "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
@@ -488,15 +623,37 @@
               "ledger": {
                 "e1": "evacuated"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 1
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 1,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
             },
             "recordingRight": {
-              "held": false
+              "held": false,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ]
             },
             "tElementCommitment": {
               "T8": {
@@ -510,7 +667,7 @@
           "observationPoint": "引き継ぎ後の再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
@@ -518,7 +675,8 @@
                   1,
                   "退避"
                 ]
-              ]
+              ],
+              "slots": []
             },
             "lock": {
               "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
@@ -538,15 +696,133 @@
               "ledger": {
                 "e1": "evacuated"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 1
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 1,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
             },
             "recordingRight": {
-              "held": null
+              "held": null,
+              "order": [
+                "rg1_read"
+              ]
+            },
+            "tElementCommitment": {
+              "T8": {
+                "ledger": "committed",
+                "original": "committed"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "old-d4-terminal",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "client",
+            "operation": "旧 D4 のまま送信"
+          }
+        },
+        "injectionPoint": {
+          "value": "記録権の引き継ぎ後・送信前"
+        },
+        "stopOperation": {
+          "omittedBecause": "停止を伴わない注入のため"
+        },
+        "restartOperation": {
+          "omittedBecause": "再開を伴わない注入のため"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "応答後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "ack": [
+                [
+                  1,
+                  "退避"
+                ]
+              ],
+              "slots": []
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "d3": 0
+            },
+            "idempotentResult": {
+              "boundary": "B4",
+              "b3Branch": null,
+              "ledger": {
+                "e1": "evacuated"
+              },
+              "reasons": {
+                "e1": null
+              },
+              "originals": {
+                "e1": 1
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 1,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
+            },
+            "recordingRight": {
+              "held": false,
+              "order": [
+                "rg1_read",
+                "holds",
+                "rg1_commit"
+              ]
             },
             "tElementCommitment": {
               "T8": {
@@ -1118,6 +1394,76 @@
       "caseId": "ack-loss-handover",
       "injectionTarget": "client:ACK の受信",
       "observationPoint": "引き継ぎ後の再送後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p4-crash-boundaries",
+      "caseId": "old-d4-terminal",
+      "injectionTarget": "client:旧 D4 のまま送信",
+      "observationPoint": "応答後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p4-crash-boundaries",
+      "caseId": "old-d4-terminal",
+      "injectionTarget": "client:旧 D4 のまま送信",
+      "observationPoint": "応答後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p4-crash-boundaries",
+      "caseId": "old-d4-terminal",
+      "injectionTarget": "client:旧 D4 のまま送信",
+      "observationPoint": "応答後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p4-crash-boundaries",
+      "caseId": "old-d4-terminal",
+      "injectionTarget": "client:旧 D4 のまま送信",
+      "observationPoint": "応答後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p4-crash-boundaries",
+      "caseId": "old-d4-terminal",
+      "injectionTarget": "client:旧 D4 のまま送信",
+      "observationPoint": "応答後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p4-crash-boundaries",
+      "caseId": "old-d4-terminal",
+      "injectionTarget": "client:旧 D4 のまま送信",
+      "observationPoint": "応答後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p4-crash-boundaries",
+      "caseId": "old-d4-terminal",
+      "injectionTarget": "client:旧 D4 のまま送信",
+      "observationPoint": "応答後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p4-crash-boundaries",
+      "caseId": "old-d4-terminal",
+      "injectionTarget": "client:旧 D4 のまま送信",
+      "observationPoint": "応答後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p4-crash-boundaries",
+      "caseId": "old-d4-terminal",
+      "injectionTarget": "client:旧 D4 のまま送信",
+      "observationPoint": "応答後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p4-crash-boundaries",
+      "caseId": "old-d4-terminal",
+      "injectionTarget": "client:旧 D4 のまま送信",
+      "observationPoint": "応答後",
       "expectedField": "tElementCommitment"
     }
   ]

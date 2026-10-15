@@ -120,3 +120,38 @@ class ScopeOpeningProjection:
         """投影呼び出し後にスコープ入口の拒否を観測する。"""
         self.calls += 1
         self.open_scope()
+
+
+class GenerationRights(PrefixRights):
+    """要求の D4 が DB の現世代と一致し、保持端末であるときだけ記録権を認める。
+
+    故障系 runner が送信の直前に DB から読んだ現世代を受け取る。呼び出しの順を
+    一つの列に残し、③-a・⑤・⑧ の順序を観測できるようにする。
+    """
+
+    def __init__(self, current_generation: int, *, holder: bool = True) -> None:
+        """現世代と、送信端末が保持端末かを受け取る。"""
+        super().__init__()
+        self.current_generation = current_generation
+        self.holder = holder
+        self.sequence: list[str] = []
+        self.verdict: bool | None = None
+
+    def holds_recording_right(
+        self, game_id: str, d4: object, v12: object, writer: PortWriter
+    ) -> bool:
+        """保持端末かつ現世代の D4 なら記録権ありとする。"""
+        self.calls.append(game_id)
+        self.sequence.append("holds")
+        self.verdict = self.holder and str(d4) == str(self.current_generation)
+        return self.verdict
+
+    def read_rg1_before_d5(self, writer: PortWriter) -> bool:
+        """③-a の読取を順序の列に残す。"""
+        self.sequence.append("rg1_read")
+        return super().read_rg1_before_d5(writer)
+
+    def check_rg1_before_commit(self, writer: PortWriter) -> bool:
+        """⑧ のコミット直前の再検証を順序の列に残す。"""
+        self.sequence.append("rg1_commit")
+        return super().check_rg1_before_commit(writer)

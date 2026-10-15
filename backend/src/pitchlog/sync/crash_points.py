@@ -22,6 +22,7 @@ type CrashPoint = Literal[
     "after_t6_result",
     "before_t6_mapping",
     "after_t6_mapping",
+    "after_d1_intents",
     "after_t7_intents",
     "after_t8_ledger",
     "after_t8_original",

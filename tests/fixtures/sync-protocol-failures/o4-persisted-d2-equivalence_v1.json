@@ -130,13 +130,33 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
                 [
                   3,
                   "拒否"
+                ]
+              ],
+              "slots": [
+                [
+                  1,
+                  "a1",
+                  10,
+                  false,
+                  {
+                    "pitch": "a1"
+                  }
+                ],
+                [
+                  2,
+                  "a2",
+                  10,
+                  false,
+                  {
+                    "pitch": "a2"
+                  }
                 ]
               ]
             },
@@ -158,9 +178,26 @@
               "ledger": {
                 "n3": null
               },
+              "reasons": {
+                "n3": null
+              },
               "originals": {
                 "n3": 0
-              }
+              },
+              "applications": {
+                "n3": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": "O4: 永続化済み D2 の同値"
             },
             "temporaryIdMapping": {
               "persisted": [],
@@ -169,7 +206,11 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds"
+              ]
             },
             "tElementCommitment": {
               "T1": "no-write",
@@ -186,7 +227,7 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": []
+              "ids": []
             },
             "invalidationIntentRows": {},
             "intentCountsAfterReplay": {
@@ -201,13 +242,33 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
                 [
                   3,
                   "拒否"
+                ]
+              ],
+              "slots": [
+                [
+                  1,
+                  "a1",
+                  10,
+                  false,
+                  {
+                    "pitch": "a1"
+                  }
+                ],
+                [
+                  2,
+                  "a2",
+                  10,
+                  false,
+                  {
+                    "pitch": "a2"
+                  }
                 ]
               ]
             },
@@ -229,9 +290,26 @@
               "ledger": {
                 "n3": null
               },
+              "reasons": {
+                "n3": null
+              },
               "originals": {
                 "n3": 0
-              }
+              },
+              "applications": {
+                "n3": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": "O4: 永続化済み D2 の同値"
             },
             "temporaryIdMapping": {
               "persisted": [],
@@ -240,7 +318,11 @@
               "sameAsPreviousResponse": null
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "holds"
+              ]
             },
             "tElementCommitment": {
               "T1": "no-write",
@@ -257,7 +339,7 @@
               }
             },
             "invalidationIntentIds": {
-              "scopes": []
+              "ids": []
             },
             "invalidationIntentRows": {},
             "intentCountsAfterReplay": {},

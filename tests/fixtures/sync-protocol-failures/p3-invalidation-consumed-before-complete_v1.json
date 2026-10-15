@@ -121,7 +121,7 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "omittedBecause": "D1 なし変更イベント(P3)のため"
@@ -144,15 +144,38 @@
               "ledger": {
                 "c1": "accepted"
               },
+              "reasons": {
+                "c1": null
+              },
               "originals": {
                 "c1": 0
-              }
+              },
+              "applications": {
+                "c1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds",
+                "rg1_commit"
+              ]
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -168,12 +191,12 @@
               "current": true
             },
             "invalidationIntentIds": {
-              "scopes": [
-                "chart",
-                "game",
-                "player_total",
-                "shared_total",
-                "team_total"
+              "ids": [
+                "sync:game:1:1:2:chart",
+                "sync:game:1:1:2:game",
+                "sync:game:1:1:2:player_total",
+                "sync:game:1:1:2:shared_total",
+                "sync:game:1:1:2:team_total"
               ]
             },
             "invalidationIntentRows": {
@@ -197,22 +220,22 @@
               "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
             },
             "i6TargetReference": {
-              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+              "omittedBecause": "配信の観点の資産で、端末の I6 を扱わないため"
             },
             "i6Version": {
-              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+              "omittedBecause": "配信の観点の資産で、端末の I6 を扱わないため"
             },
             "i6D5": {
-              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+              "omittedBecause": "配信の観点の資産で、端末の I6 を扱わないため"
             },
             "i6ConfirmedContent": {
-              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+              "omittedBecause": "配信の観点の資産で、端末の I6 を扱わないため"
             },
             "i6RetentionDeadline": {
-              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+              "omittedBecause": "配信の観点の資産で、端末の I6 を扱わないため"
             },
             "i6EscrowState": {
-              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+              "omittedBecause": "配信の観点の資産で、端末の I6 を扱わないため"
             }
           }
         },
@@ -220,7 +243,7 @@
           "observationPoint": "配信再実行後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "omittedBecause": "D1 なし変更イベント(P3)のため"
@@ -243,15 +266,38 @@
               "ledger": {
                 "c1": "accepted"
               },
+              "reasons": {
+                "c1": null
+              },
               "originals": {
                 "c1": 0
-              }
+              },
+              "applications": {
+                "c1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": null
             },
             "temporaryIdMapping": {
               "omittedBecause": "P3 は一時 ID 写像を確定しないため"
             },
             "recordingRight": {
-              "held": true
+              "held": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds",
+                "rg1_commit"
+              ]
             },
             "tElementCommitment": {
               "T1": "committed",
@@ -267,12 +313,12 @@
               "current": true
             },
             "invalidationIntentIds": {
-              "scopes": [
-                "chart",
-                "game",
-                "player_total",
-                "shared_total",
-                "team_total"
+              "ids": [
+                "sync:game:1:1:2:chart",
+                "sync:game:1:1:2:game",
+                "sync:game:1:1:2:player_total",
+                "sync:game:1:1:2:shared_total",
+                "sync:game:1:1:2:team_total"
               ]
             },
             "invalidationIntentRows": {
@@ -300,22 +346,22 @@
               "team_total": 1
             },
             "i6TargetReference": {
-              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+              "omittedBecause": "配信の観点の資産で、端末の I6 を扱わないため"
             },
             "i6Version": {
-              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+              "omittedBecause": "配信の観点の資産で、端末の I6 を扱わないため"
             },
             "i6D5": {
-              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+              "omittedBecause": "配信の観点の資産で、端末の I6 を扱わないため"
             },
             "i6ConfirmedContent": {
-              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+              "omittedBecause": "配信の観点の資産で、端末の I6 を扱わないため"
             },
             "i6RetentionDeadline": {
-              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+              "omittedBecause": "配信の観点の資産で、端末の I6 を扱わないため"
             },
             "i6EscrowState": {
-              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+              "omittedBecause": "配信の観点の資産で、端末の I6 を扱わないため"
             }
           }
         }

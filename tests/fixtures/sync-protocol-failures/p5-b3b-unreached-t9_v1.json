@@ -147,13 +147,24 @@
           "observationPoint": "応答後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
                 [
                   1,
                   "拒否"
+                ]
+              ],
+              "slots": [
+                [
+                  1,
+                  "e1",
+                  10,
+                  false,
+                  {
+                    "pitch": "ball"
+                  }
                 ]
               ]
             },
@@ -175,15 +186,35 @@
               "ledger": {
                 "e1": "accepted"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": "同じ D5 の内容が異なる"
             },
             "temporaryIdMapping": {
               "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
             },
             "recordingRight": {
-              "held": null
+              "held": null,
+              "order": [
+                "rg1_read"
+              ]
             },
             "tElementCommitment": {
               "T9": {
@@ -223,13 +254,24 @@
           "observationPoint": "応答後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない(端末側は (c) と クライアント runner)"
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
             },
             "d1": {
               "ack": [
                 [
                   1,
                   "拒否"
+                ]
+              ],
+              "slots": [
+                [
+                  1,
+                  "e1",
+                  10,
+                  false,
+                  {
+                    "pitch": "ball"
+                  }
                 ]
               ]
             },
@@ -251,15 +293,35 @@
               "ledger": {
                 "e1": "accepted"
               },
+              "reasons": {
+                "e1": null
+              },
               "originals": {
                 "e1": 0
-              }
+              },
+              "applications": {
+                "e1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0
+              },
+              "responseReason": "同じ D5 の内容が異なる"
             },
             "temporaryIdMapping": {
               "omittedBecause": "一時 ID 写像を確定しない経路(T6 を持たない)のため"
             },
             "recordingRight": {
-              "held": null
+              "held": null,
+              "order": [
+                "rg1_read"
+              ]
             },
             "tElementCommitment": {
               "T9": {

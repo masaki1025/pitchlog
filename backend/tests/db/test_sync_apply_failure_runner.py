@@ -7,8 +7,10 @@ DB と応答から読み、結果検査 ``validate_failure_scenario_result`` へ
 T 要素の証拠(独立に証明できないものを含む — worklog に記録):
 - T1・T6 の結果 = 対象 D5 の台帳行(T1 と T6 は同じ行を証拠にする)
 - T2 = スロット行・イベント行 / T3 = 確定水位が対象 D1 以上
-- T4 = 投影ポートが対象を受け取り、かつ同じトランザクションが確定した(T1 の行)。
-  投影の永続化は U-X1 の持ち物で、U-S1 の DB に跡が残らないため
+- T4 = 例外なく終わった送信で投影ポートが対象を受け取り、台帳行(T1)がある。
+  投影の永続化は U-X1 の持ち物で、U-S1 の DB に跡が残らないため。故障を注入して
+  中断した送信の投影は数えない。投影の回数は ``idempotentResult.applications`` で
+  比べ、二重適用を検出する
 - T5 = イベント行の D2 / T6 の写像 = 一時 ID 写像行
 - T7 = 対象スロットの確定版と、P3 の意図 ID の行 / T8・T9 = 台帳行と原本行
 無い証拠は、その送信で故障を注入して中断したなら ``notCommitted``、そうでなければ
@@ -18,7 +20,9 @@ T 要素の証拠(独立に証明できないものを含む — worklog に記�
 from __future__ import annotations
 
 import json
+import re
 import uuid
+from collections import Counter
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -31,6 +35,7 @@ from test_authz_tenant_context import make_tenant_context
 from test_sync_apply_failure_contract import (
     OWNED_SCENARIO_IDS,
     T_ELEMENT_UNITS,
+    TRANSACTION_INJECTION_POINTS,
     ApplicationPath,
     FailureScenarioContractError,
     load_transaction_routes,
@@ -47,6 +52,7 @@ from test_sync_apply_port_change import (
 )
 from test_sync_apply_port_prefix import (
     DenyPrefixRights,
+    GenerationRights,
     PrefixProjection,
     PrefixRights,
     PrefixValidator,
@@ -86,17 +92,19 @@ _REGISTERED_NAME = "注入選手"
 
 # クライアント runner(ステップ 20)が観測する case とフィールド。サーバー runner は
 # 残りを観測する。両者の和が case の全実値フィールドになることを下の試験で照合する。
+_I6_FIELDS = frozenset(
+    (
+        "i6TargetReference",
+        "i6Version",
+        "i6D5",
+        "i6ConfirmedContent",
+        "i6RetentionDeadline",
+        "i6EscrowState",
+    )
+)
 CLIENT_OBSERVED_FIELDS: Mapping[tuple[str, str], frozenset[str]] = {
-    ("p3-crash-boundaries", "server-confirmed-before-i6"): frozenset(
-        (
-            "i6TargetReference",
-            "i6Version",
-            "i6D5",
-            "i6ConfirmedContent",
-            "i6RetentionDeadline",
-            "i6EscrowState",
-        )
-    ),
+    ("p3-crash-boundaries", "server-confirmed-before-i6"): _I6_FIELDS,
+    ("p3-crash-boundaries", "i6-persisted-then-closed"): _I6_FIELDS,
 }
 
 # 資産の注入時点の語彙 → 名前付きの注入点(crash_points)。
@@ -104,6 +112,7 @@ _CRASH_POINTS: dict[str, CrashPoint] = {
     "T1 の保存後・コミット前": "after_t1_ledger",
     "T2 の保存後・コミット前": "after_t2_event",
     "T3 の保存後・コミット前": "after_t3_prefix",
+    "T3 の意図の保存後・コミット前": "after_d1_intents",
     "T4 の保存後・コミット前": "after_t4_projection",
     "T5 の保存後・コミット前": "after_t5_order",
     "T6 の保存後・コミット前": "after_t6_result",
@@ -114,7 +123,22 @@ _CRASH_POINTS: dict[str, CrashPoint] = {
     "T8 の確定後・B4 応答の前": "after_transaction",
     "T9 の台帳の保存後": "after_t9_ledger",
     "T9 の原本の保存後": "after_t9_original",
+    "T9 の確定後・応答の前": "after_transaction",
 }
+_REPLAY_EXTRA = "replay-extra"
+_ROW_TABLES: tuple[LiteralString, ...] = (
+    "idempotency_ledger",
+    "operation_events",
+    "event_slots",
+    "rejected_event_originals",
+    "evacuated_event_originals",
+    "invalidation_intents",
+    "temporary_player_id_mappings",
+    "players",
+)
+_UUID_PATTERN = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+)
 _D1_KINDS_WITH_D2 = frozenset(
     ("play_input", "substitution", "tiebreak_start", "game_end_declaration")
 )
@@ -135,6 +159,7 @@ def _register_ports(monkeypatch: pytest.MonkeyPatch) -> None:
             for cls in (
                 PrefixRights,
                 DenyPrefixRights,
+                GenerationRights,
                 PrefixProjection,
                 PrefixValidator,
                 RejectPrefixValidator,
@@ -180,15 +205,17 @@ class _Run:
     asset: Mapping[str, Any]
     case: Mapping[str, Any]
     namespace: UUID = field(default_factory=uuid.uuid4)
-    projected: set[str] = field(default_factory=set)
+    applications: Counter[str] = field(default_factory=Counter)
     sink: ChangeSink = field(default_factory=ChangeSink)
     interrupted: bool = False
     response: object | None = None
     previous_mapping: Mapping[str, str] | None = None
     rights_verdict: bool | None = None
+    rights_order: list[str] = field(default_factory=list)
     recovery_verdict: bool | None = None
-    last_request: SyncRequest | None = None
-    handed_over: bool = False
+    last_events: Sequence[Mapping[str, Any]] = ()
+    holder: bool = True
+    baseline: dict[str, int] = field(default_factory=dict)
 
     @property
     def path(self) -> ApplicationPath:
@@ -205,6 +232,29 @@ class _Run:
     @property
     def game(self) -> UUID:
         return self.db.game_a
+
+    def names(self) -> dict[str, str]:
+        """この実行の UUID → 資産の名前(DB の値を資産の語彙へ戻す)。"""
+        found: dict[str, str] = {str(self.game): "game"}
+
+        def walk(value: object) -> None:
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    if key in {
+                        "d5",
+                        "registration",
+                        "tombstoneOf",
+                        "revisionOf",
+                    } and isinstance(item, str):
+                        found[str(self.uuid(item))] = item
+                    walk(item)
+            elif isinstance(value, list):
+                for item in value:
+                    walk(item)
+
+        walk(self.asset["input"])
+        found[str(self.uuid(_REPLAY_EXTRA))] = _REPLAY_EXTRA
+        return found
 
     def subject(self) -> Mapping[str, Any]:
         name = self.queue["subject"]
@@ -321,7 +371,14 @@ def _send(
             recovery_generation="current",
             v12="proof",
         )
-        selected_rights: PrefixRights | ChangeRights = rights or ChangeRights()
+        recovery = run.asset["input"]
+        current = (
+            recovery["requestRecoveryGeneration"]["value"]
+            == recovery["currentRecoveryGeneration"]["value"]
+        )
+        selected_rights: PrefixRights | ChangeRights = rights or ChangeRights(
+            current=current
+        )
         projection: PrefixProjection | ChangeProjection = ChangeProjection()
         validator: PrefixValidator | ChangeValidator = ChangeValidator()
     else:
@@ -332,16 +389,17 @@ def _send(
             d4="1",
             v12="proof",
         )
-        selected_rights = rights or (
-            DenyPrefixRights() if run.path == "P4" else PrefixRights()
+        selected_rights = rights or GenerationRights(
+            _current_generation(run), holder=run.holder
         )
         projection = PrefixProjection()
         rejecting = run.path == "P5" if reject is None else reject
         validator = RejectPrefixValidator() if rejecting else PrefixValidator()
-    run.last_request = request
+    run.last_events = events
     # ⑤ は未使用 D5 を含む要求だけで評価する。評価しなかった送信は null で表す。
     run.rights_verdict = None
     run.recovery_verdict = None
+    completed = False
     try:
         with _testing_crash_hook(hook or (lambda _point: None)):
             response = apply_sync_request(
@@ -352,16 +410,31 @@ def _send(
                 validator,
                 registrations=_registrations(run, events),
             )
+        completed = True
     finally:
-        run.projected.update(event.d5 for event in projection.events)
+        # 故障を注入して中断した送信の投影は確定していないので数えない。
+        if completed:
+            run.applications.update(event.d5 for event in projection.events)
         if isinstance(selected_rights, ChangeRights):
             if "holds" in selected_rights.calls:
                 run.rights_verdict = selected_rights.holds
             if "recovery" in selected_rights.calls:
                 run.recovery_verdict = selected_rights.current
-        elif selected_rights.calls:
-            run.rights_verdict = not isinstance(selected_rights, DenyPrefixRights)
+            run.rights_order = list(dict.fromkeys(selected_rights.calls))
+        elif isinstance(selected_rights, GenerationRights):
+            run.rights_verdict = selected_rights.verdict
+            run.rights_order = list(dict.fromkeys(selected_rights.sequence))
     return response
+
+
+def _current_generation(run: _Run) -> int:
+    """送信の直前に、DB から記録権の現世代を読む。"""
+    return _sql(
+        run.db,
+        "SELECT max(generation) FROM recording_generations "
+        "WHERE tenant_id = %s AND game_id = %s AND retired_at IS NULL",
+        (run.db.tenant_a, run.game),
+    )[0][0]
 
 
 @contextmanager
@@ -372,6 +445,11 @@ def _equal_d2(run: _Run, pair: Sequence[str]) -> Iterator[None]:
         run.db,
         "SELECT d2 FROM operation_events WHERE tenant_id = %s AND d5 = %s",
         (run.db.tenant_a, second),
+    )[0][0]
+    definition = _sql(
+        run.db,
+        "SELECT indexdef FROM pg_indexes WHERE indexname = %s",
+        ("uq_operation_events_active_d2",),
     )[0][0]
     _execute(run.db, "DROP INDEX uq_operation_events_active_d2", ())
     _execute(
@@ -388,13 +466,8 @@ def _equal_d2(run: _Run, pair: Sequence[str]) -> Iterator[None]:
             "UPDATE operation_events SET d2 = %s WHERE tenant_id = %s AND d5 = %s",
             (original, run.db.tenant_a, second),
         )
-        _execute(
-            run.db,
-            "CREATE UNIQUE INDEX uq_operation_events_active_d2 "
-            "ON operation_events (tenant_id, game_id, d2) "
-            "WHERE d2 IS NOT NULL AND replaced_at IS NULL AND retired_at IS NULL",
-            (),
-        )
+        # 製品 DDL の定義を落とす前に読み、そのまま戻す(手書きで複製しない)。
+        _execute(run.db, cast(LiteralString, definition), ())
 
 
 def _seed(run: _Run, stack: list[Callable[[], Any]]) -> None:
@@ -402,18 +475,10 @@ def _seed(run: _Run, stack: list[Callable[[], Any]]) -> None:
     initial = run.asset["input"]["initialPersistence"]["value"]
     for step in initial["seed"]:
         if "accept" in step:
-            response = _send(
-                run, step["accept"], rights=PrefixRights(), reject=False, seed=True
-            )
+            response = _send(run, step["accept"], reject=False, seed=True)
             assert isinstance(response, AckResult) and response.boundary == "B1"
         elif "rejectContent" in step:
-            response = _send(
-                run,
-                step["rejectContent"],
-                rights=PrefixRights(),
-                reject=True,
-                seed=True,
-            )
+            response = _send(run, step["rejectContent"], reject=True, seed=True)
             assert isinstance(response, AckResult) and response.boundary == "B3"
         elif "equalD2" in step:
             context = _equal_d2(run, step["equalD2"])
@@ -445,7 +510,11 @@ def _seed(run: _Run, stack: list[Callable[[], Any]]) -> None:
         assert seeded, f"先着原本を初期永続状態として作れていない: {original}"
     run.response = None
     run.rights_verdict = None
+    run.rights_order = []
     run.recovery_verdict = None
+    run.applications.clear()
+    run.holder = run.path != "P4"
+    run.baseline = _row_counts(run)
 
 
 def _hand_over(run: _Run) -> None:
@@ -463,7 +532,6 @@ def _hand_over(run: _Run) -> None:
         "VALUES (%s, %s, 2, 'normal', 2, 'new-device')",
         (run.db.tenant_a, run.game),
     )
-    run.handed_over = True
 
 
 def _inject(run: _Run) -> int:
@@ -491,10 +559,12 @@ def _inject(run: _Run) -> int:
             run.interrupted = True
         return len(calls)
     if target["kind"] == "client":
-        if point == "V12 確認後・送信前に記録権を移す":
-            run.response = _send(run, unsent, rights=DenyPrefixRights())
+        if point in {"V12 確認後・送信前に記録権を移す", "記録権の引き継ぎ後・送信前"}:
+            # 実際に世代を引き継がせ、旧 D4 のまま送る。
+            _hand_over(run)
+            run.response = _send(run, unsent)
             return 1
-        if point == "応答を端末へ返す前(ACK 消失)":
+        if point in {"応答を端末へ返す前(ACK 消失)", "永続化の確定後にブラウザを終了"}:
             run.response = _send(run, unsent)
             return 1
         raise AssertionError(f"未知のクライアント注入: {point}")
@@ -529,7 +599,8 @@ def _restart(run: _Run) -> None:
         run.response = _send(run, run.queue["unsent"])
     elif restart == "記録権を引き継ぎ、保持端末として同じ要求を再送する":
         _hand_over(run)
-        run.response = _send(run, run.queue["unsent"], rights=PrefixRights())
+        run.holder = True
+        run.response = _send(run, run.queue["unsent"])
     elif restart == "欠落した D1 = 5 を補って再送する":
         run.response = _send(run, run.queue["restartUnsent"])
     elif restart == "配信を再実行する":
@@ -625,7 +696,7 @@ def _t_elements(run: _Run) -> dict[str, object]:
         evidence = {
             "T1": accepted,
             "T2": _count(run, "operation_events", "d5 = %s", (d5,)) > 0,
-            "T4": accepted and str(d5) in run.projected,
+            "T4": accepted and run.applications[str(d5)] > 0,
             "T6": accepted,
             "T7": {
                 "targetVersion": version == subject["expectedVersion"] + 1,
@@ -668,7 +739,7 @@ def _t_elements(run: _Run) -> dict[str, object]:
                 "event": bool(event_rows),
             },
             "T3": accepted and _watermark(run) >= subject["d1"],
-            "T4": accepted and str(d5) in run.projected,
+            "T4": accepted and run.applications[str(d5)] > 0,
             "T5": bool(event_rows) and event_rows[0][0] is not None,
             "T6": {
                 "result": accepted,
@@ -710,9 +781,16 @@ def _idempotent_result(run: _Run) -> dict[str, object]:
     response = run.response
     boundary: str | None = None
     branch: str | None = None
+    reason: str | None = None
     if isinstance(response, AckResult):
-        boundary, branch = response.boundary, response.b3_branch
-    elif isinstance(response, (AcceptedChangeResult, RejectedChangeResult)):
+        boundary, branch, reason = (
+            response.boundary,
+            response.b3_branch,
+            response.reason,
+        )
+    elif isinstance(response, RejectedChangeResult):
+        boundary, reason = response.boundary, response.reason
+    elif isinstance(response, AcceptedChangeResult):
         boundary = response.boundary
     elif isinstance(response, str):
         boundary = response
@@ -720,12 +798,60 @@ def _idempotent_result(run: _Run) -> dict[str, object]:
         "boundary": boundary,
         "b3Branch": branch,
         "ledger": {name: _ledger_kind(run, run.uuid(name)) for name in _names(run)},
+        "reasons": {name: _ledger_reason(run, run.uuid(name)) for name in _names(run)},
         "originals": {
             name: _count(run, "rejected_event_originals", "d5 = %s", (run.uuid(name),))
             + _count(run, "evacuated_event_originals", "d5 = %s", (run.uuid(name),))
             for name in _names(run)
         },
+        "applications": {
+            name: run.applications[str(run.uuid(name))] for name in _names(run)
+        },
+        "rowDeltas": {
+            table: count - run.baseline[table]
+            for table, count in _row_counts(run).items()
+        },
+        "responseReason": reason,
     }
+
+
+def _ledger_reason(run: _Run, d5: UUID) -> str | None:
+    rows = _sql(
+        run.db,
+        "SELECT reason FROM idempotency_ledger WHERE tenant_id = %s AND d5 = %s",
+        (run.db.tenant_a, d5),
+    )
+    return rows[0][0] if rows else None
+
+
+def _row_counts(run: _Run) -> dict[str, int]:
+    """余分な永続化を検出するため、同期の表のテナント内の行数を読む。"""
+    counts: dict[str, int] = {}
+    for table in _ROW_TABLES:
+        statement: LiteralString = f"SELECT count(*) FROM {table} WHERE tenant_id = %s"
+        counts[table] = _sql(run.db, statement, (run.db.tenant_a,))[0][0]
+    return counts
+
+
+def _named(run: _Run, value: object) -> object:
+    """DB の値の中の UUID を資産の名前へ戻す(名前の無い UUID は伏せる)。"""
+    names = run.names()
+    text = json.dumps(value, ensure_ascii=False, default=str)
+    return json.loads(
+        _UUID_PATTERN.sub(lambda match: names.get(match.group(0), "<uuid>"), text)
+    )
+
+
+def _slots(run: _Run) -> list[list[object]]:
+    """試合の現行イベント(置換・退役していない行)を D1 順に読む。"""
+    rows = _sql(
+        run.db,
+        "SELECT d1, d5, d2, is_tombstone, payload FROM operation_events "
+        "WHERE tenant_id = %s AND game_id = %s AND d1 IS NOT NULL "
+        "AND replaced_at IS NULL AND retired_at IS NULL ORDER BY d1",
+        (run.db.tenant_a, run.game),
+    )
+    return [cast(list[object], _named(run, list(row))) for row in rows]
 
 
 def _mapping(run: _Run) -> dict[str, object]:
@@ -756,16 +882,26 @@ def _mapping(run: _Run) -> dict[str, object]:
 
 
 def _replay_counts(run: _Run) -> tuple[dict[str, int], dict[str, int]]:
-    """保存済み結果の再掲と全件重複を実際に送り、範囲ごとの意図件数を返す。"""
-    request = run.last_request
-    assert request is not None
+    """保存済み結果の再掲と全件重複を実際に送り、範囲ごとの意図件数を返す。
+
+    再掲 = 新しいイベントを混ぜた要求の中で対象を再送する / 全件重複 = 直前の要求を
+    そのまま再送する(SP 8-5)。P3 は同じ要求の再送が再掲。
+    """
+    events = list(run.last_events)
     counts: list[dict[str, int]] = []
-    for _ in range(2):
-        if run.path == "P3":
-            _send(run, run.queue["unsent"])
+    for attempt in ("replay", "duplicate"):
+        if run.path == "P3" or attempt == "duplicate":
+            _send(run, events)
         else:
-            events = run.queue.get("restartUnsent") or run.queue["unsent"]
-            _send(run, events, rights=PrefixRights())
+            last = max(events, key=lambda event: event["d1"])
+            extra = {
+                "d5": _REPLAY_EXTRA,
+                "d1": last["d1"] + 1,
+                "kind": "play_input",
+                "payload": {"pitch": _REPLAY_EXTRA},
+                "d2": max(event.get("d2", event["d1"] * 10) for event in events) + 100,
+            }
+            _send(run, [*events, extra])
         rows = _sql(
             run.db,
             "SELECT scope_kind, count(*) FROM invalidation_intents "
@@ -780,17 +916,26 @@ def _observe(run: _Run, expected: Mapping[str, Any]) -> dict[str, object]:
     """観測点の実値フィールドを、資産のフィールド集合の順で読む。"""
     real = [key for key, value in expected.items() if "omittedBecause" not in value]
     rows = _intent_rows(run)
+    ids = _sql(
+        run.db,
+        "SELECT intent_id FROM invalidation_intents "
+        "WHERE tenant_id = %s AND intent_id LIKE %s",
+        (run.db.tenant_a, _intent_prefix(run) + "%"),
+    )
     observed: dict[str, object] = {
         "d1": {
             "ack": [[item.d1, item.state] for item in run.response.a5]
             if isinstance(run.response, AckResult)
-            else None
+            else None,
+            "slots": _slots(run),
         },
         "prefix": {"d3": _watermark(run)},
         "idempotentResult": _idempotent_result(run),
-        "recordingRight": {"held": run.rights_verdict},
+        "recordingRight": {"held": run.rights_verdict, "order": run.rights_order},
         "tElementCommitment": _t_elements(run),
-        "invalidationIntentIds": {"scopes": sorted(rows)},
+        "invalidationIntentIds": {
+            "ids": sorted(cast(list[str], _named(run, [row[0] for row in ids])))
+        },
         "invalidationIntentRows": rows,
         "recoveryGenerationCheck": {"current": run.recovery_verdict},
         "deliveryState": {
@@ -942,3 +1087,27 @@ def test_runner_split_covers_every_case_and_field() -> None:
         (asset["scenarioId"], case["caseId"]) for asset, case in _SERVER_CASE_PAIRS
     }
     assert set(CLIENT_OBSERVED_FIELDS) <= server_cases
+
+
+def test_runner_maps_every_contract_injection_point() -> None:
+    """Runner が写す注入時点の語彙は、契約検査の閉じた表と過不足なく一致する。"""
+    contract_points = set().union(*TRANSACTION_INJECTION_POINTS.values())
+    assert set(_CRASH_POINTS) == contract_points
+
+
+def test_skipped_projection_is_red(
+    prefix_database: _SyncDatabase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """負例: 投影ポートを呼ばずに確定する実装は、T4 だけが書かれない部分確定で赤。"""
+    monkeypatch.setattr(PrefixProjection, "apply", lambda self, event, writer: None)
+    asset = next(a for a in _SERVER_ASSETS if a["scenarioId"] == "p1-crash-boundaries")
+    case = next(c for c in asset["cases"] if c["caseId"] == "crash-t4")
+    result, excluded = _run_case(prefix_database, asset, case)
+    with pytest.raises(FailureScenarioContractError, match="言い換え"):
+        validate_failure_scenario_result(
+            asset,
+            result,
+            _ROUTES,
+            case_ids=[case["caseId"]],
+            excluded_field_ids=excluded,
+        )
