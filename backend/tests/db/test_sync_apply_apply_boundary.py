@@ -304,6 +304,41 @@ def test_old_generation_resend_replays_without_current_gap(
     assert resend.d3 == 3
 
 
+def test_old_generation_saved_escrow_after_gap_is_unprocessed(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """旧 D4 の退避済み D5 も要求世代の D3 から欠番を判定する。"""
+    db = prefix_database
+    accepted_events = tuple(_event(db.game_a, d1=d1, d4="1") for d1 in range(1, 4))
+    accepted = _invoke(
+        db, SyncRequest("P1", str(db.game_a), accepted_events, d4="1", v12="proof")
+    )
+    assert isinstance(accepted, AckResult) and accepted.d3 == 3
+    later = _event(db.game_a, d1=7, d4="1")
+    escrow = _invoke(
+        db,
+        SyncRequest("P4", str(db.game_a), (later,), d4="1", v12="old-proof"),
+        rights=DenyPrefixRights(),
+    )
+    assert isinstance(escrow, AckResult)
+    assert (escrow.boundary, escrow.a5[0].state) == ("B4", "退避")
+    assert _count(db, "evacuated_event_originals", later.d5) == 1
+    _hand_over_generation(db)
+
+    resend = _invoke(
+        db,
+        SyncRequest("P4", str(db.game_a), (later,), d4="1", v12="old-proof"),
+        rights=DenyPrefixRights(),
+    )
+    assert isinstance(resend, AckResult)
+    assert (resend.boundary, resend.d3, resend.a5[0].state) == (
+        "B2",
+        3,
+        "未処理",
+    )
+    assert _count(db, "evacuated_event_originals", later.d5) == 1
+
+
 def test_p4_resend_replays_escrow_with_p4_fingerprint(
     prefix_database: _SyncDatabase,
 ) -> None:

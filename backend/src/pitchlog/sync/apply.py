@@ -341,11 +341,6 @@ def apply_sync_request(
     # ⑥ の走査位置。D3 + 1 から始め、要求の中で処理した D1 の次へ進める
     # (欠落 = 要求の中で番号が欠けていること。D3 を進めない再掲の次を欠落にしない)。
     next_d1 = d3 + 1
-    # D3 は (試合, D4) ごと(SP R1)。要求の D4 が現世代でなければ、現世代の D3 を
-    # 起点にした ⑥ を既存 D5 の再掲へ掛けない(引き継ぎ後の旧世代の再送 — SP の
-    # ACK 消失後の再掲)。D4 の整数表現は退避の世代番号と同じ規則で照合する。
-    request_is_current = request.d4 == str(preflight.current_generation)
-
     if not preflight.has_recording_right:
         # ⑤ は要求単位の判定で、⑥ の停止規則(DI5)の射程外(SP 6-2・B4)。
         # 既存 D5 は保存済み結果を再掲し、未使用 D5 は全件を T8 へ送る。
@@ -378,9 +373,7 @@ def apply_sync_request(
                     registration,
                     target,
                 )
-        elif event.d1 > next_d1 and (
-            request_is_current or candidates[event.d5].kind == "unused"
-        ):
+        elif event.d1 > next_d1:
             # ⑥: D3 + 1 から D1 昇順に走査し、欠落があればその位置で B2。
             # ④ の候補の種類(既存 D5・B3b・保存済みの退避)によらず、欠落より
             # 後ろは外部結果として確定しない(SP 6-2 の ⑥・6-3)。
