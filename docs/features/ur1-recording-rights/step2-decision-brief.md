@@ -229,3 +229,13 @@ GRANT EXECUTE ON FUNCTION rg1_api.rg1_assert_open_before_commit() TO pitchlog_ap
 3. 候補の実revision/digest/snapshot/全差分に対し、PR最終候補状態の7.7正式受理を判断する。
 
 D4方式・製品open/復元開始は新5側、新6実経路結合は別ゲート。mergeは本資料の射程外。
+
+## 2026-10-15 候補着手後に判明したA接続と列ACLの衝突
+
+新2の宣言コミット`5480e350`と新3のJSON登録コミット`76f993f1`を分離した。`origin/develop=3f6a935a`との`verify_area_path_baseline`は成功し、実登録後のcore guard単体258件も成功した。TSK-550 Aは別ブランチ`196f1e3d`にコミット済みだが、まだdevelopには統合されていないため、7.7のbefore/after・revision・digest・snapshotは**受理待ち・未計算**のままとする。
+
+**Aとの署名衝突**: Aの`FunctionOperationRegistration.__post_init__`は関数呼出しに必須の`tenant_id` bindを第1引数として要求し、`prepare_function_operation()`もその値を注入する。承認資料のRG1 2関数は引数なしであり、このままでは両登録を構築できない。推奨する最小改訂は2関数の引数を`(uuid)`に揃え、関数内で引数と`app.tenant_id`の一致・UUID妥当性を確かめ、不一致・欠損・読取失敗をfalse/例外のfail-closedにすること。登録側はAの既存`tenant_id` bindだけを使い、任意SQLや追加権限を公開しない。これは**承認済み関数identity・DDL/JSON・凍結契約の変更**なので、A統合後の候補実装と7.7値を確定する前に人間の差分承認が要る。Aの共有実行器自体を変更する案は共有所有範囲に及ぶため、U-R1では採用しない。
+
+**列ACL資産のID衝突**: 現行`column_acl_expectations`のIDは`COLUMN-ACL:<schema>:<table>:<column>:<owner>`で一意。承認資料にある`SELECT(singleton_id)`行と`UPDATE(singleton_id)`行を別行で入れると同じIDが2件になる。隔離PostgreSQL 17では、承認済みの実効権限`SELECT(singleton_id,state), UPDATE(singleton_id)`とsingleton限定のSELECT/UPDATE policyで`FOR SHARE NOWAIT`が成功し、`UPDATE(state)`/INSERT/DELETEは拒否された（`backend/tests/test_rg1_lock_contract.py`、2件成功）。推奨する資産表現は`singleton_id`の**1行だけ**に`privilege_ids: ["SELECT", "UPDATE"]`を宣言し、生成SQLを同じ列への`GRANT SELECT (singleton_id), UPDATE (singleton_id)`にすること。`state`は既存形式の`["SELECT"]`行にする。RG1表・列・専用owner・commit-check関数のexact tuple以外で`UPDATE`を拒否し、表UPDATEや`UPDATE(state)`は許可しない。このJSON表現と生成器・検査器の差分は資料の3行案と異なるため、人間に具体差分を再提示する。承認前に正式資産へ書かない。
+
+上記2件の差分承認までは、新4のA接続と正式認可/凍結資産を固定しない。隔離DBの開状態fixtureによる行ロック正常系は製品open承認ではない。D4方式、新8の実経路結合、7.7正式受理、push/PR作成/mergeは別ゲートを維持する。

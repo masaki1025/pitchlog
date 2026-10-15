@@ -132,3 +132,11 @@
 
 - 依頼者は`d5db8576`の最終計画追補、判断資料の具体資産・RG1 exact tupleに限定した列`UPDATE(singleton_id)`検査器差分、ローカル候補作成、隔離DB試験・レビュー・修正・記録コミットを承認。追加レビュー後の未再レビュー差分も人間確認対象とした。既承認5項目は維持。新2宣言→新3 JSON登録→新4製品・受理記録を同じ先行PRに置き、新2/3のコミットを分離する。D4、運用open解除、7.7実値・正式受理、push/PR作成/mergeは承認範囲外。
 - `git fetch origin develop`で`origin/develop=3f6a935a`を確認。U-R1専用worktreeに`git merge --no-edit origin/develop`を実施し、衝突なしで`7bf4a2a5`へ取り込んだ。他担当worktreeは変更していない。Aの共有実行器はdevelop未統合。U-R1の凍結7資産の実after/revision/digest/snapshotはA統合後まで確定しない。現存の未追跡`claude-handoff.md`は本作業の変更へ含めない。
+
+## 新2・新3の分離コミットと新4の契約衝突（2026-10-15）
+
+- 新2は`5480e350`で`scripts/core_guard.py`と`tests/test_core_guard.py`のRG1追加層だけを宣言。新3は`76f993f1`で`.claude/core-areas.json`の完全順列だけを別コミットに登録した。登録済み基線の検査を維持し、宣言済み・登録前と完全登録後の二状態を試験した。新3後の`uv run pytest tests/test_core_guard.py -q -n 0`は258件成功、Ruff・ty・`git diff --check`も成功。`verify_area_path_baseline(origin/develop, HEAD)`は`3f6a935a`基線で成功。push/PR作成はしていない。
+- 隔離DB用`backend/tests/test_rg1_lock_contract.py`のローカル候補を作成し、使い捨てPostgreSQL 17で3件成功。専用NOLOGIN/NOBYPASSRLS owner、単一行、FORCE RLS、SELECT/UPDATEのsingleton限定policyと列`SELECT(singleton_id,state), UPDATE(singleton_id)`の組合せで`FOR SHARE NOWAIT`が通ることを実測。`UPDATE(state)`・INSERT・DELETEは拒否され、復元側先行のNOWAIT拒否と通常側先行のUPDATE待機を確認。Ruff・tyも成功。これは隔離正常系であり製品open解除ではない。製品関数常閉の検証は未了。
+- **新規衝突1（A接続）**: TSK-550 Aの候補`196f1e3d`は`FunctionOperationRegistration`の固定関数呼出しで第1引数`tenant_id` bindを必須とする。一方、承認済みRG1資料は引数なし2関数。現状ではU-R1の2登録をAへ接続できない。推奨はRG1関数を`(uuid)`にし、引数/GUC一致をfail-closedで検査する最小契約改訂。関数identity・DDL/JSON・7.7資産に影響するため、個別差分承認待ち。A共有実行器の変更は行わない。
+- **新規衝突2（列ACL ID）**: `COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_fn_owner`は表・列・ownerで一意であり、資料の`SELECT(singleton_id)`と`UPDATE(singleton_id)`を別行にするとID重複。推奨は同じIDの1行に`["SELECT", "UPDATE"]`を閉じ、`state`のSELECTは別行。生成SQLは列単位の2権限、検査器はRG1 exact tuple以外のUPDATEを拒否。実効権限は隔離DBで確認済みだが、資料の具体JSONとは異なるため人間の差分承認待ち。正式認可/凍結資産は未変更。
+- Aはdevelop未統合。新4のA接続、正式認可/凍結資産、実revision・digest・snapshot、7.7正式受理は未了。現在の候補試験をステップ4完了や受理済みとして扱わない。独立レビューは候補差分が固定できるまで未実施。D4・運用open・新8結合・push/PR/mergeには進まない。
