@@ -10,14 +10,6 @@
   },
   "unrepresentedOperationSources": [
     {
-      "operationKind": "tiebreak-start",
-      "sourceClauseIds": ["req:FR-009"],
-      "decisionSource": {
-        "path": "docs/features/appendix-e-golden-vectors/design.md",
-        "evidenceText": ["ステップ62は段階2へ送る", "operationKind = \"tiebreak-start\""]
-      }
-    },
-    {
       "operationKind": "state-correction",
       "sourceClauseIds": ["req:FR-040"],
       "decisionSource": {

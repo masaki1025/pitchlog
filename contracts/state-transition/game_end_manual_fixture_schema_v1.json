@@ -25,15 +25,14 @@
       "DRAW-02": "規則設定の拒否分岐であり対応する規範行が無い",
       "DRAW-03": "規則設定の拒否分岐であり対応する規範行が無い",
       "DRAW-04": "規則設定の有効性分岐であり対応する規範行が無い",
-      "DRAW-05": "途中終了宣言による引き分けの規範行とoutcomeが無い",
       "DRAW-06": "途中終了宣言による勝敗確定の規範行が無い",
       "DRAW-07": "上限なしの継続を固有に表す規範行が無い",
       "DRAW-08": "上限前の継続を固有に表す規範行が無い",
       "DRAW-09": "上限引き分けの分岐に対応する独立した規範行が無い",
       "DRAW-10": "上限到達時の非同点確定に対応する独立した規範行が無い",
-      "XMARK-01": "decisionの比較面にX表記が無く規範行も無い",
-      "XMARK-02": "decisionの比較面に空欄と数値の区別が無く規範行も無い",
-      "XMARK-03": "decisionの比較面にX表記が無く規範行も無い"
+      "XMARK-01": "decisionの比較面はあるがXMARK専用の規範行は無い",
+      "XMARK-02": "COLD-08でXを表すがXMARK専用の規範行は無い",
+      "XMARK-03": "空欄を表す規範行は無い"
     },
     "machineGuaranteesAtThisStep": [
       "closed-fixture-and-case-shape",
@@ -103,14 +102,17 @@
         "state.half": {"type": "string"},
         "state.score": {"type": "string"},
         "state.gameEnded": {"type": "boolean"},
-        "state.tiebreakActive": {"type": "boolean"}
+        "state.tiebreakActive": {"type": "boolean"},
+        "event.operationKind": {"type": "string"},
+        "event.perPitch.kind": {"type": "string"},
+        "event.perPitch.resultId": {"type": "string"}
       }
     },
     "decision": {
       "type": "object",
       "required": [
         "outcome", "endConditionDetected", "lockFurtherPlayInput",
-        "promptEndDeclaration", "automaticallyEndsGame"
+        "promptEndDeclaration", "automaticallyEndsGame", "xMark"
       ],
       "additionalProperties": false,
       "properties": {
@@ -121,7 +123,11 @@
         "endConditionDetected": {"type": "boolean"},
         "lockFurtherPlayInput": {"type": "boolean"},
         "promptEndDeclaration": {"type": "boolean"},
-        "automaticallyEndsGame": {"type": "boolean"}
+        "automaticallyEndsGame": {"type": "boolean"},
+        "xMark": {
+          "description": "直近に完了した表と対になる裏の得点セルの表示種別。recorded-scoreは別途集計した非負整数、x-markは未開始の裏に適用するX、blankはそれ以外の未開始セルを写像①で表示する。表示文字列や得点値はこの欄に含めない。FR-020 XMARK-01〜03。",
+          "enum": ["recorded-score", "x-mark", "blank"]
+        }
       }
     },
     "provenance": {

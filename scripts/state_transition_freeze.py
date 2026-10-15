@@ -529,6 +529,7 @@ def _validate_history_chain(history: Sequence[object], series: str) -> None:
     """履歴レコードの型と内部の片方向連鎖を検証する。"""
     previous_new: object | None = None
     acceptance_ids: set[str] = set()
+    previous_acceptance_id: str | None = None
     for index, record in enumerate(history):
         label = f"freezeBaseline.history[{index}]"
         if not isinstance(record, dict):
@@ -553,9 +554,11 @@ def _validate_history_chain(history: Sequence[object], series: str) -> None:
         )
         if ACCEPTANCE_ID_PATTERN.fullmatch(acceptance_id) is None:
             raise FreezeBaselineError(f"{label}.acceptanceIdの形式が不正である")
-        if acceptance_id in acceptance_ids:
+        # 同じPR内の連続した受理は同一IDを使う。離れた再利用は拒否する。
+        if acceptance_id in acceptance_ids and acceptance_id != previous_acceptance_id:
             raise FreezeBaselineError(f"acceptanceIdが重複している: {acceptance_id}")
         acceptance_ids.add(acceptance_id)
+        previous_acceptance_id = acceptance_id
         if record.get("series") != series:
             raise FreezeBaselineError(f"{label}.seriesが宣言の系列名と一致しない")
         _validate_identity_state(record.get("priorIdentity"), f"{label}.priorIdentity")
@@ -731,90 +734,101 @@ def load_base_declaration(
 def validate_append_only_transition(
     current: Mapping[str, Any], base: Mapping[str, Any] | None
 ) -> tuple[str, ...]:
-    """比較元から現行への1受理分の追記だけを許し、変更した基準IDを返す。"""
+    """比較元から現行への受理記録を順に再生し、変更した基準IDを返す。"""
     current_value = validate_declaration(dict(current))
     current_history = current_value["history"]
     current_scope = current_value["scope"]
     current_criteria = current_value["criteria"]
     if base is None:
         base_history: list[object] = []
-        base_scope: Mapping[str, Any] | None = None
-        base_criteria: Mapping[str, Any] = {}
-        expected_prior = {"present": False, "values": []}
+        base_scope: dict[str, Any] | None = None
+        base_criteria: dict[str, Any] = {}
     else:
         base_value = validate_declaration(dict(base))
         base_history = base_value["history"]
         base_scope = base_value["scope"]
         base_criteria = base_value["criteria"]
-        expected_prior = {
-            "present": True,
-            "values": current_identities(base_value),
-        }
 
     if current_history[: len(base_history)] != base_history:
         raise FreezeBaselineError(
             "既存の凍結基準受理履歴が書き換えまたは削除されている"
         )
-    definition_id = current_scope["identityCriterionId"]
-    changed_ids: list[str] = []
-    if base_scope != current_scope:
-        changed_ids.append(definition_id)
-    current_order = _scope_criterion_order(current_scope)
-    base_order = _scope_criterion_order(base_scope) if base_scope is not None else ()
-    criterion_order = (*base_order, *(item for item in current_order if item not in base_order))
-    changed_ids.extend(
-        section
-        for section in criterion_order
-        if base_criteria.get(section) != current_criteria.get(section)
-    )
-    expected_added = 1 if changed_ids else 0
-    if len(current_history) != len(base_history) + expected_added:
+    added_records = current_history[len(base_history) :]
+    if not added_records and (base_scope != current_scope or base_criteria != current_criteria):
         raise FreezeBaselineError(
-            "基準遷移1回につき受理記録はちょうど1件でなければならない"
+            "基準遷移には受理記録が必要である"
         )
-    if not changed_ids:
+    if not added_records:
         return ()
-
-    record = current_history[-1]
-    if record["priorIdentity"] != expected_prior:
-        raise FreezeBaselineError("追加レコードのpriorIdentityが直前基準と一致しない")
-    expected_changes = []
-    for section in changed_ids:
-        if section == definition_id:
-            before_value = base_scope
-            after_value = current_scope
-        else:
-            before_value = base_criteria.get(section)
-            after_value = current_criteria.get(section)
-        before = (
-            {"present": False}
-            if before_value is None
-            else {"present": True, "value": before_value}
-        )
-        after = (
-            {"present": False}
-            if after_value is None
-            else {"present": True, "value": after_value}
-        )
-        expected_changes.append(
-            {
-                "criterionId": section,
-                "before": before,
-                "after": after,
-                "changedAspects": [
-                    "set",
-                    "value",
-                    "placement",
-                    "frozen-target-correspondence",
-                    "identity-granularity-and-interpretation",
-                ],
+    replay_scope = base_scope
+    replay_criteria = dict(base_criteria)
+    changed_ids: set[str] = set()
+    aspects = [
+        "set",
+        "value",
+        "placement",
+        "frozen-target-correspondence",
+        "identity-granularity-and-interpretation",
+    ]
+    definition_id = current_scope["identityCriterionId"]
+    for record in added_records:
+        prior = (
+            {"present": False, "values": []}
+            if replay_scope is None
+            else {
+                "present": True,
+                "values": current_identities(
+                    {"scope": replay_scope, "criteria": replay_criteria}
+                ),
             }
         )
-    if record["changes"] != expected_changes:
-        raise FreezeBaselineError(
-            "受理記録のchangesが比較元から導出した変更前後と一致しない"
-        )
-    return tuple(changed_ids)
+        if record["priorIdentity"] != prior:
+            raise FreezeBaselineError("追加レコードのpriorIdentityが直前基準と一致しない")
+        for change in record["changes"]:
+            criterion_id = change["criterionId"]
+            before_value = (
+                replay_scope
+                if criterion_id == definition_id
+                else replay_criteria.get(criterion_id)
+            )
+            before = (
+                {"present": False}
+                if before_value is None
+                else {"present": True, "value": before_value}
+            )
+            after = change["after"]
+            if (
+                change["before"] != before
+                or change["changedAspects"] != aspects
+                or after == before
+            ):
+                raise FreezeBaselineError(
+                    "受理記録のchangesが比較元から導出した変更前後と一致しない"
+                )
+            if criterion_id == definition_id:
+                replay_scope = after.get("value") if after["present"] else None
+            elif after["present"]:
+                replay_criteria[criterion_id] = after["value"]
+            else:
+                replay_criteria.pop(criterion_id, None)
+            changed_ids.add(criterion_id)
+        if replay_scope is None:
+            raise FreezeBaselineError("受理記録の後にscopeが存在しない")
+        new_identity = {
+            "present": True,
+            "values": current_identities(
+                {"scope": replay_scope, "criteria": replay_criteria}
+            ),
+        }
+        if record["newIdentity"] != new_identity:
+            raise FreezeBaselineError("追加レコードのnewIdentityが変更後の基準と一致しない")
+    if replay_scope != current_scope or replay_criteria != current_criteria:
+        raise FreezeBaselineError("受理記録のchangesが現行基準まで到達しない")
+    return tuple(
+        criterion_id
+        for criterion_id in (definition_id, *_scope_criterion_order(current_scope))
+        if criterion_id in changed_ids
+    )
 
 
 def _parse_source(root: Path, relative_path: str) -> ast.Module:
@@ -1008,9 +1022,11 @@ def validate_repository_history(
     base = load_base_declaration(root, descriptor_path, acceptance_context.base_sha)
     changed_ids = validate_append_only_transition(current, base)
     if changed_ids:
-        added_acceptance_id = current["history"][-1]["acceptanceId"]
-        if added_acceptance_id != acceptance_context.acceptance_id:
-            raise FreezeBaselineError(
-                "追加受理記録のacceptanceIdがPR eventと一致しない: "
-                f"{added_acceptance_id} != {acceptance_context.acceptance_id}"
-            )
+        base_history_count = 0 if base is None else len(base["history"])
+        for record in current["history"][base_history_count:]:
+            added_acceptance_id = record["acceptanceId"]
+            if added_acceptance_id != acceptance_context.acceptance_id:
+                raise FreezeBaselineError(
+                    "追加受理記録のacceptanceIdがPR eventと一致しない: "
+                    f"{added_acceptance_id} != {acceptance_context.acceptance_id}"
+                )

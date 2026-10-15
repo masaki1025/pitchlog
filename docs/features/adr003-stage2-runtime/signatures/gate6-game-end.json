@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "signatureId": "gate6-game-end",
+  "subject": {
+    "path": "contracts/state-transition/game_end_contract_v1.json",
+    "digest": "sha256:3514e1c6225f3a4da4ebf960d918388508a2d1c72ce02ddb4df0af0de0f77863"
+  },
+  "artifactAuthorId": "codex",
+  "recordedReviewerId": "山田正輝",
+  "recordedOn": "2026-10-15",
+  "reviewScope": "TSK-538 ステップ 22〜32 で追加・変更した終了判定の規範行 8 行(GAME-END-NORMAL・GAME-END-EXTRA-CONTINUE・GAME-END-LIMIT-DRAW・GAME-END-TIEBREAK-CONTINUE・COLD-08・COLD-09・GAME-END-WALK-OFF・XMARK-02)と派生 case 248 件。逐行確認シート docs/features/adr003-stage2-runtime/step33_line_review.md(SHA-256 9041f14c4b2a7d06440bb1278e31e8fe48e03f1ebedaa352a5b25685b62b1325)の終了判定の節。条文が決めていない点(未解消レポートの G6-E01〜E14)は確認の範囲外で、TSK-545 へ送った。確認の順序: 作成者 codex が規範行と派生 case を作り、逐行確認シートを機械生成した。Claude が要件書・ADR-003 v0.7 から期待値を先に導いてシートと照合し、条文と食い違う期待値を是正させた(突合表 docs/features/adr003-stage2-runtime/gate6-crosscheck.md)。記録上の確認者は、作成者の作業結果と Claude の突合表を見た後に、要件書の条文を直接照合して承認した(作成者の作業結果を見る前に条文を読んだとは記録しない)。",
+  "recordedMethod": "direct-clause-comparison",
+  "attestations": [
+    {
+      "attestationId": "direct-clause-review-declared",
+      "recordedResponse": true
+    }
+  ]
+}

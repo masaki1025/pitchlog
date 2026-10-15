@@ -56,6 +56,12 @@ function standardNormalizer(): GeneratedNormalizer {
 }
 const echo: CalculationAdapter = { execute: (_caseId, value) => value }
 
+it('読み込み層の case 群を既存 runner に渡せる', async () => {
+  const loaded = { calculationId: 'state-transition' as const, cases }
+  const report = await runVectors(loaded, contract, standardNormalizer(), echo)
+  expect(report.complete).toBe(true)
+})
+
 async function expectInternal(
   command: readonly [string, ...string[]],
   responseTimeoutMs?: number,
@@ -648,3 +654,189 @@ it('判定の語を runner のソースに持たない', () => {
   expect(source).not.toContain('total-order')
   expect(source).not.toContain('exact-numeric-representation')
 })
+
+type Step30Case = {
+  caseId: string
+  rowRef: { layer: string; coordinate: { targetKind: string } }
+  inputCoordinate: Record<string, unknown>
+  historyInput: { stack: unknown[] }
+  raw?: unknown
+  normalized?: unknown
+  expected: {
+    guaranteeMode: string
+    stateEffect: {
+      stateFields: Record<string, unknown>
+      scoreboard: Record<string, unknown>
+      statFlags: Record<string, unknown>
+    }
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
+const step30Contract = JSON.parse(
+  readFileSync(
+    resolve(
+      REPOSITORY_ROOT,
+      'contracts/state-transition/state_transition_contract_v1.json',
+    ),
+    'utf8',
+  ),
+) as { cases: Step30Case[] }
+const step30Schema = JSON.parse(
+  readFileSync(
+    resolve(
+      REPOSITORY_ROOT,
+      'contracts/state-transition/state_transition_contract_schema_v1.json',
+    ),
+    'utf8',
+  ),
+) as { 'x-pitchlog-undo-liveness-comparison': unknown }
+
+function step30Scenario(
+  mode: 'liveness-only' | 'full-equality',
+  mutation:
+    | 'none'
+    | 'two-lost'
+    | 'rejected'
+    | 'state-mismatch'
+    | 'scoreboard-mismatch'
+    | 'stat-flags-mismatch',
+): {
+  caseValue: Step30Case
+  contractValue: VectorContract
+  normalizer: GeneratedNormalizer
+  calculation: CalculationAdapter
+} {
+  // 配列順に依存せず、保証モードと差分の面から対象行を選ぶ。
+  const undoCases = step30Contract.cases.filter(
+    (item) => item.rowRef.layer === 'undoRows',
+  )
+  const fullCase = undoCases.find(
+    (item) =>
+      item.expected.guaranteeMode === 'full-equality' &&
+      item.rowRef.coordinate.targetKind === 'confirmed-play' &&
+      item.inputCoordinate['history.topDifference.changedFaces'] ===
+        'state-and-scoreboard' &&
+      item.inputCoordinate['history.scenarioLength'] === 1,
+  )
+  const source =
+    mode === 'liveness-only'
+      ? undoCases.find(
+          (item) =>
+            item.expected.guaranteeMode === 'liveness-only' &&
+            item.rowRef.coordinate.targetKind === 'confirmed-play' &&
+            item.inputCoordinate['history.scenarioLength'] === 'D+1',
+        )
+      : fullCase
+  if (!source || !fullCase) throw new Error('条件に合う undo case がない')
+  const caseValue = structuredClone(source)
+  const normalized = [{ value: { kind: 'integer', value: 1 } }]
+  caseValue.raw = normalized
+  caseValue.normalized = normalized
+  const remainingLength = caseValue.historyInput.stack.length - 1
+  const output: Record<string, unknown> =
+    mode === 'liveness-only'
+      ? {
+          operationResult: 'applied',
+          historyContext: Array(remainingLength).fill('比較対象外'),
+          stateEffect: { 別の状態欄: '比較対象外' },
+        }
+      : structuredClone(caseValue.expected)
+  if (mutation === 'two-lost')
+    output.historyContext = Array(remainingLength - 1).fill('比較対象外')
+  if (mutation === 'rejected') output.operationResult = 'nothing-to-undo'
+  if (mutation === 'state-mismatch') {
+    const effect = output.stateEffect as Step30Case['expected']['stateEffect']
+    effect.stateFields['state.half'] = { kind: 'set', value: 'top' }
+  }
+  if (mutation === 'scoreboard-mismatch') {
+    const effect = output.stateEffect as Step30Case['expected']['stateEffect']
+    effect.scoreboard.hits = { kind: 'set', value: '999' }
+  }
+  if (mutation === 'stat-flags-mismatch') {
+    const effect = output.stateEffect as Step30Case['expected']['stateEffect']
+    effect.statFlags['投球数'] = { kind: 'set', value: '999' }
+  }
+  const contractValue: VectorContract = {
+    calculation: 'syntheticLiveness',
+    vector: 'syntheticUndoVector',
+    runner: 'vitest',
+    entrypointId: 'syntheticUndoEntrypoint',
+    directTargetId: 'syntheticUndoTarget',
+    caseSchema: {
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      required: ['caseId', 'raw', 'normalized', 'expected'],
+      additionalProperties: true,
+    },
+    normalizationComparison: {
+      surface: 'structured-only',
+      fields: [
+        {
+          field: 'value',
+          role: 'structured',
+          valueType: 'exact-number',
+          nullable: false,
+          scale: 0,
+        },
+      ],
+      normalizations: ['exact-numeric-representation'],
+    },
+    outputComparison: {
+      surface: 'structured-only',
+      fields: Object.keys(fullCase.expected).map((field) => ({
+        field,
+        role: 'structured',
+        valueType: 'json',
+        nullable: false,
+        scale: null,
+      })),
+      normalizations: [],
+    },
+    livenessComparison: step30Schema[
+      'x-pitchlog-undo-liveness-comparison'
+    ] as VectorContract['livenessComparison'],
+  }
+  return {
+    caseValue,
+    contractValue,
+    normalizer: {
+      generatedId: 'syntheticUndoNormalizer',
+      sourceHash: `sha256:${'1'.repeat(64)}`,
+      normalize: () => normalized,
+    },
+    calculation: { execute: () => output },
+  }
+}
+
+it.each([
+  ['liveness-only', 'none', true],
+  ['liveness-only', 'two-lost', false],
+  ['liveness-only', 'rejected', false],
+  ['full-equality', 'none', true],
+  ['full-equality', 'state-mismatch', false],
+  ['full-equality', 'scoreboard-mismatch', false],
+  ['full-equality', 'stat-flags-mismatch', false],
+] as const)(
+  '保証モード %s の %s は Python 経路と同じ判定になる',
+  async (mode, mutation, accepted) => {
+    const { caseValue, contractValue, normalizer, calculation } =
+      step30Scenario(mode, mutation)
+    const result = runVectors(
+      [caseValue],
+      contractValue,
+      normalizer,
+      calculation,
+    )
+    if (accepted) {
+      const report = await result
+      expect(report.complete).toBe(true)
+      expect(report.executions[0]?.outputMatched).toBe(true)
+    } else {
+      await expect(result).rejects.toThrow(
+        `計算結果が不一致: ${caseValue.caseId}`,
+      )
+    }
+  },
+)

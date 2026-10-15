@@ -109,21 +109,27 @@ def _expand_from_declared_inputs(
     values_by_axis = representative_selection.axis_values(
         descriptor, ("gameEndAxes", "stateTransitionAxes")
     )
-    used_axes = set().union(
-        *(representative_selection.predicate_axes(row["precondition"]) for row in rows)
+    unreachable_pairs = descriptor["gameEndCombinationRules"]["unreachablePairs"]
+    # 先行5行の代表入力を保ち、追加行だけが使うイベント軸はその行へ限定する。
+    baseline_axes = set().union(
+        *(representative_selection.predicate_axes(row["precondition"]) for row in rows[:5])
     )
-    axis_order = [axis_id for axis_id in values_by_axis if axis_id in used_axes]
-    if len(axis_order) != len(used_axes):
-        raise CaseExpansionError("終了判定行に未宣言の軸がある")
 
     cases: list[dict[str, Any]] = []
     for row in rows[:limit]:
+        reachable = representative_selection.reachable_predicate(
+            row["precondition"], unreachable_pairs
+        )
+        used_axes = baseline_axes | representative_selection.predicate_axes(reachable)
+        axis_order = [axis_id for axis_id in values_by_axis if axis_id in used_axes]
+        if len(axis_order) != len(used_axes):
+            raise CaseExpansionError("終了判定行に未宣言の軸がある")
         branch_id = row["branchId"]
         branch = branch_by_id.get(branch_id)
         if branch is None or row["sourceClauseIds"] != branch.get("sourceClauseIds"):
             raise CaseExpansionError(f"行と条文分岐台帳の対応が不正: {branch_id}")
         input_coordinate = representative_selection.select_coordinate(
-            row["precondition"], values_by_axis, axis_order, selection_policy
+            reachable, values_by_axis, axis_order, selection_policy
         )
         cases.append(
             {
@@ -164,7 +170,7 @@ def expand_traced(
 def _expand_coverage_from_declared_inputs(
     root: Path, rule: dependency_checker.ExpanderRule
 ) -> list[dict[str, Any]]:
-    """既存4分岐を保持し、コールド行の状態・イベント代表を追加する。"""
+    """既存4分岐を保持し、後続行の状態・イベント代表を追加する。"""
     documents = [(path, _read_document(root, path)) for path in rule.allowed_read_paths]
     descriptor = _document_by_key(documents, "gameEndAxes")
     contract = _document_by_key(documents, "decisionRows")
@@ -172,56 +178,87 @@ def _expand_coverage_from_declared_inputs(
     values_by_axis = representative_selection.axis_values(
         descriptor, ("gameEndAxes", "stateTransitionAxes")
     )
+    unreachable_pairs = descriptor["gameEndCombinationRules"]["unreachablePairs"]
+    play_input_axes = {
+        axis_id
+        for binding in descriptor["inputCoordinateCoverage"]["axisBindings"]
+        for row_binding in binding["rowBindings"]
+        if "matrixRows" in row_binding["rowLayers"]
+        for axis_id in binding["axisIds"]
+    }
     base_cases = _expand_from_declared_inputs(root, rule, len(contract["decisionRows"]))
     result = list(base_cases[:4])
     for row_index, row in enumerate(contract["decisionRows"]):
-        if row["branchId"] == "COLD-08":
+        if row_index >= 4:
             result.append(base_cases[row_index])
         predicate = row["precondition"]
         used = representative_selection.predicate_axes(predicate)
         axes = [
             axis for axis in values_by_axis
-            if axis in used or axis.startswith(("state.", "event."))
+            if axis in used or (
+                axis.startswith(("state.", "event.")) and axis in play_input_axes
+            )
         ]
-        choices: dict[str, list[Any]] = {}
-        for axis in axes:
-            if not axis.startswith(("state.", "event.")):
+        extension_limits = []
+        for value in values_by_axis["gameEnd.extensionLimit"]:
+            constraint = {"op": "eq", "axisId": "gameEnd.extensionLimit", "value": value}
+            try:
+                representative_selection.select_coordinate(
+                    {"op": "and", "args": [predicate, constraint]},
+                    values_by_axis, axes, policy,
+                )
+            except representative_selection.RepresentativeSelectionError:
                 continue
-            allowed = []
-            for value in values_by_axis[axis]:
-                constraint = {"op": "eq", "axisId": axis, "value": value}
-                try:
-                    representative_selection.select_coordinate(
-                        {"op": "and", "args": [predicate, constraint]},
-                        values_by_axis, axes, policy,
-                    )
-                except representative_selection.RepresentativeSelectionError:
+            extension_limits.append(value)
+        if not extension_limits:
+            raise CaseExpansionError("行が延長上限の軸に到達できない")
+        coverage_index = 0
+        for extension_limit in extension_limits:
+            bounded = representative_selection.reachable_predicate({
+                "op": "and", "args": [predicate, {
+                "op": "eq", "axisId": "gameEnd.extensionLimit", "value": extension_limit,
+                }],
+            }, unreachable_pairs)
+            choices: dict[str, list[Any]] = {}
+            for axis in axes:
+                if not axis.startswith(("state.", "event.")):
                     continue
-                allowed.append(value)
-            if not allowed:
-                raise CaseExpansionError(f"行が状態・イベント軸に到達できない: {axis}")
-            choices[axis] = allowed
-        for index in range(max(map(len, choices.values()))):
-            constraints = [
-                {"op": "eq", "axisId": axis, "value": values[index % len(values)]}
-                for axis, values in choices.items()
-            ]
-            coordinate = representative_selection.select_coordinate(
-                {"op": "and", "args": [predicate, *constraints]},
-                values_by_axis, axes, policy,
-            )
-            result.append(
-                {
-                    "caseId": f"GE-{row['branchId']}-COVERAGE-{index + 1:03d}",
-                    "branchId": row["branchId"],
-                    "rowRef": {
-                        "layer": "decisionRows",
-                        "coordinate": {"branchId": row["branchId"]},
-                    },
-                    "inputCoordinate": coordinate,
-                    "decision": copy.deepcopy(row["decision"]),
-                }
-            )
+                allowed = []
+                for value in values_by_axis[axis]:
+                    constraint = {"op": "eq", "axisId": axis, "value": value}
+                    try:
+                        representative_selection.select_coordinate(
+                            {"op": "and", "args": [bounded, constraint]},
+                            values_by_axis, axes, policy,
+                        )
+                    except representative_selection.RepresentativeSelectionError:
+                        continue
+                    allowed.append(value)
+                if not allowed:
+                    raise CaseExpansionError(f"行が状態・イベント軸に到達できない: {axis}")
+                choices[axis] = allowed
+            for index in range(max(map(len, choices.values()))):
+                constraints = [
+                    {"op": "eq", "axisId": axis, "value": values[index % len(values)]}
+                    for axis, values in choices.items()
+                ]
+                coordinate = representative_selection.select_coordinate(
+                    {"op": "and", "args": [bounded, *constraints]},
+                    values_by_axis, axes, policy,
+                )
+                coverage_index += 1
+                result.append(
+                    {
+                        "caseId": f"GE-{row['branchId']}-COVERAGE-{coverage_index:03d}",
+                        "branchId": row["branchId"],
+                        "rowRef": {
+                            "layer": "decisionRows",
+                            "coordinate": {"branchId": row["branchId"]},
+                        },
+                        "inputCoordinate": coordinate,
+                        "decision": copy.deepcopy(row["decision"]),
+                    }
+                )
     return result
 
 

@@ -1,10 +1,22 @@
 // @vitest-environment node
 
-import { readFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { inspectBuildArtifacts, inspectCspDocument } from '../../vite.config.ts'
+import {
+  inspectBuildArtifacts,
+  inspectCspDocument,
+  verifyDomainArtifactDistribution,
+} from '../../vite.config.ts'
 
 const FRONTEND_ROOT = process.cwd()
 const VALID_CSP =
@@ -19,6 +31,24 @@ function html(body: string): string {
     `<meta http-equiv="Content-Security-Policy" content="${VALID_CSP}">` +
     `</head><body>${body}</body></html>`
   )
+}
+
+/** 配布物の照合に使う一時的な public と dist を作る。 */
+function copyDomainDistribution(): {
+  root: string
+  artifact: string
+} {
+  const root = mkdtempSync(resolve(tmpdir(), 'pitchlog-domain-distribution-'))
+  const source = resolve(root, 'public/domain')
+  const output = resolve(root, 'dist/domain')
+  mkdirSync(source, { recursive: true })
+  mkdirSync(output, { recursive: true })
+  for (const name of ['pitchlog-domain.js', 'pitchlog-domain.json']) {
+    const original = resolve(FRONTEND_ROOT, 'public/domain', name)
+    copyFileSync(original, resolve(source, name))
+    copyFileSync(original, resolve(output, name))
+  }
+  return { root, artifact: resolve(output, 'pitchlog-domain.js') }
 }
 
 describe('frontend production build の閉域', { timeout: 60_000 }, () => {
@@ -111,5 +141,57 @@ describe('frontend production build の閉域', { timeout: 60_000 }, () => {
     expect(inspected.scannedFiles).toBeGreaterThan(0)
     expect(inspected.externalReferences).toEqual([])
     expect(inspected.policyViolations).toEqual([])
+  })
+
+  it('同一バイト列と宣言 SHA-256 を持つ配布物を受理する', () => {
+    const fixture = copyDomainDistribution()
+    try {
+      expect(() =>
+        verifyDomainArtifactDistribution(
+          fixture.root,
+          resolve(fixture.root, 'dist'),
+        ),
+      ).not.toThrow()
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true })
+    }
+  })
+
+  it('一時コピーを 1 バイト変えると配布物の照合に失敗する', () => {
+    const fixture = copyDomainDistribution()
+    try {
+      const bytes = readFileSync(fixture.artifact)
+      bytes[0] = (bytes[0] ?? 0) ^ 1
+      writeFileSync(fixture.artifact, bytes)
+      expect(() =>
+        verifyDomainArtifactDistribution(
+          fixture.root,
+          resolve(fixture.root, 'dist'),
+        ),
+      ).toThrow('バイト列')
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true })
+    }
+  })
+
+  it('両方の artifact が一致しても宣言 SHA-256 と違えば失敗する', () => {
+    const fixture = copyDomainDistribution()
+    try {
+      const bytes = readFileSync(fixture.artifact)
+      bytes[0] = (bytes[0] ?? 0) ^ 1
+      writeFileSync(fixture.artifact, bytes)
+      writeFileSync(
+        resolve(fixture.root, 'public/domain/pitchlog-domain.js'),
+        bytes,
+      )
+      expect(() =>
+        verifyDomainArtifactDistribution(
+          fixture.root,
+          resolve(fixture.root, 'dist'),
+        ),
+      ).toThrow('SHA-256 が宣言と一致しない')
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true })
+    }
   })
 })

@@ -300,7 +300,11 @@ def observed_input_coverage(
             key: value for key, value in row.items()
             if key not in (*row_coordinate, "remarks")
         }
-        if case.get("expected") != expected:
+        case_expected = case.get("expected")
+        if isinstance(case_expected, dict) and "historyInput" in case:
+            case_expected = {key: value for key, value in case_expected.items()
+                             if key != "historyContext"}
+        if case_expected != expected:
             raise RequiredSetCoverageError("ケースの期待値が規範行と不一致")
         for requirement in requirements:
             if layer not in requirement.row_layers:
@@ -428,6 +432,18 @@ def check_input_coverage(
     cases = contract.get("cases")
     if not isinstance(cases, list) or not cases:
         raise RequiredSetCoverageError("ケース集合が空または不正")
+    _check_liveness_case_depth(root, cases)
+    try:
+        history = json.loads(
+            (root / "backend/domain/history-depth.json").read_text(encoding="utf-8")
+        )
+        depth = expand_state_transition_cases.history_checker.resolve_history_depth(history)
+        expand_state_transition_cases.history_checker.validate_undo_case_differences(
+            contract, depth
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError,
+            expand_state_transition_cases.history_checker.HistoryEffectError) as error:
+        raise RequiredSetCoverageError(f"undo差分の契約が不正: {error}") from error
     actual = observed_input_coverage(cases, active, contract, display_names)
     declared = _identity_set(record.get("coverageSet"))
     required_ids = {item.identity for item in active}
@@ -475,6 +491,49 @@ def check_input_coverage(
     _check_repository_history(root, record)
     previous = _identity_set(history[-1]["before"]["coverageSet"])
     return len(actual), _digest(actual), len(actual - previous)
+
+
+def _check_liveness_case_depth(root: Path, cases: list[dict[str, Any]]) -> None:
+    """D+1 case の入力が取消可能な確定プレイを D+1 件持つことを検査する。"""
+    if not any(
+        isinstance(case.get("expected"), dict)
+        and case["expected"].get("guaranteeMode") == "liveness-only"
+        for case in cases
+    ):
+        return
+    try:
+        history = json.loads(
+            (root / "backend/domain/history-depth.json").read_text(encoding="utf-8")
+        )
+        depth = expand_state_transition_cases.history_checker.resolve_history_depth(history)
+    except (
+        OSError, UnicodeError, json.JSONDecodeError,
+        expand_state_transition_cases.history_checker.HistoryEffectError,
+    ) as error:
+        raise RequiredSetCoverageError("XC-09: 履歴深さDを解決できない") from error
+    for case in cases:
+        expected = case.get("expected")
+        if not isinstance(expected, dict) or expected.get("guaranteeMode") != "liveness-only":
+            continue
+        coordinate = case.get("inputCoordinate")
+        history_input = case.get("historyInput")
+        stack = history_input.get("stack") if isinstance(history_input, dict) else None
+        row_ref = case.get("rowRef")
+        if (
+            not isinstance(row_ref, dict)
+            or row_ref.get("layer") != "undoRows"
+            or not isinstance(coordinate, dict)
+            or coordinate.get("history.scenarioLength") != "D+1"
+            or not isinstance(stack, list)
+            or len(stack) != depth + 1
+            or any(
+                not isinstance(item, dict) or item.get("kind") != "confirmed-play"
+                for item in stack
+            )
+            or "historyContext" in expected
+            or expected.get("operationResult") != "applied"
+        ):
+            raise RequiredSetCoverageError("XC-09: D+1 case の履歴入力または比較面が不正")
 
 
 def _row_fixed_input_values(predicate: dict[str, Any], axis_id: str) -> set[str]:
@@ -636,6 +695,7 @@ def check_input_coverage_exact(
     cases = contract.get("cases")
     if not isinstance(cases, list):
         raise RequiredSetCoverageError("②のケース集合が不正")
+    check_state_derived_axis_cases(contract, descriptor)
     observed = observed_input_coverage(cases, active, contract, display_names)
     required_ids = {item.identity for item in active}
     if not observed <= required_ids:
@@ -661,6 +721,14 @@ def check_input_coverage_exact(
                 actual = {"event.operationKind": "undo",
                           "event.operationPayload": "not-applicable"}.get(axis_id)
             return type(actual) is type(value) and actual == value
+        if axis_id.startswith("history.topDifference.") and (
+            layer != "undoRows"
+            or row.get("targetKind") == "none"
+            or row.get("guaranteeMode") != "full-equality"
+            or not _row_fixed_input_values(row["precondition"], axis_id)
+        ):
+            # 先頭差分は保証範囲内の適用行が値を固定したときだけ到達する。
+            return False
         identity = item.identity[1]
         if axis_id in fixed_state_values and identity not in fixed_state_values[axis_id]:
             return False
@@ -755,14 +823,188 @@ def _fixed_game_end_values(
 
     visit(row["precondition"])
     if set(fixed) != axis_ids:
-        raise RequiredSetCoverageError("decisionRowsが終了規則4軸を固定しない")
+        raise RequiredSetCoverageError("decisionRowsが終了規則軸を固定しない")
     return fixed
 
 
+def _fixed_game_end_alternatives(
+    row: dict[str, Any], axis_ids: set[str]
+) -> list[dict[str, str]]:
+    """選言を含む行について、各分岐が固定する終了規則軸を列挙する。"""
+
+    def visit(node: dict[str, Any]) -> list[dict[str, str]]:
+        operation = node.get("op")
+        if operation == "eq":
+            axis = node.get("axisId")
+            return [{axis: _game_end_identity(node["value"])}] if axis in axis_ids else [{}]
+        if operation == "or":
+            return [part for child in node["args"] for part in visit(child)]
+        if operation != "and":
+            return [{}]
+        combined: list[dict[str, str]] = [{}]
+        for child in node["args"]:
+            next_values: list[dict[str, str]] = []
+            for left in combined:
+                for right in visit(child):
+                    if any(axis in left and left[axis] != value for axis, value in right.items()):
+                        continue
+                    next_values.append({**left, **right})
+            combined = next_values
+        return combined
+
+    alternatives = visit(row["precondition"])
+    if not alternatives or any(set(item) != axis_ids for item in alternatives):
+        raise RequiredSetCoverageError("decisionRowsの各選言が終了規則軸を固定しない")
+    distinct = list({tuple(sorted(item.items())): item for item in alternatives}.values())
+    if len(distinct) > 16:
+        raise RequiredSetCoverageError("終了規則軸の選言が16件を超える")
+    return distinct
+
+
+def _game_end_requirement_impossible_pairs(
+    descriptor: dict[str, Any],
+) -> dict[tuple[str, ...], tuple[str, ...]]:
+    """F-1の保存条件とdescriptorの上限から不成立の軸値ペアを列挙する。"""
+    regulation = "gameEnd.regulationInnings"
+    extension = "gameEnd.extensionLimit"
+    tiebreak = "gameEnd.tiebreak"
+    rules = (
+        (regulation, 99, extension, "finite:R+1", ("req:F-1",)),
+        (regulation, 99, tiebreak, "start:R+1", ("req:DRAW-03",)),
+        (regulation, 99, tiebreak, "start:L", ("req:DRAW-03",)),
+        (regulation, 99, tiebreak, "start:99", ("req:DRAW-03",)),
+        (extension, "finite:R", tiebreak, "start:R+1", ("req:DRAW-03",)),
+        (extension, "finite:R", tiebreak, "start:L", ("req:DRAW-03",)),
+        (extension, "finite:R", tiebreak, "start:99", ("req:DRAW-03",)),
+        (extension, "none", tiebreak, "start:L", ("req:F-1",)),
+    )
+    expected: dict[tuple[str, ...], tuple[str, ...]] = {
+        (
+            "rule-field-pairwise", left_axis, _game_end_identity(left_value),
+            right_axis, _game_end_identity(right_value),
+        ): clauses
+        for left_axis, left_value, right_axis, right_value, clauses in rules
+    }
+    for pair in descriptor["gameEndCombinationRules"]["derivedUnreachablePairs"]:
+        identity = (
+            "rule-field-pairwise",
+            pair["sourceAxisId"], _game_end_identity(pair["sourceValue"]),
+            pair["derivedAxisId"], _game_end_identity(pair["derivedValue"]),
+        )
+        if identity in expected:
+            raise RequiredSetCoverageError("DERIVED_UNREACHABLE: 宣言が重複")
+        expected[identity] = tuple(pair["clauseIds"])
+    for pair in descriptor["gameEndCombinationRules"]["unreachablePairs"]:
+        identity = (
+            "boundary-with-state-or-event-axis-value",
+            pair["leftAxisId"], _game_end_identity(pair["leftValue"]),
+            pair["rightAxisId"], _game_end_identity(pair["rightValue"]),
+        )
+        if identity in expected:
+            raise RequiredSetCoverageError("UNREACHABLE_PAIR: 宣言が重複")
+        expected[identity] = tuple(pair["clauseIds"])
+    return expected
+
+
+def _classify_game_end_unreachable(
+    declaration: dict[str, Any],
+    excluded: set[tuple[str, ...]],
+    unfixed_values: set[tuple[str, str]],
+    descriptor: dict[str, Any],
+) -> dict[str, int]:
+    """到達不可要求を典拠付き不成立・未固定値・適用行不在へ分割する。"""
+    policy = declaration.get("step23Unreachability")
+    if not isinstance(policy, dict) or set(policy) != {
+        "classificationOrder", "requirementsImpossible", "countsByCause",
+        "beforeUnreachableCount", "remainingUnreachableCount", "nextSteps",
+    } or policy["classificationOrder"] != [
+        "requirements-impossible", "unfixed-axis-value", "no-applicable-row"
+    ]:
+        raise RequiredSetCoverageError("S28の分類宣言が不正")
+    axes = {item["axisId"]: item for item in descriptor["gameEndAxes"]}
+    if (
+        axes["gameEnd.regulationInnings"]["coverageBounds"][0]["maximum"] != 99
+        or axes["gameEnd.extensionLimit"]["coverageBounds"][0]["maximum"] != 99
+        or axes["gameEnd.tiebreak"]["coverageBounds"][0]["maximum"] != 99
+        or "finite:100" not in axes["gameEnd.extensionLimit"]["invalidBoundaryValues"]
+    ):
+        raise RequiredSetCoverageError("S28の99回上限の典拠がdescriptorと不一致")
+    expected = _game_end_requirement_impossible_pairs(descriptor)
+    records = policy["requirementsImpossible"]
+    if not isinstance(records, list) or not all(
+        isinstance(item, dict) and set(item) == {"identity", "clauseIds", "basis"}
+        and isinstance(item["identity"], list)
+        and all(isinstance(part, str) for part in item["identity"])
+        and isinstance(item["clauseIds"], list)
+        and isinstance(item["basis"], str) and item["basis"]
+        for item in records
+    ):
+        raise RequiredSetCoverageError("S28の要件上の到達不可宣言が不正")
+    declared = {tuple(item["identity"]): tuple(item["clauseIds"]) for item in records}
+    if len(declared) != len(records) or declared != expected or not set(expected) <= excluded:
+        raise RequiredSetCoverageError("S28の要件上の到達不可が典拠・実測と不一致")
+    groups: dict[str, set[tuple[str, ...]]] = {
+        "noApplicableRow": set(),
+        "unfixedAxisValue": set(),
+        "requirementsImpossible": set(expected),
+    }
+    for identity in excluded - set(expected):
+        targets = (
+            ((identity[1], identity[2]), (identity[3], identity[4]))
+            if identity[0] == "rule-field-pairwise"
+            else ((identity[1], identity[2]),)
+            if identity[0] == "boundary-with-state-or-event-axis-value"
+            else ()
+        )
+        cause = "unfixedAxisValue" if any(
+            target in unfixed_values for target in targets
+        ) else "noApplicableRow"
+        groups[cause].add(identity)
+
+    kind_names = {
+        "rule-field-pairwise": "pairwise",
+        "boundary-with-state-or-event-axis-value": "boundaryCoordinate",
+        "clause-branch": "clauseBranch",
+    }
+    measured = {
+        cause: {
+            **{label: sum(item[0] == kind for item in identities)
+               for kind, label in kind_names.items()},
+            "total": len(identities),
+        }
+        for cause, identities in groups.items()
+    }
+    future = policy["nextSteps"]
+    # ステップ23の開始時2817件は履歴値として固定し、現在件数は再測定する。
+    if (
+        policy["countsByCause"] != measured
+        or policy["beforeUnreachableCount"] != 2817
+        or policy["remainingUnreachableCount"] != len(
+            groups["noApplicableRow"] | groups["unfixedAxisValue"]
+        )
+        or not isinstance(future, dict)
+        or set(future) != {"noApplicableRow", "unfixedAxisValue"}
+        or not all(isinstance(note, str) and note for note in future.values())
+    ):
+        raise RequiredSetCoverageError("S28の原因別件数・後続ステップ宣言が実測と不一致")
+    return {
+        "unreachable": policy["remainingUnreachableCount"],
+        "requirementsImpossible": len(expected),
+    }
+
+
 def _game_end_measure(
-    root: Path, contract: dict[str, Any], declaration: dict[str, Any]
+    root: Path, contract: dict[str, Any], declaration: dict[str, Any],
+    *, classify: bool = True,
 ) -> tuple[dict[str, int], set[tuple[str, ...]], set[tuple[str, ...]], set[tuple[str, ...]]]:
-    """終了判定行の到達性と実ケースからの直接充足を独立導出する。"""
+    """終了判定行の到達性と実ケースからの直接充足を独立導出する。
+
+    Args:
+        root: リポジトリルート。
+        contract: 検査する終了判定契約。
+        declaration: 現行の被覆宣言。
+        classify: 偽なら過去の行集合を試す際にS28の現行件数を適用しない。
+    """
     required, _ = deriver.derive_repository_game_end_required_set(root)
     descriptor = _document(root, "input_axes_descriptor_v1.json")
     values = representative_selection.axis_values(
@@ -778,9 +1020,38 @@ def _game_end_measure(
     row_by_branch = {row["branchId"]: row for row in rows}
     if len(row_by_branch) != len(rows):
         raise RequiredSetCoverageError("終了判定の行分岐が重複")
-    fixed_by_row = [_fixed_game_end_values(row, game_axes) for row in rows]
+    historical_without_walk_off = not classify and "GAME-END-WALK-OFF" not in row_by_branch
+    clause_requirements = tuple(
+        item for item in required.clause_branch_requirements
+        if not historical_without_walk_off or item.branch_id != "XMARK-01"
+    )
+    branch_register = _document(root, "clause_branch_register_v1.json")
+    related_by_branch = {
+        branch["branchId"]: set(branch["relatedClauseBranchIds"])
+        for branch in branch_register["branches"]
+    }
+    x_mark_expectations = {
+        item["branchId"]: item
+        for item in declaration["step95DecisionProperties"]["xMark"]["expectedByBranch"]
+    }
+
+    def represented_related_branches(row: dict[str, Any]) -> set[str]:
+        """台帳の下位分岐を規範行のX表記と典拠で照合する。"""
+        branch_id = row["branchId"]
+        expected = x_mark_expectations.get(branch_id)
+        if expected is None or row["decision"]["xMark"] != expected["value"]:
+            return set()
+        return {
+            related for related in related_by_branch.get(branch_id, set())
+            if related.startswith("XMARK-")
+            and f"req:{related}" in expected["clauseIds"]
+        }
+    fixed_by_row = [_fixed_game_end_alternatives(row, game_axes) for row in rows]
     fixed_values = {
-        (axis, value) for fixed in fixed_by_row for axis, value in fixed.items()
+        (axis, value)
+        for alternatives in fixed_by_row
+        for fixed in alternatives
+        for axis, value in fixed.items()
     }
     all_values = {
         (axis, _game_end_identity(value))
@@ -805,29 +1076,44 @@ def _game_end_measure(
     if len(declared_values) != len(raw_missing) or not declared_values <= all_values:
         raise RequiredSetCoverageError("終了規則軸値宣言が重複または値域外")
     # 行が増えて固定した軸値は宣言から自動的に消える。新しい未固定値は赤にする。
-    effective_missing = declared_values & missing_values
-    if effective_missing != missing_values:
+    effective_missing = declared_values & missing_values if classify else missing_values
+    if classify and effective_missing != missing_values:
         raise RequiredSetCoverageError("未固定の終了規則軸値がexact-set不一致")
 
     def rows_for(targets: tuple[tuple[str, str], ...]) -> list[dict[str, Any]]:
         return [
-            row for row, fixed in zip(rows, fixed_by_row, strict=True)
-            if all(fixed.get(axis) == value for axis, value in targets if axis in game_axes)
+            row for row, alternatives in zip(rows, fixed_by_row, strict=True)
+            if any(
+                all(fixed.get(axis) == value for axis, value in targets if axis in game_axes)
+                for fixed in alternatives
+            )
         ]
 
-    def reachable_coordinate(row: dict[str, Any], axis: str, identity: str) -> bool:
-        if axis not in values:
+    def reachable_coordinate(
+        row: dict[str, Any], game_axis: str, game_identity: str,
+        axis: str, identity: str,
+    ) -> bool:
+        if axis not in values or game_axis not in values:
             return False
         target = next(
             (value for value in values[axis] if _game_end_identity(value) == identity),
             None,
         )
-        if target is None:
+        game_target = next(
+            (value for value in values[game_axis]
+             if _game_end_identity(value) == game_identity),
+            None,
+        )
+        if target is None or game_target is None:
             return False
-        predicate = {
+        predicate = representative_selection.reachable_predicate({
             "op": "and",
-            "args": [row["precondition"], {"op": "eq", "axisId": axis, "value": target}],
-        }
+            "args": [
+                row["precondition"],
+                {"op": "eq", "axisId": game_axis, "value": game_target},
+                {"op": "eq", "axisId": axis, "value": target},
+            ],
+        }, descriptor["gameEndCombinationRules"]["unreachablePairs"])
         axes = [
             candidate for candidate in values
             if candidate in representative_selection.predicate_axes(predicate)
@@ -843,6 +1129,8 @@ def _game_end_measure(
     required_ids: set[tuple[str, ...]] = {
         tuple(item.identity) for item in required.requirements
     }
+    if historical_without_walk_off:
+        required_ids.discard(("clause-branch", "XMARK-01"))
     reachable: set[tuple[str, ...]] = set()
     for item in required.pairwise_requirements:
         if rows_for(((item.left_axis_id, item.left_value_identity),
@@ -850,11 +1138,15 @@ def _game_end_measure(
             reachable.add(item.identity)
     for item in required.boundary_coordinate_requirements:
         candidates = rows_for(((item.game_end_axis_id, item.game_end_value_identity),))
-        if any(reachable_coordinate(row, item.coordinate_axis_id,
-                                    item.coordinate_value_identity) for row in candidates):
+        if any(reachable_coordinate(
+            row, item.game_end_axis_id, item.game_end_value_identity,
+            item.coordinate_axis_id, item.coordinate_value_identity,
+        ) for row in candidates):
             reachable.add(item.identity)
-    for item in required.clause_branch_requirements:
-        if item.branch_id in row_by_branch:
+    for item in clause_requirements:
+        if item.branch_id in row_by_branch or any(
+            item.branch_id in represented_related_branches(row) for row in rows
+        ):
             reachable.add(item.identity)
     invalid_ids: set[tuple[str, ...]] = {
         tuple(item.identity) for item in required.invalid_boundary_requirements
@@ -877,7 +1169,9 @@ def _game_end_measure(
         raise RequiredSetCoverageError("条文分岐の未充足宣言がない")
     if not all(
         isinstance(item, dict)
-        and set(item) == {"branchId", "gapId"}
+        and set(item) in ({"branchId", "gapId"}, {
+            "branchId", "gapId", "crossLayerResolution"
+        })
         and isinstance(item["branchId"], str)
         and isinstance(item["gapId"], str)
         for item in raw_branches
@@ -889,8 +1183,36 @@ def _game_end_measure(
     }
     if len(branch_gap) != len(raw_branches):
         raise RequiredSetCoverageError("条文分岐の未充足宣言が重複または不正")
+    cross_layer = [
+        item for item in raw_branches if "crossLayerResolution" in item
+    ]
+    if len(cross_layer) != 1 or cross_layer[0]["branchId"] != "DRAW-05":
+        raise RequiredSetCoverageError("DRAW-05の状況判定への結び付けが不正")
+    resolution = cross_layer[0]["crossLayerResolution"]
+    if resolution != {
+        "layer": "operationRows",
+        "caseId": "ST-OPERATION-e6c67c06707d5759",
+        "mappingVersion": "branch_row_mapping_v1",
+    }:
+        raise RequiredSetCoverageError("DRAW-05の状況判定の行参照が不正")
+    state_contract = _document(root, "state_transition_contract_v1.json")
+    mapping = _document(root, "branch_row_mapping_v1.json")
+    state_cases = [
+        case for case in state_contract["cases"]
+        if case["caseId"] == resolution["caseId"]
+    ]
+    mapped = [
+        item for item in mapping["mappings"] if item["branchId"] == "DRAW-05"
+    ]
+    if (
+        len(state_cases) != 1 or len(mapped) != 1
+        or state_cases[0]["rowRef"] != mapped[0]["rowRef"]
+        or state_cases[0]["inputCoordinate"].get("state.score") != "tie"
+        or state_cases[0]["expected"].get("operationResult") != "applied"
+    ):
+        raise RequiredSetCoverageError("DRAW-05の状況判定ケースが不正")
     missing_branches = {
-        item.branch_id for item in required.clause_branch_requirements
+        item.branch_id for item in clause_requirements
         if item.identity not in reachable
     }
     if set(branch_gap) != missing_branches:
@@ -900,7 +1222,7 @@ def _game_end_measure(
     if len(gaps) != len(register["gaps"]):
         raise RequiredSetCoverageError("GAP IDが重複")
     requirement_by_branch = {
-        item.branch_id: item for item in required.clause_branch_requirements
+        item.branch_id: item for item in clause_requirements
     }
     for branch, gap_id in branch_gap.items():
         gap = gaps.get(gap_id)
@@ -924,8 +1246,10 @@ def _game_end_measure(
         target = (item.game_end_axis_id, item.game_end_value_identity)
         candidates = rows_for((target,))
         if target in effective_missing or not candidates or not any(
-            reachable_coordinate(row, item.coordinate_axis_id,
-                                 item.coordinate_value_identity) for row in candidates
+            reachable_coordinate(
+                row, item.game_end_axis_id, item.game_end_value_identity,
+                item.coordinate_axis_id, item.coordinate_value_identity,
+            ) for row in candidates
         ):
             rule_excluded.add(item.identity)
     rule_excluded.update(("clause-branch", branch) for branch in branch_gap)
@@ -936,6 +1260,13 @@ def _game_end_measure(
         "onNewRow": "intersect-declared-values-with-currently-unfixed-values",
     }:
         raise RequiredSetCoverageError("規則による到達不可集合がexact-set不一致")
+    classified = (
+        _classify_game_end_unreachable(
+            declaration, actual_unreachable, effective_missing, descriptor
+        ) if classify else {
+            "unreachable": len(actual_unreachable), "requirementsImpossible": 0
+        }
+    )
 
     observed: set[tuple[str, ...]] = set()
     for case in cases:
@@ -976,11 +1307,14 @@ def _game_end_measure(
                 observed.add(item.identity)
         if ("clause-branch", row["branchId"]) in required_ids:
             observed.add(("clause-branch", row["branchId"]))
+        for related in represented_related_branches(row):
+            if ("clause-branch", related) in required_ids:
+                observed.add(("clause-branch", related))
     if not observed <= reachable:
         raise RequiredSetCoverageError("終了判定ケースが到達不可要求を充足した")
     counts = {
         "total": len(required_ids), "reachable": len(reachable),
-        "unreachable": len(actual_unreachable), "invalid": len(invalid_ids),
+        **classified, "invalid": len(invalid_ids),
         "covered": len(observed), "cases": len(cases),
     }
     return counts, actual_unreachable, reachable, observed
@@ -1014,18 +1348,18 @@ def _check_game_end_decision_properties(
         raise RequiredSetCoverageError("終了判定decision schemaが不正")
     x_mark = policy["xMark"]
     if not isinstance(x_mark, dict) or set(x_mark) != {
-        "status", "decisionField", "clauseIds", "searchedScope",
-        "observedDecisionFields", "reason"
-    } or x_mark["status"] != "not-represented-in-decision" or x_mark[
+        "status", "decisionField", "targetCell", "clauseIds", "enumValues",
+        "observedDecisionFields", "expectedByBranch", "remainingGap"
+    } or x_mark["status"] != "represented-in-decision" or x_mark[
         "decisionField"
-    ] is not None or set(x_mark["observedDecisionFields"]) != set(
-        schema_fields
-    ) or not isinstance(x_mark["reason"], str) or not x_mark["reason"]:
-        raise RequiredSetCoverageError("X表記の出力不在宣言が実測と不一致")
-    if not isinstance(x_mark["searchedScope"], list) or not x_mark[
-        "searchedScope"
-    ] or not all(isinstance(item, str) and item for item in x_mark["searchedScope"]):
-        raise RequiredSetCoverageError("X表記の調査範囲が不正")
+    ] != "xMark" or x_mark["targetCell"] != "直近に完了した表に対応する裏の得点セル" or set(
+        x_mark["observedDecisionFields"]
+    ) != set(schema_fields) or x_mark["enumValues"] != [
+        "recorded-score", "x-mark", "blank"
+    ] or schema_fields.get("xMark", {}).get("enum") != x_mark[
+        "enumValues"
+    ] or not isinstance(x_mark["remainingGap"], str) or not x_mark["remainingGap"]:
+        raise RequiredSetCoverageError("X表記の出力宣言がschemaと不一致")
     requirements = (root / "docs/requirements/requirements-pitchlog-2026-07-22.md").read_text(
         encoding="utf-8"
     )
@@ -1040,7 +1374,19 @@ def _check_game_end_decision_properties(
         row["branchId"] for row in rows
     }:
         raise RequiredSetCoverageError("分岐別の出力宣言がexact-set不一致")
-    for item in [automatic, x_mark, *branches]:
+    x_expectations = x_mark["expectedByBranch"]
+    if not isinstance(x_expectations, list) or not all(
+        isinstance(item, dict) and set(item) == {
+            "branchId", "value", "clauseIds", "basis"
+        } and isinstance(item["basis"], str) and item["basis"]
+        and item["value"] in x_mark["enumValues"]
+        for item in x_expectations
+    ):
+        raise RequiredSetCoverageError("X表記の分岐別期待値が不正")
+    x_by_branch = {item["branchId"]: item for item in x_expectations}
+    if len(x_by_branch) != len(x_expectations) or set(x_by_branch) != set(by_branch):
+        raise RequiredSetCoverageError("X表記の分岐別期待値がexact-set不一致")
+    for item in [automatic, x_mark, *branches, *x_expectations]:
         clause_ids = item.get("clauseIds")
         if not isinstance(clause_ids, list) or not clause_ids or not all(
             isinstance(source, str) and source.startswith("req:")
@@ -1049,6 +1395,11 @@ def _check_game_end_decision_properties(
             raise RequiredSetCoverageError("ステップ95の条文典拠が不正")
     for row in rows:
         branch = by_branch[row["branchId"]]
+        x_expected = x_by_branch[row["branchId"]]
+        if row["decision"]["xMark"] != x_expected["value"]:
+            raise RequiredSetCoverageError(
+                f"規範行のX表記が典拠別期待値と不一致: {row['branchId']}"
+            )
         if not set(row["sourceClauseIds"]) <= set(branch["clauseIds"]):
             raise RequiredSetCoverageError("分岐別の出力宣言の典拠が規範行と不一致")
         for field in ("lockFurtherPlayInput", "promptEndDeclaration"):
@@ -1065,6 +1416,8 @@ def _check_game_end_decision_properties(
             )
         if decision[automatic["field"]] is not automatic["expected"]:
             raise RequiredSetCoverageError(f"試合状態が自動遷移する: {case.get('caseId')}")
+        if decision["xMark"] != x_by_branch[case["branchId"]]["value"]:
+            raise RequiredSetCoverageError(f"X表記が分岐別期待値と不一致: {case.get('caseId')}")
         for field in ("lockFurtherPlayInput", "promptEndDeclaration"):
             if decision[field] is not branch[field]:
                 raise RequiredSetCoverageError(
@@ -1210,6 +1563,219 @@ def _check_game_end_validation_errors(
         raise RequiredSetCoverageError("validationErrorsが導出要求とexact-set不一致")
 
 
+def check_derived_axis_cases(
+    contract: dict[str, Any], descriptor: dict[str, Any]
+) -> None:
+    """具体入力の同値性と宣言済み到達不可だけを照合する。"""
+    rules = descriptor["gameEndCombinationRules"]
+    axes = {
+        axis["axisId"]: axis
+        for collection in ("stateTransitionAxes", "gameEndAxes")
+        for axis in descriptor[collection]
+    }
+    observations: dict[tuple[str, str], str] = {}
+    for case in contract["cases"]:
+        raw = case.get("raw")
+        source_input = case.get("derivedSourceInput")
+        if not isinstance(raw, dict) or not isinstance(source_input, dict):
+            raise RequiredSetCoverageError("DERIVED_INPUT: 具体入力がない")
+        for axis_id in rules["derivedAxisIds"]:
+            derived = axes[axis_id]
+            source_ids = derived["derivedFrom"]["sourceAxisIds"]
+            if set(source_input) != set(source_ids):
+                raise RequiredSetCoverageError("DERIVED_INPUT: 導出元の完全な入力がない")
+            if raw.get("state.half") != source_input.get("state.half"):
+                raise RequiredSetCoverageError("DERIVED_INPUT: 表裏の入力が不一致")
+            cold = source_input.get("gameEnd.coldConditions")
+            label = raw.get("gameEnd.coldConditions")
+            if not isinstance(cold, list) or label != f"tier-count:{len(cold)}":
+                raise RequiredSetCoverageError("DERIVED_INPUT: コールド段の入力が不一致")
+            if any(
+                not isinstance(tier, dict)
+                or set(tier) != {"pointDifference", "startInning"}
+                or any(type(value) is not int or value < 1 for value in tier.values())
+                for tier in cold
+            ):
+                raise RequiredSetCoverageError("DERIVED_INPUT: 段の具体入力が不正")
+            regulation = raw.get("gameEnd.regulationInnings")
+            if type(regulation) is not int or any(
+                tier["startInning"] > regulation for tier in cold
+            ):
+                raise RequiredSetCoverageError(
+                    "COLD_RULE_SAVE: 規定回を超えるコールド適用回は保存できない"
+                )
+            score = source_input.get("state.score")
+            if (
+                type(source_input.get("state.inning")) is not int
+                or not isinstance(score, dict)
+                or set(score) != {"home", "away"}
+                or any(type(value) is not int or value < 0 for value in score.values())
+            ):
+                raise RequiredSetCoverageError("DERIVED_INPUT: 状態の具体入力が不正")
+            if axis_id not in raw:
+                raise RequiredSetCoverageError("DERIVED_INPUT: 派生値がない")
+            full_input = {
+                source_id: source_input[source_id] for source_id in source_ids
+            }
+            # 具体入力のキーはASCIIの固定フィールドと整数だけで構成される。
+            key = (
+                axis_id,
+                json.dumps(full_input, ensure_ascii=True, sort_keys=True, separators=(",", ":")),
+            )
+            value = _game_end_identity(raw[axis_id])
+            previous = observations.setdefault(key, value)
+            if previous != value:
+                raise RequiredSetCoverageError(
+                    f"DERIVED_FUNCTION: 同じ完全入力から異なる派生値: {axis_id}"
+                )
+        for pair in rules["derivedUnreachablePairs"]:
+            if (
+                raw.get(pair["sourceAxisId"]) == pair["sourceValue"]
+                and raw.get(pair["derivedAxisId"]) == pair["derivedValue"]
+            ):
+                raise RequiredSetCoverageError(
+                    f"DERIVED_UNREACHABLE: 到達不可の組合せがcaseにある: {case['caseId']}"
+                )
+        for pair in rules["unreachablePairs"]:
+            if (
+                raw.get(pair["leftAxisId"]) == pair["leftValue"]
+                and raw.get(pair["rightAxisId"]) == pair["rightValue"]
+            ):
+                raise RequiredSetCoverageError(
+                    f"UNREACHABLE_PAIR: 到達不可の組合せがcaseにある: {case['caseId']}"
+                )
+
+
+def check_game_end_concrete_case_consistency(contract: dict[str, Any]) -> None:
+    """具体入力が同じcaseの期待値と、終了局面の境界を照合する。
+
+    Args:
+        contract: 終了判定契約。
+
+    Raises:
+        RequiredSetCoverageError: ラベルの実値や期待値が矛盾する場合。
+    """
+    observations: dict[str, dict[str, Any]] = {}
+    for case in contract["cases"]:
+        coordinate = case.get("normalized")
+        source = case.get("derivedSourceInput")
+        decision = case.get("decision")
+        if not isinstance(coordinate, dict) or not isinstance(source, dict):
+            raise RequiredSetCoverageError("CONCRETE_INPUT: caseの具体入力がない")
+        if coordinate.get("state.inning") == "L+1" and coordinate.get(
+            "gameEnd.extensionLimit"
+        ) == "finite:R+1":
+            regulation = coordinate.get("gameEnd.regulationInnings")
+            if type(regulation) is not int or source.get("state.inning") != regulation + 2:
+                raise RequiredSetCoverageError("CONCRETE_INNING: L+1の実入力が不一致")
+        if case.get("branchId") == "GAME-END-NORMAL" and coordinate.get(
+            "state.score"
+        ) not in {"away-lead:M+1", "away-lead:M", "away-lead:M-1"}:
+            raise RequiredSetCoverageError("NORMAL_SCORE: 先攻リードでない通常終了")
+        if case.get("branchId") in {
+            "GAME-END-NORMAL", "GAME-END-EXTRA-CONTINUE", "GAME-END-LIMIT-DRAW"
+        } and any(
+            coordinate.get(axis) != value
+            for axis, value in (
+                ("state.outs", 0),
+                ("state.runners", "empty"),
+                ("state.count.strikes", 0),
+                ("state.count.balls", 0),
+            )
+        ):
+            raise RequiredSetCoverageError(
+                "POST_TURN_STATE: 攻守交代直後の状態で判定しないcaseがある"
+            )
+        if case.get("branchId") == "XMARK-02" and coordinate.get(
+            "gameEnd.extensionLimit"
+        ) == "finite:R+1":
+            raise RequiredSetCoverageError("XMARK_EXTENSION: 延長回の表で後攻はリードしない")
+        if case.get("branchId") == "GAME-END-WALK-OFF" and any(
+            coordinate.get(axis) != value
+            for axis, value in (
+                ("state.outs", 0),
+                ("state.runners", "empty"),
+                ("event.operationPayload", "not-applicable"),
+                ("event.perPitch.pitchEventKind", "pitch-event"),
+                ("event.perPitch.runnerEventPayload", "not-required"),
+                ("event.perPitch.runnerAdvanceOverridesByRunner", "not-applied"),
+                ("event.perPitch.thirdOutTimingByRunner", "not-required"),
+                ("event.perPitch.interferenceRuling", "not-required"),
+                ("event.perPitch.officialScoringPayload", "no-error"),
+                ("event.perPitch.rbi.doublePlayRelayError", "not-required"),
+                ("event.perPitch.rbi.runnerContinuityByRunner", "not-required"),
+                ("event.perPitch.rbi.wouldScoreWithoutErrorByRunner", "not-required"),
+            )
+        ):
+            raise RequiredSetCoverageError("WALKOFF_MODIFIERS: 得点が変わる修飾子を持つ")
+        if isinstance(decision, dict) and decision.get("xMark") == "x-mark" and any(
+            coordinate.get(axis) != value
+            for axis, value in (
+                ("state.outs", 0),
+                ("state.runners", "empty"),
+                ("state.count.strikes", 0),
+                ("state.count.balls", 0),
+            )
+        ):
+            raise RequiredSetCoverageError("XMARK_STARTED: 開始済みの裏にX表記")
+        concrete = {**coordinate, **source}
+        key = json.dumps(concrete, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+        previous = observations.setdefault(key, decision)
+        if previous != decision:
+            raise RequiredSetCoverageError("CASE_FUNCTION: 同じ具体入力の期待値が不一致")
+
+
+def check_state_derived_axis_cases(
+    contract: dict[str, Any], descriptor: dict[str, Any]
+) -> None:
+    """状況判定の派生軸を具体入力の関数性と到達不可宣言で照合する。"""
+    coverage = descriptor["inputCoordinateCoverage"]
+    axes = {axis["axisId"]: axis for axis in descriptor["stateTransitionAxes"]}
+    observations: dict[tuple[str, str], str] = {}
+    for case in contract["cases"]:
+        coordinate = case.get("inputCoordinate")
+        if not isinstance(coordinate, dict):
+            raise RequiredSetCoverageError("DERIVED_INPUT: 入力座標がない")
+        for axis_id in coverage["derivedAxisIds"]:
+            if axis_id not in coordinate:
+                continue
+            source_ids = axes[axis_id]["derivedFrom"]["sourceAxisIds"]
+            history_input = case.get("historyInput")
+            before = history_input.get("before") if isinstance(history_input, dict) else None
+            state_fields = before.get("stateFields") if isinstance(before, dict) else None
+            source_input = {}
+            for source_id in source_ids:
+                if source_id.startswith("state."):
+                    if not isinstance(state_fields, dict) or source_id not in state_fields:
+                        raise RequiredSetCoverageError("DERIVED_INPUT: 導出元の状態の実値がない")
+                    source_input[source_id] = state_fields[source_id]
+                elif source_id in coordinate:
+                    source_input[source_id] = coordinate[source_id]
+                else:
+                    raise RequiredSetCoverageError("DERIVED_INPUT: 導出元の完全な入力がない")
+            if set(source_input) != set(source_ids):
+                raise RequiredSetCoverageError("DERIVED_INPUT: 導出元の完全な入力がない")
+            if axis_id not in case.get("raw", {}):
+                raise RequiredSetCoverageError("DERIVED_INPUT: 派生値がrawにない")
+            key = (axis_id, json.dumps(
+                source_input, ensure_ascii=True, sort_keys=True, separators=(",", ":")
+            ))
+            value = _game_end_identity(coordinate[axis_id])
+            previous = observations.setdefault(key, value)
+            if previous != value:
+                raise RequiredSetCoverageError(
+                    f"DERIVED_FUNCTION: 同じ完全入力から異なる派生値: {axis_id}"
+                )
+        for pair in coverage["derivedUnreachablePairs"]:
+            if (
+                coordinate.get(pair["sourceAxisId"]) == pair["sourceValue"]
+                and coordinate.get(pair["derivedAxisId"]) == pair["derivedValue"]
+            ):
+                raise RequiredSetCoverageError(
+                    f"DERIVED_UNREACHABLE: 到達不可の組合せがcaseにある: {case['caseId']}"
+                )
+
+
 def _check_game_end_documents(
     root: Path, contract: dict[str, Any], declaration: dict[str, Any],
     record: dict[str, Any],
@@ -1220,47 +1786,89 @@ def _check_game_end_documents(
             "schemaVersion", "version", "exclusionRule", "unfixedGameEndAxisValues",
             "uncoveredClauseBranches", "deferredValidationErrors", "checkerAllowedReadPaths",
             "step94Contraction", "step94UnmetCriteria", "step95DecisionProperties",
-            "normalCaseCounts", "stateTransitionCaseAliases",
+            "normalCaseCounts", "stateTransitionCaseAliases", "step23Unreachability",
+            "unreachableRowSituations", "removedUnreachableCaseIds",
         }
         or declaration.get("schemaVersion") != 1
         or declaration.get("version") != "game_end_coverage_declaration_v1"
     ):
         raise RequiredSetCoverageError("終了判定の除外宣言が不正")
+    row_situations = declaration["unreachableRowSituations"]
+    expected_situation = {
+        "branchId": "XMARK-02",
+        "coordinate": {
+            "gameEnd.extensionLimit": "finite:R+1",
+            "state.inning": "L",
+            "state.half": "bottom",
+            "state.score": "home-lead:M+1",
+        },
+        "clauseIds": ["req:FR-005", "req:DRAW-08", "req:F-1"],
+    }
+    if (
+        not isinstance(row_situations, list)
+        or len(row_situations) != 1
+        or not isinstance(row_situations[0], dict)
+        or {key: row_situations[0].get(key) for key in expected_situation}
+        != expected_situation
+        or not isinstance(row_situations[0].get("basis"), str)
+        or not row_situations[0]["basis"]
+        or set(row_situations[0]) != {*expected_situation, "basis"}
+    ):
+        raise RequiredSetCoverageError("XMARK_EXTENSION: 到達不可局面の宣言が不正")
+    if any(
+        case.get("branchId") == "XMARK-02"
+        and all(case.get("normalized", {}).get(axis) == value
+                for axis, value in expected_situation["coordinate"].items())
+        for case in contract["cases"]
+    ):
+        raise RequiredSetCoverageError("XMARK_EXTENSION: 到達不可局面がcaseにある")
     rows = contract.get("decisionRows", [])
-    if any(row["decision"]["outcome"] == "walk-off" for row in rows):
-        raise RequiredSetCoverageError("ステップ94の前提に反するwalk-off行がある")
+    walk_off_rows = [row for row in rows if row["decision"]["outcome"] == "walk-off"]
+    if len(walk_off_rows) != 1 or walk_off_rows[0]["branchId"] != "GAME-END-WALK-OFF":
+        raise RequiredSetCoverageError("walk-off行が台帳の5つ目の役割と一致しない")
     if {row["branchId"] for row in rows if row["branchId"].startswith("COLD-")} != {
-        "COLD-08"
+        "COLD-08", "COLD-09"
     }:
         raise RequiredSetCoverageError("ステップ94のCOLD行集合が不正")
     branch_register = _document(root, "clause_branch_register_v1.json")
-    if branch_register.get("branchCount") != 68 or any(
-        "walk-off" in branch["branchId"].lower()
-        for branch in branch_register["branches"]
+    if (
+        branch_register.get("branchCount") != 69
+        or branch_register.get("gameEndOutcomeBranches", {}).get("walkOff")
+        != walk_off_rows[0]["branchId"]
+        or not any(
+            branch["branchId"] == walk_off_rows[0]["branchId"]
+            and branch["sourceClauseIds"] == walk_off_rows[0]["sourceClauseIds"]
+            for branch in branch_register["branches"]
+        )
     ):
-        raise RequiredSetCoverageError("ステップ94のサヨナラ分岐不在の前提が変わった")
+        raise RequiredSetCoverageError("walk-off行の台帳役割が不正")
     descriptor = _document(root, "input_axes_descriptor_v1.json")
     axes = {axis["axisId"] for axis in descriptor["gameEndAxes"]}
     values = representative_selection.axis_values(descriptor, ("gameEndAxes",))
     all_values = {
         (axis, _game_end_identity(value)) for axis in axes for value in values[axis]
     }
+    historical_axes = axes - {"gameEnd.satisfiedColdTierCount"}
+    historical_values = all_values - {
+        ("gameEnd.satisfiedColdTierCount", _game_end_identity(value))
+        for value in values["gameEnd.satisfiedColdTierCount"]
+    } - {("gameEnd.coldConditions", _game_end_identity("tier-count:2"))}
     first_four_fixed = {
         (axis, value)
         for row in rows[:4]
-        for axis, value in _fixed_game_end_values(row, axes).items()
+        for axis, value in _fixed_game_end_values(row, historical_axes).items()
     }
     current_fixed = {
         (axis, value)
-        for row in rows
-        for axis, value in _fixed_game_end_values(row, axes).items()
+        for row in rows[:5]
+        for axis, value in _fixed_game_end_values(row, historical_axes).items()
     }
-    before_unfixed = all_values - first_four_fixed
-    after_unfixed = all_values - current_fixed
+    before_unfixed = historical_values - first_four_fixed
+    after_unfixed = historical_values - current_fixed
     removed = before_unfixed - after_unfixed
     if declaration.get("step94Contraction") != {
         "beforeRowCount": 4,
-        "afterRowCount": len(rows),
+        "afterRowCount": 5,
         "beforeUnfixedCount": len(before_unfixed),
         "afterUnfixedCount": len(after_unfixed),
         "removedAxisValues": [
@@ -1274,9 +1882,9 @@ def _check_game_end_documents(
     }:
         raise RequiredSetCoverageError("ステップ94の未達記録がない")
     for key, status in (
-        ("walkOff", "unmet-no-decision-row"),
-        ("cold09", "unmet-no-decision-row"),
-        ("walkOffScoring", "unverified-no-walk-off-row"),
+        ("walkOff", "resolved-decision-row"),
+        ("cold09", "resolved-decision-row"),
+        ("walkOffScoring", "deferred-to-step32"),
     ):
         item = unmet[key]
         if (
@@ -1298,7 +1906,12 @@ def _check_game_end_documents(
         for field in ("planReference", "currentLocation", "rule", "ordering")
     ):
         raise RequiredSetCoverageError("ステップ94の未達理由または得点規則が欠落")
-    if unmet["walkOff"].get("ownerStep") != 46 or unmet["cold09"].get(
+    if (
+        unmet["walkOff"].get("ownerStep") != 46
+        or unmet["walkOff"].get("resolutionStep") != 25
+        or unmet["walkOff"].get("resolvedBranchId") != walk_off_rows[0]["branchId"]
+        or not any(case["branchId"] == walk_off_rows[0]["branchId"] for case in contract["cases"])
+    ) or unmet["cold09"].get(
         "ownerStage"
     ) != 2 or unmet["walkOffScoring"].get("sourceClauseId") != "req:A-1":
         raise RequiredSetCoverageError("ステップ94の未達事項の典拠・送り先が不正")
@@ -1308,9 +1921,13 @@ def _check_game_end_documents(
     expander_policy = expand_game_end_cases.dependency_checker.load_policy(root)
     if trace.observed_read_paths != expander_policy.expanders["game-end-cases"].allowed_read_paths:
         raise RequiredSetCoverageError("終了判定展開器のallowedReadPathsが実測と不一致")
-    normalization_fields = {"raw", "normalizationRuleId", "normalized"}
+    normalization_fields = {
+        "raw", "normalizationRuleId", "normalized", "derivedSourceInput"
+    }
     if not isinstance(contract.get("cases"), list) or len(contract["cases"]) != len(generated):
         raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
+    check_derived_axis_cases(contract, descriptor)
+    check_game_end_concrete_case_consistency(contract)
     for case, expanded in zip(contract["cases"], generated, strict=True):
         if case["inputCoordinate"] != case["normalized"]:
             raise RequiredSetCoverageError("終了判定ケースが代表値展開の正規形と不一致")
@@ -1322,45 +1939,54 @@ def _check_game_end_documents(
         if set(case) != (set(expanded) | normalization_fields) or projection != expanded:
             raise RequiredSetCoverageError("終了判定ケースが代表値展開と不一致")
     counts, _, reachable, observed = _game_end_measure(root, contract, declaration)
-    baseline = {**contract, "cases": contract["cases"][:4]}
-    before, _, _, before_observed = _game_end_measure(root, baseline, declaration)
-    previous_cases = [
-        case for case in contract["cases"]
-        if case["branchId"] in {row["branchId"] for row in rows[:4]}
-    ]
-    previous, _, _, previous_observed = _game_end_measure(
-        root, {**contract, "cases": previous_cases}, declaration
-    )
-
-    def snapshot(case_count: int, identities: set[tuple[str, ...]]) -> dict[str, Any]:
-        encoded = json.dumps(sorted(identities), ensure_ascii=False, separators=(",", ":"))
-        return {
-            "caseCount": case_count, "coveredCount": len(identities),
-            "coveredDigest": "sha256:" + hashlib.sha256(encoded.encode()).hexdigest(),
-        }
-
-    if record != {
-        "schemaVersion": 1, "version": "game_end_input_coverage_v1",
-        "currentStep": 94,
-        "basis": "game_end_contract_v1.cases and independently derived gameEnd.requiredSet",
-        "history": [
-            {
-                "step": 93,
-                "baselineCaseIds": [case["caseId"] for case in baseline["cases"]],
-                "before": snapshot(before["cases"], before_observed),
-                "after": snapshot(previous["cases"], previous_observed),
-            },
-            {
-                "step": 94,
-                "baselineCaseIds": [case["caseId"] for case in previous_cases],
-                "before": snapshot(previous["cases"], previous_observed),
-                "after": snapshot(counts["cases"], observed),
-            },
-        ],
+    # 過去8件は受理済みの記録として保持し、この変更の測定だけを1件追記する。
+    # 新軸の追加後に旧descriptorでの要求集合を現行軸へ再解釈しない。
+    history = record.get("history") if isinstance(record, dict) else None
+    if (
+        not isinstance(history, list)
+        or len(history) != 9
+        or [entry.get("step") for entry in history if isinstance(entry, dict)]
+        != [93, 94, 95, 96, 97, 98, 99, 100, 101]
+        or record.get("currentStep") != 101
+    ):
+        raise RequiredSetCoverageError("終了判定の独立被覆履歴の件数・順序が不正")
+    prior = history[-2]
+    current = history[-1]
+    if any(
+        earlier.get("after") != later.get("before")
+        for earlier, later in zip(history, history[1:])
+    ):
+        raise RequiredSetCoverageError("終了判定の独立被覆記録が連鎖しない")
+    baseline_ids = current.get("baselineCaseIds")
+    previous_baseline_ids = prior.get("baselineCaseIds")
+    current_case_ids = {case["caseId"] for case in contract["cases"]}
+    if (
+        not isinstance(baseline_ids, list)
+        or len(baseline_ids) != prior.get("after", {}).get("caseCount")
+        or set(baseline_ids) != current_case_ids
+        or not isinstance(previous_baseline_ids, list)
+        or len(previous_baseline_ids) != history[-3].get("after", {}).get("caseCount")
+        or not isinstance(declaration["removedUnreachableCaseIds"], list)
+        or declaration["removedUnreachableCaseIds"] != [
+            f"GE-XMARK-02-COVERAGE-{index:03d}" for index in range(34, 67)
+        ]
+        or set(previous_baseline_ids) - current_case_ids
+        != set(declaration["removedUnreachableCaseIds"])
+        or current.get("before") != prior.get("after")
+    ):
+        raise RequiredSetCoverageError("終了判定の独立被覆履歴が直前記録と連鎖しない")
+    encoded = json.dumps(sorted(observed), ensure_ascii=False, separators=(",", ":"))
+    expected_after = {
+        "caseCount": counts["cases"],
+        "coveredCount": len(observed),
+        "coveredDigest": "sha256:" + hashlib.sha256(encoded.encode()).hexdigest(),
+    }
+    if current.get("after") != expected_after or set(current) != {
+        "step", "baselineCaseIds", "before", "after"
     }:
         raise RequiredSetCoverageError("終了判定の独立被覆記録が実測と不一致")
     if observed != reachable:
-        raise RequiredSetCoverageError("ステップ94の到達可能要求が未充足")
+        raise RequiredSetCoverageError("ステップ95の到達可能要求が未充足")
     return counts
 
 

@@ -34,6 +34,7 @@ def _load_module(name: str, path: Path) -> Any:
     return module
 
 
+_load_module("representative_selection", ROOT / "scripts/representative_selection.py")
 checker = _load_module("check_branch_row_mapping", ROOT / "scripts/check_branch_row_mapping.py")
 
 
@@ -56,8 +57,36 @@ def _entry(mapping: dict[str, Any], branch_id: str) -> dict[str, Any]:
 
 
 def test_repository_branch_row_mapping_is_consistent() -> None:
-    """31件のfixture分岐を台帳と実在規範行へ突合する。"""
+    """33件のfixture分岐を台帳と実在規範行へ突合する。"""
     checker.check_repository(ROOT, MAPPING_RELATIVE)
+
+
+def test_draw05_maps_to_tied_game_end_declaration() -> None:
+    """DRAW-05の分岐が同点専用の状況判定操作行を指す。"""
+    mapping = _mapping()
+    entry = _entry(mapping, "DRAW-05")
+    assert entry["rowRef"]["layer"] == "operationRows"
+    assert entry["rowRef"]["coordinate"]["precondition"]["args"][-1] == {
+        "op": "eq", "axisId": "state.score", "value": "tie",
+    }
+    entry["rowRef"]["coordinate"]["precondition"]["args"][-1]["value"] = "away-lead:M+1"
+    with pytest.raises(checker.BranchRowMappingError, match="規範行の座標が一意に実在しない"):
+        checker.check_repository(ROOT, MAPPING_RELATIVE, mapping)
+
+
+def test_walk_off_maps_to_game_end_decision_row() -> None:
+    """サヨナラの手作業fixtureが終了判定の規範行へ結び付く。"""
+    mapping = _mapping()
+    entry = _entry(mapping, "GAME-END-WALK-OFF")
+    assert entry["fixtureRelation"] == "decision-output"
+    assert entry["rowRef"] == {
+        "layer": "decisionRows",
+        "coordinate": {"branchId": "GAME-END-WALK-OFF"},
+    }
+    checker.check_repository(ROOT, MAPPING_RELATIVE, mapping)
+    entry["rowRef"]["coordinate"]["branchId"] = "GAME-END-NORMAL"
+    with pytest.raises(checker.BranchRowMappingError, match="終了判定行自身の分岐IDが不一致"):
+        checker.check_repository(ROOT, MAPPING_RELATIVE, mapping)
 
 
 @pytest.mark.parametrize(

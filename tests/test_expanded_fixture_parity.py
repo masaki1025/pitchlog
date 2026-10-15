@@ -34,9 +34,9 @@ _load_module("check_deriver_dependencies", SCRIPTS / "check_deriver_dependencies
 _load_module("check_expander_dependencies", SCRIPTS / "check_expander_dependencies.py")
 _load_module("representative_selection", SCRIPTS / "representative_selection.py")
 _load_module("state_transition_normalization", SCRIPTS / "state_transition_normalization.py")
+_load_module("check_branch_row_mapping", SCRIPTS / "check_branch_row_mapping.py")
 _load_module("expand_state_transition_cases", SCRIPTS / "expand_state_transition_cases.py")
 _load_module("expand_game_end_cases", SCRIPTS / "expand_game_end_cases.py")
-_load_module("check_branch_row_mapping", SCRIPTS / "check_branch_row_mapping.py")
 checker = _load_module(
     "check_expanded_fixture_parity", SCRIPTS / "check_expanded_fixture_parity.py"
 )
@@ -60,7 +60,10 @@ def _inputs() -> tuple[
     state = _read("state_transition_contract_v1.json")
     game_end = _read("game_end_contract_v1.json")
     expanded_state, _ = checker.expand_state_transition_cases.expand_traced(
-        ROOT, limit=len(state["matrixRows"])
+        ROOT,
+        limit=len(state["matrixRows"]),
+        operation_limit=len(state["operationRows"]),
+        undo_limit=len(state["undoRows"]),
     )
     expanded_game_end, _ = checker.expand_game_end_cases.expand_traced(
         ROOT, limit=len(game_end["decisionRows"])
@@ -74,12 +77,25 @@ def _entry(mapping: dict[str, Any], branch_id: str) -> dict[str, Any]:
 
 
 def test_repository_matches_all_twenty_positive_and_eleven_negative_branches() -> None:
-    """20件の完全一致と11件の違反集合を確認する。"""
+    """21件の完全一致と11件の違反集合を確認する。"""
     mapping = _read("branch_row_mapping_v1.json")
     matched, violations = checker.check_repository(ROOT)
     assert matched == mapping["expectedPositiveMatches"]
     assert len(violations) == mapping["expectedNegativeMatches"]
     assert violations["XC-10"] == _entry(mapping, "XC-10")["expectedViolationIds"]
+
+
+def test_legacy_game_end_projection_keeps_existing_coordinates_exact() -> None:
+    """旧fixtureの既存座標は照合し、未知の追加座標も隠さない。"""
+    fixture = {"state.score": "away-lead:M+1"}
+    expanded = {**fixture, "state.outs": 0}
+    assert checker._legacy_game_end_coordinate(fixture, expanded) == fixture
+
+    wrong_score = {**expanded, "state.score": "home-lead:M+1"}
+    assert checker._legacy_game_end_coordinate(fixture, wrong_score) != fixture
+
+    unexpected_axis = {**expanded, "unexpected.axis": "value"}
+    assert checker._legacy_game_end_coordinate(fixture, unexpected_axis) != fixture
 
 
 @pytest.mark.parametrize(
