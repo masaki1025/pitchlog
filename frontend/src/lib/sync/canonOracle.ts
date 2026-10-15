@@ -490,11 +490,14 @@ export const CANON_IDEMPOTENCY_OUT_OF_SCOPE = {
     { id: 'B5', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
     { id: 'B6', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
     { id: 'B7', reason: 'D1 付き経路の完全な境界結果集合に属するため' },
-    { id: 'B3a', reason: 'T9 の保存を伴い TSK-330 が受け取るため' },
+    {
+      id: 'B3a',
+      reason: 'T9 の保存を伴い TSK-391(サーバーの適用核)が受け取るため',
+    },
     {
       id: 'DI5',
       reason:
-        '混在バッチの A5 を扱い、B3a が T9 の永続化を伴うため TSK-330 の射程とする',
+        '混在バッチの A5 を扱い、B3a が T9 の永続化を伴うため TSK-391(サーバーの適用核)の射程とする',
     },
   ],
   [P3_BOUNDARY_RELATION_ID]: [
@@ -508,11 +511,13 @@ export const CANON_IDEMPOTENCY_OUT_OF_SCOPE = {
     { id: 'B14', reason: 'P3 の完全な境界結果集合に属するため' },
     {
       id: 'I5',
-      reason: '無効化意図の保存・配信を伴い TSK-330 が受け取るため',
+      reason:
+        '無効化意図の保存・配信を伴い TSK-391(サーバーの適用核)が受け取るため',
     },
     {
       id: 'I6',
-      reason: 'P3 受理結果の端末永続化を伴い TSK-330 が受け取るため',
+      reason:
+        'P3 受理結果の端末永続化を伴い、(d) の観測を TSK-391 が受け取るため',
     },
   ],
 } as const satisfies Readonly<

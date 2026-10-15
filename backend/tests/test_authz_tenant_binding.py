@@ -12,7 +12,7 @@ from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 from typing import Any, cast
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -1559,6 +1559,12 @@ def test_repository_base_binds_and_emits_explicit_tenant_predicate(
         tenant_column=_TENANT_BINDING_PROBE.c.tenant_id,
         prepare=lambda _: (cast(Select[Any], _REPOSITORY_PROBE_STATEMENT), {}),
     )
+    test_base = SimpleNamespace(
+        metadata=SimpleNamespace(
+            tables=MappingProxyType({_TENANT_BINDING_PROBE.key: _TENANT_BINDING_PROBE})
+        )
+    )
+    monkeypatch.setattr(repository_base, "Base", test_base)
     monkeypatch.setattr(
         repository_base,
         "_OPERATION_REGISTRY",
