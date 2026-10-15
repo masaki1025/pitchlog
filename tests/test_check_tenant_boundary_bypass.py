@@ -1141,6 +1141,9 @@ def _initialize_test_repository(
         REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary",
         repository / "tests" / "fixtures" / "tenant_boundary",
     )
+    core_areas = repository / ".claude" / "core-areas.json"
+    core_areas.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(REPOSITORY_ROOT / ".claude" / "core-areas.json", core_areas)
     _synchronize_synthetic_authority_identifiers(repository)
     for relative_path in _declared_external_files(repository):
         destination = repository / relative_path
@@ -1934,6 +1937,140 @@ def test_condition_2_patterns_and_adjudications_are_exact_sets() -> None:
         item.symbol: item.reason
         for item in contract.condition2_adjudications
     } == EXPECTED_CONDITION_2_ADJUDICATIONS
+    assert contract.condition2_owner_paths == (
+        "backend/src/pitchlog/sync/*",
+        "backend/src/pitchlog/repositories/sync_apply.py",
+    )
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        "pitchlog/sync/apply.py",
+        "pitchlog/sync/nested/apply.py",
+        "pitchlog/repositories/sync_apply.py",
+    ),
+)
+def test_condition_2_sync_owner_paths_are_green(path: str) -> None:
+    """同期領域にも登録済みの所有パスだけで TB002 を免除する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        "idempotency_key = 1\nis_tombstone = False\ngeneration = 1\n",
+        path=path,
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_condition_2_outside_sync_owner_paths_is_red() -> None:
+    """同期語彙は所有パス外の roster repository で引き続き拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        "idempotency_key = 1\n",
+        path="pitchlog/repositories/roster.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB002"}
+
+
+@pytest.mark.parametrize(
+    "owner_paths",
+    (
+        pytest.param(
+            [
+                "backend/src/pitchlog/sync/*",
+                "backend/src/pitchlog/repositories/sync_apply.py",
+                "backend/src/pitchlog/db/engine.py",
+            ],
+            id="registered-path-added",
+        ),
+        pytest.param(
+            ["backend/src/pitchlog/sync/*"],
+            id="owner-path-removed",
+        ),
+        pytest.param(
+            [
+                "backend/src/pitchlog/sync/*",
+                "backend/src/pitchlog/db/engine.py",
+            ],
+            id="owner-path-replaced",
+        ),
+    ),
+)
+def test_condition_2_owner_paths_must_match_approved_set(
+    owner_paths: list[str],
+) -> None:
+    """登録済みの別パスでも所有集合の追加・欠落・置換を拒否する。"""
+    allowlist = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    condition2 = next(
+        item for item in allowlist["conditions"] if item["condition"] == 2
+    )
+    condition2["owner_paths"] = owner_paths
+    inventory, inventory_bytes = checker._read_json(
+        REPOSITORY_ROOT / checker.DEFAULT_INVENTORY
+    )
+    apis, _, _, _ = checker._load_inventory(inventory)
+
+    with pytest.raises(checker.ContractError, match="承認済みの集合と不一致"):
+        checker._load_allowlist(allowlist, inventory_bytes, apis)
+
+
+def test_condition_2_owner_without_sync_area_registration_is_red(
+    tmp_path: Path,
+) -> None:
+    """core-areas の登録を外すと allowlist の所有宣言だけでは免除しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    configuration = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_CORE_AREAS).read_text(encoding="utf-8")
+    )
+    sync_area = next(
+        area for area in configuration["areas"] if area["id"] == "sync-protocol"
+    )
+    sync_area["paths"].remove("backend/src/pitchlog/sync/*")
+    core_areas_path = tmp_path / checker.DEFAULT_CORE_AREAS
+    core_areas_path.parent.mkdir(parents=True)
+    core_areas_path.write_text(
+        json.dumps(configuration, ensure_ascii=False), encoding="utf-8"
+    )
+    without_registration = replace(
+        contract,
+        sync_protocol_paths=checker._load_sync_protocol_paths(tmp_path),
+    )
+
+    violations = checker.scan_source(
+        "idempotency_key = 1\n",
+        path="pitchlog/sync/apply.py",
+        contract=without_registration,
+    )
+
+    assert {violation.code for violation in violations} == {"TB002"}
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_code"),
+    (
+        ("def can_record():\n    pass\n", "TB001"),
+        ("def read():\n    return responsible_pitcher\n", "TB003"),
+        ("def refresh():\n    return invalidate_cache\n", "TB004"),
+    ),
+)
+def test_other_conditions_still_apply_inside_sync_owner(
+    source: str, expected_code: str
+) -> None:
+    """条件 2 の免除は条件 1・3・4 の検査結果を変えない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/sync/apply.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {expected_code}
 
 
 def test_condition_2_adjudication_requires_a_reason() -> None:

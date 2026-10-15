@@ -473,6 +473,57 @@ class InvalidationIntent(TenantMixin, LifecycleMixin, Base):
             "'shared_total', 'chart')"
         ),
         CheckConstraint("delivery_status IN ('pending', 'delivered')"),
+        CheckConstraint(
+            "target_selector_kind IS NULL OR target_selector_kind IN "
+            "('concrete_game', 'tenant_scope', 'shared_target_tenant')",
+            name="ck_invalidation_intents_selector_values",
+        ),
+        CheckConstraint(
+            "CASE WHEN target_selector_kind IS NULL THEN "
+            "left(intent_id, length('game_delete_restore_or_resume:')) "
+            "<> 'game_delete_restore_or_resume:' ELSE "
+            "left(intent_id, length('game_delete_restore_or_resume:')) "
+            "= 'game_delete_restore_or_resume:' AND intent_id ~ "
+            "'^game_delete_restore_or_resume:"
+            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:"
+            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:"
+            "(match|player_career|team_aggregate|shared_aggregate|analytics_chart)$' "
+            "END",
+            name="ck_invalidation_intents_selector_identity",
+        ),
+        CheckConstraint(
+            "target_selector_kind IS NULL OR CASE split_part(intent_id, ':', 4) "
+            "WHEN 'match' THEN scope_kind = 'game' "
+            "AND target_selector_kind = 'concrete_game' "
+            "AND game_id IS NOT NULL AND game_id::text = split_part(intent_id, ':', 3) "
+            "AND player_id IS NULL AND group_id IS NULL "
+            "AND requesting_tenant_id IS NULL AND target_tenant_id IS NULL "
+            "AND period IS NULL AND chart_kind IS NULL "
+            "WHEN 'player_career' THEN scope_kind = 'player_total' "
+            "AND target_selector_kind = 'tenant_scope' "
+            "AND game_id IS NULL AND player_id IS NULL AND group_id IS NULL "
+            "AND requesting_tenant_id IS NULL AND target_tenant_id IS NULL "
+            "AND period IS NULL AND chart_kind IS NULL "
+            "WHEN 'team_aggregate' THEN scope_kind = 'team_total' "
+            "AND target_selector_kind = 'tenant_scope' "
+            "AND game_id IS NULL AND player_id IS NULL AND group_id IS NULL "
+            "AND requesting_tenant_id IS NULL AND target_tenant_id IS NULL "
+            "AND period IS NULL AND chart_kind IS NULL "
+            "WHEN 'shared_aggregate' THEN scope_kind = 'shared_total' "
+            "AND target_selector_kind = 'shared_target_tenant' "
+            "AND target_tenant_id IS NOT NULL "
+            "AND target_tenant_id IS NOT DISTINCT FROM tenant_id "
+            "AND game_id IS NULL AND player_id IS NULL AND group_id IS NULL "
+            "AND requesting_tenant_id IS NULL AND period IS NULL "
+            "AND chart_kind IS NULL "
+            "WHEN 'analytics_chart' THEN scope_kind = 'chart' "
+            "AND target_selector_kind = 'tenant_scope' "
+            "AND game_id IS NULL AND player_id IS NULL AND group_id IS NULL "
+            "AND requesting_tenant_id IS NULL AND target_tenant_id IS NULL "
+            "AND period IS NULL AND chart_kind IS NULL "
+            "ELSE FALSE END",
+            name="ck_invalidation_intents_selector_shape",
+        ),
         PrimaryKeyConstraint(
             "tenant_id",
             "intent_id",
@@ -500,6 +551,7 @@ class InvalidationIntent(TenantMixin, LifecycleMixin, Base):
     )
     period: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
     chart_kind: Mapped[str | None] = mapped_column(Text, nullable=True)
+    target_selector_kind: Mapped[str | None] = mapped_column(Text, nullable=True)
     delivery_status: Mapped[str] = mapped_column(
         Text, nullable=False, server_default=text("'pending'")
     )
@@ -525,6 +577,7 @@ class InvalidationIntent(TenantMixin, LifecycleMixin, Base):
                 "target_tenant_id",
                 "period",
                 "chart_kind",
+                "target_selector_kind",
             }
         ),
         allowed_update_columns=frozenset({"delivery_status", "delivered_at"}),

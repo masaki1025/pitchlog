@@ -3822,7 +3822,12 @@ def test_step37_p3_invalidation_intent_is_atomic_and_eventually_delivered(
     assert "安定した意図 ID" in failures
     assert "同じ論理無効化" in failures
     assert "故障注入には **T7 確定後・無効化配信前**" in fixture_contract
-    assert "保存済み結果再掲後の意図件数" in fixture_contract
+    # sync-protocol v0.6 で意図を範囲ごとに 1 件とする(data-model v0.10 の B03)。
+    assert "対象範囲ごとに 1 件だけ永続化する" in transaction
+    assert "範囲ごとの安定した意図 ID の全集合" in failures
+    assert "範囲ごとに安定した意図 ID で 1 件だけ永続化" in fixture_contract
+    assert "安定した意図 ID の全集合・各行の永続状態" in fixture_contract
+    assert "保存済み結果再掲後の**範囲ごとの**意図件数" in fixture_contract
     assert "消費側反映状態・配信完了記録状態" in fixture_contract
     assert "同じ安定した意図 ID" in fixture_contract
     assert "p3-invalidation-consumed-before-complete" in fixture_contract

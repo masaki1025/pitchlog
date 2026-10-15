@@ -32,7 +32,7 @@ from pitchlog.repositories.cache_invalidation import (
     build_cache_invalidation_request,
 )
 from pitchlog.repositories.invalidation_intents import (
-    _SCOPE_KIND_BY_SCOPE,
+    SCOPE_KIND_BY_SCOPE,
     InvalidationIntentInsertToken,
     record_invalidation_intent,
 )
@@ -100,12 +100,48 @@ def test_scope_kind_mapping_is_bijective_with_contract_and_ddl() -> None:
     assert len(intent_tables) == 1
     contract_scopes = {CacheScope(item["id"]) for item in asset["scopes"]}
     assert len(asset["scopes"]) == len(contract_scopes) == len(CacheScope) == 5
-    assert set(_SCOPE_KIND_BY_SCOPE) == contract_scopes
-    assert len(set(_SCOPE_KIND_BY_SCOPE.values())) == len(_SCOPE_KIND_BY_SCOPE)
-    assert set(_SCOPE_KIND_BY_SCOPE.values()) == _scope_check_values(migration_checks)
-    assert set(_SCOPE_KIND_BY_SCOPE.values()) == _scope_check_values(
+    assert set(SCOPE_KIND_BY_SCOPE) == contract_scopes
+    assert len(set(SCOPE_KIND_BY_SCOPE.values())) == len(SCOPE_KIND_BY_SCOPE)
+    assert set(SCOPE_KIND_BY_SCOPE.values()) == _scope_check_values(migration_checks)
+    assert set(SCOPE_KIND_BY_SCOPE.values()) == _scope_check_values(
         intent_tables[0]["checks"]
     )
+
+
+def test_delivery_status_vocabulary_matches_contract_and_ddl() -> None:
+    """契約の配信状態と検索列が DDL と同じ語彙を使う。"""
+    asset = json.loads(
+        (
+            _ROOT / "contracts/tenant_boundary/cache-invalidation-contract.json"
+        ).read_text(encoding="utf-8")
+    )
+    migration = ast.parse(
+        (_ROOT / "backend/migrations/versions/0015_invalidation_intents.py").read_text(
+            encoding="utf-8"
+        )
+    )
+    checks = [
+        ast.literal_eval(node.args[0])
+        for node in ast.walk(migration)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "CheckConstraint"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "sa"
+    ]
+    status_checks = [
+        check for check in checks if check.startswith("delivery_status IN (")
+    ]
+    assert len(status_checks) == 1
+    assert (
+        set(asset["durable_intent"]["delivery_states"])
+        == set(re.findall(r"'([^']+)'", status_checks[0]))
+        == {"pending", "delivered"}
+    )
+    assert asset["durable_intent"]["pending_lookup_fields"] == [
+        "tenant_id",
+        "delivery_status",
+    ]
 
 
 def test_intent_token_derives_only_defined_identity() -> None:
@@ -141,6 +177,17 @@ def test_intent_token_derives_only_defined_identity() -> None:
             operation_id,
             CacheScope.MATCH,
         )
+
+
+@pytest.mark.parametrize("future_value", ["sync", "sync:rebuild", "syncX"])
+def test_intent_token_rejects_future_sync_prefixed_trigger(
+    monkeypatch: pytest.MonkeyPatch, future_value: str
+) -> None:
+    """将来の B06 トリガー値が同期意図 ID の接頭辞を奪えない。"""
+    trigger = CacheInvalidationTrigger.ROSTER_STATUS_CHANGE
+    monkeypatch.setattr(trigger, "_value_", future_value)
+    with pytest.raises(ValueError, match="同期意図 ID と衝突"):
+        InvalidationIntentInsertToken(trigger, uuid4(), CacheScope.SHARED_AGGREGATE)
 
 
 def test_intent_recording_rejects_other_tenant_trigger_and_key_shape() -> None:
@@ -218,12 +265,12 @@ def test_roster_status_intent_is_one_tenant_scoped_pending_row(
             "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
             "WHERE conrelid = 'public.invalidation_intents'::regclass "
             "AND contype = 'c' "
-            "AND pg_get_constraintdef(oid) LIKE '%scope_kind%'"
+            "AND conname = 'invalidation_intents_scope_kind_check'"
         )
         scope_checks = [row[0] for row in cursor.fetchall()]
     assert len(scope_checks) == 1
     assert set(re.findall(r"'([^']+)'", scope_checks[0])) == set(
-        _SCOPE_KIND_BY_SCOPE.values()
+        SCOPE_KIND_BY_SCOPE.values()
     )
     assert rows == [
         (
