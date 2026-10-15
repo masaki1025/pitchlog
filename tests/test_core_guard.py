@@ -2803,6 +2803,53 @@ def test_ur1_declaration_allows_only_unregistered_or_complete_suffix() -> None:
         core_guard.validate_area_path_layers(baseline, partial)
 
 
+def test_ur1_actual_path_set_is_guarded_in_both_meaning_areas() -> None:
+    """RG1の製品・認可・試験差分を実登録で記録権と同期へ帰属させる。"""
+    core_guard = load_core_guard_module()
+    configuration = load_actual_core_areas()
+    areas = {area["id"]: area["paths"] for area in configuration["areas"]}
+    rg1_paths = (
+        "backend/src/pitchlog/repositories/rg1.py",
+        "backend/src/pitchlog/repositories/operation_registry.py",
+        "backend/src/pitchlog/authz/classification.py",
+        "backend/src/pitchlog/authz/product_control_access.py",
+        "backend/src/pitchlog/authz/product_table_access.py",
+        "backend/src/pitchlog/authz/product_catalog.py",
+        "backend/src/pitchlog/authz/product_provisioning.py",
+        "backend/src/pitchlog/authz/product_function_acl.py",
+        "backend/tests/test_rg1_lock_contract.py",
+        "contracts/authz/product/ddl-elements.json",
+        "contracts/authz/product/table-classification.json",
+        "contracts/authz/product/exposure-facts.json",
+        "contracts/authz/product/function-bodies/functions/"
+        "FUNCTION:rg1_api:rg1_read_open(uuid).sql",
+        "contracts/tenant_boundary/repository-contract.json",
+        "contracts/tenant_boundary/base-allowlist.json",
+        "scripts/check_authz_catalog.py",
+        "tests/test_check_authz_catalog.py",
+    )
+    sync_paths = (
+        "backend/src/pitchlog/repositories/rg1.py",
+        "backend/src/pitchlog/repositories/operation_registry.py",
+        "backend/tests/test_rg1_lock_contract.py",
+        "contracts/tenant_boundary/repository-contract.json",
+        "contracts/tenant_boundary/base-allowlist.json",
+        "contracts/authz/product/function-bodies/functions/"
+        "FUNCTION:rg1_api:rg1_read_open(uuid).sql",
+    )
+    assert core_guard.matched_paths(rg1_paths, core_guard.load_core_areas(REPO)) == list(
+        rg1_paths
+    )
+    assert all(
+        any(fnmatch.fnmatchcase(path, pattern) for pattern in areas["recording-rights"])
+        for path in rg1_paths
+    )
+    assert all(
+        any(fnmatch.fnmatchcase(path, pattern) for pattern in areas["sync-protocol"])
+        for path in sync_paths
+    )
+
+
 @pytest.mark.parametrize(
     "pattern",
     DOMAIN_CALC_GLOBS,
