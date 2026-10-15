@@ -147,7 +147,13 @@
           "observationPoint": "応答後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  1,
+                  "要操作",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [
@@ -257,7 +263,13 @@
           "observationPoint": "応答後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  1,
+                  "要操作",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [

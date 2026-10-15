@@ -176,7 +176,23 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  5,
+                  "未送信",
+                  null
+                ],
+                [
+                  6,
+                  "未送信",
+                  null
+                ],
+                [
+                  7,
+                  "未送信",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [
@@ -320,7 +336,23 @@
           "observationPoint": "gap 解消後の再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  5,
+                  "同期済み",
+                  null
+                ],
+                [
+                  6,
+                  "同期済み",
+                  null
+                ],
+                [
+                  7,
+                  "要操作",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [

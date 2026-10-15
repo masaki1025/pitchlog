@@ -300,6 +300,8 @@ def test_old_generation_resend_replays_without_current_gap(
     assert isinstance(resend, AckResult)
     assert resend.boundary != "B2"
     assert [(item.d1, item.state) for item in resend.a5] == [(3, "重複")]
+    # ACK の D3 は要求の D4(世代 1)の D3 で、現世代(D3 = 0)を起点に後退しない。
+    assert resend.d3 == 3
 
 
 def test_p4_resend_replays_escrow_with_p4_fingerprint(

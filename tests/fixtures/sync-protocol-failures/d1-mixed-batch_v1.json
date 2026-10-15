@@ -141,7 +141,23 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  1,
+                  "未送信",
+                  null
+                ],
+                [
+                  2,
+                  "未送信",
+                  null
+                ],
+                [
+                  3,
+                  "未送信",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [
@@ -271,7 +287,23 @@
           "observationPoint": "引き継ぎ後の再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  1,
+                  "同期済み",
+                  null
+                ],
+                [
+                  2,
+                  "要操作",
+                  null
+                ],
+                [
+                  3,
+                  "退避済み",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [

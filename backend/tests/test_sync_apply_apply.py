@@ -241,7 +241,9 @@ def test_preflight_classifies_with_operation_fingerprint_before_rights(
     request = _request(2, 1)
     observed: list[str] = []
     columns = tuple(RecordingGeneration.__table__.c.keys())
-    row = tuple(4 if name == "confirmed_watermark" else 0 for name in columns)
+    # 要求の D4 = 1 と同じ現世代の行(旧 D4 の要求ではないので要求世代の read は無い)。
+    values = {"confirmed_watermark": 4, "generation": 1}
+    row = tuple(values.get(name, 0) for name in columns)
 
     class Scope:
         """記録権世代 read だけを実体化する。"""

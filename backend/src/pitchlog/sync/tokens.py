@@ -50,6 +50,15 @@ class RecordingGenerationReadToken(_SyncToken):
 
 
 @dataclass(frozen=True, slots=True)
+class RecordingGenerationByNumberReadToken(_SyncToken):
+    """要求の D4 が指す記録権世代を、失効・退役の有無によらず読む(ACK の D3)。"""
+
+    game_id: UUID
+    generation: int
+    _capability_id = "CAP:recording_generations:read"
+
+
+@dataclass(frozen=True, slots=True)
 class RecordingGenerationLockToken(_SyncToken):
     """試合行の後に記録権世代行をロックする。"""
 

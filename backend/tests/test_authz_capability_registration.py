@@ -1119,7 +1119,7 @@ def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> Non
     assert {
         spec.capability_id for spec in repository_base._OPERATION_REGISTRY.values()
     } == expected
-    assert len(repository_base._OPERATION_REGISTRY) == 42
+    assert len(repository_base._OPERATION_REGISTRY) == 43
     for registration in repository_base._OPERATION_REGISTRY.values():
         statement = registration.statement
         if isinstance(statement, Select) and statement._for_update_arg is not None:

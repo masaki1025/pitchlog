@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 22
+CONTRACT_REVISION = 23
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "26569aaec0c493992cdcef0f1baeaa1322f25029a16f9625136b977a4c87df47"
+SOURCE_DIGEST = "f7ee7abed3fabc75c3d3a4801d88a60196dfe3c7c1cb70adeeeede29172bd112"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -119,6 +119,7 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.sync.tokens.GameReadToken",
     "pitchlog.sync.tokens.GameLockToken",
     "pitchlog.sync.tokens.RecordingGenerationReadToken",
+    "pitchlog.sync.tokens.RecordingGenerationByNumberReadToken",
     "pitchlog.sync.tokens.RecordingGenerationLockToken",
     "pitchlog.sync.tokens.RecordingPrefixUpdateToken",
     "pitchlog.sync.tokens.EventSlotReadToken",

@@ -125,7 +125,12 @@ REQUIRED_SOMEWHERE_FIELD_IDS: Mapping[ApplicationPath | None, tuple[str, ...]] =
     "P4": (),
     "P5": (),
 }
+# 端末のキューは D1 付き経路で意味を持つ(正本 7-2)。クライアント runner が、
+# サーバー runner で確かめた ACK を製品のキュー遷移に通して観測する。P3 は D1 の
+# キューを使わない(受理結果は I6 のフィールド)。
 _CLIENT_SIDE_FIELD_IDS = ("queue", "lock", "acceptanceDisplay", "reinputAvailability")
+# 端末のタブ・ロック・受理表示・再入力可否(クライアント runner の射程外 — ゲートで問う)
+_TAB_FIELD_IDS = ("lock", "acceptanceDisplay", "reinputAvailability")
 # 省略理由を書ける期待フィールド(省略可否だけを経路で条件付きにする — SP 10-3)。
 # サーバー経路の資産で端末側の 4 項目を省けるのは、サーバー側 runner が端末を
 # 観測しないため。tElementCommitment・idempotentResult・recordingRight は
@@ -140,8 +145,8 @@ OMITTABLE_FIELD_IDS: Mapping[ApplicationPath | None, frozenset[str]] = {
             "tElementCommitment",
         )
     ),
-    "P1": frozenset((*_CLIENT_SIDE_FIELD_IDS, *_REPLAY_COUNT_FIELD_IDS)),
-    "P2": frozenset((*_CLIENT_SIDE_FIELD_IDS, *_REPLAY_COUNT_FIELD_IDS)),
+    "P1": frozenset((*_TAB_FIELD_IDS, *_REPLAY_COUNT_FIELD_IDS)),
+    "P2": frozenset((*_TAB_FIELD_IDS, *_REPLAY_COUNT_FIELD_IDS)),
     "P3": frozenset(
         (
             *_CLIENT_SIDE_FIELD_IDS,
@@ -152,8 +157,8 @@ OMITTABLE_FIELD_IDS: Mapping[ApplicationPath | None, frozenset[str]] = {
             *_I6_FIELD_IDS,
         )
     ),
-    "P4": frozenset((*_CLIENT_SIDE_FIELD_IDS, "temporaryIdMapping")),
-    "P5": frozenset((*_CLIENT_SIDE_FIELD_IDS, "temporaryIdMapping")),
+    "P4": frozenset((*_TAB_FIELD_IDS, "temporaryIdMapping")),
+    "P5": frozenset((*_TAB_FIELD_IDS, "temporaryIdMapping")),
 }
 
 # T 要素の内部の保存単位(SP 10-3「tElementCommitment」)。ここにない組は単一値。

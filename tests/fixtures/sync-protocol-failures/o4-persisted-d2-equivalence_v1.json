@@ -130,7 +130,13 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  3,
+                  "未送信",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [
@@ -245,7 +251,13 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  3,
+                  "要操作",
+                  "管理者対応待ち"
+                ]
+              ]
             },
             "d1": {
               "ack": [

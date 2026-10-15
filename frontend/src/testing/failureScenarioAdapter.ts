@@ -3,6 +3,10 @@ import 'fake-indexeddb/auto'
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { cwd } from 'node:process'
+import {
+  createAckAdapterInjections,
+  type D1AckAdapterInput,
+} from '../lib/sync/ackAdapter'
 import { appendUnderQueueDiscipline } from '../lib/sync/clientDiscipline'
 import {
   openDurableQueue,
@@ -10,7 +14,12 @@ import {
   type DurableQueueAppend,
   type DurableQueueScope,
 } from '../lib/sync/durableQueue'
-import { EVENT_SLOT_IDS } from '../lib/sync/eventFieldRules'
+import { EVENT_KIND_SLOT_ID, EVENT_SLOT_IDS } from '../lib/sync/eventFieldRules'
+import { EVENT_KIND_RULES } from '../lib/sync/eventKinds'
+import {
+  B3_CONTENT_BRANCH,
+  B3_REJECTION_KIND,
+} from '../lib/sync/rejectionReason'
 import { queueStateId, type I6Acceptance } from '../lib/sync/queueState'
 import { TARGET_EVENT_REFERENCE_ELEMENTS } from '../lib/sync/syncEvent'
 import {
@@ -41,6 +50,7 @@ export type FailureScenarioExecutionOptions = Readonly<{
   extraPersistence?: boolean
   persistI6BeforeInjection?: boolean
   skipI6Persistence?: boolean
+  skipAckDelivery?: boolean
 }>
 
 const I6_FIELD_IDS = [
@@ -966,24 +976,290 @@ async function runI6BrowserClose(
  * Returns:
  *   担当フィールドだけを持つ、その case の観測結果。
  */
+/** 端末のキューを観測する適用経路(D1 付きのイベントを端末のキューに積む経路)。 */
+const QUEUE_OBSERVED_PATHS: readonly unknown[] = ['P1', 'P2', 'P4', 'P5']
+
+/**
+ * サーバー側の資産の case のうち、このアダプタが観測するフィールドを返す。
+ *
+ * I6 の case は I6 の 6 フィールドを、D1 付き経路の case は端末のキューを観測する。
+ * サーバー側の runner は同じ規則で残りのフィールドを観測する。
+ *
+ * Args:
+ *   contract: 検査済みの故障シナリオ資産。
+ *   caseId: case の ID。
+ *
+ * Returns:
+ *   このアダプタが観測するフィールド(観測しなければ空)。
+ */
+export function clientObservedFieldIds(
+  contract: FailureScenarioContract,
+  caseId: string,
+): readonly string[] {
+  const i6 = CLIENT_OBSERVED_CASES.find(
+    (candidate) =>
+      candidate.scenarioId === contract.scenarioId &&
+      candidate.caseId === caseId,
+  )
+  if (i6) {
+    return i6.fieldIds
+  }
+  const path = contract.input.applicationPath
+  if (
+    path &&
+    Object.hasOwn(path, 'value') &&
+    QUEUE_OBSERVED_PATHS.includes(fieldValue(contract.input, 'applicationPath'))
+  ) {
+    return ['queue']
+  }
+  return []
+}
+
+type QueueEventSpec = Readonly<{
+  d5: string
+  d1: number
+  kind: string
+  registration?: string
+  tombstoneOf?: string
+  revisionOf?: string
+}>
+
+function eventKindName(spec: QueueEventSpec): string {
+  if (spec.registration) {
+    return '選手のその場登録'
+  }
+  if (spec.tombstoneOf) {
+    return '墓標'
+  }
+  return spec.revisionOf ? '改訂版' : '毎球入力'
+}
+
+function queueEventOf(spec: QueueEventSpec): DurableQueueAppend['event'] {
+  const kind = EVENT_KIND_RULES.find(
+    (candidate) => candidate.name === eventKindName(spec),
+  )
+  if (!kind) {
+    throw new Error(`イベント種別がありません: ${spec.kind}`)
+  }
+  return { fields: { [EVENT_KIND_SLOT_ID]: kind.id } }
+}
+
+function requestEvents(contract: FailureScenarioContract): QueueEventSpec[] {
+  const queueInput = recordFieldValue(contract.input, 'queue')
+  const byD1 = new Map<number, QueueEventSpec>()
+  for (const list of [queueInput.unsent, queueInput.restartUnsent]) {
+    for (const candidate of Array.isArray(list) ? list : []) {
+      const spec = requireRecord(candidate, 'queue.unsent') as QueueEventSpec
+      byD1.set(spec.d1, spec)
+    }
+  }
+  return [...byD1.values()].sort((left, right) => left.d1 - right.d1)
+}
+
+/**
+ * サーバー側の runner で確かめた ACK を、端末が受け取ったものとして製品の ACK
+ * アダプタとキュー遷移へ通し、端末のキューの状態を観測する。
+ *
+ * ACK 消失の注入では、最初の観測点の ACK を端末へ届けない。
+ */
+async function runQueueObservation(
+  contract: FailureScenarioContract,
+  testCase: FailureScenarioCase,
+  options: FailureScenarioExecutionOptions,
+): Promise<FailureScenarioCaseResult> {
+  const events = requestEvents(contract)
+  const scope = {
+    game: contract.scenarioId,
+    d4: recordFieldValue(contract.input, 'd4').request,
+  }
+  const allocation = allocatedDatabaseNames.push(contract.scenarioId)
+  const databaseName = `failure-scenario-queue-${contract.scenarioId}-${allocation}`
+  const queue = await openDurableQueue({
+    databaseName,
+    requestStoragePersistence: async () => Boolean(contract.schemaVersion),
+  })
+  const injectionTarget = requireRecord(
+    fieldValue(testCase.faultInjection, 'target'),
+    'faultInjection.target',
+  )
+  // 注入そのものはサーバー側 runner が実行して呼び出し回数を観測する。ここでは
+  // 資産の到達性に合わせて数える(端末側の独立な証拠ではない — worklog)。
+  const reachability = fieldValue(
+    testCase.faultInjection,
+    'expectedReachability',
+  )
+  const injections: unknown[] =
+    reachability === 'unreached' ? [] : [injectionTarget]
+  try {
+    const [first] = events
+    if (!first) {
+      throw new Error('端末のキューに積むイベントがありません')
+    }
+    // 要求より前の D1 は、この試験の観測対象でない既存のキュー行として積む。
+    while ((await queue.readNextD1(scope)) < first.d1) {
+      await queue.append(
+        queue.prepareAppend(appendInput(scope, await queue.readNextD1(scope))),
+      )
+    }
+    for (const spec of events) {
+      while ((await queue.readNextD1(scope)) < spec.d1) {
+        await queue.append(
+          queue.prepareAppend(
+            appendInput(scope, await queue.readNextD1(scope)),
+          ),
+        )
+      }
+      const slot = await queue.append(
+        queue.prepareAppend({
+          scope,
+          d5: spec.d5,
+          version: spec.d5,
+          event: queueEventOf(spec),
+        }),
+      )
+      if (slot.d1 !== spec.d1) {
+        throw new Error('端末のキューの D1 が資産と一致しません')
+      }
+    }
+
+    const results: FailureScenarioObservation[] = []
+    for (const [index, assetObservation] of testCase.observations.entries()) {
+      const ackLost =
+        injectionTarget.kind === 'client' &&
+        injectionTarget.operation === 'ACK の受信' &&
+        !index
+      const d1Field = requireRecord(assetObservation.fields.d1, 'fields.d1')
+      if (!ackLost && !options.skipAckDelivery && Array.isArray(d1Field.ack)) {
+        await deliverAck(queue, scope, events, assetObservation, d1Field)
+      }
+      const states: unknown[] = []
+      for (const spec of events) {
+        const slot = await queue.readSlot(scope, spec.d1)
+        states.push([
+          spec.d1,
+          slot?.state ?? null,
+          slot?.actionRequiredLabel ?? null,
+        ])
+      }
+      results.push(
+        observation(assetObservation.observationPoint, { queue: { states } }),
+      )
+    }
+    return caseResult(testCase, injections, results)
+  } finally {
+    queue.close()
+    await deleteDatabase(databaseName)
+  }
+}
+
+async function deliverAck(
+  queue: DurableQueue,
+  scope: DurableQueueScope,
+  events: readonly QueueEventSpec[],
+  assetObservation: FailureScenarioObservation,
+  d1Field: Record<string, unknown>,
+): Promise<void> {
+  const idempotent = requireRecord(
+    assetObservation.fields.idempotentResult,
+    'fields.idempotentResult',
+  )
+  const ack = d1Field.ack as readonly (readonly [number, string])[]
+  const specByD1 = new Map(events.map((spec) => [spec.d1, spec]))
+  const mapping = assetObservation.fields.temporaryIdMapping
+  const acknowledged =
+    mapping && typeof mapping === 'object' && 'acknowledged' in mapping
+      ? (mapping.acknowledged as string[])
+      : []
+  const registration = events.find((spec) => spec.registration)
+  const boundary = idempotent.boundary
+  const branch = idempotent.b3Branch
+  const injections = createAckAdapterInjections({
+    d1: {
+      envelope: {
+        advancedD3: d1Field.ackD3,
+        eventResults: ack.map(([d1, a5Result]) => ({
+          d4: scope.d4,
+          d1,
+          d5: specByD1.get(d1)?.d5,
+          a5Result,
+        })),
+        ...(acknowledged.length
+          ? {
+              playerIdMappings: acknowledged.map((temporaryId) => ({
+                temporaryId,
+                officialId: `${temporaryId}-official`,
+              })),
+            }
+          : {}),
+      },
+      boundaryResult: boundary,
+      ...(branch
+        ? {
+            b3Rejection:
+              branch === B3_REJECTION_KIND.O4
+                ? {
+                    kind: B3_REJECTION_KIND.O4,
+                    reason: idempotent.responseReason,
+                  }
+                : {
+                    kind: B3_REJECTION_KIND.CONTENT,
+                    branch:
+                      branch === B3_CONTENT_BRANCH.B3A
+                        ? B3_CONTENT_BRANCH.B3A
+                        : B3_CONTENT_BRANCH.B3B,
+                    reason: idempotent.responseReason,
+                  },
+          }
+        : {}),
+      ...(registration?.registration && acknowledged.length
+        ? {
+            playerIdMappingTarget: {
+              eventKind: EVENT_KIND_RULES.find(
+                (candidate) => candidate.name === eventKindName(registration),
+              ),
+              event: queueEventOf(registration),
+              key: {
+                d4: scope.d4,
+                d1: registration.d1,
+                d5: registration.d5,
+              },
+              temporaryId: registration.registration,
+            },
+          }
+        : {}),
+    } as D1AckAdapterInput,
+  })
+  for (const [d1] of ack) {
+    const preparation = await queue.prepareA5Transition(scope, d1, injections)
+    if (preparation) {
+      await queue.persistA5Transition(preparation)
+    }
+  }
+}
+
 export async function executeClientObservedCase(
   contract: FailureScenarioContract,
   caseId: string,
   options: FailureScenarioExecutionOptions = {},
 ): Promise<FailureScenarioResult> {
-  const assigned = CLIENT_OBSERVED_CASES.find(
+  const fieldIds = clientObservedFieldIds(contract, caseId)
+  const testCase = contract.cases.find(
+    (candidate) => candidate.caseId === caseId,
+  )
+  if (!fieldIds.length || !testCase) {
+    throw new Error(`端末を観測する case がありません: ${caseId}`)
+  }
+  const isI6 = CLIENT_OBSERVED_CASES.some(
     (candidate) =>
       candidate.scenarioId === contract.scenarioId &&
       candidate.caseId === caseId,
   )
-  const testCase = contract.cases.find(
-    (candidate) => candidate.caseId === caseId,
-  )
-  if (!assigned || !testCase) {
-    throw new Error(`端末を観測する case がありません: ${caseId}`)
-  }
   return {
     scenarioId: contract.scenarioId,
-    cases: [await runI6BrowserClose(contract, testCase, options)],
+    cases: [
+      isI6
+        ? await runI6BrowserClose(contract, testCase, options)
+        : await runQueueObservation(contract, testCase, options),
+    ],
   }
 }

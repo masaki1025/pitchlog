@@ -531,6 +531,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         ("GameReadToken", "CAP:games:read"),
         ("GameLockToken", "CAP:games:read"),
         ("RecordingGenerationReadToken", "CAP:recording_generations:read"),
+        ("RecordingGenerationByNumberReadToken", "CAP:recording_generations:read"),
         ("RecordingGenerationLockToken", "CAP:recording_generations:read"),
         ("RecordingPrefixUpdateToken", "CAP:recording_generations:update"),
         ("EventSlotReadToken", "CAP:event_slots:read"),

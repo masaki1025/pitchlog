@@ -135,7 +135,13 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "未送信",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": null,
@@ -254,7 +260,13 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "同期済み",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [
@@ -440,7 +452,13 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "未送信",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": null,
@@ -559,7 +577,13 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "同期済み",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [
@@ -745,7 +769,13 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "未送信",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": null,
@@ -864,7 +894,13 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "同期済み",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [
@@ -1050,7 +1086,13 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "未送信",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": null,
@@ -1169,7 +1211,13 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "同期済み",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [
@@ -1355,7 +1403,13 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "未送信",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": null,
@@ -1474,7 +1528,13 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "同期済み",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [
@@ -1660,7 +1720,13 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "未送信",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": null,
@@ -1779,7 +1845,13 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "同期済み",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [
@@ -1965,7 +2037,13 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "未送信",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": null,
@@ -2084,7 +2162,13 @@
           "observationPoint": "再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "同期済み",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [
@@ -2269,7 +2353,13 @@
           "observationPoint": "注入直後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "未送信",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [
@@ -2415,7 +2505,13 @@
           "observationPoint": "引き継ぎ後の再送後",
           "fields": {
             "queue": {
-              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+              "states": [
+                [
+                  4,
+                  "同期済み",
+                  null
+                ]
+              ]
             },
             "d1": {
               "ack": [

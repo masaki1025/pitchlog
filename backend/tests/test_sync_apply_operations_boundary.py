@@ -29,12 +29,12 @@ from pitchlog.sync.port_guard import validate_port_modules
 
 def test_all_sync_operations_use_canonical_single_table_registry() -> None:
     """全登録が構築時検査を通り、型そのもので registry から引ける。"""
-    assert len(SYNC_APPLY_OPERATIONS) == 26
+    assert len(SYNC_APPLY_OPERATIONS) == 27
     assert type(_OPERATION_REGISTRY) is MappingProxyType
-    assert len({spec.token_type for spec in SYNC_APPLY_OPERATIONS}) == 26
+    assert len({spec.token_type for spec in SYNC_APPLY_OPERATIONS}) == 27
     assert Counter(spec.tenant_column.table.name for spec in SYNC_APPLY_OPERATIONS) == {
         "games": 2,
-        "recording_generations": 3,
+        "recording_generations": 4,
         "event_slots": 3,
         "operation_events": 5,
         "temporary_player_id_mappings": 2,

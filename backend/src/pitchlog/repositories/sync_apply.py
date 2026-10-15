@@ -200,6 +200,9 @@ _generation_read = _read(_GENERATIONS, "game_id").where(
     _GENERATIONS.c.retired_at.is_(None),
 )
 _generation_lock = _lock(_GENERATIONS, "game_id", "generation")
+_generation_by_number_read = _read(_GENERATIONS, "game_id", "generation").where(
+    _GENERATIONS.c.kind == bindparam("kind")
+)
 _slot_read = _read(_SLOTS, "game_id", "generation", "d1")
 _event_read = _read(_EVENTS, "game_id", "generation", "d1").where(
     _EVENTS.c.replaced_at.is_(None)
@@ -246,6 +249,15 @@ SYNC_APPLY_OPERATIONS: tuple[OperationRegistration, ...] = (
         "read",
         _generation_read,
         {"game_id": "game_id"},
+        constants={"kind": "normal"},
+        required_bindings=(RequiredBinding(_GENERATIONS.c.kind, "kind", "normal"),),
+    ),
+    _register(
+        sync_tokens.RecordingGenerationByNumberReadToken,
+        _GENERATIONS,
+        "read",
+        _generation_by_number_read,
+        {"game_id": "game_id", "generation": "generation"},
         constants={"kind": "normal"},
         required_bindings=(RequiredBinding(_GENERATIONS.c.kind, "kind", "normal"),),
     ),

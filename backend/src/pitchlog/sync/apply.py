@@ -54,7 +54,10 @@ from pitchlog.sync.rejection import (
     apply_rejection_or_escrow,
     content_reason_for_precondition,
 )
-from pitchlog.sync.tokens import RecordingGenerationReadToken
+from pitchlog.sync.tokens import (
+    RecordingGenerationByNumberReadToken,
+    RecordingGenerationReadToken,
+)
 
 type ApplyResult = AckResult | ChangeResult | Literal["B6", "B7"]
 type D1Result = P1Result | RejectionResult
@@ -70,6 +73,8 @@ class _BatchPreflight:
     candidates: tuple[D5Candidate, ...]
     has_recording_right: bool
     current_generation: int
+    # 要求の D4 が指す世代の D3。現世代の要求では d3 と同じ(省略時も同じ)。
+    request_d3: int | None = None
 
 
 def _preflight_d1(
@@ -100,13 +105,36 @@ def _preflight_d1(
                 generation = _cell(rows[0], _GENERATION_COLUMNS, "generation")
                 if type(generation) is not int:
                     raise RuntimeError("記録権世代の型が不正")
+                # D3 は (試合, D4) ごと(SP 6-1 R1)。旧 D4 の要求の ACK は、その世代の
+                # D3 を起点にして後退させない(R4)。D4 の整数表現は退避の世代番号と
+                # 同じ規則で照合し、読めない・行がない D4 は現世代の D3 のままにする。
+                request_d3 = d3
+                if (
+                    request.d4 is not None
+                    and request.d4.isdecimal()
+                    and request.d4 != str(generation)
+                ):
+                    request_rows = scope.run(
+                        RecordingGenerationByNumberReadToken(
+                            UUID(request.game_id), int(request.d4)
+                        )
+                    ).rows
+                    if len(request_rows) == 1:
+                        value = _cell(
+                            request_rows[0], _GENERATION_COLUMNS, "confirmed_watermark"
+                        )
+                        if type(value) is not int:
+                            raise RuntimeError("D3 の型が不正")
+                        request_d3 = value
                 has_right = True
                 if any(candidate.kind == "unused" for candidate in candidates):
                     port_guard.require_registered_port(rights)
                     has_right = rights.holds_recording_right(
                         request.game_id, request.d4, request.v12, gated.writer
                     )
-                return _BatchPreflight(d3, candidates, has_right, generation)
+                return _BatchPreflight(
+                    d3, candidates, has_right, generation, request_d3
+                )
 
 
 def _run_d1_event(
@@ -305,7 +333,7 @@ def apply_sync_request(
     }
     a5: list[A5Result] = []
     mappings: dict[str, str] = {}
-    d3 = preflight.d3
+    d3 = preflight.d3 if preflight.request_d3 is None else preflight.request_d3
     boundary: Literal["B1", "B2", "B3", "B4"] = "B1"
     b3_branch: Literal["B3a", "B3b", "O4"] | None = None
     reason: str | None = None

@@ -102,10 +102,28 @@ _I6_FIELDS = frozenset(
         "i6EscrowState",
     )
 )
-CLIENT_OBSERVED_FIELDS: Mapping[tuple[str, str], frozenset[str]] = {
-    ("p3-crash-boundaries", "server-confirmed-before-i6"): _I6_FIELDS,
-    ("p3-crash-boundaries", "i6-persisted-then-closed"): _I6_FIELDS,
-}
+I6_OBSERVED_CASES = frozenset(
+    {
+        ("p3-crash-boundaries", "server-confirmed-before-i6"),
+        ("p3-crash-boundaries", "i6-persisted-then-closed"),
+    }
+)
+_QUEUE_OBSERVED_PATHS = frozenset(("P1", "P2", "P4", "P5"))
+
+
+def client_observed_fields(
+    asset: Mapping[str, Any], case: Mapping[str, Any]
+) -> frozenset[str]:
+    """クライアント runner(frontend の ``clientObservedFieldIds``)が観測するフィールド。
+
+    I6 の case は I6 の 6 フィールド、D1 付き経路の case は端末のキュー。
+    """
+    if (asset["scenarioId"], case["caseId"]) in I6_OBSERVED_CASES:
+        return _I6_FIELDS
+    if asset["input"]["applicationPath"].get("value") in _QUEUE_OBSERVED_PATHS:
+        return frozenset({"queue"})
+    return frozenset()
+
 
 # 資産の注入時点の語彙 → 名前付きの注入点(crash_points)。
 _CRASH_POINTS: dict[str, CrashPoint] = {
@@ -1043,7 +1061,7 @@ def _run_case(
     cleanups: list[Callable[[], Any]] = []
     try:
         _seed(run, cleanups)
-        excluded = CLIENT_OBSERVED_FIELDS.get((asset["scenarioId"], case["caseId"]), ())
+        excluded = client_observed_fields(asset, case)
         observations = case["observations"]
         hook_calls = _inject(run)
         if mutate is not None:
@@ -1082,29 +1100,12 @@ def _run_case(
             cleanup()
 
 
-# 既知の欠陥: 記録権の引き継ぎ後に旧 D4 で送った要求の ACK の D3 が、現世代
-# (D3 = 0 から始まる)を起点にして後退する(正本 6-1 の R1・R4)。資産は正本どおりの
-# 値を期待し、ここに挙げた観測点では ACK の D3 だけが食い違うことを固定する。
-# 要求の D4 の世代行を読む operation が要る(凍結資産 repository-contract の追加)ので、
-# U-R1 の接続時に直す(worklog「2 回目のレビュー」)。直ったら赤になるので表から外す。
-KNOWN_ACK_D3_REGRESSIONS: Mapping[tuple[str, str, int], int] = {
-    ("d1-mixed-batch", "ack-loss-handover", 1): 1,
-    ("tombstone-application", "right-moved-after-confirmation", 0): 0,
-}
-
-
 @pytest.mark.parametrize(("asset", "case"), _SERVER_CASES)
 def test_server_failure_scenario_case(
     prefix_database: _SyncDatabase, asset: dict[str, Any], case: dict[str, Any]
 ) -> None:
     """サーバー側の資産の各 case を公開入口で実行し、結果検査を通す。"""
     result, excluded = _run_case(prefix_database, asset, case)
-    for index, observation in enumerate(result["cases"][0]["observations"]):
-        key = (asset["scenarioId"], case["caseId"], index)
-        if key in KNOWN_ACK_D3_REGRESSIONS:
-            assert observation["fields"]["d1"]["ackD3"] == KNOWN_ACK_D3_REGRESSIONS[key]
-            expected = case["observations"][index]["fields"]["d1"]["ackD3"]
-            observation["fields"]["d1"]["ackD3"] = expected
     validate_failure_scenario_result(
         asset,
         result,
@@ -1146,24 +1147,24 @@ def test_partial_commit_state_is_red(
 
 
 def test_runner_split_covers_every_case_and_field() -> None:
-    """サーバー runner とクライアント runner の担当の和が、全資産の全 case になる。"""
+    """クライアント runner の担当は、各 case の I6 とキューの実値フィールドちょうど。"""
     assets = dict((asset["scenarioId"], asset) for _, asset in _assets())
     assert set(assets) == OWNED_SCENARIO_IDS
-    for (scenario_id, case_id), fields in CLIENT_OBSERVED_FIELDS.items():
-        case = next(c for c in assets[scenario_id]["cases"] if c["caseId"] == case_id)
+    for asset, case in _SERVER_CASE_PAIRS:
+        fields = client_observed_fields(asset, case)
         for observation in case["observations"]:
             real = {
                 key
                 for key, value in observation["fields"].items()
                 if not (isinstance(value, dict) and "omittedBecause" in value)
             }
-            # 端末を観測するのは I6 の実値フィールドちょうど(frontend の
-            # CLIENT_OBSERVED_CASES も同じ資産から同じ集合を照合する)。
-            assert fields == {key for key in real if key.startswith("i6")}
-    server_cases = {
+            # frontend の clientObservedFieldIds も同じ資産から同じ集合を照合する。
+            assert fields == {
+                key for key in real if key.startswith("i6") or key == "queue"
+            }
+    assert {key for key in I6_OBSERVED_CASES} <= {
         (asset["scenarioId"], case["caseId"]) for asset, case in _SERVER_CASE_PAIRS
     }
-    assert set(CLIENT_OBSERVED_FIELDS) <= server_cases
 
 
 def test_runner_maps_every_contract_injection_point() -> None:
@@ -1188,11 +1189,3 @@ def test_skipped_projection_is_red(
             case_ids=[case["caseId"]],
             excluded_field_ids=excluded,
         )
-
-
-def test_known_ack_d3_regressions_are_real_regressions() -> None:
-    """既知の欠陥の表は、資産が正本どおりに期待する値と実際の値が食い違う観測点だけ。"""
-    by_key = {(a["scenarioId"], c["caseId"]): c for a, c in _SERVER_CASE_PAIRS}
-    for (scenario_id, case_id, index), actual in KNOWN_ACK_D3_REGRESSIONS.items():
-        expected = by_key[(scenario_id, case_id)]["observations"][index]["fields"]
-        assert expected["d1"]["ackD3"] > actual
