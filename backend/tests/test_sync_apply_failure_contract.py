@@ -167,8 +167,8 @@ T_ELEMENT_UNITS: Mapping[tuple[ApplicationPath, str], tuple[str, ...]] = {
     ("P4", "T8"): ("ledger", "original"),
     ("P5", "T9"): ("ledger", "original"),
 }
-T_ELEMENT_STATES = frozenset(("committed", "notCommitted", "no-write", "no-change"))
-# 確定・非確定と並べて no-write / no-change を書ける位置(経路, T 要素, 内部単位)。
+T_ELEMENT_STATES = frozenset(("committed", "notCommitted", "no-write"))
+# 確定・非確定と並べて no-write を書ける位置(経路, T 要素, 内部単位)。
 # それ以外で書かないことを正とできるのは、観測点の全 T 要素が書かない場合だけ
 # (停止境界より後ろの未処理・退避・B3b など)。
 PARTIAL_NO_EFFECT_UNITS = frozenset({("P1", "T6", "mapping"), ("P2", "T6", "mapping")})
@@ -197,7 +197,7 @@ TRANSACTION_INJECTION_POINTS: Mapping[tuple[str, str], frozenset[str]] = {
     ),
 }
 _COMMIT_STATES = frozenset(("committed", "notCommitted"))
-_NO_EFFECT_STATES = frozenset(("no-write", "no-change"))
+_NO_EFFECT_STATES = frozenset(("no-write",))
 
 # トランザクションの外の 3 注入点(SP 10-3「注入点の組の導出元」)。
 OUT_OF_TRANSACTION_POINTS = (
@@ -2105,6 +2105,17 @@ def test_contract_rejects_no_write_beside_commit_states(
     _mutate_fields(asset, "tElementCommitment", _commitment("P1", routes, "no-write"))
     asset["cases"][0]["faultInjection"]["expectedReachability"] = _wrap("unreached")
     _validate(asset, routes)
+
+
+def test_contract_rejects_removed_no_change_vocabulary(
+    routes: dict[ApplicationPath, tuple[str, ...]],
+) -> None:
+    """負例: v0.8 の反映で外した no-change を、到達しない注入対象にも書かせない。"""
+    asset = _p1_asset(routes)
+    _mutate_fields(asset, "tElementCommitment", _commitment("P1", routes, "no-change"))
+    asset["cases"][0]["faultInjection"]["expectedReachability"] = _wrap("unreached")
+    with pytest.raises(FailureScenarioContractError, match="状態が未知"):
+        _validate(asset, routes)
 
 
 def test_contract_rejects_second_round_loopholes(
