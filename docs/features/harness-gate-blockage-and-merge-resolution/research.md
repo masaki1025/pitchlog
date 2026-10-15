@@ -34,6 +34,11 @@
 - **独立レビューの規定**: 「独立レビュー」の語の定義は正本に無い。関係する規定は設計書 3.2-1「自己批准の禁止」(`:166`)・6.3「反対側を必須レビュアにする」(`:377`)・Claude 直実装は `review normal` 必須(`:385`・`:714`・CLAUDE.md)。**停止時の代替主体を定めた正本の規定は無い**(W138 台帳差分 :23)。master の判定は「同一モデルの別文脈は主体の分離になっていない」(W138:139-140)
 - **本タスクへの帰結**: 起案・調査・改訂案の作成は進められる。**approved 遷移は 3-2 (c) により 10/21 14:37 以降**。計画レビューを停止中に代替できるかは 3-2 の文言(PR とゲート)の範囲外で、**典拠が無い**
 
+### 追加の観察(2026-10-15・解釈しない)
+
+- U-S1(TSK-391)の worktree の worklog(**未コミット** — `feature/us1-sync-apply-core` の作業ツリー)に、「**Codex の利用上限がリセットされた**(山田正輝 2026-10-15「391 から codex の利用を許す」)。10-21 を待たずに、PR 段階の敵対レビューと v0.8 の確定ゲートを Codex で行う」とある。**射程は文言上「391 から」**。本タスクの確定条件(10/21 14:37 以降)は PO が変えていない(2026-10-15 の拡張承認で明言)
+- 同じ worklog に「3 本の衝突はマージコミットの中で解消した(同一コミット規則は通常コミットにだけ掛かる — 470 タブの実測)」とある。6.6 が扱う「検査器の抜けを前提にした解き方」の実例になりうる(評価は 6.6 の草案で、規則に照らして行う)
+
 ### 記録の食い違い(本調査で見つけたもの)
 
 1. `docs/worklog/2026-10-10-adr003-stage2-runtime.md:390`「マージはその後」は、#131 の実際のマージと食い違ったまま
@@ -56,14 +61,16 @@
 | frozen_history | 7.7-2(追記のみ・受理単位 `:602-606`・`:624`)・7.7-4(算出は各資産へ委任 `:641`・自己限定 `:633`)・10.1 `:856`(ci.yml は凍結入力) | 取り込み時の再導出・受理モードの手元再現・再封印の手順。**「再封印」「受理記録」「不変量モード」は設計書本文に 0 件** |
 | スキル | `/pr`・`/check`・`/task-start`・`/task-done` のどれにも、取り込み・競合解消・PR 受理モード再現の手順は無い | — |
 
-## 5. 検査器の意味論(core_guard と frozen_history は何が違うか)
+## 5. 検査器の意味論(3 つの検査器で比較元と単位が違う)
 
-| 観点 | core_guard(`scripts/core_guard.py`) | frozen_history(`scripts/check_frozen_baselines.py`・`scripts/frozen_history.py`) |
-| --- | --- | --- |
-| 比較元 | `git merge-base(base, head)`(`:208-233`)— **取り込むと動く** | **PR event の `base.sha`**(`:1495-1510`)— merge-base ではない |
-| 見る単位 | 比較元..head の**各コミット**(`:328-335`)と最終状態の二層契約(`:284-325`) | **PR 1 件 = 受理 1 回**(7.7-2)。HEAD は 2 親の合成マージでなければならない |
-| 抜け | **マージコミットを検査しない**(`diff-tree` に `-m` が無い `:338-352`)/ 2 コミットに分ければ通る / `pull_request` 以外はスキップ(`:538-540`) | **手元の既定は不変量モード**(`--invariants-only`)で、追記専用・`acceptance_id`・base との比較を見ない / develop への push 後も不変量モードだけ |
-| 競合した値の性質 | 窓口(`AREA_PATH_ADDITIONS`)と基線の**並び順まで**一致が要る(並べ替えも拒否) | 単調な版数・導出値(digest)・追記専用の履歴。**テキストでマージできない** |
+**訂正(計画レビュー 1 回目 P1-5)**: 当初は「core_guard / frozen_history」の 2 分にしていたが、tenant boundary の検査器は比較元が merge-base で、authz 凍結台帳の検査器(PR event の `base.sha`)と違う。3 つに分ける。
+
+| 観点 | core_guard(`scripts/core_guard.py`) | tenant boundary(`scripts/check_tenant_boundary_bypass.py`・`scripts/frozen_history.py`) | authz 凍結台帳(`scripts/check_frozen_baselines.py`) |
+| --- | --- | --- | --- |
+| 比較元 | `git merge-base(base, head)`(`:208-233`)— 取り込むと動く | `merge-base(--base-ref, HEAD)`(`:6302-6305`)。CI は `--base-ref origin/<base>`(`ci.yml:229-234`)。受理モードでは 2 親マージ・`base.ref`・`acceptance_id` も照合(`frozen_history.py:618-682`) | **PR event の `base.sha`**(`:1495-1510`)— HEAD が 2 親の合成マージでなければならない |
+| 見る単位 | 比較元..head の各コミット(`:328-335`)と最終状態の二層契約(`:284-325`) | 資産ごとの識別値(`contract_revision` など)と追記専用の受理履歴。射影が動いた資産は識別値の更新が必要(`frozen_history.py:1474-1482`) | PR 1 件 = 受理 1 回(7.7-2)。追記専用・`acceptance_id` = `repository#PR番号`(`:203-205`) |
+| 競合した値の性質 | 窓口(`AREA_PATH_ADDITIONS`)と基線の並び順まで一致が要る。許される状態は「基線」か「基線 + 自分の宣言全件」だけ(`:320-322`)、部分一致は赤(`:317-319`) | 単調な版数・digest(導出値)・追記専用の履歴。受理記録の雛形は生成器(`pitchlog.authz.runtime_contract_acceptance`)で作れる | 追記専用の履歴。`frozen-baselines.json` を書く生成器は無い(検査器の読み取りのみ)。oracle の再封印は `check_authz_catalog.py --reseal*` |
+| 抜け | マージコミットを検査しない(`:338-352`)/ 2 コミットに分ければ通る / `pull_request` 以外はスキップ(`:538-540`) | 手元の既定は不変量モード | 手元の既定は `--invariants-only`。push 後も不変量モードだけ(`:1872-1876`) |
 
 ## 6. 新節の置き場所(候補)
 
