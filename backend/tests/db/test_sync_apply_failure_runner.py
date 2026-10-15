@@ -19,6 +19,7 @@ T 要素の証拠(独立に証明できないものを含む — worklog に記�
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 import uuid
@@ -133,12 +134,12 @@ def client_observed_fields(
 ) -> frozenset[str]:
     """クライアント runner(frontend の ``clientObservedFieldIds``)が観測するフィールド。
 
-    I6 の case は I6 の 6 フィールド、D1 付き経路の case は端末のキュー。
+    I6 の case は I6 の 6 フィールド、D1 付き経路は端末の 4 項目。
     """
     if (asset["scenarioId"], case["caseId"]) in I6_OBSERVED_CASES:
         return _I6_FIELDS
     if asset["input"]["applicationPath"].get("value") in _QUEUE_OBSERVED_PATHS:
-        return frozenset({"queue"})
+        return frozenset({"queue", "lock", "acceptanceDisplay", "reinputAvailability"})
     return frozenset()
 
 
@@ -854,6 +855,11 @@ def _idempotent_result(run: _Run) -> dict[str, object]:
         boundary = response.boundary
     elif isinstance(response, str):
         boundary = response
+    saved_rejected_reason: str | None = None
+    if branch == "B3a" and isinstance(response, AckResult):
+        rejected = next((item for item in response.a5 if item.state == "拒否"), None)
+        if rejected is not None:
+            saved_rejected_reason = _ledger_reason(run, UUID(rejected.d5))
     return {
         "boundary": boundary,
         "b3Branch": branch,
@@ -871,7 +877,16 @@ def _idempotent_result(run: _Run) -> dict[str, object]:
             table: count - run.baseline[table]
             for table, count in _row_counts(run).items()
         },
-        "responseReason": reason,
+        "responseReason": (
+            {
+                "present": True,
+                "matchesSaved": (
+                    reason == saved_rejected_reason if branch == "B3a" else None
+                ),
+            }
+            if reason is not None
+            else None
+        ),
     }
 
 
@@ -1193,6 +1208,43 @@ def test_server_failure_scenario_case(
     )
 
 
+def test_revision_keeps_nondefault_d2_and_recomputed_d2_is_red(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """改訂が元の非既定 D2 を保持し、D1 × 10 への再計算を検出する。"""
+    asset = next(
+        item for item in _SERVER_ASSETS if item["scenarioId"] == "revision-application"
+    )
+    case = asset["cases"][0]
+    original = asset["input"]["initialPersistence"]["value"]["seed"][1][
+        "rejectContent"
+    ][0]
+    revision = asset["input"]["queue"]["value"]["unsent"][0]
+    assert original["d2"] == revision["d2"] == 57
+    assert original["d2"] != original["d1"] * 10
+    result, excluded, _ = _run_case(prefix_database, asset, case)
+    validate_failure_scenario_result(
+        asset,
+        result,
+        _ROUTES,
+        case_ids=[case["caseId"]],
+        excluded_field_ids=excluded,
+    )
+    actual = copy.deepcopy(result)
+    slots = actual["cases"][0]["observations"][0]["fields"]["d1"]["slots"]
+    revision_slot = next(slot for slot in slots if slot[1] == "x5")
+    assert revision_slot[2] == 57
+    revision_slot[2] = 50
+    with pytest.raises(FailureScenarioContractError, match="d1"):
+        validate_failure_scenario_result(
+            asset,
+            actual,
+            _ROUTES,
+            case_ids=[case["caseId"]],
+            excluded_field_ids=excluded,
+        )
+
+
 @pytest.mark.parametrize("field", ("accepted_at", "confirmed_content"))
 def test_i6_response_mutation_is_rejected(
     prefix_database: _SyncDatabase, field: str
@@ -1248,7 +1300,7 @@ def test_partial_commit_state_is_red(
 
 
 def test_runner_split_covers_every_case_and_field() -> None:
-    """クライアント runner の担当は、各 case の I6 とキューの実値フィールドちょうど。"""
+    """クライアント runner の担当は、各 case の I6 と端末の 4 項目の実値フィールドちょうど。"""
     assets = dict((asset["scenarioId"], asset) for _, asset in _assets())
     assert set(assets) == OWNED_SCENARIO_IDS
     for asset, case in _SERVER_CASE_PAIRS:
@@ -1261,7 +1313,10 @@ def test_runner_split_covers_every_case_and_field() -> None:
             }
             # frontend の clientObservedFieldIds も同じ資産から同じ集合を照合する。
             assert fields == {
-                key for key in real if key.startswith("i6") or key == "queue"
+                key
+                for key in real
+                if key.startswith("i6")
+                or key in {"queue", "lock", "acceptanceDisplay", "reinputAvailability"}
             }
     assert {key for key in I6_OBSERVED_CASES} <= {
         (asset["scenarioId"], case["caseId"]) for asset, case in _SERVER_CASE_PAIRS

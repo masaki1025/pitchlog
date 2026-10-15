@@ -52,7 +52,8 @@
                 "kind": "play_input",
                 "payload": {
                   "pitch": "invalid"
-                }
+                },
+                "d2": 57
               }
             ]
           }
@@ -69,7 +70,8 @@
             "payload": {
               "pitch": "strike"
             },
-            "revisionOf": "e5"
+            "revisionOf": "e5",
+            "d2": 57
           },
           {
             "d5": "e6",
@@ -136,10 +138,17 @@
       "value": "P1"
     },
     "tabs": {
-      "omittedBecause": "サーバー側 runner は端末のタブを扱わない"
+      "value": {
+        "contexts": [
+          "主タブ",
+          "待機タブ"
+        ]
+      }
     },
     "lock": {
-      "omittedBecause": "サーバー側 runner は端末のロックを扱わない"
+      "value": {
+        "owner": "主タブ"
+      }
     },
     "p5Branch": {
       "omittedBecause": "適用経路が P5 の資産ではないため"
@@ -247,7 +256,7 @@
                 [
                   5,
                   "x5",
-                  50,
+                  57,
                   false,
                   {
                     "pitch": "strike"
@@ -274,13 +283,19 @@
               ]
             },
             "lock": {
-              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+              "owner": "主タブ"
             },
             "acceptanceDisplay": {
-              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+              "serverAcceptedD1s": []
             },
             "reinputAvailability": {
-              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+              "reinputRequired": false,
+              "automaticResendD1s": [
+                5,
+                6,
+                7
+              ],
+              "correctionRequiredD1s": []
             },
             "prefix": {
               "d3": 7
@@ -451,7 +466,7 @@
                 [
                   5,
                   "x5",
-                  50,
+                  57,
                   false,
                   {
                     "pitch": "strike"
@@ -478,13 +493,19 @@
               ]
             },
             "lock": {
-              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+              "owner": "主タブ"
             },
             "acceptanceDisplay": {
-              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+              "serverAcceptedD1s": [
+                5,
+                6,
+                7
+              ]
             },
             "reinputAvailability": {
-              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+              "reinputRequired": false,
+              "automaticResendD1s": [],
+              "correctionRequiredD1s": []
             },
             "prefix": {
               "d3": 7

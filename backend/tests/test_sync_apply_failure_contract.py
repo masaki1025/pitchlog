@@ -129,12 +129,8 @@ REQUIRED_SOMEWHERE_FIELD_IDS: Mapping[ApplicationPath | None, tuple[str, ...]] =
 # サーバー runner で確かめた ACK を製品のキュー遷移に通して観測する。P3 は D1 の
 # キューを使わない(受理結果は I6 のフィールド)。
 _CLIENT_SIDE_FIELD_IDS = ("queue", "lock", "acceptanceDisplay", "reinputAvailability")
-# 端末のタブ・ロック・受理表示・再入力可否(クライアント runner の射程外 — ゲートで問う)
-_TAB_FIELD_IDS = ("lock", "acceptanceDisplay", "reinputAvailability")
 # 省略理由を書ける期待フィールド(省略可否だけを経路で条件付きにする — SP 10-3)。
-# サーバー経路の資産で端末側の 4 項目を省けるのは、サーバー側 runner が端末を
-# 観測しないため。tElementCommitment・idempotentResult・recordingRight は
-# サーバー経路では省けない。
+# D1 付き経路の端末項目は ACK を製品の端末経路へ通して観測する。
 OMITTABLE_FIELD_IDS: Mapping[ApplicationPath | None, frozenset[str]] = {
     None: frozenset(
         (
@@ -145,8 +141,8 @@ OMITTABLE_FIELD_IDS: Mapping[ApplicationPath | None, frozenset[str]] = {
             "tElementCommitment",
         )
     ),
-    "P1": frozenset((*_TAB_FIELD_IDS, *_REPLAY_COUNT_FIELD_IDS)),
-    "P2": frozenset((*_TAB_FIELD_IDS, *_REPLAY_COUNT_FIELD_IDS)),
+    "P1": frozenset(_REPLAY_COUNT_FIELD_IDS),
+    "P2": frozenset(_REPLAY_COUNT_FIELD_IDS),
     "P3": frozenset(
         (
             *_CLIENT_SIDE_FIELD_IDS,
@@ -157,8 +153,8 @@ OMITTABLE_FIELD_IDS: Mapping[ApplicationPath | None, frozenset[str]] = {
             *_I6_FIELD_IDS,
         )
     ),
-    "P4": frozenset((*_TAB_FIELD_IDS, "temporaryIdMapping")),
-    "P5": frozenset((*_TAB_FIELD_IDS, "temporaryIdMapping")),
+    "P4": frozenset({"temporaryIdMapping"}),
+    "P5": frozenset({"temporaryIdMapping"}),
 }
 
 # T 要素の内部の保存単位(SP 10-3「tElementCommitment」)。ここにない組は単一値。
@@ -210,98 +206,23 @@ OUT_OF_TRANSACTION_POINTS = (
     "サーバー確定後・I6端末永続化前",
 )
 
-# 母集合 — 観点 key と scenarioId の組 26 件(sync-server-apply design 6-2)。
-OBSERVATION_SCENARIO_PAIRS: tuple[tuple[str, str], ...] = (
-    ("tombstone-apply", "tombstone-application"),
-    ("revision-apply", "revision-application"),
-    ("p1", "p1-crash-boundaries"),
-    ("p2", "p2-crash-boundaries"),
-    ("p3", "p3-crash-boundaries"),
-    ("p3", "p3-invalidation-consumed-before-complete"),
-    ("d1-mixed-batch", "d1-mixed-batch"),
-    ("b3b-after-gap", "b3b-after-gap"),
-    ("d4-no-reuse-after-rollback", "restore-d4-issued-set"),
-    ("d4-no-reuse-after-rollback", "restore-d4-consecutive-rollbacks"),
-    ("all-write-paths-during-restore", "restore-all-write-paths-blocked"),
-    ("rg1-commit-race", "restore-commit-race"),
-    ("rg1-release-new-d4-boundary", "restore-release-new-generation-boundary"),
-    ("restore-lifecycle-complete", "restore-fence-escrow-new-generation"),
-    ("restore-crash-midway", "restore-crash-before-new-generation"),
-    ("restore-uncollected-device", "restore-uncollected-device"),
-    ("restore-24h-cleanup", "restore-cleanup-held"),
-    ("restore-24h-cleanup", "restore-expired-not-collected"),
-    ("o4-persisted-d2-equivalence", "o4-persisted-d2-equivalence"),
-    ("multi-tab-single-writer", "multi-tab-single-writer"),
-    ("p4", "p4-crash-boundaries"),
-    ("p5", "p5-b3a-crash-boundaries"),
-    ("p5", "p5-b3b-unreached-t9"),
-    ("leader-freeze-reelection", "leader-freeze-reelection"),
-    ("waiting-input-not-accepted", "waiting-input-not-accepted"),
-    ("durable-append-failure", "durable-append-failure"),
+# 母集合の正は単一の機械可読表に置く(SP 10-3)。検査器内に期待集合を複製しない。
+_POPULATION_PATH = (
+    _REPOSITORY_ROOT / "tests" / "fixtures" / "sync-protocol-population_v1.json"
 )
-# 正本 10-2 の (d) の故障系観点 22 行の key(sync-server-apply design 6-2)。
-OBSERVATION_KEYS = frozenset(
-    (
-        "tombstone-apply",
-        "revision-apply",
-        "p1",
-        "p2",
-        "p3",
-        "d1-mixed-batch",
-        "b3b-after-gap",
-        "d4-no-reuse-after-rollback",
-        "all-write-paths-during-restore",
-        "rg1-commit-race",
-        "rg1-release-new-d4-boundary",
-        "restore-lifecycle-complete",
-        "restore-crash-midway",
-        "restore-uncollected-device",
-        "restore-24h-cleanup",
-        "o4-persisted-d2-equivalence",
-        "multi-tab-single-writer",
-        "p4",
-        "p5",
-        "leader-freeze-reelection",
-        "waiting-input-not-accepted",
-        "durable-append-failure",
-    )
+_POPULATION = json.loads(_POPULATION_PATH.read_text(encoding="utf-8"))
+_POPULATION_ROWS = _POPULATION["rows"]
+OBSERVATION_SCENARIO_PAIRS: tuple[tuple[str, str], ...] = tuple(
+    (row["observationKey"], row["scenarioId"]) for row in _POPULATION_ROWS
 )
-# 本単位(U-S1)が資産を持つ scenarioId 16 件。
+OBSERVATION_KEYS = frozenset(key for key, _ in OBSERVATION_SCENARIO_PAIRS)
 OWNED_SCENARIO_IDS = frozenset(
-    (
-        "multi-tab-single-writer",
-        "leader-freeze-reelection",
-        "waiting-input-not-accepted",
-        "durable-append-failure",
-        "tombstone-application",
-        "revision-application",
-        "p1-crash-boundaries",
-        "p2-crash-boundaries",
-        "p3-crash-boundaries",
-        "p4-crash-boundaries",
-        "p5-b3a-crash-boundaries",
-        "p5-b3b-unreached-t9",
-        "d1-mixed-batch",
-        "b3b-after-gap",
-        "p3-invalidation-consumed-before-complete",
-        "o4-persisted-d2-equivalence",
-    )
+    row["scenarioId"] for row in _POPULATION_ROWS if row["status"] == "owned"
 )
-# 繰り延べた scenarioId と繰り延べ先(裁定 R-11 — 復元系 10 件は U-R1)。
 DEFERRED_SCENARIO_IDS: Mapping[str, str] = {
-    scenario_id: "U-R1(TSK-392)"
-    for scenario_id in (
-        "restore-fence-escrow-new-generation",
-        "restore-crash-before-new-generation",
-        "restore-uncollected-device",
-        "restore-commit-race",
-        "restore-cleanup-held",
-        "restore-expired-not-collected",
-        "restore-d4-issued-set",
-        "restore-d4-consecutive-rollbacks",
-        "restore-all-write-paths-blocked",
-        "restore-release-new-generation-boundary",
-    )
+    row["scenarioId"]: row["owner"]
+    for row in _POPULATION_ROWS
+    if row["status"] == "deferred"
 }
 # トランザクション内の注入被覆 — 到達する注入 case が宣言する (経路, T 要素)。
 TRANSACTION_INJECTION_COVERAGE: Mapping[str, frozenset[tuple[str, str]]] = {
@@ -815,6 +736,26 @@ def validate_failure_scenario_contract(
                     (case_id, target_key, observation_point, field_id)
                 )
             commitment = fields["tElementCommitment"]
+            idempotent = fields["idempotentResult"]
+            if isinstance(idempotent, dict) and "responseReason" in idempotent:
+                response_reason = idempotent["responseReason"]
+                if idempotent.get("b3Branch") == "B3b" and response_reason is None:
+                    _fail("B3b の応答には理由が必要です")
+                if response_reason is not None:
+                    if (
+                        not isinstance(response_reason, dict)
+                        or set(response_reason) != {"present", "matchesSaved"}
+                        or response_reason["present"] is not True
+                        or response_reason["matchesSaved"] not in (None, True)
+                    ):
+                        _fail(
+                            "responseReason は理由の有無と保存済み理由の一致を表します"
+                        )
+                    if (
+                        idempotent.get("b3Branch") == "B3b"
+                        and response_reason["matchesSaved"] is not None
+                    ):
+                        _fail("B3b は理由を保存しません")
             if path is not None and not _is_omitted(commitment):
                 leaves = _commitment_leaves(
                     commitment,
@@ -1819,6 +1760,17 @@ def test_result_check_compares_hook_calls_with_reachability(
 def test_population_is_an_exact_set_of_pairs() -> None:
     """母集合: 26 組・観点 22 種・scenarioId 26 件、作成 16 件と繰り延べ 10 件。"""
     validate_population()
+    assert _POPULATION["schemaVersion"] == 1
+    assert all(
+        set(row)
+        == (
+            {"observationKey", "scenarioId", "status"}
+            if row["status"] == "owned"
+            else {"observationKey", "scenarioId", "status", "owner"}
+        )
+        for row in _POPULATION_ROWS
+    )
+    assert all(row["status"] in {"owned", "deferred"} for row in _POPULATION_ROWS)
     assert len(OBSERVATION_SCENARIO_PAIRS) == 26
     assert len(OBSERVATION_KEYS) == 22
     assert len(OWNED_SCENARIO_IDS) == 16
@@ -1943,6 +1895,43 @@ def _fixture_assets() -> list[tuple[str, Any]]:
         (path.name, json.loads(path.read_text(encoding="utf-8")))
         for path in sorted(_FIXTURE_DIRECTORY.glob("*.json"))
     ]
+
+
+def test_b3b_reason_is_evidence_not_literal_text(
+    routes: dict[ApplicationPath, tuple[str, ...]],
+) -> None:
+    """B3b の理由文面を正解値に戻す変異は契約で拒否する。"""
+    name, asset = next(
+        (name, asset)
+        for name, asset in _fixture_assets()
+        if asset["scenarioId"] == "p5-b3b-unreached-t9"
+    )
+    reason = asset["cases"][0]["observations"][0]["fields"]["idempotentResult"]
+    assert reason["b3Branch"] == "B3b"
+    assert reason["responseReason"] == {"present": True, "matchesSaved": None}
+    reason["responseReason"] = "同じ D5 の内容が異なる"
+    with pytest.raises(FailureScenarioContractError, match="responseReason"):
+        validate_failure_scenario_contract(name, asset, routes)
+    reason["responseReason"] = None
+    with pytest.raises(FailureScenarioContractError, match="理由が必要"):
+        validate_failure_scenario_contract(name, asset, routes)
+
+
+@pytest.mark.parametrize(
+    "field_id", ("lock", "acceptanceDisplay", "reinputAvailability")
+)
+def test_d1_client_fields_cannot_be_omitted_for_runner_split(
+    routes: dict[ApplicationPath, tuple[str, ...]], field_id: str
+) -> None:
+    """Runner の担当分けを理由に D1 経路の端末期待値を省けない。"""
+    name, asset = next(
+        (name, asset)
+        for name, asset in _fixture_assets()
+        if asset["scenarioId"] == "p1-crash-boundaries"
+    )
+    asset["cases"][0]["observations"][0]["fields"][field_id] = _omit("runner が見ない")
+    with pytest.raises(FailureScenarioContractError, match="省略できません"):
+        validate_failure_scenario_contract(name, asset, routes)
 
 
 def test_every_fixture_passes_the_contract_check(

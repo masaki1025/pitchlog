@@ -343,7 +343,7 @@ def apply_sync_request(
     next_d1 = d3 + 1
     if not preflight.has_recording_right:
         # ⑤ は要求単位の判定で、⑥ の停止規則(DI5)の射程外(SP 6-2・B4)。
-        # 既存 D5 は保存済み結果を再掲し、未使用 D5 は全件を T8 へ送る。
+        # 保存済み結果は再掲、未使用 D5 は T8、異内容候補は未処理にする。
         boundary = "B4"
 
     for event in events:
@@ -354,6 +354,10 @@ def apply_sync_request(
         registration = registrations[event.d5] if event.d5 in registrations else None
         target = targets[event.d5] if event.d5 in targets else None
         if not preflight.has_recording_right:
+            if candidates[event.d5].kind == "conflict":
+                # ⑤ の B4 では ⑥ に進まない。異内容候補は拒否原本を作らず未処理。
+                a5.append(A5Result(event.d4, event.d1, event.d5, "未処理"))
+                continue
             if candidates[event.d5].kind == "unused":
                 result: D1Result = _escrow_without_right(
                     context,

@@ -1042,7 +1042,7 @@ export function clientObservedFieldIds(
     Object.hasOwn(path, 'value') &&
     QUEUE_OBSERVED_PATHS.includes(fieldValue(contract.input, 'applicationPath'))
   ) {
-    return ['queue']
+    return ['queue', 'lock', 'acceptanceDisplay', 'reinputAvailability']
   }
   return []
 }
@@ -1110,6 +1110,9 @@ async function runQueueObservation(
     databaseName,
     requestStoragePersistence: async () => Boolean(contract.schemaVersion),
   })
+  const [primary] = scenarioContexts(contract)
+  const locks = new MockWebLocks()
+  const lockName = singleWriterLockName(String(scope.game))
   const injectionTarget = requireRecord(
     fieldValue(testCase.faultInjection, 'target'),
     'faultInjection.target',
@@ -1156,25 +1159,56 @@ async function runQueueObservation(
 
     const results: FailureScenarioObservation[] = []
     for (const [index, assetObservation] of testCase.observations.entries()) {
-      const ackLost =
-        injectionTarget.kind === 'client' &&
-        injectionTarget.operation === 'ACK の受信' &&
-        !index
-      const d1Field = requireRecord(assetObservation.fields.d1, 'fields.d1')
-      if (!ackLost && !options.skipAckDelivery && Array.isArray(d1Field.ack)) {
-        await deliverAck(queue, scope, events, assetObservation, d1Field)
-      }
-      const states: unknown[] = []
-      for (const spec of events) {
-        const slot = await queue.readSlot(scope, spec.d1)
-        states.push([
-          spec.d1,
-          slot?.state ?? null,
-          slot?.actionRequiredLabel ?? null,
-        ])
+      const observed = await runAsSingleWriter(
+        { gameIdentifier: String(scope.game) },
+        async () => {
+          const ackLost =
+            injectionTarget.kind === 'client' &&
+            injectionTarget.operation === 'ACK の受信' &&
+            !index
+          const d1Field = requireRecord(assetObservation.fields.d1, 'fields.d1')
+          if (
+            !ackLost &&
+            !options.skipAckDelivery &&
+            Array.isArray(d1Field.ack)
+          ) {
+            await deliverAck(queue, scope, events, assetObservation, d1Field)
+          }
+          const states: [number, string | null, string | null][] = []
+          for (const spec of events) {
+            const slot = await queue.readSlot(scope, spec.d1)
+            states.push([
+              spec.d1,
+              slot?.state ?? null,
+              slot?.actionRequiredLabel ?? null,
+            ])
+          }
+          return {
+            queue: { states },
+            lock: { owner: locks.owner(lockName) },
+            acceptanceDisplay: {
+              serverAcceptedD1s: states
+                .filter(([, state]) => state === '同期済み')
+                .map(([d1]) => d1),
+            },
+            reinputAvailability: {
+              reinputRequired: states.some(([, state]) => state === null),
+              automaticResendD1s: states
+                .filter(([, state]) => state === '未送信')
+                .map(([d1]) => d1),
+              correctionRequiredD1s: states
+                .filter(([, state]) => state === '要操作')
+                .map(([d1]) => d1),
+            },
+          }
+        },
+        confirmedInjections(locks.managerFor(primary)),
+      )
+      if (!observed.recordingStarted) {
+        throw new Error('単一書き手のロックを取得できません')
       }
       results.push(
-        observation(assetObservation.observationPoint, { queue: { states } }),
+        observation(assetObservation.observationPoint, observed.value),
       )
     }
     return caseResult(testCase, injections, results)
@@ -1205,6 +1239,14 @@ async function deliverAck(
   const registration = events.find((spec) => spec.registration)
   const boundary = idempotent.boundary
   const branch = idempotent.b3Branch
+  const reasonEvidence = idempotent.responseReason
+  const reason =
+    reasonEvidence &&
+    typeof reasonEvidence === 'object' &&
+    'present' in reasonEvidence &&
+    reasonEvidence.present
+      ? 'サーバー応答に理由あり'
+      : undefined
   const injections = createAckAdapterInjections({
     d1: {
       envelope: {
@@ -1231,7 +1273,7 @@ async function deliverAck(
               branch === B3_REJECTION_KIND.O4
                 ? {
                     kind: B3_REJECTION_KIND.O4,
-                    reason: idempotent.responseReason,
+                    reason,
                   }
                 : {
                     kind: B3_REJECTION_KIND.CONTENT,
@@ -1239,7 +1281,7 @@ async function deliverAck(
                       branch === B3_CONTENT_BRANCH.B3A
                         ? B3_CONTENT_BRANCH.B3A
                         : B3_CONTENT_BRANCH.B3B,
-                    reason: idempotent.responseReason,
+                    reason,
                   },
           }
         : {}),

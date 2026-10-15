@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import * as ts from 'typescript'
 import {
   FAILURE_SCENARIO_IDS,
+  validateFailureScenarioContract,
   validateFailureScenarioResult,
   type FailureScenarioContract,
   type FailureScenarioResult,
@@ -10,6 +13,7 @@ import failureScenarioAdapterSource from './failureScenarioAdapter.ts?raw'
 import {
   CLIENT_OBSERVED_CASES,
   CLIENT_RUNNER_SCENARIO_IDS,
+  FAILURE_FIXTURE_DIRECTORY,
   clientObservedFieldIds,
   SERVER_RUNNER_SCENARIO_IDS,
   executeClientObservedCase,
@@ -32,24 +36,25 @@ type MutableResult = {
 type ScalarLiteral = string | number | boolean
 
 const contracts = readFailureScenarioAssets()
+const population = JSON.parse(
+  readFileSync(
+    resolve(
+      FAILURE_FIXTURE_DIRECTORY,
+      '..',
+      'sync-protocol-population_v1.json',
+    ),
+    'utf8',
+  ),
+) as {
+  schemaVersion: number
+  rows: {
+    observationKey: string
+    scenarioId: string
+    status: string
+    owner?: string
+  }[]
+}
 
-/**
- * 端末のキューが正本 7-2 の読み(拒否 → 要操作)と食い違う既知の観測点。
- *
- * B4 の要求の中の B3b 候補はサーバーが A5「拒否」で返すが、境界が B4 なので B3 の
- * 理由の分類が届かず、端末のキュー遷移は未送信のまま残す。正本 11-4(B4 は段階 ⑤ で
- * 確定し DI5 の射程外)と 10-2 の混在バッチの行の読みが分かれるため、確定ゲートで
- * 問う(worklog)。決着したら資産か製品を直し、この表から外す。
- */
-const KNOWN_QUEUE_DIVERGENCES = [
-  {
-    scenarioId: 'd1-mixed-batch',
-    caseId: 'ack-loss-handover',
-    observationIndex: 1,
-    d1: 2,
-    actual: [2, '未送信', null],
-  },
-] as const
 const clientContracts = contracts.filter((contract) =>
   CLIENT_RUNNER_SCENARIO_IDS.includes(contract.scenarioId),
 )
@@ -146,6 +151,65 @@ function scalarKey(value: ScalarLiteral): string {
 }
 
 describe('failureScenarioAdapter', () => {
+  it('B3b の理由を欠いた資産を拒否する', () => {
+    const asset = structuredClone(
+      contractById('p5-b3b-unreached-t9'),
+    ) as unknown as {
+      cases: { observations: { fields: Record<string, unknown> }[] }[]
+    }
+    const idempotent = asset.cases[0]!.observations[0]!.fields
+      .idempotentResult as Record<string, unknown>
+    idempotent.responseReason = null
+    expect(() =>
+      validateFailureScenarioContract('p5-b3b-unreached-t9_v1.json', asset),
+    ).toThrow()
+  })
+  it('D1 付き経路のロック・表示・再入力可否の省略を拒否する', () => {
+    for (const fieldId of [
+      'lock',
+      'acceptanceDisplay',
+      'reinputAvailability',
+    ]) {
+      const asset = structuredClone(
+        contractById('p1-crash-boundaries'),
+      ) as unknown as {
+        cases: { observations: { fields: Record<string, unknown> }[] }[]
+      }
+      asset.cases[0]!.observations[0]!.fields[fieldId] = {
+        omittedBecause: 'runner が見ない',
+      }
+      expect(() =>
+        validateFailureScenarioContract('p1-crash-boundaries_v1.json', asset),
+      ).toThrow()
+    }
+  })
+  it('母集合の単一表を読み、所有資産と観点のペアを照合する', () => {
+    const rows = population.rows
+    const pairs = rows.map((row) => `${row.observationKey}:${row.scenarioId}`)
+    expect(population.schemaVersion).toBe(1)
+    expect(rows).toHaveLength(26)
+    expect(new Set(pairs).size).toBe(rows.length)
+    expect(new Set(rows.map((row) => row.scenarioId)).size).toBe(rows.length)
+    expect(new Set(rows.map((row) => row.observationKey)).size).toBe(22)
+    expect(
+      rows.every((row) => row.status === 'owned' || row.status === 'deferred'),
+    ).toBe(true)
+    expect(
+      rows
+        .filter((row) => row.status === 'deferred')
+        .every((row) => row.owner === 'U-R1(TSK-392)'),
+    ).toBe(true)
+    expect(
+      new Set(
+        rows
+          .filter((row) => row.status === 'owned')
+          .map((row) => row.scenarioId),
+      ),
+    ).toEqual(new Set(FAILURE_SCENARIO_IDS))
+    expect(new Set(contracts.map((contract) => contract.scenarioId))).toEqual(
+      new Set(FAILURE_SCENARIO_IDS),
+    )
+  })
   it.each(clientContracts)(
     '$scenarioId の資産入力で製品コードを実行し、全比較単位を満たす',
     async (contract) => {
@@ -264,24 +328,6 @@ describe('failureScenarioAdapter', () => {
       const result = mutableResult(
         await executeClientObservedCase(contract, caseId),
       )
-      const expectedCase = contract.cases.find(
-        (candidate) => candidate.caseId === caseId,
-      )
-      for (const known of KNOWN_QUEUE_DIVERGENCES) {
-        if (known.scenarioId !== scenarioId || known.caseId !== caseId) {
-          continue
-        }
-        const queue = result.cases[0]?.observations[known.observationIndex]
-          ?.fields.queue as { states: unknown[][] }
-        const expectedQueue = expectedCase?.observations[known.observationIndex]
-          ?.fields.queue as { states: unknown[][] }
-        const index = queue.states.findIndex(([d1]) => d1 === known.d1)
-        // 既知の食い違いの 1 行だけが資産と違うことを確かめ、その行を資産の値へ戻す。
-        expect(queue.states[index]).toEqual(known.actual)
-        expect(expectedQueue.states[index]).not.toEqual(known.actual)
-        queue.states[index] = expectedQueue.states[index] ?? []
-      }
-
       expect(() =>
         validateFailureScenarioResult(contract, result, {
           caseIds: [caseId],
@@ -291,7 +337,7 @@ describe('failureScenarioAdapter', () => {
     },
   )
 
-  it('端末を観測するフィールドは case の I6・キューの実値フィールドと一致する', () => {
+  it('端末を観測するフィールドは case の I6・キュー・ロック・表示の実値と一致する', () => {
     expect(clientObservedCases.length).toBeGreaterThan(
       CLIENT_OBSERVED_CASES.length,
     )
@@ -305,7 +351,13 @@ describe('failureScenarioAdapter', () => {
           const real = Object.entries(observation.fields)
             .filter(
               ([fieldId, value]) =>
-                (fieldId.startsWith('i6') || fieldId === 'queue') &&
+                (fieldId.startsWith('i6') ||
+                  [
+                    'queue',
+                    'lock',
+                    'acceptanceDisplay',
+                    'reinputAvailability',
+                  ].includes(fieldId)) &&
                 !(
                   typeof value === 'object' &&
                   value !== null &&

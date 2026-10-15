@@ -139,10 +139,17 @@
       "value": "P1"
     },
     "tabs": {
-      "omittedBecause": "サーバー側 runner は端末のタブを扱わない"
+      "value": {
+        "contexts": [
+          "主タブ",
+          "待機タブ"
+        ]
+      }
     },
     "lock": {
-      "omittedBecause": "サーバー側 runner は端末のロックを扱わない"
+      "value": {
+        "owner": "主タブ"
+      }
     },
     "p5Branch": {
       "omittedBecause": "適用経路が P5 の資産ではないため"
@@ -246,13 +253,19 @@
               ]
             },
             "lock": {
-              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+              "owner": "主タブ"
             },
             "acceptanceDisplay": {
-              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+              "serverAcceptedD1s": []
             },
             "reinputAvailability": {
-              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+              "reinputRequired": false,
+              "automaticResendD1s": [
+                5,
+                6,
+                7
+              ],
+              "correctionRequiredD1s": []
             },
             "prefix": {
               "d3": 4
@@ -428,13 +441,20 @@
               ]
             },
             "lock": {
-              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+              "owner": "主タブ"
             },
             "acceptanceDisplay": {
-              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+              "serverAcceptedD1s": [
+                5,
+                6
+              ]
             },
             "reinputAvailability": {
-              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+              "reinputRequired": false,
+              "automaticResendD1s": [],
+              "correctionRequiredD1s": [
+                7
+              ]
             },
             "prefix": {
               "d3": 6
@@ -473,7 +493,10 @@
                 "players": 0,
                 "otherTenants": 0
               },
-              "responseReason": "同じ D5 の内容が異なる"
+              "responseReason": {
+                "present": true,
+                "matchesSaved": null
+              }
             },
             "temporaryIdMapping": {
               "persisted": [],

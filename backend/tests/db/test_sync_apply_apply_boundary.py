@@ -368,10 +368,10 @@ def test_p4_resend_replays_escrow_with_p4_fingerprint(
         assert _count(db, "evacuated_event_originals", event.d5) == 1
 
 
-def test_b4_request_maps_saved_escrow_and_conflict_into_a5(
+def test_b4_request_leaves_conflict_unprocessed_without_t9(
     prefix_database: _SyncDatabase,
 ) -> None:
-    """B4 の要求: 保存済みの退避は退避を再掲、既存異内容は拒否(理由つき)。境界は B4。"""
+    """⑤の B4 は保存済み結果だけ再掲し、異内容候補を未処理のまま残す。"""
     db = prefix_database
     escrowed = _event(db.game_a, d1=1, d4="1")
     first = _invoke(
@@ -390,6 +390,7 @@ def test_b4_request_maps_saved_escrow_and_conflict_into_a5(
                 '{"state":"受理","d3":2,"temporary_id_mapping":{}}',
             )
         )
+    _hand_over_generation(db)
     unused = _event(db.game_a, d1=3, d4="1")
     result = _invoke(
         db,
@@ -402,10 +403,12 @@ def test_b4_request_maps_saved_escrow_and_conflict_into_a5(
     assert (result.boundary, result.b3_branch) == ("B4", None)
     assert [(item.d1, item.state) for item in result.a5] == [
         (1, "退避"),
-        (2, "拒否"),
+        (2, "未処理"),
         (3, "退避"),
     ]
-    assert result.a5[1].reason is not None
+    assert result.a5[1].reason is None
+    assert _count(db, "idempotency_ledger", conflict.d5) == 1
+    assert _count(db, "rejected_event_originals", conflict.d5) == 0
     assert _count(db, "evacuated_event_originals", unused.d5) == 1
 
 

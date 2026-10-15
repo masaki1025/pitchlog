@@ -53,6 +53,13 @@ export const CLIENT_REQUIRED_FIELD_IDS = [
   'reinputAvailability',
 ] as const satisfies readonly FailureExpectedFieldId[]
 
+/** D1 付きのサーバー経路も端末の ACK 経路で観測する期待値。 */
+const D1_CLIENT_REQUIRED_FIELD_IDS = [
+  'lock',
+  'acceptanceDisplay',
+  'reinputAvailability',
+] as const satisfies readonly FailureExpectedFieldId[]
+
 export type FailureScenarioField =
   Readonly<{ value: unknown }> | Readonly<{ omittedBecause: string }>
 
@@ -347,13 +354,41 @@ function validateExpectedFields(
         `${location}.${fieldId}.omittedBecause`,
       )
       if (
-        applicationPath === undefined &&
-        CLIENT_REQUIRED_FIELD_IDS.some((required) => required === fieldId)
+        (applicationPath === undefined &&
+          CLIENT_REQUIRED_FIELD_IDS.some((required) => required === fieldId)) ||
+        (['P1', 'P2', 'P4', 'P5'].includes(applicationPath ?? '') &&
+          D1_CLIENT_REQUIRED_FIELD_IDS.some((required) => required === fieldId))
       ) {
         fail(`${location}.${fieldId} に省略理由は指定できません`)
       }
     } else if (isRecord(field) && Object.hasOwn(field, 'omittedBecause')) {
       fail(`${location}.${fieldId} の省略表現が不正です`)
+    }
+  }
+  const idempotent = value.idempotentResult
+  if (
+    isRecord(idempotent) &&
+    idempotent.b3Branch === 'B3b' &&
+    (idempotent.responseReason === undefined ||
+      idempotent.responseReason === null)
+  ) {
+    fail(`${location}.idempotentResult.B3b の応答には理由が必要です`)
+  }
+  if (
+    isRecord(idempotent) &&
+    idempotent.responseReason !== undefined &&
+    idempotent.responseReason !== null
+  ) {
+    const reason = idempotent.responseReason
+    if (
+      !isRecord(reason) ||
+      reason.present !== true ||
+      !Object.hasOwn(reason, 'matchesSaved') ||
+      (reason.matchesSaved !== null && reason.matchesSaved !== true)
+    ) {
+      fail(
+        `${location}.idempotentResult.responseReason は理由の有無と保存済み理由の一致を表します`,
+      )
     }
   }
   return keys
