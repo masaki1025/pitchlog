@@ -4,7 +4,7 @@
 
 ## 現在地と計画の具体差分
 
-`origin/develop`は`3f6a935a`。TSK-550の共有実行器Aは別worktreeの未コミット候補であり、developには未統合。したがってU-R1の実revision/digest/snapshotは**未確定**。Aの候補には`FunctionOperationRegistration`、固定registry、`_TenantTransaction.run_function`、`repository-contract.json`の公開面がある。U-R1はAの登録形式を再利用してRG1の固定読取2登録だけを後載せし、Bのresolver登録完了やTSK-550全体の完了を待たない。
+`origin/develop`は`3f6a935a`。TSK-550の共有実行器Aは別ブランチ`196f1e3d`にコミット済みだが、developには未統合。したがってU-R1の実revision/digest/snapshotは**未確定**。Aの候補には`FunctionOperationRegistration`、固定registry、`_TenantTransaction.run_function`、`repository-contract.json`の公開面がある。U-R1はAの登録形式を再利用してRG1の固定読取2登録だけを後載せし、Bのresolver登録完了やTSK-550全体の完了を待たない。
 
 | 判断対象 | 現行 | 提案 |
 | --- | --- | --- |
@@ -64,12 +64,12 @@ CREATE POLICY rg1_fn_lock_singleton ON public.rg1_restore_gate
     USING (singleton_id = 1) WITH CHECK (singleton_id = 1);
 ```
 
-上記の表・role・schema作成順とseedはmigration/製品認可適用器の責務に従って分割する。`pitchlog_app`には表ACL・role membership・schema CREATEを付与しない。関数は`rg1_api.rg1_read_open()`と`rg1_api.rg1_assert_open_before_commit()`の**引数なし・boolean戻り**のみ。前者はsingleton行を非ロックで、後者は同じ行を厳密な`FOR SHARE NOWAIT`で読む。両者はtenant GUCの欠損/不正を成功にせず、行欠損・読取例外はfail-closed、新4（旧新2）では古い`open`行でも`false`を返す。`SECURITY DEFINER`、専用owner、固定search_path、完全修飾表名にし、関数作成と同じtransactionで`REVOKE EXECUTE ... FROM PUBLIC`、`GRANT EXECUTE ... TO pitchlog_app`を**この2件だけ**実行する。復元開始関数と製品open成功は旧新5側に置く。関数本文・GUC判定・戻り例外分類を最終DDLとして確定する前に実DBで検証する。
+上記の表・role・schema作成順とseedはmigration/製品認可適用器の責務に従って分割する。`pitchlog_app`には表ACL・role membership・schema CREATEを付与しない。関数は`rg1_api.rg1_read_open(uuid)`と`rg1_api.rg1_assert_open_before_commit(uuid)`の**検証済みscopeから注入するtenant_idだけを引数とするboolean戻り**の2件。前者はsingleton行を非ロックで、後者は同じ行を厳密な`FOR SHARE NOWAIT`で読む。両者は引数とtenant GUCの不一致・欠損/不正を成功にせず、行欠損・読取例外はfail-closed、新4（旧新2）では古い`open`行でも`false`を返す。`SECURITY DEFINER`、専用owner、固定search_path、完全修飾表名にし、関数作成と同じtransactionで`REVOKE EXECUTE ... FROM PUBLIC`、`GRANT EXECUTE ... TO pitchlog_app`を**この2件だけ**実行する。復元開始関数と製品open成功は旧新5側に置く。関数本文・GUC判定・戻り例外分類を最終DDLとして確定する前に実DBで検証する。
 
 **2関数のSQL本文候補**（製品資産では未作成。`app.tenant_id`は認証根拠ではなく、欠損/不正入力を閉じるための形検査）:
 
 ```sql
-CREATE FUNCTION rg1_api.rg1_read_open() RETURNS boolean
+CREATE FUNCTION rg1_api.rg1_read_open(p_tenant_id uuid) RETURNS boolean
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $rg1$
@@ -78,17 +78,18 @@ DECLARE
     gate_state text;
 BEGIN
     tenant_context := NULLIF(pg_catalog.current_setting('app.tenant_id', true), '')::uuid;
-    IF tenant_context IS NULL THEN RETURN false; END IF;
+    IF tenant_context IS NULL OR p_tenant_id IS DISTINCT FROM tenant_context
+    THEN RETURN false; END IF;
     SELECT state INTO STRICT gate_state
       FROM public.rg1_restore_gate WHERE singleton_id = 1;
     RETURN false;
 END;
 $rg1$;
-ALTER FUNCTION rg1_api.rg1_read_open() OWNER TO pitchlog_rg1_fn_owner;
-REVOKE EXECUTE ON FUNCTION rg1_api.rg1_read_open() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION rg1_api.rg1_read_open() TO pitchlog_app;
+ALTER FUNCTION rg1_api.rg1_read_open(uuid) OWNER TO pitchlog_rg1_fn_owner;
+REVOKE EXECUTE ON FUNCTION rg1_api.rg1_read_open(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION rg1_api.rg1_read_open(uuid) TO pitchlog_app;
 
-CREATE FUNCTION rg1_api.rg1_assert_open_before_commit() RETURNS boolean
+CREATE FUNCTION rg1_api.rg1_assert_open_before_commit(p_tenant_id uuid) RETURNS boolean
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $rg1$
@@ -97,17 +98,18 @@ DECLARE
     gate_state text;
 BEGIN
     tenant_context := NULLIF(pg_catalog.current_setting('app.tenant_id', true), '')::uuid;
-    IF tenant_context IS NULL THEN RETURN false; END IF;
+    IF tenant_context IS NULL OR p_tenant_id IS DISTINCT FROM tenant_context
+    THEN RETURN false; END IF;
     SELECT state INTO STRICT gate_state
       FROM public.rg1_restore_gate WHERE singleton_id = 1
       FOR SHARE NOWAIT;
     RETURN false;
 END;
 $rg1$;
-ALTER FUNCTION rg1_api.rg1_assert_open_before_commit()
+ALTER FUNCTION rg1_api.rg1_assert_open_before_commit(uuid)
     OWNER TO pitchlog_rg1_fn_owner;
-REVOKE EXECUTE ON FUNCTION rg1_api.rg1_assert_open_before_commit() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION rg1_api.rg1_assert_open_before_commit() TO pitchlog_app;
+REVOKE EXECUTE ON FUNCTION rg1_api.rg1_assert_open_before_commit(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION rg1_api.rg1_assert_open_before_commit(uuid) TO pitchlog_app;
 ```
 
 戻り値は新4では意図的に常に`false`であり、`gate_state`を`true`判定に使用しない。行ロックは当該transactionの終端まで保持する。`SELECT INTO STRICT`の欠損や`NOWAIT`衝突は例外としてscopeをrollbackし、Port境界でB7/P3 B10へ写す。未定義の例外を成功に変えない。関数作成・owner変更・PUBLIC剥奪・app限定付与は**同一transaction**に束ね、既定EXECUTEが外部へ露出する中間確定を作らない。列ACL/2 policyの順序、definer実行時のロック権限、例外分類は実DBで測定してから最終資産承認へ提出する。
@@ -160,9 +162,9 @@ GRANT EXECUTE ON FUNCTION rg1_api.rg1_assert_open_before_commit() TO pitchlog_ap
     "with_check_expression": "singleton_id = 1"
   },
   "read_function": {
-    "function_id": "FUNCTION:rg1_api:rg1_read_open()",
+    "function_id": "FUNCTION:rg1_api:rg1_read_open(uuid)",
     "schema_name": "rg1_api", "function_name": "rg1_read_open",
-    "identity_args": "", "function_kind": "definer",
+    "identity_args": "uuid", "function_kind": "definer",
     "owner_role_id": "pitchlog_rg1_fn_owner", "language": "plpgsql",
     "returns": "boolean", "security_mode": "definer", "volatility": "volatile",
     "search_path": ["pg_catalog", "pg_temp"],
@@ -170,9 +172,9 @@ GRANT EXECUTE ON FUNCTION rg1_api.rg1_assert_open_before_commit() TO pitchlog_ap
     "revoked_acl_expectations": [{"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": false}]
   },
   "commit_function": {
-    "function_id": "FUNCTION:rg1_api:rg1_assert_open_before_commit()",
+    "function_id": "FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)",
     "schema_name": "rg1_api", "function_name": "rg1_assert_open_before_commit",
-    "identity_args": "", "function_kind": "definer",
+    "identity_args": "uuid", "function_kind": "definer",
     "owner_role_id": "pitchlog_rg1_fn_owner", "language": "plpgsql",
     "returns": "boolean", "security_mode": "definer", "volatility": "volatile",
     "search_path": ["pg_catalog", "pg_temp"],
@@ -186,7 +188,7 @@ GRANT EXECUTE ON FUNCTION rg1_api.rg1_assert_open_before_commit() TO pitchlog_ap
 
 `repository-contract.json`はAの実登録形式が確定してから、RG1用token/operation ID各2件、`SQLA_SELECT`限定の`pitchlog.repositories.rg1._build_rg1_read_statement`（`kind`は`precheck`/`commit_check`の2値だけ）を追加する。`operation_registry.py`の製品登録も2件だけ。Aの共有実行器・既存シンボルの許可、DML経路、テナント束縛は拡大しない。`base-allowlist.json`ほか7資産のrevision・digest・snapshot・入力blob・movement_fact/reasonは**A統合後の最新develop**から採取し、この文書の仮値や旧試算を使用しない。
 
-**現行JSON/検査器との正確な衝突**: `ddl-elements.json`には`column_acl_expectations`群が既にあり、列単位の候補を宣言できる。ただし現行`backend/src/pitchlog/authz/product_control_access.py::generate_function_owner_column_acl_sql`と`scripts/check_authz_catalog.py`の追加definer用列ACLは`privilege_ids == ["SELECT"]`だけを受理する。必要最小の`UPDATE(singleton_id)`を下記のように書くと現行検査は**不合格**。表全体のUPDATEへ広げて回避しない。RG1の`singleton_id`列・専用owner・commit-check関数IDの組合せ**1件だけ**に`["UPDATE"]`を許可し、生成SQL・catalog exact-set・負例を同じ個別資産差分へ含める必要がある。これは5項目の方針承認に含まれる権限の具体化だが、**検査器と凍結資産の正確な変更は別承認対象**。
+**現行JSON/検査器との正確な衝突と承認済み解決**: `ddl-elements.json`には`column_acl_expectations`群が既にあり、列単位の候補を宣言できる。ただし旧検査器は追加definer用列ACLを`privilege_ids == ["SELECT"]`だけに限定し、列ACL IDは表・列・ownerで一意となる。人間が承認した最小解決は、RG1の`singleton_id`列・専用owner・commit-check関数IDの**同じ1行**に`["SELECT", "UPDATE"]`を宣言し、`state`の`SELECT`は別行にすること。表全体のUPDATEや他の組合せへ広げず、生成SQL・catalog exact-set・負例を同じ個別資産差分へ含める。
 
 ```json
 {
@@ -196,13 +198,13 @@ GRANT EXECUTE ON FUNCTION rg1_api.rg1_assert_open_before_commit() TO pitchlog_ap
   "object_id": "rg1_restore_gate",
   "column_id": "singleton_id",
   "grantee_role_id": "pitchlog_rg1_fn_owner",
-  "privilege_ids": ["UPDATE"],
+  "privilege_ids": ["SELECT", "UPDATE"],
   "grant_option": false,
-  "function_id": "FUNCTION:rg1_api:rg1_assert_open_before_commit()"
+  "function_id": "FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)"
 }
 ```
 
-`SELECT(singleton_id,state)`も同じ群の2行で宣言し、`UPDATE(state)`、表UPDATE、他ownerのUPDATEを拒否する。現行checkerの`SELECT`限定を一般化するのではなく、RG1 exact tupleだけを許す。`data-model.md`の新事実とDDL/JSON全体の最終承認前に、生成SQLと実DBで`SELECT FOR SHARE NOWAIT`がこの列権限・SELECT/UPDATE policy下で通るかを測定する。通らなければ権限を独断で拡大せず、差分を再提示する。
+`state`の`SELECT`だけは別IDの1行で宣言し、`UPDATE(state)`、表UPDATE、他ownerのUPDATEを拒否する。checkerの`SELECT`限定を一般化せず、RG1 exact tupleだけを許す。使い捨てPostgreSQL 17で、この実効列権限・SELECT/UPDATE policy下の`SELECT FOR SHARE NOWAIT`成功と`UPDATE(state)`拒否を実測済み。製品資産と実DBカタログの一致は候補反映後に別途検査する。
 
 ## 資産の候補集合と確認点
 
@@ -211,7 +213,7 @@ GRANT EXECUTE ON FUNCTION rg1_api.rg1_assert_open_before_commit() TO pitchlog_ap
 | 資産 | 提案する具体的な差分 | 未確定・拒否条件 |
 | --- | --- | --- |
 | DB DDL | `public.rg1_restore_gate(singleton_id smallint PRIMARY KEY CHECK(singleton_id=1), state text NOT NULL CHECK(state IN ('closed','open')))`の1行`(1,'closed')`、`ENABLE/FORCE ROW LEVEL SECURITY`。`rg1_api` schema、`pitchlog_rg1_fn_owner`=`NOLOGIN/NOBYPASSRLS`。同ownerだけ`SELECT(singleton_id,state)`と`UPDATE(singleton_id)`、singleton限定SELECT/UPDATE policy。読取2関数は`SECURITY DEFINER`・固定search_path・PUBLIC EXECUTE剥奪、appには2件だけEXECUTE | 正確なSQL・seed/RLS適用順、role/schema/列ACLの実効値と既存policy合成は実DBで検証。app表ACL、INSERT/DELETE policy、復元開始関数、製品openを追加しない |
-| 関数・固定登録 | `rg1_api.rg1_read_open()`は③-a非ロック、`rg1_api.rg1_assert_open_before_commit()`は⑧`FOR SHARE NOWAIT`。両者は新2では古いopen行でも常にfalse。Aの固定関数registryへtoken/operation ID各2件、固定SQL、exact bool結果、0/複数行・未知token拒否 | function bodyとTSK-550実登録schemaの最終形はA統合後に確定。任意SQL、Session、汎用FOR SHARE、DML実行器の緩和なし |
+| 関数・固定登録 | `rg1_api.rg1_read_open(uuid)`は③-a非ロック、`rg1_api.rg1_assert_open_before_commit(uuid)`は⑧`FOR SHARE NOWAIT`。引数はAが検証済みscopeから注入する`tenant_id`のみで、DB側もGUCとの一致を確認。両者は新4では古いopen行でも常にfalse。Aの固定関数registryへtoken/operation ID各2件、固定SQL、exact bool結果、0/複数行・未知token拒否 | function bodyとTSK-550実登録schemaの最終形はA統合後に確定。任意SQL、Session、汎用FOR SHARE、DML実行器の緩和なし |
 | JSON/正本 | `data-model.md`§3-2の専用roleとRG1の非テナント制御事実、`table-classification.json`のRG1 1表`function_only`/`owner_unit: U-R1`、露出事実・owner許可集合、`ddl-elements.json`/function-bodies/manifest/認可runtimeの1表・2関数・ACL/policy、repository-contractの2登録と必要な最小SQLA_SELECT symbol/正負fixtureを差分化 | 現行分類器は非テナント`function_only`を拒否するため、正本7.6・必要な7.3と認可担当のゲートが必要。既存分類・既存関数/allowlist symbolの権限拡大なし。実JSON key、revision、digestはA統合後に提示 |
 | 派生・履歴 | 変化した入力に限りlock/oracle、archive、7資産のsnapshotを追随。authorityは`base-allowlist.json`。新2PR番号の単一記録を候補afterと照合して正式受理後に追記 | 既受理済み履歴・before・PR #72 markerは不変。A統合後の実before/after、blob、movement_fact/reasonと人間の受理記録が必要 |
 
@@ -246,3 +248,9 @@ D4方式・製品open/復元開始は新5側、新6実経路結合は別ゲー�
 | `singleton_id`列ACL宣言 | 同じ`COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_fn_owner`に`["SELECT"]`と`["UPDATE"]`の2行 | 同IDの1行`["SELECT", "UPDATE"]`をcommit-check関数へ結び、`state`には別IDの`["SELECT"]`1行。生成SQLは列単位の`GRANT SELECT (singleton_id), UPDATE (singleton_id)` | 表UPDATEなし、`UPDATE(state)`なし、他表・他列・他owner・他関数のUPDATEなし |
 
 この2行は実効権限を広げない表現・接続修正だが、承認済み資料の**関数identityとJSON行数**を変える。承認されるまでは上表を正式資産へ反映せず、候補・検査の追加に留める。
+
+## 2026-10-15 現行候補の追加調査・レビュー結果
+
+上表の2件は依頼者が承認済み。新4の候補に反映し、独立レビュー1回目のP0=1/P1=2を全件採用した。P0はRG1表・専用ownerに表単位ACLを作れる迂回で、catalogと生成器の両方へ拒否を追加。P1はcatalogへの直接変異試験不足と、関数作成・EXECUTE剥奪/付与の原子性不足で、直接負例と単一transaction故障rollback試験を追加した。独立2回目の限定差分レビューは**可決 P0=0/P1=0/P2=0**。識別値と採否は[作業ログ](../../worklog/2026-10-15-ur1-recording-rights.md)を正とする。
+
+初期状態行`(1,'closed')`については[seed台帳整合調査](rg1-seed-allowlist-assessment.md)のとおり、既存の語彙専用許可では投入できない。**追加の限定seed系列・衛生検査器差分の具体資産承認**が必要。A統合後の実migration revision/path、7.7の実digest/snapshot/正式受理は別判断。現行の限定試験とレビューを全件検査や受理済みと扱わず、push/PR作成/mergeは行わない。

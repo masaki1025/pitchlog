@@ -4,6 +4,8 @@
 
 U-G1 が作成側だけを受理するための短い参照は [RG1 受理シート](rg1-preparing-acceptance.md)、D4 方式と運用の PO 判断材料は [D4 裁定案](d4-decision-proposal.md)。後者は未承認で、前者の受理条件ではない。
 
+**2026-10-15 の新4物理接続追補**: RG1内部operationの公開署名とU-G1/U-S1の呼出位置は維持する。DB読取関数2件だけを各`(uuid)`へ変更し、Aの固定関数実行器が検証済みscopeの`tenant_id`を唯一のbindとして注入する。呼出側がtenantを指定する引数・tokenフィールドは追加しない。DB関数内で引数と`app.tenant_id`の一致を検査し、不一致・欠損・不正はfail-closedにする。関数の戻りと直前`FOR SHARE NOWAIT`、B7/P3 B10の全取消は従前どおり。列ACLは`singleton_id`の同一行に`SELECT`と`UPDATE`を束ね、指定RG1表・列・owner・commit-check関数以外のUPDATEを拒否する。A統合後の実関数登録と凍結資産の値は7.7正式受理前の候補として別途照合する。
+
 ## 1. 既存契約で決まる事項
 
 | ID | 契約 | 根拠 |

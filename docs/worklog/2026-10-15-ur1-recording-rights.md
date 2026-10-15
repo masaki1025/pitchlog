@@ -142,3 +142,18 @@
 - Aはdevelop未統合。新4のA接続、正式認可/凍結資産、実revision・digest・snapshot、7.7正式受理は未了。現在の候補試験をステップ4完了や受理済みとして扱わない。独立レビューは候補差分が固定できるまで未実施。D4・運用open・新8結合・push/PR/mergeには進まない。
 - 追加のローカル候補`tests/test_core_guard.py::test_ur1_actual_path_set_is_guarded_in_both_meaning_areas`で、予定するRG1製品・認可・契約・試験16経路すべてが実登録からガードされ、該当6経路が同期プロトコルにも重複帰属することを確認。`uv run pytest tests/test_core_guard.py -q -n 0`は259件成功。これは新4候補差分であり、まだコミットせず新2/3の既確認履歴は維持する。
 - 人間判断用のexact前後表を[判断資料](../features/ur1-recording-rights/step2-decision-brief.md)末尾へ追記。Aの必須`tenant_id` bindに合わせる2関数`(uuid)`化と、重複列ACL IDを1行`["SELECT", "UPDATE"]`へ束ねる案だけを承認待ちにする。既存の5設計方針、Aの共有実行器、他のowner/表/列の権限は変更しない。
+
+## RG1新4の最小契約修正承認と候補着手（2026-10-15）
+
+- 依頼者は2関数の`(uuid)`化と検証済みscopeからAが注入する`tenant_id`限定、DB側GUC照合によるfail-closed、`singleton_id`の単一ACL行`["SELECT", "UPDATE"]`を明示承認。呼出側の任意tenant入力、表UPDATE、他列・他owner・他関数のUPDATEは許可されない。計画と接続契約、判断資料のSQL/JSON候補へ反映した。A統合後の実revision/digest/snapshot・7.7正式受理、push/PR/mergeは別ゲート。
+- Aは`origin/develop=3f6a935a`にまだ未統合。承認済みのA非依存部分として`product_control_access.py`と`check_authz_catalog.py`にRG1 exact tupleだけの列ACL生成・検査を候補実装した。指定8種の表/列/owner/関数/権限変異を拒否する試験を加え、関連`backend/tests/test_authz_product_control_access.py`は26件成功。候補を正式受理済みとは扱わない。
+- PC中断後に作業ツリーを確認し、未コミット候補が保持されていることを確認。RG1の`(uuid)`製品関数2本を隔離試験fixtureで実行し、開状態でも常閉、GUC欠損・不一致・不正、状態行欠損、表直接権限・他role実行拒否、NOWAIT競合を検証した。正式body manifestへ先置きすると既存の三方向exact-set検査が赤になるため、関数SQL候補は`backend/tests/fixtures/rg1/`に保全し、正式資産への登録は全対応行を揃える段階へ回した。`backend`の関連32件とrootのcore guard 259件、Ruff・tyは成功。未コミット候補・7.7未受理・pushなしを維持する。
+- 状態行`(1,'closed')`のseedは既存migration衛生検査が原則禁止し、`contracts/migrations/seed-allowlist.json`の個別宣言だけを許す。現行のRG1承認資料はseedの分担を示すが、このseed allowlistの正確な宣言・履歴差分は未提示。正式資産へ追加する前に既承認範囲との対応を確定し、必要なら追加承認対象として具体差分を示す。既存seed履歴は変更しない。
+
+## 初期closed行の台帳調査・独立レビュー1回目と反映（2026-10-15）
+
+- [seed整合調査](../features/ur1-recording-rights/rg1-seed-allowlist-assessment.md)を追加。現行migration衛生試験は未宣言の`op.bulk_insert`を拒否し、RG1の`singleton_id/state`は現行台帳の語彙用`category/key`形に一致しない。最小候補を静的検査器へ与えると`禁止 API bulk_insert()`となった。承認済みの`(1,'closed')`を投入するには、同一表作成revisionに限定した新seed系列と、1行完全一致の検査器形が必要。現行台帳・受理済み履歴は触れず、別の具体資産承認と7.7受理候補にする。
+- 候補に関与しない独立Codexセッション`/root/rg1_review`が現行未コミット差分をread-onlyで確認。1回目は**否決 P0=1/P1=2/P2=0**。P0はRG1専用ownerまたは表への表ACLを既存生成器・catalogが許し、`UPDATE(singleton_id)`限定を表全体UPDATEで迂回できる点。P1はcatalogのexact tuple経路への直接変異試験不足と、隔離fixtureが関数作成・PUBLIC剥奪・app付与をautocommitで分割し同一transactionを実証しない点。A未統合・正式RG1認可資産未作成・seed未決なのでレビュー対象は候補部分のみ。
+- **採否は3件とも採用**。P0にはRG1表または専用ownerへの表ACLをcatalogと生成器の両方で拒否するガード、表/ownerの負例を追加。P1にはcatalogへ8種の列ACL変異を直接渡す拒否試験、製品関数fixtureの単一transaction化と2関数目の故障時に1関数目・権限までrollbackする試験を追加。`product_table_access.py`は既存tenant-isolationのglobでguard対象だが、記録権の意味範囲にも明示するため、追加パスを新2宣言と新3登録の候補へ反映した。正式コミットでは宣言と登録の分離を維持する。
+- 2回目の独立差分レビューへ渡す候補識別: tracked code/guard差分の`git diff --binary` SHA-256=`4efbf6bc6c0ab08484a4afacc43fca29cc0853bd844d42ecbb427d3572d0a463`、未追跡の読取/直前関数SQL=`ee8071217f35d0663023f83cac17fa7aef73033eb5736dcf837cf4423a176e42` / `9fa3264653c7d04134453daa55df0b31453e90f5a4066d1820a630d6f3dfa1c9`、隔離試験=`e2518c2ddfe2bdfe2aef69e382eaefa17730f9723facf84eaa81439ad06c5eee`。対象は1回目の3件の反映差分と直接影響。6.3の基本枠2回目を用い、追加周回は自動延長しない。
+- **独立2回目の結果: 可決 P0=0/P1=0/P2=0（候補差分限定）**。同一独立レビュアが上記tracked差分・未追跡SQL/試験のSHA一致を確認し、P0のRG1表/owner表ACL拒否とP1のcatalog直接変異/単一transaction故障rollbackの反映を全件確認。新たな指摘なし。レビューはA接続・正式認可資産・seed系列・7.7受理の完了判定ではなく、その後の差分は別途レビュー影響を評価する。
