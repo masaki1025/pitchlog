@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 2,
+  "scenarioId": "multi-tab-single-writer",
+  "version": 2,
+  "input": {
+    "initialPersistence": {
+      "value": {
+        "queueCount": 0,
+        "nextD1": 1
+      }
+    },
+    "queue": {
+      "value": {
+        "unsentCount": 0
+      }
+    },
+    "d1": {
+      "value": {
+        "next": 1
+      }
+    },
+    "d3": {
+      "omittedBecause": "クライアント内の単一書き手選出だけを扱い、サーバーの連続 prefix を観測しないため"
+    },
+    "d4": {
+      "omittedBecause": "同じ試合の同一世代を前提とし、世代照合を故障対象にしないため"
+    },
+    "d5": {
+      "omittedBecause": "二つの確定操作の受理境界を扱い、個別イベントのべき等キーを固定しないため"
+    },
+    "currentRecoveryGeneration": {
+      "omittedBecause": "復元ライフサイクルを扱わないクライアント側シナリオのため"
+    },
+    "requestRecoveryGeneration": {
+      "omittedBecause": "サーバー要求を送る前のクライアント側シナリオのため"
+    },
+    "applicationPath": {
+      "omittedBecause": "サーバーの適用経路へ到達する前のクライアント側シナリオのため"
+    },
+    "tabs": {
+      "value": {
+        "sameBrowser": true,
+        "sameGame": true,
+        "contexts": [
+          "主タブ",
+          "後発タブ"
+        ],
+        "confirmedInputTabs": [
+          "主タブ",
+          "後発タブ"
+        ]
+      }
+    },
+    "lock": {
+      "value": {
+        "gameScoped": true,
+        "initialOwner": null
+      }
+    },
+    "p5Branch": {
+      "omittedBecause": "適用経路が P5 の資産ではないため"
+    }
+  },
+  "cases": [
+    {
+      "caseId": "concurrent-confirm",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "client",
+            "operation": "同じ試合を開いた二つのタブの確定操作"
+          }
+        },
+        "injectionPoint": {
+          "value": "両方のタブが書き手選出を要求する時点"
+        },
+        "stopOperation": {
+          "omittedBecause": "停止を伴わない競合シナリオのため"
+        },
+        "restartOperation": {
+          "omittedBecause": "再開を伴わない競合シナリオのため"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "両タブの確定操作後",
+          "fields": {
+            "queue": {
+              "appendCount": 1
+            },
+            "d1": {
+              "duplicateCount": 0
+            },
+            "lock": {
+              "ownerCount": 1,
+              "nonOwnerReadOnly": true
+            },
+            "acceptanceDisplay": {
+              "acceptedTabCount": 1,
+              "nonOwnerNoticeId": "Q2-b"
+            },
+            "reinputAvailability": {
+              "nonOwnerInputAccepted": false,
+              "retryAfterLockAcquisition": true
+            },
+            "prefix": {
+              "omittedBecause": "サーバーの連続 prefix へ到達する前のクライアント側シナリオのため"
+            },
+            "idempotentResult": {
+              "omittedBecause": "サーバーがべき等結果を返す前のクライアント側シナリオのため"
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "一時 ID 写像を確定するサーバー応答を扱わないクライアント側シナリオのため"
+            },
+            "recordingRight": {
+              "omittedBecause": "サーバーの記録権照合へ到達する前のクライアント側シナリオのため"
+            },
+            "tElementCommitment": {
+              "omittedBecause": "サーバーのトランザクション(T 要素)へ到達する前のクライアント側シナリオのため"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "comparisonUnit": [
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "caseId": "concurrent-confirm",
+      "injectionTarget": "client:同じ試合を開いた二つのタブの確定操作",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "caseId": "concurrent-confirm",
+      "injectionTarget": "client:同じ試合を開いた二つのタブの確定操作",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "caseId": "concurrent-confirm",
+      "injectionTarget": "client:同じ試合を開いた二つのタブの確定操作",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "caseId": "concurrent-confirm",
+      "injectionTarget": "client:同じ試合を開いた二つのタブの確定操作",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "caseId": "concurrent-confirm",
+      "injectionTarget": "client:同じ試合を開いた二つのタブの確定操作",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "caseId": "concurrent-confirm",
+      "injectionTarget": "client:同じ試合を開いた二つのタブの確定操作",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "caseId": "concurrent-confirm",
+      "injectionTarget": "client:同じ試合を開いた二つのタブの確定操作",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "caseId": "concurrent-confirm",
+      "injectionTarget": "client:同じ試合を開いた二つのタブの確定操作",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "caseId": "concurrent-confirm",
+      "injectionTarget": "client:同じ試合を開いた二つのタブの確定操作",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "multi-tab-single-writer",
+      "caseId": "concurrent-confirm",
+      "injectionTarget": "client:同じ試合を開いた二つのタブの確定操作",
+      "observationPoint": "両タブの確定操作後",
+      "expectedField": "tElementCommitment"
+    }
+  ]
+}

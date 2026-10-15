@@ -49,13 +49,6 @@ DOMAIN_RUNTIME_PATH_ADDITIONS = (
     "backend/Dockerfile",
 )
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "game-state": (
-        "contracts/field-regions/*",
-        "contracts/display-geometry/*",
-        "tests/test_field_geometry_numeric_lexemes.py",
-        "tests/test_fielder_estimation_contract.py",
-        "tests/test_field_geometry_ci_wiring.py",
-    ),
     "sync-protocol": (
         "backend/src/pitchlog/repositories/rg1.py",
         "backend/src/pitchlog/repositories/operation_registry.py",

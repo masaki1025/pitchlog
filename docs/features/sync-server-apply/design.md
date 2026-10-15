@@ -116,7 +116,7 @@ EXPECTED_IDEMPOTENCY_IDS = 上 2 つ ∪ 射程外                              
 
 ## 3. 故障系契約
 
-> **⚠️ 本章は TSK-321 の射程外**。[TSK-332](https://app.notion.com/p/3d493b75e687816eb9fbd19dda889d5e) への申し送りであり、**5 周目の未反映指摘 4 件**(冒頭の表を参照)が残っている。
+本章の母集合は正本 10-3 に従う。現行の所有状態は 6-1 の機械可読表を正とする。
 
 ### 3-1. 正本の読み(1 周目 P0-1 で是正)
 
@@ -373,97 +373,18 @@ P3 経路 11 段階の `(順序, 進行中, 終了後, 境界結果)`。
 scenarioId は `FILE_NAME_PATTERN`(`failureScenarioContract.ts:90`)の
 `^[a-z0-9]+(?:-[a-z0-9]+)*$` に適合させる(**小文字英数とハイフンのみ**)。
 
-| 正本 10-2 の観点 / 10-3 の名指し | stable scenarioId | 状態 |
-| --- | --- | --- |
-| 複数タブの単一書き手 | `multi-tab-single-writer` | **作成済み**(後続 α) |
-| フリーズ後の再選出 | `leader-freeze-reelection` | **作成済み**(後続 α) |
-| 待機中の入力非受理 | `waiting-input-not-accepted` | **作成済み**(後続 α) |
-| 永続追記失敗 | `durable-append-failure` | **作成済み**(後続 α) |
-| **墓標の適用** | `tombstone-application` | **TSK-332 で作成(第 1 群)** |
-| **改訂の適用** | `revision-application` | **TSK-332 で作成(第 1 群)** |
-| **P1** | `p1-crash-boundaries` | **TSK-332 で作成(第 2 群)** |
-| **P2** | `p2-crash-boundaries` | **TSK-332 で作成(第 2 群)** |
-| **P3** | `p3-crash-boundaries` | **TSK-332 で作成(第 2 群)** |
-| **P4** | `p4-crash-boundaries` | **TSK-332 で作成(第 2 群)** |
-| **P5(B3a のクラッシュ境界)** | `p5-b3a-crash-boundaries` | **TSK-332 で作成(第 2 群)** |
-| **P5(B3b と T9 到達不能)** | `p5-b3b-unreached-t9` | **TSK-332 で作成(第 2 群)** |
-| **D1 混在バッチ** | `d1-mixed-batch` | **TSK-332 で作成(第 2 群)** |
-| **gap より後ろの B3b** | `b3b-after-gap` | **TSK-332 で作成(第 2 群)** |
-| P3 の消費側反映後・配信完了記録前(10-3 `:1702`) | `p3-invalidation-consumed-before-complete` | **繰り延べ → TSK-330** |
-| `O4` の永続化済み D2 同値 | `o4-persisted-d2-equivalence` | **繰り延べ → TSK-330** |
-| 復元ライフサイクルの完走 | `restore-fence-escrow-new-generation` | **繰り延べ → TSK-330** |
-| 復元途中のクラッシュ | `restore-crash-before-new-generation` | **繰り延べ → TSK-330** |
-| 復元時の未回収端末 | `restore-uncollected-device` | **繰り延べ → TSK-330** |
-| RG1 移行とのコミット競合 | `restore-commit-race` | **繰り延べ → TSK-330** |
-| 復元中の 24 時間清掃(保持中) | `restore-cleanup-held` | **繰り延べ → TSK-330** |
-| 復元中の 24 時間清掃(期限切れ未回収) | `restore-expired-not-collected` | **繰り延べ → TSK-330** |
-| D4 のロールバック後非再利用(過去発行 D4 集合) | `restore-d4-issued-set` | **繰り延べ → TSK-330** |
-| D4 のロールバック後非再利用(連続復元) | `restore-d4-consecutive-rollbacks` | **繰り延べ → TSK-330** |
-| 復元調整中の全変更経路 | `restore-all-write-paths-blocked` | **繰り延べ → TSK-330** |
-| RG1 解除と新 D4 の境界 | `restore-release-new-generation-boundary` | **繰り延べ → TSK-330** |
+**母集合の正**は `tests/fixtures/sync-protocol-population_v1.json` の `rows`。
+各行に観点 key、scenarioId、所有状態(`owned` / `deferred`)と、
+繰り延べの場合の受け取り先を記す。現況は 26 ペア・22 観点・
+所有 16 件・U-R1(TSK-392) へ繰り延べ 10 件である。
+`p3-invalidation-consumed-before-complete` と
+`o4-persisted-d2-equivalence` は所有済みである。
 
-**合計 26**(作成済み 4 + **TSK-332 が作る 10** + **TSK-330 へ繰り延べ 12**)。
+### 6-2. 観点被覆 — 和集合では足りず、ペア集合で照合する
 
-**「第 1 群 / 第 2 群」は TSK-321 の旧ステップ 7 / 8 に由来する暫定分類**であり、
-**実装順序・コミット単位・依存関係は TSK-332 の計画で確定する**。
-
-復元系のうち 8 ID は **10-3 `:1692` が逐語で名指し**したもの。ただし同節は「**少なくとも**」と書いており、
-**10-2 の観点「復元調整中の全変更経路」(`:1648`)と「RG1 解除と新 D4 の境界」(`:1652`)を
-8 ID のどれも一意に覆わない**ため、上の 2 ID を追加した(正本の許す範囲)。
-
-### 6-2. 観点被覆 — 和集合では足りず、ペア集合で照合する(3 周目 P1-3 / 4 周目 P1-2)
-
-`作成済み ∪ 繰り延べ = scenarioId 母集合` は **ID の存在しか検査しない**。
-さらに **`観点集合 = ⋃ covers` という和集合検査も不十分**である(4 周目 P1-2):
-
-- `OBSERVATION_KEYS` と `SCENARIO_COVERS` を**同時に作れば、両方から同じ観点を落としても green**
-- **別シナリオへ誤って付け替えても和集合は不変**
-- **重複被覆では 1 辺を消しても red にならない**
-
-**`scenarioId × 観点key` の期待ペア集合そのものを exact-set 照合する。**
-
-`(d)` の故障系観点は **10-2 `#### (d) の故障系観点 — 実行可能なシナリオ` の 22 行**
-(`:1670` 以降の「通信断 → 復帰同期」「記録権の通常/緊急引き継ぎと退避経路」の 2 行は
-**`#### (c) のうち同期側が関わる 2 経路` = `NFR-019(c)` であり (d) ではない**)。
-
-| # | 観点 key(10-2 の行) | scenarioId |
-| ---: | --- | --- |
-| 1 | `tombstone-apply` | `tombstone-application` |
-| 2 | `revision-apply` | `revision-application` |
-| 3 | `p1` | `p1-crash-boundaries` |
-| 4 | `p2` | `p2-crash-boundaries` |
-| 5 | `p3` | `p3-crash-boundaries` |
-| 6 | `p3` | `p3-invalidation-consumed-before-complete` |
-| 7 | `d1-mixed-batch` | `d1-mixed-batch` |
-| 8 | `b3b-after-gap` | `b3b-after-gap` |
-| 9 | `d4-no-reuse-after-rollback` | `restore-d4-issued-set` |
-| 10 | `d4-no-reuse-after-rollback` | `restore-d4-consecutive-rollbacks` |
-| 11 | `all-write-paths-during-restore` | `restore-all-write-paths-blocked` |
-| 12 | `rg1-commit-race` | `restore-commit-race` |
-| 13 | `rg1-release-new-d4-boundary` | `restore-release-new-generation-boundary` |
-| 14 | `restore-lifecycle-complete` | `restore-fence-escrow-new-generation` |
-| 15 | `restore-crash-midway` | `restore-crash-before-new-generation` |
-| 16 | `restore-uncollected-device` | `restore-uncollected-device` |
-| 17 | `restore-24h-cleanup` | `restore-cleanup-held` |
-| 18 | `restore-24h-cleanup` | `restore-expired-not-collected` |
-| 19 | `o4-persisted-d2-equivalence` | `o4-persisted-d2-equivalence` |
-| 20 | `multi-tab-single-writer` | `multi-tab-single-writer` |
-| 21 | `p4` | `p4-crash-boundaries` |
-| 22 | `p5` | `p5-b3a-crash-boundaries` |
-| 23 | `p5` | `p5-b3b-unreached-t9` |
-| 24 | `leader-freeze-reelection` | `leader-freeze-reelection` |
-| 25 | `waiting-input-not-accepted` | `waiting-input-not-accepted` |
-| 26 | `durable-append-failure` | `durable-append-failure` |
-
-**観点 key 22 種・ペア 26 件・scenarioId 26 件**(各 scenarioId はちょうど 1 回現れる)。
-
-```
-主張 ①  OBSERVATION_SCENARIO_PAIRS = 上表の 26 ペア            (exact-set・ペアそのものを照合)
-主張 ②  ペアの第 1 要素の集合 = OBSERVATION_KEYS(22)           (取りこぼし・余剰を拒否)
-主張 ③  ペアの第 2 要素の集合 = scenarioId 母集合(26)          (同上)
-```
-
-**ペアを 1 件消しても、別シナリオへ付け替えても、観点を落としても red** になる。
+Python と TypeScript の契約検査は上記の同じ JSON 表を読み、
+観点と scenarioId のペア、所有と繰り延べの排他性、資産・runner の
+実集合を照合する。表以外に期待ペア集合を複製しない。
 
 ### 6-3. 2 つの繰り延べ表 — 和集合に加えて交差が空(4 周目 P1-2)
 
@@ -475,7 +396,7 @@ it.each は runner 繰り延べを除いた集合で回す
 ```
 
 **和集合だけだと両方への重複登録を許す**ため、**交差が空であること**も要求する。
-TSK-332 が作る 10 資産はすべて **runner 繰り延べ**に入る(実行検証は TSK-330)。
+runner の現況は、端末側の登録表とサーバー側の DB runner を表の所有状態と照合する。
 
 ### 6-4. exact-set の一覧(6 本)
 

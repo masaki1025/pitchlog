@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 17
+CONTRACT_REVISION = 18
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "670b435ae06b75284eeba6cffc0241abd3e6c8ba9a8971e0afea965d3d9f5746"
+SOURCE_DIGEST = "59cf5b0a0fa973bcac22ea8bb92211d8e0289c6d58d4864779f25d6b749d7f9b"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -43,6 +43,15 @@ IMMUTABLE_CONTAINER_GRAMMAR = (
     "frozenset[T]",
     "mappingproxy[str, T]",
 )
+CANONICAL_TABLE = "orm_metadata_table_identity_for_registration_and_statement"
+UPDATE_IDENTITY = "actual_complete_primary_key_equalities_for_all_updates"
+UPDATE_BIND_NAMES = "primary_key_disjoint_from_target_columns_and_set_bindings"
+TENANT_PRIMARY_KEY_BIND = "injected_context_bind_only"
+ROW_LOCK = (
+    "declared_plain_for_update_with_complete_primary_key_and_explicit_specialized_shape"
+)
+UNLOCKED_READ = "for_update_absent_when_undeclared"
+SYNC_APPLY_SCOPE = "contextvar_rejects_new_tenant_transaction_scope"
 FORBIDDEN_TYPES = (
     "typing.Any",
     "builtins.object",
@@ -71,6 +80,24 @@ PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:lineup_memories:read",
     "CAP:lineup_memories:insert",
     "CAP:lineup_memories:update",
+    "CAP:recording_generations:read",
+    "CAP:recording_generations:update",
+    "CAP:event_slots:read",
+    "CAP:event_slots:insert",
+    "CAP:event_slots:update",
+    "CAP:operation_events:read",
+    "CAP:operation_events:insert",
+    "CAP:operation_events:update",
+    "CAP:temporary_player_id_mappings:read",
+    "CAP:temporary_player_id_mappings:insert",
+    "CAP:idempotency_ledger:read",
+    "CAP:idempotency_ledger:insert",
+    "CAP:rejected_event_originals:read",
+    "CAP:rejected_event_originals:insert",
+    "CAP:invalidation_intents:read",
+    "CAP:invalidation_intents:update",
+    "CAP:evacuated_event_originals:read",
+    "CAP:evacuated_event_originals:insert",
 )
 PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -89,5 +116,32 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.lineup_memory.LineupMemoryReadToken",
     "pitchlog.repositories.lineup_memory._LineupMemoryInsertToken",
     "pitchlog.repositories.lineup_memory._LineupMemoryUpdateToken",
+    "pitchlog.sync.tokens.GameReadToken",
+    "pitchlog.sync.tokens.GameLockToken",
+    "pitchlog.sync.tokens.RecordingGenerationReadToken",
+    "pitchlog.sync.tokens.RecordingGenerationByNumberReadToken",
+    "pitchlog.sync.tokens.RecordingGenerationLockToken",
+    "pitchlog.sync.tokens.RecordingPrefixUpdateToken",
+    "pitchlog.sync.tokens.EventSlotReadToken",
+    "pitchlog.sync.tokens.EventSlotInsertToken",
+    "pitchlog.sync.tokens.EventSlotVersionUpdateToken",
+    "pitchlog.sync.tokens.OperationEventReadToken",
+    "pitchlog.sync.tokens.OperationEventOrderReadToken",
+    "pitchlog.sync.tokens.OperationEventInsertToken",
+    "pitchlog.sync.tokens.OperationEventOrderUpdateToken",
+    "pitchlog.sync.tokens.OperationEventReplaceToken",
+    "pitchlog.sync.tokens.TemporaryPlayerMappingReadToken",
+    "pitchlog.sync.tokens.TemporaryPlayerMappingInsertToken",
+    "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+    "pitchlog.sync.tokens.IdempotencyLedgerInsertToken",
+    "pitchlog.sync.tokens.RejectedOriginalReadToken",
+    "pitchlog.sync.tokens.RejectedOriginalInsertToken",
+    "pitchlog.sync.tokens.InvalidationIntentReadToken",
+    "pitchlog.sync.tokens.InvalidationIntentPendingToken",
+    "pitchlog.sync.tokens.SyncInvalidationIntentInsertToken",
+    "pitchlog.sync.tokens.SyncSharedInvalidationIntentInsertToken",
+    "pitchlog.sync.tokens.InvalidationIntentDeliveredToken",
+    "pitchlog.sync.tokens.EvacuatedOriginalReadToken",
+    "pitchlog.sync.tokens.EvacuatedOriginalInsertToken",
 )
 CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()

@@ -454,17 +454,13 @@ D2_DOMAIN_CALC_GLOBS = (
     "backend/tests/domainrt/*",
 )
 D2_SYNC_PROTOCOL_PATH_ADDITIONS = ("tests/domain/runners/test_handoff_loader.py",)
-# 先行追加層の窓口は回転式で、着地済みの宣言は JSON 側へ移る。
-# D-2(#131)の分は develop の core-areas.json へ着地済みのため、
-# 現在宣言されているのは TSK-238 の領域契約の分である。
+US1_SYNC_APPLY_AREA_PATH_ADDITIONS = (
+    "backend/src/pitchlog/sync/*",
+    "backend/src/pitchlog/repositories/sync_apply.py",
+    "backend/tests/test_sync_apply_*.py",
+)
+# 先行追加層の窓口は回転式。U-S1 の登録済み層の後に U-R1 を追加する。
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
-    "game-state": (
-        "contracts/field-regions/*",
-        "contracts/display-geometry/*",
-        "tests/test_field_geometry_numeric_lexemes.py",
-        "tests/test_fielder_estimation_contract.py",
-        "tests/test_field_geometry_ci_wiring.py",
-    ),
     "sync-protocol": (
         "backend/src/pitchlog/repositories/rg1.py",
         "backend/src/pitchlog/repositories/operation_registry.py",
@@ -494,8 +490,8 @@ EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     ),
 }
 REGISTERED_BEFORE_UR1: dict[str, tuple[str, ...]] = {
-    "game-state": EXPECTED_AREA_PATH_ADDITIONS["game-state"],
-    "sync-protocol": ("tests/test_field_geometry_numeric_lexemes.py",),
+    "sync-protocol": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
+    "recording-rights": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
 }
 UF5_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     "tenant-isolation": UF5_TEAM_AREA_PATH_ADDITIONS,
@@ -2393,6 +2389,67 @@ def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> 
         )
 
 
+def test_current_declaration_accepts_json_after_us1_baseline(tmp_path: Path) -> None:
+    """U-S1登録済みの基線から宣言のみ・登録済みを順に受理する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    assert core_guard.verify_area_path_baseline(root, base_sha, base_sha) == base_sha
+
+    write_text(root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8"))
+    run_git(root, "add", "scripts/core_guard.py")
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "declaration only",
+    )
+    head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+
+    assert candidate == baseline
+    tenant_area = next(
+        area for area in candidate["areas"] if area["id"] == "tenant-isolation"
+    )
+    assert tenant_area["paths"] == ["base/tenant-isolation.py"]
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    core_guard.validate_area_path_layers(baseline, candidate)
+    assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
+
+    registered_sha = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    registered = core_guard.load_core_areas_at_revision(root, registered_sha)
+    for area in registered["areas"]:
+        area_id = area["id"]
+        assert area["paths"] == [
+            f"base/{area_id}.py",
+            *EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ()),
+        ]
+    assert core_guard.verify_area_path_baseline(root, base_sha, registered_sha) == (
+        base_sha
+    )
+
+
+def test_sync_apply_additions_declared_for_other_area_are_rejected(tmp_path: Path) -> None:
+    """別領域に同じ追加層を宣言しても tenant の変更を拒否する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    head_sha = commit_area_path_changes(
+        root, {"tenant-isolation": US1_SYNC_APPLY_AREA_PATH_ADDITIONS}
+    )
+
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(
+            baseline, candidate, EXPECTED_AREA_PATH_ADDITIONS
+        )
+
+
 def test_tenant_additions_declared_for_other_area_are_rejected(tmp_path: Path) -> None:
     """別領域に同じ追加層を宣言しても tenant の変更を拒否する。"""
     core_guard = load_core_guard_module()
@@ -2550,6 +2607,44 @@ def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
         screen_paths, core_guard.load_core_areas(REPO)
     ) == list(screen_paths)
     core_guard.validate_area_path_layers(baseline, candidate)
+
+
+def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
+    """U-S1の登録済み層を保ち、その後にRG1層だけを追加する。"""
+    core_guard = load_core_guard_module()
+    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
+    configuration = load_actual_core_areas()
+    base_areas = {area["id"]: area for area in baseline["areas"]}
+    current_areas = {area["id"]: area for area in configuration["areas"]}
+    representatives = (
+        ("backend/src/pitchlog/sync/apply.py", US1_SYNC_APPLY_AREA_PATH_ADDITIONS[0]),
+        (
+            "backend/src/pitchlog/repositories/sync_apply.py",
+            US1_SYNC_APPLY_AREA_PATH_ADDITIONS[1],
+        ),
+        ("backend/tests/test_sync_apply_entry.py", US1_SYNC_APPLY_AREA_PATH_ADDITIONS[2]),
+        (
+            "backend/tests/test_sync_apply_tenant_boundary.py",
+            US1_SYNC_APPLY_AREA_PATH_ADDITIONS[2],
+        ),
+    )
+
+    assert set(base_areas) == set(current_areas) == set(DATA_MODEL_AREA_IDS)
+    for area_id in ("sync-protocol", "recording-rights"):
+        paths = tuple(current_areas[area_id]["paths"])
+        base_paths = tuple(base_areas[area_id]["paths"])
+        assert_registered_block(base_paths, US1_SYNC_APPLY_AREA_PATH_ADDITIONS)
+        assert_registered_block(paths, US1_SYNC_APPLY_AREA_PATH_ADDITIONS)
+        rg1_suffix = EXPECTED_AREA_PATH_ADDITIONS[area_id]
+        assert paths in (base_paths, (*base_paths, *rg1_suffix))
+        for path, pattern in representatives:
+            assert pattern in paths
+            assert fnmatch.fnmatchcase(path, pattern)
+    for area_id in ("game-state", "tenant-isolation", "data-migration"):
+        assert current_areas[area_id]["paths"] == base_areas[area_id]["paths"]
+
+    core_guard.validate_area_path_layers(baseline, configuration)
 
 
 def test_uf5_team_paths_are_registered_for_tenant_and_migration() -> None:
@@ -2719,11 +2814,7 @@ def test_area_registration() -> None:
     for area_id, additions in REGISTERED_BEFORE_UR1.items():
         base_paths = tuple(baseline_areas[area_id]["paths"])
         current_paths = tuple(areas[area_id]["paths"])
-        ur1_suffix = (
-            EXPECTED_AREA_PATH_ADDITIONS["sync-protocol"]
-            if area_id == "sync-protocol"
-            else ()
-        )
+        ur1_suffix = EXPECTED_AREA_PATH_ADDITIONS[area_id]
         assert current_paths in (base_paths, (*base_paths, *ur1_suffix))
         assert all(
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)

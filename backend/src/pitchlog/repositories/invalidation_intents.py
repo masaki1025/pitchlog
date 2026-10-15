@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from re import fullmatch
+from types import MappingProxyType
 from typing import TYPE_CHECKING, cast
 from uuid import UUID
 
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
 
 __all__ = (
     "InvalidationIntentInsertToken",
+    "SCOPE_KIND_BY_SCOPE",
     "StoredIntentTargetKind",
     "classify_stored_intent_target",
     "record_game_invalidation_intents",
@@ -38,13 +40,15 @@ __all__ = (
 )
 
 _INTENTS = cast(Table, InvalidationIntent.__table__)
-_SCOPE_KIND_BY_SCOPE: dict[CacheScope, str] = {
-    CacheScope.MATCH: "game",
-    CacheScope.PLAYER_CAREER: "player_total",
-    CacheScope.TEAM_AGGREGATE: "team_total",
-    CacheScope.SHARED_AGGREGATE: "shared_total",
-    CacheScope.ANALYTICS_CHART: "chart",
-}
+SCOPE_KIND_BY_SCOPE = MappingProxyType(
+    {
+        CacheScope.MATCH: "game",
+        CacheScope.PLAYER_CAREER: "player_total",
+        CacheScope.TEAM_AGGREGATE: "team_total",
+        CacheScope.SHARED_AGGREGATE: "shared_total",
+        CacheScope.ANALYTICS_CHART: "chart",
+    }
+)
 _SELECTOR_KIND_BY_SCOPE: dict[CacheScope, str] = {
     CacheScope.MATCH: "concrete_game",
     CacheScope.PLAYER_CAREER: "tenant_scope",
@@ -167,7 +171,11 @@ class InvalidationIntentInsertToken(TenantOperationToken):
     game_id: UUID | None = None
 
     def __post_init__(self) -> None:
-        """トリガー14の旧形式とトリガー5の新形式を分離する。"""
+        """許可したトリガーの行形と同期意図 ID との非衝突を検証する。"""
+        if isinstance(
+            self.trigger, CacheInvalidationTrigger
+        ) and self.trigger.value.startswith("sync"):
+            raise ValueError("同期意図 ID と衝突するトリガー値は使えない")
         if type(self.operation_id) is not UUID:
             raise ValueError("operation_id は UUID が必要")
         if self.trigger is CacheInvalidationTrigger.ROSTER_STATUS_CHANGE:
@@ -207,7 +215,7 @@ def _build_invalidation_intent_statement() -> Insert:
         tenant_id=bindparam("tenant_id"),
         intent_id=bindparam("intent_id", type_=Text),
         scope_kind=bindparam(
-            "scope_kind", _SCOPE_KIND_BY_SCOPE[CacheScope.SHARED_AGGREGATE], type_=Text
+            "scope_kind", SCOPE_KIND_BY_SCOPE[CacheScope.SHARED_AGGREGATE], type_=Text
         ),
         target_tenant_id=bindparam("tenant_id"),
     )
@@ -231,7 +239,7 @@ def _prepare_invalidation_intent_insert(
         )
         return statement, {
             "intent_id": token.intent_id,
-            "scope_kind": _SCOPE_KIND_BY_SCOPE[token.row_discriminator],
+            "scope_kind": SCOPE_KIND_BY_SCOPE[token.row_discriminator],
             "target_selector_kind": _SELECTOR_KIND_BY_SCOPE[token.row_discriminator],
             "game_id": (
                 token.game_id if token.row_discriminator is CacheScope.MATCH else None
