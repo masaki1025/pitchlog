@@ -1300,7 +1300,7 @@ def test_partial_commit_state_is_red(
 
 
 def test_runner_split_covers_every_case_and_field() -> None:
-    """クライアント runner の担当は、各 case の I6 と端末の 4 項目の実値フィールドちょうど。"""
+    """各 case の I6 と端末の 4 項目をクライアント runner の担当として検査する。"""
     assets = dict((asset["scenarioId"], asset) for _, asset in _assets())
     assert set(assets) == OWNED_SCENARIO_IDS
     for asset, case in _SERVER_CASE_PAIRS:
