@@ -15,6 +15,23 @@ import expand_state_transition_cases
 
 ROOT = Path(__file__).resolve().parents[1]
 MAPPING_PATH = Path("contracts/state-transition/branch_row_mapping_v1.json")
+LEGACY_GAME_END_OMITTED_AXES = {
+    "gameEnd.satisfiedColdTierCount",
+    "state.count.balls",
+    "state.count.strikes",
+    "state.outs",
+    "state.runners",
+    "event.operationPayload",
+    "event.perPitch.pitchEventKind",
+    "event.perPitch.runnerEventPayload",
+    "event.perPitch.runnerAdvanceOverridesByRunner",
+    "event.perPitch.thirdOutTimingByRunner",
+    "event.perPitch.interferenceRuling",
+    "event.perPitch.officialScoringPayload",
+    "event.perPitch.rbi.doublePlayRelayError",
+    "event.perPitch.rbi.runnerContinuityByRunner",
+    "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+}
 
 
 class FixtureParityError(ValueError):
@@ -44,6 +61,15 @@ def _assert_equal(branch_id: str, field: str, fixture: Any, expanded: Any) -> No
         raise FixtureParityError(
             f"{branch_id}: {field} 不一致: fixture={fixture!r}; expanded={expanded!r}"
         )
+
+
+def _legacy_game_end_coordinate(
+    fixture: dict[str, Any], expanded: dict[str, Any]
+) -> dict[str, Any]:
+    """凍結済みfixtureに無い追加軸だけを除き、既存軸は照合する。"""
+    if not set(expanded) - set(fixture) <= LEGACY_GAME_END_OMITTED_AXES:
+        return expanded
+    return {key: expanded[key] for key in fixture if key in expanded}
 
 
 def check_documents(
@@ -115,11 +141,21 @@ def check_documents(
         expanded = expanded_by_branch.get(branch_id)
         if expanded is None:
             raise FixtureParityError(f"対応する展開結果がない: {branch_id}")
-        _assert_equal(
-            branch_id, "inputCoordinate", case["inputCoordinate"], expanded["inputCoordinate"]
-        )
+        coordinate = expanded["inputCoordinate"]
+        if entry["fixtureRelation"] == "decision-output":
+            coordinate = _legacy_game_end_coordinate(case["inputCoordinate"], coordinate)
+        _assert_equal(branch_id, "inputCoordinate", case["inputCoordinate"], coordinate)
         output_field = "decision" if entry["fixtureRelation"] == "decision-output" else "expected"
-        _assert_equal(branch_id, output_field, case[output_field], expanded[output_field])
+        fixture_output = case[output_field]
+        expanded_output = expanded[output_field]
+        if isinstance(expanded_output, dict) and "historyContext" in expanded_output:
+            expanded_output = {key: value for key, value in expanded_output.items()
+                               if key != "historyContext"}
+        if branch_id == "DRAW-05":
+            fixture_output = mapping_checker.project_legacy_operation_fixture(
+                fixture_output
+            )
+        _assert_equal(branch_id, output_field, fixture_output, expanded_output)
         matched += 1
     if matched != mapping["expectedPositiveMatches"]:
         raise FixtureParityError(
@@ -195,12 +231,17 @@ def check_repository(root: Path = ROOT) -> tuple[int, dict[str, list[str]]]:
     state = mapping_checker._read_object(root, mapping["stateContractPath"])
     game_end = mapping_checker._read_object(root, mapping["gameEndContractPath"])
     expanded_state, _ = expand_state_transition_cases.expand_traced(
-        root, limit=len(state["matrixRows"])
+        root,
+        limit=len(state["matrixRows"]),
+        operation_limit=len(state["operationRows"]),
+        undo_limit=len(state["undoRows"]),
     )
     expanded_game_end, _ = expand_game_end_cases.expand_traced(
         root, limit=len(game_end["decisionRows"])
     )
-    if len(expanded_state) != len(state["matrixRows"]):
+    if len(expanded_state) != sum(
+        len(state[layer]) for layer in ("matrixRows", "operationRows", "undoRows")
+    ):
         raise FixtureParityError("状況判定の全規範行を展開できていない")
     if len(expanded_game_end) != len(game_end["decisionRows"]):
         raise FixtureParityError("終了判定の全規範行を展開できていない")

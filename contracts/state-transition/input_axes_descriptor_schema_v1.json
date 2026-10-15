@@ -64,7 +64,7 @@
     "gameEndAxes": {
       "type": "array",
       "minItems": 4,
-      "maxItems": 4,
+      "maxItems": 5,
       "uniqueItems": true,
       "items": {
         "$ref": "#/$defs/axis"
@@ -258,7 +258,9 @@
         "coverageValueFieldsByClassification",
         "axisCombinationBoundary",
         "conditionalValuePolicy",
-        "axisBindings"
+        "axisBindings",
+        "derivedAxisIds",
+        "derivedUnreachablePairs"
       ],
       "additionalProperties": false,
       "properties": {
@@ -354,6 +356,22 @@
           "uniqueItems": true,
           "items": {
             "$ref": "#/$defs/inputCoordinateAxisBinding"
+          }
+        },
+        "derivedAxisIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/axisId"
+          }
+        },
+        "derivedUnreachablePairs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/derivedUnreachablePair"
           }
         }
       }
@@ -490,6 +508,25 @@
         }
       ]
     },
+    "derivedFrom": {
+      "type": "object",
+      "required": ["sourceAxisIds", "clauseIds"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceAxisIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/axisId"}
+        },
+        "clauseIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/sourceClauseId"}
+        }
+      }
+    },
     "finiteEnumerableAxis": {
       "type": "object",
       "required": [
@@ -508,6 +545,9 @@
         },
         "supportingClauseIds": {
           "$ref": "#/$defs/supportingClauseIds"
+        },
+        "derivedFrom": {
+          "$ref": "#/$defs/derivedFrom"
         },
         "classification": {
           "$ref": "#/$defs/axisClassification",
@@ -544,6 +584,9 @@
         },
         "supportingClauseIds": {
           "$ref": "#/$defs/supportingClauseIds"
+        },
+        "derivedFrom": {
+          "$ref": "#/$defs/derivedFrom"
         },
         "ruleFieldId": {
           "$ref": "#/$defs/ruleFieldId"
@@ -605,6 +648,9 @@
         },
         "supportingClauseIds": {
           "$ref": "#/$defs/supportingClauseIds"
+        },
+        "derivedFrom": {
+          "$ref": "#/$defs/derivedFrom"
         },
         "classification": {
           "$ref": "#/$defs/axisClassification",
@@ -760,7 +806,10 @@
       "required": [
         "sourceClauseId",
         "ruleFieldCombination",
-        "boundaryValueCombination"
+        "boundaryValueCombination",
+        "derivedAxisIds",
+        "derivedUnreachablePairs",
+        "unreachablePairs"
       ],
       "additionalProperties": false,
       "properties": {
@@ -774,7 +823,61 @@
         "boundaryValueCombination": {
           "type": "string",
           "const": "full-cross-product-with-all-state-and-event-axes"
+        },
+        "derivedAxisIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/axisId"}
+        },
+        "derivedUnreachablePairs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/derivedUnreachablePair"}
+        },
+        "unreachablePairs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/unreachablePair"}
         }
+      }
+    },
+    "unreachablePair": {
+      "type": "object",
+      "required": ["leftAxisId", "leftValue", "rightAxisId", "rightValue", "clauseIds", "basis"],
+      "additionalProperties": false,
+      "properties": {
+        "leftAxisId": {"$ref": "#/$defs/axisId"},
+        "leftValue": {"$ref": "#/$defs/descriptorValue"},
+        "rightAxisId": {"$ref": "#/$defs/axisId"},
+        "rightValue": {"$ref": "#/$defs/descriptorValue"},
+        "clauseIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/sourceClauseId"}
+        },
+        "basis": {"type": "string", "minLength": 1}
+      }
+    },
+    "derivedUnreachablePair": {
+      "type": "object",
+      "required": ["sourceAxisId", "sourceValue", "derivedAxisId", "derivedValue", "clauseIds", "basis"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceAxisId": {"$ref": "#/$defs/axisId"},
+        "sourceValue": {"$ref": "#/$defs/descriptorValue"},
+        "derivedAxisId": {"$ref": "#/$defs/axisId"},
+        "derivedValue": {"$ref": "#/$defs/descriptorValue"},
+        "clauseIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/sourceClauseId"}
+        },
+        "basis": {"type": "string", "minLength": 1}
       }
     },
     "nonCoverageField": {

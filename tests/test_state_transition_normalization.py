@@ -55,21 +55,21 @@ def _rules_for_schema(schema: dict[str, Any]) -> Any:
 
 
 def test_all_cases_match_declared_normalization_rules() -> None:
-    """状況判定96件と終了判定170件で宣言規則の適用結果が一致する。"""
-    assert checker.check_repository(ROOT) == 266
+    """状況判定109件と終了判定248件で宣言規則の適用結果が一致する。"""
+    assert checker.check_repository(ROOT) == 357
 
 
 def test_game_end_cases_have_triples_and_display_names_are_resolved() -> None:
-    """終了判定170件の3点と表示名165件の安定ID化を確認する。"""
+    """終了判定248件の3点と表示名241件の安定ID化を確認する。"""
     cases, rules = checker.load_game_end_inputs(ROOT)
-    assert len(cases) == 170
+    assert len(cases) == 248
     assert all({"raw", "normalizationRuleId", "normalized"} <= set(case) for case in cases)
-    assert checker.check_cases(cases, rules) == 170
+    assert checker.check_cases(cases, rules) == 248
     display_cases = [
         case for case in cases
         if case["normalizationRuleId"] == "game-end-result-display-name-to-id"
     ]
-    assert len(display_cases) == 165
+    assert len(display_cases) == 241
     assert all(case["normalized"] == case["inputCoordinate"] for case in cases)
     assert all(
         case["raw"]["event.perPitch.resultId"]
@@ -152,14 +152,14 @@ def test_noncanonical_raw_fails_when_rule_is_mutated_to_identity(
 
 
 def test_canonical_raw_with_identity_is_accepted() -> None:
-    """正規形rawのidentityケース25件を拒否せず全件通す。"""
+    """正規形rawのidentityケース27件を拒否せず全件通す。"""
     cases, rules = checker.load_inputs(ROOT)
     identity_cases = [
         case for case in cases if case["normalizationRuleId"] == "identity"
     ]
-    assert len(identity_cases) == 25
+    assert len(identity_cases) == 38
     assert all(case["raw"] == case["normalized"] for case in identity_cases)
-    assert checker.check_cases(identity_cases, rules) == 25
+    assert checker.check_cases(identity_cases, rules) == 38
 
 
 def test_new_rule_id_with_existing_transform_is_followed() -> None:

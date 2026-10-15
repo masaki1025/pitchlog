@@ -1,0 +1,94 @@
+{
+  "generatedId": "syntheticNormalizer",
+  "contract": {
+    "calculation": "syntheticArtifactCalculation",
+    "vector": "syntheticArtifactVector",
+    "entrypointId": "syntheticArtifactEntrypoint",
+    "directTargetId": "syntheticArtifactTarget",
+    "caseSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caseId", "raw", "normalized", "expected"],
+      "properties": {
+        "caseId": { "type": "string" },
+        "raw": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["legacyValue"],
+            "properties": { "legacyValue": { "type": "string" } }
+          }
+        },
+        "normalized": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["value"],
+            "properties": { "value": { "type": "string" } }
+          }
+        },
+        "expected": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["value"],
+            "properties": { "value": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "normalizationComparison": {
+      "surface": "structured-only",
+      "fields": [
+        {
+          "field": "value",
+          "role": "structured",
+          "valueType": "json",
+          "nullable": false,
+          "scale": null
+        }
+      ],
+      "normalizations": []
+    },
+    "outputComparison": {
+      "surface": "structured-only",
+      "fields": [
+        {
+          "field": "value",
+          "role": "structured",
+          "valueType": "json",
+          "nullable": false,
+          "scale": null
+        }
+      ],
+      "normalizations": []
+    }
+  },
+  "cases": [
+    {
+      "caseId": "zero",
+      "raw": [{ "legacyValue": "000" }],
+      "normalized": [{ "value": "0" }],
+      "expected": [{ "value": "1" }]
+    },
+    {
+      "caseId": "large",
+      "raw": [{ "legacyValue": "18446744073709551621" }],
+      "normalized": [{ "value": "18446744073709551621" }],
+      "expected": [{ "value": "18446744073709551622" }]
+    },
+    {
+      "caseId": "negative",
+      "raw": [{ "legacyValue": "-0002" }],
+      "normalized": [{ "value": "-2" }],
+      "expected": [{ "value": "-1" }]
+    }
+  ]
+}

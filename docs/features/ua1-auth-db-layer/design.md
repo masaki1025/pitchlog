@@ -111,7 +111,11 @@ date: 2026-10-04
 | キー | 値の形 | 既定 | 備考 |
 | --- | --- | --- | --- |
 | `auth.token_ttl_seconds` | JSON 数値 | (seed しない) | 付録C の 7 日 = 604800。**未設定なら発行と延長を拒否** |
-| `auth.team_login.max_failures` / `auth.team_login.window_seconds` / `auth.team_login.lock_seconds` | JSON 数値 | (seed しない) | **計数の器の試験用**。具体設計(10 章の相談)でキーが変わり得る — **δ が反映** |
+| `auth.team_login.max_failures` / `auth.team_login.lock_seconds` | JSON 数値 | (seed しない) | β の計数の器の試験で使ったキー。**δ 以降、チームのログイン経路では読まない**。既存の投入物が参照し得るためキー自体は残す。管理者側は別の `auth.admin_login.*` を使う |
+| `auth.team_login.window_seconds` | JSON 数値 | (seed しない) | δ のチームログインが読む。**新 4 キーのいずれかが未設定・不正ならログインを拒否する** |
+| `auth.team_login.throttle_threshold` | JSON 数値 | (seed しない) | δ のチームログインが読む。**新 4 キーのいずれかが未設定・不正ならログインを拒否する** |
+| `auth.team_login.throttle_step_ms` | JSON 数値 | (seed しない) | δ のチームログインが読む。**新 4 キーのいずれかが未設定・不正ならログインを拒否する** |
+| `auth.team_login.throttle_max_ms` | JSON 数値 | (seed しない) | δ のチームログインが読む。**新 4 キーのいずれかが未設定・不正ならログインを拒否する** |
 | `auth.admin_login.max_failures` / `auth.admin_login.window_seconds` / `auth.admin_login.lock_seconds` | JSON 数値 | (seed しない) | `record_admin_login_failure` が読む。**欠落・不正値なら `true`(拒否)** |
 
 **値の妥当条件(全キー共通)**: JSON の整数で **1 以上 2,147,483,647 以下**(上限は日時の計算があふれない範囲 — 約 68 年分の秒数。実装の敵対レビュー P1-3 で追加)。**それ以外(欠落・文字列・0 以下・小数・上限超え)は不正値**として扱い、該当の関数は fail-closed(発行しない / 延長しない / ログインを拒否 / 管理者計数は拒否)。**β は `auth.team_login.*` を読んで妥当性を確かめるが、ロックは適用しない**(7 節)

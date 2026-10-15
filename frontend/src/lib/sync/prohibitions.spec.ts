@@ -581,7 +581,9 @@ const EXPECTED_TYPE_EXPORTS = {
 } as const satisfies Readonly<Record<string, readonly string[]>>
 
 const EXPECTED_TESTING_SOURCE_FILE_NAMES = [
+  'testing/artifactAdapter.ts',
   'testing/failureScenarioAdapter.ts',
+  'testing/handoffLoader.ts',
   'testing/vectorRunner.ts',
 ] as const
 

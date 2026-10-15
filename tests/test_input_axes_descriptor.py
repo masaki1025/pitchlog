@@ -155,6 +155,32 @@ def test_repository_descriptor_passes_schema_and_digest_validation() -> None:
     assert result.stderr == ""
 
 
+@pytest.mark.parametrize(
+    ("mutation", "rule_id"),
+    [
+        ("missing", "DERIVED_DECLARATION"),
+        ("unknown-source", "DERIVED_SOURCE"),
+        ("invalid-boundary", "DERIVED_INVALID_BOUNDARY"),
+    ],
+)
+def test_derived_axis_declaration_fail_closed(mutation: str, rule_id: str) -> None:
+    """派生元の欠落・未登録軸・不正境界の混入を拒否する。"""
+    descriptor = _descriptor()
+    axis = next(
+        item for item in descriptor["gameEndAxes"]
+        if item["axisId"] == "gameEnd.satisfiedColdTierCount"
+    )
+    if mutation == "missing":
+        axis.pop("derivedFrom")
+    elif mutation == "unknown-source":
+        axis["derivedFrom"]["sourceAxisIds"][0] = "gameEnd.unknown"
+    else:
+        axis["invalidBoundaryValues"] = [-1, 17]
+    _with_digest(descriptor)
+    with pytest.raises(checker.DescriptorCheckError, match=rule_id):
+        _validate(descriptor)
+
+
 def test_step103_descriptor_digest_bindings_are_exact() -> None:
     """実内容のdigestを契約2件とschema2件の固定値へ照合する。"""
     documents = _binding_documents()
@@ -403,6 +429,31 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         "history.depth": ("adr:D-11", "boundary-partition"),
         "history.composition": ("adr:D-11", "boundary-partition"),
         "history.scenarioLength": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.changedFaces": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.state.outs.before": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.state.outs.delta": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.state.score.home.before": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.state.score.home.delta": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.state.score.away.before": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.scoreboard.inningScores.home.before": (
+            "adr:D-11", "boundary-partition",
+        ),
+        "history.topDifference.scoreboard.inningScores.home.delta": (
+            "adr:D-11", "boundary-partition",
+        ),
+        "history.topDifference.scoreboard.inningScores.away.before": (
+            "adr:D-11", "boundary-partition",
+        ),
+        "history.topDifference.state.half.before": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.state.inning.before": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.scoreboard.hits.before": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.scoreboard.hits.delta": ("adr:D-11", "boundary-partition"),
+        "history.topDifference.statFlags.contribution": ("adr:D-11", "boundary-partition"),
+        "rules.tiebreakStartInning": ("req:F-1", "boundary-partition"),
+        "event.tiebreakStart.runnerPlacement": ("req:FR-009", "boundary-partition"),
+        "event.tiebreakStart.leadoffBatter": ("req:FR-009", "boundary-partition"),
+        "event.tiebreakStart.inning": ("req:FR-009", "boundary-partition"),
+        "event.tiebreakStart.activationRelation": ("req:FR-009", "finite-enumerable"),
     }
 
     assert {
@@ -501,6 +552,9 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
             "event.perPitch.officialScoringPayload",
             "event.perPitch.rbi.runnerContinuityByRunner",
             "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+                "event.tiebreakStart.runnerPlacement",
+                "event.tiebreakStart.leadoffBatter",
+                "event.tiebreakStart.inning",
         }
     )
 
@@ -753,7 +807,7 @@ def test_missing_source_clause_id_is_red() -> None:
 
 
 def test_game_end_axes_match_d11_inventory_boundaries_and_sources() -> None:
-    """D-11の終了判定4軸を安全範囲・正負の境界値とともに収容する。"""
+    """D-11の終了判定5軸を安全範囲・正負の境界値とともに収容する。"""
     descriptor = _descriptor()
     axes = {axis["axisId"]: axis for axis in descriptor["gameEndAxes"]}
 
@@ -771,6 +825,11 @@ def test_game_end_axes_match_d11_inventory_boundaries_and_sources() -> None:
             "boundary-partition",
         ),
         "gameEnd.coldConditions": (
+            "req:F-1",
+            "coldConditions",
+            "boundary-partition",
+        ),
+        "gameEnd.satisfiedColdTierCount": (
             "req:F-1",
             "coldConditions",
             "boundary-partition",
@@ -803,6 +862,7 @@ def test_game_end_axes_match_d11_inventory_boundaries_and_sources() -> None:
     assert axes["gameEnd.coldConditions"]["boundaryValues"] == [
         "tier-count:0",
         "tier-count:1",
+        "tier-count:2",
         "tier-count:16",
         "point-difference:1",
         "point-difference:M-1",
@@ -822,6 +882,17 @@ def test_game_end_axes_match_d11_inventory_boundaries_and_sources() -> None:
         "start-inning:0",
         "start-inning:100",
     ]
+    assert axes["gameEnd.satisfiedColdTierCount"]["coverageBounds"] == [
+        {"dimension": "satisfiedTierCount", "minimum": 0, "maximum": 16}
+    ]
+    assert axes["gameEnd.satisfiedColdTierCount"]["boundaryValues"] == [0, 1, 2, 16]
+    assert "invalidBoundaryValues" not in axes["gameEnd.satisfiedColdTierCount"]
+    assert axes["gameEnd.satisfiedColdTierCount"]["derivedFrom"] == {
+        "sourceAxisIds": [
+            "gameEnd.coldConditions", "state.inning", "state.half", "state.score"
+        ],
+        "clauseIds": ["req:F-1", "req:COLD-07", "req:COLD-08", "req:COLD-09"],
+    }
     assert axes["gameEnd.extensionLimit"]["boundaryValues"] == [
         "none",
         "finite:R",
@@ -864,7 +935,7 @@ def test_cold_start_inning_r_plus_one_is_not_an_invalid_boundary() -> None:
 
 
 def test_f1_rule_fields_have_exactly_one_top_level_coverage_owner() -> None:
-    """F-1の5フィールドをcoverage4軸または非coverage1件へ一意に帰属させる。"""
+    """F-1の5フィールドをcoverage5軸または非coverage1件へ帰属させる。"""
     descriptor = _descriptor()
     coverage_fields = {
         axis["ruleFieldId"] for axis in descriptor["gameEndAxes"]
@@ -898,7 +969,7 @@ def test_f1_rule_fields_have_exactly_one_top_level_coverage_owner() -> None:
     _with_digest(duplicate_owner)
     with pytest.raises(
         checker.DescriptorCheckError,
-        match="4軸またはF-1フィールド帰属がexact-set不一致",
+        match="軸またはF-1フィールド帰属がexact-set不一致",
     ):
         _validate(duplicate_owner)
 
@@ -907,14 +978,38 @@ def test_game_end_combination_rules_are_pairwise_and_full_cross_product() -> Non
     """規則フィールド間をペアワイズ、各境界と全状態・イベントを直積する。"""
     descriptor = _descriptor()
 
-    assert descriptor["gameEndCombinationRules"] == {
+    rules = descriptor["gameEndCombinationRules"]
+    assert {key: rules[key] for key in (
+        "sourceClauseId", "ruleFieldCombination", "boundaryValueCombination"
+    )} == {
         "sourceClauseId": "adr:D-11",
         "ruleFieldCombination": "pairwise-all-game-end-axes",
         "boundaryValueCombination": (
             "full-cross-product-with-all-state-and-event-axes"
         ),
     }
+    assert rules["derivedAxisIds"] == ["gameEnd.satisfiedColdTierCount"]
+    assert len(rules["derivedUnreachablePairs"]) == 6
+    assert rules["unreachablePairs"] == [{
+        "leftAxisId": "gameEnd.tiebreak",
+        "leftValue": "none",
+        "rightAxisId": "state.tiebreakActive",
+        "rightValue": True,
+        "clauseIds": ["req:FR-009", "req:F-1"],
+        "basis": rules["unreachablePairs"][0]["basis"],
+    }]
     assert "adr:D-11" in SOURCE_CLAUSE_IDS
+
+
+def test_unreachable_tiebreak_pair_must_use_declared_axis_values() -> None:
+    """規則なしと実行中の到達不可宣言に未知の値を認めない。"""
+    descriptor = _descriptor()
+    descriptor["gameEndCombinationRules"]["unreachablePairs"][0]["leftValue"] = (
+        "start:unknown"
+    )
+    criteria = checker.load_descriptor_criteria(_descriptor())
+    with pytest.raises(checker.DescriptorCheckError, match="UNREACHABLE_PAIR"):
+        checker._validate_derived_axes(descriptor, criteria)
 
 
 def test_draw03_valid_and_invalid_tiebreak_boundaries_are_explicit() -> None:
@@ -1051,7 +1146,7 @@ def test_stage1_descriptor_declares_stage2_parity_without_external_dependency() 
     raw_text = DESCRIPTOR_PATH.read_text(encoding="utf-8")
 
     assert descriptor["stateTransitionAxes"]
-    assert len(descriptor["gameEndAxes"]) == 4
+    assert len(descriptor["gameEndAxes"]) == 5
     assert len(descriptor["nonCoverageFields"]) == 3
     assert descriptor["gameEndCombinationRules"]
     assert len(descriptor["projectionRules"]) == 8

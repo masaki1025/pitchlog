@@ -223,6 +223,19 @@
       }
     ]
   },
+  "x-pitchlog-undo-liveness-comparison": {
+    "sourceDecisionId": "adr:D-8",
+    "constraintId": "XC-09",
+    "mode": "liveness-only",
+    "requiredOperationResult": "applied",
+    "historyLengthDelta": -1,
+    "ignoredOutputPaths": [
+      "stateEffect.stateFields",
+      "stateEffect.scoreboard",
+      "stateEffect.statFlags",
+      "historyContext[*]"
+    ]
+  },
   "x-pitchlog-must-operation-coverage": {
     "sourceDecisionId": "adr:D-6",
     "sourceClauseId": "req:4.0-4",
@@ -720,7 +733,7 @@
           "const": "input_axes_descriptor_v1"
         },
         "digest": {
-          "const": "sha256:ca421500e9eabf1ad6891884178d309c1d3dfae4f6c03628a4d6c7fe996b84da"
+          "const": "sha256:5107f929d35ae48e01e25e0410a95235521b778ce53bae945ca5d7e2e956dd57"
         }
       }
     },
@@ -1472,10 +1485,28 @@
       "additionalProperties": false,
       "properties": {
         "history": {
-          "$ref": "#/$defs/fieldEffect"
+          "$ref": "#/$defs/historyEffect"
         },
         "operationResult": {
-          "$ref": "#/$defs/fieldEffect"
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "set"
+            },
+            "value": {
+              "enum": [
+                "applied",
+                "rejected-precondition",
+                "rejected-invalid-payload",
+                "nothing-to-undo"
+              ]
+            }
+          }
         }
       }
     },
@@ -1597,6 +1628,7 @@
     "undoTargetKind": {
       "enum": [
         "confirmed-play",
+        "none",
         "state-correction"
       ],
       "x-pitchlog-conditional-values": [
@@ -1959,9 +1991,87 @@
         "normalizationRuleId": {
           "$ref": "#/$defs/normalizationRuleId"
         },
-        "normalized": {}
+        "normalized": {},
+        "historyInput": {
+          "$ref": "#/$defs/historyInput"
+        }
       },
       "additionalProperties": true
+    },
+    "historyEffect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "unchanged"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "entryKind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "push"
+            },
+            "entryKind": {
+              "enum": [
+                "confirmed-play",
+                "state-correction"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "count"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "pop"
+            },
+            "count": {
+              "const": 1
+            }
+          }
+        }
+      ]
+    },
+    "historyInput": {
+      "type": "object",
+      "required": [
+        "stack"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "stack": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "before": {
+          "type": "object"
+        },
+        "after": {
+          "type": "object"
+        },
+        "statFlags": {
+          "type": "object"
+        }
+      }
     },
     "normalizationRuleId": {
       "enum": [

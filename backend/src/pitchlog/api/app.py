@@ -3,20 +3,56 @@
 import os
 
 from fastapi import APIRouter, FastAPI
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from pitchlog.api.errors import register_exception_handlers
-from pitchlog.api.routers import lineup_memory, meta, players, team_records
+from pitchlog.api.routers import auth, lineup_memory, meta, players, team_records
 from pitchlog.authz.signing_key_config import require_signing_key_configuration
 from pitchlog.authz.token_presentation import TokenPresentation
 from pitchlog.authz.verified_tenant import _activate_presentation
+from pitchlog.domainrt import verify_domain_artifact
 
 ROUTERS: tuple[APIRouter, ...] = (
     meta.router,
+    auth.router,
     players.router,
     team_records.router,
     lineup_memory.router,
 )
 _SIGNING_KEY_VARIABLE = "PITCHLOG_TOKEN_SIGNING_KEY_B64"
+
+
+class _RenewedCookieMiddleware:
+    """Cookie 更新を引き継ぎ、Cookie 付き応答の保存を禁止する。"""
+
+    def __init__(self, app: ASGIApp) -> None:
+        """内側の ASGI アプリケーションを保持する。"""
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """応答開始時に Cookie とキャッシュ指示のヘッダを補う。"""
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_cookie(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                if message["status"] != 401:
+                    cookie = scope.get("state", {}).get("renewed_cookie")
+                    if isinstance(cookie, str) and not any(
+                        name.lower() == b"set-cookie" for name, _ in headers
+                    ):
+                        headers.append((b"set-cookie", cookie.encode("latin-1")))
+                if any(name.lower() == b"set-cookie" for name, _ in headers):
+                    message["headers"] = [
+                        (name, value)
+                        for name, value in headers
+                        if name.lower() != b"cache-control"
+                    ] + [(b"cache-control", b"no-store")]
+            await send(message)
+
+        await self.app(scope, receive, send_with_cookie)
 
 
 def create_app() -> FastAPI:
@@ -29,12 +65,16 @@ def create_app() -> FastAPI:
         _SIGNING_KEY_VARIABLE,
         os.environ.get(_SIGNING_KEY_VARIABLE),
     )
+    # CI では Node の版を揃えないため、ここでは artifact だけを照合する。
+    # Node の起動と版の照合は domainrt のホストを開くときに行う。
+    verify_domain_artifact()
     app = FastAPI(
         title="Pitchlog API",
         version=meta.get_application_version(),
         description="Pitchlog の API を提供する。",
     )
     app.state.token_presentation = TokenPresentation(signing_key)
+    app.add_middleware(_RenewedCookieMiddleware)
     register_exception_handlers(app)
     for router in ROUTERS:
         app.include_router(router)

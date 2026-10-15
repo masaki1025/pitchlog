@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync } from 'node:fs'
 import { extname, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -12,6 +13,8 @@ const designRelationsRoot = fileURLToPath(
   new URL('../scripts/design_relations/', import.meta.url),
 )
 const buildOutputRoot = resolve(frontendRoot, 'dist')
+const domainArtifactPath = 'domain/pitchlog-domain.js'
+const domainDeclarationPath = 'domain/pitchlog-domain.json'
 
 type ClosureStatus = 'conforming' | 'nonconforming' | 'indeterminate'
 
@@ -455,6 +458,54 @@ export function inspectBuildDirectory(root: string): BuildClosureResult {
   return inspectBuildArtifacts(artifacts)
 }
 
+/** public の単一 artifact が無変換で配布され、SHA-256 宣言と一致することを確かめる。 */
+export function verifyDomainArtifactDistribution(
+  sourceRoot: string,
+  outputRoot: string,
+): void {
+  const source = readFileSync(resolve(sourceRoot, 'public', domainArtifactPath))
+  const distributed = readFileSync(resolve(outputRoot, domainArtifactPath))
+  if (!source.equals(distributed)) {
+    throw new Error('ドメイン artifact の配布バイト列が正本と一致しない')
+  }
+
+  const declaration = readFileSync(
+    resolve(sourceRoot, 'public', domainDeclarationPath),
+  )
+  const distributedDeclaration = readFileSync(
+    resolve(outputRoot, domainDeclarationPath),
+  )
+  if (!declaration.equals(distributedDeclaration)) {
+    throw new Error(
+      'ドメイン artifact の SHA-256 宣言が無変換で配布されていない',
+    )
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(declaration.toString('utf8')) as unknown
+  } catch {
+    throw new Error('ドメイン artifact の SHA-256 宣言を解析できない')
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('ドメイン artifact の SHA-256 宣言が不正')
+  }
+  const values = parsed as Record<string, unknown>
+  if (
+    Object.keys(values).length !== 3 ||
+    values.schemaVersion !== 1 ||
+    values.fileName !== 'pitchlog-domain.js' ||
+    typeof values.sha256 !== 'string' ||
+    !/^[0-9a-f]{64}$/.test(values.sha256)
+  ) {
+    throw new Error('ドメイン artifact の SHA-256 宣言が不正')
+  }
+  const digest = createHash('sha256').update(distributed).digest('hex')
+  if (digest !== values.sha256) {
+    throw new Error('ドメイン artifact の SHA-256 が宣言と一致しない')
+  }
+}
+
 function frontendBuildClosure(): Plugin {
   return {
     name: 'pitchlog-frontend-build-closure',
@@ -468,12 +519,6 @@ function frontendBuildClosure(): Plugin {
     },
     closeBundle() {
       const inspected = inspectBuildDirectory(buildOutputRoot)
-      console.log(
-        `[frontend-build-closure] status=${inspected.status} ` +
-          `scannedFiles=${inspected.scannedFiles} ` +
-          `externalReferences=${inspected.externalReferences.length} ` +
-          `policyViolations=${inspected.policyViolations.length}`,
-      )
       if (inspected.status !== 'conforming') {
         const details = [
           ...inspected.reasons,
@@ -486,6 +531,13 @@ function frontendBuildClosure(): Plugin {
         ]
         throw new Error(`production build 閉域検査失敗: ${details.join(', ')}`)
       }
+      verifyDomainArtifactDistribution(frontendRoot, buildOutputRoot)
+      console.log(
+        `[frontend-build-closure] status=${inspected.status} ` +
+          `scannedFiles=${inspected.scannedFiles} ` +
+          `externalReferences=${inspected.externalReferences.length} ` +
+          `policyViolations=${inspected.policyViolations.length}`,
+      )
     },
   }
 }

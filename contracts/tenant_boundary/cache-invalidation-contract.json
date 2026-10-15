@@ -71,7 +71,7 @@
   },
   "asset_kind": "cache_invalidation_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "74fc35d7fd08769dc59b47c7b46ff213002690c97682c5a5813be78c58b23271",
+  "source_digest": "cefb8a97d88660769e693463cd9f212aa1455cbecd245a196b315ff156ea8d10",
   "source": {
     "document": "docs/design/data-model.md",
     "section": "11-2",

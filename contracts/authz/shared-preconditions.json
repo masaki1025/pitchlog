@@ -11,12 +11,12 @@
     {
       "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
       "document_role": "normative_source",
-      "git_blob_digest": "070babfe1fb2e945d90545f17922e20bd9ff955c"
+      "git_blob_digest": "c8975e5257ee5f8d4b86b96f3fc779bebd978da4"
     },
     {
       "path": "docs/design/data-model.md",
       "document_role": "mapping_target",
-      "git_blob_digest": "6a77b02ecf619715bb8d05c3e88c8732e38ad391"
+      "git_blob_digest": "82155a5cbab20ad09f40776772b048190dbea206"
     }
   ],
   "preconditions": [
