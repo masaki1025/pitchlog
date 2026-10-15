@@ -33,6 +33,14 @@ class RequiredBinding:
 
 
 @dataclass(frozen=True, slots=True)
+class PrimaryKeyBinding:
+    """行識別に使う主キー列と等値 bind 名を宣言する。"""
+
+    column: ColumnElement[object]
+    parameter_name: str
+
+
+@dataclass(frozen=True, slots=True)
 class OperationRegistration:
     """検査対象の文と実行時の文・パラメータ準備関数を束ねる。"""
 
@@ -45,6 +53,9 @@ class OperationRegistration:
     required_limit_parameter: str | None = None
     required_limit_max: int | None = None
     allowed_update_columns: frozenset[str] | None = None
+    primary_key_bindings: tuple[PrimaryKeyBinding, ...] = ()
+    for_update: bool = False
+    use_capability_lock_shape: bool = False
     preflight: (
         Callable[[TenantOperationToken, dict[str, object]], OperationPreflight] | None
     ) = None

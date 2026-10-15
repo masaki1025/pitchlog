@@ -1,0 +1,14 @@
+{
+  "scenarioId": "p3-crash-boundaries",
+  "targetReference": {
+    "試合": "game",
+    "対象の D4": 1,
+    "対象の D1": 1
+  },
+  "expectedVersion": 1,
+  "d5": "c1",
+  "confirmedContent": {
+    "change": "first"
+  },
+  "acceptedAt": "2026-10-15T00:00:00+00:00"
+}

@@ -501,19 +501,17 @@ def test_d5_ledger_and_sync_sources_use_kind_bound_full_match_fks() -> None:
         )
 
 
-def test_invalidation_intent_has_only_scope_and_delivery_value_checks() -> None:
-    """無効化意図が FK や発火規則を持たず値域だけを制約すると示す。"""
+def test_invalidation_intent_checks_match_manifest_without_foreign_keys() -> None:
+    """無効化意図の値域・選択子制約がmanifestと一致し、FKを持たない。"""
     table = cast(Table, InvalidationIntent.__table__)
+    declared = _load_manifest_tables()["invalidation_intents"]
 
     assert table.foreign_key_constraints == set()
     assert {
         str(check.sqltext)
         for check in table.constraints
         if isinstance(check, CheckConstraint)
-    } == {
-        "scope_kind IN ('game', 'player_total', 'team_total', 'shared_total', 'chart')",
-        "delivery_status IN ('pending', 'delivered')",
-    }
+    } == set(declared["checks"])
     assert "deleted_at" not in table.columns
     assert not table.columns["tenant_id"].nullable
     assert list(table.primary_key.columns.keys()) == ["tenant_id", "intent_id"]

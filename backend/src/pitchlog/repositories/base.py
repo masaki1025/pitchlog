@@ -14,15 +14,16 @@ from uuid import UUID
 from sqlalchemy import Column, Table
 from sqlalchemy.engine import Result
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import operators
+from sqlalchemy.sql import operators, visitors
 from sqlalchemy.sql.dml import Insert, Update
 from sqlalchemy.sql.elements import (
     BinaryExpression,
     BindParameter,
     BooleanClauseList,
+    ClauseElement,
     ColumnElement,
 )
-from sqlalchemy.sql.selectable import Select
+from sqlalchemy.sql.selectable import ForUpdateArg, Select
 
 from pitchlog.authz.capability_catalog import (
     CATALOG_SCHEMA_VERSION,
@@ -32,6 +33,8 @@ from pitchlog.authz.capability_registration import (
     CapabilityRegistrationError,
     validate_capability_registrations,
 )
+from pitchlog.db import all_models
+from pitchlog.db.base import Base
 from pitchlog.repositories.binding import TenantBindingError, _tenant_transaction
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.operation_registration import (
@@ -152,6 +155,36 @@ def _validate_prepared_statement(
     tenant_table = tenant_column.table
     if not isinstance(tenant_table, Table) or tenant_table.name != parts[1]:
         raise _TenantOperationError("capability の対象表とテナント列の表が不一致")
+    if not all_models.IMPORTED_MODEL_MODULE_NAMES:
+        raise _TenantOperationError("正本 ORM モデルが登録されていない")
+    canonical_table = Base.metadata.tables.get(tenant_table.key)
+    if canonical_table is not tenant_table:
+        raise _TenantOperationError("登録対象表は正本 ORM の Table が必要")
+    if type(spec.for_update) is not bool:
+        raise _TenantOperationError("FOR UPDATE の宣言は真偽値が必要")
+    if type(spec.use_capability_lock_shape) is not bool:
+        raise _TenantOperationError("限定行ロック検査の宣言は真偽値が必要")
+    locked = isinstance(statement, Select) and statement._for_update_arg is not None
+    if locked != spec.for_update:
+        raise _TenantOperationError("FOR UPDATE の宣言と登録文が不一致")
+    if spec.use_capability_lock_shape and not locked:
+        raise _TenantOperationError("限定行ロック検査には FOR UPDATE が必要")
+    validation_statement = statement
+    if locked:
+        lock = statement._for_update_arg
+        if type(lock) is not ForUpdateArg or (
+            lock.nowait
+            or lock.read
+            or lock.skip_locked
+            or lock.key_share
+            or lock.of is not None
+        ):
+            raise _TenantOperationError("FOR UPDATE は通常の行ロックだけを許可する")
+        if not spec.use_capability_lock_shape:
+            # 主キー全列は下で検査し、残る SQL 形は既存検査へ渡す。
+            # 明示された限定行ロックだけ、元の文を既存検査へ渡す。
+            validation_statement = statement._generate()
+            validation_statement._for_update_arg = None
     catalog: dict[str, object] = {
         "schema_version": CATALOG_SCHEMA_VERSION,
         "source_classification": CLASSIFICATION_SOURCE,
@@ -166,16 +199,72 @@ def _validate_prepared_statement(
     try:
         validate_capability_registrations(
             catalog=catalog,
-            registrations=(replace(spec, statement=statement),),
+            registrations=(replace(spec, statement=validation_statement),),
         )
     except CapabilityRegistrationError as error:
         raise _TenantOperationError(str(error)) from error
-    if isinstance(statement, Update) and not _has_required_bound_equality(
-        statement.whereclause,
-        tenant_table.c.id,
-        "where_id",
-    ):
-        raise _TenantOperationError("UPDATE には対象表の id = :where_id 条件が必要")
+    if isinstance(statement, Select):
+        froms = statement.get_final_froms()
+        statement_uses_canonical_table = len(froms) == 1 and froms[0] is canonical_table
+    else:
+        statement_uses_canonical_table = statement.table is canonical_table
+    if not statement_uses_canonical_table:
+        raise _TenantOperationError("登録文の対象表は正本 ORM の Table が必要")
+    if spec.primary_key_bindings and not isinstance(statement, Update) and not locked:
+        raise _TenantOperationError("主キー束縛の宣言は UPDATE または行ロック専用")
+    if isinstance(statement, Update) or locked:
+        primary_key = tuple(canonical_table.primary_key.columns)
+        bindings = tuple(
+            (binding.column, binding.parameter_name)
+            for binding in spec.primary_key_bindings
+        )
+        if not bindings:
+            if locked:
+                raise _TenantOperationError("FOR UPDATE には主キー全列の束縛宣言が必要")
+            id_column = tenant_table.c.get("id")
+            if not isinstance(id_column, Column) or not _has_required_bound_equality(
+                statement.whereclause, id_column, "where_id"
+            ):
+                raise _TenantOperationError(
+                    "UPDATE には対象表の id = :where_id 条件が必要"
+                )
+            bindings = tuple((column, f"where_{column.key}") for column in primary_key)
+        if len(bindings) != len(primary_key) or {
+            column for column, _ in bindings
+        } != set(primary_key):
+            raise _TenantOperationError("行識別には対象表の主キー全列の宣言が必要")
+        names = tuple(name for _, name in bindings)
+        if len(set(names)) != len(names) or any(not name for name in names):
+            raise _TenantOperationError("主キー束縛名は空・重複を許さない")
+        tenant_parameter = (
+            "where_tenant_id" if isinstance(statement, Update) else "tenant_id"
+        )
+        if any(
+            column.compare(tenant_column) and name != tenant_parameter
+            for column, name in bindings
+        ):
+            raise _TenantOperationError("テナント主キーには文脈の bind 名が必要")
+        if isinstance(statement, Update):
+            if set(names) & set(tenant_table.c.keys()):
+                raise _TenantOperationError(
+                    "UPDATE の主キー bind 名は列名と重複できない"
+                )
+            set_bind_names = {
+                node.key
+                for value in (statement._values or {}).values()
+                if isinstance(value, ClauseElement)
+                for node in visitors.iterate(value)
+                if isinstance(node, BindParameter)
+            }
+            if set(names) & set_bind_names:
+                raise _TenantOperationError(
+                    "主キー bind と UPDATE SET bind は共用できない"
+                )
+        if any(
+            not _has_required_bound_equality(statement.whereclause, column, name)
+            for column, name in bindings
+        ):
+            raise _TenantOperationError("行識別には主キー全列の等値条件が必要")
     if isinstance(statement, Update):
         allowed_columns = spec.allowed_update_columns
         if not allowed_columns or not statement._values:
