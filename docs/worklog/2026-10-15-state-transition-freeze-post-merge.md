@@ -47,6 +47,9 @@ branch: fix/state-transition-freeze-post-merge
 
 ## 決定
 
+- **結果サマリ**: `tests/test_state_transition_freeze.py` の 3 件(#131 のマージ後に develop で反転)と、同型の潜在箇所 1 件(後続 PR 相当の試験の固定番号 #131)を、マージの前後・記録件数・descriptor を変えるか否かに依存しない形へ直した。検査器は不変。正本への反映なし
+- **ハーネス運用評価台帳への追記なし**: 得られた知見(「`origin/develop` と作業ツリーの差を前提にした試験は、ブランチ上で green でもマージ後の develop で反転する。PR 受理モードの synthetic merge でも `origin/develop` が古いままなので見えない」)は台帳に値する。ただし、master が #138 で台帳の候補を同時に編集しており、同じファイルを本 PR で触ると衝突する。develop の赤を直す本 PR は最小に保ち、候補の起票は master の台帳作業へ申し送る(master に連絡済み)
+
 ## 未決・次の一歩
 
 - **次に descriptor へ受理記録を足す PR への申し送り**: `_repository_acceptance_context()` の `number=131`(`tests/test_state_transition_freeze.py:70`)を、その PR の番号へ書き換える(ブランチ内で完結し、マージ後の develop は赤にならない — レビュー 1 回目で確認)
