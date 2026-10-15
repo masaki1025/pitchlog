@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/display-geometry/field_geometry_vector_contract_schema_v1.json",
+  "title": "Pitchlog field geometry vector contract schema v1",
+  "version": "field_geometry_vector_contract_schema_v1",
+  "description": "捕球選手推定と画面座標・保存座標の変換に共通する、1 ファイル = 1 対象計算のベクタ契約。画面座標は 263・左上原点、保存座標は 0〜1・左下原点。通常の座標成分は ADR-003 D-14-e の整数・decimal・有理数のいずれかで記録する。normalized-bottom-left-units-1-263 は保存座標を単位 1/263 の固定小数点整数 0〜263 で表す。",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "version",
+    "calculation",
+    "independentVerifierId",
+    "cases"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "version": {
+      "type": "string",
+      "pattern": "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*$"
+    },
+    "calculation": {"type": "string", "minLength": 1},
+    "independentVerifierId": {"type": "string", "minLength": 1},
+    "batterSideCoverageRule": {
+      "description": "座標変換ベクタでは、各入力座標を右打席・左打席の両方で固定する。",
+      "const": "all-input-coordinates-both-batter-sides"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/case"}
+    }
+  },
+  "$defs": {
+    "numericValue": {
+      "description": "ADR-003 D-14-e の整数・decimal・有理数。採用する形は各契約の条文による。丸め規則は要件書 付録A-1 と ADR-003 D-14-e を参照する。数値の字面は tests/test_field_geometry_numeric_lexemes.py で字句検査する。",
+      "$comment": "JSON Schema は数値リテラルの綴りを保持しない。-0 や 1.0 の字面は契約ファイルの原文に対する検査で拒否する。",
+      "oneOf": [
+        {"type": "integer"},
+        {"$ref": "#/$defs/decimal"},
+        {"$ref": "#/$defs/rational"}
+      ]
+    },
+    "decimal": {
+      "description": "value / scale。scale は 10 の冪。",
+      "type": "object",
+      "required": ["value", "scale"],
+      "additionalProperties": false,
+      "properties": {
+        "value": {"type": "integer"},
+        "scale": {
+          "type": "integer",
+          "enum": [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000, 100000000000, 1000000000000, 10000000000000, 100000000000000, 1000000000000000]
+        }
+      }
+    },
+    "rational": {
+      "description": "分子 / 分母。分母は 0 以外の整数。",
+      "type": "object",
+      "required": ["numerator", "denominator"],
+      "additionalProperties": false,
+      "properties": {
+        "numerator": {"type": "integer"},
+        "denominator": {
+          "oneOf": [
+            {"type": "integer", "maximum": -1},
+            {"type": "integer", "minimum": 1}
+          ]
+        }
+      }
+    },
+    "point": {
+      "description": "x は右向き。y の向きと原点は coordinateSystem で区別する。",
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": {"$ref": "#/$defs/numericValue"},
+        "y": {"$ref": "#/$defs/numericValue"}
+      }
+    },
+    "pointUnits263": {
+      "description": "保存座標の x と y を単位 1/263 の固定小数点整数 0〜263 で表す。",
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": {"type": "integer", "minimum": 0, "maximum": 263},
+        "y": {"type": "integer", "minimum": 0, "maximum": 263}
+      }
+    },
+    "pointScreen263": {
+      "description": "表示へ写す途中の画面座標。原点左上・y 下向きの 263 系整数 0〜263。",
+      "type": "object",
+      "required": ["x", "y"],
+      "additionalProperties": false,
+      "properties": {
+        "x": {"type": "integer", "minimum": 0, "maximum": 263},
+        "y": {"type": "integer", "minimum": 0, "maximum": 263}
+      }
+    },
+    "coordinateSystem": {
+      "description": "screen-263-top-left は画面の 263 系・左上原点、normalized-bottom-left は通常の 0〜1 保存座標・左下原点、normalized-bottom-left-units-1-263 は単位 1/263 の固定小数点整数 0〜263 による保存座標・左下原点。",
+      "enum": ["screen-263-top-left", "normalized-bottom-left", "normalized-bottom-left-units-1-263"]
+    },
+    "case": {
+      "type": "object",
+      "required": ["caseId", "provenance", "input", "expected"],
+      "additionalProperties": false,
+      "properties": {
+        "caseId": {"type": "string", "minLength": 1},
+        "provenance": {"$ref": "#/$defs/provenance"},
+        "input": {
+          "type": "object",
+          "required": ["coordinate", "coordinateSystem"],
+          "additionalProperties": false,
+          "if": {
+            "properties": {"coordinateSystem": {"const": "normalized-bottom-left-units-1-263"}},
+            "required": ["coordinateSystem"]
+          },
+          "then": {"properties": {"coordinate": {"$ref": "#/$defs/pointUnits263"}}},
+          "properties": {
+            "coordinate": {"$ref": "#/$defs/point"},
+            "coordinateSystem": {"$ref": "#/$defs/coordinateSystem"},
+            "batterSide": {"type": "string", "minLength": 1}
+          }
+        },
+        "expected": {
+          "description": "捕球選手推定の出力は position、座標変換の出力は coordinate と coordinateSystem と insideOutside。往復確認には roundTripCoordinate、非正準保存座標の量子化で経由する画面座標には intermediateScreenCoordinate を使う。",
+          "type": "object",
+          "additionalProperties": false,
+          "if": {
+            "properties": {"coordinateSystem": {"const": "normalized-bottom-left-units-1-263"}},
+            "required": ["coordinateSystem"]
+          },
+          "then": {"properties": {"coordinate": {"$ref": "#/$defs/pointUnits263"}}},
+          "anyOf": [
+            {"required": ["position"]},
+            {"required": ["coordinate", "coordinateSystem"]},
+            {"required": ["insideOutside"]}
+          ],
+          "properties": {
+            "position": {
+              "oneOf": [
+                {"type": "integer", "minimum": 1, "maximum": 9},
+                {"type": "null"}
+              ]
+            },
+            "coordinate": {"$ref": "#/$defs/point"},
+            "coordinateSystem": {"$ref": "#/$defs/coordinateSystem"},
+            "insideOutside": {"enum": ["inside", "outside"]},
+            "roundTripCoordinate": {"$ref": "#/$defs/point"},
+            "intermediateScreenCoordinate": {"$ref": "#/$defs/pointScreen263"}
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["subjectKind", "sources"],
+      "additionalProperties": false,
+      "properties": {
+        "subjectKind": {
+          "enum": ["clause", "legacy-pinned", "geometry-contract"]
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/provenanceSource"}
+        }
+      }
+    },
+    "provenanceSource": {
+      "type": "object",
+      "required": ["path"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1},
+        "clause": {"type": "string", "minLength": 1},
+        "blobSha": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"}
+      }
+    }
+  }
+}
