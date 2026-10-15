@@ -48,6 +48,7 @@
       ],
       "rowIds": [
         "decisionRows:COLD-08",
+        "decisionRows:COLD-09",
         "decisionRows:GAME-END-NORMAL"
       ],
       "fixtureCaseIds": [
@@ -57,7 +58,7 @@
       "generatedCaseSelector": {
         "sourcePath": "contracts/state-transition/game_end_contract_v1.json",
         "rowOwnerGapId": "GAP-03",
-        "caseCount": 68
+        "caseCount": 102
       }
     },
     {
@@ -86,13 +87,15 @@
         "decisionRows:GAME-END-EXTRA-CONTINUE",
         "decisionRows:GAME-END-LIMIT-DRAW",
         "decisionRows:GAME-END-NORMAL",
-        "decisionRows:GAME-END-TIEBREAK-CONTINUE"
+        "decisionRows:GAME-END-TIEBREAK-CONTINUE",
+        "operationRows:game-end-declaration:compound:b1003c9526ad839d"
       ],
       "fixtureCaseIds": [
         "GE-GAME-END-NORMAL",
         "GE-GAME-END-EXTRA-CONTINUE",
         "GE-GAME-END-LIMIT-DRAW",
-        "GE-GAME-END-TIEBREAK-CONTINUE"
+        "GE-GAME-END-TIEBREAK-CONTINUE",
+        "ST-DRAW-05"
       ],
       "generatedCaseSelector": {
         "sourcePath": "contracts/state-transition/game_end_contract_v1.json",
@@ -112,7 +115,9 @@
         "XMARK-02",
         "XMARK-03"
       ],
-      "rowIds": [],
+      "rowIds": [
+        "decisionRows:XMARK-02"
+      ],
       "fixtureCaseIds": [],
       "generatedCaseSelector": null
     },

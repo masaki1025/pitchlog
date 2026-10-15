@@ -498,6 +498,49 @@
       "reason": "U-A1 δ(TSK-470)で認証の HTTP 経路 3 本と新しい経路種別 authentication_entry を route-registry.json と http-route-matrix.json に登録し、付録C の table_row-004・table_row-006 を routed へ移した。あわせて origin/develop(#129・#133 と #127 の core-guard 修正)の取り込みで oracle 入力が合流したため、oracle_commit を取り込みの マージコミットへ更新する。同一性の粒度・識別値の解釈は変えていない(oracle_commit_semantics は last_committed_step_4_input_baseline のまま)",
       "approved_by": "山田正輝",
       "approved_at": "2026-10-14"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#131",
+      "series": "oracle_input",
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "d68df723b7d362a993aea56b7d8949f8ff1d83a1"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "c6bf54a2b79d021a877df248ce7e23315469321b"
+          }
+        ]
+      },
+      "changes": [],
+      "placement_change": {
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "moved": false,
+      "reason": "TSK-538(ADR-003 v0.7 / 要件書 v2.14)で付録E-1 の StateEffect の履歴文脈の型を HistoryEffect へ改め、要件書の母集団に 9 行(変更履歴 2 行は OUT_DOCUMENT_METADATA、付録E-1 の 7 行は OUT_NON_AUTH_REQUIREMENT — PO 判断)を登録した。あわせて origin/develop(#129・#134・#119・#136)の取り込みで oracle 入力が合流したため、oracle_commit を第 1 段のコミットへ更新する。認可の主張(auth_claim 187 件)と同一性の粒度・識別値の解釈は変えていない(oracle_commit_semantics は last_committed_step_4_input_baseline のまま)",
+      "approved_by": "山田正輝",
+      "approved_at": "2026-10-15"
     }
   ]
 }

@@ -38,6 +38,17 @@ _MANUAL_KEYS = frozenset(
         "evidenceDigest",
     }
 )
+_RECONFIRMATION_KEYS = frozenset(
+    {
+        "judge",
+        "decisionDate",
+        "fired",
+        "previousEvidenceDigest",
+        "evidenceDigest",
+        "reason",
+    }
+)
+_EVIDENCE_DIGEST_RE = re.compile(r"sha256:[0-9a-f]{64}")
 _NODE_ID = re.compile(
     r"(?P<path>tests/(?:[A-Za-z0-9_-]+/)*test_[A-Za-z0-9_]+\.py)"
     r"::(?P<function>test_[A-Za-z0-9_]+)"
@@ -125,6 +136,71 @@ def _trigger_id(value: object, label: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value < 1:
         raise TriggerEvaluationError(f"{label} が正の整数でない")
     return value
+
+
+def _validate_reconfirmations(
+    decision: Mapping[str, object],
+    *,
+    identifier: int,
+    judge: object,
+    recorded: bool,
+) -> None:
+    """元の判定を保持したまま、証拠再確認の追記列を検証する。"""
+    if "reconfirmations" not in decision:
+        return
+    records = _array(decision["reconfirmations"], "reconfirmations")
+    if not records:
+        raise TriggerEvaluationError(f"トリガー {identifier} の再確認記録が空")
+    raw_original_date = decision["decisionDate"]
+    assert isinstance(raw_original_date, str)
+    previous_date = date.fromisoformat(raw_original_date)
+    previous_digest: object = None
+    for index, raw in enumerate(records):
+        item = _object(raw, f"reconfirmations[{index}]")
+        if set(item) != _RECONFIRMATION_KEYS:
+            raise TriggerEvaluationError(
+                f"トリガー {identifier} の再確認キー集合が不正"
+            )
+        raw_date = item["decisionDate"]
+        try:
+            if not isinstance(raw_date, str):
+                raise ValueError
+            checked_date = date.fromisoformat(raw_date)
+        except ValueError as error:
+            raise TriggerEvaluationError(
+                f"トリガー {identifier} の再確認日が不正"
+            ) from error
+        if checked_date <= previous_date:
+            raise TriggerEvaluationError(
+                f"トリガー {identifier} の再確認日が判定日より後でない"
+            )
+        previous_date = checked_date
+        if item["judge"] != judge or item["fired"] is not recorded:
+            raise TriggerEvaluationError(
+                f"トリガー {identifier} の再確認判定が元の判定と不一致"
+            )
+        if not isinstance(item["reason"], str) or not item["reason"].strip():
+            raise TriggerEvaluationError(f"トリガー {identifier} の再確認理由が不正")
+        old_digest = item["previousEvidenceDigest"]
+        new_digest = item["evidenceDigest"]
+        if not all(
+            isinstance(value, str) and _EVIDENCE_DIGEST_RE.fullmatch(value)
+            for value in (old_digest, new_digest)
+        ):
+            raise TriggerEvaluationError(
+                f"トリガー {identifier} の再確認 digest が不正"
+            )
+        if old_digest == new_digest or (
+            previous_digest is not None and old_digest != previous_digest
+        ):
+            raise TriggerEvaluationError(
+                f"トリガー {identifier} の再確認 digest の連鎖が不正"
+            )
+        previous_digest = new_digest
+    if previous_digest != decision["evidenceDigest"]:
+        raise TriggerEvaluationError(
+            f"トリガー {identifier} の最新の再確認 digest が不一致"
+        )
 
 
 def _digest_file(path: Path) -> str:
@@ -351,7 +427,7 @@ def validate_recorded_evaluations(
     manual_by_id: dict[int, dict[str, object]] = {}
     for index, raw in enumerate(manual_rows):
         item = _object(raw, f"manualDecisions[{index}]")
-        if set(item) != _MANUAL_KEYS:
+        if set(item) not in (_MANUAL_KEYS, _MANUAL_KEYS | {"reconfirmations"}):
             raise TriggerEvaluationError("manualDecisions のキー集合が不正")
         identifier = _trigger_id(item.get("triggerId"), "manual.triggerId")
         if identifier in manual_by_id:
@@ -395,6 +471,12 @@ def validate_recorded_evaluations(
                 raise TriggerEvaluationError(
                     f"トリガー {identifier} の PO 決定と評価記録が不一致"
                 )
+            _validate_reconfirmations(
+                decision,
+                identifier=identifier,
+                judge=registry.get("poName"),
+                recorded=recorded,
+            )
             location = decision.get("evidenceLocation")
             if location != row.get("evidenceLocation") or not isinstance(location, str):
                 raise TriggerEvaluationError(

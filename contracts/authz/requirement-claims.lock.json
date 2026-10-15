@@ -4,8 +4,8 @@
   "classification_rules_digest": "9e2353f37cd996436a26b32487a7d51421c52484791993c56e9da6c557a30a0e",
   "basis_rules_digest": "4adf829b6fd001aa582e9bd94e7a0170d8b91460afee2557fa4f770c07c2aedc",
   "layer_ids_digest": "8d4eac464984bfc093e708840dfb5e30550792a7ad87119a2e313e53f5ff6e1e",
-  "decision_count": 1385,
-  "aggregate_decision_digest": "a673267cd83b57749e6ca6a47ddfa5deba018cab0ce5c31edd54afa585798815",
+  "decision_count": 1392,
+  "aggregate_decision_digest": "9c7547d5c201922c26d07fb7551820e5814480e392af977467de00bae6abbdb2",
   "decisions": [
     {
       "source_id": "PREAMBLE/frontmatter-001",
@@ -356,6 +356,20 @@
       "classification_rule_id": "OUT_DOCUMENT_METADATA",
       "source_text_digest": "9dc88c03089062167ea4ba4e5470ade4e13e8067a65672b0831d31cd3308b077",
       "decision_digest": "c19f632eae7087c9b01676be6513e834d13caefb454dcd3ceaeec65249f18534"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-044",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "source_text_digest": "7fc82d2bf57ccff941dac048cfe0627bf9e06a609b44fff702cb80eeabbb2e16",
+      "decision_digest": "c9a21d5355f6d025f7f64346b82deeb91366c005ca462872217aff4c53f949eb"
+    },
+    {
+      "source_id": "CHANGELOG/table_row-045",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_DOCUMENT_METADATA",
+      "source_text_digest": "47df85cd79f333977540af5854ec49d62161b360818f4878ff8a9b1297e23c51",
+      "decision_digest": "d186b41a61c72ef3f0de531162ab6587d333cbca96bd47e8be34072994629ac6"
     },
     {
       "source_id": "CHANGELOG/blockquote-001",
@@ -12734,8 +12748,8 @@
       "source_id": "APPENDIX-ITEM-E-1/code_line-027",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "899c5a65f61db86d01fb979330886d3f1339c2b60078371e4ff8d378383f99dc",
-      "decision_digest": "5d900b88bdd2b5211cabe606a56dca168b296c7dc0c4fdce804ff76a0c5c6879"
+      "source_text_digest": "620cdd4a6fb4675391f8f6d6ba076b788be86d3b5bf63fd4c0fecc4bb23ac680",
+      "decision_digest": "c3bc4c45d4d36cf04db719ed2825853def55de670e7034866b11b8a3c0211344"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/code_line-028",
@@ -12773,6 +12787,34 @@
       "decision_digest": "4c26b4105abeea14b7057ced53b4449364b24e69cbdfb1cfb40f25bcc0ff972b"
     },
     {
+      "source_id": "APPENDIX-ITEM-E-1/code_line-033",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "source_text_digest": "1a6ed1aed129d8cb91a28ef11a4fc378b9f34481463da0d8bbce91983d1c2429",
+      "decision_digest": "98d1f5f35bf3091475acdc7d6dc3ae7a6e303c43c9c576131354feb75f23c08c"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/code_line-034",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "source_text_digest": "e4c34dca44bf25a14b28abb5204ab2f3afb79c245fe9a2b680e4590d8e3d55c0",
+      "decision_digest": "8e7604b988da30fe7b1e6a9275ce2a6a2d409ea4bc8b88adff6e189d2783f1d4"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/code_line-035",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "source_text_digest": "4af013ede33cc4e473e676e7986634bd0fe1bb3bfabf36e8cd1e5e728f5c3846",
+      "decision_digest": "6b97c05c9d5103c1d83c345e867d034a02e3dbbd0927cb436e8080039932ba64"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/code_line-036",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "source_text_digest": "776bef9cf0cef0dbbfda961cb54fed53bd4c40734c3898968e305e48c71827ba",
+      "decision_digest": "7846e154a18a07b90b29b34a175faac3ed198fb453303e1cb6bd4ed4ad21e6d0"
+    },
+    {
       "source_id": "APPENDIX-ITEM-E-1/code_fence-006",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_STRUCTURAL",
@@ -12783,29 +12825,36 @@
       "source_id": "APPENDIX-ITEM-E-1/paragraph-029",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "ceaa6b496dbc3c9e00b079f310d07b042bb5e1a07b54f41355407d4b95c4950a",
-      "decision_digest": "2920f7bcb6b5802c1660282c7fa81216b98129fb85373e7c6d75e8574eabee31"
+      "source_text_digest": "96a899d1e464128bdbdb50ff3566e7bd79dae02a21415f6cc7e282cbb0dc58f7",
+      "decision_digest": "e081d2c7ee8018184ac43c226d8332e3843164e3c9475ef668b5835437d985df"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/paragraph-030",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "d914088b1d4e6550b420f3d5c87d8b62a7eeeca61a3171ad7535477e306ac9cc",
-      "decision_digest": "e33d2b1c87825692c9e6f774e4e51024db7988a6499c22c4c9c5166082d30b2d"
+      "source_text_digest": "13da687c78eceb2c19122e427f230f42bc2d2f23b88091e63c52418b9b6a4f9c",
+      "decision_digest": "5638688d2a17bf9b76d9dbe06b47be6ae1dd6c67ab55728c80ff2fa0697a760a"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/paragraph-031",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "455a31a3cc3fe045d598c04260f58efd04b48c23a47b9e552ee5ec866409c9c3",
-      "decision_digest": "727d50d8a434d00fd399ef2a707befda4670e04fccb7fef99e2fc0166d4d5855"
+      "source_text_digest": "d914088b1d4e6550b420f3d5c87d8b62a7eeeca61a3171ad7535477e306ac9cc",
+      "decision_digest": "2f0c601c4627016fa0cbb58acd4b03d8a9b7de07f8a06efe69c62961db0d772b"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/paragraph-032",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "source_text_digest": "455a31a3cc3fe045d598c04260f58efd04b48c23a47b9e552ee5ec866409c9c3",
+      "decision_digest": "8dcd826e0c8d159d87bb4ed7ff4bd37d20b22edd25b77c8eab950d1824effc39"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-033",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
       "source_text_digest": "7fe68773a8b48d2f0c03c14e75ee919f45c9764cdc2cf46d81eb0c093d108e73",
-      "decision_digest": "fea87e63e4a356c941fc919524932b14f428b59082b41674d22394780373960a"
+      "decision_digest": "17e6208730ff79ac961931239dbaaf0263ceb665c696ec5975f7e6babb954881"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/table_header-007",
@@ -12983,46 +13032,46 @@
       "decision_digest": "2499506e594d4d66cdb1a93bc001b9dc3902363f1d17dbd967a49351e30b7d4d"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-033",
-      "classification": "out_of_scope",
-      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "2e7cc47ea8aeca2485b9dde9db96dfe8374ac2d870402d199740459bc5af73ff",
-      "decision_digest": "842585c5b072fdf8c2164eb1db75267d4b562fa5168d16778c54c062ce7cda4d"
-    },
-    {
       "source_id": "APPENDIX-ITEM-E-1/paragraph-034",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "cd6fdf9d1377588402685769e145001c70976694fb88b27d3d1c9854bd2d7816",
-      "decision_digest": "4679afa183111f7418b7c2763e80ca2125f41ccdcfe84c66ff968d4e04cf2cf1"
+      "source_text_digest": "2e7cc47ea8aeca2485b9dde9db96dfe8374ac2d870402d199740459bc5af73ff",
+      "decision_digest": "ba29f6e04b2c87e0bd11a59e2faaf074fdd5bb51c4eae7d60cce40c07bde60ac"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/paragraph-035",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "c2160866c58e6810c94b203721babb624eaec149390e15f305b775c15aebc70f",
-      "decision_digest": "b2104cf68feaea7f4633e85c66b57be3a1d08bbf90333dcc13ced56e96f5b0c0"
+      "source_text_digest": "cd6fdf9d1377588402685769e145001c70976694fb88b27d3d1c9854bd2d7816",
+      "decision_digest": "bbaede370b33fa61d349af45d4ce87ad722cc2c4e401ea8a4cbdcbde34e33035"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/paragraph-036",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "9185f4cfcdc3ca86b51f11bd54bfe2c99ced8a5e2c4c4c784c46e3fdb445fd22",
-      "decision_digest": "cdb6036cec9ba2c6eec5d92af930991990a027d82199c2983f32e3e40d3b9105"
+      "source_text_digest": "c2160866c58e6810c94b203721babb624eaec149390e15f305b775c15aebc70f",
+      "decision_digest": "e3ba753f153d5afdb4deaa051515971503269ddcc144642ff1a7e576065d17f1"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/paragraph-037",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
-      "source_text_digest": "2de204fc87ed5b2fca60aadd764414c9924ce104a751f0ec763c1d6b73980784",
-      "decision_digest": "1bafa456658b403a44ffaf3969e424a4f200f3abb129e57f1cd9a6d2e8424bf8"
+      "source_text_digest": "9185f4cfcdc3ca86b51f11bd54bfe2c99ced8a5e2c4c4c784c46e3fdb445fd22",
+      "decision_digest": "98d0327aa12d2c6a378e20290982176de4e60c3866dbecc6d635f81d2f2fde0f"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/paragraph-038",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
+      "source_text_digest": "2de204fc87ed5b2fca60aadd764414c9924ce104a751f0ec763c1d6b73980784",
+      "decision_digest": "d94624445dc72f69b98b104b5a527580d3c9bab6f2beef6d0f01c596b11802aa"
+    },
+    {
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-039",
+      "classification": "out_of_scope",
+      "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
       "source_text_digest": "a30aed4b3cb8d7defa18c3617ecb3bca14848ef10228bc745d718f67a1301d3a",
-      "decision_digest": "2a0be3a7b3a3538aac42446c7adfbe9d76940d04d36a9260baebafcdd2e28ac9"
+      "decision_digest": "3914702d84e7b68f7d5969c0a14fc616c1b017bcd3b8abf6643b68e47cf41b8f"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/table_header-008",
@@ -13102,11 +13151,11 @@
       "decision_digest": "5225e1d52e7f9fcd695cf3c5156fee3b7364ceefdd04302473e441e0408fa45e"
     },
     {
-      "source_id": "APPENDIX-ITEM-E-1/paragraph-039",
+      "source_id": "APPENDIX-ITEM-E-1/paragraph-040",
       "classification": "out_of_scope",
       "classification_rule_id": "OUT_NON_AUTH_REQUIREMENT",
       "source_text_digest": "5ecbb2f66d1ee5bfbbd3ec13b5e7751bf44a7caa838eb76ec49dcfccacc8238f",
-      "decision_digest": "ac4639c9ed8d71876d69a6d946d4c1db85e2312a22bdbd4fb164c8a9765f261e"
+      "decision_digest": "4c3822fb2b500a7ef4098c0580e29781e0b2531369a750faef63eb657f4b2409"
     },
     {
       "source_id": "APPENDIX-ITEM-E-1/list_item-013",

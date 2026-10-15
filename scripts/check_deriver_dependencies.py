@@ -37,6 +37,7 @@ CLAUSE_BRANCH_REGISTER_PATH = PurePosixPath(
 GAME_END_BRANCH_ROW_PATTERN = re.compile(
     r"^\|\s*`(?P<branch_id>(?:COLD|DRAW)-[0-9]{2})`\s*\|"
 )
+WALK_OFF_XMARK_ROW_PATTERN = re.compile(r"^\s*\|\s*`XMARK-01`\s*\|")
 
 _T = TypeVar("_T")
 
@@ -1162,16 +1163,25 @@ def _extract_game_end_clause_branch_requirements(
     requirements_text: str,
     requirement_clause_ids: frozenset[str],
 ) -> tuple[GameEndClauseBranchRequirement, ...]:
-    """要件書 F-1 の COLD/DRAW 規範表から分岐要求を抽出する。"""
+    """F-1 の分岐と FR-020 のサヨナラ表示分岐を独立に抽出する。"""
     branch_ids: list[str] = []
     in_f1 = False
+    in_fr020 = False
+    walk_off_xmark_rows = 0
     for line in requirements_text.splitlines():
+        if line.startswith("#### "):
+            in_fr020 = line.startswith("#### FR-020:")
+        elif line.startswith("### "):
+            in_fr020 = False
         if line.startswith("### "):
             in_f1 = line.startswith("### F-1 ")
             continue
         if line.startswith("## "):
             in_f1 = False
+            in_fr020 = False
             continue
+        if in_fr020 and WALK_OFF_XMARK_ROW_PATTERN.match(line):
+            walk_off_xmark_rows += 1
         if not in_f1:
             continue
         match = GAME_END_BRANCH_ROW_PATTERN.match(line)
@@ -1195,12 +1205,21 @@ def _extract_game_end_clause_branch_requirements(
             "終了判定の条文分岐IDを実在条文へ解決できない: "
             f"missing={missing!r}"
         )
+    if walk_off_xmark_rows != 1 or not {
+        "req:FR-020", "req:XMARK-01"
+    } <= requirement_clause_ids:
+        raise DeriverDependencyError("FR-020のXMARK-01を実在条文へ解決できない")
     return tuple(
         GameEndClauseBranchRequirement(
             branch_id=branch_id,
             source_clause_ids=("req:F-1", f"req:{branch_id}"),
         )
         for branch_id in branch_ids
+    ) + (
+        GameEndClauseBranchRequirement(
+            branch_id="XMARK-01",
+            source_clause_ids=("req:FR-020", "req:XMARK-01"),
+        ),
     )
 
 
@@ -1230,6 +1249,7 @@ def derive_game_end_required_set_from_documents(
     try:
         criteria = descriptor_checker.load_descriptor_criteria(descriptor)
         descriptor_checker._validate_game_end_contract(descriptor, criteria)
+        descriptor_checker._validate_derived_axes(descriptor, criteria)
     except descriptor_checker.DescriptorCheckError as error:
         raise DeriverDependencyError(str(error)) from error
 
@@ -1242,6 +1262,9 @@ def derive_game_end_required_set_from_documents(
             "sourceClauseId",
             "ruleFieldCombination",
             "boundaryValueCombination",
+            "derivedAxisIds",
+            "derivedUnreachablePairs",
+            "unreachablePairs",
         },
         "gameEndCombinationRules",
     )
@@ -1282,7 +1305,9 @@ def derive_game_end_required_set_from_documents(
         invalid_values = axis.get("invalidBoundaryValues")
         if not isinstance(valid_values, list) or not valid_values:
             raise DeriverDependencyError(f"{axis_id}.boundaryValuesが空である")
-        if not isinstance(invalid_values, list) or not invalid_values:
+        if axis_id in raw_combination["derivedAxisIds"] and invalid_values is None:
+            invalid_values = []
+        elif not isinstance(invalid_values, list) or not invalid_values:
             raise DeriverDependencyError(
                 f"{axis_id}.invalidBoundaryValuesが空である"
             )
@@ -1329,12 +1354,21 @@ def derive_game_end_required_set_from_documents(
             )
         )
 
+    bindings = descriptor["inputCoordinateCoverage"]["axisBindings"]
+    play_input_axes = {
+        axis_id
+        for binding in bindings
+        for row_binding in binding["rowBindings"]
+        if "matrixRows" in row_binding["rowLayers"]
+        for axis_id in binding["axisIds"]
+    }
     state_event_coordinates = tuple(
         requirement
         for requirement in derive_input_coordinate_requirements_from_descriptor(
             descriptor
         )
         if requirement.axis_id.split(".", 1)[0] in {"state", "event"}
+        and requirement.axis_id in play_input_axes
     )
     if not state_event_coordinates:
         raise DeriverDependencyError("状態・イベント軸の入力座標要求が空である")
@@ -1347,7 +1381,7 @@ def derive_game_end_required_set_from_documents(
         axis_id = _nonempty_string(
             axis.get("axisId"), f"stateTransitionAxes[{index}].axisId"
         )
-        if axis_id.split(".", 1)[0] not in {"state", "event"}:
+        if axis_id.split(".", 1)[0] not in {"state", "event"} or axis_id not in play_input_axes:
             continue
         state_event_sources[axis_id] = _descriptor_clause_ids(
             axis,
@@ -1455,7 +1489,7 @@ def validate_game_end_outcome_branch_coverage(
     required: GameEndRequiredSet,
     clause_branch_register: Mapping[str, Any],
 ) -> tuple[str, ...]:
-    """独立導出後の要求が宣言済み終了結果分岐 4 役割を覆うか検査する。
+    """独立導出後の要求が宣言済み終了結果分岐 5 役割を覆うか検査する。
 
     `clauseBranchRegister` は独立導出器の入力にせず、この事後突合だけで
     用いる。これにより GAME-* の宣言と requiredSet の双方を同じ資産から

@@ -1,0 +1,18 @@
+[
+  {"id":"direct-cases","operation":"directCases","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","code":"HANDOFF_SHAPE"},
+  {"id":"handoff-version","operation":"replace","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/handoffVersion","value":"appendix_e_consumer_handoff_v2","code":"VERSION_MISMATCH"},
+  {"id":"schema-version","operation":"replace","target":"contracts/state-transition/state_transition_contract_v1.json","pointer":"/schemaVersion","value":2,"code":"SCHEMA_VERSION"},
+  {"id":"contract-version","operation":"replace","target":"contracts/state-transition/game_end_contract_v1.json","pointer":"/version","value":"game_end_contract_v2","code":"VERSION_MISMATCH"},
+  {"id":"descriptor-digest","operation":"replace","target":"contracts/state-transition/input_axes_descriptor_v1.json","pointer":"/digest","value":"sha256:0000000000000000000000000000000000000000000000000000000000000000","code":"DESCRIPTOR_MISMATCH"},
+  {"id":"unknown-parity-field","operation":"add","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/descriptorParity/unexpected","value":true,"code":"UNKNOWN_FIELD"},
+  {"id":"unknown-execution-field","operation":"add","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/consumerBindings/0/executionPaths/0/unexpected","value":true,"code":"UNKNOWN_FIELD"},
+  {"id":"unknown-handoff-field","operation":"add","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/unexpected","value":true,"code":"UNKNOWN_FIELD"},
+  {"id":"unknown-case-field","operation":"add","target":"contracts/state-transition/game_end_contract_v1.json","pointer":"/cases/0/unexpected","value":true,"code":"UNKNOWN_FIELD"},
+  {"id":"invalid-mapping","operation":"replace","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/consumerBindings/1/caseFieldMapping/expected/contractPointer","value":"/expected","code":"MAPPING"},
+  {"id":"dependency-oid","operation":"replace","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/dependencies/0/commitOid","value":"0000000000000000000000000000000000000000","code":"DEPENDENCY_MISMATCH"},
+  {"id":"dependency-version","operation":"replace","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/dependencies/0/version","value":2,"code":"DEPENDENCY_MISMATCH"},
+  {"id":"artifact-digest","operation":"replace","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/artifacts/0/digest","value":"sha256:0000000000000000000000000000000000000000000000000000000000000000","code":"ARTIFACT_DIGEST"},
+  {"id":"unsafe-integer","operation":"unsafeInteger","target":"contracts/state-transition/state_transition_contract_v1.json","code":"UNSAFE_INTEGER"},
+  {"id":"duplicate-field","operation":"duplicateField","target":"contracts/state-transition/state_transition_contract_v1.json","code":"UNKNOWN_FIELD"},
+  {"id":"negative-zero","operation":"negativeZero","target":"contracts/state-transition/state_transition_contract_v1.json","code":"UNSAFE_INTEGER"}
+]

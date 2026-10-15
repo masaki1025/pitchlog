@@ -50,6 +50,8 @@ status: approved
 | **2.11** | 2026-10-11 | **確定ゲート通過(approved)**: 敵対レビュー **2 周**(sol xhigh — **基本枠 2 回を使い切った**。1 周目〔全文・2 正本一括〕P0 0 / P1 8 / P2 1、2 周目〔1 周目の反映差分と影響節〕P0 0 / P1 4 / P2 0)。**指摘 13 件を全件採用・不採用 0 件・P0 は 2 周ともゼロ・(B) の送り 0 件**(周別の採否記録は worklog `2026-10-10-adr003-activation-conditions.md` が正)。**P0 が 0 件のため P0 限定の 3 回目は自動追加されない。** **PO 裁定 4 件**(射程宣言の寄せ先 / J-6 の送り先 / 版番号 / **(iv) は案 A**)。**人間承認 2026-10-11・山田正輝。** **ADR-003 v0.6 と同一ゲートで一括検証した。** **確定内容**: **D-2 への切り替えに伴う規範の追随 7 箇所 + 参照の付け替え 1 件** — ① 10 章の「①＝制約された宣言モデルから Python・TypeScript を生成」を **TS 正本からの生成と実行**へ(**発効までは旧記述が現行**)② 付録A-1 の「対象集合の正 = **宣言モデルの** schema」を **「正本の schema」**へ(**発効後は TS 正本の出力フィールドの宣言**)③ 同所の **D-1 参照**を「ADR-003 が定める正本の宣言的表示規則」へ ④〜⑥ 生成 formatter・生成前検査を前提にした 3 箇所へ **発効後は TS 正本から**の注記 ⑦ NFR-018 (b)② の **「派生schema」**へ追補(**発効後は TS 正本が宣言する入力軸の宣言**)⑧ 3 層の 2 層目へ **D-14-g (i) が比較相手・実施主体・実行経路・判定根拠を定める**ことを明記 ⑨ NFR-019(a) 前処理の根拠を **D-1 から「正本の射程」へ付け替え**。**版番号は PO 裁定で 2.11 に確定**(`v2.5` は TSK-267 の先約のまま)。**「変更しない範囲」は基準版と SHA-256 同一であることを機械的に確認した**(4 ブロック)。計画: `../features/adr003-activation-conditions/plan.md` | 山田 + Claude |
 | **2.12** | 2026-10-13 | **TSK-397/U-D1のFR-019・付録C改訂案（TSK-543/B06 v0.9と単一7.3ゲート）**: 削除時のDB記録時刻と実効保持期間から自己復元期限を固定し、設定変更の非遡及を付録Cの明示例外とする。期限ちょうどからチームのゴミ箱表示・復元を拒否し、サーバーの復元判定は一覧キャッシュと5分周期保守処理に依存しない。**本書で確定する範囲** = FR-019の削除時期限固定・24時間単位・期限境界・読取/復元判定と、付録Cの非遡及例外。**実装時に確定する範囲** = 保存列・ロック/時刻関数・キャッシュの実装手段とテスト、既存行の読取調査・移行例外。保守用認可のP0 3件、その他のU-D1仕様は射程外。POの7.3-6射程裁定（2026-10-13）により`../design/data-model.md` v0.9と単一ゲートで扱う。U-D1起案: `feature/ud1-game-trash` の `c23a33d6`。本ゲートの受取記録: `../worklog/2026-10-13-ut1-game-invalidation.md` | Codex（U-D1案）／起案 |
 | **2.12** | 2026-10-13 | **一括7.3確定ゲート通過（approved）**: FR-019・付録Cの削除時期限固定（`trashed_at`＋削除時実効値、既定30日・1日24時間）、保持期間1〜36500整数日と日時型で表現不能な場合の状態変更前拒否、設定変更の非遡及、期限ちょうどからのチーム表示・自己復元拒否を、`../design/data-model.md` v0.9/B06と単一ゲートで確定。敵対レビュー2回（初回P0 1/P1 2、2回目P0 0/P1 2）・採用反映2周、全5件採用・不採用0。初回P0に対するPOの7.3-6射程裁定で要件を追加し、周回数は継続。最終反映 `0b2fe712` と保持期間上限を含め**2026-10-13 本会話の利用者が明示承認**。保守用認可P0 3件、既存行移行例外、無関係なU-D1仕様は本ゲート外。保存列・認可・キャッシュの実装と凍結資産追随は指示された実装ステップへ残す。計画: `../features/ut1-game-invalidation/plan.md`、記録: `../worklog/2026-10-13-ut1-game-invalidation.md` | 本会話の利用者 + Codex |
+| 2.14 | 2026-10-14 | **付録E-1 の `StateEffect` の履歴文脈の型を改訂する起案(TSK-538・状態: in-review)** — **ADR-003 v0.7 と同一の確定ゲートで一括検証する**(PO 裁定 2026-10-14・山田正輝 — ADR-003 v0.7 の確定ゲート 2 回目で、undo が履歴を pop する行を `FieldEffect` で書けないことが判明したため。先例: v2.2 と ADR v0.1、v2.11 と ADR v0.6)。**改訂する 1 箇所** = 付録E-1 の `StateEffect` — `historyAndResult.history` の型を `FieldEffect` から新設の **`HistoryEffect`**(`unchanged` / `push` / `pop`)へ改め、`historyAndResult.operationResult` は `set` で操作結果を置くと定める。**版は暫定**(起案時は 2.13)— 未マージの PR #129(TSK-543)が v2.12 を approved で持つため、その次の版とし、**承認時に PO が裁定する**(先例 TSK-278)。**射程宣言(7.3-7)**: **本改訂で確定する範囲** = 上記 1 箇所。**実装時に確定する範囲** = 状況判定契約の schema(`contracts/state-transition/state_transition_contract_schema_v1.json`)の追随と、既存の操作行・undo 行の `historyAndResult` の書き換え(TSK-538)/ authz の要件書 digest の再封印。**本改訂で触れない範囲** = `FieldEffect` の 3 種と他の 3 面 / `Predicate` / 付録E-1 の 10 列 / 変更履歴表(監査証跡)。計画: `../features/adr003-stage2-runtime/plan.md` | 山田 + Claude |
+| **2.14** | 2026-10-14 | **確定ゲート通過(approved)** — **ADR-003 v0.7 と同一の確定ゲートで一括検証**(敵対レビュー 4 回・指摘 24 件のうち 22 件採用・射程縮小で対象外 2 件・作成者判断のみの不採用 0 件。要件書に掛かったのは 3 回目と 4 回目 — 周別の採否記録は worklog `2026-10-10-adr003-stage2-runtime.md` が正)。**確定内容**: 付録E-1 の `StateEffect` — `historyAndResult.history` の型を新設の **`HistoryEffect`**(`unchanged` / `push` / `pop`)へ改め、`historyAndResult.operationResult` は `set` で操作結果を置く。**`push` の差分**は、`stateFields`・`scoreboard` は適用前後の状態を比べた変化前・変化後の値、`statFlags` は当該操作が出力した 23 フラグの値(計上の寄与)とする(確定プレイも同じ規則)。**版番号は PO 裁定で 2.14 に確定**(未マージの #129〔TSK-543〕と TSK-238 がともに v2.12 を approved で持ち、付け替えの裁定が別途進むため、承認順で 2.14 とした — どちらの結果〔2.12 / 2.13〕とも衝突しない)。**残余リスク**: 最終反映(`e1f886d5`)は Codex の再レビューを受けていない(7.3-8)。**人間承認 2026-10-14・山田正輝**。計画: `../features/adr003-stage2-runtime/plan.md` | 山田 + Claude |
 
 > **本書の位置づけ**: 既存システム Baseball_Scoring（Tsukuba PSS）をもとに、製品版 pitchlog をゼロから再構築するための要件正本。
 > 現行システムからの改善点とその理由は別文書 [`docs/improvements-from-baseball-scoring.md`](../improvements-from-baseball-scoring.md)（改善台帳）に記録し、本書とセットで維持する。
@@ -1509,16 +1511,23 @@ StateEffect = {
   stateFields:      {<比較面の各フィールド>: FieldEffect},
   scoreboard:       {<全欄>: FieldEffect},
   statFlags:        {<23フラグ>: FieldEffect},
-  historyAndResult: {history: FieldEffect, operationResult: FieldEffect}
+  historyAndResult: {history: HistoryEffect, operationResult: FieldEffect}
 }
 
 FieldEffect =
   | {kind: "unchanged"}
   | {kind: "set", value: <当該フィールドの型>}
   | {kind: "delta", value: integer}
+
+HistoryEffect =
+  | {kind: "unchanged"}
+  | {kind: "push", entryKind: <取消可能な操作の種別ID>}
+  | {kind: "pop", count: 1}
 ```
 
-`StateEffect`の4キー、`stateFields`の比較面全フィールド、`scoreboard`の全欄、`statFlags`の23キー、`historyAndResult`の`history`と`operationResult`は全てrequiredとする。各オブジェクトと`FieldEffect`の各variantは`additionalProperties: false`とする。影響しない面も省略せず、当該フィールドへ`{kind: "unchanged"}`を必ず設定する。
+`HistoryEffect`は履歴文脈(取消可能な操作のスタック)への影響を表す。`FieldEffect`の固定値の`set`は可変長のスタックの残りを表せず、`delta`は整数に限るため、履歴文脈には`FieldEffect`を使わない。`push`は当該操作を先頭へ積むことを表す。積む要素は種別と差分を持ち、**差分は、`stateFields`と`scoreboard`については、操作の適用前の状態と適用後の状態を比べて変化したフィールドごとに変化前の値と変化後の値を持つ**(`set`は変化後の値しか持たないため、行の`FieldEffect`からは作らない)。**`statFlags`は状態ではなく当該遷移を計数へ算入するかの出力であるため、差分には当該操作が出力した23フラグの値(計上の寄与)をそのまま持ち、前後の比較では作らない**。確定プレイ(付録E-1の10列の行の適用)を積むときも同じ規則で差分を作る。`pop`は先頭の1件だけを取り除くことを表す。`unchanged`は履歴文脈を変えないことを表す。`entryKind`の値の集合と、`push`・`pop`を置ける行の条件はADR-003 D-8が定める。`historyAndResult.operationResult`は当該操作の操作結果を`{kind: "set", value: <操作結果の値>}`で表し、`unchanged`を置かない。
+
+`StateEffect`の4キー、`stateFields`の比較面全フィールド、`scoreboard`の全欄、`statFlags`の23キー、`historyAndResult`の`history`と`operationResult`は全てrequiredとする。各オブジェクトと`FieldEffect`・`HistoryEffect`の各variantは`additionalProperties: false`とする。影響しない面も省略せず、当該フィールドへ`{kind: "unchanged"}`を必ず設定する。
 
 **成績計上フラグの閉じた外延**:
 

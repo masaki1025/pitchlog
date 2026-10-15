@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import importlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -357,4 +358,77 @@ def test_po_evidence_content_change_is_rejected(tmp_path: Path) -> None:
             ROOT,
             as_of_step=60,
             evaluation_evidence_path=_write_evidence(tmp_path, evidence),
+        )
+
+
+def _trigger_ten_digest_before() -> str:
+    """トリガー10の行に再確認が初めて現れたコミットの親での証拠 digest を返す。"""
+    relative = EVIDENCE_PATH.relative_to(ROOT).as_posix()
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout
+
+    def trigger_ten(revision: str) -> dict[str, Any]:
+        rows = json.loads(git("show", f"{revision}:{relative}"))["manualDecisions"]
+        return next(row for row in rows if row["triggerId"] == 10)
+
+    first = None
+    for commit in git("log", "--first-parent", "--format=%H", "--", relative).split():
+        if not trigger_ten(commit).get("reconfirmations"):
+            break
+        first = commit
+    assert first is not None
+    return trigger_ten(f"{first}^")["evidenceDigest"]
+
+
+def test_trigger_ten_reconfirmation_preserves_original_decision(
+    registry: dict[str, Any],
+) -> None:
+    """トリガー10の元判定と新しい証拠の再確認を両方保持する。"""
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    decision = next(
+        row for row in evidence["manualDecisions"] if row["triggerId"] == 10
+    )
+    reconfirmation = decision["reconfirmations"][-1]
+
+    assert (decision["judge"], decision["decisionDate"], decision["fired"]) == (
+        "山田正輝",
+        "2026-09-18",
+        False,
+    )
+    assert reconfirmation["previousEvidenceDigest"] == _trigger_ten_digest_before()
+    assert reconfirmation["evidenceDigest"] == decision["evidenceDigest"]
+    COMPLETION.trigger_evaluation.validate_recorded_evaluations(
+        registry,
+        ROOT,
+        trigger_ids={10},
+    )
+
+
+def test_trigger_ten_reconfirmation_must_match_current_digest(
+    registry: dict[str, Any], tmp_path: Path
+) -> None:
+    """再確認列と現在の証拠 digest の食い違いを拒否する。"""
+    evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
+    decision = next(
+        row for row in evidence["manualDecisions"] if row["triggerId"] == 10
+    )
+    decision["reconfirmations"][-1]["evidenceDigest"] = "sha256:" + "0" * 64
+
+    with pytest.raises(
+        COMPLETION.trigger_evaluation.TriggerEvaluationError,
+        match="最新の再確認 digest",
+    ):
+        COMPLETION.trigger_evaluation.validate_recorded_evaluations(
+            registry,
+            ROOT,
+            evidence_path=_write_evidence(tmp_path, evidence),
+            trigger_ids={10},
         )

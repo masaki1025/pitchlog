@@ -24,6 +24,7 @@ from pitchlog.domaincheck.path_match import (
     PathSubmission,
     compare_path_set,
 )
+from pitchlog.domaincheck.runners.handoff import LoadedHandoffCases
 
 _HASH = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -66,6 +67,7 @@ class VectorContract:
         case_schema: 一 case の厳密 JSON Schema。
         normalization_comparison: 正規化後値の比較面。
         output_comparison: 計算結果の比較面。
+        liveness_comparison: 契約 schema の XC-09 比較宣言。
     """
 
     calculation: str
@@ -76,6 +78,7 @@ class VectorContract:
     case_schema: Mapping[str, object]
     normalization_comparison: ComparisonContract
     output_comparison: ComparisonContract
+    liveness_comparison: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,6 +205,80 @@ def _matches(
     return report.complete
 
 
+def _validate_liveness_policy(policy: Mapping[str, object] | None) -> None:
+    """契約 schema の XC-09 比較宣言を既知の意味へ閉じる。"""
+    if policy is None:
+        return
+    if dict(policy) != {
+        "sourceDecisionId": "adr:D-8",
+        "constraintId": "XC-09",
+        "mode": "liveness-only",
+        "requiredOperationResult": "applied",
+        "historyLengthDelta": -1,
+        "ignoredOutputPaths": [
+            "stateEffect.stateFields",
+            "stateEffect.scoreboard",
+            "stateEffect.statFlags",
+            "historyContext[*]",
+        ],
+    }:
+        raise VectorRunError("XC-09 の比較宣言が不正")
+
+
+def _output_matches(
+    case: Mapping[str, object],
+    actual: object,
+    contract: VectorContract,
+    key: PathKey,
+) -> bool:
+    """保証モードに従い出力を比較する。"""
+    expected = case["expected"]
+    if not isinstance(expected, dict) or "guaranteeMode" not in expected:
+        return _matches(key, expected, actual, contract.output_comparison)
+    mode = expected["guaranteeMode"]
+    if mode == "liveness-only":
+        if contract.liveness_comparison is None:
+            raise VectorRunError("XC-09 の比較宣言がない")
+        row_ref = case.get("rowRef")
+        history_input = case.get("historyInput")
+        coordinate = case.get("inputCoordinate")
+        stack = history_input.get("stack") if isinstance(history_input, dict) else None
+        state = expected.get("stateEffect")
+        if (
+            not isinstance(row_ref, dict)
+            or row_ref.get("layer") != "undoRows"
+            or not isinstance(coordinate, dict)
+            or coordinate.get("history.scenarioLength") != "D+1"
+            or not isinstance(stack, list)
+            or len(stack) < 2
+            or expected.get("historyEffect") != {"pops": 1}
+            or expected.get("operationResult") != "applied"
+            or not isinstance(state, dict)
+            or any(
+                not isinstance(state.get(face), dict)
+                or any(value != {"kind": "unchanged"} for value in state[face].values())
+                for face in ("stateFields", "scoreboard", "statFlags")
+            )
+            or "historyContext" in expected
+        ):
+            raise VectorRunError("XC-09 の case 宣言が不正")
+        if not isinstance(actual, dict) or not isinstance(
+            actual.get("historyContext"), list
+        ):
+            return False
+        return actual.get("operationResult") == contract.liveness_comparison[
+            "requiredOperationResult"
+        ] and len(actual["historyContext"]) == len(stack) + cast(
+            int, contract.liveness_comparison["historyLengthDelta"]
+        )
+    if mode == "full-equality":
+        fields = {field.field for field in contract.output_comparison.fields}
+        if set(expected) != fields:
+            raise VectorRunError("full-equality の比較面が不足")
+        return _matches(key, [expected], [actual], contract.output_comparison)
+    raise VectorRunError("未知の保証モード")
+
+
 def run_vectors(
     cases: object,
     contract: VectorContract,
@@ -211,7 +288,7 @@ def run_vectors(
     """合成 vector の全 case を正規化から計算まで順に実行する。
 
     Args:
-        cases: 合成契約が宣言する case の配列。
+        cases: 合成契約の case 配列、または検査済み引き渡し case 群。
         contract: Case schema と二つの lossless 比較面。
         normalizer: 宣言モデルから生成済みの正規化実装。
         calculation: 正規化済み入力だけを受ける計算 adapter。
@@ -223,7 +300,9 @@ def run_vectors(
         VectorRunError: Schema・ID・正規化・計算結果のいずれかが不適合な場合。
     """
     _validate_generated_normalizer(normalizer)
-    validated = _validate_cases(cases, contract.case_schema)
+    _validate_liveness_policy(contract.liveness_comparison)
+    source_cases = cases.cases if isinstance(cases, LoadedHandoffCases) else cases
+    validated = _validate_cases(source_cases, contract.case_schema)
     declared = tuple(_string(case["caseId"], "caseId") for case in validated)
     consumed: list[str] = []
     executions: list[VectorCaseExecution] = []
@@ -243,12 +322,7 @@ def run_vectors(
             actual = calculation.execute(case_id, normalized)
         except UnsupportedVectorCase as error:
             raise VectorRunError(f"未対応 case: {case_id}") from error
-        output_matched = _matches(
-            key,
-            case["expected"],
-            actual,
-            contract.output_comparison,
-        )
+        output_matched = _output_matches(case, actual, contract, key)
         if not output_matched:
             raise VectorRunError(f"計算結果が不一致: {case_id}")
         consumed.append(case_id)
