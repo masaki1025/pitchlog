@@ -20,7 +20,7 @@
 | PR #131 → develop 赤 → PR #139(TSK-558) | harness(develop 自体) | 外 — #131 のマージで「origin/develop と作業ツリーの差」を前提にした試験が反転 | 前進で直す別 PR(#139)。#138 などは develop が直るまで待った | `docs/worklog/2026-10-15-state-transition-freeze-post-merge.md` |
 | PR #138(master・docs のみ) | harness | 外 — 起点 develop `e2e78cfb` 自体が赤 | #139 の着地を待つ(滞留) | Notion TSK-559 背景表 |
 | レビュー主体の停止(2026-10-15) | 確定ゲート・PR 段階の敵対レビュー | 外 — 委任先の使用量上限(`Oct 21st, 2026 2:37 PM` まで) | PO の期限付き裁定 3-1・3-2 | W138:10-26・:67-98 |
-| PR #132(TSK-391) | (DIRTY・13 ファイル競合) | — 160 コミット遅れ。core-areas・core_guard・tenant boundary・authz・corpus digest | 担当が解消予定(本タスクは代行しない) | `git merge-tree origin/develop origin/feature/us1-sync-apply-core`(2026-10-15 実測) |
+| PR #132(TSK-391) | (DIRTY・13 ファイル競合 — 調査時点) | — 160 コミット遅れ。core-areas・core_guard・tenant boundary・authz・corpus digest | 担当が取り込み済み(マージ `05284a89`〔親 `0297a8da`・`f36d0fee`〕— 2026-10-15)。**競合は sha で固定して再現する**: `git merge-tree --write-tree f36d0fee 0297a8da` | 計画レビュー 2 回目 P1-2 の実測 |
 
 **上位型**: 「ゲートを満たせなくなったときに、正本が経路を持っていない」。手は 4 通り((a) 前進の別 PR / (b) 規則改訂〔#135 で却下〕/ (c) 保護の一時解除 / (d) PO の期限付き裁定)に割れ、毎回その場の裁量で着地している。
 
@@ -63,14 +63,14 @@
 
 ## 5. 検査器の意味論(3 つの検査器で比較元と単位が違う)
 
-**訂正(計画レビュー 1 回目 P1-5)**: 当初は「core_guard / frozen_history」の 2 分にしていたが、tenant boundary の検査器は比較元が merge-base で、authz 凍結台帳の検査器(PR event の `base.sha`)と違う。3 つに分ける。
+**訂正(計画レビュー 1 回目 P1-5・2 回目 P1-1)**: 当初は「core_guard / frozen_history」の 2 分にしていた。1 回目の反映では tenant boundary を「比較元が merge-base」として分けたが、**CI の pull_request では tenant boundary も受理モードが強制され、比較元は event の `base.sha`** である(`frozen_history.py:607-615`・`check_tenant_boundary_bypass.py:6256-6271`)。merge-base になるのは手元の不変量モードだけ。3 つに分ける理由は比較元ではなく、資産の形・受理記録を作る道具・再封印の手順の違い。
 
 | 観点 | core_guard(`scripts/core_guard.py`) | tenant boundary(`scripts/check_tenant_boundary_bypass.py`・`scripts/frozen_history.py`) | authz 凍結台帳(`scripts/check_frozen_baselines.py`) |
 | --- | --- | --- | --- |
-| 比較元 | `git merge-base(base, head)`(`:208-233`)— 取り込むと動く | `merge-base(--base-ref, HEAD)`(`:6302-6305`)。CI は `--base-ref origin/<base>`(`ci.yml:229-234`)。受理モードでは 2 親マージ・`base.ref`・`acceptance_id` も照合(`frozen_history.py:618-682`) | **PR event の `base.sha`**(`:1495-1510`)— HEAD が 2 親の合成マージでなければならない |
+| 比較元 | `git merge-base(base, head)`(`:208-233`)— 取り込むと動く。`pull_request` 以外はスキップ | **CI(pull_request)= 受理モードが強制され event の `base.sha`**(`check_tenant_boundary_bypass.py:6256-6271`。`--base-ref origin/<base>`〔`ci.yml:229-234`〕は `base.sha` との一致検査だけ)、HEAD は 2 親の合成マージ(`frozen_history.py:1192-1197`)、`acceptance_id` も照合(`:672-681`)/ 手元(不変量モード)= `merge-base(--base-ref, HEAD)`(`:6302-6305`) | **PR event の `base.sha`**(`:1495-1510`)— HEAD が 2 親の合成マージでなければならない |
 | 見る単位 | 比較元..head の各コミット(`:328-335`)と最終状態の二層契約(`:284-325`) | 資産ごとの識別値(`contract_revision` など)と追記専用の受理履歴。射影が動いた資産は識別値の更新が必要(`frozen_history.py:1474-1482`) | PR 1 件 = 受理 1 回(7.7-2)。追記専用・`acceptance_id` = `repository#PR番号`(`:203-205`) |
-| 競合した値の性質 | 窓口(`AREA_PATH_ADDITIONS`)と基線の並び順まで一致が要る。許される状態は「基線」か「基線 + 自分の宣言全件」だけ(`:320-322`)、部分一致は赤(`:317-319`) | 単調な版数・digest(導出値)・追記専用の履歴。受理記録の雛形は生成器(`pitchlog.authz.runtime_contract_acceptance`)で作れる | 追記専用の履歴。`frozen-baselines.json` を書く生成器は無い(検査器の読み取りのみ)。oracle の再封印は `check_authz_catalog.py --reseal*` |
-| 抜け | マージコミットを検査しない(`:338-352`)/ 2 コミットに分ければ通る / `pull_request` 以外はスキップ(`:538-540`) | 手元の既定は不変量モード | 手元の既定は `--invariants-only`。push 後も不変量モードだけ(`:1872-1876`) |
+| 競合した値の性質 | 窓口(`AREA_PATH_ADDITIONS`)と基線の並び順まで一致が要る。許される状態は「基線」か「基線 + 自分の宣言全件」だけ(`:320-322`)、部分一致は赤(`:317-319`) | 単調な版数・digest(導出値)・追記専用の履歴。受理記録の雛形は生成器(`pitchlog.authz.runtime_contract_acceptance`)で作れる | 追記専用の履歴。`frozen-baselines.json` を書く生成器は無い(検査器の読み取りのみ)。oracle の再封印は `check_authz_catalog.py --reseal*`(`:7415-7428`) |
+| 抜け | マージコミットを検査しない(`:338-352`)/ 2 コミットに分ければ通る / `pull_request` 以外はスキップ(`:538-540`)/ 二層契約を先に検査するので、同一コミット規則で止まる PR は最終状態の二層契約を必ず満たす(`:394-410`) | 手元の既定は不変量モード(受理 ID の照合は受理モードだけ) | 手元の既定は `--invariants-only`。push 後も不変量モードだけ(`:1872-1876`) |
 
 ## 6. 新節の置き場所(候補)
 
