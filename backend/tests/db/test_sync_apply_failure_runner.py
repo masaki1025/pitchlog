@@ -24,10 +24,12 @@ import re
 import uuid
 from collections import Counter
 from collections.abc import Callable, Iterator, Mapping, Sequence
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, LiteralString, cast
+from unittest.mock import patch
 from uuid import UUID
 
 import pytest
@@ -87,6 +89,11 @@ _FIXTURE_DIRECTORY = (
     / "fixtures"
     / "sync-protocol-failures"
 )
+_I6_SERVER_RESPONSE = json.loads(
+    (_FIXTURE_DIRECTORY.parent / "sync-protocol-i6-server-response_v1.json").read_text(
+        encoding="utf-8"
+    )
+)
 _ROUTES = load_transaction_routes()
 _REGISTERED_NAME = "注入選手"
 
@@ -108,6 +115,16 @@ I6_OBSERVED_CASES = frozenset(
         ("p3-crash-boundaries", "i6-persisted-then-closed"),
     }
 )
+
+
+class _I6Clock:
+    """両 runner の共有応答資産に、サーバーの確定時刻を固定する。"""
+
+    @staticmethod
+    def now(_tz: object) -> datetime:
+        return datetime.fromisoformat(_I6_SERVER_RESPONSE["acceptedAt"])
+
+
 _QUEUE_OBSERVED_PATHS = frozenset(("P1", "P2", "P4", "P5"))
 
 
@@ -1047,12 +1064,53 @@ def _observe(run: _Run, expected: Mapping[str, Any]) -> dict[str, object]:
     return {key: observed[key] for key in real}
 
 
+def _json_value(value: object) -> object:
+    """応答の不変 JSON 表現を台帳と比較できる値へ戻す。"""
+    if isinstance(value, Mapping):
+        return {key: _json_value(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_json_value(item) for item in value]
+    return value
+
+
+def _observe_i6_server_response(run: _Run) -> dict[str, object]:
+    """実際の受理応答を台帳と照合し、端末と共有する資産の語彙で返す。"""
+    response = run.response
+    assert isinstance(response, AcceptedChangeResult), "I6 の応答が変更受理でない"
+    actual = {
+        "target_reference": _json_value(response.target_reference),
+        "expected_version": _json_value(response.expected_version),
+        "d5": response.d5,
+        "confirmed_content": _json_value(response.confirmed_content),
+        "accepted_at": response.accepted_at,
+    }
+    rows = _sql(
+        run.db,
+        "SELECT result FROM idempotency_ledger WHERE tenant_id = %s AND d5 = %s",
+        (run.db.tenant_a, UUID(response.d5)),
+    )
+    assert len(rows) == 1, "I6 の台帳行が一件でない"
+    assert actual == rows[0][0], "I6 の受理応答が台帳の確定結果と異なる"
+    named = cast(dict[str, object], _named(run, actual))
+    observed = {
+        "targetReference": named["target_reference"],
+        "expectedVersion": named["expected_version"],
+        "d5": named["d5"],
+        "confirmedContent": named["confirmed_content"],
+        "acceptedAt": named["accepted_at"],
+    }
+    assert observed == {
+        key: value for key, value in _I6_SERVER_RESPONSE.items() if key != "scenarioId"
+    }, "I6 の受理応答が端末へ渡す共有資産と異なる"
+    return observed
+
+
 def _run_case(
     db: _SyncDatabase,
     asset: Mapping[str, Any],
     case: Mapping[str, Any],
     mutate: Callable[[_Run], None] | None = None,
-) -> tuple[dict[str, Any], frozenset[str]]:
+) -> tuple[dict[str, Any], frozenset[str], dict[str, object] | None]:
     """1 case を実行し、結果と、クライアント runner が観測するフィールドを返す。
 
     ``mutate`` は負例の試験だけが渡し、注入の直後に DB を壊す。
@@ -1063,9 +1121,19 @@ def _run_case(
         _seed(run, cleanups)
         excluded = client_observed_fields(asset, case)
         observations = case["observations"]
-        hook_calls = _inject(run)
+        i6_case = (asset["scenarioId"], case["caseId"]) in I6_OBSERVED_CASES
+        if i6_case:
+            assert _I6_SERVER_RESPONSE["scenarioId"] == asset["scenarioId"]
+        clock = (
+            patch("pitchlog.sync.change_path.datetime", _I6Clock)
+            if i6_case
+            else nullcontext()
+        )
+        with clock:
+            hook_calls = _inject(run)
         if mutate is not None:
             mutate(run)
+        i6_observation = _observe_i6_server_response(run) if i6_case else None
 
         def visible(expected: Mapping[str, Any]) -> dict[str, Any]:
             return {k: v for k, v in expected["fields"].items() if k not in excluded}
@@ -1085,16 +1153,20 @@ def _run_case(
                 }
             )
         assert len(observations) <= 2
-        return {
-            "scenarioId": asset["scenarioId"],
-            "cases": [
-                {
-                    "caseId": case["caseId"],
-                    "hookCalls": hook_calls,
-                    "observations": results,
-                }
-            ],
-        }, frozenset(excluded)
+        return (
+            {
+                "scenarioId": asset["scenarioId"],
+                "cases": [
+                    {
+                        "caseId": case["caseId"],
+                        "hookCalls": hook_calls,
+                        "observations": results,
+                    }
+                ],
+            },
+            frozenset(excluded),
+            i6_observation,
+        )
     finally:
         for cleanup in reversed(cleanups):
             cleanup()
@@ -1105,7 +1177,13 @@ def test_server_failure_scenario_case(
     prefix_database: _SyncDatabase, asset: dict[str, Any], case: dict[str, Any]
 ) -> None:
     """サーバー側の資産の各 case を公開入口で実行し、結果検査を通す。"""
-    result, excluded = _run_case(prefix_database, asset, case)
+    result, excluded, i6_observation = _run_case(prefix_database, asset, case)
+    if (asset["scenarioId"], case["caseId"]) in I6_OBSERVED_CASES:
+        assert i6_observation == {
+            key: value
+            for key, value in _I6_SERVER_RESPONSE.items()
+            if key != "scenarioId"
+        }
     validate_failure_scenario_result(
         asset,
         result,
@@ -1113,6 +1191,29 @@ def test_server_failure_scenario_case(
         case_ids=[case["caseId"]],
         excluded_field_ids=excluded,
     )
+
+
+@pytest.mark.parametrize("field", ("accepted_at", "confirmed_content"))
+def test_i6_response_mutation_is_rejected(
+    prefix_database: _SyncDatabase, field: str
+) -> None:
+    """応答の時刻・確定内容を台帳からずらすと共有応答との照合が赤になる。"""
+    asset = next(
+        item for item in _SERVER_ASSETS if item["scenarioId"] == "p3-crash-boundaries"
+    )
+    case = next(
+        item for item in asset["cases"] if item["caseId"] == "i6-persisted-then-closed"
+    )
+
+    def change_response(run: _Run) -> None:
+        assert isinstance(run.response, AcceptedChangeResult)
+        value = (
+            "2026-10-16T00:00:00+00:00" if field == "accepted_at" else {"changed": True}
+        )
+        object.__setattr__(run.response, field, value)
+
+    with pytest.raises(AssertionError, match="受理応答が台帳"):
+        _run_case(prefix_database, asset, case, change_response)
 
 
 def test_partial_commit_state_is_red(
@@ -1135,7 +1236,7 @@ def test_partial_commit_state_is_red(
             (run.db.tenant_a, run.uuid(run.queue["subject"])),
         )
 
-    result, excluded = _run_case(prefix_database, asset, case, drop_event_row)
+    result, excluded, _ = _run_case(prefix_database, asset, case, drop_event_row)
     with pytest.raises(FailureScenarioContractError, match="部分確定"):
         validate_failure_scenario_result(
             asset,
@@ -1180,7 +1281,7 @@ def test_skipped_projection_is_red(
     monkeypatch.setattr(PrefixProjection, "apply", lambda self, event, writer: None)
     asset = next(a for a in _SERVER_ASSETS if a["scenarioId"] == "p1-crash-boundaries")
     case = next(c for c in asset["cases"] if c["caseId"] == "crash-t4")
-    result, excluded = _run_case(prefix_database, asset, case)
+    result, excluded, _ = _run_case(prefix_database, asset, case)
     with pytest.raises(FailureScenarioContractError, match="言い換え"):
         validate_failure_scenario_result(
             asset,

@@ -51,6 +51,7 @@ export type FailureScenarioExecutionOptions = Readonly<{
   persistI6BeforeInjection?: boolean
   skipI6Persistence?: boolean
   skipAckDelivery?: boolean
+  i6AcceptedAtOverride?: string
 }>
 
 const I6_FIELD_IDS = [
@@ -805,6 +806,63 @@ type I6Expectation = Readonly<{
   acceptedAt: string
 }>
 
+function readVerifiedI6Response(
+  contract: FailureScenarioContract,
+): I6Expectation {
+  // 同じ共有応答をサーバー runner が実際の応答・台帳と照合する。
+  const response = requireRecord(
+    JSON.parse(
+      readFileSync(
+        resolve(
+          cwd(),
+          '../tests/fixtures/sync-protocol-i6-server-response_v1.json',
+        ),
+        'utf8',
+      ),
+    ),
+    'I6 サーバー応答',
+  )
+  if (response.scenarioId !== contract.scenarioId) {
+    throw new Error('I6 サーバー応答のシナリオが一致しません')
+  }
+  const queueInput = recordFieldValue(contract.input, 'queue')
+  const changes = queueInput.unsent
+  if (!Array.isArray(changes) || changes.length !== [contract].length) {
+    throw new Error('I6 の変更イベントが一件ではありません')
+  }
+  const [firstChange] = changes
+  const change = requireRecord(firstChange, 'queue.unsent[0]')
+  const target = requireRecord(change.target, 'queue.unsent[0].target')
+  const reference = requireRecord(
+    response.targetReference,
+    'I6.targetReference',
+  )
+  const [targetGame, targetD4, targetD1] = TARGET_EVENT_REFERENCE_ELEMENTS
+  if (
+    !targetGame ||
+    !targetD4 ||
+    !targetD1 ||
+    typeof reference[targetGame] !== 'string' ||
+    reference[targetD4] !== recordFieldValue(contract.input, 'd4').request ||
+    reference[targetD1] !== target.d1 ||
+    response.expectedVersion !== change.expectedVersion ||
+    response.d5 !== change.d5 ||
+    !sameJson(response.confirmedContent, change.payload) ||
+    typeof response.acceptedAt !== 'string'
+  ) {
+    throw new Error('I6 サーバー応答が要求の変更イベントと一致しません')
+  }
+  return {
+    acceptance: {
+      targetReference: reference as I6Acceptance['targetReference'],
+      expectedVersion: response.expectedVersion,
+      d5: response.d5,
+      confirmedContent: response.confirmedContent,
+    },
+    acceptedAt: response.acceptedAt,
+  }
+}
+
 async function observeI6(
   databaseName: string,
   observationPoint: string,
@@ -888,33 +946,7 @@ async function runI6BrowserClose(
   testCase: FailureScenarioCase,
   options: FailureScenarioExecutionOptions,
 ): Promise<FailureScenarioCaseResult> {
-  const queueInput = recordFieldValue(contract.input, 'queue')
-  const unsent = queueInput.unsent
-  if (!Array.isArray(unsent) || unsent.length !== [contract].length) {
-    throw new Error('P3 の資産には送る変更イベントが一つ必要です')
-  }
-  const [firstChange] = unsent
-  const change = requireRecord(firstChange, 'queue.unsent[0]')
-  const target = requireRecord(change.target, 'queue.unsent[0].target')
-  const [targetGame, targetD4, targetD1] = TARGET_EVENT_REFERENCE_ELEMENTS
-  if (!targetGame || !targetD4 || !targetD1) {
-    throw new Error('対象参照の要素が正本と一致しません')
-  }
-  const targetReference = {
-    [targetGame]: contract.scenarioId,
-    [targetD4]: recordFieldValue(contract.input, 'd4').request,
-    [targetD1]: target.d1,
-  }
-  const expectation: I6Expectation = {
-    acceptance: {
-      targetReference,
-      expectedVersion: change.expectedVersion,
-      d5: change.d5,
-      confirmedContent: change.payload,
-    },
-    // サーバーの確定応答が返す時刻(accepted_at)。
-    acceptedAt: new Date(Date.UTC(2026, 9, 15)).toISOString(),
-  }
+  const expectation = readVerifiedI6Response(contract)
   const injectionTarget = requireRecord(
     fieldValue(testCase.faultInjection, 'target'),
     'faultInjection.target',
@@ -939,9 +971,9 @@ async function runI6BrowserClose(
     // サーバーの確定応答を受け、I6 の永続化を準備した時点。
     const preparation = queue.prepareI6Acceptance(expectation.acceptance, {
       resolveAcceptedAt: () => ({
-        known: Boolean(targetReference),
-        targetReference,
-        acceptedAt: expectation.acceptedAt,
+        known: Boolean(expectation.acceptance.targetReference),
+        targetReference: expectation.acceptance.targetReference,
+        acceptedAt: options.i6AcceptedAtOverride ?? expectation.acceptedAt,
       }),
     })
     if (!preparation) {

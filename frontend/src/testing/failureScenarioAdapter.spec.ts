@@ -393,6 +393,25 @@ describe('failureScenarioAdapter', () => {
     ).toThrow()
   })
 
+  it('負例: 端末へ渡す acceptedAt を共有応答と異なる値にすると red になる', async () => {
+    const assigned = CLIENT_OBSERVED_CASES.find(
+      (candidate) => candidate.caseId === 'i6-persisted-then-closed',
+    )
+    if (!assigned) {
+      throw new Error('I6 の永続化 case がありません')
+    }
+    const contract = contractById(assigned.scenarioId)
+    const result = await executeClientObservedCase(contract, assigned.caseId, {
+      i6AcceptedAtOverride: '2026-10-16T00:00:00+00:00',
+    })
+    expect(() =>
+      validateFailureScenarioResult(contract, result, {
+        caseIds: [assigned.caseId],
+        observedFieldIds: assigned.fieldIds,
+      }),
+    ).toThrow()
+  })
+
   it('担当外の case・フィールドを結果に混ぜると red にする', async () => {
     const [{ scenarioId, caseId, fieldIds }] = CLIENT_OBSERVED_CASES
     const contract = contractById(scenarioId)
