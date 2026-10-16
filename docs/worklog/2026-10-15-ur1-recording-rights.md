@@ -194,3 +194,10 @@
 - **使い捨てDB検査の発見**: 共有`pitchlog_test_role`を変更せず、管理接続も別コンテナへ向けた。製品認可round-trip初回適用は成功したが、unapply時にRG1の`UPDATE(singleton_id)`列権限が残り、専用ownerのDROP ROLEが依存関係で失敗。`product_provisioning.py`の取り外しをRG1 exact tupleのSELECT/UPDATE両方のREVOKEへ限定修正し、単体49件成功。使い捨てDB全体の再実行と追加レビュー結果は別途記録する。
 - **隔離再実測と独立レビュー**: 専用使い捨てクラスタで製品認可round-trip3件成功。初回全資産適用・catalog照合、取り外し、migration往復、再適用まで実行した。追加独立レビュアは準備HEAD`ca37bfc2`、tracked binary diff SHA-256=`b32c7aa2f6e5e7541c49008e5d37fe5f32a72946786f7fa565c7cb45e3e0d805`、未追跡ファイル列SHA集約=`d21c69b3cc5ee4b50f860878430406bbcbb058fb9c5ba4288973f26f77201f00`を対象とし、RG1 exact REVOKEを含めP0/P1/P2=0。正本7.6と正式7.7、人間逐行確認は別ゲート。
 - **番号取得**: 準備文書だけを`ca37bfc2`にコミットし、既コミットの新2宣言・新3登録とともにpushして[Draft PR #143](https://github.com/masaki1025/pitchlog/pull/143)を作成した。新4製品・凍結候補は未コミット・未push。7.7候補IDは実番号に基づく`masaki1025/pitchlog#143`、ただしC1先行順の回答・受理済み履歴を待ち、before/afterを再固定する。現PR本文の人間逐行確認欄は未チェック。core guard CIはこのため赤であり、未確認のままチェックしない。
+
+## 2026-10-16 C1先行順と正本7.6の再照合
+
+- **順序の出所・状態**: POはC1先行→U-R1追随を希望。C1/TSK-528追補はDraft PR #144で第1・第2段を公開したが、7.7正式受理・統合は未了。TSK-528カードの既存照会`3fb93b75-e687-8104-8d15-001d43c2f0a7`へのC1担当の明示回答は未確認。確定順序とは扱わず、C1担当には[PR #144のコメント](https://github.com/masaki1025/pitchlog/pull/144#issuecomment-6209073339)でも「#144の正式受理・統合を先行し、U-R1 #143が実統合SHAと受理済み履歴をbeforeにする」採否と、受理時のC1作業ログへの記録を求めた。U-R1はC1 worktreeを変更しない。
+- **認可所有側**: TSK-424カードの既存照会`3fb93b75-e687-8148-a727-001d69510117`への項目別受理・修正回答も未確認。中継が必要な事項はRG1専用owner/FORCE RLS/列ACL/EXECUTEの採否、正本data-model§3-2の7.3担当と修正点に限る。既承認の5設計項目を再審査へ戻さない。
+- **7.6判定**: 開発規約7.6-3は実装追随の節更新を通常PRレビュー、版繰り上げを伴う構造的変更を7.3確定ゲートに振り分ける。現data-model§3-2候補は専用ロール・権限境界の新設とロール数変更を含むため、実装事実の追記だけと断定できず、正式正本への反映には7.3の敵対レビューと人間承認を要する候補と判定。未コミット節案の「7.6未確定」を維持し、既存の製品コード独立レビューを7.3の代用にしない。
+- **CIと候補試験の区分**: 公開中の準備HEAD`cd03ddcb028878ac5c43dc9823463974040a29eb`はharness・mutation・tenant-boundary-bypass等が成功、core guardだけが人間逐行確認欄未チェックで失敗、backend/frontendはskipping。未push新4候補の専用使い捨てクラスタ製品認可round-trip3件、関連266件などのローカル成功とは別。正式seed/7.7未受理に伴う予期した赤とroot大規模変異試験未完は維持する。2026-10-16時点の`origin/develop`はA統合SHA`e7e8d3a4`で、C1統合後の7.7実値再導出は未実施。
