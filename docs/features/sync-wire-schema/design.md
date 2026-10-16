@@ -28,7 +28,7 @@ date: 2026-10-09
 - **意味の層は参照だけする**。D1〜D9・V1〜V12・VF1〜VF6・A1〜A5・B1〜B14・P1〜P5・I1〜I6・DI1〜DI5 などの**定義・規則を本書で言い換えて再掲しない**。本書が書くのは「その ID の値を wire のどこにどう載せるか」だけである
 - 正本(同期正本・要件書・`docs/design/data-model.md`)は**節番号と ID で引く**(例: 「正本 6-3 の B4」「要件書 [FR-012](../../requirements/requirements-pitchlog-2026-07-22.md#FR-012)」)。**行番号では引かない** — 正本は改訂で行がずれ、TSK-346 が本書を収載するときに引用が壊れる(正本 2-6 と同じ理由)
 - コードは**パスと識別子名**で引く(例: `backend/src/pitchlog/api/schemas/base.py` の `BaseSchema`)
-- **本書が付ける記号**(E-・G-・K-・L-・S-・X-・N-・EP-・TK-・WU-)は本書の中だけのものである。要件書の付録 E-1・E-2、成功指標 G-1〜G-3、正本の K4・K5・T1〜T9・O1〜O4・U-*、運用評価台帳の H-* とは別物なので、**本書の外から引くときは「同期 wire 設計の K-1」のように文書名を付ける**(正本 2-6 の文書修飾と同じ扱い)
+- **本書が付ける記号**(E-・G-・K-・L-・S-・X-・N-・EP-・TK-・WU-)は本書の中だけのものである。要件書の付録 E-1・E-2、成功指標 G-1〜G-3、正本の K4・K5・T1〜T9・O1〜O5・U-*、運用評価台帳の H-* とは別物なので、**本書の外から引くときは「同期 wire 設計の K-1」のように文書名を付ける**(正本 2-6 の文書修飾と同じ扱い)
 
 ## 2. 規約
 
@@ -87,7 +87,7 @@ date: 2026-10-09
 | **L-1** | **D5**・**一時 ID** | **UUID の正規形の文字列** — 小文字 16 進・ハイフン区切り 8-4-4-4-12(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)。**クライアントは正規形で送り、サーバーは正規形でない値を受理しない**(大文字・ハイフンなし・波括弧つきを正規化して受け入れない)。サーバーが返す値は、受け取った値と文字列として一致する | (A)+(B) | D5 の物理形式 `uuid`(391 の回答 — `backend/src/pitchlog/db/sync_protocol/models.py` の `d5`)・一時 ID は UUID(要件書 [FR-015](../../requirements/requirements-pitchlog-2026-07-22.md#FR-015))。**正規化しない理由**: frontend の受け取り側は応答の値を端末が保持する値と `Object.is` で照合する(`frontend/src/lib/sync/p3Result.ts` の `parseP3ResultEnvelope` が受理期待と受理結果の D5 などを照合)ので、サーバーが正規化した別表記を返すと照合が外れる |
 | **L-2** | **D1**・**D3** | **JSON の整数**。D1 は 1 以上、D3 は 0 以上。上限は 2^53 − 1(JavaScript の安全な整数) | (A)+(B) | クライアントが D3 + 1 から D1 昇順に数える(正本 6-2 の⑥・2-1 の D1 定義「最初の新規割り当てを 1」・D3「新しい記録権世代ではサーバーの D3 を 0」) |
 | **L-3** | **D4**・**復旧世代**・**V12** | **クライアントが解釈しない不透明な文字列**(空文字は不可)。クライアントは受け取った値を保存して、そのまま送り返すだけで、分解・大小比較・生成をしない。**物理形式・長さの上限・寿命・更新方法は発行する側(U-R1 — TSK-392)が決める** | (B) | 物理形式は正本が決めない(2-1 の D4・4-3 の復旧世代と V12)。DB の `generation` は `BigInteger`(`backend/src/pitchlog/db/sync_protocol/models.py`)だが、JSON の数値は 2^53 を超えると精度を失うので文字列で運ぶ。V12 の物理方式の送り先は承認済み(plan.md 4 節「人間の判断が要る点」①) |
-| **L-4** | **列挙値** | **正本の安定 ID をそのまま使う**(境界結果は `"B1"`〜`"B14"`、B3 の分岐は `"B3a"`・`"B3b"`、O4 は `"O4"`)。**ID を持たない値は正本の語をそのまま使う**(A5 の結果は `"受理"`・`"重複"`・`"拒否"`・`"退避"`・`"未処理"`、P3 の受理は `"変更受理"`)。英語の別名を作らない | (B) | 正本 2-3(別名の禁止)・7-1 の A5・2-5 の R-ACK-STATE(要素全集合が正本の語)。frontend の受け取り側も正本の語で照合している(`frontend/src/lib/sync/boundaryResults.ts`・`canonOracle.ts`) |
+| **L-4** | **列挙値** | **正本の安定 ID をそのまま使う**(境界結果は `"B1"`〜`"B14"`、B3 の分岐は `"B3a"`・`"B3b"`、O4 は `"O4"`、O5 は `"O5"` — 正本 v0.9)。**ID を持たない値は正本の語をそのまま使う**(A5 の結果は `"受理"`・`"重複"`・`"拒否"`・`"退避"`・`"未処理"`、P3 の受理は `"変更受理"`)。英語の別名を作らない | (B) | 正本 2-3(別名の禁止)・7-1 の A5・2-5 の R-ACK-STATE(要素全集合が正本の語)。frontend の受け取り側も正本の語で照合している(`frontend/src/lib/sync/boundaryResults.ts`・`canonOracle.ts`) |
 | **L-5** | **時刻** | **RFC 3339 のオフセット付き文字列**。オフセットのない時刻は受理しない。サーバーが返す時刻は JST(`+09:00`)で表す | (A)+(B) | 要件書 7.1(JST 基準)・`backend/src/pitchlog/api/schemas/base.py` の `Timestamp`(`AwareDatetime`) |
 | **L-6** | **試合の識別** | サーバーが発行する試合の ID(UUID の正規形の文字列 — L-1 と同じ表記) | (B) | `backend/src/pitchlog/api/schemas/base.py` の `EntityId`(UUID)・`models.py` の `game_id`(`Uuid`) |
 
@@ -144,7 +144,7 @@ S-1 に入れる値の基準: 正本で条件なしに必須(正本 4-3 の V1�
 | `event_results` | ACK | A5 | 配列 | ACK で必須 | `eventResults` |
 | `event_results[].d4`・`.d1`・`.d5` | ACK | A5 の `(D4, D1, D5)` | L-1〜L-3 | 必須 | `d4`・`d1`・`d5` |
 | `event_results[].a5_result` | ACK | A5 の結果 | L-4 | 必須 | `a5Result` |
-| `event_results[].rejection` | ACK | B3a・B3b・O4 | `kind`・`branch`・`reason` | `"拒否"` のときだけ | `rejectionReason.ts` の `kind`・`branch`・`reason` |
+| `event_results[].rejection` | ACK | B3a・B3b・O4・O5 | `kind`・`branch`・`reason` | `"拒否"` のときだけ | `rejectionReason.ts` の `kind`・`branch`・`reason` |
 | `player_id_mappings` | ACK | A4 | 配列 | 受理・重複の選手登録を行うイベント(#6・元が #6 の #9)があるとき(4-2) | `playerIdMappings` |
 | `player_id_mappings[].temporary_id`・`.official_id` | ACK | 一時 ID・正式 ID | L-1 の表記 | 必須 | `temporaryId`・`officialId` |
 | `accepted_result` | P3 の結果 | I6 | オブジェクト | 変更受理のときだけ | `acceptedResult` |
@@ -305,7 +305,7 @@ S-1 に入れる値の基準: 正本で条件なしに必須(正本 4-3 の V1�
 | `event_results` | **A5** | 要求に含めた**全イベント**について 1 件ずつ(正本 7-1 の A5)。並び順に意味を持たせない |
 | `event_results[].d4`・`.d1`・`.d5` | A5 の `(D4, D1, D5)` | 要求で送った値を文字列・整数としてそのまま返す(L-1〜L-3) |
 | `event_results[].a5_result` | A5 の結果 | `"受理"`・`"重複"`・`"拒否"`・`"退避"`・`"未処理"`(L-4 — 正本 2-5 の R-ACK-STATE の要素全集合) |
-| `event_results[].rejection` | B3 の分岐と理由・O4 | **`a5_result` が `"拒否"` のときだけ持つ**。`kind` は `"内容起因"` または `"O4"`。`kind` が `"内容起因"` のとき `branch` は `"B3a"` または `"B3b"`(正本 7-1 の B3a・B3b)。`reason` は理由の内容(4-5) |
+| `event_results[].rejection` | B3 の分岐と理由・O4・O5 | **`a5_result` が `"拒否"` のときだけ持つ**。`kind` は `"内容起因"`・`"O4"`・`"O5"` のいずれか(O5 は正本 v0.9 — 決定的な不変条件違反)。`kind` が `"内容起因"` のとき `branch` は `"B3a"` または `"B3b"`(正本 7-1 の B3a・B3b)。`reason` は理由の内容(4-5) |
 | `player_id_mappings` | **A4**(正本 4-4 の C1・C3・C4) | `a5_result` が `"受理"` または `"重複"` の**選手登録を行うイベント 1 件ごとに、その一時 ID の要素がちょうど 1 つある**(C1)。選手登録を行うイベントは、選手のその場登録(正本 5-5 の #6)と、その改訂版(#9 — 元の参加区分を継承する)。該当イベントが無い要求では持たない。要素は `temporary_id`(一時 ID — L-1)と `official_id`(正式 ID — **UUID の正規形の文字列**。表記は L-1 と同じ。選手 ID は `backend/src/pitchlog/db/sync_protocol/models.py` で `Uuid`)。再送で返す正式 ID は C3 に従う。**要素が欠けた ACK はクライアントが解釈しない**(2-5・正本 4-4 の C4) |
 
 - **`advanced_d3` を `boundary_result` と一緒に返す**ので、B2・B3 で「どこで止まったか」をクライアントが特定できる(正本 6-3 の B2・B3 の通知列)。件数だけを返さない
@@ -353,7 +353,7 @@ S-1 に入れる値の基準: 正本で条件なしに必須(正本 4-3 の V1�
 
 ### 4-5. 理由(`reason`)の中身
 
-- B3a・O4・B14 の `reason` は **JSON の値**として運ぶ。**中身(理由の語彙・構造)は本書で決めない** — 内容の検証(正本 6-2 の⑦ / P3 の⑥)を実装する単位が決める(送り先 — 6 節)。frontend の既存の受け取り側も `reason` を解釈しない(`frontend/src/lib/sync/rejectionReason.ts` の `B3ContentRejection.reason: unknown`)
+- B3a・O4・O5・B14 の `reason` は **JSON の値**として運ぶ。**中身(理由の語彙・構造)は本書で決めない** — B3a・B14 は内容の検証(正本 6-2 の⑦ / P3 の⑥)を実装する単位、O4・O5 は不変条件違反を検出する同期の適用核(U-S1)が決める(送り先 — 6 節)。frontend の既存の受け取り側も `reason` を解釈しない(`frontend/src/lib/sync/rejectionReason.ts` の `B3ContentRejection.reason: unknown`)
 - B3b の `reason` は、先着の原本の内容を含めない(正本 4-5 の衝突時の扱い — 先着の保存済み操作は変えず、後着を受理しない)
 - **クライアントは `reason` を利用者へ表示するとき自動エスケープを通す**(要件書 [NFR-023](../../requirements/requirements-pitchlog-2026-07-22.md#NFR-023))
 
@@ -419,7 +419,7 @@ plan.md 2 節「やらないこと」の全行と、本書の各節で決めな�
 | **N-8** | V7 ペイロード・V8 状態差分・V9 置換の状態の、種別ごとの中身 | 各イベント種別を実装する単位 | wire の層では検査しない(S-2)。内容の検証(正本 6-2 の⑦ / P3 の⑥)を実装する単位が決める | 3-4 |
 | **N-9** | V6 D2 の表現 | 正本 10-1 論点 26 の受け取り先(数値型は TSK-250) | 論点 26 の条件のとおり | 3-4 |
 | **N-10** | V11 期待版の表現 | 変更イベントを実装する単位(U-G2) | 対象の確定版の物理形式に従う | 3-4 |
-| **N-11** | B3a・O4・B14 の理由(`reason`)の語彙・構造 | 内容の検証を実装する単位 | wire は JSON の値として運ぶ(4-5)。表示は自動エスケープ(要件書 [NFR-023](../../requirements/requirements-pitchlog-2026-07-22.md#NFR-023)) | 4-5 |
+| **N-11** | B3a・O4・O5・B14 の理由(`reason`)の語彙・構造 | B3a・B14 は内容の検証を実装する単位、O4・O5 は同期の適用核(U-S1) | wire は JSON の値として運ぶ(4-5)。表示は自動エスケープ(要件書 [NFR-023](../../requirements/requirements-pitchlog-2026-07-22.md#NFR-023)) | 4-5 |
 | **N-12** | 論点 19(ローカル書き出し・取り込みのファイル形式)・論点 22(閲覧端末への配信方式) | 正本 10-1 の各受け取り先 | 論点 18 の外 | plan.md 2 節 |
 | **N-13** | 補正の内容の配信(正本 8-3) | TSK-441(通知契約 — 正本 11-4 の U-15) | ACK に補正内容の欄を設けない(4-2)。配信の形は通知契約と一緒に決める | plan.md 2 節 |
 | **N-14** | 引き継ぎ要求(要件書 [FR-013](../../requirements/requirements-pitchlog-2026-07-22.md#FR-013))・管理コンソールの退避の閲覧と書き出しの API | U-R1 / TSK-346 | 同期 wire ではない | plan.md 2 節 |
