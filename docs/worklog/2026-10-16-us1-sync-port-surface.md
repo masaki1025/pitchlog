@@ -84,6 +84,10 @@ branch: feature/us1-sync-port-surface
 - wire 設計の O4 の 6 箇所に O5(`rejection.kind` に `"O5"`、O4・O5 の `reason` は U-S1 が決める)
 - 検査: check_docs_status 0 件 / check_doc_coverage exit 0 / 文書・処理段階・共有前提の試験 357 passed
 
+## sync-protocol v0.9 の確定ゲート(2026-10-16)
+
+- **適用版の暫定記録(設計書 7.3-1)**: ハーネス設計書 **v1.19**(条文コミット `945384c5`)。in-review 化はステップ 2 のコミット(`4dd986ff`)で行い、適用版の記録はこのコミットで足した(同一コミットにできなかった — 初回の敵対レビューの前に記録)
+
 ## 未決・次の一歩
 
 - /plan で計画書を書き、計画レビューにかける(コア領域 — 代替主体 Fable 5.1・6.3 (6) の様式)
