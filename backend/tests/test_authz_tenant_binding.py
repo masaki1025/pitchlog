@@ -127,6 +127,9 @@ _CONTEXT_ENFORCEMENT_POINTS = {
         "self._context"
     ),
     "pitchlog.repositories.transaction._TenantTransaction.run": "self._context",
+    "pitchlog.repositories.transaction._TenantTransaction.run_function": (
+        "self._context"
+    ),
 }
 _CONTEXT_READER_EXEMPTIONS = {
     "pitchlog.repositories.base.TenantRepositoryBase._execute_operation": (
@@ -638,11 +641,11 @@ def _assert_duplicate_fixture_registrations_share_one_session_resource() -> None
 
 
 def test_tenant_context_reader_set_matches_enforcements_and_exemption() -> None:
-    """文脈読取の発見集合を強制点4件と理由付き免除1件に固定する。"""
+    """文脈読取の発見集合を強制点5件と理由付き免除1件に固定する。"""
     readers = _context_reader_functions(_repository_sources())
 
     _assert_declared_context_readers(readers)
-    assert len(readers) == 5
+    assert len(readers) == 6
     assert _CONTEXT_READER_EXEMPTIONS == {
         "pitchlog.repositories.base.TenantRepositoryBase._execute_operation": (
             "execute だけから到達し、そこで exact 型と発行証跡を検査済み"
@@ -651,7 +654,7 @@ def test_tenant_context_reader_set_matches_enforcements_and_exemption() -> None:
 
 
 def test_all_tenant_context_enforcements_check_exact_type_and_proof() -> None:
-    """4 強制点が同じ文脈値を exact 型と発行証跡で検査する。"""
+    """5強制点が同じ文脈値をexact型と発行証跡で検査する。"""
     functions, _ = _repository_functions(_repository_sources())
 
     for symbol, receiver in _CONTEXT_ENFORCEMENT_POINTS.items():
