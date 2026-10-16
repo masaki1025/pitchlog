@@ -1,7 +1,7 @@
 ---
 feature: us1-sync-port-surface
 status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
-承認: 済(2026-10-16・山田正輝)  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
+承認: 未                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3fb93b75e68781f394d5cda296211a18
@@ -24,6 +24,8 @@ created: 2026-10-16
 
 **PO 裁定(山田正輝 2026-10-16・射程)**: 391 の射程は**調査・契約設計・最小計画追補の作成**まで。**U-S1 の挙動変更や共有資産の製品変更は包括承認していない — 具体差分をまとめて提示する**(当初承認した 5 ステップのうち、製品の変更 3 つ〔混在バッチの公開口・O5 の実装・端末の O5〕を「具体差分の提示」1 ステップに置き換えた。実装は提示の承認後に計画追補で行う)。
 
+**計画追補(PO 裁定 山田正輝 2026-10-17)**: 具体差分の提示([proposal.md](proposal.md))を受け入れ、**D-0〜D-7 をすべて実装する**。D-2 は案 ①(U-S1 が写す)、付帯の選択は推奨どおり(D-2b = wire の境界で厳格に写す / D-2c = 継承できる種別は継承・それ以外は新設の値・墓標の内容検証はポートの契約 / D-3 = P3 の追加値を必須 / D-7 = 作成 — 先に正本 10-2 の改訂)。実装ステップ 4〜15 を追補した。
+
 **PO 裁定(山田正輝 2026-10-16)**: ① 恒久的な失敗は **案 B + A**(列挙した恒久的な不変条件違反を O4 と同じ形で B3 + 要操作〔管理者対応待ち〕として ACK に載せる — **O5** を新設。未知の例外は B7 のまま「回復しない場合の顕在化」を足す)② 正本の改訂は**本 PR で**確定ゲートを通す(sync-protocol **v0.9**)
 
 ## 2. スコープ
@@ -38,11 +40,13 @@ created: 2026-10-16
 5. **端末の O5(具体差分の提示まで)**(`frontend/src/lib/sync/`): `rejectionReason.ts` に `O5` の種別、`queueTransition.ts` で O5 を要操作(管理者対応待ち)へ移し自動再送を止める、O4 の再送の契機(QT-07)を O4・O5 に一般化
 6. **wire 設計の追随**(`docs/features/sync-wire-schema/design.md`): `rejection.kind` に `"O5"` を足す(L-4・2-6 の対応表・4-2 の表・4-5 の理由の規則〔B3a・O4・B14 に O5 を並べる〕)。理由の表示と自動エスケープは画面側の単位の成果物で、本 PR は担当と受入条件を接続契約に書く
 
+7. **計画追補 — 承認された差分の実装**(proposal.md の D-0〜D-7。実装ステップ 4〜15): D-0 候補表を D1 で持つ / D-5 内容起因の `other` を B3a へ / D-1 混在バッチの公開口 / D-2 wire → U-S1 の変換(案 ①)/ D-3 公開結果型 / D-4 O5 のサーバー側 / D-6 端末の O5 / D-2c 種別を引き継げない原本への墓標(data-model の改訂を含む)/ D-7 故障系資産の O5(sync-protocol 10-2 の改訂を含む)/ 凍結資産の導出
+
 ### やらないこと
 
-- **U-S1・端末の製品コードの変更**(4b・4・5 — 具体差分を提示し、承認後の計画追補で実装する)/ V5・V10 の変換の実装(置き場所の 2 案を提示する)
 - TSK-506 の所有ファイル・worktree(`feature/tsk506-sync-http-entry`)を変更しない(読むだけ)。HTTP 入口・送信層・例外の HTTP への写像の実装は 506 が行う(本 PR は契約を渡す)
 - **ポートの登録表と検査器の接続**(`sync/ports.py` の `PORT_IMPLEMENTATIONS`・`_PORT_VERIFIER`)— 4 Port と配信の実行主体の実装・担当が決まってから(依存の向きを design.md に書く)
+- 端末の墓標生成器(`frontend/src/lib/sync/k5Tombstone.ts` — V5・V9・V10 を持たない)の改修(担当は PO 判断事項として残す — proposal.md の問い 8)/ 506 の ACK アダプタ・送信範囲の選択器(506 の所有 — design.md 2-1 の G-F・G-G)
 - O5 の理由の画面表示と自動エスケープ(画面側の単位 — 受入条件は接続契約に書く)/ Q8 の「同期が進んでいない」状態の画面表示と、B7・B10 の「回復しない」判定閾値(10-1 の論点 18)の実装 — 表示は画面側の単位、閾値は論点 18 の受け取り先
 - V12・D4・復旧世代の物理方式の決定(U-R1)/ TSK-547(9-5 の単独 PR — v0.10 へ繰り下げ)/ TSK-550・U-R1・U-F13 の worktree
 
@@ -51,10 +55,13 @@ created: 2026-10-16
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
 | `docs/design/sync-protocol.md` | **v0.9**: O5(恒久的な不変条件違反を B3 + 要操作〔管理者対応待ち〕へ)の新設と定義伝播・段階 ① の注記・7-2 の遷移の一般化・6-4 の除外経路・B7/B10 の回復しない場合の顕在化・7-4 の Q8・10-1 の論点 18・10-2 の O5 の観測。変更履歴に追記し、`docs/README.md` の索引を現行化する。**射程宣言**: 新しい境界結果・A5 の値・キュー状態は増やさない(O4 と同じ方針) | **finalize-doc**(敵対レビュー + 人間承認)。**ステップ 2 の後・ステップ 3 の前に確定させる(ステップ 3 の差分の提示は確定した v0.9 を前提に書く)** |
-| `docs/README.md` | sync-protocol の行を v0.9 へ | 同上 |
-| 要件書・ADR・data-model | **反映なし** | — |
+| `docs/README.md` | sync-protocol の行を v0.9 へ / data-model・sync-protocol の追補の版へ | 同上 |
+| `docs/design/data-model.md` | **計画追補(D-2c)**: 墓標の行の `event_kind` — 継承できる種別(`EVENT_KIND_LITERALS − CHANGE_EVENT_KIND_LITERALS`)は継承、それ以外は新設の値(仮称 `tombstone_unknown_kind`。`EVENT_KIND_LITERALS` に入れない)と、その CHECK(「新設の値なら墓標」)。版は起案時に未マージ分も含めて実測して決める | **finalize-doc**。ステップ 12 の前に確定させる |
+| `docs/design/sync-protocol.md`(再改訂) | **計画追補(D-7)**: 10-2 の O5 の観測の行を「取消の境界は資産で注入により観測・列挙した各箇所の検出は永続状態を与えた単体で確かめる」と書き分ける。版は起案時に実測(v0.10 は TSK-547 の予約) | **finalize-doc**。ステップ 15 の前に確定させる |
+| 凍結資産(`contracts/db/schema-manifest.json`・`contracts/tenant_boundary/*` のうち変わるもの) | D-2c の CHECK と移行に伴う schema-manifest の改版・digest。新しい repository operation があれば repository-contract の改訂と PR の受理記録 | PR レビュー + 敵対レビュー + 人間承認(コア)。ステップ 16 で導出 |
+| 要件書・ADR | **反映なし** | — |
 
-**正本体系外だが同一 PR で更新するもの**: `docs/features/sync-wire-schema/design.md`(`rejection.kind` に `"O5"` — TSK-331 の wire 設計。正本ではなく feature 設計)/ `docs/features/us1-sync-port-surface/design.md`(本 PR の接続契約)
+**正本体系外だが同一 PR で更新するもの**: `docs/features/sync-wire-schema/design.md`(`rejection.kind` に `"O5"` / 計画追補 D-2: V9 に `rejected_d5`・V5/V10 の変換の担当を U-S1 へ〔WS:362〕— TSK-331 の wire 設計。正本ではなく feature 設計。**D-2 の変更は TSK-331 の担当の合意を前提にする**)/ `docs/features/us1-sync-port-surface/design.md`(本 PR の接続契約)
 
 ## 4. 実装方針
 
@@ -73,13 +80,27 @@ created: 2026-10-16
 | 1 | **接続契約と例外の棚卸し**(混在バッチの公開口の設計 — イベントごとの P1/P2 判定の規則を含む)(`design.md` — Claude が書く): 公開面・失敗境界・4 区分の対応表・担当・U-R1 の決定待ち・U-X1 の凍結解除まで満たせない条件・経路の混在の制約・506 の未充足ゲートへの回答・着手条件と確認条件・ポート登録の依存の向き / `sync/*` の raise の棚卸し(別経路の区分と、D1 の未分類の失敗の O5・B3a・B7 の判定・発生位置)/ O5 の正本の伝播先と変えない箇所の一覧 | 各主張にファイル:行の典拠がある / 着手条件に実装後の試験証跡を置いていない / D4 に依存する項目が「U-R1 の決定待ち」として分離されている / **棚卸しの各行が `raise` 文とファイル:行で一対一に対応する**(`grep -n raise` の出力と突合し、欠落と重複を別々に数えてどちらも 0)/ O5 に判定した行がすべて「イベントの取引内」(確定後のものは移すか対象外の理由がある) |
 | 2 | **sync-protocol v0.9 の起案**(Claude が書く — 状態 in-review): 3 節の変更・射程宣言・変更履歴・README / wire 設計の `rejection.kind` に `"O5"`(L-4・2-6・4-2・4-5) | `check_docs_status`・`check_design_propagation`・`check_doc_coverage` と関係する試験 green / ステップ 1 の伝播先の一覧のすべてに O5 があり、変えない箇所は変えていない / wire 設計の 4 箇所に O5 / **ステップ 3 の前に /finalize-doc で確定させる** |
 | 3 | **具体差分の提示文書**(`docs/features/us1-sync-port-surface/proposal.md` — Claude が書く。PO が読んで選ぶ形): 変更するファイルと関数(現行の行番号つき)/ 追加する公開口(混在バッチ)の署名と既存の `apply_sync_request`・`from_payload` との関係 / V5・V10 の変換表の置き場所 2 案(U-S1 が写す / 506 側が写し U-S1 が表を公開)と各代償 / 公開結果型(A5 の B3 分岐・P3 の構造化)/ O5 のサーバーと端末の差分 / 試験の追加範囲 / この差分が無いと 506 の何が止まるか | 各差分に現行のファイル:行がある / 2 案それぞれの代償(NFR-018・指紋・所有)が書かれている / 506 の着手前ゲート(design.md 2-1)の各項目との対応がある / 承認の範囲(どの差分を承認すると何を実装するか)が一意 |
+| 4 | **D-0 候補表を D1 で持つ**(既存の欠陥の是正 — proposal.md 1 節): `sync/apply.py` の候補表を D5 でなく D1 で持ち、B4 の要求の重複 D5 で保存済み結果を正しく再掲する | proposal.md の D-0 の試験(B4 + 同じ D5 の同一内容・異内容 + 未使用 D5、入力順 2 通りの単体・DB 境界)が green / U-S1 の既存の DB 試験がすべて green(専用 DB) |
+| 5 | **D-5 内容起因の `other` を B3a へ**(proposal.md の D-5): 7 箇所を内容拒否の例外型で投げ、T9 + B3a に載せる | proposal.md の D-5 の試験が green / 既存の試験が green |
+| 6 | **D-1 E-1 の混在バッチの公開口**(G-A): 経路を持たない要求型と入口。イベントごとに SP 8-1 の表で P1/P2 を判定(改訂版は T9 原本の経路を継ぐ)・その経路で指紋・単一 ACK。既存の `apply_sync_request` は変えない | proposal.md の D-1 の試験(P1/P2 混在の単一 ACK・同じイベントの再送が同じ指紋・判定を誤らせる変異が赤)が green / 既存の試験が green |
+| 7 | **D-2 wire → U-S1 の変換**(G-B・案 ①): V5 の番号 → 種別、V10 を境界で厳格に写す(内部キーは `game`)、改訂版は `rejected_d5` の原本から元の種別。**墓標の変換は D-2c まで無効**(wire の `"8"` は受理しない)。wire 設計の追随 | **前提: TSK-331 の担当の合意**(V9 の `rejected_d5`・WS:362 の付け替え)/ proposal.md の D-2 の試験が green |
+| 8 | **D-3 公開結果型**(G-C): A5 の各件に B3 の分岐(B3a/B3b/O4/O5)、P3 の拒否に `current_version`・`b9_cause`(必須) | proposal.md の D-3 の試験が green / 既存の試験 2 箇所の追随 |
+| 9 | **D-4 O5 のサーバー側**: design.md 11-1 の 7 件を専用の例外型で投げ、当該イベントの取引を全取消して B3 + A5「拒否」(理由コード O5)。7 件の列挙と `raise` 全件の棚卸しを pytest で突合 | proposal.md の D-4 の受入条件 A(各箇所の検出 — 偽スコープの単体)と B(取消の境界 — `testing_crash_hook` からの注入による DB 境界試験)が green |
+| 10 | **D-6 端末の O5**(D-4 と組): 拒否理由に O5、理由コードをスロットの必須の永続属性(状態と同じ書き込みで確定)、O5 の再開(同じ D5)を O4 の再開(QT-07)と別の遷移に。理由コードの無いスロットは再開しない | proposal.md の D-6 の試験(Vitest — 負例を含む)が green / `pnpm test` 全件 green |
+| 11 | **data-model の改訂の起案**(D-2c — Claude が書く・in-review): 墓標の `event_kind` の表現と CHECK | 文書の検査 green / **ステップ 12 の前に /finalize-doc で確定させる** |
+| 12 | **D-2c の実装**: 墓標の `event_kind`(継承 / 新設の値)・CHECK を 2 本に分ける移行・U-S1 の種別検査・内容検証と投影のポートの契約試験・墓標の変換を有効化(ステップ 7 で無効にしたもの) | proposal.md の D-2c の試験(P3 種別の原本からの墓標・DB の負例・再開)が green / `test_operation_event_kind_contract.py` ほかの追随 |
+| 13 | **sync-protocol 10-2 の改訂の起案**(D-7 — Claude が書く・in-review): O5 の観測の行を書き分ける | 文書の検査 green / **ステップ 14 の前に /finalize-doc で確定させる** |
+| 14 | **D-7 故障系資産の O5**: 母集合 v2 と O5 の資産(取消の境界を注入で観測)。D-3・D-6 の後 | 契約検査・結果検査が green(サーバーと端末の runner) |
+| 15 | **凍結資産の導出**: ステップ 4〜14 で変わった凍結資産(schema-manifest・repository-contract など)の改訂番号・digest と、PR の受理記録を develop に対して導出する | 迂回検査・凍結履歴・凍結 archive・センサス一式 green / 一時の `pull_request` event で受理検査を再現して ok |
 
 ## 5. DoD(受け入れ基準)
 
 - [ ] 506 の着手条件が「いま develop にある U-S1 のコードから読み取れる公開面」だけで書かれている(実装後の試験証跡は確認条件として別立て)
 - [ ] 4 区分の失敗と HTTP 応答・キュー動作の対応表(実挙動はコードと試験の典拠つき)
 - [ ] sync-protocol v0.9(O5 と顕在化)が確定ゲートを通っている(PO 承認)
-- [ ] U-S1・端末の製品の変更(混在バッチの公開口・V5/V10 の変換・公開結果型・O5)の具体差分を 1 文書で提示し、PO の判断を受けている(実装は承認後の計画追補)
+- [ ] U-S1・端末の製品の変更の具体差分を 1 文書で提示し、PO の判断を受けている(済 — D-0〜D-7 すべて承認 2026-10-17)
+- [ ] 承認された D-0〜D-7 が実装され、各ステップの合格条件を満たす(506 の着手前ゲート G-A・G-B・G-C を満たす)
+- [ ] data-model(D-2c)と sync-protocol 10-2(D-7)の改訂が確定ゲートを通っている
 - [ ] D4 に依存する部分が「U-R1 の決定待ち」として名指しで分離されている / ポート登録の依存の向きが書かれている
 - [ ] 独立レビュー(コア領域 — 敵対レビュー)と人間の逐行確認
 - [ ] 506 の着手前ゲートを独立に列挙し(design.md 2-1)、TSK-391 側のゲートの差分を提示している / 506 の DoD を分ける材料(U-X1 の凍結解除まで満たせない条件)が名指しで列挙されている
