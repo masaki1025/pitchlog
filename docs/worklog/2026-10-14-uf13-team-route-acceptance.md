@@ -338,3 +338,14 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - PR #141コメント`6197437468`でA→C1の順を担当へ提示した。Aが#132統合後のlatest developへ追随し、必要な再受理・検査を終えて先に統合された後、その実merge SHAを含む`origin/develop`をC1へmergeする。#141側の受理記録への反映を依頼し、意味衝突や別順序が必要な場合は重複ファイルと最小差分の返信を求めた。
 - 前節に記録したC1のrepository 18→19、base allowlist 30→31、2件のsnapshot hashは、#132直後基線に対する導出確認値であり、第3段の正式候補値ではない。A統合後の確定revision・履歴をbeforeとしてC1のrevision、source digest、snapshot、previous/new identifiersを再導出するまで第1段コミットを作らない。異なるbranchの同じrevision番号を同一内容として扱わない。
 - 3段追補、A→C1順、追加独立レビューとP1採用を計画へ反映した。P1修正後のC1製品候補は作業treeとstash `0100de2077257aafd8b5e11c14957894687f6cd2`に保全されている。現時点の残る開始条件はPR #141の再基線化・正式統合だけで、C2、U-F3、公開には進んでいない。
+
+### 共有実行器A統合後の第1段再導出（2026-10-16）
+
+- 共有実行器Aの対応PR #141は2026-10-15 21:01:27 UTCに統合された。PR headは`f06a3dc7c61dc9c274ea3485e8d25031fcaa66b7`、developへの実統合SHAは`e7e8d3a4324687ada828b1e4b49692c087af5c44`である。
+- P1修正済みC1候補をstash`C1 step1 reviewed candidate before shared executor A merge 2026-10-16`（object `5b4cb306fbbd3cc78e3e883982618d9aca1acf36`）へ保全し、`origin/develop`を競合なくmergeした。C1候補の再適用時は、`repository_contract.py`、`base-allowlist.json`、`repository-contract.json`の3ファイルだけが内容競合した。
+- 競合3ファイルはA側を基準に解消した。Aの固定関数公開面、`PRODUCT_FUNCTION_OPERATIONS`空集合、関数実行器、許可シンボル2件、受理履歴・snapshotを保持し、その後にC1の`TenantProfileReadToken`、既存`CAP:tenants:read`、tenant profile固定SELECTの許可シンボル1件を追加した。
+- A確定値をbeforeとして、repository契約はrevision 19→20、base allowlistは31→32へ直列化した。repository source digestは`22ecaa00ad393d2c7695ec53f68fdd23239ada64e293d070fda7793087a0a3b6`で、生成Python契約と一致する。
+- A統合後のtenant-boundary previewでは、変わる識別値はbase allowlist 31→32とrepository contract 19→20だけである。cache 15、census 14、DB inventory 15、frozen inputs 4、negative fixtures 17、runtime authz 16、tenant context 16は不変である。
+- 不足snapshotはbase allowlist projection `20c8f0f71734d244e8734a0ded0903d380cfcae79315549ccd318a8a6e6ebabf`（11578 bytes）とrepository contract projection `71cb7a8bba95d335571411198044da40b1ac05d06707a9c34a9fb396bf6c2a00`（7527 bytes）の2件で、base64復号後のSHA-256一致を確認した。
+- 検証は、C1 API/repository/共有契約193件、隔離PostgreSQLのRLS/application role 2接続試験2件、backend対象Ruff/format/ty、root Ruff/ty、`git diff --check`が成功した。authz全変異試験は25818件成功・2件失敗で、2件とも未受理route registryと既存oracle sealのblob不一致。tenant-boundary全検査は367件成功・3件失敗で、3件ともauthority履歴末尾がbase 31 / repository 19のままであることを拒否した。期待値・検査器・skipは緩和していない。
+- `/tmp/c1-tenant-boundary-acceptance-after-a-preview.json`は、仮PR番号・`DRYRUN`・`1970-01-01`を含む導出確認専用であり、正式資産へ取り込まない。正式受理の理由・movement factは前回案を維持し、識別値だけをA後の値へ更新する。

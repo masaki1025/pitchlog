@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 31,
+  "contract_revision": 32,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:31"
+        "contract_revision:32"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -19422,6 +19422,14 @@
         "SQLA_SESSION_EXECUTE"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/function_transaction.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.tenant_profile._tenant_profile_statement",
+      "signature": "_tenant_profile_statement() -> Select[Any]",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/tenant_profile.py"
     }
   ],
   "conditions": [
