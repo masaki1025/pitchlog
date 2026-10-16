@@ -373,7 +373,7 @@ P3 経路 11 段階の `(順序, 進行中, 終了後, 境界結果)`。
 scenarioId は `FILE_NAME_PATTERN`(`failureScenarioContract.ts:90`)の
 `^[a-z0-9]+(?:-[a-z0-9]+)*$` に適合させる(**小文字英数とハイフンのみ**)。
 
-**母集合の正**は `tests/fixtures/sync-protocol-population_v1.json` の `rows`。
+**母集合の正**は `tests/fixtures/sync-protocol-failures/population/sync-protocol-population_v2.json` の `rows`(v1 から移行 — TSK-506 への接続契約のステップ 2 の是正)。
 各行に観点 key、scenarioId、所有状態(`owned` / `deferred`)と、
 繰り延べの場合の受け取り先を記す。現況は 26 ペア・22 観点・
 所有 16 件・U-R1(TSK-392) へ繰り延べ 10 件である。

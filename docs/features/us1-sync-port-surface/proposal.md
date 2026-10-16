@@ -518,7 +518,7 @@ D-4 を入れても、端末は O5 の ACK を解釈できず(`rejectionReason.t
 
 - SP v0.9 は 10-2 に O5 の観点の行を足した(SP:1700)。その観測は「**実装が O5 として列挙した不変条件違反を起こす永続状態で**、未使用 D5 の P1・P2 を前方のイベントと同じ要求で送り、応答・D3・台帳・キュー・投影を観測する」
 - SP 10-3 の母集合の契約は、母集合を観点と ID の組の集合として exact-set で照合し、**繰り延べは繰り延べ先とともに母集合に記録して黙って欠落させない**と定める(SP:1745)
-- 資産の母集合(`tests/fixtures/sync-protocol-population_v1.json`)の契約検査は、観点の集合を母集合ファイル自身から作る(`backend/tests/test_sync_apply_failure_contract.py:218` → `:961-985`)ので、**SP に行を足しても試験は落ちず、乖離が黙って残る**(現在 22 観点 — `:1775`)
+- 資産の母集合(`tests/fixtures/sync-protocol-failures/population/sync-protocol-population_v2.json` — ステップ 2 の是正で v1 から移行)の契約検査は、観点の集合を母集合ファイル自身から作る(`backend/tests/test_sync_apply_failure_contract.py:218` → `:961-985`)ので、**SP に行を足しても試験は落ちず、乖離が黙って残る**(現在 22 観点 — `:1775`)
 - 母集合と資産は版付きの凍結資産で、コア領域(`.claude/core-areas.json:179`)
 
 ### 8-2. 資産が観測する範囲と、正本 10-2 の文言との差
