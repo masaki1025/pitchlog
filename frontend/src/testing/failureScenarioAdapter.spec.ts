@@ -40,8 +40,8 @@ const population = JSON.parse(
   readFileSync(
     resolve(
       FAILURE_FIXTURE_DIRECTORY,
-      '..',
-      'sync-protocol-population_v1.json',
+      'population',
+      'sync-protocol-population_v2.json',
     ),
     'utf8',
   ),
@@ -187,18 +187,28 @@ describe('failureScenarioAdapter', () => {
     const rows = population.rows
     const pairs = rows.map((row) => `${row.observationKey}:${row.scenarioId}`)
     expect(population.schemaVersion).toBe(1)
-    expect(rows).toHaveLength(26)
+    expect(rows).toHaveLength(27)
     expect(new Set(pairs).size).toBe(rows.length)
     expect(new Set(rows.map((row) => row.scenarioId)).size).toBe(rows.length)
-    expect(new Set(rows.map((row) => row.observationKey)).size).toBe(22)
+    expect(new Set(rows.map((row) => row.observationKey)).size).toBe(23)
     expect(
       rows.every((row) => row.status === 'owned' || row.status === 'deferred'),
     ).toBe(true)
+    const deferredRows = rows.filter((row) => row.status === 'deferred')
+    expect(deferredRows).toHaveLength(11)
     expect(
-      rows
-        .filter((row) => row.status === 'deferred')
+      deferredRows
+        .filter((row) => row.scenarioId !== 'o5-invariant-violation')
         .every((row) => row.owner === 'U-R1(TSK-392)'),
     ).toBe(true)
+    expect(
+      deferredRows.find((row) => row.scenarioId === 'o5-invariant-violation'),
+    ).toEqual({
+      observationKey: 'o5-deterministic-invariant',
+      scenarioId: 'o5-invariant-violation',
+      status: 'deferred',
+      owner: 'TSK-506 への接続契約(us1-sync-port-surface)のステップ 14',
+    })
     expect(
       new Set(
         rows

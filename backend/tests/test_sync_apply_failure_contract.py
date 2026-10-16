@@ -208,7 +208,12 @@ OUT_OF_TRANSACTION_POINTS = (
 
 # 母集合の正は単一の機械可読表に置く(SP 10-3)。検査器内に期待集合を複製しない。
 _POPULATION_PATH = (
-    _REPOSITORY_ROOT / "tests" / "fixtures" / "sync-protocol-population_v1.json"
+    _REPOSITORY_ROOT
+    / "tests"
+    / "fixtures"
+    / "sync-protocol-failures"
+    / "population"
+    / "sync-protocol-population_v2.json"
 )
 _POPULATION = json.loads(_POPULATION_PATH.read_text(encoding="utf-8"))
 _POPULATION_ROWS = _POPULATION["rows"]
@@ -1758,7 +1763,7 @@ def test_result_check_compares_hook_calls_with_reachability(
 
 
 def test_population_is_an_exact_set_of_pairs() -> None:
-    """母集合: 26 組・観点 22 種・scenarioId 26 件、作成 16 件と繰り延べ 10 件。"""
+    """母集合: 27 組・観点 23 種・scenarioId 27 件、作成 16 件と繰り延べ 11 件。"""
     validate_population()
     assert _POPULATION["schemaVersion"] == 1
     assert all(
@@ -1771,12 +1776,21 @@ def test_population_is_an_exact_set_of_pairs() -> None:
         for row in _POPULATION_ROWS
     )
     assert all(row["status"] in {"owned", "deferred"} for row in _POPULATION_ROWS)
-    assert len(OBSERVATION_SCENARIO_PAIRS) == 26
-    assert len(OBSERVATION_KEYS) == 22
+    assert len(OBSERVATION_SCENARIO_PAIRS) == 27
+    assert len(OBSERVATION_KEYS) == 23
     assert len(OWNED_SCENARIO_IDS) == 16
-    assert len(DEFERRED_SCENARIO_IDS) == 10
+    assert len(DEFERRED_SCENARIO_IDS) == 11
+    assert (
+        "o5-deterministic-invariant",
+        "o5-invariant-violation",
+    ) in OBSERVATION_SCENARIO_PAIRS
+    assert DEFERRED_SCENARIO_IDS["o5-invariant-violation"] == (
+        "TSK-506 への接続契約(us1-sync-port-surface)のステップ 14"
+    )
     assert all(
-        scenario_id.startswith("restore-") for scenario_id in DEFERRED_SCENARIO_IDS
+        scenario_id.startswith("restore-")
+        for scenario_id in DEFERRED_SCENARIO_IDS
+        if scenario_id != "o5-invariant-violation"
     )
 
 
