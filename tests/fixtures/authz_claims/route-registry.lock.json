@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "route-registry.json",
-  "asset_digest": "f71da3899ffaf56703208c49c7ceb835f0af11f049e6e21afaa2ad04e1f9347f",
-  "entry_count": 27,
-  "aggregate_decision_digest": "45edf878269e5a317f8439ac6b00ec157f409438f897525432e0cda64f70f530",
+  "asset_digest": "94889517cca37efba46f5ddc386d7b493392a485e85d3611fc06b48488cdd9c0",
+  "entry_count": 28,
+  "aggregate_decision_digest": "b3c0e46f61eceabc1b402359e290d1730b5f59567e367e673317ce305916da50",
   "entries": [
     {
       "entry_id": "route:ROUTE:FIXTURE:LEGACY",
@@ -353,6 +353,19 @@
         "provenance_ids": []
       },
       "decision_digest": "9a57d679352ac238e00fd5c71d6117d31614e64202588cfc5b6f22108a676867"
+    },
+    {
+      "entry_id": "route:ROUTE:AUTH:session:read",
+      "decision": {
+        "route_id": "ROUTE:AUTH:session:read",
+        "route_kind": "authentication_entry",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-AUTH-SESSION-VERIFICATION-CONTRACT"
+        ]
+      },
+      "decision_digest": "12a01aed344764032b538de30c7b7225234173ad08993bcad381618cb1146bed"
     },
     {
       "entry_id": "operation:fixture_operation",

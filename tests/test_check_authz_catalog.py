@@ -2276,7 +2276,7 @@ def test_record_and_aggregate_rejects_route_outside_approved_set() -> None:
 
 
 def test_authentication_entry_routes_and_claims_match_approved_set() -> None:
-    """認証 3 経路と付録 C の担当 2 主張だけを固定する。"""
+    """認証4経路と付録Cの担当2主張だけを固定する。"""
     assets, _locks, _paths = _repository_derived_assets()
     registry = assets["route_registry"]
     matrix = assets["http_matrix"]
@@ -2289,6 +2289,7 @@ def test_authentication_entry_routes_and_claims_match_approved_set() -> None:
         "ROUTE:AUTH:login:create",
         "ROUTE:AUTH:logout:create",
         "ROUTE:AUTH:password:update",
+        "ROUTE:AUTH:session:read",
     }
     assert authentication_ids.isdisjoint(registry["enums"]["operation_ids"])
     matrix_rows = {
@@ -2301,6 +2302,22 @@ def test_authentication_entry_routes_and_claims_match_approved_set() -> None:
         and row["disposition"] == "conditional"
         for route_id, row in matrix_rows.items()
     )
+    session_route = next(
+        route
+        for route in registry["routes"]
+        if route["route_id"] == "ROUTE:AUTH:session:read"
+    )
+    assert session_route == {
+        "route_id": "ROUTE:AUTH:session:read",
+        "route_kind": "authentication_entry",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": ["PLAN-AUTH-SESSION-VERIFICATION-CONTRACT"],
+    }
+    assert matrix_rows["ROUTE:AUTH:session:read"]["test_owner"] == {
+        "id": "TSK-528.C1.http-route.HTTP:ROUTE:AUTH:session:read",
+        "status": "planned",
+    }
     appendix = {
         row["source_id"]: row
         for row in registry["claim_dispositions"]
