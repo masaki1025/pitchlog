@@ -92,6 +92,11 @@
       "provenance_id": "PLAN-UA1-AUTH-HTTP-ENTRY",
       "path": "docs/features/ua1-auth-http-entry/plan.md",
       "extracted_text": "PW 変更とログアウトの HTTP 経路"
+    },
+    {
+      "provenance_id": "PLAN-AUTH-SESSION-VERIFICATION-CONTRACT",
+      "path": "docs/features/auth-session-verification-contract/plan.md",
+      "extracted_text": "GET /auth/session"
     }
   ],
   "routes": [
@@ -670,6 +675,15 @@
       "source_claim_ids": [],
       "provenance_ids": [
         "PLAN-UA1-AUTH-HTTP-ENTRY"
+      ]
+    },
+    {
+      "route_id": "ROUTE:AUTH:session:read",
+      "route_kind": "authentication_entry",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-AUTH-SESSION-VERIFICATION-CONTRACT"
       ]
     }
   ],
