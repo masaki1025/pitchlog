@@ -5,7 +5,7 @@ status: in-review         # active | in-review(/pr が PR 内で更新。完了�
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
 notion: https://app.notion.com/p/3f593b75e68781318e64de84074994c2
-branch: feature/ux1-t1t2-plan-revision
+branch: fix/ux1-state-calc
 created: 2026-10-10
 計画レビュー周回: 5        # 旧計画3周 + D-14-m限定改訂1・2周目の採用反映各1周。回数はリセットしない
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
