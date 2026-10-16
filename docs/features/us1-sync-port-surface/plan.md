@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3fb93b75e68781f394d5cda296211a18
 branch: feature/us1-sync-port-surface
 created: 2026-10-16
-計画レビュー周回: 2        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
+計画レビュー周回: 3        # 指摘反映を伴うレビュー 1 周ごとに +1(収束確認周は数えない。/plan が更新)
 確定ゲート周回: 2          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -57,18 +57,18 @@ created: 2026-10-16
 | `docs/design/sync-protocol.md` | **v0.9**: O5(恒久的な不変条件違反を B3 + 要操作〔管理者対応待ち〕へ)の新設と定義伝播・段階 ① の注記・7-2 の遷移の一般化・6-4 の除外経路・B7/B10 の回復しない場合の顕在化・7-4 の Q8・10-1 の論点 18・10-2 の O5 の観測。変更履歴に追記し、`docs/README.md` の索引を現行化する。**射程宣言**: 新しい境界結果・A5 の値・キュー状態は増やさない(O4 と同じ方針) | **finalize-doc**(敵対レビュー + 人間承認)。**ステップ 2 の後・ステップ 3 の前に確定させる(ステップ 3 の差分の提示は確定した v0.9 を前提に書く)** |
 | `docs/README.md` | sync-protocol の行を v0.9 へ / data-model・sync-protocol の追補の版へ | 同上 |
 | `docs/design/data-model.md` | **計画追補(D-2c)**: 墓標の行の `event_kind` — 継承できる種別(`EVENT_KIND_LITERALS − CHANGE_EVENT_KIND_LITERALS`)は継承、それ以外は新設の値(仮称 `tombstone_unknown_kind`。`EVENT_KIND_LITERALS` に入れない)と、その CHECK(「新設の値なら墓標」)。版は起案時に未マージ分も含めて実測して決める | **finalize-doc**。ステップ 12 の前に確定させる |
-| `docs/design/sync-protocol.md`(再改訂) | **計画追補(D-7)**: 10-2 の O5 の観測の行を「取消の境界は資産で注入により観測・列挙した各箇所の検出は永続状態を与えた単体で確かめる」と書き分ける。版は起案時に実測(v0.10 は TSK-547 の予約) | **finalize-doc**。ステップ 15 の前に確定させる |
-| 凍結資産(`contracts/db/schema-manifest.json`・`contracts/tenant_boundary/*` のうち変わるもの) | D-2c の CHECK と移行に伴う schema-manifest の改版・digest。新しい repository operation があれば repository-contract の改訂と PR の受理記録 | PR レビュー + 敵対レビュー + 人間承認(コア)。ステップ 16 で導出 |
+| `docs/design/sync-protocol.md`(再改訂) | **計画追補(D-7)**: 10-2 の O5 の観測の行を「取消の境界は資産で注入により観測・列挙した各箇所の検出は永続状態を与えた単体で確かめる」と書き分ける。版は起案時に実測(v0.10 は TSK-547 の予約) | **finalize-doc**。ステップ 14(D-7 の実装)の前に確定させる |
+| 凍結資産(`contracts/db/schema-manifest.json`・`contracts/tenant_boundary/*` のうち変わるもの) | D-2c の CHECK と移行に伴う schema-manifest の改版・digest。新しい repository operation があれば repository-contract の改訂と PR の受理記録 | PR レビュー + 敵対レビュー + 人間承認(コア)。schema-manifest はステップ 12(D-2c と同じコミット)、受理記録などはステップ 15 で導出 |
 | 要件書・ADR | **反映なし** | — |
 
-**正本体系外だが同一 PR で更新するもの**: `docs/features/sync-wire-schema/design.md`(`rejection.kind` に `"O5"` / 計画追補 D-2: V9 に `rejected_d5`・V5/V10 の変換の担当を U-S1 へ〔WS:362〕— TSK-331 の wire 設計。正本ではなく feature 設計。**D-2 の変更は TSK-331 の担当の合意を前提にする**)/ `docs/features/us1-sync-port-surface/design.md`(本 PR の接続契約)
+**正本体系外だが同一 PR で更新するもの**: `docs/features/sync-wire-schema/design.md`(`rejection.kind` に `"O5"` / 計画追補 D-2: V9 に `rejected_d5`・V5/V10 の変換の担当を U-S1 へ〔WS:362〕— TSK-331 の wire 設計。正本ではなく feature 設計で、本 PR のレビューで改訂できる〔TSK-331 は完了済み・担当なし — PR #106〕。wire 設計 1-2 の (B) に従い**理由を変更の記録に残す**。W-2「wire ⇄ DTO の変換は入口 PR が持つ」〔TSK-331 がステップ 7 で TSK-391 へ申し送った向き〕を逆向きに戻す変更なので、**入口 PR(TSK-506)の担当の合意**を前提にする。**V9 に `rejected_d5` を置くことは V9 の中身の決定**(wire 設計 N-8 の送り先「各イベント種別を実装する単位」の変更)なので **PO 判断**を前提にする)/ `docs/features/us1-sync-port-surface/design.md`(本 PR の接続契約)
 
 ## 4. 実装方針
 
 **重さ分類 = コア領域**。根拠: 同期プロトコル(sync-protocol)と記録権(recording-rights)に重複帰属する U-S1 の適用核(`backend/src/pitchlog/sync/*` — `.claude/core-areas.json` で 2 領域に登録済み)と、端末の同期キュー(`frontend/src/lib/sync/*`)を変える。正本 sync-protocol の意味規則(O5)を足す。全ステップで敵対レビューと人間の逐行確認を受ける。
 
 - 接続契約・例外の分類表・O5 の対象の選び方の詳細は [design.md](design.md)(ステップ 1 で書く)
-- **O5 に入れるのは明示的に列挙した決定的な不変条件違反で、イベントの取引内・未使用 D5 の新規適用のものだけ**(design.md 11-1 — 9 件)。保存済み結果の破損・確定スロットとの食い違いは O5 にしない。競合(`認可後に試合行が消失した`・`D5 再照合が未使用に戻った` など)・DB 例外・未知の例外は B7 に残す(再送で通り得るものを止めない — fail-safe 側)
+- **O5 に入れるのは明示的に列挙した決定的な不変条件違反で、イベントの取引内・未使用 D5 の新規適用のものだけ**(design.md 11-1 — 7 件)。保存済み結果の破損・確定スロットとの食い違いは O5 にしない。競合(`認可後に試合行が消失した`・`D5 再照合が未使用に戻った` など)・DB 例外・未知の例外は B7 に残す(再送で通り得るものを止めない — fail-safe 側)
 - O5 は O4 と同じく、当該イベントのトランザクションを全取消し、D3 を進めず、T9 を開始しない。前方のイベントは確定済みのまま ACK に載る(先頭詰まりが解ける)
 - 端末は O4 の既存の状態(要操作〔管理者対応待ち〕・再送の停止)に O5 を載せる。新しいキュー状態・ラベルは作らない。**再開の条件は O4 と分ける**(O4 = 同じ D1 スロット・新しい D5 / O5 = 内容も D5 も変えずに再送 — design.md 11-1)
 - Codex の起動はラッパー経由。文書のステップ(1・2)は Claude が書く(役割分担 — 設計書 3 章)
@@ -80,18 +80,18 @@ created: 2026-10-16
 | 1 | **接続契約と例外の棚卸し**(混在バッチの公開口の設計 — イベントごとの P1/P2 判定の規則を含む)(`design.md` — Claude が書く): 公開面・失敗境界・4 区分の対応表・担当・U-R1 の決定待ち・U-X1 の凍結解除まで満たせない条件・経路の混在の制約・506 の未充足ゲートへの回答・着手条件と確認条件・ポート登録の依存の向き / `sync/*` の raise の棚卸し(別経路の区分と、D1 の未分類の失敗の O5・B3a・B7 の判定・発生位置)/ O5 の正本の伝播先と変えない箇所の一覧 | 各主張にファイル:行の典拠がある / 着手条件に実装後の試験証跡を置いていない / D4 に依存する項目が「U-R1 の決定待ち」として分離されている / **棚卸しの各行が `raise` 文とファイル:行で一対一に対応する**(`grep -n raise` の出力と突合し、欠落と重複を別々に数えてどちらも 0)/ O5 に判定した行がすべて「イベントの取引内」(確定後のものは移すか対象外の理由がある) |
 | 2 | **sync-protocol v0.9 の起案**(Claude が書く — 状態 in-review): 3 節の変更・射程宣言・変更履歴・README / wire 設計の `rejection.kind` に `"O5"`(L-4・2-6・4-2・4-5) | `check_docs_status`・`check_design_propagation`・`check_doc_coverage` と関係する試験 green / ステップ 1 の伝播先の一覧のすべてに O5 があり、変えない箇所は変えていない / wire 設計の 4 箇所に O5 / **ステップ 3 の前に /finalize-doc で確定させる** |
 | 3 | **具体差分の提示文書**(`docs/features/us1-sync-port-surface/proposal.md` — Claude が書く。PO が読んで選ぶ形): 変更するファイルと関数(現行の行番号つき)/ 追加する公開口(混在バッチ)の署名と既存の `apply_sync_request`・`from_payload` との関係 / V5・V10 の変換表の置き場所 2 案(U-S1 が写す / 506 側が写し U-S1 が表を公開)と各代償 / 公開結果型(A5 の B3 分岐・P3 の構造化)/ O5 のサーバーと端末の差分 / 試験の追加範囲 / この差分が無いと 506 の何が止まるか | 各差分に現行のファイル:行がある / 2 案それぞれの代償(NFR-018・指紋・所有)が書かれている / 506 の着手前ゲート(design.md 2-1)の各項目との対応がある / 承認の範囲(どの差分を承認すると何を実装するか)が一意 |
-| 4 | **D-0 候補表を D1 で持つ**(既存の欠陥の是正 — proposal.md 1 節): `sync/apply.py` の候補表を D5 でなく D1 で持ち、B4 の要求の重複 D5 で保存済み結果を正しく再掲する | proposal.md の D-0 の試験(B4 + 同じ D5 の同一内容・異内容 + 未使用 D5、入力順 2 通りの単体・DB 境界)が green / U-S1 の既存の DB 試験がすべて green(専用 DB) |
+| 4 | **D-0 D5 キーの辞書を D1 で持つ**(既存の欠陥の是正 — proposal.md 1 節): `sync/apply.py` の候補表(`:330-333`)・`registrations`(`:355`)・`targets`(`:356`)が D5 をキーにして、同じ要求の同じ D5 の 2 件目が 1 件目を上書きする(S-1 は D5 の重複を検査しない — `sync/model.py:215`)。3 つとも D1(入力位置)で持つ | proposal.md の D-0 の試験(B4 + 同じ D5 の同一内容・異内容 + 未使用 D5、入力順 2 通りの単体・DB 境界。`registrations`・`targets` の取り違えの負例)が green / U-S1 の既存の DB 試験がすべて green(専用 DB) |
 | 5 | **D-5 内容起因の `other` を B3a へ**(proposal.md の D-5): 7 箇所を内容拒否の例外型で投げ、T9 + B3a に載せる | proposal.md の D-5 の試験が green / 既存の試験が green |
 | 6 | **D-1 E-1 の混在バッチの公開口**(G-A): 経路を持たない要求型と入口。イベントごとに SP 8-1 の表で P1/P2 を判定(改訂版は T9 原本の経路を継ぐ)・その経路で指紋・単一 ACK。既存の `apply_sync_request` は変えない | proposal.md の D-1 の試験(P1/P2 混在の単一 ACK・同じイベントの再送が同じ指紋・判定を誤らせる変異が赤)が green / 既存の試験が green |
-| 7 | **D-2 wire → U-S1 の変換**(G-B・案 ①): V5 の番号 → 種別、V10 を境界で厳格に写す(内部キーは `game`)、改訂版は `rejected_d5` の原本から元の種別。**墓標の変換は D-2c まで無効**(wire の `"8"` は受理しない)。wire 設計の追随 | **前提: TSK-331 の担当の合意**(V9 の `rejected_d5`・WS:362 の付け替え)/ proposal.md の D-2 の試験が green |
-| 8 | **D-3 公開結果型**(G-C): A5 の各件に B3 の分岐(B3a/B3b/O4/O5)、P3 の拒否に `current_version`・`b9_cause`(必須) | proposal.md の D-3 の試験が green / 既存の試験 2 箇所の追随 |
-| 9 | **D-4 O5 のサーバー側**: design.md 11-1 の 7 件を専用の例外型で投げ、当該イベントの取引を全取消して B3 + A5「拒否」(理由コード O5)。7 件の列挙と `raise` 全件の棚卸しを pytest で突合 | proposal.md の D-4 の受入条件 A(各箇所の検出 — 偽スコープの単体)と B(取消の境界 — `testing_crash_hook` からの注入による DB 境界試験)が green |
-| 10 | **D-6 端末の O5**(D-4 と組): 拒否理由に O5、理由コードをスロットの必須の永続属性(状態と同じ書き込みで確定)、O5 の再開(同じ D5)を O4 の再開(QT-07)と別の遷移に。理由コードの無いスロットは再開しない | proposal.md の D-6 の試験(Vitest — 負例を含む)が green / `pnpm test` 全件 green |
+| 7 | **D-2 wire → U-S1 の変換**(G-B・案 ①): V5 の番号 → 種別、V10 を境界で厳格に写す(内部キーは `game`)、改訂版は `rejected_d5` の原本から元の種別。**墓標の変換は D-2c まで無効**(wire の `"8"` は受理しない)。wire 設計の追随(W-2 を戻す理由を変更の記録に) | **前提: 506 の担当の合意(W-2 を戻す)と、V9 に `rejected_d5` を置く PO 判断** / proposal.md の D-2 の試験のうち**墓標の `"8"` を除くもの**が green / 墓標の `"8"` を受理しないことの試験 |
+| 8 | **D-4 O5 のサーバー側**: design.md 11-1 の 7 件を専用の例外型で投げ、当該イベントの取引を全取消して B3 + A5「拒否」(理由コード O5)。7 件の列挙と `raise` 全件の棚卸しを pytest で突合 | proposal.md の D-4 の受入条件 A(各箇所の検出 — 偽スコープの単体)と B(取消の境界 — `testing_crash_hook` からの注入による DB 境界試験)が green |
+| 9 | **D-6 端末の O5**(D-4 と組・D-4 の後): 拒否理由に O5、理由コードをスロットの必須の永続属性(状態と同じ書き込みで確定)、O5 の再開(同じ D5)を O4 の再開(QT-07)と別の遷移に。理由コードの無いスロットは再開しない | proposal.md の D-6 の試験(Vitest — 負例を含む)が green / `pnpm test` 全件 green |
+| 10 | **D-3 公開結果型**(G-C・D-4 の後): A5 の各件に B3 の分岐(B3a/B3b/O4/O5)、P3 の拒否に `current_version`・`b9_cause`(必須) | proposal.md の D-3 の試験(O5 の分岐を含む)が green / 既存の試験 2 箇所の追随 |
 | 11 | **data-model の改訂の起案**(D-2c — Claude が書く・in-review): 墓標の `event_kind` の表現と CHECK | 文書の検査 green / **ステップ 12 の前に /finalize-doc で確定させる** |
-| 12 | **D-2c の実装**: 墓標の `event_kind`(継承 / 新設の値)・CHECK を 2 本に分ける移行・U-S1 の種別検査・内容検証と投影のポートの契約試験・墓標の変換を有効化(ステップ 7 で無効にしたもの) | proposal.md の D-2c の試験(P3 種別の原本からの墓標・DB の負例・再開)が green / `test_operation_event_kind_contract.py` ほかの追随 |
+| 12 | **D-2c の実装**: 墓標の `event_kind`(継承 / 新設の値)・CHECK を 2 本に分ける移行・U-S1 の種別検査・内容検証と投影のポートの契約試験・**墓標の変換を有効化**(ステップ 7 で無効にしたもの)・**`contracts/db/schema-manifest.json` の CHECK・版・digest を同じコミットで更新** | proposal.md の D-2c の試験(P3 種別の原本からの墓標・DB の負例・再開)と、**ステップ 7 で除外した墓標の `"8"` の試験**が green / `test_operation_event_kind_contract.py`・`test_sync_protocol_models.py`・`test_schema_manifest.py` の追随 |
 | 13 | **sync-protocol 10-2 の改訂の起案**(D-7 — Claude が書く・in-review): O5 の観測の行を書き分ける | 文書の検査 green / **ステップ 14 の前に /finalize-doc で確定させる** |
-| 14 | **D-7 故障系資産の O5**: 母集合 v2 と O5 の資産(取消の境界を注入で観測)。D-3・D-6 の後 | 契約検査・結果検査が green(サーバーと端末の runner) |
-| 15 | **凍結資産の導出**: ステップ 4〜14 で変わった凍結資産(schema-manifest・repository-contract など)の改訂番号・digest と、PR の受理記録を develop に対して導出する | 迂回検査・凍結履歴・凍結 archive・センサス一式 green / 一時の `pull_request` event で受理検査を再現して ok |
+| 14 | **D-7 故障系資産の O5**(D-3・D-6 の後): 母集合 v2 と O5 の資産(取消の境界を注入で観測)。**母集合 v2 は core-areas の既存の glob の中(`tests/fixtures/sync-protocol-failures/`)に置く**。U-S1(#132)で glob の外に置いた母集合 v1(`tests/fixtures/sync-protocol-population_v1.json`)と I6 の応答資産(`tests/fixtures/sync-protocol-i6-server-response_v1.json`)も、版を上げて glob の中へ移す(参照する試験を移した後に旧版を消す) | 契約検査・結果検査が green(サーバーと端末の runner)/ 新しい資産のパスがすべて core-areas の sync-protocol 領域に当たる |
+| 15 | **凍結資産の導出**: ステップ 4〜14 で変わった tenant_boundary の凍結資産(repository-contract など)の改訂番号・digest と、PR の受理記録を develop に対して導出する(schema-manifest はステップ 12 で済み) | 迂回検査・凍結履歴・凍結 archive・センサス一式 green / 一時の `pull_request` event で受理検査を再現して ok |
 
 ## 5. DoD(受け入れ基準)
 
@@ -108,8 +108,11 @@ created: 2026-10-16
 
 ## 6. テスト計画
 
-本 PR は文書(接続契約・正本 v0.9・差分の提示)だけで、製品コードを変えない。
+ステップ 1〜3 は文書だけ。計画追補(ステップ 4〜15)は製品コードを変える。各ステップの試験は proposal.md の各差分の節にある。
 
-- **文書の検査**: `check_docs_status`・`check_design_propagation`・`check_doc_coverage` と関係する root の試験 green(ステップ 2)/ 棚卸しと `raise` 文の一対一の突合(ステップ 1 — scratchpad の突合スクリプト。承認後の実装で pytest にする)
-- **差分の提示に含める試験の範囲**(ステップ 3 — 承認後の実装で行う): 単体(例外の分類の写像・棚卸しの一致)/ 越境・境界(O5 の全取消・D3 不前進・T9 なし・後続未処理・前方確定、混在バッチの単一 ACK)/ 一致性(7-2 の遷移表とキュー遷移・wire の閉じた語彙)/ 故障系(既存の (d) 資産が green のまま)
+- **単体**(pytest): D-0 の辞書のキー・D-5 の内容起因の例外型・D-1 の経路の判定・D-2 の変換表と境界の厳格な照合・D-4 の 7 件の検出(偽スコープ)と列挙・`raise` 全件の棚卸しとの一対一の突合・D-3 の結果型
+- **越境・境界**(pytest DB — 専用 Postgres): D-0(B4 + 重複 D5)・D-1(P1/P2 混在の単一 ACK)・D-4(注入による取消の境界 — 全取消・D3 不前進・D5 を消費しない・前方確定・後続未処理)・D-2c(墓標の CHECK の負例・再開)。他テナントの行に触れない
+- **一致性**(Vitest): D-6(O5 の拒否理由・要操作・再開の遷移と、正本 7-2 の遷移表の照合)・wire の `rejection.kind` の閉じた語彙
+- **故障系**(NFR-019(d)): D-7 の O5 の資産(取消の境界)。既存の (d) 資産が green のまま
 - **E2E**: HTTP 越しの確認は 506 の確認条件(design.md 8 節)
+- **文書の検査**: ステップ 11・13 の正本の改訂で `check_docs_status`・`check_design_propagation`・`check_doc_coverage`
