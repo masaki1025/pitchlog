@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -20,19 +20,22 @@ from test_sync_apply_port_prefix import (
     RejectPrefixValidator,
 )
 
-from pitchlog.repositories.tokens import TenantOperationToken
+from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 from pitchlog.repositories.transaction import (
     _TenantTransaction,
     tenant_transaction_scope,
 )
 from pitchlog.sync import apply as sync_apply
-from pitchlog.sync import ports
+from pitchlog.sync import ordering, ports
 from pitchlog.sync.apply import apply_sync_request
 from pitchlog.sync.crash_points import CrashPoint
 from pitchlog.sync.crash_points import testing_crash_hook as _testing_crash_hook
 from pitchlog.sync.model import AckResult, SyncEvent, SyncRequest
 from pitchlog.sync.prefix_path import P1Result, P1Target, PlayerRegistration
-from pitchlog.sync.tokens import IdempotencyLedgerInsertToken
+from pitchlog.sync.tokens import (
+    IdempotencyLedgerInsertToken,
+    OperationEventOrderUpdateToken,
+)
 
 from .test_sync_apply_change_boundary import _request as _change_request
 from .test_sync_apply_operations_boundary import _SyncDatabase, sync_database
@@ -693,18 +696,20 @@ def test_d5_content_rejection_commits_t9_and_replays_b3a(
 
 def test_d5_content_rejection_rolls_back_t5_renumbering(
     prefix_database: _SyncDatabase,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """P2 の再採番後に内容拒否しても T5 だけを残さず T9 を確定する。"""
     db = prefix_database
-    for d1, d2 in ((1, 10), (2, 11)):
+    for d1, d2 in ((1, 9), (2, 10), (3, 11)):
         accepted = SyncEvent(
             str(uuid4()),
             str(db.game_a),
             d1,
             "1",
-            v5="game_end_declaration",
+            v5="play_input",
             v6=d2,
             v7={},
+            v8={},
         )
         result = _invoke(
             db,
@@ -712,22 +717,48 @@ def test_d5_content_rejection_rolls_back_t5_renumbering(
         )
         assert isinstance(result, AckResult) and result.a5[0].state == "受理"
 
+    updates: list[OperationEventOrderUpdateToken] = []
+    original_assign = ordering._assign_d2
+
+    def observe_assign(
+        scope: _TenantTransaction, game_id: UUID, desired: int
+    ) -> int | None:
+        """T5 の UPDATE token が実際に実行されたことを観測する。"""
+
+        class ObservedScope:
+            """採番器の操作を本物の取引へ渡して UPDATE だけ数える。"""
+
+            def run(self, token: TenantOperationToken) -> TenantOperationResult:
+                """成功した再採番 UPDATE を記録する。"""
+                result = scope.run(token)
+                if isinstance(token, OperationEventOrderUpdateToken):
+                    updates.append(token)
+                return result
+
+        return original_assign(
+            cast(_TenantTransaction, ObservedScope()), game_id, desired
+        )
+
+    monkeypatch.setattr(ordering, "_assign_d2", observe_assign)
+
     rejected = SyncEvent(
         str(uuid4()),
         str(db.game_a),
-        3,
+        4,
         "1",
-        v5="game_end_declaration",
+        v5="play_input",
         v6=10,
         v7={"player_id": 1},
+        v8={},
     )
     result = _invoke(
         db,
         SyncRequest("P2", str(db.game_a), (rejected,), d4="1", v12="proof"),
     )
     assert isinstance(result, AckResult)
-    assert (result.boundary, result.b3_branch, result.d3) == ("B3", "B3a", 2)
+    assert (result.boundary, result.b3_branch, result.d3) == ("B3", "B3a", 3)
     assert result.a5[0].state == "拒否"
+    assert [token.d2 for token in updates] == [12, 11]
     assert _count(db, "idempotency_ledger", rejected.d5) == 1
     assert _count(db, "rejected_event_originals", rejected.d5) == 1
     with db.catalog.applicator.cursor() as cursor:
@@ -736,13 +767,53 @@ def test_d5_content_rejection_rolls_back_t5_renumbering(
             "AND game_id = %s ORDER BY d1",
             (db.tenant_a, db.game_a),
         )
-        assert cursor.fetchall() == [(1, 10), (2, 11)]
+        assert cursor.fetchall() == [(1, 9), (2, 10), (3, 11)]
         cursor.execute(
             "SELECT confirmed_watermark FROM recording_generations "
             "WHERE tenant_id = %s AND game_id = %s AND generation = 1",
             (db.tenant_a, db.game_a),
         )
-        assert cursor.fetchone() == (2,)
+        assert cursor.fetchone() == (3,)
+    db.catalog.applicator.rollback()
+
+
+def test_d5_content_rejection_stops_mixed_batch_after_t9(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """受理・D-5 拒否・後続を一要求で処理し、拒否の次を未処理にする。"""
+    db = prefix_database
+    accepted = _event(db.game_a, d1=1, d4="1")
+    rejected = _event(db.game_a, d1=2, d4="1", payload={"player_id": 1})
+    later = _event(db.game_a, d1=3, d4="1")
+    request = SyncRequest(
+        "P1", str(db.game_a), (later, rejected, accepted), d4="1", v12="proof"
+    )
+    result = _invoke(db, request)
+    assert isinstance(result, AckResult)
+    assert (result.boundary, result.b3_branch, result.d3) == ("B3", "B3a", 1)
+    assert [(item.d1, item.state) for item in result.a5] == [
+        (1, "受理"),
+        (2, "拒否"),
+        (3, "未処理"),
+    ]
+    assert result.a5[1].reason == "選手参照は UUID 文字列が必要"
+    assert result.a5[2].reason is None
+    assert _count(db, "idempotency_ledger", accepted.d5) == 1
+    assert _count(db, "idempotency_ledger", rejected.d5) == 1
+    assert _count(db, "idempotency_ledger", later.d5) == 0
+    assert _count(db, "rejected_event_originals", accepted.d5) == 0
+    assert _count(db, "rejected_event_originals", rejected.d5) == 1
+    assert _count(db, "rejected_event_originals", later.d5) == 0
+    assert _count(db, "operation_events", accepted.d5) == 1
+    assert _count(db, "operation_events", rejected.d5) == 0
+    assert _count(db, "operation_events", later.d5) == 0
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT confirmed_watermark FROM recording_generations "
+            "WHERE tenant_id = %s AND game_id = %s AND generation = 1",
+            (db.tenant_a, db.game_a),
+        )
+        assert cursor.fetchone() == (1,)
     db.catalog.applicator.rollback()
 
 

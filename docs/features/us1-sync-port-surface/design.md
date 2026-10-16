@@ -466,7 +466,7 @@ wire 設計の O4 には D2 固有の行が無い(6 行すべて O5 を足す)�
 | prefix_path.py:448 | P1PreconditionError(other) | 選手参照は UUID 文字列が必要 | _resolve_player_reference | 取引内 | 8 B3a | 同上 |
 | prefix_path.py:450 | P1PreconditionError(other) | 選手参照は正規 UUID が必要 | _resolve_player_reference | 取引内 | 8 B3a | 同上 |
 | prefix_path.py:459 | RuntimeError | 正式選手 ID の型が不正 | _resolve_player_reference | 取引内 | 8 O5 | player_id は NOT NULL Uuid(models.py:341)。スキーマが壊れたときだけ起きる |
-| prefix_path.py:470 | P1PreconditionError(other) | 一時選手 ID の確定写像がない | _resolve_player_reference | 取引内 | 8 B7(状態依存 — 11-1) | 参照先が写像にも自テナントの選手にも無い = 端末が送った参照で決まる(D1 順なので、登録イベントが拒否されたときなど)[推論] |
+| prefix_path.py:470 | P1PreconditionError(other) | 一時選手 ID の確定写像がない | _resolve_player_reference | 取引内 | 8 B7(状態依存 — 11-1) | 選手行・一時 ID の写像の有無という永続状態で結果が変わる(同じ参照でも、先行するその場登録が確定すれば通る)ので、内容だけでは決まらない — ステップ 5 で判明。B7 のまま |
 | prefix_path.py:496 | P1PreconditionError(other) | V5 で定義されない選手参照位置 | _resolve_payload | 取引内 | 8 B3a | V7 の形で決まる |
 | prefix_path.py:549 | RuntimeError | 認可後に試合行が消失した | _apply_locked | 取引内 | 8 B7 | 指定例。③ の後に状態が変わった競合 |
 | prefix_path.py:592 | P1PreconditionError(other) | D1 付き経路には D1 と D4 が必要 | _apply_locked | 取引内 | 2 | S-1(model.py:204-212)が保証する。プログラムの誤りでだけ起きる |
@@ -485,7 +485,7 @@ wire 設計の O4 には D2 固有の行が無い(6 行すべて O5 を足す)�
 | prefix_path.py:653 | RuntimeError | 現行イベントのスロットがない | _apply_locked | 取引内 | 8 O5 | イベント行があってスロット行が無い永続状態で決まる |
 | prefix_path.py:655 | P1PreconditionError(w2 / other) | 確定済みイベントは墓標・改訂で置換できない | _apply_locked | 取引内 | 8 確定スロットの食い違い(要決定 — 11-1) | V9 の原本がある(w2)なら B3a。無い(other)なら、D3+1 にスロットかイベントが既にある = D3 と保存行が食い違う不変条件違反 [推論]。所見 3・4 |
 | prefix_path.py:664 | _NoWriteStop | O4: 永続化済み D2 の同値 | _apply_locked | 取引内 | 6 | :812-813 で捕まえ、取り消してから B3 + A5 拒否(apply.py:427 で b3_branch "O4")。内部制御でもあるが、O4 を運ぶので区分 6 |
-| prefix_path.py:680 | P1PreconditionError(other) | 一時 ID は別の確定写像に使用済み | _apply_locked | 取引内 | 8 B7(状態依存 — 11-1) | 指定例(一時 ID の再使用)。端末が送ったその場登録の内容で決まる |
+| prefix_path.py:680 | P1PreconditionError(other) | 一時 ID は別の確定写像に使用済み | _apply_locked | 取引内 | 8 B7(状態依存 — 11-1) | 既存の一時 ID の写像という永続状態で結果が変わるので、内容だけでは決まらない — ステップ 5 で判明。B7 のまま |
 | prefix_path.py:710 | RuntimeError | D5 再照合が未使用に戻った | _apply_locked | 取引内 | 8 B7 | 指定例(競合) |
 | prefix_path.py:711 | _D5Race | (先着の結果) | _apply_locked | 取引内 | 5 | :810-811 で捕まえ、取り消してから先着の保存済み結果(再掲)または B3b |
 | prefix_path.py:729 | RuntimeError | D3 の前進に失敗 | _apply_locked | 取引内 | 8 O5 | 世代行は :887 で FOR UPDATE 済みなので、並行更新では起きない。起きれば構成か永続状態の異常で、毎回同じに失敗する [推論] |

@@ -30,7 +30,7 @@ created: 2026-10-16
 | **D-2c** | 墓標が元の種別を引き継げない原本(V5 の欠落・未知・状態補正〔採用前〕・**P3 の種別**)への墓標の表現 | 墓標の行の `event_kind` を「D1 付きの墓標の行として保存できる種別」なら継承、それ以外は新設の値(仮称 `tombstone_unknown_kind`)にする。CHECK・移行・U-S1・内容検証と投影のポートの契約試験 | 3-4 の D-2c の「完成条件」(**凍結資産 `contracts/db/schema-manifest.json` の改版と digest の取り直し・`backend/tests/test_operation_event_kind_contract.py` の更新を含む**) | G-B の一部(墓標で再開する経路) | **D-2**・**data-model 正本の改訂(確定ゲート)**・ポートの受理は G-E(U-X1・U-G2)の受入条件 | 新設の値の案(推奨)/ NULL 案(非推奨)、ポートの契約か U-S1 が呼ばないか |
 | **D-3** | 公開結果型の構造化 | A5 の各件に B3 の分岐(内容起因 B3a/B3b・O4・O5)を持たせる。P3 の拒否に `current_version`(B8)・`b9_cause`(B9)を持たせる。**506 への要求**(境界に依らず A5 の各件を分類する)を接続契約に書く | 4-5 の試験が green / 既存の試験 2 箇所の修正 | **G-C**・**G-G**(506 側への要求 — 4-4) | D-4(O5 の分岐を載せるため。D-4 を承認しない場合は O5 抜きで実装できる) | 承認 / 不承認、付帯 1 つ(P3 の追加値を必須にするか) |
 | **D-4** | O5 のサーバー側 | 本設計 11-1 の 7 件を専用の例外型で投げ、当該イベントの取引を全取消して B3 + A5「拒否」(理由コード O5)へ写す。7 件の列挙と、`raise` 全件の棚卸しを pytest で突合する | 6-6 の試験が green(注入点による DB 境界試験を含む) | なし(506 の HTTP 写像〔本設計 4 節〕と確認条件〔8 節〕の前提) | SP v0.9(確定済み — 2026-10-17 PO 承認)。**D-6 と組でしか承認できない**(6-7) | **D-6 と組で** 承認 / 不承認 |
-| **D-5** | 内容起因の `other` を B3a へ | 本設計 11-2 の B3a 7 件を、内容拒否の例外型で投げ直し、T9 + B3a に載せる | 5-4 の試験が green | なし(同上) | なし(単独で承認できる) | 承認 / 不承認 |
+| **D-5** | 内容起因の `other` を B3a へ | 本設計 11-2 の B3a 5 件(当初 7 件 — 2 件は永続状態に依存するので B7 のまま。ステップ 5 で判明)を、内容拒否の例外型で投げ直し、T9 + B3a に載せる | 5-4 の試験が green | なし(同上) | なし(単独で承認できる) | 承認 / 不承認 |
 | **D-6** | 端末の O5 | 拒否理由に O5 を足す。O4/O5 の理由コードを**スロットの必須の永続属性**にし、O5 の再開(内容も D5 も変えずに未送信へ)を O4 の再開(QT-07 — 新しい D5)と別の遷移にする。理由コードの無い管理者対応待ちのスロットは再開しない | 7-5 の Vitest が green / 遷移表の行数の検査を 15 行へ更新 | なし(506 の codec が受理する前提) | D-4・SP v0.9(確定済み)。**D-4 と組でしか承認できない** | **D-4 と組で** 承認 / 不承認 |
 | **D-7** | 故障系資産(NFR-019(d))の O5 | SP 10-2 の O5 の観点(SP:1700)を母集合に入れる。資産が観測するのは**取消の境界**(注入)で、永続状態での検出は D-4 の受入条件(8 節) | 母集合 v2 と契約検査が green(作成なら O5 の資産の結果検査も) | なし | **D-4 の後の別ステップ・別コミット**。D-4(と組の D-6)。凍結資産の版上げ。正本 10-2 の文言との差の扱い(問い 7) | **作成 / 受け取り先付きの繰り延べ** |
 
@@ -331,7 +331,7 @@ class RejectedChangeResult:                 # :409-420
 
 ## 5. D-5 内容起因の `other` を B3a へ
 
-### 5-1. 対象(本設計 11-2 `:201` の B3a 7 件)
+### 5-1. 対象(本設計 11-2 の B3a — 当初 7 件、実装では 5 件。prefix_path:470・680 は永続状態に依存するので B7 のまま)
 
 | 箇所 | 現行 | 理由(本設計 11-4) |
 | --- | --- | --- |
@@ -345,12 +345,12 @@ class RejectedChangeResult:                 # :409-420
 
 ### 5-2. 変更
 
-7 箇所の例外を **`P1ContentRejection(<同じ文言>)`** に変える(`sync/prefix_path.py:841-842` — `P1PreconditionError` の部分型)。`sync/ordering.py:16` の import に `P1ContentRejection` を足す。公開口・型の追加は無い。
+5 箇所の例外を **`P1ContentRejection(<同じ文言>)`** に変える(`sync/prefix_path.py:841-842` — `P1PreconditionError` の部分型)。`sync/ordering.py:16` の import に `P1ContentRejection` を足す。公開口・型の追加は無い。
 
 ### 5-3. 挙動
 
 - 取引は例外で全取消(`sync/prefix_path.py:788` の `tenant_transaction_scope` を例外で抜ける)→ `_run_d1_event` の `:183` が `isinstance(error, P1ContentRejection)` で拾い、新しい取引で T9 に原本・D5・理由を保存して B3a(`sync/rejection.py:207-209`)。端末は 2 択(改訂・墓標)で再開できる
-- 7 箇所はすべて D5 の再照合(`sync/prefix_path.py:581-584`)より後なので、保存済み結果の再掲では起きない(DI2 を壊さない)
+- 5 箇所はすべて D5 の再照合(`sync/prefix_path.py:581-584`)より後なので、保存済み結果の再掲では起きない(DI2 を壊さない)
 - **既存の試験は green のまま**: `pytest.raises(P1PreconditionError, match=...)` は部分型でも通る(`backend/tests/test_sync_apply_ordering.py:208`・`backend/tests/test_sync_apply_prefix_path.py:730`・`backend/tests/db/test_sync_apply_prefix_path_boundary.py:600` — いずれも局所関数を直接呼ぶ)
 - [推論] 補足: V6 の上限を ⑦ の `_d2`(`sync/prefix_path.py:316` は下限だけを見る)にも足せば、P2 以外の経路での上限超え(DB の bigint 溢れ → B7)も B3a に寄る。本差分に含めるかは任意(含めると ⑦ の判定が 1 つ増える)
 
@@ -358,7 +358,7 @@ class RejectedChangeResult:                 # :409-420
 
 | 種別 | 内容 |
 | --- | --- |
-| 単体 | 7 箇所それぞれが `P1ContentRejection` を投げる / `_run_d1_event` が `cause="content_rejection"` で T9 経路へ渡す |
+| 単体 | 5 箇所それぞれが `P1ContentRejection` を投げる / `_run_d1_event` が `cause="content_rejection"` で T9 経路へ渡す |
 | DB 境界 | 各入力で T9 の原本・台帳 `rejected`・A5「拒否」(B3a)・D3 不前進・T5 の再採番が戻っている / 同じ D5 の再送で保存済み B3a を再掲 / その改訂版で再開できる |
 | 負例 | B7 に残す `RuntimeError`(例 `sync/prefix_path.py:549`)が 500 のまま |
 
