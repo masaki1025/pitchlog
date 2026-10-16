@@ -244,3 +244,9 @@
 - `data-model.md` v0.11は`dc969d3e`で`approved`確定、索引・作業ログ・承認資料も同コミットの範囲で更新済み。今回の再承認メッセージで正本を再編集しない。`78c64915`最終反映が未再レビューである残余も既記録のまま保持する。
 - TSK-424の未回答3項目について[代替受理判断資料](../features/ur1-recording-rights/rg1-authz-alternative-acceptance.md)を作成。①専用owner/FORCE RLS/列ACLと既存policy合成、②appの固定読取2関数EXECUTEとPUBLIC剥奪、③承認済み§3-2とRG1一表だけの`function_only`写像を、差分・証拠・推奨裁定ごとに分けた。これは別のPO裁定候補であり、正本承認や無回答を代替受理と記録しない。
 - C1/#144はDraft・未統合（確認時HEAD`a417d2a54af55ce82921212e29f02f211c54279d`）。`origin/develop=e7e8d3a4324687ada828b1e4b49692c087af5c44`のまま。C1正式受理・統合後、実基線から7.7 revision/digest/snapshot/seedと全差分を再導出し、最終試験・レビュー結果とまとめる。本人逐行確認、Draft解除、マージは別ゲート。
+
+## 2026-10-16: 認可所有側3項目のPO代替受理
+
+- 本会話のPOは、[67eda311の判断資料](../features/ur1-recording-rights/rg1-authz-alternative-acceptance.md)のexact差分に限り、今回のRG1新4についてTSK-424の項目別回答に代わる受理を明示承認した。専用NOLOGIN/NOBYPASSRLS owner、1表・単一行FORCE RLS、owner向けSELECT/UPDATE policy各1件、`SELECT(singleton_id,state)`と`UPDATE(singleton_id)`、appの固定読取2関数EXECUTEとPUBLIC既定EXECUTE剥奪、承認済み§3-2との一致だけを対象とする。余剰policy・表全体の権限・復元開始・運用openは対象外。承認者氏名は今回のメッセージにないため推定しない。
+- この別裁定を正本v0.11の再承認、7.7実値の正式受理、本人逐行確認へ流用しない。C1/#144は確認時点でDraft・未統合、`origin/develop=e7e8d3a4`。現在の未受理履歴とseedによる全件検査赤は維持し、C1統合後の実基線で値を再導出する。
+- **候補検査**: 既存製品候補を変更せず、backendのRG1/認可/関数境界/migration/ロック関連pytest155件、rootの認可catalog全数変異pytest25,820件（8並列、309.31秒）、backend/root Ruff・ty、固定関数body、製品authz catalog（1414項目）、docs-status（20文書・違反0）、差分検査が成功。全数試験の逐次実行は73件成功時点で並列へ切り替えるため中断し、その後の全数成功で完走した。前回の独立レビューP0/P1/P2=0は当時の候補識別値に対する結果であり、C1統合後の最終差分・PR最終HEADのレビュー認定ではない。指摘対応を要する新たな失敗は今回なかった。

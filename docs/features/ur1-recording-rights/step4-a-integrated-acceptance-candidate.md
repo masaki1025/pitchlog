@@ -44,6 +44,13 @@ seed許可台帳の別系列`rg1_closed_seed`はbeforeで不存在、候補after
 - `TenantProfileReadToken`のC1は**TSK-528の追補C1**（`docs/features/auth-session-verification-contract/plan.md`）で、U-C1/TSK-401とは別。C1は[Draft PR #144](https://github.com/masaki1025/pitchlog/pull/144)で第1・第2段と7.7判断資料を公開し、第3段の正式受理・統合待ち。POは**C1正式受理・統合→U-R1追随**を順序として固定し、C1担当Codex Dは[#143コメント](https://github.com/masaki1025/pitchlog/pull/143#issuecomment-6209084415)で受領・技術阻害なしと回答し、C1作業ログにも記録した。C1受理済み履歴を次のbeforeにするまで両候補を同時に正式反映しない。C1全体の完成はU-R1の着手条件にしない。
 - guard3ファイルのU-R1差分は既存コミットに固定、未コミット差分0、今後の既知編集予定0。TSK-506へ編集所有を解除し、正式Notionカードへ引き渡した（コメント`3fb93b75-e687-8133-81a0-001d15c6c17d`）。TSK-506は最新developを基線にし、U-R1未統合ブランチを基線にしない。登録済み層、段階登録、実経路試験を統合時に維持する。
 
+## 2026-10-16 PO代替受理後の追加検査
+
+- POは[認可所有側3項目の判断資料](rg1-authz-alternative-acceptance.md)のexact差分だけをRG1新4について代替受理した。これは7.7正式受理や本人逐行確認ではない。今回の作業で製品・認可候補の内容は変更していない。以前の独立レビューP0/P1/P2=0は当時の候補識別値に対する結果であり、C1統合後の最終差分レビューを先取りしない。
+- `backend/`: RG1/認可/関数境界/migration/ロックの関連pytest **155件成功**。backendとrootのRuff・tyはいずれも成功。`check_authz_function_bodies.py`、`check_authz_catalog.py`（total=1414）成功。
+- rootの`tests/test_check_authz_catalog.py`全数は、専用一時領域を使い`-n 8 --dist worksteal`で**25,820件成功**（309.31秒）。先の逐次実行は73件通過時に並列実行へ切り替えるため中断したもので、後続の全数成功を失敗と扱わない。`check_docs_status.py`は20文書・違反0、`git diff --check`成功。
+- C1/#144は再確認時もDraft・未統合（HEAD`a417d2a54af55ce82921212e29f02f211c54279d`）。現`origin/develop=e7e8d3a4324687ada828b1e4b49692c087af5c44`であり、上記は**C1統合前のローカル候補検査**。未受理履歴/seedの赤と最終7.7値の未確定を維持する。
+
 ## 正本7.6・所有者回答の確認
 
 - `docs/development/dev-harness-design-2026-08-07.md` 7.6-3に従い、RG1専用ロールと権限境界の新設を`data-model.md` v0.11の構造改訂として7.3へ送った。`in-review`候補は`b34c350a`、全文レビューP0=0/P1=5/P2=0を全件採用した`反映1周目`は`01ec08aa`、差分レビューP0=0/P1=2/P2=0を全件採用した`反映2周目`は`78c64915`。最終反映は未再レビューだったが、2026-10-16の本会話でPOが本文・権限差分・採否と残余を確認し、**正本v0.11の今回の改訂範囲だけを承認**した。[承認資料](rg1-data-model-v011-final-approval.md)へ対象を固定した。認可所有側受理と7.7は別。
