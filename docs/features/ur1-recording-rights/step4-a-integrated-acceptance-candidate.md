@@ -15,7 +15,7 @@
 
 ## 7.7 候補前後値（正式受理待ち）
 
-次の値は、上記A統合SHAを比較元とした**C1統合前の現作業ツリー候補値**。受理ID候補は実PR番号に基づく`masaki1025/pitchlog#143`。新4の最終HEAD・承認者・承認日はまだない。受理記録やsnapshotファイルを正式台帳へ先行追加しない。C1を先行統合する順序が受理されれば、その受理済み履歴をbeforeに再算出する。
+次の値は、上記A統合SHAを比較元とした**C1統合前の現作業ツリー候補値**。受理ID候補は実PR番号に基づく`masaki1025/pitchlog#143`。新4の最終HEAD・承認者・承認日はまだない。受理記録やsnapshotファイルを正式台帳へ先行追加しない。PO固定順に従いC1の正式受理・統合後、その受理済み履歴をbeforeに再算出する。
 
 | 凍結資産 | before revision / snapshot SHA-256 | 候補after revision / snapshot SHA-256 |
 | --- | --- | --- |
@@ -41,13 +41,13 @@ seed許可台帳の別系列`rg1_closed_seed`はbeforeで不存在、候補after
 - 製品認可全資産の試験は、共有DBの既存test roleと衝突したため、管理接続を別コンテナへ向けた専用使い捨てクラスタで再実行した。初回適用ではRG1を含む全資産のcatalog照合が成功し、取り外し時にRG1列UPDATEの権限が残る不具合を発見した。RG1 exact tupleのSELECT/UPDATE両方をREVOKEする最小修正後、適用・取り外し・migration往復・再適用の3件、適用器単体49件が成功した。共有ロールは変更していない。追加独立レビューはHEAD`ca37bfc2`の候補差分識別値（tracked binary diff SHA-256=`b32c7aa2f6e5e7541c49008e5d37fe5f32a72946786f7fa565c7cb45e3e0d805`、未追跡ファイル列SHA集約=`d21c69b3cc5ee4b50f860878430406bbcbb058fb9c5ba4288973f26f77201f00`）で**P0/P1/P2=0**。
 - rootの`test_check_authz_catalog.py`全数試験は大規模な変異集合の途中までで停止した。旧未発効fixtureが45表を前提にする既存試験をRG1候補の46表から隔離する修正を加え、該当1件は成功。全数greenと記録しない。
 - PR #143の公開中の準備HEAD `cd03ddcb` のCIはharness・mutation・tenant-boundary-bypassなどが成功し、core guardだけが**人間逐行確認欄の未チェック**で失敗した。backend/frontendは製品候補が未pushのためskipping。ローカル新4候補の隔離DB・関連試験成功とは別の結果である。チェックを偽って通さず、人間確認後の別ゲートで再実行する。
-- `TenantProfileReadToken`のC1は独立カードではなく**TSK-528の追補C1**（`docs/features/auth-session-verification-contract/plan.md`）と確認した。U-C1/TSK-401のグループ管理操作とは別である。C1は[Draft PR #144](https://github.com/masaki1025/pitchlog/pull/144)を公開し、共有資産の第1・第2段を含む第3段の7.7正式受理待ち。U-R1と同じA統合後の`repository-contract`19→20、`base-allowlist`31→32を候補に持つ。POは**C1正式受理・統合→U-R1追随**を希望し、U-R1はC1担当へ同順序の採否を依頼済み。2026-10-16時点でC1担当の明示回答は確認できず、合意済みとは扱わない。受理済みC1履歴を次のbeforeにするまで、両候補を同時に正式反映しない。C1全体の完成はU-R1の着手条件にしない。
+- `TenantProfileReadToken`のC1は**TSK-528の追補C1**（`docs/features/auth-session-verification-contract/plan.md`）で、U-C1/TSK-401とは別。C1は[Draft PR #144](https://github.com/masaki1025/pitchlog/pull/144)で第1・第2段と7.7判断資料を公開し、第3段の正式受理・統合待ち。POは**C1正式受理・統合→U-R1追随**を順序として固定し、C1担当Codex Dは[#143コメント](https://github.com/masaki1025/pitchlog/pull/143#issuecomment-6209084415)で受領・技術阻害なしと回答し、C1作業ログにも記録した。C1受理済み履歴を次のbeforeにするまで両候補を同時に正式反映しない。C1全体の完成はU-R1の着手条件にしない。
 - guard3ファイルのU-R1差分は既存コミットに固定、未コミット差分0、今後の既知編集予定0。TSK-506へ編集所有を解除し、正式Notionカードへ引き渡した（コメント`3fb93b75-e687-8133-81a0-001d15c6c17d`）。TSK-506は最新developを基線にし、U-R1未統合ブランチを基線にしない。登録済み層、段階登録、実経路試験を統合時に維持する。
 
 ## 正本7.6・所有者回答の確認
 
-- `docs/development/dev-harness-design-2026-08-07.md` 7.6-3は、実装追随の節更新をPRレビュー、版繰り上げを伴うアーキテクチャ・スキーマ等の構造変更を7.3の敵対レビューと人間承認へ振り分ける。現`data-model.md`§3-2候補はRG1専用ロールと権限境界を**新設**し、製品ロール数も変更するため、単なる事実追随と断定できない。設計の正式確定として7.3ゲートが必要な候補と判定し、現段階の節案は「7.6未確定」のまま正式正本へコミットしない。既承認のRG1製品候補・独立コードレビューを正本確定の代用にしない。
-- 認可資産所有側TSK-424へ、owner・FORCE RLS・列ACL・PUBLIC/アプリEXECUTE・data-model§3-2の採否をNotionコメント`3fb93b75-e687-8148-a727-001d69510117`で依頼済み。2026-10-16時点で項目別の回答は確認できない。回答が得られない場合の中継事項は、この認可候補の受理可否・必要な修正点・正本7.3の担当だけとする。
+- `docs/development/dev-harness-design-2026-08-07.md` 7.6-3に従い、RG1専用ロールと権限境界の新設を`data-model.md` v0.11の構造改訂として7.3へ送った。`in-review`候補は`b34c350a`、全文レビューP0=0/P1=5/P2=0を全件採用した`反映1周目`は`01ec08aa`、差分レビューP0=0/P1=2/P2=0を全件採用した`反映2周目`は`78c64915`。正本の最終承認は未取得で、最終反映は未再レビューとして人間確認対象。[最終承認資料](rg1-data-model-v011-final-approval.md)へ本文・採否・権限差分を集約した。
+- 認可資産所有側TSK-424へ、実効権限と既存policy合成、固定2関数EXECUTEとPUBLIC剥奪、正本§3-2の修正点・7.3担当だけをNotionコメント`3fb93b75-e687-81d1-9522-001dfdd41c49`で再照会した。項目別回答は未確認。回答不能時の代替受理に必要なPO判断を最終承認資料に明記した。
 
 ## 次の人間判断
 
