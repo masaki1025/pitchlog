@@ -121,69 +121,103 @@ async function reconcileAppend(
 }
 
 /**
+ * 永続キューへ追記し、追記の成立をもって受理とする(排他は取らない)。
+ *
+ * 呼出元が単一書き手の排他の中で呼ぶこと。追記から送信・ACK の適用までを 1 つの
+ * 排他で包むため、排他の取得をこの関数から分けてある
+ * (docs/features/uf8-game-recording/design.md 4-1')。
+ *
+ * 追記の成否を戻り値だけで決めない —— `appendUnderQueueDiscipline` は追記が
+ * 成功した後に未送信件数を別途読むため(clientDiscipline.ts:34)、件数の読取り
+ * だけが失敗しても追記は成立している。その場合は追記前に読んだ次の D1 で
+ * スロットを読み直して照合する。
+ *
+ * Args:
+ *     input: 追記するイベントと、その範囲。
+ *     queue: 追記先のキュー。
+ *     warningThreshold: 未送信件数の警告の閾値。
+ *
+ * Returns:
+ *     受理・不受理・不明のいずれか。スロットを持つのは受理だけである。
+ */
+export async function appendPitchEventUnderLock(
+  input: PitchAcceptanceInput,
+  queue: PitchAcceptanceQueue,
+  warningThreshold?: number,
+): Promise<PitchAcceptanceResult> {
+  // 追記が成立したかを後から照合するため、採番される D1 を先に読む。
+  let expectedD1: number | undefined
+  try {
+    expectedD1 = await queue.readNextD1(input.scope)
+  } catch {
+    expectedD1 = undefined
+  }
+
+  const append: DurableQueueAppend = {
+    scope: input.scope,
+    d5: input.d5,
+    version: input.version,
+    event: input.event,
+  }
+
+  try {
+    const disciplined = await appendUnderQueueDiscipline(
+      queue,
+      append,
+      warningThreshold,
+    )
+    return {
+      outcome: 'accepted',
+      slot: disciplined.slot,
+      unsentCount: disciplined.unsentCount,
+      warningThresholdReached: disciplined.warningThresholdReached,
+    }
+  } catch {
+    return reconcileAppend(queue, input, expectedD1)
+  }
+}
+
+/** 排他を取れなかったときの結果。 */
+export function pitchAcceptanceNotStarted(
+  singleWriterReason: SingleWriterStartFailure,
+): PitchAcceptanceResult {
+  return {
+    outcome: 'not-accepted',
+    reason: PITCH_ACCEPTANCE_FAILURE.SINGLE_WRITER_NOT_STARTED,
+    singleWriterReason,
+  }
+}
+
+/**
  * 単一書き手の排他の下で永続キューへ追記し、追記の成立をもって受理とする。
  *
- * 排他を取れなければ追記しない。追記の成否を戻り値だけで決めない —
- * `appendUnderQueueDiscipline` は追記が成功した後に未送信件数を別途読むため
- * (clientDiscipline.ts:34)、件数の読取りだけが失敗しても追記は成立している。
- * その場合は追記前に読んだ次の D1 でスロットを読み直して照合する。
+ * 排他を取れなければ追記しない。追記だけを行う入口で、送信までを 1 つの排他で
+ * 包む経路は commitPitchEvent にある。
  *
  * Args:
  *     input: 追記するイベントと、その範囲。
  *     dependencies: 注入するキューと単一書き手の前提。
  *
  * Returns:
- *     受理・不受理・不明のいずれか。スロットを持つのは受理だけである。
+ *     受理・不受理・不明のいずれか。
  */
 export async function acceptPitchEvent(
   input: PitchAcceptanceInput,
   dependencies: PitchAcceptanceDependencies,
 ): Promise<PitchAcceptanceResult> {
-  const { queue } = dependencies
-
   const started = await runAsSingleWriter<PitchAcceptanceResult>(
     { gameIdentifier: input.gameIdentifier },
-    async () => {
-      // 追記が成立したかを後から照合するため、採番される D1 を先に読む。
-      let expectedD1: number | undefined
-      try {
-        expectedD1 = await queue.readNextD1(input.scope)
-      } catch {
-        expectedD1 = undefined
-      }
-
-      const append: DurableQueueAppend = {
-        scope: input.scope,
-        d5: input.d5,
-        version: input.version,
-        event: input.event,
-      }
-
-      try {
-        const disciplined = await appendUnderQueueDiscipline(
-          queue,
-          append,
-          dependencies.warningThreshold,
-        )
-        return {
-          outcome: 'accepted',
-          slot: disciplined.slot,
-          unsentCount: disciplined.unsentCount,
-          warningThresholdReached: disciplined.warningThresholdReached,
-        }
-      } catch {
-        return reconcileAppend(queue, input, expectedD1)
-      }
-    },
+    () =>
+      appendPitchEventUnderLock(
+        input,
+        dependencies.queue,
+        dependencies.warningThreshold,
+      ),
     dependencies.singleWriterInjections,
   )
 
   if (!started.recordingStarted) {
-    return {
-      outcome: 'not-accepted',
-      reason: PITCH_ACCEPTANCE_FAILURE.SINGLE_WRITER_NOT_STARTED,
-      singleWriterReason: started.reason,
-    }
+    return pitchAcceptanceNotStarted(started.reason)
   }
   return started.value
 }
