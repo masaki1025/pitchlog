@@ -387,3 +387,20 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - 候補作成に関与していないCodexがHEAD `7f46800b404691aea376f4250e941fd09ec9c547`のPR全差分を敵対観点で査読し、P0=0 / P1=0 / P2=0で可決した。履歴prefix、固定案との差分、2 snapshot・8 blob・6 digest、Cookie→TenantContext→固定operation→DTO検証、既存A境界とexact-setを確認し、独立34試験とproduct authz checkerが成功した。
 - 規約6.3の反対側一次レビューはClaude CLI（`--print --tools ''`、製品・試験diffをstdin入力）で実行した。P0=0 / P1=0 / P2=1で可決。P2は空名・不正名型・複数行拒否試験のtenantが文脈と不一致で先に短絡する点だった。採用し、その3入力を文脈と同じUUIDへ変更して各条件へ到達させ、2行目の名称非漏洩assertを追加した。新規製品仕様・受理値は変更していない。
 - 同じ独立CodexがP2反映差分と影響箇所だけを再査読し、P0=0 / P1=0 / P2=0で可決。session10試験、Ruff、format、ty、diff-checkが成功した。本人逐行確認は未実施のまま維持する。
+
+
+### C1ステップ2の再開・所有（2026-10-17）
+
+- 山田正輝が承認済みC1ステップ2の実装・検査・レビュー・コミット・PR準備を指示した。専用worktreeのfeature branchを最新`origin/develop=3052e0db743877c7f15c0ec10daa0142cba7ab7e`へfast-forwardした。C1ステップ1・#119・#120の実コード統合と正規DTOを確認し、開始条件は成立。
+- open PRとworktreeを照合し、C2/U-F3/U-F2/U-F6の並行編集はなかった。C1が`api/auth.ts`、`authStore.ts`、共通clientの確認前拒否/認証Cookie成功フック、固有specを一時所有する。C2のmetadata、U-F3画面、U-F13のroute/guardは変更しない。後続計画へC1ステップ2統合待ちと引渡し条件を追随した。
+- 保存値は確認候補にとどめ、起動時・別タブ変更時に認証を復元しない。login成功headersで旧tenant/cacheを破棄し、session DTO確認成功後だけ認証済みとする。login確定拒否・session未認証・結果未確認を分け、資格情報を自動再送せず、正規APIの明示再確認/logoutを供給する。最終試験・正式レビュー・人間逐行確認は未了。
+
+### C1ステップ2の品質検査・敵対指摘（2026-10-17）
+
+- 未コミット製品候補はfrontend全68ファイル・1,220試験、対象6ファイル167試験、Prettier/ESLint/vue-tsc/dependency-cruiser/buildが成功。rootのRuff/ty、正本同期・coverage・propagation、frozen-baseline invariants、tenant-boundary、diff-checkも成功した。backend全件は今回未実施。
+- 正式wrapperの敵対レビュー第1周は否決（P0=1/P1=1/P2=1）。P0は旧loginのSet-Cookieが新世代検証後に到着する競合で、JS側のstale棄却だけではCookieとtenantの一致を保てない点。採用し、現行の「旧操作は新世代store/cacheを変更しない」に安全側の認証未確認化の例外を設ける最小追補を人間判断へ提示した。承認前に製品契約を変更せず、ステップ2完了・PR可能とは扱わない。
+- P1の確認開始時bb.auth除去とP2の共有abort後の明示再確認要求は、承認済み§4項6・§3の契約どおり。可用性制約として引渡し対象に残す。Claude一次レビューは実行中。
+- 判断資料は`docs/features/auth-session-verification-contract/step2-review-material.md`。Claude向け申し送りは本コミット済み作業ログへ集約する既定方針を維持し、消失した別資料の復元とは扱わない。C2/U-F3/U-F13の実装・公開は未着手。
+
+- Claude一次レビューは差し戻し（P0=0/P1=2/P2=10）。Cookie競合は敵対指摘と一致し、人間判断が必要との結論。試験追加可能なP2には同じ承認範囲で対応し、epoch、競合拒否、login不正JSON、確定未認証後の自動再送禁止を追加した。auth固有42試験成功。全件1,220成功は追加前であり、最終候補の全件完走とは扱わない。
+- 最小追補の承認は未着。P0を残した実装完了コミット・PR作成は行わず、製品差分は専用worktreeと外部patchへ保全する。記録のみをコミットし、ステップ2の完了トークンは付けない。2026-10-17再fetchでもdevelopは3052e0dbのまま。凍結資産・backend・認可・実行器への変更はない。

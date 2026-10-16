@@ -35,7 +35,7 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 
 正本への反映なし。本追補は承認済みの認証・tenant分離契約に対する製品実装追随であり、`docs/requirements`・`docs/design`・`docs/adr`・`docs/development`・`docs/ops`は変更しない。
 
-**正本体系外だが同一PRで更新するもの**: backendのsession endpoint・DTO・tenant profile固定operationと試験、`contracts/authz/*`のroute/matrix・oracle資産、`contracts/tenant_boundary/{base-allowlist.json,repository-contract.json}`、authz/tenant-boundaryの検査fixture・検査コード、本計画・関連調査/申し送り・作業ログ。
+**正本体系外だが同一PRで更新するもの**: frontendの`api/auth.ts`・`api/client.ts`・`stores/authStore.ts`と各spec、C2/U-F3/U-F13の依存・所有状態、backendのsession endpoint・DTO・tenant profile固定operationと試験、`contracts/authz/*`のroute/matrix・oracle資産、`contracts/tenant_boundary/{base-allowlist.json,repository-contract.json}`、authz/tenant-boundaryの検査fixture・検査コード、本計画・関連調査/申し送り・作業ログ。
 
 ## 3. 認証状態と失敗時の契約
 
@@ -148,3 +148,17 @@ U-F13計画の最終P1反映と、その後に具体化した本契約案は未�
 2026-10-16、山田正輝がC1ステップ1限定の3段・3コミット、Draft中のplan `active`維持、品質gate分割を承認した。追加独立レビューが承認範囲内の修正で収束した場合、第1・第2段のコミット、push、実番号取得用Draft PR作成まで再確認なく進める。共有実行器Aと重なる資産はA→C1を基本順とし、Aの実統合後の基線から受理値・履歴を再導出する。第3段の正式7.7受理、人間逐行確認、Draft解除、マージは承認範囲外である。
 
 2026-10-16、山田正輝が判断資料SHA-256 `75b65bf4f9f92a97e771e305bcd0c9a9b270d39467f71b5f25280562033d1f69`、受理記録案SHA-256 `43acdfa1b1e88ad235af019fd230615a702a191d91c3c158ca7b1466b4a0e141`に固定したtenant-boundary・authz両系列の7.7記録案、2 snapshot、8入力blob、6 sealed digestを正式受理した。承認者は山田正輝、承認日は2026-10-16。第3段の履歴・snapshot反映、oracle再封印、コミット、検査、push、CI、PR本文更新を許可した。この受理はPR全体の本人逐行確認、Draft解除、マージ、C2、U-F3、公開を含まない。
+
+
+## 11. ステップ2再開記録（2026-10-17）
+
+山田正輝がC1ステップ1統合後、承認済み計画のステップ2の実装・試験・レビュー・指摘対応・コミット・PR準備を承認した。最新develop `3052e0db743877c7f15c0ec10daa0142cba7ab7e`へ専用worktreeをfast-forwardし、開始条件を再照合した。login/session/logoutの既存endpoint/DTO、U-F6共通client、共有Pinia/QueryClientを利用する。C2・U-F3・公開・マージへは進まない。
+
+| 編集対象 | 今回の一時所有 | 後続への引渡し条件 |
+|---|---|---|
+| `api/auth.ts` / `authStore.ts` / 各spec | C1（Codex D） | session DTO検証、確認前の空状態、結果未確認、世代照合の検査と統合後にU-F3が呼ぶ |
+| `api/client.ts` / 各spec | C1（Codex D） | tenant通信の確認前拒否とlogin成功headers直後の旧認証破棄だけを追随。C2はC1統合後からmetadata照合を追加 |
+| `api/roster.spec.ts` | C1（Codex D） | 単体試験の前提を検証済み認証へ明示する。roster製品API/DTOは変更しない |
+| `LoginScreen` / router / App | U-F3 / U-F13（Codex D） | 今回変更せず、C1全体の統合後に各計画・指示に従い着手 |
+
+worktree一覧とopen PR（#138/#142/#143）にC2/U-F3/U-F2/U-F6の並行編集はない。既存承認済みの同一担当内でC1→C2→U-F3/U-F13の順を維持する。共有凍結資産は変更しない。`bb.auth`の旧形は候補として検査するが認証済みへ戻さず、保存形式を独自に追加しない。
