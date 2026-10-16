@@ -8,7 +8,7 @@ notion: 未起票（D-2(iv) と TSK-237 は別管理）
 branch: feature/adr003-d2iv-applicability
 created: 2026-10-16
 計画レビュー周回: 0
-確定ゲート周回: 1
+確定ゲート周回: 2
 実行方式: 通常
 反映周コミット: 適用
 ---
