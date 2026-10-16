@@ -1114,12 +1114,13 @@ def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> Non
         "CAP:invalidation_intents:update",
         "CAP:evacuated_event_originals:read",
         "CAP:evacuated_event_originals:insert",
+        "CAP:tenants:read",
     }
     assert set(repository_contract.PRODUCT_CAPABILITY_IDS) == expected
     assert {
         spec.capability_id for spec in repository_base._OPERATION_REGISTRY.values()
     } == expected
-    assert len(repository_base._OPERATION_REGISTRY) == 43
+    assert len(repository_base._OPERATION_REGISTRY) == 44
     for registration in repository_base._OPERATION_REGISTRY.values():
         statement = registration.statement
         if isinstance(statement, Select) and statement._for_update_arg is not None:

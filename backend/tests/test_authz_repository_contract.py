@@ -548,6 +548,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "CAP:invalidation_intents:update",
         "CAP:evacuated_event_originals:read",
         "CAP:evacuated_event_originals:insert",
+        "CAP:tenants:read",
     )
     expected_sync_operations = (
         ("GameReadToken", "CAP:games:read"),
@@ -599,6 +600,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.lineup_memory._LineupMemoryInsertToken",
         "pitchlog.repositories.lineup_memory._LineupMemoryUpdateToken",
         *(f"pitchlog.sync.tokens.{name}" for name, _ in expected_sync_operations),
+        "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
@@ -625,6 +627,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 expected_capabilities[0],
                 *expected_capabilities[8:11],
                 *(capability for _, capability in expected_sync_operations),
+                expected_capabilities[-1],
             ),
             strict=True,
         )

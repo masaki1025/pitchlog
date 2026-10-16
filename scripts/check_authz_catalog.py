@@ -2250,7 +2250,7 @@ def _validate_record_and_aggregate_route_ids(
 def _validate_authentication_entry_route_ids(
     route_by_id: dict[str, dict[str, object]],
 ) -> None:
-    """認証 HTTP 入口が承認済みの 3 経路と一致することを検査する。"""
+    """認証 HTTP 入口が承認済みの4経路と一致することを検査する。"""
     actual_route_ids = frozenset(
         route_id
         for route_id, route in route_by_id.items()
@@ -2261,6 +2261,7 @@ def _validate_authentication_entry_route_ids(
             "ROUTE:AUTH:login:create",
             "ROUTE:AUTH:logout:create",
             "ROUTE:AUTH:password:update",
+            "ROUTE:AUTH:session:read",
         }
     )
     if actual_route_ids != expected_route_ids:

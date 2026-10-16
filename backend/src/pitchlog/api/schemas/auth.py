@@ -1,6 +1,7 @@
 """チームのログイン要求と応答を定義する。"""
 
 from typing import Literal
+from uuid import UUID
 
 from pitchlog.api.schemas.base import BaseSchema
 
@@ -16,6 +17,13 @@ class LoginResponse(BaseSchema):
     """提示値を含めずにログインの成功を伝える。"""
 
     status: Literal["authenticated"] = "authenticated"
+
+
+class AuthSessionResponse(BaseSchema):
+    """サーバーが検証したテナント情報を返す。"""
+
+    tenant_id: UUID
+    team_name: str
 
 
 class PasswordChangeRequest(BaseSchema):
