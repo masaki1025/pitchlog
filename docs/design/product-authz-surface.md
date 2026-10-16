@@ -7,7 +7,7 @@ status: in-review
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
-| 0.1 | 2026-10-15 | TSK-550段階Aの固定制限関数だけを新設正本として起案。**本書で確定する範囲** = 関数1件の到達経路、専用ownerと最小権限、READ COMMITTEDでの親ロック後の割当照会、直接権限を開かない境界、GUC残余脅威。**実装時に確定する範囲** = 関数SQL・認可資産/適用器・カタログ/2接続/故障試験の具体。管理書込関数、段階Bの優先順位、固定function operationの実装、§6-5とF-2値は対象外。計画: `../features/ux1-fr014-rule-resolution/plan.md`、審査差分: `../features/ux1-fr014-rule-resolution/step3-formal-gate-submission.md` | in-review |
+| 0.1 | 2026-10-15 | TSK-550段階Aの固定制限関数だけを新設正本として起案。**本書で確定する範囲** = 関数1件の到達経路、専用ownerと最小権限、READ COMMITTEDでの親ロック後の割当照会、直接権限を開かない境界、GUC残余脅威。**実装時に確定する範囲** = 関数SQL・認可資産/適用器・カタログ/2接続/故障試験の具体。管理書込関数、段階Bの優先順位、固定function operationの実装、§6-5とF-2値は対象外。**2026-10-16限定追加レビュー反映**: A実行器が検証済みscopeのUUIDを第1引数へ注入するため関数identityを4引数へ訂正し、第1引数とtenant GUCの不一致を非成功に固定。公開requestは3項目のまま。計画: `../features/ux1-fr014-rule-resolution/plan.md`、審査差分: `../features/ux1-fr014-rule-resolution/step3-formal-gate-submission.md` | in-review |
 
 ## 射程宣言
 
@@ -17,7 +17,7 @@ status: in-review
 
 製品認可面の既存実装設計は`../features/product-authz-surface/design.md`が持つ。同書は正本ではない。本書はFR-014の段階Aに追加する**固定読取関数1件**の規範だけを持ち、ロール総数と分割は[data-model 3-2節](data-model.md#3-2-ロールを-7-つに分ける論点-3裁定-a-3認証関数所有用は-u-a1規則解決関数所有用は-tsk-550-の候補)、規則データの出所は[同10-5節](data-model.md#10-5-規則セットfr-014付録f)に従う。
 
-認証済みの同一tenant transaction scopeから`public.resolve_stage_a_rule(text,text,boolean)`だけを呼ぶ。入力は試合区分キー、必須大会キー、上書き有無とし、任意tenant ID・規則IDを呼出側から受けない。上書き有無がtrueなら段階A対象外として拒否し、全体既定を返さない。候補なし、越境、無効規則、読取失敗から試合INSERTへ進まない。段階A対象外は既受理の`stage_a_unsupported`へ写像し、公開失敗分類を増やさない。越境と候補なしの利用者向け外形は同じにする。具体的な関数公開型・戻りdecoder・固定operationはTSK-550の既受理契約に従い、実装はステップ4以後のゲートで扱う。
+認証済みの同一tenant transaction scopeから`public.resolve_stage_a_rule(uuid,text,text,boolean)`だけを呼ぶ。第1引数のtenant UUIDは検証済みscopeから固定実行器が注入する。公開requestは試合区分キー、必須大会キー、上書き有無の3項目とし、任意tenant ID・規則IDを呼出側から受けない。上書き有無がtrueなら段階A対象外として拒否し、全体既定を返さない。候補なし、越境、無効規則、読取失敗から試合INSERTへ進まない。段階A対象外は既受理の`stage_a_unsupported`へ写像し、公開失敗分類を増やさない。越境と候補なしの利用者向け外形は同じにする。具体的な関数公開型・戻りdecoder・固定operationはTSK-550の既受理契約に従い、実装はステップ4以後のゲートで扱う。
 
 ## 2. owner・権限・関数本体
 
@@ -40,6 +40,6 @@ status: in-review
 
 ## 4. GUCの残余脅威と検査
 
-関数は`app.tenant_id`の存在・UUID形式・要求大会のtenant一致を検査する。ただしアプリDB接続資格情報を取得した主体はGUCを設定できるため、関数内検査だけで偽装を防いだとは扱わない。通常製品経路のtenant真正性は認証済み`TenantContext`の発行、固定function operation、DB接続資格情報の保護と直SQL不可の運用境界に依存する。接続そのものを奪った主体の残余脅威を、認可面・tenant境界所有者とPOが明示的に採否する。
+関数は`app.tenant_id`の存在・UUID形式、第1引数のscope注入UUIDとの厳密一致、要求大会のtenant一致を検査し、不一致なら非成功とする。ただしアプリDB接続資格情報を取得した主体はGUCを設定できるため、関数内検査だけで偽装を防いだとは扱わない。通常製品経路のtenant真正性は認証済み`TenantContext`の発行、固定function operation、DB接続資格情報の保護と直SQL不可の運用境界に依存する。接続そのものを奪った主体の残余脅威を、認可面・tenant境界所有者とPOが明示的に採否する。
 
 実装後は専用DBで、appの直表SELECT/書込拒否、既存既定表SELECT保持、関数のPUBLIC拒否、別tenant・欠損・無効規則・読取故障・割当あり拒否、親ロック待機の前後両順序、権限の再適用と取り外し、カタログexact-setを試験する。実関数2接続/故障注入はステップ3〜6、U-G1の実HTTP・RG1・保存全取消はTSK-395ステップ2の証跡とし、正本承認前の完了条件にしない。
