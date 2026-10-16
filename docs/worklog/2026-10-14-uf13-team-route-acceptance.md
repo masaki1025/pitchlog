@@ -381,3 +381,9 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 
 - root全件は29,635件成功・2件skip・3件失敗で完走した。失敗3件は`failure-injection-points.json`のDDL blob参照と`mcdc-map.json`のclaim-mutant blob参照の追随漏れに限られた。参照先の変更はoracle_commit追随だけで、失敗注入点5件・MC/DC分岐47件の意味・期待値は不変。2参照を実Git blobから再導出し、関連23試験と両検査CLIが成功した。正式受理済み8入力blob・6 sealed digest・2 snapshot・記録本文は不変である。
 - root/backendのRuff・ty、backend format、docs-status/伝播/coverage、authz/tenant-boundary/frozen-baseline不変量は成功。frontendはPrettier・ESLint・vue-tsc・Vitest 67ファイル1,182件・buildが成功した。backend全件と最終PRレビューは実行中。
+
+### 最終候補レビューとP2反映（2026-10-16）
+
+- 候補作成に関与していないCodexがHEAD `7f46800b404691aea376f4250e941fd09ec9c547`のPR全差分を敵対観点で査読し、P0=0 / P1=0 / P2=0で可決した。履歴prefix、固定案との差分、2 snapshot・8 blob・6 digest、Cookie→TenantContext→固定operation→DTO検証、既存A境界とexact-setを確認し、独立34試験とproduct authz checkerが成功した。
+- 規約6.3の反対側一次レビューはClaude CLI（`--print --tools ''`、製品・試験diffをstdin入力）で実行した。P0=0 / P1=0 / P2=1で可決。P2は空名・不正名型・複数行拒否試験のtenantが文脈と不一致で先に短絡する点だった。採用し、その3入力を文脈と同じUUIDへ変更して各条件へ到達させ、2行目の名称非漏洩assertを追加した。新規製品仕様・受理値は変更していない。
+- 同じ独立CodexがP2反映差分と影響箇所だけを再査読し、P0=0 / P1=0 / P2=0で可決。session10試験、Ruff、format、ty、diff-checkが成功した。本人逐行確認は未実施のまま維持する。

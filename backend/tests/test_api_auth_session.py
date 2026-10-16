@@ -120,10 +120,13 @@ async def test_session_maps_missing_profile_to_uniform_unauthenticated(
     [
         ((uuid4(), "別テナント"),),
         ((str(uuid4()), "文字列ID"),),
-        ((uuid4(), ""),),
-        ((uuid4(), 123),),
+        ((UUID("00000000-0000-0000-0000-000000000001"), ""),),
+        ((UUID("00000000-0000-0000-0000-000000000001"), 123),),
         ((uuid4(), "余分", "列"),),
-        ((uuid4(), "1行目"), (uuid4(), "2行目")),
+        (
+            (UUID("00000000-0000-0000-0000-000000000001"), "1行目"),
+            (uuid4(), "2行目"),
+        ),
     ],
 )
 async def test_session_rejects_unverified_result_shapes_without_leakage(
@@ -147,6 +150,7 @@ async def test_session_rejects_unverified_result_shapes_without_leakage(
     assert "別テナント" not in result.text
     assert "文字列ID" not in result.text
     assert "1行目" not in result.text
+    assert "2行目" not in result.text
 
 
 def test_session_response_rejects_extra_fields() -> None:
