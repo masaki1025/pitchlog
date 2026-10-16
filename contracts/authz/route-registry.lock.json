@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "contracts/authz/route-registry.json",
-  "asset_digest": "f6761c8aa6f5847a17dce3ce49f9734081da4d20345297f1ee0998677493d090",
+  "asset_digest": "0da4b5628d9ca6bd68db90e517bb0c771bc233197b9ef6465aae8633cde49b44",
   "entry_count": 244,
   "aggregate_decision_digest": "e88333e0008ad8b1ba2fe86a695d29bdafa8ad915e2e75fffca0583ac532f896",
   "entries": [

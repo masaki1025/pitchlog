@@ -13,6 +13,7 @@
         "req:FR-005",
         "req:FR-020"
       ],
+      "situationBranchOverrides": ["DRAW-05"],
       "situationSide": "all-other-register-branches"
     },
     "fixtureKindByRegisterCoverageKind": {
@@ -130,9 +131,43 @@
           "$ref": "#/$defs/positiveCase"
         },
         {
+          "$ref": "#/$defs/operationPositiveCase"
+        },
+        {
           "$ref": "#/$defs/negativeCase"
         }
       ]
+    },
+    "operationPositiveCase": {
+      "type": "object",
+      "required": ["caseId", "branchId", "inputCoordinate", "expected"],
+      "additionalProperties": false,
+      "properties": {
+        "caseId": {"const": "ST-DRAW-05"},
+        "branchId": {"const": "DRAW-05"},
+        "inputCoordinate": {
+          "type": "object",
+          "required": ["operationKind", "event.operationPayload", "state.gameEnded", "state.score"],
+          "additionalProperties": false,
+          "properties": {
+            "operationKind": {"const": "game-end-declaration"},
+            "event.operationPayload": {"const": "game-end-declaration"},
+            "state.gameEnded": {"const": false},
+            "state.score": {"const": "tie"}
+          }
+        },
+        "expected": {
+          "type": "object",
+          "required": ["clauseId", "stateEffect", "historyEffect", "operationResult"],
+          "additionalProperties": false,
+          "properties": {
+            "clauseId": {"const": "FR-010"},
+            "stateEffect": {"type": "object"},
+            "historyEffect": {"type": "object"},
+            "operationResult": {"const": "applied"}
+          }
+        }
+      }
     },
     "positiveCase": {
       "type": "object",

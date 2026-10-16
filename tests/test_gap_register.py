@@ -98,7 +98,9 @@ def _real_indexes(document: dict[str, Any]) -> dict[str, Any]:
     """実際の所有資産から5段すべての逆方向indexを組み立てる。"""
     rows = _row_documents()
     row_index = checker.row_reference_index(_criteria(), document["gaps"], rows)
-    case_index, _ = checker.generated_case_reference_index(_criteria(), row_index, rows)
+    case_index, _ = checker.generated_case_reference_index(
+        _criteria(), row_index, rows, document["gaps"]
+    )
     return {
         "clauseIds": checker.clause_reference_index(_policy()),
         "branchIds": checker.clause_branch_reference_index(
@@ -229,8 +231,8 @@ def test_schema_declares_exact_shape_and_reference_modes() -> None:
     )
 
 
-def test_clause_branch_register_has_64_rows_and_four_game_end_outcomes() -> None:
-    """規範表64 IDと終了判定4結果を別の分岐層として全件列挙する。"""
+def test_clause_branch_register_has_64_rows_and_five_game_end_outcomes() -> None:
+    """規範表64 IDと終了判定5結果を別の分岐層として全件列挙する。"""
     document = _clause_branch_register()
     policy = _clause_branch_policy()
     requirement_ids = checker.load_requirement_branch_ids(REPOSITORY_ROOT)
@@ -253,8 +255,9 @@ def test_clause_branch_register_has_64_rows_and_four_game_end_outcomes() -> None
         "extraInningContinue",
         "limitDraw",
         "tiebreakContinue",
+        "walkOff",
     }
-    assert document["branchCount"] == len(document["branches"]) == 68
+    assert document["branchCount"] == len(document["branches"]) == 69
     assert "XC-09" not in requirement_entries
     assert not {"H", "E", "K", "B"} & requirement_entries
     entries_by_id = {
@@ -280,6 +283,10 @@ def test_clause_branch_register_has_64_rows_and_four_game_end_outcomes() -> None
             document["gameEndOutcomeBranches"]["tiebreakContinue"]
         ]["relatedClauseBranchIds"]
     ) == {"DRAW-07", "DRAW-08"}
+    walk_off = entries_by_id[document["gameEndOutcomeBranches"]["walkOff"]]
+    assert walk_off["sourceClauseIds"] == ["req:FR-005", "req:FR-020", "req:F-1"]
+    assert walk_off["relatedClauseBranchIds"] == ["XMARK-01"]
+    assert walk_off["gapIds"] == []
     _validate_clause_branches(document)
 
 
@@ -324,7 +331,7 @@ def test_missing_normative_branch_row_is_red() -> None:
 
 
 def test_missing_game_end_outcome_is_red() -> None:
-    """終了判定4役割のうち1件が解決できない台帳を拒否する。"""
+    """終了判定5役割のうち1件が解決できない台帳を拒否する。"""
     document = copy.deepcopy(_clause_branch_register())
     document["branches"] = [
         branch
@@ -348,7 +355,7 @@ def test_clause_branch_index_declares_every_unassigned_branch_exactly() -> None:
         if not gap_ids
     )
 
-    assert len(index.existing_references) == 68
+    assert len(index.existing_references) == 69
     assert actual_unassigned == policy.intentional_unassigned_branch_ids
     assert all(
         index.gap_ids_by_reference[branch_id]
@@ -383,13 +390,13 @@ def test_five_resolved_four_open_gaps_have_real_bidirectional_references() -> No
         "GAP-01", "GAP-02", "GAP-05", "GAP-06"
     }
     assert {gap["gapId"]: len(gap["rowIds"]) for gap in document["gaps"]} == {
-        "GAP-01": 0, "GAP-02": 0, "GAP-03": 2,
-        "GAP-04": 4, "GAP-05": 0, "GAP-06": 0,
+        "GAP-01": 0, "GAP-02": 0, "GAP-03": 3,
+        "GAP-04": 5, "GAP-05": 1, "GAP-06": 0,
         "GAP-07": 20, "GAP-08": 5, "GAP-09": 3,
     }
     assert {gap["gapId"]: len(gap["fixtureCaseIds"]) for gap in document["gaps"]} == {
         "GAP-01": 0, "GAP-02": 0, "GAP-03": 2,
-        "GAP-04": 4, "GAP-05": 0, "GAP-06": 0,
+        "GAP-04": 5, "GAP-05": 0, "GAP-06": 0,
         "GAP-07": 12, "GAP-08": 7, "GAP-09": 3,
     }
     assert all(
@@ -397,7 +404,9 @@ def test_five_resolved_four_open_gaps_have_real_bidirectional_references() -> No
         for gap in document["gaps"] if gap["state"] == "resolved"
     )
     assert all(
-        checker._filled_stage_flags(gap, _criteria()) == (True, True, False, False, False)
+        checker._filled_stage_flags(gap, _criteria())
+        == ((True, True, True, False, False) if gap["gapId"] == "GAP-05"
+            else (True, True, False, False, False))
         for gap in document["gaps"] if gap["state"] == "open"
     )
     _validate(document, _real_indexes(document))
@@ -408,8 +417,10 @@ def test_generated_selector_selects_cases_by_normative_row_ownership() -> None:
     document = _register()
     rows = _row_documents()
     row_index = checker.row_reference_index(_criteria(), document["gaps"], rows)
-    _, selected = checker.generated_case_reference_index(_criteria(), row_index, rows)
-    expected = {"GAP-03": 68, "GAP-04": 136, "GAP-07": 39,
+    _, selected = checker.generated_case_reference_index(
+        _criteria(), row_index, rows, document["gaps"]
+    )
+    expected = {"GAP-03": 102, "GAP-04": 136, "GAP-07": 39,
                 "GAP-08": 12, "GAP-09": 6}
 
     assert {
@@ -433,7 +444,9 @@ def test_generated_case_added_only_to_asset_is_red() -> None:
     added["caseId"] = "GE-GAME-END-NORMAL-ADDED-ONLY-TO-ASSET"
     rows[source]["cases"].append(added)
     row_index = checker.row_reference_index(_criteria(), document["gaps"], rows)
-    case_index, _ = checker.generated_case_reference_index(_criteria(), row_index, rows)
+    case_index, _ = checker.generated_case_reference_index(
+        _criteria(), row_index, rows, document["gaps"]
+    )
     indexes = _real_indexes(document)
     indexes["generatedCaseSelector"] = case_index
 
@@ -520,11 +533,12 @@ def test_fixture_index_uses_branch_register_gap_ownership() -> None:
     """両fixtureのcaseIdを分岐台帳のgapIdsから逆引きする。"""
     index = _real_indexes(_register())["fixtureCaseIds"]
 
-    assert len(index.existing_references) == 31
+    assert len(index.existing_references) == 33
     assert index.gap_ids_by_reference["GE-GAME-END-NORMAL"] == frozenset(
         {"GAP-03", "GAP-04"}
     )
     assert index.gap_ids_by_reference["ST-XC-01"] == frozenset()
+    assert index.gap_ids_by_reference["GE-GAME-END-WALK-OFF"] == frozenset()
 
 
 def test_fixture_reference_added_only_to_gap_is_red() -> None:
@@ -573,18 +587,18 @@ def test_open_skipping_fixture_stage_for_generated_selector_is_red() -> None:
 
 
 def test_normative_row_natural_keys_are_unique_in_all_four_layers() -> None:
-    """操作種別の重複も前提軸と値で分離し全54行を識別する。"""
+    """操作種別の重複も前提軸と値で分離し全58行を識別する。"""
     document = _register()
     index = _real_indexes(document)["rowIds"]
 
-    assert len(index.existing_references) == 54
-    assert len([row for row in index.existing_references if row.startswith("operationRows:")]) == 6
+    assert len(index.existing_references) == 70
+    assert len([row for row in index.existing_references if row.startswith("operationRows:")]) == 10
     assert "operationRows:substitution:state.gameEnded:false" in index.existing_references
     assert "operationRows:substitution:state.gameEnded:true" in index.existing_references
 
 
 def test_step99_no_orphan_normative_rows() -> None:
-    """4層54行すべてが分岐または要件条文に辿れることを確認する。"""
+    """4層58行すべてが分岐または要件条文に辿れることを確認する。"""
     orphans = checker.orphan_normative_row_ids(
         _criteria(), _row_documents(), _clause_branch_register(),
         checker.load_requirement_clause_ids(REPOSITORY_ROOT), _row_rules(),
@@ -611,10 +625,10 @@ def test_step99_orphan_row_is_red_without_case_coverage_check() -> None:
 
 
 def test_step99_all_row_ids_resolve() -> None:
-    """gapのrowIdsと266件のcase参照が一意な規範行へ解決する。"""
+    """gapのrowIdsと323件のcase参照が一意な規範行へ解決する。"""
     rows = _row_documents()
     index = checker.row_reference_index(_criteria(), _register()["gaps"], rows)
-    assert len(index.existing_references) == 54
+    assert len(index.existing_references) == 70
     assert checker.unresolved_row_references(
         _criteria(), _register()["gaps"], rows, index
     ) == []

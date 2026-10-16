@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "rows": [
+    {
+      "observationKey": "tombstone-apply",
+      "scenarioId": "tombstone-application",
+      "status": "owned"
+    },
+    {
+      "observationKey": "revision-apply",
+      "scenarioId": "revision-application",
+      "status": "owned"
+    },
+    {
+      "observationKey": "p1",
+      "scenarioId": "p1-crash-boundaries",
+      "status": "owned"
+    },
+    {
+      "observationKey": "p2",
+      "scenarioId": "p2-crash-boundaries",
+      "status": "owned"
+    },
+    {
+      "observationKey": "p3",
+      "scenarioId": "p3-crash-boundaries",
+      "status": "owned"
+    },
+    {
+      "observationKey": "p3",
+      "scenarioId": "p3-invalidation-consumed-before-complete",
+      "status": "owned"
+    },
+    {
+      "observationKey": "d1-mixed-batch",
+      "scenarioId": "d1-mixed-batch",
+      "status": "owned"
+    },
+    {
+      "observationKey": "b3b-after-gap",
+      "scenarioId": "b3b-after-gap",
+      "status": "owned"
+    },
+    {
+      "observationKey": "d4-no-reuse-after-rollback",
+      "scenarioId": "restore-d4-issued-set",
+      "status": "deferred",
+      "owner": "U-R1(TSK-392)"
+    },
+    {
+      "observationKey": "d4-no-reuse-after-rollback",
+      "scenarioId": "restore-d4-consecutive-rollbacks",
+      "status": "deferred",
+      "owner": "U-R1(TSK-392)"
+    },
+    {
+      "observationKey": "all-write-paths-during-restore",
+      "scenarioId": "restore-all-write-paths-blocked",
+      "status": "deferred",
+      "owner": "U-R1(TSK-392)"
+    },
+    {
+      "observationKey": "rg1-commit-race",
+      "scenarioId": "restore-commit-race",
+      "status": "deferred",
+      "owner": "U-R1(TSK-392)"
+    },
+    {
+      "observationKey": "rg1-release-new-d4-boundary",
+      "scenarioId": "restore-release-new-generation-boundary",
+      "status": "deferred",
+      "owner": "U-R1(TSK-392)"
+    },
+    {
+      "observationKey": "restore-lifecycle-complete",
+      "scenarioId": "restore-fence-escrow-new-generation",
+      "status": "deferred",
+      "owner": "U-R1(TSK-392)"
+    },
+    {
+      "observationKey": "restore-crash-midway",
+      "scenarioId": "restore-crash-before-new-generation",
+      "status": "deferred",
+      "owner": "U-R1(TSK-392)"
+    },
+    {
+      "observationKey": "restore-uncollected-device",
+      "scenarioId": "restore-uncollected-device",
+      "status": "deferred",
+      "owner": "U-R1(TSK-392)"
+    },
+    {
+      "observationKey": "restore-24h-cleanup",
+      "scenarioId": "restore-cleanup-held",
+      "status": "deferred",
+      "owner": "U-R1(TSK-392)"
+    },
+    {
+      "observationKey": "restore-24h-cleanup",
+      "scenarioId": "restore-expired-not-collected",
+      "status": "deferred",
+      "owner": "U-R1(TSK-392)"
+    },
+    {
+      "observationKey": "o4-persisted-d2-equivalence",
+      "scenarioId": "o4-persisted-d2-equivalence",
+      "status": "owned"
+    },
+    {
+      "observationKey": "multi-tab-single-writer",
+      "scenarioId": "multi-tab-single-writer",
+      "status": "owned"
+    },
+    {
+      "observationKey": "p4",
+      "scenarioId": "p4-crash-boundaries",
+      "status": "owned"
+    },
+    {
+      "observationKey": "p5",
+      "scenarioId": "p5-b3a-crash-boundaries",
+      "status": "owned"
+    },
+    {
+      "observationKey": "p5",
+      "scenarioId": "p5-b3b-unreached-t9",
+      "status": "owned"
+    },
+    {
+      "observationKey": "leader-freeze-reelection",
+      "scenarioId": "leader-freeze-reelection",
+      "status": "owned"
+    },
+    {
+      "observationKey": "waiting-input-not-accepted",
+      "scenarioId": "waiting-input-not-accepted",
+      "status": "owned"
+    },
+    {
+      "observationKey": "durable-append-failure",
+      "scenarioId": "durable-append-failure",
+      "status": "owned"
+    }
+  ]
+}

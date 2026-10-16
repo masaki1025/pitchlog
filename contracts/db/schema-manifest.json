@@ -5,7 +5,7 @@
   "canonical_source": {
     "path": "docs/design/data-model.md",
     "digest_kind": "ファイル内容のSHA-256",
-    "sha256": "7c327f60517b3955d5d3fbccbe92464441a28a45cbeeabf08f810e1148b816d1",
+    "sha256": "255836b27c656ad5f77a18b09d94d8a519950c69e72ab63d7c7fd57f153228aa",
     "reproduction": "リポジトリルートで sha256sum docs/design/data-model.md を実行する"
   },
   "provenance_methods": {
@@ -1060,16 +1060,17 @@
         {"name": "target_tenant_id", "type": "uuid", "nullable": true, "default": null},
         {"name": "period", "type": "jsonb", "nullable": true, "default": null},
         {"name": "chart_kind", "type": "text", "nullable": true, "default": null},
+        {"name": "target_selector_kind", "type": "text", "nullable": true, "default": null},
         {"name": "delivery_status", "type": "text", "nullable": false, "default": "'pending'"},
         {"name": "delivered_at", "type": "timestamptz", "nullable": true, "default": null}
       ],
       "lifecycle": {"deletion": "対象外", "append_mode": "更新可", "migration_retirement": "持たない"},
       "foreign_keys": [],
-      "checks": ["scope_kind IN ('game', 'player_total', 'team_total', 'shared_total', 'chart')", "delivery_status IN ('pending', 'delivered')"],
+      "checks": ["scope_kind IN ('game', 'player_total', 'team_total', 'shared_total', 'chart')", "delivery_status IN ('pending', 'delivered')", "target_selector_kind IS NULL OR target_selector_kind IN ('concrete_game', 'tenant_scope', 'shared_target_tenant')", "CASE WHEN target_selector_kind IS NULL THEN left(intent_id, length('game_delete_restore_or_resume:')) <> 'game_delete_restore_or_resume:' ELSE left(intent_id, length('game_delete_restore_or_resume:')) = 'game_delete_restore_or_resume:' AND intent_id ~ '^game_delete_restore_or_resume:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:(match|player_career|team_aggregate|shared_aggregate|analytics_chart)$' END", "target_selector_kind IS NULL OR CASE split_part(intent_id, ':', 4) WHEN 'match' THEN scope_kind = 'game' AND target_selector_kind = 'concrete_game' AND game_id IS NOT NULL AND game_id::text = split_part(intent_id, ':', 3) AND player_id IS NULL AND group_id IS NULL AND requesting_tenant_id IS NULL AND target_tenant_id IS NULL AND period IS NULL AND chart_kind IS NULL WHEN 'player_career' THEN scope_kind = 'player_total' AND target_selector_kind = 'tenant_scope' AND game_id IS NULL AND player_id IS NULL AND group_id IS NULL AND requesting_tenant_id IS NULL AND target_tenant_id IS NULL AND period IS NULL AND chart_kind IS NULL WHEN 'team_aggregate' THEN scope_kind = 'team_total' AND target_selector_kind = 'tenant_scope' AND game_id IS NULL AND player_id IS NULL AND group_id IS NULL AND requesting_tenant_id IS NULL AND target_tenant_id IS NULL AND period IS NULL AND chart_kind IS NULL WHEN 'shared_aggregate' THEN scope_kind = 'shared_total' AND target_selector_kind = 'shared_target_tenant' AND target_tenant_id IS NOT NULL AND target_tenant_id IS NOT DISTINCT FROM tenant_id AND game_id IS NULL AND player_id IS NULL AND group_id IS NULL AND requesting_tenant_id IS NULL AND period IS NULL AND chart_kind IS NULL WHEN 'analytics_chart' THEN scope_kind = 'chart' AND target_selector_kind = 'tenant_scope' AND game_id IS NULL AND player_id IS NULL AND group_id IS NULL AND requesting_tenant_id IS NULL AND target_tenant_id IS NULL AND period IS NULL AND chart_kind IS NULL ELSE FALSE END"],
       "unique_constraints": [{"name": "pk_invalidation_intents", "kind": "PRIMARY KEY", "columns": ["tenant_id", "intent_id"], "predicate": null, "roles": ["business_unique", "primary_key", "fk_target"], "verification": "正本表から照合", "source_row": {"section": "11-2", "uniqueness": "無効化意図は意図 ID で 1 件", "key_shape": "UNIQUE (tenant_id, 意図 ID)", "scope": "scoped"}}],
       "indexes": [{"name": "ix_invalidation_intents_delivery", "columns": ["tenant_id", "delivery_status"], "predicate": null, "purpose": "lookup"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id", "deleted_at"],
-      "immutability": {"protected_columns": ["tenant_id", "intent_id", "scope_kind", "game_id", "player_id", "group_id", "requesting_tenant_id", "target_tenant_id", "period", "chart_kind"], "allowed_update_columns": ["delivery_status", "delivered_at"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
+      "immutability": {"protected_columns": ["tenant_id", "intent_id", "scope_kind", "game_id", "player_id", "group_id", "requesting_tenant_id", "target_tenant_id", "period", "chart_kind", "target_selector_kind"], "allowed_update_columns": ["delivery_status", "delivered_at"], "conditional_update_columns": [], "coverage": "exhaustive", "unclassified_handoff": null}
     },
     {
       "name": "migration_quarantine",

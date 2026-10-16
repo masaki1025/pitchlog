@@ -28,16 +28,36 @@ BASELINE_DEFINITION_PATHS = frozenset(
     }
 )
 # 追加層は JSON を変更するコミットより先に固定する。同一コミットでの追随を許さない。
+DOMAIN_RUNTIME_PATH_ADDITIONS = (
+    "frontend/src/domain/*",
+    "backend/src/pitchlog/domainrt/*",
+    "frontend/public/domain/*",
+    "frontend/scripts/domain-checks/*",
+    "frontend/scripts/domain-build/*",
+    "frontend/scripts/domain-sql/*",
+    "frontend/index.html",
+    "frontend/eslint.config.js",
+    "frontend/.dependency-cruiser.cjs",
+    "frontend/src/testing/vectorRunner.ts",
+    "frontend/src/testing/vectorRunner.spec.ts",
+    "frontend/src/testing/vectorConformance.spec.ts",
+    "frontend/src/testing/handoffLoader.ts",
+    "frontend/src/testing/handoffLoader.spec.ts",
+    "frontend/src/testing/artifactAdapter.ts",
+    "frontend/src/testing/artifactAdapter.spec.ts",
+    "backend/tests/domainrt/*",
+    "backend/Dockerfile",
+)
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "tenant-isolation": (
-        "frontend/src/components/settings/TeamMembersContent*",
-        "frontend/src/lib/rosterQueryKeys*",
-        "frontend/src/screens/TeamScreen*",
+    "sync-protocol": (
+        "backend/src/pitchlog/sync/*",
+        "backend/src/pitchlog/repositories/sync_apply.py",
+        "backend/tests/test_sync_apply_*.py",
     ),
-    "data-migration": (
-        "frontend/src/components/settings/TeamMembersContent*",
-        "frontend/src/lib/rosterQueryKeys*",
-        "frontend/src/screens/TeamScreen*",
+    "recording-rights": (
+        "backend/src/pitchlog/sync/*",
+        "backend/src/pitchlog/repositories/sync_apply.py",
+        "backend/tests/test_sync_apply_*.py",
     ),
 }
 REQUIRED_CHECK_RE = re.compile(

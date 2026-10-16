@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import builtins
 import copy
+import fnmatch
 import hashlib
 import importlib.util
 import json
@@ -887,6 +888,18 @@ class _IndependentSymbolResolver(ast.NodeVisitor):
         self._visit_function(node)
 
 
+def _condition2_owned_path(path: str, contract: Any) -> bool:
+    """宣言と core 領域の交差から条件 2 の所有パスを独立に判定する。"""
+    source_path = f"backend/src/{path}"
+    return any(
+        fnmatch.fnmatchcase(source_path, pattern)
+        for pattern in contract.condition2_owner_paths
+    ) and any(
+        fnmatch.fnmatchcase(source_path, pattern)
+        for pattern in contract.sync_protocol_paths
+    )
+
+
 class _IndependentCondition2Candidates(ast.NodeVisitor):
     """候補 checker を使わず AST と両契約から条件2の増分を導出する。"""
 
@@ -926,6 +939,7 @@ class _IndependentCondition2Candidates(ast.NodeVisitor):
         )
         self.current_rule = _condition_rule(current_contract, condition)
         self.anchor_rule = _condition_rule(anchor_contract, condition)
+        self.current_owned = _condition2_owned_path(path, current_contract)
         self.condition = condition
         self.message = _string(
             enumeration.get("message"),
@@ -983,7 +997,7 @@ class _IndependentCondition2Candidates(ast.NodeVisitor):
         anchor_resolved_symbol: str,
     ) -> None:
         """単一 AST サイトを両版の条件2候補抽出へ照合する。"""
-        if type(node).__name__ not in self.node_types:
+        if self.current_owned or type(node).__name__ not in self.node_types:
             return
         current_candidate = self._projection(
             self.current_projection,
@@ -1296,6 +1310,8 @@ def _assert_removed_tb007_matches_declared_relaxations(
             resolved = scanner.aliases.resolve(
                 node.func
             ) or scanner._raw_expression(node.func)
+            if resolved == "object.__setattr__":
+                resolved = "builtins.object.__setattr__"
             if symbol == "<unresolved-callable>" or symbol == resolved:
                 matching_calls.append(node)
 
@@ -1305,6 +1321,13 @@ def _assert_removed_tb007_matches_declared_relaxations(
             resolved = scanner.aliases.resolve(
                 node.func
             ) or scanner._raw_expression(node.func)
+            if symbol == "builtins.object.__setattr__":
+                if (
+                    not scanner.fixed_builder_binding_nodes
+                    and checker._is_fixed_registration_statement_init(node, scope)
+                ):
+                    explanations.append(node)
+                continue
             if (
                 isinstance(node.func, ast.Name)
                 and id(node.func) in scanner.lexically_bound_name_ids
@@ -1390,6 +1413,29 @@ def test_issuance_constructor_relaxation_rejects_another_scope(
         and identity[4] == "TB007"
     )
     changed = _replace_identity_field(original, index=3, value=f"{entrypoint}.other")
+    with pytest.raises(AssertionError):
+        _assert_removed_tb007_matches_declared_relaxations(
+            frozenset({changed}), expected_code="TB007"
+        )
+
+
+def test_fixed_registration_relaxation_rejects_another_scope(
+    census_predicate_context: dict[str, Any],
+) -> None:
+    """固定関数登録のTB007許可を別の初期化scopeへ流用しない。"""
+    data_sets = cast(
+        dict[str, frozenset[CensusIdentity]], census_predicate_context["data_sets"]
+    )
+    original = next(
+        identity
+        for identity in data_sets["removed"]
+        if identity[0] == "pitchlog/repositories/function_operations.py"
+        and identity[4] == "TB007"
+        and identity[5] == "builtins.object.__setattr__"
+    )
+    changed = _replace_identity_field(
+        original, index=3, value=f"{original[3]}.another"
+    )
     with pytest.raises(AssertionError):
         _assert_removed_tb007_matches_declared_relaxations(
             frozenset({changed}), expected_code="TB007"
@@ -1872,9 +1918,10 @@ def _assert_unadjudicated_removed_remains(
     *,
     data_sets: dict[str, frozenset[CensusIdentity]],
     identity_indexes: dict[str, int],
+    current_contract: Any,
     **_: Any,
 ) -> None:
-    """裁定外の指定減分が現行 census の指定 code として残ることを検証する。"""
+    """所有パス外の裁定外減分が現行 census の指定 code で残ると検証する。"""
     _exact_keys(
         predicate,
         {
@@ -1976,6 +2023,10 @@ def _assert_unadjudicated_removed_remains(
     code_index = identity_indexes["code"]
     current_census = data_sets[current_set]
     for identity in data_sets[set_name]:
+        if _condition2_owned_path(
+            str(identity[identity_indexes["path"]]), current_contract
+        ):
+            continue
         if identity[code_index] != code or identity[symbol_index] in (
             adjudicated_symbols | adjudicated_names
         ):
@@ -2426,6 +2477,9 @@ def _copy_current_contract_tree(destination: Path) -> None:
         Path("backend/src"),
     ):
         shutil.copytree(REPOSITORY_ROOT / relative, destination / relative)
+    core_areas = destination / ".claude" / "core-areas.json"
+    core_areas.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(REPOSITORY_ROOT / ".claude" / "core-areas.json", core_areas)
 
 
 def _set_temporary_allowed_symbols(
@@ -2998,13 +3052,6 @@ def _mutate_predicate_input(
         adjudicated_names = {
             symbol.rsplit(".", 1)[-1] for symbol in adjudicated_symbols
         }
-        original = next(
-            identity
-            for identity in mutated[set_name]
-            if identity[indexes["code"]] == code
-            and identity[indexes[identity_symbol_field]]
-            not in adjudicated_symbols | adjudicated_names
-        )
         match_fields = _string_array(predicate["match_fields"], "match_fields")
         symbol_match = _object(predicate["symbol_match"], "symbol_match")
         symbol_field = _string(symbol_match["field"], "symbol_match.field")
@@ -3030,24 +3077,35 @@ def _mutate_predicate_input(
             "required_current_code",
         )
         current_set = _string(predicate["current_set"], "current_set")
-        matching_current = frozenset(
-            current
-            for current in mutated[current_set]
-            if all(
-                current[indexes[field]]
-                == (
-                    required_code
-                    if field == "code"
-                    else original[indexes[field]]
-                )
-                for field in match_fields
-            )
-            and _matches_equal_or_delimited_prefix(
-                str(current[indexes[symbol_field]]),
-                str(original[indexes[symbol_field]]),
-                delimiter=symbol_delimiter,
-            )
+        candidates = (
+            identity
+            for identity in mutated[set_name]
+            if identity[indexes["code"]] == code
+            and identity[indexes[identity_symbol_field]]
+            not in adjudicated_symbols | adjudicated_names
         )
+        matching_current = frozenset()
+        for original in candidates:
+            matching_current = frozenset(
+                current
+                for current in mutated[current_set]
+                if all(
+                    current[indexes[field]]
+                    == (
+                        required_code
+                        if field == "code"
+                        else original[indexes[field]]
+                    )
+                    for field in match_fields
+                )
+                and _matches_equal_or_delimited_prefix(
+                    str(current[indexes[symbol_field]]),
+                    str(original[indexes[symbol_field]]),
+                    delimiter=symbol_delimiter,
+                )
+            )
+            if matching_current:
+                break
         assert matching_current
         unrelated = _replace_identity_field(
             next(iter(matching_current)),

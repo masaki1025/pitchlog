@@ -10,6 +10,7 @@ import sys
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+import check_branch_row_mapping as history_checker
 import check_expander_dependencies as dependency_checker
 import representative_selection
 from state_transition_normalization import NormalizationError, NormalizationRules
@@ -192,11 +193,20 @@ def _expand_from_declared_inputs(
     _, register = _document_by_key(documents, "branches")
     _, selection_policy = _document_by_key(documents, "predicateEvaluation")
     _, row_binding_policy = _document_by_key(documents, "rowBoundAxes")
+    _, history_depth_asset = _document_by_key(documents, "derivation")
+    depth = history_checker.resolve_history_depth(history_depth_asset)
     representative_selection.validate_policy(selection_policy)
 
     binding = contract.get("inputAxesDescriptor")
     if not isinstance(binding, dict) or binding.get("digest") != descriptor.get("digest"):
         raise CaseExpansionError("契約と入力軸descriptorの識別値が一致しない")
+    if (
+        isinstance(contract.get("operationRows"), list)
+        and isinstance(contract.get("undoRows"), list)
+        and all(isinstance(row.get("precondition"), dict)
+                for row in contract["undoRows"] if isinstance(row, dict))
+    ):
+        history_checker.validate_rows(contract, descriptor)
     normalizer = NormalizationRules(contract_schema, vocabulary, manifest, seed_path)
     axes = descriptor.get("stateTransitionAxes")
     if not isinstance(axes, list):
@@ -400,6 +410,30 @@ def _expand_from_declared_inputs(
             for reference in mapping.get("rowRefs", [])
             if isinstance(reference, dict) and reference.get("layer") == "operationRows"
         ]
+        if any(not isinstance(reference.get("coordinate"), dict) for reference in operation_refs):
+            raise CaseExpansionError("操作行の入力座標が不正")
+        # 既存の操作被覆履歴の先頭6行を保ち、追加したDRAW-05行を末尾で展開する。
+        draw_precondition = {
+            "op": "and",
+            "args": [
+                {"op": "eq", "axisId": "state.gameEnded", "value": False},
+                {"op": "eq", "axisId": "state.score", "value": "tie"},
+            ],
+        }
+        draw_refs = [
+            reference for reference in operation_refs
+            if reference.get("coordinate", {}).get("precondition") == draw_precondition
+        ]
+        if len(draw_refs) != 1:
+            raise CaseExpansionError("DRAW-05の終了宣言行を一意に参照できない")
+        tiebreak_refs = [
+            reference for reference in operation_refs
+            if reference.get("coordinate", {}).get("operationKind") == "tiebreak-start"
+        ]
+        operation_refs = [
+            reference for reference in operation_refs
+            if reference not in draw_refs and reference not in tiebreak_refs
+        ] + draw_refs + tiebreak_refs
         if operation_limit < 0 or operation_limit > len(operation_refs):
             raise CaseExpansionError("操作行の出力件数が参照の範囲外")
         payload_axis = next(
@@ -502,7 +536,68 @@ def _expand_from_declared_inputs(
                     },
                 }
             )
+    committed_cases = contract.get("cases")
+    if not isinstance(committed_cases, list):
+        raise CaseExpansionError("履歴入力を持つcase集合がない")
+    inputs_by_id = {
+        item["caseId"]: item.get("historyInput")
+        for item in committed_cases
+        if isinstance(item, dict) and isinstance(item.get("caseId"), str)
+    }
+    state_fields = set(contract_schema["$defs"]["stateFieldEffects"]["required"])
+    scoreboard_fields = set(contract_schema["$defs"]["scoreboardFieldEffects"]["required"])
+    flag_fields = set(contract_schema["$defs"]["statFlagEffects"]["required"])
+    confirmed_play_entry: dict[str, Any] | None = None
     for case in cases:
+        history_input: dict[str, Any] | None = inputs_by_id.get(case["caseId"])
+        expected = case["expected"]
+        if expected.get("guaranteeMode") == "liveness-only":
+            if confirmed_play_entry is None:
+                raise CaseExpansionError("XC-09: 確定プレイの履歴要素がない")
+            history_input = {
+                "stack": [copy.deepcopy(confirmed_play_entry) for _ in range(depth + 1)]
+            }
+        if case["caseId"] in inputs_by_id or expected.get("guaranteeMode") == "liveness-only":
+            if not isinstance(history_input, dict) or not isinstance(
+                history_input.get("stack"), list
+            ):
+                raise CaseExpansionError(f"履歴入力がない: {case['caseId']}")
+            layer = case["rowRef"]["layer"]
+            if layer == "matrixRows":
+                entry = history_checker.push_entry(
+                    "confirmed-play", history_input.get("before", {}),
+                    history_input.get("after", {}), expected["statFlags"],
+                    state_fields, scoreboard_fields, flag_fields,
+                )
+                effect = {"kind": "push", "entryKind": "confirmed-play"}
+            else:
+                effect = expected["stateEffect"]["historyAndResult"]["history"]
+                entry = None
+                if effect["kind"] == "push":
+                    entry = history_checker.push_entry(
+                        effect["entryKind"], history_input.get("before", {}),
+                        history_input.get("after", {}), history_input.get("statFlags", {}),
+                        state_fields, scoreboard_fields, flag_fields,
+                    )
+            after_stack = history_checker.apply_history(
+                history_input["stack"], effect, entry
+            )
+            if (
+                layer == "matrixRows"
+                and not history_input["stack"]
+                and confirmed_play_entry is None
+            ):
+                confirmed_play_entry = copy.deepcopy(after_stack[0])
+            if expected.get("guaranteeMode") == "liveness-only":
+                if (
+                    layer != "undoRows"
+                    or len(after_stack) != len(history_input["stack"]) - 1
+                    or expected.get("operationResult") != "applied"
+                ):
+                    raise CaseExpansionError("XC-09: 保証範囲外undoの履歴件数が不正")
+            else:
+                expected["historyContext"] = after_stack
+            case["historyInput"] = copy.deepcopy(history_input)
         normalized = copy.deepcopy(case["inputCoordinate"])
         raw, rule_id = normalizer.raw_for_normalized(normalized)
         case["raw"] = raw

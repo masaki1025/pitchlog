@@ -220,9 +220,12 @@ const EXPECTED_VALUE_EXPORTS = {
     'buildSyncEventKindSet',
   ],
   'failureScenarioContract.ts': [
+    'CLIENT_REQUIRED_FIELD_IDS',
     'FAILURE_EXPECTED_FIELD_IDS',
     'FAILURE_SCENARIO_IDS',
+    'FAILURE_SCENARIO_SCHEMA_VERSION',
     'FailureScenarioContractError',
+    'injectionTargetKey',
     'parseFailureScenarioContract',
     'validateFailureScenarioContract',
     'validateFailureScenarioResult',
@@ -415,6 +418,9 @@ const EXPECTED_TYPE_EXPORTS = {
   ],
   'failureScenarioContract.ts': [
     'FailureExpectedFieldId',
+    'FailureInjectionTarget',
+    'FailureScenarioCase',
+    'FailureScenarioCaseResult',
     'FailureScenarioComparisonUnit',
     'FailureScenarioContract',
     'FailureScenarioField',
@@ -575,7 +581,9 @@ const EXPECTED_TYPE_EXPORTS = {
 } as const satisfies Readonly<Record<string, readonly string[]>>
 
 const EXPECTED_TESTING_SOURCE_FILE_NAMES = [
+  'testing/artifactAdapter.ts',
   'testing/failureScenarioAdapter.ts',
+  'testing/handoffLoader.ts',
   'testing/vectorRunner.ts',
 ] as const
 

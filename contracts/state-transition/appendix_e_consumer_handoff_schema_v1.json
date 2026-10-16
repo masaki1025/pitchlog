@@ -100,8 +100,9 @@
       "$ref": "#/$defs/stage2EntryGate"
     },
     "receiverTaskId": {
-      "type": "null",
-      "$comment": "受取タスクIDはローカル資料で実在を確認できず未起票。Notion起票とID確認後にstringへ改訂する。段階2の開始を許可する値ではない。"
+      "type": "string",
+      "pattern": "^TSK-[1-9][0-9]*$",
+      "$comment": "段階2の受取タスクはTSK-538として確定した。nullと不正なタスクIDは受理しない。"
     }
   },
   "$defs": {
@@ -162,7 +163,7 @@
         },
         "dPlusOnePolicy": {
           "const": "liveness-only",
-          "$comment": "保証境界: D+1 のundo liveness-only行には拒否しない・切り捨てないことだけを要求し、出力同値は要求しない。ステップ66のPO裁定でこのundo行は段階2へ送られ、現行の該当行・caseは存在しない。matrixRowsにはD+1入力のcaseがあるが、この方針の実証には数えない。この宣言は行の消費やlivenessの実証ではない。"
+          "$comment": "保証境界: D+1 のundo liveness-only行には拒否しない・切り捨てないことだけを要求し、出力同値は要求しない。TSK-538ステップ30でundo行・caseを置いたが、対象計算による全case消費とlivenessの実証はU-X1で行う。この宣言だけでは消費やlivenessの実証にならない。"
         },
         "executionPaths": {
           "$ref": "#/$defs/executionPaths"
@@ -202,7 +203,7 @@
           "maxContains": 1
         }
       ],
-      "$comment": "各bindingの実行経路はpytestとvitestのexact-set。段階1では識別子・runner revisionが未確定であり、消費可能性は保証しない。"
+      "$comment": "各bindingの実行経路はpytestとvitestのexact-set。runner実装は存在し、runnerRevisionはrunner入口資産(pytest = backend/src/pitchlog/domaincheck/runners/vector_bridge.py、vitest = frontend/src/testing/vectorRunner.ts)の最終変更のcommit OIDで固定する。入口が依存する読み込み層・比較層はrunnerRevisionの固定範囲に含めない(契約のdigestを固定する読み込み層まで含めると契約の変更ごとに版が動くため)。3識別子は契約上まだ未確定であり、全caseの消費は保証しない。"
     },
     "executionPath": {
       "type": "object",
@@ -223,7 +224,8 @@
           ]
         },
         "runnerRevision": {
-          "const": "pending"
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
         },
         "normalizerId": {
           "type": "null"
@@ -238,7 +240,7 @@
           "const": "stage-2"
         }
       },
-      "$comment": "既存runnerの実体がこの作業ツリーに無いため識別子を捏造せずnullとする。段階2で実装に基づいて確定する。"
+      "$comment": "runner実装は存在するが、製品計算へのbindingの3識別子は未確定のためnullとする。段階2で実在値に解決する。"
     },
     "caseFieldMapping": {
       "$comment": "contractPointerは各cases[]要素を起点とし、runnerPointerは受取側caseを起点とする。両契約の/rawと/normalizedはそれぞれrunnerの同名フィールドへ写す。期待値は状況判定の/expectedと終了判定の/decisionをrunnerの/expectedへ写す。両契約のinputCoordinateは/normalizedと一致し、終了判定の非identity規則のケースでは/rawが表示名を保持する。この写像はrunner消費を証明しない。",

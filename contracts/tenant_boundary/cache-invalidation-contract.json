@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 12,
+  "contract_revision": 15,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:12"
+        "contract_revision:15"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -71,7 +71,6 @@
   },
   "asset_kind": "cache_invalidation_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "beaa9f27907dec7bcec2dcb398045ecd8dfb4041dba50dfe5f910b3719dc8a22",
   "source": {
     "document": "docs/design/data-model.md",
     "section": "11-2",
@@ -467,25 +466,42 @@
   "durable_intent": {
     "required": true,
     "storage_kind": "cache_invalidation_intent_table",
-    "rows_per_trigger": 1,
-    "same_transaction_with": "T7",
+    "rows_per_trigger": "one_per_affected_scope",
+    "same_transaction_with": {
+      "P3": "T7",
+      "D1": "event_application_advancing_D3"
+    },
     "uniqueness_fields": [
       "tenant_id",
       "intent_id"
     ],
-    "intent_id_derivation": [
-      "target_event_v10",
-      "target_confirmed_version"
-    ],
+    "intent_id_derivation": {
+      "P3": [
+        "target_event_v10",
+        "target_confirmed_version",
+        "scope_id"
+      ],
+      "D1": [
+        "event_d5",
+        "scope_id"
+      ]
+    },
+    "sync_scope_selectors": {
+      "match": "tenant_and_game",
+      "player_career": "all_tenant_player_career_keys",
+      "team_aggregate": "all_tenant_team_aggregate_keys",
+      "shared_aggregate": "target_tenant_selector",
+      "analytics_chart": "all_tenant_analytics_chart_keys"
+    },
     "delivery_states": [
       "pending",
-      "completed"
+      "delivered"
     ],
-    "retry": "idempotent_until_completed",
+    "retry": "idempotent_until_delivered",
     "saved_result_replay_creates_duplicate": false,
     "pending_lookup_fields": [
       "tenant_id",
-      "delivery_state"
+      "delivery_status"
     ],
     "physical_delete": false,
     "restoration_coordination": {
@@ -637,5 +653,6 @@
     "canonical_source": "docs/design/sync-protocol.md#8-5",
     "downstream_owners": "U-D1 and the units that own each triggering operation"
   },
-  "preaggregation_independent": true
+  "preaggregation_independent": true,
+  "source_digest": "fe17aaac414b51043ae1c978b8dd054c48d005aa824454d29ff8ec308cf9be7c"
 }

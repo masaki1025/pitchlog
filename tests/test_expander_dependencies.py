@@ -70,6 +70,10 @@ _load_module(
     "state_transition_normalization",
     REPOSITORY_ROOT / "scripts/state_transition_normalization.py",
 )
+_load_module(
+    "check_branch_row_mapping",
+    REPOSITORY_ROOT / "scripts/check_branch_row_mapping.py",
+)
 state_transition_expander = _load_module(
     "expand_state_transition_cases",
     REPOSITORY_ROOT / "scripts/expand_state_transition_cases.py",
@@ -239,7 +243,7 @@ def test_game_end_expander_output_is_traced_and_schema_valid() -> None:
     schema = json.loads(GAME_END_SCHEMA_PATH.read_text(encoding="utf-8"))
     assert [
         {key: value for key, value in case.items()
-         if key not in {"raw", "normalizationRuleId", "normalized"}}
+         if key not in {"raw", "normalizationRuleId", "normalized", "derivedSourceInput"}}
         for case in contract["cases"][:2]
     ] == cases
     assert [case["branchId"] for case in cases] == [
@@ -267,7 +271,7 @@ def test_step93_first_stage_game_end_cases_match_manual_fixtures() -> None:
     assert [
         {
             **{key: value for key, value in case.items()
-               if key not in {"raw", "normalizationRuleId", "normalized"}},
+               if key not in {"raw", "normalizationRuleId", "normalized", "derivedSourceInput"}},
             "inputCoordinate": case["raw"],
         }
         for case in contract["cases"][:4]
@@ -282,14 +286,23 @@ def test_step93_first_stage_game_end_cases_match_manual_fixtures() -> None:
     for case in cases:
         fixture = fixture_by_branch[case["branchId"]]
         assert case["caseId"] == fixture["caseId"]
-        assert case["inputCoordinate"] == fixture["inputCoordinate"]
+        # 凍結済みfixtureには後から追加した成立段数と裏未開始の軸がない。
+        assert {
+            key: value for key, value in case["inputCoordinate"].items()
+            if key not in {
+                "gameEnd.satisfiedColdTierCount", "state.outs", "state.runners",
+                "state.count.strikes", "state.count.balls",
+            }
+        } == fixture["inputCoordinate"]
         assert case["decision"] == fixture["decision"]
 
 
 def test_game_end_expander_can_process_all_current_decision_rows() -> None:
-    """メモリ上では現行5行すべてを行自身の分岐IDから展開できる。"""
-    cases, trace = game_end_expander.expand_traced(REPOSITORY_ROOT, limit=5)
+    """メモリ上で現行の判定行すべてを分岐IDから展開できる。"""
     contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
+    cases, trace = game_end_expander.expand_traced(
+        REPOSITORY_ROOT, limit=len(contract["decisionRows"])
+    )
     assert len(cases) == len(contract["decisionRows"])
     assert [case["branchId"] for case in cases] == [
         row["branchId"] for row in contract["decisionRows"]
@@ -366,7 +379,7 @@ def test_game_end_expander_rejects_nonrepresentative_coordinate() -> None:
     )
     axes = [axis_id for axis_id in values if axis_id in used]
     wrong = dict(contract["cases"][0]["inputCoordinate"])
-    wrong["state.score"] = "home-lead:M"
+    wrong["state.score"] = "away-lead:M-1"
     assert game_end_expander._predicate_holds(contract["decisionRows"][0]["precondition"], wrong)
     with pytest.raises(
         representative_selection.RepresentativeSelectionError,
@@ -392,7 +405,7 @@ def test_game_end_expander_uses_declared_selection_rule(
 
     monkeypatch.setattr(game_end_expander, "_read_document", read_with_last_choice)
     cases, trace = game_end_expander.expand_traced(REPOSITORY_ROOT, limit=1)
-    assert cases[0]["inputCoordinate"]["state.score"] == "home-lead:M+1"
+    assert cases[0]["inputCoordinate"]["state.score"] == "away-lead:M-1"
     assert trace.observed_read_paths == _policy().expanders["game-end-cases"].allowed_read_paths
 
 
@@ -420,11 +433,10 @@ def test_positive_manual_fixture_inputs_follow_representative_policy() -> None:
         descriptor, ("gameEndAxes", "stateTransitionAxes")
     )
     game_contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
-    game_used = set().union(
+    baseline_game_used = set().union(
         *(representative_selection.predicate_axes(row["precondition"])
-          for row in game_contract["decisionRows"])
+          for row in game_contract["decisionRows"][:5])
     )
-    game_axes = [axis_id for axis_id in game_values if axis_id in game_used]
     checked = 0
     for mapping in mappings:
         branch_id = mapping["branchId"]
@@ -436,22 +448,49 @@ def test_positive_manual_fixture_inputs_follow_representative_policy() -> None:
             selected = representative_selection.select_coordinate(
                 predicate, state_values, axes, policy
             )
-            expected = {
-                "eventKind": reference["eventKind"], "resultId": reference["resultId"],
-                **selected,
-            }
+            expected = (
+                {
+                    "operationKind": reference["operationKind"],
+                    "event.operationPayload": reference["operationKind"],
+                    **selected,
+                }
+                if mapping["rowRef"]["layer"] == "operationRows"
+                else {
+                    "eventKind": reference["eventKind"], "resultId": reference["resultId"],
+                    **selected,
+                }
+            )
             assert state_fixtures[branch_id] == expected
             checked += 1
         elif mapping["fixtureRelation"] == "decision-output":
             row = next(
                 row for row in game_contract["decisionRows"] if row["branchId"] == branch_id
             )
+            game_used = baseline_game_used | representative_selection.predicate_axes(
+                row["precondition"]
+            )
+            game_axes = [axis_id for axis_id in game_values if axis_id in game_used]
             expected = representative_selection.select_coordinate(
                 row["precondition"], game_values, game_axes, policy
             )
+            # 凍結済みfixtureに無い派生軸と裏未開始の固定軸を射影で除く。
+            expected.pop("gameEnd.satisfiedColdTierCount", None)
+            for axis_id in (
+                "state.outs", "state.runners", "state.count.strikes", "state.count.balls",
+                "event.operationPayload", "event.perPitch.pitchEventKind",
+                "event.perPitch.runnerEventPayload",
+                "event.perPitch.runnerAdvanceOverridesByRunner",
+                "event.perPitch.thirdOutTimingByRunner",
+                "event.perPitch.interferenceRuling",
+                "event.perPitch.officialScoringPayload",
+                "event.perPitch.rbi.doublePlayRelayError",
+                "event.perPitch.rbi.runnerContinuityByRunner",
+                "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+            ):
+                expected.pop(axis_id, None)
             assert game_fixtures[branch_id] == expected
             checked += 1
-    assert checked == 20
+    assert checked == 22
 
 
 @pytest.mark.parametrize(

@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 16
+CONTRACT_REVISION = 19
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "aba7762367cbe7c8cc497a953c0923bc4d0b83443f2163772771bf1b9bc08834"
+SOURCE_DIGEST = "544f341dd05bd8928e60113b1eef95ac96ca5551f1684912641f1d0b6bde9ea5"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -16,6 +16,19 @@ CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL = (
     "pitchlog.repositories.base.CROSS_TENANT_FUNCTION_REGISTRY"
 )
 TRANSACTION_SCOPE_ENTRY = "pitchlog.repositories.transaction.tenant_transaction_scope"
+FUNCTION_REGISTRATION_TYPE = (
+    "pitchlog.repositories.function_operations.FunctionOperationRegistration"
+)
+FUNCTION_TRANSACTION_ENTRY = (
+    "pitchlog.repositories.transaction._TenantTransaction.run_function"
+)
+FUNCTION_OPERATION_REGISTRY = (
+    "pitchlog.repositories.operation_registry.PRODUCT_FUNCTION_OPERATIONS"
+)
+FUNCTION_EXECUTOR_SYMBOL = FUNCTION_TRANSACTION_ENTRY
+FUNCTION_EXECUTOR_SIGNATURE = (
+    "run_function(self, operation: TenantOperationToken) -> TenantOperationResult"
+)
 EXECUTOR_SYMBOL = "pitchlog.repositories.base.TenantRepositoryBase._execute_operation"
 EXECUTOR_SIGNATURE = (
     "_execute_operation(self, context: TenantContext, "
@@ -43,6 +56,15 @@ IMMUTABLE_CONTAINER_GRAMMAR = (
     "frozenset[T]",
     "mappingproxy[str, T]",
 )
+CANONICAL_TABLE = "orm_metadata_table_identity_for_registration_and_statement"
+UPDATE_IDENTITY = "actual_complete_primary_key_equalities_for_all_updates"
+UPDATE_BIND_NAMES = "primary_key_disjoint_from_target_columns_and_set_bindings"
+TENANT_PRIMARY_KEY_BIND = "injected_context_bind_only"
+ROW_LOCK = (
+    "declared_plain_for_update_with_complete_primary_key_and_explicit_specialized_shape"
+)
+UNLOCKED_READ = "for_update_absent_when_undeclared"
+SYNC_APPLY_SCOPE = "contextvar_rejects_new_tenant_transaction_scope"
 FORBIDDEN_TYPES = (
     "typing.Any",
     "builtins.object",
@@ -71,6 +93,24 @@ PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:lineup_memories:read",
     "CAP:lineup_memories:insert",
     "CAP:lineup_memories:update",
+    "CAP:recording_generations:read",
+    "CAP:recording_generations:update",
+    "CAP:event_slots:read",
+    "CAP:event_slots:insert",
+    "CAP:event_slots:update",
+    "CAP:operation_events:read",
+    "CAP:operation_events:insert",
+    "CAP:operation_events:update",
+    "CAP:temporary_player_id_mappings:read",
+    "CAP:temporary_player_id_mappings:insert",
+    "CAP:idempotency_ledger:read",
+    "CAP:idempotency_ledger:insert",
+    "CAP:rejected_event_originals:read",
+    "CAP:rejected_event_originals:insert",
+    "CAP:invalidation_intents:read",
+    "CAP:invalidation_intents:update",
+    "CAP:evacuated_event_originals:read",
+    "CAP:evacuated_event_originals:insert",
 )
 PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -89,5 +129,33 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.lineup_memory.LineupMemoryReadToken",
     "pitchlog.repositories.lineup_memory._LineupMemoryInsertToken",
     "pitchlog.repositories.lineup_memory._LineupMemoryUpdateToken",
+    "pitchlog.sync.tokens.GameReadToken",
+    "pitchlog.sync.tokens.GameLockToken",
+    "pitchlog.sync.tokens.RecordingGenerationReadToken",
+    "pitchlog.sync.tokens.RecordingGenerationByNumberReadToken",
+    "pitchlog.sync.tokens.RecordingGenerationLockToken",
+    "pitchlog.sync.tokens.RecordingPrefixUpdateToken",
+    "pitchlog.sync.tokens.EventSlotReadToken",
+    "pitchlog.sync.tokens.EventSlotInsertToken",
+    "pitchlog.sync.tokens.EventSlotVersionUpdateToken",
+    "pitchlog.sync.tokens.OperationEventReadToken",
+    "pitchlog.sync.tokens.OperationEventOrderReadToken",
+    "pitchlog.sync.tokens.OperationEventInsertToken",
+    "pitchlog.sync.tokens.OperationEventOrderUpdateToken",
+    "pitchlog.sync.tokens.OperationEventReplaceToken",
+    "pitchlog.sync.tokens.TemporaryPlayerMappingReadToken",
+    "pitchlog.sync.tokens.TemporaryPlayerMappingInsertToken",
+    "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+    "pitchlog.sync.tokens.IdempotencyLedgerInsertToken",
+    "pitchlog.sync.tokens.RejectedOriginalReadToken",
+    "pitchlog.sync.tokens.RejectedOriginalInsertToken",
+    "pitchlog.sync.tokens.InvalidationIntentReadToken",
+    "pitchlog.sync.tokens.InvalidationIntentPendingToken",
+    "pitchlog.sync.tokens.SyncInvalidationIntentInsertToken",
+    "pitchlog.sync.tokens.SyncSharedInvalidationIntentInsertToken",
+    "pitchlog.sync.tokens.InvalidationIntentDeliveredToken",
+    "pitchlog.sync.tokens.EvacuatedOriginalReadToken",
+    "pitchlog.sync.tokens.EvacuatedOriginalInsertToken",
 )
 CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
+PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = ()

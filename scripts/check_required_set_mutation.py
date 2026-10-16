@@ -317,15 +317,28 @@ def check_documents(
         )
         for output in ("requiredSet.inputCoordinates", "gameEnd.requiredSet")
     }
+    play_input_axes = {
+        axis_id
+        for binding in descriptor["inputCoordinateCoverage"]["axisBindings"]
+        for row_binding in binding["rowBindings"]
+        if "matrixRows" in row_binding["rowLayers"]
+        for axis_id in binding["axisIds"]
+    }
     survivors: list[str] = []
     for operator in declaration["operators"]:
         for mutant in mutants_by_operator[operator["operatorId"]]:
             prefix = mutant.axis_id.split(".", 1)[0]
             outputs = declaration["affectedOutputsByAxisPrefix"][mutant.collection][prefix]
-            # 凍結された原本の整合検証だけを変異実験中に外す。導出処理は既存関数のまま。
+            if mutant.collection == "stateTransitionAxes" and mutant.axis_id not in play_input_axes:
+                outputs = [
+                    output for output in outputs if output != "gameEnd.requiredSet"
+                ]
+            # 軸を意図的に削る変異体では、凍結値と派生元の参照整合だけを外す。
+            # requiredSetの導出と各出力の差分比較は既存関数のまま実行する。
             with (
                 patch.object(derivers.descriptor_checker, "_validate_input_coordinate_coverage"),
                 patch.object(derivers.descriptor_checker, "_validate_game_end_contract"),
+                patch.object(derivers.descriptor_checker, "_validate_derived_axes"),
             ):
                 for output in outputs:
                     try:

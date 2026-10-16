@@ -301,10 +301,23 @@ def _generated_snapshot() -> dict[str, object]:
                 repository_contract.CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL
             ),
             "transaction_scope_entry": repository_contract.TRANSACTION_SCOPE_ENTRY,
+            "function_registration_type": (
+                repository_contract.FUNCTION_REGISTRATION_TYPE
+            ),
+            "function_transaction_entry": (
+                repository_contract.FUNCTION_TRANSACTION_ENTRY
+            ),
+            "function_operation_registry": (
+                repository_contract.FUNCTION_OPERATION_REGISTRY
+            ),
         },
         "executor": {
             "symbol": repository_contract.EXECUTOR_SYMBOL,
             "signature": repository_contract.EXECUTOR_SIGNATURE,
+        },
+        "function_executor": {
+            "symbol": repository_contract.FUNCTION_EXECUTOR_SYMBOL,
+            "signature": repository_contract.FUNCTION_EXECUTOR_SIGNATURE,
         },
         "return_contract": {
             "allowed_dtos": list(repository_contract.ALLOWED_DTOS),
@@ -316,9 +329,21 @@ def _generated_snapshot() -> dict[str, object]:
             ),
             "forbidden_types": list(repository_contract.FORBIDDEN_TYPES),
         },
+        "operation_guards": {
+            "canonical_table": repository_contract.CANONICAL_TABLE,
+            "update_identity": repository_contract.UPDATE_IDENTITY,
+            "update_bind_names": repository_contract.UPDATE_BIND_NAMES,
+            "tenant_primary_key_bind": repository_contract.TENANT_PRIMARY_KEY_BIND,
+            "row_lock": repository_contract.ROW_LOCK,
+            "unlocked_read": repository_contract.UNLOCKED_READ,
+            "sync_apply_scope": repository_contract.SYNC_APPLY_SCOPE,
+        },
         "product_capability_ids": list(repository_contract.PRODUCT_CAPABILITY_IDS),
         "product_operation_token_types": list(
             repository_contract.PRODUCT_OPERATION_TOKEN_TYPES
+        ),
+        "product_function_operation_ids": list(
+            repository_contract.PRODUCT_FUNCTION_OPERATION_IDS
         ),
         "cross_tenant_functions": list(repository_contract.CROSS_TENANT_FUNCTIONS),
     }
@@ -421,11 +446,17 @@ def test_generated_repository_constant_surface_is_exact() -> None:
         "CONTAINER_TYPE_MATCH",
         "CONTEXT_BINDING_ENTRY",
         "CONTRACT_REVISION",
+        "CANONICAL_TABLE",
         "CROSS_TENANT_FUNCTIONS",
         "CROSS_TENANT_FUNCTION_ENTRY",
         "CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL",
         "EXECUTOR_SIGNATURE",
         "EXECUTOR_SYMBOL",
+        "FUNCTION_REGISTRATION_TYPE",
+        "FUNCTION_TRANSACTION_ENTRY",
+        "FUNCTION_OPERATION_REGISTRY",
+        "FUNCTION_EXECUTOR_SYMBOL",
+        "FUNCTION_EXECUTOR_SIGNATURE",
         "FORBIDDEN_TYPES",
         "IMMUTABLE_CONTAINER_GRAMMAR",
         "IMMUTABLE_SCALAR_TYPES",
@@ -433,12 +464,19 @@ def test_generated_repository_constant_surface_is_exact() -> None:
         "OPERATION_TOKEN_TYPE",
         "PRODUCT_CAPABILITY_IDS",
         "PRODUCT_OPERATION_TOKEN_TYPES",
+        "PRODUCT_FUNCTION_OPERATION_IDS",
         "REPOSITORY_TYPE",
+        "ROW_LOCK",
         "SCALAR_TYPE_MATCH",
         "SCHEMA_VERSION",
         "SOURCE_ASSET",
         "SOURCE_DIGEST",
+        "TENANT_PRIMARY_KEY_BIND",
+        "SYNC_APPLY_SCOPE",
         "TRANSACTION_SCOPE_ENTRY",
+        "UNLOCKED_READ",
+        "UPDATE_BIND_NAMES",
+        "UPDATE_IDENTITY",
     }
     actual = {
         name
@@ -492,6 +530,56 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "CAP:lineup_memories:read",
         "CAP:lineup_memories:insert",
         "CAP:lineup_memories:update",
+        "CAP:recording_generations:read",
+        "CAP:recording_generations:update",
+        "CAP:event_slots:read",
+        "CAP:event_slots:insert",
+        "CAP:event_slots:update",
+        "CAP:operation_events:read",
+        "CAP:operation_events:insert",
+        "CAP:operation_events:update",
+        "CAP:temporary_player_id_mappings:read",
+        "CAP:temporary_player_id_mappings:insert",
+        "CAP:idempotency_ledger:read",
+        "CAP:idempotency_ledger:insert",
+        "CAP:rejected_event_originals:read",
+        "CAP:rejected_event_originals:insert",
+        "CAP:invalidation_intents:read",
+        "CAP:invalidation_intents:update",
+        "CAP:evacuated_event_originals:read",
+        "CAP:evacuated_event_originals:insert",
+    )
+    expected_sync_operations = (
+        ("GameReadToken", "CAP:games:read"),
+        ("GameLockToken", "CAP:games:read"),
+        ("RecordingGenerationReadToken", "CAP:recording_generations:read"),
+        ("RecordingGenerationByNumberReadToken", "CAP:recording_generations:read"),
+        ("RecordingGenerationLockToken", "CAP:recording_generations:read"),
+        ("RecordingPrefixUpdateToken", "CAP:recording_generations:update"),
+        ("EventSlotReadToken", "CAP:event_slots:read"),
+        ("EventSlotInsertToken", "CAP:event_slots:insert"),
+        ("EventSlotVersionUpdateToken", "CAP:event_slots:update"),
+        ("OperationEventReadToken", "CAP:operation_events:read"),
+        ("OperationEventOrderReadToken", "CAP:operation_events:read"),
+        ("OperationEventInsertToken", "CAP:operation_events:insert"),
+        ("OperationEventOrderUpdateToken", "CAP:operation_events:update"),
+        ("OperationEventReplaceToken", "CAP:operation_events:update"),
+        ("TemporaryPlayerMappingReadToken", "CAP:temporary_player_id_mappings:read"),
+        (
+            "TemporaryPlayerMappingInsertToken",
+            "CAP:temporary_player_id_mappings:insert",
+        ),
+        ("IdempotencyLedgerReadToken", "CAP:idempotency_ledger:read"),
+        ("IdempotencyLedgerInsertToken", "CAP:idempotency_ledger:insert"),
+        ("RejectedOriginalReadToken", "CAP:rejected_event_originals:read"),
+        ("RejectedOriginalInsertToken", "CAP:rejected_event_originals:insert"),
+        ("InvalidationIntentReadToken", "CAP:invalidation_intents:read"),
+        ("InvalidationIntentPendingToken", "CAP:invalidation_intents:read"),
+        ("SyncInvalidationIntentInsertToken", "CAP:invalidation_intents:insert"),
+        ("SyncSharedInvalidationIntentInsertToken", "CAP:invalidation_intents:insert"),
+        ("InvalidationIntentDeliveredToken", "CAP:invalidation_intents:update"),
+        ("EvacuatedOriginalReadToken", "CAP:evacuated_event_originals:read"),
+        ("EvacuatedOriginalInsertToken", "CAP:evacuated_event_originals:insert"),
     )
     expected_token_types = (
         "pitchlog.repositories.roster.PlayerReadToken",
@@ -510,6 +598,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.lineup_memory.LineupMemoryReadToken",
         "pitchlog.repositories.lineup_memory._LineupMemoryInsertToken",
         "pitchlog.repositories.lineup_memory._LineupMemoryUpdateToken",
+        *(f"pitchlog.sync.tokens.{name}" for name, _ in expected_sync_operations),
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
@@ -534,7 +623,8 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 expected_capabilities[7],
                 expected_capabilities[3],
                 expected_capabilities[0],
-                *expected_capabilities[8:],
+                *expected_capabilities[8:11],
+                *(capability for _, capability in expected_sync_operations),
             ),
             strict=True,
         )
@@ -864,6 +954,7 @@ def test_immutable_subclasses_cannot_leak_database_handles(
         "public_surface",
         "executor",
         "return_contract",
+        "operation_guards",
         "product_capability_ids",
         "product_operation_token_types",
         "cross_tenant_functions",

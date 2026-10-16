@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from contextlib import AbstractContextManager, ExitStack
+from collections.abc import Iterator
+from contextlib import AbstractContextManager, ExitStack, contextmanager
+from contextvars import ContextVar
+from itertools import islice
 from types import TracebackType
 from typing import final
 from uuid import UUID
@@ -12,11 +15,17 @@ from sqlalchemy.orm import Session
 from pitchlog.db.engine import create_database_engine
 from pitchlog.repositories.base import (
     _materialize_execution_result,
+    _materialize_rows,
     _operation_spec,
     _prepare_operation,
 )
 from pitchlog.repositories.binding import TenantBindingError, _tenant_transaction
 from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.function_operations import (
+    decode_function_result,
+    prepare_function_operation,
+)
+from pitchlog.repositories.operation_registry import FUNCTION_OPERATION_REGISTRY
 from pitchlog.repositories.tokens import (
     TenantOperationResult,
     TenantOperationToken,
@@ -27,6 +36,19 @@ __all__ = ("tenant_transaction_scope",)
 _HANDLE_CREATION_TOKEN = object()
 _TransactionRuntime = tuple[Session, ExitStack]
 _TRANSACTION_RUNTIMES: dict[object, _TransactionRuntime] = {}
+_SYNC_APPLY_ACTIVE: ContextVar[bool] = ContextVar("sync_apply_active", default=False)
+
+
+@contextmanager
+def _sync_apply_active() -> Iterator[None]:
+    """既存の適用トランザクション内で、別スコープの開始を禁止する。"""
+    if _SYNC_APPLY_ACTIVE.get():
+        raise RuntimeError("同期適用中の印へ再入できない")
+    token = _SYNC_APPLY_ACTIVE.set(True)
+    try:
+        yield
+    finally:
+        _SYNC_APPLY_ACTIVE.reset(token)
 
 
 @final
@@ -119,6 +141,51 @@ class _TenantTransaction:
         execution_result = session.execute(statement, parameters)
         return _materialize_execution_result(statement, execution_result)
 
+    def run_function(self, operation: TenantOperationToken) -> TenantOperationResult:
+        """同一scopeで登録済み固定関数だけを実行し、結果を閉じる。"""
+        state_key = self._state_key
+        if state_key is None:
+            raise RuntimeError("トランザクションハンドルは失効している")
+        runtime = _TRANSACTION_RUNTIMES.get(state_key)
+        if runtime is None:
+            self._state_key = None
+            raise RuntimeError("トランザクションハンドルは失効している")
+        if (
+            type(self._context) is not TenantContext
+            or self._context.tenant_id != self._bound_tenant_id
+            or self._context._integrity_proof != self._bound_integrity_proof
+            or not self._context._has_valid_integrity_proof()
+        ):
+            raise TenantBindingError(
+                "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
+            )
+        spec, parameters = prepare_function_operation(
+            operation, self._bound_tenant_id, FUNCTION_OPERATION_REGISTRY
+        )
+        session, _ = runtime
+        execution_result = session.execute(spec.statement, parameters)
+        rows = tuple(tuple(row) for row in islice(execution_result, spec.max_rows + 1))
+        decoded = decode_function_result(spec, _materialize_rows(rows))
+        return _materialize_rows(decoded.rows)
+
+    def run_in_savepoint(
+        self, operation: TenantOperationToken
+    ) -> TenantOperationResult:
+        """単一 operation の失敗だけを取り消せるように実行する。
+
+        Args:
+            operation: 既存の登録済み operation token。
+
+        Returns:
+            SAVEPOINT 内で実体化した結果。
+        """
+        state_key = self._state_key
+        if state_key is None or state_key not in _TRANSACTION_RUNTIMES:
+            raise RuntimeError("トランザクションハンドルは失効している")
+        session, _ = _TRANSACTION_RUNTIMES[state_key]
+        with session.begin_nested():
+            return self.run(operation)
+
 
 class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
     """Session の生成から close までを所有する内部 context manager。"""
@@ -142,6 +209,8 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         """
         if self._handle is not None:
             raise RuntimeError("同じトランザクションスコープへ再入できない")
+        if _SYNC_APPLY_ACTIVE.get():
+            raise RuntimeError("同期適用中に新しいテナントスコープを開けない")
         if type(self._context) is not TenantContext:
             raise TenantBindingError("TenantContext が無いため業務 SQL を開始できない")
         if not self._context._has_valid_integrity_proof():

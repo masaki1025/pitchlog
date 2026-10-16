@@ -38,7 +38,8 @@
         "contracts/state-transition/state_transition_contract_schema_v1.json",
         "contracts/state-transition/clause_branch_register_v1.json",
         "contracts/state-transition/representative_selection_policy_v1.json",
-        "contracts/state-transition/coverage_row_binding_policy_v1.json"
+        "contracts/state-transition/coverage_row_binding_policy_v1.json",
+        "backend/domain/history-depth.json"
       ]
     },
     {

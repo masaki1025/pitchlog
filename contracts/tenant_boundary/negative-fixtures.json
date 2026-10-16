@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "fixture_set_revision": 14,
+  "fixture_set_revision": 17,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "fixture_set_revision",
       "current_identifiers": [
-        "fixture_set_revision:14"
+        "fixture_set_revision:17"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -875,6 +875,13 @@
       "condition": 5,
       "mutation": "TenantContext.__init__ を既存 object へ直接適用する",
       "expected_error": "TB007"
+    },
+    {
+      "id": "C5_FUNCTION_DIRECT_SESSION",
+      "path": "pitchlog/services/c5_function_direct_session.py",
+      "condition": 5,
+      "mutation": "固定関数入口を迂回してSession.executeを直接呼ぶ",
+      "expected_error": "TB005"
     }
   ]
 }

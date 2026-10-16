@@ -25,3 +25,10 @@
 
 # 190fc3a: corpus version 台帳と版照合を追加(2026-09-14)— auth_catalog の値が更新され再検出
 190fc3a45a8e9d337a28553bfeac00711ed7ad0c:tests/fixtures/profile-sample/profiles/registry.json:generic-api-key:25
+
+# TSK-543 / PR #119 — 2026-10-15・山田正輝が元コミットと試験用途を確認し誤検知と判定。
+# 両行はDBなしのインプロセスHTTP試験で固定ダミー入力を渡す呼出しであり、
+# 実認証情報ではない。署名鍵は試験時に生成し、認証関数とDB接続はmock化する。
+# 履歴モードの該当2 fingerprintだけを抑止し、ルール・ファイルは除外しない。
+d865265c06204f8b8b06e5e8aa2c403a7dd3ab05:backend/tests/test_api_auth_exit.py:generic-api-key:81
+d865265c06204f8b8b06e5e8aa2c403a7dd3ab05:backend/tests/test_api_auth_exit.py:generic-api-key:108

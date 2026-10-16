@@ -20,7 +20,7 @@ const vueRecommended = pluginVue.configs['flat/recommended'].map((config) => ({
 
 export default [
   {
-    ignores: ['dist/**'],
+    ignores: ['dist/**', 'scripts/domain-checks/fixtures/**'],
   },
   ...vueRecommended,
   ...tseslint.configs.recommended.map((config) => ({
@@ -70,6 +70,29 @@ export default [
         },
       ],
       '@typescript-eslint/no-require-imports': 'error',
+    },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,vue}'],
+    // ステップ 9 の読み込み口だけが公開口を参照する。
+    ignores: ['src/domain/**', 'src/lib/generated/wrappers/domainArtifact.ts'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'PitchlogDomain',
+          message:
+            'ドメイン公開口は src/lib/generated/wrappers/domainArtifact.ts を経由してください。',
+        },
+      ],
+      'no-restricted-properties': [
+        'error',
+        {
+          property: 'PitchlogDomain',
+          message:
+            'ドメイン公開口は src/lib/generated/wrappers/domainArtifact.ts を経由してください。',
+        },
+      ],
     },
   },
   // Prettier と競合する整形規則だけを最後に無効化する。

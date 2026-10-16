@@ -1,0 +1,2471 @@
+{
+  "schemaVersion": 1,
+  "version": "coordinate_transform_contract_v1",
+  "calculation": "coordinate-transform",
+  "independentVerifierId": "claude-delegator",
+  "cases": [
+    {
+      "caseId": "screen-roundtrip-origin",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1301,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 0,
+          "y": 0
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 0,
+          "y": 263
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 0,
+          "y": 0
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-origin-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1303,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 0,
+          "y": 0
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 0,
+          "y": 263
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 0,
+          "y": 0
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-max-corner",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 263,
+          "y": 263
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 263,
+          "y": 0
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 263,
+          "y": 263
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-max-corner-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1304,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 263,
+          "y": 263
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 263,
+          "y": 0
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 263,
+          "y": 263
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-zone-top-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1301,
+            "clause": "付録B-3"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 80,
+          "y": 68
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 80,
+          "y": 195
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 80,
+          "y": 68
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-zone-top-left-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1303,
+            "clause": "付録B-3"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 80,
+          "y": 68
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 80,
+          "y": 195
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 80,
+          "y": 68
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-zone-top-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302,
+            "clause": "付録B-3"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 183,
+          "y": 68
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 183,
+          "y": 195
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 183,
+          "y": 68
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-zone-top-right-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1304,
+            "clause": "付録B-3"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 183,
+          "y": 68
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 183,
+          "y": 195
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 183,
+          "y": 68
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-zone-bottom-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1301,
+            "clause": "付録B-3"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 80,
+          "y": 180
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 80,
+          "y": 83
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 80,
+          "y": 180
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-zone-bottom-left-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1303,
+            "clause": "付録B-3"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 80,
+          "y": 180
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 80,
+          "y": 83
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 80,
+          "y": 180
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-zone-bottom-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302,
+            "clause": "付録B-3"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 183,
+          "y": 180
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 183,
+          "y": 83
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 183,
+          "y": 180
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-zone-bottom-right-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1304,
+            "clause": "付録B-3"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 183,
+          "y": 180
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 183,
+          "y": 83
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 183,
+          "y": 180
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-interior-upper",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1301,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 100
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 123,
+          "y": 163
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 123,
+          "y": 100
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-interior-upper-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1303,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 123,
+          "y": 100
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 123,
+          "y": 163
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 123,
+          "y": 100
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-interior-lower",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1301,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 130,
+          "y": 140
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 130,
+          "y": 123
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 130,
+          "y": 140
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "screen-roundtrip-interior-lower-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1315,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1303,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 130,
+          "y": 140
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 130,
+          "y": 123
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "roundTripCoordinate": {
+          "x": 130,
+          "y": 140
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "canonical-roundtrip-origin",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1301,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 0,
+          "y": 0
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 0,
+          "y": 263
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 0,
+          "y": 0
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "canonical-roundtrip-origin-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1303,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 0,
+          "y": 0
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 0,
+          "y": 263
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 0,
+          "y": 0
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "canonical-roundtrip-max-corner",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 263,
+          "y": 263
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 263,
+          "y": 0
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 263,
+          "y": 263
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "canonical-roundtrip-max-corner-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1304,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 263,
+          "y": 263
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 263,
+          "y": 0
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 263,
+          "y": 263
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "canonical-roundtrip-quantized-half",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 132,
+          "y": 132
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 132,
+          "y": 131
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 132,
+          "y": 132
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "canonical-roundtrip-quantized-half-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1304,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 132,
+          "y": 132
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 132,
+          "y": 131
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 132,
+          "y": 132
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "canonical-roundtrip-zone-bottom-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1301,
+            "clause": "付録B-3"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 80,
+          "y": 83
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 80,
+          "y": 180
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 80,
+          "y": 83
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "canonical-roundtrip-zone-bottom-left-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1310,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1316,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1303,
+            "clause": "付録B-3"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 80,
+          "y": 83
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 80,
+          "y": 180
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 80,
+          "y": 83
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "quantization-half-to-132-units",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1177,
+            "clause": "付録A-1"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1317,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1306,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": {
+            "numerator": 1,
+            "denominator": 2
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 2
+          }
+        },
+        "coordinateSystem": "normalized-bottom-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 132,
+          "y": 132
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "intermediateScreenCoordinate": {
+          "x": 132,
+          "y": 131
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "quantization-half-to-132-units-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1177,
+            "clause": "付録A-1"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1317,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1306,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": {
+            "numerator": 1,
+            "denominator": 2
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 2
+          }
+        },
+        "coordinateSystem": "normalized-bottom-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 132,
+          "y": 132
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "intermediateScreenCoordinate": {
+          "x": 132,
+          "y": 131
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "quantization-thirds-one-two",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1177,
+            "clause": "付録A-1"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1317,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1301,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": {
+            "numerator": 1,
+            "denominator": 3
+          },
+          "y": {
+            "numerator": 2,
+            "denominator": 3
+          }
+        },
+        "coordinateSystem": "normalized-bottom-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 88,
+          "y": 175
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "intermediateScreenCoordinate": {
+          "x": 88,
+          "y": 88
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "quantization-thirds-one-two-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1177,
+            "clause": "付録A-1"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1317,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1303,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": {
+            "numerator": 1,
+            "denominator": 3
+          },
+          "y": {
+            "numerator": 2,
+            "denominator": 3
+          }
+        },
+        "coordinateSystem": "normalized-bottom-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 88,
+          "y": 175
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "intermediateScreenCoordinate": {
+          "x": 88,
+          "y": 88
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "quantization-thirds-two-one",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1177,
+            "clause": "付録A-1"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1317,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": {
+            "numerator": 2,
+            "denominator": 3
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 3
+          }
+        },
+        "coordinateSystem": "normalized-bottom-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 175,
+          "y": 88
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "intermediateScreenCoordinate": {
+          "x": 175,
+          "y": 175
+        },
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "quantization-thirds-two-one-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1177,
+            "clause": "付録A-1"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1311,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1317,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1304,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": {
+            "numerator": 2,
+            "denominator": 3
+          },
+          "y": {
+            "numerator": 1,
+            "denominator": 3
+          }
+        },
+        "coordinateSystem": "normalized-bottom-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 175,
+          "y": 88
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "intermediateScreenCoordinate": {
+          "x": 175,
+          "y": 175
+        },
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "clamp-negative-x-above-max-y",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1319,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1301,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": -1,
+          "y": 264
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 0,
+          "y": 0
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "clamp-negative-x-above-max-y-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1319,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1303,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": -1,
+          "y": 264
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 0,
+          "y": 0
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "clamp-above-max-x-negative-y",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1319,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 264,
+          "y": -1
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "right"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 263,
+          "y": 263
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "insideOutside": "outside"
+      }
+    },
+    {
+      "caseId": "clamp-above-max-x-negative-y-batter-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1312,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1319,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1304,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 264,
+          "y": -1
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "batterSide": "left"
+      },
+      "expected": {
+        "coordinate": {
+          "x": 263,
+          "y": 263
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "insideOutside": "inside"
+      }
+    },
+    {
+      "caseId": "inside-outside-grid-131-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1301,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1306,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 131,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "right"
+      },
+      "expected": {
+        "insideOutside": "inside",
+        "coordinate": {
+          "x": 131,
+          "y": 132
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 131,
+          "y": 131
+        }
+      }
+    },
+    {
+      "caseId": "inside-outside-grid-132-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1306,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 132,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "right"
+      },
+      "expected": {
+        "insideOutside": "outside",
+        "coordinate": {
+          "x": 132,
+          "y": 132
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 132,
+          "y": 131
+        }
+      }
+    },
+    {
+      "caseId": "inside-outside-grid-131-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1303,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1306,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 131,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "left"
+      },
+      "expected": {
+        "insideOutside": "outside",
+        "coordinate": {
+          "x": 131,
+          "y": 132
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 131,
+          "y": 131
+        }
+      }
+    },
+    {
+      "caseId": "inside-outside-grid-132-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1304,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1306,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 132,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "left"
+      },
+      "expected": {
+        "insideOutside": "inside",
+        "coordinate": {
+          "x": 132,
+          "y": 132
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 132,
+          "y": 131
+        }
+      }
+    },
+    {
+      "caseId": "inside-outside-end-0-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1301,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1306,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 0,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "right"
+      },
+      "expected": {
+        "insideOutside": "inside",
+        "coordinate": {
+          "x": 0,
+          "y": 132
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 0,
+          "y": 131
+        }
+      }
+    },
+    {
+      "caseId": "inside-outside-end-263-right",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1302,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1306,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 263,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "right"
+      },
+      "expected": {
+        "insideOutside": "outside",
+        "coordinate": {
+          "x": 263,
+          "y": 132
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 263,
+          "y": 131
+        }
+      }
+    },
+    {
+      "caseId": "inside-outside-end-0-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1303,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1306,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 0,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "left"
+      },
+      "expected": {
+        "insideOutside": "outside",
+        "coordinate": {
+          "x": 0,
+          "y": 132
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 0,
+          "y": 131
+        }
+      }
+    },
+    {
+      "caseId": "inside-outside-end-263-left",
+      "provenance": {
+        "subjectKind": "clause",
+        "sources": [
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1297,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1304,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1306,
+            "clause": "付録B-3"
+          },
+          {
+            "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+            "line": 1313,
+            "clause": "付録B-7"
+          },
+          {
+            "path": "contracts/display_geometry_263_v1.json"
+          }
+        ]
+      },
+      "input": {
+        "coordinate": {
+          "x": 263,
+          "y": 131
+        },
+        "coordinateSystem": "normalized-bottom-left-units-1-263",
+        "batterSide": "left"
+      },
+      "expected": {
+        "insideOutside": "inside",
+        "coordinate": {
+          "x": 263,
+          "y": 132
+        },
+        "coordinateSystem": "screen-263-top-left",
+        "roundTripCoordinate": {
+          "x": 263,
+          "y": 131
+        }
+      }
+    }
+  ],
+  "batterSideCoverageRule": "all-input-coordinates-both-batter-sides"
+}
