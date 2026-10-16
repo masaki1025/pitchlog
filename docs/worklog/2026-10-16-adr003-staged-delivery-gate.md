@@ -96,3 +96,11 @@ PRの履歴は`origin/develop=3052e0db743877c7f15c0ec10daa0142cba7ab7e`を親に
 文書限定枝`feature/adr003-d2iv-applicability`を`0b4ad9027f4be198516d8d4886f423061abdfee5`でpushし、受理ID取得用**Draft PR #145**を作成した。PR差分は`docs/`のみで、ローカル8入力固定コミット`e6a0ca0a`と未受理の凍結候補を公開していない。7.7記録案の`acceptance_id`は`masaki1025/pitchlog#145`で固定し、`approved_by`/`approved_at`は未記入。8入力のGit blobと生ファイルSHA-256、6 sealed資産のcanonical SHA-256前後値、既存11件保持、独立レビューの採否は`authz-77-handoff-candidate.md`に記載した。
 
 Draft作成前のdocs-statusは20文書・違反0件。pytestは共有`/tmp`満杯で一度83件が一時ファイル作成に失敗したが、既存領域を削除せず専用の`/home/ymdms/.cache/pitchlog-pytest-adr003-draft`を使い同じ84件を再実行して**84件成功**。`check_plan_docs_sync.py`の無引数実行は本正本ゲート計画に標準「影響する正本」節が無いため停止し、緩和していない。正式資産を反映した最終HEADの認可/oracle/凍結/CI検査は未実施で、Draft解除・マージには進まない。
+
+## 2026-10-17 PR #145の7.7実値受理と正式反映
+
+PO山田正輝は、SHA-256 `161a7b50c014ea1ef3f69a5f96326ba6f8b304ca88ac576046a2037e38908a99` の一括判断資料に固定された8入力blob・6封印資産の前後値を、受理ID `masaki1025/pitchlog#145` で正式受理した。受理日は実指示日の2026-10-17。`oracle_input` は `d5ccc18ef39179857c9a4c793ea28a416432efba` → `e6a0ca0ab6cee5c779851518463eafba6ae146b3`。既存11件をそのまま保持し、`frozen-baselines.json` の履歴末尾へ今回分を1件だけ追加した。資料本文は受理時のSHA-256を保持するため書き換えず、正式な受理値はJSON履歴と本節に記録する。
+
+PR枝へ承認済み8入力だけのローカル中間コミット `e6a0ca0ab6cee5c779851518463eafba6ae146b3` を履歴ごと取り込み、共有前提1行・oracle_contextのみが変わる6封印資産・`oracle-seal.lock.json`を隔離候補から反映した。専用の `--reseal-oracle` による再封印後の8入力blobと6 canonical SHA-256は受理資料と全件一致した。比較基線 `origin/develop=3052e0db743877c7f15c0ec10daa0142cba7ab7e` の認可主張187行は行全体が完全一致し、凍結台帳のowner・配置・宣言・同一性粒度と既存11件、C1/#144のGET経路を保持した。新たな認可意味変更はない。
+
+この受理は**本人による逐行確認を実施した記録ではない**。コア領域PRの逐行確認は別に残す。D-2全体の発効、分析40行の完了、T1/T2の対象別開始条件の成立、製品実装許可とも扱わない。Draft解除とマージは行わない。
