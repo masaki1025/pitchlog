@@ -46,18 +46,10 @@ def _create_rg1_fixture(connection: psycopg.Connection[Any]) -> None:
             "singleton_id smallint PRIMARY KEY CHECK (singleton_id = 1), "
             "state text NOT NULL CHECK (state IN ('closed', 'open')))"
         )
-        cursor.execute(
-            "INSERT INTO public.rg1_restore_gate VALUES (1, 'closed')"
-        )
-        cursor.execute(
-            "ALTER TABLE public.rg1_restore_gate ENABLE ROW LEVEL SECURITY"
-        )
-        cursor.execute(
-            "ALTER TABLE public.rg1_restore_gate FORCE ROW LEVEL SECURITY"
-        )
-        cursor.execute(
-            "GRANT USAGE ON SCHEMA public TO pitchlog_rg1_fn_owner"
-        )
+        cursor.execute("INSERT INTO public.rg1_restore_gate VALUES (1, 'closed')")
+        cursor.execute("ALTER TABLE public.rg1_restore_gate ENABLE ROW LEVEL SECURITY")
+        cursor.execute("ALTER TABLE public.rg1_restore_gate FORCE ROW LEVEL SECURITY")
+        cursor.execute("GRANT USAGE ON SCHEMA public TO pitchlog_rg1_fn_owner")
         cursor.execute(
             "GRANT SELECT (singleton_id, state), UPDATE (singleton_id) "
             "ON public.rg1_restore_gate TO pitchlog_rg1_fn_owner"
@@ -92,16 +84,13 @@ def _install_rg1_product_functions(
             "rg1_read_open",
             "rg1_assert_open_before_commit",
         ):
-            body = (
-                body_dir
-                / f"FUNCTION:rg1_api:{function_name}(uuid).sql"
-            ).read_text(encoding="utf-8")
+            body = (body_dir / f"FUNCTION:rg1_api:{function_name}(uuid).sql").read_text(
+                encoding="utf-8"
+            )
             cursor.execute(sql.SQL(cast(LiteralString, body)))
 
 
-@pytest.mark.parametrize(
-    "check", (read_rg1_open, assert_rg1_open_before_commit)
-)
+@pytest.mark.parametrize("check", (read_rg1_open, assert_rg1_open_before_commit))
 def test_rg1_real_scope_rejects_closed_and_rolls_back(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
@@ -363,9 +352,7 @@ def test_rg1_product_functions_fail_closed_for_bad_context_and_missing_row(
                     app.execute("SET ROLE pitchlog_app")
                     app.execute("SELECT set_config('app.tenant_id', 'invalid', true)")
                     with pytest.raises(psycopg.errors.InvalidTextRepresentation):
-                        app.execute(
-                            f"SELECT rg1_api.{function_name}(%s)", (tenant_id,)
-                        )
+                        app.execute(f"SELECT rg1_api.{function_name}(%s)", (tenant_id,))
                     app.rollback()
 
                 admin.execute(
@@ -381,9 +368,7 @@ def test_rg1_product_functions_fail_closed_for_bad_context_and_missing_row(
                         (str(tenant_id),),
                     )
                     with pytest.raises(psycopg.Error) as error:
-                        app.execute(
-                            f"SELECT rg1_api.{function_name}(%s)", (tenant_id,)
-                        )
+                        app.execute(f"SELECT rg1_api.{function_name}(%s)", (tenant_id,))
                     assert error.value.sqlstate == "P0002"
                     app.rollback()
 

@@ -22,8 +22,7 @@ if TYPE_CHECKING:
 
 pytest_plugins = ("db_fixtures",)
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "migrations/versions/0032_rg1_restore_gate.py"
+    Path(__file__).resolve().parents[1] / "migrations/versions/0032_rg1_restore_gate.py"
 )
 
 

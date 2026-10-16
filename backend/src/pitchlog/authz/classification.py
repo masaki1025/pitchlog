@@ -37,9 +37,7 @@ FUNCTION_ONLY_FACT_KINDS = frozenset(
         "rg1_control",
     }
 )
-FUNCTION_OWNER_UNITS = frozenset(
-    {"U-A1", "U-A2", "U-X1", "U-R1", "migration_batch"}
-)
+FUNCTION_OWNER_UNITS = frozenset({"U-A1", "U-A2", "U-X1", "U-R1", "migration_batch"})
 CANONICAL_SOURCE_PATH = "docs/design/data-model.md"
 
 

@@ -72,9 +72,7 @@ def _require_open(result: TenantOperationResult) -> None:
         raise RG1Unavailable("復元ゲートが閉じている")
 
 
-def read_rg1_open(
-    scope: _TenantTransaction, *, game_id: UUID | None = None
-) -> None:
+def read_rg1_open(scope: _TenantTransaction, *, game_id: UUID | None = None) -> None:
     """認可後に復元ゲートを非ロックで確認する。"""
     del game_id
     _require_open(scope.run_function(RG1PrecheckToken()))

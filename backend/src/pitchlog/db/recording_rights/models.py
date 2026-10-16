@@ -43,9 +43,7 @@ class RG1RestoreGate(LifecycleMixin, Base):
 
     __tablename__ = "rg1_restore_gate"
     __table_args__ = (
-        CheckConstraint(
-            "singleton_id = 1", name="ck_rg1_restore_gate_singleton_id"
-        ),
+        CheckConstraint("singleton_id = 1", name="ck_rg1_restore_gate_singleton_id"),
         CheckConstraint(
             "state IN ('closed', 'open')", name="ck_rg1_restore_gate_state"
         ),

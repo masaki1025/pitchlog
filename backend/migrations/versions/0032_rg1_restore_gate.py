@@ -19,9 +19,7 @@ def upgrade() -> None:
             "singleton_id", sa.SmallInteger(), nullable=False, autoincrement=False
         ),
         sa.Column("state", sa.Text(), nullable=False),
-        sa.CheckConstraint(
-            "singleton_id = 1", name="ck_rg1_restore_gate_singleton_id"
-        ),
+        sa.CheckConstraint("singleton_id = 1", name="ck_rg1_restore_gate_singleton_id"),
         sa.CheckConstraint(
             "state IN ('closed', 'open')", name="ck_rg1_restore_gate_state"
         ),

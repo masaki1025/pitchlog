@@ -664,9 +664,9 @@ def _singleton_schema_call_matches(
         or node.keywords
     ):
         return False
-    return (
-        _op_call(node, "create_table") and function_name == "upgrade"
-    ) or (_op_call(node, "drop_table") and function_name == "downgrade")
+    return (_op_call(node, "create_table") and function_name == "upgrade") or (
+        _op_call(node, "drop_table") and function_name == "downgrade"
+    )
 
 
 def _migration_sources() -> dict[str, str]:
@@ -2255,7 +2255,7 @@ def test_rg1_singleton_seed_candidate_rejects_scope_expansion(case: str) -> None
         assert case == "overwrite_insert_conflict"
         source = source.replace(
             "\n\ndef downgrade()",
-            "\n    op.execute(\"INSERT INTO anything VALUES (1) "
+            '\n    op.execute("INSERT INTO anything VALUES (1) '
             "ON CONFLICT DO UPDATE SET state = 'open'\")\n\ndef downgrade()",
             1,
         )
