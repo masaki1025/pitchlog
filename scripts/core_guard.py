@@ -49,9 +49,16 @@ DOMAIN_RUNTIME_PATH_ADDITIONS = (
     "backend/Dockerfile",
 )
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "sync-protocol": ("tests/domain/runners/test_handoff_loader.py",),
-    "game-state": DOMAIN_RUNTIME_PATH_ADDITIONS,
-    "data-migration": DOMAIN_RUNTIME_PATH_ADDITIONS,
+    "sync-protocol": (
+        "backend/src/pitchlog/sync/*",
+        "backend/src/pitchlog/repositories/sync_apply.py",
+        "backend/tests/test_sync_apply_*.py",
+    ),
+    "recording-rights": (
+        "backend/src/pitchlog/sync/*",
+        "backend/src/pitchlog/repositories/sync_apply.py",
+        "backend/tests/test_sync_apply_*.py",
+    ),
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"

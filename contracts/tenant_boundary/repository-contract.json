@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 17,
+  "contract_revision": 19,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:17"
+        "contract_revision:19"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -71,7 +71,6 @@
   },
   "asset_kind": "tenant_repository_contract",
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "670b435ae06b75284eeba6cffc0241abd3e6c8ba9a8971e0afea965d3d9f5746",
   "public_surface": {
     "repository_type": "pitchlog.repositories.base.TenantRepositoryBase",
     "context_binding_entry": "pitchlog.repositories.base.TenantRepositoryBase.execute",
@@ -79,7 +78,10 @@
     "operation_token_type": "pitchlog.repositories.tokens.TenantOperationToken",
     "operation_result_type": "pitchlog.repositories.tokens.TenantOperationResult",
     "cross_tenant_function_registry": "pitchlog.repositories.base.CROSS_TENANT_FUNCTION_REGISTRY",
-    "transaction_scope_entry": "pitchlog.repositories.transaction.tenant_transaction_scope"
+    "transaction_scope_entry": "pitchlog.repositories.transaction.tenant_transaction_scope",
+    "function_registration_type": "pitchlog.repositories.function_operations.FunctionOperationRegistration",
+    "function_transaction_entry": "pitchlog.repositories.transaction._TenantTransaction.run_function",
+    "function_operation_registry": "pitchlog.repositories.operation_registry.PRODUCT_FUNCTION_OPERATIONS"
   },
   "executor": {
     "symbol": "pitchlog.repositories.base.TenantRepositoryBase._execute_operation",
@@ -125,6 +127,15 @@
       "non_frozen_dataclass"
     ]
   },
+  "operation_guards": {
+    "canonical_table": "orm_metadata_table_identity_for_registration_and_statement",
+    "update_identity": "actual_complete_primary_key_equalities_for_all_updates",
+    "update_bind_names": "primary_key_disjoint_from_target_columns_and_set_bindings",
+    "tenant_primary_key_bind": "injected_context_bind_only",
+    "row_lock": "declared_plain_for_update_with_complete_primary_key_and_explicit_specialized_shape",
+    "unlocked_read": "for_update_absent_when_undeclared",
+    "sync_apply_scope": "contextvar_rejects_new_tenant_transaction_scope"
+  },
   "product_capability_ids": [
     "CAP:players:read",
     "CAP:players:insert",
@@ -136,7 +147,25 @@
     "CAP:invalidation_intents:insert",
     "CAP:lineup_memories:read",
     "CAP:lineup_memories:insert",
-    "CAP:lineup_memories:update"
+    "CAP:lineup_memories:update",
+    "CAP:recording_generations:read",
+    "CAP:recording_generations:update",
+    "CAP:event_slots:read",
+    "CAP:event_slots:insert",
+    "CAP:event_slots:update",
+    "CAP:operation_events:read",
+    "CAP:operation_events:insert",
+    "CAP:operation_events:update",
+    "CAP:temporary_player_id_mappings:read",
+    "CAP:temporary_player_id_mappings:insert",
+    "CAP:idempotency_ledger:read",
+    "CAP:idempotency_ledger:insert",
+    "CAP:rejected_event_originals:read",
+    "CAP:rejected_event_originals:insert",
+    "CAP:invalidation_intents:read",
+    "CAP:invalidation_intents:update",
+    "CAP:evacuated_event_originals:read",
+    "CAP:evacuated_event_originals:insert"
   ],
   "product_operation_token_types": [
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -154,7 +183,40 @@
     "pitchlog.repositories.lineup_memory._ActiveLineupPlayerLockToken",
     "pitchlog.repositories.lineup_memory.LineupMemoryReadToken",
     "pitchlog.repositories.lineup_memory._LineupMemoryInsertToken",
-    "pitchlog.repositories.lineup_memory._LineupMemoryUpdateToken"
+    "pitchlog.repositories.lineup_memory._LineupMemoryUpdateToken",
+    "pitchlog.sync.tokens.GameReadToken",
+    "pitchlog.sync.tokens.GameLockToken",
+    "pitchlog.sync.tokens.RecordingGenerationReadToken",
+    "pitchlog.sync.tokens.RecordingGenerationByNumberReadToken",
+    "pitchlog.sync.tokens.RecordingGenerationLockToken",
+    "pitchlog.sync.tokens.RecordingPrefixUpdateToken",
+    "pitchlog.sync.tokens.EventSlotReadToken",
+    "pitchlog.sync.tokens.EventSlotInsertToken",
+    "pitchlog.sync.tokens.EventSlotVersionUpdateToken",
+    "pitchlog.sync.tokens.OperationEventReadToken",
+    "pitchlog.sync.tokens.OperationEventOrderReadToken",
+    "pitchlog.sync.tokens.OperationEventInsertToken",
+    "pitchlog.sync.tokens.OperationEventOrderUpdateToken",
+    "pitchlog.sync.tokens.OperationEventReplaceToken",
+    "pitchlog.sync.tokens.TemporaryPlayerMappingReadToken",
+    "pitchlog.sync.tokens.TemporaryPlayerMappingInsertToken",
+    "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+    "pitchlog.sync.tokens.IdempotencyLedgerInsertToken",
+    "pitchlog.sync.tokens.RejectedOriginalReadToken",
+    "pitchlog.sync.tokens.RejectedOriginalInsertToken",
+    "pitchlog.sync.tokens.InvalidationIntentReadToken",
+    "pitchlog.sync.tokens.InvalidationIntentPendingToken",
+    "pitchlog.sync.tokens.SyncInvalidationIntentInsertToken",
+    "pitchlog.sync.tokens.SyncSharedInvalidationIntentInsertToken",
+    "pitchlog.sync.tokens.InvalidationIntentDeliveredToken",
+    "pitchlog.sync.tokens.EvacuatedOriginalReadToken",
+    "pitchlog.sync.tokens.EvacuatedOriginalInsertToken"
   ],
-  "cross_tenant_functions": []
+  "cross_tenant_functions": [],
+  "function_executor": {
+    "symbol": "pitchlog.repositories.transaction._TenantTransaction.run_function",
+    "signature": "run_function(self, operation: TenantOperationToken) -> TenantOperationResult"
+  },
+  "product_function_operation_ids": [],
+  "source_digest": "544f341dd05bd8928e60113b1eef95ac96ca5551f1684912641f1d0b6bde9ea5"
 }

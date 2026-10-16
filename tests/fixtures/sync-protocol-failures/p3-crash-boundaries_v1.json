@@ -1,0 +1,4866 @@
+{
+  "schemaVersion": 2,
+  "scenarioId": "p3-crash-boundaries",
+  "version": 1,
+  "input": {
+    "initialPersistence": {
+      "value": {
+        "generation": 1,
+        "d3": 1,
+        "seed": [
+          {
+            "accept": [
+              {
+                "d5": "s1",
+                "d1": 1,
+                "kind": "play_input",
+                "payload": {
+                  "pitch": "s1"
+                }
+              }
+            ]
+          },
+          {
+            "deliverPending": true
+          },
+          {
+            "gameStatus": "in_progress"
+          }
+        ]
+      }
+    },
+    "queue": {
+      "value": {
+        "unsent": [
+          {
+            "d5": "c1",
+            "kind": "play_change",
+            "payload": {
+              "change": "first"
+            },
+            "target": {
+              "d1": 1
+            },
+            "expectedVersion": 1
+          }
+        ],
+        "subject": "c1"
+      }
+    },
+    "d1": {
+      "omittedBecause": "D1 なし変更イベント(P3)のため"
+    },
+    "d3": {
+      "value": {
+        "initial": 1
+      }
+    },
+    "d4": {
+      "value": {
+        "request": 1
+      }
+    },
+    "d5": {
+      "value": {
+        "persisted": [
+          "s1"
+        ],
+        "requested": [
+          "c1"
+        ]
+      }
+    },
+    "currentRecoveryGeneration": {
+      "value": {
+        "generation": "current"
+      }
+    },
+    "requestRecoveryGeneration": {
+      "value": {
+        "generation": "current"
+      }
+    },
+    "applicationPath": {
+      "value": "P3"
+    },
+    "tabs": {
+      "omittedBecause": "サーバー側 runner は端末のタブを扱わない"
+    },
+    "lock": {
+      "omittedBecause": "サーバー側 runner は端末のロックを扱わない"
+    },
+    "p5Branch": {
+      "omittedBecause": "適用経路が P5 の資産ではないため"
+    }
+  },
+  "cases": [
+    {
+      "caseId": "crash-t1",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "transaction",
+            "path": "P3",
+            "tElement": "T1"
+          }
+        },
+        "injectionPoint": {
+          "value": "T1 の保存後・コミット前"
+        },
+        "stopOperation": {
+          "value": "プロセスを落とす"
+        },
+        "restartOperation": {
+          "value": "同じ要求を再送する"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": null,
+              "b3Branch": null,
+              "ledger": {
+                "c1": null
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "notCommitted",
+              "T2": "notCommitted",
+              "T4": "notCommitted",
+              "T6": "notCommitted",
+              "T7": {
+                "targetVersion": "notCommitted",
+                "intents": "notCommitted"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": []
+            },
+            "invalidationIntentRows": {},
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            },
+            "i6TargetReference": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6Version": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6D5": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6ConfirmedContent": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6RetentionDeadline": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6EscrowState": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            }
+          }
+        },
+        {
+          "observationPoint": "再送後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": "変更受理",
+              "b3Branch": null,
+              "ledger": {
+                "c1": "accepted"
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": "committed",
+              "T4": "committed",
+              "T6": "committed",
+              "T7": {
+                "targetVersion": "committed",
+                "intents": "committed"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": [
+                "sync:game:1:1:2:chart",
+                "sync:game:1:1:2:game",
+                "sync:game:1:1:2:player_total",
+                "sync:game:1:1:2:shared_total",
+                "sync:game:1:1:2:team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "pending",
+              "game": "pending",
+              "player_total": "pending",
+              "shared_total": "pending",
+              "team_total": "pending"
+            },
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
+            },
+            "i6TargetReference": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6Version": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6D5": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6ConfirmedContent": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6RetentionDeadline": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6EscrowState": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "crash-t2",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "transaction",
+            "path": "P3",
+            "tElement": "T2"
+          }
+        },
+        "injectionPoint": {
+          "value": "T2 の保存後・コミット前"
+        },
+        "stopOperation": {
+          "value": "プロセスを落とす"
+        },
+        "restartOperation": {
+          "value": "同じ要求を再送する"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": null,
+              "b3Branch": null,
+              "ledger": {
+                "c1": null
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "notCommitted",
+              "T2": "notCommitted",
+              "T4": "notCommitted",
+              "T6": "notCommitted",
+              "T7": {
+                "targetVersion": "notCommitted",
+                "intents": "notCommitted"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": []
+            },
+            "invalidationIntentRows": {},
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            },
+            "i6TargetReference": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6Version": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6D5": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6ConfirmedContent": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6RetentionDeadline": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6EscrowState": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            }
+          }
+        },
+        {
+          "observationPoint": "再送後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": "変更受理",
+              "b3Branch": null,
+              "ledger": {
+                "c1": "accepted"
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": "committed",
+              "T4": "committed",
+              "T6": "committed",
+              "T7": {
+                "targetVersion": "committed",
+                "intents": "committed"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": [
+                "sync:game:1:1:2:chart",
+                "sync:game:1:1:2:game",
+                "sync:game:1:1:2:player_total",
+                "sync:game:1:1:2:shared_total",
+                "sync:game:1:1:2:team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "pending",
+              "game": "pending",
+              "player_total": "pending",
+              "shared_total": "pending",
+              "team_total": "pending"
+            },
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
+            },
+            "i6TargetReference": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6Version": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6D5": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6ConfirmedContent": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6RetentionDeadline": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6EscrowState": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "crash-t4",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "transaction",
+            "path": "P3",
+            "tElement": "T4"
+          }
+        },
+        "injectionPoint": {
+          "value": "T4 の保存後・コミット前"
+        },
+        "stopOperation": {
+          "value": "プロセスを落とす"
+        },
+        "restartOperation": {
+          "value": "同じ要求を再送する"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": null,
+              "b3Branch": null,
+              "ledger": {
+                "c1": null
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "notCommitted",
+              "T2": "notCommitted",
+              "T4": "notCommitted",
+              "T6": "notCommitted",
+              "T7": {
+                "targetVersion": "notCommitted",
+                "intents": "notCommitted"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": []
+            },
+            "invalidationIntentRows": {},
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            },
+            "i6TargetReference": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6Version": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6D5": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6ConfirmedContent": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6RetentionDeadline": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6EscrowState": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            }
+          }
+        },
+        {
+          "observationPoint": "再送後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": "変更受理",
+              "b3Branch": null,
+              "ledger": {
+                "c1": "accepted"
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": "committed",
+              "T4": "committed",
+              "T6": "committed",
+              "T7": {
+                "targetVersion": "committed",
+                "intents": "committed"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": [
+                "sync:game:1:1:2:chart",
+                "sync:game:1:1:2:game",
+                "sync:game:1:1:2:player_total",
+                "sync:game:1:1:2:shared_total",
+                "sync:game:1:1:2:team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "pending",
+              "game": "pending",
+              "player_total": "pending",
+              "shared_total": "pending",
+              "team_total": "pending"
+            },
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
+            },
+            "i6TargetReference": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6Version": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6D5": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6ConfirmedContent": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6RetentionDeadline": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6EscrowState": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "crash-t6",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "transaction",
+            "path": "P3",
+            "tElement": "T6"
+          }
+        },
+        "injectionPoint": {
+          "value": "T6 の保存後・コミット前"
+        },
+        "stopOperation": {
+          "value": "プロセスを落とす"
+        },
+        "restartOperation": {
+          "value": "同じ要求を再送する"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": null,
+              "b3Branch": null,
+              "ledger": {
+                "c1": null
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "notCommitted",
+              "T2": "notCommitted",
+              "T4": "notCommitted",
+              "T6": "notCommitted",
+              "T7": {
+                "targetVersion": "notCommitted",
+                "intents": "notCommitted"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": []
+            },
+            "invalidationIntentRows": {},
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            },
+            "i6TargetReference": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6Version": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6D5": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6ConfirmedContent": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6RetentionDeadline": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6EscrowState": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            }
+          }
+        },
+        {
+          "observationPoint": "再送後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": "変更受理",
+              "b3Branch": null,
+              "ledger": {
+                "c1": "accepted"
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": "committed",
+              "T4": "committed",
+              "T6": "committed",
+              "T7": {
+                "targetVersion": "committed",
+                "intents": "committed"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": [
+                "sync:game:1:1:2:chart",
+                "sync:game:1:1:2:game",
+                "sync:game:1:1:2:player_total",
+                "sync:game:1:1:2:shared_total",
+                "sync:game:1:1:2:team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "pending",
+              "game": "pending",
+              "player_total": "pending",
+              "shared_total": "pending",
+              "team_total": "pending"
+            },
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
+            },
+            "i6TargetReference": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6Version": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6D5": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6ConfirmedContent": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6RetentionDeadline": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6EscrowState": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "crash-t7",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "transaction",
+            "path": "P3",
+            "tElement": "T7"
+          }
+        },
+        "injectionPoint": {
+          "value": "T7 の保存後・コミット前"
+        },
+        "stopOperation": {
+          "value": "プロセスを落とす"
+        },
+        "restartOperation": {
+          "value": "同じ要求を再送する"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": null,
+              "b3Branch": null,
+              "ledger": {
+                "c1": null
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 0
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 0,
+                "operation_events": 0,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 0,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "notCommitted",
+              "T2": "notCommitted",
+              "T4": "notCommitted",
+              "T6": "notCommitted",
+              "T7": {
+                "targetVersion": "notCommitted",
+                "intents": "notCommitted"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": []
+            },
+            "invalidationIntentRows": {},
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            },
+            "i6TargetReference": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6Version": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6D5": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6ConfirmedContent": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6RetentionDeadline": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6EscrowState": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            }
+          }
+        },
+        {
+          "observationPoint": "再送後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": "変更受理",
+              "b3Branch": null,
+              "ledger": {
+                "c1": "accepted"
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": "committed",
+              "T4": "committed",
+              "T6": "committed",
+              "T7": {
+                "targetVersion": "committed",
+                "intents": "committed"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": [
+                "sync:game:1:1:2:chart",
+                "sync:game:1:1:2:game",
+                "sync:game:1:1:2:player_total",
+                "sync:game:1:1:2:shared_total",
+                "sync:game:1:1:2:team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "pending",
+              "game": "pending",
+              "player_total": "pending",
+              "shared_total": "pending",
+              "team_total": "pending"
+            },
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
+            },
+            "i6TargetReference": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6Version": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6D5": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6ConfirmedContent": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6RetentionDeadline": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6EscrowState": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "after-t7-before-delivery",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "outOfTransaction",
+            "point": "T7 確定後・無効化配信前"
+          }
+        },
+        "injectionPoint": {
+          "value": "T7 確定後・無効化配信前"
+        },
+        "stopOperation": {
+          "value": "配信の前でサーバーを止める"
+        },
+        "restartOperation": {
+          "value": "配信を再実行する"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": "変更受理",
+              "b3Branch": null,
+              "ledger": {
+                "c1": "accepted"
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": "committed",
+              "T4": "committed",
+              "T6": "committed",
+              "T7": {
+                "targetVersion": "committed",
+                "intents": "committed"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": [
+                "sync:game:1:1:2:chart",
+                "sync:game:1:1:2:game",
+                "sync:game:1:1:2:player_total",
+                "sync:game:1:1:2:shared_total",
+                "sync:game:1:1:2:team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "pending",
+              "game": "pending",
+              "player_total": "pending",
+              "shared_total": "pending",
+              "team_total": "pending"
+            },
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            },
+            "i6TargetReference": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6Version": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6D5": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6ConfirmedContent": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6RetentionDeadline": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6EscrowState": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            }
+          }
+        },
+        {
+          "observationPoint": "配信再実行後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": "変更受理",
+              "b3Branch": null,
+              "ledger": {
+                "c1": "accepted"
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": "committed",
+              "T4": "committed",
+              "T6": "committed",
+              "T7": {
+                "targetVersion": "committed",
+                "intents": "committed"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": [
+                "sync:game:1:1:2:chart",
+                "sync:game:1:1:2:game",
+                "sync:game:1:1:2:player_total",
+                "sync:game:1:1:2:shared_total",
+                "sync:game:1:1:2:team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "delivered",
+              "game": "delivered",
+              "player_total": "delivered",
+              "shared_total": "delivered",
+              "team_total": "delivered"
+            },
+            "deliveryState": {
+              "attempted": 5
+            },
+            "consumerReflectionState": {
+              "effects": 5,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 5
+            },
+            "intentCountsAfterReplay": {
+              "intents": {
+                "chart": 1,
+                "game": 1,
+                "player_total": 1,
+                "shared_total": 1,
+                "team_total": 1
+              },
+              "applications": 1
+            },
+            "i6TargetReference": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6Version": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6D5": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6ConfirmedContent": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6RetentionDeadline": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            },
+            "i6EscrowState": {
+              "omittedBecause": "サーバー側の観測点で、端末の I6 は クライアント runner が観測するため"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "server-confirmed-before-i6",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "outOfTransaction",
+            "point": "サーバー確定後・I6端末永続化前"
+          }
+        },
+        "injectionPoint": {
+          "value": "サーバー確定後・I6端末永続化前"
+        },
+        "stopOperation": {
+          "value": "応答を失いブラウザを終了する"
+        },
+        "restartOperation": {
+          "value": "ブラウザを再起動して端末の保持を読む"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": "変更受理",
+              "b3Branch": null,
+              "ledger": {
+                "c1": "accepted"
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": "committed",
+              "T4": "committed",
+              "T6": "committed",
+              "T7": {
+                "targetVersion": "committed",
+                "intents": "committed"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": [
+                "sync:game:1:1:2:chart",
+                "sync:game:1:1:2:game",
+                "sync:game:1:1:2:player_total",
+                "sync:game:1:1:2:shared_total",
+                "sync:game:1:1:2:team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "pending",
+              "game": "pending",
+              "player_total": "pending",
+              "shared_total": "pending",
+              "team_total": "pending"
+            },
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            },
+            "i6TargetReference": {
+              "persisted": false,
+              "matchesAcceptance": null
+            },
+            "i6Version": {
+              "persisted": false,
+              "matchesAcceptance": null
+            },
+            "i6D5": {
+              "persisted": false,
+              "matchesAcceptance": null
+            },
+            "i6ConfirmedContent": {
+              "persisted": false,
+              "matchesAcceptance": null
+            },
+            "i6RetentionDeadline": {
+              "fromServerAcceptedAt": null,
+              "keptOnReplay": null
+            },
+            "i6EscrowState": {
+              "evacuated": false,
+              "collectible": false
+            }
+          }
+        },
+        {
+          "observationPoint": "再起動後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": "変更受理",
+              "b3Branch": null,
+              "ledger": {
+                "c1": "accepted"
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": "committed",
+              "T4": "committed",
+              "T6": "committed",
+              "T7": {
+                "targetVersion": "committed",
+                "intents": "committed"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": [
+                "sync:game:1:1:2:chart",
+                "sync:game:1:1:2:game",
+                "sync:game:1:1:2:player_total",
+                "sync:game:1:1:2:shared_total",
+                "sync:game:1:1:2:team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "pending",
+              "game": "pending",
+              "player_total": "pending",
+              "shared_total": "pending",
+              "team_total": "pending"
+            },
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            },
+            "i6TargetReference": {
+              "persisted": false,
+              "matchesAcceptance": null
+            },
+            "i6Version": {
+              "persisted": false,
+              "matchesAcceptance": null
+            },
+            "i6D5": {
+              "persisted": false,
+              "matchesAcceptance": null
+            },
+            "i6ConfirmedContent": {
+              "persisted": false,
+              "matchesAcceptance": null
+            },
+            "i6RetentionDeadline": {
+              "fromServerAcceptedAt": null,
+              "keptOnReplay": null
+            },
+            "i6EscrowState": {
+              "evacuated": false,
+              "collectible": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "caseId": "i6-persisted-then-closed",
+      "faultInjection": {
+        "target": {
+          "value": {
+            "kind": "client",
+            "operation": "I6 の端末永続化"
+          }
+        },
+        "injectionPoint": {
+          "value": "永続化の確定後にブラウザを終了"
+        },
+        "stopOperation": {
+          "omittedBecause": "停止を伴わない注入のため"
+        },
+        "restartOperation": {
+          "value": "ブラウザを再起動して端末の保持を読む"
+        },
+        "expectedReachability": {
+          "value": "reached"
+        }
+      },
+      "observations": [
+        {
+          "observationPoint": "注入直後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": "変更受理",
+              "b3Branch": null,
+              "ledger": {
+                "c1": "accepted"
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": "committed",
+              "T4": "committed",
+              "T6": "committed",
+              "T7": {
+                "targetVersion": "committed",
+                "intents": "committed"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": [
+                "sync:game:1:1:2:chart",
+                "sync:game:1:1:2:game",
+                "sync:game:1:1:2:player_total",
+                "sync:game:1:1:2:shared_total",
+                "sync:game:1:1:2:team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "pending",
+              "game": "pending",
+              "player_total": "pending",
+              "shared_total": "pending",
+              "team_total": "pending"
+            },
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            },
+            "i6TargetReference": {
+              "persisted": true,
+              "matchesAcceptance": true
+            },
+            "i6Version": {
+              "persisted": true,
+              "matchesAcceptance": true
+            },
+            "i6D5": {
+              "persisted": true,
+              "matchesAcceptance": true
+            },
+            "i6ConfirmedContent": {
+              "persisted": true,
+              "matchesAcceptance": true
+            },
+            "i6RetentionDeadline": {
+              "fromServerAcceptedAt": true,
+              "keptOnReplay": true
+            },
+            "i6EscrowState": {
+              "evacuated": false,
+              "collectible": true
+            }
+          }
+        },
+        {
+          "observationPoint": "再起動後",
+          "fields": {
+            "queue": {
+              "omittedBecause": "サーバー側 runner は端末のキューを観測しない"
+            },
+            "d1": {
+              "omittedBecause": "D1 なし変更イベント(P3)のため"
+            },
+            "lock": {
+              "omittedBecause": "サーバー側 runner は端末のタブとロックを観測しない"
+            },
+            "acceptanceDisplay": {
+              "omittedBecause": "サーバー側 runner は端末の受理表示を観測しない"
+            },
+            "reinputAvailability": {
+              "omittedBecause": "サーバー側 runner は端末の再入力可否を観測しない"
+            },
+            "prefix": {
+              "omittedBecause": "P3 は D3 を動かさない(T3 を持たない)ため"
+            },
+            "idempotentResult": {
+              "boundary": "変更受理",
+              "b3Branch": null,
+              "ledger": {
+                "c1": "accepted"
+              },
+              "reasons": {
+                "c1": null
+              },
+              "originals": {
+                "c1": 0
+              },
+              "applications": {
+                "c1": 1
+              },
+              "rowDeltas": {
+                "idempotency_ledger": 1,
+                "operation_events": 1,
+                "event_slots": 0,
+                "rejected_event_originals": 0,
+                "evacuated_event_originals": 0,
+                "invalidation_intents": 5,
+                "temporary_player_id_mappings": 0,
+                "players": 0,
+                "otherTenants": 0
+              },
+              "responseReason": null
+            },
+            "temporaryIdMapping": {
+              "omittedBecause": "P3 は一時 ID 写像を確定しないため"
+            },
+            "recordingRight": {
+              "evaluated": true,
+              "order": [
+                "rg1_read",
+                "recovery",
+                "holds",
+                "rg1_commit"
+              ],
+              "commitCheckPerWrite": true
+            },
+            "tElementCommitment": {
+              "T1": "committed",
+              "T2": "committed",
+              "T4": "committed",
+              "T6": "committed",
+              "T7": {
+                "targetVersion": "committed",
+                "intents": "committed"
+              }
+            },
+            "recoveryGenerationCheck": {
+              "evaluated": true
+            },
+            "invalidationIntentIds": {
+              "ids": [
+                "sync:game:1:1:2:chart",
+                "sync:game:1:1:2:game",
+                "sync:game:1:1:2:player_total",
+                "sync:game:1:1:2:shared_total",
+                "sync:game:1:1:2:team_total"
+              ]
+            },
+            "invalidationIntentRows": {
+              "chart": "pending",
+              "game": "pending",
+              "player_total": "pending",
+              "shared_total": "pending",
+              "team_total": "pending"
+            },
+            "deliveryState": {
+              "attempted": 0
+            },
+            "consumerReflectionState": {
+              "effects": 0,
+              "redelivered": 0
+            },
+            "deliveryCompletionRecord": {
+              "delivered": 0
+            },
+            "intentCountsAfterReplay": {
+              "omittedBecause": "再掲・全件重複の前の観測点のため(この資産の別の観測点で実値を比べる)"
+            },
+            "i6TargetReference": {
+              "persisted": true,
+              "matchesAcceptance": true
+            },
+            "i6Version": {
+              "persisted": true,
+              "matchesAcceptance": true
+            },
+            "i6D5": {
+              "persisted": true,
+              "matchesAcceptance": true
+            },
+            "i6ConfirmedContent": {
+              "persisted": true,
+              "matchesAcceptance": true
+            },
+            "i6RetentionDeadline": {
+              "fromServerAcceptedAt": true,
+              "keptOnReplay": true
+            },
+            "i6EscrowState": {
+              "evacuated": false,
+              "collectible": true
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "comparisonUnit": [
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "注入直後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t1",
+      "injectionTarget": "P3:T1",
+      "observationPoint": "再送後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "注入直後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t2",
+      "injectionTarget": "P3:T2",
+      "observationPoint": "再送後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "注入直後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t4",
+      "injectionTarget": "P3:T4",
+      "observationPoint": "再送後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "注入直後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t6",
+      "injectionTarget": "P3:T6",
+      "observationPoint": "再送後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "注入直後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "crash-t7",
+      "injectionTarget": "P3:T7",
+      "observationPoint": "再送後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "注入直後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "after-t7-before-delivery",
+      "injectionTarget": "P3:T7 確定後・無効化配信前",
+      "observationPoint": "配信再実行後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "注入直後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "server-confirmed-before-i6",
+      "injectionTarget": "P3:サーバー確定後・I6端末永続化前",
+      "observationPoint": "再起動後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "注入直後",
+      "expectedField": "i6EscrowState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "queue"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "d1"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "lock"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "acceptanceDisplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "reinputAvailability"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "prefix"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "idempotentResult"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "temporaryIdMapping"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "recordingRight"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "tElementCommitment"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "recoveryGenerationCheck"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "invalidationIntentIds"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "invalidationIntentRows"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "deliveryState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "consumerReflectionState"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "deliveryCompletionRecord"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "intentCountsAfterReplay"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "i6TargetReference"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "i6Version"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "i6D5"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "i6ConfirmedContent"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "i6RetentionDeadline"
+    },
+    {
+      "scenarioId": "p3-crash-boundaries",
+      "caseId": "i6-persisted-then-closed",
+      "injectionTarget": "client:I6 の端末永続化",
+      "observationPoint": "再起動後",
+      "expectedField": "i6EscrowState"
+    }
+  ]
+}

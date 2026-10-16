@@ -454,10 +454,17 @@ D2_DOMAIN_CALC_GLOBS = (
     "backend/tests/domainrt/*",
 )
 D2_SYNC_PROTOCOL_PATH_ADDITIONS = ("tests/domain/runners/test_handoff_loader.py",)
+US1_SYNC_APPLY_AREA_PATH_ADDITIONS = (
+    "backend/src/pitchlog/sync/*",
+    "backend/src/pitchlog/repositories/sync_apply.py",
+    "backend/tests/test_sync_apply_*.py",
+)
+# 先行追加層の窓口は回転式で、着地済みの宣言は JSON 側へ移る。
+# TSK-238(#137)の領域契約の分は develop の core-areas.json へ着地済みのため、
+# 現在宣言されているのは U-S1(TSK-391)の同期適用核の分である。
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
-    "sync-protocol": D2_SYNC_PROTOCOL_PATH_ADDITIONS,
-    "game-state": D2_DOMAIN_CALC_PATH_ADDITIONS,
-    "data-migration": D2_DOMAIN_CALC_PATH_ADDITIONS,
+    "sync-protocol": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
+    "recording-rights": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
 }
 UF5_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     "tenant-isolation": UF5_TEAM_AREA_PATH_ADDITIONS,
@@ -2355,6 +2362,67 @@ def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> 
         )
 
 
+def test_us1_declaration_accepts_json_before_registration(tmp_path: Path) -> None:
+    """隔離履歴で未登録、宣言のみ、登録済みの順に受理する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    assert core_guard.verify_area_path_baseline(root, base_sha, base_sha) == base_sha
+
+    write_text(root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8"))
+    run_git(root, "add", "scripts/core_guard.py")
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "declaration only",
+    )
+    head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+
+    assert candidate == baseline
+    tenant_area = next(
+        area for area in candidate["areas"] if area["id"] == "tenant-isolation"
+    )
+    assert tenant_area["paths"] == ["base/tenant-isolation.py"]
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    core_guard.validate_area_path_layers(baseline, candidate)
+    assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
+
+    registered_sha = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    registered = core_guard.load_core_areas_at_revision(root, registered_sha)
+    for area in registered["areas"]:
+        area_id = area["id"]
+        assert area["paths"] == [
+            f"base/{area_id}.py",
+            *EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ()),
+        ]
+    assert core_guard.verify_area_path_baseline(root, base_sha, registered_sha) == (
+        base_sha
+    )
+
+
+def test_sync_apply_additions_declared_for_other_area_are_rejected(tmp_path: Path) -> None:
+    """別領域に同じ追加層を宣言しても tenant の変更を拒否する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    head_sha = commit_area_path_changes(
+        root, {"tenant-isolation": US1_SYNC_APPLY_AREA_PATH_ADDITIONS}
+    )
+
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(
+            baseline, candidate, EXPECTED_AREA_PATH_ADDITIONS
+        )
+
+
 def test_tenant_additions_declared_for_other_area_are_rejected(tmp_path: Path) -> None:
     """別領域に同じ追加層を宣言しても tenant の変更を拒否する。"""
     core_guard = load_core_guard_module()
@@ -2514,6 +2582,52 @@ def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
     core_guard.validate_area_path_layers(baseline, candidate)
 
 
+def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
+    """U-S1 の追加層が両領域の末尾にあり、代表パスが両方に当たる。"""
+    core_guard = load_core_guard_module()
+    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
+    configuration = load_actual_core_areas()
+    base_areas = {area["id"]: area for area in baseline["areas"]}
+    current_areas = {area["id"]: area for area in configuration["areas"]}
+    representatives = (
+        ("backend/src/pitchlog/sync/apply.py", US1_SYNC_APPLY_AREA_PATH_ADDITIONS[0]),
+        (
+            "backend/src/pitchlog/repositories/sync_apply.py",
+            US1_SYNC_APPLY_AREA_PATH_ADDITIONS[1],
+        ),
+        ("backend/tests/test_sync_apply_entry.py", US1_SYNC_APPLY_AREA_PATH_ADDITIONS[2]),
+        (
+            "backend/tests/test_sync_apply_tenant_boundary.py",
+            US1_SYNC_APPLY_AREA_PATH_ADDITIONS[2],
+        ),
+    )
+
+    assert set(base_areas) == set(current_areas) == set(DATA_MODEL_AREA_IDS)
+    for area_id in ("sync-protocol", "recording-rights"):
+        paths = tuple(current_areas[area_id]["paths"])
+        base_paths = tuple(base_areas[area_id]["paths"])
+        absorbed = base_paths[-len(US1_SYNC_APPLY_AREA_PATH_ADDITIONS) :] == (
+            US1_SYNC_APPLY_AREA_PATH_ADDITIONS
+        )
+        expected_paths = (
+            base_paths
+            if absorbed
+            else (*base_paths, *US1_SYNC_APPLY_AREA_PATH_ADDITIONS)
+        )
+        assert paths == expected_paths
+        assert paths[-len(US1_SYNC_APPLY_AREA_PATH_ADDITIONS) :] == (
+            US1_SYNC_APPLY_AREA_PATH_ADDITIONS
+        )
+        for path, pattern in representatives:
+            assert pattern in paths
+            assert fnmatch.fnmatchcase(path, pattern)
+    for area_id in ("game-state", "tenant-isolation", "data-migration"):
+        assert current_areas[area_id]["paths"] == base_areas[area_id]["paths"]
+
+    core_guard.validate_area_path_layers(baseline, configuration)
+
+
 def test_uf5_team_paths_are_registered_for_tenant_and_migration() -> None:
     """U-F5 の製品6ファイルをT・Dだけへ宣言順で登録済みと示す。"""
     core_guard = load_core_guard_module()
@@ -2606,7 +2720,7 @@ def test_uf5_team_change_requires_human_check(
 
 
 def test_area_registration() -> None:
-    """U-F6・U-F8・U-F5までの登録履歴を後続追加に依存せず保ち、D-2 の登録を確かめる。"""
+    """既存の登録履歴を後続追加に依存せず保ち、領域契約の先行追加層を固定する。"""
     core_guard = load_core_guard_module()
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
@@ -2659,6 +2773,7 @@ def test_area_registration() -> None:
 
     assert len(areas) == len(configuration["areas"]) == 5
     assert len(DOMAIN_CALC_GLOBS) == 15
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     assert declared_ids <= set(areas)
     assert stationary_ids | declared_ids == set(areas)
     assert set(areas) == set(registered_additions) == set(baseline_areas)
@@ -2677,6 +2792,15 @@ def test_area_registration() -> None:
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in registered
         )
+    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
+        base_paths = tuple(baseline_areas[area_id]["paths"])
+        current_paths = tuple(areas[area_id]["paths"])
+        # ステップ 8 の未登録状態と、ステップ 9 の宣言順での末尾追加を受理する。
+        assert current_paths in (base_paths, (*base_paths, *additions))
+        assert all(
+            any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
+            for pattern in additions
+        )
     assert all(
         any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
         for pattern in UM1_TENANT_AREA_PATH_ADDITIONS
@@ -2689,7 +2813,15 @@ def test_area_registration() -> None:
 
 
 def test_registered_d2_paths_match_tracked_files_without_overlap() -> None:
-    """登録済みの各 glob が実在ファイルに一致し、旧層と重複しない。"""
+    """登録済みの各 glob が実在ファイルに一致し、旧層と重複しない。
+
+    名前は D-2 の登録を由来とするが、先行追加層の窓口は回転式なので、
+    本体が見ているのは「現在宣言されている追加層」である。
+    D-2 の分は core-areas.json へ着地済みで、宣言としての役目を終えている
+    (DOMAIN_RUNTIME_PATH_ADDITIONS の中身は下の assert が直接固定する)。
+    着地済みの paths が JSON から消えることは、CI の
+    validate_area_path_layers が merge-base との比較で止める。
+    """
     core_guard = load_core_guard_module()
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     assert tuple(core_guard.DOMAIN_RUNTIME_PATH_ADDITIONS) == (

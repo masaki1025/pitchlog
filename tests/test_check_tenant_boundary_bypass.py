@@ -26,6 +26,21 @@ from test_census_baseline_check import (
 
 POSITIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "positive"
 NEGATIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "negative"
+
+
+def test_fixed_function_surface_matches_empty_product_registry() -> None:
+    """Aの登録0件と公開署名を実コード・資産で照合する。"""
+    asset = json.loads(
+        (REPOSITORY_ROOT / "contracts/tenant_boundary/repository-contract.json")
+        .read_text(encoding="utf-8")
+    )
+    checker._validate_function_operation_surface(REPOSITORY_ROOT, asset)
+    forged = copy.deepcopy(asset)
+    forged["product_function_operation_ids"] = ["forged.operation"]
+    with pytest.raises(checker.ContractError, match="ID集合"):
+        checker._validate_function_operation_surface(REPOSITORY_ROOT, forged)
+
+
 PRODUCT_APPLICATION_PATHS = (
     "pitchlog/authz/runtime_contract.py",
     "pitchlog/db/engine.py",
@@ -132,6 +147,7 @@ EXPECTED_NEGATIVE_IDS = frozenset(
         "C5_DYNAMIC_EXEC",
         "C5_DYNAMIC_GETATTR_EXECUTE",
         "C5_DYNAMIC_IMPORT_PSYCOPG",
+        "C5_FUNCTION_DIRECT_SESSION",
         "C5_DYNAMIC_IMPORTLIB",
         "C5_ENGINE_RETURN_ALIAS",
         "C5_ENGINE_RAW_CONNECTION",
@@ -1141,6 +1157,9 @@ def _initialize_test_repository(
         REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary",
         repository / "tests" / "fixtures" / "tenant_boundary",
     )
+    core_areas = repository / ".claude" / "core-areas.json"
+    core_areas.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(REPOSITORY_ROOT / ".claude" / "core-areas.json", core_areas)
     _synchronize_synthetic_authority_identifiers(repository)
     for relative_path in _declared_external_files(repository):
         destination = repository / relative_path
@@ -1934,6 +1953,140 @@ def test_condition_2_patterns_and_adjudications_are_exact_sets() -> None:
         item.symbol: item.reason
         for item in contract.condition2_adjudications
     } == EXPECTED_CONDITION_2_ADJUDICATIONS
+    assert contract.condition2_owner_paths == (
+        "backend/src/pitchlog/sync/*",
+        "backend/src/pitchlog/repositories/sync_apply.py",
+    )
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        "pitchlog/sync/apply.py",
+        "pitchlog/sync/nested/apply.py",
+        "pitchlog/repositories/sync_apply.py",
+    ),
+)
+def test_condition_2_sync_owner_paths_are_green(path: str) -> None:
+    """同期領域にも登録済みの所有パスだけで TB002 を免除する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        "idempotency_key = 1\nis_tombstone = False\ngeneration = 1\n",
+        path=path,
+        contract=contract,
+    )
+
+    assert violations == []
+
+
+def test_condition_2_outside_sync_owner_paths_is_red() -> None:
+    """同期語彙は所有パス外の roster repository で引き続き拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        "idempotency_key = 1\n",
+        path="pitchlog/repositories/roster.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {"TB002"}
+
+
+@pytest.mark.parametrize(
+    "owner_paths",
+    (
+        pytest.param(
+            [
+                "backend/src/pitchlog/sync/*",
+                "backend/src/pitchlog/repositories/sync_apply.py",
+                "backend/src/pitchlog/db/engine.py",
+            ],
+            id="registered-path-added",
+        ),
+        pytest.param(
+            ["backend/src/pitchlog/sync/*"],
+            id="owner-path-removed",
+        ),
+        pytest.param(
+            [
+                "backend/src/pitchlog/sync/*",
+                "backend/src/pitchlog/db/engine.py",
+            ],
+            id="owner-path-replaced",
+        ),
+    ),
+)
+def test_condition_2_owner_paths_must_match_approved_set(
+    owner_paths: list[str],
+) -> None:
+    """登録済みの別パスでも所有集合の追加・欠落・置換を拒否する。"""
+    allowlist = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    condition2 = next(
+        item for item in allowlist["conditions"] if item["condition"] == 2
+    )
+    condition2["owner_paths"] = owner_paths
+    inventory, inventory_bytes = checker._read_json(
+        REPOSITORY_ROOT / checker.DEFAULT_INVENTORY
+    )
+    apis, _, _, _ = checker._load_inventory(inventory)
+
+    with pytest.raises(checker.ContractError, match="承認済みの集合と不一致"):
+        checker._load_allowlist(allowlist, inventory_bytes, apis)
+
+
+def test_condition_2_owner_without_sync_area_registration_is_red(
+    tmp_path: Path,
+) -> None:
+    """core-areas の登録を外すと allowlist の所有宣言だけでは免除しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    configuration = json.loads(
+        (REPOSITORY_ROOT / checker.DEFAULT_CORE_AREAS).read_text(encoding="utf-8")
+    )
+    sync_area = next(
+        area for area in configuration["areas"] if area["id"] == "sync-protocol"
+    )
+    sync_area["paths"].remove("backend/src/pitchlog/sync/*")
+    core_areas_path = tmp_path / checker.DEFAULT_CORE_AREAS
+    core_areas_path.parent.mkdir(parents=True)
+    core_areas_path.write_text(
+        json.dumps(configuration, ensure_ascii=False), encoding="utf-8"
+    )
+    without_registration = replace(
+        contract,
+        sync_protocol_paths=checker._load_sync_protocol_paths(tmp_path),
+    )
+
+    violations = checker.scan_source(
+        "idempotency_key = 1\n",
+        path="pitchlog/sync/apply.py",
+        contract=without_registration,
+    )
+
+    assert {violation.code for violation in violations} == {"TB002"}
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_code"),
+    (
+        ("def can_record():\n    pass\n", "TB001"),
+        ("def read():\n    return responsible_pitcher\n", "TB003"),
+        ("def refresh():\n    return invalidate_cache\n", "TB004"),
+    ),
+)
+def test_other_conditions_still_apply_inside_sync_owner(
+    source: str, expected_code: str
+) -> None:
+    """条件 2 の免除は条件 1・3・4 の検査結果を変えない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+
+    violations = checker.scan_source(
+        source,
+        path="pitchlog/sync/apply.py",
+        contract=contract,
+    )
+
+    assert {violation.code for violation in violations} == {expected_code}
 
 
 def test_condition_2_adjudication_requires_a_reason() -> None:
@@ -2352,6 +2505,335 @@ def test_positive_fixtures_pass() -> None:
     violations = checker.scan_directory(POSITIVE_ROOT, contract=contract)
 
     assert violations == []
+
+
+def test_fixed_function_builder_has_only_select_permission() -> None:
+    """固定関数の文生成許可は専用シンボルのSELECTだけに限る。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    rows = [
+        item
+        for item in contract.allowed_symbols
+        if item.symbol
+        == "pitchlog.repositories.function_operations._build_fixed_function_statement"
+    ]
+    assert len(rows) == 1
+    assert rows[0].allowed_api_ids == frozenset({"SQLA_SELECT"})
+
+
+def test_fixed_function_unlisted_sql_builder_is_red() -> None:
+    """同じファイルでも未登録シンボルによるSQL生成を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = (
+        f"{source.rstrip()}\n\ndef _unlisted_statement() -> Select[Any]:\n"
+        "    return select(1)\n"
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, "return select(1)"),
+        contract=contract,
+    )
+    assert ("TB005", "sqlalchemy.select") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+def test_fixed_function_builder_rejects_arbitrary_sql() -> None:
+    """SELECT生成を許しても任意SQL文字列の組立ては拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        "    return select(*(safe_table.c[name] for name in result_names))",
+        '    return select(text("SELECT 1"))',
+        1,
+    ).replace(
+        "from sqlalchemy import bindparam, select",
+        "from sqlalchemy import bindparam, select, text",
+        1,
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, 'text("SELECT 1")'),
+        contract=contract,
+    )
+    assert ("TB005", "sqlalchemy.text") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+@pytest.mark.parametrize(
+    "replacement, extra_import",
+    (
+        (
+            'select(literal_column("(SELECT secret FROM other_tenant)").label(result_names[0]))',
+            ", literal_column",
+        ),
+        (
+            'select(Function("unapproved", *safe_arguments, '
+            'packagenames=(schema,)).label(result_names[0]))',
+            "",
+        ),
+    ),
+)
+def test_fixed_function_builder_rejects_other_sql_generation(
+    replacement: str, extra_import: str
+) -> None:
+    """許可関数内でも任意SQL式と宣言外関数への差し替えを拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        "select(safe_function.label(result_names[0]))", replacement, 1
+    )
+    if extra_import:
+        mutated = mutated.replace(
+            "from sqlalchemy import bindparam, select",
+            f"from sqlalchemy import bindparam, select{extra_import}",
+            1,
+        )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, replacement),
+        contract=contract,
+    )
+    symbol = (
+        "pitchlog.repositories.function_operations."
+        "_build_fixed_function_statement"
+    )
+    assert ("TB005", symbol) in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+def test_fixed_function_bind_rejects_literal_sql() -> None:
+    """固定関数の引数生成経路にも任意SQL式を混入させない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    replacement = 'return literal_column("(SELECT secret FROM other_tenant)")'
+    mutated = source.replace(
+        "return bindparam(name, type_=Uuid())", replacement, 1
+    ).replace(
+        "from sqlalchemy import bindparam, select",
+        "from sqlalchemy import bindparam, select, literal_column",
+        1,
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, replacement),
+        contract=contract,
+    )
+    assert ("TB005", "pitchlog.repositories.function_operations._canonical_bind") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+@pytest.mark.parametrize(
+    "old_import, replacement",
+    (
+        (
+            "from sqlalchemy import bindparam, select",
+            "from untrusted_sql import bindparam, select",
+        ),
+        (
+            "from sqlalchemy.sql.functions import Function",
+            "from untrusted_sql import Function",
+        ),
+    ),
+)
+def test_fixed_function_generation_rejects_import_imitation(
+    old_import: str, replacement: str
+) -> None:
+    """同名の別SQL生成関数・型を固定構築経路へ差し込めない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(old_import, replacement, 1)
+    assert mutated != source
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, replacement),
+        contract=contract,
+    )
+    assert ("TB007", "_build_fixed_function_statement") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+@pytest.mark.parametrize("location", ("local", "module"))
+def test_fixed_function_initialization_rejects_builder_rebinding(
+    location: str,
+) -> None:
+    """AST形が同じでも生成関数の束縛元が変わる場合は拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    rebinding = "_build_fixed_function_statement = lambda *args: self.statement"
+    if location == "local":
+        mutated = source.replace(
+            "        object.__setattr__(\n            self,\n            \"statement\",",
+            f"        {rebinding}\n"
+            '        object.__setattr__(\n            self,\n            "statement",',
+            1,
+        )
+    else:
+        rebinding = "_build_fixed_function_statement = lambda *args: None"
+        mutated = f"{source.rstrip()}\n\n{rebinding}\n"
+    assert mutated != source
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, rebinding),
+        contract=contract,
+    )
+    assert ("TB007", "_build_fixed_function_statement") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+def test_fixed_function_initialization_rejects_self_rebinding() -> None:
+    """selfという字面だけの別オブジェクトへTB007許可を移さない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    inserted = "        self = self.decoder"
+    mutated = source.replace(
+        '        object.__setattr__(\n            self,\n            "statement",',
+        f"{inserted}\n"
+        '        object.__setattr__(\n            self,\n            "statement",',
+        1,
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, inserted),
+        contract=contract,
+    )
+    assert ("TB007", "_build_fixed_function_statement") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+@pytest.mark.parametrize("api", ("insert", "update"))
+def test_fixed_function_builder_rejects_dml_construction(api: str) -> None:
+    """固定関数のSELECT許可をINSERTやUPDATEへ広げない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        "    return select(*(safe_table.c[name] for name in result_names))",
+        f"    return {api}(None)",
+        1,
+    ).replace(
+        "from sqlalchemy import bindparam, select",
+        f"from sqlalchemy import bindparam, select, {api}",
+        1,
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(mutated, f"return {api}(None)"),
+        contract=contract,
+    )
+    assert ("TB005", f"sqlalchemy.{api}") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
+@pytest.mark.parametrize(
+    "target, attribute",
+    (("self", "capability_id"), ("other", "statement")),
+)
+def test_fixed_function_initialization_rejects_other_targets(
+    target: str, attribute: str
+) -> None:
+    """凍結登録型でも対象objectと列の拡張を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        '            "statement",\n            _build_fixed_function_statement(',
+        f'            "{attribute}",\n            _build_fixed_function_statement(',
+        1,
+    )
+    if target != "self":
+        mutated = mutated.replace(
+            '        object.__setattr__(\n            self,\n            "statement",',
+            '        object.__setattr__(\n            other,\n            "statement",',
+            1,
+        )
+    assert mutated != source
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(
+            mutated,
+            f'            "{attribute}",' if target == "self" else "            other,",
+        ),
+        contract=contract,
+    )
+    assert "TB007" in {item.code for item in violations}
+
+
+def test_fixed_function_initialization_rejects_other_value() -> None:
+    """同じstatement列でも固定生成関数以外の値を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = source.replace(
+        "\n\ndef _build_fixed_function_statement(",
+        '\n        object.__setattr__(self, "statement", select(1))'
+        "\n\n\ndef _build_fixed_function_statement(",
+        1,
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(
+            mutated, 'object.__setattr__(self, "statement", select(1))'
+        ),
+        contract=contract,
+    )
+    assert "TB007" in {item.code for item in violations}
+
+
+def test_fixed_function_initialization_rejects_other_class() -> None:
+    """同じ列名でも別オブジェクトの初期化へ許可を広げない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    mutated = (
+        f"{source.rstrip()}\n\nclass OtherRegistration:\n"
+        "    def __post_init__(self) -> None:\n"
+        '        object.__setattr__(self, "statement", select(1))\n'
+    )
+    violations = _scan_diff_mutation(
+        source,
+        mutated,
+        path=relative,
+        changed_lines=_changed_lines_containing(
+            mutated, 'object.__setattr__(self, "statement", select(1))'
+        ),
+        contract=contract,
+    )
+    assert "TB007" in {item.code for item in violations}
 
 
 def test_frozen_baseline_asset_paths_are_an_exact_set() -> None:
