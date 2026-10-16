@@ -19,3 +19,11 @@ T1/T2 限定経過措置案を正式確定ゲートへ送る。11/12 は本物�
 ## 次の作業
 
 ADR/NFR-018の in-review 差分、関連計画の所有側へ渡す改訂候補、従来MVPとの差分、WBS/見積を作成し、7.3の敵対レビューと採否記録を進める。最終差分をPOへ提示したところで停止する。
+
+## 第1回正式レビューと停止点
+
+`46e4512a84d6615bc957e72992d2cc0b44c65d7e`を候補として、`codex_run.py review adversarial -`でADR-003・要件書の全文を査読した（セッション `01a14502-f58b-7771-b16f-33b9edeb0721`）。**否決、P0 0 / P1 2 / P2 0**。P1は要件書10章のD-1継続文と、付録A-1の出力schema・formatterの一律な発効前後区分が、D-14-mのT1/T2限定例外と両立しない点。両方採用の方針で、行別候補は `docs/features/adr003-d2iv-applicability/review-round1-scope-candidate.md` に記録した。正本への反映は**7.3-6の射程拡大裁定待ち**。第2回を基本枠2回目として全文査読する案をPOへ提示した。回数はリセットしない。採用反映前のため `確定ゲート周回: 0` を維持する。
+
+`uv run pytest -q tests/test_check_docs_status.py tests/test_check_plan_docs_sync.py` は**83件成功、1件失敗**。失敗は索引 `docs/README.md` が旧approvedと表示し、in-reviewのfrontmatterに追随していないため。正本反映周で候補版・状態を同期し、再検査する。失敗を除外しない。
+
+関連担当へのNotion照会は受理ではない。538の回答を待つ間、既存リポジトリで確認できた実行基盤と未実装の対象計算を区別する。担当回答期限目安は10/18 JSTとし、無回答ならPOへ担当・代替受取先の裁定を依頼する。
