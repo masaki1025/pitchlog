@@ -115,7 +115,7 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 - [ ] 旧 tenant の store / cache は Cookie が変わり得る時点で破棄され、新 tenant の session 2xx 前に再表示されない。
 - [ ] session の明示再確認は login POSTを再送しない。
 - [ ] logout の結果未確認を成功表示しない。
-- [ ] delayed login / session / logout が新しい `authEpoch` の store / cache を変更しない。
+- [ ] delayed sessionとCookie変更のない旧認証応答は新世代を変更しない。旧login/logoutがCookieを変更し得る場合だけ、新世代も認証未確認へ戻しcacheを破棄する。旧応答からユーザー・tenant・成功状態を採用しない。
 - [ ] tenant ID と正規表示名を利用者入力から生成しない。
 - [ ] 共有実行器Aの実統合後のdevelopからC1のrepository契約・base allowlist・7.7前後値を再導出し、異なるbranchの同じrevisionを流用していない。
 - [ ] 第1・第2段では未受理履歴・sealをfail-closedのまま維持し、第3段の正式受理前に承認者・承認日を入力していない。
@@ -162,3 +162,15 @@ U-F13計画の最終P1反映と、その後に具体化した本契約案は未�
 | `LoginScreen` / router / App | U-F3 / U-F13（Codex D） | 今回変更せず、C1全体の統合後に各計画・指示に従い着手 |
 
 worktree一覧とopen PR（#138/#142/#143）にC2/U-F3/U-F2/U-F6の並行編集はない。既存承認済みの同一担当内でC1→C2→U-F3/U-F13の順を維持する。共有凍結資産は変更しない。`bb.auth`の旧形は候補として検査するが認証済みへ戻さず、保存形式を独自に追加しない。
+
+## 12. 遅延Cookie副作用の最小追補（承認済み・2026-10-17）
+
+山田正輝が第1周敵対/反対側レビューのCookie競合に対する追補を承認した。§7の旧認証応答に対する条件には次の安全側への例外を適用する。
+
+- 遅延した旧login/logoutがCookieを変更し得る場合に限り、新世代も認証未確認へ戻し、store/cacheを破棄して明示session再確認を要求する。旧応答から新世代のユーザー・tenant・成功状態を採用する許可ではない。
+- Cookie変更可能性はlogin/logoutの2xx headers到着、またはHTTP応答を得られないnetwork/abortで判断する。確定した非2xxには適用せず、旧session GETにも適用しない。2xx後に本文が遅延・失敗しても同じ応答による無効化を再通知しない。
+- 本文や世代を解釈する前にCookie変更可能性を一度だけ扱う。旧要求であるという情報を保持し、無効化によってepochが進んでも旧要求を現世代の成功へ昇格させない。
+- 資格情報・mutationの自動再送、sessionの自動再確認は禁止。未確認中のtenant-bound通信は共通clientで拒否する。session確認中に別のCookie変更可能応答を観測した場合、そのsession結果も旧世代として採用しない。
+- 遅延login/logout、複数世代、sessionとの前後競合、確定拒否、同一応答の通知/cache破棄の重複を固有試験で検証する。別タブの確認/保存により他タブも未確認になる保守的な既存契約は維持する。
+
+本追補は新API・DTO・header・ACL・保存形式・共有凍結資産を追加しない。C2/U-F3の接続条件へ同期する。本人逐行確認・公開・マージの承認とは扱わない。既定の第2周は修正差分と影響範囲の確認に用い、計画全体を再審査しない。
