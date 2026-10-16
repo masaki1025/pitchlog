@@ -83,3 +83,18 @@ PR #144の実統合SHAは`3052e0db743877c7f15c0ec10daa0142cba7ab7e`。隔離枝`
 **検査とレビュー**: 母集合・lock単独検査は`1417/187/1230`で成功、派生lock再封印検査は`db_claims=191 routes=48 cells=12`で成功。`check_shared_preconditions.py`は6件成功。`validate_oracle_seal`は入力固定コミット・8blob・6digestの照合に成功した。通常の全oracle検査と`test_repository_catalog_covers_the_entire_requirements_file`は、未承認の`frozen-baselines.json`が直前値を保持するため`boundary proposal の oracle_commit が基準版と不一致`で停止する（対象2試験は1成功/1失敗）。検査を緩めず、7.7実値の人間受理後に再実行する。独立Codex査読はP0 0/P1 0/P2 1で、P2は本資料のC1統合前記述だったため今回是正した。**この査読は7.7・oracle再封印の人間受理ではない**。
 
 **正本文言P2の処置**: 確定要件書の新2条文にある「本改訂候補」は、採用済み条文であることとの表記不整合として記録する。今ここで正本本文を直すと要件書blobと承認済みの3挿入/2置換という分類母集団が変わるため、今回の認可候補には混ぜない。次の正本文書改訂または規約7.6で認められる独立の表記是正ゲートへ送る。意味上の例外・認可主張の追加とは扱わない。
+
+### 8入力のファイルSHA-256（判断資料の追加固定値）
+
+上表のGit blob digestはSHA-1形式のGitオブジェクト識別値である。次表は同じ2コミットから読んだ**ファイルの生バイト列**のSHA-256で、sealed6資産のcanonical SHA-256とは算定対象が異なる。候補側の8入力は2026-10-17のPO指示で**今回限定のローカル中間コミット**として許可されたが、pushと7.7正式受理は別である。
+
+| 入力path（`contracts/authz/`配下） | #144統合コミットの生ファイルSHA-256 | ローカル入力コミットの生ファイルSHA-256 |
+| --- | --- | --- |
+| `requirement-claims.json` | `2e6d1a80620dbd9e7b0a9b3aa2913d8b6448004f70d56d15835a3f9acebd560e` | `91982af7c97eb373a99ac20730056d11a747b1233f63a3d30819a3f1748ec821` |
+| `requirement-claims.lock.json` | `8364d93bba2f865d649b84a042447d389978029af4b887342f13a3825580c579` | `3fc36dc92ff56a5f066e8e8499523458df4601ecb51fdf3f855627e9191edb50` |
+| `route-registry.json` | `b859c6e53dbace7a6cafc4268da4a97110c21cbbc48d614c8617a2b56347ccc1` | `7157896098cd99001876fecaa3e46367f6f3940031e6b676d87aedb62c5d41d6` |
+| `route-registry.lock.json` | `d25871e3b2996f67afa41c8a83cb89ea3f58bd1890d45542d31039ead15865fb` | `7a2f0679ce2d952c59a8fa7468d31b4b8a85ab7f709a0854a22291e260f24698` |
+| `auth-catalog.json` | `40de57dada8139cec3ad535c210117e44ba11ee44bde8d7bcc2692ec7036a077` | `84f7be77119093f4b872a7049174363c388afdb5f9e5e49b62d33084d6048140` |
+| `auth-catalog.lock.json` | `59f3b4c9553b45c73a7130932234359827ee5c9ce575d5c2e9077871ec2d3dab` | `018ce5619393c1f06e65f22989ec11e2bc39d9da49c18d881279c133ea0281ac` |
+| `http-route-matrix.json` | `bea3d8453ac0f5ffc7ceab3faf4a8b75264c016b4a4eb727ddd553f8f305b67e` | `80bc1fb43cf7d2dcfb26fc3b64c7b6f39ec30e64032553c8d26c18bc068a31db` |
+| `http-route-matrix.lock.json` | `c14b3e85d56012425d66264b0711a5db16af4f4d51fecd00ae85e3cf75ab0f2b` | `baa8185ac6103527a3d03388986c5e8745f2bb4164f43aa5955aeaa4846e8cb4` |

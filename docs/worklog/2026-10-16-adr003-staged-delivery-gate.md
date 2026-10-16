@@ -86,3 +86,9 @@ PO山田正輝は、今回のTSK-424追随に限り、独立査読に基づく�
 C1 PR #144の実統合SHAは`3052e0db743877c7f15c0ec10daa0142cba7ab7e`。その`origin/develop`から候補を再生成し、隔離枝でoracle入力8資産のみを`e6a0ca0ab6cee5c779851518463eafba6ae146b3`へ固定した（未push）。要件書blobは`c8975e5257ee5f8d4b86b96f3fc779bebd978da4`→`ee6d2508dbdecf34d90c34fc022ff162f73dd3d2`、`oracle_input`の7.7候補は`d5ccc18ef39179857c9a4c793ea28a416432efba`→`e6a0ca0ab6cee5c779851518463eafba6ae146b3`。8入力blob、6 sealed digest、受理記録案の完全値は`docs/features/adr003-d2iv-applicability/authz-77-handoff-candidate.md`に固定した。C1の`GET /auth/session`と既存の凍結履歴11件は保持し、認可主張187行・ownerとsealed6の意味本文は不変。独立Codex査読はP0 0/P1 0/P2 1で、P2の古いC1状態表記は候補資料で修正した。
 
 母集合/lock検査、派生lock再封印、共有前提6件、oracle sealの入力とdigest照合は成功。正式台帳`frozen-baselines.json`には未受理値を追記していないため、全oracle検査と関連試験1件は旧基準との不一致で停止する。規則を緩めず、実値の7.7受理・PR受理ID・oracle再封印確認を待つ。これは正式資産更新・製品実装・D-2発効ではない。
+
+## 2026-10-17 7.7番号取得用の文書Draft準備
+
+PO山田正輝は、8入力のみを固定した`e6a0ca0ab6cee5c779851518463eafba6ae146b3`を今回限定の**ローカル中間コミット**として承認した。7.7の実値、oracle再封印、凍結台帳履歴の正式受理ではない。確定正本・関連計画/作業ログ・受理候補資料のみを別の文書枝へ置き、番号取得用Draft PRの文書だけのpushを許可した。入力8資産、sealed6資産、`shared-preconditions.json`、`oracle-seal.lock.json`、`frozen-baselines.json`など未受理候補資産はDraftの最初のpushへ入れない。受理IDは実PR番号が得られてから候補記録へ埋め、既存11件の履歴に追記する最終JSON案を提示する。正式受理前に凍結台帳を更新しない。
+
+PRの履歴は`origin/develop=3052e0db743877c7f15c0ec10daa0142cba7ab7e`を親に、確定正本コミット`e7e32a8302c0be9e214523565c04a931743e98ef`とその受理済み文書後続を直列化し、C1統合のmerge`5fba86544404bde9b7b0a9ad1aef5df92dc72125`の後に文書候補を置く。受理後は隔離候補を最新PR HEADから作り直し、8入力blobとoracle identityが固定値に一致する場合だけ既存の`e6a0ca0a`を根拠に正式資産へ進む。差分や入力コミットが変われば再提示し、両系列のafter履歴を単に併記しない。
