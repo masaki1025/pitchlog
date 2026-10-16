@@ -359,3 +359,11 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - 第2段後のbackend全件は`2271 passed / 1 failed / 254 errors`だった。1件は未受理oracle入力を既存sealが拒否する期待どおりのfail-closedであり、254件は並行実行中に共有pytest一時領域`/tmp/pytest-of-ymdms/pytest-550`が消失した同一の`FileNotFoundError`だった。消失時にerrorとなったdomain host、authz generator、descriptor parity、migration hygiene、wording scanの代表27件をC1専用`--basetemp`で再実行し、27件すべて成功した。製品/API/repository/隔離DBの対象検査は前節の成功状態を維持する。
 - 第2段後のroot全件はC1専用`--basetemp`で`29559 passed / 2 skipped / 79 failed`。失敗は、第2段で先に更新した7資産の`oracle_commit`と未更新のoracle baseline/sealの不一致、tenant-boundary authority履歴末尾がbase 31 / repository 19のままである不一致、正式snapshot未配置、それらを入力にするarchive corpus未再封印の連鎖である。第3段の7.7正式受理・再封印で解消すべき未通過項目として保持し、検査除外・skip・期待値緩和は行っていない。
 - Draft前の正本突合で、C1計画に`影響する正本`節がなく機械検査が開始前拒否したため、正本改訂なしと同一PRで運ぶ正本体系外資産を明記した。製品仕様・権限・ステップ・7.7候補値は変更していない。
+
+### C1とU-R1の統合順・7.7正式判断資料（2026-10-16）
+
+- PO調整役はPR #144コメント`6209131420`で、C1 / PR #144の正式受理・統合を先行し、U-R1 / PR #143が受理済み履歴と実merge SHAを含むdevelopから再導出する順序を固定した。C1はPR #143コメント`6209084415`で同じ順序を受領し、技術上の阻害差分がないことを確認した。
+- U-R1のC1統合前候補はbase allowlist 31→32、repository contract 19→20でC1とrevision番号が同じだが、snapshotは`699ee0ed84cd98ff5dbf83c6f8bb474b33db372be438136f38417a0a166cae23` / `fe307e0cd718fbc505549681c80459ee0413c4a09bd99400a56fdd3df7bba925`である。C1候補の`20c8f0f71734d244e8734a0ded0903d380cfcae79315549ccd318a8a6e6ebabf` / `71cb7a8bba95d335571411198044da40b1ac05d06707a9c34a9fb396bf6c2a00`とは別内容なので、同一候補として流用しない。
+- PR #144の実番号を用いたtenant-boundary 2資産・2 snapshot、authz 8入力blob・6 sealed digest、両受理記録案を`docs/features/auth-session-verification-contract/step1-stage3-7.7-review-material.md`と同ディレクトリのJSONへ固定した。実ファイル、共有実行器A統合後develop、第1段・第2段コミット、Git object IDから機械照合し、承認者・承認日は`null`で保持した。
+- 候補作成に関与していない独立レビュアが、production generator / checkerを使った再生成、隔離cloneへのtenant record・2 snapshot適用、authz record仮適用・再封印を確認した。tenant-boundary検査、frozen-baseline invariants、authz再封印はいずれもgreenで、資料のblob・digest・canonical hashと完全一致した。判定は可決（P0=0 / P1=0 / P2=0）。
+- この固定は正式受理、第3段、人間逐行確認、Draft解除、マージを表さない。U-R1はC1の実統合後にrevision、source digest、snapshot、履歴、archiveを再導出する。
