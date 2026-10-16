@@ -78,7 +78,27 @@ PR #144の実統合SHAは`3052e0db743877c7f15c0ec10daa0142cba7ab7e`。隔離枝`
 
 `oracle_input`系列の7.7前後識別値は **`d5ccc18ef39179857c9a4c793ea28a416432efba` → `e6a0ca0ab6cee5c779851518463eafba6ae146b3`**。配置・宣言・同一性の粒度と既存履歴は維持。6資産は`oracle_context.oracle_commit`のみの差分で、認可/owner/oracle内容に新たな意味変更はない。`shared-preconditions.json`の候補差分は要件書blobの1行だけ。
 
-**受理記録案（まだ正式JSONへ追記しない）**: `series=oracle_input`、`prior_identity={present:true,values:[{kind:literal_commit_string,value:d5ccc18ef39179857c9a4c793ea28a416432efba}]}`、`new_identity={present:true,values:[{kind:literal_commit_string,value:e6a0ca0ab6cee5c779851518463eafba6ae146b3}]}`、`changes=[]`、`placement_change`前後同一、`moved=false`。`acceptance_id`は未作成PR番号を待つため**未記入**、`approved_by`/`approved_at`も7.7の実値承認前は**未記入**。理由案: 「ADR-003 D-14-m/要件書v2.15の確定に伴い、認可外5編集の分類と要件書入力blobを更新。C1/#144のGET経路・既存履歴を保持し、oracle入力8資産の変更を直列に再封印。認可主張187行、owner、同一性粒度、配置、oracleの意味は不変」。この理由・完全値をPOが正式確認してから記録する。
+**受理記録案（まだ正式JSONへ追記しない）**: 番号取得用の文書Draft PRは **#145**。`acceptance_id=masaki1025/pitchlog#145`、`series=oracle_input`、`prior_identity={present:true,values:[{kind:literal_commit_string,value:d5ccc18ef39179857c9a4c793ea28a416432efba}]}`、`new_identity={present:true,values:[{kind:literal_commit_string,value:e6a0ca0ab6cee5c779851518463eafba6ae146b3}]}`、`changes=[]`、`placement_change`前後同一、`moved=false`。`approved_by`/`approved_at`は7.7の実値承認前のため**未記入**。理由案: 「ADR-003 D-14-m/要件書v2.15の確定に伴い、認可外5編集の分類と要件書入力blobを更新。C1/#144のGET経路・既存履歴を保持し、oracle入力8資産の変更を直列に再封印。認可主張187行、owner、同一性粒度、配置、oracleの意味は不変」。この理由・完全値をPOが正式確認してから記録する。
+
+正式台帳へ追記する**1件の構造案**は次のとおり。`approved_by`・`approved_at`のプレースホルダーは**未受理を示す資料用**であり、正式JSONには書かない。#144を末尾とする既存11件の後ろへ直列に1件だけ加え、既存要素は変更しない。
+
+```json
+{
+  "acceptance_id": "masaki1025/pitchlog#145",
+  "series": "oracle_input",
+  "new_identity": {"present": true, "values": [{"kind": "literal_commit_string", "value": "e6a0ca0ab6cee5c779851518463eafba6ae146b3"}]},
+  "prior_identity": {"present": true, "values": [{"kind": "literal_commit_string", "value": "d5ccc18ef39179857c9a4c793ea28a416432efba"}]},
+  "changes": [],
+  "placement_change": {
+    "before": [{"kind": "ledger_series", "path": "contracts/authz/frozen-baselines.json", "series": "oracle_input"}],
+    "after": [{"kind": "ledger_series", "path": "contracts/authz/frozen-baselines.json", "series": "oracle_input"}]
+  },
+  "moved": false,
+  "reason": "ADR-003 D-14-m/要件書v2.15の確定に伴い、認可外5編集の分類と要件書入力blobを更新。C1/#144のGET経路・既存履歴を保持し、oracle入力8資産の変更を直列に再封印。認可主張187行、owner、同一性粒度、配置、oracleの意味は不変。",
+  "approved_by": "<7.7実値承認後に記入>",
+  "approved_at": "<7.7実値承認後に記入>"
+}
+```
 
 **検査とレビュー**: 母集合・lock単独検査は`1417/187/1230`で成功、派生lock再封印検査は`db_claims=191 routes=48 cells=12`で成功。`check_shared_preconditions.py`は6件成功。`validate_oracle_seal`は入力固定コミット・8blob・6digestの照合に成功した。通常の全oracle検査と`test_repository_catalog_covers_the_entire_requirements_file`は、未承認の`frozen-baselines.json`が直前値を保持するため`boundary proposal の oracle_commit が基準版と不一致`で停止する（対象2試験は1成功/1失敗）。検査を緩めず、7.7実値の人間受理後に再実行する。独立Codex査読はP0 0/P1 0/P2 1で、P2は本資料のC1統合前記述だったため今回是正した。**この査読は7.7・oracle再封印の人間受理ではない**。
 

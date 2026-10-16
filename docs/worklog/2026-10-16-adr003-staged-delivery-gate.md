@@ -92,3 +92,7 @@ C1 PR #144の実統合SHAは`3052e0db743877c7f15c0ec10daa0142cba7ab7e`。その`
 PO山田正輝は、8入力のみを固定した`e6a0ca0ab6cee5c779851518463eafba6ae146b3`を今回限定の**ローカル中間コミット**として承認した。7.7の実値、oracle再封印、凍結台帳履歴の正式受理ではない。確定正本・関連計画/作業ログ・受理候補資料のみを別の文書枝へ置き、番号取得用Draft PRの文書だけのpushを許可した。入力8資産、sealed6資産、`shared-preconditions.json`、`oracle-seal.lock.json`、`frozen-baselines.json`など未受理候補資産はDraftの最初のpushへ入れない。受理IDは実PR番号が得られてから候補記録へ埋め、既存11件の履歴に追記する最終JSON案を提示する。正式受理前に凍結台帳を更新しない。
 
 PRの履歴は`origin/develop=3052e0db743877c7f15c0ec10daa0142cba7ab7e`を親に、確定正本コミット`e7e32a8302c0be9e214523565c04a931743e98ef`とその受理済み文書後続を直列化し、C1統合のmerge`5fba86544404bde9b7b0a9ad1aef5df92dc72125`の後に文書候補を置く。受理後は隔離候補を最新PR HEADから作り直し、8入力blobとoracle identityが固定値に一致する場合だけ既存の`e6a0ca0a`を根拠に正式資産へ進む。差分や入力コミットが変われば再提示し、両系列のafter履歴を単に併記しない。
+
+文書限定枝`feature/adr003-d2iv-applicability`を`0b4ad9027f4be198516d8d4886f423061abdfee5`でpushし、受理ID取得用**Draft PR #145**を作成した。PR差分は`docs/`のみで、ローカル8入力固定コミット`e6a0ca0a`と未受理の凍結候補を公開していない。7.7記録案の`acceptance_id`は`masaki1025/pitchlog#145`で固定し、`approved_by`/`approved_at`は未記入。8入力のGit blobと生ファイルSHA-256、6 sealed資産のcanonical SHA-256前後値、既存11件保持、独立レビューの採否は`authz-77-handoff-candidate.md`に記載した。
+
+Draft作成前のdocs-statusは20文書・違反0件。pytestは共有`/tmp`満杯で一度83件が一時ファイル作成に失敗したが、既存領域を削除せず専用の`/home/ymdms/.cache/pitchlog-pytest-adr003-draft`を使い同じ84件を再実行して**84件成功**。`check_plan_docs_sync.py`の無引数実行は本正本ゲート計画に標準「影響する正本」節が無いため停止し、緩和していない。正式資産を反映した最終HEADの認可/oracle/凍結/CI検査は未実施で、Draft解除・マージには進まない。
