@@ -367,3 +367,12 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - PR #144の実番号を用いたtenant-boundary 2資産・2 snapshot、authz 8入力blob・6 sealed digest、両受理記録案を`docs/features/auth-session-verification-contract/step1-stage3-7.7-review-material.md`と同ディレクトリのJSONへ固定した。実ファイル、共有実行器A統合後develop、第1段・第2段コミット、Git object IDから機械照合し、承認者・承認日は`null`で保持した。
 - 候補作成に関与していない独立レビュアが、production generator / checkerを使った再生成、隔離cloneへのtenant record・2 snapshot適用、authz record仮適用・再封印を確認した。tenant-boundary検査、frozen-baseline invariants、authz再封印はいずれもgreenで、資料のblob・digest・canonical hashと完全一致した。判定は可決（P0=0 / P1=0 / P2=0）。
 - この固定は正式受理、第3段、人間逐行確認、Draft解除、マージを表さない。U-R1はC1の実統合後にrevision、source digest、snapshot、履歴、archiveを再導出する。
+
+### C1ステップ1 第3段の7.7正式受理・反映（2026-10-16）
+
+- 山田正輝が判断資料SHA-256 `75b65bf4f9f92a97e771e305bcd0c9a9b270d39467f71b5f25280562033d1f69`、受理記録案SHA-256 `43acdfa1b1e88ad235af019fd230615a702a191d91c3c158ca7b1466b4a0e141`に固定した両系列の完全値を正式受理した。承認者は山田正輝、承認日は2026-10-16。`origin/develop`は固定資料の基線`e7e8d3a4324687ada828b1e4b49692c087af5c44`から進んでおらず、受理値の変更はなかった。
+- production `runtime_contract_acceptance`で実承認値入りtenant記録を再生成し、固定案との差分が`approved_by` / `approved_on`だけであることを確認した。`base-allowlist.json`の既存21履歴を保持して#144記録を末尾へ追記し、受理済み2 snapshot `20c8f0f…ebabf` / `71cb7a8b…c2a00`を内容アドレスで追加した。
+- `frozen-baselines.json`の既存10履歴を保持して#144 `oracle_input`記録を末尾へ追記し、専用フラグ`--reseal-oracle`で8入力blobと6 sealed digestを再封印した。反映後は固定案と全14値が一致した。正式記録のcanonical SHA-256はtenant `4d0f185f3d9d086c2bacdb20f92790bc6a7966c6e5281069e17a34af4444c8d0`、authz `7a692712f25cc9d8828bdd304228de8754b638177d7b00aa824d1696344e4d99`、sealファイルSHA-256は`2ae1b99a2ee2492e2e478126b2cc2ca54526eca36069f8aa0ee75fb74ca89ead`。
+- 比較archiveは既存files / trees、固定履歴prefix、snapshot名集合、11ケースを維持し、現況入力digestだけを`96b217bd…a4b7`から`68dbc129…a32`へ再導出した。tenant-boundary、authz catalog、frozen-baseline invariantsはgreen。凍結・履歴・archive対象581件は専用basetemp・2 workerで全件成功した。
+- 最初の対象pytestは共有`/tmp`が満杯になり39件が同一の`ENOSPC`で失敗した。生成元`pytest-608`だけを除去し、リポジトリ外専用basetempで再実行して581件成功した。検査のskip、除外、期待値緩和は行っていない。
+- この正式受理をPR全体の本人逐行確認へ流用しない。planは`active`を維持し、第3段後の全品質gate、最終レビュー、本人逐行確認をステップ1完了条件として残す。Draft解除、マージ、C2、U-F3、公開には進まない。U-R1 / #143はC1の実統合後developから再導出する。
