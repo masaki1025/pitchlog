@@ -35,6 +35,8 @@ TSK-550 は、PO の 2026-10-14 J-3 裁定で TSK-539（U-X1 計画）から切�
 
 **共有固定関数実行器A/B/C分割の追補承認（2026-10-15、PO、`ae380801`）**: [独立レビュー済み分割案](shared-function-executor-split-proposal.md)を承認。共有実行器Aは製品関数登録0件で最新develop起点の専用worktree・別PRとして先行し、TSK-550本体のcodec/審査中正本を混在させない。A統合後、Bのresolver1件とU-R1 CのRG1専用2件は相互の登録完了を待たず、各個別ゲートで進める。以前の「最初の登録はresolver1件」という**順序制約だけ**を本分割に限り変更し、TSK-550が登録する関数をresolver1件に限定する規則、DML非緩和、同一scope、固定SQL/decoder、未登録・偽造token/任意SQL/Session注入/失効scope拒否を維持する。Aは別worktreeの単一ステップ計画でコミット現在地を管理し、本表の9ステップと既存`(ステップ 2/9)`履歴を改番しない。本表ステップ4の共有実行器部分はA統合済み基線を消費し、Bの1登録と契約試験を担当する。元の1 PR方針はA先行PRと本体B以降のPRへ分割。**具体的凍結資産の変更・7.7、B/Cの関数権限、ステップ3正本の人間承認は別ゲート**であり、A/B/Cの実装承認から推定しない。U-R1の旧追補案はAにresolverを含めるため担当側の計画・受理記録を同期する。
 
+**A統合後の接続方針採用（2026-10-16、PO）**: DB実関数を`public.resolve_stage_a_rule(uuid,text,text,boolean)`とし、先頭UUIDは検証済みscopeから共有実行器が注入する。公開requestは試合区分キー・必須大会キー・上書き有無の3項目のまま。decoderはAが不変化した`Mapping`を厳密検証し、業務値だけを既存codecへ渡す単一路線とする。個別正本・配置・権限・migration・凍結資産の正式ゲートは[一括承認資料](step3-formal-gate-submission.md)に分離し、ステップ3の着手条件を緩めない。B/Cは機能上の相互待ちを追加しない。
+
 現行 `rule_sets` には帰属列がなく、`rule_sets` と `tournament_rule_assignments` は `function_only`。直接読取を開かず、段階Aでは安全に帰属を証明できる試合区分の全体既定だけを解決し、付録Fの検証済み規則ID+5値を同一 transaction 内の試合作成へ渡す。大会割当・試合上書きがある場合は拒否し、FR-014 の全優先順位は段階Bに残す。TSK-539 の T1〜T6 状況・終了計算は実装しない。根拠は [調査](research.md) と [設計論点](design.md)。
 
 ## 2. スコープ

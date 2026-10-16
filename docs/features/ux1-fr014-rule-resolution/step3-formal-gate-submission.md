@@ -27,7 +27,7 @@
 
 `docs/design/product-authz-surface.md`はこの段階A認可境界だけを正本として新設する。射程宣言は「本書で確定する範囲=固定制限関数1件の到達経路、ownerと最小権限、親ロック後の割当照会、アプリ直表権限の拒否、GUC残余脅威。実装時に確定する範囲=関数SQL、認可資産・適用器、カタログ/2接続/故障試験の具体」とする。本文は次のとおり。
 
-> 認証済みの同一tenant transaction scopeから、固定`public.resolve_stage_a_rule(text,text,boolean)`だけを呼ぶ。入力は試合区分キー、必須大会キー、上書き有無とし、任意tenant ID・規則IDを呼出側から受けない。`pitchlog_app`の`rule_sets`・`tournament_rule_assignments`直接SELECT/書込を拒否し、`game_type_rule_defaults`の既存SELECTだけ維持する。大会親行をtenant GUCと照合して`FOR UPDATE`し、READ COMMITTEDの別SQL文で同一大会の割当を確認する。割当あり、候補なし、越境、無効規則、読取失敗から試合INSERTへ進まない。固定5組のID・キー・出所と同一行の値を照合し、別IDへの付け替えを拒否する。関数は専用ownerの`SECURITY DEFINER`・`VOLATILE`、`SET search_path=pg_catalog,pg_temp`、全表参照をschema修飾し、DMLを含めない。関数作成とPUBLIC EXECUTE剥奪、`pitchlog_app`だけへのEXECUTE付与は認可適用器の単一transactionに収める。GUCの存在・UUID形式・大会のtenant一致を検査するが、DB接続資格情報を得た主体が任意GUCを設定する残余脅威はこの関数では防げない。通常製品経路のtenant真正性は認証済み`TenantContext`、固定operation、接続資格情報と直SQLの遮断に依存する。残余脅威の採否をPOと認可・tenant境界所有者が明示する。
+> 認証済みの同一tenant transaction scopeから、固定`public.resolve_stage_a_rule(uuid,text,text,boolean)`だけを呼ぶ。先頭UUIDは検証済みscopeから実行器が注入する。公開requestは試合区分キー、必須大会キー、上書き有無の3項目とし、任意tenant ID・規則IDを呼出側から受けない。`pitchlog_app`の`rule_sets`・`tournament_rule_assignments`直接SELECT/書込を拒否し、`game_type_rule_defaults`の既存SELECTだけ維持する。大会親行をtenant GUCと照合して`FOR UPDATE`し、READ COMMITTEDの別SQL文で同一大会の割当を確認する。割当あり、候補なし、越境、無効規則、読取失敗から試合INSERTへ進まない。固定5組のID・キー・出所と同一行の値を照合し、別IDへの付け替えを拒否する。関数は専用ownerの`SECURITY DEFINER`・`VOLATILE`、`SET search_path=pg_catalog,pg_temp`、全表参照をschema修飾し、DMLを含めない。関数作成とPUBLIC EXECUTE剥奪、`pitchlog_app`だけへのEXECUTE付与は認可適用器の単一transactionに収める。GUCの存在・UUID形式・大会のtenant一致を検査するが、DB接続資格情報を得た主体が任意GUCを設定する残余脅威はこの関数では防げない。通常製品経路のtenant真正性は認証済み`TenantContext`、固定operation、接続資格情報と直SQLの遮断に依存する。残余脅威の採否をPOと認可・tenant境界所有者が明示する。
 
 ## 2. 配置migration Aの審査用DDLと値
 
@@ -118,7 +118,7 @@ DROP POLICY tsk550_seed_rule_sets_select ON public.rule_sets;
 | `game_type_rule_defaults` | `SELECT(game_type_key,game_type_category,rule_set_id)` | 既存`global_read_only`のSELECTのみ維持、書込拒否 |
 | `rule_sets` | `SELECT(id,regulation_innings,called_game_conditions,extra_innings_limit,tiebreak_rule,uses_dh)` | 直接SELECT/書込は拒否 |
 
-1件だけの`public.resolve_stage_a_rule(text,text,boolean)`を固定`SECURITY DEFINER`、`VOLATILE`、`SET search_path=pg_catalog,pg_temp`、全表参照schema修飾、関数内DML無しで置く。ownerの`UPDATE(disabled)`は**実際の更新能力**でもあるため、NOLOGIN/membership無し、関数本文とカタログの逐行・実DB検査を必須にする。関数の作成と同transactionで`REVOKE ALL ON FUNCTION ... FROM PUBLIC`を行い、`EXECUTE`を`pitchlog_app`だけへ付ける。GUCは存在・UUID形式・親行tenant一致を検査するが、アプリDB接続を取得した主体のGUC偽装は防げない。この残余脅威を認可面・tenant境界・POで採否する。
+1件だけの`public.resolve_stage_a_rule(uuid,text,text,boolean)`を固定`SECURITY DEFINER`、`VOLATILE`、`SET search_path=pg_catalog,pg_temp`、全表参照schema修飾、関数内DML無しで置く。ownerの`UPDATE(disabled)`は**実際の更新能力**でもあるため、NOLOGIN/membership無し、関数本文とカタログの逐行・実DB検査を必須にする。関数の作成と同transactionで`REVOKE ALL ON FUNCTION ... FROM PUBLIC`を行い、`EXECUTE`を`pitchlog_app`だけへ付ける。GUCは存在・UUID形式・親行tenant一致を検査するが、アプリDB接続を取得した主体のGUC偽装は防げない。この残余脅威を認可面・tenant境界・POで採否する。
 
 関数は`READ COMMITTED`以外で成功しない。大会親行を`FOR UPDATE`し、待機後に**別SQL文**で同tenant・大会の割当有無を照会する。割当があれば全体既定へfallbackしない。既定のキーと規則IDは上記の5組に一致する場合だけ成功候補とし、同じ規則行の5値を単一相関検査へ渡す。別IDへの付け替えは値が妥当でも出所を証明できないため拒否する。全体既定と規則行は、製品書込入口を閉じ保守停止中の特権変更に限る間だけ通常SELECTとする。割当INSERTを開く後続段階ではロック順と2接続実測を再審査する。
 
@@ -138,9 +138,9 @@ DROP POLICY tsk550_seed_rule_sets_select ON public.rule_sets;
 
 未承認は (a) data-model §3-2/§10-5と新認可正本の所有側採否または**各射程限定の代替受理**、それぞれの正式7.3、(b) FR-014/DRAW-04の要件裁定、(c) 配置migrationの一時RLS/排他/downgrade、(d) 専用owner/列UPDATE/関数EXECUTE・GUC残余脅威、(e) 実変更資産に限る7.7受理。既承認の§6-5・codec・UUID・機械文字列はここに含めない。
 
-## 6. 共有実行器Aの実統合後に判明したB登録境界（2026-10-16、候補差分）
+## 6. 共有実行器Aの実統合後に判明したB登録境界（2026-10-16、接続方針採用済み）
 
-PR #141の統合SHAは`e7e8d3a4324687ada828b1e4b49692c087af5c44`。`backend/src/pitchlog/repositories/function_operations.py`の固定SQL再構築は、登録済み`input_fields`の前に`tenant_id: UUID`を**常に第1 bind引数として追加**する。このため本書と承認済みplanに書いた`public.resolve_stage_a_rule(text,text,boolean)`はDB実関数の引数列としては不足する。登録IDは`public.resolve_stage_a_rule`のまま、DB実identityを**`public.resolve_stage_a_rule(uuid,text,text,boolean)`**とし、呼出側の公開requestは試合区分キー・必須大会キー・上書き有無の3項目のままとする修正を推奨する。先頭UUIDは認証済みscopeが注入し、利用者入力には出さず、関数内部で`app.tenant_id` GUCと一致検査する。GUC偽装の残余脅威は§3のまま。これは3引数の既承認計画を黙って4引数へ変更するものではなく、計画ステップ3/4・認可正本・DDL/ACL・登録資産の**同じ1箇所のidentity訂正**として所有側とPOの差分採否を求める。A自体の登録0件と既存DML契約は変えない。
+PR #141の統合SHAは`e7e8d3a4324687ada828b1e4b49692c087af5c44`。`backend/src/pitchlog/repositories/function_operations.py`の固定SQL再構築は、登録済み`input_fields`の前に`tenant_id: UUID`を**常に第1 bind引数として追加**する。このため本書と承認済みplanに書いた`public.resolve_stage_a_rule(text,text,boolean)`はDB実関数の引数列としては不足する。登録IDは`public.resolve_stage_a_rule`のまま、DB実identityを**`public.resolve_stage_a_rule(uuid,text,text,boolean)`**とし、呼出側の公開requestは試合区分キー・必須大会キー・上書き有無の3項目のままとする方針をPOが採用した。先頭UUIDは認証済みscopeが注入し、利用者入力には出さず、関数内部で`app.tenant_id` GUCと一致検査する。GUC偽装の残余脅威は§3のまま。計画ステップ3/4・認可正本・DDL/ACL・登録資産へ同じidentityを追随させる。ただし、これらの個別正式ゲートは未成立である。A自体の登録0件と既存DML契約は変えない。
 
 Bの公開Python契約候補は`resolve_stage_a_rule(scope, request) -> ResolvedStageARule | StageARuleFailure`。`request`は`game_type_key: str`、`tournament_key: str`（必須）、`has_override: bool`だけを持ち、tenant IDと任意rule IDを受けない。成功は既存codecの`DomainValidatedRuleSnapshot`と、固定5組の区分キー・規則IDを同一DB読取から照合した出所証明を束ねる不変値とする。失敗literalは既受理の`stage_a_unsupported`、`rule_not_available`、`invalid_rule`、`outcome_unconfirmed`の4件から増やさない。DB戻りはA実行器の行数・列数・exact型検査に収まる固定1行/1列のJSONB envelope候補とする。Aの`_materialize_rows`はDBの`dict`を再帰的に`MappingProxyType`へ変換してから登録decoderへ渡すため、`result_fields`は`dict`ではなく`MappingProxyType`を宣言し、decoderで状態・exact key・型を検査する。既存codecの`decode_structure`はexact `dict`を要求するので、検査後に業務値だけを新しい通常の`dict`へ再構成して**唯一の既存codec**へ渡す。`dict`型の登録宣言や未検証MappingProxyTypeの直接codec投入はAの実経路で失敗する。失敗行から規則値や他tenantの有無を外へ出さない。戻りenvelopeの正確なkey/SQL型と例外・4 literalへの写像は、認可面の関数本体とU-G1消費側の同時採否対象であり、現時点で製品契約として確定しない。
 
@@ -149,3 +149,19 @@ U-G1の同一scope境界は、`run_function`→固定5組と出所/codec検証�
 実装後の専用隔離PostgreSQL試験では、(1)固定5組の正例と出所不明・別ID・欠損・無効値、(2)同tenant割当あり拒否と別tenant割当の非漏洩、(3)親ロック取得待機後の別SQL文による割当再読取、(4)親INSERT/無効化との2接続競合、(5)既定/規則行の特権変更競合とロック保持期間、(6)関数読取後・game INSERT後・RG1直前の故障注入と全取消、(7)GUC欠損/不正/不一致と直接EXECUTE、(8)READ COMMITTED以外の拒否、(9)appの2規則表直接SELECT/書込拒否と既定表SELECT維持、(10)関数ACL/owner/SEARCH_PATH/PUBLIC剥奪を実DBで確認する。このうち(1)〜(5)、(7)〜(10)と関数単体の読取後故障はTSK-550ステップ3〜6、game INSERT後/RG1直前の全取消と実HTTP外形はTSK-395ステップ2の担当証跡とする。製品関数とU-G1接続の実装前に生SQL probeを製品証跡へ代用しない。
 
 最新developのA統合済み凍結基線は、`repository-contract.json` revision **19**、`base-allowlist.json` revision **31**、`runtime-authz-contract.json` revision **16**、製品`PRODUCT_FUNCTION_OPERATIONS=()`である。Bの具体差分・after digestはこの基線とU-R1/C1の先行統合結果を照合してから再導出し、旧提案のrevision候補を流用しない。C1/U-R1との調整で共有資産の先行PRが変われば、先に統合した履歴を保持しBは追加集合だけを個別7.7受理する。
+
+## 7. ステップ3着手の一括承認資料（2026-10-16）
+
+この節と§1〜6を**単一の判断対象**とする。既承認の§6-5、codec、固定5 UUID・2機械文字列・F-2の5値、Aの製品登録0件、DB関数4引数と公開request 3項目、decoderの不変`Mapping`検証と単一codec利用を再判断しない。§1のD/A/M/P、§2の配置DDL骨格、§3の権限表・適用順、§4の矛盾例、§5の最小計画追補が具体差分である。現行`docs/design/product-authz-surface.md`の3引数表記は**未承認の正本候補に残る未反映差分**であり、正式7.3追加審査と承認時に4引数へ訂正する。候補に残る3引数をDB実関数として実装しない。
+
+| 判断単位 | 既済み審査・採否 | 人間に求める決定 | 承認後の実装範囲 |
+| --- | --- | --- | --- |
+| D: `data-model.md` v1.1 §3-2/§10-5・参照追随 | 正式7.3第1回P1=2/P2=1を全採用、第2回P0/P1/P2=0。§6-5はapprovedのまま | TSK-250所有側の採否と、7.6による版改訂の人間承認。所有者不在なら**この二節だけ**の独立査読＋PO代替受理を個別判断 | 固定5組の出所を正本に固定し、schema manifestの正本SHAを実値で追随 |
+| A: 新設`product-authz-surface.md` v0.1 | 正式7.3第1回P0=2/P1=2を全採用、第2回P0/P1/P2=0。ただしA統合後の3→4引数はレビュー後差分 | TSK-424所有側の採否、4引数訂正と影響節に限定する追加7.3レビュー枠の6.3/7.3裁定、収束後の新設正本の人間承認。所有者不在の代替受理は本正本だけ別裁定 | scope UUID注入・GUC照合・親ロック後別SQL文・直接権限遮断を正本へ固定 |
+| M: F-2配置migration | DDL骨格への予備査読第1回P0=1/P1=4を採用、第2回P0=1/P1=2を採用。正式資産審査は未了 | 移行所有側とPOが、5+5行の出所、固定ID/キー衝突時停止、`pitchlog_owner`向け一時RLS4件と撤去、`ACCESS EXCLUSIVE`、rollback、非DELETE downgrade、適用revision順を**実行可能差分**で個別承認 | 承認後に配置Alembicだけ作成し、隔離DBで全取消・事後ACL/RLS照合 |
+| P: owner・ACL・認可適用器・凍結資産 | §1/§3に対象ファイルと7手順、付与/再適用/撤去を指定。予備査読P0/P1を採用したが、資産の最終差分と実digestは未承認 | TSK-424/tenant境界所有側とPOが、`NOLOGIN NOSUPERUSER BYPASSRLS NOINHERIT NOCREATEROLE NOCREATEDB NOREPLICATION`の専用owner、親列`UPDATE(disabled)`の実更新能力、最小SELECT、PUBLIC剥奪・appのみEXECUTE、GUC偽装残余脅威、既存適用器の付与/照合/撤去を個別承認。7.7は実変更後の完全before/afterと履歴で別受理 | 承認後に関数本体・owner/ACLを**認可適用器の単一transaction**へ追加。関数Alembicは作らず、B登録1件はステップ4の別ゲート |
+| 計画・要件 | §5の「配置だけAlembic、関数は既存認可適用器」追補案。FR-014/DRAW-04の反例は§4 | 計画差分の必要レビューと人間承認。要件所有側はFR-014の拒否を優先する§4推奨裁定を正式7.3・人間承認で判断 | F-2の値は維持。矛盾例を有効として保存しない |
+
+**編集・統合順**: 現在U-R1作業木が`product_control_access.py`、`product_role_contract.py`、`runtime_contract.py`、`repository_contract.py`、`schema-manifest.json`、`base-allowlist.json`等を編集中である。これらをTSK-550から上書きしない。共有資産はA実統合→**先に個別ゲートとレビューを通し統合されたBまたはC**→後続側がその受理履歴・revisionを保持して追加集合/digestを再導出する順とする。現状の編集占有はU-R1 Cにあり、同時編集を避けるためCの共有資産編集・候補確定を先行扱いとするが、Cの正式統合が遅れる場合でもB/Cの機能上の相互待ちは作らず、U-R1の所有解除確認後にBが同じ基線から編集する。U-C1はTSK-401で編集予定の回答待ち。重複ファイルが出た場合は先行統合側の承認済み履歴を後続側が維持する。担当からの順序受理は未確認であり、双方にこの具体順を照会する。
+
+**実装後の証跡**: §6の縮小SQL probeは補助資料のみ。ステップ3〜6で実製品関数・認可・RLS・全5区分・2接続・故障注入を隔離DBで検証する。TSK-395ステップ2が同一scopeの`applied_rules`保存、RG1直前ゲート、実HTTP、失敗時全取消を担う。旧行補完、割当ありの既定fallback、出所不明の成功は許さない。上表の人間判断と個別ゲートが成立するまで製品登録・DB関数・migrationを実装しない。
