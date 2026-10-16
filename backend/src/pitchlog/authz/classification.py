@@ -24,6 +24,7 @@ FACT_KINDS = frozenset(
         "admin_only",
         "pre_auth_only",
         "migration_only",
+        "rg1_control",
         "secret_column",
     }
 )
@@ -33,9 +34,12 @@ FUNCTION_ONLY_FACT_KINDS = frozenset(
         "admin_only",
         "pre_auth_only",
         "migration_only",
+        "rg1_control",
     }
 )
-FUNCTION_OWNER_UNITS = frozenset({"U-A1", "U-A2", "U-X1", "migration_batch"})
+FUNCTION_OWNER_UNITS = frozenset(
+    {"U-A1", "U-A2", "U-X1", "U-R1", "migration_batch"}
+)
 CANONICAL_SOURCE_PATH = "docs/design/data-model.md"
 
 
@@ -438,7 +442,7 @@ def _validate_assignment_conditions(
         if profile == "function_only" and table_name not in special_tables:
             violations.append(
                 f"{table_name}: function_onlyには所有混在・管理者専用・"
-                "認証前専用・移行専用のいずれかの事実が必要"
+                "認証前専用・移行専用・RG1専用のいずれかの事実が必要"
             )
         if profile == "tenant_owned":
             if "tenant_id" not in columns:

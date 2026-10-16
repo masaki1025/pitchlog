@@ -296,6 +296,19 @@ def _copy_product_catalog_repository(tmp_path: Path) -> Path:
 def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
     """製品状態からでも正しい未発効状態の検査用複製を組み立てる。"""
     root = _copy_product_catalog_repository(tmp_path)
+    # 版固定の未発効候補はRG1追加前の45表を表す。
+    schema_manifest_path = Path("contracts/db/schema-manifest.json")
+    schema_manifest = _read_json_at(root, schema_manifest_path)
+    schema_manifest["tables"] = [
+        row for row in schema_manifest["tables"] if row["name"] != "rg1_restore_gate"
+    ]
+    _write_json_at(root, schema_manifest_path, schema_manifest)
+    classification_path = Path("contracts/authz/product/table-classification.json")
+    classification = _read_json_at(root, classification_path)
+    classification["tables"] = [
+        row for row in classification["tables"] if row["table"] != "rg1_restore_gate"
+    ]
+    _write_json_at(root, classification_path, classification)
     provisional_revision = runtime_contract_support.provisional_reference_revision(
         REPOSITORY_ROOT
     )

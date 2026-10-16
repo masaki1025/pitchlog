@@ -28,6 +28,7 @@ _PROVISIONAL_PRODUCT_ROLES = {
 _PRODUCT_ROLES = {
     **_PROVISIONAL_PRODUCT_ROLES,
     "pitchlog_auth_fn_owner": _role("product_ddl", login=False, bypass_rls=True),
+    "pitchlog_rg1_fn_owner": _role("product_ddl", login=False, bypass_rls=False),
 }
 MIGRATION_BATCH_ROLE_ATTRIBUTES = {
     "superuser": False,
@@ -41,7 +42,7 @@ MIGRATION_BATCH_ROLE_ATTRIBUTES = {
 
 
 def expected_product_roles(asset: dict[str, Any]) -> dict[str, dict[str, object]]:
-    """資産の有無に依存しない、製品状態の 5 ロールを返す。
+    """資産の有無に依存しない、製品状態の 6 ロールを返す。
 
     Args:
         asset: 呼出側との互換性のために受け取る製品資産。判定には使わない。

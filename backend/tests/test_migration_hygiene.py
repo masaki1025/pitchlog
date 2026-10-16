@@ -53,6 +53,33 @@ def _load_seed_allowlist() -> dict[str, Any]:
     return ledger
 
 
+def _rg1_seed_candidate_ledger() -> dict[str, Any]:
+    """未受理のRG1単一行宣言を隔離検査へ重ねる。"""
+    candidate_path = (
+        Path(__file__).parent / "fixtures/rg1/seed-allowlist-candidate.json"
+    )
+    candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
+    assert candidate["acceptance_state"] == "pending_7_7"
+    ledger = copy.deepcopy(_load_seed_allowlist())
+    for series, declaration in candidate["declarations"].items():
+        if series in ledger["declarations"]:
+            assert ledger["declarations"][series] == declaration
+        else:
+            ledger["declarations"][series] = declaration
+    return ledger
+
+
+def _vocabulary_seed_series() -> tuple[str, ...]:
+    """既存の語彙用変異試験へ渡す系列だけを返す。"""
+    return tuple(
+        sorted(
+            series
+            for series, declaration in _load_seed_allowlist()["declarations"].items()
+            if declaration["allowed"].get("row_shape") != "singleton_exact"
+        )
+    )
+
+
 def _canonical_json(value: Any) -> str:
     """JSON の値型を保ち、キー順だけを正規化した文字列を返す。"""
     return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
@@ -337,16 +364,27 @@ def _assert_checker_has_no_frozen_values(
     for declaration in ledger["declarations"].values():
         allowed = declaration["allowed"]
         rows = allowed["upgrade_rows"]
-        scope = allowed["downgrade_delete_scope"]
         assert all(target not in source for target in declaration["frozen_targets"])
-        frozen_strings = {
-            *allowed["target_tables"],
-            rows["category"],
-            *rows["keys"],
-            scope["table"],
-            scope["category"],
-            *scope["keys"],
-        }
+        if allowed.get("row_shape") == "singleton_exact":
+            frozen_strings = {
+                *allowed["target_tables"],
+                *(
+                    value
+                    for row in rows["rows"]
+                    for value in row.values()
+                    if isinstance(value, str)
+                ),
+            }
+        else:
+            scope = allowed["downgrade_delete_scope"]
+            frozen_strings = {
+                *allowed["target_tables"],
+                rows["category"],
+                *rows["keys"],
+                scope["table"],
+                scope["category"],
+                *scope["keys"],
+            }
         assert not string_literals.intersection(frozen_strings)
         assert rows["count"] not in direct_row_counts
 
@@ -555,6 +593,40 @@ def _bulk_insert_matches(node: ast.Call, allowed: Mapping[str, Any]) -> bool:
     expected = allowed["upgrade_rows"]
     if len(rows.elts) != expected["count"]:
         return False
+    if allowed.get("row_shape") == "singleton_exact":
+        expected_rows = expected.get("rows")
+        if (
+            allowed.get("upgrade_calls") != ["bulk_insert"]
+            or len(allowed["target_tables"]) != 1
+            or not isinstance(expected_rows, list)
+            or len(expected_rows) != 1
+            or expected["count"] != len(expected_rows)
+            or "downgrade_delete_scope" in allowed
+        ):
+            return False
+        expected_row = expected_rows[0]
+        if not isinstance(expected_row, dict) or len(expected_row) != 2:
+            return False
+        actual_row = rows.elts[0]
+        if not isinstance(actual_row, ast.Dict):
+            return False
+        fields: dict[str, object] = {}
+        for key_node, value_node in zip(
+            actual_row.keys, actual_row.values, strict=True
+        ):
+            if (
+                not isinstance(key_node, ast.Constant)
+                or not isinstance(key_node.value, str)
+                or not isinstance(value_node, ast.Constant)
+                or key_node.value in fields
+            ):
+                return False
+            fields[key_node.value] = value_node.value
+        return set(fields) == set(expected_row) and all(
+            type(fields[key]) is type(expected_row[key])
+            and fields[key] == expected_row[key]
+            for key in expected_row
+        )
     keys: list[str] = []
     for row in rows.elts:
         if not isinstance(row, ast.Dict):
@@ -576,6 +648,25 @@ def _bulk_insert_matches(node: ast.Call, allowed: Mapping[str, Any]) -> bool:
             return False
         keys.append(fields["key"])
     return len(keys) == len(set(keys)) and set(keys) == set(expected["keys"])
+
+
+def _singleton_schema_call_matches(
+    node: ast.Call, allowed: Mapping[str, Any], function_name: str | None
+) -> bool:
+    """同一revision内の単一表作成と取り外しだけを受ける。"""
+    if (
+        allowed.get("row_shape") != "singleton_exact"
+        or len(allowed["target_tables"]) != 1
+        or (_op_call(node, "drop_table") and len(node.args) != 1)
+        or not node.args
+        or not isinstance(node.args[0], ast.Constant)
+        or node.args[0].value != allowed["target_tables"][0]
+        or node.keywords
+    ):
+        return False
+    return (
+        _op_call(node, "create_table") and function_name == "upgrade"
+    ) or (_op_call(node, "drop_table") and function_name == "downgrade")
 
 
 def _migration_sources() -> dict[str, str]:
@@ -690,6 +781,9 @@ def _migration_source_violations(
         accepted_delete_calls: set[int] = set()
         accepted_text_calls: set[int] = set()
         table_argument_calls: set[int] = set()
+        accepted_schema_calls: set[int] = set()
+        accepted_create_calls: set[int] = set()
+        accepted_drop_calls: set[int] = set()
         if allowed is not None:
             assert set(allowed["upgrade_calls"]).issubset(_FORBIDDEN_CALLS)
             for node in ast.walk(tree):
@@ -717,6 +811,30 @@ def _migration_source_violations(
                         for descendant in ast.walk(node.args[0])
                         if isinstance(descendant, ast.Call)
                     )
+                if _singleton_schema_call_matches(
+                    node, allowed, function_by_node.get(id(node))
+                ):
+                    accepted_schema_calls.add(id(node))
+                    if _op_call(node, "create_table"):
+                        accepted_create_calls.add(id(node))
+                        accepted_schema_calls.update(
+                            id(descendant)
+                            for descendant in ast.walk(node)
+                            if isinstance(descendant, ast.Call)
+                            and isinstance(descendant.func, ast.Attribute)
+                            and isinstance(descendant.func.value, ast.Name)
+                            and descendant.func.value.id == "sa"
+                            and descendant.func.attr
+                            in {
+                                "Column",
+                                "CheckConstraint",
+                                "PrimaryKeyConstraint",
+                                "SmallInteger",
+                                "Text",
+                            }
+                        )
+                    else:
+                        accepted_drop_calls.add(id(node))
                 if (
                     _op_call(node, "execute")
                     and function_by_node.get(id(node)) == "downgrade"
@@ -727,6 +845,7 @@ def _migration_source_violations(
                     if (
                         literal is not None
                         and isinstance(literal.value, str)
+                        and "downgrade_delete_scope" in allowed
                         and _delete_matches_scope(
                             literal.value, allowed["downgrade_delete_scope"]
                         )
@@ -737,6 +856,12 @@ def _migration_source_violations(
                             accepted_text_calls.add(id(node.args[0]))
             if not accepted_bulk_calls:
                 violations.append(f"{path}: upgrade() の許可 API が使われていない")
+            if allowed.get("row_shape") == "singleton_exact" and (
+                len(accepted_bulk_calls) != 1
+                or len(accepted_create_calls) != 1
+                or len(accepted_drop_calls) != 1
+            ):
+                violations.append(f"{path}: singleton seed の投入・表作成が不正")
         for node in ast.walk(tree):
             if isinstance(node, ast.Attribute):
                 parent = parents.get(id(node))
@@ -772,6 +897,7 @@ def _migration_source_violations(
                     id(node) in accepted_bulk_calls
                     or id(node) in accepted_delete_calls
                     or id(node) in accepted_text_calls
+                    or id(node) in accepted_schema_calls
                     or (id(node) in table_argument_calls and _sa_schema_call(node))
                 ):
                     continue
@@ -2007,7 +2133,7 @@ def _mutate_real_seed_revision(
     return _replace_ast_expression(source, literal, repr(expanded_sql))
 
 
-@pytest.mark.parametrize("series", sorted(_load_seed_allowlist()["declarations"]))
+@pytest.mark.parametrize("series", _vocabulary_seed_series())
 def test_real_seed_revision_is_green(series: str) -> None:
     """変異前の実 revision が DML 境界検査を通ることを確認する。"""
     ledger, path, source = _real_seed_revision(series)
@@ -2022,7 +2148,7 @@ def test_real_seed_revision_is_green(series: str) -> None:
         ("broader_downgrade", "禁止 SQL DELETE FROM"),
     ),
 )
-@pytest.mark.parametrize("series", sorted(_load_seed_allowlist()["declarations"]))
+@pytest.mark.parametrize("series", _vocabulary_seed_series())
 def test_real_seed_revision_mutations_are_red(
     series: str, case: str, expected_violation: str
 ) -> None:
@@ -2033,3 +2159,104 @@ def test_real_seed_revision_mutations_are_red(
 
     violations = _migration_source_violations({path: mutated}, ledger=ledger)
     assert any(expected_violation in violation for violation in violations)
+
+
+def _rg1_seed_candidate_source() -> tuple[dict[str, Any], str, str]:
+    """隔離候補宣言と実migration候補を対応させて読む。"""
+    ledger = _rg1_seed_candidate_ledger()
+    declaration = next(
+        value
+        for value in ledger["declarations"].values()
+        if value["allowed"].get("row_shape") == "singleton_exact"
+    )
+    path = declaration["frozen_targets"][0]
+    return ledger, path, (_BACKEND_ROOT / path).read_text(encoding="utf-8")
+
+
+def test_rg1_singleton_seed_candidate_is_exact() -> None:
+    """常閉の候補行だけを通し、正式受理前後の状態を区別する。"""
+    ledger, path, source = _rg1_seed_candidate_source()
+    assert _migration_source_violations({path: source}, ledger=ledger) == []
+    formal_ledger = _load_seed_allowlist()
+    if "rg1_closed_seed" in formal_ledger["declarations"]:
+        _assert_seed_allowlist_history(formal_ledger)
+        assert _migration_source_violations({path: source}) == []
+    else:
+        assert any(
+            "禁止 API bulk_insert()" in item
+            for item in _migration_source_violations({path: source})
+        )
+    _assert_checker_has_no_frozen_values(
+        ledger, Path(__file__).read_text(encoding="utf-8")
+    )
+
+
+@pytest.mark.parametrize(
+    "case",
+    (
+        "other_id",
+        "boolean_id",
+        "open_state",
+        "unknown_state",
+        "extra_row",
+        "second_insert",
+        "other_table",
+        "missing_create",
+        "missing_drop",
+        "overwrite_update",
+        "overwrite_insert_conflict",
+    ),
+)
+def test_rg1_singleton_seed_candidate_rejects_scope_expansion(case: str) -> None:
+    """別ID・状態・行・表・上書き経路をすべて拒否する。"""
+    ledger, path, source = _rg1_seed_candidate_source()
+    allowed = ledger["declarations"]["rg1_closed_seed"]["allowed"]
+    expected_row = allowed["upgrade_rows"]["rows"][0]
+    original = json.dumps([expected_row], ensure_ascii=False)
+    assert original in source
+    if case == "other_id":
+        changed = [{**expected_row, "singleton_id": 2}]
+        source = source.replace(original, json.dumps(changed), 1)
+    elif case == "boolean_id":
+        source = source.replace('"singleton_id": 1', '"singleton_id": True', 1)
+    elif case in {"open_state", "unknown_state"}:
+        changed = [
+            {**expected_row, "state": "open" if case == "open_state" else "unknown"}
+        ]
+        source = source.replace(original, json.dumps(changed), 1)
+    elif case == "extra_row":
+        source = source.replace(original, json.dumps([expected_row, expected_row]), 1)
+    elif case == "second_insert":
+        call = _real_revision_op_call(
+            _real_revision_function(source, "upgrade"), "bulk_insert"
+        )
+        assert call.end_lineno is not None
+        lines = source.splitlines(keepends=True)
+        lines.insert(call.end_lineno, f"    {ast.unparse(call)}\n")
+        source = "".join(lines)
+    elif case == "other_table":
+        source = source.replace(
+            f'sa.table(\n            "{allowed["target_tables"][0]}"',
+            'sa.table(\n            "outside"',
+            1,
+        )
+    elif case == "missing_create":
+        source = source.replace("    op.create_table(", "    op.not_create_table(", 1)
+    elif case == "missing_drop":
+        source = source.replace("    op.drop_table(", "    op.not_drop_table(", 1)
+    elif case == "overwrite_update":
+        source = source.replace(
+            "\n\ndef downgrade()",
+            "\n    op.execute(\"UPDATE anything SET state = 'open'\")"
+            "\n\ndef downgrade()",
+            1,
+        )
+    else:
+        assert case == "overwrite_insert_conflict"
+        source = source.replace(
+            "\n\ndef downgrade()",
+            "\n    op.execute(\"INSERT INTO anything VALUES (1) "
+            "ON CONFLICT DO UPDATE SET state = 'open'\")\n\ndef downgrade()",
+            1,
+        )
+    assert _migration_source_violations({path: source}, ledger=ledger)
