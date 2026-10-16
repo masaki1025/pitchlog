@@ -46,8 +46,8 @@ async def test_routers_is_module_level_tuple() -> None:
 
 
 @pytest.mark.anyio
-async def test_routers_register_meta_login_player_and_team_routes() -> None:
-    """静的登録したメタ情報・ログイン・選手・対戦相手の入口を照合する。"""
+async def test_routers_register_meta_auth_player_and_team_routes() -> None:
+    """静的登録したメタ情報・認証・選手・対戦相手の入口を照合する。"""
     routes = tuple(
         route
         for router in api_app.ROUTERS
@@ -61,6 +61,7 @@ async def test_routers_register_meta_login_player_and_team_routes() -> None:
         (("GET",), "/health"),
         (("GET",), "/version"),
         (("POST",), "/auth/login"),
+        (("GET",), "/auth/session"),
         (("POST",), "/auth/logout"),
         (("PATCH",), "/auth/password"),
         (("POST",), "/players"),
@@ -79,6 +80,7 @@ async def test_routers_register_meta_login_player_and_team_routes() -> None:
         "meta_health_read",
         "meta_version_read",
         "auth_login_create",
+        "auth_session_read",
         "auth_logout_create",
         "auth_password_update",
         "roster_player_create",

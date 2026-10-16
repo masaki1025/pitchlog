@@ -2,6 +2,7 @@
 
 import base64
 import json
+import re
 import secrets
 from pathlib import Path
 from typing import Final
@@ -43,6 +44,15 @@ _REQUEST_ACCESS_PATTERNS: Final[tuple[str, ...]] = (
     "request.query_params",
     "cookies",
 )
+_ALLOWED_DATABASE_TERM_IDENTIFIERS: Final[tuple[str, ...]] = ("AuthSessionResponse",)
+
+
+def _has_database_term(source_text: str) -> bool:
+    """承認済みDTO名だけを除き、従来どおり部分一致でDB語彙を探す。"""
+    inspected = source_text
+    for identifier in _ALLOWED_DATABASE_TERM_IDENTIFIERS:
+        inspected = re.sub(rf"\b{re.escape(identifier)}\b", "", inspected)
+    return any(term in inspected for term in _DATABASE_TERMS)
 
 
 @pytest.fixture(autouse=True)
@@ -112,7 +122,36 @@ def test_api_source_has_no_database_terms() -> None:
     """API ソースにデータベース接続の語彙が無いことを確認する。"""
     source_text = _api_source_text()
 
-    assert all(term not in source_text for term in _DATABASE_TERMS)
+    assert not _has_database_term(source_text)
+
+
+@pytest.mark.parametrize("term", _DATABASE_TERMS)
+def test_database_term_guard_rejects_each_forbidden_term(term: str) -> None:
+    """禁止したDB語彙を判定器が個別に見逃さないことを確認する。"""
+    assert _has_database_term(f"before\n{term}\nafter")
+
+
+def test_database_term_guard_allows_only_the_approved_dto_identifier() -> None:
+    """承認済みDTO名だけはSession部分文字列による誤検出から除く。"""
+    assert not _has_database_term("AuthSessionResponse")
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    (
+        "AsyncSession",
+        "DatabaseSession",
+        "sqlalchemy_session",
+        "db_engine",
+        "sqlalchemy2",
+        "AuthSessionResponse.Session.execute",
+    ),
+)
+def test_database_term_guard_rejects_embedded_forbidden_terms(
+    source_text: str,
+) -> None:
+    """複合識別子に埋め込まれた従来の禁止語彙も拒否する。"""
+    assert _has_database_term(source_text)
 
 
 def test_api_source_has_no_synchronization_terms() -> None:
@@ -142,14 +181,15 @@ async def test_forbidden_response_is_hidden_as_not_found() -> None:
 
 
 def test_router_routes_are_static_login_roster_and_meta() -> None:
-    """静的登録したメタ情報・認証・選手・対戦相手の 16 本を照合する。"""
+    """静的登録したメタ情報・認証・選手・対戦相手の17本を照合する。"""
     routes = _router_routes()
 
-    assert len(routes) == 16
+    assert len(routes) == 17
     assert tuple((route.path, frozenset(route.methods or ())) for route in routes) == (
         ("/health", frozenset({"GET"})),
         ("/version", frozenset({"GET"})),
         ("/auth/login", frozenset({"POST"})),
+        ("/auth/session", frozenset({"GET"})),
         ("/auth/logout", frozenset({"POST"})),
         ("/auth/password", frozenset({"PATCH"})),
         ("/players", frozenset({"POST"})),

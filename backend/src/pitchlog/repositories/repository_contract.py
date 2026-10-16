@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 19
+CONTRACT_REVISION = 20
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "544f341dd05bd8928e60113b1eef95ac96ca5551f1684912641f1d0b6bde9ea5"
+SOURCE_DIGEST = "22ecaa00ad393d2c7695ec53f68fdd23239ada64e293d070fda7793087a0a3b6"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -111,6 +111,7 @@ PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:invalidation_intents:update",
     "CAP:evacuated_event_originals:read",
     "CAP:evacuated_event_originals:insert",
+    "CAP:tenants:read",
 )
 PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -156,6 +157,7 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.sync.tokens.InvalidationIntentDeliveredToken",
     "pitchlog.sync.tokens.EvacuatedOriginalReadToken",
     "pitchlog.sync.tokens.EvacuatedOriginalInsertToken",
+    "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
 )
 CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
 PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = ()
