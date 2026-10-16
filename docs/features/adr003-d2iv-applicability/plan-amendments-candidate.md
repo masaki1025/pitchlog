@@ -27,6 +27,18 @@
 
 本枝は他担当の`ux1-state-calc`、`domain-calc-dsl`、`product-impl-unit-split`、`adr003-d2-switch`、`appendix-a-fixed-vectors`の所有ファイルを編集しない。受取側が対象ファイルの改訂差分を作成し、各計画のレビューと承認を受ける。ここでの候補査読はそれらの正式計画レビューを代行しない。
 
+### 2026-10-17時点の開始条件照合
+
+| 条件 | 実測・受理状況 | 判定 |
+| --- | --- | --- |
+| ADR/要件書の確定 | 2回の7.3査読、P1計4件採用、POは改訂範囲を承認。最終反映差分の本人確認は未回答、両frontmatterは`in-review` | **未成立**。正本確定だけで他条件を飛ばさない |
+| U-X1 PR-1の限定改訂 | 現行`ux1-state-calc/design.md` P-1〜P-9は全体段階①/D-2発効を要求する旧記述。所有側の改訂と6.1計画レビュー・人間承認は未実施 | **未成立**。本候補の事前査読は代行しない |
+| T1/T2ベクタ・独立期待値 | 契約ファイルは存在するが`contracts/state-transition/state_transition_contract_v1.json`の`independentVerifierId`は`not-performed`。P-8 GAP/P-9 FR-040の所有側受理・裁定も未確認 | **未成立**。未受理を期待値確定と扱わない |
+| 実行基盤と対象実体 | `backend/domain/manifest.schema.json`と`backend/src/pitchlog/domainrt/host.py`は存在。`backend/domain/manifest.json`と実T1/T2 entryは存在しない | **基盤あり・対象実体なし**。後者は対象PRの成果物であり開始前の存在を要求しない |
+| 実接合と公開証跡 | U-R1の本物のRecordingRightsPort、U-S1投影/検証Port、506の実HTTPステップ4/5、U-F8再読込、U-F7断中耐久キューとのFR-012結合試験は未受理 | **統合・公開条件未成立**。署名と所有境界の受理は着手前、実値証跡はマージ前に確認 |
+
+上表は対象別開始の**現況**であり、未成立の条件を緩和する裁定ではない。`origin/develop`に条件を満たす別ブランチの成果が統合された場合は実コミット・署名・検査で更新する。本人確認と正式確定が先に成立しても、U-X1の計画承認と独立期待値が揃うまでT1/T2計算コードには着手しない。
+
 ## 同じ計算意味の接合
 
 T1/T2の先行前に、付録Eの状態・得点・結果・履歴・終了、descriptorの入力軸と語彙ID、付録A-1の結果球・有効得点・欠損/表示、`NumericValue`/`DisplayAtom`の型と丸め、U-S1の投影入力、U-G2の検証Portを既存正本に照合する。T5/T6/40行の**指標式**を先に完成させる条件ではないが、共有する入力/意味の別定義は許さない。変更が必要なら、対象正本と凍結資産の個別ゲートに戻す。
