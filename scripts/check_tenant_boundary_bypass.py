@@ -40,7 +40,7 @@ import sys
 import tempfile
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence, Set
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -70,6 +70,9 @@ DEFAULT_TENANT_CONTEXT_ALLOWLIST = Path(
 )
 DEFAULT_CACHE_INVALIDATION_CONTRACT = Path(
     "contracts/tenant_boundary/cache-invalidation-contract.json"
+)
+DEFAULT_REPOSITORY_CONTRACT = Path(
+    "contracts/tenant_boundary/repository-contract.json"
 )
 # 比較元は基準の値ではなく検査の手続きに属するため、検査対象の資産には置かない。
 # 本検査器は base-allowlist.json の外部凍結対象なので、既定値を動かす変更にも
@@ -1418,6 +1421,109 @@ def _load_cache_invalidation_bypass_contract(
     )
 
 
+def _validate_function_operation_surface(
+    repository_root: Path,
+    asset: Mapping[str, object],
+) -> None:
+    """固定関数の公開面・製品ID集合と実コードを突き合わせる。"""
+    surface = _object(asset.get("public_surface"), "repository.public_surface")
+    registration_symbol = _string(
+        surface.get("function_registration_type"),
+        "repository.public_surface.function_registration_type",
+    )
+    transaction_symbol = _string(
+        surface.get("function_transaction_entry"),
+        "repository.public_surface.function_transaction_entry",
+    )
+    registry_symbol = _string(
+        surface.get("function_operation_registry"),
+        "repository.public_surface.function_operation_registry",
+    )
+
+    def split_repository_symbol(symbol: str, member_count: int) -> tuple[str, ...]:
+        """資産の公開シンボルをrepository moduleとメンバーへ分解する。"""
+        parts = tuple(symbol.split("."))
+        if (
+            len(parts) != 3 + member_count
+            or parts[:2] != ("pitchlog", "repositories")
+            or any(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", part) is None for part in parts)
+        ):
+            raise ContractError(f"固定関数の公開シンボルが不正: {symbol}")
+        return parts
+
+    registration_parts = split_repository_symbol(registration_symbol, 1)
+    transaction_parts = split_repository_symbol(transaction_symbol, 2)
+    registry_parts = split_repository_symbol(registry_symbol, 1)
+    executor = _object(asset.get("function_executor"), "repository.function_executor")
+    if executor.get("symbol") != transaction_symbol:
+        raise ContractError("固定関数実行器と公開入口が不一致")
+    declared_signature = _string(
+        executor.get("signature"), "repository.function_executor.signature"
+    )
+    declared_ids = _string_array(
+        asset.get("product_function_operation_ids"),
+        "repository.product_function_operation_ids",
+    )
+    if len(declared_ids) != len(set(declared_ids)):
+        raise ContractError("固定関数operation IDが重複")
+    module_root = repository_root / "backend/src/pitchlog/repositories"
+    try:
+        registration_tree = ast.parse(
+            (module_root / f"{registration_parts[2]}.py").read_text(
+                encoding="utf-8"
+            )
+        )
+        registry_tree = ast.parse(
+            (module_root / f"{registry_parts[2]}.py").read_text(encoding="utf-8")
+        )
+        transaction_tree = ast.parse(
+            (module_root / f"{transaction_parts[2]}.py").read_text(
+                encoding="utf-8"
+            )
+        )
+    except (OSError, SyntaxError) as error:
+        raise ContractError(f"固定関数の実装を読めない: {error}") from error
+    if not any(
+        isinstance(node, ast.ClassDef) and node.name == registration_parts[3]
+        for node in registration_tree.body
+    ):
+        raise ContractError("固定関数登録型が存在しない")
+    registry_values = [
+        node.value
+        for node in registry_tree.body
+        if isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == registry_parts[3]
+    ]
+    if len(registry_values) != 1 or not isinstance(registry_values[0], ast.Tuple):
+        raise ContractError("固定関数製品registryは静的tupleが必要")
+    actual_ids: list[str] = []
+    for entry in registry_values[0].elts:
+        if not isinstance(entry, ast.Call):
+            raise ContractError("固定関数製品registryの登録形式が不正")
+        matches = [
+            keyword.value.value
+            for keyword in entry.keywords
+            if keyword.arg == "operation_id"
+            and isinstance(keyword.value, ast.Constant)
+            and type(keyword.value.value) is str
+        ]
+        if len(matches) != 1:
+            raise ContractError("固定関数製品IDを静的に解決できない")
+        actual_ids.append(matches[0])
+    if actual_ids != list(declared_ids):
+        raise ContractError("固定関数製品ID集合が資産と不一致")
+    methods = [
+        node
+        for parent in transaction_tree.body
+        if isinstance(parent, ast.ClassDef) and parent.name == transaction_parts[3]
+        for node in parent.body
+        if isinstance(node, ast.FunctionDef) and node.name == transaction_parts[4]
+    ]
+    if len(methods) != 1 or _function_signature(methods[0]) != declared_signature:
+        raise ContractError("固定関数実行器の実装署名が不一致")
+
+
 def load_contract(repository_root: Path) -> Contract:
     """リポジトリから迂回検査契約を読む。
 
@@ -1924,6 +2030,157 @@ def _constant_string(node: ast.AST) -> str | None:
         if left is not None and right is not None:
             return left + right
     return None
+
+
+def _is_fixed_registration_statement_init(
+    node: ast.Call, scope: str | None
+) -> bool:
+    """固定関数登録型の検証済みstatement初期化だけを識別する。"""
+    if (
+        scope
+        != "pitchlog.repositories.function_operations."
+        "FunctionOperationRegistration.__post_init__"
+        or len(node.args) != 3
+        or node.keywords
+        or not isinstance(node.args[0], ast.Name)
+        or node.args[0].id != "self"
+        or _constant_string(node.args[1]) != "statement"
+    ):
+        return False
+    expected = ast.parse(
+        "_build_fixed_function_statement("
+        "parts[0], parts[1], self.input_fields, result_names, bool(froms))",
+        mode="eval",
+    ).body
+    return ast.dump(node.args[2], include_attributes=False) == ast.dump(
+        expected, include_attributes=False
+    )
+
+
+def _fixed_builder_binding_nodes(tree: ast.Module) -> list[ast.AST]:
+    """固定文生成関数を別の値へ再束縛する構文を列挙する。"""
+    if not any(
+        (isinstance(node, ast.Name) and node.id == "_build_fixed_function_statement")
+        or (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "_build_fixed_function_statement"
+        )
+        for node in ast.walk(tree)
+    ):
+        return []
+    protected = frozenset(
+        {"_build_fixed_function_statement", "_canonical_bind", "Function", "select", "bindparam"}
+    )
+    definitions = {
+        name: [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == name
+        ]
+        for name in ("_build_fixed_function_statement", "_canonical_bind")
+    }
+    violations: list[ast.AST] = []
+    for nodes in definitions.values():
+        violations.extend(nodes[1:])
+        if len(nodes) != 1 or nodes[0] not in tree.body:
+            violations.append(tree)
+    registration_classes = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef)
+        and node.name == "FunctionOperationRegistration"
+    ]
+    violations.extend(registration_classes[1:])
+    for registration in registration_classes:
+        for method in registration.body:
+            if not isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if method.name != "__post_init__":
+                continue
+            violations.extend(
+                node
+                for node in ast.walk(method)
+                if isinstance(node, ast.Name)
+                and node.id == "self"
+                and isinstance(node.ctx, (ast.Store, ast.Del))
+            )
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id in protected and isinstance(
+            node.ctx, (ast.Store, ast.Del)
+        ):
+            violations.append(node)
+        elif isinstance(node, ast.arg) and node.arg in protected:
+            violations.append(node)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                bound = alias.asname or alias.name.rsplit(".", 1)[-1]
+                if bound not in protected:
+                    continue
+                if not isinstance(node, ast.ImportFrom) or (
+                    node.module,
+                    alias.name,
+                    alias.asname,
+                ) not in {
+                    ("sqlalchemy", "select", None),
+                    ("sqlalchemy", "bindparam", None),
+                    ("sqlalchemy.sql.functions", "Function", None),
+                }:
+                    violations.append(node)
+        elif isinstance(node, ast.ExceptHandler) and node.name in protected:
+            violations.append(node)
+    return violations
+
+
+def _expected_function_body(source: str) -> list[ast.stmt]:
+    """固定SQL本文の期待構文を関数本文として取得する。"""
+    function = ast.parse(source).body[0]
+    assert isinstance(function, ast.FunctionDef)
+    return function.body
+
+
+_FIXED_BUILDER_BODY = _expected_function_body(
+    "def expected():\n"
+    "    safe_arguments = (\n"
+    '        _canonical_bind("tenant_id", UUID),\n'
+    "        *(_canonical_bind(name, field_type) for name, field_type in input_fields),\n"
+    "    )\n"
+    "    safe_function = Function(function_name, *safe_arguments, packagenames=(schema,))\n"
+    "    if not table_valued:\n"
+    "        return select(safe_function.label(result_names[0]))\n"
+    "    safe_table = safe_function.table_valued(*result_names)\n"
+    "    return select(*(safe_table.c[name] for name in result_names))\n"
+)
+
+_FIXED_BIND_BODY = _expected_function_body(
+    "def expected():\n"
+    "    if expected_type is UUID:\n"
+    "        return bindparam(name, type_=Uuid())\n"
+    "    if expected_type is str:\n"
+    "        return bindparam(name, type_=String())\n"
+    "    if expected_type is int:\n"
+    "        return bindparam(name, type_=Integer())\n"
+    "    if expected_type is bool:\n"
+    "        return bindparam(name, type_=Boolean())\n"
+    '    raise FunctionOperationError("固定関数入力に未対応の型")\n'
+)
+
+
+def _is_fixed_builder_body(
+    node: ast.FunctionDef | ast.AsyncFunctionDef, expected: list[ast.stmt]
+) -> bool:
+    """許可対象のSQL生成本文が検証済みの形と一致することを照合する。"""
+    body = node.body
+    if body and isinstance(body[0], ast.Expr) and isinstance(
+        body[0].value, ast.Constant
+    ) and isinstance(body[0].value.value, str):
+        body = body[1:]
+    return not node.decorator_list and ast.dump(
+        ast.Module(body=body, type_ignores=[]), include_attributes=False
+    ) == ast.dump(
+        ast.Module(body=expected, type_ignores=[]),
+        include_attributes=False,
+    )
 
 
 class _AliasCollector(ast.NodeVisitor):
@@ -4054,6 +4311,11 @@ class _SourceScanner(ast.NodeVisitor):
         self.reexport_map = reexport_map
         binding_source = source if source is not None else ast.unparse(tree)
         self.module_bindings = _module_bindings(binding_source, path)
+        self.fixed_builder_binding_nodes = (
+            _fixed_builder_binding_nodes(tree)
+            if module == "pitchlog.repositories.function_operations"
+            else []
+        )
         self.lexically_bound_name_ids = _lexically_bound_name_ids(
             tree,
             binding_source,
@@ -4649,6 +4911,11 @@ class _SourceScanner(ast.NodeVisitor):
         ):
             target = node.args[0]
             target_name = target.id if isinstance(target, ast.Name) else None
+            if (
+                not self.fixed_builder_binding_nodes
+                and _is_fixed_registration_statement_init(node, self._current_symbol())
+            ):
+                return
             canonical_init = (
                 f"{self.contract.tenant_context.constructor_symbol}.__init__"
             )
@@ -5185,6 +5452,18 @@ class _SourceScanner(ast.NodeVisitor):
             self.visit(statement)
         self.class_stack.pop()
 
+    def visit_Module(self, node: ast.Module) -> None:  # noqa: N802
+        """固定文生成関数の束縛を検査してから各文を走査する。"""
+        for binding in self.fixed_builder_binding_nodes:
+            self._add(
+                binding,
+                condition=5,
+                code="TB007",
+                symbol="_build_fixed_function_statement",
+                message="固定関数SELECT生成の呼び出し先は再束縛できない",
+            )
+        self.generic_visit(node)
+
     def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         self._check_identifier(node.name, node)
         prefix = ".".join([self.module, *self.class_stack]).strip(".")
@@ -5201,6 +5480,21 @@ class _SourceScanner(ast.NodeVisitor):
                     "基底シンボルの署名が契約と不一致: "
                     f"expected={expected.signature}, actual={signature}"
                 ),
+            )
+        fixed_bodies = {
+            "pitchlog.repositories.function_operations."
+            "_build_fixed_function_statement": _FIXED_BUILDER_BODY,
+            "pitchlog.repositories.function_operations._canonical_bind": _FIXED_BIND_BODY,
+        }
+        if symbol in fixed_bodies and not _is_fixed_builder_body(
+            node, fixed_bodies[symbol]
+        ):
+            self._add(
+                node,
+                condition=5,
+                code="TB005",
+                symbol=symbol,
+                message="固定関数SELECT生成の本文が承認済み形と不一致",
             )
         for decorator in node.decorator_list:
             resolved = self.aliases.resolve(decorator)
@@ -5588,11 +5882,35 @@ def scan_directory(
     violations: list[Violation] = []
     for path in sorted(source_root.rglob("*.py")):
         relative = path.relative_to(source_root).as_posix()
+        scanned_contract = contract
+        declared_fixture_path = (
+            Path("tests/fixtures/tenant_boundary/positive") / relative
+        ).as_posix()
+        fixture_entries = tuple(
+            item
+            for item in contract.allowed_symbols
+            if item.fixture == declared_fixture_path
+        )
+        if fixture_entries:
+            module = _module_name(relative)
+            aliased = tuple(
+                replace(
+                    item,
+                    symbol=(
+                        f"{module}." + ".".join(item.symbol.split(".")[-2:])
+                    ),
+                )
+                for item in fixture_entries
+            )
+            scanned_contract = replace(
+                contract,
+                allowed_symbols=(*contract.allowed_symbols, *aliased),
+            )
         violations.extend(
             scan_source(
                 path.read_text(encoding="utf-8"),
                 path=relative,
-                contract=contract,
+                contract=scanned_contract,
                 reject_all_db_calls=reject_all_db_calls,
             )
         )
@@ -6383,6 +6701,14 @@ def check_repository(
         effective_base_ref,
         evaluation_context,
     )
+    function_registration_path = Path(
+        "backend/src/pitchlog/repositories/function_operations.py"
+    )
+    if (repository_root / function_registration_path).exists() or (
+        function_registration_path.as_posix() in changed_files
+    ):
+        repository_asset, _ = _read_json(repository_root / DEFAULT_REPOSITORY_CONTRACT)
+        _validate_function_operation_surface(repository_root, repository_asset)
     baseline_sources = _git_snapshot(repository_root, merge_base)
     head_sources = _git_snapshot(repository_root, "HEAD")
     population = _inspection_population(

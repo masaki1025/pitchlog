@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 15,
+  "runtime_contract_revision": 16,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:15"
+        "runtime_contract_revision:16"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -72,7 +72,6 @@
   "asset_kind": "tenant_boundary_runtime_authz_contract",
   "provisional": false,
   "canonicalization": "json-sort-keys-utf8-v1",
-  "source_digest": "1aa4fe6f010bbffc40e7619bc622202773b4c9fcc1f8370ec58d95fb1b3b0040",
   "application_role": {
     "rolname": "pitchlog_app",
     "attributes": {
@@ -554,5 +553,6 @@
       "fixture_id": "DANGER_FUNCTION_OWNER"
     }
   ],
-  "derived_from": "contracts/authz/product/ddl-elements.json"
+  "derived_from": "contracts/authz/product/ddl-elements.json",
+  "source_digest": "27eface15742e1f312abebd3b18fd80536c1311e41e587993fc4e9467c29400a"
 }
