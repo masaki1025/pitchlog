@@ -36,4 +36,4 @@
 
 ## 保留する境界
 
-ローカル候補の検査と独立差分レビューは別途記録する。未受理期間は凍結履歴検査と正式seed台帳を使うmigration衛生検査が失敗する設計であり、検査器を緩めない。7.7正式受理、本人逐行確認、Draft解除、マージ、D4方式、運用openはこの資料で成立しない。
+ローカル候補のbackend関連pytest155件、C1 repository/capability149件、専用DBでの製品認可3件、root認可catalog全数25,820件、backend/root Ruff・ty、製品authz catalog・function bodies・docs-statusが成功した。C1統合の影響差分に限る独立レビューは、stash再適用後のstage旧revisionを是正してP0/P1/P2=0。検査の詳細は[作業ログ](../../worklog/2026-10-15-ur1-recording-rights.md)に記す。未受理期間は凍結履歴検査と正式seed台帳を使うmigration衛生検査が失敗する設計であり、検査器を緩めない。公開中のDraft PR #143は準備HEADであり、未push候補のローカル検査をCI greenと扱わない。7.7正式受理、本人逐行確認、Draft解除、マージ、D4方式、運用openはこの資料で成立しない。
