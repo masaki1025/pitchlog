@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import StrikeZone from '../components/zone/StrikeZone.vue'
 import type { CourseInputView } from '../lib/courseInputView'
+import { resolvePitchCommitGate } from './GameScreenCommitGate'
 
 interface GameDisplayState {
   gameName: string | null
@@ -33,6 +34,9 @@ const props = defineProps<{
   results?: readonly InputCandidate[]
   courseView?: CourseView | null
 }>()
+
+// 確定の可否は単一のゲートから読む。画面側で封鎖の判断を複製しない。
+const commitGate = resolvePitchCommitGate()
 
 const pitchTypeId = ref<string | null>(null)
 const speed = ref('')
@@ -216,6 +220,30 @@ function clearDraft() {
         >
           下書きをすべて消去
         </button>
+      </div>
+
+      <div
+        class="mb-5 rounded-xl border border-slate-300 bg-white p-4 dark:border-slate-600 dark:bg-slate-900"
+      >
+        <button
+          type="button"
+          class="rounded-lg border border-slate-400 px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-500"
+          data-testid="commit-pitch"
+          :disabled="!commitGate.committable"
+          :aria-describedby="
+            commitGate.committable ? undefined : 'commit-blocked-reason'
+          "
+        >
+          1球を確定
+        </button>
+        <p
+          v-if="!commitGate.committable"
+          id="commit-blocked-reason"
+          class="mt-2 text-sm text-slate-700 dark:text-slate-300"
+          data-testid="commit-blocked-reason"
+        >
+          {{ commitGate.reason }}
+        </p>
       </div>
 
       <div class="grid gap-5 lg:grid-cols-2">

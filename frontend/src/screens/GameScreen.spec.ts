@@ -272,8 +272,14 @@ describe('GameScreen の入力下書き', () => {
     expect(remounted.getComponent(StrikeZone).props('point')).toBeNull()
     expect(remounted.text()).toContain('保存・送信されません')
     expect(remounted.text()).not.toContain('保存しました')
-    expect(remounted.text()).not.toContain('記録を確定')
     expect(remounted.find('button[type="submit"]').exists()).toBe(false)
+    // 確定の操作は置くが、計算核との接続まで無効のままにする（封鎖の正は
+    // GameScreenCommitGate で、その試験が封鎖の内容を固定する）。
+    expect(
+      remounted.get<HTMLButtonElement>('[data-testid="commit-pitch"]').element
+        .disabled,
+    ).toBe(true)
+    expect(remounted.text()).toContain('確定することはできません')
   })
 })
 
