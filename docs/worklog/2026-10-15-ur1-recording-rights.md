@@ -262,3 +262,8 @@
 - **C1後の検査**: backendのRG1・関数境界・認可・migration関連155件成功（457.34秒）。製品authz catalogは1414項目、関数body検査成功。backend/root Ruff・tyも成功。未受理の`check_tenant_boundary_bypass.py --base-ref origin/develop`は履歴末尾と7資産の識別値不一致でexit 2（想定赤）。seed正式台帳にもRG1系列を先入れしていない。この時点では認可catalog全数と専用DBの全資産適用試験は継続中。
 - **追加実測**: 使い捨てDBによる製品認可の初回適用・ロール属性再適用・migration取り外し/再適用の3件成功（65.88秒）。C1で追加されたrepository/capability周辺149件も成功。`check_docs_status.py`は20文書・違反0、差分検査成功。受理待ちsnapshot 3件はローカルキャッシュに導出保全し、11,868＋7,560＋6,550=25,978バイト。正式archiveへの追加はしていない。TSK-392 Notionコメント`3fb93b75-e687-8166-bce1-001df0b68d61`へ実基線・検査・未受理状態を記録した。
 - rootの認可catalog試験は`-k 'not mutation'`で**25,632件成功**（817.46秒）、補完の`-k mutation`で**188件成功**（6.92秒）。両集合は名称で分割され、合計25,820件をC1統合後に完走した。`git fetch origin develop`で再確認した最新remoteは引き続き`3052e0db`で、この文書コミット時点の比較元に変更はない。
+
+## 2026-10-17: PR #143の7.7一括判断候補を固定
+
+- POは共有資産の順序を**C1→U-R1→TSK-550本体B**と再確認。TSK-550カードへNotionコメント`3fb93b75-e687-818e-8976-001d900a0d88`で固定順を再送した。T1/T2担当の現worktreeの未コミット差分は`ux1-state-calc`のplan/design/worklogだけでRG1新4の製品・認可候補と現時点で重複しない。実際に共有ファイルへ触れるときだけ照合する旨を同担当へコメント`3fb93b75-e687-818f-a51a-001d7b1fe363`で訂正し、未返信を全作業の停止条件にしない。
+- C1統合済み`origin/develop=3052e0db`を再fetchで確認。RG1新4の製品・認可・テスト40ファイルを、実indexに触れない一時indexで候補化した。binary patch SHA-256は`779a5bf69b793fae10735e1383c40fcb9f5c130b360c7afa9061fe796d2db604`、変更パスmanifest SHA-256は`dd2c4225456718b357fa90b7d52f06cddbaf03f4afa2a7af3623e40fc33f0f31`。古い未追跡`claude-handoff.md`は候補から除外。9資産の完全before/after、3 snapshot、seed別系列、正式受理後に初めて反映する履歴1件とGit HEAD検査の順は[一括判断資料](../features/ur1-recording-rights/step4-c1-merged-7.7-candidate.md)と[exact JSON案](../features/ur1-recording-rights/step4-c1-merged-7.7-record-proposal.json)に固定する。正式承認情報は未入力。公開PR HEADは準備文書だけの`cd03ddcb`であり、新4候補をpushしない。
