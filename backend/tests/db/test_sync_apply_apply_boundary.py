@@ -596,6 +596,156 @@ def test_contiguous_invalid_content_commits_b3a_original(
     assert _count(db, "operation_events", event.d5) == 0
 
 
+@pytest.mark.parametrize(
+    ("case", "reason"),
+    [
+        ("reference_type", "選手参照は UUID 文字列が必要"),
+        ("reference_parse", "選手参照は UUID 文字列が必要"),
+        ("reference_canonical", "選手参照は正規 UUID が必要"),
+        ("reference_field", "V5 で定義されない選手参照位置"),
+        ("v6_range", "P2 の V6 は非負の bigint が必要"),
+    ],
+)
+def test_d5_content_rejection_commits_t9_and_replays_b3a(
+    prefix_database: _SyncDatabase, case: str, reason: str
+) -> None:
+    """D-5 の各内容拒否を原本・台帳・理由と一体で保存し再掲する。"""
+    db = prefix_database
+    if case == "v6_range":
+        event = SyncEvent(
+            str(uuid4()),
+            str(db.game_a),
+            1,
+            "1",
+            v5="game_end_declaration",
+            v6=2**63,
+            v7={},
+        )
+        path = "P2"
+    else:
+        payload: dict[str, object]
+        if case == "reference_type":
+            payload = {"player_id": 1}
+        elif case == "reference_parse":
+            payload = {"player_id": "invalid-uuid"}
+        elif case == "reference_canonical":
+            payload = {"player_id": str(uuid4()).upper()}
+        else:
+            payload = {"batter_id": str(uuid4())}
+        event = _event(db.game_a, d4="1", payload=payload)
+        path = "P1"
+    request = SyncRequest(path, str(db.game_a), (event,), d4="1", v12="proof")
+    result = _invoke(db, request)
+    assert isinstance(result, AckResult)
+    assert (result.boundary, result.b3_branch, result.d3) == ("B3", "B3a", 0)
+    assert (result.a5[0].state, result.reason) == ("拒否", reason)
+    assert _count(db, "idempotency_ledger", event.d5) == 1
+    assert _count(db, "rejected_event_originals", event.d5) == 1
+    assert _count(db, "operation_events", event.d5) == 0
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT kind, result, reason FROM idempotency_ledger "
+            "WHERE tenant_id = %s AND d5 = %s",
+            (db.tenant_a, UUID(event.d5)),
+        )
+        assert cursor.fetchone() == ("rejected", {"state": "拒否", "d3": 0}, reason)
+        cursor.execute(
+            "SELECT payload FROM rejected_event_originals "
+            "WHERE tenant_id = %s AND d5 = %s",
+            (db.tenant_a, UUID(event.d5)),
+        )
+        original = cursor.fetchone()
+        assert original is not None
+        assert original[0]["d5"] == event.d5
+        cursor.execute(
+            "SELECT confirmed_watermark FROM recording_generations "
+            "WHERE tenant_id = %s AND game_id = %s AND generation = 1",
+            (db.tenant_a, db.game_a),
+        )
+        assert cursor.fetchone() == (0,)
+    db.catalog.applicator.rollback()
+
+    replay = _invoke(db, request)
+    assert isinstance(replay, AckResult)
+    assert (replay.boundary, replay.b3_branch, replay.d3) == ("B3", "B3a", 0)
+    assert replay.a5[0].state == "拒否"
+    assert _count(db, "idempotency_ledger", event.d5) == 1
+    assert _count(db, "rejected_event_originals", event.d5) == 1
+
+    if case != "v6_range":
+        revised = _event(
+            db.game_a,
+            d4="1",
+            revision=True,
+            rejected_d5=UUID(event.d5),
+        )
+        resumed = _invoke(
+            db,
+            SyncRequest("P1", str(db.game_a), (revised,), d4="1", v12="proof"),
+        )
+        assert isinstance(resumed, AckResult)
+        assert (resumed.boundary, resumed.d3, resumed.a5[0].state) == (
+            "B1",
+            1,
+            "受理",
+        )
+
+
+def test_d5_content_rejection_rolls_back_t5_renumbering(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """P2 の再採番後に内容拒否しても T5 だけを残さず T9 を確定する。"""
+    db = prefix_database
+    for d1, d2 in ((1, 10), (2, 11)):
+        accepted = SyncEvent(
+            str(uuid4()),
+            str(db.game_a),
+            d1,
+            "1",
+            v5="game_end_declaration",
+            v6=d2,
+            v7={},
+        )
+        result = _invoke(
+            db,
+            SyncRequest("P2", str(db.game_a), (accepted,), d4="1", v12="proof"),
+        )
+        assert isinstance(result, AckResult) and result.a5[0].state == "受理"
+
+    rejected = SyncEvent(
+        str(uuid4()),
+        str(db.game_a),
+        3,
+        "1",
+        v5="game_end_declaration",
+        v6=10,
+        v7={"player_id": 1},
+    )
+    result = _invoke(
+        db,
+        SyncRequest("P2", str(db.game_a), (rejected,), d4="1", v12="proof"),
+    )
+    assert isinstance(result, AckResult)
+    assert (result.boundary, result.b3_branch, result.d3) == ("B3", "B3a", 2)
+    assert result.a5[0].state == "拒否"
+    assert _count(db, "idempotency_ledger", rejected.d5) == 1
+    assert _count(db, "rejected_event_originals", rejected.d5) == 1
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT d1, d2 FROM operation_events WHERE tenant_id = %s "
+            "AND game_id = %s ORDER BY d1",
+            (db.tenant_a, db.game_a),
+        )
+        assert cursor.fetchall() == [(1, 10), (2, 11)]
+        cursor.execute(
+            "SELECT confirmed_watermark FROM recording_generations "
+            "WHERE tenant_id = %s AND game_id = %s AND generation = 1",
+            (db.tenant_a, db.game_a),
+        )
+        assert cursor.fetchone() == (2,)
+    db.catalog.applicator.rollback()
+
+
 def test_lost_ack_replays_same_player_mapping(prefix_database: _SyncDatabase) -> None:
     """Commit 後の ACK 消失と引き継ぎ後の再送でも選手を二重生成しない。"""
     db = prefix_database

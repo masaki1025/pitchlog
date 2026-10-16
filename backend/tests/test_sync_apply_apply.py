@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from typing import Iterator, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -12,7 +12,7 @@ from pitchlog.db.recording_rights.models import RecordingGeneration
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.tokens import TenantOperationResult
 from pitchlog.repositories.transaction import _TenantTransaction
-from pitchlog.sync import apply, crash_points
+from pitchlog.sync import apply, crash_points, ordering, prefix_path
 from pitchlog.sync.idempotency import D5Candidate, operation_fingerprint
 from pitchlog.sync.model import AckResult, RejectedChangeResult, SyncEvent, SyncRequest
 from pitchlog.sync.ports import (
@@ -457,6 +457,103 @@ def test_content_rejection_routes_to_t9(monkeypatch: pytest.MonkeyPatch) -> None
     )
     assert result == RejectionResult("B3a", 0, "拒否", "内容不正")
     assert observed == [("内容不正", "content_rejection")]
+
+
+@pytest.mark.parametrize(
+    ("case", "reason"),
+    [
+        ("reference_type", "選手参照は UUID 文字列が必要"),
+        ("reference_parse", "選手参照は UUID 文字列が必要"),
+        ("reference_canonical", "選手参照は正規 UUID が必要"),
+        ("reference_field", "V5 で定義されない選手参照位置"),
+        ("v6_range", "P2 の V6 は非負の bigint が必要"),
+    ],
+)
+def test_d5_content_sites_route_b3a_to_t9(
+    monkeypatch: pytest.MonkeyPatch, case: str, reason: str
+) -> None:
+    """D-5 の内容だけで決まる各例外を T9 の理由と B3a へ渡す。"""
+    request = _request(1)
+    event = request.events[0]
+
+    def reject(*_args: object, **_kwargs: object) -> P1Result:
+        """実際の内容検査を起動し、各 raise 文を通す。"""
+        if case == "v6_range":
+            ordering._assign_d2(
+                cast(_TenantTransaction, object()), UUID(event.game_id), 2**63
+            )
+        else:
+            payload: dict[str, object]
+            if case == "reference_type":
+                payload = {"player_id": 1}
+            elif case == "reference_parse":
+                payload = {"player_id": "invalid-uuid"}
+            elif case == "reference_canonical":
+                payload = {"player_id": str(uuid4()).upper()}
+            else:
+                payload = {"batter_id": str(uuid4())}
+            prefix_path._resolve_payload(
+                cast(_TenantTransaction, object()),
+                payload,
+                "game_end_declaration",
+                {},
+                {},
+            )
+        raise AssertionError("内容拒否に到達しなかった")
+
+    with pytest.raises(P1ContentRejection, match=reason):
+        reject()
+    saved: list[tuple[SyncEvent, str | None, str]] = []
+
+    def save(*args: object, **kwargs: object) -> RejectionResult:
+        """T9 の保存呼び出しに原本・理由・区分が届くことを確かめる。"""
+        saved.append(
+            (
+                cast(SyncEvent, args[1]),
+                cast(str | None, kwargs["reason"]),
+                cast(str, kwargs["cause"]),
+            )
+        )
+        return RejectionResult("B3a", 0, "拒否", reason)
+
+    monkeypatch.setattr(apply, "apply_p1_event", reject)
+    monkeypatch.setattr(apply, "apply_rejection_or_escrow", save)
+    result = apply._run_d1_event(
+        cast(TenantContext, object()), request, event, *_ports(), None, None
+    )
+    assert result == RejectionResult("B3a", 0, "拒否", reason)
+    assert saved == [(event, reason, "content_rejection")]
+
+
+def test_other_precondition_and_unknown_runtime_do_not_start_t9(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """永続状態依存と原因不明の失敗は T9 へ変換しない。"""
+    request = _request(1)
+    event = request.events[0]
+    calls: list[str] = []
+
+    def save(*_args: object, **_kwargs: object) -> RejectionResult:
+        """誤って拒否原本を保存した場合に失敗させる。"""
+        calls.append("T9")
+        raise AssertionError("T9 を開始してはいけない")
+
+    monkeypatch.setattr(apply, "apply_rejection_or_escrow", save)
+    for failure in (
+        apply.P1PreconditionError("永続状態に依存", "other"),
+        RuntimeError("原因不明"),
+    ):
+
+        def fail(*_args: object, **_kwargs: object) -> P1Result:
+            """B7 側に残す例外を局所経路から返す。"""
+            raise failure
+
+        monkeypatch.setattr(apply, "apply_p1_event", fail)
+        with pytest.raises(type(failure), match=str(failure)):
+            apply._run_d1_event(
+                cast(TenantContext, object()), request, event, *_ports(), None, None
+            )
+    assert calls == []
 
 
 def test_w2_violation_routes_to_t9_with_distinct_cause(

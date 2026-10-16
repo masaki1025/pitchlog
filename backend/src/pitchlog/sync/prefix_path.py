@@ -441,13 +441,13 @@ def _resolve_player_reference(
 ) -> str:
     """C2: 一時 ID を写像で解決し、未解決の選手 ID を拒否する。"""
     if type(value) is not str:
-        raise P1PreconditionError("選手参照は UUID 文字列が必要")
+        raise P1ContentRejection("選手参照は UUID 文字列が必要")
     try:
         identifier = UUID(value)
     except ValueError as error:
-        raise P1PreconditionError("選手参照は UUID 文字列が必要") from error
+        raise P1ContentRejection("選手参照は UUID 文字列が必要") from error
     if str(identifier) != value:
-        raise P1PreconditionError("選手参照は正規 UUID が必要")
+        raise P1ContentRejection("選手参照は正規 UUID が必要")
     if value in own_mapping:
         return own_mapping[value]
     if value not in cache:
@@ -493,7 +493,7 @@ def _resolve_payload(
                         scope, item, own_mapping, cache
                     )
             elif key in _PLAYER_REFERENCE_NAMES or key.endswith("_player_id"):
-                raise P1PreconditionError("V5 で定義されない選手参照位置")
+                raise P1ContentRejection("V5 で定義されない選手参照位置")
             else:
                 result[key] = _resolve_payload(scope, item, kind, own_mapping, cache)
         return result
@@ -839,7 +839,7 @@ def apply_p1_event(
 
 
 class P1ContentRejection(P1PreconditionError):
-    """内容検証ポートが返した恒久拒否を前提違反と区別する。"""
+    """イベント内容に起因する恒久拒否を前提違反と区別する。"""
 
 
 def _original_fingerprint(original: Mapping[str, object]) -> str:

@@ -29,7 +29,7 @@ from pitchlog.db.sync_protocol.event_kinds import (
     OperationEventParticipation,
 )
 from pitchlog.repositories.base import _operation_spec, _validate_prepared_statement
-from pitchlog.repositories.roster import PlayerReadToken
+from pitchlog.repositories.roster import PlayerCreateToken, PlayerReadToken
 from pitchlog.repositories.tokens import (
     ImmutableValue,
     TenantOperationResult,
@@ -43,7 +43,9 @@ from pitchlog.sync.ports import RecordingRightsPort
 from pitchlog.sync.prefix_path import (
     P1ContentRejection,
     P1PreconditionError,
+    P1Result,
     P1Target,
+    PlayerRegistration,
     _apply_locked,
     _candidate_result,
     _event_insert_token,
@@ -729,6 +731,93 @@ def test_player_reference_never_depends_on_caller_supplied_list() -> None:
     )
     with pytest.raises(P1PreconditionError, match="確定写像がない"):
         _projection_event(cast(_TenantTransaction, MissingPlayer()), event, {})
+
+
+def test_unresolved_player_reference_depends_on_persisted_player() -> None:
+    """同じ参照でも選手行の有無で結果が変わるため B3a 化しない。"""
+    player_id = uuid4()
+
+    class PlayerState:
+        """一時写像はなく、正式選手行だけを切り替える。"""
+
+        def __init__(self, exists: bool) -> None:
+            """永続選手の有無を設定する。"""
+            self.exists = exists
+
+        def run(self, token: TenantOperationToken) -> TenantOperationResult:
+            """選手参照に必要な読み取りだけを返す。"""
+            if isinstance(token, TemporaryPlayerMappingReadToken):
+                return TenantOperationResult(())
+            assert isinstance(token, PlayerReadToken)
+            return TenantOperationResult(((player_id,),) if self.exists else ())
+
+    event = SyncEvent(
+        D5,
+        GAME,
+        1,
+        "epoch",
+        v5="game_end_declaration",
+        v7={"player_id": str(player_id)},
+    )
+    with pytest.raises(P1PreconditionError, match="確定写像がない") as error:
+        _projection_event(cast(_TenantTransaction, PlayerState(False)), event, {})
+    assert type(error.value) is P1PreconditionError
+    projected = _projection_event(
+        cast(_TenantTransaction, PlayerState(True)), event, {}
+    )
+    assert projected.v7 == event.v7
+
+
+def test_reused_temporary_id_depends_on_persisted_mapping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """同じ登録でも写像の有無で結果が変わるため B3a 化しない。"""
+    _register_ports(monkeypatch)
+    temporary = uuid4()
+    registration = PlayerRegistration(temporary, uuid4(), "登録", "active")
+    event = SyncEvent(
+        D5,
+        GAME,
+        1,
+        "epoch",
+        v5="player_registration",
+        v7={"player_id": str(temporary)},
+    )
+
+    class MappingState(_AcceptedObservation):
+        """既存の一時 ID 写像だけを切り替える。"""
+
+        def __init__(self, exists: bool) -> None:
+            """写像の有無を保持する。"""
+            super().__init__()
+            self.exists = exists
+
+        def run(self, token: TenantOperationToken) -> TenantOperationResult:
+            """写像がなければ選手作成への到達を知らせる。"""
+            if isinstance(token, TemporaryPlayerMappingReadToken):
+                return TenantOperationResult(((temporary,),) if self.exists else ())
+            if isinstance(token, PlayerCreateToken):
+                raise RuntimeError("player-create-reached")
+            return super().run(token)
+
+    def apply_with_state(exists: bool) -> P1Result:
+        """同一イベントを指定の永続状態へ適用する。"""
+        return _apply_locked(
+            cast(_TenantTransaction, MappingState(exists)),
+            event,
+            PrefixRights(),
+            PrefixProjection(),
+            PrefixValidator(),
+            None,
+            registration,
+            None,
+        )
+
+    with pytest.raises(P1PreconditionError, match="別の確定写像") as error:
+        apply_with_state(True)
+    assert type(error.value) is P1PreconditionError
+    with pytest.raises(RuntimeError, match="player-create-reached"):
+        apply_with_state(False)
 
 
 def test_d5_stored_result_and_conflict_do_not_start_new_writes() -> None:

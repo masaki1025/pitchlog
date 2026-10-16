@@ -173,6 +173,8 @@ wire 設計は E-1 について「経路はクライアントが選ばず、正�
 - **前処理で起きる決定的な失敗(8 件)と確定後の 1 件(`apply.py:413`)は O5 にしない**。前処理の 8 件は、主キーで起こり得ないもの、スキーマ破損でしか起きないもの、試合の状態待ちで再送すれば通り得るもの(`apply.py:101` — 現世代の記録権行が無い準備中の試合)で、B7 に残す(fail-safe 側)。`apply.py:413` は一意制約と `prefix_path.py:680` で到達しない見込みで、B7 に残す
 - **D4 の形式で止まる 2 件(`rejection.py:187`・`189`)は U-R1 の決定待ち**(6 節)。U-R1 が D4 の物理形式を決めるまで B7 のまま残し、決定後に T8 の世代番号の保存形式として扱う
 - **区分 2(定義・登録の検査)は O5 にしない**: プログラム・構成の誤りで、デプロイで直して再送で通るのが正しい。いまは登録表が空なので、全要求が前処理の `port_guard.py:496`(未登録のポート実装)で 500 になる(9 節)
+- **棚卸しの行番号はコミット `b63d11e9` 時点**。ステップ 5 で `prefix_path.py`・`ordering.py` の行が動いた(例 ordering:34・49・51・97 → 現行 40・55・57・103)。raise 文と棚卸しの一対一の突合はステップ 8 で pytest にし、その時点の行番号(または関数・型・文言のキー)で取り直す
+- **内容起因と判定した 7 件のうち 2 件(prefix_path:470・680)は永続状態に依存する**(ステップ 5 の実装で判明)。B3a にせず B7 のまま(再送で状態が変われば通り得る)
 - **P3 には O5 の受け皿が無い**: P3 の決定的な `RuntimeError` は B10 のまま再試行が続く。本 PR の射程外(PO 裁定は D1 付き経路)として残余に記録する
 
 ### 11-2. 区分ごとの件数
@@ -198,7 +200,8 @@ wire 設計は E-1 について「経路はクライアントが選ばず、正�
 | **再掲の破損**(B7 のまま — 11-1) | **3** | prefix_path:418・422 / idempotency:261 |
 | **確定スロットの食い違い**(要決定 — 11-1) | **2** | prefix_path:607・655(区分 other。同じ行の w2_violation は B3a) |
 | **U-R1 待ち**(B7 のまま — 11-1) | **2** | rejection:187・189 |
-| **B3a** | **7** | prefix_path:444・448・450・470・496・680 / ordering:34 |
+| **B3a** | **5** | prefix_path:444・448・450・496 / ordering:34(ステップ 5 で実装) |
+| **B7(状態依存)** | **2** | prefix_path:470・680 — 選手行・一時 ID の写像の有無という永続状態で結果が変わるので B3a にしない(ステップ 5 で判明) |
 | **B7** | **12** | prefix_path:177・549・710 / rejection:130・169・200・204 / idempotency:195・198・250 / invalidation:70・72 |
 | **決定的だが取引外**(前処理 8・確定後 1) | **9** | 前処理: apply:101・104・107・127・327 / gate:46 / idempotency:117・132 — 確定後: apply:413 |
 | 中継(送出元の判定に従う) | 1 | apply:199 |
@@ -463,7 +466,7 @@ wire 設計の O4 には D2 固有の行が無い(6 行すべて O5 を足す)�
 | prefix_path.py:448 | P1PreconditionError(other) | 選手参照は UUID 文字列が必要 | _resolve_player_reference | 取引内 | 8 B3a | 同上 |
 | prefix_path.py:450 | P1PreconditionError(other) | 選手参照は正規 UUID が必要 | _resolve_player_reference | 取引内 | 8 B3a | 同上 |
 | prefix_path.py:459 | RuntimeError | 正式選手 ID の型が不正 | _resolve_player_reference | 取引内 | 8 O5 | player_id は NOT NULL Uuid(models.py:341)。スキーマが壊れたときだけ起きる |
-| prefix_path.py:470 | P1PreconditionError(other) | 一時選手 ID の確定写像がない | _resolve_player_reference | 取引内 | 8 B3a | 参照先が写像にも自テナントの選手にも無い = 端末が送った参照で決まる(D1 順なので、登録イベントが拒否されたときなど)[推論] |
+| prefix_path.py:470 | P1PreconditionError(other) | 一時選手 ID の確定写像がない | _resolve_player_reference | 取引内 | 8 B7(状態依存 — 11-1) | 参照先が写像にも自テナントの選手にも無い = 端末が送った参照で決まる(D1 順なので、登録イベントが拒否されたときなど)[推論] |
 | prefix_path.py:496 | P1PreconditionError(other) | V5 で定義されない選手参照位置 | _resolve_payload | 取引内 | 8 B3a | V7 の形で決まる |
 | prefix_path.py:549 | RuntimeError | 認可後に試合行が消失した | _apply_locked | 取引内 | 8 B7 | 指定例。③ の後に状態が変わった競合 |
 | prefix_path.py:592 | P1PreconditionError(other) | D1 付き経路には D1 と D4 が必要 | _apply_locked | 取引内 | 2 | S-1(model.py:204-212)が保証する。プログラムの誤りでだけ起きる |
@@ -482,7 +485,7 @@ wire 設計の O4 には D2 固有の行が無い(6 行すべて O5 を足す)�
 | prefix_path.py:653 | RuntimeError | 現行イベントのスロットがない | _apply_locked | 取引内 | 8 O5 | イベント行があってスロット行が無い永続状態で決まる |
 | prefix_path.py:655 | P1PreconditionError(w2 / other) | 確定済みイベントは墓標・改訂で置換できない | _apply_locked | 取引内 | 8 確定スロットの食い違い(要決定 — 11-1) | V9 の原本がある(w2)なら B3a。無い(other)なら、D3+1 にスロットかイベントが既にある = D3 と保存行が食い違う不変条件違反 [推論]。所見 3・4 |
 | prefix_path.py:664 | _NoWriteStop | O4: 永続化済み D2 の同値 | _apply_locked | 取引内 | 6 | :812-813 で捕まえ、取り消してから B3 + A5 拒否(apply.py:427 で b3_branch "O4")。内部制御でもあるが、O4 を運ぶので区分 6 |
-| prefix_path.py:680 | P1PreconditionError(other) | 一時 ID は別の確定写像に使用済み | _apply_locked | 取引内 | 8 B3a | 指定例(一時 ID の再使用)。端末が送ったその場登録の内容で決まる |
+| prefix_path.py:680 | P1PreconditionError(other) | 一時 ID は別の確定写像に使用済み | _apply_locked | 取引内 | 8 B7(状態依存 — 11-1) | 指定例(一時 ID の再使用)。端末が送ったその場登録の内容で決まる |
 | prefix_path.py:710 | RuntimeError | D5 再照合が未使用に戻った | _apply_locked | 取引内 | 8 B7 | 指定例(競合) |
 | prefix_path.py:711 | _D5Race | (先着の結果) | _apply_locked | 取引内 | 5 | :810-811 で捕まえ、取り消してから先着の保存済み結果(再掲)または B3b |
 | prefix_path.py:729 | RuntimeError | D3 の前進に失敗 | _apply_locked | 取引内 | 8 O5 | 世代行は :887 で FOR UPDATE 済みなので、並行更新では起きない。起きれば構成か永続状態の異常で、毎回同じに失敗する [推論] |

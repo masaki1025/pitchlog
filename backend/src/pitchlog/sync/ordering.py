@@ -13,7 +13,13 @@ from pitchlog.sync.ports import (
     ProjectionPort,
     RecordingRightsPort,
 )
-from pitchlog.sync.prefix_path import P1PreconditionError, P1Result, _apply_event, _cell
+from pitchlog.sync.prefix_path import (
+    P1ContentRejection,
+    P1PreconditionError,
+    P1Result,
+    _apply_event,
+    _cell,
+)
 from pitchlog.sync.tokens import (
     OperationEventOrderReadToken,
     OperationEventOrderUpdateToken,
@@ -31,7 +37,7 @@ def _assign_d2(scope: _TenantTransaction, game_id: UUID, desired: int) -> int | 
         確定する D2。永続化済みの同値を見た場合は ``None``。
     """
     if desired < 0 or desired > _MAX_D2:
-        raise P1PreconditionError("P2 の V6 は非負の bigint が必要")
+        raise P1ContentRejection("P2 の V6 は非負の bigint が必要")
 
     cursor = -1
     previous: int | None = None
