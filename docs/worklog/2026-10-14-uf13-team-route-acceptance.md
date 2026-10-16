@@ -376,3 +376,8 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - 比較archiveは既存files / trees、固定履歴prefix、snapshot名集合、11ケースを維持し、現況入力digestだけを`96b217bd…a4b7`から`68dbc129…a32`へ再導出した。tenant-boundary、authz catalog、frozen-baseline invariantsはgreen。凍結・履歴・archive対象581件は専用basetemp・2 workerで全件成功した。
 - 最初の対象pytestは共有`/tmp`が満杯になり39件が同一の`ENOSPC`で失敗した。生成元`pytest-608`だけを除去し、リポジトリ外専用basetempで再実行して581件成功した。検査のskip、除外、期待値緩和は行っていない。
 - この正式受理をPR全体の本人逐行確認へ流用しない。planは`active`を維持し、第3段後の全品質gate、最終レビュー、本人逐行確認をステップ1完了条件として残す。Draft解除、マージ、C2、U-F3、公開には進まない。U-R1 / #143はC1の実統合後developから再導出する。
+
+### 第3段後の全件検査と参照digest追随（2026-10-16）
+
+- root全件は29,635件成功・2件skip・3件失敗で完走した。失敗3件は`failure-injection-points.json`のDDL blob参照と`mcdc-map.json`のclaim-mutant blob参照の追随漏れに限られた。参照先の変更はoracle_commit追随だけで、失敗注入点5件・MC/DC分岐47件の意味・期待値は不変。2参照を実Git blobから再導出し、関連23試験と両検査CLIが成功した。正式受理済み8入力blob・6 sealed digest・2 snapshot・記録本文は不変である。
+- root/backendのRuff・ty、backend format、docs-status/伝播/coverage、authz/tenant-boundary/frozen-baseline不変量は成功。frontendはPrettier・ESLint・vue-tsc・Vitest 67ファイル1,182件・buildが成功した。backend全件と最終PRレビューは実行中。
