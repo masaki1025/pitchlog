@@ -349,3 +349,13 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - 不足snapshotはbase allowlist projection `20c8f0f71734d244e8734a0ded0903d380cfcae79315549ccd318a8a6e6ebabf`（11578 bytes）とrepository contract projection `71cb7a8bba95d335571411198044da40b1ac05d06707a9c34a9fb396bf6c2a00`（7527 bytes）の2件で、base64復号後のSHA-256一致を確認した。
 - 検証は、C1 API/repository/共有契約193件、隔離PostgreSQLのRLS/application role 2接続試験2件、backend対象Ruff/format/ty、root Ruff/ty、`git diff --check`が成功した。authz全変異試験は25818件成功・2件失敗で、2件とも未受理route registryと既存oracle sealのblob不一致。tenant-boundary全検査は367件成功・3件失敗で、3件ともauthority履歴末尾がbase 31 / repository 19のままであることを拒否した。期待値・検査器・skipは緩和していない。
 - `/tmp/c1-tenant-boundary-acceptance-after-a-preview.json`は、仮PR番号・`DRYRUN`・`1970-01-01`を含む導出確認専用であり、正式資産へ取り込まない。正式受理の理由・movement factは前回案を維持し、識別値だけをA後の値へ更新する。
+
+### C1ステップ1 第1段・第2段（2026-10-16）
+
+- 第1段コミットは`d5ccc18ef39179857c9a4c793ea28a416432efba`。C1製品、共有operation、A後のrepository契約・base allowlist、route/matrix候補、derived lock、strict checker、隔離DB試験、作業記録の25ファイルを含む。件名は`(ステップ 1/2 第1段)`で、正式7.7履歴・snapshot・oracle sealは未受理のまま保持した。
+- 第2段では、authz 6 oracle資産と`oracle-seal.lock.json`の計7箇所の`oracle_commit`を旧`62fdfe81de7029d49b2b5d80683f49b2dce3e327`から第1段SHAへ更新した。
+- sealの入力blobは、route registry `2cd82db822df203d9608b6d72e4bbfb518dab2ad`、同lock `e110a75541cca22d349fe6f765e7b8c7ba741e64`、HTTP matrix `c2d03ad51a9d1961e1fdf5c5730e4705acf6907e`、同lock `5882c2b918ed8d06feb12fa905434d916b685c7f`へ追随した。
+- 第2段ではsealed asset canonical digest、`frozen-baselines.json`の受理履歴、tenant-boundary authority履歴・snapshot、archive corpusを更新しない。第3段の正式受理前なので、authz sealとtenant-boundary履歴検査は引き続きfail-closedになる。
+- 第2段後のbackend全件は`2271 passed / 1 failed / 254 errors`だった。1件は未受理oracle入力を既存sealが拒否する期待どおりのfail-closedであり、254件は並行実行中に共有pytest一時領域`/tmp/pytest-of-ymdms/pytest-550`が消失した同一の`FileNotFoundError`だった。消失時にerrorとなったdomain host、authz generator、descriptor parity、migration hygiene、wording scanの代表27件をC1専用`--basetemp`で再実行し、27件すべて成功した。製品/API/repository/隔離DBの対象検査は前節の成功状態を維持する。
+- 第2段後のroot全件はC1専用`--basetemp`で`29559 passed / 2 skipped / 79 failed`。失敗は、第2段で先に更新した7資産の`oracle_commit`と未更新のoracle baseline/sealの不一致、tenant-boundary authority履歴末尾がbase 31 / repository 19のままである不一致、正式snapshot未配置、それらを入力にするarchive corpus未再封印の連鎖である。第3段の7.7正式受理・再封印で解消すべき未通過項目として保持し、検査除外・skip・期待値緩和は行っていない。
+- Draft前の正本突合で、C1計画に`影響する正本`節がなく機械検査が開始前拒否したため、正本改訂なしと同一PRで運ぶ正本体系外資産を明記した。製品仕様・権限・ステップ・7.7候補値は変更していない。

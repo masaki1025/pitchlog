@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "asset_kind": "authz_oracle_seal",
-  "oracle_commit": "62fdfe81de7029d49b2b5d80683f49b2dce3e327",
+  "oracle_commit": "d5ccc18ef39179857c9a4c793ea28a416432efba",
   "oracle_commit_semantics": "last_committed_step_4_input_baseline",
   "input_assets": [
     {
@@ -14,11 +14,11 @@
     },
     {
       "path": "contracts/authz/route-registry.json",
-      "git_blob_digest": "3b29456a03d2ddc0bfd36fc50085ab353d6cd783"
+      "git_blob_digest": "2cd82db822df203d9608b6d72e4bbfb518dab2ad"
     },
     {
       "path": "contracts/authz/route-registry.lock.json",
-      "git_blob_digest": "db3c9f459ca605543577053f6b682ec0ddf8033e"
+      "git_blob_digest": "e110a75541cca22d349fe6f765e7b8c7ba741e64"
     },
     {
       "path": "contracts/authz/auth-catalog.json",
@@ -30,11 +30,11 @@
     },
     {
       "path": "contracts/authz/http-route-matrix.json",
-      "git_blob_digest": "d9991954a412bfab5882e97a4facb59bcd4c0063"
+      "git_blob_digest": "c2d03ad51a9d1961e1fdf5c5730e4705acf6907e"
     },
     {
       "path": "contracts/authz/http-route-matrix.lock.json",
-      "git_blob_digest": "159cea03a71c5cf89327e306538f0682b937c54a"
+      "git_blob_digest": "5882c2b918ed8d06feb12fa905434d916b685c7f"
     }
   ],
   "sealed_assets": [

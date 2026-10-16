@@ -31,6 +31,12 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 3. PR #129・#131・#132と認証経路側PR #137について、本追補が触れる凍結資産・検査コードの所有と先行順が確定している。未統合の共有資産は変更しないが、所有と先行順が確定済みなら非共有コード・固有試験を開始できる。repository実装は、#132担当が`TenantProfileReadToken`と`TENANT_PROFILE_OPERATIONS`の公開面・exact-set上の扱いを回答した後に開始する。
 4. 具体的 endpoint、DTO、認可、凍結資産の変更が本計画の承認対象として人間承認されている。
 
+## 2.1 影響する正本
+
+正本への反映なし。本追補は承認済みの認証・tenant分離契約に対する製品実装追随であり、`docs/requirements`・`docs/design`・`docs/adr`・`docs/development`・`docs/ops`は変更しない。
+
+**正本体系外だが同一PRで更新するもの**: backendのsession endpoint・DTO・tenant profile固定operationと試験、`contracts/authz/*`のroute/matrix・oracle資産、`contracts/tenant_boundary/{base-allowlist.json,repository-contract.json}`、authz/tenant-boundaryの検査fixture・検査コード、本計画・関連調査/申し送り・作業ログ。
+
 ## 3. 認証状態と失敗時の契約
 
 ### 3.1 状態
