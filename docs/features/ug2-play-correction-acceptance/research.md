@@ -20,7 +20,7 @@
 
 ## 3. 影響 — 何が止まるか(PO 指示「凍結中の計算核を複製・迂回しない」の帰結)
 
-- **ProjectionPort は T4 を含むすべての経路で必要**(P1・P2・P3 — `sync-protocol.md:1267-1269`)。**P1 は通常の 1 球の記録**である。本物の ProjectionPort が無い間は、`PORT_IMPLEMENTATIONS` に登録できる実装が揃わず(`backend/src/pitchlog/sync/ports.py:133-143`)、**「1 球保存」は U-X1 の凍結が解けるまで通らない**。これは U-G2 に限らない、MVP の最短路の制約である
+- **ProjectionPort は T4 を含むすべての経路で必要**(P1・P2・P3 — `sync-protocol.md:1267-1269`)。**新しいプレイの記録(毎球入力)は D2 の採番を伴うので P2**(T1・T2・T3・T4・T5・T6 — `:1268`。D2 = 論理順序 `:37`)。**訂正(2026-10-16)**: 初版は「P1 は通常の 1 球の記録」と書いたが誤り(master の実測で訂正)。T4 は P1・P2・P3 のすべてに含まれるので、結論と影響の範囲は変わらない。本物の ProjectionPort が無い間は、`PORT_IMPLEMENTATIONS` に登録できる実装が揃わず(`backend/src/pitchlog/sync/ports.py:133-143`)、**「1 球保存」は U-X1 の凍結が解けるまで通らない**。これは U-G2 に限らない、MVP の最短路の制約である
 - **複製・迂回にならない代替は無い**: 状態を導出しない投影(③ だけ)は FR-012 の原子性を破り、確定記録を矛盾させる(= 迂回)。状態依存の内容判定を省く validator(全部受理)も迂回。状態依存の判定を別に書くのは複製(NFR-018 の P0)
 - **凍結の解除条件**: ADR-003 段階① の完了(`product-impl-unit-split/plan.md:386`・PO 裁定 2026-10-10 `docs/worklog/2026-10-10-adr003-stage2-owner.md:110`)と、U-X1 の着手条件 P-1〜P-9(`docs/features/ux1-state-calc/design.md:70-79` — 段階 1 の TSK-237〜239 は計画書なし・未了、D-2 の発効)
 
