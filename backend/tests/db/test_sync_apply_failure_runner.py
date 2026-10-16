@@ -371,7 +371,7 @@ def _change_event(run: _Run, spec: Mapping[str, Any]) -> SyncEvent:
 
 def _registrations(
     run: _Run, events: Sequence[Mapping[str, Any]]
-) -> dict[str, PlayerRegistration]:
+) -> dict[int, PlayerRegistration]:
     registered = [event for event in events if "registration" in event]
     if not registered:
         return {}
@@ -381,7 +381,7 @@ def _registrations(
         (run.db.tenant_a, run.game),
     )[0][0]
     return {
-        str(run.uuid(event["d5"])): PlayerRegistration(
+        int(event["d1"]): PlayerRegistration(
             run.uuid(event["registration"]), team, _REGISTERED_NAME, "active"
         )
         for event in registered

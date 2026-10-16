@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -24,12 +25,13 @@ from pitchlog.repositories.transaction import (
     _TenantTransaction,
     tenant_transaction_scope,
 )
+from pitchlog.sync import apply as sync_apply
 from pitchlog.sync import ports
 from pitchlog.sync.apply import apply_sync_request
 from pitchlog.sync.crash_points import CrashPoint
 from pitchlog.sync.crash_points import testing_crash_hook as _testing_crash_hook
 from pitchlog.sync.model import AckResult, SyncEvent, SyncRequest
-from pitchlog.sync.prefix_path import PlayerRegistration
+from pitchlog.sync.prefix_path import P1Result, P1Target, PlayerRegistration
 from pitchlog.sync.tokens import IdempotencyLedgerInsertToken
 
 from .test_sync_apply_change_boundary import _request as _change_request
@@ -89,7 +91,9 @@ def _invoke(
         selected_rights,
         projection,
         validator,
-        registrations={request.events[0].d5: registration} if registration else None,
+        registrations={request.events[0].d1: registration}
+        if registration and request.events[0].d1 is not None
+        else None,
     )
 
 
@@ -242,6 +246,169 @@ def test_b4_request_replays_existing_and_escrows_every_unused(
     for event in first_events:
         assert _count(db, "evacuated_event_originals", event.d5) == 0
     assert _game_state(db)[0] == 3
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_b4_duplicate_d5_replays_only_saved_d1_and_escrows_unused(
+    prefix_database: _SyncDatabase, reverse: bool
+) -> None:
+    """⑤不成立でも同じ D5 の保存済み結果と別 D1 の異内容を分けて扱う。"""
+    db = prefix_database
+    saved = _event(db.game_a, d1=1, d4="1")
+    accepted = _invoke(
+        db, SyncRequest("P1", str(db.game_a), (saved,), d4="1", v12="proof")
+    )
+    assert isinstance(accepted, AckResult)
+    assert [(row.d1, row.state) for row in accepted.a5] == [(1, "受理")]
+    _hand_over_generation(db)
+    conflict = _event(db.game_a, d1=2, d4="1", d5=UUID(saved.d5))
+    unused = _event(db.game_a, d1=3, d4="1")
+    events = (conflict, saved, unused) if reverse else (saved, conflict, unused)
+    request = SyncRequest("P1", str(db.game_a), events, d4="1", v12="old-proof")
+
+    first = _invoke(db, request, rights=DenyPrefixRights())
+    assert isinstance(first, AckResult)
+    assert (first.boundary, first.d3, first.b3_branch) == ("B4", 1, None)
+    assert [(row.d1, row.state, row.reason) for row in first.a5] == [
+        (1, "重複", None),
+        (2, "未処理", None),
+        (3, "退避", None),
+    ]
+
+    # 退避後は全 D5 が使用済み。再送時は⑤を通らず、⑥で B3b を確定する。
+    resent = _invoke(db, request, rights=DenyPrefixRights())
+    assert isinstance(resent, AckResult)
+    assert (resent.boundary, resent.d3, resent.b3_branch) == ("B3", 1, "B3b")
+    assert [(row.d1, row.state) for row in resent.a5] == [
+        (1, "重複"),
+        (2, "拒否"),
+        (3, "未処理"),
+    ]
+    assert _count(db, "idempotency_ledger", saved.d5) == 1
+    assert _count(db, "operation_events", saved.d5) == 1
+    assert _count(db, "rejected_event_originals", saved.d5) == 0
+    assert _count(db, "evacuated_event_originals", saved.d5) == 0
+    assert _count(db, "idempotency_ledger", unused.d5) == 1
+    assert _count(db, "evacuated_event_originals", unused.d5) == 1
+    assert _count(db, "rejected_event_originals", unused.d5) == 0
+
+
+def test_duplicate_d5_uses_each_d1_registration_in_real_db(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """同じ D5 の再送で登録値を取り違えると保存済み結果を再掲できない。"""
+    db = prefix_database
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT home_team_record_id FROM games WHERE tenant_id = %s AND id = %s",
+            (db.tenant_a, db.game_a),
+        )
+        row = cursor.fetchone()
+    db.catalog.applicator.rollback()
+    assert row is not None
+    temporary1, temporary2 = uuid4(), uuid4()
+    registration1 = PlayerRegistration(temporary1, row[0], "登録一", "active")
+    registration2 = PlayerRegistration(temporary2, row[0], "登録二", "active")
+    saved = _event(
+        db.game_a,
+        d1=1,
+        d4="1",
+        kind="player_registration",
+        payload={"player_id": str(temporary1)},
+    )
+    first = _invoke(
+        db,
+        SyncRequest("P1", str(db.game_a), (saved,), d4="1", v12="proof"),
+        registration=registration1,
+    )
+    assert isinstance(first, AckResult) and first.a5[0].state == "受理"
+    conflict = _event(
+        db.game_a,
+        d1=2,
+        d4="1",
+        d5=UUID(saved.d5),
+        kind="player_registration",
+        payload={"player_id": str(temporary2)},
+    )
+    request = SyncRequest("P1", str(db.game_a), (conflict, saved), d4="1", v12="proof")
+    result = apply_sync_request(
+        make_tenant_context(db.tenant_a),
+        request,
+        PrefixRights(),
+        PrefixProjection(),
+        PrefixValidator(),
+        registrations={1: registration1, 2: registration2},
+    )
+    assert isinstance(result, AckResult)
+    assert (result.boundary, result.b3_branch, result.d3) == ("B3", "B3b", 1)
+    assert [(item.d1, item.state) for item in result.a5] == [(1, "重複"), (2, "拒否")]
+    assert _count(db, "idempotency_ledger", saved.d5) == 1
+    assert _count(db, "operation_events", saved.d5) == 1
+    assert _count(db, "rejected_event_originals", saved.d5) == 0
+
+
+def test_duplicate_d5_uses_each_d1_target_in_real_db(
+    prefix_database: _SyncDatabase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """同じ D5 の 2 件を実 DB に通し、各 D1 の解決済み対象を観測する。"""
+    db = prefix_database
+    source = _event(db.game_a, d1=1, d4="1")
+    seeded = _invoke(
+        db, SyncRequest("P1", str(db.game_a), (source,), d4="1", v12="proof")
+    )
+    assert isinstance(seeded, AckResult) and seeded.a5[0].state == "受理"
+    saved = SyncEvent(
+        str(uuid4()),
+        str(db.game_a),
+        2,
+        "1",
+        v5="undo",
+        v7={},
+        v10={"game": str(db.game_a), "d4": "1", "d1": 1},
+    )
+    target1 = P1Target(db.game_a, 1, 1)
+    accepted = apply_sync_request(
+        make_tenant_context(db.tenant_a),
+        SyncRequest("P1", str(db.game_a), (saved,), d4="1", v12="proof"),
+        PrefixRights(),
+        PrefixProjection(),
+        PrefixValidator(),
+        targets={2: target1},
+    )
+    assert isinstance(accepted, AckResult) and accepted.a5[0].state == "受理"
+    conflict = SyncEvent(
+        saved.d5,
+        str(db.game_a),
+        3,
+        "1",
+        v5="undo",
+        v7={},
+        v10={"game": str(db.game_a), "d4": "1", "d1": 2},
+    )
+    target2 = P1Target(db.game_a, 1, 2)
+    seen: list[tuple[int | None, P1Target | None]] = []
+    original = sync_apply.apply_p1_event
+
+    def observe(*args: Any, **kwargs: Any) -> P1Result:
+        event: SyncEvent = args[1]
+        seen.append((event.d1, kwargs.get("target")))
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(sync_apply, "apply_p1_event", observe)
+    request = SyncRequest("P1", str(db.game_a), (conflict, saved), d4="1", v12="proof")
+    result = apply_sync_request(
+        make_tenant_context(db.tenant_a),
+        request,
+        PrefixRights(),
+        PrefixProjection(),
+        PrefixValidator(),
+        targets={2: target1, 3: target2},
+    )
+    assert isinstance(result, AckResult)
+    assert (result.boundary, result.b3_branch, result.d3) == ("B3", "B3b", 2)
+    assert [(item.d1, item.state) for item in result.a5] == [(2, "重複"), (3, "拒否")]
+    assert seen == [(2, target1), (3, target2)]
+    assert _count(db, "idempotency_ledger", saved.d5) == 1
 
 
 def test_valid_request_resending_escrowed_d5_does_not_report_b4(

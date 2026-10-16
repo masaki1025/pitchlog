@@ -81,7 +81,7 @@ def _preflight_d1(
     context: TenantContext,
     request: SyncRequest,
     rights: RecordingRightsPort,
-    registrations: Mapping[str, PlayerRegistration],
+    registrations: Mapping[int, PlayerRegistration],
 ) -> _BatchPreflight:
     """③-a、全件の④、未使用候補の⑤を先に行い、結果はまだ返さない。"""
     with tenant_transaction_scope(context) as scope:
@@ -89,7 +89,7 @@ def _preflight_d1(
             with gated_writer(scope, rights) as gated:
                 fingerprints = tuple(
                     operation_fingerprint(
-                        event, request.path, registrations.get(event.d5)
+                        event, request.path, registrations.get(event.d1)
                     )
                     for event in request.events
                 )
@@ -296,13 +296,14 @@ def apply_sync_request(
     projection: ProjectionPort,
     validator: ContentValidationPort,
     *,
-    registrations: Mapping[str, PlayerRegistration] | None = None,
-    targets: Mapping[str, P1Target] | None = None,
+    registrations: Mapping[int, PlayerRegistration] | None = None,
+    targets: Mapping[int, P1Target] | None = None,
 ) -> ApplyResult:
     """③以降を経路へ渡し、D1 昇順の A5 と唯一の停止境界を確定する。
 
     B5・B11 は認証を所有する HTTP 入口が判定する。B6・B7 は ACK を
     持たないためコードだけを返し、P3 は専用の独立結果を返す。
+    登録値と解決済み対象は、同じ D5 を持つ別イベントを区別するため D1 で引く。
     """
     if request.path == "P3":
         reach("before_transaction")
@@ -315,6 +316,10 @@ def apply_sync_request(
         return "B6"
     registrations = registrations or {}
     targets = targets or {}
+    if any(
+        type(key) is not int for mapping in (registrations, targets) for key in mapping
+    ):
+        raise TypeError("registrations と targets は D1 をキーにする")
     try:
         preflight = _preflight_d1(context, request, rights, registrations)
     except RG1Blocked:
@@ -328,7 +333,7 @@ def apply_sync_request(
 
     events = sorted(request.events, key=lambda item: item.d1 or 0)
     candidates = {
-        event.d5: candidate
+        event.d1: candidate
         for event, candidate in zip(request.events, preflight.candidates, strict=True)
     }
     a5: list[A5Result] = []
@@ -351,14 +356,14 @@ def apply_sync_request(
         if stopped:
             a5.append(A5Result(event.d4, event.d1, event.d5, "未処理"))
             continue
-        registration = registrations[event.d5] if event.d5 in registrations else None
-        target = targets[event.d5] if event.d5 in targets else None
+        registration = registrations.get(event.d1)
+        target = targets.get(event.d1)
         if not preflight.has_recording_right:
-            if candidates[event.d5].kind == "conflict":
+            if candidates[event.d1].kind == "conflict":
                 # ⑤ の B4 では ⑥ に進まない。異内容候補は拒否原本を作らず未処理。
                 a5.append(A5Result(event.d4, event.d1, event.d5, "未処理"))
                 continue
-            if candidates[event.d5].kind == "unused":
+            if candidates[event.d1].kind == "unused":
                 result: D1Result = _escrow_without_right(
                     context,
                     request,
