@@ -396,6 +396,14 @@ def test_duplicate_d5_rejects_legacy_d5_keyed_values(
                 dict[int, PlayerRegistration], {request.events[0].d5: registration}
             ),
         )
+    target = P1Target(uuid4(), 1, 1)
+    with pytest.raises(TypeError, match="D1 をキー"):
+        apply.apply_sync_request(
+            cast(TenantContext, object()),
+            request,
+            *_ports(),
+            targets=cast(dict[int, P1Target], {request.events[0].d5: target}),
+        )
 
 
 def test_auth_before_rg1_and_d5_has_no_ack(monkeypatch: pytest.MonkeyPatch) -> None:

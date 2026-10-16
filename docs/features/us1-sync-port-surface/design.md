@@ -20,7 +20,7 @@ created: 2026-10-16
 | 名前 | 所在 | 役割 |
 | --- | --- | --- |
 | `SyncRequest.from_payload(path, game_id, payload)` | `sync/model.py:231` | URL の経路・試合と E-1/E-2 本文の S-1 外形を照合し、`SyncRequest` を作る。外形違反は `RequestShapeError`(S-1 — 境界結果ではない。WS:107) |
-| `apply_sync_request(context, request, rights, projection, validator, *, registrations=None, targets=None, ...)` | `sync/apply.py:292` | ③ 以降を実行し、D1 昇順の A5 と唯一の停止境界を確定して `AckResult`(D1 付き)または P3 の結果を返す |
+| `apply_sync_request(context, request, rights, projection, validator, *, registrations=None, targets=None, ...)` | `sync/apply.py:292`(`registrations`・`targets` は **D1 キー** — D-0 で変更。旧 D5 キーは `TypeError`) | ③ 以降を実行し、D1 昇順の A5 と唯一の停止境界を確定して `AckResult`(D1 付き)または P3 の結果を返す |
 
 - **トランザクションは U-S1 が開く**。入口は `TenantContext` を渡すだけで、Session・トランザクション・スコープを持ち込まない(`sync/apply.py` → `repositories/transaction.py` の `tenant_transaction_scope`)
 - **原子性はイベント 1 件ごと**(要求全体ではない)。要求の途中で失敗しても、それより前のイベントの確定は残る(SP 6-2・9-2。ACK が返らない場合は次の再送で保存済み結果を再掲 — DI2)

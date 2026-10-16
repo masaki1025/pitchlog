@@ -375,8 +375,8 @@ scenarioId は `FILE_NAME_PATTERN`(`failureScenarioContract.ts:90`)の
 
 **母集合の正**は `tests/fixtures/sync-protocol-failures/population/sync-protocol-population_v2.json` の `rows`(v1 から移行 — TSK-506 への接続契約のステップ 2 の是正)。
 各行に観点 key、scenarioId、所有状態(`owned` / `deferred`)と、
-繰り延べの場合の受け取り先を記す。現況は 26 ペア・22 観点・
-所有 16 件・U-R1(TSK-392) へ繰り延べ 10 件である。
+繰り延べの場合の受け取り先を記す。現況は 27 ペア・23 観点・
+所有 16 件・繰り延べ 11 件(U-R1〔TSK-392〕へ 10 件、O5 の 1 件は TSK-506 への接続契約〔us1-sync-port-surface〕のステップ 14 へ — 正本 v0.9)である。
 `p3-invalidation-consumed-before-complete` と
 `o4-persisted-d2-equivalence` は所有済みである。
 
@@ -402,7 +402,7 @@ runner の現況は、端末側の登録表とサーバー側の DB runner を�
 
 | # | 名前 | 主張 |
 | --- | --- | --- |
-| 1 | **母集合** | `作成済み ∪ 未作成繰り延べ = 26 の scenarioId` かつ **交差が空** |
+| 1 | **母集合** | `作成済み ∪ 未作成繰り延べ = 27 の scenarioId` かつ **交差が空** |
 | 2 | **観点被覆** | `OBSERVATION_SCENARIO_PAIRS = 26 ペア`(+ 第 1/第 2 要素の集合一致) |
 | 3 | **runner 繰り延べ** | `SCENARIO_RUNNERS ∪ 繰り延べ = FAILURE_SCENARIO_IDS` かつ **交差が空** |
 | 4 | **トランザクション内注入被覆** | `⋃ TRANSACTION_INJECTION_COVERAGE = reader の 18 組` |

@@ -166,6 +166,7 @@ branch: feature/us1-sync-port-surface
   - backend `test_observation_keys_match_the_canon_table`(10-2 の表 23 行と観点 key 22 件)→ 母集合を v2 にして O5 を受け取り先つきの繰り延べ行で記録。v2 は core-areas の glob の中(`tests/fixtures/sync-protocol-failures/population/`)。v1 は読み手を移して削除(#132 の glob 漏れも同時に解消)
   - frontend の正本オラクル(`canonOracle.ts`)が R-BOUNDARY の O5 を未知の ID として拒否 → 射程外(受け取り先 = ステップ 8・9)に登録。さらに R-BOUNDARY の O5 の要素が 2 つで ID が重複して読み込みが止まった → 要素を 1 つにまとめ、6-2 の注記に A5 拒否・要操作を書き足した(正本 v0.9 の実装追随 — 版は上げない・変更履歴に追記)
   - 検査: 文書・伝播・帰属の試験 340 件 / frontend の対象 4 spec 143 件 green。frontend 全件はマシンの負荷(load 45)で時間切れのため CI に任せる
+- **ステップ 4 の敵対レビュー 1 回目(Codex)否決(P1 3)** — すべて採用: 提示文書の公開口の型を D1 キー(`Mapping[int, …]`)に / 旧 D5 キーの `targets` の負例を追加(`targets` の検査を外す変異で赤になることを確かめた)/ sync-server-apply の設計書の母集合の件数を v2(27 組・23 観点・所有 16・繰り延べ 11)に
 - **教訓**: 正本の設計関係(2-5)や 10-2 の表を変えたら、それを読む backend・frontend の試験(契約検査・正本オラクル)も回す
 
 ## 未決・次の一歩

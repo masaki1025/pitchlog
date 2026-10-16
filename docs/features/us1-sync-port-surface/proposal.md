@@ -110,8 +110,8 @@ def apply_sync_events(
     projection: ProjectionPort,
     validator: ContentValidationPort,
     *,
-    registrations: Mapping[str, PlayerRegistration] | None = None,
-    targets: Mapping[str, P1Target] | None = None,
+    registrations: Mapping[int, PlayerRegistration] | None = None,  # D1 キー(D-0 — 実装済み `sync/apply.py:299`)
+    targets: Mapping[int, P1Target] | None = None,  # D1 キー
 ) -> AckResult | Literal["B6", "B7"]:
 ```
 
