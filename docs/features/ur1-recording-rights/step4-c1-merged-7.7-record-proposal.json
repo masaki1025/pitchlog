@@ -1,5 +1,5 @@
 {
-  "acceptance_state": "pending_7_7",
+  "acceptance_state": "accepted_7_7_with_correction",
   "base_merge_sha": "3052e0db743877c7f15c0ec10daa0142cba7ab7e",
   "authority_record_proposal_without_approval_fields": {
     "record_schema_version": 2,
@@ -971,8 +971,8 @@
         "asset_snapshots": [
           {
             "path": "contracts/tenant_boundary/base-allowlist.json",
-            "sha256": "18934cf78b6621bb43cbce93581e31d1f117e9ced21b24a23f1bd4bec68091d6",
-            "snapshot_ref": "contracts/tenant_boundary/history-snapshots/18934cf78b6621bb43cbce93581e31d1f117e9ced21b24a23f1bd4bec68091d6"
+            "sha256": "e3dcdd745a721431a5ecdfd0cfa43f9f5839a79678d34e81fa76a3ea15746046",
+            "snapshot_ref": "contracts/tenant_boundary/history-snapshots/e3dcdd745a721431a5ecdfd0cfa43f9f5839a79678d34e81fa76a3ea15746046"
           },
           {
             "path": "contracts/tenant_boundary/cache-invalidation-contract.json",

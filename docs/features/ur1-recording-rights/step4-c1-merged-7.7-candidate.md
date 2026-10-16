@@ -1,4 +1,4 @@
-# U-R1 新4: C1統合後の7.7受理候補（2026-10-17）
+# U-R1 新4: C1統合後の7.7受理・是正記録（2026-10-17）
 
 ## 比較元と範囲
 
@@ -14,7 +14,7 @@
 
 | 資産 | before revision / snapshot SHA-256 | 受理待ちafter revision / snapshot SHA-256 |
 | --- | --- | --- |
-| `base-allowlist.json` | 32 / `20c8f0f71734d244e8734a0ded0903d380cfcae79315549ccd318a8a6e6ebabf` | 33 / `18934cf78b6621bb43cbce93581e31d1f117e9ced21b24a23f1bd4bec68091d6` |
+| `base-allowlist.json` | 32 / `20c8f0f71734d244e8734a0ded0903d380cfcae79315549ccd318a8a6e6ebabf` | 33 / `e3dcdd745a721431a5ecdfd0cfa43f9f5839a79678d34e81fa76a3ea15746046` |
 | `cache-invalidation-contract.json` | 15 / `161d2815a06778fbac0bb679b5a5aa1d1295db2e7e0ed971d2b343a654daf32f` | 15 / 同左 |
 | `census-baseline.json` | 14 / `c717da79aee3504ab5176f88cd502ad40170389df7ad1aa60d4fb5c86e5f241f` | 14 / 同左 |
 | `db-api-inventory.json` | 15 / `66ec5e8410adeab61f78bcb4ce72ec4ea55b32588d96e95d172013b2a8658999` | 15 / 同左 |
@@ -32,7 +32,7 @@
 - `previous_baseline_identifiers` と `change.before` はC1統合済みHEADから取得する。`new_baseline_identifiers` と `change.after` は上表の3件だけを更新し、他6件はbeforeを保持する。`aspect` は `asset_snapshots` と `declaration`。
 - `movement_fact` 案: 「RG1固定SELECTビルダー1件、固定function operation 2件、RG1専用の表・owner・関数により、base-allowlist 32→33、repository-contract 20→21、runtime-authz 16→17へ移動。他6資産の識別値は不変。」
 - `reason` 案: 「復元開始時に通常書込みを止めるRG1の固定読取境界を設け、既存DMLとテナント権限を拡大せず検証するため。」
-- snapshotはafter 3件だけを新規作成し、既存snapshotを保持する。導出済み内容はそれぞれ11,868・7,560・6,550バイト（合計25,978バイト）。新規3件はすべて提案記録から参照され、孤児を増やさない。archiveの参照・digestは正式記録と同じ最終HEADの内容から追随する。承認者・日付は正式受理後の実記録から転記する。
+- snapshotはafter 3件だけを新規作成し、既存の受理済みsnapshotを保持する。是正後の導出内容はそれぞれ11,864・7,560・6,550バイト（合計25,974バイト）。旧候補の`18934cf7…`は比較元に存在しない未マージsnapshotで、参照を新値へ移したため除去する。新規3件はすべて#143記録から参照され、孤児を増やさない。承認者・日付は2026-10-17の実承認から転記した。
 
 ## seed別系列
 
@@ -49,3 +49,9 @@
 - 公開中のDraft PR #143のHEADは`cd03ddcb028878ac5c43dc9823463974040a29eb`（準備文書のみ）。ローカルのC1取り込み・判断資料コミットを親とするRG1新4候補は、**製品・認可・テスト40ファイル**である。`docs/features/ur1-recording-rights/claude-handoff.md`は古い未追跡申し送りで、この候補には含めない。一時indexで`HEAD`に40ファイルを重ねたbinary patch SHA-256は`779a5bf69b793fae10735e1383c40fcb9f5c130b360c7afa9061fe796d2db604`、変更パスmanifest SHA-256は`dd2c4225456718b357fa90b7d52f06cddbaf03f4afa2a7af3623e40fc33f0f31`。実indexにはstageしていない。
 - **正式受理の対象**は、PR #143に入れるこの固定候補内容と上記9資産のafter、3 snapshot、seed記録案の**単一の最終候補状態**である。承認者・日時と後続のGit commit SHAを先に埋めない。正式受理後、実際の承認情報だけを権威台帳1件とseed別系列1件へ転記し、3 snapshotを追加してarchiveを追随させ、製品・契約・履歴を新4の1コミットにまとめる。
 - その**履歴反映コミットがPR #143の最終HEAD**となる。候補受理とコミットは別時点なので、コミット後に実HEAD・PR番号・before/after・snapshot・seed・全差分が承認候補と一致することを再照合する。実HEAD SHAはコミット後に初めて報告する。候補内容や比較元が変われば、既受理を流用せず差分を再提示する。作業ツリー検査の後、HEADを読む凍結履歴/archive/契約検査を実コミットで通し、許可されたpush後のCIを確認する。本人逐行確認欄は未チェックのまま維持する。
+
+## 2026-10-17 正式受理と検査是正（この節が上記の受理待ち表記に優先）
+
+PO山田正輝は、比較元`3052e0db743877c7f15c0ec10daa0142cba7ab7e`、候補tree`ab529513587528acea40951e06720baa5515d355`、本資料の旧SHA-256`8a400916a58a23f66096738b3d7e16c720960fafeaf5a98adec9f3b2ac97b81d`、JSON案の旧SHA-256`ea92f2d36d3db3654b1b71e8f0a54f36971523a68b323fb21b0cde3b36e77b8a`を2026-10-17に正式受理した。履歴・seed・snapshotを新4コミット`1ecfdc5fae495b92bd29d5455d6ab9cecff625f4`へ反映したところ、HEAD検査で署名正規形、RecordingGenerationの行番号、比較corpus digestの3件が不一致になった。このHEADはpushしなかった。
+
+POは同日、この3件と#143の単一未マージ記録after・snapshot・資料の追随を追加承認した。署名は`Literal["precheck", "commit_check"]`から検査器が照合する`Literal['precheck', 'commit_check']`へ訂正し、許可シンボル・API種別は維持する。beforeと先行PRの受理済み履歴は不変。base after snapshotは`18934cf78b6621bb43cbce93581e31d1f117e9ced21b24a23f1bd4bec68091d6`から`e3dcdd745a721431a5ecdfd0cfa43f9f5839a79678d34e81fa76a3ea15746046`へ更新する。境界テストは検出4行を維持して`{153, 246, 247, 248}`から`{189, 282, 283, 284}`へ更新し、corpus入力digestは`68dbc129cca5927ea596cfd95d8b0665511373afdb59d602f28f6f885b747a32`から`c3874627cd1fe598344b4c695c07ca4fe315839f3333dfa31c5430cc148d6c42`へ再固定する。両新値は変更後の実入力で再計算して一致を確認する。seed系列と他8資産のbefore/afterは変更しない。今回の是正差分と直接影響箇所に限る独立レビュー1回をPOが許可した。本人逐行確認、Draft解除・マージは引き続き別ゲートとする。

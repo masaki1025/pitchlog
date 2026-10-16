@@ -21219,8 +21219,8 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "18934cf78b6621bb43cbce93581e31d1f117e9ced21b24a23f1bd4bec68091d6",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/18934cf78b6621bb43cbce93581e31d1f117e9ced21b24a23f1bd4bec68091d6"
+                "sha256": "e3dcdd745a721431a5ecdfd0cfa43f9f5839a79678d34e81fa76a3ea15746046",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/e3dcdd745a721431a5ecdfd0cfa43f9f5839a79678d34e81fa76a3ea15746046"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
@@ -21459,7 +21459,7 @@
     },
     {
       "symbol": "pitchlog.repositories.rg1._build_rg1_read_statement",
-      "signature": "_build_rg1_read_statement(kind: Literal[\"precheck\", \"commit_check\"]) -> Select[tuple[bool]]",
+      "signature": "_build_rg1_read_statement(kind: Literal['precheck', 'commit_check']) -> Select[tuple[bool]]",
       "allowed_api_ids": [
         "SQLA_SELECT"
       ],

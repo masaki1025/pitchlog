@@ -2286,7 +2286,7 @@ def test_recording_generation_remains_red_in_product_tree() -> None:
         for item in condition2
         if "RecordingGeneration" in item.symbol
     }
-    assert recording_generation_lines == {153, 246, 247, 248}
+    assert recording_generation_lines == {189, 282, 283, 284}
 
 
 def test_product_call_coverage_sets_are_complete() -> None:
