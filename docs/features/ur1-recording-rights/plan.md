@@ -43,7 +43,8 @@ created: 2026-10-14
 | 正本 | 変更内容 | ゲート |
 | --- | --- | --- |
 | sync-protocol 9-5 | 現行の試合作成行に初期記録権作成を含む矛盾が既知。U-S1 承認済み R-17 が定める単独の小 PR で作成と開始を分割し、U-G1 統合より先に確定・統合する。本計画はその承認を兼ねない | 7.6/7.3、外部前提 |
-| 要件書・data-model・ADR・開発規約 | 現時点では反映なし。物理値や復旧境界で意味変更が必要なら差分を分離し 7.6 で判定 | 判定待ち |
+| data-model 3-2 | RG1単一状態行、専用`NOLOGIN/NOBYPASSRLS` owner、FORCE RLS、appの固定読取2関数だけへの到達をv0.11へ確定。`78c64915`の最終反映は未再レビューと明示したうえで、2026-10-16の本会話でPOが当該改訂範囲を承認した。個別DDL/JSON・認可所有側受理・7.7は含まない | 7.3確定済み、実装資産は別ゲート |
+| 要件書・ADR・開発規約 | 現時点では反映なし。物理値や復旧境界で意味変更が必要なら差分を分離し 7.6 で判定 | 判定待ち |
 | `.claude/core-areas.json`・guard | U-R1 パスを `recording-rights` と意味が重なる `sync-protocol`・`tenant-isolation` に登録。`AREA_PATH_ADDITIONS` 宣言を先行コミット、JSON 登録を次コミットに分ける | 実装 PR |
 | `contracts/tenant_boundary/repository-contract.json`・生成物・`base-allowlist.json`・履歴/archive | DB operation の capability、token、許可 SQL シンボルを最小範囲で追加する。既存受理履歴を保ち、7.7 の単一受理記録と関連検査を行う | 凍結契約ゲート、人間承認 |
 | 認可経路表・派生lock/oracle | 引き継ぎと管理者閲覧・書き出しの HTTP 入口の所有確定後、必要な経路ごとに差分を提示する。承認済み別 PR の受理を流用しない | 入口ごとの別ゲート |

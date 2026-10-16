@@ -224,3 +224,9 @@
 - **C1の受領証跡**: C1担当Codex Dは[PR #143コメント](https://github.com/masaki1025/pitchlog/pull/143#issuecomment-6209084415)でPO固定順を受領し、技術上の阻害差分なしと回答。C1側の`docs/worklog/2026-10-14-uf13-team-route-acceptance.md`「C1とU-R1の統合順・7.7正式判断資料」へ同順序を記録し、PR #144の文書コミット`5df6141d`に固定した。これで双方の作業ログに確定順序の記録がそろった。C1の正式7.7受理・統合自体は未了。
 - **正本の最終識別値と資料**: `data-model.md` v0.11の最終候補HEADは`78c649150b085074476cbfe85f963dd96ec5a335`、本文SHA-256=`fe8251678c9f29c9d03d1a5239d5780204b77995a31d2f3a0ead65c67954f759`。人間承認用の本文・7件全採用・権限差分・TSK-424無回答時の代替判断を[一括資料](../features/ur1-recording-rights/rg1-data-model-v011-final-approval.md)にまとめた。現時点で正本は`in-review`、認可所有側の項目別受理は未確認。
 - **最終反映後の対象検査**: RG1資産の正本quoteを新本文の正確な文に追随した（権限変更なし）。`check_authz_catalog.py`は`total=1414`で成功、`check_docs_status.py`は20文書・違反0、`tests/test_check_docs_status.py`は専用`--basetemp`で72件成功、`git diff --check`成功。最初の通常tmpのpytestは`/tmp`が満杯で72件中大半が一時ファイル作成に失敗したが、別領域で再実行して72件全成功。環境故障をコード不合格として扱わず、初回失敗も記録に残す。新4製品候補は未コミット・未push、公開準備HEADのCIとは別。
+
+## 2026-10-16 data-model v0.11の人間承認と限定
+
+- **承認者・日時の出所**: 本会話のプロダクトオーナーが2026-10-16（Asia/Tokyo）に、最終反映`78c64915`に対応する[承認資料](../features/ur1-recording-rights/rg1-data-model-v011-final-approval.md)の本文・権限差分・7件全採用の記録、および最終反映未再レビューを確認したと明示し、**data-model v0.11の今回の3-2節改訂範囲を承認**した。氏名は本メッセージにないため推定記入しない。正本frontmatterと変更履歴、索引を`approved`へ確定する。
+- **承認の射程**: RG1単一状態行、専用ownerの属性と権限境界、FORCE RLS、appの固定読取2関数限定EXECUTE、製品常閉まで。個別DDL/JSON、認可資産所有側TSK-424への未回答3項目、その代替受理、7.7実値・snapshot・seed正式履歴、D4方式、運用open、本人逐行確認、Draft解除・マージを含めない。他のdata-model候補改訂をこの承認へ混ぜない。
+- **C1待ちと次の導出条件**: C1担当の受領・双方作業ログへの順序記録は確認済み。2026-10-16時点の#144はDraft・未統合で、最新`origin/develop=e7e8d3a4`。C1の正式受理・統合後に最新developをmergeし、受理済み履歴から7.7実値・snapshot・seed案を再導出する。現A直後の数値は暫定のままにする。
