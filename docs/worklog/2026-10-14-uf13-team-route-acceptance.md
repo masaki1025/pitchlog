@@ -419,3 +419,11 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - frontend並列検査は1 failed / 1,156 passed・4 worker起動エラーで終了。失敗は既存StrikeZoneのtimeout、workerは既存Button/sync/domain等。C1対象の別実行は5ファイル177 passedだがauthStore境界workerの起動待ちエラーがあり、対象全体を合格とは数えない。C1が起動したPython全件を停止し、frontendから直列再実行する。他担当プロセスは変更していない。
 
 - 認証コード3ファイルの第2周レビュー対象hashはmanifestと一致し、製品・試験候補を検証待ちのコミットで保全する。計画はactiveを維持し、ステップ2全DoD成立は宣言しない。全件検査の環境障害と未通過は判断資料・PR準備本文へ明記した。ローカル/check green前にDraftを作成する例外・push/PR作成は未承認であり、自動でゲートを移さない。今回の契約追補承認は本人逐行確認ではない。
+
+- 製品候補を`1fea2c60f04f9c50c882298042b5a0458dd5879a`へコミット保全。9ファイルを既存コア登録で検出し、実HEAD/基線で領域別基線検査成功・本人逐行確認未チェックのproduction guardによる9ファイル拒否を確認した。本人チェックの代記はない。正式第2周の製品hashと一致し、新規7.7対象はない。
+- 直列frontend全件は68ファイルで1,236 passed / 1 failed（既存domain-sql再帰試験のtimeout、worker errorなし）。該当1件の単独再検査は成功（1 passed、非対象14 skipped）。全件exit 0とは扱わず、さらに全件を同一候補で確認中。最新auth.specのPrettier/ESLintも成功。
+- `feature_status.py`はC1に「完了ステップに欠番」を表示した。ステップ1は既にdevelopへ統合され新差分がステップ2だけのため。全出力をPR準備本文へ固定し、ハーネスや履歴を改変して警告を消さない。TSK-528全体やU-F13残部を完了にしない。
+- `pr`手順2.4により、ローカル/check未通過でpush/PR作成は行わない。共有環境の繰返しtimeoutに対し、C1ステップ2限定でローカルgreen前にDraftを作りCIで全件検証する例外・push/作成の承認を一括提示した。回答待ちは承認ではない。C2/U-F3・公開・Draft解除・マージへは進まない。
+
+- 最新の直列frontend全件は68ファイル1,236 passed / C1外domain-sql1 timeout。C1対象6ファイル184試験は成功し、当該domain-sql1件の単独再検査も成功（非対象14 skipped）。単一全件greenとは扱わない。更なる全件実行もworker終了timeout反復で中断した。型/format/lint/dependency/buildの成功は維持する。
+- C1が起動した全件実行は停止して保全した。ローカル/check未通過のため現行pr手順ではpush/PR作成へ進めない。Draft先行の限定例外を回答待ちとし、時間経過を承認とは扱わない。計画active、TSK-528/U-F13全体未完了、本人確認は未実施。最終fetchのdevelopは3052e0db。今回の本人確認対象は基線からの17ファイル全差分。

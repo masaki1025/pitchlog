@@ -90,3 +90,19 @@
 - backend専用DB全件: 2 failed / 12 passedで中断。game_state/authentication migrationの使い捨てPostgreSQLが既存60秒起動期限に達した。単独診断でも同じ起動期限。共有試験ロールの既存状態にも依存できないため、他担当のDB/ロールを変更しなかった。backendソース・試験は基線と同一。
 - frontend全件: 1 failed / 1,156 passed / worker起動4 errors。StrikeZoneの既存timeoutとworker起動/終了エラー。対象6ファイル再検査は5ファイル177 passed / authStore境界worker起動1 error。直列再実行でも既存domain-sql試験のtimeoutを観測し、全greenは未達。
 - `/check`成功・CI成功・本人確認済みとは記録しない。PR準備本文は`step2-pr-draft.md`。ローカルgreen前のDraft先行例外は未承認で、push/PR作成は行わない。
+
+## 本人確認用の固定対象
+
+製品コミットは`1fea2c60f04f9c50c882298042b5a0458dd5879a`（検証待ち）。製品3ファイルのSHA-256は`step2-review-manifest.json`と一致し、正式第2周後の製品コード変更はない。全検査待ちを隠すための完了宣言はしない。
+
+機械検出は基線JSONと一致し、`api/client*`はsync-protocol/recording-rights/tenant-isolation、残るauth/roster/storeの差分はtenant-isolationに該当。製品・試験9ファイルすべてを検出し、guard_paths変更なし。production core_guardを実HEAD/基線・本人チェック未記入のPR本文で実行し、9ファイルすべてを拒否することを確認した。領域別基線検査は成功。人間のチェックを代記して成功させていない。
+
+wire API/DTO・認可・registry・凍結資産に差分がないため、今回の新しい7.7正式受理対象はない。契約追補の承認やレビュー可決は本人逐行確認の実施記録ではない。PR作成も未実施。
+
+## 最新の検証結果と停止点
+
+- frontend直列全件: **68ファイル、1,236 passed / 1 failed**。失敗はC1対象外のdomain-sql再帰拒否試験の既存timeout。この実行ではC1対象6ファイル・184試験も成功した。失敗した1件の単独再検査は成功（1 passed / 非対象14 skipped、3.68秒）。これは単一の全件green実行ではない。
+- 最新auth.specのPrettier/ESLintは成功。型・全体lint/format・dependency-cruiser（81 modules/142 edges）・build/closureは前記成功を維持し、製品コードに変更なし。
+- 更なるfrontend全件でもGameScreen/sync等のworker終了timeoutが繰り返されたため中断した。実行を完走・成功に数えない。他担当のプロセスは停止せず、C1の追加全件実行は止めて記録を保全した。
+- 最終fetchでもdevelopは`3052e0db743877c7f15c0ec10daa0142cba7ab7e`。製品コミットは`1fea2c60`、後続は検査記録だけ。本人確認の対象は最終HEADの基線からの17ファイル全差分（製品3・spec6・計画/記録8）。
+- 未解決はローカル/checkの単一全green未達と本人確認。Draft先行例外の承認待ちであり、push/PR作成・公開・マージは未実施。必要なCI検証を承認なしに省略・移設しない。
