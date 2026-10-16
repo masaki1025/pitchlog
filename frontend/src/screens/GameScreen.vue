@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import StrikeZone from '../components/zone/StrikeZone.vue'
 import type { CourseInputView } from '../lib/courseInputView'
+import { SYNC_NOTICE_CATALOG } from '../lib/sync/syncNotices'
 import { resolvePitchCommitGate } from './GameScreenCommitGate'
+import {
+  deriveQueueStatus,
+  type QueueStatusSlot,
+} from './GameScreenQueueStatus'
 
 interface GameDisplayState {
   gameName: string | null
@@ -33,7 +38,26 @@ const props = defineProps<{
   pitchTypes?: readonly InputCandidate[]
   results?: readonly InputCandidate[]
   courseView?: CourseView | null
+  queueSlots?: readonly QueueStatusSlot[]
+  // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
+  // 未確定を表せる文字列で受け取る。
+  storagePersistence?: 'granted' | 'denied'
 }>()
+
+// 未同期の判定を画面で作り直さず、単一の導出から読む。
+const queueStatus = computed(() =>
+  deriveQueueStatus({
+    slots: props.queueSlots ?? [],
+    storagePersistenceGranted:
+      props.storagePersistence === undefined
+        ? undefined
+        : props.storagePersistence === 'granted',
+  }),
+)
+
+function noticeMessage(noticeId: keyof typeof SYNC_NOTICE_CATALOG): string {
+  return SYNC_NOTICE_CATALOG[noticeId]
+}
 
 // 確定の可否は単一のゲートから読む。画面側で封鎖の判断を複製しない。
 const commitGate = resolvePitchCommitGate()
@@ -196,6 +220,64 @@ function clearDraft() {
           {{ display(props.state?.pitcher) }}
         </dd>
       </dl>
+    </section>
+
+    <section
+      aria-label="同期の状態"
+      class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
+    >
+      <h2 class="mb-3 text-lg font-extrabold">同期の状態</h2>
+      <dl class="grid gap-3 sm:grid-cols-2">
+        <div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-800">
+          <dt class="text-sm text-slate-500 dark:text-slate-400">未送信</dt>
+          <dd
+            class="mt-1 text-2xl font-extrabold tabular-nums"
+            data-testid="unsent-count"
+          >
+            {{ queueStatus.unsentCount }}
+          </dd>
+        </div>
+        <div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-800">
+          <dt class="text-sm text-slate-500 dark:text-slate-400">要操作</dt>
+          <dd
+            class="mt-1 text-2xl font-extrabold tabular-nums"
+            data-testid="action-required-count"
+          >
+            {{ queueStatus.actionRequiredCount }}
+          </dd>
+        </div>
+      </dl>
+
+      <p
+        v-if="queueStatus.unsentWarning"
+        class="mt-3 rounded-lg border border-amber-500 p-3 text-sm font-bold text-amber-900 dark:text-amber-200"
+        data-testid="unsent-warning"
+      >
+        未送信が多くたまっています。同期できる状態か確認してください。
+      </p>
+
+      <ul
+        v-if="queueStatus.actionRequiredLabels.length"
+        class="mt-3 list-disc space-y-1 pl-5 text-sm"
+        data-testid="action-required-labels"
+      >
+        <li
+          v-for="(label, index) in queueStatus.actionRequiredLabels"
+          :key="`${label}-${index}`"
+        >
+          {{ label }}
+        </li>
+      </ul>
+
+      <ul class="mt-3 space-y-2 text-sm" data-testid="sync-notices">
+        <li
+          v-for="(notice, index) in queueStatus.notices"
+          :key="`${notice.noticeId}-${index}`"
+          :data-notice-id="notice.noticeId"
+        >
+          {{ noticeMessage(notice.noticeId) }}
+        </li>
+      </ul>
     </section>
 
     <section
