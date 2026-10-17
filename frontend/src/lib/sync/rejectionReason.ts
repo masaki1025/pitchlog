@@ -6,6 +6,7 @@ import { assertExactDefinedObject } from './receptionInput'
 export const B3_REJECTION_KIND = {
   CONTENT: '内容起因',
   O4: 'O4',
+  O5: 'O5',
 } as const
 
 export const B3_CONTENT_BRANCH = {
@@ -13,6 +14,8 @@ export const B3_CONTENT_BRANCH = {
   B3B: 'B3b',
 } as const
 
+// O4 と O5 はどちらも管理者による是正確認を待つ(正本 7-2 の「管理者対応待ち」)。
+// 値は両者で共用し、どちらの是正かは kind で区別する。
 export const O4_CORRECTION_CONFIRMATION = {
   PENDING: '管理者による是正確認待ち',
 } as const
@@ -32,12 +35,18 @@ export type B3O4Rejection = Readonly<{
   correctionConfirmation: typeof O4_CORRECTION_CONFIRMATION.PENDING
 }>
 
-export type B3Rejection = B3ContentRejection | B3O4Rejection
+export type B3O5Rejection = Readonly<{
+  kind: typeof B3_REJECTION_KIND.O5
+  reason: unknown
+  correctionConfirmation: typeof O4_CORRECTION_CONFIRMATION.PENDING
+}>
+
+export type B3Rejection = B3ContentRejection | B3O4Rejection | B3O5Rejection
 
 const REJECTION_KEYS = Object.freeze(['kind', 'branch', 'reason'] as const)
 const REJECTION_REQUIRED_KEYS = Object.freeze(['kind', 'reason'] as const)
 const CONTENT_REJECTION_KEYS = REJECTION_KEYS
-const O4_REJECTION_KEYS = Object.freeze(['kind', 'reason'] as const)
+const ADMIN_WAIT_REJECTION_KEYS = Object.freeze(['kind', 'reason'] as const)
 
 function parseContentRejection(
   candidate: Record<PropertyKey, unknown>,
@@ -76,12 +85,25 @@ export function parseB3Rejection(candidate: unknown): B3Rejection {
   if (Object.is(candidate.kind, B3_REJECTION_KIND.O4)) {
     assertExactDefinedObject(
       candidate,
-      O4_REJECTION_KEYS,
-      O4_REJECTION_KEYS,
+      ADMIN_WAIT_REJECTION_KEYS,
+      ADMIN_WAIT_REJECTION_KEYS,
       'O4 に B3 内容拒否区分または余分な要素を指定できません',
     )
     return Object.freeze({
       kind: B3_REJECTION_KIND.O4,
+      reason: candidate.reason,
+      correctionConfirmation: O4_CORRECTION_CONFIRMATION.PENDING,
+    })
+  }
+  if (Object.is(candidate.kind, B3_REJECTION_KIND.O5)) {
+    assertExactDefinedObject(
+      candidate,
+      ADMIN_WAIT_REJECTION_KEYS,
+      ADMIN_WAIT_REJECTION_KEYS,
+      'O5 に B3 内容拒否区分または余分な要素を指定できません',
+    )
+    return Object.freeze({
+      kind: B3_REJECTION_KIND.O5,
       reason: candidate.reason,
       correctionConfirmation: O4_CORRECTION_CONFIRMATION.PENDING,
     })

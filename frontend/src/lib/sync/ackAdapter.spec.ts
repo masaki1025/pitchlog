@@ -284,55 +284,60 @@ describe('ackAdapter', () => {
     })
   })
 
-  it('O4 の分類だけを供給し、是正済み確認は供給しない', async () => {
-    const queue = await openTestQueue()
-    const scope: DurableQueueScope = { game: 'o4-game', d4: 'o4-generation' }
-    const slot = await queue.append(
-      queue.prepareAppend({
+  it.each([B3_REJECTION_KIND.O4, B3_REJECTION_KIND.O5] as const)(
+    '%s の分類だけを供給し、是正済み確認は供給しない',
+    async (kind) => {
+      const queue = await openTestQueue()
+      const scope: DurableQueueScope = {
+        game: `${kind}-game`,
+        d4: `${kind}-generation`,
+      }
+      const slot = await queue.append(
+        queue.prepareAppend({
+          scope,
+          d5: `${kind}-d5`,
+          version: `${kind}-version`,
+          event: eventOfKind(OTHER_EVENT_KIND),
+        }),
+      )
+      const injections = createAckAdapterInjections({
+        d1: {
+          envelope: {
+            advancedD3: 0,
+            eventResults: [
+              { ...eventKey(slot), a5Result: REJECTED_ACK_RESULT.id },
+            ],
+          },
+          boundaryResult: B3_BOUNDARY_RESULT.id,
+          b3Rejection: { kind, reason: 'opaque-reason' },
+        },
+      })
+      const preparation = await queue.prepareA5Transition(
         scope,
-        d5: 'o4-d5',
-        version: 'o4-version',
-        event: eventOfKind(OTHER_EVENT_KIND),
-      }),
-    )
-    const injections = createAckAdapterInjections({
-      d1: {
-        envelope: {
-          advancedD3: 0,
-          eventResults: [
-            { ...eventKey(slot), a5Result: REJECTED_ACK_RESULT.id },
-          ],
-        },
-        boundaryResult: B3_BOUNDARY_RESULT.id,
-        b3Rejection: {
-          kind: B3_REJECTION_KIND.O4,
-          reason: 'opaque-reason',
-        },
-      },
-    })
-    const preparation = await queue.prepareA5Transition(
-      scope,
-      slot.d1,
-      injections,
-    )
-    if (!preparation) {
-      throw new Error('O4 イベントの A5 preparation がありません')
-    }
+        slot.d1,
+        injections,
+      )
+      if (!preparation) {
+        throw new Error(`${kind} イベントの A5 preparation がありません`)
+      }
 
-    const transition = evaluateQueueTransition(
-      { kind: 'apply-a5', queue, preparation },
-      injections,
-    )
+      const transition = evaluateQueueTransition(
+        { kind: 'apply-a5', queue, preparation },
+        injections,
+      )
 
-    expect(transition).toMatchObject({
-      applied: true,
-      target: queueStateId('要操作'),
-      slot: {
-        actionRequiredLabel: actionRequiredLabelId('管理者対応待ち'),
-      },
-    })
-    expect(Object.hasOwn(injections, 'confirmO4Correction')).toBe(false)
-  })
+      expect(transition).toMatchObject({
+        applied: true,
+        target: queueStateId('要操作'),
+        slot: {
+          actionRequiredLabel: actionRequiredLabelId('管理者対応待ち'),
+          rejectionCode: kind,
+        },
+      })
+      expect(Object.hasOwn(injections, 'confirmO4Correction')).toBe(false)
+      expect(Object.hasOwn(injections, 'confirmO5Correction')).toBe(false)
+    },
+  )
 
   it('応答が無いと4点をすべて未注入のままにして遷移しない', async () => {
     const queue = await openTestQueue()

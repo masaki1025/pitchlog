@@ -55,6 +55,7 @@ import {
 import type {
   B3ContentRejection,
   B3O4Rejection,
+  B3O5Rejection,
   B3Rejection,
 } from './rejectionReason'
 import type {
@@ -531,6 +532,7 @@ const EXPECTED_TYPE_EXPORTS = {
     'B3ContentBranch',
     'B3ContentRejection',
     'B3O4Rejection',
+    'B3O5Rejection',
     'B3Rejection',
   ],
   'resendRange.ts': [
@@ -1163,6 +1165,7 @@ describe('prohibitions', () => {
       | 'event'
       | 'state'
       | 'actionRequiredLabel'
+      | 'rejectionCode'
     > = true
     const exactAppendEvent: ExactKeySet<
       DurableQueueAppend['event'],
@@ -1480,6 +1483,7 @@ describe('prohibitions', () => {
       AdapterInjectionKey,
       | 'confirmI6EvacuationSaved'
       | 'confirmO4Correction'
+      | 'confirmO5Correction'
       | 'resolveRg1State'
       | 'resolveB3ContentAction'
       | 'confirmTombstoneGeneration'
@@ -1692,27 +1696,34 @@ describe('prohibitions', () => {
       keyof B3O4Rejection,
       'kind' | 'reason' | 'correctionConfirmation'
     > = true
-    type B3VariantKeys = keyof B3ContentRejection | keyof B3O4Rejection
+    const exactO5Keys: ExactKeySet<
+      keyof B3O5Rejection,
+      'kind' | 'reason' | 'correctionConfirmation'
+    > = true
+    type B3VariantKeys =
+      keyof B3ContentRejection | keyof B3O4Rejection | keyof B3O5Rejection
     type ForbiddenLabelKey = Extract<
       B3VariantKeys,
       | 'actionRequiredLabel'
       | 'revisionPending'
       | 'tombstonePending'
       | 'queueState'
+      | 'rejectionCode'
     >
     const noForbiddenLabelKey: ExactKeySet<ForbiddenLabelKey, never> = true
     const exactUnion: ExactKeySet<
       B3Rejection,
-      B3ContentRejection | B3O4Rejection
+      B3ContentRejection | B3O4Rejection | B3O5Rejection
     > = true
 
     expect([
       exactClassificationKeys,
       exactContentKeys,
       exactO4Keys,
+      exactO5Keys,
       noForbiddenLabelKey,
       exactUnion,
-    ]).toEqual([true, true, true, true, true])
+    ]).toEqual([true, true, true, true, true, true])
   })
 
   it('A5 語彙を ackEnvelope.ts に再定義せず canonOracle の型と reader だけから得る', () => {
@@ -2065,15 +2076,15 @@ describe('prohibitions', () => {
     await Promise.resolve()
   })
 
-  it('H-59 の実装逐語照合入力を55行出力する', async () => {
+  it('H-59 の実装逐語照合入力を56行出力する', async () => {
     expect(QUEUE_STATE_VERIFICATION_ROWS).toHaveLength(7)
     expect(I6_VERIFICATION_ROWS).toHaveLength(11)
-    expect(TRANSITION_VERIFICATION_ROWS).toHaveLength(14)
+    expect(TRANSITION_VERIFICATION_ROWS).toHaveLength(15)
     expect(CLIENT_RULE_VERIFICATION_ROWS).toHaveLength(14)
     expect(LOCAL_QUEUE_VERIFICATION_ROWS).toHaveLength(4)
     expect(SPECIAL_RULE_VERIFICATION_ROWS).toHaveLength(2)
     expect(W4_VERIFICATION_ROWS).toHaveLength(3)
-    expect(STEP_13_VERIFICATION_ROWS).toHaveLength(55)
+    expect(STEP_13_VERIFICATION_ROWS).toHaveLength(56)
     expect(STEP_13_VERIFICATION_ROWS.every((row) => !row.includes('\n'))).toBe(
       true,
     )

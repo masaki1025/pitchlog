@@ -30,7 +30,9 @@ const CONTENT_ACTION_LABEL_IDS = new Set<string>([
   REVISION_ACTION_LABEL_ID,
   TOMBSTONE_ACTION_LABEL_ID,
 ])
-const O4_ACTION_LABEL_ID = actionRequiredLabelId('管理者対応待ち')
+// O4 と O5 は同じ下位ラベル「管理者対応待ち」を共用し、再開方法は
+// スロットの理由コード(rejectionCode)で選ぶ(正本 7-2 の O5 の再開行)。
+const ADMIN_WAIT_ACTION_LABEL_ID = actionRequiredLabelId('管理者対応待ち')
 
 const CANON_ACK_RESULTS = readCanonAckStateResults()
 
@@ -67,6 +69,7 @@ type QueueTransitionTrigger =
   | 'ack-unavailable'
   | 'action-replacement-persisted'
   | 'o4-retry-persisted'
+  | 'o5-retry-persisted'
   | 'p3-acceptance-persisted'
   | 'i6-evacuation-saved'
   | 'discard'
@@ -99,6 +102,7 @@ const QUEUE_TRANSITION_ROW_ID = {
   ACTION_REQUIRED_DISCARD: 'QT-12',
   SYNCED_DISCARD: 'QT-13',
   EVACUATED_DISCARD: 'QT-14',
+  O5_RETRY: 'QT-15',
 } as const
 
 export const QUEUE_TRANSITION_RULES = [
@@ -244,6 +248,15 @@ export const QUEUE_TRANSITION_RULES = [
     transitionAllowed: false,
     changesState: false,
   },
+  {
+    id: QUEUE_TRANSITION_ROW_ID.O5_RETRY,
+    source: ACTION_REQUIRED_STATE,
+    target: UNSENT_STATE,
+    trigger: 'o5-retry-persisted',
+    condition: { kind: 'o5-corrected-same-d5-same-content' },
+    transitionAllowed: true,
+    changesState: true,
+  },
 ] as const satisfies readonly QueueTransitionRuleDefinition[]
 
 export const QUEUE_TRANSITION_ROW_IDS = Object.freeze(
@@ -284,6 +297,9 @@ type D1QueueSlot = Readonly<{
   key: QueueEventKey
   content: unknown
   actionRequiredLabel?: QueueActionRequiredLabel['id']
+  // 下位ラベルが「管理者対応待ち」のスロットでは必須。欠けたスロットは再開方法を
+  // 推測せず、QT-07・QT-15 のどちらも適用しない(正本 7-2 の O5 の再開行)。
+  rejectionCode?: AdminWaitRejectionCode
 }>
 
 type P3QueueSlot = Readonly<
@@ -303,17 +319,23 @@ type QueueSlotReplacement = Readonly<{
 export const B3_REASON_KIND = {
   CONTENT: '内容起因',
   O4: 'O4',
+  O5: 'O5',
   UNKNOWN: '不明',
 } as const
 
+// 管理者対応待ちのスロットが持つ理由コード(正本 7-2 — 状態と同じ書き込みで確定する)。
+type AdminWaitRejectionCode =
+  typeof B3_REASON_KIND.O4 | typeof B3_REASON_KIND.O5
+
 type ContentActionLabelId = Exclude<
   QueueActionRequiredLabel['id'],
-  typeof O4_ACTION_LABEL_ID
+  typeof ADMIN_WAIT_ACTION_LABEL_ID
 >
 
 export type B3ReasonClassification =
   | Readonly<{ kind: typeof B3_REASON_KIND.CONTENT }>
   | Readonly<{ kind: typeof B3_REASON_KIND.O4 }>
+  | Readonly<{ kind: typeof B3_REASON_KIND.O5 }>
   | Readonly<{ kind: typeof B3_REASON_KIND.UNKNOWN }>
 
 type B3ClassificationInput = Readonly<{
@@ -345,7 +367,9 @@ export type QueueTransitionInjections = Readonly<{
     readonly slot: QueueSlot
     readonly replacement: QueueSlotReplacement
   }) => boolean | undefined
+  // サーバーの是正確認は O4・O5 の別とともに渡る(正本 7-2)ので、注入も分ける。
   confirmO4Correction?: (slot: QueueSlot) => boolean | undefined
+  confirmO5Correction?: (slot: QueueSlot) => boolean | undefined
   resolveRg1State?: (slot: QueueSlot) => Rg1State | undefined
 }>
 
@@ -368,6 +392,11 @@ export type QueueTransitionRequest =
     }>
   | Readonly<{
       kind: 'o4-retry-persisted'
+      slot: QueueSlot
+      replacement: QueueSlotReplacement
+    }>
+  | Readonly<{
+      kind: 'o5-retry-persisted'
       slot: QueueSlot
       replacement: QueueSlotReplacement
     }>
@@ -439,6 +468,16 @@ function sameSlotWithNewD5(
     Object.is(slot.key.d4, replacement.key.d4) &&
     Object.is(slot.key.d1, replacement.key.d1) &&
     !Object.is(slot.key.d5, replacement.key.d5)
+  )
+}
+
+function sameEventSameContent(
+  slot: D1QueueSlot,
+  replacement: QueueSlotReplacement,
+): boolean {
+  return (
+    sameEventKey(slot.key, replacement.key) &&
+    Object.is(slot.content, replacement.content)
   )
 }
 
@@ -528,10 +567,15 @@ function applyA5(
     return notApplied(actionRequiredRule.id)
   }
 
-  if (classification.kind === B3_REASON_KIND.O4) {
+  if (
+    classification.kind === B3_REASON_KIND.O4 ||
+    classification.kind === B3_REASON_KIND.O5
+  ) {
+    // 状態・下位ラベル・理由コードを同じスロットへ一度に確定する(正本 7-2)。
     return applySlotRule(actionRequiredRule, {
       ...slot,
-      actionRequiredLabel: O4_ACTION_LABEL_ID,
+      actionRequiredLabel: ADMIN_WAIT_ACTION_LABEL_ID,
+      rejectionCode: classification.kind,
     })
   }
 
@@ -604,7 +648,8 @@ function applyO4Retry(
   if (
     slot.source !== 'd1-event' ||
     slot.state !== ACTION_REQUIRED_STATE ||
-    slot.actionRequiredLabel !== O4_ACTION_LABEL_ID ||
+    slot.actionRequiredLabel !== ADMIN_WAIT_ACTION_LABEL_ID ||
+    slot.rejectionCode !== B3_REASON_KIND.O4 ||
     !sameSlotWithNewD5(slot, replacement) ||
     !Object.is(slot.content, replacement.content)
   ) {
@@ -621,6 +666,41 @@ function applyO4Retry(
     return notApplied(rule.id)
   }
   return applySlotRule(rule, replacedUnsentSlot(slot, replacement))
+}
+
+// O5 は D5 を消費しないので、同じイベントを内容も D5 も変えずに未送信へ戻す
+// (正本 7-2 の「要操作(O5 の管理者対応待ち) → 未送信」行)。新しい D1・D5 は作らない。
+function applyO5Retry(
+  request: Extract<QueueTransitionRequest, { kind: 'o5-retry-persisted' }>,
+  injections: QueueTransitionInjections,
+): QueueTransitionResult {
+  const { slot, replacement } = request
+  const rule = queueTransitionRuleById(QUEUE_TRANSITION_ROW_ID.O5_RETRY)
+  if (
+    slot.source !== 'd1-event' ||
+    slot.state !== ACTION_REQUIRED_STATE ||
+    slot.actionRequiredLabel !== ADMIN_WAIT_ACTION_LABEL_ID ||
+    slot.rejectionCode !== B3_REASON_KIND.O5 ||
+    !sameEventSameContent(slot, replacement)
+  ) {
+    return notApplied(rule.id)
+  }
+
+  let confirmed: boolean | undefined
+  try {
+    confirmed = injections.confirmO5Correction?.(slot)
+  } catch {
+    return notApplied(rule.id)
+  }
+  if (confirmed !== true) {
+    return notApplied(rule.id)
+  }
+  return applySlotRule(rule, {
+    state: UNSENT_STATE,
+    key: slot.key,
+    content: slot.content,
+    source: slot.source,
+  })
 }
 
 function applyP3Acceptance(
@@ -717,6 +797,8 @@ export function evaluateQueueTransition(
       return applyActionReplacement(request, injections)
     case 'o4-retry-persisted':
       return applyO4Retry(request, injections)
+    case 'o5-retry-persisted':
+      return applyO5Retry(request, injections)
     case 'p3-acceptance-persisted':
       return applyP3Acceptance(request)
     case 'i6-evacuation-saved':

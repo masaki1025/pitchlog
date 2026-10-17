@@ -66,6 +66,7 @@ const QUEUE_SLOT_KEYS = Object.freeze([
   'event',
   'state',
   'actionRequiredLabel',
+  'rejectionCode',
 ] as const)
 const QUEUE_SLOT_REQUIRED_KEYS = Object.freeze([
   'game',

@@ -24,6 +24,7 @@ import {
 import {
   evaluateQueueTransition,
   type QueueEventKey,
+  type QueueSlot,
   type QueueTransitionInjections,
 } from './queueTransition'
 import {
@@ -93,6 +94,10 @@ export type DurableQueueTombstoneOperation = Readonly<{
   boundaryRequest: TombstoneBoundaryRequest
 }>
 
+type AdminWaitRejectionCode = NonNullable<
+  Extract<QueueSlot, { source: 'd1-event' }>['rejectionCode']
+>
+
 export type DurableQueueSlot = Readonly<{
   game: unknown
   d4: unknown
@@ -102,6 +107,10 @@ export type DurableQueueSlot = Readonly<{
   event: SyncEvent
   state: QueueStateId
   actionRequiredLabel?: QueueActionRequiredLabel['id']
+  // 管理者対応待ちの理由コード(O4 / O5)。状態・下位ラベルと同じ書き込みで確定する
+  // (正本 7-2)。永続層から読んだ記録に無くても例外にせず、そのまま保持する
+  // (理由コード欠落 — 再開方法を推測しない)。
+  rejectionCode?: AdminWaitRejectionCode
 }>
 
 export type DurableI6Slot = Readonly<
@@ -612,6 +621,10 @@ function persistedA5Slot(
     ...(transitioned.slot.actionRequiredLabel === undefined
       ? {}
       : { actionRequiredLabel: transitioned.slot.actionRequiredLabel }),
+    // 状態・下位ラベル・理由コードは 7-2 の単一実装が組で決め、ここで 1 回の put に載せる。
+    ...(transitioned.slot.rejectionCode === undefined
+      ? {}
+      : { rejectionCode: transitioned.slot.rejectionCode }),
   }
 }
 

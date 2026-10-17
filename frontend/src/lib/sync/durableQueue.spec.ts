@@ -38,7 +38,12 @@ import {
   queueStateId,
   type I6Acceptance,
 } from './queueState'
-import { evaluateQueueTransition, RG1_STATE } from './queueTransition'
+import {
+  B3_REASON_KIND,
+  evaluateQueueTransition,
+  RG1_STATE,
+  type QueueSlot,
+} from './queueTransition'
 import {
   TARGET_EVENT_REFERENCE_ELEMENTS,
   type TargetEventReference,
@@ -118,6 +123,16 @@ const ACK_ACCEPTED_RESULT: CanonAckStateResult = (() => {
   )
   if (!result) {
     throw new Error('受理の A5 結果がありません')
+  }
+  return result
+})()
+
+const ACK_REJECTED_RESULT: CanonAckStateResult = (() => {
+  const result = readCanonAckStateResults().find(
+    (candidate) => candidate.id === CANON_ACK_STATE_RESULT.REJECTED,
+  )
+  if (!result) {
+    throw new Error('拒否の A5 結果がありません')
   }
   return result
 })()
@@ -434,6 +449,164 @@ describe('durableQueue', () => {
       ).toBe(queueStateId('未送信'))
     },
   )
+
+  it.each([B3_REASON_KIND.O4, B3_REASON_KIND.O5] as const)(
+    '%s の拒否は状態・下位ラベル・理由コードを 1 回の書き込みで確定し、再読込後も保つ',
+    async (code) => {
+      const queue = await openTestQueue()
+      const databaseName = databaseNames.at(-1)
+      if (!databaseName) {
+        throw new Error('テスト DB 名がありません')
+      }
+      const scope = { game: `game-${code}`, d4: `generation-${code}` }
+      const stored = await appendToQueue(
+        queue,
+        appendInput(scope, { d5: `${code}-d5`, event: revisionEvent() }),
+      )
+      const preparation = await prepareA5Persistence(
+        queue,
+        scope,
+        stored,
+        ACK_REJECTED_RESULT,
+        { classifyB3: () => ({ kind: code }) },
+      )
+      const transactionSpy = vi.spyOn(IDBDatabase.prototype, 'transaction')
+      const putSpy = vi.spyOn(IDBObjectStore.prototype, 'put')
+      const expected: DurableQueueSlot = {
+        ...stored,
+        state: queueStateId('要操作'),
+        actionRequiredLabel: actionRequiredLabelId('管理者対応待ち'),
+        rejectionCode: code,
+      }
+
+      const persisted = await queue.persistA5Transition(preparation)
+
+      expect(persisted).toEqual(expected)
+      expect(transactionSpy).toHaveBeenCalledTimes(1)
+      expect(transactionSpy).toHaveBeenCalledWith('queue', 'readwrite')
+      expect(putSpy).toHaveBeenCalledTimes(1)
+      expect(putSpy).toHaveBeenCalledWith(expected)
+
+      queue.close()
+      const reopened = await openDurableQueue({
+        databaseName,
+        requestStoragePersistence: async () => false,
+      })
+      openedQueues.push(reopened)
+      expect(await reopened.readSlot(scope, stored.d1)).toEqual(expected)
+    },
+  )
+
+  it('理由コードの書き込みに失敗したら、状態だけが要操作になった中間状態を残さない', async () => {
+    const queue = await openTestQueue()
+    const scope = { game: 'game-o5', d4: 'generation-o5' }
+    const stored = await appendToQueue(
+      queue,
+      appendInput(scope, { d5: 'o5-d5', event: revisionEvent() }),
+    )
+    const preparation = await prepareA5Persistence(
+      queue,
+      scope,
+      stored,
+      ACK_REJECTED_RESULT,
+      { classifyB3: () => ({ kind: B3_REASON_KIND.O5 }) },
+    )
+    const originalPut = IDBObjectStore.prototype.put
+    // 理由コードを含む書き込みだけを失敗させる。状態と理由コードを別の書き込みに
+    // 分けた実装では、先に書いた状態だけが残るのでこの試験が赤になる。
+    const putSpy = vi
+      .spyOn(IDBObjectStore.prototype, 'put')
+      .mockImplementation(function (
+        this: IDBObjectStore,
+        value: unknown,
+        key?: IDBValidKey,
+      ) {
+        if (
+          typeof value === 'object' &&
+          value !== null &&
+          Object.hasOwn(value, 'rejectionCode')
+        ) {
+          throw new Error('理由コードの書き込みに失敗しました')
+        }
+        return originalPut.call(this, value, key)
+      })
+
+    await expect(queue.persistA5Transition(preparation)).rejects.toThrow(
+      '理由コードの書き込みに失敗しました',
+    )
+    expect(putSpy).toHaveBeenCalled()
+    putSpy.mockRestore()
+
+    const after = await queue.readSlot(scope, stored.d1)
+    expect(after).toEqual(stored)
+    expect(after?.state).toBe(queueStateId('未送信'))
+    expect(after && Object.hasOwn(after, 'rejectionCode')).toBe(false)
+  })
+
+  it('永続層の記録に理由コードが無い管理者対応待ちは例外にせず保持し、再開方法を推測しない', async () => {
+    const queue = await openTestQueue()
+    const databaseName = databaseNames.at(-1)
+    if (!databaseName) {
+      throw new Error('テスト DB 名がありません')
+    }
+    const scope = { game: 'game-legacy', d4: 'generation-legacy' }
+    const stored = await appendToQueue(
+      queue,
+      appendInput(scope, { d5: 'legacy-d5', event: revisionEvent() }),
+    )
+    const withoutCode: DurableQueueSlot = {
+      ...stored,
+      state: queueStateId('要操作'),
+      actionRequiredLabel: actionRequiredLabelId('管理者対応待ち'),
+    }
+    await overwriteQueueSlot(databaseName, withoutCode)
+
+    const read = await queue.readSlot(scope, stored.d1)
+    expect(read).toEqual(withoutCode)
+    if (!read) {
+      throw new Error('理由コードの無いスロットを読めません')
+    }
+    expect(Object.hasOwn(read, 'rejectionCode')).toBe(false)
+    const slot: QueueSlot = {
+      state: read.state,
+      source: 'd1-event',
+      key: { d4: read.d4, d1: read.d1, d5: read.d5 },
+      content: read.event,
+      ...(read.actionRequiredLabel === undefined
+        ? {}
+        : { actionRequiredLabel: read.actionRequiredLabel }),
+    }
+    const allConfirmed = {
+      confirmO4Correction: () => true,
+      confirmO5Correction: () => true,
+    }
+
+    expect(
+      evaluateQueueTransition(
+        {
+          kind: 'o4-retry-persisted',
+          slot,
+          replacement: {
+            key: { ...slot.key, d5: 'new-d5' },
+            content: read.event,
+          },
+        },
+        allConfirmed,
+      ).applied,
+    ).toBe(false)
+    expect(
+      evaluateQueueTransition(
+        {
+          kind: 'o5-retry-persisted',
+          slot,
+          replacement: { key: slot.key, content: read.event },
+        },
+        allConfirmed,
+      ).applied,
+    ).toBe(false)
+    expect(await queue.countSlots()).toBe(1)
+    expect(await queue.readSlot(scope, stored.d1)).toEqual(withoutCode)
+  })
 
   it('同じ応答の A4 が未確認なら同期済みにせず、確認済みなら永続化する', async () => {
     const queue = await openTestQueue()

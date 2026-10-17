@@ -19,7 +19,11 @@ import {
 import { EVENT_KIND_SLOT_ID } from './eventFieldRules'
 import { EVENT_KIND_RULES } from './eventKinds'
 import queueTransitionSource from './queueTransition.ts?raw'
-import { queueStateId, type QueueStateId } from './queueState'
+import {
+  actionRequiredLabelId,
+  queueStateId,
+  type QueueStateId,
+} from './queueState'
 import resendRangeSource from './resendRange.ts?raw'
 import {
   determineResendRange,
@@ -219,6 +223,31 @@ describe('resendRange', () => {
     })
     expect(Object.isFrozen(result.slots)).toBe(true)
   })
+
+  it.each(['O4', 'O5'] as const)(
+    '理由コード %s の管理者対応待ちのスロットを再送範囲に選ばない',
+    (rejectionCode) => {
+      const adminWait: DurableQueueSlot = {
+        ...slot(2, queueStateId('要操作')),
+        actionRequiredLabel: actionRequiredLabelId('管理者対応待ち'),
+        rejectionCode,
+      }
+      const unsent = slot(3)
+
+      const result = determineResendRange({
+        d4: CURRENT_D4,
+        orderedSlots: [slot(1), adminWait, unsent],
+        lastKnownSynced: checkpoint(1),
+        isD1AfterD3,
+      })
+
+      expect(result).toEqual({
+        status: 'ready',
+        checkpoint: checkpoint(1),
+        slots: [unsent],
+      })
+    },
+  )
 
   it('ACK の D3 を直前の記憶より優先して次の再送範囲に使う', () => {
     const d3 = Symbol('advanced D3')

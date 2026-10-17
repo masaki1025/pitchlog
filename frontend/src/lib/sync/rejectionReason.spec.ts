@@ -78,6 +78,39 @@ describe('rejectionReason', () => {
     })
   })
 
+  it('O5 を {kind, reason} ちょうどで受け、O4 と区別したまま管理者による是正確認待ちにする', () => {
+    const reason = {}
+    const parsed = parseB3Rejection({ kind: B3_REJECTION_KIND.O5, reason })
+
+    expect(parsed).toEqual({
+      kind: B3_REJECTION_KIND.O5,
+      reason,
+      correctionConfirmation: O4_CORRECTION_CONFIRMATION.PENDING,
+    })
+    expect(parsed.kind).not.toBe(B3_REJECTION_KIND.O4)
+    expect(parsed.reason).toBe(reason)
+    expect(Object.isFrozen(parsed)).toBe(true)
+  })
+
+  it('O5 の reason の欠落を fail-closed に拒否する', () => {
+    expect(() => parseB3Rejection({ kind: B3_REJECTION_KIND.O5 })).toThrowError(
+      /理由がありません/,
+    )
+    expect(() =>
+      parseB3Rejection({ kind: B3_REJECTION_KIND.O5, reason: undefined }),
+    ).toThrowError(/理由がありません/)
+  })
+
+  it('O5 に内容拒否の下位区分を混在させない', () => {
+    expect(() =>
+      parseB3Rejection({
+        kind: B3_REJECTION_KIND.O5,
+        branch: B3_CONTENT_BRANCH.B3A,
+        reason: {},
+      }),
+    ).toThrowError(/O5 に B3 内容拒否区分/)
+  })
+
   it('未知の内容拒否区分を fail-closed に拒否する', () => {
     expect(() =>
       parseB3Rejection({
@@ -121,6 +154,7 @@ describe('rejectionReason', () => {
       extra: {},
     },
     { kind: B3_REJECTION_KIND.O4, reason: {}, extra: {} },
+    { kind: B3_REJECTION_KIND.O5, reason: {}, extra: {} },
   ])('余分なキーを持つ拒否結果を拒否する', (candidate) => {
     expect(() => parseB3Rejection(candidate)).toThrow()
   })

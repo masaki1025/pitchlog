@@ -53,7 +53,7 @@ const EVACUATED_STATE = QUEUE_STATES[3].id
 const REVISION_ACTION_LABEL = QUEUE_ACTION_REQUIRED_LABELS[0]
 const TOMBSTONE_ACTION_LABEL = QUEUE_ACTION_REQUIRED_LABELS[1]
 const CONTENT_ACTION_LABELS = [REVISION_ACTION_LABEL, TOMBSTONE_ACTION_LABEL]
-const O4_ACTION_LABEL = QUEUE_ACTION_REQUIRED_LABELS[2]
+const ADMIN_WAIT_ACTION_LABEL = QUEUE_ACTION_REQUIRED_LABELS[2]
 
 const EXPECTED_ROW_IDS = [
   'QT-01',
@@ -70,6 +70,7 @@ const EXPECTED_ROW_IDS = [
   'QT-12',
   'QT-13',
   'QT-14',
+  'QT-15',
 ] as const satisfies readonly QueueTransitionRowId[]
 
 const CANON_ACK_RESULTS = readCanonAckStateResults()
@@ -286,8 +287,8 @@ type ExpectedTransitionRow = Readonly<{
   changesState: boolean
 }>
 
-// R-QUEUE-LIFE に 14 行の遷移表はなく、正本 7-2 の本文だけが出所である。
-// R-ACK-STATE も結果集合の5語だけを持ち、14行の遷移条件と A5 の語の対応は照合できない。
+// R-QUEUE-LIFE に 15 行の遷移表はなく、正本 7-2 の本文だけが出所である。
+// R-ACK-STATE も結果集合の5語だけを持ち、15行の遷移条件と A5 の語の対応は照合できない。
 // 製品定数を参照すると表と evaluator の同時誤りを検出できないため、ここでは H-61 より
 // テストの独立性を優先して期待表をリテラルで持ち、逐語一致は人間の逐行確認へ送る。
 const EXPECTED_TRANSITION_ROWS = [
@@ -433,6 +434,15 @@ const EXPECTED_TRANSITION_ROWS = [
     transitionAllowed: false,
     changesState: false,
   },
+  {
+    id: 'QT-15',
+    source: '要操作',
+    target: '未送信',
+    trigger: 'o5-retry-persisted',
+    condition: { kind: 'o5-corrected-same-d5-same-content' },
+    transitionAllowed: true,
+    changesState: true,
+  },
 ] as const satisfies readonly ExpectedTransitionRow[]
 
 type TransitionRunner = () =>
@@ -489,7 +499,8 @@ const TRANSITION_RUNNERS = {
   },
   'QT-07': () => {
     const slot = queueSlot(ACTION_REQUIRED_STATE, {
-      actionRequiredLabel: O4_ACTION_LABEL.id,
+      actionRequiredLabel: ADMIN_WAIT_ACTION_LABEL.id,
+      rejectionCode: B3_REASON_KIND.O4,
     })
     return evaluateQueueTransition(
       {
@@ -551,6 +562,20 @@ const TRANSITION_RUNNERS = {
       slot: queueSlot(EVACUATED_STATE),
       confirmed24HoursElapsed: true,
     }),
+  'QT-15': () => {
+    const slot = queueSlot(ACTION_REQUIRED_STATE, {
+      actionRequiredLabel: ADMIN_WAIT_ACTION_LABEL.id,
+      rejectionCode: B3_REASON_KIND.O5,
+    })
+    return evaluateQueueTransition(
+      {
+        kind: 'o5-retry-persisted',
+        slot,
+        replacement: { key: slot.key, content: slot.content },
+      },
+      { confirmO5Correction: () => true },
+    )
+  },
 } satisfies Readonly<Record<QueueTransitionRowId, TransitionRunner>>
 
 type MutableTransitionRule = {
@@ -674,9 +699,9 @@ describe('queueTransition', () => {
     )
 
     expectTransitionTableMatchesExpected(QUEUE_TRANSITION_RULES)
-    expect(QUEUE_TRANSITION_RULES).toHaveLength(14)
-    expect(QUEUE_TRANSITION_ROW_IDS).toHaveLength(14)
-    expect(new Set(QUEUE_TRANSITION_ROW_IDS).size).toBe(14)
+    expect(QUEUE_TRANSITION_RULES).toHaveLength(15)
+    expect(QUEUE_TRANSITION_ROW_IDS).toHaveLength(15)
+    expect(new Set(QUEUE_TRANSITION_ROW_IDS).size).toBe(15)
     expect(new Set(QUEUE_TRANSITION_ROW_IDS)).toEqual(new Set(EXPECTED_ROW_IDS))
     expect(QUEUE_TRANSITION_ROW_IDS).toEqual(
       QUEUE_TRANSITION_RULES.map((rule) => rule.id),
@@ -922,7 +947,7 @@ describe('queueTransition', () => {
     [
       '2 択外',
       {
-        resolveB3ContentAction: () => O4_ACTION_LABEL.id,
+        resolveB3ContentAction: () => ADMIN_WAIT_ACTION_LABEL.id,
       } as unknown as QueueTransitionInjections,
     ],
   ] as const satisfies readonly (readonly [string, QueueTransitionInjections])[]
@@ -972,22 +997,47 @@ describe('queueTransition', () => {
     expect(Object.hasOwn(classification, 'actionRequiredLabel')).toBe(true)
   })
 
-  it('O4 の B3 を管理者対応用ラベルに分類する', async () => {
+  it.each([B3_REASON_KIND.O4, B3_REASON_KIND.O5] as const)(
+    '%s の B3 を管理者対応待ちと同じ理由コードで同じスロットに確定する',
+    async (code) => {
+      const { queue, preparation, slot } = await preparedA5Slot()
+      const result = evaluateQueueTransition(
+        { kind: 'apply-a5', queue, preparation },
+        {
+          ...resolveA5(ACK_REJECTED_RESULT, slot.key),
+          classifyB3: () => ({ kind: code }),
+        },
+      )
+
+      expect(result).toMatchObject({ applied: true, rowId: 'QT-03' })
+      if (result.applied) {
+        expect(result.slot?.source).toBe('d1-event')
+        if (result.slot?.source === 'd1-event') {
+          expect(result.slot.state).toBe(ACTION_REQUIRED_STATE)
+          expect(result.slot.actionRequiredLabel).toBe(
+            ADMIN_WAIT_ACTION_LABEL.id,
+          )
+          expect(result.slot.rejectionCode).toBe(code)
+          expect(result.slot.key).toEqual(slot.key)
+        }
+      }
+    },
+  )
+
+  it('内容起因の B3 では理由コードを持たせない', async () => {
     const { queue, preparation, slot } = await preparedA5Slot()
     const result = evaluateQueueTransition(
       { kind: 'apply-a5', queue, preparation },
       {
         ...resolveA5(ACK_REJECTED_RESULT, slot.key),
-        classifyB3: () => ({ kind: B3_REASON_KIND.O4 }),
+        classifyB3: () => ({ kind: B3_REASON_KIND.CONTENT }),
+        resolveB3ContentAction: () => REVISION_ACTION_LABEL.id,
       },
     )
 
     expect(result.applied).toBe(true)
-    if (result.applied) {
-      expect(result.slot?.source).toBe('d1-event')
-      if (result.slot?.source === 'd1-event') {
-        expect(result.slot.actionRequiredLabel).toBe(O4_ACTION_LABEL.id)
-      }
+    if (result.applied && result.slot?.source === 'd1-event') {
+      expect(Object.hasOwn(result.slot, 'rejectionCode')).toBe(false)
     }
   })
 
@@ -1086,7 +1136,8 @@ describe('queueTransition', () => {
 
   it('O4 是正後も内容と D1 を保ち、新しい D5 で未送信へ戻す', () => {
     const slot = queueSlot(ACTION_REQUIRED_STATE, {
-      actionRequiredLabel: O4_ACTION_LABEL.id,
+      actionRequiredLabel: ADMIN_WAIT_ACTION_LABEL.id,
+      rejectionCode: B3_REASON_KIND.O4,
     })
     const newD5 = {}
     const result = evaluateQueueTransition(
@@ -1109,13 +1160,16 @@ describe('queueTransition', () => {
         expect(result.slot.content).toBe(slot.content)
         expect(result.slot.key.d1).toBe(slot.key.d1)
         expect(result.slot.key.d5).toBe(newD5)
+        expect(Object.hasOwn(result.slot, 'actionRequiredLabel')).toBe(false)
+        expect(Object.hasOwn(result.slot, 'rejectionCode')).toBe(false)
       }
     }
   })
 
   it('O4 是正後の内容変更を拒否する', () => {
     const slot = queueSlot(ACTION_REQUIRED_STATE, {
-      actionRequiredLabel: O4_ACTION_LABEL.id,
+      actionRequiredLabel: ADMIN_WAIT_ACTION_LABEL.id,
+      rejectionCode: B3_REASON_KIND.O4,
     })
 
     expect(
@@ -1261,7 +1315,8 @@ describe('queueTransition', () => {
       name: 'O4 是正済み確認',
       run: () => {
         const slot = queueSlot(ACTION_REQUIRED_STATE, {
-          actionRequiredLabel: O4_ACTION_LABEL.id,
+          actionRequiredLabel: ADMIN_WAIT_ACTION_LABEL.id,
+          rejectionCode: B3_REASON_KIND.O4,
         })
         return evaluateQueueTransition({
           kind: 'o4-retry-persisted',
@@ -1270,6 +1325,20 @@ describe('queueTransition', () => {
             key: eventKey({ d5: {} }),
             content: slot.content,
           },
+        })
+      },
+    },
+    {
+      name: 'O5 是正済み確認',
+      run: () => {
+        const slot = queueSlot(ACTION_REQUIRED_STATE, {
+          actionRequiredLabel: ADMIN_WAIT_ACTION_LABEL.id,
+          rejectionCode: B3_REASON_KIND.O5,
+        })
+        return evaluateQueueTransition({
+          kind: 'o5-retry-persisted',
+          slot,
+          replacement: { key: slot.key, content: slot.content },
         })
       },
     },
@@ -1312,14 +1381,235 @@ describe('queueTransition', () => {
     },
   ] as const
 
-  it('注入境界を7点とも fail-closed の負例で固定する', () => {
-    expect(missingInjectionCases).toHaveLength(7)
+  it('注入境界を8点とも fail-closed の負例で固定する', () => {
+    expect(missingInjectionCases).toHaveLength(8)
   })
 
   it.each(missingInjectionCases)(
     '変異: $name の注入を無視せず fail-closed にする',
     async (testCase) => {
       expect((await testCase.run()).applied).toBe(false)
+    },
+  )
+
+  function adminWaitSlot(
+    rejectionCode?: D1QueueSlot['rejectionCode'],
+  ): D1QueueSlot {
+    return queueSlot(ACTION_REQUIRED_STATE, {
+      actionRequiredLabel: ADMIN_WAIT_ACTION_LABEL.id,
+      ...(rejectionCode === undefined ? {} : { rejectionCode }),
+    })
+  }
+
+  function o5Retry(
+    slot: QueueSlot,
+    replacement: Readonly<{ key: QueueEventKey; content: unknown }>,
+    injections: QueueTransitionInjections,
+  ): QueueTransitionResult {
+    return evaluateQueueTransition(
+      { kind: 'o5-retry-persisted', slot, replacement },
+      injections,
+    )
+  }
+
+  it('QT-15: O5 是正後は同じ (D4, D1, D5)・同じ内容で未送信へ戻し、ラベルと理由コードを外す', () => {
+    const slot = adminWaitSlot(B3_REASON_KIND.O5)
+    const confirmO5Correction = vi.fn(() => true)
+    const confirmO4Correction = vi.fn(() => true)
+    const result = o5Retry(
+      slot,
+      { key: slot.key, content: slot.content },
+      { confirmO5Correction, confirmO4Correction },
+    )
+
+    expect(result).toMatchObject({
+      applied: true,
+      rowId: 'QT-15',
+      target: UNSENT_STATE,
+    })
+    expect(confirmO5Correction).toHaveBeenCalledWith(slot)
+    expect(confirmO4Correction).not.toHaveBeenCalled()
+    if (result.applied && result.slot?.source === 'd1-event') {
+      expect(result.slot.state).toBe(UNSENT_STATE)
+      expect(result.slot.key.d4).toBe(slot.key.d4)
+      expect(result.slot.key.d1).toBe(slot.key.d1)
+      expect(result.slot.key.d5).toBe(slot.key.d5)
+      expect(result.slot.content).toBe(slot.content)
+      expect(Object.hasOwn(result.slot, 'actionRequiredLabel')).toBe(false)
+      expect(Object.hasOwn(result.slot, 'rejectionCode')).toBe(false)
+    } else {
+      throw new Error('QT-15 の遷移結果に D1 スロットがありません')
+    }
+  })
+
+  const o5RetryMismatches = [
+    ['新しい D5', (slot: D1QueueSlot) => ({ ...slot.key, d5: {} })],
+    ['別の D1', (slot: D1QueueSlot) => ({ ...slot.key, d1: {} })],
+    ['別の D4', (slot: D1QueueSlot) => ({ ...slot.key, d4: {} })],
+  ] as const
+
+  it.each(o5RetryMismatches)(
+    'QT-15: %s の置換は O5 の再開に使わない',
+    (_name, changeKey) => {
+      const slot = adminWaitSlot(B3_REASON_KIND.O5)
+      const confirmO5Correction = vi.fn(() => true)
+      const result = o5Retry(
+        slot,
+        { key: changeKey(slot), content: slot.content },
+        { confirmO5Correction },
+      )
+
+      expect(result).toEqual({ applied: false, rowId: 'QT-15' })
+      expect(confirmO5Correction).not.toHaveBeenCalled()
+    },
+  )
+
+  it('QT-15: 内容が違う置換は O5 の再開に使わない', () => {
+    const slot = adminWaitSlot(B3_REASON_KIND.O5)
+    const result = o5Retry(
+      slot,
+      { key: slot.key, content: structuredClone(slot.content) },
+      { confirmO5Correction: () => true },
+    )
+
+    expect(result).toEqual({ applied: false, rowId: 'QT-15' })
+  })
+
+  const blockedO5Confirmations = [
+    ['未注入', {}],
+    ['undefined', { confirmO5Correction: () => undefined }],
+    ['false', { confirmO5Correction: () => false }],
+    [
+      '例外',
+      {
+        confirmO5Correction: () => {
+          throw new Error('是正確認の取得失敗')
+        },
+      },
+    ],
+    ['O4 の確認だけ', { confirmO4Correction: () => true }],
+  ] as const satisfies readonly (readonly [string, QueueTransitionInjections])[]
+
+  it.each(blockedO5Confirmations)(
+    'QT-15: O5 の是正確認が%sなら要操作のまま保持する',
+    (_name, injections) => {
+      const slot = adminWaitSlot(B3_REASON_KIND.O5)
+
+      expect(
+        o5Retry(slot, { key: slot.key, content: slot.content }, injections),
+      ).toEqual({ applied: false, rowId: 'QT-15' })
+    },
+  )
+
+  it('QT-15: 理由コード O4 のスロットは O5 の再開に使わない', () => {
+    const slot = adminWaitSlot(B3_REASON_KIND.O4)
+
+    expect(
+      o5Retry(
+        slot,
+        { key: slot.key, content: slot.content },
+        { confirmO5Correction: () => true, confirmO4Correction: () => true },
+      ),
+    ).toEqual({ applied: false, rowId: 'QT-15' })
+  })
+
+  it('QT-07: 理由コード O5 のスロットは新しい D5 で再開しない', () => {
+    const slot = adminWaitSlot(B3_REASON_KIND.O5)
+
+    expect(
+      evaluateQueueTransition(
+        {
+          kind: 'o4-retry-persisted',
+          slot,
+          replacement: { key: eventKey({ d5: {} }), content: slot.content },
+        },
+        { confirmO4Correction: () => true, confirmO5Correction: () => true },
+      ),
+    ).toEqual({ applied: false, rowId: 'QT-07' })
+  })
+
+  const nonAdminWaitO5Slots = [
+    ['未送信', queueSlot(UNSENT_STATE, { rejectionCode: B3_REASON_KIND.O5 })],
+    [
+      '下位ラベルなしの要操作',
+      queueSlot(ACTION_REQUIRED_STATE, { rejectionCode: B3_REASON_KIND.O5 }),
+    ],
+    [
+      '改訂待ち',
+      queueSlot(ACTION_REQUIRED_STATE, {
+        actionRequiredLabel: REVISION_ACTION_LABEL.id,
+        rejectionCode: B3_REASON_KIND.O5,
+      }),
+    ],
+  ] as const
+
+  it.each(nonAdminWaitO5Slots)(
+    'QT-15: %s のスロットは理由コード O5 があっても再開しない',
+    (_name, slot) => {
+      expect(
+        o5Retry(
+          slot,
+          { key: slot.key, content: slot.content },
+          { confirmO5Correction: () => true },
+        ),
+      ).toEqual({ applied: false, rowId: 'QT-15' })
+    },
+  )
+
+  const missingRejectionCodeSlots = [
+    ['欠落', adminWaitSlot()],
+    [
+      '未知の値',
+      queueSlot(ACTION_REQUIRED_STATE, {
+        actionRequiredLabel: ADMIN_WAIT_ACTION_LABEL.id,
+        rejectionCode: 'O6' as unknown as D1QueueSlot['rejectionCode'],
+      }),
+    ],
+  ] as const
+
+  it.each(missingRejectionCodeSlots)(
+    '理由コードが%sの管理者対応待ちは QT-07 も QT-15 も適用せず要操作のまま保つ',
+    (_name, slot) => {
+      const allConfirmed: QueueTransitionInjections = {
+        confirmO4Correction: () => true,
+        confirmO5Correction: () => true,
+      }
+
+      expect(
+        evaluateQueueTransition(
+          {
+            kind: 'o4-retry-persisted',
+            slot,
+            replacement: { key: eventKey({ d5: {} }), content: slot.content },
+          },
+          allConfirmed,
+        ),
+      ).toEqual({ applied: false, rowId: 'QT-07' })
+      expect(
+        o5Retry(slot, { key: slot.key, content: slot.content }, allConfirmed),
+      ).toEqual({ applied: false, rowId: 'QT-15' })
+      expect(
+        evaluateQueueTransition(
+          { kind: 'discard', slot, confirmed24HoursElapsed: true },
+          { resolveRg1State: () => RG1_STATE.INACTIVE_CONFIRMED },
+        ),
+      ).toEqual({ applied: false, rowId: 'QT-12' })
+    },
+  )
+
+  it.each([B3_REASON_KIND.O4, B3_REASON_KIND.O5] as const)(
+    '理由コード %s の管理者対応待ちも破棄しない(QT-12)',
+    (code) => {
+      expect(
+        evaluateQueueTransition(
+          {
+            kind: 'discard',
+            slot: adminWaitSlot(code),
+            confirmed24HoursElapsed: true,
+          },
+          { resolveRg1State: () => RG1_STATE.INACTIVE_CONFIRMED },
+        ),
+      ).toEqual({ applied: false, rowId: 'QT-12' })
     },
   )
 
