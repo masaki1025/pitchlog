@@ -195,6 +195,8 @@ branch: feature/us1-sync-port-surface
 - 7 箇所を `O5InvariantViolation` に。取引を抜けた後で受けて B3 + A5「拒否」(O5)、D5 を消費しない。O4 の識別を `P1Result.b3_code` へ。`O5_CODES` と送出箇所の突合、`sync` の raise 全件(198 件)の棚卸しの突合を pytest に(Claude のサブエージェントが実装 — Codex 停止中)
 - 検査: 新設の単体 22 件・DB 境界 13 件(専用 DB)/ 既存の sync 単体 420 件・DB 143 件 / 非 DB 全件 1891 件 green。変異 4 種で赤を確認
 
+- **ステップ 8 の敵対レビュー 1 回目(Fable 5.1)可決(P0 0 / P1 1 / P2 2)** — 採用: [P1] ポートが送出した `O5InvariantViolation` が O5 に写り、design 12-2(Port の例外は B7)と矛盾する(探針で再現)→ 3 Port の呼び出しを `_call_port` で包み、O5 の型を `RuntimeError` へ包み直す。ポート 3 種の試験を足し、包み直しを外す変異で 3 件赤 / [P2] 部分型で送出の突合を迂回できる → `O5InvariantViolation.__subclasses__() == []` を固定 / [P2] 全取消・D5 非消費を守るのは DB 試験だけ → **PR の受理条件に「CI の DB 試験(`test_sync_apply_o5_boundary.py`)が head sha で green」を入れる**(採用)。非 DB の偽スコープでコミットの有無を観測する試験の追加は不採用(理由: 取消は DB の取引の性質で、偽スコープでは製品のロールバックを観測できず、模擬の精度に依存する。DB 試験が 3 つの変異で赤になることは実装時に確認済み)— PO の判断に上げる
+
 ## 未決・次の一歩
 
 - /plan で計画書を書き、計画レビューにかける(コア領域 — 代替主体 Fable 5.1・6.3 (6) の様式)

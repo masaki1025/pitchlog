@@ -240,6 +240,7 @@ prefix_path.py | _resolve_player_reference | P1ContentRejection | 選手参照�
 prefix_path.py | _resolve_player_reference | O5InvariantViolation | player_mapping_type, 正式選手 ID の型が不正 | 462 | 8 O5 | ステップ 8 で O5 の型へ(11-4 の prefix_path.py:459)
 prefix_path.py | _resolve_player_reference | P1PreconditionError | 一時選手 ID の確定写像がない | 475 | 8 B7(状態依存) | -
 prefix_path.py | _resolve_payload | P1ContentRejection | V5 で定義されない選手参照位置 | 501 | 8 B3a | -
+prefix_path.py | _call_port | RuntimeError | ポートが O5 の型を送出した | 545 | 8 B7 | ステップ 8 の是正: ポートの例外は O5 に寄せない(design 12-2)
 prefix_path.py | _apply_locked | RuntimeError | 認可後に試合行が消失した | 554 | 8 B7 | -
 prefix_path.py | _apply_locked | P1PreconditionError | D1 付き経路には D1 と D4 が必要 | 597 | 2 定義・登録の検査 | -
 prefix_path.py | _apply_locked | P1PreconditionError | P1 の記録権不一致は退避経路へ渡す, recording_rights | 606 | 7 既に境界結果(B4) | -

@@ -29,7 +29,7 @@ from pitchlog.repositories.tokens import (
 from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync import apply, ordering, prefix_path
 from pitchlog.sync.idempotency import D5Candidate, StoredResult
-from pitchlog.sync.invariants import O5_CODES, O5Code
+from pitchlog.sync.invariants import O5_CODES, O5Code, O5InvariantViolation
 from pitchlog.sync.model import AckResult, SyncEvent, SyncEventBatch, SyncRequest
 from pitchlog.sync.ordering import apply_p2_event
 from pitchlog.sync.ports import (
@@ -202,6 +202,34 @@ def test_each_enumerated_site_returns_o5_without_raising(
         reason=f"O5: {_MESSAGES[code]}",
         b3_code="O5",
     )
+
+
+@pytest.mark.parametrize(
+    ("port", "method"),
+    [
+        (PrefixRights, "holds_recording_right"),
+        (PrefixValidator, "validate"),
+        (PrefixProjection, "apply"),
+    ],
+)
+def test_port_raised_o5_type_stays_b7(
+    monkeypatch: pytest.MonkeyPatch, port: type, method: str
+) -> None:
+    """ポートが O5 の型を送出しても O5 にせず、B7 の例外として上げる(design 12-2)。"""
+
+    def raise_o5(*_args: object) -> None:
+        raise O5InvariantViolation("d2_no_gap", "ポートからの送出")
+
+    monkeypatch.setattr(port, method, raise_o5)
+    with pytest.raises(RuntimeError, match="ポートが O5 の型を送出した") as raised:
+        _apply(monkeypatch, None, "P1")
+    assert type(raised.value) is RuntimeError
+    assert isinstance(raised.value.__cause__, O5InvariantViolation)
+
+
+def test_o5_type_has_no_subclasses() -> None:
+    """部分型で列挙の突合を迂回させない(送出の突合は型名で数える)。"""
+    assert O5InvariantViolation.__subclasses__() == []
 
 
 @pytest.mark.parametrize("path", ["P1", "P2"])

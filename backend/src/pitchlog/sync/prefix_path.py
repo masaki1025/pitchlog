@@ -533,6 +533,18 @@ def _projection_event(
     )
 
 
+def _call_port[T](call: Callable[..., T], *args: object) -> T:
+    """ポートを呼び、ポートから抜けた O5 の型を B7 の例外へ包み直す。
+
+    O5 は U-S1 自身の決定的な不変条件違反に限る。ポートの例外は O5 に寄せず
+    B7 とする(us1-sync-port-surface design 12-2)。
+    """
+    try:
+        return call(*args)
+    except O5InvariantViolation as error:
+        raise RuntimeError("ポートが O5 の型を送出した") from error
+
+
 def _apply_locked(
     scope: _TenantTransaction,
     event: SyncEvent,
@@ -602,7 +614,9 @@ def _apply_locked(
     if writer is None:
         writer = _issue_port_writer(scope.run)
     try:
-        if not rights.holds_recording_right(event.game_id, event.d4, v12, writer):
+        if not _call_port(
+            rights.holds_recording_right, event.game_id, event.d4, v12, writer
+        ):
             raise P1PreconditionError(
                 "P1 の記録権不一致は退避経路へ渡す", "recording_rights"
             )
@@ -644,7 +658,7 @@ def _apply_locked(
             raise
         if original_d5 is not None:
             _require_rejected_original(scope, event, original_d5)
-        valid, reason = validator.validate(event, writer)
+        valid, reason = _call_port(validator.validate, event, writer)
         if not valid:
             raise P1ContentRejection(reason or "P1 の内容拒否は T9 へ渡す")
 
@@ -742,7 +756,7 @@ def _apply_locked(
             if updated.rows != ((1,),):
                 raise O5InvariantViolation("d3_advance_failed", "D3 の前進に失敗")
             reach("after_t3_prefix")
-        projection.apply(projected_event, writer)
+        _call_port(projection.apply, projected_event, writer)
         reach("after_t4_projection")
         if registration is not None:
             reach("before_t6_mapping")
