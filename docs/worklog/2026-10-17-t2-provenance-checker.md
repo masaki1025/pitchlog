@@ -89,3 +89,47 @@ branch: feature/t2-provenance-checker
 | 5 | P2 | 期待メッセージの `match` が部分文字列で、別の理由に滑っても緑のまま | 採用。文言全体で照合 |
 
 - 次: ステップ 2(T2 の器の着地 — 545 の起案を入力に)
+
+## ステップ 2(T2 の器の着地)— `fd42e240`・是正 `0e9f32ff`
+
+- 実装: Claude(538)。PO 裁定による。入力は 545 の起案(承認前の素案 — 中身が変われば追随する)
+- schema: T1 の `$defs` の閉包 5 つと policy を文字列のまま写し(書式を崩さないため)、閉包と policy が T1 と完全一致することを機械で確認
+- 確認(538): T2 の試験 + T1 の試験 394 passed / 読み込み器の試験 Python 106 passed・TS 18 passed(L1 は両方 `UNKNOWN_FIELD`)/ backend の契約を読む試験 154 passed(DB 必須分は CI)/ frontend の prettier・eslint・vue-tsc 緑 / harness 全件 29,698 passed・**失敗は gate6 の署名照合 1 件だけ(予定どおり — ステップ 4 で閉じる)** / `check_provenance.py --repository` は両契約 not-performed / 変異 12 種すべて試験の失敗で落ちた
+
+### コード差分レビュー — Codex `review normal` の代替として Claude で実施
+
+- 主体: 実装とこれまでのレビューに関与していない Claude サブエージェント。依頼文 `~/.cache/pitchlog-538/t2-provenance/step2-review-prompt.md`
+- 判定: **可決 P0=0 P1=1 P2=2**。契約の規範行・case・validationErrors はバイト単位で不変(provenance の行を除くと旧ファイルと一致)・T1 不変・両 runner の一致・他の検査は緑(軸 B〜G)。全件採用 → `0e9f32ff` と research.md 6 節の 6
+
+| # | 重大度 | 要旨 | 採否と反映 |
+| --- | --- | --- | --- |
+| 1 | P1 | 実資産の記録の照合が `req:` だけを抽出して網羅を主張(545 と同じ型の誤り)。`obr:` や別の `adr:` が増えても沈黙 | 採用。母集団を接頭辞を問わない構造化引用のすべてにし、除外集合 `{adr:D-11}` と接頭辞→典拠種別の対応を固定。req: 以外が増えたら記録漏れとして現れる試験を追加 |
+| 2 | P2 | 閉包の計算が `"$ref": "#/$defs/…"` の文字列形しか拾わず、別の形の参照で閉包の外のずれを見逃す | 採用。辞書の再帰走査にし、`#/$defs/<名前>` 以外の参照があれば照合を失敗させる。負例を追加 |
+| 3 | P2 | 地の文の `XMARK-01`・`XMARK-02` が記録に無い(`COLD-08/09` は入っている) | 採用(記述)。母集団は構造化引用だけと research.md に明記。地の文の言及は母集団外 |
+
+## ステップ 3(再署名の材料)
+
+**PO に確認していただくもの**(gate6-game-end の再署名 — ステップ 4 の前提)
+
+1. **差が `/provenance` の追加だけであることの機械出力**(資産外の道具 `~/.cache/pitchlog-538/t2-provenance/provenance_only_diff.py --root <worktree> --base origin/develop`。digest は署名検査器の `compute_subject_digest`、上限値は署名 schema の policy から読む):
+
+```
+対象: contracts/state-transition/game_end_contract_v1.json(新 = worktree の作業ツリー / 旧 = origin/develop)
+署名記録: sha256:3514e1c6225f3a4da4ebf960d918388508a2d1c72ce02ddb4df0af0de0f77863(safeIntegerLimit=9007199254740991)
+D1 新契約に /provenance がある: True
+D2 /provenance を除いた digest == 署名記録: True (sha256:3514e1c6225f3a4da4ebf960d918388508a2d1c72ce02ddb4df0af0de0f77863)
+D3 新契約そのものの digest != 署名記録(再署名が要る): True (sha256:e93f30f75b97f580d3ee0984ff4300bb7a35544a4568a0fedfabf32da81e1ec4)
+D4 旧契約の digest == 署名記録: True (sha256:3514e1c6225f3a4da4ebf960d918388508a2d1c72ce02ddb4df0af0de0f77863)
+判定: 差は /provenance の追加だけ
+```
+
+   写しでの実演(research.md 3-5): 整形だけ変えた写しは成立、規範行 1 つの `lockFurtherPlayInput` を反転した写しは不成立
+2. **追加した `/provenance` の中身**(契約の 10〜114 行): 対象種別 `normative-branch-or-state-effect`・要件書の典拠 21 件(契約の構造化引用のうち `adr:D-11` を除くすべて)・作成者 `codex`・独立確認者 `not-performed`・宣誓 3 件が未実施の値・`independentReview` なし
+3. **署名記録の更新案**(ステップ 4 で Claude が転記する。`artifactAuthorId`・`recordedReviewerId`・`recordedMethod`・`attestations`・逐行確認シートの名前と SHA-256 は変えない):
+   - `subject.digest`: `sha256:e93f30f75b97f580d3ee0984ff4300bb7a35544a4568a0fedfabf32da81e1ec4`
+   - `recordedOn`: 再署名の日
+   - `reviewScope` の末尾に追記: 「<再署名の日> 再署名: T2 provenance のタスク(Notion https://app.notion.com/p/3fc93b75e687812d83bdd45890f4844a)で、契約のトップレベルに provenance(未実施の閉じた形・要件書の典拠 21 件)を加えた。provenance の中身の起案は TSK-545 の子カード、器と記入は Claude(538)。規範行 8 行・派生 case 248 件・validationErrors は 2026-10-15 の確認から不変で、provenance を除いた RFC8785 digest が旧署名の digest(sha256:3514e1c6…)と一致することを機械で照合した。記録上の確認者は差分と照合の出力を確認して再署名した。provenance が記す典拠による主張の支持(独立確認)は本署名の範囲外で、P-6 の独立検証に送る」
+
+**PO に決めていただくこと**
+- 再署名を受けるか(上の 1〜3 を確認のうえ)。受ける場合、`reviewScope` の追記文の可否・修正
+- L1〜L3 の射程(現状は計画の初期値どおり L1 だけ。L2・L3 を入れる場合はステップを足す)
