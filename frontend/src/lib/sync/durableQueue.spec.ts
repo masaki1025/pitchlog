@@ -512,8 +512,9 @@ describe('durableQueue', () => {
       { classifyB3: () => ({ kind: B3_REASON_KIND.O5 }) },
     )
     const originalPut = IDBObjectStore.prototype.put
-    // 理由コードを含む書き込みだけを失敗させる。状態と理由コードを別の書き込みに
-    // 分けた実装では、先に書いた状態だけが残るのでこの試験が赤になる。
+    // 理由コードを含む書き込みだけを失敗させる。状態と理由コードを別のトランザクションに
+    // 分けた実装では、先に書いた状態だけが残るのでこの試験が赤になる(同じトランザクション
+    // 内の 2 回の put は直前の試験の書き込み回数の期待が止める)。
     const putSpy = vi
       .spyOn(IDBObjectStore.prototype, 'put')
       .mockImplementation(function (

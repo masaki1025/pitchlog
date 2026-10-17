@@ -478,7 +478,7 @@ type D1QueueSlot = {                                       // :281-287
 }
 QUEUE_TRANSITION_ROW_ID.O5_RETRY = 'QT-15'(:87-102)と規則の行(source 要操作 → target 未送信,
   trigger 'o5-retry-persisted', condition 'o5-corrected-same-d5-same-content')
-QueueTransitionRequest に { kind: 'o5-retry-persisted'; slot: QueueSlot }(:352-386)
+QueueTransitionRequest に { kind: 'o5-retry-persisted'; slot: QueueSlot; replacement: QueueSlotReplacement }(:352-386 — 実装で `replacement` を足した。7-5 の負例〔新しい D5・内容違いは不適用〕を判定するため O4 と同じ形にし、結果のスロットは `slot` の D5・内容から作る)
 QueueTransitionInjections に confirmO5Correction?: (slot) => boolean | undefined(:332-350)
 ```
 
