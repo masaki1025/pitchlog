@@ -21,7 +21,7 @@
 | 検査器は schema を 1 本(T1)しか読まない | `scripts/check_provenance.py:19-21`・`:66` |
 | **検査器は CI の手順に無い**。T1 の検査は pytest(`tests/test_state_transition_contract_schema.py`)経由だけ。実契約の記録は「未実施」(`independentVerifierId: not-performed`・宣誓 3 件が不充足値)で、試験は **検査器がこれを赤にすることを期待している** | 同 `:2443-2491` |
 | T1・T2 とも、手動 fixture 単位の由来(`authorId`・`sources` だけ)は既にある。契約単位の独立確認の記録が T2 に無い | `game_end_manual_fixture_schema_v1.json` `$defs.provenance`・`tests/test_game_end_contract_schema.py:205` |
-| **両 runner の読み込み器が契約トップレベルのキーを exact-set で固定している**(game-end に provenance なし) | `backend/src/pitchlog/domaincheck/runners/handoff.py:155-184`・`frontend/src/testing/handoffLoader.ts:29-68` |
+| **両 runner の読み込み器が契約トップレベルのキーを exact-set で固定している**(game-end に provenance なし) | `backend/src/pitchlog/domaincheck/runners/handoff.py:156-184`・`frontend/src/testing/handoffLoader.ts:29-68` |
 | 引き渡し契約が T2 契約のファイル digest を持つ(`sha256:87052798…` = 現ファイルと一致) | `contracts/state-transition/appendix_e_consumer_handoff_v1.json:131-133` |
 | **PO の逐行確認署名 gate6-game-end が T2 契約全体の RFC8785 digest を持ち、CI(pytest)が現ファイルと照合する** | `docs/features/adr003-stage2-runtime/signatures/gate6-game-end.json`・`scripts/check_human_review_signature.py:1189-1196`・`tests/test_human_review_signature.py:151` |
 
@@ -34,6 +34,8 @@
 | 未記載 | 契約に `provenance` が無い | **赤**(schema の required) |
 | 未実施 | 閉じた形だけを認める: `independentVerifierId == "not-performed"`・`independentReview` なし・宣誓 3 件が未実施の値ちょうど(T1 の現行記録と同じ形)。**そのうえで schema・典拠参照(実在)・`subjectKind`・充足典拠は全件検証する**(免除するのは独立性・宣誓・`independentReview` の検査だけ) | 緑。ただし「P-6 未成立」として列挙する。典拠や種別が不正なら赤 |
 | 実施済みの主張 | 上記以外のすべて。**ただし予約値 `not-performed` を含む記録は、閉じた形と完全一致しない限り赤**(検証者 ID・`actorId` に予約値を使った偽装を `verified` にしない) | `validate_provenance` を全項目通す。1 つでも外れたら**赤**(= 不正署名) |
+
+**予約値の判定キー(閉じた列挙)**: `authorId`・`independentVerifierId`・`attestations[].response`・`independentReview.chronology[].actorId` の 4 か所。比較は文字列 `"not-performed"` との完全一致(JSON の型を含む)。`authorId` に予約値があれば常に赤。残る 3 か所のどれか 1 つにでも予約値があれば「予約値を含む」とし、閉じた形(`independentVerifierId == "not-performed"`・`independentReview` のキーが無い・`attestations` が `{direct-source-clause-review: false, author-work-exposure: "not-performed", source-support-judgment: false}` と**集合として**一致 — 順序は問わず、重複は既存の検査で赤)と完全一致しなければ赤。
 
 「半分だけ署名した」記録(予約値を検証者 ID に置いたまま宣誓だけ充足値にしたもの、検証者 ID は入っているのに宣誓が未実施の値、`not-performed` なのに `independentReview` がある、など)は「実施済みの主張」側に落ちて赤になる。
 
@@ -118,7 +120,7 @@
 
 置き場: 既存の `tests/test_game_end_contract_schema.py`(両コア領域に登録済み。**新しい試験ファイルはコア領域の参照検出で赤になる**ため作らない — 計画書 4 節)。T1 の試験ファイルは**1 バイトも変えない**(T1 不変の判定基準)。T2 の合成 schema と合成契約は `schema_value` で差し替える。
 
-### 4-1. 未記載(④)
+### 4-1. 未記載(PO 裁定の「未記載・不正署名の検出」のうち未記載)
 
 | # | 負例 | 期待 |
 | --- | --- | --- |
@@ -129,7 +131,7 @@
 | N5 | 登録表から game-end を外した検査器で `--repository` を実行 | 赤(登録表の閉包試験) |
 | N6 | 登録表に無いパスの契約を `main()` に渡す | 赤(未登録の種別) |
 
-### 4-2. 不正署名(④)
+### 4-2. 不正署名(PO 裁定の「未記載・不正署名の検出」のうち不正署名)
 
 | # | 負例 | 期待 |
 | --- | --- | --- |
@@ -145,6 +147,9 @@
 | S10 | T2 の policy で `sufficientSourceKinds` を満たさない典拠だけ | 赤 |
 | S8'〜S10' | S8〜S10 を**未実施の記録の上で**(宣誓・検証者は未実施の閉じた形のまま) | 赤(未実施でも典拠と種別は検証する) |
 | S11 | 予約値の偽装: `independentVerifierId: "not-performed"`・宣誓 3 件が充足値・`chronology` の `actorId` に `not-performed`・exposure は整合 | 赤(予約値は閉じた形と完全一致する場合だけ) |
+| S11a | 予約値が `chronology` の `actorId` だけ(検証者は実名・宣誓は充足値) | 赤 |
+| S11b | 予約値が `attestations[].response` だけ(検証者は実名・他の宣誓は充足値) | 赤 |
+| S11c | `authorId` が予約値 | 赤 |
 
 ### 4-3. 器のずれ
 
