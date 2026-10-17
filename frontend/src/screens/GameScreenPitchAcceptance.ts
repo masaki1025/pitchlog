@@ -53,6 +53,8 @@ export const PITCH_ACCEPTANCE_FAILURE = {
   APPEND_FAILED: 'append-failed',
   /** 追記の成否を確かめられなかった。 */
   RECONCILIATION_FAILED: 'reconciliation-failed',
+  /** 排他の単位とキューの試合が食い違う。別の試合のキューへ書きうる。 */
+  SCOPE_MISMATCH: 'scope-mismatch',
 } as const
 
 export type PitchAcceptanceFailure =
@@ -83,6 +85,13 @@ export type PitchAcceptanceResult =
       reason: PitchAcceptanceFailure
     }>
 
+/** 複製をまたいでも同一性を判定できる値か(プリミティブに限る)。 */
+function isComparableIdentifier(value: unknown): boolean {
+  return (
+    value === null || (typeof value !== 'object' && typeof value !== 'function')
+  )
+}
+
 async function reconcileAppend(
   queue: PitchAcceptanceQueue,
   input: PitchAcceptanceInput,
@@ -105,8 +114,24 @@ async function reconcileAppend(
     }
   }
 
-  // D5 は不透明な識別値なので Object.is で照合する(正規化・分解をしない)。
-  if (slot !== undefined && Object.is(slot.d5, input.d5)) {
+  if (slot === undefined) {
+    // その D1 に何も書かれていない。追記は成立していない。
+    return {
+      outcome: 'not-accepted',
+      reason: PITCH_ACCEPTANCE_FAILURE.APPEND_FAILED,
+    }
+  }
+
+  // D5 は不透明な識別値で、物理形は正本が決めていない(論点 17)。キューは
+  // structuredClone で保存するので、非プリミティブだと Object.is は必ず false に
+  // なり、成立した追記を「不受理」と誤判定しうる。判定できない場合は不明へ倒す。
+  if (!isComparableIdentifier(slot.d5) || !isComparableIdentifier(input.d5)) {
+    return {
+      outcome: 'undetermined',
+      reason: PITCH_ACCEPTANCE_FAILURE.RECONCILIATION_FAILED,
+    }
+  }
+  if (Object.is(slot.d5, input.d5)) {
     return {
       outcome: 'accepted',
       slot,
@@ -118,6 +143,21 @@ async function reconcileAppend(
     outcome: 'not-accepted',
     reason: PITCH_ACCEPTANCE_FAILURE.APPEND_FAILED,
   }
+}
+
+/**
+ * 排他の単位とキューの試合が一致しているか。
+ *
+ * 食い違うと、試合 A のロックしか持たずに試合 B のキューへ追記しうる。
+ *
+ * Args:
+ *     input: 追記の入力。
+ *
+ * Returns:
+ *     一致していれば true。
+ */
+export function pitchScopeMatchesLock(input: PitchAcceptanceInput): boolean {
+  return Object.is(input.scope.game, input.gameIdentifier)
 }
 
 /**
@@ -205,6 +245,13 @@ export async function acceptPitchEvent(
   input: PitchAcceptanceInput,
   dependencies: PitchAcceptanceDependencies,
 ): Promise<PitchAcceptanceResult> {
+  if (!pitchScopeMatchesLock(input)) {
+    return {
+      outcome: 'not-accepted',
+      reason: PITCH_ACCEPTANCE_FAILURE.SCOPE_MISMATCH,
+    }
+  }
+
   const started = await runAsSingleWriter<PitchAcceptanceResult>(
     { gameIdentifier: input.gameIdentifier },
     () =>

@@ -77,7 +77,7 @@ created: 2026-10-16
 | `docs/README.md` | 台帳へ追記した場合のみ現行化 | PR レビュー |
 | `.claude/core-areas.json` | **変更しない** —— 第 1 期は登録済み paths の範囲に収める | — |
 
-**正本体系外だが同一 PR で更新するもの**: `frontend/src/screens/GameScreen.vue` と同 `.spec.ts` / `frontend/src/api/client*` / `frontend/src/lib/sync/` への呼び出し(**`lib/sync` 自体は変更しない**)/ `docs/features/uf8-game-recording/{plan,research,design}.md` / `docs/worklog/2026-10-16-uf8-game-recording.md`
+**正本体系外だが同一 PR で更新するもの**: `frontend/src/screens/GameScreen*`(`GameScreen.vue` と同 `.spec.ts` に加え、登録済み glob に収まる `GameScreen*.ts` の新設分)/ `frontend/src/api/client*` / `frontend/src/lib/sync/` への呼び出し(**`lib/sync` 自体は変更しない**)/ `docs/features/uf8-game-recording/{plan,research,design}.md` / `docs/worklog/2026-10-16-uf8-game-recording.md`
 
 ## 4. 実装方針
 
@@ -113,7 +113,7 @@ created: 2026-10-16
 
 **10 ステップとも `frontend/src/screens/GameScreen*` と `frontend/src/api/client*` の範囲に収める**(登録済み paths)。`core-areas.json` を触らない。
 
-**ステップ 9・10 の追加(2026-10-17)**: 実装後の DoD 突合で、**DoD 5-1 の 2 項目(単一書き手の射程・`NFR-020`)がステップ表のどの合格条件にも対応していない**ことが分かった(計画レビュー 3 回目の P0 と同じ型の、逆向きの食い違い)。DoD は変えず、**不足していた段を足して承認済みの合格条件を満たす**。山田さんの裁定(2026-10-17)で第 1 期に残す。
+**ステップ 9・10 の追加(2026-10-17)**: 実装後の DoD 突合で、**DoD 5-1 の 2 項目(単一書き手の射程・`NFR-020`)がステップ表のどの合格条件にも対応していない**ことが分かった(計画レビュー 3 回目の P0 と同じ型の、逆向きの食い違い)。DoD は変えず、**不足していた段を足して承認済みの合格条件を満たす**。山田さんの判断(2026-10-17)で第 1 期に残す(選択肢を提示したうえでの指示。経緯は worklog)。
 
 ## 5. DoD
 
@@ -159,6 +159,8 @@ created: 2026-10-16
 - [ ] 独立シート群(カルテ所見・公式記録確認・状況変更・タイブレーク)
 
 ## 6. テスト計画(NFR-019)
+
+**置き場は `frontend/src/screens/GameScreen*.spec.ts` と `frontend/src/api/client.syncEvents.spec.ts` に分散する**(1 つの spec へまとめず、対象のモジュールごとに置く)。
 
 | 対象 | 種別 | 置き場 | 確認すること |
 | --- | --- | --- | --- |

@@ -244,6 +244,53 @@ describe('追記の成否を戻り値だけで判定しない', () => {
   })
 })
 
+describe('排他の単位とキューの試合が食い違うとき', () => {
+  it('追記せずに不受理を返す（別の試合のキューへ書かない）', async () => {
+    const queue = await openIsolatedQueue()
+    const append = vi.spyOn(queue, 'append')
+
+    const result = await acceptPitchEvent(
+      { ...input(), scope: { game: 'other-game', d4: 'generation-a' } },
+      { queue, singleWriterInjections: singleWriterInjections() },
+    )
+
+    expect(result).toEqual({
+      outcome: 'not-accepted',
+      reason: PITCH_ACCEPTANCE_FAILURE.SCOPE_MISMATCH,
+    })
+    expect(append).not.toHaveBeenCalled()
+  })
+})
+
+describe('D5 が複製をまたいで比較できないとき', () => {
+  it('成立した追記を不受理と決めつけず、不明へ倒す', async () => {
+    const queue = await openIsolatedQueue()
+    const objectD5 = { value: 'non-primitive' }
+    const failingCount: PitchAcceptanceQueue = {
+      prepareAppend: (value) => queue.prepareAppend(value),
+      append: (preparation) => queue.append(preparation),
+      countUnsentSlots: () => Promise.reject(new Error('件数を読めません')),
+      readSlot: (target, d1) => queue.readSlot(target, d1),
+      readNextD1: (target) => queue.readNextD1(target),
+    }
+
+    const result = await acceptPitchEvent(
+      { ...input(), d5: objectD5 },
+      {
+        queue: failingCount,
+        singleWriterInjections: singleWriterInjections(),
+      },
+    )
+
+    expect(result).toEqual({
+      outcome: 'undetermined',
+      reason: PITCH_ACCEPTANCE_FAILURE.RECONCILIATION_FAILED,
+    })
+    // 追記自体は成立している（不受理と言い切らないことが肝）。
+    expect(await queue.countSlots()).toBe(1)
+  })
+})
+
 describe('成否を確かめられないときは受理を表示しない', () => {
   it('照合の読取りが失敗すれば不明として返す', async () => {
     const queue = await openIsolatedQueue()

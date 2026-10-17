@@ -14,7 +14,7 @@ import {
   checkSyncEvent,
   type SyncEventViolation,
 } from '../lib/sync/validateSyncEvent'
-import { apiRequest } from './client'
+import { ApiError, apiRequest } from './client'
 
 /** スロットと wire のキーの対応(sync-wire-schema/design.md 3-2・3-3 の表)。 */
 const WIRE_KEY_BY_SLOT_ID = {
@@ -31,9 +31,26 @@ const WIRE_KEY_BY_SLOT_ID = {
   V11: 'expected_version',
 } as const satisfies Readonly<Record<EventSlotId, string>>
 
-const D1_SLOT_ID = 'V2' satisfies EventSlotId
-const D4_SLOT_ID = 'V3' satisfies EventSlotId
-const GAME_ID_SLOT_ID = 'V4' satisfies EventSlotId
+/**
+ * 正本の ID と wire のキーの対応から引いたスロット ID。
+ *
+ * 同じ対応を二重に宣言すると片方だけ直してずれるため、ここを唯一の宣言とし、
+ * 画面側もここから import する。
+ */
+export const SYNC_EVENT_SLOT_ID = {
+  D5: 'V1',
+  D1: 'V2',
+  D4: 'V3',
+  GAME_ID: 'V4',
+  D2: 'V6',
+  PAYLOAD: 'V7',
+  STATE_DIFF: 'V8',
+} as const satisfies Readonly<Record<string, EventSlotId>>
+
+const D5_SLOT_ID = SYNC_EVENT_SLOT_ID.D5
+const D1_SLOT_ID = SYNC_EVENT_SLOT_ID.D1
+const D4_SLOT_ID = SYNC_EVENT_SLOT_ID.D4
+const GAME_ID_SLOT_ID = SYNC_EVENT_SLOT_ID.GAME_ID
 
 export type SyncEventRequestBody = Readonly<{
   recording_right_proof: unknown
@@ -43,18 +60,28 @@ export type SyncEventRequestBody = Readonly<{
 export const SYNC_EVENT_SEND_FAILURE = {
   /** 送るスロットが無い(`events` は空にしない)。 */
   EMPTY_REQUEST: 'empty-request',
-  /** 1 要求に複数の `(試合, D4)` が混ざっている。 */
+  /** 1 要求に複数の D4 が混ざっている。 */
   MIXED_SCOPE: 'mixed-scope',
   /** 要求の中で D1 が重複している。 */
   DUPLICATE_D1: 'duplicate-d1',
-  /** イベントの試合の識別が path と食い違う。 */
+  /** スロットまたはイベントの試合の識別が path と食い違う。 */
   GAME_ID_MISMATCH: 'game-id-mismatch',
   /** イベントの D4 がスロットの D4 と食い違う。 */
   D4_MISMATCH: 'd4-mismatch',
+  /** イベントの D5 がスロットの D5 と食い違う。 */
+  D5_MISMATCH: 'd5-mismatch',
+  /** 記録権の証明(V12)が無い、または不透明な文字列でない。 */
+  INVALID_RECORDING_RIGHT_PROOF: 'invalid-recording-right-proof',
+  /** D1 が L-2 の整数でない。 */
+  INVALID_D1: 'invalid-d1',
+  /** 必須スロットの値が空(`undefined` / `null`)である。 */
+  EMPTY_REQUIRED_SLOT: 'empty-required-slot',
   /** 完成形が正本の検査を通らない。 */
   INVALID_EVENT: 'invalid-event',
-  /** 送ったが応答を得られなかった。 */
-  TRANSPORT_FAILED: 'transport-failed',
+  /** 送ったが応答が返らなかった(通信断・中断)。 */
+  NO_RESPONSE: 'no-response',
+  /** 応答は返ったが、クライアントが解釈しない(S-1 違反を含む)。 */
+  RESPONSE_NOT_INTERPRETED: 'response-not-interpreted',
 } as const
 
 export type SyncEventSendFailure =
@@ -82,6 +109,8 @@ export type SyncEventSendResult =
       reason: SyncEventSendFailure
       violation?: SyncEventViolation
       slotD1?: number
+      /** 応答が返った場合の状態コード。顕在化に使う(NFR-015)。 */
+      status?: number
       error?: unknown
     }>
 
@@ -93,11 +122,44 @@ function completeEvent(slot: DurableQueueSlot): SyncEvent {
 function toWireEvent(event: SyncEvent): Readonly<Record<string, unknown>> {
   const wire: Record<string, unknown> = {}
   for (const [slotId, value] of Object.entries(event.fields)) {
-    // 値を持たないキーは省く。null を「持たない」の意味に使わない。
     const wireKey = WIRE_KEY_BY_SLOT_ID[slotId as EventSlotId]
     wire[wireKey] = value
   }
   return wire
+}
+
+/**
+ * 値を持たないスロットが混ざっていないかを調べる。
+ *
+ * 正本は「値を持たないキーは省く。`null` を『持たない』の意味に使わない」と
+ * 定める(sync-wire-schema/design.md:209)。`checkSyncEvent` は値を見ず
+ * `hasOwnProperty` だけを見るので、`undefined` のスロットは検査を通ったうえで
+ * `JSON.stringify` に落とされ、必須キーが黙って消えた要求になる。ここで
+ * fail-closed に止める。
+ *
+ * Args:
+ *     event: 完成形のイベント。
+ *
+ * Returns:
+ *     空の値を持つスロット ID。無ければ undefined。
+ */
+function findEmptySlot(event: SyncEvent): string | undefined {
+  for (const [slotId, value] of Object.entries(event.fields)) {
+    if (value === undefined || value === null) {
+      return slotId
+    }
+  }
+  return undefined
+}
+
+// L-3(sync-wire-schema/design.md:89)。空文字は不可で、分解・比較・生成をしない。
+function isOpaqueString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0
+}
+
+// L-2(同 :88)。1 以上で 2^53 − 1 以下の整数。
+function isD1(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1
 }
 
 function failure(
@@ -116,17 +178,28 @@ function buildRequestBody(
   if (request.slots.length === 0) {
     return failure(SYNC_EVENT_SEND_FAILURE.EMPTY_REQUEST)
   }
+  // V12 は P1・P2・P4 に必須(正本 4-3 の VF1)。欠けると JSON.stringify が
+  // キーごと落として、記録権の証明を伴わない要求になる。
+  if (!isOpaqueString(request.recordingRightProof)) {
+    return failure(SYNC_EVENT_SEND_FAILURE.INVALID_RECORDING_RIGHT_PROOF)
+  }
 
   const [first] = request.slots
   const seenD1 = new Set<number>()
   const events: Record<string, unknown>[] = []
 
   for (const slot of request.slots) {
-    if (
-      !Object.is(slot.game, request.gameId) ||
-      !Object.is(slot.d4, first!.d4)
-    ) {
+    // 試合の食い違いと D4 の混在は別の規約(design.md:199 と :200)なので分ける。
+    if (!Object.is(slot.game, request.gameId)) {
+      return failure(SYNC_EVENT_SEND_FAILURE.GAME_ID_MISMATCH, {
+        slotD1: slot.d1,
+      })
+    }
+    if (!Object.is(slot.d4, first!.d4)) {
       return failure(SYNC_EVENT_SEND_FAILURE.MIXED_SCOPE, { slotD1: slot.d1 })
+    }
+    if (!isD1(slot.d1)) {
+      return failure(SYNC_EVENT_SEND_FAILURE.INVALID_D1, { slotD1: slot.d1 })
     }
     if (seenD1.has(slot.d1)) {
       return failure(SYNC_EVENT_SEND_FAILURE.DUPLICATE_D1, { slotD1: slot.d1 })
@@ -141,6 +214,19 @@ function buildRequestBody(
     }
     if (!Object.is(event.fields[D4_SLOT_ID], slot.d4)) {
       return failure(SYNC_EVENT_SEND_FAILURE.D4_MISMATCH, { slotD1: slot.d1 })
+    }
+    // A5 の適用はスロットの D5 で結合する(durableQueue の matchesA5Target)。
+    // 送る D5 とずれると、サーバーが受理しても端末のスロットへ適用できない。
+    if (!Object.is(event.fields[D5_SLOT_ID], slot.d5)) {
+      return failure(SYNC_EVENT_SEND_FAILURE.D5_MISMATCH, { slotD1: slot.d1 })
+    }
+
+    const emptySlot = findEmptySlot(event)
+    if (emptySlot !== undefined) {
+      return failure(SYNC_EVENT_SEND_FAILURE.EMPTY_REQUIRED_SLOT, {
+        slotD1: slot.d1,
+        violation: { violation: 'invalid-fields', target: emptySlot },
+      })
     }
 
     const checked = checkSyncEvent(event, {
@@ -191,6 +277,15 @@ export async function postSyncEvents(
     )
     return { sent: true, requestBody: built, response }
   } catch (error) {
-    return failure(SYNC_EVENT_SEND_FAILURE.TRANSPORT_FAILED, { error })
+    // 応答が返った失敗(S-1 違反の 422 を含む)と、応答が返らなかった失敗を
+    // 分ける。正本は前者を「顕在化する」と定める(design.md:110・:281)。
+    // 同じ理由へ畳むと、恒久的に失敗する要求を通信断と同じ見え方で回し続ける。
+    if (error instanceof ApiError) {
+      return failure(SYNC_EVENT_SEND_FAILURE.RESPONSE_NOT_INTERPRETED, {
+        status: error.status,
+        error,
+      })
+    }
+    return failure(SYNC_EVENT_SEND_FAILURE.NO_RESPONSE, { error })
   }
 }

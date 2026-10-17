@@ -108,6 +108,71 @@ describe('フリーズ後の再選出', () => {
   })
 })
 
+describe('導出が観測値を実際に読んでいること', () => {
+  it('受理成功・再入力の要求が真なら真を返す（定数化を検出する）', () => {
+    const reaction = deriveFailureReaction({
+      observationPoint: '合成の観測点',
+      fields: {
+        acceptanceDisplay: {
+          shownAsAccepted: true,
+          recordingResumedAfterRevalidation: true,
+        },
+        reinputAvailability: {
+          required: true,
+          possible: true,
+          retryWithSameNextD1: true,
+        },
+      },
+    })
+
+    expect(reaction).toEqual({
+      showsAcceptance: true,
+      recordingResumed: true,
+      offersReinput: true,
+      requiresReinput: true,
+      retriesWithSameNextD1: true,
+      blockedNoticeId: undefined,
+    })
+  })
+
+  it('待機側の受理表示だけが真の場合も受理として扱う', () => {
+    expect(
+      deriveFailureReaction({
+        observationPoint: '合成の観測点',
+        fields: { acceptanceDisplay: { waitingInputShownAsAccepted: true } },
+      }).showsAcceptance,
+    ).toBe(true)
+  })
+
+  it('読んでいるキー名が契約資産に実在する（改名を検出する）', () => {
+    const corpus = (
+      Object.keys(SCENARIO_FILES) as (keyof typeof SCENARIO_FILES)[]
+    )
+      .map((scenarioId) =>
+        readFileSync(
+          resolve(FIXTURE_DIRECTORY, SCENARIO_FILES[scenarioId]),
+          'utf8',
+        ),
+      )
+      .join('\n')
+
+    for (const key of [
+      'acceptanceDisplay',
+      'reinputAvailability',
+      'shownAsAccepted',
+      'waitingInputShownAsAccepted',
+      'recordingResumedAfterRevalidation',
+      'possible',
+      'afterLockAcquisition',
+      'required',
+      'retryWithSameNextD1',
+      'noticeId',
+    ]) {
+      expect(corpus).toContain(key)
+    }
+  })
+})
+
 describe('観測値が欠けているときの扱い', () => {
   it('観測値が無ければ受理成功も再入力の導線も出さない', () => {
     const reaction = deriveFailureReaction({

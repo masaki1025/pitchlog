@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import { actionRequiredLabelId, queueStateId } from '../lib/sync/queueState'
+import { actionRequiredLabelId } from '../lib/sync/queueState'
 import GameScreen from './GameScreen.vue'
 import { PITCH_COMMIT_BLOCK_REASON } from './GameScreenCommitGate'
 
@@ -30,13 +30,12 @@ function mountNarrow() {
         batter: '打者 山田',
         pitcher: '投手 佐藤',
       },
-      queueSlots: [
-        { state: queueStateId('未送信') },
-        {
-          state: queueStateId('要操作'),
-          actionRequiredLabel: actionRequiredLabelId('管理者対応待ち'),
-        },
-      ],
+      unsentCount: 1,
+      actionRequired: {
+        count: 1,
+        labels: [actionRequiredLabelId('管理者対応待ち')],
+      },
+      evacuatedCount: 0,
       storagePersistence: 'denied',
     },
   })
@@ -46,16 +45,22 @@ describe('375px 幅で横溢れを生む構造を持たない', () => {
   it('375px より広い固定幅・最小幅を宣言しない', () => {
     const html = mountNarrow().html()
 
-    // Tailwind の任意値指定（w-[400px] など）と、固定の最小幅を拾う。
-    const widths = [...html.matchAll(/\b(?:min-)?w-\[(\d+)px\]/g)].map(
+    // Tailwind の任意値指定（w-[400px] など）。
+    const arbitrary = [...html.matchAll(/\b(?:min-)?w-\[(\d+)px\]/g)].map(
       (match) => Number(match[1]),
     )
-    for (const width of widths) {
+    // 既定スケール（w-96 = 24rem = 384px）。1 単位 = 4px で換算する。
+    const scaled = [...html.matchAll(/\b(?:min-)?w-(\d+)\b/g)].map(
+      (match) => Number(match[1]) * 4,
+    )
+
+    for (const width of [...arbitrary, ...scaled]) {
       expect(width).toBeLessThanOrEqual(NARROW_WIDTH)
     }
 
-    // 既定スケールの最大幅は親に収まる指定だけを使う（max-w-* は縮む側）。
+    // 名前付きの最小幅と、inline の固定幅も使わない。
     expect(html).not.toMatch(/\bmin-w-(?:sm|md|lg|xl|\d{2,})\b/)
+    expect(html).not.toMatch(/style="[^"]*width:/)
   })
 
   it('入力欄を並べる横並びが縮める指定を持つ', () => {
@@ -100,9 +105,14 @@ describe('375px 幅で読めている必要がある表示', () => {
     const wrapper = mountNarrow()
 
     for (const testId of ['commit-blocked-reason', 'sync-notices']) {
-      expect(wrapper.get(`[data-testid="${testId}"]`).classes()).not.toContain(
+      const classes = wrapper.get(`[data-testid="${testId}"]`).classes()
+      for (const forbidden of [
         'whitespace-nowrap',
-      )
+        'whitespace-pre',
+        'truncate',
+      ]) {
+        expect(classes).not.toContain(forbidden)
+      }
     }
   })
 })

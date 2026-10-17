@@ -1,174 +1,158 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_UNSENT_WARNING_THRESHOLD } from '../lib/sync/clientDiscipline'
-import {
-  actionRequiredLabelId,
-  QUEUE_STATES,
-  queueStateId,
-} from '../lib/sync/queueState'
+import { actionRequiredLabelId, queueStateId } from '../lib/sync/queueState'
 import { createSyncNotice } from '../lib/sync/syncNotices'
 import GameScreen from './GameScreen.vue'
-import {
-  deriveQueueStatus,
-  type QueueStatusSlot,
-} from './GameScreenQueueStatus'
+import { deriveQueueStatus } from './GameScreenQueueStatus'
 import queueStatusSource from './GameScreenQueueStatus.ts?raw'
 
-function slot(
-  state: QueueStatusSlot['state'],
-  actionRequiredLabel?: QueueStatusSlot['actionRequiredLabel'],
-): QueueStatusSlot {
-  return actionRequiredLabel ? { state, actionRequiredLabel } : { state }
-}
-
 describe('キューの状態の導出', () => {
-  it('状態ごとの件数を正本の状態集合の形で返す', () => {
+  it('件数を受け取り、状態ごとに正本の ID で引ける形で返す', () => {
     const view = deriveQueueStatus({
-      slots: [
-        slot(queueStateId('未送信')),
-        slot(queueStateId('未送信')),
-        slot(queueStateId('同期済み')),
-        slot(queueStateId('要操作'), actionRequiredLabelId('管理者対応待ち')),
-        slot(queueStateId('退避済み')),
-      ],
+      unsentCount: 2,
+      actionRequired: {
+        count: 1,
+        labels: [actionRequiredLabelId('管理者対応待ち')],
+      },
+      evacuatedCount: 3,
       storagePersistenceGranted: true,
     })
 
-    expect(Object.keys(view.countsByState).sort()).toEqual(
-      QUEUE_STATES.map((state) => state.id).sort(),
-    )
-    expect(view.countsByState).toEqual({
-      未送信: 2,
-      同期済み: 1,
-      要操作: 1,
-      退避済み: 1,
-    })
-    expect(view.unsentCount).toBe(2)
-    expect(view.actionRequiredCount).toBe(1)
+    expect(view.countsByState[queueStateId('未送信')]).toBe(2)
+    expect(view.countsByState[queueStateId('要操作')]).toBe(1)
+    expect(view.countsByState[queueStateId('退避済み')]).toBe(3)
     expect(view.actionRequiredLabels).toEqual(['管理者対応待ち'])
-    expect(view.unrecognizedStateCount).toBe(0)
   })
 
-  it('正本の状態集合に無い値を黙って落とさない', () => {
+  it('未送信件数がまだ読めていなければ、0 と偽らない', () => {
     const view = deriveQueueStatus({
-      slots: [{ state: '未知の状態' as QueueStatusSlot['state'] }],
+      unsentCount: undefined,
       storagePersistenceGranted: true,
     })
 
-    expect(view.unrecognizedStateCount).toBe(1)
-    expect(view.unsentCount).toBe(0)
+    expect(view.unsentCount).toBeUndefined()
+    expect(view.countsByState[queueStateId('未送信')]).toBeUndefined()
+    // 件数が無いのに「0 件です」という通知を出さない。
+    expect(view.notices).toEqual([])
   })
 
-  it('未送信件数の通知を常に出す', () => {
+  it('未送信件数の通知が実際の件数を運ぶ', () => {
     const view = deriveQueueStatus({
-      slots: [],
+      unsentCount: 7,
       storagePersistenceGranted: true,
     })
 
-    expect(view.notices).toEqual([createSyncNotice('Q4', { unsentCount: 0 })])
+    expect(view.notices).toEqual([createSyncNotice('Q4', { unsentCount: 7 })])
   })
 
   it('永続ストレージが拒否されたときだけ警告の通知を足す', () => {
-    const granted = deriveQueueStatus({
-      slots: [],
-      storagePersistenceGranted: true,
-    })
-    const denied = deriveQueueStatus({
-      slots: [],
-      storagePersistenceGranted: false,
-    })
-    const unknown = deriveQueueStatus({
-      slots: [],
-      storagePersistenceGranted: undefined,
-    })
+    const ids = (granted: boolean | undefined) =>
+      deriveQueueStatus({
+        unsentCount: 0,
+        storagePersistenceGranted: granted,
+      }).notices.map((notice) => notice.noticeId)
 
-    expect(granted.notices.map((notice) => notice.noticeId)).toEqual(['Q4'])
-    expect(denied.notices.map((notice) => notice.noticeId)).toEqual([
-      'Q4',
-      'Q6',
-    ])
+    expect(ids(true)).toEqual(['Q4'])
+    expect(ids(false)).toEqual(['Q4', 'Q6'])
     // 未確定のうちは拒否と断定しない。
-    expect(unknown.notices.map((notice) => notice.noticeId)).toEqual(['Q4'])
+    expect(ids(undefined)).toEqual(['Q4'])
   })
 
   it('受け取った B 区分の通知をそのまま並べる', () => {
-    const received = createSyncNotice('B4', {})
-
     const view = deriveQueueStatus({
-      slots: [],
+      unsentCount: 0,
       storagePersistenceGranted: true,
-      receivedNotices: [received],
+      receivedNotices: [createSyncNotice('B4', {})],
     })
 
     expect(view.notices.map((notice) => notice.noticeId)).toEqual(['Q4', 'B4'])
   })
 
-  it('未送信の警告の閾値は clientDiscipline の既定に従う', () => {
-    const below = deriveQueueStatus({
-      slots: Array.from({ length: DEFAULT_UNSENT_WARNING_THRESHOLD - 1 }, () =>
-        slot(queueStateId('未送信')),
-      ),
-      storagePersistenceGranted: true,
-    })
-    const reached = deriveQueueStatus({
-      slots: Array.from({ length: DEFAULT_UNSENT_WARNING_THRESHOLD }, () =>
-        slot(queueStateId('未送信')),
-      ),
-      storagePersistenceGranted: true,
-    })
-
-    expect(below.unsentWarning).toBe(false)
-    expect(reached.unsentWarning).toBe(true)
+  it('未送信の警告は渡された判定をそのまま使い、閾値の式を持たない', () => {
+    expect(
+      deriveQueueStatus({
+        unsentCount: 999,
+        unsentWarning: false,
+        storagePersistenceGranted: true,
+      }).unsentWarning,
+    ).toBe(false)
+    expect(
+      deriveQueueStatus({
+        unsentCount: 1,
+        unsentWarning: true,
+        storagePersistenceGranted: true,
+      }).unsentWarning,
+    ).toBe(true)
   })
 })
 
-describe('未同期判定を再実装していないこと', () => {
-  it('状態集合と通知のカタログを自前で持たない', () => {
+describe('件数の導出と閾値の式を画面側に持たないこと', () => {
+  it('件数を数える処理も閾値の比較も本モジュールに無い', () => {
     const code = queueStatusSource
       .split(/\r\n?|\n/)
       .map((line) => line.replace(/\/\/.*$/, ''))
       .join('\n')
 
-    // 状態 ID は正本の照合器を通してから使う。
+    // 全件走査(NFR-005 の型)をしない。
+    expect(code).not.toMatch(/\bfor\s*\(/)
+    expect(code).not.toMatch(/\.filter\(|\.reduce\(/)
+    // 閾値の比較を再実装しない。
+    expect(code).not.toMatch(/>=/)
+    expect(code).not.toMatch(/=\s*350\b/)
+    // 状態 ID は正本の照合器を通す。
     expect(code).toContain("queueStateId('未送信')")
     expect(code).toContain("queueStateId('要操作')")
-    // 状態の一覧・通知の文面・閾値を自前で持たない。
-    expect(code).not.toContain('同期済み')
-    expect(code).not.toContain('退避済み')
-    expect(code).not.toMatch(/'Q6'/)
-    expect(code).not.toMatch(/=\s*350\b/)
+    expect(code).toContain("queueStateId('退避済み')")
   })
 })
 
 describe('画面に出る同期の状態', () => {
-  it('未送信件数を常に出す', () => {
-    const wrapper = mount(GameScreen, {
-      props: { queueSlots: [slot(queueStateId('未送信'))] },
-    })
-
-    expect(wrapper.get('[data-testid="unsent-count"]').text()).toBe('1')
-  })
-
-  it('要操作が利用者に見える', () => {
+  it('未送信・要操作・退避済みを別の件数として併記する', () => {
     const wrapper = mount(GameScreen, {
       props: {
-        queueSlots: [
-          slot(queueStateId('要操作'), actionRequiredLabelId('改訂待ち')),
-        ],
+        unsentCount: 2,
+        actionRequired: {
+          count: 1,
+          labels: [actionRequiredLabelId('改訂待ち')],
+        },
+        evacuatedCount: 4,
       },
     })
 
+    expect(wrapper.get('[data-testid="unsent-count"]').text()).toBe('2')
     expect(wrapper.get('[data-testid="action-required-count"]').text()).toBe(
       '1',
     )
+    expect(wrapper.get('[data-testid="evacuated-count"]').text()).toBe('4')
     expect(wrapper.get('[data-testid="action-required-labels"]').text()).toBe(
       '改訂待ち',
     )
   })
 
+  it('未送信件数が未取得なら 0 と見せない', () => {
+    const wrapper = mount(GameScreen)
+
+    expect(wrapper.get('[data-testid="unsent-count"]').text()).toBe('未取得')
+  })
+
+  it('未送信の警告は渡されたときだけ出す', () => {
+    expect(
+      mount(GameScreen, { props: { unsentCount: 400 } })
+        .find('[data-testid="unsent-warning"]')
+        .exists(),
+    ).toBe(false)
+    expect(
+      mount(GameScreen, {
+        props: { unsentCount: 400, unsentWarning: true },
+      })
+        .get('[data-testid="unsent-warning"]')
+        .text(),
+    ).toContain('未送信が多く')
+  })
+
   it('永続ストレージが拒否されたら警告の文面を出す', () => {
     const wrapper = mount(GameScreen, {
-      props: { queueSlots: [], storagePersistence: 'denied' },
+      props: { unsentCount: 0, storagePersistence: 'denied' },
     })
 
     const notices = wrapper.get('[data-testid="sync-notices"]')
@@ -176,18 +160,10 @@ describe('画面に出る同期の状態', () => {
     expect(notices.text()).toContain('永続ストレージの要求が拒否された')
   })
 
-  it('スロットが渡されないときも未送信 0 件として壊れない', () => {
-    const wrapper = mount(GameScreen)
+  it('契約の説明文である Q4 を利用者向けの通知として出さない', () => {
+    const wrapper = mount(GameScreen, { props: { unsentCount: 3 } })
 
-    expect(wrapper.get('[data-testid="unsent-count"]').text()).toBe('0')
-    expect(wrapper.find('[data-notice-id="Q6"]').exists()).toBe(false)
-  })
-
-  it('永続ストレージが許可されていれば警告を出さない', () => {
-    const wrapper = mount(GameScreen, {
-      props: { queueSlots: [], storagePersistence: 'granted' },
-    })
-
-    expect(wrapper.find('[data-notice-id="Q6"]').exists()).toBe(false)
+    expect(wrapper.find('[data-notice-id="Q4"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('未送信件数を表示します')
   })
 })

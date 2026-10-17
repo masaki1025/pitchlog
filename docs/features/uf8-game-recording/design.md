@@ -223,6 +223,20 @@ master から渡された 4 区分(前提違反 / 内容拒否 / 一時的 DB �
 
 ---
 
+## 6-2. 封鎖を外す前に解かなければならないこと(2026-10-17)
+
+**敵対レビューで、`lib/sync` 側に未解決の契約違反が見つかった。U-F8 の射程では直せない。**
+
+| # | 事象 | 典拠 | 所有 |
+| --- | --- | --- | --- |
+| **(i)** | **待機中の非所有タブの確定が、ロックの解放後に実行される** —— `runAsSingleWriter` は Web Locks を既定(ブロッキング)で呼び、`ifAvailable` を渡す面が `ExclusiveLockManager` の型に無い。待機側の確定は「拒否」されず、前の書き手が解放した瞬間に追記・送信される | 要件書 `:332` の `E2`・`sync-protocol.md:1690`・契約資産 `waiting-input-not-accepted_v2.json`(`queue.appendCount: 0` / `d1.consumed: false`) | **U-F7**(`singleWriter.ts`) |
+| **(ii)** | **製品経路に非所有タブの拒否が存在しない** —— `rejectNonOwnerInput()`(通知 `Q2-b`)を呼ぶのは `testing/failureScenarioAdapter.ts` だけで、製品コードからの呼出が 0 件 | 同上・要件書 `:333` の `E3` | **U-F7** |
+| **(iii)** | **排他の保持単位が「1 球ごと」で、資産が前提とする「セッション保持」と食い違う** —— 資産の `input.lock` は `heldDuringFreeze: true`。後からセッション保持を入れると、その内側の確定が同名ロックを再取得して待ち続ける(Web Locks は再入不可) | `sync-protocol.md:1689`・`leader-freeze-reelection_v2.json` | **U-F7 と U-F8 の境界**(設計判断) |
+
+**第 1 期は確定操作を塞いでいるので実害は出ない。** ただし **(i)〜(iii) を解かずに [`GameScreenCommitGate`](../../../frontend/src/screens/GameScreenCommitGate.ts) の封鎖を外してはならない。** 封鎖解除の前提条件として本節を参照すること。
+
+---
+
 ## 7. 試験の方針
 
 | 種別 | 第 1 期 | 第 2 期 |

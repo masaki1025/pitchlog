@@ -21,17 +21,18 @@ import {
   type SyncEventPath,
 } from '../lib/sync/eventFieldRules'
 import { EVENT_KIND_RULES, type EventKind } from '../lib/sync/eventKinds'
+import { SYNC_EVENT_SLOT_ID } from '../api/client.syncEvents'
 
-// スロットと wire のキーの対応は docs/features/sync-wire-schema/design.md 3-2 の表が正
-// (d5=V1 / d1=V2 / d4=V3 / game_id=V4 / event_kind=V5 / d2=V6 / payload=V7 /
-// state_diff=V8)。ここは対応の宣言であって、要否の規則ではない。
-const D5_SLOT_ID = 'V1' satisfies EventSlotId
-const D1_SLOT_ID = 'V2' satisfies EventSlotId
-const D4_SLOT_ID = 'V3' satisfies EventSlotId
-const GAME_ID_SLOT_ID = 'V4' satisfies EventSlotId
-const D2_SLOT_ID = 'V6' satisfies EventSlotId
-const PAYLOAD_SLOT_ID = 'V7' satisfies EventSlotId
-const STATE_DIFF_SLOT_ID = 'V8' satisfies EventSlotId
+// スロット ID の宣言は api/client.syncEvents.ts の SYNC_EVENT_SLOT_ID が唯一で、
+// 対応の正は docs/features/sync-wire-schema/design.md 3-2 の表。ここで宣言し直すと
+// 片方だけ直してずれるため、import して使う。
+const D5_SLOT_ID = SYNC_EVENT_SLOT_ID.D5
+const D1_SLOT_ID = SYNC_EVENT_SLOT_ID.D1
+const D4_SLOT_ID = SYNC_EVENT_SLOT_ID.D4
+const GAME_ID_SLOT_ID = SYNC_EVENT_SLOT_ID.GAME_ID
+const D2_SLOT_ID = SYNC_EVENT_SLOT_ID.D2
+const PAYLOAD_SLOT_ID = SYNC_EVENT_SLOT_ID.PAYLOAD
+const STATE_DIFF_SLOT_ID = SYNC_EVENT_SLOT_ID.STATE_DIFF
 
 /** 1 球の記録が通る経路。経路はクライアントが選ばず正本 8-1 の経路表に従う。 */
 export const PITCH_EVENT_PATH: SyncEventPath = SYNC_EVENT_PATH.P2
@@ -182,8 +183,9 @@ export function buildPitchEventDraft(
     [GAME_ID_SLOT_ID]: input.gameId,
     [EVENT_KIND_SLOT_ID]: PITCH_EVENT_KIND.id,
     [D2_SLOT_ID]: input.d2,
-    // 呼出元が後から書き換えても下書きが変わらないよう、浅い複製を持つ。
-    [PAYLOAD_SLOT_ID]: Object.freeze({ ...input.payload }),
+    // 呼出元が後から書き換えても下書きが変わらないよう、入れ子まで複製する
+    // (V7 は JSON のオブジェクトなので structuredClone で足りる)。
+    [PAYLOAD_SLOT_ID]: Object.freeze(structuredClone(input.payload)),
   }
 
   // 正本の要否が変わったときに、古い形の下書きを黙って作り続けないための突合。

@@ -41,6 +41,8 @@ export const ACK_APPLICATION_REASON = {
   ACK_NOT_INTERPRETABLE: 'ack-not-interpretable',
   /** 対象のスロットが未送信で見つからない(既に遷移済みを含む)。 */
   NO_TARGET_SLOT: 'no-target-slot',
+  /** 適用の準備そのものが失敗した(記憶域の障害など)。 */
+  PREPARATION_FAILED: 'preparation-failed',
   /** 遷移の条件を満たさず、状態を変えなかった。 */
   NOT_TRANSITIONED: 'not-transitioned',
   /** 永続化に失敗した。 */
@@ -96,9 +98,10 @@ export async function applyAckToSlot(
       injections,
     )
   } catch {
+    // 記憶域の障害と「対象が無い」は原因が違う。畳むと切り分けられない。
     return {
       outcome: 'not-applied',
-      reason: ACK_APPLICATION_REASON.NO_TARGET_SLOT,
+      reason: ACK_APPLICATION_REASON.PREPARATION_FAILED,
     }
   }
   if (!preparation) {

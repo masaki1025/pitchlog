@@ -192,6 +192,79 @@ describe('送らない要求', () => {
     expect(vi.mocked(fetch)).not.toHaveBeenCalled()
   })
 
+  it('スロットの試合が path と食い違えば送らない（試合軸）', async () => {
+    const result = await postSyncEvents(
+      request({ slots: [slot({ game: 'other-game' })] }),
+    )
+
+    expect(result).toMatchObject({
+      sent: false,
+      reason: SYNC_EVENT_SEND_FAILURE.GAME_ID_MISMATCH,
+    })
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it('試合の違うスロットが混ざれば送らない（イベントの V4 が正しくても）', async () => {
+    const foreign = slot({ d1: 2, game: 'other-game', event: pitchEvent() })
+
+    const result = await postSyncEvents(request({ slots: [slot(), foreign] }))
+
+    expect(result).toMatchObject({
+      sent: false,
+      reason: SYNC_EVENT_SEND_FAILURE.GAME_ID_MISMATCH,
+    })
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it('記録権の証明が無ければ送らない', async () => {
+    const result = await postSyncEvents(
+      request({ recordingRightProof: undefined }),
+    )
+
+    expect(result).toEqual({
+      sent: false,
+      reason: SYNC_EVENT_SEND_FAILURE.INVALID_RECORDING_RIGHT_PROOF,
+    })
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it('イベントの D5 がスロットの D5 と食い違えば送らない', async () => {
+    const result = await postSyncEvents(
+      request({ slots: [slot({ event: pitchEvent({ V1: 'other-d5' }) })] }),
+    )
+
+    expect(result).toMatchObject({
+      sent: false,
+      reason: SYNC_EVENT_SEND_FAILURE.D5_MISMATCH,
+    })
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+  ])('必須スロットの値が %s なら送らない', async (_label, value) => {
+    const result = await postSyncEvents(
+      request({ slots: [slot({ event: pitchEvent({ V6: value }) })] }),
+    )
+
+    expect(result).toMatchObject({
+      sent: false,
+      reason: SYNC_EVENT_SEND_FAILURE.EMPTY_REQUIRED_SLOT,
+    })
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it('D1 が L-2 の整数でなければ送らない', async () => {
+    const result = await postSyncEvents(request({ slots: [slot({ d1: 0 })] }))
+
+    expect(result).toMatchObject({
+      sent: false,
+      reason: SYNC_EVENT_SEND_FAILURE.INVALID_D1,
+    })
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
   it('要求の中で D1 が重複していれば送らない', async () => {
     const result = await postSyncEvents(request({ slots: [slot(), slot()] }))
 
@@ -292,7 +365,7 @@ describe('送信の失敗でキューの状態を変えない', () => {
 
     expect(result).toMatchObject({
       sent: false,
-      reason: SYNC_EVENT_SEND_FAILURE.TRANSPORT_FAILED,
+      reason: SYNC_EVENT_SEND_FAILURE.NO_RESPONSE,
     })
     expect((await queue.readSlot(scope, persisted.d1))?.state).toBe('未送信')
     expect(await queue.countUnsentSlots()).toBe(1)
@@ -309,7 +382,8 @@ describe('送信の失敗でキューの状態を変えない', () => {
 
     expect(result).toMatchObject({
       sent: false,
-      reason: SYNC_EVENT_SEND_FAILURE.TRANSPORT_FAILED,
+      reason: SYNC_EVENT_SEND_FAILURE.RESPONSE_NOT_INTERPRETED,
+      status: 409,
     })
     expect((await queue.readSlot(scope, persisted.d1))?.state).toBe('未送信')
   })

@@ -14,7 +14,9 @@
 //
 // 第 1 期では利用者からこの経路へ到達できない(GameScreenCommitGate が塞ぐ)。
 // 合否はモックの状態差分と契約モックのサーバー相手の隔離試験でのみ判定する。
+import type { DurableQueueSlot } from '../lib/sync/durableQueue'
 import type { EventKind } from '../lib/sync/eventKinds'
+import { queueStateId } from '../lib/sync/queueState'
 import {
   runAsSingleWriter,
   type SingleWriterInjections,
@@ -32,10 +34,13 @@ import {
 import {
   appendPitchEventUnderLock,
   pitchAcceptanceNotStarted,
+  pitchScopeMatchesLock,
   type PitchAcceptanceInput,
   type PitchAcceptanceQueue,
   type PitchAcceptanceResult,
 } from './GameScreenPitchAcceptance'
+
+const UNSENT_STATE = queueStateId('未送信')
 
 export type PitchCommitQueue = PitchAcceptanceQueue & AckApplicationQueue
 
@@ -73,6 +78,12 @@ export type PitchCommitResult =
       send?: SyncEventSendResult
       /** 送れなければ、または ACK が無ければ undefined。 */
       ackApplication?: AckApplicationResult
+      /**
+       * 排他を抜けた時点のスロット。ACK を適用したならその結果、していなければ
+       * 追記直後のもの。画面はこれを読む(acceptance.slot は追記直後の時点で、
+       * 後から書き戻すと古い状態で上書きする)。
+       */
+      latestSlot?: DurableQueueSlot
     }>
 
 /**
@@ -92,7 +103,8 @@ export async function commitPitchEvent(
   dependencies: PitchCommitDependencies,
 ): Promise<PitchCommitResult> {
   // path の試合と排他の単位が食い違うと、別の試合のキューへ書きうる。
-  if (!Object.is(input.scope.game, input.gameIdentifier)) {
+  // 判定は受理側と同じ述語を使う(2 箇所で別々に書かない)。
+  if (!pitchScopeMatchesLock(input)) {
     return { outcome: 'not-attempted', reason: PITCH_COMMIT_SCOPE_MISMATCH }
   }
 
@@ -110,6 +122,14 @@ export async function commitPitchEvent(
         // 追記が成立していなければ送らない(要件書 :329 の E0)。
         return { outcome: 'attempted', acceptance }
       }
+      if (!Object.is(acceptance.slot.state, UNSENT_STATE)) {
+        // 照合で見つけたスロットが既に遷移済みなら、送り直さない。
+        return {
+          outcome: 'attempted',
+          acceptance,
+          latestSlot: acceptance.slot,
+        }
+      }
 
       const send = await postSyncEvents({
         gameId: input.gameIdentifier,
@@ -119,7 +139,12 @@ export async function commitPitchEvent(
       })
       if (!send.sent) {
         // ACK が返らないのでスロットは未送信のまま(sync-protocol.md:764)。
-        return { outcome: 'attempted', acceptance, send }
+        return {
+          outcome: 'attempted',
+          acceptance,
+          send,
+          latestSlot: acceptance.slot,
+        }
       }
 
       let ack: AckResponse | undefined
@@ -133,7 +158,16 @@ export async function commitPitchEvent(
         { scope: input.scope, d1: acceptance.slot.d1, ack },
         queue,
       )
-      return { outcome: 'attempted', acceptance, send, ackApplication }
+      return {
+        outcome: 'attempted',
+        acceptance,
+        send,
+        ackApplication,
+        latestSlot:
+          ackApplication.outcome === 'applied'
+            ? ackApplication.slot
+            : acceptance.slot,
+      }
     },
     dependencies.singleWriterInjections,
   )

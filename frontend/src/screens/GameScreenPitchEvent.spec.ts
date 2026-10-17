@@ -108,6 +108,20 @@ describe('1 球の下書きの組み立て', () => {
 
     expect(fields.V7).toEqual({ pitchTypeId: 'fastball', resultId: 'ball' })
   })
+
+  it('入れ子を書き換えても下書きが変わらない', () => {
+    const source = input({
+      payload: { pitchTypeId: 'fastball', detail: { speed: 140 } },
+    })
+    const fields = fieldsOf(buildPitchEventDraft(source))
+
+    ;(source.payload.detail as { speed: number }).speed = 150
+
+    expect(fields.V7).toEqual({
+      pitchTypeId: 'fastball',
+      detail: { speed: 140 },
+    })
+  })
 })
 
 describe('1 球の下書きが組み立てられない入力', () => {
