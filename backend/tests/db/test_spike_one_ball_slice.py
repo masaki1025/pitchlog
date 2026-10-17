@@ -169,7 +169,7 @@ async def test_one_ball_slice_persists_once_and_replays_as_duplicate(
     """1 球の送信 → 原子保存 → 再送の重複を、独立 SQL で検証する。"""
     db = one_ball_database
     app = create_app()
-    spike_http.install(app)
+    spike_http.install(app, tenant_access=require_tenant_access)
     app.dependency_overrides[require_tenant_access] = lambda: make_tenant_context(
         db.tenant_a
     )

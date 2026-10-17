@@ -1,22 +1,26 @@
 """spike 用の 1 球同期 HTTP 入口を作り、既存 app へ後付けする。
 
-製品の `pitchlog.api` 配下は経路数を規約試験が固定しているため、この入口は
-`api/` の外に置き、`create_app()` 済みの app へ `install(app)` で接続する。
-認証と文脈発行は `require_tenant_access` に委ね、wire 変換は `spike_wire` の
-S-1 型へ寄せてから同期核の `apply_sync_request` を呼ぶ。本物のポートは
-`spike_ports.install(ports)` を起動時（または試験の monkeypatch）に接続する
-前提で、ここでは渡されたまたは既定のスタブを束ねるだけにする。
+製品の `pitchlog.api` 配下は経路数を規約試験が 17 本に固定しているため、この
+入口は `api/` の外に置き、`create_app()` 済みの app へ `install(app)` で接続する。
+層 (`sync/` → `api/`) の依存方向を保つため、テナント判定の依存
+（`require_tenant_access` 相当）は `pitchlog.api` から import せず
+`install(...)` の引数で受け取り、合成（どの依存を渡すか）は呼び出し側
+（テスト・起動スクリプト）で行う。
+wire 変換は `spike_wire` の S-1 型へ寄せてから同期核の `apply_sync_request`
+を呼ぶ。本物のポートは `spike_ports.install(ports)` を起動時（または試験の
+monkeypatch）に接続する前提で、ここでは渡されたまたは既定のスタブを束ねるだけ
+にする。
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 
-from pitchlog.api.tenant_access import require_tenant_access
 from pitchlog.repositories.context import TenantContext
 from pitchlog.sync.apply import apply_sync_request
 from pitchlog.sync.model import (
@@ -31,6 +35,8 @@ from pitchlog.sync.ports import (
 )
 from pitchlog.sync.spike_ports import SpikeProjection, SpikeRights, SpikeValidator
 from pitchlog.sync.spike_wire import to_sync_request
+
+_TENANT_ACCESS = Callable[..., TenantContext]
 
 _REQUEST_ERROR_STATUS = 422
 _GAME_NOT_FOUND_STATUS = 404
@@ -62,6 +68,7 @@ def _build_sync_router(
     rights: RecordingRightsPort,
     projection: ProjectionPort,
     validator: ContentValidationPort,
+    tenant_access: _TENANT_ACCESS,
 ) -> APIRouter:
     """束ねたポートで 1 球入口だけを持つ router を作る。"""
     router = APIRouter()
@@ -73,7 +80,7 @@ def _build_sync_router(
     def post_sync_events(
         game_id: UUID,
         payload: Annotated[dict[str, Any], Body(...)],
-        context: Annotated[TenantContext, Depends(require_tenant_access)],
+        context: Annotated[TenantContext, Depends(tenant_access)],
     ) -> SpikeSyncAckModel:
         """1 球の同期要求を S-1 型へ変換して同期核へ渡す。"""
         request: SyncRequest
@@ -114,6 +121,7 @@ def _build_sync_router(
 def install(
     app: Any,
     *,
+    tenant_access: _TENANT_ACCESS,
     rights: RecordingRightsPort | None = None,
     projection: ProjectionPort | None = None,
     validator: ContentValidationPort | None = None,
@@ -123,6 +131,11 @@ def install(
     Args:
         app: 製品の `create_app()` が返した FastAPI app。型は循環 import を
             避けるため緩めて受ける。
+        tenant_access: テナント判定と文脈発行の FastAPI 依存。`sync/` が
+            `api/` に依存しないため、このモジュールは import せず引数で
+            受け取る。製品の本命は `pitchlog.api.tenant_access.
+            require_tenant_access` で、渡すかの判断（合成）は呼び出し側
+            （テスト・起動スクリプト）が行う。
         rights: 記録権判定ポート。未指定なら spike のスタブを使う。呼び出し
             前に `spike_ports.install(ports)` か試験の monkeypatch で登録表へ
             接続しておくこと。
@@ -133,6 +146,7 @@ def install(
         rights or SpikeRights(),
         projection or SpikeProjection(),
         validator or SpikeValidator(),
+        tenant_access,
     )
     app.include_router(router)
 
