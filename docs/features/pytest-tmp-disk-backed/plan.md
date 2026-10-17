@@ -1,6 +1,6 @@
 ---
 feature: pytest-tmp-disk-backed
-status: active
+status: in-review
 承認: 済（2026-10-18・山田正輝）
 重さ分類: コア領域
 worktree: ../../..
@@ -97,12 +97,12 @@ created: 2026-10-18
 
 ## 5. DoD(Notion TSK-565 と同期)
 
-- [ ] pytest 実行で `/tmp` に新規 basetemp が作られないことを実測で示す(ルート・backend の両方)
-- [ ] 追加テスト(NFR-019)と harness の品質ゲート(ruff / ty / pytest)green
-- [ ] 正本への影響を計画書 3 節で宣言し、`/pr` で突合する
-- [ ] 掃除の手順と上限が AGENTS.md と台帳に明文化されている
-- [ ] 移送の性能影響(連続書込み・小ファイル作成)とルート全件の試験時間を実測し、worklog に記録する
-- [ ] 旧 `/tmp` 残骸(自分分・稼働なし)を掃除し、実施内容を worklog に記録する
+- [x] pytest 実行で `/tmp` に新規 basetemp が作られないことを実測で示す(ルート・backend の両方)
+- [x] 追加テスト(NFR-019)と harness の品質ゲート(ruff / ty / pytest)green
+- [x] 正本への影響を計画書 3 節で宣言し、`/pr` で突合する
+- [x] 掃除の手順と上限が AGENTS.md と台帳に明文化されている
+- [x] 移送の性能影響(連続書込み・小ファイル作成)とルート全件の試験時間を実測し、worklog に記録する
+- [x] 旧 `/tmp` 残骸(自分分・稼働なし)を掃除し、実施内容を worklog に記録する
 
 ## 6. テスト計画
 

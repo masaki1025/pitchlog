@@ -46,8 +46,26 @@ branch: feature/pytest-tmp-disk-backed
 
 2 回目で P0 0 件のため、設計書 6.3 の上限規則どおり 3 回目は実施しない(収束)。
 
+## 実装(ステップ 1〜4)
+
+| コミット | 内容 | 合格条件の実測 |
+| --- | --- | --- |
+| `0c4908ac` | 起票: 計画・調査・worklog(計画レビュー 2 回目まで反映) | `check_docs_status.py` 0 違反 |
+| `850dd5d1` | ステップ 1/4: 移送ヘルパー + 単体テスト(純ロジック) | root `ruff check` / `ty check` green、単体 20 passed |
+| `cea3d163` | ステップ 2/4: ルート conftest 配線 + サブプロセスの実 pytest 実測 | 同上 + 21 passed、`/tmp` 世代数 13→13 |
+| `09ef1ee7` | ステップ 3/4: backend 配線 + 配線テスト + ty 探索パス | backend `ruff format --check` / `ruff check` / `ty check` green、8 passed |
+| `e230bb96` | ステップ 4/4: AGENTS.md 明文化 | ルート全件 **29,659 passed / 2 skipped / 480 秒**(exit 0) |
+
+## 結果サマリ
+
+- **移送の実測**: ルート全件で `/tmp/pytest-of-ymdms` の世代数は前後とも **13**(新しい basetemp はディスク側 `~/.cache/pitchlog/pytest-tmp` に生成。実行後 2.2G)。ルート全件 **480 秒**(8 worker。台帳の「ルート全件 30 分」より短いが、これは worker 数と worksteal の構成差)。移送の性能影響(連続書込み 2.1GB/s → 1.3GB/s、空ファイル 2000 個 0.037s → 0.118s)は、この規模の試験では実行時間に出ない
+- **旧 `/tmp` 残骸の掃除(自分分)**: 稼働中の pytest が無いことを確認し、`/tmp/pytest-of-ymdms` の古い 9 世代(合計 1.2G。最大は `pytest-684` の 1.1G)を削除し、直近 3 世代(`pytest-719/720/721`)と `pytest-current` を残置 → 292K。`/tmp` 全体は 3.9G → 2.8G。他担当の `/tmp/pitchlog-c1-root-tests-20261016b`(1.5G)は稼働・他担当のため触っていない
+- **正本への反映**: 計画 3 節の宣言どおり `docs/development/harness-evaluation.md`(該当候補へ対応の追記 + 変更履歴 1 行。版は上げない)と `docs/README.md`(台帳行の最終更新日)のみ。要件書・設計書・ADR・運用文書は反映なし(`check_plan_docs_sync.py` で突合)
+- **DoD**: 計画 5 節の 6 項目をすべて実測・記録で満たした(`/tmp` 不増・ゲート green・3 節突合・AGENTS.md と台帳の明文化・性能実測・旧残骸の掃除)
+
 ## 未決・次の一歩
 
-- 計画レビュー 2 回目(反映差分と影響節)→ 起票コミット → ステップ実装コミット → `/check` → `/pr` → Notion 確認待ち。
-- 旧 `/tmp` 残骸の掃除(稼働確認後・直近 3 世代は残す)。
-- 台帳への対応記録と `docs/README.md` 索引の日付現行化(クローズ処理コミットで実施)。
+- PR の差分レビュー(コア領域: adversarial)を GLM 代役で実施し、結果と採否を PR コメントで記録する
+- 申し送り: `scripts/product_rls_real_schema/runner.py:593` の `/tmp` 直書き(`tempfile.mkdtemp(dir="/tmp")`)は本件の対象外 — 別タスク候補
+- 申し送り: 他担当の `/tmp/pitchlog-c1-root-tests-20261016b`(1.5G)は稼働確認の上で当人へ
+- 注意: 3 日を超えて走り続ける実行の世代は掃除対象になりうる(`PITCHLOG_PYTEST_TMP_KEEP_DAYS=0` で無効化)
