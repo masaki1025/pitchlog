@@ -60,6 +60,11 @@
       "provenance_id": "PLAN-TSK446-RECORD-AND-AGGREGATE",
       "path": "record-and-aggregate-design.md",
       "extracted_text": "選手と対戦相手チームの作成・参照・更新は record_and_aggregate 経路として扱う。"
+    },
+    {
+      "provenance_id": "PLAN-AUTH-SESSION-VERIFICATION-CONTRACT",
+      "path": "auth-session-plan.md",
+      "extracted_text": "GET /auth/session"
     }
   ],
   "routes": [
@@ -314,6 +319,15 @@
         "FR-900/list_item-001"
       ],
       "provenance_ids": []
+    },
+    {
+      "route_id": "ROUTE:AUTH:session:read",
+      "route_kind": "authentication_entry",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-AUTH-SESSION-VERIFICATION-CONTRACT"
+      ]
     }
   ],
   "management_operations": [

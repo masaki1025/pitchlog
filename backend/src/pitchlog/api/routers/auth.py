@@ -2,22 +2,29 @@
 
 import ipaddress
 from datetime import UTC, datetime
+from typing import Annotated
+from uuid import UUID
 
 import anyio
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from starlette.concurrency import run_in_threadpool
 
 from pitchlog.api.request_presentation import RequestGateError, require_presented_token
 from pitchlog.api.schemas.auth import (
+    AuthSessionResponse,
     LoginRequest,
     LoginResponse,
     LogoutResponse,
     PasswordChangeRequest,
     PasswordChangeResponse,
 )
+from pitchlog.api.tenant_access import require_tenant_access
 from pitchlog.authz.password_change import change_password_token
 from pitchlog.authz.team_login import get_login_connection, login_attempt
 from pitchlog.authz.verified_tenant import logout_token
+from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.tenant_profile import TenantProfileReadToken
+from pitchlog.repositories.transaction import tenant_transaction_scope
 
 router = APIRouter(tags=["認証"])
 _COOKIE_NAME = "__Host-pitchlog_token"
@@ -75,6 +82,33 @@ async def login(
         samesite="strict",
     )
     return LoginResponse()
+
+
+@router.get(
+    "/auth/session",
+    response_model=AuthSessionResponse,
+    operation_id="auth_session_read",
+    summary="ログイン状態を確認する",
+)
+def read_session(
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+) -> AuthSessionResponse:
+    """Cookieから検証したテナントの識別子と正規表示名だけを返す。"""
+    with tenant_transaction_scope(context) as scope:
+        rows = scope.run(TenantProfileReadToken()).rows
+    if not rows:
+        raise RequestGateError("credential")
+    if len(rows) != 1 or len(rows[0]) != 2:
+        raise RuntimeError("テナント情報の読み取り結果が不正")
+    tenant_id, team_name = rows[0]
+    if (
+        type(tenant_id) is not UUID
+        or tenant_id != context.tenant_id
+        or type(team_name) is not str
+        or not team_name
+    ):
+        raise RuntimeError("テナント情報の読み取り結果が不正")
+    return AuthSessionResponse(tenant_id=tenant_id, team_name=team_name)
 
 
 @router.post(

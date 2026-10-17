@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "contracts/authz/route-registry.json",
-  "asset_digest": "0da4b5628d9ca6bd68db90e517bb0c771bc233197b9ef6465aae8633cde49b44",
-  "entry_count": 244,
-  "aggregate_decision_digest": "e88333e0008ad8b1ba2fe86a695d29bdafa8ad915e2e75fffca0583ac532f896",
+  "asset_digest": "bf0168c1660b10107e5796d8462b914cf9ae2a81a8ccc5d83950e63f866cea0e",
+  "entry_count": 245,
+  "aggregate_decision_digest": "d9ee57638d8cd2350f5af5835e00301f4d12df54af639f73f44155b7cbd8328b",
   "entries": [
     {
       "entry_id": "route:ROUTE:FR-020",
@@ -770,6 +770,19 @@
         ]
       },
       "decision_digest": "ff71f8cba523e6cb8b93d3df722df650f5a2748c1d5905601c1fa3c89c6737bc"
+    },
+    {
+      "entry_id": "route:ROUTE:AUTH:session:read",
+      "decision": {
+        "route_id": "ROUTE:AUTH:session:read",
+        "route_kind": "authentication_entry",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-AUTH-SESSION-VERIFICATION-CONTRACT"
+        ]
+      },
+      "decision_digest": "12a01aed344764032b538de30c7b7225234173ad08993bcad381618cb1146bed"
     },
     {
       "entry_id": "operation:create_group",

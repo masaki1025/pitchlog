@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_http_route_matrix",
   "asset_path": "contracts/authz/http-route-matrix.json",
-  "asset_digest": "04723738b1690745f92c3daa15534c07c22b0e4a936ce8146e107dfebfccca5d",
-  "entry_count": 59,
-  "aggregate_decision_digest": "5414f72f3ea03b9e305c32089f758442537a519f67d14bdc10082a3f323b2c36",
+  "asset_digest": "37e33bfda07c696c91edad00429edb42b9ca6ba95f9a8ffcd6c0d06355d5670b",
+  "entry_count": 60,
+  "aggregate_decision_digest": "790b380ab971495be3b7a777f54f27c4acb03de2dc9aa5eabd92978e31bd4e5c",
   "entries": [
     {
       "entry_id": "route:HTTP:ROUTE:FR-020",
@@ -616,6 +616,19 @@
         }
       },
       "decision_digest": "fc200be8837b8b7f9e9a3ddb3ffbf8431bb1ebd4838747dcf6ce5df76fe2a5aa"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:AUTH:session:read",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:AUTH:session:read",
+        "route_id": "ROUTE:AUTH:session:read",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "TSK-528.C1.http-route.HTTP:ROUTE:AUTH:session:read",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "800eed89befac2d2d3a454a3c14aef2f4048a972d2f71405e1fb7ac7f4d8b728"
     },
     {
       "entry_id": "cell:CELL:shared_screen:team_metrics:screen",

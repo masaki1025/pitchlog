@@ -584,6 +584,92 @@
       "reason": "TSK-238 で要件書 v2.13(付録B-3 の内外角の導出規則と付録B-7 の画面座標⇄保存座標の相互変換)を確定し、さらに付録B-7 と変更履歴の ADR-003 参照先の誤り 2 系統を訂正した。#131(TSK-538)が着地した origin/develop(e2e78cfb)を取り込んだ結果、要件書は v2.14 + v2.13 の 3 行 + 訂正という形になり、develop の母集合もこの要件書とは一致しなくなったため、母集合を develop の基線の上へ積み直した。claims は 1392 → 1414 件。増えた 22 件はいずれも座標の幾何または文書メタデータで out_of_scope であり、認可の主張は 1 件も増えていない(auth_claim は 187 で不変)。分類は新しく判定しておらず、(見出し ID, 原文 digest)の組で origin/develop と 53e4b19a の母集合から全件引き当てた(未解決 0 件)。oracle 入力 8 資産を積み直したコミット 62fdfe81de7029d49b2b5d80683f49b2dce3e327 へ oracle_commit を更新する。同一性の粒度・識別値の解釈は変えていない(oracle_commit_semantics は last_committed_step_4_input_baseline のまま)",
       "approved_by": "山田正輝",
       "approved_at": "2026-10-15"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#144",
+      "series": "oracle_input",
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "d5ccc18ef39179857c9a4c793ea28a416432efba"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "62fdfe81de7029d49b2b5d80683f49b2dce3e327"
+          }
+        ]
+      },
+      "changes": [],
+      "placement_change": {
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "moved": false,
+      "reason": "TSK-528追補C1でGET /auth/sessionを既存認証入口へ1件追加し、route registryを244件から245件、HTTP route matrixを59件から60件へ追随した。追加経路は既存Cookie認証とrequire_tenant_accessから得た検証済みtenantの表示情報だけを返す。認可主張、同一性粒度、placement、oracle_commit_semanticsは変更せず、oracle input 8資産のうちroute registryとHTTP route matrixの本体・lockの4資産だけを更新する。",
+      "approved_by": "山田正輝",
+      "approved_at": "2026-10-16"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#145",
+      "series": "oracle_input",
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "e6a0ca0ab6cee5c779851518463eafba6ae146b3"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "d5ccc18ef39179857c9a4c793ea28a416432efba"
+          }
+        ]
+      },
+      "changes": [],
+      "placement_change": {
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "moved": false,
+      "reason": "ADR-003 D-14-m/要件書v2.15の確定に伴い、認可外5編集の分類と要件書入力blobを更新。C1/#144のGET経路・既存履歴を保持し、oracle入力8資産の変更を直列に再封印。認可主張187行、owner、同一性粒度、配置、oracleの意味は不変。",
+      "approved_by": "山田正輝",
+      "approved_at": "2026-10-17"
     }
   ]
 }
