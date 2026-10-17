@@ -9,7 +9,8 @@
 wire 変換は `spike_wire` の S-1 型へ寄せてから同期核の `apply_sync_request`
 を呼ぶ。本物のポートは `spike_ports.install(ports)` を起動時（または試験の
 monkeypatch）に接続する前提で、ここでは渡されたまたは既定のスタブを束ねるだけ
-にする。
+にする。DB セッションの取得は `api/` に属さない既存の作法
+（`repositories.transaction.tenant_transaction_scope`）をそのまま使う。
 """
 
 from __future__ import annotations
@@ -21,13 +22,19 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 
+from pitchlog.db.recording_rights.models import RecordingGeneration
+from pitchlog.db.sync_protocol.models import OperationEvent
 from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.transaction import tenant_transaction_scope
 from pitchlog.sync.apply import apply_sync_request
 from pitchlog.sync.model import (
+    AcceptedChangeResult,
     AckResult,
+    RejectedChangeResult,
     RequestShapeError,
     SyncRequest,
 )
+from pitchlog.sync.prefix_path import _cell
 from pitchlog.sync.ports import (
     ContentValidationPort,
     ProjectionPort,
@@ -35,12 +42,21 @@ from pitchlog.sync.ports import (
 )
 from pitchlog.sync.spike_ports import SpikeProjection, SpikeRights, SpikeValidator
 from pitchlog.sync.spike_wire import to_sync_request
+from pitchlog.sync.tokens import (
+    GameReadToken,
+    OperationEventOrderReadToken,
+    RecordingGenerationReadToken,
+)
 
 _TENANT_ACCESS = Callable[..., TenantContext]
+_GENERATION_COLUMNS = tuple(RecordingGeneration.__table__.c.keys())
+_EVENT_COLUMNS = tuple(OperationEvent.__table__.c.keys())
+_STATE_READ_LIMIT = 256
 
 _REQUEST_ERROR_STATUS = 422
 _GAME_NOT_FOUND_STATUS = 404
 _BLOCKED_STATUS = 503
+_NOT_IMPLEMENTED_STATUS = 501
 
 
 class SpikeEventResultModel(BaseModel):
@@ -64,6 +80,24 @@ class SpikeSyncAckModel(BaseModel):
     event_results: list[SpikeEventResultModel]
 
 
+class SpikeSyncStateEventModel(BaseModel):
+    """受理済みの操作イベント 1 件分。"""
+
+    d5: str
+    d1: int | None = None
+    d2: int | None = None
+    generation: int | None = None
+    event_kind: str
+    state_diff: dict[str, object]
+
+
+class SpikeSyncStateModel(BaseModel):
+    """spike 入口から見える現在の適用状態 1 通分。"""
+
+    confirmed_watermark: int
+    events: list[SpikeSyncStateEventModel]
+
+
 def _build_sync_router(
     rights: RecordingRightsPort,
     projection: ProjectionPort,
@@ -80,9 +114,15 @@ def _build_sync_router(
     def post_sync_events(
         game_id: UUID,
         payload: Annotated[dict[str, Any], Body(...)],
-        context: Annotated[TenantContext, Depends(tenant_access)],
+        context: TenantContext = Depends(tenant_access),
     ) -> SpikeSyncAckModel:
-        """1 球の同期要求を S-1 型へ変換して同期核へ渡す。"""
+        """1 球の同期要求を S-1 型へ変換して同期核へ渡す。
+
+        注釈の中に closure 変数 (`tenant_access`) を書かない。`from __future__
+        import annotations` の文字列注釈の評価はモジュール全局を基準にする
+        ため closure 変数は解決されず、FastAPI が依存を失って `context` を
+        query param として扱う。`Depends(...)` は既定値の実値として渡す。
+        """
         request: SyncRequest
         try:
             request = to_sync_request("P1", str(game_id), payload)
@@ -90,32 +130,91 @@ def _build_sync_router(
             raise HTTPException(status_code=_REQUEST_ERROR_STATUS) from error
         result = apply_sync_request(context, request, rights, projection, validator)
         # B6 と 404 は自テナント不存在と同一の固定封筒に写す（value を出さない）。
-        if result == "B6":
-            raise HTTPException(status_code=_GAME_NOT_FOUND_STATUS)
-        if result == "B7":
-            # spike のスタブゲートは停止しない。経路に入ることは未確認。
-            raise HTTPException(status_code=_BLOCKED_STATUS)
-        if not isinstance(result, AckResult):
-            raise HTTPException(status_code=_BLOCKED_STATUS)
-        return SpikeSyncAckModel(
-            boundary_result=result.boundary,
-            advanced_d3=result.d3,
-            b3_branch=result.b3_branch,
-            reason=result.reason,
-            temporary_id_mapping=dict(result.temporary_id_mapping),
-            event_results=[
-                SpikeEventResultModel(
-                    d4=item.d4,
-                    d1=item.d1,
-                    d5=item.d5,
-                    state=item.state,
-                    reason=item.reason,
+        match result:
+            case "B6":
+                raise HTTPException(status_code=_GAME_NOT_FOUND_STATUS)
+            case "B7":
+                # spike のスタブゲートは停止しない。経路に入ることは未確認。
+                raise HTTPException(status_code=_BLOCKED_STATUS)
+            case AcceptedChangeResult() | RejectedChangeResult():
+                # P3（変更・復旧）の経路はこの spike 入口の対象外。503 は
+                # ③-a/⑧ の停止境界 B7 の意味を持つため、ChangeResult を 503 へ
+                # 読み替えると状態の意味が濁る。一律のフォールバックではなく、
+                # 未対応の明示として 501 Not Implemented を返す。
+                raise HTTPException(status_code=_NOT_IMPLEMENTED_STATUS)
+            case AckResult():
+                return _ack_model(result)
+            case _:
+                raise RuntimeError("spike 入口が対応しない同期結果")
+
+    @router.get(
+        "/games/{game_id:uuid}/sync/state",
+        response_model=SpikeSyncStateModel,
+    )
+    def read_sync_state(
+        game_id: UUID,
+        context: TenantContext = Depends(tenant_access),
+    ) -> SpikeSyncStateModel:
+        """spike 専用の再読込入口。設計提案ではなく spike の観察用の出口。
+
+        適用済みの水位（`recording_generations.confirmed_watermark`）と
+        受理済みのイベント（`operation_events` の現行行）を返す。ここで直接
+        表を読むのは TSK-506 の製品経路を作る提案ではない。spike の横スライス
+        の観察用に、DB セッションの取り方だけ既存ルータの作法に合わせる。
+        """
+        with tenant_transaction_scope(context) as scope:
+            game_rows = scope.run(GameReadToken(game_id)).rows
+            if not game_rows:
+                raise HTTPException(status_code=_GAME_NOT_FOUND_STATUS)
+            state_rows = scope.run(RecordingGenerationReadToken(game_id)).rows
+            if len(state_rows) != 1:
+                raise RuntimeError("spike 入口は現行の記録権世代 1 件だけを扱う")
+            watermark = _cell(state_rows[0], _GENERATION_COLUMNS, "confirmed_watermark")
+            if type(watermark) is not int:
+                raise RuntimeError("確定水位が整数ではない")
+            event_rows = scope.run(
+                OperationEventOrderReadToken(game_id, -1, _STATE_READ_LIMIT)
+            ).rows
+        events: list[SpikeSyncStateEventModel] = []
+        for row in event_rows:
+            d1 = _cell(row, _EVENT_COLUMNS, "d1")
+            d2 = _cell(row, _EVENT_COLUMNS, "d2")
+            generation = _cell(row, _EVENT_COLUMNS, "generation")
+            state_diff = _cell(row, _EVENT_COLUMNS, "state_diff")
+            events.append(
+                SpikeSyncStateEventModel(
+                    d5=str(_cell(row, _EVENT_COLUMNS, "d5")),
+                    d1=d1 if type(d1) is int else None,
+                    d2=d2 if type(d2) is int else None,
+                    generation=generation if type(generation) is int else None,
+                    event_kind=str(_cell(row, _EVENT_COLUMNS, "event_kind")),
+                    state_diff=state_diff if isinstance(state_diff, dict) else {},
                 )
-                for item in result.a5
-            ],
-        )
+            )
+        return SpikeSyncStateModel(confirmed_watermark=watermark, events=events)
 
     return router
+
+
+def _ack_model(result: AckResult) -> SpikeSyncAckModel:
+    """ACK 結果を応答の封筒へ写す。"""
+    return SpikeSyncAckModel(
+        boundary_result=result.boundary,
+        advanced_d3=result.d3,
+        b3_branch=result.b3_branch,
+        reason=result.reason,
+        temporary_id_mapping=dict(result.temporary_id_mapping),
+        event_results=[
+            SpikeEventResultModel(
+                d4=item.d4,
+                d1=item.d1,
+                d5=item.d5,
+                state=item.state,
+                reason=item.reason,
+            )
+            for item in result.a5
+        ],
+    )
 
 
 def install(

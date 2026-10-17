@@ -66,32 +66,38 @@ def _read_rows(
     return cast(list[tuple[object, ...]], rows)
 
 
-def _snapshot(db: SyncDatabase, game: UUID) -> tuple[int, int, int, int]:
+def _snapshot(
+    db: SyncDatabase, tenant: UUID, game: UUID
+) -> tuple[int, int, int, int]:
     """確定水位・操作イベント・台帳・拒否原本の件数を独立 SQL で読む。"""
     watermark_rows = _read_rows(
         db,
         "SELECT confirmed_watermark FROM recording_generations "
         "WHERE tenant_id = %s AND game_id = %s AND generation = 1",
-        (db.tenant_a, game),
+        (tenant, game),
     )
     events_count = _read_rows(
         db,
         "SELECT count(*) FROM operation_events "
         "WHERE tenant_id = %s AND game_id = %s",
-        (db.tenant_a, game),
+        (tenant, game),
     )
     ledger_count = _read_rows(
         db,
         "SELECT count(*) FROM idempotency_ledger WHERE tenant_id = %s",
-        (db.tenant_a,),
+        (tenant,),
     )
     originals_count = _read_rows(
         db,
         "SELECT count(*) FROM rejected_event_originals WHERE tenant_id = %s",
-        (db.tenant_a,),
+        (tenant,),
     )
-    assert len(watermark_rows) == 1
-    watermark = watermark_rows[0][0]
+    if not watermark_rows:
+        # 他テナントの試合など、まだ確定水位を持たない試合のための既定。
+        watermarks: tuple[object, ...] = (0,)
+    else:
+        watermarks = watermark_rows[0]
+    watermark = watermarks[0]
     assert type(watermark) is int
     counts = (
         events_count[0][0],
@@ -180,13 +186,13 @@ async def test_one_ball_slice_persists_once_and_replays_as_duplicate(
         first = await _post_one_ball(client, db.game_a, _one_ball_body(db.game_a, d5))
         assert first.status_code == 200
         ack = first.json()
-        assert ack["boundary_result"] in {"B1", "B2", "B3", "B4"}
+        assert ack["boundary_result"] == "B1"
         assert ack["advanced_d3"] == 1
         assert ack["event_results"] == [
             {"d4": "1", "d1": 1, "d5": str(d5), "state": "受理", "reason": None}
         ]
 
-        watermark, events, ledger, originals = _snapshot(db, db.game_a)
+        watermark, events, ledger, originals = _snapshot(db, db.tenant_a, db.game_a)
         assert watermark == 1
         assert events == 1
         assert ledger == 1
@@ -195,16 +201,34 @@ async def test_one_ball_slice_persists_once_and_replays_as_duplicate(
         assert saved == ("play_input", 1, 0, True, False, False, "accepted", 1, d5)
         assert _ledger_kinds(db) == ("accepted",)
 
+        state = await client.get(f"/games/{db.game_a}/sync/state")
+        assert state.status_code == 200
+        state_body = state.json()
+        # 再 POST せずに GET だけで適用済みの水位と受理済みの 1 球が見える。
+        assert state_body == {
+            "confirmed_watermark": 1,
+            "events": [
+                {
+                    "d5": str(d5),
+                    "d1": 1,
+                    "d2": 0,
+                    "generation": 1,
+                    "event_kind": "play_input",
+                    "state_diff": {},
+                }
+            ],
+        }
+
         second = await _post_one_ball(client, db.game_a, _one_ball_body(db.game_a, d5))
         assert second.status_code == 200
         replay = second.json()
-        assert replay["boundary_result"] in {"B1", "B2", "B3", "B4"}
+        assert replay["boundary_result"] == "B1"
         assert replay["advanced_d3"] == 1
         assert replay["event_results"] == [
             {"d4": "1", "d1": 1, "d5": str(d5), "state": "重複", "reason": None}
         ]
         watermark_after, events_after, ledger_after, originals_after = _snapshot(
-            db, db.game_a
+            db, db.tenant_a, db.game_a
         )
         assert watermark_after == watermark
         assert events_after == events
@@ -226,10 +250,34 @@ async def test_one_ball_slice_persists_once_and_replays_as_duplicate(
         )
         assert violation.status_code == 422
         watermark_last, events_last, ledger_last, originals_last = _snapshot(
-            db, db.game_a
+            db, db.tenant_a, db.game_a
         )
         assert watermark_last == watermark
         assert events_last == events
         assert ledger_last == ledger
         assert originals_last == originals
         assert _ledger_kinds(db) == ("accepted",)
+
+
+@pytest.mark.anyio
+async def test_other_tenant_game_is_identical_404_and_writes_nothing(
+    one_ball_database: SyncDatabase,
+) -> None:
+    """他テナントの試合は自テナント文脈では経路不存在と同一の 404 で、行を書かない。"""
+    db = one_ball_database
+    app = create_app()
+    spike_http.install(app, tenant_access=require_tenant_access)
+    app.dependency_overrides[require_tenant_access] = lambda: make_tenant_context(
+        db.tenant_a
+    )
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    before = _snapshot(db, db.tenant_b, db.game_b)
+    async with AsyncClient(transport=transport, base_url="https://test") as client:
+        not_found = await client.get("/missing")
+        response = await _post_one_ball(
+            client, db.game_b, _one_ball_body(db.game_b, uuid4())
+        )
+        assert response.status_code == 404
+        assert response.content == not_found.content
+    after = _snapshot(db, db.tenant_b, db.game_b)
+    assert after == before
