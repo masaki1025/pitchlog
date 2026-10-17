@@ -23,7 +23,7 @@ from pitchlog.repositories.transaction import (
 )
 from pitchlog.sync import invalidation, ports
 from pitchlog.sync.change_path import apply_p3_change
-from pitchlog.sync.model import ABSENT, SyncEvent, SyncRequest
+from pitchlog.sync.model import ABSENT, RejectedChangeResult, SyncEvent, SyncRequest
 
 from .test_sync_apply_operations_boundary import _SyncDatabase
 
@@ -204,6 +204,13 @@ def test_p3_rejected_branches_do_not_write(
         before = _counts(db, UUID(request.events[0].d5))
     result = _apply(db, request, rights=rights, validator=validator)
     assert result.boundary == branch.split("-")[0]
+    # D-3: B8 は現在版、B9 は成立条件を必須で持ち、他の境界は持たない(提示 4-5)。
+    assert isinstance(result, RejectedChangeResult)
+    assert (result.current_version, result.b9_cause) == {
+        "B8": (1, None),
+        "B9-recovery": (None, "旧復旧世代"),
+        "B9-proof": (None, "記録権不保持"),
+    }.get(branch, (None, None))
     assert _counts(db, UUID(request.events[0].d5)) == before
     if branch == "B12":
         assert rights.calls == []

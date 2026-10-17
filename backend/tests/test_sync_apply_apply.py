@@ -16,6 +16,7 @@ from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync import apply, crash_points, ordering, prefix_path
 from pitchlog.sync.idempotency import D5Candidate, operation_fingerprint
 from pitchlog.sync.model import (
+    A5Rejection,
     AckResult,
     RejectedChangeResult,
     SyncEvent,
@@ -1020,3 +1021,169 @@ def test_named_crash_hook_is_scoped_and_raises(point: crash_points.CrashPoint) -
         with pytest.raises(RuntimeError, match="電源断"):
             crash_points.reach(point)
     crash_points.reach(point)
+
+
+# D-3 公開結果型(US-1 提示 4-5 の「単体(偽ポート)」): A5「拒否」の各件の分岐。
+_STOP_CASES: dict[str, tuple[P1Result | RejectionResult, A5Rejection, str]] = {
+    "B3a-T9": (
+        RejectionResult("B3a", 1, "拒否", "内容不正"),
+        A5Rejection("内容起因", "B3a", "内容不正"),
+        "B3a",
+    ),
+    "B3a-replay": (
+        P1Result("B3a", 1, False, True, a5="拒否", reason="保存済みの内容不正"),
+        A5Rejection("内容起因", "B3a", "保存済みの内容不正"),
+        "B3a",
+    ),
+    "B3b-P1": (
+        P1Result("B3b", 1, False),
+        A5Rejection("内容起因", "B3b", "同じ D5 の内容が異なる"),
+        "B3b",
+    ),
+    "B3b-T9": (
+        RejectionResult("B3b", 1, "拒否", "同じ D5 の内容が異なる"),
+        A5Rejection("内容起因", "B3b", "同じ D5 の内容が異なる"),
+        "B3b",
+    ),
+    "O4": (
+        P1Result(
+            "B3", 1, False, a5="拒否", reason="O4: 永続化済み D2 の同値", b3_code="O4"
+        ),
+        A5Rejection("O4", None, "O4: 永続化済み D2 の同値"),
+        "O4",
+    ),
+    "O5": (
+        P1Result("B3", 0, False, a5="拒否", reason="O5: D3 の前進に失敗", b3_code="O5"),
+        A5Rejection("O5", None, "O5: D3 の前進に失敗"),
+        "O5",
+    ),
+}
+
+
+def _preflight_with(
+    kinds: tuple[D5Candidate, ...], events: tuple[SyncEvent, ...], has_right: bool
+):
+    """両公開口(経路の有無)に応じた ④・⑤ の結果を返す偽の前処理を作る。"""
+
+    def preflight(*args: object) -> apply._BatchPreflight:
+        batch = args[4] if len(args) > 4 else None
+        return apply._BatchPreflight(
+            0,
+            kinds,
+            has_right,
+            1,
+            paths=(
+                None
+                if batch is None
+                else {cast(int, event.d1): route_for_event(event) for event in events}
+            ),
+        )
+
+    return preflight
+
+
+def _apply_entry(entry: str, request: SyncRequest) -> AckResult:
+    """``apply_sync_request`` と ``apply_sync_events`` の同じ要求を呼び分ける。"""
+    context = cast(TenantContext, object())
+    if entry == "request":
+        result = apply.apply_sync_request(context, request, *_ports())
+    else:
+        batch = SyncEventBatch(
+            request.game_id, cast(str, request.d4), request.events, v12=request.v12
+        )
+        result = apply.apply_sync_events(context, batch, *_ports())
+    assert isinstance(result, AckResult)
+    return result
+
+
+@pytest.mark.parametrize("entry", ["request", "events"])
+@pytest.mark.parametrize("case", list(_STOP_CASES))
+def test_rejected_a5_carries_b3_branch_on_both_entries(
+    monkeypatch: pytest.MonkeyPatch, entry: str, case: str
+) -> None:
+    """停止したイベントの A5「拒否」に B3 の分岐と理由を付け、他の件には付けない。"""
+    stop, expected, branch = _STOP_CASES[case]
+    request = _request(1, 2, 3)
+    monkeypatch.setattr(apply, "game_accessible", lambda *_: True)
+    monkeypatch.setattr(
+        apply,
+        "_preflight_d1",
+        _preflight_with(
+            tuple(D5Candidate("unused") for _ in request.events), request.events, True
+        ),
+    )
+
+    def run(*args: object, **_kwargs: object) -> P1Result | RejectionResult:
+        event = cast(SyncEvent, args[2])
+        return stop if event.d1 == 2 else P1Result(None, 1, True)
+
+    monkeypatch.setattr(apply, "_run_d1_event", run)
+    result = _apply_entry(entry, request)
+    assert (result.boundary, result.b3_branch) == ("B3", branch)
+    assert [(row.d1, row.state, row.rejection) for row in result.a5] == [
+        (1, "受理", None),
+        (2, "拒否", expected),
+        (3, "未処理", None),
+    ]
+    # 従来の reason は分岐の理由と同じ文言を残す(故障系資産が読む)。
+    assert result.a5[1].reason == expected.reason
+
+
+@pytest.mark.parametrize("entry", ["request", "events"])
+@pytest.mark.parametrize(
+    "replayed",
+    [
+        P1Result("B3a", 0, False, True, a5="拒否", reason="保存済みの内容不正"),
+        RejectionResult("B3a", 0, "拒否", "保存済みの内容不正", True),
+    ],
+    ids=["P1-P2", "P4"],
+)
+def test_b4_request_still_classifies_replayed_b3a(
+    monkeypatch: pytest.MonkeyPatch,
+    entry: str,
+    replayed: P1Result | RejectionResult,
+) -> None:
+    """境界が B4 の要求でも、再掲した保存済み B3a の A5「拒否」に分岐を付ける。"""
+    request = _request(1, 2, 3)
+    kinds = (
+        D5Candidate("stored_result"),
+        D5Candidate("conflict", "B3b"),
+        D5Candidate("unused"),
+    )
+    monkeypatch.setattr(apply, "game_accessible", lambda *_: True)
+    monkeypatch.setattr(
+        apply, "_preflight_d1", _preflight_with(kinds, request.events, False)
+    )
+    monkeypatch.setattr(apply, "_replay_existing", lambda *_a, **_k: replayed)
+    monkeypatch.setattr(
+        apply,
+        "_escrow_without_right",
+        lambda *_a, **_k: RejectionResult("B4", 0, "退避"),
+    )
+    result = _apply_entry(entry, request)
+    assert (result.boundary, result.b3_branch) == ("B4", None)
+    assert [(row.d1, row.state, row.rejection) for row in result.a5] == [
+        (1, "拒否", A5Rejection("内容起因", "B3a", "保存済みの内容不正")),
+        (2, "未処理", None),
+        (3, "退避", None),
+    ]
+
+
+def test_rejected_a5_without_reason_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """理由の無い「拒否」は分岐を作れず、ACK を返さずに例外にする(B7 側)。"""
+    request = _request(1)
+    monkeypatch.setattr(apply, "game_accessible", lambda *_: True)
+    monkeypatch.setattr(
+        apply,
+        "_preflight_d1",
+        _preflight_with((D5Candidate("unused"),), request.events, True),
+    )
+    monkeypatch.setattr(
+        apply,
+        "_run_d1_event",
+        lambda *_a, **_k: RejectionResult("B3a", 0, "拒否", None),
+    )
+    with pytest.raises(ValueError, match="理由"):
+        apply.apply_sync_request(cast(TenantContext, object()), request, *_ports())

@@ -145,7 +145,12 @@ def _apply_locked(
             event.game_id, supplied, writer
         ):
             raise _NoWriteResult(
-                RejectedChangeResult("B9", event.d5, "要求作成時の復旧世代が旧世代")
+                RejectedChangeResult(
+                    "B9",
+                    event.d5,
+                    "要求作成時の復旧世代が旧世代",
+                    b9_cause="旧復旧世代",
+                )
             )
 
         fingerprint = operation_fingerprint(event, "P3", None)
@@ -168,7 +173,9 @@ def _apply_locked(
             )
         ):
             raise _NoWriteResult(
-                RejectedChangeResult("B9", event.d5, "現在の記録権証明がない")
+                RejectedChangeResult(
+                    "B9", event.d5, "現在の記録権証明がない", b9_cause="記録権不保持"
+                )
             )
         if type(event.v5) is not str or event.v5 not in CHANGE_EVENT_KIND_LITERALS:
             raise _NoWriteResult(
@@ -209,7 +216,12 @@ def _apply_locked(
             raise RuntimeError("対象の確定版の型が不正")
         if current_version != event.v11:
             raise _NoWriteResult(
-                RejectedChangeResult("B8", event.d5, f"現在版: {current_version}")
+                RejectedChangeResult(
+                    "B8",
+                    event.d5,
+                    f"現在版: {current_version}",
+                    current_version=current_version,
+                )
             )
 
         accepted_at = datetime.now(UTC).isoformat()

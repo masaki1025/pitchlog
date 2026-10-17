@@ -30,6 +30,7 @@ from pitchlog.sync.idempotency import (
     operation_fingerprint,
 )
 from pitchlog.sync.model import (
+    A5Rejection,
     A5Result,
     AckResult,
     B3Branch,
@@ -390,6 +391,26 @@ def _b3_branch(result: D1Result) -> B3Branch:
     return result.boundary
 
 
+def _a5_rejection(result: D1Result, reason: str | None) -> A5Rejection:
+    """A5「拒否」1 件の B3 の分岐を局所結果から決める(US-1 提示 4-3)。
+
+    境界の値に依らず、A5 が「拒否」の件には必ず分岐を付ける。B4 の要求で
+    保存済みの B3a を再掲した件も同じ規則で内容起因 B3a になる。
+
+    Args:
+        result: 「拒否」に写した局所結果。
+        reason: A5 に載せる理由の文言。
+
+    Returns:
+        内容起因(B3a・B3b)・O4・O5 のいずれかの分岐と理由。理由と分岐の
+        組の検査は ``A5Rejection`` が行う。
+    """
+    branch = _b3_branch(result)
+    if branch == "B3a" or branch == "B3b":
+        return A5Rejection("内容起因", branch, cast(str, reason))
+    return A5Rejection(branch, None, cast(str, reason))
+
+
 def _is_replay(result: D1Result) -> bool:
     """保存済み結果の再掲かを返す。"""
     return result.replayed
@@ -594,7 +615,10 @@ def _apply_d1_request(
         event_reason = result.reason or (
             "同じ D5 の内容が異なる" if result.boundary == "B3b" else None
         )
-        a5.append(A5Result(event.d4, event.d1, event.d5, state, event_reason))
+        rejection = _a5_rejection(result, event_reason) if state == "拒否" else None
+        a5.append(
+            A5Result(event.d4, event.d1, event.d5, state, event_reason, rejection)
+        )
         if isinstance(result, P1Result) and result.accepted:
             d3 = max(d3, result.d3)
         for temporary, permanent in (

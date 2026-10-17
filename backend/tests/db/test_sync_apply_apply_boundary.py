@@ -32,7 +32,13 @@ from pitchlog.sync.apply import apply_sync_events, apply_sync_request
 from pitchlog.sync.crash_points import CrashPoint
 from pitchlog.sync.crash_points import testing_crash_hook as _testing_crash_hook
 from pitchlog.sync.idempotency import operation_fingerprint
-from pitchlog.sync.model import AckResult, SyncEvent, SyncEventBatch, SyncRequest
+from pitchlog.sync.model import (
+    A5Rejection,
+    AckResult,
+    SyncEvent,
+    SyncEventBatch,
+    SyncRequest,
+)
 from pitchlog.sync.prefix_path import P1Result, P1Target, PlayerRegistration
 from pitchlog.sync.tokens import (
     IdempotencyLedgerInsertToken,
@@ -872,6 +878,49 @@ def test_b4_request_leaves_conflict_unprocessed_without_t9(
     assert _count(db, "idempotency_ledger", conflict.d5) == 1
     assert _count(db, "rejected_event_originals", conflict.d5) == 0
     assert _count(db, "evacuated_event_originals", unused.d5) == 1
+
+
+@pytest.mark.parametrize("entry", ["request", "events"])
+def test_b4_request_classifies_replayed_b3a_and_escrows_unused(
+    prefix_database: _SyncDatabase, entry: str
+) -> None:
+    """D-3: B4 の要求でも、再掲した保存済み B3a の A5「拒否」に分岐を付ける。
+
+    G-G の前提(US-1 提示 4-4): 境界が B4 でも A5 の各件が分類できること。
+    同じ要求の未使用 D5 は退避し、分岐を付けない。
+    """
+    db = prefix_database
+    rejected = SyncEvent(str(uuid4()), str(db.game_a), 1, "1", v5="unknown", v7={})
+
+    def send(events: tuple[SyncEvent, ...], *, v12: str, deny: bool) -> AckResult:
+        rights = DenyPrefixRights() if deny else PrefixRights()
+        if entry == "events":
+            return _invoke_events(
+                db, SyncEventBatch(str(db.game_a), "1", events, v12=v12), rights=rights
+            )
+        result = _invoke(
+            db,
+            SyncRequest("P1", str(db.game_a), events, d4="1", v12=v12),
+            rights=rights,
+        )
+        assert isinstance(result, AckResult)
+        return result
+
+    first = send((rejected,), v12="proof", deny=False)
+    assert (first.boundary, first.b3_branch) == ("B3", "B3a")
+    reason = first.a5[0].reason
+    assert reason is not None and "V5" in reason
+    assert first.a5[0].rejection == A5Rejection("内容起因", "B3a", reason)
+    unused = _event(db.game_a, d1=2, d4="1")
+    result = send((rejected, unused), v12="old-proof", deny=True)
+    assert (result.boundary, result.b3_branch) == ("B4", None)
+    assert [(item.d1, item.state, item.rejection) for item in result.a5] == [
+        (1, "拒否", A5Rejection("内容起因", "B3a", reason)),
+        (2, "退避", None),
+    ]
+    assert _count(db, "rejected_event_originals", rejected.d5) == 1
+    assert _count(db, "evacuated_event_originals", unused.d5) == 1
+    assert _count(db, "rejected_event_originals", unused.d5) == 0
 
 
 def test_contiguous_invalid_content_commits_b3a_original(

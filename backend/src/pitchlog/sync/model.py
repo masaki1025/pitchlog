@@ -51,6 +51,10 @@ type AckBoundary = Literal["B1", "B2", "B3", "B4"]
 type B3Branch = Literal["B3a", "B3b", "O4", "O5"]
 type ChangeBoundary = Literal["変更受理", "B8", "B9", "B10", "B11", "B12", "B13", "B14"]
 type RejectedChangeBoundary = Literal["B8", "B9", "B10", "B11", "B12", "B13", "B14"]
+# A5「拒否」1 件の理由種別(WS 4-2 の rejection.kind)。
+type RejectionKind = Literal["内容起因", "O4", "O5"]
+# B9 の成立条件(WS 4-3 の b9_cause — 正本 6-3 の B9 は両者で帰結を分ける)。
+type B9Cause = Literal["記録権不保持", "旧復旧世代"]
 
 
 class RequestShapeError(ValueError):
@@ -379,14 +383,64 @@ class SyncEventBatch:
 
 
 @dataclass(frozen=True, slots=True)
+class A5Rejection:
+    """A5「拒否」1 件の B3 の分岐と理由(WS 4-2 の rejection)。
+
+    Attributes:
+        kind: 理由種別。内容起因(B3a・B3b)・O4・O5 のいずれか。
+        branch: 内容起因のときだけ ``"B3a"`` または ``"B3b"``。O4・O5 では None。
+        reason: 理由の内容。空にしない。
+    """
+
+    kind: RejectionKind
+    branch: Literal["B3a", "B3b"] | None
+    reason: str
+
+    def __post_init__(self) -> None:
+        """理由種別と分岐の組と、理由の有無を検査する。
+
+        Raises:
+            ValueError: 内容起因で分岐が B3a・B3b でない、O4・O5 で分岐を持つ、
+                未知の理由種別、または理由が空でない文字列でない場合。
+        """
+        if not (
+            (self.kind == "内容起因" and self.branch in ("B3a", "B3b"))
+            or (self.kind in ("O4", "O5") and self.branch is None)
+        ):
+            raise ValueError("拒否の理由種別と B3 の分岐の組が不正")
+        if type(self.reason) is not str or not self.reason:
+            raise ValueError("拒否には理由が必要")
+
+
+@dataclass(frozen=True, slots=True)
 class A5Result:
-    """D4・D1・D5 で識別するイベント単位の確定結果。"""
+    """D4・D1・D5 で識別するイベント単位の確定結果。
+
+    Attributes:
+        d4: 要求の D4。
+        d1: イベントの D1。
+        d5: イベントの D5。
+        state: A5 の結果。
+        reason: 理由の文言(従来の値 — 故障系資産と既存の試験が読む)。
+        rejection: B3 の分岐と理由。``state`` が「拒否」のときだけ持つ。
+            境界が B4 の要求で保存済みの B3a を再掲した件にも付ける。
+    """
 
     d4: str
     d1: int
     d5: str
     state: A5State
     reason: str | None = None
+    rejection: A5Rejection | None = None
+
+    def __post_init__(self) -> None:
+        """「拒否」と B3 の分岐の有無が一致することを検査する。
+
+        Raises:
+            ValueError: 「拒否」で分岐が無い、または「拒否」以外で分岐を持つ場合。
+        """
+        if (self.state == "拒否") != isinstance(self.rejection, A5Rejection):
+            raise ValueError("A5 の拒否には B3 の分岐が必要で、拒否以外は持たない")
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -469,16 +523,41 @@ class AcceptedChangeResult:
 
 @dataclass(frozen=True, slots=True)
 class RejectedChangeResult:
-    """P3 の B8〜B14 の拒否だけを表す。"""
+    """P3 の B8〜B14 の拒否だけを表す。
+
+    Attributes:
+        boundary: 拒否の境界結果。
+        d5: 要求の D5。
+        reason: 理由の文言(従来の値)。
+        current_version: B8 のときだけ持つ対象の現在の確定版(WS 4-3)。
+        b9_cause: B9 のときだけ持つ成立条件(WS 4-3)。
+    """
 
     boundary: RejectedChangeBoundary
     d5: str
     reason: str | None = None
+    current_version: int | None = None
+    b9_cause: B9Cause | None = None
 
     def __post_init__(self) -> None:
-        """変更受理を拒否型へ偽装できないようにする。"""
+        """変更受理の偽装と、B8・B9 の追加値の過不足を検査する。
+
+        Raises:
+            ValueError: 境界が B8〜B14 でない、B8 に現在版が無いか B8 以外が
+                現在版を持つ、または B9 に成立条件が無いか B9 以外が持つ場合。
+        """
         if self.boundary not in ("B8", "B9", "B10", "B11", "B12", "B13", "B14"):
             raise ValueError("P3 の拒否結果には B8〜B14 が必要")
+        version = self.current_version
+        has_version = type(version) is int and version > 0
+        if (self.boundary == "B8") != has_version or (
+            self.boundary != "B8" and version is not None
+        ):
+            raise ValueError("B8 だけが現在版を持ち、B8 には現在版が必要")
+        if (self.boundary == "B9") != (
+            self.b9_cause in ("記録権不保持", "旧復旧世代")
+        ) or (self.boundary != "B9" and self.b9_cause is not None):
+            raise ValueError("B9 だけが成立条件を持ち、B9 には成立条件が必要")
 
 
 type ChangeResult = AcceptedChangeResult | RejectedChangeResult

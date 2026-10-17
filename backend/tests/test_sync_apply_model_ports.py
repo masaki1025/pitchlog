@@ -19,6 +19,7 @@ from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationT
 from pitchlog.sync import port_guard, ports
 from pitchlog.sync.model import (
     ABSENT,
+    A5Rejection,
     A5Result,
     A5State,
     AcceptedChangeResult,
@@ -123,13 +124,75 @@ def test_ack_and_change_results_use_canonical_vocabulary() -> None:
     assert accepted.expected_version == 2
     assert accepted.confirmed_content == {"a": (1,)}
     assert accepted.accepted_at.endswith("+09:00")
-    assert RejectedChangeResult("B9", D5).boundary == "B9"
+    assert RejectedChangeResult("B9", D5, b9_cause="旧復旧世代").boundary == "B9"
     with pytest.raises(ValueError):
         RejectedChangeResult(cast(Any, "変更受理"), D5)
     with pytest.raises(TypeError):
         cast(Any, AcceptedChangeResult)({"試合": GAME}, 2, D5, content)
     with pytest.raises(ValueError):
         AcceptedChangeResult({"試合": GAME}, ABSENT, D5, content, "now")
+
+
+def test_a5_rejection_branch_matches_kind() -> None:
+    """D-3: 内容起因だけが B3a・B3b を持ち、O4・O5 は分岐を持たない(提示 4-5)。"""
+    for kind, branch in (("内容起因", "B3a"), ("内容起因", "B3b"), ("O4", None)):
+        rejection = A5Rejection(cast(Any, kind), cast(Any, branch), "理由")
+        assert (rejection.kind, rejection.branch) == (kind, branch)
+    assert A5Rejection("O5", None, "O5: D3 の前進に失敗").kind == "O5"
+    for kind, branch, reason in (
+        ("内容起因", None, "理由"),
+        ("内容起因", "O4", "理由"),
+        ("O4", "B3a", "理由"),
+        ("O5", "B3b", "理由"),
+        ("B7", None, "理由"),
+        ("内容起因", "B3a", ""),
+        ("O5", None, None),
+    ):
+        with pytest.raises(ValueError):
+            A5Rejection(cast(Any, kind), cast(Any, branch), cast(Any, reason))
+
+
+def test_a5_result_requires_rejection_exactly_for_rejected_state() -> None:
+    """D-3: A5「拒否」は必ず分岐を持ち、拒否以外は持たない(提示 4-5)。"""
+    rejection = A5Rejection("内容起因", "B3a", "内容不正")
+    rejected = A5Result("1", 1, D5, "拒否", "内容不正", rejection)
+    assert rejected.rejection == rejection
+    with pytest.raises(ValueError):
+        A5Result("1", 1, D5, "拒否", "内容不正")
+    for state in ("受理", "重複", "退避", "未処理"):
+        assert A5Result("1", 1, D5, cast(Any, state)).rejection is None
+        with pytest.raises(ValueError):
+            A5Result("1", 1, D5, cast(Any, state), None, rejection)
+
+
+def test_rejected_change_result_requires_b8_version_and_b9_cause() -> None:
+    """D-3: B8 は現在版、B9 は成立条件を必須で持ち、他の境界は持たない(提示 4-5)。"""
+    assert RejectedChangeResult("B8", D5, current_version=3).current_version == 3
+    for cause in ("記録権不保持", "旧復旧世代"):
+        assert RejectedChangeResult("B9", D5, b9_cause=cause).b9_cause == cause
+    for boundary in ("B10", "B11", "B12", "B13", "B14"):
+        result = RejectedChangeResult(cast(Any, boundary), D5)
+        assert (result.current_version, result.b9_cause) == (None, None)
+    for boundary, version, cause in (
+        ("B8", None, None),
+        ("B8", 0, None),
+        ("B8", True, None),
+        ("B8", "3", None),
+        ("B8", 3, "記録権不保持"),
+        ("B9", None, None),
+        ("B9", None, "未知"),
+        ("B9", 3, "旧復旧世代"),
+        ("B14", 3, None),
+        ("B14", None, "旧復旧世代"),
+        ("B13", None, "記録権不保持"),
+    ):
+        with pytest.raises(ValueError):
+            RejectedChangeResult(
+                cast(Any, boundary),
+                D5,
+                current_version=cast(Any, version),
+                b9_cause=cast(Any, cause),
+            )
 
 
 @pytest.mark.parametrize(

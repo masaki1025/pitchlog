@@ -84,35 +84,35 @@ class RaiseRow(NamedTuple):
 
 
 _TABLE = """
-apply.py | _preflight_d1 | RuntimeError | 自テナントの記録権世代行が一件ではない | 189 | 8 決定的・取引外 | -
-apply.py | _preflight_d1 | RuntimeError | D3 の型が不正 | 192 | 8 決定的・取引外 | -
-apply.py | _preflight_d1 | RuntimeError | 記録権世代の型が不正 | 195 | 8 決定的・取引外 | -
-apply.py | _preflight_d1 | RuntimeError | D3 の型が不正 | 215 | 8 決定的・取引外 | -
-apply.py | _run_d1_event | (再送出) |  | 290 | 8 中継 | -
-apply.py | _apply_d1_request | TypeError | registrations と targets は D1 をキーにする | 475 | 2 定義・登録の検査 | ステップ 4〜6 で追加(呼出し規約)
-apply.py | _apply_d1_request | P1PreconditionError | P4 は記録権不成立の経路に限る, other | 489 | 8 決定的・取引外 | -
-apply.py | _apply_d1_request | RuntimeError | 同じ一時 ID に異なる確定選手 ID がある | 604 | 8 決定的・確定後 | -
+apply.py | _preflight_d1 | RuntimeError | 自テナントの記録権世代行が一件ではない | 190 | 8 決定的・取引外 | -
+apply.py | _preflight_d1 | RuntimeError | D3 の型が不正 | 193 | 8 決定的・取引外 | -
+apply.py | _preflight_d1 | RuntimeError | 記録権世代の型が不正 | 196 | 8 決定的・取引外 | -
+apply.py | _preflight_d1 | RuntimeError | D3 の型が不正 | 216 | 8 決定的・取引外 | -
+apply.py | _run_d1_event | (再送出) |  | 291 | 8 中継 | -
+apply.py | _apply_d1_request | TypeError | registrations と targets は D1 をキーにする | 496 | 2 定義・登録の検査 | ステップ 4〜6 で追加(呼出し規約)
+apply.py | _apply_d1_request | P1PreconditionError | P4 は記録権不成立の経路に限る, other | 510 | 8 決定的・取引外 | -
+apply.py | _apply_d1_request | RuntimeError | 同じ一時 ID に異なる確定選手 ID がある | 628 | 8 決定的・確定後 | -
 change_path.py | _target | ValueError | V10 の対象参照が不正 | 79 | 4 P3 | -
 change_path.py | _target | ValueError | V10 の対象参照が不正 | 91 | 4 P3 | -
 change_path.py | _accepted_from_candidate | RuntimeError | P3 の保存済み結果の形が不正 | 115 | 4 P3 | -
 change_path.py | _apply_locked | RuntimeError | 認可後に試合行が消失した | 132 | 4 P3 | -
-change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B9', event.d5, '要求作成時の復旧世代が旧世代') | 147 | 4 P3 | -
-change_path.py | _apply_locked | _D5Race | previous | 155 | 4 P3 | -
-change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, '変更対象の試合が進行中・終了後ではない') | 158 | 4 P3 | -
-change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B9', event.d5, '現在の記録権証明がない') | 170 | 4 P3 | -
-change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, 'P3 のイベント種別が不正') | 174 | 4 P3 | -
-change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, 'P3 の内容は JSON object が必要') | 178 | 4 P3 | -
-change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, 'V10 の対象参照が不正') | 184 | 4 P3 | -
-change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, 'V11 の期待版が不正') | 188 | 4 P3 | -
-change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, reason or '変更内容を受理できない') | 193 | 4 P3 | -
-change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, '変更対象が存在しない') | 201 | 4 P3 | -
-change_path.py | _apply_locked | RuntimeError | event_slots の対象行が一件ではない | 205 | 4 P3 | -
-change_path.py | _apply_locked | RuntimeError | 対象の確定版の型が不正 | 209 | 4 P3 | -
-change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B8', event.d5, f'現在版: {current_version}') | 211 | 4 P3 | -
-change_path.py | _apply_locked | RuntimeError | D5 再照合が未使用に戻った | 245 | 4 P3 | -
-change_path.py | _apply_locked | _D5Race | outcome | 246 | 4 P3 | -
-change_path.py | _apply_locked | RuntimeError | 試合行ロック下で対象版の CAS が失敗 | 254 | 4 P3 | -
-change_path.py | apply_p3_change | ValueError | P3 の要求 1 件が必要 | 290 | 2 定義・登録の検査 | -
+change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B9', event.d5, '要求作成時の復旧世代が旧世代', b9_cause='旧復旧世代') | 147 | 4 P3 | ステップ 10 で b9_cause・current_version を追加
+change_path.py | _apply_locked | _D5Race | previous | 160 | 4 P3 | -
+change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, '変更対象の試合が進行中・終了後ではない') | 163 | 4 P3 | -
+change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B9', event.d5, '現在の記録権証明がない', b9_cause='記録権不保持') | 175 | 4 P3 | ステップ 10 で b9_cause・current_version を追加
+change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, 'P3 のイベント種別が不正') | 181 | 4 P3 | -
+change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, 'P3 の内容は JSON object が必要') | 185 | 4 P3 | -
+change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, 'V10 の対象参照が不正') | 191 | 4 P3 | -
+change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, 'V11 の期待版が不正') | 195 | 4 P3 | -
+change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, reason or '変更内容を受理できない') | 200 | 4 P3 | -
+change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B14', event.d5, '変更対象が存在しない') | 208 | 4 P3 | -
+change_path.py | _apply_locked | RuntimeError | event_slots の対象行が一件ではない | 212 | 4 P3 | -
+change_path.py | _apply_locked | RuntimeError | 対象の確定版の型が不正 | 216 | 4 P3 | -
+change_path.py | _apply_locked | _NoWriteResult | RejectedChangeResult('B8', event.d5, f'現在版: {current_version}', current_version=current_version) | 218 | 4 P3 | ステップ 10 で b9_cause・current_version を追加
+change_path.py | _apply_locked | RuntimeError | D5 再照合が未使用に戻った | 257 | 4 P3 | -
+change_path.py | _apply_locked | _D5Race | outcome | 258 | 4 P3 | -
+change_path.py | _apply_locked | RuntimeError | 試合行ロック下で対象版の CAS が失敗 | 266 | 4 P3 | -
+change_path.py | apply_p3_change | ValueError | P3 の要求 1 件が必要 | 302 | 2 定義・登録の検査 | -
 gate.py | game_accessible | RuntimeError | 認可対象の試合行が複数ある | 46 | 8 決定的・取引外 | -
 gate.py | read_before_d5 | RG1Blocked | RG1 の事前読取に失敗 | 56 | 7 既に境界結果(RG1) | -
 gate.py | read_before_d5 | RG1Blocked | 復元調整中 | 58 | 7 既に境界結果(RG1) | -
@@ -143,32 +143,37 @@ invalidation.py | deliver_pending_sync_intents | RuntimeError | 意図 ID また
 invalidation.py | deliver_pending_sync_intents | RuntimeError | 同期意図 ID と範囲が一致しない | 213 | 1 適用外 | -
 invalidation.py | deliver_pending_sync_intents | RuntimeError | 配信完了を記録した意図行を再読できない | 237 | 1 適用外 | -
 invalidation.py | deliver_pending_sync_intents | RuntimeError | 配信完了の状態が永続化されていない | 241 | 1 適用外 | -
-model.py | _object_with_keys | RequestShapeError | S-1: JSON object またはキーの外形が不正 | 79 | 3 S-1 | -
-model.py | freeze_json | TypeError | JSON object のキーは文字列が必要 | 91 | 2 定義・登録の検査 | -
-model.py | freeze_json | TypeError | JSON に含められない値 | 93 | 2 定義・登録の検査 | -
-model.py | SyncEvent.__new__ | RequestShapeError | S-1: D5 または試合 ID が UUID 正規形ではない | 135 | 3 S-1 | -
-model.py | SyncRequest.__new__ | RequestShapeError | S-1: 未知の適用経路 | 176 | 3 S-1 | -
-model.py | SyncRequest.__new__ | RequestShapeError | S-1: 試合 ID が UUID 正規形ではない | 178 | 3 S-1 | -
-model.py | SyncRequest.__new__ | RequestShapeError | S-1: イベント列の外形が不正 | 182 | 3 S-1 | -
-model.py | SyncRequest.__new__ | RequestShapeError | S-1: P3 は変更イベント 1 件が必要 | 185 | 3 S-1 | -
-model.py | SyncRequest.__new__ | RequestShapeError | S-1: P3 の復旧世代がないか型が不正 | 187 | 3 S-1 | -
-model.py | SyncRequest.__new__ | RequestShapeError | S-1: P3 に D1・D4・V6・V8・V9 を指定できない | 194 | 3 S-1 | -
-model.py | SyncRequest.__new__ | RequestShapeError | S-1: D1 付き経路に復旧世代・V11 を指定できない | 199 | 3 S-1 | -
-model.py | SyncRequest.__new__ | RequestShapeError | S-1: 試合 ID がイベント列と一致しない | 204 | 3 S-1 | -
-model.py | SyncRequest.from_payload | RequestShapeError | S-1: 変更イベントの識別がない | 241 | 3 S-1 | -
-model.py | _validate_d1_events | RequestShapeError | S-1: D1 付き経路のイベント列は空にできない | 272 | 3 S-1 | -
-model.py | _validate_d1_events | RequestShapeError | S-1: D1 付き経路の D4 がないか型が不正 | 274 | 3 S-1 | -
-model.py | _validate_d1_events | RequestShapeError | S-1: D1 または要求内 D4 が不正 | 281 | 3 S-1 | -
-model.py | _validate_d1_events | RequestShapeError | S-1: D1 が重複している | 284 | 3 S-1 | -
-model.py | _parse_d1_payload | RequestShapeError | S-1: イベント列は空でない JSON array が必要 | 294 | 3 S-1 | -
-model.py | _parse_d1_payload | RequestShapeError | S-1: イベントの識別がない | 313 | 3 S-1 | -
-model.py | SyncEventBatch.__new__ | RequestShapeError | S-1: 試合 ID が UUID 正規形ではない | 349 | 3 S-1 | ステップ 6 で追加(E-1 の外形)
-model.py | SyncEventBatch.__new__ | RequestShapeError | S-1: イベント列の外形が不正 | 353 | 3 S-1 | ステップ 6 で追加(E-1 の外形)
-model.py | SyncEventBatch.__new__ | RequestShapeError | S-1: D1 付き経路に復旧世代・V11 を指定できない | 356 | 3 S-1 | ステップ 6 で追加(E-1 の外形)
-model.py | SyncEventBatch.__new__ | RequestShapeError | S-1: 試合 ID がイベント列と一致しない | 358 | 3 S-1 | ステップ 6 で追加(E-1 の外形)
-model.py | AcceptedChangeResult.__new__ | ValueError | 変更受理には I6 の対象参照と確定時刻が必要 | 454 | 4 P3 | -
-model.py | AcceptedChangeResult.__new__ | ValueError | 変更受理には期待版と確定内容が必要 | 456 | 2 定義・登録の検査 | -
-model.py | RejectedChangeResult.__post_init__ | ValueError | P3 の拒否結果には B8〜B14 が必要 | 481 | 2 定義・登録の検査 | -
+model.py | _object_with_keys | RequestShapeError | S-1: JSON object またはキーの外形が不正 | 83 | 3 S-1 | -
+model.py | freeze_json | TypeError | JSON object のキーは文字列が必要 | 95 | 2 定義・登録の検査 | -
+model.py | freeze_json | TypeError | JSON に含められない値 | 97 | 2 定義・登録の検査 | -
+model.py | SyncEvent.__new__ | RequestShapeError | S-1: D5 または試合 ID が UUID 正規形ではない | 139 | 3 S-1 | -
+model.py | SyncRequest.__new__ | RequestShapeError | S-1: 未知の適用経路 | 180 | 3 S-1 | -
+model.py | SyncRequest.__new__ | RequestShapeError | S-1: 試合 ID が UUID 正規形ではない | 182 | 3 S-1 | -
+model.py | SyncRequest.__new__ | RequestShapeError | S-1: イベント列の外形が不正 | 186 | 3 S-1 | -
+model.py | SyncRequest.__new__ | RequestShapeError | S-1: P3 は変更イベント 1 件が必要 | 189 | 3 S-1 | -
+model.py | SyncRequest.__new__ | RequestShapeError | S-1: P3 の復旧世代がないか型が不正 | 191 | 3 S-1 | -
+model.py | SyncRequest.__new__ | RequestShapeError | S-1: P3 に D1・D4・V6・V8・V9 を指定できない | 198 | 3 S-1 | -
+model.py | SyncRequest.__new__ | RequestShapeError | S-1: D1 付き経路に復旧世代・V11 を指定できない | 203 | 3 S-1 | -
+model.py | SyncRequest.__new__ | RequestShapeError | S-1: 試合 ID がイベント列と一致しない | 208 | 3 S-1 | -
+model.py | SyncRequest.from_payload | RequestShapeError | S-1: 変更イベントの識別がない | 245 | 3 S-1 | -
+model.py | _validate_d1_events | RequestShapeError | S-1: D1 付き経路のイベント列は空にできない | 276 | 3 S-1 | -
+model.py | _validate_d1_events | RequestShapeError | S-1: D1 付き経路の D4 がないか型が不正 | 278 | 3 S-1 | -
+model.py | _validate_d1_events | RequestShapeError | S-1: D1 または要求内 D4 が不正 | 285 | 3 S-1 | -
+model.py | _validate_d1_events | RequestShapeError | S-1: D1 が重複している | 288 | 3 S-1 | -
+model.py | _parse_d1_payload | RequestShapeError | S-1: イベント列は空でない JSON array が必要 | 298 | 3 S-1 | -
+model.py | _parse_d1_payload | RequestShapeError | S-1: イベントの識別がない | 317 | 3 S-1 | -
+model.py | SyncEventBatch.__new__ | RequestShapeError | S-1: 試合 ID が UUID 正規形ではない | 353 | 3 S-1 | ステップ 6 で追加(E-1 の外形)
+model.py | SyncEventBatch.__new__ | RequestShapeError | S-1: イベント列の外形が不正 | 357 | 3 S-1 | ステップ 6 で追加(E-1 の外形)
+model.py | SyncEventBatch.__new__ | RequestShapeError | S-1: D1 付き経路に復旧世代・V11 を指定できない | 360 | 3 S-1 | ステップ 6 で追加(E-1 の外形)
+model.py | SyncEventBatch.__new__ | RequestShapeError | S-1: 試合 ID がイベント列と一致しない | 362 | 3 S-1 | ステップ 6 で追加(E-1 の外形)
+model.py | AcceptedChangeResult.__new__ | ValueError | 変更受理には I6 の対象参照と確定時刻が必要 | 508 | 4 P3 | -
+model.py | AcceptedChangeResult.__new__ | ValueError | 変更受理には期待版と確定内容が必要 | 510 | 2 定義・登録の検査 | -
+model.py | A5Rejection.__post_init__ | ValueError | 拒否の理由種別と B3 の分岐の組が不正 | 410 | 2 定義・登録の検査 | ステップ 10 で追加(D-3 の公開結果型の不変条件)
+model.py | A5Rejection.__post_init__ | ValueError | 拒否には理由が必要 | 412 | 2 定義・登録の検査 | ステップ 10 で追加(D-3 の公開結果型の不変条件)
+model.py | A5Result.__post_init__ | ValueError | A5 の拒否には B3 の分岐が必要で、拒否以外は持たない | 443 | 2 定義・登録の検査 | ステップ 10 で追加(D-3 の公開結果型の不変条件)
+model.py | RejectedChangeResult.__post_init__ | ValueError | P3 の拒否結果には B8〜B14 が必要 | 550 | 2 定義・登録の検査 | -
+model.py | RejectedChangeResult.__post_init__ | ValueError | B8 だけが現在版を持ち、B8 には現在版が必要 | 556 | 2 定義・登録の検査 | ステップ 10 で追加(D-3 の公開結果型の不変条件)
+model.py | RejectedChangeResult.__post_init__ | ValueError | B9 だけが成立条件を持ち、B9 には成立条件が必要 | 560 | 2 定義・登録の検査 | ステップ 10 で追加(D-3 の公開結果型の不変条件)
 ordering.py | _assign_d2 | P1ContentRejection | P2 の V6 は非負の bigint が必要 | 45 | 8 B3a | -
 ordering.py | _assign_d2 | O5InvariantViolation | d2_row_type, D2 順の行の型が不正 | 60 | 8 O5 | ステップ 8 で O5 の型へ(11-4 の ordering.py:49)
 ordering.py | _assign_d2 | O5InvariantViolation | d2_out_of_range, 永続化済み D2 が bigint の値域外 | 62 | 8 O5 | ステップ 8 で O5 の型へ(11-4 の ordering.py:51)

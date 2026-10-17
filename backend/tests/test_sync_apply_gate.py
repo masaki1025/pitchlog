@@ -318,7 +318,7 @@ def test_no_write_branch_does_not_take_commit_rg1_lock(
         *_args: object, **_kwargs: object
     ) -> ChangeResult | P1Result | RejectionResult:
         if path == "P3":
-            return RejectedChangeResult("B9", d5)
+            return RejectedChangeResult("B9", d5, b9_cause="記録権不保持")
         if path in ("P4", "P5"):
             return RejectionResult("B3b", 0, "拒否")
         return P1Result("B2", 0, False)
