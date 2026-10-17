@@ -627,6 +627,49 @@
       "reason": "TSK-528追補C1でGET /auth/sessionを既存認証入口へ1件追加し、route registryを244件から245件、HTTP route matrixを59件から60件へ追随した。追加経路は既存Cookie認証とrequire_tenant_accessから得た検証済みtenantの表示情報だけを返す。認可主張、同一性粒度、placement、oracle_commit_semanticsは変更せず、oracle input 8資産のうちroute registryとHTTP route matrixの本体・lockの4資産だけを更新する。",
       "approved_by": "山田正輝",
       "approved_at": "2026-10-16"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#145",
+      "series": "oracle_input",
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "e6a0ca0ab6cee5c779851518463eafba6ae146b3"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "d5ccc18ef39179857c9a4c793ea28a416432efba"
+          }
+        ]
+      },
+      "changes": [],
+      "placement_change": {
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "moved": false,
+      "reason": "ADR-003 D-14-m/要件書v2.15の確定に伴い、認可外5編集の分類と要件書入力blobを更新。C1/#144のGET経路・既存履歴を保持し、oracle入力8資産の変更を直列に再封印。認可主張187行、owner、同一性粒度、配置、oracleの意味は不変。",
+      "approved_by": "山田正輝",
+      "approved_at": "2026-10-17"
     }
   ]
 }
