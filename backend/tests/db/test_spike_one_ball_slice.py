@@ -31,6 +31,37 @@ def one_ball_database(prefix_database: SyncDatabase) -> SyncDatabase:  # noqa: F
     return prefix_database
 
 
+@pytest.fixture
+def no_generation_database(
+    sync_database: SyncDatabase,  # noqa: F811
+) -> SyncDatabase:  # noqa: F811
+    """`games` 行だけを持ち、`recording_generations` 行を持たない試合を作る。
+
+    世代行の発行は未実装の U-R1（要求境界で行う）。よって現実の試合は、
+    一度も同期適用していない間は世代行が 0 件であり、認可済みの `games` 行
+    だけが存在する。fixture は `prefix_database` の `games` の複製だけを行い、
+    世代の INSERT を行わない。
+    """
+    game_id = uuid4()
+    with sync_database.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO games (tenant_id, id, scheduled_at, game_type_key, "
+            "tournament_key, away_team_record_id, home_team_record_id, applied_rules) "
+            "SELECT tenant_id, %s, scheduled_at, game_type_key, "
+            "tournament_key, away_team_record_id, home_team_record_id, applied_rules "
+            "FROM games WHERE tenant_id = %s AND id = %s",
+            (game_id, sync_database.tenant_a, sync_database.game_a),
+        )
+    sync_database.catalog.applicator.commit()
+    return SyncDatabase(
+        sync_database.catalog,
+        sync_database.tenant_a,
+        sync_database.tenant_b,
+        game_id,
+        sync_database.game_b,
+    )
+
+
 @pytest.fixture(autouse=True)
 def _register_spike_ports(monkeypatch: pytest.MonkeyPatch) -> None:
     """Spike のスタブポートだけをテスト中に登録し、製品の空表は保つ。"""
@@ -257,6 +288,28 @@ async def test_one_ball_slice_persists_once_and_replays_as_duplicate(
         assert ledger_last == ledger
         assert originals_last == originals
         assert _ledger_kinds(db) == ("accepted",)
+
+
+@pytest.mark.anyio
+async def test_state_before_any_apply_reports_zero_watermark_and_empty_events(
+    no_generation_database: SyncDatabase,
+) -> None:
+    """世代行が無い（まだ一度も同期適用していない）試合は 200 の水位 0・イベント空。
+
+    試合は認可後という前提のため 404 にせず、`GET /missing` と同一の固定封筒
+    と混ぜない。列挙防止の意味を濁らせない。
+    """
+    db = no_generation_database
+    app = create_app()
+    spike_http.install(app, tenant_access=require_tenant_access)
+    app.dependency_overrides[require_tenant_access] = lambda: make_tenant_context(
+        db.tenant_a
+    )
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="https://test") as client:
+        state = await client.get(f"/games/{db.game_a}/sync/state")
+        assert state.status_code == 200
+        assert state.json() == {"confirmed_watermark": 0, "events": []}
 
 
 @pytest.mark.anyio

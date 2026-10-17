@@ -167,8 +167,14 @@ def _build_sync_router(
             if not game_rows:
                 raise HTTPException(status_code=_GAME_NOT_FOUND_STATUS)
             state_rows = scope.run(RecordingGenerationReadToken(game_id)).rows
-            if len(state_rows) != 1:
-                raise RuntimeError("spike 入口は現行の記録権世代 1 件だけを扱う")
+            if len(state_rows) > 1:
+                # 部分一意索引が守る前提。lambda 2 件以上は契約違反として残す。
+                raise RuntimeError("spike 入口は現行の記録権世代を 1 件だけに絞る")
+            if not state_rows:
+                # 世代行が無い＝まだ一度も同期適用していない試合。404 にすると
+                # 自テナント不存在の 404 と混ざり列挙防止の意味が濁るため、
+                # 既存の応答形のまま水位 0・イベント空として返す。
+                return SpikeSyncStateModel(confirmed_watermark=0, events=[])
             watermark = _cell(state_rows[0], _GENERATION_COLUMNS, "confirmed_watermark")
             if type(watermark) is not int:
                 raise RuntimeError("確定水位が整数ではない")
