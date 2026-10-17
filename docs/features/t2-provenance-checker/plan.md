@@ -1,7 +1,7 @@
 ---
 feature: t2-provenance-checker
 status: active
-承認: 未
+承認: 済(2026-10-17・山田正輝)
 重さ分類: コア領域
 worktree: ../../..
 notion: https://app.notion.com/p/3fc93b75e687812d83bdd45890f4844a
