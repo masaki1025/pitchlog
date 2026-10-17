@@ -95,10 +95,14 @@ def _candidate_result(candidate: D5Candidate, d3: int) -> RejectionResult | None
     )
 
 
-def _original(event: SyncEvent, fingerprint: str) -> str:
-    """W2 の対象照合に必要な原本と、D5 の指紋を同じ行に残す。"""
+def _original(
+    event: SyncEvent, fingerprint: str, *, path: RejectionPath | None = None
+) -> str:
+    """T9 には継承用経路を、T8 には従来の原本を残す。"""
     source = event_source(event)
     source["operation_fingerprint"] = fingerprint
+    if path is not None:
+        source["path"] = path
     return json.dumps(_json_value(source), ensure_ascii=False, sort_keys=True)
 
 
@@ -132,7 +136,9 @@ def _commit_result(
     reach("after_t9_ledger" if kind == "rejected" else "after_t8_ledger")
     if kind == "rejected":
         scope.run(
-            RejectedOriginalInsertToken(uuid4(), d5, _original(event, fingerprint))
+            RejectedOriginalInsertToken(
+                uuid4(), d5, _original(event, fingerprint, path=path)
+            )
         )
         reach("after_t9_original")
     else:

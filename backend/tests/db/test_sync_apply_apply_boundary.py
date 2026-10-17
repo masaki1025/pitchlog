@@ -28,10 +28,11 @@ from pitchlog.repositories.transaction import (
 )
 from pitchlog.sync import apply as sync_apply
 from pitchlog.sync import ordering, ports
-from pitchlog.sync.apply import apply_sync_request
+from pitchlog.sync.apply import apply_sync_events, apply_sync_request
 from pitchlog.sync.crash_points import CrashPoint
 from pitchlog.sync.crash_points import testing_crash_hook as _testing_crash_hook
-from pitchlog.sync.model import AckResult, SyncEvent, SyncRequest
+from pitchlog.sync.idempotency import operation_fingerprint
+from pitchlog.sync.model import AckResult, SyncEvent, SyncEventBatch, SyncRequest
 from pitchlog.sync.prefix_path import P1Result, P1Target, PlayerRegistration
 from pitchlog.sync.tokens import (
     IdempotencyLedgerInsertToken,
@@ -120,6 +121,194 @@ def _count(db: _SyncDatabase, table: str, d5: str) -> int:
     db.catalog.applicator.rollback()
     assert row is not None
     return row[0]
+
+
+def _invoke_events(
+    db: _SyncDatabase,
+    batch: SyncEventBatch,
+    *,
+    registrations: dict[int, PlayerRegistration] | None = None,
+    rights: PrefixRights | None = None,
+) -> AckResult:
+    """混在バッチを製品の公開入口へ渡す。"""
+    result = apply_sync_events(
+        make_tenant_context(db.tenant_a),
+        batch,
+        rights or PrefixRights(),
+        PrefixProjection(),
+        PrefixValidator(),
+        registrations=registrations,
+    )
+    assert isinstance(result, AckResult)
+    return result
+
+
+def test_mixed_event_batch_single_ack_routes_and_replays(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """P2・P1・P2 を一要求で確定し、再送は同じ指紋で全件再掲する。"""
+    db = prefix_database
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT home_team_record_id FROM games WHERE tenant_id = %s AND id = %s",
+            (db.tenant_a, db.game_a),
+        )
+        team = cursor.fetchone()
+    db.catalog.applicator.rollback()
+    assert team is not None
+    temporary = uuid4()
+    registration = PlayerRegistration(temporary, team[0], "混在登録", "active")
+    first = _event(db.game_a, d1=1, d4="1", kind="play_input")
+    second = _event(
+        db.game_a,
+        d1=2,
+        d4="1",
+        kind="player_registration",
+        payload={"player_id": str(temporary)},
+    )
+    third = _event(db.game_a, d1=3, d4="1", kind="game_end_declaration")
+    batch = SyncEventBatch(str(db.game_a), "1", (third, second, first), v12="proof")
+    result = _invoke_events(db, batch, registrations={2: registration})
+    assert (result.boundary, result.d3) == ("B1", 3)
+    assert [(row.d1, row.state) for row in result.a5] == [
+        (1, "受理"),
+        (2, "受理"),
+        (3, "受理"),
+    ]
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT d5, source_fingerprint FROM idempotency_ledger "
+            "WHERE tenant_id = %s AND d5 IN (%s, %s, %s)",
+            (db.tenant_a, UUID(first.d5), UUID(second.d5), UUID(third.d5)),
+        )
+        saved = dict(cursor.fetchall())
+    db.catalog.applicator.rollback()
+    assert saved == {
+        UUID(first.d5): operation_fingerprint(first, "P2", None),
+        UUID(second.d5): operation_fingerprint(second, "P1", registration),
+        UUID(third.d5): operation_fingerprint(third, "P2", None),
+    }
+    replay = _invoke_events(db, batch, registrations={2: registration})
+    assert (replay.boundary, replay.d3) == ("B1", 3)
+    assert [row.state for row in replay.a5] == ["重複"] * 3
+    assert all(_count(db, "operation_events", event.d5) == 1 for event in batch.events)
+
+
+def test_mixed_event_batch_stops_after_content_rejection(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """P2 の拒否までを確定し、後続 P1 を同じ ACK で未処理にする。"""
+    db = prefix_database
+    first = _event(db.game_a, d1=1, d4="1", kind="play_input")
+    rejected = _event(
+        db.game_a,
+        d1=2,
+        d4="1",
+        kind="game_end_declaration",
+        payload={"player_id": 1},
+    )
+    later = _event(db.game_a, d1=3, d4="1", kind="undo")
+    batch = SyncEventBatch(str(db.game_a), "1", (later, rejected, first), v12="proof")
+    result = _invoke_events(db, batch)
+    assert (result.boundary, result.b3_branch, result.d3) == ("B3", "B3a", 1)
+    assert [(row.d1, row.state) for row in result.a5] == [
+        (1, "受理"),
+        (2, "拒否"),
+        (3, "未処理"),
+    ]
+    assert _count(db, "operation_events", first.d5) == 1
+    assert _count(db, "rejected_event_originals", rejected.d5) == 1
+    assert _count(db, "idempotency_ledger", later.d5) == 0
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT payload->>'path' FROM rejected_event_originals "
+            "WHERE tenant_id = %s AND d5 = %s",
+            (db.tenant_a, UUID(rejected.d5)),
+        )
+        stored_path = cursor.fetchone()
+    db.catalog.applicator.rollback()
+    assert stored_path == ("P2",)
+
+
+def test_mixed_event_batch_revision_inherits_rejected_p2_route(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """改訂版は T9 に保存した P2 を継ぎ、同じ D2 の位置で適用される。"""
+    db = prefix_database
+    original = _event(
+        db.game_a, d1=1, d4="1", kind="play_input", payload={"player_id": 1}
+    )
+    rejected = _invoke_events(
+        db, SyncEventBatch(str(db.game_a), "1", (original,), v12="proof")
+    )
+    assert (rejected.boundary, rejected.a5[0].state) == ("B3", "拒否")
+    revision = _event(
+        db.game_a,
+        d1=1,
+        d4="1",
+        kind="play_input",
+        revision=True,
+        rejected_d5=UUID(original.d5),
+    )
+    batch = SyncEventBatch(str(db.game_a), "1", (revision,), v12="proof")
+    result = _invoke_events(db, batch)
+    assert (result.boundary, result.d3, result.a5[0].state) == ("B1", 1, "受理")
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT source_fingerprint FROM idempotency_ledger "
+            "WHERE tenant_id = %s AND d5 = %s",
+            (db.tenant_a, UUID(revision.d5)),
+        )
+        fingerprint = cursor.fetchone()
+    db.catalog.applicator.rollback()
+    assert fingerprint == (operation_fingerprint(revision, "P2", None),)
+    replay = _invoke_events(db, batch)
+    assert replay.a5[0].state == "重複"
+
+
+def test_mixed_event_batch_escrow_keeps_each_event_fingerprint(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """⑤不成立の P2/P1 を各経路の指紋で退避し、同じ内容を再掲する。"""
+    db = prefix_database
+    first = _event(db.game_a, d1=1, d4="1", kind="play_input")
+    second = _event(db.game_a, d1=2, d4="1", kind="undo")
+    batch = SyncEventBatch(str(db.game_a), "1", (second, first), v12="old-proof")
+    result = _invoke_events(db, batch, rights=DenyPrefixRights())
+    assert result.boundary == "B4"
+    assert [(row.d1, row.state) for row in result.a5] == [(1, "退避"), (2, "退避")]
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT d5, source_fingerprint FROM idempotency_ledger "
+            "WHERE tenant_id = %s AND d5 IN (%s, %s)",
+            (db.tenant_a, UUID(first.d5), UUID(second.d5)),
+        )
+        saved = dict(cursor.fetchall())
+    db.catalog.applicator.rollback()
+    assert saved == {
+        UUID(first.d5): operation_fingerprint(first, "P2", None),
+        UUID(second.d5): operation_fingerprint(second, "P1", None),
+    }
+    replay = _invoke_events(db, batch, rights=DenyPrefixRights())
+    assert [row.state for row in replay.a5] == ["退避", "退避"]
+    assert all(
+        _count(db, "evacuated_event_originals", event.d5) == 1 for event in batch.events
+    )
+
+
+def test_mixed_event_batch_gap_is_one_b2_boundary(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """混在バッチの D1 欠落を一つの B2 で止める。"""
+    db = prefix_database
+    first = _event(db.game_a, d1=1, d4="1", kind="play_input")
+    third = _event(db.game_a, d1=3, d4="1", kind="game_end_declaration")
+    result = _invoke_events(
+        db, SyncEventBatch(str(db.game_a), "1", (third, first), v12="proof")
+    )
+    assert (result.boundary, result.d3) == ("B2", 1)
+    assert [(row.d1, row.state) for row in result.a5] == [(1, "受理"), (3, "未処理")]
+    assert _count(db, "idempotency_ledger", third.d5) == 0
 
 
 def _game_state(db: _SyncDatabase) -> tuple[int, int]:

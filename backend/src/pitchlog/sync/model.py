@@ -193,26 +193,13 @@ class SyncRequest:
             ):
                 raise RequestShapeError("S-1: P3 に D1・D4・V6・V8・V9 を指定できない")
         else:
-            if not events:
-                raise RequestShapeError("S-1: D1 付き経路のイベント列は空にできない")
             if recovery_generation is not ABSENT or any(
                 event.v11 is not ABSENT for event in events
             ):
                 raise RequestShapeError(
                     "S-1: D1 付き経路に復旧世代・V11 を指定できない"
                 )
-            if not _opaque_string(d4):
-                raise RequestShapeError("S-1: D1 付き経路の D4 がないか型が不正")
-            if any(
-                type(event.d1) is not int
-                or not 1 <= event.d1 <= _MAX_SAFE_INTEGER
-                or event.d4 != d4
-                for event in events
-            ):
-                raise RequestShapeError("S-1: D1 または要求内 D4 が不正")
-            d1_values = [event.d1 for event in events]
-            if len(d1_values) != len(set(d1_values)):
-                raise RequestShapeError("S-1: D1 が重複している")
+            _validate_d1_events(d4, events)
         if any(event.game_id != game_id for event in events):
             raise RequestShapeError("S-1: 試合 ID がイベント列と一致しない")
         instance = object.__new__(cls)
@@ -269,51 +256,125 @@ class SyncRequest:
                 ),
                 v12=body.get("recording_right_proof", ABSENT),
             )
-        body = _object_with_keys(
-            payload, frozenset({"recording_right_proof", "events"})
-        )
-        raw_events = body.get("events")
-        if not isinstance(raw_events, list) or not raw_events:
-            raise RequestShapeError("S-1: イベント列は空でない JSON array が必要")
-        events: list[SyncEvent] = []
-        event_keys = frozenset(
-            {
-                "d5",
-                "d1",
-                "d4",
-                "game_id",
-                "event_kind",
-                "d2",
-                "payload",
-                "state_diff",
-                "replacement_state",
-                "target_reference",
-            }
-        )
-        for raw_event in raw_events:
-            item = _object_with_keys(raw_event, event_keys)
-            if "d5" not in item or "game_id" not in item:
-                raise RequestShapeError("S-1: イベントの識別がない")
-            events.append(
-                SyncEvent(
-                    d5=cast(str, item["d5"]),
-                    game_id=cast(str, item["game_id"]),
-                    d1=cast(int | None, item.get("d1")),
-                    d4=cast(str | None, item.get("d4")),
-                    v5=item.get("event_kind", ABSENT),
-                    v6=item.get("d2", ABSENT),
-                    v7=item.get("payload", ABSENT),
-                    v8=item.get("state_diff", ABSENT),
-                    v9=item.get("replacement_state", ABSENT),
-                    v10=item.get("target_reference", ABSENT),
-                )
-            )
+        body, events = _parse_d1_payload(payload)
         return cls(
             path,
             game_id,
             tuple(events),
             d4=events[0].d4,
             v12=body.get("recording_right_proof", ABSENT),
+        )
+
+
+def _validate_d1_events(d4: str | None, events: tuple[SyncEvent, ...]) -> None:
+    """D1 付き要求に共通する識別子とイベント列の外形を照合する。"""
+    if not events:
+        raise RequestShapeError("S-1: D1 付き経路のイベント列は空にできない")
+    if not _opaque_string(d4):
+        raise RequestShapeError("S-1: D1 付き経路の D4 がないか型が不正")
+    if any(
+        type(event.d1) is not int
+        or not 1 <= event.d1 <= _MAX_SAFE_INTEGER
+        or event.d4 != d4
+        for event in events
+    ):
+        raise RequestShapeError("S-1: D1 または要求内 D4 が不正")
+    d1_values = [event.d1 for event in events]
+    if len(d1_values) != len(set(d1_values)):
+        raise RequestShapeError("S-1: D1 が重複している")
+
+
+def _parse_d1_payload(
+    payload: object,
+) -> tuple[Mapping[str, object], tuple[SyncEvent, ...]]:
+    """両入口の D1 付き本文を同じ S-1 規則で取り出す。"""
+    body = _object_with_keys(payload, frozenset({"recording_right_proof", "events"}))
+    raw_events = body.get("events")
+    if not isinstance(raw_events, list) or not raw_events:
+        raise RequestShapeError("S-1: イベント列は空でない JSON array が必要")
+    events: list[SyncEvent] = []
+    event_keys = frozenset(
+        {
+            "d5",
+            "d1",
+            "d4",
+            "game_id",
+            "event_kind",
+            "d2",
+            "payload",
+            "state_diff",
+            "replacement_state",
+            "target_reference",
+        }
+    )
+    for raw_event in raw_events:
+        item = _object_with_keys(raw_event, event_keys)
+        if "d5" not in item or "game_id" not in item:
+            raise RequestShapeError("S-1: イベントの識別がない")
+        events.append(
+            SyncEvent(
+                d5=cast(str, item["d5"]),
+                game_id=cast(str, item["game_id"]),
+                d1=cast(int | None, item.get("d1")),
+                d4=cast(str | None, item.get("d4")),
+                v5=item.get("event_kind", ABSENT),
+                v6=item.get("d2", ABSENT),
+                v7=item.get("payload", ABSENT),
+                v8=item.get("state_diff", ABSENT),
+                v9=item.get("replacement_state", ABSENT),
+                v10=item.get("target_reference", ABSENT),
+            )
+        )
+    return body, tuple(events)
+
+
+@dataclass(frozen=True, slots=True, init=False)
+class SyncEventBatch:
+    """経路を持たない E-1 の D1 付き同期要求。"""
+
+    game_id: str
+    d4: str
+    events: tuple[SyncEvent, ...]
+    v12: StageValue = ABSENT
+
+    def __new__(
+        cls,
+        game_id: str,
+        d4: str,
+        events: tuple[SyncEvent, ...],
+        v12: StageValue = ABSENT,
+    ) -> SyncEventBatch:
+        """S-1 外形を照合し、イベント列と V12 を固定する。"""
+        if not _canonical_uuid(game_id):
+            raise RequestShapeError("S-1: 試合 ID が UUID 正規形ではない")
+        if not isinstance(events, (list, tuple)) or any(
+            type(event) is not SyncEvent for event in events
+        ):
+            raise RequestShapeError("S-1: イベント列の外形が不正")
+        _validate_d1_events(d4, tuple(events))
+        if any(event.v11 is not ABSENT for event in events):
+            raise RequestShapeError("S-1: D1 付き経路に復旧世代・V11 を指定できない")
+        if any(event.game_id != game_id for event in events):
+            raise RequestShapeError("S-1: 試合 ID がイベント列と一致しない")
+        instance = object.__new__(cls)
+        for name, value in (
+            ("game_id", game_id),
+            ("d4", d4),
+            ("events", tuple(events)),
+            ("v12", _stage_value(v12)),
+        ):
+            object.__setattr__(instance, name, value)
+        return instance
+
+    @classmethod
+    def from_payload(cls, game_id: str, payload: object) -> SyncEventBatch:
+        """U-S1 表現の E-1 本文を S-1 で照合する。"""
+        body, events = _parse_d1_payload(payload)
+        return cls(
+            game_id,
+            cast(str, events[0].d4),
+            events,
+            body.get("recording_right_proof", ABSENT),
         )
 
 

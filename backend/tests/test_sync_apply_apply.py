@@ -9,12 +9,19 @@ from uuid import UUID, uuid4
 import pytest
 
 from pitchlog.db.recording_rights.models import RecordingGeneration
+from pitchlog.db.sync_protocol.models import RejectedEventOriginal
 from pitchlog.repositories.context import TenantContext
-from pitchlog.repositories.tokens import TenantOperationResult
+from pitchlog.repositories.tokens import ImmutableValue, TenantOperationResult
 from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync import apply, crash_points, ordering, prefix_path
 from pitchlog.sync.idempotency import D5Candidate, operation_fingerprint
-from pitchlog.sync.model import AckResult, RejectedChangeResult, SyncEvent, SyncRequest
+from pitchlog.sync.model import (
+    AckResult,
+    RejectedChangeResult,
+    SyncEvent,
+    SyncEventBatch,
+    SyncRequest,
+)
 from pitchlog.sync.ports import (
     ContentValidationPort,
     ProjectionPort,
@@ -27,9 +34,11 @@ from pitchlog.sync.prefix_path import (
     PlayerRegistration,
 )
 from pitchlog.sync.rejection import RejectionResult
+from pitchlog.sync.routing import EventPath, route_for_event
 from pitchlog.sync.tokens import (
     RecordingGenerationByNumberReadToken,
     RecordingGenerationReadToken,
+    RejectedOriginalReadToken,
 )
 
 
@@ -50,6 +59,180 @@ def _ports() -> tuple[RecordingRightsPort, ProjectionPort, ContentValidationPort
         cast(ProjectionPort, object()),
         cast(ContentValidationPort, object()),
     )
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected"),
+    [
+        ("play_input", "P2"),
+        ("undo", "P1"),
+        ("substitution", "P2"),
+        ("tiebreak_start", "P2"),
+        ("game_end_declaration", "P2"),
+        ("player_registration", "P1"),
+        ("state_correction", "P2"),
+        ("unknown", "P1"),
+        (None, "P1"),
+        (42, "P1"),
+    ],
+)
+def test_event_route_follows_participation_table(kind: object, expected: str) -> None:
+    """全参加区分と異形 V5 の経路を入力だけで決める。"""
+    event = SyncEvent(str(uuid4()), str(uuid4()), 1, "1", v5=kind)
+    assert route_for_event(event) == expected
+    assert route_for_event(event) == expected
+
+
+@pytest.mark.parametrize("original_path", ["P1", "P2"])
+def test_replacement_route(original_path: EventPath) -> None:
+    """墓標は P1、改訂版は拒否原本の経路を継ぐ。"""
+    game, d5 = str(uuid4()), str(uuid4())
+    revision = SyncEvent(
+        d5,
+        game,
+        1,
+        "1",
+        v5="undo",
+        v9={"revision": True, "rejected_d5": str(uuid4())},
+    )
+    tombstone = SyncEvent(
+        d5,
+        game,
+        1,
+        "1",
+        v5="play_input",
+        v9={"tombstone": True, "rejected_d5": str(uuid4())},
+    )
+    assert route_for_event(revision, original_path) == original_path
+    assert route_for_event(tombstone, original_path) == "P1"
+
+
+def test_mixed_batch_uses_one_ack_and_each_event_route(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """全件を P1 にする変異では P2 の呼び出し記録が一致しない。"""
+    game = str(uuid4())
+    events = tuple(
+        SyncEvent(str(uuid4()), game, d1, "1", v5=kind, v7={})
+        for d1, kind in enumerate(
+            ("play_input", "undo", "player_registration", "game_end_declaration"), 1
+        )
+    )
+    batch = SyncEventBatch(game, "1", tuple(reversed(events)), v12="proof")
+    monkeypatch.setattr(apply, "game_accessible", lambda *_: True)
+
+    def preflight(*_args: object) -> apply._BatchPreflight:
+        incoming = cast(SyncEventBatch, _args[4])
+        return apply._BatchPreflight(
+            0,
+            tuple(D5Candidate("unused") for _ in incoming.events),
+            True,
+            1,
+            paths={
+                cast(int, event.d1): route_for_event(event) for event in incoming.events
+            },
+        )
+
+    calls: list[tuple[int, EventPath]] = []
+
+    def run(*args: object, path: EventPath) -> P1Result:
+        event = cast(SyncEvent, args[2])
+        calls.append((cast(int, event.d1), path))
+        return P1Result(None, cast(int, event.d1), True)
+
+    monkeypatch.setattr(apply, "_preflight_d1", preflight)
+    monkeypatch.setattr(apply, "_run_d1_event", run)
+    result = apply.apply_sync_events(cast(TenantContext, object()), batch, *_ports())
+    assert isinstance(result, AckResult)
+    assert (result.boundary, result.d3) == ("B1", 4)
+    assert [row.d1 for row in result.a5] == [1, 2, 3, 4]
+    assert calls == [(1, "P2"), (2, "P1"), (3, "P1"), (4, "P2")]
+
+
+@pytest.mark.parametrize(
+    ("saved_path", "expected"),
+    [("P1", "P1"), ("P2", "P2"), (None, "P2")],
+)
+def test_revision_preflight_uses_original_route_for_fingerprint(
+    monkeypatch: pytest.MonkeyPatch,
+    saved_path: EventPath | None,
+    expected: EventPath,
+) -> None:
+    """T9 原本の経路を V5 より優先し、旧原本は V5 で補う。"""
+    game, original_d5 = str(uuid4()), str(uuid4())
+    event = SyncEvent(
+        str(uuid4()),
+        game,
+        1,
+        "1",
+        v5="play_input",
+        v6=10,
+        v7={},
+        v8={},
+        v9={"revision": True, "rejected_d5": original_d5},
+        v10={"game": game, "d4": "1", "d1": 1},
+    )
+    batch = SyncEventBatch(game, "1", (event,), v12="proof")
+    request = SyncRequest("P1", game, (event,), d4="1", v12="proof")
+    rejection_columns = tuple(RejectedEventOriginal.__table__.c.keys())
+    original: dict[str, object] = {"event_kind": "play_input"}
+    if saved_path is not None:
+        original["path"] = saved_path
+    original_row = tuple(
+        original if column == "payload" else None for column in rejection_columns
+    )
+    generation_columns = tuple(RecordingGeneration.__table__.c.keys())
+    generation_row = tuple(
+        {"confirmed_watermark": 0, "generation": 1}.get(column, 0)
+        for column in generation_columns
+    )
+
+    class Scope:
+        """原本と世代を既存 token の読取形で返す。"""
+
+        def run(self, token: object) -> TenantOperationResult:
+            if isinstance(token, RejectedOriginalReadToken):
+                assert str(token.d5) == original_d5
+                return TenantOperationResult(
+                    cast(tuple[tuple[ImmutableValue, ...], ...], (original_row,))
+                )
+            assert isinstance(token, RecordingGenerationReadToken)
+            return TenantOperationResult((generation_row,))
+
+    @contextmanager
+    def fake_scope(_context: TenantContext) -> Iterator[_TenantTransaction]:
+        yield cast(_TenantTransaction, Scope())
+
+    @contextmanager
+    def fake_gate(_scope: object, _rights: object) -> Iterator[object]:
+        yield type("Writer", (), {"writer": object()})()
+
+    seen: list[tuple[str, str]] = []
+
+    def classify(_scope: object, _d5: UUID, fingerprint: str, path: str) -> D5Candidate:
+        seen.append((fingerprint, path))
+        return D5Candidate("unused")
+
+    class Rights:
+        """未使用 D5 の記録権を成立させる。"""
+
+        def holds_recording_right(self, *_args: object) -> bool:
+            return True
+
+    monkeypatch.setattr(apply, "tenant_transaction_scope", fake_scope)
+    monkeypatch.setattr(apply, "gated_writer", fake_gate)
+    monkeypatch.setattr(apply, "classify_d5", classify)
+    monkeypatch.setattr(apply.port_guard, "require_registered_port", lambda *_: None)
+    for _ in range(2):
+        result = apply._preflight_d1(
+            cast(TenantContext, object()),
+            request,
+            cast(RecordingRightsPort, Rights()),
+            {},
+            batch,
+        )
+        assert result.paths == {1: expected}
+    assert seen == [(operation_fingerprint(event, expected, None), expected)] * 2
 
 
 def test_gap_overrides_preclassified_later_b3b(monkeypatch: pytest.MonkeyPatch) -> None:

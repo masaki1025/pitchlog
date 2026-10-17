@@ -27,6 +27,7 @@ from pitchlog.sync.model import (
     RejectedChangeResult,
     RequestShapeError,
     SyncEvent,
+    SyncEventBatch,
     SyncRequest,
 )
 
@@ -211,6 +212,18 @@ def test_s1_rejects_invalid_payload_object(payload: object) -> None:
     """本文・イベントの未知キーと配列の外形を拒否する。"""
     with pytest.raises(RequestShapeError, match="S-1"):
         SyncRequest.from_payload("P1", GAME, payload)
+    with pytest.raises(RequestShapeError, match="S-1"):
+        SyncEventBatch.from_payload(GAME, payload)
+
+
+def test_event_batch_has_no_path_and_rejects_client_path() -> None:
+    """E-1 の要求型と本文はクライアントの経路指定を持たない。"""
+    payload = {"events": [{"d5": D5, "game_id": GAME, "d1": 1, "d4": "epoch"}]}
+    batch = SyncEventBatch.from_payload(GAME, payload)
+    assert not hasattr(batch, "path")
+    assert batch.events == SyncRequest.from_payload("P1", GAME, payload).events
+    with pytest.raises(RequestShapeError, match="S-1"):
+        SyncEventBatch.from_payload(GAME, {**payload, "path": "P1"})
 
 
 def test_s1_payload_keeps_s2_values() -> None:

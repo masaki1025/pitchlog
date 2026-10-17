@@ -12,9 +12,11 @@ from typing import Literal, cast
 from uuid import UUID
 
 from pitchlog.db.recording_rights.models import RecordingGeneration
+from pitchlog.db.sync_protocol.models import RejectedEventOriginal
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.transaction import (
     _sync_apply_active,
+    _TenantTransaction,
     tenant_transaction_scope,
 )
 from pitchlog.sync import port_guard
@@ -23,6 +25,7 @@ from pitchlog.sync.crash_points import reach
 from pitchlog.sync.gate import RG1Blocked, game_accessible, gated_writer
 from pitchlog.sync.idempotency import (
     D5Candidate,
+    classify_d5,
     classify_request_d5,
     operation_fingerprint,
 )
@@ -31,6 +34,7 @@ from pitchlog.sync.model import (
     AckResult,
     ChangeResult,
     SyncEvent,
+    SyncEventBatch,
     SyncRequest,
 )
 from pitchlog.sync.ordering import apply_p2_event
@@ -54,15 +58,18 @@ from pitchlog.sync.rejection import (
     apply_rejection_or_escrow,
     content_reason_for_precondition,
 )
+from pitchlog.sync.routing import EventPath, route_for_event
 from pitchlog.sync.tokens import (
     RecordingGenerationByNumberReadToken,
     RecordingGenerationReadToken,
+    RejectedOriginalReadToken,
 )
 
 type ApplyResult = AckResult | ChangeResult | Literal["B6", "B7"]
 type D1Result = P1Result | RejectionResult
 
 _GENERATION_COLUMNS = tuple(RecordingGeneration.__table__.c.keys())
+_REJECTION_COLUMNS = tuple(RejectedEventOriginal.__table__.c.keys())
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +82,42 @@ class _BatchPreflight:
     current_generation: int
     # 要求の D4 が指す世代の D3。現世代の要求では d3 と同じ(省略時も同じ)。
     request_d3: int | None = None
+    paths: Mapping[int, EventPath] | None = None
+
+
+def _batch_paths(
+    scope: _TenantTransaction, events: tuple[SyncEvent, ...]
+) -> dict[int, EventPath]:
+    """指紋より先に、改訂版の不変な拒否原本から経路を確定する。"""
+    paths: dict[int, EventPath] = {}
+    for event in events:
+        assert event.d1 is not None
+        original_path: EventPath | None = None
+        if isinstance(event.v9, Mapping) and event.v9.get("revision") is True:
+            raw_d5 = event.v9.get("rejected_d5")
+            try:
+                original_d5 = UUID(raw_d5) if type(raw_d5) is str else None
+            except ValueError:
+                original_d5 = None
+            if original_d5 is not None and str(original_d5) == raw_d5:
+                rows = scope.run(RejectedOriginalReadToken(original_d5)).rows
+                if len(rows) == 1:
+                    original = _cell(rows[0], _REJECTION_COLUMNS, "payload")
+                    if isinstance(original, Mapping):
+                        saved = original.get("path")
+                        if saved in ("P1", "P2"):
+                            original_path = cast(EventPath, saved)
+                        else:
+                            # 旧原本には経路がない。元の V5/V9 から参加区分を復元する。
+                            old_event = SyncEvent(
+                                event.d5,
+                                event.game_id,
+                                v5=original.get("event_kind"),
+                                v9=original.get("replacement_state"),
+                            )
+                            original_path = route_for_event(old_event)
+        paths[event.d1] = route_for_event(event, original_path)
+    return paths
 
 
 def _preflight_d1(
@@ -82,18 +125,39 @@ def _preflight_d1(
     request: SyncRequest,
     rights: RecordingRightsPort,
     registrations: Mapping[int, PlayerRegistration],
+    batch: SyncEventBatch | None = None,
 ) -> _BatchPreflight:
     """③-a、全件の④、未使用候補の⑤を先に行い、結果はまだ返さない。"""
     with tenant_transaction_scope(context) as scope:
         with _sync_apply_active():
             with gated_writer(scope, rights) as gated:
+                paths = (
+                    _batch_paths(scope, request.events) if batch is not None else None
+                )
                 fingerprints = tuple(
                     operation_fingerprint(
-                        event, request.path, registrations.get(event.d1)
+                        event,
+                        paths[event.d1]
+                        if paths is not None and event.d1 is not None
+                        else request.path,
+                        registrations.get(event.d1),
                     )
                     for event in request.events
                 )
-                candidates = classify_request_d5(scope, request, fingerprints)
+                if paths is None:
+                    candidates = classify_request_d5(scope, request, fingerprints)
+                else:
+                    candidates = tuple(
+                        classify_d5(
+                            scope,
+                            UUID(event.d5),
+                            fingerprint,
+                            paths[cast(int, event.d1)],
+                        )
+                        for event, fingerprint in zip(
+                            request.events, fingerprints, strict=True
+                        )
+                    )
                 rows = scope.run(
                     RecordingGenerationReadToken(UUID(request.game_id))
                 ).rows
@@ -133,7 +197,7 @@ def _preflight_d1(
                         request.game_id, request.d4, request.v12, gated.writer
                     )
                 return _BatchPreflight(
-                    d3, candidates, has_right, generation, request_d3
+                    d3, candidates, has_right, generation, request_d3, paths
                 )
 
 
@@ -146,15 +210,18 @@ def _run_d1_event(
     validator: ContentValidationPort,
     registration: PlayerRegistration | None,
     target: P1Target | None,
+    *,
+    path: RejectionPath | None = None,
 ) -> D1Result:
     """一件の局所経路を実行し、⑦の拒否を T9、⑤の不成立を T8 へ渡す。"""
     reach("before_transaction")
+    path = cast(RejectionPath, request.path) if path is None else path
     try:
-        if request.path == "P4":
+        if path == "P4":
             outcome: D1Result = apply_rejection_or_escrow(
                 context, event, rights, request.v12, path="P4", reason=None
             )
-        elif request.path == "P2":
+        elif path == "P2":
             outcome = apply_p2_event(
                 context, event, rights, projection, validator, request.v12
             )
@@ -176,7 +243,7 @@ def _run_d1_event(
                 event,
                 rights,
                 request.v12,
-                path=cast(RejectionPath, request.path),
+                path=path,
                 reason=None,
                 registration=registration,
             )
@@ -186,7 +253,7 @@ def _run_d1_event(
                 event,
                 rights,
                 request.v12,
-                path=cast(RejectionPath, request.path),
+                path=path,
                 reason=content_reason_for_precondition(error),
                 cause=(
                     "w2_violation"
@@ -222,6 +289,8 @@ def _escrow_without_right(
     event: SyncEvent,
     rights: RecordingRightsPort,
     registration: PlayerRegistration | None,
+    *,
+    path: RejectionPath | None = None,
 ) -> RejectionResult:
     """⑤で不成立の未使用 D5 を P4/T8 の一取引へ渡す。"""
     reach("before_transaction")
@@ -230,7 +299,7 @@ def _escrow_without_right(
         event,
         rights,
         request.v12,
-        path=cast(RejectionPath, request.path),
+        path=cast(RejectionPath, request.path if path is None else path),
         reason=None,
         registration=registration,
     )
@@ -247,6 +316,8 @@ def _replay_existing(
     validator: ContentValidationPort,
     registration: PlayerRegistration | None,
     target: P1Target | None,
+    *,
+    path: RejectionPath | None = None,
 ) -> D1Result:
     """⑤ 不成立の要求で、既存 D5 の保存済み結果(または B3b)を再掲する。
 
@@ -254,7 +325,8 @@ def _replay_existing(
     P4 の要求は、退避を書いた P4 の経路(P4 の指紋)で照合して再掲する。
     """
     reach("before_transaction")
-    if request.path == "P4":
+    path = cast(RejectionPath, request.path) if path is None else path
+    if path == "P4":
         # P4 の退避は P4 の指紋で保存されているので、同じ経路で照合・再掲する。
         outcome: D1Result = apply_rejection_or_escrow(
             context,
@@ -265,7 +337,7 @@ def _replay_existing(
             reason=None,
             registration=registration,
         )
-    elif request.path == "P2":
+    elif path == "P2":
         outcome = apply_p2_event(
             context, event, rights, projection, validator, request.v12
         )
@@ -310,7 +382,54 @@ def apply_sync_request(
         result = apply_p3_change(context, request, rights, projection, validator)
         reach("after_transaction")
         return result
+    return _apply_d1_request(
+        context,
+        request,
+        rights,
+        projection,
+        validator,
+        registrations=registrations,
+        targets=targets,
+    )
 
+
+def apply_sync_events(
+    context: TenantContext,
+    batch: SyncEventBatch,
+    rights: RecordingRightsPort,
+    projection: ProjectionPort,
+    validator: ContentValidationPort,
+    *,
+    registrations: Mapping[int, PlayerRegistration] | None = None,
+    targets: Mapping[int, P1Target] | None = None,
+) -> AckResult | Literal["B6", "B7"]:
+    """E-1 の各イベントの経路を判定し、単一の ACK を確定する。"""
+    # 内部の共通ループには P1 の要求形を渡す。局所経路は④で D1 ごとに確定する。
+    request = SyncRequest("P1", batch.game_id, batch.events, d4=batch.d4, v12=batch.v12)
+    return _apply_d1_request(
+        context,
+        request,
+        rights,
+        projection,
+        validator,
+        registrations=registrations,
+        targets=targets,
+        batch=batch,
+    )
+
+
+def _apply_d1_request(
+    context: TenantContext,
+    request: SyncRequest,
+    rights: RecordingRightsPort,
+    projection: ProjectionPort,
+    validator: ContentValidationPort,
+    *,
+    registrations: Mapping[int, PlayerRegistration] | None = None,
+    targets: Mapping[int, P1Target] | None = None,
+    batch: SyncEventBatch | None = None,
+) -> AckResult | Literal["B6", "B7"]:
+    """両公開口の D1 昇順・部分成功・停止境界を一か所で確定する。"""
     # ③は RG1 と D5 より前。存在しない試合と他テナントの試合を同じ B6 にする。
     if not game_accessible(context, UUID(request.game_id), tenant_transaction_scope):
         return "B6"
@@ -321,7 +440,11 @@ def apply_sync_request(
     ):
         raise TypeError("registrations と targets は D1 をキーにする")
     try:
-        preflight = _preflight_d1(context, request, rights, registrations)
+        preflight = (
+            _preflight_d1(context, request, rights, registrations)
+            if batch is None
+            else _preflight_d1(context, request, rights, registrations, batch)
+        )
     except RG1Blocked:
         return "B7"
     if (
@@ -358,29 +481,44 @@ def apply_sync_request(
             continue
         registration = registrations.get(event.d1)
         target = targets.get(event.d1)
+        path = preflight.paths[event.d1] if preflight.paths is not None else None
         if not preflight.has_recording_right:
             if candidates[event.d1].kind == "conflict":
                 # ⑤ の B4 では ⑥ に進まない。異内容候補は拒否原本を作らず未処理。
                 a5.append(A5Result(event.d4, event.d1, event.d5, "未処理"))
                 continue
             if candidates[event.d1].kind == "unused":
-                result: D1Result = _escrow_without_right(
-                    context,
-                    request,
-                    event,
-                    rights,
-                    registration,
+                result: D1Result = (
+                    _escrow_without_right(context, request, event, rights, registration)
+                    if path is None
+                    else _escrow_without_right(
+                        context, request, event, rights, registration, path=path
+                    )
                 )
             else:
-                result = _replay_existing(
-                    context,
-                    request,
-                    event,
-                    rights,
-                    projection,
-                    validator,
-                    registration,
-                    target,
+                result = (
+                    _replay_existing(
+                        context,
+                        request,
+                        event,
+                        rights,
+                        projection,
+                        validator,
+                        registration,
+                        target,
+                    )
+                    if path is None
+                    else _replay_existing(
+                        context,
+                        request,
+                        event,
+                        rights,
+                        projection,
+                        validator,
+                        registration,
+                        target,
+                        path=path,
+                    )
                 )
         elif event.d1 > next_d1:
             # ⑥: D3 + 1 から D1 昇順に走査し、欠落があればその位置で B2。
@@ -391,15 +529,29 @@ def apply_sync_request(
             stopped = True
             continue
         else:
-            result = _run_d1_event(
-                context,
-                request,
-                event,
-                rights,
-                projection,
-                validator,
-                registration,
-                target,
+            result = (
+                _run_d1_event(
+                    context,
+                    request,
+                    event,
+                    rights,
+                    projection,
+                    validator,
+                    registration,
+                    target,
+                )
+                if path is None
+                else _run_d1_event(
+                    context,
+                    request,
+                    event,
+                    rights,
+                    projection,
+                    validator,
+                    registration,
+                    target,
+                    path=path,
+                )
             )
         if result.boundary in ("B6", "B7"):
             return result.boundary

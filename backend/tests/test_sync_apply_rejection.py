@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from types import MappingProxyType
 from typing import cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -16,6 +17,7 @@ from pitchlog.repositories.tokens import (
 )
 from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync.idempotency import D5Candidate, StoredResult
+from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.prefix_path import (
     P1ContentRejection,
     P1PreconditionCategory,
@@ -25,7 +27,11 @@ from pitchlog.sync.prefix_path import (
 from pitchlog.sync.prefix_path import (
     _candidate_result as _p1_candidate_result,
 )
-from pitchlog.sync.rejection import _candidate_result, content_reason_for_precondition
+from pitchlog.sync.rejection import (
+    _candidate_result,
+    _original,
+    content_reason_for_precondition,
+)
 from pitchlog.sync.tokens import (
     GameLockToken,
     RecordingGenerationLockToken,
@@ -70,6 +76,16 @@ def test_b4_replay_does_not_need_current_rights() -> None:
         2,
         True,
     )
+
+
+def test_only_t9_original_stores_inherited_path() -> None:
+    """T9 の経路を継承用に残し、T8 原本の従来の形を保つ。"""
+    event = SyncEvent(str(uuid4()), str(uuid4()), 1, "1", v5="play_input")
+    rejected = json.loads(_original(event, "fingerprint", path="P2"))
+    evacuated = json.loads(_original(event, "fingerprint"))
+    assert rejected["path"] == "P2"
+    assert "path" not in evacuated
+    assert {key: value for key, value in rejected.items() if key != "path"} == evacuated
 
 
 @pytest.mark.parametrize(
