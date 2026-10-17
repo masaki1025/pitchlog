@@ -124,3 +124,5 @@ PR #145は `188acf839d4a5f4f42e9c7f5025f8bf3931e3bcb` でdevelopへ統合され�
 計画 `c8bd9512` のT1/T2限定範囲とPO承認は維持する。P-1の正本確定・計画6.1レビュー/PO承認、P-3の限定方式、P-4の比較規則、P-9のFR-040延期裁定は成立済み。ただしP-2/P-6の独立期待値と契約所有側受理、P-5のTSK-538基盤の公開型/版の受領、P-7の実Port・公開署名/失敗境界の担当間受理、P-8の閉じた入力契約・規範行/case・独立検証は未成立。対象別開始記録はこれらの受領後に行い、D-2全体発効・分析40行の完了・無条件の凍結解除とは記録しない。
 
 受取担当の整理: T1残件はTSK-544、T2残件はTSK-545、未決の正本裁定はTSK-546、既存基盤と契約の受領はTSK-236/538側。独立期待値の検証者は契約作成者以外からPOが指名し、契約所有側が範囲・結果を受理する。U-F8/U-S1/U-R1/U-X1/TSK-506はそれぞれ画面、単一適用核、記録権Port、投影/検証Port、HTTP配線の公開境界を受理する。担当カード名は既存台帳の送り先であり、稼働者の引受や完了を示さない。未受理のまま製品計算コードを開始しない。
+
+最新develop `188acf83` と本枝の取り込み後に、`check_plan_docs_sync.py --plan docs/features/ux1-state-calc/plan.md --base origin/develop --head HEAD`、`check_docs_status.py`（20文書・違反0）、`check_design_propagation.py`、`check_doc_coverage.py` は成功。正本同期の単体試験 `test_check_docs_status.py`・`test_check_plan_docs_sync.py` は専用一時領域で84件成功。既定の `/tmp` は満杯で最初の並列実行が一時Gitリポジトリを作れず72件失敗したため、同じ84件を空き容量のある `/home/ymdms/.cache/pitchlog-pytest-pr145-postmerge` で再実行した。検査規則やテストは変更していない。developとの差分は本計画・設計・作業ログの3ファイルだけで、正本・認可・凍結資産を本枝で追加変更していない。
