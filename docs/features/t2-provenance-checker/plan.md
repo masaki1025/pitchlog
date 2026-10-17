@@ -30,7 +30,7 @@ created: 2026-10-17
 
 ### やること
 
-- T2 契約の schema(`contracts/state-transition/game_end_contract_schema_v1.json`)に provenance の器を置く。`$defs` は **`$defs.provenance` から `$ref` で到達する閉包**(現状 5 つ: `provenance`・`provenanceSource`・`provenanceAttestation`・`provenanceIndependentReview`・`provenanceReviewEvent`)を T1 と同一の内容で写す。policy も T1 と同一で、T2 固有は `subjectKinds` だけ
+- T2 契約の schema(`contracts/state-transition/game_end_contract_schema_v1.json`)に provenance の器を置く。`$defs` は **`$defs.provenance` から `$ref` で到達する閉包**(現状 5 つ: `provenance`・`provenanceSource`・`provenanceAttestation`・`provenanceIndependentReview`・`provenanceReviewEvent`)を T1 と同一の内容で写す。policy も `subjectKinds` を含めて T1 と完全一致(545 が既存の種別 `normative-branch-or-state-effect` を再利用すると決めた — 2026-10-17)
 - 検査器(`scripts/check_provenance.py`)を、契約種別の登録表と 3 状態(未記載・未実施・実施済みの主張)の判定に拡張する。**未実施の記録でも schema・典拠参照・`subjectKind`・充足典拠は全件検証し、免除するのは独立性・宣誓・`independentReview` だけ**。予約値 `not-performed` は閉じた形と完全一致する場合に限る(research.md 2 節)
 - T2 契約に、未実施の形の provenance を入れる(中身は 545 の起案 — 10/20)
 - 波及先: 既存の T2 schema 試験の期待値・両 runner の読み込み器のキー集合・引き渡し契約の digest・読み込み器の変異 fixture と両 runner の変異適用器(L1 のための `remove` 操作)
@@ -89,7 +89,7 @@ created: 2026-10-17
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **(依存なし — 545 の起案を待たずに着手)** 検査器の拡張: 登録表 `CONTRACTS`・`validate_provenance` の `contract_kind`(既定 = T1)・`classify_provenance`(未実施でも schema・典拠・`subjectKind` は全件検証、予約値の偽装は赤)・`check_repository`・`main()` の種別判定。T2 は合成 schema で試験し、試験は `tests/test_game_end_contract_schema.py` に置く | `tests/test_state_transition_contract_schema.py` が無変更で全件緑(P1)。research.md の P2・P4・S1〜S10・**S8'〜S10'(未実施の記録の上の偽の典拠)**・S11・S11a〜S11c(予約値の判定キー 4 か所の各単独)・N6 と 4-6 の変異確認が期待どおり。harness 全件(コア領域の参照検出 `tests/test_core_guard.py` を含む)・`uv run ruff check .`・`uv run ty check` が緑 |
+| 1 | **(依存なし — 545 の起案を待たずに着手)** 検査器の拡張: 登録表 `CONTRACTS`・`validate_provenance` の `contract_kind`(既定 = T1)・`classify_provenance`(未実施でも schema・典拠・`subjectKind` は全件検証、予約値の偽装は赤)・`check_repository`・`main()` の種別判定。T2 は合成 schema で試験し、試験は `tests/test_game_end_contract_schema.py` に置く | `tests/test_state_transition_contract_schema.py` が無変更で全件緑(P1)。research.md の P2・P4・S1〜S10・**S8'〜S10'(未実施の記録の上の偽の典拠)**・S11・S11a〜S11c(予約値の判定キーのうち 3 か所の各単独。検証者 ID だけの偽装は確認経緯の actorId の照合で必ず赤になるため単独の負例は置かない)・S4'・S12・N7・N8・N6 と 4-6 の変異確認が期待どおり。harness 全件(コア領域の参照検出 `tests/test_core_guard.py` を含む)・`uv run ruff check .`・`uv run ty check` が緑 |
 | 2 | **(前提: 545 の起案〔10/20 予定〕を受領。遅れてもステップ 1 は止まらない)** T2 の器の着地: schema の `properties`・`required`・`$defs` の閉包 5 つ・policy、T2 契約の provenance(未実施の形・545 の起案)、`tests/test_game_end_contract_schema.py` の既存の期待値(`required` の 8 キー固定 `:455-464`・最小契約 `_minimal_contract` `:382-398`)の追随、読み込み器 2 つのキー集合、両 runner の変異適用器への `remove` 操作と L1 の変異(期待 code `UNKNOWN_FIELD`)、引き渡し契約の digest、照合試験 D1〜D3・N1〜N5・P3・P5 | gate6 の署名照合(`test_repository_gate6_signature_records_match_current_contracts`)以外が緑(harness・backend・frontend の該当試験)。D2 の出力(provenance を除いた digest == `3514e1c6…`)を worklog に記録 |
 | 3 | 再署名の材料: D1〜D4 の出力・新しい digest・`reviewScope` の追記案を worklog にまとめる(署名記録はまだ変えない) | D1〜D4 がすべて成立。PO へ提出できる形になっている |
 | 4 | **(前提: PO の明示の再署名)** 署名記録の転記: `gate6-game-end.json` の `subject.digest`・`recordedOn`・`reviewScope` を 4 節の条件どおりに更新する | `test_repository_gate6_signature_records_match_current_contracts` を含め、**core-guard(人間の逐行確認チェック)以外の必須チェックが緑**(P6)。CI の全緑は人間の逐行確認の後 |

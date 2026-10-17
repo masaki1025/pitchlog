@@ -37,7 +37,7 @@
 
 **予約値の判定キー(閉じた列挙)**: `authorId`・`independentVerifierId`・`attestations[].response`・`independentReview.chronology[].actorId` の 4 か所。比較は文字列 `"not-performed"` との完全一致(JSON の型を含む)。`authorId` に予約値があれば常に赤。残る 3 か所のどれか 1 つにでも予約値があれば「予約値を含む」とし、閉じた形(`independentVerifierId == "not-performed"`・`independentReview` のキーが無い・`attestations` が `{direct-source-clause-review: false, author-work-exposure: "not-performed", source-support-judgment: false}` と**集合として**一致 — 順序は問わず、重複は既存の検査で赤)と完全一致しなければ赤。
 
-「半分だけ署名した」記録(予約値を検証者 ID に置いたまま宣誓だけ充足値にしたもの、検証者 ID は入っているのに宣誓が未実施の値、`not-performed` なのに `independentReview` がある、など)は「実施済みの主張」側に落ちて赤になる。
+「半分だけ署名した」記録(予約値を検証者 ID に置いたまま宣誓だけ充足値にしたもの、検証者 ID は入っているのに宣誓が未実施の値、`not-performed` なのに `independentReview` がある、など)は赤になる。予約値を含む半署名(宣誓に未実施の値 `"not-performed"` が残るものを含む)は閉じた形の検査で、予約値を含まない半署名は実施済みの主張の検査で落ちる(ステップ 1 のコードレビューで実装に合わせて直した)。検証者 ID だけを予約値にした偽装は、判定キーから外しても「独立確認者が確認経緯のactorIdに現れない」で必ず赤になる(等価 — 単独の負例は置かない)。
 
 ## 3. 最小改訂案
 
@@ -45,7 +45,7 @@
 
 1. `properties.provenance = {"$ref": "#/$defs/provenance"}` を足し、`required` に `provenance` を足す
 2. `$defs` に、**`$defs.provenance` から `$ref` で到達する閉包**(現状 5 つ: `provenance`・`provenanceSource`・`provenanceAttestation`・`provenanceIndependentReview`・`provenanceReviewEvent`)を足す。**T1 の定義と同一の内容**(複製になる — 4-3 の照合試験 D1 で閉包ごと照合し、ずれを赤にする)。4 つだけ写すと `provenanceIndependentReview.chronology.items` の参照がぶら下がり、実施済みの記録を一度も受理できなくなる(未実施の記録はこの参照を辿らないので CI は沈黙する — 計画レビュー 1 回目の指摘)
-3. `x-pitchlog-provenance-policy` を足す。`recordLocation`・`recordField`・`attestationItems`・`assuranceBoundary`・`sourceKinds` は T1 と同じ。`subjectKinds` だけ T2 固有(値は 545 の起案)
+3. `x-pitchlog-provenance-policy` を足す。`recordLocation`・`recordField`・`attestationItems`・`assuranceBoundary`・`sourceKinds` は T1 と同じ。当初は `subjectKinds` だけ T2 固有の予定だったが、545 が既存の `normative-branch-or-state-effect` を再利用すると決めた(2026-10-17 — 別の種別は `sufficientSourceKinds` が違うときだけ立てる)ので、**policy は `subjectKinds` を含めて T1 と完全一致**
 4. 版は `v1` のまま改訂する(TSK-538 の裁定 D3 の前例)。T2 契約に provenance を足すのと同じコミットにする(required を足した瞬間に現契約が schema 違反になるため)
 
 **採らない案**: 共通の `provenance_schema_v1.json` へ切り出して両 schema から参照する。重複は消えるが T1 schema を書き換える(T1 不変に反する)。検査器の `$ref` 解決が外部ファイルに対応しているかも未確認。
@@ -130,33 +130,37 @@
 | N4 | `provenance` に未知キーを追加 | 赤(`additionalProperties: false`) |
 | N5 | 登録表から game-end を外した検査器で `--repository` を実行 | 赤(登録表の閉包試験) |
 | N6 | 登録表に無いパスの契約を `main()` に渡す | 赤(未登録の種別) |
+| N7 | `main()` が登録表で決めた種別を検証へ渡さない(種別の取り違え) | 試験が落ちる(検証の呼び出しを記録して種別を照合) |
+| N8 | `main()` に契約と `--repository` を両方渡す / どちらも渡さない | 終了コード 2 |
 
 ### 4-2. 不正署名(PO 裁定の「未記載・不正署名の検出」のうち不正署名)
 
 | # | 負例 | 期待 |
 | --- | --- | --- |
 | S1 | `authorId == independentVerifierId` | 赤「作成者と独立確認者が記録上同一」 |
-| S2 | 検証者 ID は実名、宣誓は未実施の値のまま(半署名) | 赤「宣誓応答が充足値でない」 |
+| S2 | 検証者 ID は実名、宣誓は未実施の値のまま(半署名) | 赤「予約値not-performedを含むが未実施の閉じた形と一致しない: independentVerifierId」(宣誓の `"not-performed"` が予約値なので閉じた形の検査に入る) |
 | S3 | `not-performed` なのに `independentReview` がある | 赤(未実施の閉じた形に一致せず、全検証で失敗) |
 | S4 | 宣誓の欠落・重複・未知の ID(3 通り) | 赤 |
 | S5 | 実施済みの主張で `independentReview` が無い | 赤 |
 | S6 | `chronology` の順序が 1 始まりの連番でない / 検証者が `actorId` に現れない(2 通り) | 赤 |
 | S7 | `authorWorkExposure` と宣誓 `author-work-exposure` の不一致 | 赤 |
 | S8 | 未知の `sourceKind` / 実在しない `req:` ID / 旧調査資料だけの典拠(3 通り) | 赤 |
-| S9 | `subjectKind` が T2 の policy に無い / T1 の `subjectKind` を T2 に流用 | 赤(種別の取り違え) |
+| S9 | `subjectKind` が T2 の policy に無い | 赤。当初の「T1 の `subjectKind` を T2 に流用 → 赤」は、545 が既存の種別を再利用すると決めたため取り下げた(policy が T1 と完全一致になり、流用は正当になる)。ステップ 1 の試験は合成の種別で書いてあり、ステップ 2 で実 policy に合わせる |
 | S10 | T2 の policy で `sufficientSourceKinds` を満たさない典拠だけ | 赤 |
 | S8'〜S10' | S8〜S10 を**未実施の記録の上で**(宣誓・検証者は未実施の閉じた形のまま) | 赤(未実施でも典拠と種別は検証する) |
 | S11 | 予約値の偽装: `independentVerifierId: "not-performed"`・宣誓 3 件が充足値・`chronology` の `actorId` に `not-performed`・exposure は整合 | 赤(予約値は閉じた形と完全一致する場合だけ) |
 | S11a | 予約値が `chronology` の `actorId` だけ(検証者は実名・宣誓は充足値) | 赤 |
 | S11b | 予約値が `attestations[].response` だけ(検証者は実名・他の宣誓は充足値) | 赤 |
 | S11c | `authorId` が予約値 | 赤 |
+| S4' | 未実施の記録で、矛盾する値の重複宣誓(後の値が閉じた形に一致する並び) | 赤「宣誓項目が重複している」 |
+| S12 | 宣誓項目の宣言が閉じた形とずれた policy で、未実施の記録 | 赤「未実施の閉じた形が宣誓項目の宣言とexact-set不一致」 |
 
 ### 4-3. 器のずれ
 
 | # | 負例 | 期待 |
 | --- | --- | --- |
 | D1 | T2 schema の `$defs.provenance` から `$ref` で到達する閉包(現状 5 つ)のいずれかを T1 とずらす / 閉包の 1 つを欠く | 赤(閉包を計算して T1 と完全一致を照合) |
-| D2 | T2 policy の `subjectKinds` 以外のキーを T1 とずらす | 赤 |
+| D2 | T2 policy を T1 とずらす(`subjectKinds` を含む全体の完全一致 — 545 の決定で単純化) | 赤 |
 | D3 | T2 の `x-pitchlog-provenance-policy` を削除 / `required` から provenance を外す | 赤(`_policy` の既存検査) |
 
 ### 4-4. 正例(T1 の保持と T2 の受理)
@@ -184,7 +188,7 @@ L1 の code は計画レビュー 1 回目で確認した(`UNKNOWN_FIELD`)。
 
 ### 4-6. 変異で確かめること(試験が効いていることの確認)
 
-`classify_provenance` の未実施判定から 1 条件ずつ外す変異(3 通り)、未実施の記録の典拠検証を飛ばす変異、予約値の完全一致を外す変異、登録表から game-end を外す変異が、上の負例のどれかで落ちること(計画書のステップ 1 の合格条件)。
+`classify_provenance` の未実施判定から 1 条件ずつ外す変異(3 通り)、未実施の記録の典拠検証を飛ばす変異、予約値の完全一致を外す変異、登録表から game-end を外す変異が、上の負例のどれかで落ちること(計画書のステップ 1 の合格条件)。ステップ 1 のコードレビューで、宣誓の重複・宣誓項目の宣言との照合・`check_repository` の閉包検査・CLI からの種別の受け渡しの 4 種が生存していたため、試験を足した(S4'・N7・N8 ほか)。実施結果(12 種すべて試験の失敗で落ちた)は作業ログ。
 
 ## 5. 実装の分け方
 
@@ -200,3 +204,5 @@ L1 の code は計画レビュー 1 回目で確認した(`UNKNOWN_FIELD`)。
 3. **L1〜L3(読み込み器の変異 fixture の穴)を今回の射程に入れるか**: 入れると `mutations.json` と両 runner の対の試験が増え、ステップ 2 が重くなる(着地が後ろへ動く)。入れない場合は L1(T2 の provenance 欠落)だけを本案に残し、L2・L3(トップレベル未知キー — 本案と独立に以前からある穴)は別タスクへ送る、という分け方もできる
 4. T2 の `subjectKinds` の値と、初期記録の `sources`(545 の起案 — 10/20)。545 の実測では、現行 8 行の典拠は `req:` 4 件(F-1・FR-005・FR-009・FR-020)だけで、新しい典拠種別は要らない見込み(= `sourceKinds` は T1 と完全一致のまま)。**`subjectKinds` は 1 種で 545 と合意した(2026-10-17)**。判定基準は「`sufficientSourceKinds` が違うときだけ別の種別を宣言する」で、T1 の形から取った。T1 の `vocabulary-origin` は実記録が名乗っていないが、`legacy-vocab-mirror` 単独を許す点で `sufficientSourceKinds` が実際に違い、試験がその差を固定している(`tests/test_state_transition_contract_schema.py:2863-2870`)。T2 の分岐(5 欄)と表示値 `xMark` はどちらも `[requirements, official-baseball-rules]` に落ちて差が無いので、1 種でよい。2 種目が要るのは、XMARK が requirements 以外の典拠種別を必要とするようになったとき。policy への加法的な追加なので、後からでも安く済む
 5. 着地の主体: PO 裁定(2026-10-17)で Claude の実装・レビューで代替 + 追認。Codex の利用枠は 10/22 17:45 まで停止(562 の報告)で、追認は 10/22 以降
+6. **記録に出ない典拠**(545 と合意 2026-10-17・案 1): T2 契約は `validationErrors` の 12 件すべてで `adr:D-11` を引くが、由来記録の `sources` には含めない。各行は `adr:D-11` と並べて `req:` の典拠も引き、優先典拠(requirements)は `req:` 側で満たせる。`adr:` を受ける `sourceKind` を足す案は T1 schema と検査器の改訂になり、T1 不変の前提を破る(射程外)。**ADR の典拠も記録に残すべきなら、両 policy へ同時に足す別タスクとして PO 判断へ**
+7. **(e) への申し送り — `authorId` は単一文字列**(545 の起案 §4): 545 の (e) で規範行・case を Codex 以外が足すと、契約の作成者が混成になり `authorId` を一意に書けない。選択肢は ① 器を併記できる形へ変える(T1 と揃わなくなる)② 契約全体の `authorId` を書き換える ③ (e) の実装を Codex に戻す。(e) の時点で PO が判断する
