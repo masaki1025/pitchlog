@@ -236,6 +236,8 @@ async def test_one_ball_slice_persists_once_and_replays_as_duplicate(
         assert state.status_code == 200
         state_body = state.json()
         # 再 POST せずに GET だけで適用済みの水位と受理済みの 1 球が見える。
+        # 再読込の 1 件は墓標除外（is_tombstone = False）と現行世代
+        # （generation = 1）の絞り込みを通過して残り、打ち切りは起きない。
         assert state_body == {
             "confirmed_watermark": 1,
             "events": [
@@ -248,7 +250,10 @@ async def test_one_ball_slice_persists_once_and_replays_as_duplicate(
                     "state_diff": {},
                 }
             ],
+            "truncated": False,
         }
+        assert state_body["events"][0]["generation"] == 1
+        assert state_body["truncated"] is False
 
         second = await _post_one_ball(client, db.game_a, _one_ball_body(db.game_a, d5))
         assert second.status_code == 200
@@ -309,7 +314,15 @@ async def test_state_before_any_apply_reports_zero_watermark_and_empty_events(
     async with AsyncClient(transport=transport, base_url="https://test") as client:
         state = await client.get(f"/games/{db.game_a}/sync/state")
         assert state.status_code == 200
-        assert state.json() == {"confirmed_watermark": 0, "events": []}
+        state_body = state.json()
+        # 応答形は既存形（水位 0・イベント空）に打ち切りがないことを足した形。
+        assert state_body == {
+            "confirmed_watermark": 0,
+            "events": [],
+            "truncated": False,
+        }
+        assert state_body["confirmed_watermark"] == 0
+        assert state_body["events"] == []
 
 
 @pytest.mark.anyio

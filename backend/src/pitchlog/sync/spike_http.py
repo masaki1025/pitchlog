@@ -50,7 +50,10 @@ from pitchlog.sync.tokens import (
 _TENANT_ACCESS = Callable[..., TenantContext]
 _GENERATION_COLUMNS = tuple(RecordingGeneration.__table__.c.keys())
 _EVENT_COLUMNS = tuple(OperationEvent.__table__.c.keys())
-_STATE_READ_LIMIT = 256
+# 応答に返す現行イベントの上限。`OperationEventOrderReadToken` の limit は
+# 1〜256 に束縿されるため、limit + 1 件の読みで打ち切りを判別できるよう
+# 応答上限を 255・読みを 256（=上限内）にする。
+_STATE_READ_LIMIT = 255
 
 _REQUEST_ERROR_STATUS = 422
 
@@ -108,6 +111,8 @@ class SpikeSyncStateModel(BaseModel):
 
     confirmed_watermark: int
     events: list[SpikeSyncStateEventModel]
+    # 打ち切り判別。絞り込み後の現行イベントが limit を超えたとき真にする。
+    truncated: bool = False
 
 
 def _build_sync_router(
@@ -170,9 +175,12 @@ def _build_sync_router(
         """Spike 専用の再読込入口。設計提案ではなく spike の観察用の出口。
 
         適用済みの水位（`recording_generations.confirmed_watermark`）と
-        受理済みのイベント（`operation_events` の現行行）を返す。ここで直接
-        表を読むのは TSK-506 の製品経路を作る提案ではない。spike の横スライス
-        の観察用に、DB セッションの取り方だけ既存ルータの作法に合わせる。
+        受理済みのイベント（`operation_events` の現行行）を返す。返すイベント
+        は墓標（`is_tombstone`）を除外し（論理削除済みは「状態」ではない）、
+        現行世代に絞る（世代を跨いだ行を状態に混ぜない）。`limit` を超えた
+        `truncated` を応答で判別できる。ここで直接表を読むのは TSK-506 の
+        製品経路を作る提案ではない。spike の横スライスの観察用に、DB セッション
+        の取り方だけ既存ルータの作法に合わせる。
         """
         with tenant_transaction_scope(context) as scope:
             game_rows = scope.run(GameReadToken(game_id)).rows
@@ -186,15 +194,39 @@ def _build_sync_router(
                 # 世代行が無い＝まだ一度も同期適用していない試合。404 にすると
                 # 自テナント不存在の 404 と混ざり列挙防止の意味が濁るため、
                 # 既存の応答形のまま水位 0・イベント空として返す。
-                return SpikeSyncStateModel(confirmed_watermark=0, events=[])
+                return SpikeSyncStateModel(
+                    confirmed_watermark=0, events=[], truncated=False
+                )
             watermark = _cell(state_rows[0], _GENERATION_COLUMNS, "confirmed_watermark")
             if type(watermark) is not int:
                 raise RuntimeError("確定水位が整数ではない")
+            current_generation = _cell(state_rows[0], _GENERATION_COLUMNS, "generation")
+            if type(current_generation) is not int:
+                raise RuntimeError("現行世代番号が整数ではない")
+            # OperationEventOrderReadToken の本来の目的は D2 の局所再採番（D2 の
+            # 設計）である。spike ではこのトークンを再読込に流用する。ここでの
+            # 絞り込み（ tombstone を落とし、現行世代に絞る）はトークンの読み方
+            # を spike 側で加工する割り切りであり、トークンの設計変更は同期核
+            # に触れるためしない。limit + 1 件（= 256、token の束縿内）を要求
+            # して打ち切りを判別する。
             event_rows = scope.run(
-                OperationEventOrderReadToken(game_id, -1, _STATE_READ_LIMIT)
+                OperationEventOrderReadToken(game_id, -1, _STATE_READ_LIMIT + 1)
             ).rows
+            filtered: list[tuple[object, ...]] = []
+            for row in event_rows:
+                tombstone = _cell(row, _EVENT_COLUMNS, "is_tombstone")
+                if tombstone is True:
+                    # 論理削除済みの墓標は「状態」ではない（破棄された操作を
+                    # 再読込の答えに混ぜない）。
+                    continue
+                row_generation = _cell(row, _EVENT_COLUMNS, "generation")
+                if row_generation != current_generation:
+                    # 世代を跨いだ現行行（復旧世代など）を混ぜない。
+                    continue
+                filtered.append(row)
         events: list[SpikeSyncStateEventModel] = []
-        for row in event_rows:
+        truncated = len(filtered) > _STATE_READ_LIMIT
+        for row in filtered[:_STATE_READ_LIMIT]:
             d1 = _cell(row, _EVENT_COLUMNS, "d1")
             d2 = _cell(row, _EVENT_COLUMNS, "d2")
             generation = _cell(row, _EVENT_COLUMNS, "generation")
@@ -209,7 +241,9 @@ def _build_sync_router(
                     state_diff=state_diff if isinstance(state_diff, dict) else {},
                 )
             )
-        return SpikeSyncStateModel(confirmed_watermark=watermark, events=events)
+        return SpikeSyncStateModel(
+            confirmed_watermark=watermark, events=events, truncated=truncated
+        )
 
     return router
 
