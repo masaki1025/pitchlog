@@ -336,9 +336,9 @@ class RejectedChangeResult:                 # :409-420
 | 箇所 | 現行 | 理由(本設計 11-4) |
 | --- | --- | --- |
 | `sync/prefix_path.py:444`・`:448`・`:450` | `P1PreconditionError("選手参照は UUID 文字列が必要")` ほか(`_resolve_player_reference`) | V7 の選手参照の内容で決まる |
-| `sync/prefix_path.py:470` | `P1PreconditionError("一時選手 ID の確定写像がない")` | 端末が送った参照で決まる |
+| `sync/prefix_path.py:470` | `P1PreconditionError("一時選手 ID の確定写像がない")` | **実装で訂正: 永続状態に依存**(選手行・一時 ID の写像の有無 — 先行するその場登録が確定すれば通る)ので B3a にせず B7 のまま |
 | `sync/prefix_path.py:496` | `P1PreconditionError("V5 で定義されない選手参照位置")`(`_resolve_payload`) | V7 の形で決まる |
-| `sync/prefix_path.py:680` | `P1PreconditionError("一時 ID は別の確定写像に使用済み")` | その場登録の内容で決まる |
+| `sync/prefix_path.py:680` | `P1PreconditionError("一時 ID は別の確定写像に使用済み")` | **実装で訂正: 永続状態に依存**(既存の一時 ID の写像の有無)ので B3a にせず B7 のまま |
 | `sync/ordering.py:34` | `P1PreconditionError("P2 の V6 は非負の bigint が必要")` | 端末が送った V6 で決まる |
 
 いずれも ⑦ の `try`(`sync/prefix_path.py:612-639`)の外で投げるので、`P1ContentRejection` へ変換されず、`sync/apply.py:198-199` から再送出 → 500 → B7(永久再送)になっている。
@@ -364,7 +364,7 @@ class RejectedChangeResult:                 # :409-420
 
 ### 5-5. この差分が無いと 506 の何が止まるか
 
-端末の内容の誤り(選手参照の誤記・一時 ID の再使用・V6 の範囲外)が 500 → B7 になり、**永久再送・先頭詰まり・理由の非表示**(plan.md:22)。506 の故障系(506/plan:76)で「解釈不能・5xx でキュー保持」は確かめられても、利用者が改訂・墓標で抜けられない。
+端末の内容の誤り(選手参照の誤記・V6 の範囲外など。一時 ID の再使用と一時選手 ID の未確定は永続状態に依存するので B7 のまま — ステップ 5 で判明)が 500 → B7 になり、**永久再送・先頭詰まり・理由の非表示**(plan.md:22)。506 の故障系(506/plan:76)で「解釈不能・5xx でキュー保持」は確かめられても、利用者が改訂・墓標で抜けられない。
 
 ---
 

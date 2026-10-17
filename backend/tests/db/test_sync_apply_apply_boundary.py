@@ -20,6 +20,7 @@ from test_sync_apply_port_prefix import (
     RejectPrefixValidator,
 )
 
+from pitchlog.db.sync_protocol.models import OperationEvent
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 from pitchlog.repositories.transaction import (
     _TenantTransaction,
@@ -34,6 +35,7 @@ from pitchlog.sync.model import AckResult, SyncEvent, SyncRequest
 from pitchlog.sync.prefix_path import P1Result, P1Target, PlayerRegistration
 from pitchlog.sync.tokens import (
     IdempotencyLedgerInsertToken,
+    OperationEventOrderReadToken,
     OperationEventOrderUpdateToken,
 )
 
@@ -718,6 +720,10 @@ def test_d5_content_rejection_rolls_back_t5_renumbering(
         assert isinstance(result, AckResult) and result.a5[0].state == "受理"
 
     updates: list[OperationEventOrderUpdateToken] = []
+    positions_after_assign: list[tuple[tuple[object, object], ...]] = []
+    event_columns = tuple(OperationEvent.__table__.c.keys())
+    d1_column = event_columns.index("d1")
+    d2_column = event_columns.index("d2")
     original_assign = ordering._assign_d2
 
     def observe_assign(
@@ -735,9 +741,14 @@ def test_d5_content_rejection_rolls_back_t5_renumbering(
                     updates.append(token)
                 return result
 
-        return original_assign(
+        assigned = original_assign(
             cast(_TenantTransaction, ObservedScope()), game_id, desired
         )
+        rows = scope.run(OperationEventOrderReadToken(game_id, -1, 256)).rows
+        positions_after_assign.append(
+            tuple((row[d1_column], row[d2_column]) for row in rows)
+        )
+        return assigned
 
     monkeypatch.setattr(ordering, "_assign_d2", observe_assign)
 
@@ -759,6 +770,7 @@ def test_d5_content_rejection_rolls_back_t5_renumbering(
     assert (result.boundary, result.b3_branch, result.d3) == ("B3", "B3a", 3)
     assert result.a5[0].state == "拒否"
     assert [token.d2 for token in updates] == [12, 11]
+    assert positions_after_assign == [((1, 9), (2, 11), (3, 12))]
     assert _count(db, "idempotency_ledger", rejected.d5) == 1
     assert _count(db, "rejected_event_originals", rejected.d5) == 1
     with db.catalog.applicator.cursor() as cursor:
