@@ -11,17 +11,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from pitchlog.db.sync_protocol.event_kinds import OPERATION_EVENT_PARTICIPATIONS
+from pitchlog.db.sync_protocol.event_kinds import EVENT_KIND_BY_NUMBER
 from pitchlog.sync.model import ApplicationPath, RequestShapeError, SyncRequest
 
-# 種別番号文字列から literal への正本写像。墓標（8）と改訂版（9）は
-# V5 を持たないため渡さない。literal 側は既知の集合だけを通す。
-_NUMBER_TO_KIND: dict[str, str] = {
-    str(participation.participation_number): participation.event_kind_literal
-    for participation in OPERATION_EVENT_PARTICIPATIONS
-    if participation.event_kind_literal is not None
-}
-_KIND_LITERALS: frozenset[str] = frozenset(_NUMBER_TO_KIND.values())
+# 種別番号文字列から literal への写像は正本（event_kinds.py）から導出する。
+# 墓標（8）と改訂版（9）は V5 を持たないため正本の表に含まれない。
+# literal 側は既知の集合だけを通す。
+_NUMBER_TO_KIND: Mapping[str, str] = EVENT_KIND_BY_NUMBER
+_KIND_LITERALS: frozenset[str] = frozenset(EVENT_KIND_BY_NUMBER.values())
 
 
 def _event_kind_value(value: object) -> object:

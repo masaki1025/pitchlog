@@ -142,6 +142,33 @@ EVENT_KIND_LITERALS = tuple(
     if participation.binding is ParticipationBinding.EVENT_KIND
     and participation.event_kind_literal is not None
 )
+# 種別番号 ↔ literal の正本写像。番号は wire では数字文字列として運ばれるため
+# キーも数字文字列にする。墓標（8）と改訂版（9）は V5 を持たないため含まない。
+EVENT_KIND_BY_NUMBER = MappingProxyType(
+    {
+        str(participation.participation_number): participation.event_kind_literal
+        for participation in OPERATION_EVENT_PARTICIPATIONS
+        if participation.event_kind_literal is not None
+    }
+)
+NUMBER_BY_EVENT_KIND = MappingProxyType(
+    {
+        literal: participation.participation_number
+        for participation in OPERATION_EVENT_PARTICIPATIONS
+        if participation.event_kind_literal is not None
+        for literal in (participation.event_kind_literal,)
+    }
+)
+
+
+def event_kind_by_number(number: str) -> str | None:
+    """参加区分の種別番号（数字文字列）から V5 の literal を参照する。"""
+    return EVENT_KIND_BY_NUMBER.get(number)
+
+
+def number_by_event_kind(literal: str) -> int | None:
+    """V5 の literal を参加区分の種別番号へ戻す。"""
+    return NUMBER_BY_EVENT_KIND.get(literal)
 CONDITIONAL_EVENT_KIND_LITERALS = tuple(
     participation.event_kind_literal
     for participation in OPERATION_EVENT_PARTICIPATIONS

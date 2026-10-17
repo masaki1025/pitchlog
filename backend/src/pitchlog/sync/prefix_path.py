@@ -17,7 +17,7 @@ from pitchlog.db.sync_protocol.event_kinds import (
     _LOGICAL_POSITION_EVENT_KINDS,
     C12_REQUIREMENT_MATRIX,
     EVENT_KIND_LITERALS,
-    OPERATION_EVENT_PARTICIPATIONS,
+    NUMBER_BY_EVENT_KIND,
     STATE_CORRECTION_EVENT_KIND,
     C12Requirement,
     C12Value,
@@ -79,11 +79,8 @@ _GENERATION_COLUMNS = tuple(RecordingGeneration.__table__.c.keys())
 _MAPPING_COLUMNS = tuple(TemporaryPlayerIdMapping.__table__.c.keys())
 _REJECTION_COLUMNS = tuple(RejectedEventOriginal.__table__.c.keys())
 _LEDGER_COLUMNS = tuple(IdempotencyLedger.__table__.c.keys())
-_C12_KIND_NUMBERS = {
-    participation.event_kind_literal: participation.participation_number
-    for participation in OPERATION_EVENT_PARTICIPATIONS
-    if participation.event_kind_literal is not None
-}
+# literal → 種別番号の逆参照は正本（event_kinds.py）から導出する。写像を一箇所に保つ。
+_C12_KIND_NUMBERS = NUMBER_BY_EVENT_KIND
 _P2_LOGICAL_KINDS = _LOGICAL_POSITION_EVENT_KINDS | {STATE_CORRECTION_EVENT_KIND}
 
 # V7 の選手参照名は種別ごとに列挙する。未知の選手参照名は保存前に拒否する。
