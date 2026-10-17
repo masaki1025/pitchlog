@@ -1,0 +1,46 @@
+---
+date: 2026-10-17
+topic: T2 終了判定契約の由来記録(provenance)の器と検査器
+branch: feature/t2-provenance-checker
+---
+
+# 作業ログ: 2026-10-17 T2 終了判定契約の由来記録(provenance)の器と検査器
+
+## やったこと
+
+- /task-start(山田正輝の起動)。Notion https://app.notion.com/p/3fc93b75e687812d83bdd45890f4844a ・worktree `../pitchlog-worktrees/feature-t2-provenance-checker`(develop `188acf83` 起点)
+- /task-start 前に資産外(`~/.cache/pitchlog-538/t2-provenance/`)で作った改訂案と計画書の下書きを、`docs/features/t2-provenance-checker/research.md`・`plan.md` へ移した。D2 の試作(`provenance_only_diff.py`)と実演の写しは資産外に残す
+
+## 決定
+
+- PO 裁定(2026-10-17・master 経由): T2 provenance は 538/236 の所有側で、schema・検査器の最小改訂案と拒否系試験計画を作成する。既存 T1 検査を保持し、T2 の未記載・不正署名も検出対象にする。正式な資産変更は所定ゲートで判断する
+- PO 裁定(同日・master 経由): 本タスクは「Claude の実装・レビューで代替 + 追認」の対象。**敵対レビューと review normal は、実装に関与していない Claude サブエージェントで代替する(Codex 敵対レビューの代替)**。PO の逐行確認と gate6-game-end の再署名は代替しない。計画レビューも代替の射程に入る、と master が読んだ(PO へ確認中 — 違っていれば追認の対象が増える)
+- **追認が残る**: 代替でレビューした版を Codex で 1 回追認する。期限は master 提案で 10/28(確定は PO)。追認が済むまで Notion を「完了」にしない
+- 分担(545 と合意): 欄の中身(subjectKinds 1 種・初期の sources)は 545 の TSK-545 子カード(10/20 起案)、器・検査器・試験・波及先は本タスク
+- 別タスク・別 PR にする(538・545・master が一致): provenance を規範行・case の変更と同居させると D2 が崩れ、再署名の範囲を限れないため。再署名は 2 回になる(本タスクの形式的な再署名と、545 の (e) の実質的な逐行確認)
+
+## 未決・次の一歩
+
+- PO 判断: ① gate6-game-end の再署名を受けるか ③ L1〜L3 を射程に入れるか / 計画レビューの代替の確認
+- 次: /plan(計画レビューを Claude サブエージェントで代替実施 → PO の計画承認)
+
+## 計画レビュー 1 回目(全文)— Codex 敵対レビューの代替として Claude で実施
+
+- 主体: 起案・実装に関与していない Claude サブエージェント(general-purpose・Opus 5.5)。依頼文は Codex 向けと同じ形(受理範囲 3 種・6.1 の重大度・名指しの軸 A〜H・判定行)— `~/.cache/pitchlog-538/t2-provenance/plan-review-r1-prompt.md`
+- 判定: **否決 P0=2 P1=5 P2=3**。10 件とも 538 が原典で確認し、**全件採用**(`計画レビュー周回` 0 → 1)
+
+| # | 重大度 | 要旨 | 採否と反映 |
+| --- | --- | --- | --- |
+| 1 | P0 | 既存の T2 schema 試験が `required` を 8 キーで固定(`tests/test_game_end_contract_schema.py:455-464`)・最小契約が provenance を持たない(`:382-398`)。更新対象に無くステップ 2 が緑にならない | 採用。3 節とステップ 2 に追加 |
+| 2 | P0 | 新しい試験ファイルはコア領域の参照検出(`tests/test_core_guard.py:1127-1180`・`:2973-3007`)で赤。登録には二層契約とゲートが要る | 採用。新ファイルを作らず、両領域に登録済みの `tests/test_game_end_contract_schema.py` に置く。4 節の重さ分類の根拠を直した |
+| 3 | P1 | 写す `$defs` は 4 つでなく閉包 5 つ(`provenanceReviewEvent`)。4 つだと実施済みの記録を受理できず、未実施は参照を辿らないので沈黙 | 採用。閉包で定義し、D1 を閉包の照合に |
+| 4 | P1 | 未実施の閉じた形に一致すると典拠・種別の検証が丸ごと飛ぶ(新しい沈黙の穴) | 採用。未実施でも schema・典拠・`subjectKind`・充足典拠は全件検証。S8'〜S10' を追加 |
+| 5 | P1 | 予約値 `not-performed` を検証者・actorId に置いた偽装が verified で通る | 採用。予約値は閉じた形と完全一致の場合だけ。S11 を追加 |
+| 6 | P1 | L1 の削除操作が両 runner の変異適用器に無い。code は `UNKNOWN_FIELD` に決まる | 採用。両試験ファイルに `remove` を足す。期待 code を確定 |
+| 7 | P1 | 再署名の記入とコミットの主体が無い。前例 `22cf696f` では Claude が転記している | 採用。ステップ 4(PO の明示の再署名を受けた転記)を新設し、転記の条件(artifactAuthorId・reviewer・シート SHA・reviewScope 追記)を 4 節に。「Claude が書き換えると偽造」は言い過ぎで、「明示の再署名が無いまま書き換えると偽造」に直した |
+| 8 | P2 | D1〜D4 の道具の置き場が未定・ROOT 固定・上限値の直書き | 採用。資産化しない(出力を貼る)と確定。ルートは引数・上限値は policy から読む形に直して使う |
+| 9 | P2 | P4・4-6 がステップの合格条件に無い。P2 の前後比較は試験にならない | 採用。ステップ 1 に割り当て、P2 を固定の期待結果に |
+| 10 | P2 | `handoff.py:150-185` の範囲ずれ・「③」の多義 | 採用。`:155-184` に直し、③ を名前に置き換えた |
+
+- 軸の結果(サブエージェントの報告): B(T1 不変)・C(NFR-018)・D(NFR-023・シークレット・テナント)・H(545 への依存)は該当なし。CI 配線は harness が `pytest tests/` を流し、harness は必須チェック(`.github/workflows/ci.yml:97-102`・`docs/development/github-setup.md:125`)
+- 次: 2 回目(反映差分 + 影響節)を、1 回目と別の未関与のサブエージェントで
