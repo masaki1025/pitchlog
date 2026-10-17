@@ -14,6 +14,7 @@ import {
   SINGLE_WRITER_START_FAILURE,
   type ExclusiveLockManager,
   type NonOwnerInputRejection,
+  type SingleWriterInjections,
   type SingleWriterStartFailure,
 } from '../lib/sync/singleWriter'
 
@@ -53,6 +54,29 @@ export function createNonBlockingLockManager(
         callback(lock),
       )) as never,
   }
+}
+
+/**
+ * 単一書き手の注入を、待たない管理機構が既定になるよう整える。
+ *
+ * `runAsSingleWriter` は `lockManager` を省略するとブラウザ既定(ブロッキング)
+ * を使う。呼出元が渡し忘れると、待機側の確定が前の書き手の解放後に実行され、
+ * `sync-protocol.md:1690` の「キューへ追記せず D1 を消費しない」に反する。
+ * 既定の差し替えを呼出元の記憶に任せず、ここで機構として固定する。
+ *
+ * Args:
+ *     injections: 呼出元が渡した注入(省略可)。
+ *
+ * Returns:
+ *     `lockManager` が待たない管理機構に揃った注入。
+ */
+export function withNonBlockingSingleWriter(
+  injections: SingleWriterInjections = {},
+): SingleWriterInjections {
+  if (injections.lockManager !== undefined) {
+    return injections
+  }
+  return { ...injections, lockManager: createNonBlockingLockManager() ?? null }
 }
 
 /**

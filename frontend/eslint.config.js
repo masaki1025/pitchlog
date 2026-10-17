@@ -122,7 +122,44 @@ export default [
               message:
                 '第 1 期は確定の経路へ到達させない(uf8-game-recording/design.md 6-2)。',
             },
+            {
+              // flat config の後勝ちは規則ごとオプションを置換するため、
+              // 一般ブロックの禁止をここへ書き戻さないとこのファイルだけ消える。
+              group: ['**/lib/generated/*', '**/lib/generated/artifacts/**'],
+              message:
+                '生成物は generated/wrappers 配下の生成ラッパーを経由してください。',
+            },
           ],
+        },
+      ],
+      // import を塞いでも、素の fetch / indexedDB で到達できてしまう。
+      // 2 周目 P0 の反例がまさにこれだったので、グローバルも落とす。
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'fetch',
+          message:
+            '第 1 期は確定の経路へ到達させない(uf8-game-recording/design.md 6-2)。',
+        },
+        {
+          name: 'XMLHttpRequest',
+          message:
+            '第 1 期は確定の経路へ到達させない(uf8-game-recording/design.md 6-2)。',
+        },
+        {
+          name: 'indexedDB',
+          message:
+            '第 1 期は確定の経路へ到達させない(uf8-game-recording/design.md 6-2)。',
+        },
+        {
+          name: 'caches',
+          message:
+            '第 1 期は確定の経路へ到達させない(uf8-game-recording/design.md 6-2)。',
+        },
+        {
+          name: 'PitchlogDomain',
+          message:
+            'ドメイン計算は generated/wrappers の公開口から呼び出してください。',
         },
       ],
     },

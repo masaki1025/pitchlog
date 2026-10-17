@@ -233,11 +233,17 @@ master から渡された 4 区分(前提違反 / 内容拒否 / 一時的 DB �
 | **(ii)** | **製品経路に非所有タブの拒否が無い** —— `rejectNonOwnerInput()`(通知 `Q2-b`)を呼ぶのが試験用アダプタだけだった | 同上・要件書 `:333` の `E3` | **U-F8 の射程内。是正済み** |
 | **(iii)** | **排他の保持単位が「1 球ごと」で、資産が前提とする「セッション保持」と食い違う** —— 資産の `input.lock` は `heldDuringFreeze: true`。後からセッション保持を入れると、その内側の確定が同名ロックを再取得して待ち続ける(Web Locks は再入不可) | `sync-protocol.md:1689`・`leader-freeze-reelection_v2.json` | **設計判断。封鎖解除の前提条件として残す** |
 
+**封鎖を外す前に、(iii) を決めること。** (i)(ii) は是正したが、**是正の中身は「待たない管理機構を既定にする」ことなので、確定の経路を画面へ繋ぐときに既定が上書きされていないかを必ず確かめる。**
+
 ### (i)(ii) の是正 —— `lib/sync` を変えずに解けた
 
 **当初これらを「`singleWriter.ts` の変更が要るので U-F7 の所有」として申し送ったが、誤りだった。** `runAsSingleWriter` は `lockManager` を**公開の注入点**として持ち、鍵が取れないときにコールバックが `null` を受けると**追記せずに** `LOCK_REQUEST_FAILED` で戻る。したがって `ifAvailable: true` を使う管理機構を呼出側から渡せば、**`lib/sync` の差分 0 行のまま**契約を満たせる。
 
 実装は [`GameScreenSingleWriter.ts`](../../../frontend/src/screens/GameScreenSingleWriter.ts)。`createNonBlockingLockManager` が待たない管理機構を作り、`describeNonOwnerInput` が `LOCK_REQUEST_FAILED` を `rejectNonOwnerInput()`(`Q2-b`)へ写す。`commitPitchEvent` の結果に `nonOwner` として載る。
+
+**実体を作るだけでは足りない。** `runAsSingleWriter` は `lockManager` を省略するとブラウザ既定(ブロッキング)を使うので、呼出元が渡し忘れると契約が破れる。**`withNonBlockingSingleWriter` が既定を機構として固定**し、`commitPitchEvent` と `acceptPitchEvent` の両方がこれを通す。契約資産 `waiting-input-not-accepted_v2.json` の期待(追記 0 件・D1 を消費しない・`Q2-b`)は `GameScreenSingleWriter.spec.ts` が固定している。
+
+**一度、実体だけ作って接続せずに「是正済み」と書き、封鎖解除の歯止めを外しかけた。** 新しい既定を入れるときは、**既定が実際に通る経路を試験で押さえてから**是正と呼ぶこと。
 
 **所有の割り当てを誤ったまま文書とコードへ固定しかけた。** 注入点の有無を確かめずに「ライブラリの変更が要る」と判断したのが原因で、同種の判断では**まず公開 API の注入点を探す**こと。
 

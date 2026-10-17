@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import StrikeZone from '../components/zone/StrikeZone.vue'
 import GameScreen from './GameScreen.vue'
 import gameScreenSource from './GameScreen.vue?raw'
 import {
@@ -117,19 +118,31 @@ describe('画面から確定の経路へ到達できない', () => {
 
   it('画面を操作しても送信もキューの開設も起きない', async () => {
     const wrapper = mount(GameScreen, {
-      props: { unsentCount: 0, inputObservation: observation() },
+      props: {
+        unsentCount: 0,
+        inputObservation: observation(),
+        // 描画されない要素は叩けない。溢れやすい面もすべて出す。
+        courseView: { plateSide: '右', viewpoint: 'pitcher' as const },
+        pitchTypes: [{ id: 'fastball', displayName: '直球', enabled: true }],
+        results: [{ id: 'ball', displayName: 'ボール', enabled: true }],
+        eventIdentity: {
+          d5: '0b5f1c2e-3a4d-4e5f-8a9b-0c1d2e3f4a5b',
+          d4: 'generation-a',
+          gameId: 'f1e2d3c4-b5a6-4789-9abc-def012345678',
+          d2: '0007',
+        },
+      },
     })
 
-    for (const button of wrapper.findAll('button')) {
-      await button.trigger('click')
+    // trigger は disabled 要素でイベントを発火しないので、DOM へ直接送る。
+    for (const element of wrapper.findAll('button, input, select')) {
+      for (const type of ['click', 'change', 'input', 'submit']) {
+        element.element.dispatchEvent(new Event(type, { bubbles: true }))
+      }
     }
-    for (const input of wrapper.findAll('input, select')) {
-      await input.trigger('change')
-      await input.trigger('input')
-    }
-    for (const form of wrapper.findAll('form')) {
-      await form.trigger('submit')
-    }
+    // コース入力は子コンポーネントの emit でしか動かない。
+    wrapper.getComponent(StrikeZone).vm.$emit('tap', 123, 78)
+    await wrapper.vm.$nextTick()
 
     expect(vi.mocked(fetch)).not.toHaveBeenCalled()
     expect(openedDatabases).toEqual([])

@@ -40,7 +40,10 @@ import {
   type PitchAcceptanceQueue,
   type PitchAcceptanceResult,
 } from './GameScreenPitchAcceptance'
-import { describeNonOwnerInput } from './GameScreenSingleWriter'
+import {
+  describeNonOwnerInput,
+  withNonBlockingSingleWriter,
+} from './GameScreenSingleWriter'
 
 const UNSENT_STATE = queueStateId('未送信')
 
@@ -173,7 +176,7 @@ export async function commitPitchEvent(
             : acceptance.slot,
       }
     },
-    dependencies.singleWriterInjections,
+    withNonBlockingSingleWriter(dependencies.singleWriterInjections),
   )
 
   if (!started.recordingStarted) {

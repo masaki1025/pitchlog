@@ -24,6 +24,7 @@ import {
 } from '../lib/sync/singleWriter'
 import type { SyncEvent } from '../lib/sync/syncEvent'
 import { isCanonicalUuid } from './GameScreenPitchEvent'
+import { withNonBlockingSingleWriter } from './GameScreenSingleWriter'
 
 /** 本モジュールが使うキューの面。読取りは成否の照合にだけ使う。 */
 export type PitchAcceptanceQueue = Pick<
@@ -273,7 +274,7 @@ export async function acceptPitchEvent(
         dependencies.queue,
         dependencies.warningThreshold,
       ),
-    dependencies.singleWriterInjections,
+    withNonBlockingSingleWriter(dependencies.singleWriterInjections),
   )
 
   if (!started.recordingStarted) {
