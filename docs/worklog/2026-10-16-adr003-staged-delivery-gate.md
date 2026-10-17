@@ -78,3 +78,37 @@ U-X1カードへ正本確定コミットと限定計画改訂の依頼を追記�
 TSK-424からの明示回答は未受理のため、同じ照会を繰り返さない。所有側不在なら、上記5編集の分類・187行不変・追随対象の絞り方・共有資産の直列化**だけ**をPO代替受理へ提示する。凍結after値、7.7、oracle再封印は別途実値で人間確認する。C1 PR #144はroute/matrix/lock/oracle/frozen系列に実重複があるため正式統合を先行し、その**実統合コミット**から候補を生成する。U-R1 Draft #143の現差分はguard3ファイルで現時点の認可JSONと重ならず、一律の待ち条件にしない。今後のU-R1新ステップ2と共有資産が重なる場合は単一編集者・統合順を再調整する。BをTSK-443 PR #87と読む場合は2026-10-04に統合済みで基線に含まれる。C1とU-R1へ共有資産の所有解除/後続順序を各PRコメントで依頼したが、回答は未受理。
 
 PR番号が7.7受理IDに必要なら、分類受理・C1統合→隔離候補→POが例外承認した文書のみの準備コミット/push/Draft→必要な場合だけ8入力固定のローカル中間コミット→完全な前後識別値の7.7/意味変更/oracle確認→正式反映、の順とする。**現時点ではpush・Draft・中間コミットの例外は未承認**。凍結解除・D-2全体発効・分析40行の完了も記録しない。
+
+## 2026-10-17 C1統合後の認可追随隔離候補
+
+PO山田正輝は、今回のTSK-424追随に限り、独立査読に基づく挿入3件・置換2件の認可外分類、既存認可主張187行不変、実差分による派生追随範囲を**対象限定の代替受理**とした。TSK-424本人の同意ではない。正本の表記P2（採用済み条文の「本改訂候補」）は認可意味に影響しないため、今回の承認済み本文・blobを変更せず、別の7.6文書追随候補へ送る。
+
+C1 PR #144の実統合SHAは`3052e0db743877c7f15c0ec10daa0142cba7ab7e`。その`origin/develop`から候補を再生成し、隔離枝でoracle入力8資産のみを`e6a0ca0ab6cee5c779851518463eafba6ae146b3`へ固定した（未push）。要件書blobは`c8975e5257ee5f8d4b86b96f3fc779bebd978da4`→`ee6d2508dbdecf34d90c34fc022ff162f73dd3d2`、`oracle_input`の7.7候補は`d5ccc18ef39179857c9a4c793ea28a416432efba`→`e6a0ca0ab6cee5c779851518463eafba6ae146b3`。8入力blob、6 sealed digest、受理記録案の完全値は`docs/features/adr003-d2iv-applicability/authz-77-handoff-candidate.md`に固定した。C1の`GET /auth/session`と既存の凍結履歴11件は保持し、認可主張187行・ownerとsealed6の意味本文は不変。独立Codex査読はP0 0/P1 0/P2 1で、P2の古いC1状態表記は候補資料で修正した。
+
+母集合/lock検査、派生lock再封印、共有前提6件、oracle sealの入力とdigest照合は成功。正式台帳`frozen-baselines.json`には未受理値を追記していないため、全oracle検査と関連試験1件は旧基準との不一致で停止する。規則を緩めず、実値の7.7受理・PR受理ID・oracle再封印確認を待つ。これは正式資産更新・製品実装・D-2発効ではない。
+
+## 2026-10-17 7.7番号取得用の文書Draft準備
+
+PO山田正輝は、8入力のみを固定した`e6a0ca0ab6cee5c779851518463eafba6ae146b3`を今回限定の**ローカル中間コミット**として承認した。7.7の実値、oracle再封印、凍結台帳履歴の正式受理ではない。確定正本・関連計画/作業ログ・受理候補資料のみを別の文書枝へ置き、番号取得用Draft PRの文書だけのpushを許可した。入力8資産、sealed6資産、`shared-preconditions.json`、`oracle-seal.lock.json`、`frozen-baselines.json`など未受理候補資産はDraftの最初のpushへ入れない。受理IDは実PR番号が得られてから候補記録へ埋め、既存11件の履歴に追記する最終JSON案を提示する。正式受理前に凍結台帳を更新しない。
+
+PRの履歴は`origin/develop=3052e0db743877c7f15c0ec10daa0142cba7ab7e`を親に、確定正本コミット`e7e32a8302c0be9e214523565c04a931743e98ef`とその受理済み文書後続を直列化し、C1統合のmerge`5fba86544404bde9b7b0a9ad1aef5df92dc72125`の後に文書候補を置く。受理後は隔離候補を最新PR HEADから作り直し、8入力blobとoracle identityが固定値に一致する場合だけ既存の`e6a0ca0a`を根拠に正式資産へ進む。差分や入力コミットが変われば再提示し、両系列のafter履歴を単に併記しない。
+
+文書限定枝`feature/adr003-d2iv-applicability`を`0b4ad9027f4be198516d8d4886f423061abdfee5`でpushし、受理ID取得用**Draft PR #145**を作成した。PR差分は`docs/`のみで、ローカル8入力固定コミット`e6a0ca0a`と未受理の凍結候補を公開していない。7.7記録案の`acceptance_id`は`masaki1025/pitchlog#145`で固定し、`approved_by`/`approved_at`は未記入。8入力のGit blobと生ファイルSHA-256、6 sealed資産のcanonical SHA-256前後値、既存11件保持、独立レビューの採否は`authz-77-handoff-candidate.md`に記載した。
+
+Draft作成前のdocs-statusは20文書・違反0件。pytestは共有`/tmp`満杯で一度83件が一時ファイル作成に失敗したが、既存領域を削除せず専用の`/home/ymdms/.cache/pitchlog-pytest-adr003-draft`を使い同じ84件を再実行して**84件成功**。`check_plan_docs_sync.py`の無引数実行は本正本ゲート計画に標準「影響する正本」節が無いため停止し、緩和していない。正式資産を反映した最終HEADの認可/oracle/凍結/CI検査は未実施で、Draft解除・マージには進まない。
+
+## 2026-10-17 PR #145の7.7実値受理と正式反映
+
+PO山田正輝は、SHA-256 `161a7b50c014ea1ef3f69a5f96326ba6f8b304ca88ac576046a2037e38908a99` の一括判断資料に固定された8入力blob・6封印資産の前後値を、受理ID `masaki1025/pitchlog#145` で正式受理した。受理日は実指示日の2026-10-17。`oracle_input` は `d5ccc18ef39179857c9a4c793ea28a416432efba` → `e6a0ca0ab6cee5c779851518463eafba6ae146b3`。既存11件をそのまま保持し、`frozen-baselines.json` の履歴末尾へ今回分を1件だけ追加した。資料本文は受理時のSHA-256を保持するため書き換えず、正式な受理値はJSON履歴と本節に記録する。
+
+PR枝へ承認済み8入力だけのローカル中間コミット `e6a0ca0ab6cee5c779851518463eafba6ae146b3` を履歴ごと取り込み、共有前提1行・oracle_contextのみが変わる6封印資産・`oracle-seal.lock.json`を隔離候補から反映した。専用の `--reseal-oracle` による再封印後の8入力blobと6 canonical SHA-256は受理資料と全件一致した。比較基線 `origin/develop=3052e0db743877c7f15c0ec10daa0142cba7ab7e` の認可主張187行は行全体が完全一致し、凍結台帳のowner・配置・宣言・同一性粒度と既存11件、C1/#144のGET経路を保持した。新たな認可意味変更はない。
+
+この受理は**本人による逐行確認を実施した記録ではない**。コア領域PRの逐行確認は別に残す。D-2全体の発効、分析40行の完了、T1/T2の対象別開始条件の成立、製品実装許可とも扱わない。Draft解除とマージは行わない。
+
+独立コア査読で、受理値・認可意味ではなく既存`tests/test_check_authz_catalog.py`の固定件数が旧母集合のまま残ったことを確認した。`test_repository_catalog_covers_the_entire_requirements_file`と対象外行の逆方向全数変異テストの期待値のみ、`1414/187/1227`→`1417/187/1230`へ追随する。検査器の判定・負例の全数性・テストの除外は変更しない。この試験差分は人間逐行確認の対象へ追加する。最終HEAD検査結果は後続に記録する。
+
+コア領域の独立レビューは規約6.3の基本枠2回を使用。第1回（Codex read-only、セッション`01a14638-dccc-7912-b32a-5915d42b3f39`、確認HEAD`c4a354f9`）はP0 0/P1 1/P2 1。P1は旧母集合件数を固定した2試験で、3箇所の期待値を現行の`1417/187/1230`に追随して採用反映した。P2はapproved正本の「本改訂候補」表記であり、要件書blobと受理済み分類を変えるため今回の認可追随には混ぜず、別の7.6文書ゲートへ送る。第2回（差分限定、セッション`01a1464a-ee3e-76c1-bad4-5d31dec98a6d`、`c4a354f9`→`6f8e1539`）は**差分P0 0/P1 0/P2 0、既知P2 1を残余維持**。全件変異・検出漏れゼロの検査は保持し、8入力・6封印値・7.7履歴の不変を再確認した。両レビューは人間逐行確認の代行ではない。
+
+修正対象2試験は専用一時領域で再実行し**2件成功**。最終資産に対するRuff・ty・認可/oracle全検査・共有前提・凍結台帳不変量・文書状態/伝播/網羅検査も成功した。ローカル全件pytestは旧期待値を含んだ実行を中断したため、最終HEADの全件判定はPRのharness CIで確認する。PR受理遷移の凍結検査はGitHubのsynthetic mergeとイベント情報が必要で、ローカル`--invariants-only`成功と区別する。人間逐行確認の対象はPR #145の正本/認可差分、8入力・6封印・履歴の正式反映、今回のテスト期待値3行と本作業ログの採否記録。本人が実施した記録はまだない。
+
+最初の新HEAD`2487abf4`のCI harnessは**29376成功・2 skip・3失敗**。失敗は`failure-injection-points.json`が`ddl-elements.json`の旧Git blobを、`mcdc-map.json`が`claim-mutant-map.json`の旧Git blobを参照していた派生連鎖であり、検査器の緩和では解消しない。前者の`source_asset.git_blob_digest`を`c5626466a61c9c8bdce1c3b17f20261c24dcc1bd`→`36fa43be3e668c21d28053267e02fcbaddfa4b71`、後者の`claim_mutant_map.blob_digest`を`ec666c1c94a184be300f52be9478a1d38bced8c7`→`ab77e443a2bfce61ad0560b0ae9adabd6dbc6b5f`へ、現ファイルのGit blob実値に追随した。両資産の他フィールドは不変。派生2行の実差分であり、受理済み8入力blob・6 sealed canonical digest・7.7履歴の前後値は変わらない。`check_failure_injection_points.py`、`check_mcdc_map.py`、失敗した3試験は修正後に成功。基本レビュー枠2回は使用済みのため、この新たな2行は**独立再レビュー済みとは記録せず**、人間逐行確認の対象へ加える。CIの再実行結果は後続で確認する。
