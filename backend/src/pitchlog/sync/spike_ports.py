@@ -108,7 +108,7 @@ def install(ports_module: object) -> Callable[[], None]:
     object.__setattr__(ports_module, "PORT_IMPLEMENTATIONS", registrations)
 
     def restore() -> None:
-        """spike の登録を外し、製品の空の登録表へ戻す。"""
+        """Spike の登録を外し、製品の空の登録表へ戻す。"""
         object.__setattr__(ports_module, "PORT_IMPLEMENTATIONS", frozenset())
 
     return restore

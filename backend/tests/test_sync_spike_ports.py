@@ -22,7 +22,7 @@ _SPIKE_CLASSES = (
 
 
 def _spike_registrations() -> frozenset[tuple[str, str]]:
-    """spike スタブ 3 クラスの登録キーの組を作る。"""
+    """Spike スタブ 3 クラスの登録キーの組を作る。"""
     return frozenset((cls.__module__, cls.__name__) for cls in _SPIKE_CLASSES)
 
 

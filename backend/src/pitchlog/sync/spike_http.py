@@ -34,12 +34,12 @@ from pitchlog.sync.model import (
     RequestShapeError,
     SyncRequest,
 )
-from pitchlog.sync.prefix_path import _cell
 from pitchlog.sync.ports import (
     ContentValidationPort,
     ProjectionPort,
     RecordingRightsPort,
 )
+from pitchlog.sync.prefix_path import _cell
 from pitchlog.sync.spike_ports import SpikeProjection, SpikeRights, SpikeValidator
 from pitchlog.sync.spike_wire import to_sync_request
 from pitchlog.sync.tokens import (
@@ -155,7 +155,7 @@ def _build_sync_router(
         game_id: UUID,
         context: TenantContext = Depends(tenant_access),
     ) -> SpikeSyncStateModel:
-        """spike 専用の再読込入口。設計提案ではなく spike の観察用の出口。
+        """Spike 専用の再読込入口。設計提案ではなく spike の観察用の出口。
 
         適用済みの水位（`recording_generations.confirmed_watermark`）と
         受理済みのイベント（`operation_events` の現行行）を返す。ここで直接
