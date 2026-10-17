@@ -8,6 +8,7 @@ import sys
 import tempfile
 from io import StringIO
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 
@@ -59,6 +60,12 @@ def test_default_base_falls_back_to_dot_cache(tmp_path: Path) -> None:
     assert base == tmp_path / ".cache" / "pitchlog" / "pytest-tmp"
 
 
+def test_default_base_falls_back_when_xdg_is_relative(tmp_path: Path) -> None:
+    base = bootstrap.default_base({"XDG_CACHE_HOME": "relative"}, tmp_path)
+
+    assert base == tmp_path / ".cache" / "pitchlog" / "pytest-tmp"
+
+
 def test_select_base_prefers_override(tmp_path: Path) -> None:
     stream = StringIO()
     environ = {
@@ -90,6 +97,63 @@ def test_select_base_expands_tilde_with_given_home(tmp_path: Path) -> None:
     selected = bootstrap.select_base(environ, tmp_path, warning_stream=StringIO())
 
     assert selected == (tmp_path / "pytest-tmp", bootstrap.SOURCE_OVERRIDE)
+
+
+def test_select_base_prefers_debug_temproot_over_override(tmp_path: Path) -> None:
+    """pytest 自身の優先度に合わせ、``PYTEST_DEBUG_TEMPROOT`` が上書きに勝つ。
+
+    併用時に上書きを選ぶと、実際の basetemp は temproot 側になるのに
+    掃除の対象は上書き側になり、蓄積が残る(レビュー 1 回目の P1)。
+    """
+    stream = StringIO()
+    environ = {
+        bootstrap.ENV_DEBUG_TEMPROOT: str(tmp_path / "temproot"),
+        bootstrap.ENV_OVERRIDE: str(tmp_path / "override"),
+    }
+
+    selected = bootstrap.select_base(environ, tmp_path, warning_stream=stream)
+
+    assert selected == (tmp_path / "temproot", bootstrap.SOURCE_DEBUG_TEMPROOT)
+    assert stream.getvalue() == ""
+
+
+def test_activate_uses_debug_temproot_and_propagates_to_tmpdir(tmp_path: Path) -> None:
+    environ = {bootstrap.ENV_DEBUG_TEMPROOT: str(tmp_path / "temproot")}
+
+    activation = bootstrap.activate(
+        environ=environ, home=tmp_path, warning_stream=StringIO()
+    )
+
+    base = tmp_path / "temproot"
+    assert activation == bootstrap.Activation(base=base, source=bootstrap.SOURCE_DEBUG_TEMPROOT)
+    assert environ["TMPDIR"] == str(base)
+    assert tempfile.tempdir == str(base)
+
+
+def test_select_base_skips_relative_path_with_warning(tmp_path: Path) -> None:
+    stream = StringIO()
+    environ = {bootstrap.ENV_OVERRIDE: "relative/pytest-tmp"}
+
+    selected = bootstrap.select_base(environ, tmp_path, warning_stream=stream)
+
+    assert selected == (
+        tmp_path / ".cache" / "pitchlog" / "pytest-tmp",
+        bootstrap.SOURCE_DEFAULT,
+    )
+    assert "絶対パス" in stream.getvalue()
+
+
+def test_select_base_skips_tilde_user_with_warning(tmp_path: Path) -> None:
+    stream = StringIO()
+    environ = {bootstrap.ENV_TMPDIR: "~other/pytest-tmp"}
+
+    selected = bootstrap.select_base(environ, tmp_path, warning_stream=stream)
+
+    assert selected == (
+        tmp_path / ".cache" / "pitchlog" / "pytest-tmp",
+        bootstrap.SOURCE_DEFAULT,
+    )
+    assert "絶対パス" in stream.getvalue()
 
 
 def test_activate_applies_tmpdir_and_tempfile(tmp_path: Path) -> None:
@@ -216,6 +280,80 @@ def test_prune_is_disabled_by_zero_keep_days(tmp_path: Path) -> None:
 
     assert deleted == []
     assert old.exists()
+
+
+def test_prune_warns_when_base_cannot_be_scanned(tmp_path: Path) -> None:
+    """基底を走査できないときは警告して掃除を飛ばす(例外で試験を止めない)。
+
+    ``Path.glob`` は環境によって権限エラーを握り潰すため、走査失敗を
+    再現する ``Path`` の派生で経路を固定する。
+    """
+
+    class _Unscannable(Path):
+        def glob(self, pattern: str, *, case_sensitive: bool | None = None) -> NoReturn:
+            raise PermissionError("denied")
+
+    stream = StringIO()
+    activation = bootstrap.Activation(
+        base=_Unscannable(tmp_path / "base"), source=bootstrap.SOURCE_DEFAULT
+    )
+
+    deleted = bootstrap.prune_stale(activation, environ={}, now=NOW, warning_stream=stream)
+
+    assert deleted == []
+    assert "走査できない" in stream.getvalue()
+
+
+def test_prune_keeps_session_and_warns_when_removal_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """削除が失敗した世代は黙って消えた扱いにせず、警告して残す。"""
+    base = tmp_path / "base"
+    user_root = base / "pytest-of-ymdms"
+    user_root.mkdir(parents=True)
+    stale = _make_session(user_root, "pytest-1", age_days=4, lock_age_days=4)
+    monkeypatch.setattr(bootstrap.shutil, "rmtree", lambda *args, **kwargs: None)
+    stream = StringIO()
+    activation = bootstrap.Activation(base=base, source=bootstrap.SOURCE_DEFAULT)
+
+    deleted = bootstrap.prune_stale(activation, environ={}, now=NOW, warning_stream=stream)
+
+    assert deleted == []
+    assert stale.exists()
+    assert "削除できない" in stream.getvalue()
+
+
+def test_prune_skips_symlinked_session(tmp_path: Path) -> None:
+    """世代ディレクトリの symlink は辿らず、指す先も消さない。"""
+    base = tmp_path / "base"
+    user_root = base / "pytest-of-ymdms"
+    user_root.mkdir(parents=True)
+    target = _make_session(tmp_path, "elsewhere", age_days=4, lock_age_days=4)
+    link = user_root / "pytest-1"
+    link.symlink_to(target, target_is_directory=True)
+    activation = bootstrap.Activation(base=base, source=bootstrap.SOURCE_DEFAULT)
+
+    deleted = bootstrap.prune_stale(activation, environ={}, now=NOW, warning_stream=StringIO())
+
+    assert deleted == []
+    assert link.is_symlink()
+    assert target.exists()
+
+
+def test_prune_skips_symlinked_user_root(tmp_path: Path) -> None:
+    """基底直下の利用者ディレクトリが symlink なら辿らない。"""
+    base = tmp_path / "base"
+    base.mkdir()
+    real_root = tmp_path / "real-root"
+    real_root.mkdir()
+    stale = _make_session(real_root, "pytest-1", age_days=4, lock_age_days=4)
+    (base / "pytest-of-ymdms").symlink_to(real_root, target_is_directory=True)
+    activation = bootstrap.Activation(base=base, source=bootstrap.SOURCE_DEFAULT)
+
+    deleted = bootstrap.prune_stale(activation, environ={}, now=NOW, warning_stream=StringIO())
+
+    assert deleted == []
+    assert stale.exists()
 
 
 def test_prune_with_missing_base_is_noop(tmp_path: Path) -> None:

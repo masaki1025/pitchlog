@@ -48,7 +48,7 @@ date: 2026-10-18
 
 ### 4. 採用設計の実測検証(2026-10-18、worktree 内)
 
-- 解決順: `PITCHLOG_PYTEST_TMPDIR` > `PYTEST_DEBUG_TEMPROOT` > `TMPDIR` > `$XDG_CACHE_HOME/pitchlog/pytest-tmp`(未設定時 `~/.cache/...`)。空値は飛ばし、`~` は自前で展開(テスト差し替え可能)。書込み不能なら警告して次へ、全滅時はシステム既定のまま(試験は動く)。
+- 解決順: `PYTEST_DEBUG_TEMPROOT` > `PITCHLOG_PYTEST_TMPDIR` > `TMPDIR` > `$XDG_CACHE_HOME/pitchlog/pytest-tmp`(未設定時 `~/.cache/...`)。**pytest 自身の優先度に一致させる**(`PYTEST_DEBUG_TEMPROOT` は pytest が最優先で参照するため、併用時はこの基底が実際の basetemp になる)。空値は飛ばし、`~` は自前で展開(テスト差し替え可能)、`~user` と相対パスは警告して飛ばす。書込み不能なら警告して次へ、全滅時はシステム既定のまま(試験は動く)。
 - ルート: `uv run pytest tests/test_pytest_tmp_bootstrap.py` で basetemp が `~/.cache/pitchlog/pytest-tmp/pytest-of-ymdms/pytest-0`(xdist ワーカー `popen-gw0〜3` も同配下)に作られることを実測。`/tmp` 側に新規なし。
 - backend: `uv run pytest tests/test_wording_scan.py` でも同様に実測(`pytest-0` がディスク側、`/tmp` 側に新規なし)。
 - 検査: root = `uv run ruff check .` / `uv run ty check` green。backend = `uv run ruff check tests/conftest.py` / `uv run ty check` green。backend からの `scripts/` import は conftest の sys.path 追加 + `# noqa: E402`、ty は `[tool.ty.environment] extra-paths = [".."]`(いずれも実機で確認)。

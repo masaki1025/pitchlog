@@ -7,17 +7,24 @@ pytest が basetemp を置く場所は ``tempfile.gettempdir()`` が決めるた
 ``TMPDIR`` と ``tempfile.tempdir`` をディスク側のパスへ向け替える。pytest 自身の
 世代保持(直近 3 世代・失敗時に保持)とロックの規則は変えない。
 
-解決順(先頭が優先):
+解決順(先頭が優先。**pytest 自身の優先度と一致させる** — ``PYTEST_DEBUG_TEMPROOT`` は
+pytest が最優先で参照するため、併用時はこの基底が実際の basetemp になる):
 
-1. ``PITCHLOG_PYTEST_TMPDIR``(本ハーネス専用の上書き)
-2. ``PYTEST_DEBUG_TEMPROOT``(pytest 公式の basetemp 上書き。pytest 自身が最優先で使う)
+1. ``PYTEST_DEBUG_TEMPROOT``(pytest 公式の basetemp 上書き)
+2. ``PITCHLOG_PYTEST_TMPDIR``(本ハーネス専用の上書き)
 3. ``TMPDIR``(利用者の明示指定)
 4. ``$XDG_CACHE_HOME/pitchlog/pytest-tmp``(既定。未設定時は ``~/.cache/...``)
 
+値は絶対パスだけを使う(先頭 1 個の ``~`` はホームへ展開。``~user`` の形と相対パスは
+実行時の cwd に依存して意図しない場所へ生成物を作りうるため、警告して飛ばす)。
 候補が書込み不能なら警告して次の候補へ退避し、全滅時はシステム既定へ戻す
-(試験を止めない)。``prune_stale`` は自前の基底(上記 1・4 で選ばれた場合)に限り、
+(試験を止めない)。選ばれた基底は ``TMPDIR`` と ``tempfile.tempdir`` の両方へ設定する
+(子プロセスへ伝播。由来が 1・3 の場合も利用者の ``TMPDIR`` の値は選ばれた基底へ
+置き換わる)。``prune_stale`` は自前の基底(上記 2・4 で選ばれた場合)に限り、
 日数上限を超えた世代を実行時に掃除する(既定 3 日 — pytest 自身のロック失効と
-同じ長さ。``PITCHLOG_PYTEST_TMP_KEEP_DAYS`` で変更、``0`` で無効)。
+同じ長さ。``PITCHLOG_PYTEST_TMP_KEEP_DAYS`` で変更、``0`` で無効)。掃除の発火は
+起動ごと(上流は新規世代の作成時のみ)なので、3 日を超えて稼働した実行の世代は
+上流より広く対象になりうる。
 """
 
 from __future__ import annotations
@@ -69,27 +76,33 @@ class Activation:
     source: str
 
 
-def _expand(value: str, home: Path) -> Path:
-    """先頭の ``~`` を指定のホームで展開したパスを返す。
+def _resolve_candidate(value: str, home: Path) -> Path | None:
+    """環境変数の値を絶対パスへ解決する。解決できない値は ``None``。
 
     ``Path.expanduser`` は実環境のホームを参照するため、テストから差し替えられる
-    よう本関数で自前に行う。
+    よう ``~`` の展開を自前で行う。``~user`` の形と相対パスは、実行時の cwd に
+    依存して意図しない場所へ生成物を作りうるため受け付けない。
 
     Args:
-        value: 環境変数の値。
+        value: 環境変数の値(空でないこと)。
         home: ``~`` の展開先。
 
     Returns:
-        展開済みのパス。
+        絶対パスの候補。``~user`` の形・相対パスなら ``None``。
     """
-    parts = Path(value).parts
-    if parts and parts[0] == "~":
-        return home.joinpath(*parts[1:])
-    return Path(value)
+    if value.startswith("~"):
+        parts = Path(value).parts
+        if parts and parts[0] == "~":
+            return home.joinpath(*parts[1:])
+        return None
+    path = Path(value)
+    return path if path.is_absolute() else None
 
 
 def default_base(environ: Mapping[str, str], home: Path) -> Path:
     """既定の基底(``$XDG_CACHE_HOME/pitchlog/pytest-tmp``)を返す。
+
+    ``XDG_CACHE_HOME`` が絶対パスでない場合は ``~/.cache`` へ退避する。
 
     Args:
         environ: 参照する環境変数。
@@ -99,29 +112,38 @@ def default_base(environ: Mapping[str, str], home: Path) -> Path:
         既定の基底パス。
     """
     xdg = environ.get("XDG_CACHE_HOME", "").strip()
-    cache = _expand(xdg, home) if xdg else home / ".cache"
-    return cache.joinpath(*CACHE_DIR_PARTS)
+    cache = _resolve_candidate(xdg, home) if xdg else None
+    return (cache or home / ".cache").joinpath(*CACHE_DIR_PARTS)
 
 
-def _candidates(environ: Mapping[str, str], home: Path) -> list[tuple[Path, str]]:
-    """優先順の候補(パスと由来)を返す。空値の環境変数は飛ばす。
+def _candidates(
+    environ: Mapping[str, str], home: Path, *, warning_stream: TextIO
+) -> list[tuple[Path, str]]:
+    """優先順の候補(パスと由来)を返す。空値と解決できない値は飛ばす。
 
     Args:
         environ: 参照する環境変数。
         home: ``~`` の展開先。
+        warning_stream: 解決できない値の警告を書く先。
 
     Returns:
         候補の並び(先頭が最優先)。末尾は常に既定の基底。
     """
     ordered: list[tuple[Path, str]] = []
     for key, source in (
-        (ENV_OVERRIDE, SOURCE_OVERRIDE),
         (ENV_DEBUG_TEMPROOT, SOURCE_DEBUG_TEMPROOT),
+        (ENV_OVERRIDE, SOURCE_OVERRIDE),
         (ENV_TMPDIR, SOURCE_TMPDIR),
     ):
         value = environ.get(key, "").strip()
-        if value:
-            ordered.append((_expand(value, home), source))
+        if not value:
+            continue
+        resolved = _resolve_candidate(value, home)
+        if resolved is None:
+            message = f"pytest-tmp: {key}={value!r} は絶対パスでないため候補から外します"
+            print(message, file=warning_stream)
+            continue
+        ordered.append((resolved, source))
     ordered.append((default_base(environ, home), SOURCE_DEFAULT))
     return ordered
 
@@ -160,7 +182,7 @@ def select_base(
     Returns:
         選ばれたパスと由来。全候補が書き込み不能なら ``None``。
     """
-    for path, source in _candidates(environ, home):
+    for path, source in _candidates(environ, home, warning_stream=warning_stream):
         if _usable(path):
             return path, source
         message = f"pytest-tmp: 候補 {path}(由来 {source})へ書き込めないため次を試します"

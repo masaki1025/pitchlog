@@ -37,7 +37,7 @@ created: 2026-10-18
 
 ### やること
 
-- 単一実装 `scripts/pytest_tmp_bootstrap.py` の新設: 解決順(`PITCHLOG_PYTEST_TMPDIR` > `PYTEST_DEBUG_TEMPROOT` > `TMPDIR` > `$XDG_CACHE_HOME/pitchlog/pytest-tmp`)、書込み不能時の退避(最後はシステム既定)、自前基底に限る日数上限付き掃除(既定 3 日)。
+- 単一実装 `scripts/pytest_tmp_bootstrap.py` の新設: 解決順(`PYTEST_DEBUG_TEMPROOT` > `PITCHLOG_PYTEST_TMPDIR` > `TMPDIR` > `$XDG_CACHE_HOME/pitchlog/pytest-tmp` — pytest 自身の優先度に一致)、書込み不能時の退避(最後はシステム既定)、自前基底(上書き・既定)に限る日数上限付き掃除(既定 3 日)。
 - ルート `conftest.py` への配線(読込み時に `TMPDIR` と `tempfile.tempdir` を向け替え + 古い世代の掃除)。
 - backend `tests/conftest.py` への配線(同一実装を再利用。`backend/pyproject.toml` に ty の探索パス 1 行)。
 - 単体テストの追加と実測(サブプロセスの実 pytest で basetemp がディスク側に作られること、backend の配線検証、`/tmp` に新規が作られないこと)。
