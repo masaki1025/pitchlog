@@ -1005,6 +1005,16 @@ def _not_performed_with_satisfied_attestations(provenance: dict[str, Any]) -> No
     provenance["attestations"] = attestations
 
 
+def _conflicting_duplicate_attestation(provenance: dict[str, Any]) -> None:
+    """矛盾する値の重複宣誓を足す(後の値が閉じた形に一致する並び)。"""
+    provenance["attestations"] = [
+        {"attestationId": "direct-source-clause-review", "response": False},
+        {"attestationId": "author-work-exposure", "response": "not-performed"},
+        {"attestationId": "source-support-judgment", "response": True},
+        {"attestationId": "source-support-judgment", "response": False},
+    ]
+
+
 def _missing_attestation(provenance: dict[str, Any]) -> None:
     provenance["attestations"].pop()
 
@@ -1081,14 +1091,23 @@ def _reserved_author(provenance: dict[str, Any]) -> None:
 
 VERIFIED_RECORD_NEGATIVES = {
     "S1-same-author-verifier": (_same_author_and_verifier, "作成者と独立確認者"),
-    "S2-half-signed": (_half_signed, "independentVerifierId"),
+    "S2-half-signed": (
+        _half_signed,
+        "予約値not-performedを含むが未実施の閉じた形と一致しない: independentVerifierId",
+    ),
     "S4-missing-attestation": (_missing_attestation, "宣誓項目がexact-set不一致"),
     "S4-duplicate-attestation": (_duplicate_attestation, "宣誓項目が重複"),
     "S4-unknown-attestation": (_unknown_attestation, "宣誓項目がexact-set不一致"),
-    "S5-review-missing": (_review_missing, "independentReview"),
+    "S5-review-missing": (
+        _review_missing,
+        "provenance.independentReviewがobjectでない",
+    ),
     "S6-chronology-order": (_chronology_not_contiguous, "連続順序でない"),
     "S6-verifier-not-actor": (_verifier_not_in_chronology, "actorIdに現れない"),
-    "S7-exposure-mismatch": (_exposure_mismatch, "author-work-exposure"),
+    "S7-exposure-mismatch": (
+        _exposure_mismatch,
+        "作業結果の閲覧順序とauthor-work-exposure宣誓が一致しない",
+    ),
     "S8-unknown-source-kind": (_unknown_source_kind, "未知の典拠種別"),
     "S8-missing-requirement": (_missing_requirement, "典拠IDが実在しない"),
     "S8-legacy-research-only": (_legacy_research_only, "優先典拠が無い"),
@@ -1118,7 +1137,11 @@ def test_game_end_invalid_signature_is_red(case_id: str) -> None:
 NOT_PERFORMED_RECORD_NEGATIVES = {
     "S3-not-performed-with-review": (
         _not_performed_with_review,
-        "independentReviewがある",
+        "予約値not-performedを含むが未実施の閉じた形と一致しない: independentReviewがある",
+    ),
+    "S4p-conflicting-duplicate-attestation": (
+        _conflicting_duplicate_attestation,
+        "宣誓項目が重複している: 'source-support-judgment'",
     ),
     "S3b-not-performed-with-satisfied-attestations": (
         _not_performed_with_satisfied_attestations,
@@ -1148,8 +1171,31 @@ def test_game_end_provenance_schema_rejects_unknown_key() -> None:
     provenance = _verified_provenance()
     provenance["unexpected"] = True
 
-    with pytest.raises(provenance_checker.ProvenanceCheckError):
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError, match="未知キー: .*unexpected"
+    ):
         _classify_game_end(provenance)
+
+
+def test_not_performed_form_requires_declared_attestation_items() -> None:
+    """宣誓項目の宣言が閉じた形とずれたら未実施の記録も拒否する。"""
+    schema = _synthetic_provenance_schema()
+    items = schema["x-pitchlog-provenance-policy"]["attestationItems"]
+    items["extra-attestation"] = {
+        "acceptedResponses": [True],
+        "humanMeaning": "追加の宣誓",
+    }
+
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError,
+        match="未実施の閉じた形が宣誓項目の宣言とexact-set不一致",
+    ):
+        provenance_checker.classify_provenance(
+            REPOSITORY_ROOT,
+            _not_performed_provenance(),
+            schema_value=schema,
+            contract_kind="game-end",
+        )
 
 
 def test_unregistered_contract_kind_is_red() -> None:
@@ -1195,6 +1241,52 @@ def test_registry_closure_drift_is_red(change: str) -> None:
         provenance_checker.ProvenanceCheckError, match="exact-set不一致"
     ):
         provenance_checker.check_registry_closure(REPOSITORY_ROOT, registry)
+
+
+def test_repository_check_rejects_registry_closure_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--repositoryの経路でも登録表と契約一覧のずれを拒否する。"""
+    registry = dict(provenance_checker.CONTRACTS)
+    del registry["game-end"]
+    monkeypatch.setattr(provenance_checker, "CONTRACTS", registry)
+
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError, match="exact-set不一致"
+    ):
+        provenance_checker.check_repository(REPOSITORY_ROOT)
+
+
+def test_main_passes_contract_kind_to_validation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CLIは登録表で決めた契約種別で検証する(種別の取り違えを防ぐ)。"""
+    calls: list[str] = []
+
+    def spy(root: Path, provenance: Mapping[str, Any], **kwargs: Any) -> None:
+        calls.append(kwargs["contract_kind"])
+
+    monkeypatch.setattr(provenance_checker, "validate_provenance", spy)
+    contract = _repository_contract()
+    contract["provenance"] = _verified_provenance()
+    monkeypatch.setattr(
+        provenance_checker.descriptor_checker,
+        "load_json",
+        lambda path, label: deepcopy(contract),
+    )
+
+    assert provenance_checker.main([str(CONTRACT_PATH)]) == 0
+    assert calls == ["game-end"]
+
+
+@pytest.mark.parametrize(
+    "argv", [[], [str(CONTRACT_PATH), "--repository"]], ids=["none", "both"]
+)
+def test_main_requires_exactly_one_target(argv: list[str]) -> None:
+    """CLIは契約JSONと--repositoryのどちらか一方だけを受け付ける。"""
+    with pytest.raises(SystemExit) as raised:
+        provenance_checker.main(argv)
+    assert raised.value.code == 2
 
 
 def test_repository_check_reports_missing_game_end_provenance() -> None:

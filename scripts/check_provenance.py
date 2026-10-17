@@ -605,13 +605,13 @@ def classify_provenance(
 
 def check_registry_closure(
     root: Path,
-    registry: Mapping[str, tuple[PurePosixPath, PurePosixPath, str]] = CONTRACTS,
+    registry: Mapping[str, tuple[PurePosixPath, PurePosixPath, str]] | None = None,
 ) -> None:
     """登録表の契約集合が契約一覧の宣言と一致することを検証する。
 
     Args:
         root: リポジトリルート。
-        registry: 検証する登録表。既定は本モジュールの登録表。
+        registry: 検証する登録表。省略時は呼び出し時点の本モジュールの登録表。
 
     Raises:
         ProvenanceCheckError: 契約一覧に載る契約が登録表に無い、または
@@ -627,6 +627,8 @@ def check_registry_closure(
     except descriptor_checker.DescriptorCheckError as error:
         raise ProvenanceCheckError(str(error)) from error
     declared = set(_string_list(declaration.get("contractPaths"), "contractPaths"))
+    if registry is None:
+        registry = CONTRACTS
     registered = {str(contract_path) for contract_path, _, _ in registry.values()}
     if registered != declared:
         raise ProvenanceCheckError(
@@ -649,7 +651,7 @@ def check_repository(root: Path) -> dict[str, ProvenanceStatus]:
         ProvenanceCheckError: 登録表の閉包が崩れている、由来記録が無い
             (未記載)、または由来記録が不正な場合。
     """
-    check_registry_closure(root)
+    check_registry_closure(root, CONTRACTS)
     statuses: dict[str, ProvenanceStatus] = {}
     for contract_kind, (contract_path, _, label) in CONTRACTS.items():
         try:
