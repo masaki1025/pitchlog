@@ -450,6 +450,12 @@ def _o5_raise_codes() -> tuple[Counter[str], list[str]]:
                 and id(node) not in raised_calls
             ):
                 irregular.append(f"{path.name}:{node.lineno}")
+            # 部分型は型名の突合を迂回する。import されないモジュールも静的に拾う。
+            if isinstance(node, ast.ClassDef) and any(
+                ast.unparse(base).endswith("O5InvariantViolation")
+                for base in node.bases
+            ):
+                irregular.append(f"{path.name}:{node.lineno}")
     return codes, irregular
 
 
