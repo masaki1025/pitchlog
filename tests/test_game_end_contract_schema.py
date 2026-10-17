@@ -863,8 +863,29 @@ provenance_checker = _load_module(
 )
 
 
+DEFINITION_REFERENCE = re.compile(r"^#/\$defs/(?P<name>[^/]+)$")
+
+
+def _schema_references(value: object) -> list[str]:
+    """schemaの値に現れる ``$ref`` の値を、入れ子を再帰でたどって返す。"""
+    if isinstance(value, dict):
+        found = [value["$ref"]] if isinstance(value.get("$ref"), str) else []
+        for item in value.values():
+            found.extend(_schema_references(item))
+        return found
+    if isinstance(value, list):
+        return [reference for item in value for reference in _schema_references(item)]
+    return []
+
+
 def _provenance_definition_closure(schema: Mapping[str, Any]) -> dict[str, Any]:
-    """``$defs.provenance`` から ``$ref`` で到達する定義の閉包を返す。"""
+    """``$defs.provenance`` から ``$ref`` で到達する定義の閉包を返す。
+
+    Raises:
+        KeyError: 参照先の定義が無い場合。
+        ValueError: ``#/$defs/<名前>`` 以外の形の参照がある場合(閉包の外を
+            指しうるため照合できない)。
+    """
     definitions = schema["$defs"]
     closure: dict[str, Any] = {}
     pending = ["provenance"]
@@ -873,9 +894,11 @@ def _provenance_definition_closure(schema: Mapping[str, Any]) -> dict[str, Any]:
         if name in closure:
             continue
         closure[name] = definitions[name]
-        text = json.dumps(definitions[name])
-        for reference in text.split('"$ref": "#/$defs/')[1:]:
-            pending.append(reference.split('"', 1)[0])
+        for reference in _schema_references(definitions[name]):
+            match = DEFINITION_REFERENCE.fullmatch(reference)
+            if match is None:
+                raise ValueError(f"閉包の外を指しうる参照: {reference}")
+            pending.append(match.group("name"))
     return closure
 
 
@@ -892,7 +915,7 @@ def _provenance_container_drift(
     t1_closure = _provenance_definition_closure(t1_schema)
     try:
         t2_closure = _provenance_definition_closure(t2_schema)
-    except KeyError as error:
+    except (KeyError, ValueError) as error:
         return [f"T2の閉包が解決できない: {error}"]
     if t1_closure != t2_closure:
         names = sorted(set(t1_closure) | set(t2_closure))
@@ -1254,6 +1277,11 @@ def _drift_policy(schema: dict[str, Any]) -> None:
     }
 
 
+def _non_definition_reference(schema: dict[str, Any]) -> None:
+    review = schema["$defs"]["provenanceIndependentReview"]
+    review["properties"]["chronology"]["items"] = {"$ref": "#/x-shared/event"}
+
+
 def _drop_required(schema: dict[str, Any]) -> None:
     schema["required"].remove("provenance")
 
@@ -1268,10 +1296,21 @@ def _drop_property(schema: dict[str, Any]) -> None:
         (_drift_definition, ["$defs.provenanceReviewEvent"]),
         (_drop_definition, ["T2の閉包が解決できない: 'provenanceReviewEvent'"]),
         (_drift_policy, ["x-pitchlog-provenance-policy"]),
+        (
+            _non_definition_reference,
+            ["T2の閉包が解決できない: 閉包の外を指しうる参照: #/x-shared/event"],
+        ),
         (_drop_required, ["required.provenance"]),
         (_drop_property, ["properties.provenance"]),
     ],
-    ids=["D1-drift", "D1-drop", "D2-policy", "D3-required", "D3-property"],
+    ids=[
+        "D1-drift",
+        "D1-drop",
+        "D2-policy",
+        "D1-non-definition-reference",
+        "D3-required",
+        "D3-property",
+    ],
 )
 def test_game_end_provenance_container_drift_is_detected(
     change: Any, expected: list[str]
@@ -1304,6 +1343,52 @@ def test_checker_rejects_schema_without_provenance_declaration(change: str) -> N
         )
 
 
+# 由来記録に出さない構造化引用(policyに受ける典拠種別が無い — research.md 6節の6)
+UNRECORDED_CITATIONS = {"adr:D-11"}
+SOURCE_KIND_BY_PREFIX = {
+    "req": "requirements",
+    "obr": "official-baseball-rules",
+}
+
+
+def _structured_clause_citations(value: object) -> set[str]:
+    """契約に現れる ``sourceClauseIds`` の値を、接頭辞を問わずすべて集める。"""
+    if isinstance(value, dict):
+        found: set[str] = set()
+        for key, item in value.items():
+            if key == "sourceClauseIds":
+                assert isinstance(item, list)
+                found.update(item)
+            else:
+                found |= _structured_clause_citations(item)
+        return found
+    if isinstance(value, list):
+        return {
+            citation for item in value for citation in _structured_clause_citations(item)
+        }
+    return set()
+
+
+def test_structured_citation_population_catches_unrecorded_prefixes() -> None:
+    """構造化引用の母集団は、req:以外の典拠が増えれば記録漏れとして現れる。"""
+    body = {
+        key: value
+        for key, value in deepcopy(_repository_contract()).items()
+        if key != "provenance"
+    }
+    body["validationErrors"][0]["sourceClauseIds"].append("obr:7.01(a)")
+    body["validationErrors"][1]["sourceClauseIds"].append("adr:D-12")
+    recorded = {
+        source["sourceId"] for source in _repository_contract()["provenance"]["sources"]
+    }
+
+    assert _structured_clause_citations(body) - recorded == {
+        "adr:D-11",
+        "adr:D-12",
+        "obr:7.01(a)",
+    }
+
+
 def test_repository_game_end_provenance_is_not_performed() -> None:
     """実資産の終了判定契約は未実施の閉じた形と、契約が引く要件書の典拠を記録する。"""
     contract = _repository_contract()
@@ -1319,11 +1404,16 @@ def test_repository_game_end_provenance_is_not_performed() -> None:
         == "not-performed"
     )
     body = {key: value for key, value in contract.items() if key != "provenance"}
-    cited = set(re.findall(r'"(req:[^"]+)"', json.dumps(body, ensure_ascii=False)))
+    cited = _structured_clause_citations(body)
     recorded = {source["sourceId"] for source in provenance["sources"]}
-    # 契約が引く要件書の典拠をすべて、過不足なく記録する(adr:D-11は記録しない)
-    assert recorded == cited
+    # 母集団は接頭辞を問わない構造化引用(sourceClauseIds)のすべて。記録しない典拠は
+    # 閉じた除外集合だけ(research.md 6節の6)。地の文(remarks)の言及は母集団に含めない
+    assert cited - recorded == UNRECORDED_CITATIONS
+    assert recorded <= cited
     assert len(recorded) == len(provenance["sources"]) == 21
+    for source in provenance["sources"]:
+        prefix = source["sourceId"].split(":", 1)[0]
+        assert SOURCE_KIND_BY_PREFIX[prefix] == source["sourceKind"]
 
 
 def test_contract_without_provenance_violates_schema() -> None:
