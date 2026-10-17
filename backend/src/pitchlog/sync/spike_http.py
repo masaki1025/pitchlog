@@ -39,7 +39,6 @@ from pitchlog.sync.ports import (
     ProjectionPort,
     RecordingRightsPort,
 )
-from pitchlog.sync.prefix_path import _cell
 from pitchlog.sync.spike_ports import SpikeProjection, SpikeRights, SpikeValidator
 from pitchlog.sync.spike_wire import to_sync_request
 from pitchlog.sync.tokens import (
@@ -54,6 +53,19 @@ _EVENT_COLUMNS = tuple(OperationEvent.__table__.c.keys())
 _STATE_READ_LIMIT = 256
 
 _REQUEST_ERROR_STATUS = 422
+
+
+def _cell(row: tuple[object, ...], columns: tuple[str, ...], name: str) -> object:
+    """Spike 専用の行読み。
+
+    spike の横スライスが token の戻り行を列順で読むためだけの、この入口固有の
+    ヘルパである。同期核（`pitchlog.sync.prefix_path`）の私有 `_cell` と同じ
+    列順規約には従うが、その内部実装には依存しない。製品の行読みは同期核の
+    正本に一任し、ここでは再利用しない。
+    """
+    if len(row) != len(columns):
+        raise RuntimeError("spike の読み取り列数が正本と異なる")
+    return row[columns.index(name)]
 _GAME_NOT_FOUND_STATUS = 404
 _BLOCKED_STATUS = 503
 _NOT_IMPLEMENTED_STATUS = 501
