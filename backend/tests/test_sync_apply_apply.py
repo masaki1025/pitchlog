@@ -239,10 +239,10 @@ def test_revision_preflight_uses_original_route_for_fingerprint(
     assert seen == [(operation_fingerprint(event, expected, None), expected)] * 2
 
 
-def test_revision_without_original_waits_for_route_before_consuming_d5(
+def test_revision_without_original_keeps_saved_route_after_original_appears(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """原本が後から現れても、原本不在の試行は経路・指紋を保存しない。"""
+    """原本不在の改訂版は自身の V5 で ⑤ を通し、再送は保存済み指紋で再掲する。"""
     game, original_d5 = str(uuid4()), str(uuid4())
     event = SyncEvent(
         str(uuid4()),
@@ -256,7 +256,8 @@ def test_revision_without_original_waits_for_route_before_consuming_d5(
     request = SyncRequest("P1", game, (event,), d4="1", v12="proof")
     rejection_columns = tuple(RejectedEventOriginal.__table__.c.keys())
     generation_columns = tuple(RecordingGeneration.__table__.c.keys())
-    original = {"event_kind": "play_input", "path": "P1"}
+    ledger_columns = tuple(IdempotencyLedger.__table__.c.keys())
+    original = {"event_kind": "undo", "path": "P1"}
     original_row = tuple(
         original if column == "payload" else None for column in rejection_columns
     )
@@ -264,10 +265,17 @@ def test_revision_without_original_waits_for_route_before_consuming_d5(
         {"confirmed_watermark": 0, "generation": 1}.get(column, 0)
         for column in generation_columns
     )
+    ledger = {
+        "kind": "rejected",
+        "source_fingerprint": operation_fingerprint(event, "P2", None),
+        "result": {"state": "拒否", "d3": 0},
+        "reason": "保存済みの拒否",
+    }
+    ledger_row = tuple(ledger.get(column) for column in ledger_columns)
     present = False
 
     class Scope:
-        """原本の出現だけを切り替える。"""
+        """原本の出現と、1 回目の結果の保存だけを切り替える。"""
 
         def run(self, token: object) -> TenantOperationResult:
             if isinstance(token, RejectedOriginalReadToken):
@@ -278,7 +286,12 @@ def test_revision_without_original_waits_for_route_before_consuming_d5(
                     )
                 )
             if isinstance(token, IdempotencyLedgerReadToken):
-                return TenantOperationResult(())
+                return TenantOperationResult(
+                    cast(
+                        tuple[tuple[ImmutableValue, ...], ...],
+                        (ledger_row,) if present else (),
+                    )
+                )
             assert isinstance(token, RecordingGenerationReadToken)
             return TenantOperationResult((generation_row,))
 
@@ -290,37 +303,35 @@ def test_revision_without_original_waits_for_route_before_consuming_d5(
     def fake_gate(_scope: object, _rights: object) -> Iterator[object]:
         yield type("Writer", (), {"writer": object()})()
 
+    right_calls: list[str] = []
+
     class Rights:
-        """原本不在の D5 では呼ばれない記録権。"""
+        """⑤ の呼び出しを数える。"""
 
         def holds_recording_right(self, *_args: object) -> bool:
+            right_calls.append("rg")
             return True
-
-    seen: list[tuple[str, str]] = []
-
-    def fingerprint(event: SyncEvent, path: str, registration: object) -> str:
-        value = operation_fingerprint(event, cast(EventPath, path), None)
-        seen.append((value, path))
-        return value
 
     monkeypatch.setattr(apply, "tenant_transaction_scope", fake_scope)
     monkeypatch.setattr(apply, "gated_writer", fake_gate)
-    monkeypatch.setattr(apply, "operation_fingerprint", fingerprint)
     monkeypatch.setattr(apply.port_guard, "require_registered_port", lambda *_: None)
     rights = cast(RecordingRightsPort, Rights())
     absent = apply._preflight_d1(
         cast(TenantContext, object()), request, rights, {}, batch
     )
-    assert absent.paths == {1: None}
+    # 原本が読めなくても経路は確定し、未使用 D5 として ⑤ の記録権判定を通る。
+    assert absent.paths == {1: "P2"}
     assert absent.candidates == (D5Candidate("unused"),)
-    assert seen == []
+    assert right_calls == ["rg"]
 
+    # 1 回目の結果が P2 の指紋で保存された後に原本(P1)が読めるようになっても、
+    # 保存済み指紋と一致する経路で再掲する。
     present = True
     found = apply._preflight_d1(
         cast(TenantContext, object()), request, rights, {}, batch
     )
-    assert found.paths == {1: "P1"}
-    assert seen == [(operation_fingerprint(event, "P1", None), "P1")]
+    assert found.paths == {1: "P2"}
+    assert found.candidates[0].kind == "stored_result"
 
 
 @pytest.mark.parametrize("original_visible", [False, True])
@@ -394,44 +405,6 @@ def test_revision_with_saved_d5_uses_saved_fingerprint_before_original_route(
     )
     assert result.paths == {1: "P1"}
     assert result.candidates[0].kind == "stored_result"
-
-
-@pytest.mark.parametrize("has_right", [False, True])
-def test_missing_revision_original_returns_b3a_without_write(
-    monkeypatch: pytest.MonkeyPatch, has_right: bool
-) -> None:
-    """経路を確定できない未使用 D5 は記録権にかかわらず保存しない。"""
-    game = str(uuid4())
-    event = SyncEvent(
-        str(uuid4()),
-        game,
-        1,
-        "1",
-        v5="play_input",
-        v9={"revision": True, "rejected_d5": str(uuid4())},
-    )
-    batch = SyncEventBatch(game, "1", (event,), v12="proof")
-    monkeypatch.setattr(apply, "game_accessible", lambda *_: True)
-    monkeypatch.setattr(
-        apply,
-        "_preflight_d1",
-        lambda *_: apply._BatchPreflight(
-            0, (D5Candidate("unused"),), has_right, 1, paths={1: None}
-        ),
-    )
-
-    def unexpected(*_args: object, **_kwargs: object) -> None:
-        raise AssertionError("経路不明の改訂版を書き込んだ")
-
-    monkeypatch.setattr(apply, "_run_d1_event", unexpected)
-    monkeypatch.setattr(apply, "_escrow_without_right", unexpected)
-    result = apply.apply_sync_events(cast(TenantContext, object()), batch, *_ports())
-    assert isinstance(result, AckResult)
-    assert (result.boundary, result.b3_branch, result.a5[0].state) == (
-        "B3",
-        "B3a",
-        "拒否",
-    )
 
 
 def test_gap_overrides_preclassified_later_b3b(monkeypatch: pytest.MonkeyPatch) -> None:

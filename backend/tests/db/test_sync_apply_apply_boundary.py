@@ -268,10 +268,13 @@ def test_mixed_event_batch_revision_inherits_rejected_p2_route(
 
 
 @pytest.mark.parametrize("deny_right", [False, True])
-def test_missing_revision_original_does_not_save_guessed_route(
+def test_missing_revision_original_keeps_rights_and_saves_own_route(
     prefix_database: _SyncDatabase, deny_right: bool
 ) -> None:
-    """原本が後からできても、先の原本不在の試行は D5 を消費しない。"""
+    """原本不在の改訂版も ⑤ を通り、B3a は T9 を保存し、B4 は退避する。
+
+    経路は自身の V5 で決め、後から原本ができても保存済みの指紋で再掲する。
+    """
     db = prefix_database
     original_d5 = uuid4()
     revision = _event(
@@ -283,39 +286,44 @@ def test_missing_revision_original_does_not_save_guessed_route(
         rejected_d5=original_d5,
     )
     batch = SyncEventBatch(str(db.game_a), "1", (revision,), v12="proof")
-    missing = _invoke_events(
-        db, batch, rights=DenyPrefixRights() if deny_right else None
-    )
-    assert (missing.boundary, missing.b3_branch, missing.a5[0].state) == (
-        "B3",
-        "B3a",
-        "拒否",
-    )
-    assert _count(db, "idempotency_ledger", revision.d5) == 0
-    assert _count(db, "rejected_event_originals", revision.d5) == 0
-    assert _count(db, "evacuated_event_originals", revision.d5) == 0
+    rights = DenyPrefixRights() if deny_right else None
+    missing = _invoke_events(db, batch, rights=rights)
+    if deny_right:
+        assert (missing.boundary, missing.a5[0].state) == ("B4", "退避")
+        assert _count(db, "evacuated_event_originals", revision.d5) == 1
+        assert _count(db, "rejected_event_originals", revision.d5) == 0
+    else:
+        assert (missing.boundary, missing.b3_branch, missing.a5[0].state) == (
+            "B3",
+            "B3a",
+            "拒否",
+        )
+        assert _count(db, "rejected_event_originals", revision.d5) == 1
+        assert _count(db, "evacuated_event_originals", revision.d5) == 0
+    assert _count(db, "idempotency_ledger", revision.d5) == 1
+    assert _count(db, "operation_events", revision.d5) == 0
 
-    original = _event(db.game_a, d1=1, d4="1", kind="play_input", d5=original_d5)
+    original = _event(db.game_a, d1=1, d4="1", kind="undo", d5=original_d5)
     seeded = _invoke(
         db,
         SyncRequest("P1", str(db.game_a), (original,), d4="1", v12="proof"),
         reject=True,
     )
     assert isinstance(seeded, AckResult)
-    assert (seeded.boundary, seeded.a5[0].state) == ("B3", "拒否")
     assert _count(db, "rejected_event_originals", original.d5) == 1
 
-    resumed = _invoke_events(db, batch)
-    assert (resumed.boundary, resumed.a5[0].state) == ("B1", "受理")
+    resumed = _invoke_events(db, batch, rights=rights)
+    assert resumed.a5[0].state == missing.a5[0].state
     with db.catalog.applicator.cursor() as cursor:
         cursor.execute(
             "SELECT source_fingerprint FROM idempotency_ledger "
             "WHERE tenant_id = %s AND d5 = %s",
             (db.tenant_a, UUID(revision.d5)),
         )
-        saved = cursor.fetchone()
+        saved = cursor.fetchall()
     db.catalog.applicator.rollback()
-    assert saved == (operation_fingerprint(revision, "P1", None),)
+    assert saved == [(operation_fingerprint(revision, "P2", None),)]
+    assert _count(db, "operation_events", revision.d5) == 0
 
 
 def test_saved_revision_replays_when_original_is_temporarily_unseen(
