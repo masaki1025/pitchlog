@@ -262,25 +262,45 @@ describe('排他の単位とキューの試合が食い違うとき', () => {
   })
 })
 
-describe('D5 が複製をまたいで比較できないとき', () => {
-  it('成立した追記を不受理と決めつけず、不明へ倒す', async () => {
+describe('D5 の形', () => {
+  it.each([
+    ['オブジェクト', { value: 'non-primitive' }],
+    ['大文字の UUID', '0B5F1C2E-3A4D-4E5F-8A9B-0C1D2E3F4A5B'],
+    ['UUID でない文字列', 'not-a-uuid'],
+  ])('L-1 の正規形でない(%s)ならキューへ入れない', async (_label, value) => {
     const queue = await openIsolatedQueue()
-    const objectD5 = { value: 'non-primitive' }
-    const failingCount: PitchAcceptanceQueue = {
+
+    const result = await acceptPitchEvent(
+      { ...input(), d5: value },
+      { queue, singleWriterInjections: singleWriterInjections() },
+    )
+
+    expect(result).toEqual({
+      outcome: 'not-accepted',
+      reason: PITCH_ACCEPTANCE_FAILURE.INVALID_D5,
+    })
+    expect(await queue.countSlots()).toBe(0)
+  })
+
+  it('読み戻した側が比較できない値なら、不受理と決めつけず不明へ倒す', async () => {
+    const queue = await openIsolatedQueue()
+    // 追記は成立するが、件数の読取りが失敗し、照合で読み戻したスロットの
+    // D5 が比較できない値（他の書き手が入れた値を模す）。
+    const unreadableD5: PitchAcceptanceQueue = {
       prepareAppend: (value) => queue.prepareAppend(value),
       append: (preparation) => queue.append(preparation),
       countUnsentSlots: () => Promise.reject(new Error('件数を読めません')),
-      readSlot: (target, d1) => queue.readSlot(target, d1),
+      readSlot: async (target, d1) => {
+        const slot = await queue.readSlot(target, d1)
+        return slot && { ...slot, d5: { value: 'non-primitive' } }
+      },
       readNextD1: (target) => queue.readNextD1(target),
     }
 
-    const result = await acceptPitchEvent(
-      { ...input(), d5: objectD5 },
-      {
-        queue: failingCount,
-        singleWriterInjections: singleWriterInjections(),
-      },
-    )
+    const result = await acceptPitchEvent(input(), {
+      queue: unreadableD5,
+      singleWriterInjections: singleWriterInjections(),
+    })
 
     expect(result).toEqual({
       outcome: 'undetermined',

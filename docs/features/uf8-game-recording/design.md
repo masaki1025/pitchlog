@@ -225,15 +225,25 @@ master から渡された 4 区分(前提違反 / 内容拒否 / 一時的 DB �
 
 ## 6-2. 封鎖を外す前に解かなければならないこと(2026-10-17)
 
-**敵対レビューで、`lib/sync` 側に未解決の契約違反が見つかった。U-F8 の射程では直せない。**
+**敵対レビューで、非所有タブの確定の扱いに契約違反が見つかった。**
 
-| # | 事象 | 典拠 | 所有 |
+| # | 事象 | 典拠 | 扱い |
 | --- | --- | --- | --- |
-| **(i)** | **待機中の非所有タブの確定が、ロックの解放後に実行される** —— `runAsSingleWriter` は Web Locks を既定(ブロッキング)で呼び、`ifAvailable` を渡す面が `ExclusiveLockManager` の型に無い。待機側の確定は「拒否」されず、前の書き手が解放した瞬間に追記・送信される | 要件書 `:332` の `E2`・`sync-protocol.md:1690`・契約資産 `waiting-input-not-accepted_v2.json`(`queue.appendCount: 0` / `d1.consumed: false`) | **U-F7**(`singleWriter.ts`) |
-| **(ii)** | **製品経路に非所有タブの拒否が存在しない** —— `rejectNonOwnerInput()`(通知 `Q2-b`)を呼ぶのは `testing/failureScenarioAdapter.ts` だけで、製品コードからの呼出が 0 件 | 同上・要件書 `:333` の `E3` | **U-F7** |
-| **(iii)** | **排他の保持単位が「1 球ごと」で、資産が前提とする「セッション保持」と食い違う** —— 資産の `input.lock` は `heldDuringFreeze: true`。後からセッション保持を入れると、その内側の確定が同名ロックを再取得して待ち続ける(Web Locks は再入不可) | `sync-protocol.md:1689`・`leader-freeze-reelection_v2.json` | **U-F7 と U-F8 の境界**(設計判断) |
+| **(i)** | **待機中の非所有タブの確定が、ロックの解放後に実行される** —— Web Locks の既定はブロッキングで、前の書き手が解放した瞬間に追記・送信される。資産は `appendCount: 0` / `d1.consumed: false` を要求する | 要件書 `:332` の `E2`・`sync-protocol.md:1690`・`waiting-input-not-accepted_v2.json` | **U-F8 の射程内。是正済み** |
+| **(ii)** | **製品経路に非所有タブの拒否が無い** —— `rejectNonOwnerInput()`(通知 `Q2-b`)を呼ぶのが試験用アダプタだけだった | 同上・要件書 `:333` の `E3` | **U-F8 の射程内。是正済み** |
+| **(iii)** | **排他の保持単位が「1 球ごと」で、資産が前提とする「セッション保持」と食い違う** —— 資産の `input.lock` は `heldDuringFreeze: true`。後からセッション保持を入れると、その内側の確定が同名ロックを再取得して待ち続ける(Web Locks は再入不可) | `sync-protocol.md:1689`・`leader-freeze-reelection_v2.json` | **設計判断。封鎖解除の前提条件として残す** |
 
-**第 1 期は確定操作を塞いでいるので実害は出ない。** ただし **(i)〜(iii) を解かずに [`GameScreenCommitGate`](../../../frontend/src/screens/GameScreenCommitGate.ts) の封鎖を外してはならない。** 封鎖解除の前提条件として本節を参照すること。
+### (i)(ii) の是正 —— `lib/sync` を変えずに解けた
+
+**当初これらを「`singleWriter.ts` の変更が要るので U-F7 の所有」として申し送ったが、誤りだった。** `runAsSingleWriter` は `lockManager` を**公開の注入点**として持ち、鍵が取れないときにコールバックが `null` を受けると**追記せずに** `LOCK_REQUEST_FAILED` で戻る。したがって `ifAvailable: true` を使う管理機構を呼出側から渡せば、**`lib/sync` の差分 0 行のまま**契約を満たせる。
+
+実装は [`GameScreenSingleWriter.ts`](../../../frontend/src/screens/GameScreenSingleWriter.ts)。`createNonBlockingLockManager` が待たない管理機構を作り、`describeNonOwnerInput` が `LOCK_REQUEST_FAILED` を `rejectNonOwnerInput()`(`Q2-b`)へ写す。`commitPitchEvent` の結果に `nonOwner` として載る。
+
+**所有の割り当てを誤ったまま文書とコードへ固定しかけた。** 注入点の有無を確かめずに「ライブラリの変更が要る」と判断したのが原因で、同種の判断では**まず公開 API の注入点を探す**こと。
+
+### (iii) が残る理由
+
+**排他を「1 球ごと」に取るか「記録セッションとして保持」するかは、U-F7 の再送規則と U-F8 の画面の寿命の両方に掛かる設計判断である。** セッション保持へ寄せる場合、確定の経路は「排他を取る版」と「排他の中で動く版」に割る必要がある(`appendPitchEventUnderLock` と同じ分け方)。**第 1 期は確定を塞いでいるので決めない。** 封鎖を外す PR で決めること。
 
 ---
 

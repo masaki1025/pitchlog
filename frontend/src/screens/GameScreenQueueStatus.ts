@@ -11,7 +11,9 @@
 //
 // B 区分の判定は U-F8 の仕事ではない。画面は受け取った通知を並べるだけである
 // (docs/features/uf8-game-recording/design.md 4-2)。
+import { DEFAULT_UNSENT_WARNING_THRESHOLD } from '../lib/sync/clientDiscipline'
 import {
+  QUEUE_STATES,
   queueStateId,
   type QueueActionRequiredLabel,
   type QueueStateId,
@@ -25,6 +27,7 @@ import {
 const UNSENT_STATE = queueStateId('未送信')
 const ACTION_REQUIRED_STATE = queueStateId('要操作')
 const EVACUATED_STATE = queueStateId('退避済み')
+const SYNCED_STATE = queueStateId('同期済み')
 
 /** 要操作の件数と、その下位ラベル。 */
 export type ActionRequiredSummary = Readonly<{
@@ -39,7 +42,15 @@ export type QueueStatusInput = Readonly<{
   actionRequired?: ActionRequiredSummary
   /** 退避済みの件数。Q4 が未送信と別の件数としての併記を求める。 */
   evacuatedCount?: number
-  /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
+  /** 同期済みの件数。 */
+  syncedCount?: number
+  /**
+   * 未送信が警告の閾値へ達したか。渡されればそれを使う。
+   *
+   * 渡されない場合は件数から導く —— `appendUnderQueueDiscipline` の判定は
+   * 追記の瞬間にしか得られず、画面の再読込後や追記が無い間に警告が消えるため。
+   * 閾値の値は `clientDiscipline` の既定を使い、二重に持たない。
+   */
   unsentWarning?: boolean
   /**
    * 永続ストレージの要求が通ったか。まだ分からない場合は undefined とし、
@@ -53,6 +64,8 @@ export type QueueStatusInput = Readonly<{
 /** 件数を正本の状態 ID で引けるようにした表示値。 */
 export type QueueStatusView = Readonly<{
   countsByState: Readonly<Partial<Record<QueueStateId, number>>>
+  /** 正本の状態のうち件数が供給されていないもの。黙って 0 と見せない。 */
+  unsuppliedStates: readonly QueueStateId[]
   unsentCount: number | undefined
   actionRequiredCount: number
   actionRequiredLabels: readonly QueueActionRequiredLabel['id'][]
@@ -74,12 +87,22 @@ export function deriveQueueStatus(input: QueueStatusInput): QueueStatusView {
   const actionRequiredCount = input.actionRequired?.count ?? 0
   const evacuatedCount = input.evacuatedCount ?? 0
 
-  const countsByState: Partial<Record<QueueStateId, number>> = {
+  // 正本の状態集合を起点に組み立てる。状態が増えたら未供給として現れる。
+  const supplied: Partial<Record<QueueStateId, number>> = {
     [ACTION_REQUIRED_STATE]: actionRequiredCount,
     [EVACUATED_STATE]: evacuatedCount,
+    [UNSENT_STATE]: input.unsentCount,
+    [SYNCED_STATE]: input.syncedCount,
   }
-  if (input.unsentCount !== undefined) {
-    countsByState[UNSENT_STATE] = input.unsentCount
+  const countsByState: Partial<Record<QueueStateId, number>> = {}
+  const unsuppliedStates: QueueStateId[] = []
+  for (const state of QUEUE_STATES) {
+    const count = supplied[state.id]
+    if (count === undefined) {
+      unsuppliedStates.push(state.id)
+      continue
+    }
+    countsByState[state.id] = count
   }
 
   const storageNotice =
@@ -98,13 +121,17 @@ export function deriveQueueStatus(input: QueueStatusInput): QueueStatusView {
 
   return Object.freeze({
     countsByState: Object.freeze(countsByState),
+    unsuppliedStates: Object.freeze(unsuppliedStates),
     unsentCount: input.unsentCount,
     actionRequiredCount,
     actionRequiredLabels: Object.freeze([
       ...(input.actionRequired?.labels ?? []),
     ]),
     evacuatedCount,
-    unsentWarning: input.unsentWarning === true,
+    unsentWarning:
+      input.unsentWarning ??
+      (input.unsentCount !== undefined &&
+        input.unsentCount >= DEFAULT_UNSENT_WARNING_THRESHOLD),
     notices: Object.freeze(notices),
   })
 }

@@ -21,18 +21,30 @@ import {
   type SyncEventPath,
 } from '../lib/sync/eventFieldRules'
 import { EVENT_KIND_RULES, type EventKind } from '../lib/sync/eventKinds'
-import { SYNC_EVENT_SLOT_ID } from '../api/client.syncEvents'
 
-// スロット ID の宣言は api/client.syncEvents.ts の SYNC_EVENT_SLOT_ID が唯一で、
-// 対応の正は docs/features/sync-wire-schema/design.md 3-2 の表。ここで宣言し直すと
-// 片方だけ直してずれるため、import して使う。
-const D5_SLOT_ID = SYNC_EVENT_SLOT_ID.D5
-const D1_SLOT_ID = SYNC_EVENT_SLOT_ID.D1
-const D4_SLOT_ID = SYNC_EVENT_SLOT_ID.D4
-const GAME_ID_SLOT_ID = SYNC_EVENT_SLOT_ID.GAME_ID
-const D2_SLOT_ID = SYNC_EVENT_SLOT_ID.D2
-const PAYLOAD_SLOT_ID = SYNC_EVENT_SLOT_ID.PAYLOAD
-const STATE_DIFF_SLOT_ID = SYNC_EVENT_SLOT_ID.STATE_DIFF
+// スロットと wire のキーの対応は docs/features/sync-wire-schema/design.md 3-2 の
+// 表が正。送信側(api/client.syncEvents.ts の SYNC_EVENT_SLOT_ID)にも同じ対応が
+// あるが、そちらを import すると画面から送信モジュールへの推移的な経路ができ、
+// 第 1 期の到達禁止(design.md 6-2)が崩れる。そこで宣言は分け、
+// GameScreenPitchEvent.spec.ts が両者の一致を試験で固定する。
+const D5_SLOT_ID = 'V1' satisfies EventSlotId
+const D1_SLOT_ID = 'V2' satisfies EventSlotId
+const D4_SLOT_ID = 'V3' satisfies EventSlotId
+const GAME_ID_SLOT_ID = 'V4' satisfies EventSlotId
+const D2_SLOT_ID = 'V6' satisfies EventSlotId
+const PAYLOAD_SLOT_ID = 'V7' satisfies EventSlotId
+const STATE_DIFF_SLOT_ID = 'V8' satisfies EventSlotId
+
+/** 送信側との一致を試験で突き合わせるために公開する。 */
+export const PITCH_EVENT_SLOT_ID = {
+  D5: D5_SLOT_ID,
+  D1: D1_SLOT_ID,
+  D4: D4_SLOT_ID,
+  GAME_ID: GAME_ID_SLOT_ID,
+  D2: D2_SLOT_ID,
+  PAYLOAD: PAYLOAD_SLOT_ID,
+  STATE_DIFF: STATE_DIFF_SLOT_ID,
+} as const
 
 /** 1 球の記録が通る経路。経路はクライアントが選ばず正本 8-1 の経路表に従う。 */
 export const PITCH_EVENT_PATH: SyncEventPath = SYNC_EVENT_PATH.P2
@@ -119,7 +131,7 @@ export type PitchEventDraftResult =
 const CANONICAL_UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
-function isCanonicalUuid(value: unknown): value is string {
+export function isCanonicalUuid(value: unknown): value is string {
   return typeof value === 'string' && CANONICAL_UUID_PATTERN.test(value)
 }
 

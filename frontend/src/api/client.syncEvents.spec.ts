@@ -216,16 +216,16 @@ describe('送らない要求', () => {
     expect(vi.mocked(fetch)).not.toHaveBeenCalled()
   })
 
-  it('記録権の証明が無ければ送らない', async () => {
+  it('記録権の証明を wire の層で検査しない（正本 S-2）', async () => {
+    respond('{}')
+
     const result = await postSyncEvents(
       request({ recordingRightProof: undefined }),
     )
 
-    expect(result).toEqual({
-      sent: false,
-      reason: SYNC_EVENT_SEND_FAILURE.INVALID_RECORDING_RIGHT_PROOF,
-    })
-    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+    // 有無・型・形は処理段階が判定する(VF1・VF4 → B4 → 退避済み)。
+    // ここで止めると B4 が到達不能になり、スロットが永久に未送信で残る。
+    expect(result.sent).toBe(true)
   })
 
   it('イベントの D5 がスロットの D5 と食い違えば送らない', async () => {
@@ -240,23 +240,38 @@ describe('送らない要求', () => {
     expect(vi.mocked(fetch)).not.toHaveBeenCalled()
   })
 
-  it.each([
-    ['null', null],
-    ['undefined', undefined],
-  ])('必須スロットの値が %s なら送らない', async (_label, value) => {
+  it('スロットの値が undefined なら送らない（JSON で黙って消えるため）', async () => {
     const result = await postSyncEvents(
-      request({ slots: [slot({ event: pitchEvent({ V6: value }) })] }),
+      request({ slots: [slot({ event: pitchEvent({ V6: undefined }) })] }),
     )
 
     expect(result).toMatchObject({
       sent: false,
-      reason: SYNC_EVENT_SEND_FAILURE.EMPTY_REQUIRED_SLOT,
+      reason: SYNC_EVENT_SEND_FAILURE.UNDEFINED_SLOT_VALUE,
     })
     expect(vi.mocked(fetch)).not.toHaveBeenCalled()
   })
 
-  it('D1 が L-2 の整数でなければ送らない', async () => {
-    const result = await postSyncEvents(request({ slots: [slot({ d1: 0 })] }))
+  it('スロットの値が null なら止めずに処理段階へ渡す（正本 S-2）', async () => {
+    respond('{}')
+
+    const result = await postSyncEvents(
+      request({ slots: [slot({ event: pitchEvent({ V6: null }) })] }),
+    )
+
+    expect(result.sent).toBe(true)
+    expect(sentBody()).toMatchObject({ events: [{ d2: null }] })
+  })
+
+  it.each([
+    ['0', 0],
+    ['小数', 1.5],
+    ['安全な整数の上限超え', Number.MAX_SAFE_INTEGER + 1],
+    ['負の数', -1],
+  ])('D1 が L-2 の整数でない(%s)なら送らない', async (_label, value) => {
+    const result = await postSyncEvents(
+      request({ slots: [slot({ d1: value })] }),
+    )
 
     expect(result).toMatchObject({
       sent: false,

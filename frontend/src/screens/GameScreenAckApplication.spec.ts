@@ -302,3 +302,30 @@ describe('分類と遷移を再実装しない', () => {
     expect(code).not.toContain('QUEUE_TRANSITION')
   })
 })
+
+describe('適用の準備そのものが失敗したとき', () => {
+  it('対象が無いのと区別して返す', async () => {
+    const queue = await openIsolatedQueue()
+    const slot = await appendPitch(queue)
+    const failing = {
+      prepareA5Transition: () => Promise.reject(new Error('記憶域の障害')),
+      persistA5Transition: (
+        value: Parameters<DurableQueue['persistA5Transition']>[0],
+      ) => queue.persistA5Transition(value),
+    }
+
+    const result = await applyAckToSlot(
+      {
+        scope,
+        d1: slot.d1,
+        ack: ackFor(slot, CANON_ACK_STATE_RESULT.ACCEPTED),
+      },
+      failing as unknown as DurableQueue,
+    )
+
+    expect(result).toEqual({
+      outcome: 'not-applied',
+      reason: ACK_APPLICATION_REASON.PREPARATION_FAILED,
+    })
+  })
+})

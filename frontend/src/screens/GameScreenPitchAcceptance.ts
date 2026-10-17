@@ -23,6 +23,7 @@ import {
   type SingleWriterStartFailure,
 } from '../lib/sync/singleWriter'
 import type { SyncEvent } from '../lib/sync/syncEvent'
+import { isCanonicalUuid } from './GameScreenPitchEvent'
 
 /** 本モジュールが使うキューの面。読取りは成否の照合にだけ使う。 */
 export type PitchAcceptanceQueue = Pick<
@@ -55,6 +56,8 @@ export const PITCH_ACCEPTANCE_FAILURE = {
   RECONCILIATION_FAILED: 'reconciliation-failed',
   /** 排他の単位とキューの試合が食い違う。別の試合のキューへ書きうる。 */
   SCOPE_MISMATCH: 'scope-mismatch',
+  /** D5 が L-1 の UUID 正規形でない。キューへ入れない。 */
+  INVALID_D5: 'invalid-d5',
 } as const
 
 export type PitchAcceptanceFailure =
@@ -122,9 +125,9 @@ async function reconcileAppend(
     }
   }
 
-  // D5 は不透明な識別値で、物理形は正本が決めていない(論点 17)。キューは
-  // structuredClone で保存するので、非プリミティブだと Object.is は必ず false に
-  // なり、成立した追記を「不受理」と誤判定しうる。判定できない場合は不明へ倒す。
+  // 入口で L-1 を強制しているので自分の D5 は文字列だが、キューから読み戻した
+  // 側は不明(他の書き手が入れた値を含む)。複製をまたいで同一性を判定できない
+  // 値なら、成立した追記を「不受理」と誤判定しないよう不明へ倒す。
   if (!isComparableIdentifier(slot.d5) || !isComparableIdentifier(input.d5)) {
     return {
       outcome: 'undetermined',
@@ -185,6 +188,16 @@ export async function appendPitchEventUnderLock(
   queue: PitchAcceptanceQueue,
   warningThreshold?: number,
 ): Promise<PitchAcceptanceResult> {
+  // L-1 に合わない D5 をキューへ入れない(sync-wire-schema/design.md:87。
+  // D5 は S-1 の検査対象で、クライアントが正規形で送る義務がある)。入口で
+  // 止めれば、追記後に「同期できないが理由が不明」という状態を作らずに済む。
+  if (!isCanonicalUuid(input.d5)) {
+    return {
+      outcome: 'not-accepted',
+      reason: PITCH_ACCEPTANCE_FAILURE.INVALID_D5,
+    }
+  }
+
   // 追記が成立したかを後から照合するため、採番される D1 を先に読む。
   let expectedD1: number | undefined
   try {

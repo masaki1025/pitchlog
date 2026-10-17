@@ -6,6 +6,7 @@ import { SYNC_NOTICE_CATALOG } from '../lib/sync/syncNotices'
 import { resolvePitchCommitGate } from './GameScreenCommitGate'
 import {
   judgePitchInputEligibility,
+  PITCH_INPUT_INELIGIBILITY_MESSAGE,
   type PitchInputObservation,
 } from './GameScreenPitchEligibility'
 import { buildPitchEventDraft } from './GameScreenPitchEvent'
@@ -47,6 +48,7 @@ const props = defineProps<{
   unsentCount?: number
   actionRequired?: ActionRequiredSummary
   evacuatedCount?: number
+  syncedCount?: number
   /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
   unsentWarning?: boolean
   // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
@@ -64,6 +66,7 @@ const queueStatus = computed(() =>
     unsentCount: props.unsentCount,
     actionRequired: props.actionRequired,
     evacuatedCount: props.evacuatedCount,
+    syncedCount: props.syncedCount,
     unsentWarning: props.unsentWarning,
     storagePersistenceGranted:
       props.storagePersistence === undefined
@@ -79,6 +82,8 @@ const eligibility = computed(() =>
     : undefined,
 )
 
+// 観測が渡されていなければ判定の対象外として活性のままにする(判定を求めた
+// のに観測が欠けている場合は、判定側が不可へ倒す)。方針は design.md 6-3。
 const inputEnabled = computed(() => eligibility.value?.eligible !== false)
 
 function noticeMessage(noticeId: keyof typeof SYNC_NOTICE_CATALOG): string {
@@ -391,7 +396,7 @@ function clearDraft() {
         data-testid="input-ineligible-reasons"
       >
         <li v-for="reason in eligibility.reasons" :key="reason">
-          {{ reason }}
+          {{ PITCH_INPUT_INELIGIBILITY_MESSAGE[reason] }}
         </li>
       </ul>
 

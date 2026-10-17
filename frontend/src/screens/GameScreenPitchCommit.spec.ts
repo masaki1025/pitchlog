@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '../lib/queryClient'
+import { createAckAdapterInjections } from '../lib/sync/ackAdapter'
 import { CANON_ACK_STATE_RESULT } from '../lib/sync/canonOracle'
 import {
   openDurableQueue,
@@ -399,5 +400,96 @@ describe('前提が合わなければ排他も取らない', () => {
     })
     expect(lockLog).toEqual([])
     expect(await queue.countSlots()).toBe(0)
+  })
+})
+
+describe('最新のスロットと、既に遷移したスロットの扱い', () => {
+  it('ACK を適用したら、その後の状態を最新として返す', async () => {
+    const queue = await openIsolatedQueue()
+    respond('{}')
+
+    const result = await commitPitchEvent(
+      input(),
+      dependencies(queue, {
+        readAck: ackFromResponse(CANON_ACK_STATE_RESULT.ACCEPTED),
+      }),
+    )
+
+    expect(result.outcome).toBe('attempted')
+    if (result.outcome !== 'attempted') return
+    // 追記直後は未送信、適用後は同期済み。最新は後者でなければならない。
+    expect(result.acceptance.outcome).toBe('accepted')
+    if (result.acceptance.outcome !== 'accepted') return
+    expect(result.acceptance.slot.state).toBe(queueStateId('未送信'))
+    expect(result.latestSlot?.state).toBe(queueStateId('同期済み'))
+  })
+
+  it('ACK が無ければ、追記直後のスロットが最新である', async () => {
+    const queue = await openIsolatedQueue()
+    vi.mocked(fetch).mockRejectedValue(new Error('切断'))
+
+    const result = await commitPitchEvent(input(), dependencies(queue))
+
+    expect(result.outcome).toBe('attempted')
+    if (result.outcome !== 'attempted') return
+    expect(result.latestSlot?.state).toBe(queueStateId('未送信'))
+  })
+
+  it('照合で拾ったスロットが既に遷移済みなら送り直さない', async () => {
+    const queue = await openIsolatedQueue()
+    // 先に同じ D1 へ積んで同期済みにしておく。
+    const persisted = await queue.append(
+      queue.prepareAppend({ scope, d5, version: {}, event: pitchEvent() }),
+    )
+    const preparation = await queue.prepareA5Transition(
+      scope,
+      persisted.d1,
+      createAckAdapterInjections({
+        d1: {
+          envelope: {
+            advancedD3: 0,
+            eventResults: [
+              {
+                d4,
+                d1: persisted.d1,
+                d5,
+                a5Result: CANON_ACK_STATE_RESULT.ACCEPTED,
+              },
+            ],
+          },
+          boundaryResult: 'B1',
+        },
+      }),
+    )
+    if (!preparation) throw new Error('preparation がありません')
+    await queue.persistA5Transition(preparation)
+    expect((await queue.readSlot(scope, persisted.d1))?.state).toBe(
+      queueStateId('同期済み'),
+    )
+
+    // 追記は失敗させ、照合でその同期済みスロットを拾わせる。
+    const reconciling = {
+      prepareAppend: (value: Parameters<DurableQueue['prepareAppend']>[0]) =>
+        queue.prepareAppend(value),
+      append: () => Promise.reject(new Error('追記できません')),
+      countUnsentSlots: () => queue.countUnsentSlots(),
+      readSlot: () => queue.readSlot(scope, persisted.d1),
+      readNextD1: () => Promise.resolve(persisted.d1),
+      prepareA5Transition: (target: typeof scope, d1: number) =>
+        queue.prepareA5Transition(target, d1),
+      persistA5Transition: (
+        value: Parameters<DurableQueue['persistA5Transition']>[0],
+      ) => queue.persistA5Transition(value),
+    }
+
+    const result = await commitPitchEvent(
+      input(),
+      dependencies(reconciling as unknown as DurableQueue),
+    )
+
+    expect(result.outcome).toBe('attempted')
+    if (result.outcome !== 'attempted') return
+    expect(result.send).toBeUndefined()
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
   })
 })

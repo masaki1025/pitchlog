@@ -355,3 +355,89 @@ describe('GameScreen の表示と操作のアクセシビリティ', () => {
     expect(corrected).not.toEqual(first)
   })
 })
+
+describe('GameScreen の入力可否と下書きの配線', () => {
+  const identity = {
+    d5: '0b5f1c2e-3a4d-4e5f-8a9b-0c1d2e3f4a5b',
+    d4: 'generation-a',
+    gameId: 'f1e2d3c4-b5a6-4789-9abc-def012345678',
+    d2: '0007',
+  }
+
+  function allowed() {
+    return {
+      battedBall: false,
+      rbiRulingRequired: false,
+      scoringCandidateRunners: [],
+    }
+  }
+
+  it('入力できない観測では入力欄を塞ぎ、理由を日本語で出す', () => {
+    const wrapper = mount(GameScreen, {
+      props: {
+        pitchTypes,
+        results,
+        inputObservation: { ...allowed(), battedBall: true },
+      },
+    })
+
+    for (const testId of ['pitch-type', 'pitch-speed', 'pitch-result']) {
+      expect(
+        wrapper.get<HTMLInputElement | HTMLSelectElement>(
+          `[data-testid="${testId}"]`,
+        ).element.disabled,
+      ).toBe(true)
+    }
+    const reasons = wrapper.get('[data-testid="input-ineligible-reasons"]')
+    expect(reasons.text()).toContain('打球が発生したプレイ')
+    // 内部 ID をそのまま利用者に出さない。
+    expect(reasons.text()).not.toContain('in-play-not-supported')
+  })
+
+  it('入力できる観測では入力欄を塞がない', () => {
+    const wrapper = mount(GameScreen, {
+      props: { pitchTypes, results, inputObservation: allowed() },
+    })
+
+    expect(
+      wrapper.get<HTMLSelectElement>('[data-testid="pitch-type"]').element
+        .disabled,
+    ).toBe(false)
+    expect(
+      wrapper.find('[data-testid="input-ineligible-reasons"]').exists(),
+    ).toBe(false)
+  })
+
+  it('確定値が揃うと下書きを組み立て、保存も送信もしていないと示す', async () => {
+    const wrapper = mount(GameScreen, {
+      props: { pitchTypes, results, eventIdentity: identity },
+    })
+
+    expect(wrapper.find('[data-testid="draft-assembly-status"]').exists()).toBe(
+      false,
+    )
+    await wrapper.get('[data-testid="pitch-type"]').setValue('fastball')
+    await wrapper.get('[data-testid="pitch-result"]').setValue('ball')
+
+    expect(
+      wrapper.get('[data-testid="draft-assembly-status"]').text(),
+    ).toContain('組み立てました')
+  })
+
+  it('識別子が正規形でなければ、理由つきで組み立てられないと示す', async () => {
+    const wrapper = mount(GameScreen, {
+      props: {
+        pitchTypes,
+        results,
+        eventIdentity: { ...identity, d5: 'NOT-A-UUID' },
+      },
+    })
+
+    await wrapper.get('[data-testid="pitch-type"]').setValue('fastball')
+    await wrapper.get('[data-testid="pitch-result"]').setValue('ball')
+
+    expect(
+      wrapper.get('[data-testid="draft-assembly-status"]').text(),
+    ).toContain('d5')
+  })
+})

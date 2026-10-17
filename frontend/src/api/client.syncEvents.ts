@@ -70,12 +70,10 @@ export const SYNC_EVENT_SEND_FAILURE = {
   D4_MISMATCH: 'd4-mismatch',
   /** イベントの D5 がスロットの D5 と食い違う。 */
   D5_MISMATCH: 'd5-mismatch',
-  /** 記録権の証明(V12)が無い、または不透明な文字列でない。 */
-  INVALID_RECORDING_RIGHT_PROOF: 'invalid-recording-right-proof',
   /** D1 が L-2 の整数でない。 */
   INVALID_D1: 'invalid-d1',
-  /** 必須スロットの値が空(`undefined` / `null`)である。 */
-  EMPTY_REQUIRED_SLOT: 'empty-required-slot',
+  /** スロットの値が `undefined` で、JSON へ載せると黙って消える。 */
+  UNDEFINED_SLOT_VALUE: 'undefined-slot-value',
   /** 完成形が正本の検査を通らない。 */
   INVALID_EVENT: 'invalid-event',
   /** 送ったが応答が返らなかった(通信断・中断)。 */
@@ -129,32 +127,28 @@ function toWireEvent(event: SyncEvent): Readonly<Record<string, unknown>> {
 }
 
 /**
- * 値を持たないスロットが混ざっていないかを調べる。
+ * `undefined` の値を持つスロットを探す。
  *
- * 正本は「値を持たないキーは省く。`null` を『持たない』の意味に使わない」と
- * 定める(sync-wire-schema/design.md:209)。`checkSyncEvent` は値を見ず
- * `hasOwnProperty` だけを見るので、`undefined` のスロットは検査を通ったうえで
- * `JSON.stringify` に落とされ、必須キーが黙って消えた要求になる。ここで
- * fail-closed に止める。
+ * `checkSyncEvent` は値を見ず `hasOwnProperty` だけを見るので、`undefined` の
+ * スロットは検査を通ったうえで `JSON.stringify` に落とされ、キーが黙って消えた
+ * 要求になる。これだけは送る前に止める。
+ *
+ * `null` は止めない —— 正本は「`null` の値は S-2 として処理段階に渡り、内容の
+ * 誤りとして扱われる」と定めている(sync-wire-schema/design.md:209)。
  *
  * Args:
  *     event: 完成形のイベント。
  *
  * Returns:
- *     空の値を持つスロット ID。無ければ undefined。
+ *     `undefined` を持つスロット ID。無ければ undefined。
  */
-function findEmptySlot(event: SyncEvent): string | undefined {
+function findUndefinedSlot(event: SyncEvent): string | undefined {
   for (const [slotId, value] of Object.entries(event.fields)) {
-    if (value === undefined || value === null) {
+    if (value === undefined) {
       return slotId
     }
   }
   return undefined
-}
-
-// L-3(sync-wire-schema/design.md:89)。空文字は不可で、分解・比較・生成をしない。
-function isOpaqueString(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0
 }
 
 // L-2(同 :88)。1 以上で 2^53 − 1 以下の整数。
@@ -178,12 +172,6 @@ function buildRequestBody(
   if (request.slots.length === 0) {
     return failure(SYNC_EVENT_SEND_FAILURE.EMPTY_REQUEST)
   }
-  // V12 は P1・P2・P4 に必須(正本 4-3 の VF1)。欠けると JSON.stringify が
-  // キーごと落として、記録権の証明を伴わない要求になる。
-  if (!isOpaqueString(request.recordingRightProof)) {
-    return failure(SYNC_EVENT_SEND_FAILURE.INVALID_RECORDING_RIGHT_PROOF)
-  }
-
   const [first] = request.slots
   const seenD1 = new Set<number>()
   const events: Record<string, unknown>[] = []
@@ -221,11 +209,11 @@ function buildRequestBody(
       return failure(SYNC_EVENT_SEND_FAILURE.D5_MISMATCH, { slotD1: slot.d1 })
     }
 
-    const emptySlot = findEmptySlot(event)
-    if (emptySlot !== undefined) {
-      return failure(SYNC_EVENT_SEND_FAILURE.EMPTY_REQUIRED_SLOT, {
+    const undefinedSlot = findUndefinedSlot(event)
+    if (undefinedSlot !== undefined) {
+      return failure(SYNC_EVENT_SEND_FAILURE.UNDEFINED_SLOT_VALUE, {
         slotD1: slot.d1,
-        violation: { violation: 'invalid-fields', target: emptySlot },
+        violation: { violation: 'invalid-fields', target: undefinedSlot },
       })
     }
 

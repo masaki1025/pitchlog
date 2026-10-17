@@ -55,6 +55,24 @@ export type PitchInputObservation = {
   scoringCandidateRunners: readonly ScoringCandidateObservation[]
 }
 
+/** 利用者へ出す文面。内部 ID をそのまま画面に出さない。 */
+export const PITCH_INPUT_INELIGIBILITY_MESSAGE: Readonly<
+  Record<PitchInputIneligibility, string>
+> = Object.freeze({
+  [PITCH_INPUT_INELIGIBILITY.IN_PLAY_NOT_SUPPORTED]:
+    '打球が発生したプレイは、この画面ではまだ入力できません。',
+  [PITCH_INPUT_INELIGIBILITY.RBI_RULING_REQUIRED]:
+    '打点の裁定が要るプレイは、この画面ではまだ入力できません。',
+  [PITCH_INPUT_INELIGIBILITY.THIRD_OUT_TIMING_REQUIRED]:
+    '第 3 アウトの時機の入力が要る走者がいるため、この画面ではまだ入力できません。',
+  [PITCH_INPUT_INELIGIBILITY.BATTED_BALL_UNOBSERVED]:
+    '打球の有無が分からないため、入力できません。',
+  [PITCH_INPUT_INELIGIBILITY.RBI_RULING_UNOBSERVED]:
+    '打点の裁定が要るかどうかが分からないため、入力できません。',
+  [PITCH_INPUT_INELIGIBILITY.SCORING_CANDIDATE_MALFORMED]:
+    '生還候補走者の情報が揃っていないため、入力できません。',
+})
+
 export type PitchInputEligibility =
   | { eligible: true }
   | { eligible: false; reasons: readonly PitchInputIneligibility[] }

@@ -4,8 +4,10 @@ import {
   EVENT_FIELD_RULES,
   resolveEventFieldPresence,
 } from '../lib/sync/eventFieldRules'
+import { SYNC_EVENT_SLOT_ID } from '../api/client.syncEvents'
 import {
   buildPitchEventDraft,
+  PITCH_EVENT_SLOT_ID,
   PITCH_EVENT_DEFERRED_SLOT_IDS,
   PITCH_EVENT_DRAFT_SLOT_IDS,
   PITCH_EVENT_DRAFT_VIOLATION,
@@ -198,4 +200,20 @@ describe('1 球の下書きが組み立てられない入力', () => {
       })
     },
   )
+})
+
+describe('送信側とのスロット ID の対応', () => {
+  it('下書き側と送信側の宣言が一致する', () => {
+    // 画面から送信モジュールへの推移的な経路を作らないため宣言は分けてある。
+    // ずれたら黙って別のキーで送ることになるので、ここで突き合わせる。
+    expect(PITCH_EVENT_SLOT_ID).toEqual({
+      D5: SYNC_EVENT_SLOT_ID.D5,
+      D1: SYNC_EVENT_SLOT_ID.D1,
+      D4: SYNC_EVENT_SLOT_ID.D4,
+      GAME_ID: SYNC_EVENT_SLOT_ID.GAME_ID,
+      D2: SYNC_EVENT_SLOT_ID.D2,
+      PAYLOAD: SYNC_EVENT_SLOT_ID.PAYLOAD,
+      STATE_DIFF: SYNC_EVENT_SLOT_ID.STATE_DIFF,
+    })
+  })
 })

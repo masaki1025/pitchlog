@@ -1,6 +1,11 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import { actionRequiredLabelId, queueStateId } from '../lib/sync/queueState'
+import { DEFAULT_UNSENT_WARNING_THRESHOLD } from '../lib/sync/clientDiscipline'
+import {
+  actionRequiredLabelId,
+  QUEUE_STATES,
+  queueStateId,
+} from '../lib/sync/queueState'
 import { createSyncNotice } from '../lib/sync/syncNotices'
 import GameScreen from './GameScreen.vue'
 import { deriveQueueStatus } from './GameScreenQueueStatus'
@@ -22,6 +27,32 @@ describe('キューの状態の導出', () => {
     expect(view.countsByState[queueStateId('要操作')]).toBe(1)
     expect(view.countsByState[queueStateId('退避済み')]).toBe(3)
     expect(view.actionRequiredLabels).toEqual(['管理者対応待ち'])
+  })
+
+  it('正本の状態のうち件数が供給されていないものを顕在化する', () => {
+    const view = deriveQueueStatus({
+      unsentCount: 1,
+      storagePersistenceGranted: true,
+    })
+
+    // 同期済みは供給していないので、0 と見せず未供給として出す。
+    expect(view.unsuppliedStates).toContain(queueStateId('同期済み'))
+    expect(view.countsByState[queueStateId('同期済み')]).toBeUndefined()
+  })
+
+  it('正本の状態をすべて供給すれば未供給が無くなる', () => {
+    const view = deriveQueueStatus({
+      unsentCount: 1,
+      actionRequired: { count: 0, labels: [] },
+      evacuatedCount: 0,
+      syncedCount: 2,
+      storagePersistenceGranted: true,
+    })
+
+    expect(view.unsuppliedStates).toEqual([])
+    expect(Object.keys(view.countsByState).sort()).toEqual(
+      QUEUE_STATES.map((state) => state.id).sort(),
+    )
   })
 
   it('未送信件数がまだ読めていなければ、0 と偽らない', () => {
@@ -68,7 +99,7 @@ describe('キューの状態の導出', () => {
     expect(view.notices.map((notice) => notice.noticeId)).toEqual(['Q4', 'B4'])
   })
 
-  it('未送信の警告は渡された判定をそのまま使い、閾値の式を持たない', () => {
+  it('警告の判定が渡されればそれを使う', () => {
     expect(
       deriveQueueStatus({
         unsentCount: 999,
@@ -84,6 +115,17 @@ describe('キューの状態の導出', () => {
       }).unsentWarning,
     ).toBe(true)
   })
+
+  it('判定が渡されなければ件数から導き、閾値は clientDiscipline の既定に従う', () => {
+    const at = (count: number) =>
+      deriveQueueStatus({
+        unsentCount: count,
+        storagePersistenceGranted: true,
+      }).unsentWarning
+
+    expect(at(DEFAULT_UNSENT_WARNING_THRESHOLD - 1)).toBe(false)
+    expect(at(DEFAULT_UNSENT_WARNING_THRESHOLD)).toBe(true)
+  })
 })
 
 describe('件数の導出と閾値の式を画面側に持たないこと', () => {
@@ -93,12 +135,19 @@ describe('件数の導出と閾値の式を画面側に持たないこと', () =
       .map((line) => line.replace(/\/\/.*$/, ''))
       .join('\n')
 
-    // 全件走査(NFR-005 の型)をしない。
-    expect(code).not.toMatch(/\bfor\s*\(/)
-    expect(code).not.toMatch(/\.filter\(|\.reduce\(/)
-    // 閾値の比較を再実装しない。
-    expect(code).not.toMatch(/>=/)
+    // 入力を走査して数え直さない(NFR-005 の型)。回してよいのは正本の
+    // 状態表(QUEUE_STATES・4 件の定数)だけで、input は走査しない。
+    expect(code).not.toMatch(/for\s*\([^)]*\binput\b/)
+    expect(code).not.toMatch(
+      /input\.[A-Za-z]+\.(?:filter|reduce|map|forEach|some)\(/,
+    )
+    expect(code).toContain('for (const state of QUEUE_STATES)')
+    // 閾値の「値」を自前で持たない(比較は clientDiscipline の定数で行う)。
     expect(code).not.toMatch(/=\s*350\b/)
+    expect(code).toContain('DEFAULT_UNSENT_WARNING_THRESHOLD')
+    // 通知 ID を自前で組み立てない(カタログから作る)。
+    expect(code).not.toMatch(/'Q6'/)
+    expect(code).not.toMatch(/noticeId\s*:/)
     // 状態 ID は正本の照合器を通す。
     expect(code).toContain("queueStateId('未送信')")
     expect(code).toContain("queueStateId('要操作')")

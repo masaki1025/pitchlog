@@ -30,6 +30,9 @@ function mountNarrow() {
         batter: '打者 山田',
         pitcher: '投手 佐藤',
       },
+      courseView: { plateSide: '右', viewpoint: 'pitcher' as const },
+      pitchTypes: [{ id: 'fastball', displayName: '直球', enabled: true }],
+      results: [{ id: 'ball', displayName: 'ボール', enabled: true }],
       unsentCount: 1,
       actionRequired: {
         count: 1,
@@ -50,8 +53,9 @@ describe('375px 幅で横溢れを生む構造を持たない', () => {
       (match) => Number(match[1]),
     )
     // 既定スケール（w-96 = 24rem = 384px）。1 単位 = 4px で換算する。
-    const scaled = [...html.matchAll(/\b(?:min-)?w-(\d+)\b/g)].map(
-      (match) => Number(match[1]) * 4,
+    // max-w-* は縮む側なので対象外(w-80 に一致してしまうのを避ける)。
+    const scaled = [...html.matchAll(/(^|[\s"])(?:min-)?w-(\d+)\b/g)].map(
+      (match) => Number(match[2]) * 4,
     )
 
     for (const width of [...arbitrary, ...scaled]) {

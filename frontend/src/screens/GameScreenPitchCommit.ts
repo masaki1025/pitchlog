@@ -19,6 +19,7 @@ import type { EventKind } from '../lib/sync/eventKinds'
 import { queueStateId } from '../lib/sync/queueState'
 import {
   runAsSingleWriter,
+  type NonOwnerInputRejection,
   type SingleWriterInjections,
 } from '../lib/sync/singleWriter'
 import {
@@ -39,6 +40,7 @@ import {
   type PitchAcceptanceQueue,
   type PitchAcceptanceResult,
 } from './GameScreenPitchAcceptance'
+import { describeNonOwnerInput } from './GameScreenSingleWriter'
 
 const UNSENT_STATE = queueStateId('未送信')
 
@@ -84,6 +86,8 @@ export type PitchCommitResult =
        * 後から書き戻すと古い状態で上書きする)。
        */
       latestSlot?: DurableQueueSlot
+      /** 他のタブが記録中で、この端末からは記録できないときの記述子。 */
+      nonOwner?: NonOwnerInputRejection
     }>
 
 /**
@@ -176,6 +180,9 @@ export async function commitPitchEvent(
     return {
       outcome: 'attempted',
       acceptance: pitchAcceptanceNotStarted(started.reason),
+      // 待たない管理機構の下では、鍵が取れないことが「他のタブが記録中」を
+      // 意味する。記録できないことと導線を利用者へ示すための記述子を載せる。
+      nonOwner: describeNonOwnerInput(started.reason),
     }
   }
   return started.value
