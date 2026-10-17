@@ -9,7 +9,7 @@ created: 2026-10-16
 
 **読み取り元**: develop `e7e8d3a4`(U-S1 = PR #132 のマージ後)。典拠のパスは `backend/src/pitchlog/` を省略する(例 `sync/apply.py:292`)。`SP` = `docs/design/sync-protocol.md`(v0.8)、`WS` = `docs/features/sync-wire-schema/design.md`、`506/plan.md` = TSK-506 の計画書(worktree `feature-tsk506-sync-http-entry`・読むだけ)。
 
-**本書の構成**: 1〜2 節が **506 の着手条件**(いま develop にある公開面と、本 PR で足す公開口の契約)。3〜4 節が失敗境界と 4 区分。5 節が担当。6・7 節が**決定待ち**(U-R1・U-X1)。8 節が**確認条件**(実装後に確かめるもの — 着手条件には置かない)。9 節がポート登録の順序。10 節が 506 の照会への回答。11 節が例外の棚卸しと O5 の伝播先。
+**本書の構成**: 1〜2 節が **506 の着手条件**(いま develop にある公開面と、本 PR で足す公開口の契約)。3〜4 節が失敗境界と 4 区分。5 節が担当。6・7 節が**決定待ち**(U-R1・U-X1)。8 節が**確認条件**(実装後に確かめるもの — 着手条件には置かない)。9 節がポート登録の順序。10 節が 506 の照会への回答。11 節が例外の棚卸しと O5 の伝播先。12 節が T1/T2 の投影・検証 Port の公開境界(U-X1 P-7 の受理)。
 
 ---
 
@@ -30,7 +30,7 @@ created: 2026-10-16
 
 - **`SyncRequest` は要求に経路を 1 つ持つ**(`path` — `sync/model.py`)。経路は D5 の指紋に入る。E-1 の P1/P2 混在バッチは 2 節の `SyncEventBatch` で受ける
 - 戻り値の `AckResult` は A3(境界結果 B1〜B4)・A5(イベントごとの受理/重複/拒否/退避/未処理)・D3 を持つ(research A 2-2)
-- 3 Port(`RecordingRightsPort`・`ProjectionPort`・`ContentValidationPort`)は引数で受け、呼ぶ前に登録を検査する(`sync/ports.py` の `require_registered_port`)。**登録表は空で検査器も未接続**(`sync/ports.py:134-143`)— 9 節
+- 3 Port(`RecordingRightsPort`・`ProjectionPort`・`ContentValidationPort`)は引数で受け、呼ぶ前に登録を検査する(`sync/ports.py` の `require_registered_port`)。**検査器は `port_guard` の import 時に接続済み**(`sync/port_guard.py:500`)だが、**登録表が空なので、どの実装も照合を通らない**(`sync/ports.py:134`)— 9 節・12 節
 
 ## 2. U-S1 の公開口 — E-1 の混在バッチ(ステップ 6)
 
@@ -146,7 +146,7 @@ wire 設計は E-1 について「経路はクライアントが選ばず、正�
 
 ## 9. ポート登録の順序 — 「最後の 1 本」
 
-`PORT_IMPLEMENTATIONS`(登録表)と `_PORT_VERIFIER`(検査器)の接続は、**4 Port(記録権・投影・内容検証・無効化の配信先)の実装と、配信を起動する実行主体が揃ってから**積む。所有は U-S1(`sync/ports.py`)。依存の向き: 各 Port の実装(U-R1・U-X1・U-G2・未割り当て)→ 登録表と検査器の接続(U-S1)→ 実在する試合への経路が通る。本 PR では接続しない。
+検査器 `_PORT_VERIFIER` は接続済みで(`sync/port_guard.py:500`)、残る配線は登録表 `PORT_IMPLEMENTATIONS` へ Port の実装を積むことだけである。所有は U-S1(`sync/ports.py`)。登録は Port ごとに独立して積める。1 球保存の経路が要求するのは記録権・投影・検証の 3 本で、無効化の配信先は配信の経路だけで照合する(12-3 節 — 2026-10-17 訂正。旧記述の「4 Port と配信の実行主体が揃ってから」は機構上の条件ではない)。依存の向き: 各 Port の実装(U-R1・U-X1・U-G2・未割り当て)→ 登録表への登録(U-S1)→ 実在する試合への経路が通る。本 PR では登録しない。
 
 ## 10. 506 の照会への回答(2026-10-16、G-A は 2026-10-17 更新)
 
@@ -521,3 +521,38 @@ wire 設計の O4 には D2 固有の行が無い(6 行すべて O5 を足す)�
 | tokens.py:271 | ValueError | 広域範囲に試合 ID を指定できない | 同上 | 同上 | 2 | 同上 |
 | tokens.py:273 | ValueError | 共有集計には専用 token が必要 | 同上 | 同上 | 2 | 同上(共有集計は :59 で専用 token) |
 
+## 12. T1/T2 の投影・検証 Port の公開境界(U-X1 P-7 の受理 — 2026-10-17)
+
+ADR-003 v0.8 の D-14-m(T1 状況判定・T2 終了判定に限る発効前の経過措置)を受け、U-X1 の計画(`fix/ux1-state-calc` `7e047f4e` の design.md:75 P-7)が U-S1 に求める 3 点を、既存のコードと本書の記述から名指しする。**新しい設計はしない**。実値の試験は着手条件に置かない(D-14-m)。実接合の試験は U-X1 の PR-1 のマージ前に関係担当と行う(U-X1 plan.md:87)。仮の Port と別計算は置かない。
+
+### 12-1. 公開署名
+
+| 項目 | 契約(典拠) |
+| --- | --- |
+| 入口 | E-1 = `apply_sync_events(context, batch, rights, projection, validator, *, registrations=None, targets=None)`(`sync/apply.py:396` — 2 節)/ E-2 の P3 と経路を明示する既存の呼び出し = `apply_sync_request(context, request, rights, projection, validator, *, registrations=None, targets=None)`(`sync/apply.py:364`)。どちらも **4 番目の位置引数 `projection`・5 番目の `validator`** で Port を受ける。呼出側(506)が実装のインスタンスを渡す |
+| 投影 Port | `projection: ProjectionPort` — `apply(event: SyncEvent, writer: PortWriter) -> None`(`sync/ports.py:87-92`)。戻り値なし |
+| 検証 Port | `validator: ContentValidationPort` — `validate(event: SyncEvent, writer: PortWriter) -> tuple[bool, str \| None]`(`sync/ports.py:95-102`)。受理なら `(True, None)`、受理しないなら `(False, 理由)` |
+| 呼ぶ位置(D1 付き経路 — P1/P2 共通) | 検証: ⑤ 記録権・⑥ 連番・U-S1 自身の外形と内容の検査を通った後、スロット読取の前(`sync/prefix_path.py:642`)。投影: T2(イベント行の挿入)・T3(D3 の前進)の後、同じ取引の中(`sync/prefix_path.py:731`)。投影へ渡すのは墓標・改訂を置き換えた後のイベント |
+| 呼ぶ位置(P3) | 検証: ⑥(`sync/change_path.py:191`)。投影: T2 の後(`sync/change_path.py:271`) |
+| 取引と書き込み | Port は `PortWriter` だけを受け取り、`run(operation token)` で U-S1 の同じ取引の中で書く(`sync/ports.py:29-51`)。Session・SQL 文・取引の開閉を持たない。取引を開くのは U-S1(1 節)。取引が閉じた後の `run` は失敗する |
+| 登録の検査 | 3 Port は、どれかを呼ぶ前に登録済みのクラスかを照合する(`sync/prefix_path.py:594-595`)。照合は「登録表 `PORT_IMPLEMENTATIONS` の `(モジュール名, クラス名)` のクラスと型が同一」かどうか(`sync/port_guard.py:484-497`)。あわせて、登録モジュールと、その推移的な pitchlog の import が静的検査を通ることを確かめる(`sync/port_guard.py:455-481` — 標準ライブラリは名前ごとの許可表 `:21-40`)。**U-X1 の Port のモジュールと、それが import する計算核も、この許可表の範囲で書く必要がある** |
+
+### 12-2. 失敗境界
+
+| Port の結果 | 境界結果 | 取引 | 恒久 / 再試行 |
+| --- | --- | --- | --- |
+| 検証が `(False, 理由)`(D1 付き経路) | **B3a**(内容拒否)。A5 は拒否、原本を T9 に記録(`sync/prefix_path.py:643-644` → `P1ContentRejection`) | 当該イベントの T2 以降は書かない。前方の確定は残る | 恒久。自動再送を止め、要操作(改訂待ち / 墓標待ち)へ(4 節) |
+| 検証が `(False, 理由)`(P3) | **B14**(書き込みなし — `sync/change_path.py:192-197`) | 書き込みなし | 恒久 |
+| 検証・投影が例外を投げる | **B7**(未捕捉 → 500。ACK なし — 3-2 節) | **当該イベントの取引を全取消**。前方の確定は残る(イベント 1 件ごとの原子性 — 1 節) | 一時。未送信のまま自動再送し、再送で通り得る |
+| 登録されていない実装を渡す | **B7**(`PortRegistrationError` — 3-2 節) | どの Port も呼ばない | 構成の誤り |
+
+- **恒久の拒否は、例外ではなく検証の `(False, 理由)` で返す**。ステップ 8(D-4)で入る O5 は U-S1 自身の決定的な不変条件違反に限り(11-1 節)、Port の例外を O5 には寄せない。
+- **投影 Port には拒否の口がない**。投影が例外を投げると毎回 B7 になり、再送しても通らないまま Q8 で顕在化する。よって、**検証を通ったイベントで投影が決定的に失敗しないことを、投影 Port の契約とする**。内容の可否の判定は検証 Port に寄せる。
+
+### 12-3. 配線担当
+
+- **U-S1 が持つ**(`sync/ports.py` — 9 節。core-areas の sync-protocol に属し、登録表の変更は敵対レビューと人間の逐行確認を受ける — `sync/ports.py:1-7`)。
+- **残る配線は登録表 `PORT_IMPLEMENTATIONS` への 1 行の追加だけ**(Port 1 本につき `(モジュール名, クラス名)` 1 組)。検査器 `_PORT_VERIFIER` は `port_guard` の import 時に接続済み(`sync/port_guard.py:500`)で、入口のモジュールはすべて `port_guard` を import している。1-2 節と 9 節の「検査器も未接続」は不正確だったので、本日訂正した(正しくは「登録表が空なので、どの実装も照合を通らない」)。
+- Port の実装クラス(投影・検証の T1/T2 部分)は U-X1 が書く。登録の 1 行は U-S1 が書く。
+- **登録は Port ごとに独立して積める**(型の同一性で 1 本ずつ照合する — `sync/port_guard.py:487-495`)。1 球保存の経路(D1 付き・P3)が要求するのは **記録権・投影・検証の 3 本**で、どれかを呼ぶ前に 3 本とも照合する(`sync/prefix_path.py:594-595`・`sync/change_path.py:137-138`)。無効化の配信先 `InvalidationSinkPort` は配信の経路だけで照合し(`sync/invalidation.py:188`)、1 球保存の経路には乗らない。よって **T1/T2 の投影・検証を先に登録してよいが、それだけでは経路は開かない**。記録権 Port(U-R1)が未登録の間は入口が B7 で止まり、部分的な登録で経路が中途半端に開くことはない。
+- **9 節の「4 Port と配信の実行主体が揃ってから」は機構上の条件ではない**(上記)。残るのは製品としての判断で、**PO 判断**とする: 配信の実行主体がないまま 1 球保存を開くと、T7 の無効化意図は記録されるが配信されず溜まる(`deliver_pending_sync_intents` の製品の呼び出し元は 0 件 — 5 節)。
