@@ -29,7 +29,7 @@ class SpikeRights:
     def holds_recording_right(
         self, game_id: str, d4: object, v12: object, writer: PortWriter
     ) -> bool:
-        """spike では証明の内容を検査せず許可する。"""
+        """Spike では証明の内容を検査せず許可する。"""
         self.calls.append(game_id)
         return True
 
@@ -46,7 +46,7 @@ class SpikeRights:
     def is_recovery_generation_current(
         self, game_id: str, supplied: str, writer: PortWriter
     ) -> bool:
-        """spike では復旧世代を検査せず現行扱いにする。"""
+        """Spike では復旧世代を検査せず現行扱いにする。"""
         return True
 
 
@@ -72,7 +72,7 @@ class SpikeValidator:
     def validate(
         self, event: SyncEvent, writer: PortWriter
     ) -> tuple[bool, str | None]:
-        """spike では内容を検査せず許可する。"""
+        """Spike では内容を検査せず許可する。"""
         self.calls.append(event.d5)
         return True, None
 

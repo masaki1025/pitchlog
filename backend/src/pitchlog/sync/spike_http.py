@@ -64,6 +64,7 @@ def _build_sync_router(
     validator: ContentValidationPort,
 ) -> APIRouter:
     """束ねたポートで 1 球入口だけを持つ router を作る。"""
+    router = APIRouter()
 
     @router.post(
         "/games/{game_id:uuid}/sync/events",

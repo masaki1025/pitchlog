@@ -139,10 +139,7 @@ def test_wire_passes_design_literal_sample_intact() -> None:
         {"recording_right_proof": "p"},
         {"events": [], "recording_right_proof": "p"},
         {"events": {}, "recording_right_proof": "p"},
-        {
-            "events": [_payload()["events"][0] | {"unknown": 1}],
-            "recording_right_proof": "p",
-        },
+        _payload("1", unknown=1),
         {
             "events": [
                 {

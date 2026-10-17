@@ -4,19 +4,20 @@ from __future__ import annotations
 
 import base64
 import secrets
-from typing import Any, cast
+from typing import Any, LiteralString, cast
 from uuid import UUID, uuid4
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from test_authz_tenant_context import make_tenant_context
-from db.test_sync_apply_prefix_path_boundary import (
-    _SyncDatabase,
-    prefix_database,
-    sync_database,
-)
-from db.test_sync_apply_operations_boundary import _SyncDatabase as SyncDatabase
 
+from db.test_sync_apply_prefix_path_boundary import (
+    _SyncDatabase as SyncDatabase,
+)
+from db.test_sync_apply_prefix_path_boundary import (
+    prefix_database,  # noqa: F401 — module scope に置いて fixture 引数を解決する
+    sync_database,  # noqa: F401 — prefix_database の引数解決のために転用する
+)
 from pitchlog.api.app import create_app
 from pitchlog.api.tenant_access import require_tenant_access
 from pitchlog.sync import ports, spike_http, spike_ports
@@ -24,9 +25,15 @@ from pitchlog.sync import ports, spike_http, spike_ports
 pytestmark = pytest.mark.requires_db
 
 
+@pytest.fixture
+def one_ball_database(prefix_database: SyncDatabase) -> SyncDatabase:  # noqa: F811
+    """Prefix 試験の使い捨て試合スロットを spike の 1 球検証に再利用する。"""
+    return prefix_database
+
+
 @pytest.fixture(autouse=True)
 def _register_spike_ports(monkeypatch: pytest.MonkeyPatch) -> None:
-    """spike のスタブポートだけをテスト中に登録し、製品の空表は保つ。"""
+    """Spike のスタブポートだけをテスト中に登録し、製品の空表は保つ。"""
     monkeypatch.setattr(
         ports,
         "PORT_IMPLEMENTATIONS",
@@ -43,13 +50,13 @@ def _register_spike_ports(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def _configure_signing_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """spike 入口の ASGI 試験へ CSPRNG 由来の署名鍵を与える。"""
+    """Spike 入口の ASGI 試験へ CSPRNG 由来の署名鍵を与える。"""
     encoded_key = base64.b64encode(secrets.token_bytes(32)).decode("ascii")
     monkeypatch.setenv("PITCHLOG_TOKEN_SIGNING_KEY_B64", encoded_key)
 
 
 def _read_rows(
-    db: SyncDatabase, query: str, values: tuple[object, ...]
+    db: SyncDatabase, query: LiteralString, values: tuple[object, ...]
 ) -> list[tuple[object, ...]]:
     """同期適用のスコープ外の独立 SQL で行を読む。"""
     with db.catalog.applicator.cursor() as cursor:
@@ -92,7 +99,7 @@ def _snapshot(db: SyncDatabase, game: UUID) -> tuple[int, int, int, int]:
         originals_count[0][0],
     )
     assert all(type(value) is int for value in counts), repr(counts)
-    return watermark, counts[0], counts[1], counts[2]
+    return cast(tuple[int, int, int, int], (watermark, *counts))
 
 
 def _event_row(db: SyncDatabase, game: UUID) -> tuple[object, ...]:
@@ -147,7 +154,7 @@ async def _post_one_ball(
     game_id: UUID,
     body: dict[str, object],
 ) -> Any:
-    """spike 入口へ 1 要求だけ送る。"""
+    """Spike 入口へ 1 要求だけ送る。"""
     response = await client.post(
         f"/games/{game_id}/sync/events",
         json=body,
@@ -157,10 +164,10 @@ async def _post_one_ball(
 
 @pytest.mark.anyio
 async def test_one_ball_slice_persists_once_and_replays_as_duplicate(
-    prefix_database: SyncDatabase,
+    one_ball_database: SyncDatabase,
 ) -> None:
     """1 球の送信 → 原子保存 → 再送の重複を、独立 SQL で検証する。"""
-    db = prefix_database
+    db = one_ball_database
     app = create_app()
     spike_http.install(app)
     app.dependency_overrides[require_tenant_access] = lambda: make_tenant_context(
