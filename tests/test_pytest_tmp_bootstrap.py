@@ -324,7 +324,12 @@ def test_prune_keeps_session_and_warns_when_removal_fails(
 
 
 def test_prune_skips_symlinked_session(tmp_path: Path) -> None:
-    """世代ディレクトリの symlink は辿らず、指す先も消さない。"""
+    """世代ディレクトリの symlink は辿らず、指す先も消さない。
+
+    skip した場合は警告を出さない。削除を試みる経路では ``rmtree`` が
+    symlink を拒否して「削除できない」警告が出るため、この assertion が
+    経路の固定になる(レビュー 2 回目の P2)。
+    """
     base = tmp_path / "base"
     user_root = base / "pytest-of-ymdms"
     user_root.mkdir(parents=True)
@@ -332,10 +337,12 @@ def test_prune_skips_symlinked_session(tmp_path: Path) -> None:
     link = user_root / "pytest-1"
     link.symlink_to(target, target_is_directory=True)
     activation = bootstrap.Activation(base=base, source=bootstrap.SOURCE_DEFAULT)
+    stream = StringIO()
 
-    deleted = bootstrap.prune_stale(activation, environ={}, now=NOW, warning_stream=StringIO())
+    deleted = bootstrap.prune_stale(activation, environ={}, now=NOW, warning_stream=stream)
 
     assert deleted == []
+    assert stream.getvalue() == ""
     assert link.is_symlink()
     assert target.exists()
 
@@ -349,10 +356,12 @@ def test_prune_skips_symlinked_user_root(tmp_path: Path) -> None:
     stale = _make_session(real_root, "pytest-1", age_days=4, lock_age_days=4)
     (base / "pytest-of-ymdms").symlink_to(real_root, target_is_directory=True)
     activation = bootstrap.Activation(base=base, source=bootstrap.SOURCE_DEFAULT)
+    stream = StringIO()
 
-    deleted = bootstrap.prune_stale(activation, environ={}, now=NOW, warning_stream=StringIO())
+    deleted = bootstrap.prune_stale(activation, environ={}, now=NOW, warning_stream=stream)
 
     assert deleted == []
+    assert stream.getvalue() == ""
     assert stale.exists()
 
 
