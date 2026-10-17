@@ -27,6 +27,7 @@ from pitchlog.sync.idempotency import (
     D5Candidate,
     classify_d5,
     classify_request_d5,
+    classify_result,
     operation_fingerprint,
 )
 from pitchlog.sync.model import (
@@ -60,6 +61,7 @@ from pitchlog.sync.rejection import (
 )
 from pitchlog.sync.routing import EventPath, route_for_event
 from pitchlog.sync.tokens import (
+    IdempotencyLedgerReadToken,
     RecordingGenerationByNumberReadToken,
     RecordingGenerationReadToken,
     RejectedOriginalReadToken,
@@ -72,6 +74,15 @@ _GENERATION_COLUMNS = tuple(RecordingGeneration.__table__.c.keys())
 _REJECTION_COLUMNS = tuple(RejectedEventOriginal.__table__.c.keys())
 
 
+def _needs_original_path(event: SyncEvent) -> bool:
+    """墓標を優先し、改訂版だけが T9 の経路を必要とする。"""
+    return (
+        isinstance(event.v9, Mapping)
+        and event.v9.get("tombstone") is not True
+        and event.v9.get("revision") is True
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class _BatchPreflight:
     """④の内部候補と、⑤より前に読んだ D3 を外部確定まで保持する。"""
@@ -82,18 +93,19 @@ class _BatchPreflight:
     current_generation: int
     # 要求の D4 が指す世代の D3。現世代の要求では d3 と同じ(省略時も同じ)。
     request_d3: int | None = None
-    paths: Mapping[int, EventPath] | None = None
+    paths: Mapping[int, EventPath | None] | None = None
 
 
 def _batch_paths(
     scope: _TenantTransaction, events: tuple[SyncEvent, ...]
-) -> dict[int, EventPath]:
+) -> dict[int, EventPath | None]:
     """指紋より先に、改訂版の不変な拒否原本から経路を確定する。"""
-    paths: dict[int, EventPath] = {}
+    paths: dict[int, EventPath | None] = {}
     for event in events:
         assert event.d1 is not None
         original_path: EventPath | None = None
-        if isinstance(event.v9, Mapping) and event.v9.get("revision") is True:
+        if _needs_original_path(event):
+            assert isinstance(event.v9, Mapping)
             raw_d5 = event.v9.get("rejected_d5")
             try:
                 original_d5 = UUID(raw_d5) if type(raw_d5) is str else None
@@ -116,7 +128,11 @@ def _batch_paths(
                                 v9=original.get("replacement_state"),
                             )
                             original_path = route_for_event(old_event)
-        paths[event.d1] = route_for_event(event, original_path)
+            # 原本なしの改訂版に現在の V5 の経路を当てると、後日の再送で
+            # 指紋が変わる。未確定として後段へ渡し、D5 を消費しない。
+            paths[event.d1] = original_path
+        else:
+            paths[event.d1] = route_for_event(event)
     return paths
 
 
@@ -134,30 +150,77 @@ def _preflight_d1(
                 paths = (
                     _batch_paths(scope, request.events) if batch is not None else None
                 )
-                fingerprints = tuple(
-                    operation_fingerprint(
-                        event,
-                        paths[event.d1]
-                        if paths is not None and event.d1 is not None
-                        else request.path,
-                        registrations.get(event.d1),
-                    )
-                    for event in request.events
-                )
                 if paths is None:
+                    fingerprints = tuple(
+                        operation_fingerprint(
+                            event, request.path, registrations.get(event.d1)
+                        )
+                        for event in request.events
+                    )
                     candidates = classify_request_d5(scope, request, fingerprints)
                 else:
-                    candidates = tuple(
-                        classify_d5(
-                            scope,
-                            UUID(event.d5),
-                            fingerprint,
-                            paths[cast(int, event.d1)],
+                    resolved: list[D5Candidate] = []
+                    for event in request.events:
+                        assert event.d1 is not None
+                        path = paths[event.d1]
+                        if _needs_original_path(event):
+                            # 保存済み D5 の経路は原本の現在の可視性より優先する。
+                            # P1/P2 の二つの指紋を台帳の不変値と照合するだけで、
+                            # 経路不明の未使用 D5 には指紋を作らない。
+                            ledger = scope.run(
+                                IdempotencyLedgerReadToken(UUID(event.d5))
+                            )
+                            if ledger.rows:
+                                for saved_path in ("P1", "P2"):
+                                    candidate = classify_result(
+                                        ledger,
+                                        operation_fingerprint(
+                                            event,
+                                            saved_path,
+                                            registrations.get(event.d1),
+                                        ),
+                                        saved_path,
+                                    )
+                                    if candidate.kind == "stored_result":
+                                        paths[event.d1] = saved_path
+                                        break
+                                else:
+                                    candidate = classify_result(
+                                        ledger,
+                                        operation_fingerprint(
+                                            event,
+                                            path or "P1",
+                                            registrations.get(event.d1),
+                                        ),
+                                        path or "P1",
+                                    )
+                                    paths[event.d1] = path or "P1"
+                                resolved.append(candidate)
+                                continue
+                            resolved.append(
+                                D5Candidate("unused")
+                                if path is None
+                                else classify_result(
+                                    ledger,
+                                    operation_fingerprint(
+                                        event, path, registrations.get(event.d1)
+                                    ),
+                                    path,
+                                )
+                            )
+                            continue
+                        assert path is not None
+                        resolved.append(
+                            classify_d5(
+                                scope,
+                                UUID(event.d5),
+                                operation_fingerprint(
+                                    event, path, registrations.get(event.d1)
+                                ),
+                                path,
+                            )
                         )
-                        for event, fingerprint in zip(
-                            request.events, fingerprints, strict=True
-                        )
-                    )
+                    candidates = tuple(resolved)
                 rows = scope.run(
                     RecordingGenerationReadToken(UUID(request.game_id))
                 ).rows
@@ -191,7 +254,11 @@ def _preflight_d1(
                             raise RuntimeError("D3 の型が不正")
                         request_d3 = value
                 has_right = True
-                if any(candidate.kind == "unused" for candidate in candidates):
+                if any(
+                    candidate.kind == "unused"
+                    and (paths is None or paths[cast(int, event.d1)] is not None)
+                    for event, candidate in zip(request.events, candidates, strict=True)
+                ):
                     port_guard.require_registered_port(rights)
                     has_right = rights.holds_recording_right(
                         request.game_id, request.d4, request.v12, gated.writer
@@ -482,7 +549,17 @@ def _apply_d1_request(
         registration = registrations.get(event.d1)
         target = targets.get(event.d1)
         path = preflight.paths[event.d1] if preflight.paths is not None else None
-        if not preflight.has_recording_right:
+        if preflight.paths is not None and path is None:
+            # W2 の原本不在と同じ B3a。経路を確定できないため T9/T8 は書かない。
+            if preflight.has_recording_right and event.d1 > next_d1:
+                a5.append(A5Result(event.d4, event.d1, event.d5, "未処理"))
+                boundary = "B2"
+                stopped = True
+                continue
+            result = P1Result(
+                "B3a", d3, False, a5="拒否", reason="対応する内容拒否原本がない"
+            )
+        elif not preflight.has_recording_right:
             if candidates[event.d1].kind == "conflict":
                 # ⑤ の B4 では ⑥ に進まない。異内容候補は拒否原本を作らず未処理。
                 a5.append(A5Result(event.d4, event.d1, event.d5, "未処理"))
@@ -569,7 +646,9 @@ def _apply_d1_request(
             if temporary in mappings and mappings[temporary] != permanent:
                 raise RuntimeError("同じ一時 ID に異なる確定選手 ID がある")
             mappings[temporary] = permanent
-        if not preflight.has_recording_right:
+        if not preflight.has_recording_right and not (
+            preflight.paths is not None and path is None
+        ):
             # B4 の要求では境界は ⑤ で決まっている。各件は A5 にだけ写す。
             continue
         if _is_replay(result) and state == "退避":

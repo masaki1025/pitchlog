@@ -38,6 +38,7 @@ from pitchlog.sync.tokens import (
     IdempotencyLedgerInsertToken,
     OperationEventOrderReadToken,
     OperationEventOrderUpdateToken,
+    RejectedOriginalReadToken,
 )
 
 from .test_sync_apply_change_boundary import _request as _change_request
@@ -128,7 +129,7 @@ def _invoke_events(
     batch: SyncEventBatch,
     *,
     registrations: dict[int, PlayerRegistration] | None = None,
-    rights: PrefixRights | None = None,
+    rights: PrefixRights | DenyPrefixRights | None = None,
 ) -> AckResult:
     """混在バッチを製品の公開入口へ渡す。"""
     result = apply_sync_events(
@@ -264,6 +265,98 @@ def test_mixed_event_batch_revision_inherits_rejected_p2_route(
     assert fingerprint == (operation_fingerprint(revision, "P2", None),)
     replay = _invoke_events(db, batch)
     assert replay.a5[0].state == "重複"
+
+
+@pytest.mark.parametrize("deny_right", [False, True])
+def test_missing_revision_original_does_not_save_guessed_route(
+    prefix_database: _SyncDatabase, deny_right: bool
+) -> None:
+    """原本が後からできても、先の原本不在の試行は D5 を消費しない。"""
+    db = prefix_database
+    original_d5 = uuid4()
+    revision = _event(
+        db.game_a,
+        d1=1,
+        d4="1",
+        kind="play_input",
+        revision=True,
+        rejected_d5=original_d5,
+    )
+    batch = SyncEventBatch(str(db.game_a), "1", (revision,), v12="proof")
+    missing = _invoke_events(
+        db, batch, rights=DenyPrefixRights() if deny_right else None
+    )
+    assert (missing.boundary, missing.b3_branch, missing.a5[0].state) == (
+        "B3",
+        "B3a",
+        "拒否",
+    )
+    assert _count(db, "idempotency_ledger", revision.d5) == 0
+    assert _count(db, "rejected_event_originals", revision.d5) == 0
+    assert _count(db, "evacuated_event_originals", revision.d5) == 0
+
+    original = _event(db.game_a, d1=1, d4="1", kind="play_input", d5=original_d5)
+    seeded = _invoke(
+        db,
+        SyncRequest("P1", str(db.game_a), (original,), d4="1", v12="proof"),
+        reject=True,
+    )
+    assert isinstance(seeded, AckResult)
+    assert (seeded.boundary, seeded.a5[0].state) == ("B3", "拒否")
+    assert _count(db, "rejected_event_originals", original.d5) == 1
+
+    resumed = _invoke_events(db, batch)
+    assert (resumed.boundary, resumed.a5[0].state) == ("B1", "受理")
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT source_fingerprint FROM idempotency_ledger "
+            "WHERE tenant_id = %s AND d5 = %s",
+            (db.tenant_a, UUID(revision.d5)),
+        )
+        saved = cursor.fetchone()
+    db.catalog.applicator.rollback()
+    assert saved == (operation_fingerprint(revision, "P1", None),)
+
+
+def test_saved_revision_replays_when_original_is_temporarily_unseen(
+    prefix_database: _SyncDatabase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """保存済み D5 は原本の可視性が変わっても元の経路で再掲する。"""
+    db = prefix_database
+    original = _event(db.game_a, d1=1, d4="1", kind="play_input")
+    seeded = _invoke(
+        db,
+        SyncRequest("P1", str(db.game_a), (original,), d4="1", v12="proof"),
+        reject=True,
+    )
+    assert isinstance(seeded, AckResult)
+    assert seeded.boundary == "B3"
+    revision = _event(
+        db.game_a,
+        d1=1,
+        d4="1",
+        kind="play_input",
+        revision=True,
+        rejected_d5=UUID(original.d5),
+    )
+    batch = SyncEventBatch(str(db.game_a), "1", (revision,), v12="proof")
+    first = _invoke_events(db, batch)
+    assert (first.boundary, first.a5[0].state) == ("B1", "受理")
+    original_run = _TenantTransaction.run
+
+    def hide_original(
+        self: _TenantTransaction, token: TenantOperationToken
+    ) -> TenantOperationResult:
+        if isinstance(token, RejectedOriginalReadToken) and token.d5 == UUID(
+            original.d5
+        ):
+            return TenantOperationResult(())
+        return original_run(self, token)
+
+    monkeypatch.setattr(_TenantTransaction, "run", hide_original)
+    replay = _invoke_events(db, batch)
+    assert (replay.boundary, replay.a5[0].state) == ("B1", "重複")
+    assert _count(db, "operation_events", revision.d5) == 1
 
 
 def test_mixed_event_batch_escrow_keeps_each_event_fingerprint(
@@ -1220,6 +1313,55 @@ _CRASH_CASES: tuple[tuple[str, CrashPoint], ...] = (
     ("P5", "after_t9_original"),
     ("P5", "after_transaction"),
 )
+
+
+def test_mixed_batch_crash_replays_prefix_and_reapplies_remaining_events(
+    prefix_database: _SyncDatabase,
+) -> None:
+    """P2/P1/P2 の途中で落ちても、再送は前方だけ再掲して残りを適用する。"""
+    db = prefix_database
+    with db.catalog.applicator.cursor() as cursor:
+        cursor.execute(
+            "SELECT home_team_record_id FROM games WHERE tenant_id = %s AND id = %s",
+            (db.tenant_a, db.game_a),
+        )
+        team = cursor.fetchone()
+    db.catalog.applicator.rollback()
+    assert team is not None
+    temporary = uuid4()
+    registration = PlayerRegistration(temporary, team[0], "途中停止登録", "active")
+    first = _event(db.game_a, d1=1, d4="1", kind="play_input")
+    middle = _event(
+        db.game_a,
+        d1=2,
+        d4="1",
+        kind="player_registration",
+        payload={"player_id": str(temporary)},
+    )
+    last = _event(db.game_a, d1=3, d4="1", kind="game_end_declaration")
+    batch = SyncEventBatch(str(db.game_a), "1", (last, middle, first), v12="proof")
+
+    def crash(point: CrashPoint) -> None:
+        if point == "after_t6_mapping":
+            raise RuntimeError("混在バッチの途中で停止")
+
+    with _testing_crash_hook(crash):
+        with pytest.raises(RuntimeError, match="混在バッチの途中で停止"):
+            _invoke_events(db, batch, registrations={2: registration})
+    assert _count(db, "idempotency_ledger", first.d5) == 1
+    assert _count(db, "operation_events", first.d5) == 1
+    for event in (middle, last):
+        assert _count(db, "idempotency_ledger", event.d5) == 0
+        assert _count(db, "operation_events", event.d5) == 0
+
+    replay = _invoke_events(db, batch, registrations={2: registration})
+    assert (replay.boundary, replay.d3) == ("B1", 3)
+    assert [(row.d1, row.state) for row in replay.a5] == [
+        (1, "重複"),
+        (2, "受理"),
+        (3, "受理"),
+    ]
+    assert all(_count(db, "operation_events", event.d5) == 1 for event in batch.events)
 
 
 @pytest.mark.parametrize(("path", "point"), _CRASH_CASES)

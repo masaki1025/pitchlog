@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from pitchlog.db.recording_rights.models import RecordingGeneration
-from pitchlog.db.sync_protocol.models import RejectedEventOriginal
+from pitchlog.db.sync_protocol.models import IdempotencyLedger, RejectedEventOriginal
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.tokens import ImmutableValue, TenantOperationResult
 from pitchlog.repositories.transaction import _TenantTransaction
@@ -36,6 +36,7 @@ from pitchlog.sync.prefix_path import (
 from pitchlog.sync.rejection import RejectionResult
 from pitchlog.sync.routing import EventPath, route_for_event
 from pitchlog.sync.tokens import (
+    IdempotencyLedgerReadToken,
     RecordingGenerationByNumberReadToken,
     RecordingGenerationReadToken,
     RejectedOriginalReadToken,
@@ -196,6 +197,8 @@ def test_revision_preflight_uses_original_route_for_fingerprint(
                 return TenantOperationResult(
                     cast(tuple[tuple[ImmutableValue, ...], ...], (original_row,))
                 )
+            if isinstance(token, IdempotencyLedgerReadToken):
+                return TenantOperationResult(())
             assert isinstance(token, RecordingGenerationReadToken)
             return TenantOperationResult((generation_row,))
 
@@ -209,9 +212,10 @@ def test_revision_preflight_uses_original_route_for_fingerprint(
 
     seen: list[tuple[str, str]] = []
 
-    def classify(_scope: object, _d5: UUID, fingerprint: str, path: str) -> D5Candidate:
-        seen.append((fingerprint, path))
-        return D5Candidate("unused")
+    def fingerprint(event: SyncEvent, path: str, registration: object) -> str:
+        value = operation_fingerprint(event, cast(EventPath, path), None)
+        seen.append((value, path))
+        return value
 
     class Rights:
         """未使用 D5 の記録権を成立させる。"""
@@ -221,7 +225,7 @@ def test_revision_preflight_uses_original_route_for_fingerprint(
 
     monkeypatch.setattr(apply, "tenant_transaction_scope", fake_scope)
     monkeypatch.setattr(apply, "gated_writer", fake_gate)
-    monkeypatch.setattr(apply, "classify_d5", classify)
+    monkeypatch.setattr(apply, "operation_fingerprint", fingerprint)
     monkeypatch.setattr(apply.port_guard, "require_registered_port", lambda *_: None)
     for _ in range(2):
         result = apply._preflight_d1(
@@ -233,6 +237,201 @@ def test_revision_preflight_uses_original_route_for_fingerprint(
         )
         assert result.paths == {1: expected}
     assert seen == [(operation_fingerprint(event, expected, None), expected)] * 2
+
+
+def test_revision_without_original_waits_for_route_before_consuming_d5(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """原本が後から現れても、原本不在の試行は経路・指紋を保存しない。"""
+    game, original_d5 = str(uuid4()), str(uuid4())
+    event = SyncEvent(
+        str(uuid4()),
+        game,
+        1,
+        "1",
+        v5="play_input",
+        v9={"revision": True, "rejected_d5": original_d5},
+    )
+    batch = SyncEventBatch(game, "1", (event,), v12="proof")
+    request = SyncRequest("P1", game, (event,), d4="1", v12="proof")
+    rejection_columns = tuple(RejectedEventOriginal.__table__.c.keys())
+    generation_columns = tuple(RecordingGeneration.__table__.c.keys())
+    original = {"event_kind": "play_input", "path": "P1"}
+    original_row = tuple(
+        original if column == "payload" else None for column in rejection_columns
+    )
+    generation_row = tuple(
+        {"confirmed_watermark": 0, "generation": 1}.get(column, 0)
+        for column in generation_columns
+    )
+    present = False
+
+    class Scope:
+        """原本の出現だけを切り替える。"""
+
+        def run(self, token: object) -> TenantOperationResult:
+            if isinstance(token, RejectedOriginalReadToken):
+                return TenantOperationResult(
+                    cast(
+                        tuple[tuple[ImmutableValue, ...], ...],
+                        (original_row,) if present else (),
+                    )
+                )
+            if isinstance(token, IdempotencyLedgerReadToken):
+                return TenantOperationResult(())
+            assert isinstance(token, RecordingGenerationReadToken)
+            return TenantOperationResult((generation_row,))
+
+    @contextmanager
+    def fake_scope(_context: TenantContext) -> Iterator[_TenantTransaction]:
+        yield cast(_TenantTransaction, Scope())
+
+    @contextmanager
+    def fake_gate(_scope: object, _rights: object) -> Iterator[object]:
+        yield type("Writer", (), {"writer": object()})()
+
+    class Rights:
+        """原本不在の D5 では呼ばれない記録権。"""
+
+        def holds_recording_right(self, *_args: object) -> bool:
+            return True
+
+    seen: list[tuple[str, str]] = []
+
+    def fingerprint(event: SyncEvent, path: str, registration: object) -> str:
+        value = operation_fingerprint(event, cast(EventPath, path), None)
+        seen.append((value, path))
+        return value
+
+    monkeypatch.setattr(apply, "tenant_transaction_scope", fake_scope)
+    monkeypatch.setattr(apply, "gated_writer", fake_gate)
+    monkeypatch.setattr(apply, "operation_fingerprint", fingerprint)
+    monkeypatch.setattr(apply.port_guard, "require_registered_port", lambda *_: None)
+    rights = cast(RecordingRightsPort, Rights())
+    absent = apply._preflight_d1(
+        cast(TenantContext, object()), request, rights, {}, batch
+    )
+    assert absent.paths == {1: None}
+    assert absent.candidates == (D5Candidate("unused"),)
+    assert seen == []
+
+    present = True
+    found = apply._preflight_d1(
+        cast(TenantContext, object()), request, rights, {}, batch
+    )
+    assert found.paths == {1: "P1"}
+    assert seen == [(operation_fingerprint(event, "P1", None), "P1")]
+
+
+@pytest.mark.parametrize("original_visible", [False, True])
+def test_revision_with_saved_d5_uses_saved_fingerprint_before_original_route(
+    monkeypatch: pytest.MonkeyPatch, original_visible: bool
+) -> None:
+    """原本の可視性や現在の経路より既存 D5 の P1 指紋を優先する。"""
+    game, original_d5 = str(uuid4()), str(uuid4())
+    event = SyncEvent(
+        str(uuid4()),
+        game,
+        1,
+        "1",
+        v5="play_input",
+        v9={"revision": True, "rejected_d5": original_d5},
+    )
+    batch = SyncEventBatch(game, "1", (event,), v12="proof")
+    request = SyncRequest("P1", game, (event,), d4="1", v12="proof")
+    ledger_columns = tuple(IdempotencyLedger.__table__.c.keys())
+    ledger = {
+        "kind": "rejected",
+        "source_fingerprint": operation_fingerprint(event, "P1", None),
+        "result": {"state": "拒否", "d3": 0},
+        "reason": "保存済みの拒否",
+    }
+    ledger_row = tuple(ledger.get(column) for column in ledger_columns)
+    rejection_columns = tuple(RejectedEventOriginal.__table__.c.keys())
+    original_row = tuple(
+        {"path": "P2"} if column == "payload" else None for column in rejection_columns
+    )
+    generation_columns = tuple(RecordingGeneration.__table__.c.keys())
+    generation_row = tuple(
+        {"confirmed_watermark": 0, "generation": 1}.get(column, 0)
+        for column in generation_columns
+    )
+
+    class Scope:
+        """T9 原本だけが読めない状態を再現する。"""
+
+        def run(self, token: object) -> TenantOperationResult:
+            if isinstance(token, RejectedOriginalReadToken):
+                return TenantOperationResult(
+                    cast(
+                        tuple[tuple[ImmutableValue, ...], ...],
+                        (original_row,) if original_visible else (),
+                    )
+                )
+            if isinstance(token, IdempotencyLedgerReadToken):
+                return TenantOperationResult(
+                    cast(tuple[tuple[ImmutableValue, ...], ...], (ledger_row,))
+                )
+            assert isinstance(token, RecordingGenerationReadToken)
+            return TenantOperationResult((generation_row,))
+
+    @contextmanager
+    def fake_scope(_context: TenantContext) -> Iterator[_TenantTransaction]:
+        yield cast(_TenantTransaction, Scope())
+
+    @contextmanager
+    def fake_gate(_scope: object, _rights: object) -> Iterator[object]:
+        yield type("Writer", (), {"writer": object()})()
+
+    monkeypatch.setattr(apply, "tenant_transaction_scope", fake_scope)
+    monkeypatch.setattr(apply, "gated_writer", fake_gate)
+    result = apply._preflight_d1(
+        cast(TenantContext, object()),
+        request,
+        cast(RecordingRightsPort, object()),
+        {},
+        batch,
+    )
+    assert result.paths == {1: "P1"}
+    assert result.candidates[0].kind == "stored_result"
+
+
+@pytest.mark.parametrize("has_right", [False, True])
+def test_missing_revision_original_returns_b3a_without_write(
+    monkeypatch: pytest.MonkeyPatch, has_right: bool
+) -> None:
+    """経路を確定できない未使用 D5 は記録権にかかわらず保存しない。"""
+    game = str(uuid4())
+    event = SyncEvent(
+        str(uuid4()),
+        game,
+        1,
+        "1",
+        v5="play_input",
+        v9={"revision": True, "rejected_d5": str(uuid4())},
+    )
+    batch = SyncEventBatch(game, "1", (event,), v12="proof")
+    monkeypatch.setattr(apply, "game_accessible", lambda *_: True)
+    monkeypatch.setattr(
+        apply,
+        "_preflight_d1",
+        lambda *_: apply._BatchPreflight(
+            0, (D5Candidate("unused"),), has_right, 1, paths={1: None}
+        ),
+    )
+
+    def unexpected(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("経路不明の改訂版を書き込んだ")
+
+    monkeypatch.setattr(apply, "_run_d1_event", unexpected)
+    monkeypatch.setattr(apply, "_escrow_without_right", unexpected)
+    result = apply.apply_sync_events(cast(TenantContext, object()), batch, *_ports())
+    assert isinstance(result, AckResult)
+    assert (result.boundary, result.b3_branch, result.a5[0].state) == (
+        "B3",
+        "B3a",
+        "拒否",
+    )
 
 
 def test_gap_overrides_preclassified_later_b3b(monkeypatch: pytest.MonkeyPatch) -> None:
