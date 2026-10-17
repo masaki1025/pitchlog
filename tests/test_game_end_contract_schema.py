@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
 from collections.abc import Mapping
 from copy import deepcopy
@@ -391,6 +392,7 @@ def _minimal_contract() -> dict[str, Any]:
             "version": descriptor["version"],
             "digest": descriptor["digest"],
         },
+        "provenance": deepcopy(_repository_contract()["provenance"]),
         "decisionRows": [],
         "requiredSet": {},
         "cases": [],
@@ -457,6 +459,7 @@ def test_contract_has_d6_game_end_collections_and_descriptor_binding() -> None:
         "version",
         "calculation",
         "inputAxesDescriptor",
+        "provenance",
         "decisionRows",
         "requiredSet",
         "cases",
@@ -841,7 +844,10 @@ STATE_TRANSITION_SCHEMA_PATH = (
 STATE_TRANSITION_CONTRACT_PATH = (
     REPOSITORY_ROOT / "contracts/state-transition/state_transition_contract_v1.json"
 )
-GAME_END_SUBJECT_KIND = "game-end-decision"
+GAME_END_SUBJECT_KIND = "normative-branch-or-state-effect"
+REPOSITORY_ARTIFACT_AUTHOR = _load_object(
+    REPOSITORY_ROOT / "docs/features/adr003-stage2-runtime/signatures/gate6-game-end.json"
+)["artifactAuthorId"]
 # 検査器が名前で import する依存を、未読み込みのときだけ同じ名前で読み込む。
 for _dependency_name, _dependency_path in (
     ("check_input_axes_descriptor", DESCRIPTOR_CHECKER_PATH),
@@ -873,21 +879,39 @@ def _provenance_definition_closure(schema: Mapping[str, Any]) -> dict[str, Any]:
     return closure
 
 
-def _synthetic_provenance_schema() -> dict[str, Any]:
-    """T1と同一の器を足した合成の終了判定契約schemaを返す。"""
-    schema = deepcopy(_schema())
-    t1_schema = _load_object(STATE_TRANSITION_SCHEMA_PATH)
-    schema["properties"]["provenance"] = {"$ref": "#/$defs/provenance"}
-    schema["required"] = [*schema["required"], "provenance"]
-    schema["$defs"].update(deepcopy(_provenance_definition_closure(t1_schema)))
-    policy = deepcopy(t1_schema["x-pitchlog-provenance-policy"])
-    policy["subjectKinds"] = {
-        GAME_END_SUBJECT_KIND: {
-            "sufficientSourceKinds": ["requirements", "official-baseball-rules"]
-        }
-    }
-    schema["x-pitchlog-provenance-policy"] = policy
-    return schema
+def _provenance_schema() -> dict[str, Any]:
+    """由来記録の器を持つ終了判定契約schemaの写しを返す。"""
+    return deepcopy(_schema())
+
+
+def _provenance_container_drift(
+    t1_schema: Mapping[str, Any], t2_schema: Mapping[str, Any]
+) -> list[str]:
+    """由来記録の器(閉包・policy・配置)のT1とのずれを列挙する。"""
+    drift: list[str] = []
+    t1_closure = _provenance_definition_closure(t1_schema)
+    try:
+        t2_closure = _provenance_definition_closure(t2_schema)
+    except KeyError as error:
+        return [f"T2の閉包が解決できない: {error}"]
+    if t1_closure != t2_closure:
+        names = sorted(set(t1_closure) | set(t2_closure))
+        drift.extend(
+            f"$defs.{name}"
+            for name in names
+            if t1_closure.get(name) != t2_closure.get(name)
+        )
+    if t1_schema.get("x-pitchlog-provenance-policy") != t2_schema.get(
+        "x-pitchlog-provenance-policy"
+    ):
+        drift.append("x-pitchlog-provenance-policy")
+    if t2_schema.get("properties", {}).get("provenance") != {
+        "$ref": "#/$defs/provenance"
+    }:
+        drift.append("properties.provenance")
+    if "provenance" not in t2_schema.get("required", []):
+        drift.append("required.provenance")
+    return drift
 
 
 def _verified_provenance() -> dict[str, Any]:
@@ -939,7 +963,7 @@ def _classify_game_end(provenance: Mapping[str, Any]) -> str:
     return provenance_checker.classify_provenance(
         REPOSITORY_ROOT,
         provenance,
-        schema_value=_synthetic_provenance_schema(),
+        schema_value=_provenance_schema(),
         contract_kind="game-end",
     )
 
@@ -1066,10 +1090,6 @@ def _unknown_subject_kind(provenance: dict[str, Any]) -> None:
     provenance["subjectKind"] = "unknown-subject"
 
 
-def _state_transition_subject_kind(provenance: dict[str, Any]) -> None:
-    provenance["subjectKind"] = "normative-branch-or-state-effect"
-
-
 def _reserved_value_spoof(provenance: dict[str, Any]) -> None:
     provenance["independentVerifierId"] = "not-performed"
     provenance["independentReview"]["chronology"][0]["actorId"] = "not-performed"
@@ -1112,7 +1132,6 @@ VERIFIED_RECORD_NEGATIVES = {
     "S8-missing-requirement": (_missing_requirement, "典拠IDが実在しない"),
     "S8-legacy-research-only": (_legacy_research_only, "優先典拠が無い"),
     "S9-unknown-subject-kind": (_unknown_subject_kind, "未知の対象種別"),
-    "S9-state-transition-subject": (_state_transition_subject_kind, "未知の対象種別"),
     "S11-reserved-spoof": (_reserved_value_spoof, "未実施の閉じた形と一致しない"),
     "S11a-reserved-actor-only": (_reserved_actor_only, "未実施の閉じた形と一致しない"),
     "S11b-reserved-response-only": (
@@ -1179,7 +1198,7 @@ def test_game_end_provenance_schema_rejects_unknown_key() -> None:
 
 def test_not_performed_form_requires_declared_attestation_items() -> None:
     """宣誓項目の宣言が閉じた形とずれたら未実施の記録も拒否する。"""
-    schema = _synthetic_provenance_schema()
+    schema = _provenance_schema()
     items = schema["x-pitchlog-provenance-policy"]["attestationItems"]
     items["extra-attestation"] = {
         "acceptedResponses": [True],
@@ -1208,15 +1227,150 @@ def test_unregistered_contract_kind_is_red() -> None:
         )
 
 
-def test_current_game_end_schema_does_not_declare_provenance() -> None:
-    """器を置く前の終了判定契約schemaでは由来記録を検証できない。"""
-    with pytest.raises(
-        provenance_checker.ProvenanceCheckError,
-        match="x-pitchlog-provenance-policy",
-    ):
+def test_game_end_provenance_container_matches_state_transition() -> None:
+    """T2の由来記録の器(閉包・policy・配置)がT1と完全一致する(D1〜D3)。"""
+    t1_schema = _load_object(STATE_TRANSITION_SCHEMA_PATH)
+    assert set(_provenance_definition_closure(t1_schema)) == {
+        "provenance",
+        "provenanceIndependentReview",
+        "provenanceReviewEvent",
+        "provenanceSource",
+        "provenanceAttestation",
+    }
+    assert _provenance_container_drift(t1_schema, _schema()) == []
+
+
+def _drift_definition(schema: dict[str, Any]) -> None:
+    schema["$defs"]["provenanceReviewEvent"]["required"].append("extra")
+
+
+def _drop_definition(schema: dict[str, Any]) -> None:
+    del schema["$defs"]["provenanceReviewEvent"]
+
+
+def _drift_policy(schema: dict[str, Any]) -> None:
+    schema["x-pitchlog-provenance-policy"]["subjectKinds"]["extra-kind"] = {
+        "sufficientSourceKinds": ["requirements"]
+    }
+
+
+def _drop_required(schema: dict[str, Any]) -> None:
+    schema["required"].remove("provenance")
+
+
+def _drop_property(schema: dict[str, Any]) -> None:
+    del schema["properties"]["provenance"]
+
+
+@pytest.mark.parametrize(
+    ("change", "expected"),
+    [
+        (_drift_definition, ["$defs.provenanceReviewEvent"]),
+        (_drop_definition, ["T2の閉包が解決できない: 'provenanceReviewEvent'"]),
+        (_drift_policy, ["x-pitchlog-provenance-policy"]),
+        (_drop_required, ["required.provenance"]),
+        (_drop_property, ["properties.provenance"]),
+    ],
+    ids=["D1-drift", "D1-drop", "D2-policy", "D3-required", "D3-property"],
+)
+def test_game_end_provenance_container_drift_is_detected(
+    change: Any, expected: list[str]
+) -> None:
+    """器の閉包・policy・配置のずれを照合で検出する(D1〜D3)。"""
+    schema = deepcopy(_schema())
+    change(schema)
+
+    assert (
+        _provenance_container_drift(_load_object(STATE_TRANSITION_SCHEMA_PATH), schema)
+        == expected
+    )
+
+
+@pytest.mark.parametrize("change", ["drop-policy", "drop-required"])
+def test_checker_rejects_schema_without_provenance_declaration(change: str) -> None:
+    """policyや必須宣言を外したschemaでは検査器が検証を拒否する(D3)。"""
+    schema = _provenance_schema()
+    if change == "drop-policy":
+        del schema["x-pitchlog-provenance-policy"]
+    else:
+        schema["required"].remove("provenance")
+
+    with pytest.raises(provenance_checker.ProvenanceCheckError):
         provenance_checker.classify_provenance(
-            REPOSITORY_ROOT, _verified_provenance(), contract_kind="game-end"
+            REPOSITORY_ROOT,
+            _not_performed_provenance(),
+            schema_value=schema,
+            contract_kind="game-end",
         )
+
+
+def test_repository_game_end_provenance_is_not_performed() -> None:
+    """実資産の終了判定契約は未実施の閉じた形と、契約が引く要件書の典拠を記録する。"""
+    contract = _repository_contract()
+    provenance = contract["provenance"]
+
+    assert provenance["subjectKind"] == "normative-branch-or-state-effect"
+    assert provenance["authorId"] == REPOSITORY_ARTIFACT_AUTHOR
+    assert "independentReview" not in provenance
+    assert (
+        provenance_checker.classify_provenance(
+            REPOSITORY_ROOT, provenance, contract_kind="game-end"
+        )
+        == "not-performed"
+    )
+    body = {key: value for key, value in contract.items() if key != "provenance"}
+    cited = set(re.findall(r'"(req:[^"]+)"', json.dumps(body, ensure_ascii=False)))
+    recorded = {source["sourceId"] for source in provenance["sources"]}
+    # 契約が引く要件書の典拠をすべて、過不足なく記録する(adr:D-11は記録しない)
+    assert recorded == cited
+    assert len(recorded) == len(provenance["sources"]) == 21
+
+
+def test_contract_without_provenance_violates_schema() -> None:
+    """由来記録の無い終了判定契約をschemaで拒否する(N1)。"""
+    contract = _minimal_contract()
+    del contract["provenance"]
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError, match="必須キー不足: .*provenance"
+    ):
+        _validate_contract(contract)
+
+
+@pytest.mark.parametrize("value", [None, [], {}], ids=["null", "array", "empty-object"])
+def test_contract_with_malformed_provenance_violates_schema(value: Any) -> None:
+    """由来記録がobjectでない、または空のときschemaで拒否する(N2)。"""
+    contract = _minimal_contract()
+    contract["provenance"] = value
+
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        _validate_contract(contract)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["subjectKind", "sources", "authorId", "independentVerifierId", "attestations"],
+)
+def test_provenance_missing_required_field_violates_schema(field: str) -> None:
+    """由来記録の必須5キーのいずれかを欠くとschemaで拒否する(N3)。"""
+    contract = _minimal_contract()
+    del contract["provenance"][field]
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError, match=rf"必須キー不足: .*{field}"
+    ):
+        _validate_contract(contract)
+
+
+def test_provenance_unknown_field_violates_schema() -> None:
+    """由来記録の未知キーをschemaで拒否する(N4)。"""
+    contract = _minimal_contract()
+    contract["provenance"]["unexpected"] = True
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError, match="未知キー: .*unexpected"
+    ):
+        _validate_contract(contract)
 
 
 def test_registry_matches_declared_contract_list() -> None:
@@ -1289,8 +1443,32 @@ def test_main_requires_exactly_one_target(argv: list[str]) -> None:
     assert raised.value.code == 2
 
 
-def test_repository_check_reports_missing_game_end_provenance() -> None:
-    """器を置く前のリポジトリでは終了判定契約の未記載を赤にする。"""
+def test_repository_check_lists_both_contracts_as_not_performed() -> None:
+    """--repositoryの経路で両契約を未実施として列挙する(P3)。"""
+    assert provenance_checker.check_repository(REPOSITORY_ROOT) == {
+        "state-transition": "not-performed",
+        "game-end": "not-performed",
+    }
+    assert provenance_checker.main(["--repository"]) == 0
+
+
+def test_repository_check_reports_missing_game_end_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """終了判定契約から由来記録が消えたら--repositoryの経路で赤にする(未記載)。"""
+    original = provenance_checker.descriptor_checker.load_json
+
+    def load_without_provenance(path: Path, label: str) -> object:
+        value = original(path, label)
+        if Path(path).resolve() == CONTRACT_PATH.resolve():
+            assert isinstance(value, dict)
+            value = {key: item for key, item in value.items() if key != "provenance"}
+        return value
+
+    monkeypatch.setattr(
+        provenance_checker.descriptor_checker, "load_json", load_without_provenance
+    )
+
     with pytest.raises(
         provenance_checker.ProvenanceCheckError,
         match="終了判定契約にprovenanceが無い",

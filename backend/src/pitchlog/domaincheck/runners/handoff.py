@@ -175,6 +175,7 @@ CONTRACT_KEYS = {
             "version",
             "calculation",
             "inputAxesDescriptor",
+            "provenance",
             "decisionRows",
             "requiredSet",
             "cases",
