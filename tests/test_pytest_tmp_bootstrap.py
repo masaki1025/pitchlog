@@ -1,8 +1,10 @@
-"""scripts/pytest_tmp_bootstrap.py の単体テスト。"""
+"""scripts/pytest_tmp_bootstrap.py の単体テストとルート配線の実測。"""
 
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 import tempfile
 from io import StringIO
 from pathlib import Path
@@ -11,6 +13,7 @@ import pytest
 
 from scripts import pytest_tmp_bootstrap as bootstrap
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 NOW = 1_800_000_000.0
 
 
@@ -221,3 +224,44 @@ def test_prune_with_missing_base_is_noop(tmp_path: Path) -> None:
     deleted = bootstrap.prune_stale(activation, environ={}, now=NOW, warning_stream=StringIO())
 
     assert deleted == []
+
+
+def test_root_conftest_wiring_redirects_basetemp(tmp_path: Path) -> None:
+    """ルート conftest の配線をサブプロセスの実 pytest で実測する。"""
+    redirect = tmp_path / "redirected"
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    (scratch / "test_wiring.py").write_text(
+        "import os\n"
+        "\n"
+        "\n"
+        "def test_basetemp_is_redirected(tmp_path):\n"
+        "    assert str(tmp_path).startswith(os.environ['PITCHLOG_TMP_EXPECT'])\n",
+        encoding="utf-8",
+    )
+    environ = dict(os.environ)
+    environ[bootstrap.ENV_OVERRIDE] = str(redirect)
+    environ["PITCHLOG_TMP_EXPECT"] = str(redirect)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "-o",
+            "addopts=",
+            "-p",
+            "no:cacheprovider",
+            "-p",
+            "conftest",
+            str(scratch / "test_wiring.py"),
+        ],
+        cwd=REPOSITORY_ROOT,
+        env=environ,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
