@@ -47,6 +47,7 @@ from pitchlog.sync.idempotency import (
     source_fingerprint,
 )
 from pitchlog.sync.invalidation import record_d1_intents
+from pitchlog.sync.invariants import O5InvariantViolation
 from pitchlog.sync.model import ABSENT, SyncEvent
 from pitchlog.sync.ports import (
     ContentValidationPort,
@@ -133,6 +134,8 @@ class P1Result:
     temporary_id_mapping: tuple[tuple[str, str], ...] = ()
     a5: Literal["拒否", "退避"] | None = None
     reason: str | None = None
+    # 区分なしの "B3" の理由種別(O4・O5)。B3a・B3b は boundary 自体が区分を持つ。
+    b3_code: Literal["O4", "O5"] | None = None
 
 
 class P1PreconditionError(ValueError):
@@ -456,7 +459,9 @@ def _resolve_player_reference(
             row = _one_row(TenantOperationResult(rows), "temporary_player_id_mappings")
             player_id = _cell(row, _MAPPING_COLUMNS, "player_id")
             if type(player_id) is not UUID:
-                raise RuntimeError("正式選手 ID の型が不正")
+                raise O5InvariantViolation(
+                    "player_mapping_type", "正式選手 ID の型が不正"
+                )
             cache[value] = str(player_id)
         else:
             cache[value] = None
@@ -648,9 +653,13 @@ def _apply_locked(
             OperationEventReadToken(game_id, generation, event.d1)
         ).rows
         if len(slot_rows) > 1 or len(old_event_rows) > 1:
-            raise RuntimeError("D1 に複数の現行行がある")
+            raise O5InvariantViolation(
+                "d1_multiple_current_rows", "D1 に複数の現行行がある"
+            )
         if old_event_rows and not slot_rows:
-            raise RuntimeError("現行イベントのスロットがない")
+            raise O5InvariantViolation(
+                "event_without_slot", "現行イベントのスロットがない"
+            )
         if slot_rows or old_event_rows:
             raise P1PreconditionError(
                 "確定済みイベントは墓標・改訂で置換できない",
@@ -663,7 +672,12 @@ def _apply_locked(
             if assigned is None:
                 raise _NoWriteStop(
                     P1Result(
-                        "B3", d3, False, a5="拒否", reason="O4: 永続化済み D2 の同値"
+                        "B3",
+                        d3,
+                        False,
+                        a5="拒否",
+                        reason="O4: 永続化済み D2 の同値",
+                        b3_code="O4",
                     )
                 )
             d2 = assigned
@@ -726,7 +740,7 @@ def _apply_locked(
                 RecordingPrefixUpdateToken(game_id, generation, new_d3, new_d3)
             )
             if updated.rows != ((1,),):
-                raise RuntimeError("D3 の前進に失敗")
+                raise O5InvariantViolation("d3_advance_failed", "D3 の前進に失敗")
             reach("after_t3_prefix")
         projection.apply(projected_event, writer)
         reach("after_t4_projection")
@@ -778,9 +792,12 @@ def _apply_event(
         target: undo の V10 を世代・D1 に解決した対象。
 
     Returns:
-        一イベントの局所結果。ACK 全体は呼び出し元が組み立てる。
+        一イベントの局所結果。ACK 全体は呼び出し元が組み立てる。O4・O5 は
+        B3 と A5「拒否」を返す。
 
-    例外時はスコープ全体をロールバックし、ポート書き手も失効させる。
+    例外時はスコープ全体をロールバックし、ポート書き手も失効させる。O5 は
+    取引のスコープを例外で抜けた後に受けるので、ポートの書き込みと D5 台帳の
+    行を含めて全取消になる(D5 を消費しない — SP 6-3 の O5)。
     """
     if not game_accessible(context, UUID(event.game_id), tenant_transaction_scope):
         return P1Result("B6", 0, False)
@@ -811,6 +828,10 @@ def _apply_event(
         return race.result
     except _NoWriteStop as stop:
         return stop.result
+    except O5InvariantViolation as violation:
+        return P1Result(
+            "B3", 0, False, a5="拒否", reason=f"O5: {violation}", b3_code="O5"
+        )
 
 
 def apply_p1_event(

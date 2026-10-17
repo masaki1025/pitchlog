@@ -7,6 +7,7 @@ from uuid import UUID
 from pitchlog.db.sync_protocol.models import OperationEvent
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.transaction import _TenantTransaction
+from pitchlog.sync.invariants import O5InvariantViolation
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.ports import (
     ContentValidationPort,
@@ -15,7 +16,6 @@ from pitchlog.sync.ports import (
 )
 from pitchlog.sync.prefix_path import (
     P1ContentRejection,
-    P1PreconditionError,
     P1Result,
     _apply_event,
     _cell,
@@ -35,6 +35,11 @@ def _assign_d2(scope: _TenantTransaction, game_id: UUID, desired: int) -> int | 
 
     Returns:
         確定する D2。永続化済みの同値を見た場合は ``None``。
+
+    Raises:
+        P1ContentRejection: V6 が非負の bigint でない。
+        O5InvariantViolation: 永続化済み D2 の行の型・値域が壊れている、または
+            局所再採番に必要な隙間が両側にない。
     """
     if desired < 0 or desired > _MAX_D2:
         raise P1ContentRejection("P2 の V6 は非負の bigint が必要")
@@ -52,9 +57,11 @@ def _assign_d2(scope: _TenantTransaction, game_id: UUID, desired: int) -> int | 
             value = _cell(row, _EVENT_COLUMNS, "d2")
             identifier = _cell(row, _EVENT_COLUMNS, "id")
             if type(value) is not int or type(identifier) is not UUID:
-                raise RuntimeError("D2 順の行の型が不正")
+                raise O5InvariantViolation("d2_row_type", "D2 順の行の型が不正")
             if value < 0 or value > _MAX_D2:
-                raise RuntimeError("永続化済み D2 が bigint の値域外")
+                raise O5InvariantViolation(
+                    "d2_out_of_range", "永続化済み D2 が bigint の値域外"
+                )
             if previous is not None and value == previous:
                 return None
             if value < desired:
@@ -100,7 +107,7 @@ def _assign_d2(scope: _TenantTransaction, game_id: UUID, desired: int) -> int | 
         for identifier, value in left_run:
             scope.run(OperationEventOrderUpdateToken(identifier, value - 1))
         return desired - 1
-    raise P1PreconditionError("D2 の局所再採番に必要な隙間がない")
+    raise O5InvariantViolation("d2_no_gap", "D2 の局所再採番に必要な隙間がない")
 
 
 def apply_p2_event(
@@ -122,7 +129,7 @@ def apply_p2_event(
         v12: 要求レベルの記録権証明。
 
     Returns:
-        一イベントの局所結果。O4 は B3 と A5「拒否」を含む。
+        一イベントの局所結果。O4・O5 は B3 と A5「拒否」を含む。
     """
     return _apply_event(
         context,

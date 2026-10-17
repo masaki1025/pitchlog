@@ -48,7 +48,7 @@ type BoundaryResult = Literal[
     "B14",
 ]
 type AckBoundary = Literal["B1", "B2", "B3", "B4"]
-type B3Branch = Literal["B3a", "B3b", "O4"]
+type B3Branch = Literal["B3a", "B3b", "O4", "O5"]
 type ChangeBoundary = Literal["変更受理", "B8", "B9", "B10", "B11", "B12", "B13", "B14"]
 type RejectedChangeBoundary = Literal["B8", "B9", "B10", "B11", "B12", "B13", "B14"]
 

@@ -32,6 +32,7 @@ from pitchlog.sync.idempotency import (
 from pitchlog.sync.model import (
     A5Result,
     AckResult,
+    B3Branch,
     ChangeResult,
     SyncEvent,
     SyncEventBatch,
@@ -379,6 +380,16 @@ def _replay_existing(
     return outcome
 
 
+def _b3_branch(result: D1Result) -> B3Branch:
+    """B3 の分岐を局所結果から決める。区分なしの B3 は O4・O5 の理由種別で分ける。"""
+    if result.boundary == "B3":
+        # 区分なしの B3 を返すのは prefix_path の O4・O5 だけ(どちらも b3_code を持つ)。
+        assert isinstance(result, P1Result) and result.b3_code is not None
+        return result.b3_code
+    assert result.boundary in ("B3a", "B3b")
+    return result.boundary
+
+
 def _is_replay(result: D1Result) -> bool:
     """保存済み結果の再掲かを返す。"""
     return result.replayed
@@ -486,7 +497,7 @@ def _apply_d1_request(
     mappings: dict[str, str] = {}
     d3 = preflight.d3 if preflight.request_d3 is None else preflight.request_d3
     boundary: Literal["B1", "B2", "B3", "B4"] = "B1"
-    b3_branch: Literal["B3a", "B3b", "O4"] | None = None
+    b3_branch: B3Branch | None = None
     reason: str | None = None
     stopped = False
     # ⑥ の走査位置。D3 + 1 から始め、要求の中で処理した D1 の次へ進める
@@ -604,7 +615,7 @@ def _apply_d1_request(
             stopped = True
         elif result.boundary in ("B3", "B3a", "B3b"):
             boundary = "B3"
-            b3_branch = "O4" if result.boundary == "B3" else result.boundary
+            b3_branch = _b3_branch(result)
             reason = event_reason
             stopped = True
         elif result.boundary == "B4":

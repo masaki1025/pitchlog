@@ -19,6 +19,7 @@ from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationT
 from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync import ordering, prefix_path
 from pitchlog.sync.idempotency import D5Candidate
+from pitchlog.sync.invariants import O5InvariantViolation
 from pitchlog.sync.model import ABSENT, SyncEvent
 from pitchlog.sync.ordering import _assign_d2
 from pitchlog.sync.prefix_path import P1PreconditionError, _apply_locked
@@ -194,11 +195,13 @@ def test_p2_saves_without_collision_at_bigint_limit(
 def test_p2_rejects_when_both_sides_exhausted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """両側の値域がすべて埋まった場合だけ採番を拒否する。"""
+    """両側の値域がすべて埋まった場合だけ採番を止める(O5 — 区分 other ではない)。"""
     monkeypatch.setattr(ordering, "_MAX_D2", 3)
     scope = _OrderScope([0, 1, 2, 3])
-    with pytest.raises(P1PreconditionError, match="隙間がない"):
+    with pytest.raises(O5InvariantViolation, match="隙間がない") as raised:
         _assign_d2(cast(_TenantTransaction, scope), GAME, 2)
+    assert raised.value.code == "d2_no_gap"
+    assert not isinstance(raised.value, P1PreconditionError)
     assert scope.updated == []
 
 
