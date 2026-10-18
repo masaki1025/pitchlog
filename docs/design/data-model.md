@@ -1,5 +1,5 @@
 ---
-status: in-review
+status: approved
 ---
 # 詳細設計: データモデル(論理モデル・識別子・一意性・削除の系統・移行の行き先)
 
@@ -7,8 +7,8 @@ status: in-review
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
+| **1.1** | 2026-10-15 | **TSK-550・FR-014段階Aの出所と専用owner**。**本改訂で確定する範囲** = §3-2の規則解決関数所有用ロール1件と既存ロール数の参照追随、§10-5のF-2固定5組だけの出所証明・割当あり拒否・閉じた製品書込入口。**2026-10-16正式確定**: 親`FOR UPDATE`後の別SQL割当読取、既定・規則`FOR SHARE`のscope終了までの保持と専用ownerの最小2列`UPDATE`を追加限定7.3で審査（P0=0/P1=1/P2=1、2件採用して判断資料を修正）。本会話のPOが今回の改訂範囲の最終本文とレビュー後修正差分を確認し正式確定を承認。§6-5・UUID・F-2値は対象外。具体列grant・配置・起動器の資産承認と7.7は別ゲート。**実装時に確定する範囲** = 関数SQL、F-2配置migration、一時RLS、認可資産と適用/取り外し、実DBの2接続・故障試験、U-G1の同一scope保存。§6-5 v1.0、F-2の値、採用済み5 UUID・機械文字列は変更しない。FR-014/DRAW-04のコールド矛盾は別の要件正本ゲートで裁定する。計画: `../features/ux1-fr014-rule-resolution/plan.md`、審査差分: `../features/ux1-fr014-rule-resolution/step3-formal-gate-submission.md` | approved |
 
-| **1.1** | 2026-10-15 | **TSK-550・FR-014段階Aの出所と専用owner**。**本改訂で確定する範囲** = §3-2の規則解決関数所有用ロール1件と既存ロール数の参照追随、§10-5のF-2固定5組だけの出所証明・割当あり拒否・閉じた製品書込入口。**実装時に確定する範囲** = 関数SQL、F-2配置migration、一時RLS、認可資産と適用/取り外し、実DBの2接続・故障試験、U-G1の同一scope保存。§6-5 v1.0、F-2の値、採用済み5 UUID・機械文字列は変更しない。FR-014/DRAW-04のコールド矛盾は別の要件正本ゲートで裁定する。計画: `../features/ux1-fr014-rule-resolution/plan.md`、審査差分: `../features/ux1-fr014-rule-resolution/step3-formal-gate-submission.md` | in-review |
 | **1.0** | 2026-10-14 | **TSK-550・FR-014の6-key保存契約を確定**: 6-5節で、新規試合の`games.applied_rules`を`ruleSetId`と既存`ruleSnapshot`のcamelCase 5値から成るexact-setとして固定する。IDはcanonical UUIDとして、5値は既存の凍結schemaへのprojectionで形・値域を検証し、付録F-1の値間相関を単一経路で追加検証する。旧`{}`、5値だけの行、未知key、不正ID・値・相関を解決済みへ推定補完しない。**本書で確定した範囲** = 6-keyの保存形、IDと5値の検証境界、同一時点の不変snapshot、旧行の不補完、新規物理列と第2の規則計算を追加しないこと。**実装時に確定する範囲** = codecの関数・公開型・例外/失敗表現、モジュール配置、単体試験の具体。**本改訂で扱わない範囲** = owner・列grant・規則データ配置migration・一時RLS・配置/認可検査器・制限関数・固定function operation・resolver・U-G1接続。付録F-2の値、PO採用済み5 UUIDと`no_out_first_second`／`continue_lineup`は変更しない。正式7.3は敵対レビュー2回（第1回P0 0/P1 1/P2 0、第2回P0 0/P1 0/P2 0）、反映1周、指摘1件を採用。最終HEAD `ca0a51ef7832a4dff58e54993c161076cf270f35`を**2026-10-14 本会話の利用者が逐行確認し、正本確定と当該保存契約に限定したPO代替受理を承認**。計画: `../features/ux1-fr014-rule-resolution/plan.md` | **approved** |
 
 | **0.11** | 2026-10-16 | **RG1専用ロールと単一状態行の認可境界を確定（TSK-392、新4）**。3-2節に専用`NOLOGIN/NOBYPASSRLS`関数owner、単一行の`FORCE RLS`とowner限定SELECT/UPDATE、appの固定読取2関数限定EXECUTE、製品常閉を追加した。**本改訂で確定した範囲**: RG1の単一状態行、専用ownerとアプリ用ロールの権限境界、復元開始・製品openを含めない常閉読取経路。**実装時に確定する範囲**: 個別DDL・JSON・migration・隔離DB検査と7.7の実revision/digest/snapshot。D4発行、運用上のopen解除、U-S1/U-G1との実経路結合は本改訂の対象外。7.3敵対レビュー2回（第1回全文P0=0/P1=5/P2=0、第2回差分P0=0/P1=2/P2=0）、指摘7件を全件採用・不採用0・反映2周。最終反映`78c64915`は未再レビューであり、**2026-10-16の本会話でプロダクトオーナーが資料の本文・権限差分・採否とこの残余を確認して本改訂範囲を明示承認**した。認可資産所有側の項目別受理と7.7正式受理は含まない。計画: `../features/ur1-recording-rights/plan.md` | approved |
@@ -247,9 +247,11 @@ RLS を採ると決めた瞬間に従属して決まるもの**であり、**要
 | **共有関数所有用**(`NOLOGIN` + **`BYPASSRLS`**) | **`SECURITY DEFINER` 関数の所有ロール**(FR-041 の共有集計 — 3-6 節)。**管理経路とは別ロールを立てる** | **バイパスする**(`BYPASSRLS`。**絞り込みは関数本体が行う**) | 不可 |
 | **管理関数所有用**(`NOLOGIN` + **`BYPASSRLS`**) | **管理者専用の `SECURITY DEFINER` 制限関数の所有ロール**(FR-035/037 の管理経路 — 8-2-B 節)。**共有関数所有用とは別ロール**にする(**片方の穴がもう片方へ広がらない**) | **バイパスする**(同前) | 不可 |
 
+
 | **認証関数所有用**(`NOLOGIN` + **`BYPASSRLS`**) | **認証の到達経路の `SECURITY DEFINER` 関数の所有ロール**([FR-033](../requirements/requirements-pitchlog-2026-07-22.md#FR-033) / [FR-036](../requirements/requirements-pitchlog-2026-07-22.md#FR-036) / [NFR-011](../requirements/requirements-pitchlog-2026-07-22.md#NFR-011) — 8-2・8-3・8-6 節)。**到達先は認証前専用の 4 表**(認証主体・認証情報・トークン・レート制限カウンタ)**と、テナント表・システム設定値(10-4 節 — 有効期限・閾値)の読み取りに限る**。**共有関数所有用・管理関数所有用とは別ロール**にする | **バイパスする**(同前。認証前専用の`function_only`表にはポリシーを置かないので、`BYPASSRLS`がなければ0行になる。RG1の例外は次行) | 不可 |
 | **RG1関数所有用**(`NOLOGIN` + **`NOBYPASSRLS`**) | **RG1の単一状態行を読む固定2関数だけ**を所有し、`public.rg1_restore_gate`の`singleton_id/state`列SELECTと`singleton_id`列UPDATEだけを持つ。`FOR SHARE`行ロックのためのUPDATE権であり、状態変更の入口は持たない。共有・管理・認証関数所有用とは別ロール。**このownerを誰にもGRANTせず**、アプリを含む他ロールによる権限継承・`SET ROLE`を許さない | **従う**(`singleton_id=1`だけのSELECT/UPDATE policy、`FORCE ROW LEVEL SECURITY`) | 不可 |
 | **規則解決関数所有用**(`NOLOGIN` + **`BYPASSRLS`** + `NOINHERIT`) | **FR-014段階Aの固定`SECURITY DEFINER`関数1件の所有ロール**。共有・管理・認証関数所有用と分離し、アプリ用ロールを含めmembershipを持たせない。表・列権限は制限読取と大会親行のロックに必要な列だけへ限定し、関数本文にDMLを置かない。GUC照合はDB接続を得た主体のtenant偽装を防ぐ保証ではない（10-5節・認可面正本） | **バイパスする**(`BYPASSRLS`。tenant照合と出所検査は関数本体) | 不可 |
+| **規則解決関数所有用**(`NOLOGIN` + **`BYPASSRLS`** + `NOINHERIT`) | **FR-014段階Aの固定`SECURITY DEFINER`関数1件の所有ロール**。共有・管理・認証関数所有用と分離し、アプリ用ロールを含めmembershipを持たせない。制限読取と親行`FOR UPDATE`の`UPDATE(disabled)`、既定行`FOR SHARE`の`UPDATE(game_type_category)`、規則行`FOR SHARE`の`UPDATE(id)`だけを列grantする。これらは実DML能力であり、関数本文のDML禁止・owner隔離・撤去時のgrant除去を一体で検証する。GUC照合はDB接続を得た主体のtenant偽装を防ぐ保証ではない（10-5節・認可面正本） | **バイパスする**(`BYPASSRLS`。tenant照合と出所検査は関数本体) | 不可 |
 
 | **移行バッチ用**(**`LOGIN`** + **`BYPASSRLS`**・**期間限定**) | **移行の一括投入だけ**(下記「移行バッチの書き込み経路」)。**移行完了で `NOBYPASSRLS` へ戻すか落とす** | **バイパスする**(`FORCE ROW LEVEL SECURITY` でも拘束されない) | 不可(所有者にしない) |
 
@@ -2110,6 +2112,8 @@ FR-035・FR-037 の受入基準が正**であり、**それを超える関数を
 - **層で帰属が変わる**のは語彙(10-3 節)と同じ構造。**一意制約の閉じ方も同様に分かれる**
 
 **FR-014段階Aの新規試合作成に限る出所証明**: 付録F-2に出所を固定した試合区分5件について、承認済みの固定5組の`game_type_rule_defaults.game_type_key → rule_sets.id`から全体既定を解決する。`rule_sets`に帰属列を足さず、固定5組以外と出所不明の既存行を段階Aの成功候補へ昇格させない。対応IDが異なる行へ付け替わった場合も、値が妥当というだけで出所を推定しない。対象大会に`tenant_id`と大会キーが一致する割当行があれば、全体既定へフォールバックせず拒否する。規則IDと同じ規則行から読んだ5値を、6-5節の承認済みJSONB形で同一成功境界へ渡す。解決失敗時は試合行を残さない。製品の規則表直接書込と大会割当書込の入口は閉じ、段階Bの大会/試合上書き解決はこの段階の成功条件に含めない。固定5組の具体IDと値は個別のF-2配置・認可ゲートで検査し、本節では付録F-2の意味を再定義しない。
+
+大会親行を`FOR UPDATE`し、待機後の別SQL文で割当を読む。対象既定行、対応規則行をこの順で`FOR SHARE`し、試合保存とRG1ゲートを含む同一scopeのcommitまたはrollbackまで保持する。特権migrationは試合作成の流入停止と進行中scopeの排出を確認してから、既定表→規則表の順で`ACCESS EXCLUSIVE`をcommitまで保持する。待機timeoutまたは結果不明の間は試合作成を公開しない。権限と運用の具体は認可面正本の§2〜4に従う。
 
 ### 10-6. 隔離領域と移行レポート(FR-038)
 
