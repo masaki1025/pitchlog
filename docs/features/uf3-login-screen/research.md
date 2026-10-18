@@ -23,3 +23,9 @@ Notionの担当者プロパティには`user://32cd872b-594c-81c8-8836-0002cb32e
 ## 正式カードとの差分
 
 従来のU-F13調査では「U-F3正式カード未確認・担当不在」としていた。正式カードは取得でき、Notion担当者プロパティも存在した。会話上のCodex D指名を採用するが、担当者の氏名は未確定であり、着手前の重複再確認を残す。
+
+## C1統合後の再照合（2026-10-18）
+
+基線`493342be37d4383ca572f8d1c826a3f184a4d213`にC1 `auth.ts`の`login` / `session` / `logout` / `ensureSessionVerified`と結果`authEpoch`が存在する。単独session DTOの成功でのみauthenticatedとなり、login ackでは成功を表示しない。U-F3は独自API/DTOやtenant供給を追加せず、この戻り値と共有storeを照合してemitする。
+
+旧典拠はPitchLogの履歴にはないため、ローカル`/home/ymdms/projects/Baseball_Scoring`の固定コミット`dd03160`に対する`git show dd03160:frontend/src/screens/LoginScreen.tsx`から直接確認した。未認証チーム一覧の取得、チーム新規登録、個人アカウント、tokenのJS保存、router遷移とserver detail表示は現行承認契約と両立しないため移植しない。公開ガイドへのrouteはU-F13所有とし、本画面にはroute pathを持ち込まない。
