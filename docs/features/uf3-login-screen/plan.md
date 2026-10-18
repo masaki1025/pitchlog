@@ -1,6 +1,6 @@
 ---
 feature: uf3-login-screen
-status: active
+status: in-review
 承認: 済(2026-10-14・山田正輝)
 重さ分類: コア領域
 worktree: /home/ymdms/projects/pitchlog-worktrees/feature-uf3-login-screen
