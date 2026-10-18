@@ -567,6 +567,87 @@ def test_external_claim_sql_rejects_other_owner_and_second_use(
             )
 
 
+def test_external_reservation_is_recovered_by_owner_after_lost_response(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+) -> None:
+    """予約確定後の応答消失では所有要求で同じD4を再照会する。"""
+    request_id, first_attempt, next_attempt = uuid4(), uuid4(), uuid4()
+    with disposable_postgres_cluster() as cluster:
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
+            admin.execute(
+                "CREATE TABLE d4_counter ("
+                "singleton_id integer PRIMARY KEY CHECK (singleton_id = 1), "
+                "next_generation bigint NOT NULL)"
+            )
+            admin.execute("INSERT INTO d4_counter VALUES (1, 1)")
+            admin.execute(
+                "CREATE TABLE d4_reservations ("
+                "attempt_id uuid PRIMARY KEY, tenant_id uuid NOT NULL, "
+                "game_id uuid NOT NULL, start_request_id uuid NOT NULL, "
+                "generation bigint NOT NULL UNIQUE, "
+                "status text NOT NULL CHECK (status IN ('reserved', 'claimed')))"
+            )
+            admin.execute(
+                "CREATE UNIQUE INDEX one_reserved_start "
+                "ON d4_reservations (tenant_id, game_id, start_request_id) "
+                "WHERE status = 'reserved'"
+            )
+        with psycopg.connect(cluster.admin_dsn) as reservation:
+            generation = reservation.execute(
+                "UPDATE d4_counter SET next_generation = next_generation + 1 "
+                "WHERE singleton_id = 1 RETURNING next_generation - 1"
+            ).fetchone()
+            assert generation == (1,)
+            reservation.execute(
+                "INSERT INTO d4_reservations VALUES (%s, %s, %s, %s, %s, 'reserved')",
+                (first_attempt, _TENANT, _GAME, request_id, generation[0]),
+            )
+            reservation.commit()
+        with psycopg.connect(cluster.admin_dsn) as retry:
+            assert retry.execute(
+                "SELECT attempt_id, generation FROM d4_reservations "
+                "WHERE tenant_id = %s AND game_id = %s "
+                "AND start_request_id = %s AND status = 'reserved'",
+                (_TENANT, _GAME, request_id),
+            ).fetchone() == (first_attempt, 1)
+            assert (
+                retry.execute(
+                    "SELECT attempt_id FROM d4_reservations "
+                    "WHERE tenant_id = %s AND game_id = %s "
+                    "AND start_request_id = %s AND status = 'reserved'",
+                    (_OTHER_TENANT, _GAME, request_id),
+                ).fetchone()
+                is None
+            )
+            assert retry.execute(
+                "SELECT next_generation FROM d4_counter WHERE singleton_id = 1"
+            ).fetchone() == (2,)
+            retry.execute(
+                "UPDATE d4_reservations SET status = 'claimed' "
+                "WHERE attempt_id = %s AND status = 'reserved'",
+                (first_attempt,),
+            )
+            retry.commit()
+        with psycopg.connect(cluster.admin_dsn) as after_business_rollback:
+            next_generation = after_business_rollback.execute(
+                "UPDATE d4_counter SET next_generation = next_generation + 1 "
+                "WHERE singleton_id = 1 RETURNING next_generation - 1"
+            ).fetchone()
+            assert next_generation == (2,)
+            after_business_rollback.execute(
+                "INSERT INTO d4_reservations VALUES (%s, %s, %s, %s, %s, 'reserved')",
+                (next_attempt, _TENANT, _GAME, request_id, next_generation[0]),
+            )
+            after_business_rollback.commit()
+            assert after_business_rollback.execute(
+                "SELECT generation FROM d4_reservations "
+                "WHERE attempt_id = %s AND status = 'claimed'",
+                (first_attempt,),
+            ).fetchone() == (1,)
+
+
 def test_device_credential_lock_serializes_revocation(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]

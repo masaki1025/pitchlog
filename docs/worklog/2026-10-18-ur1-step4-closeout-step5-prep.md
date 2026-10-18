@@ -99,3 +99,11 @@ Ruff check、ty check、候補単体とRG1関連25件は成功。使い捨てPos
 反映後の限定検査はbackend `ruff check .`、`ty check`、候補+RG1関連pytest **29件成功**（使い捨てPostgreSQLの資格失効・claim競合を含む）。root `check_docs_status.py` は20文書/違反0。全backend・全ハーネス、同期standby/旧primary/製品Portは未検証。反映後SHA-256は`initial_grant.py=c20d596ba80a7c9e792a472ddde295a261b0dee2977627e7f0391765bdca59c3`、候補試験=`e643efd043775b6f51706661f9a1f7211b69a2047e9c6cd38340a5252cbad0e0`。この識別値の差分は独立再レビュー未実施。
 
 接続候補の文言を追確認し、`start_request_id`を「サーバーが既に永続化済み」と断定した箇所を訂正した。端末が送信前に保持する既存案を参照し、`reservation_attempt_id`の発行者・耐久保存先・rollback後の切替を担当受理待ちへ明示した。応答不明時に同じattemptを再照会できる実装がない状態を安全な再試行済みとは扱わない。この文書のみの最終修正も独立再レビュー未実施。
+
+## 2026-10-18: R-17正式7.3起案と担当別受理単位
+
+依頼者は`7b031b3e`までを受領し、承認済み「初期付与は試合開始時」にsync-protocol 9-5を合わせる限定正本改訂と正式7.3を指示した。U-S1の既承認R-17を根拠に、最新`origin/develop=156dd139`から別worktree`feature/tsk547-start-grant-canonical`でv0.9 `in-review`を起案コミット`5ad64e10`へ固定した。U-S1の作業木は変更していない。正式7.3の全文第1回はP0=1/P1=2/P2=0、3件全採用。復元された`preparing`を新D4の復元完了対象から除き、開始取消にスタメン記憶を含め、作成/開始のRG1コミット競合を11-4へ足す反映コミット`85f4b565`を作成した。差分・影響節の正式第2回は進行中。候補の事前レビュー3回および最後の修正差分未再レビューとは**別集計**であり、正式7.3やコード再レビューとして重複計上しない。正本の人間承認は未了。
+
+U-G1/U-S1/認証担当の未受理を[担当別受理シート](../features/ur1-recording-rights/step5-owner-acceptance-sheet.md)へ分けた。公開署名/DTO/失敗と全ロック順、資格失効対書込みの直列化、外部予約attemptの耐久保存と予約応答消失・業務rollback・commit結果不明の各停止/再照合、独立V12鍵束の寿命が対象。**担当の無回答は合意ではない**。実台帳、実端末資格、製品Portは未提供で、隔離候補の成功と区別する。
+
+独立した使い捨てPostgreSQL試験に、D4 counterと予約行の同一外部transaction確定後の応答消失を模し、所有tupleによる同一attempt/D4再照会、別tenant拒否、claimed D4の非再利用を追加した。これは実台帳adapter・同期standby耐久・不明業務commitの解決を証明しない。backend `ruff format`後、`ruff check`、`ty check`、候補+RG1関連pytest **30件成功**。全backend/全ハーネス、製品Port実経路は未検証。正式資産/7.7、実配置/費用、運用open、共有DB適用、push/PR/mergeは変更していない。
