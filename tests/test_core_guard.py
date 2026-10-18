@@ -459,35 +459,11 @@ US1_SYNC_APPLY_AREA_PATH_ADDITIONS = (
     "backend/src/pitchlog/repositories/sync_apply.py",
     "backend/tests/test_sync_apply_*.py",
 )
-# 先行追加層の窓口は回転式。U-S1 の登録済み層の後に U-R1 を追加する。
+# 追加層は比較元に未登録の初期付与パスだけを宣言する。
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
-    "sync-protocol": (
-        "backend/src/pitchlog/repositories/rg1.py",
-        "backend/src/pitchlog/repositories/operation_registry.py",
-        "backend/tests/test_rg1_*",
-        "contracts/tenant_boundary/repository-contract.json",
-        "contracts/tenant_boundary/base-allowlist.json",
-        "contracts/authz/product/function-bodies/*rg1*",
-    ),
-    "recording-rights": (
-        "backend/src/pitchlog/repositories/rg1.py",
-        "backend/src/pitchlog/repositories/operation_registry.py",
-        "backend/src/pitchlog/authz/classification.py",
-        "backend/src/pitchlog/authz/product_control_access.py",
-        "backend/src/pitchlog/authz/product_table_access.py",
-        "backend/src/pitchlog/authz/product_catalog.py",
-        "backend/src/pitchlog/authz/product_provisioning.py",
-        "backend/src/pitchlog/authz/product_function_acl.py",
-        "backend/tests/test_rg1_*",
-        "contracts/authz/product/ddl-elements.json",
-        "contracts/authz/product/table-classification.json",
-        "contracts/authz/product/exposure-facts.json",
-        "contracts/authz/product/function-bodies/*rg1*",
-        "contracts/tenant_boundary/repository-contract.json",
-        "contracts/tenant_boundary/base-allowlist.json",
-        "scripts/check_authz_catalog.py",
-        "tests/test_check_authz_catalog.py",
-    ),
+    "sync-protocol": ("backend/src/pitchlog/recording_rights/initial_grant.py",),
+    "recording-rights": ("backend/src/pitchlog/recording_rights/initial_grant.py",),
+    "tenant-isolation": ("backend/src/pitchlog/recording_rights/initial_grant.py",),
 }
 REGISTERED_BEFORE_UR1: dict[str, tuple[str, ...]] = {
     "sync-protocol": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
@@ -2610,7 +2586,7 @@ def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
 
 
 def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
-    """U-S1の登録済み層を保ち、その後にRG1層だけを追加する。"""
+    """U-S1とRG1の登録済み層を保ち、初期付与パスだけを追加する。"""
     core_guard = load_core_guard_module()
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
@@ -2636,13 +2612,17 @@ def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
         base_paths = tuple(base_areas[area_id]["paths"])
         assert_registered_block(base_paths, US1_SYNC_APPLY_AREA_PATH_ADDITIONS)
         assert_registered_block(paths, US1_SYNC_APPLY_AREA_PATH_ADDITIONS)
-        rg1_suffix = EXPECTED_AREA_PATH_ADDITIONS[area_id]
-        assert paths in (base_paths, (*base_paths, *rg1_suffix))
+        addition_suffix = EXPECTED_AREA_PATH_ADDITIONS[area_id]
+        assert paths in (base_paths, (*base_paths, *addition_suffix))
         for path, pattern in representatives:
             assert pattern in paths
             assert fnmatch.fnmatchcase(path, pattern)
-    for area_id in ("game-state", "tenant-isolation", "data-migration"):
+    for area_id in ("game-state", "data-migration"):
         assert current_areas[area_id]["paths"] == base_areas[area_id]["paths"]
+    assert current_areas["tenant-isolation"]["paths"] == [
+        *base_areas["tenant-isolation"]["paths"],
+        *EXPECTED_AREA_PATH_ADDITIONS["tenant-isolation"],
+    ]
 
     core_guard.validate_area_path_layers(baseline, configuration)
 
@@ -2867,7 +2847,7 @@ def test_registered_d2_paths_match_tracked_files_without_overlap() -> None:
 
 
 def test_ur1_declaration_allows_only_unregistered_or_complete_suffix() -> None:
-    """RG1追加層は宣言後・登録前と完全登録後の二状態だけを受ける。"""
+    """初期付与追加層は登録前と完全登録後の二状態だけを受ける。"""
     core_guard = load_core_guard_module()
     configuration = load_actual_core_areas()
     baseline = core_guard.load_core_areas_at_revision(
@@ -2886,12 +2866,12 @@ def test_ur1_declaration_allows_only_unregistered_or_complete_suffix() -> None:
             area["paths"].extend(additions)
     core_guard.validate_area_path_layers(baseline, completed)
 
-    partial = json.loads(json.dumps(completed))
-    for area in partial["areas"]:
+    unregistered = json.loads(json.dumps(completed))
+    for area in unregistered["areas"]:
         if area["id"] == "recording-rights":
-            area["paths"].pop()
+            area["paths"][-1] = "backend/src/pitchlog/recording_rights/other.py"
     with pytest.raises(core_guard.GuardError, match="recording-rights.paths"):
-        core_guard.validate_area_path_layers(baseline, partial)
+        core_guard.validate_area_path_layers(baseline, unregistered)
 
 
 def test_ur1_actual_path_set_is_guarded_in_both_meaning_areas() -> None:
