@@ -49,11 +49,7 @@ function apply(result: SessionResult | LoginResult, initial = false): void {
     return
   }
   if (result.status === 'authenticated') {
-    if (
-      !auth.isAuthenticated ||
-      auth.teamId !== result.tenantId ||
-      auth.teamName !== result.teamName
-    ) {
+    if (!auth.isAuthenticated || auth.teamId !== result.tenantId) {
       state.value = 'verification-unknown'
       return
     }

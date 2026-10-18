@@ -128,3 +128,7 @@ C1ステップ1はPR #144 / develop `3052e0db743877c7f15c0ec10daa0142cba7ab7e`�
 U-F3編集所有は`LoginScreen.vue`、固有spec、本計画・research・固有作業ログ。C2が共通clientを所有し、C1の`auth.ts`・storeと共有providerは再利用する。route登録・redirectはU-F13所有であり、U-F3にはrouter依存を追加しない。新規画面のcore path登録は親セッションの承認順序で扱い、未登録の機械検出を合格扱いにしない。
 
 ステップ1は正規auth clientを接続した画面と基本・境界18試験を実装した。検査結果は固有作業ログへ記録する。ステップ2では追加の遅延logout・複数世代・存在秘匿・移植4点とアクセシビリティを確認し、レビューおよび本人確認の対象欄を用意する。正式DoD・人間確認は未完了のまま維持する。
+
+### U-F3ステップ2の候補成果（2026-10-18）
+
+製品の認証成功条件をauthEpoch・C1認証済み状態・tenant ID一致に限定し、team_nameを認可キーにしない。正規client/storeを通す固有24試験、全frontend 69 files / 1,261 testsが成功した。型・ESLint・Prettier・buildも成功。旧典拠の移植4点と正式レビュー/本人確認の対象をresearchへ記録した。正式レビュー・本人逐行確認・親のcore path登録とU-F13実API/DB接続受入は残るため、本計画全体・TSK-518の完了とは記録しない。
