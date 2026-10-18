@@ -2,7 +2,7 @@
   "status": "candidate_unaccepted",
   "pr": "masaki1025/pitchlog#152",
   "comparison_base": "5bb1ff89306712c1de61c3a0152141c8f771b3a0",
-  "source_tree_excluding_packet": "6fb173e684f3156bf764e7b85447e7e626be423d",
+  "source_tree_excluding_packet": "047c6f11daed190f012950775b2ea4e9e3dbcb18",
   "oracle_input_commit": "4b85b358acb87d32ec964bd76856eb0c1cfec3f6",
   "old_pr_reference": {
     "pr": "masaki1025/pitchlog#149",
