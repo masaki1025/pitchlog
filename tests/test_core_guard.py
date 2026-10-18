@@ -2964,8 +2964,9 @@ def test_uf13_registered_products_require_human_confirmation(tmp_path: Path) -> 
     assert result.returncode == 0, result.stderr
 
 
-
-def test_uf13_retains_login_registration_after_predecessor_merge(tmp_path: Path) -> None:
+def test_uf13_retains_login_registration_after_predecessor_merge(
+    tmp_path: Path,
+) -> None:
     """先行LoginScreen統合済みの隔離履歴で登録と旧層削除拒否を実CLI検証する。"""
     root = make_repo_with_actual_core_areas(tmp_path)
     baseline = load_actual_core_areas()
@@ -2977,12 +2978,19 @@ def test_uf13_retains_login_registration_after_predecessor_merge(tmp_path: Path)
         tenant["paths"].append(login)
     write_json(root, ".claude/core-areas.json", baseline)
     write_text(root, "scripts/core_guard.py", core_guard_source_with_additions({
-        "tenant-isolation": additions,
+        "tenant-isolation": (login,),
     }))
     run_git(root, "add", ".")
     run_git(root, "-c", "user.email=test@example.com", "-c", "user.name=test",
             "commit", "--allow-empty", "-qm", "synthetic merged LoginScreen baseline")
     base_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    # 実PRと同じく、先行LoginScreen宣言からrouter/Appへ先に回転する。
+    write_text(root, "scripts/core_guard.py", core_guard_source_with_additions({
+        "tenant-isolation": additions,
+    }))
+    run_git(root, "add", "scripts/core_guard.py")
+    run_git(root, "-c", "user.email=test@example.com", "-c", "user.name=test",
+            "commit", "-qm", "synthetic declaration rotation before JSON")
     tenant["paths"].extend(additions)
     write_json(root, ".claude/core-areas.json", baseline)
     write_text(root, "frontend/src/router.ts", "product change\n")
@@ -2997,7 +3005,9 @@ def test_uf13_retains_login_registration_after_predecessor_merge(tmp_path: Path)
     event = write_event(tmp_path, base_sha, head_sha, f"- [x] {REQUIRED_CHECK_TEXT}")
     result = run_guard(root, event_name="pull_request", event_path=event)
     assert result.returncode == 0, result.stderr
+    assert login in tenant["paths"]
     tenant["paths"].remove(login)
+    assert login not in tenant["paths"]
     write_json(root, ".claude/core-areas.json", baseline)
     run_git(root, "add", ".")
     run_git(root, "-c", "user.email=test@example.com", "-c", "user.name=test",

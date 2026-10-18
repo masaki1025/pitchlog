@@ -358,6 +358,7 @@ describe('公開ガイドと保護チーム経路', () => {
         })
       const router = createAppRouter(createMemoryHistory())
       await router.push('/team')
+      expect(spy).toHaveBeenCalledOnce()
       expect(router.currentRoute.value.name).toBe('login')
       expect(fetchMock).not.toHaveBeenCalled()
     },
@@ -375,10 +376,30 @@ describe('公開ガイドと保護チーム経路', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
   it('tenant-bound401は保護画面を解除して/loginへ移す', async () => {
+    const pending = deferred()
+    fetchMock.mockImplementation(async (url) =>
+      String(url).includes('/team-records') ? pending.promise : reply({}, 401),
+    )
     useAuthStore(pinia).signIn({ teamId: tenantA, teamName: 'A' })
     const router = createAppRouter(createMemoryHistory())
     await router.push('/team')
     const wrapper = view(router)
+    await flushPromises()
+    expect(wrapper.findComponent(TeamScreen).exists()).toBe(true)
+    expect(
+      fetchMock.mock.calls.filter(([url]) =>
+        String(url).includes('/team-records'),
+      ),
+    ).toHaveLength(1)
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('GET')
+    expect(
+      new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get(
+        'X-Pitchlog-Expected-Tenant',
+      ),
+    ).toBe(tenantA)
+    const unauthenticated = reply({}, 401)
+    expect(unauthenticated.status).toBe(401)
+    pending.resolve(unauthenticated)
     await flushPromises()
     expect(wrapper.findComponent(TeamScreen).exists()).toBe(false)
     expect(router.currentRoute.value.name).toBe('login')
@@ -386,6 +407,11 @@ describe('公開ガイドと保護チーム経路', () => {
     expect(
       fetchMock.mock.calls.every(([, init]) => init?.method === 'GET'),
     ).toBe(true)
+    expect(
+      fetchMock.mock.calls.filter(([url]) =>
+        String(url).includes('/team-records'),
+      ),
+    ).toHaveLength(1)
   })
   it('別タブのstorage削除で保護画面を解除しtenant通信を再開しない', async () => {
     fetchMock.mockImplementation(async (url, init) => {
@@ -407,6 +433,9 @@ describe('公開ガイドと保護チーム経路', () => {
         String(url).includes('/team-records'),
       ).length
     const before = tenantCalls()
+    expect(wrapper.findComponent(TeamScreen).exists()).toBe(true)
+    expect(before).toBe(1)
+    expect(useAuthStore(pinia).teamId).toBe(tenantA)
     localStorage.removeItem(AUTH_STORAGE_KEY)
     window.dispatchEvent(
       new StorageEvent('storage', {
@@ -420,5 +449,25 @@ describe('公開ガイドと保護チーム経路', () => {
     expect(router.currentRoute.value.name).toBe('login')
     expect(wrapper.text()).toContain('認証状態を確認できません')
     expect(tenantCalls()).toBe(before)
+  })
+  it('hydration待ちの後でもprovider不一致なら通信しない', async () => {
+    const auth = useAuthStore(pinia)
+    auth.hasHydrated = false
+    const foreign = createPinia()
+    const router = createAppRouter(createMemoryHistory())
+    const navigating = router.push('/team')
+    await flushPromises()
+    expect(fetchMock).not.toHaveBeenCalled()
+    try {
+      setActivePinia(foreign)
+      auth.hasHydrated = true
+      await navigating
+      expect(router.currentRoute.value.name).toBe('login')
+      expect(fetchMock).not.toHaveBeenCalled()
+    } finally {
+      auth.hasHydrated = true
+      disposePinia(foreign)
+      setActivePinia(pinia)
+    }
   })
 })

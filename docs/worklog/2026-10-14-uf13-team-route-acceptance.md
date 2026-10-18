@@ -546,3 +546,23 @@ C2のbackend/.venvは外部cacheへのリンク構成で、pytestスクリプト
 coreの重複検証を除き、合成基線の空commit許容を明示。U-F3先行登録を持つ隔離Git履歴からrouter/Appを登録し、本人未記入拒否/合成チェック済み正例/既存LoginScreen削除拒否を実CLIで検査する。実PRの本人欄は未記入。planのworktreeは相対表記へ追随。
 
 旧結合2337157dのroot全件はレビューによる製品是正で検査対象が変わるためDのpytestだけを正常中断。14,204成功/2 skip、605.42秒、exit2で専用cluster撤去済み。完走成功へ数えずログを保持。別の専用結合検証worktreeで最終修正を固定し、全件を再開始する。U-F3単独の固定候補/root全件は変更せず継続。
+
+
+### U-F13既定レビュー第2周・最終追補（未再レビュー）
+
+第2周はCodex新規P0=0/P1=0/P2=1、実Claude新規P0=0/P1=0/P2=4（任意nit1含む）。第1周P1残余2件は未解消、人間の具体契約判断/実ブラウザ観察を公開前条件として保持する。第3周は追加しない。
+
+最終P2は全採用。401/storage試験をTeamScreen表示・実tenant要求がある状態から開始し、明示401応答と旧tenant IDを表明。spyの実呼出しを固定し、hydration後のprovider拒否も追加。合成基線の宣言をLoginScreenとし、router/Appへの宣言回転をJSONより先の別commitで行う実CLI隔離履歴へ是正。既存LoginScreen除去だけの負例は拒否。複数タブの受入表/未チェック欄と安全側合否・可用性観察を計画§6.1へ追加。
+
+router/App26件は専用feature/uf13-team-route-verification（C0583e3aの後に試験だけを追加した候補）で成功、core265件はU-F13単独worktreeの最新試験で成功。帰属を混同しない。結合候補の追加後core/全frontend再検査を別に実行中。root全件はC0583e3aの固定候補で実行中。8e9d77c8以降は製品/実検査器の変更なしで、試験と資料だけの追補。最新反映は独立未再レビューとして本人対象へ残す。
+
+| レビューログ（ローカルcache保全） | SHA-256 |
+| --- | --- |
+| round1-codex.log | `bfb365ad7ffe9f3c0452a0a5ae707753307e02657199a1ea6f97e4b89da3b4f1` |
+| round1-claude.log | `923548809ce8796ee8452062c9e58e7bb7443a7757f0b851ee4d2fa8b5f58eda` |
+| round2-codex.log | `8cde046179fb5a774c4893a1882729006bd6ff3186b0cdc199f5a9604e9a331d` |
+| round2-claude.log | `723002e1214c53292f7d0b6eac81cfe2d37990de9e60abb9bab804f3e5889b5c` |
+
+Codex利用量は第1周38,212・第2周25,743 tokens、Claude利用量は未取得。既定2経路2周の範囲を維持し、新しいレビュー裁定やモデル代替なし。
+
+C2はDraft #150（146c774c）、U-F3はDraft #151（db2bc2c7）。後者は登録後root29,672成功/2 skip/1500.71秒で専用DB撤去済み。NotionのTSK-528は進行中と旧#147リンクを保持してURL 1へ#150を追記、TSK-518は古い未着手から進行中へ追随して#151を登録した。カード全体を確認済み/完了へ変更しない。
