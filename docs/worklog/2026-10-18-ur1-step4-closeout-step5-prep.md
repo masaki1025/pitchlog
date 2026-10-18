@@ -97,3 +97,5 @@ Ruff check、ty check、候補単体とRG1関連25件は成功。使い捨てPos
 正式資産・7.7・実台帳・製品Port・共有DBは変更していない。後続は、U-S1 R-17正本追随、資格失効側ロック順/公開PortとU-G1の公開結果・全順の項目別受理、正本の正式7.3、exact DDL/JSON・個別受理、7.7実値の順。実配置・鍵管理責任・端末資格責任・有料資源は未決のまま。TSK-550 B/U-G1/U-S1/TSK-506の作業木は編集していない。
 
 反映後の限定検査はbackend `ruff check .`、`ty check`、候補+RG1関連pytest **29件成功**（使い捨てPostgreSQLの資格失効・claim競合を含む）。root `check_docs_status.py` は20文書/違反0。全backend・全ハーネス、同期standby/旧primary/製品Portは未検証。反映後SHA-256は`initial_grant.py=c20d596ba80a7c9e792a472ddde295a261b0dee2977627e7f0391765bdca59c3`、候補試験=`e643efd043775b6f51706661f9a1f7211b69a2047e9c6cd38340a5252cbad0e0`。この識別値の差分は独立再レビュー未実施。
+
+接続候補の文言を追確認し、`start_request_id`を「サーバーが既に永続化済み」と断定した箇所を訂正した。端末が送信前に保持する既存案を参照し、`reservation_attempt_id`の発行者・耐久保存先・rollback後の切替を担当受理待ちへ明示した。応答不明時に同じattemptを再照会できる実装がない状態を安全な再試行済みとは扱わない。この文書のみの最終修正も独立再レビュー未実施。

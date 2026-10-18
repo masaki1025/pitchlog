@@ -4,7 +4,7 @@
 
 ## U-G1: 開始と同一scopeの付与
 
-U-G1所有の開始処理は、認証境界から渡された `VerifiedDeviceContext(tenant_id: UUID, device_id: UUID, credential: str)`、サーバー側で永続化した `start_request_id: UUID` と `reservation_attempt_id: UUID` を受ける候補とする。自己申告の端末IDだけでは呼べない。`tenant_transaction_scope` 内で以下の U-R1 operation を一度呼び、開始状態・スタメンとともに**業務DBを一括確定**する。`scope` は同じ業務DB transactionに束縛される。
+U-G1所有の開始処理は、認証境界から渡された `VerifiedDeviceContext(tenant_id: UUID, device_id: UUID, credential: str)`、再送で変わらない `start_request_id: UUID` と、外部予約前に耐久的に識別できる `reservation_attempt_id: UUID` を受ける候補とする。前者は端末が送信前に保持する既存案、後者の発行者・耐久記録先とrollback後の新attemptへの切替はU-G1/U-R1受理待ち。自己申告の端末IDだけでは呼べない。`tenant_transaction_scope` 内で以下の U-R1 operation を一度呼び、開始状態・スタメンとともに**業務DBを一括確定**する。`scope` は同じ業務DB transactionに束縛される。
 
 ```python
 issue_initial_recording_right(
@@ -40,7 +40,7 @@ InitialGrant(game_id: UUID, generation: int, recovery_generation: str,
 
 ## DBをまたぐ順序と途中失敗
 
-1. 認証済みtenantと端末資格を確認し、同じ要求/attemptの識別子を耐久保存する。RG1を非ロックで事前照合する。業務scope内では有効な資格行を `FOR SHARE` でロックし、業務DB commitまで保持する。資格失効はこの行の `UPDATE` と直列化する。資格失効側が資格行を保持したまま試合・世代行を取る経路を作らないことは認証担当の受理待ち。
+1. 認証済みtenantと端末資格を確認し、同じ要求/attemptを再照会できる耐久識別を確立する。attemptの保存先とrollback後の切替は担当受理待ちで、実装がない間は応答不明の再試行を安全と判定しない。RG1を非ロックで事前照合する。業務scope内では有効な資格行を `FOR SHARE` でロックし、業務DB commitまで保持する。資格失効はこの行の `UPDATE` と直列化する。資格失効側が資格行を保持したまま試合・世代行を取る経路を作らないことは認証担当の受理待ち。
 2. 復元外台帳の `recovery_epoch` 1行を `FOR SHARE` で取り、業務DB commit終了まで保持する。counterは別行で原子的にD4を予約する。同じ `attempt_id` の応答不明は**同じowner tuple**でのみ再照会する。別ownerは拒否する。
 3. 台帳に `reserved→claimed` を一度だけ耐久確定し、その後に業務DBの試合行 `FOR UPDATE` → U-G1のチーム行/選手行（既存順）→ U-M2記憶行（既存順）→ 記録権世代行 → V12配達行 → RG1状態行 `FOR SHARE NOWAIT` の順でロック/照合する。U-S1同期は既受理の試合行→世代行→RG1行を維持する。配達行・チーム/選手/記憶との相対順は U-G1/U-S1 の実経路照合待ち。
 4. 業務DBをcommitし、結果が確定してから外部epoch共有ロックを解放する。外部の予約/claimは業務DB rollbackで戻さず、D4を飛び番として消費する。業務DB commit後・HTTP応答前の消失は同じ開始要求と端末の保存済み権利を照会し、同じV12を再交付する。
