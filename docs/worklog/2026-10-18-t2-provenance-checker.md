@@ -113,3 +113,10 @@ branch: feature/t2-provenance-checker
 - 専用DB container=`pitchlog-t2-p8-review-2dce3b32`、既存image postgres:17.11-bookworm、localhost:36826、DB=t2_harness、tmpfsを使用。全harness終了後に自分のcontainerだけ停止・--rmで除去。共有DB・ロール・秘密情報を使用/変更していない。
 - P1是正後の関連試験 **707 passed / 39.90秒**（上記schema/T1/coverage/mutation/Python loaderの5ファイル）、ruff全体/ty/docs-status/diff-check合格。是正前のTS loader18 passed。全harnessは是正前の固定HEADの結果であり、是正後全体実行済みとは記録しない。
 - 最終候補byte SHA-256: bundle=`ec49365e193b91d6224d7f8f586e2760f03525d071d5793adf117d3ce600e58f`、schema=`057bb8effeace6425f50de8223f4202bff625503444c3a46e5aa1c5b4cc417a4`、境界fixture=`63ee2ae009444654320d61981a334182e81bdabae80528df317c3bed1bd40490`。candidateId=t2-p8-followup-v1/schemaVersion=1を保持し、識別にはcommit/digestも必須。
+
+### 最終受渡し資料
+
+- 最終コード/候補HEAD=`5a9e37bd263787106f08bb05224f01333e79ffc3`。是正差分`2dce3b32..5a9e37bd`のbinary diff SHA-256=`1b1bcaa0a0bbadc48fc92a6ece84a5cfea991badd969934911db3d2b58a3ea95`（`/tmp/t2-p8-fix-5a9e37bd.diff`）。この差分の独立再レビューは未実施。
+- 最終報告: `docs/features/t2-provenance-checker/p8-fixed-candidate-report-2026-10-19.md`。provenance技術是正/整備最終完了、P-8各項目、545着手条件を個別判定。DRAWの条文別未被覆とgap_register集約resolvedを区別した。
+- 544/545/表示担当への具体物とreceiverDoDを列記。担当への送信・実受領返信は本セッションで未実施、受理を推定記録しない。正本確定/7.7/再署名/P-6/人間逐行確認は別途未成立。
+- PO採用5件の再判断は求めない。是正差分への追加レビュー1回（基本2+追加1使用済み）または残余受容、正本patchの正式ゲート提出、push/Draft PRの可否を完成差分と結果にまとめた。署名・製品投入・マージは実施しない。
