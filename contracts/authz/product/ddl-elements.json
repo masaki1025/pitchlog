@@ -60,6 +60,17 @@
       "create_db": false,
       "replication": false,
       "inherit": false
+    },
+    {
+      "role_id": "pitchlog_rg1_fn_owner",
+      "creation": "product_ddl",
+      "superuser": false,
+      "bypass_rls": false,
+      "login": false,
+      "create_role": false,
+      "create_db": false,
+      "replication": false,
+      "inherit": false
     }
   ],
   "permanent_privileged_role_ids": [
@@ -124,6 +135,11 @@
           "grantee": "pitchlog_auth_fn_owner",
           "privilege": "USAGE",
           "grantable": false
+        },
+        {
+          "grantee": "pitchlog_rg1_fn_owner",
+          "privilege": "USAGE",
+          "grantable": false
         }
       ],
       "revoked_acl_expectations": [
@@ -149,6 +165,11 @@
         },
         {
           "grantee": "pitchlog_auth_fn_owner",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_rg1_fn_owner",
           "privilege": "CREATE",
           "grantable": false
         }
@@ -261,6 +282,37 @@
         },
         {
           "grantee": "pitchlog_auth_fn_owner",
+          "privilege": "CREATE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "schema_id": "rg1_api",
+      "schema_name": "rg1_api",
+      "creation": "product_ddl",
+      "owner": "pitchlog_owner",
+      "ownership_path": "direct",
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "USAGE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "PUBLIC",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
           "privilege": "CREATE",
           "grantable": false
         }
@@ -534,6 +586,12 @@
     },
     {
       "table_id": "migration_warning_reports",
+      "schema_name": "public",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "rg1_restore_gate",
       "schema_name": "public",
       "enable_row_level_security": true,
       "force_row_level_security": true
@@ -1110,6 +1168,40 @@
       "with_check_predicate_id": null,
       "with_check_column": null,
       "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:rg1_restore_gate:rg1_fn_select_singleton",
+      "table_id": "rg1_restore_gate",
+      "profile": "function_only",
+      "policy_name": "rg1_fn_select_singleton",
+      "command": "SELECT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_rg1_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "singleton_id = 1",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:rg1_restore_gate:rg1_fn_lock_singleton",
+      "table_id": "rg1_restore_gate",
+      "profile": "function_only",
+      "policy_name": "rg1_fn_lock_singleton",
+      "command": "UPDATE",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_rg1_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "singleton_id = 1",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "singleton_id = 1"
     }
   ],
   "functions": [
@@ -2287,6 +2379,66 @@
           "grantable": false
         }
       ]
+    },
+    {
+      "function_id": "FUNCTION:rg1_api:rg1_read_open(uuid)",
+      "schema_name": "rg1_api",
+      "function_name": "rg1_read_open",
+      "identity_args": "uuid",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_rg1_fn_owner",
+      "language": "plpgsql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)",
+      "schema_name": "rg1_api",
+      "function_name": "rg1_assert_open_before_commit",
+      "identity_args": "uuid",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_rg1_fn_owner",
+      "language": "plpgsql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
     }
   ],
   "acl_expectations": [
@@ -2910,6 +3062,33 @@
       ],
       "grant_option": false,
       "function_id": "FUNCTION:authn:login_attempt(text, text, text)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "rg1_restore_gate",
+      "column_id": "singleton_id",
+      "grantee_role_id": "pitchlog_rg1_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "UPDATE"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:rg1_restore_gate:state:pitchlog_rg1_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "rg1_restore_gate",
+      "column_id": "state",
+      "grantee_role_id": "pitchlog_rg1_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:rg1_api:rg1_read_open(uuid)"
     }
   ],
   "extensions": [

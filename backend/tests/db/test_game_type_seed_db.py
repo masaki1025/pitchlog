@@ -335,9 +335,27 @@ def test_game_type_seed_round_trip_under_product_rls(
     catalog = provisioned_product_catalog
     config = _owner_migration_config(catalog.owner_dsn, monkeypatch)
     command.downgrade(config, "0029_system_vocab_category_fk")
-    apply_product_authz_ddl(catalog.applicator)
+    # 0029 時点に 0032 の RG1 表はない。試合区分の RLS が残ることを確認する。
+    with psycopg.connect(catalog.owner_dsn) as owner, owner.cursor() as cursor:
+        cursor.execute("SELECT to_regclass('public.rg1_restore_gate')")
+        assert cursor.fetchone() == (None,)
+        cursor.execute(
+            "SELECT relrowsecurity, relforcerowsecurity FROM pg_class "
+            "WHERE oid = 'public.system_vocabularies'::regclass"
+        )
+        assert cursor.fetchone() == (True, True)
+        cursor.execute(
+            "SELECT policyname FROM pg_policies WHERE schemaname = 'public' "
+            "AND tablename = 'system_vocabularies'"
+        )
+        assert {row[0] for row in cursor.fetchall()} >= {
+            "pitchlog_owner_game_type_seed_select",
+            "pitchlog_owner_game_type_seed_insert",
+            "pitchlog_owner_game_type_seed_delete",
+        }
     command.upgrade(config, "0030_seed_game_type")
     command.upgrade(config, "head")
+    apply_product_authz_ddl(catalog.applicator)
     command.current(config, check_heads=True)
 
     admin_dsn = make_conninfo(catalog.cluster.admin_dsn, dbname="pitchlog_product")

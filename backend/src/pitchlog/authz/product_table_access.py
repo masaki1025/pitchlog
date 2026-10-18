@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Final
 
+from pitchlog.authz.product_control_access import is_forbidden_rg1_table_acl
+
 TENANT_PREDICATE_ID: Final = "PREDICATE:TENANT"
 TENANT_PREDICATE_TEMPLATE: Final = (
     "COALESCE({column} = NULLIF(pg_catalog.current_setting('app.tenant_id', true), "
@@ -188,6 +190,8 @@ def generate_product_table_acl_sql(table_id: str, profile: str) -> str:
 
 def generate_function_owner_table_acl_sql(declaration: dict[str, object]) -> str:
     """資産で宣言した関数所有者の表 ACL SQL を生成する。"""
+    if is_forbidden_rg1_table_acl(declaration):
+        raise ValueError("RG1状態表と専用ownerには表単位ACLを許可しない")
     acl_id = str(declaration["acl_id"])
     schema_name = str(declaration["object_schema"])
     table_id = str(declaration["object_id"])
