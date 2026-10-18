@@ -670,6 +670,49 @@
       "reason": "ADR-003 D-14-m/要件書v2.15の確定に伴い、認可外5編集の分類と要件書入力blobを更新。C1/#144のGET経路・既存履歴を保持し、oracle入力8資産の変更を直列に再封印。認可主張187行、owner、同一性粒度、配置、oracleの意味は不変。",
       "approved_by": "山田正輝",
       "approved_at": "2026-10-17"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#152",
+      "approved_at": "2026-10-18",
+      "approved_by": "山田正輝",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "4b85b358acb87d32ec964bd76856eb0c1cfec3f6"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "e6a0ca0ab6cee5c779851518463eafba6ae146b3"
+          }
+        ]
+      },
+      "reason": "TSK-550/#152のclaim・lockへ派生3資産を追随させ、8入力blobと6oracle資産の封印参照を一致させる。認可意味行・分類・配置・同一性粒度は不変。",
+      "series": "oracle_input"
     }
   ]
 }
