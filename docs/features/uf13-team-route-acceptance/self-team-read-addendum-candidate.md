@@ -53,8 +53,10 @@
 | Codex D / #157 | 認証相関の現28ファイルを固定。自チームAPI/権限差分を同梱しない |
 | Codex D / #150 | 既存C2 metadataと共通client。#157実統合後に承認済み680追随。self対象operationの追加は本候補が正式化されてから行う |
 | Codex D / #151 | LoginScreenと固有試験。#157実統合後に実store型へ追随。self DTO/業務SQLは所有しない |
-| Codex D / #154 | router/Appと既存選手画面の接続/受入。self未受入とステップ3未完了を維持し、候補資料だけ先行する |
-| Codex D / self最小追補 | roster.py・team_records.py・tenant_access.py対象集合、roster client/query key/TeamScreenと固有試験。先行4PRの実develop統合後の基線から1本の最小follow-upを推奨。正式正本改訂が必要な場合だけ規約上必要な前提PRを分ける |
+| Codex D / #154 | router/Appと既存選手画面の接続/受入。self未受入とステップ3未完了を維持し、候補資料だけ先行する。正式ゲート後に本最小追補を同梱する案を第一候補とするが、現在の承認範囲へ追加済みとはしない |
+| Codex D / self最小追補 | roster.py・team_records.py・tenant_access.py対象集合、roster client/query key/TeamScreenと固有試験。先行#157/#150/#151の実develop統合後の基線から着手する候補。第一案は#154計画への最小追補として同梱し、既存実PR番号で必要な正式受理を行う。正式正本の事前統合等で別PRが必須と確認された場合だけ、その最小前提PRを分ける |
+
+この配置案の範囲追加は人間判断に出し、決定前に#154へ製品差分を追加しない。#154の自チーム受入を「#154統合後にのみ着手するAPI」の完成条件にして循環させない。#154を自チーム未受入の部分実装として先に統合する選択は別の範囲判断であり、ここでは採用しない。
 
 共有資産は着手時の編集所有を再照合する。本候補の作成は共有資産の一時所有取得を意味しない。新PRはまだ作らない。
 
