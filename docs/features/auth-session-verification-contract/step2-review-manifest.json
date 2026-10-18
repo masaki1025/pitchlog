@@ -1,0 +1,22 @@
+{
+  "base": "3052e0db743877c7f15c0ec10daa0142cba7ab7e",
+  "product_sha256": {
+    "frontend/src/api/auth.ts": "74489e606059fe5b631c322d38e2e8c2690bfc7c55699ef142e176cd147bbd5c",
+    "frontend/src/api/client.ts": "ec98e397b4164ff7a286b2a5d1c89222947b09134037b6bac20d38fd330d4de7",
+    "frontend/src/stores/authStore.ts": "1ea7f996cd1a3c71e6d1c5e05e33a2579f54caafc0a7a5933e953aec60ed2481"
+  },
+  "reviews": [
+    {
+      "command": "python .claude/scripts/codex_run.py review adversarial -",
+      "verdict": "可決 P0=0 P1=0 P2=0",
+      "log_sha256": "193bc8f70d540a5dc14ea4a9c67ba8a3d279cb4d21ce127829477f313f9fd3de",
+      "scope": "第1周の指摘反映差分と影響。製品3ファイルは上記hash、試験・記録のP2は採用反映。静的査読、本人確認を含まない。"
+    },
+    {
+      "command": "claude --print --tools ''",
+      "verdict": "可決 P0=0 P1=0 P2=2",
+      "log_sha256": "5805701bb149c48b12c0a271c9a2db462d17026286614f6f5d9e58b791d9b3e9",
+      "scope": "第1周の指摘反映差分と影響。製品3ファイルは上記hash、試験・記録のP2は採用反映。静的査読、本人確認を含まない。"
+    }
+  ]
+}

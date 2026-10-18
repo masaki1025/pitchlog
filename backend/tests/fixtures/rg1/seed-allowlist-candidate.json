@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "asset_kind": "migration_seed_allowlist_candidate",
+  "declarations": {
+    "rg1_closed_seed": {
+      "frozen_targets": [
+        "migrations/versions/0032_rg1_restore_gate.py"
+      ],
+      "identity": "sha256_canonical_json",
+      "granularity": "declaration_series",
+      "allowed": {
+        "row_shape": "singleton_exact",
+        "upgrade_calls": [
+          "bulk_insert"
+        ],
+        "target_tables": [
+          "rg1_restore_gate"
+        ],
+        "upgrade_rows": {
+          "count": 1,
+          "rows": [
+            {
+              "singleton_id": 1,
+              "state": "closed"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "acceptance_state": "pending_7_7"
+}

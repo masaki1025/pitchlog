@@ -328,7 +328,10 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
         expected_sql[("policy", f"POLICY:{table_id}:{CONTROL_PROFILE}")] = (
             generate_control_policy_sql(table_id)
         )
-    owner_policy_ids = set(_catalog_checker._owner_game_type_seed_policies())
+    owner_policy_ids = set(_catalog_checker._owner_game_type_seed_policies()) | {
+        "POLICY:rg1_restore_gate:rg1_fn_select_singleton",
+        "POLICY:rg1_restore_gate:rg1_fn_lock_singleton",
+    }
     assert {
         element_id
         for element_type, element_id in actual_sql

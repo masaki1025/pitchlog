@@ -111,3 +111,12 @@ C1の正規auth clientを使い、チーム名・パスワードの入力、認�
 ## 10. 人間承認記録
 
 2026-10-14、山田正輝が計画HEAD `e42a2ddbd2db58dd1fca642959ff4a2870299f63` の本計画とCodex D担当を承認した。#119とC1がdevelopへ統合され、所有重複を再確認した後も最初のステップだけを実装して停止する。第2周P1追随の未再レビュー範囲は人間逐行確認対象として維持する。
+
+
+### C1依存の更新（2026-10-17）
+
+C1ステップ1はPR #144 / develop `3052e0db743877c7f15c0ec10daa0142cba7ab7e`へ統合済み。C1ステップ2（正規auth clientと検証済みstore）はCodex Dが同専用worktreeで実装中であり、C1全体の開始条件が成立したとは扱わない。`api/auth.ts` / `authStore.ts`と、最小追随中の`api/client.ts`はC1が一時所有し、統合後の基線から後続が再照合する。本計画の製品実装は今回開始しない。
+
+### C1遅延Cookie追補の接続条件（2026-10-17）
+
+山田正輝がC1の安全側への例外を承認した。旧login/logoutのCookie変更可能性を観測した場合、新世代も`verification-unknown`へ戻しcacheを破棄する。旧ユーザー/tenant/成功は採用せず、tenant-bound通信を止め、明示session GETだけで再確認する。資格情報やmutationの自動再送は行わない。UIは`stale`だけでなく新世代の`verification-unknown`も成功として扱わず、結果epochを照合する。C2はこの破棄境界を維持して業務operation前の応答tenant照合を追加する。C1が共有client/storeを一時所有し、統合後に後続が基線から引き継ぐ。今回C2/U-F3/保護routeの製品実装は行わない。

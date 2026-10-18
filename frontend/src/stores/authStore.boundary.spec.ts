@@ -228,7 +228,9 @@ describe('authStore の越境', () => {
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('チーム A のデータ')
-    expect(wrapper.text()).toContain('チーム B のデータ')
+    expect(wrapper.text()).not.toContain('チーム B のデータ')
+    expect(useAuthStore().isAuthenticated).toBe(false)
+    expect(useAuthStore().teamId).toBeNull()
   })
 
   it('authEpoch の鍵がない画面はキャッシュ消去後も A の表示が残る', async () => {

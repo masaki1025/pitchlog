@@ -12,6 +12,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     PrimaryKeyConstraint,
+    SmallInteger,
     Text,
     UniqueConstraint,
     Uuid,
@@ -35,6 +36,39 @@ from pitchlog.db.model_metadata import (
     Lifecycle,
     MigrationRetirement,
 )
+
+
+class RG1RestoreGate(LifecycleMixin, Base):
+    """復元調整中の通常書込みを止める全体共通の単一状態行。"""
+
+    __tablename__ = "rg1_restore_gate"
+    __table_args__ = (
+        CheckConstraint("singleton_id = 1", name="ck_rg1_restore_gate_singleton_id"),
+        CheckConstraint(
+            "state IN ('closed', 'open')", name="ck_rg1_restore_gate_state"
+        ),
+        PrimaryKeyConstraint(
+            "singleton_id",
+            name="pk_rg1_restore_gate",
+            info={"roles": ("primary_key", "fk_target")},
+        ),
+    )
+
+    singleton_id: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, autoincrement=False
+    )
+    state: Mapped[str] = mapped_column(Text, nullable=False)
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=frozenset({"singleton_id"}),
+        allowed_update_columns=frozenset({"state"}),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
+    )
 
 
 class EvacuatedEventOriginal(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):

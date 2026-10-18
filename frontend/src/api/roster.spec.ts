@@ -1,3 +1,4 @@
+import { useAuthStore } from '../stores/authStore'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '../lib/queryClient'
@@ -64,6 +65,7 @@ beforeEach(() => {
   pinia = createPinia()
   setActivePinia(pinia)
   localStorage.clear()
+  useAuthStore().signIn({ teamName: '検証済み試験チーム', teamId: 'team-test' })
   vi.stubGlobal('fetch', vi.fn())
 })
 

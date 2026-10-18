@@ -176,7 +176,7 @@ describe('authStore', () => {
     expectCacheReset((current) => current.expireSession())
   })
 
-  it('新しい Pinia では保存済みの同じチームを復元する', () => {
+  it('新しい Pinia では保存済みチームを認証へ復元しない', () => {
     const original = useAuthStore()
     original.signIn({ teamName: 'チーム A', teamId: 'team-a' })
     const sessionId = savedAuth().sessionId
@@ -184,9 +184,9 @@ describe('authStore', () => {
     activatePinia()
     const restored = useAuthStore()
 
-    expect(restored.isAuthenticated).toBe(true)
-    expect(restored.teamName).toBe('チーム A')
-    expect(restored.teamId).toBe('team-a')
+    expect(restored.isAuthenticated).toBe(false)
+    expect(restored.teamName).toBeNull()
+    expect(restored.teamId).toBeNull()
     expect(restored.hasHydrated).toBe(true)
     expect(restored.authEpoch).toBe(0)
     expect(savedAuth().sessionId).toBe(sessionId)
@@ -407,8 +407,8 @@ describe('authStore タブ間同期', () => {
     writeOtherTabAuth(otherTabSessionIds.teamB, 'チーム B', 'team-b')
     dispatchStorageEvent(AUTH_STORAGE_KEY, localStorage)
 
-    expect(store.teamName).toBe('チーム B')
-    expect(store.teamId).toBe('team-b')
+    expect(store.teamName).toBeNull()
+    expect(store.teamId).toBeNull()
     expect(store.sessionExpired).toBe(false)
     expect(store.authEpoch).toBe(previousEpoch + 1)
     expect(queryClient.getQueryCache().getAll()).toEqual([])
@@ -423,8 +423,8 @@ describe('authStore タブ間同期', () => {
     writeOtherTabAuth(otherTabSessionIds.sameTeam, 'チーム A', 'team-a')
     dispatchStorageEvent()
 
-    expect(store.teamName).toBe('チーム A')
-    expect(store.teamId).toBe('team-a')
+    expect(store.teamName).toBeNull()
+    expect(store.teamId).toBeNull()
     expect(store.authEpoch).toBe(previousEpoch + 1)
     expect(queryClient.getQueryCache().getAll()).toEqual([])
   })
@@ -497,8 +497,8 @@ describe('authStore タブ間同期', () => {
     writeOtherTabAuth(otherTabSessionIds.teamB, 'チーム B', 'team-b')
     store.syncFromStorage()
 
-    expect(store.teamName).toBe('チーム B')
-    expect(store.teamId).toBe('team-b')
+    expect(store.teamName).toBeNull()
+    expect(store.teamId).toBeNull()
     expect(store.authEpoch).toBe(previousEpoch + 1)
     expect(queryClient.getQueryCache().getAll()).toEqual([])
   })
@@ -713,8 +713,8 @@ describe('authStore タブ間同期', () => {
       writeOtherTabAuth(otherTabSessionIds.teamE, 'チーム E', 'team-e')
       store.syncFromStorage()
 
-      expect(store.teamName).toBe('チーム E')
-      expect(store.teamId).toBe('team-e')
+      expect(store.teamName).toBeNull()
+      expect(store.teamId).toBeNull()
       expect(store.sessionExpired).toBe(false)
       expect(store.authEpoch).toBe(beforeE + 1)
       expect(queryClient.getQueryCache().getAll()).toEqual([])
@@ -740,8 +740,8 @@ describe('authStore タブ間同期', () => {
 
     store.syncFromStorage()
 
-    expect(store.teamName).toBe('チーム C')
-    expect(store.teamId).toBe('team-c')
+    expect(store.teamName).toBeNull()
+    expect(store.teamId).toBeNull()
     expect(store.sessionExpired).toBe(false)
     expect(store.authEpoch).toBe(previousEpoch + 1)
     expect(queryClient.getQueryCache().getAll()).toEqual([])
@@ -766,8 +766,8 @@ describe('authStore タブ間同期', () => {
 
     store.syncFromStorage()
 
-    expect(store.teamName).toBe('チーム C')
-    expect(store.teamId).toBe('team-c')
+    expect(store.teamName).toBeNull()
+    expect(store.teamId).toBeNull()
     expect(store.sessionExpired).toBe(false)
     expect(store.authEpoch).toBe(previousEpoch + 1)
     expect(queryClient.getQueryCache().getAll()).toEqual([])

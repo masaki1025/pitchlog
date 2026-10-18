@@ -71,6 +71,31 @@
           ]
         }
       }
+    },
+    "rg1_closed_seed": {
+      "frozen_targets": [
+        "migrations/versions/0032_rg1_restore_gate.py"
+      ],
+      "identity": "sha256_canonical_json",
+      "granularity": "declaration_series",
+      "allowed": {
+        "row_shape": "singleton_exact",
+        "upgrade_calls": [
+          "bulk_insert"
+        ],
+        "target_tables": [
+          "rg1_restore_gate"
+        ],
+        "upgrade_rows": {
+          "count": 1,
+          "rows": [
+            {
+              "singleton_id": 1,
+              "state": "closed"
+            }
+          ]
+        }
+      }
     }
   },
   "history": [
@@ -199,6 +224,59 @@
       "reason": "試合作成に必要な固定語彙を投入し、他の migration の DML 禁止を維持するため",
       "approved_by": "山田正輝",
       "approved_at": "2026-10-13"
+    },
+    {
+      "series": "rg1_closed_seed",
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "sha256_canonical_json",
+            "value": "d6d05be6344a266d4ec63e2750694aa4b71341c119e03fbd3460f73cab1b7fb0"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": false,
+        "values": []
+      },
+      "changes": [
+        {
+          "aspect": "declaration",
+          "before": {
+            "absent": true
+          },
+          "after": {
+            "frozen_targets": [
+              "migrations/versions/0032_rg1_restore_gate.py"
+            ],
+            "identity": "sha256_canonical_json",
+            "granularity": "declaration_series",
+            "allowed": {
+              "row_shape": "singleton_exact",
+              "upgrade_calls": [
+                "bulk_insert"
+              ],
+              "target_tables": [
+                "rg1_restore_gate"
+              ],
+              "upgrade_rows": {
+                "count": 1,
+                "rows": [
+                  {
+                    "singleton_id": 1,
+                    "state": "closed"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "fact": "RG1単一closed初期行だけを投入するmigrationを許可する",
+      "reason": "通常書込みを既定閉鎖するため。",
+      "approved_by": "山田正輝",
+      "approved_at": "2026-10-17"
     }
   ]
 }

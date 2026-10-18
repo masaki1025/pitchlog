@@ -153,7 +153,7 @@ def test_acceptance_sheets_are_generated_from_current_sources() -> None:
     } == {
         "N1-table-completeness.md": 103,
         "N3-immutability-completeness.md": 105,
-        "N4-deletion-lifecycle.md": 54,
+        "N4-deletion-lifecycle.md": 55,
         "N7-required-attributes.md": 100,
     }
     assert all(
