@@ -14,22 +14,11 @@ import { useAuthStore } from '../stores/authStore'
 
 const emit = defineEmits<{ authenticated: [] }>()
 const auth = useAuthStore()
-// 相関追補との同時配布が前提。単独U-F3候補では旧clientの状態を変更しない。
-const correlatedAuth = auth as typeof auth & {
-  environmentReason?:
-    | 'storage-unavailable'
-    | 'lock-unavailable'
-    | 'lock-busy'
-    | 'identity-unavailable'
-    | null
-  explicitLoginRequired?: boolean
-  canReverify?: boolean
-}
 const environmentBlocked = computed(
   () =>
-    correlatedAuth.environmentReason === 'storage-unavailable' ||
-    correlatedAuth.environmentReason === 'lock-unavailable' ||
-    correlatedAuth.environmentReason === 'identity-unavailable',
+    auth.environmentReason === 'storage-unavailable' ||
+    auth.environmentReason === 'lock-unavailable' ||
+    auth.environmentReason === 'identity-unavailable',
 )
 const teamName = ref('')
 const password = ref('')
@@ -57,15 +46,15 @@ const blocked = computed(
     state.value === 'authenticated',
 )
 const message = computed(() => {
-  if (correlatedAuth.environmentReason === 'storage-unavailable')
+  if (auth.environmentReason === 'storage-unavailable')
     return 'サイトの保存機能を利用できません。サイトデータの保存を許可してから、このページを再読込してください。復旧するまでログイン操作は送信しません。'
-  if (correlatedAuth.environmentReason === 'lock-unavailable')
+  if (auth.environmentReason === 'lock-unavailable')
     return 'この環境では安全な認証に必要なWeb Locksを利用できません。対応する最新ブラウザでHTTPSのサイトを開き直してください。復旧するまでログイン操作は送信しません。'
-  if (correlatedAuth.environmentReason === 'identity-unavailable')
+  if (auth.environmentReason === 'identity-unavailable')
     return 'この環境では安全な識別子を生成できません。対応する最新ブラウザでHTTPSのサイトを開き直してください。復旧するまでログイン操作は送信しません。'
-  if (correlatedAuth.environmentReason === 'lock-busy')
+  if (auth.environmentReason === 'lock-busy')
     return '別のタブで認証操作が進行中です。そちらの操作を終えてから、明示的にもう一度操作してください。自動再送は行いません。'
-  if (correlatedAuth.explicitLoginRequired)
+  if (auth.explicitLoginRequired)
     return '認証の変更を検出しました。別のチームへ自動で切り替えません。チーム名とパスワードを入力し、ログインし直してください。'
 
   switch (state.value) {
@@ -76,7 +65,7 @@ const message = computed(() => {
     case 'cookie-unavailable':
       return 'ログイン後のCookieを確認できません。Cookieの保存設定を確認してから、このページを再読込してください。資格情報を自動再送しません。'
     case 'verification-unknown':
-      if (correlatedAuth.canReverify === false)
+      if (auth.canReverify === false)
         return '認証の結果を確認できません。チーム名とパスワードを入力して明示的にログインし直すか、ログアウトしてください。'
       return '認証状態を確認できません。状態を再確認するか、ログアウトしてやり直してください。'
     default:
@@ -104,9 +93,9 @@ function apply(result: SessionResult | LoginResult, initial = false): void {
   } else {
     state.value =
       initial &&
-      correlatedAuth.canReverify === false &&
-      !correlatedAuth.explicitLoginRequired &&
-      !correlatedAuth.environmentReason
+      auth.canReverify === false &&
+      !auth.explicitLoginRequired &&
+      !auth.environmentReason
         ? 'idle'
         : 'verification-unknown'
   }
@@ -187,7 +176,7 @@ watch(
     if (
       pending.value &&
       state.value === 'submitting' &&
-      correlatedAuth.canReverify !== false
+      auth.canReverify !== false
     )
       state.value = 'verifying'
     else if (!pending.value) state.value = 'verification-unknown'
@@ -281,8 +270,8 @@ onBeforeUnmount(() => {
           <Button
             v-if="
               !environmentBlocked &&
-              correlatedAuth.canReverify !== false &&
-              !correlatedAuth.explicitLoginRequired
+              auth.canReverify !== false &&
+              !auth.explicitLoginRequired
             "
             :disabled="blocked"
             @click="verify()"

@@ -110,3 +110,12 @@ U-F3の表示差分は検査済みの候補として既存Draftへ追随する�
 C1相関はDraft #157（92410120、製品108c7562、fixture912585d1）。6de49595/680c2a27は承認済みで未承認待ちを解消した。専用結合600e998bで本UIの製品バイト一致、frontend1,382成功、実画面/API/隔離DB/productionの正常/失敗/遅延/複数タブを確認した。これを本PR単独の1,273成功やCIへ読み替えない。
 
 #157が実developへ統合された後、通常mergeで本枝を追随し、optional castを除去してC1の実store型に合わせる。login strict2項目DTOとnotice/storeのconsumer試験は結合の既検証差分から追随する。未統合C1を通常基線にせず、共通client/storeをコピーしない。新相関の第2周各2/2後の局所修正は未再レビュー、既存U-F3レビュー2/2は保持。本人確認は未実施。自チームreadの正式契約不足は別ゲートで、TSK全体の完了・公開・マージは行わない。
+
+
+## 2026-10-19: C1相関の実統合後追随
+
+山田正輝が#157→#150→#151→#154のマージを許可。#157の実統合a87510e6c431fbb4ee14c91775204a5c91bec745を通常mergeし、独立したLoginScreenの追随を先行した。optional peer castを廃止して実storeのenvironmentReason/explicitLoginRequired/canReverifyを直接参照する。固有specは承認済み専用結合9e85fd66で検証した厳密login DTO/通知相関fixtureと同一。別tenantの自動採用・資格情報/変更要求自動再送は追加しない。
+
+#150実統合後にはその実developを取り込み、C2との最終単独検査を行う。旧HEAD9267116fの本人確認を今回の製品/試験追随へ流用しない。レビューは各2/2の使用履歴を維持し、後発差分は未再レビューとして本人確認資料へ提示する。新API/認可/自チームreadは追加しない。
+
+C1実統合後の独立U-F3検査: frontend70ファイル1,314成功（69.25秒）、Prettier/ESLint/vue-tsc/build/製品閉域検査成功。#150未統合の単独結果であり、C2を含む最終組合せの成功とはしない。

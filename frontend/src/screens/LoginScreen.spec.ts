@@ -1,3 +1,5 @@
+import { withAuthIntent, writeAuthIntent } from '../api/authIntent'
+import { setVerifiedAuthForTest } from '../api/auth.test-support'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -45,6 +47,22 @@ async function click(view: VueWrapper, text: string) {
 }
 beforeEach(() => {
   localStorage.clear()
+  localStorage.setItem(
+    'bb.auth.intent',
+    JSON.stringify({
+      version: 1,
+      intentId: crypto.randomUUID(),
+      phase: 'expected',
+      tenantId: tenant,
+    }),
+  )
+  vi.stubGlobal('navigator', {
+    locks: {
+      request: vi.fn(async (_n, _o, action) =>
+        action({ name: 'integration-unit' }),
+      ),
+    },
+  })
   queryClient.clear()
   pinia = createPinia()
   setActivePinia(pinia)
@@ -71,7 +89,9 @@ describe('LoginScreenの正規認証経路', () => {
     const view = await screen()
     const pending = deferred()
     fetchMock
-      .mockResolvedValueOnce(reply({ status: 'authenticated' }))
+      .mockResolvedValueOnce(
+        reply({ status: 'authenticated', tenant_id: tenant }),
+      )
       .mockReturnValueOnce(pending.promise)
     await submit(view)
     expect(view.emitted('authenticated')).toBeUndefined()
@@ -89,7 +109,7 @@ describe('LoginScreenの正規認証経路', () => {
     expect(useAuthStore().teamId).toBe(tenant)
   })
   it.each([401, 403, 404, 500])(
-    'HTTP %iは固定拒否で内部詳細を漏らさない',
+    'HTTP %iの拒否/未確認を区別し内部詳細を漏らさない',
     async (status) => {
       const view = await screen()
       fetchMock.mockResolvedValueOnce(
@@ -97,7 +117,9 @@ describe('LoginScreenの正規認証経路', () => {
       )
       await submit(view)
       expect(view.get('[role="alert"]').text()).toBe(
-        'ログインできませんでした。入力内容をご確認ください。',
+        status === 401
+          ? 'ログインできませんでした。入力内容をご確認ください。'
+          : '認証の結果を確認できません。チーム名とパスワードを入力して明示的にログインし直すか、ログアウトしてください。',
       )
       expect(view.text()).not.toContain('存在する秘密チーム')
       expect(view.emitted('authenticated')).toBeUndefined()
@@ -113,7 +135,9 @@ describe('LoginScreenの正規認証経路', () => {
     'session %sを成功・認証拒否と同一扱いしない',
     async (kind) => {
       const view = await screen()
-      fetchMock.mockResolvedValueOnce(reply({ status: 'authenticated' }))
+      fetchMock.mockResolvedValueOnce(
+        reply({ status: 'authenticated', tenant_id: tenant }),
+      )
       if (kind === 'network')
         fetchMock.mockRejectedValueOnce(new TypeError('通信断'))
       else
@@ -148,7 +172,7 @@ describe('LoginScreenの正規認証経路', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(
       (view.get('input[name="password"]').element as HTMLInputElement).value,
-    ).toBe('second-attempt')
+    ).toBe('')
   })
   it('明示再確認はGETだけで資格情報を再送しない', async () => {
     fetchMock.mockResolvedValueOnce(reply({}, 503))
@@ -193,10 +217,11 @@ describe('LoginScreenの正規認証経路', () => {
     fetchMock.mockReturnValueOnce(pending.promise)
     const view = await screen()
     const auth = useAuthStore()
-    auth.signIn({ teamId: tenant, teamName: 'B' })
+    setVerifiedAuthForTest(auth, { teamId: tenant, teamName: 'B' })
     pending.resolve(reply(dto))
     await flushPromises()
-    expect(auth.teamName).toBe('B')
+    expect(auth.isAuthenticated).toBe(false)
+    expect(auth.teamName).toBeNull()
     expect(view.emitted('authenticated')).toBeUndefined()
     expect(view.get('[role="alert"]').text()).toContain(
       '認証状態を確認できません',
@@ -208,9 +233,9 @@ describe('LoginScreenの正規認証経路', () => {
     fetchMock.mockReturnValueOnce(pending.promise)
     await submit(view)
     const auth = useAuthStore()
-    auth.signIn({ teamId: tenant, teamName: 'B' })
+    setVerifiedAuthForTest(auth, { teamId: tenant, teamName: 'B' })
     queryClient.setQueryData(['new-tenant'], 'B')
-    pending.resolve(reply({ status: 'authenticated' }))
+    pending.resolve(reply({ status: 'authenticated', tenant_id: tenant }))
     await flushPromises()
     expect(auth.isAuthenticated).toBe(false)
     expect(queryClient.getQueryData(['new-tenant'])).toBeUndefined()
@@ -264,7 +289,7 @@ describe('LoginScreenの正規認証経路', () => {
     fetchMock.mockReturnValueOnce(pending.promise)
     await click(view, 'ログアウトしてやり直す')
     const auth = useAuthStore()
-    auth.signIn({ teamId: tenant, teamName: 'B' })
+    setVerifiedAuthForTest(auth, { teamId: tenant, teamName: 'B' })
     queryClient.setQueryData(['new-tenant'], 'B')
     pending.resolve(reply({ status: 'logged_out' }))
     await flushPromises()
@@ -282,13 +307,13 @@ describe('LoginScreenの正規認証経路', () => {
     fetchMock.mockReturnValueOnce(pending.promise)
     await submit(view)
     const auth = useAuthStore()
-    auth.signIn({ teamId: tenant, teamName: 'B' })
+    setVerifiedAuthForTest(auth, { teamId: tenant, teamName: 'B' })
     auth.signOut()
-    auth.signIn({
+    setVerifiedAuthForTest(auth, {
       teamId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
       teamName: 'C',
     })
-    pending.resolve(reply({ status: 'authenticated' }))
+    pending.resolve(reply({ status: 'authenticated', tenant_id: tenant }))
     await flushPromises()
     expect(auth.isAuthenticated).toBe(false)
     expect(view.emitted('authenticated')).toBeUndefined()
@@ -296,8 +321,9 @@ describe('LoginScreenの正規認証経路', () => {
     fetchMock.mockResolvedValueOnce(reply(dto))
     await click(view, '状態を再確認')
     expect(fetchMock.mock.calls[2]?.[1]?.method).toBe('GET')
-    expect(view.emitted('authenticated')).toEqual([[]])
-    expect(auth.teamName).toBe('認可済みチーム')
+    expect(view.emitted('authenticated')).toBeUndefined()
+    expect(auth.teamName).toBeNull()
+    expect(auth.isAuthenticated).toBe(false)
   })
   it('確定認証後に別世代へ切り替わると画面の成功状態を流用しない', async () => {
     fetchMock.mockResolvedValueOnce(reply(dto))
@@ -401,6 +427,10 @@ describe('LoginScreenの正規認証経路', () => {
     await submit(view)
     expect(document.activeElement).toBe(view.get('[role="alert"]').element)
     expect(view.get('[role="status"]').element).toBe(status)
+    setVerifiedAuthForTest(useAuthStore(), {
+      teamId: tenant,
+      teamName: '正規名',
+    })
     useAuthStore().beginSessionVerification()
     await flushPromises()
     fetchMock.mockResolvedValueOnce(reply({}, 401))
@@ -495,7 +525,10 @@ describe('相関追補の回復不能な再試行を避ける', () => {
   it('期待tenantが不明なら効かない再確認ボタンを表示しない', async () => {
     fetchMock.mockResolvedValueOnce(reply({}, 503))
     const view = await screen()
-    Object.assign(useAuthStore(), { canReverify: false })
+    await withAuthIntent(() => {
+      const marker = writeAuthIntent('verification-required', null)
+      useAuthStore().beginCorrelatedVerification(marker.intentId)
+    })
     await flushPromises()
     expect(view.get('[role="alert"]').text()).toContain(
       '明示的にログインし直す',
@@ -507,7 +540,9 @@ describe('相関追補の回復不能な再試行を避ける', () => {
   it('login成功後のsession401は入力誤りと断定せずCookie回復を案内', async () => {
     const view = await screen()
     fetchMock
-      .mockResolvedValueOnce(reply({ status: 'authenticated' }))
+      .mockResolvedValueOnce(
+        reply({ status: 'authenticated', tenant_id: tenant }),
+      )
       .mockResolvedValueOnce(reply({}, 401))
     await submit(view)
     expect(view.get('[role="alert"]').text()).toContain(
