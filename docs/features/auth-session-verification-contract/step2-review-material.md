@@ -116,3 +116,11 @@ wire API/DTO・認可・registry・凍結資産に差分がないため、今回
 #146はroot/backend conftestで起動する。明示TMPDIR/--basetempによる手動配置の成功だけを#146適用証跡にはせず、専用PITCHLOG_PYTEST_TMPDIRから実pytestのtmp_pathを照合する。backend配線1件は成功し、実体はhome側ディスクの`.../backend/pytest-of-ymdms/pytest-1/test_tmp_path_is_under_bootstr0`に作成された。root全件は専用領域・4 worker（子のautoも4）で進める。
 
 環境timeoutと製品不具合を区別して記録し、試験除外や既存timeout変更はしない。Draft提出に合わせたin-reviewは検査待ち状態を示すもので、完了宣言ではない。
+
+## Draft #147提出後の検査状況
+
+初回PR CI 39094298692のfrontendは68ファイル・1,237 passed、型/lint/dependency/build/closureも成功。旧環境のtimeoutは再現していない。ローカルroot全件は専用領域・4 workerで実行中、backend配線試験は1 passed。通常PR CIのbackend skipは全件検証の成功ではないため、最終HEADで既存workflow_dispatchを使用する。
+
+secrets検出2件は公開ソースhashであり、同一コミットのblobから機械照合済み。人間判定が必要な限定登録の候補は[判断資料](step2-gitleaks-decision.md)へ分離した。判定待ちのまま秘密検査の設定を変更しない。core-guardによる本人未チェックの9ファイル拒否は別の必須条件として保持する。最終確認対象は基線からの18ファイル全差分（製品3・spec6・計画/資料/作業ログ9）。
+
+レビュー採否は第2周から変わらず、製品3ファイルhashも一致。検査途中の状態をステップ2完了とは扱わず、最終HEADのCIリンク・完走件数・未通過はPR本文とコメントへ固定する。

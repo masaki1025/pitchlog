@@ -28,6 +28,9 @@ loginの確定拒否、サーバー未認証、結果未確認を分ける。Coo
 | root全件（前回） | 25,605 passed / 2 skipped / 1 subprocess timeoutで中断。後の実行も12,684 passed / 2 skippedで中断。未完走 |
 | backend全件（前回） | 専用DBでも2 failed / 12 passedで中断。子PostgreSQLの既存60秒起動期限。未完走 |
 | #146の実適用 | root/backend conftestの配線を確認。今回はTMPDIR/PYTEST_DEBUG_TEMPROOT/--basetempで迂回せず、専用PITCHLOG_PYTEST_TMPDIRで検証中 |
+| 初回PR CI frontend | 68ファイル・1,237 passed。型/lint/dependency/build/closureも成功。以前のtimeoutは再現せず |
+| 初回PR CI root/backend | root実行中。backendは差分判定でskip（成功ではない）。最終HEADのworkflow_dispatchでbackend全件を実行する |
+| secrets | 公開ソースhashの2件を誤検知。同コミットblobから一致を確認。[限定登録判断資料](step2-gitleaks-decision.md)を提示し、人間判定待ち |
 | 最終HEADの全検査/CI | 実行後にPR資料へ更新。未通過を先行チェックしない |
 
 ## レビューとレビュー後の修正
@@ -49,7 +52,7 @@ loginの確定拒否、サーバー未認証、結果未確認を分ける。Coo
 
 本人欄は未記入のまま。契約追補承認・ステップ1の7.7受理を流用しない。
 
-確認準備対象: 最終HEADの基線からの17ファイル全差分。製品3ファイル（api/auth.ts・api/client.ts・stores/authStore.ts）、spec6、計画/記録8。DTO厳密検証、Cookie副作用、epoch、確定拒否/未確認、singleflight、保存値/別タブ、cache破棄、非再送を試験と突合して逐行確認する。
+確認準備対象: 最終HEADの基線からの18ファイル全差分（誤検知判断資料を含む）。製品3ファイル（api/auth.ts・api/client.ts・stores/authStore.ts）、spec6、計画/記録8。DTO厳密検証、Cookie副作用、epoch、確定拒否/未確認、singleflight、保存値/別タブ、cache破棄、非再送を試験と突合して逐行確認する。
 
 意味範囲はtenant分離。機械検出は製品/spec9ファイルすべてに該当（client系はsync-protocol/recording-rightsにも該当）。guard_paths変更なし。本人未チェックではproduction guardが9ファイルを拒否することを確認済み。チェックを代記して通さない。
 
@@ -60,3 +63,7 @@ C1がauth/client/storeを一時所有し、統合後にC2/U-F3が実基線から
 ## 現在地導出
 
 PR作成前に実行したfeature_status.pyの全出力を実PR本文へ転記する。基線に統合済みのステップ1を新差分が含まないため、C1の欠番警告が出る場合も非ブロッキングの導出限界として記録する。警告を消すための履歴・ハーネス変更は行わない。
+
+## Draft提出後の検査記録
+
+Draft PRは[#147](https://github.com/masaki1025/pitchlog/pull/147)。最終HEADの検査実行結果はPR本文・実行URL・コメントへ追記する。コミット時点で進行中の検査を成功と記録しない。本人未確認によるcore-guard拒否と誤検知登録の人間判定待ちを分ける。

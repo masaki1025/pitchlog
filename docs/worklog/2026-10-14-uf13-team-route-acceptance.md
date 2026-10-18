@@ -436,3 +436,9 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - Draft提出用statusはin-reviewとするが、DoD完了の宣言ではない。既存のレビュー採否・本人未チェックを維持する。台帳への追記なし：容量対策は統合済みTSK-565に帰属し、C1でハーネス機能を追加しない。
 
 - #146 backend配線試験は1 passed・skipなし。実tmp_pathは専用backend基底配下のpytest-of-ymdms/pytest-1/test_tmp_path_is_under_bootstr0へ作られ、home側のディスクデバイスである。最初の計測はファイル名短縮を誤ったglobで照合したため失敗したが、実試験は成功しており、実生成名を再取得して照合した。root全件は4 workers・29,669項目で開始した。
+
+- Draft PR #147を作成（作成時HEAD f5d19665025b4eaa35378d4fcc330664056280ac）。本文に前回timeout/単独再試験・root/backend未完走・レビュー後の試験/記録修正・本人未確認を明記し、通常pushのみ実施した。PRはMERGEABLEだがDraftのまま。
+- 初回CI 39094298692ではfrontendが68ファイル1,237 passed、dependency-cruiser/build/closureも成功。前回の環境timeoutはこのCIでは再現していない。core-guardは本人未チェックで9ファイルを拒否し、代記していない。
+- secretsはreview manifestの公開ソースSHA-256の2件（1fea2c60の4/6行）がgeneric-api-keyに誤検知された。同コミットのgit blobから再計算して保存値と完全一致を確認した。github-setup.md §4は誤検知にも人間判定を要求するため、限定2 fingerprintの登録判断を資料/PRコメントへ提示し、回答前に.gitleaksignoreへ追加しない。
+- 通常PR CIはbackend差分なしでbackendをskipする。skipを成功扱いにせず、最終HEADで既存workflow_dispatchを使用してbackend全件も実行する。正本・workflow・試験・timeoutの変更は行わない。
+- Notionの親TSK-528にPR #147のURLを記録し、async更新のsucceededを確認した。親全体の進行中・未完了を維持し、DoD/完了日は変更していない。
