@@ -102,3 +102,14 @@ branch: feature/t2-provenance-checker
 - 共有投影・認可を要求と別引数へ分離した候補検査を追加。宣言は第3アウトのpost-turnまで完了した最新評価参照から3値を保持する。得点加算/終了条件の製品計算核は追加しない。
 - 作者の人工fixture: context5、得点観測2、操作7×6=42、表示比較5。候補schema/bundleでfixtureのbyte digestを固定。製品認可adapter、製品表示関数の実行やP-6独立期待値の実施とは扱わない。
 - 既存基本コードレビュー2回を保持し、POの追加1回は固定候補と直接影響箇所に限定して実施予定。計画レビュー2回、確定ゲート0回も保持。実施結果は後記し、署名は転記しない。
+
+### 固定候補の追加レビュー1回・全harness・指摘是正
+
+- 最新origin/develop=`5bb1ff89306712c1de61c3a0152141c8f771b3a0`を確認し、`2dce3b32b54f3b4774cb8d985c3ef6c7345f74a7`で通常merge。先行の正本承認/受理履歴を保持。未統合の550 E12追補`40933555`は含まれず、要件変更履歴の現版2.15はD-14-mの内容。
+- 追加独立レビュー対象HEAD=`2dce3b32b54f3b4774cb8d985c3ef6c7345f74a7`。差分は `git diff --binary 76037523 HEAD -- scripts/check_deriver_dependencies.py scripts/check_required_set_coverage.py tests/test_game_end_contract_schema.py docs/features/t2-provenance-checker docs/worklog/2026-10-18-t2-provenance-checker.md`。保存先`/tmp/t2-p8-review-2dce3b32.diff`、SHA-256=`c95ab7aad1a3d96f063e704d2b56e311d24a366f417192d2c4c225fca5d8ddef`。
+- 実装に関与しないCodex subagent `/root/provenance_review`がread-onlyで実施。正確な実行モデルIDは未取得。追加1回の結果 **P0=0/P1=1/P2=0**。基本2回・計画2回は保持し、P-6に数えない。
+- P1は表示fixtureのstarted等とsourceBranchが境界証拠へ結合されず、開始済みblank等の改変を通す穴。採用し、全入力/典拠を固定境界fixtureに追加して候補との完全一致を検査した。製品表示計算は追加しない。6変異（started、対応表完了、裏不要、評価half、典拠分岐、記録得点）を拒否する回帰試験を追加。独立再レビューは未実施で、0/0/0へ書き換えない。
+- レビュー対象HEADで作業ツリーcleanを維持した全harness: **29,886 passed / 1 failed / 2 skipped、802.67秒**。ログ`/tmp/t2-p8-full-harness-2dce3b32.log`。失敗は`test_repository_gate6_signature_records_match_current_contracts`だけで、旧署名3514e1c6…に対し現物e93f30f7…の不一致。署名内容は変更しない。
+- 専用DB container=`pitchlog-t2-p8-review-2dce3b32`、既存image postgres:17.11-bookworm、localhost:36826、DB=t2_harness、tmpfsを使用。全harness終了後に自分のcontainerだけ停止・--rmで除去。共有DB・ロール・秘密情報を使用/変更していない。
+- P1是正後の関連試験 **707 passed / 39.90秒**（上記schema/T1/coverage/mutation/Python loaderの5ファイル）、ruff全体/ty/docs-status/diff-check合格。是正前のTS loader18 passed。全harnessは是正前の固定HEADの結果であり、是正後全体実行済みとは記録しない。
+- 最終候補byte SHA-256: bundle=`ec49365e193b91d6224d7f8f586e2760f03525d071d5793adf117d3ce600e58f`、schema=`057bb8effeace6425f50de8223f4202bff625503444c3a46e5aa1c5b4cc417a4`、境界fixture=`63ee2ae009444654320d61981a334182e81bdabae80528df317c3bed1bd40490`。candidateId=t2-p8-followup-v1/schemaVersion=1を保持し、識別にはcommit/digestも必須。

@@ -1131,6 +1131,18 @@
           "half": "bottom"
         },
         "display": "X"
+      },
+      "sourceBranch": "XMARK-02",
+      "input": {
+        "evaluationHalf": "bottom",
+        "targetCell": {
+          "inning": 5,
+          "half": "bottom"
+        },
+        "started": false,
+        "pairedTopCompleted": true,
+        "endConditionMakesBottomUnnecessary": true,
+        "recordedScore": 0
       }
     },
     {
@@ -1158,6 +1170,18 @@
           "half": "top"
         },
         "display": ""
+      },
+      "sourceBranch": "XMARK-03",
+      "input": {
+        "evaluationHalf": "bottom",
+        "targetCell": {
+          "inning": 6,
+          "half": "top"
+        },
+        "started": false,
+        "pairedTopCompleted": false,
+        "endConditionMakesBottomUnnecessary": false,
+        "recordedScore": 0
       }
     },
     {
@@ -1185,6 +1209,18 @@
           "half": "bottom"
         },
         "display": "3"
+      },
+      "sourceBranch": "XMARK-01",
+      "input": {
+        "evaluationHalf": "bottom",
+        "targetCell": {
+          "inning": 5,
+          "half": "bottom"
+        },
+        "started": true,
+        "pairedTopCompleted": true,
+        "endConditionMakesBottomUnnecessary": false,
+        "recordedScore": 3
       }
     },
     {
@@ -1212,6 +1248,18 @@
           "half": "bottom"
         },
         "display": ""
+      },
+      "sourceBranch": "XMARK-03",
+      "input": {
+        "evaluationHalf": "top",
+        "targetCell": {
+          "inning": 7,
+          "half": "bottom"
+        },
+        "started": false,
+        "pairedTopCompleted": false,
+        "endConditionMakesBottomUnnecessary": false,
+        "recordedScore": 0
       }
     },
     {
@@ -1239,6 +1287,18 @@
           "half": "top"
         },
         "display": "0"
+      },
+      "sourceBranch": "XMARK-01",
+      "input": {
+        "evaluationHalf": "top",
+        "targetCell": {
+          "inning": 1,
+          "half": "top"
+        },
+        "started": true,
+        "pairedTopCompleted": false,
+        "endConditionMakesBottomUnnecessary": false,
+        "recordedScore": 0
       }
     }
   ]

@@ -2013,3 +2013,25 @@ def test_p8_conditional_state_correction_requires_adopted_clause() -> None:
     assert p8_coverage_checker.normalize_p8_candidate_operation(
         raw, descriptor=descriptor, adopted_clauses=frozenset({"req:FR-040"}),
     ) == raw
+
+
+@pytest.mark.parametrize("mutation", [
+    "started", "pairedTopCompleted", "endConditionMakesBottomUnnecessary",
+    "evaluationHalf", "sourceBranch", "recordedScore",
+])
+def test_p8_display_candidate_binds_all_approved_inputs(mutation: str, tmp_path: Path) -> None:
+    """開始済みblank等の矛盾を人工出力との自己一致で通さない。"""
+    bundle = json.loads(P8_CANDIDATE_PATH.read_text(encoding="utf-8"))
+    case = next(x for x in bundle["displayCases"] if x["caseId"] == "DISPLAY-FUTURE")
+    if mutation == "sourceBranch":
+        case["sourceBranch"] = "XMARK-01"
+    elif mutation == "evaluationHalf":
+        case["input"][mutation] = "top"
+    elif mutation == "recordedScore":
+        case["input"][mutation] = 1
+    else:
+        case["input"][mutation] = not case["input"][mutation]
+    with pytest.raises(
+        p8_coverage_checker.RequiredSetCoverageError, match="display-approved-input",
+    ):
+        _check_p8_candidate(bundle, tmp_path)

@@ -2341,6 +2341,11 @@ def _check_p8_boundary_evidence(root: Path, bundle: dict[str, Any]) -> dict[str,
         compare_p8_candidate_display(case["expected"], case["syntheticOutput"])
         fixture = display_by_id[case["caseId"]]
         _candidate_same(
+            {"sourceBranch": fixture["sourceBranch"], "input": fixture["input"]},
+            {"sourceBranch": case["sourceBranch"], "input": case["input"]},
+            "display-approved-input",
+        )
+        _candidate_same(
             case["expected"]["targetCell"], fixture["input"]["targetCell"], "display-cell",
         )
         token = {"blank": "", "x-mark": "X", "recorded-score": str(

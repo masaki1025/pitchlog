@@ -269,7 +269,7 @@
       "minItems": 1
     },
     "boundaryEvidenceDigest": {
-      "const": "sha256:40c57eb8191aa284a238838d40829a1fe5004b9a796d707f86ffb4302062c1c9"
+      "const": "sha256:63ee2ae009444654320d61981a334182e81bdabae80528df317c3bed1bd40490"
     }
   },
   "$defs": {
