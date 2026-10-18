@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia'
 import { computed, onScopeDispose, ref } from 'vue'
 import { queryClient } from '../lib/queryClient'
+import {
+  AUTH_INTENT_KEY,
+  readAuthIntent,
+  type AuthEnvironmentReason,
+} from '../api/authIntent'
 
 export const AUTH_STORAGE_KEY = 'bb.auth'
 
@@ -71,6 +76,12 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(
     () => sessionVerified.value && teamName.value !== null,
   )
+  // 相関モードでは別タブの確認だけで共有意図を書き換えない。
+  let correlated = false
+  let observedIntentId: string | null = null
+  let correlatedTenantId: string | null = null
+  const explicitLoginRequired = ref(false)
+  const environmentReason = ref<AuthEnvironmentReason | null>(null)
   let sessionId: string | null = null
   let detached = false
   let detachedRaw: string | null = null
@@ -176,7 +187,85 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuth(true)
   }
 
+  function beginCorrelatedVerification(intentId: string | null): number {
+    correlated = true
+    observedIntentId = intentId
+    environmentReason.value = null
+    const marker = intentId === null ? null : readAuthIntent()
+    if (marker?.intentId === intentId && marker?.tenantId)
+      correlatedTenantId = marker.tenantId
+    beginAuthChange()
+    setUnauthenticated(false)
+    return authEpoch.value
+  }
+
+  function observeUnconfirmedIntent(intentId: string): void {
+    // 世代相違の検出で破棄済みなら、同じ旧応答でcacheを二重破棄しない。
+    if (isAuthenticated.value) beginCorrelatedVerification(intentId)
+    else {
+      correlated = true
+      observedIntentId = intentId
+    }
+  }
+
+  function adoptCorrelatedSession(
+    intentId: string,
+    tenantId: string,
+    name: string,
+  ): void {
+    // 呼出元はlock内でintent/tenant/世代を検査済み。保存値から名前を採らない。
+    correlated = true
+    observedIntentId = intentId
+    correlatedTenantId = tenantId
+    teamId.value = tenantId
+    teamName.value = name
+    sessionVerified.value = true
+    sessionExpired.value = false
+    explicitLoginRequired.value = false
+  }
+
+  function requireExplicitLogin(): void {
+    explicitLoginRequired.value = true
+  }
+
+  function failAuthEnvironment(reason: AuthEnvironmentReason): void {
+    beginCorrelatedVerification(null)
+    environmentReason.value = reason
+    explicitLoginRequired.value = true
+  }
+
   function syncFromStorage(): void {
+    if (correlated) {
+      let intent
+      try {
+        intent = readAuthIntent()
+      } catch {
+        if (isAuthenticated.value) {
+          beginAuthChange()
+          setUnauthenticated(false)
+        }
+        environmentReason.value = 'storage-unavailable'
+        explicitLoginRequired.value = true
+        return
+      }
+      if (
+        (intent?.intentId ?? null) !== observedIntentId ||
+        (isAuthenticated.value &&
+          (intent?.phase !== 'expected' || intent?.tenantId !== teamId.value))
+      ) {
+        beginAuthChange()
+        setUnauthenticated(false)
+        observedIntentId = intent?.intentId ?? null
+        // 旧タブから新しいtenantへの自動切替を禁止する。
+        explicitLoginRequired.value = !(
+          intent?.phase === 'verification-required' &&
+          intent.tenantId !== null &&
+          intent.tenantId === correlatedTenantId
+        )
+      }
+      return
+    }
+
     let raw: string | null
     try {
       raw = localStorage.getItem(AUTH_STORAGE_KEY)
@@ -215,7 +304,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function onStorage(event: StorageEvent): void {
-    if (event.key !== AUTH_STORAGE_KEY && event.key !== null) {
+    if (
+      event.key !== AUTH_STORAGE_KEY &&
+      event.key !== AUTH_INTENT_KEY &&
+      event.key !== null
+    ) {
       return
     }
     try {
@@ -243,5 +336,12 @@ export const useAuthStore = defineStore('auth', () => {
     signOut,
     expireSession,
     syncFromStorage,
+    beginCorrelatedVerification,
+    adoptCorrelatedSession,
+    observeUnconfirmedIntent,
+    requireExplicitLogin,
+    failAuthEnvironment,
+    explicitLoginRequired,
+    environmentReason,
   }
 })

@@ -17,7 +17,7 @@ export interface RequestOptions {
   >
   noAuthExpiry?: boolean
   /** Cookie変更可能な成功headers/通信結果不明を、世代判定より先に一度だけ通知する。 */
-  onAuthCookieUncertain?: () => void
+  onAuthCookieUncertain?: () => void | Promise<void>
   signal?: AbortSignal
 }
 
@@ -217,7 +217,7 @@ async function requestResponse<T>(
     res = await fetch(url, init)
   } catch (error) {
     // HTTP応答が得られなくてもCookie変更済みの可能性は残る。
-    options.onAuthCookieUncertain?.()
+    await options.onAuthCookieUncertain?.()
     if (isAbortError(error)) {
       throw error
     }
