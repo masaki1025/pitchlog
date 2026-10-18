@@ -72,3 +72,15 @@ branch: feature/t2-provenance-checker
 | 人間逐行確認・担当受理 | 未実施/未取得。544/545への依頼と受領を区別し、受領済みとは代記しない |
 
 - push・Draft PRは許可未確認のため実施なし。マージなし。provenance整備完了、T2 P-8全成立、545製品実装開始可能はいずれも未成立。
+
+## 候補作業の許可とステップ3/4追補（本会話2026-10-18）
+
+- POが所有受諾/HEAD `ca1c5df4`/限定是正0/0/0を受領し、引継ぎ確認待ちを解除した。「既承認裁定に意味を追加しないP-8追随」の計画追補・候補実装・試験を許可。正式な正本/凍結資産変更、独立期待値の確定、再署名やpush/PRの包括承認とは扱わない。
+- `76037523`で最新develop=`156dd139`を通常mergeし、先行受理履歴を保持。旧10失敗のうちpaths/tenant履歴の7件は影響試験7 passed、専用一時PostgreSQLでSQL変異/費用測定の2件は2 passed。署名照合1件は明示再署名待ち。各testの原因・修正担当・受理待ちは[失敗対応表](../features/t2-provenance-checker/harness-failure-disposition-2026-10-18.md)。基準/予算の弱化はしない。
+- 元4ステップと過去レビュー回数を保持し、ステップ3に候補準備を追補。feature配下の候補schema/bundleと未適用の正本patchを作成。正式な契約/要件/署名記録には本担当の新規変更を適用しない。
+- E12候補: 既存導出器に専用要求型、既存被覆検査器に`--candidate`経路を追加。代表R=1/9/99、N<R/N=R/N>R、段順single/first/lastから値域内21件（拒否6/条件単独非拒否15）を要求導出し、全件exact-set照合。既存invalid境界/validationErrors12件は不変、禁止されたstart-inning:R+1宣言なし。550側要件追補は未統合/版調整待ちのまま保持。
+- E08/E06/E04の具体入力5件、E02/E09/E10の既承認フィールドだけの断片3件、表示セルfixture5件を候補へ収容。E08は先攻10点リード・R=L=9・9回以降適用の段・9回裏完了後の評価状態を使い、xMarkはrecorded-score、outcomeは製品裁定によるcold-end。候補の初期案の表完了例から置換し、通常終了とコールドを両方保持する条件を検査する。
+- 候補の基準契約RFC8785 digest・schemaファイルdigest・schema参照閉包を現物と照合。欠落・重複・期待逆転・相関入力改変・禁止境界宣言・未実施記録の偽装・正規化不一致・段順・競合条件・未知キー/行参照を拒否する試験を追加。製品の計算関数をコピーせず、既存具体入力検査を再利用する。
+- 最終候補の関連試験 **600 passed（16.10秒）**、ruff/ty/diff-check合格。候補CLIは21相関/5decision/3lifecycle/5displayを列挙し、candidate-only/not-performed/runtimeOutputsCompared=false/formalCoverageUpdated=falseを明示。正本patchは`git apply --check`のみで適用可能性を確認。
+- 候補編集中の全harness（`/tmp/t2-p8-full-harness-after.log`）は11 failed/29,770 passed/2 skipped。担当が実行中に候補ファイルを更新したため、workerが読み込んだ旧検査器と新しいCOLD-NORMAL-OVERLAP入力が混在し10件がKeyError、残り1件は予定された署名不一致。本実行を最終候補版の検査結果に使わない。コード/候補をコミットで固定してから再実行する。
+- [人間判断/受領物/個別判定](../features/t2-provenance-checker/p8-human-decisions-and-receivers-2026-10-18.md)は人間判断の5行だけを抽出。既承認裁定は再承認待ちに戻さない。候補差分の独立レビューは基本2回を使い切っているため、対象を限定した追加差分1回の許可待ち。新たな独立確認やP-6として数えない。

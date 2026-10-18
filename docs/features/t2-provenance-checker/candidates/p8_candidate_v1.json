@@ -1,0 +1,1062 @@
+{
+  "schemaVersion": 1,
+  "candidateId": "t2-p8-followup-v1",
+  "publicationStatus": "candidate-only",
+  "independentVerification": "not-performed",
+  "baseContractDigest": "sha256:e93f30f75b97f580d3ee0984ff4300bb7a35544a4568a0fedfabf32da81e1ec4",
+  "baseSchemaDigest": "sha256:2fa7fb0dc0e0f9f389054ec4825fcb3f341e64aa7a36d932bf31a0ff53813c26",
+  "sourceDescriptor": {
+    "ruleId": "cold-start-not-after-regulation",
+    "sourceClauseIds": [
+      "req:FR-014",
+      "req:DRAW-03"
+    ],
+    "regulationRepresentatives": [
+      1,
+      9,
+      99
+    ],
+    "startInningOffsets": [
+      -1,
+      0,
+      1
+    ],
+    "tierOrders": [
+      "single",
+      "first",
+      "last"
+    ]
+  },
+  "ruleValidationCases": [
+    {
+      "caseId": "GE-RULE-COLD-R1-OFFSET0-single",
+      "ruleSnapshot": {
+        "regulationInnings": 1,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 1
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R1-OFFSET0-first",
+      "ruleSnapshot": {
+        "regulationInnings": 1,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 1
+          },
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R1-OFFSET0-last",
+      "ruleSnapshot": {
+        "regulationInnings": 1,
+        "coldConditions": [
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          },
+          {
+            "pointDifference": 1,
+            "startInning": 1
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R1-OFFSET1-single",
+      "ruleSnapshot": {
+        "regulationInnings": 1,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 2
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "reject",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R1-OFFSET1-first",
+      "ruleSnapshot": {
+        "regulationInnings": 1,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 2
+          },
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "reject",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R1-OFFSET1-last",
+      "ruleSnapshot": {
+        "regulationInnings": 1,
+        "coldConditions": [
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          },
+          {
+            "pointDifference": 1,
+            "startInning": 2
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "reject",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R9-OFFSET-1-single",
+      "ruleSnapshot": {
+        "regulationInnings": 9,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 8
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R9-OFFSET-1-first",
+      "ruleSnapshot": {
+        "regulationInnings": 9,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 8
+          },
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R9-OFFSET-1-last",
+      "ruleSnapshot": {
+        "regulationInnings": 9,
+        "coldConditions": [
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          },
+          {
+            "pointDifference": 1,
+            "startInning": 8
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R9-OFFSET0-single",
+      "ruleSnapshot": {
+        "regulationInnings": 9,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 9
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R9-OFFSET0-first",
+      "ruleSnapshot": {
+        "regulationInnings": 9,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 9
+          },
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R9-OFFSET0-last",
+      "ruleSnapshot": {
+        "regulationInnings": 9,
+        "coldConditions": [
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          },
+          {
+            "pointDifference": 1,
+            "startInning": 9
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R9-OFFSET1-single",
+      "ruleSnapshot": {
+        "regulationInnings": 9,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 10
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "reject",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R9-OFFSET1-first",
+      "ruleSnapshot": {
+        "regulationInnings": 9,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 10
+          },
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "reject",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R9-OFFSET1-last",
+      "ruleSnapshot": {
+        "regulationInnings": 9,
+        "coldConditions": [
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          },
+          {
+            "pointDifference": 1,
+            "startInning": 10
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "reject",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R99-OFFSET-1-single",
+      "ruleSnapshot": {
+        "regulationInnings": 99,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 98
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R99-OFFSET-1-first",
+      "ruleSnapshot": {
+        "regulationInnings": 99,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 98
+          },
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R99-OFFSET-1-last",
+      "ruleSnapshot": {
+        "regulationInnings": 99,
+        "coldConditions": [
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          },
+          {
+            "pointDifference": 1,
+            "startInning": 98
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R99-OFFSET0-single",
+      "ruleSnapshot": {
+        "regulationInnings": 99,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 99
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R99-OFFSET0-first",
+      "ruleSnapshot": {
+        "regulationInnings": 99,
+        "coldConditions": [
+          {
+            "pointDifference": 1,
+            "startInning": 99
+          },
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    },
+    {
+      "caseId": "GE-RULE-COLD-R99-OFFSET0-last",
+      "ruleSnapshot": {
+        "regulationInnings": 99,
+        "coldConditions": [
+          {
+            "pointDifference": 2,
+            "startInning": 1
+          },
+          {
+            "pointDifference": 1,
+            "startInning": 99
+          }
+        ],
+        "extensionLimit": null,
+        "tiebreak": null,
+        "dh": false
+      },
+      "expected": "not-rejected-by-this-rule",
+      "sourceClauseIds": [
+        "req:FR-014",
+        "req:DRAW-03"
+      ]
+    }
+  ],
+  "decisionCases": [
+    {
+      "caseId": "GE-CANDIDATE-E08-COLD-PRIORITY",
+      "branchId": "COLD-NORMAL-OVERLAP",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-NORMAL-OVERLAP"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.satisfiedColdTierCount": 1,
+        "gameEnd.extensionLimit": "finite:R",
+        "gameEnd.tiebreak": "none",
+        "state.half": "top",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "L+1",
+        "state.score": "away-lead:M"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false,
+        "xMark": "recorded-score"
+      },
+      "raw": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.satisfiedColdTierCount": 1,
+        "gameEnd.extensionLimit": "finite:R",
+        "gameEnd.tiebreak": "none",
+        "state.half": "top",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "L+1",
+        "state.score": "away-lead:M"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:1",
+        "gameEnd.satisfiedColdTierCount": 1,
+        "gameEnd.extensionLimit": "finite:R",
+        "gameEnd.tiebreak": "none",
+        "state.half": "top",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "L+1",
+        "state.score": "away-lead:M"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 9
+          }
+        ],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 10
+        }
+      }
+    },
+    {
+      "caseId": "GE-CANDIDATE-E06-ONE-OF-TWO",
+      "branchId": "COLD-08",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-08"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:2",
+        "gameEnd.satisfiedColdTierCount": 1,
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false,
+        "xMark": "x-mark"
+      },
+      "raw": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:2",
+        "gameEnd.satisfiedColdTierCount": 1,
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:2",
+        "gameEnd.satisfiedColdTierCount": 1,
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 5,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 7,
+          "away": 0
+        }
+      }
+    },
+    {
+      "caseId": "GE-CANDIDATE-E06-NONE",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "GAME-END-EXTRA-CONTINUE"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:2",
+        "gameEnd.satisfiedColdTierCount": 0,
+        "gameEnd.extensionLimit": "finite:R+1",
+        "gameEnd.tiebreak": "none",
+        "state.half": "top",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "R+1",
+        "state.score": "tie"
+      },
+      "decision": {
+        "outcome": "extra-continue",
+        "endConditionDetected": false,
+        "lockFurtherPlayInput": false,
+        "promptEndDeclaration": false,
+        "automaticallyEndsGame": false,
+        "xMark": "recorded-score"
+      },
+      "raw": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:2",
+        "gameEnd.satisfiedColdTierCount": 0,
+        "gameEnd.extensionLimit": "finite:R+1",
+        "gameEnd.tiebreak": "none",
+        "state.half": "top",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "R+1",
+        "state.score": "tie"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:2",
+        "gameEnd.satisfiedColdTierCount": 0,
+        "gameEnd.extensionLimit": "finite:R+1",
+        "gameEnd.tiebreak": "none",
+        "state.half": "top",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "R+1",
+        "state.score": "tie"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 10,
+        "state.half": "top",
+        "state.score": {
+          "home": 0,
+          "away": 0
+        }
+      }
+    },
+    {
+      "caseId": "GE-CANDIDATE-E04-ORDER-A",
+      "branchId": "COLD-09",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-09"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:2",
+        "gameEnd.satisfiedColdTierCount": 2,
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false,
+        "xMark": "x-mark"
+      },
+      "raw": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:2",
+        "gameEnd.satisfiedColdTierCount": 2,
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:2",
+        "gameEnd.satisfiedColdTierCount": 2,
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          },
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
+      }
+    },
+    {
+      "caseId": "GE-CANDIDATE-E04-ORDER-B",
+      "branchId": "COLD-09",
+      "rowRef": {
+        "layer": "decisionRows",
+        "coordinate": {
+          "branchId": "COLD-09"
+        }
+      },
+      "inputCoordinate": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:2",
+        "gameEnd.satisfiedColdTierCount": 2,
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M"
+      },
+      "decision": {
+        "outcome": "cold-end",
+        "endConditionDetected": true,
+        "lockFurtherPlayInput": true,
+        "promptEndDeclaration": true,
+        "automaticallyEndsGame": false,
+        "xMark": "x-mark"
+      },
+      "raw": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:2",
+        "gameEnd.satisfiedColdTierCount": 2,
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M"
+      },
+      "normalizationRuleId": "identity",
+      "normalized": {
+        "gameEnd.regulationInnings": 9,
+        "gameEnd.coldConditions": "tier-count:2",
+        "gameEnd.satisfiedColdTierCount": 2,
+        "gameEnd.extensionLimit": "none",
+        "gameEnd.tiebreak": "none",
+        "state.half": "bottom",
+        "state.count.strikes": 0,
+        "state.count.balls": 0,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "N",
+        "state.score": "home-lead:M"
+      },
+      "derivedSourceInput": {
+        "gameEnd.coldConditions": [
+          {
+            "pointDifference": 7,
+            "startInning": 7
+          },
+          {
+            "pointDifference": 10,
+            "startInning": 5
+          }
+        ],
+        "state.inning": 7,
+        "state.half": "bottom",
+        "state.score": {
+          "home": 10,
+          "away": 0
+        }
+      }
+    }
+  ],
+  "lifecycleCases": [
+    {
+      "caseId": "GE-CANDIDATE-E02-DECLARED",
+      "ruling": "E02=A",
+      "input": {
+        "phase": "declared"
+      },
+      "expectedFields": {
+        "promptEndDeclaration": false
+      },
+      "unresolvedFields": [
+        "outcome",
+        "endConditionDetected",
+        "lockFurtherPlayInput"
+      ]
+    },
+    {
+      "caseId": "GE-CANDIDATE-E10-REOPENED",
+      "ruling": "E10=A",
+      "input": {
+        "phase": "reopened",
+        "endConditionStillHolds": true
+      },
+      "expectedFields": {
+        "lockFurtherPlayInput": false,
+        "endConditionDetected": true,
+        "promptEndDeclaration": true
+      },
+      "unresolvedFields": [
+        "outcome"
+      ]
+    },
+    {
+      "caseId": "GE-CANDIDATE-E09-LOCKED",
+      "ruling": "E09=B",
+      "input": {
+        "phase": "condition-locked",
+        "operation": "undo"
+      },
+      "expectedFields": {
+        "undoAllowed": true,
+        "substitutionAllowed": false,
+        "reevaluateAfterUndo": true
+      },
+      "unresolvedFields": [
+        "postDeclarationPermissions"
+      ]
+    }
+  ],
+  "displayCases": [
+    {
+      "caseId": "DISPLAY-COLD-AFTER-TOP",
+      "sourceBranch": "XMARK-02",
+      "input": {
+        "evaluationHalf": "bottom",
+        "targetCell": {
+          "inning": 5,
+          "half": "bottom"
+        },
+        "started": false,
+        "pairedTopCompleted": true,
+        "endConditionMakesBottomUnnecessary": true,
+        "recordedScore": 0
+      },
+      "expected": "x-mark"
+    },
+    {
+      "caseId": "DISPLAY-FUTURE",
+      "sourceBranch": "XMARK-03",
+      "input": {
+        "evaluationHalf": "bottom",
+        "targetCell": {
+          "inning": 6,
+          "half": "top"
+        },
+        "started": false,
+        "pairedTopCompleted": false,
+        "endConditionMakesBottomUnnecessary": false,
+        "recordedScore": 0
+      },
+      "expected": "blank"
+    },
+    {
+      "caseId": "DISPLAY-STARTED-BOTTOM",
+      "sourceBranch": "XMARK-01",
+      "input": {
+        "evaluationHalf": "bottom",
+        "targetCell": {
+          "inning": 5,
+          "half": "bottom"
+        },
+        "started": true,
+        "pairedTopCompleted": true,
+        "endConditionMakesBottomUnnecessary": false,
+        "recordedScore": 3
+      },
+      "expected": "recorded-score"
+    },
+    {
+      "caseId": "DISPLAY-DECLARED-UNSTARTED",
+      "sourceBranch": "XMARK-03",
+      "input": {
+        "evaluationHalf": "top",
+        "targetCell": {
+          "inning": 7,
+          "half": "bottom"
+        },
+        "started": false,
+        "pairedTopCompleted": false,
+        "endConditionMakesBottomUnnecessary": false,
+        "recordedScore": 0
+      },
+      "expected": "blank"
+    },
+    {
+      "caseId": "DISPLAY-STARTED-BEFORE-FIRST-PITCH",
+      "sourceBranch": "XMARK-01",
+      "input": {
+        "evaluationHalf": "top",
+        "targetCell": {
+          "inning": 1,
+          "half": "top"
+        },
+        "started": true,
+        "pairedTopCompleted": false,
+        "endConditionMakesBottomUnnecessary": false,
+        "recordedScore": 0
+      },
+      "expected": "recorded-score"
+    }
+  ]
+}

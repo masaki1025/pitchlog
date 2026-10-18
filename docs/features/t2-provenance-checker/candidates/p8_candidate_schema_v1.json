@@ -1,0 +1,646 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "candidateId",
+    "publicationStatus",
+    "independentVerification",
+    "baseContractDigest",
+    "baseSchemaDigest",
+    "sourceDescriptor",
+    "ruleValidationCases",
+    "decisionCases",
+    "lifecycleCases",
+    "displayCases"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "candidateId": {
+      "const": "t2-p8-followup-v1"
+    },
+    "publicationStatus": {
+      "const": "candidate-only"
+    },
+    "independentVerification": {
+      "const": "not-performed"
+    },
+    "baseContractDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "baseSchemaDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "sourceDescriptor": {
+      "type": "object",
+      "required": [
+        "ruleId",
+        "sourceClauseIds",
+        "regulationRepresentatives",
+        "startInningOffsets",
+        "tierOrders"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ruleId": {
+          "const": "cold-start-not-after-regulation"
+        },
+        "sourceClauseIds": {
+          "const": [
+            "req:FR-014",
+            "req:DRAW-03"
+          ]
+        },
+        "regulationRepresentatives": {
+          "const": [
+            1,
+            9,
+            99
+          ]
+        },
+        "startInningOffsets": {
+          "const": [
+            -1,
+            0,
+            1
+          ]
+        },
+        "tierOrders": {
+          "const": [
+            "single",
+            "first",
+            "last"
+          ]
+        }
+      }
+    },
+    "ruleValidationCases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "caseId",
+          "ruleSnapshot",
+          "expected",
+          "sourceClauseIds"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ruleSnapshot": {
+            "$ref": "#/$defs/ruleSnapshot"
+          },
+          "expected": {
+            "enum": [
+              "reject",
+              "not-rejected-by-this-rule"
+            ]
+          },
+          "sourceClauseIds": {
+            "const": [
+              "req:FR-014",
+              "req:DRAW-03"
+            ]
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "decisionCases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/normalizedCase"
+      },
+      "minItems": 1
+    },
+    "lifecycleCases": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "oneOf": [
+          {
+            "const": {
+              "caseId": "GE-CANDIDATE-E02-DECLARED",
+              "ruling": "E02=A",
+              "input": {
+                "phase": "declared"
+              },
+              "expectedFields": {
+                "promptEndDeclaration": false
+              },
+              "unresolvedFields": [
+                "outcome",
+                "endConditionDetected",
+                "lockFurtherPlayInput"
+              ]
+            }
+          },
+          {
+            "const": {
+              "caseId": "GE-CANDIDATE-E10-REOPENED",
+              "ruling": "E10=A",
+              "input": {
+                "phase": "reopened",
+                "endConditionStillHolds": true
+              },
+              "expectedFields": {
+                "lockFurtherPlayInput": false,
+                "endConditionDetected": true,
+                "promptEndDeclaration": true
+              },
+              "unresolvedFields": [
+                "outcome"
+              ]
+            }
+          },
+          {
+            "const": {
+              "caseId": "GE-CANDIDATE-E09-LOCKED",
+              "ruling": "E09=B",
+              "input": {
+                "phase": "condition-locked",
+                "operation": "undo"
+              },
+              "expectedFields": {
+                "undoAllowed": true,
+                "substitutionAllowed": false,
+                "reevaluateAfterUndo": true
+              },
+              "unresolvedFields": [
+                "postDeclarationPermissions"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "displayCases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "caseId",
+          "sourceBranch",
+          "input",
+          "expected"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceBranch": {
+            "enum": [
+              "XMARK-01",
+              "XMARK-02",
+              "XMARK-03"
+            ]
+          },
+          "input": {
+            "type": "object",
+            "required": [
+              "evaluationHalf",
+              "targetCell",
+              "started",
+              "pairedTopCompleted",
+              "endConditionMakesBottomUnnecessary",
+              "recordedScore"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "evaluationHalf": {
+                "enum": [
+                  "top",
+                  "bottom"
+                ]
+              },
+              "targetCell": {
+                "type": "object",
+                "required": [
+                  "inning",
+                  "half"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "inning": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 99
+                  },
+                  "half": {
+                    "enum": [
+                      "top",
+                      "bottom"
+                    ]
+                  }
+                }
+              },
+              "started": {
+                "type": "boolean"
+              },
+              "pairedTopCompleted": {
+                "type": "boolean"
+              },
+              "endConditionMakesBottomUnnecessary": {
+                "type": "boolean"
+              },
+              "recordedScore": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "expected": {
+            "enum": [
+              "recorded-score",
+              "x-mark",
+              "blank"
+            ]
+          }
+        }
+      },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "ruleSnapshot": {
+      "type": "object",
+      "required": [
+        "regulationInnings",
+        "coldConditions",
+        "extensionLimit",
+        "tiebreak",
+        "dh"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "regulationInnings": {
+          "x-pitchlog-axis-id": "gameEnd.regulationInnings",
+          "x-pitchlog-axis-classification": "boundary-partition",
+          "x-pitchlog-coverage-bounds": [
+            {
+              "dimension": "innings",
+              "minimum": 1,
+              "maximum": 99
+            }
+          ],
+          "x-pitchlog-boundary-values": [
+            1,
+            5,
+            7,
+            9,
+            99
+          ],
+          "x-pitchlog-invalid-boundary-values": [
+            0,
+            100
+          ],
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "coldConditions": {
+          "x-pitchlog-axis-id": "gameEnd.coldConditions",
+          "x-pitchlog-axis-classification": "boundary-partition",
+          "x-pitchlog-coverage-bounds": [
+            {
+              "dimension": "pointDifference",
+              "minimum": 1,
+              "maximum": 99
+            },
+            {
+              "dimension": "startInning",
+              "minimum": 1,
+              "maximum": 99
+            },
+            {
+              "dimension": "tierCount",
+              "minimum": 0,
+              "maximum": 16
+            }
+          ],
+          "x-pitchlog-boundary-values": [
+            "tier-count:0",
+            "tier-count:1",
+            "tier-count:2",
+            "tier-count:16",
+            "point-difference:1",
+            "point-difference:M-1",
+            "point-difference:M",
+            "point-difference:M+1",
+            "point-difference:99",
+            "start-inning:1",
+            "start-inning:N-1",
+            "start-inning:N",
+            "start-inning:N+1",
+            "start-inning:99"
+          ],
+          "x-pitchlog-invalid-boundary-values": [
+            "tier-count:17",
+            "point-difference:0",
+            "point-difference:100",
+            "start-inning:0",
+            "start-inning:100"
+          ],
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/coldConditionTier"
+          }
+        },
+        "extensionLimit": {
+          "x-pitchlog-axis-id": "gameEnd.extensionLimit",
+          "x-pitchlog-axis-classification": "boundary-partition",
+          "x-pitchlog-coverage-bounds": [
+            {
+              "dimension": "innings",
+              "minimum": 1,
+              "maximum": 99
+            }
+          ],
+          "x-pitchlog-boundary-values": [
+            "none",
+            "finite:R",
+            "finite:R+1",
+            "finite:99"
+          ],
+          "x-pitchlog-invalid-boundary-values": [
+            "finite:R-1",
+            "finite:100"
+          ],
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 99
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tiebreak": {
+          "x-pitchlog-axis-id": "gameEnd.tiebreak",
+          "x-pitchlog-axis-classification": "boundary-partition",
+          "x-pitchlog-coverage-bounds": [
+            {
+              "dimension": "startInning",
+              "minimum": 1,
+              "maximum": 99
+            }
+          ],
+          "x-pitchlog-boundary-values": [
+            "none",
+            "start:R+1",
+            "start:L",
+            "start:99"
+          ],
+          "x-pitchlog-invalid-boundary-values": [
+            "start:R",
+            "start:L+1-when-finite",
+            "start:100"
+          ],
+          "oneOf": [
+            {
+              "$ref": "#/$defs/tiebreakRule"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dh": {
+          "x-pitchlog-non-coverage-field": "dh",
+          "x-pitchlog-non-coverage-reason": "DH制は打順の構成に影響するが、F-1の終了条件の成立判定には参照されない",
+          "x-pitchlog-schema-retention": "required-by-projection",
+          "type": "boolean"
+        }
+      }
+    },
+    "coldConditionTier": {
+      "type": "object",
+      "required": [
+        "pointDifference",
+        "startInning"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pointDifference": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "startInning": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        }
+      }
+    },
+    "tiebreakRule": {
+      "type": "object",
+      "required": [
+        "startInning",
+        "runnerPlacement",
+        "leadoffRule"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "startInning": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "runnerPlacement": {
+          "x-pitchlog-non-coverage-field": "tiebreak.runnerPlacement",
+          "x-pitchlog-non-coverage-reason": "走者配置はタイブレーク開始時の初期状態を定めるが、終了条件の判定には参照されない",
+          "x-pitchlog-schema-retention": "required-by-projection",
+          "type": "string",
+          "minLength": 1
+        },
+        "leadoffRule": {
+          "x-pitchlog-non-coverage-field": "tiebreak.leadoffRule",
+          "x-pitchlog-non-coverage-reason": "先頭打者規則はタイブレーク開始時の初期状態を定めるが、終了条件の判定には参照されない",
+          "x-pitchlog-schema-retention": "required-by-projection",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "gameEndDecision": {
+      "type": "object",
+      "required": [
+        "outcome",
+        "endConditionDetected",
+        "lockFurtherPlayInput",
+        "promptEndDeclaration",
+        "automaticallyEndsGame",
+        "xMark"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {
+          "enum": [
+            "normal-end",
+            "extra-continue",
+            "limit-draw",
+            "tiebreak-continue",
+            "cold-end",
+            "walk-off"
+          ]
+        },
+        "endConditionDetected": {
+          "type": "boolean"
+        },
+        "lockFurtherPlayInput": {
+          "type": "boolean"
+        },
+        "promptEndDeclaration": {
+          "type": "boolean"
+        },
+        "automaticallyEndsGame": {
+          "type": "boolean"
+        },
+        "xMark": {
+          "description": "直近に完了した表と対になる裏の得点セルの表示種別。recorded-scoreは別途集計した非負整数、x-markは未開始の裏に適用するX、blankはそれ以外の未開始セルを写像①で表示する。表示文字列や得点値はこの欄に含めない。FR-020 XMARK-01〜03。",
+          "enum": [
+            "recorded-score",
+            "x-mark",
+            "blank"
+          ]
+        }
+      }
+    },
+    "normalizedCase": {
+      "type": "object",
+      "required": [
+        "caseId",
+        "branchId",
+        "rowRef",
+        "inputCoordinate",
+        "decision",
+        "raw",
+        "normalizationRuleId",
+        "normalized",
+        "derivedSourceInput"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "caseId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branchId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rowRef": {
+          "type": "object"
+        },
+        "inputCoordinate": {
+          "type": "object",
+          "required": [
+            "gameEnd.satisfiedColdTierCount"
+          ],
+          "properties": {
+            "gameEnd.satisfiedColdTierCount": {
+              "description": "F-1 COLD-07〜09。確定プレイ後に成立したコールド段の件数。規則設定の段数と区別する。",
+              "x-pitchlog-axis-id": "gameEnd.satisfiedColdTierCount",
+              "x-pitchlog-axis-classification": "boundary-partition",
+              "x-pitchlog-coverage-bounds": [
+                {
+                  "dimension": "satisfiedTierCount",
+                  "minimum": 0,
+                  "maximum": 16
+                }
+              ],
+              "x-pitchlog-boundary-values": [
+                0,
+                1,
+                2,
+                16
+              ],
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16
+            }
+          }
+        },
+        "decision": {
+          "$ref": "#/$defs/gameEndDecision"
+        },
+        "raw": {
+          "type": "object"
+        },
+        "normalizationRuleId": {
+          "enum": [
+            "identity",
+            "game-end-result-display-name-to-id"
+          ]
+        },
+        "normalized": {
+          "type": "object"
+        },
+        "derivedSourceInput": {
+          "description": "派生値の関数性を比較する具体入力。代表ラベルではなく各段の点差・開始回と状態の実値を持つ。",
+          "type": "object",
+          "required": [
+            "gameEnd.coldConditions",
+            "state.inning",
+            "state.half",
+            "state.score"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "gameEnd.coldConditions": {
+              "type": "array",
+              "maxItems": 16,
+              "items": {
+                "$ref": "#/$defs/coldConditionTier"
+              }
+            },
+            "state.inning": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 99
+            },
+            "state.half": {
+              "enum": [
+                "top",
+                "bottom"
+              ]
+            },
+            "state.score": {
+              "type": "object",
+              "required": [
+                "home",
+                "away"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "home": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "away": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

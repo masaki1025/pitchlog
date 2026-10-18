@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import subprocess
@@ -507,7 +508,7 @@ def _check_liveness_case_depth(root: Path, cases: list[dict[str, Any]]) -> None:
         )
         depth = expand_state_transition_cases.history_checker.resolve_history_depth(history)
     except (
-        OSError, UnicodeError, json.JSONDecodeError,
+        OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError,
         expand_state_transition_cases.history_checker.HistoryEffectError,
     ) as error:
         raise RequiredSetCoverageError("XC-09: 履歴深さDを解決できない") from error
@@ -2036,9 +2037,186 @@ def check_game_end_coverage(
     return result
 
 
-def main() -> int:
-    """実資産に状況判定と終了判定の検査を適用する。"""
+def check_game_end_candidate(root: Path, candidate_path: Path) -> dict[str, object]:
+    """未受理候補だけを検査し、正式被覆やP-6の成立とは区別して返す。
+
+    Args:
+        root: リポジトリルート。
+        candidate_path: feature配下の候補bundle。
+
+    Returns:
+        相関要求、既承認出力の候補、未成立ゲートの件数と状態。
+
+    Raises:
+        RequiredSetCoverageError: schema、要求集合、実入力、期待値が不整合の場合。
+    """
+    import check_human_review_signature as signature_checker
+
     try:
+        bundle = json.loads(candidate_path.read_text(encoding="utf-8"))
+        schema = json.loads((root / (
+            "docs/features/t2-provenance-checker/candidates/p8_candidate_schema_v1.json"
+        )).read_text(encoding="utf-8"))
+        deriver.descriptor_checker._validate_instance(bundle, schema, schema, "candidate")
+        base = _document(root, "game_end_contract_v1.json")
+        signature_schema = _document(root, "human_review_signature_schema_v1.json")
+        limit = signature_schema["x-pitchlog-human-review-signature-policy"][
+            "subjectDigest"
+        ]["safeIntegerLimit"]
+        if signature_checker.compute_subject_digest(base, limit) != bundle["baseContractDigest"]:
+            raise RequiredSetCoverageError("候補の基準T2契約digestが現物と不一致")
+        base_schema_path = root / ASSET_DIR / "game_end_contract_schema_v1.json"
+        schema_digest = "sha256:" + hashlib.sha256(base_schema_path.read_bytes()).hexdigest()
+        if schema_digest != bundle["baseSchemaDigest"]:
+            raise RequiredSetCoverageError("候補の基準T2 schema digestが現物と不一致")
+        base_schema = _document(root, "game_end_contract_schema_v1.json")
+        if set(schema["$defs"]) != {
+            "ruleSnapshot", "coldConditionTier", "tiebreakRule", "gameEndDecision",
+            "normalizedCase",
+        } or any(
+            definition != base_schema["$defs"][name]
+            for name, definition in schema["$defs"].items()
+        ):
+            raise RequiredSetCoverageError("候補schemaの参照閉包が基準T2 schemaと不一致")
+        requirements = deriver.derive_game_end_rule_correlations(bundle["sourceDescriptor"])
+        expected = {
+            item.case_id: {
+                "caseId": item.case_id,
+                "ruleSnapshot": dict(item.rule_snapshot),
+                "expected": item.expected,
+                "sourceClauseIds": list(item.source_clause_ids),
+            }
+            for item in requirements
+        }
+        entries = bundle["ruleValidationCases"]
+        actual = {item["caseId"]: item for item in entries}
+        if len(actual) != len(entries) or actual != expected:
+            raise RequiredSetCoverageError("相関候補が導出要求とexact-set不一致")
+
+        rows = {row["branchId"]: row for row in base["decisionRows"]}
+        expected_ids = {
+            "GE-CANDIDATE-E08-COLD-PRIORITY", "GE-CANDIDATE-E06-ONE-OF-TWO",
+            "GE-CANDIDATE-E06-NONE", "GE-CANDIDATE-E04-ORDER-A",
+            "GE-CANDIDATE-E04-ORDER-B",
+        }
+        cases = bundle["decisionCases"]
+        if len(cases) != len(expected_ids) or {case["caseId"] for case in cases} != expected_ids:
+            raise RequiredSetCoverageError("裁定追随候補のcase集合が不一致")
+        for case in cases:
+            source_branch = case["branchId"]
+            if case["caseId"] == "GE-CANDIDATE-E08-COLD-PRIORITY":
+                source_branch = "GAME-END-NORMAL"
+                expected_decision = dict(rows["GAME-END-NORMAL"]["decision"])
+                expected_decision["outcome"] = rows["COLD-08"]["decision"]["outcome"]
+            else:
+                branch = rows.get(case["branchId"])
+                if branch is None:
+                    raise RequiredSetCoverageError("裁定追随候補の基準分岐が未知")
+                expected_decision = branch["decision"]
+            if case["decision"] != expected_decision:
+                raise RequiredSetCoverageError("裁定追随候補の期待値が基準行と不一致")
+            reference_case = next(
+                item for item in base["cases"] if item["caseId"] == f"GE-{source_branch}"
+            )
+            if (
+                set(case) != set(reference_case)
+                or case["rowRef"] != {
+                    "layer": "decisionRows", "coordinate": {"branchId": case["branchId"]}
+                }
+                or set(case["inputCoordinate"]) != set(reference_case["inputCoordinate"])
+            ):
+                raise RequiredSetCoverageError("裁定追随候補のキー集合または行参照が不一致")
+            for field in ("raw", "normalized"):
+                if case[field] != case["inputCoordinate"]:
+                    raise RequiredSetCoverageError("裁定追随候補の正規化トリプルが不一致")
+        descriptor = _document(root, "input_axes_descriptor_v1.json")
+        check_derived_axis_cases({"cases": cases}, descriptor)
+        check_game_end_concrete_case_consistency({"cases": cases})
+        ordered = {case["caseId"]: case for case in cases}
+        overlap = ordered["GE-CANDIDATE-E08-COLD-PRIORITY"]
+        overlap_input = overlap["inputCoordinate"]
+        if (
+            overlap["branchId"] != "COLD-NORMAL-OVERLAP"
+            or overlap_input["gameEnd.extensionLimit"] != "finite:R"
+            or overlap_input["state.inning"] != "L+1"
+            or overlap_input["state.half"] != "top"
+            or overlap["derivedSourceInput"]["state.inning"]
+            != overlap_input["gameEnd.regulationInnings"] + 1
+            or overlap["derivedSourceInput"]["gameEnd.coldConditions"] != [
+                {"pointDifference": 10, "startInning": 9}
+            ]
+            or overlap["derivedSourceInput"]["state.score"] != {"home": 0, "away": 10}
+        ):
+            raise RequiredSetCoverageError("E08候補が規定最終回裏完了の競合を保持していない")
+        for case_id, branch, satisfied in (
+            ("GE-CANDIDATE-E06-ONE-OF-TWO", "COLD-08", 1),
+            ("GE-CANDIDATE-E06-NONE", "GAME-END-EXTRA-CONTINUE", 0),
+            ("GE-CANDIDATE-E04-ORDER-A", "COLD-09", 2),
+            ("GE-CANDIDATE-E04-ORDER-B", "COLD-09", 2),
+        ):
+            case = ordered[case_id]
+            if (
+                case["branchId"] != branch
+                or case["inputCoordinate"]["gameEnd.coldConditions"] != "tier-count:2"
+                or case["inputCoordinate"]["gameEnd.satisfiedColdTierCount"] != satisfied
+            ):
+                raise RequiredSetCoverageError("コールド設定段数と成立段数の候補が不一致")
+        left = ordered["GE-CANDIDATE-E04-ORDER-A"]
+        right = ordered["GE-CANDIDATE-E04-ORDER-B"]
+        left_source = left["derivedSourceInput"]
+        right_source = right["derivedSourceInput"]
+        if (
+            left["inputCoordinate"] != right["inputCoordinate"]
+            or left["decision"] != right["decision"]
+            or {k: v for k, v in left_source.items() if k != "gameEnd.coldConditions"}
+            != {k: v for k, v in right_source.items() if k != "gameEnd.coldConditions"}
+            or left_source["gameEnd.coldConditions"]
+            != list(reversed(right_source["gameEnd.coldConditions"]))
+        ):
+            raise RequiredSetCoverageError("段配列逆順の候補入力または期待値が不一致")
+        for collection, expected_case_ids in (
+            ("lifecycleCases", {
+                "GE-CANDIDATE-E02-DECLARED", "GE-CANDIDATE-E10-REOPENED",
+                "GE-CANDIDATE-E09-LOCKED",
+            }),
+            ("displayCases", {
+                "DISPLAY-COLD-AFTER-TOP", "DISPLAY-FUTURE", "DISPLAY-STARTED-BOTTOM",
+                "DISPLAY-DECLARED-UNSTARTED", "DISPLAY-STARTED-BEFORE-FIRST-PITCH",
+            }),
+        ):
+            entries_by_id = {case["caseId"]: case for case in bundle[collection]}
+            if (
+                len(bundle[collection]) != len(expected_case_ids)
+                or set(entries_by_id) != expected_case_ids
+            ):
+                raise RequiredSetCoverageError(f"{collection}の候補集合がexact-set不一致")
+    except (
+        OSError, UnicodeError, json.JSONDecodeError,
+        deriver.descriptor_checker.DescriptorCheckError,
+    ) as error:
+        raise RequiredSetCoverageError(f"候補を検査できない: {error}") from error
+    return {
+        "publication": "candidate-only",
+        "independentVerification": "not-performed",
+        "ruleCorrelations": len(entries),
+        "decisionCases": len(cases),
+        "lifecycleCases": len(bundle["lifecycleCases"]),
+        "displayCases": len(bundle["displayCases"]),
+        "runtimeOutputsCompared": False,
+        "formalCoverageUpdated": False,
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    """実資産に状況判定と終了判定の検査を適用する。"""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--candidate", type=Path, help="未受理のP-8候補のみを検査する")
+    args = parser.parse_args(argv)
+    try:
+        if args.candidate is not None:
+            result = check_game_end_candidate(ROOT, args.candidate)
+            print(f"P-8候補検査（正式被覆・P-6未成立）: {result}")
+            return 0
         sizes = check_contract_sizes(ROOT)
         rows = check_row_requirements(ROOT)
         coverage = check_input_coverage(ROOT)

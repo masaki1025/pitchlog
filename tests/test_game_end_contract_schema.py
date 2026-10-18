@@ -1625,3 +1625,162 @@ def test_reserved_identity_is_rejected_at_every_entry_point(
             )
         else:
             provenance_checker.check_repository(REPOSITORY_ROOT)
+
+
+# --- P-8候補（正式資産・独立期待値には未昇格） -------------------------------
+P8_CANDIDATE_PATH = REPOSITORY_ROOT / (
+    "docs/features/t2-provenance-checker/candidates/p8_candidate_v1.json"
+)
+sys.path.insert(0, str(REPOSITORY_ROOT / "scripts"))
+p8_coverage_checker = _load_module(
+    "p8_candidate_coverage_checker",
+    REPOSITORY_ROOT / "scripts/check_required_set_coverage.py",
+)
+
+
+def _check_p8_candidate(value: dict[str, Any], tmp_path: Path) -> dict[str, Any]:
+    """変更した候補を一時ファイル経由で実検査器へ投入する。"""
+    path = tmp_path / "candidate.json"
+    path.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+    return p8_coverage_checker.check_game_end_candidate(REPOSITORY_ROOT, path)
+
+
+def test_p8_candidate_checks_correlations_without_claiming_formal_acceptance() -> None:
+    """拒否・非拒否と裁定追随の候補を検査し、未成立ゲートを明示する。"""
+    result = p8_coverage_checker.check_game_end_candidate(REPOSITORY_ROOT, P8_CANDIDATE_PATH)
+    assert result == {
+        "publication": "candidate-only",
+        "independentVerification": "not-performed",
+        "ruleCorrelations": 21,
+        "decisionCases": 5,
+        "lifecycleCases": 3,
+        "displayCases": 5,
+        "runtimeOutputsCompared": False,
+        "formalCoverageUpdated": False,
+    }
+
+
+@pytest.mark.parametrize("mutation", [
+    "missing", "duplicate", "flip-reject", "flip-equal", "wrong-input",
+    "unknown-case-field", "unknown-snapshot-field", "boolean-regulation",
+    "all-reject", "all-pass", "missing-source", "changed-source",
+    "past-domain", "stale-base", "stale-schema", "lifecycle-duplicate", "lifecycle-prompt",
+    "decision-output", "normalization", "lost-overlap", "lost-partial-tier",
+    "reversed-score", "lost-reversal", "missing-display", "forged-verification",
+    "unknown-decision-field", "unknown-coordinate-field", "wrong-row-reference",
+    "forbidden-boundary",
+])
+def test_p8_candidate_mutations_fail_closed(mutation: str, tmp_path: Path) -> None:
+    """相関の欠落・逆転・入力偽装と既承認候補の欠落を能動的に拒否する。"""
+    bundle = deepcopy(_load_object(P8_CANDIDATE_PATH))
+    cases = bundle["ruleValidationCases"]
+    rejected = next(case for case in cases if case["expected"] == "reject")
+    equal = next(case for case in cases if "OFFSET0-single" in case["caseId"])
+    if mutation == "missing":
+        cases.pop()
+    elif mutation == "duplicate":
+        cases.append(deepcopy(cases[0]))
+    elif mutation == "flip-reject":
+        rejected["expected"] = "not-rejected-by-this-rule"
+    elif mutation == "flip-equal":
+        equal["expected"] = "reject"
+    elif mutation == "wrong-input":
+        rejected["ruleSnapshot"]["coldConditions"][0]["startInning"] -= 1
+    elif mutation == "unknown-case-field":
+        equal["unknown"] = True
+    elif mutation == "unknown-snapshot-field":
+        equal["ruleSnapshot"]["unknown"] = True
+    elif mutation == "boolean-regulation":
+        equal["ruleSnapshot"]["regulationInnings"] = True
+    elif mutation == "all-reject":
+        for case in cases:
+            case["expected"] = "reject"
+    elif mutation == "all-pass":
+        for case in cases:
+            case["expected"] = "not-rejected-by-this-rule"
+    elif mutation == "missing-source":
+        del bundle["sourceDescriptor"]
+    elif mutation == "changed-source":
+        bundle["sourceDescriptor"]["startInningOffsets"] = [0]
+    elif mutation == "past-domain":
+        rejected["ruleSnapshot"]["coldConditions"][0]["startInning"] = 100
+    elif mutation == "stale-base":
+        bundle["baseContractDigest"] = "sha256:" + "0" * 64
+    elif mutation == "stale-schema":
+        bundle["baseSchemaDigest"] = "sha256:" + "0" * 64
+    elif mutation == "lifecycle-duplicate":
+        bundle["lifecycleCases"][1] = deepcopy(bundle["lifecycleCases"][0])
+    elif mutation == "lifecycle-prompt":
+        bundle["lifecycleCases"][0]["expectedFields"]["promptEndDeclaration"] = True
+    elif mutation == "decision-output":
+        bundle["decisionCases"][0]["decision"]["outcome"] = "normal-end"
+    elif mutation == "normalization":
+        normalized = bundle["decisionCases"][0]["normalized"]
+        normalized["state.half"] = "bottom" if normalized["state.half"] == "top" else "top"
+    elif mutation == "lost-overlap":
+        bundle["decisionCases"][0]["derivedSourceInput"]["state.inning"] = 5
+    elif mutation == "lost-partial-tier":
+        for field in ("inputCoordinate", "raw", "normalized"):
+            bundle["decisionCases"][1][field]["gameEnd.satisfiedColdTierCount"] = 2
+    elif mutation == "reversed-score":
+        bundle["decisionCases"][4]["derivedSourceInput"]["state.score"]["home"] = 20
+    elif mutation == "lost-reversal":
+        bundle["decisionCases"][4]["derivedSourceInput"]["gameEnd.coldConditions"].reverse()
+    elif mutation == "missing-display":
+        bundle["displayCases"].pop()
+    elif mutation == "forged-verification":
+        bundle["independentVerification"] = "verified"
+    elif mutation == "unknown-decision-field":
+        bundle["decisionCases"][0]["unknown"] = True
+    elif mutation == "unknown-coordinate-field":
+        for field in ("inputCoordinate", "raw", "normalized"):
+            bundle["decisionCases"][0][field]["unknown"] = True
+    elif mutation == "wrong-row-reference":
+        bundle["decisionCases"][0]["rowRef"]["coordinate"]["branchId"] = "COLD-08"
+    elif mutation == "forbidden-boundary":
+        bundle["sourceDescriptor"]["invalidBoundaryValues"] = ["start-inning:R+1"]
+    with pytest.raises(p8_coverage_checker.RequiredSetCoverageError):
+        _check_p8_candidate(bundle, tmp_path)
+
+
+def test_e12_candidate_covers_equality_and_one_bad_tier_in_both_orders() -> None:
+    """N=R非拒否と、他段が有効でもN>Rなら拒否する要求を具体入力で保持する。"""
+    bundle = _load_object(P8_CANDIDATE_PATH)
+    cases = bundle["ruleValidationCases"]
+    for regulation in (1, 9, 99):
+        equal = [case for case in cases if case["caseId"].startswith(
+            f"GE-RULE-COLD-R{regulation}-OFFSET0-"
+        )]
+        assert len(equal) == 3
+        assert {case["expected"] for case in equal} == {"not-rejected-by-this-rule"}
+    for order in ("first", "last"):
+        rejected = next(case for case in cases if case["caseId"] == (
+            f"GE-RULE-COLD-R9-OFFSET1-{order}"
+        ))
+        assert rejected["expected"] == "reject"
+        starts = [tier["startInning"] for tier in rejected["ruleSnapshot"]["coldConditions"]]
+        assert sorted(starts) == [1, 10]
+    assert not any("R99-OFFSET1" in case["caseId"] for case in cases)
+
+
+@pytest.mark.parametrize("mutation", ["missing-rule", "unknown-rule", "shrunk-domain"])
+def test_e12_deriver_rejects_unrecognized_source_declaration(mutation: str) -> None:
+    """導出器単体も未知規則や代表値欠落で要求を黙って減らさない。"""
+    declaration = deepcopy(_load_object(P8_CANDIDATE_PATH)["sourceDescriptor"])
+    if mutation == "missing-rule":
+        del declaration["ruleId"]
+    elif mutation == "unknown-rule":
+        declaration["ruleId"] = "other-rule"
+    else:
+        declaration["regulationRepresentatives"] = [9]
+    with pytest.raises(p8_coverage_checker.deriver.DeriverDependencyError):
+        p8_coverage_checker.deriver.derive_game_end_rule_correlations(declaration)
+
+
+def test_p8_candidate_cli_marks_unaccepted_scope(capsys: pytest.CaptureFixture[str]) -> None:
+    """候補CLIは成功しても正式被覆やP-6成立とは表示しない。"""
+    assert p8_coverage_checker.main(["--candidate", str(P8_CANDIDATE_PATH)]) == 0
+    output = capsys.readouterr().out
+    assert "正式被覆・P-6未成立" in output
+    assert "candidate-only" in output
+    assert "not-performed" in output
