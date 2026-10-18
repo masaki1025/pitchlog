@@ -1,6 +1,6 @@
 ---
 feature: auth-session-verification-contract
-status: active
+status: in-review
 承認: 済(2026-10-14・山田正輝)
 重さ分類: コア領域
 worktree: /tmp/pitchlog-auth-session-verification-contract
@@ -35,7 +35,7 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 
 正本への反映なし。本追補は承認済みの認証・tenant分離契約に対する製品実装追随であり、`docs/requirements`・`docs/design`・`docs/adr`・`docs/development`・`docs/ops`は変更しない。
 
-**正本体系外だが同一PRで更新するもの**: backendのsession endpoint・DTO・tenant profile固定operationと試験、`contracts/authz/*`のroute/matrix・oracle資産、`contracts/tenant_boundary/{base-allowlist.json,repository-contract.json}`、authz/tenant-boundaryの検査fixture・検査コード、本計画・関連調査/申し送り・作業ログ。
+**正本体系外だが同一PRで更新するもの**: frontendの`api/auth.ts`・`api/client.ts`・`stores/authStore.ts`と各spec、C2/U-F3/U-F13の依存・所有状態、backendのsession endpoint・DTO・tenant profile固定operationと試験、`contracts/authz/*`のroute/matrix・oracle資産、`contracts/tenant_boundary/{base-allowlist.json,repository-contract.json}`、authz/tenant-boundaryの検査fixture・検査コード、本計画・関連調査/申し送り・作業ログ。C1公開ソースhashの人間判定済み2 fingerprintに限る`.gitleaksignore`追記（PR #147、理由コメント付き）。
 
 ## 3. 認証状態と失敗時の契約
 
@@ -115,7 +115,7 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 - [ ] 旧 tenant の store / cache は Cookie が変わり得る時点で破棄され、新 tenant の session 2xx 前に再表示されない。
 - [ ] session の明示再確認は login POSTを再送しない。
 - [ ] logout の結果未確認を成功表示しない。
-- [ ] delayed login / session / logout が新しい `authEpoch` の store / cache を変更しない。
+- [ ] delayed sessionとCookie変更のない旧認証応答は新世代を変更しない。旧login/logoutがCookieを変更し得る場合だけ、新世代も認証未確認へ戻しcacheを破棄する。旧応答からユーザー・tenant・成功状態を採用しない。
 - [ ] tenant ID と正規表示名を利用者入力から生成しない。
 - [ ] 共有実行器Aの実統合後のdevelopからC1のrepository契約・base allowlist・7.7前後値を再導出し、異なるbranchの同じrevisionを流用していない。
 - [ ] 第1・第2段では未受理履歴・sealをfail-closedのまま維持し、第3段の正式受理前に承認者・承認日を入力していない。
@@ -148,3 +148,45 @@ U-F13計画の最終P1反映と、その後に具体化した本契約案は未�
 2026-10-16、山田正輝がC1ステップ1限定の3段・3コミット、Draft中のplan `active`維持、品質gate分割を承認した。追加独立レビューが承認範囲内の修正で収束した場合、第1・第2段のコミット、push、実番号取得用Draft PR作成まで再確認なく進める。共有実行器Aと重なる資産はA→C1を基本順とし、Aの実統合後の基線から受理値・履歴を再導出する。第3段の正式7.7受理、人間逐行確認、Draft解除、マージは承認範囲外である。
 
 2026-10-16、山田正輝が判断資料SHA-256 `75b65bf4f9f92a97e771e305bcd0c9a9b270d39467f71b5f25280562033d1f69`、受理記録案SHA-256 `43acdfa1b1e88ad235af019fd230615a702a191d91c3c158ca7b1466b4a0e141`に固定したtenant-boundary・authz両系列の7.7記録案、2 snapshot、8入力blob、6 sealed digestを正式受理した。承認者は山田正輝、承認日は2026-10-16。第3段の履歴・snapshot反映、oracle再封印、コミット、検査、push、CI、PR本文更新を許可した。この受理はPR全体の本人逐行確認、Draft解除、マージ、C2、U-F3、公開を含まない。
+
+
+## 11. ステップ2再開記録（2026-10-17）
+
+山田正輝がC1ステップ1統合後、承認済み計画のステップ2の実装・試験・レビュー・指摘対応・コミット・PR準備を承認した。最新develop `3052e0db743877c7f15c0ec10daa0142cba7ab7e`へ専用worktreeをfast-forwardし、開始条件を再照合した。login/session/logoutの既存endpoint/DTO、U-F6共通client、共有Pinia/QueryClientを利用する。C2・U-F3・公開・マージへは進まない。
+
+| 編集対象 | 今回の一時所有 | 後続への引渡し条件 |
+|---|---|---|
+| `api/auth.ts` / `authStore.ts` / 各spec | C1（Codex D） | session DTO検証、確認前の空状態、結果未確認、世代照合の検査と統合後にU-F3が呼ぶ |
+| `api/client.ts` / 各spec | C1（Codex D） | tenant通信の確認前拒否とlogin成功headers直後の旧認証破棄だけを追随。C2はC1統合後からmetadata照合を追加 |
+| `api/roster.spec.ts` | C1（Codex D） | 単体試験の前提を検証済み認証へ明示する。roster製品API/DTOは変更しない |
+| `LoginScreen` / router / App | U-F3 / U-F13（Codex D） | 今回変更せず、C1全体の統合後に各計画・指示に従い着手 |
+
+worktree一覧とopen PR（#138/#142/#143）にC2/U-F3/U-F2/U-F6の並行編集はない。既存承認済みの同一担当内でC1→C2→U-F3/U-F13の順を維持する。共有凍結資産は変更しない。`bb.auth`の旧形は候補として検査するが認証済みへ戻さず、保存形式を独自に追加しない。
+
+## 12. 遅延Cookie副作用の最小追補（承認済み・2026-10-17）
+
+山田正輝が第1周敵対/反対側レビューのCookie競合に対する追補を承認した。§7の旧認証応答に対する条件には次の安全側への例外を適用する。
+
+- 遅延した旧login/logoutがCookieを変更し得る場合に限り、新世代も認証未確認へ戻し、store/cacheを破棄して明示session再確認を要求する。旧応答から新世代のユーザー・tenant・成功状態を採用する許可ではない。
+- Cookie変更可能性はlogin/logoutの2xx headers到着、またはHTTP応答を得られないnetwork/abortで判断する。確定した非2xxには適用せず、旧session GETにも適用しない。2xx後に本文が遅延・失敗しても同じ応答による無効化を再通知しない。
+- 本文や世代を解釈する前にCookie変更可能性を一度だけ扱う。旧要求であるという情報を保持し、無効化によってepochが進んでも旧要求を現世代の成功へ昇格させない。
+- 資格情報・mutationの自動再送、sessionの自動再確認は禁止。未確認中のtenant-bound通信は共通clientで拒否する。session確認中に別のCookie変更可能応答を観測した場合、そのsession結果も旧世代として採用しない。
+- 遅延login/logout、複数世代、sessionとの前後競合、確定拒否、同一応答の通知/cache破棄の重複を固有試験で検証する。別タブの確認/保存により他タブも未確認になる保守的な既存契約は維持する。
+
+本追補は新API・DTO・header・ACL・保存形式・共有凍結資産を追加しない。C2/U-F3の接続条件へ同期する。本人逐行確認・公開・マージの承認とは扱わない。既定の第2周は修正差分と影響範囲の確認に用い、計画全体を再審査しない。
+
+## 13. ステップ2限定Draft先行例外（2026-10-18・承認済み）
+
+山田正輝がpr手順2.4に対するC1ステップ2限定の例外として、通常pushとDraft PR作成を承認した。ローカル全件/check未通過を本文へ明記し、CIと専用領域で残る検査を進める。全品質ゲート通過・ステップ2完了・本人逐行確認済みとは記録しない。Draft提出用にstatusをin-reviewへ移すが、検査待ちDoDとTSK-528全体未完了を維持する。
+
+最新developはPR #146（TSK-565）の統合SHA `ce0c0e8697252a89bce0c57e69b4821e0a6cac2b`。PR #145・#146をmergeで取り込み、競合なし。製品3ファイルは正式第2周review manifestのhashと一致し、C1の認証/API/DTO/ACL/凍結資産の候補差分は追加しない。#145の受理済み資産は基線として保持し、C1で再封印や履歴追加を行わない。
+
+#146の移送はroot/backendのconftestで起動する。以前の明示TMPDIR/--basetempは移送や掃除の実証にならないため、今回はTMPDIR/PYTEST_DEBUG_TEMPROOTを外してC1専用PITCHLOG_PYTEST_TMPDIRを指定し、配線試験と実basetempを照合する。root全件は4 worker上限（子pytestのautoも4）とし、backendのローカル配線確認・frontendと重ねた高負荷の全層実行は避ける。試験除外・timeout緩和は行わない。
+
+C2/U-F3・公開・Draft解除・マージには進まない。既定の2周レビューとP2反映記録を維持し、必要な追加レビュー裁定が判明した場合だけ差分を提示する。
+
+## 14. 本人確認回答と限定登録（PR #147）
+
+山田正輝からHEAD a3934fb7283f194ba5544e542bbddc056ff9645bの全18ファイルの本人逐行確認完了回答を受領した。確認方法は未申告であり、推定して記入しない。同回答によりC1公開ソースhashの2 fingerprintだけの理由コメント付き限定登録・検査・通常push・CI更新と、全必須チェック成功後のDraft解除が承認された。マージ・公開は許可されていない。
+
+追加差分は`.gitleaksignore`の2行と理由コメント、および本承認・本人確認・検査結果の計画/判断資料/作業ログ/PR資料への反映のみ。製品・試験・workflow・凍結資産に追加差分なし。本人確認済み18ファイルを未了へ戻さず、追加差分が当該HEADの確認対象外であることも明示する。既存履歴の別1件は未判定として用途と根拠を提示し、登録しない。
