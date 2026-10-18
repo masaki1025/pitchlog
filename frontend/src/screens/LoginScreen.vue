@@ -14,6 +14,17 @@ import { useAuthStore } from '../stores/authStore'
 
 const emit = defineEmits<{ authenticated: [] }>()
 const auth = useAuthStore()
+// 相関追補との同時配布が前提。単独U-F3候補では旧clientの状態を変更しない。
+const correlatedAuth = auth as typeof auth & {
+  environmentReason?:
+    'storage-unavailable' | 'lock-unavailable' | 'lock-busy' | null
+  explicitLoginRequired?: boolean
+}
+const environmentBlocked = computed(
+  () =>
+    correlatedAuth.environmentReason === 'storage-unavailable' ||
+    correlatedAuth.environmentReason === 'lock-unavailable',
+)
 const teamName = ref('')
 const password = ref('')
 const teamNameInput = ref<HTMLInputElement | null>(null)
@@ -32,8 +43,22 @@ const pending = ref(false)
 let mounted = true
 let operation = 0
 const busy = computed(() => pending.value)
-const blocked = computed(() => pending.value || state.value === 'authenticated')
+const blocked = computed(
+  () =>
+    pending.value ||
+    environmentBlocked.value ||
+    state.value === 'authenticated',
+)
 const message = computed(() => {
+  if (correlatedAuth.environmentReason === 'storage-unavailable')
+    return 'サイトの保存機能を利用できません。サイトデータの保存を許可してから、このページを再読込してください。復旧するまでログイン操作は送信しません。'
+  if (correlatedAuth.environmentReason === 'lock-unavailable')
+    return 'この環境では安全な認証に必要なWeb Locksを利用できません。対応する最新ブラウザでHTTPSのサイトを開き直してください。復旧するまでログイン操作は送信しません。'
+  if (correlatedAuth.environmentReason === 'lock-busy')
+    return '別のタブで認証操作が進行中です。そちらの操作を終えてから、明示的にもう一度操作してください。自動再送は行いません。'
+  if (correlatedAuth.explicitLoginRequired)
+    return '認証の変更を検出しました。別のチームへ自動で切り替えません。チーム名とパスワードを入力し、ログインし直してください。'
+
   switch (state.value) {
     case 'rejected':
       return 'ログインできませんでした。入力内容をご確認ください。'
@@ -229,7 +254,12 @@ onBeforeUnmount(() => {
           </span>
         </Button>
         <div v-if="state === 'verification-unknown'" class="mt-3 grid gap-2">
-          <Button :disabled="blocked" @click="verify()">状態を再確認</Button>
+          <Button
+            v-if="!environmentBlocked && !correlatedAuth.explicitLoginRequired"
+            :disabled="blocked"
+            @click="verify()"
+            >状態を再確認</Button
+          >
           <Button :disabled="blocked" @click="signOut"
             >ログアウトしてやり直す</Button
           >

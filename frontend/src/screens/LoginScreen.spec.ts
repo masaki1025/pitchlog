@@ -449,3 +449,43 @@ describe('LoginScreenの正規認証経路', () => {
     },
   )
 })
+
+describe('承認済み相関追補の環境回復案内', () => {
+  it.each([
+    ['storage-unavailable', 'サイトデータの保存を許可'],
+    ['lock-unavailable', '対応する最新ブラウザ'],
+  ])(
+    '%sは資格情報の再送循環を作らず具体的な回復操作を示す',
+    async (reason, text) => {
+      const view = await screen()
+      Object.assign(useAuthStore(), { environmentReason: reason })
+      await flushPromises()
+      expect(view.get('[role="alert"]').text()).toContain(text)
+      expect(
+        view.get('input[name="team_name"]').attributes('disabled'),
+      ).toBeDefined()
+      expect(
+        view.findAll('button').find((x) => x.text() === '状態を再確認'),
+      ).toBeUndefined()
+      const count = fetchMock.mock.calls.length
+      await view.get('form').trigger('submit')
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalledTimes(count)
+      expect(view.emitted('authenticated')).toBeUndefined()
+    },
+  )
+  it('別タブ認証変更は新tenantの自動採用をせず明示再loginを案内', async () => {
+    const view = await screen()
+    Object.assign(useAuthStore(), { explicitLoginRequired: true })
+    await flushPromises()
+    expect(view.get('[role="alert"]').text()).toContain(
+      '別のチームへ自動で切り替えません',
+    )
+    expect(
+      view.findAll('button').find((x) => x.text() === '状態を再確認'),
+    ).toBeUndefined()
+    expect(
+      view.get('input[name="team_name"]').attributes('disabled'),
+    ).toBeUndefined()
+  })
+})
