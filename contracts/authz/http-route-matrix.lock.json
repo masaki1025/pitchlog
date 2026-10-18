@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_http_route_matrix",
   "asset_path": "contracts/authz/http-route-matrix.json",
-  "asset_digest": "37e33bfda07c696c91edad00429edb42b9ca6ba95f9a8ffcd6c0d06355d5670b",
+  "asset_digest": "d7f5246a6eff4f5b9115a5ea51d95b67655fb7c89c4c50eccbce6f15daa83ac2",
   "entry_count": 60,
   "aggregate_decision_digest": "790b380ab971495be3b7a777f54f27c4acb03de2dc9aa5eabd92978e31bd4e5c",
   "entries": [

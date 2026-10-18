@@ -502,7 +502,7 @@ def test_selected_immutability_update_behavior(
             "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
         )
         config = _alembic_config()
-        command.upgrade(config, "head")
+        command.upgrade(config, "0032_rg1_restore_gate")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             probes = _seed_behavior_rows(connection)
             assert set(probes) == set(_BEHAVIOR_TABLES)

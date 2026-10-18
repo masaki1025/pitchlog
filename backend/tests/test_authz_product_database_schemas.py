@@ -41,6 +41,7 @@ _EXPECTED_SCHEMAS = {
             ("pitchlog_shared_fn_owner", "USAGE", False),
             ("pitchlog_auth_fn_owner", "USAGE", False),
             ("pitchlog_rg1_fn_owner", "USAGE", False),
+            ("pitchlog_rule_resolution_fn_owner", "USAGE", False),
         },
         "revoked_acl_expectations": {
             ("PUBLIC", "USAGE", False),
@@ -49,6 +50,7 @@ _EXPECTED_SCHEMAS = {
             ("pitchlog_shared_fn_owner", "CREATE", False),
             ("pitchlog_auth_fn_owner", "CREATE", False),
             ("pitchlog_rg1_fn_owner", "CREATE", False),
+            ("pitchlog_rule_resolution_fn_owner", "CREATE", False),
         },
     },
     "authz_private": {

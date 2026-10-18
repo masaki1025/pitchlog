@@ -75,7 +75,9 @@ def test_product_extension_and_new_schema_declarations() -> None:
     extra["schema_id"] = "test_extension_schema"
     extra["schema_name"] = "test_extension_schema"
     schemas.append(extra)
-    checker._validate_product_schema_expectations(schemas, authn_enabled=True)
+    checker._validate_product_schema_expectations(
+        schemas, authn_enabled=True, rg1_required=True, rule_resolution_required=True
+    )
     extensions = [
         {
             "extension_id": "test_extension",

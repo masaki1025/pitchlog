@@ -57,7 +57,7 @@ def _alembic_config() -> Config:
 
 def _run_offline_upgrade() -> None:
     """DB 接続なしで Alembic の設定消費経路を実行する。"""
-    command.upgrade(_alembic_config(), "head", sql=True)
+    command.upgrade(_alembic_config(), "0032_rg1_restore_gate", sql=True)
 
 
 def _observe_connection_parameters(engine: Engine) -> dict[str, object]:

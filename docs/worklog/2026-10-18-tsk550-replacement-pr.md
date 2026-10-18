@@ -11,3 +11,10 @@
 ## 差分移植後に固定するもの
 
 実PR ID、候補tree、oracle入力commit、比較元の全before値、候補の全after値、9資産・外部8ファイル・corpus・認可8入力・seal、各tenant-boundary/seed/oracle_input記録案のJSON実体とSHA、全体資料SHAを機械再導出し、一括で7.7正式受理へ提示する。旧#149の実値承認を新PRへ流用しない。正式履歴反映・既存DB適用・試合作成公開・本人逐行確認・Draft解除・マージは別ゲート。
+
+## 移植照合（Draft PR #152）
+
+- 実番号はDraft PR #152。番号取得時の公開HEADは文書のみの`ff7afd0f`。製品候補はローカルに限り、まだpushしない。
+- 旧ブランチ`67a6a68b`から、段階A resolver、0033配置、認可/起動候補、TB005限定許可・負例と関連試験・承認済み正本/計画の差分を移した。旧#149専用の3資料（旧7.7記録案、再受理候補、候補射影）と11個の旧履歴snapshotは移していない。旧資料の完全値と承認証跡は旧ブランチに保持する。
+- `contracts/tenant_boundary/base-allowlist.json`の旧#149末尾1行を除き、developの23行接頭部と一致させた。`contracts/migrations/seed-allowlist.json`の旧#149相当末尾1行を除き、developの3行接頭部と一致させた。`contracts/authz/frozen-baselines.json`のoracle履歴12行はdevelopと一致する。これらの新PR用履歴は正式受理まで追加しない。
+- 旧作業ログと計画の#149記載は歴史的証跡として保持し、旧ブランチで保存する資料へのリンクは現在のPRの採用資料と誤認しない表記に改めた。#149差替え案は本PRの方針ではない。

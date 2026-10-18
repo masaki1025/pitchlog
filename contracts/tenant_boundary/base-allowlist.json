@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 33,
+  "contract_revision": 34,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:33"
+        "contract_revision:34"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -21289,7 +21289,7 @@
   "inventory": {
     "path": "contracts/tenant_boundary/db-api-inventory.json",
     "schema_version": 1,
-    "sha256": "b103a48b6190e6e18cb45e456c75ec26321571c10fafc5d2c2152011f0bed8d3"
+    "sha256": "522b6351474f200da48451edd511ba944c05d5159142b675f9ccec095d76b636"
   },
   "allowed_symbols": [
     {
@@ -21480,6 +21480,73 @@
         "SQLA_SELECT"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/tenant_profile.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup._require_same_database",
+      "signature": "_require_same_database(owner_dsn: str, applicator_dsn: str) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECT",
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_same_database.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup._require_s0",
+      "signature": "_require_s0(owner_dsn: str) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECT",
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_s0.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup._apply_placement",
+      "signature": "_apply_placement(owner_dsn: str) -> None",
+      "allowed_api_ids": [
+        "SQLA_CREATE_ENGINE",
+        "SQLA_ENGINE_BEGIN"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_apply_placement.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup._require_s3",
+      "signature": "_require_s3(applicator_dsn: str) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECT",
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_s3.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup._require_placed_state",
+      "signature": "_require_placed_state(applicator_dsn: str) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECT",
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_placed_state.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup.resume_stage_a_after_placement",
+      "signature": "resume_stage_a_after_placement(*, owner_dsn: str, applicator_dsn: str) -> StageAStartupResult",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECT",
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/resume_stage_a_after_placement.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup.advance_stage_a_from_s0",
+      "signature": "advance_stage_a_from_s0(*, owner_dsn: str, applicator_dsn: str) -> StageAStartupResult",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/advance_stage_a_from_s0.py"
     }
   ],
   "conditions": [

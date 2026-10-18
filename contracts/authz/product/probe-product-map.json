@@ -209,6 +209,7 @@
     {"product": "function:FUNCTION:authz_private:tenant_has_effective_membership(uuid, boolean)", "reason": "product_only"},
     {"product": "function:FUNCTION:public:authn_normalize_team_name(text)", "reason": "product_only"},
     {"product": "function:FUNCTION:public:prevent_admin_credentials_id_update()", "reason": "product_only"},
+    {"product": "function:FUNCTION:public:resolve_stage_a_rule(uuid, text, text, boolean)", "reason": "product_only"},
     {"product": "function:FUNCTION:public:prevent_admin_operation_logs_mutation()", "reason": "product_only"},
     {"product": "function:FUNCTION:public:prevent_admin_sessions_identity_update()", "reason": "product_only"},
     {"product": "function:FUNCTION:public:prevent_admin_vocabularies_identity_update()", "reason": "product_only"},
@@ -302,6 +303,7 @@
     {"product": "function:FUNCTION:authn:verify_token(uuid)", "reason": "product_only"},
     {"product": "role:pitchlog_auth_fn_owner", "reason": "product_only"},
     {"product": "role:pitchlog_rg1_fn_owner", "reason": "product_only"},
+    {"product": "role:pitchlog_rule_resolution_fn_owner", "reason": "product_only"},
     {"product": "schema:authn", "reason": "product_only"},
     {"product": "schema:authn_crypto", "reason": "product_only"},
     {"product": "schema:rg1_api", "reason": "product_only"}

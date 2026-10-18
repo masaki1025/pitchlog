@@ -128,7 +128,7 @@ def test_roster_status_seed_upgrade_rejects_existing_key(
             SQLAlchemyIntegrityError,
             match="pk_system_vocabularies",
         ) as duplicate_key:
-            command.upgrade(config, "head")
+            command.upgrade(config, "0032_rg1_restore_gate")
         assert isinstance(duplicate_key.value.orig, psycopg.errors.UniqueViolation)
         assert duplicate_key.value.orig.diag.constraint_name == "pk_system_vocabularies"
 
@@ -157,7 +157,7 @@ def _upgrade_seed_database(
         "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
     )
     config = Config(str(_BACKEND_ROOT / "alembic.ini"))
-    command.upgrade(config, "head")
+    command.upgrade(config, "0032_rg1_restore_gate")
     return config
 
 

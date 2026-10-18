@@ -3,9 +3,9 @@
   "asset_kind": "authz_http_route_matrix",
   "input_manifest": {
     "requirement_claims_path": "contracts/authz/requirement-claims.json",
-    "requirement_claims_blob_digest": "ad830901cd6e9427b3becc5e9502934cbb39dfde",
+    "requirement_claims_blob_digest": "724b44799283798d7c15389724987c9e1a049480",
     "requirement_claims_lock_path": "contracts/authz/requirement-claims.lock.json",
-    "requirement_claims_lock_blob_digest": "4d5fbefae3d0dc5836d9e8b24510e1ce79e4c7c5"
+    "requirement_claims_lock_blob_digest": "68a4bcfc4729b53128b9f6540a7b05d2e6610cef"
   },
   "route_classes": [
     "shared_screen",
