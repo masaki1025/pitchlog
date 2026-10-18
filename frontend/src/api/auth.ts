@@ -87,19 +87,8 @@ function pendingMutation(auth: AuthStore): boolean {
 
 /** 旧Cookieの変更可能性だけを通知し、旧応答のID・成功状態は採用しない。 */
 async function invalidateCookieUncertainty(auth: AuthStore): Promise<void> {
-  try {
-    await withAuthIntent((now) => {
-      // 同一の未確認意図を重複破棄・通知しない。
-      const marker =
-        now?.phase === 'verification-required'
-          ? now
-          : writeAuthIntent('verification-required', now?.tenantId ?? null)
-      auth.observeUnconfirmedIntent(marker.intentId)
-      unknown(auth)
-    })
-  } catch (error) {
-    failedEnvironment(auth, error)
-  }
+  await auth.invalidateUncertainCookie()
+  unknown(auth)
 }
 
 async function markUnknown(
@@ -132,11 +121,9 @@ async function readSession(
       noAuthExpiry: true,
       signal,
     })
-    let stale = false
     const result = await withAuthIntent((now) => {
       auth.syncFromStorage()
       if (now?.intentId !== intent.intentId || auth.authEpoch !== epoch) {
-        stale = true
         return { status: 'stale' as const, authEpoch: epoch }
       }
       if (
@@ -166,15 +153,13 @@ async function readSession(
       )
       return authenticated(auth)
     })
-    if (stale) await invalidateCookieUncertainty(auth)
     return result
   } catch (error) {
     if (error instanceof AuthEnvironmentError)
       return failedEnvironment(auth, error)
-    if (error instanceof ApiStaleAuthError) {
-      if (error.status !== 401) await invalidateCookieUncertainty(auth)
+    if (error instanceof ApiStaleAuthError)
       return { status: 'stale', authEpoch: epoch }
-    }
+
     if (error instanceof ApiError && error.status === 401) {
       try {
         return await withAuthIntent((now) => {
@@ -194,10 +179,7 @@ async function readSession(
         return failedEnvironment(auth, failure)
       }
     }
-    // sessionは401以外の失敗でもサーバーmiddlewareがCookieを更新し得る。
-    const result = await markUnknown(auth, intent, epoch)
-    if (result.status === 'stale') await invalidateCookieUncertainty(auth)
-    return result
+    return markUnknown(auth, intent, epoch)
   }
 }
 

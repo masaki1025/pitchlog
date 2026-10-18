@@ -549,3 +549,67 @@ describe('第1周の回復・直列化指摘', () => {
     expect(useAuthStore().environmentReason).toBeNull()
   })
 })
+
+describe('通常tenant応答のCookie更新と本文遅延の区別', () => {
+  it('旧tenantのheadersが新認証後に届けば本文を読まず未確認にする', async () => {
+    const auth = oldAuth(),
+      pending = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(pending.promise)
+    const work = apiRequest('GET', '/team-records')
+    setVerifiedAuthForTest(auth, { teamId: b, teamName: 'B' })
+    queryClient.setQueryData(['B'], 'B秘密')
+    const res = response({ items: [], next_cursor: null }),
+      read = vi.spyOn(res, 'text')
+    pending.resolve(res)
+    await expect(work).rejects.toMatchObject({ name: 'ApiStaleAuthError' })
+    expect(read).not.toHaveBeenCalled()
+    empty()
+    expect(readAuthIntent()).toMatchObject({
+      phase: 'verification-required',
+      tenantId: b,
+    })
+  })
+  it('sessionのheadersは旧世代で観測済みで本文だけ遅延した場合は新Bを壊さない', async () => {
+    await intent('expected', a)
+    const body = deferred<string>(),
+      read = vi.fn(() => body.promise)
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: read,
+    } as unknown as Response)
+    const old = session()
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1))
+    // 同じアプリ世代でBを確定する。別タブのqueryClientは別JS realmである。
+    const newer = useAuthStore(pinia)
+    setVerifiedAuthForTest(newer, { teamId: b, teamName: 'B' })
+    queryClient.setQueryData(['B'], 'B秘密')
+    const marker = localStorage.getItem(AUTH_INTENT_KEY)
+    body.resolve(JSON.stringify({ tenant_id: a, team_name: '旧A' }))
+    expect((await old).status).toBe('stale')
+    expect(newer.isAuthenticated).toBe(true)
+    expect(queryClient.getQueryData(['B'])).toBe('B秘密')
+    expect(localStorage.getItem(AUTH_INTENT_KEY)).toBe(marker)
+  })
+  it('別の旧Cookie通知は未確認中でも新しい意図で確認待ちsessionを拒否する', async () => {
+    const auth = await loggedIn(b)
+    await auth.invalidateUncertainCookie()
+    const first = readAuthIntent()!
+    const body = deferred<string>(),
+      read = vi.fn(() => body.promise)
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: read,
+    } as unknown as Response)
+    const checking = session()
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1))
+    await auth.invalidateUncertainCookie()
+    expect(readAuthIntent()!.intentId).not.toBe(first.intentId)
+    body.resolve(JSON.stringify({ tenant_id: b, team_name: 'B' }))
+    expect((await checking).status).toBe('stale')
+    empty()
+  })
+})

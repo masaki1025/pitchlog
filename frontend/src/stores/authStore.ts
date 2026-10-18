@@ -2,8 +2,11 @@ import { defineStore } from 'pinia'
 import { computed, onScopeDispose, ref } from 'vue'
 import {
   AUTH_INTENT_KEY,
+  AuthEnvironmentError,
   assertAuthIntentLockHeld,
   readAuthIntent,
+  withAuthIntent,
+  writeAuthIntent,
   type AuthEnvironmentReason,
 } from '../api/authIntent'
 import { queryClient } from '../lib/queryClient'
@@ -107,7 +110,33 @@ export const useAuthStore = defineStore('auth', () => {
 
   function observeUnconfirmedIntent(intentId: string): void {
     if (isAuthenticated.value) beginCorrelatedVerification(intentId)
-    else observedIntentId = intentId
+    else if (observedIntentId !== intentId) {
+      // cacheは既に破棄済みでも、確認待ちの旧要求と入力は新しい意図へ持ち越さない。
+      authEpoch.value += 1
+      observedIntentId = intentId
+    }
+  }
+
+  async function invalidateUncertainCookie(): Promise<void> {
+    try {
+      await withAuthIntent((marker) => {
+        syncFromStorage()
+        // 1要求から1回だけ呼ぶ。異なる旧Cookie応答は未確認中でも新しい意図にする。
+        const next = writeAuthIntent(
+          'verification-required',
+          marker?.tenantId ?? null,
+        )
+        observeUnconfirmedIntent(next.intentId)
+        automaticVerificationBlocked.value = true
+      })
+    } catch (error) {
+      if (error instanceof AuthEnvironmentError)
+        failAuthEnvironment(error.reason)
+      else {
+        discard()
+        requireExplicitLogin()
+      }
+    }
   }
 
   function requireExplicitLogin(): void {
@@ -227,6 +256,7 @@ export const useAuthStore = defineStore('auth', () => {
     beginCorrelatedVerification,
     adoptCorrelatedSession,
     observeUnconfirmedIntent,
+    invalidateUncertainCookie,
     requireExplicitLogin,
     failAuthEnvironment,
     beginSessionVerification,

@@ -33,3 +33,14 @@
 - 修正後固有112件、旧境界/consumer探索187件中5失敗は明示再確認時に新意図へ移る観測IDの更新不足で、lock内で新意図を観測してから採用する修正を反映し112件再成功。探索のfrontend全件は69ファイル1248件成功したが実行中に後発のlock invariant追随があるため最終固定HEADの全件とは扱わない。型/ESLint/Prettier/buildも成功。最終HEADで必要な再検査を残す。
 - 実画面の部分受入は結合HEAD4656f868、対戦相手選手の追加/編集/reloadと同tenant2タブ・別tenant旧タブ非自動切替が成功。自チームreadは既存opponent専用契約のため未実装、確定認証のlogout UIは範囲外で切替前提に実APIを明示使用した。U-F13ログへ証跡を固定。
 - 2キー拒否専用通知は引き続き未承認・未実装。第2周レビュー未実施・本人逐行確認未実施。全品質通過/ステップ完了を記録しない。
+
+## 2026-10-19 Cookieを伴う旧headersと本文遅延の分離
+
+- 通常のplayers/team-records系列とsessionもサーバーmiddlewareがCookieを更新する。共通clientの旧headers/結果不明の処理をC1の共通無効化関数へ接続。C2のtenant不一致拒否より先に無効化し、旧ユーザー/tenant/成功を採らない。
+- 401はサーバーがCookieを更新しないため新世代を無効化しない。headersを旧世代で観測済みで本文だけ遅延した応答も、新世代へ採用せず、余計な新世代無効化はしない。別の旧Cookie応答は未確認中でも新しい意図IDへ進め、途中の再確認を古い意図で採用しない。同期lock外で意図を書かず、自動再送しない。
+- 第1周後の反映としてfrontend固有/共通境界154件が成功。root全件は29,670成功/2 skip、終了0・専用cluster撤去。rootのscripts/tests/contractsの検査入力は不変。tenant-boundary bypassとfrozen-baselines実CLIも成功。
+- backend全件は2,578成功/4 skip/1失敗/1 warningで完走した（50分48秒）。唯一の失敗はtest_roster_boundary.pyにも残っていたverifier caller exact-set。承認済みの同一1組api.routers.auth.loginだけを追加し、同じauthモジュールのlogout/read_sessionへ許可が広がらないalias scan負例2件を追加。発行入口のcaller集合は不変。当該試験ファイルは凍結資産からpinされていないことを機械確認した。
+- 修正後のbackend caller/login関連68件は成功。全件再実行を別世代で行い、修正前の全件を成功扱いにしない。
+- 結合固定HEAD24cdf797のfrontend全件は71ファイル1,349成功。production buildでstorage/lock/UUID非対応、認証拒否、通信断、session明示再確認、native lock busy回復の7項目が成功。検証環境・生成資格情報・Cookieを製品へ混ぜていない。
+- 遅延Set-Cookieの実ブラウザ試験では旧login/sessionで実CookieがAへ戻ったことを実APIで確認し、B cache 3→0、旧画面非採用を確認。logoutは再確認401がidleになる正しい契約と試験driverのalert期待が不一致だったためdriverを修正中。native lock保持中の旧session Cookie通知はBが/teamに残る実失敗を再現した。6de49595の未承認条件であり、合格へ書き換えない。
+- 追加判断680c2a27（2xx metadata不正時のCookie未確認化）を提示。現C2が既存B cacheを保持する契約からの例外なので承認前に実装しない。6deの通知2キーと区別し、既受理のDTO/意図/照合契約を一括で未了に戻さない。第2周レビュー・本人逐行確認・公開/マージは未実施。

@@ -189,6 +189,9 @@ async function requestResponse<T>(
     throw new ApiSessionUnverifiedError()
   }
   let epoch = auth.authEpoch
+  // 現存するtenant認証付き経路はCookieを更新し得る。認可の判定には使わない。
+  const cookieMayRenew =
+    path === '/auth/session' || /^\/(?:players|team-records)(?:\/|$)/.test(path)
   if (
     options.onAuthCookieUncertain &&
     !(method === 'POST' && (path === '/auth/login' || path === '/auth/logout'))
@@ -217,6 +220,9 @@ async function requestResponse<T>(
     res = await fetch(url, init)
   } catch (error) {
     // HTTP応答が得られなくてもCookie変更済みの可能性は残る。
+    auth.syncFromStorage()
+    if (cookieMayRenew && auth.authEpoch !== epoch)
+      await auth.invalidateUncertainCookie()
     await options.onAuthCookieUncertain?.()
     if (isAbortError(error)) {
       throw error
@@ -227,11 +233,17 @@ async function requestResponse<T>(
   // Set-CookieはJSより先に適用される。古い応答でも無効化だけは先に通知する。
   auth.syncFromStorage()
   const stale = auth.authEpoch !== epoch
+  // C2のtenant/nonce拒否より先に、古いheadersによるCookie不確実性を無効化する。
+  if (stale && cookieMayRenew && res.status !== 401)
+    await auth.invalidateUncertainCookie()
   if (res.ok && options.onAuthCookieUncertain) {
     await options.onAuthCookieUncertain()
     if (!stale) epoch = auth.authEpoch
   }
-  if (stale) throw new ApiStaleAuthError(method, path, res.status)
+  if (stale) {
+    // 401はCookieを更新しない。本文だけが遅延した場合にも新世代を無効化しない。
+    throw new ApiStaleAuthError(method, path, res.status)
+  }
 
   let readResult:
     | {
