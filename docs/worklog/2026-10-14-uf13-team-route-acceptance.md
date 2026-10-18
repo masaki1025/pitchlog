@@ -640,3 +640,12 @@ P1の2タブ挙動は静的レビューの推論であり、単一DOMのStorageE
 - 最終結合製品cdaf49fdで実画面/API/隔離DB/productionのopponent正常8項目・Cookie遅延5・metadata2・環境/通信断7・storage event欠落1が成功。CookieのA巻戻り/消去をserver確認、B cache3→0、POST自動再送なし。fixtureだけの後続差分はproduction閉域外。自チームread/受入は未実装で、opponent成功を代用しない。
 - 新相関レビュー第2周はCodex0/4/0、Claude0/2/7。全P1採用修正、最終差分は未再レビューで本人確認対象。既存各2周をリセットせず、第3周なし。保留P2案はPO受理済みとしない。
 - 正規統合は#157→#150→#151→#154。#154単独のfrontend TS2307は未統合LoginScreen依存、core-guardは本人未記入の拒否。結合成功を単独CIへ読み替えない。人間逐行確認/公開/Draft解除/マージは未実施、plan active維持。
+
+
+## 2026-10-19: 統合順固定と自チームread候補の具体化
+
+人間指示により順序を#157→#150→#151→#154へ固定した。#157の現HEAD c9df3dacは変更せず、最終CIと残指摘/未再レビュー6ファイル/本人全28ファイルをPRコメントへ集約する。本人チェックは未記入のまま。後続は先行PRの実develop統合後に通常mergeし、必要な承認済みconsumer追随を行う。未統合枝を通常基線にせず、結合HEAD成功を単独CI成功としない。
+
+自チーム不足は同feature内self-team-read-addendum-candidate.mdへ具体化した。既存表SELECT/RLS/CAP:team_records:readでの取得範囲、引数なしSelfTeamRecordReadToken、既存TeamRecordReadの再利用、contextからのtenant導出、C2前照合、他tenant拒否、担当/PR境界、個別ゲート/試験条件を整理。初期のROSTER:self_team_read仮ラベルは現OperationRegistrationに欄がなく、追加しない候補へ訂正した（未承認候補の訂正であり、採用済みliteralの置換ではない）。
+
+製品・API・認可・凍結資産は編集していない。自チーム実画面受入/ステップ3/TSK-528全体は未完了。既承認4PRの再承認、追加レビュー、人間逐行確認、公開、Draft解除、マージを代行していない。候補資料の追加は#154の本人確認対象に含める。
