@@ -497,3 +497,25 @@ C2の17製品/試験入力は`77d20da729994564b802cb33fbf14dc9ef26785d`、U-F3�
 U-F3は通常配置venvで**2,574成功/4 skip/1 warning、3049.63秒、終了コード0**、専用cluster cleanup完了。C2は**3,030成功/2失敗/4 skip/1 warning、3048.08秒**で、失敗は署名・未署名呼出しの変異2件。子pytestのtracebackを診断用に捕捉したところ、期待する認証guardの失敗ではなく、fixtureのcreate_appが一時sourceコピーのdomain artifact不在でERRORになり、failed件数が不足していた。
 
 C2のbackend/.venvは外部cacheへのリンク構成で、pytestスクリプトのshebang/sys.prefixがcache側になっていた。`domainrt.host._product_root`は一時コピーの場合に通常のbackend/.venvから製品ルートを選ぶ既存契約であり、これに合わない環境だった。D自身のvenvリンクだけを除き、通常位置へuv sync --lockedで再作成（cache/ソース/他担当環境は保持）。製品・既存試験を一切変更せず、変異module全**7成功、17.49秒**を確認。red/greenの期待数・artifact照合を緩和していない。診断成功を全件成功へ流用せず、同じ3,036件のbackend全件を専用clusterで再実行中。C2の17製品/試験blobは固定SHA-256と全一致している。
+
+
+## 2026-10-18: 独立作業の最終成果と接続前の残判断（Claude向け）
+
+基線は#143実統合156dd139a893845428a1ecab69632143f7694e0b。C1/#119/#129/#131/#132/#137/#143の統合待ちは解消済み。C2の最終記録HEADは193400d68e852bce14cee4ff65038c4a92a57c47、U-F3は8f2f1531fd7d1f639872ae21a711817d5c581779で、双方の製品/試験SHA-256は各検査HEAD77d20da7/a4b98244と不変。
+
+| 対象 | 最新基線の検査・状態 |
+| --- | --- |
+| C2 | root29,670成功/2 skip、backend3,032成功/4 skip/1 warning（2534.68秒、exit0）、frontend69ファイル1,279成功、型/lint/整形/build・境界/frozen/catalog成功。全件後に専用cluster撤去済み。全26差分中コア17件、本人未記入拒否を確認 |
+| U-F3 | root29,670成功/2 skip、backend2,574成功/4 skip/1 warning、frontend69ファイル1,267成功、型/lint/整形/build・境界/frozen/catalog成功。全6差分、意味上TのLoginScreen2ファイルが機械検出0で登録不足 |
+| U-F13 | e5fcff3cの宣言ステップ1/3。core全264成功、Ruff/ty/基線成功、JSON未変更、合成履歴の4製品ファイル検出/本人未記入拒否。router/Appの製品接続はまだ未実装 |
+
+両C2/U-F3の既定反対側・敵対レビュー各2周と指摘採用を維持し、上限後の反映は未再レビューとして本人確認へ明記する。C2環境不備2件とroot初回失敗・中断は履歴を保持し、今回全件成功へ置換して消さない。除外/timeout緩和/検査器変更なし。
+
+### 本当に残る人間判断と推奨
+
+1. U-F3の意味範囲漏れを閉じる`frontend/src/screens/LoginScreen*`のtenant-isolationだけへの追加1パターン。既承認router/Appは再承認不要。宣言・試験を先にコミットし、別コミットでJSONと当該製品を登録する順を守る。未登録を非コアや本人ゲート成功とは扱わない。
+2. U-F13計画§2/§3.2/§5のdevelop着地条件に対し、D自身の固定C2/U-F3/U-F13成果だけを専用検証worktreeへ結合する局所例外。製品PR境界・正式統合順・他担当未統合枝を基線にしない条件は維持する。承認前にステップ2/3の製品接続・JSON登録へ進めない。
+3. 379aef2585bfca95d044e09d2c387b97e1887c41のlogin/session相関1ステップ/追加PR案。候補SHA-256は8c05872d4fae6940404c3d49c98345633ddd12e0d56fb3bc03e8412b1680ae77。新login DTO・固定503/限定caller・Web Locks/認証意図・拒否時cache非復元・初回再login/可用性低下を明示した未承認差分。既C1の受理を取り消さず、C2に無断で混ぜない。P0限定第3周0、最終P1/P2等は未再レビュー。
+4. 現C2/U-F3/U-F13に対する通常push/Draft PR作成の許可は未取得。既存のC1他PR向け許可を流用しない。C2は資料とローカル全件検査が揃ったが、U-F3は上記登録、U-F13は接続と受入が残るため、それぞれ条件成立後だけ進める。
+
+実画面でのlogin→session→/team→一覧/追加/編集→reloadはまだ通していない。既存Chromium/Playwrightの能力確認を製品受入へ読み替えない。共有providerと正規API/DTOを再利用する準備・実経路照合は完了しており、550/D4/544/545を無関係な停止条件にしない。本人逐行確認の実施/方法、公開、マージを代行しない。
