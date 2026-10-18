@@ -5,7 +5,7 @@ status: active
 重さ分類: コア領域
 worktree: ../../..
 notion: https://app.notion.com/p/3da93b75e6878176a132ee9f25e9430a
-branch: feature/ur1-recording-rights
+branch: feature/ur1-initial-rights
 created: 2026-10-14
 計画レビュー周回: 7
 確定ゲート周回: 0
@@ -235,3 +235,7 @@ PR #143の最終head `b06971deceeb86711f73859592357ff0482e2f51` は `156dd139a89
 ## 9. #148統合後の新5正本基線（2026-10-18）
 
 TSK-547 / PR #148は`5bb1ff89306712c1de61c3a0152141c8f771b3a0`でdevelopへ統合された。新5候補は最新`origin/develop`をmergeコミット`958122dd`で取り込み、sync-protocol v0.9 approvedの作成/開始分割を基線にした。**正本未統合は新5の停止理由から外す**。開始時だけ初期権を付与し、作成時と復元調整解除時の`preparing`には付与しない。既存D4対象が0件ならRG1解除時の新D4発行も0件とし、復元後の初回開始では過去のD4を再利用しない。RG1解除の製品実装は新7のまま。U-G1/U-S1の公開接続・全ロック順、認証済み端末資格と独立V12鍵、外部台帳の実配置/耐久・運用責任、正確な資産/7.7は別の未成立条件であり、今回の正本統合で受理済みとはしない。隔離候補の試験は実Port/実台帳のDoDに数えない。
+
+## 10. data-model正本の先行編集枠（2026-10-19）
+
+U-S1後任は墓標改訂案を`d9c6bd86`へ保全し、`data-model.md`と索引の編集を停止してU-R1へ先行枠を引き渡した。U-R1は§6-1の初期権永続化境界と対応する変更履歴・索引だけを現`origin/develop`のapproved v0.11から**v0.12候補**として起案する。U-S1はU-R1の実統合後のdevelopから墓標改訂の版を再導出する。両者の正本差分を並行編集・同一7.3ゲートへ混載しない。新5の専用作業枝へ移ったためfrontmatterの`branch`を現`feature/ur1-initial-rights`へ同期した。過去の新4の確定ゲート回数と新5の回数は作業ログで分ける。
