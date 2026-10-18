@@ -40,6 +40,7 @@ _EXPECTED_SCHEMAS = {
             ("pitchlog_app", "USAGE", False),
             ("pitchlog_shared_fn_owner", "USAGE", False),
             ("pitchlog_auth_fn_owner", "USAGE", False),
+            ("pitchlog_rg1_fn_owner", "USAGE", False),
         },
         "revoked_acl_expectations": {
             ("PUBLIC", "USAGE", False),
@@ -47,6 +48,7 @@ _EXPECTED_SCHEMAS = {
             ("pitchlog_app", "CREATE", False),
             ("pitchlog_shared_fn_owner", "CREATE", False),
             ("pitchlog_auth_fn_owner", "CREATE", False),
+            ("pitchlog_rg1_fn_owner", "CREATE", False),
         },
     },
     "authz_private": {
@@ -59,6 +61,18 @@ _EXPECTED_SCHEMAS = {
             ("PUBLIC", "USAGE", False),
             ("PUBLIC", "CREATE", False),
             ("pitchlog_app", "USAGE", False),
+            ("pitchlog_app", "CREATE", False),
+        },
+    },
+    "rg1_api": {
+        "schema_name": "rg1_api",
+        "creation": "product_ddl",
+        "owner": "pitchlog_owner",
+        "ownership_path": "direct",
+        "acl_expectations": {("pitchlog_app", "USAGE", False)},
+        "revoked_acl_expectations": {
+            ("PUBLIC", "USAGE", False),
+            ("PUBLIC", "CREATE", False),
             ("pitchlog_app", "CREATE", False),
         },
     },
@@ -220,7 +234,7 @@ def test_product_database_and_schema_assets_match_design() -> None:
     databases = asset["databases"]
     schemas = asset["schemas"]
     assert isinstance(databases, list) and len(databases) == 1
-    assert isinstance(schemas, list) and len(schemas) == 4
+    assert isinstance(schemas, list) and len(schemas) == 5
     assert _normalized_object(databases[0], "database_id") == _EXPECTED_DATABASE
     normalized = {
         str(row["schema_id"]): _normalized_object(row, "schema_id") for row in schemas

@@ -20,6 +20,17 @@ from pitchlog.authz.runtime_contract_state import (
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _MAP_PATH = _REPOSITORY_ROOT / "contracts/authz/product/probe-product-map.json"
 _PROBE_PATH = _REPOSITORY_ROOT / "contracts/authz/ddl-elements.json"
+_RG1_PRODUCT_ATOMS = frozenset(
+    {
+        "function:FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)",
+        "function:FUNCTION:rg1_api:rg1_read_open(uuid)",
+        "policy:POLICY:rg1_restore_gate:rg1_fn_lock_singleton",
+        "policy:POLICY:rg1_restore_gate:rg1_fn_select_singleton",
+        "role:pitchlog_rg1_fn_owner",
+        "schema:rg1_api",
+        "table:rg1_restore_gate",
+    }
+)
 
 
 def _product_path() -> Path:
@@ -87,6 +98,14 @@ def test_probe_product_map_is_bidirectionally_exact() -> None:
     assert not summary.mapped_probe_atoms & summary.explicit_non_mapping
     assert summary.product_atoms == summary.mapped_product_atoms | summary.product_only
     assert not summary.mapped_product_atoms & summary.product_only
+    assert _RG1_PRODUCT_ATOMS <= summary.product_only
+    assert {
+        str(row["product"])
+        for row in _rows(mapping, "product_only")
+        if isinstance(row, dict)
+        and row.get("product") in _RG1_PRODUCT_ATOMS
+        and row.get("reason") == "product_only"
+    } == _RG1_PRODUCT_ATOMS
     assert summary.one_to_many == frozenset(
         {
             "table:probe_business_rows",
@@ -117,6 +136,23 @@ def test_adding_an_unclassified_product_element_is_red() -> None:
 
     with pytest.raises(ProbeProductMapError, match="製品原子要素"):
         validate_probe_product_map(mapping, probe, mutated_product)
+
+
+def test_removing_one_rg1_product_only_atom_is_red() -> None:
+    """RG1 の登録を 1 件消しても製品原子の欠落として検出する。"""
+    mapping, probe, product = _documents()
+    mutated = copy.deepcopy(mapping)
+    rows = _rows(mutated, "product_only")
+    rows.remove(
+        _row_by_value(
+            rows,
+            key="product",
+            value="policy:POLICY:rg1_restore_gate:rg1_fn_lock_singleton",
+        )
+    )
+
+    with pytest.raises(ProbeProductMapError, match="製品原子要素"):
+        validate_probe_product_map(mutated, probe, product)
 
 
 def test_unknown_reason_code_is_red() -> None:

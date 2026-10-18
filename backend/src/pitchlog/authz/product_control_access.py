@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from typing import Final
 
 CONTROL_PROFILE: Final = "effective_group_control"
@@ -20,6 +21,14 @@ HELPER_FUNCTION_ID: Final = (
 )
 HELPER_OWNER_ROLE_ID: Final = "pitchlog_shared_fn_owner"
 HELPER_SEARCH_PATH: Final = ("pg_catalog", "pg_temp")
+RG1_SINGLETON_UPDATE_ACL_ID: Final = (
+    "COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_fn_owner"
+)
+RG1_COMMIT_CHECK_FUNCTION_ID: Final = (
+    "FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)"
+)
+RG1_RESTORE_GATE_TABLE_ID: Final = "rg1_restore_gate"
+RG1_FUNCTION_OWNER_ROLE_ID: Final = "pitchlog_rg1_fn_owner"
 _CONTROL_POLICY_EXPRESSIONS: Final = (
     (
         "analysis_groups",
@@ -211,10 +220,33 @@ def generate_helper_column_acl_sql(table_id: str, column_id: str) -> str:
     )
 
 
+def is_rg1_singleton_update_acl(declaration: Mapping[str, object]) -> bool:
+    """RG1の単一列・専用owner・確定前関数だけへUPDATEを限定する。"""
+    return dict(declaration) == {
+        "expectation_id": RG1_SINGLETON_UPDATE_ACL_ID,
+        "object_kind": "column",
+        "object_schema": "public",
+        "object_id": "rg1_restore_gate",
+        "column_id": "singleton_id",
+        "grantee_role_id": "pitchlog_rg1_fn_owner",
+        "privilege_ids": ["SELECT", "UPDATE"],
+        "grant_option": False,
+        "function_id": RG1_COMMIT_CHECK_FUNCTION_ID,
+    }
+
+
+def is_forbidden_rg1_table_acl(declaration: Mapping[str, object]) -> bool:
+    """RG1状態表または専用ownerの表単位ACLを拒否する。"""
+    return (
+        declaration.get("object_id") == RG1_RESTORE_GATE_TABLE_ID
+        or declaration.get("grantee_role_id") == RG1_FUNCTION_OWNER_ROLE_ID
+    )
+
+
 def generate_function_owner_column_acl_sql(
     declaration: dict[str, object],
 ) -> str:
-    """資産で宣言した関数所有者の列 SELECT SQL を生成する。"""
+    """関数所有者の列SELECTとRG1限定の列UPDATE SQLを生成する。"""
     acl_id = str(declaration["expectation_id"])
     schema_name = str(declaration["object_schema"])
     table_id = str(declaration["object_id"])
@@ -225,15 +257,21 @@ def generate_function_owner_column_acl_sql(
             raise ValueError(f"列ACLの識別子が不正: {value!r}")
     if acl_id != f"COLUMN-ACL:{schema_name}:{table_id}:{column_id}:{role_id}":
         raise ValueError("関数所有者の列 ACL ID が物理識別子と一致しない")
-    if (
+    rg1_update = is_rg1_singleton_update_acl(declaration)
+    if not rg1_update and (
         declaration.get("privilege_ids") != ["SELECT"]
         or declaration.get("grant_option") is not False
     ):
-        raise ValueError("関数所有者の列 ACL は SELECT だけを許可する")
+        raise ValueError("関数所有者の列 ACL は SELECT とRG1限定UPDATEだけを許可する")
+    privileges = (
+        f"SELECT ({column_id}), UPDATE ({column_id})"
+        if rg1_update
+        else f"SELECT ({column_id})"
+    )
     return (
         "-- ELEMENT-TYPE: column_acl_expectation\n"
         f"-- ELEMENT-ID: {acl_id}\n"
         "\n"
-        f"GRANT SELECT ({column_id}) ON TABLE {schema_name}.{table_id} "
+        f"GRANT {privileges} ON TABLE {schema_name}.{table_id} "
         f"TO {role_id};\n"
     )
