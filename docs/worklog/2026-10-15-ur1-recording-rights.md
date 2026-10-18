@@ -330,3 +330,38 @@
 - #146後のDB必須全件は606件成功後、0028→0029のFORCE RLS試験が旧版に現行HEAD全カタログを要求して停止。`test_system_vocab_category_fk_db.py`の該当2試験を、0028/0029でFK形状・4表FORCE状態・参照行保持を検証し、HEAD復帰と全認可DDL再適用後に製品カタログ全体を検証するよう限定修正。隔離DBの2件が成功、後続3ファイル22件も成功。差分SHA-256は[判断資料](../features/ur1-recording-rights/step4-derived-followup-decision.md)へ記録。製品DDL・凍結資産は不変。最終候補のDB全件を再実行中。後発試験3ファイルの独立再レビューは未実施で、本人逐行確認も未了。
 - **#146後の最終候補実測（2026-10-18）**: 最新`origin/develop`=`ce0c0e8697252a89bce0c57e69b4821e0a6cac2b`を再確認。専用使い捨てPostgreSQLで`backend/tests/db`全630件が32分12秒・終了コード0、同ディレクトリ外の`requires_db`27件が79秒・終了コード0。後者のpytest plugin再読込warning 1件を別記。backend/root Ruff・ty、backend format、`git diff --check`も成功。公開Draft #143は準備HEADのままで、未push候補のCIとは区別する。試験前提の後発3ファイルは独立再レビュー未実施、本人逐行確認未了。9凍結資産・seedの受理済み値は#145・#146取り込み後も全件一致し、新7.7受理値は発生していない。派生3資産の完全前後値は[最終判断資料](../features/ur1-recording-rights/step4-derived-followup-decision.md)へ固定する。
 - **公開許可と残余の扱い**: POは2026-10-18の本会話で、既承認の期待値・migration前提・単一行試験修正の採用を維持し、独立再レビュー未実施の最終差分を本人逐行確認対象に明示したうえで、候補コミット・通常push・最終HEADのCI・PR本文/全差分資料更新を許可した。既承認範囲は再承認待ちへ戻さない。本人確認欄は代記せず、Draft解除・マージは別判断とする。TSK-550へは共有ファイルの確定コミット、予定編集、所有解除を通知する。
+
+
+## 2026-10-18: Codex Dによる#143最終統合準備・TSK-550 Bへの編集解除
+
+- **指示と所有**: DeepSeek停止中の#143統合準備をCodex Dが引き継ぐ。既承認の是正・7.7・限定レビューの採否を維持し、本人逐行確認・Draft解除・マージを代行しない。TSK-550 Bの作業木には一切書き込まない。
+- **実基線**: C1ステップ2/#147の実統合`493342be37d4383ca572f8d1c826a3f184a4d213`を`4271ce14c6cb9b518dd28ca78e6e9e8513089791`へ通常mergeし、`5a2be19c29d90e01a7d06d7f566a61cc00b47cc0`。競合なし。追加19ファイルはC1フロント認証と記録・限定誤検知登録で、U-R1のbackend・凍結資産・正本・seedは変化しない。
+- **受理値の実照合**: `frozen_history.frozen_projection_content`で実origin/developのbefore9件、実候補のafter9件を再計算し、#143既受理記録案の18 SHA-256および参照snapshot実bytesと完全一致した。正式受理の追加・置換は不要。base revision32→33、repository20→21、runtime16→17、先行受理履歴は維持。
+- **検査中**: root全件4workerと、既存disposable PostgreSQL fixtureの専用クラスタを使うbackend全件1workerを開始した。専用ディスク一時領域と#146設定を使用し、除外・timeout緩和・共有DB利用は行わない。全件の実際の終了結果は最終HEADを識別するPR #143の検査記録へ添付し、実行中の状態を成功と記録しない。frontend品質検査も最新統合候補で実行する。
+- **検査入口の区別**: ローカルbranch HEADへ`--ci`を直接当てると、CI合成mergeの第1親がbase SHAであるという前提で拒否される。前提の異なる呼出しであり検査を改変しない。ローカルは`--invariants-only`、受理値機械照合を使用し、正式PR受理遷移はGitHub合成mergeのCIで確認する。
+
+### TSK-550 B向けパス別引渡し（本記録を編集解除回答とする）
+
+ここでの「編集解除」はU-R1が追加編集を予定せず占有を外す意味であり、Bの個別承認・正式7.7を代替しない。未統合U-R1枝を基線にする許可ではない。Bは自分の作業木だけを編集し、実際の最新developを取得する。後続で新しい是正が必要になった場合だけ、該当パスを具体的に再調整する。
+
+| パス（波括弧は列挙する全ファイル） | 現在の残編集／編集所有 | 引渡し・統合条件 |
+| --- | --- | --- |
+| `.claude/core-areas.json`、`scripts/core_guard.py`、`tests/test_core_guard.py` | U-R1の宣言・登録完了。既存の解除を維持、追加編集なし | **編集解除済み**。未統合宣言を基線と扱わず、Bの実developと自身の承認計画で判定する |
+| `backend/src/pitchlog/authz/{classification.py,product_control_access.py,product_provisioning.py,product_role_contract.py,product_table_access.py}`、`scripts/check_authz_catalog.py` | RG1専用owner・列ACL・撤去・分類・照合の編集完了。追加編集なし | **各ファイルの編集占有を解除**。Bの正式組込みでは先行CのRG1追加集合と既存grant/revoke・負例を保持する。未統合Cをコピーせず、統合後の実developから差分を作る |
+| `backend/src/pitchlog/repositories/{operation_registry.py,repository_contract.py}`、`backend/src/pitchlog/authz/runtime_contract.py` | RG1固定2operationと生成契約の編集完了。追加編集なし | **各ファイルの編集占有を解除**。生成元JSONと常に同期し、Bの固定resolver1件の登録はBの承認済みステップ4。Cの未統合生成物を基線にしない |
+| `contracts/authz/product/{ddl-elements.json,exposure-facts.json,table-classification.json,probe-product-map.json,function-bodies/manifest.json,function-bodies/schemas/public.sql}` | RG1原子・owner・列権限・public schemaの編集完了。追加編集なし | **各ファイルの編集占有を解除**。Bの候補検証・独立資産準備を止めない。正式登録・manifest/digestはC統合後の実集合から導出し、同revisionの別候補を同一視しない |
+| `contracts/authz/product/function-bodies/{functions/*rg1*,column_acl_expectations/*rg1*,policies/*rg1*,roles/pitchlog_rg1_fn_owner.sql,schemas/rg1_api.sql,tables/rg1_restore_gate.sql}` | U-R1専用の確定資産。追加編集なし | Bの別名resolver/owner/列ACL資産はU-R1占有外。RG1資産は既受理内容を保持し、Bは上書きしない |
+| `contracts/authz/product/{application-steps.json,capability-catalog.json}` | 今回U-R1差分なし、占有なし | **即時利用可**。B固有のゲートを維持する |
+| `contracts/authz/shared-preconditions.json`、`contracts/db/schema-manifest.json`、`docs/design/data-model.md`、`docs/README.md` | 正本・ORM・派生追随は完了。追加編集なし | **各ファイルの編集占有を解除**。Bの正本確定はBの承認範囲で扱う。正式blob/digest・表集合はC統合後の実developから再導出する |
+| `backend/migrations/versions/0032_rg1_restore_gate.py`、`contracts/migrations/seed-allowlist.json` | RG1の0032/closed seedは確定、追加編集なし | B固有の候補配置は占有外。B正式migrationのrevision・down_revisionとS0は**C統合後の実Alembic headから決める**。Cの0032を上書き・別内容へ流用しない |
+| `contracts/tenant_boundary/{base-allowlist.json,repository-contract.json,runtime-authz-contract.json,history-snapshots/**}` | 本候補の編集は完了。ただし#143既受理候補のhistory/revision/snapshotの**統合順所有はCが保持** | **C→B**を維持。人間確認・#143統合後に即引渡し、Bは実統合SHAと先行履歴を保持して自身のbefore/afterを再導出し別7.7へ出す。理由は同revisionの別候補・履歴の分岐と受理値の無断置換を避けるため。C完了までB全体を待たせる条件ではない |
+
+- Bの読取照合対象は`feature/ux1-fr014-rule-resolution`の計画§3・§10-8以降および候補入口。Bの17SQLは未登録候補で、S0=`0031_intent_selectors`は候補時点の値。C統合後の正式組込みで0032を含む実headへ追随する必要がある。Bのcodec、固定候補SQL、隔離候補試験はU-R1占有外であり、継続可能。
+- 古い未追跡`docs/features/ur1-recording-rights/claude-handoff.md`は保全し、今回の最新申し送りは**本コミット済み作業ログ**へ集約する。古い別ファイルを復元済み／最新と扱わない。
+
+### 最終候補の固定と検査記録の保存先
+
+- frontendはPrettier・ESLint・vue-tsc・buildが成功し、68ファイル/1,237件が成功。backend format/Ruff/ty、root Ruff/ty、frozen-baselines不変量、tenant-boundary bypass、認可catalog（1,417項目）、docs-status・設計追随・文書網羅は成功。
+- 最終候補の追加変更はこの作業ログのみ。製品・試験・凍結資産は`5a2be19c`から変更しない。root/backend全件は同一製品・試験内容で実行中であり、最終終了コードと件数、最終HEADのGitHub CIはPR #143本文・最終確認コメントへ固定する。
+- core-guardは97差分ファイルのうち68ファイルを検出し、本人逐行確認未チェックを終了コード1で拒否した。本人確認を代記せず、この拒否は残す。既存独立レビュー（差分SHA `9fc870cf2159ad8de4d016ccb89472e791659df53e0f20d145f0fc6e7c526836`、P0/P1/P2=0）を維持し、レビュー後にPO採用された試験是正は独立再レビュー済みと扱わない。
+- 通常push・最終HEAD CI・PR資料更新は今回の指示で許可済み。全件検査で新たな製品不整合や受理値変更が判明した場合のみ、その具体差分と推奨案を提示する。本人確認・Draft解除・マージと、D4/運用open/実Port接合は本作業の完了扱いに含めない。
