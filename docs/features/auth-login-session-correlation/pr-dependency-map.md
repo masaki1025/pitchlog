@@ -4,7 +4,7 @@
 
 | 推奨順 | PR/固定候補 | 実際の差分・提供物 | 単独/統合条件 |
 | --- | --- | --- | --- |
-| 1 | C1相関（専用枝912585d1（レビュー入力a15128a1）、追加Draft準備） | login応答tenant_id、authIntent/通知2キー、storeの検証済み化入口、auth client、共通client旧Cookie observer。C2 metadata分岐はない | 自身のbackend/frontend/拒否試験・相関レビュー・本人確認。公開routerは追加しない |
+| 1 | C1相関 #157（製品108c7562、fixture912585d1、レビュー入力a15128a1） | login応答tenant_id、authIntent/通知2キー、storeの検証済み化入口、auth client、共通client旧Cookie observer。C2 metadata分岐はない | 自身のbackend/frontend/拒否試験・相関レビュー・本人確認。公開routerは追加しない |
 | 2 | C2 #150、146c774c（既存固定候補） | backend tenant_access/7業務経路のmetadata前照合、正規client tenantBound/nonce、roster client/管理画面の利用指定 | C1の実develop統合後に通常mergeし、680c2a27の共通無効化を正規clientへ追加。新storeに合わせconsumer fixtureを追随。専用結合だけの修正を単独成功としない |
 | 3 | U-F3 #151、37c41110 | 経路未登録LoginScreen/試験/環境回復表示、LoginScreen*のT登録 | C1の厳密2項目login DTOとnotice/store APIが必要。C2と製品UIは独立だがcore追加層の基線/consumer試験を先行実統合へ追随。U-F3単独の1,273成功は旧C1基線の結果 |
 | 4 | U-F13 #154、e05303e2 | router/Appのlogin/team接続・guard、router*/App*の宣言とJSON登録、受入 | C1/C2/U-F3の実develop統合後に取り込み、登録追加層は既存LoginScreen*を保持して再導出。現在の単独CI TS2307はLoginScreen未統合。metadata照合なしで/teamを公開しない |
