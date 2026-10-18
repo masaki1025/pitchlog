@@ -493,3 +493,55 @@ def test_external_epoch_lock_and_d4_counter_are_independent_rows(
             assert restoration.execute(
                 "SELECT current_generation FROM recovery_epoch WHERE singleton_id = 1"
             ).fetchone() == (2,)
+
+
+def test_external_claim_sql_rejects_other_owner_and_second_use(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+) -> None:
+    """隔離台帳の所有tupleと一度限りclaimをSQL条件で拘束する。"""
+    attempt_id, request_id = uuid4(), uuid4()
+    with disposable_postgres_cluster() as cluster:
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
+            admin.execute(
+                "CREATE TABLE d4_reservations ("
+                "attempt_id uuid PRIMARY KEY, tenant_id uuid NOT NULL, "
+                "game_id uuid NOT NULL, start_request_id uuid NOT NULL, "
+                "generation bigint NOT NULL UNIQUE, "
+                "status text NOT NULL CHECK (status IN ('reserved', 'claimed')))"
+            )
+            admin.execute(
+                "INSERT INTO d4_reservations VALUES (%s, %s, %s, %s, 1, 'reserved')",
+                (attempt_id, _TENANT, _GAME, request_id),
+            )
+        statement = (
+            "UPDATE d4_reservations SET status = 'claimed' "
+            "WHERE attempt_id = %s AND tenant_id = %s AND game_id = %s "
+            "AND start_request_id = %s AND status = 'reserved' "
+            "RETURNING generation"
+        )
+        with psycopg.connect(cluster.admin_dsn) as first:
+            assert (
+                first.execute(
+                    statement, (attempt_id, _OTHER_TENANT, _GAME, request_id)
+                ).fetchone()
+                is None
+            )
+            assert (
+                first.execute(
+                    statement, (attempt_id, _TENANT, _GAME, uuid4())
+                ).fetchone()
+                is None
+            )
+            assert first.execute(
+                statement, (attempt_id, _TENANT, _GAME, request_id)
+            ).fetchone() == (1,)
+            first.commit()
+        with psycopg.connect(cluster.admin_dsn) as second:
+            assert (
+                second.execute(
+                    statement, (attempt_id, _TENANT, _GAME, request_id)
+                ).fetchone()
+                is None
+            )
