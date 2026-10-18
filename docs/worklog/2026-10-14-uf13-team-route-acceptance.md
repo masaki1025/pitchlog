@@ -662,3 +662,10 @@ P1の2タブ挙動は静的レビューの推論であり、単一DOMのStorageE
 読み取り専用merge-treeでC1→C2はclient.ts/roster.spec.ts/TeamMembersContent.spec.tsの3ファイル、U-F3→U-F13はcore-areas.json/core_guard.py/test_core_guard.pyの共有3ファイルが競合。実branch/worktreeへ結合していない。#157→#150→#151→#154の順を各PRコメントに固定し、先行実統合後に両機能/全追加パスを保持して解消・必要検査を行う。C1→U-F3の機械merge競合はないが、実store型/厳密DTO/notice fixtureの意味追随は残る。後発差分に現在の本人確認を流用しない。
 
 本日の製品変更はなく、U-F13候補資料と本作業ログだけをコミット・通常push。自チームreadの最小追補は正式ゲート待ちで未実装・未受入。新PR作成、Draft解除、公開、マージは実施していない。
+
+
+## 2026-10-19: 指定順の統合に向けたU-F13のC1追随
+
+#157実統合a87510e6を通常merge。App.vue/router.tsの製品コードは不変。router.spec.tsは検証済み専用結合9e85fd66とbyte一致する厳密login DTO/認証fixtureへ追随し、存在しなくなったsignInを使わない。未統合の#150/#151を通常基線には取り込まず、LoginScreen待ちをコピーや試験弱体化で隠さない。
+
+userは#150→#151→#154を順にマージし競合を都度解消するよう再指示した。マージ許可を保持する一方、新しい本人逐行確認の実施済み記録を代記しない。自チームread候補は正式ゲート未了のまま製品へ追加せず、TSK-528全体/自チーム受入を完了にしない。

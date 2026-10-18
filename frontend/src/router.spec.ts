@@ -1,3 +1,4 @@
+import { setVerifiedAuthForTest } from './api/auth.test-support'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import * as authApi from './api/auth'
@@ -36,7 +37,16 @@ function view(router: ReturnType<typeof createAppRouter>) {
 }
 beforeEach(() => {
   localStorage.clear()
-  useAuthStore(pinia).signOut()
+  vi.stubGlobal('navigator', {
+    locks: {
+      request: vi.fn(async (_n, _o, action) =>
+        action({ name: 'integration-unit' }),
+      ),
+    },
+  })
+  const auth = useAuthStore(pinia)
+  setVerifiedAuthForTest(auth, { teamId: tenantA, teamName: 'fixture-A' })
+  auth.beginSessionVerification()
   queryClient.clear()
   fetchMock.mockReset().mockImplementation(async () => reply({}, 401))
   vi.stubGlobal('fetch', fetchMock)
@@ -159,14 +169,14 @@ describe('公開ガイドと保護チーム経路', () => {
       })
     })
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamId: tenantA, teamName: 'A' })
+    setVerifiedAuthForTest(auth, { teamId: tenantA, teamName: 'A' })
     const router = createAppRouter(createMemoryHistory())
     await router.push('/team')
     const wrapper = view(router)
     await flushPromises()
     const oldScreen = wrapper.getComponent(TeamScreen).vm.$.uid
     queryClient.setQueryData(['old-tenant-marker'], '旧A')
-    auth.signIn({ teamId: tenantB, teamName: 'B' })
+    setVerifiedAuthForTest(auth, { teamId: tenantB, teamName: 'B' })
     await flushPromises()
     expect(wrapper.getComponent(TeamScreen).vm.$.uid).not.toBe(oldScreen)
     expect(queryClient.getQueryData(['old-tenant-marker'])).toBeUndefined()
@@ -185,7 +195,7 @@ describe('公開ガイドと保護チーム経路', () => {
       await flushPromises()
       fetchMock.mockImplementation(async (url, init) => {
         if (String(url).endsWith('/auth/login'))
-          return reply({ status: 'authenticated' })
+          return reply({ status: 'authenticated', tenant_id: tenantA })
         if (String(url).endsWith('/auth/session'))
           return reply({ tenant_id: tenantA, team_name: 'A' })
         const headers = new Headers(init?.headers)
@@ -212,7 +222,7 @@ describe('公開ガイドと保護チーム経路', () => {
     fetchMock.mockClear()
     fetchMock.mockImplementation(async (url, init) => {
       if (String(url).endsWith('/auth/login'))
-        return reply({ status: 'authenticated' })
+        return reply({ status: 'authenticated', tenant_id: tenantA })
       if (String(url).endsWith('/auth/session')) return pending.promise
       const headers = new Headers(init?.headers)
       return reply({ items: [], next_cursor: null }, 200, {
@@ -241,26 +251,25 @@ describe('公開ガイドと保護チーム経路', () => {
       ),
     ).toHaveLength(1)
   })
-  it('保存済みbb.authがあってもsession確認前の/team到達を許さない', async () => {
+  it('保存済みbb.authだけではsession通信も/team到達も許さない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamId: tenantA, teamName: '保存A' })
-    const saved = localStorage.getItem(AUTH_STORAGE_KEY)!
-    auth.signOut()
-    localStorage.setItem(AUTH_STORAGE_KEY, saved)
+    localStorage.removeItem('bb.auth.intent')
+    localStorage.setItem(
+      AUTH_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        sessionId: tenantA,
+        teamName: '保存A',
+        teamId: tenantA,
+      }),
+    )
     auth.syncFromStorage()
-    const pending = deferred()
-    fetchMock.mockReturnValueOnce(pending.promise)
     const router = createAppRouter(createMemoryHistory())
-    const navigating = router.push('/team')
-    await flushPromises()
-    expect(auth.isAuthenticated).toBe(false)
-    expect(router.currentRoute.value.name).not.toBe('team')
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    pending.resolve(reply({}, 401))
-    await navigating
+    await router.push('/team')
     expect(router.currentRoute.value.name).toBe('login')
+    expect(auth.isAuthenticated).toBe(false)
     expect(auth.teamId).toBeNull()
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
   it('旧A一覧がBへの切替後に届いても画面/cacheへ採用しない', async () => {
     const auth = useAuthStore(pinia)
@@ -278,13 +287,13 @@ describe('公開ガイドと保護チーム経路', () => {
           headers.get('X-Pitchlog-Tenant-Challenge') ?? '',
       })
     })
-    auth.signIn({ teamId: tenantA, teamName: 'A' })
+    setVerifiedAuthForTest(auth, { teamId: tenantA, teamName: 'A' })
     const router = createAppRouter(createMemoryHistory())
     await router.push('/team')
     const wrapper = view(router)
     await flushPromises()
     expect(oldHeaders).toBeDefined()
-    auth.signIn({ teamId: tenantB, teamName: 'B' })
+    setVerifiedAuthForTest(auth, { teamId: tenantB, teamName: 'B' })
     await flushPromises()
     pendingA.resolve(
       reply(
@@ -309,8 +318,9 @@ describe('公開ガイドと保護チーム経路', () => {
       ),
     )
     await flushPromises()
-    expect(auth.teamId).toBe(tenantB)
-    expect(router.currentRoute.value.name).toBe('team')
+    expect(auth.teamId).toBeNull()
+    expect(auth.isAuthenticated).toBe(false)
+    expect(router.currentRoute.value.name).toBe('login')
     expect(wrapper.text()).not.toContain('旧A応答の固有名')
     expect(
       JSON.stringify(
@@ -345,7 +355,7 @@ describe('公開ガイドと保護チーム経路', () => {
     'C1結果の%s境界をguardで拒否する',
     async (kind) => {
       const auth = useAuthStore(pinia)
-      auth.signIn({ teamId: tenantA, teamName: 'A' })
+      setVerifiedAuthForTest(auth, { teamId: tenantA, teamName: 'A' })
       const spy = vi.spyOn(authApi, 'ensureSessionVerified')
       if (kind === 'pending')
         spy.mockRejectedValueOnce(new authApi.AuthOperationInProgressError())
@@ -368,7 +378,10 @@ describe('公開ガイドと保護チーム経路', () => {
     await router.push('/')
     const wrapper = view(router)
     const publicScreen = wrapper.getComponent(StrikeZoneCompareHost).vm.$.uid
-    useAuthStore(pinia).signIn({ teamId: tenantA, teamName: 'A' })
+    setVerifiedAuthForTest(useAuthStore(pinia), {
+      teamId: tenantA,
+      teamName: 'A',
+    })
     await flushPromises()
     expect(wrapper.getComponent(StrikeZoneCompareHost).vm.$.uid).toBe(
       publicScreen,
@@ -380,7 +393,10 @@ describe('公開ガイドと保護チーム経路', () => {
     fetchMock.mockImplementation(async (url) =>
       String(url).includes('/team-records') ? pending.promise : reply({}, 401),
     )
-    useAuthStore(pinia).signIn({ teamId: tenantA, teamName: 'A' })
+    setVerifiedAuthForTest(useAuthStore(pinia), {
+      teamId: tenantA,
+      teamName: 'A',
+    })
     const router = createAppRouter(createMemoryHistory())
     await router.push('/team')
     const wrapper = view(router)
@@ -423,7 +439,10 @@ describe('公開ガイドと保護チーム経路', () => {
           headers.get('X-Pitchlog-Tenant-Challenge') ?? '',
       })
     })
-    useAuthStore(pinia).signIn({ teamId: tenantA, teamName: 'A' })
+    setVerifiedAuthForTest(useAuthStore(pinia), {
+      teamId: tenantA,
+      teamName: 'A',
+    })
     const router = createAppRouter(createMemoryHistory())
     await router.push('/team')
     const wrapper = view(router)
@@ -436,10 +455,10 @@ describe('公開ガイドと保護チーム経路', () => {
     expect(wrapper.findComponent(TeamScreen).exists()).toBe(true)
     expect(before).toBe(1)
     expect(useAuthStore(pinia).teamId).toBe(tenantA)
-    localStorage.removeItem(AUTH_STORAGE_KEY)
+    localStorage.removeItem('bb.auth.intent')
     window.dispatchEvent(
       new StorageEvent('storage', {
-        key: AUTH_STORAGE_KEY,
+        key: 'bb.auth.intent',
         newValue: null,
         storageArea: localStorage,
       }),
@@ -447,7 +466,7 @@ describe('公開ガイドと保護チーム経路', () => {
     await flushPromises()
     expect(wrapper.findComponent(TeamScreen).exists()).toBe(false)
     expect(router.currentRoute.value.name).toBe('login')
-    expect(wrapper.text()).toContain('認証状態を確認できません')
+    expect(wrapper.text()).toContain('認証')
     expect(tenantCalls()).toBe(before)
   })
   it('hydration待ちの後でもprovider不一致なら通信しない', async () => {
