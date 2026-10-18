@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3da93b75e6878176a132ee9f25e9430a
 branch: feature/ur1-initial-rights
 created: 2026-10-14
 計画レビュー周回: 7
-確定ゲート周回: 0
+確定ゲート周回: 1
 実行方式: 通常
 反映周コミット: 適用
 ---
@@ -44,6 +44,7 @@ created: 2026-10-14
 | --- | --- | --- |
 | sync-protocol 9-5 | 現行の試合作成行に初期記録権作成を含む矛盾が既知。U-S1 承認済み R-17 が定める単独の小 PR で作成と開始を分割し、U-G1 統合より先に確定・統合する。本計画はその承認を兼ねない | 7.6/7.3、外部前提 |
 | data-model 3-2 | RG1単一状態行、専用`NOLOGIN/NOBYPASSRLS` owner、FORCE RLS、appの固定読取2関数だけへの到達をv0.11へ確定。`78c64915`の最終反映は未再レビューと明示したうえで、2026-10-16の本会話でPOが当該改訂範囲を承認した。個別DDL/JSON・認可所有側受理・7.7はこの正本承認に含まない。同日、別裁定としてRG1新4の[exact差分に限る認可所有側のPO代替受理](rg1-authz-alternative-acceptance.md)を取得した | 7.3確定済み、認可所有側3項目は限定代替受理済み。7.7実値・本人逐行確認は別ゲート |
+| `docs/design/data-model.md`・`docs/README.md` | 新5のv0.12候補を§6-1の開始時初期付与・復元外D4/復旧世代・V12配達行として起案。正式7.3第1回の指摘により、直接影響する3-2の専用owner区分、3-4の実装待ち一意性、5-4/12-8の申し送りと索引へ追随する。U-S1の墓標改訂は別ゲート | 正本7.3全文レビュー→採否反映・差分レビュー→PO承認。具体DDL/JSON・7.7と実配置は別受理 |
 | 要件書・ADR・開発規約 | 現時点では反映なし。物理値や復旧境界で意味変更が必要なら差分を分離し 7.6 で判定 | 判定待ち |
 | `.claude/core-areas.json`・guard | U-R1 パスを `recording-rights` と意味が重なる `sync-protocol`・`tenant-isolation` に登録。`AREA_PATH_ADDITIONS` 宣言を先行コミット、JSON 登録を次コミットに分ける | 実装 PR |
 | `contracts/tenant_boundary/repository-contract.json`・生成物・`base-allowlist.json`・履歴/archive | DB operation の capability、token、許可 SQL シンボルを最小範囲で追加する。既存受理履歴を保ち、7.7 の単一受理記録と関連検査を行う | 凍結契約ゲート、人間承認 |
@@ -238,4 +239,4 @@ TSK-547 / PR #148は`5bb1ff89306712c1de61c3a0152141c8f771b3a0`でdevelopへ統�
 
 ## 10. data-model正本の先行編集枠（2026-10-19）
 
-U-S1後任は墓標改訂案を`d9c6bd86`へ保全し、`data-model.md`と索引の編集を停止してU-R1へ先行枠を引き渡した。U-R1は§6-1の初期権永続化境界と対応する変更履歴・索引だけを現`origin/develop`のapproved v0.11から**v0.12候補**として起案する。U-S1はU-R1の実統合後のdevelopから墓標改訂の版を再導出する。両者の正本差分を並行編集・同一7.3ゲートへ混載しない。新5の専用作業枝へ移ったためfrontmatterの`branch`を現`feature/ur1-initial-rights`へ同期した。過去の新4の確定ゲート回数と新5の回数は作業ログで分ける。
+U-S1後任は墓標改訂案を`d9c6bd86`へ保全し、`data-model.md`と索引の編集を停止してU-R1へ先行枠を引き渡した。U-R1は§6-1の初期権永続化境界と対応する変更履歴・索引を現`origin/develop`のapproved v0.11から**v0.12候補**として起案した。正式7.3で判明した直接影響の3-2/3-4/5-4/12-8も同じゲートの指摘反映として扱い、墓標の5-3/5-5には触れない。U-S1はU-R1の実統合後のdevelopから墓標改訂の版を再導出する。両者の正本差分を並行編集・同一7.3ゲートへ混載しない。新5の専用作業枝へ移ったためfrontmatterの`branch`を現`feature/ur1-initial-rights`へ同期した。過去の新4の確定ゲート回数と新5の回数は作業ログで分ける。
