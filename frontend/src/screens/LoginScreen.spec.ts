@@ -454,6 +454,7 @@ describe('承認済み相関追補の環境回復案内', () => {
   it.each([
     ['storage-unavailable', 'サイトデータの保存を許可'],
     ['lock-unavailable', '対応する最新ブラウザ'],
+    ['identity-unavailable', '安全な識別子を生成できません'],
   ])(
     '%sは資格情報の再送循環を作らず具体的な回復操作を示す',
     async (reason, text) => {
@@ -487,5 +488,35 @@ describe('承認済み相関追補の環境回復案内', () => {
     expect(
       view.get('input[name="team_name"]').attributes('disabled'),
     ).toBeUndefined()
+  })
+})
+
+describe('相関追補の回復不能な再試行を避ける', () => {
+  it('期待tenantが不明なら効かない再確認ボタンを表示しない', async () => {
+    fetchMock.mockResolvedValueOnce(reply({}, 503))
+    const view = await screen()
+    Object.assign(useAuthStore(), { canReverify: false })
+    await flushPromises()
+    expect(view.get('[role="alert"]').text()).toContain(
+      '明示的にログインし直す',
+    )
+    expect(
+      view.findAll('button').find((x) => x.text() === '状態を再確認'),
+    ).toBeUndefined()
+  })
+  it('login成功後のsession401は入力誤りと断定せずCookie回復を案内', async () => {
+    const view = await screen()
+    fetchMock
+      .mockResolvedValueOnce(reply({ status: 'authenticated' }))
+      .mockResolvedValueOnce(reply({}, 401))
+    await submit(view)
+    expect(view.get('[role="alert"]').text()).toContain(
+      'Cookieの保存設定を確認',
+    )
+    expect(
+      view.get('button[type="submit"]').attributes('disabled'),
+    ).toBeDefined()
+    expect(view.emitted('authenticated')).toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 })
