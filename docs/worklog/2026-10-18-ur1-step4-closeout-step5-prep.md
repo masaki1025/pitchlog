@@ -83,3 +83,5 @@ Ruff check、ty check、候補単体とRG1関連25件は成功。使い捨てPos
 依頼者の指示で隔離候補と試験・記録をローカル`68c085852bb57c2f65e30e08a39cd49689bc1d19`へ固定した。pushなし。最新取得済み`origin/develop`は`156dd139a893845428a1ecab69632143f7694e0b`のまま。既存世代表のapp表単位SELECT/INSERT/UPDATEを確認し、前候補の同表へV12 digestを足すと直接参照・更新面が増える問題を発見した。秘密材は新規function_only配達表へ分け、既存世代表のACLは拡大しない推奨変更を[3群判断資料](../features/ur1-recording-rights/step5-three-part-approval.md)へ記録した。これは**新しい具体DDL判断の候補**で、正式migration・認可・凍結資産への反映はしていない。
 
 隔離PostgreSQLで所有tuple不一致と2回目の`reserved→claimed`がSQL条件で拒否される負例を追加した。候補単体・DBの16件、Ruff、tyが成功。実台帳adapterの同期standby耐久、資格発行/失効、U-G1/U-S1実経路や本物Portの合格とは扱わない。U-G1の実作業木に開始側の新受理は見当たらず、U-S1のPort署名も現時点で端末引数なし。両担当の未回答は[判断資料](../features/ur1-recording-rights/step5-three-part-approval.md)の接続表へ残した。TSK-550 B・両担当の作業木は読取のみで編集していない。
+
+最終候補`ba75705e`でbackend Ruff全対象とtyが成功し、候補・RG1関連の使い捨てDB込み28件が成功した。全backend pytest、同期standby耐久・旧primaryフェンス、製品Port/HTTPの検査は未実施。新5の完了判定には用いない。
