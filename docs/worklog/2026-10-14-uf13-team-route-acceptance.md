@@ -506,3 +506,12 @@ U-F3は経路未登録の正規auth接続と24固有試験/全frontend1,261試�
 C2は156dd139基線へ通常merge済み、固定製品HEAD77d20da7。旧/tmp成果はコミットからディスク側worktreeへ復元し、17製品/試験blobのSHA-256を保持。最新frontend1,279成功、root全29,670成功/2 skip、型/lint/build/tenant-boundary/frozen不変量/認可catalog/plan正本同期成功。backend環境不備2件（3,030成功/2失敗/4 skip）は通常venvへ修正し、変異module7成功を確認して全3,036件を再実行中。全件greenやCI成功へ代用しない。
 
 C1/#119/#143等の解消済み統合待ちを現行の停止理由から外し、shared client=C2、LoginScreen=U-F3、router/App/core3=U-F13の順で所有を固定した。C2への新auth DTO/保存契約の追加なし。C1相関の未承認具体候補はU-F13 branch379aef25へ一本化し、既C1の受理やC2/U-F3レビューを再承認待ちへ戻さない。push/Draft PR作成・本人逐行確認・公開・マージはまだ代行しない。
+
+
+## 2026-10-18: C2最新候補の全件再成功・Claude向け申し送り
+
+- 製品検査HEAD77d20da729994564b802cb33fbf14dc9ef26785d、実基線156dd139a893845428a1ecab69632143f7694e0b。通常backend/.venvと既存の隔離PostgreSQL fixtureを使い、全3,036件を除外なしで再実行。3,032 passed / 4 skipped / 1 warning、2534.68秒、exit0。専用cluster撤去を確認した。
+- root全29,670成功/2 skip、frontend全69ファイル1,279成功、各型/lint/整形/buildとtenant境界/frozen/認可catalogも成功。skip4は既存製品化後切替dry-run、warning1は既存db_fixtures再読込。前段の環境不備2件・中断・root初回失敗を履歴から消さない。既存DBや他担当worktreeを変更しない。
+- 最終source17ファイルのSHA-256が固定manifestと同一。全26変更パスのcore機械検出17件、基線成功、本人未記入なら17件すべて拒否。未再レビュー反映を含む全26件が本人確認対象で、方法は推定記入しない。
+- C2の承認済み2ステップと既定レビュー採否は維持する。C1/#119/#143待ちは解消済み。U-F3は別の固定候補で全件検査済みだがLoginScreen*のT登録不足、U-F13は宣言ステップ1だけ。新login/session相関候補は別の人間判断でありC2へ混ぜない。
+- 既存の他PR向け許可を本C2へ流用せず、通常push/Draft PR作成は未実施。CI・本人確認・実画面/API/DB通し・TSK-520受入・TSK-528全体・公開・マージは未完了。申し送りはこのコミット済み作業ログへ集約する。

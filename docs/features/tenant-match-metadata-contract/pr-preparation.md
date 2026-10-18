@@ -1,11 +1,11 @@
 # C2 PR準備資料（未提出）
 
-## 最新基線での状態（2026-10-18、再検証中）
+## 最新基線での状態（2026-10-18、ローカル再検証完了）
 
 基線はPR #143実統合`156dd139a893845428a1ecab69632143f7694e0b`、製品検査HEADは`77d20da729994564b802cb33fbf14dc9ef26785d`。17製品/試験blobは固定SHA-256から不変。以降の旧HEADと旧検査表は当時の記録として保持する。
 
 - frontend69ファイル**1,279成功**、root全**29,670成功/2 skip**（1218.28秒）、型/lint/整形/build・tenant境界・frozen不変量・認可catalog成功。
-- backend全件は**3,030成功/2失敗/4 skip**。失敗2件は外部venv配置が一時ソースのdomain artifact基準を変える環境不備。通常位置にvenvを再作成し、既存変異module全7件成功（red→greenの期待値不変）。backend全件3,036件を専用clusterで再実行しており、**この時点では全件greenとは記録しない**。
+- backend全件再実行は**3,032成功/4 skip/1 warning**（3,036収集、2534.68秒、終了コード0）。専用clusterをfinallyで撤去済み。先行実行の3,030成功/2失敗/4 skipは、外部venvのpytest shebang/sys.prefixによる一時ソースのartifact解決不備として保全し、通常`backend/.venv`へ戻して期待値・製品・検査器を変えずに全件を再成功させた。warning1は既存db_fixtures再読込、skip4は既存切替dry-run。
 - root初回3失敗とbackend初回中断は環境起因として保全。検査の除外・timeout緩和・ハーネス変更なし。以後のroot/backendは明示した専用clusterだけを使い、既存DB接続拒否はSQL実行前で停止している。
 - 旧#143/C1統合待ちは解消済み。C2の既定レビュー採否と最終反映未再レビューは維持し、C1新相関候補を本PRへ混ぜない。
 - 本人逐行確認・push・PR/CI・公開・マージは未実施。通常push/Draft PR作成は新候補に対する既存許可がなく、一括判断へ提示する。
