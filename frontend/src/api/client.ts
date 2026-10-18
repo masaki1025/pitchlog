@@ -19,7 +19,7 @@ export interface RequestOptions {
   tenantBound?: boolean
   noAuthExpiry?: boolean
   /** Cookie変更可能な成功headers/通信結果不明を、世代判定より先に一度だけ通知する。 */
-  onAuthCookieUncertain?: () => void
+  onAuthCookieUncertain?: (resultUnknown?: boolean) => void | Promise<void>
   signal?: AbortSignal
 }
 
@@ -85,7 +85,7 @@ export class ApiTenantVerificationError extends ApiStaleAuthError {
     super(method, path, status)
     this.name = 'ApiTenantVerificationError'
     this.message =
-      'テナントの照合を確認できないため結果は未確認です。自動再送せず一覧を再読込してください'
+      'テナントの照合を確認できないため認証状態と操作結果は未確認です。自動再送せずログイン状態を再確認してください'
   }
 }
 
@@ -219,6 +219,11 @@ async function requestResponse<T>(
       auth.teamId !== expectedTenant ||
       !auth.isAuthenticated)
 
+  // 現存するtenant認証付き経路はCookieを更新し得る。認可の判定には使わない。
+  const cookieMayRenew =
+    ['/auth/session', '/auth/password', '/auth/login', '/auth/logout'].includes(
+      path,
+    ) || /^\/(?:players|team-records)(?:\/|$)/.test(path)
   if (
     options.onAuthCookieUncertain &&
     !(method === 'POST' && (path === '/auth/login' || path === '/auth/logout'))
@@ -251,10 +256,12 @@ async function requestResponse<T>(
   try {
     res = await fetch(url, init)
   } catch (error) {
-    auth.syncFromStorage()
-    if (tenantChanged()) throw new ApiTenantVerificationError(method, path)
     // HTTP応答が得られなくてもCookie変更済みの可能性は残る。
-    options.onAuthCookieUncertain?.()
+    auth.syncFromStorage()
+    // 結果不明なら現世代でもCookieが変わり得る。要求につき通知経路は一つ。
+    if (options.onAuthCookieUncertain) await options.onAuthCookieUncertain(true)
+    else if (cookieMayRenew) await auth.invalidateUncertainCookie()
+    if (tenantChanged()) throw new ApiTenantVerificationError(method, path)
     if (isAbortError(error)) {
       throw error
     }
@@ -264,8 +271,16 @@ async function requestResponse<T>(
   // Set-CookieはJSより先に適用される。古い応答でも無効化だけは先に通知する。
   auth.syncFromStorage()
   const stale = auth.authEpoch !== epoch
+  // C2のtenant/nonce拒否より先に、古いheadersによるCookie不確実性を無効化する。
+  if (
+    stale &&
+    cookieMayRenew &&
+    res.status !== 401 &&
+    !options.onAuthCookieUncertain
+  )
+    await auth.invalidateUncertainCookie()
   if (res.ok && options.onAuthCookieUncertain) {
-    options.onAuthCookieUncertain()
+    await options.onAuthCookieUncertain()
     if (!stale) epoch = auth.authEpoch
   }
   if (tenantChanged())
@@ -277,6 +292,8 @@ async function requestResponse<T>(
     (res.headers.get('X-Pitchlog-Tenant-Match') !== '1' ||
       res.headers.get('X-Pitchlog-Tenant-Challenge') !== challenge)
   ) {
+    // Set-Cookieは本文/metadata検査より先に適用され得る。成功や旧cacheを採らない。
+    await auth.invalidateUncertainCookie()
     throw new ApiTenantVerificationError(method, path, res.status)
   }
 
@@ -307,6 +324,9 @@ async function requestResponse<T>(
   }
 
   if (!readResult.ok) {
+    // session本文が読めなければCookieとの一致も未確認。業務のDTO不正とは区別する。
+    if (res.ok && path === '/auth/session')
+      await auth.invalidateUncertainCookie()
     const cause = readResult.cause
     if (isAbortError(cause)) {
       throw cause

@@ -1,3 +1,4 @@
+import { setVerifiedAuthForTest } from './auth.test-support'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../stores/authStore'
@@ -12,7 +13,10 @@ const TENANT_A = '11111111-1111-1111-1111-111111111111'
 const TENANT_B = '22222222-2222-2222-2222-222222222222'
 let pinia: Pinia
 function signIn(teamId = TENANT_A) {
-  useAuthStore().signIn({ teamId, teamName: '検証済み試験チーム' })
+  setVerifiedAuthForTest(useAuthStore(), {
+    teamId,
+    teamName: '検証済み試験チーム',
+  })
 }
 function response(challenge: string, ack = '1', status = 200) {
   return new Response('{"items":[]}', {
@@ -72,10 +76,11 @@ describe('tenant-boundの共通client境界', () => {
     'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA',
     '11111111111111111111111111111111',
   ])('非canonical tenant %s はfetch前に拒否する', async (tenant) => {
-    signIn(tenant)
+    signIn()
+    useAuthStore().teamId = tenant
     await expect(
       apiRequest('GET', '/players', { tenantBound: true }),
-    ).rejects.toBeInstanceOf(ApiTenantVerificationError)
+    ).rejects.toBeInstanceOf(ApiSessionUnverifiedError)
     expect(fetch).not.toHaveBeenCalled()
   })
   it('未確認sessionでは通信しない', async () => {
@@ -88,6 +93,7 @@ describe('tenant-boundの共通client境界', () => {
   it.each([null, '', '0', '1, 1', 'true'])(
     '2xx ack %s は本文を読む前に拒否する',
     async (ack) => {
+      queryClient.setQueryData(['private'], '旧cache')
       let read!: ReturnType<typeof vi.spyOn>
       vi.mocked(fetch).mockImplementation(async (_url, init) => {
         const challenge = new Headers(init?.headers).get(
@@ -104,6 +110,12 @@ describe('tenant-boundの共通client境界', () => {
       ).rejects.toBeInstanceOf(ApiTenantVerificationError)
       expect(read).not.toHaveBeenCalled()
       expect(fetch).toHaveBeenCalledTimes(1)
+      expect(useAuthStore().isAuthenticated).toBe(false)
+      expect(queryClient.getQueryCache().getAll()).toEqual([])
+      await expect(
+        apiRequest('GET', '/players', { tenantBound: true }),
+      ).rejects.toBeInstanceOf(ApiSessionUnverifiedError)
+      expect(fetch).toHaveBeenCalledTimes(1)
     },
   )
   it.each([null, '', TENANT_A, `${TENANT_A}, ${TENANT_B}`])(
@@ -117,6 +129,8 @@ describe('tenant-boundの共通client境界', () => {
         apiRequest('GET', '/players', { tenantBound: true }),
       ).rejects.toBeInstanceOf(ApiTenantVerificationError)
       expect(read).not.toHaveBeenCalled()
+      expect(useAuthStore().isAuthenticated).toBe(false)
+      expect(localStorage.getItem('bb.auth.uncertain')).not.toBeNull()
     },
   )
   it('Aの過去2xxをB要求へ注入しても本文を採用しない', async () => {
@@ -136,6 +150,7 @@ describe('tenant-boundの共通client境界', () => {
       apiRequest('GET', '/players', { tenantBound: true }),
     ).rejects.toBeInstanceOf(ApiTenantVerificationError)
     expect(read).not.toHaveBeenCalled()
+    expect(useAuthStore().isAuthenticated).toBe(false)
   })
   it.each(['GET', 'POST'] as const)(
     '%sの遅延headersは認証切替後に本文を読まず拒否する',
@@ -154,7 +169,8 @@ describe('tenant-boundの共通client境界', () => {
       pending.resolve(res)
       await expect(result).rejects.toBeInstanceOf(ApiTenantVerificationError)
       expect(read).not.toHaveBeenCalled()
-      expect(queryClient.getQueryData(['new-tenant'])).toBe('維持')
+      expect(queryClient.getQueryData(['new-tenant'])).toBeUndefined()
+      expect(useAuthStore().isAuthenticated).toBe(false)
     },
   )
   it('本文読取中の世代切替でも応答を採用しない', async () => {
@@ -174,7 +190,7 @@ describe('tenant-boundの共通client境界', () => {
     pending.resolve('{"name":"old"}')
     await expect(result).rejects.toBeInstanceOf(ApiTenantVerificationError)
   })
-  it('epochが同じでもteamIdの変更を検出する', async () => {
+  it('teamId改変をstorage同期で検出する', async () => {
     vi.mocked(fetch).mockImplementationOnce(async (_url, init) => {
       useAuthStore().teamId = TENANT_B
       return response(
@@ -214,4 +230,54 @@ describe('tenant-boundの共通client境界', () => {
     expect(headers.has('X-Pitchlog-Expected-Tenant')).toBe(false)
     expect(headers.has('X-Pitchlog-Tenant-Challenge')).toBe(false)
   })
+})
+
+it('lock競合中のmetadata不正も通知し、変更要求を再送しない', async () => {
+  queryClient.setQueryData(['private'], '旧cache')
+  vi.stubGlobal('navigator', {
+    locks: { request: vi.fn(async (_n, _o, action) => action(null)) },
+  })
+  vi.mocked(fetch).mockResolvedValue(response('wrong'))
+  await expect(
+    apiRequest('POST', '/players', { tenantBound: true, body: {} }),
+  ).rejects.toBeInstanceOf(ApiTenantVerificationError)
+  expect(useAuthStore().isAuthenticated).toBe(false)
+  expect(queryClient.getQueryCache().getAll()).toEqual([])
+  expect(localStorage.getItem('bb.auth.uncertain')).not.toBeNull()
+  expect(fetch).toHaveBeenCalledTimes(1)
+})
+
+it('正しいmetadataのJSON不正を認証未確認へ一律変換しない', async () => {
+  queryClient.setQueryData(['private'], '正規cache')
+  vi.mocked(fetch).mockImplementation(async (_url, init) => {
+    const res = response(
+      new Headers(init?.headers).get('X-Pitchlog-Tenant-Challenge')!,
+    )
+    vi.spyOn(res, 'text').mockResolvedValue('{')
+    return res
+  })
+  await expect(
+    apiRequest('POST', '/players', { tenantBound: true, body: {} }),
+  ).rejects.toMatchObject({ name: 'ApiError' })
+  expect(useAuthStore().isAuthenticated).toBe(true)
+  expect(queryClient.getQueryData(['private'])).toBe('正規cache')
+  expect(localStorage.getItem('bb.auth.uncertain')).toBeNull()
+  expect(fetch).toHaveBeenCalledTimes(1)
+})
+
+it('storage同期とは独立にteamId不一致を本文前に拒否する', async () => {
+  const auth = useAuthStore()
+  const epoch = auth.authEpoch
+  vi.mocked(fetch).mockImplementationOnce(async (_url, init) => {
+    vi.spyOn(auth, 'syncFromStorage').mockImplementation(() => {})
+    auth.teamId = TENANT_B
+    return response(
+      new Headers(init?.headers).get('X-Pitchlog-Tenant-Challenge')!,
+    )
+  })
+  await expect(
+    apiRequest('GET', '/players', { tenantBound: true }),
+  ).rejects.toBeInstanceOf(ApiTenantVerificationError)
+  expect(auth.authEpoch).toBe(epoch)
+  expect(fetch).toHaveBeenCalledTimes(1)
 })
