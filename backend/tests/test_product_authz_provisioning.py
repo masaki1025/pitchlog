@@ -754,6 +754,11 @@ def test_generated_unapply_statements_use_structured_quoted_identifiers() -> Non
         'REVOKE SELECT ("id") ON TABLE "public"."tenants" '
         'FROM "pitchlog_shared_fn_owner";' in sql_texts
     )
+    assert (
+        'REVOKE SELECT ("singleton_id"), UPDATE ("singleton_id") '
+        'ON TABLE "public"."rg1_restore_gate" '
+        'FROM "pitchlog_rg1_fn_owner";' in sql_texts
+    )
     database_statements = tuple(
         sql_text for sql_text in sql_texts if "ON DATABASE %I" in sql_text
     )

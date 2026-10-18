@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 19,
+  "contract_revision": 21,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:19"
+        "contract_revision:21"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -165,7 +165,8 @@
     "CAP:invalidation_intents:read",
     "CAP:invalidation_intents:update",
     "CAP:evacuated_event_originals:read",
-    "CAP:evacuated_event_originals:insert"
+    "CAP:evacuated_event_originals:insert",
+    "CAP:tenants:read"
   ],
   "product_operation_token_types": [
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -210,13 +211,17 @@
     "pitchlog.sync.tokens.SyncSharedInvalidationIntentInsertToken",
     "pitchlog.sync.tokens.InvalidationIntentDeliveredToken",
     "pitchlog.sync.tokens.EvacuatedOriginalReadToken",
-    "pitchlog.sync.tokens.EvacuatedOriginalInsertToken"
+    "pitchlog.sync.tokens.EvacuatedOriginalInsertToken",
+    "pitchlog.repositories.tenant_profile.TenantProfileReadToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
     "symbol": "pitchlog.repositories.transaction._TenantTransaction.run_function",
     "signature": "run_function(self, operation: TenantOperationToken) -> TenantOperationResult"
   },
-  "product_function_operation_ids": [],
-  "source_digest": "544f341dd05bd8928e60113b1eef95ac96ca5551f1684912641f1d0b6bde9ea5"
+  "product_function_operation_ids": [
+    "RG1:precheck",
+    "RG1:commit_check"
+  ],
+  "source_digest": "117c924bf5c0174b4846c301d3a6fbb0e2457283fccd2edbf7de7a3139baedae"
 }

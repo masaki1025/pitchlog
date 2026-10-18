@@ -127,6 +127,7 @@
         "reason": "mixed_ownership_rules",
         "owner_unit": "U-X1"
       }
-    }
+    },
+    {"table": "rg1_restore_gate", "profile": "function_only", "access_path": {"reason": "restore_gate_global_mutable", "owner_unit": "U-R1"}}
   ]
 }

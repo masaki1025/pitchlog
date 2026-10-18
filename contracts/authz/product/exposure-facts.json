@@ -54,28 +54,40 @@
           "table": "analysis_groups",
           "reason": "共同分析グループの制御資源である。",
           "evidence": [
-            {"section": "3-5", "quote": "| **グループ** | 状態(`active` / 終了。"}
+            {
+              "section": "3-5",
+              "quote": "| **グループ** | 状態(`active` / 終了。"
+            }
           ]
         },
         {
           "table": "group_memberships",
           "reason": "グループ参加の制御資源である。",
           "evidence": [
-            {"section": "3-5", "quote": "| **参加** | グループ / テナント / 役割"}
+            {
+              "section": "3-5",
+              "quote": "| **参加** | グループ / テナント / 役割"
+            }
           ]
         },
         {
           "table": "sharing_grants",
           "reason": "参加行に対する共有付与の制御資源である。",
           "evidence": [
-            {"section": "3-5", "quote": "| **付与** | **参加行**"}
+            {
+              "section": "3-5",
+              "quote": "| **付与** | **参加行**"
+            }
           ]
         },
         {
           "table": "group_invitations",
           "reason": "グループ招待の制御資源である。",
           "evidence": [
-            {"section": "3-5", "quote": "| **招待** | グループ / **コードのハッシュ**"}
+            {
+              "section": "3-5",
+              "quote": "| **招待** | グループ / **コードのハッシュ**"
+            }
           ]
         }
       ]
@@ -120,14 +132,20 @@
           "table": "admin_credentials",
           "reason": "システム管理者の資格情報は一般利用と別系統である。",
           "evidence": [
-            {"section": "8-2-A", "quote": "**管理者資格情報**を別表に置く"}
+            {
+              "section": "8-2-A",
+              "quote": "**管理者資格情報**を別表に置く"
+            }
           ]
         },
         {
           "table": "admin_sessions",
           "reason": "システム管理者のセッションは一般利用と別系統である。",
           "evidence": [
-            {"section": "8-2-A", "quote": "**管理者セッション**を別表に置く"}
+            {
+              "section": "8-2-A",
+              "quote": "**管理者セッション**を別表に置く"
+            }
           ]
         },
         {
@@ -149,7 +167,10 @@
           "table": "tenant_auth_subjects",
           "reason": "テナント文脈を確立する前に認証主体を解決する資源である。",
           "evidence": [
-            {"section": "8-2", "quote": "「認証主体 1 : 認証情報 1」"}
+            {
+              "section": "8-2",
+              "quote": "「認証主体 1 : 認証情報 1」"
+            }
           ]
         },
         {
@@ -166,7 +187,10 @@
           "table": "tenant_tokens",
           "reason": "テナント文脈を確立するトークン検証で使う資源である。",
           "evidence": [
-            {"section": "8-1", "quote": "**トークン検証(セッション確立)**"}
+            {
+              "section": "8-1",
+              "quote": "**トークン検証(セッション確立)**"
+            }
           ]
         },
         {
@@ -188,7 +212,10 @@
           "table": "migration_runs",
           "reason": "移行の取り込みバッチと退役を管理する資源である。",
           "evidence": [
-            {"section": "10-6", "quote": "**バッチ単位で退役させられる形**にする"}
+            {
+              "section": "10-6",
+              "quote": "**バッチ単位で退役させられる形**にする"
+            }
           ]
         },
         {
@@ -218,6 +245,21 @@
             {
               "section": "10-6",
               "quote": "| **警告レポート** | 不整合行・クランプ・**交代のあった試合** |"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "rg1_control",
+      "entries": [
+        {
+          "table": "rg1_restore_gate",
+          "reason": "復元調整の全体状態を単一行で管理し、制限関数だけを読取経路とする。",
+          "evidence": [
+            {
+              "section": "3-2",
+              "quote": "RG1の復元調整状態は全体共通の`singleton_id=1`の単一行とし、初期状態を`closed`とする。"
             }
           ]
         }

@@ -245,8 +245,12 @@
     {"product": "function:FUNCTION:public:prevent_tenant_tokens_identity_update()", "reason": "product_only"},
     {"product": "function:FUNCTION:public:prevent_tenant_vocabularies_identity_update()", "reason": "product_only"},
     {"product": "function:FUNCTION:public:protect_recording_generations_updates()", "reason": "product_only"},
+    {"product": "function:FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)", "reason": "product_only"},
+    {"product": "function:FUNCTION:rg1_api:rg1_read_open(uuid)", "reason": "product_only"},
     {"product": "policy:POLICY:admin_vocabularies:global_read_only", "reason": "product_only"},
     {"product": "policy:POLICY:game_type_rule_defaults:global_read_only", "reason": "product_only"},
+    {"product": "policy:POLICY:rg1_restore_gate:rg1_fn_lock_singleton", "reason": "product_only"},
+    {"product": "policy:POLICY:rg1_restore_gate:rg1_fn_select_singleton", "reason": "product_only"},
     {"product": "policy:POLICY:system_settings:global_read_only", "reason": "product_only"},
     {"product": "policy:POLICY:system_vocabularies:global_read_only", "reason": "product_only"},
     {"product": "policy:POLICY:system_vocabularies:owner_game_type_seed_delete", "reason": "product_only"},
@@ -264,6 +268,7 @@
     {"product": "table:migration_runs", "reason": "product_only"},
     {"product": "table:migration_warning_reports", "reason": "product_only"},
     {"product": "table:rate_limit_counters", "reason": "product_only"},
+    {"product": "table:rg1_restore_gate", "reason": "product_only"},
     {"product": "table:rule_sets", "reason": "product_only"},
     {"product": "table:system_settings", "reason": "product_only"},
     {"product": "table:system_vocabularies", "reason": "product_only"},
@@ -296,7 +301,9 @@
     {"product": "function:FUNCTION:authn:setting_positive_integer(text)", "reason": "product_only"},
     {"product": "function:FUNCTION:authn:verify_token(uuid)", "reason": "product_only"},
     {"product": "role:pitchlog_auth_fn_owner", "reason": "product_only"},
+    {"product": "role:pitchlog_rg1_fn_owner", "reason": "product_only"},
     {"product": "schema:authn", "reason": "product_only"},
-    {"product": "schema:authn_crypto", "reason": "product_only"}
+    {"product": "schema:authn_crypto", "reason": "product_only"},
+    {"product": "schema:rg1_api", "reason": "product_only"}
   ]
 }

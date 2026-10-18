@@ -296,6 +296,19 @@ def _copy_product_catalog_repository(tmp_path: Path) -> Path:
 def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
     """製品状態からでも正しい未発効状態の検査用複製を組み立てる。"""
     root = _copy_product_catalog_repository(tmp_path)
+    # 版固定の未発効候補はRG1追加前の45表を表す。
+    schema_manifest_path = Path("contracts/db/schema-manifest.json")
+    schema_manifest = _read_json_at(root, schema_manifest_path)
+    schema_manifest["tables"] = [
+        row for row in schema_manifest["tables"] if row["name"] != "rg1_restore_gate"
+    ]
+    _write_json_at(root, schema_manifest_path, schema_manifest)
+    classification_path = Path("contracts/authz/product/table-classification.json")
+    classification = _read_json_at(root, classification_path)
+    classification["tables"] = [
+        row for row in classification["tables"] if row["table"] != "rg1_restore_gate"
+    ]
+    _write_json_at(root, classification_path, classification)
     provisional_revision = runtime_contract_support.provisional_reference_revision(
         REPOSITORY_ROOT
     )
@@ -1383,7 +1396,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1414 auth_claim=187 out_of_scope=1227" in result.stdout
+    assert "total=1417 auth_claim=187 out_of_scope=1230" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -1900,8 +1913,8 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 1227
-    assert attempts == 1227
+    assert len(out_claims) == 1230
+    assert attempts == 1230
     assert escaped == []
 
 
@@ -2276,7 +2289,7 @@ def test_record_and_aggregate_rejects_route_outside_approved_set() -> None:
 
 
 def test_authentication_entry_routes_and_claims_match_approved_set() -> None:
-    """認証 3 経路と付録 C の担当 2 主張だけを固定する。"""
+    """認証4経路と付録Cの担当2主張だけを固定する。"""
     assets, _locks, _paths = _repository_derived_assets()
     registry = assets["route_registry"]
     matrix = assets["http_matrix"]
@@ -2289,6 +2302,7 @@ def test_authentication_entry_routes_and_claims_match_approved_set() -> None:
         "ROUTE:AUTH:login:create",
         "ROUTE:AUTH:logout:create",
         "ROUTE:AUTH:password:update",
+        "ROUTE:AUTH:session:read",
     }
     assert authentication_ids.isdisjoint(registry["enums"]["operation_ids"])
     matrix_rows = {
@@ -2301,6 +2315,22 @@ def test_authentication_entry_routes_and_claims_match_approved_set() -> None:
         and row["disposition"] == "conditional"
         for route_id, row in matrix_rows.items()
     )
+    session_route = next(
+        route
+        for route in registry["routes"]
+        if route["route_id"] == "ROUTE:AUTH:session:read"
+    )
+    assert session_route == {
+        "route_id": "ROUTE:AUTH:session:read",
+        "route_kind": "authentication_entry",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": ["PLAN-AUTH-SESSION-VERIFICATION-CONTRACT"],
+    }
+    assert matrix_rows["ROUTE:AUTH:session:read"]["test_owner"] == {
+        "id": "TSK-528.C1.http-route.HTTP:ROUTE:AUTH:session:read",
+        "status": "planned",
+    }
     appendix = {
         row["source_id"]: row
         for row in registry["claim_dispositions"]

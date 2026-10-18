@@ -536,13 +536,13 @@ def _product_data_tables() -> tuple[str, ...]:
         raise AssertionError("製品表の分類資産を読めない")
     names = tuple(row.get("table") for row in rows if isinstance(row, dict))
     if (
-        len(names) != 45
+        len(names) != 46
         or len(names) != len(rows)
         or any(not isinstance(name, str) or not name for name in names)
         or len(names) != len(set(names))
         or "alembic_version" in names
     ):
-        raise AssertionError("製品表の分類資産が 45 表の一意な集合ではない")
+        raise AssertionError("製品表の分類資産が 46 表の一意な集合ではない")
     return cast(tuple[str, ...], names)
 
 

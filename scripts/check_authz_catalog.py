@@ -43,6 +43,8 @@ from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[
     generate_function_owner_column_acl_sql,
     generate_helper_column_acl_sql,
     generate_membership_helper_sql,
+    is_forbidden_rg1_table_acl,
+    is_rg1_singleton_update_acl,
 )
 from pitchlog.authz.product_function_acl import (  # noqa: E402  # ty: ignore[unresolved-import]
     build_product_function_acl_declaration,
@@ -240,6 +242,46 @@ def _owner_game_type_seed_policy_sql(declaration: dict[str, object]) -> str:
     if with_check is not None:
         result += f"\n    WITH CHECK (\n        {with_check}\n    )"
     return f"{result};\n"
+
+
+def _rg1_singleton_policies() -> dict[str, dict[str, object]]:
+    """RG1専用ownerに単一行だけを許す2件の期待宣言を返す。"""
+    result: dict[str, dict[str, object]] = {}
+    for suffix, command in (("select_singleton", "SELECT"), ("lock_singleton", "UPDATE")):
+        policy_id = f"POLICY:rg1_restore_gate:rg1_fn_{suffix}"
+        result[policy_id] = {
+            "policy_id": policy_id,
+            "table_id": "rg1_restore_gate",
+            "profile": "function_only",
+            "policy_name": f"rg1_fn_{suffix}",
+            "command": command,
+            "policy_mode": "permissive",
+            "role_ids": ["pitchlog_rg1_fn_owner"],
+            "using_predicate_id": None,
+            "using_column": None,
+            "using_expression": "singleton_id = 1",
+            "with_check_predicate_id": None,
+            "with_check_column": None,
+            "with_check_expression": "singleton_id = 1" if command == "UPDATE" else None,
+        }
+    return result
+
+
+def _rg1_singleton_policy_sql(declaration: dict[str, object]) -> str:
+    """RG1の単一行ポリシーを固定構文へ展開する。"""
+    policy_id = str(declaration["policy_id"])
+    name = str(declaration["policy_name"])
+    command = str(declaration["command"])
+    body = (
+        "-- ELEMENT-TYPE: policy\n"
+        f"-- ELEMENT-ID: {policy_id}\n\n"
+        f"CREATE POLICY {name} ON public.rg1_restore_gate\n"
+        f"    AS PERMISSIVE FOR {command} TO pitchlog_rg1_fn_owner\n"
+        "    USING (singleton_id = 1)"
+    )
+    if command == "UPDATE":
+        body += "\n    WITH CHECK (singleton_id = 1)"
+    return body + ";\n"
 MIGRATION_FUNCTION_RE = re.compile(
     r"CREATE(?:\s+OR\s+REPLACE)?\s+FUNCTION\s+"
     r"(?P<target>[A-Za-z_][A-Za-z0-9_.]*|\{_[A-Z0-9_]+\})"
@@ -328,6 +370,20 @@ PRODUCT_SCHEMA_EXPECTATIONS: dict[str, dict[str, object]] = {
                 ("PUBLIC", "USAGE", False),
                 ("PUBLIC", "CREATE", False),
                 ("pitchlog_app", "USAGE", False),
+                ("pitchlog_app", "CREATE", False),
+            }
+        ),
+    },
+    "rg1_api": {
+        "schema_name": "rg1_api",
+        "creation": "product_ddl",
+        "owner": "pitchlog_owner",
+        "ownership_path": "direct",
+        "acl_expectations": frozenset({("pitchlog_app", "USAGE", False)}),
+        "revoked_acl_expectations": frozenset(
+            {
+                ("PUBLIC", "USAGE", False),
+                ("PUBLIC", "CREATE", False),
                 ("pitchlog_app", "CREATE", False),
             }
         ),
@@ -2250,7 +2306,7 @@ def _validate_record_and_aggregate_route_ids(
 def _validate_authentication_entry_route_ids(
     route_by_id: dict[str, dict[str, object]],
 ) -> None:
-    """認証 HTTP 入口が承認済みの 3 経路と一致することを検査する。"""
+    """認証 HTTP 入口が承認済みの4経路と一致することを検査する。"""
     actual_route_ids = frozenset(
         route_id
         for route_id, route in route_by_id.items()
@@ -2261,6 +2317,7 @@ def _validate_authentication_entry_route_ids(
             "ROUTE:AUTH:login:create",
             "ROUTE:AUTH:logout:create",
             "ROUTE:AUTH:password:update",
+            "ROUTE:AUTH:session:read",
         }
     )
     if actual_route_ids != expected_route_ids:
@@ -3380,7 +3437,7 @@ def _validate_product_database_expectations(value: object) -> None:
 
 
 def _validate_product_schema_expectations(
-    value: object, *, authn_enabled: bool = False
+    value: object, *, authn_enabled: bool = False, rg1_required: bool = False
 ) -> None:
     """製品スキーマの所有者とACLをdesign.md 2-1へ照合する。"""
     if not isinstance(value, list):
@@ -3430,6 +3487,8 @@ def _validate_product_schema_expectations(
             ),
         }
     for schema_id, expected in PRODUCT_SCHEMA_EXPECTATIONS.items():
+        if schema_id == "rg1_api" and schema_id not in actual and not rg1_required:
+            continue
         if schema_id == "public" and authn_enabled:
             expected = {
                 **expected,
@@ -3442,6 +3501,19 @@ def _validate_product_schema_expectations(
                     expected["revoked_acl_expectations"],
                 )
                 | frozenset({("pitchlog_auth_fn_owner", "CREATE", False)}),
+            }
+        if schema_id == "public" and "rg1_api" in actual:
+            expected = {
+                **expected,
+                "acl_expectations": cast(
+                    frozenset[tuple[str, str, bool]], expected["acl_expectations"]
+                )
+                | frozenset({("pitchlog_rg1_fn_owner", "USAGE", False)}),
+                "revoked_acl_expectations": cast(
+                    frozenset[tuple[str, str, bool]],
+                    expected["revoked_acl_expectations"],
+                )
+                | frozenset({("pitchlog_rg1_fn_owner", "CREATE", False)}),
             }
         if actual.get(schema_id) != expected:
             raise CatalogError(
@@ -3488,7 +3560,7 @@ def _validate_product_extension_expectations(
 
 
 def _product_table_universe(root: Path) -> frozenset[str]:
-    """Schema manifestと表分類から一致する45表の母集合を返す。"""
+    """Schema manifestと表分類の基線45表またはRG1追加46表を返す。"""
     manifest = _read_json(root / PRODUCT_SCHEMA_MANIFEST, "schema manifest")
     if not isinstance(manifest, dict):
         raise CatalogError("schema manifestはオブジェクトでなければならない")
@@ -3526,13 +3598,14 @@ def _product_table_universe(root: Path) -> frozenset[str]:
 
     manifest_set = frozenset(manifest_names)
     classification_set = frozenset(classified_names)
-    if manifest_set != classification_set or len(manifest_set) != 45:
-        raise CatalogError("schema manifestと表分類の45表がexact-set不一致")
+    expected_count = 46 if "rg1_restore_gate" in manifest_set else 45
+    if manifest_set != classification_set or len(manifest_set) != expected_count:
+        raise CatalogError("schema manifestと表分類の表集合がexact-set不一致")
     return manifest_set
 
 
 def _product_table_profiles(root: Path) -> dict[str, str]:
-    """表分類から全45表の物理プロファイルを一意に読む。"""
+    """表分類から基線またはRG1追加後の物理プロファイルを一意に読む。"""
     classification = _read_json(
         root / PRODUCT_TABLE_CLASSIFICATION,
         "table-classification",
@@ -3562,7 +3635,7 @@ def _product_table_profiles(root: Path) -> dict[str, str]:
             raise CatalogError(f"{label}.tableが重複している: {table_id}")
         profiles[table_id] = profile
     if set(profiles) != set(_product_table_universe(root)):
-        raise CatalogError("表分類のプロファイル写像が45表とexact-set不一致")
+        raise CatalogError("表分類のプロファイル写像が表集合とexact-set不一致")
     return profiles
 
 
@@ -3671,7 +3744,7 @@ def _validate_product_table_bodies(
             raise CatalogError(f"{label}の表IDとpathの対応が不正")
         table_paths[table_id] = path_text
     if set(table_paths) != set(expected_tables):
-        raise CatalogError("body manifestの表要素が45表とexact-set不一致")
+        raise CatalogError("body manifestの表要素が表集合とexact-set不一致")
     for table_id, path_text in table_paths.items():
         body = _read_text(root / path_text, f"表RLS body[{table_id}]")
         try:
@@ -3683,7 +3756,7 @@ def _validate_product_table_bodies(
 
 
 def _validate_product_table_expectations(value: object, root: Path) -> None:
-    """全45表のENABLEとFORCE宣言を2つの母集合へ照合する。"""
+    """全表のENABLEとFORCE宣言を2つの母集合へ照合する。"""
     if not isinstance(value, list):
         raise CatalogError("製品DDL manifest.tablesは配列でなければならない")
     expected_tables = _product_table_universe(root)
@@ -3713,7 +3786,7 @@ def _validate_product_table_expectations(value: object, root: Path) -> None:
         ):
             raise CatalogError(f"{table_id}のpublicスキーマまたはENABLE/FORCE宣言が不正")
     if declared_tables != set(expected_tables):
-        raise CatalogError("製品DDLの表宣言が45表とexact-set不一致")
+        raise CatalogError("製品DDLの表宣言が表集合とexact-set不一致")
     _validate_product_table_bodies(root, expected_tables)
 
 
@@ -3788,6 +3861,7 @@ def _validate_product_access_bodies(
     if set(policy_paths) != set(expected_policies):
         raise CatalogError("ポリシーbodyが5プロファイルと所有者用3件の期待集合と不一致")
     owner_policy_ids = set(_owner_game_type_seed_policies())
+    rg1_policy_ids = set(_rg1_singleton_policies())
     for policy_id, declaration in expected_policies.items():
         table_id = str(declaration["table_id"])
         profile = str(declaration["profile"])
@@ -3799,6 +3873,8 @@ def _validate_product_access_bodies(
         body = _read_text(root / expected_path, f"ポリシーbody[{policy_id}]")
         if policy_id in owner_policy_ids:
             expected_body = _owner_game_type_seed_policy_sql(declaration)
+        elif policy_id in rg1_policy_ids:
+            expected_body = _rg1_singleton_policy_sql(declaration)
         elif profile == CONTROL_PROFILE:
             expected_body = generate_control_policy_sql(table_id)
         else:
@@ -3892,6 +3968,8 @@ def _validate_product_table_access_expectations(
 
     if state is RuntimeContractState.PRODUCT:
         expected_policies.update(_owner_game_type_seed_policies())
+    if "rg1_restore_gate" in profiles:
+        expected_policies.update(_rg1_singleton_policies())
 
     policies = _product_declarations_by_id(
         raw["policies"],
@@ -3926,6 +4004,8 @@ def _validate_product_table_access_expectations(
     for acl_id, declaration in table_acls.items():
         if acl_id in expected_acls:
             continue
+        if is_forbidden_rg1_table_acl(declaration):
+            raise CatalogError("RG1状態表と専用ownerには表単位ACLを許可しない")
         _expect_keys(
             declaration,
             {
@@ -4079,9 +4159,10 @@ def _validate_product_membership_helper(
             "object_schema"
         ) != "public":
             raise CatalogError("列ACLの対象種別またはスキーマが不正")
-        if declaration.get("privilege_ids") != ["SELECT"] or declaration.get(
-            "grant_option"
-        ) is not False:
+        if not is_rg1_singleton_update_acl(declaration) and (
+            declaration.get("privilege_ids") != ["SELECT"]
+            or declaration.get("grant_option") is not False
+        ):
             raise CatalogError("関数所有者の列ACL権限が不正")
         try:
             generate_function_owner_column_acl_sql(declaration)
@@ -4640,7 +4721,12 @@ def _validate_product_ddl_elements(
             raise CatalogError(str(error)) from error
     _validate_product_database_expectations(raw["databases"])
     _validate_product_schema_expectations(
-        raw["schemas"], authn_enabled=state is RuntimeContractState.PRODUCT
+        raw["schemas"],
+        authn_enabled=state is RuntimeContractState.PRODUCT,
+        rg1_required=any(
+            isinstance(row, dict) and row.get("table_id") == "rg1_restore_gate"
+            for row in cast(list[object], raw["tables"])
+        ),
     )
     _validate_product_extension_expectations(raw.get("extensions"), raw["schemas"])
     _validate_product_table_expectations(raw["tables"], root)
