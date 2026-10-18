@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AUTH_INTENT_KEY,
+  publishAuthUncertainty,
+  captureAuthUncertainty,
+  acknowledgeAuthUncertainty,
   AUTH_INTENT_LOCK,
   AuthEnvironmentError,
   readAuthIntent,
@@ -106,11 +109,6 @@ describe('認証意図の厳密構造・排他契約', () => {
 
 describe('通知の厳密な読取とserver確認後だけのack', () => {
   it('lock内でも確認開始後の別通知をackしない', async () => {
-    const {
-      publishAuthUncertainty,
-      captureAuthUncertainty,
-      acknowledgeAuthUncertainty,
-    } = await import('./authIntent')
     const first = publishAuthUncertainty()
     await withAuthIntent(() => {
       expect(captureAuthUncertainty(true)).toBe(first)
@@ -120,8 +118,6 @@ describe('通知の厳密な読取とserver確認後だけのack', () => {
     expect(localStorage.getItem('bb.auth.uncertain.ack')).toBeNull()
   })
   it('lock外のackと破損通知の自動修復を拒否する', async () => {
-    const { acknowledgeAuthUncertainty, captureAuthUncertainty } =
-      await import('./authIntent')
     expect(() => acknowledgeAuthUncertainty(null)).toThrow('lock外')
     localStorage.setItem('bb.auth.uncertain', 'bad')
     await withAuthIntent(() => {
