@@ -151,3 +151,12 @@ PR #143実統合`156dd139a893845428a1ecab69632143f7694e0b`を通常mergeし、�
 最新基線でfrontend69ファイル1,267成功、root全29,670成功/2 skip、backend全2,574成功/4 skip。root/backendは別々の専用使い捨てPostgreSQLで実行しcleanupを確認、型/lint/整形/build、境界/凍結不変量/認可catalog/文書同期も成功。製品/specの2blobをSHA-256で固定しており、以後の記録追随で変更しない。
 
 既定2経路各2周の採否と最終反映未再レビューは保持する。意味範囲Tに対するLoginScreen*の機械未登録は残っているため、全品質ゲート通過・TSK-518全体完了・本人確認実施済みと記録しない。追加1パターンの最小追補は依頼者回答待ち。共通clientはC2、router/App/登録資産はU-F13で順次編集し、本U-F3の画面/specと二重編集しない。C1相関の新候補は別の未承認局所追補であり、本PRの既存UIへ無断実装しない。
+
+
+## LoginScreenコア登録の承認追補（2026-10-18）
+
+山田正輝が`frontend/src/screens/LoginScreen*`をtenant-isolationへ登録すること、D自身の固定C2/U-F3候補を専用検証worktreeで結合すること、現承認範囲の通常push/Draft PR作成を承認した。既存対象の削除・本人確認代記・公開・マージは含まない。login/session相関の新契約は未承認のまま。
+
+コア3ファイルの一時編集所有はU-F3→U-F13。U-F3の本PRに宣言/固有試験を先行コミットし、その後JSON登録を別コミットで行う。既存の回転式追加層と登録済みRG1/U-F5/U-F6/U-F8の履歴検証を再利用する。登録後はLoginScreen製品/spec2件の検出、本人未記入拒否、基線・全core試験を確認する。既定レビュー周回は増やさず、追加登録/試験差分は未再レビューの本人対象として明示する。
+
+正本変更なし。正本外の同梱追加対象は`.claude/core-areas.json`、`scripts/core_guard.py`、`tests/test_core_guard.py`。承認済み2ステップのうちレビュー準備の追補として扱い、別の製品機能を増やさない。

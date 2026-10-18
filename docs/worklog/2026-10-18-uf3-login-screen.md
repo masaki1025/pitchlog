@@ -70,3 +70,8 @@ C1/C2/API/DTO/tenant/資格情報保存の独自実装なし。route接続・saf
 旧/tmp worktreeが消失していたため、コミット済み成果をディスク側の専用worktreeへ復元し、#143実統合156dd139を通常merge（検査HEAD a4b98244）。製品/specは2ファイルとも固定SHAから不変。frontend全1,267成功、root全29,670成功/2 skip、backend全2,574成功/4 skip、各終了コード0。root1698.99秒、backend3049.63秒。rootとbackendは別々の既存disposable PostgreSQL fixtureで専用clusterを使い、cleanupを確認。型/lint/整形/build/tenant-boundary/frozen不変量/認可catalog/文書同期も成功。除外・timeout変更なし。
 
 C1/#119/#143待ちを現在の停止理由から外す。残るのはLoginScreen*のT登録最小追補、本人逐行確認、U-F13での実画面通しであり、担当はCodex D。既定レビュー2経路各2周と最終採用の未再レビュー履歴を保持し、新規レビューを無断追加しない。C1新相関候補と、自分の固定候補だけを検証環境へ結合する条件は別途の未承認判断として集約し、無回答を承認と扱わない。push/Draft PR作成は今回の候補にはまだ許可されていないため、具体差分・検査結果を揃えて一括判断へ提示する。TSK-518全体/TSK-520実API受入/TSK-528全体の完了、公開、マージ、本人確認は代行しない。
+
+
+## 2026-10-18: LoginScreenコア登録の所有・承認
+
+山田正輝がLoginScreen*のT登録、専用検証worktreeでの自分の固定候補結合、通常push/Draft PR作成を承認。コア共有3ファイルはU-F3で宣言→別JSONコミットを先に完了し、U-F13が次にrouter/Appを所有する。既存対象は保持し、未統合の他担当枝を基線にしない。既定レビュー後の追加差分は本人対象であり、既存レビューで追加登録まで査読済みとはしない。新login/session相関契約は未承認。
