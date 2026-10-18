@@ -64,3 +64,13 @@ U-F3 Draft #151は37c41110へ通常push、U-F13 Draft #154はe05303e2で作成�
 ## 限定2件の承認とbackend全件成功
 
 山田正輝が6de49595/680c2a27を承認。失効専用・server検証必須・自動再送禁止を維持して着手する。caller修正後backend全件は2,581成功/4 skip/1 warning、2200.45秒、exit0。警告はfixture import済みのpytest assert rewriteであり、試験除外ではない。製品backendは7e18a91aから不変。
+
+## 2026-10-19: 限定追補の固定・検査
+
+- C1製品3ac39ce3と試験import追随a15128a1を固定。拒否通知はlock外で先に保存し、ackはstrict session/意図/世代/期待tenantの一致後だけ同期lock内。明示確認開始後の新通知、ack破損/削除/逆順、重複storage eventでは旧成功を採用しない。確認済み状態をstorageから復元しない。storage保存失敗はローカル拒否で、通知全タブ到達の証明には使わない。
+- 固有130成功。frontend全69ファイル1,266成功（69.98秒）。全件実行中の最終変更は同じ2試験の動的importを静的importへ揃えるだけで、製品/specのassertは不変。ESLintが動的importを検出したため修正し、型/lint/整形/buildを再検査した。除外・timeout緩和なし。
+- 専用結合8a0437c0はmetadata不正2xxで本文前拒否に加えて同じ共通失効へawaitし、自動再送しない。正しいmetadataの不正JSONを認証失効へ一律変換しない負例も追加。consumer158成功、frontend全71ファイル1,369成功（73.61秒）、production build成功。
+- attempt14: production preview/実API/隔離DB/Chromium149で旧login/logout/session/選手登録とnative Web Lock保持中旧sessionの全5ケース成功（16.23秒）。旧Cookie A/消去をブラウザfetchからserver確認し、B cache3→0・旧採用拒否・明示再確認まで実測。以前のlock-busy失敗を期待値変更せず解消。
+- attempt15: 新結合productionでstorage/lock/UUID拒否、認証拒否、通信断、session明示再確認、native lock-busy回復の7項目成功（7.83秒）。attempt16: 同productionで正常8項目成功（8.97秒、opponent配下、保存observer確認）。各自分のcluster/server cleanupを確認。自チーム受入は未了。
+- 相関第2周は固定C1 a15128a1/結合8a0437c0の反映差分と影響を2正式経路へ投入済み。後発の資料/実測は査読済みと推定しない。第3周の実行指示はない。
+- PR依存をpr-dependency-map.mdの一枚へ集約。C1→C2 #150（C1実統合後にmetadata680を正式追随）→U-F3 #151→U-F13 #154。専用結合結果を各PR単独のCI成功へ読み替えず、#154のLoginScreen欠落をコピーで埋めない。
