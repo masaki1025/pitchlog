@@ -483,3 +483,19 @@ U-F3は経路未登録の正規auth接続と24固有試験/全frontend1,261試�
 - Cookie追補案の初回レビューは、今回のC2/U-F3実装レビューの第3周ではなく、未承認の新しい局所契約案だけへの独立レビュー。実Claude・正規Codexとも否決した。背景タブではCookie適用とJS通知をepochだけで結べず、7経路外のCookie更新、旧403/405、再確認状態の寿命、採用先C1計画への対応が不足した。全指摘を採用し、初案を製品へ入れない。
 - 詳細はC2 feature内`auth-cookie-uncertainty-review.md`へ固定。既受理C1や承認済みC2の7経路を一括未了へ戻さず、NFR-011のスライディング延長も変更しない。公開前の追加方向としてlogin/session相関を保証する最小C1追補の具体化を提示する。具体DTO/header/literal・権限・凍結改訂は未承認/未実装。共有core3ファイルと他担当PRの編集も行っていない。
 - 台帳への追記なし。新規ハーネスではなく、既存HEAD依存検査・source固定・既存レビューと個別ゲートを用いるタスク内の是正である。Claude向け申し送りは本コミット対象worklogへ集約し、別ファイル復元とは扱わない。
+
+### C2のroot完走と最終mutation分類
+
+- source固定後のroot全件が29,668 passed / 2 skipped、900.57秒、exit0で完走した。Ruff/ty・正本同期も成功。最初の3失敗を環境timeoutや試験除外で隠さず、censusの同3件成功と全件再成功をそれぞれ記録した。
+- 最終照合で、正しいack/challengeでも2xxの本文をJSON等として解釈できないmutationが汎用失敗文言へ落ちることを確認し、承認済みの結果未確認契約に合わせて2xxのApiErrorも5xxと同じ不明結果へ分類した。変更は既存TeamMembersContent製品/specの2ファイルのみ。server/auth/store/共有資産を変更しない。
+- 固有23件・全frontend69ファイル1,279件（70.31秒）、Prettier/ESLint/vue-tsc/dependency-cruiser/build/closure/diff成功。実clientを使う200/201のinvalid JSON・text本文、遅延した解釈失敗とtenant切替を検証し、送信1回・success notice0・cache invalidation0・cache保持・一覧自動再取得0を確認した。
+- この最終分類と試験も既定2周後の未再レビュー差分として人間逐行確認へ含め、追加正式レビューは行わない。backendの固定9ファイルは変更しておらず、最終sourceでの全件検査を継続している。
+
+### C2ステップ別コミット・全品質完走・最終申し送り
+
+- ステップ1を`97c7a7fd`、ステップ2を`c9664747ad85c0e8623d4df3803a55cec7ec8e8b`へ別コミットした。最終backendは2,985収集=2,981 passed/4 skipped、2,185.55秒、exit0。Ruff format/check・ty成功、製品5+試験4の開始/終了SHA一致、専用クラスタ撤去完了。4 skipは`test_authz_runtime_contract_switch.py`の製品化済み切替dry-runだけで、RLS/application role/TOCTOU/認証出口/C2照合はskipなし。共有DBは変更しない。
+- root29,668 passed/2 skipped、frontend69ファイル1,279 passed、型/lint/整形/build/dependency/closure成功を回収した。旧backend441成功の中断、root初回3失敗、診断3成功、最終全件成功を別記録で保持し、試験除外やtimeout変更で通していない。
+- 製品固定の実branch HEAD c9664747でtenant-boundary、frozen invariants、authz catalog成功。core基線成功・17製品/試験ファイル検出・本人確認未記入なら全17件拒否を確認。再fetch後のorigin/developは493342beでHEADの祖先、競合なし。検査用detached worktreeはclean確認後撤去した。
+- 計画はPR準備のin-reviewへ移し、実装/ローカル検査のDoDだけを記録した。C2本人対象は製品9・試験8・資料9の全26ファイルで、標準route hook、valid本文/query追加、2xx本文解釈失敗分類等の上限後未再レビュー差分を明示。本人チェック・対象/範囲/方法欄は未記入。C1の本人回答はC2へ流用しない。通常push・PR作成・CI・公開・マージは未実施。
+- U-F3は別worktreeのHEAD `18e5ea0f8db90ae6ef5f393946750e68659e8233`へ実装/資料をコミット済み。経路未登録LoginScreen、固有30件/全1,267件と型/lint/build成功、既定2周指摘全採用。coreの`LoginScreen*`未登録と本人6ファイル確認は未了でactiveを維持する。U-F13専用worktreeは最新developへfast-forwardし、HEAD a7bf780eで#119/C1の充足済み開始条件を明記したが、router/Appは未変更。
+- 次の新規判断は、LoginScreen1パターンのT登録追補と#143共有3ファイルの順序、ならびにCookie追補初案の否決を受けたlogin/session相関契約の具体化。既承認router/App登録や既受理C1を再承認待ちには戻さない。未統合の他担当branchを基線にせず、#143資産を無断編集しない。U-F13のC2/U-F3着地条件、15経路+catch-all残部、TSK-520実API受入は未完了。実画面→実API→実DBの通し試験は未実施であり、ブラウザの存在確認を受入証跡にしない。

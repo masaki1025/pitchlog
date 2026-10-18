@@ -1,6 +1,6 @@
 ---
 feature: tenant-match-metadata-contract
-status: active
+status: in-review
 承認: 済(2026-10-14・山田正輝)
 重さ分類: コア領域
 worktree: /tmp/pitchlog-tenant-match-metadata-contract
@@ -120,14 +120,14 @@ U-F5 が使う tenant-bound APIで、clientが保持する検証済みtenant ID�
 
 ## 9. DoD
 
-- [ ] 7routeすべてで業務operation前にexpected tenantを照合する。
-- [ ] mismatch時にrepository/transaction/mutationが0件である。
-- [ ] success ackは比較とoperationの両方が成功した2xxだけにある。
-- [ ] 2xx ack/challenge欠落・不正・別要求値を本文返却前に拒否する。
-- [ ] A→B切替中のAの遅延response/mutationがBの画面/cache/noticeを変更しない。
-- [ ] 結果未確認mutationを成功表示・自動再送しない。
-- [ ] 7routeが`Cache-Control: no-store`を返し、要求ごとのchallenge exact matchによりAの過去2xxをB要求へ注入する故障を拒否する。
-- [ ] DTOへtenant IDを追加せず、header値を表示・log出力しない。
+- [x] 7routeすべてで業務operation前にexpected tenantを照合する。
+- [x] mismatch時にrepository/transaction/mutationが0件である。
+- [x] success ackは比較とoperationの両方が成功した2xxだけにある。
+- [x] 2xx ack/challenge欠落・不正・別要求値を本文返却前に拒否する。
+- [x] A→B切替中のAの遅延response/mutationがBの画面/cache/noticeを変更しない。
+- [x] 結果未確認mutationを成功表示・自動再送しない。
+- [x] 7routeが`Cache-Control: no-store`を返し、要求ごとのchallenge exact matchによりAの過去2xxをB要求へ注入する故障を拒否する。
+- [x] DTOへtenant IDを追加せず、header値を表示・log出力しない。
 - [ ] コア adversarial review、反対側レビュー、人間逐行確認、server/client品質gate、越境試験、凍結資産検査を通す。
 
 ## 10. 人間承認が必要な判断
@@ -169,3 +169,11 @@ PR #147の実統合SHA493342be37d4383ca572f8d1c826a3f184a4d213を最新develop�
 C2は既存tenant_access、players/team-records router、共通app応答middleware/errorsの必要最小限とbackend固有試験、およびfrontend共通client/roster・既存TeamScreen/TeamMembersContentのretry/結果未確認境界と固有specを所有する。C1のauth.ts/authStore.ts、共有Pinia/QueryClientは変更しない。U-F3はLoginScreen/固有specだけを独立所有し、route登録はU-F13が所有する。
 
 open PR #143はcore-areas.json/core_guard.py/test_core_guard.pyとrepository/authzの共有凍結資産を所有している。本C2は当該共有資産を変更しない。7routeのoperation_id/経路/DTO/認可対象/DB実行器/権限は不変であり、既存HTTP境界へ承認済みmetadata照合を追加する。必要な資産差分が実検査で判明した場合だけ、具体差分の正式ゲートを維持する。
+
+## 14. 実装2ステップの成果・PR準備（2026-10-18）
+
+ステップ1を97c7a7fd、ステップ2をc9664747へ別コミットした。製品検査基準HEADはc9664747ad85c0e8623d4df3803a55cec7ec8e8b。backend全2,981成功/4 skip（2,985収集、36分25秒）、root全29,668成功/2 skip、frontend全69ファイル1,279成功。各層の型/lint/整形、frontend build/dependency/closureも成功。backend固定9ファイルの開始/終了hash一致と隔離クラスタ撤去を確認した。skip4は製品化後には行わない既存切替dry-runで、RLS/application role/TOCTOU/認証出口/C2照合はskipなし。
+
+同実HEADでtenant-boundary・frozen invariants・authz catalog成功。基線core検査成功、製品/試験17ファイル検出、本人逐行確認未記入なら17件すべて拒否を確認した。共有registry/認可/凍結/guard資産は未変更。最終sourceのroute hookと2xx解釈失敗分類等は既定2周後の未再レビュー差分として人間確認へ残す（PR準備資料/作業ログ参照）。
+
+PR準備のためin-reviewへ移すが、人間逐行確認・CI・公開・マージの完了ではない。通常push/PR作成は未実施。TSK-528全体、U-F3のcore登録、U-F13の接続/実画面/API/DB通し、TSK-520の実API受入は未完了。別件Cookie追補初案の否決と、login/session相関に関する追加判断を本C2へ無断で実装しない。
