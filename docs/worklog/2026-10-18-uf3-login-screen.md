@@ -25,3 +25,33 @@ C1/C2/API/DTO/tenant/資格情報保存の独自実装なし。route接続・saf
 - C1の正規API・store・cacheをそのまま使用し、fetch境界だけを代替した。未確認時にtenant-bound通信が出ず、自動資格情報再送・変更要求の再送がない。旧応答から新tenant・成功を採用しない。
 - researchへ旧典拠・現行要件・Vue変換の移植4点を記録した。本人確認は未実施、対象・範囲・方法を未記入で維持する。
 - 全frontend品質gate成功: `vue-tsc --noEmit`、`eslint .`、`prettier --check .`、build（closure conforming・9 files・external 0・violations 0）、Vitest 69 files / 1,261 passed（72.59s）。最終対象24件も0.94sで再成功。正式レビューは親セッションが統括し、未実施を成功扱いにしない。
+
+## 正式レビュー第1周と採用修正
+
+- 第1周対象`fe2d9c2c`。指定wrapper adversarial exit0・P0/P1/P2=0、Claude CLI exit0・P0=0/P1=0/P2=4。ログは`/home/ymdms/.cache/pitchlog/uf3-reviews/round1-{adversarial,claude}.log`。Claudeは静的評価、wrapperのVitestはread-only cache制約で起動前停止しており、独立再試験成功とは記録しない。
+- 4件全採用: 明示再確認401→idle、認証済み後の再submit抑止、常設live/statusとfocus復帰、pendingガードの高感度試験。C1/共有client/store/router/core資産は変更なし。
+- pendingガード一時除去の故障注入では二重操作試験が赤となった。元へ復元し、通常の全件試験に除外・timeout変更はない。
+- server正規DTOに文字数制限がないことから旧maxlength50/128を除去。副題の色を明背景slate-600へ修正し、旧典拠とのclass差分とコントラスト根拠をresearchへ記録した。
+- 第2周は第1周修正差分と影響に限定して2正式経路へ依頼する。本人逐行確認は未実施のまま維持する。
+
+### 採用修正後の検査
+
+型検査・ESLint全件・Prettier全件・buildが成功。全Vitestは69 files / 1,265 passed（72.52s）で、固有28件を含む。build closureはconforming・9 files・external 0・violations 0。追加の除外・timeout緩和なし。`git diff --check`成功。レビュー第2周の結果は別途記録する。
+
+### 第2周の結果（採否待ち）
+
+修正差分限定の正式第2周は両exit0。adversarial P0=0/P1=0/P2=1（statusがbusy form内にあり通知保留され得る）、Claudeは可決P0=0/P1=0/P2=3（認証済み再submit試験のhandler感度、darkラベルのコントラスト、空チーム名時のfocus先）。第3周は実行せず、親へ4件全採用の最小追随案を提示した。採否と未再レビュー範囲は別途固定し、本人確認を代行しない。第2周への入力後に確定した全frontend成功結果は前節のとおりであり、レビューが再試験したとは記録しない。
+
+- 第2周prompt SHA-256: `7d5ab0db08483f45483f7d8cd082f935773c608a47ece61382b87964548d460f`
+- adversarialログSHA-256: `b3697b740355e57e1979f2c457fb3597596bd1336c266e65f3a14deb251922a3`
+- ClaudeログSHA-256: `b761547ecfec0b47db8efd217866a9211df6cc92035049d96744755fb611c7a1`
+
+### 第2周の採否と最終追随
+
+親が第2周4件を全採用した。statusをbusy form対象外へ配置、認証済み後submit試験の感度強化、darkラベルのコントラスト、空チーム名時のfocus先を修正した。固有30件成功。authenticated submitガード一時除去の故障注入ではfetch1回期待に対し2回となり追加試験が失敗、元へ復元した。通常検査には除外・timeout緩和なし。
+
+第3周は実行しない。第2周後の未再レビューは上記製品の局所修正と試験・資料であり、本人逐行確認対象として残す。C1/C2/共有client/store/router/core資産や認証契約の変更なし。実スクリーンリーダー受入は未実施で、DOM試験の成功から実施済みを推定しない。最終全frontend品質検査の確定結果は別記する。
+
+### 最終採用反映後の全検査
+
+`vue-tsc --noEmit`、`eslint .`、`prettier --check .`、build、全Vitestが成功した。Vitestは69 files / 1,267 passed（75.72s、固有30件含む）、build closure conforming・9 files・external 0・violations 0。`git diff --check`成功。製品/specをこの検査後に変更していない。全件の除外・timeout緩和なし。親がコミットするまで本worktreeに5ファイルを保持する。

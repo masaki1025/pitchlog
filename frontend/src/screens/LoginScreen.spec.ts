@@ -24,7 +24,10 @@ let pinia: Pinia
 let wrapper: VueWrapper | undefined
 const fetchMock = vi.fn<typeof fetch>()
 async function screen() {
-  wrapper = mount(LoginScreen, { global: { plugins: [pinia] } })
+  wrapper = mount(LoginScreen, {
+    attachTo: document.body,
+    global: { plugins: [pinia] },
+  })
   await flushPromises()
   return wrapper
 }
@@ -54,6 +57,7 @@ afterEach(() => {
   disposePinia(pinia)
   queryClient.clear()
   vi.unstubAllGlobals()
+  document.body.innerHTML = ''
 })
 describe('LoginScreenの正規認証経路', () => {
   it('直接mountはsessionのみ確認し未認証なら入力を許す', async () => {
@@ -129,14 +133,22 @@ describe('LoginScreenの正規認証経路', () => {
     const pending = deferred()
     fetchMock.mockReturnValueOnce(pending.promise)
     await submit(view)
+    // disabled属性だけに依存せず、遅れて届く入力/submitでもhandlerが拒否する。
+    ;(view.get('input[name="password"]').element as HTMLInputElement).disabled =
+      false
+    await view.get('input[name="password"]').setValue('second-attempt')
     await view.get('form').trigger('submit')
     expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(
+      (view.get('input[name="password"]').element as HTMLInputElement).value,
+    ).toBe('second-attempt')
+    expect(view.get('[role="status"]').text()).toBe('処理中…')
     pending.resolve(reply({}, 503))
     await flushPromises()
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(
       (view.get('input[name="password"]').element as HTMLInputElement).value,
-    ).toBe('')
+    ).toBe('second-attempt')
   })
   it('明示再確認はGETだけで資格情報を再送しない', async () => {
     fetchMock.mockResolvedValueOnce(reply({}, 503))
@@ -336,4 +348,104 @@ describe('LoginScreenの正規認証経路', () => {
     expect(view.find('img').exists()).toBe(false)
     expect(localStorage.getItem('bb.auth')).toBeNull()
   })
+  it('明示session再確認401は入力拒否ではなく未認証の入力画面へ戻す', async () => {
+    fetchMock.mockResolvedValueOnce(reply({}, 503))
+    const view = await screen()
+    fetchMock.mockResolvedValueOnce(reply({}, 401))
+    await click(view, '状態を再確認')
+    expect(view.find('[role="alert"]').exists()).toBe(false)
+    expect(
+      view.get('input[name="password"]').attributes('disabled'),
+    ).toBeUndefined()
+    expect(view.emitted('authenticated')).toBeUndefined()
+  })
+  it('認証成功後は親遷移前でも再submitせず世代変更まで操作を止める', async () => {
+    fetchMock.mockResolvedValueOnce(reply(dto))
+    const view = await screen()
+    expect(
+      view.get('input[name="team_name"]').attributes('disabled'),
+    ).toBeDefined()
+    expect(
+      view.get('button[type="submit"]').attributes('disabled'),
+    ).toBeDefined()
+    // 無効なDOMから遅れて届くイベントでも認証済みのhandlerは入力を消費しない。
+    ;(
+      view.get('input[name="team_name"]').element as HTMLInputElement
+    ).disabled = false
+    ;(view.get('input[name="password"]').element as HTMLInputElement).disabled =
+      false
+    await view.get('input[name="team_name"]').setValue('B')
+    await view.get('input[name="password"]').setValue('second-attempt')
+    await view.get('form').trigger('submit')
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(view.emitted('authenticated')).toEqual([[]])
+    expect(
+      (view.get('input[name="password"]').element as HTMLInputElement).value,
+    ).toBe('second-attempt')
+    useAuthStore().beginSessionVerification()
+    await flushPromises()
+    expect(
+      view.get('input[name="team_name"]').attributes('disabled'),
+    ).toBeUndefined()
+  })
+  it('statusを常設し拒否時はalert、再確認401後はpasswordへfocusを戻す', async () => {
+    const view = await screen()
+    const status = view.get('[role="status"]').element
+    expect(view.get('[role="status"]').attributes('aria-live')).toBe('polite')
+    expect(status.closest('[aria-busy]')).toBeNull()
+    expect(document.activeElement).toBe(
+      view.get('input[name="team_name"]').element,
+    )
+    fetchMock.mockResolvedValueOnce(reply({}, 401))
+    await submit(view)
+    expect(document.activeElement).toBe(view.get('[role="alert"]').element)
+    expect(view.get('[role="status"]').element).toBe(status)
+    useAuthStore().beginSessionVerification()
+    await flushPromises()
+    fetchMock.mockResolvedValueOnce(reply({}, 401))
+    await click(view, '状態を再確認')
+    expect(document.activeElement).toBe(
+      view.get('input[name="password"]').element,
+    )
+    expect(view.get('[role="status"]').element).toBe(status)
+  })
+  it('正規server DTOにない文字数制限で入力を切り詰めない', async () => {
+    const view = await screen()
+    const longName = '名'.repeat(51)
+    const longPassword = 'a'.repeat(129)
+    expect(
+      view.get('input[name="team_name"]').attributes('maxlength'),
+    ).toBeUndefined()
+    expect(
+      view.get('input[name="password"]').attributes('maxlength'),
+    ).toBeUndefined()
+    await view.get('input[name="team_name"]').setValue(longName)
+    await view.get('input[name="password"]').setValue(longPassword)
+    fetchMock.mockResolvedValueOnce(reply({}, 401))
+    await view.get('form').trigger('submit')
+    await flushPromises()
+    expect(JSON.parse(fetchMock.mock.calls[1]?.[1]?.body as string)).toEqual({
+      team_name: longName,
+      password: longPassword,
+    })
+  })
+  it.each(['再確認', 'ログアウト'])(
+    '空チーム名で%sが確定したら最初の必須入力へfocusする',
+    async (action) => {
+      fetchMock.mockResolvedValueOnce(reply({}, 503))
+      const view = await screen()
+      fetchMock.mockResolvedValueOnce(
+        action === '再確認' ? reply({}, 401) : reply({ status: 'logged_out' }),
+      )
+      await click(
+        view,
+        action === '再確認' ? '状態を再確認' : 'ログアウトしてやり直す',
+      )
+      expect(document.activeElement).toBe(
+        view.get('input[name="team_name"]').element,
+      )
+      expect(view.find('[role="alert"]').exists()).toBe(false)
+    },
+  )
 })

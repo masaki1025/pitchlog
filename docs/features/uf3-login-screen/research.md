@@ -49,9 +49,28 @@ team_nameは画面表示用データであり、emitの認可・tenant一致判�
 - 試験: `frontend/src/screens/LoginScreen.spec.ts`（正規client/store統合、旧session/login/logout、複数世代、未確認tenant GET/POST拒否、二重操作、再生成、unmount、存在秘匿、label/autocomplete）。
 - 資料: 本計画・research・`docs/worklog/2026-10-18-uf3-login-screen.md`。
 - core path宣言・登録は親セッションで別コミット。未登録のまま機械検出を通過扱いにしない。
-- [ ] 反対側レビュー（親セッションで正式実施）。
-- [ ] コア敵対レビュー（親セッションで正式実施）。
+- [x] 反対側レビュー実施（2周。最終P2採用反映後は未再レビュー）。
+- [x] コア敵対レビュー実施（2周。最終P2採用反映後は未再レビュー）。
 - [ ] 本人逐行確認。
 - 本人確認の対象: 未記入。
 - 本人確認の範囲: 未記入。
 - 本人確認の方法: 未記入。推定で記載しない。
+
+## 第1周レビュー採否と影響（2026-10-18）
+
+指定wrapper adversarialは可決P0/P1/P2=0、実Claude反対側は可決P0=0/P1=0/P2=4。両経路とも人間逐行確認の代替ではない。Claudeの4件は全採用した。
+
+1. 明示session再確認401は、資格情報拒否と混同せず未認証のidleへ戻す。login→session401の固定拒否は維持する。
+2. authenticated emit後は世代が変わるまでフォーム/submitを止め、親遷移前の再送・二重emitを抑止する。
+3. status/liveを常設し、操作完了後は固定alertか入力へfocusを戻す。unmount/別操作/認証済み時はfocusを移さない。
+4. pending中に入力イベントを再現して再submitし、DOM disabledだけに依存せずhandlerが拒否する試験へ強化。submitのblockedガードだけを一時除去する故障注入で当該試験が失敗し、元へ復元した。通常試験に除外・timeout変更はない。
+
+未検証記録2点も実コードと照合した。`backend/src/pitchlog/api/schemas/auth.py`の`LoginRequest`はteam_name/passwordとも制限なしのstrであり、`authz/team_login.py`もstr型だけを検査している。旧UI由来のmaxlength50/128は契約にない制限のため除去し、51文字/129文字を切り詰めず正規clientへ渡す試験を追加した。新しい入力上限を追加したものではない。
+
+副題の旧`text-slate-400`を`text-slate-600 dark:text-slate-400`へ変更した。Tailwind既定sRGBの明背景（白）に対するslate-400は2.56:1、slate-600は7.58:1、暗背景slate-900に対するslate-400は6.96:1（WCAG相対輝度式）。この可読性差分を移植4点のclass例外として記録する。
+
+## 第2周採用反映と未再レビュー範囲
+
+親セッションが第2周の4件（adversarial P2 1・Claude P2 3）を全採用した。常設statusをbusy formの外へ移し、認証済みsubmit試験もdisabledを除いた遅延入力からhandlerの拒否を確認する。暗色ラベルへ`dark:text-slate-400`を追加し、空チーム名でidleへ戻る場合のfocus先をチーム名へ修正した。認証済みsubmitガードを一時除去した故障注入で追加試験が失敗し、元へ復元した。
+
+第2周後の製品差分はstatus位置、ラベル2箇所のdark色、focus先条件のみ。C1呼出し・epoch/tenant一致・旧Cookie安全側無効化・自動再送禁止は不変である。固有試験は30件成功。第3周は実施せず、これら最終差分と試験・記録を未再レビューとして本人逐行確認対象へ残す。常設statusをform外へ置くDOM差と、その空状態の余白は移植4点のアクセシビリティ例外に含める。実支援技術での読み上げは未実施であり、DOM構造試験の成功を実支援技術受入と同一視しない。
