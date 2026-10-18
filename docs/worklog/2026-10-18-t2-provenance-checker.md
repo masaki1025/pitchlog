@@ -44,3 +44,31 @@ branch: feature/t2-provenance-checker
 - 回帰: T1/T2 × validator/単体CLI/repository × authorId/確認者とactorId/追加actorIdの予約値偽装、計18件。合成の確認記録を使う試験であり、実際の独立検証・署名を実施したという記録ではない。
 - 是正後: T2/T1 schema・Python loaderの関連試験437 passed。ルートruff/tyはともに合格、`git diff --check`合格、docs-statusは20件/違反0、plan-docs-syncは終了コード0。provenance repository検査はT1/T2ともnot-performedのまま形式検査合格。
 - 独立Codexレビュー第2回（第1回の反映差分+影響、基本枠2回目）: P0=0/P1=0/P2=0、是正差分は可。担当は新回帰18件と既存のT1既定種別/未実施診断の確認を含む19件を実行し全件合格。第1回P1の解消、計画・実装差分の技術的保留理由の解消を確認。今回を新規全文レビューや別の追認回へ重複計上しない。人間逐行確認・正式承認・再署名の成立とは区別する。
+- 全harness: `./.venv/bin/python -m pytest tests/ -q -n 8 --basetemp=/tmp/t2-reserved-full-harness` は **29,709 passed / 10 failed / 2 skipped、514.88秒**。ログは `/tmp/t2-reserved-full-harness.log`。失敗を除外・無効化せず、全緑とは記録しない。
+
+| 全harness失敗の分類 | 件数 | 直接確認した内容・今回の扱い |
+| --- | --- | --- |
+| gate6署名照合 | 1 | T2の旧署名digest不一致。既知の明示再署名待ち。署名を書き換えない |
+| core-guardの実リポジトリpath基線照合 | 6 | actual_core_area_paths、product_rls_paths、uf8_game_screen_paths、us1_sync_apply_paths、uf5_team_paths、area_registration。最新origin/developの基線がRG1の9paths等を含む一方、旧枝の宣言/設定は追随前で不一致 |
+| tenant-boundary実リポジトリ履歴照合 | 1 | 最新origin/developに対するbase-allowlist履歴prefix不一致。先行受理履歴を削除/置換して回避しない |
+| SQL言語変異の実行 | 1 | 実PostgreSQLの127.0.0.1:5432への接続拒否。共有DB/ロールを変更していない |
+| 変異費用の測定スイート | 1 | 子スイートdifferentialがexit=1。対象スイートにSQL言語変異を含むが、捕捉ログが本失敗の出力にはないため、SQLだけが原因だと断定しない |
+
+- 上記core/tenant/変異系のソース・試験・設定・契約に、引継ぎHEAD `0ed529f6`から限定是正`26f5c949`までの差分がないことをGitで照合。引継ぎHEADへ切り替えて同じ失敗群を再実行したわけではないので、「全件を基線でも再現済み」とは記録しない。develop取込みによる先行受理履歴/pathsの追随と、DBを要する検証環境の成立が残る。限定是正のために当該領域や検査基準を変更しない。
+
+## 追補の具体的な判断対象と残るゲート
+
+- 限定是正のローカルコミット: `26f5c949`。引継ぎHEAD `0ed529f6`と旧backupの両方を祖先として保持。patchの重複適用なし。
+- [P-8追随範囲の判断表](../features/t2-provenance-checker/p8-followup-scope-candidate-2026-10-18.md)を作成。変更対象、意味変更の有無、必要な理由、独立期待値への影響を項目ごとに抜き出した。規範行/case/正本の変更は未適用。
+- E11=A/E07=B等は既承認として保持。GAP-05は入力/対象セル/検証案を具体化したがopen、DRAW-01〜10も台帳の未被覆を維持。正式G6-E05はサヨナラ前得点の不足であり、棚卸し資料が段2件/成立1件をE05とした箇所はG6-E06との混同として判断表へ記載した。
+
+| ゲート | 現況 |
+| --- | --- |
+| 正本確定（7.6/7.3） | 今回の正本変更なし。裁定反映の追補範囲は判断待ち。550側E12追補は未統合・版調整要 |
+| 具体資産の正式承認 | 今回はCLI限定是正・回帰試験を本会話で承認。規範行/case/相関型の追補は未承認 |
+| 7.7 | 今回は凍結契約を変更せず受理履歴も変更なし。将来の追随時は先行履歴を保持して正式受理を追記する |
+| 再署名 | 未実施。契約・署名記録は変更せず、旧署名のdigest不一致を解消したとは記録しない |
+| P-6 | 未受理。今回の合成回帰試験・Codex差分レビュー・既実施DeepSeek E11/E07確認を独立期待値検証と数えない |
+| 人間逐行確認・担当受理 | 未実施/未取得。544/545への依頼と受領を区別し、受領済みとは代記しない |
+
+- push・Draft PRは許可未確認のため実施なし。マージなし。provenance整備完了、T2 P-8全成立、545製品実装開始可能はいずれも未成立。
