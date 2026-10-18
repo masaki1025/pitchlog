@@ -3,7 +3,7 @@ feature: uf3-login-screen
 status: active
 承認: 済(2026-10-14・山田正輝)
 重さ分類: コア領域
-worktree: /tmp/pitchlog-uf3-login-screen
+worktree: /home/ymdms/projects/pitchlog-worktrees/feature-uf3-login-screen
 notion: https://app.notion.com/p/3f493b75e687814ca3c7fead50df2a14
 branch: feature/uf3-login-screen
 created: 2026-10-14
@@ -142,3 +142,12 @@ U-F3編集所有は`LoginScreen.vue`、固有spec、本計画・research・固�
 ### 正式コードレビューと最終追随（2026-10-18）
 
 正式2経路を各2周実施。第1周P2 4件・第2周P2 4件は全採用した。第2周後の最終差分はstatusのbusy対象外配置、darkラベル、focus先、handler感度試験と資料に限定する。固有試験数は24→28→30件へ増えた。各時点の全件数は作業ログへ保持し、古い検査結果を最終候補成功の代用にしない。第3周は行わず、最後の採用反映は未再レビューとして本人逐行確認対象に残す。
+
+
+### 最新developでの全件再検証と残条件（2026-10-18）
+
+PR #143実統合`156dd139a893845428a1ecab69632143f7694e0b`を通常mergeし、固定検査HEADは`a4b982441b25b260a4532b5148bc8fb1c08166d7`。消失した旧/tmp worktreeのコミット済み成果をディスク側へ復元した。C1/#119/#143と共有資産の統合待ちは解消済みで、550/D4/544/545は本画面の依存ではない。
+
+最新基線でfrontend69ファイル1,267成功、root全29,670成功/2 skip、backend全2,574成功/4 skip。root/backendは別々の専用使い捨てPostgreSQLで実行しcleanupを確認、型/lint/整形/build、境界/凍結不変量/認可catalog/文書同期も成功。製品/specの2blobをSHA-256で固定しており、以後の記録追随で変更しない。
+
+既定2経路各2周の採否と最終反映未再レビューは保持する。意味範囲Tに対するLoginScreen*の機械未登録は残っているため、全品質ゲート通過・TSK-518全体完了・本人確認実施済みと記録しない。追加1パターンの最小追補は依頼者回答待ち。共通clientはC2、router/App/登録資産はU-F13で順次編集し、本U-F3の画面/specと二重編集しない。C1相関の新候補は別の未承認局所追補であり、本PRの既存UIへ無断実装しない。

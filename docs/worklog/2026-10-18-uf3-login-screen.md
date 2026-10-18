@@ -63,3 +63,10 @@ C1/C2/API/DTO/tenant/資格情報保存の独自実装なし。route接続・saf
 軽量検査はdocs-status20文書/違反0・design propagation・diff checkが成功。正本同期は初回「影響する正本節なし」で失敗したため、既存plan§3.1へ正本反映なしと正本外同梱対象の宣言だけを補い、exit0に解消した。正本・shared・製品は変更なし。ハーネス運用評価台帳への追記なし（局所UI実装と通常レビュー追随であり、新しい制御目的・確定した運用傾向の追加はない）。
 
 基線493342beのcore paths5領域とguard_pathsへの全5パス照合は0件。LoginScreen*未登録による意味コアの検出漏れであり、機械通過・本人未チェック拒否の成功とは扱わない。U-F13側の宣言/登録と接続受入を待ち、active維持・未提出とする。push/PR作成/commitは実施していない。
+
+
+## 2026-10-18: 最新developでの全件検査と引継ぎ
+
+旧/tmp worktreeが消失していたため、コミット済み成果をディスク側の専用worktreeへ復元し、#143実統合156dd139を通常merge（検査HEAD a4b98244）。製品/specは2ファイルとも固定SHAから不変。frontend全1,267成功、root全29,670成功/2 skip、backend全2,574成功/4 skip、各終了コード0。root1698.99秒、backend3049.63秒。rootとbackendは別々の既存disposable PostgreSQL fixtureで専用clusterを使い、cleanupを確認。型/lint/整形/build/tenant-boundary/frozen不変量/認可catalog/文書同期も成功。除外・timeout変更なし。
+
+C1/#119/#143待ちを現在の停止理由から外す。残るのはLoginScreen*のT登録最小追補、本人逐行確認、U-F13での実画面通しであり、担当はCodex D。既定レビュー2経路各2周と最終採用の未再レビュー履歴を保持し、新規レビューを無断追加しない。C1新相関候補と、自分の固定候補だけを検証環境へ結合する条件は別途の未承認判断として集約し、無回答を承認と扱わない。push/Draft PR作成は今回の候補にはまだ許可されていないため、具体差分・検査結果を揃えて一括判断へ提示する。TSK-518全体/TSK-520実API受入/TSK-528全体の完了、公開、マージ、本人確認は代行しない。

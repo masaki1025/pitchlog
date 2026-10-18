@@ -1,5 +1,17 @@
 # U-F3 / TSK-518 PR準備資料（未提出）
 
+## 最新候補の再検証（2026-10-18）
+
+以下が現在の状態であり、後続に保持した旧HEAD・旧未実施欄は過去の準備記録である。
+
+- 実基線: `156dd139a893845428a1ecab69632143f7694e0b`（#143実統合）。製品検査HEAD: `a4b982441b25b260a4532b5148bc8fb1c08166d7`。worktreeはディスク側へ復元し通常mergeした。
+- frontend **69 files / 1,267 passed**、root全件 **29,670 passed / 2 skipped**（1698.99秒）、backend全件 **2,574 passed / 4 skipped**（3049.63秒）、全終了コード0。型・ESLint・Prettier・build、root/backend Ruff・ty・backend format、tenant境界・frozen不変量・認可catalog成功。独立した専用DBを終了し、共有DB/他担当の作業へ破壊的変更なし。
+- backendのwarning1は既存db_fixtures再読込、skip4は既存の製品化後dry-run。除外追加・timeout緩和なし。検査後の記録更新で製品/specの2ファイルのSHA-256が固定manifestと同じことを確認する。
+- **LoginScreen*は意味上Tだがまだ機械未登録**。追加1パターンは未承認で、本PRの全ゲート通過とは記録しない。status active、本人欄は空、push/PR/CIは未実施。従来の2経路各2周のレビュー採否と最終反映の未再レビューを維持する。
+- U-F13の宣言/登録待ちと、C1の完了・#143共有編集待ちを区別する。後者は解消済み。実画面/API/DB通し・TSK-520受入・TSK-528全体は未完了で、経路未登録の本画面から公開しない。
+- C1の新しいlogin/session相関候補はU-F13専用branch `379aef25`の判断資料に固定し、別の未承認契約として扱う。既C1の受理/本人回答を取り消さず、本UIへ新DTOや新storage契約を無断追加しない。
+
+
 ## 概要
 
 正規C1 clientを再利用する経路未登録LoginScreenを実装した。loginのack後にsession DTO検証が成功し、現世代・認証済み状態・tenant IDが一致した場合だけauthenticated emitする。認証拒否・未認証・結果未確認を分け、明示GET再確認とlogoutだけを許し、資格情報・mutationを自動再送しない。
