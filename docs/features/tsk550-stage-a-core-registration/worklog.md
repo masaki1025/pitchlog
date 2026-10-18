@@ -11,6 +11,19 @@
 - 起動入口の完全パスをtenant-isolation・game-stateの追加層へ宣言。既存RG1宣言とJSON基線は据置き。宣言のみの中間状態、両領域登録、未宣言追加拒否、後続の宣言回転を試験に追加した。複数パスの部分追加拒否は既存試験で維持する。
 - `uv run pytest tests/test_core_guard.py -q`: 264成功。`uv run ruff check scripts/core_guard.py tests/test_core_guard.py`、`uv run ty check`: 成功。
 
+## 2026-10-19: ステップ2
+
+- JSONのgame-state・tenant-isolationに`backend/src/pitchlog/db/stage_a_startup.py`を各1件追加。RG1と既存の全登録を保持した。U-S1登録確認試験の旧「残り3領域はすべて据置き」前提を、今回の2領域のみ宣言済み追加層として検証する形に追随した。
+- `uv run pytest tests/test_core_guard.py -q`: 264成功。`uv run ruff check .`、`uv run ty check`: 成功。
+- root `uv run pytest tests/ -q`は99%まで実行したが、DB依存の失敗を確認して中断。`--lf -n 0`で`tests/domain/mut/test_lang_operators.py::test_each_language_mutants_are_actually_killed[sql]`が`127.0.0.1:5432`接続拒否と確定した。`docker compose ps`も`POSTGRES_PASSWORD`未設定で起動構成を解釈できない。秘密設定を読まず、全件成功とは記録しない。PR CIで再確認する。
+- TSK-372正式カードへ`games.applied_rules`限定先行単位の対象・DoD・影響・所有側受諾をコメント`3fd93b75-e687-8157-b42d-001db6aa17e0`で照会。返答前につき受諾未確認。候補worktree`feature/orm-applied-rules-immutability-candidate`の`d8cc9448`を保持し、全23表へ拡大しない。
+
+## 2026-10-19: コア敵対レビュー第1回の採否・#152申し送り
+
+- 第1回全文レビューはP0 0/P1 1/P2 1。P1「実JSONに基づく将来パス変更と未記入チェック拒否の回帰試験がない」は**採用**し、登録コミットの履歴有無でステップ1中間状態とステップ2以後を分ける試験を宣言コミットへ追加する。P2「#152への申し送り不足」は**採用**し、本節を追記する。反映差分と影響箇所を第2回レビュー対象にする。
+- #152はこの専用PRの**実統合SHA**を確認して最新developを取り込む。`backend/src/pitchlog/db/stage_a_startup.py`はgame-state・tenant-isolation双方のJSON基線に残し、両領域の`AREA_PATH_ADDITIONS`を登録済み起動入口から`backend/tests/test_rule_resolution.py`の追加パスだけへ回転する。既存RG1宣言・登録を落とさず、#152の元のステップ7・8の対象と順序は変えない。後続の新基線で7.7実値を再導出し、#152の既受理履歴は書き換えない。
+- 第2回差分レビューはP0 0/P1 0/P2 0。第1回P1・P2は解消と判定された。レビュー環境は読取専用でpytestを実行できなかったため、実行側でcore-guard 265件成功、Ruff・ty・基線検査成功を別途確認した。第2回後の本行とPR本文の記録更新は独立再レビュー対象外の文書追記として人間確認に残す。
+
 ## 2026-10-19: 計画レビュー
 
 - 起点: `origin/develop` `5bb1ff89306712c1de61c3a0152141c8f771b3a0`。TSK-550本体#152はDraft・HEAD `401ea428`。本PRは起動入口の完全パスを先にJSON基線へ載せ、#152の既存ステップ7・8を後続試験パス用に維持するための独立2ステップ。
