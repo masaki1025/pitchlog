@@ -103,3 +103,31 @@ describe('認証意図の厳密構造・排他契約', () => {
     ).rejects.toThrow('storage-unavailable')
   })
 })
+
+describe('通知の厳密な読取とserver確認後だけのack', () => {
+  it('lock内でも確認開始後の別通知をackしない', async () => {
+    const {
+      publishAuthUncertainty,
+      captureAuthUncertainty,
+      acknowledgeAuthUncertainty,
+    } = await import('./authIntent')
+    const first = publishAuthUncertainty()
+    await withAuthIntent(() => {
+      expect(captureAuthUncertainty(true)).toBe(first)
+      publishAuthUncertainty()
+      expect(() => acknowledgeAuthUncertainty(first)).toThrow()
+    })
+    expect(localStorage.getItem('bb.auth.uncertain.ack')).toBeNull()
+  })
+  it('lock外のackと破損通知の自動修復を拒否する', async () => {
+    const { acknowledgeAuthUncertainty, captureAuthUncertainty } =
+      await import('./authIntent')
+    expect(() => acknowledgeAuthUncertainty(null)).toThrow('lock外')
+    localStorage.setItem('bb.auth.uncertain', 'bad')
+    await withAuthIntent(() => {
+      expect(() => captureAuthUncertainty(false)).toThrow()
+      expect(captureAuthUncertainty(true)).toMatch(/^[0-9a-f-]{36}$/)
+    })
+    expect(localStorage.getItem('bb.auth.uncertain.ack')).toBeNull()
+  })
+})

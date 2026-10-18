@@ -124,3 +124,69 @@ export function writeAuthIntent(
   }
   return next
 }
+
+/** 拒否専用。保存値を認証成功やtenantの証拠に使わない。 */
+export const AUTH_UNCERTAIN_KEY = 'bb.auth.uncertain'
+export const AUTH_UNCERTAIN_ACK_KEY = 'bb.auth.uncertain.ack'
+
+export function readAuthUncertainty(): {
+  notice: string | null
+  ack: string | null
+  wellFormed: boolean
+  confirmed: boolean
+} {
+  try {
+    const notice = localStorage.getItem(AUTH_UNCERTAIN_KEY)
+    const ack = localStorage.getItem(AUTH_UNCERTAIN_ACK_KEY)
+    const wellFormed =
+      (notice === null || canonicalUuid.test(notice)) &&
+      (ack === null || canonicalUuid.test(ack)) &&
+      !(notice === null && ack !== null)
+    return { notice, ack, wellFormed, confirmed: wellFormed && notice === ack }
+  } catch {
+    throw new AuthEnvironmentError('storage-unavailable')
+  }
+}
+
+/** lock外の例外は拒否通知だけ。要求ごとの重複防止は呼出元が行う。 */
+export function publishAuthUncertainty(): string {
+  if (typeof globalThis.crypto?.randomUUID !== 'function')
+    throw new AuthEnvironmentError('identity-unavailable')
+  const notice = crypto.randomUUID()
+  try {
+    localStorage.setItem(AUTH_UNCERTAIN_KEY, notice)
+    if (readAuthUncertainty().notice !== notice) throw new Error('changed')
+  } catch {
+    throw new AuthEnvironmentError('storage-unavailable')
+  }
+  return notice
+}
+
+/** 明示操作だけが破損通知を新たな拒否通知へ置き換えて回復を試せる。 */
+export function captureAuthUncertainty(explicit: boolean): string | null {
+  assertAuthIntentLockHeld()
+  const state = readAuthUncertainty()
+  if (!state.wellFormed) {
+    if (explicit) return publishAuthUncertainty()
+    throw new Error('認証状態の明示再確認が必要です')
+  }
+  return state.notice
+}
+
+/** strict session・意図・世代・tenant照合後だけ呼ぶ。ack自体は認証証拠ではない。 */
+export function acknowledgeAuthUncertainty(notice: string | null): void {
+  assertAuthIntentLockHeld()
+  const before = readAuthUncertainty()
+  if (
+    before.notice !== notice ||
+    (notice === null ? before.ack !== null : !canonicalUuid.test(notice))
+  )
+    throw new Error('認証確認中にCookie不確実通知が変わりました')
+  try {
+    if (notice !== null) localStorage.setItem(AUTH_UNCERTAIN_ACK_KEY, notice)
+    const after = readAuthUncertainty()
+    if (after.notice !== notice || !after.confirmed) throw new Error('changed')
+  } catch {
+    throw new AuthEnvironmentError('storage-unavailable')
+  }
+}

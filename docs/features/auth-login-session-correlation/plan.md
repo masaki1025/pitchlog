@@ -47,3 +47,9 @@ Codex Dが本枝のbackend auth router/schema/caller完全一致試験、fronten
 ## 検証と人間ゲート
 
 root Ruff/ty/全pytest、backend format/Ruff/ty/全pytest、frontend Prettier/ESLint/vue-tsc/全Vitest/build、既存契約検査を実施する。隔離DB・検証環境だけを使用し共有環境を破壊しない。実画面ログイン→session→選手一覧→追加・編集→reloadは別途実測する。正式資産/7.7に変化があれば具体値を別提示する。通常push・Draftは許可済み。本人逐行確認、公開、Draft解除、マージは未許可・未実施。
+
+## 2026-10-19: 限定追補の承認
+
+本会話で6de49595の拒否専用storage2キーと680c2a27の2xx metadata不正時の認証/cache無効化が承認された。通知は拒否・無効化にだけ使い、成功/tenantの正当性を証明しない。欠落・削除・破損・逆順でもstorageだけで昇格せず、各タブのstrict session照合を必須とする。既存2回枠の未消費第2周を反映後差分と影響へ使用する。
+
+680c2a27のC2分岐は許可済み専用結合枝で先に検証し、通常C2枝はC1の実develop統合後の基線へ追随する。自チーム受入の要求は既存API/認可契約を実照合し、不足する正式資産は具体差分を別ゲートへ提示する。

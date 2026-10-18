@@ -76,7 +76,9 @@ describe('相関されたsessionだけを保持するauthStore', () => {
   })
   it('lock外の直接採用を拒否', () => {
     const auth = useAuthStore()
-    expect(() => auth.adoptCorrelatedSession(a, a, '入力名')).toThrow('lock外')
+    expect(() => auth.adoptCorrelatedSession(a, a, '入力名', null)).toThrow(
+      'lock外',
+    )
     empty(auth)
   })
   it('lock内でもpendingや異tenantの採用を拒否', async () => {
@@ -85,12 +87,12 @@ describe('相関されたsessionだけを保持するauthStore', () => {
       const pending = writeAuthIntent('pending', null)
       auth.beginCorrelatedVerification(pending.intentId)
       expect(() =>
-        auth.adoptCorrelatedSession(pending.intentId, a, 'A'),
+        auth.adoptCorrelatedSession(pending.intentId, a, 'A', null),
       ).toThrow()
       const expected = writeAuthIntent('expected', a)
       auth.beginCorrelatedVerification(expected.intentId)
       expect(() =>
-        auth.adoptCorrelatedSession(expected.intentId, b, 'B'),
+        auth.adoptCorrelatedSession(expected.intentId, b, 'B', null),
       ).toThrow()
     })
     empty(auth)
@@ -206,5 +208,76 @@ describe('相関されたsessionだけを保持するauthStore', () => {
     empty(next)
     expect(next.canReverify).toBe(true)
     disposePinia(p)
+  })
+})
+
+describe('Cookie不確実通知は拒否専用', () => {
+  const noticeKey = 'bb.auth.uncertain'
+  const ackKey = 'bb.auth.uncertain.ack'
+  it('lock競合中でも通知を保存し、他タブと自分を未確認にする', async () => {
+    const auth = authenticated()
+    vi.stubGlobal('navigator', {
+      locks: { request: vi.fn(async (_n, _o, action) => action(null)) },
+    })
+    const clear = vi.spyOn(queryClient, 'clear')
+    await auth.invalidateUncertainCookie()
+    expect(clear).toHaveBeenCalledTimes(1)
+    const notice = localStorage.getItem(noticeKey)
+    expect(notice).toMatch(/^[0-9a-f-]{36}$/)
+    expect(localStorage.getItem(ackKey)).toBeNull()
+    empty(auth)
+    expect(auth.environmentReason).toBe('lock-busy')
+    expect(auth.automaticVerificationBlocked).toBe(true)
+  })
+  it('通知とackの順序が逆でもstorageだけでは認証済みにならない', () => {
+    const auth = authenticated()
+    localStorage.setItem(ackKey, b)
+    event(ackKey)
+    empty(auth)
+    localStorage.setItem(noticeKey, b)
+    event(noticeKey)
+    empty(auth)
+    expect(auth.automaticVerificationBlocked).toBe(true)
+  })
+  it('既読通知とackを両方削除しても認証を復元せず旧採用を拒否', async () => {
+    const auth = authenticated()
+    await auth.invalidateUncertainCookie()
+    const notice = localStorage.getItem(noticeKey)!
+    await withAuthIntent(() => {
+      const marker = writeAuthIntent('expected', a)
+      auth.beginCorrelatedVerification(marker.intentId)
+      auth.adoptCorrelatedSession(marker.intentId, a, '正規A', notice)
+    })
+    expect(auth.isAuthenticated).toBe(true)
+    localStorage.removeItem(noticeKey)
+    localStorage.removeItem(ackKey)
+    auth.syncFromStorage()
+    empty(auth)
+    expect(auth.automaticVerificationBlocked).toBe(true)
+  })
+  it.each([noticeKey, ackKey])(
+    '%sの不正値で送信前に失効し、同じ通知は二重破棄しない',
+    (key) => {
+      const auth = authenticated()
+      localStorage.setItem(key, 'malformed')
+      auth.syncFromStorage()
+      empty(auth)
+      const epoch = auth.authEpoch
+      event(key)
+      auth.syncFromStorage()
+      expect(auth.authEpoch).toBe(epoch)
+      expect(auth.automaticVerificationBlocked).toBe(true)
+    },
+  )
+  it('ackの一致と古い通知の再配信だけでは認証を昇格させない', () => {
+    const auth = authenticated()
+    localStorage.setItem(noticeKey, a)
+    event(noticeKey)
+    const epoch = auth.authEpoch
+    localStorage.setItem(ackKey, a)
+    event(ackKey)
+    event(noticeKey)
+    empty(auth)
+    expect(auth.authEpoch).toBe(epoch)
   })
 })

@@ -3,6 +3,8 @@ import { useAuthStore } from '../stores/authStore'
 import {
   AuthEnvironmentError,
   canonicalUuid,
+  captureAuthUncertainty,
+  readAuthIntent,
   withAuthIntent,
   writeAuthIntent,
   type AuthIntent,
@@ -114,6 +116,7 @@ async function readSession(
   auth: AuthStore,
   intent: AuthIntent,
   epoch: number,
+  notice: string | null,
   signal?: AbortSignal,
 ): Promise<SessionResult> {
   try {
@@ -150,6 +153,7 @@ async function readSession(
         marker.intentId,
         value.tenant_id,
         value.team_name,
+        notice,
       )
       return authenticated(auth)
     })
@@ -223,6 +227,7 @@ function verify(
         auth.syncFromStorage()
         if (
           auth.explicitLoginRequired ||
+          (!explicit && auth.automaticVerificationBlocked) ||
           !intent?.tenantId ||
           (intent.phase !== 'expected' &&
             !(explicit && intent.phase === 'verification-required'))
@@ -231,13 +236,15 @@ function verify(
             auth.beginCorrelatedVerification(intent?.intentId ?? null)
           return null
         }
+        const notice = captureAuthUncertainty(explicit)
+        auth.syncFromStorage()
         const epoch = auth.beginCorrelatedVerification(intent.intentId)
         entry.epoch = epoch
-        return { intent, epoch }
+        return { intent, epoch, notice }
       })
       if (!start) return unknown(auth)
       entry.epoch = start.epoch
-      return readSession(auth, start.intent, start.epoch, signal)
+      return readSession(auth, start.intent, start.epoch, start.notice, signal)
     } catch (error) {
       return failedEnvironment(auth, error)
     }
@@ -260,17 +267,16 @@ export async function login(
   const entry = { epoch: auth.authEpoch }
   mutations.set(auth, entry)
   let intent: AuthIntent | undefined
+  let notice: string | null = null
   let uncertaintyNotified = false
   const onUncertain = async () => {
     if (uncertaintyNotified) return
     uncertaintyNotified = true
     try {
-      const changed = await withAuthIntent((now) => {
-        auth.syncFromStorage()
-        return (
-          now?.intentId !== intent?.intentId || auth.authEpoch !== entry.epoch
-        )
-      })
+      auth.syncFromStorage()
+      const now = readAuthIntent()
+      const changed =
+        now?.intentId !== intent?.intentId || auth.authEpoch !== entry.epoch
       if (changed) await invalidateCookieUncertainty(auth)
     } catch (error) {
       failedEnvironment(auth, error)
@@ -278,6 +284,8 @@ export async function login(
   }
   try {
     intent = await withAuthIntent(() => {
+      notice = captureAuthUncertainty(true)
+      auth.syncFromStorage()
       // storage/lock不使用時にも旧メモリは残さない。
       const next = writeAuthIntent('pending', null)
       entry.epoch = auth.beginCorrelatedVerification(next.intentId)
@@ -307,7 +315,7 @@ export async function login(
     })
     if (start === null) return { status: 'stale', authEpoch: entry.epoch }
     if (!start) return markUnknown(auth, intent, entry.epoch)
-    return await readSession(auth, start, entry.epoch, options.signal)
+    return await readSession(auth, start, entry.epoch, notice, options.signal)
   } catch (error) {
     if (error instanceof AuthEnvironmentError)
       return failedEnvironment(auth, error)
@@ -354,11 +362,9 @@ export async function logout(
         if (notified) return
         notified = true
         auth.syncFromStorage()
-        const stale = await withAuthIntent(
-          (now) =>
-            now?.intentId !== intent!.intentId ||
-            auth.authEpoch !== entry.epoch,
-        )
+        const now = readAuthIntent()
+        const stale =
+          now?.intentId !== intent!.intentId || auth.authEpoch !== entry.epoch
         if (stale) await invalidateCookieUncertainty(auth)
       },
     })

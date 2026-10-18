@@ -25,7 +25,7 @@ export function setVerifiedAuthForTest(
       const id = team.teamId ?? '11111111-1111-4111-8111-111111111111'
       const marker = writeAuthIntent('expected', id)
       auth.beginCorrelatedVerification(marker.intentId)
-      auth.adoptCorrelatedSession(marker.intentId, id, team.teamName)
+      auth.adoptCorrelatedSession(marker.intentId, id, team.teamName, null)
     } catch (error) {
       failure = error
     }

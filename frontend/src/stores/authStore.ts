@@ -2,6 +2,11 @@ import { defineStore } from 'pinia'
 import { computed, onScopeDispose, ref } from 'vue'
 import {
   AUTH_INTENT_KEY,
+  AUTH_UNCERTAIN_KEY,
+  AUTH_UNCERTAIN_ACK_KEY,
+  readAuthUncertainty,
+  publishAuthUncertainty,
+  acknowledgeAuthUncertainty,
   AuthEnvironmentError,
   assertAuthIntentLockHeld,
   readAuthIntent,
@@ -29,10 +34,16 @@ export const useAuthStore = defineStore('auth', () => {
   let observedIntentId: string | null = null
   let expectedTenantId: string | null = null
   let observedLegacy: string | null = null
+  let observedNotice: string | null = null
+  let observedAck: string | null = null
 
   try {
     localStorage.removeItem(AUTH_STORAGE_KEY)
     observedIntentId = readAuthIntent()?.intentId ?? null
+    const uncertainty = readAuthUncertainty()
+    observedNotice = uncertainty.notice
+    observedAck = uncertainty.ack
+    if (!uncertainty.confirmed) automaticVerificationBlocked.value = true
   } catch {
     // 復元はしない。具体的な環境失敗は認証操作で表示する。
   } finally {
@@ -86,6 +97,7 @@ export const useAuthStore = defineStore('auth', () => {
     intentId: string,
     tenantId: string,
     name: string,
+    notice: string | null,
   ): void {
     // 公開旧signInを廃止。相関検査を行った同期lock内だけから採用する。
     assertAuthIntentLockHeld()
@@ -98,6 +110,9 @@ export const useAuthStore = defineStore('auth', () => {
       observedIntentId !== intentId
     )
       throw new Error('認証意図とsessionを照合できません')
+    acknowledgeAuthUncertainty(notice)
+    observedNotice = notice
+    observedAck = notice
     expectedTenantId = tenantId
     teamId.value = tenantId
     teamName.value = name
@@ -119,6 +134,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function invalidateUncertainCookie(): Promise<void> {
     try {
+      // Cookieはlockに従わない。競合中でも他タブへ拒否だけを通知する。
+      publishAuthUncertainty()
+      syncFromStorage()
       await withAuthIntent((marker) => {
         syncFromStorage()
         // 1要求から1回だけ呼ぶ。異なる旧Cookie応答は未確認中でも新しい意図にする。
@@ -152,7 +170,12 @@ export const useAuthStore = defineStore('auth', () => {
         /* 読取不能時は採用しない。 */
       }
       const required = explicitLoginRequired.value
-      beginCorrelatedVerification(marker?.intentId ?? null)
+      const nextId = marker?.intentId ?? null
+      if (sessionVerified.value) beginCorrelatedVerification(nextId)
+      else if (nextId !== observedIntentId) {
+        authEpoch.value += 1
+        observedIntentId = nextId
+      }
       explicitLoginRequired.value = required
     } else {
       discard()
@@ -163,10 +186,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function syncFromStorage(): void {
-    let marker, legacy
+    let marker, legacy, uncertainty
     try {
       marker = readAuthIntent()
       legacy = localStorage.getItem(AUTH_STORAGE_KEY)
+      uncertainty = readAuthUncertainty()
     } catch {
       if (sessionVerified.value) discard()
       environmentReason.value = 'storage-unavailable'
@@ -174,6 +198,16 @@ export const useAuthStore = defineStore('auth', () => {
       automaticVerificationBlocked.value = true
       return
     }
+    const noticeChanged = uncertainty.notice !== observedNotice
+    const ackRegressed =
+      uncertainty.ack !== observedAck && !uncertainty.confirmed
+    if (noticeChanged || !uncertainty.confirmed) {
+      if (sessionVerified.value) discard()
+      else if (noticeChanged || ackRegressed) authEpoch.value += 1
+      observedNotice = uncertainty.notice
+      automaticVerificationBlocked.value = true
+    }
+    observedAck = uncertainty.ack
     if (
       sessionVerified.value &&
       typeof globalThis.crypto?.randomUUID !== 'function'
@@ -227,6 +261,8 @@ export const useAuthStore = defineStore('auth', () => {
   function onStorage(event: StorageEvent): void {
     if (
       event.key !== AUTH_INTENT_KEY &&
+      event.key !== AUTH_UNCERTAIN_KEY &&
+      event.key !== AUTH_UNCERTAIN_ACK_KEY &&
       event.key !== AUTH_STORAGE_KEY &&
       event.key !== null
     )

@@ -613,3 +613,90 @@ describe('通常tenant応答のCookie更新と本文遅延の区別', () => {
     empty()
   })
 })
+
+describe('拒否通知とsession採用の前後競合', () => {
+  it('通知の未ackで自動GETを止め、明示server確認に成功したタブだけ回復する', async () => {
+    const auth = await loggedIn()
+    queryClient.setQueryData(['B'], 'private')
+    await auth.invalidateUncertainCookie()
+    vi.mocked(fetch).mockClear()
+    expect((await ensureSessionVerified()).status).toBe('verification-unknown')
+    expect(fetch).not.toHaveBeenCalled()
+    empty()
+    respond({ tenant_id: b, team_name: '正規B' })
+    expect((await session()).status).toBe('authenticated')
+    expect(localStorage.getItem('bb.auth.uncertain.ack')).toBe(
+      localStorage.getItem('bb.auth.uncertain'),
+    )
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it('確認中に新通知とそのackが揃っても旧sessionを採用しない', async () => {
+    const auth = await loggedIn()
+    await auth.invalidateUncertainCookie()
+    const waiting = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(waiting.promise)
+    const checking = session()
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+    localStorage.setItem('bb.auth.uncertain', a)
+    localStorage.setItem('bb.auth.uncertain.ack', a)
+    waiting.resolve(response({ tenant_id: b, team_name: '旧確認B' }))
+    expect((await checking).status).not.toBe('authenticated')
+    empty()
+  })
+  it('lock保持中に古いloginが届いてもlock待ちせず拒否通知を出す', async () => {
+    const waiting = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(waiting.promise)
+    const old = login(credentials)
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+    await intent('expected', b)
+    const nextTab = tab()
+    const newer = useAuthStore(nextTab)
+    // 実server確認成功を準備する単体fixture。通知後に再採用はしない。
+    setVerifiedAuthForTest(newer, { teamName: '新B', teamId: b })
+    queryClient.setQueryData(['B'], 'private')
+    vi.stubGlobal('navigator', {
+      locks: { request: vi.fn(async (_n, _o, action) => action(null)) },
+    })
+    waiting.resolve(response({ status: 'authenticated', tenant_id: a }))
+    expect((await old).status).not.toBe('authenticated')
+    expect(localStorage.getItem('bb.auth.uncertain')).not.toBeNull()
+    newer.syncFromStorage()
+    empty(nextTab)
+    expect(newer.automaticVerificationBlocked).toBe(true)
+  })
+  it.each(['bb.auth.uncertain', 'bb.auth.uncertain.ack'])(
+    '破損した%sは明示loginと実session確認を経てだけ回復',
+    async (key) => {
+      await loggedIn()
+      localStorage.setItem(key, 'corrupt')
+      useAuthStore().syncFromStorage()
+      empty()
+      vi.mocked(fetch).mockClear()
+      await ensureSessionVerified()
+      expect(fetch).not.toHaveBeenCalled()
+      respond({ status: 'authenticated', tenant_id: b })
+      respond({ tenant_id: b, team_name: '正規B' })
+      expect((await login(credentials)).status).toBe('authenticated')
+      expect(fetch).toHaveBeenCalledTimes(2)
+    },
+  )
+})
+
+it.each(['malformed', null])(
+  'session確認中にackが%sへ壊れたら採用しない',
+  async (raw) => {
+    const auth = await loggedIn()
+    await auth.invalidateUncertainCookie()
+    respond({ tenant_id: b, team_name: '正規B' })
+    expect((await session()).status).toBe('authenticated')
+    const waiting = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(waiting.promise)
+    const checking = session()
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(4))
+    if (raw === null) localStorage.removeItem('bb.auth.uncertain.ack')
+    else localStorage.setItem('bb.auth.uncertain.ack', raw)
+    waiting.resolve(response({ tenant_id: b, team_name: '遅れたB' }))
+    expect((await checking).status).not.toBe('authenticated')
+    empty()
+  },
+)
