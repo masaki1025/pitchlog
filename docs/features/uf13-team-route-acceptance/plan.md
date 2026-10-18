@@ -33,8 +33,8 @@ created: 2026-10-14
 **製品実装の開始条件**:
 
 1. adversarial review 2 周の採否記録と最終 C2 反映差分を人間が確認し、本計画を承認する。**2026-10-14 承認済み**。
-2. PR #119 が develop へ統合される。
-3. C1（認証成功から検証済み tenant ID を供給）が承認済み契約として develop に着地する。
+2. PR #119 が develop へ統合される。**充足済み**（8294a1b602ae1c99d6d10d02780fa8fcfc7e8e24）。現行の待ちから除外する。
+3. C1（認証成功から検証済み tenant ID を供給）が承認済み契約として develop に着地する。**充足済み**（#144と#147、最終493342be37d4383ca572f8d1c826a3f184a4d213）。現行の待ちから除外する。
 4. C2（応答 tenant の独立証跡と U-F6 client の exact match）が承認済み契約として develop に着地する。
 5. C3（U-F3の`LoginScreen`、失敗表示、C1 auth clientへの接続）がdevelopに着地する。`api/auth.ts`はC1、`/login`と`/team`のroute登録は本計画ステップ2/3が所有する。
 
