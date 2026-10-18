@@ -621,3 +621,14 @@ P1の2タブ挙動は静的レビューの推論であり、単一DOMのStorageE
 - 新相関の実装第1周はCodex P0=0/P1=4/P2=1、実Claude P0=0/P1=3/P2=8。後発修正・実画面結果は第2周未レビュー。旧U-F13の両経路2回は消費済みを維持。
 - lock-busy時に旧Cookieの不確実化を他タブへ伝える不足は、6de49595の拒否専用2キー追補として人間判断待ち・未実装。既受理済みのDTO/意図管理を再承認待ちには戻さない。
 - 遅延Cookie・通信断・storage/lock拒否の実ブラウザ受入、最終結合全件検査、レビュー採否、人間逐行確認は未完了。ステップ3全体/TSK-528/TSK-520を完了にしない。公開・Draft解除・マージは未実施。
+
+## 2026-10-19: 最新固定候補の実測・Draft申し送り
+
+- 最新develop5bb1ff89を通常merge。共有資産の別候補を基線にしない。C1は7e18a91a（後続d12642a3は資料のみ）、C2は146c774c、U-F3の製品ac748ed5（現単独37c41110も同一製品）、本枝のrouter/Appは5de46ec6/463f792bと同一。専用結合0cb5ab4bで各元の製品バイト一致を照合し、client.tsのC1/C2接合だけを別管理する。
+- 結合frontend71ファイル1,352成功（74.83秒）、build閉域conforming。本人未記入のsynthetic PRイベントはLoginScreen/router/Appを検出しexit1。チェック文言や検査を緩和しない。
+- attempt13: 実画面/API/隔離DB、Chromium149.0.7827.0で正常8項目成功、8.48秒。ログイン→session→対戦相手登録/選択→選手登録→編集→reloadの実DB保存をobserverで確認。A選手「受入選手編集済」番号17、B選手0。same tenant2タブ維持、別tenant旧タブ非自動切替も成功。確定認証のlogoutはUIではなく実APIの明示前提操作。通常系はVite開発server、故障系はproduction previewで、それぞれを区別する。
+- attempt12: production previewで実応答/Set-Cookieを遅延配送。旧login/logout/session/選手登録の4ケースは実ブラウザfetchでCookie A/なしを確認し、B cache3→0・旧採用拒否。lock保持中のsessionケースはBが/teamに残り失敗。6de49595の追加2キーを未承認で実装しない。
+- attempt09/10は実行器timeout、attempt11はPlaywright response.finished待機timeoutで不合格。fulfilled完了待機と実Cookieのserver確認に修正したattempt12を別記し、過去の未完走を成功扱いにしない。試験除外・timeout緩和なし。全cluster/serverを自分のfixtureでcleanup。
+- storage/lock/UUID非対応、認証拒否、通信断、明示再確認のproduction7項目は既記録の結合候補で成功。全ブラウザ互換や自チームread受入を推定しない。
+- 既承認の方式・P1の2タブ問題は新相関で通常ケースの解消を実測。lock-busyと2xx metadata失敗は別の追加契約判断として残す。新相関のレビュー第2周は未消費、旧U-F13各2周は維持する。本人確認未実施。
+- 本枝単独はC2/U-F3の統合待ち、結合結果を単独品質へ読み替えない。許可済みDraftへ全未完了条件を明示し、plan active維持。台帳追記なし（製品相関・既存ハーネスによる局所受入で、新ハーネス機能は追加しない）。TSK-528/520全体・ステップ3の完了、公開・Draft解除・マージは行わない。
