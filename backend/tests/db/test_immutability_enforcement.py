@@ -43,6 +43,7 @@ class _ManifestTable:
     allowed_update_columns: frozenset[str]
     conditional_update_columns: frozenset[str]
     append_only: bool
+    check_protected_columns: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -147,6 +148,51 @@ def _catalog_triggers(
     return tuple(contracts)
 
 
+def _rg1_singleton_check_contract(table: dict[str, Any]) -> tuple[str, int, str] | None:
+    """Manifestから固定ID列・値・主キー名を導出する。"""
+    protected = table["immutability"]["protected_columns"]
+    if len(protected) != 1:
+        return None
+    column = str(protected[0])
+    checks = [
+        match
+        for expression in table["checks"]
+        if (match := re.fullmatch(rf"{re.escape(column)}\s*=\s*(-?\d+)", expression))
+    ]
+    primary_keys = [
+        item
+        for item in table["unique_constraints"]
+        if item["kind"] == "PRIMARY KEY" and item["columns"] == [column]
+    ]
+    if len(checks) != 1 or len(primary_keys) != 1:
+        return None
+    return column, int(checks[0].group(1)), str(primary_keys[0]["name"])
+
+
+def _rg1_singleton_check_enforced(
+    connection: psycopg.Connection[Any], table: dict[str, Any]
+) -> bool:
+    """Manifestの固定ID CHECKと主キーが実DBに完全一致するか返す。"""
+    contract = _rg1_singleton_check_contract(table)
+    if contract is None:
+        return False
+    column, value, primary_key_name = contract
+    rows = connection.execute(
+        "SELECT conname, contype, pg_get_constraintdef(oid) "
+        "FROM pg_constraint WHERE conrelid = 'public.rg1_restore_gate'::regclass"
+    ).fetchall()
+    observed = {
+        str(name): (str(kind), str(definition)) for name, kind, definition in rows
+    }
+    return observed.get(primary_key_name) == (
+        "p",
+        f"PRIMARY KEY ({column})",
+    ) and any(
+        kind == "c" and definition == f"CHECK (({column} = {value}))"
+        for kind, definition in observed.values()
+    )
+
+
 def _before_event_clause(definition: str) -> str | None:
     """pg_get_triggerdef 全文から BEFORE と ON の間のイベント句を返す。"""
     normalized = _normalize_sql(definition).upper()
@@ -220,6 +266,10 @@ def _enforcement_violations(
 
     for table in population:
         table_triggers = triggers_by_table.get(table.name, [])
+        if not table.check_protected_columns <= table.protected_columns:
+            violations.append(
+                f"{table.name}: CHECKで保護する列がprotected宣言から外れた"
+            )
         if table.append_only:
             if table.protected_columns != table.columns:
                 violations.append(f"{table.name}: 追記専用だが protected != columns")
@@ -241,7 +291,7 @@ def _enforcement_violations(
                         f"{table.name}: 追記専用トリガに UPDATE OF 列がある: "
                         f"{list(trigger.columns)!r}"
                     )
-        elif table.protected_columns:
+        elif table.protected_columns - table.check_protected_columns:
             if len(table_triggers) != 1:
                 violations.append(
                     f"{table.name}: BEFORE UPDATE OF トリガ本数が不一致: "
@@ -263,6 +313,10 @@ def _enforcement_violations(
                     violations.append(f"{table.name}: BEFORE UPDATE OF トリガではない")
                 if _trigger_events(trigger.definition) != {"UPDATE"}:
                     violations.append(f"{table.name}: UPDATE 以外のイベントを含む")
+        elif table.check_protected_columns and table_triggers:
+            violations.append(
+                f"{table.name}: 固定CHECK列に予期しないBEFORE UPDATEトリガがある"
+            )
         elif table_triggers:
             violations.append(
                 f"{table.name}: protected が空だが BEFORE UPDATE トリガがある: "
@@ -294,9 +348,27 @@ def _observed_contract(
 ]:
     """宣言母集団と実 DB の表・トリガ契約を一度に返す。"""
     manifest = _load_manifest()
+    population = _manifest_population(manifest)
+    rg1_table = next(table for table in population if table.name == "rg1_restore_gate")
+    rg1_manifest = next(
+        table for table in manifest["tables"] if table["name"] == "rg1_restore_gate"
+    )
+    if (
+        len(rg1_table.protected_columns) == 1
+        and not rg1_table.conditional_update_columns
+        and not rg1_table.append_only
+        and _rg1_singleton_check_enforced(connection, rg1_manifest)
+    ):
+        population = _replace_table(
+            population,
+            replace(
+                rg1_table,
+                check_protected_columns=rg1_table.protected_columns,
+            ),
+        )
     return (
         manifest,
-        _manifest_population(manifest),
+        population,
         _public_application_tables(connection),
         _catalog_triggers(connection),
     )
@@ -400,6 +472,62 @@ def test_all_manifest_immutability_declarations_are_enforced(
     )
 
 
+def test_rg1_fixed_id_check_removal_is_detected(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """RG1の固定ID CHECKを外すと保護列の強制不足を検出する。"""
+    with disposable_postgres_cluster() as cluster:
+        monkeypatch.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
+        )
+        command.upgrade(_alembic_config(), "head")
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
+            rg1_manifest = next(
+                table
+                for table in _load_manifest()["tables"]
+                if table["name"] == "rg1_restore_gate"
+            )
+            contract = _rg1_singleton_check_contract(rg1_manifest)
+            assert contract is not None
+            column, value, _ = contract
+            check_rows = connection.execute(
+                "SELECT conname FROM pg_constraint "
+                "WHERE conrelid = 'public.rg1_restore_gate'::regclass "
+                "AND contype = 'c' AND pg_get_constraintdef(oid) = %s",
+                (f"CHECK (({column} = {value}))",),
+            ).fetchall()
+            assert len(check_rows) == 1
+            connection.execute(
+                sql.SQL(
+                    "ALTER TABLE public.rg1_restore_gate DROP CONSTRAINT {}"
+                ).format(sql.Identifier(str(check_rows[0][0])))
+            )
+            connection.execute(
+                sql.SQL(
+                    "UPDATE public.rg1_restore_gate SET {} = %s WHERE {} = %s"
+                ).format(sql.Identifier(column), sql.Identifier(column)),
+                (value + 1, value),
+            )
+            assert connection.execute(
+                sql.SQL("SELECT {} FROM public.rg1_restore_gate").format(
+                    sql.Identifier(column)
+                )
+            ).fetchall() == [(value + 1,)]
+            manifest, population, database_tables, triggers = _observed_contract(
+                connection
+            )
+    assert any(
+        "rg1_restore_gate: BEFORE UPDATE OF トリガ本数が不一致: "
+        "expected=1, actual=0" in violation
+        for violation in _validate_observed_contract(
+            manifest, population, database_tables, triggers
+        )
+    )
+
+
 def test_immutability_enforcement_mutations_are_detected(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
@@ -500,6 +628,17 @@ def test_immutability_enforcement_mutations_are_detected(
     )
     assert any(
         "players: tgattr 列集合が不一致" in violation for violation in n2_violations
+    )
+
+    rg1 = tables_by_name["rg1_restore_gate"]
+    rg1_without_protected = _replace_table(
+        population, replace(rg1, protected_columns=frozenset())
+    )
+    assert any(
+        "rg1_restore_gate: CHECKで保護する列がprotected宣言から外れた" in violation
+        for violation in _validate_observed_contract(
+            manifest, rg1_without_protected, database_tables, triggers
+        )
     )
 
     # protected が空の表へ BEFORE UPDATE トリガを足す逆向きの乖離も拒否する。

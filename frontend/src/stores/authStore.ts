@@ -60,12 +60,17 @@ function removeStoredAuth(): boolean {
 }
 
 export const useAuthStore = defineStore('auth', () => {
+  // 新しいstoreは未検証。前providerのメモリcacheも認証の証拠にしない。
+  queryClient.clear()
   const teamName = ref<string | null>(null)
   const teamId = ref<string | null>(null)
   const sessionExpired = ref(false)
   const hasHydrated = ref(false)
   const authEpoch = ref(0)
-  const isAuthenticated = computed(() => teamName.value !== null)
+  const sessionVerified = ref(false)
+  const isAuthenticated = computed(
+    () => sessionVerified.value && teamName.value !== null,
+  )
   let sessionId: string | null = null
   let detached = false
   let detachedRaw: string | null = null
@@ -79,8 +84,7 @@ export const useAuthStore = defineStore('auth', () => {
         removeStoredAuth()
       } else {
         sessionId = saved.sessionId
-        teamName.value = saved.teamName
-        teamId.value = saved.teamId
+        // 保存値は認証の証拠にせず、変更検出用の識別値だけを保持する。
       }
     }
   } catch {
@@ -110,6 +114,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function signIn(team: { teamName: string; teamId?: string | null }): void {
     beginAuthChange()
+    sessionVerified.value = true
     sessionId = crypto.randomUUID()
     teamName.value = team.teamName
     teamId.value = team.teamId ?? null
@@ -139,6 +144,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function setUnauthenticated(expired: boolean): void {
+    sessionVerified.value = false
     teamName.value = null
     teamId.value = null
     sessionId = null
@@ -152,6 +158,12 @@ export const useAuthStore = defineStore('auth', () => {
     } else {
       enterDetachedState()
     }
+  }
+
+  function beginSessionVerification(): number {
+    beginAuthChange()
+    clearAuth(false)
+    return authEpoch.value
   }
 
   function signOut(): void {
@@ -197,10 +209,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     beginAuthChange()
+    // 別タブの保存値もサーバー確認までは採用しない。
+    setUnauthenticated(false)
     sessionId = saved?.sessionId ?? null
-    teamName.value = saved?.teamName ?? null
-    teamId.value = saved?.teamId ?? null
-    sessionExpired.value = false
   }
 
   function onStorage(event: StorageEvent): void {
@@ -228,6 +239,7 @@ export const useAuthStore = defineStore('auth', () => {
     authEpoch,
     isAuthenticated,
     signIn,
+    beginSessionVerification,
     signOut,
     expireSession,
     syncFromStorage,

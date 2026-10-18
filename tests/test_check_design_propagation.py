@@ -3730,7 +3730,9 @@ def test_step42_recovery_control_plane_includes_atomic_completion() -> None:
     assert "復旧制御面の **4 群" in recovery
     assert "復旧制御面の完了遷移" in recovery
     assert "未回収 0・期限切れによる欠落なし・退避と閲覧・書き出しの確認完了" in recovery
-    assert "RG1 の解除と新しい D4 の開始を不可分に確定" in recovery
+    assert "全域RG1の解除と対象試合の新しい D4 の開始を同じ確定境界に置く" in recovery
+    assert "対象が0件ならD4発行0件で解除を完了できる" in recovery
+    assert "既存D4を持つ試合だけの新しい D4" in recovery
     assert "復旧制御面4群" in fault
 
 
@@ -3933,7 +3935,11 @@ def test_step38_recovery_adjustment_gate_is_fail_closed_for_every_write(
     assert "D5 を消費せず" in restore
     assert "通常・緊急の記録権遷移" in restore
     assert "コミット直前にも同じ状態を検証" in restore
-    assert "復元調整解除と、過去に発行した値を再利用しない新しい D4" in restore
+    assert (
+        "復元調整解除と、既存の D4 を持つ試合について過去に発行した値を再利用しない新しい D4"
+        in restore
+    )
+    assert "対象が0件ならD4発行0件で解除を完了できる" in restore
 
     table = restore[restore.index("| 変更経路群 | 含む操作 | RG1 中の結果") :]
     table = table[: table.index("\n\n")]
@@ -3945,6 +3951,7 @@ def test_step38_recovery_adjustment_gate_is_fail_closed_for_every_write(
         "D1 付き同期",
         "変更イベント",
         "試合作成",
+        "試合開始",
         "選手・スタメン・試合設定の変更",
         "通常の管理変更",
         "状態変更を伴う内部ジョブ",

@@ -18,6 +18,7 @@ from pitchlog.authz.asset_spec import (
     load_product_application_steps,
 )
 from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
+from pitchlog.authz.product_control_access import is_rg1_singleton_update_acl
 
 _REPOSITORY_ROOT = Path(__file__).parents[4]
 _IDENTITY_QUERY = """
@@ -448,7 +449,15 @@ ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;
         )
         column = _quote_identifier(_element_text(element, "column_id"))
         grantee = _quote_identifier(_element_text(element, "grantee_role_id"))
-        return f"REVOKE SELECT ({column}) ON TABLE {table} FROM {grantee};"
+        if is_rg1_singleton_update_acl(element.fields):
+            privileges = f"SELECT ({column}), UPDATE ({column})"
+        elif element.fields.get("privilege_ids") == ["SELECT"]:
+            privileges = f"SELECT ({column})"
+        else:
+            raise ProductProvisioningError(
+                "取り外し対象の列ACL権限が許可済み集合と一致しない"
+            )
+        return f"REVOKE {privileges} ON TABLE {table} FROM {grantee};"
     raise ProductProvisioningError(
         f"製品認可の取り外し手順へ対応しない要素種別: {statement.element_type}"
     )

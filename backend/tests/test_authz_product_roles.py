@@ -194,7 +194,7 @@ def test_removed_product_role_violates_independent_contract() -> None:
         _validate_product_asset(asset)
 
 
-def test_product_state_requires_fifth_role_even_when_role_is_missing() -> None:
+def test_product_state_requires_authn_role_even_when_role_is_missing() -> None:
     """認証資産の宣言に依存せず所有ロールを必須にする。"""
     asset = _read_product_asset()
     asset["roles"] = [
@@ -207,6 +207,7 @@ def test_product_state_requires_fifth_role_even_when_role_is_missing() -> None:
         "pitchlog_shared_fn_owner",
         "pitchlog_management_fn_owner",
         "pitchlog_auth_fn_owner",
+        "pitchlog_rg1_fn_owner",
     }
     assert "pitchlog_auth_fn_owner" not in {row["role_id"] for row in asset["roles"]}
 
@@ -226,7 +227,7 @@ def test_whole_authn_bundle_removal_is_rejected() -> None:
     asset["functions"] = [
         row for row in asset["functions"] if row["schema_name"] != "authn"
     ]
-    assert len(expected_product_roles(asset)) == 5
+    assert len(expected_product_roles(asset)) == 6
     with pytest.raises(ValueError, match="署名"):
         validate_authn_asset(asset)
     with pytest.raises(_catalog_checker.CatalogError):
