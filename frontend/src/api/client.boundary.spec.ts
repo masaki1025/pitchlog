@@ -4,7 +4,12 @@ import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '../lib/queryClient'
 import { AUTH_STORAGE_KEY, useAuthStore } from '../stores/authStore'
-import { ApiError, ApiStaleAuthError, apiRequest } from './client'
+import {
+  ApiError,
+  ApiStaleAuthError,
+  ApiSessionUnverifiedError,
+  apiRequest,
+} from './client'
 
 type QueueRecord = {
   id: string
@@ -114,6 +119,7 @@ beforeEach(() => {
   pinia = createPinia()
   setActivePinia(pinia)
   localStorage.clear()
+  useAuthStore().signIn({ teamName: '検証済み試験チーム', teamId: 'team-test' })
   queryClient.clear()
   vi.stubGlobal('fetch', vi.fn())
 })
@@ -167,7 +173,7 @@ describe('apiRequest の認証越境', () => {
     }
   })
 
-  it('送信前に別タブの B へ切り替え、A のキャッシュを消してから送る', async () => {
+  it('送信前に別タブ変更を検出したらAを消して再検証まで送らない', async () => {
     const auth = useAuthStore(pinia)
     auth.signIn({ teamName: 'A', teamId: 'team-a' })
     queryClient.setQueryData(['games', 4], 'A のデータ')
@@ -175,40 +181,14 @@ describe('apiRequest の認証越境', () => {
     const savedB = writeOtherTabAuth('B')
     expect(auth.teamName).toBe('A')
 
-    let stateAtFetch:
-      | {
-          teamName: string | null
-          authEpoch: number
-          cacheSize: number
-        }
-      | undefined
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => {
-        stateAtFetch = {
-          teamName: auth.teamName,
-          authEpoch: auth.authEpoch,
-          cacheSize: queryClient.getQueryCache().getAll().length,
-        }
-        return Promise.resolve(jsonResponse({ id: 4 }))
-      }),
+    await expect(apiRequest('GET', '/games/4')).rejects.toBeInstanceOf(
+      ApiSessionUnverifiedError,
     )
-
-    await expect(apiRequest('GET', '/games/4')).resolves.toStrictEqual({
-      id: 4,
-    })
-
-    expect(stateAtFetch).toStrictEqual({
-      teamName: 'B',
-      authEpoch: previousEpoch + 1,
-      cacheSize: 0,
-    })
-    expect(auth.teamName).toBe('B')
+    expect(auth.teamName).toBeNull()
     expect(auth.authEpoch).toBe(previousEpoch + 1)
     expect(queryClient.getQueryCache().getAll()).toEqual([])
     expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
-    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
-    expect(vi.mocked(fetch).mock.calls[0]?.[1]?.credentials).toBe('include')
+    expect(fetch).not.toHaveBeenCalled()
   })
 
   it('noAuthExpiry の 401 は認証とキャッシュを失効させない', async () => {
@@ -250,7 +230,7 @@ describe('apiRequest の認証越境', () => {
 
     expect(setQueryData).not.toHaveBeenCalled()
     expect(queryClient.getQueryData(['games', 4])).toBeUndefined()
-    expect(auth.teamName).toBe('B')
+    expect(auth.teamName).toBeNull()
   })
 
   it('本文の読み取り中に B へ切り替わると A の応答をキャッシュへ入れない', async () => {
@@ -279,7 +259,7 @@ describe('apiRequest の認証越境', () => {
     await expect(request).rejects.toBeInstanceOf(ApiStaleAuthError)
     expect(setQueryData).not.toHaveBeenCalled()
     expect(queryClient.getQueryData(['games', 4])).toBeUndefined()
-    expect(auth.teamName).toBe('B')
+    expect(auth.teamName).toBeNull()
   })
 
   it('往復中の切り替え後に古い 401 が届いても B の認証とキャッシュを保つ', async () => {
@@ -289,9 +269,11 @@ describe('apiRequest の認証越境', () => {
     const pending = deferredResponse()
     vi.mocked(fetch).mockReturnValue(pending.promise)
     const request = apiRequest('GET', '/games/4')
-    const savedB = writeOtherTabAuth('B')
+    writeOtherTabAuth('B')
     window.dispatchEvent(new StorageEvent('storage', { key: AUTH_STORAGE_KEY }))
-    expect(auth.teamName).toBe('B')
+    expect(auth.teamName).toBeNull()
+    auth.signIn({ teamName: 'B', teamId: 'team-b' })
+    const verifiedB = localStorage.getItem(AUTH_STORAGE_KEY)
     queryClient.setQueryData(['team', 'B'], 'B のデータ')
     const response = jsonResponse({ error: { message: '古い認証' } }, 401)
     const readBody = vi.spyOn(response, 'text')
@@ -309,7 +291,7 @@ describe('apiRequest の認証越境', () => {
     expect(auth.isAuthenticated).toBe(true)
     expect(auth.teamName).toBe('B')
     expect(auth.sessionExpired).toBe(false)
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(verifiedB)
     expect(queryClient.getQueryData(['team', 'B'])).toBe('B のデータ')
     expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
   })
@@ -329,8 +311,10 @@ describe('apiRequest の認証越境', () => {
     const request = apiRequest('GET', '/games/4')
 
     await reading.promise
-    const savedB = writeOtherTabAuth('B')
+    writeOtherTabAuth('B')
     window.dispatchEvent(new StorageEvent('storage', { key: AUTH_STORAGE_KEY }))
+    auth.signIn({ teamName: 'B', teamId: 'team-b' })
+    const verifiedB = localStorage.getItem(AUTH_STORAGE_KEY)
     queryClient.setQueryData(['team', 'B'], 'B のデータ')
     body.resolve('{"error":{"message":"古い認証"}}')
 
@@ -344,7 +328,7 @@ describe('apiRequest の認証越境', () => {
     expect(auth.isAuthenticated).toBe(true)
     expect(auth.teamName).toBe('B')
     expect(auth.sessionExpired).toBe(false)
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(verifiedB)
     expect(queryClient.getQueryData(['team', 'B'])).toBe('B のデータ')
     expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
   })

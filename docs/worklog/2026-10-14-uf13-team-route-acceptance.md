@@ -387,3 +387,66 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - 候補作成に関与していないCodexがHEAD `7f46800b404691aea376f4250e941fd09ec9c547`のPR全差分を敵対観点で査読し、P0=0 / P1=0 / P2=0で可決した。履歴prefix、固定案との差分、2 snapshot・8 blob・6 digest、Cookie→TenantContext→固定operation→DTO検証、既存A境界とexact-setを確認し、独立34試験とproduct authz checkerが成功した。
 - 規約6.3の反対側一次レビューはClaude CLI（`--print --tools ''`、製品・試験diffをstdin入力）で実行した。P0=0 / P1=0 / P2=1で可決。P2は空名・不正名型・複数行拒否試験のtenantが文脈と不一致で先に短絡する点だった。採用し、その3入力を文脈と同じUUIDへ変更して各条件へ到達させ、2行目の名称非漏洩assertを追加した。新規製品仕様・受理値は変更していない。
 - 同じ独立CodexがP2反映差分と影響箇所だけを再査読し、P0=0 / P1=0 / P2=0で可決。session10試験、Ruff、format、ty、diff-checkが成功した。本人逐行確認は未実施のまま維持する。
+
+
+### C1ステップ2の再開・所有（2026-10-17）
+
+- 山田正輝が承認済みC1ステップ2の実装・検査・レビュー・コミット・PR準備を指示した。専用worktreeのfeature branchを最新`origin/develop=3052e0db743877c7f15c0ec10daa0142cba7ab7e`へfast-forwardした。C1ステップ1・#119・#120の実コード統合と正規DTOを確認し、開始条件は成立。
+- open PRとworktreeを照合し、C2/U-F3/U-F2/U-F6の並行編集はなかった。C1が`api/auth.ts`、`authStore.ts`、共通clientの確認前拒否/認証Cookie成功フック、固有specを一時所有する。C2のmetadata、U-F3画面、U-F13のroute/guardは変更しない。後続計画へC1ステップ2統合待ちと引渡し条件を追随した。
+- 保存値は確認候補にとどめ、起動時・別タブ変更時に認証を復元しない。login成功headersで旧tenant/cacheを破棄し、session DTO確認成功後だけ認証済みとする。login確定拒否・session未認証・結果未確認を分け、資格情報を自動再送せず、正規APIの明示再確認/logoutを供給する。最終試験・正式レビュー・人間逐行確認は未了。
+
+### C1ステップ2の品質検査・敵対指摘（2026-10-17）
+
+- 未コミット製品候補はfrontend全68ファイル・1,220試験、対象6ファイル167試験、Prettier/ESLint/vue-tsc/dependency-cruiser/buildが成功。rootのRuff/ty、正本同期・coverage・propagation、frozen-baseline invariants、tenant-boundary、diff-checkも成功した。backend全件は今回未実施。
+- 正式wrapperの敵対レビュー第1周は否決（P0=1/P1=1/P2=1）。P0は旧loginのSet-Cookieが新世代検証後に到着する競合で、JS側のstale棄却だけではCookieとtenantの一致を保てない点。採用し、現行の「旧操作は新世代store/cacheを変更しない」に安全側の認証未確認化の例外を設ける最小追補を人間判断へ提示した。承認前に製品契約を変更せず、ステップ2完了・PR可能とは扱わない。
+- P1の確認開始時bb.auth除去とP2の共有abort後の明示再確認要求は、承認済み§4項6・§3の契約どおり。可用性制約として引渡し対象に残す。Claude一次レビューは実行中。
+- 判断資料は`docs/features/auth-session-verification-contract/step2-review-material.md`。Claude向け申し送りは本コミット済み作業ログへ集約する既定方針を維持し、消失した別資料の復元とは扱わない。C2/U-F3/U-F13の実装・公開は未着手。
+
+- Claude一次レビューは差し戻し（P0=0/P1=2/P2=10）。Cookie競合は敵対指摘と一致し、人間判断が必要との結論。試験追加可能なP2には同じ承認範囲で対応し、epoch、競合拒否、login不正JSON、確定未認証後の自動再送禁止を追加した。auth固有42試験成功。全件1,220成功は追加前であり、最終候補の全件完走とは扱わない。
+- 最小追補の承認は未着。P0を残した実装完了コミット・PR作成は行わず、製品差分は専用worktreeと外部patchへ保全する。記録のみをコミットし、ステップ2の完了トークンは付けない。2026-10-17再fetchでもdevelopは3052e0dbのまま。凍結資産・backend・認可・実行器への変更はない。
+
+### C1ステップ2の承認追補・第2周（2026-10-17）
+
+- 山田正輝が遅延旧login/logoutのCookie変更可能性に限る安全側の無効化例外を承認した。新世代から旧ユーザー/tenant/成功を採る許可ではない。計画§12、C2/U-F3/U-F13の接続条件へ同期。新API/DTO/ACL/凍結資産変更はない。
+- 共通clientで2xx headersまたはHTTP未確認失敗を一回だけ通知し、通知前の旧要求判定を保持する。旧Cookie変更で新世代を未確認へ戻しcacheを破棄するが、旧本文を成功へ昇格させない。確定非2xx/旧sessionは新世代を維持し、資格情報/mutationの自動再送やsession自動再確認は行わない。
+- 第2周は指定wrapper敵対レビュー可決（P0=0/P1=0/P2=0）、Claude反対側レビュー可決（P0=0/P1=0/P2=2）。2件とも採用し、現世代headers後本文失敗の一回破棄試験、旧応答の本文非読取assert、資料の現在状態を補正。製品コード追加変更・第3周レビューは不要。件数外の参考は判断資料へ照合結果を記録した。
+- `/tmp`容量不足でauth.spec.tsの書込みが中断したため、保全済みpatchと追加差分から対象ファイルを照合して復旧し、固有51試験成功を確認した。他担当のファイルを削除せず、C1専用worktreeの再生成可能なnode_modules/backend venvを空き領域へ移した。直後に更なるP2試験2件を追加し、最終全件検査へ含める。容量不足の実行を合格には数えない。
+- Claude向け申し送りは本worklogへ集約する。C1がauth/client/storeを一時所有し、C2/U-F3はC1統合後の実基線へ追随する。epochが同じ未確認結果のUI通知は冪等に扱い、旧結果を成功表示しない。実ブラウザの複数タブCookie受入、応答tenant照合、保護route/team接続は後続未完了。
+- 台帳への追記なし。今回の契約衝突と単発の一時領域容量不足は本タスク内の追補・保全と既存レビュー手順で扱い、ハーネス仕様変更や新規機能を必要としない。
+
+- PR前の全件検査では共有環境で容量・swap圧迫と他担当の並列全件実行が重なった。最初のroot実行は25,605 passed / 2 skipped / 1 failed（core-guard subprocessの既存30秒timeout）で原因特定のため中断。該当1件を同条件の単独実行で成功確認した。2並列での次の実行も直列化のため中断し、12,684 passed / 2 skipped。いずれも全件完走・合格と数えない。
+- backend既存共有試験DBでは被検査ロールが既存というfail-closedを観測した。既存ロールを削除せず、既存のdisposable_postgres_cluster fixtureをそのまま使うC1専用クラスタへ切り替えた。専用クラスタの全件実行でもgame_state/authentication migrationの子クラスタが既存60秒起動期限に達し、2 failed / 12 passedで直列化のため中断した。別診断でも同じ起動期限を観測。migration・認可・fixture・timeoutを変更せず、環境による未検証として保持する。最初の中断時のadmin接続closedによるteardownエラーも成功扱いにしない。
+- frontend並列検査は1 failed / 1,156 passed・4 worker起動エラーで終了。失敗は既存StrikeZoneのtimeout、workerは既存Button/sync/domain等。C1対象の別実行は5ファイル177 passedだがauthStore境界workerの起動待ちエラーがあり、対象全体を合格とは数えない。C1が起動したPython全件を停止し、frontendから直列再実行する。他担当プロセスは変更していない。
+
+- 認証コード3ファイルの第2周レビュー対象hashはmanifestと一致し、製品・試験候補を検証待ちのコミットで保全する。計画はactiveを維持し、ステップ2全DoD成立は宣言しない。全件検査の環境障害と未通過は判断資料・PR準備本文へ明記した。ローカル/check green前にDraftを作成する例外・push/PR作成は未承認であり、自動でゲートを移さない。今回の契約追補承認は本人逐行確認ではない。
+
+- 製品候補を`1fea2c60f04f9c50c882298042b5a0458dd5879a`へコミット保全。9ファイルを既存コア登録で検出し、実HEAD/基線で領域別基線検査成功・本人逐行確認未チェックのproduction guardによる9ファイル拒否を確認した。本人チェックの代記はない。正式第2周の製品hashと一致し、新規7.7対象はない。
+- 直列frontend全件は68ファイルで1,236 passed / 1 failed（既存domain-sql再帰試験のtimeout、worker errorなし）。該当1件の単独再検査は成功（1 passed、非対象14 skipped）。全件exit 0とは扱わず、さらに全件を同一候補で確認中。最新auth.specのPrettier/ESLintも成功。
+- `feature_status.py`はC1に「完了ステップに欠番」を表示した。ステップ1は既にdevelopへ統合され新差分がステップ2だけのため。全出力をPR準備本文へ固定し、ハーネスや履歴を改変して警告を消さない。TSK-528全体やU-F13残部を完了にしない。
+- `pr`手順2.4により、ローカル/check未通過でpush/PR作成は行わない。共有環境の繰返しtimeoutに対し、C1ステップ2限定でローカルgreen前にDraftを作りCIで全件検証する例外・push/作成の承認を一括提示した。回答待ちは承認ではない。C2/U-F3・公開・Draft解除・マージへは進まない。
+
+- 最新の直列frontend全件は68ファイル1,236 passed / C1外domain-sql1 timeout。C1対象6ファイル184試験は成功し、当該domain-sql1件の単独再検査も成功（非対象14 skipped）。単一全件greenとは扱わない。更なる全件実行もworker終了timeout反復で中断した。型/format/lint/dependency/buildの成功は維持する。
+- C1が起動した全件実行は停止して保全した。ローカル/check未通過のため現行pr手順ではpush/PR作成へ進めない。Draft先行の限定例外を回答待ちとし、時間経過を承認とは扱わない。計画active、TSK-528/U-F13全体未完了、本人確認は未実施。最終fetchのdevelopは3052e0db。今回の本人確認対象は基線からの17ファイル全差分。
+
+### C1ステップ2 Draft先行承認・develop追随（2026-10-18）
+
+- 山田正輝がpr手順2.4のC1ステップ2限定Draft先行例外、通常push・Draft作成・CI・承認範囲内の修正/検査/資料更新を承認した。本人確認は未実施、全品質ゲート通過・ステップ2完了とは記録せず、Draft解除・公開・マージ・C2/U-F3へは進まない。
+- #146（TSK-565）は2026-10-18T03:30:13Zにce0c0e8697252a89bce0c57e69b4821e0a6cac2bへ統合。#145（188acf83）を含む最新developを専用worktreeへmergeし、競合なし。C1製品3ファイルは第2周review hashと一致する。新基線の受理済みauthz資産は保持し、C1の変更として7.7履歴を追加しない。
+- /tmpは5.0G空き、home側は869G空きで、専用/home/ymdms/.cache/pitchlog/c1-step2-20261018はhomeと同じデバイス・/tmpとは異なることを実測した。#146はTMPDIR/PYTEST_DEBUG_TEMPROOTの明示で挙動が変わるため、今回それらを外し、専用PITCHLOG_PYTEST_TMPDIRによる移送と実pytest配線を確認する。rootは4並列（子のautoも4）、ローカル全層の高負荷同時実行は避ける。
+- Draft提出用statusはin-reviewとするが、DoD完了の宣言ではない。既存のレビュー採否・本人未チェックを維持する。台帳への追記なし：容量対策は統合済みTSK-565に帰属し、C1でハーネス機能を追加しない。
+
+- #146 backend配線試験は1 passed・skipなし。実tmp_pathは専用backend基底配下のpytest-of-ymdms/pytest-1/test_tmp_path_is_under_bootstr0へ作られ、home側のディスクデバイスである。最初の計測はファイル名短縮を誤ったglobで照合したため失敗したが、実試験は成功しており、実生成名を再取得して照合した。root全件は4 workers・29,669項目で開始した。
+
+- Draft PR #147を作成（作成時HEAD f5d19665025b4eaa35378d4fcc330664056280ac）。本文に前回timeout/単独再試験・root/backend未完走・レビュー後の試験/記録修正・本人未確認を明記し、通常pushのみ実施した。PRはMERGEABLEだがDraftのまま。
+- 初回CI 39094298692ではfrontendが68ファイル1,237 passed、dependency-cruiser/build/closureも成功。前回の環境timeoutはこのCIでは再現していない。core-guardは本人未チェックで9ファイルを拒否し、代記していない。
+- secretsはreview manifestの公開ソースSHA-256の2件（1fea2c60の4/6行）がgeneric-api-keyに誤検知された。同コミットのgit blobから再計算して保存値と完全一致を確認した。github-setup.md §4は誤検知にも人間判定を要求するため、限定2 fingerprintの登録判断を資料/PRコメントへ提示し、回答前に.gitleaksignoreへ追加しない。
+- 通常PR CIはbackend差分なしでbackendをskipする。skipを成功扱いにせず、最終HEADで既存workflow_dispatchを使用してbackend全件も実行する。正本・workflow・試験・timeoutの変更は行わない。
+- Notionの親TSK-528にPR #147のURLを記録し、async更新のsucceededを確認した。親全体の進行中・未完了を維持し、DoD/完了日は変更していない。
+
+### C1ステップ2 本人回答・公開hash限定登録
+
+- 山田正輝がHEAD a3934fb7283f194ba5544e542bbddc056ff9645bの全18ファイルの本人逐行確認完了を回答。確認方法は未申告のため推定して記入しない。承認済み2件や当該本人確認を一括未了へ戻さない。
+- 公開ソースhash2件が実認証情報ではないとの人間確認と、理由付きfingerprint限定登録承認を受領。既存5件を保持し2件のみ追加する。製品/spec、workflow、凍結契約、検査条件を変更しない。追加差分は計画・判断資料・本人確認記録・PR資料・本ログへの追随で、元の18ファイルの確認対象外であることを明示する。
+- 前HEADの最終検査：ローカルroot 29,668 passed/2 skipped、両CI root 29,409 passed/2 skipped、backend 2,523 passed/4 skipped・coverage89%、frontend68ファイル1,237 passed。全必須チェックの成功前に完了やDraft解除を記録しない。
+- 既存履歴の別1件は同期故障試験の母集合における固定試験ID。backend/frontend双方のペア集合検査用途を照合し、詳細をstep2-gitleaks-decision.mdへ固定した。この1件は未判定・未登録で、承認済み2件と別管理する。
+- 新HEADの通常push・PR CI更新を進め、全必須チェック成功後だけDraft解除する承認を受領。マージ・公開、C2/U-F3実装は行わない。台帳への追記なし：既存の誤検知登録運用の承認反映であり、新たなハーネス知見は追加しない。
