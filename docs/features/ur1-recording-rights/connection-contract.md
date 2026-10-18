@@ -10,7 +10,7 @@ U-G1 が作成側だけを受理するための短い参照は [RG1 受理シー
 
 | ID | 契約 | 根拠 |
 | --- | --- | --- |
-| C1 | `preparing` 作成では D4 を発行しない。試合開始とスタメン確定の同一 transaction で初期権を発行する | FR-001/013、U-S1 R-17。sync-protocol 9-5 の矛盾は TSK-547 で別途改訂 |
+| C1 | `preparing` 作成では D4 を発行しない。試合開始とスタメン確定の同一 transaction で初期権を発行する | FR-001/013、U-S1 R-17、PR #148で統合されたsync-protocol v0.9 |
 | C2 | 内部 D4 は `bigint`、wire は不透明な文字列。発行順は試合内単調増加整数で D4 の数値順と無関係。初期世代の D3/適用 prefix は 0、最初の D1 は 1。通常の現世代は試合内高々 1 件 | data-model 5-3/6-1、`RecordingGeneration`、同期 wire 契約 L-3 |
 | C3 | D4 と復旧世代は**バックアップへの巻き戻し後を含め再利用禁止**。V12 は個人 ID ではなく、現 D4・現復旧世代・保持端末への結合を検証する。終了後 P3 は V12 不要だが復旧世代照合は必要 | sync-protocol 2-1/4-3/6-2 |
 | C4 | U-G1 が作成/開始の `tenant_transaction_scope` と成功境界を所有し、U-R1 operation はその scope に参加して独自 commit をしない。試合行と世代行を共にロックする経路は試合行→世代行の順。U-S1 は `RecordingRightsPort` を ③-a/③-b/⑤/⑧ から使い、U-R1 が本物の判定を供給する | U-G1 design、U-S1 R-16/R-2 |
