@@ -32,6 +32,12 @@ U-F5 が使う tenant-bound APIで、clientが保持する検証済みtenant ID�
 4. PR #129・#131・#132の共有凍結資産の所有と統合順が確定している。
 5. header、literal、適用route、error/ackの意味を本計画の承認対象として人間が承認している。
 
+## 2.1 影響する正本
+
+正本への反映なし。承認済みmetadata契約の製品追随として、要件/design/ADR/development/opsの正本は改訂しない。
+
+正本体系外だが同じPRで更新するもの：backendのtenant_access・app応答middleware・errors・players/team-records routersとAPI/roster/auth出口の固有試験、frontendの単一client・roster・既存管理画面のretry/結果未確認境界と各spec、本計画/research、C1の完了記録、U-F13の依存記録、作業ログ。共有凍結資産/認可catalog/権限・DTO・operation_idは不変で、実検査で必要が判明した差分だけを個別ゲートへ提示する。
+
 ## 3. 承認対象となる metadata 契約
 
 以下はレビューと人間承認を受けて初めて正式契約になる。
@@ -153,3 +159,13 @@ C1ステップ1はPR #144 / develop `3052e0db743877c7f15c0ec10daa0142cba7ab7e`�
 ### C1遅延Cookie追補の接続条件（2026-10-17）
 
 山田正輝がC1の安全側への例外を承認した。旧login/logoutのCookie変更可能性を観測した場合、新世代も`verification-unknown`へ戻しcacheを破棄する。旧ユーザー/tenant/成功は採用せず、tenant-bound通信を止め、明示session GETだけで再確認する。資格情報やmutationの自動再送は行わない。UIは`stale`だけでなく新世代の`verification-unknown`も成功として扱わず、結果epochを照合する。C2はこの破棄境界を維持して業務operation前の応答tenant照合を追加する。C1が共有client/storeを一時所有し、統合後に後続が基線から引き継ぐ。今回C2/U-F3/保護routeの製品実装は行わない。
+
+## 13. C1統合後の開始条件・所有（2026-10-18）
+
+PR #147の実統合SHA493342be37d4383ca572f8d1c826a3f184a4d213を最新developとして再照合した。C1ステップ2の完了を確認し、C1待ちは解消した。PR #119/#129/#131/#132/#137および共有実行器Aは統合済みの資産だけを利用し、未統合PR #143の候補は基線に含めない。
+
+山田正輝はC2/U-F3の実装・関連試験・既定レビュー・PR準備、その後のU-F13接続と専用環境の通し試験まで自律進行を指示した。各ステップ別の検証/コミットを維持し、以前の最初のステップのみという停止条件を今回の指示の範囲で解消する。人間逐行確認・正式受理・公開・マージを代行しない。U-F13の既定統合順は維持する。
+
+C2は既存tenant_access、players/team-records router、共通app応答middleware/errorsの必要最小限とbackend固有試験、およびfrontend共通client/roster・既存TeamScreen/TeamMembersContentのretry/結果未確認境界と固有specを所有する。C1のauth.ts/authStore.ts、共有Pinia/QueryClientは変更しない。U-F3はLoginScreen/固有specだけを独立所有し、route登録はU-F13が所有する。
+
+open PR #143はcore-areas.json/core_guard.py/test_core_guard.pyとrepository/authzの共有凍結資産を所有している。本C2は当該共有資産を変更しない。7routeのoperation_id/経路/DTO/認可対象/DB実行器/権限は不変であり、既存HTTP境界へ承認済みmetadata照合を追加する。必要な資産差分が実検査で判明した場合だけ、具体差分の正式ゲートを維持する。

@@ -111,15 +111,15 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 
 ## 7. DoD とレビュー
 
-- [ ] login Cookie 発行後、session 失敗を一律にサーバー未認証へ畳み込まない。
-- [ ] 旧 tenant の store / cache は Cookie が変わり得る時点で破棄され、新 tenant の session 2xx 前に再表示されない。
-- [ ] session の明示再確認は login POSTを再送しない。
-- [ ] logout の結果未確認を成功表示しない。
-- [ ] delayed sessionとCookie変更のない旧認証応答は新世代を変更しない。旧login/logoutがCookieを変更し得る場合だけ、新世代も認証未確認へ戻しcacheを破棄する。旧応答からユーザー・tenant・成功状態を採用しない。
-- [ ] tenant ID と正規表示名を利用者入力から生成しない。
-- [ ] 共有実行器Aの実統合後のdevelopからC1のrepository契約・base allowlist・7.7前後値を再導出し、異なるbranchの同じrevisionを流用していない。
-- [ ] 第1・第2段では未受理履歴・sealをfail-closedのまま維持し、第3段の正式受理前に承認者・承認日を入力していない。
-- [ ] コア adversarial review、反対側レビュー、人間逐行確認、backend / frontend 品質 gate、凍結資産検査を通す。
+- [x] login Cookie 発行後、session 失敗を一律にサーバー未認証へ畳み込まない。
+- [x] 旧 tenant の store / cache は Cookie が変わり得る時点で破棄され、新 tenant の session 2xx 前に再表示されない。
+- [x] session の明示再確認は login POSTを再送しない。
+- [x] logout の結果未確認を成功表示しない。
+- [x] delayed sessionとCookie変更のない旧認証応答は新世代を変更しない。旧login/logoutがCookieを変更し得る場合だけ、新世代も認証未確認へ戻しcacheを破棄する。旧応答からユーザー・tenant・成功状態を採用しない。
+- [x] tenant ID と正規表示名を利用者入力から生成しない。
+- [x] 共有実行器Aの実統合後のdevelopからC1のrepository契約・base allowlist・7.7前後値を再導出し、異なるbranchの同じrevisionを流用していない。
+- [x] 第1・第2段では未受理履歴・sealをfail-closedのまま維持し、第3段の正式受理前に承認者・承認日を入力していない。
+- [x] コア adversarial review、反対側レビュー、人間逐行確認、backend / frontend 品質 gate、凍結資産検査を通す。
 
 ## 8. 人間承認が必要な判断
 
@@ -190,3 +190,9 @@ C2/U-F3・公開・Draft解除・マージには進まない。既定の2周レ�
 山田正輝からHEAD a3934fb7283f194ba5544e542bbddc056ff9645bの全18ファイルの本人逐行確認完了回答を受領した。確認方法は未申告であり、推定して記入しない。同回答によりC1公開ソースhashの2 fingerprintだけの理由コメント付き限定登録・検査・通常push・CI更新と、全必須チェック成功後のDraft解除が承認された。マージ・公開は許可されていない。
 
 追加差分は`.gitleaksignore`の2行と理由コメント、および本承認・本人確認・検査結果の計画/判断資料/作業ログ/PR資料への反映のみ。製品・試験・workflow・凍結資産に追加差分なし。本人確認済み18ファイルを未了へ戻さず、追加差分が当該HEADの確認対象外であることも明示する。既存履歴の別1件は未判定として用途と根拠を提示し、登録しない。
+
+## 15. ステップ2統合・停止条件の解消（2026-10-18）
+
+PR #147は2026-10-18T06:45:26Z、develop実統合SHA `493342be37d4383ca572f8d1c826a3f184a4d213`へ統合された。HEAD d56c178eのPR必須チェック・secrets/core-guard成功、最終frontend1,237件/root29,409件、同一backend2,523件の成功、既済み反対側/敵対レビューと本人確認回答（a3934fb7全18ファイル、方法未申告）を照合し、C1ステップ2を完了とする。
+
+C1の一時編集所有とC2/U-F3を止めていたC1統合待ちは解消した。共通clientの変更所有をC2へ移し、auth/store/providersは単一実装を後続が再利用する。7.7の追加変更は本ステップに無い。C1完了をTSK-528全体・U-F13残部・C2/U-F3・公開/マージの承認へ流用しない。既存履歴由来の未判定1件は別件として維持し、C1完了を再び待ちに戻さない。
