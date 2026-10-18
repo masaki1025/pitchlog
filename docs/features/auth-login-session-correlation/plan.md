@@ -32,6 +32,12 @@ created: 2026-10-18
 
 Codex Dが本枝のbackend auth router/schema/caller完全一致試験、frontend api/auth・意図管理・authStoreと固有試験を編集する。#150のC2 client、#151のLoginScreenは同じDだが既存候補を保全し、接合差分は固定元HEADと別記する。U-F13のrouter/App/JSONは既存専用枝で編集する。LoginScreen*の宣言→JSONの承認済み順序を保持し、未登録のままゲートを迂回しない。他担当の未統合枝は取り込まない。結合は許可済みの専用検証枝だけで行い、単独検査と混同しない。
 
+## 影響する正本
+
+正本への反映なし。承認済み04ecb061の局所追補を実装し、既存の認可・凍結資産・route matrix・DB権限は変更しない。新たな正式資産差分が必要になった場合は7.7を含む個別ゲートへ具体値を提示する。
+
+正本体系外だが同一PRで更新するもの: 本計画・固有worklog・追加判断資料、backend auth router/schemaとcaller/HTTP/DB試験、frontend auth/authIntent/authStore/clientと固有・consumer試験。U-F3とU-F13の製品差分は既定の別PR境界を維持する。
+
 ## 実装ステップ
 
 | # | ステップ | 合格条件 |

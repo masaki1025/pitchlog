@@ -44,3 +44,9 @@
 - 結合固定HEAD24cdf797のfrontend全件は71ファイル1,349成功。production buildでstorage/lock/UUID非対応、認証拒否、通信断、session明示再確認、native lock busy回復の7項目が成功。検証環境・生成資格情報・Cookieを製品へ混ぜていない。
 - 遅延Set-Cookieの実ブラウザ試験では旧login/sessionで実CookieがAへ戻ったことを実APIで確認し、B cache 3→0、旧画面非採用を確認。logoutは再確認401がidleになる正しい契約と試験driverのalert期待が不一致だったためdriverを修正中。native lock保持中の旧session Cookie通知はBが/teamに残る実失敗を再現した。6de49595の未承認条件であり、合格へ書き換えない。
 - 追加判断680c2a27（2xx metadata不正時のCookie未確認化）を提示。現C2が既存B cacheを保持する契約からの例外なので承認前に実装しない。6deの通知2キーと区別し、既受理のDTO/意図/照合契約を一括で未了に戻さない。第2周レビュー・本人逐行確認・公開/マージは未実施。
+
+## 固定後の検査と正本同期宣言
+
+7e18a91aの単独frontend全件は69ファイル1,251成功（69.84秒）。型・ESLint・Prettier・production buildも成功。結合HEAD0cb5ab4bは71ファイル1,352成功（74.83秒）で、単独の結果へ読み替えない。U-F3単独ac748ed5と同じ製品のaa143553は69ファイル1,273成功（70.56秒）、型/lint/整形/buildも成功。
+
+plan-docs同期検査で「影響する正本」節欠落が検出されたため、正本変更なしと同梱する正本外対象を明示した。検査器・凍結契約を変更する修正ではない。ハーネス運用評価台帳への追記なし（既存手順に従う局所追補であり、新しいハーネス制御は導入していない）。
