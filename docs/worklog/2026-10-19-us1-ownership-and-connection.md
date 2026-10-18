@@ -347,3 +347,11 @@ U-R1のdata-model/索引は変更しない。必要な索引変更はsync-protoc
 文書限定branch初期4393cde4をdevelop015dfa9d起点で作成（git index/commit-tree、元製品worktreeのbranch切替なし）。12ファイルすべてdocs。独立した一時checkoutで検査し、カバレッジ/宣言突合/認可共通前提/凍結不変条件は成功、索引の版/日付2件とR-BOUNDARY比較不一致1件を確認した。後者は「6フィールドの比較」であり、実差分はsource_elements/expected_elementsの2個。完全値/出典blob/SHA256と必要な所有側/PR/人間確認ゲートをderived-impact.jsonへ保存し、実資産は未変更。新規認可/凍結pin変更は0。
 
 文書だけのtree上で過去の「実装済み/試験」記録を提供済みと混同しないよう、U-S1 feature資料へ出典候補branchと文書提出branchのコード非同梱を注記した。正本承認済みの意味本文は変更しない。Draftは索引/伝播manifest/担当受理/人間確認を未完了として明示して作成し、全チェック緑や製品提供を代記しない。
+
+## 文書限定Draft PRの提出
+
+通常pushでfeature/us1-stop-contract-docsを公開し、**Draft PR #159 https://github.com/masaki1025/pitchlog/pull/159** をdevelop向けに1件作成した。41300437時点で17ファイル全てdocs、製品/認可/凍結資産/data-model/索引変更0、元製品branch/退避を保全。独立checkoutのRuff/ty・カバレッジ・宣言突合・認可共通前提/凍結不変条件は成功。docs-statusの索引版/日付2件と伝播R-BOUNDARY1件は未完了としてPR本文に明示した。フル/checkや製品試験を本PRの成功として代記しない。
+
+初回CI run39164488131を読取確認。core-guardは人間逐行確認チェック未記入で拒否し、実施を代記しない。docs-lintは補助researchの`[検証](コード行範囲)`をリンクとして解釈して失敗した。ローカル簡易確認ではbacktick入り先を除外して拾えなかったため、根拠の内容を保った全角括弧へ修正し、同種のproposal注記も是正した。正本の承認済み意味本文は変更しない。CI後続は再実行結果を未確認のまま成功としない。
+
+U-R1へPR/完全な索引変更1行を送付試行したがMCP接続エラーで未送達。中継票をPOへ返す。キュー/U-F8受理・耐久provider実担当/公開型/提供条件・人間確認は未完了。Draft解除/マージは行わない。元退避inherited.patchのSHA256は89093116acff4ee9465090f1650884ce636bb92a6a449ffc7fb55d734ee9286aのまま。
