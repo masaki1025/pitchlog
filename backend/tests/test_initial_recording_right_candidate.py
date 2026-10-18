@@ -367,6 +367,31 @@ def test_epoch_mismatch_or_unknown_stops_existing_right() -> None:
     assert ledger.reservations == 1
 
 
+def test_restored_preparing_game_waits_until_start_for_new_d4() -> None:
+    """準備中への復元解除では発行せず、開始時に旧D4を再利用しない。"""
+    ledger, box = _Ledger(), V12Box("k1", _KEY)
+    before_restore = _Scope()
+    first = _issue(before_restore, ledger, box, uuid4())
+    assert first.generation == 1
+
+    # 業務DBだけを準備中のバックアップへ戻し、外部発行元は巻き戻さない。
+    restored_preparing = _Scope()
+    ledger.epoch = 2
+    assert restored_preparing.record is None
+    assert ledger.reservations == 1
+    with pytest.raises(InitialGrantUnavailable, match="復旧世代"):
+        assert_write_recovery_generation(restored_preparing, ledger, _Fence(ledger), 1)
+    assert ledger.reservations == 1
+
+    # 解除後に業務DBの復旧世代が外部現値へ一致した状態だけを模す。
+    restored_preparing.epoch = 2
+    started = _issue(restored_preparing, ledger, box, uuid4())
+    assert started.generation == 2
+    assert started.recovery_generation == "2"
+    assert started.recording_right_proof != first.recording_right_proof
+    assert ledger.reservations == 2
+
+
 def test_ciphertext_is_bound_to_all_values_and_key() -> None:
     """要求・端末・世代の付替えと鍵欠損では復号しない。"""
     scope, ledger, box, request_id = _Scope(), _Ledger(), V12Box("k1", _KEY), uuid4()
