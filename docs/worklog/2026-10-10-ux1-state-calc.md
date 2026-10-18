@@ -126,3 +126,112 @@ PR #145は `188acf839d4a5f4f42e9c7f5025f8bf3931e3bcb` でdevelopへ統合され�
 受取担当の整理: T1残件はTSK-544、T2残件はTSK-545、未決の正本裁定はTSK-546、既存基盤と契約の受領はTSK-236/538側。独立期待値の検証者は契約作成者以外からPOが指名し、契約所有側が範囲・結果を受理する。U-F8/U-S1/U-R1/U-X1/TSK-506はそれぞれ画面、単一適用核、記録権Port、投影/検証Port、HTTP配線の公開境界を受理する。担当カード名は既存台帳の送り先であり、稼働者の引受や完了を示さない。未受理のまま製品計算コードを開始しない。
 
 最新develop `188acf83` と本枝の取り込み後に、`check_plan_docs_sync.py --plan docs/features/ux1-state-calc/plan.md --base origin/develop --head HEAD`、`check_docs_status.py`（20文書・違反0）、`check_design_propagation.py`、`check_doc_coverage.py` は成功。正本同期の単体試験 `test_check_docs_status.py`・`test_check_plan_docs_sync.py` は専用一時領域で84件成功。既定の `/tmp` は満杯で最初の並列実行が一時Gitリポジトリを作れず72件失敗したため、同じ84件を空き容量のある `/home/ymdms/.cache/pitchlog-pytest-pr145-postmerge` で再実行した。検査規則やテストは変更していない。developとの差分は本計画・設計・作業ログの3ファイルだけで、正本・認可・凍結資産を本枝で追加変更していない。
+
+## 2026-10-18 TSK-544 着手時の現行化と開始条件の照合(製品実装なし)
+
+**実施**: `opencode/deepseek-v4.1-flash-free`(OpenCode セッション)。TSK-544(カード: [TSK-544](https://app.notion.com/p/3f893b75e68781e5a55ce961b18fab3f))の実装担当の代替として PO が指名(本タスク限定 — 他タスクの担当は変えない)。専用 worktree は既存の `feature-ux1-t1t2-plan-revision`(枝 `fix/ux1-state-calc`)を継続使用した(TSK-545 の 2026-10-18 引き渡し票と TSK-538 の送り先表が同枝の系譜を参照するため、分岐を作らない)。`origin/develop`(`ce0c0e86`)を取り込み(競合なし、取り込み HEAD `cf30df31`)。**製品計算コード・契約資産・正本は変更していない。**
+
+### 計画の現行化(TSK-544 カードの指示)
+
+カード指示の 4 点(P-1 の決着、P-3/P-4 → TSK-541、P-5 → TSK-538、PR-1 の 2 分割)を plan.md と design.md へ反映した。方式・ステップ・検査の内容は変えず、単独 PR 前提の残存記述を分割へ整合させた(PR レビューの対象)。
+
+| 反映先 | 内容 |
+| --- | --- |
+| plan.md 冒頭 | 2026-10-18 の現行化注記。P-1/P-3/P-4/P-5 の成立根拠、PR-1a/PR-1b 分割(根拠 = 段階 2 判定器 `backend/src/pitchlog/domaincheck/boot/phase2.py:395-398` が 1 変更で 2 対象以上の完成を違反とする)、T2 の追加開始条件 = PR-1a のマージ、P-2/P-6/P-7/P-8 未成立 → 製品コード未着手 |
+| plan.md 4 節 | ステップ表を PR-1a(TSK-544)/PR-1b(TSK-545)へ分割。PR-1a の受取範囲(receiverDoD 1〜5 の残り・(a) S01/S04/S29/S33 の残り・(b) T1 分。S08/S09 は実機、S11/S13/S22 は TSK-546 の裁定後)を明記 |
+| plan.md 5-1・5-2・6 節 | 見出し・DoD・テスト計画を PR-1a/PR-1b 表記へ。結合試験(実 Port・実 HTTP/隔離 DB)の期限を「系列(PR-1a/PR-1b)のマージ前」へ精密化 |
+| design.md §2 | PR 表を PR-1a/PR-1b の 2 行に分割(PR-1b は「PR-1a のマージ」を待つ) |
+| design.md §4 | 冒頭に 2026-10-18 現況(P-1/P-3/P-4/P-5/P-9 成立、P-2/P-6/P-7/P-8 未成立)を追記し、P-1〜P-9 の現況欄を照合結果へ更新 |
+
+### P-1〜P-9 の分類(2026-10-18)
+
+| 成立 | P-1・P-3・P-4・P-5・P-9 | 根拠 |
+| --- | --- | --- |
+| P-1 | ADR-003 v0.8・要件書 v2.15 の確定(2026-10-17)と本限定改訂の 6.1 レビュー・PO 承認(`c8bd9512`)。PR-1 の 2 分割を計画へ反映済 | design.md §4 |
+| P-3 | ADR-003 v0.8 の D-14-m(T1/T2 限定の経過措置)。適用記録は P-1 | 同 |
+| P-4 | ADR-003 v0.6(TSK-541)の (i)〜(iii) 条文化 + v0.8 の T1/T2 読み替え(同一 artifact・1 論理 `directTargetId`・allowlist) | 同 |
+| P-5 | TSK-538 完了 + 本節の照合(下表) | 同 |
+| P-9 | FR-040 の 11/12 段階提供延期の裁定(2026-10-17) | 同 |
+
+| 未成立 | P-2・P-6・P-7・P-8 | 残る内容 |
+| --- | --- | --- |
+| P-2 | 契約作成者と独立な期待値の確認(P-6)と所有側の版・コミット・受理記録(P-8) | 基盤の実在は P-5 で確認済 |
+| P-6 | PO の独立検証者指名、契約作成者以外の再計算、契約所有側の範囲・結果受理 | 作成者の自己突合では成立しない |
+| P-7 | U-F8 1 球確定・U-S1 単一適用核・U-R1 記録権 Port・U-X1 投影/検証 Port・506 HTTP の公開署名・失敗境界・配線担当の受理 | 実測は対象 PR のマージ前 |
+| P-8 | 契約残件の収録・独立検証・所有側受理 | 下記の処遇表 |
+
+**判定**: 計画の規則「P-1〜P-9 のうち 1 つでも欠けたら /implement に入らない」(design.md §4)により、未成立 4 件が残るため**製品計算コードは着手しない**。
+
+### P-5 の照合(TSK-538 基盤の実在・公開型・版 — 実測 2026-10-18)
+
+| 対象 | 実測(実行結果) |
+| --- | --- |
+| 再現ビルド | `pnpm run build:domain`(frontend)で `public/domain/pitchlog-domain.js` sha256 `d26b8f52…`(802 bytes)を再生成 → 宣言値と同一・作業ツリー差分なし(決定的)。TS 正本 `frontend/src/domain/*` → 同一 JS artifact |
+| 実行 host / D-14-h | 常駐 Node host `backend/src/pitchlog/domainrt/host.py` が実在。構成検査(eval/Function/動的 import の拒否 = `tests/domain/runtime/test_node_engine.py`、メモリ/時間/スタック上限の fail-closed = `test_quickjs_engine.py`)が緑 |
+| 両 runner | pytest `tests/domain/runtime` + `tests/domain/runners` = **111 passed / 2 skipped** |
+| schema・収集器・層 | pytest `tests/domain/boot` + `tests/domain/test_manifest_schema.py` + `tests/domain/test_collect_layers.py` = **176 passed** |
+| フロント runner | Vitest `pnpm test -- --run` = **1182 passed(67 files)** |
+| BOOT レポート | `python -m pitchlog.domaincheck.boot.report --root . --verify` = rc 0(未解決 136 件。`backend/domain/boot-report.json` は gitignore) |
+| CI | `.github/workflows/ci.yml` に BOOT レポート生成/verify・`activation_evidence`・`build:domain`・runner 経路トリガが実在 |
+| manifest schema | `backend/domain/manifest.schema.json`(propertyCatalog/calculations/displayBindings)が実在。**D-14-g(i) の runner 識別子・起動 CI ジョブ名の欄は無い** → 対象 PR で schema/収集器を追随(計画どおり) |
+| runner revision | handoff の `runnerRevision: e6c3a59c…` が HEAD の祖先であることを確認(`git merge-base --is-ancestor`) |
+| TSK-235 資産 | `backend/domain/history-depth.json` version 1 / `backend/domain/check-sets.json` schemaVersion 1 |
+| 契約実測 | `state_transition_contract_v1.json`: matrixRows 42 / operationRows 10 / undoRows 10 / cases 109 / `requiredSet {}`。`check_required_set_coverage.py` PASS rows=(47,42,0)・inputExact=(193,40,0) — **S25 台帳の「②39 件」は実測 40 件(陳腐化)** |
+
+### (b) 項目の処遇(TSK-538 の 2026-10-14 割り当て表の TSK-544 分 15 件 + G6-S01〜S11)
+
+契約資産の変更は行っていない。下表は T1 実装・契約所有側ゲートへの引き渡し内容(2026-10-18 照合)。
+
+| 項目 | 残件(台帳) | 照合の処遇 |
+| --- | --- | --- |
+| S05 | 操作 payload の完全な閉 schema・フィールド一意性・参照整合・相反排除 | 契約所有側の schema 追加(行/case の追加だけでは閉じない)。T1 実装で入力案を作り所有側の受理ゲートへ |
+| S06 | D-8 の文字列制約と FR-015 任意選手名の整合 | D-8 改訂の要否を契約所有側で判断(要すれば正本ゲート) |
+| S07 | 軸間組合せ規則・`runnerAdvanceOverridesByRunner`・RBI 因果判断の入力と負例 | S24/S26/S32 と合流し、1 契約資産(軸間組合せ規則)として契約所有側へ |
+| S08(GAP-02) | `XC-13` 23 成績フラグの導出表・必要十分条件・負例 | **実機**の投入結果とともに確定(T1 PR)。契約収録と独立検証は所有側ゲート |
+| S09(GAP-06) | `OUT3-01`〜`05` の成立順の観測入力 | **実機**とともに確定(T1 PR)。観測入力の契約収録は所有側ゲート |
+| S10 | 凡打出塁の公式分類・失策フラグ・記録員判断入力 | 契約所有側へ(公式分類の行/case・`officialScoringPayload` と記録員判断入力) |
+| S12 | 犠打失策の安打狙い判定 | 記録員判断の観測入力として契約所有側へ(既定側のままだと打率・犠打数が変わり得る) |
+| S14 | PB・WP の分類・同一投球のボール/ストライク保持 | 契約所有側へ(イベント種別の単一値制約の可否を含む) |
+| S23(GAP-08) | `SO-03` 振り逃げアウト側の規範行・case | 契約所有側へ |
+| S24 | `INT-01`・`03`・`05`・`07` 妨害 4 区分の規範行・fixture・case | S07 へ合流 |
+| S25 | `requiredSet` ①5 件未充足・②39 件除外 | ②は実測 40 件。①充足と②縮小を契約所有側へ(検査器の実測を添付) |
+| S26 | RBI `RBI-01`〜`05` fixture・`RBI-07` 押し出し行・軸間規則 | S07 へ合流 |
+| S30 | 操作列と `StateEffect.historyAndResult` の `operationResult` の関係・準備中の終了宣言 | **一部解消**(D+1 `liveness-only` 行/case は TSK-538 済)。残る D-8 改訂の要否は契約所有側 |
+| S31 | FR-040 の operation/undo 行と製品 manifest への宣言 | 延期裁定(2026-10-17)により「行」は対象外。**未採用宣言を T1 PR の manifest entry へ**(T1 PR 内の作業) |
+| S32 | `runnerEventPayload`・進塁上書きの内部制約 | S07 へ合流(閉じた payload 内部制約) |
+| G6-S01〜S11 | FR-009 の指定走者 ID と打順巻き戻し・payload の回の扱い・走者配置優先・タイブレーク複数回・開始時前提・配置値集合・`R`/`L` の保持・Given 不成立の拒否区分・`scenarioLength` の意味・シナリオ case の形式・連続 undo の期待値 | いずれも閉じた入力制約・負例・行/case として契約所有側の受理ゲートへ(必要な正本判断は TSK-546 相当へ) |
+
+### (a)・receiverDoD の残り(T1 PR で閉じる)
+
+| 受取(TSK-538 から) | T1 PR(PR-1a)で行うこと |
+| --- | --- |
+| receiverDoD 1 の残り | 入口ゲート工程 3(実計算への binding)・工程 4(着手時点の全 case 消費) |
+| receiverDoD 2 の残り | `entrypointId`・`directTargetId`(manifest)・`normalizerId` の実在値確定 |
+| receiverDoD 3 の残り | descriptor と TS 正本の入力軸宣言の射影照合(D-2 下) |
+| receiverDoD 4 | 正規化後の値を製品計算へ投入した証跡 |
+| receiverDoD 5 | FR-040 の未採用宣言を manifest entry へ(P-9) |
+| S01 | manifest 登録・全件消費・入口ゲート |
+| S04 | 正規化値の投入証跡・FR-040 宣言 |
+| S29 | 不正値拒否 12 件の製品経路での実行 |
+| S33 | `executionPaths[]` の `normalizerId`/`entrypointId`/`directTargetId` の null を実在値へ |
+
+(参考: TSK-538 の送り先表 `adr003-stage2-runtime/design.md` §6 — 538 = S15〜S21・S27・S28 の 9 件(完了)、544 = 15 件、546 = S11・S13・S22 の裁定。)
+
+### TSK-563 引き渡し票(2026-10-18)の受取確認
+
+TSK-545 側の引き渡し票(TSK-563 発・2026-10-18。`feature-tsk545-game-end-unresolved` worktree の `handoff-2026-10-18.md` — 本リポジトリのツリー外)の TSK-544 受取事項は ①裁定 4 件(E08/E02/E09/E10)の製品実装への反映(終了判定・画面側が主。T1 では undo 後の再評価など該当分を実装時に反映)②TSK-546 の裁定後の契約受け取りの継続。着手条件への影響なし。G6-E01〜E14 は TSK-545 側。
+
+### チェック(本節の変更の後)
+
+| 検査 | 結果 |
+| --- | --- |
+| `check_docs_status.py` | 20 documents scanned, 0 violations |
+| `check_design_propagation.py` | rc 0 |
+| `check_doc_coverage.py` | rc 0 |
+| `feature_status.py`(fix/ux1-state-calc) | PR 段階 / PR 未取得(縮退) / 計画レビュー周回 5 / 反映周コミット突合 一致 |
+
+### 判定と次の一歩
+
+- 製品計算コード・契約資産・正本は変更しない(未成立 4 件が残るため)。本枝の変更は計画・設計・作業ログの 3 ファイル。
+- 中継を依頼する 1 通: ①P-6 の独立検証者の指名(PO)②P-8 の契約所有側受理ルート(TSK-538/236 側のゲート)③P-7 の公開境界受理(U-F8/U-S1/U-R1/TSK-506)④TSK-546 の裁定(S11/S13/S22)⑤本枝の push/PR 許可。
+
