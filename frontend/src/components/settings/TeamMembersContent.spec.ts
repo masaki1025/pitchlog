@@ -1,3 +1,4 @@
+import { setVerifiedAuthForTest } from '../../api/auth.test-support'
 import { VueQueryPlugin } from '@tanstack/vue-query'
 import {
   flushPromises,
@@ -97,7 +98,10 @@ function mountScreen(): {
   piniaInstances.push(pinia)
   setActivePinia(pinia)
   const auth = useAuthStore(pinia)
-  auth.signIn({ teamId: 'tenant-a', teamName: 'チーム A' })
+  setVerifiedAuthForTest(auth, {
+    teamId: '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+    teamName: 'チーム A',
+  })
   const wrapper = mount(TeamScreen, {
     global: {
       plugins: [pinia, [VueQueryPlugin, { queryClient }]],
@@ -208,7 +212,9 @@ describe('TeamMembersContent', () => {
     expect(wrapper.text()).toContain('同じ背番号の在籍選手がいます')
     expect(wrapper.text()).toContain('18 既存選手')
     expect(invalidate).toHaveBeenCalledWith({
-      queryKey: rosterQueryKeys.players.all('tenant-a'),
+      queryKey: rosterQueryKeys.players.all(
+        '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+      ),
     })
     expect(listPlayersMock.mock.calls.length).toBeGreaterThanOrEqual(2)
 
@@ -273,7 +279,9 @@ describe('TeamMembersContent', () => {
     expect(wrapper.text()).toContain('類似する登録済み名称があります')
     expect(wrapper.text()).toContain('東京クラブ')
     expect(invalidate).toHaveBeenCalledWith({
-      queryKey: rosterQueryKeys.teamRecords.all('tenant-a'),
+      queryKey: rosterQueryKeys.teamRecords.all(
+        '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+      ),
     })
 
     await buttonWithText(wrapper, '登録した対戦相手名を編集').trigger('click')
@@ -389,7 +397,10 @@ describe('TeamMembersContent', () => {
     await buttonWithText(wrapper, '対戦相手を登録').trigger('click')
 
     activeTenant = 'b'
-    auth.signIn({ teamId: 'tenant-b', teamName: 'チーム B' })
+    setVerifiedAuthForTest(auth, {
+      teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
+      teamName: 'チーム B',
+    })
     await vi.waitFor(() =>
       expect(wrapper.text()).toContain('チーム Bの選手管理'),
     )
@@ -498,7 +509,9 @@ describe('TeamMembersContent', () => {
 
     await vi.waitFor(() =>
       expect(invalidate).toHaveBeenCalledWith({
-        queryKey: rosterQueryKeys.players.all('tenant-a'),
+        queryKey: rosterQueryKeys.players.all(
+          '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+        ),
       }),
     )
     expect(wrapper.text()).toContain('対戦相手 Aの選手管理')
@@ -534,10 +547,13 @@ describe('TeamMembersContent', () => {
       expect(createPlayerMock).toHaveBeenCalledTimes(1)
 
       activeTenant = 'b'
-      auth.signIn({ teamId: 'tenant-b', teamName: 'チーム B' })
+      setVerifiedAuthForTest(auth, {
+        teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
+        teamName: 'チーム B',
+      })
       await vi.waitFor(() => expect(wrapper.text()).toContain('選手 B'))
       queryClient.setQueryData(
-        ['players', 'tenant-b', 'sentinel'],
+        ['players', '659a85f2-ccb4-5725-a7b8-81c34caf8870', 'sentinel'],
         'keep-b-cache',
       )
 
@@ -560,7 +576,11 @@ describe('TeamMembersContent', () => {
       )
       expect(invalidate).not.toHaveBeenCalled()
       expect(
-        queryClient.getQueryData(['players', 'tenant-b', 'sentinel']),
+        queryClient.getQueryData([
+          'players',
+          '659a85f2-ccb4-5725-a7b8-81c34caf8870',
+          'sentinel',
+        ]),
       ).toBe('keep-b-cache')
       expect(createPlayerMock).toHaveBeenCalledTimes(1)
       expect(wrapper.text()).not.toContain(
@@ -568,7 +588,10 @@ describe('TeamMembersContent', () => {
       )
 
       activeTenant = 'a'
-      auth.signIn({ teamId: 'tenant-a', teamName: 'チーム A' })
+      setVerifiedAuthForTest(auth, {
+        teamId: '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+        teamName: 'チーム A',
+      })
       await vi.waitFor(() =>
         expect(wrapper.text()).toContain(
           'チーム Aでの選手の登録は結果未確認です',
