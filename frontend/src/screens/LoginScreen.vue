@@ -19,6 +19,7 @@ const correlatedAuth = auth as typeof auth & {
   environmentReason?:
     'storage-unavailable' | 'lock-unavailable' | 'lock-busy' | null
   explicitLoginRequired?: boolean
+  canReverify?: boolean
 }
 const environmentBlocked = computed(
   () =>
@@ -38,6 +39,7 @@ type State =
   | 'rate-limited'
   | 'verification-unknown'
   | 'authenticated'
+  | 'cookie-unavailable'
 const state = ref<State>('verifying')
 const pending = ref(false)
 let mounted = true
@@ -64,7 +66,11 @@ const message = computed(() => {
       return 'ログインできませんでした。入力内容をご確認ください。'
     case 'rate-limited':
       return 'しばらく待ってから、もう一度お試しください。'
+    case 'cookie-unavailable':
+      return 'ログイン後のCookieを確認できません。Cookieの保存設定を確認してから、このページを再読込してください。資格情報を自動再送しません。'
     case 'verification-unknown':
+      if (correlatedAuth.canReverify === false)
+        return '認証の結果を確認できません。チーム名とパスワードを入力して明示的にログインし直すか、ログアウトしてください。'
       return '認証状態を確認できません。状態を再確認するか、ログアウトしてやり直してください。'
     default:
       return null
@@ -85,11 +91,17 @@ function apply(result: SessionResult | LoginResult, initial = false): void {
     state.value = 'authenticated'
     emit('authenticated')
   } else if (result.status === 'server-unauthenticated') {
-    state.value = initial ? 'idle' : 'rejected'
+    state.value = initial ? 'idle' : 'cookie-unavailable'
   } else if (result.status === 'rejected') {
     state.value = result.httpStatus === 429 ? 'rate-limited' : 'rejected'
   } else {
-    state.value = 'verification-unknown'
+    state.value =
+      initial &&
+      correlatedAuth.canReverify === false &&
+      !correlatedAuth.explicitLoginRequired &&
+      !correlatedAuth.environmentReason
+        ? 'idle'
+        : 'verification-unknown'
   }
 }
 
@@ -255,7 +267,11 @@ onBeforeUnmount(() => {
         </Button>
         <div v-if="state === 'verification-unknown'" class="mt-3 grid gap-2">
           <Button
-            v-if="!environmentBlocked && !correlatedAuth.explicitLoginRequired"
+            v-if="
+              !environmentBlocked &&
+              correlatedAuth.canReverify !== false &&
+              !correlatedAuth.explicitLoginRequired
+            "
             :disabled="blocked"
             @click="verify()"
             >状態を再確認</Button
