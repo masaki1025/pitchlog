@@ -85,6 +85,7 @@ _EXPECTED_PROFILES = {
         "system_settings",
     },
     "function_only": {
+        "rg1_restore_gate",
         "tenant_auth_subjects",
         "tenant_credentials",
         "tenant_tokens",
@@ -101,6 +102,7 @@ _EXPECTED_PROFILES = {
     },
 }
 _EXPECTED_FACT_TABLES = {
+    "rg1_control": {"rg1_restore_gate"},
     "non_tenant": {
         "game_type_rule_defaults",
         "system_vocabularies",
@@ -287,7 +289,7 @@ def test_design_assignment_satisfies_all_classification_conditions(
         frozenset[str],
     ],
 ) -> None:
-    """詳細設計 1-4 の45表の割り当てが全条件を満たす。"""
+    """詳細設計 1-4 の46表の割り当てが全条件を満たす。"""
     classification = documents[0]
     actual = {
         profile: {
@@ -304,7 +306,7 @@ def test_design_assignment_satisfies_all_classification_conditions(
         "self_tenant_row": 1,
         "effective_group_control": 4,
         "global_read_only": 4,
-        "function_only": 13,
+        "function_only": 14,
     }
     assert (
         _row_for_table(classification, "rule_sets")["access_path"]["owner_unit"]
@@ -335,7 +337,7 @@ def test_manifest_models_and_classification_have_the_same_population(
         row["table"] for row in _classification_rows(classification)
     }
 
-    assert len(manifest_tables) == len(model_tables) == 45
+    assert len(manifest_tables) == len(model_tables) == 46
     assert manifest_tables == model_tables == classification_tables
 
 
@@ -348,7 +350,7 @@ def test_exposure_facts_are_complete_and_reference_manifest_objects(
         frozenset[str],
     ],
 ) -> None:
-    """7種の事実が期待集合を持ち、その表と列が manifest に実在する。"""
+    """8種の事実が期待集合を持ち、その表と列が manifest に実在する。"""
     _classification, exposure_facts, manifest, _data_model, _models = documents
     manifest_columns = {
         table["name"]: {column["name"] for column in table["columns"]}

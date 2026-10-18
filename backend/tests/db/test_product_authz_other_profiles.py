@@ -488,7 +488,7 @@ def test_global_read_only_tables_are_readable_but_not_insertable(
 def test_function_only_tables_are_permission_denied_and_grant_mutation_changes_it(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """13 表は 0 行ではなく 42501 になり、SELECT 付与変異を観測する。"""
+    """14 表は 0 行ではなく 42501 になり、SELECT 付与変異を観測する。"""
     catalog = provisioned_product_catalog
     _seed_other_profiles(catalog)
     privileged_role_oid = _bootstrap_superuser_oid(catalog)
@@ -496,7 +496,11 @@ def test_function_only_tables_are_permission_denied_and_grant_mutation_changes_i
     _assert_function_only_tenant_preconditions(catalog)
     with _open_app_connection(catalog) as app:
         for table in tables:
-            assert _superuser_count(catalog, table) >= 2, table
+            count = _superuser_count(catalog, table)
+            if table == "rg1_restore_gate":
+                assert count == 1
+            else:
+                assert count >= 2, table
             _assert_sqlstate(
                 "42501",
                 lambda table=table: _select_count(app, table),

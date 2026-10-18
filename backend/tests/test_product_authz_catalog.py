@@ -452,8 +452,8 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
 
     assert len(expectations.roles) == len(asset_roles)
     assert expectations.roles == expectations.semantic_roles
-    assert len(expectations.tables) == 45
-    assert len(expectations.policies) == 35
+    assert len(expectations.tables) == 46
+    assert len(expectations.policies) == 37
     assert {
         row[2]
         for row in expectations.policies

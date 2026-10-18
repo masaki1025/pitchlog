@@ -17,6 +17,8 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 from sqlalchemy.exc import DBAPIError
 
+from pitchlog.authz.product_provisioning import apply_product_authz_ddl
+
 from .conftest import DisposablePostgres, ProvisionedProductCatalog
 from .test_alembic_migrations import (
     _alembic_config,
@@ -372,6 +374,9 @@ def test_force_rls_upgrade_preserves_catalog_and_states(
             for case, identity in zip(_CASES, identities, strict=True)
         )
     catalog.observer.rollback()
+    # 0029 では RG1 表が未作成なので、現行製品カタログは HEAD 復帰後に照合する。
+    command.upgrade(config, "head")
+    apply_product_authz_ddl(catalog.applicator)
     report = _inspect_product_catalog(catalog)
     assert report.ok, report.violations
 
@@ -390,12 +395,15 @@ def test_category_foreign_keys_round_trip(
     catalog.observer.rollback()
     report = _inspect_product_catalog(catalog)
     assert report.ok, report.violations
+    force_before = _force_states(catalog.observer)
+    assert all(force_before.values())
+    catalog.observer.rollback()
 
     command.downgrade(config, _PARENT_REVISION)
     _assert_fk_shape(catalog.observer, composite=False)
     catalog.observer.rollback()
-    report = _inspect_product_catalog(catalog)
-    assert report.ok, report.violations
+    assert _force_states(catalog.observer) == force_before
+    catalog.observer.rollback()
 
     command.upgrade(config, _REVISION)
     _assert_fk_shape(catalog.observer, composite=True)
@@ -404,5 +412,9 @@ def test_category_foreign_keys_round_trip(
         cursor.execute("SELECT version_num FROM public.alembic_version")
         assert cursor.fetchone() == (_REVISION,)
     catalog.observer.rollback()
+    assert _force_states(catalog.observer) == force_before
+    catalog.observer.rollback()
+    command.upgrade(config, "head")
+    apply_product_authz_ddl(catalog.applicator)
     report = _inspect_product_catalog(catalog)
     assert report.ok, report.violations
