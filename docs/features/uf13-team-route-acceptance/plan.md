@@ -3,7 +3,7 @@ feature: uf13-team-route-acceptance
 status: active
 承認: 済(2026-10-14・山田正輝、3ステップ再編を含む)
 重さ分類: コア領域
-worktree: /home/ymdms/projects/pitchlog-worktrees/feature-uf13-team-route-acceptance
+worktree: ../pitchlog-worktrees/feature-uf13-team-route-acceptance
 notion: https://app.notion.com/p/3f493b75e68781628422c331bfebc350
 branch: feature/uf13-team-route-acceptance
 created: 2026-10-14
@@ -224,3 +224,8 @@ LoginScreen1パターンの登録追補、自分の固定候補だけを専用�
 山田正輝がLoginScreen*のT登録、自分の固定C2/U-F3候補だけの専用検証worktree結合、現承認範囲の通常push/Draft PR作成を承認。ステップ2/3の自分の候補結合に限りdevelop着地待ちを外し、単独/結合のHEAD・差分・検査を区別する。各PR境界と他担当未統合枝を基線にしない条件は維持。
 
 コア3ファイルはU-F3のLoginScreen宣言→別JSON登録が先、U-F13のrouter/App追随が後。新login/session相関案は未承認であり、現C1を再利用してJSON/経路接続/試験準備を進めるが、相関不足まで解消済みとはしない。本人逐行確認・公開・マージは含まない。
+
+
+### 第1周反対側レビューのP1残余（公開前条件、未解消）
+
+C1のsession開始がbb.authを削除するため、同tenantの新規タブの確認で既存タブの保護画面も解除され得る。また別タブでBへ切替後、Aタブは/loginの自動session検証/emitから検証済みBの/teamへ移り得る。サーバー未認証の迂回やA本文の越境採用ではないが、同時編集の可用性と意図しないtenant切替の残余である。新C1相関契約を無断実装して解消済みとはしない。受入項目へ「同tenant2タブ」「別tenant2タブ」を追加し、未確認時の保護画面/tenant通信停止をspecで固定する。公開/受入完了前に相関追補と併せて人間判断/実証が必要。確定した認証状態からログアウトする画面導線は初期分割範囲外で、実装済みとはしない。

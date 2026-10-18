@@ -535,3 +535,14 @@ C2のbackend/.venvは外部cacheへのリンク構成で、pytestスクリプト
 宣言e5fcff3c/試験追随e8907eceと別のコミットでJSON2パターン＋router/Appを接続。保護/teamは共有PiniaのC1 ensureSessionVerifiedを呼び、hydration・DTO成功・現epoch/tenant一致までTeamScreenを開始しない。公開/loginは既存LoginScreen、/helpは公開/backを保持。認証切替で保護画面のkeyをauthEpochとしcache/observerを旧世代から切る。LoginScreenは正規login→session進行中のepoch変更でunmountすると結果を失うため、認証操作中のkey再生成をせず、画面内の既存epoch照合と正規authenticated emitを使う。戻り先は実在する/teamだけで、外部/未完成pathを受け付けない。
 
 結合候補で初回frontend全70ファイル1,322成功・build成功。ESLintの動的import禁止を検出しルールを変えず静的importへ修正、再度ESLint/vue-tsc/全frontend1,322成功/build成功。さらに保存済みbb.authで通過しない固有試験を追加しrouter/App全17件を確認する。元の単独C2/U-F3の試験結果ではなく、専用結合候補の結果である。新login/session相関契約・実画面/実API/実DBの通し試験・本人確認・公開・マージは未実施。
+
+
+### U-F13実装レビュー第1周と差分是正
+
+反対側（実Claude）はP0=0/P1=2/P2=8、正規Codex敵対はP0=0/P1=0/P2=1。全指摘の対処を採用。P1は同tenant2タブのsession確認/storage削除による画面解除と、別tenant2タブでの検証済みBへの自動遷移という既存C1接合の残余で、記録と受入項目を追加したが根本解消や公開許容を受理済みとはしない。新C1相関の承認/実装/実ブラウザ実証前に通し受入を完了しない。
+
+製品是正は公開トップの不要なepoch再生成停止、Appの注入Pinia利用とguardの共有Pinia一致確認。追加試験は旧A一覧のB切替後到着、provider不一致、epoch/tenant不一致、認証操作進行中、tenant-bound401、storage削除、公開画面instance保持。wrapper.vmの比較はwrapperごとのproxyの違いに依存しない内部uidへ修正し、旧保護画面の再生成も実際のinstanceで検証。関連router/App25件成功。afterEachでhydrationを復元。
+
+coreの重複検証を除き、合成基線の空commit許容を明示。U-F3先行登録を持つ隔離Git履歴からrouter/Appを登録し、本人未記入拒否/合成チェック済み正例/既存LoginScreen削除拒否を実CLIで検査する。実PRの本人欄は未記入。planのworktreeは相対表記へ追随。
+
+旧結合2337157dのroot全件はレビューによる製品是正で検査対象が変わるためDのpytestだけを正常中断。14,204成功/2 skip、605.42秒、exit2で専用cluster撤去済み。完走成功へ数えずログを保持。別の専用結合検証worktreeで最終修正を固定し、全件を再開始する。U-F3単独の固定候補/root全件は変更せず継続。

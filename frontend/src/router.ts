@@ -1,3 +1,4 @@
+import { getActivePinia } from 'pinia'
 import { watch } from 'vue'
 import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
 import { ensureSessionVerified } from './api/auth'
@@ -29,6 +30,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
   })
   router.beforeEach(async (to) => {
     if (to.meta.requiresAuth !== true) return true
+    const loginRoute = {
+      name: 'login',
+      query: { redirect: '/team' },
+      replace: true,
+    }
+    if (getActivePinia() !== pinia) return loginRoute
     const auth = useAuthStore(pinia)
     if (!auth.hasHydrated) {
       await new Promise<void>((resolve) => {
@@ -44,6 +51,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
       })
     }
     try {
+      if (getActivePinia() !== pinia) return loginRoute
       const result = await ensureSessionVerified()
       auth.syncFromStorage()
       if (
@@ -57,7 +65,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     } catch {
       // 未確認や進行中の認証操作から保護画面を開始しない。
     }
-    return { name: 'login', query: { redirect: '/team' }, replace: true }
+    return loginRoute
   })
   return router
 }

@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { CircleHelp } from 'lucide-vue-next'
 import { computed, watch } from 'vue'
-import { pinia } from './appProviders'
 import { useAuthStore } from './stores/authStore'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
-const auth = useAuthStore(pinia)
+const auth = useAuthStore()
 const protectedReady = computed(
   () => auth.hasHydrated && auth.isAuthenticated && auth.teamId !== null,
 )
@@ -65,9 +64,10 @@ async function returnToHome(): Promise<void> {
       />
       <component
         :is="Component"
-        v-else-if="route.meta.requiresAuth !== true || protectedReady"
+        v-else-if="route.meta.requiresAuth === true && protectedReady"
         :key="auth.authEpoch"
       />
+      <component :is="Component" v-else-if="route.meta.requiresAuth !== true" />
     </RouterView>
   </main>
 </template>
