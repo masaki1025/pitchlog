@@ -1,6 +1,6 @@
 ---
 feature: uf3-login-screen
-status: active
+status: in-review
 承認: 済(2026-10-14・山田正輝)
 重さ分類: コア領域
 worktree: /home/ymdms/projects/pitchlog-worktrees/feature-uf3-login-screen
@@ -160,3 +160,10 @@ PR #143実統合`156dd139a893845428a1ecab69632143f7694e0b`を通常mergeし、�
 コア3ファイルの一時編集所有はU-F3→U-F13。U-F3の本PRに宣言/固有試験を先行コミットし、その後JSON登録を別コミットで行う。既存の回転式追加層と登録済みRG1/U-F5/U-F6/U-F8の履歴検証を再利用する。登録後はLoginScreen製品/spec2件の検出、本人未記入拒否、基線・全core試験を確認する。既定レビュー周回は増やさず、追加登録/試験差分は未再レビューの本人対象として明示する。
 
 正本変更なし。正本外の同梱追加対象は`.claude/core-areas.json`、`scripts/core_guard.py`、`tests/test_core_guard.py`。承認済み2ステップのうちレビュー準備の追補として扱い、別の製品機能を増やさない。
+
+
+## 登録後の全件完走とDraft提出（2026-10-18）
+
+固定候補ea1b3bda681b689c9b8fe1b56fae7dce8f9d5d7fのroot全件は29,672成功/2 skip、1500.71秒、exit0で完走し専用clusterを撤去。Ruff/ty、core264、基線/2製品検出/本人未記入拒否も成功。製品2blobとbackendは従来の最新基線検査から不変のため、frontend1,267成功/backend2,574成功4 skip・型/lint/整形/buildの結果を保持し理由なく再実行しない。
+
+承認済み部分のDraft提出準備としてin-reviewへ移す。既定レビュー上限後のcore3ファイル/試験とUI最終反映は未再レビューの本人対象。全差分9ファイルの対象/範囲/方法欄を空で提示し、C1の本人確認は流用しない。経路接続・実画面/API/DB受入・TSK-518全体・公開・マージは未完了。新C1相関契約は未承認。台帳への追記なし（既存追加層の承認済み登録と局所是正で、確定した新運用傾向/新ハーネスなし）。
