@@ -1,6 +1,6 @@
 ---
 feature: auth-login-session-correlation
-status: active
+status: in-review
 承認: 済(2026-10-18・本会話)
 重さ分類: コア領域
 branch: feature/auth-login-session-correlation

@@ -74,3 +74,21 @@ U-F3 Draft #151は37c41110へ通常push、U-F13 Draft #154はe05303e2で作成�
 - attempt15: 新結合productionでstorage/lock/UUID拒否、認証拒否、通信断、session明示再確認、native lock-busy回復の7項目成功（7.83秒）。attempt16: 同productionで正常8項目成功（8.97秒、opponent配下、保存observer確認）。各自分のcluster/server cleanupを確認。自チーム受入は未了。
 - 相関第2周は固定C1 a15128a1/結合8a0437c0の反映差分と影響を2正式経路へ投入済み。後発の資料/実測は査読済みと推定しない。第3周の実行指示はない。
 - PR依存をpr-dependency-map.mdの一枚へ集約。C1→C2 #150（C1実統合後にmetadata680を正式追随）→U-F3 #151→U-F13 #154。専用結合結果を各PR単独のCI成功へ読み替えず、#154のLoginScreen欠落をコピーで埋めない。
+
+## 第2周採否・残条件（2026-10-19）
+
+正規Codex第2周P0=0/P1=4/P2=0（63,777tokens）、実Claude第2周P0=0/P1=2/P2=7で双方条件未了。全P1を採用し、0599d01c/0feaecab/0a057b97で現行結果不明・password遅着・session本文/DTO/lock失敗・quota時の意図fallback・reload試験を追随。storageイベント設定→削除の拒否と通知setItem1回も検査した。全採否・保留案はreview-round2.mdに固定。既定枠は各2/2消費、第3周なし。後発修正を再査読済みとせず本人対象へ残す。
+
+108c7562は試験fixtureのthis型だけを修正（TS2683でbuild手前停止した検査を成功に数えない）。結合全件は1,381成功/1失敗で、LoginScreen試験の「確認済みB」fixtureが未ack通知をnullとして採用していた。912585d1で単体fixtureにも確認開始時のnoticeを渡し、関連114件が成功。製品の採用条件を緩めず、fixtureはproduction closure対象外。最終全件は別ログで再実行中。
+
+実ブラウザattempt25/26/27/29は結合製品cdaf49fdで実測。正常production8項目成功（9.25秒）、metadata replayのlock-free/busy2項目成功（10.56秒）、環境/失敗7項目成功（7.48秒）、遅延Cookie5項目成功（17.08秒）。自分の隔離clusterを撤去済み。通常Cookie試験のreload前に未完了queryが中断されると保守側の未確認化が発生し、旧driverの自動GET待ちが止まった。通信完了を待って対象の旧sessionだけを遅延する前提へdriverを修正した。timeout緩和や自動再送ではない。
+
+attempt20/21はbuild手前の型検査失敗を確認する前に旧bundleで起動したため、manifestを保全し最終HEAD受入へ数えない。attempt24もreload直前のquery中断による明示再確認待ちで未合格。attempt18はdriverのposts変数未定義で不合格。履歴を成功へ置換しない。
+
+C1のbackend全2,581成功4skipとroot全29,670成功2skipは検査入力不変を維持し、既定品質を理由なく再実行しない。全件frontend・実ブラウザは単独/結合を区別。自チームIDの正式read契約は未承認・未実装。self-team-read-gap.mdの最小案を提示しており、自チーム受入を完了扱いにしない。
+
+## レビュー提示候補の検査完了（全体完了ではない）
+
+912585d1で単独frontend69ファイル1,278成功（69.99秒）。結合d1f467f5は71ファイル1,382成功（73.25秒）。型/ESLint/Prettier/build成功、production製品はcdaf49fd以降不変。初期TS2683と結合1件失敗を解消後の固定再検査であり、失敗ログは残す。本人確認対象をpr-preparation.mdへ固定。
+
+C1単独候補を人間へ提示するためin-reviewへ移す。未消化の自チームread契約/受入と後発差分の本人確認を保持し、ステップ全体/TSK全体完了は記入しない。ハーネス運用評価台帳への追記なし（既存の局所実装/レビュー/専用検証のみで、新しいハーネス制御を作らない）。
