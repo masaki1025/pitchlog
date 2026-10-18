@@ -1580,3 +1580,48 @@ def test_contract_kind_for_path_rejects_unregistered_path(tmp_path: Path) -> Non
     ):
         provenance_checker.contract_kind_for_path(REPOSITORY_ROOT, unregistered)
     assert provenance_checker.main([str(unregistered)]) == 1
+
+
+@pytest.mark.parametrize("contract_kind", ["state-transition", "game-end"])
+@pytest.mark.parametrize("entry_point", ["validator", "single-cli", "repository"])
+@pytest.mark.parametrize("reserved_location", ["author", "verifier", "extra-actor"])
+def test_reserved_identity_is_rejected_at_every_entry_point(
+    monkeypatch: pytest.MonkeyPatch,
+    contract_kind: str,
+    entry_point: str,
+    reserved_location: str,
+) -> None:
+    """実施済み主張の予約ID偽装を両契約の全検査入口で拒否する。"""
+    provenance = _verified_provenance()
+    if reserved_location == "author":
+        provenance["authorId"] = "not-performed"
+    elif reserved_location == "verifier":
+        provenance["independentVerifierId"] = "not-performed"
+        provenance["independentReview"]["chronology"][0]["actorId"] = "not-performed"
+    else:
+        provenance["independentReview"]["chronology"].append(
+            {"sequence": 2, "actorId": "not-performed", "activity": "追加記録"}
+        )
+    contract_path = REPOSITORY_ROOT / provenance_checker.CONTRACTS[contract_kind][0]
+    original_load = provenance_checker.descriptor_checker.load_json
+
+    def load_with_forged_record(path: Path, label: str) -> Any:
+        value = original_load(path, label)
+        if Path(path) == contract_path:
+            value = deepcopy(value)
+            value["provenance"] = deepcopy(provenance)
+        return value
+
+    monkeypatch.setattr(
+        provenance_checker.descriptor_checker, "load_json", load_with_forged_record
+    )
+    if entry_point == "single-cli":
+        assert provenance_checker.main([str(contract_path)]) == 1
+        return
+    with pytest.raises(provenance_checker.ProvenanceCheckError, match="予約値not-performed"):
+        if entry_point == "validator":
+            provenance_checker.validate_provenance(
+                REPOSITORY_ROOT, provenance, contract_kind=contract_kind
+            )
+        else:
+            provenance_checker.check_repository(REPOSITORY_ROOT)

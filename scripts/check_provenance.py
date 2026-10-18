@@ -457,6 +457,14 @@ def validate_provenance(
                 f"宣誓応答が充足値でない: {attestation_id!r}"
             )
 
+    # 未実施記録に対する既存の宣誓診断を保ち、実施済み主張の予約値偽装を拒否する。
+    reserved = _reserved_locations(provenance)
+    if reserved:
+        raise ProvenanceCheckError(
+            "実施済みの主張に予約値not-performedが使われている: "
+            + ", ".join(reserved)
+        )
+
     independent_review = _object(
         provenance.get("independentReview"),
         "provenance.independentReview",
