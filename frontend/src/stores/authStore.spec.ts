@@ -45,7 +45,13 @@ function event(
   key: string | null = AUTH_INTENT_KEY,
   storageArea: Storage | null = null,
 ) {
-  window.dispatchEvent(new StorageEvent('storage', { key, storageArea }))
+  window.dispatchEvent(
+    new StorageEvent('storage', {
+      key,
+      storageArea,
+      newValue: key === null ? null : localStorage.getItem(key),
+    }),
+  )
 }
 
 describe('相関されたsessionだけを保持するauthStore', () => {
@@ -280,4 +286,49 @@ describe('Cookie不確実通知は拒否専用', () => {
     empty(auth)
     expect(auth.authEpoch).toBe(epoch)
   })
+})
+
+it('通知キーだけ保存不可でも意図無効化を独立に試みる', async () => {
+  const auth = authenticated()
+  const otherPinia = createPinia()
+  try {
+    const other = useAuthStore(otherPinia)
+    setVerifiedAuthForTest(other, { teamName: '同じAの別タブ', teamId: a })
+    expect(other.isAuthenticated).toBe(true)
+    const native = Storage.prototype.setItem
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(
+      function (key, value) {
+        if (key === 'bb.auth.uncertain')
+          throw new DOMException('quota', 'QuotaExceededError')
+        return native.call(this, key, value)
+      },
+    )
+    await auth.invalidateUncertainCookie()
+    expect(JSON.parse(localStorage.getItem(AUTH_INTENT_KEY)!).phase).toBe(
+      'verification-required',
+    )
+    expect(auth.environmentReason).toBe('storage-unavailable')
+    empty(auth)
+    other.syncFromStorage()
+    expect(other.isAuthenticated).toBe(false)
+    expect(other.automaticVerificationBlocked).toBe(true)
+  } finally {
+    disposePinia(otherPinia)
+  }
+})
+
+it('通知設定と両キー削除が配送前に終わってもイベントから拒否し、再配送は重複破棄しない', () => {
+  const auth = authenticated()
+  const change = new StorageEvent('storage', {
+    key: 'bb.auth.uncertain',
+    newValue: b,
+  })
+  localStorage.setItem('bb.auth.uncertain', b)
+  localStorage.removeItem('bb.auth.uncertain')
+  window.dispatchEvent(change)
+  empty(auth)
+  const epoch = auth.authEpoch
+  window.dispatchEvent(change)
+  expect(auth.authEpoch).toBe(epoch)
+  expect(auth.automaticVerificationBlocked).toBe(true)
 })

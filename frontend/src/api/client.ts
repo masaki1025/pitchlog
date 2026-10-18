@@ -277,6 +277,9 @@ async function requestResponse<T>(
   }
 
   if (!readResult.ok) {
+    // session本文が読めなければCookieとの一致も未確認。業務のDTO不正とは区別する。
+    if (res.ok && path === '/auth/session')
+      await auth.invalidateUncertainCookie()
     const cause = readResult.cause
     if (isAbortError(cause)) {
       throw cause

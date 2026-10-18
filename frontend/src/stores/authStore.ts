@@ -36,6 +36,7 @@ export const useAuthStore = defineStore('auth', () => {
   let observedLegacy: string | null = null
   let observedNotice: string | null = null
   let observedAck: string | null = null
+  let lastRejectedNoticeEvent: string | null = null
 
   try {
     localStorage.removeItem(AUTH_STORAGE_KEY)
@@ -133,9 +134,14 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function invalidateUncertainCookie(): Promise<void> {
+    let notificationFailure: unknown
+    // 通知保存が失敗しても、既存の意図無効化経路を独立に試みる。
     try {
-      // Cookieはlockに従わない。競合中でも他タブへ拒否だけを通知する。
       publishAuthUncertainty()
+    } catch (error) {
+      notificationFailure = error
+    }
+    try {
       syncFromStorage()
       await withAuthIntent((marker) => {
         syncFromStorage()
@@ -154,6 +160,13 @@ export const useAuthStore = defineStore('auth', () => {
         discard()
         requireExplicitLogin()
       }
+    } finally {
+      if (notificationFailure)
+        failAuthEnvironment(
+          notificationFailure instanceof AuthEnvironmentError
+            ? notificationFailure.reason
+            : 'storage-unavailable',
+        )
     }
   }
 
@@ -273,7 +286,27 @@ export const useAuthStore = defineStore('auth', () => {
     } catch {
       return
     }
+    // 現在値を先に照合。既に処理した通知/ackの再配送で二重破棄しない。
+    const previousEpoch = authEpoch.value
     syncFromStorage()
+    // 設定→削除が配送前に終わっても、イベントは拒否だけに使う。
+    const noticeEvent =
+      event.key === AUTH_UNCERTAIN_KEY || event.key === AUTH_UNCERTAIN_ACK_KEY
+    const observed =
+      event.key === AUTH_UNCERTAIN_KEY ? observedNotice : observedAck
+    const fingerprint = `${event.key}:${event.newValue}`
+    if (
+      noticeEvent &&
+      event.newValue !== observed &&
+      fingerprint !== lastRejectedNoticeEvent
+    ) {
+      lastRejectedNoticeEvent = fingerprint
+      if (authEpoch.value === previousEpoch) {
+        if (sessionVerified.value) discard()
+        else authEpoch.value += 1
+      }
+      automaticVerificationBlocked.value = true
+    }
   }
   window.addEventListener('storage', onStorage)
   onScopeDispose(() => window.removeEventListener('storage', onStorage))

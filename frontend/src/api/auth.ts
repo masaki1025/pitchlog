@@ -5,6 +5,7 @@ import {
   canonicalUuid,
   captureAuthUncertainty,
   readAuthIntent,
+  publishAuthUncertainty,
   withAuthIntent,
   writeAuthIntent,
   type AuthIntent,
@@ -124,11 +125,14 @@ async function readSession(
   notice: string | null,
   signal?: AbortSignal,
 ): Promise<SessionResult> {
+  let responseParsed = false
+  let uncertaintyHandled = false
   try {
     const value = await apiRequest<unknown>('GET', '/auth/session', {
       noAuthExpiry: true,
       signal,
     })
+    responseParsed = true
     const result = await withAuthIntent((now) => {
       auth.syncFromStorage()
       if (now?.intentId !== intent.intentId || auth.authEpoch !== epoch) {
@@ -143,6 +147,9 @@ async function readSession(
         value.team_name.length === 0 ||
         value.tenant_id !== intent.tenantId
       ) {
+        uncertaintyHandled = true
+        publishAuthUncertainty()
+        auth.syncFromStorage()
         const next = writeAuthIntent('verification-required', intent.tenantId)
         auth.beginCorrelatedVerification(next.intentId)
         return unknown(auth)
@@ -164,8 +171,11 @@ async function readSession(
     })
     return result
   } catch (error) {
-    if (error instanceof AuthEnvironmentError)
+    if (error instanceof AuthEnvironmentError) {
+      if (responseParsed && !uncertaintyHandled)
+        await auth.invalidateUncertainCookie()
       return failedEnvironment(auth, error)
+    }
     if (error instanceof ApiStaleAuthError)
       return { status: 'stale', authEpoch: epoch }
     if (
@@ -194,6 +204,12 @@ async function readSession(
         return failedEnvironment(auth, failure)
       }
     }
+    if (error instanceof ApiError && error.status !== 401) {
+      await auth.invalidateUncertainCookie()
+      return unknown(auth)
+    }
+    if (!auth.isAuthenticated && auth.automaticVerificationBlocked)
+      return unknown(auth)
     return markUnknown(auth, intent, epoch)
   }
 }

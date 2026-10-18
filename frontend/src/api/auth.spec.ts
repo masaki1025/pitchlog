@@ -750,3 +750,53 @@ it.each([false, true])(
     expect(fetch).toHaveBeenCalledTimes(1)
   },
 )
+
+it.each(['dto', 'body', 'http'] as const)(
+  'sessionの%s未確認もlock競合時に拒否通知し、成功を採らない',
+  async (failure) => {
+    await loggedIn()
+    vi.mocked(fetch).mockClear()
+    const waiting = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(waiting.promise)
+    const operation = session()
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+    vi.stubGlobal('navigator', {
+      locks: { request: vi.fn(async (_n, _o, action) => action(null)) },
+    })
+    const res =
+      failure === 'dto'
+        ? response({ tenant_id: a, team_name: '異tenant' })
+        : failure === 'http'
+          ? response({}, 503)
+          : response({})
+    if (failure === 'body')
+      vi.spyOn(res, 'text').mockRejectedValue(new TypeError('transport'))
+    waiting.resolve(res)
+    expect((await operation).status).not.toBe('authenticated')
+    empty()
+    expect(localStorage.getItem('bb.auth.uncertain')).not.toBeNull()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  },
+)
+
+it.each(['pending', 'corrupt'] as const)(
+  'reload時の%s通知では自動GETせず明示server確認だけで回復',
+  async (state) => {
+    const auth = await loggedIn()
+    await auth.invalidateUncertainCookie()
+    if (state === 'corrupt') localStorage.setItem('bb.auth.uncertain', 'bad')
+    const next = tab()
+    const reloaded = useAuthStore(next)
+    expect(reloaded.automaticVerificationBlocked).toBe(true)
+    vi.mocked(fetch).mockClear()
+    expect((await ensureSessionVerified()).status).toBe('verification-unknown')
+    expect(fetch).not.toHaveBeenCalled()
+    expect(reloaded.canReverify).toBe(true)
+    respond({ tenant_id: b, team_name: '正規B' })
+    expect((await session()).status).toBe('authenticated')
+    expect(localStorage.getItem('bb.auth.uncertain.ack')).toBe(
+      localStorage.getItem('bb.auth.uncertain'),
+    )
+    expect(fetch).toHaveBeenCalledTimes(1)
+  },
+)
