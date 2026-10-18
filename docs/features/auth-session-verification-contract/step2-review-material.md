@@ -106,3 +106,13 @@ wire API/DTO・認可・registry・凍結資産に差分がないため、今回
 - 更なるfrontend全件でもGameScreen/sync等のworker終了timeoutが繰り返されたため中断した。実行を完走・成功に数えない。他担当のプロセスは停止せず、C1の追加全件実行は止めて記録を保全した。
 - 最終fetchでもdevelopは`3052e0db743877c7f15c0ec10daa0142cba7ab7e`。製品コミットは`1fea2c60`、後続は検査記録だけ。本人確認の対象は最終HEADの基線からの17ファイル全差分（製品3・spec6・計画/記録8）。
 - 未解決はローカル/checkの単一全green未達と本人確認。Draft先行例外の承認待ちであり、push/PR作成・公開・マージは未実施。必要なCI検証を承認なしに省略・移設しない。
+
+## 2026-10-18 Draft先行の正式承認と新基線
+
+山田正輝がC1ステップ2に限るpr手順2.4のDraft先行例外、通常push・Draft PR・CI・資料更新を承認した。これにより前日の「未承認」の停止条件だけを解消する。本人確認・全品質ゲート通過・ステップ2完了ではない。
+
+最新基線は#146の実統合SHA ce0c0e8697252a89bce0c57e69b4821e0a6cac2b（#145も含む）。merge追随の競合はなく、正式第2周製品hashと一致。新基線の正本/受理資産をC1独自に変更しない。
+
+#146はroot/backend conftestで起動する。明示TMPDIR/--basetempによる手動配置の成功だけを#146適用証跡にはせず、専用PITCHLOG_PYTEST_TMPDIRから実pytestのtmp_pathを照合する。backend配線1件は成功し、実体はhome側ディスクの`.../backend/pytest-of-ymdms/pytest-1/test_tmp_path_is_under_bootstr0`に作成された。root全件は専用領域・4 worker（子のautoも4）で進める。
+
+環境timeoutと製品不具合を区別して記録し、試験除外や既存timeout変更はしない。Draft提出に合わせたin-reviewは検査待ち状態を示すもので、完了宣言ではない。

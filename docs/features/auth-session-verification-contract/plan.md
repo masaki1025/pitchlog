@@ -1,6 +1,6 @@
 ---
 feature: auth-session-verification-contract
-status: active
+status: in-review
 承認: 済(2026-10-14・山田正輝)
 重さ分類: コア領域
 worktree: /tmp/pitchlog-auth-session-verification-contract
@@ -174,3 +174,13 @@ worktree一覧とopen PR（#138/#142/#143）にC2/U-F3/U-F2/U-F6の並行編集�
 - 遅延login/logout、複数世代、sessionとの前後競合、確定拒否、同一応答の通知/cache破棄の重複を固有試験で検証する。別タブの確認/保存により他タブも未確認になる保守的な既存契約は維持する。
 
 本追補は新API・DTO・header・ACL・保存形式・共有凍結資産を追加しない。C2/U-F3の接続条件へ同期する。本人逐行確認・公開・マージの承認とは扱わない。既定の第2周は修正差分と影響範囲の確認に用い、計画全体を再審査しない。
+
+## 13. ステップ2限定Draft先行例外（2026-10-18・承認済み）
+
+山田正輝がpr手順2.4に対するC1ステップ2限定の例外として、通常pushとDraft PR作成を承認した。ローカル全件/check未通過を本文へ明記し、CIと専用領域で残る検査を進める。全品質ゲート通過・ステップ2完了・本人逐行確認済みとは記録しない。Draft提出用にstatusをin-reviewへ移すが、検査待ちDoDとTSK-528全体未完了を維持する。
+
+最新developはPR #146（TSK-565）の統合SHA `ce0c0e8697252a89bce0c57e69b4821e0a6cac2b`。PR #145・#146をmergeで取り込み、競合なし。製品3ファイルは正式第2周review manifestのhashと一致し、C1の認証/API/DTO/ACL/凍結資産の候補差分は追加しない。#145の受理済み資産は基線として保持し、C1で再封印や履歴追加を行わない。
+
+#146の移送はroot/backendのconftestで起動する。以前の明示TMPDIR/--basetempは移送や掃除の実証にならないため、今回はTMPDIR/PYTEST_DEBUG_TEMPROOTを外してC1専用PITCHLOG_PYTEST_TMPDIRを指定し、配線試験と実basetempを照合する。root全件は4 worker上限（子pytestのautoも4）とし、backendのローカル配線確認・frontendと重ねた高負荷の全層実行は避ける。試験除外・timeout緩和は行わない。
+
+C2/U-F3・公開・Draft解除・マージには進まない。既定の2周レビューとP2反映記録を維持し、必要な追加レビュー裁定が判明した場合だけ差分を提示する。

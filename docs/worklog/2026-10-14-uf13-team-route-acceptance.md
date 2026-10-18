@@ -427,3 +427,12 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 
 - 最新の直列frontend全件は68ファイル1,236 passed / C1外domain-sql1 timeout。C1対象6ファイル184試験は成功し、当該domain-sql1件の単独再検査も成功（非対象14 skipped）。単一全件greenとは扱わない。更なる全件実行もworker終了timeout反復で中断した。型/format/lint/dependency/buildの成功は維持する。
 - C1が起動した全件実行は停止して保全した。ローカル/check未通過のため現行pr手順ではpush/PR作成へ進めない。Draft先行の限定例外を回答待ちとし、時間経過を承認とは扱わない。計画active、TSK-528/U-F13全体未完了、本人確認は未実施。最終fetchのdevelopは3052e0db。今回の本人確認対象は基線からの17ファイル全差分。
+
+### C1ステップ2 Draft先行承認・develop追随（2026-10-18）
+
+- 山田正輝がpr手順2.4のC1ステップ2限定Draft先行例外、通常push・Draft作成・CI・承認範囲内の修正/検査/資料更新を承認した。本人確認は未実施、全品質ゲート通過・ステップ2完了とは記録せず、Draft解除・公開・マージ・C2/U-F3へは進まない。
+- #146（TSK-565）は2026-10-18T03:30:13Zにce0c0e8697252a89bce0c57e69b4821e0a6cac2bへ統合。#145（188acf83）を含む最新developを専用worktreeへmergeし、競合なし。C1製品3ファイルは第2周review hashと一致する。新基線の受理済みauthz資産は保持し、C1の変更として7.7履歴を追加しない。
+- /tmpは5.0G空き、home側は869G空きで、専用/home/ymdms/.cache/pitchlog/c1-step2-20261018はhomeと同じデバイス・/tmpとは異なることを実測した。#146はTMPDIR/PYTEST_DEBUG_TEMPROOTの明示で挙動が変わるため、今回それらを外し、専用PITCHLOG_PYTEST_TMPDIRによる移送と実pytest配線を確認する。rootは4並列（子のautoも4）、ローカル全層の高負荷同時実行は避ける。
+- Draft提出用statusはin-reviewとするが、DoD完了の宣言ではない。既存のレビュー採否・本人未チェックを維持する。台帳への追記なし：容量対策は統合済みTSK-565に帰属し、C1でハーネス機能を追加しない。
+
+- #146 backend配線試験は1 passed・skipなし。実tmp_pathは専用backend基底配下のpytest-of-ymdms/pytest-1/test_tmp_path_is_under_bootstr0へ作られ、home側のディスクデバイスである。最初の計測はファイル名短縮を誤ったglobで照合したため失敗したが、実試験は成功しており、実生成名を再取得して照合した。root全件は4 workers・29,669項目で開始した。
