@@ -3,7 +3,7 @@ feature: uf13-team-route-acceptance
 status: active
 承認: 済(2026-10-14・山田正輝、3ステップ再編を含む)
 重さ分類: コア領域
-worktree: ../../..
+worktree: /home/ymdms/projects/pitchlog-worktrees/feature-uf13-team-route-acceptance
 notion: https://app.notion.com/p/3f493b75e68781628422c331bfebc350
 branch: feature/uf13-team-route-acceptance
 created: 2026-10-14
@@ -201,3 +201,12 @@ PR #147は493342be37d4383ca572f8d1c826a3f184a4d213へ実統合済みであり、
 最新指示は既存計画のC2→U-F3→U-F13接続→専用環境の実画面/API/DB通しまでを自律進行するもの。各ステップ/レビュー/個別受理と本人確認を維持する。C2/U-F3のdevelop統合前という本計画既定の開始条件、共有3ファイルを編集中のopen PR #143との所有順は、C1待ちとは別に管理する。core path宣言→製品と同時JSON登録の順序を変えず、仮認証/tenant・未統合の他担当branchを使わない。
 
 本worktreeは2026-10-18に6b09503dから最新develop 493342beへfast-forwardした。C2/U-F3の候補を基線へ混ぜず、router/App/core3ファイルの製品変更はまだ開始していない。C2では既存コア登録で検出できる境界を実装・検証中、U-F3ではLoginScreenの意味範囲Tと既存path未一致を確認した。必要な最小1パターンの追補と共有3ファイルの順序は、C2側`docs/features/tenant-match-metadata-contract/connection-decisions.md`へ集約する。既承認のrouter/App登録を再承認待ちには戻さない。
+
+
+## 最新指示による独立準備の再開（2026-10-18）
+
+最新developはPR #143の実統合`156dd139a893845428a1ecab69632143f7694e0b`。C1/#119の統合待ちと#143の共有3ファイル編集待ちは解消済み。本セッションが本計画の`router.ts`/`App.vue`/各specと、共有`core_guard.py`/固有試験/`core-areas.json`の編集を順に所有する。C2は共通client/roster/管理画面追随、U-F3はLoginScreen/固有specを所有し、同一ファイルの二重編集をしない。
+
+依頼者の「今進められる作業を待機させず、承認済みコアパス宣言・JSON登録を進める」に従い、製品統合に依存しないステップ1の宣言・合成履歴検証を先行する。既承認の2パターンだけを宣言し、JSONはまだ変えない。ステップ2/3のC2・U-F3のdevelop着地条件は、自分の固定候補だけを別の検証環境に結合する局所追補への回答と区別する。未回答を承認と扱わない。
+
+U-R1登録済み層は現行宣言から外しても実基線と現候補の両方に保持し、各パターンの除去を拒否する。新2パターンの宣言のみ・合成登録・各パターン欠落・4製品/spec検出・本人未記入拒否を検証する。U-F3の`LoginScreen*`は別の最小追加案であり、このステップ1に無断で追加しない。550・D4・544/545はこの選手管理経路の依存ではなく、停止条件にしない。
