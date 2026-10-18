@@ -126,4 +126,12 @@ PR #148は最終HEAD`f69c6b3d`を`5bb1ff89306712c1de61c3a0152141c8f771b3a0`でde
 
 意味と検査の対応: (a) 初期付与は開始時、作成時と復元調整解除時の`preparing`には付与しない—候補の`lock_preparing_game`と復元`preparing`試験で開始前の権利行なしを照合。(b) 既存D4対象0件でRG1解除時の発行0件—統合済み正本9-5とroot設計伝播試験で検出する。**製品解除関数は新7で未実装**のため新5候補の製品合格とはしない。(c) 復元後の初回開始のD4非再利用—復元外台帳代役の発行済みD4を維持した隔離試験で再照合する。実台帳の同期耐久/旧primaryフェンスは未検証。backendの候補・RG1関連33件、root設計伝播215件、backend Ruff・ty、docs-status（20文書/違反0）、明示plan指定の`check_plan_docs_sync.py`が成功。plan指定なしの同検査は枝名`ur1-initial-rights`から存在しないplanパスを導出して失敗したため、正規の`docs/features/ur1-recording-rights/plan.md`を明示して再実行した。
 
+## 2026-10-18: 新5の正式審査準備と未回答の絞り込み
+
+既承認の方式と#148統合を維持し、[data-model 6-1限定候補](../features/ur1-recording-rights/step5-data-model-73-candidate.md)へ本文案と影響節を固定した。現時点でU-S1の`feature/us1-sync-port-surface`が同じ`docs/design/data-model.md`をTSK-562向けに未コミット編集（49行追加・4行変更）しているため、U-R1は同正本を並行編集しない。正本の版・統合順が決まるまで`in-review`起案と**正式7.3全文第1回は未開始**であり、候補資料の確認を正式周回と呼ばない。U-S1側の編集・受理済み事項は改変しない。
+
+[3群判断資料](../features/ur1-recording-rights/step5-three-part-approval.md)には専用owner、対象表のFORCE RLSと列ACL、既存世代表のapp ACL不変、RG1追加列の読取限定、固定関数のPUBLIC剥奪という審査候補を明示した。具体的な関数identity/本文、外部claimの信頼済み束縛、端末資格の真正性は未受理なので登録済み製品関数・正式DDL/JSONは追加していない。外部予約DDLに同一要求の`reserved`高々1件を強制する部分一意索引が漏れていたため、隔離DB試験と一致させて追記した。`claimed`後・業務DB commit結果不明時の新attemptは索引だけでは守れず、耐久attempt照会とU-G1/U-R1契約受理まで停止する。
+
+[担当別受理シート](../features/ur1-recording-rights/step5-owner-acceptance-sheet.md)にU-G1、U-S1、認証/鍵、D4運用の未回答だけを整理した。既照会の③-a/⑧、試合行→世代行、開始時付与は再審査しない。U-G1/U-S1の新しい項目別受理、認証済み端末資格の所有・失効順、V12鍵の保管/運用者、外部台帳の配置・責任・費用は未確認。実Port・同期保全台帳は未接続で、新5のDoDと7.7正式受理は未達。正式資産、共有DB、運用open、push・マージは行わない。
+
 **別の未成立条件**: U-G1/U-S1/認証・TSK-506の署名・結果・全ロック順・端末失効競合の項目別受理、独立V12鍵の保管/運用、D4外部台帳の実配置/耐久証明・費用/運用担当、data-model側7.3と具体資産/7.7。#148統合や隔離試験成功をこれらの受理、運用open、製品Portの完成へ読み替えない。

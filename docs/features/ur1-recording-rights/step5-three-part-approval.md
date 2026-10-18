@@ -64,11 +64,28 @@ CREATE TABLE d4_reservations (
   status text NOT NULL CHECK (status IN ('reserved', 'claimed')),
   committed_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE UNIQUE INDEX one_reserved_start
+  ON d4_reservations (tenant_id, game_id, start_request_id)
+  WHERE status = 'reserved';
 -- claimの条件はattempt_id・所有tuple・status='reserved'の完全一致。
 -- claimed→reserved、counterの減算、予約行のDELETEを許さない。
 ```
 
+同一要求に対する並行予約は未消費の`reserved`を高々1件に制限する。`claimed`後の新attemptは業務DBの確定結果が確認できるまで許可しない。部分一意索引だけでは、claim済みの業務DB commit結果不明を安全に解決できないため、耐久attemptの保存先と照会手順はU-G1/U-R1の受理待ちに維持する。
+
 **認可の承認候補**: `recording_right_deliveries`は専用NOLOGIN/NOBYPASSRLS関数ownerだけに、テナント条件付き`SELECT/INSERT`を許し、`UPDATE`は後続の失効操作を個別承認するまで与えない。app/PUBLICに表DMLを与えず、FORCE RLSを保つ。世代表の既存app権限は**増やさない**。初期付与の専用関数ownerには、世代表の必要列の`SELECT/INSERT`とテナント条件付き専用policyを追加する。RG1 ownerには新列の`SELECT`のみを追加し、open/復元開始や表全体UPDATEは含めない。appへはテナントをscopeから注入する固定関数だけの`EXECUTE`を付与し、PUBLIC既定EXECUTEを剥奪する。端末資格表の書込ownerは認証担当の回答待ちで、今回U-R1が決めない。
+
+### 正式認可審査へ渡す最小tuple（候補、正式資産へ未入力）
+
+| 対象 | exact候補 | 拒否境界 |
+| --- | --- | --- |
+| 専用ロール | `pitchlog_initial_right_fn_owner` を `NOLOGIN NOBYPASSRLS NOINHERIT`、schema/table ownerは既存の `pitchlog_owner` を候補とする | このロールをappの継承先にせず、`BYPASSRLS`・LOGIN・管理者権限を付けない |
+| `public.recording_right_deliveries` | `ENABLE/FORCE RLS`。専用ownerだけの `SELECT USING (COALESCE(tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id', true), '')::UUID, FALSE))` と `INSERT WITH CHECK (COALESCE(tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id', true), '')::UUID, FALSE))` の2 policy。列ACLは読取に必要な全列の`SELECT`と初回保存列の`INSERT`だけ | app/PUBLIC表DML、ownerの`UPDATE/DELETE`、余剰policy、越境tenantの存在漏洩を拒否 |
+| `public.recording_generations` | 既存app ACL・policyは不変。専用ownerに初期通常世代の照合列だけ`SELECT`、初期行の必要列だけ`INSERT`を与え、同ロール限定のtenant一致`SELECT/INSERT` policy各1件を追加する | 既存app権限の拡大、ownerの`UPDATE/DELETE`、他種別・他試合への初期行投入を拒否。現世代一意・不変列triggerも維持 |
+| `public.rg1_restore_gate` | 既存`pitchlog_rg1_fn_owner`に追加`recovery_generation`列の`SELECT`だけを候補とする | `state`・`recovery_generation`のUPDATE、製品open、復元開始のEXECUTEを今回含めない |
+| 固定関数 | 新しい発行/再交付関数は`SECURITY DEFINER`・固定`search_path`・専用ownerを候補とし、`PUBLIC EXECUTE`を剥奪してappへ必要な固定関数だけ`EXECUTE`する | function identity・本文と、外部claimの信頼済み束縛/端末資格照合が未確定のまま、登録済み製品関数として公開しない。任意SQL/Session/呼出側tenant指定は設けない |
+
+RLSのtenant一致式は既存の`PREDICATE:TENANT`と同じ欠損時偽の形を使い、関数側でも検証済みscopeのtenantを再照合する。ここで挙げたロール名・policy数・列ACLは審査候補であり、関数本文や外部claimの権威を確定するものではない。正式DDL/JSONの適用、7.7値の記入は別受理まで行わない。
 
 **凍結資産の承認候補範囲**: `contracts/authz/product/ddl-elements.json`とその表・policy・関数body、`table-classification.json`（新表は`function_only`）、`contracts/db/schema-manifest.json`、`contracts/tenant_boundary/repository-contract.json`の固定operation/token/capability、`runtime-authz-contract.json`の保護対象、必要な`base-allowlist.json`の新シンボル**のみ**。各派生lock・oracle・archive・7.7の単一未マージ受理記録は実入力から追随する。現比較元はrepository revision 21、base-allowlist revision 33、runtime revision 17だが、**これをafter revisionとして予約しない**。固定関数実行器は入力`UUID/int/str/bool`のみ許すため、暗号材は関数引数・戻りを安全な文字列表現へ変換しDB側で長さ・復号・tenantを再検証する必要がある。任意SQL/Session/汎用bytes bindの公開や既存許可の拡大は承認候補に入れない。
 

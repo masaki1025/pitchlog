@@ -673,6 +673,52 @@ def test_external_reservation_is_recovered_by_owner_after_lost_response(
             ).fetchone() == (1,)
 
 
+def test_external_reservation_rejects_parallel_attempt_for_same_start(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+) -> None:
+    """同じ開始要求の未消費予約は別attemptでも同時に作れない。"""
+    request_id = uuid4()
+    with disposable_postgres_cluster() as cluster:
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
+            admin.execute(
+                "CREATE TABLE d4_reservations ("
+                "attempt_id uuid PRIMARY KEY, tenant_id uuid NOT NULL, "
+                "game_id uuid NOT NULL, start_request_id uuid NOT NULL, "
+                "generation bigint NOT NULL UNIQUE, "
+                "status text NOT NULL CHECK (status IN ('reserved', 'claimed')))"
+            )
+            admin.execute(
+                "CREATE UNIQUE INDEX one_reserved_start "
+                "ON d4_reservations (tenant_id, game_id, start_request_id) "
+                "WHERE status = 'reserved'"
+            )
+        with (
+            psycopg.connect(cluster.admin_dsn) as first,
+            psycopg.connect(cluster.admin_dsn) as second,
+        ):
+            first.execute(
+                "INSERT INTO d4_reservations VALUES (%s, %s, %s, %s, 1, 'reserved')",
+                (uuid4(), _TENANT, _GAME, request_id),
+            )
+            second.execute("SET LOCAL lock_timeout = '100ms'")
+            with pytest.raises(psycopg.errors.LockNotAvailable):
+                second.execute(
+                    "INSERT INTO d4_reservations "
+                    "VALUES (%s, %s, %s, %s, 2, 'reserved')",
+                    (uuid4(), _TENANT, _GAME, request_id),
+                )
+            second.rollback()
+            first.commit()
+            with pytest.raises(psycopg.errors.UniqueViolation):
+                second.execute(
+                    "INSERT INTO d4_reservations "
+                    "VALUES (%s, %s, %s, %s, 2, 'reserved')",
+                    (uuid4(), _TENANT, _GAME, request_id),
+                )
+
+
 def test_device_credential_lock_serializes_revocation(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
