@@ -2966,6 +2966,7 @@ def test_uf13_registered_products_require_human_confirmation(tmp_path: Path) -> 
 
 def test_uf13_retains_login_registration_after_predecessor_merge(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """先行LoginScreen統合済みの隔離履歴で登録と旧層削除拒否を実CLI検証する。"""
     root = make_repo_with_actual_core_areas(tmp_path)
@@ -2998,6 +2999,8 @@ def test_uf13_retains_login_registration_after_predecessor_merge(
     run_git(root, "-c", "user.email=test@example.com", "-c", "user.name=test",
             "commit", "-qm", "synthetic route registration")
     head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    # 将来の回転を再現した候補実体を実行し、ホストの現在追加層には依存させない。
+    monkeypatch.setattr(sys.modules[__name__], "SCRIPT", root / "scripts/core_guard.py")
     event = write_event(tmp_path, base_sha, head_sha, f"- [ ] {REQUIRED_CHECK_TEXT}")
     result = run_guard(root, event_name="pull_request", event_path=event)
     assert result.returncode == 1
