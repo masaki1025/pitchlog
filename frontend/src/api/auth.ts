@@ -9,7 +9,12 @@ import {
   writeAuthIntent,
   type AuthIntent,
 } from './authIntent'
-import { ApiError, ApiStaleAuthError, apiRequest } from './client'
+import {
+  ApiError,
+  ApiNetworkError,
+  ApiStaleAuthError,
+  apiRequest,
+} from './client'
 
 /** 状態と世代は一緒に扱い、旧操作の表示結果を新しい画面へ渡さない。 */
 export type SessionResult =
@@ -163,6 +168,12 @@ async function readSession(
       return failedEnvironment(auth, error)
     if (error instanceof ApiStaleAuthError)
       return { status: 'stale', authEpoch: epoch }
+    if (
+      error instanceof ApiNetworkError &&
+      !auth.isAuthenticated &&
+      auth.automaticVerificationBlocked
+    )
+      return unknown(auth)
 
     if (error instanceof ApiError && error.status === 401) {
       try {
@@ -269,7 +280,9 @@ export async function login(
   let intent: AuthIntent | undefined
   let notice: string | null = null
   let uncertaintyNotified = false
-  const onUncertain = async () => {
+  let outcomeUnknown = false
+  const onUncertain = async (resultUnknown = false) => {
+    outcomeUnknown ||= resultUnknown
     if (uncertaintyNotified) return
     uncertaintyNotified = true
     try {
@@ -277,7 +290,7 @@ export async function login(
       const now = readAuthIntent()
       const changed =
         now?.intentId !== intent?.intentId || auth.authEpoch !== entry.epoch
-      if (changed) await invalidateCookieUncertainty(auth)
+      if (resultUnknown || changed) await invalidateCookieUncertainty(auth)
     } catch (error) {
       failedEnvironment(auth, error)
     }
@@ -320,6 +333,7 @@ export async function login(
     if (error instanceof AuthEnvironmentError)
       return failedEnvironment(auth, error)
     auth.syncFromStorage()
+    if (outcomeUnknown) return unknown(auth)
     if (error instanceof ApiStaleAuthError || auth.authEpoch !== entry.epoch)
       return { status: 'stale', authEpoch: entry.epoch }
     if (!intent) return unknown(auth)
@@ -349,6 +363,7 @@ export async function logout(
   mutations.set(auth, entry)
   let intent: AuthIntent | undefined
   let notified = false
+  let outcomeUnknown = false
   try {
     intent = await withAuthIntent(() => {
       const next = writeAuthIntent('signed-out', null)
@@ -358,14 +373,15 @@ export async function logout(
     const value = await apiRequest<unknown>('POST', '/auth/logout', {
       signal: options.signal,
       noAuthExpiry: true,
-      onAuthCookieUncertain: async () => {
+      onAuthCookieUncertain: async (resultUnknown = false) => {
+        outcomeUnknown ||= resultUnknown
         if (notified) return
         notified = true
         auth.syncFromStorage()
         const now = readAuthIntent()
         const stale =
           now?.intentId !== intent!.intentId || auth.authEpoch !== entry.epoch
-        if (stale) await invalidateCookieUncertainty(auth)
+        if (resultUnknown || stale) await invalidateCookieUncertainty(auth)
       },
     })
     return await withAuthIntent((now) => {
@@ -384,6 +400,8 @@ export async function logout(
     if (error instanceof AuthEnvironmentError)
       return failedEnvironment(auth, error)
     auth.syncFromStorage()
+    if (outcomeUnknown)
+      return { status: 'verification-unknown', authEpoch: auth.authEpoch }
     if (error instanceof ApiStaleAuthError || auth.authEpoch !== entry.epoch)
       return { status: 'stale', authEpoch: entry.epoch }
     if (intent && error instanceof ApiError && error.status === 401)

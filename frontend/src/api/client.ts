@@ -17,7 +17,7 @@ export interface RequestOptions {
   >
   noAuthExpiry?: boolean
   /** Cookie変更可能な成功headers/通信結果不明を、世代判定より先に一度だけ通知する。 */
-  onAuthCookieUncertain?: () => void | Promise<void>
+  onAuthCookieUncertain?: (resultUnknown?: boolean) => void | Promise<void>
   signal?: AbortSignal
 }
 
@@ -191,7 +191,9 @@ async function requestResponse<T>(
   let epoch = auth.authEpoch
   // 現存するtenant認証付き経路はCookieを更新し得る。認可の判定には使わない。
   const cookieMayRenew =
-    path === '/auth/session' || /^\/(?:players|team-records)(?:\/|$)/.test(path)
+    ['/auth/session', '/auth/password', '/auth/login', '/auth/logout'].includes(
+      path,
+    ) || /^\/(?:players|team-records)(?:\/|$)/.test(path)
   if (
     options.onAuthCookieUncertain &&
     !(method === 'POST' && (path === '/auth/login' || path === '/auth/logout'))
@@ -221,9 +223,9 @@ async function requestResponse<T>(
   } catch (error) {
     // HTTP応答が得られなくてもCookie変更済みの可能性は残る。
     auth.syncFromStorage()
-    if (cookieMayRenew && auth.authEpoch !== epoch)
-      await auth.invalidateUncertainCookie()
-    await options.onAuthCookieUncertain?.()
+    // 結果不明なら現世代でもCookieが変わり得る。要求につき通知経路は一つ。
+    if (options.onAuthCookieUncertain) await options.onAuthCookieUncertain(true)
+    else if (cookieMayRenew) await auth.invalidateUncertainCookie()
     if (isAbortError(error)) {
       throw error
     }
@@ -234,7 +236,12 @@ async function requestResponse<T>(
   auth.syncFromStorage()
   const stale = auth.authEpoch !== epoch
   // C2のtenant/nonce拒否より先に、古いheadersによるCookie不確実性を無効化する。
-  if (stale && cookieMayRenew && res.status !== 401)
+  if (
+    stale &&
+    cookieMayRenew &&
+    res.status !== 401 &&
+    !options.onAuthCookieUncertain
+  )
     await auth.invalidateUncertainCookie()
   if (res.ok && options.onAuthCookieUncertain) {
     await options.onAuthCookieUncertain()

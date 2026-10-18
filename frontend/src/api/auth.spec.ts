@@ -700,3 +700,53 @@ it.each(['malformed', null])(
     empty()
   },
 )
+
+it.each(['session', 'login', 'logout'] as const)(
+  '現行%sの結果不明もlock競合中に一度通知する',
+  async (kind) => {
+    await loggedIn()
+    vi.mocked(fetch).mockClear()
+    const waiting = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(waiting.promise)
+    const writes = vi.spyOn(Storage.prototype, 'setItem')
+    const operation =
+      kind === 'login'
+        ? login(credentials)
+        : kind === 'logout'
+          ? logout()
+          : session()
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+    vi.stubGlobal('navigator', {
+      locks: { request: vi.fn(async (_n, _o, action) => action(null)) },
+    })
+    waiting.reject(new TypeError('network'))
+    expect((await operation).status).not.toBe('authenticated')
+    empty()
+    expect(localStorage.getItem('bb.auth.uncertain')).not.toBeNull()
+    expect(
+      writes.mock.calls.filter(([key]) => key === 'bb.auth.uncertain'),
+    ).toHaveLength(1)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  },
+)
+
+it.each([false, true])(
+  '旧password応答をlock競合%sでも新世代へ採用せず失効通知する',
+  async (busy) => {
+    oldAuth()
+    const waiting = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(waiting.promise)
+    const old = apiRequest('PATCH', '/auth/password', { body: {} })
+    setVerifiedAuthForTest(useAuthStore(), { teamName: '新B', teamId: b })
+    queryClient.setQueryData(['new-B'], 'private')
+    if (busy)
+      vi.stubGlobal('navigator', {
+        locks: { request: vi.fn(async (_n, _o, action) => action(null)) },
+      })
+    waiting.resolve(response({ status: 'password_changed' }))
+    await expect(old).rejects.toMatchObject({ name: 'ApiStaleAuthError' })
+    empty()
+    expect(localStorage.getItem('bb.auth.uncertain')).not.toBeNull()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  },
+)
