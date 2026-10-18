@@ -256,3 +256,9 @@ C1のsession開始がbb.authを削除するため、同tenantの新規タブの�
 専用結合0cb5ab4bは全frontend1,352件と実画面/API/隔離DB正常8項目に成功した。対戦相手配下の選手追加・編集・再読込の限定受入で、自チームreadは既存契約外。遅延Cookieは通常4ケース成功、native lock競合の1ケース失敗。追加契約6de49595/680c2a27は未承認・未実装で、全受入・ステップ3完了とは記録しない。
 
 許可されたDraftはこの未完了状態を可視化するために作成する。plan activeを保持し、単独枝ではLoginScreen/C2の実develop統合前のため単独製品build/全受入の合格を主張しない。既定各2周のレビュー回数と未再レビュー範囲を保持する。本人確認欄は未記入、Draft解除・公開・マージは禁止を維持する。
+
+## 2026-10-19: 限定2件承認後の接続条件
+
+6de49595/680c2a27は本会話で承認済み。拒否通知2キーとmetadata不正時の無効化を専用結合へ実装し、source C1はDraft #157。未承認待ちへ戻さない。実統合順は#157→#150→#151→#154。#150のmetadata680と#151の新store直接型/consumer試験は#157の実develop統合後に追随し、未統合枝を通常基線にしない。依存一枚表の編集元は#157のdocs/features/auth-login-session-correlation/pr-dependency-map.md。
+
+専用結合製品cdaf49fd/fixture d1f467f5・資料600e998bでfrontend1,382成功。実画面/API/隔離DB/productionのopponent正常8項目、Cookie遅延5、metadata2、環境/通信断7、storage event欠落1が成功。全て単独CIとは分ける。自チームのID取得には既存opponent readを緩めない最小追加契約が必要で、別判断待ち。自チーム受入/ステップ3/TSK-528全体は未完了。
