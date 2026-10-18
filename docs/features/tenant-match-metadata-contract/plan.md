@@ -3,7 +3,7 @@ feature: tenant-match-metadata-contract
 status: in-review
 承認: 済(2026-10-14・山田正輝)
 重さ分類: コア領域
-worktree: /tmp/pitchlog-tenant-match-metadata-contract
+worktree: /home/ymdms/projects/pitchlog-worktrees/feature-tenant-match-metadata-contract
 notion: "U-F13（TSK-528）追補 C2"
 branch: feature/tenant-match-metadata-contract
 created: 2026-10-14
@@ -177,3 +177,12 @@ open PR #143はcore-areas.json/core_guard.py/test_core_guard.pyとrepository/aut
 同実HEADでtenant-boundary・frozen invariants・authz catalog成功。基線core検査成功、製品/試験17ファイル検出、本人逐行確認未記入なら17件すべて拒否を確認した。共有registry/認可/凍結/guard資産は未変更。最終sourceのroute hookと2xx解釈失敗分類等は既定2周後の未再レビュー差分として人間確認へ残す（PR準備資料/作業ログ参照）。
 
 PR準備のためin-reviewへ移すが、人間逐行確認・CI・公開・マージの完了ではない。通常push/PR作成は未実施。TSK-528全体、U-F3のcore登録、U-F13の接続/実画面/API/DB通し、TSK-520の実API受入は未完了。別件Cookie追補初案の否決と、login/session相関に関する追加判断を本C2へ無断で実装しない。
+
+
+## 15. 最新基線と再検証・現在の待ち（2026-10-18）
+
+PR #143は`156dd139a893845428a1ecab69632143f7694e0b`へ実統合済みで、本branchは通常merge済み（製品検査HEAD `77d20da729994564b802cb33fbf14dc9ef26785d`）。旧/tmp worktreeの消失後、コミット済み成果をディスク側へ復元した。C1/#119/#129/#131/#132/#137/#143の統合待ちを現在の停止理由にしない。17製品/試験ファイルのSHA-256は固定済みで、その後の記録更新で製品を変えない。
+
+最新基線のfrontend69ファイル1,279成功、root全29,670成功/2 skip、型/lint/整形/build・tenant境界・frozen不変量・認可catalog成功。backend全件は外部venvリンク構成のため子変異試験のartifact fixtureが失敗（3,030成功/2失敗/4 skip）。通常位置へvenvを再作成し、変異module全7成功を確認、期待値や検査器を変えず3,036件の全件を専用clusterで再実行中。全件の失敗・中断を成功と記録しない。
+
+C2の承認済み2ステップと既定2経路各2周の採否は維持する。未再レビューの最終反映は引き続き本人確認対象。新しいlogin/session相関候補は別の未承認C1局所追補であり、本C2に新DTO・新storage契約・ACLを混ぜない。共有clientは本C2の入力固定後にだけ次所有へ渡し、U-F3は画面/spec、U-F13はrouter/App/core3ファイルを順次所有する。550/D4/544/545を本縦断の待ちにしない。push/Draft PR作成・本人確認・公開・マージは今回の検証結果で代行しない。

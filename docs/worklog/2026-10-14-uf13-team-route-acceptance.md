@@ -499,3 +499,10 @@ U-F3は経路未登録の正規auth接続と24固有試験/全frontend1,261試�
 - 計画はPR準備のin-reviewへ移し、実装/ローカル検査のDoDだけを記録した。C2本人対象は製品9・試験8・資料9の全26ファイルで、標準route hook、valid本文/query追加、2xx本文解釈失敗分類等の上限後未再レビュー差分を明示。本人チェック・対象/範囲/方法欄は未記入。C1の本人回答はC2へ流用しない。通常push・PR作成・CI・公開・マージは未実施。
 - U-F3は別worktreeのHEAD `18e5ea0f8db90ae6ef5f393946750e68659e8233`へ実装/資料をコミット済み。経路未登録LoginScreen、固有30件/全1,267件と型/lint/build成功、既定2周指摘全採用。coreの`LoginScreen*`未登録と本人6ファイル確認は未了でactiveを維持する。U-F13専用worktreeは最新developへfast-forwardし、HEAD a7bf780eで#119/C1の充足済み開始条件を明記したが、router/Appは未変更。
 - 次の新規判断は、LoginScreen1パターンのT登録追補と#143共有3ファイルの順序、ならびにCookie追補初案の否決を受けたlogin/session相関契約の具体化。既承認router/App登録や既受理C1を再承認待ちには戻さない。未統合の他担当branchを基線にせず、#143資産を無断編集しない。U-F13のC2/U-F3着地条件、15経路+catch-all残部、TSK-520実API受入は未完了。実画面→実API→実DBの通し試験は未実施であり、ブラウザの存在確認を受入証跡にしない。
+
+
+## 2026-10-18: C2最新基線の現在地・引継ぎ更新
+
+C2は156dd139基線へ通常merge済み、固定製品HEAD77d20da7。旧/tmp成果はコミットからディスク側worktreeへ復元し、17製品/試験blobのSHA-256を保持。最新frontend1,279成功、root全29,670成功/2 skip、型/lint/build/tenant-boundary/frozen不変量/認可catalog/plan正本同期成功。backend環境不備2件（3,030成功/2失敗/4 skip）は通常venvへ修正し、変異module7成功を確認して全3,036件を再実行中。全件greenやCI成功へ代用しない。
+
+C1/#119/#143等の解消済み統合待ちを現行の停止理由から外し、shared client=C2、LoginScreen=U-F3、router/App/core3=U-F13の順で所有を固定した。C2への新auth DTO/保存契約の追加なし。C1相関の未承認具体候補はU-F13 branch379aef25へ一本化し、既C1の受理やC2/U-F3レビューを再承認待ちへ戻さない。push/Draft PR作成・本人逐行確認・公開・マージはまだ代行しない。
