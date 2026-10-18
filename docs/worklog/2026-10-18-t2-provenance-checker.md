@@ -141,3 +141,14 @@ branch: feature/t2-provenance-checker
 - 確認時点では今回送付に対する受取担当の返信なし。送付成功と実受理を分け、全3件の受理未取得を維持。担当氏名/受理日/受理範囲を推定記録しない。
 - 本担当TSK-564カードのURLプロパティをPR153へ、状態を「確認待ち」へ更新し再取得で照合。署名確認対象/必要実施者/実施内容と正式ゲートをcomment `3fd93b75-e687-81b8-8cb8-001dba41a95a`に提示。既存署名とnot-performedは変更しない。
 - 545の製品実行証跡を着手条件へ追加しないというPO指示を受渡し/PR本文/送付文に明記。公開契約/責任境界の受理は着手前、全case/実投影/runner/共有核投入等の結合証跡は実装後DoD。P-1〜P-9/T1マージは維持。
+
+## 2026-10-19 #153残ゲートの一本化
+
+- PO指示: TSK-564としてT2 provenance/引継ぎP-8を継続し、U-S1のタブ整理と混同せず、新規PRを増やさない。#153の必須残件・回答・担当/指名・DRAW/GAPの今回/後続範囲を一枚へ整理。
+- 最新develop=`015dfa9db0b7b8740369911a9cb5195dd59a62ea`（#155）を照合し、既存枝へ通常merge=`bf1c0bfc0c0662a9d195629c8fa74f2b77a326d6`。3ファイルのUX1計画/設計/ログ更新だけで、コード/契約/候補は5a9e37bd固定のまま。backup refと全レビュー履歴を保持。
+- **544の候補受領を新たに確認**: develop統合済み `docs/worklog/2026-10-10-ux1-state-calc.md`「2026-10-19 #153受渡し後の担当受領と開始条件」。a5a2aa38/コード5a9e37bdを指定しscore2/操作42/E12相関21を候補の責任分担として受領。同scope/event/prefixのT1得点供給/undo再評価を受け取り、T2認可/表示oracle/正式契約/P-6へ拡張しない。544実装担当の既指名/受諾（DeepSeek V4.1 Flashを実装代替として記録）を未指定へ戻さない。P-6独立検証担当とは別。
+- 544/545/523/564のNotionコメントを今回一度照合。旧送付以降の返信はなし。ただしNotion返信がないことを理由に上記544受領を無視しない。545/523は回答未取得のまま。544へ同一版の再照会は行わない。
+- 完走したa5a2aa38のCI run39143854824を取得。harness job117724721033は署名不一致だけで1 failed/29,633 passed/2 skipped（892.70秒）、core-guardは本人逐行確認欄未チェックで失敗、backend/frontend等は合格。未実施署名/チェックで回避しない。
+- 最新取込後の関連5ファイルは **707 passed /18.54秒**（`/tmp/t2-pr153-develop015d-impact.log`）。ruff全体/ty/候補CLI/正本差分同期/docs-status/diff-check合格、D1〜D4も全true。全harnessの最新取込後再実行ではない。正式T1/descriptor/branch mapping/gap registerはdevelopと不変。
+- 新しい現行索引は `docs/features/t2-provenance-checker/pr153-merge-gates-onepage.md`。#153のprovenance限定再署名/PR本人確認/レビュー/CIと、後続の正式P-8収容/P-6/実装証跡を分離。署名でnot-performedや未被覆を消さない。P-6を元provenance計画の実施外である事実と、P-8/545着手には必要な事実を両方保持。
+- 計画上の反対側Claude一次/旧計画Codex追認の実施対応には未取得証跡があるため、既存基本2+追加2を別ゲートへ推定転用しない。必要な担当/指名は一括提示する。レビュー枠をリセット/無断追加しない。
