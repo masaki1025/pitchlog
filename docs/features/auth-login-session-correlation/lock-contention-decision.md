@@ -1,0 +1,33 @@
+# lock競合時のCookie不確実通知：追加判断案（未承認・未実装）
+
+## 承認済み契約で不足する反例
+
+1. Bタブが`pitchlog.auth.intent`を保持している。
+2. 旧Aのlogin/logout/session応答が到着し、ブラウザがCookieを変更する。
+3. AタブのifAvailable取得はlock-busyとなる。Aだけを未確認にしても、共有intentはexpected Bのまま。Bへ未確認化を通知できない。
+
+Cookie変更可能なPOST/GETの自動再送も、lock待機・自動再試行も行わない条件を維持したまま、拒否だけを伝える独立の通知が必要。C2の業務前照合は異tenantの操作を拒否するが、それを全タブの未確認化・cache破棄と同一扱いにはできない。
+
+## 推奨差分（人間判断対象）
+
+新規localStorageキーを次の2件に限定する。Cookie/token/password/team_name/tenant IDを含めず、値はcanonical UUID文字列（または未作成）だけ。
+
+| key | 値・書込時点 | 権限・制約 |
+| --- | --- | --- |
+| `bb.auth.uncertain` | Cookie変更可能な旧応答または結果不明を観測した1要求につき、新しいcrypto.randomUUID()を一度だけ保存 | **拒否専用通知に限りintent lock外の書込を許す例外**。認証意図や成功状態を発行しない。比較更新/CASや独自mutexとは扱わない |
+| `bb.auth.uncertain.ack` | 正規sessionのDTO/期待tenant/意図/世代が一致した際、その要求が開始・採用時に照合したuncertain UUIDを保存 | Web Locks内だけで更新。応答開始後に新しいuncertainがあれば旧UUIDのackは現在値と一致せず、採用を拒否する。通知キー自体は削除しない |
+
+- 既存`bb.auth.intent`の4キー構造とphaseは不変。相関制約の追加でありサーバー認証・認可を代替しない。
+- 全タブはstorage eventだけでなく、tenant通信の送信前・応答本文採用前にもuncertain/ackと自分の採用済み通知IDを読み直す。不一致・破損・読取不能で認証/旧cacheを破棄し、自動復帰を止める。
+- 起動/reloadで未ack通知があれば自動session GETを止める。期待tenantが既知なら利用者の明示session GETだけを許す。未知なら明示login/logout。失敗時に資格情報やmutationを再送しない。
+- 通知のackは他タブの認証済み状態を復元しない。各タブは自分のサーバー確認に成功するまで未確認。新しい通知の上書きが並行しても、旧ackで最新通知は一致しない。
+- 保存機能そのものが失敗すれば、そのタブは送信/採用を拒否し、保存許可とreloadの回復案内を出す。通知を保存できなかったことを全タブへ到達済みとは主張しない。その境界でもC2の業務前tenant照合は必須。
+- BroadcastChannelや追加ブラウザAPIは要求しない。Web Locks/storage/secure contextの既承認可用性要件を維持する。
+
+## 追加検証
+
+実ブラウザでlockを別タブが保持したまま旧Cookie応答を遅着させ、Bの未確認化・cache破棄・業務通信拒否を確認する。通知とsession応答/ackの前後2順序、複数通知、同じ要求による二重通知、reload、破損/保存拒否を単体・実ブラウザで確認する。旧通知だけでtenantや成功状態を採らない。
+
+## レビューと進行
+
+新相関差分のCodex実装第1周はP0=0/P1=4/P2=1。非同期待ち漏れは修正、旧保存値の消去も採用。lock-busy通知の上記具体契約は承認前に実装しない。旧signInの迂回指摘は実呼出経路と試験の移行を照合中。実DB/画面試験は未完了。反対側第1周は回答待ち。第2周の基本枠を未消費として保持し、承認後の指摘反映と影響をまとめて確認する。旧U-F13等の消費済み枠は再利用しない。
