@@ -13,6 +13,8 @@
 - `p8_candidate_schema_v1.json`: 候補の閉じた型。ruleSnapshot・decision・normalizedCaseと参照先の閉包は現行T2 schemaから複製した。正式なschemaの改訂ではない。
 - `requirements-followup.patch`: E11限定明文と裁定4件の正本追随案。未適用。要件版・変更履歴を勝手に確定しない。550側承認済みE12追補はこのpatchに再起案せず、別枝の統合・版番号調整を先行条件として保持する。
 
+正本patchは空白だけのcontext行を含めない0行contextの形式。適用可能性の検査は`git apply --check --unidiff-zero docs/features/t2-provenance-checker/candidates/requirements-followup.patch`で行う（正式適用は別ゲート）。
+
 検査の保証範囲:
 
 - 相関は候補descriptorから既存導出器内の候補要求型で導出し、候補契約の全件とexact-set照合する。既存12件のinvalid境界を変えず、禁止された`start-inning:R+1`のinvalid宣言を使わない。
