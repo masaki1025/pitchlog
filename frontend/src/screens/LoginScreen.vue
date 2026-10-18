@@ -184,7 +184,12 @@ watch(
   () => auth.authEpoch,
   () => {
     password.value = ''
-    if (pending.value && state.value === 'submitting') state.value = 'verifying'
+    if (
+      pending.value &&
+      state.value === 'submitting' &&
+      correlatedAuth.canReverify !== false
+    )
+      state.value = 'verifying'
     else if (!pending.value) state.value = 'verification-unknown'
   },
   { flush: 'sync' },
