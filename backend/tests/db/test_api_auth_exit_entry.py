@@ -368,7 +368,12 @@ async def test_password_change_entry_cannot_use_another_tenants_password(
                 headers=_headers(first_value),
             )
             second_access = await client.get(
-                "/players?limit=1", headers=_headers(second_value)
+                "/players?limit=1",
+                headers={
+                    **_headers(second_value),
+                    "X-Pitchlog-Expected-Tenant": str(second.tenant_id),
+                    "X-Pitchlog-Tenant-Challenge": str(uuid4()),
+                },
             )
 
         assert crossed.status_code == 401
@@ -422,7 +427,12 @@ async def test_logout_entry_revokes_only_the_presented_tenant_token(
                 "/players?limit=1", headers=_headers(first_value)
             )
             second_access = await client.get(
-                "/players?limit=1", headers=_headers(second_value)
+                "/players?limit=1",
+                headers={
+                    **_headers(second_value),
+                    "X-Pitchlog-Expected-Tenant": str(second.tenant_id),
+                    "X-Pitchlog-Tenant-Challenge": str(uuid4()),
+                },
             )
 
         assert first_logout.status_code == 200
