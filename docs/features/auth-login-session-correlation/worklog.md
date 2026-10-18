@@ -100,3 +100,9 @@ C1相関Draft https://github.com/masaki1025/pitchlog/pull/157 を671ade58で作�
 attempt31はstorage eventを抑制した別タブで、実Cookie Aへの巻戻り後にB cache3→0・旧画面非採用・業務POST0・明示再確認を確認（7.90秒、隔離DB/実API/production）。先のattempt30は、既に安全側へ遷移して消えた入力欄をdriverが操作しようとしてtimeoutしたため不合格を保持。正規の認証済み画面が残っている場合だけ操作を試み、早い拒否も同じ不合格にしないdriverへ修正し、cache/通信拒否のassertは保持した。
 
 製品はC1 108c7562/結合cdaf49fdから不変で、後続912585d1/d1f467f5の差分はauth.test-support.ts（閉域外の単体fixture）のみとgitで機械確認した。資料追加を新たな製品再試験済みとは主張しない。正式asset/ACL/7.7変更なし。本人逐行確認・保留P2のPO判断・自チーム契約は未了。
+
+## 最新develop追随・CIの基線競合の切り分け
+
+最終fetchでorigin/developが015dfa9d（#155統合）へ進んだ。差分はU-X1のfeatures/worklog3文書だけで製品重複なし。C1/C2/U-F3/U-F13/専用結合に通常mergeし、他担当の未統合枝は取り込んでいない。C2だけは先の#148の資料/固有root試験追随も含むため当該試験を追加検査する。
+
+旧CIのtenant-boundary失敗は「明示base_refとevent base.sha不一致」、harness失敗は「HEAD第1親015dfa9dに対しevent baseが5bb1ff89」の拒否であり、develop更新と旧editedイベントの競合とログから確認した。ガードやworkflowを緩和せず、現基線を含む新HEADを通常pushして新しいイベントで再検査する。core-guard本人未記入と#154単独LoginScreen欠落は別の未完了条件を維持する。
