@@ -106,4 +106,6 @@ Ruff check、ty check、候補単体とRG1関連25件は成功。使い捨てPos
 
 U-G1/U-S1/認証担当の未受理を[担当別受理シート](../features/ur1-recording-rights/step5-owner-acceptance-sheet.md)へ分けた。公開署名/DTO/失敗と全ロック順、資格失効対書込みの直列化、外部予約attemptの耐久保存と予約応答消失・業務rollback・commit結果不明の各停止/再照合、独立V12鍵束の寿命が対象。**担当の無回答は合意ではない**。実台帳、実端末資格、製品Portは未提供で、隔離候補の成功と区別する。
 
+既存[固定接続候補](../features/ur1-recording-rights/step5-connection-fixed-candidate.md)の列挙では端末資格行と外部epoch行の取得順が逆に読めたため、候補関数と担当別シートに合わせて**外部epoch共有→資格行共有**へ整えた。これは未受理の全順候補の内部整合であり、認証担当/U-G1/U-S1の受理を代記しない。
+
 独立した使い捨てPostgreSQL試験に、D4 counterと予約行の同一外部transaction確定後の応答消失を模し、所有tupleによる同一attempt/D4再照会、別tenant拒否、claimed D4の非再利用を追加した。これは実台帳adapter・同期standby耐久・不明業務commitの解決を証明しない。backend `ruff format`後、`ruff check`、`ty check`、候補+RG1関連pytest **30件成功**。全backend/全ハーネス、製品Port実経路は未検証。正式資産/7.7、実配置/費用、運用open、共有DB適用、push/PR/mergeは変更していない。
