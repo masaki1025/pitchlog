@@ -1,3 +1,4 @@
+import { setVerifiedAuthForTest } from './auth.test-support'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '../lib/queryClient'
@@ -9,12 +10,26 @@ import {
   logout,
   session,
 } from './auth'
+import {
+  AUTH_INTENT_KEY,
+  readAuthIntent,
+  withAuthIntent,
+  writeAuthIntent,
+  type AuthIntent,
+} from './authIntent'
 import { ApiSessionUnverifiedError, apiRequest } from './client'
 
-const a = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-  b = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+const a = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+const b = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const credentials = { team_name: '入力値', password: 'test-only' }
 let pinia: Pinia
+let pins: Pinia[]
+function tab() {
+  const p = createPinia()
+  pins.push(p)
+  setActivePinia(p)
+  return p
+}
 function response(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
     status,
@@ -32,35 +47,55 @@ function deferred<T>() {
   })
   return { promise, resolve, reject }
 }
-function oldAuth() {
-  const auth = useAuthStore()
-  auth.signIn({ teamName: '旧A', teamId: a })
-  queryClient.setQueryData(['old'], 'A秘密')
-  return auth
+async function intent(
+  phase: AuthIntent['phase'] = 'expected',
+  id: string | null = b,
+) {
+  return withAuthIntent(() => writeAuthIntent(phase, id))
 }
-function empty() {
-  const auth = useAuthStore()
+function empty(p = pinia) {
+  const auth = useAuthStore(p)
   expect(auth.isAuthenticated).toBe(false)
   expect(auth.teamId).toBeNull()
   expect(auth.teamName).toBeNull()
   expect(queryClient.getQueryCache().getAll()).toEqual([])
 }
+function oldAuth() {
+  const auth = useAuthStore()
+  setVerifiedAuthForTest(auth, { teamName: '旧A', teamId: a })
+  queryClient.setQueryData(['old'], 'A秘密')
+  return auth
+}
+async function loggedIn(id = b) {
+  respond({ status: 'authenticated', tenant_id: id })
+  respond({ tenant_id: id, team_name: '正規名' })
+  expect((await login(credentials)).status).toBe('authenticated')
+  return useAuthStore()
+}
 beforeEach(() => {
+  pins = []
   localStorage.clear()
   queryClient.clear()
-  pinia = createPinia()
-  setActivePinia(pinia)
+  pinia = tab()
   vi.stubGlobal('fetch', vi.fn())
+  // 単体試験のlock。実ブラウザの排他・Cookie適用試験とは区別する。
+  vi.stubGlobal('navigator', {
+    locks: {
+      request: vi.fn(async (_name, _options, action) =>
+        action({ name: 'test' }),
+      ),
+    },
+  })
 })
 afterEach(() => {
-  disposePinia(pinia)
+  for (const p of pins) disposePinia(p)
   queryClient.clear()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
 
-describe('C1正規認証操作', () => {
-  it('保存Aは認証せずCookie Bのsessionだけを採る', async () => {
+describe('承認済みlogin/session相関', () => {
+  it('保存AやCookieだけでは復帰せず、意図なしは通信0', async () => {
     localStorage.setItem(
       AUTH_STORAGE_KEY,
       JSON.stringify({
@@ -70,95 +105,90 @@ describe('C1正規認証操作', () => {
         teamId: a,
       }),
     )
-    const auth = useAuthStore()
+    expect((await ensureSessionVerified()).status).toBe('verification-unknown')
     empty()
     await expect(apiRequest('GET', '/players')).rejects.toBeInstanceOf(
       ApiSessionUnverifiedError,
     )
     expect(fetch).not.toHaveBeenCalled()
-    respond({ tenant_id: b, team_name: '正規B' })
-    expect(await ensureSessionVerified()).toMatchObject({
-      status: 'authenticated',
-      tenantId: b,
-      teamName: '正規B',
-      authEpoch: auth.authEpoch,
-    })
+  })
+  it('loginの検証済みIDとsessionだけが認証済みになり、入力名は表示に使わない', async () => {
+    const auth = await loggedIn()
     expect(auth.teamId).toBe(b)
+    expect(auth.teamName).toBe('正規名')
+    expect(vi.mocked(fetch).mock.calls.map((c) => c[1]?.method)).toEqual([
+      'POST',
+      'GET',
+    ])
+    expect(readAuthIntent()).toMatchObject({ phase: 'expected', tenantId: b })
+    expect(localStorage.getItem(AUTH_INTENT_KEY)).not.toContain(
+      credentials.password,
+    )
     expect(vi.mocked(fetch).mock.calls[0]?.[1]?.credentials).toBe('include')
   })
-  it('同時確認は1要求に集約し検証済みなら再送しない', async () => {
-    const p = deferred<Response>()
-    vi.mocked(fetch).mockReturnValueOnce(p.promise)
-    const one = ensureSessionVerified(),
-      two = ensureSessionVerified()
-    expect(one).toBe(two)
-    p.resolve(response({ tenant_id: b, team_name: 'B' }))
-    await one
-    await ensureSessionVerified()
-    expect(fetch).toHaveBeenCalledTimes(1)
-  })
-  it.each([401, 429, 422, 500])(
-    'login %s拒否で既存認証/cacheを維持',
+  it.each([401, 422, 429, 500, 503])(
+    'login %sは旧store/cacheを復元しない',
     async (status) => {
-      const auth = oldAuth(),
-        epoch = auth.authEpoch
-      respond({ error: { message: '拒否' } }, status)
-      expect(await login(credentials)).toMatchObject({
-        status: 'rejected',
-        httpStatus: status,
-        authEpoch: epoch,
+      oldAuth()
+      respond({}, status)
+      const result = await login(credentials)
+      expect(result.status).toBe(
+        status === 401 || status === 429 ? 'rejected' : 'verification-unknown',
+      )
+      empty()
+      expect(readAuthIntent()).toMatchObject({
+        phase: 'verification-required',
+        tenantId: null,
       })
-      expect(auth.authEpoch).toBe(epoch)
-      expect(auth.teamId).toBe(a)
-      expect(queryClient.getQueryData(['old'])).toBe('A秘密')
+      expect(fetch).toHaveBeenCalledTimes(1)
+      await session()
+      await ensureSessionVerified()
       expect(fetch).toHaveBeenCalledTimes(1)
     },
   )
-  it('login成功headersで旧データを消し本文とsessionを待つ', async () => {
+  it('POSTを開始する前に旧cacheを消し、本文とsession確認中はtenant通信を拒否', async () => {
     const auth = oldAuth(),
       body = deferred<string>(),
       check = deferred<Response>()
     vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: () => body.promise,
-      } as Response)
+      .mockImplementationOnce(async () => {
+        empty()
+        expect(readAuthIntent()?.phase).toBe('pending')
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          text: () => body.promise,
+        } as Response
+      })
       .mockReturnValueOnce(check.promise)
     const work = login(credentials)
-    await vi.waitFor(() => expect(auth.isAuthenticated).toBe(false))
-    empty()
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
-    await expect(apiRequest('GET', '/players')).rejects.toBeInstanceOf(
-      ApiSessionUnverifiedError,
-    )
-    body.resolve(JSON.stringify({ status: 'authenticated' }))
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+    expect(auth.isAuthenticated).toBe(false)
+    await expect(
+      apiRequest('POST', '/players', { body: {} }),
+    ).rejects.toBeInstanceOf(ApiSessionUnverifiedError)
+    body.resolve(JSON.stringify({ status: 'authenticated', tenant_id: b }))
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
     empty()
     check.resolve(response({ tenant_id: b, team_name: '正規B' }))
-    expect(await work).toMatchObject({
-      status: 'authenticated',
-      tenantId: b,
-      teamName: '正規B',
-    })
+    expect((await work).status).toBe('authenticated')
   })
-  it.each([500, 404, 422])('session %sは結果未確認', async (status) => {
+  it.each([
+    {},
+    null,
+    [],
+    { status: 'authenticated' },
+    { status: 'authenticated', tenant_id: 'bad' },
+    { status: 'authenticated', tenant_id: b.toUpperCase() },
+    { status: 'authenticated', tenant_id: b, token: 'forbidden' },
+  ])('不正login DTO %jはsessionを送らない', async (value) => {
     oldAuth()
-    respond({ status: 'authenticated' })
-    respond({}, status)
-    expect(await login(credentials)).toMatchObject({
-      status: 'verification-unknown',
-    })
+    respond(value)
+    expect((await login(credentials)).status).toBe('verification-unknown')
     empty()
-    expect(useAuthStore().sessionExpired).toBe(false)
-  })
-  it('session 401だけをサーバー未認証にする', async () => {
-    oldAuth()
-    respond({}, 401)
-    expect(await session()).toMatchObject({ status: 'server-unauthenticated' })
-    empty()
-    expect(useAuthStore().sessionExpired).toBe(true)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(readAuthIntent()?.tenantId).toBeNull()
   })
   it.each([
     {},
@@ -170,402 +200,603 @@ describe('C1正規認証操作', () => {
     { tenant_id: b, team_name: '' },
     { tenant_id: b, team_name: 1 },
     { tenant_id: b, team_name: 'B', token: 'forbidden' },
-  ])('不正2xx DTO %jを採らない', async (value) => {
-    oldAuth()
+    { tenant_id: a, team_name: '別A' },
+  ])('不正・異tenant session DTO %jを採らない', async (value) => {
+    await intent()
     respond(value)
-    expect(await session()).toMatchObject({ status: 'verification-unknown' })
+    expect((await session()).status).toBe('verification-unknown')
     empty()
-    expect(useAuthStore().sessionExpired).toBe(false)
+    expect(readAuthIntent()).toMatchObject({
+      phase: 'verification-required',
+      tenantId: b,
+    })
   })
-  it.each([new TypeError('offline'), new DOMException('cancel', 'AbortError')])(
-    'login通信結果未確認では破棄し自動再送しない',
-    async (error) => {
-      oldAuth()
-      vi.mocked(fetch).mockRejectedValueOnce(error)
-      expect(await login(credentials)).toMatchObject({
-        status: 'verification-unknown',
-      })
-      empty()
+  it.each([404, 422, 429, 500, 503])(
+    'session %sは未認証と区別し明示GETだけで再確認',
+    async (status) => {
+      await intent()
+      respond({}, status)
+      expect((await ensureSessionVerified()).status).toBe(
+        'verification-unknown',
+      )
+      expect((await ensureSessionVerified()).status).toBe(
+        'verification-unknown',
+      )
       expect(fetch).toHaveBeenCalledTimes(1)
       respond({ tenant_id: b, team_name: 'B' })
-      await session()
+      expect((await session()).status).toBe('authenticated')
       expect(vi.mocked(fetch).mock.calls.map((c) => c[1]?.method)).toEqual([
-        'POST',
+        'GET',
         'GET',
       ])
     },
   )
-  it('login成功の不正DTOでも旧認証を復活しない', async () => {
-    oldAuth()
-    respond({ status: 'bad' })
-    expect(await login(credentials)).toMatchObject({
-      status: 'verification-unknown',
-    })
-    empty()
+  it('session401はsigned-outにし、自動復帰しない', async () => {
+    await intent()
+    respond({}, 401)
+    expect((await session()).status).toBe('server-unauthenticated')
+    expect(readAuthIntent()?.phase).toBe('signed-out')
+    await ensureSessionVerified()
     expect(fetch).toHaveBeenCalledTimes(1)
+    empty()
   })
-  it('不正JSONはsession未確認', async () => {
+  it.each([new TypeError('offline'), new DOMException('cancel', 'AbortError')])(
+    '結果不明loginは資格情報も未知tenantのGETも自動再送しない',
+    async (error) => {
+      oldAuth()
+      vi.mocked(fetch).mockRejectedValueOnce(error)
+      expect((await login(credentials)).status).toBe('verification-unknown')
+      empty()
+      await session()
+      await ensureSessionVerified()
+      expect(fetch).toHaveBeenCalledTimes(1)
+    },
+  )
+  it('不正JSONも成功にならず、旧cacheを復元しない', async () => {
     oldAuth()
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response('{', { headers: { 'Content-Type': 'application/json' } }),
     )
-    expect(await session()).toMatchObject({ status: 'verification-unknown' })
+    expect((await login(credentials)).status).toBe('verification-unknown')
     empty()
-  })
-  it('遅延sessionは新tenant/cacheに触れない', async () => {
-    const auth = oldAuth(),
-      p = deferred<Response>()
-    vi.mocked(fetch).mockReturnValueOnce(p.promise)
-    const work = session()
-    auth.signIn({ teamName: '新B', teamId: b })
-    queryClient.setQueryData(['new'], 'B秘密')
-    const epoch = auth.authEpoch
-    p.resolve(response({ tenant_id: a, team_name: '古A' }))
-    expect(await work).toMatchObject({
-      status: 'stale',
-      authEpoch: epoch - 1,
-    })
-    expect(auth.teamId).toBe(b)
-    expect(auth.authEpoch).toBe(epoch)
-    expect(queryClient.getQueryData(['new'])).toBe('B秘密')
     expect(fetch).toHaveBeenCalledTimes(1)
   })
-  it('遅延login通信結果不明は新tenantも安全側へ無効化する', async () => {
-    const auth = oldAuth(),
-      p = deferred<Response>()
+  it('同時sessionを1要求に集約し、確認済みなら再送しない', async () => {
+    await intent()
+    const p = deferred<Response>()
     vi.mocked(fetch).mockReturnValueOnce(p.promise)
-    const work = login(credentials)
-    auth.signIn({ teamName: 'B', teamId: b })
-    const epoch = auth.authEpoch
-    p.reject(new Error('offline'))
-    expect(await work).toEqual({
-      status: 'verification-unknown',
-      authEpoch: epoch + 1,
-    })
-    empty()
-    expect(auth.authEpoch).toBe(epoch + 1)
+    const one = ensureSessionVerified(),
+      two = ensureSessionVerified()
+    expect(one).toBe(two)
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+    p.resolve(response({ tenant_id: b, team_name: 'B' }))
+    await one
+    await ensureSessionVerified()
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
-  it('二重loginとlogin中sessionを開始しない', async () => {
+  it('login中は二重login/session/logoutを拒否する', async () => {
     const p = deferred<Response>()
     vi.mocked(fetch).mockReturnValueOnce(p.promise)
     const work = login(credentials)
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
     await expect(login(credentials)).rejects.toBeInstanceOf(
       AuthOperationInProgressError,
     )
-    await expect(ensureSessionVerified()).rejects.toBeInstanceOf(
-      AuthOperationInProgressError,
-    )
-    expect(fetch).toHaveBeenCalledTimes(1)
+    await expect(session()).rejects.toBeInstanceOf(AuthOperationInProgressError)
+    await expect(logout()).rejects.toBeInstanceOf(AuthOperationInProgressError)
     p.resolve(response({}, 401))
     await work
   })
-  it('進行中sessionとloginの競合を拒否', async () => {
+  it('session中はloginを開始しない', async () => {
+    await intent()
     const p = deferred<Response>()
     vi.mocked(fetch).mockReturnValueOnce(p.promise)
-    const work = session()
+    const check = session()
     await expect(login(credentials)).rejects.toBeInstanceOf(
       AuthOperationInProgressError,
     )
     p.resolve(response({ tenant_id: b, team_name: 'B' }))
-    await work
+    await check
   })
-  it.each([200, 401])('logout %sの確定結果だけ完了にする', async (status) => {
-    oldAuth()
-    respond(status === 200 ? { status: 'logged_out' } : {}, status)
-    expect(await logout()).toMatchObject({ status: 'logged-out' })
-    empty()
-    expect(useAuthStore().sessionExpired).toBe(false)
-  })
-  it.each([500, 200])('logout不正(%s)は未確認', async (status) => {
-    oldAuth()
-    respond({}, status)
-    expect(await logout()).toMatchObject({ status: 'verification-unknown' })
-    empty()
-    expect(fetch).toHaveBeenCalledTimes(1)
-  })
-  it('logout通信失敗後の明示確認はGETだけ', async () => {
-    oldAuth()
-    vi.mocked(fetch).mockRejectedValueOnce(new Error('offline'))
-    expect(await logout()).toMatchObject({ status: 'verification-unknown' })
-    empty()
+  it('同tenantの新タブ/reloadの確認は意図・旧タブ認証を変更しない（P1-1）', async () => {
+    const first = await loggedIn(),
+      marker = localStorage.getItem(AUTH_INTENT_KEY)
+    const epoch = first.authEpoch
+    tab()
     respond({ tenant_id: b, team_name: 'B' })
-    await session()
-    expect(vi.mocked(fetch).mock.calls.map((c) => c[1]?.method)).toEqual([
-      'POST',
-      'GET',
-    ])
+    expect((await ensureSessionVerified()).status).toBe('authenticated')
+    expect(localStorage.getItem(AUTH_INTENT_KEY)).toBe(marker)
+    first.syncFromStorage()
+    expect(first.isAuthenticated).toBe(true)
+    expect(first.authEpoch).toBe(epoch)
   })
-  it('結果未確認後のensureは自動再送せず、明示sessionだけ再確認する', async () => {
-    respond({}, 503)
-    expect(await ensureSessionVerified()).toMatchObject({
-      status: 'verification-unknown',
-    })
-    expect(await ensureSessionVerified()).toMatchObject({
-      status: 'verification-unknown',
-    })
-    expect(fetch).toHaveBeenCalledTimes(1)
-    respond({ tenant_id: b, team_name: 'B' })
-    expect(await session()).toMatchObject({ status: 'authenticated' })
-    expect(fetch).toHaveBeenCalledTimes(2)
+  it('別タブlogin後、旧タブは新tenantを自動採用しない（P1-2）', async () => {
+    const first = await loggedIn(a)
+    tab()
+    await loggedIn(b)
+    setActivePinia(pinia)
+    first.syncFromStorage()
+    expect(first.explicitLoginRequired).toBe(true)
+    const before = vi.mocked(fetch).mock.calls.length
+    expect((await ensureSessionVerified()).status).toBe('verification-unknown')
+    expect((await session()).status).toBe('verification-unknown')
+    expect(fetch).toHaveBeenCalledTimes(before)
+    expect(first.teamId).toBeNull()
   })
-  it('login未確認後のensureも自動再確認しない', async () => {
-    vi.mocked(fetch).mockRejectedValueOnce(new Error('offline'))
-    await login(credentials)
-    expect(await ensureSessionVerified()).toMatchObject({
-      status: 'verification-unknown',
+  it.each(['login', 'logout'] as const)(
+    '旧%sの成功headersは新意図を未確認化し、本文を採らず通知は一度',
+    async (kind) => {
+      await loggedIn(a)
+      const p = deferred<Response>()
+      vi.mocked(fetch).mockReturnValueOnce(p.promise)
+      const old = kind === 'login' ? login(credentials) : logout()
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+      tab()
+      const newer = await loggedIn(b)
+      queryClient.setQueryData(['new'], 'B秘密')
+      const text = vi.fn().mockRejectedValue(new Error('body lost'))
+      const clear = vi.spyOn(queryClient, 'clear')
+      p.resolve({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        text,
+      } as unknown as Response)
+      expect((await old).status).toBe('stale')
+      expect(text).not.toHaveBeenCalled()
+      expect(readAuthIntent()).toMatchObject({
+        phase: 'verification-required',
+        tenantId: b,
+      })
+      expect(clear).toHaveBeenCalledTimes(1)
+      newer.syncFromStorage()
+      expect(newer.isAuthenticated).toBe(false)
+      expect(queryClient.getQueryCache().getAll()).toEqual([])
+    },
+  )
+  it.each(['login', 'logout'] as const)(
+    '旧%sの確定非2xxは新tenantを無効化しない',
+    async (kind) => {
+      await loggedIn(a)
+      const p = deferred<Response>()
+      vi.mocked(fetch).mockReturnValueOnce(p.promise)
+      const old = kind === 'login' ? login(credentials) : logout()
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+      tab()
+      const newer = await loggedIn(b),
+        marker = localStorage.getItem(AUTH_INTENT_KEY)
+      p.resolve(response({}, 401))
+      expect((await old).status).toBe('stale')
+      expect(localStorage.getItem(AUTH_INTENT_KEY)).toBe(marker)
+      newer.syncFromStorage()
+      expect(newer.teamId).toBe(b)
+    },
+  )
+  it.each(['login', 'logout'] as const)(
+    '旧%sの通信結果不明は現在意図を安全側へ一度だけ無効化',
+    async (kind) => {
+      await loggedIn(a)
+      const p = deferred<Response>()
+      vi.mocked(fetch).mockReturnValueOnce(p.promise)
+      const old = kind === 'login' ? login(credentials) : logout()
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+      tab()
+      await loggedIn(b)
+      p.reject(new TypeError('offline'))
+      await old
+      expect(readAuthIntent()).toMatchObject({
+        phase: 'verification-required',
+        tenantId: b,
+      })
+      const marker = localStorage.getItem(AUTH_INTENT_KEY)
+      setActivePinia(pinia)
+      await ensureSessionVerified()
+      expect(localStorage.getItem(AUTH_INTENT_KEY)).toBe(marker)
+      expect(useAuthStore().teamId).toBeNull()
+    },
+  )
+  it('旧session成功もCookieが変わり得るので新意図を未確認へ戻す', async () => {
+    await intent('expected', a)
+    const p = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(p.promise)
+    const old = session()
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+    tab()
+    await loggedIn(b)
+    p.resolve(response({ tenant_id: a, team_name: '旧A' }))
+    expect((await old).status).toBe('stale')
+    expect(readAuthIntent()).toMatchObject({
+      phase: 'verification-required',
+      tenantId: b,
     })
-    expect(fetch).toHaveBeenCalledTimes(1)
   })
-  it('成功headers後に遅延する本文は新tenantを変更しない', async () => {
-    const auth = oldAuth(),
-      body = deferred<string>()
+  it('login本文待ちで意図が変われば旧ackを採らない', async () => {
+    const body = deferred<string>()
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       status: 200,
       headers: new Headers({ 'content-type': 'application/json' }),
       text: () => body.promise,
     } as Response)
-    const work = login(credentials)
-    await vi.waitFor(() => expect(auth.isAuthenticated).toBe(false))
-    auth.signIn({ teamName: 'B', teamId: b })
-    queryClient.setQueryData(['new'], 'B秘密')
-    const epoch = auth.authEpoch
-    body.resolve(JSON.stringify({ status: 'authenticated' }))
-    expect(await work).toMatchObject({ status: 'stale' })
-    expect(auth.authEpoch).toBe(epoch)
-    expect(auth.teamId).toBe(b)
-    expect(queryClient.getQueryData(['new'])).toBe('B秘密')
-    expect(fetch).toHaveBeenCalledTimes(1)
+    const old = login(credentials)
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+    tab()
+    await loggedIn(b)
+    const marker = localStorage.getItem(AUTH_INTENT_KEY)
+    body.resolve(JSON.stringify({ status: 'authenticated', tenant_id: a }))
+    expect((await old).status).toBe('stale')
+    expect(localStorage.getItem(AUTH_INTENT_KEY)).toBe(marker)
   })
-  it.each(['session', 'logout'] as const)(
-    '%sの確定未認証をensureで自動再確認しない',
-    async (kind) => {
-      oldAuth()
-      respond(
-        kind === 'session' ? {} : { status: 'logged_out' },
-        kind === 'session' ? 401 : 200,
-      )
-      const result = await (kind === 'session' ? session() : logout())
-      expect(result.authEpoch).toBe(useAuthStore().authEpoch)
-      expect(await ensureSessionVerified()).toEqual({
-        status: 'server-unauthenticated',
-        authEpoch: useAuthStore().authEpoch,
-      })
-      expect(fetch).toHaveBeenCalledTimes(1)
-    },
-  )
-  it('login成功後のsession待ちにも認証操作の競合を拒否する', async () => {
-    oldAuth()
-    const check = deferred<Response>()
-    respond({ status: 'authenticated' })
-    vi.mocked(fetch).mockReturnValueOnce(check.promise)
-    const work = login(credentials)
-    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
-    await expect(session()).rejects.toBeInstanceOf(AuthOperationInProgressError)
-    await expect(logout()).rejects.toBeInstanceOf(AuthOperationInProgressError)
-    check.resolve(response({ tenant_id: b, team_name: 'B' }))
-    const result = await work
-    expect(result.authEpoch).toBe(useAuthStore().authEpoch)
-  })
-  it('login成功の壊れたJSONも旧認証を戻さず結果未確認にする', async () => {
-    oldAuth()
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response('{', { headers: { 'Content-Type': 'application/json' } }),
-    )
-    expect(await login(credentials)).toEqual({
-      status: 'verification-unknown',
-      authEpoch: useAuthStore().authEpoch,
-    })
-    empty()
-    expect(fetch).toHaveBeenCalledTimes(1)
-  })
-  it.each(['login', 'logout'] as const)(
-    '遅延%s成功でCookieが変わると新世代も未確認に戻し明示GETだけを許す',
-    async (kind) => {
-      const auth = oldAuth(),
-        pending = deferred<Response>()
-      let cookie = b
-      vi.mocked(fetch).mockImplementationOnce(() => pending.promise)
-      const work = kind === 'login' ? login(credentials) : logout()
-      auth.signIn({ teamName: 'B', teamId: b })
-      queryClient.setQueryData(['B'], 'B秘密')
-      const epoch = auth.authEpoch
-      cookie = kind === 'login' ? a : ''
-      pending.resolve(
-        response({ status: kind === 'login' ? 'authenticated' : 'logged_out' }),
-      )
-      expect(await work).toEqual({
-        status: 'verification-unknown',
-        authEpoch: epoch + 1,
-      })
+  it.each([200, 401])(
+    'logout %sはtombstoneを残しGETによる自動復帰を禁止',
+    async (status) => {
+      await loggedIn()
+      respond(status === 200 ? { status: 'logged_out' } : {}, status)
+      expect((await logout()).status).toBe('logged-out')
       empty()
-      expect(auth.sessionExpired).toBe(false)
-      await expect(apiRequest('GET', '/players')).rejects.toBeInstanceOf(
-        ApiSessionUnverifiedError,
-      )
-      expect(await ensureSessionVerified()).toEqual({
-        status: 'verification-unknown',
-        authEpoch: auth.authEpoch,
+      const before = vi.mocked(fetch).mock.calls.length
+      await session()
+      await ensureSessionVerified()
+      expect(fetch).toHaveBeenCalledTimes(before)
+      expect(readAuthIntent()).toMatchObject({
+        phase: 'signed-out',
+        tenantId: null,
       })
-      expect(fetch).toHaveBeenCalledTimes(1)
-      respond(
-        cookie ? { tenant_id: cookie, team_name: '実Cookieの名称' } : {},
-        cookie ? 200 : 401,
-      )
-      const checked = await session()
-      expect(checked.status).toBe(
-        cookie ? 'authenticated' : 'server-unauthenticated',
-      )
-      expect(auth.teamId).toBe(cookie || null)
-      expect(vi.mocked(fetch).mock.calls.map((c) => c[1]?.method)).toEqual([
-        'POST',
-        'GET',
-      ])
     },
   )
-  it.each(['login', 'logout'] as const)(
-    '遅延%sの確定非2xxは新世代を無効化しない',
-    async (kind) => {
-      const auth = oldAuth(),
-        pending = deferred<Response>()
-      vi.mocked(fetch).mockReturnValueOnce(pending.promise)
-      const work = kind === 'login' ? login(credentials) : logout()
-      auth.signIn({ teamName: 'B', teamId: b })
-      queryClient.setQueryData(['B'], 'B秘密')
-      const epoch = auth.authEpoch
-      pending.resolve(response({}, 401))
-      expect(await work).toMatchObject({ status: 'stale' })
-      expect(auth.authEpoch).toBe(epoch)
-      expect(auth.teamId).toBe(b)
-      expect(queryClient.getQueryData(['B'])).toBe('B秘密')
-    },
-  )
-  it.each(['login', 'logout'] as const)(
-    '遅延%sの成功headersは本文を読まず一度だけ無効化する',
-    async (kind) => {
-      const auth = oldAuth(),
-        pending = deferred<Response>()
-      vi.mocked(fetch).mockReturnValueOnce(pending.promise)
-      const work = kind === 'login' ? login(credentials) : logout()
-      auth.signIn({ teamName: 'B', teamId: b })
-      const clear = vi.spyOn(queryClient, 'clear'),
-        discard = vi.spyOn(auth, 'beginSessionVerification')
-      const epoch = auth.authEpoch
-      const readBody = vi.fn().mockRejectedValue(new Error('body lost'))
-      pending.resolve({
-        ok: true,
-        status: 200,
-        headers: new Headers(),
-        text: readBody,
-      } as unknown as Response)
-      const result = await work
-      expect(readBody).not.toHaveBeenCalled()
-      expect(result).toEqual({
-        status: 'verification-unknown',
-        authEpoch: epoch + 1,
-      })
-      expect(await ensureSessionVerified()).toEqual(result)
-      expect(await ensureSessionVerified()).toEqual(result)
-      expect(discard).toHaveBeenCalledTimes(1)
-      expect(clear).toHaveBeenCalledTimes(1)
-      expect(fetch).toHaveBeenCalledTimes(1)
-    },
-  )
-  it.each([
-    ['login', true],
-    ['login', false],
-    ['logout', true],
-    ['logout', false],
-  ] as const)(
-    'session再確認と旧%sの到着順(session先=%s)によらずCookie変更後は未確認',
-    async (kind, sessionFirst) => {
-      const auth = oldAuth(),
-        old = deferred<Response>(),
-        check = deferred<Response>()
-      vi.mocked(fetch)
-        .mockReturnValueOnce(old.promise)
-        .mockReturnValueOnce(check.promise)
-      const mutation = kind === 'login' ? login(credentials) : logout()
-      auth.signIn({ teamName: 'B', teamId: b })
-      const checking = session()
-      if (sessionFirst) {
-        check.resolve(response({ tenant_id: b, team_name: 'B' }))
-        expect((await checking).status).toBe('authenticated')
-      }
-      old.resolve(
-        response({ status: kind === 'login' ? 'authenticated' : 'logged_out' }),
-      )
-      expect((await mutation).status).toBe('verification-unknown')
-      if (!sessionFirst) {
-        check.resolve(response({ tenant_id: b, team_name: 'B' }))
-        expect((await checking).status).toBe('stale')
-      }
-      empty()
-      expect((await ensureSessionVerified()).status).toBe(
-        'verification-unknown',
-      )
-      expect(fetch).toHaveBeenCalledTimes(2)
-    },
-  )
-  it('複数世代の旧login/logoutは各Cookie変更時に無効化するだけで旧tenantを採らない', async () => {
-    const auth = oldAuth(),
-      oldLogin = deferred<Response>(),
-      oldLogout = deferred<Response>()
-    vi.mocked(fetch)
-      .mockReturnValueOnce(oldLogin.promise)
-      .mockReturnValueOnce(oldLogout.promise)
-    const first = login(credentials)
-    auth.signIn({ teamName: 'B', teamId: b })
-    const second = logout()
-    auth.signIn({ teamName: '次世代B', teamId: b })
-    oldLogin.resolve(response({ status: 'authenticated' }))
-    expect((await first).status).toBe('verification-unknown')
-    empty()
-    respond({ tenant_id: b, team_name: '再確認B' })
-    expect((await session()).status).toBe('authenticated')
-    queryClient.setQueryData(['B'], '再確認後B秘密')
-    oldLogout.resolve(response({ status: 'logged_out' }))
-    expect((await second).status).toBe('verification-unknown')
+  it.each([500, 200])('logout不正%sは未確認で再送なし', async (status) => {
+    await loggedIn()
+    respond({}, status)
+    expect((await logout()).status).toBe('verification-unknown')
     empty()
     expect(fetch).toHaveBeenCalledTimes(3)
   })
-  it.each(['login', 'logout'] as const)(
-    '遅延%sの通信結果不明は通知と破棄を一度だけ行う',
-    async (kind) => {
-      const auth = oldAuth(),
-        pending = deferred<Response>()
-      vi.mocked(fetch).mockReturnValueOnce(pending.promise)
-      const work = kind === 'login' ? login(credentials) : logout()
-      auth.signIn({ teamName: 'B', teamId: b })
-      const discard = vi.spyOn(auth, 'beginSessionVerification')
-      pending.reject(new DOMException('cancel', 'AbortError'))
-      const result = await work
-      expect(result.status).toBe('verification-unknown')
-      expect(await ensureSessionVerified()).toEqual(result)
-      expect(discard).toHaveBeenCalledTimes(1)
-      empty()
-      expect(fetch).toHaveBeenCalledTimes(1)
-    },
-  )
-  it.each(['login', 'logout'] as const)(
-    '現世代%sの成功headers後の本文失敗も一応答で二重破棄しない',
-    async (kind) => {
+  it.each(['lock-unavailable', 'lock-busy', 'storage-unavailable'] as const)(
+    '%sでは旧認証を破棄し通信0、理由を保持',
+    async (reason) => {
       const auth = oldAuth()
-      const clear = vi.spyOn(queryClient, 'clear')
-      const discard = vi.spyOn(auth, 'beginSessionVerification')
-      vi.mocked(fetch).mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers(),
-        text: vi.fn().mockRejectedValue(new Error('body lost')),
-      } as unknown as Response)
-      const result = await (kind === 'login' ? login(credentials) : logout())
-      expect(result.status).toBe('verification-unknown')
-      expect(await ensureSessionVerified()).toEqual(result)
-      expect(discard).toHaveBeenCalledTimes(1)
-      expect(clear).toHaveBeenCalledTimes(1)
+      if (reason === 'lock-unavailable') vi.stubGlobal('navigator', {})
+      else if (reason === 'lock-busy')
+        vi.mocked(navigator.locks.request).mockImplementation(
+          async (_n, _o, cb) => cb!(null),
+        )
+      else
+        vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+          throw new Error('denied')
+        })
+      expect((await login(credentials)).status).toBe('verification-unknown')
+      expect(auth.environmentReason).toBe(reason)
       empty()
-      expect(fetch).toHaveBeenCalledTimes(1)
+      expect(fetch).not.toHaveBeenCalled()
     },
   )
 })
+
+describe('第1周の回復・直列化指摘', () => {
+  it('成功本文は非同期Cookie通知の完了まで読まない', async () => {
+    const waiting = deferred<void>()
+    const text = vi
+      .fn()
+      .mockResolvedValue(
+        JSON.stringify({ status: 'authenticated', tenant_id: b }),
+      )
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text,
+    } as unknown as Response)
+    const notify = vi.fn(() => waiting.promise)
+    const work = apiRequest('POST', '/auth/login', {
+      body: credentials,
+      noAuthExpiry: true,
+      onAuthCookieUncertain: notify,
+    })
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1))
+    expect(text).not.toHaveBeenCalled()
+    waiting.resolve()
+    await work
+    expect(text).toHaveBeenCalledTimes(1)
+  })
+  it('lock-busy後は他タブの意図を変更せず明示GETで回復', async () => {
+    const marker = await intent()
+    vi.mocked(navigator.locks.request).mockImplementationOnce(
+      async (_n, _o, action) => action!(null),
+    )
+    expect((await ensureSessionVerified()).status).toBe('verification-unknown')
+    const auth = useAuthStore()
+    expect(auth.environmentReason).toBe('lock-busy')
+    expect(auth.canReverify).toBe(true)
+    expect(auth.explicitLoginRequired).toBe(false)
+    expect(fetch).not.toHaveBeenCalled()
+    respond({ tenant_id: b, team_name: 'B' })
+    expect((await session()).status).toBe('authenticated')
+    expect(readAuthIntent()).toEqual(marker)
+    expect(auth.environmentReason).toBeNull()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it('同tenantの別タブ再loginも旧タブは自動復帰せず明示GETだけを許す', async () => {
+    const first = await loggedIn(b)
+    tab()
+    await loggedIn(b)
+    setActivePinia(pinia)
+    first.syncFromStorage()
+    const count = vi.mocked(fetch).mock.calls.length
+    expect((await ensureSessionVerified()).status).toBe('verification-unknown')
+    expect(fetch).toHaveBeenCalledTimes(count)
+    expect(first.canReverify).toBe(true)
+    respond({ tenant_id: b, team_name: 'B' })
+    expect((await session()).status).toBe('authenticated')
+    expect(fetch).toHaveBeenCalledTimes(count + 1)
+  })
+  it('非同期付与と排他を伴うlockでもlogin/logoutの成功が自己競合しない', async () => {
+    let held = false
+    vi.mocked(navigator.locks.request).mockImplementation(
+      async (_n, _o, action) => {
+        await Promise.resolve()
+        if (held) return action!(null)
+        held = true
+        try {
+          return action!({ name: 'native-like' } as Lock)
+        } finally {
+          held = false
+        }
+      },
+    )
+    await loggedIn()
+    respond({ status: 'logged_out' })
+    expect((await logout()).status).toBe('logged-out')
+    expect(useAuthStore().environmentReason).toBeNull()
+  })
+})
+
+describe('通常tenant応答のCookie更新と本文遅延の区別', () => {
+  it('旧tenantのheadersが新認証後に届けば本文を読まず未確認にする', async () => {
+    const auth = oldAuth(),
+      pending = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(pending.promise)
+    const work = apiRequest('GET', '/team-records')
+    setVerifiedAuthForTest(auth, { teamId: b, teamName: 'B' })
+    queryClient.setQueryData(['B'], 'B秘密')
+    const res = response({ items: [], next_cursor: null }),
+      read = vi.spyOn(res, 'text')
+    pending.resolve(res)
+    await expect(work).rejects.toMatchObject({ name: 'ApiStaleAuthError' })
+    expect(read).not.toHaveBeenCalled()
+    empty()
+    expect(readAuthIntent()).toMatchObject({
+      phase: 'verification-required',
+      tenantId: b,
+    })
+  })
+  it('sessionのheadersは旧世代で観測済みで本文だけ遅延した場合は新Bを壊さない', async () => {
+    await intent('expected', a)
+    const body = deferred<string>(),
+      read = vi.fn(() => body.promise)
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: read,
+    } as unknown as Response)
+    const old = session()
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1))
+    // 同じアプリ世代でBを確定する。別タブのqueryClientは別JS realmである。
+    const newer = useAuthStore(pinia)
+    setVerifiedAuthForTest(newer, { teamId: b, teamName: 'B' })
+    queryClient.setQueryData(['B'], 'B秘密')
+    const marker = localStorage.getItem(AUTH_INTENT_KEY)
+    body.resolve(JSON.stringify({ tenant_id: a, team_name: '旧A' }))
+    expect((await old).status).toBe('stale')
+    expect(newer.isAuthenticated).toBe(true)
+    expect(queryClient.getQueryData(['B'])).toBe('B秘密')
+    expect(localStorage.getItem(AUTH_INTENT_KEY)).toBe(marker)
+  })
+  it('別の旧Cookie通知は未確認中でも新しい意図で確認待ちsessionを拒否する', async () => {
+    const auth = await loggedIn(b)
+    await auth.invalidateUncertainCookie()
+    const first = readAuthIntent()!
+    const body = deferred<string>(),
+      read = vi.fn(() => body.promise)
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: read,
+    } as unknown as Response)
+    const checking = session()
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1))
+    await auth.invalidateUncertainCookie()
+    expect(readAuthIntent()!.intentId).not.toBe(first.intentId)
+    body.resolve(JSON.stringify({ tenant_id: b, team_name: 'B' }))
+    expect((await checking).status).toBe('stale')
+    empty()
+  })
+})
+
+describe('拒否通知とsession採用の前後競合', () => {
+  it('通知の未ackで自動GETを止め、明示server確認に成功したタブだけ回復する', async () => {
+    const auth = await loggedIn()
+    queryClient.setQueryData(['B'], 'private')
+    await auth.invalidateUncertainCookie()
+    vi.mocked(fetch).mockClear()
+    expect((await ensureSessionVerified()).status).toBe('verification-unknown')
+    expect(fetch).not.toHaveBeenCalled()
+    empty()
+    respond({ tenant_id: b, team_name: '正規B' })
+    expect((await session()).status).toBe('authenticated')
+    expect(localStorage.getItem('bb.auth.uncertain.ack')).toBe(
+      localStorage.getItem('bb.auth.uncertain'),
+    )
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it('確認中に新通知とそのackが揃っても旧sessionを採用しない', async () => {
+    const auth = await loggedIn()
+    await auth.invalidateUncertainCookie()
+    const waiting = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(waiting.promise)
+    const checking = session()
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+    localStorage.setItem('bb.auth.uncertain', a)
+    localStorage.setItem('bb.auth.uncertain.ack', a)
+    waiting.resolve(response({ tenant_id: b, team_name: '旧確認B' }))
+    expect((await checking).status).not.toBe('authenticated')
+    empty()
+  })
+  it('lock保持中に古いloginが届いてもlock待ちせず拒否通知を出す', async () => {
+    const waiting = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(waiting.promise)
+    const old = login(credentials)
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+    await intent('expected', b)
+    const nextTab = tab()
+    const newer = useAuthStore(nextTab)
+    // 実server確認成功を準備する単体fixture。通知後に再採用はしない。
+    setVerifiedAuthForTest(newer, { teamName: '新B', teamId: b })
+    queryClient.setQueryData(['B'], 'private')
+    vi.stubGlobal('navigator', {
+      locks: { request: vi.fn(async (_n, _o, action) => action(null)) },
+    })
+    waiting.resolve(response({ status: 'authenticated', tenant_id: a }))
+    expect((await old).status).not.toBe('authenticated')
+    expect(localStorage.getItem('bb.auth.uncertain')).not.toBeNull()
+    newer.syncFromStorage()
+    empty(nextTab)
+    expect(newer.automaticVerificationBlocked).toBe(true)
+  })
+  it.each(['bb.auth.uncertain', 'bb.auth.uncertain.ack'])(
+    '破損した%sは明示loginと実session確認を経てだけ回復',
+    async (key) => {
+      await loggedIn()
+      localStorage.setItem(key, 'corrupt')
+      useAuthStore().syncFromStorage()
+      empty()
+      vi.mocked(fetch).mockClear()
+      await ensureSessionVerified()
+      expect(fetch).not.toHaveBeenCalled()
+      respond({ status: 'authenticated', tenant_id: b })
+      respond({ tenant_id: b, team_name: '正規B' })
+      expect((await login(credentials)).status).toBe('authenticated')
+      expect(fetch).toHaveBeenCalledTimes(2)
+    },
+  )
+})
+
+it.each(['malformed', null])(
+  'session確認中にackが%sへ壊れたら採用しない',
+  async (raw) => {
+    const auth = await loggedIn()
+    await auth.invalidateUncertainCookie()
+    respond({ tenant_id: b, team_name: '正規B' })
+    expect((await session()).status).toBe('authenticated')
+    const waiting = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(waiting.promise)
+    const checking = session()
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(4))
+    if (raw === null) localStorage.removeItem('bb.auth.uncertain.ack')
+    else localStorage.setItem('bb.auth.uncertain.ack', raw)
+    waiting.resolve(response({ tenant_id: b, team_name: '遅れたB' }))
+    expect((await checking).status).not.toBe('authenticated')
+    empty()
+  },
+)
+
+it.each(['session', 'login', 'logout'] as const)(
+  '現行%sの結果不明もlock競合中に一度通知する',
+  async (kind) => {
+    await loggedIn()
+    vi.mocked(fetch).mockClear()
+    const waiting = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(waiting.promise)
+    const writes = vi.spyOn(Storage.prototype, 'setItem')
+    const operation =
+      kind === 'login'
+        ? login(credentials)
+        : kind === 'logout'
+          ? logout()
+          : session()
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+    vi.stubGlobal('navigator', {
+      locks: { request: vi.fn(async (_n, _o, action) => action(null)) },
+    })
+    waiting.reject(new TypeError('network'))
+    expect((await operation).status).not.toBe('authenticated')
+    empty()
+    expect(localStorage.getItem('bb.auth.uncertain')).not.toBeNull()
+    expect(
+      writes.mock.calls.filter(([key]) => key === 'bb.auth.uncertain'),
+    ).toHaveLength(1)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  },
+)
+
+it.each([false, true])(
+  '旧password応答をlock競合%sでも新世代へ採用せず失効通知する',
+  async (busy) => {
+    oldAuth()
+    const waiting = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(waiting.promise)
+    const old = apiRequest('PATCH', '/auth/password', { body: {} })
+    setVerifiedAuthForTest(useAuthStore(), { teamName: '新B', teamId: b })
+    queryClient.setQueryData(['new-B'], 'private')
+    if (busy)
+      vi.stubGlobal('navigator', {
+        locks: { request: vi.fn(async (_n, _o, action) => action(null)) },
+      })
+    waiting.resolve(response({ status: 'password_changed' }))
+    await expect(old).rejects.toMatchObject({ name: 'ApiStaleAuthError' })
+    empty()
+    expect(localStorage.getItem('bb.auth.uncertain')).not.toBeNull()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  },
+)
+
+it.each(['dto', 'body', 'http'] as const)(
+  'sessionの%s未確認もlock競合時に拒否通知し、成功を採らない',
+  async (failure) => {
+    await loggedIn()
+    vi.mocked(fetch).mockClear()
+    const waiting = deferred<Response>()
+    vi.mocked(fetch).mockReturnValueOnce(waiting.promise)
+    const operation = session()
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+    vi.stubGlobal('navigator', {
+      locks: { request: vi.fn(async (_n, _o, action) => action(null)) },
+    })
+    const res =
+      failure === 'dto'
+        ? response({ tenant_id: a, team_name: '異tenant' })
+        : failure === 'http'
+          ? response({}, 503)
+          : response({})
+    if (failure === 'body')
+      vi.spyOn(res, 'text').mockRejectedValue(new TypeError('transport'))
+    waiting.resolve(res)
+    expect((await operation).status).not.toBe('authenticated')
+    empty()
+    expect(localStorage.getItem('bb.auth.uncertain')).not.toBeNull()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  },
+)
+
+it.each(['pending', 'corrupt'] as const)(
+  'reload時の%s通知では自動GETせず明示server確認だけで回復',
+  async (state) => {
+    const auth = await loggedIn()
+    await auth.invalidateUncertainCookie()
+    if (state === 'corrupt') localStorage.setItem('bb.auth.uncertain', 'bad')
+    const next = tab()
+    const reloaded = useAuthStore(next)
+    expect(reloaded.automaticVerificationBlocked).toBe(true)
+    vi.mocked(fetch).mockClear()
+    expect((await ensureSessionVerified()).status).toBe('verification-unknown')
+    expect(fetch).not.toHaveBeenCalled()
+    expect(reloaded.canReverify).toBe(true)
+    respond({ tenant_id: b, team_name: '正規B' })
+    expect((await session()).status).toBe('authenticated')
+    expect(localStorage.getItem('bb.auth.uncertain.ack')).toBe(
+      localStorage.getItem('bb.auth.uncertain'),
+    )
+    expect(fetch).toHaveBeenCalledTimes(1)
+  },
+)

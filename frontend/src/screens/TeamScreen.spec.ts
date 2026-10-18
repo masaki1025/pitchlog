@@ -1,3 +1,4 @@
+import { setVerifiedAuthForTest } from '../api/auth.test-support'
 import { VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
@@ -71,7 +72,10 @@ function mountScreen(authenticated = true): {
   setActivePinia(pinia)
   const auth = useAuthStore(pinia)
   if (authenticated) {
-    auth.signIn({ teamId: 'tenant-a', teamName: 'チーム A' })
+    setVerifiedAuthForTest(auth, {
+      teamId: '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+      teamName: 'チーム A',
+    })
   }
   const wrapper = mount(TeamScreen, {
     global: {
@@ -180,7 +184,9 @@ describe('TeamScreen', () => {
     )
 
     void queryClient.invalidateQueries({
-      queryKey: rosterQueryKeys.teamRecords.all('tenant-a'),
+      queryKey: rosterQueryKeys.teamRecords.all(
+        '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+      ),
     })
     await vi.waitFor(() =>
       expect(wrapper.text()).toContain('表示中の情報は古い可能性があります'),
@@ -212,7 +218,9 @@ describe('TeamScreen', () => {
     expect(wrapper.find('input[name="player-edit-name"]').exists()).toBe(true)
 
     void queryClient.invalidateQueries({
-      queryKey: rosterQueryKeys.players.all('tenant-a'),
+      queryKey: rosterQueryKeys.players.all(
+        '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+      ),
     })
     await vi.waitFor(() =>
       expect(wrapper.text()).toContain('表示中だった情報を隠しました'),
@@ -243,7 +251,9 @@ describe('TeamScreen', () => {
     expect(wrapper.find('input[name="opponent-edit-name"]').exists()).toBe(true)
 
     void queryClient.invalidateQueries({
-      queryKey: rosterQueryKeys.teamRecords.all('tenant-a'),
+      queryKey: rosterQueryKeys.teamRecords.all(
+        '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+      ),
     })
     await vi.waitFor(() =>
       expect(wrapper.text()).toContain('表示中だった情報を隠しました'),
@@ -391,7 +401,10 @@ describe('TeamScreen', () => {
     const { auth, wrapper } = mountScreen()
     await vi.waitFor(() => expect(wrapper.text()).toContain('選手 A1'))
 
-    auth.signIn({ teamId: 'tenant-b', teamName: 'チーム B' })
+    setVerifiedAuthForTest(auth, {
+      teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
+      teamName: 'チーム B',
+    })
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('選手 A1')
@@ -424,7 +437,10 @@ describe('TeamScreen', () => {
     const { auth, wrapper } = mountScreen()
     await vi.waitFor(() => expect(listTeamRecordsMock).toHaveBeenCalledTimes(1))
 
-    auth.signIn({ teamId: 'tenant-b', teamName: 'チーム B' })
+    setVerifiedAuthForTest(auth, {
+      teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
+      teamName: 'チーム B',
+    })
     await vi.waitFor(() => expect(wrapper.text()).toContain('選手 B1'))
 
     oldResponse.resolve(page([teamRecord('self-a', '古いチーム A', 'self')]))

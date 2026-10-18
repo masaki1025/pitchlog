@@ -1160,7 +1160,7 @@ def test_issuance_and_verification_callers_are_exact_sets() -> None:
     """発行入口と照合入口の製品コード内呼び出し元を固定する。"""
     targets = {
         _ISSUER_TARGET: {"pitchlog.api.tenant_access.require_tenant_access"},
-        _VERIFIER_TARGET: {_ISSUER_TARGET},
+        _VERIFIER_TARGET: {_ISSUER_TARGET, "pitchlog.api.routers.auth.login"},
     }
     callers: dict[str, set[str]] = {name: set() for name in targets}
     for path in _SOURCE_ROOT.rglob("*.py"):
@@ -1184,3 +1184,21 @@ def rogue():
 """
     callers = _callers(ast.parse(source), "pitchlog.api.rogue")
     assert callers[_ISSUER_TARGET] == {"pitchlog.api.rogue.rogue"}
+
+
+@pytest.mark.parametrize("caller_name", ["logout", "read_session"])
+def test_verification_caller_scan_rejects_other_auth_routes(caller_name: str) -> None:
+    """同じauthモジュールでもlogin以外へ照合許可を広げない。
+
+    Args:
+        caller_name: 新たな呼出を許していない関数名。
+    """
+    source = (
+        "from pitchlog.authz.verified_tenant import verify_tenant_id as check\n"
+        f"def {caller_name}():\n"
+        "    return check('opaque', object(), object())\n"
+    )
+    callers = _callers(ast.parse(source), "pitchlog.api.routers.auth")
+    allowed = {_ISSUER_TARGET, "pitchlog.api.routers.auth.login"}
+    assert callers[_VERIFIER_TARGET] == {f"pitchlog.api.routers.auth.{caller_name}"}
+    assert not callers[_VERIFIER_TARGET] <= allowed

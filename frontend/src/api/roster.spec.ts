@@ -1,3 +1,4 @@
+import { setVerifiedAuthForTest } from './auth.test-support'
 import { useAuthStore } from '../stores/authStore'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -65,7 +66,10 @@ beforeEach(() => {
   pinia = createPinia()
   setActivePinia(pinia)
   localStorage.clear()
-  useAuthStore().signIn({ teamName: '検証済み試験チーム', teamId: 'team-test' })
+  setVerifiedAuthForTest(useAuthStore(), {
+    teamName: '検証済み試験チーム',
+    teamId: '6efca380-dea3-5a4e-9749-40dfb1dbd65e',
+  })
   vi.stubGlobal('fetch', vi.fn())
 })
 

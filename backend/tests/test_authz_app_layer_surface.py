@@ -117,6 +117,7 @@ _PUBLIC_CALLERS = frozenset(
             "authz.token_presentation.TokenPresentation.encode",
         ),
         ("api.routers.auth.login", "authz.team_login.login_attempt"),
+        ("api.routers.auth.login", "authz.verified_tenant.verify_tenant_id"),
         ("api.routers.auth.login", "authz.team_login.get_login_connection"),
         ("api.routers.auth.logout", "authz.verified_tenant.logout_token"),
         ("api.routers.auth.logout", "authz.team_login.get_login_connection"),
