@@ -4,6 +4,8 @@ type: proposal
 created: 2026-10-16
 ---
 
+> 文書提出上の注意: 本資料の実装済み・試験件数は別枝 `feature/us1-sync-port-surface` の候補履歴である。`feature/us1-stop-contract-docs` は文書だけを提出し、製品コード・実Port・HTTP提供を含めない。
+
 # 具体差分の提示: U-S1・端末の製品変更(TSK-506 への接続)
 
 計画: [plan.md](plan.md) のステップ 3 / 接続契約: [design.md](design.md) / 調査: [research.md](research.md)

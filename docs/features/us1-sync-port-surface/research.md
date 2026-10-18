@@ -3,6 +3,8 @@ feature: us1-sync-port-surface
 created: 2026-10-16
 ---
 
+> 文書提出上の注意: 本資料の実装済み・試験件数は別枝 `feature/us1-sync-port-surface` の候補履歴である。`feature/us1-stop-contract-docs` は文書だけを提出し、製品コード・実Port・HTTP提供を含めない。
+
 # 調査: U-S1 の公開面と同期の失敗分類(TSK-506 への接続契約)
 
 読み取り元: develop `e7e8d3a4`(U-S1 マージ後)。TSK-506 の worktree(`feature/tsk506-sync-http-entry`)は読むだけ。各主張にファイル:行の典拠を付け、推論は [推論] と記す。2 つの調査を収録する。

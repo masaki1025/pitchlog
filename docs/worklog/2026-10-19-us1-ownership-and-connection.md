@@ -343,3 +343,7 @@ U-R1のdata-model/索引は変更しない。必要な索引変更はsync-protoc
 ハーネス運用評価台帳への追記なし。タブ連絡障害/局所的な文書段落ID調整は今回だけの事象で、一般化した新規運用条文を確定する根拠としない。索引所有枠を広げる台帳/README編集は行わない。
 
 文書提出専用plan/handoffをfeature us1-stop-contract-docsへ用意した。新しい製品実装計画の承認を代記せず、既存の正本承認と文書提出許可の範囲だけを記した。索引完全行・U-F7/キュー窓口506・U-F8への中継文・耐久provider未完了を同票へ集約。元のU-S1製品候補はactiveのまま保全し、文書提出用planのみin-reviewとする。
+
+文書限定branch初期4393cde4をdevelop015dfa9d起点で作成（git index/commit-tree、元製品worktreeのbranch切替なし）。12ファイルすべてdocs。独立した一時checkoutで検査し、カバレッジ/宣言突合/認可共通前提/凍結不変条件は成功、索引の版/日付2件とR-BOUNDARY比較不一致1件を確認した。後者は「6フィールドの比較」であり、実差分はsource_elements/expected_elementsの2個。完全値/出典blob/SHA256と必要な所有側/PR/人間確認ゲートをderived-impact.jsonへ保存し、実資産は未変更。新規認可/凍結pin変更は0。
+
+文書だけのtree上で過去の「実装済み/試験」記録を提供済みと混同しないよう、U-S1 feature資料へ出典候補branchと文書提出branchのコード非同梱を注記した。正本承認済みの意味本文は変更しない。Draftは索引/伝播manifest/担当受理/人間確認を未完了として明示して作成し、全チェック緑や製品提供を代記しない。

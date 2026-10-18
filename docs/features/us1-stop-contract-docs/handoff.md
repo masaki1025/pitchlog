@@ -23,3 +23,7 @@ U-S1はrecover_sync_attempt/prepare_sync_resume/prepare_sync_replacementのHTTP�
 ## 状態
 
 新規依頼はタブ連絡MCP接続エラーにより未送達。本文をPO中継用に返す。506計画の固定93f70668に人間承認記録があることと、上記新契約の担当受理は区別する。担当受理・人間逐行確認を代記しない。
+
+## 派生影響（完全値はderived-impact.json）
+
+独立したdevelop起点の文書treeでは、6フィールドを比較するR-BOUNDARY検査に不一致1件がある。実際に変わるフィールドはsource_elementsとexpected_elementsの2個で、既承認O5の定義/伝播に対応する。scripts/design_relations/sync-protocol.jsonの完全な旧/候補値、git blob、ファイルSHA256をderived-impact.jsonへ保存した。提案値は元U-S1枝の固定資産を出典とし、この文書PRで適用していない。認可共通前提と凍結不変条件は両方成功、認可/凍結のpin変更は今回0。このマニフェストは凍結資産として登録されていないため、7.7再pinを勝手に要求/実施せず、guard/core該当の所有側受理・PRレビュー・人間逐行確認へ分離する。新制御用DDL/認可/固定関数/正式試験資産は未提供の別ゲートで、今回の本文承認を流用しない。
