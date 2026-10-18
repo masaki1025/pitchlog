@@ -15,6 +15,8 @@ export interface RequestOptions {
     | undefined
     | readonly (string | number | boolean)[]
   >
+  /** 承認済みroster 7経路だけでtenant照合証跡を要求する。 */
+  tenantBound?: boolean
   noAuthExpiry?: boolean
   /** Cookie変更可能な成功headers/通信結果不明を、世代判定より先に一度だけ通知する。 */
   onAuthCookieUncertain?: () => void
@@ -75,6 +77,23 @@ export class ApiStaleAuthError extends Error {
     this.path = path
     this.status = status
   }
+}
+
+/** tenant照合が成立せず、処理結果を採用できない。自動再送しない。 */
+export class ApiTenantVerificationError extends ApiStaleAuthError {
+  constructor(method: HttpMethod, path: string, status?: number) {
+    super(method, path, status)
+    this.name = 'ApiTenantVerificationError'
+    this.message =
+      'テナントの照合を確認できないため結果は未確認です。自動再送せず一覧を再読込してください'
+  }
+}
+
+function isCanonicalUuid(value: string | null): value is string {
+  return (
+    value !== null &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value)
+  )
 }
 
 function isAbortError(error: unknown): boolean {
@@ -189,6 +208,17 @@ async function requestResponse<T>(
     throw new ApiSessionUnverifiedError()
   }
   let epoch = auth.authEpoch
+  const expectedTenant = auth.teamId
+  if (options.tenantBound && !isCanonicalUuid(expectedTenant)) {
+    throw new ApiTenantVerificationError(method, path)
+  }
+  const challenge = options.tenantBound ? crypto.randomUUID() : undefined
+  const tenantChanged = () =>
+    options.tenantBound &&
+    (auth.authEpoch !== epoch ||
+      auth.teamId !== expectedTenant ||
+      !auth.isAuthenticated)
+
   if (
     options.onAuthCookieUncertain &&
     !(method === 'POST' && (path === '/auth/login' || path === '/auth/logout'))
@@ -197,6 +227,10 @@ async function requestResponse<T>(
   }
 
   const headers: Record<string, string> = {}
+  if (options.tenantBound) {
+    headers['X-Pitchlog-Expected-Tenant'] = expectedTenant!
+    headers['X-Pitchlog-Tenant-Challenge'] = challenge!
+  }
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
@@ -208,6 +242,7 @@ async function requestResponse<T>(
   const init: RequestInit = {
     method,
     credentials: 'include',
+    ...(options.tenantBound ? { cache: 'no-store' as const } : {}),
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal,
@@ -216,6 +251,8 @@ async function requestResponse<T>(
   try {
     res = await fetch(url, init)
   } catch (error) {
+    auth.syncFromStorage()
+    if (tenantChanged()) throw new ApiTenantVerificationError(method, path)
     // HTTP応答が得られなくてもCookie変更済みの可能性は残る。
     options.onAuthCookieUncertain?.()
     if (isAbortError(error)) {
@@ -231,7 +268,17 @@ async function requestResponse<T>(
     options.onAuthCookieUncertain()
     if (!stale) epoch = auth.authEpoch
   }
+  if (tenantChanged())
+    throw new ApiTenantVerificationError(method, path, res.status)
   if (stale) throw new ApiStaleAuthError(method, path, res.status)
+  if (
+    options.tenantBound &&
+    res.ok &&
+    (res.headers.get('X-Pitchlog-Tenant-Match') !== '1' ||
+      res.headers.get('X-Pitchlog-Tenant-Challenge') !== challenge)
+  ) {
+    throw new ApiTenantVerificationError(method, path, res.status)
+  }
 
   let readResult:
     | {
@@ -249,6 +296,8 @@ async function requestResponse<T>(
 
   // 本文の読み取り中にも認証が切り替わり得るため、結果を解釈する前に再照合する。
   auth.syncFromStorage()
+  if (tenantChanged())
+    throw new ApiTenantVerificationError(method, path, res.status)
   if (auth.authEpoch !== epoch) {
     throw new ApiStaleAuthError(method, path, res.status)
   }

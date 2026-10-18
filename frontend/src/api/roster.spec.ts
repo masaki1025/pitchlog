@@ -37,12 +37,18 @@ const player: PlayerRead = {
 let pinia: Pinia
 
 function respond(body: unknown, status = 200): void {
-  vi.mocked(fetch).mockResolvedValue(
-    new Response(JSON.stringify(body), {
+  vi.mocked(fetch).mockImplementation(async (_url, init) => {
+    const headers = new Headers(init?.headers)
+    return new Response(JSON.stringify(body), {
       status,
-      headers: { 'Content-Type': 'application/json' },
-    }),
-  )
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Pitchlog-Tenant-Match': '1',
+        'X-Pitchlog-Tenant-Challenge':
+          headers.get('X-Pitchlog-Tenant-Challenge') ?? '',
+      },
+    })
+  })
 }
 
 function expectRequest(
@@ -57,6 +63,19 @@ function expectRequest(
   expect(actualUrl).toBe(url)
   expect(init?.method).toBe(method)
   expect(init?.credentials).toBe('include')
+  const headers = new Headers(init?.headers)
+  if (method === 'DELETE') {
+    expect(headers.has('X-Pitchlog-Expected-Tenant')).toBe(false)
+    expect(headers.has('X-Pitchlog-Tenant-Challenge')).toBe(false)
+  } else {
+    expect(headers.get('X-Pitchlog-Expected-Tenant')).toBe(
+      '11111111-1111-1111-1111-111111111111',
+    )
+    expect(headers.get('X-Pitchlog-Tenant-Challenge')).toMatch(
+      /^[0-9a-f-]{36}$/,
+    )
+    expect(init?.cache).toBe('no-store')
+  }
   expect(init?.body).toBe(body === undefined ? undefined : JSON.stringify(body))
   expect(init?.signal).toBe(signal)
 }
@@ -65,7 +84,10 @@ beforeEach(() => {
   pinia = createPinia()
   setActivePinia(pinia)
   localStorage.clear()
-  useAuthStore().signIn({ teamName: '検証済み試験チーム', teamId: 'team-test' })
+  useAuthStore().signIn({
+    teamName: '検証済み試験チーム',
+    teamId: '11111111-1111-1111-1111-111111111111',
+  })
   vi.stubGlobal('fetch', vi.fn())
 })
 
