@@ -2650,7 +2650,10 @@ def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
             assert pattern in paths
             assert fnmatch.fnmatchcase(path, pattern)
     for area_id in ("game-state", "tenant-isolation", "data-migration"):
-        assert current_areas[area_id]["paths"] == base_areas[area_id]["paths"]
+        if area_id not in core_guard.AREA_PATH_ADDITIONS:
+            assert current_areas[area_id]["paths"] == base_areas[area_id]["paths"]
+    # 宣言済み追加だけを許し、据え置き層の削除・未宣言追加を拒否する。
+    core_guard.validate_area_path_layers(baseline, configuration)
 
     core_guard.validate_area_path_layers(baseline, configuration)
 
