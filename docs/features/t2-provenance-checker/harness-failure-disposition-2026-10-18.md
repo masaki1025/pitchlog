@@ -22,4 +22,7 @@
 - 専用DBは既存ローカルimage `postgres:17.11-bookworm`、container `pitchlog-t2-p8-harness-ca1c5df4`、一時DB `t2_harness`、localhost割当port36411、データは専用tmpfs。共有DB/ロール/秘密情報は使わない。SQL変異+費用測定 = **2 passed**（4.53秒）、ログ `/tmp/t2-p8-sql-cost-impact.log`。
 - DSNは専用の認証不要テストDBだけを指し、子測定スイートにも引き継ぐ。実スイートが両予算内に入ることを既存testが検査し、上限・失敗条件は変更しない。
 
+固定HEAD `fe1ba85064f1117bbd7071f8825086c32851ff4a`の最終全harnessは **29,785 passed / 1 failed / 2 skipped、488.94秒**。ログは`/tmp/t2-p8-full-harness-fixed-fe1ba850.log`。旧10件のうち9件は全体実行でも合格し、残るのはT2の署名照合1件だけ。除外オプションは使っていない。
+本実行中は作業ツリーcleanでコード・候補を固定した。終了後に本担当が作成した専用containerを停止し、`--rm`とtmpfsによって専用DBも除去した。共有DB/ロールへ変更を加えていない。
+
 残る正式受理は、今回候補を正式契約へ反映する7.7、正本の確定、P-6、担当受理、署名で別管理する。これらを上の9件の環境/取込み是正と混同しない。

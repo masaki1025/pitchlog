@@ -84,3 +84,13 @@ branch: feature/t2-provenance-checker
 - 最終候補の関連試験 **600 passed（16.10秒）**、ruff/ty/diff-check合格。候補CLIは21相関/5decision/3lifecycle/5displayを列挙し、candidate-only/not-performed/runtimeOutputsCompared=false/formalCoverageUpdated=falseを明示。正本patchは`git apply --check`のみで適用可能性を確認。
 - 候補編集中の全harness（`/tmp/t2-p8-full-harness-after.log`）は11 failed/29,770 passed/2 skipped。担当が実行中に候補ファイルを更新したため、workerが読み込んだ旧検査器と新しいCOLD-NORMAL-OVERLAP入力が混在し10件がKeyError、残り1件は予定された署名不一致。本実行を最終候補版の検査結果に使わない。コード/候補をコミットで固定してから再実行する。
 - [人間判断/受領物/個別判定](../features/t2-provenance-checker/p8-human-decisions-and-receivers-2026-10-18.md)は人間判断の5行だけを抽出。既承認裁定は再承認待ちに戻さない。候補差分の独立レビューは基本2回を使い切っているため、対象を限定した追加差分1回の許可待ち。新たな独立確認やP-6として数えない。
+
+## 固定候補版の最終検査・受け渡し状態
+
+- `b698a061`に候補実装をコミット。正本patchのcontext空白をdiff-checkが検出したため、`fe1ba850`で0行contextへ是正し`git apply --check --unidiff-zero`を確認した。旧履歴を書き換えず、正式な要件書へは未適用。
+- コード・候補を固定したHEAD `fe1ba85064f1117bbd7071f8825086c32851ff4a`で全harnessを再実行。**29,785 passed / 1 failed / 2 skipped、488.94秒**。ログ`/tmp/t2-p8-full-harness-fixed-fe1ba850.log`。残る1件はgate6-game-endの明示再署名待ちdigest不一致。旧10件の他9件は全件合格、検査の除外/無効化なし。
+- 最新候補の関連600件合格（`/tmp/t2-p8-related-accepted-candidate.log`、16.10秒。ファイル名は候補作業の許可を指し、正式受理ではない）、TS loader18件合格（1.60秒）、ruff/ty合格。通常の正式被覆検査も従来の248case/invalid12件のまま合格し、provenanceはT1/T2ともnot-performedを維持。
+- 一時DBは本担当専用containerを停止して除去。共有環境の既存DB/ロールを変更していない。
+- [候補README](../features/t2-provenance-checker/candidates/README.md)、[原因/担当/受理条件](../features/t2-provenance-checker/harness-failure-disposition-2026-10-18.md)、[人間判断5行と544/545への受領物](../features/t2-provenance-checker/p8-human-decisions-and-receivers-2026-10-18.md)へ版・コミット・hash・検査・個別未成立条件を記録。
+- 本会話で既存の所有受諾/限定是正結果をPOが受領した事実と、544/545の担当受理は別。今回の候補について担当受理の返信はまだない。追加差分レビュー1回を非同期照会中で、未許可/未実施。既存0/0/0を候補のレビュー結果として転記しない。
+- 正本/凍結資産の正式反映・7.7受理・再署名・P-6・担当受理・push/PRは別ゲートのまま。provenance整備完了、T2 P-8全成立、545製品実装開始可能はいずれも未成立。
