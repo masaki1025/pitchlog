@@ -108,4 +108,6 @@ U-G1/U-S1/認証担当の未受理を[担当別受理シート](../features/ur1-
 
 既存[固定接続候補](../features/ur1-recording-rights/step5-connection-fixed-candidate.md)の列挙では端末資格行と外部epoch行の取得順が逆に読めたため、候補関数と担当別シートに合わせて**外部epoch共有→資格行共有**へ整えた。これは未受理の全順候補の内部整合であり、認証担当/U-G1/U-S1の受理を代記しない。
 
+担当別シートへ、開始commit後・HTTP送信前の資格失効競合は応答側の直列化契約が未受理であること、V12旧鍵を稼働DBだけでなく許容する復元世代の旧暗号文が消えるまで保持することを追記した。署名鍵の旧鍵破棄手順を暗号鍵へ流用しない。鍵保管・配布先と運用担当は未指定のまま。
+
 独立した使い捨てPostgreSQL試験に、D4 counterと予約行の同一外部transaction確定後の応答消失を模し、所有tupleによる同一attempt/D4再照会、別tenant拒否、claimed D4の非再利用を追加した。これは実台帳adapter・同期standby耐久・不明業務commitの解決を証明しない。backend `ruff format`後、`ruff check`、`ty check`、候補+RG1関連pytest **30件成功**。全backend/全ハーネス、製品Port実経路は未検証。正式資産/7.7、実配置/費用、運用open、共有DB適用、push/PR/mergeは変更していない。
