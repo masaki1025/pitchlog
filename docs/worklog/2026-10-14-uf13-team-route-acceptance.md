@@ -466,3 +466,11 @@ U-F13のrouter/App/core path製品変更は未着手。開始条件はC2/U-F3の
 - 初回の新試験は存在しない検査helper名を参照して1失敗/262成功。実CLIによる合成製品4ファイルの本人未記入拒否/記入済み正例へ修正し、**core-guard全264件成功**。検出や人間ゲートを弱めていない。root Ruff/tyも成功。Ruffの既存docstring警告は別記し、root formatterは使用しない。
 - LoginScreenの追加1パターンと、C2/U-F3の自分の固定コミットだけを検証環境へ結合する最小追補は依頼者回答待ち。回答に依存しない宣言・API/DTO照合・専用受入環境準備を継続する。
 - 新規の実装レビュー枠を無断で増やさず、本ステップの宣言/試験はU-F13実装PRの既定レビューと本人逐行確認へ含める。既存C2/U-F3レビュー後の反映差分は未再レビューという履歴を維持する。
+
+
+## 2026-10-18: C1相関の新しい局所差分（未承認・独立作業は継続）
+
+- [具体候補](../features/uf13-team-route-acceptance/login-session-correlation-decision.md)と[採否・固定SHA](../features/uf13-team-route-acceptance/login-session-correlation-review.md)へ集約。新login DTOのserver検証済みtenant_id、既存verify関数の限定caller1組、初回例外なしの非秘密意図状態、Web Locksによる更新/採用直列化、固定503/必須UI/配布境界を具体化した。製品には未反映。
+- 第2周Codex P0=2/P1=3、実Claude P1=3/P2=6を採用。自動P0限定第3周はP0=0で終了。P1/P2の最終反映と後追加の局所1ステップ/追加PR境界は未再レビューとして人間確認へ残す。既存C2/U-F3コードレビューの追加周ではなく、否決済みCookie局所案の継続である。
+- C2は最新基線の全件検査を継続。最初のbackend全件はsymlink仮想環境が文言走査へ列挙される環境不備で中断し、製品/検査器を変えず通常のignore対象ディレクトリへ修正して再実行した。root初回の3失敗（bytecode生成検出と、SQL変異の既存ロール接続拒否）は失敗として保持し、専用PostgreSQL・bytecode無効化で全件を再実行中。選択診断もDB fixtureの既定接続時に拒否されて未実行であり、成功へ数えない。既存DBへSQL実行する経路には到達せず、以後の全検査は専用クラスタだけを使う。
+- U-F3のfrontend 1,267成功、C2のfrontend 1,279成功は最新基線で実測済み。U-F3のroot/backendも専用クラスタで実行中。実画面通し、追加core登録、通常push/Draft PR作成の未許可を完了扱いにしない。
