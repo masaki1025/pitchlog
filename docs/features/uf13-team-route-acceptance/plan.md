@@ -23,6 +23,8 @@ created: 2026-10-14
 
 ## 2. 起点、所有、開始ゲート
 
+以下の起点・open状態は2026-10-14の調査履歴。2026-10-18の現状は末尾「C1ステップ2統合後の依存照合」を正とし、解消済みの#119/C1待ちを現行の停止理由にしない。
+
 - 起点は `origin/develop` `fd7445cb7e5bd1d5a75137f48c2237c9126dbea5`。PR #127 の U-F5 初期分割と、PR #133 の core-guard 回帰試験修正を含む。2026-10-14 の再開時に専用ブランチへ取り込み済みで、製品契約への影響はない。
 - 専用 worktree `/tmp/pitchlog-uf13-team-route-acceptance`、branch `feature/uf13-team-route-acceptance` を作成済み。製品コードは未変更。
 - PR #119 は別担当の worktree と PR を持ち、open / behind。変更しない。
@@ -191,3 +193,11 @@ C1ステップ1はPR #144 / develop `3052e0db743877c7f15c0ec10daa0142cba7ab7e`�
 ### C1遅延Cookie追補の接続条件（2026-10-17）
 
 山田正輝がC1の安全側への例外を承認した。旧login/logoutのCookie変更可能性を観測した場合、新世代も`verification-unknown`へ戻しcacheを破棄する。旧ユーザー/tenant/成功は採用せず、tenant-bound通信を止め、明示session GETだけで再確認する。資格情報やmutationの自動再送は行わない。UIは`stale`だけでなく新世代の`verification-unknown`も成功として扱わず、結果epochを照合する。C2はこの破棄境界を維持して業務operation前の応答tenant照合を追加する。C1が共有client/storeを一時所有し、統合後に後続が基線から引き継ぐ。今回C2/U-F3/保護routeの製品実装は行わない。
+
+## C1ステップ2統合後の依存照合（2026-10-18）
+
+PR #147は493342be37d4383ca572f8d1c826a3f184a4d213へ実統合済みであり、C1完了・統合待ちは解消した。C2/U-F3はCodex Dが専用worktreeで製品/試験を実装中。共通clientはC2、LoginScreenはU-F3、router/Appは本計画の所有とし、C1のauth/storeと共有providerを再利用する。
+
+最新指示は既存計画のC2→U-F3→U-F13接続→専用環境の実画面/API/DB通しまでを自律進行するもの。各ステップ/レビュー/個別受理と本人確認を維持する。C2/U-F3のdevelop統合前という本計画既定の開始条件、共有3ファイルを編集中のopen PR #143との所有順は、C1待ちとは別に管理する。core path宣言→製品と同時JSON登録の順序を変えず、仮認証/tenant・未統合の他担当branchを使わない。
+
+本worktreeは2026-10-18に6b09503dから最新develop 493342beへfast-forwardした。C2/U-F3の候補を基線へ混ぜず、router/App/core3ファイルの製品変更はまだ開始していない。C2では既存コア登録で検出できる境界を実装・検証中、U-F3ではLoginScreenの意味範囲Tと既存path未一致を確認した。必要な最小1パターンの追補と共有3ファイルの順序は、C2側`docs/features/tenant-match-metadata-contract/connection-decisions.md`へ集約する。既承認のrouter/App登録を再承認待ちには戻さない。

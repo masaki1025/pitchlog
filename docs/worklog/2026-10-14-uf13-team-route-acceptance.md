@@ -450,3 +450,9 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - 前HEADの最終検査：ローカルroot 29,668 passed/2 skipped、両CI root 29,409 passed/2 skipped、backend 2,523 passed/4 skipped・coverage89%、frontend68ファイル1,237 passed。全必須チェックの成功前に完了やDraft解除を記録しない。
 - 既存履歴の別1件は同期故障試験の母集合における固定試験ID。backend/frontend双方のペア集合検査用途を照合し、詳細をstep2-gitleaks-decision.mdへ固定した。この1件は未判定・未登録で、承認済み2件と別管理する。
 - 新HEADの通常push・PR CI更新を進め、全必須チェック成功後だけDraft解除する承認を受領。マージ・公開、C2/U-F3実装は行わない。台帳への追記なし：既存の誤検知登録運用の承認反映であり、新たなハーネス知見は追加しない。
+
+### U-F13専用worktreeの基線追随（2026-10-18）
+
+PR #147の実統合SHA493342be37d4383ca572f8d1c826a3f184a4d213を再照合し、cleanな本worktreeを6b09503dからfast-forwardした。C1ステップ2完了とC1待ち解消を計画へ反映した。C1の承認・逐行確認は維持し、方法を推定しない。C2/U-F3は別のdevelop起点worktreeで実装/試験/正式レビュー中であり、それらの未統合候補を本worktreeの基線にはしていない。
+
+U-F13のrouter/App/core path製品変更は未着手。開始条件はC2/U-F3のdevelop統合と共有core3ファイルの所有順であり、解消済みの#119/C1待ちを停止理由として繰り返さない。#143の共有差分を無断編集せず、core検出不足を回避しない。TSK-528全体・TSK-520実API受入・15経路+catch-all全体は未完了。実画面/API/DBの受入はまだ実施していない。
