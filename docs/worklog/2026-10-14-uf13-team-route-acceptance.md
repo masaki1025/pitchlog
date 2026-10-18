@@ -607,3 +607,17 @@ C2はDraft #150（146c774c）、U-F3はDraft #151（db2bc2c7）。後者は登�
 承認済みLoginScreen登録・自分の固定候補の専用検証結合・通常push/Draft許可はすべて反映済み。解消済みC1/#119/#143待ちは復活させない。現在の新規判断は[login/session相関の具体比較](../features/uf13-team-route-acceptance/login-session-correlation-comparison.md)（SHA-256 `592d733a4986c02daba9d03f3a2d894a1dc05a6a78c078f81aaf453d158c84a2`）。login DTOのtenant_id/固定503/限定caller、非秘密意図の保持とWeb Locks、意図なし/保存不可の明示再login、拒否後cache非復元、局所1ステップ/追加PR1本は未承認・未実装。必要性の承認を具体値の承認へ読み替えない。
 
 P1の2タブ挙動は静的レビューの推論であり、単一DOMのStorageEvent試験を実ブラウザ2タブ実証とは扱わない。実画面login→session→/team→一覧/追加/編集→reloadの通しは**未実施**。15経路/catch-all、TSK-528全体、TSK-518全体、TSK-520実API受入は未完了。今後は具体契約の人間判断後に所有を再照合し、既存client/providers/API/DTOを再利用して実DB/実画面受入を進める。公開・Draft解除・マージは代行しない。
+
+## 2026-10-19 相関追補の初回実画面受入（部分）・Claude向け申し送り
+
+- 人間が04ecb061比較資料の追補を承認。相関の追加PRは専用枝feature/auth-login-session-correlation、基線5bb1ff89。C2 HEAD146c774c、U-F3 HEAD407c8199、U-F13製品HEAD04ecb061を専用検証枝で結合。実受入HEADは **4656f868c09e1528e03ea2b9b9dc2d2f849b4363**（相関元2efc3938）。元単独HEADの結果とは区別する。
+- 既存disposable_postgres_cluster/provisioned_product_catalog fixtureで新しいDBを作り、認証主体・credential・自チームを同一transactionで準備。実app role、実署名Cookie、実HTTP API、Vite（envDir:false）、Chromium **149.0.7827.0**、共有provider/router/既存画面を使用。仮認証・仮tenant・仮DTOは使わない。専用環境・ブラウザ・API・DBを試験後に終了した。
+- 成功8項目: 未認証/team→/login、login→session→管理画面、実画面で対戦相手登録/選択、選手登録とquery再取得、選手編集とreload保持、同tenant2タブで旧画面が落ちない、実APIによる明示logoutの前提操作、別tenant login後の旧タブ非自動切替/旧一覧非表示。
+- observer接続でもAの選手は「受入選手編集済」/背番号17、Bの選手件数0を確認。これは対戦相手選手の経路であり、自チーム選手の経路を受入済みとはしない。
+- 実契約の制限: TeamRecordReadTokenはkind=opponent固定（required binding/CAP登録も同じ）で、GET /team-recordsはselfを返さない。最初のself fixtureだけの要求はitems=[]となった。これを試験期待値の緩和や仮APIで解消せず、実画面の対戦相手登録から既存APIの経路を検証した。
+- 確定認証からlogoutするUIは初期分割の範囲外という既存記録を維持。複数tenantの切替前提に既存の実/auth/logoutをHTTPで明示実行した。画面だけのアカウント切替を完了扱いにしない。
+- 初回受入の失敗履歴も保持: 1回目は専用環境のPITCHLOG_DATABASE_POOLED未設定、2/3回目はopponent専用APIへself一覧を期待したfixture/契約不一致、4回目は計画範囲外logout UIを使わずBの入力画面へ到達しようとした。5回目で上記8項目成功。環境・契約の制限と製品不具合を混同しない。
+- ログは~/.cache/pitchlog/correlation-browser-acceptance/attempt05へ保全。実API Cookie値・生成資格情報・DB接続値はコミットしない。
+- 新相関の実装第1周はCodex P0=0/P1=4/P2=1、実Claude P0=0/P1=3/P2=8。後発修正・実画面結果は第2周未レビュー。旧U-F13の両経路2回は消費済みを維持。
+- lock-busy時に旧Cookieの不確実化を他タブへ伝える不足は、6de49595の拒否専用2キー追補として人間判断待ち・未実装。既受理済みのDTO/意図管理を再承認待ちには戻さない。
+- 遅延Cookie・通信断・storage/lock拒否の実ブラウザ受入、最終結合全件検査、レビュー採否、人間逐行確認は未完了。ステップ3全体/TSK-528/TSK-520を完了にしない。公開・Draft解除・マージは未実施。
