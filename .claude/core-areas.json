@@ -598,7 +598,8 @@
         "frontend/src/screens/GameScreen*",
         "frontend/src/components/settings/TeamMembersContent*",
         "frontend/src/lib/rosterQueryKeys*",
-        "frontend/src/screens/TeamScreen*"
+        "frontend/src/screens/TeamScreen*",
+        "frontend/src/screens/LoginScreen*"
       ]
     },
     {
