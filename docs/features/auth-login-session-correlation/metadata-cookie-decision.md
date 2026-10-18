@@ -1,0 +1,28 @@
+# C2の2xx照合失敗とCookie不確実性（追加判断案・未承認）
+
+## 既受理事項を変えない
+
+C2のexpected tenant/challenge・固定ack・operation前照合・7経路・認可・DTO・HTTP matrix・no-storeを再承認待ちにしない。新header/endpoint/ACL/DB列を追加しない。6de49595の拒否専用2キー案も別判断として維持する。
+
+## 残る具体差分
+
+| 条件 | 現行C2 | 推奨追補 |
+| --- | --- | --- |
+| 2xxのack/challengeが欠落・不正・別要求値 | 本文を読む前にApiTenantVerificationError。結果未確認、既存B cacheは保持 | 同じ本文前拒否・同じエラー型に加え、Cookieが更新され得るため現在意図をverification-required（現在の期待Bまたはnull）へ無効化し、認証済み状態/旧cacheを破棄 |
+| 正しいack/challengeだが本文のJSON/DTOが不正 | 結果未確認・自動再送なし | **変更しない**。operation/応答の結果未確認と認証未確認を混同しない |
+| 正規の非2xx（契約上ackなし） | 現行HTTP分類 | **一律には変更しない**。401をCookie更新とみなさない |
+| 通知処理でlock-busy | 現行は全タブ通知できない | 別途承認対象6de49595の拒否専用通知を使う。新tenant/成功は採らない |
+
+Aの過去HTTP 2xxをB要求へ注入する故障はC2が既に本文前に拒否する。しかし実応答のSet-CookieはJSの検査より先に適用され得るため、本文を拒否するだけでは「Bの認証済み表示/cacheを継続してよい」の証拠にはならない。new tenantを採用する変更ではなく、Cookieとの一致を再確認するまで拒否する追加例外である。
+
+影響は既存cache/未保存のフォームの破棄と、利用者の明示session GETまたは明示login/logoutの要求。期待IDが既知ならDTO/意図/世代が一致した時だけ回復し、未知ならsession GETでtenantを推測しない。資格情報・mutationを自動再送しない。
+
+## 所有・着地
+
+対象は正規frontend/src/api/client.tsのC2 metadata拒否分岐、対応するclient/consumer試験、C1の共通無効化関数の接続。いずれもCodex D所有。C2の共通clientをコピーした別実装は作らない。
+
+C2正規metadata分岐は#150の未統合差分である。承認済みの専用検証worktreeでは固定候補を結合して実装・試験できる。実装PRの既定境界は維持し、正規の単独枝への最終着地は#150が実developへ統合された後の基線へ追随して行う（未統合枝を通常枝のdevelop基線にしない）。仮メソッドや型castで旧clientへ新契約があるようには見せない。
+
+## 人間判断
+
+上表1行目に限る「2xx metadata失敗時の安全側無効化」を承認するか。推奨は採用。6de49595の2キー追補、#150の本人逐行確認/マージ判断、新相関PR/U-F13の最終本人確認とは別である。追加レビュー枠は現時点で求めず、新相関の基本枠第2周に承認後の反映差分と影響をまとめる。
