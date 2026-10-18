@@ -81,7 +81,7 @@ CREATE TABLE d4_reservations (
 | 責任 | 推奨方式 | 未指定の担当・判断 |
 | --- | --- | --- |
 | V12の生成・暗号化・復号・同要求再交付 | U-R1が256-bit乱数とAES-256-GCMを使用。AADにtenant/試合/開始要求/端末/D4/復旧世代を含め、世代表の現権利と資格をロック下で再照合。アプリはcommit成功後にのみV12を返す | 鍵管理サービス/場所、鍵の作成・ローテーション・旧鍵保持/廃止・事故時対応の運用責任者は未指定。既存秘密を読み取らない |
-| 端末資格の発行・認証への束縛・失効 | 認証担当がtenant認証と端末資格を同時照合し、資格のdigestだけをfunction_only表へ保存。U-R1は内部直接呼出しでも同一scopeの有効資格をDBで再照合 | TSK-506/認証担当の所有範囲、資格の配布・端末内保管、紛失/変更/失効手順、表ownerは未受理。裸のdevice_idは受理しない |
+| 端末資格の発行・認証への束縛・失効 | 認証担当がtenant認証と端末資格を同時照合し、資格のdigestだけをfunction_only表へ保存。U-R1は内部直接呼出しでも同一scopeの有効資格行を共有ロックし、業務DB commitまで保持して失効と直列化する | TSK-506/認証担当の所有範囲、資格の配布・端末内保管、紛失/変更/失効手順、表ownerと失効側ロック順は未受理。裸のdevice_idは受理しない |
 | HTTP・同期への伝達 | U-G1が開始応答をcommit後の同端末へ、TSK-506が同期入口の検証済み端末文脈をU-S1へ渡す | 公開DTO/失敗写像、Port署名/呼出位置は各担当回答待ち |
 
 鍵保管先や運用者を仮置きせず、鍵が読めないときは再交付を閉鎖する。端末資格を複製できる環境への追加耐性を要求するかは別の仕様判断とし、今回の自己申告拒否の合格証拠へ混ぜない。
@@ -101,6 +101,6 @@ CREATE TABLE d4_reservations (
 | --- | --- | --- |
 | U-G1開始の署名/結果 | 旧案`issue_initial_recording_right(scope, game_id, holder_device: str)`に対し隔離候補は`tenant_id, game_id, device_id: UUID, device_credential, start_request_id, reservation_attempt_id, source, fence, box`を要求し、戻りは`game_id,D4,recovery_generation,holder_device_id,V12`。既存scopeは固定tokenの`run/run_function`だけで候補Protocolを実装しない | U-G1が渡す検証済み端末値と要求ID、attempt IDの耐久記録位置、外部fenceをcommit後まで保持する所有、初回`issuance_order`、HTTP再交付/失敗写像、結果へV12を出す時点 |
 | U-S1同期Port | 現`holds_recording_right(game_id,d4,v12,writer)`に端末値がなく、復旧世代の外部fenceもない。RG1の③-a/⑧の既受理は維持 | 検証済み端末・復旧世代をPortへ渡す署名/呼出位置、B4/B9/B10とD5未消費の写像、終了後P3のV12例外、全書込経路の外部fence保持 |
-| 全ロック順 | 候補は**外部epoch共有→D4予約/claim（別行・業務行ロック前）→試合行→チーム/選手/U-M2→世代/配達→RG1共有→業務commit→外部epoch解放**。復元開始の最初の取引はRG1行だけを閉じて確定後に外部epoch排他更新 | U-G1/U-S1が試合/チーム/選手/記憶/世代/配達の全順、二重開始、外部2DBの待ちと取消境界を項目別に受理する。既受理の試合行→世代行を再審査しない |
+| 全ロック順 | 候補は**外部epoch共有→端末資格共有→D4予約/claim（別行・業務行ロック前）→試合行→チーム/選手/U-M2→世代/配達→RG1共有→業務commit→外部epoch解放**。復元開始の最初の取引はRG1行だけを閉じて確定後に外部epoch排他更新 | U-G1/U-S1が試合/チーム/選手/記憶/世代/配達の全順、資格失効側の逆順がないこと、二重開始、外部2DBの待ちと取消境界を項目別に受理する。既受理の試合行→世代行を再審査しない |
 
 U-G1/U-S1の無回答を合意に置換しない。U-M2は既存のチーム→選手UUID順を維持する。新5の本物のoperationと新8のPort全体はそれぞれの担当・後続ゲートに残す。

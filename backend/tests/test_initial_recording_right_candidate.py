@@ -81,8 +81,17 @@ class _Ledger:
             raise InitialGrantConflict("D4予約の所有要求が一致しない")
         return reserved
 
-    def claim(self, attempt_id: UUID) -> None:
+    def claim(
+        self, attempt_id: UUID, tenant_id: UUID, game_id: UUID, start_request_id: UUID
+    ) -> None:
         """使用を耐久確定し、同じattemptによる二度目の業務投入を拒否する。"""
+        reserved = self.attempts.get(attempt_id)
+        if reserved is None or (
+            reserved.tenant_id,
+            reserved.game_id,
+            reserved.start_request_id,
+        ) != (tenant_id, game_id, start_request_id):
+            raise InitialGrantConflict("D4予約の所有要求が一致しない")
         if attempt_id in self.claimed or attempt_id not in self.attempts:
             raise InitialGrantConflict("D4予約は既に消費済み")
         self.claimed.add(attempt_id)
@@ -129,6 +138,11 @@ class _Scope:
         """同一tenantに属する有効資格だけを受理する。"""
         self.calls.append("device")
         return self.devices.get(device_id) == credential
+
+    def lock_valid_device(self, device_id: UUID, credential: str) -> bool:
+        """隔離候補で資格の共有ロック取得点を記録する。"""
+        self.calls.append("device_lock")
+        return self.verify_device(device_id, credential)
 
     def existing_start(
         self, game_id: UUID, start_request_id: UUID
@@ -521,7 +535,10 @@ def test_external_claim_sql_rejects_other_owner_and_second_use(
             "AND start_request_id = %s AND status = 'reserved' "
             "RETURNING generation"
         )
-        with psycopg.connect(cluster.admin_dsn) as first:
+        with (
+            psycopg.connect(cluster.admin_dsn) as first,
+            psycopg.connect(cluster.admin_dsn) as racing,
+        ):
             assert (
                 first.execute(
                     statement, (attempt_id, _OTHER_TENANT, _GAME, request_id)
@@ -537,11 +554,68 @@ def test_external_claim_sql_rejects_other_owner_and_second_use(
             assert first.execute(
                 statement, (attempt_id, _TENANT, _GAME, request_id)
             ).fetchone() == (1,)
+            racing.execute("SET LOCAL lock_timeout = '100ms'")
+            with pytest.raises(psycopg.errors.LockNotAvailable):
+                racing.execute(statement, (attempt_id, _TENANT, _GAME, request_id))
+            racing.rollback()
             first.commit()
-        with psycopg.connect(cluster.admin_dsn) as second:
             assert (
-                second.execute(
+                racing.execute(
                     statement, (attempt_id, _TENANT, _GAME, request_id)
+                ).fetchone()
+                is None
+            )
+
+
+def test_device_credential_lock_serializes_revocation(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+) -> None:
+    """資格の共有ロックを確定まで保持し、失効UPDATEを先へ通さない。"""
+    with disposable_postgres_cluster() as cluster:
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
+            admin.execute(
+                "CREATE TABLE trusted_devices ("
+                "tenant_id uuid NOT NULL, device_id uuid NOT NULL, "
+                "credential text NOT NULL, revoked_at timestamptz, "
+                "PRIMARY KEY (tenant_id, device_id))"
+            )
+            admin.execute(
+                "INSERT INTO trusted_devices VALUES (%s, %s, 'credential-a', NULL)",
+                (_TENANT, _DEVICE),
+            )
+        with (
+            psycopg.connect(cluster.admin_dsn) as delivery,
+            psycopg.connect(cluster.admin_dsn) as revocation,
+        ):
+            assert delivery.execute(
+                "SELECT device_id FROM trusted_devices "
+                "WHERE tenant_id = %s AND device_id = %s "
+                "AND credential = 'credential-a' AND revoked_at IS NULL FOR SHARE",
+                (_TENANT, _DEVICE),
+            ).fetchone() == (_DEVICE,)
+            revocation.execute("SET LOCAL lock_timeout = '100ms'")
+            with pytest.raises(psycopg.errors.LockNotAvailable):
+                revocation.execute(
+                    "UPDATE trusted_devices SET revoked_at = CURRENT_TIMESTAMP "
+                    "WHERE tenant_id = %s AND device_id = %s",
+                    (_TENANT, _DEVICE),
+                )
+            revocation.rollback()
+            delivery.commit()
+            revocation.execute(
+                "UPDATE trusted_devices SET revoked_at = CURRENT_TIMESTAMP "
+                "WHERE tenant_id = %s AND device_id = %s",
+                (_TENANT, _DEVICE),
+            )
+            revocation.commit()
+            assert (
+                delivery.execute(
+                    "SELECT device_id FROM trusted_devices "
+                    "WHERE tenant_id = %s AND device_id = %s "
+                    "AND credential = 'credential-a' AND revoked_at IS NULL FOR SHARE",
+                    (_TENANT, _DEVICE),
                 ).fetchone()
                 is None
             )

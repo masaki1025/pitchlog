@@ -93,8 +93,10 @@ class DurableGenerationSource(Protocol):
         """ownerを束縛し、未使用attemptなら同じD4を耐久再照会する。"""
         ...
 
-    def claim(self, attempt_id: UUID) -> None:
-        """業務DB使用前にattemptを一度だけ耐久消費する。"""
+    def claim(
+        self, attempt_id: UUID, tenant_id: UUID, game_id: UUID, start_request_id: UUID
+    ) -> None:
+        """所有要求を再束縛し、業務DB使用前に一度だけ耐久消費する。"""
         ...
 
 
@@ -118,8 +120,8 @@ class InitialGrantScope(Protocol):
         """実行器の固定済みtenantと入力値が一致することを確認する。"""
         ...
 
-    def verify_device(self, device_id: UUID, credential: str) -> bool:
-        """認証済みtenantの有効な端末資格をDBで照合する。"""
+    def lock_valid_device(self, device_id: UUID, credential: str) -> bool:
+        """資格行を共有ロックし、失効との直列化をcommitまで保持する。"""
         ...
 
     def existing_start(
@@ -315,8 +317,8 @@ def issue_initial_recording_right(
         raise InitialGrantUnavailable("初期付与の入力を検証できない")
     fence.assert_held()
     scope.assert_bound_tenant(tenant_id)
-    # 型やtokenだけを信頼せず、内部直接呼出しでも毎回DB資格を確認する。
-    if not scope.verify_device(device_id, device_credential):
+    # 型やtokenだけを信頼せず、資格失効と直列化する行ロックをscope終了まで保持する。
+    if not scope.lock_valid_device(device_id, device_credential):
         raise InitialGrantUnavailable("端末資格を確認できない")
     existing = scope.existing_start(game_id, start_request_id)
     if existing is not None:
@@ -332,8 +334,6 @@ def issue_initial_recording_right(
             or locked.device_id != device_id
         ):
             raise InitialGrantConflict("同一開始の現権利を確認できない")
-        if not scope.verify_device(device_id, device_credential):
-            raise InitialGrantUnavailable("端末資格を確認できない")
         current = source.current_recovery_generation()
         if current != locked.recovery_generation or current != fence.generation:
             raise InitialGrantUnavailable("復旧世代が一致しない")
@@ -365,10 +365,8 @@ def issue_initial_recording_right(
     ):
         raise InitialGrantConflict("D4予約の所有要求が一致しない")
     # 予約応答不明は再照会できるが、業務DBへ入る直前にD4を一度だけ消費する。
-    source.claim(reservation_attempt_id)
+    source.claim(reservation_attempt_id, tenant_id, game_id, start_request_id)
     scope.lock_preparing_game(game_id)
-    if not scope.verify_device(device_id, device_credential):
-        raise InitialGrantUnavailable("端末資格を確認できない")
     scope.assert_recovery_generation(expected_epoch)
     proof, digest, envelope = box.issue(
         tenant_id,

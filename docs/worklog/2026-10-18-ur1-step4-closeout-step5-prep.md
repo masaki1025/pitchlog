@@ -85,3 +85,15 @@ Ruff check、ty check、候補単体とRG1関連25件は成功。使い捨てPos
 隔離PostgreSQLで所有tuple不一致と2回目の`reserved→claimed`がSQL条件で拒否される負例を追加した。候補単体・DBの16件、Ruff、tyが成功。実台帳adapterの同期standby耐久、資格発行/失効、U-G1/U-S1実経路や本物Portの合格とは扱わない。U-G1の実作業木に開始側の新受理は見当たらず、U-S1のPort署名も現時点で端末引数なし。両担当の未回答は[判断資料](../features/ur1-recording-rights/step5-three-part-approval.md)の接続表へ残した。TSK-550 B・両担当の作業木は読取のみで編集していない。
 
 最終候補`ba75705e`でbackend Ruff全対象とtyが成功し、候補・RG1関連の使い捨てDB込み28件が成功した。全backend pytest、同期standby耐久・旧primaryフェンス、製品Port/HTTPの検査は未実施。新5の完了判定には用いない。
+
+## 2026-10-18: 群1採用後の固定接続候補と事前レビュー
+
+依頼者は群1を**隔離候補の範囲**として採用した。世代表のapp ACLは拡大せず、V12情報を新しい`function_only`表に分離し、外部`recovery_epoch`と`d4_counter`を別行にする。`claim`候補に予約時と同じtenant/game/start_requestの所有tupleを渡し、使い捨てPostgreSQLで他owner・二重claim・競合を拒否する試験を追加した。[U-G1/U-S1固定候補](../features/ur1-recording-rights/step5-connection-fixed-candidate.md)に署名・DTO・失敗結果・両DBの途中失敗/不明commit時の停止を記載した。認証基盤調査では`TenantContext`はtenant IDだけ、端末資格の製品実装は未提供。既存署名鍵は旧鍵破棄の契約を持ち、V12暗号鍵へ共用できない。鍵保管先・担当は未指定。
+
+[data-model 7.3候補](../features/ur1-recording-rights/step5-data-model-73-candidate.md)は正本へ**未反映**。v0.11 approvedを維持する。現sync-protocol 9-5の作成時初期付与との衝突はU-S1 R-17の作成/開始分割を別正本ゲートで先に確定する必要がある。正本本文が `in-review` になっていないため、今回の独立確認は**正式7.3の1周目に算入しない**。
+
+独立したCodex CLI セッション`01a14ee9-cf12-7120-aaa6-b322c1c90fa7`（gpt-6.1-sol、read-only）は候補全体を事前確認し、**P0 0 / P1 1 / P2 2**。P1=端末資格の最後の照合後に失効するとV12再交付を通せる（実際に候補を呼び再現）。P2=RG1のB7/B10を検査位置ではなくP1/P2/P4対P3で写像すること、現sync-protocolの作成行を開始行へ分割する正本変更を明示すること。**3件全採用**。資格行をscope内で`FOR SHARE`し業務DB commitまで保持する候補へ変え、失効UPDATEが待つ隔離DB試験を追加した。資格失効側の逆順ロックがないことは認証担当の受理待ち。B7/B10と正本改訂範囲を文書へ反映した。この**反映後差分は独立再レビュー未実施**。前回のP2反映差分は今回のレビュー対象に入れた。新5候補の独立レビューは前段の全文/限定再確認2回と今回の事前確認1回の計3回。6.3の追加周を自動開始しない。正式7.3は未使用。
+
+正式資産・7.7・実台帳・製品Port・共有DBは変更していない。後続は、U-S1 R-17正本追随、資格失効側ロック順/公開PortとU-G1の公開結果・全順の項目別受理、正本の正式7.3、exact DDL/JSON・個別受理、7.7実値の順。実配置・鍵管理責任・端末資格責任・有料資源は未決のまま。TSK-550 B/U-G1/U-S1/TSK-506の作業木は編集していない。
+
+反映後の限定検査はbackend `ruff check .`、`ty check`、候補+RG1関連pytest **29件成功**（使い捨てPostgreSQLの資格失効・claim競合を含む）。root `check_docs_status.py` は20文書/違反0。全backend・全ハーネス、同期standby/旧primary/製品Portは未検証。反映後SHA-256は`initial_grant.py=c20d596ba80a7c9e792a472ddde295a261b0dee2977627e7f0391765bdca59c3`、候補試験=`e643efd043775b6f51706661f9a1f7211b69a2047e9c6cd38340a5252cbad0e0`。この識別値の差分は独立再レビュー未実施。
