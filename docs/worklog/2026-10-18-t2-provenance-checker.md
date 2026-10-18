@@ -94,3 +94,11 @@ branch: feature/t2-provenance-checker
 - [候補README](../features/t2-provenance-checker/candidates/README.md)、[原因/担当/受理条件](../features/t2-provenance-checker/harness-failure-disposition-2026-10-18.md)、[人間判断5行と544/545への受領物](../features/t2-provenance-checker/p8-human-decisions-and-receivers-2026-10-18.md)へ版・コミット・hash・検査・個別未成立条件を記録。
 - 本会話で既存の所有受諾/限定是正結果をPOが受領した事実と、544/545の担当受理は別。今回の候補について担当受理の返信はまだない。追加差分レビュー1回を非同期照会中で、未許可/未実施。既存0/0/0を候補のレビュー結果として転記しない。
 - 正本/凍結資産の正式反映・7.7受理・再署名・P-6・担当受理・push/PRは別ゲートのまま。provenance整備完了、T2 P-8全成立、545製品実装開始可能はいずれも未成立。
+
+## 2026-10-19: 採用5件の候補追随
+
+- POが5件（宣言前3値保持、明示phase、GAP-05表示契約、プレイ前後得点観測、kind/payload正規化拒否）を採用し、候補実装・検証を許可。既承認事項を再判断待ちへ戻さない。
+- 既存HEAD e4ab0889と所有受諾を引き継ぎ、backup ref/先行コミットを保持。既存セッション停止と所有移管の再確認待ちはなし。他担当pytest/DBには触れない。
+- 共有投影・認可を要求と別引数へ分離した候補検査を追加。宣言は第3アウトのpost-turnまで完了した最新評価参照から3値を保持する。得点加算/終了条件の製品計算核は追加しない。
+- 作者の人工fixture: context5、得点観測2、操作7×6=42、表示比較5。候補schema/bundleでfixtureのbyte digestを固定。製品認可adapter、製品表示関数の実行やP-6独立期待値の実施とは扱わない。
+- 既存基本コードレビュー2回を保持し、POの追加1回は固定候補と直接影響箇所に限定して実施予定。計画レビュー2回、確定ゲート0回も保持。実施結果は後記し、署名は転記しない。

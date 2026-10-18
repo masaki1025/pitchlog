@@ -1655,6 +1655,10 @@ def test_p8_candidate_checks_correlations_without_claiming_formal_acceptance() -
         "decisionCases": 5,
         "lifecycleCases": 3,
         "displayCases": 5,
+        "contextCases": 5,
+        "scoreObservationCases": 2,
+        "operationCases": 42,
+        "displayComparisons": 5,
         "runtimeOutputsCompared": False,
         "formalCoverageUpdated": False,
     }
@@ -1784,3 +1788,228 @@ def test_p8_candidate_cli_marks_unaccepted_scope(capsys: pytest.CaptureFixture[s
     assert "正式被覆・P-6未成立" in output
     assert "candidate-only" in output
     assert "not-performed" in output
+
+
+P8_BOUNDARY_EVIDENCE_PATH = P8_CANDIDATE_PATH.with_name("p8_boundary_evidence_v1.json")
+
+
+def _p8_boundary_evidence() -> dict[str, Any]:
+    """候補作者の人工fixtureを読む。独立期待値として扱わない。"""
+    return json.loads(P8_BOUNDARY_EVIDENCE_PATH.read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("index", range(5))
+def test_p8_context_replays_persisted_prefix_after_restart(index: int) -> None:
+    """永続化と再読込で保持3値とphaseが変わらず、権限を付与しない。"""
+    case = _p8_boundary_evidence()["contextCases"][index]
+    projection = json.loads(json.dumps(case["projection"]))
+    result = p8_coverage_checker.normalize_p8_candidate_context(
+        case["request"], projection=projection, authorizations=case["authorizations"],
+    )
+    assert result == case["expected"]
+    assert "undoAllowed" not in result and "substitutionAllowed" not in result
+    assert result["permissionSource"] == "existing-operation-authorization"
+
+
+@pytest.mark.parametrize("mutation,code", [
+    ("device-reopen", "MAPPING"), ("game-ended", "MAPPING"),
+    ("wrong-tenant", "MAPPING"), ("wrong-game", "MAPPING"),
+    ("stale-revision", "MAPPING"), ("boolean-revision", "MAPPING"),
+    ("missing-field", "HANDOFF_SHAPE"), ("unknown-field", "UNKNOWN_FIELD"),
+    ("missing-auth", "MAPPING"), ("denied-auth", "MAPPING"),
+    ("wrong-auth-tenant", "MAPPING"), ("stale-auth", "MAPPING"),
+    ("bool-auth", "HANDOFF_SHAPE"), ("duplicate-auth", "MAPPING"),
+    ("held-detected", "MAPPING"), ("held-lock", "MAPPING"),
+    ("held-outcome", "MAPPING"), ("prompt", "MAPPING"),
+    ("pre-turn-binding", "MAPPING"), ("missing-turn", "MAPPING"),
+    ("truncated-third-out", "MAPPING"), ("reordered", "MAPPING"),
+    ("duplicate-receipt", "MAPPING"), ("wrong-event", "MAPPING"),
+    ("unknown-outcome", "HANDOFF_SHAPE"), ("unknown-phase", "MAPPING"),
+    ("automatic-end", "MAPPING"), ("evaluation-after-declaration", "MAPPING"),
+    ("reopen-lock", "MAPPING"), ("reopen-prompt", "MAPPING"),
+])
+def test_p8_context_rejects_spoofed_or_incomplete_evidence(mutation: str, code: str) -> None:
+    """要求の自己申告、未完評価、認可や保持値の偽装を拒否する。"""
+    case = _p8_boundary_evidence()["contextCases"][2]
+    request, projection, auth = case["request"], case["projection"], case["authorizations"]
+    rs = projection["receipts"]
+    if mutation == "device-reopen":
+        projection["receipts"] = rs[:3]
+    elif mutation == "game-ended":
+        request["gameEnded"] = True
+    elif mutation in {"wrong-tenant", "wrong-game"}:
+        request["scope"]["tenantId" if mutation == "wrong-tenant" else "gameId"] = "forged"
+    elif mutation in {"stale-revision", "boolean-revision"}:
+        request["projectionRevision"] = 1 if mutation == "stale-revision" else True
+    elif mutation == "missing-field":
+        del request["phase"]
+    elif mutation == "unknown-field":
+        request["clientAuthorized"] = True
+    elif mutation == "missing-auth":
+        auth.clear()
+    elif mutation == "denied-auth":
+        auth[0]["decision"] = "deny"
+    elif mutation == "wrong-auth-tenant":
+        auth[0]["scope"]["tenantId"] = "forged"
+    elif mutation in {"stale-auth", "bool-auth"}:
+        auth[0]["expectedRevision"] = 0 if mutation == "stale-auth" else True
+    elif mutation == "duplicate-auth":
+        auth.append(deepcopy(auth[0]))
+    elif mutation.startswith("held-"):
+        key = {
+            "held-detected": "endConditionDetected", "held-lock": "lockFurtherPlayInput",
+            "held-outcome": "outcome",
+        }[mutation]
+        rs[2]["after"]["decision"][key] = "cold-end" if mutation == "held-outcome" else False
+    elif mutation == "prompt":
+        rs[2]["after"]["decision"]["promptEndDeclaration"] = True
+    elif mutation == "pre-turn-binding":
+        rs[2]["basedOnEvaluationRef"] = "receipt-1"
+    elif mutation == "missing-turn":
+        del rs[1]
+        for i, row in enumerate(rs, 1):
+            row["sequence"] = i
+    elif mutation == "truncated-third-out":
+        projection["receipts"] = rs[:1]
+    elif mutation == "reordered":
+        rs[0], rs[1] = rs[1], rs[0]
+    elif mutation == "duplicate-receipt":
+        rs[1]["receiptId"] = rs[0]["receiptId"]
+    elif mutation == "wrong-event":
+        rs[1]["eventRef"] = "other-play"
+    elif mutation == "unknown-outcome":
+        rs[0]["after"]["decision"]["outcome"] = "invented"
+    elif mutation == "unknown-phase":
+        rs[0]["after"]["phase"] = "device-reopened"
+    elif mutation == "automatic-end":
+        rs[0]["after"]["decision"]["automaticallyEndsGame"] = True
+    elif mutation == "evaluation-after-declaration":
+        rs[3]["kind"] = "evaluation"
+        rs[3]["authorizationRef"] = rs[3]["basedOnEvaluationRef"] = None
+        rs[3]["timing"] = "post-play"
+    elif mutation in {"reopen-lock", "reopen-prompt"}:
+        key = "lockFurtherPlayInput" if mutation == "reopen-lock" else "promptEndDeclaration"
+        rs[3]["after"]["decision"][key] = mutation == "reopen-lock"
+    with pytest.raises(p8_coverage_checker.CandidateNormalizationError) as error:
+        p8_coverage_checker.normalize_p8_candidate_context(
+            request, projection=projection, authorizations=auth,
+        )
+    assert error.value.code == code
+
+
+@pytest.mark.parametrize("index", range(2))
+def test_p8_score_observation_uses_shared_projection_without_recalculation(index: int) -> None:
+    """対象プレイの直前/直後得点を観測入力として照合する。"""
+    case = _p8_boundary_evidence()["scoreObservationCases"][index]
+    assert p8_coverage_checker.normalize_p8_candidate_score(
+        case["request"], authoritative_observation=case["source"],
+    ) == case["expected"]
+
+
+@pytest.mark.parametrize("mutation,code", [
+    ("before-score", "MAPPING"), ("after-score", "MAPPING"),
+    ("wrong-event", "MAPPING"), ("wrong-scope", "MAPPING"),
+    ("stale-revision", "MAPPING"), ("skipped-prefix", "MAPPING"),
+    ("untrusted-producer", "MAPPING"), ("negative-score", "HANDOFF_SHAPE"),
+    ("bool-score", "HANDOFF_SHAPE"), ("missing-source", "HANDOFF_SHAPE"),
+    ("unknown-input", "UNKNOWN_FIELD"),
+])
+def test_p8_score_observation_rejects_unverified_client_values(mutation: str, code: str) -> None:
+    """クライアント得点の無検証採用と対象プレイの取り違えを拒否する。"""
+    case = _p8_boundary_evidence()["scoreObservationCases"][0]
+    request, source = case["request"], case["source"]
+    if mutation in {"before-score", "after-score"}:
+        request["beforeScore" if mutation == "before-score" else "afterScore"]["home"] = 999
+    elif mutation == "wrong-event":
+        request["eventRef"] = "another-play"
+    elif mutation == "wrong-scope":
+        request["scope"]["gameId"] = "another-game"
+    elif mutation == "stale-revision":
+        request["projectionRevision"] = 40
+    elif mutation == "skipped-prefix":
+        source["beforeAppliedVersion"] = 39
+    elif mutation == "untrusted-producer":
+        source["producer"] = "client"
+    elif mutation in {"negative-score", "bool-score"}:
+        source["beforeScore"]["home"] = -1 if mutation == "negative-score" else True
+    elif mutation == "missing-source":
+        del source["beforeScore"]
+    elif mutation == "unknown-input":
+        request["clientAuthorized"] = True
+    with pytest.raises(p8_coverage_checker.CandidateNormalizationError) as error:
+        p8_coverage_checker.normalize_p8_candidate_score(request, authoritative_observation=source)
+    assert error.value.code == code
+
+
+@pytest.mark.parametrize("index", range(42))
+def test_p8_operation_kind_payload_matrix_is_not_silently_corrected(index: int) -> None:
+    """既存7種×6タグを正常6/拒否36へ分類し、入力を変更しない。"""
+    case = _p8_boundary_evidence()["operationCases"][index]
+    descriptor = json.loads((
+        REPOSITORY_ROOT / "contracts/state-transition/input_axes_descriptor_v1.json"
+    ).read_text())
+    original = deepcopy(case["request"])
+    if case["expected"] == "accepted":
+        assert p8_coverage_checker.normalize_p8_candidate_operation(
+            case["request"], descriptor=descriptor,
+        ) == original
+    else:
+        with pytest.raises(p8_coverage_checker.CandidateNormalizationError) as error:
+            p8_coverage_checker.normalize_p8_candidate_operation(
+                case["request"], descriptor=descriptor,
+            )
+        assert error.value.code == case["expected"]
+    assert case["request"] == original
+
+
+@pytest.mark.parametrize("mutation", [
+    "blank-as-zero", "wrong-cell", "wrong-prefix", "wrong-scope", "x-as-blank",
+])
+def test_p8_display_comparison_detects_wrong_cell_and_blank(mutation: str) -> None:
+    """比較器を人工出力で検査する。製品出力や独立期待値の検証とは扱わない。"""
+    cases = _p8_boundary_evidence()["displayComparisons"]
+    case = cases[0 if mutation == "x-as-blank" else 1]
+    output = case["syntheticOutput"]
+    if mutation == "blank-as-zero":
+        output["display"] = "0"
+    elif mutation == "wrong-cell":
+        output["targetCell"]["inning"] += 1
+    elif mutation == "wrong-prefix":
+        output["projectionRevision"] -= 1
+    elif mutation == "wrong-scope":
+        output["scope"]["gameId"] = "another-game"
+    else:
+        output["display"] = ""
+    with pytest.raises(p8_coverage_checker.CandidateNormalizationError, match="display-comparison"):
+        p8_coverage_checker.compare_p8_candidate_display(case["expected"], output)
+
+
+@pytest.mark.parametrize("raw,code", [
+    ({"operationKind": "per-pitch"}, "HANDOFF_SHAPE"),
+    ({"operationKind": "invented", "operationPayload": "not-applicable"}, "HANDOFF_SHAPE"),
+    ({"operationKind": "undo", "operationPayload": {}}, "HANDOFF_SHAPE"),
+    ({"operationKind": True, "operationPayload": "not-applicable"}, "HANDOFF_SHAPE"),
+    ({"operationKind": "undo", "operationPayload": "not-applicable", "ignored": 1},
+     "UNKNOWN_FIELD"),
+])
+def test_p8_operation_rejection_classes_match_existing_handoff_names(
+    raw: dict[str, Any], code: str,
+) -> None:
+    """境界の形と未知fieldを既存拒否分類名へ対応させる。"""
+    descriptor = json.loads((
+        REPOSITORY_ROOT / "contracts/state-transition/input_axes_descriptor_v1.json"
+    ).read_text())
+    with pytest.raises(p8_coverage_checker.CandidateNormalizationError) as error:
+        p8_coverage_checker.normalize_p8_candidate_operation(raw, descriptor=descriptor)
+    assert error.value.code == code
+
+
+def test_p8_conditional_state_correction_requires_adopted_clause() -> None:
+    """既存FR-040の条件付き種別は採用宣言のある試験だけで通す。"""
+    descriptor = json.loads((
+        REPOSITORY_ROOT / "contracts/state-transition/input_axes_descriptor_v1.json"
+    ).read_text())
+    raw = {"operationKind": "state-correction", "operationPayload": "state-correction"}
+    assert p8_coverage_checker.normalize_p8_candidate_operation(
+        raw, descriptor=descriptor, adopted_clauses=frozenset({"req:FR-040"}),
+    ) == raw

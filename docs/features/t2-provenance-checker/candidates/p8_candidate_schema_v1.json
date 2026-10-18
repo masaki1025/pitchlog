@@ -12,7 +12,8 @@
     "ruleValidationCases",
     "decisionCases",
     "lifecycleCases",
-    "displayCases"
+    "displayCases",
+    "boundaryEvidenceDigest"
   ],
   "additionalProperties": false,
   "properties": {
@@ -137,11 +138,8 @@
               "expectedFields": {
                 "promptEndDeclaration": false
               },
-              "unresolvedFields": [
-                "outcome",
-                "endConditionDetected",
-                "lockFurtherPlayInput"
-              ]
+              "unresolvedFields": [],
+              "retainedFieldsFrom": "latest-completed-evaluation-before-declaration"
             }
           },
           {
@@ -157,9 +155,8 @@
                 "endConditionDetected": true,
                 "promptEndDeclaration": true
               },
-              "unresolvedFields": [
-                "outcome"
-              ]
+              "unresolvedFields": [],
+              "outcomeFrom": "shared-state-transition-projection"
             }
           },
           {
@@ -270,6 +267,9 @@
         }
       },
       "minItems": 1
+    },
+    "boundaryEvidenceDigest": {
+      "const": "sha256:40c57eb8191aa284a238838d40829a1fe5004b9a796d707f86ffb4302062c1c9"
     }
   },
   "$defs": {
