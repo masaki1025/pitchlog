@@ -33,3 +33,9 @@
 - 人間の受理対象は比較元`5bb1ff89`、候補入力tree`047c6f11daed190f012950775b2ea4e9e3dbcb18`、oracle入力commit`4b85b358`、一括資料SHA-256`e297aaf7fdd0cc0542488a488af0af61e2964aca82c4d237a79a7d505300f6d8`。tenant・seed・oracleの記録案SHA-256は順に`b76b13db0d3c992b3be4f58207d59adc67a97cf8aa96b9498d722c336e8a19fc`、`7e33f37146677b9efefc7384b3ecb8ff9d75049597b39530e3dc07efd0723732`、`a4a8ea66f7cdccdb6dc2545e13a2c076bb6234f102cb1b5a0ab96b6a58b054fc`。承認者は山田正輝、承認日は2026-10-18。3案の承認欄を正式履歴へ反映し、比較元の23/3/12件はそのまま接頭部として保持する。旧#149の記録・ブランチは変更・流用しない。
 - 9資産の射影と外部8ファイルのbefore/afterを候補資料と照合してcontent-addressed snapshotへ保存した。比較corpusのpinは承認済み`ab298c6cfa8d0e3a57fad7369dfb993771235cb6c0ea454da8fee846d401b117`へ更新し、oracle sealの候補値を維持する。承認対象の入力ファイル、比較元、実値に変化があれば受理済み履歴を差し替えず別差分として扱う。
 - 既定の独立レビュー2回と限定追加1回の証跡を維持する。別PR化、履歴処理、後発差分の独立再レビューは未実施。今回の7.7受理は本人によるPR全体の逐行確認、N3-061の是正、試合作成公開、既存DB適用の承認ではない。
+
+## 正式反映後の全件検査と限定追随（2026-10-19）
+
+- 受理履歴コミット`b522a5fd`のroot全件は29,667成功・9失敗・2 skip。認可派生の旧blob参照による試験3件、要件v2.15のout-of-scope行数を固定した試験2件、core未登録1件、ORMシート1件、使い捨てDBを渡さなかったSQL変異とその計測2件である。認可派生参照と件数期待値は`failure-injection-points.json`の`ddl-elements.json` blob `36fa43be`→`d528eb59`、`mcdc-map.json`の`claim-mutant-map.json` blob `ab77e443`→`9d45f87f`、`test_check_authz_catalog.py`の1417/1230→1418/1231に限定して追随。関連3ファイルの試験25,843件は成功。専用使い捨てPostgreSQLを渡したSQL変異・計測の限定4件も成功した。core登録とORMシートは別ゲートとして未解消のまま維持する。
+- 追随3ファイルは当初の候補入力treeを変更する後発差分であり、元の候補資料を上書きしない。承認済み9資産射影・外部8ファイル・認可8入力blob・oracle seal SHA-256`c47e203f`・corpus digest`ab298c6c`は機械再照合で不変。後発差分の独立再レビューは未実施であり、既済みレビューの回数に加算しない。
+- N3-061は別worktree `feature/orm-applied-rules-immutability-candidate` の `docs/worklog/2026-10-18-applied-rules-immutability-candidate.md`に、初回INSERT可・保存後異値UPDATE拒否のDBトリガ、manifest/ORM宣言、恒久実DB負例試験と、TSK-372所有側の正本・migration・7.7・受入シート判定ゲートを整理した。#152へ是正コードを混ぜず、TSK-550ステップ3と試合作成公開の完了条件へ読み替えない。
