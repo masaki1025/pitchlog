@@ -442,3 +442,11 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - secretsはreview manifestの公開ソースSHA-256の2件（1fea2c60の4/6行）がgeneric-api-keyに誤検知された。同コミットのgit blobから再計算して保存値と完全一致を確認した。github-setup.md §4は誤検知にも人間判定を要求するため、限定2 fingerprintの登録判断を資料/PRコメントへ提示し、回答前に.gitleaksignoreへ追加しない。
 - 通常PR CIはbackend差分なしでbackendをskipする。skipを成功扱いにせず、最終HEADで既存workflow_dispatchを使用してbackend全件も実行する。正本・workflow・試験・timeoutの変更は行わない。
 - Notionの親TSK-528にPR #147のURLを記録し、async更新のsucceededを確認した。親全体の進行中・未完了を維持し、DoD/完了日は変更していない。
+
+### C1ステップ2 本人回答・公開hash限定登録
+
+- 山田正輝がHEAD a3934fb7283f194ba5544e542bbddc056ff9645bの全18ファイルの本人逐行確認完了を回答。確認方法は未申告のため推定して記入しない。承認済み2件や当該本人確認を一括未了へ戻さない。
+- 公開ソースhash2件が実認証情報ではないとの人間確認と、理由付きfingerprint限定登録承認を受領。既存5件を保持し2件のみ追加する。製品/spec、workflow、凍結契約、検査条件を変更しない。追加差分は計画・判断資料・本人確認記録・PR資料・本ログへの追随で、元の18ファイルの確認対象外であることを明示する。
+- 前HEADの最終検査：ローカルroot 29,668 passed/2 skipped、両CI root 29,409 passed/2 skipped、backend 2,523 passed/4 skipped・coverage89%、frontend68ファイル1,237 passed。全必須チェックの成功前に完了やDraft解除を記録しない。
+- 既存履歴の別1件は同期故障試験の母集合における固定試験ID。backend/frontend双方のペア集合検査用途を照合し、詳細をstep2-gitleaks-decision.mdへ固定した。この1件は未判定・未登録で、承認済み2件と別管理する。
+- 新HEADの通常push・PR CI更新を進め、全必須チェック成功後だけDraft解除する承認を受領。マージ・公開、C2/U-F3実装は行わない。台帳への追記なし：既存の誤検知登録運用の承認反映であり、新たなハーネス知見は追加しない。

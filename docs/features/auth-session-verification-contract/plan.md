@@ -35,7 +35,7 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 
 正本への反映なし。本追補は承認済みの認証・tenant分離契約に対する製品実装追随であり、`docs/requirements`・`docs/design`・`docs/adr`・`docs/development`・`docs/ops`は変更しない。
 
-**正本体系外だが同一PRで更新するもの**: frontendの`api/auth.ts`・`api/client.ts`・`stores/authStore.ts`と各spec、C2/U-F3/U-F13の依存・所有状態、backendのsession endpoint・DTO・tenant profile固定operationと試験、`contracts/authz/*`のroute/matrix・oracle資産、`contracts/tenant_boundary/{base-allowlist.json,repository-contract.json}`、authz/tenant-boundaryの検査fixture・検査コード、本計画・関連調査/申し送り・作業ログ。
+**正本体系外だが同一PRで更新するもの**: frontendの`api/auth.ts`・`api/client.ts`・`stores/authStore.ts`と各spec、C2/U-F3/U-F13の依存・所有状態、backendのsession endpoint・DTO・tenant profile固定operationと試験、`contracts/authz/*`のroute/matrix・oracle資産、`contracts/tenant_boundary/{base-allowlist.json,repository-contract.json}`、authz/tenant-boundaryの検査fixture・検査コード、本計画・関連調査/申し送り・作業ログ。C1公開ソースhashの人間判定済み2 fingerprintに限る`.gitleaksignore`追記（PR #147、理由コメント付き）。
 
 ## 3. 認証状態と失敗時の契約
 
@@ -184,3 +184,9 @@ worktree一覧とopen PR（#138/#142/#143）にC2/U-F3/U-F2/U-F6の並行編集�
 #146の移送はroot/backendのconftestで起動する。以前の明示TMPDIR/--basetempは移送や掃除の実証にならないため、今回はTMPDIR/PYTEST_DEBUG_TEMPROOTを外してC1専用PITCHLOG_PYTEST_TMPDIRを指定し、配線試験と実basetempを照合する。root全件は4 worker上限（子pytestのautoも4）とし、backendのローカル配線確認・frontendと重ねた高負荷の全層実行は避ける。試験除外・timeout緩和は行わない。
 
 C2/U-F3・公開・Draft解除・マージには進まない。既定の2周レビューとP2反映記録を維持し、必要な追加レビュー裁定が判明した場合だけ差分を提示する。
+
+## 14. 本人確認回答と限定登録（PR #147）
+
+山田正輝からHEAD a3934fb7283f194ba5544e542bbddc056ff9645bの全18ファイルの本人逐行確認完了回答を受領した。確認方法は未申告であり、推定して記入しない。同回答によりC1公開ソースhashの2 fingerprintだけの理由コメント付き限定登録・検査・通常push・CI更新と、全必須チェック成功後のDraft解除が承認された。マージ・公開は許可されていない。
+
+追加差分は`.gitleaksignore`の2行と理由コメント、および本承認・本人確認・検査結果の計画/判断資料/作業ログ/PR資料への反映のみ。製品・試験・workflow・凍結資産に追加差分なし。本人確認済み18ファイルを未了へ戻さず、追加差分が当該HEADの確認対象外であることも明示する。既存履歴の別1件は未判定として用途と根拠を提示し、登録しない。
