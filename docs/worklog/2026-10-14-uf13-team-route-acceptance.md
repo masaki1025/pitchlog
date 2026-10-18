@@ -474,3 +474,26 @@ U-F13のrouter/App/core path製品変更は未着手。開始条件はC2/U-F3の
 - 第2周Codex P0=2/P1=3、実Claude P1=3/P2=6を採用。自動P0限定第3周はP0=0で終了。P1/P2の最終反映と後追加の局所1ステップ/追加PR境界は未再レビューとして人間確認へ残す。既存C2/U-F3コードレビューの追加周ではなく、否決済みCookie局所案の継続である。
 - C2は最新基線の全件検査を継続。最初のbackend全件はsymlink仮想環境が文言走査へ列挙される環境不備で中断し、製品/検査器を変えず通常のignore対象ディレクトリへ修正して再実行した。root初回の3失敗（bytecode生成検出と、SQL変異の既存ロール接続拒否）は失敗として保持し、専用PostgreSQL・bytecode無効化で全件を再実行中。選択診断もDB fixtureの既定接続時に拒否されて未実行であり、成功へ数えない。既存DBへSQL実行する経路には到達せず、以後の全検査は専用クラスタだけを使う。
 - U-F3のfrontend 1,267成功、C2のfrontend 1,279成功は最新基線で実測済み。U-F3のroot/backendも専用クラスタで実行中。実画面通し、追加core登録、通常push/Draft PR作成の未許可を完了扱いにしない。
+
+
+## 2026-10-18: U-F5実経路照合・受入環境の独立準備
+
+- 実APIは`api/routers/{players,team_records}.py`と単一`repositories/roster.py`、DTOは`api/schemas/roster.py`。C2の正規`api/roster.ts`は選手/対戦相手の一覧・登録・通常編集だけを対象7経路へ接続し、tenant_idをroster DTOへ追加しない。対戦相手POSTは`/team-records`であり、認証用チーム作成を実装しない。
+- `TeamScreen`は共有VueQuery providerのcursor一覧、選択したself/opponent、limit25を再利用。`TeamMembersContent`は登録/通常編集・same_number_players/similar_names・同tenant/世代のcache再取得を持つ。状態変更・削除・試合中登録は新しい入口に含めない。上の実製品経路にはRG1/D4/段階A規則解決/試合作成の参照なし。550・D4・544/545は本縦断の待ちにしない。
+- 共有Piniaは`appProviders.ts`のexport、既存QueryClientも同providerから供給される。U-F13の認証guardはC1 ensureSessionVerifiedを再利用する予定で、仮tenantやlocalStorage認証済み判定を作らない。
+- 既存Playwright実行環境とChromium149を確認。専用blank context・OS割当の空きportだけを使う能力確認で、localhostのSecure/HttpOnly/__Host Cookie受理を実測し、context/serverを終了した。実製品ログイン・/team・DB受入はまだ未実施であり、この環境確認を受入成功と扱わない。TLS鍵や既存ブラウザprofile/既存DBを読み込まない。
+- 実受入は既存disposable DB fixtureで正規認可/seedを適用し、テスト専用tenant/self recordを設定して、実APIと実画面へ接続する。未統合の他担当枝を使わず、D自身の固定候補を検証用に結合する局所条件への回答を待つ。新しい常設E2Eハーネスは追加しない。
+
+
+### 固定候補の全件検査（2026-10-18、継続）
+
+C2の17製品/試験入力は`77d20da729994564b802cb33fbf14dc9ef26785d`、U-F3の2製品/試験入力は`a4b982441b25b260a4532b5148bc8fb1c08166d7`で固定し、SHA-256 manifestを個別cacheへ保存した。C2のroot全件は専用DB/4workerで**29,670成功・2 skip、1218.28秒、終了コード0**、U-F3のroot全件も専用DB/2workerで**29,670成功・2 skip、1698.99秒、終了コード0**。両rootの専用クラスタcleanupを確認。C2の初回失敗・中断を成功へ流用せず、同じ全件集合を除外なしで再実行した。C2 rootの一時runner記録に残ったnested worker記述2は実設定4と不一致だったため、実行argv/設定に基づく訂正記録を別保全した（試験実行自体は変更なし）。両backend全件はまだ実行中であり、この欄で完了を主張しない。
+
+本collaboration treeも再確認し、実行中はCodex Dのrootのみ。他の実装サブエージェントによる同時編集はない。新たなsub-agentは起動していない。
+
+
+### backend全件の追加診断（2026-10-18）
+
+U-F3は通常配置venvで**2,574成功/4 skip/1 warning、3049.63秒、終了コード0**、専用cluster cleanup完了。C2は**3,030成功/2失敗/4 skip/1 warning、3048.08秒**で、失敗は署名・未署名呼出しの変異2件。子pytestのtracebackを診断用に捕捉したところ、期待する認証guardの失敗ではなく、fixtureのcreate_appが一時sourceコピーのdomain artifact不在でERRORになり、failed件数が不足していた。
+
+C2のbackend/.venvは外部cacheへのリンク構成で、pytestスクリプトのshebang/sys.prefixがcache側になっていた。`domainrt.host._product_root`は一時コピーの場合に通常のbackend/.venvから製品ルートを選ぶ既存契約であり、これに合わない環境だった。D自身のvenvリンクだけを除き、通常位置へuv sync --lockedで再作成（cache/ソース/他担当環境は保持）。製品・既存試験を一切変更せず、変異module全**7成功、17.49秒**を確認。red/greenの期待数・artifact照合を緩和していない。診断成功を全件成功へ流用せず、同じ3,036件のbackend全件を専用clusterで再実行中。C2の17製品/試験blobは固定SHA-256と全一致している。
