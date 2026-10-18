@@ -528,3 +528,10 @@ C2のbackend/.venvは外部cacheへのリンク構成で、pytestスクリプト
 結合元は実develop156dd139、C2 193400d68e852bce14cee4ff65038c4a92a57c47、U-F3 ea1b3bda681b689c9b8fe1b56fae7dce8f9d5d7f。専用feature/uf13-team-route-verificationだけへ結合（merge0793fa16）。他担当未統合枝は不使用。router/Appの編集所有はU-F13へ移り、元PR/他担当worktreeへ結合差分を逆流させない。
 
 新login/session相関のDTO前後・意図識別/保持・旧Cookie順序・再確認手順と現C1との差は[具体比較資料](../features/uf13-team-route-acceptance/login-session-correlation-comparison.md)へ提示。新契約は未承認・未実装のまま、既承認の経路/JSON/試験を進める。相関の既知残余を通し受入成功で隠さず、本人確認・公開・マージは代行しない。
+
+
+### U-F13ステップ2の製品接続（結合候補だけで検証）
+
+宣言e5fcff3c/試験追随e8907eceと別のコミットでJSON2パターン＋router/Appを接続。保護/teamは共有PiniaのC1 ensureSessionVerifiedを呼び、hydration・DTO成功・現epoch/tenant一致までTeamScreenを開始しない。公開/loginは既存LoginScreen、/helpは公開/backを保持。認証切替で保護画面のkeyをauthEpochとしcache/observerを旧世代から切る。LoginScreenは正規login→session進行中のepoch変更でunmountすると結果を失うため、認証操作中のkey再生成をせず、画面内の既存epoch照合と正規authenticated emitを使う。戻り先は実在する/teamだけで、外部/未完成pathを受け付けない。
+
+結合候補で初回frontend全70ファイル1,322成功・build成功。ESLintの動的import禁止を検出しルールを変えず静的importへ修正、再度ESLint/vue-tsc/全frontend1,322成功/build成功。さらに保存済みbb.authで通過しない固有試験を追加しrouter/App全17件を確認する。元の単独C2/U-F3の試験結果ではなく、専用結合候補の結果である。新login/session相関契約・実画面/実API/実DBの通し試験・本人確認・公開・マージは未実施。
