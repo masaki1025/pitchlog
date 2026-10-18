@@ -5,7 +5,6 @@ import {
   canonicalUuid,
   captureAuthUncertainty,
   readAuthIntent,
-  publishAuthUncertainty,
   withAuthIntent,
   writeAuthIntent,
   type AuthIntent,
@@ -147,12 +146,7 @@ async function readSession(
         value.team_name.length === 0 ||
         value.tenant_id !== intent.tenantId
       ) {
-        uncertaintyHandled = true
-        publishAuthUncertainty()
-        auth.syncFromStorage()
-        const next = writeAuthIntent('verification-required', intent.tenantId)
-        auth.beginCorrelatedVerification(next.intentId)
-        return unknown(auth)
+        return null
       }
       // expectedへ戻すのは明示再確認に成功した時だけ。通常GETでは共有値を更新しない。
       const marker =
@@ -169,6 +163,11 @@ async function readSession(
       )
       return authenticated(auth)
     })
+    if (result === null) {
+      uncertaintyHandled = true
+      await auth.invalidateUncertainCookie()
+      return unknown(auth)
+    }
     return result
   } catch (error) {
     if (error instanceof AuthEnvironmentError) {
