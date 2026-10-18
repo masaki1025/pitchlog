@@ -948,6 +948,51 @@
       "path": "contracts/authz/product/function-bodies/functions/FUNCTION:authn:verify_token(uuid).sql",
       "element_type": "function",
       "element_id": "FUNCTION:authn:verify_token(uuid)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/roles/pitchlog_rg1_fn_owner.sql",
+      "element_type": "role",
+      "element_id": "pitchlog_rg1_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/schemas/rg1_api.sql",
+      "element_type": "schema",
+      "element_id": "rg1_api"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/rg1_restore_gate.sql",
+      "element_type": "table",
+      "element_id": "rg1_restore_gate"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:rg1_restore_gate:rg1_fn_select_singleton.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:rg1_restore_gate:rg1_fn_select_singleton"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:rg1_restore_gate:rg1_fn_lock_singleton.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:rg1_restore_gate:rg1_fn_lock_singleton"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:rg1_api:rg1_read_open(uuid).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:rg1_api:rg1_read_open(uuid)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:rg1_restore_gate:state:pitchlog_rg1_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:rg1_restore_gate:state:pitchlog_rg1_fn_owner"
     }
   ]
 }

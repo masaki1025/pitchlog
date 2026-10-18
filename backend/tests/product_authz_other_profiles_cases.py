@@ -32,6 +32,7 @@ _FUNCTION_ONLY_FACT_KINDS = frozenset(
         "admin_only",
         "pre_auth_only",
         "migration_only",
+        "rg1_control",
     }
 )
 

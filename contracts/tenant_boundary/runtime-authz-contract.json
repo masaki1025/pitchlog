@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 16,
+  "runtime_contract_revision": 17,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:16"
+        "runtime_contract_revision:17"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -89,7 +89,8 @@
       "authn",
       "authn_crypto",
       "authz_private",
-      "public"
+      "public",
+      "rg1_api"
     ],
     "tables": [
       [
@@ -223,6 +224,10 @@
       [
         "public",
         "rejected_event_originals"
+      ],
+      [
+        "public",
+        "rg1_restore_gate"
       ],
       [
         "public",
@@ -528,6 +533,16 @@
         "public",
         "protect_recording_generations_updates",
         ""
+      ],
+      [
+        "rg1_api",
+        "rg1_assert_open_before_commit",
+        "uuid"
+      ],
+      [
+        "rg1_api",
+        "rg1_read_open",
+        "uuid"
       ]
     ]
   },
@@ -554,5 +569,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "27eface15742e1f312abebd3b18fd80536c1311e41e587993fc4e9467c29400a"
+  "source_digest": "13eeb95f54a8a713620a12c369505311349e72148c521141ed524ece91b0f62d"
 }

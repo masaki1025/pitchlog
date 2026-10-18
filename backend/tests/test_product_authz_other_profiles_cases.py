@@ -92,7 +92,7 @@ def _assert_fk_targets_precede(
 
 
 def test_other_profile_sets_are_derived_without_classification_asset() -> None:
-    """Manifest と露出事実だけで 1・4・4・13 表を exact に導く。"""
+    """Manifest と露出事実だけで 1・4・4・14 表を exact に導く。"""
     profiles = cases.profile_table_names()
     helper_source = inspect.getsource(cases)
 
@@ -101,10 +101,10 @@ def test_other_profile_sets_are_derived_without_classification_asset() -> None:
         "self_tenant_row": 1,
         "effective_group_control": 4,
         "global_read_only": 4,
-        "function_only": 13,
+        "function_only": 14,
     }
     assigned = tuple(table for tables in profiles.values() for table in tables)
-    assert len(assigned) == len(set(assigned)) == 45
+    assert len(assigned) == len(set(assigned)) == 46
     assert set(assigned) == set(cases.manifest_table_names())
     assert "table-classification.json" not in helper_source
 
@@ -125,7 +125,9 @@ def test_other_profile_seed_plan_is_nonempty_and_in_fk_order() -> None:
     assert set(profiles["self_tenant_row"]) <= seeded_tables
     assert set(profiles["effective_group_control"]) <= seeded_tables
     assert set(profiles["global_read_only"]) <= seeded_tables
-    assert set(profiles["function_only"]) <= seeded_tables
+    assert "rg1_restore_gate" in profiles["function_only"]
+    assert "rg1_restore_gate" not in seeded_tables
+    assert set(profiles["function_only"]) - {"rg1_restore_gate"} <= seeded_tables
 
     tenant_rows = {
         row.values["id"]

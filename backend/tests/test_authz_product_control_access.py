@@ -24,9 +24,13 @@ from pitchlog.authz.product_control_access import (
     build_helper_column_acl_declaration,
     build_membership_helper_declaration,
     generate_control_policy_sql,
+    generate_function_owner_column_acl_sql,
     generate_helper_column_acl_sql,
     generate_membership_helper_sql,
+    is_forbidden_rg1_table_acl,
+    is_rg1_singleton_update_acl,
 )
+from pitchlog.authz.product_table_access import generate_function_owner_table_acl_sql
 from pitchlog.authz.runtime_contract_state import (
     RuntimeContractState,
     evaluate_repository,
@@ -96,6 +100,175 @@ def _read_json_object(path: Path) -> dict[str, Any]:
 def _product_asset() -> dict[str, Any]:
     """製品DDL資産を読む。"""
     return _read_json_object(_REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path)
+
+
+def _rg1_singleton_acl() -> dict[str, object]:
+    """RG1の承認済み列権限だけを表す候補宣言を返す。"""
+    return {
+        "expectation_id": (
+            "COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_fn_owner"
+        ),
+        "object_kind": "column",
+        "object_schema": "public",
+        "object_id": "rg1_restore_gate",
+        "column_id": "singleton_id",
+        "grantee_role_id": "pitchlog_rg1_fn_owner",
+        "privilege_ids": ["SELECT", "UPDATE"],
+        "grant_option": False,
+        "function_id": "FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)",
+    }
+
+
+def test_rg1_singleton_update_acl_is_column_scoped() -> None:
+    """RG1の確定前関数にだけ単一列SELECT・UPDATEを生成する。"""
+    declaration = _rg1_singleton_acl()
+    assert is_rg1_singleton_update_acl(declaration)
+    assert generate_function_owner_column_acl_sql(declaration) == (
+        "-- ELEMENT-TYPE: column_acl_expectation\n"
+        "-- ELEMENT-ID: "
+        "COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_fn_owner\n"
+        "\n"
+        "GRANT SELECT (singleton_id), UPDATE (singleton_id) "
+        "ON TABLE public.rg1_restore_gate TO pitchlog_rg1_fn_owner;\n"
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("object_id", "other_table"),
+        ("column_id", "state"),
+        ("grantee_role_id", "pitchlog_app"),
+        ("object_schema", "other_schema"),
+        ("function_id", "FUNCTION:rg1_api:rg1_read_open(uuid)"),
+        ("privilege_ids", ["UPDATE"]),
+        ("privilege_ids", ["SELECT", "UPDATE", "DELETE"]),
+        ("grant_option", True),
+    ),
+)
+def test_rg1_singleton_update_acl_rejects_other_targets(
+    field: str, value: object
+) -> None:
+    """表・列・owner・関数・権限が一つでも異なればUPDATEを拒否する。"""
+    declaration = _rg1_singleton_acl()
+    declaration[field] = value
+    assert not is_rg1_singleton_update_acl(declaration)
+    with pytest.raises(ValueError):
+        generate_function_owner_column_acl_sql(declaration)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("object_id", "other_table"),
+        ("column_id", "state"),
+        ("grantee_role_id", "pitchlog_app"),
+        ("object_schema", "other_schema"),
+        ("function_id", "FUNCTION:rg1_api:rg1_read_open(uuid)"),
+        ("privilege_ids", ["UPDATE"]),
+        ("privilege_ids", ["SELECT", "UPDATE", "DELETE"]),
+        ("grant_option", True),
+    ),
+)
+def test_catalog_checker_rejects_rg1_update_acl_mutations(
+    field: str, value: object
+) -> None:
+    """製品catalog検査器もRG1の許可組合せ以外を拒否する。"""
+    asset = _product_asset()
+    singleton_acl = next(
+        row
+        for row in asset["column_acl_expectations"]
+        if row.get("expectation_id") == _rg1_singleton_acl()["expectation_id"]
+    )
+    _catalog_checker._validate_product_membership_helper(
+        asset, _REPOSITORY_ROOT, RuntimeContractState.PROVISIONAL
+    )
+
+    singleton_acl[field] = value
+    with pytest.raises(_catalog_checker.CatalogError):
+        _catalog_checker._validate_product_membership_helper(
+            asset, _REPOSITORY_ROOT, RuntimeContractState.PROVISIONAL
+        )
+
+
+@pytest.mark.parametrize(
+    ("table_id", "owner_role_id"),
+    (
+        ("tenants", "pitchlog_rg1_fn_owner"),
+        ("rg1_restore_gate", "pitchlog_management_fn_owner"),
+    ),
+)
+def test_catalog_checker_rejects_rg1_table_acl(
+    table_id: str, owner_role_id: str
+) -> None:
+    """RG1表または専用ownerへの表権限を列ACLの迂回口にしない。"""
+    asset = _product_asset()
+    asset["policies"] = [
+        row for row in asset["policies"] if row["role_ids"] != ["pitchlog_owner"]
+    ]
+    rg1_function = copy.deepcopy(
+        next(row for row in asset["functions"] if row["function_kind"] == "definer")
+    )
+    rg1_function["function_id"] = "FUNCTION:rg1_api:synthetic()"
+    rg1_function["owner_role_id"] = owner_role_id
+    asset["functions"].append(rg1_function)
+    acl: dict[str, object] = {
+        "acl_id": f"ACL:{table_id}:{owner_role_id}",
+        "object_kind": "table",
+        "object_schema": "public",
+        "object_id": table_id,
+        "profile": "function_dependency",
+        "grantee_role_id": owner_role_id,
+        "privilege_ids": ["UPDATE"],
+        "grant_option": False,
+    }
+    assert is_forbidden_rg1_table_acl(acl)
+    with pytest.raises(ValueError, match="RG1状態表"):
+        generate_function_owner_table_acl_sql(acl)
+    asset["acl_expectations"].append(acl)
+    with pytest.raises(_catalog_checker.CatalogError, match="RG1状態表"):
+        _catalog_checker._validate_product_table_access_expectations(
+            asset, _REPOSITORY_ROOT, RuntimeContractState.PROVISIONAL
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("owner", "pitchlog_app"),
+        (
+            "acl_expectations",
+            [
+                {"grantee": "pitchlog_app", "privilege": "USAGE", "grantable": False},
+                {"grantee": "pitchlog_app", "privilege": "CREATE", "grantable": False},
+            ],
+        ),
+        ("revoked_acl_expectations", []),
+    ),
+)
+def test_rg1_api_schema_rejects_owner_and_acl_expansion(
+    field: str, value: object
+) -> None:
+    """RG1 schemaの所有者とCREATE/USAGEをexact集合から広げない。"""
+    asset = _product_asset()
+    schema = next(row for row in asset["schemas"] if row["schema_id"] == "rg1_api")
+    schema[field] = value
+    with pytest.raises(_catalog_checker.CatalogError):
+        _catalog_checker._validate_product_schema_expectations(
+            asset["schemas"], authn_enabled=True
+        )
+
+
+def test_rg1_table_requires_dedicated_schema() -> None:
+    """状態表を残したまま専用関数schemaを省くことを拒否する。"""
+    asset = _product_asset()
+    asset["schemas"] = [
+        row for row in asset["schemas"] if row["schema_id"] != "rg1_api"
+    ]
+    with pytest.raises(_catalog_checker.CatalogError):
+        _catalog_checker._validate_product_schema_expectations(
+            asset["schemas"], authn_enabled=True, rg1_required=True
+        )
 
 
 def _validate_product_asset(
