@@ -461,6 +461,8 @@ US1_SYNC_APPLY_AREA_PATH_ADDITIONS = (
 )
 # 先行追加層の窓口は回転式。U-S1 の登録済み層の後に U-R1 を追加する。
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+    "game-state": ("backend/src/pitchlog/db/stage_a_startup.py",),
+    "tenant-isolation": ("backend/src/pitchlog/db/stage_a_startup.py",),
     "sync-protocol": (
         "backend/src/pitchlog/repositories/rg1.py",
         "backend/src/pitchlog/repositories/operation_registry.py",
@@ -2252,6 +2254,109 @@ def test_registered_addition_layer_passes_in_a_separate_commit(tmp_path: Path):
     assert used_revision == base_sha
 
 
+def test_stage_a_startup_declaration_keeps_json_baseline_stationary(tmp_path: Path) -> None:
+    """宣言コミットの時点では二領域とも既存JSONの据置きを許す。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+
+    assert core_guard.AREA_PATH_ADDITIONS["game-state"] == (
+        "backend/src/pitchlog/db/stage_a_startup.py",
+    )
+    assert core_guard.AREA_PATH_ADDITIONS["tenant-isolation"] == (
+        "backend/src/pitchlog/db/stage_a_startup.py",
+    )
+    core_guard.validate_area_path_layers(baseline, baseline)
+
+
+def test_stage_a_startup_registration_and_later_rotation(tmp_path: Path) -> None:
+    """起動入口は二領域に一致し、後続宣言は登録済み層を残さず回転する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = json.loads(json.dumps(baseline))
+    startup = "backend/src/pitchlog/db/stage_a_startup.py"
+    test_path = "backend/tests/test_rule_resolution.py"
+    for area in candidate["areas"]:
+        if area["id"] in ("game-state", "tenant-isolation"):
+            area["paths"].append(startup)
+
+    core_guard.validate_area_path_layers(baseline, candidate)
+    assert all(
+        core_guard.matched_paths(
+            (startup,),
+            core_guard.CoreAreas(
+                path_patterns=tuple(area["paths"]), guard_paths=frozenset()
+            ),
+        )
+        for area in candidate["areas"]
+        if area["id"] in ("game-state", "tenant-isolation")
+    )
+
+    # 一領域ずつの登録は各領域の独立した追加層であり、部分追加ではない。
+    one_area = json.loads(json.dumps(baseline))
+    next(area for area in one_area["areas"] if area["id"] == "game-state")[
+        "paths"
+    ].append(startup)
+    core_guard.validate_area_path_layers(baseline, one_area)
+
+    invalid = json.loads(json.dumps(candidate))
+    next(area for area in invalid["areas"] if area["id"] == "tenant-isolation")[
+        "paths"
+    ].append("backend/src/pitchlog/db/unregistered.py")
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(baseline, invalid)
+
+    rotated = json.loads(json.dumps(candidate))
+    for area in rotated["areas"]:
+        if area["id"] in ("game-state", "tenant-isolation"):
+            area["paths"].append(test_path)
+    rotated_declaration = dict(core_guard.AREA_PATH_ADDITIONS)
+    for area_id in ("game-state", "tenant-isolation"):
+        rotated_declaration[area_id] = (test_path,)
+    core_guard.validate_area_path_layers(candidate, rotated, rotated_declaration)
+    with pytest.raises(core_guard.GuardError, match="game-state.paths"):
+        core_guard.validate_area_path_layers(candidate, rotated)
+
+
+def test_stage_a_startup_actual_registration_requires_human_check(
+    tmp_path: Path,
+) -> None:
+    """二段階登録後は実JSONで将来パスと未記入の逐行確認を拒否する。"""
+    startup = "backend/src/pitchlog/db/stage_a_startup.py"
+    areas = {area["id"]: area for area in load_actual_core_areas()["areas"]}
+    registration_history = run_git(
+        REPO,
+        "log",
+        "--format=%H",
+        "-S",
+        startup,
+        "--",
+        ".claude/core-areas.json",
+    ).stdout.strip()
+    if not registration_history:
+        # ステップ1の宣言だけが存在する段階はJSONを据え置く。
+        assert all(
+            startup not in areas[area_id]["paths"]
+            for area_id in ("game-state", "tenant-isolation")
+        )
+        return
+
+    assert all(
+        areas[area_id]["paths"].count(startup) == 1
+        for area_id in ("game-state", "tenant-isolation")
+    )
+    root = make_repo_with_actual_core_areas(tmp_path)
+    base_sha, head_sha = commit_change(root, startup)
+    event_path = write_event(tmp_path, base_sha, head_sha, f"- [ ] {REQUIRED_CHECK_TEXT}")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert startup in result.stderr
+    assert f"- [x] {REQUIRED_CHECK_TEXT}" in result.stderr
+
+
 def test_addition_layer_requires_complete_declared_suffix(tmp_path: Path) -> None:
     """複数件の追加層が基線の末尾に宣言順で続く場合だけ受理する。"""
     core_guard = load_core_guard_module()
@@ -2641,8 +2746,15 @@ def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
         for path, pattern in representatives:
             assert pattern in paths
             assert fnmatch.fnmatchcase(path, pattern)
-    for area_id in ("game-state", "tenant-isolation", "data-migration"):
-        assert current_areas[area_id]["paths"] == base_areas[area_id]["paths"]
+    for area_id in ("game-state", "tenant-isolation"):
+        base_paths = base_areas[area_id]["paths"]
+        assert current_areas[area_id]["paths"] in (
+            base_paths,
+            [*base_paths, *EXPECTED_AREA_PATH_ADDITIONS[area_id]],
+        )
+    assert current_areas["data-migration"]["paths"] == base_areas["data-migration"][
+        "paths"
+    ]
 
     core_guard.validate_area_path_layers(baseline, configuration)
 

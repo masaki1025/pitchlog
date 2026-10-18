@@ -49,6 +49,8 @@ DOMAIN_RUNTIME_PATH_ADDITIONS = (
     "backend/Dockerfile",
 )
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
+    "game-state": ("backend/src/pitchlog/db/stage_a_startup.py",),
+    "tenant-isolation": ("backend/src/pitchlog/db/stage_a_startup.py",),
     "sync-protocol": (
         "backend/src/pitchlog/repositories/rg1.py",
         "backend/src/pitchlog/repositories/operation_registry.py",
