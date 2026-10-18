@@ -55,3 +55,11 @@ C1/C2/API/DTO/tenant/資格情報保存の独自実装なし。route接続・saf
 ### 最終採用反映後の全検査
 
 `vue-tsc --noEmit`、`eslint .`、`prettier --check .`、build、全Vitestが成功した。Vitestは69 files / 1,267 passed（75.72s、固有30件含む）、build closure conforming・9 files・external 0・violations 0。`git diff --check`成功。製品/specをこの検査後に変更していない。全件の除外・timeout緩和なし。親がコミットするまで本worktreeに5ファイルを保持する。
+
+## PR準備（未提出）
+
+親がレビュー追随を`01014f69022399909db128f56c92d7e8a1eb96be`へコミットした。新規`pr-preparation.md`に同HEADの全5ファイルとblob SHA-256、本人未記入欄、レビュー採否・最終未再レビュー差分・全frontend1,267成功を固定した。資料追加後は本人対象6ファイルへ増えるため、次HEADで再導出する。
+
+軽量検査はdocs-status20文書/違反0・design propagation・diff checkが成功。正本同期は初回「影響する正本節なし」で失敗したため、既存plan§3.1へ正本反映なしと正本外同梱対象の宣言だけを補い、exit0に解消した。正本・shared・製品は変更なし。ハーネス運用評価台帳への追記なし（局所UI実装と通常レビュー追随であり、新しい制御目的・確定した運用傾向の追加はない）。
+
+基線493342beのcore paths5領域とguard_pathsへの全5パス照合は0件。LoginScreen*未登録による意味コアの検出漏れであり、機械通過・本人未チェック拒否の成功とは扱わない。U-F13側の宣言/登録と接続受入を待ち、active維持・未提出とする。push/PR作成/commitは実施していない。

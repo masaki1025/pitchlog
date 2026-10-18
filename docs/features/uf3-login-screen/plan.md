@@ -50,6 +50,12 @@ C1の正規auth clientを使い、チーム名・パスワードの入力、認�
 3. 最新developで正式カードの担当重複、C1 client/store API、U-F1 UI部品、U-F6 error型を再照合している。
 4. U-F13のrouteはまだ接続しない。C3の製品PRは経路未登録で完結する。
 
+### 3.1 影響する正本
+
+要件・設計・ADR・開発・運用の正本は反映なし。本PRは承認済み認証契約を画面へ接続する実装追随であり、API/DTO/権限/共有凍結資産を変更しない。
+
+正本体系外だが同一PRで更新するもの: `frontend/src/screens/LoginScreen.vue`、固有spec、本計画・research・pr-preparation、固有worklog。core pathの宣言/登録はU-F13側の承認済み統合順で扱い、本PRに無断追加しない。
+
 ## 4. 認証状態と表示
 
 | 画面状態 | 表示・操作 |
