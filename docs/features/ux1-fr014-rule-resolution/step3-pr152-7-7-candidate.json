@@ -1,0 +1,653 @@
+{
+  "status": "candidate_unaccepted",
+  "pr": "masaki1025/pitchlog#152",
+  "comparison_base": "5bb1ff89306712c1de61c3a0152141c8f771b3a0",
+  "source_tree_excluding_packet": "6fb173e684f3156bf764e7b85447e7e626be423d",
+  "oracle_input_commit": "4b85b358acb87d32ec964bd76856eb0c1cfec3f6",
+  "old_pr_reference": {
+    "pr": "masaki1025/pitchlog#149",
+    "preserved_branch_head": "67a6a68b73970d2dfc53d35d10a979cbc2441a97",
+    "old_candidate_packet_sha256": "9cdac78eadc067182ce375e5d7921062a72dc643c05a358fe5be07452dfcbe70",
+    "old_accepted_record_draft_sha256": "79b307874aff8fdaaba35f73811a0fcb34e1d10f030da78d5caa478a046eead1",
+    "old_history_imported": false,
+    "old_approval_reused": false,
+    "review_counts_preserved": "既定2回＋追加1回",
+    "new_history_processing_independently_rereviewed": false
+  },
+  "accepted_history_prefix": {
+    "tenant_boundary_count": 23,
+    "tenant_boundary_sha256": "c0654a8e59c78ba6243ed0e32cff28cea92835329acd8bb6bc985a1a400c0d48",
+    "seed_count": 3,
+    "seed_sha256": "c94ff217ee56193cd19c12f9deed9f615830d046fbbdce4d44cc07969d70ccf8",
+    "oracle_count": 12,
+    "oracle_sha256": "2480a10bef9827aa81acbe46cb07a769fb7396e5e8eee049551d44365772cd1c"
+  },
+  "tenant_boundary": {
+    "before": {
+      "asset_snapshots": [
+        {
+          "path": "contracts/tenant_boundary/base-allowlist.json",
+          "sha256": "e3dcdd745a721431a5ecdfd0cfa43f9f5839a79678d34e81fa76a3ea15746046",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/e3dcdd745a721431a5ecdfd0cfa43f9f5839a79678d34e81fa76a3ea15746046"
+        },
+        {
+          "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
+          "sha256": "161d2815a06778fbac0bb679b5a5aa1d1295db2e7e0ed971d2b343a654daf32f",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/161d2815a06778fbac0bb679b5a5aa1d1295db2e7e0ed971d2b343a654daf32f"
+        },
+        {
+          "path": "contracts/tenant_boundary/census-baseline.json",
+          "sha256": "c717da79aee3504ab5176f88cd502ad40170389df7ad1aa60d4fb5c86e5f241f",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c717da79aee3504ab5176f88cd502ad40170389df7ad1aa60d4fb5c86e5f241f"
+        },
+        {
+          "path": "contracts/tenant_boundary/db-api-inventory.json",
+          "sha256": "66ec5e8410adeab61f78bcb4ce72ec4ea55b32588d96e95d172013b2a8658999",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/66ec5e8410adeab61f78bcb4ce72ec4ea55b32588d96e95d172013b2a8658999"
+        },
+        {
+          "path": "contracts/tenant_boundary/frozen-inputs.json",
+          "sha256": "c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63"
+        },
+        {
+          "path": "contracts/tenant_boundary/negative-fixtures.json",
+          "sha256": "3513677e5ea3dff4db6471ef2b4ade93c91095ef5a3f43e085a5b8ee59c43d82",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3513677e5ea3dff4db6471ef2b4ade93c91095ef5a3f43e085a5b8ee59c43d82"
+        },
+        {
+          "path": "contracts/tenant_boundary/repository-contract.json",
+          "sha256": "0daf9ec4b9d5dc7eea364a0001804ba187f3bed87e02850f2da5b21613dc0e11",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0daf9ec4b9d5dc7eea364a0001804ba187f3bed87e02850f2da5b21613dc0e11"
+        },
+        {
+          "path": "contracts/tenant_boundary/runtime-authz-contract.json",
+          "sha256": "061eeb9e96f110e059ad51bf3026d9b420f7c636a24045809afa33e7a0f6b393",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/061eeb9e96f110e059ad51bf3026d9b420f7c636a24045809afa33e7a0f6b393"
+        },
+        {
+          "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
+          "sha256": "16e7a9a6a263f00381a327d8f05bce597dd036d67333ebfc55e035f1e8f9e2c2",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/16e7a9a6a263f00381a327d8f05bce597dd036d67333ebfc55e035f1e8f9e2c2"
+        }
+      ],
+      "external_snapshots": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha256": "f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8"
+        },
+        {
+          "path": "scripts/check_tenant_boundary_bypass.py",
+          "sha256": "3e2cec0a25096b010973f3734c2746bd4386e413ebf44519ad8db0851846b883",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3e2cec0a25096b010973f3734c2746bd4386e413ebf44519ad8db0851846b883"
+        },
+        {
+          "path": "scripts/frozen_archive.py",
+          "sha256": "66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6"
+        },
+        {
+          "path": "scripts/frozen_history.py",
+          "sha256": "0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8"
+        },
+        {
+          "path": "tests/domain/test_boot_seal.py",
+          "sha256": "bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2"
+        },
+        {
+          "path": "tests/test_census_baseline_check.py",
+          "sha256": "163cb41e19e9d24ee2b30037f5f6614800ed193c21d1c31cc325371f25e9edfd",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/163cb41e19e9d24ee2b30037f5f6614800ed193c21d1c31cc325371f25e9edfd"
+        },
+        {
+          "path": "tests/test_ci_wiring.py",
+          "sha256": "36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396"
+        },
+        {
+          "path": "tests/test_plan_generation.py",
+          "sha256": "9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe"
+        }
+      ]
+    },
+    "after": {
+      "asset_snapshots": [
+        {
+          "path": "contracts/tenant_boundary/base-allowlist.json",
+          "sha256": "1f46ad35ae8228758eba1831c0eaabfc33e792de85431f210f73523a58812c2f",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/1f46ad35ae8228758eba1831c0eaabfc33e792de85431f210f73523a58812c2f"
+        },
+        {
+          "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
+          "sha256": "3d523972b5b192da1800e64f428a24cfb09f3a3ff52a39241cb87a6558f258df",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3d523972b5b192da1800e64f428a24cfb09f3a3ff52a39241cb87a6558f258df"
+        },
+        {
+          "path": "contracts/tenant_boundary/census-baseline.json",
+          "sha256": "2fd006e75b9e82be528ca1a4328a5643191bda3d4bcce0b52eb5b7bfcd5a2a30",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2fd006e75b9e82be528ca1a4328a5643191bda3d4bcce0b52eb5b7bfcd5a2a30"
+        },
+        {
+          "path": "contracts/tenant_boundary/db-api-inventory.json",
+          "sha256": "b28bc2fa4d416a380ea225104f1e765e3020137922b79b337f419523a2a095e5",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/b28bc2fa4d416a380ea225104f1e765e3020137922b79b337f419523a2a095e5"
+        },
+        {
+          "path": "contracts/tenant_boundary/frozen-inputs.json",
+          "sha256": "8cba4c0e91785234ecc53e2c8e05358df4635e005341f7b50092897e0ec8d339",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8cba4c0e91785234ecc53e2c8e05358df4635e005341f7b50092897e0ec8d339"
+        },
+        {
+          "path": "contracts/tenant_boundary/negative-fixtures.json",
+          "sha256": "0d0c540e97e4e07b1db16fa3c811363be2d83ef8c3ffadfe24e17fba2a4ff490",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0d0c540e97e4e07b1db16fa3c811363be2d83ef8c3ffadfe24e17fba2a4ff490"
+        },
+        {
+          "path": "contracts/tenant_boundary/repository-contract.json",
+          "sha256": "716595b4c3cd7cb937a670c860260cf2b73cd61b0992fdd11c393b7d326ab838",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/716595b4c3cd7cb937a670c860260cf2b73cd61b0992fdd11c393b7d326ab838"
+        },
+        {
+          "path": "contracts/tenant_boundary/runtime-authz-contract.json",
+          "sha256": "fdc2b229dd5cf8707aa8aebc6e6e8d4e7a35d6fc02538f0a893a33390f01c510",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/fdc2b229dd5cf8707aa8aebc6e6e8d4e7a35d6fc02538f0a893a33390f01c510"
+        },
+        {
+          "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
+          "sha256": "9c399d870851da56bc6f6cb886e45c4a181d6f35d5073c823b45117744ad68df",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9c399d870851da56bc6f6cb886e45c4a181d6f35d5073c823b45117744ad68df"
+        }
+      ],
+      "external_snapshots": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha256": "1fe5c648036e22addea11ba5c8c9c560c69ed3efd6b5ae98bc6d2deec4c3e5d1",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/1fe5c648036e22addea11ba5c8c9c560c69ed3efd6b5ae98bc6d2deec4c3e5d1"
+        },
+        {
+          "path": "scripts/check_tenant_boundary_bypass.py",
+          "sha256": "3e2cec0a25096b010973f3734c2746bd4386e413ebf44519ad8db0851846b883",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3e2cec0a25096b010973f3734c2746bd4386e413ebf44519ad8db0851846b883"
+        },
+        {
+          "path": "scripts/frozen_archive.py",
+          "sha256": "66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6"
+        },
+        {
+          "path": "scripts/frozen_history.py",
+          "sha256": "0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8"
+        },
+        {
+          "path": "tests/domain/test_boot_seal.py",
+          "sha256": "bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2"
+        },
+        {
+          "path": "tests/test_census_baseline_check.py",
+          "sha256": "163cb41e19e9d24ee2b30037f5f6614800ed193c21d1c31cc325371f25e9edfd",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/163cb41e19e9d24ee2b30037f5f6614800ed193c21d1c31cc325371f25e9edfd"
+        },
+        {
+          "path": "tests/test_ci_wiring.py",
+          "sha256": "2ca9c8a9d30337d0e4bf39457ef539fd410aca7fa3946b9d416ea21a2e58013b",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2ca9c8a9d30337d0e4bf39457ef539fd410aca7fa3946b9d416ea21a2e58013b"
+        },
+        {
+          "path": "tests/test_plan_generation.py",
+          "sha256": "9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe"
+        }
+      ]
+    }
+  },
+  "corpus": {
+    "before": "b3accebe79a37392e96be2053fbd83b4b4471e204d4aee67d20094b9525e03ce",
+    "after_candidate": "ab298c6cfa8d0e3a57fad7369dfb993771235cb6c0ea454da8fee846d401b117",
+    "manifest_pinned_current": "aad2db0462f394fb2de17ae0c1ed406724e3ad5d2769e29f523503c75522d10e"
+  },
+  "authz": {
+    "input_assets_before": [
+      {
+        "git_blob_digest": "ad830901cd6e9427b3becc5e9502934cbb39dfde",
+        "path": "contracts/authz/requirement-claims.json"
+      },
+      {
+        "git_blob_digest": "4d5fbefae3d0dc5836d9e8b24510e1ce79e4c7c5",
+        "path": "contracts/authz/requirement-claims.lock.json"
+      },
+      {
+        "git_blob_digest": "4198b7039e96d083ebc18f145b4e85a8bd354028",
+        "path": "contracts/authz/route-registry.json"
+      },
+      {
+        "git_blob_digest": "94d118e93770be103200ab1e8465f3218c3be34d",
+        "path": "contracts/authz/route-registry.lock.json"
+      },
+      {
+        "git_blob_digest": "945b90d609147aa85b1cdfdd00fa38df81275809",
+        "path": "contracts/authz/auth-catalog.json"
+      },
+      {
+        "git_blob_digest": "5ce421a4ec8180a8df764793c8d098b49c7ed6b3",
+        "path": "contracts/authz/auth-catalog.lock.json"
+      },
+      {
+        "git_blob_digest": "bcd223b31fce14acb25a068b0d0b6265dcd440ce",
+        "path": "contracts/authz/http-route-matrix.json"
+      },
+      {
+        "git_blob_digest": "13fb097fdf63436494923351b99cf6063f2681cf",
+        "path": "contracts/authz/http-route-matrix.lock.json"
+      }
+    ],
+    "input_assets_after": [
+      {
+        "path": "contracts/authz/requirement-claims.json",
+        "git_blob_digest": "724b44799283798d7c15389724987c9e1a049480"
+      },
+      {
+        "path": "contracts/authz/requirement-claims.lock.json",
+        "git_blob_digest": "68a4bcfc4729b53128b9f6540a7b05d2e6610cef"
+      },
+      {
+        "path": "contracts/authz/route-registry.json",
+        "git_blob_digest": "0c60ef5977a84dad30a6e5b754b0175ea57c68ca"
+      },
+      {
+        "path": "contracts/authz/route-registry.lock.json",
+        "git_blob_digest": "a0221a0bea7ff5205e121a4bcfeb70defb604007"
+      },
+      {
+        "path": "contracts/authz/auth-catalog.json",
+        "git_blob_digest": "0c3517c485e39da7f1e23904edaf9632d8494915"
+      },
+      {
+        "path": "contracts/authz/auth-catalog.lock.json",
+        "git_blob_digest": "dec9d332520ba428f6dd7a382681f379f909ae81"
+      },
+      {
+        "path": "contracts/authz/http-route-matrix.json",
+        "git_blob_digest": "b4ebe3f8e26ac684f1233ec7788d7705fb4b37c6"
+      },
+      {
+        "path": "contracts/authz/http-route-matrix.lock.json",
+        "git_blob_digest": "da9bdd00db48ba1c55269d715cb234815eb758ef"
+      }
+    ],
+    "oracle_seal_before": [
+      {
+        "asset_kind": "authz_candidate_ddl_manifest",
+        "asset_role": "expectation",
+        "canonical_sha256": "8a11a4eef84ece58474001171d677904dacc78c21438e15395d1f86ddf70f0a6",
+        "path": "contracts/authz/ddl-elements.json"
+      },
+      {
+        "asset_kind": "authz_rejected_configurations",
+        "asset_role": "evidence",
+        "canonical_sha256": "b4c468f1c2a655147337eabc8c651df5482e236df6e80f9d5c40deeb44d93268",
+        "path": "contracts/authz/rejected-configs.json"
+      },
+      {
+        "asset_kind": "authz_claim_mutant_map",
+        "asset_role": "expectation",
+        "canonical_sha256": "1b6b97f1a1f1a13bc01098a6fa2846205845ec1f3284fe4a5f98e56fa7b9cb21",
+        "path": "contracts/authz/claim-mutant-map.json"
+      },
+      {
+        "asset_kind": "authz_attack_tree",
+        "asset_role": "expectation",
+        "canonical_sha256": "b225ce42003910a19163e4ecb2f93733e73594e949d989e8683a410f79384e78",
+        "path": "contracts/authz/attack-tree.json"
+      },
+      {
+        "asset_kind": "authz_boundary_proposal",
+        "asset_role": "expectation",
+        "canonical_sha256": "70ff5e51bc5508076ff8600c048bcefebde0f87afb8eb5e23744e785fe4a811e",
+        "path": "contracts/authz/boundary-proposal.json"
+      },
+      {
+        "asset_kind": "authz_verification_evidence",
+        "asset_role": "evidence",
+        "canonical_sha256": "94a6d5497c4d582718d472ca33e531019445f185da0835928c775083b7bcc81b",
+        "path": "contracts/authz/verification-evidence.json"
+      }
+    ],
+    "oracle_seal_after": [
+      {
+        "path": "contracts/authz/ddl-elements.json",
+        "asset_role": "expectation",
+        "asset_kind": "authz_candidate_ddl_manifest",
+        "canonical_sha256": "f4e5ad83aa0f15c27bd3960c596e504db2cda15f7293df84568be62e02c4263b"
+      },
+      {
+        "path": "contracts/authz/rejected-configs.json",
+        "asset_role": "evidence",
+        "asset_kind": "authz_rejected_configurations",
+        "canonical_sha256": "b83bd4e5a2aa557f0863a3a3784c8386f5cff1241b81a85e40b3f81efa8705f3"
+      },
+      {
+        "path": "contracts/authz/claim-mutant-map.json",
+        "asset_role": "expectation",
+        "asset_kind": "authz_claim_mutant_map",
+        "canonical_sha256": "498680c435604f784b6a3c6f384ab5cfb484d5ddbbb78c49a601fcf20774dca6"
+      },
+      {
+        "path": "contracts/authz/attack-tree.json",
+        "asset_role": "expectation",
+        "asset_kind": "authz_attack_tree",
+        "canonical_sha256": "24e047f834d6e23227ded82f3934d571b944a040d9a1b32fcc61bf576459f575"
+      },
+      {
+        "path": "contracts/authz/boundary-proposal.json",
+        "asset_role": "expectation",
+        "asset_kind": "authz_boundary_proposal",
+        "canonical_sha256": "3f9b0f7a41c3f61c9df4decf610c0ec6fa1976b51720f2bfa15e7296d83329ff"
+      },
+      {
+        "path": "contracts/authz/verification-evidence.json",
+        "asset_role": "evidence",
+        "asset_kind": "authz_verification_evidence",
+        "canonical_sha256": "402336436a7736c52cdeb8a02a80761255430a45f2a518c05893628a410ac4a1"
+      }
+    ],
+    "oracle_seal_file_before": {
+      "sha256": "5d135d72e20fb1311bafe7698af1cf1b0ac3516367fcde6142fda5d4e9895480",
+      "value": {
+        "asset_kind": "authz_oracle_seal",
+        "input_assets": [
+          {
+            "git_blob_digest": "ad830901cd6e9427b3becc5e9502934cbb39dfde",
+            "path": "contracts/authz/requirement-claims.json"
+          },
+          {
+            "git_blob_digest": "4d5fbefae3d0dc5836d9e8b24510e1ce79e4c7c5",
+            "path": "contracts/authz/requirement-claims.lock.json"
+          },
+          {
+            "git_blob_digest": "4198b7039e96d083ebc18f145b4e85a8bd354028",
+            "path": "contracts/authz/route-registry.json"
+          },
+          {
+            "git_blob_digest": "94d118e93770be103200ab1e8465f3218c3be34d",
+            "path": "contracts/authz/route-registry.lock.json"
+          },
+          {
+            "git_blob_digest": "945b90d609147aa85b1cdfdd00fa38df81275809",
+            "path": "contracts/authz/auth-catalog.json"
+          },
+          {
+            "git_blob_digest": "5ce421a4ec8180a8df764793c8d098b49c7ed6b3",
+            "path": "contracts/authz/auth-catalog.lock.json"
+          },
+          {
+            "git_blob_digest": "bcd223b31fce14acb25a068b0d0b6265dcd440ce",
+            "path": "contracts/authz/http-route-matrix.json"
+          },
+          {
+            "git_blob_digest": "13fb097fdf63436494923351b99cf6063f2681cf",
+            "path": "contracts/authz/http-route-matrix.lock.json"
+          }
+        ],
+        "oracle_commit": "e6a0ca0ab6cee5c779851518463eafba6ae146b3",
+        "oracle_commit_semantics": "last_committed_step_4_input_baseline",
+        "reseal_policy": {
+          "dedicated_flag": "--reseal-oracle",
+          "human_review_required": true,
+          "normal_validation_reseals": false
+        },
+        "review_policy": {
+          "policy_id": "ORACLE_STEP5_REREVIEW",
+          "required_action": "return_to_step_5_and_re_review",
+          "statement": "改訂 2 以降で oracle を変えるなら本ステップまで戻って再レビューする",
+          "trigger": "oracle_change_in_revision_2_or_later"
+        },
+        "schema_version": 1,
+        "sealed_assets": [
+          {
+            "asset_kind": "authz_candidate_ddl_manifest",
+            "asset_role": "expectation",
+            "canonical_sha256": "8a11a4eef84ece58474001171d677904dacc78c21438e15395d1f86ddf70f0a6",
+            "path": "contracts/authz/ddl-elements.json"
+          },
+          {
+            "asset_kind": "authz_rejected_configurations",
+            "asset_role": "evidence",
+            "canonical_sha256": "b4c468f1c2a655147337eabc8c651df5482e236df6e80f9d5c40deeb44d93268",
+            "path": "contracts/authz/rejected-configs.json"
+          },
+          {
+            "asset_kind": "authz_claim_mutant_map",
+            "asset_role": "expectation",
+            "canonical_sha256": "1b6b97f1a1f1a13bc01098a6fa2846205845ec1f3284fe4a5f98e56fa7b9cb21",
+            "path": "contracts/authz/claim-mutant-map.json"
+          },
+          {
+            "asset_kind": "authz_attack_tree",
+            "asset_role": "expectation",
+            "canonical_sha256": "b225ce42003910a19163e4ecb2f93733e73594e949d989e8683a410f79384e78",
+            "path": "contracts/authz/attack-tree.json"
+          },
+          {
+            "asset_kind": "authz_boundary_proposal",
+            "asset_role": "expectation",
+            "canonical_sha256": "70ff5e51bc5508076ff8600c048bcefebde0f87afb8eb5e23744e785fe4a811e",
+            "path": "contracts/authz/boundary-proposal.json"
+          },
+          {
+            "asset_kind": "authz_verification_evidence",
+            "asset_role": "evidence",
+            "canonical_sha256": "94a6d5497c4d582718d472ca33e531019445f185da0835928c775083b7bcc81b",
+            "path": "contracts/authz/verification-evidence.json"
+          }
+        ]
+      }
+    },
+    "oracle_seal_file_after": {
+      "path": "contracts/authz/oracle-seal.lock.json",
+      "sha256": "c47e203fe5bbfd977a3bb88ddf26fbe932349de178ef3c6443c42d4481a9ba31",
+      "value": {
+        "schema_version": 1,
+        "asset_kind": "authz_oracle_seal",
+        "oracle_commit": "4b85b358acb87d32ec964bd76856eb0c1cfec3f6",
+        "oracle_commit_semantics": "last_committed_step_4_input_baseline",
+        "input_assets": [
+          {
+            "path": "contracts/authz/requirement-claims.json",
+            "git_blob_digest": "724b44799283798d7c15389724987c9e1a049480"
+          },
+          {
+            "path": "contracts/authz/requirement-claims.lock.json",
+            "git_blob_digest": "68a4bcfc4729b53128b9f6540a7b05d2e6610cef"
+          },
+          {
+            "path": "contracts/authz/route-registry.json",
+            "git_blob_digest": "0c60ef5977a84dad30a6e5b754b0175ea57c68ca"
+          },
+          {
+            "path": "contracts/authz/route-registry.lock.json",
+            "git_blob_digest": "a0221a0bea7ff5205e121a4bcfeb70defb604007"
+          },
+          {
+            "path": "contracts/authz/auth-catalog.json",
+            "git_blob_digest": "0c3517c485e39da7f1e23904edaf9632d8494915"
+          },
+          {
+            "path": "contracts/authz/auth-catalog.lock.json",
+            "git_blob_digest": "dec9d332520ba428f6dd7a382681f379f909ae81"
+          },
+          {
+            "path": "contracts/authz/http-route-matrix.json",
+            "git_blob_digest": "b4ebe3f8e26ac684f1233ec7788d7705fb4b37c6"
+          },
+          {
+            "path": "contracts/authz/http-route-matrix.lock.json",
+            "git_blob_digest": "da9bdd00db48ba1c55269d715cb234815eb758ef"
+          }
+        ],
+        "sealed_assets": [
+          {
+            "path": "contracts/authz/ddl-elements.json",
+            "asset_role": "expectation",
+            "asset_kind": "authz_candidate_ddl_manifest",
+            "canonical_sha256": "f4e5ad83aa0f15c27bd3960c596e504db2cda15f7293df84568be62e02c4263b"
+          },
+          {
+            "path": "contracts/authz/rejected-configs.json",
+            "asset_role": "evidence",
+            "asset_kind": "authz_rejected_configurations",
+            "canonical_sha256": "b83bd4e5a2aa557f0863a3a3784c8386f5cff1241b81a85e40b3f81efa8705f3"
+          },
+          {
+            "path": "contracts/authz/claim-mutant-map.json",
+            "asset_role": "expectation",
+            "asset_kind": "authz_claim_mutant_map",
+            "canonical_sha256": "498680c435604f784b6a3c6f384ab5cfb484d5ddbbb78c49a601fcf20774dca6"
+          },
+          {
+            "path": "contracts/authz/attack-tree.json",
+            "asset_role": "expectation",
+            "asset_kind": "authz_attack_tree",
+            "canonical_sha256": "24e047f834d6e23227ded82f3934d571b944a040d9a1b32fcc61bf576459f575"
+          },
+          {
+            "path": "contracts/authz/boundary-proposal.json",
+            "asset_role": "expectation",
+            "asset_kind": "authz_boundary_proposal",
+            "canonical_sha256": "3f9b0f7a41c3f61c9df4decf610c0ec6fa1976b51720f2bfa15e7296d83329ff"
+          },
+          {
+            "path": "contracts/authz/verification-evidence.json",
+            "asset_role": "evidence",
+            "asset_kind": "authz_verification_evidence",
+            "canonical_sha256": "402336436a7736c52cdeb8a02a80761255430a45f2a518c05893628a410ac4a1"
+          }
+        ],
+        "review_policy": {
+          "policy_id": "ORACLE_STEP5_REREVIEW",
+          "trigger": "oracle_change_in_revision_2_or_later",
+          "required_action": "return_to_step_5_and_re_review",
+          "statement": "改訂 2 以降で oracle を変えるなら本ステップまで戻って再レビューする"
+        },
+        "reseal_policy": {
+          "normal_validation_reseals": false,
+          "dedicated_flag": "--reseal-oracle",
+          "human_review_required": true
+        }
+      }
+    },
+    "oracle_meaning_rows_unchanged": true
+  },
+  "history_record_drafts": {
+    "tenant_boundary": {
+      "path": "docs/features/ux1-fr014-rule-resolution/step3-pr152-tenant-record-draft.json",
+      "sha256": "b76b13db0d3c992b3be4f58207d59adc67a97cf8aa96b9498d722c336e8a19fc"
+    },
+    "seed_allowlist": {
+      "path": "docs/features/ux1-fr014-rule-resolution/step3-pr152-seed-record-draft.json",
+      "sha256": "7e33f37146677b9efefc7384b3ecb8ff9d75049597b39530e3dc07efd0723732"
+    },
+    "oracle_input": {
+      "path": "docs/features/ux1-fr014-rule-resolution/step3-pr152-oracle-record-draft.json",
+      "sha256": "a4a8ea66f7cdccdb6dc2545e13a2c076bb6234f102cb1b5a0ab96b6a58b054fc"
+    }
+  },
+  "candidate_file_sha256": [
+    {
+      "path": "contracts/authz/attack-tree.json",
+      "sha256": "6b51ee76346cd81e8b39a806390aa2813c9d730cd4f9119c0b73f68d715f2a28"
+    },
+    {
+      "path": "contracts/authz/auth-catalog.json",
+      "sha256": "b4692f470d7b1d5a48fdb001c6a36a8d98012dbf844b95a401d7774ae7f73ac4"
+    },
+    {
+      "path": "contracts/authz/auth-catalog.lock.json",
+      "sha256": "9d889c67f6c6cdd605b9e73febddcde665204d4d58693a2db899dd33c47d6d6d"
+    },
+    {
+      "path": "contracts/authz/boundary-proposal.json",
+      "sha256": "dfb1d746626be5a732c513eeb57f365aa94950202862e83e0618df5830d87f89"
+    },
+    {
+      "path": "contracts/authz/claim-mutant-map.json",
+      "sha256": "26129f4de500d9ad9531692fbd301eec459fb693446dc4b28c65b02d0000c518"
+    },
+    {
+      "path": "contracts/authz/ddl-elements.json",
+      "sha256": "91c0b023cf17fcf6494d331d81d6e2ca7bf8a9289fc16d1f0a59a5cfdff03bcd"
+    },
+    {
+      "path": "contracts/authz/http-route-matrix.json",
+      "sha256": "e8decfe49fe09a18b2580e6e576055ad80f3afd8c396fd2db5a5b3158b5f42c6"
+    },
+    {
+      "path": "contracts/authz/http-route-matrix.lock.json",
+      "sha256": "4d01520679deddbf45b1f12cabc79047128fd4f6629a9667e863e1aab6dcf227"
+    },
+    {
+      "path": "contracts/authz/oracle-seal.lock.json",
+      "sha256": "c47e203fe5bbfd977a3bb88ddf26fbe932349de178ef3c6443c42d4481a9ba31"
+    },
+    {
+      "path": "contracts/authz/rejected-configs.json",
+      "sha256": "20ad24d21ed5752b1c0455d5ac39d5c64ac867c4585e03e6cc90eaf734b01ec4"
+    },
+    {
+      "path": "contracts/authz/route-registry.json",
+      "sha256": "31bfebdc19af2e099250e4b6b726cae3d184ae024ff4201c34da07ac0903a84f"
+    },
+    {
+      "path": "contracts/authz/route-registry.lock.json",
+      "sha256": "19699bf3434a5345f62af7f1307f7a263f6a8bbb6f41c03b50aee71780cf1fe4"
+    },
+    {
+      "path": "contracts/authz/verification-evidence.json",
+      "sha256": "6080195b3f3444f475e90fb100306bc8216bd589bc17d30bbfd03283ca96ec7b"
+    },
+    {
+      "path": "contracts/tenant_boundary/base-allowlist.json",
+      "sha256": "dfcfd61843fceda013885fc8104c9c9571068041050969fdc14e2886da1802ea"
+    },
+    {
+      "path": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_apply_placement.py",
+      "sha256": "ca5d050c15c648d29c8555c20733d3219223ba4d308b823f3e4579be8210484e"
+    },
+    {
+      "path": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_placed_state.py",
+      "sha256": "50b976cb553f49af1f9803e400dddd90f92fef5a0362f1cb59512e27fd04917f"
+    },
+    {
+      "path": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_s0.py",
+      "sha256": "63602aa1003c041c10a5589d6dc7829c370ee4869ad526f1ee6076120a77cfae"
+    },
+    {
+      "path": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_s3.py",
+      "sha256": "383d23ae124fe5bd172a37489f10cf2857dd1c6c21bc74a340d09ee65b63077e"
+    },
+    {
+      "path": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_same_database.py",
+      "sha256": "421fbb5507a61b2a3d7239e4078328d771b15cf9ff92e803fa5a2acdaddc4f68"
+    },
+    {
+      "path": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/advance_stage_a_from_s0.py",
+      "sha256": "33097098f96e1ca6e52939d42c2b1262feda1d552ad1557e4135711f84b79abc"
+    },
+    {
+      "path": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/resume_stage_a_after_placement.py",
+      "sha256": "0502f5083710dcac6a7b86bbe84c7c502c33149da8cee6ddee7ecdc8ba9baaa6"
+    },
+    {
+      "path": "tests/test_stage_a_startup_tenant_boundary.py",
+      "sha256": "7d0763a0e3a0c64771f6218b75808ca21d93c5173af6126cc9930b9e60b41732"
+    }
+  ],
+  "formal_history_unchanged": true,
+  "approver": null,
+  "approval_date": null
+}

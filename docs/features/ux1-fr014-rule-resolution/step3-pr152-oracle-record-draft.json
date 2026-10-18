@@ -1,0 +1,43 @@
+{
+  "acceptance_id": "masaki1025/pitchlog#152",
+  "approved_at": null,
+  "approved_by": null,
+  "changes": [],
+  "moved": false,
+  "new_identity": {
+    "present": true,
+    "values": [
+      {
+        "kind": "literal_commit_string",
+        "value": "4b85b358acb87d32ec964bd76856eb0c1cfec3f6"
+      }
+    ]
+  },
+  "placement_change": {
+    "after": [
+      {
+        "kind": "ledger_series",
+        "path": "contracts/authz/frozen-baselines.json",
+        "series": "oracle_input"
+      }
+    ],
+    "before": [
+      {
+        "kind": "ledger_series",
+        "path": "contracts/authz/frozen-baselines.json",
+        "series": "oracle_input"
+      }
+    ]
+  },
+  "prior_identity": {
+    "present": true,
+    "values": [
+      {
+        "kind": "literal_commit_string",
+        "value": "e6a0ca0ab6cee5c779851518463eafba6ae146b3"
+      }
+    ]
+  },
+  "reason": "TSK-550/#152のclaim・lockへ派生3資産を追随させ、8入力blobと6oracle資産の封印参照を一致させる。認可意味行・分類・配置・同一性粒度は不変。",
+  "series": "oracle_input"
+}
