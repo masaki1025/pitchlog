@@ -1,71 +1,17 @@
 import { defineStore } from 'pinia'
 import { computed, onScopeDispose, ref } from 'vue'
-import { queryClient } from '../lib/queryClient'
 import {
   AUTH_INTENT_KEY,
+  assertAuthIntentLockHeld,
   readAuthIntent,
   type AuthEnvironmentReason,
 } from '../api/authIntent'
+import { queryClient } from '../lib/queryClient'
 
+/** 旧形式は移行時に破棄し、認証情報として復元しない。 */
 export const AUTH_STORAGE_KEY = 'bb.auth'
 
-type StoredAuth = {
-  version: 1
-  sessionId: string
-  teamName: string
-  teamId: string | null
-}
-
-const storageWarning = 'bb.auth の保存に失敗しました'
-const storedAuthKeys = ['version', 'sessionId', 'teamName', 'teamId']
-const sessionIdPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-
-function parseStoredAuth(raw: string): StoredAuth | null {
-  if (raw.length > 4096) {
-    return null
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return null
-  }
-
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    return null
-  }
-
-  const value = parsed as Record<string, unknown>
-  if (
-    Object.keys(value).length !== storedAuthKeys.length ||
-    !storedAuthKeys.every((key) => Object.hasOwn(value, key)) ||
-    value.version !== 1 ||
-    typeof value.sessionId !== 'string' ||
-    !sessionIdPattern.test(value.sessionId) ||
-    typeof value.teamName !== 'string' ||
-    value.teamName.length === 0 ||
-    (typeof value.teamId !== 'string' && value.teamId !== null)
-  ) {
-    return null
-  }
-
-  return value as StoredAuth
-}
-
-function removeStoredAuth(): boolean {
-  try {
-    localStorage.removeItem(AUTH_STORAGE_KEY)
-    return true
-  } catch {
-    console.warn(storageWarning)
-    return false
-  }
-}
-
 export const useAuthStore = defineStore('auth', () => {
-  // 新しいstoreは未検証。前providerのメモリcacheも認証の証拠にしない。
   queryClient.clear()
   const teamName = ref<string | null>(null)
   const teamId = ref<string | null>(null)
@@ -73,15 +19,23 @@ export const useAuthStore = defineStore('auth', () => {
   const hasHydrated = ref(false)
   const authEpoch = ref(0)
   const sessionVerified = ref(false)
-  const isAuthenticated = computed(
-    () => sessionVerified.value && teamName.value !== null,
-  )
-  // 相関モードでは別タブの確認だけで共有意図を書き換えない。
-  let correlated = false
-  let observedIntentId: string | null = null
-  let correlatedTenantId: string | null = null
   const explicitLoginRequired = ref(false)
+  const automaticVerificationBlocked = ref(false)
   const environmentReason = ref<AuthEnvironmentReason | null>(null)
+  const isAuthenticated = computed(() => sessionVerified.value)
+  let observedIntentId: string | null = null
+  let expectedTenantId: string | null = null
+  let observedLegacy: string | null = null
+
+  try {
+    localStorage.removeItem(AUTH_STORAGE_KEY)
+    observedIntentId = readAuthIntent()?.intentId ?? null
+  } catch {
+    // 復元はしない。具体的な環境失敗は認証操作で表示する。
+  } finally {
+    hasHydrated.value = true
+  }
+
   const canReverify = computed(() => {
     void authEpoch.value
     if (explicitLoginRequired.value) return false
@@ -97,138 +51,32 @@ export const useAuthStore = defineStore('auth', () => {
       return false
     }
   })
-  let sessionId: string | null = null
-  let detached = false
-  let detachedRaw: string | null = null
 
-  // 保存値は厳密に検査し、旧形式や壊れた値を認証状態へ取り込まない。
-  try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
-    if (raw !== null) {
-      const saved = parseStoredAuth(raw)
-      if (saved === null) {
-        removeStoredAuth()
-      } else {
-        sessionId = saved.sessionId
-        // 保存値は認証の証拠にせず、変更検出用の識別値だけを保持する。
-      }
-    }
-  } catch {
-    // ストレージを読めない場合は、未認証の初期状態を維持する。
-  } finally {
-    hasHydrated.value = true
-  }
-
-  function beginAuthChange(): void {
+  function discard(expired = false): void {
     queryClient.clear()
     authEpoch.value += 1
-  }
-
-  function enterDetachedState(): void {
-    detached = true
-    try {
-      detachedRaw = localStorage.getItem(AUTH_STORAGE_KEY)
-    } catch {
-      detachedRaw = null
-    }
-  }
-
-  function leaveDetachedState(): void {
-    detached = false
-    detachedRaw = null
-  }
-
-  function signIn(team: { teamName: string; teamId?: string | null }): void {
-    beginAuthChange()
-    sessionVerified.value = true
-    sessionId = crypto.randomUUID()
-    teamName.value = team.teamName
-    teamId.value = team.teamId ?? null
-    sessionExpired.value = false
-
-    try {
-      localStorage.setItem(
-        AUTH_STORAGE_KEY,
-        JSON.stringify({
-          version: 1,
-          sessionId,
-          teamName: teamName.value,
-          teamId: teamId.value,
-        }),
-      )
-      leaveDetachedState()
-    } catch {
-      // 前のチームの保存値が残ることを避ける。
-      try {
-        localStorage.removeItem(AUTH_STORAGE_KEY)
-      } catch {
-        // 警告は値や例外を含めず、まとめて一度だけ出す。
-      }
-      console.warn(storageWarning)
-      enterDetachedState()
-    }
-  }
-
-  function setUnauthenticated(expired: boolean): void {
     sessionVerified.value = false
     teamName.value = null
     teamId.value = null
-    sessionId = null
     sessionExpired.value = expired
   }
 
-  function clearAuth(expired: boolean): void {
-    setUnauthenticated(expired)
-    if (removeStoredAuth()) {
-      leaveDetachedState()
-    } else {
-      enterDetachedState()
-    }
-  }
-
-  function beginSessionVerification(): number {
-    beginAuthChange()
-    clearAuth(false)
-    return authEpoch.value
-  }
-
-  function signOut(): void {
-    beginAuthChange()
-    clearAuth(false)
-  }
-
-  function expireSession(): void {
-    beginAuthChange()
-    clearAuth(true)
-  }
-
   function beginCorrelatedVerification(intentId: string | null): number {
-    correlated = true
+    discard()
     observedIntentId = intentId
-    // 旧形式を採用しない。消去不能時もメモリ/cache破棄を先行する。
-    try {
-      localStorage.removeItem(AUTH_STORAGE_KEY)
-    } catch {
-      /* 旧形式は既に無効。 */
-    }
     environmentReason.value = null
     const marker = intentId === null ? null : readAuthIntent()
     if (marker?.intentId === intentId && marker?.tenantId)
-      correlatedTenantId = marker.tenantId
+      expectedTenantId = marker.tenantId
     if (marker?.intentId === intentId && marker?.phase === 'pending')
       explicitLoginRequired.value = false
-    beginAuthChange()
-    setUnauthenticated(false)
-    return authEpoch.value
-  }
-
-  function observeUnconfirmedIntent(intentId: string): void {
-    // 世代相違の検出で破棄済みなら、同じ旧応答でcacheを二重破棄しない。
-    if (isAuthenticated.value) beginCorrelatedVerification(intentId)
-    else {
-      correlated = true
-      observedIntentId = intentId
+    try {
+      localStorage.removeItem(AUTH_STORAGE_KEY)
+      observedLegacy = null
+    } catch {
+      /* 旧形式は認証へ採用しない。 */
     }
+    return authEpoch.value
   }
 
   function adoptCorrelatedSession(
@@ -236,15 +84,30 @@ export const useAuthStore = defineStore('auth', () => {
     tenantId: string,
     name: string,
   ): void {
-    // 呼出元はlock内でintent/tenant/世代を検査済み。保存値から名前を採らない。
-    correlated = true
-    observedIntentId = intentId
-    correlatedTenantId = tenantId
+    // 公開旧signInを廃止。相関検査を行った同期lock内だけから採用する。
+    assertAuthIntentLockHeld()
+    const marker = readAuthIntent()
+    if (
+      marker?.intentId !== intentId ||
+      marker.phase !== 'expected' ||
+      marker.tenantId !== tenantId ||
+      name.length === 0 ||
+      observedIntentId !== intentId
+    )
+      throw new Error('認証意図とsessionを照合できません')
+    expectedTenantId = tenantId
     teamId.value = tenantId
     teamName.value = name
     sessionVerified.value = true
     sessionExpired.value = false
     explicitLoginRequired.value = false
+    automaticVerificationBlocked.value = false
+    environmentReason.value = null
+  }
+
+  function observeUnconfirmedIntent(intentId: string): void {
+    if (isAuthenticated.value) beginCorrelatedVerification(intentId)
+    else observedIntentId = intentId
   }
 
   function requireExplicitLogin(): void {
@@ -253,110 +116,100 @@ export const useAuthStore = defineStore('auth', () => {
 
   function failAuthEnvironment(reason: AuthEnvironmentReason): void {
     if (reason === 'lock-busy') {
-      // 取得競合は一時的。期待IDを壊さず利用者の明示GETで再確認できる。
       let marker = null
       try {
         marker = readAuthIntent()
       } catch {
-        /* 読取失敗は別の回復案内にする。 */
+        /* 読取不能時は採用しない。 */
       }
       const required = explicitLoginRequired.value
       beginCorrelatedVerification(marker?.intentId ?? null)
       explicitLoginRequired.value = required
     } else {
-      beginCorrelatedVerification(null)
+      discard()
       explicitLoginRequired.value = true
     }
     environmentReason.value = reason
+    automaticVerificationBlocked.value = true
   }
 
   function syncFromStorage(): void {
-    if (correlated) {
-      let intent
-      try {
-        intent = readAuthIntent()
-      } catch {
-        if (isAuthenticated.value) {
-          beginAuthChange()
-          setUnauthenticated(false)
-        }
-        environmentReason.value = 'storage-unavailable'
-        explicitLoginRequired.value = true
-        return
-      }
-      if (
-        (intent?.intentId ?? null) !== observedIntentId ||
-        (isAuthenticated.value &&
-          (intent?.phase !== 'expected' || intent?.tenantId !== teamId.value))
-      ) {
-        beginAuthChange()
-        setUnauthenticated(false)
-        observedIntentId = intent?.intentId ?? null
-        // 旧タブから新しいtenantへの自動切替を禁止する。
-        explicitLoginRequired.value = !(
-          intent?.phase === 'verification-required' &&
-          intent.tenantId !== null &&
-          intent.tenantId === correlatedTenantId
-        )
-      }
-      return
-    }
-
-    let raw: string | null
+    let marker, legacy
     try {
-      raw = localStorage.getItem(AUTH_STORAGE_KEY)
+      marker = readAuthIntent()
+      legacy = localStorage.getItem(AUTH_STORAGE_KEY)
     } catch {
-      if (!detached && isAuthenticated.value) {
-        // 認証済みで保存値を照合できないときは、保存値を触らず失効させる。
-        beginAuthChange()
-        setUnauthenticated(true)
-      }
+      if (sessionVerified.value) discard()
+      environmentReason.value = 'storage-unavailable'
+      explicitLoginRequired.value = true
+      automaticVerificationBlocked.value = true
       return
     }
-
-    if (detached) {
-      if (raw === detachedRaw) {
-        return
-      }
-      // 別タブの新しい保存値は採らず、認証状態だけを失効させる。
-      beginAuthChange()
-      setUnauthenticated(true)
-      detachedRaw = raw
+    if (
+      sessionVerified.value &&
+      typeof globalThis.crypto?.randomUUID !== 'function'
+    ) {
+      failAuthEnvironment('identity-unavailable')
       return
     }
-
-    const saved = raw === null ? null : parseStoredAuth(raw)
-    if (raw !== null && saved === null) {
-      removeStoredAuth()
-    }
-    if ((saved?.sessionId ?? null) === sessionId) {
+    if (sessionVerified.value && !navigator.locks?.request) {
+      failAuthEnvironment('lock-unavailable')
       return
     }
+    if (
+      (marker?.intentId ?? null) !== observedIntentId ||
+      legacy !== observedLegacy ||
+      (sessionVerified.value &&
+        (marker?.phase !== 'expected' || marker.tenantId !== teamId.value))
+    ) {
+      const legacyChanged = legacy !== observedLegacy
+      discard()
+      observedIntentId = marker?.intentId ?? null
+      observedLegacy = legacy
+      automaticVerificationBlocked.value = true
+      explicitLoginRequired.value =
+        legacyChanged ||
+        !(
+          (marker?.phase === 'expected' ||
+            marker?.phase === 'verification-required') &&
+          marker.tenantId !== null &&
+          marker.tenantId === expectedTenantId
+        )
+    }
+  }
 
-    beginAuthChange()
-    // 別タブの保存値もサーバー確認までは採用しない。
-    setUnauthenticated(false)
-    sessionId = saved?.sessionId ?? null
+  // これらの既存APIは無効化だけを行い、検証済み状態を作らない。
+  function beginSessionVerification(): number {
+    try {
+      const marker = readAuthIntent()
+      return beginCorrelatedVerification(marker?.intentId ?? null)
+    } catch {
+      failAuthEnvironment('storage-unavailable')
+      return authEpoch.value
+    }
+  }
+  function signOut(): void {
+    discard()
+  }
+  function expireSession(): void {
+    discard(true)
   }
 
   function onStorage(event: StorageEvent): void {
     if (
-      event.key !== AUTH_STORAGE_KEY &&
       event.key !== AUTH_INTENT_KEY &&
+      event.key !== AUTH_STORAGE_KEY &&
       event.key !== null
-    ) {
+    )
       return
-    }
     try {
-      if (event.storageArea !== null && event.storageArea !== localStorage) {
+      if (event.storageArea !== null && event.storageArea !== localStorage)
         return
-      }
     } catch {
       return
     }
     syncFromStorage()
   }
-
   window.addEventListener('storage', onStorage)
   onScopeDispose(() => window.removeEventListener('storage', onStorage))
 
@@ -367,18 +220,18 @@ export const useAuthStore = defineStore('auth', () => {
     hasHydrated,
     authEpoch,
     isAuthenticated,
-    signIn,
-    beginSessionVerification,
-    signOut,
-    expireSession,
-    syncFromStorage,
+    explicitLoginRequired,
+    automaticVerificationBlocked,
+    environmentReason,
+    canReverify,
     beginCorrelatedVerification,
     adoptCorrelatedSession,
     observeUnconfirmedIntent,
     requireExplicitLogin,
     failAuthEnvironment,
-    explicitLoginRequired,
-    environmentReason,
-    canReverify,
+    beginSessionVerification,
+    signOut,
+    expireSession,
+    syncFromStorage,
   }
 })

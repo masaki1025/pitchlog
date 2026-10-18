@@ -1,887 +1,210 @@
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  AUTH_INTENT_KEY,
+  withAuthIntent,
+  writeAuthIntent,
+} from '../api/authIntent'
+import { setVerifiedAuthForTest } from '../api/auth.test-support'
 import { queryClient } from '../lib/queryClient'
 import { AUTH_STORAGE_KEY, useAuthStore } from './authStore'
 
-type StoredAuth = {
-  version: number
-  sessionId: string
-  teamName: string
-  teamId: string | null
-}
-
-const piniaInstances: Pinia[] = []
-const otherTabSessionIds = {
-  sameTeam: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-  teamB: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-  teamC: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-  teamD: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-  teamE: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-} as const
-
-function activatePinia(): void {
-  const pinia = createPinia()
-  piniaInstances.push(pinia)
+const a = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+const b = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+let pinia: Pinia
+beforeEach(() => {
+  localStorage.clear()
+  queryClient.clear()
+  pinia = createPinia()
   setActivePinia(pinia)
+  vi.stubGlobal('navigator', {
+    locks: {
+      request: vi.fn(async (_n, _o, action) => action({ name: 'unit' })),
+    },
+  })
+})
+afterEach(() => {
+  disposePinia(pinia)
+  queryClient.clear()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
+function authenticated() {
+  const auth = useAuthStore()
+  setVerifiedAuthForTest(auth, { teamName: '正規A', teamId: a })
+  queryClient.setQueryData(['private'], 'A data')
+  return auth
 }
-
-function writeOtherTabAuth(
-  sessionId: string,
-  teamName: string,
-  teamId: string | null,
-): void {
-  localStorage.setItem(
-    AUTH_STORAGE_KEY,
-    JSON.stringify({ version: 1, sessionId, teamName, teamId }),
-  )
+function empty(auth = useAuthStore()) {
+  expect(auth.isAuthenticated).toBe(false)
+  expect(auth.teamId).toBeNull()
+  expect(auth.teamName).toBeNull()
+  expect(queryClient.getQueryCache().getAll()).toEqual([])
 }
-
-function dispatchStorageEvent(
-  key: string | null = AUTH_STORAGE_KEY,
+function event(
+  key: string | null = AUTH_INTENT_KEY,
   storageArea: Storage | null = null,
-): void {
+) {
   window.dispatchEvent(new StorageEvent('storage', { key, storageArea }))
 }
 
-function savedAuth(): StoredAuth {
-  return JSON.parse(
-    localStorage.getItem(AUTH_STORAGE_KEY) ?? '{}',
-  ) as StoredAuth
-}
-
-function expectCacheReset(
-  operation: (store: ReturnType<typeof useAuthStore>) => void,
-): void {
-  const store = useAuthStore()
-  queryClient.setQueryData(['x'], 1)
-  const previousEpoch = store.authEpoch
-
-  operation(store)
-
-  expect(queryClient.getQueryCache().getAll()).toEqual([])
-  expect(store.authEpoch).toBe(previousEpoch + 1)
-}
-
-beforeEach(() => {
-  activatePinia()
-  localStorage.clear()
-  queryClient.clear()
-})
-
-afterEach(() => {
-  vi.restoreAllMocks()
-  for (const pinia of piniaInstances) {
-    disposePinia(pinia)
-  }
-  piniaInstances.length = 0
-  queryClient.clear()
-})
-
-describe('authStore', () => {
-  it('保存値がないとき未認証で同期的に復元を完了する', () => {
-    const store = useAuthStore()
-
-    expect(store.teamName).toBeNull()
-    expect(store.teamId).toBeNull()
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.sessionExpired).toBe(false)
-    expect(store.hasHydrated).toBe(true)
-    expect(store.authEpoch).toBe(0)
+describe('相関されたsessionだけを保持するauthStore', () => {
+  it('初期状態は未検証で同期hydrationを完了', () => {
+    const auth = useAuthStore()
+    expect(auth.hasHydrated).toBe(true)
+    expect(auth.authEpoch).toBe(0)
+    expect(auth.canReverify).toBe(false)
+    expect(auth.environmentReason).toBeNull()
+    empty(auth)
   })
-
-  it('signIn で認証済みとなり指定の4キーだけを保存する', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
-
-    expect(store.isAuthenticated).toBe(true)
-    expect(store.teamName).toBe('チーム A')
-    expect(store.teamId).toBe('team-a')
-    expect('sessionId' in store).toBe(false)
-    expect(Object.keys(savedAuth())).toEqual([
-      'version',
-      'sessionId',
-      'teamName',
-      'teamId',
-    ])
-    expect(savedAuth()).toEqual({
-      version: 1,
-      sessionId: expect.any(String),
-      teamName: 'チーム A',
-      teamId: 'team-a',
-    })
-    expect(savedAuth().sessionId).not.toBe('')
-  })
-
-  it('signIn のたびに異なる sessionId を保存する', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    const firstSessionId = savedAuth().sessionId
-
-    store.signIn({ teamName: 'チーム A' })
-
-    expect(savedAuth().sessionId).not.toBe(firstSessionId)
-  })
-
-  it('teamId を省略した signIn は null を保存する', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-
-    expect(store.teamId).toBeNull()
-    expect(savedAuth().teamId).toBeNull()
-  })
-
-  it('signOut は保存キーを消して未認証へ戻す', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
-
-    store.signOut()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.teamName).toBeNull()
-    expect(store.teamId).toBeNull()
-    expect(store.sessionExpired).toBe(false)
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
-  })
-
-  it('expireSession は失効を示し、次の signIn で失効表示を下ろす', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
-
-    store.expireSession()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.teamName).toBeNull()
-    expect(store.teamId).toBeNull()
-    expect(store.sessionExpired).toBe(true)
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
-
-    store.signIn({ teamName: 'チーム B' })
-    expect(store.sessionExpired).toBe(false)
-    expect(store.isAuthenticated).toBe(true)
-  })
-
-  it('signIn はキャッシュを消し authEpoch を増やす', () => {
-    expectCacheReset((store) => store.signIn({ teamName: 'チーム A' }))
-  })
-
-  it('signOut はキャッシュを消し authEpoch を増やす', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    expectCacheReset((current) => current.signOut())
-  })
-
-  it('expireSession はキャッシュを消し authEpoch を増やす', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    expectCacheReset((current) => current.expireSession())
-  })
-
-  it('新しい Pinia では保存済みチームを認証へ復元しない', () => {
-    const original = useAuthStore()
-    original.signIn({ teamName: 'チーム A', teamId: 'team-a' })
-    const sessionId = savedAuth().sessionId
-
-    activatePinia()
-    const restored = useAuthStore()
-
-    expect(restored.isAuthenticated).toBe(false)
-    expect(restored.teamName).toBeNull()
-    expect(restored.teamId).toBeNull()
-    expect(restored.hasHydrated).toBe(true)
-    expect(restored.authEpoch).toBe(0)
-    expect(savedAuth().sessionId).toBe(sessionId)
-  })
-
-  it('JSON でない保存値は消して未認証で始める', () => {
-    localStorage.setItem(AUTH_STORAGE_KEY, '{not json')
-
-    const store = useAuthStore()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.hasHydrated).toBe(true)
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
-  })
-
-  it('4096 文字を超える保存値は消して未認証で始める', () => {
-    const raw = JSON.stringify({
-      version: 1,
-      sessionId: otherTabSessionIds.teamB,
-      teamName: 'A'.repeat(4097),
-      teamId: null,
-    })
-    expect(raw.length).toBeGreaterThan(4096)
+  it.each([
+    '{',
+    'null',
+    '[]',
+    '{}',
+    JSON.stringify({ version: 1, sessionId: a, teamName: '旧名', teamId: a }),
+    JSON.stringify({ teamName: '旧形式' }),
+    'x'.repeat(8192),
+  ])('旧保存値%sは復元せず消去', (raw) => {
     localStorage.setItem(AUTH_STORAGE_KEY, raw)
-
-    const store = useAuthStore()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.hasHydrated).toBe(true)
+    empty()
     expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
   })
-
-  it('UUID 形式でない sessionId は消して未認証で始める', () => {
-    localStorage.setItem(
-      AUTH_STORAGE_KEY,
-      JSON.stringify({
-        version: 1,
-        sessionId: 'session-a',
-        teamName: 'チーム A',
-        teamId: 'team-a',
-      }),
-    )
-
-    const store = useAuthStore()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.hasHydrated).toBe(true)
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
+  it('旧signInによる未検証の認証済み化を公開しない', () => {
+    expect('signIn' in useAuthStore()).toBe(false)
+    empty()
   })
-
-  it.each([
-    [
-      '版が違う',
-      {
-        version: 2,
-        sessionId: otherTabSessionIds.teamB,
-        teamName: 'A',
-        teamId: null,
-      },
-    ],
-    [
-      'sessionId が空',
-      { version: 1, sessionId: '', teamName: 'A', teamId: null },
-    ],
-    [
-      'teamName が空',
-      {
-        version: 1,
-        sessionId: otherTabSessionIds.teamB,
-        teamName: '',
-        teamId: null,
-      },
-    ],
-    [
-      'teamId が文字列でも null でもない',
-      {
-        version: 1,
-        sessionId: otherTabSessionIds.teamB,
-        teamName: 'A',
-        teamId: 1,
-      },
-    ],
-    [
-      '余分なキーがある',
-      {
-        version: 1,
-        sessionId: otherTabSessionIds.teamB,
-        teamName: 'A',
-        teamId: null,
-        extra: 1,
-      },
-    ],
-    [
-      '必須キーがない',
-      { version: 1, sessionId: otherTabSessionIds.teamB, teamName: 'A' },
-    ],
-  ])('形が違う保存値（%s）は消して未認証で始める', (_name, value) => {
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(value))
-
-    const store = useAuthStore()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.hasHydrated).toBe(true)
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
+  it('lock外の直接採用を拒否', () => {
+    const auth = useAuthStore()
+    expect(() => auth.adoptCorrelatedSession(a, a, '入力名')).toThrow('lock外')
+    empty(auth)
   })
-
-  it('旧 zustand 形式は消して未認証で始める', () => {
-    localStorage.setItem(
-      AUTH_STORAGE_KEY,
-      JSON.stringify({
-        state: { token: 'secret-token', teamId: 1 },
-        version: 0,
-      }),
-    )
-
-    const store = useAuthStore()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.hasHydrated).toBe(true)
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
-  })
-
-  it('getItem が例外を投げても生成と3操作は止まらない', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('read failed')
+  it('lock内でもpendingや異tenantの採用を拒否', async () => {
+    const auth = useAuthStore()
+    await withAuthIntent(() => {
+      const pending = writeAuthIntent('pending', null)
+      auth.beginCorrelatedVerification(pending.intentId)
+      expect(() =>
+        auth.adoptCorrelatedSession(pending.intentId, a, 'A'),
+      ).toThrow()
+      const expected = writeAuthIntent('expected', a)
+      auth.beginCorrelatedVerification(expected.intentId)
+      expect(() =>
+        auth.adoptCorrelatedSession(expected.intentId, b, 'B'),
+      ).toThrow()
     })
-    const store = useAuthStore()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.hasHydrated).toBe(true)
-    expect(() => store.signIn({ teamName: 'チーム A' })).not.toThrow()
-    expect(() => store.signOut()).not.toThrow()
-    expect(() => store.expireSession()).not.toThrow()
+    empty(auth)
   })
-
-  it('setItem が例外を投げたら削除を試み、値を含まない警告を出す', () => {
-    const sessionId = '11111111-1111-4111-8111-111111111111'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(sessionId)
-    const remove = vi.spyOn(Storage.prototype, 'removeItem')
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('write failed')
-    })
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const store = useAuthStore()
-
-    expect(() =>
-      store.signIn({ teamName: '機密チーム名', teamId: 'secret-team-id' }),
-    ).not.toThrow()
-
-    expect(store.isAuthenticated).toBe(true)
-    expect(store.teamId).toBe('secret-team-id')
-    expect(remove).toHaveBeenCalledWith(AUTH_STORAGE_KEY)
-    expect(warning).toHaveBeenCalled()
-    const warningText = JSON.stringify(warning.mock.calls)
-    expect(warningText).not.toContain('機密チーム名')
-    expect(warningText).not.toContain('secret-team-id')
-    expect(warningText).not.toContain(sessionId)
+  it('サーバー確認済みの採用fixtureだけが表示名とIDを設定し、表示名を保存しない', () => {
+    const auth = authenticated()
+    expect(auth.isAuthenticated).toBe(true)
+    expect(auth.teamId).toBe(a)
+    expect(auth.teamName).toBe('正規A')
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
+    expect(localStorage.getItem(AUTH_INTENT_KEY)).not.toContain('正規A')
     expect(
-      warning.mock.calls.every((call) =>
-        call.every((arg) => typeof arg === 'string'),
-      ),
-    ).toBe(true)
+      Object.keys(JSON.parse(localStorage.getItem(AUTH_INTENT_KEY)!)),
+    ).toEqual(['version', 'intentId', 'phase', 'tenantId'])
   })
-
-  it('removeItem が例外を投げても無効値の除去と3操作は止まらない', () => {
-    localStorage.setItem(AUTH_STORAGE_KEY, '{not json')
-    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
-      throw new Error('remove failed')
-    })
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-    const store = useAuthStore()
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.hasHydrated).toBe(true)
-    expect(() => store.signIn({ teamName: 'チーム A' })).not.toThrow()
-    expect(() => store.signOut()).not.toThrow()
-    expect(() => store.expireSession()).not.toThrow()
-    expect(warning).toHaveBeenCalled()
-  })
-
-  it('setItem と removeItem がともに失敗してもメモリの認証状態を進める', () => {
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('write failed')
-    })
-    const remove = vi
-      .spyOn(Storage.prototype, 'removeItem')
-      .mockImplementation(() => {
-        throw new Error('remove failed')
-      })
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const store = useAuthStore()
-
-    expect(() => store.signIn({ teamName: 'チーム A' })).not.toThrow()
-    expect(store.isAuthenticated).toBe(true)
-    expect(remove).toHaveBeenCalledWith(AUTH_STORAGE_KEY)
-    expect(() => store.signOut()).not.toThrow()
-    expect(store.isAuthenticated).toBe(false)
-    expect(() => store.expireSession()).not.toThrow()
-    expect(store.sessionExpired).toBe(true)
-    expect(warning).toHaveBeenCalled()
-  })
-
-  it('保存する JSON に token の語を含めない', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
-
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).not.toContain('token')
-  })
-})
-
-describe('authStore タブ間同期', () => {
-  it('別タブの別チームへ切り替わるとキャッシュを消し authEpoch を増やす', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-
-    writeOtherTabAuth(otherTabSessionIds.teamB, 'チーム B', 'team-b')
-    dispatchStorageEvent(AUTH_STORAGE_KEY, localStorage)
-
-    expect(store.teamName).toBeNull()
-    expect(store.teamId).toBeNull()
-    expect(store.sessionExpired).toBe(false)
-    expect(store.authEpoch).toBe(previousEpoch + 1)
-    expect(queryClient.getQueryCache().getAll()).toEqual([])
-  })
-
-  it('同じチームでも sessionId が変わればキャッシュを消す', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-
-    writeOtherTabAuth(otherTabSessionIds.sameTeam, 'チーム A', 'team-a')
-    dispatchStorageEvent()
-
-    expect(store.teamName).toBeNull()
-    expect(store.teamId).toBeNull()
-    expect(store.authEpoch).toBe(previousEpoch + 1)
-    expect(queryClient.getQueryCache().getAll()).toEqual([])
-  })
-
-  it('同じ sessionId の再通知ではキャッシュと authEpoch を保つ', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-
-    dispatchStorageEvent()
-    dispatchStorageEvent()
-
-    expect(store.authEpoch).toBe(previousEpoch)
-    expect(queryClient.getQueryData(['x'])).toBe(1)
-  })
-
-  it('別タブの removeItem で未認証になる', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-
-    localStorage.removeItem(AUTH_STORAGE_KEY)
-    dispatchStorageEvent()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.teamName).toBeNull()
-    expect(store.teamId).toBeNull()
-    expect(store.sessionExpired).toBe(false)
-    expect(store.authEpoch).toBe(previousEpoch + 1)
-    expect(queryClient.getQueryCache().getAll()).toEqual([])
-  })
-
-  it('key が null の storage イベントでは保存値を読み直す', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    queryClient.setQueryData(['x'], 1)
-
-    localStorage.clear()
-    dispatchStorageEvent(null)
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.sessionExpired).toBe(false)
-    expect(queryClient.getQueryCache().getAll()).toEqual([])
-  })
-
-  it('別タブの壊れた保存値は消して未認証になる', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-
-    localStorage.setItem(AUTH_STORAGE_KEY, '{broken')
-    dispatchStorageEvent()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.sessionExpired).toBe(false)
-    expect(store.authEpoch).toBe(previousEpoch + 1)
-    expect(queryClient.getQueryCache().getAll()).toEqual([])
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
-  })
-
-  it('イベント前でも syncFromStorage で別チームへ切り替わる', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-
-    writeOtherTabAuth(otherTabSessionIds.teamB, 'チーム B', 'team-b')
-    store.syncFromStorage()
-
-    expect(store.teamName).toBeNull()
-    expect(store.teamId).toBeNull()
-    expect(store.authEpoch).toBe(previousEpoch + 1)
-    expect(queryClient.getQueryCache().getAll()).toEqual([])
-  })
-
-  it('認証済みで syncFromStorage の getItem が失敗したら保存値を触らず失効する', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-    const remove = vi.spyOn(Storage.prototype, 'removeItem')
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('read failed')
-    })
-
-    expect(() => store.syncFromStorage()).not.toThrow()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.teamName).toBeNull()
-    expect(store.teamId).toBeNull()
-    expect(store.sessionExpired).toBe(true)
-    expect(store.authEpoch).toBe(previousEpoch + 1)
-    expect(queryClient.getQueryCache().getAll()).toEqual([])
-    expect(remove).not.toHaveBeenCalled()
-  })
-
-  it('未認証で syncFromStorage の getItem が失敗しても状態とキャッシュを保つ', () => {
-    const store = useAuthStore()
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('read failed')
-    })
-
-    expect(() => store.syncFromStorage()).not.toThrow()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.sessionExpired).toBe(false)
-    expect(store.authEpoch).toBe(previousEpoch)
-    expect(queryClient.getQueryData(['x'])).toBe(1)
-  })
-
-  it('別のキーと別の storageArea のイベントは無視する', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-    writeOtherTabAuth(otherTabSessionIds.teamB, 'チーム B', 'team-b')
-
-    dispatchStorageEvent('bb.other')
-    dispatchStorageEvent(AUTH_STORAGE_KEY, sessionStorage)
-
-    expect(store.teamName).toBe('チーム A')
-    expect(store.authEpoch).toBe(previousEpoch)
-    expect(queryClient.getQueryData(['x'])).toBe(1)
-  })
-
-  it('setItem 失敗と削除成功の切り離しでは旧セッションへ戻らない', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
-    const failedSessionId = '22222222-2222-4222-8222-222222222222'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(failedSessionId)
-    const setItem = vi
-      .spyOn(Storage.prototype, 'setItem')
-      .mockImplementation(() => {
-        throw new Error('write failed')
-      })
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-    store.signIn({ teamName: '機密チーム B', teamId: 'secret-team-b' })
-
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
-    expect(warning).toHaveBeenCalled()
-    const warningText = JSON.stringify(warning.mock.calls)
-    expect(warningText).not.toContain('機密チーム B')
-    expect(warningText).not.toContain('secret-team-b')
-    expect(warningText).not.toContain(failedSessionId)
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-
-    store.syncFromStorage()
-
-    expect(store.teamName).toBe('機密チーム B')
-    expect(store.teamId).toBe('secret-team-b')
-    expect(store.authEpoch).toBe(previousEpoch)
-    expect(queryClient.getQueryData(['x'])).toBe(1)
-
-    setItem.mockRestore()
-    writeOtherTabAuth(otherTabSessionIds.teamC, 'チーム C', 'team-c')
-    const savedC = localStorage.getItem(AUTH_STORAGE_KEY)
-    const remove = vi.spyOn(Storage.prototype, 'removeItem')
-    store.syncFromStorage()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.sessionExpired).toBe(true)
-    expect(store.authEpoch).toBe(previousEpoch + 1)
-    expect(queryClient.getQueryCache().getAll()).toEqual([])
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedC)
-    expect(remove).not.toHaveBeenCalled()
-  })
-
-  it('setItem と removeItem の両方が失敗しても旧セッションへ戻らない', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
-    const savedA = localStorage.getItem(AUTH_STORAGE_KEY)
-    const failedSessionId = '33333333-3333-4333-8333-333333333333'
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue(failedSessionId)
-    const setItem = vi
-      .spyOn(Storage.prototype, 'setItem')
-      .mockImplementation(() => {
-        throw new Error('write failed')
-      })
-    const remove = vi
-      .spyOn(Storage.prototype, 'removeItem')
-      .mockImplementation(() => {
-        throw new Error('remove failed')
-      })
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-    store.signIn({ teamName: '機密チーム B', teamId: 'secret-team-b' })
-
-    expect(remove).toHaveBeenCalledWith(AUTH_STORAGE_KEY)
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedA)
-    expect(warning).toHaveBeenCalled()
-    const warningText = JSON.stringify(warning.mock.calls)
-    expect(warningText).not.toContain('機密チーム B')
-    expect(warningText).not.toContain('secret-team-b')
-    expect(warningText).not.toContain(failedSessionId)
-    setItem.mockRestore()
-    remove.mockRestore()
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-
-    store.syncFromStorage()
-
-    expect(store.teamName).toBe('機密チーム B')
-    expect(store.teamId).toBe('secret-team-b')
-    expect(store.authEpoch).toBe(previousEpoch)
-    expect(queryClient.getQueryData(['x'])).toBe(1)
-
-    writeOtherTabAuth(otherTabSessionIds.teamC, 'チーム C', 'team-c')
-    const savedC = localStorage.getItem(AUTH_STORAGE_KEY)
-    const removeAfterChange = vi.spyOn(Storage.prototype, 'removeItem')
-    store.syncFromStorage()
-
-    expect(store.isAuthenticated).toBe(false)
-    expect(store.sessionExpired).toBe(true)
-    expect(store.authEpoch).toBe(previousEpoch + 1)
-    expect(queryClient.getQueryCache().getAll()).toEqual([])
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedC)
-    expect(removeAfterChange).not.toHaveBeenCalled()
-  })
-
-  it.each([
-    ['削除成功', false],
-    ['削除失敗', true],
-  ] as const)(
-    '切り離し（%s）は自分の書き込み成功まで保存値を採らない',
-    (_case, failRemove) => {
-      const store = useAuthStore()
-      store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
-      const setItem = vi
-        .spyOn(Storage.prototype, 'setItem')
-        .mockImplementation(() => {
-          throw new Error('write failed')
-        })
-      const remove = failRemove
-        ? vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
-            throw new Error('remove failed')
-          })
-        : null
-      vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-      store.signIn({ teamName: 'チーム B', teamId: 'team-b' })
-      setItem.mockRestore()
-      remove?.mockRestore()
-
-      writeOtherTabAuth(otherTabSessionIds.teamC, 'チーム C', 'team-c')
-      const savedC = localStorage.getItem(AUTH_STORAGE_KEY)
-      queryClient.setQueryData(['x'], 1)
-      const beforeC = store.authEpoch
-      store.syncFromStorage()
-
-      expect(store.isAuthenticated).toBe(false)
-      expect(store.sessionExpired).toBe(true)
-      expect(store.authEpoch).toBe(beforeC + 1)
-      expect(queryClient.getQueryCache().getAll()).toEqual([])
-      expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedC)
-
-      queryClient.setQueryData(['x'], 2)
-      store.syncFromStorage()
-
-      expect(store.isAuthenticated).toBe(false)
-      expect(store.sessionExpired).toBe(true)
-      expect(store.authEpoch).toBe(beforeC + 1)
-      expect(queryClient.getQueryData(['x'])).toBe(2)
-
-      writeOtherTabAuth(otherTabSessionIds.teamD, 'チーム D', 'team-d')
-      const savedD = localStorage.getItem(AUTH_STORAGE_KEY)
-      store.syncFromStorage()
-
-      expect(store.isAuthenticated).toBe(false)
-      expect(store.sessionExpired).toBe(true)
-      expect(store.authEpoch).toBe(beforeC + 2)
-      expect(queryClient.getQueryCache().getAll()).toEqual([])
-      expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedD)
-
-      store.signIn({ teamName: 'チーム B', teamId: 'team-b' })
-      expect(store.isAuthenticated).toBe(true)
-      expect(store.sessionExpired).toBe(false)
-      queryClient.setQueryData(['x'], 3)
-      const beforeE = store.authEpoch
-      writeOtherTabAuth(otherTabSessionIds.teamE, 'チーム E', 'team-e')
-      store.syncFromStorage()
-
-      expect(store.teamName).toBeNull()
-      expect(store.teamId).toBeNull()
-      expect(store.sessionExpired).toBe(false)
-      expect(store.authEpoch).toBe(beforeE + 1)
-      expect(queryClient.getQueryCache().getAll()).toEqual([])
+  it.each(['beginSessionVerification', 'signOut', 'expireSession'] as const)(
+    '%sは記憶とcacheを捨て、認証済み状態を作らない',
+    (operation) => {
+      const auth = authenticated(),
+        epoch = auth.authEpoch,
+        marker = localStorage.getItem(AUTH_INTENT_KEY)
+      auth[operation]()
+      empty(auth)
+      expect(auth.authEpoch).toBe(epoch + 1)
+      expect(auth.sessionExpired).toBe(operation === 'expireSession')
+      expect(localStorage.getItem(AUTH_INTENT_KEY)).toBe(marker)
     },
   )
-
-  it('切り離し中に書き込みが成功すると通常の同期へ戻る', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    const setItem = vi
-      .spyOn(Storage.prototype, 'setItem')
-      .mockImplementation(() => {
-        throw new Error('write failed')
-      })
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    store.signIn({ teamName: 'チーム B' })
-    setItem.mockRestore()
-
-    store.signIn({ teamName: 'チーム B' })
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-    writeOtherTabAuth(otherTabSessionIds.teamC, 'チーム C', 'team-c')
-
-    store.syncFromStorage()
-
-    expect(store.teamName).toBeNull()
-    expect(store.teamId).toBeNull()
-    expect(store.sessionExpired).toBe(false)
-    expect(store.authEpoch).toBe(previousEpoch + 1)
-    expect(queryClient.getQueryCache().getAll()).toEqual([])
+  it('同じ意図のsession確認だけでは別タブ用の保存値を変更しない', () => {
+    const auth = authenticated(),
+      marker = localStorage.getItem(AUTH_INTENT_KEY)!
+    auth.beginCorrelatedVerification(JSON.parse(marker).intentId)
+    empty(auth)
+    expect(localStorage.getItem(AUTH_INTENT_KEY)).toBe(marker)
   })
-
-  it('切り離し中に removeItem が成功すると通常の同期へ戻る', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    const remove = vi
-      .spyOn(Storage.prototype, 'removeItem')
-      .mockImplementation(() => {
-        throw new Error('remove failed')
-      })
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    store.signOut()
-    remove.mockRestore()
-
-    store.signOut()
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-    writeOtherTabAuth(otherTabSessionIds.teamC, 'チーム C', 'team-c')
-
-    store.syncFromStorage()
-
-    expect(store.teamName).toBeNull()
-    expect(store.teamId).toBeNull()
-    expect(store.sessionExpired).toBe(false)
-    expect(store.authEpoch).toBe(previousEpoch + 1)
-    expect(queryClient.getQueryCache().getAll()).toEqual([])
+  it.each([a, b])('別タブの新意図%sは自動採用せず旧cacheを破棄', async (id) => {
+    const auth = authenticated(),
+      epoch = auth.authEpoch
+    await withAuthIntent(() => writeAuthIntent('expected', id))
+    event()
+    empty(auth)
+    expect(auth.authEpoch).toBe(epoch + 1)
+    expect(auth.automaticVerificationBlocked).toBe(true)
+    expect(auth.explicitLoginRequired).toBe(id !== a)
+    expect(auth.canReverify).toBe(id === a)
   })
-
-  it.each([
-    ['signOut', false],
-    ['expireSession', true],
-  ] as const)(
-    '%s の removeItem 失敗でも切り離して保存値を採らない',
-    (action, expired) => {
-      const store = useAuthStore()
-      store.signIn({ teamName: 'チーム A' })
-      const savedA = localStorage.getItem(AUTH_STORAGE_KEY)
-      const remove = vi
-        .spyOn(Storage.prototype, 'removeItem')
-        .mockImplementation(() => {
-          throw new Error('remove failed')
-        })
-      const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-      store[action]()
-
-      expect(store.isAuthenticated).toBe(false)
-      expect(store.sessionExpired).toBe(expired)
-      expect(warning).toHaveBeenCalled()
-      expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedA)
-      remove.mockRestore()
-      queryClient.setQueryData(['x'], 1)
-      const previousEpoch = store.authEpoch
-
-      store.syncFromStorage()
-
-      expect(store.isAuthenticated).toBe(false)
-      expect(store.sessionExpired).toBe(expired)
-      expect(store.authEpoch).toBe(previousEpoch)
-      expect(queryClient.getQueryData(['x'])).toBe(1)
-
-      writeOtherTabAuth(otherTabSessionIds.teamC, 'チーム C', 'team-c')
-      const savedC = localStorage.getItem(AUTH_STORAGE_KEY)
-      const removeAfterChange = vi.spyOn(Storage.prototype, 'removeItem')
-      store.syncFromStorage()
-
-      expect(store.isAuthenticated).toBe(false)
-      expect(store.sessionExpired).toBe(true)
-      expect(store.authEpoch).toBe(previousEpoch + 1)
-      expect(queryClient.getQueryCache().getAll()).toEqual([])
-      expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedC)
-      expect(removeAfterChange).not.toHaveBeenCalled()
-    },
-  )
-
-  it('切り離し中に getItem が失敗したらメモリを保つ', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    const setItem = vi
-      .spyOn(Storage.prototype, 'setItem')
-      .mockImplementation(() => {
-        throw new Error('write failed')
-      })
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    store.signIn({ teamName: 'チーム B' })
-    setItem.mockRestore()
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
+  it('同じ意図のstorage通知は二重破棄しない', () => {
+    const auth = authenticated(),
+      epoch = auth.authEpoch
+    const clear = vi.spyOn(queryClient, 'clear')
+    event()
+    event()
+    expect(clear).not.toHaveBeenCalled()
+    expect(auth.authEpoch).toBe(epoch)
+    expect(auth.isAuthenticated).toBe(true)
+  })
+  it('意図削除・clear通知は未確認にし、保存値から復元しない', () => {
+    const auth = authenticated()
+    localStorage.removeItem(AUTH_INTENT_KEY)
+    event(null)
+    empty(auth)
+    expect(auth.explicitLoginRequired).toBe(true)
+  })
+  it.each(['{', '{}', 'null', '[]'])('意図破損%sは旧cacheを破棄', (raw) => {
+    const auth = authenticated()
+    localStorage.setItem(AUTH_INTENT_KEY, raw)
+    auth.syncFromStorage()
+    empty(auth)
+  })
+  it('旧版タブのbb.auth変更も安全側へ無効化するだけで名前やIDを採らない', () => {
+    const auth = authenticated()
+    localStorage.setItem(
+      AUTH_STORAGE_KEY,
+      JSON.stringify({ teamName: '別B', teamId: b }),
+    )
+    event(AUTH_STORAGE_KEY)
+    empty(auth)
+    expect(auth.explicitLoginRequired).toBe(true)
+    const epoch = auth.authEpoch
+    event(AUTH_STORAGE_KEY)
+    expect(auth.authEpoch).toBe(epoch)
+  })
+  it('無関係keyやsessionStorageの通知では失効させない', () => {
+    const auth = authenticated(),
+      epoch = auth.authEpoch
+    event('bb.unrelated')
+    event(AUTH_INTENT_KEY, sessionStorage)
+    expect(auth.authEpoch).toBe(epoch)
+    expect(auth.teamId).toBe(a)
+  })
+  it('保存領域の読取拒否は値や例外を採らず未確認にする', () => {
+    const auth = authenticated()
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('read failed')
+      throw new Error('private-value')
     })
-
-    expect(() => store.syncFromStorage()).not.toThrow()
-
-    expect(store.teamName).toBe('チーム B')
-    expect(store.authEpoch).toBe(previousEpoch)
-    expect(queryClient.getQueryData(['x'])).toBe(1)
+    auth.syncFromStorage()
+    empty(auth)
+    expect(auth.environmentReason).toBe('storage-unavailable')
+    expect(auth.canReverify).toBe(false)
   })
-
-  it('切り離しに入るとき getItem が失敗したら null を覚える', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('write failed')
-    })
-    const getItem = vi
-      .spyOn(Storage.prototype, 'getItem')
-      .mockImplementation(() => {
-        throw new Error('read failed')
-      })
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-    expect(() => store.signIn({ teamName: 'チーム B' })).not.toThrow()
-    getItem.mockRestore()
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-
-    store.syncFromStorage()
-
-    expect(store.teamName).toBe('チーム B')
-    expect(store.authEpoch).toBe(previousEpoch)
-    expect(queryClient.getQueryData(['x'])).toBe(1)
+  it('lock機能が失われたら既存の認証済み状態も失効', () => {
+    const auth = authenticated()
+    vi.stubGlobal('navigator', {})
+    auth.syncFromStorage()
+    empty(auth)
+    expect(auth.environmentReason).toBe('lock-unavailable')
   })
-
-  it('$dispose 後は storage イベントで状態を変えない', () => {
-    const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A' })
-    queryClient.setQueryData(['x'], 1)
-    const previousEpoch = store.authEpoch
-    store.$dispose()
-
-    writeOtherTabAuth(otherTabSessionIds.teamB, 'チーム B', 'team-b')
-    dispatchStorageEvent()
-
-    expect(store.teamName).toBe('チーム A')
-    expect(store.authEpoch).toBe(previousEpoch)
-    expect(queryClient.getQueryData(['x'])).toBe(1)
+  it('provider再生成は保存expectedがあっても未検証', () => {
+    authenticated()
+    const p = createPinia()
+    setActivePinia(p)
+    const next = useAuthStore()
+    empty(next)
+    expect(next.canReverify).toBe(true)
+    disposePinia(p)
   })
 })

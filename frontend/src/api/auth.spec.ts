@@ -1,3 +1,4 @@
+import { setVerifiedAuthForTest } from './auth.test-support'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '../lib/queryClient'
@@ -61,7 +62,7 @@ function empty(p = pinia) {
 }
 function oldAuth() {
   const auth = useAuthStore()
-  auth.signIn({ teamName: '旧A', teamId: a })
+  setVerifiedAuthForTest(auth, { teamName: '旧A', teamId: a })
   queryClient.setQueryData(['old'], 'A秘密')
   return auth
 }
@@ -469,4 +470,82 @@ describe('承認済みlogin/session相関', () => {
       expect(fetch).not.toHaveBeenCalled()
     },
   )
+})
+
+describe('第1周の回復・直列化指摘', () => {
+  it('成功本文は非同期Cookie通知の完了まで読まない', async () => {
+    const waiting = deferred<void>()
+    const text = vi
+      .fn()
+      .mockResolvedValue(
+        JSON.stringify({ status: 'authenticated', tenant_id: b }),
+      )
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text,
+    } as unknown as Response)
+    const notify = vi.fn(() => waiting.promise)
+    const work = apiRequest('POST', '/auth/login', {
+      body: credentials,
+      noAuthExpiry: true,
+      onAuthCookieUncertain: notify,
+    })
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1))
+    expect(text).not.toHaveBeenCalled()
+    waiting.resolve()
+    await work
+    expect(text).toHaveBeenCalledTimes(1)
+  })
+  it('lock-busy後は他タブの意図を変更せず明示GETで回復', async () => {
+    const marker = await intent()
+    vi.mocked(navigator.locks.request).mockImplementationOnce(
+      async (_n, _o, action) => action!(null),
+    )
+    expect((await ensureSessionVerified()).status).toBe('verification-unknown')
+    const auth = useAuthStore()
+    expect(auth.environmentReason).toBe('lock-busy')
+    expect(auth.canReverify).toBe(true)
+    expect(auth.explicitLoginRequired).toBe(false)
+    expect(fetch).not.toHaveBeenCalled()
+    respond({ tenant_id: b, team_name: 'B' })
+    expect((await session()).status).toBe('authenticated')
+    expect(readAuthIntent()).toEqual(marker)
+    expect(auth.environmentReason).toBeNull()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it('同tenantの別タブ再loginも旧タブは自動復帰せず明示GETだけを許す', async () => {
+    const first = await loggedIn(b)
+    tab()
+    await loggedIn(b)
+    setActivePinia(pinia)
+    first.syncFromStorage()
+    const count = vi.mocked(fetch).mock.calls.length
+    expect((await ensureSessionVerified()).status).toBe('verification-unknown')
+    expect(fetch).toHaveBeenCalledTimes(count)
+    expect(first.canReverify).toBe(true)
+    respond({ tenant_id: b, team_name: 'B' })
+    expect((await session()).status).toBe('authenticated')
+    expect(fetch).toHaveBeenCalledTimes(count + 1)
+  })
+  it('非同期付与と排他を伴うlockでもlogin/logoutの成功が自己競合しない', async () => {
+    let held = false
+    vi.mocked(navigator.locks.request).mockImplementation(
+      async (_n, _o, action) => {
+        await Promise.resolve()
+        if (held) return action!(null)
+        held = true
+        try {
+          return action!({ name: 'native-like' } as Lock)
+        } finally {
+          held = false
+        }
+      },
+    )
+    await loggedIn()
+    respond({ status: 'logged_out' })
+    expect((await logout()).status).toBe('logged-out')
+    expect(useAuthStore().environmentReason).toBeNull()
+  })
 })

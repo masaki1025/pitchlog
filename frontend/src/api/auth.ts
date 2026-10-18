@@ -75,6 +75,10 @@ function failedEnvironment(
 ): { status: 'verification-unknown'; authEpoch: number } {
   if (error instanceof AuthEnvironmentError)
     auth.failAuthEnvironment(error.reason)
+  else {
+    auth.beginCorrelatedVerification(null)
+    auth.requireExplicitLogin()
+  }
   return unknown(auth)
 }
 function pendingMutation(auth: AuthStore): boolean {
@@ -153,6 +157,8 @@ async function readSession(
         now.phase === 'expected'
           ? now
           : writeAuthIntent('expected', intent.tenantId)
+      if (marker.intentId !== now.intentId)
+        auth.observeUnconfirmedIntent(marker.intentId)
       auth.adoptCorrelatedSession(
         marker.intentId,
         value.tenant_id,
@@ -200,6 +206,7 @@ export function ensureSessionVerified(): Promise<SessionResult> {
   const auth = store()
   if (pendingMutation(auth))
     return Promise.reject(new AuthOperationInProgressError())
+  if (auth.automaticVerificationBlocked) return Promise.resolve(unknown(auth))
   if (auth.isAuthenticated && auth.teamId !== null)
     return Promise.resolve(authenticated(auth))
   const pending = sessions.get(auth)

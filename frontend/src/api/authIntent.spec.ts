@@ -12,6 +12,11 @@ const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const valid = { version: 1, intentId: id, phase: 'expected', tenantId: id }
 beforeEach(() => {
   localStorage.clear()
+  vi.stubGlobal('navigator', {
+    locks: {
+      request: vi.fn(async (_n, _o, action) => action({ name: 'unit' })),
+    },
+  })
 })
 afterEach(() => {
   vi.restoreAllMocks()
@@ -91,10 +96,10 @@ describe('認証意図の厳密構造・排他契約', () => {
     expect(() => readAuthIntent()).toThrow(AuthEnvironmentError)
     expect(() => readAuthIntent()).toThrow('storage-unavailable')
   })
-  it('storage書込が反映されない場合も採用しない', () => {
+  it('storage書込が反映されない場合も採用しない', async () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => undefined)
-    expect(() => writeAuthIntent('pending', null)).toThrow(
-      'storage-unavailable',
-    )
+    await expect(
+      withAuthIntent(() => writeAuthIntent('pending', null)),
+    ).rejects.toThrow('storage-unavailable')
   })
 })

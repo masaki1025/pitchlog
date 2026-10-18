@@ -1,3 +1,4 @@
+import { setVerifiedAuthForTest } from './auth.test-support'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '../lib/queryClient'
@@ -51,7 +52,10 @@ beforeEach(() => {
   pinia = createPinia()
   setActivePinia(pinia)
   localStorage.clear()
-  useAuthStore().signIn({ teamName: '検証済み試験チーム', teamId: 'team-test' })
+  setVerifiedAuthForTest(useAuthStore(), {
+    teamName: '検証済み試験チーム',
+    teamId: '6efca380-dea3-5a4e-9749-40dfb1dbd65e',
+  })
   vi.stubGlobal('fetch', vi.fn())
 })
 
@@ -284,7 +288,10 @@ describe('apiRequest', () => {
 
   it('401 で expireSession を呼び、sessionExpired を true にする', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expire = vi.spyOn(auth, 'expireSession')
     respond('{"error":{"message":"認証期限切れ"}}', 401, {
       'Content-Type': 'application/json',
@@ -298,7 +305,10 @@ describe('apiRequest', () => {
 
   it('noAuthExpiry の 401 では expireSession を呼ばない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expire = vi.spyOn(auth, 'expireSession')
     respond('', 401)
 
@@ -378,7 +388,10 @@ describe('apiRequest', () => {
 
   it('往復中に認証世代が変わると 200 の本文を読まず ApiStaleAuthError にする', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const pending = deferredResponse()
     vi.mocked(fetch).mockReturnValue(pending.promise)
     const request = apiRequest('GET', '/players')
@@ -405,7 +418,10 @@ describe('apiRequest', () => {
 
   it('往復中に認証世代が変わると 401 でも新しい認証を失効させない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expire = vi.spyOn(auth, 'expireSession')
     const pending = deferredResponse()
     vi.mocked(fetch).mockReturnValue(pending.promise)
@@ -434,7 +450,10 @@ describe('apiRequest', () => {
 
   it('200 の本文を読む途中で認証が変わると値を返さない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const reading = deferredValue<void>()
     const body = deferredValue<string>()
     const response = new Response(null, {
@@ -467,7 +486,10 @@ describe('apiRequest', () => {
 
   it('401 の本文を読む途中で認証が変わると B を失効させない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expire = vi.spyOn(auth, 'expireSession')
     const reading = deferredValue<void>()
     const body = deferredValue<string>()
@@ -503,7 +525,10 @@ describe('apiRequest', () => {
 
   it('401 の本文読み取り失敗でも失効して原因付き ApiError にする', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expire = vi.spyOn(auth, 'expireSession')
     const cause = new TypeError('read failed')
     const response = new Response(null, {
@@ -532,7 +557,10 @@ describe('apiRequest', () => {
 
   it('noAuthExpiry の 401 で本文読み取りが失敗しても失効しない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expire = vi.spyOn(auth, 'expireSession')
     const cause = new TypeError('read failed')
     const response = new Response(null, { status: 401 })
@@ -608,7 +636,10 @@ describe('apiRequest', () => {
 
   it('401 の text() が AbortError でも失効して同じ例外を投げる', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expire = vi.spyOn(auth, 'expireSession')
     const abort = new DOMException('aborted', 'AbortError')
     const response = new Response(null, { status: 401 })
@@ -622,7 +653,10 @@ describe('apiRequest', () => {
 
   it('読み取り中に認証が変わると AbortError より世代の不一致を優先する', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expire = vi.spyOn(auth, 'expireSession')
     const reading = deferredValue<void>()
     let rejectBody!: (cause: unknown) => void
@@ -727,7 +761,10 @@ describe('apiDownload', () => {
 
   it('401 で expireSession を呼ぶ', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expire = vi.spyOn(auth, 'expireSession')
     respond('{"error":{"message":"期限切れ"}}', 401)
 
@@ -741,7 +778,10 @@ describe('apiDownload', () => {
 
   it('noAuthExpiry の 401 では expireSession を呼ばない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expire = vi.spyOn(auth, 'expireSession')
     respond('{"error":{"message":"認証失敗"}}', 401)
 
@@ -813,7 +853,10 @@ describe('apiDownload', () => {
 
   it('往復中に認証世代が変わると Blob を読まず ApiStaleAuthError にする', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const pending = deferredResponse()
     vi.mocked(fetch).mockReturnValue(pending.promise)
     const request = apiDownload('/reports/game.csv')
@@ -835,7 +878,10 @@ describe('apiDownload', () => {
 
   it('往復中に世代が変わった 401 は新しい認証を失効させない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expire = vi.spyOn(auth, 'expireSession')
     const pending = deferredResponse()
     vi.mocked(fetch).mockReturnValue(pending.promise)
@@ -863,7 +909,10 @@ describe('apiDownload', () => {
 
   it('Blob を読む途中で認証が変わるとファイルを返さない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const reading = deferredValue<void>()
     const body = deferredValue<Blob>()
     const response = new Response(null, { status: 200 })

@@ -22,3 +22,14 @@
 - lock-busyの全タブ拒否通知は6de49595へ具体案を固定し人間判断待ち。承認前に通知2キーを追加しない。
 - 旧signIn公開面は製品呼出が0であり、直接のサーバー認証/認可を迂回できるものではない。ただし誤用の可能性と新clientの検証済み状態の条件について整理中。既受理やレビュー通過にはしない。
 - backend全件は初期候補の途中から製品の例外境界修正が入ったため中断。完走として扱わず、修正後の全件を別実行する。修正後の固有backend41件とfrontend相関79件は成功。
+
+## 2026-10-19 旧認証済み化の廃止・回復UI追随
+
+- 製品の旧signInを削除。同期Web Lock内のadoptCorrelatedSessionだけが認証済みを作り、phase/意図ID/期待tenant/観測意図/表示名を検査する。writeAuthIntentにも同じ同期lockの検査を追加。失効操作は認証済み状態を作らない。
+- 認証以外のAPI/選手管理の単体試験はauth.test-support.tsの明示fixtureへ移行。これは単体用同期fake lock・検証成功後の状態準備で、製品importや実ブラウザ受入に使わない。旧の任意文字列tenant fixtureはcanonical UUIDに揃えた。APIやDTOを追加したものではない。
+- 旧store試験の保存4キー/任意signIn/保存失敗でもメモリ認証継続という期待値は廃止した契約のため置換。旧形式は全破棄、新意図のstrict decoder25件、lock外/異phase/異tenant拒否、同/別tenant通知、storage/lock拒否、旧版通知による安全側失効を固定。境界spec・選手管理specの拒否/遅延/cache/queue保存の検証は維持した。
+- 一時lock-busyは意図を壊さず明示GETで回復し、未知tenantでは効かない再確認ボタンを出さない。別タブの同tenant再loginでも自動復帰はせず、明示GETだけを許す。未知tenantや異tenantへの自動切替は不可。
+- Web Locks/localStorage/secure contextに加え、元候補が使用するcrypto.randomUUIDも利用可能であることを検査する。生成機能がなければ送信を拒否し対応ブラウザ/HTTPSへの回復案内を出す。実測済みブラウザはChromium149.0.7827.0だけで、他ブラウザの受入済みとはしない。
+- 修正後固有112件、旧境界/consumer探索187件中5失敗は明示再確認時に新意図へ移る観測IDの更新不足で、lock内で新意図を観測してから採用する修正を反映し112件再成功。探索のfrontend全件は69ファイル1248件成功したが実行中に後発のlock invariant追随があるため最終固定HEADの全件とは扱わない。型/ESLint/Prettier/buildも成功。最終HEADで必要な再検査を残す。
+- 実画面の部分受入は結合HEAD4656f868、対戦相手選手の追加/編集/reloadと同tenant2タブ・別tenant旧タブ非自動切替が成功。自チームreadは既存opponent専用契約のため未実装、確定認証のlogout UIは範囲外で切替前提に実APIを明示使用した。U-F13ログへ証跡を固定。
+- 2キー拒否専用通知は引き続き未承認・未実装。第2周レビュー未実施・本人逐行確認未実施。全品質通過/ステップ完了を記録しない。
