@@ -519,3 +519,12 @@ C2のbackend/.venvは外部cacheへのリンク構成で、pytestスクリプト
 4. 現C2/U-F3/U-F13に対する通常push/Draft PR作成の許可は未取得。既存のC1他PR向け許可を流用しない。C2は資料とローカル全件検査が揃ったが、U-F3は上記登録、U-F13は接続と受入が残るため、それぞれ条件成立後だけ進める。
 
 実画面でのlogin→session→/team→一覧/追加/編集→reloadはまだ通していない。既存Chromium/Playwrightの能力確認を製品受入へ読み替えない。共有providerと正規API/DTOを再利用する準備・実経路照合は完了しており、550/D4/544/545を無関係な停止条件にしない。本人逐行確認の実施/方法、公開、マージを代行しない。
+
+
+## 2026-10-18: 接続準備の追加承認と新契約の具体提示
+
+山田正輝がLoginScreen*登録、自分の固定候補の専用検証結合、現承認範囲の通常push/Draft作成を承認。C2はDraft #150へ通常push済み（HEAD146c774c）。U-F3は宣言8a73dd21→試験追随45f6acd6→JSON単独a794a637→記録ea1b3bda。core全264成功、機械検出と本人未記入拒否。追加のcore変更に対応したroot全件を専用DBで実行中。初回起動はroot環境にpsycopgがなくDB起動前に停止し、既存backend Pythonから正規runnerを再起動した。
+
+結合元は実develop156dd139、C2 193400d68e852bce14cee4ff65038c4a92a57c47、U-F3 ea1b3bda681b689c9b8fe1b56fae7dce8f9d5d7f。専用feature/uf13-team-route-verificationだけへ結合（merge0793fa16）。他担当未統合枝は不使用。router/Appの編集所有はU-F13へ移り、元PR/他担当worktreeへ結合差分を逆流させない。
+
+新login/session相関のDTO前後・意図識別/保持・旧Cookie順序・再確認手順と現C1との差は[具体比較資料](../features/uf13-team-route-acceptance/login-session-correlation-comparison.md)へ提示。新契約は未承認・未実装のまま、既承認の経路/JSON/試験を進める。相関の既知残余を通し受入成功で隠さず、本人確認・公開・マージは代行しない。
