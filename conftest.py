@@ -1,10 +1,20 @@
-"""ルートの pytest 設定を異なる Python 環境でも受理させる。"""
+"""ルートの pytest 設定を異なる Python 環境でも受理させる。
+
+あわせて、pytest の一時ディレクトリの基底をディスク側(既定
+``~/.cache/pitchlog/pytest-tmp``)へ向けて古い世代を掃除する
+(``scripts/pytest_tmp_bootstrap.py`` — 共有 /tmp〔tmpfs〕の満杯対策)。
+"""
 
 from __future__ import annotations
 
 import importlib.util
 
 import pytest
+
+from scripts.pytest_tmp_bootstrap import activate, prune_stale
+
+# basetemp は tempfile 経由で遅延計算されるため、conftest の読込み時に向け替える。
+prune_stale(activate())
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
