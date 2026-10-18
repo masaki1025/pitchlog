@@ -296,13 +296,15 @@ it('通知キーだけ保存不可でも意図無効化を独立に試みる', a
     setVerifiedAuthForTest(other, { teamName: '同じAの別タブ', teamId: a })
     expect(other.isAuthenticated).toBe(true)
     const native = Storage.prototype.setItem
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(
-      function (key, value) {
-        if (key === 'bb.auth.uncertain')
-          throw new DOMException('quota', 'QuotaExceededError')
-        return native.call(this, key, value)
-      },
-    )
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+      this: Storage,
+      key,
+      value,
+    ) {
+      if (key === 'bb.auth.uncertain')
+        throw new DOMException('quota', 'QuotaExceededError')
+      return native.call(this, key, value)
+    })
     await auth.invalidateUncertainCookie()
     expect(JSON.parse(localStorage.getItem(AUTH_INTENT_KEY)!).phase).toBe(
       'verification-required',
